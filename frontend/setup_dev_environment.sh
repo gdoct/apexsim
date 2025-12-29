@@ -49,13 +49,6 @@ if [[ "$DISTRO" == "ubuntu" ]] || [[ "$DISTRO" == "debian" ]]; then
         cmake \
         mono-complete \
         mono-devel \
-        mono-xbuild \
-        mono-dmcs \
-        libmono-system-data-datasetextensions4.0-cil \
-        libmono-system-web-extensions4.0-cil \
-        libmono-system-management4.0-cil \
-        libmono-system-xml-linq4.0-cil \
-        cmake \
         dos2unix \
         git \
         ninja-build \
