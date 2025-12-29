@@ -5,3 +5,5 @@ pub mod network;
 pub mod physics;
 pub mod health;
 pub mod transport;
+pub mod lobby;
+pub mod replay;

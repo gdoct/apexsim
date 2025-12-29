@@ -74,12 +74,7 @@ pub enum ServerMessage {
     },
 
     // UDP - High frequency telemetry
-    Telemetry {
-        server_tick: u32,
-        session_state: SessionState,
-        countdown_ms: Option<u16>,
-        car_states: Vec<CarStateTelemetry>,
-    },
+    Telemetry(Telemetry),
 }
 
 // --- Lightweight Lobby Structures ---
@@ -126,6 +121,15 @@ pub struct CarStateTelemetry {
     pub current_lap: u16,
     pub track_progress: f32,
     pub finish_position: Option<u8>,
+}
+
+/// Telemetry data sent to clients at high frequency (240Hz)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Telemetry {
+    pub server_tick: u32,
+    pub session_state: SessionState,
+    pub countdown_ms: Option<u16>,
+    pub car_states: Vec<CarStateTelemetry>,
 }
 
 impl From<&CarState> for CarStateTelemetry {

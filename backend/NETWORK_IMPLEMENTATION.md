@@ -151,25 +151,82 @@ bytes = "1"
 ✅ Zero warnings on compilation
 ✅ All existing tests still pass
 
+## Completed Enhancements (Latest Update)
+
+### Full TLS Support
+✅ **Implemented**: TLS 1.3 stream handling with generic async stream support
+- Proper TLS handshake using `rustls` and `tokio-rustls`
+- Graceful fallback to unencrypted mode if TLS not configured
+- Both TLS and non-TLS streams handled through same code path
+- Length-prefixed message framing for reliable message boundaries
+
+### Message Routing
+✅ **Implemented**: Full integration between transport layer and game loop
+- Non-blocking message processing in game loop (100μs timeout)
+- Player input routing to physics simulation
+- Session creation/join handling
+- Real-time input processing at 240Hz
+
+### Graceful Shutdown
+✅ **Implemented**: Clean shutdown with client notifications
+- Broadcasts error message to all connected clients (code 503)
+- 500ms grace period for messages to send
+- Health endpoint marks server as unhealthy
+- Connection cleanup before exit
+
+### Heartbeat Handling
+✅ **Implemented**: Automatic heartbeat processing
+- Heartbeat messages update connection last-seen time
+- Automatic cleanup of stale connections (every second)
+- Heartbeat ACK responses with server tick
+- Configurable timeout (default: 5 seconds)
+
+## Advanced Session Management (Completed)
+
+✅ **Lobby System** ([src/lobby.rs](src/lobby.rs))
+- Full lobby management for players to browse and join sessions
+- Session visibility controls (Public/Private/Protected)
+- Player tracking and session assignment
+- Join as participant or spectator
+- Session state broadcasting support
+
+✅ **Spectator Mode** ([src/lobby.rs](src/lobby.rs))
+- Read-only session participation
+- Separate spectator tracking from active players
+- Spectator count management
+- Join ongoing sessions as observer
+
+✅ **Session Replay System** ([src/replay.rs](src/replay.rs))
+- Frame-by-frame replay recording during sessions
+- Binary file format with metadata header
+- Replay playback with seek/reset controls
+- Automatic session recording management
+- Replay metadata (participants, track, duration)
+
 ## Future Enhancements
 
-The current implementation provides a solid foundation. Future improvements could include:
+The following features are planned for future implementation:
 
-1. **Full TLS Integration**: Currently TLS handshake is loaded but connection handler uses unencrypted mode for simplicity. Full TLS stream handling can be added.
+1. **DTLS for UDP**: Add encrypted UDP support using DTLS 1.3 for production deployments.
 
-2. **DTLS for UDP**: Add encrypted UDP support using DTLS 1.3 for production deployments.
-
-3. **Message Routing**: Connect the transport layer to the game loop for actual message processing (currently only authentication is handled).
-
-4. **Metrics**: Add Prometheus metrics via the `/metrics` endpoint for monitoring:
+2. **Metrics**: Add Prometheus metrics via the `/metrics` endpoint for monitoring:
    - Connection counts
    - Message throughput
    - Latency histograms
    - Error rates
 
-5. **Rate Limiting**: Implement per-connection rate limiting for DoS protection.
+3. **Rate Limiting**: Implement per-connection rate limiting for DoS protection.
 
-6. **Graceful Shutdown**: Properly close all connections and send shutdown notifications before server exit.
+4. **Lobby Message Handlers**: Wire up lobby-related client messages:
+   - List available sessions
+   - Join/leave session commands
+   - Spectator join commands
+   - Session state updates to lobby clients
+
+5. **Replay Integration**: Connect replay recording to active game sessions:
+   - Auto-start recording when session begins
+   - Auto-save replays when session ends
+   - Replay playback endpoints
 
 ## Notes
 

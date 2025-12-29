@@ -111,38 +111,52 @@ backend/
 
 ### Recently Implemented (Dec 2025)
 
-7. **Network Layer** (`src/transport.rs`)
+7. **Network Layer** (`src/transport.rs`) - ✅ COMPLETE
    - Full async TCP/UDP socket handling with Tokio
    - Per-connection bidirectional channels
-   - TLS 1.3 encryption support via rustls
+   - TLS 1.3 encryption with full stream handling
+   - Generic stream support (works with TLS and non-TLS)
    - Connection tracking and player authentication
    - Heartbeat timeout and stale connection cleanup
-   - Length-prefixed message framing for TCP
+   - Length-prefixed message framing for reliable TCP
+   - Graceful shutdown with client notifications
+   - Message size validation (1MB max)
 
-8. **Health Endpoint** (`src/health.rs`)
+8. **Health Endpoint** (`src/health.rs`) - ✅ COMPLETE
    - HTTP health check server on port 9002
    - `/health` endpoint for liveness checks
    - `/ready` endpoint for readiness probes
    - Hyper 1.0 based async HTTP server
+   - Shutdown integration (marks unhealthy on shutdown)
 
-9. **TLS Encryption**
-   - Self-signed certificate support
-   - Configurable cert/key paths in server.toml
-   - Graceful fallback without TLS if certs missing
+9. **Message Routing** (src/main.rs) - ✅ COMPLETE
+   - Full integration between transport and game loop
+   - Non-blocking message processing (100μs timeout)
+   - Player input routing to physics simulation
+   - Session creation and join handling
+   - Automatic heartbeat processing
+   - Connection cleanup every second
+
+10. **TLS Encryption** - ✅ COMPLETE
+    - Full TLS 1.3 stream implementation
+    - Self-signed certificate support
+    - Configurable cert/key paths in server.toml
+    - Graceful fallback without TLS if certs missing
+    - Proper error handling and logging
 
 ### What's Missing (Future Work)
 
 Based on the full specification in README.md, the following components are not yet implemented:
 
-- **Message Routing**: Connect transport layer to game loop for full client/server communication
 - **Content Watcher**: Hot-reload of car/track definitions
 - **Database**: SQLite persistence for sessions and telemetry
 - **Metrics**: Prometheus metrics export on `/metrics` endpoint
-- **Advanced Features**: Replays, spectator mode, horizontal scaling
 - **DTLS**: Encrypted UDP for production environments
-- **Full TLS Integration**: Complete TLS stream handling in connection handler
+- **Advanced Features**: Replays, spectator mode, horizontal scaling
+- **Rate Limiting**: Per-connection DoS protection
+- **Lobby System**: Browse and join existing sessions
 
-The core simulation engine and network transport layer are complete and tested. The game logic integration and persistence layers would be the next priority for a production deployment.
+The core simulation engine and complete network transport layer are now fully implemented and integrated. The persistence layer and advanced features would be the next priority for a production deployment.
 
 ---
 
