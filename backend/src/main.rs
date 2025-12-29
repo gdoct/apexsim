@@ -1,10 +1,17 @@
-use apexsim_server::{config::ServerConfig, data::*, game_session::GameSession};
+use apexsim_server::{
+    config::ServerConfig,
+    data::*,
+    game_session::GameSession,
+    health::{HealthState, run_health_server},
+    transport::TransportLayer,
+    network::ServerMessage,
+};
 use clap::Parser;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
-use tracing::info;
+use tracing::{info, warn};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -104,16 +111,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         state.read().await.car_configs.len(),
         state.read().await.track_configs.len());
 
+    // Initialize health state
+    let health_state = HealthState::new();
+
+    // Start health check server
+    let health_bind = config.network.health_bind.clone();
+    let health_state_clone = health_state.clone();
+    tokio::spawn(async move {
+        if let Err(e) = run_health_server(health_bind, health_state_clone).await {
+            warn!("Health server error: {}", e);
+        }
+    });
+
+    // Initialize transport layer
+    let mut transport = match TransportLayer::new(
+        &config.network.tcp_bind,
+        &config.network.udp_bind,
+        &config.network.tls_cert_path,
+        &config.network.tls_key_path,
+        config.network.heartbeat_timeout_ms,
+    ).await {
+        Ok(t) => {
+            info!("Transport layer initialized successfully");
+            t
+        }
+        Err(e) => {
+            return Err(format!("Failed to initialize transport layer: {}", e).into());
+        }
+    };
+
+    // Start transport layer
+    transport.start().await;
+    let transport = Arc::new(RwLock::new(transport));
+
+    // Mark server as ready
+    health_state.set_ready(true).await;
+    info!("Server marked as ready");
+
     // Start main game loop
     let loop_state = Arc::clone(&state);
+    let loop_transport = Arc::clone(&transport);
     let tick_rate = config.server.tick_rate_hz;
-    
+
     tokio::spawn(async move {
-        run_game_loop(loop_state, tick_rate).await;
+        run_game_loop(loop_state, loop_transport, tick_rate).await;
     });
 
     info!("Server is running. Press Ctrl+C to stop.");
-    
+
     // Wait for shutdown signal
     tokio::signal::ctrl_c().await?;
     
@@ -126,7 +171,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn run_game_loop(state: Arc<RwLock<ServerState>>, tick_rate: u16) {
+async fn run_game_loop(state: Arc<RwLock<ServerState>>, _transport: Arc<RwLock<TransportLayer>>, tick_rate: u16) {
     const SHOULD_LOG_TICKS: bool = false;
     let tick_duration = Duration::from_micros((1_000_000.0 / tick_rate as f64) as u64);
     let mut ticker = interval(tick_duration);

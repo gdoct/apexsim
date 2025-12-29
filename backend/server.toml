@@ -6,6 +6,9 @@ session_timeout_seconds = 300
 [network]
 tcp_bind = "127.0.0.1:9000"
 udp_bind = "127.0.0.1:9001"
+health_bind = "127.0.0.1:9002"
+tls_cert_path = "./certs/server.crt"
+tls_key_path = "./certs/server.key"
 heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000
 
