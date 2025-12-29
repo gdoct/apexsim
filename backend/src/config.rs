@@ -21,6 +21,9 @@ pub struct ServerSettings {
 pub struct NetworkSettings {
     pub tcp_bind: String,
     pub udp_bind: String,
+    pub health_bind: String,
+    pub tls_cert_path: String,
+    pub tls_key_path: String,
     pub heartbeat_interval_ms: u64,
     pub heartbeat_timeout_ms: u64,
 }
@@ -48,6 +51,9 @@ impl Default for ServerConfig {
             network: NetworkSettings {
                 tcp_bind: "127.0.0.1:9000".to_string(),
                 udp_bind: "127.0.0.1:9001".to_string(),
+                health_bind: "127.0.0.1:9002".to_string(),
+                tls_cert_path: "./certs/server.crt".to_string(),
+                tls_key_path: "./certs/server.key".to_string(),
                 heartbeat_interval_ms: 1000,
                 heartbeat_timeout_ms: 5000,
             },
