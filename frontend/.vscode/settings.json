@@ -1,0 +1,71 @@
+{
+    // C++ settings for Unreal Engine development
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.default.intelliSenseMode": "linux-clang-x64",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.errorSquiggles": "enabled",
+    
+    // Editor settings
+    "editor.formatOnSave": false,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": true,
+    "editor.rulers": [120],
+    
+    // Files settings
+    "files.associations": {
+        "*.uproject": "json",
+        "*.uplugin": "json",
+        "*.h": "cpp",
+        "*.cpp": "cpp",
+        "*.inl": "cpp",
+        "*.tps": "xml"
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/Binaries": true,
+        "**/Build": true,
+        "**/DerivedDataCache": true,
+        "**/Intermediate": true,
+        "**/Saved": true,
+        "**/*.generated.h": true,
+        "**/*.gen.cpp": true
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    
+    // Search exclusions
+    "search.exclude": {
+        "**/Binaries": true,
+        "**/Build": true,
+        "**/DerivedDataCache": true,
+        "**/Intermediate": true,
+        "**/Saved": true,
+        "**/*.generated.h": true,
+        "**/*.gen.cpp": true
+    },
+    
+    // Terminal
+    "terminal.integrated.scrollback": 10000,
+    
+    // Git
+    "git.ignoreLimitWarning": true,
+    
+    // Markdown
+    "[markdown]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.wordWrap": "on"
+    },
+    
+    // JSON
+    "[json]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2
+    }
+}
