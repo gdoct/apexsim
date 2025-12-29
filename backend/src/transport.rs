@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use thiserror::Error;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
@@ -62,6 +62,10 @@ pub struct TransportLayer {
     udp_out_tx: mpsc::UnboundedSender<(SocketAddr, ServerMessage)>,
     udp_out_rx: mpsc::UnboundedReceiver<(SocketAddr, ServerMessage)>,
 
+    // Shutdown channel
+    shutdown_tx: mpsc::UnboundedSender<()>,
+    shutdown_rx: Option<mpsc::UnboundedReceiver<()>>,
+
     heartbeat_timeout: Duration,
 }
 
@@ -97,6 +101,7 @@ impl TransportLayer {
         let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
         let (udp_tx, udp_rx) = mpsc::unbounded_channel();
         let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
+        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
 
         Ok(Self {
             connections: Arc::new(RwLock::new(HashMap::new())),
@@ -111,6 +116,8 @@ impl TransportLayer {
             udp_tx,
             udp_out_tx,
             udp_out_rx,
+            shutdown_tx,
+            shutdown_rx: Some(shutdown_rx),
             heartbeat_timeout: Duration::from_millis(heartbeat_timeout_ms),
         })
     }
@@ -220,7 +227,7 @@ impl TransportLayer {
         stream: TcpStream,
         addr: SocketAddr,
         tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
-        _tls_acceptor: Option<TlsAcceptor>,
+        tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
     ) -> Result<(), TransportError> {
@@ -228,16 +235,68 @@ impl TransportLayer {
         let connection_id = Self::addr_to_connection_id(&addr);
 
         // Create per-connection send channel
-        let (conn_tx, mut conn_rx) = mpsc::unbounded_channel::<ServerMessage>();
+        let (conn_tx, conn_rx) = mpsc::unbounded_channel::<ServerMessage>();
 
-        // Create a simple unencrypted connection for now (TLS will be added properly later)
+        // Handle TLS if available
+        if let Some(acceptor) = tls_acceptor {
+            match acceptor.accept(stream).await {
+                Ok(tls_stream) => {
+                    info!("TLS connection established for {}", addr);
+                    Self::handle_stream(
+                        tls_stream,
+                        addr,
+                        connection_id,
+                        conn_tx,
+                        conn_rx,
+                        tcp_tx,
+                        connections,
+                        addr_to_connection,
+                    )
+                    .await
+                }
+                Err(e) => {
+                    error!("TLS handshake failed for {}: {}", addr, e);
+                    Err(TransportError::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("TLS handshake failed: {}", e)
+                    )))
+                }
+            }
+        } else {
+            // Non-TLS connection
+            Self::handle_stream(
+                stream,
+                addr,
+                connection_id,
+                conn_tx,
+                conn_rx,
+                tcp_tx,
+                connections,
+                addr_to_connection,
+            )
+            .await
+        }
+    }
+
+    async fn handle_stream<S>(
+        stream: S,
+        addr: SocketAddr,
+        connection_id: ConnectionId,
+        conn_tx: mpsc::UnboundedSender<ServerMessage>,
+        mut conn_rx: mpsc::UnboundedReceiver<ServerMessage>,
+        tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
+        connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
+        addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+    ) -> Result<(), TransportError>
+    where
+        S: AsyncReadExt + AsyncWriteExt + Unpin + Send + 'static,
+    {
         // Split into reader and writer
-        let (reader, writer) = tokio::io::split(stream);
+        let (mut reader, mut writer) = tokio::io::split(stream);
 
         // Spawn writer task
+        let writer_addr = addr;
         tokio::spawn(async move {
-            use tokio::io::AsyncWriteExt;
-            let mut writer = writer;
             while let Some(msg) = conn_rx.recv().await {
                 match bincode::serialize(&msg) {
                     Ok(data) => {
@@ -255,70 +314,102 @@ impl TransportLayer {
                     }
                     Err(e) => {
                         error!("Failed to serialize message: {}", e);
+                        break;
                     }
                 }
             }
-            debug!("Writer task closed for {}", addr);
+            debug!("Writer task closed for {}", writer_addr);
         });
 
         // Reader task (runs in this function)
-        let mut reader = reader;
-        let mut buf = vec![0u8; 8192];
+        // Read with length-prefix framing
+        let mut len_buf = [0u8; 4];
 
         loop {
-            match reader.read(&mut buf).await {
-                Ok(0) => {
-                    info!("Connection closed by client: {}", addr);
-                    break;
-                }
-                Ok(n) => {
-                    match bincode::deserialize::<ClientMessage>(&buf[..n]) {
-                        Ok(msg) => {
-                            // Handle authentication - register connection
-                            if let ClientMessage::Authenticate { player_name, .. } = &msg {
-                                let player_id = Uuid::new_v4();
-                                let conn_info = ConnectionInfo {
-                                    player_id,
-                                    player_name: player_name.clone(),
-                                    connected_at: Instant::now(),
-                                    last_heartbeat: Instant::now(),
-                                    tcp_addr: addr,
-                                    tcp_tx: conn_tx.clone(),
-                                };
+            // Read length prefix
+            match reader.read_exact(&mut len_buf).await {
+                Ok(_) => {
+                    let len = u32::from_be_bytes(len_buf) as usize;
 
-                                connections.write().await.insert(connection_id, conn_info);
-                                addr_to_connection.write().await.insert(addr, connection_id);
-                                info!("Player {} authenticated as {}", player_name, player_id);
+                    // Sanity check to prevent memory exhaustion
+                    if len > 1_000_000 {  // 1MB max message size
+                        warn!("Message too large from {}: {} bytes", addr, len);
+                        break;
+                    }
 
-                                // Send auth success response
-                                let response = ServerMessage::AuthSuccess {
-                                    player_id,
-                                    server_version: 1,
-                                };
-                                let _ = conn_tx.send(response);
-                            }
+                    // Read message data
+                    let mut msg_buf = vec![0u8; len];
+                    match reader.read_exact(&mut msg_buf).await {
+                        Ok(_) => {
+                            match bincode::deserialize::<ClientMessage>(&msg_buf) {
+                                Ok(msg) => {
+                                    // Handle authentication - register connection
+                                    if let ClientMessage::Authenticate { player_name, .. } = &msg {
+                                        let player_id = Uuid::new_v4();
+                                        let conn_info = ConnectionInfo {
+                                            player_id,
+                                            player_name: player_name.clone(),
+                                            connected_at: Instant::now(),
+                                            last_heartbeat: Instant::now(),
+                                            tcp_addr: addr,
+                                            tcp_tx: conn_tx.clone(),
+                                        };
 
-                            if tcp_tx.send((connection_id, msg)).is_err() {
-                                error!("Failed to send message to handler");
-                                break;
+                                        connections.write().await.insert(connection_id, conn_info.clone());
+                                        addr_to_connection.write().await.insert(addr, connection_id);
+                                        info!("Player {} authenticated as {}", player_name, player_id);
+
+                                        // Send auth success response
+                                        let response = ServerMessage::AuthSuccess {
+                                            player_id,
+                                            server_version: 1,
+                                        };
+                                        let _ = conn_tx.send(response);
+                                    } else if let ClientMessage::Heartbeat { .. } = &msg {
+                                        // Update last heartbeat time
+                                        if let Some(conn) = connections.write().await.get_mut(&connection_id) {
+                                            conn.last_heartbeat = Instant::now();
+                                        }
+
+                                        // Send heartbeat ack
+                                        let response = ServerMessage::HeartbeatAck {
+                                            server_tick: 0, // Will be updated later with actual tick
+                                        };
+                                        let _ = conn_tx.send(response);
+                                    }
+
+                                    if tcp_tx.send((connection_id, msg)).is_err() {
+                                        error!("Failed to send message to handler");
+                                        break;
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("Failed to deserialize message from {}: {}", addr, e);
+                                }
                             }
                         }
                         Err(e) => {
-                            warn!("Failed to deserialize message from {}: {}", addr, e);
+                            debug!("Failed to read message data from {}: {}", addr, e);
+                            break;
                         }
                     }
                 }
                 Err(e) => {
-                    error!("Read error from {}: {}", addr, e);
+                    if e.kind() != std::io::ErrorKind::UnexpectedEof {
+                        debug!("Connection closed by {}: {}", addr, e);
+                    } else {
+                        info!("Connection closed by client: {}", addr);
+                    }
                     break;
                 }
             }
         }
 
         // Cleanup connection
-        connections.write().await.remove(&connection_id);
-        addr_to_connection.write().await.remove(&addr);
-        info!("Connection cleaned up: {}", addr);
+        if let Some(conn) = connections.write().await.remove(&connection_id) {
+            addr_to_connection.write().await.remove(&addr);
+            info!("Connection cleaned up: {} (player: {})", addr, conn.player_name);
+        }
 
         Ok(())
     }
@@ -427,6 +518,46 @@ impl TransportLayer {
         if let Some(info) = self.connections.write().await.get_mut(&connection_id) {
             info.last_heartbeat = Instant::now();
         }
+    }
+
+    pub async fn shutdown(&mut self) {
+        info!("Initiating transport layer shutdown");
+
+        // Send shutdown message to all connected clients
+        let connections = self.connections.read().await;
+        for conn_info in connections.values() {
+            info!("Sending shutdown notification to player: {}", conn_info.player_name);
+            let _ = conn_info.tcp_tx.send(ServerMessage::Error {
+                code: 503,
+                message: "Server is shutting down".to_string(),
+            });
+        }
+        drop(connections);
+
+        // Signal shutdown to all tasks
+        let _ = self.shutdown_tx.send(());
+
+        // Give connections time to send shutdown messages
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+        info!("Transport layer shutdown complete");
+    }
+
+    pub async fn broadcast_tcp(&self, msg: ServerMessage) {
+        let connections = self.connections.read().await;
+        for conn_info in connections.values() {
+            let _ = conn_info.tcp_tx.send(msg.clone());
+        }
+    }
+
+    pub fn get_connection_count(&self) -> usize {
+        // This is async but we need a sync version for quick checks
+        // We'll add an async version too
+        0 // Placeholder, use get_connection_count_async instead
+    }
+
+    pub async fn get_connection_count_async(&self) -> usize {
+        self.connections.read().await.len()
     }
 
     fn addr_to_connection_id(addr: &SocketAddr) -> ConnectionId {

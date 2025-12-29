@@ -212,12 +212,14 @@ impl GameSession {
             .countdown_ticks_remaining
             .map(|ticks| ((ticks as f32 / 240.0) * 1000.0) as u16);
 
-        ServerMessage::Telemetry {
+        let telemetry = crate::network::Telemetry {
             server_tick: self.session.current_tick,
             session_state: self.session.state,
             countdown_ms,
             car_states,
-        }
+        };
+
+        ServerMessage::Telemetry(telemetry)
     }
 
     fn is_race_complete(&self) -> bool {

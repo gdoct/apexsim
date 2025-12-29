@@ -3,6 +3,8 @@ use apexsim_server::{
     data::*,
     game_session::GameSession,
     health::{HealthState, run_health_server},
+    lobby::LobbyManager,
+    replay::ReplayManager,
     transport::TransportLayer,
 };
 use clap::Parser;
@@ -30,6 +32,8 @@ struct ServerState {
     track_configs: HashMap<TrackConfigId, TrackConfig>,
     sessions: HashMap<SessionId, GameSession>,
     players: HashMap<PlayerId, Player>,
+    lobby: LobbyManager,
+    replay: ReplayManager,
 }
 
 impl ServerState {
@@ -50,6 +54,8 @@ impl ServerState {
             track_configs,
             sessions: HashMap::new(),
             players: HashMap::new(),
+            lobby: LobbyManager::new(),
+            replay: ReplayManager::new(std::path::PathBuf::from("./replays")),
         }
     }
 
@@ -160,9 +166,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Wait for shutdown signal
     tokio::signal::ctrl_c().await?;
-    
+
     info!("Shutdown signal received. Cleaning up...");
-    
+
+    // Mark server as unhealthy
+    health_state.set_healthy(false).await;
+
+    // Shutdown transport layer (notifies all clients)
+    transport.write().await.shutdown().await;
+
     // Cleanup
     let final_state = state.read().await;
     info!("Server shutting down with {} active sessions", final_state.sessions.len());
@@ -170,12 +182,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn run_game_loop(state: Arc<RwLock<ServerState>>, _transport: Arc<RwLock<TransportLayer>>, tick_rate: u16) {
+async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<TransportLayer>>, tick_rate: u16) {
     const SHOULD_LOG_TICKS: bool = false;
     let tick_duration = Duration::from_micros((1_000_000.0 / tick_rate as f64) as u64);
     let mut ticker = interval(tick_duration);
 
     let mut tick_count = 0u64;
+    let mut player_inputs: HashMap<PlayerId, PlayerInputData> = HashMap::new();
 
     loop {
         ticker.tick().await;
@@ -194,11 +207,62 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, _transport: Arc<RwLock<T
             }
         }
 
+        // Process incoming TCP messages (non-blocking)
+        let mut transport_write = transport.write().await;
+        while let Ok(Some((connection_id, msg))) = tokio::time::timeout(
+            Duration::from_micros(100),
+            transport_write.recv_tcp()
+        ).await {
+            use apexsim_server::network::ClientMessage;
+            match msg {
+                ClientMessage::PlayerInput { throttle, brake, steering, .. } => {
+                    // Find player ID for this connection
+                    if let Some(conn_info) = transport_write.get_connection(connection_id).await {
+                        let input = PlayerInputData {
+                            throttle,
+                            brake,
+                            steering,
+                        };
+                        player_inputs.insert(conn_info.player_id, input);
+                    }
+                }
+                ClientMessage::CreateSession { track_config_id, max_players, ai_count, lap_limit } => {
+                    // Handle session creation
+                    if let Some(conn_info) = transport_write.get_connection(connection_id).await {
+                        let mut state_write = state.write().await;
+                        if let Some(session_id) = state_write.create_session(
+                            conn_info.player_id,
+                            track_config_id,
+                            max_players,
+                            ai_count,
+                            lap_limit
+                        ) {
+                            info!("Session {} created by player {}", session_id, conn_info.player_name);
+                            let _ = transport_write.send_tcp(connection_id, apexsim_server::network::ServerMessage::SessionJoined {
+                                session_id,
+                                your_grid_position: 1,
+                            }).await;
+                        }
+                    }
+                }
+                _ => {
+                    // Other messages handled elsewhere (auth, heartbeat already handled in transport)
+                }
+            }
+        }
+
+        // Cleanup stale connections every second
+        if tick_count % tick_rate as u64 == 0 {
+            transport_write.cleanup_stale_connections().await;
+        }
+
+        drop(transport_write);
+
         // Update all sessions
         let mut state_write = state.write().await;
-        
-        // Collect inputs (empty for now, will be populated by network layer)
-        let inputs: HashMap<PlayerId, PlayerInputData> = HashMap::new();
+
+        // Use collected inputs
+        let inputs = player_inputs.clone();
 
         // Tick each session
         for (session_id, game_session) in state_write.sessions.iter_mut() {

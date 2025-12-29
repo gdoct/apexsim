@@ -75,6 +75,7 @@ dependencies = [
  "rustls",
  "rustls-pemfile",
  "serde",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tokio-rustls",
