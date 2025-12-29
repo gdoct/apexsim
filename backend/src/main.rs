@@ -47,6 +47,7 @@ impl ServerState {
         }
     }
 
+    #[allow(dead_code)]
     fn create_session(
         &mut self,
         host_player_id: PlayerId,
@@ -126,6 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn run_game_loop(state: Arc<RwLock<ServerState>>, tick_rate: u16) {
+    const SHOULD_LOG_TICKS: bool = false;
     let tick_duration = Duration::from_micros((1_000_000.0 / tick_rate as f64) as u64);
     let mut ticker = interval(tick_duration);
 
@@ -135,15 +137,17 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, tick_rate: u16) {
         ticker.tick().await;
         tick_count += 1;
 
+        if SHOULD_LOG_TICKS {
         // Log every second (240 ticks at 240Hz)
-        if tick_count % tick_rate as u64 == 0 {
-            let state_read = state.read().await;
-            info!(
-                "Tick {} - Active sessions: {}, Players: {}",
-                tick_count,
-                state_read.sessions.len(),
-                state_read.players.len()
-            );
+            if tick_count % tick_rate as u64 == 0 {
+                let state_read = state.read().await;
+                info!(
+                    "Tick {} - Active sessions: {}, Players: {}",
+                    tick_count,
+                    state_read.sessions.len(),
+                    state_read.players.len()
+                );
+            }
         }
 
         // Update all sessions
