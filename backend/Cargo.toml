@@ -1,0 +1,24 @@
+[package]
+name = "apexsim-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+serde = { version = "1", features = ["derive"] }
+bincode = "1"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+tracing-appender = "0.2"
+toml = "0.8"
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+proptest = "1"
+tokio-test = "0.4"
+
+[[bin]]
+name = "apexsim-server"
+path = "src/main.rs"
