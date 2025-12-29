@@ -5,14 +5,14 @@
     "C_Cpp.default.intelliSenseMode": "linux-clang-x64",
     "C_Cpp.intelliSenseEngine": "default",
     "C_Cpp.errorSquiggles": "enabled",
-    
+
     // Editor settings
     "editor.formatOnSave": false,
     "editor.tabSize": 4,
     "editor.insertSpaces": false,
     "editor.detectIndentation": true,
     "editor.rulers": [120],
-    
+
     // Files settings
     "files.associations": {
         "*.uproject": "json",
@@ -38,7 +38,7 @@
     },
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
-    
+
     // Search exclusions
     "search.exclude": {
         "**/Binaries": true,
@@ -49,20 +49,20 @@
         "**/*.generated.h": true,
         "**/*.gen.cpp": true
     },
-    
+
     // Terminal
     "terminal.integrated.scrollback": 10000,
-    
+
     // Git
     "git.ignoreLimitWarning": true,
-    
+
     // Markdown
     "[markdown]": {
         "editor.insertSpaces": true,
         "editor.tabSize": 2,
         "editor.wordWrap": "on"
     },
-    
+
     // JSON
     "[json]": {
         "editor.insertSpaces": true,

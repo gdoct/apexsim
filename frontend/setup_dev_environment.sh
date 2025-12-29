@@ -40,9 +40,9 @@ echo -e "${YELLOW}Installing required dependencies for Unreal Engine 5 developme
 if [[ "$DISTRO" == "ubuntu" ]] || [[ "$DISTRO" == "debian" ]]; then
     # Ubuntu/Debian dependencies
     echo -e "${GREEN}Installing Ubuntu/Debian packages...${NC}"
-    
+
     sudo apt update
-    
+
     # Build essentials
     sudo apt install -y build-essential \
         clang \
@@ -61,7 +61,7 @@ if [[ "$DISTRO" == "ubuntu" ]] || [[ "$DISTRO" == "debian" ]]; then
         ninja-build \
         python3 \
         python3-pip
-    
+
     # Development libraries
     sudo apt install -y \
         libx11-dev \
@@ -78,15 +78,15 @@ if [[ "$DISTRO" == "ubuntu" ]] || [[ "$DISTRO" == "debian" ]]; then
         libssl-dev \
         libogg-dev \
         libvorbis-dev
-    
+
     echo -e "${GREEN}Ubuntu/Debian packages installed successfully!${NC}\n"
 
 elif [[ "$DISTRO" == "fedora" ]] || [[ "$DISTRO" == "rhel" ]]; then
     # Fedora/RHEL dependencies
     echo -e "${GREEN}Installing Fedora/RHEL packages...${NC}"
-    
+
     sudo dnf groupinstall -y "Development Tools" "Development Libraries"
-    
+
     sudo dnf install -y \
         clang \
         cmake \
@@ -109,7 +109,7 @@ elif [[ "$DISTRO" == "fedora" ]] || [[ "$DISTRO" == "rhel" ]]; then
         openssl-devel \
         libogg-devel \
         libvorbis-devel
-    
+
     echo -e "${GREEN}Fedora/RHEL packages installed successfully!${NC}\n"
 
 else
