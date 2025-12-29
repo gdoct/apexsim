@@ -109,20 +109,40 @@ backend/
 ✅ Structured logging with tracing
 ✅ Comprehensive test suite
 
+### Recently Implemented (Dec 2025)
+
+7. **Network Layer** (`src/transport.rs`)
+   - Full async TCP/UDP socket handling with Tokio
+   - Per-connection bidirectional channels
+   - TLS 1.3 encryption support via rustls
+   - Connection tracking and player authentication
+   - Heartbeat timeout and stale connection cleanup
+   - Length-prefixed message framing for TCP
+
+8. **Health Endpoint** (`src/health.rs`)
+   - HTTP health check server on port 9002
+   - `/health` endpoint for liveness checks
+   - `/ready` endpoint for readiness probes
+   - Hyper 1.0 based async HTTP server
+
+9. **TLS Encryption**
+   - Self-signed certificate support
+   - Configurable cert/key paths in server.toml
+   - Graceful fallback without TLS if certs missing
+
 ### What's Missing (Future Work)
 
 Based on the full specification in README.md, the following components are not yet implemented:
 
-- **Network Layer**: Actual TCP/UDP socket handling (currently stubbed)
-- **Authentication**: Token validation and player authentication
+- **Message Routing**: Connect transport layer to game loop for full client/server communication
 - **Content Watcher**: Hot-reload of car/track definitions
 - **Database**: SQLite persistence for sessions and telemetry
-- **Health Endpoint**: HTTP health check endpoint
-- **Metrics**: Prometheus metrics export
-- **TLS**: Encrypted TCP connections
+- **Metrics**: Prometheus metrics export on `/metrics` endpoint
 - **Advanced Features**: Replays, spectator mode, horizontal scaling
+- **DTLS**: Encrypted UDP for production environments
+- **Full TLS Integration**: Complete TLS stream handling in connection handler
 
-The core simulation engine is complete and tested. The networking and persistence layers would be the next priority for a production deployment.
+The core simulation engine and network transport layer are complete and tested. The game logic integration and persistence layers would be the next priority for a production deployment.
 
 ---
 

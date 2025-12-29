@@ -186,3 +186,4 @@ __pycache__/
 # Documentation build outputs
 /Docs/Output/
 /Docs/Build/
+certs/

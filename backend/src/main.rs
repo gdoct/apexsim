@@ -4,7 +4,6 @@ use apexsim_server::{
     game_session::GameSession,
     health::{HealthState, run_health_server},
     transport::TransportLayer,
-    network::ServerMessage,
 };
 use clap::Parser;
 use std::collections::HashMap;

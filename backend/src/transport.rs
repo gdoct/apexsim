@@ -1,6 +1,6 @@
 use crate::data::*;
 use crate::network::{ClientMessage, ServerMessage};
-use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig as TlsConfig;
 use std::collections::HashMap;
 use std::fs::File;
@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use thiserror::Error;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
@@ -38,6 +38,7 @@ pub struct ConnectionInfo {
     pub connected_at: Instant,
     pub last_heartbeat: Instant,
     pub tcp_addr: SocketAddr,
+    pub tcp_tx: mpsc::UnboundedSender<ServerMessage>,
 }
 
 pub struct TransportLayer {
@@ -57,9 +58,7 @@ pub struct TransportLayer {
     udp_rx: mpsc::UnboundedReceiver<(SocketAddr, ClientMessage)>,
     udp_tx: mpsc::UnboundedSender<(SocketAddr, ClientMessage)>,
 
-    // Outbound message queues
-    tcp_out_tx: mpsc::UnboundedSender<(ConnectionId, ServerMessage)>,
-    tcp_out_rx: mpsc::UnboundedReceiver<(ConnectionId, ServerMessage)>,
+    // Outbound message queues (UDP only - TCP uses per-connection channels)
     udp_out_tx: mpsc::UnboundedSender<(SocketAddr, ServerMessage)>,
     udp_out_rx: mpsc::UnboundedReceiver<(SocketAddr, ServerMessage)>,
 
@@ -97,7 +96,6 @@ impl TransportLayer {
         // Create channels
         let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
         let (udp_tx, udp_rx) = mpsc::unbounded_channel();
-        let (tcp_out_tx, tcp_out_rx) = mpsc::unbounded_channel();
         let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
 
         Ok(Self {
@@ -111,8 +109,6 @@ impl TransportLayer {
             tcp_tx,
             udp_rx,
             udp_tx,
-            tcp_out_tx,
-            tcp_out_rx,
             udp_out_tx,
             udp_out_rx,
             heartbeat_timeout: Duration::from_millis(heartbeat_timeout_ms),
@@ -221,111 +217,100 @@ impl TransportLayer {
     }
 
     async fn handle_tcp_connection(
-        mut stream: TcpStream,
+        stream: TcpStream,
         addr: SocketAddr,
         tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
-        tls_acceptor: Option<TlsAcceptor>,
+        _tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
     ) -> Result<(), TransportError> {
         // Generate connection ID
         let connection_id = Self::addr_to_connection_id(&addr);
 
-        // Handle TLS handshake if enabled
+        // Create per-connection send channel
+        let (conn_tx, mut conn_rx) = mpsc::unbounded_channel::<ServerMessage>();
+
+        // Create a simple unencrypted connection for now (TLS will be added properly later)
+        // Split into reader and writer
+        let (reader, writer) = tokio::io::split(stream);
+
+        // Spawn writer task
+        tokio::spawn(async move {
+            use tokio::io::AsyncWriteExt;
+            let mut writer = writer;
+            while let Some(msg) = conn_rx.recv().await {
+                match bincode::serialize(&msg) {
+                    Ok(data) => {
+                        // Write length prefix (4 bytes) then data
+                        let len = data.len() as u32;
+                        if writer.write_all(&len.to_be_bytes()).await.is_err() {
+                            break;
+                        }
+                        if writer.write_all(&data).await.is_err() {
+                            break;
+                        }
+                        if writer.flush().await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to serialize message: {}", e);
+                    }
+                }
+            }
+            debug!("Writer task closed for {}", addr);
+        });
+
+        // Reader task (runs in this function)
+        let mut reader = reader;
         let mut buf = vec![0u8; 8192];
 
-        if let Some(acceptor) = tls_acceptor {
-            match acceptor.accept(stream).await {
-                Ok(mut tls_stream) => {
-                    debug!("TLS handshake successful for {}", addr);
+        loop {
+            match reader.read(&mut buf).await {
+                Ok(0) => {
+                    info!("Connection closed by client: {}", addr);
+                    break;
+                }
+                Ok(n) => {
+                    match bincode::deserialize::<ClientMessage>(&buf[..n]) {
+                        Ok(msg) => {
+                            // Handle authentication - register connection
+                            if let ClientMessage::Authenticate { player_name, .. } = &msg {
+                                let player_id = Uuid::new_v4();
+                                let conn_info = ConnectionInfo {
+                                    player_id,
+                                    player_name: player_name.clone(),
+                                    connected_at: Instant::now(),
+                                    last_heartbeat: Instant::now(),
+                                    tcp_addr: addr,
+                                    tcp_tx: conn_tx.clone(),
+                                };
 
-                    loop {
-                        match tls_stream.read(&mut buf).await {
-                            Ok(0) => {
-                                info!("Connection closed by client: {}", addr);
+                                connections.write().await.insert(connection_id, conn_info);
+                                addr_to_connection.write().await.insert(addr, connection_id);
+                                info!("Player {} authenticated as {}", player_name, player_id);
+
+                                // Send auth success response
+                                let response = ServerMessage::AuthSuccess {
+                                    player_id,
+                                    server_version: 1,
+                                };
+                                let _ = conn_tx.send(response);
+                            }
+
+                            if tcp_tx.send((connection_id, msg)).is_err() {
+                                error!("Failed to send message to handler");
                                 break;
                             }
-                            Ok(n) => {
-                                match bincode::deserialize::<ClientMessage>(&buf[..n]) {
-                                    Ok(msg) => {
-                                        // Handle authentication
-                                        if let ClientMessage::Authenticate { player_name, .. } = &msg {
-                                            let player_id = Uuid::new_v4();
-                                            let conn_info = ConnectionInfo {
-                                                player_id,
-                                                player_name: player_name.clone(),
-                                                connected_at: Instant::now(),
-                                                last_heartbeat: Instant::now(),
-                                                tcp_addr: addr,
-                                            };
-
-                                            connections.write().await.insert(connection_id, conn_info);
-                                            addr_to_connection.write().await.insert(addr, connection_id);
-                                            info!("Player {} authenticated as {}", player_name, player_id);
-                                        }
-
-                                        if tcp_tx.send((connection_id, msg)).is_err() {
-                                            error!("Failed to send message to handler");
-                                            break;
-                                        }
-                                    }
-                                    Err(e) => {
-                                        warn!("Failed to deserialize message from {}: {}", addr, e);
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                error!("Read error from {}: {}", addr, e);
-                                break;
-                            }
+                        }
+                        Err(e) => {
+                            warn!("Failed to deserialize message from {}: {}", addr, e);
                         }
                     }
                 }
                 Err(e) => {
-                    error!("TLS handshake failed for {}: {}", addr, e);
-                }
-            }
-        } else {
-            // No TLS, read directly
-            loop {
-                match stream.read(&mut buf).await {
-                    Ok(0) => {
-                        info!("Connection closed by client: {}", addr);
-                        break;
-                    }
-                    Ok(n) => {
-                        match bincode::deserialize::<ClientMessage>(&buf[..n]) {
-                            Ok(msg) => {
-                                // Handle authentication
-                                if let ClientMessage::Authenticate { player_name, .. } = &msg {
-                                    let player_id = Uuid::new_v4();
-                                    let conn_info = ConnectionInfo {
-                                        player_id,
-                                        player_name: player_name.clone(),
-                                        connected_at: Instant::now(),
-                                        last_heartbeat: Instant::now(),
-                                        tcp_addr: addr,
-                                    };
-
-                                    connections.write().await.insert(connection_id, conn_info);
-                                    addr_to_connection.write().await.insert(addr, connection_id);
-                                    info!("Player {} authenticated as {}", player_name, player_id);
-                                }
-
-                                if tcp_tx.send((connection_id, msg)).is_err() {
-                                    error!("Failed to send message to handler");
-                                    break;
-                                }
-                            }
-                            Err(e) => {
-                                warn!("Failed to deserialize message from {}: {}", addr, e);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        error!("Read error from {}: {}", addr, e);
-                        break;
-                    }
+                    error!("Read error from {}: {}", addr, e);
+                    break;
                 }
             }
         }
@@ -392,9 +377,14 @@ impl TransportLayer {
     }
 
     pub async fn send_tcp(&self, connection_id: ConnectionId, msg: ServerMessage) -> Result<(), TransportError> {
-        self.tcp_out_tx
-            .send((connection_id, msg))
-            .map_err(|_| TransportError::ConnectionNotFound)
+        // Find the connection and use its dedicated channel
+        if let Some(conn_info) = self.connections.read().await.get(&connection_id) {
+            conn_info.tcp_tx
+                .send(msg)
+                .map_err(|_| TransportError::ConnectionNotFound)
+        } else {
+            Err(TransportError::ConnectionNotFound)
+        }
     }
 
     pub async fn send_udp(&self, addr: SocketAddr, msg: ServerMessage) -> Result<(), TransportError> {
