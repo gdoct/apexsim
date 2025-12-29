@@ -119,6 +119,49 @@ pub struct GridSlot {
     pub yaw_rad: f32,
 }
 
+// --- Telemetry Data Structures ---
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct TireData {
+    pub temperature_c: f32,
+    pub pressure_kpa: f32,
+    pub wear_percent: f32,
+    pub slip_ratio: f32,
+    pub slip_angle_rad: f32,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct TireTelemetry {
+    pub front_left: TireData,
+    pub front_right: TireData,
+    pub rear_left: TireData,
+    pub rear_right: TireData,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct GForces {
+    pub lateral_g: f32,      // Side-to-side (left negative, right positive)
+    pub longitudinal_g: f32, // Forward/backward (braking negative, acceleration positive)
+    pub vertical_g: f32,     // Up/down (compression positive)
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct SuspensionTelemetry {
+    pub front_left_travel_m: f32,
+    pub front_right_travel_m: f32,
+    pub rear_left_travel_m: f32,
+    pub rear_right_travel_m: f32,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct DamageState {
+    pub front_damage_percent: f32,
+    pub rear_damage_percent: f32,
+    pub left_damage_percent: f32,
+    pub right_damage_percent: f32,
+    pub engine_damage_percent: f32,
+    pub is_drivable: bool,
+}
+
 // --- Car Dynamics State (Per-Tick, Server Authoritative) ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CarState {
@@ -141,6 +184,16 @@ pub struct CarState {
     pub last_lap_time_ms: Option<u32>,
     pub best_lap_time_ms: Option<u32>,
     pub is_colliding: bool,
+    
+    // Telemetry
+    pub tires: TireTelemetry,
+    pub g_forces: GForces,
+    pub suspension: SuspensionTelemetry,
+    pub fuel_liters: f32,
+    pub fuel_capacity_liters: f32,
+    pub fuel_consumption_lps: f32, // Liters per second
+    pub damage: DamageState,
+    pub engine_rpm: f32,
 }
 
 impl CarState {
@@ -165,6 +218,17 @@ impl CarState {
             last_lap_time_ms: None,
             best_lap_time_ms: None,
             is_colliding: false,
+            tires: TireTelemetry::default(),
+            g_forces: GForces::default(),
+            suspension: SuspensionTelemetry::default(),
+            fuel_liters: 100.0,
+            fuel_capacity_liters: 100.0,
+            fuel_consumption_lps: 0.0,
+            damage: DamageState {
+                is_drivable: true,
+                ..Default::default()
+            },
+            engine_rpm: 0.0,
         }
     }
 }
