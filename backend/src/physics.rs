@@ -17,6 +17,9 @@ pub fn update_car_2d(
     let net_force = throttle_force - brake_force - drag_force
         - rolling_resistance * state.speed_mps.signum();
     let accel = net_force / config.mass_kg;
+    
+    // Calculate longitudinal G-force
+    let longitudinal_g = accel / 9.81;
 
     // 2. Update speed (clamp to prevent reversing)
     state.speed_mps = (state.speed_mps + accel * dt).max(0.0);
@@ -37,6 +40,9 @@ pub fn update_car_2d(
     if actual_lateral_accel > max_lateral_accel {
         state.angular_vel_rad_s *= max_lateral_accel / actual_lateral_accel;
     }
+    
+    // Calculate lateral G-force (left is negative, right is positive)
+    let lateral_g = (state.speed_mps * state.angular_vel_rad_s) / 9.81;
 
     // 5. Integrate position and orientation
     state.yaw_rad += state.angular_vel_rad_s * dt;
@@ -49,6 +55,90 @@ pub fn update_car_2d(
     state.throttle_input = input.throttle;
     state.brake_input = input.brake;
     state.steering_input = input.steering;
+    
+    // 7. Update telemetry
+    update_telemetry(state, config, input, longitudinal_g, lateral_g, dt);
+}
+
+/// Update all telemetry data for a car
+fn update_telemetry(
+    state: &mut CarState,
+    _config: &CarConfig,
+    input: &PlayerInputData,
+    longitudinal_g: f32,
+    lateral_g: f32,
+    dt: f32,
+) {
+    // G-forces
+    state.g_forces.longitudinal_g = longitudinal_g;
+    state.g_forces.lateral_g = lateral_g;
+    state.g_forces.vertical_g = 1.0; // Base gravity, could add suspension compression effects
+    
+    // Engine RPM (simplified: based on speed and throttle)
+    let max_rpm = 8000.0;
+    let idle_rpm = 1000.0;
+    let speed_factor = (state.speed_mps / 50.0).clamp(0.0, 1.0); // Normalize to ~180 km/h max
+    state.engine_rpm = idle_rpm + (max_rpm - idle_rpm) * speed_factor * (0.5 + input.throttle * 0.5);
+    
+    // Fuel consumption (liters per second, higher at higher RPM and throttle)
+    let base_consumption = 0.0001; // L/s at idle
+    let max_consumption = 0.003;   // L/s at full throttle
+    state.fuel_consumption_lps = base_consumption + (max_consumption - base_consumption) * input.throttle;
+    state.fuel_liters = (state.fuel_liters - state.fuel_consumption_lps * dt).max(0.0);
+    
+    // Tire telemetry (simplified)
+    let speed_kmh = state.speed_mps * 3.6;
+    let base_temp = 80.0; // Celsius
+    let temp_from_speed = speed_kmh * 0.3;
+    let temp_from_braking = input.brake * 20.0;
+    let temp_from_cornering = lateral_g.abs() * 15.0;
+    
+    let tire_temp = base_temp + temp_from_speed + temp_from_braking + temp_from_cornering;
+    let tire_pressure = 200.0 + tire_temp * 0.5; // kPa, increases with temp
+    
+    // Slip calculations (simplified)
+    let slip_ratio = if input.brake > 0.5 {
+        input.brake * 0.15 // Locking up
+    } else if input.throttle > 0.8 && state.speed_mps < 20.0 {
+        input.throttle * 0.1 // Wheel spin
+    } else {
+        0.0
+    };
+    
+    let slip_angle = state.steering_input * 0.1; // Simplified slip angle
+    
+    // Front tires (higher temps from steering)
+    state.tires.front_left.temperature_c = tire_temp + lateral_g.abs() * 5.0;
+    state.tires.front_left.pressure_kpa = tire_pressure;
+    state.tires.front_left.wear_percent = (state.tires.front_left.wear_percent + 0.0001 * dt).min(100.0);
+    state.tires.front_left.slip_ratio = slip_ratio;
+    state.tires.front_left.slip_angle_rad = slip_angle;
+    
+    state.tires.front_right.temperature_c = tire_temp + lateral_g.abs() * 5.0;
+    state.tires.front_right.pressure_kpa = tire_pressure;
+    state.tires.front_right.wear_percent = (state.tires.front_right.wear_percent + 0.0001 * dt).min(100.0);
+    state.tires.front_right.slip_ratio = slip_ratio;
+    state.tires.front_right.slip_angle_rad = slip_angle;
+    
+    // Rear tires
+    state.tires.rear_left.temperature_c = tire_temp;
+    state.tires.rear_left.pressure_kpa = tire_pressure;
+    state.tires.rear_left.wear_percent = (state.tires.rear_left.wear_percent + 0.0001 * dt).min(100.0);
+    state.tires.rear_left.slip_ratio = slip_ratio * 1.2; // RWD, more slip on rear
+    state.tires.rear_left.slip_angle_rad = slip_angle * 0.5;
+    
+    state.tires.rear_right.temperature_c = tire_temp;
+    state.tires.rear_right.pressure_kpa = tire_pressure;
+    state.tires.rear_right.wear_percent = (state.tires.rear_right.wear_percent + 0.0001 * dt).min(100.0);
+    state.tires.rear_right.slip_ratio = slip_ratio * 1.2;
+    state.tires.rear_right.slip_angle_rad = slip_angle * 0.5;
+    
+    // Suspension travel (simplified, based on lateral and longitudinal G)
+    let base_compression = 0.05; // meters
+    state.suspension.front_left_travel_m = base_compression + lateral_g.abs() * 0.01 + longitudinal_g.max(0.0) * 0.015;
+    state.suspension.front_right_travel_m = base_compression + lateral_g.abs() * 0.01 + longitudinal_g.max(0.0) * 0.015;
+    state.suspension.rear_left_travel_m = base_compression + lateral_g.abs() * 0.008 + (-longitudinal_g).max(0.0) * 0.015;
+    state.suspension.rear_right_travel_m = base_compression + lateral_g.abs() * 0.008 + (-longitudinal_g).max(0.0) * 0.015;
 }
 
 /// Check and resolve AABB collisions between cars
@@ -87,13 +177,52 @@ pub fn check_aabb_collisions(
                     states[j].pos_x += nx * separation;
                     states[j].pos_y += ny * separation;
 
-                    // Reduce speed
+                    // Reduce speed and calculate damage
+                    let speed_i = states[i].speed_mps;
+                    let speed_j = states[j].speed_mps;
+                    let yaw_i = states[i].yaw_rad;
+                    let yaw_j = states[j].yaw_rad;
+                    
                     states[i].speed_mps *= 0.8;
                     states[j].speed_mps *= 0.8;
+                    
+                    // Apply damage based on collision severity
+                    let impact_severity = ((speed_i + speed_j) / 50.0).min(1.0);
+                    let damage_amount = impact_severity * 5.0; // Max 5% per collision
+                    
+                    // Calculate collision angles for both cars
+                    let angle_i = (ny.atan2(nx) - yaw_i).rem_euclid(2.0 * std::f32::consts::PI);
+                    let angle_j = (ny.atan2(nx) - yaw_j + std::f32::consts::PI).rem_euclid(2.0 * std::f32::consts::PI);
+                    
+                    apply_damage_to_car(&mut states[i], angle_i, damage_amount);
+                    apply_damage_to_car(&mut states[j], angle_j, damage_amount);
                 }
             }
         }
     }
+}
+
+/// Apply damage to a single car based on collision angle
+fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
+    // Determine which side was hit based on angle
+    if angle < std::f32::consts::PI / 4.0 || angle > 7.0 * std::f32::consts::PI / 4.0 {
+        // Front hit
+        car.damage.front_damage_percent = (car.damage.front_damage_percent + damage_amount).min(100.0);
+        car.damage.engine_damage_percent = (car.damage.engine_damage_percent + damage_amount * 0.5).min(100.0);
+    } else if angle >= std::f32::consts::PI / 4.0 && angle < 3.0 * std::f32::consts::PI / 4.0 {
+        // Left side hit
+        car.damage.left_damage_percent = (car.damage.left_damage_percent + damage_amount).min(100.0);
+    } else if angle >= 3.0 * std::f32::consts::PI / 4.0 && angle < 5.0 * std::f32::consts::PI / 4.0 {
+        // Rear hit
+        car.damage.rear_damage_percent = (car.damage.rear_damage_percent + damage_amount).min(100.0);
+    } else {
+        // Right side hit
+        car.damage.right_damage_percent = (car.damage.right_damage_percent + damage_amount).min(100.0);
+    }
+    
+    // Check if still drivable
+    car.damage.is_drivable = car.damage.front_damage_percent < 80.0
+        && car.damage.engine_damage_percent < 80.0;
 }
 
 /// Helper to check if two cars are colliding
@@ -190,6 +319,14 @@ mod tests {
             last_lap_time_ms: None,
             best_lap_time_ms: None,
             is_colliding: false,
+            tires: TireTelemetry::default(),
+            g_forces: GForces::default(),
+            suspension: SuspensionTelemetry::default(),
+            fuel_liters: 100.0,
+            fuel_capacity_liters: 100.0,
+            fuel_consumption_lps: 0.0,
+            damage: DamageState { is_drivable: true, ..Default::default() },
+            engine_rpm: 0.0,
         };
 
         let config = CarConfig::default();
@@ -231,6 +368,14 @@ mod tests {
             last_lap_time_ms: None,
             best_lap_time_ms: None,
             is_colliding: false,
+            tires: TireTelemetry::default(),
+            g_forces: GForces::default(),
+            suspension: SuspensionTelemetry::default(),
+            fuel_liters: 100.0,
+            fuel_capacity_liters: 100.0,
+            fuel_consumption_lps: 0.0,
+            damage: DamageState { is_drivable: true, ..Default::default() },
+            engine_rpm: 0.0,
         };
 
         let config = CarConfig::default();
@@ -271,6 +416,14 @@ mod tests {
             last_lap_time_ms: None,
             best_lap_time_ms: None,
             is_colliding: false,
+            tires: TireTelemetry::default(),
+            g_forces: GForces::default(),
+            suspension: SuspensionTelemetry::default(),
+            fuel_liters: 100.0,
+            fuel_capacity_liters: 100.0,
+            fuel_consumption_lps: 0.0,
+            damage: DamageState { is_drivable: true, ..Default::default() },
+            engine_rpm: 0.0,
         };
 
         let config = CarConfig::default();
@@ -311,6 +464,14 @@ mod tests {
                 last_lap_time_ms: None,
                 best_lap_time_ms: None,
                 is_colliding: false,
+                tires: TireTelemetry::default(),
+                g_forces: GForces::default(),
+                suspension: SuspensionTelemetry::default(),
+                fuel_liters: 100.0,
+                fuel_capacity_liters: 100.0,
+                fuel_consumption_lps: 0.0,
+                damage: DamageState { is_drivable: true, ..Default::default() },
+                engine_rpm: 0.0,
             },
             CarState {
                 player_id: Uuid::new_v4(),
@@ -332,6 +493,14 @@ mod tests {
                 last_lap_time_ms: None,
                 best_lap_time_ms: None,
                 is_colliding: false,
+                tires: TireTelemetry::default(),
+                g_forces: GForces::default(),
+                suspension: SuspensionTelemetry::default(),
+                fuel_liters: 100.0,
+                fuel_capacity_liters: 100.0,
+                fuel_consumption_lps: 0.0,
+                damage: DamageState { is_drivable: true, ..Default::default() },
+                engine_rpm: 0.0,
             },
         ];
 
@@ -373,6 +542,14 @@ mod tests {
             last_lap_time_ms: None,
             best_lap_time_ms: None,
             is_colliding: false,
+            tires: TireTelemetry::default(),
+            g_forces: GForces::default(),
+            suspension: SuspensionTelemetry::default(),
+            fuel_liters: 100.0,
+            fuel_capacity_liters: 100.0,
+            fuel_consumption_lps: 0.0,
+            damage: DamageState { is_drivable: true, ..Default::default() },
+            engine_rpm: 0.0,
         };
 
         let centerline = vec![
