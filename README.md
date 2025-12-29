@@ -1,12 +1,6 @@
-Fantastic! That's great discipline to get those detailed specs into your project. Now for the root `README.md`, which serves as the main entry point and overview for anyone looking at your project (including yourself, later!).
+# ApexSim SimRacing Game Project
 
-Here's a template for your root `README.md`, designed to be informative, welcoming to contributors, and aligned with your project's goals:
-
----
-
-# SimRacing Game Project
-
-Welcome to the **SimRacing Game Project**!
+Welcome to **ApexSim**!
 
 This is an open-source, ambitious hobby project aiming to develop a high-performance, multiplayer simracing game from the ground up. The project is designed with a strong focus on realistic physics, low-latency networking, and robust support for user-generated content (UGC) and modding.
 
