@@ -1,0 +1,8 @@
+content/**/*.png filter=lfs diff=lfs merge=lfs -text
+content/**/*.blend filter=lfs diff=lfs merge=lfs -text
+content/**/*.glb filter=lfs diff=lfs merge=lfs -text
+content/**/*.msgpack filter=lfs diff=lfs merge=lfs -text
+content/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+game-unreal/**/*.uasset filter=lfs diff=lfs merge=lfs -text
+game-unreal/**/*.umap filter=lfs diff=lfs merge=lfs -text
+game-unreal/**/*.bmp filter=lfs diff=lfs merge=lfs -text
