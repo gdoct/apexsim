@@ -203,30 +203,70 @@ bytes = "1"
 - Automatic session recording management
 - Replay metadata (participants, track, duration)
 
+## Lobby Message Handlers (Completed)
+
+✅ **Full Lobby Integration** ([src/main.rs](src/main.rs))
+- **Authentication**: Players automatically added to lobby on auth success
+- **SelectCar**: Update player's selected car in lobby
+- **RequestLobbyState**: Send current lobby state to requesting client
+- **CreateSession**: Create session and register with lobby manager
+- **JoinSession**: Join existing session as participant with validation
+- **JoinAsSpectator**: Join session in spectator mode
+- **LeaveSession**: Leave session and return to lobby
+- **Disconnect**: Clean removal from lobby on disconnect
+- **Periodic Broadcast**: Lobby state broadcast every 2 seconds to all clients
+
+## Client Messages Added
+
+New client messages for lobby operations:
+- `RequestLobbyState` - Request current lobby state
+- `JoinAsSpectator { session_id }` - Join session as spectator
+
+## Replay Integration (Completed)
+
+✅ **Automatic Replay Recording** ([src/main.rs](src/main.rs:510-608))
+- **Auto-start**: Recording begins when session transitions to Racing state
+- **Frame Recording**: Telemetry captured every tick (240Hz) during racing
+- **Auto-save**: Replay automatically saved when session finishes
+- **Binary Format**: Efficient bincode serialization to `./replays/` directory
+- **Metadata**: Includes session ID, track, participants, timestamp
+- **State Management**: Borrow-checker safe deferred execution pattern
+
+Recording lifecycle:
+1. Session enters Racing → Start recording with metadata
+2. Each tick while Racing → Record telemetry frame
+3. Session finishes → Stop and save replay to disk
+
 ## Future Enhancements
 
-The following features are planned for future implementation:
+The following features require additional dependencies and are planned for future implementation:
 
 1. **DTLS for UDP**: Add encrypted UDP support using DTLS 1.3 for production deployments.
+   - Requires: `tokio-dtls` or `rustls-dtls` crates
+   - Implementation: Similar pattern to TLS, negotiate DTLS session per client
+   - Benefit: Encrypted telemetry at 240Hz
 
-2. **Metrics**: Add Prometheus metrics via the `/metrics` endpoint for monitoring:
-   - Connection counts
-   - Message throughput
-   - Latency histograms
-   - Error rates
+2. **Prometheus Metrics**: Add `/metrics` endpoint for monitoring:
+   - Requires: `prometheus` crate
+   - Metrics to track:
+     - Connection counts (gauge)
+     - Message throughput (counter)
+     - Latency histograms
+     - Error rates (counter)
+     - Active sessions (gauge)
+   - Integration: Add metrics collection in transport and game loop
 
 3. **Rate Limiting**: Implement per-connection rate limiting for DoS protection.
+   - Requires: `governor` or `ratelimit` crate
+   - Strategy: Token bucket per connection
+   - Limits: Configurable per message type (e.g., 10 CreateSession/min, 300 PlayerInput/sec)
+   - Action: Return error 429 (Too Many Requests) when exceeded
 
-4. **Lobby Message Handlers**: Wire up lobby-related client messages:
-   - List available sessions
-   - Join/leave session commands
-   - Spectator join commands
-   - Session state updates to lobby clients
-
-5. **Replay Integration**: Connect replay recording to active game sessions:
-   - Auto-start recording when session begins
-   - Auto-save replays when session ends
-   - Replay playback endpoints
+4. **Replay HTTP API**: Add HTTP endpoints for replay management:
+   - `GET /api/replays` - List available replays
+   - `GET /api/replays/{id}` - Download specific replay
+   - `POST /api/replays/{id}/playback` - Start playback session
+   - Requires: Extend health HTTP server with additional routes
 
 ## Notes
 
