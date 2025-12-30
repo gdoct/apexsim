@@ -14,24 +14,8 @@ This directory contains technical documentation for the ApexSim frontend develop
 ## Getting Started
 
 1. Read the main [README.md](../README.md) for project specification
-2. Follow [SETUP.md](../SETUP.md) to set up your development environment
 3. Review the architecture documentation to understand the system design
 
-## Code Documentation
-
-C++ code documentation is generated using Doxygen. To generate:
-
-```bash
-# Install Doxygen (if not already installed)
-sudo apt install doxygen graphviz  # Ubuntu/Debian
-sudo dnf install doxygen graphviz  # Fedora
-
-# Generate documentation (from project root)
-doxygen Doxyfile
-
-# View documentation
-xdg-open Docs/API/html/index.html
-```
 
 ## Contributing
 
