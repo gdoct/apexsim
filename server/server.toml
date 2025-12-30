@@ -13,8 +13,8 @@ heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000
 
 [content]
-cars_dir = "./content/cars"
-tracks_dir = "./content/tracks"
+cars_dir = "../content/cars"
+tracks_dir = "../content/tracks"
 
 [logging]
 level = "info"

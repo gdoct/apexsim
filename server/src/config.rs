@@ -58,8 +58,8 @@ impl Default for ServerConfig {
                 heartbeat_timeout_ms: 5000,
             },
             content: ContentSettings {
-                cars_dir: "./content/cars".to_string(),
-                tracks_dir: "./content/tracks".to_string(),
+                cars_dir: "../content/cars".to_string(),
+                tracks_dir: "../content/tracks".to_string(),
             },
             logging: LoggingSettings {
                 level: "info".to_string(),

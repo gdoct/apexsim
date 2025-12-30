@@ -15,6 +15,7 @@ pub enum ClientMessage {
     SelectCar {
         car_config_id: CarConfigId,
     },
+    RequestLobbyState,
     CreateSession {
         track_config_id: TrackConfigId,
         max_players: u8,
@@ -22,6 +23,9 @@ pub enum ClientMessage {
         lap_limit: u8,
     },
     JoinSession {
+        session_id: SessionId,
+    },
+    JoinAsSpectator {
         session_id: SessionId,
     },
     LeaveSession,
