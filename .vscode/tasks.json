@@ -1,0 +1,186 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Server: Build",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["build", "--release"],
+            "options": {
+                "cwd": "${workspaceFolder}/server"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Server: Run",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["run", "--release", "--", "-c", "./server.toml"],
+            "options": {
+                "cwd": "${workspaceFolder}/server"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Starting ApexSim Racing Server",
+                    "endsPattern": "^Server is running"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "group": "server"
+            }
+        },
+        {
+            "label": "Server: Run (Debug)",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["run", "--", "-c", "./server.toml", "-l", "debug"],
+            "options": {
+                "cwd": "${workspaceFolder}/server"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Starting ApexSim Racing Server",
+                    "endsPattern": "^Server is running"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "group": "server"
+            }
+        },
+        {
+            "label": "Server: Stop",
+            "type": "shell",
+            "command": "pkill -SIGTERM -f 'apexsim-server' && echo 'Server stopped' || echo 'No server running'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Server: Restart",
+            "dependsOn": ["Server: Stop"],
+            "dependsOrder": "sequence",
+            "type": "shell",
+            "command": "sleep 2 && cd ${workspaceFolder}/server && cargo run --release -- -c ./server.toml",
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Starting ApexSim Racing Server",
+                    "endsPattern": "^Server is running"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "group": "server"
+            }
+        },
+        {
+            "label": "Server: Start",
+            "type": "shell",
+            "command": "cd ${workspaceFolder}/server && cargo run --release -- -c ./server.toml",
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Starting ApexSim Racing Server",
+                    "endsPattern": "^Server is running"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "server",
+                "focus": true
+            }
+        },
+        {
+            "label": "CLI Game: Build",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["build"],
+            "options": {
+                "cwd": "${workspaceFolder}/cli-game"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "CLI Game: Run",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["run", "--", "-c", "./client.toml"],
+            "options": {
+                "cwd": "${workspaceFolder}/cli-game"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "group": "client"
+            }
+        },
+        {
+            "label": "CLI Game: Run (Custom Name)",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["run", "--", "-c", "./client.toml", "-n", "${input:playerName}"],
+            "options": {
+                "cwd": "${workspaceFolder}/cli-game"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "group": "client"
+            }
+        },
+        {
+            "label": "Start Server + CLI Client",
+            "dependsOn": ["Server: Run"],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build All",
+            "dependsOn": ["Server: Build", "CLI Game: Build"],
+            "dependsOrder": "parallel",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "playerName",
+            "type": "promptString",
+            "description": "Enter player name",
+            "default": "CLI-Player"
+        }
+    ]
+}

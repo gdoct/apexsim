@@ -1,0 +1,7 @@
+[server]
+tcp_address = "127.0.0.1:9000"
+udp_address = "127.0.0.1:9001"
+
+[player]
+name = "CLI-Player"
+token = "dev-token"
