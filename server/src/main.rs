@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -346,62 +346,104 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                     if let Some(conn_info) = transport_write.get_connection(connection_id).await {
                         let mut state_write = state.write().await;
 
-                        // Create session
-                        if let Some(session_id) = state_write.create_session(
-                            conn_info.player_id,
-                            track_config_id,
-                            max_players,
-                            ai_count,
-                            lap_limit
-                        ) {
-                            info!("Session {} created by player {}", session_id, conn_info.player_name);
+                        // Get host's selected car
+                        let selected_car = state_write.lobby.get_player_car(conn_info.player_id).await;
 
-                            // Register session in lobby
-                            let track_name = state_write.track_configs.get(&track_config_id)
-                                .map(|t| t.name.clone())
-                                .unwrap_or_else(|| "Unknown Track".to_string());
-
-                            let session_info = LobbySessionInfo {
-                                session_id,
-                                host_player_id: conn_info.player_id,
-                                host_name: conn_info.player_name.clone(),
-                                track_name,
+                        if let Some(car_id) = selected_car {
+                            // Create session
+                            if let Some(session_id) = state_write.create_session(
+                                conn_info.player_id,
                                 track_config_id,
                                 max_players,
-                                current_player_count: 1,
-                                spectator_count: 0,
-                                state: SessionState::Lobby,
-                                visibility: SessionVisibility::Public,
-                                password_hash: None,
-                                created_at: std::time::Instant::now(),
-                            };
+                                ai_count,
+                                lap_limit
+                            ) {
+                                info!("Session {} created by player {}", session_id, conn_info.player_name);
 
-                            state_write.lobby.register_session(session_info).await;
+                                // Register session in lobby
+                                let track_name = state_write.track_configs.get(&track_config_id)
+                                    .map(|t| t.name.clone())
+                                    .unwrap_or_else(|| "Unknown Track".to_string());
 
-                            // Join player to their own session
-                            let joined = state_write.lobby.join_session(conn_info.player_id, session_id).await;
-
-                            if joined {
-                                let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined {
+                                let session_info = LobbySessionInfo {
                                     session_id,
-                                    your_grid_position: 1,
-                                }).await;
+                                    host_player_id: conn_info.player_id,
+                                    host_name: conn_info.player_name.clone(),
+                                    track_name,
+                                    track_config_id,
+                                    max_players,
+                                    current_player_count: 0, // join_session will increment this
+                                    spectator_count: 0,
+                                    state: SessionState::Lobby,
+                                    visibility: SessionVisibility::Public,
+                                    password_hash: None,
+                                    created_at: std::time::Instant::now(),
+                                };
+
+                                state_write.lobby.register_session(session_info).await;
+
+                                // Join host to their own session (lobby and game session)
+                                let joined = state_write.lobby.join_session(conn_info.player_id, session_id).await;
+
+                                if joined {
+                                    // Add host to the actual game session
+                                    if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
+                                        if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
+                                            let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined {
+                                                session_id,
+                                                your_grid_position: grid_pos,
+                                            }).await;
+                                        }
+                                    }
+                                }
                             }
+                        } else {
+                            // No car selected
+                            let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                code: 400,
+                                message: "Must select a car before creating session".to_string(),
+                            }).await;
                         }
                     }
                 }
 
                 ClientMessage::JoinSession { session_id } => {
                     if let Some(conn_info) = transport_write.get_connection(connection_id).await {
-                        let state_write = state.write().await;
+                        let mut state_write = state.write().await;
+                        
+                        // Get player's selected car
+                        let selected_car = state_write.lobby.get_player_car(conn_info.player_id).await;
+                        
                         let joined = state_write.lobby.join_session(conn_info.player_id, session_id).await;
 
                         if joined {
-                            info!("Player {} joined session {}", conn_info.player_name, session_id);
-                            let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined {
-                                session_id,
-                                your_grid_position: 1, // Will be updated later
-                            }).await;
+                            // Add player to the actual game session
+                            if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
+                                if let Some(car_id) = selected_car {
+                                    if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
+                                        info!("Player {} joined session {} at grid position {}", 
+                                            conn_info.player_name, session_id, grid_pos);
+                                        let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined {
+                                            session_id,
+                                            your_grid_position: grid_pos,
+                                        }).await;
+                                    } else {
+                                        // Failed to add to session (full)
+                                        state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
+                                        let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                            code: 400,
+                                            message: "Session is full".to_string(),
+                                        }).await;
+                                    }
+                                } else {
+                                    // No car selected
+                                    state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
+                                    let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                        code: 400,
+                                        message: "Must select a car before joining session".to_string(),
+                                    }).await;
+                                }
+                            }
                         } else {
                             let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
                                 code: 400,
@@ -437,6 +479,38 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                         state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
                         info!("Player {} left their session", conn_info.player_name);
                         let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionLeft).await;
+                    }
+                }
+
+                ClientMessage::StartSession => {
+                    if let Some(conn_info) = transport_write.get_connection(connection_id).await {
+                        let mut state_write = state.write().await;
+                        
+                        // Find which session the player is in
+                        let session_id = state_write.lobby.get_player_session(conn_info.player_id).await;
+                        
+                        if let Some(session_id) = session_id {
+                            if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
+                                // Only host can start the session
+                                if game_session.session.host_player_id == conn_info.player_id {
+                                    game_session.start_countdown();
+                                    info!("Player {} started session {}", conn_info.player_name, session_id);
+                                    
+                                    // Notify all participants
+                                    let msg = ServerMessage::SessionStarting { countdown_seconds: 5 };
+                                    for player_id in game_session.session.participants.keys() {
+                                        if let Some(conn_id) = transport_write.get_player_connection(*player_id).await {
+                                            let _ = transport_write.send_tcp(conn_id, msg.clone()).await;
+                                        }
+                                    }
+                                } else {
+                                    let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                        code: 403,
+                                        message: "Only the host can start the session".to_string(),
+                                    }).await;
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -604,6 +678,27 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                 }
             }
         }
+
+        // Broadcast telemetry to all session participants (via TCP for now)
+        let transport_write2 = transport.write().await;
+        for (session_id, game_session) in state_write.sessions.iter() {
+            let telemetry_msg = game_session.get_telemetry();
+            let participant_count = game_session.session.participants.len();
+            
+            if participant_count > 0 && tick_count % 60 == 0 {
+                debug!("Broadcasting telemetry for session {} to {} participants (state: {:?})", 
+                    session_id, participant_count, game_session.session.state);
+            }
+            
+            // Send telemetry to all participants in this session
+            for player_id in game_session.session.participants.keys() {
+                // Find connection for this player
+                if let Some(conn_id) = transport_write2.get_player_connection(*player_id).await {
+                    let _ = transport_write2.send_tcp(conn_id, telemetry_msg.clone()).await;
+                }
+            }
+        }
+        drop(transport_write2);
 
         // Cleanup finished sessions (older than timeout)
         let timeout_seconds = state_write.config.server.session_timeout_seconds as u64;

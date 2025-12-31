@@ -1,3 +1,4 @@
+pub mod ai_driver;
 pub mod config;
 pub mod data;
 pub mod game_session;

@@ -95,6 +95,11 @@ impl LobbyManager {
         }
     }
 
+    /// Get a player's selected car
+    pub async fn get_player_car(&self, player_id: PlayerId) -> Option<CarConfigId> {
+        self.players.read().await.get(&player_id).and_then(|p| p.selected_car)
+    }
+
     /// Register a new session in the lobby
     pub async fn register_session(&self, session_info: LobbySessionInfo) {
         let session_id = session_info.session_id;
