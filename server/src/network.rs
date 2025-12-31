@@ -116,15 +116,27 @@ pub struct TrackConfigSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CarStateTelemetry {
     pub player_id: PlayerId,
+    // 3D Position
     pub pos_x: f32,
     pub pos_y: f32,
+    pub pos_z: f32,
+    // 3D Orientation
     pub yaw_rad: f32,
+    pub pitch_rad: f32,
+    pub roll_rad: f32,
+    // Motion
     pub speed_mps: f32,
     pub throttle: f32,
+    pub brake: f32,
     pub steering: f32,
+    pub gear: i8,
+    // Race progress
     pub current_lap: u16,
     pub track_progress: f32,
     pub finish_position: Option<u8>,
+    // Status
+    pub is_on_track: bool,
+    pub is_colliding: bool,
 }
 
 /// Telemetry data sent to clients at high frequency (240Hz)
@@ -142,13 +154,20 @@ impl From<&CarState> for CarStateTelemetry {
             player_id: state.player_id,
             pos_x: state.pos_x,
             pos_y: state.pos_y,
+            pos_z: state.pos_z,
             yaw_rad: state.yaw_rad,
+            pitch_rad: state.pitch_rad,
+            roll_rad: state.roll_rad,
             speed_mps: state.speed_mps,
             throttle: state.throttle_input,
+            brake: state.brake_input,
             steering: state.steering_input,
+            gear: state.gear,
             current_lap: state.current_lap,
             track_progress: state.track_progress,
             finish_position: state.finish_position,
+            is_on_track: state.is_on_track,
+            is_colliding: state.is_colliding,
         }
     }
 }
@@ -236,6 +255,7 @@ mod tests {
             position: 1,
             x: 10.0,
             y: 20.0,
+            z: 0.0,
             yaw_rad: 0.5,
         };
 

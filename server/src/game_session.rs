@@ -1,13 +1,15 @@
+use crate::ai_driver::{AiDriverController, AiDriverProfile};
 use crate::data::*;
 use crate::network::*;
 use crate::physics;
 use std::collections::HashMap;
-use uuid::Uuid;
 
 pub struct GameSession {
     pub session: RaceSession,
     pub track_config: TrackConfig,
     pub car_configs: HashMap<CarConfigId, CarConfig>,
+    /// AI driver profiles indexed by their player ID
+    pub ai_profiles: HashMap<PlayerId, AiDriverProfile>,
 }
 
 impl GameSession {
@@ -20,6 +22,33 @@ impl GameSession {
             session,
             track_config,
             car_configs,
+            ai_profiles: HashMap::new(),
+        }
+    }
+    
+    /// Create a new game session with AI driver profiles.
+    ///
+    /// # Arguments
+    /// * `session` - The race session configuration
+    /// * `track_config` - Track configuration
+    /// * `car_configs` - Available car configurations
+    /// * `ai_profiles` - AI driver profiles to use for this session
+    pub fn with_ai_profiles(
+        session: RaceSession,
+        track_config: TrackConfig,
+        car_configs: HashMap<CarConfigId, CarConfig>,
+        ai_profiles: Vec<AiDriverProfile>,
+    ) -> Self {
+        let ai_profiles_map: HashMap<PlayerId, AiDriverProfile> = ai_profiles
+            .into_iter()
+            .map(|p| (p.id, p))
+            .collect();
+        
+        Self {
+            session,
+            track_config,
+            car_configs,
+            ai_profiles: ai_profiles_map,
         }
     }
 
@@ -54,7 +83,6 @@ impl GameSession {
 
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
-        let track_length = self.get_track_length();
 
         // Update each car
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
@@ -68,14 +96,13 @@ impl GameSession {
 
             // Get car config
             if let Some(config) = self.car_configs.get(&state.car_config_id) {
-                // Update physics
-                physics::update_car_2d(state, config, &input, dt);
+                // Update 3D physics with track context
+                physics::update_car_3d(state, config, &input, &self.track_config, dt);
 
                 // Update track progress
-                physics::update_track_progress(
+                physics::update_track_progress_3d(
                     state,
-                    &self.track_config.centerline,
-                    track_length,
+                    &self.track_config,
                     self.session.current_tick,
                 );
             }
@@ -83,7 +110,7 @@ impl GameSession {
 
         // Check collisions
         let mut state_vec: Vec<CarState> = self.session.participants.values().cloned().collect();
-        physics::check_aabb_collisions(&mut state_vec, &self.car_configs);
+        physics::check_aabb_collisions_3d(&mut state_vec, &self.car_configs);
 
         // Update states back
         for state in state_vec {
@@ -149,53 +176,30 @@ impl GameSession {
         self.session.participants.remove(player_id);
     }
 
-    /// Generate AI input for a player
+    /// Generate AI input for a player using their AI profile.
+    ///
+    /// Returns default input if the player is not an AI or has no profile.
     pub fn generate_ai_input(&self, player_id: &PlayerId) -> PlayerInputData {
-        if let Some(state) = self.session.participants.get(player_id) {
-            // Simple AI: follow the centerline
-            let look_ahead_distance = 20.0; // meters
-            let target_speed = 30.0; // m/s
-
-            // Find target point ahead on centerline
-            let target_progress = state.track_progress + look_ahead_distance;
-            let track_length = self.get_track_length();
-            let wrapped_progress = target_progress % track_length;
-
-            let target_point = self
-                .track_config
-                .centerline
-                .iter()
-                .min_by_key(|p| {
-                    ((p.distance_from_start_m - wrapped_progress).abs() * 1000.0) as i32
-                })
-                .unwrap();
-
-            // Calculate steering
-            let dx = target_point.x - state.pos_x;
-            let dy = target_point.y - state.pos_y;
-            let target_angle = dy.atan2(dx);
-            let angle_diff = target_angle - state.yaw_rad;
-            
-            // Normalize angle difference to -PI to PI
-            let angle_diff = ((angle_diff + std::f32::consts::PI) % (2.0 * std::f32::consts::PI)) - std::f32::consts::PI;
-
-            let steering = (angle_diff * 2.0).clamp(-1.0, 1.0);
-
-            // Calculate throttle/brake
-            let (throttle, brake) = if state.speed_mps < target_speed {
-                (0.8, 0.0)
-            } else {
-                (0.0, 0.3)
-            };
-
-            PlayerInputData {
-                throttle,
-                brake,
-                steering,
+        // Check if this player has an AI profile
+        if let Some(profile) = self.ai_profiles.get(player_id) {
+            if let Some(state) = self.session.participants.get(player_id) {
+                let controller = AiDriverController::new(profile, &self.track_config);
+                return controller.generate_input(state, self.session.current_tick);
             }
-        } else {
-            PlayerInputData::default()
         }
+        
+        // Fallback: no AI profile found, return default (coasting)
+        PlayerInputData::default()
+    }
+    
+    /// Check if a player is an AI driver.
+    pub fn is_ai_player(&self, player_id: &PlayerId) -> bool {
+        self.ai_profiles.contains_key(player_id)
+    }
+    
+    /// Get the AI profile for a player, if they are an AI.
+    pub fn get_ai_profile(&self, player_id: &PlayerId) -> Option<&AiDriverProfile> {
+        self.ai_profiles.get(player_id)
     }
 
     /// Get telemetry for broadcast
@@ -257,42 +261,56 @@ impl GameSession {
         }
     }
 
-    fn get_track_length(&self) -> f32 {
-        self.track_config
-            .centerline
-            .last()
-            .map(|p| p.distance_from_start_m)
-            .unwrap_or(1000.0)
-    }
-
-    /// Spawn AI drivers to fill empty grid slots
+    /// Spawn AI drivers using the provided profiles.
+    ///
+    /// AI drivers will be added to the session up to the configured ai_count.
+    /// Each AI uses their preferred car (if set) or the default car.
     pub fn spawn_ai_drivers(&mut self) {
-        let ai_to_spawn = self.session.ai_count.saturating_sub(
-            self.session
-                .participants
-                .values()
-                .filter(|_s| {
-                    // Check if player is AI (we need to track this separately)
-                    false // For now, we don't track AI flag in CarState
-                })
-                .count() as u8,
-        );
-
-        for _ in 0..ai_to_spawn {
+        let current_ai_count = self.session.ai_player_ids.len() as u8;
+        let ai_to_spawn = self.session.ai_count.saturating_sub(current_ai_count);
+        
+        if ai_to_spawn == 0 {
+            return;
+        }
+        
+        // Collect profile data we need before mutating self
+        let profiles_to_spawn: Vec<(PlayerId, Option<CarConfigId>)> = self.ai_profiles
+            .values()
+            .filter(|p| !self.session.ai_player_ids.contains(&p.id))
+            .take(ai_to_spawn as usize)
+            .map(|p| (p.id, p.preferred_car_id))
+            .collect();
+        
+        let default_car_id = self.car_configs.values().next().map(|c| c.id);
+        
+        for (ai_id, preferred_car) in profiles_to_spawn {
             if self.session.participants.len() >= self.session.max_players as usize {
                 break;
             }
-
-            let ai_id = Uuid::new_v4();
-            let default_car = self.car_configs.values().next().unwrap().id;
-            self.add_player(ai_id, default_car);
+            
+            // Use preferred car or default
+            let car_id = preferred_car
+                .or(default_car_id)
+                .expect("No car configuration available");
+            
+            if self.add_player(ai_id, car_id).is_some() {
+                self.session.ai_player_ids.push(ai_id);
+            }
         }
+    }
+    
+    /// Add AI profiles to the session.
+    ///
+    /// This should be called when setting up the session in the lobby.
+    pub fn set_ai_profiles(&mut self, profiles: Vec<AiDriverProfile>) {
+        self.ai_profiles = profiles.into_iter().map(|p| (p.id, p)).collect();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     fn create_test_session() -> GameSession {
         let track = TrackConfig::default();
@@ -365,15 +383,51 @@ mod tests {
     #[test]
     fn test_ai_input_generation() {
         let mut game_session = create_test_session();
-        let player_id = Uuid::new_v4();
         let car_id = game_session.car_configs.values().next().unwrap().id;
-
-        game_session.add_player(player_id, car_id);
-        let ai_input = game_session.generate_ai_input(&player_id);
+        
+        // Create an AI profile
+        let ai_profile = AiDriverProfile::new("Test AI", 90);
+        let ai_player_id = ai_profile.id;
+        
+        // Add AI profile to the session
+        game_session.set_ai_profiles(vec![ai_profile]);
+        
+        // Add the AI player to the session
+        game_session.add_player(ai_player_id, car_id);
+        
+        let ai_input = game_session.generate_ai_input(&ai_player_id);
 
         // AI should generate valid inputs
         assert!(ai_input.throttle >= 0.0 && ai_input.throttle <= 1.0);
         assert!(ai_input.brake >= 0.0 && ai_input.brake <= 1.0);
         assert!(ai_input.steering >= -1.0 && ai_input.steering <= 1.0);
+    }
+    
+    #[test]
+    fn test_ai_spawn_with_profiles() {
+        use crate::ai_driver::generate_default_ai_profiles;
+        
+        let track = TrackConfig::default();
+        let car = CarConfig::default();
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car.clone());
+        
+        // Create session with 2 AI drivers
+        let session = RaceSession::new(Uuid::new_v4(), track.id, 8, 2, 3);
+        let ai_profiles = generate_default_ai_profiles(2);
+        
+        let mut game_session = GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);
+        
+        // Spawn AI drivers
+        game_session.spawn_ai_drivers();
+        
+        // Should have 2 AI participants
+        assert_eq!(game_session.session.participants.len(), 2);
+        assert_eq!(game_session.session.ai_player_ids.len(), 2);
+        
+        // All should be recognized as AI players
+        for ai_id in &game_session.session.ai_player_ids {
+            assert!(game_session.is_ai_player(ai_id));
+        }
     }
 }

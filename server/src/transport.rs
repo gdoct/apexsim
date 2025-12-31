@@ -161,9 +161,10 @@ impl TransportLayer {
             let tls_acceptor = self.tls_acceptor.clone();
             let connections = Arc::clone(&self.connections);
             let addr_to_connection = Arc::clone(&self.addr_to_connection);
+            let player_to_connection = Arc::clone(&self.player_to_connection);
 
             tokio::spawn(async move {
-                Self::tcp_acceptor(listener, tcp_tx, tls_acceptor, connections, addr_to_connection).await;
+                Self::tcp_acceptor(listener, tcp_tx, tls_acceptor, connections, addr_to_connection, player_to_connection).await;
             });
         }
 
@@ -191,6 +192,7 @@ impl TransportLayer {
         tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+        player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
     ) {
         loop {
             match listener.accept().await {
@@ -200,6 +202,7 @@ impl TransportLayer {
                     let tls_acceptor = tls_acceptor.clone();
                     let connections = Arc::clone(&connections);
                     let addr_to_connection = Arc::clone(&addr_to_connection);
+                    let player_to_connection = Arc::clone(&player_to_connection);
 
                     tokio::spawn(async move {
                         if let Err(e) = Self::handle_tcp_connection(
@@ -209,6 +212,7 @@ impl TransportLayer {
                             tls_acceptor,
                             connections,
                             addr_to_connection,
+                            player_to_connection,
                         )
                         .await
                         {
@@ -230,6 +234,7 @@ impl TransportLayer {
         tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+        player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
     ) -> Result<(), TransportError> {
         // Generate connection ID
         let connection_id = Self::addr_to_connection_id(&addr);
@@ -251,6 +256,7 @@ impl TransportLayer {
                         tcp_tx,
                         connections,
                         addr_to_connection,
+                        player_to_connection,
                     )
                     .await
                 }
@@ -273,6 +279,7 @@ impl TransportLayer {
                 tcp_tx,
                 connections,
                 addr_to_connection,
+                player_to_connection,
             )
             .await
         }
@@ -287,6 +294,7 @@ impl TransportLayer {
         tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+        player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
     ) -> Result<(), TransportError>
     where
         S: AsyncReadExt + AsyncWriteExt + Unpin + Send + 'static,
@@ -357,7 +365,9 @@ impl TransportLayer {
 
                                         connections.write().await.insert(connection_id, conn_info.clone());
                                         addr_to_connection.write().await.insert(addr, connection_id);
-                                        info!("Player {} authenticated as {}", player_name, player_id);
+                                        // Also track player_id -> connection_id mapping for broadcast lookups
+                                        player_to_connection.write().await.insert(player_id, connection_id);
+                                        info!("Player {} authenticated as {} (connection: {})", player_name, player_id, connection_id);
 
                                         // Send auth success response
                                         let response = ServerMessage::AuthSuccess {
@@ -408,6 +418,7 @@ impl TransportLayer {
         // Cleanup connection
         if let Some(conn) = connections.write().await.remove(&connection_id) {
             addr_to_connection.write().await.remove(&addr);
+            player_to_connection.write().await.remove(&conn.player_id);
             info!("Connection cleaned up: {} (player: {})", addr, conn.player_name);
         }
 
