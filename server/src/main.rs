@@ -682,6 +682,16 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
         // Broadcast telemetry to all session participants (via TCP for now)
         let transport_write2 = transport.write().await;
         for (session_id, game_session) in state_write.sessions.iter() {
+            // Only send telemetry if session is active (not in Lobby or Closed state)
+            let should_send_telemetry = matches!(
+                game_session.session.state,
+                SessionState::Countdown | SessionState::Racing | SessionState::Finished
+            );
+            
+            if !should_send_telemetry {
+                continue; // Skip telemetry for lobby sessions
+            }
+            
             let telemetry_msg = game_session.get_telemetry();
             let participant_count = game_session.session.participants.len();
             
