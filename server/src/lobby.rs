@@ -305,7 +305,7 @@ mod tests {
         let player = LobbyPlayerState {
             player_id,
             player_name: "TestPlayer".to_string(),
-            connection_id: 12345,
+            connection_id: Uuid::new_v4(),
             selected_car: None,
         };
 
@@ -357,7 +357,7 @@ mod tests {
         let player = LobbyPlayerState {
             player_id,
             player_name: "TestPlayer".to_string(),
-            connection_id: 12345,
+            connection_id: Uuid::new_v4(),
             selected_car: None,
         };
         lobby.add_player(player).await;
@@ -401,7 +401,7 @@ mod tests {
         let player = LobbyPlayerState {
             player_id,
             player_name: "Spectator".to_string(),
-            connection_id: 12345,
+            connection_id: Uuid::new_v4(),
             selected_car: None,
         };
         lobby.add_player(player).await;
