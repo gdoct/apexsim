@@ -1,5 +1,4 @@
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -233,15 +232,17 @@ console_enabled = true
     // Give server time to start and log
     sleep(Duration::from_secs(3)).await;
     
-    // Capture stderr
+    // Capture stderr and stdout
     let _ = child.kill();
     let output = child.wait_with_output().expect("Failed to get output");
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{}\n{}", stdout, stderr);
     
     // Check for TLS state in logs
     assert!(
-        stderr.contains("TLS mode") || stderr.contains("TLS configuration"),
+        combined.contains("TLS mode") || combined.contains("TLS configuration"),
         "Logs should clearly indicate TLS state. Got:\n{}",
-        stderr
+        combined
     );
 }

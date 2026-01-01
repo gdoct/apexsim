@@ -75,6 +75,7 @@ pub struct ConnectionInfo {
     pub last_heartbeat: Instant,
     pub tcp_addr: SocketAddr,
     pub tcp_tx: mpsc::Sender<ServerMessage>,
+    pub in_session: Option<SessionId>,
 }
 
 pub struct TransportLayer {
@@ -429,6 +430,7 @@ impl TransportLayer {
                                             last_heartbeat: Instant::now(),
                                             tcp_addr: addr,
                                             tcp_tx: conn_tx.clone(),
+                                            in_session: None,
                                         };
 
                                         connections
@@ -673,15 +675,29 @@ impl TransportLayer {
     pub async fn cleanup_stale_connections(&self) {
         let now = Instant::now();
         let timeout = self.heartbeat_timeout;
+        // Use a much longer timeout for lobby players (30 seconds)
+        // Only players in racing sessions need strict heartbeat enforcement
+        let lobby_timeout = Duration::from_secs(30);
 
         let mut connections = self.connections.write().await;
         let mut to_remove = Vec::new();
 
         for (conn_id, info) in connections.iter() {
-            if now.duration_since(info.last_heartbeat) > timeout {
+            let elapsed = now.duration_since(info.last_heartbeat);
+            
+            // Use different timeouts based on session state
+            let timeout_to_use = if info.in_session.is_some() {
+                // Strict timeout for players in racing sessions
+                timeout
+            } else {
+                // Lenient timeout for lobby players
+                lobby_timeout
+            };
+            
+            if elapsed > timeout_to_use {
                 warn!(
-                    "Connection {} timed out (player: {})",
-                    conn_id, info.player_name
+                    "Connection {} timed out (player: {}, in_session: {}, elapsed: {:?})",
+                    conn_id, info.player_name, info.in_session.is_some(), elapsed
                 );
                 to_remove.push(*conn_id);
             }
@@ -701,6 +717,12 @@ impl TransportLayer {
     pub async fn update_heartbeat(&self, connection_id: ConnectionId) {
         if let Some(info) = self.connections.write().await.get_mut(&connection_id) {
             info.last_heartbeat = Instant::now();
+        }
+    }
+
+    pub async fn set_player_session(&self, connection_id: ConnectionId, session_id: Option<SessionId>) {
+        if let Some(info) = self.connections.write().await.get_mut(&connection_id) {
+            info.in_session = session_id;
         }
     }
 
@@ -879,6 +901,7 @@ mod tests {
                         last_heartbeat: Instant::now(),
                         tcp_addr: addr,
                         tcp_tx: conn_tx,
+                        in_session: None,
                     },
                 );
             }
@@ -939,6 +962,7 @@ mod tests {
                         last_heartbeat: Instant::now(),
                         tcp_addr: addr,
                         tcp_tx: conn_tx,
+                        in_session: None,
                     },
                 );
             }

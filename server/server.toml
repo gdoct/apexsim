@@ -4,9 +4,9 @@ max_sessions = 8
 session_timeout_seconds = 300
 
 [network]
-tcp_bind = "127.0.0.1:9000"
-udp_bind = "127.0.0.1:9001"
-health_bind = "127.0.0.1:9002"
+tcp_bind = "0.0.0.0:9000"
+udp_bind = "0.0.0.0:9001"
+health_bind = "0.0.0.0:9002"
 tls_cert_path = "./certs/server.crt"
 tls_key_path = "./certs/server.key"
 require_tls = false
