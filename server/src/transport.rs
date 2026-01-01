@@ -1,5 +1,6 @@
 use crate::data::*;
 use crate::network::{ClientMessage, ServerMessage};
+use rand::RngCore;
 use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig as TlsConfig;
 use std::collections::HashMap;
@@ -376,30 +377,9 @@ impl TransportLayer {
                                     if let ClientMessage::Authenticate { player_name, .. } = &msg {
                                         let player_id = Uuid::new_v4();
                                         
-                                        // Generate random UDP secret
+                                        // Generate cryptographically secure random UDP secret
                                         let mut udp_secret = [0u8; 32];
-                                        use std::collections::hash_map::RandomState;
-                                        use std::hash::{BuildHasher, Hash, Hasher};
-                                        
-                                        // Use a combination of sources for randomness
-                                        let mut hasher = RandomState::new().build_hasher();
-                                        player_id.hash(&mut hasher);
-                                        Instant::now().elapsed().as_nanos().hash(&mut hasher);
-                                        addr.hash(&mut hasher);
-                                        
-                                        let hash1 = hasher.finish();
-                                        udp_secret[0..8].copy_from_slice(&hash1.to_le_bytes());
-                                        
-                                        // Generate more random bytes
-                                        for i in (8..32).step_by(8) {
-                                            let mut h = RandomState::new().build_hasher();
-                                            (i as u64).hash(&mut h);
-                                            hash1.hash(&mut h);
-                                            player_id.hash(&mut h);
-                                            let hash = h.finish();
-                                            let end = (i + 8).min(32);
-                                            udp_secret[i..end].copy_from_slice(&hash.to_le_bytes()[0..(end-i)]);
-                                        }
+                                        rand::rngs::OsRng.fill_bytes(&mut udp_secret);
                                         
                                         let conn_info = ConnectionInfo {
                                             player_id,
