@@ -138,7 +138,7 @@ impl ReplayManager {
         let mut writer = BufWriter::new(file);
 
         // Write header
-        let header_bytes = bincode::serialize(&header)
+        let header_bytes = rmp_serde::to_vec_named(&header)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         let header_len = header_bytes.len() as u32;
         writer.write_all(&header_len.to_le_bytes()).await?;
@@ -146,7 +146,7 @@ impl ReplayManager {
 
         // Write frames
         for frame in &recorder.frames {
-            let frame_bytes = bincode::serialize(frame)
+            let frame_bytes = rmp_serde::to_vec_named(frame)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
             let frame_len = frame_bytes.len() as u32;
             writer.write_all(&frame_len.to_le_bytes()).await?;
@@ -173,7 +173,7 @@ impl ReplayManager {
         let mut header_bytes = vec![0u8; header_len];
         reader.read_exact(&mut header_bytes).await?;
 
-        let header: ReplayHeader = bincode::deserialize(&header_bytes)
+        let header: ReplayHeader = rmp_serde::from_slice(&header_bytes)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
         // Read frames
@@ -186,7 +186,7 @@ impl ReplayManager {
             let mut frame_bytes = vec![0u8; frame_len];
             reader.read_exact(&mut frame_bytes).await?;
 
-            let frame: ReplayFrame = bincode::deserialize(&frame_bytes)
+            let frame: ReplayFrame = rmp_serde::from_slice(&frame_bytes)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
             frames.push(frame);
@@ -243,7 +243,7 @@ impl ReplayManager {
         let mut header_bytes = vec![0u8; header_len];
         reader.read_exact(&mut header_bytes).await?;
 
-        let header: ReplayHeader = bincode::deserialize(&header_bytes)
+        let header: ReplayHeader = rmp_serde::from_slice(&header_bytes)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
         Ok(header.metadata)

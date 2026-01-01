@@ -51,8 +51,8 @@ impl NetworkClient {
             .as_mut()
             .context("Not connected to server")?;
 
-        // Serialize the message using bincode
-        let data = bincode::serialize(&msg).context("Failed to serialize message")?;
+        // Serialize the message using MessagePack
+        let data = rmp_serde::to_vec_named(&msg).context("Failed to serialize message")?;
 
         // Send length-prefixed message (big-endian to match server)
         let len = data.len() as u32;
@@ -100,7 +100,7 @@ impl NetworkClient {
 
         // Deserialize
         let msg: ServerMessage =
-            bincode::deserialize(&data).context("Failed to deserialize message")?;
+            rmp_serde::from_slice(&data).context("Failed to deserialize message")?;
 
         debug!("Received message: {:?}", msg);
         Ok(msg)
@@ -136,7 +136,7 @@ impl NetworkClient {
 
         // Deserialize
         let msg: ServerMessage =
-            bincode::deserialize(&data).context("Failed to deserialize message")?;
+            rmp_serde::from_slice(&data).context("Failed to deserialize message")?;
 
         Ok(Some(msg))
     }

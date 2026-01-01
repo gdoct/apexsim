@@ -56,7 +56,9 @@ pub enum TransportError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Serialization error: {0}")]
-    Serialization(#[from] bincode::Error),
+    Serialization(#[from] rmp_serde::encode::Error),
+    #[error("Deserialization error: {0}")]
+    Deserialization(#[from] rmp_serde::decode::Error),
     #[error("TLS error: {0}")]
     Tls(#[from] rustls::Error),
     #[error("Connection not found")]
@@ -374,7 +376,7 @@ impl TransportLayer {
         let writer_addr = addr;
         tokio::spawn(async move {
             while let Some(msg) = conn_rx.recv().await {
-                match bincode::serialize(&msg) {
+                match rmp_serde::to_vec_named(&msg) {
                     Ok(data) => {
                         // Write length prefix (4 bytes) then data
                         let len = data.len() as u32;
@@ -418,7 +420,7 @@ impl TransportLayer {
                     let mut msg_buf = vec![0u8; len];
                     match reader.read_exact(&mut msg_buf).await {
                         Ok(_) => {
-                            match bincode::deserialize::<ClientMessage>(&msg_buf) {
+                            match rmp_serde::from_slice::<ClientMessage>(&msg_buf) {
                                 Ok(msg) => {
                                     // Handle authentication - register connection
                                     if let ClientMessage::Authenticate { player_name, .. } = &msg {
@@ -521,7 +523,7 @@ impl TransportLayer {
         loop {
             match socket.recv_from(&mut buf).await {
                 Ok((n, addr)) => {
-                    match bincode::deserialize::<ClientMessage>(&buf[..n]) {
+                    match rmp_serde::from_slice::<ClientMessage>(&buf[..n]) {
                         Ok(msg) => {
                             // Try to send, but don't block if queue is full
                             if tx.send((addr, msg)).await.is_err() {
@@ -548,7 +550,7 @@ impl TransportLayer {
         _metrics: TransportMetrics,
     ) {
         while let Some((addr, msg)) = rx.recv().await {
-            match bincode::serialize(&msg) {
+            match rmp_serde::to_vec_named(&msg) {
                 Ok(data) => {
                     if let Err(e) = socket.send_to(&data, addr).await {
                         debug!("Failed to send UDP message to {}: {}", addr, e);

@@ -3,6 +3,9 @@ using System;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
+using MessagePack;
+using MessagePack.Resolvers;
 
 namespace ApexSim;
 
@@ -37,6 +40,8 @@ public partial class NetworkClient : Node
     private bool _isConnected = false;
     private string _playerId = "";
     private readonly Queue<ServerMessage> _messageQueue = new();
+    private static readonly MessagePackSerializerOptions MsgPackOptions =
+        MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance);
 
     // Store latest lobby state for retrieval
     public LobbyStateMessage? LastLobbyState { get; private set; }
@@ -152,10 +157,7 @@ public partial class NetworkClient : Node
 
         try
         {
-            // Serialize message with bincode
-            var writer = new BincodeWriter();
-            message.Serialize(writer);
-            var data = writer.ToArray();
+            var data = SerializeClientMessage(message);
 
             // Send length prefix (4 bytes, big-endian)
             var length = data.Length;
@@ -224,19 +226,7 @@ public partial class NetworkClient : Node
                     break;
                 }
 
-                // Deserialize with bincode
-                var reader = new BincodeReader(dataBuffer);
-                ServerMessage message;
-                try
-                {
-                    message = ServerMessage.Deserialize(reader);
-                }
-                catch (Exception deserEx)
-                {
-                    GD.PrintErr($"Deserialization error: {deserEx.Message}");
-                    GD.PrintErr($"Stack trace: {deserEx.StackTrace}");
-                    throw;
-                }
+                var message = ParseServerMessage(dataBuffer);
 
                 // Queue message for processing on main thread
                 lock (_messageQueue)
@@ -315,5 +305,343 @@ public partial class NetworkClient : Node
     public override void _ExitTree()
     {
         DisconnectFromServer();
+    }
+
+
+    private byte[] SerializeClientMessage(ClientMessage message)
+    {
+        string type;
+        Dictionary<string, object?>? payload = null;
+
+        switch (message)
+        {
+            case AuthenticateMessage auth:
+                type = "Authenticate";
+                payload = new Dictionary<string, object?>
+                {
+                    ["token"] = auth.Token,
+                    ["player_name"] = auth.PlayerName
+                };
+                break;
+            case HeartbeatMessage hb:
+                type = "Heartbeat";
+                payload = new Dictionary<string, object?> { ["client_tick"] = hb.ClientTick };
+                break;
+            case SelectCarMessage selectCar:
+                type = "SelectCar";
+                payload = new Dictionary<string, object?> { ["car_config_id"] = AsUuidBytes(selectCar.CarConfigId) };
+                break;
+            case RequestLobbyStateMessage:
+                type = "RequestLobbyState";
+                break;
+            case CreateSessionMessage createSession:
+                type = "CreateSession";
+                payload = new Dictionary<string, object?>
+                {
+                    ["track_config_id"] = AsUuidBytes(createSession.TrackConfigId),
+                    ["max_players"] = createSession.MaxPlayers,
+                    ["ai_count"] = createSession.AiCount,
+                    ["lap_limit"] = createSession.LapLimit
+                };
+                break;
+            case JoinSessionMessage join:
+                type = "JoinSession";
+                payload = new Dictionary<string, object?> { ["session_id"] = AsUuidBytes(join.SessionId) };
+                break;
+            case LeaveSessionMessage:
+                type = "LeaveSession";
+                break;
+            case StartSessionMessage:
+                type = "StartSession";
+                break;
+            case DisconnectMessage:
+                type = "Disconnect";
+                break;
+            default:
+                throw new Exception($"Unsupported client message type: {message.GetType().Name}");
+        }
+
+        var envelope = new Dictionary<string, object?> { ["type"] = type };
+        if (payload != null)
+        {
+            envelope["data"] = payload;
+        }
+
+        return MessagePackSerializer.Serialize(envelope, MsgPackOptions);
+    }
+
+    private ServerMessage ParseServerMessage(byte[] data)
+    {
+        var envelope = MessagePackSerializer.Deserialize<Dictionary<string, object?>>(data, MsgPackOptions);
+
+        if (!envelope.TryGetValue("type", out var typeObj) || typeObj == null)
+        {
+            throw new Exception("Missing type field in server message");
+        }
+
+        var messageType = typeObj.ToString();
+        envelope.TryGetValue("data", out var dataObj);
+
+        return messageType switch
+        {
+            "AuthSuccess" => BuildAuthSuccess(dataObj),
+            "AuthFailure" => BuildAuthFailure(dataObj),
+            "HeartbeatAck" => BuildHeartbeatAck(dataObj),
+            "LobbyState" => BuildLobbyState(dataObj),
+            "SessionJoined" => BuildSessionJoined(dataObj),
+            "SessionLeft" => new SessionLeftMessage(),
+            "SessionStarting" => BuildSessionStarting(dataObj),
+            "Error" => BuildError(dataObj),
+            "PlayerDisconnected" => BuildPlayerDisconnected(dataObj),
+            "Telemetry" => new TelemetryMessage(),
+            _ => throw new Exception($"Unknown server message type: {messageType}")
+        };
+    }
+
+    private static AuthSuccessMessage BuildAuthSuccess(object? data)
+    {
+        var map = ToStringMap(data);
+        return new AuthSuccessMessage
+        {
+            PlayerId = ReadUuid(map, "player_id"),
+            ServerVersion = (uint)ReadUInt(map, "server_version")
+        };
+    }
+
+    private static AuthFailureMessage BuildAuthFailure(object? data)
+    {
+        var map = ToStringMap(data);
+        return new AuthFailureMessage { Reason = ReadString(map, "reason") };
+    }
+
+    private static HeartbeatAckMessage BuildHeartbeatAck(object? data)
+    {
+        var map = ToStringMap(data);
+        return new HeartbeatAckMessage { ServerTick = (uint)ReadUInt(map, "server_tick") };
+    }
+
+    private static LobbyStateMessage BuildLobbyState(object? data)
+    {
+        var map = ToStringMap(data);
+
+        var players = map.TryGetValue("players_in_lobby", out var playersObj)
+            ? ToList(playersObj).Select(BuildLobbyPlayer).ToArray()
+            : Array.Empty<LobbyPlayer>();
+
+        var sessions = map.TryGetValue("available_sessions", out var sessionsObj)
+            ? ToList(sessionsObj).Select(BuildSessionSummary).ToArray()
+            : Array.Empty<SessionSummary>();
+
+        var cars = map.TryGetValue("car_configs", out var carsObj)
+            ? ToList(carsObj).Select(BuildCarConfig).ToArray()
+            : Array.Empty<CarConfigSummary>();
+
+        var tracks = map.TryGetValue("track_configs", out var tracksObj)
+            ? ToList(tracksObj).Select(BuildTrackConfig).ToArray()
+            : Array.Empty<TrackConfigSummary>();
+
+        return new LobbyStateMessage
+        {
+            PlayersInLobby = players,
+            AvailableSessions = sessions,
+            CarConfigs = cars,
+            TrackConfigs = tracks
+        };
+    }
+
+    private static SessionJoinedMessage BuildSessionJoined(object? data)
+    {
+        var map = ToStringMap(data);
+        return new SessionJoinedMessage
+        {
+            SessionId = ReadUuid(map, "session_id"),
+            YourGridPosition = (byte)ReadUInt(map, "your_grid_position")
+        };
+    }
+
+    private static SessionStartingMessage BuildSessionStarting(object? data)
+    {
+        var map = ToStringMap(data);
+        return new SessionStartingMessage
+        {
+            CountdownSeconds = (byte)ReadUInt(map, "countdown_seconds")
+        };
+    }
+
+    private static ErrorMessage BuildError(object? data)
+    {
+        var map = ToStringMap(data);
+        return new ErrorMessage
+        {
+            Code = (ushort)ReadUInt(map, "code"),
+            Message = ReadString(map, "message")
+        };
+    }
+
+    private static PlayerDisconnectedMessage BuildPlayerDisconnected(object? data)
+    {
+        var map = ToStringMap(data);
+        return new PlayerDisconnectedMessage
+        {
+            PlayerId = ReadUuid(map, "player_id")
+        };
+    }
+
+    private static LobbyPlayer BuildLobbyPlayer(object? obj)
+    {
+        var map = ToStringMap(obj);
+        return new LobbyPlayer
+        {
+            Id = ReadUuid(map, "id"),
+            Name = ReadString(map, "name"),
+            SelectedCar = ReadOptionalUuid(map, "selected_car"),
+            InSession = ReadOptionalUuid(map, "in_session")
+        };
+    }
+
+    private static SessionSummary BuildSessionSummary(object? obj)
+    {
+        var map = ToStringMap(obj);
+        return new SessionSummary
+        {
+            Id = ReadUuid(map, "id"),
+            TrackName = ReadString(map, "track_name"),
+            HostName = ReadString(map, "host_name"),
+            PlayerCount = (byte)ReadUInt(map, "player_count"),
+            MaxPlayers = (byte)ReadUInt(map, "max_players"),
+            State = (SessionState)ReadUInt(map, "state")
+        };
+    }
+
+    private static CarConfigSummary BuildCarConfig(object? obj)
+    {
+        var map = ToStringMap(obj);
+        return new CarConfigSummary
+        {
+            Id = ReadUuid(map, "id"),
+            Name = ReadString(map, "name")
+        };
+    }
+
+    private static TrackConfigSummary BuildTrackConfig(object? obj)
+    {
+        var map = ToStringMap(obj);
+        return new TrackConfigSummary
+        {
+            Id = ReadUuid(map, "id"),
+            Name = ReadString(map, "name")
+        };
+    }
+
+    private static Dictionary<string, object?> ToStringMap(object? data)
+    {
+        if (data == null)
+        {
+            return new Dictionary<string, object?>();
+        }
+
+        if (data is Dictionary<string, object?> dict)
+        {
+            return dict;
+        }
+
+        if (data is IDictionary<object, object?> genericDict)
+        {
+            var converted = new Dictionary<string, object?>();
+            foreach (var kvp in genericDict)
+            {
+                converted[kvp.Key.ToString() ?? ""] = kvp.Value;
+            }
+            return converted;
+        }
+
+        throw new Exception("Expected map in server message payload");
+    }
+
+    private static IList<object?> ToList(object? data)
+    {
+        if (data is IList<object?> list)
+        {
+            return list;
+        }
+
+        if (data is object?[] arr)
+        {
+            return arr;
+        }
+
+        if (data is IEnumerable<object?> enumerable)
+        {
+            return enumerable.ToList();
+        }
+
+        throw new Exception("Expected list in server message payload");
+    }
+
+    private static string ReadString(Dictionary<string, object?> map, string key)
+    {
+        if (!map.TryGetValue(key, out var value) || value == null)
+        {
+            throw new Exception($"Missing field '{key}' in server message");
+        }
+        return value.ToString() ?? string.Empty;
+    }
+
+    private static string ReadUuid(Dictionary<string, object?> map, string key)
+    {
+        if (!map.TryGetValue(key, out var value) || value == null)
+        {
+            throw new Exception($"Missing field '{key}' in server message");
+        }
+        return ToUuidString(value);
+    }
+
+    private static string? ReadOptionalUuid(Dictionary<string, object?> map, string key)
+    {
+        if (!map.TryGetValue(key, out var value) || value == null)
+        {
+            return null;
+        }
+        return ToUuidString(value);
+    }
+
+    private static ulong ReadUInt(Dictionary<string, object?> map, string key)
+    {
+        if (!map.TryGetValue(key, out var value) || value == null)
+        {
+            throw new Exception($"Missing numeric field '{key}' in server message");
+        }
+
+        return value switch
+        {
+            byte b => b,
+            sbyte sb => (ulong)sb,
+            short s => (ulong)s,
+            ushort us => us,
+            int i => (ulong)i,
+            uint ui => ui,
+            long l => (ulong)l,
+            ulong ul => ul,
+            _ => throw new Exception($"Unsupported numeric type for '{key}'")
+        };
+    }
+
+    private static byte[] AsUuidBytes(string value)
+    {
+        var guid = Guid.Parse(value);
+        return guid.ToByteArray();
+    }
+
+    private static string ToUuidString(object value)
+    {
+        switch (value)
+        {
+            case byte[] bytes when bytes.Length == 16:
+                return new Guid(bytes).ToString();
+            case IReadOnlyList<byte> byteList when byteList.Count == 16:
+                return new Guid(byteList.ToArray()).ToString();
+            default:
+                return value.ToString() ?? string.Empty;
+        }
     }
 }

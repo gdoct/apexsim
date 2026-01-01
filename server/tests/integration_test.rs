@@ -192,7 +192,7 @@ impl TestClient {
     }
 
     async fn send_tcp_message(&mut self, msg: &ClientMessage) -> Result<(), Box<dyn std::error::Error>> {
-        let data = bincode::serialize(msg)?;
+        let data = rmp_serde::to_vec_named(msg)?;
         let len = (data.len() as u32).to_be_bytes();
         
         self.tcp_stream.write_all(&len).await?;
@@ -209,7 +209,7 @@ impl TestClient {
         
         let mut buf = vec![0u8; len as usize];
         self.tcp_stream.read_exact(&mut buf).await?;
-        let msg: ServerMessage = bincode::deserialize(&buf)?;
+        let msg: ServerMessage = rmp_serde::from_slice(&buf)?;
         
         Ok(msg)
     }
@@ -1057,7 +1057,7 @@ impl TestClientMinimal {
     }
     
     async fn send_message(&mut self, msg: &ClientMessage) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let data = bincode::serialize(msg)?;
+        let data = rmp_serde::to_vec_named(msg)?;
         let len = (data.len() as u32).to_be_bytes();
         self.tcp_stream.write_all(&len).await?;
         self.tcp_stream.write_all(&data).await?;
@@ -1072,7 +1072,7 @@ impl TestClientMinimal {
         
         let mut buf = vec![0u8; len as usize];
         self.tcp_stream.read_exact(&mut buf).await?;
-        let msg: ServerMessage = bincode::deserialize(&buf)?;
+        let msg: ServerMessage = rmp_serde::from_slice(&buf)?;
         Ok(msg)
     }
     
