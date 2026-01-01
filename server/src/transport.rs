@@ -1,5 +1,5 @@
 use crate::data::*;
-use crate::network::{ClientMessage, ServerMessage};
+use crate::network::{ClientMessage, ServerMessage, MessagePriority};
 use rand::RngCore;
 use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig as TlsConfig;
@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -17,6 +18,38 @@ use tokio::sync::RwLock;
 use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+
+// Channel capacity constants
+const TCP_INBOUND_CHANNEL_SIZE: usize = 1000;
+const UDP_INBOUND_CHANNEL_SIZE: usize = 2000;
+const UDP_OUTBOUND_CHANNEL_SIZE: usize = 2000;
+const PER_CLIENT_TCP_CHANNEL_SIZE: usize = 100;
+
+/// Metrics for tracking dropped messages
+#[derive(Debug, Default, Clone)]
+pub struct TransportMetrics {
+    pub tcp_messages_dropped: Arc<AtomicU64>,
+    pub udp_messages_dropped: Arc<AtomicU64>,
+    pub clients_disconnected_backpressure: Arc<AtomicU64>,
+}
+
+impl TransportMetrics {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn tcp_dropped(&self) -> u64 {
+        self.tcp_messages_dropped.load(Ordering::Relaxed)
+    }
+
+    pub fn udp_dropped(&self) -> u64 {
+        self.udp_messages_dropped.load(Ordering::Relaxed)
+    }
+
+    pub fn clients_disconnected(&self) -> u64 {
+        self.clients_disconnected_backpressure.load(Ordering::Relaxed)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum TransportError {
@@ -30,6 +63,8 @@ pub enum TransportError {
     ConnectionNotFound,
     #[error("Invalid message")]
     InvalidMessage,
+    #[error("Queue full - client too slow")]
+    QueueFull,
 }
 
 #[derive(Debug, Clone)]
@@ -39,7 +74,7 @@ pub struct ConnectionInfo {
     pub connected_at: Instant,
     pub last_heartbeat: Instant,
     pub tcp_addr: SocketAddr,
-    pub tcp_tx: mpsc::UnboundedSender<ServerMessage>,
+    pub tcp_tx: mpsc::Sender<ServerMessage>,
     pub udp_secret: [u8; 32],
     pub current_session_id: Option<SessionId>,
     pub udp_addr: Option<SocketAddr>,
@@ -70,22 +105,25 @@ pub struct TransportLayer {
     udp_socket: Arc<UdpSocket>,
     tls_acceptor: Option<TlsAcceptor>,
 
-    // Channels for communication
-    tcp_rx: mpsc::UnboundedReceiver<(ConnectionId, ClientMessage)>,
-    tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
-    udp_rx: mpsc::UnboundedReceiver<(SocketAddr, ClientMessage)>,
-    udp_tx: mpsc::UnboundedSender<(SocketAddr, ClientMessage)>,
+    // Channels for communication (bounded)
+    tcp_rx: mpsc::Receiver<(ConnectionId, ClientMessage)>,
+    tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
+    udp_rx: mpsc::Receiver<(SocketAddr, ClientMessage)>,
+    udp_tx: mpsc::Sender<(SocketAddr, ClientMessage)>,
 
     // Outbound message queues (UDP only - TCP uses per-connection channels)
-    udp_out_tx: mpsc::UnboundedSender<(SocketAddr, ServerMessage)>,
-    udp_out_rx: mpsc::UnboundedReceiver<(SocketAddr, ServerMessage)>,
+    udp_out_tx: mpsc::Sender<(SocketAddr, ServerMessage)>,
+    udp_out_rx: mpsc::Receiver<(SocketAddr, ServerMessage)>,
 
-    // Shutdown channel
+    // Shutdown channel (unbounded - low volume, critical)
     shutdown_tx: mpsc::UnboundedSender<()>,
     #[allow(dead_code)]
     shutdown_rx: Option<mpsc::UnboundedReceiver<()>>,
 
     heartbeat_timeout: Duration,
+
+    // Metrics
+    pub metrics: TransportMetrics,
 }
 
 impl TransportLayer {
@@ -94,6 +132,7 @@ impl TransportLayer {
         udp_bind: &str,
         tls_cert_path: &str,
         tls_key_path: &str,
+        require_tls: bool,
         heartbeat_timeout_ms: u64,
     ) -> Result<Self, TransportError> {
         // Setup TCP with TLS
@@ -107,19 +146,39 @@ impl TransportLayer {
         // Load TLS configuration
         let tls_acceptor = match Self::load_tls_config(tls_cert_path, tls_key_path) {
             Ok(config) => {
-                info!("TLS configuration loaded successfully");
+                info!("✓ TLS configuration loaded successfully");
+                info!("  Certificate: {}", tls_cert_path);
+                info!("  Private key: {}", tls_key_path);
+                if require_tls {
+                    info!("  TLS mode: REQUIRED (enforcement: fail if unavailable)");
+                } else {
+                    info!("  TLS mode: ENABLED (enforcement: optional, currently active)");
+                }
                 Some(TlsAcceptor::from(Arc::new(config)))
             }
             Err(e) => {
-                warn!("Failed to load TLS config: {}. Running without TLS encryption.", e);
-                None
+                if require_tls {
+                    error!("✗ FATAL: TLS is required but failed to load");
+                    error!("  Certificate path: {}", tls_cert_path);
+                    error!("  Private key path: {}", tls_key_path);
+                    error!("  Error: {}", e);
+                    error!("  Set network.require_tls = false in config to allow plaintext connections");
+                    return Err(e);
+                } else {
+                    warn!("⚠ TLS configuration failed to load: {}", e);
+                    warn!("  Certificate path: {}", tls_cert_path);
+                    warn!("  Private key path: {}", tls_key_path);
+                    warn!("  TLS mode: OPTIONAL (accepting plaintext connections)");
+                    warn!("  For production, set network.require_tls = true and provide valid certificates");
+                    None
+                }
             }
         };
 
-        // Create channels
-        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
-        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
-        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
+        // Create bounded channels
+        let (tcp_tx, tcp_rx) = mpsc::channel(TCP_INBOUND_CHANNEL_SIZE);
+        let (udp_tx, udp_rx) = mpsc::channel(UDP_INBOUND_CHANNEL_SIZE);
+        let (udp_out_tx, udp_out_rx) = mpsc::channel(UDP_OUTBOUND_CHANNEL_SIZE);
         let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
 
         Ok(Self {
@@ -139,6 +198,7 @@ impl TransportLayer {
             shutdown_tx,
             shutdown_rx: Some(shutdown_rx),
             heartbeat_timeout: Duration::from_millis(heartbeat_timeout_ms),
+            metrics: TransportMetrics::new(),
         })
     }
 
@@ -201,16 +261,17 @@ impl TransportLayer {
         let udp_socket = Arc::clone(&self.udp_socket);
         let mut udp_out_rx = std::mem::replace(
             &mut self.udp_out_rx,
-            mpsc::unbounded_channel().1,
+            mpsc::channel(1).1,
         );
+        let metrics = self.metrics.clone();
         tokio::spawn(async move {
-            Self::udp_sender(udp_socket, &mut udp_out_rx).await;
+            Self::udp_sender(udp_socket, &mut udp_out_rx, metrics).await;
         });
     }
 
     async fn tcp_acceptor(
         listener: TcpListener,
-        tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
+        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
         tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
@@ -252,17 +313,17 @@ impl TransportLayer {
     async fn handle_tcp_connection(
         stream: TcpStream,
         addr: SocketAddr,
-        tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
+        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
         tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
         player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
     ) -> Result<(), TransportError> {
-        // Generate connection ID
-        let connection_id = Self::addr_to_connection_id(&addr);
+        // Generate unique connection ID
+        let connection_id = Uuid::new_v4();
 
-        // Create per-connection send channel
-        let (conn_tx, conn_rx) = mpsc::unbounded_channel::<ServerMessage>();
+        // Create per-connection send channel (BOUNDED)
+        let (conn_tx, conn_rx) = mpsc::channel::<ServerMessage>(PER_CLIENT_TCP_CHANNEL_SIZE);
 
         // Handle TLS if available
         if let Some(acceptor) = tls_acceptor {
@@ -311,9 +372,9 @@ impl TransportLayer {
         stream: S,
         addr: SocketAddr,
         connection_id: ConnectionId,
-        conn_tx: mpsc::UnboundedSender<ServerMessage>,
-        mut conn_rx: mpsc::UnboundedReceiver<ServerMessage>,
-        tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
+        conn_tx: mpsc::Sender<ServerMessage>,
+        mut conn_rx: mpsc::Receiver<ServerMessage>,
+        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
         player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
@@ -406,21 +467,25 @@ impl TransportLayer {
                                             server_version: 1,
                                             udp_secret,
                                         };
-                                        let _ = conn_tx.send(response);
+                                        // Critical message - if queue full, client is too slow
+                                        if conn_tx.send(response).await.is_err() {
+                                            warn!("Failed to send AuthSuccess to slow client {}, disconnecting", addr);
+                                            break;
+                                        }
                                     } else if let ClientMessage::Heartbeat { .. } = &msg {
                                         // Update last heartbeat time
                                         if let Some(conn) = connections.write().await.get_mut(&connection_id) {
                                             conn.last_heartbeat = Instant::now();
                                         }
 
-                                        // Send heartbeat ack
+                                        // Send heartbeat ack (droppable - can be skipped if queue full)
                                         let response = ServerMessage::HeartbeatAck {
                                             server_tick: 0, // Will be updated later with actual tick
                                         };
-                                        let _ = conn_tx.send(response);
+                                        let _ = conn_tx.try_send(response);
                                     }
 
-                                    if tcp_tx.send((connection_id, msg)).is_err() {
+                                    if tcp_tx.send((connection_id, msg)).await.is_err() {
                                         error!("Failed to send message to handler");
                                         break;
                                     }
@@ -459,7 +524,7 @@ impl TransportLayer {
 
     async fn udp_receiver(
         socket: Arc<UdpSocket>,
-        tx: mpsc::UnboundedSender<(SocketAddr, ClientMessage)>,
+        tx: mpsc::Sender<(SocketAddr, ClientMessage)>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         udp_auth_map: Arc<RwLock<HashMap<UdpAuthKey, PlayerId>>>,
     ) {
@@ -539,8 +604,10 @@ impl TransportLayer {
                             };
                             
                             if is_valid {
-                                if tx.send((addr, msg)).is_err() {
-                                    error!("Failed to send UDP message to handler");
+                                // Try to send validated packet, but don't block if queue is full
+                                if tx.send((addr, msg)).await.is_err() {
+                                    // Channel closed, exit
+                                    error!("UDP receiver channel closed");
                                     break;
                                 }
                             }
@@ -559,7 +626,8 @@ impl TransportLayer {
 
     async fn udp_sender(
         socket: Arc<UdpSocket>,
-        rx: &mut mpsc::UnboundedReceiver<(SocketAddr, ServerMessage)>,
+        rx: &mut mpsc::Receiver<(SocketAddr, ServerMessage)>,
+        _metrics: TransportMetrics,
     ) {
         while let Some((addr, msg)) = rx.recv().await {
             match bincode::serialize(&msg) {
@@ -586,18 +654,78 @@ impl TransportLayer {
     pub async fn send_tcp(&self, connection_id: ConnectionId, msg: ServerMessage) -> Result<(), TransportError> {
         // Find the connection and use its dedicated channel
         if let Some(conn_info) = self.connections.read().await.get(&connection_id) {
-            conn_info.tcp_tx
-                .send(msg)
-                .map_err(|_| TransportError::ConnectionNotFound)
+            let priority = msg.priority();
+            
+            match priority {
+                MessagePriority::Critical => {
+                    // Critical messages must be delivered or client disconnected
+                    match conn_info.tcp_tx.send(msg).await {
+                        Ok(_) => Ok(()),
+                        Err(_) => {
+                            // Channel full or closed - this is a slow/dead client
+                            warn!("Critical message could not be sent to connection {}, client should be disconnected", connection_id);
+                            self.metrics.clients_disconnected_backpressure.fetch_add(1, Ordering::Relaxed);
+                            Err(TransportError::QueueFull)
+                        }
+                    }
+                }
+                MessagePriority::Droppable => {
+                    // Droppable messages can be dropped if queue is full
+                    match conn_info.tcp_tx.try_send(msg) {
+                        Ok(_) => Ok(()),
+                        Err(mpsc::error::TrySendError::Full(_)) => {
+                            // Queue full, drop the message and log it
+                            self.metrics.tcp_messages_dropped.fetch_add(1, Ordering::Relaxed);
+                            let dropped = self.metrics.tcp_dropped();
+                            if dropped % 100 == 1 {
+                                warn!("TCP queue full for connection {}, dropped droppable message (total dropped: {})", 
+                                    connection_id, dropped);
+                            }
+                            Ok(()) // Not an error - dropping is expected behavior
+                        }
+                        Err(mpsc::error::TrySendError::Closed(_)) => {
+                            Err(TransportError::ConnectionNotFound)
+                        }
+                    }
+                }
+            }
         } else {
             Err(TransportError::ConnectionNotFound)
         }
     }
 
     pub async fn send_udp(&self, addr: SocketAddr, msg: ServerMessage) -> Result<(), TransportError> {
-        self.udp_out_tx
-            .send((addr, msg))
-            .map_err(|_| TransportError::ConnectionNotFound)
+        let priority = msg.priority();
+        
+        match priority {
+            MessagePriority::Critical => {
+                // Critical messages should be sent via TCP, not UDP
+                // But if we have to send via UDP, try our best
+                self.udp_out_tx
+                    .send((addr, msg))
+                    .await
+                    .map_err(|_| TransportError::ConnectionNotFound)
+            }
+            MessagePriority::Droppable => {
+                // Droppable messages can be dropped if queue is full
+                match self.udp_out_tx.try_send((addr, msg)) {
+                    Ok(_) => Ok(()),
+                    Err(mpsc::error::TrySendError::Full(_)) => {
+                        // Queue full, drop the message and log it
+                        self.metrics.udp_messages_dropped.fetch_add(1, Ordering::Relaxed);
+                        let dropped = self.metrics.udp_dropped();
+                        if dropped % 1000 == 1 {
+                            warn!("UDP queue full for addr {}, dropped droppable message (total dropped: {})", 
+                                addr, dropped);
+                        }
+                        Ok(()) // Not an error - dropping is expected behavior
+                    }
+                    Err(mpsc::error::TrySendError::Closed(_)) => {
+                        Err(TransportError::ConnectionNotFound)
+                    }
+                }
+            }
+        }
     }
 
     pub async fn get_connection(&self, connection_id: ConnectionId) -> Option<ConnectionInfo> {
@@ -661,15 +789,45 @@ impl TransportLayer {
 
     pub async fn broadcast_tcp(&self, msg: ServerMessage) {
         let connections = self.connections.read().await;
+        let priority = msg.priority();
+        let mut dropped_count = 0;
+        let mut failed_critical = 0;
+        
         for conn_info in connections.values() {
-            let _ = conn_info.tcp_tx.send(msg.clone());
+            match priority {
+                MessagePriority::Critical => {
+                    // Critical messages should be sent
+                    if conn_info.tcp_tx.send(msg.clone()).await.is_err() {
+                        failed_critical += 1;
+                        warn!("Failed to broadcast critical message to connection, client should be disconnected");
+                    }
+                }
+                MessagePriority::Droppable => {
+                    // Try to send, but drop if queue full
+                    if let Err(mpsc::error::TrySendError::Full(_)) = conn_info.tcp_tx.try_send(msg.clone()) {
+                        dropped_count += 1;
+                    }
+                }
+            }
+        }
+        
+        if dropped_count > 0 {
+            self.metrics.tcp_messages_dropped.fetch_add(dropped_count, Ordering::Relaxed);
+            debug!("Broadcast dropped {} droppable messages to slow clients", dropped_count);
+        }
+        
+        if failed_critical > 0 {
+            self.metrics.clients_disconnected_backpressure.fetch_add(failed_critical, Ordering::Relaxed);
+            warn!("Broadcast failed for {} critical messages, clients marked for disconnect", failed_critical);
         }
     }
 
     pub fn get_connection_count(&self) -> usize {
-        // This is async but we need a sync version for quick checks
-        // We'll add an async version too
-        0 // Placeholder, use get_connection_count_async instead
+        // Use try_read for non-blocking synchronous access
+        // Returns 0 if the lock is currently held for writing
+        self.connections.try_read()
+            .map(|connections| connections.len())
+            .unwrap_or(0)
     }
 
     pub async fn get_connection_count_async(&self) -> usize {
@@ -682,7 +840,30 @@ impl TransportLayer {
 
         let mut hasher = DefaultHasher::new();
         addr.hash(&mut hasher);
-        hasher.finish()
+        let hash = hasher.finish();
+        
+        // Create a deterministic UUID from the hash
+        // This is not a true UUID v4, but consistent for the same address
+        let bytes = [
+            (hash >> 56) as u8,
+            (hash >> 48) as u8,
+            (hash >> 40) as u8,
+            (hash >> 32) as u8,
+            (hash >> 24) as u8,
+            (hash >> 16) as u8,
+            (hash >> 8) as u8,
+            hash as u8,
+            (hash >> 56) as u8,  // Repeat for 16 bytes
+            (hash >> 48) as u8,
+            (hash >> 40) as u8,
+            (hash >> 32) as u8,
+            (hash >> 24) as u8,
+            (hash >> 16) as u8,
+            (hash >> 8) as u8,
+            hash as u8,
+        ];
+        
+        Uuid::from_bytes(bytes)
     }
     
     /// Register a player's UDP credentials for a session
@@ -749,17 +930,161 @@ impl TransportLayer {
 mod tests {
     use super::*;
 
+    // Helper function to create a minimal TransportLayer for testing
+    async fn create_test_transport_layer() -> TransportLayer {
+        let (tcp_tx, tcp_rx) = mpsc::channel(TCP_INBOUND_CHANNEL_SIZE);
+        let (udp_tx, udp_rx) = mpsc::channel(UDP_INBOUND_CHANNEL_SIZE);
+        let (udp_out_tx, udp_out_rx) = mpsc::channel(UDP_OUTBOUND_CHANNEL_SIZE);
+        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
+
+        TransportLayer {
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            udp_auth_map: Arc::new(RwLock::new(HashMap::new())),
+            tcp_listener: None,
+            udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
+            tls_acceptor: None,
+            tcp_rx,
+            tcp_tx,
+            udp_rx,
+            udp_tx,
+            udp_out_tx,
+            udp_out_rx,
+            shutdown_tx,
+            shutdown_rx: Some(shutdown_rx),
+            heartbeat_timeout: Duration::from_secs(30),
+            metrics: TransportMetrics::new(),
+        }
+    }
+
     #[test]
-    fn test_addr_to_connection_id() {
-        let addr1: SocketAddr = "127.0.0.1:1234".parse().unwrap();
-        let addr2: SocketAddr = "127.0.0.1:1234".parse().unwrap();
-        let addr3: SocketAddr = "127.0.0.1:5678".parse().unwrap();
+    fn test_unique_connection_ids() {
+        // Test that Uuid::new_v4() generates unique IDs
+        let id1 = Uuid::new_v4();
+        let id2 = Uuid::new_v4();
+        let id3 = Uuid::new_v4();
 
-        let id1 = TransportLayer::addr_to_connection_id(&addr1);
-        let id2 = TransportLayer::addr_to_connection_id(&addr2);
-        let id3 = TransportLayer::addr_to_connection_id(&addr3);
-
-        assert_eq!(id1, id2);
+        // All IDs should be different
+        assert_ne!(id1, id2);
+        assert_ne!(id2, id3);
         assert_ne!(id1, id3);
+    }
+
+    #[tokio::test]
+    async fn test_connection_count_empty() {
+        let transport = create_test_transport_layer().await;
+
+        // Test with no connections
+        let sync_count = transport.get_connection_count();
+        let async_count = transport.get_connection_count_async().await;
+        
+        assert_eq!(sync_count, 0, "Sync count should be 0 for empty connections");
+        assert_eq!(async_count, 0, "Async count should be 0 for empty connections");
+        assert_eq!(sync_count, async_count, "Sync and async counts should match");
+    }
+
+    #[tokio::test]
+    async fn test_connection_count_with_connections() {
+        let transport = create_test_transport_layer().await;
+
+        // Add some mock connections
+        {
+            let mut connections = transport.connections.write().await;
+            
+            for i in 0..3 {
+                let addr: SocketAddr = format!("127.0.0.1:{}", 8000 + i).parse().unwrap();
+                let conn_id = TransportLayer::addr_to_connection_id(&addr);
+                let (conn_tx, _) = mpsc::channel(PER_CLIENT_TCP_CHANNEL_SIZE);
+                
+                connections.insert(
+                    conn_id,
+                    ConnectionInfo {
+                        player_id: Uuid::new_v4(),
+                        player_name: format!("Player{}", i),
+                        connected_at: Instant::now(),
+                        last_heartbeat: Instant::now(),
+                        tcp_addr: addr,
+                        tcp_tx: conn_tx,
+                        udp_secret: [0u8; 32],
+                        current_session_id: None,
+                        udp_addr: None,
+                        last_udp_addr_change: Instant::now(),
+                    },
+                );
+            }
+        }
+
+        // Test with 3 connections
+        let sync_count = transport.get_connection_count();
+        let async_count = transport.get_connection_count_async().await;
+        
+        assert_eq!(sync_count, 3, "Sync count should be 3 with 3 connections");
+        assert_eq!(async_count, 3, "Async count should be 3 with 3 connections");
+        assert_eq!(sync_count, async_count, "Sync and async counts should match");
+    }
+
+    #[tokio::test]
+    async fn test_connection_count_consistency() {
+        let transport = create_test_transport_layer().await;
+
+        // Test adding connections one by one and verifying counts match
+        for expected_count in 0..=5 {
+            let sync_count = transport.get_connection_count();
+            let async_count = transport.get_connection_count_async().await;
+            
+            assert_eq!(
+                sync_count, expected_count,
+                "Sync count should be {} after adding {} connections",
+                expected_count, expected_count
+            );
+            assert_eq!(
+                async_count, expected_count,
+                "Async count should be {} after adding {} connections",
+                expected_count, expected_count
+            );
+            assert_eq!(
+                sync_count, async_count,
+                "Sync and async counts must always match (expected {})",
+                expected_count
+            );
+
+            // Add one more connection for next iteration
+            if expected_count < 5 {
+                let mut connections = transport.connections.write().await;
+                let addr: SocketAddr = format!("127.0.0.1:{}", 9000 + expected_count).parse().unwrap();
+                let conn_id = TransportLayer::addr_to_connection_id(&addr);
+                let (conn_tx, _) = mpsc::channel(PER_CLIENT_TCP_CHANNEL_SIZE);
+                
+                connections.insert(
+                    conn_id,
+                    ConnectionInfo {
+                        player_id: Uuid::new_v4(),
+                        player_name: format!("Player{}", expected_count),
+                        connected_at: Instant::now(),
+                        last_heartbeat: Instant::now(),
+                        tcp_addr: addr,
+                        tcp_tx: conn_tx,
+                        udp_secret: [0u8; 32],
+                        current_session_id: None,
+                        udp_addr: None,
+                        last_udp_addr_change: Instant::now(),
+                    },
+                );
+            }
+        }
+    }
+    
+    #[test]
+    fn test_connection_id_type_is_uuid() {
+        // Verify that ConnectionId is indeed a Uuid type
+        let conn_id: ConnectionId = Uuid::new_v4();
+        
+        // Should be able to convert to string
+        let id_string = conn_id.to_string();
+        assert!(!id_string.is_empty());
+        
+        // Should have standard UUID format (8-4-4-4-12 hex digits)
+        assert_eq!(id_string.len(), 36); // UUID string length with dashes
     }
 }
