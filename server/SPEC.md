@@ -151,15 +151,18 @@ pub struct RaceSession {
 
 ### 3. Network Message Formats (`network.rs`)
 
-Packets are serialized with `bincode` (compact binary, serde-compatible). The server maintains a `ConnectionId → PlayerId` mapping established during TCP auth; UDP packets do not include player/session IDs—identity is derived from source address.
+Packets are serialized with `bincode` (compact binary, serde-compatible). The server maintains a `ConnectionId → PlayerId` mapping established during TCP auth. UDP packets now include session credentials for authentication.
 
 **Connection Flow:**
 1. Client opens TCP connection, completes TLS handshake
 2. Client sends `Authenticate` with token and desired name
-3. Server responds `AuthSuccess` with assigned `PlayerId`
-4. Server records `(socket_addr_hash) → PlayerId` mapping
-5. Client opens UDP socket from same source IP; server correlates via IP
-6. Client sends periodic `Heartbeat` (every 1s); server drops connection after 5s silence
+3. Server generates a random 32-byte `udp_secret` for this connection
+4. Server responds `AuthSuccess` with assigned `PlayerId` and `udp_secret`
+5. Server records `(socket_addr_hash) → PlayerId` mapping
+6. When client joins a session, server registers `(session_id, udp_secret) → player_id` mapping
+7. Client sends `PlayerInput` over UDP with `session_id` and `udp_secret` for authentication
+8. Server validates each UDP packet before processing
+9. Client sends periodic `Heartbeat` (every 1s); server drops connection after 5s silence
 
 #### 3.1. Client to Server
 
@@ -176,12 +179,14 @@ pub enum ClientMessage {
     StartSession, // Host only, starts countdown
     Disconnect,
 
-    // UDP - High frequency (no IDs needed, derived from connection)
+    // UDP - High frequency (authenticated with session credentials)
     PlayerInput {
-        server_tick_ack: u32, // Last server tick client received (for latency calc)
-        throttle: f32,        // 0.0 to 1.0
-        brake: f32,           // 0.0 to 1.0
-        steering: f32,        // -1.0 (left) to 1.0 (right)
+        session_id: SessionId,     // Session the player is in
+        udp_secret: [u8; 32],      // Secret received in AuthSuccess
+        server_tick_ack: u32,      // Last server tick client received (for latency calc)
+        throttle: f32,             // 0.0 to 1.0
+        brake: f32,                // 0.0 to 1.0
+        steering: f32,             // -1.0 (left) to 1.0 (right)
     },
 }
 ```
@@ -192,7 +197,11 @@ pub enum ClientMessage {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ServerMessage {
     // TCP - Auth & Lobby
-    AuthSuccess { player_id: PlayerId, server_version: u32 },
+    AuthSuccess { 
+        player_id: PlayerId, 
+        server_version: u32,
+        udp_secret: [u8; 32],      // Secret for UDP authentication
+    },
     AuthFailure { reason: String },
     HeartbeatAck { server_tick: u32 },
     LobbyState {
@@ -484,9 +493,26 @@ OPTIONS:
     1. Client connects via TCP+TLS
     2. Client sends `Authenticate { token, player_name }`
     3. Server validates token (stub: accept all non-empty tokens)
-    4. Server responds `AuthSuccess { player_id, server_version }` or `AuthFailure`
-    5. Server records `(source_ip, player_id)` mapping for UDP correlation
-*   **UDP Telemetry:** Unencrypted for initial phase (latency-sensitive). The `source_ip → player_id` mapping provides implicit authentication. DTLS can be added later behind a feature flag.
+    4. Server generates a random 32-byte UDP secret for this connection
+    5. Server responds `AuthSuccess { player_id, server_version, udp_secret }` or `AuthFailure`
+    6. Server records connection info including the UDP secret
+*   **UDP Authentication & Session Binding:**
+    - UDP packets are now authenticated using `(session_id, udp_secret)` pairs
+    - When a player joins a session, their UDP credentials are registered: `(session_id, udp_secret) → player_id`
+    - All incoming UDP `PlayerInput` packets must include valid `session_id` and `udp_secret` fields
+    - Packets without valid credentials are dropped and logged
+    - UDP address is bound on first valid packet from a client
+    - **Address Rebinding Protection:**
+        - Once bound, UDP address changes are subject to a 30-second cooldown
+        - Prevents IP spoofing attacks where an attacker tries to hijack a session
+        - Re-authentication resets the cooldown, allowing immediate rebind
+        - Useful for mobile clients switching networks
+    - **Security Benefits:**
+        - Prevents unauthenticated UDP traffic from being processed
+        - Prevents spoofed packets from unauthorized source addresses
+        - Binds UDP communication to authenticated TCP sessions
+        - Mitigates DDoS amplification via UDP reflection
+*   **UDP Telemetry:** Unencrypted for performance (latency-sensitive). Authentication via session binding provides security. DTLS can be added later behind a feature flag.
 *   **Heartbeat:** Clients send `Heartbeat` every 1 second via TCP. Server responds `HeartbeatAck`. Clients silent for 5 seconds are disconnected.
 *   **Rate Limiting:** Max 10 TCP messages per second per connection. Max 300 UDP packets per second per source IP. Violations trigger warning log; persistent abuse triggers disconnect.
 *   **Input Validation:** All numeric inputs are clamped server-side (throttle/brake to 0-1, steering to -1 to 1). Malformed packets are logged and dropped.
