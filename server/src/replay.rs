@@ -58,7 +58,6 @@ pub struct ReplayRecorder {
     session_id: SessionId,
     metadata: ReplayMetadata,
     frames: Vec<ReplayFrame>,
-    tick_rate: u16,
 }
 
 impl ReplayManager {
@@ -72,13 +71,11 @@ impl ReplayManager {
     /// Start recording a session
     pub async fn start_recording(&self, metadata: ReplayMetadata) {
         let session_id = metadata.session_id;
-        let tick_rate = metadata.tick_rate;
 
         let recorder = ReplayRecorder {
             session_id,
             metadata,
             frames: Vec::new(),
-            tick_rate,
         };
 
         self.active_recordings.write().await.insert(session_id, recorder);

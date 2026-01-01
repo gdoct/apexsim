@@ -1,0 +1,112 @@
+{
+  "name": "Monaco-Style Street Circuit",
+  "default_width": 10.0,
+  "closed_loop": true,
+  "nodes": [
+    {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": 100.0,
+      "y": 0.0,
+      "z": 0.0,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": 130.0,
+      "y": 30.0,
+      "z": 0.0,
+      "banking": 0.0,
+      "friction": 0.95,
+      "width": 8.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": 130.0,
+      "y": 80.0,
+      "z": 2.0,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": 100.0,
+      "y": 110.0,
+      "z": 3.0,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": 50.0,
+      "y": 130.0,
+      "z": 4.0,
+      "banking": 0.0,
+      "friction": 0.9,
+      "width": 9.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": 0.0,
+      "y": 140.0,
+      "z": 5.0,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": -30.0,
+      "y": 130.0,
+      "z": 4.5,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": -50.0,
+      "y": 100.0,
+      "z": 3.5,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": -60.0,
+      "y": 50.0,
+      "z": 2.0,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": -50.0,
+      "y": 0.0,
+      "z": 1.0,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    },
+    {
+      "x": -20.0,
+      "y": -20.0,
+      "z": 0.5,
+      "banking": 0.0,
+      "friction": 1.0,
+      "surface_type": "Asphalt"
+    }
+  ],
+  "checkpoints": [
+    {
+      "index_start": 0,
+      "index_end": 1
+    }
+  ],
+  "spawn_points": []
+}

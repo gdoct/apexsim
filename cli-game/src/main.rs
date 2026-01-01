@@ -156,18 +156,20 @@ impl GameClient {
     fn display_lobby_state(&self) {
         // Clear screen for cleaner display
         let _ = self.term.clear_screen();
-        
+
         let Some(lobby) = &self.lobby_state else {
             println!("{} No lobby state available", style("!").yellow());
             return;
         };
 
-        println!("\n{}", style("═══ LOBBY STATE ═══").cyan().bold());
+        println!("\n{}", style("╔══════════════════════════════════════════════════════════════════════════════╗").cyan());
+        println!("{}", style("║                              LOBBY STATE                                     ║").cyan().bold());
+        println!("{}", style("╚══════════════════════════════════════════════════════════════════════════════╝").cyan());
 
         // Players in lobby
-        println!("\n{}", style("Players in Lobby:").bold());
+        println!("\n{}", style("┌─ Players in Lobby ─────────────────────────────────────────────────────────┐").cyan());
         if lobby.players.is_empty() {
-            println!("  (no players)");
+            println!("│  (no players)                                                                │");
         } else {
             for player in &lobby.players {
                 let car_info = match &player.selected_car {
@@ -184,18 +186,19 @@ impl GameClient {
                     None => "",
                 };
                 println!(
-                    "  • {} - {}{}",
+                    "│  • {} - {}{}",
                     style(&player.name).green(),
                     car_info,
                     session_info
                 );
             }
         }
+        println!("{}", style("└────────────────────────────────────────────────────────────────────────────┘").cyan());
 
         // Available sessions
-        println!("\n{}", style("Available Sessions:").bold());
+        println!("\n{}", style("┌─ Available Sessions ───────────────────────────────────────────────────────┐").cyan());
         if lobby.sessions.is_empty() {
-            println!("  (no sessions)");
+            println!("│  (no sessions)                                                               │");
         } else {
             for (i, session) in lobby.sessions.iter().enumerate() {
                 let status = match session.state {
@@ -206,7 +209,7 @@ impl GameClient {
                     SessionState::Closed => style("Closed").dim(),
                 };
                 println!(
-                    "  [{}] {} - {} ({}/{}) [{}]",
+                    "│  [{}] {} - {} ({}/{}) [{}]",
                     style(i + 1).cyan(),
                     style(&session.track_name).bold(),
                     session.host_name,
@@ -214,21 +217,23 @@ impl GameClient {
                     session.max_players,
                     status
                 );
-                println!("      ID: {}", style(&session.id).dim());
             }
         }
+        println!("{}", style("└────────────────────────────────────────────────────────────────────────────┘").cyan());
 
         // Available cars
-        println!("\n{}", style("Available Cars:").bold());
+        println!("\n{}", style("┌─ Available Cars ───────────────────────────────────────────────────────────┐").cyan());
         for car in &lobby.cars {
-            println!("  • {}", car.name);
+            println!("│  • {}", car.name);
         }
+        println!("{}", style("└────────────────────────────────────────────────────────────────────────────┘").cyan());
 
         // Available tracks
-        println!("\n{}", style("Available Tracks:").bold());
+        println!("\n{}", style("┌─ Available Tracks ─────────────────────────────────────────────────────────┐").cyan());
         for track in &lobby.tracks {
-            println!("  • {}", track.name);
+            println!("│  • {}", style(&track.name).bold());
         }
+        println!("{}", style("└────────────────────────────────────────────────────────────────────────────┘").cyan());
 
         println!();
     }
@@ -244,11 +249,17 @@ impl GameClient {
             return Ok(());
         }
 
-        let car_names: Vec<&str> = lobby.cars.iter().map(|c| c.name.as_str()).collect();
+        println!("\n{}", style("╔══════════════════════════════════════════════════════════════════════════════╗").cyan());
+        println!("{}", style("║                              SELECT YOUR CAR                                 ║").cyan().bold());
+        println!("{}", style("╚══════════════════════════════════════════════════════════════════════════════╝").cyan());
+        println!();
+
+        let car_names: Vec<String> = lobby.cars.iter().map(|c| format!("🏎️  {}", c.name)).collect();
+        let car_refs: Vec<&str> = car_names.iter().map(|s| s.as_str()).collect();
 
         let selection = Select::new()
             .with_prompt("Select a car")
-            .items(&car_names)
+            .items(&car_refs)
             .default(0)
             .interact()?;
 
@@ -263,7 +274,7 @@ impl GameClient {
         println!(
             "{} Selected car: {}",
             style("✓").green(),
-            car_names[selection]
+            style(&lobby.cars[selection].name).bold().green()
         );
         
         // Give server time to process
@@ -283,10 +294,16 @@ impl GameClient {
         }
 
         // Select track
-        let track_names: Vec<&str> = lobby.tracks.iter().map(|t| t.name.as_str()).collect();
+        println!("\n{}", style("╔══════════════════════════════════════════════════════════════════════════════╗").cyan());
+        println!("{}", style("║                            CREATE NEW SESSION                                ║").cyan().bold());
+        println!("{}", style("╚══════════════════════════════════════════════════════════════════════════════╝").cyan());
+        println!();
+
+        let track_names: Vec<String> = lobby.tracks.iter().map(|t| format!("🏁 {}", t.name)).collect();
+        let track_refs: Vec<&str> = track_names.iter().map(|s| s.as_str()).collect();
         let track_selection = Select::new()
             .with_prompt("Select a track")
-            .items(&track_names)
+            .items(&track_refs)
             .default(0)
             .interact()?;
 
@@ -311,10 +328,10 @@ impl GameClient {
         println!(
             "\n{} Creating session on {} with {} max players, {} AI, {} laps...",
             style("→").cyan(),
-            track_names[track_selection],
-            max_players,
-            ai_count,
-            lap_limit
+            style(&lobby.tracks[track_selection].name).bold().green(),
+            style(max_players).cyan(),
+            style(ai_count).yellow(),
+            style(lap_limit).magenta()
         );
 
         self.network
@@ -618,29 +635,38 @@ impl GameClient {
     async fn run_menu(&mut self) -> Result<bool> {
         // Send heartbeat before showing menu
         let _ = self.send_heartbeat().await;
-        
+
         // Clear screen and show current state
         let _ = self.term.clear_screen();
-        
-        // Show compact status
+
+        // Show compact status with border
         let player_name = &self.config.player.name;
         let session_info = if let Some(_) = &self.current_session {
             style("[In Session]").yellow()
         } else {
             style("[In Lobby]").green()
         };
-        println!("\n{} {} {}", style("●").green(), style(player_name).bold(), session_info);
-        
+
+        println!("{}", style("╔══════════════════════════════════════════════════════════════════════════════╗").cyan());
+        println!("{} {} {} {}",
+            style("║").cyan(),
+            style("●").green(),
+            style(player_name).bold(),
+            session_info
+        );
+
         if let Some(lobby) = &self.lobby_state {
-            println!("  Players online: {} | Sessions: {} | Cars: {} | Tracks: {}",
-                lobby.players.len(),
-                lobby.sessions.len(),
-                lobby.cars.len(),
-                lobby.tracks.len()
+            println!("{} Players: {} | Sessions: {} | Cars: {} | Tracks: {}",
+                style("║").cyan(),
+                style(lobby.players.len().to_string()).green(),
+                style(lobby.sessions.len().to_string()).yellow(),
+                style(lobby.cars.len().to_string()).cyan(),
+                style(lobby.tracks.len().to_string()).magenta()
             );
         }
+        println!("{}", style("╚══════════════════════════════════════════════════════════════════════════════╝").cyan());
         println!();
-        
+
         let options = self.display_main_menu();
 
         let selection = Select::new()
@@ -686,19 +712,13 @@ impl GameClient {
 }
 
 fn print_banner() {
-    println!(
-        r#"
-    ___                     _____ _         
-   /   |  ____  ___  _  __ / ___/(_)___ ___ 
-  / /| | / __ \/ _ \| |/_/ \__ \/ / __ `__ \
- / ___ |/ /_/ /  __/>  <  ___/ / / / / / / /
-/_/  |_/ .___/\___/_/|_| /____/_/_/ /_/ /_/ 
-      /_/                                   
-               {} {}
-"#,
-        style("CLI Client").cyan().bold(),
-        style("v0.1.0").dim()
-    );
+    println!("{}", style("╔══════════════════════════════════════════════════════════════════════════════╗").cyan());
+    println!("{}", style("║                         APEXSIM RACING CLI CLIENT                            ║").cyan().bold());
+    println!("{}", style("╠══════════════════════════════════════════════════════════════════════════════╣").cyan());
+    println!("{}", style("║    High-performance multiplayer racing simulation                            ║").cyan());
+    println!("{}", style("║    Version: 0.1.0                                                            ║").cyan().dim());
+    println!("{}", style("╚══════════════════════════════════════════════════════════════════════════════╝").cyan());
+    println!();
 }
 
 #[tokio::main]
