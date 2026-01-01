@@ -1,0 +1,139 @@
+[gd_scene load_steps=2 format=3 uid="uid://ey0t9u5wmp2sa"]
+
+[ext_resource type="Script" path="res://scripts/csharp/SessionCreationDialog.cs" id="1_script"]
+
+[node name="SessionCreation" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Overlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -250.0
+offset_right = 300.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 32
+text = "Create New Session"
+horizontal_alignment = 1
+
+[node name="Spacer1" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="TrackSelection" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/TrackSelection"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "Track:"
+vertical_alignment = 1
+
+[node name="OptionButton" type="OptionButton" parent="Panel/VBox/TrackSelection"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MaxPlayers" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/MaxPlayers"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "Max Players:"
+vertical_alignment = 1
+
+[node name="SpinBox" type="SpinBox" parent="Panel/VBox/MaxPlayers"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 2.0
+max_value = 24.0
+value = 8.0
+
+[node name="AICount" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/AICount"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "AI Drivers:"
+vertical_alignment = 1
+
+[node name="SpinBox" type="SpinBox" parent="Panel/VBox/AICount"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 20.0
+
+[node name="LapLimit" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/LapLimit"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "Number of Laps:"
+vertical_alignment = 1
+
+[node name="SpinBox" type="SpinBox" parent="Panel/VBox/LapLimit"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 100.0
+value = 5.0
+
+[node name="Spacer2" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="StatusLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Ready"
+horizontal_alignment = 1
+
+[node name="ButtonBar" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="CancelButton" type="Button" parent="Panel/VBox/ButtonBar"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "Cancel"
+
+[node name="CreateButton" type="Button" parent="Panel/VBox/ButtonBar"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 18
+text = "Create Session"

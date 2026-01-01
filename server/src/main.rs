@@ -446,6 +446,8 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                                 session_id,
                                                 your_grid_position: grid_pos,
                                             }).await;
+                                            // Track that player is in a session
+                                            transport_write.set_player_session(connection_id, Some(session_id)).await;
                                         } else {
                                             // Failed to add player to game session
                                             warn!("Failed to add player {} to game session {}", conn_info.player_id, session_id);
@@ -522,6 +524,8 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                             session_id,
                                             your_grid_position: grid_pos,
                                         }).await;
+                                        // Track that player is in a session
+                                        transport_write.set_player_session(connection_id, Some(session_id)).await;
                                     } else {
                                         // Failed to add to session (full)
                                         state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
@@ -559,6 +563,8 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                 session_id,
                                 your_grid_position: 0, // 0 indicates spectator
                             }).await;
+                            // Track that player is in a session
+                            transport_write.set_player_session(connection_id, Some(session_id)).await;
                         } else {
                             let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
                                 code: 404,
@@ -574,6 +580,8 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                         state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
                         info!("Player {} left their session", conn_info.player_name);
                         let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionLeft).await;
+                        // Clear session tracking
+                        transport_write.set_player_session(connection_id, None).await;
                     }
                 }
 
