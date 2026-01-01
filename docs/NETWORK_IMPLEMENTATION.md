@@ -26,7 +26,10 @@ A complete async TCP/UDP transport layer with the following capabilities:
 - **TLS Encryption**:
   - TLS 1.3 support via `rustls` and `tokio-rustls`
   - Self-signed certificate support for development
-  - Graceful fallback if certificates are not found (with warning)
+  - Configurable requirement mode via `require_tls` flag:
+    - `require_tls = true`: Server fails to start if certificates cannot be loaded (production mode)
+    - `require_tls = false`: Server logs warning and accepts plaintext connections if certificates unavailable (development mode)
+  - Clear startup logging indicates TLS state (REQUIRED, ENABLED, or OPTIONAL)
   - Certificate loading from configurable paths
 
 - **Connection Management**:
@@ -59,6 +62,7 @@ udp_bind = "127.0.0.1:9001"
 health_bind = "127.0.0.1:9002"
 tls_cert_path = "./certs/server.crt"
 tls_key_path = "./certs/server.key"
+require_tls = false  # Set to true to enforce TLS in production
 heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000
 ```

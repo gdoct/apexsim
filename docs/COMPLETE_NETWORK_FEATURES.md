@@ -287,6 +287,7 @@ udp_bind = "127.0.0.1:9001"          # UDP socket address
 health_bind = "127.0.0.1:9002"       # HTTP health endpoint
 tls_cert_path = "./certs/server.crt" # TLS certificate
 tls_key_path = "./certs/server.key"  # TLS private key
+require_tls = false                  # Enforce TLS requirement (true for production)
 heartbeat_interval_ms = 1000         # Client heartbeat interval
 heartbeat_timeout_ms = 5000          # Server timeout threshold
 ```

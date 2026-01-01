@@ -114,6 +114,7 @@ impl TransportLayer {
         udp_bind: &str,
         tls_cert_path: &str,
         tls_key_path: &str,
+        require_tls: bool,
         heartbeat_timeout_ms: u64,
     ) -> Result<Self, TransportError> {
         // Setup TCP with TLS
@@ -127,12 +128,32 @@ impl TransportLayer {
         // Load TLS configuration
         let tls_acceptor = match Self::load_tls_config(tls_cert_path, tls_key_path) {
             Ok(config) => {
-                info!("TLS configuration loaded successfully");
+                info!("✓ TLS configuration loaded successfully");
+                info!("  Certificate: {}", tls_cert_path);
+                info!("  Private key: {}", tls_key_path);
+                if require_tls {
+                    info!("  TLS mode: REQUIRED (enforcement: fail if unavailable)");
+                } else {
+                    info!("  TLS mode: ENABLED (enforcement: optional, currently active)");
+                }
                 Some(TlsAcceptor::from(Arc::new(config)))
             }
             Err(e) => {
-                warn!("Failed to load TLS config: {}. Running without TLS encryption.", e);
-                None
+                if require_tls {
+                    error!("✗ FATAL: TLS is required but failed to load");
+                    error!("  Certificate path: {}", tls_cert_path);
+                    error!("  Private key path: {}", tls_key_path);
+                    error!("  Error: {}", e);
+                    error!("  Set network.require_tls = false in config to allow plaintext connections");
+                    return Err(e);
+                } else {
+                    warn!("⚠ TLS configuration failed to load: {}", e);
+                    warn!("  Certificate path: {}", tls_cert_path);
+                    warn!("  Private key path: {}", tls_key_path);
+                    warn!("  TLS mode: OPTIONAL (accepting plaintext connections)");
+                    warn!("  For production, set network.require_tls = true and provide valid certificates");
+                    None
+                }
             }
         };
 
