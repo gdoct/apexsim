@@ -445,8 +445,50 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                                 session_id,
                                                 your_grid_position: grid_pos,
                                             }).await;
+                                        } else {
+                                            // Failed to add player to game session
+                                            warn!("Failed to add player {} to game session {}", conn_info.player_id, session_id);
+                                            let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                                code: 500,
+                                                message: "Failed to add player to game session".to_string(),
+                                            }).await;
                                         }
+                                    } else {
+                                        // Session not found in sessions map
+                                        warn!("Session {} not found in sessions map", session_id);
+                                        let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                            code: 500,
+                                            message: "Internal error: session not found".to_string(),
+                                        }).await;
                                     }
+                                } else {
+                                    // Failed to join lobby
+                                    warn!("Player {} failed to join lobby for session {}", conn_info.player_id, session_id);
+                                    let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                        code: 500,
+                                        message: "Failed to join session lobby".to_string(),
+                                    }).await;
+                                }
+                            } else {
+                                // Failed to create session
+                                warn!("Failed to create session for player {}: track_id={}", conn_info.player_id, track_config_id);
+                                
+                                // Check why it failed
+                                if state_write.sessions.len() >= state_write.config.server.max_sessions as usize {
+                                    let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                        code: 503,
+                                        message: "Server is at max session capacity".to_string(),
+                                    }).await;
+                                } else if !state_write.track_configs.contains_key(&track_config_id) {
+                                    let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                        code: 404,
+                                        message: "Track configuration not found".to_string(),
+                                    }).await;
+                                } else {
+                                    let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
+                                        code: 500,
+                                        message: "Failed to create session".to_string(),
+                                    }).await;
                                 }
                             }
                         } else {
