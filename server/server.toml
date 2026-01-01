@@ -9,6 +9,7 @@ udp_bind = "127.0.0.1:9001"
 health_bind = "127.0.0.1:9002"
 tls_cert_path = "./certs/server.crt"
 tls_key_path = "./certs/server.key"
+require_tls = false
 heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000
 

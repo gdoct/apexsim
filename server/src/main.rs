@@ -186,6 +186,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &config.network.udp_bind,
         &config.network.tls_cert_path,
         &config.network.tls_key_path,
+        config.network.require_tls,
         config.network.heartbeat_timeout_ms,
     ).await {
         Ok(t) => {
