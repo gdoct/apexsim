@@ -96,7 +96,7 @@ impl TransportLayer {
                 if require_tls {
                     info!("  TLS mode: REQUIRED (encrypted connections only)");
                 } else {
-                    info!("  TLS mode: ENABLED (encrypted connections, fallback allowed by config)");
+                    info!("  TLS mode: ENABLED (encrypted connections active, plaintext fallback allowed by config)");
                 }
                 Some(TlsAcceptor::from(Arc::new(config)))
             }
