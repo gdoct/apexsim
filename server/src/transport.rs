@@ -563,9 +563,11 @@ impl TransportLayer {
     }
 
     pub fn get_connection_count(&self) -> usize {
-        // This is async but we need a sync version for quick checks
-        // We'll add an async version too
-        0 // Placeholder, use get_connection_count_async instead
+        // Use try_read for non-blocking synchronous access
+        // Returns 0 if the lock is currently held for writing
+        self.connections.try_read()
+            .map(|connections| connections.len())
+            .unwrap_or(0)
     }
 
     pub async fn get_connection_count_async(&self) -> usize {
@@ -598,5 +600,167 @@ mod tests {
 
         assert_eq!(id1, id2);
         assert_ne!(id1, id3);
+    }
+
+    #[tokio::test]
+    async fn test_connection_count_empty() {
+        // Create a minimal TransportLayer for testing
+        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
+        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
+        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
+        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
+
+        let transport = TransportLayer {
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            tcp_listener: None,
+            udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
+            tls_acceptor: None,
+            tcp_rx,
+            tcp_tx,
+            udp_rx,
+            udp_tx,
+            udp_out_tx,
+            udp_out_rx,
+            shutdown_tx,
+            shutdown_rx: Some(shutdown_rx),
+            heartbeat_timeout: Duration::from_secs(30),
+        };
+
+        // Test with no connections
+        let sync_count = transport.get_connection_count();
+        let async_count = transport.get_connection_count_async().await;
+        
+        assert_eq!(sync_count, 0, "Sync count should be 0 for empty connections");
+        assert_eq!(async_count, 0, "Async count should be 0 for empty connections");
+        assert_eq!(sync_count, async_count, "Sync and async counts should match");
+    }
+
+    #[tokio::test]
+    async fn test_connection_count_with_connections() {
+        // Create a minimal TransportLayer for testing
+        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
+        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
+        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
+        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
+
+        let transport = TransportLayer {
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            tcp_listener: None,
+            udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
+            tls_acceptor: None,
+            tcp_rx,
+            tcp_tx,
+            udp_rx,
+            udp_tx,
+            udp_out_tx,
+            udp_out_rx,
+            shutdown_tx,
+            shutdown_rx: Some(shutdown_rx),
+            heartbeat_timeout: Duration::from_secs(30),
+        };
+
+        // Add some mock connections
+        {
+            let mut connections = transport.connections.write().await;
+            
+            for i in 0..3 {
+                let addr: SocketAddr = format!("127.0.0.1:{}", 8000 + i).parse().unwrap();
+                let conn_id = TransportLayer::addr_to_connection_id(&addr);
+                let (conn_tx, _) = mpsc::unbounded_channel();
+                
+                connections.insert(
+                    conn_id,
+                    ConnectionInfo {
+                        player_id: Uuid::new_v4(),
+                        player_name: format!("Player{}", i),
+                        connected_at: Instant::now(),
+                        last_heartbeat: Instant::now(),
+                        tcp_addr: addr,
+                        tcp_tx: conn_tx,
+                    },
+                );
+            }
+        }
+
+        // Test with 3 connections
+        let sync_count = transport.get_connection_count();
+        let async_count = transport.get_connection_count_async().await;
+        
+        assert_eq!(sync_count, 3, "Sync count should be 3 with 3 connections");
+        assert_eq!(async_count, 3, "Async count should be 3 with 3 connections");
+        assert_eq!(sync_count, async_count, "Sync and async counts should match");
+    }
+
+    #[tokio::test]
+    async fn test_connection_count_consistency() {
+        // Create a minimal TransportLayer for testing
+        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
+        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
+        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
+        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
+
+        let transport = TransportLayer {
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            tcp_listener: None,
+            udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
+            tls_acceptor: None,
+            tcp_rx,
+            tcp_tx,
+            udp_rx,
+            udp_tx,
+            udp_out_tx,
+            udp_out_rx,
+            shutdown_tx,
+            shutdown_rx: Some(shutdown_rx),
+            heartbeat_timeout: Duration::from_secs(30),
+        };
+
+        // Test adding connections one by one and verifying counts match
+        for expected_count in 0..=5 {
+            let sync_count = transport.get_connection_count();
+            let async_count = transport.get_connection_count_async().await;
+            
+            assert_eq!(
+                sync_count, expected_count,
+                "Sync count should be {} after adding {} connections",
+                expected_count, expected_count
+            );
+            assert_eq!(
+                async_count, expected_count,
+                "Async count should be {} after adding {} connections",
+                expected_count, expected_count
+            );
+            assert_eq!(
+                sync_count, async_count,
+                "Sync and async counts must always match (expected {})",
+                expected_count
+            );
+
+            // Add one more connection for next iteration
+            if expected_count < 5 {
+                let mut connections = transport.connections.write().await;
+                let addr: SocketAddr = format!("127.0.0.1:{}", 9000 + expected_count).parse().unwrap();
+                let conn_id = TransportLayer::addr_to_connection_id(&addr);
+                let (conn_tx, _) = mpsc::unbounded_channel();
+                
+                connections.insert(
+                    conn_id,
+                    ConnectionInfo {
+                        player_id: Uuid::new_v4(),
+                        player_name: format!("Player{}", expected_count),
+                        connected_at: Instant::now(),
+                        last_heartbeat: Instant::now(),
+                        tcp_addr: addr,
+                        tcp_tx: conn_tx,
+                    },
+                );
+            }
+        }
     }
 }
