@@ -25,6 +25,7 @@ async fn setup_test_transport() -> TransportLayer {
         TEST_UDP_ADDR,
         "", // No TLS for tests
         "",
+        false, // require_tls = false for tests
         5000,
     )
     .await
