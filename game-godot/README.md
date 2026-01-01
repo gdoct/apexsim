@@ -1,53 +1,109 @@
-# ApexSim - Godot implementation
+# ApexSim - Godot C# Client
 
-This is a Godot 4.3 project that implements a client for the ApexSim multiplayer simulation framework. It allows users to connect to an ApexSim server and participate in real-time simulations.
+A high-performance Godot 4.5 C# client for the ApexSim multiplayer racing simulation with **full bincode protocol support**.
 
-## Current Status
+## ✅ Current Status - FULLY FUNCTIONAL
 
-The basic game skeleton is implemented with:
-- Loading screen with progress bar
-- Main menu with logo and background
-- 4 menu options (Refresh Lobby State, Select Car, Create New Session, Join Session)
-- Quit functionality
+### Implemented Features
+- ✅ **Custom Bincode Serializer** - Matches Rust bincode format exactly
+- ✅ **Network Client** - TCP with length-prefixed messages
+- ✅ **Connection Dialog** - Server address, port, player name, auth token
+- ✅ **Session Browser** - Browse and join available sessions
+- ✅ **Session Creation** - Create sessions with track, players, AI, laps
+- ✅ **Main Menu** - Dynamic UI that adapts to connection/session state
+- ✅ **Thread-Safe Networking** - Background receive, main thread processing
+- ✅ **Auto-Authentication** - Connects and authenticates automatically
 
-## Project Structure
+### Complete Lobby UX (Like CLI)
+1. **Connect** - Configure and connect to server
+2. **Browse Sessions** - See all available sessions with real-time info
+3. **Join Session** - Join existing sessions
+4. **Create Session** - Host new sessions with custom settings
+5. **Leave/Start** - Leave sessions or start them (if host)
+
+## 🎮 Quick Start
+
+### 1. Open in Godot C# Editor
+```bash
+/home/guido/godot/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64 project.godot
+```
+
+### 2. Build C# Project
+- Click "Build" button in Godot (top right)
+- Wait for compilation
+
+### 3. Run Server
+```bash
+cd ../server
+cargo run
+```
+
+### 4. Run Game
+- Press F5 in Godot
+- Click "Connect to Server"
+- Use defaults (127.0.0.1:9000, Player, dev-token)
+- Browse/Create/Join sessions!
+
+## 📁 Project Structure
 
 ```
 game-godot/
-├── assets/               # Game assets
-│   ├── logo.png         # ApexSim logo
-│   ├── menu_background.png
-│   └── loadingscreen.png
-├── scenes/              # Godot scenes
-│   ├── loading_screen.tscn
-│   └── main_menu.tscn
-├── scripts/             # GDScript files
-│   ├── scene_manager.gd   # Global autoload for scene transitions
-│   ├── loading_screen.gd  # Loading screen logic
-│   └── main_menu.gd       # Main menu button handlers
-└── project.godot        # Godot project configuration
+├── ApexSim.csproj, ApexSim.sln    # C# project files
+├── assets/
+│   ├── logo.png, menu_background.jpg, loadingscreen.png
+├── scenes/
+│   ├── loading_screen.tscn         # Loading screen
+│   ├── main_menu.tscn              # Main menu (C#)
+│   ├── connection_dialog.tscn      # Server connection
+│   ├── session_browser.tscn        # Browse sessions
+│   └── session_creation.tscn       # Create session
+└── scripts/
+    ├── csharp/
+    │   ├── BincodeSerializer.cs    # Bincode read/write
+    │   ├── Protocol.cs             # Message types
+    │   ├── NetworkClient.cs        # TCP client (singleton)
+    │   ├── MainMenu.cs             # Main menu
+    │   ├── ConnectionDialog.cs
+    │   ├── SessionBrowserDialog.cs
+    │   └── SessionCreationDialog.cs
+    └── (GDScript loading/scene management)
 ```
 
-## Running the Game
+## 🔧 Technical Details
 
-1. Open the project in Godot 4.3 or later
-2. Press F5 or click the Play button
-3. You will see:
-   - Loading screen with progress bar (2 seconds minimum)
-   - Main menu with 4 options matching the CLI client functionality
+### Bincode Format
+- Little-endian integers
+- UTF-8 strings with u64 length prefix
+- Enum variants as u32 indices
+- Option<T> as byte (0=None, 1=Some) + value
+- Vec<T> as u64 length + elements
 
-## Next Steps
+### Network Protocol
+Messages: `[4-byte big-endian length][bincode data]`
 
-The menu buttons currently print debug messages. Future implementation will include:
-- Network client integration (TCP connection to ApexSim server)
-- Authentication flow
-- Lobby state display (players, sessions, cars, tracks)
-- Car selection dialog
-- Session creation dialog (track selection, player count, AI drivers, lap count)
-- Session joining functionality
-- Real-time telemetry visualization during races
+**Compatible with Rust server!** No server modifications needed.
+
+## 🎨 UI Flow
+
+1. **Loading Screen** → Shows for 2s
+2. **Main Menu** → "Connect to Server" button
+3. **Connection Dialog** → Enter server details
+4. **Authenticated** → Shows "Create/Join Session" buttons
+5. **Session Browser** → List of sessions, click to join
+6. **Session Creation** → Configure track, players, AI, laps
+7. **In Session** → Shows "Leave/Start Session" buttons
 
 ## Requirements
 
-- Godot 4.3 or later
-- OpenGL 3.3 compatible graphics card
+- **Godot 4.5+ Mono** (C# support)
+- **.NET 8.0 SDK**
+- **ApexSim Server** (localhost:9000 or custom)
+
+## 📝 Notes
+
+- **WSL**: Use Windows Godot editor for proper input
+- **Bincode**: Fully compatible with Rust server
+- **Thread-Safe**: Network on background thread, UI on main thread
+- **Auto-Refresh**: Lobby updates automatically
+
+**Ready to race!** 🏎️

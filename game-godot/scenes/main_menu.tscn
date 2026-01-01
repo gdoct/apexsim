@@ -1,8 +1,8 @@
 [gd_scene load_steps=4 format=3 uid="uid://c8r7v3wkm9qxy"]
 
-[ext_resource type="Texture2D" uid="uid://bqn4ux5jjmuwh" path="res://assets/menu_background.png" id="1_background"]
+[ext_resource type="Texture2D" uid="uid://bqn4ux5jjmuwh" path="res://assets/menu_background.jpg" id="1_background"]
 [ext_resource type="Texture2D" uid="uid://b5yijl7wm8rwi" path="res://assets/logo.png" id="2_logo"]
-[ext_resource type="Script" path="res://scripts/main_menu.gd" id="3_script"]
+[ext_resource type="Script" path="res://scripts/csharp/MainMenu.cs" id="3_script"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -31,15 +31,16 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -200.0
-offset_right = 200.0
-offset_bottom = 200.0
+offset_left = -250.0
+offset_top = -300.0
+offset_right = 250.0
+offset_bottom = 300.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 10
 
 [node name="Logo" type="TextureRect" parent="VBoxContainer"]
-custom_minimum_size = Vector2(0, 150)
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 texture = ExtResource("2_logo")
 expand_mode = 1
@@ -60,28 +61,45 @@ text = "Multiplayer Racing Simulation"
 horizontal_alignment = 1
 
 [node name="Spacer" type="Control" parent="VBoxContainer"]
-custom_minimum_size = Vector2(0, 40)
+custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 
-[node name="ButtonRefreshLobby" type="Button" parent="VBoxContainer"]
+[node name="ButtonConnect" type="Button" parent="VBoxContainer"]
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
-text = "Refresh Lobby State"
-
-[node name="ButtonSelectCar" type="Button" parent="VBoxContainer"]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-text = "Select Car"
+theme_override_colors/font_color = Color(0, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 20
+text = "Connect to Server"
 
 [node name="ButtonCreateSession" type="Button" parent="VBoxContainer"]
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
+theme_override_font_sizes/font_size = 18
 text = "Create New Session"
+visible = false
 
 [node name="ButtonJoinSession" type="Button" parent="VBoxContainer"]
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
+theme_override_font_sizes/font_size = 18
 text = "Join Session"
+visible = false
+
+[node name="ButtonLeaveSession" type="Button" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0, 1)
+theme_override_font_sizes/font_size = 18
+text = "Leave Session"
+visible = false
+
+[node name="ButtonStartSession" type="Button" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 18
+text = "Start Session"
+visible = false
 
 [node name="Spacer2" type="Control" parent="VBoxContainer"]
 custom_minimum_size = Vector2(0, 20)
@@ -91,7 +109,22 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 18
 text = "Quit"
+
+[node name="ConnectionStatus" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -40.0
+offset_right = 400.0
+offset_bottom = -20.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_font_sizes/font_size = 14
+text = "Not connected"
 
 [node name="VersionLabel" type="Label" parent="."]
 layout_mode = 1
@@ -101,18 +134,12 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -150.0
-offset_top = -30.0
-offset_right = -10.0
-offset_bottom = -10.0
+offset_top = -40.0
+offset_right = -20.0
+offset_bottom = -20.0
 grow_horizontal = 0
 grow_vertical = 0
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 theme_override_font_sizes/font_size = 14
 text = "v0.1.0"
 horizontal_alignment = 2
-
-[connection signal="pressed" from="VBoxContainer/ButtonRefreshLobby" to="." method="_on_button_refresh_lobby_pressed"]
-[connection signal="pressed" from="VBoxContainer/ButtonSelectCar" to="." method="_on_button_select_car_pressed"]
-[connection signal="pressed" from="VBoxContainer/ButtonCreateSession" to="." method="_on_button_create_session_pressed"]
-[connection signal="pressed" from="VBoxContainer/ButtonJoinSession" to="." method="_on_button_join_session_pressed"]
-[connection signal="pressed" from="VBoxContainer/ButtonQuit" to="." method="_on_button_quit_pressed"]
