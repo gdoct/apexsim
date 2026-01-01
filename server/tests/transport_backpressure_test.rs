@@ -13,6 +13,7 @@ async fn test_bounded_channels_prevent_oom() {
         "127.0.0.1:0", // Random port
         "invalid_cert_path.pem",
         "invalid_key_path.pem",
+        false, // require_tls (optional for tests)
         5000, // 5 second heartbeat timeout
     )
     .await
@@ -33,6 +34,7 @@ async fn test_droppable_messages_are_dropped_when_queue_full() {
         "127.0.0.1:0",
         "invalid_cert_path.pem",
         "invalid_key_path.pem",
+        false, // require_tls (optional for tests)
         5000,
     )
     .await
