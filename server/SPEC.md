@@ -438,6 +438,7 @@ tcp_bind = "0.0.0.0:9000"
 udp_bind = "0.0.0.0:9001"
 tls_cert_path = "./certs/server.crt"
 tls_key_path = "./certs/server.key"
+require_tls = true                 # Enforce TLS; fail if cert/key cannot be loaded
 heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000
 
@@ -480,6 +481,10 @@ OPTIONS:
 ### 6. Authentication & Transport
 
 *   **TCP Control Channel:** All TCP traffic is wrapped in TLS 1.3 using `rustls`. Self-signed certs are acceptable for development; production should use proper PKI.
+*   **TLS Enforcement:** The `network.require_tls` configuration flag controls TLS behavior:
+    - When `require_tls = true`: Server fails to start if TLS certificates cannot be loaded, preventing accidental plaintext deployments in production.
+    - When `require_tls = false`: Server logs a warning and falls back to plaintext TCP if certificates are unavailable (development mode only).
+    - Startup logs clearly indicate the TLS state: "TLS mode: REQUIRED" (encrypted) or "TLS mode: OPTIONAL" (plaintext allowed).
 *   **Authentication Flow:**
     1. Client connects via TCP+TLS
     2. Client sends `Authenticate { token, player_name }`

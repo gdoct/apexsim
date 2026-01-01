@@ -41,7 +41,11 @@ Runtime settings live in server.toml. Use `cargo run -- --config path/to/custom.
 
 Key sections:
 
-- `[network]`: `tcp_bind`, `udp_bind`, and `health_bind` control listener addresses. `tls_cert_path` and `tls_key_path` enable TLS on the TCP socket; omit or leave empty to run without encryption in development. Heartbeat intervals/timeouts are configurable for aggressive or lenient lag handling.
+- `[network]`: `tcp_bind`, `udp_bind`, and `health_bind` control listener addresses. `tls_cert_path` and `tls_key_path` specify paths to TLS certificate and private key files. `require_tls` controls whether TLS is mandatory:
+  - When `require_tls = true`: Server will fail to start if TLS certificates cannot be loaded. Use this for production deployments to prevent accidental plaintext connections.
+  - When `require_tls = false` (default): Server logs a warning and accepts plaintext connections if TLS fails to load. Suitable for development environments.
+  
+  Heartbeat intervals/timeouts are configurable for aggressive or lenient lag handling.
 - `[simulation]`: Defines tick rate (default 240 Hz), max players per session, countdown duration, and replay recording switches.
 - `[content]`: File system paths for car and track manifests. By default the server reuses the repository content tree; point these settings to production asset buckets when deploying.
 - `[logging]`: Accepts `error`, `warn`, `info`, `debug`, `trace`. You can also override at runtime with `--log-level debug`.
@@ -92,9 +96,12 @@ cargo run -- --config configs/staging.toml --log-level debug
 Operational checklist:
 
 1. Ensure car/track assets exist under the configured `content` paths.
-2. Provide TLS cert/key files if `network.tls_cert_path` is set; otherwise the server logs a warning and downgrades to plaintext TCP.
+2. Configure TLS based on your deployment environment:
+   - **Development**: Set `require_tls = false` to allow the server to start without valid certificates. The server will log warnings and accept plaintext connections.
+   - **Production**: Set `require_tls = true` and provide valid TLS certificate/key files via `tls_cert_path` and `tls_key_path`. The server will fail to start if certificates are missing or invalid, preventing accidental plaintext deployments.
 3. After startup, verify health probes: `curl http://127.0.0.1:9002/health` should return `OK`, while `/ready` flips to `Ready` once content and config are loaded.
-4. Clients authenticate over TCP, send `PlayerInput` over UDP, and receive `Telemetry` at 240 Hz. See SPEC.md §3 for message details.
+4. Check startup logs to confirm TLS state: look for "TLS mode: REQUIRED" (encrypted) or "TLS mode: OPTIONAL" (plaintext allowed).
+5. Clients authenticate over TCP, send `PlayerInput` over UDP, and receive `Telemetry` at 240 Hz. See SPEC.md §3 for message details.
 
 ## Deployment Notes
 
