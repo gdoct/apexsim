@@ -237,8 +237,8 @@ impl TransportLayer {
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
         player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
     ) -> Result<(), TransportError> {
-        // Generate connection ID
-        let connection_id = Self::addr_to_connection_id(&addr);
+        // Generate unique connection ID
+        let connection_id = Uuid::new_v4();
 
         // Create per-connection send channel
         let (conn_tx, conn_rx) = mpsc::unbounded_channel::<ServerMessage>();
@@ -573,15 +573,6 @@ impl TransportLayer {
     pub async fn get_connection_count_async(&self) -> usize {
         self.connections.read().await.len()
     }
-
-    fn addr_to_connection_id(addr: &SocketAddr) -> ConnectionId {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
-        addr.hash(&mut hasher);
-        hasher.finish()
-    }
 }
 
 #[cfg(test)]
@@ -615,16 +606,15 @@ mod tests {
     }
 
     #[test]
-    fn test_addr_to_connection_id() {
-        let addr1: SocketAddr = "127.0.0.1:1234".parse().unwrap();
-        let addr2: SocketAddr = "127.0.0.1:1234".parse().unwrap();
-        let addr3: SocketAddr = "127.0.0.1:5678".parse().unwrap();
+    fn test_unique_connection_ids() {
+        // Test that Uuid::new_v4() generates unique IDs
+        let id1 = Uuid::new_v4();
+        let id2 = Uuid::new_v4();
+        let id3 = Uuid::new_v4();
 
-        let id1 = TransportLayer::addr_to_connection_id(&addr1);
-        let id2 = TransportLayer::addr_to_connection_id(&addr2);
-        let id3 = TransportLayer::addr_to_connection_id(&addr3);
-
-        assert_eq!(id1, id2);
+        // All IDs should be different
+        assert_ne!(id1, id2);
+        assert_ne!(id2, id3);
         assert_ne!(id1, id3);
     }
 
@@ -722,5 +712,16 @@ mod tests {
                 );
             }
         }
+    #[test]
+    fn test_connection_id_type_is_uuid() {
+        // Verify that ConnectionId is indeed a Uuid type
+        let conn_id: ConnectionId = Uuid::new_v4();
+        
+        // Should be able to convert to string
+        let id_string = conn_id.to_string();
+        assert!(!id_string.is_empty());
+        
+        // Should have standard UUID format (8-4-4-4-12 hex digits)
+        assert_eq!(id_string.len(), 36); // UUID string length with dashes
     }
 }
