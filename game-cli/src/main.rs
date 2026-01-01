@@ -669,11 +669,33 @@ impl GameClient {
 
         let options = self.display_main_menu();
 
-        let selection = Select::new()
-            .with_prompt("What would you like to do?")
-            .items(&options)
-            .default(0)
-            .interact()?;
+        // Run menu interaction in a spawned thread so the main tokio task can send heartbeats
+        let options_clone = options.clone();
+        let mut selection_future = tokio::task::spawn_blocking(move || {
+            Select::new()
+                .with_prompt("What would you like to do?")
+                .items(&options_clone)
+                .default(0)
+                .interact()
+        });
+
+        // While waiting for user input, send heartbeats periodically
+        let selection = loop {
+            tokio::select! {
+                result = &mut selection_future => {
+                    match result {
+                        Ok(Ok(sel)) => break sel,
+                        Ok(Err(e)) => return Err(e.into()),
+                        Err(e) => return Err(anyhow::anyhow!("Task joined error: {}", e)),
+                    }
+                }
+                _ = tokio::time::sleep(Duration::from_millis(500)) => {
+                    // Send heartbeat every 500ms while waiting for user input
+                    // This keeps the connection alive
+                    let _ = self.send_heartbeat().await;
+                }
+            }
+        };
 
         let selected = options[selection];
 
