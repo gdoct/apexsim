@@ -94,9 +94,9 @@ impl TransportLayer {
                 info!("  Certificate: {}", tls_cert_path);
                 info!("  Private key: {}", tls_key_path);
                 if require_tls {
-                    info!("  TLS mode: REQUIRED (encrypted connections only)");
+                    info!("  TLS mode: REQUIRED (enforcement: fail if unavailable)");
                 } else {
-                    info!("  TLS mode: ENABLED (encrypted connections active, plaintext fallback allowed by config)");
+                    info!("  TLS mode: ENABLED (enforcement: optional, currently active)");
                 }
                 Some(TlsAcceptor::from(Arc::new(config)))
             }
