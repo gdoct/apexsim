@@ -32,6 +32,7 @@ impl std::fmt::Display for SessionState {
 
 // --- Client to Server Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
 pub enum ClientMessage {
     // TCP - Auth & Lobby
     Authenticate {
@@ -72,6 +73,7 @@ pub enum ClientMessage {
 
 // --- Server to Client Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
 pub enum ServerMessage {
     // TCP - Auth & Lobby
     AuthSuccess {

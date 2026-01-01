@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 // --- Client to Server Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
 pub enum ClientMessage {
     // TCP - Auth & Lobby
     Authenticate {
@@ -53,6 +54,7 @@ pub enum MessagePriority {
 
 // --- Server to Client Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
 pub enum ServerMessage {
     // TCP - Auth & Lobby
     AuthSuccess {
@@ -215,8 +217,8 @@ mod tests {
             player_name: "Player1".to_string(),
         };
 
-        let serialized = bincode::serialize(&msg).unwrap();
-        let deserialized: ClientMessage = bincode::deserialize(&serialized).unwrap();
+        let serialized = rmp_serde::to_vec_named(&msg).unwrap();
+        let deserialized: ClientMessage = rmp_serde::from_slice(&serialized).unwrap();
 
         match deserialized {
             ClientMessage::Authenticate { token, player_name } => {
@@ -235,8 +237,8 @@ mod tests {
             server_version: 1,
         };
 
-        let serialized = bincode::serialize(&msg).unwrap();
-        let deserialized: ServerMessage = bincode::deserialize(&serialized).unwrap();
+        let serialized = rmp_serde::to_vec_named(&msg).unwrap();
+        let deserialized: ServerMessage = rmp_serde::from_slice(&serialized).unwrap();
 
         match deserialized {
             ServerMessage::AuthSuccess {
@@ -259,8 +261,8 @@ mod tests {
             steering: -0.5,
         };
 
-        let serialized = bincode::serialize(&msg).unwrap();
-        let deserialized: ClientMessage = bincode::deserialize(&serialized).unwrap();
+        let serialized = rmp_serde::to_vec_named(&msg).unwrap();
+        let deserialized: ClientMessage = rmp_serde::from_slice(&serialized).unwrap();
 
         match deserialized {
             ClientMessage::PlayerInput {

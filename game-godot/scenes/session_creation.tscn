@@ -62,6 +62,19 @@ vertical_alignment = 1
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="CarSelection" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/CarSelection"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "Car:"
+vertical_alignment = 1
+
+[node name="CarOptionButton" type="OptionButton" parent="Panel/VBox/CarSelection"]
+layout_mode = 2
+size_flags_horizontal = 3
+
 [node name="MaxPlayers" type="HBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
 
