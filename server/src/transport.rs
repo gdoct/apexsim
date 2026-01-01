@@ -588,6 +588,32 @@ impl TransportLayer {
 mod tests {
     use super::*;
 
+    // Helper function to create a minimal TransportLayer for testing
+    async fn create_test_transport_layer() -> TransportLayer {
+        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
+        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
+        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
+        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
+
+        TransportLayer {
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            tcp_listener: None,
+            udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
+            tls_acceptor: None,
+            tcp_rx,
+            tcp_tx,
+            udp_rx,
+            udp_tx,
+            udp_out_tx,
+            udp_out_rx,
+            shutdown_tx,
+            shutdown_rx: Some(shutdown_rx),
+            heartbeat_timeout: Duration::from_secs(30),
+        }
+    }
+
     #[test]
     fn test_addr_to_connection_id() {
         let addr1: SocketAddr = "127.0.0.1:1234".parse().unwrap();
@@ -604,29 +630,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_count_empty() {
-        // Create a minimal TransportLayer for testing
-        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
-        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
-        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
-        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
-
-        let transport = TransportLayer {
-            connections: Arc::new(RwLock::new(HashMap::new())),
-            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
-            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
-            tcp_listener: None,
-            udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
-            tls_acceptor: None,
-            tcp_rx,
-            tcp_tx,
-            udp_rx,
-            udp_tx,
-            udp_out_tx,
-            udp_out_rx,
-            shutdown_tx,
-            shutdown_rx: Some(shutdown_rx),
-            heartbeat_timeout: Duration::from_secs(30),
-        };
+        let transport = create_test_transport_layer().await;
 
         // Test with no connections
         let sync_count = transport.get_connection_count();
@@ -639,29 +643,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_count_with_connections() {
-        // Create a minimal TransportLayer for testing
-        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
-        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
-        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
-        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
-
-        let transport = TransportLayer {
-            connections: Arc::new(RwLock::new(HashMap::new())),
-            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
-            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
-            tcp_listener: None,
-            udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
-            tls_acceptor: None,
-            tcp_rx,
-            tcp_tx,
-            udp_rx,
-            udp_tx,
-            udp_out_tx,
-            udp_out_rx,
-            shutdown_tx,
-            shutdown_rx: Some(shutdown_rx),
-            heartbeat_timeout: Duration::from_secs(30),
-        };
+        let transport = create_test_transport_layer().await;
 
         // Add some mock connections
         {
@@ -697,29 +679,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_count_consistency() {
-        // Create a minimal TransportLayer for testing
-        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
-        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
-        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
-        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
-
-        let transport = TransportLayer {
-            connections: Arc::new(RwLock::new(HashMap::new())),
-            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
-            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
-            tcp_listener: None,
-            udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
-            tls_acceptor: None,
-            tcp_rx,
-            tcp_tx,
-            udp_rx,
-            udp_tx,
-            udp_out_tx,
-            udp_out_rx,
-            shutdown_tx,
-            shutdown_rx: Some(shutdown_rx),
-            heartbeat_timeout: Duration::from_secs(30),
-        };
+        let transport = create_test_transport_layer().await;
 
         // Test adding connections one by one and verifying counts match
         for expected_count in 0..=5 {
