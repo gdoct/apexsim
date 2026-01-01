@@ -7,7 +7,7 @@ pub type PlayerId = Uuid;
 pub type SessionId = Uuid;
 pub type CarConfigId = Uuid;
 pub type TrackConfigId = Uuid;
-pub type ConnectionId = u64;
+pub type ConnectionId = Uuid;
 
 // --- Player State ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -688,13 +688,12 @@ mod tests {
         let player = Player {
             id: Uuid::new_v4(),
             name: "TestPlayer".to_string(),
-            connection_id: 12345,
+            connection_id: Uuid::new_v4(),
             selected_car_config_id: None,
             is_ai: false,
         };
         
         assert_eq!(player.name, "TestPlayer");
-        assert_eq!(player.connection_id, 12345);
         assert!(!player.is_ai);
     }
 
