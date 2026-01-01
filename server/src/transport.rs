@@ -415,18 +415,22 @@ impl TransportLayer {
                                             player_id,
                                             server_version: 1,
                                         };
-                                        let _ = conn_tx.send(response).await;
+                                        // Critical message - if queue full, client is too slow
+                                        if conn_tx.send(response).await.is_err() {
+                                            warn!("Failed to send AuthSuccess to slow client {}, disconnecting", addr);
+                                            break;
+                                        }
                                     } else if let ClientMessage::Heartbeat { .. } = &msg {
                                         // Update last heartbeat time
                                         if let Some(conn) = connections.write().await.get_mut(&connection_id) {
                                             conn.last_heartbeat = Instant::now();
                                         }
 
-                                        // Send heartbeat ack
+                                        // Send heartbeat ack (droppable - can be skipped if queue full)
                                         let response = ServerMessage::HeartbeatAck {
                                             server_tick: 0, // Will be updated later with actual tick
                                         };
-                                        let _ = conn_tx.send(response).await;
+                                        let _ = conn_tx.try_send(response);
                                     }
 
                                     if tcp_tx.send((connection_id, msg)).await.is_err() {
@@ -662,13 +666,15 @@ impl TransportLayer {
         let connections = self.connections.read().await;
         let priority = msg.priority();
         let mut dropped_count = 0;
+        let mut failed_critical = 0;
         
         for conn_info in connections.values() {
             match priority {
                 MessagePriority::Critical => {
                     // Critical messages should be sent
                     if conn_info.tcp_tx.send(msg.clone()).await.is_err() {
-                        warn!("Failed to broadcast critical message to connection");
+                        failed_critical += 1;
+                        warn!("Failed to broadcast critical message to connection, client should be disconnected");
                     }
                 }
                 MessagePriority::Droppable => {
@@ -683,6 +689,11 @@ impl TransportLayer {
         if dropped_count > 0 {
             self.metrics.tcp_messages_dropped.fetch_add(dropped_count, Ordering::Relaxed);
             debug!("Broadcast dropped {} droppable messages to slow clients", dropped_count);
+        }
+        
+        if failed_critical > 0 {
+            self.metrics.clients_disconnected_backpressure.fetch_add(failed_critical, Ordering::Relaxed);
+            warn!("Broadcast failed for {} critical messages, clients marked for disconnect", failed_critical);
         }
     }
 
