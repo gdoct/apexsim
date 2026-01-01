@@ -39,6 +39,20 @@ pub struct ConnectionInfo {
     pub last_heartbeat: Instant,
     pub tcp_addr: SocketAddr,
     pub tcp_tx: mpsc::UnboundedSender<ServerMessage>,
+    pub udp_secret: [u8; 32],
+    pub current_session_id: Option<SessionId>,
+    pub udp_addr: Option<SocketAddr>,
+    pub last_udp_addr_change: Instant,
+}
+
+/// UDP address rebind cooldown period (30 seconds)
+const UDP_REBIND_COOLDOWN_SECS: u64 = 30;
+
+/// Mapping of session_id + udp_secret to player for UDP packet validation
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct UdpAuthKey {
+    session_id: SessionId,
+    udp_secret: [u8; 32],
 }
 
 pub struct TransportLayer {
@@ -46,6 +60,9 @@ pub struct TransportLayer {
     connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
     player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
     addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+    
+    // UDP authentication - maps (session_id, udp_secret) to player_id
+    udp_auth_map: Arc<RwLock<HashMap<UdpAuthKey, PlayerId>>>,
 
     // Network sockets
     tcp_listener: Option<TcpListener>,
@@ -108,6 +125,7 @@ impl TransportLayer {
             connections: Arc::new(RwLock::new(HashMap::new())),
             player_to_connection: Arc::new(RwLock::new(HashMap::new())),
             addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            udp_auth_map: Arc::new(RwLock::new(HashMap::new())),
             tcp_listener: Some(tcp_listener),
             udp_socket,
             tls_acceptor,
@@ -172,8 +190,10 @@ impl TransportLayer {
         // Spawn UDP receiver
         let udp_socket = Arc::clone(&self.udp_socket);
         let udp_tx = self.udp_tx.clone();
+        let connections = Arc::clone(&self.connections);
+        let udp_auth_map = Arc::clone(&self.udp_auth_map);
         tokio::spawn(async move {
-            Self::udp_receiver(udp_socket, udp_tx).await;
+            Self::udp_receiver(udp_socket, udp_tx, connections, udp_auth_map).await;
         });
 
         // Spawn UDP sender
@@ -355,6 +375,32 @@ impl TransportLayer {
                                     // Handle authentication - register connection
                                     if let ClientMessage::Authenticate { player_name, .. } = &msg {
                                         let player_id = Uuid::new_v4();
+                                        
+                                        // Generate random UDP secret
+                                        let mut udp_secret = [0u8; 32];
+                                        use std::collections::hash_map::RandomState;
+                                        use std::hash::{BuildHasher, Hash, Hasher};
+                                        
+                                        // Use a combination of sources for randomness
+                                        let mut hasher = RandomState::new().build_hasher();
+                                        player_id.hash(&mut hasher);
+                                        Instant::now().elapsed().as_nanos().hash(&mut hasher);
+                                        addr.hash(&mut hasher);
+                                        
+                                        let hash1 = hasher.finish();
+                                        udp_secret[0..8].copy_from_slice(&hash1.to_le_bytes());
+                                        
+                                        // Generate more random bytes
+                                        for i in (8..32).step_by(8) {
+                                            let mut h = RandomState::new().build_hasher();
+                                            (i as u64).hash(&mut h);
+                                            hash1.hash(&mut h);
+                                            player_id.hash(&mut h);
+                                            let hash = h.finish();
+                                            let end = (i + 8).min(32);
+                                            udp_secret[i..end].copy_from_slice(&hash.to_le_bytes()[0..(end-i)]);
+                                        }
+                                        
                                         let conn_info = ConnectionInfo {
                                             player_id,
                                             player_name: player_name.clone(),
@@ -362,6 +408,10 @@ impl TransportLayer {
                                             last_heartbeat: Instant::now(),
                                             tcp_addr: addr,
                                             tcp_tx: conn_tx.clone(),
+                                            udp_secret,
+                                            current_session_id: None,
+                                            udp_addr: None,
+                                            last_udp_addr_change: Instant::now(),
                                         };
 
                                         connections.write().await.insert(connection_id, conn_info.clone());
@@ -370,10 +420,11 @@ impl TransportLayer {
                                         player_to_connection.write().await.insert(player_id, connection_id);
                                         info!("Player {} authenticated as {} (connection: {})", player_name, player_id, connection_id);
 
-                                        // Send auth success response
+                                        // Send auth success response with UDP secret
                                         let response = ServerMessage::AuthSuccess {
                                             player_id,
                                             server_version: 1,
+                                            udp_secret,
                                         };
                                         let _ = conn_tx.send(response);
                                     } else if let ClientMessage::Heartbeat { .. } = &msg {
@@ -429,6 +480,8 @@ impl TransportLayer {
     async fn udp_receiver(
         socket: Arc<UdpSocket>,
         tx: mpsc::UnboundedSender<(SocketAddr, ClientMessage)>,
+        connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
+        udp_auth_map: Arc<RwLock<HashMap<UdpAuthKey, PlayerId>>>,
     ) {
         let mut buf = vec![0u8; 2048];
         loop {
@@ -436,9 +489,80 @@ impl TransportLayer {
                 Ok((n, addr)) => {
                     match bincode::deserialize::<ClientMessage>(&buf[..n]) {
                         Ok(msg) => {
-                            if tx.send((addr, msg)).is_err() {
-                                error!("Failed to send UDP message to handler");
-                                break;
+                            // Validate UDP packets - only accept PlayerInput with valid session_id and secret
+                            let is_valid = match &msg {
+                                ClientMessage::PlayerInput { session_id, udp_secret, .. } => {
+                                    let auth_key = UdpAuthKey {
+                                        session_id: *session_id,
+                                        udp_secret: *udp_secret,
+                                    };
+                                    
+                                    // Check if this session_id + secret combination is valid
+                                    let auth_map = udp_auth_map.read().await;
+                                    if let Some(&player_id) = auth_map.get(&auth_key) {
+                                        // Valid credentials, now check/update UDP address binding
+                                        drop(auth_map);
+                                        let mut connections_guard = connections.write().await;
+                                        
+                                        // Find the connection for this player
+                                        if let Some(conn) = connections_guard.values_mut().find(|c| c.player_id == player_id) {
+                                            // Check if address change
+                                            if let Some(existing_addr) = conn.udp_addr {
+                                                if existing_addr != addr {
+                                                    // Address change detected
+                                                    let elapsed = conn.last_udp_addr_change.elapsed();
+                                                    if elapsed.as_secs() < UDP_REBIND_COOLDOWN_SECS {
+                                                        warn!(
+                                                            "UDP address rebind attempt blocked for player {} (session {}): {} -> {} (cooldown: {}s remaining)",
+                                                            player_id, session_id, existing_addr, addr,
+                                                            UDP_REBIND_COOLDOWN_SECS - elapsed.as_secs()
+                                                        );
+                                                        false
+                                                    } else {
+                                                        // Cooldown expired, allow rebind
+                                                        info!(
+                                                            "UDP address rebind allowed for player {} (session {}): {} -> {}",
+                                                            player_id, session_id, existing_addr, addr
+                                                        );
+                                                        conn.udp_addr = Some(addr);
+                                                        conn.last_udp_addr_change = Instant::now();
+                                                        true
+                                                    }
+                                                } else {
+                                                    // Same address, all good
+                                                    true
+                                                }
+                                            } else {
+                                                // First UDP packet from this client, bind address
+                                                info!(
+                                                    "UDP address bound for player {} (session {}): {}",
+                                                    player_id, session_id, addr
+                                                );
+                                                conn.udp_addr = Some(addr);
+                                                conn.last_udp_addr_change = Instant::now();
+                                                true
+                                            }
+                                        } else {
+                                            warn!("Valid UDP credentials but player {} not found in connections", player_id);
+                                            false
+                                        }
+                                    } else {
+                                        warn!("UDP packet from {} with invalid session_id/secret dropped", addr);
+                                        false
+                                    }
+                                }
+                                _ => {
+                                    // Non-PlayerInput UDP messages are not allowed
+                                    warn!("UDP packet from {} is not PlayerInput, dropped", addr);
+                                    false
+                                }
+                            };
+                            
+                            if is_valid {
+                                if tx.send((addr, msg)).is_err() {
+                                    error!("Failed to send UDP message to handler");
+                                    break;
+                                }
                             }
                         }
                         Err(e) => {
@@ -579,6 +703,65 @@ impl TransportLayer {
         let mut hasher = DefaultHasher::new();
         addr.hash(&mut hasher);
         hasher.finish()
+    }
+    
+    /// Register a player's UDP credentials for a session
+    /// This should be called when a player joins a session
+    pub async fn register_udp_session(&self, player_id: PlayerId, session_id: SessionId) -> Result<(), TransportError> {
+        let mut connections = self.connections.write().await;
+        
+        // Find the connection for this player
+        if let Some(conn) = connections.values_mut().find(|c| c.player_id == player_id) {
+            // Update the session ID
+            conn.current_session_id = Some(session_id);
+            
+            // Register the auth key
+            let auth_key = UdpAuthKey {
+                session_id,
+                udp_secret: conn.udp_secret,
+            };
+            
+            self.udp_auth_map.write().await.insert(auth_key, player_id);
+            info!("Registered UDP auth for player {} in session {}", player_id, session_id);
+            Ok(())
+        } else {
+            Err(TransportError::ConnectionNotFound)
+        }
+    }
+    
+    /// Unregister a player's UDP credentials for a session
+    /// This should be called when a player leaves a session
+    pub async fn unregister_udp_session(&self, player_id: PlayerId) -> Result<(), TransportError> {
+        let mut connections = self.connections.write().await;
+        
+        // Find the connection for this player
+        if let Some(conn) = connections.values_mut().find(|c| c.player_id == player_id) {
+            if let Some(session_id) = conn.current_session_id.take() {
+                // Remove the auth key
+                let auth_key = UdpAuthKey {
+                    session_id,
+                    udp_secret: conn.udp_secret,
+                };
+                
+                self.udp_auth_map.write().await.remove(&auth_key);
+                // Clear UDP address binding
+                conn.udp_addr = None;
+                info!("Unregistered UDP auth for player {} from session {}", player_id, session_id);
+            }
+            Ok(())
+        } else {
+            Err(TransportError::ConnectionNotFound)
+        }
+    }
+    
+    /// Allow immediate UDP address rebind (called after re-authentication)
+    pub async fn allow_udp_rebind(&self, player_id: PlayerId) {
+        let mut connections = self.connections.write().await;
+        if let Some(conn) = connections.values_mut().find(|c| c.player_id == player_id) {
+            // Reset the cooldown timer to allow immediate rebind
+            conn.last_udp_addr_change = Instant::now() - Duration::from_secs(UDP_REBIND_COOLDOWN_SECS + 1);
+            info!("UDP rebind cooldown reset for player {}", player_id);
+        }
     }
 }
 

@@ -34,6 +34,8 @@ pub enum ClientMessage {
 
     // UDP - High frequency
     PlayerInput {
+        session_id: SessionId,
+        udp_secret: [u8; 32],
         server_tick_ack: u32,
         throttle: f32,
         brake: f32,
@@ -48,6 +50,7 @@ pub enum ServerMessage {
     AuthSuccess {
         player_id: PlayerId,
         server_version: u32,
+        udp_secret: [u8; 32],
     },
     AuthFailure {
         reason: String,
@@ -199,9 +202,11 @@ mod tests {
     #[test]
     fn test_server_message_serialization() {
         let player_id = Uuid::new_v4();
+        let udp_secret = [42u8; 32];
         let msg = ServerMessage::AuthSuccess {
             player_id,
             server_version: 1,
+            udp_secret,
         };
 
         let serialized = bincode::serialize(&msg).unwrap();
@@ -211,9 +216,11 @@ mod tests {
             ServerMessage::AuthSuccess {
                 player_id: pid,
                 server_version,
+                udp_secret: secret,
             } => {
                 assert_eq!(pid, player_id);
                 assert_eq!(server_version, 1);
+                assert_eq!(secret, udp_secret);
             }
             _ => panic!("Wrong message type"),
         }
@@ -221,7 +228,11 @@ mod tests {
 
     #[test]
     fn test_player_input_serialization() {
+        let session_id = Uuid::new_v4();
+        let udp_secret = [123u8; 32];
         let msg = ClientMessage::PlayerInput {
+            session_id,
+            udp_secret,
             server_tick_ack: 100,
             throttle: 0.8,
             brake: 0.0,
@@ -233,11 +244,15 @@ mod tests {
 
         match deserialized {
             ClientMessage::PlayerInput {
+                session_id: sid,
+                udp_secret: secret,
                 server_tick_ack,
                 throttle,
                 brake,
                 steering,
             } => {
+                assert_eq!(sid, session_id);
+                assert_eq!(secret, udp_secret);
                 assert_eq!(server_tick_ack, 100);
                 assert_eq!(throttle, 0.8);
                 assert_eq!(brake, 0.0);
