@@ -41,6 +41,16 @@ pub enum ClientMessage {
     },
 }
 
+// --- Message Priority ---
+/// Priority levels for server messages, used for drop/backpressure policies
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MessagePriority {
+    /// Can be dropped when queue is full (telemetry, heartbeats, periodic updates)
+    Droppable = 0,
+    /// Must be delivered or client should be disconnected (auth, errors, session control)
+    Critical = 1,
+}
+
 // --- Server to Client Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ServerMessage {
@@ -79,6 +89,27 @@ pub enum ServerMessage {
 
     // UDP - High frequency telemetry
     Telemetry(Telemetry),
+}
+
+impl ServerMessage {
+    /// Returns the priority of this message for queue management
+    pub fn priority(&self) -> MessagePriority {
+        match self {
+            // Critical messages - must be delivered or client disconnected
+            ServerMessage::AuthSuccess { .. } => MessagePriority::Critical,
+            ServerMessage::AuthFailure { .. } => MessagePriority::Critical,
+            ServerMessage::Error { .. } => MessagePriority::Critical,
+            ServerMessage::SessionJoined { .. } => MessagePriority::Critical,
+            ServerMessage::SessionStarting { .. } => MessagePriority::Critical,
+            ServerMessage::SessionLeft => MessagePriority::Critical,
+            
+            // Droppable messages - can be dropped when queue is full
+            ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
+            ServerMessage::LobbyState { .. } => MessagePriority::Droppable,
+            ServerMessage::Telemetry(_) => MessagePriority::Droppable,
+            ServerMessage::PlayerDisconnected { .. } => MessagePriority::Droppable,
+        }
+    }
 }
 
 // --- Lightweight Lobby Structures ---
