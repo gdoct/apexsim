@@ -1,5 +1,5 @@
 use crate::data::*;
-use crate::network::{ClientMessage, ServerMessage};
+use crate::network::{ClientMessage, ServerMessage, MessagePriority};
 use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig as TlsConfig;
 use std::collections::HashMap;
@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -16,6 +17,38 @@ use tokio::sync::RwLock;
 use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+
+// Channel capacity constants
+const TCP_INBOUND_CHANNEL_SIZE: usize = 1000;
+const UDP_INBOUND_CHANNEL_SIZE: usize = 2000;
+const UDP_OUTBOUND_CHANNEL_SIZE: usize = 2000;
+const PER_CLIENT_TCP_CHANNEL_SIZE: usize = 100;
+
+/// Metrics for tracking dropped messages
+#[derive(Debug, Default, Clone)]
+pub struct TransportMetrics {
+    pub tcp_messages_dropped: Arc<AtomicU64>,
+    pub udp_messages_dropped: Arc<AtomicU64>,
+    pub clients_disconnected_backpressure: Arc<AtomicU64>,
+}
+
+impl TransportMetrics {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn tcp_dropped(&self) -> u64 {
+        self.tcp_messages_dropped.load(Ordering::Relaxed)
+    }
+
+    pub fn udp_dropped(&self) -> u64 {
+        self.udp_messages_dropped.load(Ordering::Relaxed)
+    }
+
+    pub fn clients_disconnected(&self) -> u64 {
+        self.clients_disconnected_backpressure.load(Ordering::Relaxed)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum TransportError {
@@ -29,6 +62,8 @@ pub enum TransportError {
     ConnectionNotFound,
     #[error("Invalid message")]
     InvalidMessage,
+    #[error("Queue full - client too slow")]
+    QueueFull,
 }
 
 #[derive(Debug, Clone)]
@@ -38,7 +73,7 @@ pub struct ConnectionInfo {
     pub connected_at: Instant,
     pub last_heartbeat: Instant,
     pub tcp_addr: SocketAddr,
-    pub tcp_tx: mpsc::UnboundedSender<ServerMessage>,
+    pub tcp_tx: mpsc::Sender<ServerMessage>,
 }
 
 pub struct TransportLayer {
@@ -52,22 +87,25 @@ pub struct TransportLayer {
     udp_socket: Arc<UdpSocket>,
     tls_acceptor: Option<TlsAcceptor>,
 
-    // Channels for communication
-    tcp_rx: mpsc::UnboundedReceiver<(ConnectionId, ClientMessage)>,
-    tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
-    udp_rx: mpsc::UnboundedReceiver<(SocketAddr, ClientMessage)>,
-    udp_tx: mpsc::UnboundedSender<(SocketAddr, ClientMessage)>,
+    // Channels for communication (bounded)
+    tcp_rx: mpsc::Receiver<(ConnectionId, ClientMessage)>,
+    tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
+    udp_rx: mpsc::Receiver<(SocketAddr, ClientMessage)>,
+    udp_tx: mpsc::Sender<(SocketAddr, ClientMessage)>,
 
     // Outbound message queues (UDP only - TCP uses per-connection channels)
-    udp_out_tx: mpsc::UnboundedSender<(SocketAddr, ServerMessage)>,
-    udp_out_rx: mpsc::UnboundedReceiver<(SocketAddr, ServerMessage)>,
+    udp_out_tx: mpsc::Sender<(SocketAddr, ServerMessage)>,
+    udp_out_rx: mpsc::Receiver<(SocketAddr, ServerMessage)>,
 
-    // Shutdown channel
+    // Shutdown channel (unbounded - low volume, critical)
     shutdown_tx: mpsc::UnboundedSender<()>,
     #[allow(dead_code)]
     shutdown_rx: Option<mpsc::UnboundedReceiver<()>>,
 
     heartbeat_timeout: Duration,
+
+    // Metrics
+    pub metrics: TransportMetrics,
 }
 
 impl TransportLayer {
@@ -98,10 +136,10 @@ impl TransportLayer {
             }
         };
 
-        // Create channels
-        let (tcp_tx, tcp_rx) = mpsc::unbounded_channel();
-        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
-        let (udp_out_tx, udp_out_rx) = mpsc::unbounded_channel();
+        // Create bounded channels
+        let (tcp_tx, tcp_rx) = mpsc::channel(TCP_INBOUND_CHANNEL_SIZE);
+        let (udp_tx, udp_rx) = mpsc::channel(UDP_INBOUND_CHANNEL_SIZE);
+        let (udp_out_tx, udp_out_rx) = mpsc::channel(UDP_OUTBOUND_CHANNEL_SIZE);
         let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
 
         Ok(Self {
@@ -120,6 +158,7 @@ impl TransportLayer {
             shutdown_tx,
             shutdown_rx: Some(shutdown_rx),
             heartbeat_timeout: Duration::from_millis(heartbeat_timeout_ms),
+            metrics: TransportMetrics::new(),
         })
     }
 
@@ -180,16 +219,17 @@ impl TransportLayer {
         let udp_socket = Arc::clone(&self.udp_socket);
         let mut udp_out_rx = std::mem::replace(
             &mut self.udp_out_rx,
-            mpsc::unbounded_channel().1,
+            mpsc::channel(1).1,
         );
+        let metrics = self.metrics.clone();
         tokio::spawn(async move {
-            Self::udp_sender(udp_socket, &mut udp_out_rx).await;
+            Self::udp_sender(udp_socket, &mut udp_out_rx, metrics).await;
         });
     }
 
     async fn tcp_acceptor(
         listener: TcpListener,
-        tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
+        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
         tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
@@ -231,7 +271,7 @@ impl TransportLayer {
     async fn handle_tcp_connection(
         stream: TcpStream,
         addr: SocketAddr,
-        tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
+        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
         tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
@@ -240,8 +280,8 @@ impl TransportLayer {
         // Generate connection ID
         let connection_id = Self::addr_to_connection_id(&addr);
 
-        // Create per-connection send channel
-        let (conn_tx, conn_rx) = mpsc::unbounded_channel::<ServerMessage>();
+        // Create per-connection send channel (BOUNDED)
+        let (conn_tx, conn_rx) = mpsc::channel::<ServerMessage>(PER_CLIENT_TCP_CHANNEL_SIZE);
 
         // Handle TLS if available
         if let Some(acceptor) = tls_acceptor {
@@ -290,9 +330,9 @@ impl TransportLayer {
         stream: S,
         addr: SocketAddr,
         connection_id: ConnectionId,
-        conn_tx: mpsc::UnboundedSender<ServerMessage>,
-        mut conn_rx: mpsc::UnboundedReceiver<ServerMessage>,
-        tcp_tx: mpsc::UnboundedSender<(ConnectionId, ClientMessage)>,
+        conn_tx: mpsc::Sender<ServerMessage>,
+        mut conn_rx: mpsc::Receiver<ServerMessage>,
+        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
         player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
@@ -375,7 +415,7 @@ impl TransportLayer {
                                             player_id,
                                             server_version: 1,
                                         };
-                                        let _ = conn_tx.send(response);
+                                        let _ = conn_tx.send(response).await;
                                     } else if let ClientMessage::Heartbeat { .. } = &msg {
                                         // Update last heartbeat time
                                         if let Some(conn) = connections.write().await.get_mut(&connection_id) {
@@ -386,10 +426,10 @@ impl TransportLayer {
                                         let response = ServerMessage::HeartbeatAck {
                                             server_tick: 0, // Will be updated later with actual tick
                                         };
-                                        let _ = conn_tx.send(response);
+                                        let _ = conn_tx.send(response).await;
                                     }
 
-                                    if tcp_tx.send((connection_id, msg)).is_err() {
+                                    if tcp_tx.send((connection_id, msg)).await.is_err() {
                                         error!("Failed to send message to handler");
                                         break;
                                     }
@@ -428,7 +468,7 @@ impl TransportLayer {
 
     async fn udp_receiver(
         socket: Arc<UdpSocket>,
-        tx: mpsc::UnboundedSender<(SocketAddr, ClientMessage)>,
+        tx: mpsc::Sender<(SocketAddr, ClientMessage)>,
     ) {
         let mut buf = vec![0u8; 2048];
         loop {
@@ -436,8 +476,10 @@ impl TransportLayer {
                 Ok((n, addr)) => {
                     match bincode::deserialize::<ClientMessage>(&buf[..n]) {
                         Ok(msg) => {
-                            if tx.send((addr, msg)).is_err() {
-                                error!("Failed to send UDP message to handler");
+                            // Try to send, but don't block if queue is full
+                            if tx.send((addr, msg)).await.is_err() {
+                                // Channel closed, exit
+                                error!("UDP receiver channel closed");
                                 break;
                             }
                         }
@@ -455,7 +497,8 @@ impl TransportLayer {
 
     async fn udp_sender(
         socket: Arc<UdpSocket>,
-        rx: &mut mpsc::UnboundedReceiver<(SocketAddr, ServerMessage)>,
+        rx: &mut mpsc::Receiver<(SocketAddr, ServerMessage)>,
+        _metrics: TransportMetrics,
     ) {
         while let Some((addr, msg)) = rx.recv().await {
             match bincode::serialize(&msg) {
@@ -482,18 +525,78 @@ impl TransportLayer {
     pub async fn send_tcp(&self, connection_id: ConnectionId, msg: ServerMessage) -> Result<(), TransportError> {
         // Find the connection and use its dedicated channel
         if let Some(conn_info) = self.connections.read().await.get(&connection_id) {
-            conn_info.tcp_tx
-                .send(msg)
-                .map_err(|_| TransportError::ConnectionNotFound)
+            let priority = msg.priority();
+            
+            match priority {
+                MessagePriority::Critical => {
+                    // Critical messages must be delivered or client disconnected
+                    match conn_info.tcp_tx.send(msg).await {
+                        Ok(_) => Ok(()),
+                        Err(_) => {
+                            // Channel full or closed - this is a slow/dead client
+                            warn!("Critical message could not be sent to connection {}, client should be disconnected", connection_id);
+                            self.metrics.clients_disconnected_backpressure.fetch_add(1, Ordering::Relaxed);
+                            Err(TransportError::QueueFull)
+                        }
+                    }
+                }
+                MessagePriority::Droppable => {
+                    // Droppable messages can be dropped if queue is full
+                    match conn_info.tcp_tx.try_send(msg) {
+                        Ok(_) => Ok(()),
+                        Err(mpsc::error::TrySendError::Full(_)) => {
+                            // Queue full, drop the message and log it
+                            self.metrics.tcp_messages_dropped.fetch_add(1, Ordering::Relaxed);
+                            let dropped = self.metrics.tcp_dropped();
+                            if dropped % 100 == 1 {
+                                warn!("TCP queue full for connection {}, dropped droppable message (total dropped: {})", 
+                                    connection_id, dropped);
+                            }
+                            Ok(()) // Not an error - dropping is expected behavior
+                        }
+                        Err(mpsc::error::TrySendError::Closed(_)) => {
+                            Err(TransportError::ConnectionNotFound)
+                        }
+                    }
+                }
+            }
         } else {
             Err(TransportError::ConnectionNotFound)
         }
     }
 
     pub async fn send_udp(&self, addr: SocketAddr, msg: ServerMessage) -> Result<(), TransportError> {
-        self.udp_out_tx
-            .send((addr, msg))
-            .map_err(|_| TransportError::ConnectionNotFound)
+        let priority = msg.priority();
+        
+        match priority {
+            MessagePriority::Critical => {
+                // Critical messages should be sent via TCP, not UDP
+                // But if we have to send via UDP, try our best
+                self.udp_out_tx
+                    .send((addr, msg))
+                    .await
+                    .map_err(|_| TransportError::ConnectionNotFound)
+            }
+            MessagePriority::Droppable => {
+                // Droppable messages can be dropped if queue is full
+                match self.udp_out_tx.try_send((addr, msg)) {
+                    Ok(_) => Ok(()),
+                    Err(mpsc::error::TrySendError::Full(_)) => {
+                        // Queue full, drop the message and log it
+                        self.metrics.udp_messages_dropped.fetch_add(1, Ordering::Relaxed);
+                        let dropped = self.metrics.udp_dropped();
+                        if dropped % 1000 == 1 {
+                            warn!("UDP queue full for addr {}, dropped droppable message (total dropped: {})", 
+                                addr, dropped);
+                        }
+                        Ok(()) // Not an error - dropping is expected behavior
+                    }
+                    Err(mpsc::error::TrySendError::Closed(_)) => {
+                        Err(TransportError::ConnectionNotFound)
+                    }
+                }
+            }
+        }
     }
 
     pub async fn get_connection(&self, connection_id: ConnectionId) -> Option<ConnectionInfo> {
@@ -557,8 +660,29 @@ impl TransportLayer {
 
     pub async fn broadcast_tcp(&self, msg: ServerMessage) {
         let connections = self.connections.read().await;
+        let priority = msg.priority();
+        let mut dropped_count = 0;
+        
         for conn_info in connections.values() {
-            let _ = conn_info.tcp_tx.send(msg.clone());
+            match priority {
+                MessagePriority::Critical => {
+                    // Critical messages should be sent
+                    if conn_info.tcp_tx.send(msg.clone()).await.is_err() {
+                        warn!("Failed to broadcast critical message to connection");
+                    }
+                }
+                MessagePriority::Droppable => {
+                    // Try to send, but drop if queue full
+                    if let Err(mpsc::error::TrySendError::Full(_)) = conn_info.tcp_tx.try_send(msg.clone()) {
+                        dropped_count += 1;
+                    }
+                }
+            }
+        }
+        
+        if dropped_count > 0 {
+            self.metrics.tcp_messages_dropped.fetch_add(dropped_count, Ordering::Relaxed);
+            debug!("Broadcast dropped {} droppable messages to slow clients", dropped_count);
         }
     }
 
