@@ -22,17 +22,18 @@ struct TestClient {
     udp_socket: UdpSocket,
     name: String,
     telemetry_received: Arc<Mutex<Vec<(u32, usize)>>>, // (server_tick, car_count)
+    heartbeat_tick: u32,
 }
 
 impl TestClient {
     async fn connect(name: &str) -> Result<Self, Box<dyn std::error::Error>> {
         // Connect TCP (plain, no TLS for testing)
         let tcp_stream = TcpStream::connect(SERVER_TCP_ADDR).await?;
-        
+
         // Create UDP socket
         let udp_socket = UdpSocket::bind("127.0.0.1:0").await?;
         udp_socket.connect(SERVER_UDP_ADDR).await?;
-        
+
         Ok(Self {
             player_id: None,
             session_id: None,
@@ -40,7 +41,16 @@ impl TestClient {
             udp_socket,
             name: name.to_string(),
             telemetry_received: Arc::new(Mutex::new(Vec::new())),
+            heartbeat_tick: 0,
         })
+    }
+
+    async fn send_heartbeat(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.heartbeat_tick += 1;
+        let msg = ClientMessage::Heartbeat {
+            client_tick: self.heartbeat_tick,
+        };
+        self.send_tcp_message(&msg).await
     }
 
     async fn authenticate(&mut self) -> Result<(PlayerId, ServerMessage), Box<dyn std::error::Error>> {
@@ -1099,6 +1109,239 @@ struct MultiClientTestResult {
     avg_telemetry_per_client: f64,
     clients_with_telemetry: usize,
     passed: bool,
+}
+
+/// Test the complete CLI client workflow: select car -> create session -> start game -> finish -> return to lobby
+/// This test simulates the exact workflow that a CLI client would go through
+/// Run: cargo test --test integration_test test_cli_client_workflow -- --ignored --nocapture
+#[tokio::test]
+#[ignore]
+async fn test_cli_client_workflow() {
+    println!("╔══════════════════════════════════════════════════════════════════════════════╗");
+    println!("║                    CLI CLIENT WORKFLOW INTEGRATION TEST                      ║");
+    println!("╠══════════════════════════════════════════════════════════════════════════════╣");
+    println!("║  Testing complete client workflow:                                           ║");
+    println!("║  1. Connect and authenticate                                                 ║");
+    println!("║  2. Select car                                                               ║");
+    println!("║  3. Create session (start session)                                           ║");
+    println!("║  4. Start game (race)                                                        ║");
+    println!("║  5. Game finishes                                                            ║");
+    println!("║  6. Return to lobby                                                          ║");
+    println!("╚══════════════════════════════════════════════════════════════════════════════╝");
+    println!();
+
+    // Wait a moment for server to be ready
+    sleep(Duration::from_secs(1)).await;
+
+    let result = timeout(TEST_TIMEOUT, async {
+        println!("Step 1: Connect and authenticate");
+        println!("  Creating CLI test client...");
+        let mut client = TestClient::connect("CLI-Player").await?;
+
+        println!("  Authenticating...");
+        let (player_id, lobby_state) = client.authenticate().await?;
+        println!("  ✓ Authenticated as player: {}", player_id);
+
+        // Extract car and track IDs from lobby state
+        let (car_id, track_id) = match lobby_state {
+            ServerMessage::LobbyState { car_configs, track_configs, .. } => {
+                let car_id = car_configs.first()
+                    .ok_or("No car configs available")?.id;
+                let track_id = track_configs.first()
+                    .ok_or("No track configs available")?.id;
+                println!("  ✓ Received lobby state: {} cars, {} tracks",
+                    car_configs.len(), track_configs.len());
+                (car_id, track_id)
+            }
+            _ => return Err("Expected lobby state after authentication".into()),
+        };
+
+        println!("\nStep 2: Select car");
+        println!("  Selecting car: {}", car_id);
+        client.select_car(car_id).await?;
+        println!("  ✓ Car selected");
+
+        // Small delay to ensure server processes car selection
+        sleep(Duration::from_millis(100)).await;
+
+        println!("\nStep 3: Create session (start session)");
+        println!("  Creating session on track: {}", track_id);
+        let session_id = client.create_session(track_id, 8).await?;
+        println!("  ✓ Session created: {}", session_id);
+
+        println!("\nStep 4: Start game (race)");
+        println!("  Starting session...");
+        client.start_session().await?;
+        println!("  ✓ Session starting (waiting for countdown)");
+
+        // Wait for countdown
+        sleep(Duration::from_secs(6)).await;
+        println!("  ✓ Countdown complete, race should be active");
+
+        println!("\nStep 5: Simulate racing");
+        println!("  Racing for 5 seconds with inputs...");
+        let race_duration = Duration::from_secs(5);
+        let start_time = tokio::time::Instant::now();
+        let mut tick_counter = 0u32;
+        let mut telemetry_count = 0;
+        let mut session_finished = false;
+
+        let mut last_heartbeat = tokio::time::Instant::now();
+
+        while start_time.elapsed() < race_duration {
+            tick_counter += 1;
+
+            // Send heartbeat every 2 seconds
+            if last_heartbeat.elapsed() > Duration::from_secs(2) {
+                let _ = client.send_heartbeat().await;
+                last_heartbeat = tokio::time::Instant::now();
+            }
+
+            // Send player input
+            client.send_input(0.8, 0.0, 0.0, tick_counter).await?;
+
+            // Try to receive telemetry
+            match timeout(Duration::from_millis(10), client.receive_tcp_message()).await {
+                Ok(Ok(ServerMessage::Telemetry(telemetry))) => {
+                    telemetry_count += 1;
+                    if telemetry_count == 1 {
+                        println!("  ✓ Received first telemetry: tick={}, cars={}",
+                            telemetry.server_tick, telemetry.car_states.len());
+                    }
+
+                    // Check if race finished
+                    if telemetry.session_state == SessionState::Finished {
+                        println!("  ✓ Race finished at tick {}", telemetry.server_tick);
+                        session_finished = true;
+                        break;
+                    }
+                }
+                Ok(Ok(ServerMessage::HeartbeatAck { .. })) => {
+                    // Skip heartbeat acknowledgments
+                }
+                Ok(Ok(_other)) => {
+                    // Other message types, skip
+                }
+                _ => {
+                    // No message or timeout, continue
+                }
+            }
+
+            // Run at approximately 60Hz client update rate
+            sleep(Duration::from_millis(16)).await;
+        }
+
+        println!("  ✓ Racing complete - received {} telemetry packets", telemetry_count);
+
+        // Verify we received telemetry
+        if telemetry_count == 0 {
+            return Err("ERROR: Client received NO telemetry during race!".into());
+        }
+
+        println!("\nStep 6: Return to lobby");
+        if !session_finished {
+            println!("  Leaving session...");
+            client.send_tcp_message(&ClientMessage::LeaveSession).await?;
+
+            // Wait for SessionLeft response, skipping telemetry messages
+            let mut left_confirmed = false;
+            for _ in 0..10 {
+                match timeout(Duration::from_millis(500), client.receive_tcp_message()).await {
+                    Ok(Ok(ServerMessage::SessionLeft)) => {
+                        println!("  ✓ Left session successfully");
+                        left_confirmed = true;
+                        break;
+                    }
+                    Ok(Ok(ServerMessage::Telemetry(_))) => {
+                        // Skip telemetry messages that are still being sent
+                        continue;
+                    }
+                    Ok(Ok(ServerMessage::HeartbeatAck { .. })) => {
+                        // Skip heartbeat acks
+                        continue;
+                    }
+                    Ok(Ok(other)) => {
+                        println!("  ⚠  Received unexpected response: {:?}", other);
+                        break;
+                    }
+                    Err(_) => {
+                        // Timeout, try again
+                        continue;
+                    }
+                    Ok(Err(e)) => {
+                        println!("  ⚠  Error receiving response: {}", e);
+                        break;
+                    }
+                }
+            }
+
+            if !left_confirmed {
+                println!("  ⚠  Did not receive SessionLeft confirmation");
+            }
+        } else {
+            println!("  ✓ Session finished, automatically returned to lobby");
+        }
+
+        // Request lobby state to verify we're back
+        println!("  Requesting lobby state to verify...");
+        client.send_tcp_message(&ClientMessage::RequestLobbyState).await?;
+
+        // Wait for LobbyState, skipping other messages
+        let mut lobby_confirmed = false;
+        for _ in 0..10 {
+            match timeout(Duration::from_millis(500), client.receive_tcp_message()).await {
+                Ok(Ok(ServerMessage::LobbyState { players_in_lobby, available_sessions, .. })) => {
+                    println!("  ✓ Back in lobby: {} players, {} sessions",
+                        players_in_lobby.len(), available_sessions.len());
+                    lobby_confirmed = true;
+                    break;
+                }
+                Ok(Ok(ServerMessage::Telemetry(_))) => {
+                    // Skip telemetry messages
+                    continue;
+                }
+                Ok(Ok(ServerMessage::HeartbeatAck { .. })) => {
+                    // Skip heartbeat acks
+                    continue;
+                }
+                Ok(Ok(other)) => {
+                    println!("  ⚠  Received unexpected message: {:?}", other);
+                    continue;
+                }
+                Err(_) => {
+                    // Timeout, try again
+                    continue;
+                }
+                Ok(Err(e)) => {
+                    return Err(format!("Error receiving lobby state: {}", e).into());
+                }
+            }
+        }
+
+        if !lobby_confirmed {
+            return Err("Failed to receive lobby state confirmation".into());
+        }
+
+        println!("\n✅ Complete workflow test PASSED!");
+        println!("   Player successfully:");
+        println!("     - Connected and authenticated");
+        println!("     - Selected a car");
+        println!("     - Created a session");
+        println!("     - Started the race");
+        println!("     - Received {} telemetry packets", telemetry_count);
+        println!("     - Returned to lobby");
+
+        Ok::<(), Box<dyn std::error::Error>>(())
+    }).await;
+
+    match result {
+        Ok(inner_result) => {
+            inner_result.expect("Workflow test failed");
+        }
+        Err(_) => {
+            panic!("Test timed out after {} seconds", TEST_TIMEOUT.as_secs());
+        }
+    }
 }
 
 /// Multi-client load test - tests server with 16 concurrent clients sending random inputs

@@ -5,6 +5,7 @@ use apexsim_server::{
     health::{HealthState, run_health_server},
     lobby::LobbyManager,
     replay::ReplayManager,
+    track_loader::TrackLoader,
     transport::TransportLayer,
 };
 use clap::Parser;
@@ -41,12 +42,23 @@ impl ServerState {
         let mut car_configs = HashMap::new();
         let mut track_configs = HashMap::new();
 
-        // Create default car and track
+        // Create default car
         let default_car = CarConfig::default();
-        let default_track = TrackConfig::default();
-
         car_configs.insert(default_car.id, default_car);
-        track_configs.insert(default_track.id, default_track);
+
+        // Load custom tracks from configured directory
+        let tracks_dir = config.content.tracks_dir.clone();
+        info!("Loading tracks from {}...", tracks_dir);
+        Self::load_custom_tracks(&mut track_configs, &tracks_dir);
+
+        if track_configs.is_empty() {
+            warn!("No tracks loaded! Server will not be able to create sessions.");
+        } else {
+            info!("Loaded {} track(s):", track_configs.len());
+            for track in track_configs.values() {
+                info!("  - {} (ID: {})", track.name, track.id);
+            }
+        }
 
         Self {
             config,
@@ -56,6 +68,46 @@ impl ServerState {
             players: HashMap::new(),
             lobby: LobbyManager::new(),
             replay: ReplayManager::new(std::path::PathBuf::from("./replays")),
+        }
+    }
+
+    fn load_custom_tracks(track_configs: &mut HashMap<TrackConfigId, TrackConfig>, tracks_dir_str: &str) {
+        let tracks_dir = std::path::Path::new(tracks_dir_str);
+
+        if !tracks_dir.exists() {
+            info!("Tracks directory not found at {:?}, skipping custom track loading", tracks_dir);
+            return;
+        }
+
+        Self::load_tracks_recursive(track_configs, tracks_dir);
+    }
+
+    fn load_tracks_recursive(track_configs: &mut HashMap<TrackConfigId, TrackConfig>, dir: &std::path::Path) {
+        match std::fs::read_dir(dir) {
+            Ok(entries) => {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        // Recursively load tracks from subdirectories
+                        Self::load_tracks_recursive(track_configs, &path);
+                    } else if path.is_file() {
+                        let ext = path.extension().and_then(|s| s.to_str());
+                        if ext == Some("json") || ext == Some("yaml") || ext == Some("yml") {
+                            match TrackLoader::load_from_file(&path) {
+                                Ok(track) => {
+                                    track_configs.insert(track.id, track);
+                                }
+                                Err(e) => {
+                                    warn!("Failed to load track from {:?}: {}", path, e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to read tracks directory {:?}: {}", dir, e);
+            }
         }
     }
 

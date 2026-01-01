@@ -64,6 +64,7 @@ pub struct TransportLayer {
 
     // Shutdown channel
     shutdown_tx: mpsc::UnboundedSender<()>,
+    #[allow(dead_code)]
     shutdown_rx: Option<mpsc::UnboundedReceiver<()>>,
 
     heartbeat_timeout: Duration,

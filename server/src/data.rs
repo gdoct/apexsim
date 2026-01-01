@@ -204,6 +204,29 @@ pub struct TrackConfig {
     pub start_positions: Vec<GridSlot>,
     pub track_surface: TrackSurface,
     pub pit_lane: Option<PitLaneConfig>,
+    /// Optional optimal racing line for AI and visualization
+    #[serde(default)]
+    pub raceline: Vec<RacelinePoint>,
+    /// Track metadata
+    #[serde(default)]
+    pub metadata: TrackMetadata,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RacelinePoint {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TrackMetadata {
+    pub country: Option<String>,
+    pub city: Option<String>,
+    pub length_m: Option<f32>,
+    pub description: Option<String>,
+    pub year_built: Option<u32>,
+    pub category: Option<String>,  // e.g., \"F1\", \"DTM\", \"IndyCar\"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -314,6 +337,8 @@ impl Default for TrackConfig {
             start_positions,
             track_surface: TrackSurface::default(),
             pit_lane: None,
+            raceline: Vec::new(),
+            metadata: TrackMetadata::default(),
         }
     }
 }
