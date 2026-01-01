@@ -1,0 +1,118 @@
+[gd_scene load_steps=2 format=3 uid="uid://cw8r7v3wkm9qxy"]
+
+[ext_resource type="Script" path="res://scripts/csharp/ConnectionDialog.cs" id="1_script"]
+
+[node name="ConnectionDialog" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Overlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -200.0
+offset_right = 200.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 32
+text = "Connect to Server"
+horizontal_alignment = 1
+
+[node name="Spacer1" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="ServerAddress" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/ServerAddress"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Server Address:"
+
+[node name="LineEdit" type="LineEdit" parent="Panel/VBox/ServerAddress"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "127.0.0.1"
+
+[node name="Port" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/Port"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Port:"
+
+[node name="LineEdit" type="LineEdit" parent="Panel/VBox/Port"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "9000"
+
+[node name="PlayerName" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/PlayerName"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Player Name:"
+
+[node name="LineEdit" type="LineEdit" parent="Panel/VBox/PlayerName"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Player"
+
+[node name="Token" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/Token"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Auth Token:"
+
+[node name="LineEdit" type="LineEdit" parent="Panel/VBox/Token"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "dev-token"
+
+[node name="Spacer2" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="ConnectButton" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Connect"
+
+[node name="StatusLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Ready to connect"
+horizontal_alignment = 1

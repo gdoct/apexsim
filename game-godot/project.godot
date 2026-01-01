@@ -13,12 +13,13 @@ config_version=5
 config/name="ApexSim"
 config/description="ApexSim multiplayer racing simulation client"
 run/main_scene="res://scenes/loading_screen.tscn"
-config/features=PackedStringArray("4.5", "GL Compatibility")
+config/features=PackedStringArray("4.5", "C#", "GL Compatibility")
 config/icon="res://assets/logo.png"
 
 [autoload]
 
 SceneManager="*res://scripts/scene_manager.gd"
+Network="*res://scripts/csharp/NetworkClient.cs"
 
 [display]
 
