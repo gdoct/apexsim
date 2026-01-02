@@ -104,25 +104,18 @@ public partial class CarCard : PanelContainer
                 return;
             }
 
-            // Try to get cached model
+            // Try to get cached model - this now returns a fresh Node3D instance
             var cache = CarModelCache.Instance;
-            var cachedScene = cache.GetModel(carFolder);
-            GD.Print($"  Cache lookup for '{carFolder}': {(cachedScene != null ? "FOUND" : "NOT FOUND")}");
+            var modelInstance = cache.GetModel(carFolder);
+            GD.Print($"  Cache lookup for '{carFolder}': {(modelInstance != null ? "FOUND" : "NOT FOUND")}");
 
-            if (cachedScene != null)
+            if (modelInstance != null)
             {
-                // Instantiate from cache - this is fast!
-                _loadedModel = cachedScene.Instantiate<Node3D>();
-                if (_loadedModel != null)
-                {
-                    _carModelParent.AddChild(_loadedModel);
-                    CenterAndScaleModel(_loadedModel);
-                }
-                else
-                {
-                    GD.PrintErr($"Failed to instantiate cached model for {carFolder}");
-                    CreateFallbackModel();
-                }
+                // Use the model instance directly
+                _loadedModel = modelInstance;
+                _carModelParent.AddChild(_loadedModel);
+                CenterAndScaleModel(_loadedModel);
+                GD.Print($"  ✓ Successfully loaded model for {_carConfig?.Name}");
             }
             else
             {
@@ -144,8 +137,6 @@ public partial class CarCard : PanelContainer
         var aabb = CalculateAABB(model);
         var center = aabb.GetCenter();
         var size = aabb.Size;
-
-        GD.Print($"  Model AABB: size={size}, center={center}");
 
         // Center the model
         model.Position = new Vector3(-center.X, -aabb.Position.Y, -center.Z);

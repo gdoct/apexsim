@@ -1,4 +1,5 @@
-name: Nürburgring
+track_id: 8e0672d1-8ca9-4305-952a-be5fef19cba0
+name: "N\xFCrburgring"
 nodes:
 - x: 1.242679
   y: -1.293111
@@ -12310,7 +12311,7 @@ raceline:
   z: 0.0
 metadata:
   country: Germany
-  city: Nürburg
+  city: "N\xFCrburg"
   length_m: 5144.1016
   description: null
   year_built: 1927

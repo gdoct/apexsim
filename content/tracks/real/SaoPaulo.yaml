@@ -1,4 +1,5 @@
-name: Autódromo José Carlos Pace
+track_id: c2687be4-e01f-406a-8d2c-73352fc75a3e
+name: "Aut\xF3dromo Jos\xE9 Carlos Pace"
 nodes:
 - x: -0.518788
   y: -0.519763
@@ -10306,7 +10307,7 @@ raceline:
   z: 0.0
 metadata:
   country: Brazil
-  city: São Paulo
+  city: "S\xE3o Paulo"
   length_m: 4304.62
   description: null
   year_built: 1940

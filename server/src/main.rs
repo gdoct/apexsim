@@ -339,6 +339,10 @@ async fn send_lobby_state(
         .map(|t| TrackConfigSummary {
             id: t.id,
             name: t.name.clone(),
+            centerline: t.centerline.iter()
+                .step_by(10)
+                .map(|p| apexsim_server::network::TrackPoint { x: p.x, y: p.y })
+                .collect(), // Send every 10th point
         })
         .collect();
 
@@ -387,6 +391,10 @@ async fn broadcast_lobby_state(
         .map(|t| TrackConfigSummary {
             id: t.id,
             name: t.name.clone(),
+            centerline: t.centerline.iter()
+                .step_by(10)
+                .map(|p| apexsim_server::network::TrackPoint { x: p.x, y: p.y })
+                .collect(), // Send every 10th point
         })
         .collect();
 

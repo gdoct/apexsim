@@ -366,11 +366,9 @@ public partial class CarSelectionDialog : Control
         _selectedCard = clickedCard;
         _selectedCard.IsSelected = true;
 
-        // Enable select button
-        if (_selectButton != null)
-        {
-            _selectButton.Disabled = false;
-        }
+        // Emit signal and close immediately
+        EmitSignal(SignalName.CarSelected, _selectedCard.CarConfig.Id.ToString(), _selectedCard.CarConfig.Name);
+        QueueFree();
     }
 
     private void OnSearchTextChanged(string newText)
@@ -380,9 +378,9 @@ public partial class CarSelectionDialog : Control
 
     private void OnSelectPressed()
     {
+        // This is now handled in OnCardClicked, but keep this for safety
         if (_selectedCard?.CarConfig != null)
         {
-            EmitSignal(SignalName.CarSelected, _selectedCard.CarConfig.Id.ToString(), _selectedCard.CarConfig.Name);
             QueueFree();
         }
     }

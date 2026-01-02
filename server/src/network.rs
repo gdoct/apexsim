@@ -1,6 +1,14 @@
 use crate::data::*;
 use serde::{Deserialize, Serialize};
 
+fn deserialize_uuid_from_string<'de, D>(deserializer: D) -> Result<uuid::Uuid, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    uuid::Uuid::parse_str(&s).map_err(serde::de::Error::custom)
+}
+
 // --- Client to Server Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
@@ -14,10 +22,12 @@ pub enum ClientMessage {
         client_tick: u32,
     },
     SelectCar {
+        #[serde(deserialize_with = "deserialize_uuid_from_string")]
         car_config_id: CarConfigId,
     },
     RequestLobbyState,
     CreateSession {
+        #[serde(deserialize_with = "deserialize_uuid_from_string")]
         track_config_id: TrackConfigId,
         max_players: u8,
         ai_count: u8,
@@ -26,9 +36,11 @@ pub enum ClientMessage {
         session_kind: SessionKind,
     },
     JoinSession {
+        #[serde(deserialize_with = "deserialize_uuid_from_string")]
         session_id: SessionId,
     },
     JoinAsSpectator {
+        #[serde(deserialize_with = "deserialize_uuid_from_string")]
         session_id: SessionId,
     },
     LeaveSession,
@@ -157,10 +169,19 @@ where
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrackPoint {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackConfigSummary {
     #[serde(serialize_with = "serialize_uuid_as_string")]
     pub id: TrackConfigId,
     pub name: String,
+    /// Simplified centerline points for visualization (every Nth point)
+    #[serde(default)]
+    pub centerline: Vec<TrackPoint>,
 }
 
 // --- Compact Telemetry ---

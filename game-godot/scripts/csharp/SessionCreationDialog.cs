@@ -5,7 +5,7 @@ namespace ApexSim;
 
 public partial class SessionCreationDialog : Control
 {
-    private OptionButton? _trackSelector;
+    private Button? _trackSelectorButton;
     private Button? _carSelectorButton;
     private OptionButton? _sessionTypeSelector;
     private SpinBox? _maxPlayersSpinBox;
@@ -15,13 +15,14 @@ public partial class SessionCreationDialog : Control
     private Button? _cancelButton;
     private Label? _statusLabel;
     private NetworkClient? _network;
-    private Dictionary<int, TrackConfigSummary> _tracks = new();
+    private TrackConfigSummary? _selectedTrack = null;
     private CarConfigSummary? _selectedCar = null;
+    private PackedScene? _trackSelectionScene;
     private PackedScene? _carSelectionScene;
 
     public override void _Ready()
     {
-        _trackSelector = GetNode<OptionButton>("Panel/VBox/TrackSelection/OptionButton");
+        _trackSelectorButton = GetNode<Button>("Panel/VBox/TrackSelection/TrackSelectorButton");
         _carSelectorButton = GetNode<Button>("Panel/VBox/CarSelection/CarSelectorButton");
         _sessionTypeSelector = GetNode<OptionButton>("Panel/VBox/SessionType/SessionTypeOptionButton");
         _maxPlayersSpinBox = GetNode<SpinBox>("Panel/VBox/MaxPlayers/SpinBox");
@@ -39,6 +40,7 @@ public partial class SessionCreationDialog : Control
 
         _createButton.Pressed += OnCreatePressed;
         _cancelButton.Pressed += OnCancelPressed;
+        _trackSelectorButton.Pressed += OnTrackSelectorPressed;
         _carSelectorButton.Pressed += OnCarSelectorPressed;
 
         _network = GetNode<NetworkClient>("/root/Network");
@@ -46,7 +48,8 @@ public partial class SessionCreationDialog : Control
         _network.SessionJoined += OnSessionJoined;
         _network.ErrorReceived += OnErrorReceived;
 
-        // Load car selection scene
+        // Load selection scenes
+        _trackSelectionScene = GD.Load<PackedScene>("res://scenes/track_selection.tscn");
         _carSelectionScene = GD.Load<PackedScene>("res://scenes/car_selection.tscn");
 
         // Request lobby state to get available tracks
@@ -60,7 +63,7 @@ public partial class SessionCreationDialog : Control
         // If we already have cached data, use it immediately to avoid waiting on a roundtrip.
         if (_network!.LastLobbyState != null)
         {
-            PopulateFromLobbyState(_network.LastLobbyState);
+            OnLobbyStateReceived();
         }
 
         if (!_network.IsConnected)
@@ -74,11 +77,45 @@ public partial class SessionCreationDialog : Control
 
         // Simple timeout guard so we don't stay stuck on the loading message forever.
         await ToSignal(GetTree().CreateTimer(3.0), SceneTreeTimer.SignalName.Timeout);
-        if (_tracks.Count == 0)
+        if (_selectedTrack == null && _network.LastLobbyState?.TrackConfigs.Length == 0)
         {
             _statusLabel!.Text = "Lobby data unavailable";
             _statusLabel.Modulate = Colors.Red;
         }
+    }
+
+    private void OnTrackSelectorPressed()
+    {
+        if (_trackSelectionScene == null) return;
+
+        var trackSelectionDialog = _trackSelectionScene.Instantiate<TrackSelectionDialog>();
+        trackSelectionDialog.TrackSelected += OnTrackSelected;
+        GetTree().Root.AddChild(trackSelectionDialog);
+    }
+
+    private void OnTrackSelected(string trackId, string trackName)
+    {
+        // Find the track in the lobby state
+        if (_network?.LastLobbyState != null)
+        {
+            foreach (var track in _network.LastLobbyState.TrackConfigs)
+            {
+                if (track.Id == trackId)
+                {
+                    _selectedTrack = track;
+                    break;
+                }
+            }
+        }
+
+        if (_trackSelectorButton != null)
+        {
+            _trackSelectorButton.Text = trackName;
+            _trackSelectorButton.AddThemeColorOverride("font_color", new Color(0, 1, 0.4f));
+        }
+
+        // Update create button state
+        UpdateCreateButtonState();
     }
 
     private void OnCarSelectorPressed()
@@ -123,21 +160,7 @@ public partial class SessionCreationDialog : Control
         var lobbyState = _network!.LastLobbyState;
         if (lobbyState == null) return;
 
-        PopulateFromLobbyState(lobbyState);
-    }
-
-    private void PopulateFromLobbyState(LobbyStateMessage lobbyState)
-    {
-        // Check if dialog is still valid (not queued for deletion)
-        if (!IsInsideTree()) return;
-        if (_trackSelector == null) return;
-
-        // Remember previous selections
-        int previousTrackSelection = _trackSelector.Selected >= 0 ? _trackSelector.Selected : -1;
-
-        _tracks.Clear();
-        _trackSelector!.Clear();
-
+        // Validate that we have both tracks and cars
         if (lobbyState.TrackConfigs.Length == 0)
         {
             _statusLabel!.Text = "No tracks available!";
@@ -154,20 +177,6 @@ public partial class SessionCreationDialog : Control
             return;
         }
 
-        // Sort tracks by name
-        var sortedTracks = new System.Collections.Generic.List<TrackConfigSummary>(lobbyState.TrackConfigs);
-        sortedTracks.Sort((a, b) => string.Compare(a.Name, b.Name, System.StringComparison.Ordinal));
-
-        for (int i = 0; i < sortedTracks.Count; i++)
-        {
-            var track = sortedTracks[i];
-            _tracks[i] = track;
-            _trackSelector.AddItem(track.Name, i);
-        }
-
-        // Restore previous selections, or default to 0 if first time
-        _trackSelector.Selected = previousTrackSelection >= 0 && previousTrackSelection < _tracks.Count ? previousTrackSelection : 0;
-
         _statusLabel!.Text = $"{lobbyState.TrackConfigs.Length} track(s), {lobbyState.CarConfigs.Length} car(s) available";
         _statusLabel.Modulate = Colors.Green;
 
@@ -179,17 +188,14 @@ public partial class SessionCreationDialog : Control
         if (_createButton == null) return;
 
         // Enable create button only if both track and car are selected
-        _createButton.Disabled = _tracks.Count == 0 || _selectedCar == null;
+        _createButton.Disabled = _selectedTrack == null || _selectedCar == null;
     }
 
     private async void OnCreatePressed()
     {
-        if (_tracks.Count == 0 || _selectedCar == null) return;
+        if (_selectedTrack == null || _selectedCar == null) return;
 
-        var selectedIndex = _trackSelector!.Selected;
-        if (!_tracks.ContainsKey(selectedIndex)) return;
-
-        var track = _tracks[selectedIndex];
+        var track = _selectedTrack;
         var maxPlayers = (byte)_maxPlayersSpinBox!.Value;
         var aiCount = (byte)_aiCountSpinBox!.Value;
         var lapLimit = (byte)_lapLimitSpinBox!.Value;

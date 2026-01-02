@@ -21,6 +21,7 @@ public partial class MainMenu : Control
 
     private NetworkClient? _network;
     private bool _inSession = false;
+    private bool _autoConnectAttempted = false;
 
     public override void _Ready()
     {
@@ -47,6 +48,7 @@ public partial class MainMenu : Control
 
         // Connect to network signals
         _network.AuthenticationSuccess += OnAuthenticationSuccess;
+        _network.AuthenticationFailed += OnAuthenticationFailed;
         _network.DisconnectedFromServer += OnDisconnected;
         _network.SessionJoined += OnSessionJoined;
         _network.SessionLeft += OnSessionLeft;
@@ -59,17 +61,8 @@ public partial class MainMenu : Control
         // Add to group for communication
         AddToGroup("main_menu");
 
-        // Preload car models in the background
-        InitializeCarModelCache();
-    }
-
-    private void InitializeCarModelCache()
-    {
-        var cache = new CarModelCache();
-        cache.Name = "CarModelCache";
-        GetTree().Root.AddChild(cache);
-        cache.PreloadAllModels();
-        _subtitleLabel!.Text = "Loading car models...";
+        // Attempt auto-connect on startup
+        AttemptAutoConnect();
     }
 
     private void UpdateUIState()
@@ -98,9 +91,7 @@ public partial class MainMenu : Control
 
     private void OnConnectPressed()
     {
-        var dialogScene = GD.Load<PackedScene>(ConnectionDialogScene);
-        var dialog = dialogScene.Instantiate();
-        GetTree().Root.AddChild(dialog);
+        ShowConnectionDialog();
     }
 
     private void OnCreateSessionPressed()
@@ -135,6 +126,25 @@ public partial class MainMenu : Control
         GetTree().Quit();
     }
 
+    private void AttemptAutoConnect()
+    {
+        if (_autoConnectAttempted || _network!.IsConnected)
+        {
+            return;
+        }
+
+        _autoConnectAttempted = true;
+        _subtitleLabel!.Text = "Connecting to server...";
+
+        // Use default connection settings
+        _network.ServerAddress = "127.0.0.1";
+        _network.ServerPort = 9000;
+        _network.PlayerName = "Player";
+        _network.AuthToken = "dev-token";
+
+        _network.ConnectToServer();
+    }
+
     // Network event handlers
     private void OnAuthenticationSuccess(string playerId, uint serverVersion)
     {
@@ -142,11 +152,39 @@ public partial class MainMenu : Control
         UpdateUIState();
     }
 
+    private void OnAuthenticationFailed(string reason)
+    {
+        // If auto-connect failed, show the connection dialog
+        if (_autoConnectAttempted && !_network!.IsConnected)
+        {
+            _subtitleLabel!.Text = "Auto-connect failed";
+            ShowConnectionDialog();
+        }
+    }
+
     private void OnDisconnected()
     {
         _inSession = false;
-        _subtitleLabel!.Text = "Disconnected from server";
+
+        // If this is the initial auto-connect attempt and it failed, show the connection dialog
+        if (_autoConnectAttempted && !_network!.IsConnected)
+        {
+            _subtitleLabel!.Text = "Could not connect to server";
+            ShowConnectionDialog();
+        }
+        else
+        {
+            _subtitleLabel!.Text = "Disconnected from server";
+        }
+
         UpdateUIState();
+    }
+
+    private void ShowConnectionDialog()
+    {
+        var dialogScene = GD.Load<PackedScene>(ConnectionDialogScene);
+        var dialog = dialogScene.Instantiate();
+        GetTree().Root.AddChild(dialog);
     }
 
     private void OnSessionJoined(string sessionId, byte gridPosition)

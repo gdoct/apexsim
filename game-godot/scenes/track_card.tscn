@@ -1,0 +1,88 @@
+[gd_scene load_steps=2 format=3 uid="uid://track_card_component"]
+
+[ext_resource type="Script" path="res://scripts/csharp/TrackCard.cs" id="1_script"]
+
+[node name="TrackCard" type="PanelContainer"]
+custom_minimum_size = Vector2(260, 320)
+script = ExtResource("1_script")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="TrackImageContainer" type="Control" parent="VBox"]
+custom_minimum_size = Vector2(240, 180)
+layout_mode = 2
+
+[node name="TrackImage" type="TextureRect" parent="VBox/TrackImageContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="InfoSection" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="Spacer1" type="Control" parent="VBox/InfoSection"]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+
+[node name="TrackName" type="Label" parent="VBox/InfoSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Track Name"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="TrackInfo" type="VBoxContainer" parent="VBox/InfoSection"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Length" type="Label" parent="VBox/InfoSection/TrackInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "Track ID: --------"
+horizontal_alignment = 1
+
+[node name="Spacer2" type="Control" parent="VBox/InfoSection"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SelectionIndicator" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 1, 0.4, 0.15)
+visible = false
+
+[node name="SelectionBorder" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0, 1, 0.4, 1)
+visible = false
+
+[node name="HoverEffect" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 1, 1, 0.05)
+visible = false

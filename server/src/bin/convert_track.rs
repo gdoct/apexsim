@@ -271,6 +271,7 @@ fn convert_to_track_format(
 
     TrackFileFormat {
         name: args.name.clone(),
+        track_id: Some(uuid::Uuid::new_v4().to_string()),
         nodes,
         checkpoints: Vec::new(), // Could be auto-generated based on track sectors
         spawn_points: Vec::new(), // Could be auto-generated at start/finish
