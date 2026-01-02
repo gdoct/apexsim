@@ -127,7 +127,6 @@ public class BincodeReader
     {
         var posBefore = _reader.BaseStream.Position;
         var length = ReadU64();
-        Godot.GD.Print($"ReadString: length={length} at pos={posBefore}");
 
         if (length > int.MaxValue)
         {
@@ -144,7 +143,6 @@ public class BincodeReader
             throw new Exception($"Expected {length} bytes but only read {bytes.Length}");
         }
         var result = Encoding.UTF8.GetString(bytes);
-        Godot.GD.Print($"ReadString: read '{result}' ({result.Length} chars)");
         return result;
     }
 
@@ -198,12 +196,10 @@ public class BincodeReader
 
         // Debug: print the raw bytes
         var hexStr = BitConverter.ToString(uuidBytes).Replace("-", " ");
-        Godot.GD.Print($"ReadUuid at pos={posBefore}: len={length}, bytes={hexStr}");
 
         // Rust's uuid crate stores bytes in the same order as .NET Guid.ToByteArray()
         // No byte swapping needed!
         var guid = new Guid(uuidBytes);
-        Godot.GD.Print($"ReadUuid result: {guid}");
         return guid.ToString();
     }
 

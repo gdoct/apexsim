@@ -16,7 +16,7 @@
             "label": "Server: Run",
             "type": "shell",
             "command": "cargo",
-            "args": ["run", "--release", "--", "-c", "./server.toml"],
+            "args": ["watch", "-x", "run --release -- -c ./server.toml"],
             "options": {
                 "cwd": "${workspaceFolder}/server"
             },
@@ -98,7 +98,7 @@
         {
             "label": "Server: Start",
             "type": "shell",
-            "command": "cd ${workspaceFolder}/server && cargo run --release -- -c ./server.toml",
+            "command": "sleep 2 && cd ${workspaceFolder}/server && cargo run --release -- -c ./server.toml",
             "isBackground": true,
             "problemMatcher": {
                 "pattern": {
@@ -115,6 +115,16 @@
                 "panel": "dedicated",
                 "group": "server",
                 "focus": true
+            }
+        },
+        {
+            "label": "Game: Copy",
+            "type": "shell",
+            "command": "cp -R ./game-godot /mnt/c/Data/ApexSim/apexsim/ && cp -R ./content /mnt/c/Data/ApexSim/apexsim/",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
             }
         },
         {
@@ -173,6 +183,32 @@
                 "isDefault": true
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Game: Build C#",
+            "type": "shell",
+            "command": "dotnet",
+            "args": ["build"],
+            "options": {
+                "cwd": "${workspaceFolder}/game-godot"
+            },
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Test: Track Mesh Render",
+            "dependsOn": ["Game: Build C#"],
+            "type": "shell",
+            "command": "/home/guido/godot/godot",
+            "args": ["--headless", "scenes/track_mesh_test.tscn"],
+            "options": {
+                "cwd": "${workspaceFolder}/game-godot"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
         }
     ],
     "inputs": [

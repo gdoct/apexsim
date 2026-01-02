@@ -6,6 +6,8 @@ use std::path::Path;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackFileFormat {
     pub name: String,
+    #[serde(default)]
+    pub track_id: Option<String>,
     pub nodes: Vec<TrackNode>,
     #[serde(default)]
     pub checkpoints: Vec<Checkpoint>,
@@ -148,7 +150,13 @@ impl TrackLoader {
 
         let start_positions = Self::generate_start_positions(&track_file, &centerline_points);
 
-        let track_id = uuid::Uuid::new_v4();
+        // Use track_id from file if provided, otherwise generate new UUID
+        let track_id = if let Some(track_id_str) = &track_file.track_id {
+            uuid::Uuid::parse_str(track_id_str)
+                .map_err(|e| TrackLoadError::InvalidData(format!("Invalid track_id format: {}", e)))?
+        } else {
+            uuid::Uuid::new_v4()
+        };
 
         // Convert raceline points to the data structure
         let raceline = track_file.raceline.into_iter().map(|rl| {

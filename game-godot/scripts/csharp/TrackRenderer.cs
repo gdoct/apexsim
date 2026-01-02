@@ -33,6 +33,7 @@ public class TrackMetadata
 
 public class TrackData
 {
+	public string? TrackId { get; set; }
 	public string Name { get; set; } = "";
 	public List<TrackNode> Nodes { get; set; } = new();
 	public List<Dictionary<string, object>>? Checkpoints { get; set; }
@@ -122,23 +123,34 @@ public partial class TrackRenderer : Node3D
 		try
 		{
 			// Check if we're already in a session (signal may have fired before we subscribed)
-			var lobbyState = _network?.LastLobbyState;
-			if (lobbyState != null)
+			var currentSessionId = _network?.CurrentSessionId;
+			if (!string.IsNullOrEmpty(currentSessionId))
 			{
-				// Find any session we might be in
-				foreach (var session in lobbyState.AvailableSessions)
+				GD.Print($"Player is in session: {currentSessionId}");
+				_currentSessionId = currentSessionId;
+
+				// Find the session in lobby state to get track file
+				var lobbyState = _network?.LastLobbyState;
+				if (lobbyState != null)
 				{
-					// Check if any player in the session is us (would be in player_count but not visible here)
-					// For now, assume if we're on this scene, we should load the first/only session
-					GD.Print($"Found session in lobby: {session.TrackName}");
-					if (!string.IsNullOrEmpty(session.TrackFile))
+					foreach (var session in lobbyState.AvailableSessions)
 					{
-						GD.Print($"Session track file available: {session.TrackFile}");
-						_currentSessionId = session.Id;
-						LoadAndRenderTrack(session.TrackFile);
-						break;
+						if (session.Id == currentSessionId)
+						{
+							GD.Print($"Found session in lobby: {session.TrackName}");
+							if (!string.IsNullOrEmpty(session.TrackFile))
+							{
+								GD.Print($"Loading track: {session.TrackFile}");
+								LoadAndRenderTrack(session.TrackFile);
+							}
+							break;
+						}
 					}
 				}
+			}
+			else
+			{
+				GD.Print("Player is not in any session");
 			}
 		}
 		catch (System.Exception ex)

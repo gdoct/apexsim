@@ -54,6 +54,9 @@ public partial class NetworkClient : Node
     // Store latest lobby state for retrieval
     public LobbyStateMessage? LastLobbyState { get; private set; }
 
+    // Store current session ID
+    public string? CurrentSessionId { get; private set; }
+
     public string ServerAddress { get; set; } = "127.0.0.1";
     public int ServerPort { get; set; } = 9000;
     public string PlayerName { get; set; } = "Player";
@@ -304,10 +307,12 @@ public partial class NetworkClient : Node
                 break;
 
             case SessionJoinedMessage sessionJoined:
+                CurrentSessionId = sessionJoined.SessionId;
                 EmitSignal(SignalName.SessionJoined, sessionJoined.SessionId, sessionJoined.YourGridPosition);
                 break;
 
             case SessionLeftMessage:
+                CurrentSessionId = null;
                 EmitSignal(SignalName.SessionLeft);
                 break;
 
@@ -361,7 +366,7 @@ public partial class NetworkClient : Node
                 break;
             case SelectCarMessage selectCar:
                 type = "SelectCar";
-                payload = new Dictionary<string, object?> { ["car_config_id"] = AsUuidBytes(selectCar.CarConfigId) };
+                payload = new Dictionary<string, object?> { ["car_config_id"] = selectCar.CarConfigId };
                 break;
             case RequestLobbyStateMessage:
                 type = "RequestLobbyState";
@@ -370,7 +375,7 @@ public partial class NetworkClient : Node
                 type = "CreateSession";
                 payload = new Dictionary<string, object?>
                 {
-                    ["track_config_id"] = AsUuidBytes(createSession.TrackConfigId),
+                    ["track_config_id"] = createSession.TrackConfigId,
                     ["max_players"] = createSession.MaxPlayers,
                     ["ai_count"] = createSession.AiCount,
                     ["lap_limit"] = createSession.LapLimit,
@@ -379,7 +384,7 @@ public partial class NetworkClient : Node
                 break;
             case JoinSessionMessage join:
                 type = "JoinSession";
-                payload = new Dictionary<string, object?> { ["session_id"] = AsUuidBytes(join.SessionId) };
+                payload = new Dictionary<string, object?> { ["session_id"] = join.SessionId };
                 break;
             case LeaveSessionMessage:
                 type = "LeaveSession";
@@ -554,8 +559,11 @@ public partial class NetworkClient : Node
         var map = ToStringMap(obj);
         return new CarConfigSummary
         {
-            Id = ReadUuid(map, "id"),
-            Name = ReadString(map, "name")
+            Id = ReadUuid(map, "Id"),
+            Name = ReadString(map, "Name"),
+            ModelPath = ReadString(map, "ModelPath"),
+            MassKg = ReadFloat(map, "MassKg"),
+            MaxEngineForceN = ReadFloat(map, "MaxEngineForceN")
         };
     }
 
@@ -660,6 +668,29 @@ public partial class NetworkClient : Node
             ulong ul => ul,
             float f => (ulong)f,
             double d => (ulong)d,
+            _ => throw new Exception($"Unsupported numeric type for '{key}': {value.GetType().FullName} (value: {value})")
+        };
+    }
+
+    private static float ReadFloat(Dictionary<string, object?> map, string key)
+    {
+        if (!map.TryGetValue(key, out var value) || value == null)
+        {
+            throw new Exception($"Missing numeric field '{key}' in server message");
+        }
+
+        return value switch
+        {
+            byte b => b,
+            sbyte sb => sb,
+            short s => s,
+            ushort us => us,
+            int i => i,
+            uint ui => ui,
+            long l => l,
+            ulong ul => ul,
+            float f => f,
+            double d => (float)d,
             _ => throw new Exception($"Unsupported numeric type for '{key}': {value.GetType().FullName} (value: {value})")
         };
     }

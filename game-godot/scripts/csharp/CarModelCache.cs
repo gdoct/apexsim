@@ -22,8 +22,16 @@ public partial class CarModelCache : Node
         }
     }
 
-    private Dictionary<string, PackedScene> _modelCache = new();
+    private class CachedGltfData
+    {
+        public GltfDocument? Document { get; set; }
+        public GltfState? State { get; set; }
+    }
+
+    private Dictionary<string, CachedGltfData> _modelCache = new();
     private bool _isLoading = false;
+
+    public bool IsLoading => _isLoading;
 
     public override void _Ready()
     {
@@ -115,27 +123,25 @@ public partial class CarModelCache : Node
             var error = gltfDocument.AppendFromFile(modelPath, gltfState);
             if (error == Error.Ok)
             {
-                var scene = gltfDocument.GenerateScene(gltfState);
-                if (scene != null)
+                // Cache the GLTF document and state so we can generate fresh scenes later
+                _modelCache[carFolderName] = new CachedGltfData
                 {
-                    // Create a PackedScene from the loaded scene
-                    var packedScene = new PackedScene();
-                    packedScene.Pack(scene);
-                    _modelCache[carFolderName] = packedScene;
+                    Document = gltfDocument,
+                    State = gltfState
+                };
 
-                    // Clean up the temporary scene
-                    scene.QueueFree();
-
-                    GD.Print($"  ✓ Cached model for '{carFolderName}' (key stored in cache)");
-                }
+                GD.Print($"  ✓ Cached GLTF data for '{carFolderName}'");
             }
             else
             {
                 GD.PrintErr($"Failed to load GLTF: {modelPath}, Error: {error}");
             }
 
-            // Yield to prevent blocking
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            // Yield to prevent blocking (only if we're in the tree)
+            if (IsInsideTree())
+            {
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
         }
         catch (Exception ex)
         {
@@ -144,16 +150,26 @@ public partial class CarModelCache : Node
     }
 
     /// <summary>
-    /// Get a cached model scene by car folder name
+    /// Get a fresh instance of a cached model by car folder name
     /// </summary>
-    public PackedScene? GetModel(string carFolderName)
+    public Node3D? GetModel(string carFolderName)
     {
-        var result = _modelCache.GetValueOrDefault(carFolderName);
-        if (result == null)
+        var cachedData = _modelCache.GetValueOrDefault(carFolderName);
+        if (cachedData == null)
         {
             GD.Print($"Cache miss for '{carFolderName}'. Available keys: {string.Join(", ", _modelCache.Keys)}");
+            return null;
         }
-        return result;
+
+        if (cachedData.Document == null || cachedData.State == null)
+        {
+            GD.PrintErr($"Cached data for '{carFolderName}' is invalid");
+            return null;
+        }
+
+        // Generate a fresh scene from the cached GLTF data
+        var scene = cachedData.Document.GenerateScene(cachedData.State);
+        return (Node3D)scene;
     }
 
     /// <summary>

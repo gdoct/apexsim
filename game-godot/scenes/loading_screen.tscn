@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://bxqv5wkl7m8qi"]
 
 [ext_resource type="Texture2D" uid="uid://ctaqkkwnfgn1b" path="res://assets/loadingscreen.png" id="1_loading"]
-[ext_resource type="Script" path="res://scripts/loading_screen.gd" id="2_script"]
+[ext_resource type="Script" path="res://scripts/csharp/LoadingScreen.cs" id="2_script"]
 
 [node name="LoadingScreen" type="Control"]
 layout_mode = 3
