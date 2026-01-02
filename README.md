@@ -23,7 +23,7 @@ This project is in active development. Core simulation features are functional, 
 ## Architecture Overview
 
 1. **Rust Server (`server/`):** Runs the authoritative 240 Hz simulation loop, manages sessions, performs collision-aware physics, and streams telemetry via UDP while handling lobby/stateful traffic over TCP. See [server/README.md](server/README.md) for configuration, build, and operations detail.
-2. **Unreal Engine Client (`Project/` + `game/`):** Provides the player experience—menus, HUD, driving view, and integrations with the backend. The [game/README.md](game/README.md) and [Project/README.md](Project/README.md) files describe Unreal-specific workflows.
+2. **Godot Client (`game-godot/` + `game-cli/`):** Provides the player experience—menus, HUD, driving view, and integrations with the backend. The [game-cli/README.md](game/README.md) and [game-godot/README.md](game-godot/README.md) files describe Godot-specific workflows.
 
 This separation keeps critical simulation logic isolated from presentation while enabling each component to evolve independently.
 
@@ -32,10 +32,9 @@ This separation keeps critical simulation logic isolated from presentation while
 ```
 apexsim/
 ├── content/        # Reference car/track definitions shared across tools
-├── Docs/           # System, scene, and architecture documentation
-├── game/           # Developer docs, helper scripts, Unreal workflows
-├── Project/        # ApexSim Unreal Engine project (source, configs, assets)
-├── Scripts/        # Workspace-level helper scripts (build, VS Code generation)
+├── game-godot/     # Game implementation in godot with c# scripts
+├── game-cli/       # Command line client for integration testing
+├── scripts/        # Workspace-level helper scripts (build, VS Code generation)
 ├── server/         # Rust backend (source, config, docs)
 ├── README.md       # This overview
 └── LICENSE         # Project license
@@ -43,18 +42,16 @@ apexsim/
 
 ### Directory Highlights
 
-- [content/](content): Authoring-ready data for cars and tracks consumed by both the server and Unreal editors.
-- [Docs/](Docs): High-level design narratives, including scene walkthroughs and subsystem guides.
-- [game/](game): Platform-specific setup instructions, Unreal automation helpers, and workflow notes for building and launching the client.
-- [Project/](Project): The actual Unreal Engine project containing Blueprints, Maps, Config, and build artifacts.
-- [Scripts/](Scripts): Convenience scripts for regenerating IDE files or building aggregate artifacts.
+- [content/](content): Authoring-ready data for cars and tracks consumed by both the server and game clients.
+- [game-godot/](game-godot): Game implementation in godot with c# scripts.
+- [game-cli/](game-cli): Command line client for integration testing.
+- [scripts/](scripts): Workspace-level helper scripts (build, VS Code generation).
 - [server/](server): Full Rust crate with source code, configuration files, and supporting docs for the backend runtime.
 
 ## Getting Started
 
 1. Clone the repository and consult [server/README.md](server/README.md) for backend prerequisites, configuration, and run instructions.
-2. Follow [game/SETUP.md](game/SETUP.md) and [game/BUILD.md](game/BUILD.md) to provision Unreal Engine, download dependencies, and launch the client.
-3. Review [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md) plus scene-specific documents under [Docs/Scenes/](Docs/Scenes) for UX flows, and [Docs/Systems/](Docs/Systems) for subsystem expectations.
+2. Follow [game-godot/SETUP.md](game-godot/SETUP.md) and [game-godot/BUILD.md](game-godot/BUILD.md) to provision Godot, download dependencies, and launch the client.
 
 ## Contributing
 
