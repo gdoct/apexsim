@@ -187,3 +187,4 @@ __pycache__/
 /Docs/Output/
 /Docs/Build/
 certs/
+.venv/
