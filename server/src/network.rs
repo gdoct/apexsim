@@ -22,6 +22,8 @@ pub enum ClientMessage {
         max_players: u8,
         ai_count: u8,
         lap_limit: u8,
+        #[serde(default)]
+        session_kind: SessionKind,
     },
     JoinSession {
         session_id: SessionId,
@@ -127,20 +129,36 @@ pub struct LobbyPlayer {
 pub struct SessionSummary {
     pub id: SessionId,
     pub track_name: String,
+    /// Track file relative to content folder (e.g. "tracks/real/Austin.yaml")
+    pub track_file: String,
     pub host_name: String,
+    pub session_kind: SessionKind,
     pub player_count: u8,
     pub max_players: u8,
     pub state: SessionState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct CarConfigSummary {
+    #[serde(serialize_with = "serialize_uuid_as_string")]
     pub id: CarConfigId,
     pub name: String,
+    pub model_path: String,
+    pub mass_kg: f32,
+    pub max_engine_force_n: f32,
+}
+
+fn serialize_uuid_as_string<S>(uuid: &uuid::Uuid, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&uuid.to_string())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackConfigSummary {
+    #[serde(serialize_with = "serialize_uuid_as_string")]
     pub id: TrackConfigId,
     pub name: String,
 }

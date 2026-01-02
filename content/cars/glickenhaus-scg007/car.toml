@@ -1,0 +1,20 @@
+id = "c3d4e5f6-a7b8-4c3d-0e1f-2a3b4c5d6e7f"
+name = "Glickenhaus SCG007"
+version = "1.0.0"
+model = "Glickenhaus SCG007.glb"
+brand = "Glickenhaus"
+model_year = 2023
+class = "Hypercar"
+model_type = "SCG007"
+manufacturer_country = "USA"
+
+[physics]
+mass_kg = 952.0
+length_m = 5.0
+width_m = 2.0
+max_engine_force_n = 18000.0
+max_brake_force_n = 18000.0
+drag_coefficient = 0.45
+grip_coefficient = 1.4
+max_steering_angle_rad = 0.40
+wheelbase_m = 3.1

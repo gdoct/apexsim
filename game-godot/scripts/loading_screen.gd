@@ -6,7 +6,7 @@ extends Control
 var target_scene_path: String = ""
 var progress: float = 0.0
 var loading_time: float = 0.0
-const MIN_LOADING_TIME = 2.0  # Minimum time to show loading screen
+const MIN_LOADING_TIME = .0  # Minimum time to show loading screen
 
 func _ready():
 	progress_bar.value = 0

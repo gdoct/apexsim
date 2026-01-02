@@ -318,7 +318,7 @@ mod tests {
         let mut car_configs = HashMap::new();
         car_configs.insert(car.id, car.clone());
 
-        let session = RaceSession::new(Uuid::new_v4(), track.id, 8, 0, 3);
+        let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 0, 3);
 
         GameSession::new(session, track, car_configs)
     }
@@ -413,7 +413,7 @@ mod tests {
         car_configs.insert(car.id, car.clone());
         
         // Create session with 2 AI drivers
-        let session = RaceSession::new(Uuid::new_v4(), track.id, 8, 2, 3);
+        let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 2, 3);
         let ai_profiles = generate_default_ai_profiles(2);
         
         let mut game_session = GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);

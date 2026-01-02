@@ -10,8 +10,11 @@ public partial class SessionBrowserDialog : Control
     private Button? _refreshButton;
     private Button? _closeButton;
     private Label? _statusLabel;
+    private Button? _carSelectorButton;
     private NetworkClient? _network;
     private List<SessionSummary> _sessions = new();
+    private CarConfigSummary? _selectedCar = null;
+    private PackedScene? _carSelectionScene;
 
     public override void _Ready()
     {
@@ -19,19 +22,47 @@ public partial class SessionBrowserDialog : Control
         _refreshButton = GetNode<Button>("Panel/VBox/ButtonBar/RefreshButton");
         _closeButton = GetNode<Button>("Panel/VBox/ButtonBar/CloseButton");
         _statusLabel = GetNode<Label>("Panel/VBox/StatusLabel");
+        _carSelectorButton = GetNode<Button>("Panel/VBox/CarSelection/CarSelectorButton");
 
         _refreshButton.Pressed += OnRefreshPressed;
         _closeButton.Pressed += OnClosePressed;
+        _carSelectorButton.Pressed += OnCarSelectorPressed;
 
         _network = GetNode<NetworkClient>("/root/Network");
         _network.LobbyStateReceived += OnLobbyStateReceived;
 
+        // Load car selection scene
+        _carSelectionScene = GD.Load<PackedScene>("res://scenes/car_selection.tscn");
+
         // Request initial lobby state
         RefreshSessions();
+
+        // If we already have cached data, use it immediately so the dialog feels snappier.
+        if (_network!.LastLobbyState != null)
+        {
+            ApplyLobbyState(_network.LastLobbyState);
+        }
     }
 
     private async void RefreshSessions()
     {
+        if (_network == null)
+        {
+            return;
+        }
+
+        if (!_network.IsConnected)
+        {
+            _statusLabel!.Text = "Not connected to server";
+            _statusLabel.Modulate = Colors.Red;
+            return;
+        }
+
+        if (_network.LastLobbyState != null)
+        {
+            ApplyLobbyState(_network.LastLobbyState);
+        }
+
         _statusLabel!.Text = "Loading sessions...";
         _statusLabel.Modulate = Colors.Yellow;
         await _network!.RequestLobbyStateAsync();
@@ -47,10 +78,54 @@ public partial class SessionBrowserDialog : Control
         QueueFree();
     }
 
+    private void OnCarSelectorPressed()
+    {
+        if (_carSelectionScene == null) return;
+
+        var carSelectionDialog = _carSelectionScene.Instantiate<CarSelectionDialog>();
+        carSelectionDialog.CarSelected += OnCarSelected;
+        GetTree().Root.AddChild(carSelectionDialog);
+    }
+
+    private void OnCarSelected(string carId, string carName)
+    {
+        // Find the car in the lobby state
+        if (_network?.LastLobbyState != null)
+        {
+            foreach (var car in _network.LastLobbyState.CarConfigs)
+            {
+                if (car.Id.ToString() == carId)
+                {
+                    _selectedCar = car;
+                    break;
+                }
+            }
+        }
+
+        if (_carSelectorButton != null)
+        {
+            _carSelectorButton.Text = carName;
+            _carSelectorButton.AddThemeColorOverride("font_color", new Color(0, 1, 0.4f));
+        }
+
+        // Refresh session list to update join button states
+        if (_network?.LastLobbyState != null)
+        {
+            ApplyLobbyState(_network.LastLobbyState);
+        }
+    }
+
     private void OnLobbyStateReceived()
     {
         var lobbyState = _network!.LastLobbyState;
         if (lobbyState == null) return;
+
+        ApplyLobbyState(lobbyState);
+    }
+
+    private void ApplyLobbyState(LobbyStateMessage lobbyState)
+    {
+        if (!IsInsideTree()) return;
 
         _sessions.Clear();
         foreach (var child in _sessionList!.GetChildren())
@@ -111,18 +186,27 @@ public partial class SessionBrowserDialog : Control
         vbox.AddChild(stateLabel);
 
         // Join button
-        if (session.State == SessionState.Lobby && session.PlayerCount < session.MaxPlayers)
+        var canJoin = session.State == SessionState.Lobby && session.PlayerCount < session.MaxPlayers && _selectedCar != null;
+
+        if (canJoin)
         {
             var joinButton = new Button();
             joinButton.Text = "Join";
             joinButton.CustomMinimumSize = new Vector2(100, 40);
-            joinButton.Pressed += () => OnJoinSession(session);
+            joinButton.Pressed += () => OnJoinSession(session, joinButton);
             hbox.AddChild(joinButton);
         }
         else
         {
             var disabledLabel = new Label();
-            disabledLabel.Text = session.State != SessionState.Lobby ? "In Progress" : "Full";
+            if (_selectedCar == null)
+            {
+                disabledLabel.Text = "Select a car first";
+            }
+            else
+            {
+                disabledLabel.Text = session.State != SessionState.Lobby ? "In Progress" : "Full";
+            }
             disabledLabel.CustomMinimumSize = new Vector2(100, 40);
             disabledLabel.HorizontalAlignment = HorizontalAlignment.Center;
             disabledLabel.VerticalAlignment = VerticalAlignment.Center;
@@ -145,11 +229,33 @@ public partial class SessionBrowserDialog : Control
         };
     }
 
-    private async void OnJoinSession(SessionSummary session)
+    private async void OnJoinSession(SessionSummary session, Button? joinButton)
     {
-        _statusLabel!.Text = $"Joining {session.TrackName}...";
+        if (_selectedCar == null)
+        {
+            _statusLabel!.Text = "Select a car before joining";
+            _statusLabel.Modulate = Colors.Red;
+            return;
+        }
+
+        if (joinButton != null)
+        {
+            joinButton.Disabled = true;
+        }
+
+        _statusLabel!.Text = $"Joining {session.TrackName} with {_selectedCar.Name}...";
         _statusLabel.Modulate = Colors.Yellow;
+
+        await _network!.SelectCarAsync(_selectedCar.Id);
         await _network!.JoinSessionAsync(session.Id);
         QueueFree(); // Close browser after joining
+    }
+
+    public override void _ExitTree()
+    {
+        if (_network != null)
+        {
+            _network.LobbyStateReceived -= OnLobbyStateReceived;
+        }
     }
 }

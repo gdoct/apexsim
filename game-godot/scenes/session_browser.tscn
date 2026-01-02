@@ -51,6 +51,21 @@ theme_override_font_sizes/font_size = 14
 text = "Loading..."
 horizontal_alignment = 1
 
+[node name="CarSelection" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CarLabel" type="Label" parent="Panel/VBox/CarSelection"]
+layout_mode = 2
+text = "Car:"
+size_flags_horizontal = 1
+
+[node name="CarSelectorButton" type="Button" parent="Panel/VBox/CarSelection"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Select Car..."
+
 [node name="ScrollContainer" type="ScrollContainer" parent="Panel/VBox"]
 custom_minimum_size = Vector2(0, 400)
 layout_mode = 2

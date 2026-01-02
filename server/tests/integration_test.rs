@@ -19,7 +19,6 @@ struct TestClient {
     player_id: Option<PlayerId>,
     session_id: Option<SessionId>,
     tcp_stream: TcpStream,
-    udp_socket: UdpSocket,
     name: String,
     telemetry_received: Arc<Mutex<Vec<(u32, usize)>>>, // (server_tick, car_count)
     heartbeat_tick: u32,
@@ -38,7 +37,6 @@ impl TestClient {
             player_id: None,
             session_id: None,
             tcp_stream,
-            udp_socket,
             name: name.to_string(),
             telemetry_received: Arc::new(Mutex::new(Vec::new())),
             heartbeat_tick: 0,
@@ -97,10 +95,12 @@ impl TestClient {
         &mut self,
         track_id: TrackConfigId,
         max_players: u8,
+        session_kind: SessionKind,
     ) -> Result<SessionId, Box<dyn std::error::Error>> {
         let msg = ClientMessage::CreateSession {
             track_config_id: track_id,
             max_players,
+            session_kind,
             ai_count: 0,
             lap_limit: 3,
         };
@@ -284,7 +284,7 @@ async fn test_multiplayer_race_session() {
         
         // Client 1 creates a session
         println!("Client 1 creating session...");
-        let session_id = client1.create_session(track_id, 8).await?;
+        let session_id = client1.create_session(track_id, 8, SessionKind::Practice).await?;
         println!("Session created: {}", session_id);
         
         // Other clients join the session
@@ -476,7 +476,7 @@ async fn test_telemetry_broadcast() {
         
         // Client 1 creates a session
         println!("\nStep 4: Creating session...");
-        let session_id = client1.create_session(track_id, 4).await?;
+        let session_id = client1.create_session(track_id, 4, SessionKind::Practice).await?;
         println!("  ✓ Session created: {}", session_id);
         
         // Client 2 joins the session
@@ -1028,6 +1028,7 @@ impl TestClientMinimal {
         let msg = ClientMessage::CreateSession {
             track_config_id: track_id,
             max_players: 4,
+            session_kind: SessionKind::Practice,
             ai_count: 0,
             lap_limit: 3,
         };
@@ -1166,7 +1167,7 @@ async fn test_cli_client_workflow() {
 
         println!("\nStep 3: Create session (start session)");
         println!("  Creating session on track: {}", track_id);
-        let session_id = client.create_session(track_id, 8).await?;
+        let session_id = client.create_session(track_id, 8, SessionKind::Practice).await?;
         println!("  ✓ Session created: {}", session_id);
 
         println!("\nStep 4: Start game (race)");
@@ -1558,6 +1559,7 @@ async fn run_multi_client_test(
     let create_msg = ClientMessage::CreateSession {
         track_config_id: track_id,
         max_players: 16,
+        session_kind: SessionKind::Practice,
         ai_count: 0,
         lap_limit: 3,
     };
@@ -1743,3 +1745,112 @@ async fn run_multi_client_test(
     })
 }
 
+#[tokio::test]
+async fn test_sandbox_session_workflow() {
+    println!("=== Sandbox Session Workflow Test ===");
+    println!("NOTE: Server must be running (use VS Code task: 'Start Server')");
+    println!("");
+    
+    // Wait a moment for server to be ready
+    sleep(Duration::from_secs(1)).await;
+    
+    let result = timeout(TEST_TIMEOUT, async {
+        // Create a test client
+        println!("Creating test client...");
+        let mut client = TestClient::connect("SandboxPlayer").await?;
+        
+        // Authenticate
+        println!("Authenticating client...");
+        let (player_id, lobby_state) = client.authenticate().await?;
+        println!("Client authenticated: {}", player_id);
+        
+        // Extract car and track IDs from lobby state
+        let (car_id, track_id) = match lobby_state {
+            ServerMessage::LobbyState { car_configs, track_configs, .. } => {
+                let car_id = car_configs.first()
+                    .ok_or("No car configs available")?.id;
+                let track_id = track_configs.first()
+                    .ok_or("No track configs available")?.id;
+                (car_id, track_id)
+            }
+            _ => return Err("Expected lobby state after authentication".into()),
+        };
+        
+        println!("Using car ID: {}", car_id);
+        println!("Using track ID: {}", track_id);
+        
+        // Select car
+        println!("Selecting car...");
+        client.select_car(car_id).await?;
+        
+        // Create a sandbox session
+        println!("Creating sandbox session...");
+        let session_id = client.create_session(track_id, 1, SessionKind::Sandbox).await?;
+        println!("Sandbox session created: {}", session_id);
+        
+        // Start the session
+        println!("Starting sandbox session...");
+        client.start_session().await?;
+        
+        // Wait for SessionStarting message
+        println!("Waiting for SessionStarting message...");
+        let msg = timeout(Duration::from_secs(5), client.receive_tcp_message()).await??;
+        println!("Received message after start: {:?}", msg);
+        
+        match msg {
+            ServerMessage::SessionStarting { countdown_seconds } => {
+                println!("✓ SessionStarting received! Countdown: {}s", countdown_seconds);
+                assert_eq!(countdown_seconds, 5, "Expected 5 second countdown");
+            }
+            ServerMessage::Error { code, message } => {
+                return Err(format!("Server error {}: {}", code, message).into());
+            }
+            _ => {
+                return Err(format!("Expected SessionStarting, got {:?}", msg).into());
+            }
+        }
+        
+        // Wait for countdown (5 seconds) + buffer
+        println!("Waiting for countdown to complete...");
+        sleep(Duration::from_secs(6)).await;
+        
+        // Send some inputs and verify we receive telemetry (indicating race has started)
+        println!("Sending inputs and verifying race started...");
+        let mut telemetry_received = false;
+        let race_start = Instant::now();
+        let race_timeout = Duration::from_secs(3);
+        let mut tick_counter = 0u32;
+        
+        while race_start.elapsed() < race_timeout {
+            tick_counter += 1;
+            client.send_input(0.8, 0.0, 0.0, tick_counter).await?;
+            
+            if let Some((tick, car_count)) = client.receive_telemetry().await? {
+                println!("✓ Telemetry received! tick={}, cars={}", tick, car_count);
+                telemetry_received = true;
+                assert_eq!(car_count, 1, "Expected 1 car in sandbox session");
+                break;
+            }
+            
+            sleep(Duration::from_millis(16)).await;
+        }
+        
+        assert!(telemetry_received, "Did not receive telemetry (race may not have started)");
+        
+        println!("✓ Sandbox session workflow completed successfully!");
+        
+        Ok::<(), Box<dyn std::error::Error>>(())
+    }).await;
+    
+    match result {
+        Ok(Ok(())) => {
+            println!("\n=== TEST PASSED ===");
+        }
+        Ok(Err(e)) => {
+            panic!("Test failed: {}", e);
+        }
+        Err(_) => {
+            panic!("Test timed out after {:?}", TEST_TIMEOUT);
+        }
+    }
+}

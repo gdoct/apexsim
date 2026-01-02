@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -24,7 +25,8 @@ pub struct Player {
 pub struct CarConfig {
     pub id: CarConfigId,
     pub name: String,
-    
+    pub model: String,
+
     // Physical dimensions
     pub mass_kg: f32,
     pub length_m: f32,
@@ -144,7 +146,8 @@ impl Default for CarConfig {
         Self {
             id: Uuid::new_v4(),
             name: "Default Car".to_string(),
-            
+            model: "default.glb".to_string(),
+
             // Physical dimensions
             mass_kg: 1200.0,
             length_m: 4.5,
@@ -201,6 +204,9 @@ pub struct TrackConfig {
     pub name: String,
     pub centerline: Vec<TrackPoint>,
     pub width_m: f32,
+    /// Path to the source track file, relative to the content folder (e.g. "tracks/real/Austin.yaml")
+    #[serde(default)]
+    pub source_path: Option<String>,
     pub start_positions: Vec<GridSlot>,
     pub track_surface: TrackSurface,
     pub pit_lane: Option<PitLaneConfig>,
@@ -334,6 +340,7 @@ impl Default for TrackConfig {
             name: "Default Oval".to_string(),
             centerline,
             width_m: 15.0,
+            source_path: None,
             start_positions,
             track_surface: TrackSurface::default(),
             pit_lane: None,
@@ -613,12 +620,27 @@ impl CarState {
 }
 
 // --- Race Session State (Server Authoritative) ---
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
 pub enum SessionState {
-    Lobby,
-    Countdown,
-    Racing,
-    Finished,
+    Lobby = 0,
+    Countdown = 1,
+    Racing = 2,
+    Finished = 3,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+pub enum SessionKind {
+    Multiplayer = 0,
+    Practice = 1,
+    Sandbox = 2,
+}
+
+impl Default for SessionKind {
+    fn default() -> Self {
+        SessionKind::Multiplayer
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -626,6 +648,8 @@ pub struct RaceSession {
     pub id: SessionId,
     pub track_config_id: TrackConfigId,
     pub host_player_id: PlayerId,
+    #[serde(default)]
+    pub session_kind: SessionKind,
     pub state: SessionState,
     pub participants: HashMap<PlayerId, CarState>,
     pub max_players: u8,
@@ -642,6 +666,7 @@ impl RaceSession {
     pub fn new(
         host_player_id: PlayerId,
         track_config_id: TrackConfigId,
+        session_kind: SessionKind,
         max_players: u8,
         ai_count: u8,
         lap_limit: u8,
@@ -650,6 +675,7 @@ impl RaceSession {
             id: Uuid::new_v4(),
             track_config_id,
             host_player_id,
+            session_kind,
             state: SessionState::Lobby,
             participants: HashMap::new(),
             max_players,
@@ -716,7 +742,7 @@ mod tests {
     fn test_race_session_creation() {
         let host_id = Uuid::new_v4();
         let track_id = Uuid::new_v4();
-        let session = RaceSession::new(host_id, track_id, 8, 2, 5);
+        let session = RaceSession::new(host_id, track_id, SessionKind::Multiplayer, 8, 2, 5);
         
         assert_eq!(session.host_player_id, host_id);
         assert_eq!(session.track_config_id, track_id);

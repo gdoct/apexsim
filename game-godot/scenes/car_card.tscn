@@ -1,0 +1,96 @@
+[gd_scene load_steps=2 format=3 uid="uid://car_card_component"]
+
+[ext_resource type="Script" path="res://scripts/csharp/CarCard.cs" id="1_script"]
+
+[node name="CarCard" type="PanelContainer"]
+custom_minimum_size = Vector2(260, 320)
+script = ExtResource("1_script")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="ModelViewport" type="SubViewportContainer" parent="VBox"]
+custom_minimum_size = Vector2(240, 180)
+layout_mode = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="VBox/ModelViewport"]
+transparent_bg = true
+handle_input_events = false
+size = Vector2i(240, 180)
+render_target_update_mode = 0
+
+[node name="Camera3D" type="Camera3D" parent="VBox/ModelViewport/SubViewport"]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 3.5, 2, 4)
+projection = 0
+fov = 45.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="VBox/ModelViewport/SubViewport"]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 5, 0)
+light_energy = 1.2
+shadow_enabled = false
+
+[node name="OmniLight3D" type="OmniLight3D" parent="VBox/ModelViewport/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 1.5, 2)
+light_color = Color(0.9, 0.95, 1, 1)
+light_energy = 0.6
+
+[node name="CarModel" type="Node3D" parent="VBox/ModelViewport/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="InfoSection" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="Spacer1" type="Control" parent="VBox/InfoSection"]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+
+[node name="CarName" type="Label" parent="VBox/InfoSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Car Name"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="CarSpecs" type="VBoxContainer" parent="VBox/InfoSection"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Mass" type="Label" parent="VBox/InfoSection/CarSpecs"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "Mass: --- kg"
+horizontal_alignment = 1
+
+[node name="Power" type="Label" parent="VBox/InfoSection/CarSpecs"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "Power: --- N"
+horizontal_alignment = 1
+
+[node name="Spacer2" type="Control" parent="VBox/InfoSection"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SelectionIndicator" type="ColorRect" parent="."]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+color = Color(0, 0.8, 1, 0.3)
+
+[node name="SelectionBorder" type="ColorRect" parent="."]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+color = Color(0, 0.8, 1, 0)
+
+[node name="HoverEffect" type="ColorRect" parent="."]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.1)

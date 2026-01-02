@@ -1,0 +1,20 @@
+id = "f6a7b8c9-d0e1-4f6a-3b4c-5d6e7f8a9b0c"
+name = "Red Horse RB20"
+version = "1.0.0"
+model = "rb20.glb"
+brand = "Red Horse"
+model_year = 2020
+class = "F1"
+model_type = "RB20"
+manufacturer_country = "Austria"
+
+[physics]
+mass_kg = 798.0
+length_m = 5.6
+width_m = 2.0
+max_engine_force_n = 26000.0
+max_brake_force_n = 21000.0
+drag_coefficient = 0.68
+grip_coefficient = 1.85
+max_steering_angle_rad = 0.34
+wheelbase_m = 3.6
