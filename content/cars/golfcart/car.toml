@@ -1,0 +1,19 @@
+id = "d4e5f6a7-b8c9-4d4e-1f2a-3b4c5d6e7f8a"
+name = "Golf Cart"
+version = "1.0.0"
+model = "club_90_-_low_poly_model.glb"
+brand = "GCM Manufacturing"
+model_year = 2020
+class = "Fun"
+model_type = "Golf Cart"
+manufacturer_country = "USA"
+[physics]
+mass_kg = 380.0
+length_m = 2.4
+width_m = 1.2
+max_engine_force_n = 1200.0
+max_brake_force_n = 3000.0
+drag_coefficient = 0.65
+grip_coefficient = 0.7
+max_steering_angle_rad = 0.60
+wheelbase_m = 1.8

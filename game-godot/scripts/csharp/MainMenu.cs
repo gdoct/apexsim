@@ -50,6 +50,7 @@ public partial class MainMenu : Control
         _network.DisconnectedFromServer += OnDisconnected;
         _network.SessionJoined += OnSessionJoined;
         _network.SessionLeft += OnSessionLeft;
+        _network.SessionStarting += OnSessionStarting;
         _network.ErrorReceived += OnErrorReceived;
 
         // Set initial state
@@ -57,6 +58,18 @@ public partial class MainMenu : Control
 
         // Add to group for communication
         AddToGroup("main_menu");
+
+        // Preload car models in the background
+        InitializeCarModelCache();
+    }
+
+    private void InitializeCarModelCache()
+    {
+        var cache = new CarModelCache();
+        cache.Name = "CarModelCache";
+        GetTree().Root.AddChild(cache);
+        cache.PreloadAllModels();
+        _subtitleLabel!.Text = "Loading car models...";
     }
 
     private void UpdateUIState()
@@ -148,6 +161,22 @@ public partial class MainMenu : Control
         _inSession = false;
         _subtitleLabel!.Text = "Left session";
         UpdateUIState();
+    }
+
+    private void OnSessionStarting(byte countdownSeconds)
+    {
+        GD.Print($"Session starting with {countdownSeconds}s countdown, switching to track view...");
+
+        // Switch to track view scene
+        var error = GetTree().ChangeSceneToFile("res://scenes/track_view.tscn");
+        if (error != Error.Ok)
+        {
+            GD.PrintErr($"Failed to change scene: {error}");
+        }
+        else
+        {
+            GD.Print("Scene change to track_view.tscn successful");
+        }
     }
 
     private void OnErrorReceived(ushort code, string message)

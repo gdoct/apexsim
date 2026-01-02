@@ -11,6 +11,14 @@ public enum SessionState : byte
     Finished = 3
 }
 
+// Session Types / Kinds
+public enum SessionKind : byte
+{
+    Multiplayer = 0,
+    Practice = 1,
+    Sandbox = 2
+}
+
 // Client Messages
 public abstract class ClientMessage { }
 
@@ -38,6 +46,7 @@ public class CreateSessionMessage : ClientMessage
     public byte MaxPlayers { get; set; }
     public byte AiCount { get; set; }
     public byte LapLimit { get; set; }
+    public SessionKind SessionKind { get; set; } = SessionKind.Multiplayer;
 }
 
 public class JoinSessionMessage : ClientMessage
@@ -122,6 +131,7 @@ public class SessionSummary
 {
     public string Id { get; set; } = "";
     public string TrackName { get; set; } = "";
+    public string TrackFile { get; set; } = "";
     public string HostName { get; set; } = "";
     public byte PlayerCount { get; set; }
     public byte MaxPlayers { get; set; }
@@ -132,6 +142,9 @@ public class CarConfigSummary
 {
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
+    public string ModelPath { get; set; } = "";
+    public float MassKg { get; set; } = 0;
+    public float MaxEngineForceN { get; set; } = 0;
 }
 
 public class TrackConfigSummary

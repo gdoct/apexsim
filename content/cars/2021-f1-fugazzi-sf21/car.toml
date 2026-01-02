@@ -1,0 +1,21 @@
+id = "a1b2c3d4-e5f6-4a1b-8c9d-0e1f2a3b4c5d"
+name = "2021 F1 Fugazzi SF21"
+version = "1.0.0"
+model = "2021 F1 Fugazzi SF21.glb"
+texture_folder = "textures"
+brand = "Fugazzi"
+model_year = 2021
+class = "F1"
+model_type = "SF21"
+manufacturer_country = "Italy"
+
+[physics]
+mass_kg = 752.0
+length_m = 5.5
+width_m = 2.0
+max_engine_force_n = 25000.0
+max_brake_force_n = 20000.0
+drag_coefficient = 0.7
+grip_coefficient = 1.8
+max_steering_angle_rad = 0.35
+wheelbase_m = 3.6

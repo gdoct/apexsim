@@ -33,6 +33,9 @@ public partial class NetworkClient : Node
     public delegate void SessionLeftEventHandler();
 
     [Signal]
+    public delegate void SessionStartingEventHandler(byte countdownSeconds);
+
+    [Signal]
     public delegate void ErrorReceivedEventHandler(ushort code, string message);
 
     private TcpClient? _tcpClient;
@@ -42,6 +45,11 @@ public partial class NetworkClient : Node
     private readonly Queue<ServerMessage> _messageQueue = new();
     private static readonly MessagePackSerializerOptions MsgPackOptions =
         MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance);
+
+    // Heartbeat management
+    private double _heartbeatTimer = 0.0;
+    private const double HeartbeatInterval = 2.0; // Send heartbeat every 2 seconds
+    private uint _clientTick = 0;
 
     // Store latest lobby state for retrieval
     public LobbyStateMessage? LastLobbyState { get; private set; }
@@ -63,6 +71,8 @@ public partial class NetworkClient : Node
             _stream = _tcpClient.GetStream();
             _tcpClient.NoDelay = true;
             _isConnected = true;
+            _heartbeatTimer = 0.0;
+            _clientTick = 0;
 
             GD.Print("Connected to server!");
             EmitSignal(SignalName.ConnectedToServer);
@@ -116,14 +126,15 @@ public partial class NetworkClient : Node
         await SendMessageAsync(new SelectCarMessage { CarConfigId = carId });
     }
 
-    public async Task CreateSessionAsync(string trackId, byte maxPlayers, byte aiCount, byte lapLimit)
+    public async Task CreateSessionAsync(string trackId, byte maxPlayers, byte aiCount, byte lapLimit, SessionKind sessionKind = SessionKind.Multiplayer)
     {
         await SendMessageAsync(new CreateSessionMessage
         {
             TrackConfigId = trackId,
             MaxPlayers = maxPlayers,
             AiCount = aiCount,
-            LapLimit = lapLimit
+            LapLimit = lapLimit,
+            SessionKind = sessionKind
         });
     }
 
@@ -171,7 +182,7 @@ public partial class NetworkClient : Node
             await _stream.WriteAsync(data, 0, data.Length);
             await _stream.FlushAsync();
 
-            GD.Print($"Sent: {message.GetType().Name}");
+            // GD.Print($"Sent: {message.GetType().Name}");
         }
         catch (Exception ex)
         {
@@ -256,11 +267,23 @@ public partial class NetworkClient : Node
                 HandleMessage(message);
             }
         }
+
+        // Send periodic heartbeats to keep connection alive
+        if (_isConnected)
+        {
+            _heartbeatTimer += delta;
+            if (_heartbeatTimer >= HeartbeatInterval)
+            {
+                _heartbeatTimer = 0.0;
+                _clientTick++;
+                _ = SendHeartbeatAsync(_clientTick);
+            }
+        }
     }
 
     private void HandleMessage(ServerMessage message)
     {
-        GD.Print($"Received: {message.GetType().Name}");
+        // GD.Print($"Received: {message.GetType().Name}");
 
         switch (message)
         {
@@ -288,12 +311,21 @@ public partial class NetworkClient : Node
                 EmitSignal(SignalName.SessionLeft);
                 break;
 
+            case SessionStartingMessage sessionStarting:
+                GD.Print($"SessionStarting received! Countdown: {sessionStarting.CountdownSeconds}s");
+                EmitSignal(SignalName.SessionStarting, sessionStarting.CountdownSeconds);
+                break;
+
             case ErrorMessage error:
                 EmitSignal(SignalName.ErrorReceived, error.Code, error.Message);
                 break;
 
             case HeartbeatAckMessage:
                 // Silently handle heartbeats
+                break;
+
+            case TelemetryMessage:
+                // Silently handle telemetry (will be processed by game view when needed)
                 break;
 
             default:
@@ -341,7 +373,8 @@ public partial class NetworkClient : Node
                     ["track_config_id"] = AsUuidBytes(createSession.TrackConfigId),
                     ["max_players"] = createSession.MaxPlayers,
                     ["ai_count"] = createSession.AiCount,
-                    ["lap_limit"] = createSession.LapLimit
+                    ["lap_limit"] = createSession.LapLimit,
+                    ["session_kind"] = (byte)createSession.SessionKind
                 };
                 break;
             case JoinSessionMessage join:
@@ -381,6 +414,8 @@ public partial class NetworkClient : Node
 
         var messageType = typeObj.ToString();
         envelope.TryGetValue("data", out var dataObj);
+
+        //GD.Print($"Parsing message type: {messageType}");
 
         return messageType switch
         {
@@ -506,6 +541,7 @@ public partial class NetworkClient : Node
         {
             Id = ReadUuid(map, "id"),
             TrackName = ReadString(map, "track_name"),
+            TrackFile = ReadString(map, "track_file"),
             HostName = ReadString(map, "host_name"),
             PlayerCount = (byte)ReadUInt(map, "player_count"),
             MaxPlayers = (byte)ReadUInt(map, "max_players"),
@@ -622,7 +658,9 @@ public partial class NetworkClient : Node
             uint ui => ui,
             long l => (ulong)l,
             ulong ul => ul,
-            _ => throw new Exception($"Unsupported numeric type for '{key}'")
+            float f => (ulong)f,
+            double d => (ulong)d,
+            _ => throw new Exception($"Unsupported numeric type for '{key}': {value.GetType().FullName} (value: {value})")
         };
     }
 

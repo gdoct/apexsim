@@ -1,4 +1,5 @@
 use apexsim_server::{
+    car_loader::CarLoader,
     config::ServerConfig,
     data::*,
     game_session::GameSession,
@@ -42,9 +43,21 @@ impl ServerState {
         let mut car_configs = HashMap::new();
         let mut track_configs = HashMap::new();
 
-        // Create default car
-        let default_car = CarConfig::default();
-        car_configs.insert(default_car.id, default_car);
+        // Load custom cars from configured directory
+        let cars_dir = config.content.cars_dir.clone();
+        info!("Loading cars from {}...", cars_dir);
+        Self::load_custom_cars(&mut car_configs, &cars_dir);
+
+        if car_configs.is_empty() {
+            warn!("No cars loaded! Creating default car.");
+            let default_car = CarConfig::default();
+            car_configs.insert(default_car.id, default_car);
+        } else {
+            info!("Loaded {} car(s):", car_configs.len());
+            for car in car_configs.values() {
+                info!("  - {} (ID: {})", car.name, car.id);
+            }
+        }
 
         // Load custom tracks from configured directory
         let tracks_dir = config.content.tracks_dir.clone();
@@ -74,27 +87,38 @@ impl ServerState {
     fn load_custom_tracks(track_configs: &mut HashMap<TrackConfigId, TrackConfig>, tracks_dir_str: &str) {
         let tracks_dir = std::path::Path::new(tracks_dir_str);
 
+        // Content root is the parent of the tracks directory (e.g., ../content)
+        let content_root = tracks_dir.parent().unwrap_or(tracks_dir);
+
         if !tracks_dir.exists() {
             info!("Tracks directory not found at {:?}, skipping custom track loading", tracks_dir);
             return;
         }
 
-        Self::load_tracks_recursive(track_configs, tracks_dir);
+        Self::load_tracks_recursive(track_configs, tracks_dir, content_root);
     }
 
-    fn load_tracks_recursive(track_configs: &mut HashMap<TrackConfigId, TrackConfig>, dir: &std::path::Path) {
+    fn load_tracks_recursive(
+        track_configs: &mut HashMap<TrackConfigId, TrackConfig>,
+        dir: &std::path::Path,
+        content_root: &std::path::Path,
+    ) {
         match std::fs::read_dir(dir) {
             Ok(entries) => {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
                     if path.is_dir() {
                         // Recursively load tracks from subdirectories
-                        Self::load_tracks_recursive(track_configs, &path);
+                        Self::load_tracks_recursive(track_configs, &path, content_root);
                     } else if path.is_file() {
                         let ext = path.extension().and_then(|s| s.to_str());
                         if ext == Some("json") || ext == Some("yaml") || ext == Some("yml") {
                             match TrackLoader::load_from_file(&path) {
-                                Ok(track) => {
+                                Ok(mut track) => {
+                                    // Compute relative path from content root, normalize to forward slashes
+                                    let rel = path.strip_prefix(content_root).unwrap_or(&path);
+                                    let rel_norm = rel.to_string_lossy().replace('\\', "/");
+                                    track.source_path = Some(rel_norm);
                                     track_configs.insert(track.id, track);
                                 }
                                 Err(e) => {
@@ -111,11 +135,58 @@ impl ServerState {
         }
     }
 
+    fn load_custom_cars(car_configs: &mut HashMap<CarConfigId, CarConfig>, cars_dir_str: &str) {
+        let cars_dir = std::path::Path::new(cars_dir_str);
+
+        if !cars_dir.exists() {
+            info!("Cars directory not found at {:?}, skipping custom car loading", cars_dir);
+            return;
+        }
+
+        Self::load_cars_recursive(car_configs, cars_dir);
+    }
+
+    fn load_cars_recursive(
+        car_configs: &mut HashMap<CarConfigId, CarConfig>,
+        dir: &std::path::Path,
+    ) {
+        match std::fs::read_dir(dir) {
+            Ok(entries) => {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        // Recursively load cars from subdirectories
+                        Self::load_cars_recursive(car_configs, &path);
+                    } else if path.is_file() {
+                        let ext = path.extension().and_then(|s| s.to_str());
+                        if ext == Some("toml") {
+                            // Check if this is a car.toml file
+                            if path.file_name().and_then(|s| s.to_str()) == Some("car.toml") {
+                                match CarLoader::load_from_file(&path) {
+                                    Ok(car) => {
+                                        car_configs.insert(car.id, car);
+                                    }
+                                    Err(e) => {
+                                        warn!("Failed to load car from {:?}: {}", path, e);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to read cars directory {:?}: {}", dir, e);
+            }
+        }
+    }
+
     #[allow(dead_code)]
     fn create_session(
         &mut self,
         host_player_id: PlayerId,
         track_config_id: TrackConfigId,
+        session_kind: SessionKind,
         max_players: u8,
         ai_count: u8,
         lap_limit: u8,
@@ -125,7 +196,7 @@ impl ServerState {
         }
 
         let track = self.track_configs.get(&track_config_id)?.clone();
-        let session = RaceSession::new(host_player_id, track_config_id, max_players, ai_count, lap_limit);
+        let session = RaceSession::new(host_player_id, track_config_id, session_kind, max_players, ai_count, lap_limit);
         let session_id = session.id;
 
         let game_session = GameSession::new(session, track, self.car_configs.clone());
@@ -256,6 +327,9 @@ async fn send_lobby_state(
         .map(|c| CarConfigSummary {
             id: c.id,
             name: c.name.clone(),
+            model_path: format!("res://content/cars/{}/{}", c.id, c.model),
+            mass_kg: c.mass_kg,
+            max_engine_force_n: c.max_engine_power_w / 100.0, // Rough approximation
         })
         .collect();
 
@@ -301,6 +375,9 @@ async fn broadcast_lobby_state(
         .map(|c| CarConfigSummary {
             id: c.id,
             name: c.name.clone(),
+            model_path: format!("res://content/cars/{}/{}", c.id, c.model),
+            mass_kg: c.mass_kg,
+            max_engine_force_n: c.max_engine_power_w / 100.0, // Rough approximation
         })
         .collect();
 
@@ -395,7 +472,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                     }
                 }
 
-                ClientMessage::CreateSession { track_config_id, max_players, ai_count, lap_limit } => {
+                ClientMessage::CreateSession { track_config_id, max_players, ai_count, lap_limit, session_kind } => {
                     if let Some(conn_info) = transport_write.get_connection(connection_id).await {
                         let mut state_write = state.write().await;
 
@@ -407,6 +484,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                             if let Some(session_id) = state_write.create_session(
                                 conn_info.player_id,
                                 track_config_id,
+                                session_kind,
                                 max_players,
                                 ai_count,
                                 lap_limit
@@ -418,11 +496,17 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                     .map(|t| t.name.clone())
                                     .unwrap_or_else(|| "Unknown Track".to_string());
 
+                                let track_file = state_write.track_configs.get(&track_config_id)
+                                    .and_then(|t| t.source_path.clone())
+                                    .unwrap_or_else(|| "tracks/unknown.yaml".to_string());
+
                                 let session_info = LobbySessionInfo {
                                     session_id,
                                     host_player_id: conn_info.player_id,
                                     host_name: conn_info.player_name.clone(),
                                     track_name,
+                                    track_file,
+                                    session_kind,
                                     track_config_id,
                                     max_players,
                                     current_player_count: 0, // join_session will increment this
@@ -598,12 +682,18 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                 if game_session.session.host_player_id == conn_info.player_id {
                                     game_session.start_countdown();
                                     info!("Player {} started session {}", conn_info.player_name, session_id);
-                                    
+
                                     // Notify all participants
                                     let msg = ServerMessage::SessionStarting { countdown_seconds: 5 };
+                                    let participant_count = game_session.session.participants.len();
+                                    info!("Broadcasting SessionStarting to {} participants", participant_count);
+
                                     for player_id in game_session.session.participants.keys() {
                                         if let Some(conn_id) = transport_write.get_player_connection(*player_id).await {
+                                            info!("Sending SessionStarting to player {} (connection {})", player_id, conn_id);
                                             let _ = transport_write.send_tcp(conn_id, msg.clone()).await;
+                                        } else {
+                                            warn!("Could not find connection for player {}", player_id);
                                         }
                                     }
                                 } else {
@@ -666,8 +756,18 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
         let mut replay_frames = Vec::new();
         let mut replay_stops = Vec::new();
 
+        // Collect sessions to remove (empty or finished)
+        let mut sessions_to_remove = Vec::new();
+
         // Tick each session
         for (session_id, game_session) in state_write.sessions.iter_mut() {
+            // Check if session has no players (everyone left)
+            if game_session.session.participants.is_empty() {
+                info!("Session {} has no players, marking for removal", session_id);
+                sessions_to_remove.push(*session_id);
+                continue;
+            }
+
             // Generate AI inputs for AI players
             let mut session_inputs = inputs.clone();
             
@@ -782,6 +882,13 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
             }
         }
 
+        // Remove empty sessions from the game state and lobby
+        for session_id in sessions_to_remove {
+            state_write.sessions.remove(&session_id);
+            state_write.lobby.unregister_session(session_id).await;
+            info!("Removed empty session {}", session_id);
+        }
+
         // Broadcast telemetry to all session participants (via TCP for now)
         let transport_write2 = transport.write().await;
         for (session_id, game_session) in state_write.sessions.iter() {
@@ -790,24 +897,48 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                 game_session.session.state,
                 SessionState::Countdown | SessionState::Racing | SessionState::Finished
             );
-            
+
             if !should_send_telemetry {
                 continue; // Skip telemetry for lobby sessions
             }
-            
+
+            // Collect real (non-AI) players who have active connections
+            let mut real_players_with_connections = Vec::new();
+            for player_id in game_session.session.participants.keys() {
+                // Skip AI players
+                if game_session.session.ai_player_ids.contains(player_id) {
+                    continue;
+                }
+
+                // Check if player has an active connection
+                if let Some(conn_id) = transport_write2.get_player_connection(*player_id).await {
+                    real_players_with_connections.push((*player_id, conn_id));
+                }
+            }
+
+            // Skip telemetry calculation and broadcast if no real players are connected
+            if real_players_with_connections.is_empty() {
+                if tick_count % 60 == 0 {
+                    debug!("Skipping telemetry for session {} - no real players connected", session_id);
+                }
+                continue;
+            }
+
             let telemetry_msg = game_session.get_telemetry();
             let participant_count = game_session.session.participants.len();
-            
+
             if participant_count > 0 && tick_count % 60 == 0 {
-                debug!("Broadcasting telemetry for session {} to {} participants (state: {:?})", 
-                    session_id, participant_count, game_session.session.state);
+                debug!("Broadcasting telemetry for session {} to {} real players (total participants: {}, state: {:?})",
+                    session_id, real_players_with_connections.len(), participant_count, game_session.session.state);
             }
-            
-            // Send telemetry to all participants in this session
-            for player_id in game_session.session.participants.keys() {
-                // Find connection for this player
-                if let Some(conn_id) = transport_write2.get_player_connection(*player_id).await {
-                    let _ = transport_write2.send_tcp(conn_id, telemetry_msg.clone()).await;
+
+            // Send telemetry only to real players who are still connected and in this session
+            for (player_id, conn_id) in real_players_with_connections {
+                // Verify player is still in this session (check via lobby manager)
+                if let Some(player_session) = state_write.lobby.get_player_session(player_id).await {
+                    if player_session == *session_id {
+                        let _ = transport_write2.send_tcp(conn_id, telemetry_msg.clone()).await;
+                    }
                 }
             }
         }
@@ -853,7 +984,7 @@ mod tests {
         let host_id = Uuid::new_v4();
         let track_id = state.track_configs.values().next().unwrap().id;
 
-        let session_id = state.create_session(host_id, track_id, 8, 2, 5);
+        let session_id = state.create_session(host_id, track_id, SessionKind::Practice, 8, 2, 5);
 
         assert!(session_id.is_some());
         assert_eq!(state.sessions.len(), 1);
@@ -870,12 +1001,12 @@ mod tests {
 
         // Create max sessions
         for _ in 0..2 {
-            let result = state.create_session(host_id, track_id, 8, 0, 3);
+            let result = state.create_session(host_id, track_id, SessionKind::Sandbox, 8, 0, 3);
             assert!(result.is_some());
         }
 
         // Try to create one more
-        let result = state.create_session(host_id, track_id, 8, 0, 3);
+        let result = state.create_session(host_id, track_id, SessionKind::Multiplayer, 8, 0, 3);
         assert!(result.is_none());
     }
 }

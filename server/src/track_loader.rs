@@ -166,6 +166,7 @@ impl TrackLoader {
             name: track_file.name,
             centerline: centerline_points,
             width_m: default_width,
+            source_path: None,
             start_positions,
             track_surface: TrackSurface {
                 base_grip: 1.0,
