@@ -2,6 +2,24 @@
 
 ApexSim is an open-source simracing platform composed of a high-frequency authoritative server written in Rust and a rich Unreal Engine client. The codebase is tuned for realistic vehicle physics, low-latency multiplayer, and mod-friendly content pipelines.
 
+## PROJECT STATUS
+This project is in active development. Core simulation features are functional, but many gameplay systems, UI elements, and polish remain works in progress.
+### Working parts so far:
+* 25 tracks with exact measured center-line spline, track width and racing line. elevation data is missing for the tracks.
+* 5 car models with physics and 3d model
+* authoritative server with sophisticated physics and networking (authoritative means the server decides where each car is)
+* server ticks at 240hz by default but should be reliable up to 1Mhz
+* supports up to 20 players or AI drivers per session
+* godot implementation of the client with network logon, lobby management, and basic track view
+* basic ui for lobby, car selection, track selection
+
+### Missing
+* car control implementation in the godot client
+* car view in the godot client
+* sound implementation in the godot client
+* lap timing
+.. and many more features
+
 ## Architecture Overview
 
 1. **Rust Server (`server/`):** Runs the authoritative 240 Hz simulation loop, manages sessions, performs collision-aware physics, and streams telemetry via UDP while handling lobby/stateful traffic over TCP. See [server/README.md](server/README.md) for configuration, build, and operations detail.
