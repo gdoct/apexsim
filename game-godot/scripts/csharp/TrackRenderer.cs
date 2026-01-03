@@ -51,7 +51,16 @@ public partial class TrackRenderer : Node3D
 	private string? _currentSessionId;
 	private Camera3D? _camera;
 	private Button? _backButton;
+	private Label? _telemetryLabel;
 	private float _cameraAngle = 0.785f; // Start at 45 degrees (PI/4) for better initial view
+
+	// Car rendering for demo mode
+	private Node3D? _demoCarModel;
+	private string? _selectedCarId;
+
+	// Telemetry tracking
+	private int _telemetryCount = 0;
+	private double _lastTelemetryTime = 0;
 
 	// Content path configuration - relative to game-godot directory
 	private string _contentBasePath = "../content";
@@ -65,7 +74,28 @@ public partial class TrackRenderer : Node3D
 	private float _cameraYaw = 0.0f;
 	private float _cameraPitch = -45.0f; // Start looking down
 	private Vector3 _cameraPosition = new Vector3(0, 5, 5); // Close to track surface
-	private bool _useFreeCam = true;
+	private bool _useFreeCam = false; // Start with follow cam in demo mode
+
+	// Camera follow settings
+	private Vector3 _cameraFollowOffset = new Vector3(0, 10, 20); // Behind and above the car (updated to match chase preset)
+	private float _cameraFollowSmoothness = 5.0f;
+
+	// Camera view modes
+	private enum CameraViewMode
+	{
+		Chase = 0,     // Behind and above (default)
+		Hood = 1,      // On the hood
+		Cockpit = 2    // Inside cockpit
+	}
+	private CameraViewMode _currentViewMode = CameraViewMode.Chase;
+
+	// Camera offset presets for each view mode
+	private readonly Vector3[] _cameraViewOffsets = new Vector3[]
+	{
+		new Vector3(0, 10, 20),  // Chase: behind and above
+		new Vector3(0, 2, 4),    // Hood: low and close
+		new Vector3(0, 2.5f, 1)  // Cockpit: inside the car
+	};
 
 	public override void _Ready()
 	{
@@ -75,7 +105,20 @@ public partial class TrackRenderer : Node3D
 		{
 			_network = GetNode<NetworkClient>("/root/Network");
 			_network.SessionJoined += OnSessionJoined;
+			_network.TelemetryReceived += OnTelemetryReceived;
 			GD.Print("✓ Network client connected successfully");
+
+			// Get the player's selected car from lobby state
+			var lobbyState = _network.LastLobbyState;
+			if (lobbyState != null)
+			{
+				var player = Array.Find(lobbyState.PlayersInLobby, p => p.Id == _network.PlayerId);
+				if (player != null && !string.IsNullOrEmpty(player.SelectedCar))
+				{
+					_selectedCarId = player.SelectedCar;
+					GD.Print($"✓ Player selected car: {_selectedCarId}");
+				}
+			}
 		}
 		catch (System.Exception ex)
 		{
@@ -101,6 +144,16 @@ public partial class TrackRenderer : Node3D
 		catch (System.Exception ex)
 		{
 			GD.PrintErr($"✗ Error getting BackButton: {ex.Message}");
+		}
+
+		try
+		{
+			// Setup telemetry label
+			_telemetryLabel = GetNode<Label>("../UI/TelemetryLabel");
+		}
+		catch (System.Exception ex)
+		{
+			GD.PrintErr($"✗ Error getting TelemetryLabel: {ex.Message}");
 		}
 
 		try
@@ -133,6 +186,8 @@ public partial class TrackRenderer : Node3D
 							if (!string.IsNullOrEmpty(session.TrackFile))
 							{
 								LoadAndRenderTrack(session.TrackFile);
+								// Also load the car model if we're already in a session
+								LoadDemoCarModel();
 							}
 							break;
 						}
@@ -161,16 +216,45 @@ public partial class TrackRenderer : Node3D
 
 	public override void _Input(InputEvent @event)
 	{
+		if (@event is InputEventKey keyEvent && keyEvent.Pressed)
+		{
+			// Toggle camera mode with Tab key
+			if (keyEvent.Keycode == Key.Tab)
+			{
+				_useFreeCam = !_useFreeCam;
+				GD.Print($"Camera mode: {(_useFreeCam ? "Free Cam" : "Follow Cam")}");
+			}
+			// Cycle camera view with F1
+			else if (keyEvent.Keycode == Key.F1)
+			{
+				_currentViewMode = (CameraViewMode)(((int)_currentViewMode + 1) % 3);
+				_cameraFollowOffset = _cameraViewOffsets[(int)_currentViewMode];
+
+				string viewName = _currentViewMode switch
+				{
+					CameraViewMode.Chase => "Chase Camera",
+					CameraViewMode.Hood => "Hood Camera",
+					CameraViewMode.Cockpit => "Cockpit Camera",
+					_ => "Unknown"
+				};
+				GD.Print($"Camera view: {viewName}");
+			}
+		}
+
 		if (@event is InputEventMouseButton mouseEvent)
 		{
 			// Handle mousewheel zoom
 			if (mouseEvent.ButtonIndex == MouseButton.WheelUp && mouseEvent.Pressed)
 			{
 				_cameraDistance = Mathf.Max(MinCameraDistance, _cameraDistance - ZoomSpeed);
+				// Adjust follow offset distance
+				_cameraFollowOffset.Z = Mathf.Max(10, _cameraFollowOffset.Z - 5);
 			}
 			else if (mouseEvent.ButtonIndex == MouseButton.WheelDown && mouseEvent.Pressed)
 			{
 				_cameraDistance = Mathf.Min(MaxCameraDistance, _cameraDistance + ZoomSpeed);
+				// Adjust follow offset distance
+				_cameraFollowOffset.Z = Mathf.Min(50, _cameraFollowOffset.Z + 5);
 			}
 			// Right-click to look around
 			else if (mouseEvent.ButtonIndex == MouseButton.Right)
@@ -231,21 +315,48 @@ public partial class TrackRenderer : Node3D
 		}
 		else
 		{
-			// Orbital camera mode (original behavior)
-			float rotationSpeed = 0.3f;
-			_cameraAngle += rotationSpeed * (float)delta;
+			// Follow camera mode - follows the car
+			if (_demoCarModel != null && _demoCarModel.Visible)
+			{
+				// Get car's position and rotation
+				Vector3 carPosition = _demoCarModel.Position;
+				Vector3 carRotation = _demoCarModel.Rotation;
 
-			float radius = _cameraDistance * 0.5f;
-			float height = _cameraDistance * 1.2f;
+				// Calculate camera position behind and above the car
+				// Rotate the offset by the car's yaw to follow behind
+				float carYaw = carRotation.Y;
+				Vector3 rotatedOffset = new Vector3(
+					_cameraFollowOffset.X * Mathf.Cos(carYaw) - _cameraFollowOffset.Z * Mathf.Sin(carYaw),
+					_cameraFollowOffset.Y,
+					_cameraFollowOffset.X * Mathf.Sin(carYaw) + _cameraFollowOffset.Z * Mathf.Cos(carYaw)
+				);
 
-			Vector3 cameraPos = new Vector3(
-				radius * Mathf.Cos(_cameraAngle),
-				height,
-				radius * Mathf.Sin(_cameraAngle)
-			);
+				Vector3 targetPosition = carPosition + rotatedOffset;
 
-			_camera.Position = cameraPos;
-			_camera.LookAt(Vector3.Zero, Vector3.Up);
+				// Smoothly interpolate camera position
+				_camera.Position = _camera.Position.Lerp(targetPosition, _cameraFollowSmoothness * (float)delta);
+
+				// Look at the car
+				_camera.LookAt(carPosition, Vector3.Up);
+			}
+			else
+			{
+				// Fallback to orbital camera mode if no car
+				float rotationSpeed = 0.3f;
+				_cameraAngle += rotationSpeed * (float)delta;
+
+				float radius = _cameraDistance * 0.5f;
+				float height = _cameraDistance * 1.2f;
+
+				Vector3 cameraPos = new Vector3(
+					radius * Mathf.Cos(_cameraAngle),
+					height,
+					radius * Mathf.Sin(_cameraAngle)
+				);
+
+				_camera.Position = cameraPos;
+				_camera.LookAt(Vector3.Zero, Vector3.Up);
+			}
 		}
 	}
 
@@ -272,6 +383,158 @@ public partial class TrackRenderer : Node3D
 		}
 
 		LoadAndRenderTrack(session.TrackFile);
+		LoadDemoCarModel();
+	}
+
+	private void LoadDemoCarModel()
+	{
+		if (string.IsNullOrEmpty(_selectedCarId))
+		{
+			GD.PrintErr("No car selected, cannot load demo car model");
+			return;
+		}
+
+		var carCache = CarModelCache.Instance;
+		if (carCache == null)
+		{
+			GD.PrintErr("CarModelCache not available");
+			return;
+		}
+
+		_demoCarModel = carCache.GetModel(_selectedCarId);
+		if (_demoCarModel == null)
+		{
+			GD.PrintErr($"Failed to load car model for {_selectedCarId}");
+			return;
+		}
+
+		// Scale up the car model to make it more visible (car models might be too small)
+		_demoCarModel.Scale = new Vector3(3.0f, 3.0f, 3.0f);
+
+		// Add the car model to the scene but initially invisible
+		AddChild(_demoCarModel);
+		_demoCarModel.Visible = false;
+		GD.Print($"✓ Loaded demo car model: {_demoCarModel.Name}");
+	}
+
+	private void OnTelemetryReceived()
+	{
+		_telemetryCount++;
+		_lastTelemetryTime = Time.GetTicksMsec() / 1000.0;
+
+		var telemetry = _network?.LastTelemetry;
+		if (telemetry == null)
+		{
+			if (_telemetryLabel != null)
+			{
+				_telemetryLabel.Text = $"Telemetry: Received {_telemetryCount}, but data is null!";
+			}
+			return;
+		}
+
+		// Update telemetry display
+		if (_telemetryLabel != null)
+		{
+			string statusText = $"Mode: {telemetry.GameMode}\n";
+
+			if (_useFreeCam)
+			{
+				statusText += "Camera: Free (Tab to toggle)\n";
+			}
+			else
+			{
+				string viewName = _currentViewMode switch
+				{
+					CameraViewMode.Chase => "Chase",
+					CameraViewMode.Hood => "Hood",
+					CameraViewMode.Cockpit => "Cockpit",
+					_ => "Unknown"
+				};
+				statusText += $"Camera: {viewName} (Tab/F1)\n";
+			}
+
+			statusText += $"Tick: {telemetry.ServerTick}\n";
+
+			if (telemetry.CarStates.Length > 0)
+			{
+				var state = telemetry.CarStates[0];
+				statusText += $"Progress: {(state.TrackProgress * 100):F1}%\n";
+				statusText += $"Speed: {state.SpeedMps:F1} m/s\n";
+				statusText += $"Position: ({state.PosX:F1}, {state.PosY:F1}, {state.PosZ:F1})";
+			}
+			else
+			{
+				statusText += "No car data!";
+			}
+
+			_telemetryLabel.Text = statusText;
+		}
+
+		// Only render car in demo mode
+		if (_demoCarModel == null)
+		{
+			GD.Print($"[Telemetry #{_telemetryCount}] Car model is null!");
+			return;
+		}
+
+		if (telemetry.GameMode != GameMode.DemoLap)
+		{
+			_demoCarModel.Visible = false;
+			return;
+		}
+
+		// Find the car state (in demo mode there should be exactly one)
+		if (telemetry.CarStates.Length == 0)
+		{
+			GD.Print($"[Telemetry #{_telemetryCount}] No car states in telemetry!");
+			return;
+		}
+
+		var carState = telemetry.CarStates[0];
+
+		// Log first few telemetry updates for debugging
+		if (_telemetryCount <= 5)
+		{
+			GD.Print($"[Telemetry #{_telemetryCount}] Pos: ({carState.PosX:F2}, {carState.PosY:F2}, {carState.PosZ:F2}), " +
+					 $"Yaw: {carState.YawRad:F2} rad ({carState.YawRad * 180.0f / Mathf.Pi:F1}°), Speed: {carState.SpeedMps:F1} m/s, Progress: {carState.TrackProgress:F2}");
+		}
+
+		// Additional debug logging every 60 frames (quarter second at 240Hz)
+		if (_telemetryCount % 60 == 0)
+		{
+			GD.Print($"[Debug #{_telemetryCount}] Server yaw: {carState.YawRad:F2} rad, Godot yaw will be: {-carState.YawRad:F2} rad");
+		}
+
+		// Update car position and orientation
+		// Server coordinates: X, Y, Z
+		// Godot coordinates: X (same), Y (height/Z), Z (-Y)
+		var carPosition = new Vector3(
+			carState.PosX,
+			carState.PosZ,  // Z becomes Y (height)
+			-carState.PosY  // Y becomes -Z (flipped)
+		);
+
+		_demoCarModel.Position = carPosition;
+
+		// Calculate direction from position change (use previous position if available)
+		// This ensures the car faces the direction it's actually moving
+		if (_telemetryCount > 1)
+		{
+			// Use LookAt to orient the car toward where it's going
+			// Get the direction vector from velocity or calculate it
+			// Negate the direction because the car model's "forward" is actually its back
+			var nextPosition = carPosition - new Vector3(
+				carState.SpeedMps * Mathf.Cos(carState.YawRad) * 0.1f,
+				0,
+				-carState.SpeedMps * Mathf.Sin(carState.YawRad) * 0.1f
+			);
+
+			// Look at the next position to face forward
+			_demoCarModel.LookAt(nextPosition, Vector3.Up);
+		}
+
+		// Make car visible
+		_demoCarModel.Visible = true;
 	}
 
 	private void GenerateTestTrack()
@@ -328,7 +591,7 @@ public partial class TrackRenderer : Node3D
 			GenerateDottedOutlineSpline(centerline, widths);
 
 			// Add debug spheres at track points to see where they are
-			AddDebugMarkers(centerline);
+			// AddDebugMarkers(centerline);
 		}
 		catch (Exception ex)
 		{
@@ -373,7 +636,7 @@ public partial class TrackRenderer : Node3D
 		GenerateTrackMesh(trackPoints, 12.0f);
 
 		// Add debug spheres at track points to see where they are
-		AddDebugMarkers(trackPoints);
+		// AddDebugMarkers(trackPoints);
 	}
 
 	private void AddDebugMarkers(List<Vector3> points)
