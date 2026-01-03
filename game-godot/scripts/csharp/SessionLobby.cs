@@ -210,18 +210,26 @@ public partial class SessionLobby : Control
 
     private void TransitionToTrackView()
     {
-        if (_trackViewScene == null)
-        {
-            GD.PrintErr("Track view scene is not loaded!");
-            return;
-        }
+        GD.Print("TransitionToTrackView called");
 
-        // Change to the track view scene
-        GetTree().ChangeSceneToPacked(_trackViewScene);
+        // Use SceneManager for proper scene cleanup
+        var sceneManager = GetNode("/root/SceneManager");
+        if (sceneManager != null && sceneManager.HasMethod("change_scene"))
+        {
+            GD.Print("Using SceneManager to change scene...");
+            sceneManager.Call("change_scene", "res://scenes/track_view.tscn", false);
+        }
+        else
+        {
+            GD.PrintErr("SceneManager not found or missing change_scene method!");
+        }
     }
 
-    private void OnGameModeChanged(GameMode mode)
+    private void OnGameModeChanged(int modeInt)
     {
+        GameMode mode = (GameMode)modeInt;
+        GD.Print($"OnGameModeChanged called with mode: {mode} (int: {modeInt})");
+
         _currentGameMode = mode;
         UpdateGameModeLabel();
         UpdateUI();
@@ -229,6 +237,7 @@ public partial class SessionLobby : Control
         // If we've transitioned to a driving mode, load the track view scene
         if (mode == GameMode.Sandbox || mode == GameMode.DemoLap || mode == GameMode.FreePractice)
         {
+            GD.Print($"Mode is {mode}, transitioning to track view...");
             _statusLabel!.Text = $"Starting {mode} mode...";
             _statusLabel.Modulate = new Color(0, 1, 0.4f);
 
@@ -237,6 +246,7 @@ public partial class SessionLobby : Control
         }
         else if (mode != GameMode.Lobby)
         {
+            GD.Print($"Mode is {mode}, not transitioning to track view");
             _statusLabel!.Text = $"Session started in {mode} mode!";
             _statusLabel.Modulate = new Color(0, 1, 0.4f);
         }

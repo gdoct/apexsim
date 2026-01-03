@@ -21,13 +21,29 @@ func change_scene(target_scene_path: String, use_loading: bool = false):
 
 # Direct scene change
 func _deferred_change_scene(target_scene_path: String):
-	if current_scene:
-		current_scene.free()
+	print("SceneManager: _deferred_change_scene called for: ", target_scene_path)
+	print("SceneManager: current_scene = ", current_scene)
 
+	var root = get_tree().root
+
+	# Debug: Print all children
+	print("SceneManager: Root has ", root.get_child_count(), " children:")
+	for i in range(root.get_child_count()):
+		var child = root.get_child(i)
+		print("  [", i, "] ", child.name, " (", child, ")")
+
+	# Free ALL non-autoload scenes (keep SceneManager and Network)
+	for child in root.get_children():
+		if child != self and child.name != "Network":
+			print("SceneManager: Freeing scene: ", child.name)
+			child.queue_free()
+
+	print("SceneManager: Loading new scene...")
 	var new_scene = load(target_scene_path).instantiate()
 	get_tree().root.add_child(new_scene)
 	get_tree().current_scene = new_scene
 	current_scene = new_scene
+	print("SceneManager: New scene loaded: ", new_scene.name)
 
 # Change scene with loading screen
 func _deferred_change_with_loading(target_scene_path: String):

@@ -69,10 +69,13 @@ public partial class TrackRenderer : Node3D
 
 	public override void _Ready()
 	{
+		GD.Print("=== TrackRenderer._Ready() called - track_view scene is loading ===");
+
 		try
 		{
 			_network = GetNode<NetworkClient>("/root/Network");
 			_network.SessionJoined += OnSessionJoined;
+			GD.Print("✓ Network client connected successfully");
 		}
 		catch (System.Exception ex)
 		{
