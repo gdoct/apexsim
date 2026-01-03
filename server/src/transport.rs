@@ -1,5 +1,5 @@
 use crate::data::*;
-use crate::network::{ClientMessage, MessagePriority, ServerMessage};
+use crate::network::{AuthSuccessData, ClientMessage, MessagePriority, ServerMessage};
 use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig as TlsConfig;
 use std::collections::HashMap;
@@ -454,10 +454,10 @@ impl TransportLayer {
                                         );
 
                                         // Send auth success response
-                                        let response = ServerMessage::AuthSuccess {
+                                        let response = ServerMessage::AuthSuccess(AuthSuccessData {
                                             player_id,
                                             server_version: 1,
-                                        };
+                                        });
                                         // Critical message - if queue full, client is too slow
                                         if conn_tx.send(response).await.is_err() {
                                             warn!("Failed to send AuthSuccess to slow client {}, disconnecting", addr);

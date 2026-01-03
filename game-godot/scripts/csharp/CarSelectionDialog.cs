@@ -21,6 +21,7 @@ public partial class CarSelectionDialog : Control
     private List<CarCard> _carCards = new();
     private CarCard? _selectedCard = null;
     private PackedScene? _carCardScene;
+    private bool _carsPopulated = false;
 
     public override void _Ready()
     {
@@ -76,6 +77,7 @@ public partial class CarSelectionDialog : Control
     private void OnLobbyStateReceived()
     {
         if (!IsInsideTree()) return;
+        if (_carsPopulated) return; // Don't repopulate if already done
 
         var lobbyState = _network!.LastLobbyState;
         if (lobbyState == null) return;
@@ -95,28 +97,17 @@ public partial class CarSelectionDialog : Control
 
         // Create a set of server car IDs for quick lookup
         var serverCarIds = new HashSet<string>();
-        GD.Print($"=== Server Cars ({lobbyState.CarConfigs.Length}) ===");
         foreach (var serverCar in lobbyState.CarConfigs)
         {
-            var serverId = serverCar.Id.ToString();
-            serverCarIds.Add(serverId);
-            GD.Print($"  Server: '{serverCar.Name}' ID='{serverId}' Mass={serverCar.MassKg}kg Power={serverCar.MaxEngineForceN}N");
-        }
-
-        GD.Print($"=== Local Cars ({localCars.Count}) ===");
-        foreach (var car in localCars)
-        {
-            GD.Print($"  Local: '{car.Name}' ID='{car.Id}'");
+            serverCarIds.Add(serverCar.Id.ToString());
         }
 
         // Filter local cars to only those available on the server
         var availableCars = new List<CarConfigSummary>();
-        GD.Print($"=== Matching Cars ===");
         foreach (var localCar in localCars)
         {
             var localId = localCar.Id.ToString();
             var hasMatch = serverCarIds.Contains(localId);
-            GD.Print($"  Local '{localCar.Name}' (ID='{localId}') - Match: {hasMatch}");
 
             if (hasMatch)
             {
@@ -125,12 +116,12 @@ public partial class CarSelectionDialog : Control
                 {
                     if (serverCar.Id.ToString() == localCar.Id.ToString())
                     {
-                        // Use local car data with server's model path
+                        // Use server's authoritative ID and stats, with local model path
                         availableCars.Add(new CarConfigSummary
                         {
-                            Id = localCar.Id,
-                            Name = localCar.Name,
-                            ModelPath = localCar.ModelPath, // Use local path
+                            Id = serverCar.Id, // Use server's ID (authoritative)
+                            Name = serverCar.Name, // Use server's name (authoritative)
+                            ModelPath = localCar.ModelPath, // Use local path for loading model
                             MassKg = serverCar.MassKg,
                             MaxEngineForceN = serverCar.MaxEngineForceN
                         });
@@ -156,6 +147,9 @@ public partial class CarSelectionDialog : Control
 
         // Create car cards
         CreateCarCards();
+
+        // Mark as populated to prevent repeated population
+        _carsPopulated = true;
     }
 
     private List<CarConfigSummary> LoadLocalCars()
@@ -172,8 +166,6 @@ public partial class CarSelectionDialog : Control
             GD.PrintErr($"Cars directory does not exist: {absoluteCarsPath}");
             return cars;
         }
-
-        GD.Print($"Loading cars from: {absoluteCarsPath}");
 
         try
         {
@@ -192,7 +184,6 @@ public partial class CarSelectionDialog : Control
                         if (car != null)
                         {
                             cars.Add(car);
-                            GD.Print($"Loaded car: {car.Name} from {carFolderName}");
                         }
                     }
                     catch (System.Exception ex)
@@ -278,7 +269,6 @@ public partial class CarSelectionDialog : Control
                 if (glbFiles.Length > 0)
                 {
                     model = System.IO.Path.GetFileName(glbFiles[0]);
-                    GD.Print($"No model specified in {tomlPath}, using first .glb file: {model}");
                 }
                 else
                 {
@@ -336,20 +326,8 @@ public partial class CarSelectionDialog : Control
             _gridContainer.AddChild(cardInstance);
             _carCards.Add(cardInstance);
 
-            // Build model path - assuming the model is in the same directory as the car config
-            // and the model filename is in the car config
-            string modelPath = "";
-            if (!string.IsNullOrEmpty(car.ModelPath))
-            {
-                modelPath = car.ModelPath;
-            }
-            else
-            {
-                // Fallback: try to construct path from ID
-                modelPath = $"res://content/cars/{car.Id}/model.glb";
-            }
-
-            cardInstance.SetupCard(car, modelPath);
+            // Pass the car UUID to SetupCard - it will look it up in CarModelCache
+            cardInstance.SetupCard(car, car.Id);
             cardInstance.CardClicked += OnCardClicked;
         }
     }

@@ -5,6 +5,7 @@ use apexsim_server::{
     game_session::GameSession,
     health::{HealthState, run_health_server},
     lobby::LobbyManager,
+    network::{LobbyStateData, SessionJoinedData},
     replay::ReplayManager,
     track_loader::TrackLoader,
     transport::TransportLayer,
@@ -348,12 +349,12 @@ async fn send_lobby_state(
 
     drop(state_read);
 
-    let lobby_state = ServerMessage::LobbyState {
+    let lobby_state = ServerMessage::LobbyState(LobbyStateData {
         players_in_lobby,
         available_sessions,
         car_configs,
         track_configs,
-    };
+    });
 
     transport.send_tcp(connection_id, lobby_state).await?;
     Ok(())
@@ -400,12 +401,12 @@ async fn broadcast_lobby_state(
 
     drop(state_read);
 
-    let lobby_state = ServerMessage::LobbyState {
+    let lobby_state = ServerMessage::LobbyState(LobbyStateData {
         players_in_lobby,
         available_sessions,
         car_configs,
         track_configs,
-    };
+    });
 
     // Broadcast to all connections
     transport.broadcast_tcp(lobby_state).await;
@@ -534,10 +535,10 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                     // Add host to the actual game session
                                     if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
                                         if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
-                                            let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined {
+                                            let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined(SessionJoinedData {
                                                 session_id,
                                                 your_grid_position: grid_pos,
-                                            }).await;
+                                            })).await;
                                             // Track that player is in a session
                                             transport_write.set_player_session(connection_id, Some(session_id)).await;
                                         } else {
@@ -610,12 +611,12 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                             if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
                                 if let Some(car_id) = selected_car {
                                     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
-                                        info!("Player {} joined session {} at grid position {}", 
+                                        info!("Player {} joined session {} at grid position {}",
                                             conn_info.player_name, session_id, grid_pos);
-                                        let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined {
+                                        let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined(SessionJoinedData {
                                             session_id,
                                             your_grid_position: grid_pos,
-                                        }).await;
+                                        })).await;
                                         // Track that player is in a session
                                         transport_write.set_player_session(connection_id, Some(session_id)).await;
                                     } else {
@@ -651,10 +652,10 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
 
                         if joined {
                             info!("Player {} joined session {} as spectator", conn_info.player_name, session_id);
-                            let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined {
+                            let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined(SessionJoinedData {
                                 session_id,
                                 your_grid_position: 0, // 0 indicates spectator
-                            }).await;
+                            })).await;
                             // Track that player is in a session
                             transport_write.set_player_session(connection_id, Some(session_id)).await;
                         } else {
@@ -709,6 +710,74 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                         code: 403,
                                         message: "Only the host can start the session".to_string(),
                                     }).await;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ClientMessage::SetGameMode { mode } => {
+                    if let Some(conn_info) = transport_write.get_connection(connection_id).await {
+                        let mut state_write = state.write().await;
+
+                        // Check if player is in a session
+                        if let Some(session_id) = conn_info.in_session {
+                            if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
+                                // Only host can change game mode
+                                if game_session.session.host_player_id == conn_info.player_id {
+                                    game_session.set_game_mode(mode);
+
+                                    // Notify all participants
+                                    let mode_changed_msg = ServerMessage::GameModeChanged { mode };
+                                    for participant_id in game_session.session.participants.keys() {
+                                        if let Some(conn_id) = transport_write.get_player_connection(*participant_id).await {
+                                            if let Err(e) = transport_write.send_tcp(conn_id, mode_changed_msg.clone()).await {
+                                                warn!("Failed to send mode change to player: {:?}", e);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    let _ = transport_write.send_tcp(
+                                        connection_id,
+                                        ServerMessage::Error {
+                                            code: 403,
+                                            message: "Only the session host can change game mode".to_string(),
+                                        }
+                                    ).await;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ClientMessage::StartCountdown { countdown_seconds, next_mode } => {
+                    if let Some(conn_info) = transport_write.get_connection(connection_id).await {
+                        let mut state_write = state.write().await;
+
+                        // Check if player is in a session
+                        if let Some(session_id) = conn_info.in_session {
+                            if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
+                                // Only host can start countdown
+                                if game_session.session.host_player_id == conn_info.player_id {
+                                    game_session.start_countdown_mode(countdown_seconds, next_mode);
+
+                                    // Notify all participants
+                                    let countdown_msg = ServerMessage::GameModeChanged { mode: GameMode::Countdown };
+                                    for participant_id in game_session.session.participants.keys() {
+                                        if let Some(conn_id) = transport_write.get_player_connection(*participant_id).await {
+                                            if let Err(e) = transport_write.send_tcp(conn_id, countdown_msg.clone()).await {
+                                                warn!("Failed to send countdown start to player: {:?}", e);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    let _ = transport_write.send_tcp(
+                                        connection_id,
+                                        ServerMessage::Error {
+                                            code: 403,
+                                            message: "Only the session host can start countdown".to_string(),
+                                        }
+                                    ).await;
                                 }
                             }
                         }

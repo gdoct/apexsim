@@ -5,7 +5,9 @@ using System.Collections.Generic;
 namespace ApexSim;
 
 /// <summary>
-/// Singleton that loads and caches car 3D models at startup
+/// Singleton that provides car model loading functionality.
+/// Instead of caching scene instances (which causes duplication issues),
+/// this class caches metadata and loads fresh models on demand from disk.
 /// </summary>
 public partial class CarModelCache : Node
 {
@@ -16,22 +18,43 @@ public partial class CarModelCache : Node
         {
             if (_instance == null)
             {
+                GD.PrintErr("CarModelCache accessed before initialization!");
                 _instance = new CarModelCache();
             }
             return _instance;
         }
     }
 
-    private class CachedGltfData
+    public static CarModelCache GetOrCreateInstance()
     {
-        public GltfDocument? Document { get; set; }
-        public GltfState? State { get; set; }
+        if (_instance == null)
+        {
+            _instance = new CarModelCache();
+        }
+        return _instance;
     }
 
-    private Dictionary<string, CachedGltfData> _modelCache = new();
+    /// <summary>
+    /// Cached car model metadata - stores paths, not scene instances
+    /// </summary>
+    private class CarModelInfo
+    {
+        public string ModelPath { get; set; } = "";
+        public string CarFolderName { get; set; } = "";
+    }
+
+    private Dictionary<string, CarModelInfo> _modelInfo = new(); // Key: UUID
     private bool _isLoading = false;
 
     public bool IsLoading => _isLoading;
+
+    public CarModelCache()
+    {
+        if (_instance == null)
+        {
+            _instance = this;
+        }
+    }
 
     public override void _Ready()
     {
@@ -39,14 +62,13 @@ public partial class CarModelCache : Node
     }
 
     /// <summary>
-    /// Preload all car models from the content directory
+    /// Scan all car directories and cache their model paths
     /// </summary>
     public async void PreloadAllModels()
     {
         if (_isLoading) return;
         _isLoading = true;
 
-        GD.Print("=== Preloading car models ===");
         var config = ClientConfig.Instance;
         var carsPath = config.GetCarsDirectory();
         var absoluteCarsPath = System.IO.Path.GetFullPath(carsPath);
@@ -67,17 +89,21 @@ public partial class CarModelCache : Node
             if (!System.IO.File.Exists(carTomlPath))
                 continue;
 
-            // Parse the TOML to get model filename
+            // Parse the TOML to get UUID and model filename
             var tomlContent = System.IO.File.ReadAllText(carTomlPath);
+            string? uuid = null;
             string? modelFilename = null;
 
             foreach (var line in tomlContent.Split('\n'))
             {
                 var trimmed = line.Trim();
-                if (trimmed.StartsWith("model ="))
+                if (trimmed.StartsWith("id ="))
+                {
+                    uuid = trimmed.Substring(4).Trim().Trim('"');
+                }
+                else if (trimmed.StartsWith("model ="))
                 {
                     modelFilename = trimmed.Substring(7).Trim().Trim('"');
-                    break;
                 }
             }
 
@@ -91,93 +117,148 @@ public partial class CarModelCache : Node
                 }
             }
 
-            if (!string.IsNullOrEmpty(modelFilename))
+            if (!string.IsNullOrEmpty(modelFilename) && !string.IsNullOrEmpty(uuid))
             {
                 var modelPath = System.IO.Path.Combine(carDir, modelFilename);
-                await LoadAndCacheModel(carFolderName, modelPath);
-            }
-        }
-
-        GD.Print($"=== Preloaded {_modelCache.Count} car models ===");
-        _isLoading = false;
-    }
-
-    private async System.Threading.Tasks.Task LoadAndCacheModel(string carFolderName, string modelPath)
-    {
-        if (_modelCache.ContainsKey(carFolderName))
-            return;
-
-        try
-        {
-            if (!System.IO.File.Exists(modelPath))
-            {
-                GD.PrintErr($"Model file not found: {modelPath}");
-                return;
-            }
-
-            GD.Print($"Loading model for {carFolderName}: {modelPath}");
-
-            var gltfDocument = new GltfDocument();
-            var gltfState = new GltfState();
-
-            var error = gltfDocument.AppendFromFile(modelPath, gltfState);
-            if (error == Error.Ok)
-            {
-                // Cache the GLTF document and state so we can generate fresh scenes later
-                _modelCache[carFolderName] = new CachedGltfData
+                _modelInfo[uuid] = new CarModelInfo
                 {
-                    Document = gltfDocument,
-                    State = gltfState
+                    ModelPath = modelPath,
+                    CarFolderName = carFolderName
                 };
-
-                GD.Print($"  ✓ Cached GLTF data for '{carFolderName}'");
-            }
-            else
-            {
-                GD.PrintErr($"Failed to load GLTF: {modelPath}, Error: {error}");
             }
 
-            // Yield to prevent blocking (only if we're in the tree)
+            // Yield to prevent blocking
             if (IsInsideTree())
             {
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             }
         }
+
+        _isLoading = false;
+    }
+
+    /// <summary>
+    /// Load a fresh model instance from disk for the given car UUID.
+    /// Each call loads a new instance - no caching of scene instances.
+    /// </summary>
+    public Node3D? GetModel(string carUuid)
+    {
+        if (!_modelInfo.TryGetValue(carUuid, out var info))
+        {
+            GD.PrintErr($"  No model info for '{carUuid}'. Available: {string.Join(", ", _modelInfo.Keys)}");
+            return null;
+        }
+
+        return LoadModelFromFile(info.ModelPath, info.CarFolderName);
+    }
+
+    private static int _loadCounter = 0;
+
+    /// <summary>
+    /// Load a model directly from a file path
+    /// </summary>
+    private Node3D? LoadModelFromFile(string modelPath, string carFolderName)
+    {
+        var loadId = ++_loadCounter;
+        try
+        {
+            if (!System.IO.File.Exists(modelPath))
+            {
+                GD.PrintErr($"  [{loadId}] Model file not found: {modelPath}");
+                return null;
+            }
+
+            var gltfDocument = new GltfDocument();
+            var gltfState = new GltfState();
+
+            // Set the base path so textures can be found relative to the GLB file
+            var basePath = System.IO.Path.GetDirectoryName(modelPath);
+            if (!string.IsNullOrEmpty(basePath))
+            {
+                gltfState.BasePath = basePath;
+            }
+
+            var error = gltfDocument.AppendFromFile(modelPath, gltfState);
+            if (error != Error.Ok)
+            {
+                GD.PrintErr($"  [{loadId}] Failed to load GLTF: {error}");
+                return null;
+            }
+
+            var scene = gltfDocument.GenerateScene(gltfState);
+            if (scene is Node3D node3D)
+            {
+                // Give each loaded model a unique name for debugging
+                node3D.Name = $"{carFolderName}_model_{loadId}";
+
+                // Ensure all materials are visible (fix for black/invisible materials)
+                EnsureMaterialsVisible(node3D);
+
+                return node3D;
+            }
+            else
+            {
+                GD.PrintErr($"  [{loadId}] Generated scene is not Node3D");
+                return null;
+            }
+        }
         catch (Exception ex)
         {
-            GD.PrintErr($"Error loading model {modelPath}: {ex.Message}");
+            GD.PrintErr($"  [{loadId}] Error loading model: {ex.Message}");
+            return null;
         }
     }
 
     /// <summary>
-    /// Get a fresh instance of a cached model by car folder name
+    /// Ensure all materials in a model are visible by fixing common issues
     /// </summary>
-    public Node3D? GetModel(string carFolderName)
+    private void EnsureMaterialsVisible(Node node)
     {
-        var cachedData = _modelCache.GetValueOrDefault(carFolderName);
-        if (cachedData == null)
+        if (node is MeshInstance3D meshInstance)
         {
-            GD.Print($"Cache miss for '{carFolderName}'. Available keys: {string.Join(", ", _modelCache.Keys)}");
-            return null;
+            var mesh = meshInstance.Mesh;
+            if (mesh != null)
+            {
+                for (int i = 0; i < mesh.GetSurfaceCount(); i++)
+                {
+                    var material = meshInstance.GetActiveMaterial(i);
+                    if (material is StandardMaterial3D stdMat)
+                    {
+                        // Make material double-sided (disable backface culling)
+                        stdMat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+
+                        // Check if albedo color is too dark (black or near-black)
+                        var albedo = stdMat.AlbedoColor;
+                        bool hasTexture = stdMat.AlbedoTexture != null;
+                        bool isDark = albedo.R < 0.1f && albedo.G < 0.1f && albedo.B < 0.1f;
+
+                        if (isDark && !hasTexture)
+                        {
+                            // Create a new material with a visible gray color
+                            var newMat = new StandardMaterial3D();
+                            newMat.AlbedoColor = new Color(0.6f, 0.6f, 0.6f);
+                            newMat.Roughness = 0.5f;
+                            newMat.Metallic = 0.2f;
+                            newMat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+                            meshInstance.SetSurfaceOverrideMaterial(i, newMat);
+                        }
+                    }
+                }
+            }
         }
 
-        if (cachedData.Document == null || cachedData.State == null)
+        foreach (Node child in node.GetChildren())
         {
-            GD.PrintErr($"Cached data for '{carFolderName}' is invalid");
-            return null;
+            EnsureMaterialsVisible(child);
         }
-
-        // Generate a fresh scene from the cached GLTF data
-        var scene = cachedData.Document.GenerateScene(cachedData.State);
-        return (Node3D)scene;
     }
 
     /// <summary>
-    /// Check if a model is cached
+    /// Check if a model is registered
     /// </summary>
-    public bool HasModel(string carFolderName)
+    public bool HasModel(string carUuid)
     {
-        return _modelCache.ContainsKey(carFolderName);
+        return _modelInfo.ContainsKey(carUuid);
     }
 
     /// <summary>

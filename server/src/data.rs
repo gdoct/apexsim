@@ -643,6 +643,34 @@ impl Default for SessionKind {
     }
 }
 
+/// Game modes determine the behavior and rules during a session
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+pub enum GameMode {
+    /// Lobby state, no telemetry sent, players selecting cars
+    Lobby = 0,
+    /// Nothing moves, no telemetry, camera exploration only
+    Sandbox = 1,
+    /// Pre-race countdown, players frozen in pit lane
+    Countdown = 2,
+    /// Server drives a demo car along the racing line
+    DemoLap = 3,
+    /// Players drive freely, optional lap timing
+    FreePractice = 4,
+    /// Playback recorded telemetry (view-only)
+    Replay = 5,
+    /// Qualification mode (to be implemented)
+    Qualification = 6,
+    /// Race mode (to be implemented)
+    Race = 7,
+}
+
+impl Default for GameMode {
+    fn default() -> Self {
+        GameMode::Lobby
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaceSession {
     pub id: SessionId,
@@ -651,6 +679,8 @@ pub struct RaceSession {
     #[serde(default)]
     pub session_kind: SessionKind,
     pub state: SessionState,
+    #[serde(default)]
+    pub game_mode: GameMode,
     pub participants: HashMap<PlayerId, CarState>,
     pub max_players: u8,
     pub ai_count: u8,
@@ -660,6 +690,8 @@ pub struct RaceSession {
     pub race_start_tick: Option<u32>,
     /// AI driver player IDs (references to profiles stored elsewhere)
     pub ai_player_ids: Vec<PlayerId>,
+    /// Demo lap state (used in DemoLap mode)
+    pub demo_lap_progress: Option<f32>,
 }
 
 impl RaceSession {
@@ -677,6 +709,7 @@ impl RaceSession {
             host_player_id,
             session_kind,
             state: SessionState::Lobby,
+            game_mode: GameMode::Lobby,
             participants: HashMap::new(),
             max_players,
             ai_count,
@@ -685,6 +718,7 @@ impl RaceSession {
             countdown_ticks_remaining: None,
             race_start_tick: None,
             ai_player_ids: Vec::new(),
+            demo_lap_progress: None,
         }
     }
 }

@@ -36,6 +36,9 @@ public partial class NetworkClient : Node
     public delegate void SessionStartingEventHandler(byte countdownSeconds);
 
     [Signal]
+    public delegate void GameModeChangedEventHandler(GameMode mode);
+
+    [Signal]
     public delegate void ErrorReceivedEventHandler(ushort code, string message);
 
     private TcpClient? _tcpClient;
@@ -68,7 +71,6 @@ public partial class NetworkClient : Node
     {
         try
         {
-            GD.Print($"Connecting to {ServerAddress}:{ServerPort}...");
             _tcpClient = new TcpClient();
             await _tcpClient.ConnectAsync(ServerAddress, ServerPort);
             _stream = _tcpClient.GetStream();
@@ -77,7 +79,6 @@ public partial class NetworkClient : Node
             _heartbeatTimer = 0.0;
             _clientTick = 0;
 
-            GD.Print("Connected to server!");
             EmitSignal(SignalName.ConnectedToServer);
 
             // Auto-authenticate
@@ -154,6 +155,20 @@ public partial class NetworkClient : Node
     public async Task StartSessionAsync()
     {
         await SendMessageAsync(new StartSessionMessage());
+    }
+
+    public async Task SetGameModeAsync(GameMode mode)
+    {
+        await SendMessageAsync(new SetGameModeMessage { Mode = mode });
+    }
+
+    public async Task StartCountdownAsync(ushort countdownSeconds, GameMode nextMode)
+    {
+        await SendMessageAsync(new StartCountdownMessage
+        {
+            CountdownSeconds = countdownSeconds,
+            NextMode = nextMode
+        });
     }
 
     public async Task SendHeartbeatAsync(uint clientTick)
@@ -317,8 +332,11 @@ public partial class NetworkClient : Node
                 break;
 
             case SessionStartingMessage sessionStarting:
-                GD.Print($"SessionStarting received! Countdown: {sessionStarting.CountdownSeconds}s");
                 EmitSignal(SignalName.SessionStarting, sessionStarting.CountdownSeconds);
+                break;
+
+            case GameModeChangedMessage gameModeChanged:
+                EmitSignal(SignalName.GameModeChanged, (int)gameModeChanged.Mode);
                 break;
 
             case ErrorMessage error:
@@ -334,7 +352,7 @@ public partial class NetworkClient : Node
                 break;
 
             default:
-                GD.Print($"Unhandled message type: {message.GetType().Name}");
+                // Silently ignore unhandled messages
                 break;
         }
     }
@@ -392,6 +410,18 @@ public partial class NetworkClient : Node
             case StartSessionMessage:
                 type = "StartSession";
                 break;
+            case SetGameModeMessage setGameMode:
+                type = "SetGameMode";
+                payload = new Dictionary<string, object?> { ["mode"] = (byte)setGameMode.Mode };
+                break;
+            case StartCountdownMessage startCountdown:
+                type = "StartCountdown";
+                payload = new Dictionary<string, object?>
+                {
+                    ["countdown_seconds"] = startCountdown.CountdownSeconds,
+                    ["next_mode"] = (byte)startCountdown.NextMode
+                };
+                break;
             case DisconnectMessage:
                 type = "Disconnect";
                 break;
@@ -420,22 +450,34 @@ public partial class NetworkClient : Node
         var messageType = typeObj.ToString();
         envelope.TryGetValue("data", out var dataObj);
 
-        //GD.Print($"Parsing message type: {messageType}");
-
-        return messageType switch
+        try
         {
-            "AuthSuccess" => BuildAuthSuccess(dataObj),
-            "AuthFailure" => BuildAuthFailure(dataObj),
-            "HeartbeatAck" => BuildHeartbeatAck(dataObj),
-            "LobbyState" => BuildLobbyState(dataObj),
-            "SessionJoined" => BuildSessionJoined(dataObj),
-            "SessionLeft" => new SessionLeftMessage(),
-            "SessionStarting" => BuildSessionStarting(dataObj),
-            "Error" => BuildError(dataObj),
-            "PlayerDisconnected" => BuildPlayerDisconnected(dataObj),
-            "Telemetry" => new TelemetryMessage(),
-            _ => throw new Exception($"Unknown server message type: {messageType}")
-        };
+            return messageType switch
+            {
+                "AuthSuccess" => BuildAuthSuccess(dataObj),
+                "AuthFailure" => BuildAuthFailure(dataObj),
+                "HeartbeatAck" => BuildHeartbeatAck(dataObj),
+                "LobbyState" => BuildLobbyState(dataObj),
+                "SessionJoined" => BuildSessionJoined(dataObj),
+                "SessionLeft" => new SessionLeftMessage(),
+                "SessionStarting" => BuildSessionStarting(dataObj),
+                "GameModeChanged" => BuildGameModeChanged(dataObj),
+                "Error" => BuildError(dataObj),
+                "PlayerDisconnected" => BuildPlayerDisconnected(dataObj),
+                "Telemetry" => new TelemetryMessage(),
+                _ => throw new Exception($"Unknown server message type: {messageType}")
+            };
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"Error parsing {messageType}: {ex.Message}");
+            GD.PrintErr($"Data object type: {dataObj?.GetType().FullName ?? "null"}");
+            if (dataObj != null)
+            {
+                GD.PrintErr($"Data: {System.Text.Json.JsonSerializer.Serialize(dataObj)}");
+            }
+            throw;
+        }
     }
 
     private static AuthSuccessMessage BuildAuthSuccess(object? data)
@@ -443,8 +485,8 @@ public partial class NetworkClient : Node
         var map = ToStringMap(data);
         return new AuthSuccessMessage
         {
-            PlayerId = ReadUuid(map, "player_id"),
-            ServerVersion = (uint)ReadUInt(map, "server_version")
+            PlayerId = ReadUuid(map, "PlayerId"),
+            ServerVersion = (uint)ReadUInt(map, "ServerVersion")
         };
     }
 
@@ -464,19 +506,19 @@ public partial class NetworkClient : Node
     {
         var map = ToStringMap(data);
 
-        var players = map.TryGetValue("players_in_lobby", out var playersObj)
+        var players = map.TryGetValue("PlayersInLobby", out var playersObj)
             ? ToList(playersObj).Select(BuildLobbyPlayer).ToArray()
             : Array.Empty<LobbyPlayer>();
 
-        var sessions = map.TryGetValue("available_sessions", out var sessionsObj)
+        var sessions = map.TryGetValue("AvailableSessions", out var sessionsObj)
             ? ToList(sessionsObj).Select(BuildSessionSummary).ToArray()
             : Array.Empty<SessionSummary>();
 
-        var cars = map.TryGetValue("car_configs", out var carsObj)
+        var cars = map.TryGetValue("CarConfigs", out var carsObj)
             ? ToList(carsObj).Select(BuildCarConfig).ToArray()
             : Array.Empty<CarConfigSummary>();
 
-        var tracks = map.TryGetValue("track_configs", out var tracksObj)
+        var tracks = map.TryGetValue("TrackConfigs", out var tracksObj)
             ? ToList(tracksObj).Select(BuildTrackConfig).ToArray()
             : Array.Empty<TrackConfigSummary>();
 
@@ -494,8 +536,8 @@ public partial class NetworkClient : Node
         var map = ToStringMap(data);
         return new SessionJoinedMessage
         {
-            SessionId = ReadUuid(map, "session_id"),
-            YourGridPosition = (byte)ReadUInt(map, "your_grid_position")
+            SessionId = ReadUuid(map, "SessionId"),
+            YourGridPosition = (byte)ReadUInt(map, "YourGridPosition")
         };
     }
 
@@ -505,6 +547,15 @@ public partial class NetworkClient : Node
         return new SessionStartingMessage
         {
             CountdownSeconds = (byte)ReadUInt(map, "countdown_seconds")
+        };
+    }
+
+    private static GameModeChangedMessage BuildGameModeChanged(object? data)
+    {
+        var map = ToStringMap(data);
+        return new GameModeChangedMessage
+        {
+            Mode = (GameMode)ReadUInt(map, "mode")
         };
     }
 
@@ -530,12 +581,13 @@ public partial class NetworkClient : Node
     private static LobbyPlayer BuildLobbyPlayer(object? obj)
     {
         var map = ToStringMap(obj);
+
         return new LobbyPlayer
         {
-            Id = ReadUuid(map, "id"),
-            Name = ReadString(map, "name"),
-            SelectedCar = ReadOptionalUuid(map, "selected_car"),
-            InSession = ReadOptionalUuid(map, "in_session")
+            Id = ReadUuid(map, "Id"),
+            Name = ReadString(map, "Name"),
+            SelectedCar = ReadOptionalUuid(map, "SelectedCar"),
+            InSession = ReadOptionalUuid(map, "InSession")
         };
     }
 
@@ -544,13 +596,13 @@ public partial class NetworkClient : Node
         var map = ToStringMap(obj);
         return new SessionSummary
         {
-            Id = ReadUuid(map, "id"),
-            TrackName = ReadString(map, "track_name"),
-            TrackFile = ReadString(map, "track_file"),
-            HostName = ReadString(map, "host_name"),
-            PlayerCount = (byte)ReadUInt(map, "player_count"),
-            MaxPlayers = (byte)ReadUInt(map, "max_players"),
-            State = (SessionState)ReadUInt(map, "state")
+            Id = ReadUuid(map, "Id"),
+            TrackName = ReadString(map, "TrackName"),
+            TrackFile = ReadString(map, "TrackFile"),
+            HostName = ReadString(map, "HostName"),
+            PlayerCount = (byte)ReadUInt(map, "PlayerCount"),
+            MaxPlayers = (byte)ReadUInt(map, "MaxPlayers"),
+            State = (SessionState)ReadUInt(map, "State")
         };
     }
 
@@ -572,8 +624,8 @@ public partial class NetworkClient : Node
         var map = ToStringMap(obj);
         return new TrackConfigSummary
         {
-            Id = ReadUuid(map, "id"),
-            Name = ReadString(map, "name")
+            Id = ReadUuid(map, "Id"),
+            Name = ReadString(map, "Name")
         };
     }
 

@@ -29,10 +29,13 @@ public partial class LoadingScreen : Control
     {
         _loadingLabel!.Text = "Loading car models...";
 
-        // Create and add CarModelCache
-        _carModelCache = new CarModelCache();
-        _carModelCache.Name = "CarModelCache";
-        GetTree().Root.AddChild(_carModelCache);
+        // Get or create the singleton instance
+        _carModelCache = CarModelCache.GetOrCreateInstance();
+        if (_carModelCache.GetParent() == null)
+        {
+            _carModelCache.Name = "CarModelCache";
+            GetTree().Root.AddChild(_carModelCache);
+        }
 
         // Start preloading and wait for completion
         WaitForCarPreloading();

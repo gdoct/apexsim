@@ -58,7 +58,31 @@ public partial class CarCard : PanelContainer
         if (_viewport != null)
         {
             _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
+
+            // Set up environment with ambient lighting for the isolated world
+            SetupViewportEnvironment();
         }
+    }
+
+    private void SetupViewportEnvironment()
+    {
+        if (_viewport == null) return;
+
+        // Create a WorldEnvironment for this viewport's isolated world
+        var worldEnv = new WorldEnvironment();
+        var env = new Godot.Environment();
+
+        // Set up ambient lighting so models are visible
+        env.AmbientLightSource = Godot.Environment.AmbientSource.Color;
+        env.AmbientLightColor = new Color(1.0f, 1.0f, 1.0f);
+        env.AmbientLightEnergy = 0.5f;
+
+        // Set background to transparent
+        env.BackgroundMode = Godot.Environment.BGMode.Color;
+        env.BackgroundColor = new Color(0, 0, 0, 0);
+
+        worldEnv.Environment = env;
+        _viewport.AddChild(worldEnv);
     }
 
     public void SetupCard(CarConfigSummary carConfig, string modelPath)
@@ -79,7 +103,7 @@ public partial class CarCard : PanelContainer
         LoadCarModel(modelPath);
     }
 
-    private void LoadCarModel(string modelPath)
+    private void LoadCarModel(string carUuid)
     {
         if (_carModelParent == null) return;
 
@@ -92,103 +116,150 @@ public partial class CarCard : PanelContainer
 
         try
         {
-            // Get car folder name from path
-            var carFolder = CarModelCache.GetCarFolderFromPath(modelPath);
-
-            GD.Print($"Loading model for {_carConfig?.Name}: path={modelPath}, extracted folder={carFolder}");
-
-            if (string.IsNullOrEmpty(carFolder))
-            {
-                GD.PrintErr($"Could not extract car folder from path: {modelPath}");
-                CreateFallbackModel();
-                return;
-            }
-
-            // Try to get cached model - this now returns a fresh Node3D instance
+            // Load a fresh model instance for this car UUID
             var cache = CarModelCache.Instance;
-            var modelInstance = cache.GetModel(carFolder);
-            GD.Print($"  Cache lookup for '{carFolder}': {(modelInstance != null ? "FOUND" : "NOT FOUND")}");
+            var modelInstance = cache.GetModel(carUuid);
 
             if (modelInstance != null)
             {
                 // Use the model instance directly
                 _loadedModel = modelInstance;
                 _carModelParent.AddChild(_loadedModel);
+
                 CenterAndScaleModel(_loadedModel);
-                GD.Print($"  ✓ Successfully loaded model for {_carConfig?.Name}");
+
+                // Force visibility on all mesh instances
+                ForceVisibility(_loadedModel);
             }
             else
             {
                 // Model not in cache yet, show fallback
-                GD.Print($"Model not yet cached for {carFolder}, using fallback");
                 CreateFallbackModel();
             }
         }
         catch (Exception ex)
         {
-            GD.PrintErr($"Error loading car model {modelPath}: {ex.Message}");
+            GD.PrintErr($"Error loading car model {carUuid}: {ex.Message}");
             CreateFallbackModel();
         }
     }
 
     private void CenterAndScaleModel(Node3D model)
     {
-        // Calculate the model's bounding box
-        var aabb = CalculateAABB(model);
-        var center = aabb.GetCenter();
-        var size = aabb.Size;
+        // First, calculate the global bounding box of all meshes
+        var globalAabb = CalculateGlobalAABB(model);
+        var center = globalAabb.GetCenter();
+        var size = globalAabb.Size;
 
-        // Center the model
-        model.Position = new Vector3(-center.X, -aabb.Position.Y, -center.Z);
-
-        // Scale to fit nicely in the viewport (increased from 2.0 to 3.5 for better visibility)
+        // Scale first to normalize size
         float maxDimension = Mathf.Max(size.X, Mathf.Max(size.Y, size.Z));
+        float scale = 1.0f;
         if (maxDimension > 0)
         {
-            float scale = 3.5f / maxDimension;
+            scale = 3.5f / maxDimension;
             model.Scale = new Vector3(scale, scale, scale);
-            GD.Print($"  Applied scale: {scale} (max dimension was {maxDimension})");
         }
         else
         {
             GD.PrintErr($"  Model has zero size! Using default scale");
             model.Scale = Vector3.One;
         }
+
+        // After scaling, recalculate the center and offset to place model at origin
+        // The center needs to be scaled too
+        var scaledCenter = center * scale;
+        model.Position = new Vector3(-scaledCenter.X, -scaledCenter.Y, -scaledCenter.Z);
     }
 
-    private Aabb CalculateAABB(Node3D node)
+    private Aabb CalculateGlobalAABB(Node3D root)
     {
         var aabb = new Aabb();
         bool first = true;
 
+        CalculateGlobalAABBRecursive(root, ref aabb, ref first);
+
+        return first ? new Aabb(Vector3.Zero, Vector3.One) : aabb;
+    }
+
+    private void CalculateGlobalAABBRecursive(Node node, ref Aabb aabb, ref bool first)
+    {
         if (node is MeshInstance3D meshInstance && meshInstance.Mesh != null)
         {
-            aabb = meshInstance.Mesh.GetAabb();
-            first = false;
+            // Get the mesh's local AABB and transform it to global space
+            var meshAabb = meshInstance.Mesh.GetAabb();
+            var globalTransform = meshInstance.GlobalTransform;
+
+            // Transform the 8 corners of the AABB to global space
+            var corners = new Vector3[8];
+            corners[0] = globalTransform * new Vector3(meshAabb.Position.X, meshAabb.Position.Y, meshAabb.Position.Z);
+            corners[1] = globalTransform * new Vector3(meshAabb.Position.X + meshAabb.Size.X, meshAabb.Position.Y, meshAabb.Position.Z);
+            corners[2] = globalTransform * new Vector3(meshAabb.Position.X, meshAabb.Position.Y + meshAabb.Size.Y, meshAabb.Position.Z);
+            corners[3] = globalTransform * new Vector3(meshAabb.Position.X + meshAabb.Size.X, meshAabb.Position.Y + meshAabb.Size.Y, meshAabb.Position.Z);
+            corners[4] = globalTransform * new Vector3(meshAabb.Position.X, meshAabb.Position.Y, meshAabb.Position.Z + meshAabb.Size.Z);
+            corners[5] = globalTransform * new Vector3(meshAabb.Position.X + meshAabb.Size.X, meshAabb.Position.Y, meshAabb.Position.Z + meshAabb.Size.Z);
+            corners[6] = globalTransform * new Vector3(meshAabb.Position.X, meshAabb.Position.Y + meshAabb.Size.Y, meshAabb.Position.Z + meshAabb.Size.Z);
+            corners[7] = globalTransform * new Vector3(meshAabb.Position.X + meshAabb.Size.X, meshAabb.Position.Y + meshAabb.Size.Y, meshAabb.Position.Z + meshAabb.Size.Z);
+
+            // Create AABB from transformed corners
+            var globalMeshAabb = new Aabb(corners[0], Vector3.Zero);
+            for (int i = 1; i < 8; i++)
+            {
+                globalMeshAabb = globalMeshAabb.Expand(corners[i]);
+            }
+
+            if (first)
+            {
+                aabb = globalMeshAabb;
+                first = false;
+            }
+            else
+            {
+                aabb = aabb.Merge(globalMeshAabb);
+            }
         }
 
         foreach (Node child in node.GetChildren())
         {
-            if (child is Node3D childNode3D)
-            {
-                var childAabb = CalculateAABB(childNode3D);
-                if (childAabb.Size.LengthSquared() > 0)
-                {
-                    childAabb.Position += childNode3D.Position;
-                    if (first)
-                    {
-                        aabb = childAabb;
-                        first = false;
-                    }
-                    else
-                    {
-                        aabb = aabb.Merge(childAabb);
-                    }
-                }
-            }
+            CalculateGlobalAABBRecursive(child, ref aabb, ref first);
         }
+    }
 
-        return first ? new Aabb(Vector3.Zero, Vector3.One) : aabb;
+    private int CountMeshes(Node node)
+    {
+        int count = node is MeshInstance3D ? 1 : 0;
+        foreach (Node child in node.GetChildren())
+        {
+            count += CountMeshes(child);
+        }
+        return count;
+    }
+
+    private int GetMaxDepth(Node node, int currentDepth)
+    {
+        int maxDepth = currentDepth;
+        foreach (Node child in node.GetChildren())
+        {
+            int childDepth = GetMaxDepth(child, currentDepth + 1);
+            if (childDepth > maxDepth) maxDepth = childDepth;
+        }
+        return maxDepth;
+    }
+
+    private void ForceVisibility(Node node)
+    {
+        if (node is Node3D node3D)
+        {
+            node3D.Visible = true;
+        }
+        if (node is MeshInstance3D meshInstance)
+        {
+            meshInstance.Visible = true;
+            meshInstance.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+        }
+        foreach (Node child in node.GetChildren())
+        {
+            ForceVisibility(child);
+        }
     }
 
     private void CreateFallbackModel()
@@ -210,10 +281,11 @@ public partial class CarCard : PanelContainer
     public override void _Process(double delta)
     {
         // Rotate the car model slowly for a nice effect
-        if (_loadedModel != null)
+        // Rotate the parent node instead of the model itself to ensure rotation around viewport origin
+        if (_carModelParent != null && _loadedModel != null)
         {
             _rotationAngle += (float)delta * 0.5f;
-            _loadedModel.RotationDegrees = new Vector3(0, _rotationAngle * 30.0f, 0);
+            _carModelParent.RotationDegrees = new Vector3(0, _rotationAngle * 30.0f, 0);
         }
     }
 

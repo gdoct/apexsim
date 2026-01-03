@@ -56,10 +56,10 @@ async fn test_message_priority_classification() {
     use uuid::Uuid;
 
     // Test that critical messages are correctly classified
-    let auth_msg = ServerMessage::AuthSuccess {
+    let auth_msg = ServerMessage::AuthSuccess(apexsim_server::network::AuthSuccessData {
         player_id: Uuid::new_v4(),
         server_version: 1,
-    };
+    });
     assert_eq!(auth_msg.priority(), MessagePriority::Critical);
 
     let error_msg = ServerMessage::Error {
@@ -77,6 +77,7 @@ async fn test_message_priority_classification() {
         session_state: apexsim_server::data::SessionState::Racing,
         countdown_ms: None,
         car_states: vec![],
+        game_mode: apexsim_server::data::GameMode::Lobby
     });
     assert_eq!(telemetry_msg.priority(), MessagePriority::Droppable);
 }

@@ -203,17 +203,11 @@ public partial class MainMenu : Control
 
     private void OnSessionStarting(byte countdownSeconds)
     {
-        GD.Print($"Session starting with {countdownSeconds}s countdown, switching to track view...");
-
         // Switch to track view scene
         var error = GetTree().ChangeSceneToFile("res://scenes/track_view.tscn");
         if (error != Error.Ok)
         {
             GD.PrintErr($"Failed to change scene: {error}");
-        }
-        else
-        {
-            GD.Print("Scene change to track_view.tscn successful");
         }
     }
 

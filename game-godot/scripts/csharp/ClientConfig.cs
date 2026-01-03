@@ -39,7 +39,6 @@ public class ClientConfig
                 if (loadedConfig != null)
                 {
                     config = loadedConfig;
-                    GD.Print($"Loaded client config from: {baseConfigPath}");
                 }
             }
             catch (Exception ex)
@@ -49,7 +48,6 @@ public class ClientConfig
         }
         else
         {
-            GD.Print($"No base config found at {baseConfigPath}, using defaults");
             // Create default config file
             SaveDefaultConfig(baseConfigPath);
         }
@@ -65,7 +63,6 @@ public class ClientConfig
                 if (overrideConfig != null)
                 {
                     config = overrideConfig;
-                    GD.Print($"Loaded client config override from: {overrideConfigPath}");
                 }
             }
             catch (Exception ex)
@@ -74,7 +71,6 @@ public class ClientConfig
             }
         }
 
-        GD.Print($"Using content directory: {config.ContentDirectory}");
         return config;
     }
 
@@ -95,7 +91,6 @@ public class ClientConfig
                 WriteIndented = true
             });
             File.WriteAllText(path, json);
-            GD.Print($"Created default config at: {path}");
         }
         catch (Exception ex)
         {

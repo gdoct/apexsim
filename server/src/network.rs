@@ -45,6 +45,13 @@ pub enum ClientMessage {
     },
     LeaveSession,
     StartSession,
+    SetGameMode {
+        mode: GameMode,
+    },
+    StartCountdown {
+        countdown_seconds: u16,
+        next_mode: GameMode,
+    },
     Disconnect,
 
     // UDP - High frequency
@@ -66,42 +73,68 @@ pub enum MessagePriority {
     Critical = 1,
 }
 
+// --- Helper structs for UUID serialization ---
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct AuthSuccessData {
+    #[serde(serialize_with = "serialize_uuid_as_string")]
+    pub player_id: PlayerId,
+    pub server_version: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SessionJoinedData {
+    #[serde(serialize_with = "serialize_uuid_as_string")]
+    pub session_id: SessionId,
+    pub your_grid_position: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct PlayerDisconnectedData {
+    #[serde(serialize_with = "serialize_uuid_as_string")]
+    pub player_id: PlayerId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct LobbyStateData {
+    pub players_in_lobby: Vec<LobbyPlayer>,
+    pub available_sessions: Vec<SessionSummary>,
+    pub car_configs: Vec<CarConfigSummary>,
+    pub track_configs: Vec<TrackConfigSummary>,
+}
+
 // --- Server to Client Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum ServerMessage {
     // TCP - Auth & Lobby
-    AuthSuccess {
-        player_id: PlayerId,
-        server_version: u32,
-    },
+    AuthSuccess(AuthSuccessData),
     AuthFailure {
         reason: String,
     },
     HeartbeatAck {
         server_tick: u32,
     },
-    LobbyState {
-        players_in_lobby: Vec<LobbyPlayer>,
-        available_sessions: Vec<SessionSummary>,
-        car_configs: Vec<CarConfigSummary>,
-        track_configs: Vec<TrackConfigSummary>,
-    },
-    SessionJoined {
-        session_id: SessionId,
-        your_grid_position: u8,
-    },
+    LobbyState(LobbyStateData),
+    SessionJoined(SessionJoinedData),
     SessionLeft,
     SessionStarting {
         countdown_seconds: u8,
+    },
+    GameModeChanged {
+        mode: GameMode,
+    },
+    CountdownUpdate {
+        seconds_remaining: u16,
     },
     Error {
         code: u16,
         message: String,
     },
-    PlayerDisconnected {
-        player_id: PlayerId,
-    },
+    PlayerDisconnected(PlayerDisconnectedData),
 
     // UDP - High frequency telemetry
     Telemetry(Telemetry),
@@ -112,33 +145,41 @@ impl ServerMessage {
     pub fn priority(&self) -> MessagePriority {
         match self {
             // Critical messages - must be delivered or client disconnected
-            ServerMessage::AuthSuccess { .. } => MessagePriority::Critical,
+            ServerMessage::AuthSuccess(_) => MessagePriority::Critical,
             ServerMessage::AuthFailure { .. } => MessagePriority::Critical,
             ServerMessage::Error { .. } => MessagePriority::Critical,
-            ServerMessage::SessionJoined { .. } => MessagePriority::Critical,
+            ServerMessage::SessionJoined(_) => MessagePriority::Critical,
             ServerMessage::SessionStarting { .. } => MessagePriority::Critical,
             ServerMessage::SessionLeft => MessagePriority::Critical,
-            
+            ServerMessage::GameModeChanged { .. } => MessagePriority::Critical,
+
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
-            ServerMessage::LobbyState { .. } => MessagePriority::Droppable,
+            ServerMessage::CountdownUpdate { .. } => MessagePriority::Droppable,
+            ServerMessage::LobbyState(_) => MessagePriority::Droppable,
             ServerMessage::Telemetry(_) => MessagePriority::Droppable,
-            ServerMessage::PlayerDisconnected { .. } => MessagePriority::Droppable,
+            ServerMessage::PlayerDisconnected(_) => MessagePriority::Droppable,
         }
     }
 }
 
 // --- Lightweight Lobby Structures ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct LobbyPlayer {
+    #[serde(serialize_with = "serialize_uuid_as_string", rename = "Id")]
     pub id: PlayerId,
     pub name: String,
+    #[serde(serialize_with = "serialize_option_uuid_as_string", rename = "SelectedCar")]
     pub selected_car: Option<CarConfigId>,
+    #[serde(serialize_with = "serialize_option_uuid_as_string", rename = "InSession")]
     pub in_session: Option<SessionId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct SessionSummary {
+    #[serde(serialize_with = "serialize_uuid_as_string", rename = "Id")]
     pub id: SessionId,
     pub track_name: String,
     /// Track file relative to content folder (e.g. "tracks/real/Austin.yaml")
@@ -153,7 +194,7 @@ pub struct SessionSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct CarConfigSummary {
-    #[serde(serialize_with = "serialize_uuid_as_string")]
+    #[serde(serialize_with = "serialize_uuid_as_string", rename = "Id")]
     pub id: CarConfigId,
     pub name: String,
     pub model_path: String,
@@ -168,6 +209,16 @@ where
     serializer.serialize_str(&uuid.to_string())
 }
 
+fn serialize_option_uuid_as_string<S>(uuid: &Option<uuid::Uuid>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match uuid {
+        Some(u) => serializer.serialize_str(&u.to_string()),
+        None => serializer.serialize_none(),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackPoint {
     pub x: f32,
@@ -175,8 +226,9 @@ pub struct TrackPoint {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct TrackConfigSummary {
-    #[serde(serialize_with = "serialize_uuid_as_string")]
+    #[serde(serialize_with = "serialize_uuid_as_string", rename = "Id")]
     pub id: TrackConfigId,
     pub name: String,
     /// Simplified centerline points for visualization (every Nth point)
@@ -216,6 +268,7 @@ pub struct CarStateTelemetry {
 pub struct Telemetry {
     pub server_tick: u32,
     pub session_state: SessionState,
+    pub game_mode: GameMode,
     pub countdown_ms: Option<u16>,
     pub car_states: Vec<CarStateTelemetry>,
 }
@@ -271,21 +324,18 @@ mod tests {
     #[test]
     fn test_server_message_serialization() {
         let player_id = Uuid::new_v4();
-        let msg = ServerMessage::AuthSuccess {
+        let msg = ServerMessage::AuthSuccess(AuthSuccessData {
             player_id,
             server_version: 1,
-        };
+        });
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
         let deserialized: ServerMessage = rmp_serde::from_slice(&serialized).unwrap();
 
         match deserialized {
-            ServerMessage::AuthSuccess {
-                player_id: pid,
-                server_version,
-            } => {
-                assert_eq!(pid, player_id);
-                assert_eq!(server_version, 1);
+            ServerMessage::AuthSuccess(data) => {
+                assert_eq!(data.player_id, player_id);
+                assert_eq!(data.server_version, 1);
             }
             _ => panic!("Wrong message type"),
         }

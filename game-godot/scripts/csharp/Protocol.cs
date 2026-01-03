@@ -19,6 +19,19 @@ public enum SessionKind : byte
     Sandbox = 2
 }
 
+// Game Modes
+public enum GameMode : byte
+{
+    Lobby = 0,
+    Sandbox = 1,
+    Countdown = 2,
+    DemoLap = 3,
+    FreePractice = 4,
+    Replay = 5,
+    Qualification = 6,
+    Race = 7
+}
+
 // Client Messages
 public abstract class ClientMessage { }
 
@@ -57,6 +70,17 @@ public class JoinSessionMessage : ClientMessage
 public class LeaveSessionMessage : ClientMessage { }
 
 public class StartSessionMessage : ClientMessage { }
+
+public class SetGameModeMessage : ClientMessage
+{
+    public GameMode Mode { get; set; }
+}
+
+public class StartCountdownMessage : ClientMessage
+{
+    public ushort CountdownSeconds { get; set; }
+    public GameMode NextMode { get; set; }
+}
 
 public class DisconnectMessage : ClientMessage { }
 
@@ -112,6 +136,11 @@ public class ErrorMessage : ServerMessage
 public class PlayerDisconnectedMessage : ServerMessage
 {
     public string PlayerId { get; set; } = "";
+}
+
+public class GameModeChangedMessage : ServerMessage
+{
+    public GameMode Mode { get; set; }
 }
 
 public class TelemetryMessage : ServerMessage
