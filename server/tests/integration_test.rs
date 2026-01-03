@@ -66,11 +66,11 @@ impl TestClient {
         // Wait for auth response with timeout
         let auth_response = timeout(Duration::from_secs(5), self.receive_tcp_message()).await??;
         
-        let player_id = match &auth_response {
-            ServerMessage::AuthSuccess { player_id, .. } => {
-                println!("  {} authenticated successfully: {}", self.name, player_id);
-                self.player_id = Some(*player_id);
-                *player_id
+        let player_id = match auth_response {
+            ServerMessage::AuthSuccess(data) => {
+                println!("  {} authenticated successfully: {}", self.name, data.player_id);
+                self.player_id = Some(data.player_id);
+                data.player_id
             }
             ServerMessage::AuthFailure { reason } => {
                 return Err(format!("Auth failed: {}", reason).into());
@@ -111,9 +111,9 @@ impl TestClient {
         let response = self.receive_tcp_message().await?;
         
         match response {
-            ServerMessage::SessionJoined { session_id, .. } => {
-                self.session_id = Some(session_id);
-                Ok(session_id)
+            ServerMessage::SessionJoined(data) => {
+                self.session_id = Some(data.session_id);
+                Ok(data.session_id)
             }
             ServerMessage::Error { message, .. } => {
                 Err(format!("Session creation failed: {}", message).into())
@@ -134,8 +134,8 @@ impl TestClient {
         let response = self.receive_tcp_message().await?;
         
         match response {
-            ServerMessage::SessionJoined { session_id: joined_id, .. } => {
-                if joined_id == session_id {
+            ServerMessage::SessionJoined(data) => {
+                if data.session_id == session_id {
                     self.session_id = Some(session_id);
                     Ok(())
                 } else {
@@ -262,10 +262,10 @@ async fn test_multiplayer_race_session() {
         #[allow(unused_imports)]
         use apexsim_server::network::{CarConfigSummary, TrackConfigSummary};
         let (car_id, track_id) = match lobby_state1 {
-            ServerMessage::LobbyState { car_configs, track_configs, .. } => {
-                let car_id = car_configs.first()
+            ServerMessage::LobbyState(lobby) => {
+                let car_id = lobby.car_configs.first()
                     .ok_or("No car configs available")?.id;
-                let track_id = track_configs.first()
+                let track_id = lobby.track_configs.first()
                     .ok_or("No track configs available")?.id;
                 (car_id, track_id)
             }
@@ -452,10 +452,10 @@ async fn test_telemetry_broadcast() {
         
         // Extract car and track IDs from lobby state
         let (car_id, track_id) = match lobby_state1 {
-            ServerMessage::LobbyState { car_configs, track_configs, .. } => {
-                let car_id = car_configs.first()
+            ServerMessage::LobbyState(lobby) => {
+                let car_id = lobby.car_configs.first()
                     .ok_or("No car configs available")?.id;
-                let track_id = track_configs.first()
+                let track_id = lobby.track_configs.first()
                     .ok_or("No track configs available")?.id;
                 (car_id, track_id)
             }
@@ -1000,7 +1000,7 @@ impl TestClientMinimal {
         
         let response = self.receive_message().await?;
         let player_id = match response {
-            ServerMessage::AuthSuccess { player_id, .. } => player_id,
+            ServerMessage::AuthSuccess(data) => data.player_id,
             ServerMessage::AuthFailure { reason } => return Err(format!("Auth failed: {}", reason).into()),
             _ => return Err("Unexpected response".into()),
         };
@@ -1008,9 +1008,9 @@ impl TestClientMinimal {
         // Get lobby state
         let lobby = self.receive_message().await?;
         let (car_id, track_id) = match lobby {
-            ServerMessage::LobbyState { car_configs, track_configs, .. } => {
-                let car_id = car_configs.first().ok_or("No cars")?.id;
-                let track_id = track_configs.first().ok_or("No tracks")?.id;
+            ServerMessage::LobbyState(lobby) => {
+                let car_id = lobby.car_configs.first().ok_or("No cars")?.id;
+                let track_id = lobby.track_configs.first().ok_or("No tracks")?.id;
                 (car_id, track_id)
             }
             _ => return Err("Expected lobby state".into()),
@@ -1036,7 +1036,7 @@ impl TestClientMinimal {
         
         let response = self.receive_message().await?;
         match response {
-            ServerMessage::SessionJoined { session_id, .. } => Ok(session_id),
+            ServerMessage::SessionJoined(data) => Ok(data.session_id),
             ServerMessage::Error { message, .. } => Err(format!("Create failed: {}", message).into()),
             _ => Err("Unexpected response".into()),
         }
@@ -1088,8 +1088,8 @@ impl TestClientMinimal {
         for _ in 0..10 {
             let response = self.receive_message().await?;
             match response {
-                ServerMessage::SessionJoined { .. } => return Ok(()),
-                ServerMessage::LobbyState { .. } => continue, // Skip lobby updates
+                ServerMessage::SessionJoined(_) => return Ok(()),
+                ServerMessage::LobbyState(_) => continue, // Skip lobby updates
                 ServerMessage::Error { message, .. } => return Err(format!("Join failed: {}", message).into()),
                 _ => continue,
             }
@@ -1145,13 +1145,13 @@ async fn test_cli_client_workflow() {
 
         // Extract car and track IDs from lobby state
         let (car_id, track_id) = match lobby_state {
-            ServerMessage::LobbyState { car_configs, track_configs, .. } => {
-                let car_id = car_configs.first()
+            ServerMessage::LobbyState(lobby) => {
+                let car_id = lobby.car_configs.first()
                     .ok_or("No car configs available")?.id;
-                let track_id = track_configs.first()
+                let track_id = lobby.track_configs.first()
                     .ok_or("No track configs available")?.id;
                 println!("  ✓ Received lobby state: {} cars, {} tracks",
-                    car_configs.len(), track_configs.len());
+                    lobby.car_configs.len(), lobby.track_configs.len());
                 (car_id, track_id)
             }
             _ => return Err("Expected lobby state after authentication".into()),
@@ -1291,9 +1291,9 @@ async fn test_cli_client_workflow() {
         let mut lobby_confirmed = false;
         for _ in 0..10 {
             match timeout(Duration::from_millis(500), client.receive_tcp_message()).await {
-                Ok(Ok(ServerMessage::LobbyState { players_in_lobby, available_sessions, .. })) => {
+                Ok(Ok(ServerMessage::LobbyState(lobby))) => {
                     println!("  ✓ Back in lobby: {} players, {} sessions",
-                        players_in_lobby.len(), available_sessions.len());
+                        lobby.players_in_lobby.len(), lobby.available_sessions.len());
                     lobby_confirmed = true;
                     break;
                 }
@@ -1570,11 +1570,11 @@ async fn run_multi_client_test(
     for _ in 0..5 {
         let response = clients[0].receive_message().await?;
         match response {
-            ServerMessage::SessionJoined { session_id: sid, .. } => {
-                session_id = Some(sid);
+            ServerMessage::SessionJoined(data) => {
+                session_id = Some(data.session_id);
                 break;
             }
-            ServerMessage::LobbyState { .. } => continue, // Skip lobby updates
+            ServerMessage::LobbyState(_) => continue, // Skip lobby updates
             ServerMessage::Error { message, .. } => return Err(format!("Create failed: {}", message).into()),
             other => return Err(format!("Unexpected response: {:?}", other).into()),
         }
@@ -1766,10 +1766,10 @@ async fn test_sandbox_session_workflow() {
         
         // Extract car and track IDs from lobby state
         let (car_id, track_id) = match lobby_state {
-            ServerMessage::LobbyState { car_configs, track_configs, .. } => {
-                let car_id = car_configs.first()
+            ServerMessage::LobbyState(lobby) => {
+                let car_id = lobby.car_configs.first()
                     .ok_or("No car configs available")?.id;
-                let track_id = track_configs.first()
+                let track_id = lobby.track_configs.first()
                     .ok_or("No track configs available")?.id;
                 (car_id, track_id)
             }
