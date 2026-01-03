@@ -36,7 +36,7 @@ public partial class NetworkClient : Node
     public delegate void SessionStartingEventHandler(byte countdownSeconds);
 
     [Signal]
-    public delegate void GameModeChangedEventHandler(GameMode mode);
+    public delegate void GameModeChangedEventHandler(int mode);
 
     [Signal]
     public delegate void ErrorReceivedEventHandler(ushort code, string message);
