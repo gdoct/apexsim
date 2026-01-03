@@ -41,6 +41,9 @@ public partial class NetworkClient : Node
     [Signal]
     public delegate void ErrorReceivedEventHandler(ushort code, string message);
 
+    [Signal]
+    public delegate void TelemetryReceivedEventHandler();
+
     private TcpClient? _tcpClient;
     private NetworkStream? _stream;
     private bool _isConnected = false;
@@ -59,6 +62,9 @@ public partial class NetworkClient : Node
 
     // Store current session ID
     public string? CurrentSessionId { get; private set; }
+
+    // Store latest telemetry
+    public TelemetryMessage? LastTelemetry { get; private set; }
 
     public string ServerAddress { get; set; } = "127.0.0.1";
     public int ServerPort { get; set; } = 9000;
@@ -347,8 +353,9 @@ public partial class NetworkClient : Node
                 // Silently handle heartbeats
                 break;
 
-            case TelemetryMessage:
-                // Silently handle telemetry (will be processed by game view when needed)
+            case TelemetryMessage telemetry:
+                LastTelemetry = telemetry;
+                EmitSignal(SignalName.TelemetryReceived);
                 break;
 
             default:
@@ -464,7 +471,7 @@ public partial class NetworkClient : Node
                 "GameModeChanged" => BuildGameModeChanged(dataObj),
                 "Error" => BuildError(dataObj),
                 "PlayerDisconnected" => BuildPlayerDisconnected(dataObj),
-                "Telemetry" => new TelemetryMessage(),
+                "Telemetry" => BuildTelemetry(dataObj),
                 _ => throw new Exception($"Unknown server message type: {messageType}")
             };
         }
@@ -575,6 +582,53 @@ public partial class NetworkClient : Node
         return new PlayerDisconnectedMessage
         {
             PlayerId = ReadUuid(map, "player_id")
+        };
+    }
+
+    private static TelemetryMessage BuildTelemetry(object? data)
+    {
+        var map = ToStringMap(data);
+
+        var carStates = map.TryGetValue("car_states", out var carStatesObj)
+            ? ToList(carStatesObj).Select(BuildCarState).ToArray()
+            : Array.Empty<CarStateTelemetry>();
+
+        return new TelemetryMessage
+        {
+            ServerTick = (uint)ReadUInt(map, "server_tick"),
+            SessionState = (SessionState)ReadUInt(map, "session_state"),
+            GameMode = (GameMode)ReadUInt(map, "game_mode"),
+            CountdownMs = map.TryGetValue("countdown_ms", out var countdownObj) && countdownObj != null
+                ? (ushort)ReadUInt(map, "countdown_ms")
+                : null,
+            CarStates = carStates
+        };
+    }
+
+    private static CarStateTelemetry BuildCarState(object? obj)
+    {
+        var map = ToStringMap(obj);
+        return new CarStateTelemetry
+        {
+            PlayerId = ReadUuid(map, "player_id"),
+            PosX = ReadFloat(map, "pos_x"),
+            PosY = ReadFloat(map, "pos_y"),
+            PosZ = ReadFloat(map, "pos_z"),
+            YawRad = ReadFloat(map, "yaw_rad"),
+            PitchRad = ReadFloat(map, "pitch_rad"),
+            RollRad = ReadFloat(map, "roll_rad"),
+            SpeedMps = ReadFloat(map, "speed_mps"),
+            Throttle = ReadFloat(map, "throttle"),
+            Brake = ReadFloat(map, "brake"),
+            Steering = ReadFloat(map, "steering"),
+            Gear = (sbyte)ReadUInt(map, "gear"),
+            CurrentLap = (ushort)ReadUInt(map, "current_lap"),
+            TrackProgress = ReadFloat(map, "track_progress"),
+            FinishPosition = map.TryGetValue("finish_position", out var finishObj) && finishObj != null
+                ? (byte)ReadUInt(map, "finish_position")
+                : null,
+            IsOnTrack = map.TryGetValue("is_on_track", out var onTrackObj) && onTrackObj is bool onTrack && onTrack,
+            IsColliding = map.TryGetValue("is_colliding", out var collidingObj) && collidingObj is bool colliding && colliding
         };
     }
 

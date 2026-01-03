@@ -282,10 +282,21 @@ impl GameSession {
         match mode {
             GameMode::DemoLap => {
                 self.session.demo_lap_progress = Some(0.0);
+                // Change session state to Racing so telemetry is sent
+                self.session.state = SessionState::Racing;
+            }
+            GameMode::FreePractice => {
+                // Change session state to Racing so telemetry is sent
+                self.session.state = SessionState::Racing;
+            }
+            GameMode::Sandbox => {
+                // Change session state to Racing so telemetry is sent
+                self.session.state = SessionState::Racing;
             }
             GameMode::Countdown => {
                 // Default 10 second countdown as per spec
                 self.session.countdown_ticks_remaining = Some(240 * 10);
+                self.session.state = SessionState::Countdown;
             }
             _ => {
                 self.session.demo_lap_progress = None;

@@ -145,6 +145,37 @@ public class GameModeChangedMessage : ServerMessage
 
 public class TelemetryMessage : ServerMessage
 {
+    public uint ServerTick { get; set; }
+    public SessionState SessionState { get; set; }
+    public GameMode GameMode { get; set; }
+    public ushort? CountdownMs { get; set; }
+    public CarStateTelemetry[] CarStates { get; set; } = Array.Empty<CarStateTelemetry>();
+}
+
+public class CarStateTelemetry
+{
+    public string PlayerId { get; set; } = "";
+    // 3D Position
+    public float PosX { get; set; }
+    public float PosY { get; set; }
+    public float PosZ { get; set; }
+    // 3D Orientation
+    public float YawRad { get; set; }
+    public float PitchRad { get; set; }
+    public float RollRad { get; set; }
+    // Motion
+    public float SpeedMps { get; set; }
+    public float Throttle { get; set; }
+    public float Brake { get; set; }
+    public float Steering { get; set; }
+    public sbyte Gear { get; set; }
+    // Race progress
+    public ushort CurrentLap { get; set; }
+    public float TrackProgress { get; set; }
+    public byte? FinishPosition { get; set; }
+    // Status
+    public bool IsOnTrack { get; set; }
+    public bool IsColliding { get; set; }
 }
 
 // Data structures
