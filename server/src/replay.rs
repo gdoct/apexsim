@@ -345,6 +345,7 @@ mod tests {
             let telemetry = Telemetry {
                 server_tick: tick,
                 session_state: SessionState::Racing,
+                game_mode: GameMode::FreePractice,
                 countdown_ms: None,
                 car_states: vec![],
             };
@@ -384,6 +385,7 @@ mod tests {
             let telemetry = Telemetry {
                 server_tick: tick,
                 session_state: SessionState::Racing,
+                game_mode: GameMode::FreePractice,
                 countdown_ms: None,
                 car_states: vec![],
             };

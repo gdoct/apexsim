@@ -21,6 +21,7 @@ public partial class TrackSelectionDialog : Control
     private List<TrackCard> _trackCards = new();
     private TrackCard? _selectedCard = null;
     private PackedScene? _trackCardScene;
+    private bool _tracksPopulated = false;
 
     public override void _Ready()
     {
@@ -47,17 +48,13 @@ public partial class TrackSelectionDialog : Control
     private async void RequestTrackData()
     {
         _statusLabel!.Text = "Loading tracks...";
-        GD.Print("[TrackSelection] RequestTrackData started");
 
         // Use cached data if available
         if (_network!.LastLobbyState != null)
         {
-            GD.Print("[TrackSelection] Using cached lobby state");
             PopulateTracks(_network.LastLobbyState);
             return; // Don't request again if we already have data
         }
-
-        GD.Print("[TrackSelection] Requesting lobby state from server");
 
         if (!_network.IsConnected)
         {
@@ -69,7 +66,6 @@ public partial class TrackSelectionDialog : Control
         await _network.RequestLobbyStateAsync();
 
         // Timeout guard
-        GD.Print("[TrackSelection] After RequestLobbyStateAsync, _allTracks.Count = " + _allTracks.Count);
         await ToSignal(GetTree().CreateTimer(3.0), SceneTreeTimer.SignalName.Timeout);
         if (_allTracks.Count == 0)
         {
@@ -81,6 +77,7 @@ public partial class TrackSelectionDialog : Control
     private void OnLobbyStateReceived()
     {
         if (!IsInsideTree()) return;
+        if (_tracksPopulated) return; // Don't repopulate if already done
 
         var lobbyState = _network!.LastLobbyState;
         if (lobbyState == null) return;
@@ -93,24 +90,16 @@ public partial class TrackSelectionDialog : Control
         if (!IsInsideTree()) return;
         if (_gridContainer == null) return;
 
-        GD.Print($"[TrackSelection] PopulateTracks called with {lobbyState.TrackConfigs.Length} tracks from server");
-
         _allTracks.Clear();
 
         // Sort tracks by name
         var sortedTracks = new List<TrackConfigSummary>(lobbyState.TrackConfigs);
         sortedTracks.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
 
-        foreach (var track in sortedTracks)
-        {
-            GD.Print($"[TrackSelection]   Server track: {track.Name} (ID: {track.Id})");
-        }
-
         _allTracks.AddRange(sortedTracks);
 
         if (_allTracks.Count == 0)
         {
-            GD.Print("[TrackSelection] No tracks available!");
             _statusLabel!.Text = "No tracks available";
             _statusLabel.Modulate = Colors.Red;
             return;
@@ -121,13 +110,14 @@ public partial class TrackSelectionDialog : Control
 
         // Create track list items
         CreateTrackCards();
+
+        // Mark as populated to prevent repeated population
+        _tracksPopulated = true;
     }
 
     private void CreateTrackCards(string filter = "")
     {
         if (_gridContainer == null || _trackCardScene == null) return;
-
-        GD.Print($"[TrackSelection] CreateTrackCards called with {_allTracks.Count} total tracks");
 
         // Clear existing cards
         foreach (var card in _trackCards)
@@ -145,7 +135,6 @@ public partial class TrackSelectionDialog : Control
 
         if (filteredTracks.Count == 0)
         {
-            GD.Print("[TrackSelection] No tracks match filter");
             _statusLabel!.Text = "No tracks match your search";
             _statusLabel.Modulate = Colors.Yellow;
             return;
@@ -154,8 +143,6 @@ public partial class TrackSelectionDialog : Control
         _statusLabel!.Text = $"{filteredTracks.Count} track(s) available";
         _statusLabel.Modulate = Colors.Green;
 
-        GD.Print($"[TrackSelection] Adding {filteredTracks.Count} cards to GridContainer");
-
         // Create cards for filtered tracks
         foreach (var track in filteredTracks)
         {
@@ -163,12 +150,9 @@ public partial class TrackSelectionDialog : Control
             _gridContainer.AddChild(cardInstance);
             _trackCards.Add(cardInstance);
 
-            GD.Print($"[TrackSelection]   Adding track card: {track.Name} (ID: {track.Id})");
             cardInstance.SetupCard(track);
             cardInstance.CardClicked += OnCardClicked;
         }
-        
-        GD.Print($"[TrackSelection] GridContainer now has {_gridContainer.GetChildCount()} children");
     }
 
     private void OnCardClicked(TrackCard clickedCard)

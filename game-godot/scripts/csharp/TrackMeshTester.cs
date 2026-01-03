@@ -16,8 +16,6 @@ public partial class TrackMeshTester : Node3D
 
 	public override void _Ready()
 	{
-		GD.Print("=== Track Mesh Tester Starting ===");
-
 		// Generate track mesh directly (no viewport needed for validation)
 		_trackMesh = new MeshInstance3D();
 		AddChild(_trackMesh);
@@ -30,8 +28,6 @@ public partial class TrackMeshTester : Node3D
 
 	private void GenerateTestTrack()
 	{
-		GD.Print("Generating test track mesh...");
-
 		// Generate circular track points
 		var trackPoints = new List<Vector3>();
 		var numPoints = 60;
@@ -44,8 +40,6 @@ public partial class TrackMeshTester : Node3D
 			float z = radius * Mathf.Sin(angle);
 			trackPoints.Add(new Vector3(x, 0, z));
 		}
-
-		GD.Print($"Generated {trackPoints.Count} track points");
 
 		// Generate the mesh
 		var surfaceTool = new SurfaceTool();
@@ -97,7 +91,6 @@ public partial class TrackMeshTester : Node3D
 		}
 
 		var mesh = surfaceTool.Commit();
-		GD.Print($"Mesh committed with {mesh.GetSurfaceCount()} surfaces");
 
 		// Create material
 		var material = new StandardMaterial3D();
@@ -106,9 +99,6 @@ public partial class TrackMeshTester : Node3D
 
 		mesh.SurfaceSetMaterial(0, material);
 		_trackMesh!.Mesh = mesh;
-
-		GD.Print($"Track mesh AABB: {mesh.GetAabb()}");
-		GD.Print("Track mesh generation complete!");
 	}
 
 	private void ValidateAndExit()

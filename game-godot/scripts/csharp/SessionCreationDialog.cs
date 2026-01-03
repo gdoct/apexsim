@@ -216,8 +216,16 @@ public partial class SessionCreationDialog : Control
         _statusLabel!.Text = $"Session created! Grid position: {gridPosition}";
         _statusLabel.Modulate = Colors.Green;
 
-        // Close dialog and return to main menu where user can start the session
-        GetTree().CreateTimer(1.0).Timeout += QueueFree;
+        // Load the session lobby scene
+        var sessionLobbyScene = GD.Load<PackedScene>("res://scenes/session_lobby.tscn");
+        if (sessionLobbyScene != null)
+        {
+            var sessionLobby = sessionLobbyScene.Instantiate();
+            GetTree().Root.AddChild(sessionLobby);
+        }
+
+        // Close this dialog
+        QueueFree();
     }
 
     private void OnErrorReceived(ushort code, string message)

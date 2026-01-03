@@ -85,15 +85,12 @@ public partial class TrackCard : PanelContainer
                 var baseName = System.IO.Path.GetFileNameWithoutExtension(fileName);
                 var imagePath = $"res://assets/track_previews/{baseName}.png";
 
-                GD.Print($"[TrackCard] Loading image for {_trackConfig.Name}: {imagePath}");
-
                 if (ResourceLoader.Exists(imagePath))
                 {
                     var texture = GD.Load<Texture2D>(imagePath);
                     if (texture != null)
                     {
                         _trackImage.Texture = texture;
-                        GD.Print($"[TrackCard]   ✓ Loaded image: {baseName}.png");
                         return;
                     }
                 }
@@ -134,7 +131,6 @@ public partial class TrackCard : PanelContainer
     {
         if (_indexBuilt) return;
 
-        GD.Print("[TrackCard] Building track file name index...");
         _trackFileNameIndex.Clear();
 
         // Use ClientConfig to get the tracks directory
@@ -142,8 +138,6 @@ public partial class TrackCard : PanelContainer
         var contentDir = config.ContentDirectory;
         var tracksDir = System.IO.Path.Combine(contentDir, "tracks");
         var absoluteTracksPath = System.IO.Path.GetFullPath(tracksDir);
-
-        GD.Print($"[TrackCard] Scanning tracks in: {absoluteTracksPath}");
 
         if (!System.IO.Directory.Exists(absoluteTracksPath))
         {
@@ -156,7 +150,6 @@ public partial class TrackCard : PanelContainer
         ScanDirectoryForTracks(absoluteTracksPath);
 
         _indexBuilt = true;
-        GD.Print($"[TrackCard] Index built with {_trackFileNameIndex.Count} tracks");
     }
 
     private static void ScanDirectoryForTracks(string directoryPath)
@@ -185,7 +178,6 @@ public partial class TrackCard : PanelContainer
                                 {
                                     var fileName = System.IO.Path.GetFileName(filePath);
                                     _trackFileNameIndex[idValue] = fileName;
-                                    GD.Print($"[TrackCard]   Indexed: {idValue} -> {fileName}");
                                 }
                             }
                         }

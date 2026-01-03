@@ -1,0 +1,205 @@
+[gd_scene load_steps=4 format=3 uid="uid://session_lobby_scene"]
+
+[ext_resource type="Script" path="res://scripts/csharp/SessionLobby.cs" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://track_card_component" path="res://scenes/track_card.tscn" id="2_track_card"]
+[ext_resource type="PackedScene" uid="uid://car_card_component" path="res://scenes/car_card.tscn" id="3_car_card"]
+
+[node name="SessionLobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="MainContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 40
+
+[node name="VBox" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="Header" type="VBoxContainer" parent="MainContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="MainContainer/VBox/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 48
+text = "Session Lobby"
+horizontal_alignment = 1
+
+[node name="SessionInfo" type="Label" parent="MainContainer/VBox/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_font_sizes/font_size = 18
+text = "Track: Loading... | Players: 0/8"
+horizontal_alignment = 1
+
+[node name="GameModeLabel" type="Label" parent="MainContainer/VBox/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 20
+text = "Mode: Lobby"
+horizontal_alignment = 1
+
+[node name="HSplit" type="HSplitContainer" parent="MainContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LeftPanel" type="VBoxContainer" parent="MainContainer/VBox/HSplit"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="PlayersTitle" type="Label" parent="MainContainer/VBox/HSplit/LeftPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "Players"
+
+[node name="PlayersList" type="ScrollContainer" parent="MainContainer/VBox/HSplit/LeftPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="PlayersContainer" type="VBoxContainer" parent="MainContainer/VBox/HSplit/LeftPanel/PlayersList"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="RightPanel" type="VBoxContainer" parent="MainContainer/VBox/HSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 25
+
+[node name="SelectionTitle" type="Label" parent="MainContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "Track & Car Selection"
+horizontal_alignment = 1
+
+[node name="CardsHBox" type="HBoxContainer" parent="MainContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="TrackCardContainer" type="VBoxContainer" parent="MainContainer/VBox/HSplit/RightPanel/CardsHBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TrackCardLabel" type="Label" parent="MainContainer/VBox/HSplit/RightPanel/CardsHBox/TrackCardContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 16
+text = "Selected Track"
+horizontal_alignment = 1
+
+[node name="TrackCard" parent="MainContainer/VBox/HSplit/RightPanel/CardsHBox/TrackCardContainer" instance=ExtResource("2_track_card")]
+layout_mode = 2
+
+[node name="SelectTrackButton" type="Button" parent="MainContainer/VBox/HSplit/RightPanel/CardsHBox/TrackCardContainer"]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Change Track (Host)"
+disabled = true
+
+[node name="CarCardContainer" type="VBoxContainer" parent="MainContainer/VBox/HSplit/RightPanel/CardsHBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CarCardLabel" type="Label" parent="MainContainer/VBox/HSplit/RightPanel/CardsHBox/CarCardContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 16
+text = "Your Car"
+horizontal_alignment = 1
+
+[node name="CarCard" parent="MainContainer/VBox/HSplit/RightPanel/CardsHBox/CarCardContainer" instance=ExtResource("3_car_card")]
+layout_mode = 2
+
+[node name="SelectCarButton" type="Button" parent="MainContainer/VBox/HSplit/RightPanel/CardsHBox/CarCardContainer"]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Change Car"
+
+[node name="GameModeSection" type="VBoxContainer" parent="MainContainer/VBox/HSplit/RightPanel"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="GameModeTitle" type="Label" parent="MainContainer/VBox/HSplit/RightPanel/GameModeSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 20
+text = "Start Session (Host Only)"
+horizontal_alignment = 1
+
+[node name="ModeButtonsGrid" type="GridContainer" parent="MainContainer/VBox/HSplit/RightPanel/GameModeSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 15
+theme_override_constants/v_separation = 10
+columns = 3
+
+[node name="SandboxButton" type="Button" parent="MainContainer/VBox/HSplit/RightPanel/GameModeSection/ModeButtonsGrid"]
+custom_minimum_size = Vector2(180, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Sandbox
+Explore Track"
+disabled = true
+
+[node name="DemoLapButton" type="Button" parent="MainContainer/VBox/HSplit/RightPanel/GameModeSection/ModeButtonsGrid"]
+custom_minimum_size = Vector2(180, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Demo Lap
+Watch AI"
+disabled = true
+
+[node name="FreePracticeButton" type="Button" parent="MainContainer/VBox/HSplit/RightPanel/GameModeSection/ModeButtonsGrid"]
+custom_minimum_size = Vector2(180, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Free Practice
+Drive Yourself"
+disabled = true
+
+[node name="BottomBar" type="HBoxContainer" parent="MainContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="StatusLabel" type="Label" parent="MainContainer/VBox/BottomBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+text = "Ready"
+vertical_alignment = 1
+
+[node name="LeaveButton" type="Button" parent="MainContainer/VBox/BottomBar"]
+custom_minimum_size = Vector2(200, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Leave Session"

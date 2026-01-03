@@ -154,8 +154,8 @@ impl LobbyManager {
         }
         drop(sessions);
 
-        // Remove from lobby players and add to session
-        if self.players.write().await.remove(&player_id).is_some() {
+        // Keep player in lobby players list, but track their session membership
+        if self.players.read().await.contains_key(&player_id) {
             self.player_sessions.write().await.insert(player_id, session_id);
 
             // Update session player count
@@ -181,21 +181,25 @@ impl LobbyManager {
         }
         drop(sessions);
 
-        // Remove from lobby and add as spectator
-        self.players.write().await.remove(&player_id);
-        self.spectators.write().await.insert(player_id, session_id);
+        // Keep player in lobby, but track them as a spectator
+        if self.players.read().await.contains_key(&player_id) {
+            self.spectators.write().await.insert(player_id, session_id);
 
-        // Update spectator count
-        if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
-            session.spectator_count += 1;
+            // Update spectator count
+            if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+                session.spectator_count += 1;
+            }
+
+            info!("Player {} joined session {} as spectator", player_id, session_id);
+            true
+        } else {
+            warn!("Player {} not in lobby", player_id);
+            false
         }
-
-        info!("Player {} joined session {} as spectator", player_id, session_id);
-        true
     }
 
     /// Remove a player from a session (back to lobby)
-    pub async fn leave_session(&self, player_id: PlayerId, connection_id: ConnectionId) {
+    pub async fn leave_session(&self, player_id: PlayerId, _connection_id: ConnectionId) {
         // Check if player is in a session
         if let Some(session_id) = self.player_sessions.write().await.remove(&player_id) {
             // Update session player count
@@ -216,16 +220,7 @@ impl LobbyManager {
             info!("Spectator {} left session {}", player_id, session_id);
         }
 
-        // Add back to lobby (need to reconstruct player state)
-        // This is a simplified version - in production you'd store more info
-        let player = LobbyPlayerState {
-            player_id,
-            player_name: format!("Player-{}", player_id), // Placeholder
-            connection_id,
-            selected_car: None,
-        };
-
-        self.players.write().await.insert(player_id, player);
+        // Player remains in the lobby players list, just no longer in a session
     }
 
     /// Get all public sessions visible in lobby

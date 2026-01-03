@@ -69,16 +69,10 @@ public partial class TrackRenderer : Node3D
 
 	public override void _Ready()
 	{
-		GD.Print("========================================");
-		GD.Print("TrackRenderer _Ready called");
-		GD.Print("========================================");
-
 		try
 		{
 			_network = GetNode<NetworkClient>("/root/Network");
-			GD.Print("✓ Network client found");
 			_network.SessionJoined += OnSessionJoined;
-			GD.Print("✓ SessionJoined event subscribed");
 		}
 		catch (System.Exception ex)
 		{
@@ -89,7 +83,6 @@ public partial class TrackRenderer : Node3D
 		{
 			// Get camera reference (sibling node)
 			_camera = GetNode<Camera3D>("../Camera3D");
-			GD.Print($"✓ Camera found at position: {_camera?.Position}");
 		}
 		catch (System.Exception ex)
 		{
@@ -101,7 +94,6 @@ public partial class TrackRenderer : Node3D
 			// Setup back button (in UI CanvasLayer)
 			_backButton = GetNode<Button>("../UI/BackButton");
 			_backButton.Pressed += OnBackButtonPressed;
-			GD.Print("✓ Back button found and connected");
 		}
 		catch (System.Exception ex)
 		{
@@ -113,7 +105,6 @@ public partial class TrackRenderer : Node3D
 			// Create the track mesh instance
 			_trackMesh = new MeshInstance3D();
 			AddChild(_trackMesh);
-			GD.Print("✓ Track mesh instance created and added as child");
 		}
 		catch (System.Exception ex)
 		{
@@ -126,7 +117,6 @@ public partial class TrackRenderer : Node3D
 			var currentSessionId = _network?.CurrentSessionId;
 			if (!string.IsNullOrEmpty(currentSessionId))
 			{
-				GD.Print($"Player is in session: {currentSessionId}");
 				_currentSessionId = currentSessionId;
 
 				// Find the session in lobby state to get track file
@@ -137,10 +127,8 @@ public partial class TrackRenderer : Node3D
 					{
 						if (session.Id == currentSessionId)
 						{
-							GD.Print($"Found session in lobby: {session.TrackName}");
 							if (!string.IsNullOrEmpty(session.TrackFile))
 							{
-								GD.Print($"Loading track: {session.TrackFile}");
 								LoadAndRenderTrack(session.TrackFile);
 							}
 							break;
@@ -148,20 +136,12 @@ public partial class TrackRenderer : Node3D
 					}
 				}
 			}
-			else
-			{
-				GD.Print("Player is not in any session");
-			}
 		}
 		catch (System.Exception ex)
 		{
 			GD.PrintErr($"✗ Error checking for existing session: {ex.Message}");
 			GD.PrintErr($"Stack trace: {ex.StackTrace}");
 		}
-
-		GD.Print("========================================");
-		GD.Print("TrackRenderer _Ready finished");
-		GD.Print("========================================");
 	}
 
 	private void OnBackButtonPressed()
@@ -245,14 +225,6 @@ public partial class TrackRenderer : Node3D
 
 			// Apply rotation from mouse look
 			_camera.RotationDegrees = new Vector3(_cameraPitch, _cameraYaw, 0);
-
-			// Debug output for first few frames
-			if (_frameCount < 3)
-			{
-				GD.Print($"FreeCam Frame {_frameCount}: Camera at {_cameraPosition}, yaw: {_cameraYaw:F1}, pitch: {_cameraPitch:F1}");
-				GD.Print("Controls: Right-click + drag to look, WASD to move, QE to move up/down");
-				_frameCount++;
-			}
 		}
 		else
 		{
@@ -277,7 +249,6 @@ public partial class TrackRenderer : Node3D
 	private void OnSessionJoined(string sessionId, byte gridPosition)
 	{
 		_currentSessionId = sessionId;
-		GD.Print($"Joined session {sessionId}, grid position {gridPosition}");
 
 		// Get track name from lobby state
 		var lobbyState = _network?.LastLobbyState;
@@ -297,7 +268,6 @@ public partial class TrackRenderer : Node3D
 			return;
 		}
 
-		GD.Print($"Loading track: {session.TrackName} from {session.TrackFile}");
 		LoadAndRenderTrack(session.TrackFile);
 	}
 
@@ -305,7 +275,6 @@ public partial class TrackRenderer : Node3D
 	{
 		// For testing in sandbox mode without joining a session
 		// This should only be called when NOT in a session (direct scene load)
-		GD.Print("Sandbox mode: Generating circular test track...");
 		GenerateCircularTrack();
 	}
 
@@ -320,7 +289,6 @@ public partial class TrackRenderer : Node3D
 		try
 		{
 			var trackData = LoadTrackFromYaml(trackPath);
-			GD.Print($"✓ Loaded {trackData.Nodes.Count} track nodes from {trackPath}");
 
 			// Convert to track points and widths
 			var centerline = new List<Vector3>();
@@ -351,12 +319,10 @@ public partial class TrackRenderer : Node3D
 				widths.Add(width);
 			}
 
-			GD.Print($"✓ Converted {centerline.Count} track points");
 			GenerateGroundPlane(centerline, widths);
 			GenerateTrackMeshSpline(centerline, widths);
 			GenerateWhiteBorderArea(centerline, widths);
 			GenerateDottedOutlineSpline(centerline, widths);
-			GD.Print($"✓ Track mesh generation completed for {trackFile}");
 
 			// Add debug spheres at track points to see where they are
 			AddDebugMarkers(centerline);
@@ -367,7 +333,6 @@ public partial class TrackRenderer : Node3D
 			GD.PrintErr($"Stack trace: {ex.StackTrace}");
 
 			// Fallback to simple circular track
-			GD.Print("Falling back to circular test track...");
 			GenerateCircularTrack();
 		}
 	}
@@ -383,7 +348,6 @@ public partial class TrackRenderer : Node3D
 
 	private void GenerateCircularTrack()
 	{
-		GD.Print("Generating circular test track...");
 		var trackPoints = new List<Vector3>();
 		var numPoints = 60;
 		var radius = 100.0f;
@@ -397,7 +361,6 @@ public partial class TrackRenderer : Node3D
 			trackPoints.Add(new Vector3(x, y, z));
 		}
 
-		GD.Print($"Generated {trackPoints.Count} track points");
 		var widths = new List<float>();
 		for (int i = 0; i < trackPoints.Count; i++)
 		{
@@ -405,7 +368,6 @@ public partial class TrackRenderer : Node3D
 		}
 		GenerateGroundPlane(trackPoints, widths);
 		GenerateTrackMesh(trackPoints, 12.0f);
-		GD.Print("Track mesh generation completed");
 
 		// Add debug spheres at track points to see where they are
 		AddDebugMarkers(trackPoints);
@@ -432,7 +394,6 @@ public partial class TrackRenderer : Node3D
 
 			AddChild(sphere);
 		}
-		GD.Print($"✓ Added {points.Count / 10} red debug spheres at track centerline");
 	}
 
 	private List<Vector3> CatmullRom(List<Vector3> pts, int samplesPerSeg, bool closed)
@@ -571,9 +532,6 @@ public partial class TrackRenderer : Node3D
 		_trackMesh!.Mesh = mesh;
 		_trackMesh.Visible = true;
 		_trackMesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
-
-		GD.Print($"Spline track mesh assigned, visible: {_trackMesh.Visible}, position: {_trackMesh.Position}");
-		GD.Print($"Track mesh AABB: {mesh.GetAabb()}");
 	}
 
 	private void GenerateTrackMesh(List<Vector3> centerline, float trackWidth)
@@ -645,7 +603,6 @@ public partial class TrackRenderer : Node3D
 
 		// Generate the mesh
 		var mesh = surfaceTool.Commit();
-		GD.Print($"Mesh committed with {mesh.GetSurfaceCount()} surfaces");
 
 		if (mesh.GetSurfaceCount() == 0)
 		{
@@ -665,9 +622,6 @@ public partial class TrackRenderer : Node3D
 		_trackMesh!.Mesh = mesh;
 		_trackMesh.Visible = true;
 		_trackMesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
-
-		GD.Print($"Track mesh assigned, visible: {_trackMesh.Visible}, position: {_trackMesh.Position}");
-		GD.Print($"Track mesh AABB: {mesh.GetAabb()}");
 
 		// Add edge markings
 		GenerateTrackMarkings(centerline, trackWidth);
@@ -1026,6 +980,5 @@ public partial class TrackRenderer : Node3D
 		cube.Position = new Vector3(0, 10, 0); // 10 units above the track center
 
 		AddChild(cube);
-		GD.Print("✓ Added bright cyan test cube at center (0, 10, 0)");
 	}
 }

@@ -30,6 +30,7 @@ public partial class SessionBrowserDialog : Control
 
         _network = GetNode<NetworkClient>("/root/Network");
         _network.LobbyStateReceived += OnLobbyStateReceived;
+        _network.SessionJoined += OnSessionJoined;
 
         // Load car selection scene
         _carSelectionScene = GD.Load<PackedScene>("res://scenes/car_selection.tscn");
@@ -248,7 +249,21 @@ public partial class SessionBrowserDialog : Control
 
         await _network!.SelectCarAsync(_selectedCar.Id);
         await _network!.JoinSessionAsync(session.Id);
-        QueueFree(); // Close browser after joining
+        // Don't close yet - wait for SessionJoined event
+    }
+
+    private void OnSessionJoined(string sessionId, byte gridPosition)
+    {
+        // Load the session lobby scene
+        var sessionLobbyScene = GD.Load<PackedScene>("res://scenes/session_lobby.tscn");
+        if (sessionLobbyScene != null)
+        {
+            var sessionLobby = sessionLobbyScene.Instantiate();
+            GetTree().Root.AddChild(sessionLobby);
+        }
+
+        // Close this dialog
+        QueueFree();
     }
 
     public override void _ExitTree()
@@ -256,6 +271,7 @@ public partial class SessionBrowserDialog : Control
         if (_network != null)
         {
             _network.LobbyStateReceived -= OnLobbyStateReceived;
+            _network.SessionJoined -= OnSessionJoined;
         }
     }
 }

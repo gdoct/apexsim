@@ -56,29 +56,171 @@ impl GameSession {
     pub fn tick(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         self.session.current_tick += 1;
 
-        match self.session.state {
-            SessionState::Lobby => {
-                // Nothing to do in lobby
+        // Handle game mode specific logic
+        match self.session.game_mode {
+            GameMode::Lobby => {
+                self.tick_lobby();
             }
-            SessionState::Countdown => {
-                if let Some(ref mut countdown) = self.session.countdown_ticks_remaining {
-                    if *countdown > 0 {
-                        *countdown -= 1;
-                    } else {
-                        // Start racing
-                        self.session.state = SessionState::Racing;
-                        self.session.race_start_tick = Some(self.session.current_tick);
-                        self.session.countdown_ticks_remaining = None;
-                    }
-                }
+            GameMode::Sandbox => {
+                self.tick_sandbox();
             }
-            SessionState::Racing => {
-                self.tick_racing(inputs);
+            GameMode::Countdown => {
+                self.tick_countdown();
             }
-            SessionState::Finished => {
-                // Race is done
+            GameMode::DemoLap => {
+                self.tick_demolap();
+            }
+            GameMode::FreePractice => {
+                self.tick_free_practice(inputs);
+            }
+            GameMode::Replay => {
+                self.tick_replay();
+            }
+            GameMode::Qualification | GameMode::Race => {
+                // These modes are not yet implemented
+                // For now, treat them like FreePractice
+                self.tick_free_practice(inputs);
             }
         }
+    }
+
+    /// Lobby mode: Players selecting cars, no telemetry sent
+    fn tick_lobby(&mut self) {
+        // In lobby mode, no simulation occurs and no telemetry is sent
+        // Players are selecting cars and waiting for session to start
+    }
+
+    /// Sandbox mode: No movement, no telemetry recording, camera exploration only
+    fn tick_sandbox(&mut self) {
+        // In sandbox mode, nothing moves and no physics updates occur
+        // Players can freely move camera around the track
+        // No telemetry is recorded or sent
+    }
+
+    /// Countdown mode: Players frozen in pit lane, countdown timer running
+    fn tick_countdown(&mut self) {
+        if let Some(ref mut countdown) = self.session.countdown_ticks_remaining {
+            if *countdown > 0 {
+                *countdown -= 1;
+            } else {
+                // Countdown finished, transition to next mode
+                // The mode transition should be specified externally
+                // For now, we just clear the countdown
+                self.session.countdown_ticks_remaining = None;
+            }
+        }
+        // Players are frozen, no physics updates
+    }
+
+    /// Demo lap mode: Server drives a single demo car along the racing line
+    fn tick_demolap(&mut self) {
+        let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
+
+        // Initialize demo lap progress if not set
+        if self.session.demo_lap_progress.is_none() {
+            self.session.demo_lap_progress = Some(0.0);
+        }
+
+        if self.track_config.raceline.is_empty() {
+            // No racing line available, can't do demo lap
+            return;
+        }
+
+        let demo_speed = 50.0; // 50 m/s fixed speed
+        let raceline_len = self.track_config.raceline.len();
+
+        if let Some(ref mut progress) = self.session.demo_lap_progress {
+            // Advance progress along the racing line
+            *progress += (demo_speed * dt) / raceline_len as f32;
+
+            // Loop back when completing the lap
+            if *progress >= 1.0 {
+                *progress = 0.0;
+            }
+
+            // Calculate position on racing line
+            let index = (*progress * raceline_len as f32).floor() as usize;
+            let next_index = (index + 1) % raceline_len;
+            let t = (*progress * raceline_len as f32) - index as f32;
+
+            let p1 = &self.track_config.raceline[index];
+            let p2 = &self.track_config.raceline[next_index];
+
+            // Interpolate position
+            let x = p1.x + (p2.x - p1.x) * t;
+            let y = p1.y + (p2.y - p1.y) * t;
+            let z = p1.z + (p2.z - p1.z) * t;
+
+            // Update demo car if there's one participant
+            // In demo mode, we should have a single demo car
+            if let Some(demo_car) = self.session.participants.values_mut().next() {
+                demo_car.pos_x = x;
+                demo_car.pos_y = y;
+                demo_car.pos_z = z + 1.2; // Camera height 1.2m from surface
+
+                // Calculate forward direction
+                let dx = p2.x - p1.x;
+                let dy = p2.y - p1.y;
+                let dz = p2.z - p1.z;
+                let len = (dx * dx + dy * dy + dz * dz).sqrt();
+
+                if len > 0.001 {
+                    // Set velocity to move forward along racing line
+                    demo_car.vel_x = (dx / len) * demo_speed;
+                    demo_car.vel_y = (dy / len) * demo_speed;
+                    demo_car.vel_z = (dz / len) * demo_speed;
+                    demo_car.speed_mps = demo_speed;
+
+                    // Calculate yaw (heading) from velocity direction
+                    demo_car.yaw_rad = (dy / len).atan2(dx / len);
+                }
+            }
+        }
+    }
+
+    /// Free practice mode: Players drive freely with lap timing
+    fn tick_free_practice(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
+
+        // Update each car
+        let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
+
+        for state in states.iter_mut() {
+            // Get input for this player (default to coasting if missing)
+            let input = inputs
+                .get(&state.player_id)
+                .copied()
+                .unwrap_or_default();
+
+            // Get car config
+            if let Some(config) = self.car_configs.get(&state.car_config_id) {
+                // Update 3D physics with track context
+                physics::update_car_3d(state, config, &input, &self.track_config, dt);
+
+                // Update track progress
+                physics::update_track_progress_3d(
+                    state,
+                    &self.track_config,
+                    self.session.current_tick,
+                );
+            }
+        }
+
+        // Check collisions
+        let mut state_vec: Vec<CarState> = self.session.participants.values().cloned().collect();
+        physics::check_aabb_collisions_3d(&mut state_vec, &self.car_configs);
+
+        // Update states back
+        for state in state_vec {
+            self.session.participants.insert(state.player_id, state);
+        }
+    }
+
+    /// Replay mode: Send telemetry from recorded data (view-only)
+    fn tick_replay(&mut self) {
+        // Replay mode is not yet implemented
+        // This would play back previously recorded telemetry data
+        // For now, do nothing
     }
 
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
@@ -129,6 +271,46 @@ impl GameSession {
         if self.session.state == SessionState::Lobby {
             self.session.state = SessionState::Countdown;
             self.session.countdown_ticks_remaining = Some(240 * 5); // 5 seconds at 240Hz
+        }
+    }
+
+    /// Set the game mode
+    pub fn set_game_mode(&mut self, mode: GameMode) {
+        self.session.game_mode = mode;
+
+        // Initialize mode-specific state
+        match mode {
+            GameMode::DemoLap => {
+                self.session.demo_lap_progress = Some(0.0);
+            }
+            GameMode::Countdown => {
+                // Default 10 second countdown as per spec
+                self.session.countdown_ticks_remaining = Some(240 * 10);
+            }
+            _ => {
+                self.session.demo_lap_progress = None;
+            }
+        }
+    }
+
+    /// Start countdown mode with custom duration and specify next mode
+    pub fn start_countdown_mode(&mut self, countdown_seconds: u16, _next_mode: GameMode) {
+        self.session.game_mode = GameMode::Countdown;
+        self.session.countdown_ticks_remaining = Some(240 * countdown_seconds);
+        // TODO: Store next_mode to transition to when countdown finishes
+    }
+
+    /// Transition from Countdown to another mode
+    pub fn transition_from_countdown(&mut self, next_mode: GameMode) {
+        self.session.game_mode = next_mode;
+        self.session.countdown_ticks_remaining = None;
+
+        // Initialize the next mode
+        match next_mode {
+            GameMode::DemoLap => {
+                self.session.demo_lap_progress = Some(0.0);
+            }
+            _ => {}
         }
     }
 
@@ -219,6 +401,7 @@ impl GameSession {
         let telemetry = crate::network::Telemetry {
             server_tick: self.session.current_tick,
             session_state: self.session.state,
+            game_mode: self.session.game_mode,
             countdown_ms,
             car_states,
         };
@@ -354,10 +537,11 @@ mod tests {
     #[test]
     fn test_tick_countdown() {
         let mut game_session = create_test_session();
-        game_session.start_countdown();
+        // Use the new game mode system
+        game_session.set_game_mode(GameMode::Countdown);
 
         let initial_countdown = game_session.session.countdown_ticks_remaining.unwrap();
-        
+
         let inputs = HashMap::new();
         game_session.tick(&inputs);
 
@@ -367,18 +551,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_tick_to_racing() {
-        let mut game_session = create_test_session();
-        game_session.session.state = SessionState::Countdown;
-        game_session.session.countdown_ticks_remaining = Some(0);
-
-        let inputs = HashMap::new();
-        game_session.tick(&inputs);
-
-        assert_eq!(game_session.session.state, SessionState::Racing);
-        assert!(game_session.session.race_start_tick.is_some());
-    }
 
     #[test]
     fn test_ai_input_generation() {
@@ -429,5 +601,281 @@ mod tests {
         for ai_id in &game_session.session.ai_player_ids {
             assert!(game_session.is_ai_player(ai_id));
         }
+    }
+
+    // --- Game Mode Tests ---
+
+    #[test]
+    fn test_default_game_mode_is_lobby() {
+        let game_session = create_test_session();
+        assert_eq!(game_session.session.game_mode, GameMode::Lobby);
+    }
+
+    #[test]
+    fn test_lobby_mode_tick() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::Lobby);
+
+        let initial_tick = game_session.session.current_tick;
+        let inputs = HashMap::new();
+
+        game_session.tick(&inputs);
+
+        // Tick counter should increment
+        assert_eq!(game_session.session.current_tick, initial_tick + 1);
+
+        // No participants should move in lobby mode
+        assert_eq!(game_session.session.participants.len(), 0);
+    }
+
+    #[test]
+    fn test_sandbox_mode_tick() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::Sandbox);
+
+        // Add a player
+        let player_id = Uuid::new_v4();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.add_player(player_id, car_id);
+
+        let initial_pos = game_session.session.participants.get(&player_id).unwrap().pos_x;
+        let inputs = HashMap::new();
+
+        game_session.tick(&inputs);
+
+        // Position should not change in sandbox mode
+        let final_pos = game_session.session.participants.get(&player_id).unwrap().pos_x;
+        assert_eq!(initial_pos, final_pos);
+    }
+
+    #[test]
+    fn test_countdown_mode_decrements() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::Countdown);
+
+        let initial_countdown = game_session.session.countdown_ticks_remaining.unwrap();
+        let inputs = HashMap::new();
+
+        game_session.tick(&inputs);
+
+        assert_eq!(
+            game_session.session.countdown_ticks_remaining.unwrap(),
+            initial_countdown - 1
+        );
+    }
+
+    #[test]
+    fn test_countdown_mode_finishes() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::Countdown);
+        game_session.session.countdown_ticks_remaining = Some(1);
+
+        let inputs = HashMap::new();
+        game_session.tick(&inputs); // Decrements to 0
+
+        // Should be 0 now
+        assert_eq!(game_session.session.countdown_ticks_remaining, Some(0));
+
+        game_session.tick(&inputs); // Clears to None
+
+        // Countdown should be None after finishing
+        assert_eq!(game_session.session.countdown_ticks_remaining, None);
+    }
+
+    #[test]
+    fn test_demolap_mode_initializes_progress() {
+        let mut game_session = create_test_session();
+
+        // Add a demo car
+        let player_id = Uuid::new_v4();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.add_player(player_id, car_id);
+
+        game_session.set_game_mode(GameMode::DemoLap);
+
+        assert!(game_session.session.demo_lap_progress.is_some());
+        assert_eq!(game_session.session.demo_lap_progress.unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_demolap_mode_advances_progress() {
+        let mut game_session = create_test_session();
+
+        // Add a demo car
+        let player_id = Uuid::new_v4();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.add_player(player_id, car_id);
+
+        // Add racing line to track
+        game_session.track_config.raceline = vec![
+            RacelinePoint { x: 0.0, y: 0.0, z: 0.0 },
+            RacelinePoint { x: 100.0, y: 0.0, z: 0.0 },
+            RacelinePoint { x: 100.0, y: 100.0, z: 0.0 },
+            RacelinePoint { x: 0.0, y: 100.0, z: 0.0 },
+        ];
+
+        game_session.set_game_mode(GameMode::DemoLap);
+
+        let initial_progress = game_session.session.demo_lap_progress.unwrap();
+        let inputs = HashMap::new();
+
+        game_session.tick(&inputs);
+
+        // Progress should advance
+        assert!(game_session.session.demo_lap_progress.unwrap() > initial_progress);
+    }
+
+    #[test]
+    fn test_demolap_mode_loops() {
+        let mut game_session = create_test_session();
+
+        // Add a demo car
+        let player_id = Uuid::new_v4();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.add_player(player_id, car_id);
+
+        // Add racing line
+        game_session.track_config.raceline = vec![
+            RacelinePoint { x: 0.0, y: 0.0, z: 0.0 },
+            RacelinePoint { x: 100.0, y: 0.0, z: 0.0 },
+        ];
+
+        game_session.set_game_mode(GameMode::DemoLap);
+
+        // Set progress near the end
+        game_session.session.demo_lap_progress = Some(0.99);
+
+        let inputs = HashMap::new();
+        game_session.tick(&inputs);
+
+        // Should loop back to near 0
+        assert!(game_session.session.demo_lap_progress.unwrap() < 0.5);
+    }
+
+    #[test]
+    fn test_free_practice_mode_updates_physics() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::FreePractice);
+
+        // Add a player
+        let player_id = Uuid::new_v4();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.add_player(player_id, car_id);
+
+        let initial_pos_x = game_session.session.participants.get(&player_id).unwrap().pos_x;
+
+        // Apply throttle input
+        let mut inputs = HashMap::new();
+        inputs.insert(player_id, PlayerInputData {
+            throttle: 1.0,
+            brake: 0.0,
+            steering: 0.0,
+        });
+
+        // Run several ticks to allow physics to update
+        for _ in 0..240 {
+            game_session.tick(&inputs);
+        }
+
+        // Car should have moved after applying throttle for 1 second
+        let final_pos_x = game_session.session.participants.get(&player_id).unwrap().pos_x;
+        assert_ne!(initial_pos_x, final_pos_x);
+    }
+
+    #[test]
+    fn test_set_game_mode() {
+        let mut game_session = create_test_session();
+
+        game_session.set_game_mode(GameMode::Sandbox);
+        assert_eq!(game_session.session.game_mode, GameMode::Sandbox);
+
+        game_session.set_game_mode(GameMode::Countdown);
+        assert_eq!(game_session.session.game_mode, GameMode::Countdown);
+        assert!(game_session.session.countdown_ticks_remaining.is_some());
+
+        game_session.set_game_mode(GameMode::DemoLap);
+        assert_eq!(game_session.session.game_mode, GameMode::DemoLap);
+        assert!(game_session.session.demo_lap_progress.is_some());
+    }
+
+    #[test]
+    fn test_start_countdown_mode() {
+        let mut game_session = create_test_session();
+
+        game_session.start_countdown_mode(10, GameMode::FreePractice);
+
+        assert_eq!(game_session.session.game_mode, GameMode::Countdown);
+        assert_eq!(game_session.session.countdown_ticks_remaining, Some(240 * 10));
+    }
+
+    #[test]
+    fn test_transition_from_countdown() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::Countdown);
+
+        game_session.transition_from_countdown(GameMode::FreePractice);
+
+        assert_eq!(game_session.session.game_mode, GameMode::FreePractice);
+        assert_eq!(game_session.session.countdown_ticks_remaining, None);
+    }
+
+    #[test]
+    fn test_transition_from_countdown_to_demolap() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::Countdown);
+
+        game_session.transition_from_countdown(GameMode::DemoLap);
+
+        assert_eq!(game_session.session.game_mode, GameMode::DemoLap);
+        assert!(game_session.session.demo_lap_progress.is_some());
+    }
+
+    #[test]
+    fn test_replay_mode_does_nothing() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::Replay);
+
+        let initial_tick = game_session.session.current_tick;
+        let inputs = HashMap::new();
+
+        game_session.tick(&inputs);
+
+        // Tick should increment but nothing else happens
+        assert_eq!(game_session.session.current_tick, initial_tick + 1);
+    }
+
+    #[test]
+    fn test_demolap_without_raceline() {
+        let mut game_session = create_test_session();
+
+        // Add a demo car
+        let player_id = Uuid::new_v4();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.add_player(player_id, car_id);
+
+        // Clear raceline
+        game_session.track_config.raceline.clear();
+
+        game_session.set_game_mode(GameMode::DemoLap);
+
+        let inputs = HashMap::new();
+        game_session.tick(&inputs);
+
+        // Should not crash when raceline is empty
+        assert_eq!(game_session.session.game_mode, GameMode::DemoLap);
+    }
+
+    #[test]
+    fn test_mode_persists_across_ticks() {
+        let mut game_session = create_test_session();
+        game_session.set_game_mode(GameMode::Sandbox);
+
+        let inputs = HashMap::new();
+        for _ in 0..10 {
+            game_session.tick(&inputs);
+        }
+
+        // Mode should still be Sandbox
+        assert_eq!(game_session.session.game_mode, GameMode::Sandbox);
     }
 }
