@@ -124,7 +124,7 @@
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "dedicated"
             }
         },
         {
