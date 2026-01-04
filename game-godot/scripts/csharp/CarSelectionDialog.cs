@@ -345,7 +345,7 @@ public partial class CarSelectionDialog : Control
         _selectedCard.IsSelected = true;
 
         // Emit signal and close immediately
-        EmitSignal(SignalName.CarSelected, _selectedCard.CarConfig.Id.ToString(), _selectedCard.CarConfig.Name);
+        EmitSignal(SignalName.CarSelected, _selectedCard?.CarConfig?.Id.ToString() ?? string.Empty, _selectedCard?.CarConfig?.Name ?? string.Empty);
         QueueFree();
     }
 

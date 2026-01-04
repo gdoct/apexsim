@@ -223,6 +223,7 @@ impl GameSession {
         // For now, do nothing
     }
 
+    #[allow(dead_code)]
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
 
@@ -420,6 +421,7 @@ impl GameSession {
         ServerMessage::Telemetry(telemetry)
     }
 
+    #[allow(dead_code)]
     fn is_race_complete(&self) -> bool {
         // Race is complete if all cars have finished required laps
         if self.session.participants.is_empty() {
@@ -432,6 +434,7 @@ impl GameSession {
             .all(|s| s.current_lap > self.session.lap_limit as u16)
     }
 
+    #[allow(dead_code)]
     fn assign_finish_positions(&mut self) {
         let mut finishers: Vec<(PlayerId, u16, f32)> = self
             .session

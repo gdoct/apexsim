@@ -117,7 +117,7 @@ public partial class TrackCard : PanelContainer
     private void CreatePlaceholderImage()
     {
         // Create a simple placeholder image
-        var image = Image.Create(400, 300, false, Image.Format.Rgb8);
+        var image = Image.CreateEmpty(400, 300, false, Image.Format.Rgb8);
         image.Fill(new Color(0.08f, 0.08f, 0.12f)); // Dark background
 
         var texture = ImageTexture.CreateFromImage(image);

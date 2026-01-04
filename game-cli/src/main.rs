@@ -10,7 +10,7 @@ use clap::Parser;
 use console::{style, Term};
 use dialoguer::{Input, Select};
 use std::time::Duration;
-use tracing::{error, info, warn};
+use tracing::{warn};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "ApexSim Racing CLI Client", long_about = None)]
