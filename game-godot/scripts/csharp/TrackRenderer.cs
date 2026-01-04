@@ -7,43 +7,6 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace ApexSim;
 
-// Track data structures for YAML deserialization
-public class TrackNode
-{
-	public float X { get; set; }
-	public float Y { get; set; }
-	public float Z { get; set; }
-	public float? Width { get; set; }
-	public float? WidthLeft { get; set; }
-	public float? WidthRight { get; set; }
-	public float? Banking { get; set; }
-	public float? Friction { get; set; }
-	public string? SurfaceType { get; set; }
-}
-
-public class TrackMetadata
-{
-	public string? Country { get; set; }
-	public string? City { get; set; }
-	public float? LengthM { get; set; }
-	public string? Description { get; set; }
-	public int? YearBuilt { get; set; }
-	public string? Category { get; set; }
-}
-
-public class TrackData
-{
-	public string? TrackId { get; set; }
-	public string Name { get; set; } = "";
-	public List<TrackNode> Nodes { get; set; } = new();
-	public List<Dictionary<string, object>>? Checkpoints { get; set; }
-	public List<Dictionary<string, object>>? SpawnPoints { get; set; }
-	public float? DefaultWidth { get; set; }
-	public bool? ClosedLoop { get; set; }
-	public List<TrackNode>? Raceline { get; set; }
-	public TrackMetadata? Metadata { get; set; }
-}
-
 public partial class TrackRenderer : Node3D
 {
 	private MeshInstance3D? _trackMesh;
@@ -81,12 +44,12 @@ public partial class TrackRenderer : Node3D
 	private float _cameraFollowSmoothness = 5.0f;
 
 	// Camera view modes
-	private enum CameraViewMode
-	{
-		Chase = 0,     // Behind and above (default)
-		Hood = 1,      // On the hood
-		Cockpit = 2    // Inside cockpit
-	}
+	// private enum CameraViewMode
+	// {
+	// 	Chase = 0,     // Behind and above (default)
+	// 	Hood = 1,      // On the hood
+	// 	Cockpit = 2    // Inside cockpit
+	// }
 	private CameraViewMode _currentViewMode = CameraViewMode.Chase;
 
 	// Camera offset presets for each view mode

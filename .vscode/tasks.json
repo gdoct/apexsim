@@ -120,7 +120,7 @@
         {
             "label": "Game: Copy",
             "type": "shell",
-            "command": "cp -R ./game-godot /mnt/c/Data/ApexSim/apexsim/ && cp -R ./content /mnt/c/Data/ApexSim/apexsim/",
+            "command": "cp -R ./game-godot /mnt/c/Data/ApexSim/apexsim/",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
