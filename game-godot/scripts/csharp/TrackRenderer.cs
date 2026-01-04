@@ -43,21 +43,14 @@ public partial class TrackRenderer : Node3D
 	private Vector3 _cameraFollowOffset = new Vector3(0, 10, 20); // Behind and above the car (updated to match chase preset)
 	private float _cameraFollowSmoothness = 5.0f;
 
-	// Camera view modes
-	// private enum CameraViewMode
-	// {
-	// 	Chase = 0,     // Behind and above (default)
-	// 	Hood = 1,      // On the hood
-	// 	Cockpit = 2    // Inside cockpit
-	// }
 	private CameraViewMode _currentViewMode = CameraViewMode.Chase;
 
 	// Camera offset presets for each view mode
-	private readonly Vector3[] _cameraViewOffsets = new Vector3[]
+	private readonly Dictionary<CameraViewMode, Vector3> _cameraViewOffsets = new Dictionary<CameraViewMode, Vector3>
 	{
-		new Vector3(0, 10, 20),  // Chase: behind and above
-		new Vector3(0, 2, 4),    // Hood: low and close
-		new Vector3(0, 2.5f, 1)  // Cockpit: inside the car
+		{ CameraViewMode.Chase, new Vector3(0, 3, 4) },  // Chase: behind and above
+		{ CameraViewMode.Hood, new Vector3(0, 1, 2) },    // Hood: low and close
+		{ CameraViewMode.Cockpit, new Vector3(0, .2f, .5f) }  // Cockpit: inside the car
 	};
 
 	public override void _Ready()
@@ -190,8 +183,8 @@ public partial class TrackRenderer : Node3D
 			// Cycle camera view with F1
 			else if (keyEvent.Keycode == Key.F1)
 			{
-				_currentViewMode = (CameraViewMode)(((int)_currentViewMode + 1) % 3);
-				_cameraFollowOffset = _cameraViewOffsets[(int)_currentViewMode];
+				_currentViewMode = (CameraViewMode)(((int)_currentViewMode + 1) % ((int)CameraViewMode.Cockpit + 1));
+				_cameraFollowOffset = _cameraViewOffsets[_currentViewMode];
 
 				string viewName = _currentViewMode switch
 				{
@@ -332,7 +325,6 @@ public partial class TrackRenderer : Node3D
 		if (lobbyState == null)
 		{
 			GD.PrintErr("No lobby state available, cannot determine track");
-			GenerateCircularTrack();
 			return;
 		}
 
@@ -341,7 +333,6 @@ public partial class TrackRenderer : Node3D
 		if (session == null)
 		{
 			GD.PrintErr($"Session {sessionId} not found in lobby state");
-			GenerateCircularTrack();
 			return;
 		}
 
@@ -372,7 +363,7 @@ public partial class TrackRenderer : Node3D
 		}
 
 		// Scale up the car model to make it more visible (car models might be too small)
-		_demoCarModel.Scale = new Vector3(3.0f, 3.0f, 3.0f);
+		_demoCarModel.Scale = new Vector3(1.0f, 1.0f, 1.0f);
 
 		// Add the car model to the scene but initially invisible
 		AddChild(_demoCarModel);
