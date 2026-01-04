@@ -6,7 +6,6 @@ pub type PlayerId = Uuid;
 pub type SessionId = Uuid;
 pub type CarConfigId = Uuid;
 pub type TrackConfigId = Uuid;
-pub type ConnectionId = u64;
 
 // --- Session State ---
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

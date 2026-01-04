@@ -69,12 +69,11 @@ public partial class MainMenu : Control
     {
         bool connected = _network!.IsConnected;
 
-        _btnConnect.Visible = !connected;
-        _btnCreateSession.Visible = connected && !_inSession;
-        _btnJoinSession.Visible = connected && !_inSession;
-        _btnLeaveSession.Visible = connected && _inSession;
-        _btnStartSession.Visible = connected && _inSession;
-
+        _btnConnect!.Visible = !connected;
+        _btnCreateSession!.Visible = connected && !_inSession;
+        _btnJoinSession!.Visible = connected && !_inSession;
+        _btnLeaveSession!.Visible = connected && _inSession;
+        _btnStartSession!.Visible = connected && _inSession;
         if (connected)
         {
             var playerId = _network.PlayerId;

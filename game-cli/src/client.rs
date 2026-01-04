@@ -5,7 +5,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 /// Network client for connecting to ApexSim server
 pub struct NetworkClient {
@@ -159,6 +159,7 @@ impl NetworkClient {
     }
 
     /// Check if connected
+    #[allow(dead_code)]
     pub fn is_connected(&self) -> bool {
         self.tcp_stream.is_some()
     }

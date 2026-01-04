@@ -7,8 +7,10 @@ use uuid::Uuid;
 struct CarToml {
     id: String,
     name: String,
+    #[allow(dead_code)]
     version: String,
     model: String,
+    #[allow(dead_code)]
     texture_folder: Option<String>,
     physics: PhysicsToml,
 }
