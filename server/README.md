@@ -29,6 +29,9 @@ server/
 └── target/              # Cargo build artifacts (ignored by VCS)
 ```
 
+### Serialization
+All network communication between the client and server relies on the [MessagePack](https://msgpack.org/) serialization format. We use the `rmp_serde` crate to encode and decode Rust data structures. This binary format was chosen for its high performance and compact message size, both of which are essential for a real-time simulation environment.
+
 ## Prerequisites
 
 - Rust 1.76+ with `cargo` (tokio + rustls require a modern compiler)

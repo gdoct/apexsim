@@ -27,30 +27,30 @@ public partial class TrackRenderer : Node3D
 
 	// Content path configuration - relative to game-godot directory
 	private string _contentBasePath = "../content";
-	private float _cameraDistance = 250.0f; // Start a bit farther away
-	private const float MinCameraDistance = 50.0f;
-	private const float MaxCameraDistance = 500.0f;
-	private const float ZoomSpeed = 20.0f;
+	private float _cameraDistance = 250.0f * 50.0f; // Start a bit farther away
+	private const float MinCameraDistance = 50.0f * 50.0f;
+	private const float MaxCameraDistance = 500.0f * 50.0f;
+	private const float ZoomSpeed = 20.0f * 50.0f;
 
 	// Free camera controls
 	private bool _isMouseDragging = false;
 	private float _cameraYaw = 0.0f;
 	private float _cameraPitch = -45.0f; // Start looking down
-	private Vector3 _cameraPosition = new Vector3(0, 5, 5); // Close to track surface
+	private Vector3 _cameraPosition = new Vector3(0, 5, 5) * 50.0f; // Close to track surface
 	private bool _useFreeCam = false; // Start with follow cam in demo mode
 
 	// Camera follow settings
-	private Vector3 _cameraFollowOffset = new Vector3(0, 10, 20); // Behind and above the car (updated to match chase preset)
+	private Vector3 _cameraFollowOffset = new Vector3(0, 1.4f, 0.2f) * 50.0f; // Cockpit: inside the car
 	private float _cameraFollowSmoothness = 5.0f;
 
-	private CameraViewMode _currentViewMode = CameraViewMode.Chase;
+	private CameraViewMode _currentViewMode = CameraViewMode.Cockpit;
 
 	// Camera offset presets for each view mode
 	private readonly Dictionary<CameraViewMode, Vector3> _cameraViewOffsets = new Dictionary<CameraViewMode, Vector3>
 	{
-		{ CameraViewMode.Chase, new Vector3(0, 3, 4) },  // Chase: behind and above
-		{ CameraViewMode.Hood, new Vector3(0, 1, 2) },    // Hood: low and close
-		{ CameraViewMode.Cockpit, new Vector3(0, .2f, .5f) }  // Cockpit: inside the car
+		{ CameraViewMode.Chase, new Vector3(0, 3, 4) * 50.0f },  // Chase: behind and above
+		{ CameraViewMode.Hood, new Vector3(0, 1, 2) * 50.0f },    // Hood: low and close
+		{ CameraViewMode.Cockpit, new Vector3(0, 1.4f, 0.2f) * 50.0f }  // Cockpit: inside the car (driver eye height)
 	};
 
 	public override void _Ready()
@@ -85,6 +85,10 @@ public partial class TrackRenderer : Node3D
 		{
 			// Get camera reference (sibling node)
 			_camera = GetNode<Camera3D>("../Camera3D");
+			if (_camera != null)
+			{
+				_camera.Far = 200000.0f; // Increase draw distance for 50x scale
+			}
 		}
 		catch (System.Exception ex)
 		{
@@ -244,7 +248,7 @@ public partial class TrackRenderer : Node3D
 		if (_useFreeCam)
 		{
 			// Free camera mode - WASD movement and mouse look
-			float moveSpeed = 50.0f * (float)delta;
+			float moveSpeed = 50.0f * 50.0f * (float)delta;
 
 			// WASD movement in camera's local space
 			Vector3 forward = -_camera.Transform.Basis.Z; // Camera's forward direction
@@ -290,10 +294,58 @@ public partial class TrackRenderer : Node3D
 				Vector3 targetPosition = carPosition + rotatedOffset;
 
 				// Smoothly interpolate camera position
-				_camera.Position = _camera.Position.Lerp(targetPosition, _cameraFollowSmoothness * (float)delta);
-
-				// Look at the car
-				_camera.LookAt(carPosition, Vector3.Up);
+				if (_currentViewMode == CameraViewMode.Cockpit || _currentViewMode == CameraViewMode.Hood)
+				{
+					// For cockpit/hood, move instantly and match rotation
+					_camera.Position = targetPosition;
+					
+					// Match car rotation but stay level? Or matches pitch/roll? 
+					// For now, simpler implementation: Look at a point far ahead of the car
+					Vector3 forwardOffset = new Vector3(
+						-Mathf.Sin(carYaw),
+						0, // Keep level for now or pitch with car?
+						-Mathf.Cos(carYaw)
+					) * 1000.0f; // Look far ahead
+					
+					// Note: Car model is rotated 180 degrees in previous logic (LookAt(back)). 
+					// Let's rely on carRotation again.
+					// If carRotation.Y is the yaw.
+					
+					_camera.Rotation = new Vector3(0, carRotation.Y + Mathf.Pi, 0); // +PI because model is flipped?
+					
+					// Re-verify the flip logic from OnTelemetryReceived:
+					// _demoCarModel.LookAt(nextPosition, Vector3.Up);
+					// nextPosition = carPosition - ... (direction negated).
+					// So car model +Z axis points "Forward" in world space? No, LookAt makes -Z point to target.
+					// If target is "behind" (velocity negated), then -Z points backwards. +Z points forwards.
+					// So the model is BACKWARDS.
+					
+					// If we want Camera to look Forward. Forward is direction of velocity.
+					// Velocity direction has angle `carState.YawRad`.
+					// Godot 0 angle is South? (Z+)
+					// Math.Cos/Sin usages suggests: X = Cos, Y(Z) = Sin? No, usage is `Speed * Cos(Yaw)`
+					
+					// Better approach: Look at where the car is heading!
+					// In OnTelemetryReceived calculated `nextPosition` (which was actually previous/behind position?)
+					
+					// Let's just use the rotation that looks "Forward" relative to the car.
+					// If the car model is flipped 180, we rotate camera 180 relative to it.
+					// Or just LookAt(carPosition + CarForwardVector * 1000)
+					
+					// Get the car's basis
+					var carBasis = _demoCarModel.GlobalTransform.Basis;
+					// The car model forward (-Z) is actually pointing BACKWARDS due to the fix in OnTelemetry.
+					// So the car's "real forward" is +Z.
+					Vector3 realForward = carBasis.Z; 
+					
+					_camera.LookAt(_camera.Position + realForward * 100.0f, Vector3.Up);
+				}
+				else
+				{
+					_camera.Position = _camera.Position.Lerp(targetPosition, _cameraFollowSmoothness * (float)delta);
+					// Look at the car
+					_camera.LookAt(carPosition, Vector3.Up);
+				}
 			}
 			else
 			{
@@ -363,7 +415,7 @@ public partial class TrackRenderer : Node3D
 		}
 
 		// Scale up the car model to make it more visible (car models might be too small)
-		_demoCarModel.Scale = new Vector3(1.0f, 1.0f, 1.0f);
+		_demoCarModel.Scale = new Vector3(50.0f, 50.0f, 50.0f);
 
 		// Add the car model to the scene but initially invisible
 		AddChild(_demoCarModel);
@@ -466,7 +518,7 @@ public partial class TrackRenderer : Node3D
 			carState.PosX,
 			carState.PosZ,  // Z becomes Y (height)
 			-carState.PosY  // Y becomes -Z (flipped)
-		);
+		) * 50.0f;
 
 		_demoCarModel.Position = carPosition;
 
@@ -481,7 +533,7 @@ public partial class TrackRenderer : Node3D
 				carState.SpeedMps * Mathf.Cos(carState.YawRad) * 0.1f,
 				0,
 				-carState.SpeedMps * Mathf.Sin(carState.YawRad) * 0.1f
-			);
+			) * 50.0f;
 
 			// Look at the next position to face forward
 			_demoCarModel.LookAt(nextPosition, Vector3.Up);
@@ -519,7 +571,7 @@ public partial class TrackRenderer : Node3D
 				// YAML format: x, y are horizontal plane, z is elevation
 				// Godot: X=x, Y=z (elevation/height), Z=y (horizontal)
 				// Flip Y-axis to match server/world orientation (track previously mirrored)
-				centerline.Add(new Vector3(node.X, node.Z, -node.Y));
+				centerline.Add(new Vector3(node.X, node.Z, -node.Y) * 50.0f);
 
 				// Get track width
 				float width;
@@ -536,7 +588,7 @@ public partial class TrackRenderer : Node3D
 					width = (node.WidthLeft ?? 5.0f) + (node.WidthRight ?? 5.0f);
 				}
 				width = Mathf.Max(width, 8.0f);
-				widths.Add(width);
+				widths.Add(width * 50.0f);
 			}
 
 			GenerateGroundPlane(centerline, widths);
@@ -570,7 +622,7 @@ public partial class TrackRenderer : Node3D
 	{
 		var trackPoints = new List<Vector3>();
 		var numPoints = 60;
-		var radius = 100.0f;
+		var radius = 100.0f * 50.0f;
 
 		for (int i = 0; i < numPoints; i++)
 		{
@@ -584,10 +636,10 @@ public partial class TrackRenderer : Node3D
 		var widths = new List<float>();
 		for (int i = 0; i < trackPoints.Count; i++)
 		{
-			widths.Add(12.0f);
+			widths.Add(12.0f * 50.0f);
 		}
 		GenerateGroundPlane(trackPoints, widths);
-		GenerateTrackMesh(trackPoints, 12.0f);
+		GenerateTrackMesh(trackPoints, 12.0f * 50.0f);
 
 		// Add debug spheres at track points to see where they are
 		// AddDebugMarkers(trackPoints);
@@ -885,8 +937,8 @@ public partial class TrackRenderer : Node3D
 		var surfaceTool = new SurfaceTool();
 		surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
 
-		float stripeWidth = 0.35f;
-		float yOffset = 0.5f;  // Raise outline above track surface
+		float stripeWidth = 0.35f * 50.0f;
+		float yOffset = 0.5f * 50.0f;  // Raise outline above track surface
 		int segCount = left.Count;
 
 		for (int i = 0; i < segCount; i++)
@@ -972,8 +1024,8 @@ public partial class TrackRenderer : Node3D
 		var surfaceTool = new SurfaceTool();
 		surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
 
-		float borderWidth = 3.0f;  // Width of the white border area
-		float yOffset = 0.3f;  // Raised above the track for visibility from top
+		float borderWidth = 3.0f * 50.0f;  // Width of the white border area
+		float yOffset = 0.3f * 50.0f;  // Raised above the track for visibility from top
 		var whiteColor = new Color(1, 1, 1);  // White
 		int segCount = left.Count;
 
@@ -1027,8 +1079,8 @@ public partial class TrackRenderer : Node3D
 		var surfaceTool = new SurfaceTool();
 		surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
 
-		float markingWidth = 0.3f;
-		float yOffset = 0.01f; // Slightly above track surface to avoid z-fighting
+		float markingWidth = 0.3f * 50.0f;
+		float yOffset = 0.01f * 50.0f; // Slightly above track surface to avoid z-fighting
 
 		for (int i = 0; i < centerline.Count; i++)
 		{
@@ -1108,8 +1160,8 @@ public partial class TrackRenderer : Node3D
 		var surfaceTool = new SurfaceTool();
 		surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
 
-		float groundWidth = 50.0f;  // Wide ground plane extending beyond track
-		float yOffset = -1.0f;  // Below track surface
+		float groundWidth = 50.0f * 50.0f;  // Wide ground plane extending beyond track
+		float yOffset = -1.0f * 50.0f;  // Below track surface
 		var groundColor = new Color(0.7f, 0.7f, 0.7f);  // Light grey
 		int segCount = left.Count;
 

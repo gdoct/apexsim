@@ -76,18 +76,34 @@ impl LobbyManager {
     }
 
     /// Remove a player from the lobby
-    pub async fn remove_player(&self, player_id: PlayerId) -> Option<LobbyPlayerState> {
+    pub async fn remove_player(&self, player_id: PlayerId) -> (Option<LobbyPlayerState>, Option<SessionId>) {
         let player = self.players.write().await.remove(&player_id);
+        let mut empty_session_id = None;
 
         if let Some(ref p) = player {
             info!("Player {} removed from lobby", p.player_name);
 
             // Also remove from any session
-            self.player_sessions.write().await.remove(&player_id);
-            self.spectators.write().await.remove(&player_id);
+            if let Some(session_id) = self.player_sessions.write().await.remove(&player_id) {
+                if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+                    session.current_player_count = session.current_player_count.saturating_sub(1);
+                    if session.current_player_count == 0 && session.spectator_count == 0 {
+                        empty_session_id = Some(session_id);
+                    }
+                }
+            }
+            
+            if let Some(session_id) = self.spectators.write().await.remove(&player_id) {
+                if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+                    session.spectator_count = session.spectator_count.saturating_sub(1);
+                    if session.current_player_count == 0 && session.spectator_count == 0 {
+                        empty_session_id = Some(session_id);
+                    }
+                }
+            }
         }
 
-        player
+        (player, empty_session_id)
     }
 
     /// Update a player's selected car
@@ -199,12 +215,17 @@ impl LobbyManager {
     }
 
     /// Remove a player from a session (back to lobby)
-    pub async fn leave_session(&self, player_id: PlayerId, _connection_id: ConnectionId) {
+    pub async fn leave_session(&self, player_id: PlayerId, _connection_id: ConnectionId) -> Option<SessionId> {
+        let mut empty_session_id = None;
+
         // Check if player is in a session
         if let Some(session_id) = self.player_sessions.write().await.remove(&player_id) {
             // Update session player count
             if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
                 session.current_player_count = session.current_player_count.saturating_sub(1);
+                if session.current_player_count == 0 && session.spectator_count == 0 {
+                    empty_session_id = Some(session_id);
+                }
             }
 
             info!("Player {} left session {}", player_id, session_id);
@@ -215,11 +236,15 @@ impl LobbyManager {
             // Update spectator count
             if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
                 session.spectator_count = session.spectator_count.saturating_sub(1);
+                if session.current_player_count == 0 && session.spectator_count == 0 {
+                    empty_session_id = Some(session_id);
+                }
             }
 
             info!("Spectator {} left session {}", player_id, session_id);
         }
 
+        empty_session_id
         // Player remains in the lobby players list, just no longer in a session
     }
 

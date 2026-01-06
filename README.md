@@ -27,6 +27,10 @@ This project is in active development. Core simulation features are functional, 
 
 This separation keeps critical simulation logic isolated from presentation while enabling each component to evolve independently.
 
+### Serialization
+
+The client and server communicate using a lightweight, cross-platform binary serialization format called [MessagePack](https://msgpack.org/). All networked data structures are defined in Rust with `serde` and `rmp_serde` for efficient, schema-aware encoding and decoding. This choice prioritizes performance and low bandwidth overhead, which is critical for real-time simulation.
+
 ## Repository Layout
 
 ```
