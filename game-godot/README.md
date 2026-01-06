@@ -1,11 +1,11 @@
 # ApexSim - Godot C# Client
 
-A high-performance Godot 4.5 C# client for the ApexSim multiplayer racing simulation with **full bincode protocol support**.
+A high-performance Godot 4.5 C# client for the ApexSim multiplayer racing simulation with **full MessagePack protocol support**.
 
 ## ✅ Current Status - FULLY FUNCTIONAL
 
 ### Implemented Features
-- ✅ **Custom Bincode Serializer** - Matches Rust bincode format exactly
+- ✅ **Custom MessagePack Serializer** - Matches Rust rmp_serde format exactly
 - ✅ **Network Client** - TCP with length-prefixed messages
 - ✅ **Connection Dialog** - Server address, port, player name, auth token
 - ✅ **Session Browser** - Browse and join available sessions
@@ -59,7 +59,6 @@ game-godot/
 │   └── session_creation.tscn       # Create session
 └── scripts/
     ├── csharp/
-    │   ├── BincodeSerializer.cs    # Bincode read/write
     │   ├── Protocol.cs             # Message types
     │   ├── NetworkClient.cs        # TCP client (singleton)
     │   ├── MainMenu.cs             # Main menu
@@ -71,15 +70,11 @@ game-godot/
 
 ## 🔧 Technical Details
 
-### Bincode Format
-- Little-endian integers
-- UTF-8 strings with u64 length prefix
-- Enum variants as u32 indices
-- Option<T> as byte (0=None, 1=Some) + value
-- Vec<T> as u64 length + elements
+### MessagePack Format
+The project uses MessagePack, a binary serialization format that is efficient and compact. It allows for fast and reliable data exchange between the Rust server and the Godot client.
 
 ### Network Protocol
-Messages: `[4-byte big-endian length][bincode data]`
+Messages: `[4-byte big-endian length][MessagePack data]`
 
 **Compatible with Rust server!** No server modifications needed.
 
@@ -102,7 +97,7 @@ Messages: `[4-byte big-endian length][bincode data]`
 ## 📝 Notes
 
 - **WSL**: Use Windows Godot editor for proper input
-- **Bincode**: Fully compatible with Rust server
+- **MessagePack**: Fully compatible with Rust server
 - **Thread-Safe**: Network on background thread, UI on main thread
 - **Auto-Refresh**: Lobby updates automatically
 

@@ -2,46 +2,27 @@
 
 ## Current Status
 
-The Godot C# client currently uses **JSON** serialization for network messages to simplify implementation.
+The Godot C# client uses **MessagePack** for serializing all client-server messages. This aligns with the Rust server's protocol, ensuring full compatibility and high performance.
 
-## Server Compatibility
-
-The ApexSim server uses **bincode** (Rust binary format). For the Godot client to work, you have two options:
-
-### Option 1: Add JSON Support to Server (Recommended for Development)
-
-Add JSON deserialization to the server alongside bincode:
-
-```rust
-// In server, detect format and deserialize accordingly
-if first_byte == b'{' {
-    // JSON format
-    serde_json::from_slice(&data)?
-} else {
-    // bincode format
-    bincode::deserialize(&data)?
-}
-```
-
-### Option 2: Implement Bincode in C# (Production)
-
-Implement a bincode-compatible serializer in C# that matches Rust's format exactly. This requires:
-
-1. Manual serialization following bincode spec
-2. Proper enum variant encoding
-3. Big-endian integer encoding
-4. Matching Rust's struct layout
+The C# implementation can be found in `scripts/csharp/NetworkClient.cs`.
 
 ## Message Format
 
-Both formats use length-prefixed messages:
+All messages are prefixed with a 4-byte, big-endian integer representing the length of the payload.
 
 ```
-[4 bytes: message length (big-endian)] [N bytes: message data]
+[4 bytes: message length (big-endian)] [N bytes: MessagePack data]
 ```
+
+### Serialization
+
+-   **Client-to-Server:** Outgoing `ClientMessage` objects are serialized into a `Dictionary<string, object>` and then encoded using `MessagePackSerializer`.
+-   **Server-to-Client:** Incoming byte arrays are parsed with `MessagePackSerializer` into a `Dictionary<string, object>` and then mapped to the corresponding `ServerMessage` types.
+
+This contract-less approach provides flexibility but relies on matching field names and types between the client and server.
 
 ## Future Work
 
-- [ ] Implement proper bincode serialization in C#
-- [ ] Add integration tests between Rust server and C# client
-- [ ] Performance benchmarking JSON vs bincode
+- [ ] Add integration tests between the Rust server and C# client to ensure protocol compatibility.
+- [ ] Investigate using contract-based serialization with `[MessagePackObject]` attributes for improved performance and type safety.
+- [ ] Evaluate network compression for large telemetry packets.

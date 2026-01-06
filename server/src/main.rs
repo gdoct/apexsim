@@ -621,7 +621,13 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                         transport_write.set_player_session(connection_id, Some(session_id)).await;
                                     } else {
                                         // Failed to add to session (full)
-                                        state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
+                                        let empty_session = state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
+                                        if let Some(session_id) = empty_session {
+                                            info!("Session {} is empty after failed join, removing it", session_id);
+                                            state_write.sessions.remove(&session_id);
+                                            state_write.lobby.unregister_session(session_id).await;
+                                        }
+
                                         let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
                                             code: 400,
                                             message: "Session is full".to_string(),
@@ -629,7 +635,13 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                     }
                                 } else {
                                     // No car selected
-                                    state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
+                                    let empty_session = state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
+                                    if let Some(session_id) = empty_session {
+                                        info!("Session {} is empty after failed join, removing it", session_id);
+                                        state_write.sessions.remove(&session_id);
+                                        state_write.lobby.unregister_session(session_id).await;
+                                    }
+
                                     let _ = transport_write.send_tcp(connection_id, ServerMessage::Error {
                                         code: 400,
                                         message: "Must select a car before joining session".to_string(),
@@ -669,8 +681,23 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
 
                 ClientMessage::LeaveSession => {
                     if let Some(conn_info) = transport_write.get_connection(connection_id).await {
-                        let state_write = state.write().await;
-                        state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
+                        let mut state_write = state.write().await;
+
+                        // Remove from game session
+                        if let Some(sid) = conn_info.in_session {
+                            if let Some(game_session) = state_write.sessions.get_mut(&sid) {
+                                game_session.remove_player(&conn_info.player_id);
+                            }
+                        }
+
+                        let empty_session = state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
+                        
+                        if let Some(session_id) = empty_session {
+                            info!("Session {} is empty after player left, removing it", session_id);
+                            state_write.sessions.remove(&session_id);
+                            state_write.lobby.unregister_session(session_id).await;
+                        }
+
                         info!("Player {} left their session", conn_info.player_name);
                         let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionLeft).await;
                         // Clear session tracking
@@ -786,8 +813,22 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
 
                 ClientMessage::Disconnect => {
                     if let Some(conn_info) = transport_write.get_connection(connection_id).await {
-                        let state_write = state.write().await;
-                        state_write.lobby.remove_player(conn_info.player_id).await;
+                        let mut state_write = state.write().await;
+
+                        // Remove from game session
+                        if let Some(sid) = conn_info.in_session {
+                            if let Some(game_session) = state_write.sessions.get_mut(&sid) {
+                                game_session.remove_player(&conn_info.player_id);
+                            }
+                        }
+
+                        let (_, empty_session) = state_write.lobby.remove_player(conn_info.player_id).await;
+
+                        if let Some(session_id) = empty_session {
+                            info!("Session {} is empty after player disconnect, removing it", session_id);
+                            state_write.sessions.remove(&session_id);
+                            state_write.lobby.unregister_session(session_id).await;
+                        }
                     }
                 }
 
