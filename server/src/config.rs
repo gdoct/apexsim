@@ -8,6 +8,8 @@ pub struct ServerConfig {
     pub network: NetworkSettings,
     pub content: ContentSettings,
     pub logging: LoggingSettings,
+    #[serde(default)]
+    pub ai: AiSettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,6 +43,38 @@ pub struct LoggingSettings {
     pub console_enabled: bool,
 }
 
+/// AI driver configuration settings.
+///
+/// These settings control the default behavior of AI drivers as per the specification.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiSettings {
+    /// Default aggressiveness level (0.0-1.0)
+    pub default_aggressiveness: f32,
+    /// Default precision level (0.0-1.0)
+    pub default_precision: f32,
+    /// Default reaction time in milliseconds
+    pub default_reaction_time_ms: u16,
+    /// Default steering smoothness (0.0-1.0)
+    pub default_steering_smoothness: f32,
+    /// Default randomness scale (0.0-1.0)
+    pub default_randomness_scale: f32,
+    /// Enable deterministic mode (for replay consistency)
+    pub deterministic_mode: bool,
+}
+
+impl Default for AiSettings {
+    fn default() -> Self {
+        Self {
+            default_aggressiveness: 0.5,
+            default_precision: 0.7,
+            default_reaction_time_ms: 100,
+            default_steering_smoothness: 0.7,
+            default_randomness_scale: 0.05,
+            deterministic_mode: false,
+        }
+    }
+}
+
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
@@ -67,6 +101,7 @@ impl Default for ServerConfig {
                 level: "info".to_string(),
                 console_enabled: true,
             },
+            ai: AiSettings::default(),
         }
     }
 }

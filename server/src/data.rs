@@ -848,6 +848,9 @@ pub struct RaceSession {
     pub id: SessionId,
     pub track_config_id: TrackConfigId,
     pub host_player_id: PlayerId,
+    /// The car selected by the host when creating the session
+    #[serde(default)]
+    pub host_car_id: Option<CarConfigId>,
     #[serde(default)]
     pub session_kind: SessionKind,
     pub state: SessionState,
@@ -891,6 +894,7 @@ impl RaceSession {
             race_start_tick: None,
             ai_player_ids: Vec::new(),
             demo_lap_progress: None,
+            host_car_id: None,
         }
     }
 }
@@ -901,6 +905,8 @@ pub struct PlayerInputData {
     pub throttle: f32,
     pub brake: f32,
     pub steering: f32,
+    pub gear: Option<i8>,      // Desired gear (-1 = reverse, 0 = neutral, 1-6+)
+    pub clutch: Option<f32>,   // Clutch input (0.0-1.0)
 }
 
 impl PlayerInputData {
@@ -964,6 +970,8 @@ mod tests {
             throttle: 1.5,
             brake: -0.5,
             steering: 2.0,
+            gear: None,
+            clutch: None,
         };
         
         input.clamp();

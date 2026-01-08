@@ -192,6 +192,8 @@ impl ServerState {
         ai_count: u8,
         lap_limit: u8,
     ) -> Option<SessionId> {
+        use apexsim_server::ai_driver::generate_default_ai_profiles;
+
         if self.sessions.len() >= self.config.server.max_sessions as usize {
             return None;
         }
@@ -200,7 +202,26 @@ impl ServerState {
         let session = RaceSession::new(host_player_id, track_config_id, session_kind, max_players, ai_count, lap_limit);
         let session_id = session.id;
 
-        let game_session = GameSession::new(session, track, self.car_configs.clone());
+        // Create AI profiles if AI count is specified
+        let ai_profiles = if ai_count > 0 {
+            generate_default_ai_profiles(ai_count)
+        } else {
+            Vec::new()
+        };
+
+        // Create game session with AI profiles
+        let mut game_session = if !ai_profiles.is_empty() {
+            GameSession::with_ai_profiles(session, track, self.car_configs.clone(), ai_profiles)
+        } else {
+            GameSession::new(session, track, self.car_configs.clone())
+        };
+
+        // Spawn AI drivers immediately
+        if ai_count > 0 {
+            game_session.spawn_ai_drivers();
+            info!("Spawned {} AI drivers for session {}", ai_count, session_id);
+        }
+
         self.sessions.insert(session_id, game_session);
 
         Some(session_id)
@@ -838,6 +859,8 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                             throttle,
                             brake,
                             steering,
+                            gear: None,
+                            clutch: None,
                         };
                         player_inputs.insert(conn_info.player_id, input);
                     }

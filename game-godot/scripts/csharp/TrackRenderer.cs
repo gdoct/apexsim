@@ -489,14 +489,21 @@ public partial class TrackRenderer : Node3D
 			return;
 		}
 
-		// Find the car state (in demo mode there should be exactly one)
+		// Find the car state (in demo mode there should be exactly one AI driver)
 		if (telemetry.CarStates.Length == 0)
 		{
 			GD.Print($"[Telemetry #{_telemetryCount}] No car states in telemetry!");
 			return;
 		}
 
+		// In demo lap mode, show the first car (which is the AI driver)
 		var carState = telemetry.CarStates[0];
+
+		// Debug: Log player info to verify this is the AI
+		if (_telemetryCount <= 5)
+		{
+			GD.Print($"[Telemetry #{_telemetryCount}] Showing demo car for player: {carState.PlayerId}");
+		}
 
 		// Log first few telemetry updates for debugging
 		if (_telemetryCount <= 5)

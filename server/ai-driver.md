@@ -2,6 +2,13 @@
 
 This document defines the AI driver feature for the server. The AI driver simulates a human driver by producing the same input commands that a human client would send; these inputs are then processed by the physics model exactly as human inputs are processed.
 
+## Current situation
+
+There is an ai_driver rust file but but it's not implemented correctly. it should adhere to the specs in this document. It may be best to reimplement it from scratch, please make a decision. 
+
+To reach the below will require considerable changes.
+
+
 ## Goals
 - Provide a server-side AI implementation usable as a drop-in replacement for a human player.
 - Produce believable driving behavior that follows the optimal racing line and respects vehicle capabilities.

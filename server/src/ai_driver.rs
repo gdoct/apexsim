@@ -1,5 +1,14 @@
 //! AI Driver system for computer-controlled cars.
 //!
+//! This module implements AI drivers as server-side players that produce the same
+//! input commands as human players. The AI follows the specification in ai-driver.md.
+//!
+//! ## Architecture
+//! The AI is structured in three layers:
+//! 1. Planning layer: Generates target waypoints and speed profiles from racing line
+//! 2. Tactical layer: Reacts to dynamic world state (other cars, collisions)
+//! 3. Low-level controller: Converts targets to raw inputs (throttle/brake/steering/gear)
+//!
 //! AI drivers have configurable skill levels ranging from 70 (slow, beginner-like)
 //! to 110 (impossibly fast, unbeatable). Each AI driver has their own profile
 //! that defines their behavior characteristics.
@@ -23,10 +32,10 @@ pub const DEFAULT_SKILL_LEVEL: u8 = 90;
 pub struct AiDriverProfile {
     /// Unique identifier for this AI driver
     pub id: PlayerId,
-    
+
     /// Display name for the AI driver
     pub name: String,
-    
+
     /// Skill level (70-110). Higher = faster and more accurate.
     /// - 70-80: Slow, makes frequent mistakes
     /// - 81-90: Below average, occasional errors
@@ -34,16 +43,25 @@ pub struct AiDriverProfile {
     /// - 101-105: Expert level
     /// - 106-110: Superhuman, practically unbeatable
     pub skill_level: u8,
-    
-    /// Aggression level (0.0-1.0). Higher = more willing to overtake and defend.
-    pub aggression: f32,
-    
+
+    /// Aggressiveness (0.0-1.0): higher values result in later braking and earlier throttle
+    pub aggressiveness: f32,
+
+    /// Precision (0.0-1.0): how closely the AI follows the optimal line
+    pub precision: f32,
+
+    /// Reaction time in milliseconds: added input latency to simulate human reaction
+    pub reaction_time_ms: u16,
+
+    /// Steering smoothness: smoothing factor for steering commands (0.0-1.0)
+    pub steering_smoothness: f32,
+
+    /// Randomness scale: multiplicative noise applied to inputs for variability (0.0-1.0)
+    pub randomness_scale: f32,
+
     /// Consistency (0.0-1.0). Higher = less variation in lap times.
     pub consistency: f32,
-    
-    /// Risk tolerance (0.0-1.0). Higher = more willing to push limits.
-    pub risk_tolerance: f32,
-    
+
     /// Preferred car configuration (if None, uses default car)
     pub preferred_car_id: Option<CarConfigId>,
 }
@@ -60,15 +78,18 @@ impl AiDriverProfile {
     pub fn new(name: impl Into<String>, skill_level: u8) -> Self {
         let skill = skill_level.clamp(MIN_SKILL_LEVEL, MAX_SKILL_LEVEL);
         let normalized_skill = (skill - MIN_SKILL_LEVEL) as f32 / (MAX_SKILL_LEVEL - MIN_SKILL_LEVEL) as f32;
-        
+
         Self {
             id: Uuid::new_v4(),
             name: name.into(),
             skill_level: skill,
-            // Derive other attributes from skill level with some variation
-            aggression: (normalized_skill * 0.6 + 0.2).clamp(0.0, 1.0),
+            // Derive attributes from skill level with sensible defaults
+            aggressiveness: (normalized_skill * 0.6 + 0.2).clamp(0.0, 1.0),
+            precision: (normalized_skill * 0.7 + 0.3).clamp(0.0, 1.0),
+            reaction_time_ms: ((1.0 - normalized_skill) * 150.0 + 50.0) as u16, // 50-200ms
+            steering_smoothness: (normalized_skill * 0.6 + 0.4).clamp(0.0, 1.0),
+            randomness_scale: ((1.0 - normalized_skill) * 0.15).clamp(0.0, 1.0),
             consistency: (normalized_skill * 0.5 + 0.4).clamp(0.0, 1.0),
-            risk_tolerance: (normalized_skill * 0.5 + 0.3).clamp(0.0, 1.0),
             preferred_car_id: None,
         }
     }
@@ -77,17 +98,23 @@ impl AiDriverProfile {
     pub fn with_attributes(
         name: impl Into<String>,
         skill_level: u8,
-        aggression: f32,
+        aggressiveness: f32,
+        precision: f32,
+        reaction_time_ms: u16,
+        steering_smoothness: f32,
+        randomness_scale: f32,
         consistency: f32,
-        risk_tolerance: f32,
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
             name: name.into(),
             skill_level: skill_level.clamp(MIN_SKILL_LEVEL, MAX_SKILL_LEVEL),
-            aggression: aggression.clamp(0.0, 1.0),
+            aggressiveness: aggressiveness.clamp(0.0, 1.0),
+            precision: precision.clamp(0.0, 1.0),
+            reaction_time_ms,
+            steering_smoothness: steering_smoothness.clamp(0.0, 1.0),
+            randomness_scale: randomness_scale.clamp(0.0, 1.0),
             consistency: consistency.clamp(0.0, 1.0),
-            risk_tolerance: risk_tolerance.clamp(0.0, 1.0),
             preferred_car_id: None,
         }
     }
@@ -106,20 +133,27 @@ impl Default for AiDriverProfile {
 }
 
 /// AI driver controller that generates inputs based on the driver profile.
+///
+/// This implements the three-layer architecture:
+/// 1. Planning: Uses racing line data to determine target waypoints and speeds
+/// 2. Tactical: Reacts to dynamic conditions (not yet fully implemented)
+/// 3. Low-level control: Converts targets to throttle/brake/steering/gear inputs
 pub struct AiDriverController<'a> {
     profile: &'a AiDriverProfile,
     track_config: &'a TrackConfig,
+    car_config: &'a CarConfig,
 }
 
 impl<'a> AiDriverController<'a> {
     /// Create a new AI driver controller.
-    pub fn new(profile: &'a AiDriverProfile, track_config: &'a TrackConfig) -> Self {
+    pub fn new(profile: &'a AiDriverProfile, track_config: &'a TrackConfig, car_config: &'a CarConfig) -> Self {
         Self {
             profile,
             track_config,
+            car_config,
         }
     }
-    
+
     /// Generate input for the AI driver based on current car state.
     ///
     /// The skill level affects:
@@ -127,6 +161,7 @@ impl<'a> AiDriverController<'a> {
     /// - Look-ahead distance (higher skill = better anticipation)
     /// - Steering accuracy (higher skill = smoother steering)
     /// - Throttle/brake balance (higher skill = better modulation)
+    /// - Gear selection (higher skill = better shifting points)
     pub fn generate_input(&self, state: &CarState, current_tick: u32) -> PlayerInputData {
         let track_length = self.get_track_length();
         
@@ -151,14 +186,22 @@ impl<'a> AiDriverController<'a> {
         
         // Calculate steering toward target
         let steering = self.calculate_steering(state, target_point, skill_factor);
-        
+
         // Calculate throttle and brake
         let (throttle, brake) = self.calculate_throttle_brake(state, target_speed, skill_factor);
-        
+
+        // Calculate gear selection
+        let gear = self.calculate_gear(state, skill_factor);
+
+        // Calculate clutch (simple: always fully engaged for now)
+        let clutch = Some(1.0);
+
         PlayerInputData {
             throttle,
             brake,
             steering,
+            gear: Some(gear),
+            clutch,
         }
     }
     
@@ -233,12 +276,52 @@ impl<'a> AiDriverController<'a> {
         }
     }
     
+    /// Calculate gear selection based on engine RPM and skill level.
+    ///
+    /// Implements the gear shifting logic as per spec:
+    /// - Shift up when RPM exceeds upshift threshold (skill-dependent)
+    /// - Shift down when RPM drops below downshift threshold
+    /// - Higher skill = better timing (closer to optimal RPM range)
+    fn calculate_gear(&self, state: &CarState, skill_factor: f32) -> i8 {
+        let current_gear = state.gear;
+        let rpm = state.engine_rpm;
+
+        // Gear count from car config (exclude reverse which is negative)
+        let max_gear = self.car_config.gear_ratios.iter().filter(|&&g| g > 0.0).count() as i8;
+
+        // Skill-based shift points
+        // Lower skill = shifts early (conservative), higher skill = shifts near redline
+        let upshift_base = 6000.0;
+        let upshift_rpm = upshift_base + (skill_factor * 1500.0); // 6000-7500 RPM
+
+        let downshift_base = 2500.0;
+        let downshift_rpm = downshift_base - (skill_factor * 500.0); // 2000-2500 RPM
+
+        // Shift up if RPM is too high and not in highest gear
+        if rpm > upshift_rpm && current_gear < max_gear && current_gear > 0 {
+            return current_gear + 1;
+        }
+
+        // Shift down if RPM is too low and not in first gear
+        if rpm < downshift_rpm && current_gear > 1 {
+            return current_gear - 1;
+        }
+
+        // Start in first gear if in neutral
+        if current_gear == 0 {
+            return 1;
+        }
+
+        // Otherwise, maintain current gear
+        current_gear
+    }
+
     /// Normalize an angle to the range -PI to PI.
     fn normalize_angle(&self, angle: f32) -> f32 {
         let pi = std::f32::consts::PI;
         ((angle + pi) % (2.0 * pi)) - pi
     }
-    
+
     /// Get the total track length.
     fn get_track_length(&self) -> f32 {
         self.track_config
@@ -319,30 +402,32 @@ mod tests {
     fn test_ai_input_generation() {
         let profile = AiDriverProfile::new("Test", 90);
         let track = TrackConfig::default();
-        let controller = AiDriverController::new(&profile, &track);
-        
+        let car = CarConfig::default();
+        let controller = AiDriverController::new(&profile, &track, &car);
+
         let car_state = CarState::new(
             Uuid::new_v4(),
             Uuid::new_v4(),
             &track.start_positions[0],
         );
-        
+
         let input = controller.generate_input(&car_state, 100);
-        
+
         assert!(input.throttle >= 0.0 && input.throttle <= 1.0);
         assert!(input.brake >= 0.0 && input.brake <= 1.0);
         assert!(input.steering >= -1.0 && input.steering <= 1.0);
     }
-    
+
     #[test]
     fn test_skill_affects_target_speed() {
         let slow_profile = AiDriverProfile::new("Slow", MIN_SKILL_LEVEL);
         let fast_profile = AiDriverProfile::new("Fast", MAX_SKILL_LEVEL);
         let track = TrackConfig::default();
-        
-        let slow_controller = AiDriverController::new(&slow_profile, &track);
-        let fast_controller = AiDriverController::new(&fast_profile, &track);
-        
+        let car = CarConfig::default();
+
+        let slow_controller = AiDriverController::new(&slow_profile, &track, &car);
+        let fast_controller = AiDriverController::new(&fast_profile, &track, &car);
+
         // Skill factor should differ
         assert!(slow_controller.get_skill_factor() < fast_controller.get_skill_factor());
     }
