@@ -849,9 +849,35 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
             }
         }
 
-        // Cleanup stale connections every second
+        // Cleanup stale connections every second and handle disconnected players
         if tick_count % tick_rate as u64 == 0 {
-            transport_write.cleanup_stale_connections().await;
+            let disconnected_players = transport_write.cleanup_stale_connections().await;
+            
+            if !disconnected_players.is_empty() {
+                let mut state_write = state.write().await;
+                
+                for (player_id, session_id_opt) in disconnected_players {
+                    info!("Handling disconnected player: {} (session: {:?})", player_id, session_id_opt);
+                    
+                    // Remove from game session if in one
+                    if let Some(session_id) = session_id_opt {
+                        if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
+                            game_session.remove_player(&player_id);
+                        }
+                    }
+                    
+                    // Remove from lobby and check if session is now empty
+                    let (_, empty_session) = state_write.lobby.remove_player(player_id).await;
+                    
+                    if let Some(session_id) = empty_session {
+                        info!("Session {} is empty after player disconnect, removing it", session_id);
+                        state_write.sessions.remove(&session_id);
+                        state_write.lobby.unregister_session(session_id).await;
+                    }
+                }
+                
+                drop(state_write);
+            }
         }
 
         // Broadcast lobby state every 2 seconds

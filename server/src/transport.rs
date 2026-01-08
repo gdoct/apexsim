@@ -505,13 +505,13 @@ impl TransportLayer {
             }
         }
 
-        // Cleanup connection
+        // Cleanup connection (returns ConnectionInfo so main loop can handle player removal)
         if let Some(conn) = connections.write().await.remove(&connection_id) {
             addr_to_connection.write().await.remove(&addr);
             player_to_connection.write().await.remove(&conn.player_id);
             info!(
-                "Connection cleaned up: {} (player: {})",
-                addr, conn.player_name
+                "Connection cleaned up: {} (player: {}, session: {:?})",
+                addr, conn.player_name, conn.in_session
             );
         }
 
@@ -674,7 +674,7 @@ impl TransportLayer {
             .copied()
     }
 
-    pub async fn cleanup_stale_connections(&self) {
+    pub async fn cleanup_stale_connections(&self) -> Vec<(PlayerId, Option<SessionId>)> {
         let now = Instant::now();
         let timeout = self.heartbeat_timeout;
         // Use a much longer timeout for lobby players (30 seconds)
@@ -705,6 +705,7 @@ impl TransportLayer {
             }
         }
 
+        let mut disconnected_players = Vec::new();
         for conn_id in to_remove {
             if let Some(info) = connections.remove(&conn_id) {
                 self.addr_to_connection.write().await.remove(&info.tcp_addr);
@@ -712,8 +713,11 @@ impl TransportLayer {
                     .write()
                     .await
                     .remove(&info.player_id);
+                disconnected_players.push((info.player_id, info.in_session));
             }
         }
+
+        disconnected_players
     }
 
     pub async fn update_heartbeat(&self, connection_id: ConnectionId) {

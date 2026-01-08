@@ -1,0 +1,126 @@
+[gd_scene load_steps=3 format=3 uid="uid://ddpj2i71wxppc"]
+
+[ext_resource type="Script" uid="uid://cix73a3o25tg3" path="res://scripts/csharp/CarSelectionAltDialog.cs" id="1_script"]
+[ext_resource type="Script" uid="uid://du7mei601nj6n" path="res://scripts/csharp/GearGraph.cs" id="2_script"]
+
+[node name="CarSelectionAlt" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Overlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.9)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_top = 0.1
+anchor_right = 0.9
+anchor_bottom = 0.9
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HBox" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Left" type="VBoxContainer" parent="Panel/HBox"]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Panel/HBox/Left"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Cars"
+horizontal_alignment = 1
+
+[node name="CarList" type="ItemList" parent="Panel/HBox/Left"]
+layout_mode = 2
+size_flags_vertical = 3
+select_mode = 1
+
+[node name="Right" type="VBoxContainer" parent="Panel/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TopRow" type="HBoxContainer" parent="Panel/HBox/Right"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ModelViewport" type="SubViewportContainer" parent="Panel/HBox/Right/TopRow"]
+custom_minimum_size = Vector2(600, 220)
+layout_mode = 2
+
+[node name="SubViewport" type="SubViewport" parent="Panel/HBox/Right/TopRow/ModelViewport"]
+own_world_3d = true
+transparent_bg = true
+handle_input_locally = false
+size = Vector2i(600, 220)
+render_target_update_mode = 4
+
+[node name="ModelRoot" type="Node3D" parent="Panel/HBox/Right/TopRow/ModelViewport/SubViewport"]
+
+[node name="Details" type="VBoxContainer" parent="Panel/HBox/Right"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CarName" type="Label" parent="Panel/HBox/Right/Details"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Select a car"
+
+[node name="CarInfo" type="VBoxContainer" parent="Panel/HBox/Right/Details"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BrandLabel" type="Label" parent="Panel/HBox/Right/Details/CarInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="ClassLabel" type="Label" parent="Panel/HBox/Right/Details/CarInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="MassLabel" type="Label" parent="Panel/HBox/Right/Details/CarInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="EngineLabel" type="Label" parent="Panel/HBox/Right/Details/CarInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="TransmissionLabel" type="Label" parent="Panel/HBox/Right/Details/CarInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="DrivetrainLabel" type="Label" parent="Panel/HBox/Right/Details/CarInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="GearGraph" type="Control" parent="Panel/HBox/Right/Details"]
+custom_minimum_size = Vector2(0, 160)
+layout_mode = 2
+script = ExtResource("2_script")
+
+[node name="ButtonBar" type="HBoxContainer" parent="Panel/HBox/Right"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Cancel" type="Button" parent="Panel/HBox/Right/ButtonBar"]
+layout_mode = 2
+text = "Cancel"
+
+[node name="Select" type="Button" parent="Panel/HBox/Right/ButtonBar"]
+layout_mode = 2
+text = "Select"

@@ -32,8 +32,22 @@ public partial class SessionBrowserDialog : Control
         _network.LobbyStateReceived += OnLobbyStateReceived;
         _network.SessionJoined += OnSessionJoined;
 
-        // Load car selection scene
-        _carSelectionScene = GD.Load<PackedScene>("res://scenes/car_selection.tscn");
+        // Load car selection scene (supports alternative via ClientConfig)
+        var carScenePath = ClientConfig.Instance.UseAltCarSelection ? "res://scenes/car_selection_alt.tscn" : "res://scenes/car_selection.tscn";
+        GD.Print($"SessionBrowserDialog: selecting car scene path: {carScenePath}");
+        GD.Print($"SessionBrowserDialog: ResourceLoader.Exists: {ResourceLoader.Exists(carScenePath)}");
+        try
+        {
+            var globalPath = ProjectSettings.GlobalizePath(carScenePath);
+            GD.Print($"SessionBrowserDialog: global path: {globalPath}");
+            GD.Print($"SessionBrowserDialog: System.IO.File.Exists: {System.IO.File.Exists(globalPath)}");
+        }
+        catch (System.Exception ex)
+        {
+            GD.PrintErr($"SessionBrowserDialog: error checking global path: {ex.Message}");
+        }
+        _carSelectionScene = GD.Load<PackedScene>(carScenePath);
+        GD.Print($"SessionBrowserDialog: _carSelectionScene is {( _carSelectionScene == null ? "NULL" : "LOADED" )}");
 
         // Request initial lobby state
         RefreshSessions();
@@ -81,11 +95,41 @@ public partial class SessionBrowserDialog : Control
 
     private void OnCarSelectorPressed()
     {
-        if (_carSelectionScene == null) return;
+        GD.Print("SessionBrowserDialog: Car selector button pressed");
+        if (_carSelectionScene == null)
+        {
+            GD.PrintErr("SessionBrowserDialog: car selection scene is null, attempting lazy reload");
+            var carScenePathReload = ClientConfig.Instance.UseAltCarSelection ? "res://scenes/car_selection_alt.tscn" : "res://scenes/car_selection.tscn";
+            var res = ResourceLoader.Load(carScenePathReload);
+            GD.Print($"SessionBrowserDialog: ResourceLoader.Load returned: {res?.GetType().ToString() ?? "NULL"}");
+            _carSelectionScene = ResourceLoader.Load<PackedScene>(carScenePathReload);
+            GD.Print($"SessionBrowserDialog: reload result: {(_carSelectionScene == null ? "NULL" : "LOADED")}");
+            if (_carSelectionScene == null && carScenePathReload.Contains("car_selection_alt.tscn"))
+            {
+                var fallback = "res://scenes/car_selection.tscn";
+                GD.Print("SessionBrowserDialog: falling back to default car_selection.tscn");
+                var fres = ResourceLoader.Load(fallback);
+                GD.Print($"SessionBrowserDialog: ResourceLoader.Load(fallback) returned: {fres?.GetType().ToString() ?? "NULL"}");
+                _carSelectionScene = ResourceLoader.Load<PackedScene>(fallback);
+                GD.Print($"SessionBrowserDialog: fallback load result: {(_carSelectionScene == null ? "NULL" : "LOADED")}");
+            }
+            if (_carSelectionScene == null) return;
+        }
 
-        var carSelectionDialog = _carSelectionScene.Instantiate<CarSelectionDialog>();
-        carSelectionDialog.CarSelected += OnCarSelected;
-        GetTree().Root.AddChild(carSelectionDialog);
+        var inst = _carSelectionScene.Instantiate();
+        GD.Print($"SessionBrowserDialog: instantiated scene type: {inst.GetType()}");
+        if (inst is CarSelectionDialog oldDialog)
+        {
+            GD.Print("SessionBrowserDialog: hooked CarSelectionDialog.CarSelected");
+            oldDialog.CarSelected += OnCarSelected;
+        }
+        else if (inst is CarSelectionAltDialog altDialog)
+        {
+            GD.Print("SessionBrowserDialog: hooked CarSelectionAltDialog.CarSelected");
+            altDialog.CarSelected += OnCarSelected;
+        }
+
+        if (inst is Node node) GetTree().Root.AddChild(node);
     }
 
     private void OnCarSelected(string carId, string carName)

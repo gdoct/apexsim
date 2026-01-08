@@ -81,6 +81,10 @@ pub fn update_car_3d(
     if !state.damage.is_drivable {
         return;
     }
+
+    // Keep fuel capacity in sync with config (for moddable cars)
+    state.fuel_capacity_liters = config.fuel.capacity_liters;
+    state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
     
     // 1. Get track context at current position
     let track_ctx = get_track_context(state, track);
@@ -368,13 +372,65 @@ fn calculate_engine_output(state: &CarState, config: &CarConfig, input: &PlayerI
         config.idle_rpm + input.throttle * (config.redline_rpm - config.idle_rpm) * 0.3
     };
     
-    // Simple torque curve (peak at ~60% of redline)
-    let rpm_normalized = (engine_rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm);
-    let torque_factor = 1.0 - (rpm_normalized - 0.6).powi(2);
-    
-    let engine_torque = input.throttle * config.max_engine_torque_nm * torque_factor.clamp(0.3, 1.0);
+    let torque_at_rpm = if !config.engine.torque_curve.is_empty() {
+        interpolate_torque_curve(&config.engine.torque_curve, engine_rpm)
+    } else {
+        // Legacy simple torque curve (peak at ~60% of redline)
+        let rpm_normalized = (engine_rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm);
+        let torque_factor = 1.0 - (rpm_normalized - 0.6).powi(2);
+        config.max_engine_torque_nm * torque_factor.clamp(0.3, 1.0)
+    };
+
+    // Rev limiter torque cut
+    let limiter_rpm = config.engine.rev_limiter_rpm.max(config.redline_rpm);
+    let limiter_cut = if engine_rpm >= limiter_rpm {
+        // Hard cut near limiter
+        0.2
+    } else {
+        1.0
+    };
+
+    // Engine braking & friction
+    let rpm_frac = ((engine_rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm).max(1.0)).clamp(0.0, 1.0);
+    let engine_brake = if input.throttle < 0.01 {
+        config.engine.engine_brake_torque_nm * rpm_frac
+    } else {
+        0.0
+    };
+
+    // Net torque produced by engine (positive = drive, negative = braking)
+    let mut engine_torque = (input.throttle * torque_at_rpm * limiter_cut) - engine_brake;
+
+    // Always apply a small friction torque opposing rotation
+    engine_torque -= config.engine.friction_torque_nm * rpm_frac;
     
     (engine_torque, engine_rpm)
+}
+
+fn interpolate_torque_curve(curve: &[TorqueCurvePoint], rpm: f32) -> f32 {
+    if curve.is_empty() {
+        return 0.0;
+    }
+
+    // If curve isn't sorted, this still behaves reasonably for monotonic input, but
+    // data authors should keep it ordered by RPM.
+    if rpm <= curve[0].rpm {
+        return curve[0].torque_nm;
+    }
+    if rpm >= curve[curve.len() - 1].rpm {
+        return curve[curve.len() - 1].torque_nm;
+    }
+
+    for window in curve.windows(2) {
+        let a = window[0];
+        let b = window[1];
+        if rpm >= a.rpm && rpm <= b.rpm {
+            let t = (rpm - a.rpm) / (b.rpm - a.rpm).max(1.0);
+            return a.torque_nm + (b.torque_nm - a.torque_nm) * t;
+        }
+    }
+
+    curve[curve.len() - 1].torque_nm
 }
 
 /// Calculate drive torques for front and rear axles
@@ -390,7 +446,7 @@ fn calculate_drive_torques(engine_torque: f32, config: &CarConfig, gear: i8) -> 
     };
     
     let total_ratio = gear_ratio * config.final_drive_ratio;
-    let wheel_torque = engine_torque * total_ratio;
+    let wheel_torque = engine_torque * total_ratio * config.transmission.efficiency.clamp(0.0, 1.0);
     
     match config.drivetrain {
         Drivetrain::FWD => (wheel_torque, 0.0),
@@ -672,11 +728,11 @@ fn update_telemetry_3d(
 /// Update fuel consumption
 fn update_fuel_consumption(state: &mut CarState, config: &CarConfig, input: &PlayerInputData, dt: f32) {
     // Base consumption + load-based consumption
-    let base_consumption = 0.00005;  // L/s at idle
     let rpm_factor = state.engine_rpm / config.max_engine_rpm;
     let throttle_factor = input.throttle;
     
-    state.fuel_consumption_lps = base_consumption + (throttle_factor * rpm_factor * 0.003);
+    state.fuel_consumption_lps = config.fuel.idle_consumption_lps
+        + (throttle_factor * rpm_factor * config.fuel.load_consumption_scale);
     state.fuel_liters = (state.fuel_liters - state.fuel_consumption_lps * dt).max(0.0);
 }
 

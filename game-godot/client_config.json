@@ -1,3 +1,4 @@
 {
-  "ContentDirectory": "../content"
+  "ContentDirectory": "../content",
+  "UseAltCarSelection": true
 }

@@ -126,6 +126,16 @@
                 "reveal": "always",
                 "panel": "dedicated"
             }
+        }, 
+        {
+            "label": "Game: Copy Content",
+            "type": "shell",
+            "command": "cp -R ./content /mnt/c/Data/ApexSim/apexsim/",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
         },
         {
             "label": "CLI Game: Build",
