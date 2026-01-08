@@ -318,7 +318,15 @@ pub fn update_car_3d(
     state.throttle_input = input.throttle;
     state.brake_input = input.brake;
     state.steering_input = input.steering;
-    
+
+    // Apply gear and clutch inputs if provided
+    if let Some(gear) = input.gear {
+        state.gear = gear;
+    }
+    if let Some(clutch) = input.clutch {
+        state.clutch_input = clutch;
+    }
+
     // 20. Update telemetry
     update_telemetry_3d(state, config, input, &track_ctx, fl_slip, fr_slip, rl_slip, rr_slip, dt);
     
@@ -1030,6 +1038,8 @@ mod tests {
             throttle: 1.0,
             brake: 0.0,
             steering: 0.0,
+            gear: None,
+            clutch: None,
         };
 
         let dt = 1.0 / 240.0;
@@ -1057,6 +1067,8 @@ mod tests {
             throttle: 0.0,
             brake: 1.0,
             steering: 0.0,
+            gear: None,
+            clutch: None,
         };
 
         let dt = 1.0 / 240.0;
@@ -1079,6 +1091,8 @@ mod tests {
             throttle: 0.5,
             brake: 0.0,
             steering: 0.5,
+            gear: None,
+            clutch: None,
         };
 
         let dt = 1.0 / 240.0;
@@ -1192,6 +1206,8 @@ mod tests {
             throttle: 1.0,
             brake: 0.0,
             steering: 0.0,
+            gear: None,
+            clutch: None,
         };
 
         // Run several ticks
@@ -1214,6 +1230,8 @@ mod tests {
             throttle: 1.0,
             brake: 0.0,
             steering: 0.0,
+            gear: None,
+            clutch: None,
         };
 
         let initial_fuel = state.fuel_liters;
@@ -1260,6 +1278,8 @@ mod tests {
             throttle: 1.0,
             brake: 0.0,
             steering: 0.0,
+            gear: None,
+            clutch: None,
         };
 
         // Test that legacy API still works

@@ -1,7 +1,7 @@
 id = "d4e5f6a7-b8c9-4d4e-1f2a-3b4c5d6e7f8a"
 name = "Golf Cart"
 version = "1.0.0"
-model = "area_9_golf_cart.glb"
+model = "golf_kart__dae_igp__moustachekart.glb"
 brand = "GCM Manufacturing"
 model_year = 2020
 class = "Fun"

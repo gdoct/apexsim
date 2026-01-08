@@ -112,7 +112,7 @@ impl GameSession {
         // Players are frozen, no physics updates
     }
 
-    /// Demo lap mode: Server drives a single demo car along the racing line
+    /// Demo lap mode: AI driver demonstrates the track
     fn tick_demolap(&mut self) {
         let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
 
@@ -121,6 +121,30 @@ impl GameSession {
             self.session.demo_lap_progress = Some(0.0);
         }
 
+        // Use AI-driven demo lap if we have AI drivers
+        if !self.session.ai_player_ids.is_empty() {
+            // Generate AI inputs for the demo driver
+            let mut inputs = std::collections::HashMap::new();
+            for ai_id in &self.session.ai_player_ids {
+                let ai_input = self.generate_ai_input(ai_id);
+                inputs.insert(*ai_id, ai_input);
+            }
+
+            // Update physics for the demo car
+            let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
+            for state in states.iter_mut() {
+                let input = inputs.get(&state.player_id).copied().unwrap_or_default();
+
+                if let Some(config) = self.car_configs.get(&state.car_config_id) {
+                    physics::update_car_3d(state, config, &input, &self.track_config, dt);
+                    physics::update_track_progress_3d(state, &self.track_config, self.session.current_tick);
+                }
+            }
+
+            return;
+        }
+
+        // Fallback to old camera-following demo lap if no AI
         if self.track_config.raceline.is_empty() {
             // No racing line available, can't do demo lap
             return;
@@ -340,6 +364,27 @@ impl GameSession {
                 self.session.demo_lap_progress = Some(0.0);
                 // Change session state to Racing so telemetry is sent
                 self.session.state = SessionState::Racing;
+
+                // Spawn an AI driver for the demo lap if not already present
+                if self.session.participants.is_empty() && !self.ai_profiles.is_empty() {
+                    self.spawn_ai_drivers();
+                } else if self.session.participants.is_empty() {
+                    // No AI profiles configured, create a default demo driver
+                    // Use the host player's selected car if available
+                    use crate::ai_driver::AiDriverProfile;
+
+                    let host_car_id = self.session.participants
+                        .get(&self.session.host_player_id)
+                        .map(|state| state.car_config_id);
+
+                    let mut demo_profile = AiDriverProfile::new("Demo Driver", 95);
+                    demo_profile.preferred_car_id = host_car_id;
+
+                    let demo_player_id = demo_profile.id;
+                    self.ai_profiles.insert(demo_player_id, demo_profile);
+                    self.session.ai_player_ids.push(demo_player_id);
+                    self.spawn_ai_drivers();
+                }
             }
             GameMode::FreePractice => {
                 // Change session state to Racing so telemetry is sent
@@ -432,11 +477,14 @@ impl GameSession {
         // Check if this player has an AI profile
         if let Some(profile) = self.ai_profiles.get(player_id) {
             if let Some(state) = self.session.participants.get(player_id) {
-                let controller = AiDriverController::new(profile, &self.track_config);
-                return controller.generate_input(state, self.session.current_tick);
+                // Get the car config for this AI player
+                if let Some(car_config) = self.car_configs.get(&state.car_config_id) {
+                    let controller = AiDriverController::new(profile, &self.track_config, car_config);
+                    return controller.generate_input(state, self.session.current_tick);
+                }
             }
         }
-        
+
         // Fallback: no AI profile found, return default (coasting)
         PlayerInputData::default()
     }
@@ -848,6 +896,8 @@ mod tests {
             throttle: 1.0,
             brake: 0.0,
             steering: 0.0,
+            gear: None,
+            clutch: None,
         });
 
         // Run several ticks to allow physics to update
@@ -955,5 +1005,235 @@ mod tests {
 
         // Mode should still be Sandbox
         assert_eq!(game_session.session.game_mode, GameMode::Sandbox);
+    }
+
+    #[test]
+    fn test_ai_driver_integration_demo_lap() {
+        use crate::ai_driver::generate_default_ai_profiles;
+
+        // Create a track with a simple racing line
+        let mut track = TrackConfig::default();
+
+        // Create a simple circular track layout for testing
+        // 100m radius circle, 628m total length
+        let num_points = 32;
+        let radius = 100.0;
+        let mut raceline = Vec::new();
+        let mut centerline = Vec::new();
+
+        for i in 0..num_points {
+            let angle = (i as f32 / num_points as f32) * 2.0 * std::f32::consts::PI;
+            let x = angle.cos() * radius;
+            let y = angle.sin() * radius;
+            let distance = (i as f32 / num_points as f32) * 2.0 * std::f32::consts::PI * radius;
+
+            raceline.push(RacelinePoint { x, y, z: 0.0 });
+            centerline.push(crate::data::TrackPoint {
+                x,
+                y,
+                z: 0.0,
+                distance_from_start_m: distance,
+                width_left_m: 10.0,
+                width_right_m: 10.0,
+                banking_rad: 0.0,
+                camber_rad: 0.0,
+                slope_rad: 0.0,
+                heading_rad: angle + std::f32::consts::FRAC_PI_2,
+                grip_modifier: 1.0,
+                surface_type: SurfaceType::Asphalt,
+            });
+        }
+
+        track.raceline = raceline;
+        track.centerline = centerline;
+
+        // Create session with one AI driver
+        let car = CarConfig::default();
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car.clone());
+
+        let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Practice, 8, 1, 1);
+        let ai_profiles = generate_default_ai_profiles(1);
+
+        let mut game_session = GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);
+
+        // Spawn the AI driver
+        game_session.spawn_ai_drivers();
+        assert_eq!(game_session.session.participants.len(), 1);
+
+        // Get the AI player ID
+        let ai_player_id = *game_session.session.ai_player_ids.first().unwrap();
+
+        // Set to FreePractice mode to test AI driving
+        game_session.set_game_mode(GameMode::FreePractice);
+
+        // Give the AI car initial speed to avoid stall (physics limitation)
+        // In a real sim, clutch modulation would handle launch
+        if let Some(ai_state) = game_session.session.participants.get_mut(&ai_player_id) {
+            ai_state.speed_mps = 5.0;  // Start with 5 m/s (18 km/h)
+            ai_state.vel_x = 5.0;
+            ai_state.engine_rpm = 2000.0;  // Start engine above idle
+        }
+
+        // Run simulation for 2 seconds (480 ticks at 240Hz)
+        for _ in 0..480 {
+            // Generate AI inputs for all AI players
+            let mut inputs = HashMap::new();
+            for ai_id in &game_session.session.ai_player_ids {
+                let ai_input = game_session.generate_ai_input(ai_id);
+                inputs.insert(*ai_id, ai_input);
+            }
+            game_session.tick(&inputs);
+        }
+
+        // Verify AI driver state
+        let ai_state = game_session.session.participants.get(&ai_player_id).unwrap();
+
+        // AI should have moved from starting position
+        let start_pos = &game_session.track_config.start_positions[0];
+        let distance_moved = ((ai_state.pos_x - start_pos.x).powi(2)
+            + (ai_state.pos_y - start_pos.y).powi(2)).sqrt();
+
+        assert!(distance_moved > 10.0,
+            "AI should have moved at least 10m from start position (started at 5m/s), moved: {}m", distance_moved);
+
+        // AI should have positive speed
+        assert!(ai_state.speed_mps > 0.0,
+            "AI should be moving, speed: {} m/s", ai_state.speed_mps);
+
+        // AI position should be reasonably close to the track centerline
+        // Find nearest track point
+        let nearest_track_point = game_session.track_config.centerline
+            .iter()
+            .min_by_key(|p| {
+                let dx = p.x - ai_state.pos_x;
+                let dy = p.y - ai_state.pos_y;
+                ((dx * dx + dy * dy) * 1000.0) as i32
+            })
+            .unwrap();
+
+        let distance_from_centerline = ((ai_state.pos_x - nearest_track_point.x).powi(2)
+            + (ai_state.pos_y - nearest_track_point.y).powi(2)).sqrt();
+
+        // AI should stay within 50m of centerline (generous tolerance for test)
+        assert!(distance_from_centerline < 50.0,
+            "AI should stay close to track centerline, distance: {}m", distance_from_centerline);
+
+        // AI should be generating valid inputs
+        let ai_input = game_session.generate_ai_input(&ai_player_id);
+        assert!(ai_input.throttle >= 0.0 && ai_input.throttle <= 1.0);
+        assert!(ai_input.brake >= 0.0 && ai_input.brake <= 1.0);
+        assert!(ai_input.steering >= -1.0 && ai_input.steering <= 1.0);
+        assert!(ai_input.gear.is_some());
+
+        // AI should be in a reasonable gear
+        if let Some(gear) = ai_input.gear {
+            assert!(gear >= 1 && gear <= 6, "AI gear should be between 1 and 6, got: {}", gear);
+        }
+    }
+
+    #[test]
+    fn test_ai_driver_follows_racing_line() {
+        use crate::ai_driver::AiDriverProfile;
+
+        // Create a straight track for easier validation
+        let mut track = TrackConfig::default();
+
+        // Create a 500m straight track
+        let num_points = 50;
+        let mut raceline = Vec::new();
+        let mut centerline = Vec::new();
+
+        for i in 0..num_points {
+            let x = i as f32 * 10.0; // 10m spacing
+            let y = 0.0;
+            let distance = i as f32 * 10.0;
+
+            raceline.push(RacelinePoint { x, y, z: 0.0 });
+            centerline.push(crate::data::TrackPoint {
+                x,
+                y,
+                z: 0.0,
+                distance_from_start_m: distance,
+                width_left_m: 10.0,
+                width_right_m: 10.0,
+                banking_rad: 0.0,
+                camber_rad: 0.0,
+                slope_rad: 0.0,
+                heading_rad: 0.0, // Straight track, heading east
+                grip_modifier: 1.0,
+                surface_type: SurfaceType::Asphalt,
+            });
+        }
+
+        track.raceline = raceline;
+        track.centerline = centerline;
+
+        // Create high-skill AI (should be very precise)
+        let ai_profile = AiDriverProfile::new("Test AI", 105);
+        let ai_player_id = ai_profile.id;
+
+        let car = CarConfig::default();
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car.clone());
+
+        let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Practice, 8, 1, 1);
+
+        let mut game_session = GameSession::with_ai_profiles(
+            session,
+            track,
+            car_configs,
+            vec![ai_profile],
+        );
+
+        // Spawn AI and add to session
+        game_session.spawn_ai_drivers();
+
+        // Start in free practice mode
+        game_session.set_game_mode(GameMode::FreePractice);
+
+        // Give the AI car initial speed to avoid stall
+        if let Some(ai_state) = game_session.session.participants.get_mut(&ai_player_id) {
+            ai_state.speed_mps = 10.0;  // Start with 10 m/s
+            ai_state.vel_x = 10.0;
+            ai_state.engine_rpm = 3000.0;
+        }
+
+        // Run for 3 seconds to let AI stabilize
+        for _ in 0..720 {
+            let mut inputs = HashMap::new();
+            for ai_id in &game_session.session.ai_player_ids {
+                let ai_input = game_session.generate_ai_input(ai_id);
+                inputs.insert(*ai_id, ai_input);
+            }
+            game_session.tick(&inputs);
+        }
+
+        // Check AI position over next 1 second, verifying it stays on line
+        let mut max_lateral_deviation = 0.0f32;
+
+        for _ in 0..240 {
+            let mut inputs = HashMap::new();
+            for ai_id in &game_session.session.ai_player_ids {
+                let ai_input = game_session.generate_ai_input(ai_id);
+                inputs.insert(*ai_id, ai_input);
+            }
+            game_session.tick(&inputs);
+
+            if let Some(ai_state) = game_session.session.participants.get(&ai_player_id) {
+                // Y should be close to 0 for straight track
+                let lateral_deviation = ai_state.pos_y.abs();
+                max_lateral_deviation = max_lateral_deviation.max(lateral_deviation);
+            }
+        }
+
+        // High-skill AI should stay within 20m of the racing line on a straight
+        assert!(max_lateral_deviation < 20.0,
+            "High-skill AI should stay close to racing line, max deviation: {}m", max_lateral_deviation);
+
+        // Verify AI is making forward progress
+        let final_state = game_session.session.participants.get(&ai_player_id).unwrap();
+        assert!(final_state.pos_x > 50.0,
+            "AI should have made significant forward progress, x position: {}m", final_state.pos_x);
     }
 }
