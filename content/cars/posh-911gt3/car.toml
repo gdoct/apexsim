@@ -18,3 +18,86 @@ drag_coefficient = 0.34
 grip_coefficient = 1.02
 max_steering_angle_rad = 0.51
 wheelbase_m = 2.65
+
+# Engine & drivetrain simulation parameters.
+# Notes:
+# - The server currently uses these fields where available; otherwise it falls back to legacy defaults.
+# - RPM values are in revolutions per minute, torque in N·m, power in Watts.
+
+[engine]
+# Porsche 911 GT3 (992) style: high-revving NA flat-six.
+max_power_w = 375000.0
+max_torque_nm = 470.0
+idle_rpm = 900.0
+redline_rpm = 9000.0
+max_rpm = 9200.0
+rev_limiter_rpm = 9200.0
+
+# Rotational dynamics / losses
+inertia_kg_m2 = 0.20
+friction_torque_nm = 18.0
+engine_brake_torque_nm = 95.0
+idle_control_gain = 0.15
+
+# Optional torque curve used by physics when provided.
+# Provide points ordered by RPM.
+[[engine.torque_curve]]
+rpm = 1000.0
+torque_nm = 220.0
+
+[[engine.torque_curve]]
+rpm = 3000.0
+torque_nm = 350.0
+
+[[engine.torque_curve]]
+rpm = 4500.0
+torque_nm = 420.0
+
+[[engine.torque_curve]]
+rpm = 6100.0
+torque_nm = 470.0
+
+[[engine.torque_curve]]
+rpm = 8000.0
+torque_nm = 455.0
+
+[[engine.torque_curve]]
+rpm = 9000.0
+torque_nm = 400.0
+
+[transmission]
+# One of: Manual, DCT, Sequential, Automatic, CVT
+transmission_type = "Manual"
+
+# Gear ratios: include reverse as the first (negative) entry.
+gear_ratios = [-3.44, 3.91, 2.29, 1.58, 1.18, 0.94, 0.81]
+final_drive_ratio = 3.97
+
+# Shift timing and drivetrain efficiency
+shift_time_s = 0.18
+efficiency = 0.93
+
+[drivetrain]
+# One of: RWD, FWD, AWD
+layout = "RWD"
+
+[differential]
+# One of: Open, Locked, ClutchLSD, ViscousLSD, Torsen
+differential_type = "ClutchLSD"
+preload_nm = 60.0
+lock_power = 0.35
+lock_coast = 0.20
+
+[fuel]
+capacity_liters = 64.0
+idle_consumption_lps = 0.00005
+load_consumption_scale = 0.003
+
+[hybrid]
+enabled = false
+battery_capacity_kwh = 0.0
+battery_max_discharge_kw = 0.0
+battery_max_charge_kw = 0.0
+motor_max_torque_nm = 0.0
+motor_max_power_kw = 0.0
+regen_max_power_kw = 0.0

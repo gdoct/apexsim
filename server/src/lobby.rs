@@ -170,8 +170,8 @@ impl LobbyManager {
         }
         drop(sessions);
 
-        // Keep player in lobby players list, but track their session membership
-        if self.players.read().await.contains_key(&player_id) {
+        // Remove player from lobby players list and track their session membership
+        if let Some(_player) = self.players.write().await.remove(&player_id) {
             self.player_sessions.write().await.insert(player_id, session_id);
 
             // Update session player count
@@ -337,7 +337,7 @@ mod tests {
         assert_eq!(lobby.get_lobby_count().await, 1);
 
         let removed = lobby.remove_player(player_id).await;
-        assert!(removed.is_some());
+        assert!(removed.0.is_some());
         assert_eq!(lobby.get_lobby_count().await, 0);
     }
 

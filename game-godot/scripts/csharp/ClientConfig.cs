@@ -1,12 +1,15 @@
 using Godot;
 using System;
 using System.IO;
+using System.Collections.Generic;
 
 namespace ApexSim;
 
 public class ClientConfig
 {
     public string ContentDirectory { get; set; } = "../content";
+    // If true, use the alternative car selection UI for A/B testing.
+    public bool UseAltCarSelection { get; set; } = false;
 
     private static ClientConfig? _instance;
     private static readonly string ConfigFileName = "client_config.json";
@@ -28,46 +31,69 @@ public class ClientConfig
     {
         var config = new ClientConfig();
 
-        // Try to load base config
-        var baseConfigPath = GetConfigPath(ConfigFileName);
-        if (File.Exists(baseConfigPath))
+        // Try to load base config from several candidate locations.
+        // Common locations: executable directory, project res:// path, current working directory.
+        var candidates = GetCandidateConfigPaths(ConfigFileName);
+        var loaded = false;
+        foreach (var path in candidates)
         {
-            try
+            if (File.Exists(path))
             {
-                var json = File.ReadAllText(baseConfigPath);
-                var loadedConfig = System.Text.Json.JsonSerializer.Deserialize<ClientConfig>(json);
-                if (loadedConfig != null)
+                try
                 {
-                    config = loadedConfig;
+                    var json = File.ReadAllText(path);
+                    var loadedConfig = System.Text.Json.JsonSerializer.Deserialize<ClientConfig>(json);
+                    if (loadedConfig != null)
+                    {
+                        config = loadedConfig;
+                        loaded = true;
+                        GD.Print($"ClientConfig: loaded base config from {path}");
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"Failed to load base config from {path}: {ex.Message}");
                 }
             }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"Failed to load base config: {ex.Message}");
-            }
-        }
-        else
-        {
-            // Create default config file
-            SaveDefaultConfig(baseConfigPath);
         }
 
-        // Try to load override config (takes precedence)
-        var overrideConfigPath = GetConfigPath(ConfigOverrideFileName);
-        if (File.Exists(overrideConfigPath))
+        if (!loaded)
         {
+            // Create default config file at the first candidate (executable dir) for visibility
             try
             {
-                var json = File.ReadAllText(overrideConfigPath);
-                var overrideConfig = System.Text.Json.JsonSerializer.Deserialize<ClientConfig>(json);
-                if (overrideConfig != null)
-                {
-                    config = overrideConfig;
-                }
+                var basePath = candidates[0];
+                SaveDefaultConfig(basePath);
+                GD.Print($"ClientConfig: wrote default config to {basePath}");
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"Failed to load override config: {ex.Message}");
+                GD.PrintErr($"Failed to save default config: {ex.Message}");
+            }
+        }
+
+        // Try to load override config (takes precedence) from same candidate locations
+        var overrideCandidates = GetCandidateConfigPaths(ConfigOverrideFileName);
+        foreach (var path in overrideCandidates)
+        {
+            if (File.Exists(path))
+            {
+                try
+                {
+                    var json = File.ReadAllText(path);
+                    var overrideConfig = System.Text.Json.JsonSerializer.Deserialize<ClientConfig>(json);
+                    if (overrideConfig != null)
+                    {
+                        config = overrideConfig;
+                        GD.Print($"ClientConfig: loaded override config from {path}");
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"Failed to load override config from {path}: {ex.Message}");
+                }
             }
         }
 
@@ -76,9 +102,31 @@ public class ClientConfig
 
     private static string GetConfigPath(string fileName)
     {
-        // Get the directory where the executable is located
+        // Backwards-compatible single-path helper - prefer executable dir
         var executablePath = System.AppContext.BaseDirectory;
         return Path.Combine(executablePath, fileName);
+    }
+
+    private static string[] GetCandidateConfigPaths(string fileName)
+    {
+        var exeDir = System.AppContext.BaseDirectory;
+        string projectDir = "";
+        try
+        {
+            projectDir = ProjectSettings.GlobalizePath("res://");
+        }
+        catch
+        {
+            projectDir = "";
+        }
+
+        var cwd = Directory.GetCurrentDirectory();
+        var list = new List<string>();
+        // Prefer project-level config (res://), then working directory, then executable dir.
+        if (!string.IsNullOrEmpty(projectDir)) list.Add(Path.Combine(projectDir, fileName));
+        if (!string.IsNullOrEmpty(cwd)) list.Add(Path.Combine(cwd, fileName));
+        if (!string.IsNullOrEmpty(exeDir)) list.Add(Path.Combine(exeDir, fileName));
+        return list.ToArray();
     }
 
     private static void SaveDefaultConfig(string path)

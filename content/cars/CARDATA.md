@@ -46,9 +46,10 @@ This is where the bulk of your realistic simulation will come from.
 ### Engine:
 * Torque Curve: Engine torque output at different RPMs.
 * Horsepower Curve: Derived from torque.
-* Redline/Rev Limiter: Maximum RPM.
-* Engine Braking: How much resistance the engine provides when off throttle.
-* Fuel Consumption Rate: How quickly the engine uses fuel.
+* Idle / Redline / Rev Limiter: RPM thresholds.
+* Engine Braking: Negative torque when off throttle.
+* Rotational Inertia & Friction: Affects RPM response and losses.
+* Fuel Consumption: Base + load-based model (and later, BSFC-based).
 
 ### Transmission/Drivetrain:
 * Gear Ratios: For each forward gear and reverse.
@@ -56,6 +57,82 @@ This is where the bulk of your realistic simulation will come from.
 * Differential Type & Lock: Open, limited slip (LSD), locked, spool. Parameters for lock strength, preload.
 * Clutch Engagement/Slip: For manual transmissions.
 * Drivetrain Loss: Efficiency of power transfer.
+
+## TOML: Engine & Drivetrain Simulation Schema
+
+This repo currently supports a minimal `[physics]` section in each `car.toml`. For more realistic powertrain simulation, add these sections. Existing cars without these sections continue to load using defaults.
+
+### [engine]
+
+| Key | Type | Unit | Required | Description |
+|---|---:|---:|---:|---|
+| `max_power_w` | float | W | no | Peak engine power. If omitted, legacy power is derived from `physics.max_engine_force_n * 100`. |
+| `max_torque_nm` | float | N·m | no | Peak torque used for legacy fallback. |
+| `idle_rpm` | float | rpm | no | Target idle speed. |
+| `redline_rpm` | float | rpm | no | Driver-facing redline (used for normalization). |
+| `max_rpm` | float | rpm | no | Absolute maximum RPM (clamp for derived RPM). |
+| `rev_limiter_rpm` | float | rpm | no | Limiter threshold where torque cut begins. |
+| `inertia_kg_m2` | float | kg·m² | no | Approx. crank+flywheel inertia. |
+| `friction_torque_nm` | float | N·m | no | Base friction torque opposing rotation (scaled by RPM fraction). |
+| `engine_brake_torque_nm` | float | N·m | no | Extra negative torque at closed throttle (scaled by RPM fraction). |
+| `idle_control_gain` | float | unitless | no | Simple idle controller gain (reserved for future use). |
+
+#### Torque curve
+
+If `engine.torque_curve` is provided, physics uses it instead of the legacy parabola.
+
+```toml
+[[engine.torque_curve]]
+rpm = 1000.0
+torque_nm = 240.0
+```
+
+### [transmission]
+
+| Key | Type | Unit | Required | Description |
+|---|---:|---:|---:|---|
+| `transmission_type` | string | - | no | One of: `Manual`, `DCT`, `Sequential`, `Automatic`, `CVT`. |
+| `gear_ratios` | array(float) | ratio | no | Include reverse as the first (negative) entry. Indexing matches server gear mapping. |
+| `final_drive_ratio` | float | ratio | no | Final drive ratio. |
+| `shift_time_s` | float | s | no | Shift latency used by higher-level logic (reserved). |
+| `efficiency` | float | 0-1 | no | Drivetrain efficiency multiplier applied to wheel torque. |
+
+### [drivetrain]
+
+| Key | Type | Unit | Required | Description |
+|---|---:|---:|---:|---|
+| `layout` | string | - | no | One of: `RWD`, `FWD`, `AWD`. |
+
+### [differential]
+
+| Key | Type | Unit | Required | Description |
+|---|---:|---:|---:|---|
+| `differential_type` | string | - | no | One of: `Open`, `Locked`, `ClutchLSD`, `ViscousLSD`, `Torsen`. |
+| `preload_nm` | float | N·m | no | Preload for clutch LSD. |
+| `lock_power` | float | 0-1 | no | Lock factor on power. |
+| `lock_coast` | float | 0-1 | no | Lock factor on coast. |
+
+### [fuel]
+
+| Key | Type | Unit | Required | Description |
+|---|---:|---:|---:|---|
+| `capacity_liters` | float | L | no | Fuel tank capacity. Synced into telemetry each tick. |
+| `idle_consumption_lps` | float | L/s | no | Base consumption at idle. |
+| `load_consumption_scale` | float | (L/s) | no | Consumption scaling with throttle and RPM fraction. |
+
+### [hybrid]
+
+Hybrid is currently configuration-only (reserved for future power/regen integration).
+
+| Key | Type | Unit | Required | Description |
+|---|---:|---:|---:|---|
+| `enabled` | bool | - | no | Enables hybrid system. |
+| `battery_capacity_kwh` | float | kWh | no | Battery capacity. |
+| `battery_max_discharge_kw` | float | kW | no | Max discharge power. |
+| `battery_max_charge_kw` | float | kW | no | Max charge power (regen/charging). |
+| `motor_max_torque_nm` | float | N·m | no | Max motor torque. |
+| `motor_max_power_kw` | float | kW | no | Max motor power. |
+| `regen_max_power_kw` | float | kW | no | Max regen power. |
 
 ### Brakes:
 * Brake Torque Curve: How much braking force at different pedal pressures/temperatures.

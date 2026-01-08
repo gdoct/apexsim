@@ -9,6 +9,17 @@ where
     uuid::Uuid::parse_str(&s).map_err(serde::de::Error::custom)
 }
 
+fn deserialize_option_uuid_from_string<'de, D>(deserializer: D) -> Result<Option<uuid::Uuid>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    match opt {
+        Some(s) => uuid::Uuid::parse_str(&s).map(Some).map_err(serde::de::Error::custom),
+        None => Ok(None),
+    }
+}
+
 // --- Client to Server Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
@@ -77,7 +88,7 @@ pub enum MessagePriority {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct AuthSuccessData {
-    #[serde(serialize_with = "serialize_uuid_as_string")]
+    #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string")]
     pub player_id: PlayerId,
     pub server_version: u32,
 }
@@ -85,7 +96,7 @@ pub struct AuthSuccessData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SessionJoinedData {
-    #[serde(serialize_with = "serialize_uuid_as_string")]
+    #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string")]
     pub session_id: SessionId,
     pub your_grid_position: u8,
 }
@@ -93,7 +104,7 @@ pub struct SessionJoinedData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PlayerDisconnectedData {
-    #[serde(serialize_with = "serialize_uuid_as_string")]
+    #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string")]
     pub player_id: PlayerId,
 }
 
@@ -167,19 +178,19 @@ impl ServerMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct LobbyPlayer {
-    #[serde(serialize_with = "serialize_uuid_as_string", rename = "Id")]
+    #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string", rename = "Id")]
     pub id: PlayerId,
     pub name: String,
-    #[serde(serialize_with = "serialize_option_uuid_as_string", rename = "SelectedCar")]
+    #[serde(serialize_with = "serialize_option_uuid_as_string", deserialize_with = "deserialize_option_uuid_from_string", rename = "SelectedCar")]
     pub selected_car: Option<CarConfigId>,
-    #[serde(serialize_with = "serialize_option_uuid_as_string", rename = "InSession")]
+    #[serde(serialize_with = "serialize_option_uuid_as_string", deserialize_with = "deserialize_option_uuid_from_string", rename = "InSession")]
     pub in_session: Option<SessionId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SessionSummary {
-    #[serde(serialize_with = "serialize_uuid_as_string", rename = "Id")]
+    #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string", rename = "Id")]
     pub id: SessionId,
     pub track_name: String,
     /// Track file relative to content folder (e.g. "tracks/real/Austin.yaml")

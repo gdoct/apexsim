@@ -126,18 +126,9 @@ impl GameSession {
             return;
         }
 
-        let demo_speed = 50.0; // 50 m/s fixed speed
         let raceline_len = self.track_config.raceline.len();
 
         if let Some(ref mut progress) = self.session.demo_lap_progress {
-            // Advance progress along the racing line
-            *progress += (demo_speed * dt) / raceline_len as f32;
-
-            // Loop back when completing the lap
-            if *progress >= 1.0 {
-                *progress = 0.0;
-            }
-
             // Calculate position on racing line
             let index = (*progress * raceline_len as f32).floor() as usize;
             let next_index = (index + 1) % raceline_len;
@@ -145,6 +136,70 @@ impl GameSession {
 
             let p1 = &self.track_config.raceline[index];
             let p2 = &self.track_config.raceline[next_index];
+
+            // Calculate curvature by looking ahead
+            let lookahead_distance = 10; // Points to look ahead
+            let ahead_index = (index + lookahead_distance) % raceline_len;
+            let way_ahead_index = (index + lookahead_distance * 2) % raceline_len;
+            
+            let p_ahead = &self.track_config.raceline[ahead_index];
+            let p_way_ahead = &self.track_config.raceline[way_ahead_index];
+            
+            // Calculate vectors for curvature estimation
+            let v1_x = p_ahead.x - p1.x;
+            let v1_y = p_ahead.y - p1.y;
+            let v2_x = p_way_ahead.x - p_ahead.x;
+            let v2_y = p_way_ahead.y - p_ahead.y;
+            
+            let len1 = (v1_x * v1_x + v1_y * v1_y).sqrt();
+            let len2 = (v2_x * v2_x + v2_y * v2_y).sqrt();
+            
+            // Calculate angle change (curvature indicator)
+            let mut curvature = 0.0;
+            if len1 > 0.001 && len2 > 0.001 {
+                // Dot product to find angle between vectors
+                let dot = (v1_x * v2_x + v1_y * v2_y) / (len1 * len2);
+                let angle_change = dot.clamp(-1.0, 1.0).acos();
+                curvature = angle_change;
+            }
+            
+            // Speed control based on curvature
+            // Max speed on straights: 80 m/s (288 km/h)
+            // Min speed in tight corners: 30 m/s (108 km/h)
+            let max_speed = 80.0;
+            let min_speed = 30.0;
+            
+            // Map curvature (0 to ~PI) to speed range
+            // High curvature (sharp corner) = low speed
+            // Low curvature (straight) = high speed
+            let curvature_factor = 1.0 - (curvature / std::f32::consts::PI).min(1.0);
+            let target_speed = min_speed + (max_speed - min_speed) * curvature_factor;
+            
+            // Get current speed from demo car or use target speed
+            let current_speed = self.session.participants.values()
+                .next()
+                .map(|car| car.speed_mps)
+                .unwrap_or(target_speed);
+            
+            // Smooth acceleration/braking
+            let accel_rate = 15.0; // m/s² acceleration
+            let brake_rate = 25.0; // m/s² braking
+            
+            let demo_speed = if current_speed < target_speed {
+                // Accelerate
+                (current_speed + accel_rate * dt).min(target_speed)
+            } else {
+                // Brake
+                (current_speed - brake_rate * dt).max(target_speed)
+            };
+
+            // Advance progress along the racing line based on current speed
+            *progress += (demo_speed * dt) / raceline_len as f32;
+
+            // Loop back when completing the lap
+            if *progress >= 1.0 {
+                *progress = 0.0;
+            }
 
             // Interpolate position
             let x = p1.x + (p2.x - p1.x) * t;
@@ -760,10 +815,19 @@ mod tests {
         game_session.session.demo_lap_progress = Some(0.99);
 
         let inputs = HashMap::new();
-        game_session.tick(&inputs);
+        
+        // Run multiple ticks to ensure loop happens (variable speed means it might take multiple ticks)
+        for _ in 0..20 {
+            game_session.tick(&inputs);
+            if game_session.session.demo_lap_progress.unwrap() < 0.5 {
+                break;
+            }
+        }
 
+        let final_progress = game_session.session.demo_lap_progress.unwrap();
+        
         // Should loop back to near 0
-        assert!(game_session.session.demo_lap_progress.unwrap() < 0.5);
+        assert!(final_progress < 0.5);
     }
 
     #[test]

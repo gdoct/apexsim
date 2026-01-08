@@ -51,6 +51,19 @@ pub struct CarConfig {
     pub gear_ratios: Vec<f32>,      // Gear ratios (including reverse as negative)
     pub final_drive_ratio: f32,
     pub drivetrain: Drivetrain,     // FWD, RWD, AWD
+
+    // Engine simulation parameters (more detailed than the legacy fields above).
+    // These are optional/soft-configurable: physics falls back to legacy behavior if unset.
+    #[serde(default)]
+    pub engine: EngineConfig,
+    #[serde(default)]
+    pub transmission: TransmissionConfig,
+    #[serde(default)]
+    pub differential: DifferentialConfig,
+    #[serde(default)]
+    pub fuel: FuelConfig,
+    #[serde(default)]
+    pub hybrid: HybridConfig,
     
     // Braking
     pub max_brake_force_n: f32,
@@ -79,6 +92,156 @@ pub enum Drivetrain {
     FWD,  // Front-wheel drive
     RWD,  // Rear-wheel drive
     AWD,  // All-wheel drive
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum TransmissionType {
+    Manual,
+    DCT,
+    Sequential,
+    Automatic,
+    CVT,
+}
+
+impl Default for TransmissionType {
+    fn default() -> Self {
+        TransmissionType::Sequential
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum DifferentialType {
+    Open,
+    Locked,
+    ClutchLSD,
+    ViscousLSD,
+    Torsen,
+}
+
+impl Default for DifferentialType {
+    fn default() -> Self {
+        DifferentialType::ClutchLSD
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct TorqueCurvePoint {
+    pub rpm: f32,
+    pub torque_nm: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EngineConfig {
+    /// RPM at which the limiter starts cutting torque.
+    pub rev_limiter_rpm: f32,
+    /// Optional torque curve used by physics when non-empty.
+    pub torque_curve: Vec<TorqueCurvePoint>,
+    /// Approx. engine rotational inertia.
+    pub inertia_kg_m2: f32,
+    /// Base friction torque opposing rotation.
+    pub friction_torque_nm: f32,
+    /// Additional negative torque when off-throttle (engine braking).
+    pub engine_brake_torque_nm: f32,
+    /// Idle controller strength (simple proportional gain).
+    pub idle_control_gain: f32,
+}
+
+impl Default for EngineConfig {
+    fn default() -> Self {
+        Self {
+            rev_limiter_rpm: 8000.0,
+            torque_curve: Vec::new(),
+            inertia_kg_m2: 0.25,
+            friction_torque_nm: 20.0,
+            engine_brake_torque_nm: 80.0,
+            idle_control_gain: 0.15,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransmissionConfig {
+    pub transmission_type: TransmissionType,
+    /// Shift time used by automatic shifting / latency simulation.
+    pub shift_time_s: f32,
+    /// Drivetrain efficiency multiplier (0-1). Applied to wheel torque.
+    pub efficiency: f32,
+}
+
+impl Default for TransmissionConfig {
+    fn default() -> Self {
+        Self {
+            transmission_type: TransmissionType::Sequential,
+            shift_time_s: 0.12,
+            efficiency: 0.92,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DifferentialConfig {
+    pub differential_type: DifferentialType,
+    /// Base preload torque for clutch LSD.
+    pub preload_nm: f32,
+    /// Lock factor on power (0-1).
+    pub lock_power: f32,
+    /// Lock factor on coast (0-1).
+    pub lock_coast: f32,
+}
+
+impl Default for DifferentialConfig {
+    fn default() -> Self {
+        Self {
+            differential_type: DifferentialType::ClutchLSD,
+            preload_nm: 60.0,
+            lock_power: 0.35,
+            lock_coast: 0.20,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FuelConfig {
+    pub capacity_liters: f32,
+    /// Base consumption at idle (L/s)
+    pub idle_consumption_lps: f32,
+    /// Consumption scaling with throttle/rpm (tuned constant).
+    pub load_consumption_scale: f32,
+}
+
+impl Default for FuelConfig {
+    fn default() -> Self {
+        Self {
+            capacity_liters: 100.0,
+            idle_consumption_lps: 0.00005,
+            load_consumption_scale: 0.003,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HybridConfig {
+    pub enabled: bool,
+    pub battery_capacity_kwh: f32,
+    pub battery_max_discharge_kw: f32,
+    pub battery_max_charge_kw: f32,
+    pub motor_max_torque_nm: f32,
+    pub motor_max_power_kw: f32,
+    pub regen_max_power_kw: f32,
+}
+
+impl Default for HybridConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            battery_capacity_kwh: 0.0,
+            battery_max_discharge_kw: 0.0,
+            battery_max_charge_kw: 0.0,
+            motor_max_torque_nm: 0.0,
+            motor_max_power_kw: 0.0,
+            regen_max_power_kw: 0.0,
+        }
+    }
 }
 
 impl Default for Drivetrain {
@@ -172,6 +335,15 @@ impl Default for CarConfig {
             gear_ratios: vec![-3.5, 3.8, 2.4, 1.7, 1.3, 1.0, 0.8],  // R, 1-6
             final_drive_ratio: 3.7,
             drivetrain: Drivetrain::RWD,
+
+            engine: EngineConfig {
+                rev_limiter_rpm: 8000.0,
+                ..EngineConfig::default()
+            },
+            transmission: TransmissionConfig::default(),
+            differential: DifferentialConfig::default(),
+            fuel: FuelConfig::default(),
+            hybrid: HybridConfig::default(),
             
             // Braking
             max_brake_force_n: 25000.0,

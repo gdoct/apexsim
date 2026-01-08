@@ -14,7 +14,7 @@ A complete async TCP/UDP transport layer with the following capabilities:
   - Async TCP listener on configurable bind address
   - Per-connection bidirectional channels for message passing
   - Split reader/writer tasks for each connection
-  - Length-prefixed message framing (4-byte big-endian length + bincode payload)
+  - Length-prefixed message framing (4-byte big-endian length + MessagePack payload)
   - Connection tracking with player ID mapping
   - Automatic authentication handling
 
@@ -101,9 +101,9 @@ Updated [main.rs](src/main.rs) to:
 
 ### Message Serialization
 
-- Protocol: Binary serialization via `bincode`
-- TCP Framing: `[4-byte length][bincode payload]`
-- UDP: Raw bincode (no framing, single datagram per message)
+- Protocol: Binary serialization via `MessagePack`
+- TCP Framing: `[4-byte length][MessagePack payload]`
+- UDP: Raw MessagePack (no framing, single datagram per message)
 
 ### TLS Configuration
 
@@ -232,7 +232,7 @@ New client messages for lobby operations:
 - **Auto-start**: Recording begins when session transitions to Racing state
 - **Frame Recording**: Telemetry captured every tick (240Hz) during racing
 - **Auto-save**: Replay automatically saved when session finishes
-- **Binary Format**: Efficient bincode serialization to `./replays/` directory
+- **Binary Format**: Efficient MessagePack serialization to `./replays/` directory
 - **Metadata**: Includes session ID, track, participants, timestamp
 - **State Management**: Borrow-checker safe deferred execution pattern
 

@@ -17,7 +17,7 @@ The server is a single Rust application running as a standalone async process us
 
 *   **`main.rs`:** Entry point, CLI parsing, config loading, server bootstrap.
 *   **`config`:** Configuration loading and validation from TOML files.
-*   **`network`:** UDP/TCP connections, message serialization via `bincode`, connection-to-player mapping.
+*   **`network`:** UDP/TCP connections, message serialization via `MessagePack`, connection-to-player mapping.
 *   **`lobby`:** Manages players not currently in a race session.
 *   **`session_manager`:** Manages active and pending race sessions.
 *   **`game_session`:** Contains the state and logic for a single race session (physics, race rules).
@@ -151,7 +151,7 @@ pub struct RaceSession {
 
 ### 3. Network Message Formats (`network.rs`)
 
-Packets are serialized with `bincode` (compact binary, serde-compatible). The server maintains a `ConnectionId → PlayerId` mapping established during TCP auth; UDP packets do not include player/session IDs—identity is derived from source address.
+Packets are serialized with `MessagePack` (compact binary, serde-compatible). The server maintains a `ConnectionId → PlayerId` mapping established during TCP auth; UDP packets do not include player/session IDs—identity is derived from source address.
 
 **Connection Flow:**
 1. Client opens TCP connection, completes TLS handshake
@@ -669,7 +669,7 @@ CREATE TABLE race_sessions (
 CREATE TABLE telemetry_frames (
     session_id TEXT NOT NULL,
     tick INTEGER NOT NULL,
-    payload BLOB NOT NULL,           -- bincode-serialized Telemetry struct
+`payload BLOB NOT NULL,           -- MessagePack-serialized Telemetry struct`
     PRIMARY KEY (session_id, tick)
 ) WITHOUT ROWID;                     -- Optimized for sequential writes
 
@@ -713,7 +713,7 @@ CREATE INDEX idx_sessions_finished ON race_sessions(finished_at);
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 serde = { version = "1", features = ["derive"] }
-bincode = "1"
+rmp-serde = "1"
 thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
@@ -736,7 +736,7 @@ tokio-test = "0.4"
 
 ### 14. Future Considerations (Post-Initial Phase)
 
-*   **FlatBuffers Migration:** Once message schemas are stable, migrate from `bincode` to FlatBuffers for zero-copy deserialization and better cross-language support.
+*   **FlatBuffers Migration:** Once message schemas are stable, migrate from `MessagePack` to FlatBuffers for zero-copy deserialization and better cross-language support.
 *   **DTLS for UDP:** Add encrypted UDP via DTLS 1.3 for production deployments.
 *   **Advanced Physics:** Tire slip model, suspension, proper collision impulse resolution.
 *   **Client-Side Prediction:** Requires deterministic physics; add input buffering and rollback on client.
