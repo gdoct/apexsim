@@ -73,10 +73,10 @@ public static class TelemetryHandler
                      $"Yaw: {carState.YawRad:F2} rad ({carState.YawRad * 180.0f / Mathf.Pi:F1}°), Speed: {carState.SpeedMps:F1} m/s, Progress: {carState.TrackProgress:F2}");
         }
 
-        if (telemetryCount % 60 == 0)
-        {
-            GD.Print($"[Debug #{telemetryCount}] Server yaw: {carState.YawRad:F2} rad, Godot yaw will be: {-carState.YawRad:F2} rad");
-        }
+        // if (telemetryCount % 60 == 0)
+        // {
+        //     GD.Print($"[Debug #{telemetryCount}] Server yaw: {carState.YawRad:F2} rad, Godot yaw will be: {-carState.YawRad:F2} rad");
+        // }
 
         var carPosition = new Vector3(
             carState.PosX,

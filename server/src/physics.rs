@@ -904,21 +904,40 @@ pub fn update_track_progress_3d(
     let old_progress = state.track_progress;
     state.track_progress = track.centerline[nearest_idx].distance_from_start_m;
 
+    // Debug: Log track progress every 240 ticks (once per second)
+    if current_tick % 240 == 0 {
+        eprintln!("[Lap Debug] Tick {}: current_lap={}, track_progress={:.1}m/{:.1}m, lap_time={}ms",
+            current_tick, state.current_lap, state.track_progress, track_length, state.current_lap_time_ms);
+    }
+
+    // Update current lap time
+    if state.current_lap > 0 {
+        let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
+        state.current_lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / 240.0) as u32;
+    }
+
     // Detect lap completion
     if state.current_lap > 0 && old_progress > track_length * 0.8 && state.track_progress < track_length * 0.2 {
-        state.current_lap += 1;
-        
-        let lap_time_ms = (current_tick as f32 * 1000.0 / 240.0) as u32;
+        // Calculate lap time (time since lap started)
+        let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
+        let lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / 240.0) as u32;
         state.last_lap_time_ms = Some(lap_time_ms);
-        
+
         if state.best_lap_time_ms.is_none() || lap_time_ms < state.best_lap_time_ms.unwrap() {
             state.best_lap_time_ms = Some(lap_time_ms);
         }
+
+        state.current_lap += 1;
+        state.lap_start_tick = current_tick;  // Reset lap timer
+        state.current_lap_time_ms = 0;
     }
 
-    // Start lap 1
-    if state.current_lap == 0 && state.track_progress > track_length * 0.1 {
+    // Start lap 1 - only when crossing the start line going forward
+    // This prevents false start detection when spawning near the finish line
+    if state.current_lap == 0 && old_progress < track_length * 0.1 && state.track_progress > track_length * 0.1 {
         state.current_lap = 1;
+        state.lap_start_tick = current_tick;  // Start timing first lap
+        state.current_lap_time_ms = 0;
     }
 }
 
@@ -977,19 +996,33 @@ pub fn update_track_progress(
     let old_progress = state.track_progress;
     state.track_progress = centerline[nearest_idx].distance_from_start_m;
 
+    // Update current lap time
+    if state.current_lap > 0 {
+        let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
+        state.current_lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / 240.0) as u32;
+    }
+
     if state.current_lap > 0 && old_progress > track_length * 0.8 && state.track_progress < track_length * 0.2 {
-        state.current_lap += 1;
-        
-        let lap_time_ms = (current_tick as f32 * 1000.0 / 240.0) as u32;
+        // Calculate lap time (time since lap started)
+        let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
+        let lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / 240.0) as u32;
         state.last_lap_time_ms = Some(lap_time_ms);
-        
+
         if state.best_lap_time_ms.is_none() || lap_time_ms < state.best_lap_time_ms.unwrap() {
             state.best_lap_time_ms = Some(lap_time_ms);
         }
+
+        state.current_lap += 1;
+        state.lap_start_tick = current_tick;  // Reset lap timer
+        state.current_lap_time_ms = 0;
     }
 
-    if state.current_lap == 0 && state.track_progress > track_length * 0.1 {
+    // Start lap 1 - only when crossing the start line going forward
+    // This prevents false start detection when spawning near the finish line
+    if state.current_lap == 0 && old_progress < track_length * 0.1 && state.track_progress > track_length * 0.1 {
         state.current_lap = 1;
+        state.lap_start_tick = current_tick;  // Start timing first lap
+        state.current_lap_time_ms = 0;
     }
 }
 

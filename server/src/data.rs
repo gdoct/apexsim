@@ -388,6 +388,9 @@ pub struct TrackConfig {
     /// Track metadata
     #[serde(default)]
     pub metadata: TrackMetadata,
+    /// Optional procedural world data
+    #[serde(default)]
+    pub procedural_world: Option<crate::procgen::ProceduralWorldData>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -404,7 +407,23 @@ pub struct TrackMetadata {
     pub length_m: Option<f32>,
     pub description: Option<String>,
     pub year_built: Option<u32>,
-    pub category: Option<String>,  // e.g., \"F1\", \"DTM\", \"IndyCar\"
+    pub category: Option<String>,  // e.g., "F1", "DTM", "IndyCar"
+
+    // Procedural generation parameters
+    #[serde(default)]
+    pub environment_type: Option<String>,      // "desert" | "forest" | "city" | "mountains" | "plains"
+    #[serde(default)]
+    pub terrain_seed: Option<u32>,             // Deterministic seed (None = generate from track ID)
+    #[serde(default)]
+    pub terrain_scale: Option<f32>,            // Height multiplier (default: 1.0)
+    #[serde(default)]
+    pub terrain_detail: Option<f32>,           // Noise frequency multiplier (default: 0.5)
+    #[serde(default)]
+    pub terrain_blend_width: Option<f32>,      // Track corridor blend meters (default: 20.0)
+    #[serde(default)]
+    pub object_density: Option<f32>,           // 0-1 density multiplier (default: 0.8)
+    #[serde(default)]
+    pub decal_profile: Option<String>,         // Decal set identifier (default: "default")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -518,6 +537,7 @@ impl Default for TrackConfig {
             pit_lane: None,
             raceline: Vec::new(),
             metadata: TrackMetadata::default(),
+            procedural_world: None,
         }
     }
 }
@@ -666,6 +686,8 @@ pub struct CarState {
     pub lateral_offset_m: f32,        // Distance from centerline (positive = right)
     pub current_lap: u16,
     pub finish_position: Option<u8>,
+    pub lap_start_tick: u32,          // Tick when current lap started
+    pub current_lap_time_ms: u32,     // Current lap time in progress
     pub last_lap_time_ms: Option<u32>,
     pub best_lap_time_ms: Option<u32>,
     
@@ -746,6 +768,8 @@ impl CarState {
             lateral_offset_m: 0.0,
             current_lap: 0,
             finish_position: None,
+            lap_start_tick: 0,
+            current_lap_time_ms: 0,
             last_lap_time_ms: None,
             best_lap_time_ms: None,
             

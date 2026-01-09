@@ -188,3 +188,6 @@ __pycache__/
 /Docs/Build/
 certs/
 .venv/
+
+# Procedural terrain cache files (generated)
+*.terrain.msgpack

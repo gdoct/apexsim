@@ -27,6 +27,10 @@ struct Args {
     /// Override log level (trace|debug|info|warn|error)
     #[arg(short, long)]
     log_level: Option<String>,
+
+    /// Generate procedural terrain for all tracks with environment_type metadata
+    #[arg(long)]
+    generate_terrain: bool,
 }
 
 struct ServerState {
@@ -186,6 +190,7 @@ impl ServerState {
     fn create_session(
         &mut self,
         host_player_id: PlayerId,
+        host_car_id: CarConfigId,
         track_config_id: TrackConfigId,
         session_kind: SessionKind,
         max_players: u8,
@@ -199,7 +204,8 @@ impl ServerState {
         }
 
         let track = self.track_configs.get(&track_config_id)?.clone();
-        let session = RaceSession::new(host_player_id, track_config_id, session_kind, max_players, ai_count, lap_limit);
+        let mut session = RaceSession::new(host_player_id, track_config_id, session_kind, max_players, ai_count, lap_limit);
+        session.host_car_id = Some(host_car_id);
         let session_id = session.id;
 
         // Create AI profiles if AI count is specified
@@ -250,6 +256,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load configuration
     let config = ServerConfig::load_or_default(&args.config);
     info!("Configuration loaded from: {}", args.config);
+
+    // Check if we're in terrain generation mode
+    if args.generate_terrain {
+        info!("🌍 TERRAIN GENERATION MODE");
+        info!("Generating procedural terrain for all tracks...");
+
+        use apexsim_server::procgen;
+        let result = procgen::terrain::generate_all_terrain(&config.content.tracks_dir);
+
+        match result {
+            Ok(count) => {
+                info!("✅ Successfully generated terrain for {} track(s)", count);
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!("❌ Terrain generation failed: {}", e);
+                return Err(e.into());
+            }
+        }
+    }
+
     info!("TCP bind: {}", config.network.tcp_bind);
     info!("UDP bind: {}", config.network.udp_bind);
     info!("Tick rate: {}Hz", config.server.tick_rate_hz);
@@ -340,6 +367,11 @@ async fn send_lobby_state(
 
     // Get lobby players and sessions
     let players_in_lobby = state_read.lobby.get_lobby_players().await;
+    info!("send_lobby_state: players_in_lobby count = {}", players_in_lobby.len());
+    for player in &players_in_lobby {
+        info!("  - Player: {} (ID: {}), SelectedCar: {:?}, InSession: {:?}",
+              player.name, player.id, player.selected_car, player.in_session);
+    }
     let available_sessions = state_read.lobby.get_available_sessions().await;
 
     // Get car and track configs
@@ -491,8 +523,12 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
 
                 ClientMessage::SelectCar { car_config_id } => {
                     if let Some(conn_info) = transport_write.get_connection(connection_id).await {
+                        info!("SelectCar: player_id={}, car_config_id={}", conn_info.player_id, car_config_id);
                         let state_write = state.write().await;
                         state_write.lobby.set_player_car(conn_info.player_id, car_config_id).await;
+                        info!("SelectCar: Car set successfully");
+                    } else {
+                        warn!("SelectCar: No connection info found for connection_id={}", connection_id);
                     }
                 }
 
@@ -513,6 +549,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                             // Create session
                             if let Some(session_id) = state_write.create_session(
                                 conn_info.player_id,
+                                car_id,
                                 track_config_id,
                                 session_kind,
                                 max_players,
@@ -712,9 +749,9 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                         }
 
                         let empty_session = state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
-                        
+
                         if let Some(session_id) = empty_session {
-                            info!("Session {} is empty after player left, removing it", session_id);
+                            info!("Session {} has no human players left, removing it", session_id);
                             state_write.sessions.remove(&session_id);
                             state_write.lobby.unregister_session(session_id).await;
                         }
@@ -928,9 +965,17 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
 
         // Tick each session
         for (session_id, game_session) in state_write.sessions.iter_mut() {
-            // Check if session has no players (everyone left)
-            if game_session.session.participants.is_empty() {
-                info!("Session {} has no players, marking for removal", session_id);
+            // Check if session has no real (non-AI) players left
+            let real_player_count = game_session.session.participants.keys()
+                .filter(|player_id| !game_session.session.ai_player_ids.contains(player_id))
+                .count();
+
+            // Keep session alive if it's in Demo Lap mode with AI drivers
+            let is_demo_lap_with_ai = game_session.session.game_mode == GameMode::DemoLap
+                && !game_session.session.ai_player_ids.is_empty();
+
+            if real_player_count == 0 && !is_demo_lap_with_ai {
+                info!("Session {} has no real players, marking for removal", session_id);
                 sessions_to_remove.push(*session_id);
                 continue;
             }
@@ -1150,8 +1195,9 @@ mod tests {
 
         let host_id = Uuid::new_v4();
         let track_id = state.track_configs.values().next().unwrap().id;
+        let car_id = state.car_configs.values().next().unwrap().id;
 
-        let session_id = state.create_session(host_id, track_id, SessionKind::Practice, 8, 2, 5);
+        let session_id = state.create_session(host_id, car_id, track_id, SessionKind::Practice, 8, 2, 5);
 
         assert!(session_id.is_some());
         assert_eq!(state.sessions.len(), 1);
@@ -1165,15 +1211,16 @@ mod tests {
 
         let host_id = Uuid::new_v4();
         let track_id = state.track_configs.values().next().unwrap().id;
+        let car_id = state.car_configs.values().next().unwrap().id;
 
         // Create max sessions
         for _ in 0..2 {
-            let result = state.create_session(host_id, track_id, SessionKind::Sandbox, 8, 0, 3);
+            let result = state.create_session(host_id, car_id, track_id, SessionKind::Sandbox, 8, 0, 3);
             assert!(result.is_some());
         }
 
         // Try to create one more
-        let result = state.create_session(host_id, track_id, SessionKind::Multiplayer, 8, 0, 3);
+        let result = state.create_session(host_id, car_id, track_id, SessionKind::Multiplayer, 8, 0, 3);
         assert!(result.is_none());
     }
 }

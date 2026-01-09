@@ -89,11 +89,16 @@ pub struct TrackLoader;
 
 impl TrackLoader {
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<TrackConfig, TrackLoadError> {
-        let content = fs::read_to_string(path)?;
-        Self::load_from_string(&content)
+        let path_ref = path.as_ref();
+        let content = fs::read_to_string(path_ref)?;
+        Self::load_from_string_with_path(&content, Some(path_ref))
     }
 
     pub fn load_from_string(content: &str) -> Result<TrackConfig, TrackLoadError> {
+        Self::load_from_string_with_path(content, None)
+    }
+
+    fn load_from_string_with_path(content: &str, track_path: Option<&Path>) -> Result<TrackConfig, TrackLoadError> {
         let track_file: TrackFileFormat = if content.trim_start().starts_with('{') {
             serde_json::from_str(content)
                 .map_err(|e| TrackLoadError::ParseError(format!("JSON parse error: {}", e)))?
@@ -103,7 +108,7 @@ impl TrackLoader {
         };
 
         Self::validate(&track_file)?;
-        Self::build_track_config(track_file)
+        Self::build_track_config(track_file, track_path)
     }
 
     fn validate(track: &TrackFileFormat) -> Result<(), TrackLoadError> {
@@ -135,18 +140,28 @@ impl TrackLoader {
         Ok(())
     }
 
-    fn build_track_config(track_file: TrackFileFormat) -> Result<TrackConfig, TrackLoadError> {
+    fn build_track_config(track_file: TrackFileFormat, track_path: Option<&Path>) -> Result<TrackConfig, TrackLoadError> {
         let default_width = if track_file.default_width > 0.0 {
             track_file.default_width
         } else {
             12.0
         };
 
-        let centerline_points = SplineInterpolator::interpolate_spline(
+        let mut centerline_points = SplineInterpolator::interpolate_spline(
             &track_file.nodes,
             track_file.closed_loop,
             default_width,
         )?;
+
+        let metadata = track_file.metadata.clone().unwrap_or_default();
+
+        // Load or generate procedural world if metadata specifies it
+        let procedural_world = Self::load_or_generate_procedural_world(
+            &track_file.name,
+            &mut centerline_points,
+            &metadata,
+            track_path,
+        );
 
         let start_positions = Self::generate_start_positions(&track_file, &centerline_points);
 
@@ -167,8 +182,6 @@ impl TrackLoader {
             }
         }).collect();
 
-        let metadata = track_file.metadata.unwrap_or_default();
-
         Ok(TrackConfig {
             id: track_id,
             name: track_file.name,
@@ -185,7 +198,103 @@ impl TrackLoader {
             pit_lane: None,
             raceline,
             metadata,
+            procedural_world,
         })
+    }
+
+    fn load_or_generate_procedural_world(
+        track_name: &str,
+        centerline_points: &mut Vec<TrackPoint>,
+        metadata: &TrackMetadata,
+        track_path: Option<&Path>,
+    ) -> Option<crate::procgen::ProceduralWorldData> {
+        // Check if procedural generation is requested
+        let _environment_type = metadata.environment_type.as_ref()?;
+
+        // Try to load from cache first
+        if let Some(path) = track_path {
+            if let Some(cached) = crate::procgen::terrain::load_terrain_cache(path) {
+                println!("✅ Loaded cached terrain for: {}", track_name);
+
+                // Apply elevation from cached heightmap
+                if let Some(ref heightmap) = cached.heightmap {
+                    crate::procgen::terrain::apply_track_elevation(centerline_points, heightmap);
+                }
+
+                return Some(cached);
+            }
+        }
+
+        // Cache not found, generate terrain (only in generation mode)
+        println!("⚠️  No terrain cache found for: {}", track_name);
+        println!("   Run with --generate-terrain to create terrain data");
+
+        // Return None - track will have flat terrain until terrain is generated
+        None
+    }
+
+    pub fn generate_procedural_world_for_track(
+        track_name: &str,
+        centerline_points: &mut Vec<TrackPoint>,
+        metadata: &TrackMetadata,
+    ) -> Option<crate::procgen::ProceduralWorldData> {
+        // This function is called during --generate-terrain mode
+        let environment_type = metadata.environment_type.as_ref()?;
+
+        println!("🌍 Generating procedural world for track: {}", track_name);
+        println!("   Environment type: {}", environment_type);
+
+        // Get or create seed
+        let seed = metadata.terrain_seed.unwrap_or_else(|| {
+            // Generate deterministic seed from track name
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            let mut hasher = DefaultHasher::new();
+            track_name.hash(&mut hasher);
+            hasher.finish() as u32
+        });
+
+        // Get environment preset
+        let preset = match crate::procgen::environment_presets::get_preset(environment_type) {
+            Some(p) => p,
+            None => {
+                eprintln!("❌ Unknown environment type: {}", environment_type);
+                return None;
+            }
+        };
+
+        // Get parameters with defaults
+        let terrain_scale = metadata.terrain_scale.unwrap_or(1.0);
+        let blend_width = metadata.terrain_blend_width.unwrap_or(20.0);
+        let object_density = metadata.object_density.unwrap_or(0.8);
+        let decal_profile = metadata.decal_profile.clone().unwrap_or_else(|| "default".to_string());
+
+        // Generate procedural world
+        match crate::procgen::terrain::generate_procedural_world(
+            centerline_points,
+            environment_type.clone(),
+            seed,
+            preset.clone(),
+            terrain_scale,
+            blend_width,
+            object_density,
+            decal_profile,
+        ) {
+            Ok(world_data) => {
+                // Apply elevation to track points
+                if let Some(ref heightmap) = world_data.heightmap {
+                    crate::procgen::terrain::apply_track_elevation(centerline_points, heightmap);
+                }
+
+                println!("✅ Procedural world generated successfully");
+                Some(world_data)
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to generate procedural world: {}", e);
+                eprintln!("   Track will use flat terrain");
+                None
+            }
+        }
     }
 
     fn generate_start_positions(

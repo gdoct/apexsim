@@ -104,12 +104,49 @@ Each track file contains:
 name: "Track Name"
 nodes: [...]              # Centerline points with widths
 raceline: [...]           # Optimal racing line
+default_width: 10.523189
+closed_loop: true
 metadata:
   country: "Country"
   city: "City"
   length_m: 5000.0
   year_built: 1922
   category: "F1"
+```
+
+nodes example:
+```yaml
+- x: -1.683339
+  y: -1.878198
+  z: 0.0
+  width: null
+  width_left: 5.271
+  width_right: 5.074
+  banking: 0.0
+  friction: 1.0
+  surface_type: Asphalt
+- x: 0.151452
+  y: 2.772507
+  z: 0.0
+  width: null
+  width_left: 5.295
+  width_right: 5.099
+  banking: 0.0
+  friction: 1.0
+  surface_type: Asphalt
+```
+
+
+raceline example:
+```yaml
+raceline:
+- x: -5.806014
+  y: -0.260481
+  z: 0.0
+- x: -3.998254
+  y: 4.401025
+  z: 0.0
+
 ```
 
 ## Data Source

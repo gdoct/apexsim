@@ -1,0 +1,42 @@
+name: "Test Procedural Track"
+track_id: "12345678-1234-1234-1234-123456789abc"
+default_width: 12.0
+closed_loop: true
+
+nodes:
+  - x: 0.0
+    y: 0.0
+    z: 0.0
+  - x: 100.0
+    y: 0.0
+    z: 0.0
+  - x: 200.0
+    y: 50.0
+    z: 0.0
+  - x: 200.0
+    y: 150.0
+    z: 0.0
+  - x: 100.0
+    y: 200.0
+    z: 0.0
+  - x: 0.0
+    y: 200.0
+    z: 0.0
+  - x: -50.0
+    y: 100.0
+    z: 0.0
+
+metadata:
+  country: "Test"
+  city: "Test City"
+  length_m: 700.0
+  category: "Test"
+
+  # Procedural generation parameters
+  environment_type: "plains"
+  terrain_seed: 42
+  terrain_scale: 1.0
+  terrain_detail: 0.5
+  terrain_blend_width: 20.0
+  object_density: 0.7
+  decal_profile: "default"

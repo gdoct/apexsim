@@ -13,7 +13,7 @@ config_version=5
 config/name="ApexSim"
 config/description="ApexSim multiplayer racing simulation client"
 run/main_scene="res://scenes/loading_screen.tscn"
-config/features=PackedStringArray("4.5", "C#", "GL Compatibility")
+config/features=PackedStringArray("4.5", "C#")
 config/icon="res://assets/logo.png"
 
 [autoload]
@@ -23,11 +23,10 @@ Network="*res://scripts/csharp/NetworkClient.cs"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
-window/stretch/mode="canvas_items"
+window/size/viewport_width=2560
+window/size/viewport_height=1440
+window/stretch/mode="viewport"
 
 [rendering]
-
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method.mobile="forward_plus"
+renderer/rendering_method="forward_plus"

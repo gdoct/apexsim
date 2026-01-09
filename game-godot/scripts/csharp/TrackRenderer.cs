@@ -4,12 +4,15 @@ using System.Collections.Generic;
 using System.IO;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using MessagePack;
+using MessagePack.Resolvers;
 
 namespace ApexSim;
 
 public partial class TrackRenderer : Node3D
 {
 	private MeshInstance3D? _trackMesh;
+	private ProceduralTerrain? _proceduralTerrain;
 	private NetworkClient? _network;
 	private string? _currentSessionId;
 	private Camera3D? _camera;
@@ -17,9 +20,17 @@ public partial class TrackRenderer : Node3D
 	private Label? _telemetryLabel;
 	private float _cameraAngle = 0.785f; // Start at 45 degrees (PI/4) for better initial view
 
+	// Terrain heightmap for track elevation
+	private TerrainHeightmap? _currentHeightmap;
+
 	// Car rendering for demo mode
 	private Node3D? _demoCarModel;
 	private string? _selectedCarId;
+
+	// MessagePack options for terrain data deserialization
+	// Use StandardResolver for array-based MessagePack (matches Rust rmp_serde::to_vec)
+	private static readonly MessagePackSerializerOptions MsgPackOptions =
+		MessagePackSerializerOptions.Standard.WithResolver(StandardResolver.Instance);
 
 	// Telemetry tracking
 	private int _telemetryCount = 0;
@@ -394,10 +405,20 @@ public partial class TrackRenderer : Node3D
 
 	private void LoadDemoCarModel()
 	{
+		// In demo mode, if no car is selected, use the first available car from lobby state
 		if (string.IsNullOrEmpty(_selectedCarId))
 		{
-			GD.PrintErr("No car selected, cannot load demo car model");
-			return;
+			var lobbyState = _network?.LastLobbyState;
+			if (lobbyState?.CarConfigs != null && lobbyState.CarConfigs.Length > 0)
+			{
+				_selectedCarId = lobbyState.CarConfigs[0].Id;
+				GD.Print($"No car selected, using first available car: {_selectedCarId}");
+			}
+			else
+			{
+				GD.PrintErr("No car selected and no cars available in lobby state");
+				return;
+			}
 		}
 
 		var carCache = CarModelCache.Instance;
@@ -459,14 +480,53 @@ public partial class TrackRenderer : Node3D
 				statusText += $"Camera: {viewName} (Tab/F1)\n";
 			}
 
-			statusText += $"Tick: {telemetry.ServerTick}\n";
-
 			if (telemetry.CarStates.Length > 0)
 			{
+				// In demo lap mode, show the car that's actually moving (the AI driver)
+				// Find the car with the most progress
 				var state = telemetry.CarStates[0];
-				statusText += $"Progress: {(state.TrackProgress * 100):F1}%\n";
-				statusText += $"Speed: {state.SpeedMps:F1} m/s\n";
-				statusText += $"Position: ({state.PosX:F1}, {state.PosY:F1}, {state.PosZ:F1})";
+				if (telemetry.GameMode == GameMode.DemoLap && telemetry.CarStates.Length > 1)
+				{
+					// Find the car with highest lap or progress (the AI driver)
+					foreach (var car in telemetry.CarStates)
+					{
+						if (car.CurrentLap > state.CurrentLap ||
+							(car.CurrentLap == state.CurrentLap && car.TrackProgress > state.TrackProgress))
+						{
+							state = car;
+						}
+					}
+				}
+
+				// Display current lap time (from server)
+				if (state.CurrentLap > 0 && state.CurrentLapTimeMs > 0)
+				{
+					float currentLapSeconds = state.CurrentLapTimeMs / 1000.0f;
+					int minutes = (int)(currentLapSeconds / 60);
+					float seconds = currentLapSeconds % 60;
+					statusText += $"Current Lap: {minutes}:{seconds:00.000}\n";
+				}
+				else
+				{
+					statusText += "Current Lap: --:--.---\n";
+				}
+
+				// Display previous lap time
+				if (state.LastLapTimeMs.HasValue)
+				{
+					float lastLapSeconds = state.LastLapTimeMs.Value / 1000.0f;
+					int minutes = (int)(lastLapSeconds / 60);
+					float seconds = lastLapSeconds % 60;
+					statusText += $"Previous Lap: {minutes}:{seconds:00.000}\n";
+				}
+				else
+				{
+					statusText += "Previous Lap: --:--.---\n";
+				}
+
+				// Convert speed from m/s to km/h
+				float speedKmh = state.SpeedMps * 3.6f;
+				statusText += $"Speed: {speedKmh:F0} km/h";
 			}
 			else
 			{
@@ -513,10 +573,10 @@ public partial class TrackRenderer : Node3D
 		}
 
 		// Additional debug logging every 60 frames (quarter second at 240Hz)
-		if (_telemetryCount % 60 == 0)
-		{
-			GD.Print($"[Debug #{_telemetryCount}] Server yaw: {carState.YawRad:F2} rad, Godot yaw will be: {-carState.YawRad:F2} rad");
-		}
+		// if (_telemetryCount % 60 == 0)
+		// {
+		// 	GD.Print($"[Debug #{_telemetryCount}] Server yaw: {carState.YawRad:F2} rad, Godot yaw will be: {-carState.YawRad:F2} rad");
+		// }
 
 		// Update car position and orientation
 		// Server coordinates: X, Y, Z
@@ -569,16 +629,65 @@ public partial class TrackRenderer : Node3D
 		{
 			var trackData = LoadTrackFromYaml(trackPath);
 
+			// Try to load procedural terrain data
+			var terrainData = LoadProceduralTerrainData(trackPath);
+			if (terrainData != null)
+			{
+				GD.Print($"✅ Loaded procedural terrain data for: {trackData.Name}");
+				GD.Print($"   Using procedural world rendering (terrain only)");
+				RenderProceduralTerrain(terrainData);
+
+				// Store heightmap for track elevation
+				_currentHeightmap = terrainData.Heightmap;
+
+				// Still need to render track surface and markings on top of terrain
+				GD.Print($"   Rendering track surface on top of procedural terrain");
+				// Fall through to render track mesh
+			}
+			else
+			{
+				GD.Print($"ℹ️  No procedural terrain data found for: {trackData.Name}");
+				GD.Print($"   Using legacy rendering (flat ground plane)");
+				_currentHeightmap = null;
+			}
+
 			// Convert to track points and widths
 			var centerline = new List<Vector3>();
 			var widths = new List<float>();
+
+			float minElevation = float.MaxValue;
+			float maxElevation = float.MinValue;
+			int elevationAdjustedCount = 0;
 
 			foreach (var node in trackData.Nodes)
 			{
 				// YAML format: x, y are horizontal plane, z is elevation
 				// Godot: X=x, Y=z (elevation/height), Z=y (horizontal)
 				// Flip Y-axis to match server/world orientation (track previously mirrored)
-				centerline.Add(new Vector3(node.X, node.Z, -node.Y) * 50.0f);
+				float worldX = node.X;
+				float worldY = node.Y;
+				float trackElevation = node.Z;
+
+				// Sample terrain height if available
+				float terrainHeight = 0.0f;
+				if (_currentHeightmap != null)
+				{
+					terrainHeight = _currentHeightmap.Sample(worldX, worldY);
+				}
+
+				// Use the higher of terrain height or track elevation
+				// This ensures the track sits on or above the terrain
+				float finalElevation = Mathf.Max(terrainHeight, trackElevation);
+
+				if (terrainHeight > trackElevation)
+				{
+					elevationAdjustedCount++;
+				}
+
+				minElevation = Mathf.Min(minElevation, finalElevation);
+				maxElevation = Mathf.Max(maxElevation, finalElevation);
+
+				centerline.Add(new Vector3(worldX, finalElevation, -worldY) * 50.0f);
 
 				// Get track width
 				float width;
@@ -598,10 +707,23 @@ public partial class TrackRenderer : Node3D
 				widths.Add(width * 50.0f);
 			}
 
-			GenerateGroundPlane(centerline, widths);
+			// Log elevation summary
+			if (_currentHeightmap != null)
+			{
+				GD.Print($"   Track elevation range: {minElevation:F1}m to {maxElevation:F1}m");
+				GD.Print($"   Adjusted {elevationAdjustedCount}/{centerline.Count} points to match terrain");
+			}
+
+			// Only generate ground plane if no procedural terrain
+			if (terrainData == null)
+			{
+				GenerateGroundPlane(centerline, widths);
+			}
+
 			GenerateTrackMeshSpline(centerline, widths);
-			GenerateWhiteBorderArea(centerline, widths);
-			GenerateDottedOutlineSpline(centerline, widths);
+			// GenerateWhiteBorderArea(centerline, widths);  // Disabled - kerbs look better
+			GenerateDottedOutlineSpline(centerline, widths);  // This is now proper kerbs
+			GenerateStartFinishGrid(centerline, widths);
 
 			// Add debug spheres at track points to see where they are
 			// AddDebugMarkers(centerline);
@@ -736,10 +858,10 @@ public partial class TrackRenderer : Node3D
 			float width = widths[i];
 
 			Vector3 dir = (next - current).Normalized();
-			Vector3 righht = new Vector3(-dir.Z, 0, dir.X).Normalized();
+			Vector3 right = new Vector3(-dir.Z, 0, dir.X).Normalized();
 
-			leftRaw.Add(current - righht * (width * 0.5f));
-			rightRaw.Add(current + righht * (width * 0.5f));
+			leftRaw.Add(current - right * (width * 0.5f));
+			rightRaw.Add(current + right * (width * 0.5f));
 		}
 
 		// Resample edges with Catmull-Rom for smoothness
@@ -755,7 +877,7 @@ public partial class TrackRenderer : Node3D
 		var surfaceTool = new SurfaceTool();
 		surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
 
-		var asphaltColor = new Color(0f, 0f, 0f);
+		var asphaltColor = new Color(0.3f, 0.3f, 0.3f); // Dark gray asphalt
 		int segCount = left.Count;
 		for (int i = 0; i < segCount; i++)
 		{
@@ -938,22 +1060,80 @@ public partial class TrackRenderer : Node3D
 		if (left.Count != rightEdge.Count || left.Count < 2)
 			return;
 
-		var outlineMesh = new MeshInstance3D();
-		AddChild(outlineMesh);
+		// Calculate curvature at each point to determine where kerbs should be placed
+		var curvatures = new List<float>();
+		for (int i = 0; i < centerline.Count; i++)
+		{
+			int prevIdx = (i - 1 + centerline.Count) % centerline.Count;
+			int nextIdx = (i + 1) % centerline.Count;
+
+			Vector3 prev = centerline[prevIdx];
+			Vector3 current = centerline[i];
+			Vector3 next = centerline[nextIdx];
+
+			// Calculate curvature using the angle between direction vectors
+			Vector3 v1 = (current - prev).Normalized();
+			Vector3 v2 = (next - current).Normalized();
+
+			float dotProduct = Mathf.Clamp(v1.Dot(v2), -1.0f, 1.0f);
+			float angle = Mathf.Acos(dotProduct);
+			float distance = (next - current).Length();
+
+			// Curvature = angle / distance (radians per meter)
+			float curvature = distance > 0.01f ? angle / distance : 0.0f;
+			curvatures.Add(curvature);
+
+			// Determine turn direction (left or right)
+			Vector3 cross = v1.Cross(v2);
+			bool isLeftTurn = cross.Y > 0;
+		}
+
+		// Threshold for placing kerbs (only at corners with significant curvature)
+		float curvatureThreshold = 0.0005f; // Adjust this to control where kerbs appear
+
+		var kerbMesh = new MeshInstance3D();
+		AddChild(kerbMesh);
 
 		var surfaceTool = new SurfaceTool();
 		surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
 
-		float stripeWidth = 0.35f * 50.0f;
-		float yOffset = 0.5f * 50.0f;  // Raise outline above track surface
+		// Kerb dimensions (realistic FIA kerbs)
+		float kerbWidth = 0.3f * 50.0f;     // 30cm wide kerbs (placed at track edge)
+		float kerbHeight = 0.1f * 50.0f;    // 10cm high (raised kerb)
+		float kerbYOffset = 0.2f * 50.0f;   // Slightly raised above track surface
+
+		// Stripe pattern
+		float stripeLength = 1.0f * 50.0f;
+		float leftAccumDist = 0.0f;
+		float rightAccumDist = 0.0f;
+		int leftStripeIdx = 0;
+		int rightStripeIdx = 0;
+
 		int segCount = left.Count;
+		int kerbSegmentsPlaced = 0;
+		int samplesPerRawSeg = samplesPerSeg;
 
 		for (int i = 0; i < segCount; i++)
 		{
 			int nextIdx = (i + 1) % segCount;
 
-			// Fully opaque red and white colors
-			Color color = (i % 2 == 0) ? new Color(1.0f, 0.0f, 0.0f, 1.0f) : new Color(1.0f, 1.0f, 1.0f, 1.0f);
+			// Map back to original centerline index to check curvature
+			int rawIdx = i / samplesPerRawSeg;
+			if (rawIdx >= curvatures.Count) rawIdx = curvatures.Count - 1;
+
+			float curvature = curvatures[rawIdx];
+
+			// Determine turn direction at this point
+			int prevRawIdx = (rawIdx - 1 + centerline.Count) % centerline.Count;
+			int nextRawIdx = (rawIdx + 1) % centerline.Count;
+			Vector3 v1 = (centerline[rawIdx] - centerline[prevRawIdx]).Normalized();
+			Vector3 v2 = (centerline[nextRawIdx] - centerline[rawIdx]).Normalized();
+			Vector3 cross = v1.Cross(v2);
+			bool isLeftTurn = cross.Y > 0;
+
+			// Only place kerbs at corners with sufficient curvature
+			if (curvature < curvatureThreshold)
+				continue;
 
 			Vector3 l0 = left[i];
 			Vector3 r0 = rightEdge[i];
@@ -965,32 +1145,88 @@ public partial class TrackRenderer : Node3D
 				? new Vector3(1, 0, 0)
 				: dir.Normalized();
 
-			// Left stripe
-			Vector3 leftInner0 = l0 + Vector3.Up * yOffset;
-			Vector3 leftOuter0 = l0 - offsetDir * stripeWidth + Vector3.Up * yOffset;
-			Vector3 leftInner1 = l1 + Vector3.Up * yOffset;
-			Vector3 leftOuter1 = l1 - offsetDir * stripeWidth + Vector3.Up * yOffset;
+			// Place kerbs on the outside of the corner (where racing line would use them)
+			if (isLeftTurn)
+			{
+				// Left turn - place kerb on RIGHT side (outside of turn)
+				float segmentLength = r0.DistanceTo(r1);
+				rightAccumDist += segmentLength;
 
-			AddQuad(surfaceTool, leftOuter0, leftInner0, leftOuter1, leftInner1, color);
+				if (rightAccumDist >= stripeLength)
+				{
+					rightStripeIdx = (rightStripeIdx + 1) % 2;
+					rightAccumDist = 0.0f;
+				}
 
-			// Right stripe
-			Vector3 rightInner0 = r0 + Vector3.Up * yOffset;
-			Vector3 rightOuter0 = r0 + offsetDir * stripeWidth + Vector3.Up * yOffset;
-			Vector3 rightInner1 = r1 + Vector3.Up * yOffset;
-			Vector3 rightOuter1 = r1 + offsetDir * stripeWidth + Vector3.Up * yOffset;
+				Color kerbColor = (rightStripeIdx == 0) ? new Color(0.9f, 0.0f, 0.0f, 1.0f) : new Color(0.95f, 0.95f, 0.95f, 1.0f);
 
-			AddQuad(surfaceTool, rightInner0, rightOuter0, rightInner1, rightOuter1, color);
+				// Place kerb partially on track edge (inner) and partially outside (outer)
+				Vector3 rightInner0 = r0 - offsetDir * (kerbWidth * 0.3f) + Vector3.Up * kerbYOffset;
+				Vector3 rightOuter0 = r0 + offsetDir * (kerbWidth * 0.7f) + Vector3.Up * kerbYOffset;
+				Vector3 rightInner1 = r1 - offsetDir * (kerbWidth * 0.3f) + Vector3.Up * kerbYOffset;
+				Vector3 rightOuter1 = r1 + offsetDir * (kerbWidth * 0.7f) + Vector3.Up * kerbYOffset;
+
+				Vector3 rightInner0Top = rightInner0 + Vector3.Up * kerbHeight;
+				Vector3 rightOuter0Top = rightOuter0 + Vector3.Up * kerbHeight;
+				Vector3 rightInner1Top = rightInner1 + Vector3.Up * kerbHeight;
+				Vector3 rightOuter1Top = rightOuter1 + Vector3.Up * kerbHeight;
+
+				AddQuad(surfaceTool, rightInner0Top, rightOuter0Top, rightInner1Top, rightOuter1Top, kerbColor);
+				AddQuad(surfaceTool, rightInner0Top, rightInner0, rightInner1Top, rightInner1, kerbColor * 0.7f);
+				AddQuad(surfaceTool, rightOuter0, rightOuter0Top, rightOuter1, rightOuter1Top, kerbColor * 0.7f);
+				kerbSegmentsPlaced++;
+			}
+			else
+			{
+				// Right turn - place kerb on LEFT side (outside of turn)
+				float segmentLength = l0.DistanceTo(l1);
+				leftAccumDist += segmentLength;
+
+				if (leftAccumDist >= stripeLength)
+				{
+					leftStripeIdx = (leftStripeIdx + 1) % 2;
+					leftAccumDist = 0.0f;
+				}
+
+				Color kerbColor = (leftStripeIdx == 0) ? new Color(0.9f, 0.0f, 0.0f, 1.0f) : new Color(0.95f, 0.95f, 0.95f, 1.0f);
+
+				// Place kerb partially on track edge (inner) and partially outside (outer)
+				Vector3 leftInner0 = l0 + offsetDir * (kerbWidth * 0.3f) + Vector3.Up * kerbYOffset;
+				Vector3 leftOuter0 = l0 - offsetDir * (kerbWidth * 0.7f) + Vector3.Up * kerbYOffset;
+				Vector3 leftInner1 = l1 + offsetDir * (kerbWidth * 0.3f) + Vector3.Up * kerbYOffset;
+				Vector3 leftOuter1 = l1 - offsetDir * (kerbWidth * 0.7f) + Vector3.Up * kerbYOffset;
+
+				Vector3 leftInner0Top = leftInner0 + Vector3.Up * kerbHeight;
+				Vector3 leftOuter0Top = leftOuter0 + Vector3.Up * kerbHeight;
+				Vector3 leftInner1Top = leftInner1 + Vector3.Up * kerbHeight;
+				Vector3 leftOuter1Top = leftOuter1 + Vector3.Up * kerbHeight;
+
+				AddQuad(surfaceTool, leftOuter0Top, leftInner0Top, leftOuter1Top, leftInner1Top, kerbColor);
+				AddQuad(surfaceTool, leftInner0, leftInner0Top, leftInner1, leftInner1Top, kerbColor * 0.7f);
+				AddQuad(surfaceTool, leftOuter0Top, leftOuter0, leftOuter1Top, leftOuter1, kerbColor * 0.7f);
+				kerbSegmentsPlaced++;
+			}
 		}
 
-		var mesh = surfaceTool.Commit();
-		var material = new StandardMaterial3D();
-		material.VertexColorUseAsAlbedo = true;
-		material.Roughness = 0.6f;
-		material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-		material.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-		material.Transparency = BaseMaterial3D.TransparencyEnum.Disabled;  // Fully opaque
-		mesh.SurfaceSetMaterial(0, material);
-		outlineMesh.Mesh = mesh;
+		if (kerbSegmentsPlaced > 0)
+		{
+			var mesh = surfaceTool.Commit();
+			var material = new StandardMaterial3D();
+			material.VertexColorUseAsAlbedo = true;
+			material.Roughness = 0.7f;
+			material.Metallic = 0.0f;
+			material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+			material.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+			mesh.SurfaceSetMaterial(0, material);
+			kerbMesh.Mesh = mesh;
+
+			GD.Print($"✅ Generated 3D kerbs at corners with {kerbSegmentsPlaced} segments");
+		}
+		else
+		{
+			kerbMesh.QueueFree();
+			GD.Print("ℹ️  No corners detected for kerb placement");
+		}
 	}
 
 	private void GenerateWhiteBorderArea(List<Vector3> centerline, List<float> widths)
@@ -1212,6 +1448,74 @@ public partial class TrackRenderer : Node3D
 		groundMesh.Mesh = mesh;
 	}
 
+	private void GenerateStartFinishGrid(List<Vector3> centerline, List<float> widths)
+	{
+		if (centerline.Count < 2 || centerline.Count != widths.Count)
+			return;
+
+		// Create grid at start/finish line (index 0)
+		var gridMesh = new MeshInstance3D();
+		AddChild(gridMesh);
+
+		var surfaceTool = new SurfaceTool();
+		surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
+
+		// Grid configuration
+		float gridLength = 8.0f * 50.0f;    // 8 meters long
+		float boxWidth = 0.5f * 50.0f;       // 50cm wide boxes
+		float yOffset = 0.6f * 50.0f;        // Raised above track surface
+
+		// Find start line position and direction
+		Vector3 startPos = centerline[0];
+		Vector3 nextPos = centerline[1];
+		Vector3 forward = (nextPos - startPos).Normalized();
+		Vector3 right = new Vector3(-forward.Z, 0, forward.X).Normalized();
+
+		float trackWidth = widths[0];
+		float boxHeight = boxWidth; // Square boxes
+
+		// Calculate number of boxes based on actual track width
+		int numBoxesAcross = Mathf.CeilToInt(trackWidth / boxWidth);
+
+		// Generate checkered pattern
+		for (int row = 0; row < 16; row++) // 16 rows = 8 meters at 0.5m per row
+		{
+			float rowOffset = row * boxWidth;
+			Vector3 rowStart = startPos + forward * rowOffset;
+
+			for (int col = 0; col < numBoxesAcross; col++)
+			{
+				// Checkered pattern: alternate colors
+				bool isWhite = (row + col) % 2 == 0;
+				Color boxColor = isWhite ? new Color(0.95f, 0.95f, 0.95f, 1.0f) : new Color(0.05f, 0.05f, 0.05f, 1.0f);
+
+				// Calculate box position (centered on track)
+				float colOffset = (col - numBoxesAcross / 2.0f + 0.5f) * boxHeight;
+				Vector3 boxCenter = rowStart + right * colOffset + Vector3.Up * yOffset;
+
+				// Box corners
+				Vector3 bl = boxCenter - right * (boxWidth * 0.5f) - forward * (boxHeight * 0.5f);
+				Vector3 br = boxCenter + right * (boxWidth * 0.5f) - forward * (boxHeight * 0.5f);
+				Vector3 tl = boxCenter - right * (boxWidth * 0.5f) + forward * (boxHeight * 0.5f);
+				Vector3 tr = boxCenter + right * (boxWidth * 0.5f) + forward * (boxHeight * 0.5f);
+
+				AddQuad(surfaceTool, bl, br, tl, tr, boxColor);
+			}
+		}
+
+		var mesh = surfaceTool.Commit();
+		var material = new StandardMaterial3D();
+		material.VertexColorUseAsAlbedo = true;
+		material.Roughness = 0.8f;
+		material.Metallic = 0.0f;
+		material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+		material.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+		mesh.SurfaceSetMaterial(0, material);
+		gridMesh.Mesh = mesh;
+
+		GD.Print("✅ Generated start/finish grid");
+	}
+
 	private void AddQuad(SurfaceTool surfaceTool, Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, Color color)
 	{
 		// First triangle (v1, v2, v3)
@@ -1259,5 +1563,82 @@ public partial class TrackRenderer : Node3D
 		cube.Position = new Vector3(0, 10, 0); // 10 units above the track center
 
 		AddChild(cube);
+	}
+
+	/// <summary>
+	/// Load procedural terrain data from .terrain.msgpack file.
+	/// </summary>
+	private ProceduralWorldData? LoadProceduralTerrainData(string trackYamlPath)
+	{
+		try
+		{
+			// Replace .yaml/.yml extension with .terrain.msgpack
+			string terrainPath = Path.ChangeExtension(trackYamlPath, null);
+			if (terrainPath.EndsWith(".yaml") || terrainPath.EndsWith(".yml"))
+			{
+				terrainPath = terrainPath.Substring(0, terrainPath.LastIndexOf('.'));
+			}
+			terrainPath += ".terrain.msgpack";
+
+			if (!File.Exists(terrainPath))
+			{
+				return null;
+			}
+
+			GD.Print($"Loading terrain data from: {terrainPath}");
+			byte[] data = File.ReadAllBytes(terrainPath);
+
+			// Debug: Check what we're deserializing
+			GD.Print($"Terrain file size: {data.Length} bytes");
+
+			// Try deserializing with dynamic to see the structure
+			try
+			{
+				var dynamic = MessagePackSerializer.Deserialize<dynamic>(data, MsgPackOptions);
+				GD.Print($"Dynamic deserialization succeeded, type: {dynamic?.GetType().Name}");
+			}
+			catch (Exception ex)
+			{
+				GD.Print($"Dynamic deserialization failed: {ex.Message}");
+			}
+
+			var terrainData = MessagePackSerializer.Deserialize<ProceduralWorldData>(data, MsgPackOptions);
+
+			if (terrainData?.Heightmap != null)
+			{
+				GD.Print($"Terrain loaded: {terrainData.Heightmap.Width}x{terrainData.Heightmap.Height} " +
+						 $"cells, environment: {terrainData.EnvironmentType}");
+			}
+
+			return terrainData;
+		}
+		catch (Exception ex)
+		{
+			GD.PrintErr($"Failed to load procedural terrain data: {ex.Message}");
+			GD.PrintErr($"Stack trace: {ex.StackTrace}");
+			return null;
+		}
+	}
+
+	/// <summary>
+	/// Render procedural terrain mesh from terrain data.
+	/// </summary>
+	private void RenderProceduralTerrain(ProceduralWorldData terrainData)
+	{
+		// Clean up existing terrain if any
+		if (_proceduralTerrain != null)
+		{
+			_proceduralTerrain.QueueFree();
+			_proceduralTerrain = null;
+		}
+
+		// Create new terrain renderer
+		_proceduralTerrain = new ProceduralTerrain();
+		AddChild(_proceduralTerrain);
+
+		// Generate terrain mesh
+		_proceduralTerrain.GenerateTerrain(terrainData);
+
+		GD.Print("✅ Procedural terrain rendered successfully");
 	}
 }
