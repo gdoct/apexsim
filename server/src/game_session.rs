@@ -361,29 +361,52 @@ impl GameSession {
         // Initialize mode-specific state
         match mode {
             GameMode::DemoLap => {
+                eprintln!("[DemoLap] Setting demo lap mode. Participants: {}, AI profiles: {}",
+                    self.session.participants.len(), self.ai_profiles.len());
+
                 self.session.demo_lap_progress = Some(0.0);
                 // Change session state to Racing so telemetry is sent
                 self.session.state = SessionState::Racing;
 
-                // Spawn an AI driver for the demo lap if not already present
-                if self.session.participants.is_empty() && !self.ai_profiles.is_empty() {
-                    self.spawn_ai_drivers();
-                } else if self.session.participants.is_empty() {
-                    // No AI profiles configured, create a default demo driver
-                    // Use the host player's selected car if available
-                    use crate::ai_driver::AiDriverProfile;
+                // Ensure we have an AI driver for demo lap
+                // Keep human players as spectators (they'll receive telemetry but won't drive)
+                if self.session.ai_player_ids.is_empty() {
+                    if !self.ai_profiles.is_empty() {
+                        eprintln!("[DemoLap] Spawning AI from existing profiles");
+                        // Temporarily increment ai_count and max_players to allow AI spawn
+                        let original_ai_count = self.session.ai_count;
+                        let original_max = self.session.max_players;
+                        self.session.ai_count = 1;
+                        self.session.max_players = (self.session.participants.len() + 1) as u8;
+                        self.spawn_ai_drivers();
+                        self.session.ai_count = original_ai_count;
+                        self.session.max_players = original_max;
+                    } else {
+                        // No AI profiles configured, create a default demo driver
+                        use crate::ai_driver::AiDriverProfile;
 
-                    let host_car_id = self.session.participants
-                        .get(&self.session.host_player_id)
-                        .map(|state| state.car_config_id);
+                        eprintln!("[DemoLap] Creating default demo driver. Host car: {:?}", self.session.host_car_id);
 
-                    let mut demo_profile = AiDriverProfile::new("Demo Driver", 95);
-                    demo_profile.preferred_car_id = host_car_id;
+                        let mut demo_profile = AiDriverProfile::new("Demo Driver", 95);
+                        demo_profile.preferred_car_id = self.session.host_car_id;
 
-                    let demo_player_id = demo_profile.id;
-                    self.ai_profiles.insert(demo_player_id, demo_profile);
-                    self.session.ai_player_ids.push(demo_player_id);
-                    self.spawn_ai_drivers();
+                        let demo_player_id = demo_profile.id;
+                        self.ai_profiles.insert(demo_player_id, demo_profile);
+
+                        // Temporarily increment ai_count and max_players to allow AI spawn
+                        let original_ai_count = self.session.ai_count;
+                        let original_max = self.session.max_players;
+                        self.session.ai_count = 1;
+                        self.session.max_players = (self.session.participants.len() + 1) as u8;
+                        self.spawn_ai_drivers();
+                        self.session.ai_count = original_ai_count;
+                        self.session.max_players = original_max;
+
+                        eprintln!("[DemoLap] After spawn: Participants: {}, AI IDs: {}",
+                            self.session.participants.len(), self.session.ai_player_ids.len());
+                    }
+                } else {
+                    eprintln!("[DemoLap] Already have {} AI drivers", self.session.ai_player_ids.len());
                 }
             }
             GameMode::FreePractice => {
@@ -1235,5 +1258,40 @@ mod tests {
         let final_state = game_session.session.participants.get(&ai_player_id).unwrap();
         assert!(final_state.pos_x > 50.0,
             "AI should have made significant forward progress, x position: {}m", final_state.pos_x);
+    }
+
+    #[test]
+    fn test_demo_driver_uses_host_car() {
+        // Create a session with a specific host car
+        let track = TrackConfig::default();
+        let car1 = CarConfig::default();
+        let mut car2 = CarConfig::default();
+        car2.id = Uuid::new_v4(); // Different ID
+        car2.name = "Test Car 2".to_string();
+
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car1.id, car1.clone());
+        car_configs.insert(car2.id, car2.clone());
+
+        let host_id = Uuid::new_v4();
+        let mut session = RaceSession::new(host_id, track.id, SessionKind::Multiplayer, 8, 0, 3);
+        session.host_car_id = Some(car2.id); // Host selected car2
+
+        let mut game_session = GameSession::new(session, track, car_configs);
+
+        // Set to DemoLap mode, which should create a demo driver with the host's car
+        game_session.set_game_mode(GameMode::DemoLap);
+
+        // Verify demo driver was created
+        assert_eq!(game_session.session.ai_player_ids.len(), 1);
+
+        // Verify the demo driver has a car state
+        let demo_driver_id = game_session.session.ai_player_ids[0];
+        let car_state = game_session.session.participants.get(&demo_driver_id)
+            .expect("Demo driver should have a car state");
+
+        // Verify the demo driver is using the host's selected car (car2)
+        assert_eq!(car_state.car_config_id, car2.id,
+            "Demo driver should use the host's selected car");
     }
 }

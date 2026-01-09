@@ -173,6 +173,9 @@ public class CarStateTelemetry
     public ushort CurrentLap { get; set; }
     public float TrackProgress { get; set; }
     public byte? FinishPosition { get; set; }
+    public uint CurrentLapTimeMs { get; set; }
+    public uint? LastLapTimeMs { get; set; }
+    public uint? BestLapTimeMs { get; set; }
     // Status
     public bool IsOnTrack { get; set; }
     public bool IsColliding { get; set; }

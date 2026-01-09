@@ -257,6 +257,14 @@ fn convert_to_track_format(
         description: args.description.clone(),
         year_built: args.year_built,
         category: args.category.clone(),
+        // Procedural generation fields (not used for converted tracks)
+        environment_type: None,
+        terrain_seed: None,
+        terrain_scale: None,
+        terrain_detail: None,
+        terrain_blend_width: None,
+        object_density: None,
+        decal_profile: None,
     };
 
     // Calculate a reasonable default width from the nodes

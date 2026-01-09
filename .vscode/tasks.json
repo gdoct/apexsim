@@ -33,7 +33,7 @@
             },
             "presentation": {
                 "reveal": "always",
-                "panel": "new",
+                "panel": "dedicated",
                 "group": "server"
             }
         },
@@ -58,7 +58,7 @@
             },
             "presentation": {
                 "reveal": "always",
-                "panel": "new",
+                "panel": "dedicated",
                 "group": "server"
             }
         },

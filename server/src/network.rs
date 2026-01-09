@@ -269,6 +269,9 @@ pub struct CarStateTelemetry {
     pub current_lap: u16,
     pub track_progress: f32,
     pub finish_position: Option<u8>,
+    pub current_lap_time_ms: u32,
+    pub last_lap_time_ms: Option<u32>,
+    pub best_lap_time_ms: Option<u32>,
     // Status
     pub is_on_track: bool,
     pub is_colliding: bool,
@@ -302,6 +305,9 @@ impl From<&CarState> for CarStateTelemetry {
             current_lap: state.current_lap,
             track_progress: state.track_progress,
             finish_position: state.finish_position,
+            current_lap_time_ms: state.current_lap_time_ms,
+            last_lap_time_ms: state.last_lap_time_ms,
+            best_lap_time_ms: state.best_lap_time_ms,
             is_on_track: state.is_on_track,
             is_colliding: state.is_colliding,
         }

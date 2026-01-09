@@ -47,7 +47,7 @@ text = "Back to Menu"
 [node name="TelemetryLabel" type="Label" parent="UI"]
 offset_left = 20.0
 offset_top = 80.0
-offset_right = 400.0
-offset_bottom = 200.0
+offset_right = 500.0
+offset_bottom = 250.0
 theme_type_variation = &"HeaderMedium"
 text = "Telemetry: Waiting..."

@@ -95,10 +95,17 @@ public partial class SessionLobby : Control
 
     private void OnLobbyStateReceived()
     {
+        GD.Print("OnLobbyStateReceived: Event received");
         if (!IsInsideTree()) return;
 
         var lobbyState = _network?.LastLobbyState;
-        if (lobbyState == null) return;
+        if (lobbyState == null)
+        {
+            GD.PrintErr("OnLobbyStateReceived: lobbyState is NULL!");
+            return;
+        }
+
+        GD.Print("OnLobbyStateReceived: Processing lobby state...");
 
         // Update session info and determine if we're host
         UpdateSessionInfo(lobbyState);
@@ -116,6 +123,7 @@ public partial class SessionLobby : Control
         UpdatePlayerCar(lobbyState);
 
         UpdateUI();
+        GD.Print("OnLobbyStateReceived: Completed");
     }
 
     private void UpdateSessionInfo(LobbyStateMessage lobbyState)
@@ -148,30 +156,40 @@ public partial class SessionLobby : Control
 
     private void UpdatePlayerCar(LobbyStateMessage lobbyState)
     {
+        GD.Print($"UpdatePlayerCar: Starting update...");
         if (_network?.PlayerId == null)
         {
             GD.PrintErr("UpdatePlayerCar: PlayerId is null!");
             return;
         }
 
+        GD.Print($"UpdatePlayerCar: Looking for player with ID {_network.PlayerId}");
+        GD.Print($"UpdatePlayerCar: Total players in lobby: {lobbyState.PlayersInLobby.Length}");
+
         // Find our player in the lobby
         foreach (var player in lobbyState.PlayersInLobby)
         {
+            GD.Print($"UpdatePlayerCar: Checking player {player.Name} (ID: {player.Id}), SelectedCar: {player.SelectedCar ?? "NULL"}");
             if (player.Id == _network.PlayerId)
             {
+                GD.Print($"UpdatePlayerCar: Found our player! SelectedCar: {player.SelectedCar ?? "NULL"}");
                 // Find the car config if the player has selected one
                 if (player.SelectedCar != null)
                 {
+                    GD.Print($"UpdatePlayerCar: Total car configs available: {lobbyState.CarConfigs.Length}");
                     foreach (var car in lobbyState.CarConfigs)
                     {
+                        GD.Print($"UpdatePlayerCar: Checking car config: ID={car.Id}, Name={car.Name}");
                         // Compare as strings, case-insensitive
                         if (string.Equals(car.Id, player.SelectedCar, StringComparison.OrdinalIgnoreCase))
                         {
+                            GD.Print($"UpdatePlayerCar: MATCH FOUND! Setting up car card for {car.Name}");
                             _currentCar = car;
 
                             if (_carCard != null)
                             {
                                 // Use car.Id as the model path - it's the car folder name
+                                GD.Print($"UpdatePlayerCar: Calling _carCard.SetupCard with car={car.Name}, modelPath={car.Id}");
                                 _carCard.SetupCard(car, car.Id);
                             }
                             else
@@ -189,7 +207,7 @@ public partial class SessionLobby : Control
                 }
                 else
                 {
-                    GD.PrintErr("UpdatePlayerCar: Player has no selected car!");
+                    GD.Print("UpdatePlayerCar: Player has no selected car (SelectedCar is null)");
                 }
                 break;
             }
@@ -350,16 +368,20 @@ public partial class SessionLobby : Control
 
     private async void OnCarSelected(string carId, string carName)
     {
+        GD.Print($"OnCarSelected: carId={carId}, carName={carName}");
         _statusLabel!.Text = $"Selecting car: {carName}...";
         _statusLabel.Modulate = Colors.Yellow;
 
         if (_network != null)
         {
+            GD.Print("OnCarSelected: Sending SelectCarAsync to server...");
             await _network.SelectCarAsync(carId);
+            GD.Print("OnCarSelected: SelectCarAsync completed");
             _statusLabel.Text = $"Car selected: {carName}";
             _statusLabel.Modulate = new Color(0, 1, 0.4f);
 
             // Refresh lobby state to update player list and car card
+            GD.Print("OnCarSelected: Requesting lobby state...");
             RequestLobbyState();
         }
     }

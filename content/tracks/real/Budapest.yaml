@@ -1,5 +1,6 @@
 track_id: bd044d8c-8d23-4f8b-b47d-066265bcf90a
 name: Hungaroring
+environment_type: country
 nodes:
 - x: -2.447973
   y: 0.125932
@@ -10489,3 +10490,4 @@ metadata:
   description: null
   year_built: 1986
   category: F1
+  environment_type: country

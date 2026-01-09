@@ -11,3 +11,4 @@ pub mod lobby;
 pub mod replay;
 pub mod track_loader;
 pub mod track_mesh;
+pub mod procgen;
