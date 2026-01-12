@@ -68,7 +68,7 @@ impl GameSession {
                 self.tick_countdown();
             }
             GameMode::DemoLap => {
-                self.tick_demolap();
+                self.tick_demolap(inputs);
             }
             GameMode::FreePractice => {
                 self.tick_free_practice(inputs);
@@ -113,7 +113,7 @@ impl GameSession {
     }
 
     /// Demo lap mode: AI driver demonstrates the track
-    fn tick_demolap(&mut self) {
+    fn tick_demolap(&mut self, player_inputs: &HashMap<PlayerId, PlayerInputData>) {
         let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
 
         // Initialize demo lap progress if not set
@@ -123,14 +123,14 @@ impl GameSession {
 
         // Use AI-driven demo lap if we have AI drivers
         if !self.session.ai_player_ids.is_empty() {
-            // Generate AI inputs for the demo driver
-            let mut inputs = std::collections::HashMap::new();
+            // Merge player inputs with AI inputs
+            let mut inputs = player_inputs.clone();
             for ai_id in &self.session.ai_player_ids {
                 let ai_input = self.generate_ai_input(ai_id);
                 inputs.insert(*ai_id, ai_input);
             }
 
-            // Update physics for the demo car
+            // Update physics for all cars (player + AI)
             let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
             for state in states.iter_mut() {
                 let input = inputs.get(&state.player_id).copied().unwrap_or_default();
@@ -187,11 +187,11 @@ impl GameSession {
                 curvature = angle_change;
             }
             
-            // Speed control based on curvature
-            // Max speed on straights: 80 m/s (288 km/h)
-            // Min speed in tight corners: 30 m/s (108 km/h)
-            let max_speed = 80.0;
-            let min_speed = 30.0;
+            // Speed control based on curvature (adjusted for realistic lap times)
+            // Max speed on straights: 60 m/s (216 km/h)
+            // Min speed in tight corners: 25 m/s (90 km/h)
+            let max_speed = 60.0;
+            let min_speed = 25.0;
             
             // Map curvature (0 to ~PI) to speed range
             // High curvature (sharp corner) = low speed
