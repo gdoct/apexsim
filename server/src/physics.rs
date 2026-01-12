@@ -106,13 +106,14 @@ pub fn update_car_3d(
     // 4. Calculate engine torque and RPM
     let (engine_torque, engine_rpm) = calculate_engine_output(state, config, input);
     state.engine_rpm = engine_rpm;
-    
+
     // 5. Calculate wheel torques from drivetrain
     let (drive_torque_front, drive_torque_rear) = calculate_drive_torques(
         engine_torque,
         config,
         state.gear,
     );
+
     
     // 6. Calculate brake forces
     let brake_force = input.brake * config.max_brake_force_n;
@@ -258,6 +259,7 @@ pub fn update_car_3d(
     // 13. Calculate accelerations
     let accel_x = (total_force_x - slope_force) / config.mass_kg;
     let accel_y = (total_force_y + banking_force) / config.mass_kg;
+
     
     // Yaw moment of inertia (simplified as rectangular body)
     let yaw_inertia = config.mass_kg * (config.length_m.powi(2) + config.width_m.powi(2)) / 12.0;
@@ -523,25 +525,40 @@ fn calculate_wheel_slip(
     // Wheel velocity components due to vehicle motion and yaw
     let wheel_vel_x = vehicle_speed.max(MIN_SPEED_THRESHOLD);
     let wheel_vel_y = yaw_rate * wheel_pos_x;
-    
+
     // Calculate wheel speed (assuming no longitudinal slip for now)
     let wheel_speed = wheel_vel_x / wheel_radius;
-    
+
     // Slip ratio (longitudinal)
+    // The driven wheel speed is increased by engine torque (through the drivetrain)
+    // and decreased by brake force. The factor 100.0 is a simplified wheel inertia term.
     let driven_wheel_speed = wheel_speed + (drive_torque - brake_force * wheel_radius) / (100.0 * wheel_radius);
-    let slip_ratio = if wheel_vel_x > MIN_SPEED_THRESHOLD {
+
+    let slip_ratio = if vehicle_speed > MIN_SPEED_THRESHOLD {
+        // Normal driving: slip = (wheel_speed - ground_speed) / ground_speed
         (driven_wheel_speed * wheel_radius - wheel_vel_x) / wheel_vel_x
     } else {
-        0.0
+        // Launch from standstill: use optimal slip ratio to maximize tire force
+        // The Pacejka magic formula produces peak force at optimal slip (~0.1-0.15)
+        // Beyond that, force drops off (simulating wheel spin)
+        // So we target optimal slip when launching for maximum traction
+        let optimal_slip = 0.12; // Near optimal slip for peak traction
+        if drive_torque > 10.0 {
+            optimal_slip  // Apply throttle = optimal slip for max force
+        } else if brake_force > 10.0 {
+            -optimal_slip  // Braking = negative slip
+        } else {
+            0.0  // No input = no slip
+        }
     };
-    
+
     // Slip angle (lateral)
     let slip_angle = if wheel_vel_x > MIN_SPEED_THRESHOLD {
         (wheel_vel_y / wheel_vel_x).atan() - steer_angle
     } else {
         0.0
     };
-    
+
     (slip_ratio.clamp(-1.0, 1.0), slip_angle.clamp(-0.5, 0.5))
 }
 

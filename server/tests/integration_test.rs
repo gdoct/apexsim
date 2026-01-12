@@ -85,10 +85,27 @@ impl TestClient {
     }
 
     async fn select_car(&mut self, car_id: CarConfigId) -> Result<(), Box<dyn std::error::Error>> {
+        println!("DEBUG: Sending SelectCar with car_id={}", car_id);
         let msg = ClientMessage::SelectCar {
             car_config_id: car_id,
         };
-        self.send_tcp_message(&msg).await
+        self.send_tcp_message(&msg).await?;
+        // Give server time to process the car selection
+        sleep(Duration::from_millis(200)).await;
+
+        // Request lobby state to verify car selection
+        println!("DEBUG: Requesting lobby state to verify car selection");
+        let req = ClientMessage::RequestLobbyState;
+        self.send_tcp_message(&req).await?;
+
+        let response = timeout(Duration::from_secs(5), self.receive_tcp_message()).await??;
+        if let ServerMessage::LobbyState(lobby) = &response {
+            if let Some(player) = lobby.players_in_lobby.iter().find(|p| Some(p.id) == self.player_id) {
+                println!("DEBUG: Player car selection in lobby: {:?}", player.selected_car);
+            }
+        }
+
+        Ok(())
     }
 
     async fn create_session(
@@ -106,21 +123,40 @@ impl TestClient {
         };
         
         self.send_tcp_message(&msg).await?;
-        
-        // Wait for session joined confirmation
-        let response = self.receive_tcp_message().await?;
-        
-        match response {
-            ServerMessage::SessionJoined(data) => {
-                self.session_id = Some(data.session_id);
-                Ok(data.session_id)
-            }
-            ServerMessage::Error { message, .. } => {
-                Err(format!("Session creation failed: {}", message).into())
-            }
-            other => {
-                println!("DEBUG: Received unexpected response: {:?}", other);
-                Err(format!("Unexpected response to session creation: {:?}", other).into())
+
+        // Wait for session joined confirmation, skipping LobbyState updates
+        let start = Instant::now();
+        loop {
+            // Add a per-message timeout to avoid hanging forever
+            let response = match timeout(Duration::from_secs(5), self.receive_tcp_message()).await {
+                Ok(Ok(msg)) => msg,
+                Ok(Err(e)) => return Err(format!("Error receiving message: {}", e).into()),
+                Err(_) => {
+                    if start.elapsed() > Duration::from_secs(10) {
+                        return Err("Timeout waiting for session creation response from server".into());
+                    }
+                    println!("DEBUG: Still waiting for session creation response...");
+                    continue;
+                }
+            };
+
+            println!("DEBUG: Received message: {:?}", response);
+            match response {
+                ServerMessage::SessionJoined(data) => {
+                    self.session_id = Some(data.session_id);
+                    return Ok(data.session_id);
+                }
+                ServerMessage::Error { message, .. } => {
+                    return Err(format!("Session creation failed: {}", message).into());
+                }
+                ServerMessage::LobbyState(_) => {
+                    // Skip lobby state updates, they may arrive due to car selection or other clients
+                    continue;
+                }
+                other => {
+                    println!("DEBUG: Received unexpected response: {:?}", other);
+                    return Err(format!("Unexpected response to session creation: {:?}", other).into());
+                }
             }
         }
     }

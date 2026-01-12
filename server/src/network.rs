@@ -33,12 +33,12 @@ pub enum ClientMessage {
         client_tick: u32,
     },
     SelectCar {
-        #[serde(deserialize_with = "deserialize_uuid_from_string")]
+        #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string")]
         car_config_id: CarConfigId,
     },
     RequestLobbyState,
     CreateSession {
-        #[serde(deserialize_with = "deserialize_uuid_from_string")]
+        #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string")]
         track_config_id: TrackConfigId,
         max_players: u8,
         ai_count: u8,
@@ -47,11 +47,11 @@ pub enum ClientMessage {
         session_kind: SessionKind,
     },
     JoinSession {
-        #[serde(deserialize_with = "deserialize_uuid_from_string")]
+        #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string")]
         session_id: SessionId,
     },
     JoinAsSpectator {
-        #[serde(deserialize_with = "deserialize_uuid_from_string")]
+        #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string")]
         session_id: SessionId,
     },
     LeaveSession,
@@ -205,7 +205,7 @@ pub struct SessionSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct CarConfigSummary {
-    #[serde(serialize_with = "serialize_uuid_as_string", rename = "Id")]
+    #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string", rename = "Id")]
     pub id: CarConfigId,
     pub name: String,
     pub model_path: String,
@@ -239,7 +239,7 @@ pub struct TrackPoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct TrackConfigSummary {
-    #[serde(serialize_with = "serialize_uuid_as_string", rename = "Id")]
+    #[serde(serialize_with = "serialize_uuid_as_string", deserialize_with = "deserialize_uuid_from_string", rename = "Id")]
     pub id: TrackConfigId,
     pub name: String,
     /// Simplified centerline points for visualization (every Nth point)
@@ -265,6 +265,7 @@ pub struct CarStateTelemetry {
     pub brake: f32,
     pub steering: f32,
     pub gear: i8,
+    pub engine_rpm: f32,
     // Race progress
     pub current_lap: u16,
     pub track_progress: f32,
@@ -302,6 +303,7 @@ impl From<&CarState> for CarStateTelemetry {
             brake: state.brake_input,
             steering: state.steering_input,
             gear: state.gear,
+            engine_rpm: state.engine_rpm,
             current_lap: state.current_lap,
             track_progress: state.track_progress,
             finish_position: state.finish_position,

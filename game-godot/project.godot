@@ -27,6 +27,10 @@ window/size/viewport_width=2560
 window/size/viewport_height=1440
 window/stretch/mode="viewport"
 
+[dotnet]
+
+project/assembly_name="ApexSim"
+
 [rendering]
+
 renderer/rendering_method.mobile="forward_plus"
-renderer/rendering_method="forward_plus"

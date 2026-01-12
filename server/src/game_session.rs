@@ -368,8 +368,18 @@ impl GameSession {
                 // Change session state to Racing so telemetry is sent
                 self.session.state = SessionState::Racing;
 
+                // Remove human players from participants (they become spectators)
+                // Only AI drivers should be in participants for DemoLap
+                let human_player_ids: Vec<PlayerId> = self.session.participants.keys()
+                    .filter(|id| !self.session.ai_player_ids.contains(id))
+                    .cloned()
+                    .collect();
+                for player_id in &human_player_ids {
+                    self.session.participants.remove(player_id);
+                    eprintln!("[DemoLap] Removed human player {} from participants (now spectator)", player_id);
+                }
+
                 // Ensure we have an AI driver for demo lap
-                // Keep human players as spectators (they'll receive telemetry but won't drive)
                 if self.session.ai_player_ids.is_empty() {
                     if !self.ai_profiles.is_empty() {
                         eprintln!("[DemoLap] Spawning AI from existing profiles");
@@ -377,7 +387,7 @@ impl GameSession {
                         let original_ai_count = self.session.ai_count;
                         let original_max = self.session.max_players;
                         self.session.ai_count = 1;
-                        self.session.max_players = (self.session.participants.len() + 1) as u8;
+                        self.session.max_players = 1;
                         self.spawn_ai_drivers();
                         self.session.ai_count = original_ai_count;
                         self.session.max_players = original_max;
@@ -397,7 +407,7 @@ impl GameSession {
                         let original_ai_count = self.session.ai_count;
                         let original_max = self.session.max_players;
                         self.session.ai_count = 1;
-                        self.session.max_players = (self.session.participants.len() + 1) as u8;
+                        self.session.max_players = 1;
                         self.spawn_ai_drivers();
                         self.session.ai_count = original_ai_count;
                         self.session.max_players = original_max;
@@ -408,6 +418,7 @@ impl GameSession {
                 } else {
                     eprintln!("[DemoLap] Already have {} AI drivers", self.session.ai_player_ids.len());
                 }
+
             }
             GameMode::FreePractice => {
                 // Change session state to Racing so telemetry is sent
@@ -856,13 +867,32 @@ mod tests {
 
         game_session.set_game_mode(GameMode::DemoLap);
 
-        let initial_progress = game_session.session.demo_lap_progress.unwrap();
+        // With the AI-driven demo lap, we check that the AI car moves
+        // (demo_lap_progress is only used in the camera-following fallback)
+        let ai_player_id = *game_session.session.ai_player_ids.first()
+            .expect("DemoLap should spawn an AI driver");
+
+        let initial_pos = game_session.session.participants.get(&ai_player_id)
+            .map(|s| (s.pos_x, s.pos_y))
+            .unwrap();
+
         let inputs = HashMap::new();
 
-        game_session.tick(&inputs);
+        // Run enough ticks for the car to launch from standstill and move
+        // 240 ticks = 1 second of simulation time at 240Hz
+        for _ in 0..240 {
+            game_session.tick(&inputs);
+        }
 
-        // Progress should advance
-        assert!(game_session.session.demo_lap_progress.unwrap() > initial_progress);
+        // AI car should have moved
+        let final_pos = game_session.session.participants.get(&ai_player_id)
+            .map(|s| (s.pos_x, s.pos_y))
+            .unwrap();
+
+        let distance_moved = ((final_pos.0 - initial_pos.0).powi(2)
+            + (final_pos.1 - initial_pos.1).powi(2)).sqrt();
+
+        assert!(distance_moved > 0.1, "AI car should have moved in DemoLap mode, moved: {}m", distance_moved);
     }
 
     #[test]
@@ -882,23 +912,23 @@ mod tests {
 
         game_session.set_game_mode(GameMode::DemoLap);
 
-        // Set progress near the end
-        game_session.session.demo_lap_progress = Some(0.99);
+        // With AI-driven demo lap, verify the AI driver exists and is moving
+        assert!(!game_session.session.ai_player_ids.is_empty(),
+            "DemoLap should create an AI driver");
+
+        let ai_player_id = *game_session.session.ai_player_ids.first().unwrap();
 
         let inputs = HashMap::new();
-        
-        // Run multiple ticks to ensure loop happens (variable speed means it might take multiple ticks)
-        for _ in 0..20 {
+
+        // Run simulation for enough ticks to allow the car to launch from standstill
+        // (physics now supports generating tire force from rest via slip ratio)
+        for _ in 0..100 {
             game_session.tick(&inputs);
-            if game_session.session.demo_lap_progress.unwrap() < 0.5 {
-                break;
-            }
         }
 
-        let final_progress = game_session.session.demo_lap_progress.unwrap();
-        
-        // Should loop back to near 0
-        assert!(final_progress < 0.5);
+        // AI should be driving (speed > 0) after launching from standstill
+        let ai_state = game_session.session.participants.get(&ai_player_id).unwrap();
+        assert!(ai_state.speed_mps > 0.0, "AI should gain speed during demo lap (launched from standstill)");
     }
 
     #[test]
