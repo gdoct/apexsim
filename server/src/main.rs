@@ -807,29 +807,63 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
 
                         // Check if player is in a session
                         if let Some(session_id) = conn_info.in_session {
-                            if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
-                                // Only host can change game mode
-                                if game_session.session.host_player_id == conn_info.player_id {
+                            // Collect data we need before mutable borrow
+                            let (is_host, human_player_ids) = {
+                                if let Some(game_session) = state_write.sessions.get(&session_id) {
+                                    let is_host = game_session.session.host_player_id == conn_info.player_id;
+                                    let human_ids: Vec<PlayerId> = game_session.session.participants.keys()
+                                        .filter(|id| !game_session.session.ai_player_ids.contains(id))
+                                        .cloned()
+                                        .collect();
+                                    (is_host, human_ids)
+                                } else {
+                                    (false, Vec::new())
+                                }
+                            };
+
+                            if is_host {
+                                // If switching to DemoLap, add human players as spectators first
+                                if mode == GameMode::DemoLap {
+                                    for player_id in &human_player_ids {
+                                        state_write.lobby.join_as_spectator(*player_id, session_id).await;
+                                        info!("Player {} added as spectator for DemoLap mode", player_id);
+                                    }
+                                }
+
+                                // Now do the mutable borrow
+                                if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
                                     game_session.set_game_mode(mode);
+
+                                    // Collect participant IDs for notification
+                                    let current_participant_ids: Vec<PlayerId> = game_session.session.participants.keys().cloned().collect();
 
                                     // Notify all participants
                                     let mode_changed_msg = ServerMessage::GameModeChanged { mode };
-                                    for participant_id in game_session.session.participants.keys() {
-                                        if let Some(conn_id) = transport_write.get_player_connection(*participant_id).await {
+                                    for participant_id in current_participant_ids {
+                                        if let Some(conn_id) = transport_write.get_player_connection(participant_id).await {
                                             if let Err(e) = transport_write.send_tcp(conn_id, mode_changed_msg.clone()).await {
                                                 warn!("Failed to send mode change to player: {:?}", e);
                                             }
                                         }
                                     }
-                                } else {
-                                    let _ = transport_write.send_tcp(
-                                        connection_id,
-                                        ServerMessage::Error {
-                                            code: 403,
-                                            message: "Only the session host can change game mode".to_string(),
+
+                                    // Also notify spectators (for DemoLap)
+                                    for player_id in &human_player_ids {
+                                        if let Some(conn_id) = transport_write.get_player_connection(*player_id).await {
+                                            if let Err(e) = transport_write.send_tcp(conn_id, mode_changed_msg.clone()).await {
+                                                warn!("Failed to send mode change to spectator: {:?}", e);
+                                            }
                                         }
-                                    ).await;
+                                    }
                                 }
+                            } else {
+                                let _ = transport_write.send_tcp(
+                                    connection_id,
+                                    ServerMessage::Error {
+                                        code: 403,
+                                        message: "Only the session host can change game mode".to_string(),
+                                    }
+                                ).await;
                             }
                         }
                     }
@@ -1128,10 +1162,18 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                 }
             }
 
-            // Skip telemetry calculation and broadcast if no real players are connected
-            if real_players_with_connections.is_empty() {
+            // Also collect spectators for this session (important for DemoLap mode)
+            let mut spectators_with_connections = Vec::new();
+            for player_id in state_write.lobby.get_session_spectators(*session_id).await {
+                if let Some(conn_id) = transport_write2.get_player_connection(player_id).await {
+                    spectators_with_connections.push((player_id, conn_id));
+                }
+            }
+
+            // Skip telemetry calculation and broadcast if no real players or spectators are connected
+            if real_players_with_connections.is_empty() && spectators_with_connections.is_empty() {
                 if tick_count % 60 == 0 {
-                    debug!("Skipping telemetry for session {} - no real players connected", session_id);
+                    debug!("Skipping telemetry for session {} - no real players or spectators connected", session_id);
                 }
                 continue;
             }
@@ -1139,12 +1181,12 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
             let telemetry_msg = game_session.get_telemetry();
             let participant_count = game_session.session.participants.len();
 
-            if participant_count > 0 && tick_count % 60 == 0 {
-                debug!("Broadcasting telemetry for session {} to {} real players (total participants: {}, state: {:?})",
-                    session_id, real_players_with_connections.len(), participant_count, game_session.session.state);
+            if (participant_count > 0 || !spectators_with_connections.is_empty()) && tick_count % 60 == 0 {
+                debug!("Broadcasting telemetry for session {} to {} real players + {} spectators (total participants: {}, state: {:?})",
+                    session_id, real_players_with_connections.len(), spectators_with_connections.len(), participant_count, game_session.session.state);
             }
 
-            // Send telemetry only to real players who are still connected and in this session
+            // Send telemetry to real players who are still connected and in this session
             for (player_id, conn_id) in real_players_with_connections {
                 // Verify player is still in this session (check via lobby manager)
                 if let Some(player_session) = state_write.lobby.get_player_session(player_id).await {
@@ -1152,6 +1194,11 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                         let _ = transport_write2.send_tcp(conn_id, telemetry_msg.clone()).await;
                     }
                 }
+            }
+
+            // Send telemetry to spectators (e.g., DemoLap viewers)
+            for (_player_id, conn_id) in spectators_with_connections {
+                let _ = transport_write2.send_tcp(conn_id, telemetry_msg.clone()).await;
             }
         }
         drop(transport_write2);

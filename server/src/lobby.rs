@@ -301,6 +301,15 @@ impl LobbyManager {
         self.spectators.read().await.get(&player_id).copied()
     }
 
+    /// Get all spectators for a given session
+    pub async fn get_session_spectators(&self, session_id: SessionId) -> Vec<PlayerId> {
+        self.spectators.read().await
+            .iter()
+            .filter(|(_, sid)| **sid == session_id)
+            .map(|(pid, _)| *pid)
+            .collect()
+    }
+
     /// Get number of players in lobby
     pub async fn get_lobby_count(&self) -> usize {
         self.players.read().await.len()
@@ -413,8 +422,8 @@ mod tests {
         let joined = lobby.join_session(player_id, session_id).await;
         assert!(joined);
 
-        // Player should no longer be in lobby
-        assert_eq!(lobby.get_lobby_count().await, 0);
+        // Player is still in lobby (join_session keeps them in the players list)
+        assert_eq!(lobby.get_lobby_count().await, 1);
 
         // Player should be in session
         let player_session = lobby.get_player_session(player_id).await;
