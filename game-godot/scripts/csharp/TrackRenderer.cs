@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using MessagePack;
@@ -482,18 +483,23 @@ public partial class TrackRenderer : Node3D
 
 			if (telemetry.CarStates.Length > 0)
 			{
-				// In demo lap mode, show the car that's actually moving (the AI driver)
-				// Find the car with the most progress
+				// In demo lap mode, show the AI driver's data (not the local player's)
 				var state = telemetry.CarStates[0];
-				if (telemetry.GameMode == GameMode.DemoLap && telemetry.CarStates.Length > 1)
+				if (telemetry.GameMode == GameMode.DemoLap)
 				{
-					// Find the car with highest lap or progress (the AI driver)
-					foreach (var car in telemetry.CarStates)
+					// Filter out the local player's car and find the AI driver
+					var aiCarStates = telemetry.CarStates.Where(cs => cs.PlayerId != _network?.PlayerId).ToArray();
+					if (aiCarStates.Length > 0)
 					{
-						if (car.CurrentLap > state.CurrentLap ||
-							(car.CurrentLap == state.CurrentLap && car.TrackProgress > state.TrackProgress))
+						// Use the AI car with the most progress
+						state = aiCarStates[0];
+						foreach (var car in aiCarStates)
 						{
-							state = car;
+							if (car.CurrentLap > state.CurrentLap ||
+								(car.CurrentLap == state.CurrentLap && car.TrackProgress > state.TrackProgress))
+							{
+								state = car;
+							}
 						}
 					}
 				}
@@ -556,13 +562,27 @@ public partial class TrackRenderer : Node3D
 			return;
 		}
 
-		// In demo lap mode, show the first car (which is the AI driver)
-		var carState = telemetry.CarStates[0];
+		// In demo lap mode, show the AI driver's car (not the local player's car)
+		// Filter out the local player's car and find the AI driver
+		var aiCars = telemetry.CarStates.Where(cs => cs.PlayerId != _network?.PlayerId).ToArray();
+
+		if (aiCars.Length == 0)
+		{
+			if (_telemetryCount <= 5)
+			{
+				GD.Print($"[Telemetry #{_telemetryCount}] No AI cars found in telemetry! Local player ID: {_network?.PlayerId}");
+			}
+			_demoCarModel.Visible = false;
+			return;
+		}
+
+		// Use the first AI car (there should only be one in demo mode)
+		var carState = aiCars[0];
 
 		// Debug: Log player info to verify this is the AI
 		if (_telemetryCount <= 5)
 		{
-			GD.Print($"[Telemetry #{_telemetryCount}] Showing demo car for player: {carState.PlayerId}");
+			GD.Print($"[Telemetry #{_telemetryCount}] Showing demo car for AI player: {carState.PlayerId} (excluding local player: {_network?.PlayerId})");
 		}
 
 		// Log first few telemetry updates for debugging

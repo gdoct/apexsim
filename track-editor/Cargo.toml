@@ -1,0 +1,20 @@
+[package]
+name = "track-editor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.14", features = ["x11"] }
+bevy_egui = "0.28"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1.0"
+rmp-serde = "1.1"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+rfd = "0.14"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

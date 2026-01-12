@@ -167,9 +167,11 @@ impl<'a> AiDriverController<'a> {
         
         // Skill-based parameters
         let skill_factor = self.get_skill_factor();
-        
-        // Target speed scales with skill (70 skill = ~25 m/s, 110 skill = ~45 m/s)
-        let base_target_speed = 25.0 + (skill_factor * 20.0);
+
+        // Target speed scales with skill, adjusted for realistic lap times
+        // 70 skill = ~40 m/s (144 km/h), 110 skill = ~60 m/s (216 km/h)
+        // Note: This is the base speed; AI will adjust for corners based on racing line
+        let base_target_speed = 40.0 + (skill_factor * 20.0);
         
         // Apply consistency variation (lower consistency = more speed variation)
         let consistency_noise = self.get_consistency_noise(current_tick);
