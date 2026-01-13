@@ -4,9 +4,37 @@ This directory contains integration tests for the ApexSim racing server. These t
 
 ## Running the Tests
 
+### Interactive Test Runner (Recommended)
+
+The easiest way to run integration tests is using the interactive test runner:
+
+```bash
+cd /home/guido/apexsim/server
+./run-tests.sh
+```
+
+Or directly:
+```bash
+cargo run --bin test-runner
+```
+
+**Features:**
+- **Organized by category**: 29 tests grouped into 5 topic-based categories
+- **Two-level navigation**: Category menu → Test menu
+- **Interactive UI**: Clean ncurses-like terminal interface
+- **Navigate with arrow keys**: ↑/↓ to navigate, Enter to select, Backspace to go back
+- **Real-time output**: Watch test output as it executes
+- **Cancel execution**: Press 'C' during test execution to cancel
+- **Scroll output**: Use ↑/↓ or PageUp/PageDown to scroll through test results
+- **Server indicators**: Tests marked with `[S]` require a running server
+
+**Server Requirements:**
+- Tests marked with `[S]` require the server running on `127.0.0.1:9000`
+- Other tests spawn their own server instances automatically
+
 ### Prerequisites
 
-1. **Start the server** before running any tests:
+1. **For tests requiring a server** (marked with `[S]` in interactive runner):
    ```bash
    cd /home/guido/apexsim/server
    cargo run --release
@@ -14,7 +42,11 @@ This directory contains integration tests for the ApexSim racing server. These t
 
 2. Wait for the server to display: `Server is running. Press Ctrl+C to stop.`
 
-### Available Tests
+### Manual Test Execution (Alternative)
+
+You can also run tests manually using cargo commands. This is useful for CI/CD or automated testing:
+
+#### Available Tests
 
 #### 1. CLI Client Workflow Test
 Tests the complete client workflow that the CLI game client should follow:
