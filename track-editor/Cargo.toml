@@ -12,6 +12,7 @@ serde_json = "1.0"
 rmp-serde = "1.1"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 rfd = "0.14"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [profile.dev]
 opt-level = 1

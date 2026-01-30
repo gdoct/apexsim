@@ -2,6 +2,21 @@
 
 This directory contains integration tests for the ApexSim racing server. These tests verify end-to-end functionality by simulating real client connections.
 
+## Regenerating Track Surfaces
+
+To regenerate procedural terrain (track surfaces) for all tracks that have `environment_type` metadata:
+
+```bash
+cd /home/guido/apexsim/server
+cargo run -- --generate-terrain
+```
+
+This will:
+1. Scan all tracks in the configured `tracks_dir`
+2. Generate procedural terrain meshes for tracks with environment metadata
+3. Save the terrain data alongside the track files
+4. Exit after generation (the server will not start in this mode)
+
 ## Running the Tests
 
 ### Interactive Test Runner (Recommended)

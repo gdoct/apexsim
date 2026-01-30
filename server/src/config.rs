@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use tracing::error;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
@@ -115,7 +117,7 @@ impl ServerConfig {
 
     pub fn load_or_default<P: AsRef<Path>>(path: P) -> Self {
         Self::load(path).unwrap_or_else(|e| {
-            eprintln!("Failed to load config: {}, using defaults", e);
+            error!("Failed to load config: {}, using defaults", e);
             Self::default()
         })
     }

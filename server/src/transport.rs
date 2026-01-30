@@ -123,22 +123,22 @@ impl TransportLayer {
     ) -> Result<Self, TransportError> {
         // Setup TCP with TLS
         let tcp_listener = TcpListener::bind(tcp_bind).await?;
-        info!("TCP listener bound to {}", tcp_bind);
+        debug!("TCP listener bound to {}", tcp_bind);
 
         // Setup UDP
         let udp_socket = Arc::new(UdpSocket::bind(udp_bind).await?);
-        info!("UDP socket bound to {}", udp_bind);
+        debug!("UDP socket bound to {}", udp_bind);
 
         // Load TLS configuration
         let tls_acceptor = match Self::load_tls_config(tls_cert_path, tls_key_path) {
             Ok(config) => {
-                info!("✓ TLS configuration loaded successfully");
-                info!("  Certificate: {}", tls_cert_path);
-                info!("  Private key: {}", tls_key_path);
+                debug!("✓ TLS configuration loaded successfully");
+                debug!("  Certificate: {}", tls_cert_path);
+                debug!("  Private key: {}", tls_key_path);
                 if require_tls {
-                    info!("  TLS mode: REQUIRED (enforcement: fail if unavailable)");
+                    debug!("  TLS mode: REQUIRED (enforcement: fail if unavailable)");
                 } else {
-                    info!("  TLS mode: ENABLED (enforcement: optional, currently active)");
+                    debug!("  TLS mode: ENABLED (enforcement: optional, currently active)");
                 }
                 Some(TlsAcceptor::from(Arc::new(config)))
             }
@@ -267,7 +267,7 @@ impl TransportLayer {
         loop {
             match listener.accept().await {
                 Ok((stream, addr)) => {
-                    info!("New TCP connection from {}", addr);
+                    debug!("New TCP connection from {}", addr);
                     let tcp_tx = tcp_tx.clone();
                     let tls_acceptor = tls_acceptor.clone();
                     let connections = Arc::clone(&connections);
@@ -316,7 +316,7 @@ impl TransportLayer {
         if let Some(acceptor) = tls_acceptor {
             match acceptor.accept(stream).await {
                 Ok(tls_stream) => {
-                    info!("TLS connection established for {}", addr);
+                    debug!("TLS connection established for {}", addr);
                     Self::handle_stream(
                         tls_stream,
                         addr,
@@ -448,7 +448,7 @@ impl TransportLayer {
                                             .write()
                                             .await
                                             .insert(player_id, connection_id);
-                                        info!(
+                                        debug!(
                                             "Player {} authenticated as {} (connection: {})",
                                             player_name, player_id, connection_id
                                         );
@@ -498,18 +498,26 @@ impl TransportLayer {
                     if e.kind() != std::io::ErrorKind::UnexpectedEof {
                         debug!("Connection closed by {}: {}", addr, e);
                     } else {
-                        info!("Connection closed by client: {}", addr);
+                        debug!("Connection closed by client: {}", addr);
                     }
                     break;
                 }
             }
         }
 
-        // Cleanup connection (returns ConnectionInfo so main loop can handle player removal)
+        // Send a synthetic Disconnect message to main loop BEFORE removing connection
+        // This ensures the main loop can look up the connection info and remove player from lobby
+        let _ = tcp_tx.send((connection_id, ClientMessage::Disconnect)).await;
+
+        // Delay to allow main loop to process the Disconnect message
+        // At 240Hz tick rate, 100ms = ~24 ticks, which should be plenty
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Cleanup connection after main loop has processed the disconnect
         if let Some(conn) = connections.write().await.remove(&connection_id) {
             addr_to_connection.write().await.remove(&addr);
             player_to_connection.write().await.remove(&conn.player_id);
-            info!(
+            debug!(
                 "Connection cleaned up: {} (player: {}, session: {:?})",
                 addr, conn.player_name, conn.in_session
             );
@@ -538,7 +546,7 @@ impl TransportLayer {
                     }
                 }
                 Err(e) => {
-                    error!("UDP receive error: {}", e);
+                    debug!("UDP receive error: {}", e);
                 }
             }
         }
@@ -738,7 +746,7 @@ impl TransportLayer {
         // Send shutdown message to all connected clients
         let connections = self.connections.read().await;
         for conn_info in connections.values() {
-            info!(
+            debug!(
                 "Sending shutdown notification to player: {}",
                 conn_info.player_name
             );
@@ -755,7 +763,7 @@ impl TransportLayer {
         // Give connections time to send shutdown messages
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-        info!("Transport layer shutdown complete");
+        debug!("Transport layer shutdown complete");
     }
 
     pub async fn broadcast_tcp(&self, msg: ServerMessage) {

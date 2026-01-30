@@ -2,6 +2,7 @@ use crate::data::{TrackConfig, TrackPoint, SurfaceType, TrackSurface, GridSlot, 
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use tracing::{debug, info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackFileFormat {
@@ -214,7 +215,7 @@ impl TrackLoader {
         // Try to load from cache first
         if let Some(path) = track_path {
             if let Some(cached) = crate::procgen::terrain::load_terrain_cache(path) {
-                println!("✅ Loaded cached terrain for: {}", track_name);
+                debug!("✅ Loaded cached terrain for: {}", track_name);
 
                 // Apply elevation from cached heightmap
                 if let Some(ref heightmap) = cached.heightmap {
@@ -226,8 +227,8 @@ impl TrackLoader {
         }
 
         // Cache not found, generate terrain (only in generation mode)
-        println!("⚠️  No terrain cache found for: {}", track_name);
-        println!("   Run with --generate-terrain to create terrain data");
+        warn!("⚠️  No terrain cache found for: {}", track_name);
+        warn!("   Run with --generate-terrain to create terrain data");
 
         // Return None - track will have flat terrain until terrain is generated
         None
@@ -241,8 +242,8 @@ impl TrackLoader {
         // This function is called during --generate-terrain mode
         let environment_type = metadata.environment_type.as_ref()?;
 
-        println!("🌍 Generating procedural world for track: {}", track_name);
-        println!("   Environment type: {}", environment_type);
+        info!("🌍 Generating procedural world for track: {}", track_name);
+        debug!("   Environment type: {}", environment_type);
 
         // Get or create seed
         let seed = metadata.terrain_seed.unwrap_or_else(|| {
@@ -258,7 +259,7 @@ impl TrackLoader {
         let preset = match crate::procgen::environment_presets::get_preset(environment_type) {
             Some(p) => p,
             None => {
-                eprintln!("❌ Unknown environment type: {}", environment_type);
+                warn!("❌ Unknown environment type: {}", environment_type);
                 return None;
             }
         };
@@ -286,12 +287,12 @@ impl TrackLoader {
                     crate::procgen::terrain::apply_track_elevation(centerline_points, heightmap);
                 }
 
-                println!("✅ Procedural world generated successfully");
+                debug!("✅ Procedural world generated successfully");
                 Some(world_data)
             }
             Err(e) => {
-                eprintln!("❌ Failed to generate procedural world: {}", e);
-                eprintln!("   Track will use flat terrain");
+                warn!("❌ Failed to generate procedural world: {}", e);
+                warn!("   Track will use flat terrain");
                 None
             }
         }

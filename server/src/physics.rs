@@ -12,7 +12,7 @@
 use crate::data::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
-
+use tracing::{debug};
 /// Gravity constant (m/s²)
 const GRAVITY: f32 = 9.81;
 
@@ -923,7 +923,7 @@ pub fn update_track_progress_3d(
 
     // Debug: Log track progress every 240 ticks (once per second)
     if current_tick % 240 == 0 {
-        eprintln!("[Lap Debug] Tick {}: current_lap={}, track_progress={:.1}m/{:.1}m, lap_time={}ms",
+        debug!("[Lap Debug] Tick {}: current_lap={}, track_progress={:.1}m/{:.1}m, lap_time={}ms",
             current_tick, state.current_lap, state.track_progress, track_length, state.current_lap_time_ms);
     }
 

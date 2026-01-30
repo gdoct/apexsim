@@ -2,6 +2,7 @@ use crate::data::*;
 use serde::Deserialize;
 use std::path::Path;
 use uuid::Uuid;
+use {tracing::debug};
 
 #[derive(Debug, Deserialize)]
 struct CarToml {
@@ -159,7 +160,7 @@ impl CarLoader {
             .max_power_w
             .unwrap_or_else(|| car_toml.physics.max_engine_force_n * 100.0);
 
-        println!("  Loaded {}: mass={}kg, engine_force={}N, power={}W",
+        debug!("  Loaded {}: mass={}kg, engine_force={}N, power={}W",
             car_toml.name, car_toml.physics.mass_kg, car_toml.physics.max_engine_force_n, max_engine_power_w);
 
         Ok(CarConfig {

@@ -3,6 +3,7 @@ use super::noise::TerrainNoise;
 use super::world_data::{EnvironmentPreset, ProceduralWorldData, TerrainHeightmap};
 use crate::data::TrackPoint;
 use std::path::Path;
+use tracing::{debug, info, warn, error};
 
 /// Generate complete procedural world data for a track
 ///
@@ -74,7 +75,7 @@ pub fn generate_terrain(
         ));
     }
 
-    println!(
+    debug!(
         "Generating terrain heightmap: {}x{} cells ({:.1}m x {:.1}m)",
         width,
         height,
@@ -88,7 +89,18 @@ pub fn generate_terrain(
     // Generate noise-based terrain
     let noise = TerrainNoise::new(seed);
 
+    debug!("Generating noise-based terrain heights...");
+    let start_time = std::time::Instant::now();
+    let mut last_progress = 0;
+
     for y in 0..height {
+        // Progress logging every 10%
+        let progress = (y * 100) / height;
+        if progress >= last_progress + 10 {
+            debug!("  Heightmap generation: {}%", progress);
+            last_progress = progress;
+        }
+
         for x in 0..width {
             let world_x = min_x + x as f32 * cell_size;
             let world_y = min_y + y as f32 * cell_size;
@@ -108,6 +120,13 @@ pub fn generate_terrain(
         }
     }
 
+    let elapsed = start_time.elapsed();
+    debug!(
+        "  Heightmap generation complete in {:.2}s ({} cells)",
+        elapsed.as_secs_f32(),
+        width * height
+    );
+
     Ok(heightmap)
 }
 
@@ -120,18 +139,62 @@ pub fn carve_track_corridor(
     track_points: &[TrackPoint],
     blend_width: f32,
 ) {
-    println!("Carving track corridor with {} meter blend width", blend_width);
+    let total_cells = heightmap.width * heightmap.height;
+    let track_point_count = track_points.len();
+    debug!(
+        "Carving track corridor with {} meter blend width ({} cells, {} track points)",
+        blend_width, total_cells, track_point_count
+    );
+
+    // Build spatial index for fast nearest-neighbor lookups
+    // Use cell size slightly larger than blend_width for efficiency
+    let grid_cell_size = blend_width * 2.0;
+    debug!("  Building spatial index (cell size: {:.0}m)...", grid_cell_size);
+    let grid_start = std::time::Instant::now();
+    let spatial_grid = TrackSpatialGrid::new(track_points, grid_cell_size);
+    debug!(
+        "  Spatial index built in {:.2}s ({}x{} grid)",
+        grid_start.elapsed().as_secs_f32(),
+        spatial_grid.grid_width,
+        spatial_grid.grid_height
+    );
+
+    let start_time = std::time::Instant::now();
+    let mut last_progress = 0;
 
     for y in 0..heightmap.height {
+        // Progress logging every 10%
+        let progress = (y * 100) / heightmap.height;
+        if progress >= last_progress + 10 {
+            let elapsed = start_time.elapsed();
+            let rows_per_sec = if elapsed.as_secs_f32() > 0.0 {
+                y as f32 / elapsed.as_secs_f32()
+            } else {
+                0.0
+            };
+            let remaining_rows = heightmap.height - y;
+            let eta_secs = if rows_per_sec > 0.0 {
+                remaining_rows as f32 / rows_per_sec
+            } else {
+                0.0
+            };
+            debug!(
+                "  Carving progress: {}% ({}/{} rows, {:.1} rows/sec, ETA: {:.0}s)",
+                progress, y, heightmap.height, rows_per_sec, eta_secs
+            );
+            last_progress = progress;
+        }
+
         for x in 0..heightmap.width {
             let world_x = heightmap.origin_x + x as f32 * heightmap.cell_size_m;
             let world_y = heightmap.origin_y + y as f32 * heightmap.cell_size_m;
 
-            // Find distance to nearest track point
-            let (dist_to_track, nearest_track_z) = find_nearest_track_distance(
+            // Find distance to nearest track point using spatial grid
+            let (dist_to_track, nearest_track_z) = spatial_grid.find_nearest(
                 track_points,
                 world_x,
                 world_y,
+                blend_width,
             );
 
             // Apply smooth blend within blend_width
@@ -151,6 +214,13 @@ pub fn carve_track_corridor(
             }
         }
     }
+
+    let elapsed = start_time.elapsed();
+    debug!(
+        "  Carving complete in {:.1}s ({:.0} cells/sec)",
+        elapsed.as_secs_f32(),
+        total_cells as f32 / elapsed.as_secs_f32()
+    );
 }
 
 /// Apply terrain elevation to track points
@@ -161,7 +231,7 @@ pub fn apply_track_elevation(
     track_points: &mut [TrackPoint],
     heightmap: &TerrainHeightmap,
 ) {
-    println!("Applying terrain elevation to {} track points", track_points.len());
+    debug!("Applying terrain elevation to {} track points", track_points.len());
 
     for point in track_points.iter_mut() {
         let terrain_height = heightmap.sample(point.x, point.y);
@@ -216,7 +286,7 @@ fn recalculate_track_geometry(points: &mut [TrackPoint]) {
         };
     }
 
-    println!(
+    debug!(
         "Recalculated track geometry. Total length: {:.1}m",
         points.last().map(|p| p.distance_from_start_m).unwrap_or(0.0)
     );
@@ -239,7 +309,112 @@ fn calculate_bounds(track_points: &[TrackPoint]) -> (f32, f32, f32, f32) {
     (min_x, min_y, max_x, max_y)
 }
 
-/// Find distance to nearest track point and its elevation
+/// Spatial grid for fast nearest-neighbor lookups
+struct TrackSpatialGrid {
+    cells: Vec<Vec<usize>>, // Each cell contains indices into track_points
+    cell_size: f32,
+    grid_width: usize,
+    grid_height: usize,
+    min_x: f32,
+    min_y: f32,
+}
+
+impl TrackSpatialGrid {
+    /// Build a spatial grid from track points
+    fn new(track_points: &[TrackPoint], cell_size: f32) -> Self {
+        if track_points.is_empty() {
+            return Self {
+                cells: Vec::new(),
+                cell_size,
+                grid_width: 0,
+                grid_height: 0,
+                min_x: 0.0,
+                min_y: 0.0,
+            };
+        }
+
+        let (min_x, min_y, max_x, max_y) = calculate_bounds(track_points);
+
+        // Add padding to ensure all points fit
+        let min_x = min_x - cell_size;
+        let min_y = min_y - cell_size;
+        let max_x = max_x + cell_size;
+        let max_y = max_y + cell_size;
+
+        let grid_width = ((max_x - min_x) / cell_size).ceil() as usize + 1;
+        let grid_height = ((max_y - min_y) / cell_size).ceil() as usize + 1;
+
+        let mut cells = vec![Vec::new(); grid_width * grid_height];
+
+        // Insert each track point into its cell
+        for (idx, point) in track_points.iter().enumerate() {
+            let cell_x = ((point.x - min_x) / cell_size) as usize;
+            let cell_y = ((point.y - min_y) / cell_size) as usize;
+            let cell_idx = cell_y * grid_width + cell_x;
+            if cell_idx < cells.len() {
+                cells[cell_idx].push(idx);
+            }
+        }
+
+        Self {
+            cells,
+            cell_size,
+            grid_width,
+            grid_height,
+            min_x,
+            min_y,
+        }
+    }
+
+    /// Find nearest track point within search_radius, returns (distance, z)
+    fn find_nearest(&self, track_points: &[TrackPoint], world_x: f32, world_y: f32, search_radius: f32) -> (f32, f32) {
+        let mut min_dist = f32::MAX;
+        let mut nearest_z = 0.0;
+
+        // Convert world coords to grid coords
+        let center_cell_x = ((world_x - self.min_x) / self.cell_size) as i32;
+        let center_cell_y = ((world_y - self.min_y) / self.cell_size) as i32;
+
+        // Calculate how many cells to search based on search radius
+        let cells_to_search = (search_radius / self.cell_size).ceil() as i32 + 1;
+
+        // Search neighboring cells
+        for dy in -cells_to_search..=cells_to_search {
+            for dx in -cells_to_search..=cells_to_search {
+                let cell_x = center_cell_x + dx;
+                let cell_y = center_cell_y + dy;
+
+                // Skip out-of-bounds cells
+                if cell_x < 0 || cell_y < 0
+                    || cell_x >= self.grid_width as i32
+                    || cell_y >= self.grid_height as i32
+                {
+                    continue;
+                }
+
+                let cell_idx = cell_y as usize * self.grid_width + cell_x as usize;
+
+                // Check all points in this cell
+                for &point_idx in &self.cells[cell_idx] {
+                    let point = &track_points[point_idx];
+                    let px = world_x - point.x;
+                    let py = world_y - point.y;
+                    let dist = (px * px + py * py).sqrt();
+
+                    if dist < min_dist {
+                        min_dist = dist;
+                        nearest_z = point.z;
+                    }
+                }
+            }
+        }
+
+        (min_dist, nearest_z)
+    }
+}
+
+/// Find distance to nearest track point and its elevation (legacy, for small tracks)
+#[allow(dead_code)]
 fn find_nearest_track_distance(
     track_points: &[TrackPoint],
     world_x: f32,
@@ -445,7 +620,7 @@ pub fn generate_all_terrain(tracks_dir: &str) -> Result<usize, String> {
         return Err(format!("Tracks directory not found: {}", tracks_dir));
     }
 
-    println!("Scanning tracks directory: {}", tracks_dir);
+    debug!("Scanning tracks directory: {}", tracks_dir);
 
     let mut generated_count = 0;
     let mut files_to_process = Vec::new();
@@ -453,19 +628,19 @@ pub fn generate_all_terrain(tracks_dir: &str) -> Result<usize, String> {
     // Collect all YAML/JSON track files
     collect_track_files(tracks_path, &mut files_to_process)?;
 
-    println!("Found {} track file(s)", files_to_process.len());
+    info!("Found {} track file(s)", files_to_process.len());
 
     for track_file in files_to_process {
         match process_track_for_terrain(&track_file) {
             Ok(true) => {
                 generated_count += 1;
-                println!("  ✅ Generated terrain for: {}", track_file.display());
+                info!("  ✅ Generated terrain for: {}", track_file.display());
             }
             Ok(false) => {
-                println!("  ⏭️  Skipped (no environment_type): {}", track_file.display());
+                debug!("  ⏭️  Skipped (no environment_type): {}", track_file.display());
             }
             Err(e) => {
-                eprintln!("  ❌ Failed to process {}: {}", track_file.display(), e);
+                warn!("  ❌ Failed to process {}: {}", track_file.display(), e);
             }
         }
     }
@@ -533,7 +708,7 @@ fn process_track_for_terrain(track_file: &Path) -> Result<bool, String> {
 
         if let (Some(src), Some(cache)) = (source_modified, cache_modified) {
             if cache >= src {
-                println!("  ℹ️  Cache up-to-date: {}", cache_path.display());
+                debug!("  ℹ️  Cache up-to-date: {}", cache_path.display());
                 return Ok(false);
             }
         }
@@ -546,11 +721,17 @@ fn process_track_for_terrain(track_file: &Path) -> Result<bool, String> {
         12.0
     };
 
+    debug!("🌍 Generating procedural world for track: {}", track_file_format.name);
+    debug!("   Environment type: {}", metadata.environment_type.as_ref().unwrap());
+    debug!("   Input nodes: {}", track_file_format.nodes.len());
+
     let mut centerline_points = SplineInterpolator::interpolate_spline(
         &track_file_format.nodes,
         track_file_format.closed_loop,
         default_width,
     ).map_err(|e| format!("Failed to interpolate spline: {}", e))?;
+
+    debug!("   Interpolated track points: {}", centerline_points.len());
 
     // Generate procedural world
     let procedural_world = TrackLoader::generate_procedural_world_for_track(
@@ -600,7 +781,7 @@ pub fn load_terrain_cache(track_file: &Path) -> Option<ProceduralWorldData> {
     let content = fs::read(&cache_path).ok()?;
     let procedural_world: ProceduralWorldData = rmp_serde::from_slice(&content)
         .map_err(|e| {
-            eprintln!("Failed to parse terrain cache {}: {}", cache_path.display(), e);
+            error!("Failed to parse terrain cache {}: {}", cache_path.display(), e);
             e
         })
         .ok()?;

@@ -7,7 +7,7 @@ use bytes::Bytes;
 use tokio::net::TcpListener;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, error};
+use tracing::{debug, info, error};
 
 #[derive(Clone)]
 pub struct HealthState {
@@ -83,7 +83,7 @@ async fn handle_health(
 }
 
 pub async fn run_health_server(bind_addr: String, health_state: HealthState) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Starting health check server on {}", bind_addr);
+    debug!("Starting health check server on {}", bind_addr);
 
     let listener = TcpListener::bind(&bind_addr).await?;
     info!("Health check server listening on {}", bind_addr);
