@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::fs::{self, File};
 use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::{debug, warn};
 
 /// Replay metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,7 +79,7 @@ impl ReplayManager {
         };
 
         self.active_recordings.write().await.insert(session_id, recorder);
-        info!("Started recording replay for session {}", session_id);
+        debug!("Started recording replay for session {}", session_id);
     }
 
     /// Record a frame for a session
@@ -95,7 +95,7 @@ impl ReplayManager {
 
         if let Some(recorder) = recorder {
             let replay_path = self.save_replay(recorder).await?;
-            info!("Saved replay for session {} to {:?}", session_id, replay_path);
+            debug!("Saved replay for session {} to {:?}", session_id, replay_path);
             Ok(replay_path)
         } else {
             warn!("No active recording for session {}", session_id);
@@ -192,7 +192,7 @@ impl ReplayManager {
             frames.push(frame);
         }
 
-        info!("Loaded replay from {:?} ({} frames)", replay_path, frames.len());
+        debug!("Loaded replay from {:?} ({} frames)", replay_path, frames.len());
 
         Ok(ReplayPlayer {
             metadata: header.metadata,

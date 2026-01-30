@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
-use tracing::{debug, info, warn};
+use tracing::{debug, info, warn, error};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -50,7 +50,7 @@ impl ServerState {
 
         // Load custom cars from configured directory
         let cars_dir = config.content.cars_dir.clone();
-        info!("Loading cars from {}...", cars_dir);
+        debug!("Loading cars from {}...", cars_dir);
         Self::load_custom_cars(&mut car_configs, &cars_dir);
 
         if car_configs.is_empty() {
@@ -58,23 +58,23 @@ impl ServerState {
             let default_car = CarConfig::default();
             car_configs.insert(default_car.id, default_car);
         } else {
-            info!("Loaded {} car(s):", car_configs.len());
+            debug!("Loaded {} car(s):", car_configs.len());
             for car in car_configs.values() {
-                info!("  - {} (ID: {})", car.name, car.id);
+                debug!("  - {} (ID: {})", car.name, car.id);
             }
         }
 
         // Load custom tracks from configured directory
         let tracks_dir = config.content.tracks_dir.clone();
-        info!("Loading tracks from {}...", tracks_dir);
+        debug!("Loading tracks from {}...", tracks_dir);
         Self::load_custom_tracks(&mut track_configs, &tracks_dir);
 
         if track_configs.is_empty() {
             warn!("No tracks loaded! Server will not be able to create sessions.");
         } else {
-            info!("Loaded {} track(s):", track_configs.len());
+            debug!("Loaded {} track(s):", track_configs.len());
             for track in track_configs.values() {
-                info!("  - {} (ID: {})", track.name, track.id);
+                debug!("  - {} (ID: {})", track.name, track.id);
             }
         }
 
@@ -96,7 +96,7 @@ impl ServerState {
         let content_root = tracks_dir.parent().unwrap_or(tracks_dir);
 
         if !tracks_dir.exists() {
-            info!("Tracks directory not found at {:?}, skipping custom track loading", tracks_dir);
+            warn!("Tracks directory not found at {:?}, skipping custom track loading", tracks_dir);
             return;
         }
 
@@ -144,7 +144,7 @@ impl ServerState {
         let cars_dir = std::path::Path::new(cars_dir_str);
 
         if !cars_dir.exists() {
-            info!("Cars directory not found at {:?}, skipping custom car loading", cars_dir);
+            warn!("Cars directory not found at {:?}, skipping custom car loading", cars_dir);
             return;
         }
 
@@ -225,7 +225,7 @@ impl ServerState {
         // Spawn AI drivers immediately
         if ai_count > 0 {
             game_session.spawn_ai_drivers();
-            info!("Spawned {} AI drivers for session {}", ai_count, session_id);
+            debug!("Spawned {} AI drivers for session {}", ai_count, session_id);
         }
 
         self.sessions.insert(session_id, game_session);
@@ -271,7 +271,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Ok(());
             }
             Err(e) => {
-                eprintln!("❌ Terrain generation failed: {}", e);
+                error!("❌ Terrain generation failed: {}", e);
                 return Err(e.into());
             }
         }
@@ -324,7 +324,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Mark server as ready
     health_state.set_ready(true).await;
-    info!("Server marked as ready");
+    debug!("Server marked as ready");
 
     // Start main game loop
     let loop_state = Arc::clone(&state);
@@ -367,9 +367,9 @@ async fn send_lobby_state(
 
     // Get lobby players and sessions
     let players_in_lobby = state_read.lobby.get_lobby_players().await;
-    info!("send_lobby_state: players_in_lobby count = {}", players_in_lobby.len());
+    debug!("send_lobby_state: players_in_lobby count = {}", players_in_lobby.len());
     for player in &players_in_lobby {
-        info!("  - Player: {} (ID: {}), SelectedCar: {:?}, InSession: {:?}",
+        debug!("  - Player: {} (ID: {}), SelectedCar: {:?}, InSession: {:?}",
               player.name, player.id, player.selected_car, player.in_session);
     }
     let available_sessions = state_read.lobby.get_available_sessions().await;
@@ -482,7 +482,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
         // Log every second (240 ticks at 240Hz)
             if tick_count % tick_rate as u64 == 0 {
                 let state_read = state.read().await;
-                info!(
+                debug!(
                     "Tick {} - Active sessions: {}, Players: {}",
                     tick_count,
                     state_read.sessions.len(),
@@ -523,10 +523,10 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
 
                 ClientMessage::SelectCar { car_config_id } => {
                     if let Some(conn_info) = transport_write.get_connection(connection_id).await {
-                        info!("SelectCar: player_id={}, car_config_id={}", conn_info.player_id, car_config_id);
+                        debug!("SelectCar: player_id={}, car_config_id={}", conn_info.player_id, car_config_id);
                         let state_write = state.write().await;
                         state_write.lobby.set_player_car(conn_info.player_id, car_config_id).await;
-                        info!("SelectCar: Car set successfully");
+                        debug!("SelectCar: Car set successfully");
                     } else {
                         warn!("SelectCar: No connection info found for connection_id={}", connection_id);
                     }
@@ -556,7 +556,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                 ai_count,
                                 lap_limit
                             ) {
-                                info!("Session {} created by player {}", session_id, conn_info.player_name);
+                                debug!("Session {} created by player {}", session_id, conn_info.player_name);
 
                                 // Register session in lobby
                                 let track_name = state_write.track_configs.get(&track_config_id)
@@ -669,7 +669,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                             if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
                                 if let Some(car_id) = selected_car {
                                     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
-                                        info!("Player {} joined session {} at grid position {}",
+                                        debug!("Player {} joined session {} at grid position {}",
                                             conn_info.player_name, session_id, grid_pos);
                                         let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined(SessionJoinedData {
                                             session_id,
@@ -681,7 +681,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                         // Failed to add to session (full)
                                         let empty_session = state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
                                         if let Some(session_id) = empty_session {
-                                            info!("Session {} is empty after failed join, removing it", session_id);
+                                            debug!("Session {} is empty after failed join, removing it", session_id);
                                             state_write.sessions.remove(&session_id);
                                             state_write.lobby.unregister_session(session_id).await;
                                         }
@@ -695,7 +695,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                     // No car selected
                                     let empty_session = state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
                                     if let Some(session_id) = empty_session {
-                                        info!("Session {} is empty after failed join, removing it", session_id);
+                                        debug!("Session {} is empty after failed join, removing it", session_id);
                                         state_write.sessions.remove(&session_id);
                                         state_write.lobby.unregister_session(session_id).await;
                                     }
@@ -721,7 +721,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                         let joined = state_write.lobby.join_as_spectator(conn_info.player_id, session_id).await;
 
                         if joined {
-                            info!("Player {} joined session {} as spectator", conn_info.player_name, session_id);
+                            debug!("Player {} joined session {} as spectator", conn_info.player_name, session_id);
                             let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionJoined(SessionJoinedData {
                                 session_id,
                                 your_grid_position: 0, // 0 indicates spectator
@@ -751,12 +751,12 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                         let empty_session = state_write.lobby.leave_session(conn_info.player_id, connection_id).await;
 
                         if let Some(session_id) = empty_session {
-                            info!("Session {} has no human players left, removing it", session_id);
+                            debug!("Session {} has no human players left, removing it", session_id);
                             state_write.sessions.remove(&session_id);
                             state_write.lobby.unregister_session(session_id).await;
                         }
 
-                        info!("Player {} left their session", conn_info.player_name);
+                        debug!("Player {} left their session", conn_info.player_name);
                         let _ = transport_write.send_tcp(connection_id, ServerMessage::SessionLeft).await;
                         // Clear session tracking
                         transport_write.set_player_session(connection_id, None).await;
@@ -775,16 +775,16 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                 // Only host can start the session
                                 if game_session.session.host_player_id == conn_info.player_id {
                                     game_session.start_countdown();
-                                    info!("Player {} started session {}", conn_info.player_name, session_id);
+                                    debug!("Player {} started session {}", conn_info.player_name, session_id);
 
                                     // Notify all participants
                                     let msg = ServerMessage::SessionStarting { countdown_seconds: 5 };
                                     let participant_count = game_session.session.participants.len();
-                                    info!("Broadcasting SessionStarting to {} participants", participant_count);
+                                    debug!("Broadcasting SessionStarting to {} participants", participant_count);
 
                                     for player_id in game_session.session.participants.keys() {
                                         if let Some(conn_id) = transport_write.get_player_connection(*player_id).await {
-                                            info!("Sending SessionStarting to player {} (connection {})", player_id, conn_id);
+                                            debug!("Sending SessionStarting to player {} (connection {})", player_id, conn_id);
                                             let _ = transport_write.send_tcp(conn_id, msg.clone()).await;
                                         } else {
                                             warn!("Could not find connection for player {}", player_id);
@@ -826,7 +826,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                                 if mode == GameMode::DemoLap {
                                     for player_id in &human_player_ids {
                                         state_write.lobby.join_as_spectator(*player_id, session_id).await;
-                                        info!("Player {} added as spectator for DemoLap mode", player_id);
+                                        debug!("Player {} added as spectator for DemoLap mode", player_id);
                                     }
                                 }
 
@@ -917,7 +917,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                         let (_, empty_session) = state_write.lobby.remove_player(conn_info.player_id).await;
 
                         if let Some(session_id) = empty_session {
-                            info!("Session {} is empty after player disconnect, removing it", session_id);
+                            debug!("Session {} is empty after player disconnect, removing it", session_id);
                             state_write.sessions.remove(&session_id);
                             state_write.lobby.unregister_session(session_id).await;
                         }
@@ -951,7 +951,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                 let mut state_write = state.write().await;
                 
                 for (player_id, session_id_opt) in disconnected_players {
-                    info!("Handling disconnected player: {} (session: {:?})", player_id, session_id_opt);
+                    debug!("Handling disconnected player: {} (session: {:?})", player_id, session_id_opt);
                     
                     // Remove from game session if in one
                     if let Some(session_id) = session_id_opt {
@@ -964,7 +964,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                     let (_, empty_session) = state_write.lobby.remove_player(player_id).await;
                     
                     if let Some(session_id) = empty_session {
-                        info!("Session {} is empty after player disconnect, removing it", session_id);
+                        debug!("Session {} is empty after player disconnect, removing it", session_id);
                         state_write.sessions.remove(&session_id);
                         state_write.lobby.unregister_session(session_id).await;
                     }
@@ -1009,7 +1009,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                 && !game_session.session.ai_player_ids.is_empty();
 
             if real_player_count == 0 && !is_demo_lap_with_ai {
-                info!("Session {} has no real players, marking for removal", session_id);
+                debug!("Session {} has no real players, marking for removal", session_id);
                 sessions_to_remove.push(*session_id);
                 continue;
             }
@@ -1068,7 +1068,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                     SessionState::Countdown => {
                         if let Some(countdown) = game_session.session.countdown_ticks_remaining {
                             let seconds = countdown / tick_rate;
-                            info!("Session {} countdown: {}s", session_id, seconds);
+                            debug!("Session {} countdown: {}s", session_id, seconds);
                         }
                     }
                     SessionState::Racing => {
@@ -1078,10 +1078,10 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                             .values()
                             .map(|s| format!("L{}", s.current_lap))
                             .collect();
-                        info!("Session {} racing - Laps: {:?}", session_id, lap_info);
+                        debug!("Session {} racing - Laps: {:?}", session_id, lap_info);
                     }
                     SessionState::Finished => {
-                        info!("Session {} finished", session_id);
+                        debug!("Session {} finished", session_id);
                     }
                     _ => {}
                 }
@@ -1110,7 +1110,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
             };
 
             state_write.replay.start_recording(metadata).await;
-            info!("Started replay recording for session {}", session_id);
+            debug!("Started replay recording for session {}", session_id);
         }
 
         for (session_id, tick, telemetry) in replay_frames {
@@ -1120,7 +1120,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
         for session_id in replay_stops {
             match state_write.replay.stop_recording(session_id).await {
                 Ok(replay_path) => {
-                    info!("Replay saved for session {} to {:?}", session_id, replay_path);
+                    debug!("Replay saved for session {} to {:?}", session_id, replay_path);
                 }
                 Err(e) => {
                     warn!("Failed to save replay for session {}: {}", session_id, e);
@@ -1132,7 +1132,18 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
         for session_id in sessions_to_remove {
             state_write.sessions.remove(&session_id);
             state_write.lobby.unregister_session(session_id).await;
-            info!("Removed empty session {}", session_id);
+            debug!("Removed empty session {}", session_id);
+        }
+
+        // Periodic cleanup of orphaned lobby sessions (every 5 seconds)
+        if tick_count % (tick_rate as u64 * 5) == 0 {
+            let lobby_session_ids: Vec<SessionId> = state_write.lobby.get_all_session_ids().await;
+            for session_id in lobby_session_ids {
+                if !state_write.sessions.contains_key(&session_id) {
+                    debug!("Cleaning up orphaned lobby session {}", session_id);
+                    state_write.lobby.unregister_session(session_id).await;
+                }
+            }
         }
 
         // Broadcast telemetry to all session participants (via TCP for now)
@@ -1211,7 +1222,7 @@ async fn run_game_loop(state: Arc<RwLock<ServerState>>, transport: Arc<RwLock<Tr
                 let age_seconds = age_ticks / tick_rate as u64;
                 
                 if age_seconds > timeout_seconds {
-                    info!("Removing finished session: {}", id);
+                    debug!("Removing finished session: {}", id);
                     return false;
                 }
             }

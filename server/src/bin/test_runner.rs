@@ -9,10 +9,70 @@ use crossterm::{
     },
 };
 use std::io::{self, Write};
+use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+
+/// Server process manager
+struct ServerProcess {
+    child: Child,
+}
+
+impl ServerProcess {
+    /// Kill any existing apexsim-server processes
+    fn kill_existing() {
+        let _ = Command::new("pkill")
+            .args(["-f", "apexsim-server"])
+            .status();
+        // Give processes time to terminate
+        thread::sleep(Duration::from_millis(500));
+    }
+
+    /// Start the server and wait for it to be ready
+    fn start() -> io::Result<Self> {
+        // Kill any existing server first
+        Self::kill_existing();
+
+        // Start the server process
+        let child = Command::new("cargo")
+            .args(["run", "--release"])
+            .current_dir("/home/guido/apexsim/server")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+
+        // Wait for server to be ready by checking TCP port
+        let start_time = std::time::Instant::now();
+        let timeout = Duration::from_secs(30);
+
+        while start_time.elapsed() < timeout {
+            if TcpStream::connect("127.0.0.1:9000").is_ok() {
+                // Server is accepting connections
+                return Ok(Self { child });
+            }
+            thread::sleep(Duration::from_millis(200));
+        }
+
+        Err(io::Error::new(
+            io::ErrorKind::TimedOut,
+            "Server failed to start within 30 seconds",
+        ))
+    }
+
+    /// Stop the server process
+    fn stop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+impl Drop for ServerProcess {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
 
 #[derive(Debug, Clone)]
 struct TestCase {
@@ -28,6 +88,8 @@ struct TestCategory {
     name: String,
     description: String,
     tests: Vec<TestCase>,
+    /// If true, this category's tests manage their own server processes
+    manages_own_server: bool,
 }
 
 struct TestRunner {
@@ -38,6 +100,7 @@ struct TestRunner {
     mode: Mode,
     test_output: Vec<String>,
     running_process: Option<Arc<Mutex<Option<Child>>>>,
+    server_process: Option<ServerProcess>,
 }
 
 #[derive(PartialEq)]
@@ -74,6 +137,7 @@ impl TestRunner {
             TestCategory {
                 name: "Integration Tests".to_string(),
                 description: "Core server integration tests".to_string(),
+                manages_own_server: false,
                 tests: vec![
                     TestCase {
                         name: "Server Initialization".to_string(),
@@ -104,20 +168,6 @@ impl TestRunner {
                         requires_server: true,
                     },
                     TestCase {
-                        name: "Tick Rate Stress".to_string(),
-                        function_name: "test_tick_rate_stress".to_string(),
-                        file: "integration_test".to_string(),
-                        description: "Test various tick rates (120Hz-1440Hz)".to_string(),
-                        requires_server: true,
-                    },
-                    TestCase {
-                        name: "Multi-Client Load".to_string(),
-                        function_name: "test_multi_client_load".to_string(),
-                        file: "integration_test".to_string(),
-                        description: "16 concurrent clients load test".to_string(),
-                        requires_server: true,
-                    },
-                    TestCase {
                         name: "Sandbox Session Workflow".to_string(),
                         function_name: "test_sandbox_session_workflow".to_string(),
                         file: "integration_test".to_string(),
@@ -129,6 +179,7 @@ impl TestRunner {
             TestCategory {
                 name: "Lobby & Session Tests".to_string(),
                 description: "Lobby management and session handling".to_string(),
+                manages_own_server: false,
                 tests: vec![
                     TestCase {
                         name: "Create Session".to_string(),
@@ -226,6 +277,7 @@ impl TestRunner {
             TestCategory {
                 name: "Demo Lap Tests".to_string(),
                 description: "Demo mode and lap timing validation".to_string(),
+                manages_own_server: false,
                 tests: vec![
                     TestCase {
                         name: "Demo Lap Timing".to_string(),
@@ -239,6 +291,7 @@ impl TestRunner {
             TestCategory {
                 name: "TLS & Security Tests".to_string(),
                 description: "TLS configuration and security validation".to_string(),
+                manages_own_server: false,
                 tests: vec![
                     TestCase {
                         name: "TLS Not Required (Starts OK)".to_string(),
@@ -273,6 +326,7 @@ impl TestRunner {
             TestCategory {
                 name: "Transport & Performance Tests".to_string(),
                 description: "Network transport and backpressure handling".to_string(),
+                manages_own_server: false,
                 tests: vec![
                     TestCase {
                         name: "Bounded Channels Prevent OOM".to_string(),
@@ -304,6 +358,27 @@ impl TestRunner {
                     },
                 ],
             },
+            TestCategory {
+                name: "Stress Tests".to_string(),
+                description: "Performance benchmarks and load testing".to_string(),
+                manages_own_server: true,  // Stress tests manage their own server processes
+                tests: vec![
+                    TestCase {
+                        name: "Tick Rate Stress".to_string(),
+                        function_name: "test_tick_rate_stress".to_string(),
+                        file: "stress_tests".to_string(),
+                        description: "Test various tick rates (120Hz-1440Hz)".to_string(),
+                        requires_server: true,
+                    },
+                    TestCase {
+                        name: "Multi-Client Load".to_string(),
+                        function_name: "test_multi_client_load".to_string(),
+                        file: "stress_tests".to_string(),
+                        description: "16 concurrent clients load test".to_string(),
+                        requires_server: true,
+                    },
+                ],
+            },
         ];
 
         Self {
@@ -314,6 +389,60 @@ impl TestRunner {
             mode: Mode::CategoryMenu,
             test_output: Vec::new(),
             running_process: None,
+            server_process: None,
+        }
+    }
+
+    /// Check if any test in the given category requires a server
+    fn category_needs_server(&self, category_idx: usize) -> bool {
+        let category = &self.categories[category_idx];
+        // If category manages its own server, we don't start one
+        if category.manages_own_server {
+            return false;
+        }
+        category.tests.iter().any(|t| t.requires_server)
+    }
+
+    /// Start the server if needed for the current test/category
+    fn ensure_server_running(&mut self) -> io::Result<bool> {
+        let category = &self.categories[self.selected_category];
+
+        // If category manages its own server, don't start one
+        if category.manages_own_server {
+            return Ok(false);
+        }
+
+        // Check if current test requires server
+        let test = &category.tests[self.selected_test];
+        if !test.requires_server {
+            return Ok(false);
+        }
+
+        // Check if server is already running
+        if self.server_process.is_some() {
+            return Ok(true);
+        }
+
+        // Start the server
+        self.test_output.push("Starting server...".to_string());
+        match ServerProcess::start() {
+            Ok(server) => {
+                self.server_process = Some(server);
+                self.test_output.push("Server started successfully.".to_string());
+                self.test_output.push(String::new());
+                Ok(true)
+            }
+            Err(e) => {
+                self.test_output.push(format!("Failed to start server: {}", e));
+                Err(e)
+            }
+        }
+    }
+
+    /// Stop the server if running
+    fn stop_server(&mut self) {
+        if let Some(mut server) = self.server_process.take() {
+            server.stop();
         }
     }
 
@@ -342,7 +471,7 @@ impl TestRunner {
         )?;
 
         // Instructions
-        let inst = Self::truncate_str("  ↑/↓: Navigate  │  Enter: Select Category  │  Q: Quit", (width as usize).saturating_sub(1));
+        let inst = Self::truncate_str("  ↑/↓: Navigate  │  Enter: Select  │  A: Run All in Category  │  Q: Quit", (width as usize).saturating_sub(1));
         let mut current_row = 4u16;
         execute!(
             stdout,
@@ -445,7 +574,7 @@ impl TestRunner {
         )?;
 
         // Instructions
-        let inst = Self::truncate_str("  ↑/↓: Navigate  │  Enter: Run Test  │  Backspace: Back  │  Q: Quit", (width as usize).saturating_sub(1));
+        let inst = Self::truncate_str("  ↑/↓: Navigate  │  Enter: Run Test  │  A: Run All  │  Backspace: Back  │  Q: Quit", (width as usize).saturating_sub(1));
         let mut current_row = 4u16;
         execute!(
             stdout,
@@ -499,7 +628,7 @@ impl TestRunner {
         }
 
         // Footer
-        let footer = Self::truncate_str("  [S] = Requires running server on 127.0.0.1:9000", (width as usize).saturating_sub(1));
+        let footer = Self::truncate_str("  [S] = Requires server (automatically managed)", (width as usize).saturating_sub(1));
         execute!(
             stdout,
             MoveTo(0, height - 1),
@@ -652,19 +781,44 @@ impl TestRunner {
         self.test_output.clear();
         self.output_scroll = 0;
 
+        // Extract needed values to avoid borrow conflicts
         let category = &self.categories[self.selected_category];
         let test = &category.tests[self.selected_test];
+        let requires_server = test.requires_server;
+        let manages_own_server = category.manages_own_server;
+        let test_file = test.file.clone();
+        let test_function = test.function_name.clone();
+
+        // Start server if needed (and category doesn't manage its own)
+        let server_started = if requires_server && !manages_own_server {
+            self.draw_running()?;
+            match self.ensure_server_running() {
+                Ok(started) => {
+                    if started {
+                        self.draw_running()?;
+                    }
+                    started
+                }
+                Err(e) => {
+                    self.test_output.push(format!("ERROR: Failed to start server: {}", e));
+                    self.mode = Mode::ViewOutput;
+                    return Ok(());
+                }
+            }
+        } else {
+            false
+        };
 
         // Build the cargo test command
         let mut cmd = Command::new("cargo");
         cmd.arg("test")
             .arg("--test")
-            .arg(&test.file)
-            .arg(&test.function_name)
+            .arg(&test_file)
+            .arg(&test_function)
             .arg("--");
 
         // Only pass --ignored for tests marked as requiring server (which have #[ignore])
-        if test.requires_server {
+        if requires_server {
             cmd.arg("--ignored");
         }
 
@@ -781,6 +935,164 @@ impl TestRunner {
         }
 
         self.running_process = None;
+
+        // Stop server after test completes
+        if server_started {
+            self.test_output.push(String::new());
+            self.test_output.push("Stopping server...".to_string());
+            self.stop_server();
+        }
+
+        Ok(())
+    }
+
+    fn run_all_tests_in_category(&mut self) -> io::Result<()> {
+        let category = &self.categories[self.selected_category];
+        let total_tests = category.tests.len();
+        let manages_own_server = category.manages_own_server;
+        let needs_server = self.category_needs_server(self.selected_category);
+
+        self.mode = Mode::Running;
+        self.test_output.clear();
+        self.output_scroll = 0;
+
+        self.test_output.push(format!(
+            "Running all {} tests in category: {}",
+            total_tests, category.name
+        ));
+        self.test_output.push("═".repeat(60));
+        self.test_output.push(String::new());
+
+        self.draw_running()?;
+
+        // Start server once for the entire category if needed
+        let server_started = if needs_server && !manages_own_server {
+            self.test_output.push("Starting server for test category...".to_string());
+            self.draw_running()?;
+            match ServerProcess::start() {
+                Ok(server) => {
+                    self.server_process = Some(server);
+                    self.test_output.push("Server started successfully.".to_string());
+                    self.test_output.push(String::new());
+                    self.draw_running()?;
+                    true
+                }
+                Err(e) => {
+                    self.test_output.push(format!("ERROR: Failed to start server: {}", e));
+                    self.test_output.push("Aborting test run.".to_string());
+                    self.mode = Mode::ViewOutput;
+                    return Ok(());
+                }
+            }
+        } else {
+            false
+        };
+
+        let mut passed = 0;
+        let mut failed = 0;
+        let mut failed_tests: Vec<String> = Vec::new();
+
+        for test_idx in 0..total_tests {
+            let category = &self.categories[self.selected_category];
+            let test = &category.tests[test_idx];
+
+            self.test_output.push(format!(
+                "[{}/{}] Running: {}",
+                test_idx + 1,
+                total_tests,
+                test.name
+            ));
+            self.draw_running()?;
+
+            // Build the cargo test command
+            let mut cmd = Command::new("cargo");
+            cmd.arg("test")
+                .arg("--test")
+                .arg(&test.file)
+                .arg(&test.function_name)
+                .arg("--");
+
+            if test.requires_server {
+                cmd.arg("--ignored");
+            }
+
+            cmd.arg("--nocapture")
+                .arg("--test-threads=1")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .current_dir("/home/guido/apexsim/server");
+
+            let output = cmd.output()?;
+            let stdout_str = String::from_utf8_lossy(&output.stdout);
+            let stderr_str = String::from_utf8_lossy(&output.stderr);
+
+            if output.status.success() {
+                passed += 1;
+                self.test_output.push("       ✓ PASSED".to_string());
+            } else {
+                failed += 1;
+                failed_tests.push(test.name.clone());
+                self.test_output.push("       ✗ FAILED".to_string());
+                // Add last few lines of output for failed tests
+                for line in stdout_str.lines().take(10) {
+                    self.test_output.push(format!("         {}", line));
+                }
+                for line in stderr_str.lines().take(5) {
+                    self.test_output.push(format!("         {}", line));
+                }
+            }
+            self.test_output.push(String::new());
+            self.draw_running()?;
+
+            // Check for user cancellation
+            if event::poll(Duration::from_millis(10))? {
+                if let Event::Key(key) = event::read()? {
+                    match key.code {
+                        KeyCode::Char('c') | KeyCode::Char('C') => {
+                            self.test_output
+                                .push("\n=== BATCH RUN CANCELLED BY USER ===".to_string());
+                            if server_started {
+                                self.test_output.push("Stopping server...".to_string());
+                                self.stop_server();
+                            }
+                            self.mode = Mode::ViewOutput;
+                            return Ok(());
+                        }
+                        KeyCode::Char('q') | KeyCode::Char('Q') => {
+                            if server_started {
+                                self.stop_server();
+                            }
+                            return Ok(());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            // Delay between tests for server cleanup
+            thread::sleep(Duration::from_millis(3000));
+        }
+
+        self.test_output.push("═".repeat(60));
+        self.test_output
+            .push(format!("Results: {} passed, {} failed", passed, failed));
+
+        if !failed_tests.is_empty() {
+            self.test_output.push(String::new());
+            self.test_output.push("Failed tests:".to_string());
+            for name in &failed_tests {
+                self.test_output.push(format!("  - {}", name));
+            }
+        }
+
+        // Stop server after all tests complete
+        if server_started {
+            self.test_output.push(String::new());
+            self.test_output.push("Stopping server...".to_string());
+            self.stop_server();
+        }
+
+        self.mode = Mode::ViewOutput;
         Ok(())
     }
 
@@ -799,6 +1111,9 @@ impl TestRunner {
             KeyCode::Enter => {
                 self.selected_test = 0;
                 self.mode = Mode::TestMenu;
+            }
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                self.run_all_tests_in_category()?;
             }
             KeyCode::Char('q') | KeyCode::Char('Q') => {
                 return Ok(true);
@@ -824,6 +1139,9 @@ impl TestRunner {
             }
             KeyCode::Enter => {
                 self.run_test()?;
+            }
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                self.run_all_tests_in_category()?;
             }
             KeyCode::Backspace => {
                 self.mode = Mode::CategoryMenu;
@@ -916,10 +1234,33 @@ impl TestRunner {
     fn run_category(&mut self, category_idx: usize) -> io::Result<()> {
         let category = &self.categories[category_idx];
         let total_tests = category.tests.len();
+        let manages_own_server = category.manages_own_server;
 
         println!("Running category: {} ({} tests)", category.name, total_tests);
         println!("{}", "═".repeat(60));
         println!();
+
+        // Check if category needs server
+        let needs_server = self.category_needs_server(category_idx);
+
+        // Start server if needed
+        let server_started = if needs_server && !manages_own_server {
+            println!("Starting server...");
+            match ServerProcess::start() {
+                Ok(server) => {
+                    self.server_process = Some(server);
+                    println!("Server started successfully.");
+                    println!();
+                    true
+                }
+                Err(e) => {
+                    eprintln!("ERROR: Failed to start server: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            false
+        };
 
         let mut passed = 0;
         let mut failed = 0;
@@ -962,18 +1303,43 @@ impl TestRunner {
                 println!("       ✗ FAILED");
             }
             println!();
+
+            // Delay between tests to allow server to cleanup sessions
+            // 3 seconds is needed for the synthetic Disconnect to be fully processed
+            // and for the main loop to run cleanup cycles
+            std::thread::sleep(Duration::from_millis(3000));
         }
 
         println!("{}", "═".repeat(60));
         println!("Results: {} passed, {} failed", passed, failed);
 
+        // Stop server after all tests
+        if server_started {
+            println!();
+            println!("Stopping server...");
+            self.stop_server();
+        }
+
         if !failed_tests.is_empty() {
             println!();
             println!("Failed tests:");
-            for (name, _stdout, stderr) in &failed_tests {
+            for (name, stdout, stderr) in &failed_tests {
                 println!("  - {}", name);
+                if !stdout.is_empty() {
+                    // Show last 20 lines of stdout
+                    let lines: Vec<&str> = stdout.lines().collect();
+                    let start = if lines.len() > 20 { lines.len() - 20 } else { 0 };
+                    for line in &lines[start..] {
+                        println!("    stdout: {}", line);
+                    }
+                }
                 if !stderr.is_empty() {
-                    println!("    stderr: {}", stderr.lines().next().unwrap_or(""));
+                    // Show last 10 lines of stderr
+                    let lines: Vec<&str> = stderr.lines().collect();
+                    let start = if lines.len() > 10 { lines.len() - 10 } else { 0 };
+                    for line in &lines[start..] {
+                        println!("    stderr: {}", line);
+                    }
                 }
             }
             std::process::exit(1);
@@ -1009,11 +1375,15 @@ fn list_categories(runner: &TestRunner) {
         }
         println!();
     }
-    println!("[S] = Requires running server on 127.0.0.1:9000");
+    println!("[S] = Requires server (automatically managed by test runner)");
 }
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
+
+    // Kill any existing server processes on startup
+    println!("Terminating any existing apexsim-server processes...");
+    ServerProcess::kill_existing();
 
     let mut runner = TestRunner::new();
 

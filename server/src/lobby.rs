@@ -3,7 +3,7 @@ use crate::network::{LobbyPlayer, SessionSummary};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::{debug, warn};
 
 /// Represents a player in the lobby (not in any session)
 #[derive(Debug, Clone)]
@@ -72,7 +72,7 @@ impl LobbyManager {
         let player_name = player.player_name.clone();
 
         self.players.write().await.insert(player_id, player);
-        info!("Player {} added to lobby", player_name);
+        debug!("Player {} added to lobby", player_name);
     }
 
     /// Remove a player from the lobby
@@ -81,7 +81,7 @@ impl LobbyManager {
         let mut empty_session_id = None;
 
         if let Some(ref p) = player {
-            info!("Player {} removed from lobby", p.player_name);
+            debug!("Player {} removed from lobby", p.player_name);
 
             // Also remove from any session
             if let Some(session_id) = self.player_sessions.write().await.remove(&player_id) {
@@ -124,13 +124,13 @@ impl LobbyManager {
         let host_name = session_info.host_name.clone();
 
         self.sessions.write().await.insert(session_id, session_info);
-        info!("Session {} registered in lobby (host: {})", session_id, host_name);
+        debug!("Session {} registered in lobby (host: {})", session_id, host_name);
     }
 
     /// Unregister a session from the lobby
     pub async fn unregister_session(&self, session_id: SessionId) {
         if let Some(_session) = self.sessions.write().await.remove(&session_id) {
-            info!("Session {} unregistered from lobby", session_id);
+            debug!("Session {} unregistered from lobby", session_id);
 
             // Remove all players from this session
             let mut player_sessions = self.player_sessions.write().await;
@@ -181,7 +181,7 @@ impl LobbyManager {
                 session.current_player_count += 1;
             }
 
-            info!("Player {} joined session {}", player_id, session_id);
+            debug!("Player {} joined session {}", player_id, session_id);
             true
         } else {
             warn!("Player {} not in lobby", player_id);
@@ -208,7 +208,7 @@ impl LobbyManager {
                 session.spectator_count += 1;
             }
 
-            info!("Player {} joined session {} as spectator", player_id, session_id);
+            debug!("Player {} joined session {} as spectator", player_id, session_id);
             true
         } else {
             warn!("Player {} not in lobby", player_id);
@@ -230,7 +230,7 @@ impl LobbyManager {
                 }
             }
 
-            info!("Player {} left session {}", player_id, session_id);
+            debug!("Player {} left session {}", player_id, session_id);
         }
 
         // Check if player is spectating
@@ -243,11 +243,16 @@ impl LobbyManager {
                 }
             }
 
-            info!("Spectator {} left session {}", player_id, session_id);
+            debug!("Spectator {} left session {}", player_id, session_id);
         }
 
         empty_session_id
         // Player remains in the lobby players list, just no longer in a session
+    }
+
+    /// Get all session IDs (for cleanup purposes)
+    pub async fn get_all_session_ids(&self) -> Vec<SessionId> {
+        self.sessions.read().await.keys().copied().collect()
     }
 
     /// Get all public sessions visible in lobby

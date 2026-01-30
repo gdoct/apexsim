@@ -29,6 +29,7 @@ class IdealLineResult:
     s: np.ndarray
     x: np.ndarray
     y: np.ndarray
+    z: np.ndarray
     offset: np.ndarray
 
 
@@ -71,12 +72,14 @@ def build_center_splines(nodes: List[TrackNode]):
     s = build_arc_length(nodes)
     xs = np.array([n.x for n in nodes])
     ys = np.array([n.y for n in nodes])
+    zs = np.array([n.z for n in nodes])
 
     # Use periodic BC only if closed
     bc = 'periodic' if is_closed else 'natural'
 
     sx = CubicSpline(s, xs, bc_type=bc)
     sy = CubicSpline(s, ys, bc_type=bc)
+    sz = CubicSpline(s, zs, bc_type=bc)
 
     # Widths
     w_left = np.array([n.width_left for n in nodes], dtype=float)
@@ -98,12 +101,13 @@ def build_center_splines(nodes: List[TrackNode]):
     sw_left = CubicSpline(s, w_left, bc_type=bc)
     sw_right = CubicSpline(s, w_right, bc_type=bc)
 
-    return s, sx, sy, sw_left, sw_right
+    return s, sx, sy, sz, sw_left, sw_right
 
 
-def compute_center_and_edges(s_grid, sx, sy, sw_left, sw_right):
+def compute_center_and_edges(s_grid, sx, sy, sz, sw_left, sw_right):
     cx = sx(s_grid)
     cy = sy(s_grid)
+    cz = sz(s_grid)
 
     dx = sx.derivative()(s_grid)
     dy = sy.derivative()(s_grid)
@@ -119,7 +123,7 @@ def compute_center_and_edges(s_grid, sx, sy, sw_left, sw_right):
     wl = sw_left(s_grid)
     wr = sw_right(s_grid)
 
-    return cx, cy, nx, ny, wl, wr
+    return cx, cy, cz, nx, ny, wl, wr
 
 
 def curvature_cost(x, y):
@@ -149,13 +153,13 @@ def ideal_racing_line(nodes: List[TrackNode],
                       num_samples=400,
                       lambda_smooth=2.0) -> IdealLineResult:
 
-    s_raw, sx, sy, sw_left, sw_right = build_center_splines(nodes)
+    s_raw, sx, sy, sz, sw_left, sw_right = build_center_splines(nodes)
     total_length = s_raw[-1]
 
     s_grid = np.linspace(0, total_length, num_samples, endpoint=False)
 
-    cx, cy, nx, ny, wl, wr = compute_center_and_edges(
-        s_grid, sx, sy, sw_left, sw_right
+    cx, cy, cz, nx, ny, wl, wr = compute_center_and_edges(
+        s_grid, sx, sy, sz, sw_left, sw_right
     )
 
     bounds = [(-wr[i], wl[i]) for i in range(num_samples)]
@@ -177,8 +181,9 @@ def ideal_racing_line(nodes: List[TrackNode],
     o_opt = res.x
     x_opt = cx + nx * o_opt
     y_opt = cy + ny * o_opt
+    z_opt = cz  # z is interpolated from centerline at the racing line's s positions
 
-    return IdealLineResult(s=s_grid, x=x_opt, y=y_opt, offset=o_opt)
+    return IdealLineResult(s=s_grid, x=x_opt, y=y_opt, z=z_opt, offset=o_opt)
 
 
 # ------------------------------------------------------------
@@ -205,21 +210,22 @@ def load_track_yaml(path: str) -> List[TrackNode]:
     return nodes
 
 
-def save_raceline_yaml(path: str, result: IdealLineResult):
-    out = {
-        "raceline": [
-            {
-                "s": float(result.s[i]),
-                "x": float(result.x[i]),
-                "y": float(result.y[i]),
-                "offset": float(result.offset[i])
-            }
-            for i in range(len(result.s))
-        ]
-    }
+def save_raceline_to_track(path: str, result: IdealLineResult):
+    """Update or add raceline data in the existing track YAML file."""
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
+
+    data["raceline"] = [
+        {
+            "x": float(result.x[i]),
+            "y": float(result.y[i]),
+            "z": float(result.z[i]),
+        }
+        for i in range(len(result.s))
+    ]
 
     with open(path, "w") as f:
-        yaml.dump(out, f, sort_keys=False)
+        yaml.dump(data, f, sort_keys=False, default_flow_style=False)
 
 
 # ------------------------------------------------------------
@@ -231,14 +237,13 @@ def process_folder(folder: str, samples=400, smoothness=2.0):
         if not file.endswith(".yaml"):
             continue
 
-        in_path = os.path.join(folder, file)
-        out_path = os.path.join(folder, file.replace(".yaml", ".raceline.yaml"))
+        path = os.path.join(folder, file)
 
-        print(f"Processing {file} → {os.path.basename(out_path)}")
+        print(f"Processing {file}")
 
-        nodes = load_track_yaml(in_path)
+        nodes = load_track_yaml(path)
         result = ideal_racing_line(nodes, num_samples=samples, lambda_smooth=smoothness)
-        save_raceline_yaml(out_path, result)
+        save_raceline_to_track(path, result)
 
 
 # ------------------------------------------------------------

@@ -1,6 +1,6 @@
 [server]
 tick_rate_hz = 240
-max_sessions = 8
+max_sessions = 32
 session_timeout_seconds = 300
 
 [network]
