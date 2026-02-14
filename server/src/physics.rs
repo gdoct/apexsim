@@ -12,6 +12,7 @@
 use crate::data::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::sync::Once;
 use tracing::{debug};
 /// Gravity constant (m/s²)
 const GRAVITY: f32 = 9.81;
@@ -21,6 +22,15 @@ const AIR_DENSITY: f32 = 1.225;
 
 /// Minimum speed threshold for calculations (m/s)
 const MIN_SPEED_THRESHOLD: f32 = 0.1;
+
+/// Height above track surface before considered airborne (m)
+const AIRBORNE_HEIGHT_THRESHOLD_M: f32 = 0.05;
+
+/// Minimum upward speed to keep airborne state (m/s)
+const AIRBORNE_VERTICAL_SPEED_THRESHOLD_MPS: f32 = 0.1;
+
+/// Extra lateral margin beyond track width where centerline elevation remains valid for airborne checks
+const SURFACE_QUERY_LATERAL_MARGIN_M: f32 = 5.0;
 
 /// Per-wheel physics state for intermediate calculations
 #[derive(Debug, Clone, Copy, Default)]
@@ -32,6 +42,9 @@ pub struct WheelState {
     pub grip_force_y: f32,     // Lateral grip force
     pub contact_z: f32,        // Ground contact elevation
     pub suspension_compression: f32, // Current compression (m)
+    pub suspension_velocity_mps: f32,
+    pub spring_force_n: f32,
+    pub damper_force_n: f32,
 }
 
 /// Complete intermediate physics state for a vehicle
@@ -69,6 +82,76 @@ pub struct TrackContext {
     pub width_right: f32,
 }
 
+/// Ground sample returned by the active surface query backend.
+#[derive(Debug, Clone, Copy)]
+struct SurfaceQuerySample {
+    nearest_point: usize,
+    elevation: f32,
+    banking_rad: f32,
+    slope_rad: f32,
+    heading_rad: f32,
+    lateral_offset: f32,
+    width_left: f32,
+    width_right: f32,
+    surface_type: SurfaceType,
+    grip_modifier: f32,
+}
+
+/// Heightfield data carrier for surface queries.
+struct HeightfieldSurfaceData<'a> {
+    heightmap: &'a crate::procgen::TerrainHeightmap,
+}
+
+/// Interface for querying elevation from a heightfield source.
+trait HeightfieldSurfaceProvider {
+    fn elevation_at(&self, world_x: f32, world_y: f32) -> Option<f32>;
+}
+
+impl HeightfieldSurfaceProvider for HeightfieldSurfaceData<'_> {
+    fn elevation_at(&self, world_x: f32, world_y: f32) -> Option<f32> {
+        if self.heightmap.width < 2 || self.heightmap.height < 2 {
+            return None;
+        }
+
+        let grid_x = (world_x - self.heightmap.origin_x) / self.heightmap.cell_size_m;
+        let grid_y = (world_y - self.heightmap.origin_y) / self.heightmap.cell_size_m;
+
+        let max_x = (self.heightmap.width - 1) as f32;
+        let max_y = (self.heightmap.height - 1) as f32;
+
+        if grid_x < 0.0 || grid_y < 0.0 || grid_x >= max_x || grid_y >= max_y {
+            return None;
+        }
+
+        Some(self.heightmap.sample(world_x, world_y))
+    }
+}
+
+/// Active runtime surface query backend.
+///
+/// Current implementation uses centerline-nearest samples.
+/// This seam exists so we can switch to mesh/heightfield queries later
+/// without rewriting the core physics update flow.
+#[derive(Debug, Clone, Copy)]
+enum SurfaceQueryBackend {
+    Centerline,
+    MeshHeightfield,
+}
+
+static MESH_BACKEND_STUB_LOG_ONCE: Once = Once::new();
+
+fn active_surface_query_backend() -> SurfaceQueryBackend {
+    match std::env::var("APEXSIM_SURFACE_QUERY_BACKEND") {
+        Ok(value) if value.eq_ignore_ascii_case("mesh")
+            || value.eq_ignore_ascii_case("heightfield")
+            || value.eq_ignore_ascii_case("mesh_heightfield") =>
+        {
+            SurfaceQueryBackend::MeshHeightfield
+        }
+        _ => SurfaceQueryBackend::Centerline,
+    }
+}
+
 /// Update car physics for one simulation tick - main 3D physics function
 pub fn update_car_3d(
     state: &mut CarState,
@@ -92,6 +175,22 @@ pub fn update_car_3d(
     state.current_surface = track_ctx.surface_type;
     state.surface_grip_modifier = track_ctx.grip_modifier;
     state.lateral_offset_m = track_ctx.lateral_offset;
+
+    let lateral_query_limit = track_ctx.width_left.max(track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
+    let can_query_surface = track_ctx.lateral_offset.abs() <= lateral_query_limit;
+    let mut is_airborne = if can_query_surface {
+        if state.pos_z <= track_ctx.elevation {
+            false
+        } else if state.is_airborne {
+            true
+        } else {
+            state.pos_z > track_ctx.elevation + AIRBORNE_HEIGHT_THRESHOLD_M
+                || state.vel_z > AIRBORNE_VERTICAL_SPEED_THRESHOLD_MPS
+        }
+    } else {
+        false
+    };
+    state.is_airborne = is_airborne;
     
     // 2. Calculate static weight distribution
     let total_weight = config.mass_kg * GRAVITY;
@@ -126,15 +225,163 @@ pub fn update_car_3d(
     
     let (weight_transfer_long, weight_transfer_lat_front, weight_transfer_lat_rear) = 
         calculate_weight_transfer(config, longitudinal_accel, lateral_accel, total_weight);
+
+    let prev_fl_compression = state.suspension.front_left_travel_m;
+    let prev_fr_compression = state.suspension.front_right_travel_m;
+    let prev_rl_compression = state.suspension.rear_left_travel_m;
+    let prev_rr_compression = state.suspension.rear_right_travel_m;
     
     // 8. Calculate individual wheel loads
     let front_weight = static_front_weight + downforce_front - weight_transfer_long;
     let rear_weight = static_rear_weight + downforce_rear + weight_transfer_long;
-    
-    state.weight_front_left_n = (front_weight / 2.0 + weight_transfer_lat_front).max(0.0);
-    state.weight_front_right_n = (front_weight / 2.0 - weight_transfer_lat_front).max(0.0);
-    state.weight_rear_left_n = (rear_weight / 2.0 + weight_transfer_lat_rear).max(0.0);
-    state.weight_rear_right_n = (rear_weight / 2.0 - weight_transfer_lat_rear).max(0.0);
+
+    let suspension_rest_length_m = (config.suspension.max_travel_m * 0.5)
+        .clamp(0.0, config.suspension.max_travel_m);
+    let hub_z = state.pos_z + config.wheel_radius_m;
+
+    let cos_yaw = state.yaw_rad.cos();
+    let sin_yaw = state.yaw_rad.sin();
+    let sample_wheel_state = |
+        local_x: f32,
+        local_y: f32,
+        spring_rate_n_per_m: f32,
+        damper_compression: f32,
+        damper_rebound: f32,
+        previous_compression: f32,
+    | -> WheelState {
+        let world_x = state.pos_x + local_x * cos_yaw - local_y * sin_yaw;
+        let world_y = state.pos_y + local_x * sin_yaw + local_y * cos_yaw;
+
+        let contact_z = query_track_surface(track, world_x, world_y)
+            .map(|sample| sample.elevation)
+            .unwrap_or(track_ctx.elevation);
+
+        let wheel_extension = (hub_z - contact_z - config.wheel_radius_m).max(0.0);
+        let compression = (suspension_rest_length_m - wheel_extension)
+            .clamp(0.0, config.suspension.max_travel_m);
+
+        let compression_velocity = (compression - previous_compression) / dt.max(1e-4);
+        let damping_coeff = if compression_velocity >= 0.0 {
+            damper_compression
+        } else {
+            damper_rebound
+        };
+
+        let spring_force = spring_rate_n_per_m * compression;
+        let damper_force = damping_coeff * compression_velocity;
+
+        WheelState {
+            load_n: (spring_force + damper_force).max(0.0),
+            contact_z,
+            suspension_compression: compression,
+            suspension_velocity_mps: compression_velocity,
+            spring_force_n: spring_force,
+            damper_force_n: damper_force,
+            ..Default::default()
+        }
+    };
+
+    let mut wheel_front_left = sample_wheel_state(
+        config.wheelbase_m / 2.0,
+        -config.track_width_front_m / 2.0,
+        config.suspension.spring_rate_front_n_per_m,
+        config.suspension.damper_compression_front,
+        config.suspension.damper_rebound_front,
+        prev_fl_compression,
+    );
+    let mut wheel_front_right = sample_wheel_state(
+        config.wheelbase_m / 2.0,
+        config.track_width_front_m / 2.0,
+        config.suspension.spring_rate_front_n_per_m,
+        config.suspension.damper_compression_front,
+        config.suspension.damper_rebound_front,
+        prev_fr_compression,
+    );
+    let mut wheel_rear_left = sample_wheel_state(
+        -config.wheelbase_m / 2.0,
+        -config.track_width_rear_m / 2.0,
+        config.suspension.spring_rate_rear_n_per_m,
+        config.suspension.damper_compression_rear,
+        config.suspension.damper_rebound_rear,
+        prev_rl_compression,
+    );
+    let mut wheel_rear_right = sample_wheel_state(
+        -config.wheelbase_m / 2.0,
+        config.track_width_rear_m / 2.0,
+        config.suspension.spring_rate_rear_n_per_m,
+        config.suspension.damper_compression_rear,
+        config.suspension.damper_rebound_rear,
+        prev_rr_compression,
+    );
+
+    let any_wheel_contact = wheel_front_left.suspension_compression > 0.001
+        || wheel_front_right.suspension_compression > 0.001
+        || wheel_rear_left.suspension_compression > 0.001
+        || wheel_rear_right.suspension_compression > 0.001;
+
+    if is_airborne && any_wheel_contact {
+        is_airborne = false;
+    } else if !is_airborne && !any_wheel_contact {
+        is_airborne = true;
+    }
+
+    if is_airborne {
+        state.weight_front_left_n = 0.0;
+        state.weight_front_right_n = 0.0;
+        state.weight_rear_left_n = 0.0;
+        state.weight_rear_right_n = 0.0;
+        wheel_front_left.load_n = 0.0;
+        wheel_front_right.load_n = 0.0;
+        wheel_rear_left.load_n = 0.0;
+        wheel_rear_right.load_n = 0.0;
+    } else {
+        state.weight_front_left_n =
+            (front_weight / 2.0 + weight_transfer_lat_front + wheel_front_left.load_n).max(0.0);
+        state.weight_front_right_n =
+            (front_weight / 2.0 - weight_transfer_lat_front + wheel_front_right.load_n).max(0.0);
+        state.weight_rear_left_n =
+            (rear_weight / 2.0 + weight_transfer_lat_rear + wheel_rear_left.load_n).max(0.0);
+        state.weight_rear_right_n =
+            (rear_weight / 2.0 - weight_transfer_lat_rear + wheel_rear_right.load_n).max(0.0);
+
+        let front_anti_roll_transfer =
+            config.suspension.anti_roll_bar_front
+                * (wheel_front_left.suspension_compression - wheel_front_right.suspension_compression)
+                * 0.5;
+        state.weight_front_left_n = (state.weight_front_left_n - front_anti_roll_transfer).max(0.0);
+        state.weight_front_right_n = (state.weight_front_right_n + front_anti_roll_transfer).max(0.0);
+
+        let rear_anti_roll_transfer =
+            config.suspension.anti_roll_bar_rear
+                * (wheel_rear_left.suspension_compression - wheel_rear_right.suspension_compression)
+                * 0.5;
+        state.weight_rear_left_n = (state.weight_rear_left_n - rear_anti_roll_transfer).max(0.0);
+        state.weight_rear_right_n = (state.weight_rear_right_n + rear_anti_roll_transfer).max(0.0);
+
+        wheel_front_left.load_n = state.weight_front_left_n;
+        wheel_front_right.load_n = state.weight_front_right_n;
+        wheel_rear_left.load_n = state.weight_rear_left_n;
+        wheel_rear_right.load_n = state.weight_rear_right_n;
+    }
+
+    state.suspension.front_left_travel_m = wheel_front_left.suspension_compression;
+    state.suspension.front_right_travel_m = wheel_front_right.suspension_compression;
+    state.suspension.rear_left_travel_m = wheel_rear_left.suspension_compression;
+    state.suspension.rear_right_travel_m = wheel_rear_right.suspension_compression;
+    state.suspension.front_left_velocity_mps = wheel_front_left.suspension_velocity_mps;
+    state.suspension.front_right_velocity_mps = wheel_front_right.suspension_velocity_mps;
+    state.suspension.rear_left_velocity_mps = wheel_rear_left.suspension_velocity_mps;
+    state.suspension.rear_right_velocity_mps = wheel_rear_right.suspension_velocity_mps;
+    state.suspension.front_left_spring_force_n = wheel_front_left.spring_force_n;
+    state.suspension.front_right_spring_force_n = wheel_front_right.spring_force_n;
+    state.suspension.rear_left_spring_force_n = wheel_rear_left.spring_force_n;
+    state.suspension.rear_right_spring_force_n = wheel_rear_right.spring_force_n;
+    state.suspension.front_left_damper_force_n = wheel_front_left.damper_force_n;
+    state.suspension.front_right_damper_force_n = wheel_front_right.damper_force_n;
+    state.suspension.rear_left_damper_force_n = wheel_rear_left.damper_force_n;
+    state.suspension.rear_right_damper_force_n = wheel_rear_right.damper_force_n;
+
+    state.is_airborne = is_airborne;
     
     // 9. Calculate steering angle
     let steering_angle = input.steering * config.max_steering_angle_rad;
@@ -149,87 +396,99 @@ pub fn update_car_3d(
     // 10. Calculate tire forces using Pacejka-inspired model
     let effective_grip = config.tire_config.grip_coefficient * track_ctx.grip_modifier;
     
-    // Calculate slip ratios and angles for each wheel
-    let _wheel_speed_front = state.speed_mps * (1.0 + state.angular_vel_yaw * config.track_width_front_m / 2.0 / state.speed_mps.max(0.1));
-    let _wheel_speed_rear = state.speed_mps * (1.0 + state.angular_vel_yaw * config.track_width_rear_m / 2.0 / state.speed_mps.max(0.1));
-    
-    // Front left tire
-    let fl_slip = calculate_wheel_slip(
-        state.speed_mps,
-        state.angular_vel_yaw,
-        steer_left,
-        config.wheelbase_m / 2.0,
-        -config.track_width_front_m / 2.0,
-        drive_torque_front / 2.0,
-        brake_front / 2.0,
-        config.wheel_radius_m,
-    );
-    
-    // Front right tire
-    let fr_slip = calculate_wheel_slip(
-        state.speed_mps,
-        state.angular_vel_yaw,
-        steer_right,
-        config.wheelbase_m / 2.0,
-        config.track_width_front_m / 2.0,
-        drive_torque_front / 2.0,
-        brake_front / 2.0,
-        config.wheel_radius_m,
-    );
-    
-    // Rear left tire
-    let rl_slip = calculate_wheel_slip(
-        state.speed_mps,
-        state.angular_vel_yaw,
-        0.0,
-        -config.wheelbase_m / 2.0,
-        -config.track_width_rear_m / 2.0,
-        drive_torque_rear / 2.0,
-        brake_rear / 2.0,
-        config.wheel_radius_m,
-    );
-    
-    // Rear right tire
-    let rr_slip = calculate_wheel_slip(
-        state.speed_mps,
-        state.angular_vel_yaw,
-        0.0,
-        -config.wheelbase_m / 2.0,
-        config.track_width_rear_m / 2.0,
-        drive_torque_rear / 2.0,
-        brake_rear / 2.0,
-        config.wheel_radius_m,
-    );
-    
-    // Calculate tire forces
-    let fl_forces = calculate_tire_forces(
-        state.weight_front_left_n,
-        fl_slip.0,
-        fl_slip.1,
-        effective_grip,
-        &config.tire_config,
-    );
-    let fr_forces = calculate_tire_forces(
-        state.weight_front_right_n,
-        fr_slip.0,
-        fr_slip.1,
-        effective_grip,
-        &config.tire_config,
-    );
-    let rl_forces = calculate_tire_forces(
-        state.weight_rear_left_n,
-        rl_slip.0,
-        rl_slip.1,
-        effective_grip,
-        &config.tire_config,
-    );
-    let rr_forces = calculate_tire_forces(
-        state.weight_rear_right_n,
-        rr_slip.0,
-        rr_slip.1,
-        effective_grip,
-        &config.tire_config,
-    );
+    // Calculate slip ratios, wheel loads and tire forces
+    let mut fl_slip = (0.0, 0.0);
+    let mut fr_slip = (0.0, 0.0);
+    let mut rl_slip = (0.0, 0.0);
+    let mut rr_slip = (0.0, 0.0);
+    let mut fl_forces = (0.0, 0.0);
+    let mut fr_forces = (0.0, 0.0);
+    let mut rl_forces = (0.0, 0.0);
+    let mut rr_forces = (0.0, 0.0);
+
+    if is_airborne {
+        state.weight_front_left_n = 0.0;
+        state.weight_front_right_n = 0.0;
+        state.weight_rear_left_n = 0.0;
+        state.weight_rear_right_n = 0.0;
+    } else {
+        // Front left tire
+        fl_slip = calculate_wheel_slip(
+            state.speed_mps,
+            state.angular_vel_yaw,
+            steer_left,
+            config.wheelbase_m / 2.0,
+            -config.track_width_front_m / 2.0,
+            drive_torque_front / 2.0,
+            brake_front / 2.0,
+            config.wheel_radius_m,
+        );
+
+        // Front right tire
+        fr_slip = calculate_wheel_slip(
+            state.speed_mps,
+            state.angular_vel_yaw,
+            steer_right,
+            config.wheelbase_m / 2.0,
+            config.track_width_front_m / 2.0,
+            drive_torque_front / 2.0,
+            brake_front / 2.0,
+            config.wheel_radius_m,
+        );
+
+        // Rear left tire
+        rl_slip = calculate_wheel_slip(
+            state.speed_mps,
+            state.angular_vel_yaw,
+            0.0,
+            -config.wheelbase_m / 2.0,
+            -config.track_width_rear_m / 2.0,
+            drive_torque_rear / 2.0,
+            brake_rear / 2.0,
+            config.wheel_radius_m,
+        );
+
+        // Rear right tire
+        rr_slip = calculate_wheel_slip(
+            state.speed_mps,
+            state.angular_vel_yaw,
+            0.0,
+            -config.wheelbase_m / 2.0,
+            config.track_width_rear_m / 2.0,
+            drive_torque_rear / 2.0,
+            brake_rear / 2.0,
+            config.wheel_radius_m,
+        );
+
+        fl_forces = calculate_tire_forces(
+            state.weight_front_left_n,
+            fl_slip.0,
+            fl_slip.1,
+            effective_grip,
+            &config.tire_config,
+        );
+        fr_forces = calculate_tire_forces(
+            state.weight_front_right_n,
+            fr_slip.0,
+            fr_slip.1,
+            effective_grip,
+            &config.tire_config,
+        );
+        rl_forces = calculate_tire_forces(
+            state.weight_rear_left_n,
+            rl_slip.0,
+            rl_slip.1,
+            effective_grip,
+            &config.tire_config,
+        );
+        rr_forces = calculate_tire_forces(
+            state.weight_rear_right_n,
+            rr_slip.0,
+            rr_slip.1,
+            effective_grip,
+            &config.tire_config,
+        );
+    }
     
     // 11. Sum all forces
     // Rotate front tire forces by steering angle
@@ -243,8 +502,16 @@ pub fn update_car_3d(
     let total_force_y = fl_force_y + fr_force_y + rl_forces.1 + rr_forces.1;
     
     // Include gravity components on slopes
-    let slope_force = config.mass_kg * GRAVITY * track_ctx.slope_rad.sin();
-    let banking_force = config.mass_kg * GRAVITY * track_ctx.banking_rad.sin();
+    let slope_force = if is_airborne {
+        0.0
+    } else {
+        config.mass_kg * GRAVITY * track_ctx.slope_rad.sin()
+    };
+    let banking_force = if is_airborne {
+        0.0
+    } else {
+        config.mass_kg * GRAVITY * track_ctx.banking_rad.sin()
+    };
     
     // 12. Calculate yaw moment
     let yaw_moment = 
@@ -282,7 +549,7 @@ pub fn update_car_3d(
     state.vel_y += accel_world_y * dt;
     
     // Apply off-track penalty
-    if !track_ctx.is_on_track {
+    if !is_airborne && !track_ctx.is_on_track {
         let penalty = 1.0 - track.track_surface.off_track_speed_penalty * dt;
         state.vel_x *= penalty;
         state.vel_y *= penalty;
@@ -306,15 +573,51 @@ pub fn update_car_3d(
     // 17. Integrate position
     state.pos_x += state.vel_x * dt;
     state.pos_y += state.vel_y * dt;
-    state.pos_z = track_ctx.elevation; // Snap to track elevation
+
+    if is_airborne {
+        state.vel_z -= GRAVITY * dt;
+        state.pos_z += state.vel_z * dt;
+    }
+
+    let post_track_ctx = get_track_context(state, track);
+    let post_lateral_query_limit = post_track_ctx.width_left.max(post_track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
+    let can_query_post_surface = post_track_ctx.lateral_offset.abs() <= post_lateral_query_limit;
+
+    if can_query_post_surface {
+        if is_airborne {
+            if state.pos_z <= post_track_ctx.elevation {
+                state.pos_z = post_track_ctx.elevation;
+                state.vel_z = 0.0;
+                is_airborne = false;
+            }
+        } else {
+            // Keep grounded cars above track plane while allowing suspension ride height.
+            state.pos_z = state.pos_z.max(post_track_ctx.elevation);
+            state.vel_z = 0.0;
+        }
+    } else {
+        state.vel_z = 0.0;
+        is_airborne = false;
+    }
+    state.is_airborne = is_airborne;
+
+    state.is_on_track = post_track_ctx.is_on_track;
+    state.current_surface = post_track_ctx.surface_type;
+    state.surface_grip_modifier = post_track_ctx.grip_modifier;
+    state.lateral_offset_m = post_track_ctx.lateral_offset;
     
     // 18. Integrate orientation
     state.yaw_rad += state.angular_vel_yaw * dt;
     state.yaw_rad = normalize_angle(state.yaw_rad);
     
-    // Match track pitch and roll
-    state.pitch_rad = track_ctx.slope_rad;
-    state.roll_rad = -track_ctx.banking_rad;
+    // Match track pitch and roll while grounded
+    if state.is_airborne {
+        state.pitch_rad += state.angular_vel_pitch * dt;
+        state.roll_rad += state.angular_vel_roll * dt;
+    } else {
+        state.pitch_rad = post_track_ctx.slope_rad;
+        state.roll_rad = -post_track_ctx.banking_rad;
+    }
     
     // 19. Store inputs
     state.throttle_input = input.throttle;
@@ -330,7 +633,17 @@ pub fn update_car_3d(
     }
 
     // 20. Update telemetry
-    update_telemetry_3d(state, config, input, &track_ctx, fl_slip, fr_slip, rl_slip, rr_slip, dt);
+    update_telemetry_3d(
+        state,
+        config,
+        input,
+        &post_track_ctx,
+        fl_slip,
+        fr_slip,
+        rl_slip,
+        rr_slip,
+        dt,
+    );
     
     // 21. Update fuel consumption
     update_fuel_consumption(state, config, input, dt);
@@ -603,58 +916,124 @@ fn calculate_tire_forces(
     }
 }
 
-/// Get track context at the car's current position
-fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
-    if track.centerline.is_empty() {
-        return TrackContext::default();
+/// Query ground/surface properties at a world-space position.
+fn query_track_surface(track: &TrackConfig, world_x: f32, world_y: f32) -> Option<SurfaceQuerySample> {
+    match active_surface_query_backend() {
+        SurfaceQueryBackend::Centerline => query_track_surface_centerline(track, world_x, world_y),
+        SurfaceQueryBackend::MeshHeightfield => query_track_surface_mesh_heightfield_stub(track, world_x, world_y),
     }
-    
+}
+
+fn track_heightfield_provider(track: &TrackConfig) -> Option<HeightfieldSurfaceData<'_>> {
+    let heightmap = track.procedural_world.as_ref()?.heightmap.as_ref()?;
+    Some(HeightfieldSurfaceData { heightmap })
+}
+
+/// Mesh/heightfield surface query backend stub.
+///
+/// This keeps the seam stable while mesh-backed terrain sampling is implemented.
+/// For now, it transparently falls back to centerline sampling.
+fn query_track_surface_mesh_heightfield_stub(
+    track: &TrackConfig,
+    world_x: f32,
+    world_y: f32,
+) -> Option<SurfaceQuerySample> {
+    let centerline_sample = query_track_surface_centerline(track, world_x, world_y)?;
+
+    if let Some(provider) = track_heightfield_provider(track) {
+        if let Some(elevation) = provider.elevation_at(world_x, world_y) {
+            return Some(SurfaceQuerySample {
+                elevation,
+                ..centerline_sample
+            });
+        }
+    }
+
+    MESH_BACKEND_STUB_LOG_ONCE.call_once(|| {
+        debug!(
+            "Mesh/heightfield backend has no usable heightfield sample; using centerline fallback"
+        );
+    });
+
+    Some(centerline_sample)
+}
+
+/// Centerline-backed surface query implementation.
+fn query_track_surface_centerline(
+    track: &TrackConfig,
+    world_x: f32,
+    world_y: f32,
+) -> Option<SurfaceQuerySample> {
+    if track.centerline.is_empty() {
+        return None;
+    }
+
     // Find nearest centerline point
     let mut min_dist_sq = f32::MAX;
     let mut nearest_idx = 0;
-    
+
     for (idx, point) in track.centerline.iter().enumerate() {
-        let dx = state.pos_x - point.x;
-        let dy = state.pos_y - point.y;
+        let dx = world_x - point.x;
+        let dy = world_y - point.y;
         let dist_sq = dx * dx + dy * dy;
-        
+
         if dist_sq < min_dist_sq {
             min_dist_sq = dist_sq;
             nearest_idx = idx;
         }
     }
-    
+
     let nearest = &track.centerline[nearest_idx];
-    
+
     // Calculate lateral offset (signed distance from centerline)
-    let dx = state.pos_x - nearest.x;
-    let dy = state.pos_y - nearest.y;
+    let dx = world_x - nearest.x;
+    let dy = world_y - nearest.y;
     let cross = dx * nearest.heading_rad.sin() - dy * nearest.heading_rad.cos();
-    let lateral_offset = cross;  // Positive = right of centerline
-    
-    // Check if on track
-    let is_on_track = lateral_offset.abs() <= nearest.width_right_m.max(nearest.width_left_m);
-    
-    // Determine surface type and grip
-    let (surface_type, grip_modifier) = if is_on_track {
-        (nearest.surface_type, nearest.grip_modifier)
-    } else {
-        // Off track
-        (SurfaceType::Grass, track.track_surface.off_track_grip)
-    };
-    
-    TrackContext {
+    let lateral_offset = cross; // Positive = right of centerline
+
+    Some(SurfaceQuerySample {
         nearest_point: nearest_idx,
         elevation: nearest.z,
         banking_rad: nearest.banking_rad,
         slope_rad: nearest.slope_rad,
         heading_rad: nearest.heading_rad,
         lateral_offset,
+        width_left: nearest.width_left_m,
+        width_right: nearest.width_right_m,
+        surface_type: nearest.surface_type,
+        grip_modifier: nearest.grip_modifier,
+    })
+}
+
+/// Get track context at the car's current position
+fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
+    let Some(surface) = query_track_surface(track, state.pos_x, state.pos_y) else {
+        return TrackContext::default();
+    };
+    
+    // Check if on track
+    let is_on_track = surface.lateral_offset.abs() <= surface.width_right.max(surface.width_left);
+    
+    // Determine surface type and grip
+    let (surface_type, grip_modifier) = if is_on_track {
+        (surface.surface_type, surface.grip_modifier)
+    } else {
+        // Off track
+        (SurfaceType::Grass, track.track_surface.off_track_grip)
+    };
+    
+    TrackContext {
+        nearest_point: surface.nearest_point,
+        elevation: surface.elevation,
+        banking_rad: surface.banking_rad,
+        slope_rad: surface.slope_rad,
+        heading_rad: surface.heading_rad,
+        lateral_offset: surface.lateral_offset,
         is_on_track,
         surface_type,
         grip_modifier,
-        width_left: nearest.width_left_m,
-        width_right: nearest.width_right_m,
+        width_left: surface.width_left,
+        width_right: surface.width_right,
     }
 }
 
@@ -710,28 +1089,6 @@ fn update_telemetry_3d(
     state.tires.rear_right.slip_angle_rad = rr_slip.1;
     state.tires.rear_right.wear_percent = (state.tires.rear_right.wear_percent + 
         rr_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt).min(100.0);
-    
-    // Suspension travel (based on weight and spring rates)
-    let calculate_suspension_travel = |weight: f32, spring_rate: f32| -> f32 {
-        (weight / spring_rate).clamp(0.0, config.suspension.max_travel_m)
-    };
-    
-    state.suspension.front_left_travel_m = calculate_suspension_travel(
-        state.weight_front_left_n,
-        config.suspension.spring_rate_front_n_per_m,
-    );
-    state.suspension.front_right_travel_m = calculate_suspension_travel(
-        state.weight_front_right_n,
-        config.suspension.spring_rate_front_n_per_m,
-    );
-    state.suspension.rear_left_travel_m = calculate_suspension_travel(
-        state.weight_rear_left_n,
-        config.suspension.spring_rate_rear_n_per_m,
-    );
-    state.suspension.rear_right_travel_m = calculate_suspension_travel(
-        state.weight_rear_right_n,
-        config.suspension.spring_rate_rear_n_per_m,
-    );
     
     // Engine temperature (increases with load, decreases with airflow)
     let engine_load = input.throttle * (state.engine_rpm / config.redline_rpm);
@@ -1267,6 +1624,239 @@ mod tests {
 
         // Car should have moved and adopted track elevation
         assert!(state.pos_x != 0.0 || state.pos_y != 0.0, "Car should have moved");
+    }
+
+    #[test]
+    fn test_airborne_gravity_and_landing() {
+        let mut state = create_test_car_state();
+        let config = create_test_config();
+        let track = TrackConfig {
+            id: Uuid::new_v4(),
+            name: "Flat Test Track".to_string(),
+            centerline: vec![TrackPoint {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                distance_from_start_m: 0.0,
+                width_left_m: 20.0,
+                width_right_m: 20.0,
+                banking_rad: 0.0,
+                camber_rad: 0.0,
+                slope_rad: 0.0,
+                heading_rad: 0.0,
+                surface_type: SurfaceType::Asphalt,
+                grip_modifier: 1.0,
+            }],
+            width_m: 40.0,
+            source_path: None,
+            start_positions: Vec::new(),
+            track_surface: TrackSurface::default(),
+            pit_lane: None,
+            raceline: Vec::new(),
+            metadata: TrackMetadata::default(),
+            procedural_world: None,
+        };
+
+        state.pos_x = 0.0;
+        state.pos_y = 0.0;
+        state.pos_z = 1.0;
+        state.vel_z = 0.0;
+
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+
+        let dt = 1.0 / 240.0;
+
+        update_car_3d(&mut state, &config, &input, &track, dt);
+
+        assert!(state.is_airborne, "Car should be airborne when above track surface");
+        assert!(state.vel_z < 0.0, "Gravity should accelerate car downward");
+        assert_eq!(state.weight_front_left_n, 0.0, "Airborne car should have no tire load");
+
+        for _ in 0..400 {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+        }
+
+        assert!(!state.is_airborne, "Car should land back on track surface");
+        assert!(state.pos_z.abs() < 0.2, "Car should settle near track elevation");
+        assert_eq!(state.vel_z, 0.0, "Vertical velocity should reset on landing");
+    }
+
+    #[test]
+    fn test_mesh_backend_stub_overrides_elevation_from_heightfield() {
+        let mut heightmap = crate::procgen::TerrainHeightmap::new(2, 2, 1.0, 0.0, 0.0);
+        heightmap.set_height(0, 0, 5.0);
+        heightmap.set_height(1, 0, 5.0);
+        heightmap.set_height(0, 1, 5.0);
+        heightmap.set_height(1, 1, 5.0);
+
+        let track = TrackConfig {
+            id: Uuid::new_v4(),
+            name: "Heightfield Override Test".to_string(),
+            centerline: vec![TrackPoint {
+                x: 0.5,
+                y: 0.5,
+                z: 1.0,
+                distance_from_start_m: 0.0,
+                width_left_m: 20.0,
+                width_right_m: 20.0,
+                banking_rad: 0.1,
+                camber_rad: 0.0,
+                slope_rad: 0.05,
+                heading_rad: 0.2,
+                surface_type: SurfaceType::Asphalt,
+                grip_modifier: 1.0,
+            }],
+            width_m: 40.0,
+            source_path: None,
+            start_positions: Vec::new(),
+            track_surface: TrackSurface::default(),
+            pit_lane: None,
+            raceline: Vec::new(),
+            metadata: TrackMetadata::default(),
+            procedural_world: Some(crate::procgen::ProceduralWorldData {
+                environment_type: "test".to_string(),
+                seed: 1,
+                heightmap: Some(heightmap),
+                blend_width: 20.0,
+                object_density: 0.0,
+                decal_profile: "default".to_string(),
+                preset: crate::procgen::EnvironmentPreset::plains(),
+            }),
+        };
+
+        let centerline_sample = query_track_surface_centerline(&track, 0.5, 0.5)
+            .expect("centerline sample should exist");
+        let mesh_sample = query_track_surface_mesh_heightfield_stub(&track, 0.5, 0.5)
+            .expect("mesh stub sample should exist");
+
+        assert_eq!(centerline_sample.elevation, 1.0, "centerline sample should use centerline z");
+        assert!((mesh_sample.elevation - 5.0).abs() < 0.001, "mesh stub should use heightfield elevation");
+
+        assert_eq!(mesh_sample.nearest_point, centerline_sample.nearest_point);
+        assert!((mesh_sample.banking_rad - centerline_sample.banking_rad).abs() < 0.0001);
+        assert!((mesh_sample.slope_rad - centerline_sample.slope_rad).abs() < 0.0001);
+        assert!((mesh_sample.heading_rad - centerline_sample.heading_rad).abs() < 0.0001);
+        assert!((mesh_sample.lateral_offset - centerline_sample.lateral_offset).abs() < 0.0001);
+        assert_eq!(mesh_sample.surface_type, centerline_sample.surface_type);
+        assert!((mesh_sample.grip_modifier - centerline_sample.grip_modifier).abs() < 0.0001);
+    }
+
+    fn create_split_height_track(left_z: f32, right_z: f32) -> TrackConfig {
+        TrackConfig {
+            id: Uuid::new_v4(),
+            name: "Split Height Test".to_string(),
+            centerline: vec![
+                TrackPoint {
+                    x: 0.0,
+                    y: -1.0,
+                    z: left_z,
+                    distance_from_start_m: 0.0,
+                    width_left_m: 20.0,
+                    width_right_m: 20.0,
+                    banking_rad: 0.0,
+                    camber_rad: 0.0,
+                    slope_rad: 0.0,
+                    heading_rad: 0.0,
+                    surface_type: SurfaceType::Asphalt,
+                    grip_modifier: 1.0,
+                },
+                TrackPoint {
+                    x: 0.0,
+                    y: 1.0,
+                    z: right_z,
+                    distance_from_start_m: 1.0,
+                    width_left_m: 20.0,
+                    width_right_m: 20.0,
+                    banking_rad: 0.0,
+                    camber_rad: 0.0,
+                    slope_rad: 0.0,
+                    heading_rad: 0.0,
+                    surface_type: SurfaceType::Asphalt,
+                    grip_modifier: 1.0,
+                },
+            ],
+            width_m: 40.0,
+            source_path: None,
+            start_positions: Vec::new(),
+            track_surface: TrackSurface::default(),
+            pit_lane: None,
+            raceline: Vec::new(),
+            metadata: TrackMetadata::default(),
+            procedural_world: None,
+        }
+    }
+
+    #[test]
+    fn test_per_wheel_contact_creates_asymmetric_suspension_travel() {
+        let mut state = create_test_car_state();
+        state.pos_x = 0.0;
+        state.pos_y = 0.0;
+        state.pos_z = 0.05;
+
+        let config = create_test_config();
+        let track = create_split_height_track(0.0, 0.2);
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+
+        update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+
+        assert!(
+            state.suspension.front_right_travel_m > state.suspension.front_left_travel_m,
+            "Right front should compress more on higher right-side contact"
+        );
+        assert!(
+            state.suspension.rear_right_travel_m > state.suspension.rear_left_travel_m,
+            "Right rear should compress more on higher right-side contact"
+        );
+    }
+
+    #[test]
+    fn test_anti_roll_coupling_reduces_axle_load_split() {
+        let mut state_no_arb = create_test_car_state();
+        state_no_arb.pos_x = 0.0;
+        state_no_arb.pos_y = 0.0;
+        state_no_arb.pos_z = 0.05;
+
+        let mut state_with_arb = state_no_arb.clone();
+
+        let mut config_no_arb = create_test_config();
+        config_no_arb.suspension.anti_roll_bar_front = 0.0;
+        config_no_arb.suspension.anti_roll_bar_rear = 0.0;
+
+        let mut config_with_arb = config_no_arb.clone();
+        config_with_arb.suspension.anti_roll_bar_front = 20000.0;
+
+        let track = create_split_height_track(0.0, 0.2);
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+
+        let dt = 1.0 / 240.0;
+        update_car_3d(&mut state_no_arb, &config_no_arb, &input, &track, dt);
+        update_car_3d(&mut state_with_arb, &config_with_arb, &input, &track, dt);
+
+        let front_split_no_arb = (state_no_arb.weight_front_right_n - state_no_arb.weight_front_left_n).abs();
+        let front_split_with_arb = (state_with_arb.weight_front_right_n - state_with_arb.weight_front_left_n).abs();
+
+        assert!(
+            front_split_with_arb < front_split_no_arb,
+            "Front anti-roll coupling should reduce left/right front axle load split under asymmetric contact"
+        );
     }
 
     #[test]

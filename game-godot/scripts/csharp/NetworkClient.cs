@@ -608,6 +608,10 @@ public partial class NetworkClient : Node
     private static CarStateTelemetry BuildCarState(object? obj)
     {
         var map = ToStringMap(obj);
+        var suspension = map.TryGetValue("suspension", out var suspensionObj) && suspensionObj != null
+            ? BuildSuspensionTelemetry(suspensionObj)
+            : new SuspensionTelemetry();
+
         return new CarStateTelemetry
         {
             PlayerId = ReadUuid(map, "player_id"),
@@ -622,6 +626,7 @@ public partial class NetworkClient : Node
             Brake = ReadFloat(map, "brake"),
             Steering = ReadFloat(map, "steering"),
             Gear = (sbyte)ReadUInt(map, "gear"),
+            Suspension = suspension,
             CurrentLap = (ushort)ReadUInt(map, "current_lap"),
             TrackProgress = ReadFloat(map, "track_progress"),
             FinishPosition = map.TryGetValue("finish_position", out var finishObj) && finishObj != null
@@ -629,6 +634,30 @@ public partial class NetworkClient : Node
                 : null,
             IsOnTrack = map.TryGetValue("is_on_track", out var onTrackObj) && onTrackObj is bool onTrack && onTrack,
             IsColliding = map.TryGetValue("is_colliding", out var collidingObj) && collidingObj is bool colliding && colliding
+        };
+    }
+
+    private static SuspensionTelemetry BuildSuspensionTelemetry(object? obj)
+    {
+        var map = ToStringMap(obj);
+        return new SuspensionTelemetry
+        {
+            FrontLeftTravelM = ReadFloatOrDefault(map, "front_left_travel_m"),
+            FrontRightTravelM = ReadFloatOrDefault(map, "front_right_travel_m"),
+            RearLeftTravelM = ReadFloatOrDefault(map, "rear_left_travel_m"),
+            RearRightTravelM = ReadFloatOrDefault(map, "rear_right_travel_m"),
+            FrontLeftVelocityMps = ReadFloatOrDefault(map, "front_left_velocity_mps"),
+            FrontRightVelocityMps = ReadFloatOrDefault(map, "front_right_velocity_mps"),
+            RearLeftVelocityMps = ReadFloatOrDefault(map, "rear_left_velocity_mps"),
+            RearRightVelocityMps = ReadFloatOrDefault(map, "rear_right_velocity_mps"),
+            FrontLeftSpringForceN = ReadFloatOrDefault(map, "front_left_spring_force_n"),
+            FrontRightSpringForceN = ReadFloatOrDefault(map, "front_right_spring_force_n"),
+            RearLeftSpringForceN = ReadFloatOrDefault(map, "rear_left_spring_force_n"),
+            RearRightSpringForceN = ReadFloatOrDefault(map, "rear_right_spring_force_n"),
+            FrontLeftDamperForceN = ReadFloatOrDefault(map, "front_left_damper_force_n"),
+            FrontRightDamperForceN = ReadFloatOrDefault(map, "front_right_damper_force_n"),
+            RearLeftDamperForceN = ReadFloatOrDefault(map, "rear_left_damper_force_n"),
+            RearRightDamperForceN = ReadFloatOrDefault(map, "rear_right_damper_force_n")
         };
     }
 
@@ -805,6 +834,46 @@ public partial class NetworkClient : Node
     {
         var guid = Guid.Parse(value);
         return guid.ToByteArray();
+    }
+
+    private static float ReadFloatOrDefault(Dictionary<string, object?> map, string key, float defaultValue = 0f)
+    {
+        if (!map.TryGetValue(key, out var value) || value == null)
+        {
+            return defaultValue;
+        }
+
+        if (value is float f)
+        {
+            return f;
+        }
+        if (value is double d)
+        {
+            return (float)d;
+        }
+        if (value is int i)
+        {
+            return i;
+        }
+        if (value is uint u)
+        {
+            return u;
+        }
+        if (value is long l)
+        {
+            return l;
+        }
+        if (value is ulong ul)
+        {
+            return ul;
+        }
+
+        if (float.TryParse(value.ToString(), out var parsed))
+        {
+            return parsed;
+        }
+
+        return defaultValue;
     }
 
     private static string ToUuidString(object value)
