@@ -634,6 +634,18 @@ pub struct SuspensionTelemetry {
     pub front_right_travel_m: f32,
     pub rear_left_travel_m: f32,
     pub rear_right_travel_m: f32,
+    pub front_left_velocity_mps: f32,
+    pub front_right_velocity_mps: f32,
+    pub rear_left_velocity_mps: f32,
+    pub rear_right_velocity_mps: f32,
+    pub front_left_spring_force_n: f32,
+    pub front_right_spring_force_n: f32,
+    pub rear_left_spring_force_n: f32,
+    pub rear_right_spring_force_n: f32,
+    pub front_left_damper_force_n: f32,
+    pub front_right_damper_force_n: f32,
+    pub rear_left_damper_force_n: f32,
+    pub rear_right_damper_force_n: f32,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -700,6 +712,7 @@ pub struct CarState {
     // Surface state
     pub current_surface: SurfaceType,
     pub is_on_track: bool,
+    pub is_airborne: bool,
     pub surface_grip_modifier: f32,
     
     // Telemetry
@@ -782,6 +795,7 @@ impl CarState {
             // Surface
             current_surface: SurfaceType::Asphalt,
             is_on_track: true,
+            is_airborne: false,
             surface_grip_modifier: 1.0,
             
             // Telemetry

@@ -266,6 +266,7 @@ pub struct CarStateTelemetry {
     pub steering: f32,
     pub gear: i8,
     pub engine_rpm: f32,
+    pub suspension: SuspensionTelemetry,
     // Race progress
     pub current_lap: u16,
     pub track_progress: f32,
@@ -304,6 +305,7 @@ impl From<&CarState> for CarStateTelemetry {
             steering: state.steering_input,
             gear: state.gear,
             engine_rpm: state.engine_rpm,
+            suspension: state.suspension,
             current_lap: state.current_lap,
             track_progress: state.track_progress,
             finish_position: state.finish_position,

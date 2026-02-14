@@ -169,6 +169,7 @@ public class CarStateTelemetry
     public float Brake { get; set; }
     public float Steering { get; set; }
     public sbyte Gear { get; set; }
+    public SuspensionTelemetry Suspension { get; set; } = new();
     // Race progress
     public ushort CurrentLap { get; set; }
     public float TrackProgress { get; set; }
@@ -179,6 +180,26 @@ public class CarStateTelemetry
     // Status
     public bool IsOnTrack { get; set; }
     public bool IsColliding { get; set; }
+}
+
+public class SuspensionTelemetry
+{
+    public float FrontLeftTravelM { get; set; }
+    public float FrontRightTravelM { get; set; }
+    public float RearLeftTravelM { get; set; }
+    public float RearRightTravelM { get; set; }
+    public float FrontLeftVelocityMps { get; set; }
+    public float FrontRightVelocityMps { get; set; }
+    public float RearLeftVelocityMps { get; set; }
+    public float RearRightVelocityMps { get; set; }
+    public float FrontLeftSpringForceN { get; set; }
+    public float FrontRightSpringForceN { get; set; }
+    public float RearLeftSpringForceN { get; set; }
+    public float RearRightSpringForceN { get; set; }
+    public float FrontLeftDamperForceN { get; set; }
+    public float FrontRightDamperForceN { get; set; }
+    public float RearLeftDamperForceN { get; set; }
+    public float RearRightDamperForceN { get; set; }
 }
 
 // Data structures
