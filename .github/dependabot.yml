@@ -5,7 +5,26 @@
 
 version: 2
 updates:
-  - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "/server" # Location of package manifests
+  - package-ecosystem: "cargo"
+    directory: "/server"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
+      - "rust"
+
+  - package-ecosystem: "cargo"
+    directory: "/cli-game"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "rust"
+
+  - package-ecosystem: "cargo"
+    directory: "/track-editor"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "rust"
