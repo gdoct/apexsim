@@ -29,10 +29,7 @@ fn main() {
 
             if let Some(first) = track_config.centerline.first() {
                 if let Some(last) = track_config.centerline.last() {
-                    println!(
-                        "  Total length: {:.2}m",
-                        last.distance_from_start_m
-                    );
+                    println!("  Total length: {:.2}m", last.distance_from_start_m);
 
                     let dx = last.x - first.x;
                     let dy = last.y - first.y;
@@ -78,7 +75,10 @@ fn main() {
                 }
             } else {
                 println!("\nTo export the mesh, provide an output filename:");
-                println!("  cargo run --example track_export {} track.obj", track_path);
+                println!(
+                    "  cargo run --example track_export {} track.obj",
+                    track_path
+                );
             }
 
             println!("\n=== Track Statistics ===");
@@ -112,13 +112,28 @@ fn analyze_track(centerline: &[apexsim_server::data::TrackPoint]) {
         total_curvature += heading_change;
     }
 
-    println!("Elevation range: {:.2}m to {:.2}m (Δ{:.2}m)", min_elevation, max_elevation, max_elevation - min_elevation);
-    println!("Max banking: {:.3} rad ({:.1}°)", max_banking, max_banking.to_degrees());
-    println!("Total curvature: {:.2} rad ({:.1}°)", total_curvature, total_curvature.to_degrees());
+    println!(
+        "Elevation range: {:.2}m to {:.2}m (Δ{:.2}m)",
+        min_elevation,
+        max_elevation,
+        max_elevation - min_elevation
+    );
+    println!(
+        "Max banking: {:.3} rad ({:.1}°)",
+        max_banking,
+        max_banking.to_degrees()
+    );
+    println!(
+        "Total curvature: {:.2} rad ({:.1}°)",
+        total_curvature,
+        total_curvature.to_degrees()
+    );
 
     let mut surface_counts = std::collections::HashMap::new();
     for point in centerline {
-        *surface_counts.entry(format!("{:?}", point.surface_type)).or_insert(0) += 1;
+        *surface_counts
+            .entry(format!("{:?}", point.surface_type))
+            .or_insert(0) += 1;
     }
 
     println!("\nSurface type distribution:");

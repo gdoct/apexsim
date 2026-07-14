@@ -140,9 +140,9 @@ If tests timeout after 30 seconds:
 2. Verify the server is processing messages
 3. Look for deadlocks or infinite loops in server code
 
-### Heartbeat Timeout (6 seconds)
-This is the issue described in the original problem. The server expects heartbeat messages every 6 seconds (configured as `heartbeat_timeout_ms: 6000`). If a client doesn't send heartbeats:
-- The server will disconnect the client after 6 seconds
+### Heartbeat Timeout (5 seconds)
+This is the issue described in the original problem. The server expects heartbeat messages within 5 seconds (configured as `heartbeat_timeout_ms: 5000` in server.toml). If a client doesn't send heartbeats:
+- The server will disconnect the client after 5 seconds
 - The client will see: `Connection timed out (player: CLI-Player)`
 
 The CLI client should send heartbeats periodically (every 2 seconds is recommended).

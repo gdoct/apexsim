@@ -1,5 +1,7 @@
+use crate::config::{AuthMode, AuthSettings};
 use crate::data::*;
 use crate::network::{AuthSuccessData, ClientMessage, MessagePriority, ServerMessage};
+use bytes::Bytes;
 use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig as TlsConfig;
 use std::collections::HashMap;
@@ -23,6 +25,47 @@ const TCP_INBOUND_CHANNEL_SIZE: usize = 1000;
 const UDP_INBOUND_CHANNEL_SIZE: usize = 2000;
 const UDP_OUTBOUND_CHANNEL_SIZE: usize = 2000;
 const PER_CLIENT_TCP_CHANNEL_SIZE: usize = 100;
+
+// Per-connection rate limits (see SPEC §6). PlayerInput is high-frequency;
+// everything else is lobby/control traffic and should be rare.
+const INPUT_RATE_PER_SEC: f32 = 300.0;
+const INPUT_RATE_BURST: f32 = 60.0;
+const CONTROL_RATE_PER_SEC: f32 = 10.0;
+const CONTROL_RATE_BURST: f32 = 20.0;
+/// Disconnect a connection after this many rate-limit/protocol violations.
+const MAX_VIOLATIONS: u32 = 200;
+
+/// Minimal token bucket: refills continuously, allows short bursts.
+struct TokenBucket {
+    tokens: f32,
+    burst: f32,
+    rate_per_sec: f32,
+    last_refill: Instant,
+}
+
+impl TokenBucket {
+    fn new(rate_per_sec: f32, burst: f32) -> Self {
+        Self {
+            tokens: burst,
+            burst,
+            rate_per_sec,
+            last_refill: Instant::now(),
+        }
+    }
+
+    fn try_take(&mut self) -> bool {
+        let now = Instant::now();
+        let elapsed = now.duration_since(self.last_refill).as_secs_f32();
+        self.last_refill = now;
+        self.tokens = (self.tokens + elapsed * self.rate_per_sec).min(self.burst);
+        if self.tokens >= 1.0 {
+            self.tokens -= 1.0;
+            true
+        } else {
+            false
+        }
+    }
+}
 
 /// Metrics for tracking dropped messages
 #[derive(Debug, Default, Clone)]
@@ -69,6 +112,32 @@ pub enum TransportError {
     QueueFull,
 }
 
+/// Outbound frame for a per-connection writer task. `Message` is serialized
+/// by the writer; `Serialized` carries pre-encoded bytes so a broadcast can
+/// serialize once and fan out cheap `Bytes` clones.
+#[derive(Debug, Clone)]
+pub enum OutboundFrame {
+    Message(ServerMessage),
+    Serialized {
+        data: Bytes,
+        priority: MessagePriority,
+    },
+}
+
+/// Inbound event delivered from the transport layer to the game loop.
+#[derive(Debug)]
+pub enum TransportEvent {
+    /// A client message received on an established connection.
+    Message(ConnectionId, ClientMessage),
+    /// The connection was torn down (stream closed). Carries everything the
+    /// game loop needs, captured before the connection maps were cleaned up.
+    Disconnected {
+        connection_id: ConnectionId,
+        player_id: PlayerId,
+        session_id: Option<SessionId>,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct ConnectionInfo {
     pub player_id: PlayerId,
@@ -76,7 +145,7 @@ pub struct ConnectionInfo {
     pub connected_at: Instant,
     pub last_heartbeat: Instant,
     pub tcp_addr: SocketAddr,
-    pub tcp_tx: mpsc::Sender<ServerMessage>,
+    pub tcp_tx: mpsc::Sender<OutboundFrame>,
     pub in_session: Option<SessionId>,
 }
 
@@ -90,10 +159,14 @@ pub struct TransportLayer {
     tcp_listener: Option<TcpListener>,
     udp_socket: Arc<UdpSocket>,
     tls_acceptor: Option<TlsAcceptor>,
+    tcp_local_addr: SocketAddr,
+    udp_local_addr: SocketAddr,
 
-    // Channels for communication (bounded)
-    tcp_rx: mpsc::Receiver<(ConnectionId, ClientMessage)>,
-    tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
+    // Channels for communication (bounded). `tcp_rx` can be taken out of the
+    // transport (see `take_tcp_receiver`) so the game loop can drain inbound
+    // events without holding any transport lock.
+    tcp_rx: Option<mpsc::Receiver<TransportEvent>>,
+    tcp_tx: mpsc::Sender<TransportEvent>,
     udp_rx: mpsc::Receiver<(SocketAddr, ClientMessage)>,
     udp_tx: mpsc::Sender<(SocketAddr, ClientMessage)>,
 
@@ -108,6 +181,9 @@ pub struct TransportLayer {
 
     heartbeat_timeout: Duration,
 
+    // Token validation policy for `Authenticate`
+    auth: AuthSettings,
+
     // Metrics
     pub metrics: TransportMetrics,
 }
@@ -120,14 +196,22 @@ impl TransportLayer {
         tls_key_path: &str,
         require_tls: bool,
         heartbeat_timeout_ms: u64,
+        auth: AuthSettings,
     ) -> Result<Self, TransportError> {
+        if auth.mode == AuthMode::Dev {
+            warn!("Auth mode: dev — all tokens accepted. Do not use in production.");
+        } else if auth.tokens.is_empty() {
+            warn!("Auth mode: token, but no tokens configured — every client will be rejected");
+        }
         // Setup TCP with TLS
         let tcp_listener = TcpListener::bind(tcp_bind).await?;
-        debug!("TCP listener bound to {}", tcp_bind);
+        let tcp_local_addr = tcp_listener.local_addr()?;
+        debug!("TCP listener bound to {}", tcp_local_addr);
 
         // Setup UDP
         let udp_socket = Arc::new(UdpSocket::bind(udp_bind).await?);
-        debug!("UDP socket bound to {}", udp_bind);
+        let udp_local_addr = udp_socket.local_addr()?;
+        debug!("UDP socket bound to {}", udp_local_addr);
 
         // Load TLS configuration
         let tls_acceptor = match Self::load_tls_config(tls_cert_path, tls_key_path) {
@@ -174,7 +258,9 @@ impl TransportLayer {
             tcp_listener: Some(tcp_listener),
             udp_socket,
             tls_acceptor,
-            tcp_rx,
+            tcp_local_addr,
+            udp_local_addr,
+            tcp_rx: Some(tcp_rx),
             tcp_tx,
             udp_rx,
             udp_tx,
@@ -183,6 +269,7 @@ impl TransportLayer {
             shutdown_tx,
             shutdown_rx: Some(shutdown_rx),
             heartbeat_timeout: Duration::from_millis(heartbeat_timeout_ms),
+            auth,
             metrics: TransportMetrics::new(),
         })
     }
@@ -226,6 +313,7 @@ impl TransportLayer {
             let connections = Arc::clone(&self.connections);
             let addr_to_connection = Arc::clone(&self.addr_to_connection);
             let player_to_connection = Arc::clone(&self.player_to_connection);
+            let auth = self.auth.clone();
 
             tokio::spawn(async move {
                 Self::tcp_acceptor(
@@ -235,6 +323,7 @@ impl TransportLayer {
                     connections,
                     addr_to_connection,
                     player_to_connection,
+                    auth,
                 )
                 .await;
             });
@@ -258,11 +347,12 @@ impl TransportLayer {
 
     async fn tcp_acceptor(
         listener: TcpListener,
-        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
+        tcp_tx: mpsc::Sender<TransportEvent>,
         tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
         player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
+        auth: AuthSettings,
     ) {
         loop {
             match listener.accept().await {
@@ -273,6 +363,7 @@ impl TransportLayer {
                     let connections = Arc::clone(&connections);
                     let addr_to_connection = Arc::clone(&addr_to_connection);
                     let player_to_connection = Arc::clone(&player_to_connection);
+                    let auth = auth.clone();
 
                     tokio::spawn(async move {
                         if let Err(e) = Self::handle_tcp_connection(
@@ -283,6 +374,7 @@ impl TransportLayer {
                             connections,
                             addr_to_connection,
                             player_to_connection,
+                            auth,
                         )
                         .await
                         {
@@ -300,17 +392,18 @@ impl TransportLayer {
     async fn handle_tcp_connection(
         stream: TcpStream,
         addr: SocketAddr,
-        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
+        tcp_tx: mpsc::Sender<TransportEvent>,
         tls_acceptor: Option<TlsAcceptor>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
         player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
+        auth: AuthSettings,
     ) -> Result<(), TransportError> {
         // Generate unique connection ID
         let connection_id = Uuid::new_v4();
 
         // Create per-connection send channel (BOUNDED)
-        let (conn_tx, conn_rx) = mpsc::channel::<ServerMessage>(PER_CLIENT_TCP_CHANNEL_SIZE);
+        let (conn_tx, conn_rx) = mpsc::channel::<OutboundFrame>(PER_CLIENT_TCP_CHANNEL_SIZE);
 
         // Handle TLS if available
         if let Some(acceptor) = tls_acceptor {
@@ -327,6 +420,7 @@ impl TransportLayer {
                         connections,
                         addr_to_connection,
                         player_to_connection,
+                        auth,
                     )
                     .await
                 }
@@ -350,6 +444,7 @@ impl TransportLayer {
                 connections,
                 addr_to_connection,
                 player_to_connection,
+                auth,
             )
             .await
         }
@@ -359,12 +454,13 @@ impl TransportLayer {
         stream: S,
         addr: SocketAddr,
         connection_id: ConnectionId,
-        conn_tx: mpsc::Sender<ServerMessage>,
-        mut conn_rx: mpsc::Receiver<ServerMessage>,
-        tcp_tx: mpsc::Sender<(ConnectionId, ClientMessage)>,
+        conn_tx: mpsc::Sender<OutboundFrame>,
+        mut conn_rx: mpsc::Receiver<OutboundFrame>,
+        tcp_tx: mpsc::Sender<TransportEvent>,
         connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
         addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
         player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
+        auth: AuthSettings,
     ) -> Result<(), TransportError>
     where
         S: AsyncReadExt + AsyncWriteExt + Unpin + Send + 'static,
@@ -375,25 +471,29 @@ impl TransportLayer {
         // Spawn writer task
         let writer_addr = addr;
         tokio::spawn(async move {
-            while let Some(msg) = conn_rx.recv().await {
-                match rmp_serde::to_vec_named(&msg) {
-                    Ok(data) => {
-                        // Write length prefix (4 bytes) then data
-                        let len = data.len() as u32;
-                        if writer.write_all(&len.to_be_bytes()).await.is_err() {
+            while let Some(frame) = conn_rx.recv().await {
+                // Message frames are serialized here; Serialized frames carry
+                // pre-encoded bytes (same rmp_serde named encoding) already.
+                let data: Bytes = match frame {
+                    OutboundFrame::Message(msg) => match rmp_serde::to_vec_named(&msg) {
+                        Ok(data) => Bytes::from(data),
+                        Err(e) => {
+                            error!("Failed to serialize message: {}", e);
                             break;
                         }
-                        if writer.write_all(&data).await.is_err() {
-                            break;
-                        }
-                        if writer.flush().await.is_err() {
-                            break;
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to serialize message: {}", e);
-                        break;
-                    }
+                    },
+                    OutboundFrame::Serialized { data, .. } => data,
+                };
+                // Write length prefix (4 bytes) then data
+                let len = data.len() as u32;
+                if writer.write_all(&len.to_be_bytes()).await.is_err() {
+                    break;
+                }
+                if writer.write_all(&data).await.is_err() {
+                    break;
+                }
+                if writer.flush().await.is_err() {
+                    break;
                 }
             }
             debug!("Writer task closed for {}", writer_addr);
@@ -402,6 +502,10 @@ impl TransportLayer {
         // Reader task (runs in this function)
         // Read with length-prefix framing
         let mut len_buf = [0u8; 4];
+        let mut authenticated = false;
+        let mut input_bucket = TokenBucket::new(INPUT_RATE_PER_SEC, INPUT_RATE_BURST);
+        let mut control_bucket = TokenBucket::new(CONTROL_RATE_PER_SEC, CONTROL_RATE_BURST);
+        let mut violations: u32 = 0;
 
         loop {
             // Read length prefix
@@ -422,8 +526,73 @@ impl TransportLayer {
                         Ok(_) => {
                             match rmp_serde::from_slice::<ClientMessage>(&msg_buf) {
                                 Ok(msg) => {
+                                    // Rate limiting: high-frequency input gets its own
+                                    // (generous) bucket; control traffic a strict one.
+                                    let bucket = match &msg {
+                                        ClientMessage::PlayerInput { .. }
+                                        | ClientMessage::Heartbeat { .. } => &mut input_bucket,
+                                        _ => &mut control_bucket,
+                                    };
+                                    if !bucket.try_take() {
+                                        violations += 1;
+                                        if violations >= MAX_VIOLATIONS {
+                                            warn!(
+                                                "Disconnecting {} after {} rate-limit violations",
+                                                addr, violations
+                                            );
+                                            break;
+                                        }
+                                        if violations % 50 == 1 {
+                                            warn!(
+                                                "Rate limiting {} ({} violations)",
+                                                addr, violations
+                                            );
+                                        }
+                                        continue;
+                                    }
+
+                                    // Everything except Authenticate requires a
+                                    // completed authentication first.
+                                    if !authenticated
+                                        && !matches!(&msg, ClientMessage::Authenticate { .. })
+                                    {
+                                        violations += 10;
+                                        warn!(
+                                            "Dropping pre-auth message from {}: {:?}",
+                                            addr,
+                                            std::mem::discriminant(&msg)
+                                        );
+                                        if violations >= MAX_VIOLATIONS {
+                                            break;
+                                        }
+                                        continue;
+                                    }
+
                                     // Handle authentication - register connection
-                                    if let ClientMessage::Authenticate { player_name, .. } = &msg {
+                                    if let ClientMessage::Authenticate { token, player_name } = &msg
+                                    {
+                                        let token_ok = match auth.mode {
+                                            AuthMode::Dev => true,
+                                            AuthMode::Token => {
+                                                !token.is_empty()
+                                                    && auth.tokens.iter().any(|t| t == token)
+                                            }
+                                        };
+                                        if !token_ok {
+                                            warn!(
+                                                "Rejecting authentication from {} (invalid token)",
+                                                addr
+                                            );
+                                            let _ = conn_tx
+                                                .send(OutboundFrame::Message(
+                                                    ServerMessage::AuthFailure {
+                                                        reason: "invalid token".to_string(),
+                                                    },
+                                                ))
+                                                .await;
+                                            break;
+                                        }
+                                        authenticated = true;
                                         let player_id = Uuid::new_v4();
                                         let conn_info = ConnectionInfo {
                                             player_id,
@@ -454,12 +623,17 @@ impl TransportLayer {
                                         );
 
                                         // Send auth success response
-                                        let response = ServerMessage::AuthSuccess(AuthSuccessData {
-                                            player_id,
-                                            server_version: 1,
-                                        });
+                                        let response =
+                                            ServerMessage::AuthSuccess(AuthSuccessData {
+                                                player_id,
+                                                server_version: 1,
+                                            });
                                         // Critical message - if queue full, client is too slow
-                                        if conn_tx.send(response).await.is_err() {
+                                        if conn_tx
+                                            .send(OutboundFrame::Message(response))
+                                            .await
+                                            .is_err()
+                                        {
                                             warn!("Failed to send AuthSuccess to slow client {}, disconnecting", addr);
                                             break;
                                         }
@@ -475,10 +649,14 @@ impl TransportLayer {
                                         let response = ServerMessage::HeartbeatAck {
                                             server_tick: 0, // Will be updated later with actual tick
                                         };
-                                        let _ = conn_tx.try_send(response);
+                                        let _ = conn_tx.try_send(OutboundFrame::Message(response));
                                     }
 
-                                    if tcp_tx.send((connection_id, msg)).await.is_err() {
+                                    if tcp_tx
+                                        .send(TransportEvent::Message(connection_id, msg))
+                                        .await
+                                        .is_err()
+                                    {
                                         error!("Failed to send message to handler");
                                         break;
                                     }
@@ -505,15 +683,9 @@ impl TransportLayer {
             }
         }
 
-        // Send a synthetic Disconnect message to main loop BEFORE removing connection
-        // This ensures the main loop can look up the connection info and remove player from lobby
-        let _ = tcp_tx.send((connection_id, ClientMessage::Disconnect)).await;
-
-        // Delay to allow main loop to process the Disconnect message
-        // At 240Hz tick rate, 100ms = ~24 ticks, which should be plenty
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        // Cleanup connection after main loop has processed the disconnect
+        // Capture the connection info, clean up the maps immediately, then
+        // notify the game loop with everything it needs to remove the player.
+        // No sleep, no lookup race: the event carries the captured info.
         if let Some(conn) = connections.write().await.remove(&connection_id) {
             addr_to_connection.write().await.remove(&addr);
             player_to_connection.write().await.remove(&conn.player_id);
@@ -521,6 +693,13 @@ impl TransportLayer {
                 "Connection cleaned up: {} (player: {}, session: {:?})",
                 addr, conn.player_name, conn.in_session
             );
+            let _ = tcp_tx
+                .send(TransportEvent::Disconnected {
+                    connection_id,
+                    player_id: conn.player_id,
+                    session_id: conn.in_session,
+                })
+                .await;
         }
 
         Ok(())
@@ -571,8 +750,19 @@ impl TransportLayer {
         }
     }
 
-    pub async fn recv_tcp(&mut self) -> Option<(ConnectionId, ClientMessage)> {
-        self.tcp_rx.recv().await
+    /// Receive the next inbound TCP event. Returns `None` if the receiver was
+    /// taken out via `take_tcp_receiver` (or the channel closed).
+    pub async fn recv_tcp(&mut self) -> Option<TransportEvent> {
+        match self.tcp_rx.as_mut() {
+            Some(rx) => rx.recv().await,
+            None => None,
+        }
+    }
+
+    /// Move the inbound TCP event receiver out of the transport layer. Called
+    /// once at game-loop startup so message draining needs no transport lock.
+    pub fn take_tcp_receiver(&mut self) -> Option<mpsc::Receiver<TransportEvent>> {
+        self.tcp_rx.take()
     }
 
     pub async fn recv_udp(&mut self) -> Option<(SocketAddr, ClientMessage)> {
@@ -584,14 +774,39 @@ impl TransportLayer {
         connection_id: ConnectionId,
         msg: ServerMessage,
     ) -> Result<(), TransportError> {
+        let priority = msg.priority();
+        self.send_frame(connection_id, OutboundFrame::Message(msg), priority)
+            .await
+    }
+
+    /// Send pre-serialized bytes (rmp_serde named encoding, no length prefix —
+    /// the writer task adds it). Mirrors `send_tcp` priority semantics.
+    pub async fn send_serialized(
+        &self,
+        connection_id: ConnectionId,
+        data: Bytes,
+        priority: MessagePriority,
+    ) -> Result<(), TransportError> {
+        self.send_frame(
+            connection_id,
+            OutboundFrame::Serialized { data, priority },
+            priority,
+        )
+        .await
+    }
+
+    async fn send_frame(
+        &self,
+        connection_id: ConnectionId,
+        frame: OutboundFrame,
+        priority: MessagePriority,
+    ) -> Result<(), TransportError> {
         // Find the connection and use its dedicated channel
         if let Some(conn_info) = self.connections.read().await.get(&connection_id) {
-            let priority = msg.priority();
-
             match priority {
                 MessagePriority::Critical => {
                     // Critical messages must be delivered or client disconnected
-                    match conn_info.tcp_tx.send(msg).await {
+                    match conn_info.tcp_tx.send(frame).await {
                         Ok(_) => Ok(()),
                         Err(_) => {
                             // Channel full or closed - this is a slow/dead client
@@ -605,7 +820,7 @@ impl TransportLayer {
                 }
                 MessagePriority::Droppable => {
                     // Droppable messages can be dropped if queue is full
-                    match conn_info.tcp_tx.try_send(msg) {
+                    match conn_info.tcp_tx.try_send(frame) {
                         Ok(_) => Ok(()),
                         Err(mpsc::error::TrySendError::Full(_)) => {
                             // Queue full, drop the message and log it
@@ -694,7 +909,7 @@ impl TransportLayer {
 
         for (conn_id, info) in connections.iter() {
             let elapsed = now.duration_since(info.last_heartbeat);
-            
+
             // Use different timeouts based on session state
             let timeout_to_use = if info.in_session.is_some() {
                 // Strict timeout for players in racing sessions
@@ -703,11 +918,14 @@ impl TransportLayer {
                 // Lenient timeout for lobby players
                 lobby_timeout
             };
-            
+
             if elapsed > timeout_to_use {
                 warn!(
                     "Connection {} timed out (player: {}, in_session: {}, elapsed: {:?})",
-                    conn_id, info.player_name, info.in_session.is_some(), elapsed
+                    conn_id,
+                    info.player_name,
+                    info.in_session.is_some(),
+                    elapsed
                 );
                 to_remove.push(*conn_id);
             }
@@ -734,10 +952,24 @@ impl TransportLayer {
         }
     }
 
-    pub async fn set_player_session(&self, connection_id: ConnectionId, session_id: Option<SessionId>) {
+    pub async fn set_player_session(
+        &self,
+        connection_id: ConnectionId,
+        session_id: Option<SessionId>,
+    ) {
         if let Some(info) = self.connections.write().await.get_mut(&connection_id) {
             info.in_session = session_id;
         }
+    }
+
+    /// Actual bound TCP address (useful when binding to port 0 in tests).
+    pub fn tcp_local_addr(&self) -> SocketAddr {
+        self.tcp_local_addr
+    }
+
+    /// Actual bound UDP address (useful when binding to port 0 in tests).
+    pub fn udp_local_addr(&self) -> SocketAddr {
+        self.udp_local_addr
     }
 
     pub async fn shutdown(&mut self) {
@@ -750,10 +982,12 @@ impl TransportLayer {
                 "Sending shutdown notification to player: {}",
                 conn_info.player_name
             );
-            let _ = conn_info.tcp_tx.send(ServerMessage::Error {
-                code: 503,
-                message: "Server is shutting down".to_string(),
-            });
+            let _ = conn_info
+                .tcp_tx
+                .try_send(OutboundFrame::Message(ServerMessage::Error {
+                    code: 503,
+                    message: "Server is shutting down".to_string(),
+                }));
         }
         drop(connections);
 
@@ -767,8 +1001,20 @@ impl TransportLayer {
     }
 
     pub async fn broadcast_tcp(&self, msg: ServerMessage) {
-        let connections = self.connections.read().await;
         let priority = msg.priority();
+        self.broadcast_frame(OutboundFrame::Message(msg), priority)
+            .await
+    }
+
+    /// Broadcast pre-serialized bytes to every connection: serialize once,
+    /// fan out cheap `Bytes` clones. Mirrors `broadcast_tcp` semantics.
+    pub async fn broadcast_serialized(&self, data: Bytes, priority: MessagePriority) {
+        self.broadcast_frame(OutboundFrame::Serialized { data, priority }, priority)
+            .await
+    }
+
+    async fn broadcast_frame(&self, frame: OutboundFrame, priority: MessagePriority) {
+        let connections = self.connections.read().await;
         let mut dropped_count = 0;
         let mut failed_critical = 0;
 
@@ -776,7 +1022,7 @@ impl TransportLayer {
             match priority {
                 MessagePriority::Critical => {
                     // Critical messages should be sent
-                    if conn_info.tcp_tx.send(msg.clone()).await.is_err() {
+                    if conn_info.tcp_tx.send(frame.clone()).await.is_err() {
                         failed_critical += 1;
                         warn!("Failed to broadcast critical message to connection, client should be disconnected");
                     }
@@ -784,7 +1030,7 @@ impl TransportLayer {
                 MessagePriority::Droppable => {
                     // Try to send, but drop if queue full
                     if let Err(mpsc::error::TrySendError::Full(_)) =
-                        conn_info.tcp_tx.try_send(msg.clone())
+                        conn_info.tcp_tx.try_send(frame.clone())
                     {
                         dropped_count += 1;
                     }
@@ -845,7 +1091,9 @@ mod tests {
             tcp_listener: None,
             udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
             tls_acceptor: None,
-            tcp_rx,
+            tcp_local_addr: "127.0.0.1:0".parse().unwrap(),
+            udp_local_addr: "127.0.0.1:0".parse().unwrap(),
+            tcp_rx: Some(tcp_rx),
             tcp_tx,
             udp_rx,
             udp_tx,
@@ -854,8 +1102,31 @@ mod tests {
             shutdown_tx,
             shutdown_rx: Some(shutdown_rx),
             heartbeat_timeout: Duration::from_secs(30),
+            auth: AuthSettings::default(),
             metrics: TransportMetrics::new(),
         }
+    }
+
+    #[test]
+    fn test_token_bucket_allows_burst_then_limits() {
+        let mut bucket = TokenBucket::new(10.0, 5.0);
+        // Full burst is available immediately
+        for _ in 0..5 {
+            assert!(bucket.try_take());
+        }
+        // Bucket is now empty; an immediate take must fail
+        assert!(!bucket.try_take());
+    }
+
+    #[test]
+    fn test_token_bucket_refills_over_time() {
+        let mut bucket = TokenBucket::new(1000.0, 2.0);
+        assert!(bucket.try_take());
+        assert!(bucket.try_take());
+        assert!(!bucket.try_take());
+        // At 1000 tokens/sec, 10ms refills well over one token
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(bucket.try_take());
     }
 
     #[test]

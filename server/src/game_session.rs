@@ -3,14 +3,20 @@ use crate::data::*;
 use crate::network::*;
 use crate::physics;
 use std::collections::HashMap;
-use tracing::{debug};
+use tracing::debug;
+
+/// Default simulation tick rate; used when no explicit rate is configured
+/// (tests, benches) so behavior matches the historical hardcoded 240Hz.
+pub const DEFAULT_TICK_RATE_HZ: u16 = 240;
 
 pub struct GameSession {
     pub session: RaceSession,
     pub track_config: TrackConfig,
     pub car_configs: HashMap<CarConfigId, CarConfig>,
     /// AI driver profiles indexed by their player ID
-    pub ai_profiles: HashMap<PlayerId, AiDriverProfile>,
+    pub ai_profiles: std::collections::BTreeMap<PlayerId, AiDriverProfile>,
+    /// Simulation tick rate (Hz); the fixed timestep is `1 / tick_rate_hz`.
+    tick_rate_hz: u16,
 }
 
 impl GameSession {
@@ -23,10 +29,11 @@ impl GameSession {
             session,
             track_config,
             car_configs,
-            ai_profiles: HashMap::new(),
+            ai_profiles: std::collections::BTreeMap::new(),
+            tick_rate_hz: DEFAULT_TICK_RATE_HZ,
         }
     }
-    
+
     /// Create a new game session with AI driver profiles.
     ///
     /// # Arguments
@@ -40,17 +47,32 @@ impl GameSession {
         car_configs: HashMap<CarConfigId, CarConfig>,
         ai_profiles: Vec<AiDriverProfile>,
     ) -> Self {
-        let ai_profiles_map: HashMap<PlayerId, AiDriverProfile> = ai_profiles
-            .into_iter()
-            .map(|p| (p.id, p))
-            .collect();
-        
+        let ai_profiles_map: std::collections::BTreeMap<PlayerId, AiDriverProfile> =
+            ai_profiles.into_iter().map(|p| (p.id, p)).collect();
+
         Self {
             session,
             track_config,
             car_configs,
             ai_profiles: ai_profiles_map,
+            tick_rate_hz: DEFAULT_TICK_RATE_HZ,
         }
+    }
+
+    /// Set the simulation tick rate (Hz). Called with the configured server
+    /// tick rate when the session is created by the server.
+    pub fn set_tick_rate(&mut self, tick_rate_hz: u16) {
+        self.tick_rate_hz = tick_rate_hz;
+    }
+
+    /// The simulation tick rate (Hz) this session runs at.
+    pub fn tick_rate_hz(&self) -> u16 {
+        self.tick_rate_hz
+    }
+
+    /// Fixed physics timestep in seconds, derived from the tick rate.
+    fn dt(&self) -> f32 {
+        1.0 / self.tick_rate_hz as f32
     }
 
     /// Advance the session by one tick
@@ -77,9 +99,12 @@ impl GameSession {
             GameMode::Replay => {
                 self.tick_replay();
             }
-            GameMode::Qualification | GameMode::Race => {
-                // These modes are not yet implemented
-                // For now, treat them like FreePractice
+            GameMode::Race => {
+                self.tick_racing(inputs);
+            }
+            GameMode::Qualification => {
+                // Qualification is practice-with-timing for now: free driving
+                // with lap timing, no finish-position logic.
                 self.tick_free_practice(inputs);
             }
         }
@@ -104,10 +129,13 @@ impl GameSession {
             if *countdown > 0 {
                 *countdown -= 1;
             } else {
-                // Countdown finished, transition to next mode
-                // The mode transition should be specified externally
-                // For now, we just clear the countdown
+                // Countdown finished: transition to the stored next mode
+                // (set by start_countdown_mode). Without a stored next mode
+                // we just clear the countdown, as before.
                 self.session.countdown_ticks_remaining = None;
+                if let Some(next_mode) = self.session.next_mode.take() {
+                    self.transition_from_countdown(next_mode);
+                }
             }
         }
         // Players are frozen, no physics updates
@@ -115,7 +143,7 @@ impl GameSession {
 
     /// Demo lap mode: AI driver demonstrates the track
     fn tick_demolap(&mut self, player_inputs: &HashMap<PlayerId, PlayerInputData>) {
-        let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
+        let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // Initialize demo lap progress if not set
         if self.session.demo_lap_progress.is_none() {
@@ -138,7 +166,12 @@ impl GameSession {
 
                 if let Some(config) = self.car_configs.get(&state.car_config_id) {
                     physics::update_car_3d(state, config, &input, &self.track_config, dt);
-                    physics::update_track_progress_3d(state, &self.track_config, self.session.current_tick);
+                    physics::update_track_progress_3d(
+                        state,
+                        &self.track_config,
+                        self.session.current_tick,
+                        self.tick_rate_hz,
+                    );
                 }
             }
 
@@ -166,19 +199,19 @@ impl GameSession {
             let lookahead_distance = 10; // Points to look ahead
             let ahead_index = (index + lookahead_distance) % raceline_len;
             let way_ahead_index = (index + lookahead_distance * 2) % raceline_len;
-            
+
             let p_ahead = &self.track_config.raceline[ahead_index];
             let p_way_ahead = &self.track_config.raceline[way_ahead_index];
-            
+
             // Calculate vectors for curvature estimation
             let v1_x = p_ahead.x - p1.x;
             let v1_y = p_ahead.y - p1.y;
             let v2_x = p_way_ahead.x - p_ahead.x;
             let v2_y = p_way_ahead.y - p_ahead.y;
-            
+
             let len1 = (v1_x * v1_x + v1_y * v1_y).sqrt();
             let len2 = (v2_x * v2_x + v2_y * v2_y).sqrt();
-            
+
             // Calculate angle change (curvature indicator)
             let mut curvature = 0.0;
             if len1 > 0.001 && len2 > 0.001 {
@@ -187,29 +220,32 @@ impl GameSession {
                 let angle_change = dot.clamp(-1.0, 1.0).acos();
                 curvature = angle_change;
             }
-            
+
             // Speed control based on curvature (adjusted for realistic lap times)
             // Max speed on straights: 60 m/s (216 km/h)
             // Min speed in tight corners: 25 m/s (90 km/h)
             let max_speed = 60.0;
             let min_speed = 25.0;
-            
+
             // Map curvature (0 to ~PI) to speed range
             // High curvature (sharp corner) = low speed
             // Low curvature (straight) = high speed
             let curvature_factor = 1.0 - (curvature / std::f32::consts::PI).min(1.0);
             let target_speed = min_speed + (max_speed - min_speed) * curvature_factor;
-            
+
             // Get current speed from demo car or use target speed
-            let current_speed = self.session.participants.values()
+            let current_speed = self
+                .session
+                .participants
+                .values()
                 .next()
                 .map(|car| car.speed_mps)
                 .unwrap_or(target_speed);
-            
+
             // Smooth acceleration/braking
             let accel_rate = 15.0; // m/s² acceleration
             let brake_rate = 25.0; // m/s² braking
-            
+
             let demo_speed = if current_speed < target_speed {
                 // Accelerate
                 (current_speed + accel_rate * dt).min(target_speed)
@@ -260,17 +296,14 @@ impl GameSession {
 
     /// Free practice mode: Players drive freely with lap timing
     fn tick_free_practice(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
-        let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
+        let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // Update each car
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
 
         for state in states.iter_mut() {
             // Get input for this player (default to coasting if missing)
-            let input = inputs
-                .get(&state.player_id)
-                .copied()
-                .unwrap_or_default();
+            let input = inputs.get(&state.player_id).copied().unwrap_or_default();
 
             // Get car config
             if let Some(config) = self.car_configs.get(&state.car_config_id) {
@@ -282,18 +315,15 @@ impl GameSession {
                     state,
                     &self.track_config,
                     self.session.current_tick,
+                    self.tick_rate_hz,
                 );
             }
         }
 
-        // Check collisions
-        let mut state_vec: Vec<CarState> = self.session.participants.values().cloned().collect();
-        physics::check_aabb_collisions_3d(&mut state_vec, &self.car_configs);
-
-        // Update states back
-        for state in state_vec {
-            self.session.participants.insert(state.player_id, state);
-        }
+        // Check collisions in place (BTreeMap iteration order makes the
+        // order-dependent solver deterministic; no clone/rebuild needed)
+        let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
+        physics::check_collisions_refs(&mut state_refs, &self.car_configs);
     }
 
     /// Replay mode: Send telemetry from recorded data (view-only)
@@ -303,19 +333,18 @@ impl GameSession {
         // For now, do nothing
     }
 
-    #[allow(dead_code)]
+    /// Race mode: full physics with lap counting, finish positions assigned
+    /// as cars complete the race distance, session finished when all cars
+    /// are classified.
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
-        let dt = 1.0 / 240.0; // Fixed timestep at 240Hz
+        let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // Update each car
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
 
         for state in states.iter_mut() {
             // Get input for this player (default to coasting if missing)
-            let input = inputs
-                .get(&state.player_id)
-                .copied()
-                .unwrap_or_default();
+            let input = inputs.get(&state.player_id).copied().unwrap_or_default();
 
             // Get car config
             if let Some(config) = self.car_configs.get(&state.car_config_id) {
@@ -327,23 +356,22 @@ impl GameSession {
                     state,
                     &self.track_config,
                     self.session.current_tick,
+                    self.tick_rate_hz,
                 );
             }
         }
 
-        // Check collisions
-        let mut state_vec: Vec<CarState> = self.session.participants.values().cloned().collect();
-        physics::check_aabb_collisions_3d(&mut state_vec, &self.car_configs);
+        // Check collisions in place (BTreeMap iteration order makes the
+        // order-dependent solver deterministic; no clone/rebuild needed)
+        let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
+        physics::check_collisions_refs(&mut state_refs, &self.car_configs);
 
-        // Update states back
-        for state in state_vec {
-            self.session.participants.insert(state.player_id, state);
-        }
-
-        // Check if race is complete
-        if self.is_race_complete() {
+        // Assign finish positions to cars that just completed the race
+        // distance (in crossing order), then finish the session exactly once
+        // when every car is classified.
+        self.assign_finish_positions();
+        if self.session.state != SessionState::Finished && self.is_race_complete() {
             self.session.state = SessionState::Finished;
-            self.assign_finish_positions();
         }
     }
 
@@ -351,7 +379,8 @@ impl GameSession {
     pub fn start_countdown(&mut self) {
         if self.session.state == SessionState::Lobby {
             self.session.state = SessionState::Countdown;
-            self.session.countdown_ticks_remaining = Some(240 * 5); // 5 seconds at 240Hz
+            self.session.countdown_ticks_remaining = Some(self.tick_rate_hz * 5);
+            // 5 seconds
         }
     }
 
@@ -362,8 +391,11 @@ impl GameSession {
         // Initialize mode-specific state
         match mode {
             GameMode::DemoLap => {
-                debug!("[DemoLap] Setting demo lap mode. Participants: {}, AI profiles: {}",
-                    self.session.participants.len(), self.ai_profiles.len());
+                debug!(
+                    "[DemoLap] Setting demo lap mode. Participants: {}, AI profiles: {}",
+                    self.session.participants.len(),
+                    self.ai_profiles.len()
+                );
 
                 self.session.demo_lap_progress = Some(0.0);
                 // Change session state to Racing so telemetry is sent
@@ -371,13 +403,19 @@ impl GameSession {
 
                 // Remove human players from participants (they become spectators)
                 // Only AI drivers should be in participants for DemoLap
-                let human_player_ids: Vec<PlayerId> = self.session.participants.keys()
+                let human_player_ids: Vec<PlayerId> = self
+                    .session
+                    .participants
+                    .keys()
                     .filter(|id| !self.session.ai_player_ids.contains(id))
                     .cloned()
                     .collect();
                 for player_id in &human_player_ids {
                     self.session.participants.remove(player_id);
-                    debug!("[DemoLap] Removed human player {} from participants (now spectator)", player_id);
+                    debug!(
+                        "[DemoLap] Removed human player {} from participants (now spectator)",
+                        player_id
+                    );
                 }
 
                 // Ensure we have an AI driver for demo lap
@@ -396,7 +434,10 @@ impl GameSession {
                         // No AI profiles configured, create a default demo driver
                         use crate::ai_driver::AiDriverProfile;
 
-                        debug!("[DemoLap] Creating default demo driver. Host car: {:?}", self.session.host_car_id);
+                        debug!(
+                            "[DemoLap] Creating default demo driver. Host car: {:?}",
+                            self.session.host_car_id
+                        );
 
                         let mut demo_profile = AiDriverProfile::new("Demo Driver", 95);
                         demo_profile.preferred_car_id = self.session.host_car_id;
@@ -413,13 +454,18 @@ impl GameSession {
                         self.session.ai_count = original_ai_count;
                         self.session.max_players = original_max;
 
-                        debug!("[DemoLap] After spawn: Participants: {}, AI IDs: {}",
-                            self.session.participants.len(), self.session.ai_player_ids.len());
+                        debug!(
+                            "[DemoLap] After spawn: Participants: {}, AI IDs: {}",
+                            self.session.participants.len(),
+                            self.session.ai_player_ids.len()
+                        );
                     }
                 } else {
-                    debug!("[DemoLap] Already have {} AI drivers", self.session.ai_player_ids.len());
+                    debug!(
+                        "[DemoLap] Already have {} AI drivers",
+                        self.session.ai_player_ids.len()
+                    );
                 }
-
             }
             GameMode::FreePractice => {
                 // Change session state to Racing so telemetry is sent
@@ -431,8 +477,20 @@ impl GameSession {
             }
             GameMode::Countdown => {
                 // Default 10 second countdown as per spec
-                self.session.countdown_ticks_remaining = Some(240 * 10);
+                self.session.countdown_ticks_remaining = Some(self.tick_rate_hz * 10);
                 self.session.state = SessionState::Countdown;
+            }
+            GameMode::Race => {
+                // The race starts now: mark the session racing and remember
+                // the start tick for race-time bookkeeping.
+                self.session.state = SessionState::Racing;
+                self.session.race_start_tick = Some(self.session.current_tick);
+                self.session.demo_lap_progress = None;
+            }
+            GameMode::Qualification => {
+                // Practice-with-timing: telemetry must flow
+                self.session.state = SessionState::Racing;
+                self.session.demo_lap_progress = None;
             }
             _ => {
                 self.session.demo_lap_progress = None;
@@ -440,25 +498,22 @@ impl GameSession {
         }
     }
 
-    /// Start countdown mode with custom duration and specify next mode
-    pub fn start_countdown_mode(&mut self, countdown_seconds: u16, _next_mode: GameMode) {
+    /// Start countdown mode with custom duration. The stored `next_mode` is
+    /// transitioned to automatically when the countdown reaches zero.
+    pub fn start_countdown_mode(&mut self, countdown_seconds: u16, next_mode: GameMode) {
         self.session.game_mode = GameMode::Countdown;
-        self.session.countdown_ticks_remaining = Some(240 * countdown_seconds);
-        // TODO: Store next_mode to transition to when countdown finishes
+        self.session.state = SessionState::Countdown;
+        self.session.countdown_ticks_remaining = Some(self.tick_rate_hz * countdown_seconds);
+        self.session.next_mode = Some(next_mode);
     }
 
     /// Transition from Countdown to another mode
     pub fn transition_from_countdown(&mut self, next_mode: GameMode) {
-        self.session.game_mode = next_mode;
         self.session.countdown_ticks_remaining = None;
-
-        // Initialize the next mode
-        match next_mode {
-            GameMode::DemoLap => {
-                self.session.demo_lap_progress = Some(0.0);
-            }
-            _ => {}
-        }
+        self.session.next_mode = None;
+        // set_game_mode performs the per-mode initialization (session state,
+        // demo lap progress / demo driver spawn, race start bookkeeping).
+        self.set_game_mode(next_mode);
     }
 
     /// Add a player to the session
@@ -514,8 +569,13 @@ impl GameSession {
             if let Some(state) = self.session.participants.get(player_id) {
                 // Get the car config for this AI player
                 if let Some(car_config) = self.car_configs.get(&state.car_config_id) {
-                    let controller = AiDriverController::new(profile, &self.track_config, car_config);
-                    return controller.generate_input(state, self.session.current_tick);
+                    let controller =
+                        AiDriverController::new(profile, &self.track_config, car_config);
+                    return controller.generate_input(
+                        state,
+                        self.session.current_tick,
+                        self.tick_rate_hz,
+                    );
                 }
             }
         }
@@ -523,12 +583,12 @@ impl GameSession {
         // Fallback: no AI profile found, return default (coasting)
         PlayerInputData::default()
     }
-    
+
     /// Check if a player is an AI driver.
     pub fn is_ai_player(&self, player_id: &PlayerId) -> bool {
         self.ai_profiles.contains_key(player_id)
     }
-    
+
     /// Get the AI profile for a player, if they are an AI.
     pub fn get_ai_profile(&self, player_id: &PlayerId) -> Option<&AiDriverProfile> {
         self.ai_profiles.get(player_id)
@@ -546,7 +606,7 @@ impl GameSession {
         let countdown_ms = self
             .session
             .countdown_ticks_remaining
-            .map(|ticks| ((ticks as f32 / 240.0) * 1000.0) as u16);
+            .map(|ticks| ((ticks as f32 / self.tick_rate_hz as f32) * 1000.0) as u16);
 
         let telemetry = crate::network::Telemetry {
             server_tick: self.session.current_tick,
@@ -559,39 +619,59 @@ impl GameSession {
         ServerMessage::Telemetry(telemetry)
     }
 
-    #[allow(dead_code)]
+    /// Race is complete once every car has been classified with a finish
+    /// position (i.e. completed the race distance).
     fn is_race_complete(&self) -> bool {
-        // Race is complete if all cars have finished required laps
         if self.session.participants.is_empty() {
             return false;
         }
 
+        // A car counts as done when it is classified (finished the race
+        // distance) OR is a DNF (undrivable — it can never finish, and must
+        // not keep the race running forever).
         self.session
             .participants
             .values()
-            .all(|s| s.current_lap > self.session.lap_limit as u16)
+            .all(|s| s.finish_position.is_some() || !s.damage.is_drivable)
     }
 
-    #[allow(dead_code)]
+    /// Assign finish positions incrementally, in the order cars complete the
+    /// race distance (`current_lap > lap_limit` means the car has completed
+    /// all `lap_limit` laps). Positions are unique and never reassigned;
+    /// cars finishing on the same tick are ordered by laps then progress
+    /// (ties broken by deterministic BTreeMap player order).
     fn assign_finish_positions(&mut self) {
-        let mut finishers: Vec<(PlayerId, u16, f32)> = self
+        let lap_limit = self.session.lap_limit as u16;
+
+        let assigned = self
+            .session
+            .participants
+            .values()
+            .filter(|s| s.finish_position.is_some())
+            .count() as u8;
+
+        let mut new_finishers: Vec<(PlayerId, u16, f32)> = self
             .session
             .participants
             .iter()
-            .map(|(id, state)| (*id, state.current_lap, state.track_progress))
+            .filter(|(_, s)| s.finish_position.is_none() && s.current_lap > lap_limit)
+            .map(|(id, s)| (*id, s.current_lap, s.track_progress))
             .collect();
 
-        // Sort by laps (descending), then by progress (descending)
-        finishers.sort_by(|a, b| {
-            b.1.cmp(&a.1).then_with(|| {
-                b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal)
-            })
+        if new_finishers.is_empty() {
+            return;
+        }
+
+        // Sort by laps (descending), then by progress (descending); stable
+        // sort preserves BTreeMap order for exact ties.
+        new_finishers.sort_by(|a, b| {
+            b.1.cmp(&a.1)
+                .then_with(|| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal))
         });
 
-        // Assign positions
-        for (position, (player_id, _, _)) in finishers.iter().enumerate() {
+        for (offset, (player_id, _, _)) in new_finishers.iter().enumerate() {
             if let Some(state) = self.session.participants.get_mut(player_id) {
-                state.finish_position = Some((position + 1) as u8);
+                state.finish_position = Some(assigned + offset as u8 + 1);
             }
         }
     }
@@ -603,37 +683,42 @@ impl GameSession {
     pub fn spawn_ai_drivers(&mut self) {
         let current_ai_count = self.session.ai_player_ids.len() as u8;
         let ai_to_spawn = self.session.ai_count.saturating_sub(current_ai_count);
-        
+
         if ai_to_spawn == 0 {
             return;
         }
-        
+
         // Collect profile data we need before mutating self
-        let profiles_to_spawn: Vec<(PlayerId, Option<CarConfigId>)> = self.ai_profiles
+        let profiles_to_spawn: Vec<(PlayerId, Option<CarConfigId>)> = self
+            .ai_profiles
             .values()
             .filter(|p| !self.session.ai_player_ids.contains(&p.id))
             .take(ai_to_spawn as usize)
             .map(|p| (p.id, p.preferred_car_id))
             .collect();
-        
-        let default_car_id = self.car_configs.values().next().map(|c| c.id);
-        
+
+        // Deterministic default car: HashMap iteration order varies per run,
+        // so pick the smallest ID instead of whatever comes first.
+        let default_car_id = self.car_configs.keys().min().copied();
+
         for (ai_id, preferred_car) in profiles_to_spawn {
             if self.session.participants.len() >= self.session.max_players as usize {
                 break;
             }
-            
-            // Use preferred car or default
-            let car_id = preferred_car
-                .or(default_car_id)
-                .expect("No car configuration available");
-            
+
+            // Use preferred car or default; without any car configs we
+            // cannot spawn AI at all.
+            let Some(car_id) = preferred_car.or(default_car_id) else {
+                tracing::error!("Cannot spawn AI drivers: no car configurations loaded");
+                return;
+            };
+
             if self.add_player(ai_id, car_id).is_some() {
                 self.session.ai_player_ids.push(ai_id);
             }
         }
     }
-    
+
     /// Add AI profiles to the session.
     ///
     /// This should be called when setting up the session in the lobby.
@@ -703,22 +788,21 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_ai_input_generation() {
         let mut game_session = create_test_session();
         let car_id = game_session.car_configs.values().next().unwrap().id;
-        
+
         // Create an AI profile
         let ai_profile = AiDriverProfile::new("Test AI", 90);
         let ai_player_id = ai_profile.id;
-        
+
         // Add AI profile to the session
         game_session.set_ai_profiles(vec![ai_profile]);
-        
+
         // Add the AI player to the session
         game_session.add_player(ai_player_id, car_id);
-        
+
         let ai_input = game_session.generate_ai_input(&ai_player_id);
 
         // AI should generate valid inputs
@@ -726,29 +810,30 @@ mod tests {
         assert!(ai_input.brake >= 0.0 && ai_input.brake <= 1.0);
         assert!(ai_input.steering >= -1.0 && ai_input.steering <= 1.0);
     }
-    
+
     #[test]
     fn test_ai_spawn_with_profiles() {
         use crate::ai_driver::generate_default_ai_profiles;
-        
+
         let track = TrackConfig::default();
         let car = CarConfig::default();
         let mut car_configs = HashMap::new();
         car_configs.insert(car.id, car.clone());
-        
+
         // Create session with 2 AI drivers
         let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 2, 3);
         let ai_profiles = generate_default_ai_profiles(2);
-        
-        let mut game_session = GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);
-        
+
+        let mut game_session =
+            GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);
+
         // Spawn AI drivers
         game_session.spawn_ai_drivers();
-        
+
         // Should have 2 AI participants
         assert_eq!(game_session.session.participants.len(), 2);
         assert_eq!(game_session.session.ai_player_ids.len(), 2);
-        
+
         // All should be recognized as AI players
         for ai_id in &game_session.session.ai_player_ids {
             assert!(game_session.is_ai_player(ai_id));
@@ -790,13 +875,23 @@ mod tests {
         let car_id = game_session.car_configs.values().next().unwrap().id;
         game_session.add_player(player_id, car_id);
 
-        let initial_pos = game_session.session.participants.get(&player_id).unwrap().pos_x;
+        let initial_pos = game_session
+            .session
+            .participants
+            .get(&player_id)
+            .unwrap()
+            .pos_x;
         let inputs = HashMap::new();
 
         game_session.tick(&inputs);
 
         // Position should not change in sandbox mode
-        let final_pos = game_session.session.participants.get(&player_id).unwrap().pos_x;
+        let final_pos = game_session
+            .session
+            .participants
+            .get(&player_id)
+            .unwrap()
+            .pos_x;
         assert_eq!(initial_pos, final_pos);
     }
 
@@ -860,20 +955,42 @@ mod tests {
 
         // Add racing line to track
         game_session.track_config.raceline = vec![
-            RacelinePoint { x: 0.0, y: 0.0, z: 0.0 },
-            RacelinePoint { x: 100.0, y: 0.0, z: 0.0 },
-            RacelinePoint { x: 100.0, y: 100.0, z: 0.0 },
-            RacelinePoint { x: 0.0, y: 100.0, z: 0.0 },
+            RacelinePoint {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            RacelinePoint {
+                x: 100.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            RacelinePoint {
+                x: 100.0,
+                y: 100.0,
+                z: 0.0,
+            },
+            RacelinePoint {
+                x: 0.0,
+                y: 100.0,
+                z: 0.0,
+            },
         ];
 
         game_session.set_game_mode(GameMode::DemoLap);
 
         // With the AI-driven demo lap, we check that the AI car moves
         // (demo_lap_progress is only used in the camera-following fallback)
-        let ai_player_id = *game_session.session.ai_player_ids.first()
+        let ai_player_id = *game_session
+            .session
+            .ai_player_ids
+            .first()
             .expect("DemoLap should spawn an AI driver");
 
-        let initial_pos = game_session.session.participants.get(&ai_player_id)
+        let initial_pos = game_session
+            .session
+            .participants
+            .get(&ai_player_id)
             .map(|s| (s.pos_x, s.pos_y))
             .unwrap();
 
@@ -886,14 +1003,21 @@ mod tests {
         }
 
         // AI car should have moved
-        let final_pos = game_session.session.participants.get(&ai_player_id)
+        let final_pos = game_session
+            .session
+            .participants
+            .get(&ai_player_id)
             .map(|s| (s.pos_x, s.pos_y))
             .unwrap();
 
-        let distance_moved = ((final_pos.0 - initial_pos.0).powi(2)
-            + (final_pos.1 - initial_pos.1).powi(2)).sqrt();
+        let distance_moved =
+            ((final_pos.0 - initial_pos.0).powi(2) + (final_pos.1 - initial_pos.1).powi(2)).sqrt();
 
-        assert!(distance_moved > 0.1, "AI car should have moved in DemoLap mode, moved: {}m", distance_moved);
+        assert!(
+            distance_moved > 0.1,
+            "AI car should have moved in DemoLap mode, moved: {}m",
+            distance_moved
+        );
     }
 
     #[test]
@@ -907,15 +1031,25 @@ mod tests {
 
         // Add racing line
         game_session.track_config.raceline = vec![
-            RacelinePoint { x: 0.0, y: 0.0, z: 0.0 },
-            RacelinePoint { x: 100.0, y: 0.0, z: 0.0 },
+            RacelinePoint {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            RacelinePoint {
+                x: 100.0,
+                y: 0.0,
+                z: 0.0,
+            },
         ];
 
         game_session.set_game_mode(GameMode::DemoLap);
 
         // With AI-driven demo lap, verify the AI driver exists and is moving
-        assert!(!game_session.session.ai_player_ids.is_empty(),
-            "DemoLap should create an AI driver");
+        assert!(
+            !game_session.session.ai_player_ids.is_empty(),
+            "DemoLap should create an AI driver"
+        );
 
         let ai_player_id = *game_session.session.ai_player_ids.first().unwrap();
 
@@ -928,8 +1062,15 @@ mod tests {
         }
 
         // AI should be driving (speed > 0) after launching from standstill
-        let ai_state = game_session.session.participants.get(&ai_player_id).unwrap();
-        assert!(ai_state.speed_mps > 0.0, "AI should gain speed during demo lap (launched from standstill)");
+        let ai_state = game_session
+            .session
+            .participants
+            .get(&ai_player_id)
+            .unwrap();
+        assert!(
+            ai_state.speed_mps > 0.0,
+            "AI should gain speed during demo lap (launched from standstill)"
+        );
     }
 
     #[test]
@@ -942,17 +1083,25 @@ mod tests {
         let car_id = game_session.car_configs.values().next().unwrap().id;
         game_session.add_player(player_id, car_id);
 
-        let initial_pos_x = game_session.session.participants.get(&player_id).unwrap().pos_x;
+        let initial_pos_x = game_session
+            .session
+            .participants
+            .get(&player_id)
+            .unwrap()
+            .pos_x;
 
         // Apply throttle input
         let mut inputs = HashMap::new();
-        inputs.insert(player_id, PlayerInputData {
-            throttle: 1.0,
-            brake: 0.0,
-            steering: 0.0,
-            gear: None,
-            clutch: None,
-        });
+        inputs.insert(
+            player_id,
+            PlayerInputData {
+                throttle: 1.0,
+                brake: 0.0,
+                steering: 0.0,
+                gear: None,
+                clutch: None,
+            },
+        );
 
         // Run several ticks to allow physics to update
         for _ in 0..240 {
@@ -960,7 +1109,12 @@ mod tests {
         }
 
         // Car should have moved after applying throttle for 1 second
-        let final_pos_x = game_session.session.participants.get(&player_id).unwrap().pos_x;
+        let final_pos_x = game_session
+            .session
+            .participants
+            .get(&player_id)
+            .unwrap()
+            .pos_x;
         assert_ne!(initial_pos_x, final_pos_x);
     }
 
@@ -987,7 +1141,10 @@ mod tests {
         game_session.start_countdown_mode(10, GameMode::FreePractice);
 
         assert_eq!(game_session.session.game_mode, GameMode::Countdown);
-        assert_eq!(game_session.session.countdown_ticks_remaining, Some(240 * 10));
+        assert_eq!(
+            game_session.session.countdown_ticks_remaining,
+            Some(240 * 10)
+        );
     }
 
     #[test]
@@ -1100,6 +1257,7 @@ mod tests {
 
         track.raceline = raceline;
         track.centerline = centerline;
+        track.rebuild_raceline_distances();
 
         // Create session with one AI driver
         let car = CarConfig::default();
@@ -1109,7 +1267,8 @@ mod tests {
         let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Practice, 8, 1, 1);
         let ai_profiles = generate_default_ai_profiles(1);
 
-        let mut game_session = GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);
+        let mut game_session =
+            GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);
 
         // Spawn the AI driver
         game_session.spawn_ai_drivers();
@@ -1124,9 +1283,9 @@ mod tests {
         // Give the AI car initial speed to avoid stall (physics limitation)
         // In a real sim, clutch modulation would handle launch
         if let Some(ai_state) = game_session.session.participants.get_mut(&ai_player_id) {
-            ai_state.speed_mps = 5.0;  // Start with 5 m/s (18 km/h)
+            ai_state.speed_mps = 5.0; // Start with 5 m/s (18 km/h)
             ai_state.vel_x = 5.0;
-            ai_state.engine_rpm = 2000.0;  // Start engine above idle
+            ai_state.engine_rpm = 2000.0; // Start engine above idle
         }
 
         // Run simulation for 2 seconds (480 ticks at 240Hz)
@@ -1141,23 +1300,36 @@ mod tests {
         }
 
         // Verify AI driver state
-        let ai_state = game_session.session.participants.get(&ai_player_id).unwrap();
+        let ai_state = game_session
+            .session
+            .participants
+            .get(&ai_player_id)
+            .unwrap();
 
         // AI should have moved from starting position
         let start_pos = &game_session.track_config.start_positions[0];
         let distance_moved = ((ai_state.pos_x - start_pos.x).powi(2)
-            + (ai_state.pos_y - start_pos.y).powi(2)).sqrt();
+            + (ai_state.pos_y - start_pos.y).powi(2))
+        .sqrt();
 
-        assert!(distance_moved > 10.0,
-            "AI should have moved at least 10m from start position (started at 5m/s), moved: {}m", distance_moved);
+        assert!(
+            distance_moved > 10.0,
+            "AI should have moved at least 10m from start position (started at 5m/s), moved: {}m",
+            distance_moved
+        );
 
         // AI should have positive speed
-        assert!(ai_state.speed_mps > 0.0,
-            "AI should be moving, speed: {} m/s", ai_state.speed_mps);
+        assert!(
+            ai_state.speed_mps > 0.0,
+            "AI should be moving, speed: {} m/s",
+            ai_state.speed_mps
+        );
 
         // AI position should be reasonably close to the track centerline
         // Find nearest track point
-        let nearest_track_point = game_session.track_config.centerline
+        let nearest_track_point = game_session
+            .track_config
+            .centerline
             .iter()
             .min_by_key(|p| {
                 let dx = p.x - ai_state.pos_x;
@@ -1167,11 +1339,15 @@ mod tests {
             .unwrap();
 
         let distance_from_centerline = ((ai_state.pos_x - nearest_track_point.x).powi(2)
-            + (ai_state.pos_y - nearest_track_point.y).powi(2)).sqrt();
+            + (ai_state.pos_y - nearest_track_point.y).powi(2))
+        .sqrt();
 
         // AI should stay within 50m of centerline (generous tolerance for test)
-        assert!(distance_from_centerline < 50.0,
-            "AI should stay close to track centerline, distance: {}m", distance_from_centerline);
+        assert!(
+            distance_from_centerline < 50.0,
+            "AI should stay close to track centerline, distance: {}m",
+            distance_from_centerline
+        );
 
         // AI should be generating valid inputs
         let ai_input = game_session.generate_ai_input(&ai_player_id);
@@ -1182,7 +1358,11 @@ mod tests {
 
         // AI should be in a reasonable gear
         if let Some(gear) = ai_input.gear {
-            assert!(gear >= 1 && gear <= 6, "AI gear should be between 1 and 6, got: {}", gear);
+            assert!(
+                gear >= 1 && gear <= 6,
+                "AI gear should be between 1 and 6, got: {}",
+                gear
+            );
         }
     }
 
@@ -1222,6 +1402,7 @@ mod tests {
 
         track.raceline = raceline;
         track.centerline = centerline;
+        track.rebuild_raceline_distances();
 
         // Create high-skill AI (should be very precise)
         let ai_profile = AiDriverProfile::new("Test AI", 105);
@@ -1233,12 +1414,8 @@ mod tests {
 
         let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Practice, 8, 1, 1);
 
-        let mut game_session = GameSession::with_ai_profiles(
-            session,
-            track,
-            car_configs,
-            vec![ai_profile],
-        );
+        let mut game_session =
+            GameSession::with_ai_profiles(session, track, car_configs, vec![ai_profile]);
 
         // Spawn AI and add to session
         game_session.spawn_ai_drivers();
@@ -1248,7 +1425,7 @@ mod tests {
 
         // Give the AI car initial speed to avoid stall
         if let Some(ai_state) = game_session.session.participants.get_mut(&ai_player_id) {
-            ai_state.speed_mps = 10.0;  // Start with 10 m/s
+            ai_state.speed_mps = 10.0; // Start with 10 m/s
             ai_state.vel_x = 10.0;
             ai_state.engine_rpm = 3000.0;
         }
@@ -1282,13 +1459,23 @@ mod tests {
         }
 
         // High-skill AI should stay within 20m of the racing line on a straight
-        assert!(max_lateral_deviation < 20.0,
-            "High-skill AI should stay close to racing line, max deviation: {}m", max_lateral_deviation);
+        assert!(
+            max_lateral_deviation < 20.0,
+            "High-skill AI should stay close to racing line, max deviation: {}m",
+            max_lateral_deviation
+        );
 
         // Verify AI is making forward progress
-        let final_state = game_session.session.participants.get(&ai_player_id).unwrap();
-        assert!(final_state.pos_x > 50.0,
-            "AI should have made significant forward progress, x position: {}m", final_state.pos_x);
+        let final_state = game_session
+            .session
+            .participants
+            .get(&ai_player_id)
+            .unwrap();
+        assert!(
+            final_state.pos_x > 50.0,
+            "AI should have made significant forward progress, x position: {}m",
+            final_state.pos_x
+        );
     }
 
     #[test]
@@ -1318,11 +1505,16 @@ mod tests {
 
         // Verify the demo driver has a car state
         let demo_driver_id = game_session.session.ai_player_ids[0];
-        let car_state = game_session.session.participants.get(&demo_driver_id)
+        let car_state = game_session
+            .session
+            .participants
+            .get(&demo_driver_id)
             .expect("Demo driver should have a car state");
 
         // Verify the demo driver is using the host's selected car (car2)
-        assert_eq!(car_state.car_config_id, car2.id,
-            "Demo driver should use the host's selected car");
+        assert_eq!(
+            car_state.car_config_id, car2.id,
+            "Demo driver should use the host's selected car"
+        );
     }
 }

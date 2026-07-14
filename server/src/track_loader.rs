@@ -1,4 +1,6 @@
-use crate::data::{TrackConfig, TrackPoint, SurfaceType, TrackSurface, GridSlot, RacelinePoint, TrackMetadata};
+use crate::data::{
+    GridSlot, RacelinePoint, SurfaceType, TrackConfig, TrackMetadata, TrackPoint, TrackSurface,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -99,7 +101,10 @@ impl TrackLoader {
         Self::load_from_string_with_path(content, None)
     }
 
-    fn load_from_string_with_path(content: &str, track_path: Option<&Path>) -> Result<TrackConfig, TrackLoadError> {
+    fn load_from_string_with_path(
+        content: &str,
+        track_path: Option<&Path>,
+    ) -> Result<TrackConfig, TrackLoadError> {
         let track_file: TrackFileFormat = if content.trim_start().starts_with('{') {
             serde_json::from_str(content)
                 .map_err(|e| TrackLoadError::ParseError(format!("JSON parse error: {}", e)))?
@@ -141,7 +146,10 @@ impl TrackLoader {
         Ok(())
     }
 
-    fn build_track_config(track_file: TrackFileFormat, track_path: Option<&Path>) -> Result<TrackConfig, TrackLoadError> {
+    fn build_track_config(
+        track_file: TrackFileFormat,
+        track_path: Option<&Path>,
+    ) -> Result<TrackConfig, TrackLoadError> {
         let default_width = if track_file.default_width > 0.0 {
             track_file.default_width
         } else {
@@ -168,22 +176,48 @@ impl TrackLoader {
 
         // Use track_id from file if provided, otherwise generate new UUID
         let track_id = if let Some(track_id_str) = &track_file.track_id {
-            uuid::Uuid::parse_str(track_id_str)
-                .map_err(|e| TrackLoadError::InvalidData(format!("Invalid track_id format: {}", e)))?
+            uuid::Uuid::parse_str(track_id_str).map_err(|e| {
+                TrackLoadError::InvalidData(format!("Invalid track_id format: {}", e))
+            })?
         } else {
             uuid::Uuid::new_v4()
         };
 
         // Convert raceline points to the data structure
-        let raceline = track_file.raceline.into_iter().map(|rl| {
-            crate::data::RacelinePoint {
+        let raceline: Vec<crate::data::RacelinePoint> = track_file
+            .raceline
+            .into_iter()
+            .map(|rl| crate::data::RacelinePoint {
                 x: rl.x,
                 y: rl.y,
                 z: rl.z,
-            }
-        }).collect();
+            })
+            .collect();
 
-        Ok(TrackConfig {
+        // Convert checkpoint node indices to centerline distances. The file
+        // stores checkpoints as raw node indices; the centerline density is
+        // adaptive (interpolated), so indices cannot be used directly —
+        // resolve each checkpoint node to its nearest centerline point and
+        // keep the distance along the track.
+        let mut checkpoints: Vec<f32> = track_file
+            .checkpoints
+            .iter()
+            .filter_map(|cp| {
+                let node = track_file.nodes.get(cp.index_start)?;
+                centerline_points
+                    .iter()
+                    .min_by(|a, b| {
+                        let da = (a.x - node.x).powi(2) + (a.y - node.y).powi(2);
+                        let db = (b.x - node.x).powi(2) + (b.y - node.y).powi(2);
+                        da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .map(|p| p.distance_from_start_m)
+            })
+            .collect();
+        checkpoints.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        checkpoints.dedup();
+
+        let mut config = TrackConfig {
             id: track_id,
             name: track_file.name,
             centerline: centerline_points,
@@ -198,9 +232,13 @@ impl TrackLoader {
             },
             pit_lane: None,
             raceline,
+            raceline_distances: Vec::new(),
+            checkpoints,
             metadata,
             procedural_world,
-        })
+        };
+        config.rebuild_raceline_distances();
+        Ok(config)
     }
 
     fn load_or_generate_procedural_world(
@@ -268,7 +306,10 @@ impl TrackLoader {
         let terrain_scale = metadata.terrain_scale.unwrap_or(1.0);
         let blend_width = metadata.terrain_blend_width.unwrap_or(20.0);
         let object_density = metadata.object_density.unwrap_or(0.8);
-        let decal_profile = metadata.decal_profile.clone().unwrap_or_else(|| "default".to_string());
+        let decal_profile = metadata
+            .decal_profile
+            .clone()
+            .unwrap_or_else(|| "default".to_string());
 
         // Generate procedural world
         match crate::procgen::terrain::generate_procedural_world(
@@ -369,7 +410,13 @@ impl SplineInterpolator {
         }
 
         let mut track_points = Vec::new();
-        let points_per_segment = 20;
+        // Target arc-length spacing between interpolated points. Density
+        // adapts to segment length instead of a fixed 20 points/segment,
+        // which oversampled long straights ~10x (Monza: ~46k points → ~7k)
+        // and inflated every nearest-point query proportionally.
+        const TARGET_POINT_SPACING_M: f32 = 1.0;
+        const MIN_POINTS_PER_SEGMENT: usize = 2;
+        const MAX_POINTS_PER_SEGMENT: usize = 50;
 
         for i in 0..nodes.len() {
             let p0_idx = if i == 0 && closed_loop {
@@ -397,17 +444,22 @@ impl SplineInterpolator {
             let p2 = &nodes[p2_idx];
             let p3 = &nodes[p3_idx];
 
+            let chord_len = ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2)).sqrt();
+            let points_per_segment = ((chord_len / TARGET_POINT_SPACING_M).ceil() as usize)
+                .clamp(MIN_POINTS_PER_SEGMENT, MAX_POINTS_PER_SEGMENT);
+
             for j in 0..points_per_segment {
                 let t = j as f32 / points_per_segment as f32;
                 let point = Self::catmull_rom_point(p0, p1, p2, p3, t);
 
-                let (width_left, width_right) = if let (Some(wl), Some(wr)) = (p1.width_left, p1.width_right) {
-                    (wl, wr)
-                } else if let Some(w) = p1.width {
-                    (w / 2.0, w / 2.0)
-                } else {
-                    (default_width / 2.0, default_width / 2.0)
-                };
+                let (width_left, width_right) =
+                    if let (Some(wl), Some(wr)) = (p1.width_left, p1.width_right) {
+                        (wl, wr)
+                    } else if let Some(w) = p1.width {
+                        (w / 2.0, w / 2.0)
+                    } else {
+                        (default_width / 2.0, default_width / 2.0)
+                    };
 
                 let banking = p1.banking.unwrap_or(0.0);
                 let friction = p1.friction.unwrap_or(1.0);

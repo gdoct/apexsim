@@ -278,15 +278,13 @@ impl TestRunner {
                 name: "Demo Lap Tests".to_string(),
                 description: "Demo mode and lap timing validation".to_string(),
                 manages_own_server: false,
-                tests: vec![
-                    TestCase {
-                        name: "Demo Lap Timing".to_string(),
-                        function_name: "test_demo_lap_timing".to_string(),
-                        file: "demo_lap_tests".to_string(),
-                        description: "Demo lap timing accuracy".to_string(),
-                        requires_server: false,
-                    },
-                ],
+                tests: vec![TestCase {
+                    name: "Demo Lap Timing".to_string(),
+                    function_name: "test_demo_lap_timing".to_string(),
+                    file: "demo_lap_tests".to_string(),
+                    description: "Demo lap timing accuracy".to_string(),
+                    requires_server: false,
+                }],
             },
             TestCategory {
                 name: "TLS & Security Tests".to_string(),
@@ -295,7 +293,8 @@ impl TestRunner {
                 tests: vec![
                     TestCase {
                         name: "TLS Not Required (Starts OK)".to_string(),
-                        function_name: "test_server_starts_without_tls_when_not_required".to_string(),
+                        function_name: "test_server_starts_without_tls_when_not_required"
+                            .to_string(),
                         file: "tls_requirement_test".to_string(),
                         description: "Server starts without TLS when not required".to_string(),
                         requires_server: false,
@@ -309,7 +308,8 @@ impl TestRunner {
                     },
                     TestCase {
                         name: "TLS Required (Starts With Certs)".to_string(),
-                        function_name: "test_server_starts_with_tls_when_required_and_certs_exist".to_string(),
+                        function_name: "test_server_starts_with_tls_when_required_and_certs_exist"
+                            .to_string(),
                         file: "tls_requirement_test".to_string(),
                         description: "Server starts with TLS when certs exist".to_string(),
                         requires_server: false,
@@ -337,7 +337,8 @@ impl TestRunner {
                     },
                     TestCase {
                         name: "Droppable Messages Dropped".to_string(),
-                        function_name: "test_droppable_messages_are_dropped_when_queue_full".to_string(),
+                        function_name: "test_droppable_messages_are_dropped_when_queue_full"
+                            .to_string(),
                         file: "transport_backpressure_test".to_string(),
                         description: "Message dropping when queue full".to_string(),
                         requires_server: false,
@@ -361,7 +362,7 @@ impl TestRunner {
             TestCategory {
                 name: "Stress Tests".to_string(),
                 description: "Performance benchmarks and load testing".to_string(),
-                manages_own_server: true,  // Stress tests manage their own server processes
+                manages_own_server: true, // Stress tests manage their own server processes
                 tests: vec![
                     TestCase {
                         name: "Tick Rate Stress".to_string(),
@@ -428,12 +429,14 @@ impl TestRunner {
         match ServerProcess::start() {
             Ok(server) => {
                 self.server_process = Some(server);
-                self.test_output.push("Server started successfully.".to_string());
+                self.test_output
+                    .push("Server started successfully.".to_string());
                 self.test_output.push(String::new());
                 Ok(true)
             }
             Err(e) => {
-                self.test_output.push(format!("Failed to start server: {}", e));
+                self.test_output
+                    .push(format!("Failed to start server: {}", e));
                 Err(e)
             }
         }
@@ -471,7 +474,10 @@ impl TestRunner {
         )?;
 
         // Instructions
-        let inst = Self::truncate_str("  ↑/↓: Navigate  │  Enter: Select  │  A: Run All in Category  │  Q: Quit", (width as usize).saturating_sub(1));
+        let inst = Self::truncate_str(
+            "  ↑/↓: Navigate  │  Enter: Select  │  A: Run All in Category  │  Q: Quit",
+            (width as usize).saturating_sub(1),
+        );
         let mut current_row = 4u16;
         execute!(
             stdout,
@@ -519,7 +525,10 @@ impl TestRunner {
 
             // Show description for selected category
             if is_selected {
-                let desc = Self::truncate_str(&format!("     {}", category.description), (width as usize).saturating_sub(1));
+                let desc = Self::truncate_str(
+                    &format!("     {}", category.description),
+                    (width as usize).saturating_sub(1),
+                );
                 execute!(
                     stdout,
                     MoveTo(0, current_row),
@@ -533,8 +542,12 @@ impl TestRunner {
 
         // Footer
         let footer = Self::truncate_str(
-            &format!("  Total: {} tests across {} categories", total_tests, self.categories.len()),
-            (width as usize).saturating_sub(1)
+            &format!(
+                "  Total: {} tests across {} categories",
+                total_tests,
+                self.categories.len()
+            ),
+            (width as usize).saturating_sub(1),
         );
         execute!(
             stdout,
@@ -566,7 +579,11 @@ impl TestRunner {
             SetForegroundColor(Color::Cyan),
             Print(format!("╔{}╗", title_line)),
             MoveTo(0, 1),
-            Print(format!("║ {:<width$}║", cat_name, width = title_width.saturating_sub(1))),
+            Print(format!(
+                "║ {:<width$}║",
+                cat_name,
+                width = title_width.saturating_sub(1)
+            )),
             MoveTo(0, 2),
             Print(format!("╚{}╝", title_line)),
             MoveTo(0, 3),
@@ -574,7 +591,10 @@ impl TestRunner {
         )?;
 
         // Instructions
-        let inst = Self::truncate_str("  ↑/↓: Navigate  │  Enter: Run Test  │  A: Run All  │  Backspace: Back  │  Q: Quit", (width as usize).saturating_sub(1));
+        let inst = Self::truncate_str(
+            "  ↑/↓: Navigate  │  Enter: Run Test  │  A: Run All  │  Backspace: Back  │  Q: Quit",
+            (width as usize).saturating_sub(1),
+        );
         let mut current_row = 4u16;
         execute!(
             stdout,
@@ -606,16 +626,16 @@ impl TestRunner {
                     ResetColor
                 )?;
             } else {
-                execute!(
-                    stdout,
-                    Print(&line)
-                )?;
+                execute!(stdout, Print(&line))?;
             }
             current_row += 1;
 
             // Show description for selected test
             if is_selected {
-                let desc = Self::truncate_str(&format!("     {}", test.description), (width as usize).saturating_sub(1));
+                let desc = Self::truncate_str(
+                    &format!("     {}", test.description),
+                    (width as usize).saturating_sub(1),
+                );
                 execute!(
                     stdout,
                     MoveTo(0, current_row),
@@ -628,7 +648,10 @@ impl TestRunner {
         }
 
         // Footer
-        let footer = Self::truncate_str("  [S] = Requires server (automatically managed)", (width as usize).saturating_sub(1));
+        let footer = Self::truncate_str(
+            "  [S] = Requires server (automatically managed)",
+            (width as usize).saturating_sub(1),
+        );
         execute!(
             stdout,
             MoveTo(0, height - 1),
@@ -651,10 +674,13 @@ impl TestRunner {
         let test = &category.tests[self.selected_test];
 
         // Title
-        let title = Self::truncate_str(&format!("Running: {}", test.name), (width as usize).saturating_sub(1));
+        let title = Self::truncate_str(
+            &format!("Running: {}", test.name),
+            (width as usize).saturating_sub(1),
+        );
         let info = Self::truncate_str(
             &format!("Category: {} │ File: {}", category.name, test.file),
-            (width as usize).saturating_sub(1)
+            (width as usize).saturating_sub(1),
         );
         let separator = "─".repeat((width as usize).min(200));
         execute!(
@@ -694,7 +720,10 @@ impl TestRunner {
         }
 
         // Footer
-        let footer_text = Self::truncate_str("Press 'C' to cancel test  │  Press 'Q' to quit", (width as usize).saturating_sub(1));
+        let footer_text = Self::truncate_str(
+            "Press 'C' to cancel test  │  Press 'Q' to quit",
+            (width as usize).saturating_sub(1),
+        );
         execute!(
             stdout,
             MoveTo(0, height.saturating_sub(2)),
@@ -721,7 +750,10 @@ impl TestRunner {
         let test = &category.tests[self.selected_test];
 
         // Title
-        let title = Self::truncate_str(&format!("Test Completed: {}", test.name), (width as usize).saturating_sub(1));
+        let title = Self::truncate_str(
+            &format!("Test Completed: {}", test.name),
+            (width as usize).saturating_sub(1),
+        );
         let separator = "─".repeat((width as usize).min(200));
         execute!(
             stdout,
@@ -758,7 +790,7 @@ impl TestRunner {
                 end_line,
                 self.test_output.len()
             ),
-            (width as usize).saturating_sub(1)
+            (width as usize).saturating_sub(1),
         );
         execute!(
             stdout,
@@ -800,7 +832,8 @@ impl TestRunner {
                     started
                 }
                 Err(e) => {
-                    self.test_output.push(format!("ERROR: Failed to start server: {}", e));
+                    self.test_output
+                        .push(format!("ERROR: Failed to start server: {}", e));
                     self.mode = Mode::ViewOutput;
                     return Ok(());
                 }
@@ -906,7 +939,8 @@ impl TestRunner {
                             if let Some(ref mut child) = *process_guard {
                                 let _ = child.kill();
                             }
-                            self.test_output.push("\n=== TEST CANCELLED BY USER ===".to_string());
+                            self.test_output
+                                .push("\n=== TEST CANCELLED BY USER ===".to_string());
                             self.mode = Mode::ViewOutput;
                             break;
                         }
@@ -967,18 +1001,21 @@ impl TestRunner {
 
         // Start server once for the entire category if needed
         let server_started = if needs_server && !manages_own_server {
-            self.test_output.push("Starting server for test category...".to_string());
+            self.test_output
+                .push("Starting server for test category...".to_string());
             self.draw_running()?;
             match ServerProcess::start() {
                 Ok(server) => {
                     self.server_process = Some(server);
-                    self.test_output.push("Server started successfully.".to_string());
+                    self.test_output
+                        .push("Server started successfully.".to_string());
                     self.test_output.push(String::new());
                     self.draw_running()?;
                     true
                 }
                 Err(e) => {
-                    self.test_output.push(format!("ERROR: Failed to start server: {}", e));
+                    self.test_output
+                        .push(format!("ERROR: Failed to start server: {}", e));
                     self.test_output.push("Aborting test run.".to_string());
                     self.mode = Mode::ViewOutput;
                     return Ok(());
@@ -1165,10 +1202,7 @@ impl TestRunner {
                 }
             }
             KeyCode::Down => {
-                let max_scroll = self
-                    .test_output
-                    .len()
-                    .saturating_sub(available_lines);
+                let max_scroll = self.test_output.len().saturating_sub(available_lines);
                 if self.output_scroll < max_scroll {
                     self.output_scroll += 1;
                 }
@@ -1177,10 +1211,7 @@ impl TestRunner {
                 self.output_scroll = self.output_scroll.saturating_sub(available_lines);
             }
             KeyCode::PageDown => {
-                let max_scroll = self
-                    .test_output
-                    .len()
-                    .saturating_sub(available_lines);
+                let max_scroll = self.test_output.len().saturating_sub(available_lines);
                 self.output_scroll = (self.output_scroll + available_lines).min(max_scroll);
             }
             KeyCode::Backspace => {
@@ -1236,7 +1267,10 @@ impl TestRunner {
         let total_tests = category.tests.len();
         let manages_own_server = category.manages_own_server;
 
-        println!("Running category: {} ({} tests)", category.name, total_tests);
+        println!(
+            "Running category: {} ({} tests)",
+            category.name, total_tests
+        );
         println!("{}", "═".repeat(60));
         println!();
 
@@ -1267,12 +1301,7 @@ impl TestRunner {
         let mut failed_tests = Vec::new();
 
         for (idx, test) in category.tests.iter().enumerate() {
-            println!(
-                "[{}/{}] Running: {}",
-                idx + 1,
-                total_tests,
-                test.name
-            );
+            println!("[{}/{}] Running: {}", idx + 1, total_tests, test.name);
 
             // Build the cargo test command
             let mut cmd = Command::new("cargo");
@@ -1328,7 +1357,11 @@ impl TestRunner {
                 if !stdout.is_empty() {
                     // Show last 20 lines of stdout
                     let lines: Vec<&str> = stdout.lines().collect();
-                    let start = if lines.len() > 20 { lines.len() - 20 } else { 0 };
+                    let start = if lines.len() > 20 {
+                        lines.len() - 20
+                    } else {
+                        0
+                    };
                     for line in &lines[start..] {
                         println!("    stdout: {}", line);
                     }
@@ -1336,7 +1369,11 @@ impl TestRunner {
                 if !stderr.is_empty() {
                     // Show last 10 lines of stderr
                     let lines: Vec<&str> = stderr.lines().collect();
-                    let start = if lines.len() > 10 { lines.len() - 10 } else { 0 };
+                    let start = if lines.len() > 10 {
+                        lines.len() - 10
+                    } else {
+                        0
+                    };
                     for line in &lines[start..] {
                         println!("    stderr: {}", line);
                     }
@@ -1367,11 +1404,22 @@ fn list_categories(runner: &TestRunner) {
     println!("=================================");
     println!();
     for (idx, category) in runner.categories.iter().enumerate() {
-        println!("{}. {} ({} tests)", idx + 1, category.name, category.tests.len());
+        println!(
+            "{}. {} ({} tests)",
+            idx + 1,
+            category.name,
+            category.tests.len()
+        );
         println!("   {}", category.description);
         for (tidx, test) in category.tests.iter().enumerate() {
             let server_marker = if test.requires_server { "[S]" } else { "   " };
-            println!("      {} {}.{} {}", server_marker, idx + 1, tidx + 1, test.name);
+            println!(
+                "      {} {}.{} {}",
+                server_marker,
+                idx + 1,
+                tidx + 1,
+                test.name
+            );
         }
         println!();
     }

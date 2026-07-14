@@ -1,5 +1,7 @@
+mod common;
+
 use std::io::Write;
-use std::process::{Child, Command, Stdio};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -9,78 +11,6 @@ use tokio::time::{sleep, timeout, Instant};
 
 use apexsim_server::data::*;
 use apexsim_server::network::{ClientMessage, ServerMessage};
-
-/// Helper struct to manage server process for tick rate testing
-struct ServerProcess {
-    child: Child,
-    config_path: String,
-}
-
-impl ServerProcess {
-    fn start(tick_rate_hz: u16, port_offset: u16) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        // Create a temporary config file with the specified tick rate
-        let config_path = format!("/tmp/apexsim_test_{}hz.toml", tick_rate_hz);
-        let tcp_port = 9000 + port_offset;
-        let udp_port = 9001 + port_offset;
-        let health_port = 9002 + port_offset;
-
-        let config_content = format!(
-            r#"[server]
-tick_rate_hz = {}
-max_sessions = 8
-session_timeout_seconds = 300
-
-[network]
-tcp_bind = "127.0.0.1:{}"
-udp_bind = "127.0.0.1:{}"
-health_bind = "127.0.0.1:{}"
-tls_cert_path = "./certs/server.crt"
-tls_key_path = "./certs/server.key"
-require_tls = false
-heartbeat_interval_ms = 1000
-heartbeat_timeout_ms = 5000
-
-[content]
-cars_dir = "../content/cars"
-tracks_dir = "../content/tracks"
-
-[logging]
-level = "warn"
-console_enabled = true
-"#,
-            tick_rate_hz, tcp_port, udp_port, health_port
-        );
-
-        std::fs::write(&config_path, &config_content)?;
-
-        // Start the server process
-        let child = Command::new("cargo")
-            .args(["run", "--release", "--", "--config", &config_path])
-            .current_dir("/home/guido/apexsim/server")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
-
-        Ok(Self { child, config_path })
-    }
-
-    fn stop(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Try graceful shutdown first
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-
-        // Clean up config file
-        let _ = std::fs::remove_file(&self.config_path);
-
-        Ok(())
-    }
-}
-
-impl Drop for ServerProcess {
-    fn drop(&mut self) {
-        let _ = self.stop();
-    }
-}
 
 /// Results from a single tick rate test
 #[derive(Debug)]
@@ -100,11 +30,8 @@ struct TickRateTestResult {
 
 /// Tick rate stress test - tests server at multiple tick rates to find performance limits
 /// Run: cargo test --test stress_tests test_tick_rate_stress -- --ignored --nocapture
-///
-/// WARNING: This test will kill any running apexsim-server process!
-/// After the test completes, you will need to restart your server manually.
 #[tokio::test]
-#[ignore]
+#[ignore = "long-running stress test; run with --ignored"]
 async fn test_tick_rate_stress() {
     println!("╔══════════════════════════════════════════════════════════════════════════════╗");
     println!("║              TICK RATE STRESS TEST - PERFORMANCE BENCHMARK                   ║");
@@ -114,83 +41,77 @@ async fn test_tick_rate_stress() {
     println!("╚══════════════════════════════════════════════════════════════════════════════╝");
     println!();
 
-    // Kill any existing server process first
-    println!("⚠️  WARNING: Killing any running apexsim-server processes...");
-    let _ = std::process::Command::new("pkill")
-        .args(["-f", "apexsim-server"])
-        .status();
-    // Give it time to fully terminate
-    sleep(Duration::from_secs(2)).await;
-    println!("   Done. Existing server processes terminated.\n");
-
     let tick_rates = [120u16, 240, 480, 960, 1440];
     let test_duration_secs = 10.0;
     let mut results: Vec<TickRateTestResult> = Vec::new();
 
     for (i, &target_hz) in tick_rates.iter().enumerate() {
-        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        println!("  Testing {}Hz (Test {} of {})", target_hz, i + 1, tick_rates.len());
-        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        println!(
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        );
+        println!(
+            "  Testing {}Hz (Test {} of {})",
+            target_hz,
+            i + 1,
+            tick_rates.len()
+        );
+        println!(
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        );
 
-        // Start server with this tick rate
-        let port_offset = (i as u16) * 10;
-        let tcp_addr = format!("127.0.0.1:{}", 9000 + port_offset);
-
+        // Start in-process server with this tick rate on ephemeral ports
         print!("  Starting server... ");
         std::io::stdout().flush().unwrap();
-
-        let mut server = match ServerProcess::start(target_hz, port_offset) {
-            Ok(s) => s,
-            Err(e) => {
-                println!("FAILED: {}", e);
-                results.push(TickRateTestResult {
-                    target_hz,
-                    actual_hz: 0.0,
-                    accuracy_percent: 0.0,
-                    tick_count: 0,
-                    duration_secs: 0.0,
-                    avg_tick_interval_us: 0.0,
-                    jitter_us: 0.0,
-                    min_interval_us: 0.0,
-                    max_interval_us: 0.0,
-                    missed_ticks: 0,
-                    passed: false,
-                });
-                continue;
-            }
-        };
-
-        // Wait for server to start
-        sleep(Duration::from_secs(3)).await;
+        let server = common::start_test_server_with_tick_rate(target_hz).await;
+        let tcp_addr = server.tcp_addr;
         println!("OK");
 
         // Connect client and run test
         print!("  Connecting client... ");
         std::io::stdout().flush().unwrap();
 
-        let result = run_tick_rate_test(&tcp_addr, target_hz, test_duration_secs).await;
+        let result = run_tick_rate_test(tcp_addr, target_hz, test_duration_secs).await;
 
         match result {
             Ok(test_result) => {
                 println!("  Results:");
                 println!("    Target:    {:>6} Hz", test_result.target_hz);
-                println!("    Actual:    {:>6.1} Hz ({:.1}% of target)",
-                    test_result.actual_hz, test_result.accuracy_percent);
-                println!("    Ticks:     {:>6} over {:.1}s",
-                    test_result.tick_count, test_result.duration_secs);
-                println!("    Avg interval: {:>8.1} µs (target: {:.1} µs)",
+                println!(
+                    "    Actual:    {:>6.1} Hz ({:.1}% of target)",
+                    test_result.actual_hz, test_result.accuracy_percent
+                );
+                println!(
+                    "    Ticks:     {:>6} over {:.1}s",
+                    test_result.tick_count, test_result.duration_secs
+                );
+                println!(
+                    "    Avg interval: {:>8.1} µs (target: {:.1} µs)",
                     test_result.avg_tick_interval_us,
-                    1_000_000.0 / target_hz as f64);
-                println!("    Jitter:    {:>8.1} µs (std dev from target)", test_result.jitter_us);
-                println!("    Min/Max:   {:>8.1} / {:.1} µs",
-                    test_result.min_interval_us, test_result.max_interval_us);
-                println!("    Missed:    {:>6} packets ({:.1}% loss)",
+                    1_000_000.0 / target_hz as f64
+                );
+                println!(
+                    "    Jitter:    {:>8.1} µs (std dev from target)",
+                    test_result.jitter_us
+                );
+                println!(
+                    "    Min/Max:   {:>8.1} / {:.1} µs",
+                    test_result.min_interval_us, test_result.max_interval_us
+                );
+                println!(
+                    "    Missed:    {:>6} packets ({:.1}% loss)",
                     test_result.missed_ticks,
                     if test_result.tick_count > 0 {
                         100.0 * test_result.missed_ticks as f64 / test_result.tick_count as f64
-                    } else { 0.0 });
+                    } else {
+                        0.0
+                    }
+                );
 
-                let status = if test_result.passed { "✅ PASS" } else { "⚠️  DEGRADED" };
+                let status = if test_result.passed {
+                    "✅ PASS"
+                } else {
+                    "⚠️  DEGRADED"
+                };
                 println!("    Status:    {}", status);
 
                 results.push(test_result);
@@ -216,8 +137,7 @@ async fn test_tick_rate_stress() {
         // Stop server
         print!("  Stopping server... ");
         std::io::stdout().flush().unwrap();
-        let _ = server.stop();
-        sleep(Duration::from_secs(1)).await;
+        server.shutdown().await;
         println!("OK");
         println!();
     }
@@ -233,10 +153,18 @@ async fn test_tick_rate_stress() {
     let mut first_ratio: Option<f64> = None;
 
     for result in &results {
-        let status_icon = if result.passed { "✅" } else if result.actual_hz > 0.0 { "⚠️ " } else { "❌" };
+        let status_icon = if result.passed {
+            "✅"
+        } else if result.actual_hz > 0.0 {
+            "⚠️ "
+        } else {
+            "❌"
+        };
         let pkt_loss = if result.tick_count > 0 {
             100.0 * result.missed_ticks as f64 / result.tick_count as f64
-        } else { 0.0 };
+        } else {
+            0.0
+        };
         let ratio = result.actual_hz / result.target_hz as f64;
 
         if first_ratio.is_none() {
@@ -258,12 +186,14 @@ async fn test_tick_rate_stress() {
     }
 
     // Check ratio consistency - all ratios should be similar
-    let ratios: Vec<f64> = results.iter()
+    let ratios: Vec<f64> = results
+        .iter()
         .filter(|r| r.actual_hz > 0.0)
         .map(|r| r.actual_hz / r.target_hz as f64)
         .collect();
     let avg_ratio = ratios.iter().sum::<f64>() / ratios.len() as f64;
-    let ratio_variance = ratios.iter().map(|r| (r - avg_ratio).powi(2)).sum::<f64>() / ratios.len() as f64;
+    let ratio_variance =
+        ratios.iter().map(|r| (r - avg_ratio).powi(2)).sum::<f64>() / ratios.len() as f64;
     let ratio_std_dev = ratio_variance.sqrt();
 
     println!("╠══════════════════════════════════════════════════════════════════════════════════════════╣");
@@ -273,36 +203,38 @@ async fn test_tick_rate_stress() {
     println!("╚══════════════════════════════════════════════════════════════════════════════════════════╝");
 
     // Test passes if at least 240Hz is sustainable
-    assert!(max_sustainable_hz >= 240,
-        "Server should sustain at least 240Hz, but max sustainable was {}Hz", max_sustainable_hz);
+    assert!(
+        max_sustainable_hz >= 240,
+        "Server should sustain at least 240Hz, but max sustainable was {}Hz",
+        max_sustainable_hz
+    );
 
-    println!("\n✅ TEST PASSED: Server sustains up to {}Hz tick rate", max_sustainable_hz);
-
-    println!();
-    println!("╔══════════════════════════════════════════════════════════════════════════════╗");
-    println!("║  ⚠️  REMINDER: Please restart your server process!                            ║");
-    println!("║                                                                              ║");
-    println!("║  This test killed the running server. To restart:                            ║");
-    println!("║    cd server && cargo run --release                                          ║");
-    println!("║  Or use the VS Code task: 'Start Server'                                     ║");
-    println!("╚══════════════════════════════════════════════════════════════════════════════╝");
+    println!(
+        "\n✅ TEST PASSED: Server sustains up to {}Hz tick rate",
+        max_sustainable_hz
+    );
 }
 
 async fn run_tick_rate_test(
-    tcp_addr: &str,
+    tcp_addr: SocketAddr,
     target_hz: u16,
     duration_secs: f64,
 ) -> Result<TickRateTestResult, Box<dyn std::error::Error + Send + Sync>> {
     // Connect to server
     let tcp_stream = timeout(Duration::from_secs(5), TcpStream::connect(tcp_addr)).await??;
 
-    let mut client = TestClientMinimal { tcp_stream, heartbeat_tick: 0 };
+    let mut client = TestClientMinimal {
+        tcp_stream,
+        heartbeat_tick: 0,
+    };
     println!("OK");
 
     // Authenticate
     print!("  Authenticating... ");
     std::io::stdout().flush().unwrap();
-    let (player_id, car_id, track_id) = client.authenticate(&format!("StressTest_{}", target_hz)).await?;
+    let (player_id, car_id, track_id) = client
+        .authenticate(&format!("StressTest_{}", target_hz))
+        .await?;
     println!("OK (player: {})", player_id);
 
     // Select car and create session
@@ -374,7 +306,9 @@ async fn run_tick_rate_test(
     }
 
     let collection_end = Instant::now();
-    let actual_duration = collection_end.duration_since(collection_start).as_secs_f64();
+    let actual_duration = collection_end
+        .duration_since(collection_start)
+        .as_secs_f64();
 
     println!("OK ({} packets)", packets_received);
 
@@ -383,7 +317,11 @@ async fn run_tick_rate_test(
     let total_server_ticks = last_tick_num.saturating_sub(first_tick);
 
     if total_server_ticks < 100 {
-        return Err(format!("Not enough server ticks elapsed: {} ticks", total_server_ticks).into());
+        return Err(format!(
+            "Not enough server ticks elapsed: {} ticks",
+            total_server_ticks
+        )
+        .into());
     }
 
     // Calculate actual tick rate: server ticks elapsed / wall-clock collection time
@@ -406,9 +344,11 @@ async fn run_tick_rate_test(
     let jitter_in_ticks = if tick_gaps.is_empty() {
         0.0
     } else {
-        let variance = tick_gaps.iter()
+        let variance = tick_gaps
+            .iter()
             .map(|&g| (g as f64 - avg_gap).powi(2))
-            .sum::<f64>() / tick_gaps.len() as f64;
+            .sum::<f64>()
+            / tick_gaps.len() as f64;
         variance.sqrt()
     };
     let jitter_us = jitter_in_ticks * expected_interval_us;
@@ -432,7 +372,7 @@ async fn run_tick_rate_test(
     let passed = ratio >= 0.45  // Allow for network batching reducing effective rate to ~50%
         && ratio <= 1.10        // But shouldn't exceed target significantly
         && packet_loss_percent < 5.0
-        && jitter_in_ticks < 2.0;  // Gaps should be consistent (mostly 1s)
+        && jitter_in_ticks < 2.0; // Gaps should be consistent (mostly 1s)
 
     Ok(TickRateTestResult {
         target_hz,
@@ -456,7 +396,11 @@ struct TestClientMinimal {
 }
 
 impl TestClientMinimal {
-    async fn authenticate(&mut self, name: &str) -> Result<(PlayerId, CarConfigId, TrackConfigId), Box<dyn std::error::Error + Send + Sync>> {
+    async fn authenticate(
+        &mut self,
+        name: &str,
+    ) -> Result<(PlayerId, CarConfigId, TrackConfigId), Box<dyn std::error::Error + Send + Sync>>
+    {
         let msg = ClientMessage::Authenticate {
             token: format!("test_token_{}", name),
             player_name: name.to_string(),
@@ -467,7 +411,9 @@ impl TestClientMinimal {
         let response = self.receive_message().await?;
         let player_id = match response {
             ServerMessage::AuthSuccess(data) => data.player_id,
-            ServerMessage::AuthFailure { reason } => return Err(format!("Auth failed: {}", reason).into()),
+            ServerMessage::AuthFailure { reason } => {
+                return Err(format!("Auth failed: {}", reason).into())
+            }
             _ => return Err("Unexpected response".into()),
         };
 
@@ -485,12 +431,20 @@ impl TestClientMinimal {
         Ok((player_id, car_id, track_id))
     }
 
-    async fn select_car(&mut self, car_id: CarConfigId) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let msg = ClientMessage::SelectCar { car_config_id: car_id };
+    async fn select_car(
+        &mut self,
+        car_id: CarConfigId,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let msg = ClientMessage::SelectCar {
+            car_config_id: car_id,
+        };
         self.send_message(&msg).await
     }
 
-    async fn create_session(&mut self, track_id: TrackConfigId) -> Result<SessionId, Box<dyn std::error::Error + Send + Sync>> {
+    async fn create_session(
+        &mut self,
+        track_id: TrackConfigId,
+    ) -> Result<SessionId, Box<dyn std::error::Error + Send + Sync>> {
         let msg = ClientMessage::CreateSession {
             track_config_id: track_id,
             max_players: 4,
@@ -503,7 +457,9 @@ impl TestClientMinimal {
         let response = self.receive_message().await?;
         match response {
             ServerMessage::SessionJoined(data) => Ok(data.session_id),
-            ServerMessage::Error { message, .. } => Err(format!("Create failed: {}", message).into()),
+            ServerMessage::Error { message, .. } => {
+                Err(format!("Create failed: {}", message).into())
+            }
             _ => Err("Unexpected response".into()),
         }
     }
@@ -513,7 +469,13 @@ impl TestClientMinimal {
         self.send_message(&msg).await
     }
 
-    async fn send_input(&mut self, throttle: f32, brake: f32, steering: f32, tick: u32) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn send_input(
+        &mut self,
+        throttle: f32,
+        brake: f32,
+        steering: f32,
+        tick: u32,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let msg = ClientMessage::PlayerInput {
             server_tick_ack: tick,
             throttle,
@@ -531,7 +493,10 @@ impl TestClientMinimal {
         self.send_message(&msg).await
     }
 
-    async fn send_message(&mut self, msg: &ClientMessage) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn send_message(
+        &mut self,
+        msg: &ClientMessage,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let data = rmp_serde::to_vec_named(msg)?;
         let len = (data.len() as u32).to_be_bytes();
         self.tcp_stream.write_all(&len).await?;
@@ -540,7 +505,9 @@ impl TestClientMinimal {
         Ok(())
     }
 
-    async fn receive_message(&mut self) -> Result<ServerMessage, Box<dyn std::error::Error + Send + Sync>> {
+    async fn receive_message(
+        &mut self,
+    ) -> Result<ServerMessage, Box<dyn std::error::Error + Send + Sync>> {
         let mut len_buf = [0u8; 4];
         self.tcp_stream.read_exact(&mut len_buf).await?;
         let len = u32::from_be_bytes(len_buf);
@@ -551,7 +518,10 @@ impl TestClientMinimal {
         Ok(msg)
     }
 
-    async fn join_session(&mut self, session_id: SessionId) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn join_session(
+        &mut self,
+        session_id: SessionId,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Small delay to let any pending broadcasts arrive
         sleep(Duration::from_millis(10)).await;
 
@@ -564,7 +534,9 @@ impl TestClientMinimal {
             match response {
                 ServerMessage::SessionJoined(_) => return Ok(()),
                 ServerMessage::LobbyState(_) => continue, // Skip lobby updates
-                ServerMessage::Error { message, .. } => return Err(format!("Join failed: {}", message).into()),
+                ServerMessage::Error { message, .. } => {
+                    return Err(format!("Join failed: {}", message).into())
+                }
                 _ => continue,
             }
         }
@@ -586,11 +558,10 @@ struct MultiClientTestResult {
     passed: bool,
 }
 
-
 /// Multi-client load test - tests server with 16 concurrent clients sending random inputs
 /// Run: cargo test --test stress_tests test_multi_client_load -- --ignored --nocapture
 #[tokio::test]
-#[ignore]
+#[ignore = "long-running stress test; run with --ignored"]
 async fn test_multi_client_load() {
     println!("╔══════════════════════════════════════════════════════════════════════════════════════════╗");
     println!("║              MULTI-CLIENT LOAD TEST - 16 CLIENTS WITH RANDOM INPUT                       ║");
@@ -608,56 +579,53 @@ async fn test_multi_client_load() {
 
     for (i, &target_hz) in tick_rates.iter().enumerate() {
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        println!("  Testing {}Hz with {} clients (Test {} of {})", target_hz, client_count, i + 1, tick_rates.len());
+        println!(
+            "  Testing {}Hz with {} clients (Test {} of {})",
+            target_hz,
+            client_count,
+            i + 1,
+            tick_rates.len()
+        );
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-        // Start server with this tick rate
-        let port_offset = (i as u16) * 10;
-        let tcp_addr = format!("127.0.0.1:{}", 9000 + port_offset);
-
+        // Start in-process server with this tick rate on ephemeral ports
         print!("  Starting server at {}Hz... ", target_hz);
         std::io::stdout().flush().unwrap();
-
-        let mut server = match ServerProcess::start(target_hz, port_offset) {
-            Ok(s) => s,
-            Err(e) => {
-                println!("FAILED: {}", e);
-                results.push(MultiClientTestResult {
-                    target_hz,
-                    client_count,
-                    actual_hz: 0.0,
-                    ratio_percent: 0.0,
-                    total_inputs_sent: 0,
-                    total_telemetry_received: 0,
-                    avg_telemetry_per_client: 0.0,
-                    clients_with_telemetry: 0,
-                    passed: false,
-                });
-                continue;
-            }
-        };
-
-        // Wait for server to start
-        sleep(Duration::from_secs(3)).await;
+        let server = common::start_test_server_with_tick_rate(target_hz).await;
+        let tcp_addr = server.tcp_addr;
         println!("OK");
 
         // Run multi-client test
-        let result = run_multi_client_test(&tcp_addr, target_hz, client_count, test_duration_secs).await;
+        let result =
+            run_multi_client_test(tcp_addr, target_hz, client_count, test_duration_secs).await;
 
         match result {
             Ok(test_result) => {
                 println!("  Results:");
                 println!("    Clients connected: {:>4}", test_result.client_count);
                 println!("    Target tick rate:  {:>4} Hz", test_result.target_hz);
-                println!("    Actual tick rate:  {:>6.1} Hz ({:.1}% of target)",
-                    test_result.actual_hz, test_result.ratio_percent);
-                println!("    Total inputs sent: {:>6}", test_result.total_inputs_sent);
-                println!("    Telemetry received:{:>6} total ({:.1} avg/client)",
-                    test_result.total_telemetry_received, test_result.avg_telemetry_per_client);
-                println!("    Clients w/ telemetry: {}/{}",
-                    test_result.clients_with_telemetry, test_result.client_count);
+                println!(
+                    "    Actual tick rate:  {:>6.1} Hz ({:.1}% of target)",
+                    test_result.actual_hz, test_result.ratio_percent
+                );
+                println!(
+                    "    Total inputs sent: {:>6}",
+                    test_result.total_inputs_sent
+                );
+                println!(
+                    "    Telemetry received:{:>6} total ({:.1} avg/client)",
+                    test_result.total_telemetry_received, test_result.avg_telemetry_per_client
+                );
+                println!(
+                    "    Clients w/ telemetry: {}/{}",
+                    test_result.clients_with_telemetry, test_result.client_count
+                );
 
-                let status = if test_result.passed { "✅ PASS" } else { "⚠️  DEGRADED" };
+                let status = if test_result.passed {
+                    "✅ PASS"
+                } else {
+                    "⚠️  DEGRADED"
+                };
                 println!("    Status:            {}", status);
 
                 results.push(test_result);
@@ -681,8 +649,7 @@ async fn test_multi_client_load() {
         // Stop server
         print!("  Stopping server... ");
         std::io::stdout().flush().unwrap();
-        let _ = server.stop();
-        sleep(Duration::from_secs(1)).await;
+        server.shutdown().await;
         println!("OK");
         println!();
     }
@@ -697,7 +664,13 @@ async fn test_multi_client_load() {
     let mut max_sustainable_hz = 0u16;
 
     for result in &results {
-        let status_icon = if result.passed { "✅" } else if result.actual_hz > 0.0 { "⚠️ " } else { "❌" };
+        let status_icon = if result.passed {
+            "✅"
+        } else if result.actual_hz > 0.0 {
+            "⚠️ "
+        } else {
+            "❌"
+        };
         println!("║  {:>5} │ {:>9.1} │ {:>5.1}% │ {:>11} │ {:>9} │ {:>5}/{:<4} │ {}                             ║",
             result.target_hz,
             result.actual_hz,
@@ -720,15 +693,21 @@ async fn test_multi_client_load() {
     println!("╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝");
 
     // Test passes if at least 120Hz is sustainable with 20 clients
-    assert!(max_sustainable_hz >= 120,
+    assert!(
+        max_sustainable_hz >= 120,
         "Server should sustain at least 120Hz with {} clients, but max sustainable was {}Hz",
-        client_count, max_sustainable_hz);
+        client_count,
+        max_sustainable_hz
+    );
 
-    println!("\n✅ TEST PASSED: Server sustains up to {}Hz with {} concurrent clients", max_sustainable_hz, client_count);
+    println!(
+        "\n✅ TEST PASSED: Server sustains up to {}Hz with {} concurrent clients",
+        max_sustainable_hz, client_count
+    );
 }
 
 async fn run_multi_client_test(
-    tcp_addr: &str,
+    tcp_addr: SocketAddr,
     target_hz: u16,
     client_count: usize,
     duration_secs: f64,
@@ -765,7 +744,10 @@ async fn run_multi_client_test(
             }
         };
 
-        let mut client = TestClientMinimal { tcp_stream, heartbeat_tick: 0 };
+        let mut client = TestClientMinimal {
+            tcp_stream,
+            heartbeat_tick: 0,
+        };
 
         // Authenticate
         let (_player_id, c_id, t_id) = client.authenticate(&format!("LoadTest_{}", i)).await?;
@@ -817,7 +799,9 @@ async fn run_multi_client_test(
                 break;
             }
             ServerMessage::LobbyState(_) => continue, // Skip lobby updates
-            ServerMessage::Error { message, .. } => return Err(format!("Create failed: {}", message).into()),
+            ServerMessage::Error { message, .. } => {
+                return Err(format!("Create failed: {}", message).into())
+            }
             other => return Err(format!("Unexpected response: {:?}", other).into()),
         }
     }
@@ -914,10 +898,18 @@ async fn run_multi_client_test(
 
                 // Send random input
                 let throttle: f32 = next_random();
-                let brake: f32 = if next_random() < 0.1 { next_random() * 0.5 } else { 0.0 };
-                let steering: f32 = (next_random() - 0.5) * 0.6;  // -0.3 to 0.3
+                let brake: f32 = if next_random() < 0.1 {
+                    next_random() * 0.5
+                } else {
+                    0.0
+                };
+                let steering: f32 = (next_random() - 0.5) * 0.6; // -0.3 to 0.3
 
-                if client.send_input(throttle, brake, steering, local_last_tick).await.is_ok() {
+                if client
+                    .send_input(throttle, brake, steering, local_last_tick)
+                    .await
+                    .is_ok()
+                {
                     inputs_sent.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 }
 

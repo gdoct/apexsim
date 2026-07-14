@@ -21,6 +21,43 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+      # Never merge unverified code: build and test the PR here, even though
+      # ci.yml also runs, because `gh pr merge --auto` only waits for checks
+      # that branch protection marks as required — and that may not be set up.
+      - uses: actions/checkout@v4
+        if: |
+          steps.metadata.outputs.package-ecosystem == 'cargo' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install Rust toolchain
+        if: |
+          steps.metadata.outputs.package-ecosystem == 'cargo' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        if: |
+          steps.metadata.outputs.package-ecosystem == 'cargo' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server
+
+      - name: Build and test with updated dependencies
+        if: |
+          steps.metadata.outputs.package-ecosystem == 'cargo' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        working-directory: server
+        run: |
+          cargo build --all-targets
+          cargo test
+
       - name: Approve and enable auto-merge for patch/minor Rust updates
         if: |
           steps.metadata.outputs.package-ecosystem == 'cargo' &&

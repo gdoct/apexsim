@@ -20,7 +20,13 @@ pub struct TerrainHeightmap {
 
 impl TerrainHeightmap {
     /// Create a new heightmap with given dimensions
-    pub fn new(width: usize, height: usize, cell_size_m: f32, origin_x: f32, origin_y: f32) -> Self {
+    pub fn new(
+        width: usize,
+        height: usize,
+        cell_size_m: f32,
+        origin_x: f32,
+        origin_y: f32,
+    ) -> Self {
         Self {
             width,
             height,
@@ -38,9 +44,11 @@ impl TerrainHeightmap {
         let grid_y = (world_y - self.origin_y) / self.cell_size_m;
 
         // Clamp to valid range
-        if grid_x < 0.0 || grid_y < 0.0
+        if grid_x < 0.0
+            || grid_y < 0.0
             || grid_x >= (self.width - 1) as f32
-            || grid_y >= (self.height - 1) as f32 {
+            || grid_y >= (self.height - 1) as f32
+        {
             return 0.0;
         }
 

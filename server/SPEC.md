@@ -1,5 +1,7 @@
 ## SimRacing Server Backend Specification (Rust) - Initial Phase
 
+> **Implementation status (2026-07):** this spec is partially aspirational. Implemented: data model, MessagePack messages, TCP+TLS transport with heartbeats, 4-wheel 3D physics (the spec's §4.6 still describes the older 2D bicycle model), AABB collisions, AI drivers, replays, health probes. **Not implemented:** UDP game traffic (telemetry/input currently flow over TCP), token validation, rate limiting (§6), JSON file logging (§7), `catch_unwind` panic policy (§8), race templates/rotation/scheduling (§9), content hot-reload (§10), SQLite persistence (§11), Prometheus metrics (§12), `APEXSIM_` env overrides (§5). A reconciliation pass is planned.
+
 **Project Goal:** Establish a performant, authoritative backend server in Rust capable of managing race sessions, processing player input, running a basic 2D physics simulation, and distributing telemetry to clients at 240Hz. Designed with future extensibility and modding in mind.
 
 **Language:** Rust

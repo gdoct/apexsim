@@ -17,9 +17,9 @@ pub struct LobbyPlayerState {
 /// Session visibility settings
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionVisibility {
-    Public,      // Anyone can see and join
-    Private,     // Invite-only, not listed publicly
-    Protected,   // Listed but requires password
+    Public,    // Anyone can see and join
+    Private,   // Invite-only, not listed publicly
+    Protected, // Listed but requires password
 }
 
 /// Extended session metadata for lobby
@@ -41,28 +41,32 @@ pub struct LobbySessionInfo {
     pub created_at: std::time::Instant,
 }
 
-/// Manages the lobby state and player matchmaking
-pub struct LobbyManager {
+/// Consolidated lobby state, guarded by a single lock so multi-map
+/// operations are atomic with respect to readers.
+#[derive(Default)]
+struct LobbyState {
     /// Players currently in the lobby (not in any session)
-    players: Arc<RwLock<HashMap<PlayerId, LobbyPlayerState>>>,
+    players: HashMap<PlayerId, LobbyPlayerState>,
 
     /// Active sessions visible to lobby
-    sessions: Arc<RwLock<HashMap<SessionId, LobbySessionInfo>>>,
+    sessions: HashMap<SessionId, LobbySessionInfo>,
 
     /// Players currently in sessions (for quick lookup)
-    player_sessions: Arc<RwLock<HashMap<PlayerId, SessionId>>>,
+    player_sessions: HashMap<PlayerId, SessionId>,
 
     /// Spectators in sessions (player_id -> session_id)
-    spectators: Arc<RwLock<HashMap<PlayerId, SessionId>>>,
+    spectators: HashMap<PlayerId, SessionId>,
+}
+
+/// Manages the lobby state and player matchmaking
+pub struct LobbyManager {
+    state: Arc<RwLock<LobbyState>>,
 }
 
 impl LobbyManager {
     pub fn new() -> Self {
         Self {
-            players: Arc::new(RwLock::new(HashMap::new())),
-            sessions: Arc::new(RwLock::new(HashMap::new())),
-            player_sessions: Arc::new(RwLock::new(HashMap::new())),
-            spectators: Arc::new(RwLock::new(HashMap::new())),
+            state: Arc::new(RwLock::new(LobbyState::default())),
         }
     }
 
@@ -71,30 +75,34 @@ impl LobbyManager {
         let player_id = player.player_id;
         let player_name = player.player_name.clone();
 
-        self.players.write().await.insert(player_id, player);
+        self.state.write().await.players.insert(player_id, player);
         debug!("Player {} added to lobby", player_name);
     }
 
     /// Remove a player from the lobby
-    pub async fn remove_player(&self, player_id: PlayerId) -> (Option<LobbyPlayerState>, Option<SessionId>) {
-        let player = self.players.write().await.remove(&player_id);
+    pub async fn remove_player(
+        &self,
+        player_id: PlayerId,
+    ) -> (Option<LobbyPlayerState>, Option<SessionId>) {
+        let mut state = self.state.write().await;
+        let player = state.players.remove(&player_id);
         let mut empty_session_id = None;
 
         if let Some(ref p) = player {
             debug!("Player {} removed from lobby", p.player_name);
 
             // Also remove from any session
-            if let Some(session_id) = self.player_sessions.write().await.remove(&player_id) {
-                if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+            if let Some(session_id) = state.player_sessions.remove(&player_id) {
+                if let Some(session) = state.sessions.get_mut(&session_id) {
                     session.current_player_count = session.current_player_count.saturating_sub(1);
                     if session.current_player_count == 0 && session.spectator_count == 0 {
                         empty_session_id = Some(session_id);
                     }
                 }
             }
-            
-            if let Some(session_id) = self.spectators.write().await.remove(&player_id) {
-                if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+
+            if let Some(session_id) = state.spectators.remove(&player_id) {
+                if let Some(session) = state.sessions.get_mut(&session_id) {
                     session.spectator_count = session.spectator_count.saturating_sub(1);
                     if session.current_player_count == 0 && session.spectator_count == 0 {
                         empty_session_id = Some(session_id);
@@ -108,14 +116,19 @@ impl LobbyManager {
 
     /// Update a player's selected car
     pub async fn set_player_car(&self, player_id: PlayerId, car_config_id: CarConfigId) {
-        if let Some(player) = self.players.write().await.get_mut(&player_id) {
+        if let Some(player) = self.state.write().await.players.get_mut(&player_id) {
             player.selected_car = Some(car_config_id);
         }
     }
 
     /// Get a player's selected car
     pub async fn get_player_car(&self, player_id: PlayerId) -> Option<CarConfigId> {
-        self.players.read().await.get(&player_id).and_then(|p| p.selected_car)
+        self.state
+            .read()
+            .await
+            .players
+            .get(&player_id)
+            .and_then(|p| p.selected_car)
     }
 
     /// Register a new session in the lobby
@@ -123,28 +136,39 @@ impl LobbyManager {
         let session_id = session_info.session_id;
         let host_name = session_info.host_name.clone();
 
-        self.sessions.write().await.insert(session_id, session_info);
-        debug!("Session {} registered in lobby (host: {})", session_id, host_name);
+        self.state
+            .write()
+            .await
+            .sessions
+            .insert(session_id, session_info);
+        debug!(
+            "Session {} registered in lobby (host: {})",
+            session_id, host_name
+        );
     }
 
     /// Unregister a session from the lobby
     pub async fn unregister_session(&self, session_id: SessionId) {
-        if let Some(_session) = self.sessions.write().await.remove(&session_id) {
+        let mut state = self.state.write().await;
+        if let Some(_session) = state.sessions.remove(&session_id) {
             debug!("Session {} unregistered from lobby", session_id);
 
             // Remove all players from this session
-            let mut player_sessions = self.player_sessions.write().await;
-            player_sessions.retain(|_, sid| *sid != session_id);
+            state.player_sessions.retain(|_, sid| *sid != session_id);
 
             // Remove all spectators from this session
-            let mut spectators = self.spectators.write().await;
-            spectators.retain(|_, sid| *sid != session_id);
+            state.spectators.retain(|_, sid| *sid != session_id);
         }
     }
 
     /// Update session information (player count, state, etc.)
-    pub async fn update_session(&self, session_id: SessionId, player_count: u8, state: SessionState) {
-        if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+    pub async fn update_session(
+        &self,
+        session_id: SessionId,
+        player_count: u8,
+        state: SessionState,
+    ) {
+        if let Some(session) = self.state.write().await.sessions.get_mut(&session_id) {
             session.current_player_count = player_count;
             session.state = state;
         }
@@ -152,9 +176,10 @@ impl LobbyManager {
 
     /// Add a player to a session (as participant)
     pub async fn join_session(&self, player_id: PlayerId, session_id: SessionId) -> bool {
+        let mut state = self.state.write().await;
+
         // Check if session exists and has space
-        let sessions = self.sessions.read().await;
-        if let Some(session) = sessions.get(&session_id) {
+        if let Some(session) = state.sessions.get(&session_id) {
             if session.current_player_count >= session.max_players {
                 warn!("Session {} is full", session_id);
                 return false;
@@ -168,16 +193,13 @@ impl LobbyManager {
             warn!("Session {} does not exist", session_id);
             return false;
         }
-        drop(sessions);
 
         // Track player's session membership (but keep them in the players list)
-        let players = self.players.read().await;
-        if players.contains_key(&player_id) {
-            drop(players);
-            self.player_sessions.write().await.insert(player_id, session_id);
+        if state.players.contains_key(&player_id) {
+            state.player_sessions.insert(player_id, session_id);
 
             // Update session player count
-            if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+            if let Some(session) = state.sessions.get_mut(&session_id) {
                 session.current_player_count += 1;
             }
 
@@ -191,24 +213,27 @@ impl LobbyManager {
 
     /// Add a player as spectator to a session
     pub async fn join_as_spectator(&self, player_id: PlayerId, session_id: SessionId) -> bool {
+        let mut state = self.state.write().await;
+
         // Check if session exists
-        let sessions = self.sessions.read().await;
-        if !sessions.contains_key(&session_id) {
+        if !state.sessions.contains_key(&session_id) {
             warn!("Session {} does not exist", session_id);
             return false;
         }
-        drop(sessions);
 
         // Keep player in lobby, but track them as a spectator
-        if self.players.read().await.contains_key(&player_id) {
-            self.spectators.write().await.insert(player_id, session_id);
+        if state.players.contains_key(&player_id) {
+            state.spectators.insert(player_id, session_id);
 
             // Update spectator count
-            if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+            if let Some(session) = state.sessions.get_mut(&session_id) {
                 session.spectator_count += 1;
             }
 
-            debug!("Player {} joined session {} as spectator", player_id, session_id);
+            debug!(
+                "Player {} joined session {} as spectator",
+                player_id, session_id
+            );
             true
         } else {
             warn!("Player {} not in lobby", player_id);
@@ -217,13 +242,18 @@ impl LobbyManager {
     }
 
     /// Remove a player from a session (back to lobby)
-    pub async fn leave_session(&self, player_id: PlayerId, _connection_id: ConnectionId) -> Option<SessionId> {
+    pub async fn leave_session(
+        &self,
+        player_id: PlayerId,
+        _connection_id: ConnectionId,
+    ) -> Option<SessionId> {
+        let mut state = self.state.write().await;
         let mut empty_session_id = None;
 
         // Check if player is in a session
-        if let Some(session_id) = self.player_sessions.write().await.remove(&player_id) {
+        if let Some(session_id) = state.player_sessions.remove(&player_id) {
             // Update session player count
-            if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+            if let Some(session) = state.sessions.get_mut(&session_id) {
                 session.current_player_count = session.current_player_count.saturating_sub(1);
                 if session.current_player_count == 0 && session.spectator_count == 0 {
                     empty_session_id = Some(session_id);
@@ -234,9 +264,9 @@ impl LobbyManager {
         }
 
         // Check if player is spectating
-        if let Some(session_id) = self.spectators.write().await.remove(&player_id) {
+        if let Some(session_id) = state.spectators.remove(&player_id) {
             // Update spectator count
-            if let Some(session) = self.sessions.write().await.get_mut(&session_id) {
+            if let Some(session) = state.sessions.get_mut(&session_id) {
                 session.spectator_count = session.spectator_count.saturating_sub(1);
                 if session.current_player_count == 0 && session.spectator_count == 0 {
                     empty_session_id = Some(session_id);
@@ -252,14 +282,15 @@ impl LobbyManager {
 
     /// Get all session IDs (for cleanup purposes)
     pub async fn get_all_session_ids(&self) -> Vec<SessionId> {
-        self.sessions.read().await.keys().copied().collect()
+        self.state.read().await.sessions.keys().copied().collect()
     }
 
     /// Get all public sessions visible in lobby
     pub async fn get_available_sessions(&self) -> Vec<SessionSummary> {
-        let sessions = self.sessions.read().await;
+        let state = self.state.read().await;
 
-        sessions
+        state
+            .sessions
             .values()
             .filter(|s| s.visibility == SessionVisibility::Public)
             .map(|s| SessionSummary {
@@ -277,38 +308,46 @@ impl LobbyManager {
 
     /// Get all players currently in the lobby
     pub async fn get_lobby_players(&self) -> Vec<LobbyPlayer> {
-        let players = self.players.read().await;
-        let player_sessions = self.player_sessions.read().await;
+        let state = self.state.read().await;
 
-        players
+        state
+            .players
             .values()
             .map(|p| LobbyPlayer {
                 id: p.player_id,
                 name: p.player_name.clone(),
                 selected_car: p.selected_car,
-                in_session: player_sessions.get(&p.player_id).copied(),
+                in_session: state.player_sessions.get(&p.player_id).copied(),
             })
             .collect()
     }
 
     /// Check if a player is in a session
     pub async fn get_player_session(&self, player_id: PlayerId) -> Option<SessionId> {
-        self.player_sessions.read().await.get(&player_id).copied()
+        self.state
+            .read()
+            .await
+            .player_sessions
+            .get(&player_id)
+            .copied()
     }
 
     /// Check if a player is spectating a session
     pub async fn is_spectator(&self, player_id: PlayerId) -> bool {
-        self.spectators.read().await.contains_key(&player_id)
+        self.state.read().await.spectators.contains_key(&player_id)
     }
 
     /// Get session a player is spectating
     pub async fn get_spectating_session(&self, player_id: PlayerId) -> Option<SessionId> {
-        self.spectators.read().await.get(&player_id).copied()
+        self.state.read().await.spectators.get(&player_id).copied()
     }
 
     /// Get all spectators for a given session
     pub async fn get_session_spectators(&self, session_id: SessionId) -> Vec<PlayerId> {
-        self.spectators.read().await
+        self.state
+            .read()
+            .await
+            .spectators
             .iter()
             .filter(|(_, sid)| **sid == session_id)
             .map(|(pid, _)| *pid)
@@ -317,12 +356,12 @@ impl LobbyManager {
 
     /// Get number of players in lobby
     pub async fn get_lobby_count(&self) -> usize {
-        self.players.read().await.len()
+        self.state.read().await.players.len()
     }
 
     /// Get number of active sessions
     pub async fn get_session_count(&self) -> usize {
-        self.sessions.read().await.len()
+        self.state.read().await.sessions.len()
     }
 }
 
@@ -475,6 +514,9 @@ mod tests {
 
         // Should be spectating
         assert!(lobby.is_spectator(player_id).await);
-        assert_eq!(lobby.get_spectating_session(player_id).await, Some(session_id));
+        assert_eq!(
+            lobby.get_spectating_session(player_id).await,
+            Some(session_id)
+        );
     }
 }

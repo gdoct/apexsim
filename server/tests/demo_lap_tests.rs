@@ -1,12 +1,13 @@
+mod common;
+
+use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout};
 
 use apexsim_server::data::*;
-use apexsim_server::network::{ClientMessage, ServerMessage, LobbyStateData};
-
-const SERVER_TCP_ADDR: &str = "127.0.0.1:9000";
+use apexsim_server::network::{ClientMessage, LobbyStateData, ServerMessage};
 
 /// Lightweight test client for demo lap testing
 struct DemoLapTestClient {
@@ -18,8 +19,8 @@ struct DemoLapTestClient {
 }
 
 impl DemoLapTestClient {
-    async fn connect(name: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let tcp_stream = TcpStream::connect(SERVER_TCP_ADDR).await?;
+    async fn connect(name: &str, tcp_addr: SocketAddr) -> Result<Self, Box<dyn std::error::Error>> {
+        let tcp_stream = TcpStream::connect(tcp_addr).await?;
 
         Ok(Self {
             player_id: None,
@@ -30,7 +31,9 @@ impl DemoLapTestClient {
         })
     }
 
-    async fn authenticate(&mut self) -> Result<(PlayerId, LobbyStateData), Box<dyn std::error::Error>> {
+    async fn authenticate(
+        &mut self,
+    ) -> Result<(PlayerId, LobbyStateData), Box<dyn std::error::Error>> {
         let auth_msg = ClientMessage::Authenticate {
             token: format!("test_token_{}", self.name),
             player_name: self.name.clone(),
@@ -110,7 +113,9 @@ impl DemoLapTestClient {
                 }
                 ServerMessage::LobbyState(_) => continue,
                 other => {
-                    return Err(format!("Unexpected response to session creation: {:?}", other).into());
+                    return Err(
+                        format!("Unexpected response to session creation: {:?}", other).into(),
+                    );
                 }
             }
         }
@@ -130,7 +135,10 @@ impl DemoLapTestClient {
         self.send_message(&msg).await
     }
 
-    async fn send_message(&mut self, msg: &ClientMessage) -> Result<(), Box<dyn std::error::Error>> {
+    async fn send_message(
+        &mut self,
+        msg: &ClientMessage,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let data = rmp_serde::to_vec_named(msg)?;
         let len = (data.len() as u32).to_be_bytes();
         self.tcp_stream.write_all(&len).await?;
@@ -167,7 +175,7 @@ fn format_lap_time(ms: u32) -> String {
 /// Test: Start lobby, start demo lap game, wait for 3 laps, calculate and print lap times
 /// Run: cargo test --test demo_lap_tests test_demo_lap_timing -- --ignored --nocapture
 #[tokio::test]
-#[ignore]
+#[ignore = "long-running soak test (waits for 3 demo laps, up to ~5 min); run with --ignored"]
 async fn test_demo_lap_timing() {
     println!("╔══════════════════════════════════════════════════════════════════════════════╗");
     println!("║                       DEMO LAP TIMING TEST                                   ║");
@@ -178,13 +186,12 @@ async fn test_demo_lap_timing() {
     println!("║  4. Calculate and print lap times                                            ║");
     println!("╚══════════════════════════════════════════════════════════════════════════════╝");
     println!();
-    println!("NOTE: Server must be running (use VS Code task: 'Start Server')");
-    println!();
 
     let result = timeout(Duration::from_secs(325), async {
+        let server = common::start_test_server().await;
         // Step 1: Connect and authenticate
         println!("Step 1: Connecting to lobby...");
-        let mut client = DemoLapTestClient::connect("DemoLapTest").await?;
+        let mut client = DemoLapTestClient::connect("DemoLapTest", server.tcp_addr).await?;
         let (player_id, lobby_state) = client.authenticate().await?;
         println!("  ✓ Authenticated as player: {}", player_id);
 

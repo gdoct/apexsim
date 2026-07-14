@@ -1,8 +1,11 @@
+use apexsim_server::data::{RacelinePoint, TrackMetadata};
+use apexsim_server::track_loader::{TrackFileFormat, TrackNode};
+use clap::Parser;
 /// Track Converter Tool
-/// 
+///
 /// Converts race track data from the racetrack-database CSV format
 /// to ApexSim's YAML/JSON track format.
-/// 
+///
 /// Usage:
 ///   cargo run --bin convert_track -- --tracks-csv /path/to/tracks/Monaco.csv \
 ///                                     --raceline-csv /path/to/racelines/Monaco.csv \
@@ -10,13 +13,9 @@
 ///                                     --name "Monaco Grand Prix" \
 ///                                     --country Monaco \
 ///                                     --category F1
-
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use clap::Parser;
-use apexsim_server::track_loader::{TrackFileFormat, TrackNode};
-use apexsim_server::data::{RacelinePoint, TrackMetadata};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -109,15 +108,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Convert to TrackFileFormat
-    let track_file = convert_to_track_format(
-        track_points,
-        raceline_points,
-        &args,
-    );
+    let track_file = convert_to_track_format(track_points, raceline_points, &args);
 
     // Calculate track length
     let length_m = calculate_track_length(&track_file.nodes);
-    println!("  Track length: {:.2} meters ({:.2} km)", length_m, length_m / 1000.0);
+    println!(
+        "  Track length: {:.2} meters ({:.2} km)",
+        length_m,
+        length_m / 1000.0
+    );
 
     // Update metadata with calculated length
     let mut track_file = track_file;
@@ -139,7 +138,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Write output file
     println!("Writing to: {}", args.output.display());
     let output_file = File::create(&args.output)?;
-    
+
     match format.as_str() {
         "json" => {
             serde_json::to_writer_pretty(output_file, &track_file)?;
@@ -165,7 +164,7 @@ fn read_track_csv(path: &PathBuf) -> Result<Vec<TrackCSVPoint>, Box<dyn std::err
 
     for (line_num, line) in reader.lines().enumerate() {
         let line = line?;
-        
+
         // Skip header and comments
         if line.starts_with('#') || line.trim().is_empty() || line_num == 0 {
             continue;
@@ -173,7 +172,11 @@ fn read_track_csv(path: &PathBuf) -> Result<Vec<TrackCSVPoint>, Box<dyn std::err
 
         let parts: Vec<&str> = line.split(',').collect();
         if parts.len() < 4 {
-            eprintln!("Warning: Skipping malformed line {}: {}", line_num + 1, line);
+            eprintln!(
+                "Warning: Skipping malformed line {}: {}",
+                line_num + 1,
+                line
+            );
             continue;
         }
 
@@ -200,7 +203,7 @@ fn read_raceline_csv(path: &PathBuf) -> Result<Vec<RacelineCSVPoint>, Box<dyn st
 
     for (line_num, line) in reader.lines().enumerate() {
         let line = line?;
-        
+
         // Skip header and comments
         if line.starts_with('#') || line.trim().is_empty() || line_num == 0 {
             continue;
@@ -208,7 +211,11 @@ fn read_raceline_csv(path: &PathBuf) -> Result<Vec<RacelineCSVPoint>, Box<dyn st
 
         let parts: Vec<&str> = line.split(',').collect();
         if parts.len() < 2 {
-            eprintln!("Warning: Skipping malformed line {}: {}", line_num + 1, line);
+            eprintln!(
+                "Warning: Skipping malformed line {}: {}",
+                line_num + 1,
+                line
+            );
             continue;
         }
 
@@ -269,7 +276,8 @@ fn convert_to_track_format(
 
     // Calculate a reasonable default width from the nodes
     let avg_total_width = if !nodes.is_empty() {
-        let sum: f32 = nodes.iter()
+        let sum: f32 = nodes
+            .iter()
             .map(|n| n.width_left.unwrap_or(7.5) + n.width_right.unwrap_or(7.5))
             .sum();
         sum / nodes.len() as f32
