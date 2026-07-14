@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::collections::HashMap;
 use uuid::Uuid;
 
 // --- Identifiers ---
@@ -33,24 +32,24 @@ pub struct CarConfig {
     pub width_m: f32,
     pub height_m: f32,
     pub wheelbase_m: f32,
-    pub track_width_front_m: f32,  // Distance between front wheels
-    pub track_width_rear_m: f32,   // Distance between rear wheels
+    pub track_width_front_m: f32, // Distance between front wheels
+    pub track_width_rear_m: f32,  // Distance between rear wheels
     pub wheel_radius_m: f32,
-    
+
     // Center of gravity (relative to geometric center)
-    pub cog_height_m: f32,          // Height of center of gravity
-    pub cog_offset_x_m: f32,        // Forward (+) / backward (-) from center
+    pub cog_height_m: f32,              // Height of center of gravity
+    pub cog_offset_x_m: f32,            // Forward (+) / backward (-) from center
     pub weight_distribution_front: f32, // 0.0-1.0, percentage of weight on front axle
-    
+
     // Engine & drivetrain
-    pub max_engine_power_w: f32,    // Peak engine power in Watts
-    pub max_engine_torque_nm: f32,  // Peak engine torque in Nm
+    pub max_engine_power_w: f32,   // Peak engine power in Watts
+    pub max_engine_torque_nm: f32, // Peak engine torque in Nm
     pub max_engine_rpm: f32,
     pub idle_rpm: f32,
     pub redline_rpm: f32,
-    pub gear_ratios: Vec<f32>,      // Gear ratios (including reverse as negative)
+    pub gear_ratios: Vec<f32>, // Gear ratios (including reverse as negative)
     pub final_drive_ratio: f32,
-    pub drivetrain: Drivetrain,     // FWD, RWD, AWD
+    pub drivetrain: Drivetrain, // FWD, RWD, AWD
 
     // Engine simulation parameters (more detailed than the legacy fields above).
     // These are optional/soft-configurable: physics falls back to legacy behavior if unset.
@@ -64,34 +63,34 @@ pub struct CarConfig {
     pub fuel: FuelConfig,
     #[serde(default)]
     pub hybrid: HybridConfig,
-    
+
     // Braking
     pub max_brake_force_n: f32,
-    pub brake_bias_front: f32,      // 0.0-1.0, percentage of braking on front
+    pub brake_bias_front: f32, // 0.0-1.0, percentage of braking on front
     pub abs_enabled: bool,
-    
+
     // Aerodynamics
     pub drag_coefficient: f32,
     pub frontal_area_m2: f32,
     pub lift_coefficient_front: f32, // Negative = downforce
     pub lift_coefficient_rear: f32,
-    
+
     // Steering
     pub max_steering_angle_rad: f32,
-    pub steering_ratio: f32,        // Steering wheel turns : wheel angle
-    
+    pub steering_ratio: f32, // Steering wheel turns : wheel angle
+
     // Suspension
     pub suspension: SuspensionConfig,
-    
+
     // Tires
     pub tire_config: TireConfig,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Drivetrain {
-    FWD,  // Front-wheel drive
-    RWD,  // Rear-wheel drive
-    AWD,  // All-wheel drive
+    FWD, // Front-wheel drive
+    RWD, // Rear-wheel drive
+    AWD, // All-wheel drive
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -281,13 +280,13 @@ impl Default for SuspensionConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TireConfig {
-    pub grip_coefficient: f32,           // Base grip coefficient (0.8-1.2)
-    pub optimal_slip_ratio: f32,         // Peak longitudinal slip (typically 0.06-0.12)
-    pub optimal_slip_angle_rad: f32,     // Peak lateral slip angle (typically 6-10 degrees)
-    pub rolling_resistance: f32,         // Rolling resistance coefficient
-    pub optimal_temperature_c: f32,      // Optimal tire temp for best grip
-    pub temperature_grip_falloff: f32,   // Grip reduction per degree from optimal
-    pub wear_rate: f32,                  // Wear rate multiplier
+    pub grip_coefficient: f32,         // Base grip coefficient (0.8-1.2)
+    pub optimal_slip_ratio: f32,       // Peak longitudinal slip (typically 0.06-0.12)
+    pub optimal_slip_angle_rad: f32,   // Peak lateral slip angle (typically 6-10 degrees)
+    pub rolling_resistance: f32,       // Rolling resistance coefficient
+    pub optimal_temperature_c: f32,    // Optimal tire temp for best grip
+    pub temperature_grip_falloff: f32, // Grip reduction per degree from optimal
+    pub wear_rate: f32,                // Wear rate multiplier
 }
 
 impl Default for TireConfig {
@@ -295,7 +294,7 @@ impl Default for TireConfig {
         Self {
             grip_coefficient: 1.0,
             optimal_slip_ratio: 0.08,
-            optimal_slip_angle_rad: 0.12,  // ~7 degrees
+            optimal_slip_angle_rad: 0.12, // ~7 degrees
             rolling_resistance: 0.015,
             optimal_temperature_c: 90.0,
             temperature_grip_falloff: 0.005,
@@ -320,19 +319,19 @@ impl Default for CarConfig {
             track_width_front_m: 1.6,
             track_width_rear_m: 1.58,
             wheel_radius_m: 0.33,
-            
+
             // Center of gravity
             cog_height_m: 0.45,
             cog_offset_x_m: 0.0,
             weight_distribution_front: 0.52,
-            
+
             // Engine & drivetrain
-            max_engine_power_w: 300000.0,  // 300 kW (~400 HP)
+            max_engine_power_w: 300000.0, // 300 kW (~400 HP)
             max_engine_torque_nm: 450.0,
             max_engine_rpm: 8000.0,
             idle_rpm: 900.0,
             redline_rpm: 7500.0,
-            gear_ratios: vec![-3.5, 3.8, 2.4, 1.7, 1.3, 1.0, 0.8],  // R, 1-6
+            gear_ratios: vec![-3.5, 3.8, 2.4, 1.7, 1.3, 1.0, 0.8], // R, 1-6
             final_drive_ratio: 3.7,
             drivetrain: Drivetrain::RWD,
 
@@ -344,25 +343,25 @@ impl Default for CarConfig {
             differential: DifferentialConfig::default(),
             fuel: FuelConfig::default(),
             hybrid: HybridConfig::default(),
-            
+
             // Braking
             max_brake_force_n: 25000.0,
             brake_bias_front: 0.6,
             abs_enabled: true,
-            
+
             // Aerodynamics
             drag_coefficient: 0.32,
             frontal_area_m2: 2.2,
-            lift_coefficient_front: -0.15,  // Slight downforce
+            lift_coefficient_front: -0.15, // Slight downforce
             lift_coefficient_rear: -0.20,
-            
+
             // Steering
-            max_steering_angle_rad: 0.52,  // ~30 degrees
+            max_steering_angle_rad: 0.52, // ~30 degrees
             steering_ratio: 14.0,
-            
+
             // Suspension
             suspension: SuspensionConfig::default(),
-            
+
             // Tires
             tire_config: TireConfig::default(),
         }
@@ -385,6 +384,17 @@ pub struct TrackConfig {
     /// Optional optimal racing line for AI and visualization
     #[serde(default)]
     pub raceline: Vec<RacelinePoint>,
+    /// Cumulative arc-length (m) of each raceline point, computed at load
+    /// time. Runtime-only lookup data (parallel to `raceline`); never
+    /// serialized. Rebuild with [`TrackConfig::rebuild_raceline_distances`].
+    #[serde(skip)]
+    pub raceline_distances: Vec<f32>,
+    /// Checkpoint distances along the centerline (m from start), sorted
+    /// ascending. Used for anti-shortcut lap validation. Runtime-only data
+    /// computed at load time from the track file's checkpoint node indices;
+    /// when empty, physics falls back to virtual checkpoints at 25/50/75%.
+    #[serde(skip)]
+    pub checkpoints: Vec<f32>,
     /// Track metadata
     #[serde(default)]
     pub metadata: TrackMetadata,
@@ -407,30 +417,30 @@ pub struct TrackMetadata {
     pub length_m: Option<f32>,
     pub description: Option<String>,
     pub year_built: Option<u32>,
-    pub category: Option<String>,  // e.g., "F1", "DTM", "IndyCar"
+    pub category: Option<String>, // e.g., "F1", "DTM", "IndyCar"
 
     // Procedural generation parameters
     #[serde(default)]
-    pub environment_type: Option<String>,      // "desert" | "forest" | "city" | "mountains" | "plains"
+    pub environment_type: Option<String>, // "desert" | "forest" | "city" | "mountains" | "plains"
     #[serde(default)]
-    pub terrain_seed: Option<u32>,             // Deterministic seed (None = generate from track ID)
+    pub terrain_seed: Option<u32>, // Deterministic seed (None = generate from track ID)
     #[serde(default)]
-    pub terrain_scale: Option<f32>,            // Height multiplier (default: 1.0)
+    pub terrain_scale: Option<f32>, // Height multiplier (default: 1.0)
     #[serde(default)]
-    pub terrain_detail: Option<f32>,           // Noise frequency multiplier (default: 0.5)
+    pub terrain_detail: Option<f32>, // Noise frequency multiplier (default: 0.5)
     #[serde(default)]
-    pub terrain_blend_width: Option<f32>,      // Track corridor blend meters (default: 20.0)
+    pub terrain_blend_width: Option<f32>, // Track corridor blend meters (default: 20.0)
     #[serde(default)]
-    pub object_density: Option<f32>,           // 0-1 density multiplier (default: 0.8)
+    pub object_density: Option<f32>, // 0-1 density multiplier (default: 0.8)
     #[serde(default)]
-    pub decal_profile: Option<String>,         // Decal set identifier (default: "default")
+    pub decal_profile: Option<String>, // Decal set identifier (default: "default")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackSurface {
-    pub base_grip: f32,              // Base grip multiplier (1.0 = normal asphalt)
-    pub curb_grip: f32,              // Grip on curbs
-    pub off_track_grip: f32,         // Grip off track (grass/gravel)
+    pub base_grip: f32,               // Base grip multiplier (1.0 = normal asphalt)
+    pub curb_grip: f32,               // Grip on curbs
+    pub off_track_grip: f32,          // Grip off track (grass/gravel)
     pub off_track_speed_penalty: f32, // Speed reduction factor off track
 }
 
@@ -467,37 +477,37 @@ impl Default for TrackConfig {
         let mut centerline = Vec::new();
         let num_points = 40;
         let radius = 100.0;
-        
+
         for i in 0..num_points {
             let angle = 2.0 * std::f32::consts::PI * (i as f32) / (num_points as f32);
             let x = radius * angle.cos();
             let y = radius * angle.sin();
             let distance = angle * radius;
-            
+
             // Add some elevation variation
-            let z = (angle * 2.0).sin() * 3.0;  // ±3m elevation
-            
+            let z = (angle * 2.0).sin() * 3.0; // ±3m elevation
+
             // Calculate banking based on turn (more banking in turns)
-            let banking = if x.abs() < radius * 0.3 { 
-                0.12 * (1.0 - x.abs() / (radius * 0.3))  // ~7 degrees max
-            } else { 
-                0.0 
+            let banking = if x.abs() < radius * 0.3 {
+                0.12 * (1.0 - x.abs() / (radius * 0.3)) // ~7 degrees max
+            } else {
+                0.0
             };
-            
+
             // Calculate track direction for camber
             let next_i = (i + 1) % num_points;
             let next_angle = 2.0 * std::f32::consts::PI * (next_i as f32) / (num_points as f32);
             let dx = (radius * next_angle.cos()) - x;
             let dy = (radius * next_angle.sin()) - y;
             let heading = dy.atan2(dx);
-            
+
             // Calculate slope (grade) based on elevation change
             let prev_i = (i + num_points - 1) % num_points;
             let prev_angle = 2.0 * std::f32::consts::PI * (prev_i as f32) / (num_points as f32);
             let prev_z = (prev_angle * 2.0).sin() * 3.0;
             let segment_length = 2.0 * std::f32::consts::PI * radius / num_points as f32;
             let slope = (z - prev_z) / segment_length;
-            
+
             centerline.push(TrackPoint {
                 x,
                 y,
@@ -513,7 +523,7 @@ impl Default for TrackConfig {
                 grip_modifier: 1.0,
             });
         }
-        
+
         // Create start positions
         let mut start_positions = Vec::new();
         for i in 0..16 {
@@ -525,7 +535,7 @@ impl Default for TrackConfig {
                 yaw_rad: 0.0,
             });
         }
-        
+
         Self {
             id: Uuid::new_v4(),
             name: "Default Oval".to_string(),
@@ -536,8 +546,33 @@ impl Default for TrackConfig {
             track_surface: TrackSurface::default(),
             pit_lane: None,
             raceline: Vec::new(),
+            raceline_distances: Vec::new(),
+            checkpoints: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
+        }
+    }
+}
+
+impl TrackConfig {
+    /// Recompute `raceline_distances` (cumulative arc length per raceline
+    /// point). Must be called whenever `raceline` is (re)assigned outside the
+    /// track loader; AI raceline-following falls back to the centerline when
+    /// the distances are missing or out of sync.
+    pub fn rebuild_raceline_distances(&mut self) {
+        self.raceline_distances.clear();
+        if self.raceline.is_empty() {
+            return;
+        }
+        self.raceline_distances.reserve(self.raceline.len());
+        let mut cumulative = 0.0f32;
+        self.raceline_distances.push(0.0);
+        for i in 1..self.raceline.len() {
+            let dx = self.raceline[i].x - self.raceline[i - 1].x;
+            let dy = self.raceline[i].y - self.raceline[i - 1].y;
+            let dz = self.raceline[i].z - self.raceline[i - 1].z;
+            cumulative += (dx * dx + dy * dy + dz * dz).sqrt();
+            self.raceline_distances.push(cumulative);
         }
     }
 }
@@ -563,16 +598,16 @@ impl Default for SurfaceType {
 pub struct TrackPoint {
     pub x: f32,
     pub y: f32,
-    pub z: f32,                      // Elevation
+    pub z: f32, // Elevation
     pub distance_from_start_m: f32,
-    pub width_left_m: f32,           // Track width to the left of centerline
-    pub width_right_m: f32,          // Track width to the right of centerline
-    pub banking_rad: f32,            // Track banking angle (positive = banked towards inside)
-    pub camber_rad: f32,             // Cross-slope (crown)
-    pub slope_rad: f32,              // Uphill/downhill grade
-    pub heading_rad: f32,            // Track direction at this point
+    pub width_left_m: f32,  // Track width to the left of centerline
+    pub width_right_m: f32, // Track width to the right of centerline
+    pub banking_rad: f32,   // Track banking angle (positive = banked towards inside)
+    pub camber_rad: f32,    // Cross-slope (crown)
+    pub slope_rad: f32,     // Uphill/downhill grade
+    pub heading_rad: f32,   // Track direction at this point
     pub surface_type: SurfaceType,
-    pub grip_modifier: f32,          // Local grip adjustment (1.0 = normal)
+    pub grip_modifier: f32, // Local grip adjustment (1.0 = normal)
 }
 
 impl Default for TrackPoint {
@@ -664,57 +699,67 @@ pub struct CarState {
     pub player_id: PlayerId,
     pub car_config_id: CarConfigId,
     pub grid_position: u8,
-    
+
     // 3D Position
     pub pos_x: f32,
     pub pos_y: f32,
-    pub pos_z: f32,                   // Elevation
-    
+    pub pos_z: f32, // Elevation
+
     // 3D Orientation (Euler angles)
-    pub yaw_rad: f32,                 // Heading (rotation around Z axis)
-    pub pitch_rad: f32,               // Nose up/down (rotation around Y axis)
-    pub roll_rad: f32,                // Body roll (rotation around X axis)
-    
+    pub yaw_rad: f32,   // Heading (rotation around Z axis)
+    pub pitch_rad: f32, // Nose up/down (rotation around Y axis)
+    pub roll_rad: f32,  // Body roll (rotation around X axis)
+
     // 3D Velocity
     pub vel_x: f32,
     pub vel_y: f32,
     pub vel_z: f32,
-    pub speed_mps: f32,               // Magnitude of velocity vector
-    
+    pub speed_mps: f32, // Magnitude of velocity vector
+
     // Angular velocities
-    pub angular_vel_yaw: f32,         // Yaw rate (rad/s)
-    pub angular_vel_pitch: f32,       // Pitch rate (rad/s)
-    pub angular_vel_roll: f32,        // Roll rate (rad/s)
-    
+    pub angular_vel_yaw: f32,   // Yaw rate (rad/s)
+    pub angular_vel_pitch: f32, // Pitch rate (rad/s)
+    pub angular_vel_roll: f32,  // Roll rate (rad/s)
+
     // Inputs
     pub throttle_input: f32,
     pub brake_input: f32,
     pub steering_input: f32,
-    pub gear: i8,                     // Current gear (-1 = reverse, 0 = neutral, 1-6+)
-    pub clutch_input: f32,            // Clutch engagement (0 = disengaged, 1 = engaged)
-    
+    pub gear: i8,          // Current gear (-1 = reverse, 0 = neutral, 1-6+)
+    pub clutch_input: f32, // Clutch engagement (0 = disengaged, 1 = engaged)
+
     // Track position
     pub track_progress: f32,
-    pub lateral_offset_m: f32,        // Distance from centerline (positive = right)
+    pub lateral_offset_m: f32, // Distance from centerline (positive = right)
     pub current_lap: u16,
     pub finish_position: Option<u8>,
-    pub lap_start_tick: u32,          // Tick when current lap started
-    pub current_lap_time_ms: u32,     // Current lap time in progress
+    pub lap_start_tick: u32,      // Tick when current lap started
+    pub current_lap_time_ms: u32, // Current lap time in progress
     pub last_lap_time_ms: Option<u32>,
     pub best_lap_time_ms: Option<u32>,
-    
+
     // Collision state
     pub is_colliding: bool,
     pub collision_normal_x: f32,
     pub collision_normal_y: f32,
     pub collision_normal_z: f32,
-    
+
+    /// Cached nearest-centerline index from the previous physics query.
+    /// Pure runtime search hint — never serialized, safe to reset to None.
+    #[serde(skip)]
+    pub nearest_centerline_idx: Option<u32>,
+
+    /// Index of the next checkpoint this car must pass for its lap to count
+    /// (anti-shortcut validation). Runtime-only; never serialized.
+    #[serde(skip)]
+    pub next_checkpoint: u8,
+
     // Surface state
     pub current_surface: SurfaceType,
     pub is_on_track: bool,
     pub is_airborne: bool,
     pub surface_grip_modifier: f32,
-    
+
     // Telemetry
     pub tires: TireTelemetry,
     pub g_forces: GForces,
@@ -728,13 +773,13 @@ pub struct CarState {
     pub oil_temp_c: f32,
     pub oil_pressure_kpa: f32,
     pub water_temp_c: f32,
-    
+
     // Weight transfer
     pub weight_front_left_n: f32,
     pub weight_front_right_n: f32,
     pub weight_rear_left_n: f32,
     pub weight_rear_right_n: f32,
-    
+
     // Aerodynamics
     pub downforce_front_n: f32,
     pub downforce_rear_n: f32,
@@ -747,35 +792,35 @@ impl CarState {
             player_id,
             car_config_id,
             grid_position: grid_slot.position,
-            
+
             // 3D Position
             pos_x: grid_slot.x,
             pos_y: grid_slot.y,
             pos_z: grid_slot.z,
-            
+
             // Orientation
             yaw_rad: grid_slot.yaw_rad,
             pitch_rad: 0.0,
             roll_rad: 0.0,
-            
+
             // Velocity
             vel_x: 0.0,
             vel_y: 0.0,
             vel_z: 0.0,
             speed_mps: 0.0,
-            
+
             // Angular velocity
             angular_vel_yaw: 0.0,
             angular_vel_pitch: 0.0,
             angular_vel_roll: 0.0,
-            
+
             // Inputs
             throttle_input: 0.0,
             brake_input: 0.0,
             steering_input: 0.0,
             gear: 1,
             clutch_input: 1.0,
-            
+
             // Track position
             track_progress: 0.0,
             lateral_offset_m: 0.0,
@@ -785,19 +830,21 @@ impl CarState {
             current_lap_time_ms: 0,
             last_lap_time_ms: None,
             best_lap_time_ms: None,
-            
+
             // Collision
             is_colliding: false,
+            nearest_centerline_idx: None,
+            next_checkpoint: 0,
             collision_normal_x: 0.0,
             collision_normal_y: 0.0,
             collision_normal_z: 0.0,
-            
+
             // Surface
             current_surface: SurfaceType::Asphalt,
             is_on_track: true,
             is_airborne: false,
             surface_grip_modifier: 1.0,
-            
+
             // Telemetry
             tires: TireTelemetry::default(),
             g_forces: GForces::default(),
@@ -814,13 +861,13 @@ impl CarState {
             oil_temp_c: 90.0,
             oil_pressure_kpa: 350.0,
             water_temp_c: 80.0,
-            
+
             // Weight (will be calculated)
             weight_front_left_n: 0.0,
             weight_front_right_n: 0.0,
             weight_rear_left_n: 0.0,
             weight_rear_right_n: 0.0,
-            
+
             // Aerodynamics (will be calculated)
             downforce_front_n: 0.0,
             downforce_rear_n: 0.0,
@@ -894,12 +941,17 @@ pub struct RaceSession {
     pub state: SessionState,
     #[serde(default)]
     pub game_mode: GameMode,
-    pub participants: HashMap<PlayerId, CarState>,
+    /// Keyed and iterated in PlayerId order (BTreeMap): physics and the
+    /// order-dependent collision solver must be deterministic across runs.
+    pub participants: std::collections::BTreeMap<PlayerId, CarState>,
     pub max_players: u8,
     pub ai_count: u8,
     pub lap_limit: u8,
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>,
+    /// Game mode to transition to when the countdown reaches zero.
+    #[serde(default)]
+    pub next_mode: Option<GameMode>,
     pub race_start_tick: Option<u32>,
     /// AI driver player IDs (references to profiles stored elsewhere)
     pub ai_player_ids: Vec<PlayerId>,
@@ -923,12 +975,13 @@ impl RaceSession {
             session_kind,
             state: SessionState::Lobby,
             game_mode: GameMode::Lobby,
-            participants: HashMap::new(),
+            participants: std::collections::BTreeMap::new(),
             max_players,
             ai_count,
             lap_limit,
             current_tick: 0,
             countdown_ticks_remaining: None,
+            next_mode: None,
             race_start_tick: None,
             ai_player_ids: Vec::new(),
             demo_lap_progress: None,
@@ -943,8 +996,8 @@ pub struct PlayerInputData {
     pub throttle: f32,
     pub brake: f32,
     pub steering: f32,
-    pub gear: Option<i8>,      // Desired gear (-1 = reverse, 0 = neutral, 1-6+)
-    pub clutch: Option<f32>,   // Clutch input (0.0-1.0)
+    pub gear: Option<i8>,    // Desired gear (-1 = reverse, 0 = neutral, 1-6+)
+    pub clutch: Option<f32>, // Clutch input (0.0-1.0)
 }
 
 impl PlayerInputData {
@@ -968,7 +1021,7 @@ mod tests {
             selected_car_config_id: None,
             is_ai: false,
         };
-        
+
         assert_eq!(player.name, "TestPlayer");
         assert!(!player.is_ai);
     }
@@ -993,7 +1046,7 @@ mod tests {
         let host_id = Uuid::new_v4();
         let track_id = Uuid::new_v4();
         let session = RaceSession::new(host_id, track_id, SessionKind::Multiplayer, 8, 2, 5);
-        
+
         assert_eq!(session.host_player_id, host_id);
         assert_eq!(session.track_config_id, track_id);
         assert_eq!(session.max_players, 8);
@@ -1011,9 +1064,9 @@ mod tests {
             gear: None,
             clutch: None,
         };
-        
+
         input.clamp();
-        
+
         assert_eq!(input.throttle, 1.0);
         assert_eq!(input.brake, 0.0);
         assert_eq!(input.steering, 1.0);
@@ -1030,9 +1083,9 @@ mod tests {
             z: 0.0,
             yaw_rad: 0.0,
         };
-        
+
         let state = CarState::new(player_id, car_id, &grid_slot);
-        
+
         assert_eq!(state.player_id, player_id);
         assert_eq!(state.car_config_id, car_id);
         assert_eq!(state.grid_position, 1);

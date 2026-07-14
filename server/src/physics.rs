@@ -13,7 +13,7 @@ use crate::data::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::Once;
-use tracing::{debug};
+use tracing::debug;
 /// Gravity constant (m/s²)
 const GRAVITY: f32 = 9.81;
 
@@ -35,12 +35,12 @@ const SURFACE_QUERY_LATERAL_MARGIN_M: f32 = 5.0;
 /// Per-wheel physics state for intermediate calculations
 #[derive(Debug, Clone, Copy, Default)]
 pub struct WheelState {
-    pub load_n: f32,           // Vertical load on this wheel
-    pub slip_ratio: f32,       // Longitudinal slip
-    pub slip_angle_rad: f32,   // Lateral slip angle
-    pub grip_force_x: f32,     // Longitudinal grip force
-    pub grip_force_y: f32,     // Lateral grip force
-    pub contact_z: f32,        // Ground contact elevation
+    pub load_n: f32,                 // Vertical load on this wheel
+    pub slip_ratio: f32,             // Longitudinal slip
+    pub slip_angle_rad: f32,         // Lateral slip angle
+    pub grip_force_x: f32,           // Longitudinal grip force
+    pub grip_force_y: f32,           // Lateral grip force
+    pub contact_z: f32,              // Ground contact elevation
     pub suspension_compression: f32, // Current compression (m)
     pub suspension_velocity_mps: f32,
     pub spring_force_n: f32,
@@ -54,12 +54,12 @@ pub struct VehiclePhysicsState {
     pub front_right: WheelState,
     pub rear_left: WheelState,
     pub rear_right: WheelState,
-    
+
     // Forces in vehicle frame
-    pub total_force_x: f32,      // Forward (+) / Backward (-)
-    pub total_force_y: f32,      // Left (-) / Right (+)
-    pub total_force_z: f32,      // Up (+) / Down (-)
-    
+    pub total_force_x: f32, // Forward (+) / Backward (-)
+    pub total_force_y: f32, // Left (-) / Right (+)
+    pub total_force_z: f32, // Up (+) / Down (-)
+
     // Moments
     pub yaw_moment: f32,
     pub pitch_moment: f32,
@@ -140,16 +140,21 @@ enum SurfaceQueryBackend {
 
 static MESH_BACKEND_STUB_LOG_ONCE: Once = Once::new();
 
+static SURFACE_QUERY_BACKEND: std::sync::OnceLock<SurfaceQueryBackend> = std::sync::OnceLock::new();
+
 fn active_surface_query_backend() -> SurfaceQueryBackend {
-    match std::env::var("APEXSIM_SURFACE_QUERY_BACKEND") {
-        Ok(value) if value.eq_ignore_ascii_case("mesh")
-            || value.eq_ignore_ascii_case("heightfield")
-            || value.eq_ignore_ascii_case("mesh_heightfield") =>
+    // Read the env var once; this runs on every surface query (several times
+    // per car per tick), so it must not hit the environment each call.
+    *SURFACE_QUERY_BACKEND.get_or_init(|| match std::env::var("APEXSIM_SURFACE_QUERY_BACKEND") {
+        Ok(value)
+            if value.eq_ignore_ascii_case("mesh")
+                || value.eq_ignore_ascii_case("heightfield")
+                || value.eq_ignore_ascii_case("mesh_heightfield") =>
         {
             SurfaceQueryBackend::MeshHeightfield
         }
         _ => SurfaceQueryBackend::Centerline,
-    }
+    })
 }
 
 /// Update car physics for one simulation tick - main 3D physics function
@@ -168,15 +173,18 @@ pub fn update_car_3d(
     // Keep fuel capacity in sync with config (for moddable cars)
     state.fuel_capacity_liters = config.fuel.capacity_liters;
     state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
-    
-    // 1. Get track context at current position
+
+    // 1. Get track context at current position (windowed search seeded by
+    // the previous tick's cached index; cache updated for wheel queries)
     let track_ctx = get_track_context(state, track);
+    state.nearest_centerline_idx = Some(track_ctx.nearest_point as u32);
     state.is_on_track = track_ctx.is_on_track;
     state.current_surface = track_ctx.surface_type;
     state.surface_grip_modifier = track_ctx.grip_modifier;
     state.lateral_offset_m = track_ctx.lateral_offset;
 
-    let lateral_query_limit = track_ctx.width_left.max(track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
+    let lateral_query_limit =
+        track_ctx.width_left.max(track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
     let can_query_surface = track_ctx.lateral_offset.abs() <= lateral_query_limit;
     let mut is_airborne = if can_query_surface {
         if state.pos_z <= track_ctx.elevation {
@@ -191,74 +199,76 @@ pub fn update_car_3d(
         false
     };
     state.is_airborne = is_airborne;
-    
+
     // 2. Calculate static weight distribution
     let total_weight = config.mass_kg * GRAVITY;
-    let (static_front_weight, static_rear_weight) = calculate_static_weight_distribution(config, total_weight);
-    
+    let (static_front_weight, static_rear_weight) =
+        calculate_static_weight_distribution(config, total_weight);
+
     // 3. Calculate aerodynamic forces
     let (drag_force, downforce_front, downforce_rear) = calculate_aerodynamic_forces(state, config);
     state.drag_force_n = drag_force;
     state.downforce_front_n = downforce_front;
     state.downforce_rear_n = downforce_rear;
-    
+
     // 4. Calculate engine torque and RPM
     let (engine_torque, engine_rpm) = calculate_engine_output(state, config, input);
     state.engine_rpm = engine_rpm;
 
     // 5. Calculate wheel torques from drivetrain
-    let (drive_torque_front, drive_torque_rear) = calculate_drive_torques(
-        engine_torque,
-        config,
-        state.gear,
-    );
+    let (drive_torque_front, drive_torque_rear) =
+        calculate_drive_torques(engine_torque, config, state.gear);
 
-    
     // 6. Calculate brake forces
     let brake_force = input.brake * config.max_brake_force_n;
     let brake_front = brake_force * config.brake_bias_front;
     let brake_rear = brake_force * (1.0 - config.brake_bias_front);
-    
-    // 7. Calculate weight transfer
+
+    // 7. Calculate weight transfer.
+    // Deliberately uses the PREVIOUS tick's accelerations (g_forces are
+    // written at the end of each tick): loads depend on forces which depend
+    // on loads, so a same-tick solution would need fixed-point iteration.
+    // At 240Hz the one-tick (4.2ms) lag is a stable, standard approximation.
     let longitudinal_accel = state.g_forces.longitudinal_g * GRAVITY;
     let lateral_accel = state.g_forces.lateral_g * GRAVITY;
-    
-    let (weight_transfer_long, weight_transfer_lat_front, weight_transfer_lat_rear) = 
+
+    let (weight_transfer_long, weight_transfer_lat_front, weight_transfer_lat_rear) =
         calculate_weight_transfer(config, longitudinal_accel, lateral_accel, total_weight);
 
     let prev_fl_compression = state.suspension.front_left_travel_m;
     let prev_fr_compression = state.suspension.front_right_travel_m;
     let prev_rl_compression = state.suspension.rear_left_travel_m;
     let prev_rr_compression = state.suspension.rear_right_travel_m;
-    
+
     // 8. Calculate individual wheel loads
     let front_weight = static_front_weight + downforce_front - weight_transfer_long;
     let rear_weight = static_rear_weight + downforce_rear + weight_transfer_long;
 
-    let suspension_rest_length_m = (config.suspension.max_travel_m * 0.5)
-        .clamp(0.0, config.suspension.max_travel_m);
+    let suspension_rest_length_m =
+        (config.suspension.max_travel_m * 0.5).clamp(0.0, config.suspension.max_travel_m);
     let hub_z = state.pos_z + config.wheel_radius_m;
 
     let cos_yaw = state.yaw_rad.cos();
     let sin_yaw = state.yaw_rad.sin();
-    let sample_wheel_state = |
-        local_x: f32,
-        local_y: f32,
-        spring_rate_n_per_m: f32,
-        damper_compression: f32,
-        damper_rebound: f32,
-        previous_compression: f32,
-    | -> WheelState {
+    let sample_wheel_state = |local_x: f32,
+                              local_y: f32,
+                              spring_rate_n_per_m: f32,
+                              damper_compression: f32,
+                              damper_rebound: f32,
+                              previous_compression: f32|
+     -> WheelState {
         let world_x = state.pos_x + local_x * cos_yaw - local_y * sin_yaw;
         let world_y = state.pos_y + local_x * sin_yaw + local_y * cos_yaw;
 
-        let contact_z = query_track_surface(track, world_x, world_y)
+        // Wheels sit within a couple meters of the car: the car's own
+        // nearest index is an excellent hint.
+        let contact_z = query_track_surface(track, world_x, world_y, Some(track_ctx.nearest_point))
             .map(|sample| sample.elevation)
             .unwrap_or(track_ctx.elevation);
 
         let wheel_extension = (hub_z - contact_z - config.wheel_radius_m).max(0.0);
-        let compression = (suspension_rest_length_m - wheel_extension)
-            .clamp(0.0, config.suspension.max_travel_m);
+        let compression =
+            (suspension_rest_length_m - wheel_extension).clamp(0.0, config.suspension.max_travel_m);
 
         let compression_velocity = (compression - previous_compression) / dt.max(1e-4);
         let damping_coeff = if compression_velocity >= 0.0 {
@@ -335,26 +345,39 @@ pub fn update_car_3d(
         wheel_rear_left.load_n = 0.0;
         wheel_rear_right.load_n = 0.0;
     } else {
+        // Tire normal load = analytic model (static weight + aero downforce
+        // + longitudinal/lateral transfer) plus a ZERO-SUM suspension term.
+        // The raw spring/damper forces carry the car's static weight, so
+        // adding them outright would double-count it (~2x grip). Only the
+        // deviation from the axle mean transfers load — this preserves
+        // terrain-asymmetry response (bumps, kerbs) without inflating the
+        // total normal force.
+        let front_mean_load = (wheel_front_left.load_n + wheel_front_right.load_n) / 2.0;
+        let rear_mean_load = (wheel_rear_left.load_n + wheel_rear_right.load_n) / 2.0;
+        let susp_delta_fl = wheel_front_left.load_n - front_mean_load;
+        let susp_delta_fr = wheel_front_right.load_n - front_mean_load;
+        let susp_delta_rl = wheel_rear_left.load_n - rear_mean_load;
+        let susp_delta_rr = wheel_rear_right.load_n - rear_mean_load;
+
         state.weight_front_left_n =
-            (front_weight / 2.0 + weight_transfer_lat_front + wheel_front_left.load_n).max(0.0);
+            (front_weight / 2.0 + weight_transfer_lat_front + susp_delta_fl).max(0.0);
         state.weight_front_right_n =
-            (front_weight / 2.0 - weight_transfer_lat_front + wheel_front_right.load_n).max(0.0);
+            (front_weight / 2.0 - weight_transfer_lat_front + susp_delta_fr).max(0.0);
         state.weight_rear_left_n =
-            (rear_weight / 2.0 + weight_transfer_lat_rear + wheel_rear_left.load_n).max(0.0);
+            (rear_weight / 2.0 + weight_transfer_lat_rear + susp_delta_rl).max(0.0);
         state.weight_rear_right_n =
-            (rear_weight / 2.0 - weight_transfer_lat_rear + wheel_rear_right.load_n).max(0.0);
+            (rear_weight / 2.0 - weight_transfer_lat_rear + susp_delta_rr).max(0.0);
 
-        let front_anti_roll_transfer =
-            config.suspension.anti_roll_bar_front
-                * (wheel_front_left.suspension_compression - wheel_front_right.suspension_compression)
-                * 0.5;
+        let front_anti_roll_transfer = config.suspension.anti_roll_bar_front
+            * (wheel_front_left.suspension_compression - wheel_front_right.suspension_compression)
+            * 0.5;
         state.weight_front_left_n = (state.weight_front_left_n - front_anti_roll_transfer).max(0.0);
-        state.weight_front_right_n = (state.weight_front_right_n + front_anti_roll_transfer).max(0.0);
+        state.weight_front_right_n =
+            (state.weight_front_right_n + front_anti_roll_transfer).max(0.0);
 
-        let rear_anti_roll_transfer =
-            config.suspension.anti_roll_bar_rear
-                * (wheel_rear_left.suspension_compression - wheel_rear_right.suspension_compression)
-                * 0.5;
+        let rear_anti_roll_transfer = config.suspension.anti_roll_bar_rear
+            * (wheel_rear_left.suspension_compression - wheel_rear_right.suspension_compression)
+            * 0.5;
         state.weight_rear_left_n = (state.weight_rear_left_n - rear_anti_roll_transfer).max(0.0);
         state.weight_rear_right_n = (state.weight_rear_right_n + rear_anti_roll_transfer).max(0.0);
 
@@ -382,20 +405,24 @@ pub fn update_car_3d(
     state.suspension.rear_right_damper_force_n = wheel_rear_right.damper_force_n;
 
     state.is_airborne = is_airborne;
-    
+
     // 9. Calculate steering angle
     let steering_angle = input.steering * config.max_steering_angle_rad;
-    
+
     // Apply Ackermann steering geometry (inner wheel turns more)
     let (steer_left, steer_right) = calculate_ackermann_steering(
         steering_angle,
         config.wheelbase_m,
         config.track_width_front_m,
     );
-    
+
     // 10. Calculate tire forces using Pacejka-inspired model
     let effective_grip = config.tire_config.grip_coefficient * track_ctx.grip_modifier;
-    
+
+    // Body-frame velocities: forward (+x) and leftward (+y) components
+    let v_long = state.vel_x * cos_yaw + state.vel_y * sin_yaw;
+    let v_lat = -state.vel_x * sin_yaw + state.vel_y * cos_yaw;
+
     // Calculate slip ratios, wheel loads and tire forces
     let mut fl_slip = (0.0, 0.0);
     let mut fr_slip = (0.0, 0.0);
@@ -414,7 +441,8 @@ pub fn update_car_3d(
     } else {
         // Front left tire
         fl_slip = calculate_wheel_slip(
-            state.speed_mps,
+            v_long,
+            v_lat,
             state.angular_vel_yaw,
             steer_left,
             config.wheelbase_m / 2.0,
@@ -426,7 +454,8 @@ pub fn update_car_3d(
 
         // Front right tire
         fr_slip = calculate_wheel_slip(
-            state.speed_mps,
+            v_long,
+            v_lat,
             state.angular_vel_yaw,
             steer_right,
             config.wheelbase_m / 2.0,
@@ -438,7 +467,8 @@ pub fn update_car_3d(
 
         // Rear left tire
         rl_slip = calculate_wheel_slip(
-            state.speed_mps,
+            v_long,
+            v_lat,
             state.angular_vel_yaw,
             0.0,
             -config.wheelbase_m / 2.0,
@@ -450,7 +480,8 @@ pub fn update_car_3d(
 
         // Rear right tire
         rr_slip = calculate_wheel_slip(
-            state.speed_mps,
+            v_long,
+            v_lat,
             state.angular_vel_yaw,
             0.0,
             -config.wheelbase_m / 2.0,
@@ -489,18 +520,18 @@ pub fn update_car_3d(
             &config.tire_config,
         );
     }
-    
+
     // 11. Sum all forces
     // Rotate front tire forces by steering angle
     let fl_force_x = fl_forces.0 * steer_left.cos() - fl_forces.1 * steer_left.sin();
     let fl_force_y = fl_forces.0 * steer_left.sin() + fl_forces.1 * steer_left.cos();
     let fr_force_x = fr_forces.0 * steer_right.cos() - fr_forces.1 * steer_right.sin();
     let fr_force_y = fr_forces.0 * steer_right.sin() + fr_forces.1 * steer_right.cos();
-    
+
     // Total forces in vehicle frame
     let total_force_x = fl_force_x + fr_force_x + rl_forces.0 + rr_forces.0 - drag_force;
     let total_force_y = fl_force_y + fr_force_y + rl_forces.1 + rr_forces.1;
-    
+
     // Include gravity components on slopes
     let slope_force = if is_airborne {
         0.0
@@ -512,64 +543,79 @@ pub fn update_car_3d(
     } else {
         config.mass_kg * GRAVITY * track_ctx.banking_rad.sin()
     };
-    
-    // 12. Calculate yaw moment
-    let yaw_moment = 
-        // Front tire contributions
-        (fl_force_y + fr_force_y) * (config.wheelbase_m / 2.0)
-        // Rear tire contributions
+
+    // 12. Calculate yaw moment: front tires ahead of CoG, rear tires behind,
+    // plus lateral offsets of left/right wheels.
+    let yaw_moment = (fl_force_y + fr_force_y) * (config.wheelbase_m / 2.0)
         - (rl_forces.1 + rr_forces.1) * (config.wheelbase_m / 2.0)
-        // Lateral force offset contributions
         + (fr_force_x - fl_force_x) * (config.track_width_front_m / 2.0)
         + (rr_forces.0 - rl_forces.0) * (config.track_width_rear_m / 2.0);
-    
+
     // 13. Calculate accelerations
     let accel_x = (total_force_x - slope_force) / config.mass_kg;
     let accel_y = (total_force_y + banking_force) / config.mass_kg;
 
-    
     // Yaw moment of inertia (simplified as rectangular body)
     let yaw_inertia = config.mass_kg * (config.length_m.powi(2) + config.width_m.powi(2)) / 12.0;
     let angular_accel_yaw = yaw_moment / yaw_inertia;
-    
+
     // 14. Update G-forces
     state.g_forces.longitudinal_g = accel_x / GRAVITY;
     state.g_forces.lateral_g = accel_y / GRAVITY;
-    state.g_forces.vertical_g = 1.0 + (downforce_front + downforce_rear) / (config.mass_kg * GRAVITY);
-    
+    state.g_forces.vertical_g =
+        1.0 + (downforce_front + downforce_rear) / (config.mass_kg * GRAVITY);
+
     // 15. Integrate velocities
     // Transform acceleration from vehicle frame to world frame
     let cos_yaw = state.yaw_rad.cos();
     let sin_yaw = state.yaw_rad.sin();
-    
+
     let accel_world_x = accel_x * cos_yaw - accel_y * sin_yaw;
     let accel_world_y = accel_x * sin_yaw + accel_y * cos_yaw;
-    
+
     state.vel_x += accel_world_x * dt;
     state.vel_y += accel_world_y * dt;
-    
-    // Apply off-track penalty
-    if !is_airborne && !track_ctx.is_on_track {
+
+    // Apply off-track penalty. Only above a recovery threshold: the penalty
+    // exists to make shortcuts slow, not to trap a car that went off in a
+    // low-speed crawl it can never accelerate out of.
+    const OFF_TRACK_RECOVERY_SPEED_MPS: f32 = 8.0;
+    if !is_airborne && !track_ctx.is_on_track && state.speed_mps > OFF_TRACK_RECOVERY_SPEED_MPS {
         let penalty = 1.0 - track.track_surface.off_track_speed_penalty * dt;
         state.vel_x *= penalty;
         state.vel_y *= penalty;
     }
-    
+
     state.speed_mps = (state.vel_x.powi(2) + state.vel_y.powi(2) + state.vel_z.powi(2)).sqrt();
-    
+
     // Prevent negative speed
     if state.speed_mps < MIN_SPEED_THRESHOLD && input.throttle < 0.1 {
         state.vel_x = 0.0;
         state.vel_y = 0.0;
         state.speed_mps = 0.0;
     }
-    
+
     // 16. Integrate angular velocity
     state.angular_vel_yaw += angular_accel_yaw * dt;
-    
-    // Apply angular damping
-    state.angular_vel_yaw *= 0.995;
-    
+
+    // Apply angular damping, scaled by dt so behavior is tick-rate
+    // independent (0.995/tick at 240Hz ⇒ decay rate ln(0.995)·240 ≈ 1.2/s).
+    const YAW_DAMPING_RATE_PER_SEC: f32 = 1.2029;
+    state.angular_vel_yaw *= (-YAW_DAMPING_RATE_PER_SEC * dt).exp();
+
+    // Low-speed kinematic constraint: below walking-to-jogging speeds real
+    // tires roll instead of sliding, so yaw follows bicycle-model kinematics
+    // (v/L·tan(δ)). The pure force-based yaw dynamics are singular near
+    // standstill (huge moments from clamped slip angles at ~zero speed) and
+    // make the car pirouette. Blend from kinematic to dynamic with speed.
+    const KINEMATIC_BLEND_SPEED_MPS: f32 = 8.0;
+    if !is_airborne && state.speed_mps < KINEMATIC_BLEND_SPEED_MPS {
+        let kinematic_yaw_rate =
+            state.speed_mps / config.wheelbase_m.max(0.1) * steering_angle.tan();
+        let blend = (state.speed_mps / KINEMATIC_BLEND_SPEED_MPS).clamp(0.0, 1.0);
+        state.angular_vel_yaw = kinematic_yaw_rate * (1.0 - blend) + state.angular_vel_yaw * blend;
+    }
+
     // 17. Integrate position
     state.pos_x += state.vel_x * dt;
     state.pos_y += state.vel_y * dt;
@@ -580,7 +626,9 @@ pub fn update_car_3d(
     }
 
     let post_track_ctx = get_track_context(state, track);
-    let post_lateral_query_limit = post_track_ctx.width_left.max(post_track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
+    state.nearest_centerline_idx = Some(post_track_ctx.nearest_point as u32);
+    let post_lateral_query_limit =
+        post_track_ctx.width_left.max(post_track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
     let can_query_post_surface = post_track_ctx.lateral_offset.abs() <= post_lateral_query_limit;
 
     if can_query_post_surface {
@@ -605,11 +653,11 @@ pub fn update_car_3d(
     state.current_surface = post_track_ctx.surface_type;
     state.surface_grip_modifier = post_track_ctx.grip_modifier;
     state.lateral_offset_m = post_track_ctx.lateral_offset;
-    
+
     // 18. Integrate orientation
     state.yaw_rad += state.angular_vel_yaw * dt;
     state.yaw_rad = normalize_angle(state.yaw_rad);
-    
+
     // Match track pitch and roll while grounded
     if state.is_airborne {
         state.pitch_rad += state.angular_vel_pitch * dt;
@@ -618,7 +666,7 @@ pub fn update_car_3d(
         state.pitch_rad = post_track_ctx.slope_rad;
         state.roll_rad = -post_track_ctx.banking_rad;
     }
-    
+
     // 19. Store inputs
     state.throttle_input = input.throttle;
     state.brake_input = input.brake;
@@ -644,7 +692,7 @@ pub fn update_car_3d(
         rr_slip,
         dt,
     );
-    
+
     // 21. Update fuel consumption
     update_fuel_consumption(state, config, input, dt);
 }
@@ -660,46 +708,53 @@ fn calculate_static_weight_distribution(config: &CarConfig, total_weight: f32) -
 fn calculate_aerodynamic_forces(state: &CarState, config: &CarConfig) -> (f32, f32, f32) {
     let speed_squared = state.speed_mps.powi(2);
     let dynamic_pressure = 0.5 * AIR_DENSITY * speed_squared;
-    
+
     // Drag force
     let drag = dynamic_pressure * config.drag_coefficient * config.frontal_area_m2;
-    
+
     // Downforce (lift coefficients are negative for downforce)
-    let downforce_front = -dynamic_pressure * config.lift_coefficient_front * config.frontal_area_m2;
+    let downforce_front =
+        -dynamic_pressure * config.lift_coefficient_front * config.frontal_area_m2;
     let downforce_rear = -dynamic_pressure * config.lift_coefficient_rear * config.frontal_area_m2;
-    
+
     (drag, downforce_front.max(0.0), downforce_rear.max(0.0))
 }
 
 /// Calculate engine output torque and RPM
-fn calculate_engine_output(state: &CarState, config: &CarConfig, input: &PlayerInputData) -> (f32, f32) {
+fn calculate_engine_output(
+    state: &CarState,
+    config: &CarConfig,
+    input: &PlayerInputData,
+) -> (f32, f32) {
     // Calculate wheel speed based on current velocity
     let wheel_rpm = if state.speed_mps > MIN_SPEED_THRESHOLD {
         (state.speed_mps / (2.0 * PI * config.wheel_radius_m)) * 60.0
     } else {
         0.0
     };
-    
+
     // Calculate engine RPM from wheel speed through drivetrain
     let gear_ratio = if state.gear > 0 && (state.gear as usize) < config.gear_ratios.len() {
         config.gear_ratios[state.gear as usize]
     } else if state.gear == 0 {
-        0.0  // Neutral
+        0.0 // Neutral
     } else {
-        config.gear_ratios[0]  // Reverse
+        config.gear_ratios[0] // Reverse
     };
-    
+
     let engine_rpm = if gear_ratio.abs() > 0.001 {
-        (wheel_rpm * gear_ratio.abs() * config.final_drive_ratio).clamp(config.idle_rpm, config.max_engine_rpm)
+        (wheel_rpm * gear_ratio.abs() * config.final_drive_ratio)
+            .clamp(config.idle_rpm, config.max_engine_rpm)
     } else {
         config.idle_rpm + input.throttle * (config.redline_rpm - config.idle_rpm) * 0.3
     };
-    
+
     let torque_at_rpm = if !config.engine.torque_curve.is_empty() {
         interpolate_torque_curve(&config.engine.torque_curve, engine_rpm)
     } else {
         // Legacy simple torque curve (peak at ~60% of redline)
-        let rpm_normalized = (engine_rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm);
+        let rpm_normalized =
+            (engine_rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm);
         let torque_factor = 1.0 - (rpm_normalized - 0.6).powi(2);
         config.max_engine_torque_nm * torque_factor.clamp(0.3, 1.0)
     };
@@ -714,7 +769,9 @@ fn calculate_engine_output(state: &CarState, config: &CarConfig, input: &PlayerI
     };
 
     // Engine braking & friction
-    let rpm_frac = ((engine_rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm).max(1.0)).clamp(0.0, 1.0);
+    let rpm_frac = ((engine_rpm - config.idle_rpm)
+        / (config.redline_rpm - config.idle_rpm).max(1.0))
+    .clamp(0.0, 1.0);
     let engine_brake = if input.throttle < 0.01 {
         config.engine.engine_brake_torque_nm * rpm_frac
     } else {
@@ -726,7 +783,7 @@ fn calculate_engine_output(state: &CarState, config: &CarConfig, input: &PlayerI
 
     // Always apply a small friction torque opposing rotation
     engine_torque -= config.engine.friction_torque_nm * rpm_frac;
-    
+
     (engine_torque, engine_rpm)
 }
 
@@ -759,22 +816,22 @@ fn interpolate_torque_curve(curve: &[TorqueCurvePoint], rpm: f32) -> f32 {
 /// Calculate drive torques for front and rear axles
 fn calculate_drive_torques(engine_torque: f32, config: &CarConfig, gear: i8) -> (f32, f32) {
     if gear == 0 {
-        return (0.0, 0.0);  // Neutral
+        return (0.0, 0.0); // Neutral
     }
-    
+
     let gear_ratio = if gear > 0 && (gear as usize) < config.gear_ratios.len() {
         config.gear_ratios[gear as usize]
     } else {
-        config.gear_ratios[0]  // Reverse
+        config.gear_ratios[0] // Reverse
     };
-    
+
     let total_ratio = gear_ratio * config.final_drive_ratio;
     let wheel_torque = engine_torque * total_ratio * config.transmission.efficiency.clamp(0.0, 1.0);
-    
+
     match config.drivetrain {
         Drivetrain::FWD => (wheel_torque, 0.0),
         Drivetrain::RWD => (0.0, wheel_torque),
-        Drivetrain::AWD => (wheel_torque * 0.4, wheel_torque * 0.6),  // 40/60 split
+        Drivetrain::AWD => (wheel_torque * 0.4, wheel_torque * 0.6), // 40/60 split
     }
 }
 
@@ -786,35 +843,59 @@ fn calculate_weight_transfer(
     _total_weight: f32,
 ) -> (f32, f32, f32) {
     // Longitudinal weight transfer
-    let weight_transfer_long = (config.mass_kg * longitudinal_accel * config.cog_height_m) / config.wheelbase_m;
-    
-    // Lateral weight transfer (different for front and rear due to roll stiffness)
-    let total_roll_stiffness = config.suspension.anti_roll_bar_front + config.suspension.anti_roll_bar_rear;
-    let front_roll_ratio = config.suspension.anti_roll_bar_front / total_roll_stiffness.max(1.0);
-    let rear_roll_ratio = config.suspension.anti_roll_bar_rear / total_roll_stiffness.max(1.0);
-    
-    let lateral_transfer_front = (config.mass_kg * lateral_accel * config.cog_height_m) / config.track_width_front_m * front_roll_ratio;
-    let lateral_transfer_rear = (config.mass_kg * lateral_accel * config.cog_height_m) / config.track_width_rear_m * rear_roll_ratio;
-    
-    (weight_transfer_long, lateral_transfer_front, lateral_transfer_rear)
+    let weight_transfer_long =
+        (config.mass_kg * longitudinal_accel * config.cog_height_m) / config.wheelbase_m;
+
+    // Lateral weight transfer, split front/rear by roll stiffness. Each
+    // axle's roll stiffness comes from its springs acting across the track
+    // width, with the anti-roll bar as an additional term — with zero ARBs
+    // the springs still resist roll, so lateral transfer never vanishes.
+    let front_roll_stiffness = (config.suspension.spring_rate_front_n_per_m
+        + config.suspension.anti_roll_bar_front)
+        * config.track_width_front_m.powi(2)
+        / 2.0;
+    let rear_roll_stiffness = (config.suspension.spring_rate_rear_n_per_m
+        + config.suspension.anti_roll_bar_rear)
+        * config.track_width_rear_m.powi(2)
+        / 2.0;
+    let total_roll_stiffness = front_roll_stiffness + rear_roll_stiffness;
+    let front_roll_ratio = front_roll_stiffness / total_roll_stiffness.max(1.0);
+    let rear_roll_ratio = rear_roll_stiffness / total_roll_stiffness.max(1.0);
+
+    let lateral_transfer_front = (config.mass_kg * lateral_accel * config.cog_height_m)
+        / config.track_width_front_m
+        * front_roll_ratio;
+    let lateral_transfer_rear = (config.mass_kg * lateral_accel * config.cog_height_m)
+        / config.track_width_rear_m
+        * rear_roll_ratio;
+
+    (
+        weight_transfer_long,
+        lateral_transfer_front,
+        lateral_transfer_rear,
+    )
 }
 
 /// Calculate Ackermann steering geometry
-fn calculate_ackermann_steering(steering_angle: f32, wheelbase: f32, track_width: f32) -> (f32, f32) {
+fn calculate_ackermann_steering(
+    steering_angle: f32,
+    wheelbase: f32,
+    track_width: f32,
+) -> (f32, f32) {
     if steering_angle.abs() < 0.001 {
         return (0.0, 0.0);
     }
-    
+
     // Calculate turn radius
     let turn_radius = wheelbase / steering_angle.tan().abs();
-    
+
     // Inner and outer wheel angles
     let inner_radius = turn_radius - track_width / 2.0;
     let outer_radius = turn_radius + track_width / 2.0;
-    
+
     let inner_angle = (wheelbase / inner_radius).atan();
     let outer_angle = (wheelbase / outer_radius).atan();
-    
+
     if steering_angle > 0.0 {
         // Turning right: right wheel is inner
         (outer_angle, inner_angle)
@@ -826,18 +907,22 @@ fn calculate_ackermann_steering(steering_angle: f32, wheelbase: f32, track_width
 
 /// Calculate slip ratio and slip angle for a wheel
 fn calculate_wheel_slip(
-    vehicle_speed: f32,
+    v_long: f32, // Body-frame longitudinal velocity (+ = forward)
+    v_lat: f32,  // Body-frame lateral velocity (+ = left)
     yaw_rate: f32,
     steer_angle: f32,
     wheel_pos_x: f32,  // Distance from CoG (+ = front)
-    _wheel_pos_y: f32,  // Distance from centerline (+ = right)
+    _wheel_pos_y: f32, // Distance from centerline (+ = right)
     drive_torque: f32,
     brake_force: f32,
     wheel_radius: f32,
 ) -> (f32, f32) {
-    // Wheel velocity components due to vehicle motion and yaw
-    let wheel_vel_x = vehicle_speed.max(MIN_SPEED_THRESHOLD);
-    let wheel_vel_y = yaw_rate * wheel_pos_x;
+    // Wheel contact-patch velocity in the body frame: the body's own
+    // velocity plus the rotational contribution at this wheel's position.
+    // The lateral term is what lets tires resist sideways sliding — without
+    // it the car is on ice.
+    let wheel_vel_x = v_long.max(MIN_SPEED_THRESHOLD);
+    let wheel_vel_y = v_lat + yaw_rate * wheel_pos_x;
 
     // Calculate wheel speed (assuming no longitudinal slip for now)
     let wheel_speed = wheel_vel_x / wheel_radius;
@@ -845,9 +930,10 @@ fn calculate_wheel_slip(
     // Slip ratio (longitudinal)
     // The driven wheel speed is increased by engine torque (through the drivetrain)
     // and decreased by brake force. The factor 100.0 is a simplified wheel inertia term.
-    let driven_wheel_speed = wheel_speed + (drive_torque - brake_force * wheel_radius) / (100.0 * wheel_radius);
+    let driven_wheel_speed =
+        wheel_speed + (drive_torque - brake_force * wheel_radius) / (100.0 * wheel_radius);
 
-    let slip_ratio = if vehicle_speed > MIN_SPEED_THRESHOLD {
+    let slip_ratio = if v_long > MIN_SPEED_THRESHOLD {
         // Normal driving: slip = (wheel_speed - ground_speed) / ground_speed
         (driven_wheel_speed * wheel_radius - wheel_vel_x) / wheel_vel_x
     } else {
@@ -857,15 +943,16 @@ fn calculate_wheel_slip(
         // So we target optimal slip when launching for maximum traction
         let optimal_slip = 0.12; // Near optimal slip for peak traction
         if drive_torque > 10.0 {
-            optimal_slip  // Apply throttle = optimal slip for max force
+            optimal_slip // Apply throttle = optimal slip for max force
         } else if brake_force > 10.0 {
-            -optimal_slip  // Braking = negative slip
+            -optimal_slip // Braking = negative slip
         } else {
-            0.0  // No input = no slip
+            0.0 // No input = no slip
         }
     };
 
-    // Slip angle (lateral)
+    // Slip angle: angle between where the wheel points and where its
+    // contact patch actually travels.
     let slip_angle = if wheel_vel_x > MIN_SPEED_THRESHOLD {
         (wheel_vel_y / wheel_vel_x).atan() - steer_angle
     } else {
@@ -886,28 +973,36 @@ fn calculate_tire_forces(
     if wheel_load < 1.0 {
         return (0.0, 0.0);
     }
-    
-    // Magic formula parameters (simplified)
-    let b_long = 10.0;  // Stiffness factor
-    let c_long = 1.9;   // Shape factor
-    let d_long = grip_coefficient * wheel_load;  // Peak force
-    
-    let b_lat = 8.0;
+
+    // Magic formula parameters (simplified). Slip inputs below are
+    // NORMALIZED (1.0 = the tire's optimal slip), so the stiffness factor B
+    // must place the curve's peak at exactly 1.0: sin(C·atan(B·x)) peaks at
+    // B·x = tan(π/(2C)), hence B = tan(π/(2C)). With a raw-slip-tuned B
+    // (the old 10.0) the peak landed at ~1% slip and launches ran at a
+    // third of the available grip.
+    let c_long = 1.9; // Shape factor
+    let b_long = (std::f32::consts::PI / (2.0 * c_long)).tan();
+    let d_long = grip_coefficient * wheel_load; // Peak force
+
     let c_lat = 1.3;
+    let b_lat = (std::f32::consts::PI / (2.0 * c_lat)).tan();
     let d_lat = grip_coefficient * wheel_load;
-    
+
     // Longitudinal force (Fx)
     let slip_ratio_adjusted = slip_ratio / tire_config.optimal_slip_ratio;
     let fx = d_long * (c_long * (b_long * slip_ratio_adjusted).atan()).sin();
-    
-    // Lateral force (Fy)
+
+    // Lateral force (Fy): RESTORING — a positive slip angle means the
+    // contact patch travels left of where the wheel points, so the tire
+    // pushes right (negative). With the sign the other way the car turns
+    // against the steering input and spins.
     let slip_angle_adjusted = slip_angle / tire_config.optimal_slip_angle_rad;
-    let fy = d_lat * (c_lat * (b_lat * slip_angle_adjusted).atan()).sin();
-    
+    let fy = -d_lat * (c_lat * (b_lat * slip_angle_adjusted).atan()).sin();
+
     // Combined slip (friction circle)
     let combined_force = (fx.powi(2) + fy.powi(2)).sqrt();
     let max_force = d_long.max(d_lat);
-    
+
     if combined_force > max_force {
         let scale = max_force / combined_force;
         (fx * scale, fy * scale)
@@ -916,11 +1011,87 @@ fn calculate_tire_forces(
     }
 }
 
-/// Query ground/surface properties at a world-space position.
-fn query_track_surface(track: &TrackConfig, world_x: f32, world_y: f32) -> Option<SurfaceQuerySample> {
+/// Half-width of the windowed nearest-point search around a previous tick's
+/// index. At 240Hz a car at 100 m/s moves ~0.4m per tick, a small fraction
+/// of the window at typical centerline point spacing.
+const CENTERLINE_SEARCH_WINDOW: usize = 32;
+
+/// Find the index of the centerline point nearest to (x, y).
+///
+/// With a `hint` (the previous tick's index) only a small window around it
+/// is searched — O(1) instead of O(track points). If the best match sits at
+/// the window edge (car teleported/reset, or moved further than the window),
+/// the result is distrusted and a full scan runs instead.
+pub fn find_nearest_centerline_idx(
+    centerline: &[TrackPoint],
+    x: f32,
+    y: f32,
+    hint: Option<usize>,
+) -> Option<usize> {
+    let n = centerline.len();
+    if n == 0 {
+        return None;
+    }
+
+    let dist_sq = |idx: usize| {
+        let dx = x - centerline[idx].x;
+        let dy = y - centerline[idx].y;
+        dx * dx + dy * dy
+    };
+
+    if let Some(hint) = hint {
+        if hint < n && n > 2 * CENTERLINE_SEARCH_WINDOW {
+            let mut best_idx = hint;
+            let mut best_d = dist_sq(hint);
+            let mut best_off: usize = 0;
+            for off in 1..=CENTERLINE_SEARCH_WINDOW {
+                // Window with wraparound (tracks are typically closed loops)
+                let fwd = (hint + off) % n;
+                let back = (hint + n - off) % n;
+                for idx in [fwd, back] {
+                    let d = dist_sq(idx);
+                    if d < best_d {
+                        best_d = d;
+                        best_idx = idx;
+                        best_off = off;
+                    }
+                }
+            }
+            if best_off < CENTERLINE_SEARCH_WINDOW {
+                return Some(best_idx);
+            }
+            // Best at window edge: hint unreliable, fall through to full scan
+        }
+    }
+
+    let mut best_idx = 0;
+    let mut best_d = f32::MAX;
+    for idx in 0..n {
+        let d = dist_sq(idx);
+        if d < best_d {
+            best_d = d;
+            best_idx = idx;
+        }
+    }
+    Some(best_idx)
+}
+
+/// Query ground/surface properties at a world-space position. `hint` is the
+/// car's cached nearest-centerline index from the previous query, enabling a
+/// windowed (near-constant-time) search.
+fn query_track_surface(
+    track: &TrackConfig,
+    world_x: f32,
+    world_y: f32,
+    hint: Option<usize>,
+) -> Option<SurfaceQuerySample> {
     match active_surface_query_backend() {
-        SurfaceQueryBackend::Centerline => query_track_surface_centerline(track, world_x, world_y),
-        SurfaceQueryBackend::MeshHeightfield => query_track_surface_mesh_heightfield_stub(track, world_x, world_y),
+        SurfaceQueryBackend::Centerline => {
+            query_track_surface_centerline(track, world_x, world_y, hint)
+        }
+        SurfaceQueryBackend::MeshHeightfield => {
+            query_track_surface_mesh_heightfield_stub(track, world_x, world_y, hint)
+        }
     }
 }
 
@@ -937,8 +1108,9 @@ fn query_track_surface_mesh_heightfield_stub(
     track: &TrackConfig,
     world_x: f32,
     world_y: f32,
+    hint: Option<usize>,
 ) -> Option<SurfaceQuerySample> {
-    let centerline_sample = query_track_surface_centerline(track, world_x, world_y)?;
+    let centerline_sample = query_track_surface_centerline(track, world_x, world_y, hint)?;
 
     if let Some(provider) = track_heightfield_provider(track) {
         if let Some(elevation) = provider.elevation_at(world_x, world_y) {
@@ -963,26 +1135,9 @@ fn query_track_surface_centerline(
     track: &TrackConfig,
     world_x: f32,
     world_y: f32,
+    hint: Option<usize>,
 ) -> Option<SurfaceQuerySample> {
-    if track.centerline.is_empty() {
-        return None;
-    }
-
-    // Find nearest centerline point
-    let mut min_dist_sq = f32::MAX;
-    let mut nearest_idx = 0;
-
-    for (idx, point) in track.centerline.iter().enumerate() {
-        let dx = world_x - point.x;
-        let dy = world_y - point.y;
-        let dist_sq = dx * dx + dy * dy;
-
-        if dist_sq < min_dist_sq {
-            min_dist_sq = dist_sq;
-            nearest_idx = idx;
-        }
-    }
-
+    let nearest_idx = find_nearest_centerline_idx(&track.centerline, world_x, world_y, hint)?;
     let nearest = &track.centerline[nearest_idx];
 
     // Calculate lateral offset (signed distance from centerline)
@@ -1007,13 +1162,14 @@ fn query_track_surface_centerline(
 
 /// Get track context at the car's current position
 fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
-    let Some(surface) = query_track_surface(track, state.pos_x, state.pos_y) else {
+    let hint = state.nearest_centerline_idx.map(|i| i as usize);
+    let Some(surface) = query_track_surface(track, state.pos_x, state.pos_y, hint) else {
         return TrackContext::default();
     };
-    
+
     // Check if on track
     let is_on_track = surface.lateral_offset.abs() <= surface.width_right.max(surface.width_left);
-    
+
     // Determine surface type and grip
     let (surface_type, grip_modifier) = if is_on_track {
         (surface.surface_type, surface.grip_modifier)
@@ -1021,7 +1177,7 @@ fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
         // Off track
         (SurfaceType::Grass, track.track_surface.off_track_grip)
     };
-    
+
     TrackContext {
         nearest_point: surface.nearest_point,
         elevation: surface.elevation,
@@ -1057,70 +1213,94 @@ fn update_telemetry_3d(
         let speed_cooling = state.speed_mps * 0.1;
         base_temp + slip_heat + load_heat - speed_cooling
     };
-    
+
     // Front left tire
-    state.tires.front_left.temperature_c = calculate_tire_temp(fl_slip.0, fl_slip.1, state.weight_front_left_n);
+    state.tires.front_left.temperature_c =
+        calculate_tire_temp(fl_slip.0, fl_slip.1, state.weight_front_left_n);
     state.tires.front_left.pressure_kpa = 200.0 + state.tires.front_left.temperature_c * 0.5;
     state.tires.front_left.slip_ratio = fl_slip.0;
     state.tires.front_left.slip_angle_rad = fl_slip.1;
-    state.tires.front_left.wear_percent = (state.tires.front_left.wear_percent + 
-        fl_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt).min(100.0);
-    
+    state.tires.front_left.wear_percent = (state.tires.front_left.wear_percent
+        + fl_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt)
+        .min(100.0);
+
     // Front right tire
-    state.tires.front_right.temperature_c = calculate_tire_temp(fr_slip.0, fr_slip.1, state.weight_front_right_n);
+    state.tires.front_right.temperature_c =
+        calculate_tire_temp(fr_slip.0, fr_slip.1, state.weight_front_right_n);
     state.tires.front_right.pressure_kpa = 200.0 + state.tires.front_right.temperature_c * 0.5;
     state.tires.front_right.slip_ratio = fr_slip.0;
     state.tires.front_right.slip_angle_rad = fr_slip.1;
-    state.tires.front_right.wear_percent = (state.tires.front_right.wear_percent + 
-        fr_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt).min(100.0);
-    
+    state.tires.front_right.wear_percent = (state.tires.front_right.wear_percent
+        + fr_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt)
+        .min(100.0);
+
     // Rear left tire
-    state.tires.rear_left.temperature_c = calculate_tire_temp(rl_slip.0, rl_slip.1, state.weight_rear_left_n);
+    state.tires.rear_left.temperature_c =
+        calculate_tire_temp(rl_slip.0, rl_slip.1, state.weight_rear_left_n);
     state.tires.rear_left.pressure_kpa = 200.0 + state.tires.rear_left.temperature_c * 0.5;
     state.tires.rear_left.slip_ratio = rl_slip.0;
     state.tires.rear_left.slip_angle_rad = rl_slip.1;
-    state.tires.rear_left.wear_percent = (state.tires.rear_left.wear_percent + 
-        rl_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt).min(100.0);
-    
+    state.tires.rear_left.wear_percent = (state.tires.rear_left.wear_percent
+        + rl_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt)
+        .min(100.0);
+
     // Rear right tire
-    state.tires.rear_right.temperature_c = calculate_tire_temp(rr_slip.0, rr_slip.1, state.weight_rear_right_n);
+    state.tires.rear_right.temperature_c =
+        calculate_tire_temp(rr_slip.0, rr_slip.1, state.weight_rear_right_n);
     state.tires.rear_right.pressure_kpa = 200.0 + state.tires.rear_right.temperature_c * 0.5;
     state.tires.rear_right.slip_ratio = rr_slip.0;
     state.tires.rear_right.slip_angle_rad = rr_slip.1;
-    state.tires.rear_right.wear_percent = (state.tires.rear_right.wear_percent + 
-        rr_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt).min(100.0);
-    
+    state.tires.rear_right.wear_percent = (state.tires.rear_right.wear_percent
+        + rr_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt)
+        .min(100.0);
+
     // Engine temperature (increases with load, decreases with airflow)
     let engine_load = input.throttle * (state.engine_rpm / config.redline_rpm);
     let cooling = state.speed_mps * 0.2;
     state.engine_temp_c = 85.0 + engine_load * 15.0 - cooling;
     state.engine_temp_c = state.engine_temp_c.clamp(60.0, 120.0);
-    
+
     // Oil temperature follows engine temp with lag
     state.oil_temp_c = state.oil_temp_c + (state.engine_temp_c + 5.0 - state.oil_temp_c) * 0.01;
-    
+
     // Oil pressure (decreases at high temp)
     state.oil_pressure_kpa = 400.0 - (state.oil_temp_c - 80.0) * 2.0;
     state.oil_pressure_kpa = state.oil_pressure_kpa.clamp(100.0, 500.0);
-    
+
     // Water temperature
     state.water_temp_c = state.water_temp_c + (state.engine_temp_c - state.water_temp_c) * 0.02;
 }
 
 /// Update fuel consumption
-fn update_fuel_consumption(state: &mut CarState, config: &CarConfig, input: &PlayerInputData, dt: f32) {
+fn update_fuel_consumption(
+    state: &mut CarState,
+    config: &CarConfig,
+    input: &PlayerInputData,
+    dt: f32,
+) {
     // Base consumption + load-based consumption
     let rpm_factor = state.engine_rpm / config.max_engine_rpm;
     let throttle_factor = input.throttle;
-    
+
     state.fuel_consumption_lps = config.fuel.idle_consumption_lps
         + (throttle_factor * rpm_factor * config.fuel.load_consumption_scale);
     state.fuel_liters = (state.fuel_liters - state.fuel_consumption_lps * dt).max(0.0);
 }
 
-/// Check and resolve 3D AABB collisions between cars
+/// Check and resolve 3D OBB collisions between cars (owned-slice wrapper).
 pub fn check_aabb_collisions_3d(
     states: &mut [CarState],
+    configs: &HashMap<CarConfigId, CarConfig>,
+) {
+    let mut refs: Vec<&mut CarState> = states.iter_mut().collect();
+    check_collisions_refs(&mut refs, configs);
+}
+
+/// Check and resolve collisions on a slice of mutable references — lets the
+/// caller pass `participants.values_mut().collect()` directly, avoiding a
+/// full clone + map rebuild of every CarState per tick.
+pub fn check_collisions_refs(
+    states: &mut [&mut CarState],
     configs: &HashMap<CarConfigId, CarConfig>,
 ) {
     // Reset collision flags
@@ -1138,21 +1318,16 @@ pub fn check_aabb_collisions_3d(
             let config_j = configs.get(&states[j].car_config_id);
 
             if let (Some(cfg_i), Some(cfg_j)) = (config_i, config_j) {
-                if check_collision_3d(&states[i], cfg_i, &states[j], cfg_j) {
+                if let Some(overlap) = check_obb_overlap(&states[i], cfg_i, &states[j], cfg_j) {
                     // Mark as colliding
                     states[i].is_colliding = true;
                     states[j].is_colliding = true;
 
-                    // Calculate collision normal
-                    let dx = states[j].pos_x - states[i].pos_x;
-                    let dy = states[j].pos_y - states[i].pos_y;
-                    let dz = states[j].pos_z - states[i].pos_z;
-                    let dist = (dx * dx + dy * dy + dz * dz).sqrt().max(0.1);
-                    
-                    let nx = dx / dist;
-                    let ny = dy / dist;
-                    let nz = dz / dist;
-                    
+                    // SAT gives the minimum-translation normal (a → b)
+                    let nx = overlap.normal_x;
+                    let ny = overlap.normal_y;
+                    let nz = 0.0;
+
                     states[i].collision_normal_x = -nx;
                     states[i].collision_normal_y = -ny;
                     states[i].collision_normal_z = -nz;
@@ -1160,157 +1335,295 @@ pub fn check_aabb_collisions_3d(
                     states[j].collision_normal_y = ny;
                     states[j].collision_normal_z = nz;
 
-                    // Separate cars
-                    let separation = 0.5;
-                    states[i].pos_x -= nx * separation;
-                    states[i].pos_y -= ny * separation;
-                    states[j].pos_x += nx * separation;
-                    states[j].pos_y += ny * separation;
+                    // Separate exactly by penetration depth, split inversely
+                    // proportional to mass (light car moves further).
+                    let inv_mass_i = 1.0 / cfg_i.mass_kg.max(1.0);
+                    let inv_mass_j = 1.0 / cfg_j.mass_kg.max(1.0);
+                    let total_inv_mass = inv_mass_i + inv_mass_j;
+                    let sep_i = overlap.penetration * inv_mass_i / total_inv_mass;
+                    let sep_j = overlap.penetration * inv_mass_j / total_inv_mass;
+                    states[i].pos_x -= nx * sep_i;
+                    states[i].pos_y -= ny * sep_i;
+                    states[j].pos_x += nx * sep_j;
+                    states[j].pos_y += ny * sep_j;
 
                     // Calculate impact velocity and apply impulse
                     let rel_vel_x = states[j].vel_x - states[i].vel_x;
                     let rel_vel_y = states[j].vel_y - states[i].vel_y;
                     let rel_vel_normal = rel_vel_x * nx + rel_vel_y * ny;
-                    
+
                     if rel_vel_normal < 0.0 {
                         // Collision impulse (elastic coefficient)
                         let restitution = 0.3;
                         let impulse = -(1.0 + restitution) * rel_vel_normal;
                         let impulse = impulse / (1.0 / cfg_i.mass_kg + 1.0 / cfg_j.mass_kg);
-                        
+
                         states[i].vel_x -= impulse * nx / cfg_i.mass_kg;
                         states[i].vel_y -= impulse * ny / cfg_i.mass_kg;
                         states[j].vel_x += impulse * nx / cfg_j.mass_kg;
                         states[j].vel_y += impulse * ny / cfg_j.mass_kg;
                     }
-                    
+
                     // Recalculate speeds
-                    states[i].speed_mps = (states[i].vel_x.powi(2) + states[i].vel_y.powi(2) + states[i].vel_z.powi(2)).sqrt();
-                    states[j].speed_mps = (states[j].vel_x.powi(2) + states[j].vel_y.powi(2) + states[j].vel_z.powi(2)).sqrt();
-                    
-                    // Apply damage
-                    let impact_speed = ((states[i].speed_mps + states[j].speed_mps) / 2.0).min(50.0);
-                    let damage_amount = (impact_speed / 50.0) * 5.0;
-                    
-                    let angle_i = (ny.atan2(nx) - states[i].yaw_rad).rem_euclid(2.0 * PI);
-                    let angle_j = (ny.atan2(nx) - states[j].yaw_rad + PI).rem_euclid(2.0 * PI);
-                    
-                    apply_damage_to_car(&mut states[i], angle_i, damage_amount);
-                    apply_damage_to_car(&mut states[j], angle_j, damage_amount);
+                    states[i].speed_mps = (states[i].vel_x.powi(2)
+                        + states[i].vel_y.powi(2)
+                        + states[i].vel_z.powi(2))
+                    .sqrt();
+                    states[j].speed_mps = (states[j].vel_x.powi(2)
+                        + states[j].vel_y.powi(2)
+                        + states[j].vel_z.powi(2))
+                    .sqrt();
+
+                    // Apply damage from the CLOSING speed along the contact
+                    // normal — not the cars' travel speed. Two cars racing
+                    // side by side at 250 km/h that touch lightly have a
+                    // closing speed near zero; using travel speed bricked
+                    // whole packs from incidental contact.
+                    let impact_speed = rel_vel_normal.abs().min(50.0);
+                    if impact_speed > 1.0 {
+                        let damage_amount = (impact_speed / 50.0) * 5.0;
+
+                        let angle_i = (ny.atan2(nx) - states[i].yaw_rad).rem_euclid(2.0 * PI);
+                        let angle_j = (ny.atan2(nx) - states[j].yaw_rad + PI).rem_euclid(2.0 * PI);
+
+                        apply_damage_to_car(&mut states[i], angle_i, damage_amount);
+                        apply_damage_to_car(&mut states[j], angle_j, damage_amount);
+                    }
                 }
             }
         }
     }
 }
 
-/// Check if two cars are colliding using oriented bounding boxes (simplified to AABB)
-fn check_collision_3d(
+/// Result of an OBB separating-axis test: the minimum-translation vector.
+struct ObbOverlap {
+    /// Unit normal pointing from car A toward car B
+    normal_x: f32,
+    normal_y: f32,
+    /// Overlap depth along the normal (meters)
+    penetration: f32,
+}
+
+/// Yaw-aware oriented-bounding-box overlap test (SAT on the two cars'
+/// rectangles in the ground plane, plus a height gate). Returns the
+/// minimum-translation vector when the boxes overlap.
+fn check_obb_overlap(
     state_a: &CarState,
     config_a: &CarConfig,
     state_b: &CarState,
     config_b: &CarConfig,
-) -> bool {
-    let half_l_a = config_a.length_m / 2.0;
-    let half_w_a = config_a.width_m / 2.0;
-    let half_h_a = config_a.height_m / 2.0;
-    
-    let half_l_b = config_b.length_m / 2.0;
-    let half_w_b = config_b.width_m / 2.0;
-    let half_h_b = config_b.height_m / 2.0;
-
-    let dx = (state_a.pos_x - state_b.pos_x).abs();
-    let dy = (state_a.pos_y - state_b.pos_y).abs();
+) -> Option<ObbOverlap> {
+    // Height gate first (cars at different elevations don't collide)
     let dz = (state_a.pos_z - state_b.pos_z).abs();
+    if dz >= (config_a.height_m + config_b.height_m) / 2.0 {
+        return None;
+    }
 
-    // Use larger dimension for rotated AABB approximation
-    let size_a = half_l_a.max(half_w_a);
-    let size_b = half_l_b.max(half_w_b);
+    let (half_l_a, half_w_a) = (config_a.length_m / 2.0, config_a.width_m / 2.0);
+    let (half_l_b, half_w_b) = (config_b.length_m / 2.0, config_b.width_m / 2.0);
 
-    dx < (size_a + size_b) && dy < (size_a + size_b) && dz < (half_h_a + half_h_b)
+    // Local axes of each box (forward, left)
+    let ax_a = (state_a.yaw_rad.cos(), state_a.yaw_rad.sin());
+    let ay_a = (-state_a.yaw_rad.sin(), state_a.yaw_rad.cos());
+    let ax_b = (state_b.yaw_rad.cos(), state_b.yaw_rad.sin());
+    let ay_b = (-state_b.yaw_rad.sin(), state_b.yaw_rad.cos());
+
+    let dx = state_b.pos_x - state_a.pos_x;
+    let dy = state_b.pos_y - state_a.pos_y;
+
+    // Projected extent of a box onto a unit axis
+    let extent = |axis: (f32, f32), fwd: (f32, f32), left: (f32, f32), hl: f32, hw: f32| {
+        hl * (axis.0 * fwd.0 + axis.1 * fwd.1).abs()
+            + hw * (axis.0 * left.0 + axis.1 * left.1).abs()
+    };
+
+    let mut min_penetration = f32::INFINITY;
+    let mut best_axis = (0.0f32, 0.0f32);
+
+    for axis in [ax_a, ay_a, ax_b, ay_b] {
+        let center_dist = dx * axis.0 + dy * axis.1;
+        let overlap = extent(axis, ax_a, ay_a, half_l_a, half_w_a)
+            + extent(axis, ax_b, ay_b, half_l_b, half_w_b)
+            - center_dist.abs();
+        if overlap <= 0.0 {
+            return None; // Separating axis found
+        }
+        if overlap < min_penetration {
+            min_penetration = overlap;
+            // Orient the axis from A toward B
+            best_axis = if center_dist >= 0.0 {
+                axis
+            } else {
+                (-axis.0, -axis.1)
+            };
+        }
+    }
+
+    Some(ObbOverlap {
+        normal_x: best_axis.0,
+        normal_y: best_axis.1,
+        penetration: min_penetration,
+    })
 }
 
 /// Apply damage to a car based on collision angle
 fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
     if angle < PI / 4.0 || angle > 7.0 * PI / 4.0 {
-        car.damage.front_damage_percent = (car.damage.front_damage_percent + damage_amount).min(100.0);
-        car.damage.engine_damage_percent = (car.damage.engine_damage_percent + damage_amount * 0.5).min(100.0);
+        car.damage.front_damage_percent =
+            (car.damage.front_damage_percent + damage_amount).min(100.0);
+        car.damage.engine_damage_percent =
+            (car.damage.engine_damage_percent + damage_amount * 0.5).min(100.0);
     } else if angle >= PI / 4.0 && angle < 3.0 * PI / 4.0 {
-        car.damage.left_damage_percent = (car.damage.left_damage_percent + damage_amount).min(100.0);
+        car.damage.left_damage_percent =
+            (car.damage.left_damage_percent + damage_amount).min(100.0);
     } else if angle >= 3.0 * PI / 4.0 && angle < 5.0 * PI / 4.0 {
-        car.damage.rear_damage_percent = (car.damage.rear_damage_percent + damage_amount).min(100.0);
+        car.damage.rear_damage_percent =
+            (car.damage.rear_damage_percent + damage_amount).min(100.0);
     } else {
-        car.damage.right_damage_percent = (car.damage.right_damage_percent + damage_amount).min(100.0);
+        car.damage.right_damage_percent =
+            (car.damage.right_damage_percent + damage_amount).min(100.0);
     }
-    
-    car.damage.is_drivable = car.damage.front_damage_percent < 80.0
-        && car.damage.engine_damage_percent < 80.0;
+
+    car.damage.is_drivable =
+        car.damage.front_damage_percent < 80.0 && car.damage.engine_damage_percent < 80.0;
 }
 
-/// Update track progress and detect lap completion
+/// Number of virtual checkpoints synthesized (at 25%/50%/75% of track
+/// length) when a track defines no explicit checkpoints, so anti-shortcut
+/// lap validation always applies.
+pub const VIRTUAL_CHECKPOINT_COUNT: usize = 3;
+
+/// Maximum forward track-progress delta (m) in a single tick that still
+/// advances checkpoints. Larger jumps are treated as teleports/nearest-point
+/// discontinuities (e.g. corner cutting across a hairpin) and do not credit
+/// checkpoints. Physically a car moves <0.5 m/tick at 240Hz; the windowed
+/// nearest-point search moves at most ~32 m/tick.
+const MAX_CHECKPOINT_ADVANCE_PER_TICK_M: f32 = 50.0;
+
+/// Distance from start (m) of checkpoint `idx` for this track. Uses the
+/// track's explicit checkpoints when defined, otherwise virtual checkpoints
+/// at even fractions of the lap.
+fn checkpoint_distance_m(track: &TrackConfig, track_length: f32, idx: usize) -> f32 {
+    if track.checkpoints.is_empty() {
+        track_length * (idx as f32 + 1.0) / (VIRTUAL_CHECKPOINT_COUNT as f32 + 1.0)
+    } else {
+        track.checkpoints[idx]
+    }
+}
+
+/// Update track progress and detect lap completion.
+///
+/// Laps are validated with checkpoints: a lap only counts when every
+/// checkpoint was passed in order (driving forward) before the start/finish
+/// wrap. This rejects driving backwards across the line and shortcut/teleport
+/// exploits. Tracks without explicit checkpoints get virtual ones at
+/// 25/50/75% of the lap.
 pub fn update_track_progress_3d(
     state: &mut CarState,
     track: &TrackConfig,
     current_tick: u32,
+    tick_rate_hz: u16,
 ) {
     if track.centerline.is_empty() {
         return;
     }
-    
-    let track_length = track.centerline.last()
+
+    let track_length = track
+        .centerline
+        .last()
         .map(|p| p.distance_from_start_m)
         .unwrap_or(1000.0);
 
-    // Find nearest centerline point
-    let mut min_dist = f32::MAX;
-    let mut nearest_idx = 0;
-
-    for (idx, point) in track.centerline.iter().enumerate() {
-        let dx = state.pos_x - point.x;
-        let dy = state.pos_y - point.y;
-        let dist = (dx * dx + dy * dy).sqrt();
-
-        if dist < min_dist {
-            min_dist = dist;
-            nearest_idx = idx;
-        }
-    }
+    // Find nearest centerline point (windowed, seeded by the cached index)
+    let hint = state.nearest_centerline_idx.map(|i| i as usize);
+    let Some(nearest_idx) =
+        find_nearest_centerline_idx(&track.centerline, state.pos_x, state.pos_y, hint)
+    else {
+        return;
+    };
+    state.nearest_centerline_idx = Some(nearest_idx as u32);
 
     let old_progress = state.track_progress;
     state.track_progress = track.centerline[nearest_idx].distance_from_start_m;
 
-    // Debug: Log track progress every 240 ticks (once per second)
-    if current_tick % 240 == 0 {
-        debug!("[Lap Debug] Tick {}: current_lap={}, track_progress={:.1}m/{:.1}m, lap_time={}ms",
-            current_tick, state.current_lap, state.track_progress, track_length, state.current_lap_time_ms);
+    // Debug: Log track progress once per second
+    if current_tick % tick_rate_hz as u32 == 0 {
+        debug!(
+            "[Lap Debug] Tick {}: current_lap={}, track_progress={:.1}m/{:.1}m, lap_time={}ms",
+            current_tick,
+            state.current_lap,
+            state.track_progress,
+            track_length,
+            state.current_lap_time_ms
+        );
     }
 
     // Update current lap time
     if state.current_lap > 0 {
         let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
-        state.current_lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / 240.0) as u32;
+        state.current_lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / tick_rate_hz as f32) as u32;
     }
 
-    // Detect lap completion
-    if state.current_lap > 0 && old_progress > track_length * 0.8 && state.track_progress < track_length * 0.2 {
-        // Calculate lap time (time since lap started)
-        let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
-        let lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / 240.0) as u32;
-        state.last_lap_time_ms = Some(lap_time_ms);
-
-        if state.best_lap_time_ms.is_none() || lap_time_ms < state.best_lap_time_ms.unwrap() {
-            state.best_lap_time_ms = Some(lap_time_ms);
+    // Advance checkpoints passed by this tick's forward movement.
+    // `forward` is the wrap-aware forward delta; backwards movement wraps to
+    // a large positive value and teleports exceed the per-tick cap, so
+    // neither credits checkpoints.
+    let num_checkpoints = if track.checkpoints.is_empty() {
+        VIRTUAL_CHECKPOINT_COUNT
+    } else {
+        track.checkpoints.len()
+    };
+    if track_length > 0.0 {
+        let forward = (state.track_progress - old_progress).rem_euclid(track_length);
+        if forward > 0.0 && forward <= MAX_CHECKPOINT_ADVANCE_PER_TICK_M {
+            while (state.next_checkpoint as usize) < num_checkpoints {
+                let cp = checkpoint_distance_m(track, track_length, state.next_checkpoint as usize);
+                let to_cp = (cp - old_progress).rem_euclid(track_length);
+                if to_cp > 0.0 && to_cp <= forward {
+                    state.next_checkpoint += 1;
+                } else {
+                    break;
+                }
+            }
         }
+    }
 
-        state.current_lap += 1;
-        state.lap_start_tick = current_tick;  // Reset lap timer
-        state.current_lap_time_ms = 0;
+    // Detect lap completion (start/finish wrap). The lap only counts when
+    // every checkpoint was hit in order.
+    if state.current_lap > 0
+        && old_progress > track_length * 0.8
+        && state.track_progress < track_length * 0.2
+    {
+        if (state.next_checkpoint as usize) >= num_checkpoints {
+            // Calculate lap time (time since lap started)
+            let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
+            let lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / tick_rate_hz as f32) as u32;
+            state.last_lap_time_ms = Some(lap_time_ms);
+
+            if state.best_lap_time_ms.is_none() || lap_time_ms < state.best_lap_time_ms.unwrap() {
+                state.best_lap_time_ms = Some(lap_time_ms);
+            }
+
+            state.current_lap += 1;
+            state.lap_start_tick = current_tick; // Reset lap timer
+            state.current_lap_time_ms = 0;
+        }
+        // Counted or not, the car is back at the start of a lap: it must hit
+        // every checkpoint again before the next wrap can count.
+        state.next_checkpoint = 0;
     }
 
     // Start lap 1 - only when crossing the start line going forward
-    // This prevents false start detection when spawning near the finish line
-    if state.current_lap == 0 && old_progress < track_length * 0.1 && state.track_progress > track_length * 0.1 {
+    // This prevents false start detection when spawning near the finish line.
+    // (next_checkpoint is NOT reset here: checkpoint tracking began when the
+    // car crossed the start line, so any checkpoint inside the first 10% of
+    // the track has already been credited for this lap.)
+    if state.current_lap == 0
+        && old_progress < track_length * 0.1
+        && state.track_progress > track_length * 0.1
+    {
         state.current_lap = 1;
-        state.lap_start_tick = current_tick;  // Start timing first lap
+        state.lap_start_tick = current_tick; // Start timing first lap
         state.current_lap_time_ms = 0;
     }
 }
@@ -1331,12 +1644,7 @@ fn normalize_angle(angle: f32) -> f32 {
 // ============================================================================
 
 /// Legacy 2D physics update - wraps the 3D implementation
-pub fn update_car_2d(
-    state: &mut CarState,
-    config: &CarConfig,
-    input: &PlayerInputData,
-    dt: f32,
-) {
+pub fn update_car_2d(state: &mut CarState, config: &CarConfig, input: &PlayerInputData, dt: f32) {
     // Create a default track for legacy 2D mode
     let track = TrackConfig::default();
     update_car_3d(state, config, input, &track, dt);
@@ -1376,7 +1684,10 @@ pub fn update_track_progress(
         state.current_lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / 240.0) as u32;
     }
 
-    if state.current_lap > 0 && old_progress > track_length * 0.8 && state.track_progress < track_length * 0.2 {
+    if state.current_lap > 0
+        && old_progress > track_length * 0.8
+        && state.track_progress < track_length * 0.2
+    {
         // Calculate lap time (time since lap started)
         let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
         let lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / 240.0) as u32;
@@ -1387,24 +1698,24 @@ pub fn update_track_progress(
         }
 
         state.current_lap += 1;
-        state.lap_start_tick = current_tick;  // Reset lap timer
+        state.lap_start_tick = current_tick; // Reset lap timer
         state.current_lap_time_ms = 0;
     }
 
     // Start lap 1 - only when crossing the start line going forward
     // This prevents false start detection when spawning near the finish line
-    if state.current_lap == 0 && old_progress < track_length * 0.1 && state.track_progress > track_length * 0.1 {
+    if state.current_lap == 0
+        && old_progress < track_length * 0.1
+        && state.track_progress > track_length * 0.1
+    {
         state.current_lap = 1;
-        state.lap_start_tick = current_tick;  // Start timing first lap
+        state.lap_start_tick = current_tick; // Start timing first lap
         state.current_lap_time_ms = 0;
     }
 }
 
 /// Legacy collision check - wraps 3D version
-pub fn check_aabb_collisions(
-    states: &mut [CarState],
-    configs: &HashMap<CarConfigId, CarConfig>,
-) {
+pub fn check_aabb_collisions(states: &mut [CarState], configs: &HashMap<CarConfigId, CarConfig>) {
     check_aabb_collisions_3d(states, configs);
 }
 
@@ -1457,9 +1768,17 @@ mod tests {
         }
 
         // Speed should increase with throttle
-        assert!(state.speed_mps > 0.0, "Speed should increase: {}", state.speed_mps);
+        assert!(
+            state.speed_mps > 0.0,
+            "Speed should increase: {}",
+            state.speed_mps
+        );
         // RPM increases as the car gains speed in gear
-        assert!(state.engine_rpm >= config.idle_rpm, "RPM should be at least idle: {}", state.engine_rpm);
+        assert!(
+            state.engine_rpm >= config.idle_rpm,
+            "RPM should be at least idle: {}",
+            state.engine_rpm
+        );
     }
 
     #[test]
@@ -1467,7 +1786,7 @@ mod tests {
         let mut state = create_test_car_state();
         state.vel_x = 10.0;
         state.speed_mps = 10.0;
-        
+
         let config = create_test_config();
         let track = create_test_track();
         let input = PlayerInputData {
@@ -1483,7 +1802,10 @@ mod tests {
 
         update_car_3d(&mut state, &config, &input, &track, dt);
 
-        assert!(state.speed_mps < initial_speed, "Speed should decrease from braking");
+        assert!(
+            state.speed_mps < initial_speed,
+            "Speed should decrease from braking"
+        );
     }
 
     #[test]
@@ -1491,7 +1813,7 @@ mod tests {
         let mut state = create_test_car_state();
         state.vel_x = 10.0;
         state.speed_mps = 10.0;
-        
+
         let config = create_test_config();
         let track = create_test_track();
         let input = PlayerInputData {
@@ -1507,16 +1829,30 @@ mod tests {
         update_car_3d(&mut state, &config, &input, &track, dt);
 
         // Angular velocity should change with steering
-        assert!(state.angular_vel_yaw.abs() > 0.0 || state.yaw_rad.abs() > 0.0001,
-            "Steering should cause yaw change");
+        assert!(
+            state.angular_vel_yaw.abs() > 0.0 || state.yaw_rad.abs() > 0.0001,
+            "Steering should cause yaw change"
+        );
     }
 
     #[test]
     fn test_collision_detection() {
         let config = create_test_config();
-        let grid_slot1 = GridSlot { position: 1, x: 0.0, y: 0.0, z: 0.0, yaw_rad: 0.0 };
-        let grid_slot2 = GridSlot { position: 2, x: 1.0, y: 0.0, z: 0.0, yaw_rad: 0.0 };
-        
+        let grid_slot1 = GridSlot {
+            position: 1,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            yaw_rad: 0.0,
+        };
+        let grid_slot2 = GridSlot {
+            position: 2,
+            x: 1.0,
+            y: 0.0,
+            z: 0.0,
+            yaw_rad: 0.0,
+        };
+
         let mut states = vec![
             CarState::new(Uuid::new_v4(), config.id, &grid_slot1),
             CarState::new(Uuid::new_v4(), config.id, &grid_slot2),
@@ -1540,15 +1876,133 @@ mod tests {
         state.pos_x = track.centerline[1].x;
         state.pos_y = track.centerline[1].y;
 
-        update_track_progress_3d(&mut state, &track, 0);
+        update_track_progress_3d(&mut state, &track, 0, 240);
 
-        assert!(state.track_progress > 0.0, "Track progress should be positive");
+        assert!(
+            state.track_progress > 0.0,
+            "Track progress should be positive"
+        );
+    }
+
+    /// Move the car onto centerline point `idx` and update track progress.
+    fn step_to_centerline_point(state: &mut CarState, track: &TrackConfig, idx: usize, tick: u32) {
+        state.pos_x = track.centerline[idx].x;
+        state.pos_y = track.centerline[idx].y;
+        update_track_progress_3d(state, track, tick, 240);
+    }
+
+    #[test]
+    fn test_lap_counts_when_driving_forward_through_all_checkpoints() {
+        let track = create_test_track();
+        let n = track.centerline.len();
+        let mut state = create_test_car_state();
+
+        let mut tick = 0;
+        // Drive forward: one full loop plus a bit (lap 1 starts when
+        // crossing 10% of track length, wrap ends it back at the line)
+        step_to_centerline_point(&mut state, &track, 0, tick);
+        for i in 1..=n {
+            tick += 1;
+            step_to_centerline_point(&mut state, &track, i % n, tick);
+        }
+
+        assert_eq!(
+            state.current_lap, 2,
+            "full forward lap through all checkpoints should count"
+        );
+        assert!(
+            state.last_lap_time_ms.is_some(),
+            "completed lap should record a lap time"
+        );
+    }
+
+    #[test]
+    fn test_backwards_across_finish_line_does_not_count_lap() {
+        let track = create_test_track();
+        let n = track.centerline.len();
+        let mut state = create_test_car_state();
+
+        // Car is mid-race on lap 1, sitting just past the start line
+        let mut tick = 0;
+        step_to_centerline_point(&mut state, &track, 1, tick);
+        state.current_lap = 1;
+        state.lap_start_tick = 0;
+
+        // Reverse across the start/finish line and keep backing up
+        for idx in [0, n - 1, n - 2, n - 3] {
+            tick += 1;
+            step_to_centerline_point(&mut state, &track, idx, tick);
+        }
+        // Now drive forward across the line again (line-crossing exploit)
+        for idx in [n - 2, n - 1, 0, 1] {
+            tick += 1;
+            step_to_centerline_point(&mut state, &track, idx, tick);
+        }
+
+        assert_eq!(
+            state.current_lap, 1,
+            "crossing the finish line without hitting checkpoints must not count a lap"
+        );
+        assert!(
+            state.last_lap_time_ms.is_none(),
+            "no lap time should be recorded for an invalid lap"
+        );
+
+        // A subsequent full, honest lap must count again (checkpoint state
+        // was reset at the rejected wrap)
+        for i in 2..=(n + 1) {
+            tick += 1;
+            step_to_centerline_point(&mut state, &track, i % n, tick);
+        }
+        assert_eq!(
+            state.current_lap, 2,
+            "an honest full lap after the exploit attempt should count"
+        );
+    }
+
+    #[test]
+    fn test_teleport_past_checkpoint_invalidates_lap() {
+        let track = create_test_track();
+        let n = track.centerline.len();
+        let track_length = track.centerline.last().unwrap().distance_from_start_m;
+        let mut state = create_test_car_state();
+
+        let mut tick = 0;
+        step_to_centerline_point(&mut state, &track, 0, tick);
+        state.current_lap = 1;
+        state.lap_start_tick = 0;
+
+        // Drive forward until just before the first virtual checkpoint (25%)
+        let cp0 = track_length * 0.25;
+        let mut idx = 0;
+        while track.centerline[idx + 1].distance_from_start_m < cp0 - 20.0 {
+            idx += 1;
+            tick += 1;
+            step_to_centerline_point(&mut state, &track, idx, tick);
+        }
+
+        // Teleport well past the checkpoint (> per-tick advance cap)
+        let skip_to = idx + 6; // ~94m jump on the default oval (15.7m spacing)
+        tick += 1;
+        step_to_centerline_point(&mut state, &track, skip_to, tick);
+
+        // Drive the rest of the lap normally
+        for i in (skip_to + 1)..=n {
+            tick += 1;
+            step_to_centerline_point(&mut state, &track, i % n, tick);
+        }
+
+        assert_eq!(
+            state.current_lap, 1,
+            "lap with a skipped checkpoint (teleport) must not count"
+        );
+        assert!(state.last_lap_time_ms.is_none());
     }
 
     #[test]
     fn test_aerodynamic_forces() {
         let mut state = create_test_car_state();
-        state.speed_mps = 50.0;  // 180 km/h
+        state.speed_mps = 50.0; // 180 km/h
         let config = create_test_config();
 
         let (drag, df_front, df_rear) = calculate_aerodynamic_forces(&state, &config);
@@ -1562,26 +2016,32 @@ mod tests {
     fn test_weight_transfer() {
         let config = create_test_config();
         let total_weight = config.mass_kg * GRAVITY;
-        
+
         // Under braking (negative longitudinal accel)
         let (long_transfer, _, _) = calculate_weight_transfer(&config, -10.0, 0.0, total_weight);
-        assert!(long_transfer < 0.0, "Weight should transfer forward under braking");
-        
+        assert!(
+            long_transfer < 0.0,
+            "Weight should transfer forward under braking"
+        );
+
         // Under acceleration
         let (long_transfer, _, _) = calculate_weight_transfer(&config, 5.0, 0.0, total_weight);
-        assert!(long_transfer > 0.0, "Weight should transfer rearward under acceleration");
+        assert!(
+            long_transfer > 0.0,
+            "Weight should transfer rearward under acceleration"
+        );
     }
 
     #[test]
     fn test_tire_forces() {
         let tire_config = TireConfig::default();
-        let load = 3000.0;  // 3000N wheel load
-        
+        let load = 3000.0; // 3000N wheel load
+
         // Test longitudinal force (acceleration)
         let (fx, fy) = calculate_tire_forces(load, 0.05, 0.0, 1.0, &tire_config);
         assert!(fx.abs() > 0.0, "Should produce longitudinal force");
         assert!(fy.abs() < 0.1, "Should produce minimal lateral force");
-        
+
         // Test lateral force (cornering)
         let (fx, fy) = calculate_tire_forces(load, 0.0, 0.1, 1.0, &tire_config);
         assert!(fx.abs() < 0.1, "Should produce minimal longitudinal force");
@@ -1592,15 +2052,18 @@ mod tests {
     fn test_ackermann_steering() {
         let wheelbase = 2.7;
         let track_width = 1.6;
-        
+
         // Test right turn
         let (left, right) = calculate_ackermann_steering(0.3, wheelbase, track_width);
         assert!(left > 0.0 && right > 0.0, "Both wheels should turn");
         assert!(right > left, "Inner wheel (right) should turn more");
-        
+
         // Test straight
         let (left, right) = calculate_ackermann_steering(0.0, wheelbase, track_width);
-        assert!(left.abs() < 0.001 && right.abs() < 0.001, "No steering angle");
+        assert!(
+            left.abs() < 0.001 && right.abs() < 0.001,
+            "No steering angle"
+        );
     }
 
     #[test]
@@ -1608,7 +2071,7 @@ mod tests {
         let mut state = create_test_car_state();
         let config = create_test_config();
         let track = create_test_track();
-        
+
         let input = PlayerInputData {
             throttle: 1.0,
             brake: 0.0,
@@ -1623,7 +2086,10 @@ mod tests {
         }
 
         // Car should have moved and adopted track elevation
-        assert!(state.pos_x != 0.0 || state.pos_y != 0.0, "Car should have moved");
+        assert!(
+            state.pos_x != 0.0 || state.pos_y != 0.0,
+            "Car should have moved"
+        );
     }
 
     #[test]
@@ -1653,6 +2119,8 @@ mod tests {
             track_surface: TrackSurface::default(),
             pit_lane: None,
             raceline: Vec::new(),
+            raceline_distances: Vec::new(),
+            checkpoints: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
         };
@@ -1674,17 +2142,29 @@ mod tests {
 
         update_car_3d(&mut state, &config, &input, &track, dt);
 
-        assert!(state.is_airborne, "Car should be airborne when above track surface");
+        assert!(
+            state.is_airborne,
+            "Car should be airborne when above track surface"
+        );
         assert!(state.vel_z < 0.0, "Gravity should accelerate car downward");
-        assert_eq!(state.weight_front_left_n, 0.0, "Airborne car should have no tire load");
+        assert_eq!(
+            state.weight_front_left_n, 0.0,
+            "Airborne car should have no tire load"
+        );
 
         for _ in 0..400 {
             update_car_3d(&mut state, &config, &input, &track, dt);
         }
 
         assert!(!state.is_airborne, "Car should land back on track surface");
-        assert!(state.pos_z.abs() < 0.2, "Car should settle near track elevation");
-        assert_eq!(state.vel_z, 0.0, "Vertical velocity should reset on landing");
+        assert!(
+            state.pos_z.abs() < 0.2,
+            "Car should settle near track elevation"
+        );
+        assert_eq!(
+            state.vel_z, 0.0,
+            "Vertical velocity should reset on landing"
+        );
     }
 
     #[test]
@@ -1718,6 +2198,8 @@ mod tests {
             track_surface: TrackSurface::default(),
             pit_lane: None,
             raceline: Vec::new(),
+            raceline_distances: Vec::new(),
+            checkpoints: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: Some(crate::procgen::ProceduralWorldData {
                 environment_type: "test".to_string(),
@@ -1730,13 +2212,19 @@ mod tests {
             }),
         };
 
-        let centerline_sample = query_track_surface_centerline(&track, 0.5, 0.5)
+        let centerline_sample = query_track_surface_centerline(&track, 0.5, 0.5, None)
             .expect("centerline sample should exist");
-        let mesh_sample = query_track_surface_mesh_heightfield_stub(&track, 0.5, 0.5)
+        let mesh_sample = query_track_surface_mesh_heightfield_stub(&track, 0.5, 0.5, None)
             .expect("mesh stub sample should exist");
 
-        assert_eq!(centerline_sample.elevation, 1.0, "centerline sample should use centerline z");
-        assert!((mesh_sample.elevation - 5.0).abs() < 0.001, "mesh stub should use heightfield elevation");
+        assert_eq!(
+            centerline_sample.elevation, 1.0,
+            "centerline sample should use centerline z"
+        );
+        assert!(
+            (mesh_sample.elevation - 5.0).abs() < 0.001,
+            "mesh stub should use heightfield elevation"
+        );
 
         assert_eq!(mesh_sample.nearest_point, centerline_sample.nearest_point);
         assert!((mesh_sample.banking_rad - centerline_sample.banking_rad).abs() < 0.0001);
@@ -1787,6 +2275,8 @@ mod tests {
             track_surface: TrackSurface::default(),
             pit_lane: None,
             raceline: Vec::new(),
+            raceline_distances: Vec::new(),
+            checkpoints: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
         }
@@ -1850,8 +2340,10 @@ mod tests {
         update_car_3d(&mut state_no_arb, &config_no_arb, &input, &track, dt);
         update_car_3d(&mut state_with_arb, &config_with_arb, &input, &track, dt);
 
-        let front_split_no_arb = (state_no_arb.weight_front_right_n - state_no_arb.weight_front_left_n).abs();
-        let front_split_with_arb = (state_with_arb.weight_front_right_n - state_with_arb.weight_front_left_n).abs();
+        let front_split_no_arb =
+            (state_no_arb.weight_front_right_n - state_no_arb.weight_front_left_n).abs();
+        let front_split_with_arb =
+            (state_with_arb.weight_front_right_n - state_with_arb.weight_front_left_n).abs();
 
         assert!(
             front_split_with_arb < front_split_no_arb,
@@ -1865,7 +2357,7 @@ mod tests {
         state.fuel_liters = 100.0;
         let config = create_test_config();
         let track = create_test_track();
-        
+
         let input = PlayerInputData {
             throttle: 1.0,
             brake: 0.0,
@@ -1878,15 +2370,34 @@ mod tests {
         update_car_3d(&mut state, &config, &input, &track, 1.0);
 
         assert!(state.fuel_liters < initial_fuel, "Fuel should be consumed");
-        assert!(state.fuel_consumption_lps > 0.0, "Fuel consumption rate should be positive");
+        assert!(
+            state.fuel_consumption_lps > 0.0,
+            "Fuel consumption rate should be positive"
+        );
     }
 
     #[test]
     fn test_damage_system() {
         let config = create_test_config();
-        let grid_slot1 = GridSlot { position: 1, x: 0.0, y: 0.0, z: 0.0, yaw_rad: 0.0 };
-        let grid_slot2 = GridSlot { position: 2, x: 1.0, y: 0.0, z: 0.0, yaw_rad: 0.0 };
-        
+        let grid_slot1 = GridSlot {
+            position: 1,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            yaw_rad: 0.0,
+        };
+        // First-contact geometry: barely overlapping along the approach
+        // axis, as produced by incremental per-tick motion (a deep instant
+        // overlap would make the minimum-translation axis lateral, where
+        // the closing speed is zero).
+        let grid_slot2 = GridSlot {
+            position: 2,
+            x: config.length_m - 0.1,
+            y: 0.0,
+            z: 0.0,
+            yaw_rad: 0.0,
+        };
+
         let mut states = vec![
             CarState::new(Uuid::new_v4(), config.id, &grid_slot1),
             CarState::new(Uuid::new_v4(), config.id, &grid_slot2),
@@ -1902,11 +2413,11 @@ mod tests {
         check_aabb_collisions_3d(&mut states, &configs);
 
         // Check that damage was applied
-        let total_damage_0 = states[0].damage.front_damage_percent 
+        let total_damage_0 = states[0].damage.front_damage_percent
             + states[0].damage.rear_damage_percent
             + states[0].damage.left_damage_percent
             + states[0].damage.right_damage_percent;
-        
+
         assert!(total_damage_0 > 0.0, "Collision should cause damage");
     }
 
@@ -1924,7 +2435,7 @@ mod tests {
 
         // Test that legacy API still works
         update_car_2d(&mut state, &config, &input, 1.0 / 240.0);
-        
+
         assert!(state.speed_mps > 0.0, "Legacy API should work");
     }
 }

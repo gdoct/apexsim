@@ -7,14 +7,15 @@ use tokio::time::sleep;
 async fn test_bounded_channels_prevent_oom() {
     // This test verifies that bounded channels prevent unbounded memory growth
     // We create a transport layer without TLS (by providing invalid cert paths)
-    
+
     let transport = TransportLayer::new(
         "127.0.0.1:0", // Random port
         "127.0.0.1:0", // Random port
         "invalid_cert_path.pem",
         "invalid_key_path.pem",
         false, // require_tls (optional for tests)
-        5000, // 5 second heartbeat timeout
+        5000,  // 5 second heartbeat timeout
+        apexsim_server::config::AuthSettings::default(),
     )
     .await
     .expect("Failed to create transport layer");
@@ -28,7 +29,7 @@ async fn test_bounded_channels_prevent_oom() {
 #[tokio::test]
 async fn test_droppable_messages_are_dropped_when_queue_full() {
     // This test verifies that droppable messages (telemetry) are dropped when queue is full
-    
+
     let mut transport = TransportLayer::new(
         "127.0.0.1:0",
         "127.0.0.1:0",
@@ -36,6 +37,7 @@ async fn test_droppable_messages_are_dropped_when_queue_full() {
         "invalid_key_path.pem",
         false, // require_tls (optional for tests)
         5000,
+        apexsim_server::config::AuthSettings::default(),
     )
     .await
     .expect("Failed to create transport layer");
@@ -47,7 +49,10 @@ async fn test_droppable_messages_are_dropped_when_queue_full() {
 
     // Test that metrics are accessible
     let initial_dropped = transport.metrics.tcp_dropped();
-    assert_eq!(initial_dropped, 0, "Should start with zero dropped messages");
+    assert_eq!(
+        initial_dropped, 0,
+        "Should start with zero dropped messages"
+    );
 }
 
 #[tokio::test]
@@ -77,7 +82,7 @@ async fn test_message_priority_classification() {
         session_state: apexsim_server::data::SessionState::Racing,
         countdown_ms: None,
         car_states: vec![],
-        game_mode: apexsim_server::data::GameMode::Lobby
+        game_mode: apexsim_server::data::GameMode::Lobby,
     });
     assert_eq!(telemetry_msg.priority(), MessagePriority::Droppable);
 }

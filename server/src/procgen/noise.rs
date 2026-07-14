@@ -43,13 +43,15 @@ impl TerrainNoise {
         let mid = self.mid_freq.get([
             (x * freq_multiplier * 0.05) as f64,
             (y * freq_multiplier * 0.05) as f64,
-        ]) as f32 * 0.5;
+        ]) as f32
+            * 0.5;
 
         // High-frequency fine detail
         let high = self.high_freq.get([
             (x * freq_multiplier * 0.1) as f64,
             (y * freq_multiplier * 0.1) as f64,
-        ]) as f32 * 0.25;
+        ]) as f32
+            * 0.25;
 
         // Combine all layers
         low + mid + high
@@ -71,17 +73,20 @@ impl TerrainNoise {
         let low = self.low_freq.get([
             (x * freq_multiplier * 0.01) as f64,
             (y * freq_multiplier * 0.01) as f64,
-        ]) as f32 * low_weight;
+        ]) as f32
+            * low_weight;
 
         let mid = self.mid_freq.get([
             (x * freq_multiplier * 0.05) as f64,
             (y * freq_multiplier * 0.05) as f64,
-        ]) as f32 * mid_weight;
+        ]) as f32
+            * mid_weight;
 
         let high = self.high_freq.get([
             (x * freq_multiplier * 0.1) as f64,
             (y * freq_multiplier * 0.1) as f64,
-        ]) as f32 * high_weight;
+        ]) as f32
+            * high_weight;
 
         low + mid + high
     }
@@ -125,7 +130,10 @@ mod tests {
             }
         }
 
-        assert!(found_difference, "Different seeds should produce different values");
+        assert!(
+            found_difference,
+            "Different seeds should produce different values"
+        );
     }
 
     #[test]
@@ -137,7 +145,11 @@ mod tests {
             for y in 0..10 {
                 let val = noise.sample(x as f32 * 10.0, y as f32 * 10.0, 1.0);
                 // Perlin noise is roughly in [-1, 1], with three octaves we expect roughly [-1.75, 1.75]
-                assert!(val > -2.0 && val < 2.0, "Noise value {} out of expected range", val);
+                assert!(
+                    val > -2.0 && val < 2.0,
+                    "Noise value {} out of expected range",
+                    val
+                );
             }
         }
     }

@@ -78,7 +78,10 @@ impl ReplayManager {
             frames: Vec::new(),
         };
 
-        self.active_recordings.write().await.insert(session_id, recorder);
+        self.active_recordings
+            .write()
+            .await
+            .insert(session_id, recorder);
         debug!("Started recording replay for session {}", session_id);
     }
 
@@ -95,7 +98,10 @@ impl ReplayManager {
 
         if let Some(recorder) = recorder {
             let replay_path = self.save_replay(recorder).await?;
-            debug!("Saved replay for session {} to {:?}", session_id, replay_path);
+            debug!(
+                "Saved replay for session {} to {:?}",
+                session_id, replay_path
+            );
             Ok(replay_path)
         } else {
             warn!("No active recording for session {}", session_id);
@@ -192,7 +198,11 @@ impl ReplayManager {
             frames.push(frame);
         }
 
-        debug!("Loaded replay from {:?} ({} frames)", replay_path, frames.len());
+        debug!(
+            "Loaded replay from {:?} ({} frames)",
+            replay_path,
+            frames.len()
+        );
 
         Ok(ReplayPlayer {
             metadata: header.metadata,

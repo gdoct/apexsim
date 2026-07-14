@@ -3,7 +3,7 @@ use super::noise::TerrainNoise;
 use super::world_data::{EnvironmentPreset, ProceduralWorldData, TerrainHeightmap};
 use crate::data::TrackPoint;
 use std::path::Path;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 /// Generate complete procedural world data for a track
 ///
@@ -106,11 +106,7 @@ pub fn generate_terrain(
             let world_y = min_y + y as f32 * cell_size;
 
             // Sample noise
-            let noise_value = noise.sample(
-                world_x,
-                world_y,
-                preset.detail_noise_freq,
-            );
+            let noise_value = noise.sample(world_x, world_y, preset.detail_noise_freq);
 
             // Map noise to height (noise is roughly [-1.75, 1.75], map to [0, max_height])
             let normalized = (noise_value + 1.75) / 3.5; // Map to roughly [0, 1]
@@ -149,7 +145,10 @@ pub fn carve_track_corridor(
     // Build spatial index for fast nearest-neighbor lookups
     // Use cell size slightly larger than blend_width for efficiency
     let grid_cell_size = blend_width * 2.0;
-    debug!("  Building spatial index (cell size: {:.0}m)...", grid_cell_size);
+    debug!(
+        "  Building spatial index (cell size: {:.0}m)...",
+        grid_cell_size
+    );
     let grid_start = std::time::Instant::now();
     let spatial_grid = TrackSpatialGrid::new(track_points, grid_cell_size);
     debug!(
@@ -190,12 +189,8 @@ pub fn carve_track_corridor(
             let world_y = heightmap.origin_y + y as f32 * heightmap.cell_size_m;
 
             // Find distance to nearest track point using spatial grid
-            let (dist_to_track, nearest_track_z) = spatial_grid.find_nearest(
-                track_points,
-                world_x,
-                world_y,
-                blend_width,
-            );
+            let (dist_to_track, nearest_track_z) =
+                spatial_grid.find_nearest(track_points, world_x, world_y, blend_width);
 
             // Apply smooth blend within blend_width
             if dist_to_track < blend_width {
@@ -208,7 +203,8 @@ pub fn carve_track_corridor(
                 let blend_smooth = blend * blend * (3.0 - 2.0 * blend);
 
                 // Interpolate between track height and terrain height
-                let blended_height = target_height * (1.0 - blend_smooth) + current_height * blend_smooth;
+                let blended_height =
+                    target_height * (1.0 - blend_smooth) + current_height * blend_smooth;
 
                 heightmap.set_height(x, y, blended_height);
             }
@@ -227,11 +223,11 @@ pub fn carve_track_corridor(
 ///
 /// Modifies the Z coordinate of each track point based on the terrain
 /// heightmap, then recalculates all derived properties.
-pub fn apply_track_elevation(
-    track_points: &mut [TrackPoint],
-    heightmap: &TerrainHeightmap,
-) {
-    debug!("Applying terrain elevation to {} track points", track_points.len());
+pub fn apply_track_elevation(track_points: &mut [TrackPoint], heightmap: &TerrainHeightmap) {
+    debug!(
+        "Applying terrain elevation to {} track points",
+        track_points.len()
+    );
 
     for point in track_points.iter_mut() {
         let terrain_height = heightmap.sample(point.x, point.y);
@@ -288,7 +284,10 @@ fn recalculate_track_geometry(points: &mut [TrackPoint]) {
 
     debug!(
         "Recalculated track geometry. Total length: {:.1}m",
-        points.last().map(|p| p.distance_from_start_m).unwrap_or(0.0)
+        points
+            .last()
+            .map(|p| p.distance_from_start_m)
+            .unwrap_or(0.0)
     );
 }
 
@@ -367,7 +366,13 @@ impl TrackSpatialGrid {
     }
 
     /// Find nearest track point within search_radius, returns (distance, z)
-    fn find_nearest(&self, track_points: &[TrackPoint], world_x: f32, world_y: f32, search_radius: f32) -> (f32, f32) {
+    fn find_nearest(
+        &self,
+        track_points: &[TrackPoint],
+        world_x: f32,
+        world_y: f32,
+        search_radius: f32,
+    ) -> (f32, f32) {
         let mut min_dist = f32::MAX;
         let mut nearest_z = 0.0;
 
@@ -385,7 +390,8 @@ impl TrackSpatialGrid {
                 let cell_y = center_cell_y + dy;
 
                 // Skip out-of-bounds cells
-                if cell_x < 0 || cell_y < 0
+                if cell_x < 0
+                    || cell_y < 0
                     || cell_x >= self.grid_width as i32
                     || cell_y >= self.grid_height as i32
                 {
@@ -637,7 +643,10 @@ pub fn generate_all_terrain(tracks_dir: &str) -> Result<usize, String> {
                 info!("  ✅ Generated terrain for: {}", track_file.display());
             }
             Ok(false) => {
-                debug!("  ⏭️  Skipped (no environment_type): {}", track_file.display());
+                debug!(
+                    "  ⏭️  Skipped (no environment_type): {}",
+                    track_file.display()
+                );
             }
             Err(e) => {
                 warn!("  ❌ Failed to process {}: {}", track_file.display(), e);
@@ -651,8 +660,8 @@ pub fn generate_all_terrain(tracks_dir: &str) -> Result<usize, String> {
 fn collect_track_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) -> Result<(), String> {
     use std::fs;
 
-    let entries = fs::read_dir(dir)
-        .map_err(|e| format!("Failed to read directory {:?}: {}", dir, e))?;
+    let entries =
+        fs::read_dir(dir).map_err(|e| format!("Failed to read directory {:?}: {}", dir, e))?;
 
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read dir entry: {}", e))?;
@@ -673,20 +682,19 @@ fn collect_track_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) -> Resul
 }
 
 fn process_track_for_terrain(track_file: &Path) -> Result<bool, String> {
-    use crate::track_loader::{TrackLoader, SplineInterpolator};
+    use crate::track_loader::{SplineInterpolator, TrackLoader};
     use std::fs;
 
     // Load track file to get metadata
-    let content = fs::read_to_string(track_file)
-        .map_err(|e| format!("Failed to read track file: {}", e))?;
+    let content =
+        fs::read_to_string(track_file).map_err(|e| format!("Failed to read track file: {}", e))?;
 
-    let track_file_format: crate::track_loader::TrackFileFormat = if content.trim_start().starts_with('{') {
-        serde_json::from_str(&content)
-            .map_err(|e| format!("JSON parse error: {}", e))?
-    } else {
-        serde_yaml::from_str(&content)
-            .map_err(|e| format!("YAML parse error: {}", e))?
-    };
+    let track_file_format: crate::track_loader::TrackFileFormat =
+        if content.trim_start().starts_with('{') {
+            serde_json::from_str(&content).map_err(|e| format!("JSON parse error: {}", e))?
+        } else {
+            serde_yaml::from_str(&content).map_err(|e| format!("YAML parse error: {}", e))?
+        };
 
     let metadata = track_file_format.metadata.clone().unwrap_or_default();
 
@@ -699,12 +707,8 @@ fn process_track_for_terrain(track_file: &Path) -> Result<bool, String> {
     let cache_path = get_terrain_cache_path(track_file);
     if cache_path.exists() {
         // Check if cache is newer than source file
-        let source_modified = fs::metadata(track_file)
-            .and_then(|m| m.modified())
-            .ok();
-        let cache_modified = fs::metadata(&cache_path)
-            .and_then(|m| m.modified())
-            .ok();
+        let source_modified = fs::metadata(track_file).and_then(|m| m.modified()).ok();
+        let cache_modified = fs::metadata(&cache_path).and_then(|m| m.modified()).ok();
 
         if let (Some(src), Some(cache)) = (source_modified, cache_modified) {
             if cache >= src {
@@ -721,15 +725,22 @@ fn process_track_for_terrain(track_file: &Path) -> Result<bool, String> {
         12.0
     };
 
-    debug!("🌍 Generating procedural world for track: {}", track_file_format.name);
-    debug!("   Environment type: {}", metadata.environment_type.as_ref().unwrap());
+    debug!(
+        "🌍 Generating procedural world for track: {}",
+        track_file_format.name
+    );
+    debug!(
+        "   Environment type: {}",
+        metadata.environment_type.as_ref().unwrap()
+    );
     debug!("   Input nodes: {}", track_file_format.nodes.len());
 
     let mut centerline_points = SplineInterpolator::interpolate_spline(
         &track_file_format.nodes,
         track_file_format.closed_loop,
         default_width,
-    ).map_err(|e| format!("Failed to interpolate spline: {}", e))?;
+    )
+    .map_err(|e| format!("Failed to interpolate spline: {}", e))?;
 
     debug!("   Interpolated track points: {}", centerline_points.len());
 
@@ -756,7 +767,10 @@ fn get_terrain_cache_path(track_file: &Path) -> std::path::PathBuf {
     cache_path
 }
 
-fn save_terrain_cache(cache_path: &Path, procedural_world: &ProceduralWorldData) -> Result<(), String> {
+fn save_terrain_cache(
+    cache_path: &Path,
+    procedural_world: &ProceduralWorldData,
+) -> Result<(), String> {
     use std::fs;
 
     let msgpack_data = rmp_serde::to_vec(procedural_world)
@@ -781,7 +795,11 @@ pub fn load_terrain_cache(track_file: &Path) -> Option<ProceduralWorldData> {
     let content = fs::read(&cache_path).ok()?;
     let procedural_world: ProceduralWorldData = rmp_serde::from_slice(&content)
         .map_err(|e| {
-            error!("Failed to parse terrain cache {}: {}", cache_path.display(), e);
+            error!(
+                "Failed to parse terrain cache {}: {}",
+                cache_path.display(),
+                e
+            );
             e
         })
         .ok()?;

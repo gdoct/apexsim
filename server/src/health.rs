@@ -1,13 +1,21 @@
+use crate::metrics::ServerMetrics;
+use bytes::Bytes;
+use http_body_util::Full;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{body::Incoming, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use http_body_util::Full;
-use bytes::Bytes;
-use tokio::net::TcpListener;
 use std::sync::Arc;
+use tokio::net::TcpListener;
 use tokio::sync::RwLock;
-use tracing::{debug, info, error};
+use tracing::{debug, error, info};
+
+fn text_response(status: StatusCode, body: &'static str) -> Response<Full<Bytes>> {
+    Response::builder()
+        .status(status)
+        .body(Full::new(Bytes::from(body)))
+        .expect("static response construction cannot fail")
+}
 
 #[derive(Clone)]
 pub struct HealthState {
@@ -41,6 +49,7 @@ impl Default for HealthState {
 async fn handle_health(
     req: Request<Incoming>,
     health_state: HealthState,
+    metrics: Option<Arc<ServerMetrics>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     let path = req.uri().path();
 
@@ -48,45 +57,55 @@ async fn handle_health(
         "/health" => {
             let is_healthy = *health_state.is_healthy.read().await;
             if is_healthy {
-                Ok(Response::builder()
-                    .status(StatusCode::OK)
-                    .body(Full::new(Bytes::from("OK")))
-                    .unwrap())
+                Ok(text_response(StatusCode::OK, "OK"))
             } else {
-                Ok(Response::builder()
-                    .status(StatusCode::SERVICE_UNAVAILABLE)
-                    .body(Full::new(Bytes::from("Service Unavailable")))
-                    .unwrap())
+                Ok(text_response(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "Service Unavailable",
+                ))
             }
         }
         "/ready" => {
             let is_ready = *health_state.is_ready.read().await;
             if is_ready {
-                Ok(Response::builder()
-                    .status(StatusCode::OK)
-                    .body(Full::new(Bytes::from("Ready")))
-                    .unwrap())
+                Ok(text_response(StatusCode::OK, "Ready"))
             } else {
-                Ok(Response::builder()
-                    .status(StatusCode::SERVICE_UNAVAILABLE)
-                    .body(Full::new(Bytes::from("Not Ready")))
-                    .unwrap())
+                Ok(text_response(StatusCode::SERVICE_UNAVAILABLE, "Not Ready"))
             }
         }
-        _ => {
-            Ok(Response::builder()
-                .status(StatusCode::NOT_FOUND)
-                .body(Full::new(Bytes::from("Not Found")))
-                .unwrap())
-        }
+        "/metrics" => match metrics {
+            Some(m) => Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "text/plain; version=0.0.4")
+                .body(Full::new(Bytes::from(m.render_prometheus())))
+                .expect("metrics response construction cannot fail")),
+            None => Ok(text_response(StatusCode::NOT_FOUND, "Not Found")),
+        },
+        _ => Ok(text_response(StatusCode::NOT_FOUND, "Not Found")),
     }
 }
 
-pub async fn run_health_server(bind_addr: String, health_state: HealthState) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_health_server(
+    bind_addr: String,
+    health_state: HealthState,
+    metrics: Option<Arc<ServerMetrics>>,
+) -> Result<(), std::io::Error> {
     debug!("Starting health check server on {}", bind_addr);
-
     let listener = TcpListener::bind(&bind_addr).await?;
-    info!("Health check server listening on {}", bind_addr);
+    serve_health(listener, health_state, metrics).await
+}
+
+/// Serve health/readiness/metrics on an already-bound listener (lets the
+/// caller learn the ephemeral port before serving starts).
+pub async fn serve_health(
+    listener: TcpListener,
+    health_state: HealthState,
+    metrics: Option<Arc<ServerMetrics>>,
+) -> Result<(), std::io::Error> {
+    info!(
+        "Health check server listening on {}",
+        listener.local_addr()?
+    );
 
     loop {
         let (stream, _) = match listener.accept().await {
@@ -99,16 +118,13 @@ pub async fn run_health_server(bind_addr: String, health_state: HealthState) -> 
 
         let io = TokioIo::new(stream);
         let health_state = health_state.clone();
+        let metrics = metrics.clone();
 
         tokio::spawn(async move {
-            let service = service_fn(move |req| {
-                handle_health(req, health_state.clone())
-            });
+            let service =
+                service_fn(move |req| handle_health(req, health_state.clone(), metrics.clone()));
 
-            if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service)
-                .await
-            {
+            if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
                 error!("Error serving health check connection: {}", err);
             }
         });

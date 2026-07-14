@@ -20,3 +20,9 @@ tracks_dir = "../content/tracks"
 [logging]
 level = "info"
 console_enabled = true
+
+[auth]
+# "dev" accepts any token (development only!). For production use
+# mode = "token" and list shared secrets in `tokens`.
+mode = "dev"
+tokens = []
