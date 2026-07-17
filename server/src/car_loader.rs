@@ -62,6 +62,10 @@ struct PhysicsToml {
     #[serde(default)]
     brake_bias_front: Option<f32>,
     #[serde(default)]
+    abs_enabled: Option<bool>,
+    #[serde(default)]
+    traction_control_enabled: Option<bool>,
+    #[serde(default)]
     frontal_area_m2: Option<f32>,
     #[serde(default)]
     lift_coefficient_front: Option<f32>,
@@ -347,7 +351,8 @@ impl CarLoader {
             // Braking
             max_brake_force_n: car_toml.physics.max_brake_force_n,
             brake_bias_front: car_toml.physics.brake_bias_front.unwrap_or(0.6),
-            abs_enabled: true,
+            abs_enabled: car_toml.physics.abs_enabled.unwrap_or(true),
+            traction_control_enabled: car_toml.physics.traction_control_enabled.unwrap_or(true),
 
             // Aerodynamics
             drag_coefficient: car_toml.physics.drag_coefficient,

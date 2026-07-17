@@ -14,7 +14,8 @@ width_m = 1.2
 max_engine_force_n = 1200.0
 max_brake_force_n = 3000.0
 drag_coefficient = 0.65
-grip_coefficient = 0.7
+# Retuned after the physically-correct normal-load + slip-model overhaul.
+grip_coefficient = 0.75
 max_steering_angle_rad = 0.60
 wheelbase_m = 1.8
 
