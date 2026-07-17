@@ -80,6 +80,8 @@ cargo bench                      # Criterion benchmarks for the physics hot loop
 
 Integration tests spawn the server in-process on ephemeral ports; no manually started server is required.
 
+For reference, the hot-loop benchmarks land around ~835 ns per car physics step and ~7.8 µs for a complete 8-car session tick (physics + AI + collisions + lap validation) — about 0.2% of the 240 Hz tick budget. If a change moves these numbers materially, that's worth a close look.
+
 ## Running the Server
 
 ```
