@@ -36,12 +36,15 @@ async fn test_tick_rate_stress() {
     println!("╔══════════════════════════════════════════════════════════════════════════════╗");
     println!("║              TICK RATE STRESS TEST - PERFORMANCE BENCHMARK                   ║");
     println!("╠══════════════════════════════════════════════════════════════════════════════╣");
-    println!("║  Testing server tick rates: 120Hz, 240Hz, 480Hz, 960Hz, 1440Hz               ║");
+    println!("║  Testing server tick rates: 120Hz, 240Hz, 480Hz, 960Hz                      ║");
     println!("║  Each test runs for 10 seconds measuring actual tick rate and timing jitter  ║");
     println!("╚══════════════════════════════════════════════════════════════════════════════╝");
     println!();
 
-    let tick_rates = [120u16, 240, 480, 960, 1440];
+    // Config validation caps tick_rate_hz at 1000 (tokio's ~1ms timer
+    // granularity makes higher rates meaningless), so the sweep stays
+    // inside the supported envelope.
+    let tick_rates = [120u16, 240, 480, 960];
     let test_duration_secs = 10.0;
     let mut results: Vec<TickRateTestResult> = Vec::new();
 
@@ -257,6 +260,26 @@ async fn run_tick_rate_test(
     }
     println!("OK");
 
+    // Drain the countdown-era telemetry backlog: nothing read the socket
+    // while waiting out the countdown, so seconds of queued telemetry are
+    // sitting in the kernel buffer. Measuring across that backlog inflates
+    // the apparent tick rate (old ticks read in fast-forward). Reading is
+    // orders of magnitude faster than production, so a fixed 2s window
+    // clears the backlog and leaves us at the live edge of the stream.
+    let drain_deadline = Instant::now() + Duration::from_secs(2);
+    let mut drain_heartbeat = Instant::now();
+    while Instant::now() < drain_deadline {
+        if drain_heartbeat.elapsed() > Duration::from_secs(1) {
+            let _ = client.send_heartbeat().await;
+            drain_heartbeat = Instant::now();
+        }
+        match timeout(Duration::from_millis(50), client.receive_message()).await {
+            Ok(Ok(_)) => continue,
+            Ok(Err(_)) => break,
+            Err(_) => continue,
+        }
+    }
+
     // Collect tick timing data
     print!("  Collecting telemetry for {:.0}s... ", duration_secs);
     std::io::stdout().flush().unwrap();
@@ -353,9 +376,29 @@ async fn run_tick_rate_test(
     };
     let jitter_us = jitter_in_ticks * expected_interval_us;
 
-    // Calculate packet loss
-    let missed_packets = total_server_ticks.saturating_sub(packets_received);
-    let packet_loss_percent = 100.0 * missed_packets as f64 / total_server_ticks as f64;
+    // Calculate packet loss relative to the telemetry cadence actually in
+    // use: the server broadcasts every `telemetry_divisor`-th tick, so the
+    // most common (modal) tick gap between received packets IS the cadence.
+    // Expecting one packet per tick would count the divisor as "loss".
+    let modal_gap = {
+        let mut counts: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
+        for &g in &tick_gaps {
+            *counts.entry(g).or_default() += 1;
+        }
+        counts
+            .into_iter()
+            .max_by_key(|(_, c)| *c)
+            .map(|(g, _)| g)
+            .unwrap_or(1)
+            .max(1)
+    };
+    let expected_packets = total_server_ticks / modal_gap;
+    let missed_packets = expected_packets.saturating_sub(packets_received);
+    let packet_loss_percent = if expected_packets > 0 {
+        100.0 * missed_packets as f64 / expected_packets as f64
+    } else {
+        0.0
+    };
 
     // Min/max observed gap (in terms of equivalent microseconds)
     let min_gap = tick_gaps.iter().min().copied().unwrap_or(1) as f64 * actual_interval_us;

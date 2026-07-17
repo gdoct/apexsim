@@ -389,7 +389,7 @@ async fn test_demo_lap_timing() {
                 continue;
             }
 
-            println!("║  Car: {}                                             ║", &car_id.to_string()[..8]);
+            println!("║  Car: {}                                             ║", car_id);
             println!("║  Laps completed: {}                                                        ║", data.completed_laps.len());
             println!("╠──────────────────────────────────────────────────────────────────────────────╣");
 
