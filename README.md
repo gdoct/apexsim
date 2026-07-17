@@ -8,7 +8,7 @@ This project is in active development. Core simulation features are functional, 
 * 25 tracks with exact measured center-line spline, track width and racing line. elevation data is missing for the tracks.
 * 5 car models with physics and 3d model
 * authoritative server with sophisticated physics and networking (authoritative means the server decides where each car is)
-* server ticks at 240hz by default but should be reliable up to 1Mhz
+* server ticks at 240hz by default; the physics itself benchmarks at ~130,000 full session ticks per second (see [Performance](#performance))
 * supports up to 20 players or AI drivers per session
 * godot implementation of the client with network logon, lobby management, and basic track view
 * basic ui for lobby, car selection, track selection
@@ -29,7 +29,21 @@ This separation keeps critical simulation logic isolated from presentation while
 
 ### Serialization
 
-The client and server communicate using a lightweight, cross-platform binary serialization format called [MessagePack](https://msgpack.org/). All networked data structures are defined in Rust with `serde` and `rmp_serde` for efficient, schema-aware encoding and decoding. This choice prioritizes performance and low bandwidth overhead, which is critical for real-time simulation.
+The client and server communicate using a lightweight, cross-platform binary serialization format called [MessagePack](https://msgpack.org/). All networked data structures are defined in Rust with `serde` and `rmp_serde` for efficient, schema-aware encoding and decoding. High-frequency telemetry uses a compact positional encoding with session-scoped car indices (~60% smaller on the wire than the named encoding) and flows over UDP after a token handshake; reliable lobby/session traffic stays on TCP+TLS. This choice prioritizes performance and low bandwidth overhead, which is critical for real-time simulation.
+
+## Performance
+
+The simulation loop is, to put it modestly, not the bottleneck. Measured with the checked-in Criterion benchmarks (`cargo bench --bench physics_tick`, release build, single core, Monza with its full measured centerline):
+
+| What | Cost | What that means |
+|---|---|---|
+| One car, one full physics step (per-wheel tire model, suspension, aero, drivetrain) | **~835 ns** | ~1.2 million car-steps per second per core |
+| Nearest-centerline track query (windowed, cached) | **~106 ns** | effectively free |
+| Complete 8-car session tick — physics, AI drivers, collision detection, lap validation | **~7.8 µs** | ~130,000 full session ticks per second |
+
+At the default 240 Hz tick rate, simulating a full 8-car session consumes about **0.2% of the 4.17 ms tick budget**. The physics engine could sustain a tick rate in the six figures; the server caps `tick_rate_hz` at 1000 purely because async timer granularity — not simulation cost — becomes the limiting factor beyond that. In other words: the sim spends 99.8% of its time waiting politely for the next tick, and your network connection will give out long before the physics does.
+
+These numbers held (within noise) through the move from a synthesized slip model to the current per-wheel torque-balance tire model with combined-slip friction ellipse, ABS/TC driver aids, and hybrid powertrain support — realism upgrades that cost nanoseconds, not milliseconds.
 
 ## Repository Layout
 
