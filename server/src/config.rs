@@ -59,6 +59,14 @@ pub struct NetworkSettings {
     pub require_tls: bool,
     pub heartbeat_interval_ms: u64,
     pub heartbeat_timeout_ms: u64,
+    /// Broadcast telemetry every N-th simulation tick (1 = every tick).
+    /// Default 4 → 60Hz snapshots of a 240Hz sim; clients interpolate.
+    #[serde(default = "default_telemetry_divisor")]
+    pub telemetry_divisor: u16,
+}
+
+fn default_telemetry_divisor() -> u16 {
+    4
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,6 +141,7 @@ impl Default for ServerConfig {
                 require_tls: true,
                 heartbeat_interval_ms: 1000,
                 heartbeat_timeout_ms: 5000,
+                telemetry_divisor: default_telemetry_divisor(),
             },
             content: ContentSettings {
                 cars_dir: "../content/cars".to_string(),
@@ -236,6 +245,10 @@ impl ServerConfig {
             &mut self.network.tls_key_path,
         );
         env_parse("APEXSIM_NETWORK_REQUIRE_TLS", &mut self.network.require_tls);
+        env_parse(
+            "APEXSIM_NETWORK_TELEMETRY_DIVISOR",
+            &mut self.network.telemetry_divisor,
+        );
         env_string("APEXSIM_CONTENT_CARS_DIR", &mut self.content.cars_dir);
         env_string("APEXSIM_CONTENT_TRACKS_DIR", &mut self.content.tracks_dir);
         env_string("APEXSIM_LOGGING_LEVEL", &mut self.logging.level);
@@ -262,6 +275,9 @@ impl ServerConfig {
             if bind.parse::<std::net::SocketAddr>().is_err() {
                 errors.push(format!("{} is not a valid socket address: {}", name, bind));
             }
+        }
+        if self.network.telemetry_divisor == 0 {
+            errors.push("network.telemetry_divisor must be at least 1".to_string());
         }
         if self.network.heartbeat_timeout_ms <= self.network.heartbeat_interval_ms {
             errors.push(format!(

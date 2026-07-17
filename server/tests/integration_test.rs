@@ -53,6 +53,7 @@ impl TestClient {
         let auth_msg = ClientMessage::Authenticate {
             token: format!("test_token_{}", self.name),
             player_name: self.name.clone(),
+            protocol_version: apexsim_server::network::PROTOCOL_VERSION,
         };
 
         self.send_tcp_message(&auth_msg).await?;
@@ -196,7 +197,8 @@ impl TestClient {
                 ServerMessage::Error { message, .. } => {
                     return Err(format!("Join failed: {}", message).into());
                 }
-                ServerMessage::LobbyState(_) => continue, // Skip lobby state updates
+                ServerMessage::LobbyState(_) => continue,
+                ServerMessage::SessionRoster(_) => continue, // Skip lobby state updates
                 _ => continue,
             }
         }
@@ -220,6 +222,8 @@ impl TestClient {
             throttle,
             brake,
             steering,
+            gear: None,
+            clutch: None,
         };
 
         // Send via TCP for now (UDP not fully implemented in server)
@@ -233,7 +237,7 @@ impl TestClient {
     ) -> Result<Option<(u32, usize)>, Box<dyn std::error::Error>> {
         // Try to receive telemetry via TCP (non-blocking)
         match timeout(Duration::from_millis(10), self.receive_tcp_message()).await {
-            Ok(Ok(ServerMessage::Telemetry(telemetry))) => {
+            Ok(Ok(ServerMessage::TelemetryCompact(telemetry))) => {
                 let tick = telemetry.server_tick;
                 let car_count = telemetry.car_states.len();
                 Ok(Some((tick, car_count)))
@@ -765,24 +769,33 @@ async fn test_sandbox_session_workflow() {
         println!("Starting sandbox session...");
         client.start_session().await?;
 
-        // Wait for SessionStarting message
+        // Wait for SessionStarting message (skipping interleaved broadcasts
+        // like SessionRoster and LobbyState)
         println!("Waiting for SessionStarting message...");
-        let msg = timeout(Duration::from_secs(5), client.receive_tcp_message()).await??;
-        println!("Received message after start: {:?}", msg);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let msg = timeout(remaining, client.receive_tcp_message()).await??;
+            println!("Received message after start: {:?}", msg);
 
-        match msg {
-            ServerMessage::SessionStarting { countdown_seconds } => {
-                println!(
-                    "✓ SessionStarting received! Countdown: {}s",
-                    countdown_seconds
-                );
-                assert_eq!(countdown_seconds, 5, "Expected 5 second countdown");
-            }
-            ServerMessage::Error { code, message } => {
-                return Err(format!("Server error {}: {}", code, message).into());
-            }
-            _ => {
-                return Err(format!("Expected SessionStarting, got {:?}", msg).into());
+            match msg {
+                ServerMessage::SessionStarting { countdown_seconds } => {
+                    println!(
+                        "✓ SessionStarting received! Countdown: {}s",
+                        countdown_seconds
+                    );
+                    assert_eq!(countdown_seconds, 5, "Expected 5 second countdown");
+                    break;
+                }
+                ServerMessage::Error { code, message } => {
+                    return Err(format!("Server error {}: {}", code, message).into());
+                }
+                ServerMessage::SessionRoster(_)
+                | ServerMessage::LobbyState(_)
+                | ServerMessage::HeartbeatAck { .. } => continue,
+                _ => {
+                    return Err(format!("Expected SessionStarting, got {:?}", msg).into());
+                }
             }
         }
 

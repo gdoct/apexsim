@@ -64,6 +64,9 @@ async fn test_message_priority_classification() {
     let auth_msg = ServerMessage::AuthSuccess(apexsim_server::network::AuthSuccessData {
         player_id: Uuid::new_v4(),
         server_version: 1,
+        protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+        udp_token: "t".to_string(),
+        udp_port: 0,
     });
     assert_eq!(auth_msg.priority(), MessagePriority::Critical);
 

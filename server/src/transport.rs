@@ -1,6 +1,8 @@
 use crate::config::{AuthMode, AuthSettings};
 use crate::data::*;
-use crate::network::{AuthSuccessData, ClientMessage, MessagePriority, ServerMessage};
+use crate::network::{
+    AuthSuccessData, ClientMessage, MessagePriority, ServerMessage, PROTOCOL_VERSION,
+};
 use bytes::Bytes;
 use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig as TlsConfig;
@@ -22,7 +24,6 @@ use uuid::Uuid;
 
 // Channel capacity constants
 const TCP_INBOUND_CHANNEL_SIZE: usize = 1000;
-const UDP_INBOUND_CHANNEL_SIZE: usize = 2000;
 const UDP_OUTBOUND_CHANNEL_SIZE: usize = 2000;
 const PER_CLIENT_TCP_CHANNEL_SIZE: usize = 100;
 
@@ -147,13 +148,58 @@ pub struct ConnectionInfo {
     pub tcp_addr: SocketAddr,
     pub tcp_tx: mpsc::Sender<OutboundFrame>,
     pub in_session: Option<SessionId>,
+    /// Token issued in `AuthSuccess`; presenting it in a `UdpHandshake`
+    /// binds the sender's UDP address to this connection.
+    pub udp_token: String,
+    /// Bound UDP address, set by a completed `UdpHandshake`. Telemetry is
+    /// sent here when present (TCP fallback otherwise).
+    pub udp_addr: Option<SocketAddr>,
+}
+
+/// Shared connection registry: every map needed to resolve a connection from
+/// a TCP address, player ID, UDP token or UDP address. Cheap to clone (Arcs).
+#[derive(Clone)]
+struct ConnRegistry {
+    connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
+    player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
+    addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+    udp_token_to_connection: Arc<RwLock<HashMap<String, ConnectionId>>>,
+    udp_addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+}
+
+impl ConnRegistry {
+    fn new() -> Self {
+        Self {
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            udp_token_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            udp_addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    /// Remove a connection from every map. Returns the removed info.
+    async fn remove_connection(&self, connection_id: ConnectionId) -> Option<ConnectionInfo> {
+        let conn = self.connections.write().await.remove(&connection_id)?;
+        self.addr_to_connection.write().await.remove(&conn.tcp_addr);
+        self.player_to_connection
+            .write()
+            .await
+            .remove(&conn.player_id);
+        self.udp_token_to_connection
+            .write()
+            .await
+            .remove(&conn.udp_token);
+        if let Some(udp_addr) = conn.udp_addr {
+            self.udp_addr_to_connection.write().await.remove(&udp_addr);
+        }
+        Some(conn)
+    }
 }
 
 pub struct TransportLayer {
     // Connection tracking
-    connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
-    player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
-    addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+    registry: ConnRegistry,
 
     // Network sockets
     tcp_listener: Option<TcpListener>,
@@ -162,17 +208,17 @@ pub struct TransportLayer {
     tcp_local_addr: SocketAddr,
     udp_local_addr: SocketAddr,
 
-    // Channels for communication (bounded). `tcp_rx` can be taken out of the
-    // transport (see `take_tcp_receiver`) so the game loop can drain inbound
-    // events without holding any transport lock.
-    tcp_rx: Option<mpsc::Receiver<TransportEvent>>,
-    tcp_tx: mpsc::Sender<TransportEvent>,
-    udp_rx: mpsc::Receiver<(SocketAddr, ClientMessage)>,
-    udp_tx: mpsc::Sender<(SocketAddr, ClientMessage)>,
+    // Channels for communication (bounded). `event_rx` can be taken out of
+    // the transport (see `take_event_receiver`) so the game loop can drain
+    // inbound events without holding any transport lock. Both TCP reads and
+    // handshake-bound UDP packets feed this channel.
+    event_rx: Option<mpsc::Receiver<TransportEvent>>,
+    event_tx: mpsc::Sender<TransportEvent>,
 
-    // Outbound message queues (UDP only - TCP uses per-connection channels)
-    udp_out_tx: mpsc::Sender<(SocketAddr, ServerMessage)>,
-    udp_out_rx: mpsc::Receiver<(SocketAddr, ServerMessage)>,
+    // Outbound UDP queue (TCP uses per-connection channels). Carries
+    // pre-serialized bytes so a broadcast can serialize once and fan out.
+    udp_out_tx: mpsc::Sender<(SocketAddr, Bytes)>,
+    udp_out_rx: mpsc::Receiver<(SocketAddr, Bytes)>,
 
     // Shutdown channel (unbounded - low volume, critical)
     shutdown_tx: mpsc::UnboundedSender<()>,
@@ -246,24 +292,19 @@ impl TransportLayer {
         };
 
         // Create bounded channels
-        let (tcp_tx, tcp_rx) = mpsc::channel(TCP_INBOUND_CHANNEL_SIZE);
-        let (udp_tx, udp_rx) = mpsc::channel(UDP_INBOUND_CHANNEL_SIZE);
+        let (event_tx, event_rx) = mpsc::channel(TCP_INBOUND_CHANNEL_SIZE);
         let (udp_out_tx, udp_out_rx) = mpsc::channel(UDP_OUTBOUND_CHANNEL_SIZE);
         let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
 
         Ok(Self {
-            connections: Arc::new(RwLock::new(HashMap::new())),
-            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
-            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            registry: ConnRegistry::new(),
             tcp_listener: Some(tcp_listener),
             udp_socket,
             tls_acceptor,
             tcp_local_addr,
             udp_local_addr,
-            tcp_rx: Some(tcp_rx),
-            tcp_tx,
-            udp_rx,
-            udp_tx,
+            event_rx: Some(event_rx),
+            event_tx,
             udp_out_tx,
             udp_out_rx,
             shutdown_tx,
@@ -308,32 +349,26 @@ impl TransportLayer {
     pub async fn start(&mut self) {
         // Spawn TCP acceptor
         if let Some(listener) = self.tcp_listener.take() {
-            let tcp_tx = self.tcp_tx.clone();
+            let event_tx = self.event_tx.clone();
             let tls_acceptor = self.tls_acceptor.clone();
-            let connections = Arc::clone(&self.connections);
-            let addr_to_connection = Arc::clone(&self.addr_to_connection);
-            let player_to_connection = Arc::clone(&self.player_to_connection);
+            let registry = self.registry.clone();
             let auth = self.auth.clone();
+            let udp_port = self.udp_local_addr.port();
 
             tokio::spawn(async move {
-                Self::tcp_acceptor(
-                    listener,
-                    tcp_tx,
-                    tls_acceptor,
-                    connections,
-                    addr_to_connection,
-                    player_to_connection,
-                    auth,
-                )
-                .await;
+                Self::tcp_acceptor(listener, event_tx, tls_acceptor, registry, auth, udp_port)
+                    .await;
             });
         }
 
-        // Spawn UDP receiver
+        // Spawn UDP receiver (resolves handshakes and routes bound-address
+        // messages into the shared event channel)
         let udp_socket = Arc::clone(&self.udp_socket);
-        let udp_tx = self.udp_tx.clone();
+        let registry = self.registry.clone();
+        let event_tx = self.event_tx.clone();
+        let udp_out_tx = self.udp_out_tx.clone();
         tokio::spawn(async move {
-            Self::udp_receiver(udp_socket, udp_tx).await;
+            Self::udp_receiver(udp_socket, registry, event_tx, udp_out_tx).await;
         });
 
         // Spawn UDP sender
@@ -347,34 +382,30 @@ impl TransportLayer {
 
     async fn tcp_acceptor(
         listener: TcpListener,
-        tcp_tx: mpsc::Sender<TransportEvent>,
+        event_tx: mpsc::Sender<TransportEvent>,
         tls_acceptor: Option<TlsAcceptor>,
-        connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
-        addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
-        player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
+        registry: ConnRegistry,
         auth: AuthSettings,
+        udp_port: u16,
     ) {
         loop {
             match listener.accept().await {
                 Ok((stream, addr)) => {
                     debug!("New TCP connection from {}", addr);
-                    let tcp_tx = tcp_tx.clone();
+                    let event_tx = event_tx.clone();
                     let tls_acceptor = tls_acceptor.clone();
-                    let connections = Arc::clone(&connections);
-                    let addr_to_connection = Arc::clone(&addr_to_connection);
-                    let player_to_connection = Arc::clone(&player_to_connection);
+                    let registry = registry.clone();
                     let auth = auth.clone();
 
                     tokio::spawn(async move {
                         if let Err(e) = Self::handle_tcp_connection(
                             stream,
                             addr,
-                            tcp_tx,
+                            event_tx,
                             tls_acceptor,
-                            connections,
-                            addr_to_connection,
-                            player_to_connection,
+                            registry,
                             auth,
+                            udp_port,
                         )
                         .await
                         {
@@ -392,12 +423,11 @@ impl TransportLayer {
     async fn handle_tcp_connection(
         stream: TcpStream,
         addr: SocketAddr,
-        tcp_tx: mpsc::Sender<TransportEvent>,
+        event_tx: mpsc::Sender<TransportEvent>,
         tls_acceptor: Option<TlsAcceptor>,
-        connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
-        addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
-        player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
+        registry: ConnRegistry,
         auth: AuthSettings,
+        udp_port: u16,
     ) -> Result<(), TransportError> {
         // Generate unique connection ID
         let connection_id = Uuid::new_v4();
@@ -416,11 +446,10 @@ impl TransportLayer {
                         connection_id,
                         conn_tx,
                         conn_rx,
-                        tcp_tx,
-                        connections,
-                        addr_to_connection,
-                        player_to_connection,
+                        event_tx,
+                        registry,
                         auth,
+                        udp_port,
                     )
                     .await
                 }
@@ -440,27 +469,26 @@ impl TransportLayer {
                 connection_id,
                 conn_tx,
                 conn_rx,
-                tcp_tx,
-                connections,
-                addr_to_connection,
-                player_to_connection,
+                event_tx,
+                registry,
                 auth,
+                udp_port,
             )
             .await
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn handle_stream<S>(
         stream: S,
         addr: SocketAddr,
         connection_id: ConnectionId,
         conn_tx: mpsc::Sender<OutboundFrame>,
         mut conn_rx: mpsc::Receiver<OutboundFrame>,
-        tcp_tx: mpsc::Sender<TransportEvent>,
-        connections: Arc<RwLock<HashMap<ConnectionId, ConnectionInfo>>>,
-        addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
-        player_to_connection: Arc<RwLock<HashMap<PlayerId, ConnectionId>>>,
+        event_tx: mpsc::Sender<TransportEvent>,
+        registry: ConnRegistry,
         auth: AuthSettings,
+        udp_port: u16,
     ) -> Result<(), TransportError>
     where
         S: AsyncReadExt + AsyncWriteExt + Unpin + Send + 'static,
@@ -569,8 +597,29 @@ impl TransportLayer {
                                     }
 
                                     // Handle authentication - register connection
-                                    if let ClientMessage::Authenticate { token, player_name } = &msg
+                                    if let ClientMessage::Authenticate {
+                                        token,
+                                        player_name,
+                                        protocol_version,
+                                    } = &msg
                                     {
+                                        if *protocol_version != PROTOCOL_VERSION {
+                                            warn!(
+                                                "Rejecting authentication from {} (protocol version {} != server {})",
+                                                addr, protocol_version, PROTOCOL_VERSION
+                                            );
+                                            let _ = conn_tx
+                                                .send(OutboundFrame::Message(
+                                                    ServerMessage::AuthFailure {
+                                                        reason: format!(
+                                                            "protocol version mismatch: server speaks v{}, client sent v{} — please update your client",
+                                                            PROTOCOL_VERSION, protocol_version
+                                                        ),
+                                                    },
+                                                ))
+                                                .await;
+                                            break;
+                                        }
                                         let token_ok = match auth.mode {
                                             AuthMode::Dev => true,
                                             AuthMode::Token => {
@@ -594,6 +643,7 @@ impl TransportLayer {
                                         }
                                         authenticated = true;
                                         let player_id = Uuid::new_v4();
+                                        let udp_token = Uuid::new_v4().to_string();
                                         let conn_info = ConnectionInfo {
                                             player_id,
                                             player_name: player_name.clone(),
@@ -602,21 +652,31 @@ impl TransportLayer {
                                             tcp_addr: addr,
                                             tcp_tx: conn_tx.clone(),
                                             in_session: None,
+                                            udp_token: udp_token.clone(),
+                                            udp_addr: None,
                                         };
 
-                                        connections
+                                        registry
+                                            .connections
                                             .write()
                                             .await
                                             .insert(connection_id, conn_info.clone());
-                                        addr_to_connection
+                                        registry
+                                            .addr_to_connection
                                             .write()
                                             .await
                                             .insert(addr, connection_id);
                                         // Also track player_id -> connection_id mapping for broadcast lookups
-                                        player_to_connection
+                                        registry
+                                            .player_to_connection
                                             .write()
                                             .await
                                             .insert(player_id, connection_id);
+                                        registry
+                                            .udp_token_to_connection
+                                            .write()
+                                            .await
+                                            .insert(udp_token.clone(), connection_id);
                                         debug!(
                                             "Player {} authenticated as {} (connection: {})",
                                             player_name, player_id, connection_id
@@ -627,6 +687,9 @@ impl TransportLayer {
                                             ServerMessage::AuthSuccess(AuthSuccessData {
                                                 player_id,
                                                 server_version: 1,
+                                                protocol_version: PROTOCOL_VERSION,
+                                                udp_token,
+                                                udp_port,
                                             });
                                         // Critical message - if queue full, client is too slow
                                         if conn_tx
@@ -639,8 +702,11 @@ impl TransportLayer {
                                         }
                                     } else if let ClientMessage::Heartbeat { .. } = &msg {
                                         // Update last heartbeat time
-                                        if let Some(conn) =
-                                            connections.write().await.get_mut(&connection_id)
+                                        if let Some(conn) = registry
+                                            .connections
+                                            .write()
+                                            .await
+                                            .get_mut(&connection_id)
                                         {
                                             conn.last_heartbeat = Instant::now();
                                         }
@@ -652,7 +718,7 @@ impl TransportLayer {
                                         let _ = conn_tx.try_send(OutboundFrame::Message(response));
                                     }
 
-                                    if tcp_tx
+                                    if event_tx
                                         .send(TransportEvent::Message(connection_id, msg))
                                         .await
                                         .is_err()
@@ -686,14 +752,12 @@ impl TransportLayer {
         // Capture the connection info, clean up the maps immediately, then
         // notify the game loop with everything it needs to remove the player.
         // No sleep, no lookup race: the event carries the captured info.
-        if let Some(conn) = connections.write().await.remove(&connection_id) {
-            addr_to_connection.write().await.remove(&addr);
-            player_to_connection.write().await.remove(&conn.player_id);
+        if let Some(conn) = registry.remove_connection(connection_id).await {
             debug!(
                 "Connection cleaned up: {} (player: {}, session: {:?})",
                 addr, conn.player_name, conn.in_session
             );
-            let _ = tcp_tx
+            let _ = event_tx
                 .send(TransportEvent::Disconnected {
                     connection_id,
                     player_id: conn.player_id,
@@ -705,22 +769,100 @@ impl TransportLayer {
         Ok(())
     }
 
-    async fn udp_receiver(socket: Arc<UdpSocket>, tx: mpsc::Sender<(SocketAddr, ClientMessage)>) {
+    /// Receive UDP datagrams. `UdpHandshake` binds the sender's address to
+    /// the connection that owns the presented token (and is acked over UDP);
+    /// all other messages are only accepted from bound addresses and are
+    /// forwarded into the shared game-loop event channel.
+    async fn udp_receiver(
+        socket: Arc<UdpSocket>,
+        registry: ConnRegistry,
+        event_tx: mpsc::Sender<TransportEvent>,
+        udp_out_tx: mpsc::Sender<(SocketAddr, Bytes)>,
+    ) {
         let mut buf = vec![0u8; 2048];
+        // Per-address rate limiting, mirroring the TCP input bucket.
+        let mut buckets: HashMap<SocketAddr, TokenBucket> = HashMap::new();
         loop {
             match socket.recv_from(&mut buf).await {
                 Ok((n, addr)) => {
-                    match rmp_serde::from_slice::<ClientMessage>(&buf[..n]) {
-                        Ok(msg) => {
-                            // Try to send, but don't block if queue is full
-                            if tx.send((addr, msg)).await.is_err() {
-                                // Channel closed, exit
-                                error!("UDP receiver channel closed");
-                                break;
-                            }
-                        }
+                    // Defensive bound on the bucket map: drop it entirely if
+                    // it somehow grows past any realistic client count.
+                    if buckets.len() > 4096 {
+                        buckets.clear();
+                    }
+                    let bucket = buckets
+                        .entry(addr)
+                        .or_insert_with(|| TokenBucket::new(INPUT_RATE_PER_SEC, INPUT_RATE_BURST));
+                    if !bucket.try_take() {
+                        continue;
+                    }
+
+                    let msg = match rmp_serde::from_slice::<ClientMessage>(&buf[..n]) {
+                        Ok(msg) => msg,
                         Err(e) => {
                             debug!("Failed to deserialize UDP message from {}: {}", addr, e);
+                            continue;
+                        }
+                    };
+
+                    match msg {
+                        ClientMessage::UdpHandshake { token } => {
+                            let conn_id = registry
+                                .udp_token_to_connection
+                                .read()
+                                .await
+                                .get(&token)
+                                .copied();
+                            let Some(conn_id) = conn_id else {
+                                debug!("UDP handshake from {} with unknown token", addr);
+                                continue;
+                            };
+                            // Bind (or re-bind) the sender's address.
+                            let old_addr = {
+                                let mut connections = registry.connections.write().await;
+                                match connections.get_mut(&conn_id) {
+                                    Some(conn) => conn.udp_addr.replace(addr),
+                                    None => continue,
+                                }
+                            };
+                            {
+                                let mut udp_addrs = registry.udp_addr_to_connection.write().await;
+                                if let Some(old) = old_addr {
+                                    if old != addr {
+                                        udp_addrs.remove(&old);
+                                    }
+                                }
+                                udp_addrs.insert(addr, conn_id);
+                            }
+                            debug!("UDP address {} bound to connection {}", addr, conn_id);
+                            match rmp_serde::to_vec_named(&ServerMessage::UdpHandshakeAck) {
+                                Ok(ack) => {
+                                    let _ = udp_out_tx.try_send((addr, Bytes::from(ack)));
+                                }
+                                Err(e) => error!("Failed to serialize UdpHandshakeAck: {}", e),
+                            }
+                        }
+                        msg => {
+                            // Identity is derived from the bound source
+                            // address; unbound addresses are dropped.
+                            let conn_id = registry
+                                .udp_addr_to_connection
+                                .read()
+                                .await
+                                .get(&addr)
+                                .copied();
+                            let Some(conn_id) = conn_id else {
+                                debug!("Dropping UDP message from unbound address {}", addr);
+                                continue;
+                            };
+                            if event_tx
+                                .send(TransportEvent::Message(conn_id, msg))
+                                .await
+                                .is_err()
+                            {
+                                error!("UDP receiver event channel closed");
+                                return;
+                            }
                         }
                     }
                 }
@@ -733,40 +875,30 @@ impl TransportLayer {
 
     async fn udp_sender(
         socket: Arc<UdpSocket>,
-        rx: &mut mpsc::Receiver<(SocketAddr, ServerMessage)>,
+        rx: &mut mpsc::Receiver<(SocketAddr, Bytes)>,
         _metrics: TransportMetrics,
     ) {
-        while let Some((addr, msg)) = rx.recv().await {
-            match rmp_serde::to_vec_named(&msg) {
-                Ok(data) => {
-                    if let Err(e) = socket.send_to(&data, addr).await {
-                        debug!("Failed to send UDP message to {}: {}", addr, e);
-                    }
-                }
-                Err(e) => {
-                    error!("Failed to serialize UDP message: {}", e);
-                }
+        while let Some((addr, data)) = rx.recv().await {
+            if let Err(e) = socket.send_to(&data, addr).await {
+                debug!("Failed to send UDP message to {}: {}", addr, e);
             }
         }
     }
 
-    /// Receive the next inbound TCP event. Returns `None` if the receiver was
-    /// taken out via `take_tcp_receiver` (or the channel closed).
-    pub async fn recv_tcp(&mut self) -> Option<TransportEvent> {
-        match self.tcp_rx.as_mut() {
+    /// Receive the next inbound event (TCP or handshake-bound UDP). Returns
+    /// `None` if the receiver was taken out via `take_event_receiver` (or the
+    /// channel closed).
+    pub async fn recv_event(&mut self) -> Option<TransportEvent> {
+        match self.event_rx.as_mut() {
             Some(rx) => rx.recv().await,
             None => None,
         }
     }
 
-    /// Move the inbound TCP event receiver out of the transport layer. Called
+    /// Move the inbound event receiver out of the transport layer. Called
     /// once at game-loop startup so message draining needs no transport lock.
-    pub fn take_tcp_receiver(&mut self) -> Option<mpsc::Receiver<TransportEvent>> {
-        self.tcp_rx.take()
-    }
-
-    pub async fn recv_udp(&mut self) -> Option<(SocketAddr, ClientMessage)> {
-        self.udp_rx.recv().await
+    pub fn take_event_receiver(&mut self) -> Option<mpsc::Receiver<TransportEvent>> {
+        self.event_rx.take()
     }
 
     pub async fn send_tcp(
@@ -802,7 +934,7 @@ impl TransportLayer {
         priority: MessagePriority,
     ) -> Result<(), TransportError> {
         // Find the connection and use its dedicated channel
-        if let Some(conn_info) = self.connections.read().await.get(&connection_id) {
+        if let Some(conn_info) = self.registry.connections.read().await.get(&connection_id) {
             match priority {
                 MessagePriority::Critical => {
                     // Critical messages must be delivered or client disconnected
@@ -845,56 +977,73 @@ impl TransportLayer {
         }
     }
 
+    /// Send a message over UDP (serialized with the named encoding). Prefer
+    /// `send_udp_serialized` on hot paths so serialization happens once.
     pub async fn send_udp(
         &self,
         addr: SocketAddr,
         msg: ServerMessage,
     ) -> Result<(), TransportError> {
-        let priority = msg.priority();
+        let data = Bytes::from(rmp_serde::to_vec_named(&msg)?);
+        self.send_udp_serialized(addr, data)
+    }
 
-        match priority {
-            MessagePriority::Critical => {
-                // Critical messages should be sent via TCP, not UDP
-                // But if we have to send via UDP, try our best
-                self.udp_out_tx
-                    .send((addr, msg))
-                    .await
-                    .map_err(|_| TransportError::ConnectionNotFound)
-            }
-            MessagePriority::Droppable => {
-                // Droppable messages can be dropped if queue is full
-                match self.udp_out_tx.try_send((addr, msg)) {
-                    Ok(_) => Ok(()),
-                    Err(mpsc::error::TrySendError::Full(_)) => {
-                        // Queue full, drop the message and log it
-                        self.metrics
-                            .udp_messages_dropped
-                            .fetch_add(1, Ordering::Relaxed);
-                        let dropped = self.metrics.udp_dropped();
-                        if dropped % 1000 == 1 {
-                            warn!("UDP queue full for addr {}, dropped droppable message (total dropped: {})", 
-                                addr, dropped);
-                        }
-                        Ok(()) // Not an error - dropping is expected behavior
-                    }
-                    Err(mpsc::error::TrySendError::Closed(_)) => {
-                        Err(TransportError::ConnectionNotFound)
-                    }
+    /// Send pre-serialized bytes over UDP. Always droppable: the queue never
+    /// blocks the caller, and a full queue counts as a dropped message.
+    pub fn send_udp_serialized(&self, addr: SocketAddr, data: Bytes) -> Result<(), TransportError> {
+        match self.udp_out_tx.try_send((addr, data)) {
+            Ok(_) => Ok(()),
+            Err(mpsc::error::TrySendError::Full(_)) => {
+                self.metrics
+                    .udp_messages_dropped
+                    .fetch_add(1, Ordering::Relaxed);
+                let dropped = self.metrics.udp_dropped();
+                if dropped % 1000 == 1 {
+                    warn!(
+                        "UDP queue full for addr {}, dropped droppable message (total dropped: {})",
+                        addr, dropped
+                    );
                 }
+                Ok(()) // Not an error - dropping is expected behavior
             }
+            Err(mpsc::error::TrySendError::Closed(_)) => Err(TransportError::ConnectionNotFound),
         }
     }
 
     pub async fn get_connection(&self, connection_id: ConnectionId) -> Option<ConnectionInfo> {
-        self.connections.read().await.get(&connection_id).cloned()
+        self.registry
+            .connections
+            .read()
+            .await
+            .get(&connection_id)
+            .cloned()
     }
 
     pub async fn get_player_connection(&self, player_id: PlayerId) -> Option<ConnectionId> {
-        self.player_to_connection
+        self.registry
+            .player_to_connection
             .read()
             .await
             .get(&player_id)
             .copied()
+    }
+
+    /// Resolve a player's connection and (if UDP-handshaken) UDP address in
+    /// one pass, without cloning the full `ConnectionInfo`. Used by the
+    /// telemetry fan-out to prefer UDP with a TCP fallback.
+    pub async fn get_player_route(
+        &self,
+        player_id: PlayerId,
+    ) -> Option<(ConnectionId, Option<SocketAddr>)> {
+        let conn_id = self.get_player_connection(player_id).await?;
+        let udp_addr = self
+            .registry
+            .connections
+            .read()
+            .await
+            .get(&conn_id)
+            .and_then(|c| c.udp_addr);
+        Some((conn_id, udp_addr))
     }
 
     pub async fn cleanup_stale_connections(&self) -> Vec<(PlayerId, Option<SessionId>)> {
@@ -904,41 +1053,41 @@ impl TransportLayer {
         // Only players in racing sessions need strict heartbeat enforcement
         let lobby_timeout = Duration::from_secs(30);
 
-        let mut connections = self.connections.write().await;
-        let mut to_remove = Vec::new();
+        let to_remove: Vec<ConnectionId> = {
+            let connections = self.registry.connections.read().await;
+            connections
+                .iter()
+                .filter_map(|(conn_id, info)| {
+                    let elapsed = now.duration_since(info.last_heartbeat);
 
-        for (conn_id, info) in connections.iter() {
-            let elapsed = now.duration_since(info.last_heartbeat);
+                    // Use different timeouts based on session state
+                    let timeout_to_use = if info.in_session.is_some() {
+                        // Strict timeout for players in racing sessions
+                        timeout
+                    } else {
+                        // Lenient timeout for lobby players
+                        lobby_timeout
+                    };
 
-            // Use different timeouts based on session state
-            let timeout_to_use = if info.in_session.is_some() {
-                // Strict timeout for players in racing sessions
-                timeout
-            } else {
-                // Lenient timeout for lobby players
-                lobby_timeout
-            };
-
-            if elapsed > timeout_to_use {
-                warn!(
-                    "Connection {} timed out (player: {}, in_session: {}, elapsed: {:?})",
-                    conn_id,
-                    info.player_name,
-                    info.in_session.is_some(),
-                    elapsed
-                );
-                to_remove.push(*conn_id);
-            }
-        }
+                    if elapsed > timeout_to_use {
+                        warn!(
+                            "Connection {} timed out (player: {}, in_session: {}, elapsed: {:?})",
+                            conn_id,
+                            info.player_name,
+                            info.in_session.is_some(),
+                            elapsed
+                        );
+                        Some(*conn_id)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        };
 
         let mut disconnected_players = Vec::new();
         for conn_id in to_remove {
-            if let Some(info) = connections.remove(&conn_id) {
-                self.addr_to_connection.write().await.remove(&info.tcp_addr);
-                self.player_to_connection
-                    .write()
-                    .await
-                    .remove(&info.player_id);
+            if let Some(info) = self.registry.remove_connection(conn_id).await {
                 disconnected_players.push((info.player_id, info.in_session));
             }
         }
@@ -947,7 +1096,13 @@ impl TransportLayer {
     }
 
     pub async fn update_heartbeat(&self, connection_id: ConnectionId) {
-        if let Some(info) = self.connections.write().await.get_mut(&connection_id) {
+        if let Some(info) = self
+            .registry
+            .connections
+            .write()
+            .await
+            .get_mut(&connection_id)
+        {
             info.last_heartbeat = Instant::now();
         }
     }
@@ -957,7 +1112,13 @@ impl TransportLayer {
         connection_id: ConnectionId,
         session_id: Option<SessionId>,
     ) {
-        if let Some(info) = self.connections.write().await.get_mut(&connection_id) {
+        if let Some(info) = self
+            .registry
+            .connections
+            .write()
+            .await
+            .get_mut(&connection_id)
+        {
             info.in_session = session_id;
         }
     }
@@ -972,11 +1133,11 @@ impl TransportLayer {
         self.udp_local_addr
     }
 
-    pub async fn shutdown(&mut self) {
+    pub async fn shutdown(&self) {
         info!("Initiating transport layer shutdown");
 
         // Send shutdown message to all connected clients
-        let connections = self.connections.read().await;
+        let connections = self.registry.connections.read().await;
         for conn_info in connections.values() {
             debug!(
                 "Sending shutdown notification to player: {}",
@@ -994,7 +1155,9 @@ impl TransportLayer {
         // Signal shutdown to all tasks
         let _ = self.shutdown_tx.send(());
 
-        // Give connections time to send shutdown messages
+        // Give connections time to send shutdown messages. Only `&self` is
+        // borrowed here, so callers can hold a read lock (never the write
+        // lock) across this grace period.
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
         debug!("Transport layer shutdown complete");
@@ -1014,7 +1177,7 @@ impl TransportLayer {
     }
 
     async fn broadcast_frame(&self, frame: OutboundFrame, priority: MessagePriority) {
-        let connections = self.connections.read().await;
+        let connections = self.registry.connections.read().await;
         let mut dropped_count = 0;
         let mut failed_critical = 0;
 
@@ -1062,14 +1225,15 @@ impl TransportLayer {
     pub fn get_connection_count(&self) -> usize {
         // Use try_read for non-blocking synchronous access
         // Returns 0 if the lock is currently held for writing
-        self.connections
+        self.registry
+            .connections
             .try_read()
             .map(|connections| connections.len())
             .unwrap_or(0)
     }
 
     pub async fn get_connection_count_async(&self) -> usize {
-        self.connections.read().await.len()
+        self.registry.connections.read().await.len()
     }
 }
 
@@ -1077,26 +1241,37 @@ impl TransportLayer {
 mod tests {
     use super::*;
 
+    // Helper to build a ConnectionInfo for tests
+    fn test_connection_info(name: &str, addr: SocketAddr) -> ConnectionInfo {
+        let (conn_tx, _) = mpsc::channel(PER_CLIENT_TCP_CHANNEL_SIZE);
+        ConnectionInfo {
+            player_id: Uuid::new_v4(),
+            player_name: name.to_string(),
+            connected_at: Instant::now(),
+            last_heartbeat: Instant::now(),
+            tcp_addr: addr,
+            tcp_tx: conn_tx,
+            in_session: None,
+            udp_token: Uuid::new_v4().to_string(),
+            udp_addr: None,
+        }
+    }
+
     // Helper function to create a minimal TransportLayer for testing
     async fn create_test_transport_layer() -> TransportLayer {
-        let (tcp_tx, tcp_rx) = mpsc::channel(TCP_INBOUND_CHANNEL_SIZE);
-        let (udp_tx, udp_rx) = mpsc::channel(UDP_INBOUND_CHANNEL_SIZE);
+        let (event_tx, event_rx) = mpsc::channel(TCP_INBOUND_CHANNEL_SIZE);
         let (udp_out_tx, udp_out_rx) = mpsc::channel(UDP_OUTBOUND_CHANNEL_SIZE);
         let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel();
 
         TransportLayer {
-            connections: Arc::new(RwLock::new(HashMap::new())),
-            player_to_connection: Arc::new(RwLock::new(HashMap::new())),
-            addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            registry: ConnRegistry::new(),
             tcp_listener: None,
             udp_socket: Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap()),
             tls_acceptor: None,
             tcp_local_addr: "127.0.0.1:0".parse().unwrap(),
             udp_local_addr: "127.0.0.1:0".parse().unwrap(),
-            tcp_rx: Some(tcp_rx),
-            tcp_tx,
-            udp_rx,
-            udp_tx,
+            event_rx: Some(event_rx),
+            event_tx,
             udp_out_tx,
             udp_out_rx,
             shutdown_tx,
@@ -1170,25 +1345,12 @@ mod tests {
 
         // Add some mock connections
         {
-            let mut connections = transport.connections.write().await;
+            let mut connections = transport.registry.connections.write().await;
 
             for i in 0..3 {
                 let addr: SocketAddr = format!("127.0.0.1:{}", 8000 + i).parse().unwrap();
                 let conn_id = Uuid::new_v4();
-                let (conn_tx, _) = mpsc::channel(PER_CLIENT_TCP_CHANNEL_SIZE);
-
-                connections.insert(
-                    conn_id,
-                    ConnectionInfo {
-                        player_id: Uuid::new_v4(),
-                        player_name: format!("Player{}", i),
-                        connected_at: Instant::now(),
-                        last_heartbeat: Instant::now(),
-                        tcp_addr: addr,
-                        tcp_tx: conn_tx,
-                        in_session: None,
-                    },
-                );
+                connections.insert(conn_id, test_connection_info(&format!("Player{}", i), addr));
             }
         }
 
@@ -1231,24 +1393,14 @@ mod tests {
 
             // Add one more connection for next iteration
             if expected_count < 5 {
-                let mut connections = transport.connections.write().await;
+                let mut connections = transport.registry.connections.write().await;
                 let addr: SocketAddr = format!("127.0.0.1:{}", 9000 + expected_count)
                     .parse()
                     .unwrap();
                 let conn_id = Uuid::new_v4();
-                let (conn_tx, _) = mpsc::channel(PER_CLIENT_TCP_CHANNEL_SIZE);
-
                 connections.insert(
                     conn_id,
-                    ConnectionInfo {
-                        player_id: Uuid::new_v4(),
-                        player_name: format!("Player{}", expected_count),
-                        connected_at: Instant::now(),
-                        last_heartbeat: Instant::now(),
-                        tcp_addr: addr,
-                        tcp_tx: conn_tx,
-                        in_session: None,
-                    },
+                    test_connection_info(&format!("Player{}", expected_count), addr),
                 );
             }
         }

@@ -39,6 +39,7 @@ impl LobbyTestClient {
         let auth_msg = ClientMessage::Authenticate {
             token: format!("test_token_{}", self.name),
             player_name: self.name.clone(),
+            protocol_version: apexsim_server::network::PROTOCOL_VERSION,
         };
 
         self.send_message(&auth_msg).await?;
@@ -113,6 +114,7 @@ impl LobbyTestClient {
                     return Err(format!("Session creation failed: {}", message).into());
                 }
                 ServerMessage::LobbyState(_) => continue,
+                ServerMessage::SessionRoster(_) => continue,
                 other => {
                     return Err(
                         format!("Unexpected response to session creation: {:?}", other).into(),
@@ -146,6 +148,7 @@ impl LobbyTestClient {
                     return Err(format!("Join failed: {}", message).into());
                 }
                 ServerMessage::LobbyState(_) => continue,
+                ServerMessage::SessionRoster(_) => continue,
                 _ => continue,
             }
         }
@@ -164,7 +167,8 @@ impl LobbyTestClient {
                     return Ok(());
                 }
                 Ok(Ok(ServerMessage::LobbyState(_))) => continue,
-                Ok(Ok(ServerMessage::Telemetry(_))) => continue,
+                Ok(Ok(ServerMessage::SessionRoster(_))) => continue,
+                Ok(Ok(ServerMessage::TelemetryCompact(_))) => continue,
                 Ok(Ok(ServerMessage::HeartbeatAck { .. })) => continue,
                 Ok(Ok(ServerMessage::GameModeChanged { .. })) => continue,
                 Ok(Ok(other)) => {
@@ -183,11 +187,12 @@ impl LobbyTestClient {
         let msg = ClientMessage::RequestLobbyState;
         self.send_message(&msg).await?;
 
-        // Wait for LobbyState, skipping other messages
-        for _ in 0..10 {
+        // Wait for LobbyState, skipping other messages (roster updates and
+        // telemetry can queue up quickly, so the drain budget is generous)
+        for _ in 0..50 {
             match timeout(Duration::from_millis(500), self.receive_message()).await {
                 Ok(Ok(ServerMessage::LobbyState(data))) => return Ok(data),
-                Ok(Ok(ServerMessage::Telemetry(_))) => continue,
+                Ok(Ok(ServerMessage::TelemetryCompact(_))) => continue,
                 Ok(Ok(ServerMessage::HeartbeatAck { .. })) => continue,
                 Ok(Ok(_)) => continue,
                 Ok(Err(e)) => return Err(e),
@@ -1123,7 +1128,7 @@ async fn test_demo_mode_lap_timing() {
 
             // Receive messages from client1
             match timeout(Duration::from_millis(100), client1.receive_message()).await {
-                Ok(Ok(ServerMessage::Telemetry(telemetry))) => {
+                Ok(Ok(ServerMessage::TelemetryCompact(telemetry))) => {
                     if !telemetry_received {
                         println!(
                             "  ✓ Receiving telemetry (server tick: {}, {} cars)",
@@ -1133,7 +1138,7 @@ async fn test_demo_mode_lap_timing() {
                         for car in &telemetry.car_states {
                             println!(
                                 "    - Car {} at lap {} (progress: {:.1}m, speed: {:.1} km/h)",
-                                &car.player_id.to_string()[..8],
+                                car.car_index,
                                 car.current_lap,
                                 car.track_progress,
                                 car.speed_mps * 3.6

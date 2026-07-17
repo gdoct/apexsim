@@ -246,10 +246,12 @@ pub struct ServerHandle {
 
 impl ServerHandle {
     /// Notify clients and stop the transport layer. Background tasks are
-    /// detached and stop on their own once the runtime shuts down.
+    /// detached and stop on their own once the runtime shuts down. Only a
+    /// transport READ lock is held (shutdown takes `&self`), so the game
+    /// loop is never blocked during the notification grace period.
     pub async fn shutdown(&self) {
         self.health.set_healthy(false).await;
-        self.transport.write().await.shutdown().await;
+        self.transport.read().await.shutdown().await;
     }
 }
 

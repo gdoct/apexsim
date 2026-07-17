@@ -14,7 +14,8 @@ use tracing::{debug, error, warn};
 /// phase fans out cheap `Bytes` clones to every recipient.
 pub(crate) struct SessionTelemetry {
     pub session_id: SessionId,
-    /// The `ServerMessage::Telemetry` pre-encoded with `rmp_serde::to_vec_named`.
+    /// The `ServerMessage::TelemetryCompact` pre-encoded with the positional
+    /// `rmp_serde::to_vec` encoding (protocol v2).
     pub data: Bytes,
     /// Non-AI participants at tick time; broadcast still verifies lobby
     /// membership and connection liveness before sending.
@@ -23,16 +24,48 @@ pub(crate) struct SessionTelemetry {
     pub session_state: SessionState,
 }
 
-/// Advance all sessions one tick and return the telemetry payloads to
-/// broadcast. `get_telemetry()` is called at most once per session per tick;
-/// the result feeds both replay recording and the serialized broadcast.
+/// A `SessionRoster` message to deliver reliably over TCP.
+pub(crate) struct SessionRosterOut {
+    pub session_id: SessionId,
+    pub player_recipients: Vec<PlayerId>,
+    pub msg: ServerMessage,
+}
+
+/// Everything the broadcast phase needs from one tick of all sessions.
+pub(crate) struct TickOutput {
+    pub telemetry: Vec<SessionTelemetry>,
+    pub rosters: Vec<SessionRosterOut>,
+}
+
+/// Advance all sessions one tick and return the payloads to broadcast.
+/// Telemetry is only serialized every `telemetry_divisor` ticks (e.g. 60Hz
+/// snapshots of a 240Hz sim); replay recording still captures every tick.
 pub(crate) async fn tick_sessions(
     ctx: &GameLoopCtx,
     player_inputs: &HashMap<PlayerId, PlayerInputData>,
     tick_count: u64,
-) -> Vec<SessionTelemetry> {
+) -> TickOutput {
     let tick_rate = ctx.tick_rate;
+    let telemetry_tick = tick_count % ctx.telemetry_divisor == 0;
     let mut state_write = ctx.state.write().await;
+    // Split the borrow so `sessions` can be iterated mutably while the
+    // lobby (a disjoint field) is queried for player names.
+    let state = &mut *state_write;
+
+    // Player names for rosters and replay metadata, fetched only when some
+    // session actually needs a roster broadcast this tick.
+    let player_names: HashMap<PlayerId, String> =
+        if state.sessions.values().any(|gs| gs.roster_is_dirty()) {
+            state
+                .lobby
+                .get_lobby_players()
+                .await
+                .into_iter()
+                .map(|p| (p.id, p.name))
+                .collect()
+        } else {
+            HashMap::new()
+        };
 
     // Collect replay operations to execute after iteration
     let mut replay_starts = Vec::new();
@@ -43,9 +76,10 @@ pub(crate) async fn tick_sessions(
     let mut sessions_to_remove = Vec::new();
 
     let mut telemetry_out = Vec::new();
+    let mut rosters_out = Vec::new();
 
     // Tick each session
-    for (session_id, game_session) in state_write.sessions.iter_mut() {
+    for (session_id, game_session) in state.sessions.iter_mut() {
         // Check if session has no real (non-AI) players left
         let real_player_count = game_session
             .session
@@ -110,16 +144,15 @@ pub(crate) async fn tick_sessions(
             let participants: Vec<_> = game_session
                 .session
                 .participants
-                .keys()
-                .map(|pid| crate::replay::ReplayParticipant {
+                .iter()
+                .map(|(pid, cs)| crate::replay::ReplayParticipant {
                     player_id: *pid,
-                    player_name: format!("Player-{}", pid), // TODO: Get actual names
-                    car_config_id: game_session
-                        .session
-                        .participants
-                        .get(pid)
-                        .map(|cs| cs.car_config_id)
-                        .unwrap_or_else(uuid::Uuid::nil),
+                    player_name: game_session
+                        .get_ai_profile(pid)
+                        .map(|p| p.name.clone())
+                        .or_else(|| player_names.get(pid).cloned())
+                        .unwrap_or_else(|| format!("Player-{}", &pid.to_string()[..8])),
+                    car_config_id: cs.car_config_id,
                     finish_position: None,
                 })
                 .collect();
@@ -129,48 +162,56 @@ pub(crate) async fn tick_sessions(
             replay_starts.push(metadata);
         }
 
-        // Telemetry: computed ONCE per session per tick and reused for both
-        // the replay frame (when racing) and the broadcast payload (when the
-        // session is in an active state).
+        // Roster: membership changed → announce the car-index mapping used
+        // by compact telemetry (reliable, TCP).
         let should_broadcast = matches!(
             new_state,
             SessionState::Countdown | SessionState::Racing | SessionState::Finished
         );
-        if should_broadcast || new_state == SessionState::Racing {
-            let telemetry_msg = game_session.get_telemetry();
+        let player_recipients: Vec<PlayerId> = game_session
+            .session
+            .participants
+            .keys()
+            .filter(|pid| !game_session.session.ai_player_ids.contains(pid))
+            .cloned()
+            .collect();
+        if game_session.take_roster_dirty() {
+            let roster = game_session.build_roster(&player_names);
+            rosters_out.push(SessionRosterOut {
+                session_id: *session_id,
+                player_recipients: player_recipients.clone(),
+                msg: ServerMessage::SessionRoster(roster),
+            });
+        }
 
-            if should_broadcast {
-                match rmp_serde::to_vec_named(&telemetry_msg) {
-                    Ok(data) => {
-                        let player_recipients: Vec<PlayerId> = game_session
-                            .session
-                            .participants
-                            .keys()
-                            .filter(|pid| !game_session.session.ai_player_ids.contains(pid))
-                            .cloned()
-                            .collect();
-                        telemetry_out.push(SessionTelemetry {
-                            session_id: *session_id,
-                            data: Bytes::from(data),
-                            player_recipients,
-                            participant_count: game_session.session.participants.len(),
-                            session_state: new_state,
-                        });
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to serialize telemetry for session {}: {}",
-                            session_id, e
-                        );
-                    }
+        // Telemetry: the broadcast payload uses the compact positional
+        // encoding and is only produced on divisor ticks; the replay frame
+        // (full telemetry) is captured every racing tick.
+        if should_broadcast && telemetry_tick {
+            let compact = game_session.get_compact_telemetry();
+            match rmp_serde::to_vec(&ServerMessage::TelemetryCompact(compact)) {
+                Ok(data) => {
+                    telemetry_out.push(SessionTelemetry {
+                        session_id: *session_id,
+                        data: Bytes::from(data),
+                        player_recipients,
+                        participant_count: game_session.session.participants.len(),
+                        session_state: new_state,
+                    });
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to serialize telemetry for session {}: {}",
+                        session_id, e
+                    );
                 }
             }
+        }
 
-            // Collect telemetry frame if racing
-            if new_state == SessionState::Racing {
-                if let ServerMessage::Telemetry(tel) = telemetry_msg {
-                    replay_frames.push((*session_id, game_session.session.current_tick, tel));
-                }
+        // Collect telemetry frame if racing
+        if new_state == SessionState::Racing {
+            if let ServerMessage::Telemetry(tel) = game_session.get_telemetry() {
+                replay_frames.push((*session_id, game_session.session.current_tick, tel));
             }
         }
 
@@ -209,7 +250,7 @@ pub(crate) async fn tick_sessions(
     for (session_id, track_config_id, participants) in replay_starts {
         use crate::replay::ReplayMetadata;
 
-        let track_name = state_write
+        let track_name = state
             .track_configs
             .get(&track_config_id)
             .map(|t| t.name.clone())
@@ -228,19 +269,16 @@ pub(crate) async fn tick_sessions(
             participants,
         };
 
-        state_write.replay.start_recording(metadata).await;
+        state.replay.start_recording(metadata).await;
         debug!("Started replay recording for session {}", session_id);
     }
 
     for (session_id, tick, telemetry) in replay_frames {
-        state_write
-            .replay
-            .record_frame(session_id, tick, telemetry)
-            .await;
+        state.replay.record_frame(session_id, tick, telemetry).await;
     }
 
     for session_id in replay_stops {
-        match state_write.replay.stop_recording(session_id).await {
+        match state.replay.stop_recording(session_id).await {
             Ok(replay_path) => {
                 debug!(
                     "Replay saved for session {} to {:?}",
@@ -255,23 +293,26 @@ pub(crate) async fn tick_sessions(
 
     // Remove empty sessions from the game state and lobby
     for session_id in sessions_to_remove {
-        state_write.sessions.remove(&session_id);
-        state_write.lobby.unregister_session(session_id).await;
+        state.sessions.remove(&session_id);
+        state.lobby.unregister_session(session_id).await;
         debug!("Removed empty session {}", session_id);
     }
 
     // Periodic cleanup of orphaned lobby sessions (every 5 seconds)
     if tick_count % (tick_rate as u64 * 5) == 0 {
-        let lobby_session_ids: Vec<SessionId> = state_write.lobby.get_all_session_ids().await;
+        let lobby_session_ids: Vec<SessionId> = state.lobby.get_all_session_ids().await;
         for session_id in lobby_session_ids {
-            if !state_write.sessions.contains_key(&session_id) {
+            if !state.sessions.contains_key(&session_id) {
                 debug!("Cleaning up orphaned lobby session {}", session_id);
-                state_write.lobby.unregister_session(session_id).await;
+                state.lobby.unregister_session(session_id).await;
             }
         }
     }
 
-    telemetry_out
+    TickOutput {
+        telemetry: telemetry_out,
+        rosters: rosters_out,
+    }
 }
 
 /// Remove finished sessions older than the configured timeout and refresh

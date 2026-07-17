@@ -34,6 +34,9 @@ pub(crate) struct GameLoopCtx {
     pub(crate) transport: Arc<RwLock<TransportLayer>>,
     pub(crate) metrics: Arc<ServerMetrics>,
     pub(crate) tick_rate: u16,
+    /// Telemetry is broadcast every N-th tick (1 = every tick). The sim and
+    /// replay recording always run at the full tick rate.
+    pub(crate) telemetry_divisor: u64,
 }
 
 impl GameLoopCtx {
@@ -102,19 +105,22 @@ pub(crate) async fn run_game_loop(
     tick_rate: u16,
     metrics: Arc<ServerMetrics>,
 ) {
-    // Take the inbound TCP event receiver out of the transport once, so
-    // draining messages requires no transport lock at all.
-    let mut tcp_events = transport
+    // Take the inbound event receiver (TCP + handshake-bound UDP) out of the
+    // transport once, so draining messages requires no transport lock at all.
+    let mut inbound_events = transport
         .write()
         .await
-        .take_tcp_receiver()
-        .expect("TCP receiver already taken: only one game loop may run per transport");
+        .take_event_receiver()
+        .expect("event receiver already taken: only one game loop may run per transport");
+
+    let telemetry_divisor = state.read().await.config.network.telemetry_divisor.max(1) as u64;
 
     let ctx = GameLoopCtx {
         state,
         transport,
         metrics,
         tick_rate,
+        telemetry_divisor,
     };
 
     let tick_duration = Duration::from_micros((1_000_000.0 / tick_rate as f64) as u64);
@@ -135,7 +141,7 @@ pub(crate) async fn run_game_loop(
         // short per-handler locks.
         let mut drained = Vec::new();
         while let Ok(Some(event)) =
-            tokio::time::timeout(Duration::from_micros(100), tcp_events.recv()).await
+            tokio::time::timeout(Duration::from_micros(100), inbound_events.recv()).await
         {
             drained.push(event);
         }
@@ -156,9 +162,11 @@ pub(crate) async fn run_game_loop(
         }
 
         // Advance all sessions; telemetry is computed and serialized once per
-        // session here and fanned out below.
-        let telemetry = tick::tick_sessions(&ctx, &player_inputs, tick_count).await;
-        broadcast::broadcast_telemetry(&ctx, telemetry, tick_count).await;
+        // session here and fanned out below. Roster updates (car index →
+        // player mapping for compact telemetry) go out reliably over TCP.
+        let output = tick::tick_sessions(&ctx, &player_inputs, tick_count).await;
+        broadcast::broadcast_rosters(&ctx, output.rosters).await;
+        broadcast::broadcast_telemetry(&ctx, output.telemetry, tick_count).await;
 
         // Cleanup timed-out finished sessions and refresh gauges.
         tick::cleanup_finished_sessions(&ctx, tick_count).await;
