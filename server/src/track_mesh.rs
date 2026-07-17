@@ -215,19 +215,19 @@ impl TrackMeshGenerator {
             obj.push_str(&format!("v {} {} {}\n", vertex.x, vertex.y, vertex.z));
         }
 
-        obj.push_str("\n");
+        obj.push('\n');
 
         for uv in &mesh.uvs {
             obj.push_str(&format!("vt {} {}\n", uv.u, uv.v));
         }
 
-        obj.push_str("\n");
+        obj.push('\n');
 
         for normal in &mesh.normals {
             obj.push_str(&format!("vn {} {} {}\n", normal.x, normal.y, normal.z));
         }
 
-        obj.push_str("\n");
+        obj.push('\n');
 
         for triangle_idx in (0..mesh.indices.len()).step_by(3) {
             let i0 = mesh.indices[triangle_idx] + 1;

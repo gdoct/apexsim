@@ -455,10 +455,10 @@ impl TransportLayer {
                 }
                 Err(e) => {
                     error!("TLS handshake failed for {}: {}", addr, e);
-                    Err(TransportError::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("TLS handshake failed: {}", e),
-                    )))
+                    Err(TransportError::Io(std::io::Error::other(format!(
+                        "TLS handshake failed: {}",
+                        e
+                    ))))
                 }
             }
         } else {

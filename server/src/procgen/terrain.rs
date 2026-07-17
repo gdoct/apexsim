@@ -10,6 +10,7 @@ use tracing::{debug, error, info, warn};
 /// This is the main entry point for procedural generation. It creates
 /// terrain, applies track corridor carving, and packages everything
 /// into a ProceduralWorldData structure.
+#[allow(clippy::too_many_arguments)]
 pub fn generate_procedural_world(
     track_points: &[TrackPoint],
     environment_type: String,
@@ -443,176 +444,6 @@ fn find_nearest_track_distance(
     (min_dist, nearest_z)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::data::SurfaceType;
-
-    fn create_test_track() -> Vec<TrackPoint> {
-        vec![
-            TrackPoint {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-                distance_from_start_m: 0.0,
-                width_left_m: 5.0,
-                width_right_m: 5.0,
-                banking_rad: 0.0,
-                camber_rad: 0.0,
-                slope_rad: 0.0,
-                heading_rad: 0.0,
-                surface_type: SurfaceType::Asphalt,
-                grip_modifier: 1.0,
-            },
-            TrackPoint {
-                x: 100.0,
-                y: 0.0,
-                z: 0.0,
-                distance_from_start_m: 100.0,
-                width_left_m: 5.0,
-                width_right_m: 5.0,
-                banking_rad: 0.0,
-                camber_rad: 0.0,
-                slope_rad: 0.0,
-                heading_rad: 0.0,
-                surface_type: SurfaceType::Asphalt,
-                grip_modifier: 1.0,
-            },
-            TrackPoint {
-                x: 100.0,
-                y: 100.0,
-                z: 0.0,
-                distance_from_start_m: 200.0,
-                width_left_m: 5.0,
-                width_right_m: 5.0,
-                banking_rad: 0.0,
-                camber_rad: 0.0,
-                slope_rad: 0.0,
-                heading_rad: 0.0,
-                surface_type: SurfaceType::Asphalt,
-                grip_modifier: 1.0,
-            },
-        ]
-    }
-
-    #[test]
-    fn test_calculate_bounds() {
-        let track = create_test_track();
-        let (min_x, min_y, max_x, max_y) = calculate_bounds(&track);
-
-        assert_eq!(min_x, 0.0);
-        assert_eq!(min_y, 0.0);
-        assert_eq!(max_x, 100.0);
-        assert_eq!(max_y, 100.0);
-    }
-
-    #[test]
-    fn test_generate_terrain() {
-        let track = create_test_track();
-        let preset = EnvironmentPreset::plains();
-        let seed = 12345;
-
-        let heightmap = generate_terrain(&track, seed, &preset, 1.0).unwrap();
-
-        assert!(heightmap.width > 0);
-        assert!(heightmap.height > 0);
-        assert_eq!(heightmap.heights.len(), heightmap.width * heightmap.height);
-    }
-
-    #[test]
-    fn test_deterministic_terrain() {
-        let track = create_test_track();
-        let preset = EnvironmentPreset::plains();
-        let seed = 12345;
-
-        let heightmap1 = generate_terrain(&track, seed, &preset, 1.0).unwrap();
-        let heightmap2 = generate_terrain(&track, seed, &preset, 1.0).unwrap();
-
-        assert_eq!(heightmap1.heights, heightmap2.heights);
-    }
-
-    #[test]
-    fn test_track_corridor_carving() {
-        let track = create_test_track();
-        let preset = EnvironmentPreset::plains();
-        let seed = 12345;
-
-        let mut heightmap = generate_terrain(&track, seed, &preset, 1.0).unwrap();
-        carve_track_corridor(&mut heightmap, &track, 20.0);
-
-        // Verify track corridor is flattened
-        for point in &track {
-            let height = heightmap.sample(point.x, point.y);
-            assert!(
-                height.abs() < 1.0,
-                "Track corridor not properly flattened: height = {}",
-                height
-            );
-        }
-    }
-
-    #[test]
-    fn test_elevation_application() {
-        let mut track = create_test_track();
-        let preset = EnvironmentPreset::plains();
-        let seed = 12345;
-
-        let heightmap = generate_terrain(&track, seed, &preset, 1.0).unwrap();
-        apply_track_elevation(&mut track, &heightmap);
-
-        // Verify elevation was applied (should be non-zero for at least some points)
-        let has_elevation = track.iter().any(|p| p.z.abs() > 0.1);
-        assert!(has_elevation, "No elevation applied to track");
-
-        // Verify distances were recalculated
-        assert!(track[1].distance_from_start_m > 0.0);
-    }
-
-    #[test]
-    fn test_3d_distance_calculation() {
-        let mut track = vec![
-            TrackPoint {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-                distance_from_start_m: 0.0,
-                width_left_m: 5.0,
-                width_right_m: 5.0,
-                banking_rad: 0.0,
-                camber_rad: 0.0,
-                slope_rad: 0.0,
-                heading_rad: 0.0,
-                surface_type: SurfaceType::Asphalt,
-                grip_modifier: 1.0,
-            },
-            TrackPoint {
-                x: 100.0,
-                y: 0.0,
-                z: 10.0, // 10m elevation gain
-                distance_from_start_m: 0.0,
-                width_left_m: 5.0,
-                width_right_m: 5.0,
-                banking_rad: 0.0,
-                camber_rad: 0.0,
-                slope_rad: 0.0,
-                heading_rad: 0.0,
-                surface_type: SurfaceType::Asphalt,
-                grip_modifier: 1.0,
-            },
-        ];
-
-        recalculate_track_geometry(&mut track);
-
-        // Distance should be sqrt(100^2 + 10^2) = sqrt(10100) ≈ 100.5
-        let distance = track[1].distance_from_start_m;
-        assert!(
-            (distance - 100.5).abs() < 0.1,
-            "Expected ~100.5m, got {}m",
-            distance
-        );
-    }
-}
-
 /// Batch generate terrain for all tracks in a directory
 ///
 /// This function scans the tracks directory, finds all tracks with
@@ -805,4 +636,174 @@ pub fn load_terrain_cache(track_file: &Path) -> Option<ProceduralWorldData> {
         .ok()?;
 
     Some(procedural_world)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::SurfaceType;
+
+    fn create_test_track() -> Vec<TrackPoint> {
+        vec![
+            TrackPoint {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                distance_from_start_m: 0.0,
+                width_left_m: 5.0,
+                width_right_m: 5.0,
+                banking_rad: 0.0,
+                camber_rad: 0.0,
+                slope_rad: 0.0,
+                heading_rad: 0.0,
+                surface_type: SurfaceType::Asphalt,
+                grip_modifier: 1.0,
+            },
+            TrackPoint {
+                x: 100.0,
+                y: 0.0,
+                z: 0.0,
+                distance_from_start_m: 100.0,
+                width_left_m: 5.0,
+                width_right_m: 5.0,
+                banking_rad: 0.0,
+                camber_rad: 0.0,
+                slope_rad: 0.0,
+                heading_rad: 0.0,
+                surface_type: SurfaceType::Asphalt,
+                grip_modifier: 1.0,
+            },
+            TrackPoint {
+                x: 100.0,
+                y: 100.0,
+                z: 0.0,
+                distance_from_start_m: 200.0,
+                width_left_m: 5.0,
+                width_right_m: 5.0,
+                banking_rad: 0.0,
+                camber_rad: 0.0,
+                slope_rad: 0.0,
+                heading_rad: 0.0,
+                surface_type: SurfaceType::Asphalt,
+                grip_modifier: 1.0,
+            },
+        ]
+    }
+
+    #[test]
+    fn test_calculate_bounds() {
+        let track = create_test_track();
+        let (min_x, min_y, max_x, max_y) = calculate_bounds(&track);
+
+        assert_eq!(min_x, 0.0);
+        assert_eq!(min_y, 0.0);
+        assert_eq!(max_x, 100.0);
+        assert_eq!(max_y, 100.0);
+    }
+
+    #[test]
+    fn test_generate_terrain() {
+        let track = create_test_track();
+        let preset = EnvironmentPreset::plains();
+        let seed = 12345;
+
+        let heightmap = generate_terrain(&track, seed, &preset, 1.0).unwrap();
+
+        assert!(heightmap.width > 0);
+        assert!(heightmap.height > 0);
+        assert_eq!(heightmap.heights.len(), heightmap.width * heightmap.height);
+    }
+
+    #[test]
+    fn test_deterministic_terrain() {
+        let track = create_test_track();
+        let preset = EnvironmentPreset::plains();
+        let seed = 12345;
+
+        let heightmap1 = generate_terrain(&track, seed, &preset, 1.0).unwrap();
+        let heightmap2 = generate_terrain(&track, seed, &preset, 1.0).unwrap();
+
+        assert_eq!(heightmap1.heights, heightmap2.heights);
+    }
+
+    #[test]
+    fn test_track_corridor_carving() {
+        let track = create_test_track();
+        let preset = EnvironmentPreset::plains();
+        let seed = 12345;
+
+        let mut heightmap = generate_terrain(&track, seed, &preset, 1.0).unwrap();
+        carve_track_corridor(&mut heightmap, &track, 20.0);
+
+        // Verify track corridor is flattened
+        for point in &track {
+            let height = heightmap.sample(point.x, point.y);
+            assert!(
+                height.abs() < 1.0,
+                "Track corridor not properly flattened: height = {}",
+                height
+            );
+        }
+    }
+
+    #[test]
+    fn test_elevation_application() {
+        let mut track = create_test_track();
+        let preset = EnvironmentPreset::plains();
+        let seed = 12345;
+
+        let heightmap = generate_terrain(&track, seed, &preset, 1.0).unwrap();
+        apply_track_elevation(&mut track, &heightmap);
+
+        // Verify elevation was applied (should be non-zero for at least some points)
+        let has_elevation = track.iter().any(|p| p.z.abs() > 0.1);
+        assert!(has_elevation, "No elevation applied to track");
+
+        // Verify distances were recalculated
+        assert!(track[1].distance_from_start_m > 0.0);
+    }
+
+    #[test]
+    fn test_3d_distance_calculation() {
+        let mut track = vec![
+            TrackPoint {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                distance_from_start_m: 0.0,
+                width_left_m: 5.0,
+                width_right_m: 5.0,
+                banking_rad: 0.0,
+                camber_rad: 0.0,
+                slope_rad: 0.0,
+                heading_rad: 0.0,
+                surface_type: SurfaceType::Asphalt,
+                grip_modifier: 1.0,
+            },
+            TrackPoint {
+                x: 100.0,
+                y: 0.0,
+                z: 10.0, // 10m elevation gain
+                distance_from_start_m: 0.0,
+                width_left_m: 5.0,
+                width_right_m: 5.0,
+                banking_rad: 0.0,
+                camber_rad: 0.0,
+                slope_rad: 0.0,
+                heading_rad: 0.0,
+                surface_type: SurfaceType::Asphalt,
+                grip_modifier: 1.0,
+            },
+        ];
+
+        recalculate_track_geometry(&mut track);
+
+        // Distance should be sqrt(100^2 + 10^2) = sqrt(10100) ≈ 100.5
+        let distance = track[1].distance_from_start_m;
+        assert!(
+            (distance - 100.5).abs() < 0.1,
+            "Expected ~100.5m, got {}m",
+            distance
+        );
+    }
 }

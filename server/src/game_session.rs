@@ -609,7 +609,7 @@ impl GameSession {
             .session
             .participants
             .values()
-            .map(|s| CarStateTelemetry::from(s))
+            .map(CarStateTelemetry::from)
             .collect();
 
         let countdown_ms = self
@@ -1437,7 +1437,7 @@ mod tests {
         // AI should be in a reasonable gear
         if let Some(gear) = ai_input.gear {
             assert!(
-                gear >= 1 && gear <= 6,
+                (1..=6).contains(&gear),
                 "AI gear should be between 1 and 6, got: {}",
                 gear
             );
@@ -1561,9 +1561,11 @@ mod tests {
         // Create a session with a specific host car
         let track = TrackConfig::default();
         let car1 = CarConfig::default();
-        let mut car2 = CarConfig::default();
-        car2.id = Uuid::new_v4(); // Different ID
-        car2.name = "Test Car 2".to_string();
+        let car2 = CarConfig {
+            id: Uuid::new_v4(), // Different ID
+            name: "Test Car 2".to_string(),
+            ..CarConfig::default()
+        };
 
         let mut car_configs = HashMap::new();
         car_configs.insert(car1.id, car1.clone());

@@ -300,7 +300,7 @@ async fn run_tick_rate_test(
         }
 
         // Send input to keep connection alive (occasionally)
-        if packets_received % 20 == 0 {
+        if packets_received.is_multiple_of(20) {
             let _ = client.send_input(0.5, 0.0, 0.0, last_tick_num).await;
         }
     }
@@ -369,8 +369,7 @@ async fn run_tick_rate_test(
     // For this stress test, we focus on relative consistency rather than absolute accuracy
     // since network batching affects receive rate
     let ratio = actual_hz / target_hz as f64;
-    let passed = ratio >= 0.45  // Allow for network batching reducing effective rate to ~50%
-        && ratio <= 1.10        // But shouldn't exceed target significantly
+    let passed = (0.45..=1.10).contains(&ratio)        // But shouldn't exceed target significantly
         && packet_loss_percent < 5.0
         && jitter_in_ticks < 2.0; // Gaps should be consistent (mostly 1s)
 
@@ -820,8 +819,8 @@ async fn run_multi_client_test(
     print!("  Joining {} clients to session... ", client_count - 1);
     std::io::stdout().flush().unwrap();
 
-    for i in 1..clients.len() {
-        match clients[i].join_session(session_id).await {
+    for (i, client) in clients.iter_mut().enumerate().skip(1) {
+        match client.join_session(session_id).await {
             Ok(()) => {}
             Err(e) => {
                 println!("\n    Client {} failed to join: {}", i, e);
@@ -919,26 +918,25 @@ async fn run_multi_client_test(
                 }
 
                 // Try to receive telemetry (non-blocking)
-                match timeout(Duration::from_millis(5), client.receive_message()).await {
-                    Ok(Ok(ServerMessage::TelemetryCompact(tel))) => {
-                        local_telemetry_count += 1;
-                        local_last_tick = tel.server_tick;
+                if let Ok(Ok(ServerMessage::TelemetryCompact(tel))) =
+                    timeout(Duration::from_millis(5), client.receive_message()).await
+                {
+                    local_telemetry_count += 1;
+                    local_last_tick = tel.server_tick;
 
-                        // Update shared first/last tick
-                        {
-                            let mut ft = first_tick.lock().await;
-                            if ft.is_none() {
-                                *ft = Some(tel.server_tick);
-                            }
-                        }
-                        {
-                            let mut lt = last_tick.lock().await;
-                            if tel.server_tick > *lt {
-                                *lt = tel.server_tick;
-                            }
+                    // Update shared first/last tick
+                    {
+                        let mut ft = first_tick.lock().await;
+                        if ft.is_none() {
+                            *ft = Some(tel.server_tick);
                         }
                     }
-                    _ => {}
+                    {
+                        let mut lt = last_tick.lock().await;
+                        if tel.server_tick > *lt {
+                            *lt = tel.server_tick;
+                        }
+                    }
                 }
 
                 // Small yield to allow other tasks

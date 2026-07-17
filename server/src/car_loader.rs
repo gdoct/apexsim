@@ -243,7 +243,7 @@ impl CarLoader {
         // Convert engine force to power (legacy approximation: P = F * v, assuming ~100 m/s)
         let max_engine_power_w = engine_toml
             .max_power_w
-            .unwrap_or_else(|| car_toml.physics.max_engine_force_n * 100.0);
+            .unwrap_or(car_toml.physics.max_engine_force_n * 100.0);
 
         debug!(
             "  Loaded {}: mass={}kg, engine_force={}N, power={}W",

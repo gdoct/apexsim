@@ -1345,6 +1345,7 @@ fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
 }
 
 /// Update telemetry data for 3D physics
+#[allow(clippy::too_many_arguments)]
 fn update_telemetry_3d(
     state: &mut CarState,
     config: &CarConfig,
@@ -1469,7 +1470,7 @@ pub fn check_collisions_refs(
             let config_j = configs.get(&states[j].car_config_id);
 
             if let (Some(cfg_i), Some(cfg_j)) = (config_i, config_j) {
-                if let Some(overlap) = check_obb_overlap(&states[i], cfg_i, &states[j], cfg_j) {
+                if let Some(overlap) = check_obb_overlap(states[i], cfg_i, states[j], cfg_j) {
                     // Mark as colliding
                     states[i].is_colliding = true;
                     states[j].is_colliding = true;
@@ -1537,8 +1538,8 @@ pub fn check_collisions_refs(
                         let angle_i = (ny.atan2(nx) - states[i].yaw_rad).rem_euclid(2.0 * PI);
                         let angle_j = (ny.atan2(nx) - states[j].yaw_rad + PI).rem_euclid(2.0 * PI);
 
-                        apply_damage_to_car(&mut states[i], angle_i, damage_amount);
-                        apply_damage_to_car(&mut states[j], angle_j, damage_amount);
+                        apply_damage_to_car(states[i], angle_i, damage_amount);
+                        apply_damage_to_car(states[j], angle_j, damage_amount);
                     }
                 }
             }
@@ -1619,15 +1620,15 @@ fn check_obb_overlap(
 
 /// Apply damage to a car based on collision angle
 fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
-    if angle < PI / 4.0 || angle > 7.0 * PI / 4.0 {
+    if !(PI / 4.0..=7.0 * PI / 4.0).contains(&angle) {
         car.damage.front_damage_percent =
             (car.damage.front_damage_percent + damage_amount).min(100.0);
         car.damage.engine_damage_percent =
             (car.damage.engine_damage_percent + damage_amount * 0.5).min(100.0);
-    } else if angle >= PI / 4.0 && angle < 3.0 * PI / 4.0 {
+    } else if (PI / 4.0..3.0 * PI / 4.0).contains(&angle) {
         car.damage.left_damage_percent =
             (car.damage.left_damage_percent + damage_amount).min(100.0);
-    } else if angle >= 3.0 * PI / 4.0 && angle < 5.0 * PI / 4.0 {
+    } else if (3.0 * PI / 4.0..5.0 * PI / 4.0).contains(&angle) {
         car.damage.rear_damage_percent =
             (car.damage.rear_damage_percent + damage_amount).min(100.0);
     } else {
@@ -1698,7 +1699,7 @@ pub fn update_track_progress_3d(
     state.track_progress = track.centerline[nearest_idx].distance_from_start_m;
 
     // Debug: Log track progress once per second
-    if current_tick % tick_rate_hz as u32 == 0 {
+    if current_tick.is_multiple_of(tick_rate_hz as u32) {
         debug!(
             "[Lap Debug] Tick {}: current_lap={}, track_progress={:.1}m/{:.1}m, lap_time={}ms",
             current_tick,
@@ -1902,17 +1903,18 @@ mod tests {
     /// (0,0) is ON the track (the default oval's centerline is 100m away,
     /// which silently puts dynamics tests on 0.4-grip grass).
     fn create_straight_test_track() -> TrackConfig {
-        let mut track = TrackConfig::default();
-        track.centerline = (0..500)
-            .map(|i| TrackPoint {
-                x: i as f32 * 4.0,
-                distance_from_start_m: i as f32 * 4.0,
-                width_left_m: 10.0,
-                width_right_m: 10.0,
-                ..Default::default()
-            })
-            .collect();
-        track
+        TrackConfig {
+            centerline: (0..500)
+                .map(|i| TrackPoint {
+                    x: i as f32 * 4.0,
+                    distance_from_start_m: i as f32 * 4.0,
+                    width_left_m: 10.0,
+                    width_right_m: 10.0,
+                    ..Default::default()
+                })
+                .collect(),
+            ..TrackConfig::default()
+        }
     }
 
     #[test]

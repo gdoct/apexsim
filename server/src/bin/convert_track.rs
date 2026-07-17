@@ -238,7 +238,7 @@ fn convert_to_track_format(
         .map(|p| TrackNode {
             x: p.x,
             y: p.y,
-            z: if args.elevation == "flat" { 0.0 } else { 0.0 }, // Could compute from data
+            z: 0.0,      // elevation not derivable from 2D source data yet
             width: None, // Use width_left/width_right instead
             width_left: Some(p.width_left),
             width_right: Some(p.width_right),

@@ -86,7 +86,7 @@ pub(crate) async fn broadcast_telemetry(
             }
         }
 
-        if (sent_players > 0 || sent_spectators > 0) && tick_count % 60 == 0 {
+        if (sent_players > 0 || sent_spectators > 0) && tick_count.is_multiple_of(60) {
             debug!(
                 "Broadcast telemetry for session {} to {} players + {} spectators (participants: {}, state: {:?})",
                 entry.session_id,

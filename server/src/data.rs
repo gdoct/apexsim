@@ -90,41 +90,32 @@ pub struct CarConfig {
     pub tire_config: TireConfig,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Drivetrain {
     FWD, // Front-wheel drive
+    #[default]
     RWD, // Rear-wheel drive
     AWD, // All-wheel drive
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum TransmissionType {
     Manual,
     DCT,
+    #[default]
     Sequential,
     Automatic,
     CVT,
 }
 
-impl Default for TransmissionType {
-    fn default() -> Self {
-        TransmissionType::Sequential
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum DifferentialType {
     Open,
     Locked,
+    #[default]
     ClutchLSD,
     ViscousLSD,
     Torsen,
-}
-
-impl Default for DifferentialType {
-    fn default() -> Self {
-        DifferentialType::ClutchLSD
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -244,12 +235,6 @@ impl Default for HybridConfig {
             motor_max_power_kw: 0.0,
             regen_max_power_kw: 0.0,
         }
-    }
-}
-
-impl Default for Drivetrain {
-    fn default() -> Self {
-        Drivetrain::RWD
     }
 }
 
@@ -582,8 +567,9 @@ impl TrackConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SurfaceType {
+    #[default]
     Asphalt,
     Concrete,
     Curb,
@@ -591,12 +577,6 @@ pub enum SurfaceType {
     Gravel,
     Sand,
     Wet,
-}
-
-impl Default for SurfaceType {
-    fn default() -> Self {
-        SurfaceType::Asphalt
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -915,24 +895,20 @@ pub enum SessionState {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
 pub enum SessionKind {
+    #[default]
     Multiplayer = 0,
     Practice = 1,
     Sandbox = 2,
 }
 
-impl Default for SessionKind {
-    fn default() -> Self {
-        SessionKind::Multiplayer
-    }
-}
-
 /// Game modes determine the behavior and rules during a session
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
 pub enum GameMode {
     /// Lobby state, no telemetry sent, players selecting cars
+    #[default]
     Lobby = 0,
     /// Nothing moves, no telemetry, camera exploration only
     Sandbox = 1,
@@ -948,12 +924,6 @@ pub enum GameMode {
     Qualification = 6,
     /// Race mode (to be implemented)
     Race = 7,
-}
-
-impl Default for GameMode {
-    fn default() -> Self {
-        GameMode::Lobby
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

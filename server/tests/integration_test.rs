@@ -282,16 +282,18 @@ impl TestClient {
 
 #[tokio::test]
 async fn test_server_initialization() {
-    // This test verifies that the server can be initialized with default config
-    // In a real scenario, this would test actual server startup
-    assert!(true);
+    // Verify an in-process server boots on ephemeral ports and shuts down.
+    let server = common::start_test_server().await;
+    assert_ne!(server.tcp_addr.port(), 0);
+    assert_ne!(server.udp_addr.port(), 0);
+    server.shutdown().await;
 }
 
 /// Integration test that spawns an in-process server
 #[tokio::test]
 async fn test_multiplayer_race_session() {
     println!("=== Multiplayer Race Session Integration Test ===");
-    println!("");
+    println!();
 
     let result = timeout(TEST_TIMEOUT, async {
         // Spawn an in-process server on ephemeral ports
@@ -467,10 +469,10 @@ async fn test_multiplayer_race_session() {
         println!("  Client 4: {} packets", telemetry4.len());
 
         // Verify all clients received telemetry
-        assert!(telemetry1.len() > 0, "Client 1 received no telemetry");
-        assert!(telemetry2.len() > 0, "Client 2 received no telemetry");
-        assert!(telemetry3.len() > 0, "Client 3 received no telemetry");
-        assert!(telemetry4.len() > 0, "Client 4 received no telemetry");
+        assert!(!telemetry1.is_empty(), "Client 1 received no telemetry");
+        assert!(!telemetry2.is_empty(), "Client 2 received no telemetry");
+        assert!(!telemetry3.is_empty(), "Client 3 received no telemetry");
+        assert!(!telemetry4.is_empty(), "Client 4 received no telemetry");
 
         // Verify telemetry contains all 4 cars
         if let Some((tick, car_count)) = telemetry1.last() {
@@ -533,7 +535,7 @@ async fn test_multiplayer_race_session() {
 #[tokio::test]
 async fn test_telemetry_broadcast() {
     println!("=== Telemetry Broadcast Integration Test ===");
-    println!("");
+    println!();
 
     let result = timeout(Duration::from_secs(60), async {
         // Spawn an in-process server on ephemeral ports
@@ -718,7 +720,7 @@ async fn test_telemetry_broadcast() {
 #[tokio::test]
 async fn test_sandbox_session_workflow() {
     println!("=== Sandbox Session Workflow Test ===");
-    println!("");
+    println!();
 
     let result = timeout(TEST_TIMEOUT, async {
         // Spawn an in-process server on ephemeral ports

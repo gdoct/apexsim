@@ -174,6 +174,7 @@ impl ServerState {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_session(
         &mut self,
         host_player_id: PlayerId,
