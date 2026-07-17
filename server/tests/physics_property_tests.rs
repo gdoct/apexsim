@@ -208,13 +208,15 @@ proptest! {
         steering in -1.0f32..=1.0,
     ) {
         let messages = vec![
-            ClientMessage::Authenticate { token, player_name },
+            ClientMessage::Authenticate { token, player_name, protocol_version: 2 },
             ClientMessage::Heartbeat { client_tick },
             ClientMessage::PlayerInput {
                 server_tick_ack,
                 throttle,
                 brake,
                 steering,
+                gear: None,
+                clutch: None,
             },
         ];
 
@@ -241,6 +243,9 @@ proptest! {
             ServerMessage::AuthSuccess(AuthSuccessData {
                 player_id: Uuid::new_v4(),
                 server_version,
+                protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+                udp_token: "prop-udp-token".to_string(),
+                udp_port: 9001,
             }),
             ServerMessage::Error { code, message },
             ServerMessage::HeartbeatAck { server_tick },

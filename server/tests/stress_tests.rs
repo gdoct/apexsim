@@ -277,7 +277,7 @@ async fn run_tick_rate_test(
         }
 
         match timeout(Duration::from_millis(100), client.receive_message()).await {
-            Ok(Ok(ServerMessage::Telemetry(telemetry))) => {
+            Ok(Ok(ServerMessage::TelemetryCompact(telemetry))) => {
                 packets_received += 1;
 
                 if first_tick_num.is_none() {
@@ -404,6 +404,7 @@ impl TestClientMinimal {
         let msg = ClientMessage::Authenticate {
             token: format!("test_token_{}", name),
             player_name: name.to_string(),
+            protocol_version: apexsim_server::network::PROTOCOL_VERSION,
         };
         self.send_message(&msg).await?;
         sleep(Duration::from_millis(50)).await;
@@ -481,6 +482,8 @@ impl TestClientMinimal {
             throttle,
             brake,
             steering,
+            gear: None,
+            clutch: None,
         };
         self.send_message(&msg).await
     }
@@ -533,7 +536,8 @@ impl TestClientMinimal {
             let response = self.receive_message().await?;
             match response {
                 ServerMessage::SessionJoined(_) => return Ok(()),
-                ServerMessage::LobbyState(_) => continue, // Skip lobby updates
+                ServerMessage::LobbyState(_) => continue,
+                ServerMessage::SessionRoster(_) => continue, // Skip lobby updates
                 ServerMessage::Error { message, .. } => {
                     return Err(format!("Join failed: {}", message).into())
                 }
@@ -798,7 +802,8 @@ async fn run_multi_client_test(
                 session_id = Some(data.session_id);
                 break;
             }
-            ServerMessage::LobbyState(_) => continue, // Skip lobby updates
+            ServerMessage::LobbyState(_) => continue,
+            ServerMessage::SessionRoster(_) => continue, // Skip lobby updates
             ServerMessage::Error { message, .. } => {
                 return Err(format!("Create failed: {}", message).into())
             }
@@ -915,7 +920,7 @@ async fn run_multi_client_test(
 
                 // Try to receive telemetry (non-blocking)
                 match timeout(Duration::from_millis(5), client.receive_message()).await {
-                    Ok(Ok(ServerMessage::Telemetry(tel))) => {
+                    Ok(Ok(ServerMessage::TelemetryCompact(tel))) => {
                         local_telemetry_count += 1;
                         local_last_tick = tel.server_tick;
 

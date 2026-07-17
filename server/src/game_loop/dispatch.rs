@@ -100,12 +100,25 @@ pub(crate) async fn handle_message(
             throttle,
             brake,
             steering,
+            gear,
+            clutch,
             ..
         } => {
-            handle_player_input(ctx, connection_id, throttle, brake, steering, player_inputs).await;
+            handle_player_input(
+                ctx,
+                connection_id,
+                throttle,
+                brake,
+                steering,
+                gear,
+                clutch,
+                player_inputs,
+            )
+            .await;
         }
         _ => {
-            // Other messages (Heartbeat, etc.) are handled in the transport layer
+            // Other messages (Heartbeat, UdpHandshake, etc.) are handled in
+            // the transport layer
         }
     }
 }
@@ -664,17 +677,24 @@ async fn handle_disconnect(ctx: &GameLoopCtx, connection_id: ConnectionId) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_player_input(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,
     throttle: f32,
     brake: f32,
     steering: f32,
+    gear: Option<i8>,
+    clutch: Option<f32>,
     player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
 ) {
     // Sanitize before the values reach physics: drop NaN/Inf,
     // clamp to the valid input ranges.
-    if !throttle.is_finite() || !brake.is_finite() || !steering.is_finite() {
+    if !throttle.is_finite()
+        || !brake.is_finite()
+        || !steering.is_finite()
+        || clutch.is_some_and(|c| !c.is_finite())
+    {
         warn!(
             "Dropping PlayerInput with non-finite values from connection {}",
             connection_id
@@ -686,8 +706,10 @@ async fn handle_player_input(
             throttle: throttle.clamp(0.0, 1.0),
             brake: brake.clamp(0.0, 1.0),
             steering: steering.clamp(-1.0, 1.0),
-            gear: None,
-            clutch: None,
+            // Gear requests outside the plausible range (-1 = reverse up to
+            // 10 forward gears) are ignored rather than reaching physics.
+            gear: gear.filter(|g| (-1..=10).contains(g)),
+            clutch: clutch.map(|c| c.clamp(0.0, 1.0)),
         };
         player_inputs.insert(conn_info.player_id, input);
         ctx.metrics

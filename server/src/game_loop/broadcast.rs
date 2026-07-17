@@ -3,47 +3,66 @@
 //! recipients are resolved under a state READ lock which is released before
 //! the transport READ lock is taken for sending.
 
-use super::tick::SessionTelemetry;
+use super::tick::{SessionRosterOut, SessionTelemetry};
 use super::GameLoopCtx;
-use crate::data::{ConnectionId, PlayerId};
+use crate::data::{ConnectionId, PlayerId, SessionId};
 use crate::network::{
     CarConfigSummary, LobbyStateData, MessagePriority, ServerMessage, TrackConfigSummary,
 };
-use crate::transport::TransportError;
+use crate::transport::{TransportError, TransportLayer};
 use bytes::Bytes;
 use std::sync::atomic::Ordering;
-use tracing::debug;
+use tracing::{debug, warn};
+
+/// Resolve the live recipients of a session broadcast: players still in the
+/// session (verified via the lobby) plus the session's spectators. Takes a
+/// state READ lock which is released before any transport lock is taken.
+async fn resolve_recipients(
+    ctx: &GameLoopCtx,
+    session_id: SessionId,
+    player_recipients: &[PlayerId],
+) -> (Vec<PlayerId>, Vec<PlayerId>) {
+    let state_read = ctx.state.read().await;
+
+    let mut players: Vec<PlayerId> = Vec::with_capacity(player_recipients.len());
+    for player_id in player_recipients {
+        if state_read.lobby.get_player_session(*player_id).await == Some(session_id) {
+            players.push(*player_id);
+        }
+    }
+
+    // Also collect spectators for this session (important for DemoLap mode)
+    let spectators = state_read.lobby.get_session_spectators(session_id).await;
+
+    (players, spectators)
+}
+
+/// Send one telemetry payload to a player: over UDP when the connection has
+/// completed the UDP handshake, over TCP (droppable) otherwise.
+async fn send_telemetry_to(transport: &TransportLayer, player_id: PlayerId, data: &Bytes) -> bool {
+    let Some((conn_id, udp_addr)) = transport.get_player_route(player_id).await else {
+        return false;
+    };
+    match udp_addr {
+        Some(addr) => transport.send_udp_serialized(addr, data.clone()).is_ok(),
+        None => transport
+            .send_serialized(conn_id, data.clone(), MessagePriority::Droppable)
+            .await
+            .is_ok(),
+    }
+}
 
 /// Fan out the tick phase's telemetry payloads to connected participants and
 /// spectators. Each payload was serialized exactly once; every recipient gets
-/// a `Bytes` clone via the transport's serialized send path.
+/// a `Bytes` clone, over UDP when handshaken (TCP fallback otherwise).
 pub(crate) async fn broadcast_telemetry(
     ctx: &GameLoopCtx,
     sessions: Vec<SessionTelemetry>,
     tick_count: u64,
 ) {
     for entry in sessions {
-        // Resolve recipients under a state READ lock (lobby queries only),
-        // released before any transport lock is taken.
-        let (players, spectators) = {
-            let state_read = ctx.state.read().await;
-
-            // Real players must still be in this session (check via lobby manager)
-            let mut players: Vec<PlayerId> = Vec::with_capacity(entry.player_recipients.len());
-            for player_id in &entry.player_recipients {
-                if state_read.lobby.get_player_session(*player_id).await == Some(entry.session_id) {
-                    players.push(*player_id);
-                }
-            }
-
-            // Also collect spectators for this session (important for DemoLap mode)
-            let spectators = state_read
-                .lobby
-                .get_session_spectators(entry.session_id)
-                .await;
-
-            (players, spectators)
-        };
+        let (players, spectators) =
+            resolve_recipients(ctx, entry.session_id, &entry.player_recipients).await;
 
         // Send under a transport READ lock (send paths only need &self).
         let transport_read = ctx.transport.read().await;
@@ -51,31 +70,19 @@ pub(crate) async fn broadcast_telemetry(
         let mut sent_players = 0usize;
         let mut sent_spectators = 0usize;
         for player_id in players {
-            if let Some(conn_id) = transport_read.get_player_connection(player_id).await {
-                if transport_read
-                    .send_serialized(conn_id, entry.data.clone(), MessagePriority::Droppable)
-                    .await
-                    .is_ok()
-                {
-                    ctx.metrics
-                        .telemetry_messages_sent
-                        .fetch_add(1, Ordering::Relaxed);
-                    sent_players += 1;
-                }
+            if send_telemetry_to(&transport_read, player_id, &entry.data).await {
+                ctx.metrics
+                    .telemetry_messages_sent
+                    .fetch_add(1, Ordering::Relaxed);
+                sent_players += 1;
             }
         }
         for player_id in spectators {
-            if let Some(conn_id) = transport_read.get_player_connection(player_id).await {
-                if transport_read
-                    .send_serialized(conn_id, entry.data.clone(), MessagePriority::Droppable)
-                    .await
-                    .is_ok()
-                {
-                    ctx.metrics
-                        .telemetry_messages_sent
-                        .fetch_add(1, Ordering::Relaxed);
-                    sent_spectators += 1;
-                }
+            if send_telemetry_to(&transport_read, player_id, &entry.data).await {
+                ctx.metrics
+                    .telemetry_messages_sent
+                    .fetch_add(1, Ordering::Relaxed);
+                sent_spectators += 1;
             }
         }
 
@@ -88,6 +95,27 @@ pub(crate) async fn broadcast_telemetry(
                 entry.participant_count,
                 entry.session_state
             );
+        }
+    }
+}
+
+/// Deliver `SessionRoster` messages reliably over TCP to participants and
+/// spectators of the affected sessions.
+pub(crate) async fn broadcast_rosters(ctx: &GameLoopCtx, rosters: Vec<SessionRosterOut>) {
+    for roster in rosters {
+        let (players, spectators) =
+            resolve_recipients(ctx, roster.session_id, &roster.player_recipients).await;
+
+        let transport_read = ctx.transport.read().await;
+        for player_id in players.into_iter().chain(spectators) {
+            if let Some(conn_id) = transport_read.get_player_connection(player_id).await {
+                if let Err(e) = transport_read.send_tcp(conn_id, roster.msg.clone()).await {
+                    warn!(
+                        "Failed to send session roster to player {}: {:?}",
+                        player_id, e
+                    );
+                }
+            }
         }
     }
 }

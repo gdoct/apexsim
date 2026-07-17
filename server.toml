@@ -12,6 +12,8 @@ tls_key_path = "./certs/server.key"
 require_tls = false
 heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000
+# Broadcast telemetry every N-th sim tick (4 → 60Hz snapshots at 240Hz)
+telemetry_divisor = 4
 
 [content]
 cars_dir = "./content/cars"

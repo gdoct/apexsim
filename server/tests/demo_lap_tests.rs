@@ -37,6 +37,7 @@ impl DemoLapTestClient {
         let auth_msg = ClientMessage::Authenticate {
             token: format!("test_token_{}", self.name),
             player_name: self.name.clone(),
+            protocol_version: apexsim_server::network::PROTOCOL_VERSION,
         };
 
         self.send_message(&auth_msg).await?;
@@ -112,6 +113,7 @@ impl DemoLapTestClient {
                     return Err(format!("Session creation failed: {}", message).into());
                 }
                 ServerMessage::LobbyState(_) => continue,
+                ServerMessage::SessionRoster(_) => continue,
                 other => {
                     return Err(
                         format!("Unexpected response to session creation: {:?}", other).into(),
@@ -237,7 +239,7 @@ async fn test_demo_lap_timing() {
             last_lap_time_ms: Option<u32>,
         }
 
-        let mut car_lap_data: HashMap<PlayerId, CarLapData> = HashMap::new();
+        let mut car_lap_data: HashMap<u8, CarLapData> = HashMap::new();
         let mut total_completed_laps = 0;
         let mut telemetry_started = false;
 
@@ -264,13 +266,13 @@ async fn test_demo_lap_timing() {
 
             // Receive telemetry
             match timeout(Duration::from_millis(100), client.receive_message()).await {
-                Ok(Ok(ServerMessage::Telemetry(telemetry))) => {
+                Ok(Ok(ServerMessage::TelemetryCompact(telemetry))) => {
                     if !telemetry_started {
                         println!("  ✓ Receiving telemetry (server tick: {}, {} cars)",
                             telemetry.server_tick, telemetry.car_states.len());
                         for car in &telemetry.car_states {
                             println!("    - Car {} at lap {} (progress: {:.1}m, speed: {:.1} km/h, gear: {}, rpm: {:.0})",
-                                &car.player_id.to_string()[..8],
+                                car.car_index,
                                 car.current_lap,
                                 car.track_progress,
                                 car.speed_mps * 3.6,
@@ -300,7 +302,7 @@ async fn test_demo_lap_timing() {
                                 0.0
                             };
                             println!("  Car {}: gear={}, rpm={:.0}, speed={:.1} km/h, progress={:.1}m ({:.1}%), lap={}, throttle={:.0}%, brake={:.0}%",
-                                &car_state.player_id.to_string()[..8],
+                                car_state.car_index,
                                 car_state.gear,
                                 car_state.engine_rpm,
                                 car_state.speed_mps * 3.6,
@@ -315,7 +317,7 @@ async fn test_demo_lap_timing() {
 
                     // Process each car's lap state
                     for car_state in &telemetry.car_states {
-                        let car_data = car_lap_data.entry(car_state.player_id).or_insert(CarLapData {
+                        let car_data = car_lap_data.entry(car_state.car_index).or_insert(CarLapData {
                             current_lap: 0,
                             completed_laps: Vec::new(),
                             last_lap_time_ms: None,
@@ -331,7 +333,7 @@ async fn test_demo_lap_timing() {
                                     total_completed_laps += 1;
 
                                     println!("  [Car {}] Lap {} completed: {}",
-                                        &car_state.player_id.to_string()[..8],
+                                        car_state.car_index,
                                         completed_lap,
                                         format_lap_time(lap_time_ms));
                                 }

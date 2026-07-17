@@ -17,6 +17,9 @@ pub struct GameSession {
     pub ai_profiles: std::collections::BTreeMap<PlayerId, AiDriverProfile>,
     /// Simulation tick rate (Hz); the fixed timestep is `1 / tick_rate_hz`.
     tick_rate_hz: u16,
+    /// Set when session membership changed since the last roster broadcast;
+    /// starts true so the roster goes out once when the session first ticks.
+    roster_dirty: bool,
 }
 
 impl GameSession {
@@ -31,6 +34,7 @@ impl GameSession {
             car_configs,
             ai_profiles: std::collections::BTreeMap::new(),
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
+            roster_dirty: true,
         }
     }
 
@@ -56,6 +60,7 @@ impl GameSession {
             car_configs,
             ai_profiles: ai_profiles_map,
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
+            roster_dirty: true,
         }
     }
 
@@ -412,6 +417,7 @@ impl GameSession {
                     .collect();
                 for player_id in &human_player_ids {
                     self.session.participants.remove(player_id);
+                    self.roster_dirty = true;
                     debug!(
                         "[DemoLap] Removed human player {} from participants (now spectator)",
                         player_id
@@ -549,6 +555,7 @@ impl GameSession {
         {
             let car_state = CarState::new(player_id, car_config_id, grid_slot);
             self.session.participants.insert(player_id, car_state);
+            self.roster_dirty = true;
             Some(grid_position)
         } else {
             None
@@ -557,7 +564,9 @@ impl GameSession {
 
     /// Remove a player from the session
     pub fn remove_player(&mut self, player_id: &PlayerId) {
-        self.session.participants.remove(player_id);
+        if self.session.participants.remove(player_id).is_some() {
+            self.roster_dirty = true;
+        }
     }
 
     /// Generate AI input for a player using their AI profile.
@@ -617,6 +626,75 @@ impl GameSession {
         };
 
         ServerMessage::Telemetry(telemetry)
+    }
+
+    /// Compact wire telemetry (protocol v2): cars are identified by their
+    /// position in the deterministic `participants` iteration order, matching
+    /// the indices announced in the most recent `SessionRoster`.
+    pub fn get_compact_telemetry(&self) -> CompactTelemetry {
+        let car_states: Vec<CompactCarState> = self
+            .session
+            .participants
+            .values()
+            .enumerate()
+            .map(|(idx, s)| CompactCarState::from_car_state(s, idx as u8))
+            .collect();
+
+        let countdown_ms = self
+            .session
+            .countdown_ticks_remaining
+            .map(|ticks| ((ticks as f32 / self.tick_rate_hz as f32) * 1000.0) as u16);
+
+        CompactTelemetry {
+            server_tick: self.session.current_tick,
+            session_state: self.session.state,
+            game_mode: self.session.game_mode,
+            countdown_ms,
+            car_states,
+        }
+    }
+
+    /// Whether session membership changed since the last roster broadcast.
+    pub fn roster_is_dirty(&self) -> bool {
+        self.roster_dirty
+    }
+
+    /// True once per membership change: returns whether a fresh roster needs
+    /// broadcasting and clears the flag.
+    pub fn take_roster_dirty(&mut self) -> bool {
+        std::mem::take(&mut self.roster_dirty)
+    }
+
+    /// Build the car-index → player mapping for compact telemetry. Human
+    /// player names are looked up in `names` (lobby data); AI names come from
+    /// their profiles.
+    pub fn build_roster(&self, names: &HashMap<PlayerId, String>) -> SessionRosterData {
+        let entries = self
+            .session
+            .participants
+            .keys()
+            .enumerate()
+            .map(|(idx, player_id)| {
+                let is_ai = self.ai_profiles.contains_key(player_id);
+                let player_name = self
+                    .ai_profiles
+                    .get(player_id)
+                    .map(|p| p.name.clone())
+                    .or_else(|| names.get(player_id).cloned())
+                    .unwrap_or_else(|| format!("Player-{}", &player_id.to_string()[..8]));
+                RosterEntry {
+                    car_index: idx as u8,
+                    player_id: *player_id,
+                    player_name,
+                    is_ai,
+                }
+            })
+            .collect();
+
+        SessionRosterData {
+            session_id: self.session.id,
+            entries,
+        }
     }
 
     /// Race is complete once every car has been classified with a finish
