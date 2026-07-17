@@ -26,7 +26,6 @@ hyper-util = { version = "0.1", features = ["full"] }
 http-body-util = "0.1"
 bytes = "1"
 noise = "0.8"
-crossterm = "0.28"
 
 [dev-dependencies]
 proptest = "1"
@@ -44,7 +43,3 @@ codegen-units = 1
 [[bin]]
 name = "apexsim-server"
 path = "src/main.rs"
-
-[[bin]]
-name = "test-runner"
-path = "src/bin/test_runner.rs"

@@ -76,7 +76,6 @@ cargo fmt && cargo clippy --all-targets   # Lint
 cargo test                       # Unit + integration tests (server spawned in-process)
 cargo test -- --ignored          # Long-running stress/soak tests
 cargo bench                      # Criterion benchmarks for the physics hot loop
-cargo run --bin test-runner      # Interactive test runner TUI
 ```
 
 Integration tests spawn the server in-process on ephemeral ports; no manually started server is required.

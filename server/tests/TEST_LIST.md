@@ -92,7 +92,5 @@ All tests from the following files are included:
 
 ```bash
 cd /home/guido/apexsim/server
-./run-tests.sh
+cargo test
 ```
-
-Use arrow keys to navigate and Enter to run any test!

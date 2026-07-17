@@ -25,7 +25,6 @@ cd server
 cargo test                     # Unit + integration tests (server spawned in-process, no setup needed)
 cargo test -- --ignored        # Long-running stress/soak tests
 cargo test --test integration_test test_name -- --nocapture  # Single integration test
-cargo run --bin test-runner    # Interactive test runner TUI
 ```
 
 Integration tests spawn the server in-process on ephemeral ports via `apexsim_server::server::run_server` (see `tests/common/mod.rs`); no manually started server is required. `tests/determinism_test.rs` asserts bit-identical sim runs — keep the simulation free of HashMap-iteration-order dependence, wall-clock reads, and RNG.
