@@ -174,17 +174,18 @@ fn format_lap_time(ms: u32) -> String {
     }
 }
 
-/// Test: Start lobby, start demo lap game, wait for 3 laps, calculate and print lap times
+/// Test: Start lobby, start demo lap game on the shortest track, wait for 2 laps,
+/// calculate and print lap times
 /// Run: cargo test --test demo_lap_tests test_demo_lap_timing -- --ignored --nocapture
 #[tokio::test]
-#[ignore = "long-running soak test (waits for 3 demo laps, up to ~5 min); run with --ignored"]
+#[ignore = "long-running soak test (waits for 2 demo laps, up to ~5 min); run with --ignored"]
 async fn test_demo_lap_timing() {
     println!("╔══════════════════════════════════════════════════════════════════════════════╗");
     println!("║                       DEMO LAP TIMING TEST                                   ║");
     println!("╠══════════════════════════════════════════════════════════════════════════════╣");
     println!("║  1. Start lobby                                                              ║");
     println!("║  2. Start demo lap game                                                      ║");
-    println!("║  3. Wait for 3 laps                                                          ║");
+    println!("║  3. Wait for 2 laps (shortest track)                                         ║");
     println!("║  4. Calculate and print lap times                                            ║");
     println!("╚══════════════════════════════════════════════════════════════════════════════╝");
     println!();
@@ -197,14 +198,29 @@ async fn test_demo_lap_timing() {
         let (player_id, lobby_state) = client.authenticate().await?;
         println!("  ✓ Authenticated as player: {}", player_id);
 
-        // Get first available car and track
+        // Get first available car; pick the SHORTEST track (estimated from
+        // the lobby's simplified centerline) so the AI demo driver can
+        // complete the laps within the soak budget. Track order in the
+        // lobby is HashMap-random — "first" could be Le Mans.
         let car_id = lobby_state.car_configs.first()
             .ok_or("No car configs available")?.id;
         let car_name = &lobby_state.car_configs.first().unwrap().name;
 
-        let track_id = lobby_state.track_configs.first()
-            .ok_or("No track configs available")?.id;
-        let track_name = &lobby_state.track_configs.first().unwrap().name;
+        let estimated_length = |points: &[apexsim_server::network::TrackPoint]| -> f32 {
+            points.windows(2)
+                .map(|w| ((w[1].x - w[0].x).powi(2) + (w[1].y - w[0].y).powi(2)).sqrt())
+                .sum()
+        };
+        let shortest = lobby_state.track_configs.iter()
+            .filter(|t| t.centerline.len() >= 2)
+            .min_by(|a, b| {
+                estimated_length(&a.centerline)
+                    .partial_cmp(&estimated_length(&b.centerline))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .ok_or("No track configs with centerline data available")?;
+        let track_id = shortest.id;
+        let track_name = &shortest.name;
 
         println!("  ✓ Using car: {} ({})", car_name, car_id);
         println!("  ✓ Using track: {} ({})", track_name, track_id);
@@ -228,7 +244,7 @@ async fn test_demo_lap_timing() {
 
         // Step 3: Track lap times from telemetry
         println!("\nStep 4: Receiving telemetry and timing laps...");
-        println!("  Waiting for 3 completed laps from demo driver...");
+        println!("  Waiting for 2 completed laps from demo driver...");
         println!();
 
         use std::collections::HashMap;
@@ -243,13 +259,15 @@ async fn test_demo_lap_timing() {
         let mut total_completed_laps = 0;
         let mut telemetry_started = false;
 
-        let max_wait = Duration::from_secs(325); // Exit after 325 seconds
+        // Inner wait must stay below the outer 325s timeout, or the two race
+        // and the outer timeout wins with an unhelpful panic.
+        let max_wait = Duration::from_secs(280);
         let start_time = std::time::Instant::now();
         let mut last_heartbeat = std::time::Instant::now();
         let mut last_debug_print = std::time::Instant::now();
         let mut max_track_progress: f32 = 0.0; // Track max progress to estimate track length
 
-        while start_time.elapsed() < max_wait && total_completed_laps < 3 {
+        while start_time.elapsed() < max_wait && total_completed_laps < 2 {
             // Send heartbeat every 2 seconds to keep connection alive
             if last_heartbeat.elapsed() > Duration::from_secs(2) {
                 client.send_heartbeat().await?;
@@ -407,8 +425,15 @@ async fn test_demo_lap_timing() {
         println!("  Max track progress seen: {:.1}m", max_track_progress);
         println!("  Elapsed time: {:.1}s", start_time.elapsed().as_secs_f32());
 
-        if total_completed_laps == 0 {
-            println!("  ⚠ No lap times recorded - demo mode may not be running correctly or car is too slow");
+        // The soak test must actually verify something: the AI demo driver
+        // has to complete the target laps with server-side lap times.
+        if total_completed_laps < 2 {
+            return Err(format!(
+                "expected at least 2 completed demo laps within the soak budget, got {} \
+                 (demo mode not running, or the AI is too slow on {})",
+                total_completed_laps, track_name
+            )
+            .into());
         }
 
         Ok::<(), Box<dyn std::error::Error>>(())
