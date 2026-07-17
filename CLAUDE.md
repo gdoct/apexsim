@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ApexSim is an open-source simracing platform with a high-frequency authoritative Rust server (240Hz) and a Godot 4.5 C# client. The server owns physics simulation and distributes telemetry while handling lobby/session management over TCP+TLS with MessagePack serialization. (A UDP socket is bound for future high-frequency traffic; telemetry/input currently flow over TCP.)
+ApexSim is an open-source simracing platform with a high-frequency authoritative Rust server (240Hz) and a Godot 4.5 C# client (the client is deprecated; server work does not need to keep it in sync). The server owns physics simulation and distributes telemetry while handling lobby/session management over TCP+TLS with MessagePack serialization. Protocol v2: after a token handshake binds the client's UDP address, telemetry (compact positional encoding, session-scoped car indices announced via a reliable `SessionRoster` message) and player input flow over UDP, with TCP fallback for un-handshaken clients.
 
 ## Build Commands
 
@@ -47,8 +47,8 @@ cargo run                      # Run track editor
 
 ### Server (`server/`)
 - **240Hz authoritative physics loop** using tokio async runtime
-- **TCP+TLS** for auth, lobby, session management, telemetry (port 9000). TLS is fail-closed by default (`require_tls = true`); dev opt-out in server.toml
-- **UDP** socket bound on port 9001 (not yet carrying game traffic)
+- **TCP+TLS** for auth, lobby, session management, rosters (port 9000). TLS is fail-closed by default (`require_tls = true`); dev opt-out in server.toml
+- **UDP** (port 9001) for telemetry out / player input in, bound per connection via `UdpHandshake` with the token issued in `AuthSuccess`; telemetry broadcast rate is `tick_rate / network.telemetry_divisor` (default 60Hz)
 - **HTTP endpoints** on port 9002: `/health`, `/ready`, `/metrics` (Prometheus text format)
 - Key modules:
   - `server.rs` — `run_server()` entry point, `ServerState`, `ServerHandle` (used by binary and tests)
@@ -95,4 +95,4 @@ Environment overrides use the `APEXSIM_` prefix, e.g. `APEXSIM_NETWORK_TCP_PORT=
 - `proptest` property tests live in `tests/physics_property_tests.rs` (physics invariants, serialization roundtrips)
 - Integration tests simulate real client connections with `TestClient` structs against an in-process server
 - Enable debug logging: `RUST_LOG=debug cargo test ...`
-- CI (`.github/workflows/ci.yml`) runs fmt-check, clippy, build, and tests for the server plus a dotnet build/test for the client; Dependabot auto-merge builds and tests before merging
+- CI (`.github/workflows/ci.yml`) runs fmt-check, clippy (`-D warnings` — keep the tree warning-free), build, and tests for the server plus a dotnet build/test for the client; Dependabot auto-merge builds and tests before merging
