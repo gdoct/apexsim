@@ -215,9 +215,14 @@ pub fn update_car_3d(
     let (engine_torque, engine_rpm) = calculate_engine_output(state, config, input);
     state.engine_rpm = engine_rpm;
 
-    // 5. Calculate wheel torques from drivetrain
+    // 4b. Hybrid system: electric motor assist + brake regeneration
+    let motor_torque = update_hybrid_system(state, config, input, engine_rpm, dt);
+
+    // 5. Calculate wheel torques from drivetrain. A partially released
+    // clutch transmits proportionally less torque.
+    let clutch = input.clutch.unwrap_or(state.clutch_input).clamp(0.0, 1.0);
     let (drive_torque_front, drive_torque_rear) =
-        calculate_drive_torques(engine_torque, config, state.gear);
+        calculate_drive_torques((engine_torque + motor_torque) * clutch, config, state.gear);
 
     // 6. Calculate brake forces
     let brake_force = input.brake * config.max_brake_force_n;
@@ -423,15 +428,12 @@ pub fn update_car_3d(
     let v_long = state.vel_x * cos_yaw + state.vel_y * sin_yaw;
     let v_lat = -state.vel_x * sin_yaw + state.vel_y * cos_yaw;
 
-    // Calculate slip ratios, wheel loads and tire forces
-    let mut fl_slip = (0.0, 0.0);
-    let mut fr_slip = (0.0, 0.0);
-    let mut rl_slip = (0.0, 0.0);
-    let mut rr_slip = (0.0, 0.0);
-    let mut fl_forces = (0.0, 0.0);
-    let mut fr_forces = (0.0, 0.0);
-    let mut rl_forces = (0.0, 0.0);
-    let mut rr_forces = (0.0, 0.0);
+    // Solve per-wheel tire forces (quasi-static torque balance with
+    // wheelspin / lockup / ABS behavior and friction-ellipse coupling)
+    let mut fl = WheelForces::default();
+    let mut fr = WheelForces::default();
+    let mut rl = WheelForces::default();
+    let mut rr = WheelForces::default();
 
     if is_airborne {
         state.weight_front_left_n = 0.0;
@@ -439,87 +441,77 @@ pub fn update_car_3d(
         state.weight_rear_left_n = 0.0;
         state.weight_rear_right_n = 0.0;
     } else {
-        // Front left tire
-        fl_slip = calculate_wheel_slip(
+        fl = solve_wheel_forces(
             v_long,
             v_lat,
             state.angular_vel_yaw,
             steer_left,
             config.wheelbase_m / 2.0,
-            -config.track_width_front_m / 2.0,
             drive_torque_front / 2.0,
             brake_front / 2.0,
             config.wheel_radius_m,
+            state.weight_front_left_n,
+            effective_grip,
+            &config.tire_config,
+            config.abs_enabled,
+            config.traction_control_enabled,
         );
-
-        // Front right tire
-        fr_slip = calculate_wheel_slip(
+        fr = solve_wheel_forces(
             v_long,
             v_lat,
             state.angular_vel_yaw,
             steer_right,
             config.wheelbase_m / 2.0,
-            config.track_width_front_m / 2.0,
             drive_torque_front / 2.0,
             brake_front / 2.0,
             config.wheel_radius_m,
-        );
-
-        // Rear left tire
-        rl_slip = calculate_wheel_slip(
-            v_long,
-            v_lat,
-            state.angular_vel_yaw,
-            0.0,
-            -config.wheelbase_m / 2.0,
-            -config.track_width_rear_m / 2.0,
-            drive_torque_rear / 2.0,
-            brake_rear / 2.0,
-            config.wheel_radius_m,
-        );
-
-        // Rear right tire
-        rr_slip = calculate_wheel_slip(
-            v_long,
-            v_lat,
-            state.angular_vel_yaw,
-            0.0,
-            -config.wheelbase_m / 2.0,
-            config.track_width_rear_m / 2.0,
-            drive_torque_rear / 2.0,
-            brake_rear / 2.0,
-            config.wheel_radius_m,
-        );
-
-        fl_forces = calculate_tire_forces(
-            state.weight_front_left_n,
-            fl_slip.0,
-            fl_slip.1,
-            effective_grip,
-            &config.tire_config,
-        );
-        fr_forces = calculate_tire_forces(
             state.weight_front_right_n,
-            fr_slip.0,
-            fr_slip.1,
             effective_grip,
             &config.tire_config,
+            config.abs_enabled,
+            config.traction_control_enabled,
         );
-        rl_forces = calculate_tire_forces(
+        rl = solve_wheel_forces(
+            v_long,
+            v_lat,
+            state.angular_vel_yaw,
+            0.0,
+            -config.wheelbase_m / 2.0,
+            drive_torque_rear / 2.0,
+            brake_rear / 2.0,
+            config.wheel_radius_m,
             state.weight_rear_left_n,
-            rl_slip.0,
-            rl_slip.1,
             effective_grip,
             &config.tire_config,
+            config.abs_enabled,
+            config.traction_control_enabled,
         );
-        rr_forces = calculate_tire_forces(
+        rr = solve_wheel_forces(
+            v_long,
+            v_lat,
+            state.angular_vel_yaw,
+            0.0,
+            -config.wheelbase_m / 2.0,
+            drive_torque_rear / 2.0,
+            brake_rear / 2.0,
+            config.wheel_radius_m,
             state.weight_rear_right_n,
-            rr_slip.0,
-            rr_slip.1,
             effective_grip,
             &config.tire_config,
+            config.abs_enabled,
+            config.traction_control_enabled,
         );
     }
+
+    let fl_slip = (fl.slip_ratio, fl.slip_angle);
+    let fr_slip = (fr.slip_ratio, fr.slip_angle);
+    let rl_slip = (rl.slip_ratio, rl.slip_angle);
+    let rr_slip = (rr.slip_ratio, rr.slip_angle);
+    let fl_forces = (fl.fx, fl.fy);
+    let fr_forces = (fr.fx, fr.fy);
+    let rl_forces = (rl.fx, rl.fy);
+    let rr_forces = (rr.fx, rr.fy);
+    state.wheel_angular_vel = [fl.omega, fr.omega, rl.omega, rr.omega];
 
     // 11. Sum all forces
     // Rotate front tire forces by steering angle
@@ -631,6 +623,12 @@ pub fn update_car_3d(
         post_track_ctx.width_left.max(post_track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
     let can_query_post_surface = post_track_ctx.lateral_offset.abs() <= post_lateral_query_limit;
 
+    // Height a grounded car will follow the surface DOWN in one tick before
+    // being considered launched (crest handling). Suspension keeps wheels in
+    // contact over ordinary elevation changes; only a genuine drop-off (or
+    // enough upward velocity) makes the car airborne.
+    const GROUND_FOLLOW_MAX_DROP_M: f32 = 0.35;
+
     if can_query_post_surface {
         if is_airborne {
             if state.pos_z <= post_track_ctx.elevation {
@@ -639,9 +637,18 @@ pub fn update_car_3d(
                 is_airborne = false;
             }
         } else {
-            // Keep grounded cars above track plane while allowing suspension ride height.
-            state.pos_z = state.pos_z.max(post_track_ctx.elevation);
-            state.vel_z = 0.0;
+            let gap = state.pos_z - post_track_ctx.elevation;
+            if gap <= GROUND_FOLLOW_MAX_DROP_M {
+                // Stay glued to the surface: snap down as well as up, so
+                // cresting a hill doesn't flag the car airborne and bounce
+                // the wheel loads every tick.
+                state.pos_z = post_track_ctx.elevation;
+                state.vel_z = 0.0;
+            } else {
+                // The surface dropped away faster than suspension can
+                // follow: the car is genuinely launched.
+                is_airborne = true;
+            }
         }
     } else {
         state.vel_z = 0.0;
@@ -743,8 +750,24 @@ fn calculate_engine_output(
     };
 
     let engine_rpm = if gear_ratio.abs() > 0.001 {
-        (wheel_rpm * gear_ratio.abs() * config.final_drive_ratio)
-            .clamp(config.idle_rpm, config.max_engine_rpm)
+        let geared_rpm = (wheel_rpm * gear_ratio.abs() * config.final_drive_ratio)
+            .clamp(config.idle_rpm, config.max_engine_rpm);
+        // Clutch-slip launch: at low road speed in the launch gears the
+        // clutch slips, letting the engine rev toward a throttle-dependent
+        // launch RPM and deliver its torque there instead of being pinned
+        // to idle by the (near-zero) wheel speed.
+        const CLUTCH_SLIP_MAX_SPEED_MPS: f32 = 10.0;
+        const CLUTCH_SLIP_MAX_GEAR: i8 = 2;
+        if state.speed_mps < CLUTCH_SLIP_MAX_SPEED_MPS
+            && (1..=CLUTCH_SLIP_MAX_GEAR).contains(&state.gear)
+            && input.throttle > 0.05
+        {
+            let launch_rpm =
+                config.idle_rpm + input.throttle * (config.redline_rpm - config.idle_rpm) * 0.45;
+            geared_rpm.max(launch_rpm)
+        } else {
+            geared_rpm
+        }
     } else {
         config.idle_rpm + input.throttle * (config.redline_rpm - config.idle_rpm) * 0.3
     };
@@ -811,6 +834,67 @@ fn interpolate_torque_curve(curve: &[TorqueCurvePoint], rpm: f32) -> f32 {
     }
 
     curve[curve.len() - 1].torque_nm
+}
+
+/// Hybrid system update: returns the electric motor's assist torque (Nm at
+/// the crank) and updates the battery state of charge on the car. Under
+/// braking the motor regenerates instead of assisting.
+fn update_hybrid_system(
+    state: &mut CarState,
+    config: &CarConfig,
+    input: &PlayerInputData,
+    engine_rpm: f32,
+    dt: f32,
+) -> f32 {
+    let hybrid = &config.hybrid;
+    if !hybrid.enabled {
+        return 0.0;
+    }
+
+    // Seed the battery from config on first use (serde default is -1.0).
+    if state.hybrid_battery_kwh < 0.0 {
+        state.hybrid_battery_kwh = hybrid.battery_capacity_kwh;
+    }
+
+    const KWH_PER_JOULE: f32 = 1.0 / 3.6e6;
+
+    // Regeneration under braking: charge the battery, no assist.
+    if input.brake > 0.1 && state.speed_mps > 3.0 {
+        let regen_kw = hybrid
+            .regen_max_power_kw
+            .min(hybrid.battery_max_charge_kw)
+            .max(0.0)
+            * input.brake;
+        state.hybrid_battery_kwh = (state.hybrid_battery_kwh
+            + regen_kw * 1000.0 * dt * KWH_PER_JOULE)
+            .min(hybrid.battery_capacity_kwh);
+        return 0.0;
+    }
+
+    // Assist under throttle, limited by motor torque, motor/battery power
+    // and remaining charge.
+    if input.throttle > 0.05 && state.hybrid_battery_kwh > 0.0 {
+        let omega = (engine_rpm / 60.0) * 2.0 * PI; // rad/s
+        let power_limit_w = hybrid
+            .motor_max_power_kw
+            .min(hybrid.battery_max_discharge_kw)
+            .max(0.0)
+            * 1000.0;
+        let torque_from_power = if omega > 1.0 {
+            power_limit_w / omega
+        } else {
+            hybrid.motor_max_torque_nm
+        };
+        let motor_torque = (input.throttle * hybrid.motor_max_torque_nm)
+            .min(torque_from_power)
+            .max(0.0);
+        let drawn_w = motor_torque * omega.max(1.0);
+        state.hybrid_battery_kwh =
+            (state.hybrid_battery_kwh - drawn_w * dt * KWH_PER_JOULE).max(0.0);
+        return motor_torque;
+    }
+
+    0.0
 }
 
 /// Calculate drive torques for front and rear axles
@@ -905,109 +989,176 @@ fn calculate_ackermann_steering(
     }
 }
 
-/// Calculate slip ratio and slip angle for a wheel
-fn calculate_wheel_slip(
+/// Magic-formula shape factors. Slip inputs are NORMALIZED (1.0 = the
+/// tire's optimal slip), so the stiffness factor B places the curve's peak
+/// at exactly 1.0: sin(C·atan(B·x)) peaks at B·x = tan(π/(2C)).
+const PACEJKA_C_LONG: f32 = 1.9;
+const PACEJKA_C_LAT: f32 = 1.3;
+
+/// Absolute slip-ratio ceiling for wheelspin (deep in the magic formula's
+/// falloff region). Reached when drive torque exceeds traction ~3x.
+const WHEELSPIN_MAX_SLIP_RATIO: f32 = 0.35;
+
+/// Body-frame speed below which brakes produce no tire force (the low-speed
+/// stop snap handles the final halt) and the launch model applies.
+const BRAKE_DEADZONE_SPEED_MPS: f32 = 0.15;
+
+fn pacejka(d: f32, c: f32, normalized_slip: f32) -> f32 {
+    let b = (std::f32::consts::PI / (2.0 * c)).tan();
+    d * (c * (b * normalized_slip).atan()).sin()
+}
+
+/// Invert the magic formula in its stable region: the normalized slip at
+/// which the tire produces `force` (|force| <= d).
+fn pacejka_inverse(d: f32, c: f32, force: f32) -> f32 {
+    let b = (std::f32::consts::PI / (2.0 * c)).tan();
+    (((force / d).clamp(-1.0, 1.0)).asin() / c).tan() / b
+}
+
+/// Per-wheel longitudinal/lateral force solution.
+#[derive(Clone, Copy, Default)]
+struct WheelForces {
+    fx: f32,
+    fy: f32,
+    slip_ratio: f32,
+    slip_angle: f32,
+    /// Wheel angular velocity (rad/s) consistent with the slip solution.
+    omega: f32,
+}
+
+/// Solve one wheel's tire forces from the applied torques using a
+/// quasi-static torque balance (real slip-ratio behavior without the stiff
+/// wheel ODE):
+///
+/// - While the requested longitudinal force fits inside the grip circle the
+///   tire is in its stable region: it transmits exactly the request, at the
+///   slip ratio the magic formula prescribes for that force.
+/// - Excess drive torque spins the wheel up (`WHEELSPIN_SLIP_RATIO`, force
+///   drops into the falloff region).
+/// - Excess brake torque locks the wheel (slip −1, sliding-friction force)
+///   — unless ABS is enabled, which holds the wheel at peak slip.
+///
+/// The friction ellipse then couples longitudinal and lateral force so a
+/// braking or spinning tire loses cornering force and vice versa.
+#[allow(clippy::too_many_arguments)]
+fn solve_wheel_forces(
     v_long: f32, // Body-frame longitudinal velocity (+ = forward)
     v_lat: f32,  // Body-frame lateral velocity (+ = left)
     yaw_rate: f32,
     steer_angle: f32,
-    wheel_pos_x: f32,  // Distance from CoG (+ = front)
-    _wheel_pos_y: f32, // Distance from centerline (+ = right)
+    wheel_pos_x: f32, // Distance from CoG (+ = front)
     drive_torque: f32,
     brake_force: f32,
     wheel_radius: f32,
-) -> (f32, f32) {
+    wheel_load: f32,
+    grip_coefficient: f32,
+    tire_config: &TireConfig,
+    abs_enabled: bool,
+    tc_enabled: bool,
+) -> WheelForces {
     // Wheel contact-patch velocity in the body frame: the body's own
     // velocity plus the rotational contribution at this wheel's position.
     // The lateral term is what lets tires resist sideways sliding — without
     // it the car is on ice.
     let wheel_vel_x = v_long.max(MIN_SPEED_THRESHOLD);
     let wheel_vel_y = v_lat + yaw_rate * wheel_pos_x;
+    let free_rolling_omega = wheel_vel_x / wheel_radius;
 
-    // Calculate wheel speed (assuming no longitudinal slip for now)
-    let wheel_speed = wheel_vel_x / wheel_radius;
+    if wheel_load < 1.0 {
+        return WheelForces {
+            fx: 0.0,
+            fy: 0.0,
+            slip_ratio: 0.0,
+            slip_angle: 0.0,
+            omega: free_rolling_omega,
+        };
+    }
 
-    // Slip ratio (longitudinal)
-    // The driven wheel speed is increased by engine torque (through the drivetrain)
-    // and decreased by brake force. The factor 100.0 is a simplified wheel inertia term.
-    let driven_wheel_speed =
-        wheel_speed + (drive_torque - brake_force * wheel_radius) / (100.0 * wheel_radius);
-
-    let slip_ratio = if v_long > MIN_SPEED_THRESHOLD {
-        // Normal driving: slip = (wheel_speed - ground_speed) / ground_speed
-        (driven_wheel_speed * wheel_radius - wheel_vel_x) / wheel_vel_x
-    } else {
-        // Launch from standstill: use optimal slip ratio to maximize tire force
-        // The Pacejka magic formula produces peak force at optimal slip (~0.1-0.15)
-        // Beyond that, force drops off (simulating wheel spin)
-        // So we target optimal slip when launching for maximum traction
-        let optimal_slip = 0.12; // Near optimal slip for peak traction
-        if drive_torque > 10.0 {
-            optimal_slip // Apply throttle = optimal slip for max force
-        } else if brake_force > 10.0 {
-            -optimal_slip // Braking = negative slip
-        } else {
-            0.0 // No input = no slip
-        }
-    };
+    // Peak available force (friction circle radius)
+    let d = grip_coefficient * wheel_load;
 
     // Slip angle: angle between where the wheel points and where its
     // contact patch actually travels.
     let slip_angle = if wheel_vel_x > MIN_SPEED_THRESHOLD {
-        (wheel_vel_y / wheel_vel_x).atan() - steer_angle
+        ((wheel_vel_y / wheel_vel_x).atan() - steer_angle).clamp(-0.5, 0.5)
     } else {
         0.0
     };
-
-    (slip_ratio.clamp(-1.0, 1.0), slip_angle.clamp(-0.5, 0.5))
-}
-
-/// Calculate tire forces using simplified Pacejka magic formula
-fn calculate_tire_forces(
-    wheel_load: f32,
-    slip_ratio: f32,
-    slip_angle: f32,
-    grip_coefficient: f32,
-    tire_config: &TireConfig,
-) -> (f32, f32) {
-    if wheel_load < 1.0 {
-        return (0.0, 0.0);
-    }
-
-    // Magic formula parameters (simplified). Slip inputs below are
-    // NORMALIZED (1.0 = the tire's optimal slip), so the stiffness factor B
-    // must place the curve's peak at exactly 1.0: sin(C·atan(B·x)) peaks at
-    // B·x = tan(π/(2C)), hence B = tan(π/(2C)). With a raw-slip-tuned B
-    // (the old 10.0) the peak landed at ~1% slip and launches ran at a
-    // third of the available grip.
-    let c_long = 1.9; // Shape factor
-    let b_long = (std::f32::consts::PI / (2.0 * c_long)).tan();
-    let d_long = grip_coefficient * wheel_load; // Peak force
-
-    let c_lat = 1.3;
-    let b_lat = (std::f32::consts::PI / (2.0 * c_lat)).tan();
-    let d_lat = grip_coefficient * wheel_load;
-
-    // Longitudinal force (Fx)
-    let slip_ratio_adjusted = slip_ratio / tire_config.optimal_slip_ratio;
-    let fx = d_long * (c_long * (b_long * slip_ratio_adjusted).atan()).sin();
 
     // Lateral force (Fy): RESTORING — a positive slip angle means the
     // contact patch travels left of where the wheel points, so the tire
     // pushes right (negative). With the sign the other way the car turns
     // against the steering input and spins.
-    let slip_angle_adjusted = slip_angle / tire_config.optimal_slip_angle_rad;
-    let fy = -d_lat * (c_lat * (b_lat * slip_angle_adjusted).atan()).sin();
+    let fy = -pacejka(
+        d,
+        PACEJKA_C_LAT,
+        slip_angle / tire_config.optimal_slip_angle_rad,
+    );
 
-    // Combined slip (friction circle)
-    let combined_force = (fx.powi(2) + fy.powi(2)).sqrt();
-    let max_force = d_long.max(d_lat);
+    // Net longitudinal torque on the wheel. Brakes oppose the direction of
+    // motion and produce nothing in the deadzone around standstill.
+    let brake_dir = if v_long > BRAKE_DEADZONE_SPEED_MPS {
+        1.0
+    } else if v_long < -BRAKE_DEADZONE_SPEED_MPS {
+        -1.0
+    } else {
+        0.0
+    };
+    let requested_force = (drive_torque - brake_force * wheel_radius * brake_dir) / wheel_radius;
 
-    if combined_force > max_force {
-        let scale = max_force / combined_force;
-        (fx * scale, fy * scale)
+    let (fx, slip_ratio) = if requested_force.abs() <= d {
+        // Stable region: the tire transmits exactly what is asked of it.
+        let normalized = pacejka_inverse(d, PACEJKA_C_LONG, requested_force);
+        (
+            requested_force,
+            (normalized * tire_config.optimal_slip_ratio).clamp(-1.0, 1.0),
+        )
+    } else if requested_force < 0.0 {
+        // Brake torque exceeds traction.
+        if abs_enabled {
+            // ABS holds the wheel at peak slip → peak braking force.
+            (-d, -tire_config.optimal_slip_ratio)
+        } else {
+            // Locked wheel: full negative slip, sliding-friction force from
+            // the falloff region of the magic formula.
+            let normalized = -1.0 / tire_config.optimal_slip_ratio;
+            (pacejka(d, PACEJKA_C_LONG, normalized), -1.0)
+        }
+    } else if tc_enabled {
+        // Traction control cuts drive torque to the traction limit: the
+        // wheel is held at peak slip and delivers peak force.
+        (d, tire_config.optimal_slip_ratio)
+    } else {
+        // Drive torque exceeds traction: wheelspin. The spin depth grades
+        // with the torque oversupply — a slight excess hovers just past the
+        // peak (little force lost), a large excess spins deep into the
+        // falloff region.
+        let overshoot = (requested_force / d).min(3.0);
+        let slip = (tire_config.optimal_slip_ratio * (1.25 + (overshoot - 1.0) * 1.5))
+            .min(WHEELSPIN_MAX_SLIP_RATIO);
+        let normalized = slip / tire_config.optimal_slip_ratio;
+        (pacejka(d, PACEJKA_C_LONG, normalized), slip)
+    };
+
+    // Combined slip: friction ellipse. Longitudinal and lateral demands
+    // share one grip budget; scale both down proportionally when the
+    // combined demand exceeds it.
+    let usage = ((fx / d).powi(2) + (fy / d).powi(2)).sqrt();
+    let (fx, fy) = if usage > 1.0 {
+        (fx / usage, fy / usage)
     } else {
         (fx, fy)
+    };
+
+    // Wheel angular velocity consistent with the slip solution.
+    let omega = free_rolling_omega * (1.0 + slip_ratio);
+
+    WheelForces {
+        fx,
+        fy,
+        slip_ratio,
+        slip_angle,
+        omega,
     }
 }
 
@@ -1747,6 +1898,23 @@ mod tests {
         TrackConfig::default()
     }
 
+    /// A 2km straight along +x through the origin, so a car spawned at
+    /// (0,0) is ON the track (the default oval's centerline is 100m away,
+    /// which silently puts dynamics tests on 0.4-grip grass).
+    fn create_straight_test_track() -> TrackConfig {
+        let mut track = TrackConfig::default();
+        track.centerline = (0..500)
+            .map(|i| TrackPoint {
+                x: i as f32 * 4.0,
+                distance_from_start_m: i as f32 * 4.0,
+                width_left_m: 10.0,
+                width_right_m: 10.0,
+                ..Default::default()
+            })
+            .collect();
+        track
+    }
+
     #[test]
     fn test_update_car_acceleration() {
         let mut state = create_test_car_state();
@@ -1805,6 +1973,244 @@ mod tests {
         assert!(
             state.speed_mps < initial_speed,
             "Speed should decrease from braking"
+        );
+    }
+
+    #[test]
+    fn test_full_braking_with_abs_achieves_near_peak_grip_decel() {
+        // With ABS the tires must brake near the friction limit (~1g for
+        // grip 1.0), not the ~0.5g of a locked wheel deep in the falloff.
+        let mut state = create_test_car_state();
+        state.vel_x = 60.0;
+        state.speed_mps = 60.0;
+        state.gear = 5;
+
+        let config = create_test_config();
+        assert!(config.abs_enabled);
+        let track = create_straight_test_track();
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 1.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+
+        // Measure the average decel between 55 and 25 m/s
+        let dt = 1.0 / 240.0;
+        let mut ticks_in_window = 0u32;
+        for _ in 0..240 * 6 {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+            if (25.0..55.0).contains(&state.speed_mps) {
+                ticks_in_window += 1;
+            }
+            if state.speed_mps < 25.0 {
+                break;
+            }
+        }
+        assert!(state.speed_mps < 25.0, "car should slow substantially");
+        let decel = (55.0 - 25.0) / (ticks_in_window as f32 * dt);
+        assert!(
+            decel > 8.0,
+            "ABS braking should reach near-peak decel (~1g), got {:.1} m/s² over {} ticks",
+            decel,
+            ticks_in_window
+        );
+    }
+
+    #[test]
+    fn test_braking_without_abs_locks_wheels() {
+        let mut state = create_test_car_state();
+        state.vel_x = 40.0;
+        state.speed_mps = 40.0;
+        state.gear = 4;
+
+        let mut config = create_test_config();
+        config.abs_enabled = false;
+        let track = create_straight_test_track();
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 1.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+
+        let dt = 1.0 / 240.0;
+        for _ in 0..24 {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+        }
+        // Full pedal without ABS exceeds front traction -> locked fronts
+        assert_eq!(
+            state.tires.front_left.slip_ratio, -1.0,
+            "front wheels should lock under full braking without ABS"
+        );
+        // A locked wheel stops rotating
+        assert_eq!(state.wheel_angular_vel[0], 0.0);
+    }
+
+    #[test]
+    fn test_partial_braking_stays_in_stable_region() {
+        let mut state = create_test_car_state();
+        state.vel_x = 40.0;
+        state.speed_mps = 40.0;
+        state.gear = 4;
+
+        let mut config = create_test_config();
+        config.abs_enabled = false;
+        let track = create_straight_test_track();
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 0.2,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+
+        let dt = 1.0 / 240.0;
+        for _ in 0..24 {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+        }
+        let slip = state.tires.front_left.slip_ratio;
+        assert!(
+            slip < 0.0 && slip > -config.tire_config.optimal_slip_ratio,
+            "light braking must stay below optimal slip, got {}",
+            slip
+        );
+    }
+
+    #[test]
+    fn test_launch_is_not_idle_limited() {
+        // From standstill at full throttle the clutch-slip launch model must
+        // deliver strong acceleration (engine at launch RPM, traction-limited
+        // rather than idle-torque-limited): 0-100 km/h in a plausible time
+        // for a 300kW/1200kg car.
+        let mut state = create_test_car_state();
+        let config = create_test_config();
+        let track = create_straight_test_track();
+
+        let dt = 1.0 / 240.0;
+        let mut ticks_to_100 = None;
+        for tick in 0..240 * 10 {
+            // Simple AI-style shift logic
+            let gear = if state.engine_rpm > 7000.0 && state.gear < 6 {
+                Some(state.gear + 1)
+            } else {
+                None
+            };
+            let input = PlayerInputData {
+                throttle: 1.0,
+                brake: 0.0,
+                steering: 0.0,
+                gear,
+                clutch: Some(1.0),
+            };
+            update_car_3d(&mut state, &config, &input, &track, dt);
+            if state.speed_mps >= 27.8 {
+                ticks_to_100 = Some(tick);
+                break;
+            }
+        }
+        let ticks = ticks_to_100.expect("car must reach 100 km/h within 10s");
+        let secs = ticks as f32 / 240.0;
+        assert!(
+            secs < 7.0,
+            "0-100 km/h should take well under 7s for this car, took {:.2}s",
+            secs
+        );
+    }
+
+    #[test]
+    fn test_combined_slip_reduces_lateral_force_under_braking() {
+        // Friction ellipse: heavy braking must consume grip that would
+        // otherwise be available laterally.
+        let tire = TireConfig::default();
+        let braking = solve_wheel_forces(
+            30.0, 2.0, 0.0, 0.0, 1.35, 0.0, 6000.0, 0.33, 3000.0, 1.0, &tire, true, true,
+        );
+        let coasting = solve_wheel_forces(
+            30.0, 2.0, 0.0, 0.0, 1.35, 0.0, 0.0, 0.33, 3000.0, 1.0, &tire, true, true,
+        );
+        assert!(
+            braking.fy.abs() < coasting.fy.abs() * 0.8,
+            "lateral force under heavy braking ({:.0}N) must be well below \
+             the free-rolling value ({:.0}N)",
+            braking.fy,
+            coasting.fy
+        );
+    }
+
+    #[test]
+    fn test_excess_drive_torque_causes_wheelspin() {
+        let tire = TireConfig::default();
+        // 5000 Nm on one wheel with 3000 N load: way past traction
+        let spinning = solve_wheel_forces(
+            5.0, 0.0, 0.0, 0.0, -1.35, 5000.0, 0.0, 0.33, 3000.0, 1.0, &tire, true, false,
+        );
+        assert!(
+            spinning.slip_ratio > 0.3,
+            "massive torque oversupply should spin deep, got {}",
+            spinning.slip_ratio
+        );
+        // Spun-up wheel rotates faster than free rolling
+        assert!(spinning.omega > 5.0 / 0.33);
+        // Force in the falloff region is below peak
+        assert!(spinning.fx < 3000.0);
+        assert!(spinning.fx > 0.0);
+    }
+
+    #[test]
+    fn test_hybrid_assist_drains_battery_and_regen_charges() {
+        let mut state = create_test_car_state();
+        state.vel_x = 30.0;
+        state.speed_mps = 30.0;
+        state.gear = 3;
+
+        let mut config = create_test_config();
+        config.hybrid = HybridConfig {
+            enabled: true,
+            battery_capacity_kwh: 1.0,
+            battery_max_discharge_kw: 120.0,
+            battery_max_charge_kw: 100.0,
+            motor_max_torque_nm: 200.0,
+            motor_max_power_kw: 120.0,
+            regen_max_power_kw: 100.0,
+        };
+        let track = create_straight_test_track();
+        let dt = 1.0 / 240.0;
+
+        let throttle_input = PlayerInputData {
+            throttle: 1.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+        for _ in 0..240 {
+            update_car_3d(&mut state, &config, &throttle_input, &track, dt);
+        }
+        let after_assist = state.hybrid_battery_kwh;
+        assert!(
+            after_assist < 1.0,
+            "assist must drain the battery, got {}",
+            after_assist
+        );
+
+        let brake_input = PlayerInputData {
+            throttle: 0.0,
+            brake: 1.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+        for _ in 0..120 {
+            update_car_3d(&mut state, &config, &brake_input, &track, dt);
+        }
+        assert!(
+            state.hybrid_battery_kwh > after_assist,
+            "regen must charge the battery ({} -> {})",
+            after_assist,
+            state.hybrid_battery_kwh
         );
     }
 
@@ -2037,15 +2443,57 @@ mod tests {
         let tire_config = TireConfig::default();
         let load = 3000.0; // 3000N wheel load
 
-        // Test longitudinal force (acceleration)
-        let (fx, fy) = calculate_tire_forces(load, 0.05, 0.0, 1.0, &tire_config);
-        assert!(fx.abs() > 0.0, "Should produce longitudinal force");
-        assert!(fy.abs() < 0.1, "Should produce minimal lateral force");
+        // Drive torque within traction: the tire transmits the request
+        let driving = solve_wheel_forces(
+            20.0,
+            0.0,
+            0.0,
+            0.0,
+            -1.35,
+            300.0,
+            0.0,
+            0.33,
+            load,
+            1.0,
+            &tire_config,
+            true,
+            true,
+        );
+        assert!(
+            (driving.fx - 300.0 / 0.33).abs() < 1.0,
+            "stable-region tire must transmit the requested force, got {}",
+            driving.fx
+        );
+        assert!(driving.slip_ratio > 0.0);
+        assert!(
+            driving.fy.abs() < 1.0,
+            "no lateral force when tracking straight"
+        );
 
-        // Test lateral force (cornering)
-        let (fx, fy) = calculate_tire_forces(load, 0.0, 0.1, 1.0, &tire_config);
-        assert!(fx.abs() < 0.1, "Should produce minimal longitudinal force");
-        assert!(fy.abs() > 0.0, "Should produce lateral force");
+        // Pure cornering: slip angle produces restoring lateral force
+        let cornering = solve_wheel_forces(
+            20.0,
+            2.0,
+            0.0,
+            0.0,
+            1.35,
+            0.0,
+            0.0,
+            0.33,
+            load,
+            1.0,
+            &tire_config,
+            true,
+            true,
+        );
+        assert!(
+            cornering.fx.abs() < 1.0,
+            "no longitudinal force when coasting"
+        );
+        assert!(
+            cornering.fy < 0.0,
+            "positive slip angle must produce restoring (negative) lateral force"
+        );
     }
 
     #[test]

@@ -15,7 +15,9 @@ width_m = 2.0
 max_engine_force_n = 8500.0
 max_brake_force_n = 15500.0
 drag_coefficient = 0.34
-grip_coefficient = 1.02
+# Retuned after the physically-correct normal-load + slip-model overhaul
+# (cars lost the accidental ~2x grip): GT3 slick territory.
+grip_coefficient = 1.18
 max_steering_angle_rad = 0.51
 wheelbase_m = 2.65
 

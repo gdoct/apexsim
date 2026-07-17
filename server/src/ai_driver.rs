@@ -225,61 +225,83 @@ impl<'a> AiDriverController<'a> {
         let line = self.racing_line();
         let line_length = self.line_length(&line);
         // Map centerline progress onto the (generally slightly different
-        // length) racing line.
-        let d_line = if track_length > 0.0 {
+        // length) racing line. The proportional estimate can be locally off
+        // by tens of meters (the raceline is shorter through corners), which
+        // shifts every braking point — refine it by projecting the car's
+        // position onto the line near the estimate.
+        let d_est = if track_length > 0.0 {
             (state.track_progress / track_length * line_length).rem_euclid(line_length.max(1e-3))
         } else {
             0.0
         };
+        let d_line = self.refine_line_distance(&line, d_est, state.pos_x, state.pos_y);
 
         // Straight-line speed cap scales with skill:
-        // 70 skill = ~40 m/s (144 km/h), 110 skill = ~60 m/s (216 km/h)
-        let speed_cap = 40.0 + (skill_factor * 20.0);
+        // 70 skill = ~52 m/s (187 km/h), 110 skill = ~80 m/s (288 km/h)
+        let speed_cap = 52.0 + (skill_factor * 28.0);
 
         // Curvature-based corner speed planning
         let target_speed = self.plan_target_speed(state, &line, d_line, speed_cap, skill_factor);
 
         // Consistency variation: deterministic noise, amplitude set by the
         // profile's randomness_scale (less consistent drivers wander more).
+        // Asymmetric: the slow side varies freely (lap-time spread), but the
+        // fast side is damped — overshooting a *planned corner speed* sends
+        // low-skill drivers straight off the road.
         let consistency_noise = self.get_consistency_noise(current_tick);
+        let consistency_noise = if consistency_noise > 0.0 {
+            consistency_noise * 0.3
+        } else {
+            consistency_noise
+        };
         let target_speed = target_speed
             * (1.0
                 + consistency_noise
                     * (1.0 - self.profile.consistency)
                     * self.profile.randomness_scale);
 
-        // Off-track recovery: slow down to regain the track
-        let target_speed = if state.is_on_track {
-            target_speed
-        } else {
-            target_speed.min(20.0)
-        };
+        let mut target_speed = target_speed;
 
-        // Speed-scaled look-ahead for steering. The 25m floor matters: a
-        // short look-ahead at launch turns a small lateral offset into a
-        // near-full-lock steering command that drives the car off the road.
-        let look_ahead = (8.0 + state.speed_mps * 0.55).clamp(25.0, 60.0);
+        // Speed-scaled look-ahead for steering. Too long a look-ahead cuts
+        // straight through chicanes (the car aims past the apex and runs
+        // off); too short a look-ahead at launch turns a small lateral
+        // offset into near-full-lock steering. 15m floor + speed scaling.
+        let look_ahead = (6.0 + state.speed_mps * 0.6).clamp(15.0, 70.0);
         let (mut tx, mut ty) = self.sample_line(&line, d_line + look_ahead);
 
         // Precision: low-precision drivers track the (safer, wider)
-        // centerline more than the optimal raceline.
-        if matches!(line, RacingLineRef::Raceline { .. }) && self.profile.precision < 1.0 {
+        // centerline more than the optimal raceline. Even perfect drivers
+        // are capped below 1.0 — the raceline runs right at the track edge,
+        // and tracking it with any control error clips the grass, so a
+        // small permanent pull toward the centerline buys an edge margin.
+        if matches!(line, RacingLineRef::Raceline { .. }) {
+            const MAX_LINE_PRECISION: f32 = 0.85;
+            let precision = self.profile.precision.min(MAX_LINE_PRECISION);
             let d_center = (state.track_progress
                 + look_ahead * track_length / line_length.max(1.0))
             .rem_euclid(track_length.max(1e-3));
             let center = self.find_nearest_centerline_point(d_center);
-            tx = center.x + (tx - center.x) * self.profile.precision;
-            ty = center.y + (ty - center.y) * self.profile.precision;
+            tx = center.x + (tx - center.x) * precision;
+            ty = center.y + (ty - center.y) * precision;
         }
 
-        // Off-track recovery: aim at the centerline ahead (the middle of the
-        // road), not the raceline — chasing an optimal line from the grass
-        // leaves the car orbiting a target it can never rejoin.
+        // Off-track recovery: aim at the centerline ahead (the middle of
+        // the road), not the raceline — chasing an optimal line from the
+        // grass leaves the car orbiting a target it can never rejoin. Speed
+        // is set from the heading error: when pointing away from the target
+        // slow right down and rotate (low-grip grass makes the turn radius
+        // at speed larger than the distance to the road — the source of
+        // endless orbiting), then drive back at a moderate pace.
         if !state.is_on_track {
-            let d_center = (state.track_progress + look_ahead).rem_euclid(track_length.max(1e-3));
+            let d_center = (state.track_progress + 20.0).rem_euclid(track_length.max(1e-3));
             let center = self.find_nearest_centerline_point(d_center);
             tx = center.x;
             ty = center.y;
+
+            let heading_err = self
+                .normalize_angle((ty - state.pos_y).atan2(tx - state.pos_x) - state.yaw_rad)
+                .abs();
+            target_speed = if heading_err > 0.9 { 4.0 } else { 12.0 };
         }
 
         let steering = self.calculate_steering(state, tx, ty, skill_factor);
@@ -306,19 +328,24 @@ impl<'a> AiDriverController<'a> {
         speed_cap: f32,
         skill_factor: f32,
     ) -> f32 {
-        // Lateral acceleration budget: ~0.55g (skill 70) to ~0.9g (skill
-        // 110), inside the ~1g tire grip of the default car.
-        let a_lat_max = (0.55 + 0.35 * skill_factor) * 9.81;
+        // Lateral acceleration budget: ~0.7g (skill 70) to ~0.98g (skill
+        // 110), inside the ~1g tire grip of the default car. The corner-speed
+        // margin below keeps the plan off the exact limit so imperfect
+        // steering doesn't turn every apex into an excursion.
+        let a_lat_max = (0.65 + 0.25 * skill_factor) * 9.81;
         // Planned braking decel; higher aggressiveness plans with harder
         // braking, i.e. brakes later. Kept below real braking capability so
         // the plan is always achievable.
-        let a_brake = (0.55 + 0.25 * skill_factor)
+        let a_brake = (0.62 + 0.28 * skill_factor)
             * 9.81
             * (0.85 + 0.3 * self.profile.aggressiveness.clamp(0.0, 1.0));
 
-        const STEP_M: f32 = 10.0;
-        let window = state.speed_mps * state.speed_mps / (2.0 * a_brake) + 30.0;
-        let n_samples = ((window / STEP_M).ceil() as usize).clamp(2, 40);
+        // Finer sampling and a longer window than the braking distance alone:
+        // coarse steps miss tight apexes, which is where corner-entry speed
+        // errors (and off-track excursions) come from.
+        const STEP_M: f32 = 6.0;
+        let window = state.speed_mps * state.speed_mps / (2.0 * a_brake) + 40.0;
+        let n_samples = ((window / STEP_M).ceil() as usize).clamp(2, 80);
 
         let mut target = speed_cap;
         let mut prev = self.sample_line(line, d_line);
@@ -337,10 +364,16 @@ impl<'a> AiDriverController<'a> {
                 let angle = cross.atan2(dot).abs();
                 let kappa = angle / (0.5 * (len1 + len2));
                 if kappa > 1e-4 {
-                    let v_corner = (a_lat_max / kappa).sqrt();
+                    // 3% planning margin below the lateral budget
+                    let v_corner = (a_lat_max / kappa).sqrt() * 0.97;
                     if v_corner < speed_cap {
+                        // Trail-brake release: the friction ellipse leaves a
+                        // hard-braking tire no lateral grip, so the usable
+                        // decel tapers to zero approaching the corner —
+                        // braking must be (nearly) done by turn-in.
                         let s = j as f32 * STEP_M;
-                        let allowed = (v_corner * v_corner + 2.0 * a_brake * s).sqrt();
+                        let a_eff = a_brake * (s / (s + 40.0));
+                        let allowed = (v_corner * v_corner + 2.0 * a_eff * s).sqrt();
                         target = target.min(allowed);
                     }
                 }
@@ -350,6 +383,28 @@ impl<'a> AiDriverController<'a> {
             cur = next;
         }
         target
+    }
+
+    /// Refine a proportional line-distance estimate by finding the sample
+    /// within ±60m of the estimate that is closest to the car's position.
+    /// Corrects the local drift between centerline progress and raceline
+    /// arc length, which otherwise shifts braking points by the same error.
+    fn refine_line_distance(&self, line: &RacingLineRef<'a>, d_est: f32, x: f32, y: f32) -> f32 {
+        const SEARCH_HALF_WINDOW: f32 = 150.0;
+        const SEARCH_STEP: f32 = 3.0;
+        let mut best_d = d_est;
+        let mut best_dist2 = f32::MAX;
+        let mut d = d_est - SEARCH_HALF_WINDOW;
+        while d <= d_est + SEARCH_HALF_WINDOW {
+            let (px, py) = self.sample_line(line, d);
+            let dist2 = (px - x) * (px - x) + (py - y) * (py - y);
+            if dist2 < best_dist2 {
+                best_dist2 = dist2;
+                best_d = d;
+            }
+            d += SEARCH_STEP;
+        }
+        best_d
     }
 
     /// The racing line to follow: the raceline when present with valid
@@ -522,8 +577,10 @@ impl<'a> AiDriverController<'a> {
             let throttle = (0.35 + speed_diff * 0.12).clamp(0.3, 0.75 + 0.25 * skill_factor);
             (throttle, 0.0)
         } else if speed_diff <= -1.5 {
-            // Brake proportionally to the overshoot
-            let brake = ((-speed_diff - 1.5) * 0.15).clamp(0.1, 0.65 + 0.35 * skill_factor);
+            // Brake firmly: the planner already discounted the braking
+            // distance, so an overshoot must be corrected quickly or the car
+            // arrives at the corner too fast.
+            let brake = (0.25 + (-speed_diff - 1.5) * 0.35).clamp(0.25, 0.7 + 0.3 * skill_factor);
             (0.0, brake)
         } else {
             // Hold speed

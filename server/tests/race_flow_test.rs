@@ -68,6 +68,8 @@ fn test_race_flow_countdown_to_finish_monza() {
     // Cap at 30 minutes of simulated time
     let max_ticks = 240u32 * 1800;
     let mut transitioned_to_race = false;
+    let mut race_ticks = 0u64;
+    let mut off_track_ticks: HashMap<PlayerId, u64> = HashMap::new();
 
     for _ in 0..max_ticks {
         let mut inputs = HashMap::new();
@@ -78,6 +80,12 @@ fn test_race_flow_countdown_to_finish_monza() {
 
         if gs.session.game_mode == GameMode::Race {
             transitioned_to_race = true;
+            race_ticks += 1;
+            for (id, state) in &gs.session.participants {
+                if !state.is_on_track {
+                    *off_track_ticks.entry(*id).or_default() += 1;
+                }
+            }
         }
         if gs.session.state == SessionState::Finished {
             break;
@@ -130,23 +138,36 @@ fn test_race_flow_countdown_to_finish_monza() {
     for (id, state) in &gs.session.participants {
         let last = state.last_lap_time_ms.expect("finisher has a last lap");
         let best = state.best_lap_time_ms.expect("finisher has a best lap");
+        let off_pct = *off_track_ticks.get(id).unwrap_or(&0) as f64 / race_ticks.max(1) as f64;
         println!(
-            "  P{} {}: laps={} last={} best={}",
+            "  P{} {}: laps={} last={} best={} off_track={:.1}%",
             state.finish_position.unwrap(),
             id,
             state.current_lap - 1,
             format_lap_time(last),
-            format_lap_time(best)
+            format_lap_time(best),
+            off_pct * 100.0
         );
         for lap_ms in [last, best] {
-            // Wide plausibility bounds: current AI pace is conservative
-            // (~3:50-4:10 with occasional off-track excursions); tightening
-            // the upper bound is part of the AI pace-tuning follow-up.
+            // Plausibility bounds for the current AI pace envelope
+            // (~2:45-3:10 after the pace-tuning pass, down from ~3:50-4:30;
+            // real-world reference is ~1:21, still out of reach for the
+            // default road car + AI).
             assert!(
-                (80_000..=320_000).contains(&lap_ms),
-                "Monza lap time should be 80s-320s, got {}ms",
+                (80_000..=230_000).contains(&lap_ms),
+                "Monza lap time should be 80s-230s, got {}ms",
                 lap_ms
             );
         }
+        // Excursions cost time but must stay bounded. Racing in a pack
+        // without a tactical avoidance layer (still missing) causes
+        // contact-induced excursions on top of the ~solo baseline (fastest
+        // car ~16-17%); 30% is the regression guard for the whole field.
+        assert!(
+            off_pct < 0.30,
+            "AI {} spent {:.1}% of the race off track (must be <30%)",
+            id,
+            off_pct * 100.0
+        );
     }
 }

@@ -64,10 +64,14 @@ pub struct CarConfig {
     #[serde(default)]
     pub hybrid: HybridConfig,
 
-    // Braking
+    // Braking / driver aids
     pub max_brake_force_n: f32,
     pub brake_bias_front: f32, // 0.0-1.0, percentage of braking on front
     pub abs_enabled: bool,
+    /// Traction control: caps drive torque at the traction limit instead of
+    /// letting excess torque spin the wheels into the grip falloff.
+    #[serde(default = "default_traction_control")]
+    pub traction_control_enabled: bool,
 
     // Aerodynamics
     pub drag_coefficient: f32,
@@ -344,10 +348,11 @@ impl Default for CarConfig {
             fuel: FuelConfig::default(),
             hybrid: HybridConfig::default(),
 
-            // Braking
+            // Braking / driver aids
             max_brake_force_n: 25000.0,
             brake_bias_front: 0.6,
             abs_enabled: true,
+            traction_control_enabled: true,
 
             // Aerodynamics
             drag_coefficient: 0.32,
@@ -780,6 +785,18 @@ pub struct CarState {
     pub weight_rear_left_n: f32,
     pub weight_rear_right_n: f32,
 
+    /// Per-wheel angular velocity (rad/s), order FL/FR/RL/RR. Consistent
+    /// with each wheel's slip solution (spun-up under wheelspin, zero when
+    /// locked).
+    #[serde(default)]
+    pub wheel_angular_vel: [f32; 4],
+
+    /// Hybrid battery state of charge in kWh. Negative = not yet
+    /// initialized; physics seeds it from the car's `[hybrid]` config on
+    /// first tick.
+    #[serde(default = "default_battery_uninitialized")]
+    pub hybrid_battery_kwh: f32,
+
     // Aerodynamics
     pub downforce_front_n: f32,
     pub downforce_rear_n: f32,
@@ -868,12 +885,23 @@ impl CarState {
             weight_rear_left_n: 0.0,
             weight_rear_right_n: 0.0,
 
+            wheel_angular_vel: [0.0; 4],
+            hybrid_battery_kwh: default_battery_uninitialized(),
+
             // Aerodynamics (will be calculated)
             downforce_front_n: 0.0,
             downforce_rear_n: 0.0,
             drag_force_n: 0.0,
         }
     }
+}
+
+fn default_battery_uninitialized() -> f32 {
+    -1.0
+}
+
+fn default_traction_control() -> bool {
+    true
 }
 
 // --- Race Session State (Server Authoritative) ---
