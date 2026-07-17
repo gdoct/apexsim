@@ -35,8 +35,7 @@ jobs:
         run: cargo build --all-targets
 
       - name: Clippy
-        # TODO: ratchet to -D warnings once the existing warnings are burned down
-        run: cargo clippy --all-targets
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Test
         run: cargo test

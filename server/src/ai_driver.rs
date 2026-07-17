@@ -96,6 +96,7 @@ impl AiDriverProfile {
     }
 
     /// Create a profile with full customization.
+    #[allow(clippy::too_many_arguments)]
     pub fn with_attributes(
         name: impl Into<String>,
         skill_level: u8,
@@ -208,7 +209,7 @@ impl<'a> AiDriverController<'a> {
         let interval = ((self.profile.reaction_time_ms as u64 * tick_rate_hz as u64).div_ceil(1000)
             as u32)
             .max(1);
-        if current_tick % interval != 0 {
+        if !current_tick.is_multiple_of(interval) {
             return PlayerInputData {
                 throttle: state.throttle_input,
                 brake: state.brake_input,
@@ -505,8 +506,8 @@ impl<'a> AiDriverController<'a> {
     fn get_consistency_noise(&self, tick: u32) -> f32 {
         // Simple pseudo-random noise based on tick and driver ID
         let seed = (tick as u64).wrapping_mul(self.profile.id.as_u128() as u64);
-        let noise = ((seed % 1000) as f32 / 500.0) - 1.0; // -1.0 to 1.0
-        noise
+        // -1.0 to 1.0
+        ((seed % 1000) as f32 / 500.0) - 1.0
     }
 
     /// Find the nearest centerline point to the given progress distance.

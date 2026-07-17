@@ -243,7 +243,7 @@ impl TrackLoader {
 
     fn load_or_generate_procedural_world(
         track_name: &str,
-        centerline_points: &mut Vec<TrackPoint>,
+        centerline_points: &mut [TrackPoint],
         metadata: &TrackMetadata,
         track_path: Option<&Path>,
     ) -> Option<crate::procgen::ProceduralWorldData> {
@@ -274,7 +274,7 @@ impl TrackLoader {
 
     pub fn generate_procedural_world_for_track(
         track_name: &str,
-        centerline_points: &mut Vec<TrackPoint>,
+        centerline_points: &mut [TrackPoint],
         metadata: &TrackMetadata,
     ) -> Option<crate::procgen::ProceduralWorldData> {
         // This function is called during --generate-terrain mode
@@ -558,11 +558,9 @@ impl SplineInterpolator {
                 if dist_2d > 0.001 {
                     points[i].slope_rad = dz.atan2(dist_2d);
                 }
-            } else {
-                if i > 0 {
-                    points[i].heading_rad = points[i - 1].heading_rad;
-                    points[i].slope_rad = points[i - 1].slope_rad;
-                }
+            } else if i > 0 {
+                points[i].heading_rad = points[i - 1].heading_rad;
+                points[i].slope_rad = points[i - 1].slope_rad;
             }
         }
     }

@@ -150,12 +150,12 @@ pub(crate) async fn run_game_loop(
         }
 
         // Cleanup stale connections every second and handle their players.
-        if tick_count % tick_rate as u64 == 0 {
+        if tick_count.is_multiple_of(tick_rate as u64) {
             lifecycle::cleanup_stale_connections(&ctx).await;
         }
 
         // Broadcast lobby state every 2 seconds.
-        if tick_count % (tick_rate as u64 * 2) == 0 {
+        if tick_count.is_multiple_of(tick_rate as u64 * 2) {
             if let Err(e) = broadcast::broadcast_lobby_state(&ctx).await {
                 warn!("Failed to broadcast lobby state: {:?}", e);
             }

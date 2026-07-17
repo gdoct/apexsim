@@ -46,7 +46,7 @@ pub(crate) async fn tick_sessions(
     tick_count: u64,
 ) -> TickOutput {
     let tick_rate = ctx.tick_rate;
-    let telemetry_tick = tick_count % ctx.telemetry_divisor == 0;
+    let telemetry_tick = tick_count.is_multiple_of(ctx.telemetry_divisor);
     let mut state_write = ctx.state.write().await;
     // Split the borrow so `sessions` can be iterated mutably while the
     // lobby (a disjoint field) is queried for player names.
@@ -299,7 +299,7 @@ pub(crate) async fn tick_sessions(
     }
 
     // Periodic cleanup of orphaned lobby sessions (every 5 seconds)
-    if tick_count % (tick_rate as u64 * 5) == 0 {
+    if tick_count.is_multiple_of(tick_rate as u64 * 5) {
         let lobby_session_ids: Vec<SessionId> = state.lobby.get_all_session_ids().await;
         for session_id in lobby_session_ids {
             if !state.sessions.contains_key(&session_id) {
@@ -338,7 +338,7 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
     });
 
     // Refresh gauges once per second
-    if tick_count % tick_rate as u64 == 0 {
+    if tick_count.is_multiple_of(tick_rate as u64) {
         ctx.metrics.active_sessions.store(
             state_write.sessions.len() as u64,
             std::sync::atomic::Ordering::Relaxed,
