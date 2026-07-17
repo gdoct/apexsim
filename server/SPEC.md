@@ -1,8 +1,8 @@
-## SimRacing Server Backend Specification (Rust) - Initial Phase
+## SimRacing Server Backend Specification (Rust)
 
-> **Implementation status (2026-07):** this spec is partially aspirational. Implemented: data model, MessagePack messages, TCP+TLS transport with heartbeats, 4-wheel 3D physics (the spec's §4.6 still describes the older 2D bicycle model), AABB collisions, AI drivers, replays, health probes. **Not implemented:** UDP game traffic (telemetry/input currently flow over TCP), token validation, rate limiting (§6), JSON file logging (§7), `catch_unwind` panic policy (§8), race templates/rotation/scheduling (§9), content hot-reload (§10), SQLite persistence (§11), Prometheus metrics (§12), `APEXSIM_` env overrides (§5). A reconciliation pass is planned.
+> **Implementation status (2026-07):** this spec reflects the implemented server. §1–§8 and §12 describe shipped behavior (protocol v2 with UDP game traffic, token auth, rate limiting, JSON file logging, per-session panic boundary, Prometheus metrics, `APEXSIM_` env overrides). §9 (race templates/rotation/scheduling), §10 (content hot-reload) and §11 (SQLite persistence) are **deferred post-initial features** and remain aspirational.
 
-**Project Goal:** Establish a performant, authoritative backend server in Rust capable of managing race sessions, processing player input, running a basic 2D physics simulation, and distributing telemetry to clients at 240Hz. Designed with future extensibility and modding in mind.
+**Project Goal:** Establish a performant, authoritative backend server in Rust capable of managing race sessions, processing player input, running a 4-wheel 3D physics simulation, and distributing telemetry to clients. Designed with future extensibility and modding in mind.
 
 **Language:** Rust
 **Target Performance:** 240Hz simulation loop, supporting up to 16 concurrent players per session.
@@ -11,31 +11,36 @@
 
 ### 1. High-Level Architecture
 
-The server is a single Rust application running as a standalone async process using `tokio`. It communicates with clients over UDP for high-frequency game state (telemetry, input) and TCP for reliable, less frequent communication (lobby, session setup, auth).
+The server is a single Rust application running as a standalone async process using `tokio`. It communicates with clients over UDP for high-frequency game state (telemetry out, player input in — bound to the connection via a token handshake) and TCP+TLS for reliable, less frequent communication (lobby, session setup, auth, roster updates). Clients that never complete the UDP handshake transparently fall back to receiving telemetry over TCP.
 
-**Coordinate System:** Right-handed 2D. Origin at track start/finish line center. +X is track direction at start, +Y is left of track direction. Angles (yaw) measured counter-clockwise from +X axis.
+**Coordinate System:** Right-handed 3D. Origin at track start/finish line center. +X is track direction at start, +Y is left of track direction, +Z is up (elevation). Angles (yaw) measured counter-clockwise from +X axis.
 
-**Core Modules:**
+**Core Modules (as implemented):**
 
-*   **`main.rs`:** Entry point, CLI parsing, config loading, server bootstrap.
-*   **`config`:** Configuration loading and validation from TOML files.
-*   **`network`:** UDP/TCP connections, message serialization via `MessagePack`, connection-to-player mapping.
-*   **`lobby`:** Manages players not currently in a race session.
-*   **`session_manager`:** Manages active and pending race sessions.
-*   **`game_session`:** Contains the state and logic for a single race session (physics, race rules).
-*   **`physics`:** The core 2D physics engine with simple AABB collision.
+*   **`main.rs`:** Entry point, CLI parsing, config loading, server bootstrap, graceful SIGTERM/SIGINT shutdown.
+*   **`server`:** `run_server()` entry point (used by the binary and the in-process test harness), `ServerState`, content loading.
+*   **`config`:** Configuration loading/validation from TOML with `APEXSIM_*` env overrides.
+*   **`network`:** Message definitions (protocol v2), MessagePack serialization, message priorities.
+*   **`transport`:** TCP+TLS/UDP IO, token auth, UDP handshake binding, per-connection rate limiting, backpressure with priority-based drops.
+*   **`game_loop/`:** The 240Hz tick orchestrator, decomposed into `dispatch` (message handlers), `tick` (session ticking + panic boundary), `broadcast` (telemetry/roster fan-out), `lifecycle` (unified disconnect).
+*   **`lobby`:** Matchmaking and players not currently in a race session (single lock).
+*   **`game_session`:** State and logic for a single race session (game modes, rosters, race rules).
+*   **`physics`:** 4-wheel 3D physics engine with yaw-aware OBB (SAT) collisions.
+*   **`ai_driver`:** Deterministic AI drivers (raceline planning + low-level control).
 *   **`data`:** Centralized definition of all core data structures.
-*   **`templates`:** Game template loading and rotation logic.
-*   **`content`:** Hot-reload watcher for track/car definitions.
-*   **`persistence`:** SQLite access layer for templates, sessions, telemetry.
-*   **`auth`:** Token validation stub and connection authentication.
-*   **`health`:** Health check endpoint and metrics collection.
+*   **`car_loader` / `track_loader`:** Moddable content loading with validation (TOML cars, YAML/JSON tracks, adaptive-density Catmull-Rom centerline splines).
+*   **`replay`:** Full-rate telemetry recording to disk per racing session.
+*   **`health` / `metrics`:** HTTP health probes and Prometheus metrics.
+
+*Future modules (deferred, see §9–§11): `templates`, `content` hot-reload watcher, `persistence`.*
 
 ---
 
 ### 2. Core Data Structures (`data.rs`)
 
 These structures define the state and configuration of players, cars, tracks, and race sessions.
+
+> The sketch below is the original 2D design kept for historical context; the implemented `data.rs` is the source of truth and has since grown 3D state (elevation, pitch/roll, per-wheel loads and angular velocities, suspension/tire/damage telemetry, fuel and hybrid battery state), a full moddable `CarConfig` (engine/transmission/differential/suspension/tire/hybrid sections), `SessionKind`/`GameMode` enums, and `ConnectionId = Uuid`.
 
 ```rust
 use uuid::Uuid;
@@ -153,37 +158,47 @@ pub struct RaceSession {
 
 ### 3. Network Message Formats (`network.rs`)
 
-Packets are serialized with `MessagePack` (compact binary, serde-compatible). The server maintains a `ConnectionId → PlayerId` mapping established during TCP auth; UDP packets do not include player/session IDs—identity is derived from source address.
+Packets are serialized with `MessagePack` (compact binary, serde-compatible). TCP messages are length-prefixed (`[4-byte big-endian length][MessagePack data]`); UDP uses one message per datagram. Lobby/control messages use the named-field encoding (`rmp_serde::to_vec_named`); high-frequency telemetry uses the compact positional encoding (`rmp_serde::to_vec`, no field names) since protocol v2.
 
-**Connection Flow:**
+**Protocol versioning:** `PROTOCOL_VERSION` (currently **2**) is carried in `Authenticate`; the server rejects any other version (including pre-versioning clients, which deserialize to 0) with a descriptive `AuthFailure`.
+
+**Connection Flow (protocol v2):**
 1. Client opens TCP connection, completes TLS handshake
-2. Client sends `Authenticate` with token and desired name
-3. Server responds `AuthSuccess` with assigned `PlayerId`
-4. Server records `(socket_addr_hash) → PlayerId` mapping
-5. Client opens UDP socket from same source IP; server correlates via IP
-6. Client sends periodic `Heartbeat` (every 1s); server drops connection after 5s silence
+2. Client sends `Authenticate` with token, desired name and `protocol_version`
+3. Server validates version + token; responds `AuthSuccess` with the assigned `PlayerId`, a one-time `udp_token` and the server's `udp_port`
+4. Client sends `UdpHandshake { token }` over UDP (re-sent until acked — datagrams may be lost); the server binds the datagram's source address to the connection and replies `UdpHandshakeAck` over UDP
+5. From then on `PlayerInput` is accepted over UDP from that address (identity derived from the bound source address; unbound addresses are dropped) and telemetry is sent over UDP; TCP remains the reliable channel for everything else, and the telemetry fallback for clients without a UDP binding
+6. Client sends periodic `Heartbeat` (every 1s) over TCP; server drops the connection after 5s silence (30s while in the lobby)
 
 #### 3.1. Client to Server
 
 ```rust
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ClientMessage {
     // TCP - Auth & Lobby
-    Authenticate { token: String, player_name: String },
+    Authenticate { token: String, player_name: String, protocol_version: u8 },
     Heartbeat { client_tick: u32 },
     SelectCar { car_config_id: CarConfigId },
-    CreateSession { track_config_id: TrackConfigId, max_players: u8, ai_count: u8, lap_limit: u8 },
+    RequestLobbyState,
+    CreateSession { track_config_id: TrackConfigId, max_players: u8, ai_count: u8, lap_limit: u8, session_kind: SessionKind },
     JoinSession { session_id: SessionId },
+    JoinAsSpectator { session_id: SessionId },
     LeaveSession,
     StartSession, // Host only, starts countdown
+    SetGameMode { mode: GameMode },
+    StartCountdown { countdown_seconds: u16, next_mode: GameMode },
     Disconnect,
 
-    // UDP - High frequency (no IDs needed, derived from connection)
+    // UDP - binds the sender's address to the connection that owns `token`
+    UdpHandshake { token: String },
+
+    // UDP - High frequency (no IDs needed, derived from bound source address)
     PlayerInput {
-        server_tick_ack: u32, // Last server tick client received (for latency calc)
-        throttle: f32,        // 0.0 to 1.0
-        brake: f32,           // 0.0 to 1.0
-        steering: f32,        // -1.0 (left) to 1.0 (right)
+        server_tick_ack: u32,  // Last server tick client received (for latency calc)
+        throttle: f32,         // 0.0 to 1.0
+        brake: f32,            // 0.0 to 1.0
+        steering: f32,         // -1.0 (left) to 1.0 (right)
+        gear: Option<i8>,      // Desired gear (-1 reverse, 0 neutral, 1..); None keeps current
+        clutch: Option<f32>,   // Clutch engagement 0.0-1.0
     },
 }
 ```
@@ -191,10 +206,15 @@ pub enum ClientMessage {
 #### 3.2. Server to Client
 
 ```rust
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ServerMessage {
     // TCP - Auth & Lobby
-    AuthSuccess { player_id: PlayerId, server_version: u32 },
+    AuthSuccess {
+        player_id: PlayerId,
+        server_version: u32,
+        protocol_version: u8, // matches the client's, or auth failed
+        udp_token: String,    // present in UdpHandshake to bind a UDP address
+        udp_port: u16,        // UDP port on the same host as the TCP endpoint
+    },
     AuthFailure { reason: String },
     HeartbeatAck { server_tick: u32 },
     LobbyState {
@@ -206,18 +226,37 @@ pub enum ServerMessage {
     SessionJoined { session_id: SessionId, your_grid_position: u8 },
     SessionLeft,
     SessionStarting { countdown_seconds: u8 },
+    GameModeChanged { mode: GameMode },
+    CountdownUpdate { seconds_remaining: u16 },
     Error { code: u16, message: String },
     PlayerDisconnected { player_id: PlayerId },
 
-    // UDP - High frequency telemetry
-    Telemetry {
+    // UDP - confirms a UdpHandshake
+    UdpHandshakeAck,
+
+    // TCP (reliable) - maps session-scoped car indices to player identity.
+    // Sent on join and whenever session membership changes.
+    SessionRoster { session_id: SessionId, entries: Vec<RosterEntry> },
+
+    // UDP (TCP fallback for clients without a UDP binding) - high frequency
+    // telemetry, positional encoding (rmp_serde::to_vec). Cars are
+    // identified by a session-scoped `car_index: u8` (see SessionRoster)
+    // instead of UUIDs: ~60% smaller than the old named encoding.
+    TelemetryCompact {
         server_tick: u32,
         session_state: SessionState,
+        game_mode: GameMode,
         countdown_ms: Option<u16>,   // Milliseconds until race start
-        car_states: Vec<CarStateTelemetry>, // Compact per-car data
+        car_states: Vec<CompactCarState>,
     },
 }
+```
 
+The telemetry broadcast rate is `tick_rate / network.telemetry_divisor`
+(default 240/4 = 60Hz snapshots; clients interpolate). Replay recording
+always captures full-rate telemetry.
+
+```rust
 // Lightweight structs for lobby (avoid sending full configs repeatedly)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LobbyPlayer {
@@ -357,58 +396,21 @@ Loop (240Hz, Δt = 4.1667ms):
 
 #### 4.6. `Physics` Module (`physics.rs`)
 
-Implements a simplified 2D bicycle model.
+Implements a 4-wheel 3D vehicle model at a fixed timestep (`dt = 1 / tick_rate_hz`).
 
-**`update_car_2d(state: &mut CarState, config: &CarConfig, input: &PlayerInputData, dt: f32)`:**
+**`update_car_3d(state, config, input, track, dt)`** — per tick, per car:
 
-```rust
-// 1. Longitudinal forces
-let throttle_force = input.throttle * config.max_engine_force_n;
-let brake_force = input.brake * config.max_brake_force_n;
-let drag_force = config.drag_coefficient * state.speed_mps.powi(2);
-let rolling_resistance = 100.0; // Constant N, keeps cars from rolling forever
+1. **Track context:** windowed nearest-centerline query (seeded by the car's cached index from the previous tick — near-constant time), giving elevation, banking, slope, surface type, grip modifier, lateral offset and on/off-track state. Off-track surfaces use the track's `off_track_grip` and a speed penalty above a recovery threshold.
+2. **Aerodynamics:** drag plus front/rear downforce from the lift coefficients.
+3. **Engine & drivetrain:** RPM derived from wheel speed through the gear ratios; optional torque curve (else a legacy parabolic curve), rev limiter, engine braking and friction. A clutch-slip launch model lets the engine rev to a throttle-dependent launch RPM in the low gears (launches are traction-limited, not idle-torque-limited); the clutch input scales transmitted torque. The hybrid system ([hybrid] in car.toml) adds motor assist limited by motor torque/power and battery discharge, with brake regeneration charging the battery.
+4. **Wheel loads:** static distribution + aero downforce + longitudinal/lateral weight transfer (previous tick's accelerations; lateral split by spring+ARB roll stiffness) + a zero-sum suspension term from per-wheel spring/damper forces (terrain asymmetry without double-counting the static weight).
+5. **Tire forces:** per-wheel quasi-static torque balance on a normalized Pacejka magic formula. In the stable region the tire transmits exactly the requested longitudinal force at the matching slip ratio; excess brake torque locks the wheel (slip −1, sliding force) unless ABS holds it at peak; excess drive torque produces wheelspin whose depth grades with the torque oversupply, unless traction control caps it at the limit. Slip angles include body lateral velocity and yaw-rate contributions per wheel; Ackermann steering geometry on the front axle. Longitudinal and lateral forces share one grip budget via a combined-slip friction ellipse.
+6. **Rigid body integration:** forces summed in the vehicle frame (front tire forces rotated by steer angle), slope/banking gravity components, yaw moment from tire forces about the CoG, dt-scaled yaw damping, and a low-speed kinematic yaw blend (bicycle-model yaw below ~8 m/s prevents standstill pirouettes). Grounded cars follow the surface up AND down (snap within 0.35m — cresting a hill does not flag the car airborne); a genuine drop-off transitions to airborne ballistic flight.
+7. **Telemetry:** tire temperatures/wear, suspension travel/forces, G-forces, engine/oil/water temperatures, fuel consumption, per-wheel slip and angular velocity.
 
-let net_force = throttle_force - brake_force - drag_force - rolling_resistance.copysign(state.speed_mps);
-let accel = net_force / config.mass_kg;
+**Collisions (`check_collisions_refs`)**: yaw-aware OBB overlap (separating-axis test on the ground-plane rectangles plus a height gate). Penetration is resolved by mass-weighted separation along the minimum-translation normal, an impulse with restitution 0.3 is applied, and damage is dealt from the **closing speed** along the contact normal (side-by-side rubbing at speed is harmless; head-on impacts are not). Deterministic: pairs are visited in `BTreeMap` participant order.
 
-// 2. Update speed (clamp to prevent reversing under brake)
-state.speed_mps = (state.speed_mps + accel * dt).max(0.0);
-
-// 3. Steering (bicycle model)
-let steering_angle = input.steering * config.max_steering_angle_rad;
-let turn_radius = config.wheelbase_m / steering_angle.tan().abs().max(0.001);
-state.angular_vel_rad_s = state.speed_mps / turn_radius * steering_angle.signum();
-
-// 4. Apply grip limit (simplified: cap lateral accel)
-let max_lateral_accel = config.grip_coefficient * 9.81; // ~1g for street tires
-let actual_lateral_accel = state.speed_mps * state.angular_vel_rad_s.abs();
-if actual_lateral_accel > max_lateral_accel {
-    state.angular_vel_rad_s *= max_lateral_accel / actual_lateral_accel;
-}
-
-// 5. Integrate position and orientation
-state.yaw_rad += state.angular_vel_rad_s * dt;
-state.vel_x = state.speed_mps * state.yaw_rad.cos();
-state.vel_y = state.speed_mps * state.yaw_rad.sin();
-state.pos_x += state.vel_x * dt;
-state.pos_y += state.vel_y * dt;
-
-// 6. Store inputs for telemetry
-state.throttle_input = input.throttle;
-state.brake_input = input.brake;
-state.steering_input = input.steering;
-```
-
-**`check_aabb_collisions(states: &mut [CarState], configs: &HashMap<CarConfigId, CarConfig>)`:**
-- For each pair of cars, compute axis-aligned bounding boxes (rotated AABB approximation)
-- If overlap detected, set `is_colliding = true` on both cars
-- Apply simple separation impulse (push cars apart along collision normal)
-- Reduce speed of colliding cars by 20% (energy loss)
-
-**`update_track_progress(state: &mut CarState, centerline: &[TrackPoint], track_length: f32)`:**
-- Project car position onto nearest centerline segment
-- Update `track_progress` to cumulative distance at projection point
-- Detect lap completion when `track_progress` wraps (crosses start/finish with sufficient progress)
+**`update_track_progress_3d`**: windowed centerline projection updates `track_progress`; laps are validated with ordered checkpoints (explicit track checkpoints, or virtual ones at 25/50/75% when a track defines none) so shortcuts and driving backwards across the line never count; lap timing per car.
 
 #### 4.7. AI Drivers
 
@@ -425,7 +427,7 @@ state.steering_input = input.steering;
 
 ### 5. Configuration (`config.rs`)
 
-Server configuration is loaded from `server.toml` at startup. Environment variables can override any setting using `APEXSIM_` prefix (e.g., `APEXSIM_NETWORK_TCP_PORT=9001`).
+Server configuration is loaded from `server.toml` at startup and validated; a present-but-invalid file is a fatal error (silently falling back to defaults would mask misconfiguration). Environment variables override individual settings using the `APEXSIM_` prefix (e.g., `APEXSIM_NETWORK_TCP_PORT=9100`, `APEXSIM_SERVER_TICK_RATE_HZ=120`).
 
 ```toml
 # server.toml
@@ -438,32 +440,31 @@ session_timeout_seconds = 300  # Cleanup finished sessions after 5 min
 [network]
 tcp_bind = "0.0.0.0:9000"
 udp_bind = "0.0.0.0:9001"
+health_bind = "0.0.0.0:9002"
 tls_cert_path = "./certs/server.crt"
 tls_key_path = "./certs/server.key"
 require_tls = true                 # Enforce TLS; fail if cert/key cannot be loaded
 heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000
+telemetry_divisor = 4              # Broadcast telemetry every Nth tick (240/4 = 60Hz)
 
 [content]
 cars_dir = "./content/cars"
 tracks_dir = "./content/tracks"
-watch_interval_ms = 2000
-
-[persistence]
-database_path = "./data/apexsim.db"
-telemetry_batch_size = 60          # Frames per batch insert
-telemetry_retention_hours = 168    # 7 days
 
 [logging]
 level = "info"                     # trace, debug, info, warn, error
 console_enabled = true
-file_enabled = true
-file_path = "./logs/apexsim.log"
-file_rotation = "daily"
-file_retention_days = 7
+file_enabled = false               # JSON-lines file logging, daily rotation
+file_dir = "./logs"
 
 [auth]
-require_token = false              # Stub: accept all tokens when false
+mode = "dev"                       # "dev" (accept all; development only) or "token"
+tokens = []                        # Shared secrets accepted in "token" mode
+
+[ai]                               # Optional AI driver defaults
+# default_aggressiveness, default_precision, default_reaction_time_ms,
+# default_steering_smoothness, default_randomness_scale, deterministic_mode
 ```
 
 **CLI Arguments:**
@@ -489,13 +490,13 @@ OPTIONS:
     - Startup logs clearly indicate the TLS state: "TLS mode: REQUIRED" (encrypted) or "TLS mode: OPTIONAL" (plaintext allowed).
 *   **Authentication Flow:**
     1. Client connects via TCP+TLS
-    2. Client sends `Authenticate { token, player_name }`
-    3. Server validates token (stub: accept all non-empty tokens)
-    4. Server responds `AuthSuccess { player_id, server_version }` or `AuthFailure`
-    5. Server records `(source_ip, player_id)` mapping for UDP correlation
+    2. Client sends `Authenticate { token, player_name, protocol_version }`
+    3. Server rejects protocol-version mismatches; validates the token per `[auth]` (`dev` mode accepts everything and logs a warning; `token` mode requires a configured shared secret)
+    4. Server responds `AuthSuccess { player_id, server_version, protocol_version, udp_token, udp_port }` or `AuthFailure`
+    5. The client's `UdpHandshake { token }` over UDP binds its source address to the connection (see §3); identity of subsequent UDP packets derives from the bound address
 *   **UDP Telemetry:** Unencrypted for initial phase (latency-sensitive). The `source_ip → player_id` mapping provides implicit authentication. DTLS can be added later behind a feature flag.
 *   **Heartbeat:** Clients send `Heartbeat` every 1 second via TCP. Server responds `HeartbeatAck`. Clients silent for 5 seconds are disconnected.
-*   **Rate Limiting:** Max 10 TCP messages per second per connection. Max 300 UDP packets per second per source IP. Violations trigger warning log; persistent abuse triggers disconnect.
+*   **Rate Limiting (implemented):** token buckets per connection — control traffic 10 msg/s (burst 20), input/heartbeat 300 msg/s (burst 60) — plus a per-source-address bucket on UDP. Pre-auth messages other than `Authenticate` are dropped and penalized. Violations log warnings; repeat offenders are disconnected.
 *   **Input Validation:** All numeric inputs are clamped server-side (throttle/brake to 0-1, steering to -1 to 1). Malformed packets are logged and dropped.
 
 ---
@@ -504,7 +505,7 @@ OPTIONS:
 
 *   **Framework:** `tracing` with `tracing-subscriber` for structured, async-safe logging.
 *   **Console Output:** Human-readable format with colors for dev. Includes timestamp, level, span context (session_id, player_id).
-*   **File Output:** JSON-lines format via `tracing-appender`. Daily rotation, 7-day retention. Async buffered writes to avoid blocking game loop.
+*   **File Output (opt-in via `logging.file_enabled`):** JSON-lines format via `tracing-appender` into `logging.file_dir`. Daily rotation; async buffered writes to avoid blocking the game loop. (Automatic retention pruning is not implemented.)
 *   **Log Levels:**
     *   `error`: Unrecoverable failures, panics caught by guard
     *   `warn`: Malformed packets, connection timeouts, recoverable errors
@@ -544,6 +545,8 @@ OPTIONS:
 
 ### 9. Game Templates & Scheduling
 
+> **Status: deferred (post-initial).** This section describes race templates, rotation and scheduling as designed, not as implemented. Content is currently loaded once at startup and nothing is persisted beyond replay files.
+
 **Template Schema** (stored in SQLite `race_templates` and/or `./content/templates/*.toml`):
 
 ```rust
@@ -578,6 +581,8 @@ pub enum StartMode {
 ---
 
 ### 10. Content Watcher (Tracks & Cars)
+
+> **Status: deferred (post-initial).** This section describes content hot-reload as designed, not as implemented. Content is currently loaded once at startup and nothing is persisted beyond replay files.
 
 **Directory Structure:**
 ```
@@ -637,6 +642,8 @@ centerline_file = "centerline.csv"  # x,y,distance_from_start per row
 
 ### 11. Persistence (SQLite)
 
+> **Status: deferred (post-initial).** This section describes SQLite persistence as designed, not as implemented. Content is currently loaded once at startup and nothing is persisted beyond replay files.
+
 **Database:** SQLite with WAL mode, located at `./data/apexsim.db`. Use `sqlx` with compile-time query checking.
 
 **Schema:**
@@ -693,6 +700,8 @@ CREATE INDEX idx_sessions_finished ON race_sessions(finished_at);
 ---
 
 ### 12. Health & Metrics
+
+> **Status: implemented** (`/health`, `/ready`, `/metrics` in Prometheus text format on the health port; DB metrics n/a until §11 lands).
 
 **Health Endpoint:** HTTP GET on port 9002 (configurable):
 *   `/health` — returns 200 if server is accepting connections, 503 during shutdown
