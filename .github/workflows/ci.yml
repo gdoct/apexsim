@@ -41,21 +41,21 @@ jobs:
         run: cargo test
 
   client:
-    name: Client (Godot C#)
-    runs-on: ubuntu-latest
+    name: Client (Unreal C++)
+    runs-on: [self-hosted, Windows, UnrealEngine-5.8]
     defaults:
       run:
-        working-directory: game-godot
+        working-directory: game-unreal
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Build
-        run: dotnet build
-
-      - name: Test
-        run: dotnet test ApexSim.Tests
+      - name: Build Unreal Editor target
+        shell: pwsh
+        run: |
+          if (-not $env:UNREAL_ENGINE_ROOT) {
+            throw "UNREAL_ENGINE_ROOT must point to the Unreal Engine 5.8 installation."
+          }
+          & "$env:UNREAL_ENGINE_ROOT\Engine\Build\BatchFiles\Build.bat" ApexSimEditor Win64 Development "-Project=$PWD\ApexSim.uproject" -WaitMutex -NoHotReload
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
