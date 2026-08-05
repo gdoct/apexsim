@@ -8,6 +8,10 @@
         "GODOT_PATH": "/home/guido/godot/godot",
         "READ_ONLY_MODE": "false"
       }
+    },
+    "unreal-mcp": {
+      "type": "http",
+      "url": "http://127.0.0.1:8000/mcp"
     }
   }
 }

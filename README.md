@@ -71,6 +71,32 @@ apexsim/
 1. Clone the repository and consult [server/README.md](server/README.md) for backend prerequisites, configuration, and run instructions.
 2. Follow [game-godot/SETUP.md](game-godot/SETUP.md) and [game-godot/BUILD.md](game-godot/BUILD.md) to provision Godot, download dependencies, and launch the client.
 
+## Windows Setup
+
+Install the development prerequisites from an elevated PowerShell session. Approve any Windows UAC prompts shown by the installers.
+
+```powershell
+winget install --id OpenJS.NodeJS.LTS --exact --source winget --accept-package-agreements --accept-source-agreements --silent
+winget install --id Rustlang.Rustup --exact --source winget --include-unknown --accept-package-agreements --accept-source-agreements --silent
+winget install --id Kitware.CMake --exact --source winget --accept-package-agreements --accept-source-agreements --silent
+winget install --id NASM.NASM --exact --source winget --accept-package-agreements --accept-source-agreements --silent
+```
+
+Restart VS Code after installation so new integrated terminals receive the updated `PATH`. Then verify the toolchain and build the Rust server:
+
+```powershell
+node --version
+npm --version
+cargo --version
+rustc --version
+cmake --version
+
+Set-Location server
+cargo build
+```
+
+The repository currently has no `package.json`, so there are no npm dependencies to install at the workspace root.
+
 ## Contributing
 
 Contributions are welcome across gameplay programming, engine tooling, networking, UI, and content creation. Please coordinate significant changes via issues or discussion threads, and keep server and client documentation up to date when workflows change. Refer to [server/README.md](server/README.md) and the Unreal documentation in [game/](game) before submitting pull requests.
