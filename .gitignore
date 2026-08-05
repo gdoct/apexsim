@@ -21,10 +21,12 @@ target
 #.idea/
 # Unreal Engine Project Files
 *.sln
+*.slnx
 *.suo
 *.xcodeproj
 *.xcworkspace
 .vs/
+.vsconfig
 .vscode/settings.json.user
 
 # Unreal Engine Build Artifacts

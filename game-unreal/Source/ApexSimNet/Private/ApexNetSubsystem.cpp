@@ -1,0 +1,369 @@
+#include "ApexNetSubsystem.h"
+
+#include "ApexProtocolCodec.h"
+#include "ApexSimNetModule.h"
+#include "ApexTcpConnection.h"
+
+UApexNetSubsystem::UApexNetSubsystem() = default;
+
+// FApexTcpConnection is complete here (see the include above), which is what
+// lets TUniquePtr destroy it.
+UApexNetSubsystem::~UApexNetSubsystem() = default;
+
+void UApexNetSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	// FTSTicker rather than FTickableGameObject: no CDO-tick guard to write, no
+	// GetStatId boilerplate, and it survives PIE map transitions cleanly.
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &UApexNetSubsystem::Tick),
+		0.0f);
+}
+
+void UApexNetSubsystem::Deinitialize()
+{
+	if (TickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		TickerHandle.Reset();
+	}
+
+	// The thread must be joined before Deinitialize returns, or it can outlive
+	// the subsystem and dispatch into a destroyed object.
+	TeardownConnection();
+
+	Super::Deinitialize();
+}
+
+void UApexNetSubsystem::TeardownConnection()
+{
+	if (Connection)
+	{
+		Connection->Shutdown();
+		Connection.Reset();
+	}
+}
+
+void UApexNetSubsystem::SetConnectionState(EApexConnectionState NewState, const FString& Detail)
+{
+	if (ConnectionState == NewState)
+	{
+		return;
+	}
+	ConnectionState = NewState;
+	OnConnectionStateChanged.Broadcast(NewState, Detail);
+}
+
+void UApexNetSubsystem::Connect(const FString& InHost, int32 InPort, const FString& InPlayerName, const FString& InToken)
+{
+	TeardownConnection();
+
+	Host = InHost;
+	Port = InPort;
+	PlayerName = InPlayerName;
+	PlayerId.Reset();
+	CurrentSessionId.Reset();
+	CachedLobbyState = FApexLobbyState();
+	ClientTick = 0;
+	TimeSinceHeartbeat = 0.0f;
+	bWarnedEmptyCatalog = false;
+
+	SetConnectionState(EApexConnectionState::Connecting,
+		FString::Printf(TEXT("Connecting to %s:%d..."), *Host, Port));
+
+	Connection = MakeUnique<FApexTcpConnection>(Host, Port, InToken, PlayerName);
+	if (!Connection->Start())
+	{
+		Connection.Reset();
+		SetConnectionState(EApexConnectionState::Failed, TEXT("Could not start the network thread"));
+	}
+}
+
+void UApexNetSubsystem::Disconnect()
+{
+	if (Connection && Connection->IsConnected())
+	{
+		Connection->Send(ApexProtocol::EncodeDisconnect());
+	}
+	TeardownConnection();
+
+	PlayerId.Reset();
+	CurrentSessionId.Reset();
+	SetConnectionState(EApexConnectionState::Disconnected, TEXT("Disconnected"));
+}
+
+void UApexNetSubsystem::SendPayload(TArray<uint8>&& Payload)
+{
+	if (!Connection || !Connection->IsConnected())
+	{
+		UE_LOG(LogApexSimNet, Warning, TEXT("Dropped an outbound message: not connected"));
+		return;
+	}
+	Connection->Send(MoveTemp(Payload));
+}
+
+bool UApexNetSubsystem::RequestLobbyState()
+{
+	if (TimeSinceLobbyRequest < LobbyStateDebounceSeconds)
+	{
+		return false;
+	}
+	TimeSinceLobbyRequest = 0.0f;
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> RequestLobbyState"));
+	SendPayload(ApexProtocol::EncodeRequestLobbyState());
+	return true;
+}
+
+void UApexNetSubsystem::SelectCar(const FString& CarConfigId)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SelectCar %s"), *CarConfigId);
+	SendPayload(ApexProtocol::EncodeSelectCar(CarConfigId));
+}
+
+void UApexNetSubsystem::CreateSession(
+	const FString& TrackConfigId,
+	int32 MaxPlayers,
+	int32 AiCount,
+	int32 LapLimit,
+	EApexSessionKind SessionKind)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d"),
+		*TrackConfigId, MaxPlayers, AiCount, LapLimit);
+	SendPayload(ApexProtocol::EncodeCreateSession(
+		TrackConfigId,
+		static_cast<uint8>(FMath::Clamp(MaxPlayers, 1, 255)),
+		static_cast<uint8>(FMath::Clamp(AiCount, 0, 255)),
+		static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)),
+		SessionKind));
+}
+
+void UApexNetSubsystem::JoinSession(const FString& SessionId)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> JoinSession %s"), *SessionId);
+	SendPayload(ApexProtocol::EncodeJoinSession(SessionId));
+}
+
+void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> JoinAsSpectator %s"), *SessionId);
+	SendPayload(ApexProtocol::EncodeJoinAsSpectator(SessionId));
+}
+
+void UApexNetSubsystem::LeaveSession()
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> LeaveSession"));
+	SendPayload(ApexProtocol::EncodeLeaveSession());
+}
+
+void UApexNetSubsystem::StartSession()
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> StartSession"));
+	SendPayload(ApexProtocol::EncodeStartSession());
+}
+
+void UApexNetSubsystem::SetGameMode(EApexGameMode Mode)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetGameMode %d"), static_cast<int32>(Mode));
+	SendPayload(ApexProtocol::EncodeSetGameMode(Mode));
+}
+
+void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> StartCountdown %d"), Seconds);
+	SendPayload(ApexProtocol::EncodeStartCountdown(
+		static_cast<uint16>(FMath::Clamp(Seconds, 0, 65535)), NextMode));
+}
+
+bool UApexNetSubsystem::FindCarById(const FString& CarId, FApexCarConfigSummary& OutCar) const
+{
+	for (const FApexCarConfigSummary& Car : CachedLobbyState.CarConfigs)
+	{
+		if (Car.Id.Equals(CarId, ESearchCase::IgnoreCase))
+		{
+			OutCar = Car;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UApexNetSubsystem::FindTrackById(const FString& TrackId, FApexTrackConfigSummary& OutTrack) const
+{
+	for (const FApexTrackConfigSummary& Track : CachedLobbyState.TrackConfigs)
+	{
+		if (Track.Id.Equals(TrackId, ESearchCase::IgnoreCase))
+		{
+			OutTrack = Track;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UApexNetSubsystem::FindSessionById(const FString& SessionId, FApexSessionSummary& OutSession) const
+{
+	for (const FApexSessionSummary& Session : CachedLobbyState.AvailableSessions)
+	{
+		if (Session.Id.Equals(SessionId, ESearchCase::IgnoreCase))
+		{
+			OutSession = Session;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UApexNetSubsystem::Tick(float DeltaSeconds)
+{
+	TimeSinceLobbyRequest += DeltaSeconds;
+
+	if (!Connection)
+	{
+		return true;
+	}
+
+	FApexServerMessage Message;
+	while (Connection->PopMessage(Message))
+	{
+		HandleMessage(Message);
+	}
+
+	FApexDisconnectReason Reason;
+	if (Connection->PopDisconnectReason(Reason))
+	{
+		const bool bWasAuthenticated = ConnectionState == EApexConnectionState::Authenticated;
+
+		TeardownConnection();
+		PlayerId.Reset();
+		CurrentSessionId.Reset();
+
+		if (Reason.bDuringConnect)
+		{
+			SetConnectionState(EApexConnectionState::Failed, Reason.Text);
+		}
+		else
+		{
+			SetConnectionState(EApexConnectionState::Disconnected, Reason.Text);
+		}
+
+		if (bWasAuthenticated || Reason.bDuringConnect)
+		{
+			OnDisconnected.Broadcast(Reason.Text);
+		}
+		return true;
+	}
+
+	if (ConnectionState == EApexConnectionState::Connecting && Connection->IsConnected())
+	{
+		SetConnectionState(EApexConnectionState::Authenticating, TEXT("Authenticating..."));
+	}
+
+	if (ConnectionState == EApexConnectionState::Authenticated)
+	{
+		TimeSinceHeartbeat += DeltaSeconds;
+		if (TimeSinceHeartbeat >= HeartbeatIntervalSeconds)
+		{
+			TimeSinceHeartbeat = 0.0f;
+			Connection->Send(ApexProtocol::EncodeHeartbeat(++ClientTick));
+		}
+	}
+
+	return true;
+}
+
+void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
+{
+	switch (Message.Type)
+	{
+	case EApexServerMessageType::AuthSuccess:
+	{
+		PlayerId = Message.AuthSuccess.PlayerId;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- AuthSuccess PlayerId=%s ServerVersion=%lld ProtocolVersion=%d UdpPort=%d"),
+			*PlayerId, Message.AuthSuccess.ServerVersion, Message.AuthSuccess.ProtocolVersion, Message.AuthSuccess.UdpPort);
+
+		SetConnectionState(EApexConnectionState::Authenticated, TEXT("Connected"));
+		OnAuthSucceeded.Broadcast(PlayerId, static_cast<int32>(Message.AuthSuccess.ServerVersion));
+
+		// Ask once immediately so the first snapshot lands in <100 ms instead
+		// of waiting up to 2 s for the periodic broadcast.
+		TimeSinceLobbyRequest = LobbyStateDebounceSeconds;
+		RequestLobbyState();
+		break;
+	}
+
+	case EApexServerMessageType::AuthFailure:
+		UE_LOG(LogApexSimNet, Warning, TEXT("<- AuthFailure: %s"), *Message.Reason);
+		SetConnectionState(EApexConnectionState::Failed, Message.Reason);
+		OnAuthFailed.Broadcast(Message.Reason);
+		break;
+
+	case EApexServerMessageType::HeartbeatAck:
+		UE_LOG(LogApexSimNet, VeryVerbose, TEXT("<- HeartbeatAck server_tick=%lld"), Message.ServerTick);
+		break;
+
+	case EApexServerMessageType::LobbyState:
+		CachedLobbyState = Message.LobbyState;
+		UE_LOG(LogApexSimNet, Verbose, TEXT("<- LobbyState players=%d sessions=%d cars=%d tracks=%d"),
+			CachedLobbyState.PlayersInLobby.Num(),
+			CachedLobbyState.AvailableSessions.Num(),
+			CachedLobbyState.CarConfigs.Num(),
+			CachedLobbyState.TrackConfigs.Num());
+
+		// Zero cars AND zero tracks is never legitimate against this server, so
+		// it almost certainly means a key-name mismatch in the decoder rather
+		// than an empty catalog. Say so once, loudly.
+		if (!bWarnedEmptyCatalog
+			&& CachedLobbyState.CarConfigs.Num() == 0
+			&& CachedLobbyState.TrackConfigs.Num() == 0)
+		{
+			bWarnedEmptyCatalog = true;
+			UE_LOG(LogApexSimNet, Warning,
+				TEXT("LobbyState decoded with 0 cars and 0 tracks. Either the server loaded no content, ")
+				TEXT("or the PascalCase payload keys in ApexProtocolCodec no longer match the server."));
+		}
+
+		OnLobbyStateUpdated.Broadcast(CachedLobbyState);
+		break;
+
+	case EApexServerMessageType::SessionJoined:
+		CurrentSessionId = Message.SessionId;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d"),
+			*CurrentSessionId, Message.GridPosition);
+		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
+		break;
+
+	case EApexServerMessageType::SessionLeft:
+		CurrentSessionId.Reset();
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionLeft"));
+		OnSessionLeft.Broadcast();
+		break;
+
+	case EApexServerMessageType::SessionStarting:
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionStarting countdown=%d"), Message.CountdownSeconds);
+		OnSessionStarting.Broadcast(Message.CountdownSeconds);
+		break;
+
+	case EApexServerMessageType::GameModeChanged:
+		UE_LOG(LogApexSimNet, Log, TEXT("<- GameModeChanged mode=%d"), static_cast<int32>(Message.GameMode));
+		OnGameModeChanged.Broadcast(Message.GameMode);
+		break;
+
+	case EApexServerMessageType::CountdownUpdate:
+		OnCountdownUpdate.Broadcast(Message.CountdownSeconds);
+		break;
+
+	case EApexServerMessageType::Error:
+		UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d: %s"), Message.ErrorCode, *Message.Reason);
+		OnServerError.Broadcast(Message.ErrorCode, Message.Reason);
+		break;
+
+	case EApexServerMessageType::PlayerDisconnected:
+		OnPlayerDisconnected.Broadcast(Message.PlayerId);
+		break;
+
+	default:
+		UE_LOG(LogApexSimNet, Verbose, TEXT("<- ignoring server message '%s'"), *Message.VariantName);
+		break;
+	}
+}
