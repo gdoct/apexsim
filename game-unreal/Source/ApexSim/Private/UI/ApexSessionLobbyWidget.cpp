@@ -178,14 +178,30 @@ void UApexSessionLobbyWidget::HandleChangeCarClicked()
 
 void UApexSessionLobbyWidget::HandleStartRaceClicked()
 {
-	// Deliberately inert. Sending StartSession (or SetGameMode) would move the
-	// server into a driving mode and start broadcasting telemetry to a client
-	// with no track view and no car actors to apply it to. Racing is out of
-	// scope for the menu shell; the plumbing is already there on
-	// UApexNetSubsystem::StartSession for when it lands.
-	UE_LOG(LogApexSim, Display,
-		TEXT("Start Race pressed — racing is out of scope for the menu shell, no message sent"));
-	ShowToast(TEXT("Racing isn't implemented yet — this is the menu shell"), false);
+	UApexNetSubsystem* Net = GetNet();
+	if (!Net)
+	{
+		return;
+	}
+
+	// Host-only on the server; a non-host gets an Error back, which the root
+	// widget already surfaces as a toast.
+	if (!Net->IsUdpReady())
+	{
+		ShowToast(TEXT("Still binding the telemetry channel — try again in a moment"), true);
+		return;
+	}
+
+	// StartCountdown rather than StartSession: StartSession sets a countdown but
+	// never stores a next mode, so when it expires the server clears the timer
+	// and leaves the session in Countdown with physics frozen — it can never
+	// reach racing. StartCountdown carries the mode to transition into.
+	UE_LOG(LogApexSim, Log, TEXT("Start Race: requesting countdown into Race"));
+	Net->StartCountdown(StartCountdownSeconds, EApexGameMode::Race);
+	if (StatusText)
+	{
+		StatusText->SetText(FText::FromString(TEXT("Starting…")));
+	}
 }
 
 void UApexSessionLobbyWidget::HandleLeaveClicked()

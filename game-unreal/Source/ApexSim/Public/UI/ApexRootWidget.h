@@ -81,6 +81,34 @@ private:
 	UFUNCTION()
 	void HandleSessionLeft();
 
+	UFUNCTION()
+	void HandleGameModeChanged(EApexGameMode NewMode);
+
+	UFUNCTION()
+	void HandleSessionStateChanged(EApexSessionState NewState);
+
+	/** Hides the menu and hands the view to the race director, or takes it back. */
+	void SetRaceViewActive(bool bActive);
+
+	/** True for any mode in which the server is simulating and sending telemetry. */
+	static bool IsDrivingMode(EApexGameMode Mode);
+
+	/**
+	 * Creates and starts a session unattended, for `-ApexAutoRace`.
+	 *
+	 * Getting to moving cars otherwise takes half a dozen clicks, which makes
+	 * the transport impossible to check in an automated run.
+	 */
+	void TryAutoRace(const FApexLobbyState& LobbyState);
+
+	UFUNCTION()
+	void HandleLobbyStateForAutoRace(const FApexLobbyState& LobbyState);
+
+	bool bRaceViewActive = false;
+	bool bAutoRaceRequested = false;
+	bool bAutoRaceSessionRequested = false;
+	int32 AutoRaceAiCount = 3;
+
 	/** Notifies the outgoing and incoming screens, then flips the switcher. */
 	void ActivateScreen(EApexScreen Screen);
 	UApexScreenWidget* GetScreenWidget(EApexScreen Screen) const;

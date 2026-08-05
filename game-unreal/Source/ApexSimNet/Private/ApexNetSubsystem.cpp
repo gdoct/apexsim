@@ -38,11 +38,60 @@ void UApexNetSubsystem::Deinitialize()
 
 void UApexNetSubsystem::TeardownConnection()
 {
+	// UDP first: it is the noisier thread, and nothing it produces is useful
+	// once the TCP session is going away.
+	if (UdpConnection)
+	{
+		UdpConnection->Shutdown();
+		UdpConnection.Reset();
+	}
 	if (Connection)
 	{
 		Connection->Shutdown();
 		Connection.Reset();
 	}
+	bUdpReadyBroadcast = false;
+}
+
+void UApexNetSubsystem::StartUdp(const FApexAuthSuccess& Auth)
+{
+	if (Auth.UdpToken.IsEmpty() || Auth.UdpPort <= 0)
+	{
+		UE_LOG(LogApexSimNet, Warning,
+			TEXT("AuthSuccess carried no usable UDP token/port; telemetry will not flow"));
+		return;
+	}
+
+	UdpConnection = MakeUnique<FApexUdpConnection>(Host, Auth.UdpPort, Auth.UdpToken);
+	if (!UdpConnection->Start())
+	{
+		UdpConnection.Reset();
+	}
+}
+
+void UApexNetSubsystem::SetPlayerInput(const FApexPlayerInput& Input)
+{
+	if (UdpConnection)
+	{
+		UdpConnection->SetPlayerInput(Input);
+	}
+}
+
+bool UApexNetSubsystem::IsUdpReady() const
+{
+	return UdpConnection && UdpConnection->IsHandshakeComplete();
+}
+
+int32 UApexNetSubsystem::GetLocalCarIndex() const
+{
+	for (const FApexRosterEntry& Entry : CachedRoster.Entries)
+	{
+		if (Entry.PlayerId.Equals(PlayerId, ESearchCase::IgnoreCase))
+		{
+			return Entry.CarIndex;
+		}
+	}
+	return -1;
 }
 
 void UApexNetSubsystem::SetConnectionState(EApexConnectionState NewState, const FString& Detail)
@@ -259,6 +308,45 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		SetConnectionState(EApexConnectionState::Authenticating, TEXT("Authenticating..."));
 	}
 
+	if (UdpConnection)
+	{
+		if (!bUdpReadyBroadcast && UdpConnection->IsHandshakeComplete())
+		{
+			bUdpReadyBroadcast = true;
+			OnUdpReady.Broadcast();
+		}
+
+		// Drain to the newest frame. Telemetry is a snapshot, not a stream of
+		// events, so if several arrived between ticks only the last one matters
+		// — but every frame is still broadcast so nothing that counts ticks
+		// misses one.
+		FApexTelemetryFrame Frame;
+		while (UdpConnection->PopTelemetry(Frame))
+		{
+			LatestTelemetry = Frame;
+
+			// Every frame carries the authoritative state and mode. `StartSession`
+			// moves the server to Countdown without any TCP notification, so this
+			// is the only place a client reliably learns the session has begun.
+			if (Frame.SessionState != CurrentSessionState)
+			{
+				CurrentSessionState = Frame.SessionState;
+				UE_LOG(LogApexSimNet, Log, TEXT("Session state -> %d (from telemetry)"),
+					static_cast<int32>(CurrentSessionState));
+				OnSessionStateChanged.Broadcast(CurrentSessionState);
+			}
+			if (Frame.GameMode != CurrentGameMode)
+			{
+				CurrentGameMode = Frame.GameMode;
+				UE_LOG(LogApexSimNet, Log, TEXT("Game mode -> %d (from telemetry)"),
+					static_cast<int32>(CurrentGameMode));
+				OnGameModeChanged.Broadcast(CurrentGameMode);
+			}
+
+			OnTelemetry.Broadcast(LatestTelemetry);
+		}
+	}
+
 	if (ConnectionState == EApexConnectionState::Authenticated)
 	{
 		TimeSinceHeartbeat += DeltaSeconds;
@@ -284,6 +372,10 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 
 		SetConnectionState(EApexConnectionState::Authenticated, TEXT("Connected"));
 		OnAuthSucceeded.Broadcast(PlayerId, static_cast<int32>(Message.AuthSuccess.ServerVersion));
+
+		// The UDP token is single-use and only valid for this connection, so the
+		// handshake starts the moment it arrives.
+		StartUdp(Message.AuthSuccess);
 
 		// Ask once immediately so the first snapshot lands in <100 ms instead
 		// of waiting up to 2 s for the periodic broadcast.
@@ -335,6 +427,14 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 
 	case EApexServerMessageType::SessionLeft:
 		CurrentSessionId.Reset();
+		CachedRoster = FApexSessionRoster();
+		// Telemetry stops when the session ends, so nothing would ever drive
+		// this back to Lobby otherwise.
+		if (CurrentSessionState != EApexSessionState::Lobby)
+		{
+			CurrentSessionState = EApexSessionState::Lobby;
+			OnSessionStateChanged.Broadcast(CurrentSessionState);
+		}
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionLeft"));
 		OnSessionLeft.Broadcast();
 		break;
@@ -360,6 +460,13 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 
 	case EApexServerMessageType::PlayerDisconnected:
 		OnPlayerDisconnected.Broadcast(Message.PlayerId);
+		break;
+
+	case EApexServerMessageType::SessionRoster:
+		CachedRoster = Message.Roster;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionRoster %d car(s) for session %s"),
+			CachedRoster.Entries.Num(), *CachedRoster.SessionId);
+		OnSessionRosterUpdated.Broadcast(CachedRoster);
 		break;
 
 	default:

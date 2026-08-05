@@ -241,6 +241,153 @@ struct APEXSIMNET_API FApexAuthSuccess
 	int32 UdpPort = 0;
 };
 
+/**
+ * One car in a `SessionRoster` (network.rs:457) — PascalCase keys, TCP.
+ *
+ * Compact telemetry identifies cars by a session-scoped index rather than a
+ * UUID, and this is the only thing that maps that index back to a player.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexRosterEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 CarIndex = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString PlayerId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString PlayerName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bIsAi = false;
+};
+
+/** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexSessionRoster
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString SessionId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<FApexRosterEntry> Entries;
+};
+
+/**
+ * One car from `CompactCarState` (network.rs:388).
+ *
+ * Only the fields the client actually uses are kept; the rest are still read
+ * positionally because skipping is not optional in a positional encoding —
+ * every field must be consumed in order to stay aligned.
+ *
+ * Coordinates are the server's: right-handed, metres, +X along the track, +Y
+ * left, angles counter-clockwise from +X.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexCarTelemetry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 CarIndex = 0;
+
+	/** Server-space position, in metres. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float YawRad = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float PitchRad = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float RollRad = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float SpeedMps = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float Throttle = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float Brake = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float Steering = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Gear = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float EngineRpm = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 CurrentLap = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float TrackProgress = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 CurrentLapTimeMs = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bIsOnTrack = true;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bIsColliding = false;
+};
+
+/** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexTelemetryFrame
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int64 ServerTick = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	EApexSessionState SessionState = EApexSessionState::Lobby;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	EApexGameMode GameMode = EApexGameMode::Lobby;
+
+	/** -1 when the server sent nil. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 CountdownMs = -1;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<FApexCarTelemetry> Cars;
+};
+
+/** The player's control inputs, sent over UDP at frame rate. */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexPlayerInput
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	float Throttle = 0.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	float Brake = 0.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	float Steering = 0.0f;
+
+	/** Negative leaves the gear alone (the protocol's `None`). */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	int32 Gear = -128;
+
+	bool HasGear() const { return Gear != -128; }
+};
+
 /** The kind of a decoded server message. */
 enum class EApexServerMessageType : uint8
 {
@@ -256,7 +403,10 @@ enum class EApexServerMessageType : uint8
 	CountdownUpdate,
 	Error,
 	PlayerDisconnected,
-	/** SessionRoster / Telemetry / TelemetryCompact / UdpHandshakeAck — skipped. */
+	SessionRoster,
+	UdpHandshakeAck,
+	TelemetryCompact,
+	/** Full named-encoding Telemetry — replays only; the wire uses the compact form. */
 	IgnoredVariant,
 };
 
@@ -274,6 +424,8 @@ struct APEXSIMNET_API FApexServerMessage
 
 	FApexAuthSuccess AuthSuccess;
 	FApexLobbyState LobbyState;
+	FApexSessionRoster Roster;
+	FApexTelemetryFrame Telemetry;
 
 	/** AuthFailure::reason, or Error::message. */
 	FString Reason;

@@ -3,9 +3,11 @@
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexSim.h"
+#include "Components/Image.h"
 #include "Components/WidgetSwitcher.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
+#include "Race/ApexRaceDirector.h"
 #include "UI/ApexScreenWidget.h"
 #include "UI/ApexStatusBarWidget.h"
 #include "UI/ApexToastWidget.h"
@@ -37,6 +39,17 @@ void UApexRootWidget::NativeConstruct()
 		Net->OnServerError.AddDynamic(this, &UApexRootWidget::HandleServerError);
 		Net->OnSessionJoined.AddDynamic(this, &UApexRootWidget::HandleSessionJoined);
 		Net->OnSessionLeft.AddDynamic(this, &UApexRootWidget::HandleSessionLeft);
+		Net->OnGameModeChanged.AddDynamic(this, &UApexRootWidget::HandleGameModeChanged);
+		Net->OnLobbyStateUpdated.AddDynamic(this, &UApexRootWidget::HandleLobbyStateForAutoRace);
+		Net->OnSessionStateChanged.AddDynamic(this, &UApexRootWidget::HandleSessionStateChanged);
+	}
+
+	bAutoRaceRequested = FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"));
+	FParse::Value(FCommandLine::Get(), TEXT("ApexAiCount="), AutoRaceAiCount);
+	if (bAutoRaceRequested)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: will create and start a session with %d AI once the lobby arrives"),
+			AutoRaceAiCount);
 	}
 
 	// Escape needs to reach NativeOnKeyDown, which requires focus.
@@ -86,6 +99,9 @@ void UApexRootWidget::NativeDestruct()
 		Net->OnServerError.RemoveDynamic(this, &UApexRootWidget::HandleServerError);
 		Net->OnSessionJoined.RemoveDynamic(this, &UApexRootWidget::HandleSessionJoined);
 		Net->OnSessionLeft.RemoveDynamic(this, &UApexRootWidget::HandleSessionLeft);
+		Net->OnGameModeChanged.RemoveDynamic(this, &UApexRootWidget::HandleGameModeChanged);
+		Net->OnLobbyStateUpdated.RemoveDynamic(this, &UApexRootWidget::HandleLobbyStateForAutoRace);
+		Net->OnSessionStateChanged.RemoveDynamic(this, &UApexRootWidget::HandleSessionStateChanged);
 	}
 
 	Super::NativeDestruct();
@@ -95,6 +111,17 @@ FReply UApexRootWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
+		// While racing there is no menu to go back through, so Escape is the way
+		// out of the session entirely.
+		if (bRaceViewActive)
+		{
+			if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+			{
+				Net->LeaveSession();
+			}
+			return FReply::Handled();
+		}
+
 		GoBack();
 		return FReply::Handled();
 	}
@@ -200,6 +227,44 @@ void UApexRootWidget::HandleServerError(int32 Code, const FString& Message)
 	ShowToast(FString::Printf(TEXT("Server error %d: %s"), Code, *Message), true);
 }
 
+void UApexRootWidget::HandleLobbyStateForAutoRace(const FApexLobbyState& LobbyState)
+{
+	TryAutoRace(LobbyState);
+}
+
+void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
+{
+	if (!bAutoRaceRequested || bAutoRaceSessionRequested)
+	{
+		return;
+	}
+	if (LobbyState.CarConfigs.Num() == 0 || LobbyState.TrackConfigs.Num() == 0)
+	{
+		return;
+	}
+
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (!Net || !Flow)
+	{
+		return;
+	}
+
+	bAutoRaceSessionRequested = true;
+
+	const FApexCarConfigSummary& Car = LobbyState.CarConfigs[0];
+	const FApexTrackConfigSummary& Track = LobbyState.TrackConfigs[0];
+	Flow->SetPendingCar(Car.Id);
+	Flow->SetPendingTrack(Track.Id);
+
+	UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: creating '%s' on '%s' with %d AI"),
+		*Car.Name, *Track.Name, AutoRaceAiCount);
+
+	// SelectCar before CreateSession, same order the UI uses.
+	Net->SelectCar(Car.Id);
+	Net->CreateSession(Track.Id, 8, AutoRaceAiCount, 5, EApexSessionKind::Practice);
+}
+
 void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPosition)
 {
 	// Joining always lands in the lobby, whether the session was created or
@@ -207,10 +272,96 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 	// both screens.
 	BackStack.Reset();
 	ActivateScreen(EApexScreen::SessionLobby);
+
+	if (bAutoRaceRequested)
+	{
+		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		{
+			// See the note in ApexSessionLobbyWidget: StartSession alone never
+			// leaves Countdown.
+			UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: session joined, counting into Race"));
+			Net->StartCountdown(3, EApexGameMode::Race);
+		}
+	}
 }
 
 void UApexRootWidget::HandleSessionLeft()
 {
+	SetRaceViewActive(false);
 	BackStack.Reset();
 	ActivateScreen(EApexScreen::MainMenu);
+}
+
+bool UApexRootWidget::IsDrivingMode(EApexGameMode Mode)
+{
+	// Lobby and Sandbox do not simulate cars, so there is nothing to watch.
+	// Everything else has the server ticking physics and sending telemetry.
+	switch (Mode)
+	{
+	case EApexGameMode::Countdown:
+	case EApexGameMode::DemoLap:
+	case EApexGameMode::FreePractice:
+	case EApexGameMode::Qualification:
+	case EApexGameMode::Race:
+	case EApexGameMode::Replay:
+		return true;
+	default:
+		return false;
+	}
+}
+
+void UApexRootWidget::HandleGameModeChanged(EApexGameMode NewMode)
+{
+	// A driving mode is enough on its own — a DemoLap or FreePractice can start
+	// without the session state ever leaving Lobby.
+	if (IsDrivingMode(NewMode))
+	{
+		SetRaceViewActive(true);
+	}
+}
+
+void UApexRootWidget::HandleSessionStateChanged(EApexSessionState NewState)
+{
+	// This is the signal that actually fires for `StartSession`: the state goes
+	// Lobby -> Countdown -> Racing while the game mode stays Lobby throughout.
+	SetRaceViewActive(NewState != EApexSessionState::Lobby);
+}
+
+void UApexRootWidget::SetRaceViewActive(bool bActive)
+{
+	if (bRaceViewActive == bActive)
+	{
+		return;
+	}
+	bRaceViewActive = bActive;
+
+	// The menu is hit-test invisible rather than removed so the toast and status
+	// bar can still be brought back without rebuilding the tree.
+	if (ScreenSwitcher)
+	{
+		ScreenSwitcher->SetVisibility(bActive ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
+	if (BackgroundImage)
+	{
+		BackgroundImage->SetVisibility(bActive ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+
+	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+	{
+		if (bActive)
+		{
+			Director->BeginRaceView();
+		}
+		else
+		{
+			Director->EndRaceView();
+		}
+	}
+	else if (bActive)
+	{
+		UE_LOG(LogApexSim, Warning,
+			TEXT("No AApexRaceDirector in the level; telemetry will arrive but nothing will render"));
+	}
+
+	UE_LOG(LogApexSim, Log, TEXT("Race view %s"), bActive ? TEXT("entered") : TEXT("left"));
 }
