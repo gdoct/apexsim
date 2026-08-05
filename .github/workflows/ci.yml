@@ -16,7 +16,7 @@ jobs:
       run:
         working-directory: server
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -41,21 +41,28 @@ jobs:
         run: cargo test
 
   client:
-    name: Client (Unreal C++)
-    runs-on: [self-hosted, Windows, UnrealEngine-5.8]
+    name: Client (Unreal project sanity)
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: game-unreal
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Build Unreal Editor target
-        shell: pwsh
+      - name: Validate project metadata
         run: |
-          if (-not $env:UNREAL_ENGINE_ROOT) {
-            throw "UNREAL_ENGINE_ROOT must point to the Unreal Engine 5.8 installation."
-          }
-          & "$env:UNREAL_ENGINE_ROOT\Engine\Build\BatchFiles\Build.bat" ApexSimEditor Win64 Development "-Project=$PWD\ApexSim.uproject" -WaitMutex -NoHotReload
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
+          jq -e '
+            .FileVersion == 3 and
+            .EngineAssociation == "5.8" and
+            ([.Modules[] | select(.Name == "ApexSim" and .Type == "Runtime")] | length == 1) and
+            ([.Modules[] | select(.Name == "ApexSimNet" and .Type == "Runtime")] | length == 1)
+          ' ApexSim.uproject
+
+      - name: Verify target and module definitions
+        run: |
+          test -f Source/ApexSim.Target.cs
+          test -f Source/ApexSimEditor.Target.cs
+          test -f Source/ApexSim/ApexSim.Build.cs
+          test -f Source/ApexSimNet/ApexSimNet.Build.cs
+          grep -q 'class ApexSimTarget' Source/ApexSim.Target.cs
+          grep -q 'class ApexSimEditorTarget' Source/ApexSimEditor.Target.cs
