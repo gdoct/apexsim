@@ -23,6 +23,10 @@ AApexCarPreviewStage::AApexCarPreviewStage()
 	CarMesh->SetupAttachment(Turntable);
 	CarMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CarMesh->SetCastShadow(true);
+	// The turntable car belongs to the car-select screen only. Without this it
+	// also renders into the main view, where it shows up as a fifth car
+	// spinning in mid-air next to the ones the server is driving.
+	CarMesh->bVisibleInSceneCaptureOnly = true;
 
 	Capture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Capture"));
 	Capture->SetupAttachment(Root);

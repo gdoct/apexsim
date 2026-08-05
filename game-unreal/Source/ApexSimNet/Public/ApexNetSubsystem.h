@@ -3,8 +3,9 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 // Included rather than forward-declared: the UHT-generated code instantiates
-// TUniquePtr<FApexTcpConnection>'s deleter, which needs the complete type.
+// the TUniquePtr deleters, which need the complete types.
 #include "ApexTcpConnection.h"
+#include "ApexUdpConnection.h"
 #include "Containers/Ticker.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -22,6 +23,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCountdownUpdate, int32, Secon
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FApexOnServerError, int32, Code, const FString&, Message);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPlayerDisconnected, const FString&, PlayerId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnDisconnected, const FString&, Reason);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionRosterUpdated, const FApexSessionRoster&, Roster);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnTelemetry, const FApexTelemetryFrame&, Frame);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
 
 /**
  * Owns the connection to the ApexSim server and translates it into Blueprint
@@ -85,6 +90,28 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
 	FApexOnDisconnected OnDisconnected;
+
+	/** Car index -> player identity. Arrives reliably over TCP on join and on change. */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnSessionRosterUpdated OnSessionRosterUpdated;
+
+	/** Fires once the UDP handshake is acknowledged and telemetry can flow. */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnUdpReady OnUdpReady;
+
+	/** One decoded telemetry frame, on the game thread. ~60Hz by default. */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnTelemetry OnTelemetry;
+
+	/**
+	 * Session state transitions, derived from the telemetry stream.
+	 *
+	 * `StartSession` moves the server to Countdown without sending any TCP
+	 * message about it, so the telemetry frame — which carries state and mode on
+	 * every packet — is the only reliable source.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnSessionStateChanged OnSessionStateChanged;
 
 	// --- Actions --------------------------------------------------------------
 
@@ -175,6 +202,35 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	bool FindSessionById(const FString& SessionId, FApexSessionSummary& OutSession) const;
 
+	// --- Race / UDP -----------------------------------------------------------
+
+	/**
+	 * Sets the controls sent to the server. Cheap — call every frame.
+	 * Does nothing until the UDP handshake has completed.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
+	void SetPlayerInput(const FApexPlayerInput& Input);
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	bool IsUdpReady() const;
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	const FApexSessionRoster& GetSessionRoster() const { return CachedRoster; }
+
+	/** The most recent telemetry frame, for anything that polls rather than binds. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	const FApexTelemetryFrame& GetLatestTelemetry() const { return LatestTelemetry; }
+
+	/** The car index assigned to this player, or -1 if the roster has no entry yet. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	int32 GetLocalCarIndex() const;
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	EApexSessionState GetSessionState() const { return CurrentSessionState; }
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	EApexGameMode GetGameMode() const { return CurrentGameMode; }
+
 private:
 	/** Server heartbeat timeout is 5000 ms; 2 s leaves generous margin. */
 	static constexpr float HeartbeatIntervalSeconds = 2.0f;
@@ -186,8 +242,24 @@ private:
 	void SendPayload(TArray<uint8>&& Payload);
 	void TeardownConnection();
 
+	/** Starts the UDP side once AuthSuccess has handed over a token and port. */
+	void StartUdp(const FApexAuthSuccess& Auth);
+
 	TUniquePtr<FApexTcpConnection> Connection;
+	TUniquePtr<FApexUdpConnection> UdpConnection;
 	FTSTicker::FDelegateHandle TickerHandle;
+
+	UPROPERTY()
+	FApexSessionRoster CachedRoster;
+
+	UPROPERTY()
+	FApexTelemetryFrame LatestTelemetry;
+
+	/** Latched so OnUdpReady fires exactly once per connection. */
+	bool bUdpReadyBroadcast = false;
+
+	EApexSessionState CurrentSessionState = EApexSessionState::Lobby;
+	EApexGameMode CurrentGameMode = EApexGameMode::Lobby;
 
 	EApexConnectionState ConnectionState = EApexConnectionState::Disconnected;
 

@@ -59,6 +59,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ApexSim|UI")
 	TSubclassOf<UApexPlayerRowWidget> PlayerRowClass;
 
+	/** Grid countdown before the race begins, in seconds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|UI")
+	int32 StartCountdownSeconds = 5;
+
 private:
 	UFUNCTION() void HandleChangeCarClicked();
 	UFUNCTION() void HandleStartRaceClicked();

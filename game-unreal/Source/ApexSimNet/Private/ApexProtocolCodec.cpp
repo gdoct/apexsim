@@ -2,6 +2,7 @@
 
 #include "ApexSimNetModule.h"
 #include "HAL/IConsoleManager.h"
+#include "MsgPack/MsgPackFormat.h"
 #include "MsgPack/MsgPackReader.h"
 #include "MsgPack/MsgPackWriter.h"
 
@@ -375,6 +376,63 @@ namespace
 		return true;
 	}
 
+	/** `RosterEntry` (network.rs:457) — PascalCase keys. */
+	bool ParseRosterEntry(FMsgPackReader& Reader, FApexRosterEntry& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("CarIndex"))        { bOk = Reader.ReadUInt64(Raw); Out.CarIndex = static_cast<int32>(Raw); }
+			else if (Key == TEXT("PlayerId"))   { bOk = Reader.ReadString(Out.PlayerId); }
+			else if (Key == TEXT("PlayerName")) { bOk = Reader.ReadString(Out.PlayerName); }
+			else if (Key == TEXT("IsAi"))       { bOk = Reader.ReadBool(Out.bIsAi); }
+			else                                { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `SessionRosterData` — PascalCase keys. */
+	bool ParseSessionRoster(FMsgPackReader& Reader, FApexSessionRoster& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("SessionId"))    { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("Entries")) { bOk = ParseArrayOf(Reader, Out.Entries, &ParseRosterEntry); }
+			else                             { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** `PlayerDisconnectedData` — PascalCase keys. */
 	bool ParsePlayerDisconnected(FMsgPackReader& Reader, FApexServerMessage& Out)
 	{
@@ -399,6 +457,143 @@ namespace
 		return true;
 	}
 
+	// --- Positional decoding (UDP telemetry) ---------------------------------
+	//
+	// `to_vec` writes every struct as a bare array of its fields in declaration
+	// order, with no names. There is nothing to match on, so the reader must
+	// consume exactly the right number of values in exactly the right order.
+	// Reading one field too few leaves the cursor mid-struct and every
+	// subsequent value is garbage — hence the trailing skip loop in each parser.
+
+	/** Number of fields in `CompactCarState` (network.rs:388). */
+	constexpr int32 CompactCarFieldCount = 22;
+	/** Number of fields in `CompactTelemetry` (network.rs:415). */
+	constexpr int32 CompactTelemetryFieldCount = 5;
+
+	/** Reads an `Option<T>` that the client does not need, as a plain skip. */
+	bool SkipOptional(FMsgPackReader& Reader)
+	{
+		return Reader.TryReadNil() ? true : Reader.SkipValue();
+	}
+
+	bool ParseCompactCarState(FMsgPackReader& Reader, FApexCarTelemetry& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadArrayHeader(FieldCount))
+		{
+			return false;
+		}
+
+		// Read what we know, in order. Anything the server appends beyond this
+		// is skipped; anything it *inserts* would desynchronise us, which is
+		// the price of a positional encoding.
+		const int32 Known = FMath::Min(FieldCount, CompactCarFieldCount);
+		int32 Index = 0;
+		bool bOk = true;
+
+		auto Next = [&](auto&& Read) -> bool
+		{
+			if (Index >= Known)
+			{
+				return false;
+			}
+			++Index;
+			return Read();
+		};
+
+		uint64 Raw = 0;
+		int64 Signed = 0;
+
+		bOk &= Next([&] { return Reader.ReadUInt64(Raw) ? (Out.CarIndex = static_cast<int32>(Raw), true) : false; });
+		bOk &= Next([&] { float V = 0.0f; if (!Reader.ReadFloat(V)) { return false; } Out.Position.X = V; return true; });
+		bOk &= Next([&] { float V = 0.0f; if (!Reader.ReadFloat(V)) { return false; } Out.Position.Y = V; return true; });
+		bOk &= Next([&] { float V = 0.0f; if (!Reader.ReadFloat(V)) { return false; } Out.Position.Z = V; return true; });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.YawRad); });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.PitchRad); });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.RollRad); });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.SpeedMps); });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.Throttle); });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.Brake); });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.Steering); });
+		bOk &= Next([&] { return Reader.ReadInt64(Signed) ? (Out.Gear = static_cast<int32>(Signed), true) : false; });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.EngineRpm); });
+		// Suspension: 16 floats the shell has no use for, but they still have
+		// to be consumed to stay aligned.
+		bOk &= Next([&] { return Reader.SkipValue(); });
+		bOk &= Next([&] { return Reader.ReadUInt64(Raw) ? (Out.CurrentLap = static_cast<int32>(Raw), true) : false; });
+		bOk &= Next([&] { return Reader.ReadFloat(Out.TrackProgress); });
+		bOk &= Next([&] { return SkipOptional(Reader); });   // finish_position
+		bOk &= Next([&] { return Reader.ReadUInt64(Raw) ? (Out.CurrentLapTimeMs = static_cast<int32>(Raw), true) : false; });
+		bOk &= Next([&] { return SkipOptional(Reader); });   // last_lap_time_ms
+		bOk &= Next([&] { return SkipOptional(Reader); });   // best_lap_time_ms
+		bOk &= Next([&] { return Reader.ReadBool(Out.bIsOnTrack); });
+		bOk &= Next([&] { return Reader.ReadBool(Out.bIsColliding); });
+
+		if (!bOk)
+		{
+			return false;
+		}
+
+		for (int32 Extra = Index; Extra < FieldCount; ++Extra)
+		{
+			if (!Reader.SkipValue())
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool ParseCompactTelemetry(FMsgPackReader& Reader, FApexTelemetryFrame& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadArrayHeader(FieldCount))
+		{
+			return false;
+		}
+		if (FieldCount < CompactTelemetryFieldCount)
+		{
+			return false;
+		}
+
+		uint64 Raw = 0;
+		if (!Reader.ReadUInt64(Raw)) { return false; }
+		Out.ServerTick = static_cast<int64>(Raw);
+
+		if (!Reader.ReadUInt64(Raw)) { return false; }
+		Out.SessionState = static_cast<EApexSessionState>(Raw);
+
+		if (!Reader.ReadUInt64(Raw)) { return false; }
+		Out.GameMode = static_cast<EApexGameMode>(Raw);
+
+		if (Reader.TryReadNil())
+		{
+			Out.CountdownMs = -1;
+		}
+		else if (Reader.ReadUInt64(Raw))
+		{
+			Out.CountdownMs = static_cast<int32>(Raw);
+		}
+		else
+		{
+			return false;
+		}
+
+		if (!ParseArrayOf(Reader, Out.Cars, &ParseCompactCarState))
+		{
+			return false;
+		}
+
+		for (int32 Extra = CompactTelemetryFieldCount; Extra < FieldCount; ++Extra)
+		{
+			if (!Reader.SkipValue())
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	EApexServerMessageType VariantToType(const FString& Variant)
 	{
 		if (Variant == TEXT("AuthSuccess"))        { return EApexServerMessageType::AuthSuccess; }
@@ -412,12 +607,13 @@ namespace
 		if (Variant == TEXT("CountdownUpdate"))    { return EApexServerMessageType::CountdownUpdate; }
 		if (Variant == TEXT("Error"))              { return EApexServerMessageType::Error; }
 		if (Variant == TEXT("PlayerDisconnected")) { return EApexServerMessageType::PlayerDisconnected; }
+		if (Variant == TEXT("SessionRoster"))      { return EApexServerMessageType::SessionRoster; }
+		if (Variant == TEXT("UdpHandshakeAck"))    { return EApexServerMessageType::UdpHandshakeAck; }
+		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 
-		// Protocol-v2 traffic the menu shell has no use for.
-		if (Variant == TEXT("SessionRoster")
-			|| Variant == TEXT("Telemetry")
-			|| Variant == TEXT("TelemetryCompact")
-			|| Variant == TEXT("UdpHandshakeAck"))
+		// The named-encoding `Telemetry` is only used for server-side replays;
+		// the wire carries TelemetryCompact.
+		if (Variant == TEXT("Telemetry"))
 		{
 			return EApexServerMessageType::IgnoredVariant;
 		}
@@ -440,6 +636,14 @@ namespace
 
 		case EApexServerMessageType::PlayerDisconnected:
 			return ParsePlayerDisconnected(Reader, Out);
+
+		case EApexServerMessageType::SessionRoster:
+			return ParseSessionRoster(Reader, Out.Roster);
+
+		case EApexServerMessageType::TelemetryCompact:
+			// Only reachable if a compact frame ever arrives named; the UDP path
+			// decodes it positionally.
+			return Reader.SkipValue();
 
 		case EApexServerMessageType::AuthFailure:
 		case EApexServerMessageType::HeartbeatAck:
@@ -562,6 +766,108 @@ namespace ApexProtocol
 		Writer.WriteString("next_mode");
 		Writer.WriteUInt(static_cast<uint8>(NextMode));
 		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeUdpHandshake(const FString& UdpToken)
+	{
+		FMsgPackWriter Writer(64);
+		BeginDataVariant(Writer, "UdpHandshake", 1);
+		Writer.WriteString("token");
+		Writer.WriteString(UdpToken);
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input)
+	{
+		FMsgPackWriter Writer(96);
+		BeginDataVariant(Writer, "PlayerInput", 6);
+		Writer.WriteString("server_tick_ack");
+		Writer.WriteUInt(ServerTickAck);
+		Writer.WriteString("throttle");
+		Writer.WriteFloat(Input.Throttle);
+		Writer.WriteString("brake");
+		Writer.WriteFloat(Input.Brake);
+		Writer.WriteString("steering");
+		Writer.WriteFloat(Input.Steering);
+		Writer.WriteString("gear");
+		if (Input.HasGear())
+		{
+			Writer.WriteInt(Input.Gear);
+		}
+		else
+		{
+			Writer.WriteNil();
+		}
+		// Clutch is always nil: the shell has no clutch input, and the server
+		// treats None as "leave it alone".
+		Writer.WriteString("clutch");
+		Writer.WriteNil();
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	bool DecodeUdpMessage(TArrayView<const uint8> Payload, FApexServerMessage& OutMessage, FString& OutError)
+	{
+		OutMessage = FApexServerMessage();
+
+		if (Payload.Num() == 0)
+		{
+			OutError = TEXT("empty datagram");
+			return false;
+		}
+
+		// A named envelope starts with a map header; a positional one with an
+		// array header. That first byte is enough to pick the decoder.
+		const uint8 Tag = Payload[0];
+		if (!MsgPack::IsFixArray(Tag) && Tag != MsgPack::Array16 && Tag != MsgPack::Array32)
+		{
+			return DecodeServerMessage(Payload, OutMessage, OutError);
+		}
+
+		FMsgPackReader Reader(Payload);
+		int32 EnvelopeCount = 0;
+		if (!Reader.ReadArrayHeader(EnvelopeCount) || EnvelopeCount < 1)
+		{
+			OutError = Reader.HasError() ? Reader.GetError() : TEXT("malformed positional envelope");
+			return false;
+		}
+
+		if (!Reader.ReadString(OutMessage.VariantName))
+		{
+			OutError = Reader.GetError();
+			return false;
+		}
+		OutMessage.Type = VariantToType(OutMessage.VariantName);
+
+		if (EnvelopeCount < 2)
+		{
+			// A positional unit variant carries no payload.
+			return !Reader.HasError();
+		}
+
+		if (OutMessage.Type == EApexServerMessageType::TelemetryCompact)
+		{
+			if (!ParseCompactTelemetry(Reader, OutMessage.Telemetry))
+			{
+				OutError = Reader.HasError() ? Reader.GetError() : TEXT("failed to parse compact telemetry");
+				return false;
+			}
+		}
+		else if (!Reader.SkipValue())
+		{
+			OutError = Reader.GetError();
+			return false;
+		}
+
+		for (int32 Extra = 2; Extra < EnvelopeCount; ++Extra)
+		{
+			if (!Reader.SkipValue())
+			{
+				OutError = Reader.GetError();
+				return false;
+			}
+		}
+
+		return !Reader.HasError();
 	}
 
 	bool DecodeServerMessage(TArrayView<const uint8> Payload, FApexServerMessage& OutMessage, FString& OutError)

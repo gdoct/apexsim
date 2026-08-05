@@ -40,6 +40,14 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeSetGameMode(EApexGameMode Mode);
 	APEXSIMNET_API TArray<uint8> EncodeStartCountdown(uint16 CountdownSeconds, EApexGameMode NextMode);
 
+	// --- Client -> server over UDP -------------------------------------------
+	// Sent as bare datagrams: no length prefix, unlike the TCP stream. The
+	// server decodes with `rmp_serde::from_slice`, which accepts either
+	// encoding, so these keep using the named encoder.
+
+	APEXSIMNET_API TArray<uint8> EncodeUdpHandshake(const FString& UdpToken);
+	APEXSIMNET_API TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input);
+
 	// --- Server -> client -----------------------------------------------------
 
 	/**
@@ -48,6 +56,19 @@ namespace ApexProtocol
 	 * EApexServerMessageType::Unknown so a newer server cannot break us.
 	 */
 	APEXSIMNET_API bool DecodeServerMessage(
+		TArrayView<const uint8> Payload,
+		FApexServerMessage& OutMessage,
+		FString& OutError);
+
+	/**
+	 * Decodes one UDP datagram.
+	 *
+	 * UDP carries two different encodings: `UdpHandshakeAck` arrives named (a
+	 * `{"type": ...}` map, same as TCP) while `TelemetryCompact` arrives
+	 * positional (a `["TelemetryCompact", [...]]` array). This dispatches on the
+	 * leading format byte and hands off to the right decoder.
+	 */
+	APEXSIMNET_API bool DecodeUdpMessage(
 		TArrayView<const uint8> Payload,
 		FApexServerMessage& OutMessage,
 		FString& OutError);
