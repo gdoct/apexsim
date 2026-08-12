@@ -1,73 +1,94 @@
-//! Builds a renderable ribbon mesh from a [`TrackFile`]'s centerline.
+//! Preview meshes for the editor viewport.
 //!
-//! This is a preview mesh for the editor viewport, not the authoritative
-//! server geometry — but the sampling (Catmull-Rom spline, adaptive point
-//! spacing, per-point width/banking/surface inherited from the segment's
-//! start node) mirrors `server/src/track_loader.rs::SplineInterpolator` so
-//! what you see here matches what the server will actually load.
+//! Everything ribbon-shaped — the track surface itself, curbs, painted
+//! markings, the pit lane — is built by one generic strip builder that
+//! walks a [`CenterlinePath`] over a station span and extrudes between two
+//! lateral offsets. These are editor stand-ins, not the authoritative
+//! server geometry and not what Unreal renders; but because they sample the
+//! same spline the server loads, what you see lines up with the simulation.
 
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
-use bevy::prelude::Vec3;
 
+use crate::ats::{Curb, Marking, Side};
 use crate::coords;
-use crate::track_data::{TrackFile, TrackNode};
+use crate::track_path::{offset_point, CenterlinePath, PathSample};
 
-/// A single sampled cross-section of the centerline.
-struct Sample {
-    pos: (f32, f32, f32),
-    width_left: f32,
-    width_right: f32,
-    banking_rad: f32,
-    heading_rad: f32,
-    surface_color: [f32; 4],
-}
+/// Cross-section spacing when re-sampling a span for a strip mesh.
+const STRIP_STEP_M: f32 = 1.0;
+/// Curb stripes alternate color every this many meters.
+const CURB_STRIPE_LEN_M: f32 = 2.0;
 
-const TARGET_POINT_SPACING_M: f32 = 2.0;
-const MIN_POINTS_PER_SEGMENT: usize = 2;
-const MAX_POINTS_PER_SEGMENT: usize = 30;
+/// How far strips float above the surface they decorate, to avoid
+/// z-fighting: track < pit lane < curbs < markings.
+pub const CURB_LIFT_M: f32 = 0.02;
+pub const MARKING_LIFT_M: f32 = 0.04;
 
-/// Build a triangle-strip-shaped ribbon mesh spanning the track's width,
-/// with vertex colors keyed by each segment's surface type.
+/// Build a strip along `path` from `start_m` to `end_m`, spanning laterally
+/// from `lat_a(sample)` to `lat_b(sample)` (meters, positive = left), lifted
+/// `z_lift` above the surface. `color` is evaluated per cross-section.
 ///
-/// Returns `None` if there are too few nodes to form a segment.
-pub fn build_ribbon_mesh(track: &TrackFile) -> Option<Mesh> {
-    let samples = sample_centerline(track);
-    if samples.len() < 2 {
-        return None;
-    }
-
-    let mut positions: Vec<[f32; 3]> = Vec::with_capacity(samples.len() * 2);
-    let mut normals: Vec<[f32; 3]> = Vec::with_capacity(samples.len() * 2);
-    let mut colors: Vec<[f32; 4]> = Vec::with_capacity(samples.len() * 2);
-    let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(samples.len() * 2);
-
-    for sample in &samples {
-        let (left, right) = edge_points(sample);
-        positions.push(coords::to_bevy(left.0, left.1, left.2).to_array());
-        positions.push(coords::to_bevy(right.0, right.1, right.2).to_array());
-        normals.push([0.0, 1.0, 0.0]);
-        normals.push([0.0, 1.0, 0.0]);
-        colors.push(sample.surface_color);
-        colors.push(sample.surface_color);
-        let u = sample.pos.0.hypot(sample.pos.1); // cheap, not arc length; fine for a preview
-        uvs.push([u, 0.0]);
-        uvs.push([u, 1.0]);
-    }
-
-    let mut indices: Vec<u32> = Vec::with_capacity((samples.len() - 1) * 6);
-    let segment_count = if track.closed_loop {
-        samples.len()
+/// On a closed path, `end_m <= start_m` wraps through the start/finish
+/// line. Returns `None` for empty spans or degenerate paths.
+pub fn build_strip_mesh(
+    path: &CenterlinePath,
+    start_m: f32,
+    end_m: f32,
+    lat_a: impl Fn(&PathSample) -> f32,
+    lat_b: impl Fn(&PathSample) -> f32,
+    z_lift: f32,
+    color: impl Fn(&PathSample) -> [f32; 4],
+) -> Option<Mesh> {
+    let total = path.total_length_m();
+    let (start, end) = if path.is_closed() {
+        let start = start_m.rem_euclid(total);
+        let mut end = end_m.rem_euclid(total);
+        if end <= start {
+            end += total;
+        }
+        (start, end)
     } else {
-        samples.len() - 1
+        let start = start_m.clamp(0.0, total);
+        let end = end_m.clamp(0.0, total);
+        if end <= start {
+            return None;
+        }
+        (start, end)
     };
-    for i in 0..segment_count {
+
+    let span = end - start;
+    let steps = ((span / STRIP_STEP_M).ceil() as usize).max(1);
+
+    let mut positions: Vec<[f32; 3]> = Vec::with_capacity((steps + 1) * 2);
+    let mut normals: Vec<[f32; 3]> = Vec::with_capacity((steps + 1) * 2);
+    let mut colors: Vec<[f32; 4]> = Vec::with_capacity((steps + 1) * 2);
+    let mut uvs: Vec<[f32; 2]> = Vec::with_capacity((steps + 1) * 2);
+
+    for i in 0..=steps {
+        let s = start + span * (i as f32 / steps as f32);
+        let sample = path.sample_at(s);
+        let mut a = offset_point(&sample, lat_a(&sample));
+        let mut b = offset_point(&sample, lat_b(&sample));
+        a.2 += z_lift;
+        b.2 += z_lift;
+
+        positions.push(coords::to_bevy(a.0, a.1, a.2).to_array());
+        positions.push(coords::to_bevy(b.0, b.1, b.2).to_array());
+        normals.push([0.0, 1.0, 0.0]);
+        normals.push([0.0, 1.0, 0.0]);
+        let c = color(&sample);
+        colors.push(c);
+        colors.push(c);
+        uvs.push([s, 0.0]);
+        uvs.push([s, 1.0]);
+    }
+
+    let mut indices: Vec<u32> = Vec::with_capacity(steps * 6);
+    for i in 0..steps {
         let i0 = (i * 2) as u32;
-        let i1 = i0 + 1;
-        let next = (i + 1) % samples.len();
-        let i2 = (next * 2) as u32;
-        let i3 = i2 + 1;
-        // Two triangles per quad, wound so the top face (+Y normal) is visible.
+        let (i1, i2, i3) = (i0 + 1, i0 + 2, i0 + 3);
+        // Two triangles per quad, wound so the top face (+Y in Bevy space)
+        // is visible.
         indices.extend_from_slice(&[i0, i1, i2, i1, i3, i2]);
     }
 
@@ -84,171 +105,177 @@ pub fn build_ribbon_mesh(track: &TrackFile) -> Option<Mesh> {
     Some(mesh)
 }
 
-/// Left/right edge positions (track space) for a cross-section, banking
-/// applied as a vertical offset of the outer/inner edges around the
-/// centerline (positive banking lifts the left edge, per the server's
-/// "positive = banked towards inside" convention with `+Y` = left).
-fn edge_points(sample: &Sample) -> ((f32, f32, f32), (f32, f32, f32)) {
-    let (sin_h, cos_h) = sample.heading_rad.sin_cos();
-    // Left-normal in the track XY plane: heading rotated +90 degrees.
-    let (nx, ny) = (-sin_h, cos_h);
-    let bank_sin = sample.banking_rad.sin();
-
-    let left = (
-        sample.pos.0 + nx * sample.width_left,
-        sample.pos.1 + ny * sample.width_left,
-        sample.pos.2 + sample.width_left * bank_sin,
-    );
-    let right = (
-        sample.pos.0 - nx * sample.width_right,
-        sample.pos.1 - ny * sample.width_right,
-        sample.pos.2 - sample.width_right * bank_sin,
-    );
-    (left, right)
-}
-
-fn surface_color(surface_type: Option<&str>) -> [f32; 4] {
-    match surface_type.map(str::to_ascii_lowercase).as_deref() {
-        Some("curb") => [0.75, 0.15, 0.1, 1.0],
-        Some("grass") => [0.16, 0.45, 0.14, 1.0],
-        Some("gravel") => [0.62, 0.55, 0.4, 1.0],
-        Some("sand") => [0.76, 0.68, 0.42, 1.0],
-        Some("wet") => [0.3, 0.34, 0.4, 1.0],
-        Some("concrete") => [0.55, 0.55, 0.55, 1.0],
-        _ => [0.24, 0.24, 0.26, 1.0], // asphalt (default)
-    }
-}
-
-fn sample_centerline(track: &TrackFile) -> Vec<Sample> {
-    let nodes = &track.nodes;
-    if nodes.len() < 2 {
-        return Vec::new();
-    }
-
-    let mut samples = Vec::new();
-    let node_count = nodes.len();
-    let last_index = if track.closed_loop {
-        node_count
-    } else {
-        node_count - 1
-    };
-
-    for i in 0..last_index {
-        let p0 = control_point(nodes, i, -1, track.closed_loop);
-        let p1 = &nodes[i];
-        let p2 = control_point(nodes, i, 1, track.closed_loop);
-        let p3 = control_point(nodes, i, 2, track.closed_loop);
-
-        let chord_len = ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2)).sqrt();
-        let points_per_segment = ((chord_len / TARGET_POINT_SPACING_M).ceil() as usize)
-            .clamp(MIN_POINTS_PER_SEGMENT, MAX_POINTS_PER_SEGMENT);
-
-        let (width_left, width_right) = resolve_width(p1, track.default_width);
-        let color = surface_color(p1.surface_type.as_deref());
-        let banking_rad = p1.banking.unwrap_or(0.0);
-
-        for j in 0..points_per_segment {
-            let t = j as f32 / points_per_segment as f32;
-            let pos = catmull_rom(p0, p1, p2, p3, t);
-            samples.push(Sample {
-                pos,
-                width_left,
-                width_right,
-                banking_rad,
-                heading_rad: 0.0, // filled in below, once neighbors are known
-                surface_color: color,
-            });
-        }
-    }
-
-    if !track.closed_loop {
-        // Close the sampled centerline with the final node itself so the
-        // last segment doesn't fall a hair short of it.
-        let last = nodes.last().unwrap();
-        let (width_left, width_right) = resolve_width(last, track.default_width);
-        samples.push(Sample {
-            pos: (last.x, last.y, last.z),
-            width_left,
-            width_right,
-            banking_rad: last.banking.unwrap_or(0.0),
-            heading_rad: 0.0,
-            surface_color: surface_color(last.surface_type.as_deref()),
-        });
-    }
-
-    compute_headings(&mut samples, track.closed_loop);
-    samples
-}
-
-fn control_point(nodes: &[TrackNode], i: usize, offset: i32, closed_loop: bool) -> &TrackNode {
-    let len = nodes.len() as i32;
-    let idx = i as i32 + offset;
-    let idx = if closed_loop {
-        idx.rem_euclid(len)
-    } else {
-        idx.clamp(0, len - 1)
-    };
-    &nodes[idx as usize]
-}
-
-fn resolve_width(node: &TrackNode, default_width: f32) -> (f32, f32) {
-    if let (Some(wl), Some(wr)) = (node.width_left, node.width_right) {
-        (wl, wr)
-    } else if let Some(w) = node.width {
-        (w / 2.0, w / 2.0)
-    } else {
-        (default_width / 2.0, default_width / 2.0)
-    }
-}
-
-fn catmull_rom(
-    p0: &TrackNode,
-    p1: &TrackNode,
-    p2: &TrackNode,
-    p3: &TrackNode,
-    t: f32,
-) -> (f32, f32, f32) {
-    let t2 = t * t;
-    let t3 = t2 * t;
-    let blend = |a: f32, b: f32, c: f32, d: f32| -> f32 {
-        0.5 * ((2.0 * b)
-            + (-a + c) * t
-            + (2.0 * a - 5.0 * b + 4.0 * c - d) * t2
-            + (-a + 3.0 * b - 3.0 * c + d) * t3)
-    };
-    (
-        blend(p0.x, p1.x, p2.x, p3.x),
-        blend(p0.y, p1.y, p2.y, p3.y),
-        blend(p0.z, p1.z, p2.z, p3.z),
+/// The main track surface: full width, colored by surface type.
+pub fn build_track_ribbon(path: &CenterlinePath) -> Option<Mesh> {
+    build_strip_mesh(
+        path,
+        0.0,
+        path.total_length_m(),
+        |s| s.width_left_m,
+        |s| -s.width_right_m,
+        0.0,
+        |s| s.surface_color,
     )
 }
 
-fn compute_headings(samples: &mut [Sample], closed_loop: bool) {
-    let len = samples.len();
-    if len < 2 {
-        return;
-    }
-    for i in 0..len {
-        let next = if i + 1 < len {
-            Some(i + 1)
-        } else if closed_loop {
-            Some(0)
-        } else {
-            None
-        };
-        samples[i].heading_rad = match next {
-            Some(next_i) => {
-                let dx = samples[next_i].pos.0 - samples[i].pos.0;
-                let dy = samples[next_i].pos.1 - samples[i].pos.1;
-                dy.atan2(dx)
+/// A curb strip hugging the track edge on its side, striped by style.
+pub fn build_curb_mesh(path: &CenterlinePath, curb: &Curb) -> Option<Mesh> {
+    let (primary, secondary) = curb_style_colors(&curb.style);
+    let width = curb.width_m;
+    let side = curb.side;
+    let start = curb.start_m;
+    build_strip_mesh(
+        path,
+        curb.start_m,
+        curb.end_m,
+        move |s| match side {
+            Side::Left => s.width_left_m,
+            Side::Right => -(s.width_right_m + width),
+        },
+        move |s| match side {
+            Side::Left => s.width_left_m + width,
+            Side::Right => -s.width_right_m,
+        },
+        CURB_LIFT_M,
+        move |s| {
+            let stripe = ((s.station_m - start).rem_euclid(2.0 * CURB_STRIPE_LEN_M)
+                / CURB_STRIPE_LEN_M) as i32;
+            if stripe == 0 {
+                primary
+            } else {
+                secondary
             }
-            None => samples[i - 1].heading_rad,
-        };
+        },
+    )
+}
+
+/// A painted marking rectangle in station/lateral space.
+pub fn build_marking_mesh(path: &CenterlinePath, marking: &Marking) -> Option<Mesh> {
+    let (lo, hi) = if marking.lat_from_m <= marking.lat_to_m {
+        (marking.lat_from_m, marking.lat_to_m)
+    } else {
+        (marking.lat_to_m, marking.lat_from_m)
+    };
+    let color = marking.color;
+    build_strip_mesh(
+        path,
+        marking.start_m,
+        marking.end_m,
+        move |_| lo,
+        move |_| hi,
+        MARKING_LIFT_M,
+        move |_| color,
+    )
+}
+
+fn curb_style_colors(style: &str) -> ([f32; 4], [f32; 4]) {
+    let white = [0.92, 0.92, 0.92, 1.0];
+    match style {
+        "yellow_black" => ([0.9, 0.75, 0.05, 1.0], [0.08, 0.08, 0.08, 1.0]),
+        "green_white" => ([0.1, 0.5, 0.15, 1.0], [0.92, 0.92, 0.92, 1.0]),
+        "blue_white" => ([0.1, 0.25, 0.7, 1.0], [0.92, 0.92, 0.92, 1.0]),
+        _ => ([0.75, 0.12, 0.1, 1.0], white), // red_white (default)
     }
 }
 
-/// Position of a single node in Bevy space, for spawning/updating the
-/// draggable node handle entities (see `scene.rs`).
-pub fn node_bevy_position(node: &TrackNode) -> Vec3 {
-    coords::to_bevy(node.x, node.y, node.z)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ats::MarkingKind;
+    use crate::track_data::{TrackFile, TrackNode};
+
+    fn node(x: f32, y: f32) -> TrackNode {
+        TrackNode {
+            x,
+            y,
+            z: 0.0,
+            width: None,
+            width_left: None,
+            width_right: None,
+            banking: None,
+            friction: None,
+            surface_type: None,
+        }
+    }
+
+    fn loop_track() -> TrackFile {
+        TrackFile {
+            name: "Loop".to_string(),
+            track_id: None,
+            nodes: vec![
+                node(0.0, 0.0),
+                node(100.0, 0.0),
+                node(100.0, 100.0),
+                node(0.0, 100.0),
+            ],
+            checkpoints: vec![],
+            spawn_points: vec![],
+            default_width: 12.0,
+            closed_loop: true,
+            raceline: vec![],
+            metadata: None,
+        }
+    }
+
+    fn assert_finite_mesh(mesh: &Mesh) {
+        let positions = mesh
+            .attribute(Mesh::ATTRIBUTE_POSITION)
+            .unwrap()
+            .as_float3()
+            .unwrap();
+        assert!(!positions.is_empty());
+        for p in positions {
+            assert!(p.iter().all(|v| v.is_finite()));
+        }
+    }
+
+    #[test]
+    fn track_ribbon_is_finite_and_non_empty() {
+        let path = CenterlinePath::from_track(&loop_track()).unwrap();
+        let mesh = build_track_ribbon(&path).unwrap();
+        assert_finite_mesh(&mesh);
+    }
+
+    #[test]
+    fn curb_mesh_builds_and_wraps_the_start_finish_line() {
+        let path = CenterlinePath::from_track(&loop_track()).unwrap();
+        let curb = Curb {
+            id: 1,
+            side: Side::Left,
+            // end < start on a closed loop: wraps through station 0
+            start_m: path.total_length_m() - 20.0,
+            end_m: 20.0,
+            width_m: 1.2,
+            style: "red_white".to_string(),
+        };
+        let mesh = build_curb_mesh(&path, &curb).unwrap();
+        assert_finite_mesh(&mesh);
+    }
+
+    #[test]
+    fn marking_mesh_builds_regardless_of_lateral_order() {
+        let path = CenterlinePath::from_track(&loop_track()).unwrap();
+        let mut marking = Marking {
+            id: 1,
+            kind: MarkingKind::StartFinish,
+            start_m: 0.0,
+            end_m: 0.6,
+            lat_from_m: 6.0,
+            lat_to_m: -6.0, // reversed on purpose
+            color: [1.0; 4],
+        };
+        assert_finite_mesh(&build_marking_mesh(&path, &marking).unwrap());
+        std::mem::swap(&mut marking.lat_from_m, &mut marking.lat_to_m);
+        assert_finite_mesh(&build_marking_mesh(&path, &marking).unwrap());
+    }
+
+    #[test]
+    fn empty_span_on_open_path_yields_no_mesh() {
+        let mut track = loop_track();
+        track.closed_loop = false;
+        let path = CenterlinePath::from_track(&track).unwrap();
+        assert!(
+            build_strip_mesh(&path, 50.0, 50.0, |_| 1.0, |_| -1.0, 0.0, |_| [1.0; 4]).is_none()
+        );
+    }
 }

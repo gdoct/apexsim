@@ -53,6 +53,21 @@ pub struct TrackNode {
     pub surface_type: Option<String>,
 }
 
+impl TrackNode {
+    /// `(left, right)` half-widths in meters, resolved the same way the
+    /// server does: explicit `width_left`/`width_right` win, then `width`
+    /// split evenly, then the track's `default_width` split evenly.
+    pub fn resolved_half_widths(&self, default_width: f32) -> (f32, f32) {
+        if let (Some(wl), Some(wr)) = (self.width_left, self.width_right) {
+            (wl, wr)
+        } else if let Some(w) = self.width {
+            (w / 2.0, w / 2.0)
+        } else {
+            (default_width / 2.0, default_width / 2.0)
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Checkpoint {
     pub index_start: usize,

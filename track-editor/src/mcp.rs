@@ -1,16 +1,17 @@
-//! MCP server: lets an external agent (e.g. Claude Code) inspect and edit
-//! the currently open track alongside the human user, live.
+//! MCP server: lets an external agent (e.g. Claude Code) inspect the open
+//! track and edit its `.ats` scene alongside the human user, live.
+//!
+//! The source `track.yaml` is read-only — the node tools are inspection
+//! only. All mutating tools operate on the `.ats` scene (curbs, markings,
+//! pit lane, props) and share the same undo stack as the GUI.
 //!
 //! Streamable HTTP, bound to `127.0.0.1` only. Runs on its own background
-//! OS thread with its own single-threaded-friendly Tokio runtime — Bevy's
-//! `App::update()` loop never blocks on it. Each MCP tool call is turned
-//! into an [`EditorCommand`] sent over a channel and applied to
-//! [`OpenTrack`]/[`UndoStack`] by [`drain_mcp_commands`], which runs as an
-//! ordinary Bevy system on the main thread. That keeps exactly one place
-//! that ever mutates track state — MCP tool calls, node drags, and
-//! undo/redo hotkeys all funnel through the same resources, so the 3D
-//! viewport rebuild (`resource_changed::<OpenTrack>`, see `scene.rs`) picks
-//! up MCP-driven edits exactly like any other edit.
+//! OS thread with its own Tokio runtime — Bevy's `App::update()` loop never
+//! blocks on it. Each MCP tool call is turned into an [`EditorCommand`]
+//! sent over a channel and applied to the editor resources by
+//! [`drain_mcp_commands`], which runs as an ordinary Bevy system on the
+//! main thread, so MCP edits drive viewport rebuilds exactly like GUI
+//! edits.
 
 use bevy::prelude::*;
 use rmcp::handler::server::wrapper::Parameters;
@@ -26,9 +27,12 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::state::{OpenTrack, UndoStack};
-use crate::track_data::{Checkpoint, TrackFile, TrackNode};
-use crate::track_io;
+use crate::ats::{AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side};
+use crate::ats_io;
+use crate::project;
+use crate::scene::TrackPathRes;
+use crate::state::{OpenScene, OpenTrack, Selection, StatusLine, UndoStack};
+use crate::track_data::{TrackFile, TrackNode};
 
 const DEFAULT_MCP_PORT: u16 = 8420;
 
@@ -96,6 +100,13 @@ async fn run_mcp_server(commands: mpsc::UnboundedSender<EditorCommand>) {
 // ---------------------------------------------------------------------
 
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct OpenTrackParams {
+    /// Path to the source track file (.yaml/.yml/.json), absolute or
+    /// relative to the editor's working directory.
+    path: String,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 struct NodeIndexParams {
     /// Index into the track's node list (0-based).
     index: usize,
@@ -110,59 +121,111 @@ struct ListNodesParams {
 }
 
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
-struct MoveNodeParams {
-    /// Index of the node to move.
-    index: usize,
-    /// New X coordinate, in track space (meters).
-    x: f32,
-    /// New Y coordinate, in track space (meters).
-    y: f32,
-    /// New Z (elevation), in track space (meters). Leave unset to keep it.
-    z: Option<f32>,
+struct AddCurbParams {
+    /// Which track edge the curb hugs: "left" or "right".
+    side: String,
+    /// Station (meters along the centerline) where the curb starts.
+    start_m: f32,
+    /// Station where it ends. On closed loops end < start wraps through
+    /// the start/finish line.
+    end_m: f32,
+    /// Curb width outward from the track edge, meters. Defaults to 1.2.
+    width_m: Option<f32>,
+    /// Style key: red_white (default), yellow_black, green_white, blue_white.
+    style: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
-struct AddNodeParams {
-    /// Position to insert at (0-based). Defaults to appending at the end.
-    index: Option<usize>,
-    /// X coordinate, in track space (meters).
+struct UpdateCurbParams {
+    /// Id of the curb to edit.
+    id: u64,
+    /// New side ("left"/"right"), if changing.
+    side: Option<String>,
+    start_m: Option<f32>,
+    end_m: Option<f32>,
+    width_m: Option<f32>,
+    style: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct AddMarkingParams {
+    /// Kind: start_finish, grid_slot, edge_line, pit_entry, pit_exit, custom.
+    kind: String,
+    /// Station where the marking starts, meters.
+    start_m: f32,
+    /// Station where it ends.
+    end_m: f32,
+    /// Lateral extent from the centerline, meters; positive is left.
+    lat_from_m: f32,
+    lat_to_m: f32,
+    /// Linear RGBA paint color; defaults to opaque white.
+    color: Option<[f32; 4]>,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct UpdateMarkingParams {
+    /// Id of the marking to edit.
+    id: u64,
+    kind: Option<String>,
+    start_m: Option<f32>,
+    end_m: Option<f32>,
+    lat_from_m: Option<f32>,
+    lat_to_m: Option<f32>,
+    color: Option<[f32; 4]>,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct AddPropParams {
+    /// Kind: tree, sign, barrier, tire_wall, building, grandstand, light,
+    /// cone, misc.
+    kind: String,
+    /// Position in track space, meters.
     x: f32,
-    /// Y coordinate, in track space (meters).
     y: f32,
-    /// Z (elevation), in track space (meters). Defaults to 0.
+    /// Elevation; defaults to 0.
     #[serde(default)]
     z: f32,
-    /// Total track width in meters (split evenly left/right). Ignored if
-    /// `width_left`/`width_right` are given.
-    width: Option<f32>,
-    /// Track width to the left of the centerline, in meters.
-    width_left: Option<f32>,
-    /// Track width to the right of the centerline, in meters.
-    width_right: Option<f32>,
-    /// Banking angle in radians (positive banks toward the inside/left).
-    banking: Option<f32>,
-    /// Local grip multiplier (1.0 = normal).
-    friction: Option<f32>,
-    /// One of Asphalt, Curb, Grass, Gravel, Sand, Wet, Concrete.
-    surface_type: Option<String>,
+    /// Yaw, CCW from +X, radians. Defaults to 0.
+    yaw_rad: Option<f32>,
+    /// Uniform scale. Defaults to 1.
+    scale: Option<f32>,
+    /// Asset key for the Unreal importer; defaults to "<kind>_generic".
+    asset: Option<String>,
+    /// Optional sign/board text.
+    text: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
-struct SetNodePropertyParams {
-    /// Index of the node to edit.
-    index: usize,
-    /// Total track width in meters (split evenly left/right).
-    width: Option<f32>,
-    /// Track width to the left of the centerline, in meters.
-    width_left: Option<f32>,
-    /// Track width to the right of the centerline, in meters.
-    width_right: Option<f32>,
-    /// Banking angle in radians (positive banks toward the inside/left).
-    banking: Option<f32>,
-    /// Local grip multiplier (1.0 = normal).
-    friction: Option<f32>,
-    /// One of Asphalt, Curb, Grass, Gravel, Sand, Wet, Concrete.
-    surface_type: Option<String>,
+struct UpdatePropParams {
+    /// Id of the prop to edit.
+    id: u64,
+    kind: Option<String>,
+    x: Option<f32>,
+    y: Option<f32>,
+    z: Option<f32>,
+    yaw_rad: Option<f32>,
+    scale: Option<f32>,
+    asset: Option<String>,
+    /// New sign text; pass an empty string to clear it.
+    text: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct ElementIdParams {
+    /// Id of the curb, marking, or prop to remove.
+    id: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct SetPitLaneParams {
+    /// Pit-lane centerline nodes as [x, y, z] in track space, at least 2.
+    nodes: Vec<[f32; 3]>,
+    /// Lane width, meters. Defaults to 8.
+    width_m: Option<f32>,
+    /// Number of pit boxes. Defaults to 10.
+    box_count: Option<u32>,
+    /// Speed limit, km/h. Defaults to 80.
+    speed_limit_kmh: Option<f32>,
 }
 
 // ---------------------------------------------------------------------
@@ -172,13 +235,20 @@ struct SetNodePropertyParams {
 /// One MCP tool call, packaged with a reply channel. Sent from the Tokio
 /// thread, applied on the main thread by [`drain_mcp_commands`].
 enum EditorCommand {
+    OpenTrack(OpenTrackParams, oneshot::Sender<Result<String, String>>),
     GetTrackInfo(oneshot::Sender<Value>),
     ListNodes(ListNodesParams, oneshot::Sender<Value>),
     GetNode(NodeIndexParams, oneshot::Sender<Result<Value, String>>),
-    MoveNode(MoveNodeParams, oneshot::Sender<Result<(), String>>),
-    AddNode(AddNodeParams, oneshot::Sender<Result<usize, String>>),
-    RemoveNode(NodeIndexParams, oneshot::Sender<Result<(), String>>),
-    SetNodeProperty(SetNodePropertyParams, oneshot::Sender<Result<(), String>>),
+    GetScene(oneshot::Sender<Result<Value, String>>),
+    AddCurb(AddCurbParams, oneshot::Sender<Result<u64, String>>),
+    UpdateCurb(UpdateCurbParams, oneshot::Sender<Result<(), String>>),
+    AddMarking(AddMarkingParams, oneshot::Sender<Result<u64, String>>),
+    UpdateMarking(UpdateMarkingParams, oneshot::Sender<Result<(), String>>),
+    AddProp(AddPropParams, oneshot::Sender<Result<u64, String>>),
+    UpdateProp(UpdatePropParams, oneshot::Sender<Result<(), String>>),
+    RemoveElement(ElementIdParams, oneshot::Sender<Result<(), String>>),
+    SetPitLane(SetPitLaneParams, oneshot::Sender<Result<(), String>>),
+    ClearPitLane(oneshot::Sender<Result<(), String>>),
     Undo(oneshot::Sender<Result<(), String>>),
     Redo(oneshot::Sender<Result<(), String>>),
     Save(oneshot::Sender<Result<(), String>>),
@@ -187,15 +257,37 @@ enum EditorCommand {
 #[derive(Resource)]
 struct McpCommandReceiver(mpsc::UnboundedReceiver<EditorCommand>);
 
+#[allow(clippy::too_many_arguments)]
 fn drain_mcp_commands(
     mut receiver: ResMut<McpCommandReceiver>,
     mut open_track: ResMut<OpenTrack>,
+    track_path: Res<TrackPathRes>,
+    mut open_scene: ResMut<OpenScene>,
     mut undo_stack: ResMut<UndoStack>,
+    mut selection: ResMut<Selection>,
+    mut status: ResMut<StatusLine>,
 ) {
     while let Ok(cmd) = receiver.0.try_recv() {
         match cmd {
+            EditorCommand::OpenTrack(params, reply) => {
+                let result = match project::open_project(std::path::Path::new(&params.path)) {
+                    Ok(project) => {
+                        status.0 = project.message.clone();
+                        open_track.path = Some(project.track_path);
+                        open_track.track = Some(project.track);
+                        open_scene.path = Some(project.ats_path);
+                        open_scene.scene = project.scene;
+                        open_scene.dirty = project.dirty;
+                        undo_stack.clear();
+                        selection.0 = None;
+                        Ok(project.message)
+                    }
+                    Err(e) => Err(e),
+                };
+                let _ = reply.send(result);
+            }
             EditorCommand::GetTrackInfo(reply) => {
-                let _ = reply.send(track_info_json(&open_track));
+                let _ = reply.send(track_info_json(&open_track, &track_path, &open_scene));
             }
             EditorCommand::ListNodes(params, reply) => {
                 let value = match &open_track.track {
@@ -209,121 +301,230 @@ fn drain_mcp_commands(
                 let _ = reply.send(value);
             }
             EditorCommand::GetNode(params, reply) => {
-                let result = with_track(&open_track, |track| {
-                    track
+                let result = match &open_track.track {
+                    Some(track) => track
                         .nodes
                         .get(params.index)
                         .map(|node| node_json(params.index, node))
-                        .ok_or_else(|| out_of_range(params.index, track.nodes.len()))
+                        .ok_or_else(|| out_of_range(params.index, track.nodes.len())),
+                    None => Err("no track open".to_string()),
+                };
+                let _ = reply.send(result);
+            }
+            EditorCommand::GetScene(reply) => {
+                let result = match &open_scene.scene {
+                    Some(scene) => {
+                        serde_json::to_value(scene).map_err(|e| format!("serialize: {e}"))
+                    }
+                    None => Err("no scene open".to_string()),
+                };
+                let _ = reply.send(result);
+            }
+            EditorCommand::AddCurb(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    let side = Side::parse(&params.side)?;
+                    let id = s.alloc_id();
+                    s.curbs.push(Curb {
+                        id,
+                        side,
+                        start_m: params.start_m,
+                        end_m: params.end_m,
+                        width_m: params.width_m.unwrap_or(1.2),
+                        style: params.style.clone().unwrap_or_else(|| "red_white".into()),
+                    });
+                    Ok(id)
                 });
                 let _ = reply.send(result);
             }
-            EditorCommand::MoveNode(params, reply) => {
-                let result = mutate_track(&mut open_track, &mut undo_stack, |track| {
-                    let count = track.nodes.len();
-                    let node = track
-                        .nodes
-                        .get_mut(params.index)
-                        .ok_or_else(|| out_of_range(params.index, count))?;
-                    node.x = params.x;
-                    node.y = params.y;
-                    if let Some(z) = params.z {
-                        node.z = z;
+            EditorCommand::UpdateCurb(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    let side = params.side.as_deref().map(Side::parse).transpose()?;
+                    let curb = s
+                        .curb_mut(params.id)
+                        .ok_or_else(|| format!("no curb with id {}", params.id))?;
+                    if let Some(side) = side {
+                        curb.side = side;
+                    }
+                    if let Some(v) = params.start_m {
+                        curb.start_m = v;
+                    }
+                    if let Some(v) = params.end_m {
+                        curb.end_m = v;
+                    }
+                    if let Some(v) = params.width_m {
+                        curb.width_m = v;
+                    }
+                    if let Some(v) = params.style.clone() {
+                        curb.style = v;
                     }
                     Ok(())
                 });
                 let _ = reply.send(result);
             }
-            EditorCommand::AddNode(params, reply) => {
-                let result = mutate_track(&mut open_track, &mut undo_stack, |track| {
-                    let at = params
-                        .index
-                        .unwrap_or(track.nodes.len())
-                        .min(track.nodes.len());
-                    track.nodes.insert(
-                        at,
-                        TrackNode {
-                            x: params.x,
-                            y: params.y,
-                            z: params.z,
-                            width: params.width,
-                            width_left: params.width_left,
-                            width_right: params.width_right,
-                            banking: params.banking,
-                            friction: params.friction,
-                            surface_type: params.surface_type.clone(),
-                        },
-                    );
-                    reindex_checkpoints_on_insert(&mut track.checkpoints, at);
-                    Ok(at)
+            EditorCommand::AddMarking(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    let kind = MarkingKind::parse(&params.kind)?;
+                    let id = s.alloc_id();
+                    s.markings.push(Marking {
+                        id,
+                        kind,
+                        start_m: params.start_m,
+                        end_m: params.end_m,
+                        lat_from_m: params.lat_from_m,
+                        lat_to_m: params.lat_to_m,
+                        color: params.color.unwrap_or([1.0, 1.0, 1.0, 1.0]),
+                    });
+                    Ok(id)
                 });
                 let _ = reply.send(result);
             }
-            EditorCommand::RemoveNode(params, reply) => {
-                let result = mutate_track(&mut open_track, &mut undo_stack, |track| {
-                    if track.nodes.len() <= 2 {
-                        return Err(
-                            "cannot remove node: a track needs at least 2 nodes".to_string()
-                        );
+            EditorCommand::UpdateMarking(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    let kind = params.kind.as_deref().map(MarkingKind::parse).transpose()?;
+                    let marking = s
+                        .marking_mut(params.id)
+                        .ok_or_else(|| format!("no marking with id {}", params.id))?;
+                    if let Some(kind) = kind {
+                        marking.kind = kind;
                     }
-                    if params.index >= track.nodes.len() {
-                        return Err(out_of_range(params.index, track.nodes.len()));
+                    if let Some(v) = params.start_m {
+                        marking.start_m = v;
                     }
-                    track.nodes.remove(params.index);
-                    reindex_checkpoints_on_remove(&mut track.checkpoints, params.index);
+                    if let Some(v) = params.end_m {
+                        marking.end_m = v;
+                    }
+                    if let Some(v) = params.lat_from_m {
+                        marking.lat_from_m = v;
+                    }
+                    if let Some(v) = params.lat_to_m {
+                        marking.lat_to_m = v;
+                    }
+                    if let Some(v) = params.color {
+                        marking.color = v;
+                    }
                     Ok(())
                 });
                 let _ = reply.send(result);
             }
-            EditorCommand::SetNodeProperty(params, reply) => {
-                let result = mutate_track(&mut open_track, &mut undo_stack, |track| {
-                    let count = track.nodes.len();
-                    let node = track
-                        .nodes
-                        .get_mut(params.index)
-                        .ok_or_else(|| out_of_range(params.index, count))?;
-                    if let Some(v) = params.width {
-                        node.width = Some(v);
+            EditorCommand::AddProp(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    let kind = PropKind::parse(&params.kind)?;
+                    let id = s.alloc_id();
+                    s.props.push(Prop {
+                        id,
+                        kind,
+                        asset: params
+                            .asset
+                            .clone()
+                            .unwrap_or_else(|| format!("{}_generic", kind.label())),
+                        x: params.x,
+                        y: params.y,
+                        z: params.z,
+                        yaw_rad: params.yaw_rad.unwrap_or(0.0),
+                        scale: params.scale.unwrap_or(1.0),
+                        text: params.text.clone(),
+                    });
+                    Ok(id)
+                });
+                let _ = reply.send(result);
+            }
+            EditorCommand::UpdateProp(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    let kind = params.kind.as_deref().map(PropKind::parse).transpose()?;
+                    let prop = s
+                        .prop_mut(params.id)
+                        .ok_or_else(|| format!("no prop with id {}", params.id))?;
+                    if let Some(kind) = kind {
+                        prop.kind = kind;
                     }
-                    if let Some(v) = params.width_left {
-                        node.width_left = Some(v);
+                    if let Some(v) = params.x {
+                        prop.x = v;
                     }
-                    if let Some(v) = params.width_right {
-                        node.width_right = Some(v);
+                    if let Some(v) = params.y {
+                        prop.y = v;
                     }
-                    if let Some(v) = params.banking {
-                        node.banking = Some(v);
+                    if let Some(v) = params.z {
+                        prop.z = v;
                     }
-                    if let Some(v) = params.friction {
-                        node.friction = Some(v);
+                    if let Some(v) = params.yaw_rad {
+                        prop.yaw_rad = v;
                     }
-                    if let Some(v) = params.surface_type.clone() {
-                        node.surface_type = Some(v);
+                    if let Some(v) = params.scale {
+                        prop.scale = v;
+                    }
+                    if let Some(v) = params.asset.clone() {
+                        prop.asset = v;
+                    }
+                    if let Some(v) = params.text.clone() {
+                        prop.text = if v.is_empty() { None } else { Some(v) };
+                    }
+                    Ok(())
+                });
+                let _ = reply.send(result);
+            }
+            EditorCommand::RemoveElement(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    if s.remove_element(params.id) {
+                        Ok(())
+                    } else {
+                        Err(format!("no element with id {}", params.id))
+                    }
+                });
+                let _ = reply.send(result);
+            }
+            EditorCommand::SetPitLane(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    if params.nodes.len() < 2 {
+                        return Err("pit lane needs at least 2 nodes".to_string());
+                    }
+                    s.pit_lane = Some(PitLane {
+                        nodes: params.nodes.clone(),
+                        width_m: params.width_m.unwrap_or(8.0),
+                        box_count: params.box_count.unwrap_or(10),
+                        speed_limit_kmh: params.speed_limit_kmh.unwrap_or(80.0),
+                    });
+                    Ok(())
+                });
+                let _ = reply.send(result);
+            }
+            EditorCommand::ClearPitLane(reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    if s.pit_lane.take().is_none() {
+                        return Err("no pit lane to clear".to_string());
                     }
                     Ok(())
                 });
                 let _ = reply.send(result);
             }
             EditorCommand::Undo(reply) => {
-                let result =
-                    apply_history(&mut open_track, |current| undo_stack.undo(current), "undo");
+                let result = apply_history(
+                    &mut open_scene,
+                    &mut status,
+                    |current| undo_stack.undo(current),
+                    "undo",
+                );
                 let _ = reply.send(result);
             }
             EditorCommand::Redo(reply) => {
-                let result =
-                    apply_history(&mut open_track, |current| undo_stack.redo(current), "redo");
+                let result = apply_history(
+                    &mut open_scene,
+                    &mut status,
+                    |current| undo_stack.redo(current),
+                    "redo",
+                );
                 let _ = reply.send(result);
             }
             EditorCommand::Save(reply) => {
-                let result = match (&open_track.path, &open_track.track) {
-                    (Some(path), Some(track)) => {
-                        track_io::save_track_file(path, track).map_err(|e| e.to_string())
+                let result = match (&open_scene.path, &open_scene.scene) {
+                    (Some(path), Some(scene)) => {
+                        ats_io::save_ats(path, scene).map_err(|e| e.to_string())
                     }
-                    (None, _) => Err("track has no associated file path".to_string()),
-                    (_, None) => Err("no track open".to_string()),
+                    (None, _) => Err("scene has no associated file path".to_string()),
+                    (_, None) => Err("no scene open".to_string()),
                 };
                 if result.is_ok() {
-                    open_track.status = "Saved (MCP).".to_string();
+                    open_scene.dirty = false;
+                    status.0 = "Saved (MCP).".to_string();
                 }
                 let _ = reply.send(result);
             }
@@ -335,17 +536,19 @@ fn drain_mcp_commands(
 /// in the popped snapshot, describe what happened" and differ only in which
 /// `UndoStack` method they call.
 fn apply_history(
-    open_track: &mut OpenTrack,
-    pop: impl FnOnce(TrackFile) -> Option<TrackFile>,
+    open_scene: &mut OpenScene,
+    status: &mut StatusLine,
+    pop: impl FnOnce(AtsScene) -> Option<AtsScene>,
     verb: &str,
 ) -> Result<(), String> {
-    let Some(current) = open_track.track.clone() else {
-        return Err("no track open".to_string());
+    let Some(current) = open_scene.scene.clone() else {
+        return Err("no scene open".to_string());
     };
     match pop(current) {
         Some(restored) => {
-            open_track.track = Some(restored);
-            open_track.status = format!("{}{} (MCP).", verb[..1].to_uppercase(), &verb[1..]);
+            open_scene.scene = Some(restored);
+            open_scene.dirty = true;
+            status.0 = format!("{}{} (MCP).", verb[..1].to_uppercase(), &verb[1..]);
             Ok(())
         }
         None => Err(format!("nothing to {verb}")),
@@ -356,63 +559,33 @@ fn out_of_range(index: usize, count: usize) -> String {
     format!("node index {index} out of range (0..{count})")
 }
 
-fn with_track<T>(
-    open_track: &OpenTrack,
-    f: impl FnOnce(&TrackFile) -> Result<T, String>,
-) -> Result<T, String> {
-    match &open_track.track {
-        Some(track) => f(track),
-        None => Err("no track open".to_string()),
-    }
-}
-
-/// Mutates the open track and records an undo entry, but only on success.
+/// Mutates the open scene and records an undo entry, but only on success.
 /// Contract: `f` must validate everything *before* it starts mutating, so an
 /// `Err` return never leaves a partially-applied edit live without a
-/// matching undo entry. Every call site above upholds this (index/bounds
+/// matching undo entry. Every call site above upholds this (parse/lookup
 /// checks precede any field write).
-fn mutate_track<T>(
-    open_track: &mut OpenTrack,
+fn mutate_scene<T>(
+    open_scene: &mut OpenScene,
     undo_stack: &mut UndoStack,
-    f: impl FnOnce(&mut TrackFile) -> Result<T, String>,
+    status: &mut StatusLine,
+    f: impl FnOnce(&mut AtsScene) -> Result<T, String>,
 ) -> Result<T, String> {
-    let Some(track) = open_track.track.as_mut() else {
-        return Err("no track open".to_string());
+    let Some(scene) = open_scene.scene.as_mut() else {
+        return Err("no scene open".to_string());
     };
-    let snapshot = track.clone();
-    let result = f(track)?;
+    let snapshot = scene.clone();
+    let result = f(scene)?;
     undo_stack.push(snapshot);
-    open_track.status = "Edited (MCP).".to_string();
+    open_scene.dirty = true;
+    status.0 = "Edited (MCP).".to_string();
     Ok(result)
 }
 
-fn reindex_checkpoints_on_insert(checkpoints: &mut [Checkpoint], inserted_at: usize) {
-    for cp in checkpoints.iter_mut() {
-        if cp.index_start >= inserted_at {
-            cp.index_start += 1;
-        }
-        if cp.index_end >= inserted_at {
-            cp.index_end += 1;
-        }
-    }
-}
-
-/// Drops any checkpoint that referenced the removed node and shifts the rest
-/// down by one. There's no sensible way to "repair" a checkpoint whose
-/// anchor node no longer exists, so it's dropped rather than left dangling.
-fn reindex_checkpoints_on_remove(checkpoints: &mut Vec<Checkpoint>, removed_at: usize) {
-    checkpoints.retain(|cp| cp.index_start != removed_at && cp.index_end != removed_at);
-    for cp in checkpoints.iter_mut() {
-        if cp.index_start > removed_at {
-            cp.index_start -= 1;
-        }
-        if cp.index_end > removed_at {
-            cp.index_end -= 1;
-        }
-    }
-}
-
-fn track_info_json(open_track: &OpenTrack) -> Value {
+fn track_info_json(
+    open_track: &OpenTrack,
+    track_path: &TrackPathRes,
+    open_scene: &OpenScene,
+) -> Value {
     match &open_track.track {
         Some(track) => json!({
             "loaded": true,
@@ -422,13 +595,18 @@ fn track_info_json(open_track: &OpenTrack) -> Value {
             "node_count": track.nodes.len(),
             "closed_loop": track.closed_loop,
             "default_width": track.default_width,
-            "checkpoint_count": track.checkpoints.len(),
-            "spawn_point_count": track.spawn_points.len(),
-            "raceline_point_count": track.raceline.len(),
-            "metadata": track.metadata,
-            "status": open_track.status,
+            "length_m": track_path.0.as_ref().map(|p| p.total_length_m()),
+            "yaml_read_only": true,
+            "scene": open_scene.scene.as_ref().map(|s| json!({
+                "path": open_scene.path.as_ref().map(|p| p.display().to_string()),
+                "dirty": open_scene.dirty,
+                "curbs": s.curbs.len(),
+                "markings": s.markings.len(),
+                "props": s.props.len(),
+                "pit_lane": s.pit_lane.is_some(),
+            })),
         }),
-        None => json!({ "loaded": false, "status": open_track.status }),
+        None => json!({ "loaded": false }),
     }
 }
 
@@ -474,7 +652,7 @@ fn text_result(text: impl Into<String>) -> CallToolResult {
 
 /// One instance is constructed per MCP session (see `StreamableHttpService`
 /// setup in `run_mcp_server`), but all instances share the same
-/// `commands` sender, so every session talks to the same open track.
+/// `commands` sender, so every session talks to the same open scene.
 #[derive(Clone)]
 struct TrackEditorMcp {
     commands: mpsc::UnboundedSender<EditorCommand>,
@@ -510,7 +688,20 @@ impl TrackEditorMcp {
 #[tool_router(server_handler)]
 impl TrackEditorMcp {
     #[tool(
-        description = "Get info about the currently open track: name, file path, node/checkpoint/spawn counts, closed_loop, default width, and metadata. loaded=false if nothing is open."
+        description = "Open a source track file (.yaml/.yml/.json) read-only and load or create its sibling .ats scene. A missing .ats is created fresh in memory (saved on the first save call); the YAML is never written."
+    )]
+    async fn open_track(
+        &self,
+        Parameters(params): Parameters<OpenTrackParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let message = self
+            .request_fallible(|reply| EditorCommand::OpenTrack(params, reply))
+            .await?;
+        Ok(text_result(message))
+    }
+
+    #[tool(
+        description = "Get info about the open track (read-only source YAML) and its .ats scene: name, node count, length, and per-layer element counts. loaded=false if nothing is open."
     )]
     async fn get_track_info(&self) -> Result<CallToolResult, McpError> {
         let value = self.request(EditorCommand::GetTrackInfo).await?;
@@ -518,7 +709,7 @@ impl TrackEditorMcp {
     }
 
     #[tool(
-        description = "List the track's centerline nodes (index, x, y, z, width, banking, friction, surface_type). Use offset/limit to page through large tracks."
+        description = "List the track's centerline nodes (read-only; the YAML source cannot be edited). Use offset/limit to page through large tracks."
     )]
     async fn list_nodes(
         &self,
@@ -530,7 +721,7 @@ impl TrackEditorMcp {
         Ok(json_result(value))
     }
 
-    #[tool(description = "Get a single node's full detail by index.")]
+    #[tool(description = "Get a single centerline node's full detail by index (read-only).")]
     async fn get_node(
         &self,
         Parameters(params): Parameters<NodeIndexParams>,
@@ -542,67 +733,133 @@ impl TrackEditorMcp {
     }
 
     #[tool(
-        description = "Move a node to a new (x, y) position in track space (meters); optionally set z (elevation). Records an undo entry."
+        description = "Get the full .ats scene as JSON: curbs, markings, pit lane, and props with their ids."
     )]
-    async fn move_node(
-        &self,
-        Parameters(params): Parameters<MoveNodeParams>,
-    ) -> Result<CallToolResult, McpError> {
-        self.request_fallible(|reply| EditorCommand::MoveNode(params, reply))
-            .await?;
-        Ok(text_result("moved"))
+    async fn get_scene(&self) -> Result<CallToolResult, McpError> {
+        let value = self.request_fallible(EditorCommand::GetScene).await?;
+        Ok(json_result(value))
     }
 
     #[tool(
-        description = "Insert a new centerline node. `index` is the insertion position (defaults to appending at the end). Records an undo entry."
+        description = "Add a curb strip along a station span of the track edge. Stations are meters along the centerline. Returns the new curb's id. Records an undo entry."
     )]
-    async fn add_node(
+    async fn add_curb(
         &self,
-        Parameters(params): Parameters<AddNodeParams>,
+        Parameters(params): Parameters<AddCurbParams>,
     ) -> Result<CallToolResult, McpError> {
-        let index = self
-            .request_fallible(|reply| EditorCommand::AddNode(params, reply))
+        let id = self
+            .request_fallible(|reply| EditorCommand::AddCurb(params, reply))
             .await?;
-        Ok(text_result(format!("added node at index {index}")))
+        Ok(text_result(format!("added curb {id}")))
     }
 
     #[tool(
-        description = "Remove a centerline node by index. Refuses to drop the track below 2 nodes; drops any checkpoint anchored to the removed node. Records an undo entry."
+        description = "Update fields on an existing curb by id; only provided fields change. Records an undo entry."
     )]
-    async fn remove_node(
+    async fn update_curb(
         &self,
-        Parameters(params): Parameters<NodeIndexParams>,
+        Parameters(params): Parameters<UpdateCurbParams>,
     ) -> Result<CallToolResult, McpError> {
-        self.request_fallible(|reply| EditorCommand::RemoveNode(params, reply))
+        self.request_fallible(|reply| EditorCommand::UpdateCurb(params, reply))
+            .await?;
+        Ok(text_result("updated"))
+    }
+
+    #[tool(
+        description = "Add a painted marking rectangle in station/lateral space (positive lateral = left of centerline). Returns the new marking's id. Records an undo entry."
+    )]
+    async fn add_marking(
+        &self,
+        Parameters(params): Parameters<AddMarkingParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let id = self
+            .request_fallible(|reply| EditorCommand::AddMarking(params, reply))
+            .await?;
+        Ok(text_result(format!("added marking {id}")))
+    }
+
+    #[tool(
+        description = "Update fields on an existing marking by id; only provided fields change. Records an undo entry."
+    )]
+    async fn update_marking(
+        &self,
+        Parameters(params): Parameters<UpdateMarkingParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.request_fallible(|reply| EditorCommand::UpdateMarking(params, reply))
+            .await?;
+        Ok(text_result("updated"))
+    }
+
+    #[tool(
+        description = "Add a world-anchored prop (tree, sign, barrier, tire_wall, building, grandstand, light, cone, misc) at a track-space position. Returns the new prop's id. Records an undo entry."
+    )]
+    async fn add_prop(
+        &self,
+        Parameters(params): Parameters<AddPropParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let id = self
+            .request_fallible(|reply| EditorCommand::AddProp(params, reply))
+            .await?;
+        Ok(text_result(format!("added prop {id}")))
+    }
+
+    #[tool(
+        description = "Update fields on an existing prop by id; only provided fields change. Pass text=\"\" to clear sign text. Records an undo entry."
+    )]
+    async fn update_prop(
+        &self,
+        Parameters(params): Parameters<UpdatePropParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.request_fallible(|reply| EditorCommand::UpdateProp(params, reply))
+            .await?;
+        Ok(text_result("updated"))
+    }
+
+    #[tool(
+        description = "Remove a scene element (curb, marking, or prop) by id. Records an undo entry."
+    )]
+    async fn remove_element(
+        &self,
+        Parameters(params): Parameters<ElementIdParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.request_fallible(|reply| EditorCommand::RemoveElement(params, reply))
             .await?;
         Ok(text_result("removed"))
     }
 
     #[tool(
-        description = "Set one or more physical properties on a node: width, width_left, width_right, banking (radians), friction, surface_type. Only the fields you provide change. Records an undo entry."
+        description = "Create or replace the pit lane from a list of [x, y, z] track-space nodes (its own centerline, at least 2 nodes). Records an undo entry."
     )]
-    async fn set_node_property(
+    async fn set_pit_lane(
         &self,
-        Parameters(params): Parameters<SetNodePropertyParams>,
+        Parameters(params): Parameters<SetPitLaneParams>,
     ) -> Result<CallToolResult, McpError> {
-        self.request_fallible(|reply| EditorCommand::SetNodeProperty(params, reply))
+        self.request_fallible(|reply| EditorCommand::SetPitLane(params, reply))
             .await?;
-        Ok(text_result("updated"))
+        Ok(text_result("pit lane set"))
     }
 
-    #[tool(description = "Undo the last node edit (from either Claude or the human user).")]
+    #[tool(description = "Remove the pit lane entirely. Records an undo entry.")]
+    async fn clear_pit_lane(&self) -> Result<CallToolResult, McpError> {
+        self.request_fallible(EditorCommand::ClearPitLane).await?;
+        Ok(text_result("pit lane cleared"))
+    }
+
+    #[tool(description = "Undo the last scene edit (from either Claude or the human user).")]
     async fn undo(&self) -> Result<CallToolResult, McpError> {
         self.request_fallible(EditorCommand::Undo).await?;
         Ok(text_result("undone"))
     }
 
-    #[tool(description = "Redo the last undone edit.")]
+    #[tool(description = "Redo the last undone scene edit.")]
     async fn redo(&self) -> Result<CallToolResult, McpError> {
         self.request_fallible(EditorCommand::Redo).await?;
         Ok(text_result("redone"))
     }
 
-    #[tool(description = "Save the open track back to its file path.")]
+    #[tool(
+        description = "Save the scene to its .ats file. The source track.yaml is never written."
+    )]
     async fn save(&self) -> Result<CallToolResult, McpError> {
         self.request_fallible(EditorCommand::Save).await?;
         Ok(text_result("saved"))

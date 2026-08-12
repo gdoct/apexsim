@@ -1,0 +1,362 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Sepang.yaml",
+  "track_name": "Sepang International Circuit",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 733.01,
+      "end_m": 853.01,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 1194.01,
+      "end_m": 1238.01,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1619.02,
+      "end_m": 1663.02,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1827.02,
+      "end_m": 2119.02,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 2280.02,
+      "end_m": 2324.02,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 2590.03,
+      "end_m": 2634.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2705.03,
+      "end_m": 2749.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 3131.03,
+      "end_m": 3220.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 3558.04,
+      "end_m": 3602.04,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 3816.04,
+      "end_m": 3933.04,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 4263.04,
+      "end_m": 4307.04,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 5086.05,
+      "end_m": 5238.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "right",
+      "start_m": 588.01,
+      "end_m": 755.01,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "right",
+      "start_m": 831.01,
+      "end_m": 1216.01,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "right",
+      "start_m": 1550.02,
+      "end_m": 1641.02,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 2097.02,
+      "end_m": 2302.02,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 2543.03,
+      "end_m": 2612.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 2655.03,
+      "end_m": 2727.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 3198.03,
+      "end_m": 3242.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 3253.03,
+      "end_m": 3580.04,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 3911.04,
+      "end_m": 3955.04,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 3981.04,
+      "end_m": 4285.04,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 5216.05,
+      "end_m": 5260.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -7.128,
+      "lat_to_m": 7.143,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        252.749,
+        27.454,
+        0.337
+      ],
+      [
+        202.598,
+        26.935,
+        0.268
+      ],
+      [
+        157.5,
+        26.172,
+        0.207
+      ],
+      [
+        132.614,
+        23.902,
+        0.174
+      ],
+      [
+        107.726,
+        21.686,
+        0.14
+      ],
+      [
+        82.829,
+        19.561,
+        0.106
+      ],
+      [
+        57.929,
+        17.456,
+        0.073
+      ],
+      [
+        33.027,
+        15.368,
+        0.039
+      ],
+      [
+        8.122,
+        13.295,
+        0.01
+      ],
+      [
+        -16.784,
+        11.224,
+        0.02
+      ],
+      [
+        -41.691,
+        9.154,
+        0.05
+      ],
+      [
+        -66.601,
+        7.095,
+        0.08
+      ],
+      [
+        -91.512,
+        5.043,
+        0.11
+      ],
+      [
+        -116.425,
+        2.997,
+        0.141
+      ],
+      [
+        -141.339,
+        0.954,
+        0.171
+      ],
+      [
+        -166.255,
+        -1.086,
+        0.201
+      ],
+      [
+        -191.172,
+        -3.125,
+        0.231
+      ],
+      [
+        -216.09,
+        -5.166,
+        0.261
+      ],
+      [
+        -241.008,
+        -7.209,
+        0.291
+      ],
+      [
+        -265.927,
+        -9.256,
+        0.321
+      ],
+      [
+        -290.845,
+        -11.307,
+        0.352
+      ],
+      [
+        -315.762,
+        -13.36,
+        0.382
+      ],
+      [
+        -340.679,
+        -15.415,
+        0.412
+      ],
+      [
+        -365.595,
+        -17.473,
+        0.442
+      ],
+      [
+        -390.511,
+        -19.531,
+        0.472
+      ],
+      [
+        -415.426,
+        -21.59,
+        0.502
+      ],
+      [
+        -440.341,
+        -23.65,
+        0.532
+      ],
+      [
+        -484.905,
+        -30.719,
+        0.587
+      ],
+      [
+        -534.39,
+        -38.944,
+        0.647
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 25,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 25
+}

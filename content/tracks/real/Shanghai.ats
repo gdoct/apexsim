@@ -1,0 +1,354 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Shanghai.yaml",
+  "track_name": "Shanghai International Circuit",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 834.03,
+      "end_m": 1081.04,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 1365.05,
+      "end_m": 1409.05,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1727.06,
+      "end_m": 1771.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1913.06,
+      "end_m": 2212.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 2454.08,
+      "end_m": 2498.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 2510.08,
+      "end_m": 2716.09,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 3117.1,
+      "end_m": 3189.11,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 3582.12,
+      "end_m": 3626.12,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 4816.16,
+      "end_m": 4860.16,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 4913.16,
+      "end_m": 4957.17,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 5154.17,
+      "end_m": 5207.17,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "right",
+      "start_m": 487.02,
+      "end_m": 856.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "right",
+      "start_m": 1059.04,
+      "end_m": 1103.04,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "right",
+      "start_m": 1320.04,
+      "end_m": 1388.05,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "right",
+      "start_m": 1553.05,
+      "end_m": 1749.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 2190.07,
+      "end_m": 2234.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 2254.08,
+      "end_m": 2476.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 2694.09,
+      "end_m": 2738.09,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 3167.11,
+      "end_m": 3603.12,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 4768.16,
+      "end_m": 4839.16,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 4862.16,
+      "end_m": 4934.16,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 5184.17,
+      "end_m": 5228.17,
+      "width_m": 1.0,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -6.915,
+      "lat_to_m": 6.766,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        270.43,
+        58.303,
+        0.308
+      ],
+      [
+        215.415,
+        60.607,
+        0.251
+      ],
+      [
+        170.243,
+        54.598,
+        0.199
+      ],
+      [
+        145.845,
+        48.751,
+        0.17
+      ],
+      [
+        121.672,
+        42.752,
+        0.142
+      ],
+      [
+        97.501,
+        36.977,
+        0.113
+      ],
+      [
+        73.22,
+        31.547,
+        0.084
+      ],
+      [
+        48.85,
+        26.377,
+        0.055
+      ],
+      [
+        24.426,
+        21.317,
+        0.027
+      ],
+      [
+        -0.033,
+        16.232,
+        0.017
+      ],
+      [
+        -24.505,
+        11.017,
+        0.1
+      ],
+      [
+        -49.009,
+        5.778,
+        0.215
+      ],
+      [
+        -73.488,
+        0.447,
+        0.33
+      ],
+      [
+        -97.933,
+        -4.948,
+        0.445
+      ],
+      [
+        -122.351,
+        -10.375,
+        0.559
+      ],
+      [
+        -146.748,
+        -15.805,
+        0.674
+      ],
+      [
+        -171.131,
+        -21.207,
+        0.789
+      ],
+      [
+        -195.501,
+        -26.576,
+        0.904
+      ],
+      [
+        -219.868,
+        -31.909,
+        1.019
+      ],
+      [
+        -244.286,
+        -37.186,
+        1.134
+      ],
+      [
+        -268.75,
+        -42.48,
+        1.249
+      ],
+      [
+        -293.241,
+        -47.866,
+        1.364
+      ],
+      [
+        -317.584,
+        -53.28,
+        1.478
+      ],
+      [
+        -341.764,
+        -58.346,
+        1.593
+      ],
+      [
+        -366.373,
+        -62.862,
+        1.708
+      ],
+      [
+        -391.176,
+        -67.904,
+        1.823
+      ],
+      [
+        -415.68,
+        -73.366,
+        1.938
+      ],
+      [
+        -458.756,
+        -86.366,
+        2.053
+      ],
+      [
+        -505.187,
+        -99.492,
+        2.136
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 25,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 24
+}

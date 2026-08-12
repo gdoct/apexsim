@@ -1,0 +1,338 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Monza.yaml",
+  "track_name": "Autodromo Nazionale di Monza",
+  "curbs": [
+    {
+      "id": 22,
+      "side": "left",
+      "start_m": 934.94,
+      "end_m": 1013.93,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "left",
+      "start_m": 1644.89,
+      "end_m": 1688.89,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "left",
+      "start_m": 2113.86,
+      "end_m": 2175.86,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "left",
+      "start_m": 2195.85,
+      "end_m": 2260.85,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "left",
+      "start_m": 2616.83,
+      "end_m": 2660.82,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "left",
+      "start_m": 2903.81,
+      "end_m": 2947.8,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "left",
+      "start_m": 3923.74,
+      "end_m": 3987.74,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 29,
+      "side": "left",
+      "start_m": 4105.73,
+      "end_m": 4179.72,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 30,
+      "side": "left",
+      "start_m": 5498.64,
+      "end_m": 5542.63,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 31,
+      "side": "right",
+      "start_m": 903.94,
+      "end_m": 957.94,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 32,
+      "side": "right",
+      "start_m": 991.93,
+      "end_m": 1035.93,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 33,
+      "side": "right",
+      "start_m": 1110.93,
+      "end_m": 1171.92,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 34,
+      "side": "right",
+      "start_m": 1319.91,
+      "end_m": 1666.89,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 35,
+      "side": "right",
+      "start_m": 2154.86,
+      "end_m": 2217.85,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 36,
+      "side": "right",
+      "start_m": 2238.85,
+      "end_m": 2282.85,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 37,
+      "side": "right",
+      "start_m": 2481.84,
+      "end_m": 2639.82,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 38,
+      "side": "right",
+      "start_m": 2842.81,
+      "end_m": 2925.81,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 39,
+      "side": "right",
+      "start_m": 3966.74,
+      "end_m": 4127.73,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 40,
+      "side": "right",
+      "start_m": 4157.72,
+      "end_m": 4201.72,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 41,
+      "side": "right",
+      "start_m": 5106.66,
+      "end_m": 5520.63,
+      "width_m": 1.2,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -5.739,
+      "lat_to_m": 5.932,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        1.282,
+        -79.023,
+        0.195
+      ],
+      [
+        8.098,
+        -29.865,
+        0.065
+      ],
+      [
+        15.785,
+        14.412,
+        0.019
+      ],
+      [
+        18.198,
+        39.3,
+        0.052
+      ],
+      [
+        20.606,
+        64.185,
+        0.084
+      ],
+      [
+        23.013,
+        89.068,
+        0.117
+      ],
+      [
+        25.425,
+        113.947,
+        0.149
+      ],
+      [
+        27.847,
+        138.822,
+        0.181
+      ],
+      [
+        30.284,
+        163.692,
+        0.214
+      ],
+      [
+        32.743,
+        188.557,
+        0.246
+      ],
+      [
+        35.22,
+        213.425,
+        0.279
+      ],
+      [
+        37.709,
+        238.298,
+        0.311
+      ],
+      [
+        40.198,
+        263.177,
+        0.343
+      ],
+      [
+        42.676,
+        288.063,
+        0.376
+      ],
+      [
+        45.158,
+        312.955,
+        0.408
+      ],
+      [
+        47.7,
+        337.848,
+        0.441
+      ],
+      [
+        50.199,
+        362.752,
+        0.473
+      ],
+      [
+        52.555,
+        387.67,
+        0.505
+      ],
+      [
+        54.778,
+        412.599,
+        0.538
+      ],
+      [
+        56.957,
+        437.528,
+        0.57
+      ],
+      [
+        59.099,
+        462.456,
+        0.603
+      ],
+      [
+        61.208,
+        487.385,
+        0.635
+      ],
+      [
+        63.178,
+        512.323,
+        0.667
+      ],
+      [
+        65.107,
+        537.261,
+        0.7
+      ],
+      [
+        67.125,
+        562.188,
+        0.732
+      ],
+      [
+        69.194,
+        587.108,
+        0.765
+      ],
+      [
+        71.254,
+        612.027,
+        0.797
+      ],
+      [
+        71.594,
+        657.156,
+        0.855
+      ],
+      [
+        71.616,
+        707.326,
+        0.92
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 25,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 42
+}

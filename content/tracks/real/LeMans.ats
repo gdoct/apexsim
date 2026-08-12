@@ -1,0 +1,642 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "LeMans.yaml",
+  "track_name": "Circuit de la Sarthe (Le Mans 24 Hours)",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 688.0,
+      "end_m": 732.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 812.0,
+      "end_m": 875.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 920.0,
+      "end_m": 964.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1066.0,
+      "end_m": 1144.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 1323.0,
+      "end_m": 1367.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 1406.0,
+      "end_m": 1549.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 1626.0,
+      "end_m": 1670.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 1723.0,
+      "end_m": 1767.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 1935.0,
+      "end_m": 1979.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 2168.0,
+      "end_m": 2212.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 4068.0,
+      "end_m": 4176.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 4268.0,
+      "end_m": 4312.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 5988.0,
+      "end_m": 6064.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "left",
+      "start_m": 6132.0,
+      "end_m": 6264.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "left",
+      "start_m": 7614.0,
+      "end_m": 7658.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "left",
+      "start_m": 7759.0,
+      "end_m": 7803.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "left",
+      "start_m": 9680.0,
+      "end_m": 9724.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "left",
+      "start_m": 9793.0,
+      "end_m": 9901.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "left",
+      "start_m": 10175.0,
+      "end_m": 10219.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "left",
+      "start_m": 11615.99,
+      "end_m": 11659.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "left",
+      "start_m": 11714.99,
+      "end_m": 11852.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "left",
+      "start_m": 11932.99,
+      "end_m": 12053.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "left",
+      "start_m": 12328.99,
+      "end_m": 12505.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "left",
+      "start_m": 12696.99,
+      "end_m": 12740.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "left",
+      "start_m": 12766.99,
+      "end_m": 12830.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "left",
+      "start_m": 13222.99,
+      "end_m": 13286.99,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "left",
+      "start_m": 13321.99,
+      "end_m": 13365.99,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 29,
+      "side": "left",
+      "start_m": 13381.99,
+      "end_m": 13434.99,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 30,
+      "side": "left",
+      "start_m": 13453.99,
+      "end_m": 13497.99,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 31,
+      "side": "right",
+      "start_m": 587.0,
+      "end_m": 710.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 32,
+      "side": "right",
+      "start_m": 853.0,
+      "end_m": 941.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 33,
+      "side": "right",
+      "start_m": 1121.0,
+      "end_m": 1165.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 34,
+      "side": "right",
+      "start_m": 1174.0,
+      "end_m": 1345.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 35,
+      "side": "right",
+      "start_m": 1526.0,
+      "end_m": 1649.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 36,
+      "side": "right",
+      "start_m": 1699.0,
+      "end_m": 1745.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 37,
+      "side": "right",
+      "start_m": 1881.0,
+      "end_m": 1957.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 38,
+      "side": "right",
+      "start_m": 2081.0,
+      "end_m": 2119.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 39,
+      "side": "right",
+      "start_m": 2149.0,
+      "end_m": 2190.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 40,
+      "side": "right",
+      "start_m": 2209.0,
+      "end_m": 2247.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 41,
+      "side": "right",
+      "start_m": 4011.0,
+      "end_m": 4090.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 42,
+      "side": "right",
+      "start_m": 4153.0,
+      "end_m": 4197.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 43,
+      "side": "right",
+      "start_m": 4203.0,
+      "end_m": 4291.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 44,
+      "side": "right",
+      "start_m": 6042.0,
+      "end_m": 6154.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 45,
+      "side": "right",
+      "start_m": 6242.0,
+      "end_m": 6286.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 46,
+      "side": "right",
+      "start_m": 7551.0,
+      "end_m": 7635.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 47,
+      "side": "right",
+      "start_m": 7711.0,
+      "end_m": 7780.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 48,
+      "side": "right",
+      "start_m": 9606.0,
+      "end_m": 9702.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 49,
+      "side": "right",
+      "start_m": 9879.0,
+      "end_m": 9923.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 50,
+      "side": "right",
+      "start_m": 10128.0,
+      "end_m": 10197.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 51,
+      "side": "right",
+      "start_m": 11452.99,
+      "end_m": 11636.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 52,
+      "side": "right",
+      "start_m": 11830.99,
+      "end_m": 11874.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 53,
+      "side": "right",
+      "start_m": 12031.99,
+      "end_m": 12075.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 54,
+      "side": "right",
+      "start_m": 12077.99,
+      "end_m": 12350.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 55,
+      "side": "right",
+      "start_m": 12483.99,
+      "end_m": 12527.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 56,
+      "side": "right",
+      "start_m": 12647.99,
+      "end_m": 12718.99,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 57,
+      "side": "right",
+      "start_m": 12808.99,
+      "end_m": 12852.99,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 58,
+      "side": "right",
+      "start_m": 13265.99,
+      "end_m": 13343.99,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 59,
+      "side": "right",
+      "start_m": 13411.99,
+      "end_m": 13475.99,
+      "width_m": 1.0,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -6.55,
+      "lat_to_m": 6.55,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -176.728,
+        -7.363,
+        50.955
+      ],
+      [
+        -128.542,
+        -11.882,
+        52.454
+      ],
+      [
+        -83.314,
+        -15.534,
+        53.195
+      ],
+      [
+        -58.314,
+        -15.538,
+        53.615
+      ],
+      [
+        -33.314,
+        -15.543,
+        53.913
+      ],
+      [
+        -8.314,
+        -15.548,
+        54.183
+      ],
+      [
+        16.689,
+        -15.55,
+        54.63
+      ],
+      [
+        41.689,
+        -15.55,
+        55.517
+      ],
+      [
+        66.551,
+        -15.62,
+        56.594
+      ],
+      [
+        91.55,
+        -15.838,
+        57.724
+      ],
+      [
+        116.55,
+        -16.056,
+        58.846
+      ],
+      [
+        141.558,
+        -16.274,
+        59.947
+      ],
+      [
+        166.607,
+        -16.406,
+        61.006
+      ],
+      [
+        191.611,
+        -16.529,
+        61.604
+      ],
+      [
+        216.608,
+        -16.651,
+        61.59
+      ],
+      [
+        241.607,
+        -16.774,
+        61.339
+      ],
+      [
+        266.609,
+        -16.897,
+        61.369
+      ],
+      [
+        291.607,
+        -17.019,
+        61.832
+      ],
+      [
+        316.229,
+        -17.301,
+        62.151
+      ],
+      [
+        340.741,
+        -18.521,
+        62.451
+      ],
+      [
+        364.99,
+        -20.59,
+        63.093
+      ],
+      [
+        389.23,
+        -23.521,
+        63.954
+      ],
+      [
+        413.549,
+        -27.249,
+        64.511
+      ],
+      [
+        437.958,
+        -31.558,
+        64.749
+      ],
+      [
+        462.098,
+        -36.167,
+        65.019
+      ],
+      [
+        486.047,
+        -41.517,
+        65.493
+      ],
+      [
+        509.548,
+        -47.669,
+        66.141
+      ],
+      [
+        552.472,
+        -57.838,
+        67.502
+      ],
+      [
+        599.69,
+        -71.776,
+        68.979
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 25,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 60
+}

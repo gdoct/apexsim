@@ -1,0 +1,418 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Budapest.yaml",
+  "track_name": "Hungaroring",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 869.08,
+      "end_m": 913.09,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 1070.1,
+      "end_m": 1242.12,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1364.13,
+      "end_m": 1408.13,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1785.17,
+      "end_m": 1863.18,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 2227.21,
+      "end_m": 2271.21,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 2400.23,
+      "end_m": 2461.23,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2556.24,
+      "end_m": 2650.25,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 2776.26,
+      "end_m": 2820.27,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 2897.27,
+      "end_m": 2998.28,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 3174.3,
+      "end_m": 3218.3,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 3566.34,
+      "end_m": 3610.34,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 3662.35,
+      "end_m": 3708.35,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 3722.35,
+      "end_m": 3893.37,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "left",
+      "start_m": 4205.4,
+      "end_m": 4249.4,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "right",
+      "start_m": 579.05,
+      "end_m": 891.08,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 1221.12,
+      "end_m": 1265.12,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 1303.12,
+      "end_m": 1386.13,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 1755.17,
+      "end_m": 1796.17,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 1840.17,
+      "end_m": 1884.18,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 1980.19,
+      "end_m": 2249.21,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 2353.22,
+      "end_m": 2422.23,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 2440.23,
+      "end_m": 2484.23,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 2628.25,
+      "end_m": 2672.25,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 2677.25,
+      "end_m": 2798.26,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 2976.28,
+      "end_m": 3020.28,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 3062.29,
+      "end_m": 3196.3,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "right",
+      "start_m": 3502.33,
+      "end_m": 3588.34,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 29,
+      "side": "right",
+      "start_m": 3686.35,
+      "end_m": 3730.35,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 30,
+      "side": "right",
+      "start_m": 3870.36,
+      "end_m": 3914.37,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 31,
+      "side": "right",
+      "start_m": 3985.38,
+      "end_m": 4227.4,
+      "width_m": 1.2,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -6.187,
+      "lat_to_m": 6.476,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        142.988,
+        -109.23,
+        -0.406
+      ],
+      [
+        107.293,
+        -75.105,
+        -0.292
+      ],
+      [
+        74.622,
+        -43.957,
+        -0.188
+      ],
+      [
+        55.39,
+        -28.046,
+        -0.132
+      ],
+      [
+        36.141,
+        -12.085,
+        -0.075
+      ],
+      [
+        16.868,
+        3.864,
+        -0.017
+      ],
+      [
+        -2.415,
+        19.792,
+        0.175
+      ],
+      [
+        -21.701,
+        35.707,
+        0.514
+      ],
+      [
+        -40.984,
+        51.616,
+        0.857
+      ],
+      [
+        -60.257,
+        67.526,
+        1.2
+      ],
+      [
+        -79.517,
+        83.449,
+        1.544
+      ],
+      [
+        -98.773,
+        99.384,
+        1.887
+      ],
+      [
+        -118.031,
+        115.326,
+        2.23
+      ],
+      [
+        -137.294,
+        131.269,
+        2.573
+      ],
+      [
+        -156.571,
+        147.204,
+        2.896
+      ],
+      [
+        -175.866,
+        163.126,
+        3.058
+      ],
+      [
+        -195.177,
+        179.027,
+        3.133
+      ],
+      [
+        -214.497,
+        194.909,
+        3.21
+      ],
+      [
+        -233.875,
+        210.715,
+        3.287
+      ],
+      [
+        -253.257,
+        226.509,
+        3.362
+      ],
+      [
+        -272.635,
+        242.301,
+        3.438
+      ],
+      [
+        -292.004,
+        258.096,
+        3.515
+      ],
+      [
+        -311.359,
+        273.9,
+        3.592
+      ],
+      [
+        -330.691,
+        289.724,
+        3.668
+      ],
+      [
+        -349.997,
+        305.57,
+        3.743
+      ],
+      [
+        -369.27,
+        321.447,
+        3.82
+      ],
+      [
+        -388.509,
+        337.364,
+        3.897
+      ],
+      [
+        -425.466,
+        363.46,
+        4.034
+      ],
+      [
+        -465.005,
+        392.199,
+        4.186
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 25,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 32
+}
