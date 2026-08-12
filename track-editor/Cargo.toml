@@ -1,0 +1,28 @@
+[package]
+name = "track-editor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.19", features = ["x11", "picking"] }
+bevy_egui = "0.41"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+rmp-serde = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+rfd = "0.17"
+thiserror = "1"
+rmcp = { version = "3.1.1", features = ["server", "transport-streamable-http-server"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "net"] }
+axum = "0.8.9"
+
+[dev-dependencies]
+apexsim-server = { path = "../server" }
+tempfile = "3"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
