@@ -138,11 +138,13 @@ pub(crate) async fn run_game_loop(
         tick_count += 1;
 
         // Drain inbound events fast (lock-free), then dispatch each one with
-        // short per-handler locks.
+        // short per-handler locks. `try_recv` is non-blocking, unlike an
+        // async timeout: on Windows, waits shorter than the default ~15.6ms
+        // system timer resolution get rounded up to it, so even a
+        // microsecond-scale `tokio::time::timeout` here would stall every
+        // tick by ~15ms whenever the channel is empty (the common case).
         let mut drained = Vec::new();
-        while let Ok(Some(event)) =
-            tokio::time::timeout(Duration::from_micros(100), inbound_events.recv()).await
-        {
+        while let Ok(event) = inbound_events.try_recv() {
             drained.push(event);
         }
         for event in drained {

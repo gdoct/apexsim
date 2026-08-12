@@ -473,7 +473,11 @@ def process_track(track_file, output_dir):
     for i, node in enumerate(nodes):
         node['z'] = float(round(elevations[i], 3))
         if 'banking' not in node or node.get('banking') == 0:
-            node['banking'] = float(round(banking_values[i], 1))
+            # banking_values are degrees (see add_banking/TRACK_CONFIG); the
+            # node schema's `banking` field is consumed as radians throughout
+            # the engine (server track_loader.rs, track-editor track_mesh.rs),
+            # so convert before persisting.
+            node['banking'] = float(round(math.radians(banking_values[i]), 4))
     
     if 'raceline' in track_data and track_data['raceline']:
         print(f"   Updating raceline with {len(track_data['raceline'])} points...")
