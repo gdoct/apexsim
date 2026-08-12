@@ -1,0 +1,426 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "YasMarina.yaml",
+  "track_name": "Yas Marina Circuit",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 367.99,
+      "end_m": 469.99,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 616.98,
+      "end_m": 695.98,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 945.97,
+      "end_m": 989.97,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1306.96,
+      "end_m": 1361.96,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 1406.96,
+      "end_m": 1450.96,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 1472.96,
+      "end_m": 1583.95,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2738.92,
+      "end_m": 2809.92,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 2843.92,
+      "end_m": 2887.92,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 2960.92,
+      "end_m": 3026.91,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 3767.89,
+      "end_m": 3834.89,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 3874.89,
+      "end_m": 3936.89,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 4027.89,
+      "end_m": 4086.88,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 4376.88,
+      "end_m": 4420.87,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "left",
+      "start_m": 4519.87,
+      "end_m": 4563.87,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "left",
+      "start_m": 4640.87,
+      "end_m": 4684.87,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "left",
+      "start_m": 4716.87,
+      "end_m": 4782.86,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "left",
+      "start_m": 4834.86,
+      "end_m": 4953.86,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "left",
+      "start_m": 5192.85,
+      "end_m": 5236.85,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "left",
+      "start_m": 5422.85,
+      "end_m": 5466.84,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 447.99,
+      "end_m": 491.99,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 674.98,
+      "end_m": 718.98,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 728.98,
+      "end_m": 967.97,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 1340.96,
+      "end_m": 1428.96,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 1561.96,
+      "end_m": 1605.95,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 2786.92,
+      "end_m": 2865.92,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 3004.91,
+      "end_m": 3048.91,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "right",
+      "start_m": 3813.89,
+      "end_m": 3897.89,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 29,
+      "side": "right",
+      "start_m": 3914.89,
+      "end_m": 3958.89,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 30,
+      "side": "right",
+      "start_m": 4064.88,
+      "end_m": 4108.88,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 31,
+      "side": "right",
+      "start_m": 4307.88,
+      "end_m": 4398.87,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 32,
+      "side": "right",
+      "start_m": 4465.87,
+      "end_m": 4541.87,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 33,
+      "side": "right",
+      "start_m": 4602.87,
+      "end_m": 4663.87,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 34,
+      "side": "right",
+      "start_m": 4760.86,
+      "end_m": 4804.86,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 35,
+      "side": "right",
+      "start_m": 4932.86,
+      "end_m": 4976.86,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 36,
+      "side": "right",
+      "start_m": 5128.85,
+      "end_m": 5214.85,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 37,
+      "side": "right",
+      "start_m": 5318.85,
+      "end_m": 5444.85,
+      "width_m": 1.0,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -6.746,
+      "lat_to_m": 6.854,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -159.089,
+        -48.128,
+        0.185
+      ],
+      [
+        -117.845,
+        -8.232,
+        0.129
+      ],
+      [
+        -73.565,
+        0.731,
+        0.078
+      ],
+      [
+        -48.239,
+        4.124,
+        0.05
+      ],
+      [
+        -22.868,
+        7.487,
+        0.021
+      ],
+      [
+        2.502,
+        10.811,
+        0.006
+      ],
+      [
+        27.88,
+        14.061,
+        0.025
+      ],
+      [
+        53.263,
+        17.259,
+        0.048
+      ],
+      [
+        78.646,
+        20.421,
+        0.071
+      ],
+      [
+        104.03,
+        23.559,
+        0.094
+      ],
+      [
+        129.414,
+        26.671,
+        0.117
+      ],
+      [
+        154.797,
+        29.766,
+        0.14
+      ],
+      [
+        180.179,
+        32.848,
+        0.163
+      ],
+      [
+        205.56,
+        35.922,
+        0.187
+      ],
+      [
+        230.938,
+        38.992,
+        0.21
+      ],
+      [
+        256.313,
+        42.065,
+        0.233
+      ],
+      [
+        281.684,
+        45.141,
+        0.256
+      ],
+      [
+        307.056,
+        48.224,
+        0.279
+      ],
+      [
+        332.436,
+        51.307,
+        0.302
+      ],
+      [
+        377.463,
+        53.341,
+        0.342
+      ],
+      [
+        402.635,
+        75.151,
+        0.387
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 17,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 38
+}

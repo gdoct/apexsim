@@ -1,0 +1,402 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "MexicoCity.yaml",
+  "track_name": "Autódromo Hermanos Rodríguez",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 993.03,
+      "end_m": 1037.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 1041.03,
+      "end_m": 1107.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1133.03,
+      "end_m": 1177.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1274.03,
+      "end_m": 1318.04,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 1797.05,
+      "end_m": 1858.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 1924.05,
+      "end_m": 1968.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2081.06,
+      "end_m": 2125.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 2352.06,
+      "end_m": 2428.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 2511.07,
+      "end_m": 2644.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 2794.07,
+      "end_m": 2920.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 2985.08,
+      "end_m": 3069.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 3447.09,
+      "end_m": 3491.09,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 3571.09,
+      "end_m": 3652.1,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "left",
+      "start_m": 3680.1,
+      "end_m": 3740.1,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "left",
+      "start_m": 4013.11,
+      "end_m": 4057.11,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 958.03,
+      "end_m": 1015.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 1085.03,
+      "end_m": 1154.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 1172.03,
+      "end_m": 1296.03,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 1836.05,
+      "end_m": 1946.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 2004.05,
+      "end_m": 2103.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 2406.06,
+      "end_m": 2533.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 2622.07,
+      "end_m": 2666.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 2717.07,
+      "end_m": 2816.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 2899.08,
+      "end_m": 2943.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 3047.08,
+      "end_m": 3091.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 3396.09,
+      "end_m": 3468.09,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "right",
+      "start_m": 3630.1,
+      "end_m": 3701.1,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 29,
+      "side": "right",
+      "start_m": 3718.1,
+      "end_m": 4035.11,
+      "width_m": 1.2,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -7.1,
+      "lat_to_m": 6.591,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -52.433,
+        2.446,
+        0.104
+      ],
+      [
+        -3.562,
+        -9.38,
+        0.012
+      ],
+      [
+        40.562,
+        -19.226,
+        0.07
+      ],
+      [
+        65.348,
+        -22.725,
+        0.109
+      ],
+      [
+        90.126,
+        -26.184,
+        0.148
+      ],
+      [
+        114.898,
+        -29.621,
+        0.186
+      ],
+      [
+        139.67,
+        -33.044,
+        0.225
+      ],
+      [
+        164.44,
+        -36.46,
+        0.264
+      ],
+      [
+        189.208,
+        -39.87,
+        0.303
+      ],
+      [
+        213.973,
+        -43.278,
+        0.342
+      ],
+      [
+        238.736,
+        -46.69,
+        0.381
+      ],
+      [
+        263.499,
+        -50.107,
+        0.42
+      ],
+      [
+        288.261,
+        -53.528,
+        0.458
+      ],
+      [
+        313.024,
+        -56.952,
+        0.497
+      ],
+      [
+        337.786,
+        -60.379,
+        0.536
+      ],
+      [
+        362.549,
+        -63.808,
+        0.575
+      ],
+      [
+        387.312,
+        -67.239,
+        0.614
+      ],
+      [
+        412.075,
+        -70.669,
+        0.653
+      ],
+      [
+        436.839,
+        -74.1,
+        0.692
+      ],
+      [
+        461.603,
+        -77.53,
+        0.73
+      ],
+      [
+        486.368,
+        -80.958,
+        0.769
+      ],
+      [
+        511.134,
+        -84.385,
+        0.808
+      ],
+      [
+        535.899,
+        -87.809,
+        0.847
+      ],
+      [
+        560.665,
+        -91.231,
+        0.886
+      ],
+      [
+        585.43,
+        -94.653,
+        0.925
+      ],
+      [
+        610.195,
+        -98.075,
+        0.964
+      ],
+      [
+        634.96,
+        -101.496,
+        1.002
+      ],
+      [
+        679.998,
+        -104.313,
+        1.072
+      ],
+      [
+        730.092,
+        -107.077,
+        1.15
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 25,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 30
+}

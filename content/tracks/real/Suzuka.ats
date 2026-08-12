@@ -1,0 +1,410 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Suzuka.yaml",
+  "track_name": "Suzuka Circuit",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 920.06,
+      "end_m": 964.06,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 1059.07,
+      "end_m": 1172.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1259.08,
+      "end_m": 1303.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1315.08,
+      "end_m": 1464.09,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 1633.1,
+      "end_m": 1677.11,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 1687.11,
+      "end_m": 2149.14,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2309.15,
+      "end_m": 2353.15,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 2472.16,
+      "end_m": 2516.16,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 2814.18,
+      "end_m": 2858.18,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 2866.18,
+      "end_m": 2987.19,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 3218.2,
+      "end_m": 3262.21,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 3761.24,
+      "end_m": 4108.26,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 4931.31,
+      "end_m": 5165.33,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "left",
+      "start_m": 5405.34,
+      "end_m": 5485.35,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "left",
+      "start_m": 5726.36,
+      "end_m": 5770.36,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 637.04,
+      "end_m": 941.06,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 1149.07,
+      "end_m": 1282.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 1443.09,
+      "end_m": 1655.1,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 2127.13,
+      "end_m": 2171.14,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 2267.14,
+      "end_m": 2331.15,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 2415.15,
+      "end_m": 2494.16,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 2738.17,
+      "end_m": 2836.18,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 2965.19,
+      "end_m": 3009.19,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 3078.19,
+      "end_m": 3241.2,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 3426.22,
+      "end_m": 3649.23,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 4086.26,
+      "end_m": 4130.26,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "right",
+      "start_m": 5143.32,
+      "end_m": 5187.33,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 29,
+      "side": "right",
+      "start_m": 5356.34,
+      "end_m": 5427.34,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 30,
+      "side": "right",
+      "start_m": 5463.34,
+      "end_m": 5748.36,
+      "width_m": 1.2,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -7.185,
+      "lat_to_m": 7.433,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -73.954,
+        67.724,
+        1.357
+      ],
+      [
+        -42.045,
+        30.943,
+        0.667
+      ],
+      [
+        -14.621,
+        -4.352,
+        0.099
+      ],
+      [
+        1.701,
+        -22.857,
+        0.227
+      ],
+      [
+        17.806,
+        -41.603,
+        0.569
+      ],
+      [
+        33.878,
+        -60.442,
+        0.912
+      ],
+      [
+        49.968,
+        -79.323,
+        1.254
+      ],
+      [
+        66.077,
+        -98.191,
+        1.596
+      ],
+      [
+        82.191,
+        -117.045,
+        1.938
+      ],
+      [
+        98.307,
+        -135.891,
+        2.28
+      ],
+      [
+        114.417,
+        -154.736,
+        2.622
+      ],
+      [
+        130.522,
+        -173.585,
+        2.964
+      ],
+      [
+        146.62,
+        -192.438,
+        3.306
+      ],
+      [
+        162.711,
+        -211.296,
+        3.649
+      ],
+      [
+        178.792,
+        -230.161,
+        3.991
+      ],
+      [
+        194.864,
+        -249.032,
+        4.333
+      ],
+      [
+        210.925,
+        -267.912,
+        4.675
+      ],
+      [
+        227.012,
+        -286.768,
+        5.017
+      ],
+      [
+        243.155,
+        -305.576,
+        5.359
+      ],
+      [
+        259.287,
+        -324.394,
+        5.701
+      ],
+      [
+        275.403,
+        -343.222,
+        6.043
+      ],
+      [
+        291.504,
+        -362.063,
+        6.386
+      ],
+      [
+        307.589,
+        -380.917,
+        6.728
+      ],
+      [
+        323.655,
+        -399.786,
+        7.07
+      ],
+      [
+        339.704,
+        -418.67,
+        7.412
+      ],
+      [
+        355.78,
+        -437.583,
+        7.754
+      ],
+      [
+        371.953,
+        -456.484,
+        8.048
+      ],
+      [
+        404.377,
+        -488.148,
+        8.418
+      ],
+      [
+        435.712,
+        -524.138,
+        8.821
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 24,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 31
+}

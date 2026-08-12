@@ -1,0 +1,389 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Silverstone.yaml",
+  "track_name": "Silverstone Circuit",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 451.02,
+      "end_m": 495.02,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 567.03,
+      "end_m": 710.04,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 923.05,
+      "end_m": 967.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 997.05,
+      "end_m": 1114.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 1203.06,
+      "end_m": 1297.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 1890.09,
+      "end_m": 2056.1,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2293.11,
+      "end_m": 2337.12,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 2462.12,
+      "end_m": 2506.12,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 2613.13,
+      "end_m": 2657.13,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 3166.16,
+      "end_m": 3210.16,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 3577.18,
+      "end_m": 3686.18,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 3745.19,
+      "end_m": 3789.19,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 3812.19,
+      "end_m": 3953.2,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "left",
+      "start_m": 4118.2,
+      "end_m": 4235.21,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "left",
+      "start_m": 5151.26,
+      "end_m": 5195.26,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "left",
+      "start_m": 5483.27,
+      "end_m": 5560.28,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "left",
+      "start_m": 5792.29,
+      "end_m": 5836.29,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 369.02,
+      "end_m": 473.02,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 688.03,
+      "end_m": 732.04,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 845.04,
+      "end_m": 944.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 1092.05,
+      "end_m": 1136.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 1276.06,
+      "end_m": 1320.07,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 2034.1,
+      "end_m": 2078.1,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 2080.1,
+      "end_m": 2316.11,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 2419.12,
+      "end_m": 2483.12,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 2524.13,
+      "end_m": 2635.13,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "right",
+      "start_m": 3006.15,
+      "end_m": 3188.16,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 29,
+      "side": "right",
+      "start_m": 3665.18,
+      "end_m": 3766.19,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 30,
+      "side": "right",
+      "start_m": 3931.19,
+      "end_m": 4140.21,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 31,
+      "side": "right",
+      "start_m": 4212.21,
+      "end_m": 4256.21,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 32,
+      "side": "right",
+      "start_m": 4952.25,
+      "end_m": 5173.26,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 33,
+      "side": "right",
+      "start_m": 5538.27,
+      "end_m": 5814.29,
+      "width_m": 1.0,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -6.556,
+      "lat_to_m": 6.536,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -47.978,
+        -120.428,
+        -0.155
+      ],
+      [
+        -40.012,
+        -81.694,
+        -0.098
+      ],
+      [
+        -11.346,
+        -47.374,
+        -0.047
+      ],
+      [
+        3.722,
+        -26.604,
+        -0.018
+      ],
+      [
+        18.789,
+        -5.821,
+        0.039
+      ],
+      [
+        33.843,
+        14.97,
+        0.172
+      ],
+      [
+        48.893,
+        35.763,
+        0.318
+      ],
+      [
+        63.939,
+        56.557,
+        0.463
+      ],
+      [
+        78.985,
+        77.35,
+        0.608
+      ],
+      [
+        94.03,
+        98.144,
+        0.754
+      ],
+      [
+        109.075,
+        118.936,
+        0.899
+      ],
+      [
+        124.121,
+        139.728,
+        1.044
+      ],
+      [
+        139.169,
+        160.518,
+        1.19
+      ],
+      [
+        154.217,
+        181.306,
+        1.336
+      ],
+      [
+        169.269,
+        202.096,
+        1.482
+      ],
+      [
+        184.322,
+        222.914,
+        1.627
+      ],
+      [
+        199.343,
+        243.783,
+        1.772
+      ],
+      [
+        214.313,
+        264.721,
+        1.918
+      ],
+      [
+        237.381,
+        303.461,
+        2.172
+      ],
+      [
+        273.331,
+        322.36,
+        2.456
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 16,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 34
+}

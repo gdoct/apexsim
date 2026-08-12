@@ -1,0 +1,325 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Hockenheim.yaml",
+  "track_name": "Hockenheimring",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 279.98,
+      "end_m": 323.98,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 907.95,
+      "end_m": 1047.94,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1678.9,
+      "end_m": 1719.9,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 2127.88,
+      "end_m": 2171.88,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 2579.85,
+      "end_m": 2623.85,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 2782.84,
+      "end_m": 2963.83,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 3055.83,
+      "end_m": 3099.82,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 3517.8,
+      "end_m": 3561.8,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 3723.79,
+      "end_m": 3882.78,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 3908.78,
+      "end_m": 3997.77,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 4047.77,
+      "end_m": 4091.77,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 4164.76,
+      "end_m": 4208.76,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 4362.75,
+      "end_m": 4406.75,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "right",
+      "start_m": 238.99,
+      "end_m": 300.98,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "right",
+      "start_m": 798.95,
+      "end_m": 929.95,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 1025.94,
+      "end_m": 1069.94,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 2054.88,
+      "end_m": 2149.88,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 2503.86,
+      "end_m": 2601.85,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 2940.83,
+      "end_m": 3077.82,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 3405.81,
+      "end_m": 3539.8,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 3861.78,
+      "end_m": 3905.78,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 3976.77,
+      "end_m": 4069.77,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 4087.77,
+      "end_m": 4186.76,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 4218.76,
+      "end_m": 4384.75,
+      "width_m": 1.0,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -6.405,
+      "lat_to_m": 6.679,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        123.553,
+        -220.936,
+        1.095
+      ],
+      [
+        99.754,
+        -181.753,
+        0.876
+      ],
+      [
+        83.741,
+        -139.862,
+        0.679
+      ],
+      [
+        73.186,
+        -117.667,
+        0.571
+      ],
+      [
+        62.752,
+        -95.384,
+        0.462
+      ],
+      [
+        52.266,
+        -72.996,
+        0.355
+      ],
+      [
+        41.661,
+        -50.569,
+        0.247
+      ],
+      [
+        30.931,
+        -28.293,
+        0.139
+      ],
+      [
+        20.17,
+        -6.147,
+        0.038
+      ],
+      [
+        9.119,
+        15.777,
+        0.042
+      ],
+      [
+        -1.31,
+        38.065,
+        0.123
+      ],
+      [
+        -11.746,
+        60.43,
+        0.204
+      ],
+      [
+        -22.287,
+        82.82,
+        0.285
+      ],
+      [
+        -33.064,
+        105.189,
+        0.366
+      ],
+      [
+        -44.402,
+        127.368,
+        0.447
+      ],
+      [
+        -56.074,
+        149.332,
+        0.528
+      ],
+      [
+        -67.788,
+        171.021,
+        0.61
+      ],
+      [
+        -79.247,
+        192.62,
+        0.691
+      ],
+      [
+        -103.01,
+        230.721,
+        0.837
+      ],
+      [
+        -96.406,
+        269.181,
+        1.002
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 15,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 26
+}

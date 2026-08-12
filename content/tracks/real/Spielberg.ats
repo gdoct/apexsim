@@ -1,0 +1,323 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Spielberg.yaml",
+  "track_name": "Red Bull Ring",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 463.98,
+      "end_m": 532.98,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 1044.96,
+      "end_m": 1087.96,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1112.96,
+      "end_m": 1166.95,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1401.95,
+      "end_m": 1445.94,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 2473.9,
+      "end_m": 2517.9,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 2627.9,
+      "end_m": 2838.89,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2947.89,
+      "end_m": 3134.88,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 3279.87,
+      "end_m": 3323.87,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 3827.85,
+      "end_m": 3871.85,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 4108.84,
+      "end_m": 4152.84,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "right",
+      "start_m": 421.98,
+      "end_m": 485.98,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "right",
+      "start_m": 510.98,
+      "end_m": 554.98,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "right",
+      "start_m": 1064.96,
+      "end_m": 1108.96,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "right",
+      "start_m": 1349.95,
+      "end_m": 1423.94,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "right",
+      "start_m": 1628.94,
+      "end_m": 1664.94,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 2160.92,
+      "end_m": 2496.9,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 2816.89,
+      "end_m": 2860.89,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 3112.88,
+      "end_m": 3301.87,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 3720.85,
+      "end_m": 3849.85,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 3954.85,
+      "end_m": 4130.84,
+      "width_m": 1.0,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -6.167,
+      "lat_to_m": 5.97,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        225.044,
+        73.874,
+        6.816
+      ],
+      [
+        179.17,
+        59.941,
+        5.366
+      ],
+      [
+        134.89,
+        51.658,
+        4.061
+      ],
+      [
+        110.802,
+        45.155,
+        3.339
+      ],
+      [
+        86.755,
+        38.62,
+        2.616
+      ],
+      [
+        62.722,
+        32.095,
+        1.895
+      ],
+      [
+        38.686,
+        25.578,
+        1.172
+      ],
+      [
+        14.645,
+        19.068,
+        0.449
+      ],
+      [
+        -9.399,
+        12.564,
+        0.26
+      ],
+      [
+        -33.444,
+        6.059,
+        1.02
+      ],
+      [
+        -57.491,
+        -0.446,
+        1.887
+      ],
+      [
+        -81.538,
+        -6.953,
+        2.753
+      ],
+      [
+        -105.583,
+        -13.463,
+        3.621
+      ],
+      [
+        -129.628,
+        -19.974,
+        4.487
+      ],
+      [
+        -153.673,
+        -26.484,
+        5.355
+      ],
+      [
+        -177.717,
+        -32.997,
+        6.221
+      ],
+      [
+        -201.761,
+        -39.509,
+        7.088
+      ],
+      [
+        -225.804,
+        -46.021,
+        7.955
+      ],
+      [
+        -249.848,
+        -52.532,
+        8.822
+      ],
+      [
+        -273.891,
+        -59.043,
+        9.689
+      ],
+      [
+        -297.935,
+        -65.552,
+        10.556
+      ],
+      [
+        -321.979,
+        -72.059,
+        11.422
+      ],
+      [
+        -346.024,
+        -78.566,
+        12.289
+      ],
+      [
+        -370.069,
+        -85.07,
+        13.156
+      ],
+      [
+        -412.483,
+        -100.025,
+        14.719
+      ],
+      [
+        -442.957,
+        -93.018,
+        16.296
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 21,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 22
+}

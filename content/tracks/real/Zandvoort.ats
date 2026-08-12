@@ -1,0 +1,384 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Zandvoort.yaml",
+  "track_name": "Circuit Zandvoort",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 471.0,
+      "end_m": 515.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 594.0,
+      "end_m": 685.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 768.0,
+      "end_m": 812.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 825.0,
+      "end_m": 987.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 1196.0,
+      "end_m": 1240.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 1288.0,
+      "end_m": 1436.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 1554.0,
+      "end_m": 1598.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 1887.0,
+      "end_m": 1931.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 1980.0,
+      "end_m": 2023.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 2421.0,
+      "end_m": 2465.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 2501.0,
+      "end_m": 2683.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 2967.0,
+      "end_m": 3008.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 3192.01,
+      "end_m": 3343.01,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "left",
+      "start_m": 3655.01,
+      "end_m": 3699.01,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "left",
+      "start_m": 3993.01,
+      "end_m": 4037.01,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 334.0,
+      "end_m": 493.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 663.0,
+      "end_m": 790.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 966.0,
+      "end_m": 1010.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 1140.0,
+      "end_m": 1218.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 1414.0,
+      "end_m": 1576.0,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 1658.0,
+      "end_m": 1909.0,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 2076.0,
+      "end_m": 2443.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 2661.0,
+      "end_m": 2705.0,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 3154.0,
+      "end_m": 3215.01,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 3320.01,
+      "end_m": 3364.01,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 3541.01,
+      "end_m": 3677.01,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "right",
+      "start_m": 3715.01,
+      "end_m": 4016.01,
+      "width_m": 1.5,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -5.074,
+      "lat_to_m": 5.271,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -132.194,
+        -332.556,
+        1.621
+      ],
+      [
+        -121.623,
+        -281.874,
+        1.389
+      ],
+      [
+        -108.526,
+        -238.831,
+        1.181
+      ],
+      [
+        -99.638,
+        -215.577,
+        1.065
+      ],
+      [
+        -90.718,
+        -192.332,
+        0.95
+      ],
+      [
+        -81.758,
+        -169.097,
+        0.834
+      ],
+      [
+        -72.758,
+        -145.879,
+        0.719
+      ],
+      [
+        -63.748,
+        -122.67,
+        0.603
+      ],
+      [
+        -54.804,
+        -99.437,
+        0.488
+      ],
+      [
+        -45.836,
+        -76.215,
+        0.373
+      ],
+      [
+        -36.848,
+        -53.005,
+        0.257
+      ],
+      [
+        -27.843,
+        -29.804,
+        0.142
+      ],
+      [
+        -18.828,
+        -6.61,
+        0.026
+      ],
+      [
+        -9.808,
+        16.579,
+        0.0
+      ],
+      [
+        -0.785,
+        39.764,
+        0.0
+      ],
+      [
+        8.234,
+        62.947,
+        0.0
+      ],
+      [
+        17.244,
+        86.13,
+        0.0
+      ],
+      [
+        26.246,
+        109.318,
+        0.0
+      ],
+      [
+        35.244,
+        132.509,
+        0.0
+      ],
+      [
+        44.238,
+        155.703,
+        0.0
+      ],
+      [
+        53.231,
+        178.9,
+        0.0
+      ],
+      [
+        62.226,
+        202.097,
+        -0.002
+      ],
+      [
+        71.223,
+        225.294,
+        0.112
+      ],
+      [
+        80.227,
+        248.492,
+        0.235
+      ],
+      [
+        89.24,
+        271.687,
+        0.359
+      ],
+      [
+        108.711,
+        312.394,
+        0.583
+      ],
+      [
+        148.487,
+        352.113,
+        0.831
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 22,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 29
+}

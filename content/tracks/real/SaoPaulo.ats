@@ -1,0 +1,346 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "SaoPaulo.yaml",
+  "track_name": "Autódromo José Carlos Pace",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 266.01,
+      "end_m": 407.01,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 476.01,
+      "end_m": 770.02,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1359.03,
+      "end_m": 1482.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1518.03,
+      "end_m": 1694.03,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 2216.04,
+      "end_m": 2260.04,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 2380.05,
+      "end_m": 2570.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2791.05,
+      "end_m": 2835.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 2865.06,
+      "end_m": 3087.06,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 3212.06,
+      "end_m": 3321.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 3353.07,
+      "end_m": 3429.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 3465.07,
+      "end_m": 3526.07,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 3609.07,
+      "end_m": 3753.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 4031.08,
+      "end_m": 4102.08,
+      "width_m": 1.5,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "right",
+      "start_m": 384.01,
+      "end_m": 498.01,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "right",
+      "start_m": 749.01,
+      "end_m": 793.02,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 1460.03,
+      "end_m": 1504.03,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 1671.03,
+      "end_m": 1715.03,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 1977.04,
+      "end_m": 2238.04,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 2272.04,
+      "end_m": 2403.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 2548.05,
+      "end_m": 2592.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 2609.05,
+      "end_m": 2813.05,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 3066.06,
+      "end_m": 3110.06,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 3299.06,
+      "end_m": 3343.07,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 3407.07,
+      "end_m": 3451.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 3504.07,
+      "end_m": 3548.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 3732.07,
+      "end_m": 3776.07,
+      "width_m": 1.2,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -7.241,
+      "lat_to_m": 7.513,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -51.604,
+        261.605,
+        4.614
+      ],
+      [
+        -42.572,
+        214.553,
+        3.741
+      ],
+      [
+        -29.91,
+        172.002,
+        2.956
+      ],
+      [
+        -24.006,
+        147.276,
+        2.512
+      ],
+      [
+        -18.015,
+        122.63,
+        2.068
+      ],
+      [
+        -11.348,
+        98.21,
+        1.624
+      ],
+      [
+        -4.426,
+        73.793,
+        1.18
+      ],
+      [
+        2.579,
+        49.328,
+        0.737
+      ],
+      [
+        9.555,
+        24.781,
+        0.292
+      ],
+      [
+        16.355,
+        0.096,
+        -0.159
+      ],
+      [
+        21.762,
+        -24.984,
+        -0.814
+      ],
+      [
+        28.088,
+        -49.462,
+        -1.524
+      ],
+      [
+        34.7,
+        -73.761,
+        -2.235
+      ],
+      [
+        41.505,
+        -98.377,
+        -2.945
+      ],
+      [
+        48.166,
+        -122.999,
+        -3.655
+      ],
+      [
+        54.777,
+        -147.567,
+        -4.365
+      ],
+      [
+        61.431,
+        -172.099,
+        -5.076
+      ],
+      [
+        68.123,
+        -196.649,
+        -5.786
+      ],
+      [
+        74.816,
+        -221.224,
+        -6.497
+      ],
+      [
+        83.336,
+        -265.11,
+        -7.752
+      ],
+      [
+        101.098,
+        -307.356,
+        -9.146
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 16,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 28
+}

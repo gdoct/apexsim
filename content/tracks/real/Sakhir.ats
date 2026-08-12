@@ -1,0 +1,386 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Sakhir.yaml",
+  "track_name": "Bahrain International Circuit",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 756.07,
+      "end_m": 800.07,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 809.07,
+      "end_m": 875.08,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 974.08,
+      "end_m": 1018.09,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1587.14,
+      "end_m": 1631.14,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 1780.15,
+      "end_m": 1849.16,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 1935.17,
+      "end_m": 2080.18,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 2312.2,
+      "end_m": 2356.21,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 2580.22,
+      "end_m": 2771.24,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 3413.3,
+      "end_m": 3687.32,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 3931.34,
+      "end_m": 3975.35,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 4199.37,
+      "end_m": 4243.37,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 4946.43,
+      "end_m": 4990.43,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 5026.44,
+      "end_m": 5070.44,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "right",
+      "start_m": 702.06,
+      "end_m": 778.07,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "right",
+      "start_m": 853.07,
+      "end_m": 897.08,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 925.08,
+      "end_m": 996.09,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 1500.13,
+      "end_m": 1609.14,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 1827.16,
+      "end_m": 1957.17,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 2058.18,
+      "end_m": 2102.18,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 2223.19,
+      "end_m": 2335.2,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 2749.24,
+      "end_m": 2793.24,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 3665.32,
+      "end_m": 3709.32,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 3729.32,
+      "end_m": 3953.34,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 4026.35,
+      "end_m": 4222.37,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 4899.43,
+      "end_m": 4968.43,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 4990.43,
+      "end_m": 5048.44,
+      "width_m": 1.2,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -5.989,
+      "lat_to_m": 6.117,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -3.798,
+        -226.579,
+        0.272
+      ],
+      [
+        2.002,
+        -176.829,
+        0.21
+      ],
+      [
+        7.378,
+        -132.069,
+        0.154
+      ],
+      [
+        8.55,
+        -107.112,
+        0.123
+      ],
+      [
+        9.741,
+        -82.145,
+        0.093
+      ],
+      [
+        10.932,
+        -57.17,
+        0.062
+      ],
+      [
+        12.118,
+        -32.196,
+        0.031
+      ],
+      [
+        13.299,
+        -7.221,
+        0.01
+      ],
+      [
+        14.477,
+        17.753,
+        0.046
+      ],
+      [
+        15.652,
+        42.727,
+        0.104
+      ],
+      [
+        16.824,
+        67.701,
+        0.162
+      ],
+      [
+        17.995,
+        92.675,
+        0.22
+      ],
+      [
+        19.164,
+        117.648,
+        0.278
+      ],
+      [
+        20.331,
+        142.621,
+        0.336
+      ],
+      [
+        21.499,
+        167.594,
+        0.394
+      ],
+      [
+        22.666,
+        192.567,
+        0.451
+      ],
+      [
+        23.834,
+        217.539,
+        0.509
+      ],
+      [
+        25.003,
+        242.511,
+        0.567
+      ],
+      [
+        26.173,
+        267.483,
+        0.625
+      ],
+      [
+        27.344,
+        292.455,
+        0.683
+      ],
+      [
+        28.517,
+        317.426,
+        0.741
+      ],
+      [
+        29.693,
+        342.396,
+        0.799
+      ],
+      [
+        30.873,
+        367.367,
+        0.856
+      ],
+      [
+        32.055,
+        392.336,
+        0.914
+      ],
+      [
+        33.241,
+        417.306,
+        0.972
+      ],
+      [
+        34.431,
+        442.276,
+        1.03
+      ],
+      [
+        35.619,
+        467.251,
+        1.088
+      ],
+      [
+        34.357,
+        512.372,
+        1.192
+      ],
+      [
+        32.478,
+        562.529,
+        1.308
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 25,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 28
+}

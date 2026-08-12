@@ -1,0 +1,418 @@
+{
+  "format": "apex-track-scene",
+  "version": 1,
+  "source_track": "Austin.yaml",
+  "track_name": "Circuit of The Americas",
+  "curbs": [
+    {
+      "id": 2,
+      "side": "left",
+      "start_m": 574.05,
+      "end_m": 703.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 3,
+      "side": "left",
+      "start_m": 976.08,
+      "end_m": 1020.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 4,
+      "side": "left",
+      "start_m": 1136.09,
+      "end_m": 1222.1,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 5,
+      "side": "left",
+      "start_m": 1295.11,
+      "end_m": 1413.12,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 6,
+      "side": "left",
+      "start_m": 1618.13,
+      "end_m": 1662.14,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 7,
+      "side": "left",
+      "start_m": 1694.14,
+      "end_m": 1842.15,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 8,
+      "side": "left",
+      "start_m": 1946.16,
+      "end_m": 2028.17,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 9,
+      "side": "left",
+      "start_m": 2160.18,
+      "end_m": 2223.18,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 10,
+      "side": "left",
+      "start_m": 2545.21,
+      "end_m": 2649.22,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 11,
+      "side": "left",
+      "start_m": 3747.31,
+      "end_m": 3831.31,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 12,
+      "side": "left",
+      "start_m": 4122.34,
+      "end_m": 4343.36,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 13,
+      "side": "left",
+      "start_m": 4633.38,
+      "end_m": 4677.38,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 14,
+      "side": "left",
+      "start_m": 4851.4,
+      "end_m": 4895.4,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 15,
+      "side": "left",
+      "start_m": 5014.41,
+      "end_m": 5120.42,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 16,
+      "side": "left",
+      "start_m": 5311.44,
+      "end_m": 5395.44,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 17,
+      "side": "right",
+      "start_m": 681.06,
+      "end_m": 725.06,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 18,
+      "side": "right",
+      "start_m": 821.07,
+      "end_m": 999.08,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 19,
+      "side": "right",
+      "start_m": 1199.1,
+      "end_m": 1316.11,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 20,
+      "side": "right",
+      "start_m": 1391.11,
+      "end_m": 1640.13,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 21,
+      "side": "right",
+      "start_m": 1819.15,
+      "end_m": 1968.16,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 22,
+      "side": "right",
+      "start_m": 2006.16,
+      "end_m": 2050.17,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 23,
+      "side": "right",
+      "start_m": 2201.18,
+      "end_m": 2245.18,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 24,
+      "side": "right",
+      "start_m": 2627.22,
+      "end_m": 2671.22,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 25,
+      "side": "right",
+      "start_m": 3809.31,
+      "end_m": 3853.32,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 26,
+      "side": "right",
+      "start_m": 3968.33,
+      "end_m": 4144.34,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 27,
+      "side": "right",
+      "start_m": 4321.36,
+      "end_m": 4365.36,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 28,
+      "side": "right",
+      "start_m": 4467.37,
+      "end_m": 4655.38,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 29,
+      "side": "right",
+      "start_m": 4676.38,
+      "end_m": 4874.4,
+      "width_m": 1.2,
+      "style": "red_white"
+    },
+    {
+      "id": 30,
+      "side": "right",
+      "start_m": 5098.42,
+      "end_m": 5142.42,
+      "width_m": 1.0,
+      "style": "red_white"
+    },
+    {
+      "id": 31,
+      "side": "right",
+      "start_m": 5373.44,
+      "end_m": 5417.45,
+      "width_m": 1.0,
+      "style": "red_white"
+    }
+  ],
+  "markings": [
+    {
+      "id": 1,
+      "kind": "start_finish",
+      "start_m": 0.0,
+      "end_m": 0.6,
+      "lat_from_m": -7.565,
+      "lat_to_m": 7.361,
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "pit_lane": {
+    "nodes": [
+      [
+        -98.929,
+        103.724,
+        0.713
+      ],
+      [
+        -80.396,
+        81.992,
+        0.486
+      ],
+      [
+        -42.638,
+        57.494,
+        0.282
+      ],
+      [
+        -22.977,
+        42.646,
+        0.17
+      ],
+      [
+        -3.331,
+        27.784,
+        0.058
+      ],
+      [
+        16.303,
+        12.917,
+        0.366
+      ],
+      [
+        35.932,
+        -1.949,
+        1.37
+      ],
+      [
+        55.562,
+        -16.813,
+        2.445
+      ],
+      [
+        75.194,
+        -31.674,
+        3.518
+      ],
+      [
+        94.827,
+        -46.534,
+        4.592
+      ],
+      [
+        114.46,
+        -61.394,
+        5.667
+      ],
+      [
+        134.092,
+        -76.258,
+        6.74
+      ],
+      [
+        153.724,
+        -91.121,
+        7.814
+      ],
+      [
+        173.356,
+        -105.985,
+        8.888
+      ],
+      [
+        192.988,
+        -120.85,
+        9.962
+      ],
+      [
+        212.623,
+        -135.711,
+        11.036
+      ],
+      [
+        232.256,
+        -150.573,
+        11.946
+      ],
+      [
+        251.889,
+        -165.435,
+        12.395
+      ],
+      [
+        271.522,
+        -180.297,
+        12.752
+      ],
+      [
+        291.155,
+        -195.159,
+        13.111
+      ],
+      [
+        310.788,
+        -210.021,
+        13.469
+      ],
+      [
+        330.421,
+        -224.882,
+        13.827
+      ],
+      [
+        350.055,
+        -239.742,
+        14.185
+      ],
+      [
+        369.688,
+        -254.603,
+        14.542
+      ],
+      [
+        389.319,
+        -269.466,
+        14.901
+      ],
+      [
+        408.951,
+        -284.328,
+        15.258
+      ],
+      [
+        428.583,
+        -299.189,
+        15.617
+      ],
+      [
+        462.45,
+        -329.058,
+        16.271
+      ],
+      [
+        501.813,
+        -354.63,
+        16.998
+      ]
+    ],
+    "width_m": 10.0,
+    "box_count": 24,
+    "speed_limit_kmh": 80.0
+  },
+  "props": [],
+  "next_id": 32
+}
