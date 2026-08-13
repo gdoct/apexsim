@@ -2,12 +2,16 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexPlayerController.h"
 #include "ApexSim.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/GameInstance.h"
+#include "Engine/LevelStreamingDynamic.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "Kismet/GameplayStatics.h"
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
@@ -33,6 +37,19 @@ AApexRaceDirector::AApexRaceDirector()
 
 	ChaseCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ChaseCamera"));
 	ChaseCamera->SetupAttachment(CameraBoom);
+
+	// Attached to the root only so it has a parent; its world transform is
+	// driven straight from the car every tick, so nothing about the boom's
+	// lag or its levelled yaw leaks into the cockpit view.
+	CockpitCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("CockpitCamera"));
+	CockpitCamera->SetupAttachment(Root);
+	CockpitCamera->SetAbsolute(true, true, false);
+	CockpitCamera->FieldOfView = 95.0f;
+
+	// Exactly one camera component may be active on a view target; the other
+	// is what `SetCockpitView` switches to.
+	CockpitCamera->SetActive(true);
+	ChaseCamera->SetActive(false);
 }
 
 AApexRaceDirector* AApexRaceDirector::Find(const UObject* WorldContextObject)
@@ -149,7 +166,11 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 		}
 
 		Car->SetDisplayName(Entry.PlayerName);
+		// Actor labels are an editor convenience and do not exist in a game
+		// build; without the guard the shipping target does not compile.
+#if WITH_EDITOR
 		Car->SetActorLabel(FString::Printf(TEXT("Car%d_%s"), Entry.CarIndex, *Entry.PlayerName));
+#endif
 	}
 
 	// Drop anyone who left.
@@ -210,7 +231,20 @@ void AApexRaceDirector::UpdateCameraTarget()
 		}
 	}
 
-	FollowedCar = Target;
+	if (FollowedCar != Target)
+	{
+		// Whoever we were watching gets their bodywork back before we climb
+		// into someone else's cockpit.
+		if (FollowedCar)
+		{
+			FollowedCar->SetMeshVisible(true);
+		}
+		FollowedCar = Target;
+		if (bRaceViewActive)
+		{
+			ApplyCameraMode();
+		}
+	}
 }
 
 void AApexRaceDirector::Tick(float DeltaSeconds)
@@ -236,35 +270,98 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 		SetActorRotation(FRotator(0.0f, FollowedCar->GetActorRotation().Yaw, 0.0f));
 	}
 
+	UpdateCockpitCamera();
+	PollViewInput();
 	PollDrivingInput();
 }
 
 void AApexRaceDirector::PollDrivingInput()
 {
 	UApexNetSubsystem* Net = GetNet();
-	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	AApexPlayerController* PlayerController =
+		Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
 	if (!Net || !PlayerController || !Net->IsUdpReady())
 	{
 		return;
 	}
 
-	// Deliberately crude: polled key state rather than an Enhanced Input mapping
-	// context. This exists so the transport milestone is drivable; real input
-	// binding (wheel, pedals, axes) is its own piece of work.
-	const bool bForward = PlayerController->IsInputKeyDown(EKeys::W) || PlayerController->IsInputKeyDown(EKeys::Up);
-	const bool bBack    = PlayerController->IsInputKeyDown(EKeys::S) || PlayerController->IsInputKeyDown(EKeys::Down);
-	const bool bLeft    = PlayerController->IsInputKeyDown(EKeys::A) || PlayerController->IsInputKeyDown(EKeys::Left);
-	const bool bRight   = PlayerController->IsInputKeyDown(EKeys::D) || PlayerController->IsInputKeyDown(EKeys::Right);
+	const FApexDriveInput& Drive = PlayerController->GetDriveInput();
 
 	FApexPlayerInput Input;
-	Input.Throttle = bForward ? 1.0f : 0.0f;
-	Input.Brake = bBack ? 1.0f : 0.0f;
-	// Steering is in the server's frame, where positive is to the left.
-	Input.Steering = (bLeft ? 1.0f : 0.0f) - (bRight ? 1.0f : 0.0f);
-	// Leave the gearbox alone; the server holds whatever gear it has.
+	Input.Throttle = Drive.Throttle;
+	Input.Brake = Drive.Brake;
+	// The one conversion: the action is in screen convention (+1 is right)
+	// and the server's frame has positive steering to the left.
+	Input.Steering = -Drive.Steer;
+
+	// Gear is a request, not a state. -128 is the protocol's "leave it
+	// alone", so a shift only goes out on the tick its key was pressed.
 	Input.Gear = -128;
+	const int32 GearDelta = PlayerController->ConsumeGearDelta();
+	if (GearDelta != 0 && FollowedCar)
+	{
+		// Clamped to the range the server accepts: reverse through tenth.
+		Input.Gear = FMath::Clamp(FollowedCar->GetGear() + GearDelta, -1, 10);
+	}
 
 	Net->SetPlayerInput(Input);
+}
+
+void AApexRaceDirector::SetCockpitView(bool bCockpit)
+{
+	if (bCockpitView == bCockpit)
+	{
+		return;
+	}
+	bCockpitView = bCockpit;
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Camera: %s"), bCockpitView ? TEXT("cockpit") : TEXT("chase"));
+}
+
+void AApexRaceDirector::ApplyCameraMode()
+{
+	CockpitCamera->SetActive(bCockpitView);
+	ChaseCamera->SetActive(!bCockpitView);
+
+	// From the driver's seat the car's own bodywork fills the screen, so the
+	// followed car stops drawing. Only that one: the rest of the field has to
+	// stay visible, which is why this is not a flag on the mesh itself.
+	if (FollowedCar)
+	{
+		FollowedCar->SetMeshVisible(!bCockpitView);
+	}
+}
+
+void AApexRaceDirector::UpdateCockpitCamera()
+{
+	if (!FollowedCar)
+	{
+		return;
+	}
+	// Full rotation, not the levelled yaw the boom uses: through a banked
+	// corner or over a kerb the horizon should tilt with the car.
+	const FRotator CarRotation = FollowedCar->GetActorRotation();
+	CockpitCamera->SetWorldLocationAndRotation(
+		FollowedCar->GetActorLocation() + CarRotation.RotateVector(CockpitEyeOffset), CarRotation);
+}
+
+void AApexRaceDirector::ApplyRaceInputMode(bool bRacing)
+{
+	if (AApexPlayerController* PlayerController =
+			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+	{
+		PlayerController->SetDriveInputEnabled(bRacing);
+	}
+}
+
+void AApexRaceDirector::PollViewInput()
+{
+	AApexPlayerController* PlayerController =
+		Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+	if (PlayerController && PlayerController->ConsumeCameraToggle())
+	{
+		SetCockpitView(!bCockpitView);
+	}
 }
 
 float AApexRaceDirector::GetFollowedSpeedKph() const
@@ -281,18 +378,25 @@ void AApexRaceDirector::BeginRaceView()
 	bRaceViewActive = true;
 	bLoggedFirstTelemetry = false;
 
+	LoadTrackLevel();
+
 	if (const UApexNetSubsystem* Net = GetNet())
 	{
 		SyncCarsToRoster(Net->GetSessionRoster());
 	}
 	UpdateCameraTarget();
+	UpdateCockpitCamera();
+	ApplyCameraMode();
+	ApplyRaceInputMode(true);
 
 	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
 	{
 		PlayerController->SetViewTargetWithBlend(this, 0.4f);
 	}
 
-	UE_LOG(LogApexSim, Log, TEXT("Race view active with %d car(s)"), Cars.Num());
+	UE_LOG(LogApexSim, Log,
+		TEXT("Race view active with %d car(s). Drive with WASD, C swaps cockpit/chase"),
+		Cars.Num());
 }
 
 void AApexRaceDirector::EndRaceView()
@@ -302,10 +406,100 @@ void AApexRaceDirector::EndRaceView()
 		return;
 	}
 	bRaceViewActive = false;
+	// Un-hide before dropping the reference, or a car kept for a later race
+	// would come back invisible.
+	if (FollowedCar)
+	{
+		FollowedCar->SetMeshVisible(true);
+	}
 	FollowedCar = nullptr;
 	DestroyAllCars();
+	UnloadTrackLevel();
+	ApplyRaceInputMode(false);
 
 	UE_LOG(LogApexSim, Log, TEXT("Race view ended"));
+}
+
+bool AApexRaceDirector::IsTrackLevelLoaded() const
+{
+	return TrackLevel && TrackLevel->IsLevelLoaded();
+}
+
+FString AApexRaceDirector::ResolveTrackLevelPath() const
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net)
+	{
+		return FString();
+	}
+
+	FApexSessionSummary Session;
+	if (!Net->FindSessionById(Net->GetCurrentSessionId(), Session) || Session.TrackFile.IsEmpty())
+	{
+		return FString();
+	}
+
+	// "tracks/real/Monza.yaml" -> "Monza", which is both the export stem and
+	// the folder the importer generated into.
+	const FString Stem = FPaths::GetBaseFilename(Session.TrackFile);
+	if (Stem.IsEmpty())
+	{
+		return FString();
+	}
+
+	const FString PackagePath = FString::Printf(TEXT("/Game/Tracks/%s/L_%s"), *Stem, *Stem);
+	if (!FPackageName::DoesPackageExist(PackagePath))
+	{
+		UE_LOG(LogApexSim, Warning,
+			TEXT("No imported level for track \"%s\" at %s — cars will race in an empty world. "
+				 "Bake it with `cargo run --bin ats-export -- --all` and import it with "
+				 "`ApexSimEditor-Cmd <uproject> -run=ApexTrackImport -all`"),
+			*Session.TrackName, *PackagePath);
+		return FString();
+	}
+	return PackagePath;
+}
+
+void AApexRaceDirector::LoadTrackLevel()
+{
+	if (TrackLevel)
+	{
+		return;
+	}
+
+	const FString PackagePath = ResolveTrackLevelPath();
+	if (PackagePath.IsEmpty())
+	{
+		return;
+	}
+
+	// A level instance, not a travel: the menu world owns this actor and the
+	// entire UI, and travelling would destroy both mid-race.
+	bool bSuccess = false;
+	TrackLevel = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(this,
+		TSoftObjectPtr<UWorld>(FSoftObjectPath(PackagePath)), FVector::ZeroVector,
+		FRotator::ZeroRotator, bSuccess);
+	if (!bSuccess || !TrackLevel)
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Failed to stream track level %s"), *PackagePath);
+		TrackLevel = nullptr;
+		return;
+	}
+
+	UE_LOG(LogApexSim, Log, TEXT("Streaming track level %s"), *PackagePath);
+}
+
+void AApexRaceDirector::UnloadTrackLevel()
+{
+	if (!TrackLevel)
+	{
+		return;
+	}
+	// Clearing both flags is what actually retires a streamed instance;
+	// there is no single "unload now" call on ULevelStreaming.
+	TrackLevel->SetShouldBeVisible(false);
+	TrackLevel->SetShouldBeLoaded(false);
+	TrackLevel = nullptr;
 }
 
 void AApexRaceDirector::DestroyAllCars()

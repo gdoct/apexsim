@@ -193,3 +193,6 @@ certs/
 
 # Procedural terrain cache files (generated)
 *.terrain.msgpack
+# Generated Unreal track exports (bake with: cargo run --bin ats-export -- --all)
+content/tracks/export/
+game-unreal/Content/

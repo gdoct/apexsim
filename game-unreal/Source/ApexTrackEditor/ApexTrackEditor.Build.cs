@@ -1,8 +1,8 @@
 using UnrealBuildTool;
 
-public class ApexSim : ModuleRules
+public class ApexTrackEditor : ModuleRules
 {
-	public ApexSim(ReadOnlyTargetRules Target) : base(Target)
+	public ApexTrackEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -11,17 +11,15 @@ public class ApexSim : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
-			"InputCore",
-			"EnhancedInput",
-			"UMG",
-			"Slate",
-			"SlateCore",
-			"ApexSimNet",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"RenderCore",
+			"Json",
+			"MeshDescription",
+			"StaticMeshDescription",
+			"UnrealEd",
+			"AssetRegistry",
 		});
 	}
 }

@@ -40,8 +40,27 @@ Open in Godot 4.5+ Mono editor, click Build, then F5 to run.
 ### Track Editor (Rust + Bevy)
 ```bash
 cd track-editor
-cargo run                      # Run track editor
+cargo run                                    # Run track editor
+cargo run --bin ats-export -- --all          # Bake every track for Unreal
 ```
+
+### Track pipeline into Unreal
+Circuits reach the Unreal client in two generated steps; both outputs are
+regenerated wholesale and neither should be hand-edited.
+
+```bash
+cd track-editor && cargo run --bin ats-export -- --all   # -> content/tracks/export/*.uescene.json (gitignored)
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject \
+    -run=ApexTrackImport -all                            # -> game-unreal/Content/Tracks/<Track>/L_<Track>.umap
+```
+
+The exporter resolves `.ats` station spans against the YAML centerline and
+bakes triangles (Unreal can't read YAML); the `ApexTrackEditor` module's
+commandlet turns those buffers into static meshes, materials and a level per
+track. `AApexRaceDirector` streams `/Game/Tracks/<Stem>/L_<Stem>` as a level
+instance when a race starts, resolving `<Stem>` from the session's
+`TrackFile`. See `track-editor/TRACK_EDITOR.md` §5 for the format and the
+coordinate/winding conventions.
 
 ## Architecture
 
@@ -62,6 +81,19 @@ cargo run                      # Run track editor
 - Custom MessagePack serializer matching Rust `rmp_serde` (named/`to_vec_named`) format — wire-format changes must be coordinated between server and client
 - Network protocol: `[4-byte big-endian length][MessagePack data]`
 - Thread-safe networking: background receive, main thread processing
+
+### Unreal client input (`game-unreal/Source/ApexSim/`)
+Driving uses Enhanced Input, with actions and the mapping context built in
+C++ (`Input/ApexInputConfig.h`) rather than as `.uasset`s, so bindings are
+readable in a diff. `AApexPlayerController` owns them and adds the mapping
+context only while a race is running. Defaults: WASD to drive, Q/E to shift,
+C to swap cockpit/chase, Escape to leave.
+
+Two traps worth remembering: the menu shell runs in `FInputModeUIOnly`, where
+the viewport discards game input entirely and no binding produces an event
+(the controller switches to game-and-UI for the race); and a Blueprint game
+mode can silently override `PlayerControllerClass`, which the C++ game mode
+now logs an error about.
 
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)
