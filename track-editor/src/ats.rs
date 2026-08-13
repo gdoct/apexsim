@@ -3,13 +3,13 @@
 //! A `.ats` file is the editable scene layer for one source `track.yaml`.
 //! The YAML is **read-only input** — it belongs to the server and is never
 //! written by the editor. Everything the 3D scene adds on top of the logical
-//! track — curbs, painted markings, the pit lane, trackside props — lives
-//! here, and this is the file the Unreal importer consumes (plain JSON, so
-//! `FJsonSerializer` can read it directly).
+//! track — ground surfaces, curbs, painted markings, the pit lane,
+//! trackside props — lives here, and this is the file the Unreal importer
+//! consumes (plain JSON, so `FJsonSerializer` can read it directly).
 //!
 //! Coordinates are track space (right-handed, `+X` course direction at
 //! start/finish, `+Y` left, `+Z` up, meters). Track-anchored elements
-//! (curbs, markings) use *station* positions: distance in meters along the
+//! (surfaces, curbs, markings) use *station* positions: distance in meters along the
 //! sampled centerline, plus lateral offsets where positive is left of the
 //! centerline. World-anchored elements (props, pit-lane nodes) use absolute
 //! track-space coordinates.
@@ -23,7 +23,10 @@ use serde::{Deserialize, Serialize};
 use crate::track_data::TrackFile;
 
 pub const ATS_FORMAT: &str = "apex-track-scene";
-pub const ATS_VERSION: u32 = 1;
+/// v2 added the `surfaces` layer (runoff, gravel, grass). v1 files still
+/// load — `surfaces` defaults to empty — and are migrated in memory by
+/// `ats_io::load_ats`.
+pub const ATS_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AtsScene {
@@ -35,6 +38,10 @@ pub struct AtsScene {
     pub source_track: String,
     /// Track name copied from the source at creation time, for display.
     pub track_name: String,
+    /// Ground beside the track: runoff, gravel traps, grass. Listed before
+    /// the curbs because that is the order they stack on the ground.
+    #[serde(default)]
+    pub surfaces: Vec<Surface>,
     #[serde(default)]
     pub curbs: Vec<Curb>,
     #[serde(default)]
@@ -69,6 +76,109 @@ impl Side {
             "left" => Ok(Side::Left),
             "right" => Ok(Side::Right),
             other => Err(format!("unknown side {other:?} (expected left|right)")),
+        }
+    }
+}
+
+/// What a [`Surface`] patch is made of. The Unreal importer maps these to
+/// materials and physics surfaces; the editor previews them as flat color.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfaceKind {
+    /// Open ground: the default world surface either side of the circuit.
+    Grass,
+    /// Deceleration gravel trap.
+    Gravel,
+    /// Paved runoff — the modern alternative to gravel.
+    AsphaltRunoff,
+    /// Concrete apron, typically around pit entries and barriers.
+    Concrete,
+    /// Sand trap.
+    Sand,
+    /// The green synthetic strip bordering many curbs.
+    Astroturf,
+}
+
+impl SurfaceKind {
+    pub const ALL: [SurfaceKind; 6] = [
+        SurfaceKind::Grass,
+        SurfaceKind::Gravel,
+        SurfaceKind::AsphaltRunoff,
+        SurfaceKind::Concrete,
+        SurfaceKind::Sand,
+        SurfaceKind::Astroturf,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            SurfaceKind::Grass => "grass",
+            SurfaceKind::Gravel => "gravel",
+            SurfaceKind::AsphaltRunoff => "asphalt_runoff",
+            SurfaceKind::Concrete => "concrete",
+            SurfaceKind::Sand => "sand",
+            SurfaceKind::Astroturf => "astroturf",
+        }
+    }
+
+    pub fn parse(s: &str) -> Result<Self, String> {
+        let needle = s.trim().to_ascii_lowercase();
+        Self::ALL
+            .into_iter()
+            .find(|k| k.label() == needle)
+            .ok_or_else(|| {
+                let expected: Vec<&str> = Self::ALL.into_iter().map(|k| k.label()).collect();
+                format!(
+                    "unknown surface kind {s:?} (expected one of {})",
+                    expected.join("|")
+                )
+            })
+    }
+
+    /// Draw order for coincident patches: lower renders underneath. Broad
+    /// ground goes down first, then progressively more specific surfaces on
+    /// top, so a gravel trap laid over the grass band actually shows.
+    pub fn layer(self) -> u8 {
+        match self {
+            SurfaceKind::Grass => 0,
+            SurfaceKind::Concrete => 1,
+            SurfaceKind::AsphaltRunoff => 2,
+            SurfaceKind::Sand => 3,
+            SurfaceKind::Gravel => 4,
+            SurfaceKind::Astroturf => 5,
+        }
+    }
+}
+
+/// A patch of ground beside the track — runoff, gravel trap, grass verge —
+/// anchored to a station span like a curb, and measured *outward from the
+/// track edge* so it follows the circuit as the track width changes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Surface {
+    pub id: u64,
+    pub kind: SurfaceKind,
+    /// Which side of the track the patch lies on.
+    pub side: Side,
+    pub start_m: f32,
+    /// Station where it ends. On a closed loop `end_m < start_m` wraps
+    /// through the start/finish line.
+    pub end_m: f32,
+    /// Gap between the track edge and the patch's inner border, meters
+    /// (e.g. leave room for a curb).
+    pub inner_m: f32,
+    /// Extent outward from `inner_m` at `start_m`, meters.
+    pub width_m: f32,
+    /// Extent at `end_m`; `None` means no taper. Gravel traps and runoff
+    /// areas are usually wedges, so the width is interpolated along the span.
+    #[serde(default)]
+    pub end_width_m: Option<f32>,
+}
+
+impl Surface {
+    /// Width at `t` (0 at `start_m`, 1 at `end_m`).
+    pub fn width_at(&self, t: f32) -> f32 {
+        match self.end_width_m {
+            Some(end) => self.width_m + (end - self.width_m) * t.clamp(0.0, 1.0),
+            None => self.width_m,
         }
     }
 }
@@ -259,6 +369,7 @@ impl AtsScene {
             version: ATS_VERSION,
             source_track: source_file_name.to_string(),
             track_name: track.name.clone(),
+            surfaces: Vec::new(),
             curbs: Vec::new(),
             markings: vec![Marking {
                 id: 1,
@@ -280,6 +391,14 @@ impl AtsScene {
         let id = self.next_id;
         self.next_id += 1;
         id
+    }
+
+    pub fn surface(&self, id: u64) -> Option<&Surface> {
+        self.surfaces.iter().find(|s| s.id == id)
+    }
+
+    pub fn surface_mut(&mut self, id: u64) -> Option<&mut Surface> {
+        self.surfaces.iter_mut().find(|s| s.id == id)
     }
 
     pub fn curb(&self, id: u64) -> Option<&Curb> {
@@ -306,14 +425,16 @@ impl AtsScene {
         self.props.iter_mut().find(|p| p.id == id)
     }
 
-    /// Remove whichever element (curb, marking, or prop) carries `id`.
-    /// Returns `false` if no element has that id.
+    /// Remove whichever element (surface, curb, marking, or prop) carries
+    /// `id`. Returns `false` if no element has that id.
     pub fn remove_element(&mut self, id: u64) -> bool {
-        let before = self.curbs.len() + self.markings.len() + self.props.len();
+        let count = |s: &Self| s.surfaces.len() + s.curbs.len() + s.markings.len() + s.props.len();
+        let before = count(self);
+        self.surfaces.retain(|s| s.id != id);
         self.curbs.retain(|c| c.id != id);
         self.markings.retain(|m| m.id != id);
         self.props.retain(|p| p.id != id);
-        self.curbs.len() + self.markings.len() + self.props.len() != before
+        count(self) != before
     }
 
     /// Structural sanity checks, run on every load and save.
@@ -332,9 +453,10 @@ impl AtsScene {
         }
 
         let mut ids: Vec<u64> = self
-            .curbs
+            .surfaces
             .iter()
-            .map(|c| c.id)
+            .map(|s| s.id)
+            .chain(self.curbs.iter().map(|c| c.id))
             .chain(self.markings.iter().map(|m| m.id))
             .chain(self.props.iter().map(|p| p.id))
             .collect();
@@ -351,6 +473,28 @@ impl AtsScene {
             }
         }
 
+        for surface in &self.surfaces {
+            if !(surface.start_m.is_finite() && surface.end_m.is_finite()) {
+                return Err(format!("surface {}: non-finite station", surface.id));
+            }
+            if !(surface.width_m.is_finite() && surface.width_m > 0.0) {
+                return Err(format!("surface {}: width must be positive", surface.id));
+            }
+            if let Some(end_width) = surface.end_width_m {
+                if !(end_width.is_finite() && end_width > 0.0) {
+                    return Err(format!(
+                        "surface {}: end width must be positive",
+                        surface.id
+                    ));
+                }
+            }
+            if !(surface.inner_m.is_finite() && surface.inner_m >= 0.0) {
+                return Err(format!(
+                    "surface {}: inner offset must be zero or more",
+                    surface.id
+                ));
+            }
+        }
         for curb in &self.curbs {
             if !(curb.width_m.is_finite() && curb.width_m > 0.0) {
                 return Err(format!("curb {}: width must be positive", curb.id));

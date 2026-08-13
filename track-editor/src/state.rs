@@ -41,6 +41,7 @@ pub struct StatusLine(pub String);
 /// What's selected in the viewport / layer lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SelectedElement {
+    Surface(u64),
     Curb(u64),
     Marking(u64),
     Prop(u64),

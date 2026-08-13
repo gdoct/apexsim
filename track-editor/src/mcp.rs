@@ -27,7 +27,9 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::ats::{AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side};
+use crate::ats::{
+    AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface, SurfaceKind,
+};
 use crate::ats_io;
 use crate::project;
 use crate::scene::TrackPathRes;
@@ -118,6 +120,43 @@ struct ListNodesParams {
     offset: Option<usize>,
     /// Maximum number of nodes to return. Defaults to 200.
     limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct AddSurfaceParams {
+    /// Kind: grass, gravel, asphalt_runoff, concrete, sand, astroturf.
+    kind: String,
+    /// Which side of the track the patch lies on: "left" or "right".
+    side: String,
+    /// Station (meters along the centerline) where the patch starts.
+    start_m: f32,
+    /// Station where it ends. On closed loops end < start wraps through the
+    /// start/finish line.
+    end_m: f32,
+    /// Gap between the track edge and the patch's inner border, meters —
+    /// e.g. 1.5 to clear a curb. Defaults to 0.
+    #[serde(default)]
+    inner_m: f32,
+    /// Extent outward from the inner border at start_m, meters.
+    width_m: f32,
+    /// Extent at end_m. Omit for a constant width; set it to taper the
+    /// patch into a wedge, the way gravel traps and runoff areas widen.
+    end_width_m: Option<f32>,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct UpdateSurfaceParams {
+    /// Id of the surface to edit.
+    id: u64,
+    kind: Option<String>,
+    /// New side ("left"/"right"), if changing.
+    side: Option<String>,
+    start_m: Option<f32>,
+    end_m: Option<f32>,
+    inner_m: Option<f32>,
+    width_m: Option<f32>,
+    /// New taper end width. Pass 0 to drop the taper (constant width).
+    end_width_m: Option<f32>,
 }
 
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
@@ -240,6 +279,8 @@ enum EditorCommand {
     ListNodes(ListNodesParams, oneshot::Sender<Value>),
     GetNode(NodeIndexParams, oneshot::Sender<Result<Value, String>>),
     GetScene(oneshot::Sender<Result<Value, String>>),
+    AddSurface(AddSurfaceParams, oneshot::Sender<Result<u64, String>>),
+    UpdateSurface(UpdateSurfaceParams, oneshot::Sender<Result<(), String>>),
     AddCurb(AddCurbParams, oneshot::Sender<Result<u64, String>>),
     UpdateCurb(UpdateCurbParams, oneshot::Sender<Result<(), String>>),
     AddMarking(AddMarkingParams, oneshot::Sender<Result<u64, String>>),
@@ -318,6 +359,59 @@ fn drain_mcp_commands(
                     }
                     None => Err("no scene open".to_string()),
                 };
+                let _ = reply.send(result);
+            }
+            EditorCommand::AddSurface(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    let kind = SurfaceKind::parse(&params.kind)?;
+                    let side = Side::parse(&params.side)?;
+                    let id = s.alloc_id();
+                    s.surfaces.push(Surface {
+                        id,
+                        kind,
+                        side,
+                        start_m: params.start_m,
+                        end_m: params.end_m,
+                        inner_m: params.inner_m,
+                        width_m: params.width_m,
+                        end_width_m: params.end_width_m,
+                    });
+                    Ok(id)
+                });
+                let _ = reply.send(result);
+            }
+            EditorCommand::UpdateSurface(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    let kind = params.kind.as_deref().map(SurfaceKind::parse).transpose()?;
+                    let side = params.side.as_deref().map(Side::parse).transpose()?;
+                    let surface = s
+                        .surface_mut(params.id)
+                        .ok_or_else(|| format!("no surface with id {}", params.id))?;
+                    if let Some(kind) = kind {
+                        surface.kind = kind;
+                    }
+                    if let Some(side) = side {
+                        surface.side = side;
+                    }
+                    if let Some(v) = params.start_m {
+                        surface.start_m = v;
+                    }
+                    if let Some(v) = params.end_m {
+                        surface.end_m = v;
+                    }
+                    if let Some(v) = params.inner_m {
+                        surface.inner_m = v;
+                    }
+                    if let Some(v) = params.width_m {
+                        surface.width_m = v;
+                    }
+                    if let Some(v) = params.end_width_m {
+                        // 0 is the documented "drop the taper" sentinel; a
+                        // zero-width taper would fail validation anyway.
+                        surface.end_width_m = (v > 0.0).then_some(v);
+                    }
+                    Ok(())
+                });
                 let _ = reply.send(result);
             }
             EditorCommand::AddCurb(params, reply) => {
@@ -600,6 +694,7 @@ fn track_info_json(
             "scene": open_scene.scene.as_ref().map(|s| json!({
                 "path": open_scene.path.as_ref().map(|p| p.display().to_string()),
                 "dirty": open_scene.dirty,
+                "surfaces": s.surfaces.len(),
                 "curbs": s.curbs.len(),
                 "markings": s.markings.len(),
                 "props": s.props.len(),
@@ -733,11 +828,36 @@ impl TrackEditorMcp {
     }
 
     #[tool(
-        description = "Get the full .ats scene as JSON: curbs, markings, pit lane, and props with their ids."
+        description = "Get the full .ats scene as JSON: ground surfaces, curbs, markings, pit lane, and props with their ids."
     )]
     async fn get_scene(&self) -> Result<CallToolResult, McpError> {
         let value = self.request_fallible(EditorCommand::GetScene).await?;
         Ok(json_result(value))
+    }
+
+    #[tool(
+        description = "Add a ground patch beside the track — grass, gravel, asphalt_runoff, concrete, sand or astroturf — over a station span. Borders are measured outward from the track edge (inner_m clears the curb, width_m is the extent), so the patch follows the circuit as the track width changes; set end_width_m to taper it into a wedge. Returns the new surface's id. Records an undo entry."
+    )]
+    async fn add_surface(
+        &self,
+        Parameters(params): Parameters<AddSurfaceParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let id = self
+            .request_fallible(|reply| EditorCommand::AddSurface(params, reply))
+            .await?;
+        Ok(text_result(format!("added surface {id}")))
+    }
+
+    #[tool(
+        description = "Update fields on an existing ground surface by id; only provided fields change. Pass end_width_m=0 to drop a taper. Records an undo entry."
+    )]
+    async fn update_surface(
+        &self,
+        Parameters(params): Parameters<UpdateSurfaceParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.request_fallible(|reply| EditorCommand::UpdateSurface(params, reply))
+            .await?;
+        Ok(text_result("updated"))
     }
 
     #[tool(

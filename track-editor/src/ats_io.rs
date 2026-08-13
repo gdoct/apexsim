@@ -9,7 +9,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::ats::AtsScene;
+use crate::ats::{self, AtsScene};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AtsIoError {
@@ -29,8 +29,12 @@ pub fn ats_path_for<P: AsRef<Path>>(track_path: P) -> PathBuf {
 
 pub fn load_ats<P: AsRef<Path>>(path: P) -> Result<AtsScene, AtsIoError> {
     let content = fs::read_to_string(path.as_ref())?;
-    let scene: AtsScene = serde_json::from_str(&content)?;
+    let mut scene: AtsScene = serde_json::from_str(&content)?;
     scene.validate().map_err(AtsIoError::Invalid)?;
+    // Older files parse as-is (every layer added since v1 is `#[serde(default)]`);
+    // stamp them as current in memory so a later save writes one consistent
+    // version. The file on disk is untouched until that save happens.
+    scene.version = ats::ATS_VERSION;
     Ok(scene)
 }
 
@@ -57,7 +61,7 @@ pub fn save_ats<P: AsRef<Path>>(path: P, scene: &AtsScene) -> Result<(), AtsIoEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ats::{Curb, PitLane, Prop, PropKind, Side};
+    use crate::ats::{Curb, PitLane, Prop, PropKind, Side, Surface, SurfaceKind};
     use crate::track_data::{TrackFile, TrackNode};
 
     fn test_track() -> TrackFile {
@@ -99,6 +103,17 @@ mod tests {
 
     fn populated_scene() -> AtsScene {
         let mut scene = AtsScene::new_for_track(&test_track(), "Test.yaml");
+        let id = scene.alloc_id();
+        scene.surfaces.push(Surface {
+            id,
+            kind: SurfaceKind::Gravel,
+            side: Side::Right,
+            start_m: 10.0,
+            end_m: 70.0,
+            inner_m: 1.5,
+            width_m: 20.0,
+            end_width_m: Some(35.0),
+        });
         let id = scene.alloc_id();
         scene.curbs.push(Curb {
             id,
@@ -159,6 +174,31 @@ mod tests {
         save_ats(&path, &scene).unwrap();
         let second = fs::read(&path).unwrap();
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn a_v1_file_without_surfaces_still_loads_and_migrates() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Legacy.ats");
+        fs::write(
+            &path,
+            r#"{
+              "format": "apex-track-scene",
+              "version": 1,
+              "source_track": "Test.yaml",
+              "track_name": "Test",
+              "curbs": [],
+              "markings": [],
+              "pit_lane": null,
+              "props": [],
+              "next_id": 1
+            }"#,
+        )
+        .unwrap();
+
+        let loaded = load_ats(&path).unwrap();
+        assert!(loaded.surfaces.is_empty());
+        assert_eq!(loaded.version, ats::ATS_VERSION);
     }
 
     #[test]
