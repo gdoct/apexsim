@@ -10,7 +10,7 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
-use crate::ats::{Curb, Marking, Side};
+use crate::ats::{Curb, Marking, Side, Surface, SurfaceKind};
 use crate::coords;
 use crate::track_path::{offset_point, CenterlinePath, PathSample};
 
@@ -20,9 +20,18 @@ const STRIP_STEP_M: f32 = 1.0;
 const CURB_STRIPE_LEN_M: f32 = 2.0;
 
 /// How far strips float above the surface they decorate, to avoid
-/// z-fighting: track < pit lane < curbs < markings.
+/// z-fighting: ground surfaces < track < pit lane < curbs < markings.
 pub const CURB_LIFT_M: f32 = 0.02;
 pub const MARKING_LIFT_M: f32 = 0.04;
+/// Ground patches sit just *below* the track so the ribbon always wins where
+/// they meet, and each surface kind gets its own sliver of depth so a gravel
+/// trap laid over the grass band doesn't z-fight with it.
+const SURFACE_BASE_LIFT_M: f32 = -0.08;
+const SURFACE_LAYER_STEP_M: f32 = 0.01;
+
+pub fn surface_lift(kind: SurfaceKind) -> f32 {
+    SURFACE_BASE_LIFT_M + kind.layer() as f32 * SURFACE_LAYER_STEP_M
+}
 
 /// Build a strip along `path` from `start_m` to `end_m`, spanning laterally
 /// from `lat_a(sample)` to `lat_b(sample)` (meters, positive = left), lifted
@@ -149,6 +158,82 @@ pub fn build_curb_mesh(path: &CenterlinePath, curb: &Curb) -> Option<Mesh> {
     )
 }
 
+/// A ground patch beside the track: runoff, gravel trap, grass verge.
+///
+/// Both borders are measured outward from the track edge, so the patch keeps
+/// its shape as the track widens and narrows, and the width may taper from
+/// `width_m` at the start to `end_width_m` at the end.
+pub fn build_surface_mesh(path: &CenterlinePath, surface: &Surface) -> Option<Mesh> {
+    let total = path.total_length_m();
+    let span = if path.is_closed() {
+        let s = (surface.end_m - surface.start_m).rem_euclid(total);
+        if s <= f32::EPSILON {
+            total
+        } else {
+            s
+        }
+    } else {
+        surface.end_m - surface.start_m
+    };
+    if span <= 0.0 || !span.is_finite() {
+        return None;
+    }
+
+    let start = surface.start_m;
+    let closed = path.is_closed();
+    // Progress along the span, wrap-aware: `sample_at` hands back stations
+    // already folded into [0, total), so a span crossing start/finish would
+    // otherwise read as running backwards.
+    let progress = move |s: &PathSample| {
+        let along = if closed {
+            (s.station_m - start).rem_euclid(total)
+        } else {
+            s.station_m - start
+        };
+        (along / span).clamp(0.0, 1.0)
+    };
+
+    let side = surface.side;
+    let inner = surface.inner_m;
+    let edge = move |s: &PathSample| match side {
+        Side::Left => s.width_left_m + inner,
+        Side::Right => -(s.width_right_m + inner),
+    };
+
+    let kind = surface.kind;
+    let color = surface_kind_color(kind);
+    let widths = surface.clone();
+    build_strip_mesh(
+        path,
+        surface.start_m,
+        surface.end_m,
+        edge,
+        move |s| {
+            let width = widths.width_at(progress(s));
+            match side {
+                Side::Left => s.width_left_m + inner + width,
+                Side::Right => -(s.width_right_m + inner + width),
+            }
+        },
+        surface_lift(kind),
+        move |_| color,
+    )
+}
+
+/// Preview color per surface kind. Deliberately close to the palette
+/// `track_path::surface_color` uses for the track's own surface types, so a
+/// gravel trap reads the same as a gravel-surfaced track node.
+pub fn surface_kind_color(kind: SurfaceKind) -> [f32; 4] {
+    match kind {
+        SurfaceKind::Grass => [0.16, 0.42, 0.14, 1.0],
+        SurfaceKind::Gravel => [0.62, 0.55, 0.4, 1.0],
+        SurfaceKind::AsphaltRunoff => [0.3, 0.3, 0.33, 1.0],
+        SurfaceKind::Concrete => [0.55, 0.55, 0.55, 1.0],
+        SurfaceKind::Sand => [0.76, 0.68, 0.42, 1.0],
+        SurfaceKind::Astroturf => [0.1, 0.34, 0.12, 1.0],
+    }
+}
+
 /// A painted marking rectangle in station/lateral space.
 pub fn build_marking_mesh(path: &CenterlinePath, marking: &Marking) -> Option<Mesh> {
     let (lo, hi) = if marking.lat_from_m <= marking.lat_to_m {
@@ -267,6 +352,55 @@ mod tests {
         assert_finite_mesh(&build_marking_mesh(&path, &marking).unwrap());
         std::mem::swap(&mut marking.lat_from_m, &mut marking.lat_to_m);
         assert_finite_mesh(&build_marking_mesh(&path, &marking).unwrap());
+    }
+
+    #[test]
+    fn surface_mesh_tapers_and_wraps() {
+        let path = CenterlinePath::from_track(&loop_track()).unwrap();
+        let surface = Surface {
+            id: 1,
+            kind: SurfaceKind::Gravel,
+            side: Side::Right,
+            // end < start: wraps through station 0
+            start_m: path.total_length_m() - 30.0,
+            end_m: 40.0,
+            inner_m: 1.5,
+            width_m: 10.0,
+            end_width_m: Some(40.0),
+        };
+        let mesh = build_surface_mesh(&path, &surface).unwrap();
+        assert_finite_mesh(&mesh);
+
+        // The outer border must actually widen along the span: the last
+        // cross-section has to sit further from the centerline than the first.
+        // The outer border must actually widen along the span: the last
+        // cross-section has to be far wider than the first.
+        let positions = mesh
+            .attribute(Mesh::ATTRIBUTE_POSITION)
+            .unwrap()
+            .as_float3()
+            .unwrap();
+        let cross_section = |i: usize| {
+            let (a, b) = (positions[i], positions[i + 1]);
+            (a[0] - b[0]).hypot(a[2] - b[2])
+        };
+        let (first, last) = (cross_section(0), cross_section(positions.len() - 2));
+        assert!(last > first * 2.0, "taper: first={first} last={last}");
+    }
+
+    #[test]
+    fn surface_layers_stack_under_the_track_in_kind_order() {
+        for kind in SurfaceKind::ALL {
+            assert!(
+                surface_lift(kind) < 0.0 && surface_lift(kind) < CURB_LIFT_M,
+                "{} must sit under the track and its curbs",
+                kind.label()
+            );
+        }
+        // Broad ground first, specific patches on top of it.
+        assert!(surface_lift(SurfaceKind::Grass) < surface_lift(SurfaceKind::AsphaltRunoff));
+        assert!(surface_lift(SurfaceKind::AsphaltRunoff) < surface_lift(SurfaceKind::Gravel));
+        assert!(surface_lift(SurfaceKind::Gravel) < surface_lift(SurfaceKind::Astroturf));
     }
 
     #[test]

@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 
-use track_editor::ats::{AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side};
+use track_editor::ats::{
+    AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface, SurfaceKind,
+};
 use track_editor::ats_io;
 use track_editor::coords;
 use track_editor::mcp::McpPlugin;
@@ -36,6 +38,7 @@ fn main() {
 /// panels are drawn so list iteration and mutation don't fight over the
 /// scene borrow.
 enum UiAction {
+    AddSurface(SurfaceKind),
     AddCurb,
     AddMarking,
     AddProp(PropKind),
@@ -54,6 +57,7 @@ fn ui_root(
     track_path: Res<TrackPathRes>,
     orbit: Res<OrbitCamera>,
     mut last_frame_edited: Local<bool>,
+    mut new_surface_kind: Local<Option<SurfaceKind>>,
     mut new_prop_kind: Local<Option<PropKind>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
@@ -129,7 +133,14 @@ fn ui_root(
                 // 3D scene every frame.
                 let raw = open_scene.bypass_change_detection();
                 if let Some(scene) = &raw.scene {
-                    scene_layers_ui(ui, scene, &mut selection, &mut action, &mut new_prop_kind);
+                    scene_layers_ui(
+                        ui,
+                        scene,
+                        &mut selection,
+                        &mut action,
+                        &mut new_surface_kind,
+                        &mut new_prop_kind,
+                    );
                     ui.separator();
                 }
                 if let Some(scene) = raw.scene.as_mut() {
@@ -245,9 +256,42 @@ fn scene_layers_ui(
     scene: &AtsScene,
     selection: &mut Selection,
     action: &mut Option<UiAction>,
+    new_surface_kind: &mut Option<SurfaceKind>,
     new_prop_kind: &mut Option<PropKind>,
 ) {
     ui.heading("Scene");
+
+    egui::CollapsingHeader::new(format!("Surfaces ({})", scene.surfaces.len()))
+        .default_open(true)
+        .show(ui, |ui| {
+            for surface in &scene.surfaces {
+                let is_selected = selection.0 == Some(SelectedElement::Surface(surface.id));
+                let label = format!(
+                    "#{} {} {} {:.0}–{:.0} m",
+                    surface.id,
+                    surface.kind.label(),
+                    surface.side.label(),
+                    surface.start_m,
+                    surface.end_m
+                );
+                if ui.selectable_label(is_selected, label).clicked() {
+                    selection.0 = Some(SelectedElement::Surface(surface.id));
+                }
+            }
+            ui.horizontal(|ui| {
+                let kind = new_surface_kind.get_or_insert(SurfaceKind::Gravel);
+                egui::ComboBox::from_id_salt("new_surface_kind")
+                    .selected_text(kind.label())
+                    .show_ui(ui, |ui| {
+                        for candidate in SurfaceKind::ALL {
+                            ui.selectable_value(kind, candidate, candidate.label());
+                        }
+                    });
+                if ui.button("+ Add surface").clicked() {
+                    *action = Some(UiAction::AddSurface(*kind));
+                }
+            });
+        });
 
     egui::CollapsingHeader::new(format!("Curbs ({})", scene.curbs.len()))
         .default_open(true)
@@ -356,6 +400,44 @@ fn inspector_ui(
     let mut changed = false;
 
     match selected {
+        SelectedElement::Surface(id) => match scene.surface_mut(id) {
+            Some(surface) => {
+                ui.label(format!("Surface #{id}"));
+                egui::ComboBox::from_label("kind")
+                    .selected_text(surface.kind.label())
+                    .show_ui(ui, |ui| {
+                        for kind in SurfaceKind::ALL {
+                            changed |= ui
+                                .selectable_value(&mut surface.kind, kind, kind.label())
+                                .changed();
+                        }
+                    });
+                egui::ComboBox::from_label("side")
+                    .selected_text(surface.side.label())
+                    .show_ui(ui, |ui| {
+                        for side in Side::ALL {
+                            changed |= ui
+                                .selectable_value(&mut surface.side, side, side.label())
+                                .changed();
+                        }
+                    });
+                changed |= station_row(ui, "start (m)", &mut surface.start_m, max_station);
+                changed |= station_row(ui, "end (m)", &mut surface.end_m, max_station);
+                changed |= drag_row(ui, "inner gap (m)", &mut surface.inner_m, 0.1, 0.0..=60.0);
+                changed |= drag_row(ui, "width (m)", &mut surface.width_m, 0.5, 0.5..=400.0);
+                ui.horizontal(|ui| {
+                    let mut tapered = surface.end_width_m.is_some();
+                    if ui.checkbox(&mut tapered, "taper").changed() {
+                        surface.end_width_m = tapered.then_some(surface.width_m);
+                        changed = true;
+                    }
+                });
+                if let Some(end_width) = surface.end_width_m.as_mut() {
+                    changed |= drag_row(ui, "end width (m)", end_width, 0.5, 0.5..=400.0);
+                }
+            }
+            None => selection.0 = None,
+        },
         SelectedElement::Curb(id) => match scene.curb_mut(id) {
             Some(curb) => {
                 ui.label(format!("Curb #{id}"));
@@ -541,6 +623,21 @@ fn apply_ui_action(
     let total_len = track_path.0.as_ref().map(|p| p.total_length_m());
 
     match action {
+        UiAction::AddSurface(kind) => {
+            let id = scene.alloc_id();
+            scene.surfaces.push(Surface {
+                id,
+                kind,
+                side: Side::Right,
+                start_m: 0.0,
+                end_m: total_len.map_or(200.0, |l| (l * 0.05).clamp(40.0, 300.0)),
+                inner_m: 1.5,
+                width_m: 25.0,
+                end_width_m: None,
+            });
+            selection.0 = Some(SelectedElement::Surface(id));
+            status.0 = format!("Added {} surface #{id}.", kind.label());
+        }
         UiAction::AddCurb => {
             let id = scene.alloc_id();
             scene.curbs.push(Curb {
@@ -603,7 +700,8 @@ fn apply_ui_action(
                     status.0 = "Deleted pit lane.".to_string();
                 }
                 Some(
-                    SelectedElement::Curb(id)
+                    SelectedElement::Surface(id)
+                    | SelectedElement::Curb(id)
                     | SelectedElement::Marking(id)
                     | SelectedElement::Prop(id),
                 ) => {

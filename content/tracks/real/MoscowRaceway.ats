@@ -1,11 +1,713 @@
 {
   "format": "apex-track-scene",
-  "version": 1,
+  "version": 2,
   "source_track": "MoscowRaceway.yaml",
   "track_name": "Moscow Raceway",
+  "surfaces": [
+    {
+      "id": 328,
+      "kind": "grass",
+      "side": "left",
+      "start_m": 0.0,
+      "end_m": 0.0,
+      "inner_m": 0.0,
+      "width_m": 130.0,
+      "end_width_m": null
+    },
+    {
+      "id": 329,
+      "kind": "grass",
+      "side": "right",
+      "start_m": 0.0,
+      "end_m": 0.0,
+      "inner_m": 0.0,
+      "width_m": 130.0,
+      "end_width_m": null
+    },
+    {
+      "id": 330,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 330.95,
+      "end_m": 406.81,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 331,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 384.81,
+      "end_m": 428.81,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 332,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 311.95,
+      "end_m": 446.81,
+      "inner_m": 3.1,
+      "width_m": 8.78,
+      "end_width_m": null
+    },
+    {
+      "id": 333,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 311.95,
+      "end_m": 446.81,
+      "inner_m": 11.88,
+      "width_m": 7.52,
+      "end_width_m": 25.07
+    },
+    {
+      "id": 334,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 400.82,
+      "end_m": 435.15,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 335,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 413.15,
+      "end_m": 457.15,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 336,
+      "kind": "asphalt_runoff",
+      "side": "left",
+      "start_m": 381.82,
+      "end_m": 475.15,
+      "inner_m": 3.1,
+      "width_m": 18.0,
+      "end_width_m": null
+    },
+    {
+      "id": 337,
+      "kind": "gravel",
+      "side": "left",
+      "start_m": 381.82,
+      "end_m": 475.15,
+      "inner_m": 21.1,
+      "width_m": 27.0,
+      "end_width_m": 90.0
+    },
+    {
+      "id": 338,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 535.87,
+      "end_m": 664.91,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 339,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 642.91,
+      "end_m": 686.91,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 340,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 516.87,
+      "end_m": 704.91,
+      "inner_m": 3.1,
+      "width_m": 5.25,
+      "end_width_m": null
+    },
+    {
+      "id": 341,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 516.87,
+      "end_m": 704.91,
+      "inner_m": 8.35,
+      "width_m": 4.5,
+      "end_width_m": 15.0
+    },
+    {
+      "id": 342,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 757.46,
+      "end_m": 1073.32,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 343,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 1051.32,
+      "end_m": 1095.32,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 344,
+      "kind": "asphalt_runoff",
+      "side": "left",
+      "start_m": 738.46,
+      "end_m": 1113.32,
+      "inner_m": 3.1,
+      "width_m": 10.22,
+      "end_width_m": null
+    },
+    {
+      "id": 345,
+      "kind": "gravel",
+      "side": "left",
+      "start_m": 738.46,
+      "end_m": 1113.32,
+      "inner_m": 13.32,
+      "width_m": 8.76,
+      "end_width_m": 29.19
+    },
+    {
+      "id": 346,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 1063.98,
+      "end_m": 1264.53,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 347,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 1242.53,
+      "end_m": 1286.53,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 348,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 1044.98,
+      "end_m": 1304.53,
+      "inner_m": 3.1,
+      "width_m": 6.54,
+      "end_width_m": null
+    },
+    {
+      "id": 349,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 1044.98,
+      "end_m": 1304.53,
+      "inner_m": 9.64,
+      "width_m": 5.61,
+      "end_width_m": 18.69
+    },
+    {
+      "id": 350,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 1288.58,
+      "end_m": 1361.16,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 351,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 1339.16,
+      "end_m": 1383.16,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 352,
+      "kind": "asphalt_runoff",
+      "side": "left",
+      "start_m": 1269.58,
+      "end_m": 1401.16,
+      "inner_m": 3.1,
+      "width_m": 14.7,
+      "end_width_m": null
+    },
+    {
+      "id": 353,
+      "kind": "gravel",
+      "side": "left",
+      "start_m": 1269.58,
+      "end_m": 1401.16,
+      "inner_m": 17.8,
+      "width_m": 12.6,
+      "end_width_m": 42.0
+    },
+    {
+      "id": 354,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 1400.22,
+      "end_m": 1457.87,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 355,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 1435.87,
+      "end_m": 1479.87,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 356,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 1381.22,
+      "end_m": 1497.87,
+      "inner_m": 3.1,
+      "width_m": 18.0,
+      "end_width_m": null
+    },
+    {
+      "id": 357,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 1381.22,
+      "end_m": 1497.87,
+      "inner_m": 21.1,
+      "width_m": 20.11,
+      "end_width_m": 67.03
+    },
+    {
+      "id": 358,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 1496.91,
+      "end_m": 1562.71,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 359,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 1540.71,
+      "end_m": 1584.71,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 360,
+      "kind": "asphalt_runoff",
+      "side": "left",
+      "start_m": 1477.91,
+      "end_m": 1602.71,
+      "inner_m": 3.1,
+      "width_m": 9.7,
+      "end_width_m": null
+    },
+    {
+      "id": 361,
+      "kind": "gravel",
+      "side": "left",
+      "start_m": 1477.91,
+      "end_m": 1602.71,
+      "inner_m": 12.8,
+      "width_m": 8.32,
+      "end_width_m": 27.72
+    },
+    {
+      "id": 362,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 1805.31,
+      "end_m": 1856.1,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 363,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 1834.1,
+      "end_m": 1878.1,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 364,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 1786.31,
+      "end_m": 1896.1,
+      "inner_m": 3.1,
+      "width_m": 7.98,
+      "end_width_m": null
+    },
+    {
+      "id": 365,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 1786.31,
+      "end_m": 1896.1,
+      "inner_m": 11.08,
+      "width_m": 6.84,
+      "end_width_m": 22.81
+    },
+    {
+      "id": 366,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 1861.81,
+      "end_m": 1922.64,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 367,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 1900.64,
+      "end_m": 1944.64,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 368,
+      "kind": "asphalt_runoff",
+      "side": "left",
+      "start_m": 1842.81,
+      "end_m": 1962.64,
+      "inner_m": 3.1,
+      "width_m": 5.33,
+      "end_width_m": null
+    },
+    {
+      "id": 369,
+      "kind": "gravel",
+      "side": "left",
+      "start_m": 1842.81,
+      "end_m": 1962.64,
+      "inner_m": 8.43,
+      "width_m": 4.56,
+      "end_width_m": 15.21
+    },
+    {
+      "id": 370,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 1933.23,
+      "end_m": 2032.36,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 371,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 2010.36,
+      "end_m": 2054.36,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 372,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 1914.23,
+      "end_m": 2072.36,
+      "inner_m": 3.1,
+      "width_m": 6.57,
+      "end_width_m": null
+    },
+    {
+      "id": 373,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 1914.23,
+      "end_m": 2072.36,
+      "inner_m": 9.67,
+      "width_m": 5.63,
+      "end_width_m": 18.77
+    },
+    {
+      "id": 374,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 2113.21,
+      "end_m": 2202.33,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 375,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 2180.33,
+      "end_m": 2224.33,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 376,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 2094.21,
+      "end_m": 2242.33,
+      "inner_m": 3.1,
+      "width_m": 8.81,
+      "end_width_m": null
+    },
+    {
+      "id": 377,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 2094.21,
+      "end_m": 2242.33,
+      "inner_m": 11.91,
+      "width_m": 7.55,
+      "end_width_m": 25.17
+    },
+    {
+      "id": 378,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 2241.42,
+      "end_m": 2367.3,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 379,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 2345.3,
+      "end_m": 2389.3,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 380,
+      "kind": "asphalt_runoff",
+      "side": "left",
+      "start_m": 2222.42,
+      "end_m": 2407.3,
+      "inner_m": 3.1,
+      "width_m": 14.55,
+      "end_width_m": null
+    },
+    {
+      "id": 381,
+      "kind": "gravel",
+      "side": "left",
+      "start_m": 2222.42,
+      "end_m": 2407.3,
+      "inner_m": 17.65,
+      "width_m": 12.47,
+      "end_width_m": 41.57
+    },
+    {
+      "id": 382,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 2406.38,
+      "end_m": 2505.51,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 383,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 2483.51,
+      "end_m": 2527.51,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 384,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 2387.38,
+      "end_m": 2545.51,
+      "inner_m": 3.1,
+      "width_m": 5.25,
+      "end_width_m": null
+    },
+    {
+      "id": 385,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 2387.38,
+      "end_m": 2545.51,
+      "inner_m": 8.35,
+      "width_m": 4.5,
+      "end_width_m": 15.0
+    },
+    {
+      "id": 386,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 2637.9,
+      "end_m": 2755.29,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 387,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 2733.29,
+      "end_m": 2777.29,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 388,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 2618.9,
+      "end_m": 2795.29,
+      "inner_m": 3.1,
+      "width_m": 9.07,
+      "end_width_m": null
+    },
+    {
+      "id": 389,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 2618.9,
+      "end_m": 2795.29,
+      "inner_m": 12.17,
+      "width_m": 7.77,
+      "end_width_m": 25.9
+    },
+    {
+      "id": 390,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 2781.03,
+      "end_m": 2911.7,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 391,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 2889.7,
+      "end_m": 2933.7,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 392,
+      "kind": "asphalt_runoff",
+      "side": "left",
+      "start_m": 2762.03,
+      "end_m": 2951.7,
+      "inner_m": 3.1,
+      "width_m": 9.19,
+      "end_width_m": null
+    },
+    {
+      "id": 393,
+      "kind": "gravel",
+      "side": "left",
+      "start_m": 2762.03,
+      "end_m": 2951.7,
+      "inner_m": 12.29,
+      "width_m": 7.88,
+      "end_width_m": 26.25
+    },
+    {
+      "id": 394,
+      "kind": "astroturf",
+      "side": "left",
+      "start_m": 3891.56,
+      "end_m": 3964.08,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 395,
+      "kind": "astroturf",
+      "side": "right",
+      "start_m": 3942.08,
+      "end_m": 3986.08,
+      "inner_m": 1.6,
+      "width_m": 1.5,
+      "end_width_m": null
+    },
+    {
+      "id": 396,
+      "kind": "asphalt_runoff",
+      "side": "right",
+      "start_m": 3872.56,
+      "end_m": 4004.08,
+      "inner_m": 3.1,
+      "width_m": 5.25,
+      "end_width_m": null
+    },
+    {
+      "id": 397,
+      "kind": "gravel",
+      "side": "right",
+      "start_m": 3872.56,
+      "end_m": 4004.08,
+      "inner_m": 8.35,
+      "width_m": 4.5,
+      "end_width_m": 15.0
+    }
+  ],
   "curbs": [
     {
-      "id": 2,
+      "id": 299,
       "side": "left",
       "start_m": 331.01,
       "end_m": 407.01,
@@ -13,7 +715,7 @@
       "style": "red_white"
     },
     {
-      "id": 3,
+      "id": 300,
       "side": "left",
       "start_m": 536.02,
       "end_m": 665.02,
@@ -21,7 +723,7 @@
       "style": "red_white"
     },
     {
-      "id": 4,
+      "id": 301,
       "side": "left",
       "start_m": 1051.04,
       "end_m": 1265.04,
@@ -29,7 +731,7 @@
       "style": "red_white"
     },
     {
-      "id": 5,
+      "id": 302,
       "side": "left",
       "start_m": 1339.04,
       "end_m": 1383.05,
@@ -37,7 +739,7 @@
       "style": "red_white"
     },
     {
-      "id": 6,
+      "id": 303,
       "side": "left",
       "start_m": 1400.05,
       "end_m": 1458.05,
@@ -45,7 +747,7 @@
       "style": "red_white"
     },
     {
-      "id": 7,
+      "id": 304,
       "side": "left",
       "start_m": 1541.05,
       "end_m": 1585.05,
@@ -53,7 +755,7 @@
       "style": "red_white"
     },
     {
-      "id": 8,
+      "id": 305,
       "side": "left",
       "start_m": 1805.06,
       "end_m": 1856.06,
@@ -61,7 +763,7 @@
       "style": "red_white"
     },
     {
-      "id": 9,
+      "id": 306,
       "side": "left",
       "start_m": 1901.06,
       "end_m": 2032.07,
@@ -69,7 +771,7 @@
       "style": "red_white"
     },
     {
-      "id": 10,
+      "id": 307,
       "side": "left",
       "start_m": 2113.07,
       "end_m": 2202.07,
@@ -77,7 +779,7 @@
       "style": "red_white"
     },
     {
-      "id": 11,
+      "id": 308,
       "side": "left",
       "start_m": 2345.08,
       "end_m": 2389.08,
@@ -85,7 +787,7 @@
       "style": "red_white"
     },
     {
-      "id": 12,
+      "id": 309,
       "side": "left",
       "start_m": 2406.08,
       "end_m": 2505.08,
@@ -93,7 +795,7 @@
       "style": "red_white"
     },
     {
-      "id": 13,
+      "id": 310,
       "side": "left",
       "start_m": 2638.09,
       "end_m": 2755.09,
@@ -101,7 +803,7 @@
       "style": "red_white"
     },
     {
-      "id": 14,
+      "id": 311,
       "side": "left",
       "start_m": 2890.1,
       "end_m": 2934.1,
@@ -109,7 +811,7 @@
       "style": "red_white"
     },
     {
-      "id": 15,
+      "id": 312,
       "side": "left",
       "start_m": 3891.13,
       "end_m": 3964.13,
@@ -117,7 +819,7 @@
       "style": "red_white"
     },
     {
-      "id": 16,
+      "id": 313,
       "side": "right",
       "start_m": 385.01,
       "end_m": 435.01,
@@ -125,7 +827,7 @@
       "style": "red_white"
     },
     {
-      "id": 17,
+      "id": 314,
       "side": "right",
       "start_m": 643.02,
       "end_m": 687.02,
@@ -133,7 +835,7 @@
       "style": "red_white"
     },
     {
-      "id": 18,
+      "id": 315,
       "side": "right",
       "start_m": 757.03,
       "end_m": 1073.04,
@@ -141,7 +843,7 @@
       "style": "red_white"
     },
     {
-      "id": 19,
+      "id": 316,
       "side": "right",
       "start_m": 1242.04,
       "end_m": 1286.04,
@@ -149,7 +851,7 @@
       "style": "red_white"
     },
     {
-      "id": 20,
+      "id": 317,
       "side": "right",
       "start_m": 1289.04,
       "end_m": 1362.05,
@@ -157,7 +859,7 @@
       "style": "red_white"
     },
     {
-      "id": 21,
+      "id": 318,
       "side": "right",
       "start_m": 1436.05,
       "end_m": 1480.05,
@@ -165,7 +867,7 @@
       "style": "red_white"
     },
     {
-      "id": 22,
+      "id": 319,
       "side": "right",
       "start_m": 1497.05,
       "end_m": 1563.05,
@@ -173,7 +875,7 @@
       "style": "red_white"
     },
     {
-      "id": 23,
+      "id": 320,
       "side": "right",
       "start_m": 1834.06,
       "end_m": 1923.06,
@@ -181,7 +883,7 @@
       "style": "red_white"
     },
     {
-      "id": 24,
+      "id": 321,
       "side": "right",
       "start_m": 2010.07,
       "end_m": 2054.07,
@@ -189,7 +891,7 @@
       "style": "red_white"
     },
     {
-      "id": 25,
+      "id": 322,
       "side": "right",
       "start_m": 2180.07,
       "end_m": 2224.07,
@@ -197,7 +899,7 @@
       "style": "red_white"
     },
     {
-      "id": 26,
+      "id": 323,
       "side": "right",
       "start_m": 2241.08,
       "end_m": 2367.08,
@@ -205,7 +907,7 @@
       "style": "red_white"
     },
     {
-      "id": 27,
+      "id": 324,
       "side": "right",
       "start_m": 2483.08,
       "end_m": 2527.08,
@@ -213,7 +915,7 @@
       "style": "red_white"
     },
     {
-      "id": 28,
+      "id": 325,
       "side": "right",
       "start_m": 2733.09,
       "end_m": 2777.09,
@@ -221,7 +923,7 @@
       "style": "red_white"
     },
     {
-      "id": 29,
+      "id": 326,
       "side": "right",
       "start_m": 2781.09,
       "end_m": 2912.1,
@@ -229,7 +931,7 @@
       "style": "red_white"
     },
     {
-      "id": 30,
+      "id": 327,
       "side": "right",
       "start_m": 3942.13,
       "end_m": 3986.13,
@@ -360,6 +1062,1866 @@
     "box_count": 15,
     "speed_limit_kmh": 80.0
   },
-  "props": [],
-  "next_id": 31
+  "props": [
+    {
+      "id": 398,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -34.2,
+      "y": -58.18,
+      "z": 0.11,
+      "yaw_rad": 1.4628,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 399,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -31.45,
+      "y": -32.73,
+      "z": 0.06,
+      "yaw_rad": 1.463,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 400,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -28.66,
+      "y": -7.24,
+      "z": 0.02,
+      "yaw_rad": 1.4615,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 401,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -25.85,
+      "y": 18.23,
+      "z": 0.03,
+      "yaw_rad": 1.4607,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 402,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -23.03,
+      "y": 43.67,
+      "z": 0.08,
+      "yaw_rad": 1.4606,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 403,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -20.21,
+      "y": 69.1,
+      "z": 0.13,
+      "yaw_rad": 1.4612,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 404,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -17.42,
+      "y": 94.51,
+      "z": 0.18,
+      "yaw_rad": 1.4625,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 405,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -14.67,
+      "y": 119.92,
+      "z": 0.23,
+      "yaw_rad": 1.4638,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 406,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -11.96,
+      "y": 145.35,
+      "z": 0.28,
+      "yaw_rad": 1.4649,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 407,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -9.34,
+      "y": 170.79,
+      "z": 0.33,
+      "yaw_rad": 1.4657,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 408,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -6.73,
+      "y": 196.24,
+      "z": 0.38,
+      "yaw_rad": 1.4662,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 409,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -4.14,
+      "y": 221.7,
+      "z": 0.43,
+      "yaw_rad": 1.4665,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 410,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": -1.54,
+      "y": 247.17,
+      "z": 0.48,
+      "yaw_rad": 1.4666,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 411,
+      "kind": "building",
+      "asset": "pit_garage",
+      "x": 1.06,
+      "y": 272.64,
+      "z": 0.54,
+      "yaw_rad": 1.4664,
+      "scale": 1.6,
+      "text": null
+    },
+    {
+      "id": 412,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 23.7,
+      "y": -56.39,
+      "z": 0.1,
+      "yaw_rad": 1.4634,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 413,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 28.17,
+      "y": -15.09,
+      "z": 0.02,
+      "yaw_rad": 1.4616,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 414,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 32.71,
+      "y": 26.24,
+      "z": 0.06,
+      "yaw_rad": 1.4606,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 415,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 37.25,
+      "y": 67.61,
+      "z": 0.14,
+      "yaw_rad": 1.4614,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 416,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 41.74,
+      "y": 109.03,
+      "z": 0.22,
+      "yaw_rad": 1.4636,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 417,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 46.28,
+      "y": 150.43,
+      "z": 0.3,
+      "yaw_rad": 1.4653,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 418,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 50.98,
+      "y": 191.8,
+      "z": 0.39,
+      "yaw_rad": 1.4663,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 419,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 55.63,
+      "y": 233.15,
+      "z": 0.47,
+      "yaw_rad": 1.4666,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 420,
+      "kind": "grandstand",
+      "asset": "grandstand_main",
+      "x": 60.3,
+      "y": 274.47,
+      "z": 0.55,
+      "yaw_rad": 1.4662,
+      "scale": 2.6,
+      "text": null
+    },
+    {
+      "id": 421,
+      "kind": "grandstand",
+      "asset": "grandstand_corner",
+      "x": -62.26,
+      "y": -158.42,
+      "z": 0.3,
+      "yaw_rad": -0.5625,
+      "scale": 2.0,
+      "text": null
+    },
+    {
+      "id": 422,
+      "kind": "grandstand",
+      "asset": "grandstand_corner",
+      "x": 28.33,
+      "y": -112.59,
+      "z": 0.2,
+      "yaw_rad": 1.4496,
+      "scale": 2.0,
+      "text": null
+    },
+    {
+      "id": 423,
+      "kind": "grandstand",
+      "asset": "grandstand_corner",
+      "x": -1179.0,
+      "y": 387.42,
+      "z": 2.89,
+      "yaw_rad": -2.3191,
+      "scale": 2.0,
+      "text": null
+    },
+    {
+      "id": 424,
+      "kind": "grandstand",
+      "asset": "grandstand_corner",
+      "x": -1144.04,
+      "y": 286.79,
+      "z": 2.82,
+      "yaw_rad": -0.2468,
+      "scale": 2.0,
+      "text": null
+    },
+    {
+      "id": 425,
+      "kind": "grandstand",
+      "asset": "grandstand_corner",
+      "x": -90.83,
+      "y": 482.89,
+      "z": 1.05,
+      "yaw_rad": 2.6487,
+      "scale": 2.0,
+      "text": null
+    },
+    {
+      "id": 426,
+      "kind": "grandstand",
+      "asset": "grandstand_corner",
+      "x": -177.94,
+      "y": 476.74,
+      "z": 1.15,
+      "yaw_rad": -2.4749,
+      "scale": 2.0,
+      "text": null
+    },
+    {
+      "id": 427,
+      "kind": "grandstand",
+      "asset": "grandstand_corner",
+      "x": -846.51,
+      "y": 492.73,
+      "z": 3.26,
+      "yaw_rad": -3.1335,
+      "scale": 2.0,
+      "text": null
+    },
+    {
+      "id": 428,
+      "kind": "grandstand",
+      "asset": "grandstand_corner",
+      "x": -916.41,
+      "y": 554.47,
+      "z": 3.33,
+      "yaw_rad": 1.7377,
+      "scale": 2.0,
+      "text": null
+    },
+    {
+      "id": 429,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 71.51,
+      "y": 323.67,
+      "z": 0.65,
+      "yaw_rad": 1.4649,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 430,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 73.26,
+      "y": 339.12,
+      "z": 0.68,
+      "yaw_rad": 1.4802,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 431,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 71.04,
+      "y": 365.73,
+      "z": 0.71,
+      "yaw_rad": 1.8133,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 432,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 61.51,
+      "y": 390.45,
+      "z": 0.74,
+      "yaw_rad": 2.1364,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 433,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 34.33,
+      "y": 414.42,
+      "z": 0.77,
+      "yaw_rad": 2.7287,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 434,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 19.92,
+      "y": 419.28,
+      "z": 0.8,
+      "yaw_rad": 2.7329,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 435,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -97.41,
+      "y": 468.88,
+      "z": 1.05,
+      "yaw_rad": 2.6487,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 436,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -110.17,
+      "y": 475.71,
+      "z": 1.08,
+      "yaw_rad": 2.627,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 437,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -146.11,
+      "y": 481.77,
+      "z": 1.11,
+      "yaw_rad": -2.7583,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 438,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -164.61,
+      "y": 467.92,
+      "z": 1.14,
+      "yaw_rad": -2.4468,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 439,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -176.58,
+      "y": 457.78,
+      "z": 1.17,
+      "yaw_rad": -2.4199,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 440,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -190.46,
+      "y": 442.61,
+      "z": 1.2,
+      "yaw_rad": -2.2011,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 441,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -200.13,
+      "y": 422.59,
+      "z": 1.23,
+      "yaw_rad": -1.9115,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 442,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -203.23,
+      "y": 400.84,
+      "z": 1.26,
+      "yaw_rad": -1.6219,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 443,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -202.78,
+      "y": 383.28,
+      "z": 1.29,
+      "yaw_rad": -1.5134,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 444,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -201.92,
+      "y": 368.67,
+      "z": 1.32,
+      "yaw_rad": -1.5288,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 445,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -138.17,
+      "y": 284.15,
+      "z": 1.49,
+      "yaw_rad": -1.543,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 446,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -138.05,
+      "y": 267.3,
+      "z": 1.52,
+      "yaw_rad": -1.5924,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 447,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -139.66,
+      "y": 248.55,
+      "z": 1.55,
+      "yaw_rad": -1.695,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 448,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -143.42,
+      "y": 229.29,
+      "z": 1.58,
+      "yaw_rad": -1.8199,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 449,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -149.06,
+      "y": 210.82,
+      "z": 1.61,
+      "yaw_rad": -1.9361,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 450,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -157.22,
+      "y": 193.63,
+      "z": 1.64,
+      "yaw_rad": -2.0451,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 451,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -166.55,
+      "y": 177.24,
+      "z": 1.67,
+      "yaw_rad": -2.1497,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 452,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -176.93,
+      "y": 162.58,
+      "z": 1.7,
+      "yaw_rad": -2.2297,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 453,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -186.51,
+      "y": 150.17,
+      "z": 1.73,
+      "yaw_rad": -2.2478,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 454,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -195.07,
+      "y": 138.08,
+      "z": 1.76,
+      "yaw_rad": -2.2424,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 455,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -206.02,
+      "y": 123.91,
+      "z": 1.79,
+      "yaw_rad": -2.3172,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 456,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -224.46,
+      "y": 107.18,
+      "z": 1.81,
+      "yaw_rad": -2.571,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 457,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -253.56,
+      "y": 97.84,
+      "z": 1.84,
+      "yaw_rad": -2.9752,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 458,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -281.69,
+      "y": 96.87,
+      "z": 1.87,
+      "yaw_rad": 2.9668,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 459,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -300.84,
+      "y": 101.59,
+      "z": 1.9,
+      "yaw_rad": 2.8464,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 460,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -325.3,
+      "y": 113.49,
+      "z": 1.93,
+      "yaw_rad": 2.5323,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 461,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -346.07,
+      "y": 137.74,
+      "z": 1.96,
+      "yaw_rad": 2.0859,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 462,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -354.1,
+      "y": 160.87,
+      "z": 1.99,
+      "yaw_rad": 1.8321,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 463,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -357.64,
+      "y": 184.15,
+      "z": 2.02,
+      "yaw_rad": 1.6001,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 464,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -352.69,
+      "y": 214.51,
+      "z": 2.04,
+      "yaw_rad": 1.1706,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 465,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -338.26,
+      "y": 236.99,
+      "z": 2.06,
+      "yaw_rad": 0.8557,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 466,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -326.84,
+      "y": 248.52,
+      "z": 2.08,
+      "yaw_rad": 0.8233,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 467,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -286.31,
+      "y": 198.81,
+      "z": 2.07,
+      "yaw_rad": 0.8068,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 468,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -275.05,
+      "y": 211.07,
+      "z": 2.09,
+      "yaw_rad": 0.8693,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 469,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -264.05,
+      "y": 225.35,
+      "z": 2.12,
+      "yaw_rad": 0.9836,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 470,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -254.89,
+      "y": 240.93,
+      "z": 2.14,
+      "yaw_rad": 1.0992,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 471,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -248.14,
+      "y": 255.38,
+      "z": 2.16,
+      "yaw_rad": 1.1349,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 472,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -242.19,
+      "y": 267.76,
+      "z": 2.18,
+      "yaw_rad": 1.0873,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 473,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -234.24,
+      "y": 290.46,
+      "z": 2.2,
+      "yaw_rad": 1.4349,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 474,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -232.99,
+      "y": 309.21,
+      "z": 2.23,
+      "yaw_rad": 1.5775,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 475,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -239.99,
+      "y": 337.69,
+      "z": 2.25,
+      "yaw_rad": 2.1116,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 476,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -266.77,
+      "y": 357.92,
+      "z": 2.27,
+      "yaw_rad": 2.8096,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 477,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -281.08,
+      "y": 362.06,
+      "z": 2.29,
+      "yaw_rad": 2.8048,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 478,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -298.99,
+      "y": 367.2,
+      "z": 2.31,
+      "yaw_rad": 2.942,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 479,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -330.22,
+      "y": 363.85,
+      "z": 2.34,
+      "yaw_rad": -2.7022,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 480,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -344.96,
+      "y": 355.56,
+      "z": 2.36,
+      "yaw_rad": -2.6303,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 481,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -357.42,
+      "y": 348.72,
+      "z": 2.38,
+      "yaw_rad": -2.6601,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 482,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -334.46,
+      "y": 274.86,
+      "z": 2.4,
+      "yaw_rad": -2.6454,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 483,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -347.65,
+      "y": 267.23,
+      "z": 2.42,
+      "yaw_rad": -2.6499,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 484,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -374.46,
+      "y": 257.15,
+      "z": 2.45,
+      "yaw_rad": -2.9243,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 485,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -404.23,
+      "y": 255.34,
+      "z": 2.47,
+      "yaw_rad": 3.0601,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 486,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -426.67,
+      "y": 259.06,
+      "z": 2.49,
+      "yaw_rad": 2.9044,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 487,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -441.01,
+      "y": 262.75,
+      "z": 2.51,
+      "yaw_rad": 2.9085,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 488,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -447.04,
+      "y": 392.36,
+      "z": 2.57,
+      "yaw_rad": 2.8975,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 489,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -465.23,
+      "y": 396.69,
+      "z": 2.59,
+      "yaw_rad": 2.9468,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 490,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -489.71,
+      "y": 400.09,
+      "z": 2.61,
+      "yaw_rad": 3.0763,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 491,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -519.98,
+      "y": 398.7,
+      "z": 2.63,
+      "yaw_rad": -3.0023,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 492,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -532.84,
+      "y": 396.35,
+      "z": 2.66,
+      "yaw_rad": -3.0283,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 493,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -558.37,
+      "y": 284.38,
+      "z": 2.71,
+      "yaw_rad": -3.0671,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 494,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -573.8,
+      "y": 283.11,
+      "z": 2.73,
+      "yaw_rad": -3.0807,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 495,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -598.61,
+      "y": 284.45,
+      "z": 2.76,
+      "yaw_rad": 2.9232,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 496,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -627.22,
+      "y": 299.12,
+      "z": 2.78,
+      "yaw_rad": 2.4315,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 497,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -639.99,
+      "y": 311.39,
+      "z": 2.8,
+      "yaw_rad": 2.3551,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 498,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -650.52,
+      "y": 321.63,
+      "z": 2.82,
+      "yaw_rad": 2.3641,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 499,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -768.24,
+      "y": 535.4,
+      "z": 3.17,
+      "yaw_rad": 2.3807,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 500,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -778.3,
+      "y": 545.18,
+      "z": 3.19,
+      "yaw_rad": 2.349,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 501,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -808.62,
+      "y": 561.63,
+      "z": 3.21,
+      "yaw_rad": 3.0071,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 502,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -827.52,
+      "y": 562.33,
+      "z": 3.23,
+      "yaw_rad": 3.1337,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 503,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -841.74,
+      "y": 563.17,
+      "z": 3.26,
+      "yaw_rad": 3.1092,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 504,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -840.58,
+      "y": 508.27,
+      "z": 3.25,
+      "yaw_rad": 3.085,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 505,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -855.39,
+      "y": 507.97,
+      "z": 3.27,
+      "yaw_rad": 3.0938,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 506,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -882.52,
+      "y": 514.78,
+      "z": 3.29,
+      "yaw_rad": 2.5592,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 507,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -900.13,
+      "y": 545.43,
+      "z": 3.32,
+      "yaw_rad": 1.7031,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 508,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -901.39,
+      "y": 559.34,
+      "z": 3.34,
+      "yaw_rad": 1.7452,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 509,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -851.24,
+      "y": 578.41,
+      "z": 3.36,
+      "yaw_rad": 1.6971,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 510,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -853.44,
+      "y": 594.3,
+      "z": 3.38,
+      "yaw_rad": 1.7345,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 511,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -860.17,
+      "y": 615.65,
+      "z": 3.4,
+      "yaw_rad": 2.0044,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 512,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -872.02,
+      "y": 633.27,
+      "z": 3.42,
+      "yaw_rad": 2.2357,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 513,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -893.48,
+      "y": 650.81,
+      "z": 3.44,
+      "yaw_rad": 2.7241,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 514,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -924.8,
+      "y": 653.62,
+      "z": 3.47,
+      "yaw_rad": -2.9211,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 515,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -943.39,
+      "y": 646.68,
+      "z": 3.48,
+      "yaw_rad": -2.7392,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 516,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -956.28,
+      "y": 641.51,
+      "z": 3.48,
+      "yaw_rad": -2.7815,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 517,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1028.26,
+      "y": 622.08,
+      "z": 3.38,
+      "yaw_rad": -2.8048,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 518,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1043.19,
+      "y": 617.04,
+      "z": 3.36,
+      "yaw_rad": -2.7819,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 519,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1064.48,
+      "y": 606.03,
+      "z": 3.33,
+      "yaw_rad": -2.5101,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 520,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1083.83,
+      "y": 582.16,
+      "z": 3.31,
+      "yaw_rad": -2.0265,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 521,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1090.31,
+      "y": 550.83,
+      "z": 3.29,
+      "yaw_rad": -1.5014,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 522,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1084.91,
+      "y": 527.06,
+      "z": 3.27,
+      "yaw_rad": -1.2175,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 523,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1079.49,
+      "y": 513.36,
+      "z": 3.25,
+      "yaw_rad": -1.2255,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 524,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -989.29,
+      "y": 505.59,
+      "z": 3.19,
+      "yaw_rad": -1.2182,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 525,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -983.57,
+      "y": 490.08,
+      "z": 3.17,
+      "yaw_rad": -1.2493,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 526,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -977.64,
+      "y": 467.55,
+      "z": 3.14,
+      "yaw_rad": -1.4177,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 527,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -977.56,
+      "y": 438.3,
+      "z": 3.12,
+      "yaw_rad": -1.7078,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 528,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -985.54,
+      "y": 410.24,
+      "z": 3.1,
+      "yaw_rad": -1.9966,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 529,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1001.83,
+      "y": 384.94,
+      "z": 3.08,
+      "yaw_rad": -2.3033,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 530,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1022.21,
+      "y": 367.39,
+      "z": 3.06,
+      "yaw_rad": -2.544,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 531,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1041.64,
+      "y": 356.36,
+      "z": 3.03,
+      "yaw_rad": -2.6922,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 532,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1058.3,
+      "y": 349.22,
+      "z": 3.01,
+      "yaw_rad": -2.7553,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 533,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1071.24,
+      "y": 344.03,
+      "z": 2.99,
+      "yaw_rad": -2.7338,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 534,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1127.0,
+      "y": 398.5,
+      "z": 2.95,
+      "yaw_rad": -2.7498,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 535,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1141.64,
+      "y": 392.66,
+      "z": 2.92,
+      "yaw_rad": -2.7171,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 536,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1159.68,
+      "y": 383.08,
+      "z": 2.9,
+      "yaw_rad": -2.4867,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 537,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1178.1,
+      "y": 363.35,
+      "z": 2.88,
+      "yaw_rad": -1.9983,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 538,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1180.76,
+      "y": 329.19,
+      "z": 2.86,
+      "yaw_rad": -1.2332,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 539,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1153.63,
+      "y": 305.17,
+      "z": 2.83,
+      "yaw_rad": -0.3629,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 540,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1136.06,
+      "y": 300.81,
+      "z": 2.81,
+      "yaw_rad": -0.238,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 541,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1121.39,
+      "y": 297.39,
+      "z": 2.79,
+      "yaw_rad": -0.2353,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 542,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -1001.29,
+      "y": 257.31,
+      "z": 2.6,
+      "yaw_rad": -0.2465,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 543,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -986.34,
+      "y": 253.45,
+      "z": 2.58,
+      "yaw_rad": -0.2338,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 544,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -960.3,
+      "y": 251.41,
+      "z": 2.56,
+      "yaw_rad": 0.0916,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 545,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -933.93,
+      "y": 259.82,
+      "z": 2.54,
+      "yaw_rad": 0.4675,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 546,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -909.73,
+      "y": 279.86,
+      "z": 2.51,
+      "yaw_rad": 0.9592,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 547,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -898.81,
+      "y": 306.74,
+      "z": 2.49,
+      "yaw_rad": 1.3753,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 548,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -898.07,
+      "y": 332.22,
+      "z": 2.47,
+      "yaw_rad": 1.6868,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 549,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -902.57,
+      "y": 352.32,
+      "z": 2.45,
+      "yaw_rad": 1.8528,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 550,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -906.84,
+      "y": 366.19,
+      "z": 2.43,
+      "yaw_rad": 1.8383,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 551,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -977.85,
+      "y": 371.42,
+      "z": 2.39,
+      "yaw_rad": 1.8175,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 552,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -982.0,
+      "y": 386.09,
+      "z": 2.37,
+      "yaw_rad": 1.8107,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 553,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -983.96,
+      "y": 413.23,
+      "z": 2.35,
+      "yaw_rad": 1.4501,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 554,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -975.63,
+      "y": 439.43,
+      "z": 2.32,
+      "yaw_rad": 1.0819,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 555,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -957.49,
+      "y": 461.39,
+      "z": 2.3,
+      "yaw_rad": 0.6832,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 556,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -928.7,
+      "y": 474.72,
+      "z": 2.28,
+      "yaw_rad": 0.1842,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 557,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -908.09,
+      "y": 476.03,
+      "z": 2.26,
+      "yaw_rad": 0.018,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 558,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -876.81,
+      "y": 468.15,
+      "z": 2.24,
+      "yaw_rad": -0.501,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 559,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -861.76,
+      "y": 458.84,
+      "z": 2.21,
+      "yaw_rad": -0.5791,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 560,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -849.2,
+      "y": 450.34,
+      "z": 2.19,
+      "yaw_rad": -0.5839,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 561,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -67.73,
+      "y": -135.9,
+      "z": 0.33,
+      "yaw_rad": -0.5962,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 562,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -54.9,
+      "y": -144.73,
+      "z": 0.3,
+      "yaw_rad": -0.5723,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 563,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": -35.84,
+      "y": -156.96,
+      "z": 0.27,
+      "yaw_rad": -0.2753,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 564,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 6.02,
+      "y": -143.42,
+      "z": 0.24,
+      "yaw_rad": 0.9388,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 565,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 12.22,
+      "y": -116.35,
+      "z": 0.22,
+      "yaw_rad": 1.4528,
+      "scale": 3.75,
+      "text": null
+    },
+    {
+      "id": 566,
+      "kind": "tire_wall",
+      "asset": "tire_wall_generic",
+      "x": 14.14,
+      "y": -101.48,
+      "z": 0.19,
+      "yaw_rad": 1.4524,
+      "scale": 3.75,
+      "text": null
+    }
+  ],
+  "next_id": 567
 }

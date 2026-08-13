@@ -1,5 +1,6 @@
 //! The 3D viewport: orbit camera, ground grid, the read-only track ribbon,
-//! and the editable `.ats` scene layer (curbs, markings, pit lane, props).
+//! and the editable `.ats` scene layer (ground surfaces, curbs, markings,
+//! pit lane, props).
 //!
 //! The track ribbon rebuilds when [`OpenTrack`] changes (i.e. on load —
 //! the YAML is read-only, so that's the only time). Scene elements rebuild
@@ -323,6 +324,26 @@ fn rebuild_scene_elements(
             ..default()
         })
     };
+
+    // Ground first: surfaces sit under everything else, in kind order (see
+    // `track_mesh::surface_lift`), so the grass band goes down before the
+    // gravel traps and runoff laid on top of it.
+    let mut surfaces: Vec<&crate::ats::Surface> = scene.surfaces.iter().collect();
+    surfaces.sort_by_key(|s| s.kind.layer());
+    for surface in surfaces {
+        if let Some(mesh) = track_mesh::build_surface_mesh(path, surface) {
+            let is_selected = selected == Some(SelectedElement::Surface(surface.id));
+            commands
+                .spawn((
+                    Mesh3d(meshes.add(mesh)),
+                    MeshMaterial3d(strip_material(is_selected)),
+                    Transform::IDENTITY,
+                    SceneElement,
+                    ClickSelect(SelectedElement::Surface(surface.id)),
+                ))
+                .observe(on_element_click);
+        }
+    }
 
     for curb in &scene.curbs {
         if let Some(mesh) = track_mesh::build_curb_mesh(path, curb) {

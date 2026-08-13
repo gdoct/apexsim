@@ -19,9 +19,10 @@ Plain JSON (readable by Unreal's `FJsonSerializer` and by humans), one file per 
 | Field | Meaning |
 | --- | --- |
 | `format` | Always `apex-track-scene` |
-| `version` | Format version (currently 1) |
+| `version` | Format version (currently 2; v1 files load and migrate in memory) |
 | `source_track` | File name of the source YAML this scene decorates |
 | `track_name` | Display name copied at creation time |
+| `surfaces` | Ground beside the track: grass, gravel traps, asphalt runoff, concrete, sand, astroturf |
 | `curbs` | Curb strips anchored to the track edge |
 | `markings` | Painted rectangles on the track surface |
 | `pit_lane` | Optional pit lane: own centerline nodes, width, box count, speed limit |
@@ -30,7 +31,8 @@ Plain JSON (readable by Unreal's `FJsonSerializer` and by humans), one file per 
 
 Anchoring:
 
-- **Track-anchored** (curbs, markings): *station* = distance in meters along the sampled centerline, plus lateral offsets in meters where **positive = left** of the centerline. Because they anchor by station, these elements follow the track through corners and survive small centerline edits. On closed loops, `end < start` wraps through start/finish.
+- **Track-anchored** (surfaces, curbs, markings): *station* = distance in meters along the sampled centerline, plus lateral offsets in meters where **positive = left** of the centerline. Because they anchor by station, these elements follow the track through corners and survive small centerline edits. On closed loops, `end < start` wraps through start/finish.
+- **Surfaces** additionally measure their borders *outward from the track edge* (`inner_m` clears the curb, `width_m` is the extent, optional `end_width_m` tapers the patch into a wedge), so a gravel trap keeps its shape where the track widens. Coincident patches stack by `SurfaceKind::layer()` — grass underneath, then concrete, runoff, sand, gravel, astroturf — and the whole layer renders below the track ribbon.
 - **World-anchored** (props, pit-lane nodes): absolute track-space coordinates. Track space is right-handed: `+X` follows the course from start/finish, `+Y` is left, `+Z` is up; meters and radians. Prop `yaw_rad` is CCW from `+X`. The Unreal importer converts to UE conventions (cm, Z-up left-handed).
 
 Determinism rules for saved output: no wall clock, no unseeded randomness, no unordered-map iteration. Repeated saves of an unchanged scene are byte-identical (enforced by tests). Saves are write-temp-then-rename, so a failed save leaves the previous file untouched.
@@ -39,15 +41,15 @@ Determinism rules for saved output: no wall clock, no unseeded randomness, no un
 
 1. **File → Open track.yaml…** loads the YAML read-only. If a sibling `.ats` exists it is loaded; otherwise a fresh scene is created in memory (seeded with a start/finish line marking) and marked unsaved. A corrupt `.ats` is reported and never overwritten silently.
 2. **Save (Ctrl+S)** writes the `.ats` only.
-3. The viewport previews the track ribbon (from the same Catmull-Rom sampling the server uses), curbs, markings, pit lane, and stand-in prop meshes. Props and pit-lane nodes are draggable; clicking selects; the side panel hosts layer lists and a property inspector.
+3. The viewport previews the track ribbon (from the same Catmull-Rom sampling the server uses), ground surfaces, curbs, markings, pit lane, and stand-in prop meshes. Props and pit-lane nodes are draggable; clicking selects; the side panel hosts layer lists and a property inspector.
 4. All scene edits are undoable (Ctrl+Z / Ctrl+Shift+Z), from the GUI and from MCP alike.
-5. An MCP server (streamable HTTP, `127.0.0.1:8420/mcp`, override with `APEXSIM_TRACK_EDITOR_MCP_PORT`) exposes read-only track inspection plus scene editing tools (`add_curb`, `add_marking`, `add_prop`, `set_pit_lane`, `remove_element`, `undo`, `redo`, `save`, …).
+5. An MCP server (streamable HTTP, `127.0.0.1:8420/mcp`, override with `APEXSIM_TRACK_EDITOR_MCP_PORT`) exposes read-only track inspection plus scene editing tools (`add_surface`, `add_curb`, `add_marking`, `add_prop`, `set_pit_lane`, `remove_element`, `undo`, `redo`, `save`, …).
 
 ## 4. Tests and Acceptance Criteria
 
 | Level | Coverage |
 | --- | --- |
-| Unit | `.ats` serde round-trips, validation (duplicate ids, bad ranges), station math (wrap, interpolation), strip meshes finite/non-empty |
+| Unit | `.ats` serde round-trips, validation (duplicate ids, bad ranges), v1 → v2 load/migrate, station math (wrap, interpolation), strip meshes finite/non-empty, surface taper + layer order |
 | Integration | every real track opens; default scene creation, save/reload equality, byte-identical repeated saves; saving a scene never touches the YAML (`tests/ats_scene.rs`) |
 | Compatibility | the editor's logical-track model still reads every real YAML the server loads (`tests/compat.rs`) |
 
