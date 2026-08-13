@@ -27,10 +27,18 @@ void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow
 	CarMesh->SetStaticMesh(Loaded);
 }
 
+void AApexRaceCarActor::SetMeshVisible(bool bVisible)
+{
+	CarMesh->SetVisibility(bVisible);
+}
+
 void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car)
 {
 	CarIndex = Car.CarIndex;
 	SpeedMps = Car.SpeedMps;
+	// Kept so a shift request can be expressed relative to it; the protocol
+	// wants an absolute target gear, not a delta.
+	Gear = Car.Gear;
 
 	TargetLocation = ApexRace::ServerToUnrealPosition(Car.Position);
 	TargetRotation = ApexRace::ServerToUnrealRotation(Car.YawRad, Car.PitchRad, Car.RollRad);

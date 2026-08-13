@@ -17,6 +17,11 @@
 				"Engine",
 				"UMG"
 			]
+		},
+		{
+			"Name": "ApexTrackEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

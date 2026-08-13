@@ -34,6 +34,15 @@ public:
 	/** Swaps the displayed mesh. Safe to call with an unset pointer. */
 	void SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow);
 
+	/**
+	 * Show or hide just this car's bodywork.
+	 *
+	 * Used for the car the cockpit camera sits inside, which would otherwise
+	 * fill the screen with the inside of its own mesh. Per-actor rather than
+	 * a render flag because the rest of the field must stay visible.
+	 */
+	void SetMeshVisible(bool bVisible);
+
 	void SetDisplayName(const FString& InName) { DisplayName = InName; }
 	const FString& GetDisplayName() const { return DisplayName; }
 
@@ -41,6 +50,9 @@ public:
 	void SetCarIndex(int32 InIndex) { CarIndex = InIndex; }
 
 	float GetSpeedMps() const { return SpeedMps; }
+
+	/** Gear the server last reported: -1 reverse, 0 neutral, 1.. forward. */
+	int32 GetGear() const { return Gear; }
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -67,6 +79,7 @@ private:
 	int32 CarIndex = -1;
 	FString DisplayName;
 	float SpeedMps = 0.0f;
+	int32 Gear = 0;
 
 	FVector TargetLocation = FVector::ZeroVector;
 	FRotator TargetRotation = FRotator::ZeroRotator;

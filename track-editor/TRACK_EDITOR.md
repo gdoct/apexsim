@@ -52,6 +52,7 @@ Determinism rules for saved output: no wall clock, no unseeded randomness, no un
 | Unit | `.ats` serde round-trips, validation (duplicate ids, bad ranges), v1 → v2 load/migrate, station math (wrap, interpolation), strip meshes finite/non-empty, surface taper + layer order |
 | Integration | every real track opens; default scene creation, save/reload equality, byte-identical repeated saves; saving a scene never touches the YAML (`tests/ats_scene.rs`) |
 | Compatibility | the editor's logical-track model still reads every real YAML the server loads (`tests/compat.rs`) |
+| Unreal export | winding against Unreal's front-face convention on every triangle of every real circuit, raised curb profiles, banking-following normals, grid resolution matching the server's, in-range indices, deterministic repeat bakes, exporting touches neither YAML nor `.ats` (`tests/ue_export.rs`) |
 
 Non-negotiable constraints:
 
@@ -59,18 +60,42 @@ Non-negotiable constraints:
 - Existing logical YAML remains loadable by `server/src/track_loader.rs` (unchanged — the editor no longer produces YAML at all).
 - Generated `.ats` output is deterministic.
 
-## 5. Unreal import
+## 5. Unreal export
 
-`game-unreal/` consumes the `.ats` directly (JSON). The importer is expected to:
+The `.ats` cannot be handed to Unreal as-is: every track-anchored element is a *station span* against a centerline that lives in the read-only YAML, and Unreal has no YAML parser. So the editor bakes both files into one self-contained artifact.
 
-- rebuild the road/curb/marking geometry from the source YAML centerline + the `.ats` station spans (or import a mesh baked elsewhere),
-- map `style` / `asset` keys to materials, meshes, and foliage types,
-- convert coordinates: track `(x, y, z)` meters → UE `(x·100, −y·100, z·100)` cm (UE is left-handed, `+Y` right), yaw `θ` rad CCW → UE yaw `−θ·180/π` degrees.
+**`<Track>.uescene.json`** (format `apex-ue-scene`, v1) is written by `src/ue_export.rs` and consumed by the Unreal `ApexTrackImport` commandlet. It is a *generated* file: it lands in `content/tracks/export/` (gitignored — 26 circuits bake to ~120 MB of vertex data), never beside the source content.
+
+| Field | Contents |
+| --- | --- |
+| `materials` | Every material key the meshes reference, with a `family` (`road`, `curb`, `surface`, `marking`, `pit_lane`) and the base color the editor previewed. Sorted by key |
+| `meshes` | Baked triangle geometry, flattened buffers, named `{material_key}_{section:03}` |
+| `props` | Prop transforms with asset keys |
+| `grid` | Starting grid, resolved exactly the way `server/src/track_loader.rs` resolves it |
+| `centerline` | The sampled centerline, for splines, minimaps and AI |
+| `pit_lane` | Width, box count, speed limit (its ribbon is in `meshes`) |
+
+Bake with `cargo run --bin ats-export -- --all`, or **File → Export for Unreal…** for the track in the editor (which bakes unsaved edits too).
+
+### Conventions at the boundary
+
+Output is already in Unreal's frame, so the commandlet converts nothing:
+
+- **Units** centimeters and degrees; **position** track `(x, y, z)` m → UE `(x·100, −y·100, z·100)` cm; **yaw** track `θ` rad CCW → UE `−θ·180/π` degrees.
+- That mapping negates an axis, so its determinant is −1 — a mirror, not a rotation, and it flips triangle handedness on its own. Geometry is emitted with ordinary right-handed CCW winding and **not** reversed again; reversing as well lights every surface in the level from underneath. `winding_matches_unreals_front_face_convention` pins this to Unreal's rule that a front face is clockwise seen from its normal.
+- Meshes are cut into 250 m sections and merged per (section, material) so a circuit becomes ~100 medium meshes rather than one 6 km mesh or one mesh per element.
+
+### What the bake is not
+
+These are not the viewport's preview strips. `track_mesh.rs` hardcodes an up-normal and draws curbs flat, which is fine for a preview and wrong for a lit level; the export derives normals from the banked surface frame and gives curbs a raised profile with a real outer face.
+
+The bake also has to cope with source centerlines whose corners are tighter than the elements wrapped around them — Austin has 8 m radius apexes on a 15 m wide track. A station-anchored element measures straight out from the centerline, so past a radius of `1/κ` its offset curve folds through itself and the strip inverts. Three defences, in order: borders are clamped short of the centre of curvature; an element lying wholly inside the limit with no room to spare is dropped and the strip broken rather than compressed into a knot; and any facet that still folds, twists, or degenerates into a sub-degree sliver is discarded. Whatever survives is wound to agree with its own surface normal, so an inside-out triangle cannot reach the level.
 
 ## 6. Source layout
 
 - `/track-editor` — this crate.
 - `src/ats.rs`, `src/ats_io.rs` — `.ats` model + IO.
+- `src/ue_export.rs`, `src/ue_export_io.rs` — the Unreal bake (§5); `src/bin/ats-export.rs` is its CLI.
 - `src/track_data.rs`, `src/track_io.rs` — read-only logical track model + loader (kept serde-compatible with the server; `save_track_file` exists only for the compat test suite).
 - `src/track_path.rs` — station/arc-length sampling of the centerline.
 - `src/track_mesh.rs` — preview strip meshes (track ribbon, curbs, markings, pit lane).

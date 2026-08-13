@@ -12,6 +12,7 @@ use track_editor::scene::{OrbitCamera, ScenePlugin, TrackPathRes};
 use track_editor::state::{
     OpenScene, OpenTrack, SelectedElement, Selection, StatusLine, UndoStack,
 };
+use track_editor::{ue_export, ue_export_io};
 
 const CURB_STYLES: [&str; 4] = ["red_white", "yellow_black", "green_white", "blue_white"];
 
@@ -102,6 +103,20 @@ fn ui_root(
                 {
                     ui.close();
                     save_requested = true;
+                }
+
+                ui.separator();
+
+                let can_export = open_track.track.is_some() && open_scene.scene.is_some();
+                if ui
+                    .add_enabled(can_export, egui::Button::new("Export for Unreal…"))
+                    .on_hover_text(
+                        "Bake the saved scene to .uescene.json for the ApexTrackImport commandlet",
+                    )
+                    .clicked()
+                {
+                    ui.close();
+                    export_for_unreal(&open_track, &open_scene, &mut status);
                 }
             });
         });
@@ -244,6 +259,42 @@ fn save_scene(open_scene: &mut OpenScene, status: &mut StatusLine) {
             Err(e) => status.0 = format!("Failed to save: {e}"),
         },
         _ => status.0 = "Nothing to save.".to_string(),
+    }
+}
+
+/// Bake the open track to the JSON the Unreal `ApexTrackImport` commandlet
+/// consumes.
+///
+/// Bakes what is in the editor, not what is on disk, so an export reflects
+/// unsaved edits — you can look at a change in Unreal before committing to
+/// it. Nothing here writes the `.ats` or the YAML.
+fn export_for_unreal(open_track: &OpenTrack, open_scene: &OpenScene, status: &mut StatusLine) {
+    let (Some(track), Some(scene), Some(track_path)) = (
+        open_track.track.as_ref(),
+        open_scene.scene.as_ref(),
+        open_track.path.as_ref(),
+    ) else {
+        status.0 = "Nothing to export.".to_string();
+        return;
+    };
+
+    let Some(baked) = ue_export::bake(track, scene) else {
+        status.0 = format!("{} has no usable centerline to bake.", track.name);
+        return;
+    };
+
+    let dir = std::path::Path::new(ue_export_io::DEFAULT_EXPORT_DIR);
+    let out = ue_export_io::export_path_for(dir, track_path);
+    match ue_export_io::write_scene(&out, &baked) {
+        Ok(()) => {
+            status.0 = format!(
+                "Exported {} mesh(es) and {} prop(s) to {}",
+                baked.meshes.len(),
+                baked.props.len(),
+                out.display()
+            )
+        }
+        Err(e) => status.0 = format!("Export failed: {e}"),
     }
 }
 
