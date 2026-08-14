@@ -1,35 +1,71 @@
 # ApexSim SimRacing Platform
 
-ApexSim is an open-source simracing platform composed of a high-frequency authoritative server written in Rust and a rich Unreal Engine client. The codebase is tuned for realistic vehicle physics, low-latency multiplayer, and mod-friendly content pipelines.
+ApexSim is an open-source simracing platform composed of a high-frequency authoritative server written in Rust and an Unreal Engine 5 client. The codebase is tuned for realistic vehicle physics, low-latency multiplayer, and mod-friendly content pipelines.
 
-## PROJECT STATUS
-This project is in active development. Core simulation features are functional, but many gameplay systems, UI elements, and polish remain works in progress.
-### Working parts so far:
-* 25 tracks with exact measured center-line spline, track width and racing line. elevation data is missing for the tracks.
-* 5 car models with physics and 3d model
-* authoritative server with sophisticated physics and networking (authoritative means the server decides where each car is)
-* server ticks at 240hz by default; the physics itself benchmarks at ~130,000 full session ticks per second (see [Performance](#performance))
-* supports up to 20 players or AI drivers per session
-* godot implementation of the client with network logon, lobby management, and basic track view
-* basic ui for lobby, car selection, track selection
+## Project Status
+
+This project is in active development. The simulation and the networking underneath it are solid; presentation and gameplay systems are still being filled in.
+
+### Working
+
+**Server**
+* Authoritative 240 Hz physics loop — the server decides where every car is, and the client renders what it is told
+* 4-wheel vehicle model with per-wheel loads, Pacejka-style tires, suspension, aero and drivetrain; yaw-aware OBB collision
+* Deterministic simulation, guarded by a test that asserts bit-identical runs
+* Protocol v2: TCP+TLS for auth, lobby and session management; UDP for telemetry out and player input in, bound by a token handshake
+* AI drivers, lap timing and lap validation, race classification
+* Prometheus metrics plus health and readiness endpoints
+
+**Content**
+* 26 circuits with exact measured centerline, per-side track width, banking, surface type and **elevation** (Spa spans ~90 m of it)
+* 4 cars with physics definitions and 3D models
+* Both shared verbatim between the server, the track editor and the client
+
+**Unreal client (`game-unreal/`)**
+* Full menu shell — connect, session browser and create, car and track selection, lobby, session results — built as C++ widget trees rather than widget blueprints, so layout is reviewable in a diff
+* Race view: a car per roster entry driven from telemetry, with the circuit streamed in as a level instance; cockpit and chase cameras
+* Driving via Enhanced Input, with actions and bindings defined in C++
+* Race HUD: position, gaps, standings, live delta, sector times, minimap, pedal and engine telemetry
+* Pause menu and a settings overlay covering gameplay, graphics and rebindable controls
+* Local profile and settings save slots (the server has no account model, so anything "yours" lives on your machine)
+
+**Tooling**
+* A Rust + Bevy track editor that authors the 3D scene on top of a logical track, and bakes it for Unreal
 
 ### Missing
-* car control implementation in the godot client
-* car view in the godot client
-* sound implementation in the godot client
-* lap timing
-.. and many more features
+
+* **No audio at all** in the Unreal client — no engine, tire or collision sound
+* No client-side prediction; cars are pure telemetry puppets, smoothed by interpolation
+* Driving aids (traction control, ABS) and AI skill cannot be set per session from the client — the wire protocol has no fields for them, so those settings are stored but inert
+* No racing-line overlay and no mirrors
+* No trackside environment art beyond the generated track meshes
+* No server-side player accounts or persistence
 
 ## Architecture Overview
 
-1. **Rust Server (`server/`):** Runs the authoritative 240 Hz simulation loop, manages sessions, performs collision-aware physics, and streams telemetry via UDP while handling lobby/stateful traffic over TCP. See [server/README.md](server/README.md) for configuration, build, and operations detail.
-2. **Godot Client (`game-godot/` + `game-cli/`):** Provides the player experience—menus, HUD, driving view, and integrations with the backend. The [game-cli/README.md](game/README.md) and [game-godot/README.md](game-godot/README.md) files describe Godot-specific workflows.
+1. **Rust server (`server/`)** — runs the authoritative 240 Hz simulation loop, manages sessions, performs collision-aware physics, and streams telemetry over UDP while handling lobby and session traffic over TCP+TLS. See [server/README.md](server/README.md) for configuration, build and operations detail.
+2. **Unreal client (`game-unreal/`)** — the player experience: menus, HUD, driving view, and the networking layer that talks to the backend. Three C++ modules: `ApexSimNet` (protocol and transport), `ApexSim` (game and UI), `ApexTrackEditor` (editor-only import commandlet).
+3. **Track editor (`track-editor/`)** — a Rust + Bevy tool that turns a logical track into a 3D scene, and bakes that scene into buffers Unreal can build a level from.
 
-This separation keeps critical simulation logic isolated from presentation while enabling each component to evolve independently.
+This separation keeps critical simulation logic isolated from presentation while letting each component evolve independently.
+
+> A Godot client (`game-godot/`) and a CLI test client (`game-cli/`) existed earlier in the project's history. Both were removed in favour of the Unreal client; integration testing now runs against an in-process server from the server crate's own test suite.
 
 ### Serialization
 
-The client and server communicate using a lightweight, cross-platform binary serialization format called [MessagePack](https://msgpack.org/). All networked data structures are defined in Rust with `serde` and `rmp_serde` for efficient, schema-aware encoding and decoding. High-frequency telemetry uses a compact positional encoding with session-scoped car indices (~60% smaller on the wire than the named encoding) and flows over UDP after a token handshake; reliable lobby/session traffic stays on TCP+TLS. This choice prioritizes performance and low bandwidth overhead, which is critical for real-time simulation.
+The client and server communicate using [MessagePack](https://msgpack.org/). All networked data structures are defined in Rust with `serde` and `rmp_serde`. High-frequency telemetry uses a compact positional encoding with session-scoped car indices (~60% smaller on the wire than the named encoding) and flows over UDP after a token handshake; reliable lobby and session traffic stays on TCP+TLS. This prioritizes performance and low bandwidth overhead, which is critical for real-time simulation.
+
+### Track pipeline
+
+A circuit reaches the client in two generated steps. Both outputs are regenerated wholesale, and neither should be hand-edited:
+
+```bash
+cd track-editor && cargo run --bin ats-export -- --all   # -> content/tracks/export/*.uescene.json
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject \
+    -run=ApexTrackImport -all                            # -> game-unreal/Content/Tracks/<Track>/L_<Track>.umap
+```
+
+The exporter resolves the editor's `.ats` scene against the YAML centerline and bakes triangles, because Unreal cannot read YAML; the commandlet turns those buffers into static meshes, materials and one level per track. See [track-editor/TRACK_EDITOR.md](track-editor/TRACK_EDITOR.md) §5 for the format and the coordinate conventions.
 
 ## Performance
 
@@ -49,44 +85,63 @@ These numbers held (within noise) through the move from a synthesized slip model
 
 ```
 apexsim/
-├── content/        # Reference car/track definitions shared across tools
-├── game-godot/     # Game implementation in godot with c# scripts
-├── game-cli/       # Command line client for integration testing
-├── scripts/        # Workspace-level helper scripts (build, VS Code generation)
+├── content/        # Car and track definitions, shared by server, editor and client
+├── docs/           # Design and implementation notes
+├── game-unreal/    # Unreal Engine 5 client
+├── scripts/        # Python helpers for track previews and racing lines
 ├── server/         # Rust backend (source, config, docs)
+├── track-editor/   # Rust + Bevy circuit scene authoring tool
 ├── README.md       # This overview
 └── LICENSE         # Project license
 ```
 
 ### Directory Highlights
 
-- [content/](content): Authoring-ready data for cars and tracks consumed by both the server and game clients.
-- [game-godot/](game-godot): Game implementation in godot with c# scripts.
-- [game-cli/](game-cli): Command line client for integration testing.
-- [scripts/](scripts): Workspace-level helper scripts (build, VS Code generation).
-- [server/](server): Full Rust crate with source code, configuration files, and supporting docs for the backend runtime.
+- [content/](content): Authoring-ready data. Cars are `cars/<name>/car.toml`; tracks are `tracks/real/*.yaml` (the logical circuit the server simulates) alongside `.ats` scene sidecars (the 3D dressing, read only by the editor and the Unreal importer).
+- [game-unreal/](game-unreal): Unreal Engine 5 client. Source lives in `Source/ApexSim`, `Source/ApexSimNet` and `Source/ApexTrackEditor`.
+- [scripts/](scripts): Python helpers — track preview images and racing-line generation.
+- [server/](server): Full Rust crate with source, configuration files and supporting docs for the backend runtime.
+- [track-editor/](track-editor): The circuit scene editor and the `ats-export` baker.
 
 ## Getting Started
 
-1. Clone the repository and consult [server/README.md](server/README.md) for backend prerequisites, configuration, and run instructions.
-2. Follow [game-godot/SETUP.md](game-godot/SETUP.md) and [game-godot/BUILD.md](game-godot/BUILD.md) to provision Godot, download dependencies, and launch the client.
+### 1. Run the server
+
+```bash
+cd server
+cargo run                 # uses server.toml
+```
+
+The server listens on TCP 9000, UDP 9001 and HTTP 9002 (`/health`, `/ready`, `/metrics`). See [server/README.md](server/README.md) for configuration and TLS setup — TLS is fail-closed by default, with a development opt-out in `server.toml`.
+
+### 2. Run the client
+
+Requires Unreal Engine 5.8. Open `game-unreal/ApexSim.uproject` and press Play, or build and launch from the command line:
+
+```bash
+"$UE/Engine/Build/BatchFiles/Build.bat" ApexSimEditor Win64 Development \
+    -Project="<repo>/game-unreal/ApexSim.uproject"
+"$UE/Engine/Binaries/Win64/UnrealEditor.exe" "<repo>/game-unreal/ApexSim.uproject" -game
+```
+
+The client auto-connects to `127.0.0.1:9000`. Handy switches for unattended runs: `-ApexAutoRace` (create and start a session immediately), `-ApexAiCount=N`, `-ApexLaps=N`, `-ApexStartScreen=N`, `-ApexOpenPause=N` / `-ApexOpenSettings=N`, and `-ApexScreenshotAfter=N`, which drops a screenshot in `Saved/Screenshots/`.
 
 ## Windows Setup
 
 Install the development prerequisites from an elevated PowerShell session. Approve any Windows UAC prompts shown by the installers.
 
 ```powershell
-winget install --id OpenJS.NodeJS.LTS --exact --source winget --accept-package-agreements --accept-source-agreements --silent
 winget install --id Rustlang.Rustup --exact --source winget --include-unknown --accept-package-agreements --accept-source-agreements --silent
 winget install --id Kitware.CMake --exact --source winget --accept-package-agreements --accept-source-agreements --silent
 winget install --id NASM.NASM --exact --source winget --accept-package-agreements --accept-source-agreements --silent
+winget install --id Python.Python.3.12 --exact --source winget --accept-package-agreements --accept-source-agreements --silent
 ```
+
+Unreal Engine 5.8 is installed separately through the Epic Games Launcher. Python is only needed for the helpers in `scripts/`.
 
 Restart VS Code after installation so new integrated terminals receive the updated `PATH`. Then verify the toolchain and build the Rust server:
 
 ```powershell
-node --version
-npm --version
 cargo --version
 rustc --version
 cmake --version
@@ -95,11 +150,21 @@ Set-Location server
 cargo build
 ```
 
-The repository currently has no `package.json`, so there are no npm dependencies to install at the workspace root.
+There is no `package.json` anywhere in the repository, so there are no npm dependencies to install.
 
 ## Contributing
 
-Contributions are welcome across gameplay programming, engine tooling, networking, UI, and content creation. Please coordinate significant changes via issues or discussion threads, and keep server and client documentation up to date when workflows change. Refer to [server/README.md](server/README.md) and the Unreal documentation in [game/](game) before submitting pull requests.
+Contributions are welcome across gameplay programming, engine tooling, networking, UI, and content creation. Please coordinate significant changes via issues or discussion threads, and keep server and client documentation up to date when workflows change.
+
+Before submitting a pull request:
+
+```bash
+cd server
+cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and treats warnings as errors
+cargo test
+```
+
+Wire-format changes must be made on both sides at once — `server/src/network.rs` and `game-unreal/Source/ApexSimNet` — and the client's codec tests pin every message against a golden byte blob, so a mismatch fails loudly rather than silently decoding to an empty list.
 
 ## License
 
