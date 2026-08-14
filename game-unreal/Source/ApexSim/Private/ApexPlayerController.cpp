@@ -1,8 +1,10 @@
 #include "ApexPlayerController.h"
 
+#include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Engine/GameInstance.h"
 #include "Input/ApexInputConfig.h"
 #include "InputActionValue.h"
 
@@ -37,6 +39,33 @@ void AApexPlayerController::EnsureInputConfig()
 	if (!InputConfig)
 	{
 		InputConfig = UApexInputConfig::Create(this);
+		ApplySavedBindings();
+	}
+}
+
+UApexSettingsSubsystem* AApexPlayerController::GetSettings() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+}
+
+void AApexPlayerController::ApplySavedBindings()
+{
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	if (InputConfig && Settings && Settings->Get())
+	{
+		InputConfig->ApplyBindings(Settings->Get()->Bindings);
+	}
+}
+
+void AApexPlayerController::RebuildBindings()
+{
+	ApplySavedBindings();
+
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		Subsystem->RequestRebuildControlMappings();
 	}
 }
 
@@ -170,7 +199,13 @@ void AApexPlayerController::HandleBrakeReleased(const FInputActionValue&)
 
 void AApexPlayerController::HandleSteer(const FInputActionValue& Value)
 {
-	DriveInput.Steer = FMath::Clamp(Value.Get<float>(), -1.0f, 1.0f);
+	const float Raw = FMath::Clamp(Value.Get<float>(), -1.0f, 1.0f);
+
+	// Deadzone and sensitivity are applied here rather than as Enhanced Input
+	// modifiers: the modifiers live on the mapping, so changing either would
+	// mean rebuilding the context on every slider frame.
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	DriveInput.Steer = Settings ? Settings->ShapeSteering(Raw) : Raw;
 }
 
 void AApexPlayerController::HandleSteerReleased(const FInputActionValue&)

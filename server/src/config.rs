@@ -299,6 +299,15 @@ impl ServerConfig {
                 self.logging.level
             ));
         }
+        if self.network.require_tls
+            && (self.network.tls_cert_path.trim().is_empty()
+                || self.network.tls_key_path.trim().is_empty())
+        {
+            errors.push(
+                "network.require_tls = true requires network.tls_cert_path and network.tls_key_path"
+                    .to_string(),
+            );
+        }
         if self.auth.mode == AuthMode::Token && self.auth.tokens.is_empty() {
             errors.push(
                 "auth.mode = \"token\" requires at least one entry in auth.tokens".to_string(),

@@ -264,9 +264,22 @@ impl TrackLoader {
             }
         }
 
-        // Cache not found, generate terrain (only in generation mode)
-        warn!("⚠️  No terrain cache found for: {}", track_name);
-        warn!("   Run with --generate-terrain to create terrain data");
+        // No cache. `environment_type` is also a scenery hint, so a missing
+        // cache is only a problem for tracks that have no elevation of their
+        // own: the surveyed circuits carry real z on every node, and
+        // procedural terrain would overwrite it rather than add anything.
+        if centerline_points.iter().any(|p| p.z != 0.0) {
+            debug!(
+                "No terrain cache for {}; using the track's own elevation data",
+                track_name
+            );
+        } else {
+            warn!(
+                "No terrain cache and no elevation data for {} — the track will be flat. \
+                 Run with --generate-terrain to create terrain data",
+                track_name
+            );
+        }
 
         // Return None - track will have flat terrain until terrain is generated
         None

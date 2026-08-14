@@ -45,16 +45,16 @@ Runtime settings live in server.toml. Use `cargo run -- --config path/to/custom.
 Key sections:
 
 - `[server]`: `tick_rate_hz` (default 240), `max_sessions`, `session_timeout_seconds`.
-- `[network]`: `tcp_bind`, `udp_bind`, and `health_bind` control listener addresses. `tls_cert_path` and `tls_key_path` specify paths to TLS certificate and private key files. `require_tls` controls whether TLS is mandatory:
-  - When `require_tls = true`: the server fails to start if TLS certificates cannot be loaded. Use this for production deployments to prevent accidental plaintext connections.
-  - When `require_tls = false` (default): the server logs a warning and accepts plaintext connections if TLS fails to load. Suitable for development only.
+- `[network]`: `tcp_bind`, `udp_bind`, and `health_bind` control listener addresses. `tls_cert_path` and `tls_key_path` specify paths to TLS certificate and private key files; leaving both empty means TLS is deliberately off. `require_tls` controls whether TLS is mandatory:
+  - When `require_tls = true` (the built-in default): the server fails to start if the certificate paths are empty or the certificates cannot be loaded. Use this for production deployments to prevent accidental plaintext connections.
+  - When `require_tls = false`: the server accepts plaintext connections. With empty certificate paths it just logs that TLS is disabled; with paths that are set but unusable it warns, since that is a misconfiguration rather than a choice. The bundled `server.toml` ships this way for development.
 
   Heartbeat intervals/timeouts are configurable for aggressive or lenient lag handling.
 - `[content]`: file system paths for car and track manifests (`cars_dir`, `tracks_dir`). By default the server reuses the repository content tree.
 - `[logging]`: `level` accepts `error`, `warn`, `info`, `debug`, `trace`; `console_enabled` toggles console output. You can also override at runtime with `--log-level debug`.
 - `[ai]`: default AI driver behavior parameters (optional; defaults apply when the section is omitted).
 
-Generating dev certificates:
+Generating dev certificates (then point `tls_cert_path`/`tls_key_path` at them):
 
 ```
 mkdir -p certs

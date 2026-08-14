@@ -43,14 +43,16 @@ void AApexMenuGameModeBase::BeginPlay()
 			*PlayerController->GetClass()->GetName());
 	}
 
-	if (!RootWidgetClass)
+	// The shell builds itself in C++ now, so a blueprint subclass is optional:
+	// WBP_Root still works (it derives from this class and contributes nothing
+	// but its class), and so does having no override at all.
+	TSubclassOf<UApexRootWidget> ClassToUse = RootWidgetClass;
+	if (!ClassToUse)
 	{
-		UE_LOG(LogApexSim, Error,
-			TEXT("RootWidgetClass is unset on %s — set it to WBP_Root in BP_ApexMenuGameMode"), *GetName());
-		return;
+		ClassToUse = UApexRootWidget::StaticClass();
 	}
 
-	RootWidget = CreateWidget<UApexRootWidget>(PlayerController, RootWidgetClass);
+	RootWidget = CreateWidget<UApexRootWidget>(PlayerController, ClassToUse);
 	if (!RootWidget)
 	{
 		UE_LOG(LogApexSim, Error, TEXT("Failed to create the root menu widget"));

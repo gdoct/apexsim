@@ -1,6 +1,22 @@
 #include "UI/ApexToastWidget.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/TextBlock.h"
+#include "UI/ApexUIStyle.h"
+
+void UApexToastWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	MessageText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Body(14.0f), NormalColor);
+
+	WidgetTree->RootWidget = ApexUI::MakePanel(
+		*WidgetTree,
+		MessageText,
+		FMargin(22.0f, 12.0f),
+		ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
+}
 
 void UApexToastWidget::NativeConstruct()
 {

@@ -4,22 +4,50 @@
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexSim.h"
-#include "Components/Button.h"
-#include "Components/EditableTextBox.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
-#include "Components/VerticalBox.h"
+#include "Components/ProgressBar.h"
+#include "Components/ScrollBox.h"
+#include "Components/SizeBox.h"
+#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "UI/ApexCarCardWidget.h"
+#include "TimerManager.h"
+#include "UI/ApexButtonWidget.h"
 #include "UI/ApexRootWidget.h"
+#include "UI/ApexUIStyle.h"
+
+namespace
+{
+	const FName ActionBack(TEXT("__back"));
+	const FName ActionDrive(TEXT("__drive"));
+	const FName ActionSetup(TEXT("__setup"));
+
+	constexpr float ListWidth = 420.0f;
+	/** Watts per kilowatt-hour of marketing: kW to the horsepower everyone quotes. */
+	constexpr float HorsepowerPerKilowatt = 1.34102f;
+}
+
+UApexCarSelectWidget::UApexCarSelectWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SetIsFocusable(true);
+}
+
+void UApexCarSelectWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	BuildLayout();
+}
 
 void UApexCarSelectWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	if (ConfirmButton) { ConfirmButton->OnClicked.AddDynamic(this, &UApexCarSelectWidget::HandleConfirmClicked); }
-	if (BackButton)    { BackButton->OnClicked.AddDynamic(this, &UApexCarSelectWidget::HandleBackClicked); }
-	if (SearchBox)     { SearchBox->OnTextChanged.AddDynamic(this, &UApexCarSelectWidget::HandleSearchChanged); }
 
 	if (UApexNetSubsystem* Net = GetNet())
 	{
@@ -40,7 +68,31 @@ void UApexCarSelectWidget::OnScreenActivated()
 {
 	Super::OnScreenActivated();
 
-	RebuildCards();
+	// The stage renders whether or not anyone is looking, so it only spins while
+	// this screen is up.
+	if (AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this))
+	{
+		Stage->SetTurntableEnabled(true);
+
+		if (StageImage)
+		{
+			if (UTextureRenderTarget2D* RenderTarget = Stage->GetPreviewRenderTarget())
+			{
+				FSlateBrush Brush = StageImage->GetBrush();
+				Brush.SetResourceObject(RenderTarget);
+				Brush.ImageSize = FVector2D(900.0f, 520.0f);
+				StageImage->SetBrush(Brush);
+				StageImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+			}
+		}
+	}
+	else if (StageImage)
+	{
+		StageImage->SetVisibility(ESlateVisibility::Hidden);
+		UE_LOG(LogApexSim, Warning, TEXT("No AApexCarPreviewStage in the level; the car preview is disabled"));
+	}
+
+	RebuildList();
 
 	if (const UApexMenuFlowSubsystem* Flow = GetFlow())
 	{
@@ -49,235 +101,605 @@ void UApexCarSelectWidget::OnScreenActivated()
 			SelectCar(Flow->GetPendingCarId());
 		}
 	}
-
-	if (AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this))
+	if (SelectedCarId.IsEmpty() && VisibleRows.Num() > 0)
 	{
-		Stage->SetTurntableEnabled(true);
+		SelectCar(VisibleRows[0]->GetActionId().ToString());
+	}
 
-		// A UImage brush accepts a render target directly, so the turntable
-		// needs no intermediate UI material.
-		if (CarPreviewImage)
-		{
-			if (UTextureRenderTarget2D* RenderTarget = Stage->GetPreviewRenderTarget())
-			{
-				// Size goes on the brush, not via SetDesiredSizeOverride — see
-				// the note in ApexTrackCardWidget::SetTrack. The render target
-				// is square and carries no desired size of its own.
-				FSlateBrush Brush = CarPreviewImage->GetBrush();
-				Brush.SetResourceObject(RenderTarget);
-				Brush.DrawAs = ESlateBrushDrawType::Image;
-				Brush.ImageSize = FVector2D(PreviewSize, PreviewSize);
-				CarPreviewImage->SetBrush(Brush);
-				CarPreviewImage->SetVisibility(ESlateVisibility::HitTestInvisible);
-			}
-		}
-	}
-	else if (CarPreviewImage)
-	{
-		// No stage in the level: hide the frame rather than show an empty box.
-		CarPreviewImage->SetVisibility(ESlateVisibility::Hidden);
-		UE_LOG(LogApexSim, Warning, TEXT("No AApexCarPreviewStage in the level; the car preview is disabled"));
-	}
+	RequestRowFocus();
 }
 
 void UApexCarSelectWidget::OnScreenDeactivated()
 {
-	// Stop spending a scene capture per frame on a preview nobody is looking at.
+	Super::OnScreenDeactivated();
+
 	if (AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this))
 	{
 		Stage->SetTurntableEnabled(false);
 	}
-	Super::OnScreenDeactivated();
 }
 
-void UApexCarSelectWidget::HandleLobbyStateUpdated(const FApexLobbyState& LobbyState)
+// ---------------------------------------------------------------------------
+// Construction
+// ---------------------------------------------------------------------------
+
+void UApexCarSelectWidget::BuildLayout()
 {
-	RebuildCards();
+	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddV(Page, BuildHeader());
+
+	CarListBox = WidgetTree->ConstructWidget<UVerticalBox>();
+	CarListScroll = WidgetTree->ConstructWidget<UScrollBox>();
+	CarListScroll->AddChild(CarListBox);
+
+	UBorder* ListPanel = ApexUI::MakePanel(
+		*WidgetTree,
+		CarListScroll,
+		FMargin(20.0f, 18.0f),
+		ApexUI::MakeBrush(FLinearColor::Transparent));
+
+	UHorizontalBox* Columns = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, ListPanel, ListWidth, -1.0f), FMargin(), VAlign_Fill);
+	ApexUI::AddH(Columns, ApexUI::MakeDivider(*WidgetTree, true), FMargin(), VAlign_Fill);
+	ApexUI::AddH(Columns, BuildStage(), FMargin(), VAlign_Fill, 1.0f);
+
+	ApexUI::AddV(Page, Columns, FMargin(), HAlign_Fill, 1.0f);
+
+	WidgetTree->RootWidget = ApexUI::MakePanel(
+		*WidgetTree,
+		Page,
+		FMargin(),
+		ApexUI::MakeBrush(ApexUI::Palette::Background));
 }
 
-void UApexCarSelectWidget::RebuildCards()
+UWidget* UApexCarSelectWidget::BuildHeader()
 {
-	if (!CarList || !CarCardClass)
+	FApexButtonSpec BackSpec;
+	BackSpec.Label = TEXT("Back");
+	BackSpec.KeyCap = TEXT("Esc");
+	BackSpec.bKeyCapLeading = true;
+	BackSpec.Variant = EApexButtonVariant::Bare;
+	BackSpec.LabelSize = 15.0f;
+	BackSpec.ActionId = ActionBack;
+
+	UApexButtonWidget* BackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	BackButton->Setup(BackSpec);
+	BackButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+
+	ChipRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+
+	return ApexUI::MakeScreenHeader(*WidgetTree, BackButton, TEXT("Garage"), ChipRow);
+}
+
+UWidget* UApexCarSelectWidget::BuildStage()
+{
+	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	StageImage = WidgetTree->ConstructWidget<UImage>();
+	UBorder* StageFrame = ApexUI::MakePanel(
+		*WidgetTree,
+		StageImage,
+		FMargin(),
+		ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
+	ApexUI::AddV(Column, StageFrame, FMargin(), HAlign_Fill, 1.0f);
+
+	// Name and actions.
+	UVerticalBox* NameStack = WidgetTree->ConstructWidget<UVerticalBox>();
+	EyebrowText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 160), ApexUI::Palette::Accent);
+	ApexUI::AddV(NameStack, EyebrowText);
+	NameText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Display(34.0f), ApexUI::Palette::TextPrimary);
+	ApexUI::AddV(NameStack, NameText, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+
+	UHorizontalBox* ActionRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(ActionRow, NameStack, FMargin(), VAlign_Center, 1.0f);
+
+	// No setup system exists yet, so the button says so rather than doing nothing.
+	FApexButtonSpec SetupSpec;
+	SetupSpec.Label = TEXT("Setup sheet");
+	SetupSpec.Badge = TEXT("Locked");
+	SetupSpec.Variant = EApexButtonVariant::Locked;
+	SetupSpec.LabelSize = 17.0f;
+	SetupSpec.Height = 56.0f;
+	SetupSpec.ActionId = ActionSetup;
+
+	UApexButtonWidget* SetupButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	SetupButton->Setup(SetupSpec);
+	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, SetupButton, 200.0f, -1.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f));
+
+	FApexButtonSpec DriveSpec;
+	DriveSpec.Label = TEXT("Drive this car");
+	DriveSpec.KeyCap = TEXT("Enter");
+	DriveSpec.Variant = EApexButtonVariant::Primary;
+	DriveSpec.LabelSize = 21.0f;
+	DriveSpec.Height = 56.0f;
+	DriveSpec.ActionId = ActionDrive;
+
+	DriveButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	DriveButton->Setup(DriveSpec);
+	DriveButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, DriveButton, 300.0f, -1.0f), FMargin(12.0f, 0.0f, 0.0f, 0.0f));
+
+	ApexUI::AddV(Column, ActionRow, FMargin(0.0f, 22.0f, 0.0f, 0.0f));
+
+	// Four numbers, three of them measured against the rest of the field.
+	// The out-params are raw pointers because TObjectPtr members cannot bind to
+	// a pointer reference; they are stored on the widget straight after.
+	UTextBlock* PowerText = nullptr;
+	UTextBlock* WeightText = nullptr;
+	UTextBlock* RatioText = nullptr;
+	UTextBlock* ClassText = nullptr;
+	UProgressBar* PowerBarPtr = nullptr;
+	UProgressBar* WeightBarPtr = nullptr;
+	UProgressBar* RatioBarPtr = nullptr;
+	UProgressBar* UnusedBar = nullptr;
+
+	UHorizontalBox* Stats = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(Stats, ApexUI::MakeStatBar(*WidgetTree, TEXT("Power"), PowerText, PowerBarPtr), FMargin(), VAlign_Fill, 1.0f);
+	ApexUI::AddH(Stats, ApexUI::MakeStatBar(*WidgetTree, TEXT("Weight"), WeightText, WeightBarPtr), FMargin(10.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	ApexUI::AddH(Stats, ApexUI::MakeStatBar(*WidgetTree, TEXT("Power / weight"), RatioText, RatioBarPtr), FMargin(10.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	ApexUI::AddH(Stats, ApexUI::MakeStatBar(*WidgetTree, TEXT("Class"), ClassText, UnusedBar), FMargin(10.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+
+	PowerValue = PowerText;
+	WeightValue = WeightText;
+	RatioValue = RatioText;
+	ClassValue = ClassText;
+	PowerBar = PowerBarPtr;
+	WeightBar = WeightBarPtr;
+	RatioBar = RatioBarPtr;
+
+	if (UnusedBar)
 	{
-		return;
+		// Class is a name, not a quantity; the bar under it would be noise.
+		UnusedBar->SetVisibility(ESlateVisibility::Hidden);
 	}
 
+	ApexUI::AddV(Column, Stats, FMargin(0.0f, 18.0f, 0.0f, 0.0f));
+
+	return ApexUI::MakePanel(
+		*WidgetTree,
+		Column,
+		FMargin(28.0f, 20.0f, ApexUI::Metrics::PageGutter, 26.0f),
+		ApexUI::MakeBrush(FLinearColor::Transparent));
+}
+
+// ---------------------------------------------------------------------------
+// Data
+// ---------------------------------------------------------------------------
+
+float UApexCarSelectWidget::GetPowerHp(const FApexCarCatalogRow& Row)
+{
+	return Row.MaxPowerKw * HorsepowerPerKilowatt;
+}
+
+void UApexCarSelectWidget::RebuildList(bool bForce)
+{
 	const UApexNetSubsystem* Net = GetNet();
-	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	if (!Net)
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Net || !CarListBox)
 	{
 		return;
 	}
 
 	const TArray<FApexCarConfigSummary>& Cars = Net->GetCachedLobbyState().CarConfigs;
 
-	// The catalog is static, so only rebuild when the set of car IDs actually
-	// changes — otherwise the 2s LobbyState broadcast would recreate the list
-	// under the user's cursor.
 	TArray<FString> IncomingIds;
 	IncomingIds.Reserve(Cars.Num());
 	for (const FApexCarConfigSummary& Car : Cars)
 	{
 		IncomingIds.Add(Car.Id);
 	}
-	if (IncomingIds == BuiltCarIds)
+	if (!bForce && IncomingIds == BuiltCarIds)
 	{
 		return;
 	}
 	BuiltCarIds = MoveTemp(IncomingIds);
 
-	CarList->ClearChildren();
-	Cards.Reset();
+	CarRows.Reset();
+	CarListBox->ClearChildren();
 
 	for (const FApexCarConfigSummary& Car : Cars)
 	{
-		UApexCarCardWidget* Card = CreateWidget<UApexCarCardWidget>(this, CarCardClass);
-		if (!Card)
-		{
-			continue;
-		}
-
 		FApexCarCatalogRow Row;
 		const bool bHasRow = Flow && Flow->GetCarCatalogRow(Car.Id, Row);
-		Card->SetCar(Car, Row, bHasRow);
-		Card->OnCardClicked.AddDynamic(this, &UApexCarSelectWidget::HandleCardClicked);
 
-		CarList->AddChild(Card);
-		Cards.Add(Card);
+		TArray<FString> SpecParts;
+		const float Hp = bHasRow ? GetPowerHp(Row) : 0.0f;
+		if (Hp > 0.0f)
+		{
+			SpecParts.Add(FString::Printf(TEXT("%.0f hp"), Hp));
+		}
+		const float Mass = Car.MassKg > 0.0f ? Car.MassKg : (bHasRow ? Row.MassKg : 0.0f);
+		if (Mass > 0.0f)
+		{
+			SpecParts.Add(FString::Printf(TEXT("%.0f kg"), Mass));
+		}
+		if (bHasRow && Row.ModelYear > 0)
+		{
+			SpecParts.Add(FString::FromInt(Row.ModelYear));
+		}
+
+		FApexButtonSpec Spec;
+		Spec.Label = bHasRow && !Row.DisplayName.IsEmpty() ? Row.DisplayName : Car.Name;
+		Spec.SubLabel = FString::Join(SpecParts, TEXT(" · "));
+		Spec.Badge = bHasRow ? Row.CarClass : FString();
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.LabelSize = 18.0f;
+		Spec.Height = 76.0f;
+		// The row's action id is the car id: one handler, no lookup table.
+		Spec.ActionId = FName(*Car.Id);
+
+		UApexButtonWidget* RowWidget = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		RowWidget->Setup(Spec);
+		RowWidget->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleRowActivated);
+		CarRows.Add(RowWidget);
 	}
 
-	if (StatusText)
-	{
-		StatusText->SetText(FText::FromString(
-			FString::Printf(TEXT("%d car%s available"), Cards.Num(), Cards.Num() == 1 ? TEXT("") : TEXT("s"))));
-	}
-
-	// Preselect here rather than only on activation: the list is usually built
-	// when LobbyState arrives, which is after the screen was activated. Without
-	// this the preview stays empty until the user clicks a card.
-	if (SelectedCarId.IsEmpty() && Cards.Num() > 0)
-	{
-		SelectCar(Cards[0]->GetCarId());
-	}
-
+	RebuildFilterChips();
 	ApplyFilter();
+
+	// The screen is usually opened before the first lobby snapshot arrives, so
+	// the rows here are new objects and the selection made against the old,
+	// empty list has to be applied again — otherwise nothing is outlined and the
+	// stat bars, which are relative to the field, stay at zero.
+	if (SelectedCarId.IsEmpty())
+	{
+		if (Flow && Flow->HasPendingCar())
+		{
+			SelectedCarId = Flow->GetPendingCarId();
+		}
+		else if (VisibleRows.Num() > 0)
+		{
+			SelectedCarId = VisibleRows[0]->GetActionId().ToString();
+		}
+	}
+	if (!SelectedCarId.IsEmpty())
+	{
+		SelectCar(SelectedCarId);
+		RequestRowFocus();
+	}
 }
 
-void UApexCarSelectWidget::HandleSearchChanged(const FText& Text)
+void UApexCarSelectWidget::RequestRowFocus()
 {
-	ApplyFilter();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				if (VisibleRows.IsValidIndex(FocusedRowIndex))
+				{
+					VisibleRows[FocusedRowIndex]->SetKeyboardFocus();
+				}
+			}));
+	}
+}
+
+void UApexCarSelectWidget::RebuildFilterChips()
+{
+	if (!ChipRow)
+	{
+		return;
+	}
+
+	ChipRow->ClearChildren();
+	FilterChips.Reset();
+
+	TArray<FString> Classes;
+	if (const UApexMenuFlowSubsystem* Flow = GetFlow())
+	{
+		for (const FString& Id : BuiltCarIds)
+		{
+			FApexCarCatalogRow Row;
+			if (Flow->GetCarCatalogRow(Id, Row) && !Row.CarClass.IsEmpty())
+			{
+				Classes.AddUnique(Row.CarClass);
+			}
+		}
+	}
+	Classes.Sort();
+
+	auto AddChip = [this](const FString& Key, const FString& Label)
+	{
+		FApexButtonSpec Spec;
+		Spec.Label = Label;
+		Spec.Variant = ActiveFilter == Key ? EApexButtonVariant::Primary : EApexButtonVariant::Ghost;
+		Spec.bCentreLabel = true;
+		Spec.LabelSize = 14.0f;
+		Spec.Height = 34.0f;
+		Spec.ActionId = FName(*Key);
+
+		UApexButtonWidget* Chip = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Chip->Setup(Spec);
+		Chip->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+
+		ApexUI::AddH(ChipRow, ApexUI::MakeSized(*WidgetTree, Chip, -1.0f, 34.0f), FMargin(6.0f, 0.0f, 0.0f, 0.0f));
+		FilterChips.Add(Chip);
+	};
+
+	AddChip(FString(), FString::Printf(TEXT("All %d"), CarRows.Num()));
+	for (const FString& CarClass : Classes)
+	{
+		AddChip(CarClass, CarClass);
+	}
 }
 
 void UApexCarSelectWidget::ApplyFilter()
 {
-	const FString Filter = SearchBox ? SearchBox->GetText().ToString().TrimStartAndEnd() : FString();
-
-	for (UApexCarCardWidget* Card : Cards)
+	if (!CarListBox)
 	{
-		const bool bMatches = Filter.IsEmpty()
-			|| Card->GetDisplayName().Contains(Filter, ESearchCase::IgnoreCase);
-		Card->SetVisibility(bMatches ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		return;
 	}
-}
 
-void UApexCarSelectWidget::HandleCardClicked(UApexCarCardWidget* Card)
-{
-	if (Card)
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+
+	VisibleRows.Reset();
+	CarListBox->ClearChildren();
+
+	for (UApexButtonWidget* RowWidget : CarRows)
 	{
-		SelectCar(Card->GetCarId());
+		if (!RowWidget)
+		{
+			continue;
+		}
+
+		bool bMatches = ActiveFilter.IsEmpty();
+		if (!bMatches && Flow)
+		{
+			FApexCarCatalogRow Row;
+			bMatches = Flow->GetCarCatalogRow(RowWidget->GetActionId().ToString(), Row)
+				&& Row.CarClass.Equals(ActiveFilter, ESearchCase::IgnoreCase);
+		}
+
+		if (!bMatches)
+		{
+			continue;
+		}
+
+		ApexUI::AddV(CarListBox, RowWidget, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		VisibleRows.Add(RowWidget);
 	}
+
+	FocusedRowIndex = FMath::Clamp(FocusedRowIndex, 0, FMath::Max(0, VisibleRows.Num() - 1));
 }
 
 void UApexCarSelectWidget::SelectCar(const FString& CarId)
 {
 	SelectedCarId = CarId;
 
-	for (UApexCarCardWidget* Card : Cards)
+	for (int32 Index = 0; Index < VisibleRows.Num(); ++Index)
 	{
-		Card->SetSelected(Card->GetCarId().Equals(CarId, ESearchCase::IgnoreCase));
+		const bool bIsSelected = VisibleRows[Index]->GetActionId().ToString().Equals(CarId, ESearchCase::IgnoreCase);
+		VisibleRows[Index]->SetSelected(bIsSelected);
+		if (bIsSelected)
+		{
+			FocusedRowIndex = Index;
+		}
+	}
+	for (UApexButtonWidget* RowWidget : CarRows)
+	{
+		if (RowWidget && !VisibleRows.Contains(RowWidget))
+		{
+			RowWidget->SetSelected(false);
+		}
 	}
 
-	UpdatePreview();
+	RefreshDetail();
+	UpdatePreviewStage();
 }
 
-void UApexCarSelectWidget::UpdatePreview()
+void UApexCarSelectWidget::RefreshDetail()
 {
 	const UApexNetSubsystem* Net = GetNet();
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	if (!Net)
-	{
-		return;
-	}
-
-	FApexCarConfigSummary Summary;
-	if (!Net->FindCarById(SelectedCarId, Summary))
+	if (!Net || !Flow)
 	{
 		return;
 	}
 
 	FApexCarCatalogRow Row;
-	const bool bHasRow = Flow && Flow->GetCarCatalogRow(SelectedCarId, Row);
+	const bool bHasRow = Flow->GetCarCatalogRow(SelectedCarId, Row);
 
-	if (SpecsText)
+	FApexCarConfigSummary Summary;
+	const bool bHasSummary = Net->FindCarById(SelectedCarId, Summary);
+
+	const FString Name = bHasRow && !Row.DisplayName.IsEmpty()
+		? Row.DisplayName
+		: (bHasSummary ? Summary.Name : FString());
+
+	if (NameText)
 	{
-		TArray<FString> Lines;
-		Lines.Add(FString::Printf(TEXT("Name:  %s"),
-			*((bHasRow && !Row.DisplayName.IsEmpty()) ? Row.DisplayName : Summary.Name)));
-		if (bHasRow)
-		{
-			if (!Row.Brand.IsEmpty())    { Lines.Add(FString::Printf(TEXT("Brand:  %s"), *Row.Brand)); }
-			if (!Row.CarClass.IsEmpty()) { Lines.Add(FString::Printf(TEXT("Class:  %s"), *Row.CarClass)); }
-			if (Row.ModelYear > 0)       { Lines.Add(FString::Printf(TEXT("Year:  %d"), Row.ModelYear)); }
-		}
-		Lines.Add(FString::Printf(TEXT("Mass:  %.0f kg"), Summary.MassKg));
-		if (bHasRow && Row.MaxPowerKw > 0.0f)
-		{
-			Lines.Add(FString::Printf(TEXT("Power:  %.0f kW"), Row.MaxPowerKw));
-		}
-		SpecsText->SetText(FText::FromString(FString::Join(Lines, TEXT("\n"))));
+		NameText->SetText(FText::FromString(Name.IsEmpty() ? TEXT("No car selected") : Name));
 	}
 
-	if (AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this))
+	if (EyebrowText)
 	{
+		TArray<FString> Parts;
 		if (bHasRow)
 		{
-			Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
-			Stage->SetCarMesh(Row.Mesh);
+			if (!Row.CarClass.IsEmpty())            { Parts.Add(Row.CarClass.ToUpper()); }
+			if (!Row.Brand.IsEmpty())               { Parts.Add(Row.Brand.ToUpper()); }
+			if (!Row.ManufacturerCountry.IsEmpty()) { Parts.Add(Row.ManufacturerCountry.ToUpper()); }
 		}
-		else
+		EyebrowText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · "))));
+	}
+
+	// The bars are shares of the best in the current field, so they need the
+	// field's extremes first.
+	float MaxHp = 0.0f;
+	float MaxMass = 0.0f;
+	float MaxRatio = 0.0f;
+	for (const FString& Id : BuiltCarIds)
+	{
+		FApexCarCatalogRow Other;
+		const bool bOtherRow = Flow->GetCarCatalogRow(Id, Other);
+		FApexCarConfigSummary OtherSummary;
+		const bool bOtherSummary = Net->FindCarById(Id, OtherSummary);
+
+		const float OtherHp = bOtherRow ? GetPowerHp(Other) : 0.0f;
+		const float OtherMass = bOtherSummary && OtherSummary.MassKg > 0.0f
+			? OtherSummary.MassKg
+			: (bOtherRow ? Other.MassKg : 0.0f);
+
+		MaxHp = FMath::Max(MaxHp, OtherHp);
+		MaxMass = FMath::Max(MaxMass, OtherMass);
+		if (OtherMass > 0.0f)
 		{
-			// No catalog row means no mesh reference exists at all — the
-			// server's ModelPath is a dead path (broadcast.rs:150).
-			Stage->SetCarMesh(nullptr);
-			UE_LOG(LogApexSim, Verbose, TEXT("No catalog row for car %s; showing no preview mesh"), *SelectedCarId);
+			MaxRatio = FMath::Max(MaxRatio, OtherHp / (OtherMass / 1000.0f));
 		}
 	}
+
+	const float Hp = bHasRow ? GetPowerHp(Row) : 0.0f;
+	const float Mass = bHasSummary && Summary.MassKg > 0.0f ? Summary.MassKg : (bHasRow ? Row.MassKg : 0.0f);
+	const float Ratio = Mass > 0.0f ? Hp / (Mass / 1000.0f) : 0.0f;
+
+	if (PowerValue)
+	{
+		PowerValue->SetText(FText::FromString(Hp > 0.0f ? FString::Printf(TEXT("%.0f hp"), Hp) : TEXT("—")));
+	}
+	if (WeightValue)
+	{
+		WeightValue->SetText(FText::FromString(Mass > 0.0f ? FString::Printf(TEXT("%.0f kg"), Mass) : TEXT("—")));
+	}
+	if (RatioValue)
+	{
+		RatioValue->SetText(FText::FromString(Ratio > 0.0f ? FString::Printf(TEXT("%.0f hp/t"), Ratio) : TEXT("—")));
+	}
+	if (ClassValue)
+	{
+		ClassValue->SetText(FText::FromString(bHasRow && !Row.CarClass.IsEmpty() ? Row.CarClass : TEXT("—")));
+	}
+
+	if (PowerBar)  { PowerBar->SetPercent(MaxHp > 0.0f ? Hp / MaxHp : 0.0f); }
+	if (WeightBar) { WeightBar->SetPercent(MaxMass > 0.0f ? Mass / MaxMass : 0.0f); }
+	if (RatioBar)  { RatioBar->SetPercent(MaxRatio > 0.0f ? Ratio / MaxRatio : 0.0f); }
 }
 
-void UApexCarSelectWidget::HandleConfirmClicked()
+void UApexCarSelectWidget::UpdatePreviewStage()
 {
-	if (SelectedCarId.IsEmpty())
+	AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this);
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Stage || !Flow)
 	{
-		ShowToast(TEXT("Pick a car first"), true);
 		return;
 	}
 
-	if (UApexMenuFlowSubsystem* Flow = GetFlow())
+	FApexCarCatalogRow Row;
+	if (!Flow->GetCarCatalogRow(SelectedCarId, Row))
 	{
-		Flow->SetPendingCar(SelectedCarId);
-	}
-	if (UApexNetSubsystem* Net = GetNet())
-	{
-		Net->SelectCar(SelectedCarId);
+		Stage->SetCarMesh(nullptr);
+		return;
 	}
 
-	if (UApexRootWidget* Root = GetRoot())
+	Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
+	Stage->SetCarMesh(Row.Mesh);
+}
+
+// ---------------------------------------------------------------------------
+// Interaction
+// ---------------------------------------------------------------------------
+
+void UApexCarSelectWidget::HandleLobbyStateUpdated(const FApexLobbyState& LobbyState)
+{
+	RebuildList();
+}
+
+void UApexCarSelectWidget::HandleRowActivated(UApexButtonWidget* Row)
+{
+	if (Row)
 	{
-		Root->ReplaceScreen(Root->ScreenAfterCarSelect);
+		SelectCar(Row->GetActionId().ToString());
 	}
 }
 
-void UApexCarSelectWidget::HandleBackClicked()
+void UApexCarSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 {
-	GoBack();
+	if (!Button)
+	{
+		return;
+	}
+
+	const FName Id = Button->GetActionId();
+
+	if (Id == ActionBack)
+	{
+		GoBack();
+		return;
+	}
+
+	if (Id == ActionDrive)
+	{
+		if (SelectedCarId.IsEmpty())
+		{
+			ShowToast(TEXT("Pick a car first"), true);
+			return;
+		}
+
+		if (UApexMenuFlowSubsystem* Flow = GetFlow())
+		{
+			Flow->SetPendingCar(SelectedCarId);
+		}
+		// The server tracks the selection too, and rejects it if the player is in
+		// a session that has already started.
+		if (UApexNetSubsystem* Net = GetNet())
+		{
+			Net->SelectCar(SelectedCarId);
+		}
+		if (UApexRootWidget* Root = GetRoot())
+		{
+			Root->ReplaceScreen(Root->ScreenAfterCarSelect);
+		}
+		return;
+	}
+
+	// Otherwise a class chip.
+	ActiveFilter = Id.IsNone() ? FString() : Id.ToString();
+	RebuildFilterChips();
+	ApplyFilter();
+	if (!SelectedCarId.IsEmpty())
+	{
+		SelectCar(SelectedCarId);
+	}
+}
+
+FReply UApexCarSelectWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+
+	if (Key == EKeys::Up)
+	{
+		MoveSelection(-1);
+		return FReply::Handled();
+	}
+	if (Key == EKeys::Down)
+	{
+		MoveSelection(1);
+		return FReply::Handled();
+	}
+	if (Key == EKeys::Tab && DriveButton)
+	{
+		DriveButton->SetKeyboardFocus();
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+void UApexCarSelectWidget::MoveSelection(int32 Delta)
+{
+	if (VisibleRows.Num() == 0)
+	{
+		return;
+	}
+
+	FocusedRowIndex = FMath::Clamp(FocusedRowIndex + Delta, 0, VisibleRows.Num() - 1);
+	VisibleRows[FocusedRowIndex]->SetKeyboardFocus();
+
+	if (CarListScroll)
+	{
+		CarListScroll->ScrollWidgetIntoView(VisibleRows[FocusedRowIndex], true);
+	}
+
+	// Moving through the list is how you browse the garage: each row describes
+	// itself on the right as it is reached.
+	SelectCar(VisibleRows[FocusedRowIndex]->GetActionId().ToString());
 }

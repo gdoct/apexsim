@@ -131,6 +131,7 @@ pub(crate) async fn run_game_loop(
 
     let mut tick_count = 0u64;
     let mut player_inputs: HashMap<PlayerId, PlayerInputData> = HashMap::new();
+    let mut lobby_state_cache = broadcast::LobbyStateCache::default();
 
     loop {
         ticker.tick().await;
@@ -158,7 +159,7 @@ pub(crate) async fn run_game_loop(
 
         // Broadcast lobby state every 2 seconds.
         if tick_count.is_multiple_of(tick_rate as u64 * 2) {
-            if let Err(e) = broadcast::broadcast_lobby_state(&ctx).await {
+            if let Err(e) = broadcast::broadcast_lobby_state(&ctx, &mut lobby_state_cache).await {
                 warn!("Failed to broadcast lobby state: {:?}", e);
             }
         }

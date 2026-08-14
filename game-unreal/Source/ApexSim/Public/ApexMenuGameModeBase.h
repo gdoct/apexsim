@@ -26,7 +26,7 @@ public:
 	UApexRootWidget* GetRootWidget() const { return RootWidget; }
 
 protected:
-	/** Set to WBP_Root in BP_ApexMenuGameMode. */
+	/** Optional. Unset means the C++ shell (UApexRootWidget) is used directly. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ApexSim|Menu")
 	TSubclassOf<UApexRootWidget> RootWidgetClass;
 

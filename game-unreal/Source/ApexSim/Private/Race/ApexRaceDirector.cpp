@@ -3,6 +3,7 @@
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexPlayerController.h"
+#include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/GameInstance.h"
@@ -72,6 +73,12 @@ UApexNetSubsystem* AApexRaceDirector::GetNet() const
 {
 	const UGameInstance* GameInstance = GetGameInstance();
 	return GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+}
+
+UApexSettingsSubsystem* AApexRaceDirector::GetSettings() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
 }
 
 UApexMenuFlowSubsystem* AApexRaceDirector::GetFlow() const
@@ -303,8 +310,65 @@ void AApexRaceDirector::PollDrivingInput()
 		// Clamped to the range the server accepts: reverse through tenth.
 		Input.Gear = FMath::Clamp(FollowedCar->GetGear() + GearDelta, -1, 10);
 	}
+	else
+	{
+		Input.Gear = PollAutoGearbox();
+	}
 
 	Net->SetPlayerInput(Input);
+}
+
+int32 AApexRaceDirector::PollAutoGearbox()
+{
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Settings || !Settings->Get() || !Settings->Get()->bAutoGearbox || !Net)
+	{
+		return -128;
+	}
+
+	// The server has no automatic-gearbox flag, so an auto box is a client that
+	// sends the shift the driver would have. Everything it needs — revs and the
+	// gear actually engaged — is on the telemetry frame.
+	const int32 LocalIndex = Net->GetLocalCarIndex();
+	const FApexCarTelemetry* Local = Net->GetLatestTelemetry().Cars.FindByPredicate(
+		[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; });
+	if (!Local || Local->Gear < 0)
+	{
+		// Reverse is never chosen automatically: only the driver knows they meant
+		// to back up rather than to stop.
+		return -128;
+	}
+
+	int32 Wanted = Local->Gear;
+	if (Local->EngineRpm > AutoShiftUpRpm && Local->Gear < 10)
+	{
+		Wanted = Local->Gear + 1;
+	}
+	else if (Local->EngineRpm < AutoShiftDownRpm && Local->Gear > 1)
+	{
+		Wanted = Local->Gear - 1;
+	}
+	else if (Local->Gear == 0 && Local->Throttle > 0.05f)
+	{
+		// Pulling away from neutral.
+		Wanted = 1;
+	}
+
+	if (Wanted == Local->Gear)
+	{
+		return -128;
+	}
+
+	// Telemetry lags the request by a frame or two, so without a hold the same
+	// shift is sent repeatedly and the box hunts.
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	if (Now - LastAutoShiftTime < AutoShiftHoldSeconds)
+	{
+		return -128;
+	}
+	LastAutoShiftTime = Now;
+	return Wanted;
 }
 
 void AApexRaceDirector::SetCockpitView(bool bCockpit)
@@ -316,6 +380,16 @@ void AApexRaceDirector::SetCockpitView(bool bCockpit)
 	bCockpitView = bCockpit;
 	ApplyCameraMode();
 	UE_LOG(LogApexSim, Log, TEXT("Camera: %s"), bCockpitView ? TEXT("cockpit") : TEXT("chase"));
+}
+
+void AApexRaceDirector::SetFieldOfView(float Degrees)
+{
+	const float Clamped = FMath::Clamp(Degrees, 60.0f, 120.0f);
+	CockpitCamera->SetFieldOfView(Clamped);
+	// The chase view sits further back, where the same number reads much wider;
+	// it keeps a fixed offset below the cockpit's rather than a separate row in
+	// the settings screen.
+	ChaseCamera->SetFieldOfView(FMath::Clamp(Clamped - 15.0f, 50.0f, 120.0f));
 }
 
 void AApexRaceDirector::ApplyCameraMode()
@@ -388,6 +462,16 @@ void AApexRaceDirector::BeginRaceView()
 	UpdateCockpitCamera();
 	ApplyCameraMode();
 	ApplyRaceInputMode(true);
+
+	// The cameras only exist while racing, so the saved field of view has had
+	// nowhere to land until now.
+	if (const UApexSettingsSubsystem* Settings = GetSettings())
+	{
+		if (const UApexSettingsSave* Values = Settings->Get())
+		{
+			SetFieldOfView(Values->FieldOfView);
+		}
+	}
 
 	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
 	{

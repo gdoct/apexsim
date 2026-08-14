@@ -2,83 +2,96 @@
 
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
+#include "Catalog/ApexCatalogRows.h"
 #include "UI/ApexScreenWidget.h"
 
 #include "ApexCarSelectWidget.generated.h"
 
-class UApexCarCardWidget;
-class UButton;
-class UEditableTextBox;
+class UApexButtonWidget;
+class UHorizontalBox;
 class UImage;
-class UVerticalBox;
+class UProgressBar;
+class UScrollBox;
 class UTextBlock;
+class UVerticalBox;
+class UWidget;
 
 /**
- * Car picker: filterable list on the left, turntable render plus specs on the
- * right. Confirming sends SelectCar and returns to whichever screen asked.
+ * The garage: every car the server offers, one described at a time.
+ *
+ * The preview is the shared AApexCarPreviewStage turntable rendered into a
+ * render target — one scene capture for the screen rather than one per car.
+ *
+ * The stat bars are relative, not absolute: a car's power bar is its share of
+ * the most powerful car available. Absolute bars would need a scale nothing in
+ * the data defines.
  */
-UCLASS(Abstract)
+UCLASS()
 class APEXSIM_API UApexCarSelectWidget : public UApexScreenWidget
 {
 	GENERATED_BODY()
 
 public:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+	UApexCarSelectWidget(const FObjectInitializer& ObjectInitializer);
+
 	virtual void OnScreenActivated() override;
 	virtual void OnScreenDeactivated() override;
 
 protected:
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UVerticalBox> CarList;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UEditableTextBox> SearchBox;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UImage> CarPreviewImage;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UTextBlock> SpecsText;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UTextBlock> StatusText;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UButton> ConfirmButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UButton> BackButton;
-
-	/** Set to WBP_CarCard in the WBP defaults. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ApexSim|UI")
-	TSubclassOf<UApexCarCardWidget> CarCardClass;
-
-	/** Edge length of the square turntable preview, in slate units. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|UI")
-	float PreviewSize = 420.0f;
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
-	UFUNCTION() void HandleCardClicked(UApexCarCardWidget* Card);
-	UFUNCTION() void HandleConfirmClicked();
-	UFUNCTION() void HandleBackClicked();
-	UFUNCTION() void HandleSearchChanged(const FText& Text);
-	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
+	void BuildLayout();
+	UWidget* BuildHeader();
+	UWidget* BuildStage();
 
-	/**
-	 * Rebuilds the card list. Called once per catalog change, not on every
-	 * LobbyState — the server broadcasts one every ~2s and tearing down 4 cards
-	 * that often would fight the user's hover and scroll position.
-	 */
-	void RebuildCards();
+	void RebuildList(bool bForce = false);
+	void RebuildFilterChips();
 	void ApplyFilter();
 	void SelectCar(const FString& CarId);
-	void UpdatePreview();
+	void RefreshDetail();
 
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UApexCarCardWidget>> Cards;
+	/** Points the shared turntable at the selected car's mesh. */
+	void UpdatePreviewStage();
 
-	FString SelectedCarId;
-	/** Guards against rebuilding when the car list has not actually changed. */
+	/** Focus has to wait a tick after the tree changes; see the main menu. */
+	void RequestRowFocus();
+
+	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
+	UFUNCTION() void HandleRowActivated(UApexButtonWidget* Row);
+	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
+
+	void MoveSelection(int32 Delta);
+
+	/** Horsepower from the catalog's kW, or 0 when there is no row. */
+	static float GetPowerHp(const FApexCarCatalogRow& Row);
+
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> CarListBox;
+	UPROPERTY(Transient) TObjectPtr<UScrollBox> CarListScroll;
+	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> ChipRow;
+	UPROPERTY(Transient) TObjectPtr<UImage> StageImage;
+
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> EyebrowText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> NameText;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DriveButton;
+
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PowerValue;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeightValue;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> RatioValue;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ClassValue;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> PowerBar;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> WeightBar;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> RatioBar;
+
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> CarRows;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> VisibleRows;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> FilterChips;
+
 	TArray<FString> BuiltCarIds;
+	FString SelectedCarId;
+	FString ActiveFilter;
+	int32 FocusedRowIndex = 0;
 };

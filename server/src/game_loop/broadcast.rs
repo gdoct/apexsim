@@ -7,7 +7,8 @@ use super::tick::{SessionRosterOut, SessionTelemetry};
 use super::GameLoopCtx;
 use crate::data::{ConnectionId, PlayerId, SessionId};
 use crate::network::{
-    CarConfigSummary, LobbyStateData, MessagePriority, ServerMessage, TrackConfigSummary,
+    CarConfigSummary, LobbyPlayer, LobbyStateData, MessagePriority, ServerMessage, SessionSummary,
+    TrackConfigSummary,
 };
 use crate::transport::{TransportError, TransportLayer};
 use bytes::Bytes;
@@ -120,11 +121,13 @@ pub(crate) async fn broadcast_rosters(ctx: &GameLoopCtx, rosters: Vec<SessionRos
     }
 }
 
-/// Build the current `LobbyState` message from server state (state read lock).
-async fn build_lobby_state(ctx: &GameLoopCtx, log_players: bool) -> ServerMessage {
+/// Snapshot the parts of the lobby state that actually change (state read lock).
+async fn lobby_participants(
+    ctx: &GameLoopCtx,
+    log_players: bool,
+) -> (Vec<LobbyPlayer>, Vec<SessionSummary>) {
     let state_read = ctx.state.read().await;
 
-    // Get lobby players and sessions
     let players_in_lobby = state_read.lobby.get_lobby_players().await;
     if log_players {
         debug!(
@@ -139,6 +142,23 @@ async fn build_lobby_state(ctx: &GameLoopCtx, log_players: bool) -> ServerMessag
         }
     }
     let available_sessions = state_read.lobby.get_available_sessions().await;
+
+    (players_in_lobby, available_sessions)
+}
+
+/// Build the current `LobbyState` message from server state (state read lock).
+async fn build_lobby_state(ctx: &GameLoopCtx, log_players: bool) -> ServerMessage {
+    let (players_in_lobby, available_sessions) = lobby_participants(ctx, log_players).await;
+    build_lobby_state_with(ctx, players_in_lobby, available_sessions).await
+}
+
+/// Build a `LobbyState` message around an already-taken participant snapshot.
+async fn build_lobby_state_with(
+    ctx: &GameLoopCtx,
+    players_in_lobby: Vec<LobbyPlayer>,
+    available_sessions: Vec<SessionSummary>,
+) -> ServerMessage {
+    let state_read = ctx.state.read().await;
 
     // Get car and track configs
     let car_configs: Vec<CarConfigSummary> = state_read
@@ -191,14 +211,52 @@ pub(crate) async fn send_lobby_state(
         .await
 }
 
+/// Last broadcast `LobbyState`, kept by the game loop across ticks.
+///
+/// The message is dominated by the static car/track catalog (the decimated
+/// centerlines of every track — hundreds of KB), while only the player and
+/// session lists change. Re-encoding all of it every two seconds costs
+/// milliseconds and overran the tick budget on an idle server, so the encoded
+/// payload is reused until the participant snapshot actually differs.
+#[derive(Default)]
+pub(crate) struct LobbyStateCache {
+    players: Vec<LobbyPlayer>,
+    sessions: Vec<SessionSummary>,
+    encoded: Option<Bytes>,
+}
+
 /// Broadcast lobby state to all connected clients: serialized once, fanned
 /// out as `Bytes` clones (LobbyState is droppable, matching its priority).
 pub(crate) async fn broadcast_lobby_state(
     ctx: &GameLoopCtx,
+    cache: &mut LobbyStateCache,
 ) -> Result<(), rmp_serde::encode::Error> {
-    let lobby_state = build_lobby_state(ctx, false).await;
-    debug_assert_eq!(lobby_state.priority(), MessagePriority::Droppable);
-    let data = Bytes::from(rmp_serde::to_vec_named(&lobby_state)?);
+    // Nobody to send to: skip the whole build/encode.
+    if ctx
+        .transport
+        .read()
+        .await
+        .get_connection_count_async()
+        .await
+        == 0
+    {
+        return Ok(());
+    }
+
+    let (players, sessions) = lobby_participants(ctx, false).await;
+
+    let data = match &cache.encoded {
+        Some(encoded) if cache.players == players && cache.sessions == sessions => encoded.clone(),
+        _ => {
+            let lobby_state = build_lobby_state_with(ctx, players.clone(), sessions.clone()).await;
+            debug_assert_eq!(lobby_state.priority(), MessagePriority::Droppable);
+            let data = Bytes::from(rmp_serde::to_vec_named(&lobby_state)?);
+            cache.players = players;
+            cache.sessions = sessions;
+            cache.encoded = Some(data.clone());
+            data
+        }
+    };
 
     // Broadcast to all connections
     ctx.transport

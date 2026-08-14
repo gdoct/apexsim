@@ -7,6 +7,7 @@
 
 #include "ApexMenuFlowSubsystem.generated.h"
 
+class UApexProfileSave;
 class UDataTable;
 
 /** The screens the shell can show. Order matches the WidgetSwitcher in WBP_Root. */
@@ -21,6 +22,8 @@ enum class EApexScreen : uint8
 	TrackSelect    = 5,
 	SessionLobby   = 6,
 	Loading        = 7,
+	/** Appended, not inserted: the switcher is indexed by this enum. */
+	SessionResults = 8,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingCarChanged, const FString&, CarId);
@@ -85,6 +88,29 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
 	EApexSessionKind CreateSessionKind = EApexSessionKind::Multiplayer;
 
+	/**
+	 * The mode a session is counted into once it starts.
+	 *
+	 * Not part of CreateSession — the server always creates a session in Lobby —
+	 * but the user chooses it at the same time, and StartCountdown needs it.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	EApexGameMode CreateStartingMode = EApexGameMode::FreePractice;
+
+	/**
+	 * Set when a session is created from a one-click start, so the shell counts
+	 * it in rather than parking the player in the lobby. Consumed on join.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	bool bAutoStartOnJoin = false;
+
+	/**
+	 * The mode that start counts into. Usually CreateStartingMode, but a demo
+	 * lap is a one-off that must not overwrite the saved session setup.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	EApexGameMode AutoStartMode = EApexGameMode::FreePractice;
+
 	// --- Connection defaults --------------------------------------------------
 
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
@@ -108,6 +134,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Menu")
 	bool ConsumeAutoConnect();
 
+	// --- Local profile --------------------------------------------------------
+	//
+	// The server has no account model, so the selections and lap times the design
+	// treats as the player's own live in a save slot on this machine.
+
+	/** Writes the current selections and connection defaults to the profile slot. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Profile")
+	void SaveProfile();
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Profile")
+	bool GetBestLapSeconds(const FString& TrackId, float& OutSeconds) const;
+
+	/** Keeps the faster of the stored and given times, and saves if it improved. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Profile")
+	bool RecordBestLap(const FString& TrackId, float Seconds);
+
+	/** "1:29.884". Returns an empty string for a non-positive time. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Profile")
+	static FString FormatLapTime(float Seconds);
+
+	/** Player-facing name for a game mode: "Free practice", "Demo lap", "Race". */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Menu")
+	static FString GetGameModeName(EApexGameMode Mode);
+
 	// --- Catalog lookups ------------------------------------------------------
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Catalog")
@@ -126,6 +176,12 @@ public:
 private:
 	const FApexCarCatalogRow* FindCarRow(const FString& CarId) const;
 	const FApexTrackCatalogRow* FindTrackRow(const FString& TrackId) const;
+
+	/** Reads the profile slot into the fields above; creates one if absent. */
+	void LoadProfile();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UApexProfileSave> Profile;
 
 	/** Assigned from the paths below in Initialize; null if the tables are missing. */
 	UPROPERTY(Transient)

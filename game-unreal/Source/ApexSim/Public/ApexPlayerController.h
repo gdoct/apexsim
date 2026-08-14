@@ -6,6 +6,7 @@
 #include "ApexPlayerController.generated.h"
 
 class UApexInputConfig;
+class UApexSettingsSubsystem;
 
 /** Driving controls as of this frame, in screen convention. */
 USTRUCT(BlueprintType)
@@ -69,6 +70,17 @@ public:
 	/** True on the frame the camera-toggle key went down. */
 	bool ConsumeCameraToggle();
 
+	/**
+	 * Rebuild the mapping context from the saved bindings.
+	 *
+	 * The context object is reused, so the Enhanced Input subsystem is holding
+	 * the right pointer already — but it caches the resolved mappings, and
+	 * without asking for a rebuild a rebind does nothing until the context is
+	 * removed and re-added.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Input")
+	void RebuildBindings();
+
 protected:
 	virtual void SetupInputComponent() override;
 	virtual void BeginPlay() override;
@@ -76,6 +88,11 @@ protected:
 private:
 	/** Create the input config once, whichever init step gets there first. */
 	void EnsureInputConfig();
+
+	UApexSettingsSubsystem* GetSettings() const;
+
+	/** Fills the mapping context from the settings slot. */
+	void ApplySavedBindings();
 
 	void HandleThrottle(const struct FInputActionValue& Value);
 	void HandleBrake(const struct FInputActionValue& Value);

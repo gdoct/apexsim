@@ -1,12 +1,68 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InputCoreTypes.h"
 #include "UObject/Object.h"
 
 #include "ApexInputConfig.generated.h"
 
 class UInputAction;
 class UInputMappingContext;
+struct FApexKeyBinding;
+
+/**
+ * The bindable controls, as a flat table of slots.
+ *
+ * A slot is one key on one action. Steering needs three — a gamepad axis and
+ * the two keyboard halves — so the settings screen edits slots rather than
+ * actions, and the mapping context is rebuilt from whatever the slots hold.
+ *
+ * The table is the single source of truth for both sides: the input config maps
+ * from it, and the controls screen lists from it. Adding a control is one entry
+ * here and nothing else.
+ */
+namespace ApexInput
+{
+	/** Action ids. Stable — they are written into the settings save. */
+	namespace Actions
+	{
+		inline const FName Throttle     = TEXT("Throttle");
+		inline const FName Brake        = TEXT("Brake");
+		inline const FName Steer        = TEXT("Steer");
+		inline const FName GearUp       = TEXT("GearUp");
+		inline const FName GearDown     = TEXT("GearDown");
+		inline const FName ToggleCamera = TEXT("ToggleCamera");
+		/**
+		 * Not an Enhanced Input action: the pause key has to work while the race
+		 * view owns input, so the root widget tests it directly. Listed here so
+		 * it is rebindable and appears in the controls screen with the rest.
+		 */
+		inline const FName PauseMenu    = TEXT("PauseMenu");
+	}
+
+	/** One row of the controls screen: an action, a slot, and what it defaults to. */
+	struct FSlotDef
+	{
+		FName ActionId;
+		int32 Slot;
+		/** Player-facing name, e.g. "Steer left". */
+		const TCHAR* Label;
+		FKey DefaultKey;
+		/** See FApexKeyBinding::bNegate. */
+		bool bNegate;
+		/** True for the gamepad/wheel column, false for the keyboard column. */
+		bool bDeviceColumn;
+	};
+
+	/** Every bindable slot, in the order the controls screen shows them. */
+	APEXSIM_API const TArray<FSlotDef>& Slots();
+
+	/** The slot's definition, or null if nothing declares it. */
+	APEXSIM_API const FSlotDef* FindSlot(FName ActionId, int32 Slot);
+
+	/** "LEFT SHIFT", "RB", "LS →" — short enough for a binding chip. */
+	APEXSIM_API FString GetKeyDisplayName(const FKey& Key);
+}
 
 /**
  * The driving controls, as Enhanced Input actions and a mapping context.
@@ -31,6 +87,19 @@ class APEXSIM_API UApexInputConfig : public UObject
 public:
 	/** Build the actions and the mapping context with their default keys. */
 	static UApexInputConfig* Create(UObject* Outer);
+
+	/**
+	 * Rebuild the mapping context from a binding table, with slots the table
+	 * does not mention falling back to their defaults.
+	 *
+	 * The context object is kept and refilled rather than replaced: the player
+	 * controller has already handed this exact object to the Enhanced Input
+	 * subsystem, and swapping it out would leave the old mappings live.
+	 */
+	void ApplyBindings(const TArray<FApexKeyBinding>& Bindings);
+
+	/** The action a slot drives, or null for slots with no Enhanced Input action. */
+	UInputAction* FindAction(FName ActionId) const;
 
 	/** Mapping context added while driving and removed on the way out. */
 	UPROPERTY(Transient)

@@ -8,12 +8,13 @@
 class UTextBlock;
 
 /** Transient message strip. Errors from the server surface here. */
-UCLASS(Abstract)
+UCLASS()
 class APEXSIM_API UApexToastWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
+	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
@@ -24,7 +25,7 @@ public:
 	void Hide();
 
 protected:
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UTextBlock> MessageText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|UI")

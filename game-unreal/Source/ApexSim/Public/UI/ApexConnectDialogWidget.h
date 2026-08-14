@@ -6,65 +6,61 @@
 
 #include "ApexConnectDialogWidget.generated.h"
 
-class UButton;
+class UApexButtonWidget;
+class UBorder;
 class UEditableTextBox;
 class UTextBlock;
+class UVerticalBox;
+class UWidget;
 
 /**
- * Host / port / player name / token, and the Connect button.
+ * Where a server address is entered.
  *
- * The token field exists because the server supports `[auth] mode = "token"`.
- * In the default dev mode any value is accepted (transport.rs:247).
+ * The mockup shows a "found on your network" list; there is no discovery
+ * protocol on either side, so this offers the last server that worked instead
+ * of inventing neighbours.
  */
-UCLASS(Abstract)
+UCLASS()
 class APEXSIM_API UApexConnectDialogWidget : public UApexScreenWidget
 {
 	GENERATED_BODY()
 
 public:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+	UApexConnectDialogWidget(const FObjectInitializer& ObjectInitializer);
+
 	virtual void OnScreenActivated() override;
 
 protected:
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UEditableTextBox> HostBox;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UEditableTextBox> PortBox;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UEditableTextBox> PlayerNameBox;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UEditableTextBox> TokenBox;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UButton> ConnectButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UButton> BackButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
-	TObjectPtr<UTextBlock> StatusText;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|UI")
-	FLinearColor PendingColor = FLinearColor(0.95f, 0.80f, 0.25f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|UI")
-	FLinearColor SuccessColor = FLinearColor(0.25f, 0.85f, 0.35f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|UI")
-	FLinearColor ErrorColor = FLinearColor(0.90f, 0.30f, 0.30f);
+	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
-	UFUNCTION() void HandleConnectClicked();
-	UFUNCTION() void HandleBackClicked();
-	UFUNCTION() void HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail);
-	UFUNCTION() void HandleAuthSucceeded(const FString& PlayerId, int32 ServerVersion);
-	UFUNCTION() void HandleAuthFailed(const FString& Reason);
+	void BuildLayout();
+	/** Field stack: host, port, driver name, and the collapsed token row. */
+	UWidget* BuildFields();
+	UWidget* BuildRecentPanel();
 
-	/** Copies the current field values back into the flow subsystem. */
-	void CommitFields();
-	void SetStatus(const FString& Message, const FLinearColor& Color);
+	void RefreshStatus();
+	/** Reads the fields into the flow subsystem and starts connecting. */
+	void Connect();
+
+	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
+	UFUNCTION() void HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail);
+
+	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> HostField;
+	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> PortField;
+	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> NameField;
+	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> TokenField;
+	UPROPERTY(Transient) TObjectPtr<UWidget> TokenRow;
+
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> RecentButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ConnectAction;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ConnectStatusText;
+	UPROPERTY(Transient) TObjectPtr<UBorder> StatusDot;
+
+	bool bAdvancedShown = false;
+	/** Set only for a connect this screen started, so background ones are ignored. */
+	bool bConnectRequested = false;
 };
