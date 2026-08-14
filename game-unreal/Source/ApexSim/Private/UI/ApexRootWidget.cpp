@@ -288,6 +288,15 @@ void UApexRootWidget::NativeConstruct()
 	CurrentScreen = EApexScreen::MainMenu;
 	BackStack.Reset();
 
+	// Push the race layers into their starting state explicitly. SetRaceViewActive
+	// only fires on a *change*, so without this the HUD's own default is the only
+	// thing deciding whether it is on screen before the first race — and a default
+	// that disagrees with the shell leaves it drawn over every menu.
+	if (Hud)
+	{
+		Hud->SetRaceActive(bRaceViewActive);
+	}
+
 	// -ExecCmds runs after the widget is constructed, so the command-line switch
 	// is what actually works for launching straight into a screen; the cvar is
 	// still honoured for setting it live from the console.

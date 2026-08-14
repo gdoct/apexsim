@@ -21,12 +21,12 @@
 namespace
 {
 	const FName ActionStart(TEXT("__start"));
-	const FName ActionLeave(TEXT("__leave"));
-	const FName ActionChangeCar(TEXT("__changecar"));
+	const FName ActionLobbyLeave(TEXT("__leave"));
+	const FName ActionLobbyChangeCar(TEXT("__changecar"));
 	const FName ActionCycleMode(TEXT("__cyclemode"));
 	const FName ActionCycleCountdown(TEXT("__cyclecountdown"));
 
-	constexpr float SidePanelWidth = 470.0f;
+	constexpr float LobbySidePanelWidth = 470.0f;
 
 	/**
 	 * The modes a host can count a session into, in cycle order.
@@ -122,7 +122,7 @@ void UApexSessionLobbyWidget::BuildLayout()
 	UHorizontalBox* Columns = WidgetTree->ConstructWidget<UHorizontalBox>();
 	ApexUI::AddH(Columns, GridPanel, FMargin(), VAlign_Fill, 1.0f);
 	ApexUI::AddH(Columns, ApexUI::MakeDivider(*WidgetTree, true), FMargin(), VAlign_Fill);
-	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, BuildSidePanel(), SidePanelWidth, -1.0f), FMargin(), VAlign_Fill);
+	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, BuildSidePanel(), LobbySidePanelWidth, -1.0f), FMargin(), VAlign_Fill);
 
 	ApexUI::AddV(Page, Columns, FMargin(), HAlign_Fill, 1.0f);
 
@@ -225,7 +225,7 @@ UWidget* UApexSessionLobbyWidget::BuildSidePanel()
 	LeaveSpec.bCentreLabel = true;
 	LeaveSpec.LabelSize = 17.0f;
 	LeaveSpec.Height = 52.0f;
-	LeaveSpec.ActionId = ActionLeave;
+	LeaveSpec.ActionId = ActionLobbyLeave;
 
 	UApexButtonWidget* LeaveAction = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	LeaveAction->Setup(LeaveSpec);
@@ -509,7 +509,7 @@ void UApexSessionLobbyWidget::RefreshSidePanel()
 		ChangeSpec.Variant = EApexButtonVariant::Bare;
 		ChangeSpec.LabelSize = 15.0f;
 		ChangeSpec.LabelColour = ApexUI::Palette::Accent;
-		ChangeSpec.ActionId = ActionChangeCar;
+		ChangeSpec.ActionId = ActionLobbyChangeCar;
 
 		UApexButtonWidget* Change = WidgetTree->ConstructWidget<UApexButtonWidget>();
 		Change->Setup(ChangeSpec);
@@ -620,13 +620,13 @@ void UApexSessionLobbyWidget::HandleButtonActivated(UApexButtonWidget* Button)
 
 	const FName Id = Button->GetActionId();
 
-	if (Id == ActionLeave)
+	if (Id == ActionLobbyLeave)
 	{
 		Net->LeaveSession();
 		return;
 	}
 
-	if (Id == ActionChangeCar)
+	if (Id == ActionLobbyChangeCar)
 	{
 		if (UApexRootWidget* Root = GetRoot())
 		{

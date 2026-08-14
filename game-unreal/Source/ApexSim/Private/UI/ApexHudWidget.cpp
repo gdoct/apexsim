@@ -72,8 +72,13 @@ namespace
 UApexHudWidget::UApexHudWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Nothing on the HUD is clickable — a click has to reach the race view.
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	// Collapsed until a race starts.
+	//
+	// Not HitTestInvisible-by-default: the shell only calls SetRaceActive when
+	// the race view *changes*, so a HUD that starts visible is never told to go
+	// away and sits on top of every menu screen from launch. HitTestInvisible is
+	// what it switches to once racing — clicks have to reach the race view.
+	SetVisibility(ESlateVisibility::Collapsed);
 
 	for (int32 Index = 0; Index < SectorCount; ++Index)
 	{

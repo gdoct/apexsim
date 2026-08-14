@@ -26,7 +26,7 @@ namespace
 	const FName ActionLobby(TEXT("__lobby"));
 	const FName ActionMenu(TEXT("__menu"));
 
-	constexpr float SidePanelWidth = 470.0f;
+	constexpr float ResultsSidePanelWidth = 470.0f;
 
 	/** Column widths for the classification table, in slate units. */
 	constexpr float ColPos = 60.0f;
@@ -96,7 +96,7 @@ void UApexSessionResultsWidget::BuildLayout()
 	UHorizontalBox* Columns = WidgetTree->ConstructWidget<UHorizontalBox>();
 	ApexUI::AddH(Columns, TablePanel, FMargin(), VAlign_Fill, 1.0f);
 	ApexUI::AddH(Columns, ApexUI::MakeDivider(*WidgetTree, true), FMargin(), VAlign_Fill);
-	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, BuildSidePanel(), SidePanelWidth, -1.0f), FMargin(), VAlign_Fill);
+	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, BuildSidePanel(), ResultsSidePanelWidth, -1.0f), FMargin(), VAlign_Fill);
 
 	ApexUI::AddV(Page, Columns, FMargin(), HAlign_Fill, 1.0f);
 

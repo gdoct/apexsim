@@ -19,12 +19,12 @@
 
 namespace
 {
-	const FName ActionBack(TEXT("__back"));
+	const FName ActionConnectBack(TEXT("__back"));
 	const FName ActionConnect(TEXT("__connect"));
 	const FName ActionAdvanced(TEXT("__advanced"));
 	const FName ActionRecent(TEXT("__recent"));
 
-	constexpr float CardWidth = 820.0f;
+	constexpr float ConnectCardWidth = 820.0f;
 
 	/** One labelled field in the form. */
 	UWidget* MakeField(UWidgetTree& Tree, const FString& Label, UEditableTextBox*& OutBox, const FString& Hint)
@@ -138,7 +138,7 @@ void UApexConnectDialogWidget::BuildLayout()
 	BackSpec.bCentreLabel = true;
 	BackSpec.LabelSize = 17.0f;
 	BackSpec.Height = 56.0f;
-	BackSpec.ActionId = ActionBack;
+	BackSpec.ActionId = ActionConnectBack;
 
 	UApexButtonWidget* BackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	BackButton->Setup(BackSpec);
@@ -170,7 +170,7 @@ void UApexConnectDialogWidget::BuildLayout()
 	// Centred on the page: this is a dialog, not a full screen.
 	UVerticalBox* Centre = WidgetTree->ConstructWidget<UVerticalBox>();
 	ApexUI::AddV(Centre, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
-	ApexUI::AddV(Centre, ApexUI::MakeSized(*WidgetTree, Panel, CardWidth, -1.0f), FMargin(), HAlign_Center);
+	ApexUI::AddV(Centre, ApexUI::MakeSized(*WidgetTree, Panel, ConnectCardWidth, -1.0f), FMargin(), HAlign_Center);
 	ApexUI::AddV(Centre, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.2f);
 
 	WidgetTree->RootWidget = ApexUI::MakePanel(
@@ -327,7 +327,7 @@ void UApexConnectDialogWidget::HandleButtonActivated(UApexButtonWidget* Button)
 
 	const FName Id = Button->GetActionId();
 
-	if (Id == ActionBack)
+	if (Id == ActionConnectBack)
 	{
 		GoBack();
 	}
