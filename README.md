@@ -64,9 +64,18 @@ The client and server communicate using [MessagePack](https://msgpack.org/). All
 A circuit reaches the client in two generated steps. Both outputs are regenerated wholesale, and neither should be hand-edited:
 
 ```bash
-cd track-editor && cargo run --bin ats-export -- --all   # -> content/tracks/export/*.uescene.json
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
+                                                         # -> content/tracks/export/*.uescene.json
 "$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject \
     -run=ApexTrackImport -all                            # -> game-unreal/Content/Tracks/<Track>/L_<Track>.umap
+```
+
+Or run both steps for every circuit at once, which also locates the engine
+install itself:
+
+```powershell
+./scripts/build_track_levels.ps1                 # all tracks
+./scripts/build_track_levels.ps1 -Track Monza,Spa -Build   # two tracks, editor target rebuilt first
 ```
 
 The exporter resolves the editor's `.ats` scene against the YAML centerline and bakes triangles, because Unreal cannot read YAML; the commandlet turns those buffers into static meshes, materials and one level per track. See [track-editor/TRACK_EDITOR.md](track-editor/TRACK_EDITOR.md) §5 for the format and the coordinate conventions.
@@ -92,7 +101,7 @@ apexsim/
 ├── content/        # Car and track definitions, shared by server, editor and client
 ├── docs/           # Design and implementation notes
 ├── game-unreal/    # Unreal Engine 5 client
-├── scripts/        # Python helpers for track previews and racing lines
+├── scripts/        # Track pipeline runner and Python content helpers
 ├── server/         # Rust backend (source, config, docs)
 ├── track-editor/   # Rust + Bevy circuit scene authoring tool
 ├── README.md       # This overview
@@ -103,7 +112,7 @@ apexsim/
 
 - [content/](content): Authoring-ready data. Cars are `cars/<name>/car.toml`; tracks are `tracks/real/*.yaml` (the logical circuit the server simulates) alongside `.ats` scene sidecars (the 3D dressing, read only by the editor and the Unreal importer).
 - [game-unreal/](game-unreal): Unreal Engine 5 client. Source lives in `Source/ApexSim`, `Source/ApexSimNet` and `Source/ApexTrackEditor`.
-- [scripts/](scripts): Python helpers — track preview images and racing-line generation.
+- [scripts/](scripts): Build and content helpers — `build_track_levels.ps1` runs the whole track pipeline; the Python scripts generate track preview images and racing lines.
 - [server/](server): Full Rust crate with source, configuration files and supporting docs for the backend runtime.
 - [track-editor/](track-editor): The circuit scene editor and the `ats-export` baker.
 
@@ -118,7 +127,25 @@ cargo run                 # uses server.toml
 
 The server listens on TCP 9000, UDP 9001 and HTTP 9002 (`/health`, `/ready`, `/metrics`). See [server/README.md](server/README.md) for configuration and TLS setup — TLS is fail-closed by default, with a development opt-out in `server.toml`.
 
-### 2. Run the client
+### 2. Build the track levels
+
+The Unreal content directory is generated, not committed, so a fresh clone has
+no circuits to drive on — the race view would load an empty world. Bake and
+import all 26 of them once, before the first run:
+
+```powershell
+./scripts/build_track_levels.ps1 -Build
+```
+
+That runs the whole [track pipeline](#track-pipeline): it compiles the
+`ApexSimEditor` target (`-Build`, needed the first time and after any C++
+change), bakes every circuit with `ats-export`, and imports the result into
+`game-unreal/Content/Tracks`. The engine install is located from the
+`.uproject`, or pass `-EngineRoot <path>`. Expect a few minutes for the full
+set; `-Track Monza,Spa` limits it to a couple of circuits, and re-running it
+after editing a track picks up the changes.
+
+### 3. Run the client
 
 Requires Unreal Engine 5.8. Open `game-unreal/ApexSim.uproject` and press Play, or build and launch from the command line:
 
