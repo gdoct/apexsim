@@ -49,10 +49,18 @@ Circuits reach the Unreal client in two generated steps; both outputs are
 regenerated wholesale and neither should be hand-edited.
 
 ```bash
-cd track-editor && cargo run --bin ats-export -- --all   # -> content/tracks/export/*.uescene.json (gitignored)
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
+                                                         # -> content/tracks/export/*.uescene.json (gitignored)
 "$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject \
     -run=ApexTrackImport -all                            # -> game-unreal/Content/Tracks/<Track>/L_<Track>.umap
 ```
+
+`scripts/build_track_levels.ps1` runs both steps (optionally building the
+`ApexSimEditor` target first) and finds the engine install from the
+`.uproject`'s `EngineAssociation`; `-Track A,B` narrows it to a few circuits,
+`-DryRun` reports without writing assets. Note that `ats-export` resolves
+`content/tracks/{real,export}` relative to the working directory, so it must be
+run from the repo root — not from `track-editor/`.
 
 The exporter resolves `.ats` station spans against the YAML centerline and
 bakes triangles (Unreal can't read YAML); the `ApexTrackEditor` module's
