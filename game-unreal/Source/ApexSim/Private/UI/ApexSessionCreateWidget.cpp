@@ -21,11 +21,11 @@
 
 namespace
 {
-	const FName ActionBack(TEXT("__back"));
+	const FName ActionCreateBack(TEXT("__back"));
 	const FName ActionCancel(TEXT("__cancel"));
 	const FName ActionCreate(TEXT("__create"));
 	const FName ActionChangeTrack(TEXT("__changetrack"));
-	const FName ActionChangeCar(TEXT("__changecar"));
+	const FName ActionCreateChangeCar(TEXT("__changecar"));
 	const FName ActionKindMultiplayer(TEXT("__kindmulti"));
 	const FName ActionKindSingle(TEXT("__kindsingle"));
 
@@ -90,7 +90,7 @@ void UApexSessionCreateWidget::BuildLayout()
 	BackSpec.bKeyCapLeading = true;
 	BackSpec.Variant = EApexButtonVariant::Bare;
 	BackSpec.LabelSize = 15.0f;
-	BackSpec.ActionId = ActionBack;
+	BackSpec.ActionId = ActionCreateBack;
 
 	UApexButtonWidget* BackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	BackButton->Setup(BackSpec);
@@ -431,7 +431,7 @@ void UApexSessionCreateWidget::RefreshContent()
 		LinkSpec.Variant = EApexButtonVariant::Bare;
 		LinkSpec.LabelSize = 15.0f;
 		LinkSpec.LabelColour = ApexUI::Palette::Accent;
-		LinkSpec.ActionId = ActionChangeCar;
+		LinkSpec.ActionId = ActionCreateChangeCar;
 
 		UApexButtonWidget* Link = WidgetTree->ConstructWidget<UApexButtonWidget>();
 		Link->Setup(LinkSpec);
@@ -634,7 +634,7 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 
 	const FName Id = Button->GetActionId();
 
-	if (Id == ActionBack || Id == ActionCancel)
+	if (Id == ActionCreateBack || Id == ActionCancel)
 	{
 		GoBack();
 		return;
@@ -650,7 +650,7 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		return;
 	}
 
-	if (Id == ActionChangeCar)
+	if (Id == ActionCreateChangeCar)
 	{
 		if (UApexRootWidget* Root = GetRoot())
 		{

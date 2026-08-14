@@ -18,13 +18,13 @@ using namespace ApexUI;
 
 namespace
 {
-	constexpr float CardWidth = 682.0f;
-	constexpr float RowHeight = 82.0f;
+	constexpr float PauseCardWidth = 682.0f;
+	constexpr float PauseRowHeight = 82.0f;
 	constexpr float PrimaryRowHeight = 92.0f;
 
 	const FName ActionResume   = TEXT("Resume");
 	const FName ActionSettings = TEXT("Settings");
-	const FName ActionLeave    = TEXT("Leave");
+	const FName ActionPauseLeave    = TEXT("Leave");
 	const FName ActionQuit     = TEXT("Quit");
 }
 
@@ -60,7 +60,7 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	// The two exits are separated from the rest and carry a consequence label.
 	// Leaving the session and quitting are never adjacent to Resume.
 	AddV(Actions, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 12.0f));
-	AddRow(Actions, TEXT("BACK TO MAIN MENU"), TEXT("Session ends"), ActionLeave, false);
+	AddRow(Actions, TEXT("BACK TO MAIN MENU"), TEXT("Session ends"), ActionPauseLeave, false);
 	AddRow(Actions, TEXT("EXIT"), TEXT("Quit ApexSim"), ActionQuit, false);
 
 	AddV(Card, MakePanel(*WidgetTree, Actions, FMargin(22.0f, 22.0f), MakeBrush(Palette::Background)));
@@ -92,7 +92,7 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	StripSlot->SetVerticalAlignment(VAlign_Top);
 	StripSlot->SetPadding(FMargin(Metrics::PageGutter, 34.0f, 0.0f, 0.0f));
 
-	UOverlaySlot* CardSlot = Content->AddChildToOverlay(MakeSized(*WidgetTree, CardPanel, CardWidth, -1.0f));
+	UOverlaySlot* CardSlot = Content->AddChildToOverlay(MakeSized(*WidgetTree, CardPanel, PauseCardWidth, -1.0f));
 	CardSlot->SetHorizontalAlignment(HAlign_Center);
 	CardSlot->SetVerticalAlignment(VAlign_Center);
 
@@ -115,7 +115,7 @@ UApexButtonWidget* UApexPauseMenuWidget::AddRow(
 	Spec.KeyCap = KeyCap;
 	Spec.ActionId = ActionId;
 	Spec.Variant = bPrimary ? EApexButtonVariant::Primary : EApexButtonVariant::Panel;
-	Spec.Height = bPrimary ? PrimaryRowHeight : RowHeight;
+	Spec.Height = bPrimary ? PrimaryRowHeight : PauseRowHeight;
 	Spec.LabelSize = bPrimary ? 27.0f : 24.0f;
 	Button->Setup(Spec);
 	Button->OnActivated.AddDynamic(this, &UApexPauseMenuWidget::HandleButtonActivated);
@@ -226,7 +226,7 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		OnAction.Broadcast(EApexPauseAction::OpenSettings);
 	}
-	else if (Action == ActionLeave)
+	else if (Action == ActionPauseLeave)
 	{
 		OnAction.Broadcast(EApexPauseAction::LeaveSession);
 	}

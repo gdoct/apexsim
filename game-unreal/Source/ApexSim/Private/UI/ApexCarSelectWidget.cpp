@@ -24,7 +24,7 @@
 
 namespace
 {
-	const FName ActionBack(TEXT("__back"));
+	const FName ActionCarSelectBack(TEXT("__back"));
 	const FName ActionDrive(TEXT("__drive"));
 	const FName ActionSetup(TEXT("__setup"));
 
@@ -160,7 +160,7 @@ UWidget* UApexCarSelectWidget::BuildHeader()
 	BackSpec.bKeyCapLeading = true;
 	BackSpec.Variant = EApexButtonVariant::Bare;
 	BackSpec.LabelSize = 15.0f;
-	BackSpec.ActionId = ActionBack;
+	BackSpec.ActionId = ActionCarSelectBack;
 
 	UApexButtonWidget* BackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	BackButton->Setup(BackSpec);
@@ -620,7 +620,7 @@ void UApexCarSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 
 	const FName Id = Button->GetActionId();
 
-	if (Id == ActionBack)
+	if (Id == ActionCarSelectBack)
 	{
 		GoBack();
 		return;

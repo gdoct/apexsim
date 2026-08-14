@@ -24,7 +24,7 @@
 
 namespace
 {
-	const FName ActionBack(TEXT("__back"));
+	const FName ActionTrackSelectBack(TEXT("__back"));
 	const FName ActionUse(TEXT("__use"));
 	const FName ActionDemo(TEXT("__demo"));
 
@@ -131,7 +131,7 @@ UWidget* UApexTrackSelectWidget::BuildHeader()
 	BackSpec.bKeyCapLeading = true;
 	BackSpec.Variant = EApexButtonVariant::Bare;
 	BackSpec.LabelSize = 15.0f;
-	BackSpec.ActionId = ActionBack;
+	BackSpec.ActionId = ActionTrackSelectBack;
 
 	UApexButtonWidget* BackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	BackButton->Setup(BackSpec);
@@ -593,7 +593,7 @@ void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 
 	const FName Id = Button->GetActionId();
 
-	if (Id == ActionBack)
+	if (Id == ActionTrackSelectBack)
 	{
 		GoBack();
 		return;

@@ -37,7 +37,7 @@ namespace
 {
 	constexpr float PanelWidth = 1370.0f;
 	constexpr float RailWidth = 274.0f;
-	constexpr float RowHeight = 68.0f;
+	constexpr float SettingsRowHeight = 68.0f;
 	constexpr float ControlWidth = 480.0f;
 	/** Dropdowns and the sliders beside them share a width so the grid lines up. */
 	constexpr float DropdownWidth = 250.0f;
@@ -48,7 +48,7 @@ namespace
 	const FName ActionTabGameplay = TEXT("Tab.Gameplay");
 	const FName ActionTabGraphics = TEXT("Tab.Graphics");
 	const FName ActionTabControls = TEXT("Tab.Controls");
-	const FName ActionBack        = TEXT("Back");
+	const FName ActionSettingsBack        = TEXT("Back");
 	const FName ActionReset       = TEXT("Reset");
 
 	// Segmented-control ids.
@@ -215,7 +215,7 @@ UWidget* UApexSettingsWidget::BuildHeader()
 	BackSpec.KeyCap = TEXT("ESC");
 	BackSpec.Variant = EApexButtonVariant::Bare;
 	BackSpec.LabelSize = 13.0f;
-	BackSpec.ActionId = ActionBack;
+	BackSpec.ActionId = ActionSettingsBack;
 	Back->Setup(BackSpec);
 	Back->OnActivated.AddDynamic(this, &UApexSettingsWidget::HandleFooterActivated);
 	AddH(Row, Back);
@@ -281,7 +281,7 @@ UWidget* UApexSettingsWidget::BuildFooter()
 	RaceSpec.bCentreLabel = true;
 	RaceSpec.Height = 56.0f;
 	RaceSpec.LabelSize = 19.0f;
-	RaceSpec.ActionId = ActionBack;
+	RaceSpec.ActionId = ActionSettingsBack;
 	BackToRace->Setup(RaceSpec);
 	BackToRace->OnActivated.AddDynamic(this, &UApexSettingsWidget::HandleFooterActivated);
 	AddH(Row, MakeSized(*WidgetTree, BackToRace, 200.0f, 56.0f));
@@ -345,7 +345,7 @@ UWidget* UApexSettingsWidget::MakeRow(
 
 	UBorder* Panel = MakePanel(*WidgetTree, Row, FMargin(22.0f, 0.0f), MakeBrush(Palette::Surface));
 	Panel->SetVerticalAlignment(VAlign_Center);
-	return MakeSized(*WidgetTree, Panel, -1.0f, RowHeight);
+	return MakeSized(*WidgetTree, Panel, -1.0f, SettingsRowHeight);
 }
 
 UApexSegmentedWidget* UApexSettingsWidget::MakeSegment(
@@ -1014,7 +1014,7 @@ void UApexSettingsWidget::HandleFooterActivated(UApexButtonWidget* Button)
 		return;
 	}
 
-	if (Button->GetActionId() == ActionBack)
+	if (Button->GetActionId() == ActionSettingsBack)
 	{
 		Close();
 		return;
