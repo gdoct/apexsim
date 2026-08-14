@@ -116,6 +116,8 @@ void UApexNetSubsystem::Connect(const FString& InHost, int32 InPort, const FStri
 	CachedLobbyState = FApexLobbyState();
 	ClientTick = 0;
 	TimeSinceHeartbeat = 0.0f;
+	HeartbeatSentSeconds = 0.0;
+	PingMs = -1;
 	bWarnedEmptyCatalog = false;
 
 	SetConnectionState(EApexConnectionState::Connecting,
@@ -353,6 +355,7 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		if (TimeSinceHeartbeat >= HeartbeatIntervalSeconds)
 		{
 			TimeSinceHeartbeat = 0.0f;
+			HeartbeatSentSeconds = FPlatformTime::Seconds();
 			Connection->Send(ApexProtocol::EncodeHeartbeat(++ClientTick));
 		}
 	}
@@ -391,7 +394,14 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::HeartbeatAck:
-		UE_LOG(LogApexSimNet, VeryVerbose, TEXT("<- HeartbeatAck server_tick=%lld"), Message.ServerTick);
+		// The only round trip the protocol offers: nothing else the client sends
+		// is acknowledged, so this is where latency comes from.
+		if (HeartbeatSentSeconds > 0.0)
+		{
+			PingMs = FMath::RoundToInt((FPlatformTime::Seconds() - HeartbeatSentSeconds) * 1000.0);
+			HeartbeatSentSeconds = 0.0;
+		}
+		UE_LOG(LogApexSimNet, VeryVerbose, TEXT("<- HeartbeatAck server_tick=%lld ping=%d ms"), Message.ServerTick, PingMs);
 		break;
 
 	case EApexServerMessageType::LobbyState:

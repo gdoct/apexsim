@@ -259,6 +259,21 @@ impl TransportLayer {
         let udp_local_addr = udp_socket.local_addr()?;
         debug!("UDP socket bound to {}", udp_local_addr);
 
+        // No certificate paths configured at all: TLS is deliberately off
+        // (the development default). Only an announcement is warranted — the
+        // warning below is for paths that are set but unusable.
+        let tls_configured = !tls_cert_path.trim().is_empty() && !tls_key_path.trim().is_empty();
+        if !tls_configured {
+            if require_tls {
+                error!("✗ FATAL: network.require_tls = true but no TLS certificate/key paths are configured");
+                return Err(TransportError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "TLS is required but network.tls_cert_path/tls_key_path are empty",
+                )));
+            }
+            info!("TLS disabled: no certificate configured, accepting plaintext connections");
+        }
+
         // Load TLS configuration
         let tls_acceptor = match Self::load_tls_config(tls_cert_path, tls_key_path) {
             Ok(config) => {
@@ -280,12 +295,15 @@ impl TransportLayer {
                     error!("  Error: {}", e);
                     error!("  Set network.require_tls = false in config to allow plaintext connections");
                     return Err(e);
-                } else {
+                } else if tls_configured {
                     warn!("⚠ TLS configuration failed to load: {}", e);
                     warn!("  Certificate path: {}", tls_cert_path);
                     warn!("  Private key path: {}", tls_key_path);
                     warn!("  TLS mode: OPTIONAL (accepting plaintext connections)");
                     warn!("  For production, set network.require_tls = true and provide valid certificates");
+                    None
+                } else {
+                    // Already announced above: TLS is off by configuration.
                     None
                 }
             }

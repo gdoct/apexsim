@@ -237,7 +237,7 @@ impl ServerMessage {
 }
 
 // --- Lightweight Lobby Structures ---
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct LobbyPlayer {
     #[serde(
@@ -261,7 +261,7 @@ pub struct LobbyPlayer {
     pub in_session: Option<SessionId>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SessionSummary {
     #[serde(

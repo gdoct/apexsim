@@ -7,8 +7,10 @@ session_timeout_seconds = 300
 tcp_bind = "0.0.0.0:9000"
 udp_bind = "0.0.0.0:9001"
 health_bind = "0.0.0.0:9002"
-tls_cert_path = "./certs/server.crt"
-tls_key_path = "./certs/server.key"
+# Local development runs plaintext: leave the certificate paths empty and
+# require_tls = false. For production set both paths and require_tls = true.
+tls_cert_path = ""
+tls_key_path = ""
 require_tls = false
 heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000

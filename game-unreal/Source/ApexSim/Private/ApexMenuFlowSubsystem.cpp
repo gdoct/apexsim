@@ -1,7 +1,9 @@
 #include "ApexMenuFlowSubsystem.h"
 
+#include "ApexProfileSave.h"
 #include "ApexSim.h"
 #include "Engine/DataTable.h"
+#include "Kismet/GameplayStatics.h"
 
 namespace
 {
@@ -27,6 +29,8 @@ void UApexMenuFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		UE_LOG(LogApexSim, Warning, TEXT("No track catalog at %s — tracks will render without previews"), TrackCatalogPath);
 	}
+
+	LoadProfile();
 }
 
 void UApexMenuFlowSubsystem::SetPendingCar(const FString& CarId)
@@ -36,6 +40,7 @@ void UApexMenuFlowSubsystem::SetPendingCar(const FString& CarId)
 		return;
 	}
 	PendingCarId = CarId;
+	SaveProfile();
 	OnPendingCarChanged.Broadcast(PendingCarId);
 }
 
@@ -46,7 +51,132 @@ void UApexMenuFlowSubsystem::SetPendingTrack(const FString& TrackId)
 		return;
 	}
 	PendingTrackId = TrackId;
+	SaveProfile();
 	OnPendingTrackChanged.Broadcast(PendingTrackId);
+}
+
+void UApexMenuFlowSubsystem::LoadProfile()
+{
+	if (UGameplayStatics::DoesSaveGameExist(UApexProfileSave::SlotName, 0))
+	{
+		Profile = Cast<UApexProfileSave>(UGameplayStatics::LoadGameFromSlot(UApexProfileSave::SlotName, 0));
+	}
+
+	if (!Profile)
+	{
+		// First run, or a slot written by an incompatible build. Either way the
+		// defaults above stand and the next SaveProfile writes a fresh one.
+		Profile = Cast<UApexProfileSave>(UGameplayStatics::CreateSaveGameObject(UApexProfileSave::StaticClass()));
+		UE_LOG(LogApexSim, Log, TEXT("No profile in slot '%s' — starting from defaults"), UApexProfileSave::SlotName);
+		return;
+	}
+
+	PendingCarId = Profile->LastCarId;
+	PendingTrackId = Profile->LastTrackId;
+	PlayerName = Profile->DriverName;
+	ServerHost = Profile->ServerHost;
+	ServerPort = Profile->ServerPort;
+	CreateMaxPlayers = Profile->MaxPlayers;
+	CreateAiCount = Profile->AiCount;
+	CreateLapLimit = Profile->LapLimit;
+	CreateStartingMode = Profile->StartingMode;
+	CreateSessionKind = Profile->SessionKind;
+
+	// A profile written before demo lap was locked would otherwise start a mode
+	// the server turns into a dead end for the player who asked for it.
+	if (CreateStartingMode == EApexGameMode::DemoLap)
+	{
+		CreateStartingMode = EApexGameMode::FreePractice;
+	}
+
+	UE_LOG(LogApexSim, Log, TEXT("Profile loaded: driver '%s', last track '%s', last car '%s', %d best lap(s)"),
+		*PlayerName, *PendingTrackId, *PendingCarId, Profile->BestLapSeconds.Num());
+}
+
+void UApexMenuFlowSubsystem::SaveProfile()
+{
+	if (!Profile)
+	{
+		return;
+	}
+
+	Profile->LastCarId = PendingCarId;
+	Profile->LastTrackId = PendingTrackId;
+	Profile->DriverName = PlayerName;
+	Profile->ServerHost = ServerHost;
+	Profile->ServerPort = ServerPort;
+	Profile->MaxPlayers = CreateMaxPlayers;
+	Profile->AiCount = CreateAiCount;
+	Profile->LapLimit = CreateLapLimit;
+	Profile->StartingMode = CreateStartingMode;
+	Profile->SessionKind = CreateSessionKind;
+
+	if (!UGameplayStatics::SaveGameToSlot(Profile, UApexProfileSave::SlotName, 0))
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Could not write the profile slot '%s'"), UApexProfileSave::SlotName);
+	}
+}
+
+bool UApexMenuFlowSubsystem::GetBestLapSeconds(const FString& TrackId, float& OutSeconds) const
+{
+	if (!Profile || TrackId.IsEmpty())
+	{
+		return false;
+	}
+
+	if (const float* Stored = Profile->BestLapSeconds.Find(TrackId))
+	{
+		OutSeconds = *Stored;
+		return true;
+	}
+	return false;
+}
+
+bool UApexMenuFlowSubsystem::RecordBestLap(const FString& TrackId, float Seconds)
+{
+	if (!Profile || TrackId.IsEmpty() || Seconds <= 0.0f)
+	{
+		return false;
+	}
+
+	const float* Stored = Profile->BestLapSeconds.Find(TrackId);
+	if (Stored && *Stored <= Seconds)
+	{
+		return false;
+	}
+
+	Profile->BestLapSeconds.Add(TrackId, Seconds);
+	SaveProfile();
+	UE_LOG(LogApexSim, Log, TEXT("New personal best on %s: %s"), *TrackId, *FormatLapTime(Seconds));
+	return true;
+}
+
+FString UApexMenuFlowSubsystem::FormatLapTime(float Seconds)
+{
+	if (Seconds <= 0.0f)
+	{
+		return FString();
+	}
+
+	const int32 Minutes = FMath::FloorToInt(Seconds / 60.0f);
+	const float Remainder = Seconds - Minutes * 60.0f;
+	return FString::Printf(TEXT("%d:%06.3f"), Minutes, Remainder);
+}
+
+FString UApexMenuFlowSubsystem::GetGameModeName(EApexGameMode Mode)
+{
+	switch (Mode)
+	{
+	case EApexGameMode::Lobby:         return TEXT("Lobby");
+	case EApexGameMode::Sandbox:       return TEXT("Sandbox");
+	case EApexGameMode::Countdown:     return TEXT("Countdown");
+	case EApexGameMode::DemoLap:       return TEXT("Demo lap");
+	case EApexGameMode::FreePractice:  return TEXT("Free practice");
+	case EApexGameMode::Replay:        return TEXT("Replay");
+	case EApexGameMode::Qualification: return TEXT("Qualifying");
+	case EApexGameMode::Race:          return TEXT("Race");
+	default:                           return TEXT("Unknown");
+	}
 }
 
 bool UApexMenuFlowSubsystem::ConsumeAutoConnect()

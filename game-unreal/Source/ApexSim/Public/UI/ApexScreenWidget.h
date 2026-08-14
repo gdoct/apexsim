@@ -13,11 +13,15 @@ class UApexRootWidget;
 /**
  * Base for every full screen in the shell.
  *
- * Screens live inside WBP_Root's WidgetSwitcher, so they are constructed once
- * and shown or hidden thereafter. Per-visit work belongs in OnScreenActivated,
- * not NativeConstruct.
+ * Screens live inside the root widget's WidgetSwitcher, so they are constructed
+ * once and shown or hidden thereafter. Per-visit work belongs in
+ * OnScreenActivated, not NativeConstruct.
+ *
+ * Concrete rather than abstract so it can stand in for a screen whose widget
+ * class could not be loaded, keeping the switcher's indices lined up with
+ * EApexScreen.
  */
-UCLASS(Abstract)
+UCLASS()
 class APEXSIM_API UApexScreenWidget : public UUserWidget
 {
 	GENERATED_BODY()

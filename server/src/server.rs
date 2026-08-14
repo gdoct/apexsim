@@ -88,6 +88,19 @@ impl ServerState {
         Self::load_tracks_recursive(track_configs, tracks_dir, content_root);
     }
 
+    /// `content/tracks/export/` holds the baked `*.uescene.json` scenes the
+    /// track editor produces for the Unreal client: multi-megabyte vertex
+    /// buffers, not track definitions. They live under the tracks directory,
+    /// so the recursive scan has to skip them explicitly.
+    fn is_generated_track_export(path: &std::path::Path) -> bool {
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+        (path.is_dir() && name.eq_ignore_ascii_case("export"))
+            || name.to_ascii_lowercase().ends_with(".uescene.json")
+    }
+
     fn load_tracks_recursive(
         track_configs: &mut HashMap<TrackConfigId, TrackConfig>,
         dir: &std::path::Path,
@@ -98,9 +111,12 @@ impl ServerState {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
                     if path.is_dir() {
-                        // Recursively load tracks from subdirectories
-                        Self::load_tracks_recursive(track_configs, &path, content_root);
-                    } else if path.is_file() {
+                        // Recursively load tracks from subdirectories, except
+                        // the generated client scene exports.
+                        if !Self::is_generated_track_export(&path) {
+                            Self::load_tracks_recursive(track_configs, &path, content_root);
+                        }
+                    } else if path.is_file() && !Self::is_generated_track_export(&path) {
                         let ext = path.extension().and_then(|s| s.to_str());
                         if ext == Some("json") || ext == Some("yaml") || ext == Some("yml") {
                             match TrackLoader::load_from_file(&path) {

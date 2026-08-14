@@ -193,6 +193,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FApexLobbyState& GetCachedLobbyState() const { return CachedLobbyState; }
 
+	/**
+	 * Round trip of the most recent heartbeat, in milliseconds; -1 until one
+	 * completes. Refreshed every HeartbeatIntervalSeconds, so it is a coarse
+	 * health indicator rather than a live latency read.
+	 */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	int32 GetPingMs() const { return PingMs; }
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	bool FindCarById(const FString& CarId, FApexCarConfigSummary& OutCar) const;
 
@@ -274,6 +282,11 @@ private:
 
 	uint32 ClientTick = 0;
 	float TimeSinceHeartbeat = 0.0f;
+
+	/** When the outstanding heartbeat went out; 0 when none is in flight. */
+	double HeartbeatSentSeconds = 0.0;
+	int32 PingMs = -1;
+
 	float TimeSinceLobbyRequest = LobbyStateDebounceSeconds;
 	bool bWarnedEmptyCatalog = false;
 };

@@ -9,6 +9,7 @@
 class AApexRaceCarActor;
 class UApexMenuFlowSubsystem;
 class UApexNetSubsystem;
+class UApexSettingsSubsystem;
 class UCameraComponent;
 class ULevelStreamingDynamic;
 class USpringArmComponent;
@@ -58,6 +59,13 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	bool IsCockpitView() const { return bCockpitView; }
+
+	/** Horizontal field of view of both driving cameras, in degrees. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
+	void SetFieldOfView(float Degrees);
+
+	/** The car the camera is following, or null outside a race. */
+	AApexRaceCarActor* GetFollowedCar() const { return FollowedCar; }
 
 	/** Speed of the car the camera is following, in km/h. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
@@ -120,6 +128,15 @@ private:
 	/** Placeholder keyboard driving so the transport milestone is testable. */
 	void PollDrivingInput();
 
+	/**
+	 * The gear an automatic box would ask for this tick, or -128 for none.
+	 *
+	 * The protocol has no "automatic" flag — the server always takes the gear it
+	 * is told — so the box is simply a client that sends the shift the driver
+	 * would have sent.
+	 */
+	int32 PollAutoGearbox();
+
 	/** Camera-view and other non-driving keys. */
 	void PollViewInput();
 
@@ -160,6 +177,15 @@ private:
 
 	UApexNetSubsystem* GetNet() const;
 	UApexMenuFlowSubsystem* GetFlow() const;
+	UApexSettingsSubsystem* GetSettings() const;
+
+	/** Shift points for the automatic box. Deliberately conservative. */
+	static constexpr float AutoShiftUpRpm = 7200.0f;
+	static constexpr float AutoShiftDownRpm = 3200.0f;
+	/** Minimum spacing between automatic shifts, in seconds. */
+	static constexpr double AutoShiftHoldSeconds = 0.35;
+
+	double LastAutoShiftTime = 0.0;
 
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<AApexRaceCarActor>> Cars;
