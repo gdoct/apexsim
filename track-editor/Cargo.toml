@@ -12,7 +12,7 @@ serde_json = "1"
 rmp-serde = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 rfd = "0.17"
-thiserror = "1"
+thiserror = "2"
 rmcp = { version = "3.1.1", features = ["server", "transport-streamable-http-server"] }
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "net"] }
 axum = "0.8.9"
