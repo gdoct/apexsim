@@ -598,6 +598,13 @@ const FApexCarTelemetry* UApexHudWidget::FindLocalCar() const
 		[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; });
 }
 
+float UApexHudWidget::CatalogTrackLengthM() const
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	FApexTrackCatalogRow Row;
+	return Flow && Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) ? Row.LengthM : 0.0f;
+}
+
 void UApexHudWidget::ComputeStandings(TArray<FStanding>& OutOrder) const
 {
 	const UApexNetSubsystem* Net = GetNet();
@@ -609,12 +616,20 @@ void UApexHudWidget::ComputeStandings(TArray<FStanding>& OutOrder) const
 	const int32 LocalIndex = Net->GetLocalCarIndex();
 	const FApexSessionRoster& Roster = Net->GetSessionRoster();
 
+	// Without a catalog length the stations still order cars within a lap; the
+	// nominal length only has to dwarf any real station so a completed lap
+	// always outranks a partial one. Gaps stay dashed in that case — they need
+	// the real length to mean anything.
+	const float CatalogLength = CatalogTrackLengthM();
+	const float RankLength = CatalogLength > 0.0f ? CatalogLength : 100000.0f;
+
 	for (const FApexCarTelemetry& Car : Net->GetLatestTelemetry().Cars)
 	{
 		FStanding Entry;
 		Entry.CarIndex = Car.CarIndex;
-		// Lap numbers are 1-based, so lap 1 half way round is 0.5 of the race.
-		Entry.Progress = FMath::Max(0, Car.CurrentLap - 1) + FMath::Clamp(Car.TrackProgress, 0.0f, 1.0f);
+		// The wire's TrackProgress is a station in metres, not a lap fraction;
+		// RaceDistanceM also folds in the grid sitting behind the line.
+		Entry.Progress = ApexRace::RaceDistanceM(Car.CurrentLap, Car.TrackProgress, RankLength);
 		Entry.SpeedMps = Car.SpeedMps;
 		Entry.bIsLocal = Car.CarIndex == LocalIndex;
 
@@ -646,7 +661,13 @@ void UApexHudWidget::ComputeStandings(TArray<FStanding>& OutOrder) const
 void UApexHudWidget::UpdateDeltaReference(const FApexCarTelemetry& Local)
 {
 	const float LapSeconds = Local.CurrentLapTimeMs / 1000.0f;
-	const float Progress = FMath::Clamp(Local.TrackProgress, 0.0f, 1.0f);
+
+	// Samples are keyed by fraction of the lap so a reference lap can be looked
+	// up by position; the wire's TrackProgress is a station in metres.
+	const float TrackLength = CatalogTrackLengthM();
+	const float Progress = TrackLength > 0.0f
+		? FMath::Clamp(Local.TrackProgress / TrackLength, 0.0f, 1.0f)
+		: 0.0f;
 
 	if (Local.CurrentLap != LastSeenLap)
 	{
@@ -821,12 +842,9 @@ void UApexHudWidget::RefreshRaceState()
 	LapOfText->SetText(FText::FromString(LapLimit > 0 ? FString::Printf(TEXT("/%d"), LapLimit) : TEXT("")));
 
 	// Gaps are a time, not a distance: how long it would take this car, at its
-	// current speed, to cover the ground between them.
-	const float TrackLength = [Flow]()
-	{
-		FApexTrackCatalogRow Row;
-		return Flow && Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) ? Row.LengthM : 0.0f;
-	}();
+	// current speed, to cover the ground between them. Progress is already in
+	// metres, but only when the catalog knows the circuit's length.
+	const float TrackLength = CatalogTrackLengthM();
 
 	auto GapTo = [&](int32 OtherPlace) -> float
 	{
@@ -835,7 +853,7 @@ void UApexHudWidget::RefreshRaceState()
 			return -1.0f;
 		}
 		const float Speed = FMath::Max(Order[LocalPlace].SpeedMps, 5.0f);
-		const float Metres = FMath::Abs(Order[OtherPlace].Progress - Order[LocalPlace].Progress) * TrackLength;
+		const float Metres = FMath::Abs(Order[OtherPlace].Progress - Order[LocalPlace].Progress);
 		return Metres / Speed;
 	};
 
@@ -902,12 +920,7 @@ void UApexHudWidget::RefreshStandings()
 		First = FMath::Clamp(LocalPlace - StandingRowCount / 2, 0, Order.Num() - StandingRowCount);
 	}
 
-	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	const float TrackLength = [Flow]()
-	{
-		FApexTrackCatalogRow Row;
-		return Flow && Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) ? Row.LengthM : 0.0f;
-	}();
+	const float TrackLength = CatalogTrackLengthM();
 
 	for (int32 Row = 0; Row < StandingRows.Num(); ++Row)
 	{
@@ -944,7 +957,7 @@ void UApexHudWidget::RefreshStandings()
 		else if (TrackLength > 0.0f)
 		{
 			const float Speed = FMath::Max(Entry.SpeedMps, 5.0f);
-			Right = FormatGap((Order[0].Progress - Entry.Progress) * TrackLength / Speed);
+			Right = FormatGap((Order[0].Progress - Entry.Progress) / Speed);
 		}
 		else
 		{
@@ -1031,7 +1044,14 @@ void UApexHudWidget::RefreshDelta()
 	}
 
 	const FApexCarTelemetry* Local = FindLocalCar();
-	const float ReferenceNow = Local ? ReferenceTimeAt(FMath::Clamp(Local->TrackProgress, 0.0f, 1.0f)) : -1.0f;
+
+	// The reference lap is keyed by fraction of the lap; the wire's
+	// TrackProgress is a station in metres.
+	const float TrackLength = CatalogTrackLengthM();
+	const float Fraction = Local && TrackLength > 0.0f
+		? FMath::Clamp(Local->TrackProgress / TrackLength, 0.0f, 1.0f)
+		: 0.0f;
+	const float ReferenceNow = Local ? ReferenceTimeAt(Fraction) : -1.0f;
 
 	if (!Local || ReferenceNow < 0.0f)
 	{
@@ -1066,7 +1086,7 @@ void UApexHudWidget::RefreshDelta()
 	if (SectorCaption && Local)
 	{
 		const int32 Sector = FMath::Clamp(
-			FMath::FloorToInt(FMath::Clamp(Local->TrackProgress, 0.0f, 0.999f) * SectorCount) + 1, 1, SectorCount);
+			FMath::FloorToInt(FMath::Min(Fraction, 0.999f) * SectorCount) + 1, 1, SectorCount);
 		SectorCaption->SetText(FText::FromString(FString::Printf(TEXT("SECTOR %d"), Sector)));
 	}
 }

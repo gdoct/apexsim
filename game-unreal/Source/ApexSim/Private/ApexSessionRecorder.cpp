@@ -5,6 +5,7 @@
 #include "ApexSim.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Engine/GameInstance.h"
+#include "Race/ApexRaceCoordinate.h"
 
 void UApexSessionRecorder::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -182,10 +183,12 @@ void UApexSessionRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 
 		if (TrackLengthM > 0.0f)
 		{
-			// Laps plus the fraction of the current one. Progress alone would
-			// reset every lap, and integrating speed accumulates drift.
-			const float Laps = FMath::Max(0, Car.CurrentLap - 1) + FMath::Clamp(Car.TrackProgress, 0.0f, 1.0f);
-			Result.DistanceM = FMath::Max(Result.DistanceM, Laps * TrackLengthM);
+			// Laps plus the centerline station into the current one (the wire's
+			// TrackProgress is metres, not a fraction). The station alone would
+			// reset every lap, and integrating speed accumulates drift; the Max
+			// also clips the grid's negative pre-start distance to zero.
+			Result.DistanceM = FMath::Max(Result.DistanceM,
+				ApexRace::RaceDistanceM(Car.CurrentLap, Car.TrackProgress, TrackLengthM));
 		}
 
 		bool& bClean = LapWasClean.FindOrAdd(Car.CarIndex, true);

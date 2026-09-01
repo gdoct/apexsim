@@ -85,7 +85,7 @@ private:
 	{
 		int32 CarIndex = 0;
 		FString Name;
-		/** Laps plus the fraction of the current one. */
+		/** Race distance in metres; negative on the grid behind the line. */
 		float Progress = 0.0f;
 		float SpeedMps = 0.0f;
 		bool bIsLocal = false;
@@ -96,6 +96,9 @@ private:
 
 	/** The local player's telemetry this frame, or null. */
 	const FApexCarTelemetry* FindLocalCar() const;
+
+	/** The circuit's length from the track catalog, or 0 when unknown. */
+	float CatalogTrackLengthM() const;
 
 	/**
 	 * Samples the lap in progress and, when it turns out to be the fastest,

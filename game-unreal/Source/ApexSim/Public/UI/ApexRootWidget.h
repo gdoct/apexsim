@@ -172,6 +172,8 @@ private:
 	bool bAutoRaceNoStart = false;
 	int32 AutoRaceAiCount = 3;
 	int32 AutoRaceLaps = 5;
+	/** -ApexTrack=<name>: substring-matches a lobby track, overriding the profile. */
+	FString AutoRaceTrack;
 	EApexGameMode AutoRaceMode = EApexGameMode::Race;
 
 	/** Notifies the outgoing and incoming screens, then flips the switcher. */

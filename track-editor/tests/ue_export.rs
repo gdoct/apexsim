@@ -414,6 +414,80 @@ fn authored_spawn_points_replace_the_fallback_grid() {
     assert!((baked.grid[0].location[1] - 300.0).abs() < 1.0);
 }
 
+/// The world must not be a void: every bake carries a terrain ground that
+/// extends well past the track itself, so nothing in the level floats.
+#[test]
+fn ground_terrain_is_baked_under_the_scene() {
+    let baked = bake_test_scene();
+    let ground: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key == "ground")
+        .collect();
+    assert!(!ground.is_empty(), "no ground meshes baked");
+    assert!(
+        baked
+            .materials
+            .iter()
+            .any(|m| m.key == "ground" && m.family == "surface"),
+        "ground material missing"
+    );
+
+    // The test track spans 0..200 m in X; the ground has to reach beyond
+    // that with its margin (positions are UE centimeters).
+    let xs: Vec<f32> = ground
+        .iter()
+        .flat_map(|m| m.positions.chunks_exact(3).map(|p| p[0]))
+        .collect();
+    let min_x = xs.iter().copied().fold(f32::MAX, f32::min);
+    let max_x = xs.iter().copied().fold(f32::MIN, f32::max);
+    assert!(
+        min_x < -10_000.0 && max_x > 30_000.0,
+        "ground spans only {min_x}..{max_x} cm"
+    );
+}
+
+/// Both road edges carry a painted line for the whole lap — the road
+/// material cannot draw them itself (it does not know where the right edge
+/// is), so they must come out of the bake as marking strips.
+#[test]
+fn edge_lines_run_the_length_of_both_road_edges() {
+    let baked = bake_test_scene();
+    let edge_material = baked
+        .materials
+        .iter()
+        .find(|m| m.key.starts_with("marking_edge_line_"))
+        .expect("edge line material missing");
+    assert_eq!(edge_material.family, "marking");
+
+    let lines: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key == edge_material.key)
+        .collect();
+    assert!(!lines.is_empty(), "no edge line meshes baked");
+
+    // Both sides land in the same (section, material) meshes, so coverage
+    // is checked as u-span for the lap and vertex count for the two sides:
+    // each side emits one ~4-vertex quad per meter of station.
+    let us: Vec<f32> = lines
+        .iter()
+        .flat_map(|m| m.uvs.chunks_exact(2).map(|uv| uv[0]))
+        .collect();
+    let min_u = us.iter().copied().fold(f32::MAX, f32::min);
+    let max_u = us.iter().copied().fold(f32::MIN, f32::max);
+    let lap_m = baked.length_cm / 100.0;
+    assert!(
+        max_u - min_u > 0.9 * lap_m,
+        "edge lines span {min_u}..{max_u} m of a {lap_m} m lap"
+    );
+    let vertices: usize = lines.iter().map(|m| m.positions.len() / 3).sum();
+    assert!(
+        vertices as f32 > 1.6 * lap_m * 4.0,
+        "{vertices} vertices is too few for lines on both edges"
+    );
+}
+
 #[test]
 fn repeated_bakes_are_byte_identical() {
     let track = test_track();

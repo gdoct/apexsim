@@ -12,6 +12,7 @@ use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 use crate::ats::{Curb, Marking, Side, Surface, SurfaceKind};
 use crate::coords;
+use crate::terrain::{self, TerrainHeightfield};
 use crate::track_path::{offset_point, CenterlinePath, PathSample};
 
 /// Cross-section spacing when re-sampling a span for a strip mesh.
@@ -34,8 +35,11 @@ pub fn surface_lift(kind: SurfaceKind) -> f32 {
 }
 
 /// Build a strip along `path` from `start_m` to `end_m`, spanning laterally
-/// from `lat_a(sample)` to `lat_b(sample)` (meters, positive = left), lifted
-/// `z_lift` above the surface. `color` is evaluated per cross-section.
+/// from `lat_a(sample)` to `lat_b(sample)` (meters, positive = left).
+/// `height` maps each vertex's road-following position (centerline +
+/// banking shear) to its final height — most strips just add a small lift,
+/// ground bands blend into the terrain. `color` is evaluated per
+/// cross-section.
 ///
 /// On a closed path, `end_m <= start_m` wraps through the start/finish
 /// line. Returns `None` for empty spans or degenerate paths.
@@ -45,7 +49,7 @@ pub fn build_strip_mesh(
     end_m: f32,
     lat_a: impl Fn(&PathSample) -> f32,
     lat_b: impl Fn(&PathSample) -> f32,
-    z_lift: f32,
+    height: impl Fn(&PathSample, f32, (f32, f32, f32)) -> f32,
     color: impl Fn(&PathSample) -> [f32; 4],
 ) -> Option<Mesh> {
     let total = path.total_length_m();
@@ -76,10 +80,11 @@ pub fn build_strip_mesh(
     for i in 0..=steps {
         let s = start + span * (i as f32 / steps as f32);
         let sample = path.sample_at(s);
-        let mut a = offset_point(&sample, lat_a(&sample));
-        let mut b = offset_point(&sample, lat_b(&sample));
-        a.2 += z_lift;
-        b.2 += z_lift;
+        let (la, lb) = (lat_a(&sample), lat_b(&sample));
+        let mut a = offset_point(&sample, la);
+        let mut b = offset_point(&sample, lb);
+        a.2 = height(&sample, la, a);
+        b.2 = height(&sample, lb, b);
 
         positions.push(coords::to_bevy(a.0, a.1, a.2).to_array());
         positions.push(coords::to_bevy(b.0, b.1, b.2).to_array());
@@ -122,7 +127,7 @@ pub fn build_track_ribbon(path: &CenterlinePath) -> Option<Mesh> {
         path.total_length_m(),
         |s| s.width_left_m,
         |s| -s.width_right_m,
-        0.0,
+        |_, _, p| p.2,
         |s| s.surface_color,
     )
 }
@@ -145,7 +150,7 @@ pub fn build_curb_mesh(path: &CenterlinePath, curb: &Curb) -> Option<Mesh> {
             Side::Left => s.width_left_m + width,
             Side::Right => -s.width_right_m,
         },
-        CURB_LIFT_M,
+        |_, _, p| p.2 + CURB_LIFT_M,
         move |s| {
             let stripe = ((s.station_m - start).rem_euclid(2.0 * CURB_STRIPE_LEN_M)
                 / CURB_STRIPE_LEN_M) as i32;
@@ -162,8 +167,19 @@ pub fn build_curb_mesh(path: &CenterlinePath, curb: &Curb) -> Option<Mesh> {
 ///
 /// Both borders are measured outward from the track edge, so the patch keeps
 /// its shape as the track widens and narrows, and the width may taper from
-/// `width_m` at the start to `end_width_m` at the end.
-pub fn build_surface_mesh(path: &CenterlinePath, surface: &Surface) -> Option<Mesh> {
+/// `width_m` at the start to `end_width_m` at the end. With a terrain field,
+/// vertices near the track hug the road edge and blend into the terrain as
+/// they extend outward — without one (degenerate paths only) the whole band
+/// follows its own station's height.
+///
+/// Returned as one mesh per lateral strip ([`surface_lateral_strips`]) so
+/// the height profile is sampled across the band's width, not just at its
+/// borders.
+pub fn build_surface_meshes(
+    path: &CenterlinePath,
+    surface: &Surface,
+    terrain: Option<&TerrainHeightfield>,
+) -> Vec<Mesh> {
     let total = path.total_length_m();
     let span = if path.is_closed() {
         let s = (surface.end_m - surface.start_m).rem_euclid(total);
@@ -176,7 +192,7 @@ pub fn build_surface_mesh(path: &CenterlinePath, surface: &Surface) -> Option<Me
         surface.end_m - surface.start_m
     };
     if span <= 0.0 || !span.is_finite() {
-        return None;
+        return Vec::new();
     }
 
     let start = surface.start_m;
@@ -203,20 +219,131 @@ pub fn build_surface_mesh(path: &CenterlinePath, surface: &Surface) -> Option<Me
     let kind = surface.kind;
     let color = surface_kind_color(kind);
     let widths = surface.clone();
-    build_strip_mesh(
-        path,
-        surface.start_m,
-        surface.end_m,
-        edge,
-        move |s| {
-            let width = widths.width_at(progress(s));
-            match side {
-                Side::Left => s.width_left_m + inner + width,
-                Side::Right => -(s.width_right_m + inner + width),
+    let lift = surface_lift(kind);
+    let strips = surface_lateral_strips(surface);
+
+    // Border at `fraction` (0 = inner edge, 1 = outer edge) of the band's
+    // width at this station.
+    let border = move |s: &PathSample, fraction: f32| {
+        let width = widths.width_at(progress(s));
+        edge(s)
+            + match side {
+                Side::Left => width * fraction,
+                Side::Right => -(width * fraction),
             }
-        },
-        surface_lift(kind),
-        move |_| color,
+    };
+
+    let border = &border;
+    (0..strips)
+        .filter_map(|k| {
+            let f0 = k as f32 / strips as f32;
+            let f1 = (k + 1) as f32 / strips as f32;
+            build_strip_mesh(
+                path,
+                surface.start_m,
+                surface.end_m,
+                move |s| border(s, f0),
+                move |s| border(s, f1),
+                move |s, lat, p| surface_height(terrain, s, lat, p) + lift,
+                move |_| color,
+            )
+        })
+        .collect()
+}
+
+/// Height of a ground-band vertex before its layer lift: the road-following
+/// height near the track edge, blended into the terrain field with
+/// distance — and never more than [`terrain::BAND_CLEAR_M`] above the
+/// field. The blend alone is not enough: half-blended, a band from a high
+/// section still hangs meters over a lower road passing 10–35 m away; the
+/// clamp inherits the terrain's road-ceiling guarantee.
+pub fn surface_height(
+    terrain: Option<&TerrainHeightfield>,
+    sample: &PathSample,
+    lat_m: f32,
+    pos: (f32, f32, f32),
+) -> f32 {
+    let Some(field) = terrain else {
+        return pos.2;
+    };
+    let beyond_edge = if lat_m >= 0.0 {
+        lat_m - sample.width_left_m
+    } else {
+        -lat_m - sample.width_right_m
+    };
+    let terrain_z = field.height_at(pos.0, pos.1);
+    let blended = terrain::blend_toward_terrain(pos.2, terrain_z, beyond_edge);
+    if beyond_edge <= terrain::BLEND_START_M {
+        // The band's own shoulder: hug the road, whatever the terrain does.
+        blended
+    } else {
+        blended.min(terrain_z + terrain::BAND_CLEAR_M)
+    }
+}
+
+/// Lateral spacing of the extra vertex columns inside a ground band. The
+/// blend and the ceiling clamp act per vertex; a band left as one quad
+/// laterally would just be a plane from its inner border to its outer one,
+/// sailing over anything in between.
+pub const SURFACE_LATERAL_STEP_M: f32 = 10.0;
+/// Upper bound on those columns, for 130 m grass aprons.
+pub const SURFACE_MAX_STRIPS: usize = 16;
+
+/// How many lateral strips a surface needs so its height profile is
+/// actually sampled across its width.
+pub fn surface_lateral_strips(surface: &Surface) -> usize {
+    let width = surface
+        .width_m
+        .max(surface.end_width_m.unwrap_or(surface.width_m));
+    ((width / SURFACE_LATERAL_STEP_M).ceil() as usize).clamp(1, SURFACE_MAX_STRIPS)
+}
+
+/// The world ground: one mesh over the terrain field's whole grid, sitting
+/// [`terrain::GROUND_LIFT_M`] under every authored surface.
+pub fn build_ground_mesh(field: &TerrainHeightfield) -> Option<Mesh> {
+    let (cols, rows) = (field.cols(), field.rows());
+    if cols < 2 || rows < 2 {
+        return None;
+    }
+
+    let mut positions: Vec<[f32; 3]> = Vec::with_capacity(cols * rows);
+    let mut normals: Vec<[f32; 3]> = Vec::with_capacity(cols * rows);
+    let mut colors: Vec<[f32; 4]> = Vec::with_capacity(cols * rows);
+    let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(cols * rows);
+    for r in 0..rows {
+        for c in 0..cols {
+            let (x, y, z) = field.vertex(c, r);
+            positions.push(coords::to_bevy(x, y, z + terrain::GROUND_LIFT_M).to_array());
+            let n = field.normal(c, r);
+            // Directions map through the same rotation as points.
+            normals.push([n.0, n.2, -n.1]);
+            colors.push(terrain::GROUND_COLOR);
+            uvs.push([x / 10.0, y / 10.0]);
+        }
+    }
+
+    let mut indices: Vec<u32> = Vec::with_capacity((cols - 1) * (rows - 1) * 6);
+    for r in 0..rows - 1 {
+        for c in 0..cols - 1 {
+            let v00 = (r * cols + c) as u32;
+            let v10 = v00 + 1;
+            let v01 = v00 + cols as u32;
+            let v11 = v01 + 1;
+            // Wound so the top face (+Y in Bevy space) is visible.
+            indices.extend_from_slice(&[v00, v10, v01, v10, v11, v01]);
+        }
+    }
+
+    Some(
+        Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
+        )
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_COLOR, colors)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+        .with_inserted_indices(Indices::U32(indices)),
     )
 }
 
@@ -248,7 +375,7 @@ pub fn build_marking_mesh(path: &CenterlinePath, marking: &Marking) -> Option<Me
         marking.end_m,
         move |_| lo,
         move |_| hi,
-        MARKING_LIFT_M,
+        |_, _, p| p.2 + MARKING_LIFT_M,
         move |_| color,
     )
 }
@@ -368,13 +495,17 @@ mod tests {
             width_m: 10.0,
             end_width_m: Some(40.0),
         };
-        let mesh = build_surface_mesh(&path, &surface).unwrap();
-        assert_finite_mesh(&mesh);
+        let meshes = build_surface_meshes(&path, &surface, None);
+        assert!(!meshes.is_empty());
+        for mesh in &meshes {
+            assert_finite_mesh(mesh);
+        }
 
-        // The outer border must actually widen along the span: the last
-        // cross-section has to sit further from the centerline than the first.
-        // The outer border must actually widen along the span: the last
-        // cross-section has to be far wider than the first.
+        // The outer border must actually widen along the span: in the
+        // outermost lateral strip, the last cross-section has to be far
+        // wider than the first (each strip carries a proportional share of
+        // the taper).
+        let mesh = meshes.last().unwrap();
         let positions = mesh
             .attribute(Mesh::ATTRIBUTE_POSITION)
             .unwrap()
@@ -408,8 +539,141 @@ mod tests {
         let mut track = loop_track();
         track.closed_loop = false;
         let path = CenterlinePath::from_track(&track).unwrap();
-        assert!(
-            build_strip_mesh(&path, 50.0, 50.0, |_| 1.0, |_| -1.0, 0.0, |_| [1.0; 4]).is_none()
+        assert!(build_strip_mesh(
+            &path,
+            50.0,
+            50.0,
+            |_| 1.0,
+            |_| -1.0,
+            |_, _, p| p.2,
+            |_| [1.0; 4]
+        )
+        .is_none());
+    }
+
+    /// The regression behind floating terrain: a wide band from a high
+    /// section must come down to the terrain field at its far edge instead
+    /// of hanging at its own station's height.
+    #[test]
+    fn wide_surface_bands_blend_down_to_the_terrain() {
+        use crate::terrain::TerrainHeightfield;
+
+        let mut track = loop_track();
+        // Raise one straight 40 m above the rest.
+        track.nodes[2].z = 40.0;
+        track.nodes[3].z = 40.0;
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let terrain = TerrainHeightfield::from_path(&path).unwrap();
+
+        let sample = path.sample_at(path.total_length_m() * 0.55); // on the high side
+        let near = surface_height(Some(&terrain), &sample, sample.width_left_m + 1.0, {
+            let mut p = offset_point(&sample, sample.width_left_m + 1.0);
+            p.2 = sample.pos.2;
+            p
+        });
+        let far_lat = sample.width_left_m + 120.0;
+        let far_pos = offset_point(&sample, far_lat);
+        let far = surface_height(
+            Some(&terrain),
+            &sample,
+            far_lat,
+            (far_pos.0, far_pos.1, sample.pos.2),
         );
+
+        // Within the shoulder the band hugs its own road exactly. Far out
+        // it obeys the terrain, which 120 m from a 40 m ridge is well
+        // below it.
+        assert!(
+            (near - sample.pos.2).abs() < 0.01,
+            "near {near} vs {}",
+            sample.pos.2
+        );
+        assert!(
+            far < sample.pos.2 - 1.0,
+            "far edge {far} never came down from {}",
+            sample.pos.2
+        );
+    }
+
+    /// The regression behind buried roads: the blend alone leaves a band
+    /// vertex 10–35 m out only *partially* lowered, so a band from a high
+    /// section still hung meters over a lower road passing nearby. The
+    /// ceiling clamp must bring it under that road.
+    #[test]
+    fn band_never_hangs_over_a_lower_parallel_road() {
+        use crate::terrain::TerrainHeightfield;
+
+        // Two long parallel legs 30 m apart, one 25 m above the other.
+        let track = TrackFile {
+            name: "TwoLevels".to_string(),
+            track_id: None,
+            nodes: vec![
+                node(0.0, 0.0),
+                node(500.0, 0.0),
+                {
+                    let mut n = node(500.0, 30.0);
+                    n.z = 25.0;
+                    n
+                },
+                {
+                    let mut n = node(0.0, 30.0);
+                    n.z = 25.0;
+                    n
+                },
+            ],
+            checkpoints: vec![],
+            spawn_points: vec![],
+            default_width: 10.0,
+            closed_loop: true,
+            raceline: vec![],
+            metadata: None,
+        };
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let terrain = TerrainHeightfield::from_path(&path).unwrap();
+
+        // A cross-section on the high leg, mid-straight.
+        let sample = *path
+            .samples()
+            .iter()
+            .find(|s| s.pos.2 > 20.0 && (s.pos.0 - 250.0).abs() < 30.0)
+            .expect("high leg sample");
+
+        // A band vertex 25 m beyond the edge, on whichever side reaches
+        // over the low leg at y = 0.
+        let (lat, pos) = [25.0f32, -25.0f32]
+            .map(|beyond| {
+                let lat = beyond.signum() * (sample.width_left_m + beyond.abs());
+                (lat, offset_point(&sample, lat))
+            })
+            .into_iter()
+            .min_by(|a, b| a.1 .1.abs().partial_cmp(&b.1 .1.abs()).unwrap())
+            .unwrap();
+        assert!(pos.1.abs() < 15.0, "vertex not over the low leg: {pos:?}");
+
+        let z = surface_height(Some(&terrain), &sample, lat, pos);
+        assert!(
+            z < 0.0,
+            "band at z = {z} still hangs over the road at z = 0"
+        );
+    }
+
+    #[test]
+    fn ground_mesh_covers_the_track_and_is_finite() {
+        use crate::terrain::TerrainHeightfield;
+
+        let path = CenterlinePath::from_track(&loop_track()).unwrap();
+        let terrain = TerrainHeightfield::from_path(&path).unwrap();
+        let mesh = build_ground_mesh(&terrain).unwrap();
+        assert_finite_mesh(&mesh);
+
+        // The ground must extend well past the track's own bounding box.
+        let positions = mesh
+            .attribute(Mesh::ATTRIBUTE_POSITION)
+            .unwrap()
+            .as_float3()
+            .unwrap();
+        let min_x = positions.iter().map(|p| p[0]).fold(f32::MAX, f32::min);
+        let max_x = positions.iter().map(|p| p[0]).fold(f32::MIN, f32::max);
+        assert!(min_x < -100.0 && max_x > 200.0, "ground {min_x}..{max_x}");
     }
 }

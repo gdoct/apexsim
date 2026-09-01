@@ -6,8 +6,12 @@
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "Camera/CameraComponent.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/SkyLightComponent.h"
+#include "Engine/DirectionalLight.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LevelStreamingDynamic.h"
+#include "Engine/SkyLight.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -48,9 +52,10 @@ AApexRaceDirector::AApexRaceDirector()
 	CockpitCamera->FieldOfView = 95.0f;
 
 	// Exactly one camera component may be active on a view target; the other
-	// is what `SetCockpitView` switches to.
-	CockpitCamera->SetActive(true);
-	ChaseCamera->SetActive(false);
+	// is what `SetCockpitView` switches to. Chase starts active to match
+	// `bCockpitView`'s default.
+	CockpitCamera->SetActive(false);
+	ChaseCamera->SetActive(true);
 }
 
 AApexRaceDirector* AApexRaceDirector::Find(const UObject* WorldContextObject)
@@ -96,6 +101,7 @@ void AApexRaceDirector::BeginPlay()
 		Net->OnSessionRosterUpdated.AddDynamic(this, &AApexRaceDirector::HandleRosterUpdated);
 		Net->OnTelemetry.AddDynamic(this, &AApexRaceDirector::HandleTelemetry);
 		Net->OnSessionLeft.AddDynamic(this, &AApexRaceDirector::HandleSessionLeft);
+		Net->OnLobbyStateUpdated.AddDynamic(this, &AApexRaceDirector::HandleLobbyStateUpdated);
 	}
 }
 
@@ -106,6 +112,7 @@ void AApexRaceDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Net->OnSessionRosterUpdated.RemoveDynamic(this, &AApexRaceDirector::HandleRosterUpdated);
 		Net->OnTelemetry.RemoveDynamic(this, &AApexRaceDirector::HandleTelemetry);
 		Net->OnSessionLeft.RemoveDynamic(this, &AApexRaceDirector::HandleSessionLeft);
+		Net->OnLobbyStateUpdated.RemoveDynamic(this, &AApexRaceDirector::HandleLobbyStateUpdated);
 	}
 	DestroyAllCars();
 	Super::EndPlay(EndPlayReason);
@@ -120,6 +127,17 @@ void AApexRaceDirector::HandleRosterUpdated(const FApexSessionRoster& Roster)
 void AApexRaceDirector::HandleSessionLeft()
 {
 	EndRaceView();
+}
+
+void AApexRaceDirector::HandleLobbyStateUpdated(const FApexLobbyState& LobbyState)
+{
+	// A race that started before the lobby cache knew about its session resolves
+	// no track path in BeginRaceView; the next lobby snapshot is what makes the
+	// session — and its track file — findable, so try again here.
+	if (bRaceViewActive && !TrackLevel)
+	{
+		LoadTrackLevel();
+	}
 }
 
 AApexRaceCarActor* AApexRaceDirector::FindCar(int32 CarIndex) const
@@ -277,9 +295,107 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 		SetActorRotation(FRotator(0.0f, FollowedCar->GetActorRotation().Yaw, 0.0f));
 	}
 
+	UpdateCameraFeel(DeltaSeconds);
 	UpdateCockpitCamera();
 	PollViewInput();
 	PollDrivingInput();
+}
+
+void AApexRaceDirector::UpdateCameraFeel(float DeltaSeconds)
+{
+	if (!FollowedCar)
+	{
+		return;
+	}
+	const float SpeedFrac = FMath::Clamp(GetFollowedSpeedKph() / FeelTopSpeedKph, 0.0f, 1.0f);
+	// Squared, so the effects live in the top half of the speed range: FOV
+	// creeping open at parking speed just looks broken.
+	const float Intensity = SpeedFrac * SpeedFrac;
+
+	CurrentFovBoost =
+		FMath::FInterpTo(CurrentFovBoost, SpeedFovBoostDeg * Intensity, DeltaSeconds, 3.0f);
+	CockpitCamera->SetFieldOfView(
+		FMath::Clamp(BaseCockpitFov + 0.6f * CurrentFovBoost, 50.0f, 130.0f));
+	ChaseCamera->SetFieldOfView(FMath::Clamp(BaseChaseFov + CurrentFovBoost, 50.0f, 130.0f));
+
+	// Micro-shake from layered perlin noise, tuned to read as airflow and
+	// road texture: fractions of a degree in the cockpit, a few centimeters
+	// of translation on the chase camera. The frequencies are co-prime-ish
+	// so the layers never visibly sync up.
+	const float Time = static_cast<float>(GetWorld()->GetTimeSeconds());
+	auto Wobble = [Time](float Frequency, float Offset) {
+		return FMath::PerlinNoise1D(Time * Frequency + Offset);
+	};
+	CockpitShake = FRotator(Wobble(11.3f, 0.0f) * 0.25f * Intensity,
+		Wobble(8.7f, 40.0f) * 0.15f * Intensity, Wobble(9.1f, 80.0f) * 0.35f * Intensity);
+	ChaseCamera->SetRelativeLocation(FVector(0.0f, Wobble(7.9f, 120.0f) * 4.0f * Intensity,
+		Wobble(10.7f, 160.0f) * 3.0f * Intensity));
+}
+
+void AApexRaceDirector::ApplyRaceEnvironment()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// The menu world's sun points wherever the menu looked good, at the
+	// engine's default 10 lux — which is why race scenes used to render as
+	// low-contrast pastel: sun and ambient were the same order of magnitude,
+	// and auto-exposure normalized whatever the albedo said. For driving it
+	// becomes an actual sun: tens of thousands of lux, low and warm, and
+	// movable because nothing in a streamed track level has baked lighting.
+	for (TActorIterator<ADirectionalLight> It(World); It; ++It)
+	{
+		ADirectionalLight* Sun = *It;
+		ULightComponent* SunComponent = Sun->GetLightComponent();
+		if (!bMenuSunSaved)
+		{
+			MenuSun = Sun;
+			MenuSunRotation = Sun->GetActorRotation();
+			MenuSunColor = SunComponent->GetLightColor();
+			MenuSunIntensity = SunComponent->Intensity;
+			bMenuSunSaved = true;
+		}
+		SunComponent->SetMobility(EComponentMobility::Movable);
+		Sun->SetActorRotation(FRotator(-26.0f, 41.0f, 0.0f));
+		SunComponent->SetLightColor(FLinearColor(1.0f, 0.93f, 0.84f));
+		SunComponent->SetIntensity(50000.0f);
+		if (UDirectionalLightComponent* Directional =
+				Cast<UDirectionalLightComponent>(SunComponent))
+		{
+			// The atmosphere (and through it the real-time sky light) has to
+			// be driven by this sun, or the ground gets daylight while the
+			// sky keeps its 10-lux dusk.
+			Directional->bAtmosphereSunLight = true;
+			Directional->MarkRenderStateDirty();
+		}
+		break;
+	}
+
+	// The sky light's one static capture was taken in the menu void; put it
+	// on real-time capture so ambient and reflections follow the actual sky
+	// over the actual circuit.
+	for (TActorIterator<ASkyLight> It(World); It; ++It)
+	{
+		USkyLightComponent* SkyComponent = (*It)->GetLightComponent();
+		SkyComponent->SetMobility(EComponentMobility::Movable);
+		SkyComponent->SetRealTimeCaptureEnabled(true);
+		break;
+	}
+}
+
+void AApexRaceDirector::RestoreMenuEnvironment()
+{
+	if (ADirectionalLight* Sun = MenuSun.Get(); Sun && bMenuSunSaved)
+	{
+		Sun->SetActorRotation(MenuSunRotation);
+		Sun->GetLightComponent()->SetLightColor(MenuSunColor);
+		Sun->GetLightComponent()->SetIntensity(MenuSunIntensity);
+	}
+	// The sky light stays on real-time capture: it is simply correct, in the
+	// menu as much as in the race.
 }
 
 void AApexRaceDirector::PollDrivingInput()
@@ -384,12 +500,15 @@ void AApexRaceDirector::SetCockpitView(bool bCockpit)
 
 void AApexRaceDirector::SetFieldOfView(float Degrees)
 {
-	const float Clamped = FMath::Clamp(Degrees, 60.0f, 120.0f);
-	CockpitCamera->SetFieldOfView(Clamped);
+	// These are the resting values; `UpdateCameraFeel` widens both with
+	// speed on top of them.
+	BaseCockpitFov = FMath::Clamp(Degrees, 60.0f, 120.0f);
 	// The chase view sits further back, where the same number reads much wider;
 	// it keeps a fixed offset below the cockpit's rather than a separate row in
 	// the settings screen.
-	ChaseCamera->SetFieldOfView(FMath::Clamp(Clamped - 15.0f, 50.0f, 120.0f));
+	BaseChaseFov = FMath::Clamp(BaseCockpitFov - 15.0f, 50.0f, 120.0f);
+	CockpitCamera->SetFieldOfView(BaseCockpitFov);
+	ChaseCamera->SetFieldOfView(BaseChaseFov);
 }
 
 void AApexRaceDirector::ApplyCameraMode()
@@ -413,10 +532,13 @@ void AApexRaceDirector::UpdateCockpitCamera()
 		return;
 	}
 	// Full rotation, not the levelled yaw the boom uses: through a banked
-	// corner or over a kerb the horizon should tilt with the car.
+	// corner or over a kerb the horizon should tilt with the car. The shake
+	// composes in the car's own frame, after its orientation.
 	const FRotator CarRotation = FollowedCar->GetActorRotation();
+	const FQuat ShakenRotation = CarRotation.Quaternion() * CockpitShake.Quaternion();
 	CockpitCamera->SetWorldLocationAndRotation(
-		FollowedCar->GetActorLocation() + CarRotation.RotateVector(CockpitEyeOffset), CarRotation);
+		FollowedCar->GetActorLocation() + CarRotation.RotateVector(CockpitEyeOffset),
+		ShakenRotation);
 }
 
 void AApexRaceDirector::ApplyRaceInputMode(bool bRacing)
@@ -453,6 +575,7 @@ void AApexRaceDirector::BeginRaceView()
 	bLoggedFirstTelemetry = false;
 
 	LoadTrackLevel();
+	ApplyRaceEnvironment();
 
 	if (const UApexNetSubsystem* Net = GetNet())
 	{
@@ -499,6 +622,7 @@ void AApexRaceDirector::EndRaceView()
 	FollowedCar = nullptr;
 	DestroyAllCars();
 	UnloadTrackLevel();
+	RestoreMenuEnvironment();
 	ApplyRaceInputMode(false);
 
 	UE_LOG(LogApexSim, Log, TEXT("Race view ended"));

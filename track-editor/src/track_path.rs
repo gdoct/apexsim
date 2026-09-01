@@ -246,6 +246,29 @@ impl CenterlinePath {
     }
 }
 
+/// Signed curvature at a station, 1/m. Positive means the course turns
+/// left. Taken as the rate of change of heading over arc length; on an open
+/// path `sample_at` clamps at the ends, which only flattens the estimate.
+pub fn curvature_at(path: &CenterlinePath, station_m: f32) -> f32 {
+    use std::f32::consts::{PI, TAU};
+    // Wide enough to average out the heading jitter of digitized nodes,
+    // which sit about 2 m apart. A short window turns that jitter into
+    // spikes of false curvature and clamps perfectly straight sections.
+    const DELTA_M: f32 = 8.0;
+    let behind = path.sample_at(station_m - DELTA_M);
+    let ahead = path.sample_at(station_m + DELTA_M);
+    let mut delta = ahead.heading_rad - behind.heading_rad;
+    // Unwrap across ±pi, or a corner straddling the branch cut reads as an
+    // enormous curvature.
+    while delta > PI {
+        delta -= TAU;
+    }
+    while delta < -PI {
+        delta += TAU;
+    }
+    delta / (2.0 * DELTA_M)
+}
+
 /// Point at `lateral_m` (positive = left) from a cross-section's centerline,
 /// banking applied as the same vertical shear the track ribbon uses.
 pub fn offset_point(sample: &PathSample, lateral_m: f32) -> (f32, f32, f32) {

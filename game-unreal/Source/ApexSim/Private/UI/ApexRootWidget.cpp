@@ -246,6 +246,7 @@ void UApexRootWidget::NativeConstruct()
 	bAutoRaceRequested = FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"));
 	FParse::Value(FCommandLine::Get(), TEXT("ApexAiCount="), AutoRaceAiCount);
 	FParse::Value(FCommandLine::Get(), TEXT("ApexLaps="), AutoRaceLaps);
+	FParse::Value(FCommandLine::Get(), TEXT("ApexTrack="), AutoRaceTrack);
 
 	// -ApexNoStart stops after creating the session, which is the only way to
 	// reach the lobby unattended: a started session hands the view straight to
@@ -586,10 +587,27 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	bAutoRaceSessionRequested = true;
 
 	const FApexCarConfigSummary& Car = LobbyState.CarConfigs[0];
-	// The player's remembered track when there is one; the server's first
-	// otherwise. Le Mans sorts first and is 13 km, which makes for a long wait.
+	// -ApexTrack wins, then the player's remembered track, then the server's
+	// first. Le Mans sorts first and is 13 km, which makes for a long wait.
 	FApexTrackConfigSummary Track = LobbyState.TrackConfigs[0];
-	if (Flow->HasPendingTrack())
+	bool bTrackForced = false;
+	if (!AutoRaceTrack.IsEmpty())
+	{
+		if (const FApexTrackConfigSummary* Named = LobbyState.TrackConfigs.FindByPredicate(
+				[this](const FApexTrackConfigSummary& Candidate) {
+					return Candidate.Name.Contains(AutoRaceTrack);
+				}))
+		{
+			Track = *Named;
+			bTrackForced = true;
+		}
+		else
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("-ApexTrack: no lobby track matches '%s'"),
+				*AutoRaceTrack);
+		}
+	}
+	if (!bTrackForced && Flow->HasPendingTrack())
 	{
 		Net->FindTrackById(Flow->GetPendingTrackId(), Track);
 	}

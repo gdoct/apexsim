@@ -31,8 +31,9 @@ use crate::ats::{
     AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface, SurfaceKind,
 };
 use crate::ats_io;
+use crate::coords;
 use crate::project;
-use crate::scene::TrackPathRes;
+use crate::scene::{OrbitCamera, TrackPathRes};
 use crate::state::{OpenScene, OpenTrack, Selection, StatusLine, UndoStack};
 use crate::track_data::{TrackFile, TrackNode};
 
@@ -267,6 +268,32 @@ struct SetPitLaneParams {
     speed_limit_kmh: Option<f32>,
 }
 
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct SetViewParams {
+    /// Focus the camera on this station along the centerline (meters).
+    /// Takes precedence over x/y.
+    station_m: Option<f32>,
+    /// Explicit focus point in track space, meters (used when station_m is
+    /// not given; the camera height follows the track near this point).
+    x: Option<f32>,
+    y: Option<f32>,
+    /// Camera distance from the focus point, meters.
+    distance: Option<f32>,
+    /// Orbit yaw, degrees. 0 looks along -X; leave unset to keep.
+    yaw_deg: Option<f32>,
+    /// Pitch above the horizon, degrees (10 = grazing, 89 = top-down);
+    /// leave unset to keep.
+    pitch_deg: Option<f32>,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct ScreenshotParams {
+    /// Absolute path of the PNG to write. Defaults to a file in the system
+    /// temp directory. The file appears a few frames after the call
+    /// returns — poll for it.
+    path: Option<String>,
+}
+
 // ---------------------------------------------------------------------
 // Bevy <-> Tokio bridge
 // ---------------------------------------------------------------------
@@ -293,6 +320,8 @@ enum EditorCommand {
     Undo(oneshot::Sender<Result<(), String>>),
     Redo(oneshot::Sender<Result<(), String>>),
     Save(oneshot::Sender<Result<(), String>>),
+    SetView(SetViewParams, oneshot::Sender<Result<String, String>>),
+    Screenshot(ScreenshotParams, oneshot::Sender<Result<String, String>>),
 }
 
 #[derive(Resource)]
@@ -300,6 +329,7 @@ struct McpCommandReceiver(mpsc::UnboundedReceiver<EditorCommand>);
 
 #[allow(clippy::too_many_arguments)]
 fn drain_mcp_commands(
+    mut commands: Commands,
     mut receiver: ResMut<McpCommandReceiver>,
     mut open_track: ResMut<OpenTrack>,
     track_path: Res<TrackPathRes>,
@@ -307,6 +337,7 @@ fn drain_mcp_commands(
     mut undo_stack: ResMut<UndoStack>,
     mut selection: ResMut<Selection>,
     mut status: ResMut<StatusLine>,
+    mut orbit: ResMut<OrbitCamera>,
 ) {
     while let Ok(cmd) = receiver.0.try_recv() {
         match cmd {
@@ -608,6 +639,35 @@ fn drain_mcp_commands(
                 );
                 let _ = reply.send(result);
             }
+            EditorCommand::SetView(params, reply) => {
+                let result = set_view(&params, &track_path, &mut orbit);
+                let _ = reply.send(result);
+            }
+            EditorCommand::Screenshot(params, reply) => {
+                use bevy::render::view::window::screenshot::{save_to_disk, Screenshot};
+
+                let path = params.path.clone().unwrap_or_else(|| {
+                    std::env::temp_dir()
+                        .join(format!(
+                            "apexsim-editor-{}.png",
+                            std::process::id() // stable per editor run; caller names uniquely otherwise
+                        ))
+                        .display()
+                        .to_string()
+                });
+                let result = match std::path::Path::new(&path).parent() {
+                    Some(dir) if !dir.as_os_str().is_empty() => std::fs::create_dir_all(dir)
+                        .map_err(|e| format!("cannot create {}: {e}", dir.display())),
+                    _ => Ok(()),
+                };
+                let result = result.map(|()| {
+                    commands
+                        .spawn(Screenshot::primary_window())
+                        .observe(save_to_disk(path.clone()));
+                    path
+                });
+                let _ = reply.send(result);
+            }
             EditorCommand::Save(reply) => {
                 let result = match (&open_scene.path, &open_scene.scene) {
                     (Some(path), Some(scene)) => {
@@ -624,6 +684,61 @@ fn drain_mcp_commands(
             }
         }
     }
+}
+
+/// Aim the orbit camera. The focus height follows the track (sampled at the
+/// requested station, or at the nearest centerline sample to an x/y focus),
+/// so a "look at station 3000" lands on the road even 60 m up a hillside.
+fn set_view(
+    params: &SetViewParams,
+    track_path: &TrackPathRes,
+    orbit: &mut OrbitCamera,
+) -> Result<String, String> {
+    let focus = match (params.station_m, params.x, params.y) {
+        (Some(station), _, _) => {
+            let path = track_path.0.as_ref().ok_or("no track open")?;
+            let sample = path.sample_at(station);
+            Some(sample.pos)
+        }
+        (None, Some(x), Some(y)) => {
+            let z = track_path.0.as_ref().map_or(0.0, |path| {
+                path.samples()
+                    .iter()
+                    .min_by(|a, b| {
+                        let da = (a.pos.0 - x).powi(2) + (a.pos.1 - y).powi(2);
+                        let db = (b.pos.0 - x).powi(2) + (b.pos.1 - y).powi(2);
+                        da.partial_cmp(&db).expect("finite sample distances")
+                    })
+                    .map_or(0.0, |s| s.pos.2)
+            });
+            Some((x, y, z))
+        }
+        (None, None, None) => None,
+        _ => return Err("give both x and y, or station_m".to_string()),
+    };
+
+    if let Some((x, y, z)) = focus {
+        orbit.focus = coords::to_bevy(x, y, z);
+    }
+    if let Some(d) = params.distance {
+        orbit.distance = d.clamp(5.0, 5000.0);
+    }
+    if let Some(yaw) = params.yaw_deg {
+        orbit.yaw = yaw.to_radians();
+    }
+    if let Some(pitch) = params.pitch_deg {
+        orbit.pitch = pitch.to_radians().clamp(-1.5, 1.5);
+    }
+    let f = coords::from_bevy(orbit.focus);
+    Ok(format!(
+        "camera: focus ({:.1}, {:.1}, {:.1}), distance {:.0} m, yaw {:.0}°, pitch {:.0}°",
+        f.0,
+        f.1,
+        f.2,
+        orbit.distance,
+        orbit.yaw.to_degrees(),
+        orbit.pitch.to_degrees()
+    ))
 }
 
 /// Shared undo/redo apply logic: both directions need "clone current, swap
@@ -983,5 +1098,31 @@ impl TrackEditorMcp {
     async fn save(&self) -> Result<CallToolResult, McpError> {
         self.request_fallible(EditorCommand::Save).await?;
         Ok(text_result("saved"))
+    }
+
+    #[tool(
+        description = "Aim the viewport camera: focus on a centerline station (station_m) or a track-space point (x, y), with optional distance (m), yaw_deg and pitch_deg (degrees above horizon; 89 = top-down). The focus height follows the track. Only provided fields change."
+    )]
+    async fn set_view(
+        &self,
+        Parameters(params): Parameters<SetViewParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let message = self
+            .request_fallible(|reply| EditorCommand::SetView(params, reply))
+            .await?;
+        Ok(text_result(message))
+    }
+
+    #[tool(
+        description = "Capture the editor viewport to a PNG and return its path. The file is written a few frames after the call returns; poll for its existence. Pass a distinct absolute path per shot."
+    )]
+    async fn screenshot(
+        &self,
+        Parameters(params): Parameters<ScreenshotParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = self
+            .request_fallible(|reply| EditorCommand::Screenshot(params, reply))
+            .await?;
+        Ok(text_result(path))
     }
 }

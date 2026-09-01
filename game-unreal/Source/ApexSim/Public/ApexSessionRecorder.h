@@ -41,7 +41,7 @@ struct FApexCarResult
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
 	int32 ValidLaps = 0;
 
-	/** Laps plus the fraction of the current one, times the circuit's length. */
+	/** Race distance covered in metres: full laps plus the station into the current one. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
 	float DistanceM = 0.0f;
 
