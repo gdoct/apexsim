@@ -433,6 +433,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d"),
 			*CurrentSessionId, Message.GridPosition);
 		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
+
+		// The cached lobby state predates this session, so anything resolving the
+		// session by id against it — the track level, the lobby screen — misses
+		// until the next periodic broadcast. Refresh right away.
+		TimeSinceLobbyRequest = LobbyStateDebounceSeconds;
+		RequestLobbyState();
 		break;
 
 	case EApexServerMessageType::SessionLeft:

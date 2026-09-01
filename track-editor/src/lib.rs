@@ -1,10 +1,13 @@
 pub mod ats;
 pub mod ats_io;
 pub mod coords;
+pub mod groom;
 pub mod mcp;
+pub mod pit;
 pub mod project;
 pub mod scene;
 pub mod state;
+pub mod terrain;
 pub mod track_data;
 pub mod track_io;
 pub mod track_mesh;

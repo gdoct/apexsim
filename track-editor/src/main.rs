@@ -8,7 +8,7 @@ use track_editor::ats_io;
 use track_editor::coords;
 use track_editor::mcp::McpPlugin;
 use track_editor::project;
-use track_editor::scene::{OrbitCamera, ScenePlugin, TrackPathRes};
+use track_editor::scene::{OrbitCamera, ScenePlugin, TerrainRes, TrackPathRes};
 use track_editor::state::{
     OpenScene, OpenTrack, SelectedElement, Selection, StatusLine, UndoStack,
 };
@@ -56,6 +56,7 @@ fn ui_root(
     mut undo_stack: ResMut<UndoStack>,
     mut status: ResMut<StatusLine>,
     track_path: Res<TrackPathRes>,
+    terrain: Res<TerrainRes>,
     orbit: Res<OrbitCamera>,
     mut last_frame_edited: Local<bool>,
     mut new_surface_kind: Local<Option<SurfaceKind>>,
@@ -200,6 +201,7 @@ fn ui_root(
             &mut selection,
             &mut status,
             &track_path,
+            &terrain,
             &orbit,
         );
         *last_frame_edited = false;
@@ -660,12 +662,14 @@ fn station_row(ui: &mut egui::Ui, label: &str, value: &mut f32, max_station: f32
 // Discrete actions
 // ---------------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 fn apply_ui_action(
     action: UiAction,
     open_scene: &mut OpenScene,
     selection: &mut Selection,
     status: &mut StatusLine,
     track_path: &TrackPathRes,
+    terrain: &TerrainRes,
     orbit: &OrbitCamera,
 ) {
     let Some(scene) = open_scene.scene.as_mut() else {
@@ -718,6 +722,12 @@ fn apply_ui_action(
         }
         UiAction::AddProp(kind) => {
             let (x, y, z) = coords::from_bevy(orbit.focus);
+            // Seat the new prop on the terrain rather than at the camera
+            // focus height, which can be anywhere after zooming around.
+            let z = terrain
+                .0
+                .as_ref()
+                .map_or(z.max(0.0), |field| field.height_at(x, y));
             let id = scene.alloc_id();
             scene.props.push(Prop {
                 id,
@@ -725,7 +735,7 @@ fn apply_ui_action(
                 asset: format!("{}_generic", kind.label()),
                 x,
                 y,
-                z: z.max(0.0),
+                z,
                 yaw_rad: 0.0,
                 scale: 1.0,
                 text: None,

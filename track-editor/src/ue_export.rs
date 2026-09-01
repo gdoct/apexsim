@@ -41,9 +41,12 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::ats::{AtsScene, Curb, Marking, Side, Surface};
+use crate::terrain::{self, TerrainHeightfield};
 use crate::track_data::TrackFile;
-use crate::track_mesh::{surface_kind_color, surface_lift, CURB_LIFT_M, MARKING_LIFT_M};
-use crate::track_path::{offset_point, CenterlinePath, PathSample};
+use crate::track_mesh::{
+    surface_height, surface_kind_color, surface_lift, CURB_LIFT_M, MARKING_LIFT_M,
+};
+use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
 
 pub const UE_SCENE_FORMAT: &str = "apex-ue-scene";
 pub const UE_SCENE_VERSION: u32 = 1;
@@ -198,14 +201,25 @@ pub struct UePitLane {
 /// rejects (fewer than two nodes, or zero length).
 pub fn bake(track: &TrackFile, scene: &AtsScene) -> Option<UeScene> {
     let path = CenterlinePath::from_track(track)?;
+    let terrain = TerrainHeightfield::from_path(&path);
     let mut chunks: Vec<Chunk> = Vec::new();
     let mut materials: BTreeMap<String, UeMaterial> = BTreeMap::new();
 
     bake_road(&path, &mut chunks, &mut materials);
+    bake_edge_lines(&path, &mut chunks, &mut materials);
     // Ground first, then the track, then what sits on it — the same layering
     // the viewport uses, so the export reads the way the editor looked.
+    if let Some(field) = &terrain {
+        bake_ground(field, &mut chunks, &mut materials);
+    }
     for surface in &scene.surfaces {
-        bake_surface(&path, surface, &mut chunks, &mut materials);
+        bake_surface(
+            &path,
+            surface,
+            terrain.as_ref(),
+            &mut chunks,
+            &mut materials,
+        );
     }
     for curb in &scene.curbs {
         bake_curb(&path, curb, &mut chunks, &mut materials);
@@ -264,6 +278,12 @@ struct ProfilePoint {
     lift_m: f32,
 }
 
+impl ProfilePoint {
+    fn lifted(lat_m: f32, lift_m: f32) -> Self {
+        Self { lat_m, lift_m }
+    }
+}
+
 /// One drawable cross-section, in track space.
 struct CrossSection {
     points: Vec<(f32, f32, f32)>,
@@ -297,7 +317,14 @@ struct Chunk {
 /// derived from that ordering, and a profile authored the other way round
 /// comes out lit from underneath. [`normalize_profile`] enforces it.
 ///
+/// `height` maps a vertex's road-following position to its final height
+/// (before the point's own lift): the identity for road-hugging strips, the
+/// terrain blend for ground bands. It runs *after* curvature clamping, on
+/// the point's final lateral — a height computed for a pre-clamp lateral
+/// would sit inconsistently over the clamped position and fold facets.
+///
 /// On a closed path `end_m <= start_m` wraps through the start/finish line.
+#[allow(clippy::too_many_arguments)]
 fn bake_strip<F>(
     path: &CenterlinePath,
     start_m: f32,
@@ -305,6 +332,7 @@ fn bake_strip<F>(
     step_m: f32,
     material_key: &str,
     mut profile: F,
+    height: impl Fn(&PathSample, f32, (f32, f32, f32)) -> f32,
     chunks: &mut Vec<Chunk>,
 ) where
     F: FnMut(&PathSample, f32, &mut Vec<ProfilePoint>),
@@ -356,7 +384,7 @@ fn bake_strip<F>(
         let mut v_acc = 0.0f32;
         for (k, p) in buf.iter().enumerate() {
             let mut pos = offset_point(&sample, p.lat_m);
-            pos.2 += p.lift_m;
+            pos.2 = height(&sample, p.lat_m, pos) + p.lift_m;
             if k > 0 {
                 v_acc += distance(points[k - 1], pos);
             }
@@ -413,29 +441,6 @@ fn bake_strip<F>(
         }
     }
     flush(&mut builder, &mut open_section);
-}
-
-/// Signed curvature at a station, 1/m. Positive means the course turns
-/// left. Taken as the rate of change of heading over arc length; on an open
-/// path `sample_at` clamps at the ends, which only flattens the estimate.
-fn curvature_at(path: &CenterlinePath, station_m: f32) -> f32 {
-    use std::f32::consts::{PI, TAU};
-    // Wide enough to average out the heading jitter of digitized nodes,
-    // which sit about 2 m apart. A short window turns that jitter into
-    // spikes of false curvature and clamps perfectly straight sections.
-    const DELTA_M: f32 = 8.0;
-    let behind = path.sample_at(station_m - DELTA_M);
-    let ahead = path.sample_at(station_m + DELTA_M);
-    let mut delta = ahead.heading_rad - behind.heading_rad;
-    // Unwrap across ±pi, or a corner straddling the branch cut reads as an
-    // enormous curvature and clamps the whole cross-section to nothing.
-    while delta > PI {
-        delta -= TAU;
-    }
-    while delta < -PI {
-        delta += TAU;
-    }
-    delta / (2.0 * DELTA_M)
 }
 
 /// Keep lateral offsets short of the centre of curvature, and report
@@ -793,17 +798,47 @@ fn bake_road(
         STEP_M,
         key,
         |sample, _, out| {
-            out.push(ProfilePoint {
-                lat_m: sample.width_left_m,
-                lift_m: 0.0,
-            });
-            out.push(ProfilePoint {
-                lat_m: -sample.width_right_m,
-                lift_m: 0.0,
-            });
+            out.push(ProfilePoint::lifted(sample.width_left_m, 0.0));
+            out.push(ProfilePoint::lifted(-sample.width_right_m, 0.0));
         },
+        |_, _, p| p.2,
         chunks,
     );
+}
+
+/// White lines along both road edges, the full length of the circuit.
+///
+/// These are their own strips rather than paint in the road material: the
+/// road's `v` coordinate counts meters from the *left* edge, so a material
+/// has no way to know where the right edge is on a track of varying width.
+fn bake_edge_lines(
+    path: &CenterlinePath,
+    chunks: &mut Vec<Chunk>,
+    materials: &mut BTreeMap<String, UeMaterial>,
+) {
+    const LINE_WIDTH_M: f32 = 0.15;
+    const LINE_COLOR: [f32; 4] = [0.85, 0.85, 0.82, 1.0];
+    let key = format!("marking_edge_line_{}", color_hex(LINE_COLOR));
+    register(materials, &key, "marking", LINE_COLOR);
+    for side in [Side::Left, Side::Right] {
+        bake_strip(
+            path,
+            0.0,
+            path.total_length_m(),
+            STEP_M,
+            &key,
+            move |sample, _, out| {
+                let (edge, outward) = match side {
+                    Side::Left => (sample.width_left_m, 1.0),
+                    Side::Right => (-sample.width_right_m, -1.0),
+                };
+                out.push(ProfilePoint::lifted(edge, MARKING_LIFT_M));
+                out.push(ProfilePoint::lifted(edge - outward * LINE_WIDTH_M, MARKING_LIFT_M));
+            },
+            |_, _, p| p.2,
+            chunks,
+        );
+    }
 }
 
 fn bake_pit_lane(
@@ -815,6 +850,9 @@ fn bake_pit_lane(
     let key = "pit_lane";
     register(materials, key, "pit_lane", [0.32, 0.32, 0.34, 1.0]);
     let half = width_m / 2.0;
+    // The lane's entry and exit deliberately overlap the road so the
+    // surfaces connect; the lift keeps that overlap from z-fighting.
+    const PIT_LIFT_M: f32 = 0.02;
     bake_strip(
         lane,
         0.0,
@@ -822,15 +860,10 @@ fn bake_pit_lane(
         STEP_M,
         key,
         move |_, _, out| {
-            out.push(ProfilePoint {
-                lat_m: half,
-                lift_m: 0.0,
-            });
-            out.push(ProfilePoint {
-                lat_m: -half,
-                lift_m: 0.0,
-            });
+            out.push(ProfilePoint::lifted(half, PIT_LIFT_M));
+            out.push(ProfilePoint::lifted(-half, PIT_LIFT_M));
         },
+        |_, _, p| p.2,
         chunks,
     );
 }
@@ -862,16 +895,15 @@ fn bake_curb(
                 Side::Left => (sample.width_left_m, 1.0),
                 Side::Right => (-sample.width_right_m, -1.0),
             };
-            let at = |d: f32, lift: f32| ProfilePoint {
-                lat_m: edge + outward * d,
-                lift_m: lift + CURB_LIFT_M,
-            };
+            let at =
+                |d: f32, lift: f32| ProfilePoint::lifted(edge + outward * d, lift + CURB_LIFT_M);
             out.push(at(0.0, 0.0));
             out.push(at(width * CURB_LIP_FRAC, CURB_HEIGHT_M * 0.6));
             out.push(at(width, CURB_HEIGHT_M));
             // Outer face, straight down to the surrounding ground.
             out.push(at(width, -CURB_LIFT_M));
         },
+        |_, _, p| p.2,
         chunks,
     );
 }
@@ -879,6 +911,7 @@ fn bake_curb(
 fn bake_surface(
     path: &CenterlinePath,
     surface: &Surface,
+    terrain: Option<&TerrainHeightfield>,
     chunks: &mut Vec<Chunk>,
     materials: &mut BTreeMap<String, UeMaterial>,
 ) {
@@ -889,6 +922,12 @@ fn bake_surface(
     let inner = surface.inner_m;
     let lift = surface_lift(surface.kind);
     let spec = surface.clone();
+    // The height blend and its ceiling clamp act per vertex, so the profile
+    // needs columns across the band — two border points would just span a
+    // plane over whatever lies between them. The count must be constant
+    // along the strip (`bake_strip` requires it), so it comes from the
+    // band's widest cross-section.
+    let strips = crate::track_mesh::surface_lateral_strips(surface);
     bake_strip(
         path,
         surface.start_m,
@@ -901,17 +940,82 @@ fn bake_surface(
                 Side::Right => (-sample.width_right_m, -1.0),
             };
             let width = spec.width_at(progress);
-            out.push(ProfilePoint {
-                lat_m: edge + outward * inner,
-                lift_m: lift,
-            });
-            out.push(ProfilePoint {
-                lat_m: edge + outward * (inner + width),
-                lift_m: lift,
-            });
+            for j in 0..=strips {
+                let lat_m = edge + outward * (inner + width * (j as f32 / strips as f32));
+                out.push(ProfilePoint::lifted(lat_m, lift));
+            }
         },
+        // Same height blending as the viewport: hug the road near its
+        // edge, lie on (and never rise over) the terrain further out.
+        move |sample, lat_m, pos| surface_height(terrain, sample, lat_m, pos),
         chunks,
     );
+}
+
+/// The world ground: the terrain heightfield as meshes, tiled so Unreal can
+/// cull them, sitting [`terrain::GROUND_LIFT_M`] under every authored
+/// surface.
+fn bake_ground(
+    field: &TerrainHeightfield,
+    chunks: &mut Vec<Chunk>,
+    materials: &mut BTreeMap<String, UeMaterial>,
+) {
+    /// Grid vertices per tile side.
+    const TILE_VERTS: usize = 32;
+
+    let key = "ground";
+    register(materials, key, "surface", terrain::GROUND_COLOR);
+
+    let (cols, rows) = (field.cols(), field.rows());
+    if cols < 2 || rows < 2 {
+        return;
+    }
+
+    let mut tile = 0i32;
+    let mut r0 = 0;
+    while r0 + 1 < rows {
+        let r1 = (r0 + TILE_VERTS).min(rows - 1);
+        let mut c0 = 0;
+        while c0 + 1 < cols {
+            let c1 = (c0 + TILE_VERTS).min(cols - 1);
+
+            let (tw, th) = (c1 - c0 + 1, r1 - r0 + 1);
+            let mut chunk = Chunk {
+                section: tile,
+                material_key: key.to_string(),
+                positions: Vec::with_capacity(tw * th * 3),
+                normals: Vec::with_capacity(tw * th * 3),
+                uvs: Vec::with_capacity(tw * th * 2),
+                indices: Vec::with_capacity((tw - 1) * (th - 1) * 6),
+            };
+            for r in r0..=r1 {
+                for c in c0..=c1 {
+                    let (x, y, z) = field.vertex(c, r);
+                    push_position(&mut chunk.positions, (x, y, z + terrain::GROUND_LIFT_M));
+                    push_normal(&mut chunk.normals, field.normal(c, r));
+                    chunk.uvs.push(round(x, 3));
+                    chunk.uvs.push(round(y, 3));
+                }
+            }
+            for r in 0..th - 1 {
+                for c in 0..tw - 1 {
+                    let v00 = (r * tw + c) as u32;
+                    let v10 = v00 + 1;
+                    let v01 = v00 + tw as u32;
+                    let v11 = v01 + 1;
+                    // Right-handed CCW facing up in track space; the
+                    // track -> UE mirror turns that into Unreal's clockwise
+                    // front face, same as every strip (see `emit_quad`).
+                    chunk.indices.extend_from_slice(&[v00, v10, v01]);
+                    chunk.indices.extend_from_slice(&[v10, v11, v01]);
+                }
+            }
+            chunks.push(chunk);
+            tile += 1;
+            c0 = c1;
+        }
+        r0 = r1;
+    }
 }
 
 fn bake_marking(
@@ -942,15 +1046,10 @@ fn bake_marking(
         STEP_M,
         &key,
         move |_, _, out| {
-            out.push(ProfilePoint {
-                lat_m: hi,
-                lift_m: MARKING_LIFT_M,
-            });
-            out.push(ProfilePoint {
-                lat_m: lo,
-                lift_m: MARKING_LIFT_M,
-            });
+            out.push(ProfilePoint::lifted(hi, MARKING_LIFT_M));
+            out.push(ProfilePoint::lifted(lo, MARKING_LIFT_M));
         },
+        |_, _, p| p.2,
         chunks,
     );
 }

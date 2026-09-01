@@ -69,13 +69,22 @@ The `.ats` cannot be handed to Unreal as-is: every track-anchored element is a *
 | Field | Contents |
 | --- | --- |
 | `materials` | Every material key the meshes reference, with a `family` (`road`, `curb`, `surface`, `marking`, `pit_lane`) and the base color the editor previewed. Sorted by key |
-| `meshes` | Baked triangle geometry, flattened buffers, named `{material_key}_{section:03}` |
+| `meshes` | Baked triangle geometry, flattened buffers, named `{material_key}_{section:03}`. Includes the terrain ground tiles (key `ground`, family `surface`) |
 | `props` | Prop transforms with asset keys |
 | `grid` | Starting grid, resolved exactly the way `server/src/track_loader.rs` resolves it |
 | `centerline` | The sampled centerline, for splines, minimaps and AI |
 | `pit_lane` | Width, box count, speed limit (its ribbon is in `meshes`) |
 
 Bake with `cargo run --bin ats-export -- --all`, or **File → Export for Unreal…** for the track in the editor (which bakes unsaved edits too).
+
+### Terrain
+
+Tracks carry no terrain of their own — only the centerline has heights — so `src/terrain.rs` derives one: centerline samples spread their height onto a coarse grid by inverse-distance weighting, giving a field that agrees with the road wherever the road is and rolls smoothly in between. Two things consume it, identically in the viewport and the bake:
+
+- **Ground bands** (`surfaces` in the `.ats`) hug the road edge for their first ~6 m, blend into the terrain by ~35 m out, and beyond the shoulder are clamped to at most 0.3 m above the field — which, via the road ceiling, guarantees they can never cover any road. Bands are subdivided laterally (~10 m columns, in the preview and the bake alike) so that profile is actually sampled across their width; a band left as one quad would just span a plane over whatever lies between its borders.
+- A **ground mesh** built straight from the grid (with a 180 m margin past the track's bounding box) sits 0.25 m under every authored surface, so the world is never a void.
+
+Prop `z` stays absolute; newly placed props are seated on the terrain at placement time.
 
 ### Conventions at the boundary
 
@@ -96,9 +105,12 @@ The bake also has to cope with source centerlines whose corners are tighter than
 - `/track-editor` — this crate.
 - `src/ats.rs`, `src/ats_io.rs` — `.ats` model + IO.
 - `src/ue_export.rs`, `src/ue_export_io.rs` — the Unreal bake (§5); `src/bin/ats-export.rs` is its CLI.
+- `src/groom.rs` — deterministic scene clean-up: walls/barriers deleted on straights and re-laid as continuous corner runs (12 m segments on a station-cell grid, gaps ≤ 45 m fused, seated at the runoff edge); every other prop pushed clear of the road and the pit lane by its footprint radius (pit-side buildings align to the lane), then seated on the terrain; and the pit lane regenerated first via `src/pit.rs` (entry taper off the road edge inside the start/finish straight, parallel pit road, exit taper back on; width/boxes/speed limit/side preserved). `src/bin/ats-groom.rs` is its CLI (`ats-groom --all`, idempotent, run from the repo root).
+- `src/mcp.rs` also exposes `set_view` (aim the viewport camera at a station or point) and `screenshot` (capture the viewport to a PNG) so an agent can inspect tracks visually over MCP.
 - `src/track_data.rs`, `src/track_io.rs` — read-only logical track model + loader (kept serde-compatible with the server; `save_track_file` exists only for the compat test suite).
 - `src/track_path.rs` — station/arc-length sampling of the centerline.
-- `src/track_mesh.rs` — preview strip meshes (track ribbon, curbs, markings, pit lane).
+- `src/terrain.rs` — derived terrain heightfield (§5 “Terrain”).
+- `src/track_mesh.rs` — preview strip meshes (track ribbon, curbs, markings, pit lane, ground).
 - `src/scene.rs` — viewport, selection, dragging.
 - `src/main.rs` — egui panels.
 - `src/mcp.rs` — MCP server.

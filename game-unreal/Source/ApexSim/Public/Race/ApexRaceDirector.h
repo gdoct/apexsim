@@ -7,6 +7,8 @@
 #include "ApexRaceDirector.generated.h"
 
 class AApexRaceCarActor;
+class ADirectionalLight;
+class ASkyLight;
 class UApexMenuFlowSubsystem;
 class UApexNetSubsystem;
 class UApexSettingsSubsystem;
@@ -118,6 +120,9 @@ private:
 	UFUNCTION()
 	void HandleSessionLeft();
 
+	UFUNCTION()
+	void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
+
 	/** Creates or destroys car actors so they match the roster. */
 	void SyncCarsToRoster(const FApexSessionRoster& Roster);
 	AApexRaceCarActor* FindCar(int32 CarIndex) const;
@@ -159,6 +164,23 @@ private:
 	void UpdateCockpitCamera();
 
 	/**
+	 * Everything that makes the cameras feel speed: FOV that widens as the
+	 * car gains pace, and a perlin micro-shake on both views. All of it is
+	 * procedural — there are no camera-shake assets in the project — and all
+	 * of it scales with speed squared, so a formation-lap crawl stays calm.
+	 */
+	void UpdateCameraFeel(float DeltaSeconds);
+
+	/**
+	 * Re-light the menu world for driving: aim its sun low and warm, and put
+	 * its sky light on real-time capture so ambient light actually matches
+	 * the atmosphere instead of a capture taken in the empty menu void.
+	 */
+	void ApplyRaceEnvironment();
+	/** Put the sun back the way the menu had it. */
+	void RestoreMenuEnvironment();
+
+	/**
 	 * Content path of the level for the session's track, or empty if there
 	 * is no session, no track, or no imported level for it.
 	 *
@@ -194,8 +216,30 @@ private:
 	TObjectPtr<AApexRaceCarActor> FollowedCar;
 
 	bool bRaceViewActive = false;
-	/** Cockpit by default; the chase camera is a keypress away. */
-	bool bCockpitView = true;
+	/**
+	 * Chase by default — it is the view that shows the car, which is the
+	 * only piece of real art on screen. The cockpit is a keypress away.
+	 */
+	bool bCockpitView = false;
 	/** Logged once per race so the transport can be confirmed from the log alone. */
 	bool bLoggedFirstTelemetry = false;
+
+	/** How far the FOV widens at full speed, degrees (chase; cockpit gets 60%). */
+	static constexpr float SpeedFovBoostDeg = 10.0f;
+	/** Speed at which the FOV boost and shake saturate, km/h. */
+	static constexpr float FeelTopSpeedKph = 300.0f;
+
+	/** FOV the settings asked for, before the speed boost. */
+	float BaseCockpitFov = 95.0f;
+	float BaseChaseFov = 80.0f;
+	float CurrentFovBoost = 0.0f;
+	/** This frame's cockpit micro-shake, composed onto the car rotation. */
+	FRotator CockpitShake = FRotator::ZeroRotator;
+
+	/** Menu-world sun state, saved before the race re-aims it. */
+	TWeakObjectPtr<ADirectionalLight> MenuSun;
+	FRotator MenuSunRotation = FRotator::ZeroRotator;
+	FLinearColor MenuSunColor = FLinearColor::White;
+	float MenuSunIntensity = 10.0f;
+	bool bMenuSunSaved = false;
 };

@@ -20,6 +20,7 @@ use crate::coords;
 use crate::state::{
     DragActive, OpenScene, OpenTrack, SelectedElement, Selection, StatusLine, UndoStack,
 };
+use crate::terrain::TerrainHeightfield;
 use crate::track_mesh;
 use crate::track_path::CenterlinePath;
 
@@ -27,6 +28,12 @@ use crate::track_path::CenterlinePath;
 /// the UI (station ranges in the inspector). Rebuilt on track load.
 #[derive(Resource, Default)]
 pub struct TrackPathRes(pub Option<CenterlinePath>);
+
+/// Terrain heightfield derived from the open track's centerline; drives the
+/// ground mesh and the height blending of wide surface bands. Rebuilt on
+/// track load.
+#[derive(Resource, Default)]
+pub struct TerrainRes(pub Option<TerrainHeightfield>);
 
 /// Marks the read-only track surface ribbon.
 #[derive(Component)]
@@ -77,6 +84,7 @@ impl Plugin for ScenePlugin {
         app.init_resource::<OrbitCamera>()
             .init_resource::<UndoStack>()
             .init_resource::<TrackPathRes>()
+            .init_resource::<TerrainRes>()
             .init_resource::<Selection>()
             .init_resource::<DragActive>()
             .init_resource::<StatusLine>()
@@ -90,7 +98,6 @@ impl Plugin for ScenePlugin {
                 (
                     orbit_camera_input.run_if(not(egui_wants_any_pointer_input)),
                     apply_orbit_camera,
-                    draw_ground_grid,
                     undo_redo_input.run_if(not(egui_wants_any_keyboard_input)),
                     rebuild_track_visual.run_if(resource_changed::<OpenTrack>),
                     rebuild_scene_elements,
@@ -152,15 +159,6 @@ fn apply_orbit_camera(orbit: Res<OrbitCamera>, mut camera: Single<&mut Transform
     camera.look_at(orbit.focus, Vec3::Y);
 }
 
-fn draw_ground_grid(mut gizmos: Gizmos) {
-    gizmos.grid(
-        Isometry3d::from_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-        UVec2::splat(60),
-        Vec2::splat(10.0),
-        Color::srgba(0.35, 0.35, 0.4, 0.35),
-    );
-}
-
 fn undo_redo_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut undo_stack: ResMut<UndoStack>,
@@ -217,10 +215,12 @@ fn pointer_on_horizontal_plane(
 // Track ribbon (read-only)
 // ---------------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 fn rebuild_track_visual(
     mut commands: Commands,
     open_track: Res<OpenTrack>,
     mut track_path: ResMut<TrackPathRes>,
+    mut terrain: ResMut<TerrainRes>,
     mut orbit: ResMut<OrbitCamera>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -234,9 +234,28 @@ fn rebuild_track_visual(
         .track
         .as_ref()
         .and_then(CenterlinePath::from_track);
+    terrain.0 = track_path
+        .0
+        .as_ref()
+        .and_then(TerrainHeightfield::from_path);
     let Some(path) = &track_path.0 else {
         return;
     };
+
+    // World ground, under everything: the terrain field the surface bands
+    // blend into, so nothing floats over a void.
+    if let Some(mesh) = terrain.0.as_ref().and_then(track_mesh::build_ground_mesh) {
+        commands.spawn((
+            Mesh3d(meshes.add(mesh)),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::WHITE,
+                perceptual_roughness: 1.0,
+                ..default()
+            })),
+            Transform::IDENTITY,
+            TrackRibbon,
+        ));
+    }
 
     if let Some(mesh) = track_mesh::build_track_ribbon(path) {
         commands
@@ -286,6 +305,7 @@ fn rebuild_scene_elements(
     open_scene: Res<OpenScene>,
     selection: Res<Selection>,
     track_path: Res<TrackPathRes>,
+    terrain: Res<TerrainRes>,
     drag: Res<DragActive>,
     mut pending: Local<bool>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -331,8 +351,8 @@ fn rebuild_scene_elements(
     let mut surfaces: Vec<&crate::ats::Surface> = scene.surfaces.iter().collect();
     surfaces.sort_by_key(|s| s.kind.layer());
     for surface in surfaces {
-        if let Some(mesh) = track_mesh::build_surface_mesh(path, surface) {
-            let is_selected = selected == Some(SelectedElement::Surface(surface.id));
+        let is_selected = selected == Some(SelectedElement::Surface(surface.id));
+        for mesh in track_mesh::build_surface_meshes(path, surface, terrain.0.as_ref()) {
             commands
                 .spawn((
                     Mesh3d(meshes.add(mesh)),
@@ -384,7 +404,7 @@ fn rebuild_scene_elements(
                 pit_path.total_length_m(),
                 |s| s.width_left_m,
                 |s| -s.width_right_m,
-                0.01,
+                |_, _, p| p.2 + 0.01,
                 |s| s.surface_color,
             ) {
                 commands
