@@ -77,6 +77,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> SearchField;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> FilterChipBox;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> CountText;
+	/** Shown in place of the grid while the server has not sent any tracks. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> EmptyText;
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> DetailBox;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> UseButton;

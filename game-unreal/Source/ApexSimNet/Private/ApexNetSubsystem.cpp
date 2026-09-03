@@ -111,8 +111,24 @@ void UApexNetSubsystem::Connect(const FString& InHost, int32 InPort, const FStri
 	Host = InHost;
 	Port = InPort;
 	PlayerName = InPlayerName;
+	Token = InToken;
 	PlayerId.Reset();
 	CurrentSessionId.Reset();
+
+	bReconnectEnabled = true;
+	ReconnectAttempt = 0;
+	TimeUntilReconnect = 0.0f;
+
+	SetConnectionState(EApexConnectionState::Connecting,
+		FString::Printf(TEXT("Connecting to %s:%d..."), *Host, Port));
+	StartConnectionAttempt();
+}
+
+void UApexNetSubsystem::StartConnectionAttempt()
+{
+	// Everything scoped to one TCP session starts over, on a reconnect as much
+	// as on the first attempt: the server issues a new player id, the lobby
+	// snapshot is re-requested and the heartbeat counter restarts.
 	CachedLobbyState = FApexLobbyState();
 	ClientTick = 0;
 	TimeSinceHeartbeat = 0.0f;
@@ -120,19 +136,33 @@ void UApexNetSubsystem::Connect(const FString& InHost, int32 InPort, const FStri
 	PingMs = -1;
 	bWarnedEmptyCatalog = false;
 
-	SetConnectionState(EApexConnectionState::Connecting,
-		FString::Printf(TEXT("Connecting to %s:%d..."), *Host, Port));
-
-	Connection = MakeUnique<FApexTcpConnection>(Host, Port, InToken, PlayerName);
+	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName);
 	if (!Connection->Start())
 	{
 		Connection.Reset();
+		bReconnectEnabled = false;
 		SetConnectionState(EApexConnectionState::Failed, TEXT("Could not start the network thread"));
 	}
 }
 
+void UApexNetSubsystem::ScheduleReconnect(const FString& Reason)
+{
+	// 1, 2, 4, 5, 5... seconds: a server started a moment after the client is
+	// picked up almost at once, and a dead address is not hammered.
+	TimeUntilReconnect = FMath::Min(
+		ReconnectInitialDelaySeconds * static_cast<float>(1 << FMath::Min(ReconnectAttempt, 8)),
+		ReconnectMaxDelaySeconds);
+	++ReconnectAttempt;
+
+	UE_LOG(LogApexSimNet, Log, TEXT("%s; retrying %s:%d in %.0f s (attempt %d)"),
+		*Reason, *Host, Port, TimeUntilReconnect, ReconnectAttempt);
+	SetConnectionState(EApexConnectionState::Reconnecting,
+		FString::Printf(TEXT("%s — retrying in %.0f s"), *Reason, TimeUntilReconnect));
+}
+
 void UApexNetSubsystem::Disconnect()
 {
+	bReconnectEnabled = false;
 	if (Connection && Connection->IsConnected())
 	{
 		Connection->Send(ApexProtocol::EncodeDisconnect());
@@ -271,6 +301,16 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 
 	if (!Connection)
 	{
+		// Between attempts. Only the timer runs here, so a server that is down
+		// costs one socket connect every few seconds rather than one per frame.
+		if (bReconnectEnabled && ConnectionState == EApexConnectionState::Reconnecting)
+		{
+			TimeUntilReconnect -= DeltaSeconds;
+			if (TimeUntilReconnect <= 0.0f)
+			{
+				StartConnectionAttempt();
+			}
+		}
 		return true;
 	}
 
@@ -284,12 +324,23 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 	if (Connection->PopDisconnectReason(Reason))
 	{
 		const bool bWasAuthenticated = ConnectionState == EApexConnectionState::Authenticated;
+		// AuthFailure lands before the server closes the socket, so by now the
+		// state is already Failed; the same token would only earn the same answer.
+		const bool bAuthRejected = ConnectionState == EApexConnectionState::Failed;
 
 		TeardownConnection();
 		PlayerId.Reset();
 		CurrentSessionId.Reset();
 
-		if (Reason.bDuringConnect)
+		if (bAuthRejected)
+		{
+			bReconnectEnabled = false;
+		}
+		else if (bReconnectEnabled)
+		{
+			ScheduleReconnect(Reason.Text);
+		}
+		else if (Reason.bDuringConnect)
 		{
 			SetConnectionState(EApexConnectionState::Failed, Reason.Text);
 		}
@@ -298,14 +349,19 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 			SetConnectionState(EApexConnectionState::Disconnected, Reason.Text);
 		}
 
-		if (bWasAuthenticated || Reason.bDuringConnect)
+		// Only a lost *session* is something the rest of the client must react
+		// to (drop the race view, back to the menu). A refused connect travels
+		// through the state change alone, so the connect dialog is not yanked
+		// away from someone who has just typed the wrong address.
+		if (bWasAuthenticated)
 		{
 			OnDisconnected.Broadcast(Reason.Text);
 		}
 		return true;
 	}
 
-	if (ConnectionState == EApexConnectionState::Connecting && Connection->IsConnected())
+	if ((ConnectionState == EApexConnectionState::Connecting || ConnectionState == EApexConnectionState::Reconnecting)
+		&& Connection->IsConnected())
 	{
 		SetConnectionState(EApexConnectionState::Authenticating, TEXT("Authenticating..."));
 	}
@@ -373,6 +429,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- AuthSuccess PlayerId=%s ServerVersion=%lld ProtocolVersion=%d UdpPort=%d"),
 			*PlayerId, Message.AuthSuccess.ServerVersion, Message.AuthSuccess.ProtocolVersion, Message.AuthSuccess.UdpPort);
 
+		ReconnectAttempt = 0;
 		SetConnectionState(EApexConnectionState::Authenticated, TEXT("Connected"));
 		OnAuthSucceeded.Broadcast(PlayerId, static_cast<int32>(Message.AuthSuccess.ServerVersion));
 
@@ -389,6 +446,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 
 	case EApexServerMessageType::AuthFailure:
 		UE_LOG(LogApexSimNet, Warning, TEXT("<- AuthFailure: %s"), *Message.Reason);
+		bReconnectEnabled = false;
 		SetConnectionState(EApexConnectionState::Failed, Message.Reason);
 		OnAuthFailed.Broadcast(Message.Reason);
 		break;

@@ -11,6 +11,7 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
+#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
@@ -454,18 +455,31 @@ namespace ApexUI
 			return MakeSized(Tree, MakeArtPlaceholder(Tree, PlaceholderCaption), Width, Height);
 		}
 
+		// The art is drawn at its own aspect ratio (the generated outlines are
+		// 4:3) and letterboxed into the slot, which is rarely 4:3: a card is
+		// about 2:1 and the detail panel 1.4:1. Stretching to the slot squashed
+		// every circuit differently on every screen. The bars are painted in the
+		// art's own background so they do not read as a frame.
 		UImage* Image = Tree.ConstructWidget<UImage>();
-		Image->SetBrushFromTexture(Texture, false);
-		// Preview art is not uniformly sized; letting the brush scale to the slot
-		// keeps the cards on a grid.
+		Image->SetBrushFromTexture(Texture, true);
 		FSlateBrush Brush = Image->GetBrush();
-		// A free axis (-1) still needs a sane desired size, or the image collapses
-		// before the size box or slot gets to stretch it.
-		Brush.ImageSize = FVector2D(Width > 0.0f ? Width : 320.0f, Height > 0.0f ? Height : 180.0f);
 		Brush.DrawAs = ESlateBrushDrawType::Image;
 		Image->SetBrush(Brush);
 
-		return MakeSized(Tree, Image, Width, Height);
+		UScaleBox* Fit = Tree.ConstructWidget<UScaleBox>();
+		Fit->SetStretch(EStretch::ScaleToFit);
+		Fit->AddChild(Image);
+
+		// Same colour as scripts/generate_track_previews.py's BACKGROUND_COLOR.
+		UBorder* Matte = MakePanel(
+			Tree,
+			Fit,
+			FMargin(),
+			MakeBrush(FLinearColor::FromSRGBColor(FColor(20, 20, 30))));
+		Matte->SetHorizontalAlignment(HAlign_Fill);
+		Matte->SetVerticalAlignment(VAlign_Fill);
+
+		return MakeSized(Tree, Matte, Width, Height);
 	}
 
 	namespace

@@ -103,9 +103,23 @@ void UApexTrackSelectWidget::BuildLayout()
 	CardScroll = WidgetTree->ConstructWidget<UScrollBox>();
 	CardScroll->AddChild(CardGrid);
 
+	// The track list comes from the server, so before the first LobbyState
+	// (or while the server is down) the grid is empty and needs to say why.
+	EmptyText = ApexUI::MakeText(
+		*WidgetTree,
+		TEXT("No tracks yet — the list fills in as soon as the server is reachable."),
+		ApexUI::Font::Body(15.0f),
+		ApexUI::Palette::TextMuted);
+	EmptyText->SetAutoWrapText(true);
+	EmptyText->SetVisibility(ESlateVisibility::Collapsed);
+
+	UVerticalBox* GridColumn = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddV(GridColumn, EmptyText, FMargin(8.0f, 4.0f));
+	ApexUI::AddV(GridColumn, CardScroll, FMargin(), HAlign_Fill, 1.0f);
+
 	UBorder* GridPanel = ApexUI::MakePanel(
 		*WidgetTree,
-		CardScroll,
+		GridColumn,
 		FMargin(ApexUI::Metrics::PageGutter - 8.0f, 20.0f, 20.0f, 20.0f),
 		ApexUI::MakeBrush(FLinearColor::Transparent));
 
@@ -210,6 +224,11 @@ void UApexTrackSelectWidget::RebuildCards(bool bForce)
 	}
 
 	const TArray<FApexTrackConfigSummary>& Tracks = Net->GetCachedLobbyState().TrackConfigs;
+
+	if (EmptyText)
+	{
+		EmptyText->SetVisibility(Tracks.Num() == 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 
 	TArray<FString> IncomingIds;
 	IncomingIds.Reserve(Tracks.Num());

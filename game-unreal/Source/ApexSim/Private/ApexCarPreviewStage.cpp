@@ -34,6 +34,11 @@ AApexCarPreviewStage::AApexCarPreviewStage()
 	Capture->bCaptureEveryFrame = true;
 	Capture->bCaptureOnMovement = false;
 	Capture->FOVAngle = CaptureFieldOfView;
+	// A scene capture has no stable history for the temporal passes to
+	// converge on, so with the car turning every frame TAA/TSR and motion
+	// blur smear it into streaks. Plain spatial AA is what a turntable wants.
+	Capture->ShowFlags.SetTemporalAA(false);
+	Capture->ShowFlags.SetMotionBlur(false);
 
 	KeyLight = CreateDefaultSubobject<URectLightComponent>(TEXT("KeyLight"));
 	KeyLight->SetupAttachment(Root);
@@ -59,7 +64,7 @@ void AApexCarPreviewStage::BeginPlay()
 	// Transparent clear colour so the preview composites over whatever the
 	// car-select screen puts behind it.
 	PreviewRenderTarget = UKismetRenderingLibrary::CreateRenderTarget2D(
-		this, PreviewResolution, PreviewResolution, RTF_RGBA8, FLinearColor::Transparent, /*bAutoGenerateMipMaps=*/false);
+		this, PreviewWidth, PreviewHeight, RTF_RGBA8, FLinearColor::Transparent, /*bAutoGenerateMipMaps=*/false);
 
 	if (PreviewRenderTarget)
 	{
@@ -124,6 +129,11 @@ void AApexCarPreviewStage::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToS
 		MeshToShow.IsNull() ? TEXT("null") : *MeshToShow.ToString());
 }
 
+void AApexCarPreviewStage::ResetTurntable()
+{
+	Turntable->SetRelativeRotation(FRotator::ZeroRotator);
+}
+
 void AApexCarPreviewStage::SetPreviewTransform(FVector Offset, FRotator Rotation, float Scale)
 {
 	PreviewOffset = Offset;
@@ -151,14 +161,29 @@ void AApexCarPreviewStage::FrameCurrentMesh()
 	const FVector ScaledOrigin = Bounds.Origin * PreviewScale;
 	CarMesh->SetRelativeLocation(PreviewOffset - FVector(ScaledOrigin.X, ScaledOrigin.Y, 0.0f));
 
-	// Pull the camera back far enough that the bounding sphere fits the FOV.
-	const float Radius = FMath::Max(Bounds.SphereRadius * PreviewScale, 1.0f);
-	const float HalfFovRadians = FMath::DegreesToRadians(CaptureFieldOfView * 0.5f);
-	const float Distance = (Radius / FMath::Max(FMath::Tan(HalfFovRadians), KINDA_SMALL_NUMBER)) * FramingMargin;
-
 	// A three-quarter view: back, slightly to the side, slightly above.
 	const FVector CameraDirection = FVector(-1.0f, -0.55f, 0.42f).GetSafeNormal();
-	const FVector CameraLocation = CameraDirection * Distance + FVector(0.0f, 0.0f, Radius * 0.25f);
+
+	// Pull the camera back just far enough for the car to fit both axes of the
+	// target, whatever the turntable's yaw. Cars are long and flat, so a
+	// bounding-sphere fit leaves most of a landscape frame empty; the box
+	// extents are what actually show. Horizontally the worst case over a full
+	// turn is the XY diagonal; vertically it is the height plus however much
+	// of that diagonal the camera's pitch tips into view. FOVAngle is the
+	// horizontal field of view, the vertical one follows from the aspect.
+	const FVector Extent = Bounds.BoxExtent * PreviewScale;
+	const float HalfWidth = FMath::Max(FMath::Sqrt(Extent.X * Extent.X + Extent.Y * Extent.Y), 1.0f);
+	const float Pitch = FMath::Asin(FMath::Clamp(CameraDirection.Z, -1.0f, 1.0f));
+	const float HalfHeight = FMath::Max(Extent.Z * FMath::Cos(Pitch) + HalfWidth * FMath::Sin(Pitch), 1.0f);
+
+	const float TanHalfHorizontal = FMath::Tan(FMath::DegreesToRadians(CaptureFieldOfView * 0.5f));
+	const float Aspect = PreviewHeight > 0 ? static_cast<float>(PreviewWidth) / static_cast<float>(PreviewHeight) : 1.0f;
+	const float TanHalfVertical = TanHalfHorizontal / FMath::Max(Aspect, KINDA_SMALL_NUMBER);
+	const float Distance = FMath::Max(
+		HalfWidth / FMath::Max(TanHalfHorizontal, KINDA_SMALL_NUMBER),
+		HalfHeight / FMath::Max(TanHalfVertical, KINDA_SMALL_NUMBER)) * FramingMargin;
+
+	const FVector CameraLocation = CameraDirection * Distance + FVector(0.0f, 0.0f, Extent.Z * 0.25f);
 
 	Capture->SetRelativeLocation(CameraLocation);
 	Capture->SetRelativeRotation((-CameraLocation).Rotation());

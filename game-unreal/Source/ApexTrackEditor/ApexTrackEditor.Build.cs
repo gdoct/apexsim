@@ -20,6 +20,10 @@ public class ApexTrackEditor : ModuleRules
 			"StaticMeshDescription",
 			"UnrealEd",
 			"AssetRegistry",
+			// FApexTrackCatalogRow, the DT_TrackCatalog row struct.
+			"ApexSim",
+			// FImage, for importing preview PNGs as textures.
+			"ImageCore",
 		});
 	}
 }

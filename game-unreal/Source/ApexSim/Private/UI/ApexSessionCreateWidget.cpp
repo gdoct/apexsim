@@ -1,5 +1,10 @@
 #include "UI/ApexSessionCreateWidget.h"
 
+#include "ApexCarPreviewStage.h"
+#include "Components/Image.h"
+#include "Components/ScaleBox.h"
+#include "Engine/TextureRenderTarget2D.h"
+
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexSim.h"
@@ -438,12 +443,40 @@ void UApexSessionCreateWidget::RefreshContent()
 		Link->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
 		ApexUI::AddV(Text, Link, FMargin(0.0f, 10.0f, 0.0f, 0.0f), HAlign_Left);
 
+		// Cars have meshes rather than preview textures, so the card borrows the
+		// garage's turntable: it is idle whenever this screen is up, and a still
+		// of the pending car from it beats a captioned placeholder.
+		UWidget* CarArt = nullptr;
+		AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this);
+		if (Stage && bHasRow && !Row.Mesh.IsNull() && Stage->GetPreviewRenderTarget())
+		{
+			Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
+			Stage->SetCarMesh(Row.Mesh);
+			Stage->SetTurntableEnabled(false);
+			Stage->ResetTurntable();
+
+			UImage* StageImage = WidgetTree->ConstructWidget<UImage>();
+			FSlateBrush Brush = StageImage->GetBrush();
+			Brush.SetResourceObject(Stage->GetPreviewRenderTarget());
+			Brush.ImageSize = Stage->GetPreviewSize();
+			Brush.DrawAs = ESlateBrushDrawType::Image;
+			StageImage->SetBrush(Brush);
+
+			UScaleBox* Fit = WidgetTree->ConstructWidget<UScaleBox>();
+			Fit->SetStretch(EStretch::ScaleToFit);
+			Fit->AddChild(StageImage);
+			CarArt = ApexUI::MakePanel(
+				*WidgetTree, Fit, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
+		}
+		else
+		{
+			CarArt = ApexUI::MakeArtPlaceholder(*WidgetTree, TEXT("Car"));
+		}
+
 		UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>();
-		// Cars have meshes rather than preview textures, and the turntable belongs
-		// to the garage; a captioned placeholder is honest here.
 		ApexUI::AddH(
 			RowBox,
-			ApexUI::MakeSized(*WidgetTree, ApexUI::MakeArtPlaceholder(*WidgetTree, TEXT("Car")), 200.0f, 116.0f),
+			ApexUI::MakeSized(*WidgetTree, CarArt, 200.0f, 116.0f),
 			FMargin(0.0f, 0.0f, 18.0f, 0.0f),
 			VAlign_Center);
 		ApexUI::AddH(RowBox, Text, FMargin(), VAlign_Center, 1.0f);
