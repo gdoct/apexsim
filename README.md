@@ -16,9 +16,10 @@ This project is in active development. The simulation and the networking underne
 * AI drivers, lap timing and lap validation, race classification
 * Prometheus metrics plus health and readiness endpoints
 
-<img width="1271" height="743" alt="image" src="https://github.com/user-attachments/assets/ae9ceb40-dd4f-436e-b7fa-2a7d7ebd8c70" />
-<img width="1275" height="746" alt="image" src="https://github.com/user-attachments/assets/f169dda7-a6ac-40fc-a815-cd889a85f881" />
-<img width="1276" height="748" alt="image" src="https://github.com/user-attachments/assets/f7438b33-79e7-456b-b316-605f2ab38e54" />
+<img width="1000" alt="image" src="https://github.com/user-attachments/assets/5d3248d3-155b-4703-b04f-34b05afe2472" />
+<img width="1000" alt="image" src="https://github.com/user-attachments/assets/8961e3b0-7d88-44cb-b160-b0ad1f6c30ed" />
+<img width="1000" alt="image" src="https://github.com/user-attachments/assets/50766231-797f-44c9-ae9f-410721ad73f8" />
+
 
 **Content**
 * 26 circuits with exact measured centerline, per-side track width, banking, surface type and **elevation** (Spa spans ~90 m of it)
