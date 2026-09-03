@@ -185,6 +185,16 @@ public:
 	UPROPERTY()
 	float Vibration = 0.45f;
 
+	// --- Audio ----------------------------------------------------------------
+
+	/** 0..1. Scales everything the game plays, through the audio device's primary volume. */
+	UPROPERTY()
+	float MasterVolume = 1.0f;
+
+	/** 0..1. The menu's cues — moves, accepts, toasts — on top of the master volume. */
+	UPROPERTY()
+	float UiVolume = 0.8f;
+
 	/** Empty until something is rebound — an absent slot uses its default key. */
 	UPROPERTY()
 	TArray<FApexKeyBinding> Bindings;

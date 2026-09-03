@@ -27,6 +27,11 @@ public:
 
 	virtual void OnScreenActivated() override;
 
+	/** Drive again, the primary action. */
+	virtual void FocusDefault() override;
+	/** No history behind a finished session; Back does nothing rather than something arbitrary. */
+	virtual bool HandleBack() override { return true; }
+
 protected:
 	virtual void NativeOnInitialized() override;
 

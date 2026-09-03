@@ -21,6 +21,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -83,6 +84,24 @@ void UApexSessionCreateWidget::OnScreenActivated()
 	RefreshFooter();
 }
 
+void UApexSessionCreateWidget::FocusDefault()
+{
+	if (!ApexNav::Focus(CreateButtonWidget) && !ApexNav::Focus(KindMultiplayerButton))
+	{
+		Super::FocusDefault();
+	}
+}
+
+bool UApexSessionCreateWidget::HandleAccept()
+{
+	if (CreateButtonWidget && ApexNav::CanFocus(CreateButtonWidget))
+	{
+		HandleButtonActivated(CreateButtonWidget);
+		return true;
+	}
+	return false;
+}
+
 // ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
@@ -93,6 +112,7 @@ void UApexSessionCreateWidget::BuildLayout()
 	BackSpec.Label = TEXT("Home");
 	BackSpec.KeyCap = TEXT("Esc");
 	BackSpec.bKeyCapLeading = true;
+	BackSpec.Sound = EApexUiSound::Back;
 	BackSpec.Variant = EApexButtonVariant::Bare;
 	BackSpec.LabelSize = 15.0f;
 	BackSpec.ActionId = ActionCreateBack;
@@ -241,6 +261,9 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	MaxPlayersSlider = PlayersSlider;
 	MaxPlayersFill = PlayersFill;
 	MaxPlayersSlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleMaxPlayersChanged);
+	// One keypress, one seat: the sliders are normalised, so the step is the
+	// width of a single value.
+	MaxPlayersSlider->SetStepSize(1.0f / (MaxPlayersCeiling - 1));
 
 	UTextBlock* AiValue = nullptr;
 	UTextBlock* AiSuffix = nullptr;
@@ -254,6 +277,7 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	AiCountSlider = AiSlider;
 	AiCountFill = AiFill;
 	AiCountSlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleAiCountChanged);
+	AiCountSlider->SetStepSize(1.0f / (MaxPlayersCeiling - 1));
 
 	GridSummaryText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 80), ApexUI::Palette::TextMuted);
 	ApexUI::AddV(Column, GridSummaryText, FMargin(0.0f, 8.0f, 0.0f, 20.0f));
@@ -270,6 +294,7 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	LapsSlider = LapSlider;
 	LapsFill = LapFill;
 	LapsSlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleLapsChanged);
+	LapsSlider->SetStepSize(1.0f / (LapsCeiling - 1));
 
 	ApexUI::AddV(Column, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
 
@@ -337,6 +362,11 @@ void UApexSessionCreateWidget::RefreshContent()
 		return;
 	}
 
+	// Both summaries are rebuilt on every lobby snapshot. A link that had the
+	// keyboard would otherwise take the focus down with it.
+	const bool bTrackLinkHadFocus = ChangeTrackLink && ChangeTrackLink->HasKeyboardFocus();
+	const bool bCarLinkHadFocus = ChangeCarLink && ChangeCarLink->HasKeyboardFocus();
+
 	// --- Track ---------------------------------------------------------------
 	TrackSummaryBox->ClearChildren();
 	{
@@ -385,6 +415,7 @@ void UApexSessionCreateWidget::RefreshContent()
 		Link->Setup(LinkSpec);
 		Link->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
 		ApexUI::AddV(Text, Link, FMargin(0.0f, 10.0f, 0.0f, 0.0f), HAlign_Left);
+		ChangeTrackLink = Link;
 
 		UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>();
 		ApexUI::AddH(
@@ -442,6 +473,7 @@ void UApexSessionCreateWidget::RefreshContent()
 		Link->Setup(LinkSpec);
 		Link->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
 		ApexUI::AddV(Text, Link, FMargin(0.0f, 10.0f, 0.0f, 0.0f), HAlign_Left);
+		ChangeCarLink = Link;
 
 		// Cars have meshes rather than preview textures, so the card borrows the
 		// garage's turntable: it is idle whenever this screen is up, and a still
@@ -481,6 +513,15 @@ void UApexSessionCreateWidget::RefreshContent()
 			VAlign_Center);
 		ApexUI::AddH(RowBox, Text, FMargin(), VAlign_Center, 1.0f);
 		ApexUI::AddV(CarSummaryBox, RowBox);
+	}
+
+	if (bTrackLinkHadFocus)
+	{
+		ApexNav::Focus(ChangeTrackLink);
+	}
+	else if (bCarLinkHadFocus)
+	{
+		ApexNav::Focus(ChangeCarLink);
 	}
 }
 

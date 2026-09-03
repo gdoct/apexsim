@@ -2,6 +2,7 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexSettingsSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
@@ -117,6 +118,11 @@ UApexButtonWidget* UApexPauseMenuWidget::AddRow(
 	Spec.Variant = bPrimary ? EApexButtonVariant::Primary : EApexButtonVariant::Panel;
 	Spec.Height = bPrimary ? PrimaryRowHeight : PauseRowHeight;
 	Spec.LabelSize = bPrimary ? 27.0f : 24.0f;
+	if (ActionId == ActionResume)
+	{
+		// Closing the menu is the step back its key cap says it is.
+		Spec.Sound = EApexUiSound::Back;
+	}
 	Button->Setup(Spec);
 	Button->OnActivated.AddDynamic(this, &UApexPauseMenuWidget::HandleButtonActivated);
 
@@ -133,13 +139,12 @@ void UApexPauseMenuWidget::Open()
 
 	SetVisibility(ESlateVisibility::Visible);
 	RefreshStatusStrip();
+	FocusDefault();
+}
 
-	// Focus lands on Resume so Enter is always the safe answer.
-	if (Rows.Num() > 0 && Rows[0])
-	{
-		Rows[0]->SetKeyboardFocus();
-	}
-	else
+void UApexPauseMenuWidget::FocusDefault()
+{
+	if (!(Rows.Num() > 0 && ApexNav::Focus(Rows[0])))
 	{
 		SetKeyboardFocus();
 	}
@@ -238,41 +243,48 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 
 FReply UApexPauseMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	const FKey Key = InKeyEvent.GetKey();
-
-	// Escape resumes, matching what the footer promises. It is handled here
-	// rather than by the root widget so the menu closes even when focus has
-	// moved down onto one of the rows.
-	if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right)
+	// The pause key resumes as well as pauses: whichever key opened the menu
+	// closes it. Escape and B arrive through HandleBack.
+	const UApexSettingsSubsystem* Settings =
+		GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+	if (Settings && Settings->IsPauseKey(InKeyEvent.GetKey()) && !InKeyEvent.IsRepeat())
 	{
 		OnAction.Broadcast(EApexPauseAction::Resume);
 		return FReply::Handled();
 	}
 
-	// Arrow keys walk the rows. Slate's own navigation would work too, but the
-	// rows are separated by a divider that it happily focuses past.
-	const bool bUp = Key == EKeys::Up || Key == EKeys::Gamepad_DPad_Up;
-	const bool bDown = Key == EKeys::Down || Key == EKeys::Gamepad_DPad_Down;
-	if ((bUp || bDown) && Rows.Num() > 0)
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+bool UApexPauseMenuWidget::HandleBack()
+{
+	OnAction.Broadcast(EApexPauseAction::Resume);
+	return true;
+}
+
+bool UApexPauseMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
+{
+	if (Rows.Num() == 0)
 	{
-		int32 Current = Rows.IndexOfByPredicate([](const TObjectPtr<UApexButtonWidget>& Row)
-		{
-			return Row && Row->HasAnyUserFocus();
-		});
-		if (Current == INDEX_NONE)
-		{
-			Current = 0;
-		}
-		else
-		{
-			Current = (Current + (bDown ? 1 : Rows.Num() - 1)) % Rows.Num();
-		}
-		if (Rows[Current])
-		{
-			Rows[Current]->SetKeyboardFocus();
-		}
-		return FReply::Handled();
+		return false;
 	}
 
-	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+	const int32 Current = ApexNav::IndexOf(Rows, Source);
+	switch (Direction)
+	{
+	case EUINavigation::Up:
+	case EUINavigation::Previous:
+		ApexNav::Focus(Rows[Current == INDEX_NONE ? 0 : (Current + Rows.Num() - 1) % Rows.Num()]);
+		return true;
+
+	case EUINavigation::Down:
+	case EUINavigation::Next:
+		ApexNav::Focus(Rows[Current == INDEX_NONE ? 0 : (Current + 1) % Rows.Num()]);
+		return true;
+
+	default:
+		// Nothing to the left or right of the card; stay put rather than let
+		// Slate hunt for something under the scrim.
+		return Current != INDEX_NONE;
+	}
 }

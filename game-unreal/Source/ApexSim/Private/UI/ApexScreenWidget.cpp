@@ -16,6 +16,26 @@ void UApexScreenWidget::OnScreenDeactivated()
 	BP_OnScreenDeactivated();
 }
 
+bool UApexScreenWidget::HandleBack()
+{
+	// At the bottom of a flow there is nothing to go back to. Saying so lets
+	// the press fall through unconsumed — and unsounded — instead of being
+	// reported as a step back that went nowhere.
+	UApexRootWidget* Root = GetRoot();
+	if (!Root || !Root->CanGoBack())
+	{
+		return false;
+	}
+	Root->GoBack();
+	return true;
+}
+
+bool UApexScreenWidget::IsActiveScreen() const
+{
+	const UApexRootWidget* Root = GetRoot();
+	return Root && Root->IsScreenActive(this);
+}
+
 UApexNetSubsystem* UApexScreenWidget::GetNet() const
 {
 	const UGameInstance* GameInstance = GetGameInstance();

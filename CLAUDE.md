@@ -51,6 +51,33 @@ catalog tables are only ever found by path at runtime, and the cooker's
 `DirectoriesToAlwaysCook` scan ignores `.umap` files, so without cook-all a
 packaged build races in an empty world with no previews.
 
+### Release package
+`scripts/build_release.ps1` runs the whole pipeline front to back — server,
+track levels, track catalog, client package — and assembles a folder a player
+can unzip and run:
+
+```powershell
+./scripts/build_release.ps1 -Zip                     # artifacts/release/ApexSim-<ver>-Win64[.zip]
+./scripts/build_release.ps1 -SkipClient -SkipTracks  # reuse what is already built
+```
+
+Layout: `Game/` (the packaged client, plus a `settings.sample.yml`), `Server/` (`apexsim-server.exe`,
+`server.toml` and only the content the server reads — `car.toml` per car and
+the track YAML, not the `.glb` models or `.ats` sidecars), plus `Play.bat`,
+`Start-Server.bat`, `README.txt`, `LICENSE` and `release.json`.
+
+The run aborts before any long build if the car or track data is missing, or if
+a track YAML has no `track_id`. Every stage has a `-Skip*` switch for when one
+piece is mid-refactor, but a skipped stage must still find the output it would
+have produced — a `-SkipTracks` run checks `L_<Stem>.umap` exists for every
+circuit rather than shipping a package that races in an empty world.
+`build_game_standalone.ps1` archives into `<dir>\Windows`, so the release
+script points it straight at the release folder and renames that to `Game`
+instead of copying 1.8 GB.
+
+The Unreal Engine lookup shared by all three scripts lives in
+`scripts/lib/ApexEngine.ps1`.
+
 ### Track pipeline into Unreal
 Circuits reach the Unreal client in two generated steps; both outputs are
 regenerated wholesale and neither should be hand-edited.
@@ -122,6 +149,37 @@ the viewport discards game input entirely and no binding produces an event
 (the controller switches to game-and-UI for the race); and a Blueprint game
 mode can silently override `PlayerControllerClass`, which the C++ game mode
 now logs an error about.
+
+### Client startup settings (`settings.yml`)
+
+The few settings a player may need to change *before* the game is usable -
+resolution, window mode, vsync, frame limit and the server address - live in a
+plain-text `settings.yml` rather than a binary save slot.
+`UApexBootSettingsSubsystem` owns it: it reads the file at game-instance
+startup, creates it with defaults (seeded from the desktop's own display mode)
+when absent, and rewrites it when those values change in-game.
+
+It sits next to the executable: `Game/settings.yml` in a release package,
+`game-unreal/settings.yml` (gitignored) in the editor. `FPaths::ProjectDir()` is
+`<Release>/Game/ApexSim/` in a packaged build, so its parent is the folder
+holding `ApexSim.exe`.
+
+The file wins over the save slots for the values it covers, which is the whole
+point of it. `UApexSettingsSubsystem` and `UApexMenuFlowSubsystem` name it as an
+`InitializeDependency`, adopt its values on load, and push back on save; a file
+created this run is seeded from the slots instead, so an existing install keeps
+what it had. Only a flat two-level subset of YAML is parsed (hand-rolled - Unreal
+has no YAML reader); an unknown key or unparseable value is logged and skipped
+rather than failing the load. Every write regenerates the file wholesale,
+comments included, so hand-added comments do not survive a change made in-game.
+
+`build_release.ps1` ships a `Game/settings.sample.yml` beside where the real
+file appears: the same shape with the shipped defaults, so a player can read
+every setting before the first run creates one. It is a sample and not a live
+`settings.yml` on purpose - a shipped file would be adopted over the first-run
+display detection, pinning an arbitrary monitor to a 1920x1080 guess. Its text
+is a second copy of what `ApexBootSettingsIo::Serialise` writes; the two carry
+comments pointing at each other.
 
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)

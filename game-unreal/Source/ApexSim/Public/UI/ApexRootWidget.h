@@ -7,6 +7,11 @@
 
 #include "ApexRootWidget.generated.h"
 
+class FApexMenuInputProcessor;
+class FWeakWidgetPath;
+class FWidgetPath;
+class SWidget;
+struct FFocusEvent;
 class UApexHudWidget;
 class UApexPauseMenuWidget;
 class UApexScreenWidget;
@@ -50,11 +55,55 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void GoBack();
 
+	/** True when GoBack would move: there is a screen on the back stack. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
+	bool CanGoBack() const { return BackStack.Num() > 0; }
+
+	/** Shows a toast, with a cue: news or bad news. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void ShowToast(const FString& Message, bool bIsError = false);
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	EApexScreen GetCurrentScreen() const { return CurrentScreen; }
+
+	/** True while Screen is the one on show and no race view covers it. */
+	bool IsScreenActive(const UApexScreenWidget* Screen) const;
+
+	/**
+	 * Puts keyboard focus on whichever surface is in front: the settings
+	 * overlay, the pause menu, or the current screen. Nothing while driving —
+	 * the viewport owns input then.
+	 */
+	void FocusDefault();
+
+	/**
+	 * FocusDefault a tick from now. Focus set in the same frame as an input
+	 * mode change or a screen switch is overwritten when the deferred Slate
+	 * operations run; a tick later it sticks.
+	 */
+	void RequestFocusDefault();
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
+	bool IsRaceViewActive() const { return bRaceViewActive; }
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
+	bool IsPaused() const { return bPauseMenuOpen; }
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
+	bool IsSettingsOpen() const;
+
+	/** True while any race-side overlay owns input. */
+	bool IsRaceOverlayOpen() const;
+
+	/**
+	 * Opens or closes the pause menu.
+	 *
+	 * Driving input goes with it: while the menu is up the controller is put
+	 * back into UI-only input, which both zeroes the controls and stops a
+	 * keypress meant for the menu reaching the car. The session itself keeps
+	 * running — the server is authoritative and has no pause.
+	 */
+	void SetPaused(bool bPaused);
 
 	/** The screen the car picker should return to once a car is confirmed. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
@@ -123,24 +172,11 @@ private:
 	/** Hides the menu and hands the view to the race director, or takes it back. */
 	void SetRaceViewActive(bool bActive);
 
-	/**
-	 * Opens or closes the pause menu.
-	 *
-	 * Driving input goes with it: while the menu is up the controller is put
-	 * back into UI-only input, which both zeroes the controls and stops a
-	 * keypress meant for the menu reaching the car. The session itself keeps
-	 * running — the server is authoritative and has no pause.
-	 */
-	void SetPaused(bool bPaused);
-
 	UFUNCTION()
 	void HandlePauseAction(EApexPauseAction Action);
 
 	UFUNCTION()
 	void HandleSettingsClosed();
-
-	/** True while any race-side overlay owns input. */
-	bool IsRaceOverlayOpen() const;
 
 	/** True for any mode in which the server is simulating and sending telemetry. */
 	static bool IsDrivingMode(EApexGameMode Mode);
@@ -182,4 +218,23 @@ private:
 
 	EApexScreen CurrentScreen = EApexScreen::MainMenu;
 	TArray<EApexScreen> BackStack;
+
+	/** Focus recovery and the pause key; see the class. Registered for the widget's lifetime. */
+	TSharedPtr<FApexMenuInputProcessor> InputProcessor;
+
+	/**
+	 * Every focus change Slate makes, so a move the player made can be heard.
+	 *
+	 * Here rather than on each control because the controls are not all ours:
+	 * a slider or a dropdown in settings is Slate's own widget, and focus
+	 * landing on one is as much a move as focus landing on a button.
+	 */
+	void HandleFocusChanging(
+		const FFocusEvent& Event,
+		const FWeakWidgetPath& OldPath,
+		const TSharedPtr<SWidget>& OldWidget,
+		const FWidgetPath& NewPath,
+		const TSharedPtr<SWidget>& NewWidget);
+
+	FDelegateHandle FocusChangingHandle;
 };

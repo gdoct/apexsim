@@ -7,6 +7,7 @@
 
 #include "ApexMenuFlowSubsystem.generated.h"
 
+class UApexBootSettingsSubsystem;
 class UApexProfileSave;
 class UDataTable;
 
@@ -179,6 +180,14 @@ private:
 
 	/** Reads the profile slot into the fields above; creates one if absent. */
 	void LoadProfile();
+
+	UApexBootSettingsSubsystem* GetBoot() const;
+
+	/**
+	 * Reconciles the server address with settings.yml: an existing file wins
+	 * over the profile, a file created this run is seeded from it.
+	 */
+	void AdoptBootSettings();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexProfileSave> Profile;

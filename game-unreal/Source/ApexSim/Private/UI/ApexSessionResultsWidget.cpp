@@ -17,6 +17,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/GameInstance.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -59,6 +60,14 @@ void UApexSessionResultsWidget::OnScreenActivated()
 
 	RefreshTable();
 	RefreshSidePanel();
+}
+
+void UApexSessionResultsWidget::FocusDefault()
+{
+	if (!ApexNav::Focus(DriveAgainButton) && !ApexNav::Focus(BackToLobbyButton))
+	{
+		Super::FocusDefault();
+	}
 }
 
 // ---------------------------------------------------------------------------

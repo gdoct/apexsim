@@ -31,6 +31,17 @@ public:
 
 	virtual void OnScreenActivated() override;
 
+	// --- Navigation ---------------------------------------------------------
+	//
+	// Two columns: the hero's actions run left to right, the rail top to
+	// bottom. Left/Right and Up/Down stay inside a column; Tab, the shoulders,
+	// Right off the end of the hero and Left off the rail cross over.
+
+	virtual void FocusDefault() override;
+	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
+	/** Bottom of the flow: Back does nothing here. Escape quits, see NativeOnKeyDown. */
+	virtual bool HandleBack() override { return true; }
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
@@ -63,9 +74,10 @@ private:
 
 	// --- Keyboard navigation --------------------------------------------------
 
-	/** Moves the selection within the active column, wrapping and skipping locked rows. */
-	void MoveSelection(int32 Delta);
+	/** Moves the rail selection, wrapping and skipping locked rows. */
+	void MoveRail(int32 Delta);
 	void SwitchColumn();
+	/** Focuses the remembered button of the active column. */
 	void ApplyFocus();
 
 	/** Starts a session with the remembered setup, or sends the user to pick a track. */

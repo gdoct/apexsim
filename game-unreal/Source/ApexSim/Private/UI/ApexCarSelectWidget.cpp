@@ -20,6 +20,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "TimerManager.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -106,8 +107,7 @@ void UApexCarSelectWidget::OnScreenActivated()
 	{
 		SelectCar(VisibleRows[0]->GetActionId().ToString());
 	}
-
-	RequestRowFocus();
+	// Focus lands a tick later, by way of the root's RequestFocusDefault.
 }
 
 void UApexCarSelectWidget::OnScreenDeactivated()
@@ -173,17 +173,18 @@ UWidget* UApexCarSelectWidget::BuildHeader()
 	BackSpec.Label = TEXT("Back");
 	BackSpec.KeyCap = TEXT("Esc");
 	BackSpec.bKeyCapLeading = true;
+	BackSpec.Sound = EApexUiSound::Back;
 	BackSpec.Variant = EApexButtonVariant::Bare;
 	BackSpec.LabelSize = 15.0f;
 	BackSpec.ActionId = ActionCarSelectBack;
 
-	UApexButtonWidget* BackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
-	BackButton->Setup(BackSpec);
-	BackButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+	HeaderBackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	HeaderBackButton->Setup(BackSpec);
+	HeaderBackButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
 
 	ChipRow = WidgetTree->ConstructWidget<UHorizontalBox>();
 
-	return ApexUI::MakeScreenHeader(*WidgetTree, BackButton, TEXT("Garage"), ChipRow);
+	return ApexUI::MakeScreenHeader(*WidgetTree, HeaderBackButton, TEXT("Garage"), ChipRow);
 }
 
 UWidget* UApexCarSelectWidget::BuildStage()
@@ -386,14 +387,20 @@ void UApexCarSelectWidget::RebuildList(bool bForce)
 
 void UApexCarSelectWidget::RequestRowFocus()
 {
+	// The list is rebuilt from lobby snapshots whether or not this screen is
+	// showing; only the screen in front may move focus.
+	if (!IsActiveScreen())
+	{
+		return;
+	}
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimerForNextTick(
 			FTimerDelegate::CreateWeakLambda(this, [this]()
 			{
-				if (VisibleRows.IsValidIndex(FocusedRowIndex))
+				if (IsActiveScreen())
 				{
-					VisibleRows[FocusedRowIndex]->SetKeyboardFocus();
+					FocusRow(FocusedRowIndex);
 				}
 			}));
 	}
@@ -686,45 +693,123 @@ void UApexCarSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 }
 
-FReply UApexCarSelectWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+// ---------------------------------------------------------------------------
+// Navigation
+// ---------------------------------------------------------------------------
+
+void UApexCarSelectWidget::FocusDefault()
 {
-	const FKey Key = InKeyEvent.GetKey();
-
-	if (Key == EKeys::Up)
+	// The list, or — before the server has sent any cars — the way out.
+	if (!FocusRow(FocusedRowIndex) && !ApexNav::Focus(HeaderBackButton))
 	{
-		MoveSelection(-1);
-		return FReply::Handled();
+		Super::FocusDefault();
 	}
-	if (Key == EKeys::Down)
-	{
-		MoveSelection(1);
-		return FReply::Handled();
-	}
-	if (Key == EKeys::Tab && DriveButton)
-	{
-		DriveButton->SetKeyboardFocus();
-		return FReply::Handled();
-	}
-
-	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
-void UApexCarSelectWidget::MoveSelection(int32 Delta)
+bool UApexCarSelectWidget::FocusRow(int32 Index)
 {
 	if (VisibleRows.Num() == 0)
 	{
-		return;
+		return false;
 	}
 
-	FocusedRowIndex = FMath::Clamp(FocusedRowIndex + Delta, 0, VisibleRows.Num() - 1);
-	VisibleRows[FocusedRowIndex]->SetKeyboardFocus();
-
-	if (CarListScroll)
+	FocusedRowIndex = FMath::Clamp(Index, 0, VisibleRows.Num() - 1);
+	if (!ApexNav::Focus(VisibleRows[FocusedRowIndex]))
 	{
-		CarListScroll->ScrollWidgetIntoView(VisibleRows[FocusedRowIndex], true);
+		return false;
 	}
 
 	// Moving through the list is how you browse the garage: each row describes
 	// itself on the right as it is reached.
 	SelectCar(VisibleRows[FocusedRowIndex]->GetActionId().ToString());
+	return true;
+}
+
+bool UApexCarSelectWidget::FocusChip()
+{
+	for (UApexButtonWidget* Chip : FilterChips)
+	{
+		if (Chip && Chip->GetActionId().ToString() == ActiveFilter && ApexNav::Focus(Chip))
+		{
+			return true;
+		}
+	}
+	return FilterChips.Num() > 0 && ApexNav::Focus(FilterChips[0]);
+}
+
+bool UApexCarSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
+{
+	const int32 RowAt = ApexNav::IndexOf(VisibleRows, Source);
+	if (RowAt != INDEX_NONE)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Up:
+			return RowAt == 0 ? FocusChip() : FocusRow(RowAt - 1);
+		case EUINavigation::Down:
+			FocusRow(RowAt + 1);
+			return true;
+		case EUINavigation::Right:
+		case EUINavigation::Next:
+			return ApexNav::Focus(DriveButton);
+		case EUINavigation::Previous:
+			return FocusChip();
+		default:
+			return true;
+		}
+	}
+
+	const int32 ChipAt = ApexNav::IndexOf(FilterChips, Source);
+	if (ChipAt != INDEX_NONE)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Left:
+			return ChipAt > 0 ? ApexNav::Focus(FilterChips[ChipAt - 1]) : ApexNav::Focus(HeaderBackButton);
+		case EUINavigation::Right:
+			if (ChipAt + 1 < FilterChips.Num())
+			{
+				ApexNav::Focus(FilterChips[ChipAt + 1]);
+			}
+			return true;
+		case EUINavigation::Down:
+		case EUINavigation::Next:
+			return FocusRow(FocusedRowIndex) || ApexNav::Focus(DriveButton);
+		case EUINavigation::Previous:
+			return ApexNav::Focus(HeaderBackButton);
+		default:
+			return true;
+		}
+	}
+
+	if (Source == DriveButton)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Left:
+		case EUINavigation::Previous:
+			return FocusRow(FocusedRowIndex);
+		case EUINavigation::Up:
+		case EUINavigation::Next:
+			return FocusChip();
+		default:
+			return true;
+		}
+	}
+
+	if (Source == HeaderBackButton)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Right:
+		case EUINavigation::Next:
+			return FocusChip() || FocusRow(FocusedRowIndex);
+		case EUINavigation::Down:
+			return FocusRow(FocusedRowIndex);
+		default:
+			return true;
+		}
+	}
+
+	return false;
 }

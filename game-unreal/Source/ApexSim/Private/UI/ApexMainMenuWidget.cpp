@@ -15,6 +15,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "TimerManager.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -144,16 +145,7 @@ void UApexMainMenuWidget::OnScreenActivated()
 	Super::OnScreenActivated();
 
 	RefreshAll();
-
-	// Not this frame: on the first activation the shell is still being added to
-	// the viewport, and the game mode's SetInputMode runs immediately after and
-	// hands focus to the viewport widget. A tick later the tree is live and the
-	// focus sticks.
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateWeakLambda(this, [this]() { ApplyFocus(); }));
-	}
+	// Focus lands a tick later, by way of the root's RequestFocusDefault.
 }
 
 // ---------------------------------------------------------------------------
@@ -726,27 +718,11 @@ void UApexMainMenuWidget::HandlePendingTrackChanged(const FString& TrackId)
 
 FReply UApexMainMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	const FKey Key = InKeyEvent.GetKey();
-
-	if (Key == EKeys::Up)
+	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
-		MoveSelection(-1);
-		return FReply::Handled();
-	}
-	if (Key == EKeys::Down)
-	{
-		MoveSelection(1);
-		return FReply::Handled();
-	}
-	if (Key == EKeys::Tab)
-	{
-		SwitchColumn();
-		return FReply::Handled();
-	}
-	if (Key == EKeys::Escape)
-	{
-		// The footer promises Escape quits here. Elsewhere the root widget takes
-		// it as "back", but the main menu is the bottom of the stack.
+		// The footer promises Escape quits here. Elsewhere Back means "back",
+		// but the main menu is the bottom of the stack. Only the key itself: a
+		// pad's B button must not end the game.
 		if (UApexNetSubsystem* Net = GetNet())
 		{
 			Net->Disconnect();
@@ -758,21 +734,94 @@ FReply UApexMainMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
-void UApexMainMenuWidget::MoveSelection(int32 Delta)
+void UApexMainMenuWidget::FocusDefault()
 {
-	TArray<TObjectPtr<UApexButtonWidget>>& Column = ActiveColumn == 0 ? HeroButtons : RailButtons;
-	if (Column.Num() == 0)
+	ApplyFocus();
+}
+
+bool UApexMainMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
+{
+	if (ApexNav::IsSequential(Direction))
+	{
+		SwitchColumn();
+		return true;
+	}
+
+	const int32 HeroAt = ApexNav::IndexOf(HeroButtons, Source);
+	if (HeroAt != INDEX_NONE)
+	{
+		ActiveColumn = 0;
+		HeroIndex = HeroAt;
+
+		switch (Direction)
+		{
+		case EUINavigation::Left:
+			HeroIndex = FMath::Max(0, HeroAt - 1);
+			ApplyFocus();
+			return true;
+
+		case EUINavigation::Right:
+			if (HeroAt + 1 < HeroButtons.Num())
+			{
+				HeroIndex = HeroAt + 1;
+			}
+			else
+			{
+				// Off the end of the actions is the rail.
+				ActiveColumn = 1;
+			}
+			ApplyFocus();
+			return true;
+
+		default:
+			// Nothing above or below the actions worth landing on; Slate's
+			// search would pick a rail item at random.
+			return true;
+		}
+	}
+
+	const int32 RailAt = ApexNav::IndexOf(RailButtons, Source);
+	if (RailAt != INDEX_NONE)
+	{
+		ActiveColumn = 1;
+		RailIndex = RailAt;
+
+		switch (Direction)
+		{
+		case EUINavigation::Up:
+			MoveRail(-1);
+			return true;
+
+		case EUINavigation::Down:
+			MoveRail(1);
+			return true;
+
+		case EUINavigation::Left:
+			ActiveColumn = 0;
+			ApplyFocus();
+			return true;
+
+		default:
+			return true;
+		}
+	}
+
+	// From the screen itself: the base lands focus on the default.
+	return false;
+}
+
+void UApexMainMenuWidget::MoveRail(int32 Delta)
+{
+	if (RailButtons.Num() == 0)
 	{
 		return;
 	}
 
-	int32& Index = ActiveColumn == 0 ? HeroIndex : RailIndex;
-
 	// Wrap, and step over anything that cannot be activated (the locked rows).
-	for (int32 Attempt = 0; Attempt < Column.Num(); ++Attempt)
+	for (int32 Attempt = 0; Attempt < RailButtons.Num(); ++Attempt)
 	{
-		Index = (Index + Delta + Column.Num()) % Column.Num();
-		if (Column[Index] && Column[Index]->IsInteractive())
+		RailIndex = (RailIndex + Delta + RailButtons.Num()) % RailButtons.Num();
+		if (ApexNav::CanFocus(RailButtons[RailIndex]))
 		{
 			break;
 		}
@@ -792,16 +841,21 @@ void UApexMainMenuWidget::ApplyFocus()
 	const TArray<TObjectPtr<UApexButtonWidget>>& Column = ActiveColumn == 0 ? HeroButtons : RailButtons;
 	const int32 Index = ActiveColumn == 0 ? HeroIndex : RailIndex;
 
-	if (Column.IsValidIndex(Index) && Column[Index])
+	if (Column.IsValidIndex(Index) && ApexNav::Focus(Column[Index]))
 	{
-		Column[Index]->SetKeyboardFocus();
-		UE_LOG(LogApexSim, Verbose, TEXT("Main menu focus -> column %d index %d (%s), took focus: %s"),
-			ActiveColumn, Index, *Column[Index]->GetActionId().ToString(),
-			Column[Index]->HasKeyboardFocus() ? TEXT("yes") : TEXT("no"));
+		UE_LOG(LogApexSim, Verbose, TEXT("Main menu focus -> column %d index %d (%s)"),
+			ActiveColumn, Index, *Column[Index]->GetActionId().ToString());
+		return;
 	}
-	else
+
+	// The remembered button is gone or locked: anything in the column will do,
+	// and failing that keep the keys coming to this screen.
+	for (UApexButtonWidget* Button : Column)
 	{
-		// Nothing to focus — keep the keys coming to this screen anyway.
-		SetKeyboardFocus();
+		if (ApexNav::Focus(Button))
+		{
+			return;
+		}
 	}
+	SetKeyboardFocus();
 }

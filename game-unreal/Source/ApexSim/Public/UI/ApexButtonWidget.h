@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Audio/ApexUiSound.h"
 #include "Blueprint/UserWidget.h"
 
 #include "ApexButtonWidget.generated.h"
@@ -77,6 +78,14 @@ struct FApexButtonSpec
 	/** Overrides the variant's label colour. Zero alpha means "use the default". */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
 	FLinearColor LabelColour = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	/**
+	 * What activating the button sounds like. Accept for nearly everything;
+	 * a button whose job is to go back sets Back, so that it sounds the same
+	 * as the Escape it advertises.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
+	EApexUiSound Sound = EApexUiSound::Accept;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnButtonActivated, UApexButtonWidget*, Button);
@@ -139,6 +148,7 @@ protected:
 	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
 	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 
 private:
 	void Activate();

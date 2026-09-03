@@ -212,6 +212,26 @@ namespace ApexUI
 		return MakePanel(Tree, Box, FMargin(16.0f, 13.0f), MakeBrush(Palette::Surface, Palette::Border, 1.0f));
 	}
 
+	namespace
+	{
+		/**
+		 * Keyboard and pad behaviour shared by every slider.
+		 *
+		 * Slate's default wants Accept pressed before the arrows will move a
+		 * slider, and again to release it — a "lock" that makes sense for a
+		 * stick-driven list but reads as a dead control on a settings row.
+		 * Without it Left and Right step the value and Up and Down leave, which
+		 * is what the arrows do everywhere else on the screen.
+		 */
+		void ConfigureSliderInput(USlider& Slider)
+		{
+			Slider.RequiresControllerLock = false;
+			// Twenty steps across the track; screens with discrete values set
+			// their own.
+			Slider.SetStepSize(0.05f);
+		}
+	}
+
 	UEditableTextBox* MakeSearchBox(UWidgetTree& Tree, const FString& Hint)
 	{
 		UEditableTextBox* Box = Tree.ConstructWidget<UEditableTextBox>();
@@ -269,6 +289,7 @@ namespace ApexUI
 		SliderStyle.SetDisabledThumbImage(Thumb);
 		SliderStyle.SetBarThickness(6.0f);
 		OutSlider->WidgetStyle = SliderStyle;
+		ConfigureSliderInput(*OutSlider);
 
 		UOverlay* Track = Tree.ConstructWidget<UOverlay>();
 		UOverlaySlot* FillSlot = Track->AddChildToOverlay(MakeSized(Tree, OutFill, -1.0f, 6.0f));
@@ -326,6 +347,11 @@ namespace ApexUI
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Box->SetContentPadding(FMargin(12.0f, 7.0f));
 
+		// Accept opens the list, the arrows walk it, Accept picks, Back closes.
+		// Without this mode Up and Down change the value in place and the box
+		// can never be left vertically from the keyboard.
+		Box->SetEnableGamepadNavigationMode(true);
+
 		for (const FString& Option : Options)
 		{
 			Box->AddOption(Option);
@@ -361,6 +387,7 @@ namespace ApexUI
 		SliderStyle.SetDisabledThumbImage(Thumb);
 		SliderStyle.SetBarThickness(4.0f);
 		OutSlider->WidgetStyle = SliderStyle;
+		ConfigureSliderInput(*OutSlider);
 
 		UOverlay* Track = Tree.ConstructWidget<UOverlay>();
 		UOverlaySlot* FillSlot = Track->AddChildToOverlay(MakeSized(Tree, OutFill, -1.0f, 4.0f));

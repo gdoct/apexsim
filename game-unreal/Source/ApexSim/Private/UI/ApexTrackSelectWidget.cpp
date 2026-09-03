@@ -19,6 +19,7 @@
 #include "TimerManager.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexContentCardWidget.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -84,8 +85,7 @@ void UApexTrackSelectWidget::OnScreenActivated()
 	{
 		SelectTrack(VisibleCards[0]->GetCardId());
 	}
-
-	RequestCardFocus();
+	// Focus lands a tick later, by way of the root's RequestFocusDefault.
 }
 
 // ---------------------------------------------------------------------------
@@ -143,13 +143,14 @@ UWidget* UApexTrackSelectWidget::BuildHeader()
 	BackSpec.Label = TEXT("Back");
 	BackSpec.KeyCap = TEXT("Esc");
 	BackSpec.bKeyCapLeading = true;
+	BackSpec.Sound = EApexUiSound::Back;
 	BackSpec.Variant = EApexButtonVariant::Bare;
 	BackSpec.LabelSize = 15.0f;
 	BackSpec.ActionId = ActionTrackSelectBack;
 
-	UApexButtonWidget* BackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
-	BackButton->Setup(BackSpec);
-	BackButton->OnActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleButtonActivated);
+	HeaderBackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	HeaderBackButton->Setup(BackSpec);
+	HeaderBackButton->OnActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleButtonActivated);
 
 	UHorizontalBox* Right = WidgetTree->ConstructWidget<UHorizontalBox>();
 
@@ -158,6 +159,7 @@ UWidget* UApexTrackSelectWidget::BuildHeader()
 
 	SearchField = ApexUI::MakeSearchBox(*WidgetTree, TEXT("Search tracks…"));
 	SearchField->OnTextChanged.AddDynamic(this, &UApexTrackSelectWidget::HandleSearchChanged);
+	SearchField->OnTextCommitted.AddDynamic(this, &UApexTrackSelectWidget::HandleSearchCommitted);
 	ApexUI::AddH(Right, ApexUI::MakeSized(*WidgetTree, SearchField, 300.0f, 34.0f), FMargin(0.0f, 0.0f, 16.0f, 0.0f));
 
 	// Filled by RebuildFilterChips once the catalog is known.
@@ -166,7 +168,7 @@ UWidget* UApexTrackSelectWidget::BuildHeader()
 	ApexUI::AddV(FilterChipBox, Chips, FMargin(), HAlign_Right);
 	ApexUI::AddH(Right, FilterChipBox);
 
-	return ApexUI::MakeScreenHeader(*WidgetTree, BackButton, TEXT("Select track"), Right);
+	return ApexUI::MakeScreenHeader(*WidgetTree, HeaderBackButton, TEXT("Select track"), Right);
 }
 
 UWidget* UApexTrackSelectWidget::BuildDetailPanel()
@@ -310,10 +312,22 @@ void UApexTrackSelectWidget::RebuildCards(bool bForce)
 
 void UApexTrackSelectWidget::RequestCardFocus()
 {
+	// The grid is rebuilt from lobby snapshots whether or not this screen is
+	// showing; only the screen in front may move focus.
+	if (!IsActiveScreen())
+	{
+		return;
+	}
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateWeakLambda(this, [this]() { FocusCard(FocusedCardIndex); }));
+			FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				if (IsActiveScreen())
+				{
+					FocusCard(FocusedCardIndex);
+				}
+			}));
 	}
 }
 
@@ -603,6 +617,15 @@ void UApexTrackSelectWidget::HandleSearchChanged(const FText& Text)
 	}
 }
 
+void UApexTrackSelectWidget::HandleSearchCommitted(const FText& Text, ETextCommit::Type CommitType)
+{
+	// Enter after typing means "show me the results", not "stay in the box".
+	if (CommitType == ETextCommit::OnEnter)
+	{
+		FocusCard(FocusedCardIndex);
+	}
+}
+
 void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 {
 	if (!Button)
@@ -672,52 +695,165 @@ void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 }
 
 // ---------------------------------------------------------------------------
-// Keyboard
+// Navigation
 // ---------------------------------------------------------------------------
 
-FReply UApexTrackSelectWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+void UApexTrackSelectWidget::FocusDefault()
 {
-	const FKey Key = InKeyEvent.GetKey();
-
-	if (Key == EKeys::Left)  { MoveCardFocus(-1);            return FReply::Handled(); }
-	if (Key == EKeys::Right) { MoveCardFocus(1);             return FReply::Handled(); }
-	if (Key == EKeys::Up)    { MoveCardFocus(-GridColumns);  return FReply::Handled(); }
-	if (Key == EKeys::Down)  { MoveCardFocus(GridColumns);   return FReply::Handled(); }
-
-	if (Key == EKeys::Tab && UseButton)
+	// The grid, or — before the server has sent any tracks — the way out.
+	if (!FocusCard(FocusedCardIndex) && !ApexNav::Focus(HeaderBackButton))
 	{
-		UseButton->SetKeyboardFocus();
-		return FReply::Handled();
+		Super::FocusDefault();
 	}
-
-	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
-void UApexTrackSelectWidget::MoveCardFocus(int32 Delta)
+bool UApexTrackSelectWidget::FocusCard(int32 Index)
 {
 	if (VisibleCards.Num() == 0)
 	{
-		return;
-	}
-	FocusCard(FMath::Clamp(FocusedCardIndex + Delta, 0, VisibleCards.Num() - 1));
-}
-
-void UApexTrackSelectWidget::FocusCard(int32 Index)
-{
-	if (!VisibleCards.IsValidIndex(Index))
-	{
-		return;
+		return false;
 	}
 
-	FocusedCardIndex = Index;
-	VisibleCards[Index]->SetKeyboardFocus();
-
-	if (CardScroll)
+	FocusedCardIndex = FMath::Clamp(Index, 0, VisibleCards.Num() - 1);
+	if (!ApexNav::Focus(VisibleCards[FocusedCardIndex]))
 	{
-		CardScroll->ScrollWidgetIntoView(VisibleCards[Index], true);
+		return false;
 	}
 
 	// Moving the keyboard through the grid re-describes what it lands on; that
 	// is the whole point of the detail panel.
-	SelectTrack(VisibleCards[Index]->GetCardId());
+	SelectTrack(VisibleCards[FocusedCardIndex]->GetCardId());
+	return true;
+}
+
+bool UApexTrackSelectWidget::FocusChip()
+{
+	for (UApexButtonWidget* Chip : FilterChips)
+	{
+		if (Chip && Chip->GetActionId().ToString() == ActiveFilter && ApexNav::Focus(Chip))
+		{
+			return true;
+		}
+	}
+	return FilterChips.Num() > 0 && ApexNav::Focus(FilterChips[0]);
+}
+
+bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
+{
+	const int32 CardAt = ApexNav::IndexOf(VisibleCards, Source);
+	if (CardAt != INDEX_NONE)
+	{
+		const int32 Column = CardAt % GridColumns;
+		switch (Direction)
+		{
+		case EUINavigation::Left:
+			if (Column > 0)
+			{
+				FocusCard(CardAt - 1);
+			}
+			return true;
+
+		case EUINavigation::Right:
+			// Off the last column — or the ragged end of the last row — is the
+			// detail panel.
+			if (Column + 1 < GridColumns && CardAt + 1 < VisibleCards.Num())
+			{
+				return FocusCard(CardAt + 1);
+			}
+			return ApexNav::Focus(UseButton);
+
+		case EUINavigation::Up:
+			return CardAt >= GridColumns ? FocusCard(CardAt - GridColumns) : FocusChip();
+
+		case EUINavigation::Down:
+			if (CardAt + GridColumns < VisibleCards.Num())
+			{
+				FocusCard(CardAt + GridColumns);
+			}
+			else if (CardAt / GridColumns < (VisibleCards.Num() - 1) / GridColumns)
+			{
+				// A shorter last row: land on its last card rather than nowhere.
+				FocusCard(VisibleCards.Num() - 1);
+			}
+			return true;
+
+		case EUINavigation::Next:
+			return ApexNav::Focus(UseButton);
+
+		case EUINavigation::Previous:
+			return FocusChip();
+
+		default:
+			return true;
+		}
+	}
+
+	const int32 ChipAt = ApexNav::IndexOf(FilterChips, Source);
+	if (ChipAt != INDEX_NONE)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Left:
+			return ChipAt > 0 ? ApexNav::Focus(FilterChips[ChipAt - 1]) : ApexNav::Focus(SearchField);
+		case EUINavigation::Right:
+			if (ChipAt + 1 < FilterChips.Num())
+			{
+				ApexNav::Focus(FilterChips[ChipAt + 1]);
+			}
+			return true;
+		case EUINavigation::Down:
+		case EUINavigation::Next:
+			return FocusCard(FocusedCardIndex) || ApexNav::Focus(UseButton);
+		case EUINavigation::Previous:
+			return ApexNav::Focus(SearchField);
+		default:
+			return true;
+		}
+	}
+
+	if (Source == UseButton)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Left:
+		case EUINavigation::Previous:
+			return FocusCard(FocusedCardIndex);
+		case EUINavigation::Up:
+			return FocusChip();
+		case EUINavigation::Next:
+			return ApexNav::Focus(HeaderBackButton);
+		default:
+			return true;
+		}
+	}
+
+	if (Source == HeaderBackButton)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Right:
+		case EUINavigation::Next:
+			return ApexNav::Focus(SearchField) || FocusChip();
+		case EUINavigation::Down:
+			return FocusCard(FocusedCardIndex);
+		default:
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UApexTrackSelectWidget::HandleBack()
+{
+	// Back inside the search box leaves the box, not the screen.
+	if (SearchField && SearchField->HasKeyboardFocus())
+	{
+		if (!FocusCard(FocusedCardIndex))
+		{
+			ApexNav::Focus(HeaderBackButton);
+		}
+		return true;
+	}
+	return Super::HandleBack();
 }
