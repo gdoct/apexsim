@@ -1,7 +1,10 @@
 #include "ApexSettingsSubsystem.h"
 
+#include "ApexBootSettings.h"
 #include "ApexPlayerController.h"
 #include "ApexSim.h"
+#include "AudioDevice.h"
+#include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/IConsoleManager.h"
 #include "Input/ApexInputConfig.h"
@@ -29,6 +32,10 @@ void UApexSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+	// settings.yml is the authority on the display block, so it has to be read
+	// before Load() decides what to apply.
+	Collection.InitializeDependency<UApexBootSettingsSubsystem>();
+
 	Load();
 
 	ApplyGraphics();
@@ -38,6 +45,9 @@ void UApexSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// Controls are left out — the player controller does not exist yet, and it
 	// reads the bindings itself when it builds its input config.
 	ApplyGameplay();
+	// The audio device exists by now, and the first menu cue plays before any
+	// overlay could have applied the volume.
+	ApplyAudio();
 }
 
 void UApexSettingsSubsystem::Deinitialize()
@@ -58,17 +68,37 @@ void UApexSettingsSubsystem::Load()
 	{
 		Settings = Cast<UApexSettingsSave>(
 			UGameplayStatics::CreateSaveGameObject(UApexSettingsSave::StaticClass()));
+	}
 
-		// A first run has no stored resolution, and 1920x1080 is a guess that is
-		// wrong on most machines. The desktop's own mode is the only sane default.
-		if (Settings)
+	UApexBootSettingsSubsystem* Boot = GetBoot();
+	if (!Settings || !Boot)
+	{
+		return;
+	}
+
+	if (Boot->DidFileExist())
+	{
+		// The file the player can edit wins: it exists precisely so that a game
+		// which opens at an unusable resolution can be fixed from outside it.
+		const FApexBootSettings& Values = Boot->Get();
+		Settings->Resolution = Values.Resolution;
+		Settings->DisplayMode = Values.WindowMode;
+		Settings->bVSync = Values.bVSync;
+		Settings->FrameLimit = Values.FrameLimit;
+	}
+	else
+	{
+		// The file was created this run. Seeding it from the slot means an
+		// existing install keeps the display it was already using rather than
+		// being reset by a file it never had. On a genuine first run the slot
+		// holds its own defaults, and the file already describes this display.
+		if (!UGameplayStatics::DoesSaveGameExist(UApexSettingsSave::SlotName, 0))
 		{
-			if (const UGameUserSettings* User = GEngine ? GEngine->GetGameUserSettings() : nullptr)
-			{
-				Settings->Resolution = User->GetScreenResolution();
-				Settings->DisplayMode = static_cast<int32>(User->GetFullscreenMode());
-			}
+			const FApexBootSettings& Values = Boot->Get();
+			Settings->Resolution = Values.Resolution;
+			Settings->DisplayMode = Values.WindowMode;
 		}
+		PushToBootSettings();
 	}
 }
 
@@ -77,6 +107,23 @@ void UApexSettingsSubsystem::Save()
 	if (Settings)
 	{
 		UGameplayStatics::SaveGameToSlot(Settings, UApexSettingsSave::SlotName, 0);
+		// Same moment, both stores: a display change made in the overlay has to
+		// reach settings.yml, or the next launch would silently undo it.
+		PushToBootSettings();
+	}
+}
+
+UApexBootSettingsSubsystem* UApexSettingsSubsystem::GetBoot() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance ? GameInstance->GetSubsystem<UApexBootSettingsSubsystem>() : nullptr;
+}
+
+void UApexSettingsSubsystem::PushToBootSettings()
+{
+	if (UApexBootSettingsSubsystem* Boot = GetBoot())
+	{
+		Boot->SetDisplay(Settings->Resolution, Settings->DisplayMode, Settings->bVSync, Settings->FrameLimit);
 	}
 }
 
@@ -99,6 +146,7 @@ void UApexSettingsSubsystem::ApplyGroup(EApexSettingsGroup Group)
 	case EApexSettingsGroup::Gameplay: ApplyGameplay(); break;
 	case EApexSettingsGroup::Graphics: ApplyGraphics(); break;
 	case EApexSettingsGroup::Controls: ApplyControls(); break;
+	case EApexSettingsGroup::Audio:    ApplyAudio();    break;
 	}
 }
 
@@ -489,6 +537,41 @@ void UApexSettingsSubsystem::ApplyControls()
 	}
 }
 
+// --- Audio ------------------------------------------------------------------
+
+void UApexSettingsSubsystem::SetMasterVolume(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->MasterVolume, Clamped)) { return; }
+	Settings->MasterVolume = Clamped;
+	Changed(EApexSettingsGroup::Audio);
+}
+
+void UApexSettingsSubsystem::SetUiVolume(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->UiVolume, Clamped)) { return; }
+	Settings->UiVolume = Clamped;
+	Changed(EApexSettingsGroup::Audio);
+}
+
+void UApexSettingsSubsystem::ApplyAudio()
+{
+	if (!Settings || !GEngine)
+	{
+		return;
+	}
+
+	// The device's transient primary volume is the one knob that scales every
+	// sound the game makes without a sound mix or sound class asset to hold
+	// it. The call marshals itself to the audio thread. Menu-sound volume is
+	// not applied here: UApexUiAudioSubsystem reads it at play time.
+	if (FAudioDevice* Device = GEngine->GetMainAudioDeviceRaw())
+	{
+		Device->SetTransientPrimaryVolume(Settings->MasterVolume);
+	}
+}
+
 // --- Defaults ---------------------------------------------------------------
 
 void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
@@ -530,6 +613,11 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->Deadzone = Defaults->Deadzone;
 		Settings->Vibration = Defaults->Vibration;
 		Settings->Bindings.Reset();
+		break;
+
+	case EApexSettingsGroup::Audio:
+		Settings->MasterVolume = Defaults->MasterVolume;
+		Settings->UiVolume = Defaults->UiVolume;
 		break;
 	}
 

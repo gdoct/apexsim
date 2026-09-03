@@ -32,6 +32,14 @@ public:
 
 	virtual void OnScreenActivated() override;
 
+	/** The host's start button; for everyone else, the car link. Never "leave". */
+	virtual void FocusDefault() override;
+	/**
+	 * There is no history to go back to — joining reset it — and one keypress
+	 * must not leave a session. Leaving is the button.
+	 */
+	virtual bool HandleBack() override { return true; }
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
@@ -64,6 +72,8 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> GridBox;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> CarPanelBox;
+	/** Rebuilt with the car panel; kept so focus can survive the rebuild. */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ChangeCarLink;
 
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ModeButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> CountdownButton;

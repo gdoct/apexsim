@@ -1,5 +1,6 @@
 #include "UI/ApexButtonWidget.h"
 
+#include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
@@ -8,6 +9,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexUIStyle.h"
 
 namespace
@@ -59,6 +61,10 @@ void UApexButtonWidget::NativeOnInitialized()
 void UApexButtonWidget::Setup(const FApexButtonSpec& InSpec)
 {
 	Spec = InSpec;
+
+	// A locked row must not take focus: the keyboard would land on it, nothing
+	// would light up, and the selection would look like it had vanished.
+	SetIsFocusable(IsInteractive());
 
 	if (!ContentRow)
 	{
@@ -283,13 +289,23 @@ void UApexButtonWidget::Activate()
 	{
 		return;
 	}
+	// Before the broadcast: a handler that tears this button down or opens
+	// another screen must not get in front of the cue for the press itself.
+	ApexUiAudio::Play(this, Spec.Sound);
 	OnActivated.Broadcast(this);
 }
 
 FReply UApexButtonWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (!IsInteractive() || InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 	{
+		return FReply::Unhandled();
+	}
+	if (!IsInteractive())
+	{
+		// The keyboard cannot reach a locked row, but the mouse can: say no,
+		// rather than leave the click feeling like it missed.
+		ApexUiAudio::Play(this, EApexUiSound::Denied);
 		return FReply::Unhandled();
 	}
 
@@ -329,15 +345,38 @@ void UApexButtonWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusE
 
 FReply UApexButtonWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	const FKey Key = InKeyEvent.GetKey();
-	if (IsInteractive()
-		&& (Key == EKeys::Enter || Key == EKeys::SpaceBar || Key == EKeys::Virtual_Accept))
+	// Enter, Space, gamepad A — whatever the platform calls "accept".
+	if (IsInteractive() && ApexNav::IsAccept(InKeyEvent))
 	{
 		Activate();
 		return FReply::Handled();
 	}
 
-	// Everything else — arrows, Tab, Escape — belongs to the screen, which is
-	// further up the focus path.
+	// A direction is the owning screen's to interpret first; Slate's geometric
+	// search only runs when the screen has no opinion.
+	const EUINavigation Direction = ApexNav::DirectionFromKey(InKeyEvent);
+	if (Direction != EUINavigation::Invalid)
+	{
+		return ApexNav::RouteFromLeaf(this, Direction,
+			InKeyEvent.GetKey().IsGamepadKey() ? ENavigationGenesis::Controller : ENavigationGenesis::Keyboard);
+	}
+
+	// Escape and the rest belong to the screen, further up the focus path.
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply UApexButtonWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent)
+{
+	if (!ApexNav::IsAnalogNavigationKey(InAnalogEvent.GetKey()))
+	{
+		return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogEvent);
+	}
+
+	const EUINavigation Direction = ApexNav::DirectionFromAnalog(InAnalogEvent);
+	if (Direction == EUINavigation::Invalid)
+	{
+		// Centred or throttled. Consumed so Slate does not step on its own.
+		return FReply::Handled();
+	}
+	return ApexNav::RouteFromLeaf(this, Direction, ENavigationGenesis::Controller);
 }

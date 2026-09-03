@@ -2,6 +2,7 @@
 
 #include "ApexSettingsSave.h"
 #include "ApexSim.h"
+#include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/ComboBoxString.h"
@@ -30,7 +31,8 @@ using namespace ApexUI;
 static_assert(
 	static_cast<int32>(EApexSettingsTab::Gameplay) == static_cast<int32>(EApexSettingsGroup::Gameplay)
 		&& static_cast<int32>(EApexSettingsTab::Graphics) == static_cast<int32>(EApexSettingsGroup::Graphics)
-		&& static_cast<int32>(EApexSettingsTab::Controls) == static_cast<int32>(EApexSettingsGroup::Controls),
+		&& static_cast<int32>(EApexSettingsTab::Controls) == static_cast<int32>(EApexSettingsGroup::Controls)
+		&& static_cast<int32>(EApexSettingsTab::Audio) == static_cast<int32>(EApexSettingsGroup::Audio),
 	"EApexSettingsTab and EApexSettingsGroup must stay aligned");
 
 namespace
@@ -48,6 +50,9 @@ namespace
 	const FName ActionTabGameplay = TEXT("Tab.Gameplay");
 	const FName ActionTabGraphics = TEXT("Tab.Graphics");
 	const FName ActionTabControls = TEXT("Tab.Controls");
+	const FName ActionTabAudio    = TEXT("Tab.Audio");
+	/** For wrapping the page cycle; the last tab is the count minus one. */
+	constexpr int32 TabCount = static_cast<int32>(EApexSettingsTab::Audio) + 1;
 	const FName ActionSettingsBack        = TEXT("Back");
 	const FName ActionReset       = TEXT("Reset");
 
@@ -143,6 +148,7 @@ void UApexSettingsWidget::BuildOverlay()
 	PageHost->AddChild(BuildGameplayPage());
 	PageHost->AddChild(BuildGraphicsPage());
 	PageHost->AddChild(BuildControlsPage());
+	PageHost->AddChild(BuildAudioPage());
 
 	// The page area is darker than the card it sits in, so that the rows — which
 	// are Surface — read as cards rather than dissolving into the panel.
@@ -247,6 +253,7 @@ UWidget* UApexSettingsWidget::BuildRail()
 	AddTab(TEXT("Gameplay"), ActionTabGameplay);
 	AddTab(TEXT("Graphics"), ActionTabGraphics);
 	AddTab(TEXT("Controls"), ActionTabControls);
+	AddTab(TEXT("Audio"), ActionTabAudio);
 
 	AddV(Stack, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
 
@@ -650,6 +657,50 @@ UWidget* UApexSettingsWidget::BuildControlsPage()
 	return Page;
 }
 
+// --- Audio page -------------------------------------------------------------
+
+UWidget* UApexSettingsWidget::BuildAudioPage()
+{
+	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	AddV(Page, MakeSectionLabel(TEXT("Volume")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+
+	// The AI-skill row's shape: the track fills the control cell with the
+	// percentage after it. One lambda for both rows so they cannot drift.
+	auto MakeVolumeCell = [this](
+		TObjectPtr<USlider>& OutSlider, TObjectPtr<UProgressBar>& OutFill, TObjectPtr<UTextBlock>& OutValue) -> UWidget*
+	{
+		USlider* Slider = nullptr;
+		UProgressBar* Fill = nullptr;
+
+		UHorizontalBox* Cell = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Cell, MakeSliderTrack(*WidgetTree, Slider, Fill), FMargin(), VAlign_Center, 1.0f);
+		OutValue = MakeText(*WidgetTree, TEXT("0 %"), Font::Mono(13.0f, 40), Palette::TextPrimary);
+		AddH(Cell, OutValue, FMargin(16.0f, 0.0f, 0.0f, 0.0f));
+
+		OutSlider = Slider;
+		OutFill = Fill;
+		return MakeSized(*WidgetTree, Cell, SliderCellWidth, -1.0f);
+	};
+
+	UWidget* MasterCell = MakeVolumeCell(MasterVolumeSlider, MasterVolumeFill, MasterVolumeValue);
+	MasterVolumeSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleMasterVolumeChanged);
+	AddV(Page, MakeRow(
+		TEXT("Master volume"),
+		TEXT("Everything the game plays."),
+		MasterCell));
+
+	UWidget* UiCell = MakeVolumeCell(UiVolumeSlider, UiVolumeFill, UiVolumeValue);
+	UiVolumeSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleUiVolumeChanged);
+	AddV(Page, MakeRow(
+		TEXT("Menu sounds"),
+		TEXT("The ticks and chimes as you move through the menus. Moving this plays one."),
+		UiCell), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
+	return Page;
+}
+
 UWidget* UApexSettingsWidget::BuildBindingsGrid()
 {
 	// One row per label, carrying whichever of its slots exist. Steering has a
@@ -743,7 +794,38 @@ void UApexSettingsWidget::Open(EApexSettingsTab Tab)
 
 	ShowTab(Tab);
 	RefreshFromSettings();
-	SetKeyboardFocus();
+	FocusDefault();
+}
+
+void UApexSettingsWidget::FocusDefault()
+{
+	const int32 TabIndex = static_cast<int32>(CurrentTab);
+	if (!(RailButtons.IsValidIndex(TabIndex) && ApexNav::Focus(RailButtons[TabIndex])))
+	{
+		SetKeyboardFocus();
+	}
+}
+
+bool UApexSettingsWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
+{
+	// Tab and the shoulders walk the pages from anywhere on the panel, which
+	// is the only way to reach them without crossing back to the rail.
+	if (ApexNav::IsSequential(Direction))
+	{
+		const int32 Step = Direction == EUINavigation::Next ? 1 : 2;
+		ShowTab(static_cast<EApexSettingsTab>((static_cast<int32>(CurrentTab) + Step) % TabCount));
+		FocusDefault();
+		return true;
+	}
+
+	// Everything else is laid out plainly enough for Slate's geometric search.
+	return false;
+}
+
+bool UApexSettingsWidget::HandleBack()
+{
+	Close();
+	return true;
 }
 
 void UApexSettingsWidget::Close()
@@ -847,6 +929,10 @@ void UApexSettingsWidget::RefreshFromSettings()
 		FString::FromInt(FMath::RoundToInt(Values->Deadzone * 100.0f)));
 	SetSlider(VibrationSlider, VibrationFill, VibrationValue, Values->Vibration, 0.0f, 1.0f,
 		FString::FromInt(FMath::RoundToInt(Values->Vibration * 100.0f)));
+	SetSlider(MasterVolumeSlider, MasterVolumeFill, MasterVolumeValue, Values->MasterVolume, 0.0f, 1.0f,
+		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->MasterVolume * 100.0f)));
+	SetSlider(UiVolumeSlider, UiVolumeFill, UiVolumeValue, Values->UiVolume, 0.0f, 1.0f,
+		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->UiVolume * 100.0f)));
 
 	if (DisplayModeBox)
 	{
@@ -961,6 +1047,10 @@ void UApexSettingsWidget::RefreshHeaderContext()
 		Context = bAttached ? TEXT("2 devices detected") : TEXT("1 device detected");
 		break;
 	}
+
+	case EApexSettingsTab::Audio:
+		Context = TEXT("Applies immediately · saved on close");
+		break;
 	}
 
 	HeaderContextText->SetText(FText::FromString(Context.ToUpper()));
@@ -1005,6 +1095,7 @@ void UApexSettingsWidget::HandleRailActivated(UApexButtonWidget* Button)
 	if (Action == ActionTabGameplay)      { ShowTab(EApexSettingsTab::Gameplay); }
 	else if (Action == ActionTabGraphics) { ShowTab(EApexSettingsTab::Graphics); }
 	else if (Action == ActionTabControls) { ShowTab(EApexSettingsTab::Controls); }
+	else if (Action == ActionTabAudio)    { ShowTab(EApexSettingsTab::Audio); }
 }
 
 void UApexSettingsWidget::HandleFooterActivated(UApexButtonWidget* Button)
@@ -1062,6 +1153,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 void UApexSettingsWidget::HandleAiSkillChanged(float Value)
 {
 	if (bRefreshing) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	if (AiSkillFill) { AiSkillFill->SetPercent(Value); }
 	if (AiSkillValue) { AiSkillValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetAiSkill(Value); }
@@ -1071,6 +1163,7 @@ void UApexSettingsWidget::HandleAiSkillChanged(float Value)
 void UApexSettingsWidget::HandleMotionBlurChanged(float Value)
 {
 	if (bRefreshing) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	if (MotionBlurFill) { MotionBlurFill->SetPercent(Value); }
 	if (MotionBlurValue) { MotionBlurValue->SetText(FText::FromString(FString::FromInt(FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetMotionBlur(Value); }
@@ -1080,6 +1173,7 @@ void UApexSettingsWidget::HandleMotionBlurChanged(float Value)
 void UApexSettingsWidget::HandleFovChanged(float Value)
 {
 	if (bRefreshing) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	const float Degrees = FMath::Lerp(60.0f, 120.0f, Value);
 	if (FovFill) { FovFill->SetPercent(Value); }
 	if (FovValue) { FovValue->SetText(FText::FromString(FString::Printf(TEXT("%d°"), FMath::RoundToInt(Degrees)))); }
@@ -1090,6 +1184,7 @@ void UApexSettingsWidget::HandleFovChanged(float Value)
 void UApexSettingsWidget::HandleSteeringChanged(float Value)
 {
 	if (bRefreshing) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	if (SteeringFill) { SteeringFill->SetPercent(Value); }
 	if (SteeringValue) { SteeringValue->SetText(FText::FromString(FString::FromInt(FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetSteeringSensitivity(Value); }
@@ -1099,6 +1194,7 @@ void UApexSettingsWidget::HandleSteeringChanged(float Value)
 void UApexSettingsWidget::HandleDeadzoneChanged(float Value)
 {
 	if (bRefreshing) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	if (DeadzoneFill) { DeadzoneFill->SetPercent(Value); }
 	if (DeadzoneValue) { DeadzoneValue->SetText(FText::FromString(FString::FromInt(FMath::RoundToInt(Value * 100.0f)))); }
 	// The slider runs 0..1 but a deadzone over half the axis is not a setting,
@@ -1110,15 +1206,38 @@ void UApexSettingsWidget::HandleDeadzoneChanged(float Value)
 void UApexSettingsWidget::HandleVibrationChanged(float Value)
 {
 	if (bRefreshing) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	if (VibrationFill) { VibrationFill->SetPercent(Value); }
 	if (VibrationValue) { VibrationValue->SetText(FText::FromString(FString::FromInt(FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetVibration(Value); }
 	RefreshFooter();
 }
 
+void UApexSettingsWidget::HandleMasterVolumeChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (MasterVolumeFill) { MasterVolumeFill->SetPercent(Value); }
+	if (MasterVolumeValue) { MasterVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetMasterVolume(Value); }
+	// After the level is applied, so the tick previews it.
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandleUiVolumeChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (UiVolumeFill) { UiVolumeFill->SetPercent(Value); }
+	if (UiVolumeValue) { UiVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetUiVolume(Value); }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	RefreshFooter();
+}
+
 void UApexSettingsWidget::HandleDisplayModeChanged(FString Item, ESelectInfo::Type SelectType)
 {
 	if (bRefreshing || !DisplayModeBox) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	const int32 Index = DisplayModeBox->GetSelectedIndex();
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
@@ -1131,6 +1250,7 @@ void UApexSettingsWidget::HandleResolutionChanged(FString Item, ESelectInfo::Typ
 {
 	UApexSettingsSubsystem* Settings = GetSettings();
 	if (bRefreshing || !ResolutionBox || !Settings) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	const int32 Index = ResolutionBox->GetSelectedIndex();
 	const TArray<FIntPoint>& Modes = Settings->GetAvailableResolutions();
 	if (Modes.IsValidIndex(Index))
@@ -1143,6 +1263,7 @@ void UApexSettingsWidget::HandleResolutionChanged(FString Item, ESelectInfo::Typ
 void UApexSettingsWidget::HandleFrameLimitChanged(FString Item, ESelectInfo::Type SelectType)
 {
 	if (bRefreshing || !FrameLimitBox) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	const int32 Index = FrameLimitBox->GetSelectedIndex();
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
@@ -1154,6 +1275,7 @@ void UApexSettingsWidget::HandleFrameLimitChanged(FString Item, ESelectInfo::Typ
 void UApexSettingsWidget::HandleShadowsChanged(FString Item, ESelectInfo::Type SelectType)
 {
 	if (bRefreshing || !ShadowsBox) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
 		Settings->SetShadowQuality(ShadowsBox->GetSelectedIndex());
@@ -1165,6 +1287,7 @@ void UApexSettingsWidget::HandleShadowsChanged(FString Item, ESelectInfo::Type S
 void UApexSettingsWidget::HandleAntiAliasingChanged(FString Item, ESelectInfo::Type SelectType)
 {
 	if (bRefreshing || !AntiAliasingBox) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
 		Settings->SetAntiAliasingQuality(AntiAliasingBox->GetSelectedIndex());
@@ -1175,6 +1298,7 @@ void UApexSettingsWidget::HandleAntiAliasingChanged(FString Item, ESelectInfo::T
 void UApexSettingsWidget::HandleTexturesChanged(FString Item, ESelectInfo::Type SelectType)
 {
 	if (bRefreshing || !TexturesBox) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
 		Settings->SetTextureQuality(TexturesBox->GetSelectedIndex());
@@ -1274,18 +1398,13 @@ FReply UApexSettingsWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 		return FReply::Handled();
 	}
 
-	if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right)
+	// The pause key closes the whole stack's top layer, the same as it does on
+	// the pause menu underneath. Escape and B arrive through HandleBack; Tab
+	// and the shoulders through HandleNavigation.
+	if (Key == EKeys::Gamepad_Special_Right)
 	{
+		ApexUiAudio::Play(this, EApexUiSound::Back);
 		Close();
-		return FReply::Handled();
-	}
-
-	// Tab walks the pages, which is the only way to reach them from a gamepad
-	// until the rail is properly navigable.
-	if (Key == EKeys::Tab || Key == EKeys::Gamepad_LeftShoulder || Key == EKeys::Gamepad_RightShoulder)
-	{
-		const int32 Direction = (Key == EKeys::Gamepad_LeftShoulder || InKeyEvent.IsShiftDown()) ? 2 : 1;
-		ShowTab(static_cast<EApexSettingsTab>((static_cast<int32>(CurrentTab) + Direction) % 3));
 		return FReply::Handled();
 	}
 

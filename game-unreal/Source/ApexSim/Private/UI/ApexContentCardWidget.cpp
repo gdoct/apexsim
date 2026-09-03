@@ -1,10 +1,12 @@
 #include "UI/ApexContentCardWidget.h"
 
+#include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexUIStyle.h"
 
 UApexContentCardWidget::UApexContentCardWidget(const FObjectInitializer& ObjectInitializer)
@@ -99,6 +101,7 @@ FReply UApexContentCardWidget::NativeOnMouseButtonDown(const FGeometry& InGeomet
 	}
 
 	SetKeyboardFocus();
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
 	OnActivated.Broadcast(this);
 	return FReply::Handled();
 }
@@ -133,13 +136,35 @@ void UApexContentCardWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InF
 
 FReply UApexContentCardWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	const FKey Key = InKeyEvent.GetKey();
-	if (Key == EKeys::Enter || Key == EKeys::SpaceBar || Key == EKeys::Virtual_Accept)
+	if (ApexNav::IsAccept(InKeyEvent))
 	{
+		ApexUiAudio::Play(this, EApexUiSound::Accept);
 		OnActivated.Broadcast(this);
 		return FReply::Handled();
 	}
 
 	// Arrows belong to the grid, which is the screen.
+	const EUINavigation Direction = ApexNav::DirectionFromKey(InKeyEvent);
+	if (Direction != EUINavigation::Invalid)
+	{
+		return ApexNav::RouteFromLeaf(this, Direction,
+			InKeyEvent.GetKey().IsGamepadKey() ? ENavigationGenesis::Controller : ENavigationGenesis::Keyboard);
+	}
+
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply UApexContentCardWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent)
+{
+	if (!ApexNav::IsAnalogNavigationKey(InAnalogEvent.GetKey()))
+	{
+		return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogEvent);
+	}
+
+	const EUINavigation Direction = ApexNav::DirectionFromAnalog(InAnalogEvent);
+	if (Direction == EUINavigation::Invalid)
+	{
+		return FReply::Handled();
+	}
+	return ApexNav::RouteFromLeaf(this, Direction, ENavigationGenesis::Controller);
 }

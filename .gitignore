@@ -195,6 +195,10 @@ certs/
 *.terrain.msgpack
 # Generated Unreal track exports (bake with: cargo run --bin ats-export -- --all)
 content/tracks/export/
-# Packaged standalone game (scripts/build_game_standalone.ps1)
+# Build outputs: the packaged client (scripts/build_game_standalone.ps1)
+# and the release packages and zips (scripts/build_release.ps1)
 artifacts/
+# Startup settings, written by the client on first run. Describes this machine
+# (its display, the server it points at), so it is never shared.
+/game-unreal/settings.yml
 game-unreal/Content/

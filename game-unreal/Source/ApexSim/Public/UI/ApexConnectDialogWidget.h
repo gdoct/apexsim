@@ -30,11 +30,22 @@ public:
 
 	virtual void OnScreenActivated() override;
 
+	// --- Navigation ---------------------------------------------------------
+	//
+	// A form: the last server on top, three fields in a row, then the actions.
+	// Slate's geometric search fits that shape as it is. The fields are the
+	// special case — Enter in any of them connects, and Back leaves the field
+	// before it leaves the screen.
+
+	/** The last server used, which is what most visits are here to press. */
+	virtual void FocusDefault() override;
+	virtual bool HandleAccept() override;
+	virtual bool HandleBack() override;
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 	void BuildLayout();
@@ -48,6 +59,10 @@ private:
 
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail);
+	UFUNCTION() void HandleFieldCommitted(const FText& Text, ETextCommit::Type CommitType);
+
+	/** True while the keyboard is inside one of the text fields. */
+	bool IsEditingField() const;
 
 	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> HostField;
 	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> PortField;

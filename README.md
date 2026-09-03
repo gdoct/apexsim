@@ -157,6 +157,26 @@ Requires Unreal Engine 5.8. Open `game-unreal/ApexSim.uproject` and press Play, 
 
 The client auto-connects to `127.0.0.1:9000`. Handy switches for unattended runs: `-ApexAutoRace` (create and start a session immediately), `-ApexAiCount=N`, `-ApexLaps=N`, `-ApexStartScreen=N`, `-ApexOpenPause=N` / `-ApexOpenSettings=N`, and `-ApexScreenshotAfter=N`, which drops a screenshot in `Saved/Screenshots/`.
 
+### 4. Build a release package
+
+To produce something other people can download and run:
+
+```powershell
+./scripts/build_release.ps1 -Zip
+```
+
+That runs the whole pipeline — `cargo build --release`, the track bake and
+import, the track catalog sync, and the client package — and assembles
+`artifacts/release/ApexSim-<version>-Win64/` (plus a zip to attach to a GitHub
+release). The package holds the packaged client in `Game/`, the server with its
+config and content in `Server/`, and a `Play.bat` that starts both. It is
+gitignored, like everything under `artifacts/`.
+
+The run aborts up front if the car or track data is missing, so a broken clone
+fails in seconds rather than twenty minutes in. Each stage has a `-Skip*`
+switch (`-SkipServer`, `-SkipTracks`, `-SkipCatalog`, `-SkipClient`) for
+reusing what is already built.
+
 ## Windows Setup
 
 Install the development prerequisites from an elevated PowerShell session. Approve any Windows UAC prompts shown by the installers.

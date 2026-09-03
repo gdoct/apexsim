@@ -93,6 +93,7 @@ protected:
 	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
 	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusEvent) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 
 private:
 	void ApplyState();

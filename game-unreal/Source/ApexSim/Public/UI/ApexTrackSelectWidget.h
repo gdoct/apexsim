@@ -36,11 +36,21 @@ public:
 
 	virtual void OnScreenActivated() override;
 
+	// --- Navigation ---------------------------------------------------------
+	//
+	// The grid walks by row and column; Up out of the top row reaches the
+	// header's chips, Right off the last column the detail panel's button.
+	// The search box is a plain text field: arrows edit, Enter drops back to
+	// the grid, and Back leaves it before it leaves the screen.
+
+	virtual void FocusDefault() override;
+	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
+	virtual bool HandleBack() override;
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 	void BuildLayout();
@@ -61,10 +71,12 @@ private:
 	UFUNCTION() void HandleCardActivated(UApexContentCardWidget* Card);
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleSearchChanged(const FText& Text);
+	UFUNCTION() void HandleSearchCommitted(const FText& Text, ETextCommit::Type CommitType);
 
-	/** Moves focus through the visible cards; Delta of ±GridColumns walks rows. */
-	void MoveCardFocus(int32 Delta);
-	void FocusCard(int32 Index);
+	/** Focuses a visible card, scrolls to it, and describes its track. False if there is no such card. */
+	bool FocusCard(int32 Index);
+	/** Focuses the active filter chip, or the first. */
+	bool FocusChip();
 
 	/** Focus has to wait a tick after the tree changes; see the main menu. */
 	void RequestCardFocus();
@@ -83,6 +95,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> DetailBox;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> UseButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DemoButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;
 
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexContentCardWidget>> TrackCards;
 	/** The subset currently on screen, in grid order — what the arrows walk. */

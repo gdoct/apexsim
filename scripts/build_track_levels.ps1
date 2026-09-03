@@ -79,18 +79,12 @@ $TrackDir  = Join-Path $RepoRoot 'content\tracks\real'
 $ExportDir = Join-Path $RepoRoot 'content\tracks\export'
 $LevelDir  = Join-Path $RepoRoot 'game-unreal\Content\Tracks'
 
+. (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
+
 function Write-Step {
     param([string]$Message)
     Write-Host ''
     Write-Host "==> $Message" -ForegroundColor Cyan
-}
-
-function Get-Property {
-    param($Object, [string]$Name)
-    if ($null -eq $Object) { return $null }
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property) { return $null }
-    return $property.Value
 }
 
 # Runs $Exe from $WorkingDir and turns a non-zero exit code into a terminating
@@ -118,43 +112,6 @@ function Invoke-Tool {
     if ($code -ne 0) {
         throw "$What failed with exit code $code"
     }
-}
-
-function Resolve-EngineRoot {
-    param([string]$Explicit)
-
-    $candidates = [System.Collections.Generic.List[string]]::new()
-    if ($Explicit) { $candidates.Add($Explicit) }
-    foreach ($name in 'UE', 'UE_ROOT', 'UE5_ROOT') {
-        $value = [Environment]::GetEnvironmentVariable($name)
-        if ($value) { $candidates.Add($value) }
-    }
-
-    # The .uproject's EngineAssociation ("5.8") doubles as the registry key
-    # name a launcher install writes its location under.
-    $association = Get-Property (Get-Content $Uproject -Raw | ConvertFrom-Json) 'EngineAssociation'
-    if ($association) {
-        foreach ($hive in 'HKLM:\SOFTWARE\EpicGames\Unreal Engine',
-                          'HKCU:\SOFTWARE\EpicGames\Unreal Engine') {
-            $key = Join-Path $hive $association
-            if (Test-Path $key) {
-                $installed = Get-Property (Get-ItemProperty $key) 'InstalledDirectory'
-                if ($installed) { $candidates.Add($installed) }
-            }
-        }
-        $candidates.Add("C:\Program Files\Epic Games\UE_$association")
-        $candidates.Add("C:\Epic Games\UE_$association")
-    }
-
-    foreach ($candidate in $candidates) {
-        if (Test-Path (Join-Path $candidate 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe')) {
-            return (Resolve-Path $candidate).Path
-        }
-    }
-
-    throw ("could not find Unreal Engine $association. Pass -EngineRoot " +
-           '<path>, or set $env:UE to the folder containing Engine\. Tried: ' +
-           ($candidates -join '; '))
 }
 
 # Track stem -> the YAML the exporter takes. The stem is also what the
@@ -190,7 +147,8 @@ if ($Track) {
 
 $engine = $null
 if (-not $SkipImport) {
-    $engine = Resolve-EngineRoot $EngineRoot
+    $engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
+        -Requires 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
     Write-Host "Unreal Engine: $engine" -ForegroundColor DarkGray
 }
 

@@ -37,11 +37,20 @@ public:
 	virtual void OnScreenActivated() override;
 	virtual void OnScreenDeactivated() override;
 
+	// --- Navigation ---------------------------------------------------------
+	//
+	// Three regions: the class chips across the header, the car list down the
+	// left, and the drive button on the right. Up out of the list reaches the
+	// chips, Right out of it the drive button; Tab and the shoulders go list ->
+	// drive -> chips.
+
+	virtual void FocusDefault() override;
+	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 	void BuildLayout();
@@ -64,7 +73,10 @@ private:
 	UFUNCTION() void HandleRowActivated(UApexButtonWidget* Row);
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 
-	void MoveSelection(int32 Delta);
+	/** Focuses a visible row, scrolls to it, and describes its car. False if there is no such row. */
+	bool FocusRow(int32 Index);
+	/** Focuses the active class chip, or the first. */
+	bool FocusChip();
 
 	/** Horsepower from the catalog's kW, or 0 when there is no row. */
 	static float GetPowerHp(const FApexCarCatalogRow& Row);
@@ -79,6 +91,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> EyebrowText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> NameText;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DriveButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PowerValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeightValue;

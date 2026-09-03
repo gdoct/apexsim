@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "ApexMenuFlowSubsystem.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/ApexNavigation.h"
 
 #include "ApexScreenWidget.generated.h"
 
@@ -20,9 +20,13 @@ class UApexRootWidget;
  * Concrete rather than abstract so it can stand in for a screen whose widget
  * class could not be loaded, keeping the switcher's indices lined up with
  * EApexScreen.
+ *
+ * Keyboard and gamepad navigation come from UApexNavigableWidget: the root
+ * puts focus on FocusDefault when a screen is shown, and Back (Escape, B)
+ * goes back through the root's history unless a screen says otherwise.
  */
 UCLASS()
-class APEXSIM_API UApexScreenWidget : public UUserWidget
+class APEXSIM_API UApexScreenWidget : public UApexNavigableWidget
 {
 	GENERATED_BODY()
 
@@ -31,6 +35,13 @@ public:
 	virtual void OnScreenActivated();
 	/** Called when the switcher moves away from this screen. */
 	virtual void OnScreenDeactivated();
+
+	/** Back walks the root's history. Screens at the bottom of a flow override this. */
+	virtual bool HandleBack() override;
+
+	/** True while this is the screen on show and no race view is covering it. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
+	bool IsActiveScreen() const;
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	UApexNetSubsystem* GetNet() const;

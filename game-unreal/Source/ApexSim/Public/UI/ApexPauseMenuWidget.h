@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/ApexNavigation.h"
 
 #include "ApexPauseMenuWidget.generated.h"
 
@@ -37,7 +37,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPauseAction, EApexPauseAction
  * protocol cannot deliver.
  */
 UCLASS()
-class APEXSIM_API UApexPauseMenuWidget : public UUserWidget
+class APEXSIM_API UApexPauseMenuWidget : public UApexNavigableWidget
 {
 	GENERATED_BODY()
 
@@ -46,6 +46,13 @@ public:
 
 	virtual void NativeOnInitialized() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+
+	/** Focus lands on Resume, so Accept is always the safe answer. */
+	virtual void FocusDefault() override;
+	/** Up and Down walk the rows and wrap; nothing lies left or right. */
+	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
+	/** Back resumes, as the footer promises. */
+	virtual bool HandleBack() override;
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
 	FApexOnPauseAction OnAction;

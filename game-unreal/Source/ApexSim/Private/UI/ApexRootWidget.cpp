@@ -5,15 +5,19 @@
 #include "ApexPlayerController.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
+#include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/WidgetSwitcher.h"
 #include "Engine/GameInstance.h"
+#include "Framework/Application/SlateApplication.h"
 #include "HAL/IConsoleManager.h"
+#include "Input/Events.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Layout/WidgetPath.h"
 #include "TimerManager.h"
 #include "UnrealClient.h"
 #include "Race/ApexRaceDirector.h"
@@ -21,6 +25,7 @@
 #include "UI/ApexConnectDialogWidget.h"
 #include "UI/ApexHudWidget.h"
 #include "UI/ApexMainMenuWidget.h"
+#include "UI/ApexMenuInputProcessor.h"
 #include "UI/ApexPauseMenuWidget.h"
 #include "UI/ApexScreenWidget.h"
 #include "UI/ApexSessionCreateWidget.h"
@@ -236,7 +241,8 @@ void UApexRootWidget::NativeConstruct()
 				SetPaused(true);
 				if (bOpenSettings && SettingsOverlay)
 				{
-					SettingsOverlay->Open(static_cast<EApexSettingsTab>(FMath::Clamp(TabIndex, 0, 2)));
+					SettingsOverlay->Open(static_cast<EApexSettingsTab>(
+						FMath::Clamp(TabIndex, 0, static_cast<int32>(EApexSettingsTab::Audio))));
 				}
 			}),
 			OverlayDelay,
@@ -269,8 +275,17 @@ void UApexRootWidget::NativeConstruct()
 			bAutoRaceNoStart ? TEXT(" and stop in the lobby") : TEXT(" and count it in"));
 	}
 
-	// Escape needs to reach NativeOnKeyDown, which requires focus.
-	SetKeyboardFocus();
+	// Keys only reach a widget that has focus, or one above it; the processor
+	// sees everything, which is what focus recovery and the in-race pause key
+	// need. It outlives every input-mode change the shell makes.
+	if (FSlateApplication::IsInitialized())
+	{
+		InputProcessor = MakeShared<FApexMenuInputProcessor>(this);
+		FSlateApplication::Get().RegisterInputPreProcessor(InputProcessor);
+
+		FocusChangingHandle = FSlateApplication::Get().OnFocusChanging().AddUObject(
+			this, &UApexRootWidget::HandleFocusChanging);
+	}
 
 	// Connect as soon as the shell exists rather than when the main menu is
 	// shown: every screen wants lobby data, and the start-screen override below
@@ -319,6 +334,17 @@ void UApexRootWidget::NativeConstruct()
 
 void UApexRootWidget::NativeDestruct()
 {
+	if (FSlateApplication::IsInitialized())
+	{
+		if (InputProcessor.IsValid())
+		{
+			FSlateApplication::Get().UnregisterInputPreProcessor(InputProcessor);
+		}
+		FSlateApplication::Get().OnFocusChanging().Remove(FocusChangingHandle);
+	}
+	InputProcessor.Reset();
+	FocusChangingHandle.Reset();
+
 	if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
 	{
 		Net->OnUdpReady.RemoveDynamic(this, &UApexRootWidget::HandleUdpReady);
@@ -359,6 +385,7 @@ FReply UApexRootWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 			// menu, which is where leaving lives — one keypress should not end a
 			// race that took ten minutes to reach.
 			SetPaused(true);
+			ApexUiAudio::Play(this, EApexUiSound::Accept);
 			return FReply::Handled();
 		}
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
@@ -366,15 +393,98 @@ FReply UApexRootWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 
 	if (Key == EKeys::Escape)
 	{
-		GoBack();
+		// Normally the screen has already answered this (UApexScreenWidget::
+		// HandleBack); it reaches here when focus sits on the shell itself.
+		if (CanGoBack())
+		{
+			ApexUiAudio::Play(this, EApexUiSound::Back);
+			GoBack();
+		}
 		return FReply::Handled();
 	}
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
+void UApexRootWidget::HandleFocusChanging(
+	const FFocusEvent& Event,
+	const FWeakWidgetPath& OldPath,
+	const TSharedPtr<SWidget>& OldWidget,
+	const FWidgetPath& NewPath,
+	const TSharedPtr<SWidget>& NewWidget)
+{
+	if (!NewWidget.IsValid() || NewWidget == OldWidget)
+	{
+		return;
+	}
+
+	// Slate's own search says Navigation; a host answering a direction with
+	// ApexNav::Focus says SetDirectly, which is also what a screen opening
+	// says — the navigation scope is what separates those two.
+	const EFocusCause Cause = Event.GetCause();
+	const bool bMovedByPlayer = Cause == EFocusCause::Navigation
+		|| (Cause == EFocusCause::SetDirectly && ApexNav::IsNavigating());
+	if (!bMovedByPlayer)
+	{
+		return;
+	}
+
+	// Only focus that lands inside the shell. In the editor this hook hears
+	// every panel, and a tab through the details view is not a menu move.
+	const TSharedPtr<SWidget> Shell = GetCachedWidget();
+	if (!Shell.IsValid() || !NewPath.ContainsWidget(Shell.Get()))
+	{
+		return;
+	}
+
+	ApexUiAudio::Play(this, EApexUiSound::Move);
+}
+
 bool UApexRootWidget::IsRaceOverlayOpen() const
 {
 	return (PauseMenu && PauseMenu->IsOpen()) || (SettingsOverlay && SettingsOverlay->IsOpen());
+}
+
+bool UApexRootWidget::IsSettingsOpen() const
+{
+	return SettingsOverlay && SettingsOverlay->IsOpen();
+}
+
+bool UApexRootWidget::IsScreenActive(const UApexScreenWidget* Screen) const
+{
+	return Screen && !bRaceViewActive && GetScreenWidget(CurrentScreen) == Screen;
+}
+
+void UApexRootWidget::FocusDefault()
+{
+	// Front to back: whatever is drawn on top is what the keys should reach.
+	if (SettingsOverlay && SettingsOverlay->IsOpen())
+	{
+		SettingsOverlay->FocusDefault();
+		return;
+	}
+	if (PauseMenu && PauseMenu->IsOpen())
+	{
+		PauseMenu->FocusDefault();
+		return;
+	}
+	if (bRaceViewActive)
+	{
+		// Driving: the viewport has focus on purpose, so the car gets the keys.
+		return;
+	}
+	if (UApexScreenWidget* Screen = GetScreenWidget(CurrentScreen))
+	{
+		Screen->FocusDefault();
+	}
+}
+
+void UApexRootWidget::RequestFocusDefault()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateWeakLambda(this, [this]() { FocusDefault(); }));
+	}
 }
 
 void UApexRootWidget::SetPaused(bool bPaused)
@@ -402,11 +512,10 @@ void UApexRootWidget::SetPaused(bool bPaused)
 		PlayerController->SetDriveInputEnabled(!bPaused && bRaceViewActive);
 	}
 
-	if (!bPaused)
-	{
-		// Focus has to come back here or the next Escape reaches nothing.
-		SetKeyboardFocus();
-	}
+	// The input-mode switch above hands focus to the viewport when its deferred
+	// operations run, which is after Open() focused the first row. A tick later
+	// the menu takes it back for good; on resume there is nothing to focus.
+	RequestFocusDefault();
 }
 
 void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
@@ -456,10 +565,7 @@ void UApexRootWidget::HandleSettingsClosed()
 	{
 		PauseMenu->Open();
 	}
-	else
-	{
-		SetKeyboardFocus();
-	}
+	FocusDefault();
 }
 
 UApexScreenWidget* UApexRootWidget::GetScreenWidget(EApexScreen Screen) const
@@ -505,6 +611,12 @@ void UApexRootWidget::ActivateScreen(EApexScreen Screen)
 	{
 		Incoming->OnScreenActivated();
 	}
+
+	// Not this frame: on the first activation the shell is still being added
+	// to the viewport and the game mode's SetInputMode runs straight after,
+	// handing focus to the viewport widget. A tick later the tree is live and
+	// the focus sticks.
+	RequestFocusDefault();
 }
 
 void UApexRootWidget::ShowScreen(EApexScreen Screen)
@@ -539,6 +651,8 @@ void UApexRootWidget::GoBack()
 
 void UApexRootWidget::ShowToast(const FString& Message, bool bIsError)
 {
+	ApexUiAudio::Play(this, bIsError ? EApexUiSound::Error : EApexUiSound::Notice);
+
 	if (ToastPanel)
 	{
 		ToastPanel->Show(Message, bIsError);
@@ -778,7 +892,7 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 			SettingsOverlay->Close();
 		}
 		SetPaused(false);
-		SetKeyboardFocus();
+		RequestFocusDefault();
 	}
 
 	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))

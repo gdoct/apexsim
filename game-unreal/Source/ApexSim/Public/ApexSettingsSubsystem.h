@@ -6,6 +6,7 @@
 
 #include "ApexSettingsSubsystem.generated.h"
 
+class UApexBootSettingsSubsystem;
 class UApexInputConfig;
 
 namespace ApexInput { struct FSlotDef; }
@@ -17,6 +18,7 @@ enum class EApexSettingsGroup : uint8
 	Gameplay,
 	Graphics,
 	Controls,
+	Audio,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSettingsChanged, EApexSettingsGroup, Group);
@@ -134,6 +136,15 @@ public:
 	/** True when the key matches either slot of the pause action. */
 	bool IsPauseKey(const FKey& Key) const;
 
+	// --- Audio ----------------------------------------------------------------
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetMasterVolume(float Value01);
+
+	/** Read by UApexUiAudioSubsystem at play time; nothing to apply here. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetUiVolume(float Value01);
+
 	/**
 	 * Applies the shaped steering curve — deadzone, then sensitivity — to a raw
 	 * axis reading. Called on the input the controller collects, so a wheel and
@@ -169,9 +180,15 @@ private:
 	void ApplyGraphics();
 	void ApplyGameplay();
 	void ApplyControls();
+	void ApplyAudio();
 
 	/** Marks the preset Custom when a quality row no longer matches it. */
 	void ReconcilePreset();
+
+	UApexBootSettingsSubsystem* GetBoot() const;
+
+	/** Mirrors the display block into settings.yml, which the player can edit. */
+	void PushToBootSettings();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexSettingsSave> Settings;

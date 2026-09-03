@@ -14,6 +14,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -225,6 +226,13 @@ UWidget* UApexConnectDialogWidget::BuildFields()
 	NameField = Name;
 	TokenField = Token;
 
+	// Enter from any field connects, the way a login form behaves. The field
+	// consumes the key itself, so this is the only place to hear about it.
+	for (UEditableTextBox* Field : { Host, Port, Name, Token })
+	{
+		Field->OnTextCommitted.AddDynamic(this, &UApexConnectDialogWidget::HandleFieldCommitted);
+	}
+
 	return Stack;
 }
 
@@ -364,13 +372,55 @@ void UApexConnectDialogWidget::HandleConnectionStateChanged(EApexConnectionState
 	}
 }
 
-FReply UApexConnectDialogWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+void UApexConnectDialogWidget::HandleFieldCommitted(const FText& Text, ETextCommit::Type CommitType)
 {
-	if (InKeyEvent.GetKey() == EKeys::Enter)
+	if (CommitType == ETextCommit::OnEnter)
 	{
-		// Enter from any field connects, the way a login form behaves.
 		Connect();
-		return FReply::Handled();
 	}
-	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+// ---------------------------------------------------------------------------
+// Navigation
+// ---------------------------------------------------------------------------
+
+bool UApexConnectDialogWidget::IsEditingField() const
+{
+	for (const UEditableTextBox* Field : { HostField.Get(), PortField.Get(), NameField.Get(), TokenField.Get() })
+	{
+		if (Field && Field->HasKeyboardFocus())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UApexConnectDialogWidget::FocusDefault()
+{
+	if (!ApexNav::Focus(RecentButton) && !ApexNav::Focus(HostField))
+	{
+		Super::FocusDefault();
+	}
+}
+
+bool UApexConnectDialogWidget::HandleAccept()
+{
+	// Accept that reached the screen — nothing below took it — connects.
+	Connect();
+	return true;
+}
+
+bool UApexConnectDialogWidget::HandleBack()
+{
+	// Back inside a field leaves the field, not the screen.
+	if (IsEditingField())
+	{
+		if (!ApexNav::Focus(ConnectAction))
+		{
+			FocusDefault();
+		}
+		return true;
+	}
+	return Super::HandleBack();
 }

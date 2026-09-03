@@ -30,6 +30,11 @@ public:
 
 	virtual void OnScreenActivated() override;
 
+	/** The primary action when it is possible, otherwise the top of the setup column. */
+	virtual void FocusDefault() override;
+	/** Enter on a slider — anywhere no control took it — creates, as the footer's key cap promises. */
+	virtual bool HandleAccept() override;
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
@@ -55,6 +60,9 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> TrackSummaryBox;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> CarSummaryBox;
+	/** Rebuilt with the summaries; kept so focus can survive the rebuild. */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ChangeTrackLink;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ChangeCarLink;
 
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> KindMultiplayerButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> KindSingleButton;

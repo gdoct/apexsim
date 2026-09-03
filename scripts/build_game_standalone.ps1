@@ -44,60 +44,19 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
+
 $Uproject = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 if (-not $OutputDirectory) {
    $OutputDirectory = Join-Path $RepoRoot 'artifacts\ApexSim-Win64'
-}
-
-function Get-Property {
-   param($Object, [string]$Name)
-
-   if ($null -eq $Object) { return $null }
-   $property = $Object.PSObject.Properties[$Name]
-   if ($null -eq $property) { return $null }
-   return $property.Value
-}
-
-function Resolve-EngineRoot {
-   param([string]$Explicit)
-
-   $candidates = [System.Collections.Generic.List[string]]::new()
-   if ($Explicit) { $candidates.Add($Explicit) }
-   foreach ($name in 'UE', 'UE_ROOT', 'UE5_ROOT') {
-      $value = [Environment]::GetEnvironmentVariable($name)
-      if ($value) { $candidates.Add($value) }
-   }
-
-   $association = Get-Property (Get-Content $Uproject -Raw | ConvertFrom-Json) 'EngineAssociation'
-   if ($association) {
-      foreach ($hive in 'HKLM:\SOFTWARE\EpicGames\Unreal Engine',
-                    'HKCU:\SOFTWARE\EpicGames\Unreal Engine') {
-         $key = Join-Path $hive $association
-         if (Test-Path $key) {
-            $installed = Get-Property (Get-ItemProperty $key) 'InstalledDirectory'
-            if ($installed) { $candidates.Add($installed) }
-         }
-      }
-      $candidates.Add("C:\Program Files\Epic Games\UE_$association")
-      $candidates.Add("C:\Epic Games\UE_$association")
-   }
-
-   foreach ($candidate in $candidates) {
-      if (Test-Path (Join-Path $candidate 'Engine\Build\BatchFiles\RunUAT.bat')) {
-         return (Resolve-Path $candidate).Path
-      }
-   }
-
-   throw ("could not find Unreal Engine $association. Pass -EngineRoot <path>, " +
-         'or set $env:UE to the folder containing Engine\. Tried: ' +
-         ($candidates -join '; '))
 }
 
 if (-not (Test-Path $Uproject)) {
    throw "expected the Unreal project at $Uproject"
 }
 
-$engine = Resolve-EngineRoot $EngineRoot
+$engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
+   -Requires 'Engine\Build\BatchFiles\RunUAT.bat'
 $uat = Join-Path $engine 'Engine\Build\BatchFiles\RunUAT.bat'
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 

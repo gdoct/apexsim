@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "ApexSettingsSubsystem.h"
-#include "Blueprint/UserWidget.h"
 #include "InputCoreTypes.h"
+#include "UI/ApexNavigation.h"
 
 #include "ApexSettingsWidget.generated.h"
 
@@ -21,13 +21,14 @@ class UWidgetSwitcher;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnSettingsClosed);
 
-/** The settings overlay's three pages. */
+/** The settings overlay's four pages. */
 UENUM(BlueprintType)
 enum class EApexSettingsTab : uint8
 {
 	Gameplay,
 	Graphics,
 	Controls,
+	Audio,
 };
 
 /**
@@ -42,7 +43,7 @@ enum class EApexSettingsTab : uint8
  * nothing else on the page may act on one.
  */
 UCLASS()
-class APEXSIM_API UApexSettingsWidget : public UUserWidget
+class APEXSIM_API UApexSettingsWidget : public UApexNavigableWidget
 {
 	GENERATED_BODY()
 
@@ -53,6 +54,16 @@ public:
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
+	// --- Navigation ---------------------------------------------------------
+	//
+	// The rail's tab for the current page is where focus starts; Right from
+	// it enters the page, and Slate's geometric search does the rest across
+	// the rows. Tab and the shoulders change page from anywhere.
+
+	virtual void FocusDefault() override;
+	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
+	virtual bool HandleBack() override;
 
 	/** Fires when the overlay wants to go away — Escape, Back, or Back to race. */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
@@ -82,6 +93,8 @@ protected:
 	UFUNCTION() void HandleSteeringChanged(float Value);
 	UFUNCTION() void HandleDeadzoneChanged(float Value);
 	UFUNCTION() void HandleVibrationChanged(float Value);
+	UFUNCTION() void HandleMasterVolumeChanged(float Value);
+	UFUNCTION() void HandleUiVolumeChanged(float Value);
 
 	UFUNCTION() void HandleDisplayModeChanged(FString Item, ESelectInfo::Type SelectType);
 	UFUNCTION() void HandleResolutionChanged(FString Item, ESelectInfo::Type SelectType);
@@ -100,6 +113,7 @@ private:
 	UWidget* BuildGameplayPage();
 	UWidget* BuildGraphicsPage();
 	UWidget* BuildControlsPage();
+	UWidget* BuildAudioPage();
 	UWidget* BuildBindingsGrid();
 
 	/** Section caption above a group of rows. */
@@ -179,6 +193,14 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> VibrationSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> VibrationFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> VibrationValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> MasterVolumeSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> MasterVolumeFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> MasterVolumeValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> UiVolumeSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> UiVolumeFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> UiVolumeValue;
 
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> DisplayModeBox;
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> ResolutionBox;

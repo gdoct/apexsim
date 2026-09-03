@@ -1,5 +1,6 @@
 #include "ApexMenuFlowSubsystem.h"
 
+#include "ApexBootSettings.h"
 #include "ApexProfileSave.h"
 #include "ApexSim.h"
 #include "Engine/DataTable.h"
@@ -14,6 +15,10 @@ namespace
 void UApexMenuFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+
+	// settings.yml is the authority on the server address, so it has to be read
+	// before LoadProfile() decides which one to connect to.
+	Collection.InitializeDependency<UApexBootSettingsSubsystem>();
 
 	// LoadObject rather than a constructor finder: the tables are authored in
 	// the editor after this C++ is first compiled, so they legitimately do not
@@ -68,6 +73,7 @@ void UApexMenuFlowSubsystem::LoadProfile()
 		// defaults above stand and the next SaveProfile writes a fresh one.
 		Profile = Cast<UApexProfileSave>(UGameplayStatics::CreateSaveGameObject(UApexProfileSave::StaticClass()));
 		UE_LOG(LogApexSim, Log, TEXT("No profile in slot '%s' — starting from defaults"), UApexProfileSave::SlotName);
+		AdoptBootSettings();
 		return;
 	}
 
@@ -88,6 +94,8 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	{
 		CreateStartingMode = EApexGameMode::FreePractice;
 	}
+
+	AdoptBootSettings();
 
 	UE_LOG(LogApexSim, Log, TEXT("Profile loaded: driver '%s', last track '%s', last car '%s', %d best lap(s)"),
 		*PlayerName, *PendingTrackId, *PendingCarId, Profile->BestLapSeconds.Num());
@@ -114,6 +122,43 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	if (!UGameplayStatics::SaveGameToSlot(Profile, UApexProfileSave::SlotName, 0))
 	{
 		UE_LOG(LogApexSim, Warning, TEXT("Could not write the profile slot '%s'"), UApexProfileSave::SlotName);
+	}
+
+	// Same moment, both stores: a server picked in the connect dialog has to
+	// reach settings.yml, or the next launch would silently go back to the old
+	// one. A no-op when the address has not moved, which is most calls.
+	if (UApexBootSettingsSubsystem* Boot = GetBoot())
+	{
+		Boot->SetServer(ServerHost, ServerPort);
+	}
+}
+
+UApexBootSettingsSubsystem* UApexMenuFlowSubsystem::GetBoot() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance ? GameInstance->GetSubsystem<UApexBootSettingsSubsystem>() : nullptr;
+}
+
+void UApexMenuFlowSubsystem::AdoptBootSettings()
+{
+	UApexBootSettingsSubsystem* Boot = GetBoot();
+	if (!Boot)
+	{
+		return;
+	}
+
+	if (Boot->DidFileExist())
+	{
+		// The file the player can edit wins: pointing the game at a different
+		// server has to be possible without first managing to connect to one.
+		ServerHost = Boot->Get().ServerHost;
+		ServerPort = Boot->Get().ServerPort;
+	}
+	else
+	{
+		// The file was created this run, so seed it from the profile: an
+		// existing install keeps the server it was last pointed at.
+		Boot->SetServer(ServerHost, ServerPort);
 	}
 }
 

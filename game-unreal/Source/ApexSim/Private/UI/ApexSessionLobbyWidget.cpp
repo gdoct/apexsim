@@ -15,6 +15,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -93,6 +94,16 @@ void UApexSessionLobbyWidget::OnScreenActivated()
 	}
 
 	RefreshAll();
+}
+
+void UApexSessionLobbyWidget::FocusDefault()
+{
+	// Start is collapsed and disabled for anyone but the host, so Focus
+	// declines it and the car link takes over.
+	if (!ApexNav::Focus(StartAction) && !ApexNav::Focus(ChangeCarLink))
+	{
+		Super::FocusDefault();
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -476,6 +487,9 @@ void UApexSessionLobbyWidget::RefreshSidePanel()
 	}
 
 	// --- Your car ------------------------------------------------------------
+	// Rebuilt on every lobby and roster update; the link keeps the keyboard
+	// across the rebuild or focus would vanish every couple of seconds.
+	const bool bLinkHadFocus = ChangeCarLink && ChangeCarLink->HasKeyboardFocus();
 	CarPanelBox->ClearChildren();
 	{
 		FApexCarCatalogRow Row;
@@ -515,8 +529,13 @@ void UApexSessionLobbyWidget::RefreshSidePanel()
 		Change->Setup(ChangeSpec);
 		Change->OnActivated.AddDynamic(this, &UApexSessionLobbyWidget::HandleButtonActivated);
 		ApexUI::AddH(NameRow, Change, FMargin(12.0f, 0.0f, 0.0f, 0.0f));
+		ChangeCarLink = Change;
 
 		ApexUI::AddV(CarPanelBox, NameRow, FMargin(0.0f, 16.0f, 0.0f, 0.0f));
+	}
+	if (bLinkHadFocus)
+	{
+		ApexNav::Focus(ChangeCarLink);
 	}
 
 	// --- Host controls -------------------------------------------------------
