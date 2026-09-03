@@ -9,6 +9,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
+#include "Components/ScaleBox.h"
 #include "Components/ProgressBar.h"
 #include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
@@ -80,7 +81,7 @@ void UApexCarSelectWidget::OnScreenActivated()
 			{
 				FSlateBrush Brush = StageImage->GetBrush();
 				Brush.SetResourceObject(RenderTarget);
-				Brush.ImageSize = FVector2D(900.0f, 520.0f);
+				Brush.ImageSize = Stage->GetPreviewSize();
 				StageImage->SetBrush(Brush);
 				StageImage->SetVisibility(ESlateVisibility::HitTestInvisible);
 			}
@@ -132,9 +133,23 @@ void UApexCarSelectWidget::BuildLayout()
 	CarListScroll = WidgetTree->ConstructWidget<UScrollBox>();
 	CarListScroll->AddChild(CarListBox);
 
+	// The car list comes from the server, so before the first LobbyState (or
+	// while the server is down) the list is empty and needs to say why.
+	EmptyText = ApexUI::MakeText(
+		*WidgetTree,
+		TEXT("No cars yet — the list fills in as soon as the server is reachable."),
+		ApexUI::Font::Body(15.0f),
+		ApexUI::Palette::TextMuted);
+	EmptyText->SetAutoWrapText(true);
+	EmptyText->SetVisibility(ESlateVisibility::Collapsed);
+
+	UVerticalBox* ListColumn = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddV(ListColumn, EmptyText, FMargin(0.0f, 4.0f));
+	ApexUI::AddV(ListColumn, CarListScroll, FMargin(), HAlign_Fill, 1.0f);
+
 	UBorder* ListPanel = ApexUI::MakePanel(
 		*WidgetTree,
-		CarListScroll,
+		ListColumn,
 		FMargin(20.0f, 18.0f),
 		ApexUI::MakeBrush(FLinearColor::Transparent));
 
@@ -176,9 +191,14 @@ UWidget* UApexCarSelectWidget::BuildStage()
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
 
 	StageImage = WidgetTree->ConstructWidget<UImage>();
+	// The frame is much wider than the capture; fitting rather than filling
+	// keeps the car its own shape, with the frame colour either side.
+	UScaleBox* StageFit = WidgetTree->ConstructWidget<UScaleBox>();
+	StageFit->SetStretch(EStretch::ScaleToFit);
+	StageFit->AddChild(StageImage);
 	UBorder* StageFrame = ApexUI::MakePanel(
 		*WidgetTree,
-		StageImage,
+		StageFit,
 		FMargin(),
 		ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
 	ApexUI::AddV(Column, StageFrame, FMargin(), HAlign_Fill, 1.0f);
@@ -281,6 +301,11 @@ void UApexCarSelectWidget::RebuildList(bool bForce)
 	}
 
 	const TArray<FApexCarConfigSummary>& Cars = Net->GetCachedLobbyState().CarConfigs;
+
+	if (EmptyText)
+	{
+		EmptyText->SetVisibility(Cars.Num() == 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 
 	TArray<FString> IncomingIds;
 	IncomingIds.Reserve(Cars.Num());

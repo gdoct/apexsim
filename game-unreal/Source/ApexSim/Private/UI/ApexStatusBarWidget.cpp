@@ -72,6 +72,11 @@ void UApexStatusBarWidget::Refresh()
 		StatusText->SetColorAndOpacity(FailedColor);
 		break;
 
+	case EApexConnectionState::Reconnecting:
+		StatusText->SetText(FText::FromString(TEXT("Server unreachable — retrying…")));
+		StatusText->SetColorAndOpacity(FailedColor);
+		break;
+
 	default:
 		StatusText->SetText(FText::FromString(TEXT("Not connected")));
 		StatusText->SetColorAndOpacity(IdleColor);

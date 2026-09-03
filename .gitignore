@@ -195,4 +195,6 @@ certs/
 *.terrain.msgpack
 # Generated Unreal track exports (bake with: cargo run --bin ats-export -- --all)
 content/tracks/export/
+# Packaged standalone game (scripts/build_game_standalone.ps1)
+artifacts/
 game-unreal/Content/

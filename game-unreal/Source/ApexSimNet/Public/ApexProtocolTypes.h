@@ -83,7 +83,14 @@ enum class EApexConnectionState : uint8
 	Connecting,
 	Authenticating,
 	Authenticated,
+	/** Auth was rejected or the network thread could not start; nothing retries. */
 	Failed,
+	/**
+	 * The server could not be reached or dropped the connection, and the
+	 * subsystem is retrying on a backoff. Cleared by a successful connect,
+	 * an AuthFailure (-> Failed) or an explicit Disconnect().
+	 */
+	Reconnecting,
 };
 
 /**

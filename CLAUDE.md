@@ -44,6 +44,13 @@ cargo run                                    # Run track editor
 cargo run --bin ats-export -- --all          # Bake every track for Unreal
 ```
 
+### Standalone game build
+`scripts/build_game_standalone.ps1` runs UAT BuildCookRun into `artifacts/ApexSim-Win64`.
+Packaging relies on `bCookAll=True` in `DefaultGame.ini`: the track levels and
+catalog tables are only ever found by path at runtime, and the cooker's
+`DirectoriesToAlwaysCook` scan ignores `.umap` files, so without cook-all a
+packaged build races in an empty world with no previews.
+
 ### Track pipeline into Unreal
 Circuits reach the Unreal client in two generated steps; both outputs are
 regenerated wholesale and neither should be hand-edited.
@@ -69,6 +76,19 @@ track. `AApexRaceDirector` streams `/Game/Tracks/<Stem>/L_<Stem>` as a level
 instance when a race starts, resolving `<Stem>` from the session's
 `TrackFile`. See `track-editor/TRACK_EDITOR.md` §5 for the format and the
 coordinate/winding conventions.
+
+The track picker's names, metadata and preview art come from a local
+`DT_TrackCatalog` data table keyed by `track_id` (the wire protocol only
+carries id and name). Adding or renaming a track means syncing that table:
+
+```bash
+python scripts/build_track_catalog.py          # -> content/tracks/export/{track_catalog.json,previews/*.png}
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexTrackCatalogSync                    # adds missing rows + imports T_Track_<Stem> textures
+```
+
+The sync is additive unless `-force`; existing rows keep their values. Every
+track YAML needs a fixed `track_id` — without one the server mints a new UUID
+per start and no catalog row can ever match it.
 
 ## Architecture
 

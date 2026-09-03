@@ -70,6 +70,8 @@ private:
 	static float GetPowerHp(const FApexCarCatalogRow& Row);
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> CarListBox;
+	/** Shown in place of the list while the server has not sent any cars. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> EmptyText;
 	UPROPERTY(Transient) TObjectPtr<UScrollBox> CarListScroll;
 	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> ChipRow;
 	UPROPERTY(Transient) TObjectPtr<UImage> StageImage;

@@ -1,3 +1,4 @@
+track_id: d685d53c-e2b6-4da1-937b-0e991a54c3b8
 name: "Circuit de la Sarthe (Le Mans 24 Hours)"
 default_width: 13.1
 closed_loop: true
@@ -21815,3 +21816,4 @@ metadata:
   description: "Circuit de la Sarthe - home of the 24 Hours of Le Mans. Combines the permanent Circuit Bugatti sections with public roads including the famous Mulsanne (Hunaudieres) Straight. Regenerated from OpenStreetMap's 'Circuit des 24 Heures du Mans' route relation (Aug 2026), with SRTM30m elevation."
   year_built: 1923
   category: WEC
+  environment_type: forest

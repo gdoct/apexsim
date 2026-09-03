@@ -388,7 +388,8 @@ void UApexMainMenuWidget::RefreshHeader()
 	case EApexConnectionState::Authenticated:                                     DotColour = ApexUI::Palette::Live;   break;
 	case EApexConnectionState::Connecting:
 	case EApexConnectionState::Authenticating:                                    DotColour = ApexUI::Palette::Accent; break;
-	case EApexConnectionState::Failed:                                            DotColour = ApexUI::Palette::Error;  break;
+	case EApexConnectionState::Failed:
+	case EApexConnectionState::Reconnecting:                                      DotColour = ApexUI::Palette::Error;  break;
 	default:                                                                      break;
 	}
 
@@ -690,8 +691,10 @@ void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewS
 {
 	RefreshAll();
 
-	// A failed auto-connect drops the user straight onto the connect dialog so
-	// they can fix the address rather than staring at a dead menu.
+	// Rejected credentials drop the user straight onto the connect dialog so
+	// they can fix them rather than staring at a dead menu. An unreachable
+	// server is not Failed but Reconnecting: the subsystem keeps retrying and
+	// the menu fills in by itself once the server is up.
 	if (NewState == EApexConnectionState::Failed && GetRoot() && GetRoot()->GetCurrentScreen() == EApexScreen::MainMenu)
 	{
 		ShowScreen(EApexScreen::ConnectDialog);

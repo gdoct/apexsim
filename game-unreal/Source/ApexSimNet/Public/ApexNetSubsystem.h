@@ -115,7 +115,15 @@ public:
 
 	// --- Actions --------------------------------------------------------------
 
-	/** Connects and authenticates. Any existing connection is torn down first. */
+	/**
+	 * Connects and authenticates. Any existing connection is torn down first.
+	 *
+	 * A refused or lost connection is retried automatically on a backoff (see
+	 * EApexConnectionState::Reconnecting) until Disconnect() is called or the
+	 * server rejects the credentials: the usual reason a connect fails is a
+	 * local server that has not started yet, and the lobby should fill in on
+	 * its own once it has.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void Connect(
 		const FString& InHost = TEXT("127.0.0.1"),
@@ -123,7 +131,7 @@ public:
 		const FString& InPlayerName = TEXT("Player"),
 		const FString& InToken = TEXT("dev-token"));
 
-	/** Sends Disconnect (best effort) and closes the socket. */
+	/** Sends Disconnect (best effort), closes the socket and stops any retry. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void Disconnect();
 
@@ -244,11 +252,21 @@ private:
 	static constexpr float HeartbeatIntervalSeconds = 2.0f;
 	static constexpr float LobbyStateDebounceSeconds = 1.0f;
 
+	/** Retry delays double from the first value up to the cap: 1, 2, 4, 5, 5... */
+	static constexpr float ReconnectInitialDelaySeconds = 1.0f;
+	static constexpr float ReconnectMaxDelaySeconds = 5.0f;
+
 	bool Tick(float DeltaSeconds);
 	void HandleMessage(const FApexServerMessage& Message);
 	void SetConnectionState(EApexConnectionState NewState, const FString& Detail);
 	void SendPayload(TArray<uint8>&& Payload);
 	void TeardownConnection();
+
+	/** Spawns the TCP thread for Host:Port with the remembered credentials. */
+	void StartConnectionAttempt();
+
+	/** Moves to Reconnecting and arms the backoff timer for the next attempt. */
+	void ScheduleReconnect(const FString& Reason);
 
 	/** Starts the UDP side once AuthSuccess has handed over a token and port. */
 	void StartUdp(const FApexAuthSuccess& Auth);
@@ -277,7 +295,14 @@ private:
 	FString Host;
 	int32 Port = 9000;
 	FString PlayerName;
+	/** Kept for reconnects; the server reads it once per connection. */
+	FString Token;
 	FString PlayerId;
+
+	/** Set by Connect(), cleared by Disconnect() and by an AuthFailure. */
+	bool bReconnectEnabled = false;
+	int32 ReconnectAttempt = 0;
+	float TimeUntilReconnect = 0.0f;
 	FString CurrentSessionId;
 
 	uint32 ClientTick = 0;

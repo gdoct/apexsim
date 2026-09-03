@@ -268,6 +268,10 @@ void UApexConnectDialogWidget::RefreshStatus()
 		Text = TEXT("Could not connect — check the address and that the server is running");
 		Colour = ApexUI::Palette::Error;
 		break;
+	case EApexConnectionState::Reconnecting:
+		Text = TEXT("Server unreachable — retrying automatically. Start the server, or connect to a different address");
+		Colour = ApexUI::Palette::Error;
+		break;
 	default:
 		Text = TEXT("Not connected");
 		break;
