@@ -1,14 +1,10 @@
-#include "Misc/AutomationTest.h"
-
+#include "ApexTestCommon.h"
 #include "Race/ApexRaceCoordinate.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 namespace
 {
-	constexpr EAutomationTestFlags ApexTestFlags =
-		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter;
-
 	/** Monza-ish, but any positive length exercises the same branches. */
 	constexpr float L = 5793.0f;
 }

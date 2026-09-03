@@ -181,6 +181,34 @@ display detection, pinning an arbitrary monitor to a 1920x1080 guess. Its text
 is a second copy of what `ApexBootSettingsIo::Serialise` writes; the two carry
 comments pointing at each other.
 
+### Menu sound (`Audio/`)
+
+The shell's cues are synthesised, not imported: there are no sound assets in
+the project. `ApexUiSynth` (`Audio/ApexUiSound.h`) renders each `EApexUiSound`
+(Move, Accept, Back, Denied, Adjust, Notice, Error) as a short tone from a
+note table, and `UApexUiSoundWave` is a procedural `USoundWave` whose
+`CreateSoundGenerator` renders the cue at the device's own sample rate when
+the mixer asks for it. `UApexUiAudioSubsystem` (game instance) plays them via
+`PlaySound2D` as UI sounds, scaled by `UApexSettingsSave::UiVolume` and
+throttled per cue; widgets call `ApexUiAudio::Play(this, EApexUiSound::X)`.
+
+Where the cues come from: a button's `FApexButtonSpec::Sound` (Accept by
+default, Back on Back buttons), `UApexNavigableWidget` when a `HandleBack`
+consumes the press, the root's `ShowToast`, and the settings sliders and
+dropdowns (Adjust). Move is not raised by any widget: the root widget listens
+to `FSlateApplication::OnFocusChanging` and plays it for focus moved by the
+player, which is a change with cause `Navigation` or one made inside an
+`ApexNav::FNavigationScope` (the scope is what separates a host's
+`ApexNav::Focus` from the same call made when a screen opens). Scopes wrap
+`RouteFromLeaf`, the navigable widget's key/analog handlers and the input
+processor's focus recovery; do not add per-widget Move cues.
+
+Volume lives on the settings overlay's Audio tab: master volume drives the
+audio device's transient primary volume (`ApplyAudio`), menu-sound volume is
+read at play time. `-ApexSettingsTab=3` opens that tab headlessly.
+`ApexSim.UI.SoundCues*` automation tests check every cue is short, finite,
+click-free and the same length at 44.1k and 48k.
+
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)
 - `tracks/` - Track definitions (YAML/JSON) + procedural terrain caches (`.terrain.msgpack`)
