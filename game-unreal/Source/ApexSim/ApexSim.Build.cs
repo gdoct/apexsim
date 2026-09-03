@@ -22,6 +22,9 @@ public class ApexSim : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"RenderCore",
+			// UApexUiSoundWave derives from USoundWave, whose vtable reaches
+			// IAudioProxyDataFactory; that symbol is exported from here.
+			"AudioExtensions",
 		});
 	}
 }

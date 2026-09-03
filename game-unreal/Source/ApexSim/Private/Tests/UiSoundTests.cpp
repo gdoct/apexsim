@@ -1,14 +1,10 @@
-#include "Misc/AutomationTest.h"
-
+#include "ApexTestCommon.h"
 #include "Audio/ApexUiSound.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 namespace
 {
-	constexpr EAutomationTestFlags ApexTestFlags =
-		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter;
-
 	FString CueName(EApexUiSound Sound)
 	{
 		return StaticEnum<EApexUiSound>()->GetNameStringByValue(static_cast<int64>(Sound));

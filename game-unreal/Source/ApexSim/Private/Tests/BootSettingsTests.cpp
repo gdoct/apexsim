@@ -1,14 +1,7 @@
-#include "Misc/AutomationTest.h"
-
 #include "ApexBootSettings.h"
+#include "ApexTestCommon.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
-
-namespace
-{
-	constexpr EAutomationTestFlags ApexTestFlags =
-		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter;
-}
 
 // -----------------------------------------------------------------------------
 

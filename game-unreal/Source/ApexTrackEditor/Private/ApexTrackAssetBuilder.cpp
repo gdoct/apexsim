@@ -662,6 +662,15 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 		// unbuilt objects. Movable puts it on dynamic lighting instead, which
 		// is what a procedurally generated level can actually rely on.
 		Actor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+		// Movable is a lighting decision, not a promise to move, and virtual
+		// shadow maps read it as one: a movable primitive is cached as
+		// dynamic, so a whole circuit — sixty-odd 384 m ground patches plus
+		// the grass and gravel — re-marks its shadow pages every frame and
+		// overflows the non-Nanite marking job queue (the "[VSM] Non-Nanite
+		// Marking Job Queue overflow" warning on screen). Saying the shape
+		// never moves puts it back in the static page cache.
+		Actor->GetStaticMeshComponent()->ShadowCacheInvalidationBehavior =
+			EShadowCacheInvalidationBehavior::Static;
 		Actor->GetStaticMeshComponent()->SetStaticMesh(Mesh);
 		++MeshActors;
 	}
@@ -689,6 +698,10 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 			}
 			Actor->SetActorLabel(FString::Printf(TEXT("%s_%s"), *Prop.Kind, *Prop.Asset));
 			Actor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+			// Props are scenery bolted to the ground; same shadow-cache
+			// reasoning as the track meshes above.
+			Actor->GetStaticMeshComponent()->ShadowCacheInvalidationBehavior =
+				EShadowCacheInvalidationBehavior::Static;
 			Actor->GetStaticMeshComponent()->SetStaticMesh(PlaceholderMesh);
 			UMaterialInterface* PropMaterial = Materials.FindRef(TEXT("prop_") + Prop.Kind);
 			if (!PropMaterial)
