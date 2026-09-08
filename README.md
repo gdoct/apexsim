@@ -9,16 +9,16 @@ This project is in active development. The simulation and the networking underne
 ### Working
 
 **Server**
-* Authoritative 240 Hz physics loop — the server decides where every car is, and the client renders what it is told
+* Authoritative 240 Hz physics loop â€” the server decides where every car is, and the client renders what it is told
 * 4-wheel vehicle model with per-wheel loads, Pacejka-style tires, suspension, aero and drivetrain; yaw-aware OBB collision
 * Deterministic simulation, guarded by a test that asserts bit-identical runs
 * Protocol v2: TCP+TLS for auth, lobby and session management; UDP for telemetry out and player input in, bound by a token handshake
 * AI drivers, lap timing and lap validation, race classification
 * Prometheus metrics plus health and readiness endpoints
 
+<img width="1000" alt="image" src="https://github.com/user-attachments/assets/ef99e9e7-dff0-4661-bb83-36ee007ff39b" />
 <img width="1000" alt="image" src="https://github.com/user-attachments/assets/5d3248d3-155b-4703-b04f-34b05afe2472" />
 <img width="1000" alt="image" src="https://github.com/user-attachments/assets/8961e3b0-7d88-44cb-b160-b0ad1f6c30ed" />
-<img width="1000" alt="image" src="https://github.com/user-attachments/assets/50766231-797f-44c9-ae9f-410721ad73f8" />
 
 
 **Content**
@@ -27,7 +27,7 @@ This project is in active development. The simulation and the networking underne
 * Both shared verbatim between the server, the track editor and the client
 
 **Unreal client (`game-unreal/`)**
-* Full menu shell — connect, session browser and create, car and track selection, lobby, session results — built as C++ widget trees rather than widget blueprints, so layout is reviewable in a diff
+* Full menu shell â€” connect, session browser and create, car and track selection, lobby, session results â€” built as C++ widget trees rather than widget blueprints, so layout is reviewable in a diff
 * Race view: a car per roster entry driven from telemetry, with the circuit streamed in as a level instance; cockpit and chase cameras
 * Driving via Enhanced Input, with actions and bindings defined in C++
 * Race HUD: position, gaps, standings, live delta, sector times, minimap, pedal and engine telemetry
@@ -39,18 +39,18 @@ This project is in active development. The simulation and the networking underne
 
 ### Missing
 
-* **No audio at all** in the Unreal client — no engine, tire or collision sound
+* **No audio at all** in the Unreal client â€” no engine, tire or collision sound
 * No client-side prediction; cars are pure telemetry puppets, smoothed by interpolation
-* Driving aids (traction control, ABS) and AI skill cannot be set per session from the client — the wire protocol has no fields for them, so those settings are stored but inert
+* Driving aids (traction control, ABS) and AI skill cannot be set per session from the client â€” the wire protocol has no fields for them, so those settings are stored but inert
 * No racing-line overlay and no mirrors
 * No trackside environment art beyond the generated track meshes
 * No server-side player accounts or persistence
 
 ## Architecture Overview
 
-1. **Rust server (`server/`)** — runs the authoritative 240 Hz simulation loop, manages sessions, performs collision-aware physics, and streams telemetry over UDP while handling lobby and session traffic over TCP+TLS. See [server/README.md](server/README.md) for configuration, build and operations detail.
-2. **Unreal client (`game-unreal/`)** — the player experience: menus, HUD, driving view, and the networking layer that talks to the backend. Three C++ modules: `ApexSimNet` (protocol and transport), `ApexSim` (game and UI), `ApexTrackEditor` (editor-only import commandlet).
-3. **Track editor (`track-editor/`)** — a Rust + Bevy tool that turns a logical track into a 3D scene, and bakes that scene into buffers Unreal can build a level from.
+1. **Rust server (`server/`)** â€” runs the authoritative 240 Hz simulation loop, manages sessions, performs collision-aware physics, and streams telemetry over UDP while handling lobby and session traffic over TCP+TLS. See [server/README.md](server/README.md) for configuration, build and operations detail.
+2. **Unreal client (`game-unreal/`)** â€” the player experience: menus, HUD, driving view, and the networking layer that talks to the backend. Three C++ modules: `ApexSimNet` (protocol and transport), `ApexSim` (game and UI), `ApexTrackEditor` (editor-only import commandlet).
+3. **Track editor (`track-editor/`)** â€” a Rust + Bevy tool that turns a logical track into a 3D scene, and bakes that scene into buffers Unreal can build a level from.
 
 This separation keeps critical simulation logic isolated from presentation while letting each component evolve independently.
 
@@ -79,7 +79,7 @@ install itself:
 ./scripts/build_track_levels.ps1 -Track Monza,Spa -Build   # two tracks, editor target rebuilt first
 ```
 
-The exporter resolves the editor's `.ats` scene against the YAML centerline and bakes triangles, because Unreal cannot read YAML; the commandlet turns those buffers into static meshes, materials and one level per track. See [track-editor/TRACK_EDITOR.md](track-editor/TRACK_EDITOR.md) §5 for the format and the coordinate conventions.
+The exporter resolves the editor's `.ats` scene against the YAML centerline and bakes triangles, because Unreal cannot read YAML; the commandlet turns those buffers into static meshes, materials and one level per track. See [track-editor/TRACK_EDITOR.md](track-editor/TRACK_EDITOR.md) Â§5 for the format and the coordinate conventions.
 
 ## Performance
 
@@ -89,31 +89,31 @@ The simulation loop is, to put it modestly, not the bottleneck. Measured with th
 |---|---|---|
 | One car, one full physics step (per-wheel tire model, suspension, aero, drivetrain) | **~835 ns** | ~1.2 million car-steps per second per core |
 | Nearest-centerline track query (windowed, cached) | **~106 ns** | effectively free |
-| Complete 8-car session tick — physics, AI drivers, collision detection, lap validation | **~7.8 µs** | ~130,000 full session ticks per second |
+| Complete 8-car session tick â€” physics, AI drivers, collision detection, lap validation | **~7.8 Âµs** | ~130,000 full session ticks per second |
 
-At the default 240 Hz tick rate, simulating a full 8-car session consumes about **0.2% of the 4.17 ms tick budget**. The physics engine could sustain a tick rate in the six figures; the server caps `tick_rate_hz` at 1000 purely because async timer granularity — not simulation cost — becomes the limiting factor beyond that. In other words: the sim spends 99.8% of its time waiting politely for the next tick, and your network connection will give out long before the physics does.
+At the default 240 Hz tick rate, simulating a full 8-car session consumes about **0.2% of the 4.17 ms tick budget**. The physics engine could sustain a tick rate in the six figures; the server caps `tick_rate_hz` at 1000 purely because async timer granularity â€” not simulation cost â€” becomes the limiting factor beyond that. In other words: the sim spends 99.8% of its time waiting politely for the next tick, and your network connection will give out long before the physics does.
 
-These numbers held (within noise) through the move from a synthesized slip model to the current per-wheel torque-balance tire model with combined-slip friction ellipse, ABS/TC driver aids, and hybrid powertrain support — realism upgrades that cost nanoseconds, not milliseconds.
+These numbers held (within noise) through the move from a synthesized slip model to the current per-wheel torque-balance tire model with combined-slip friction ellipse, ABS/TC driver aids, and hybrid powertrain support â€” realism upgrades that cost nanoseconds, not milliseconds.
 
 ## Repository Layout
 
 ```
 apexsim/
-├── content/        # Car and track definitions, shared by server, editor and client
-├── docs/           # Design and implementation notes
-├── game-unreal/    # Unreal Engine 5 client
-├── scripts/        # Track pipeline runner and Python content helpers
-├── server/         # Rust backend (source, config, docs)
-├── track-editor/   # Rust + Bevy circuit scene authoring tool
-├── README.md       # This overview
-└── LICENSE         # Project license
+â”œâ”€â”€ content/        # Car and track definitions, shared by server, editor and client
+â”œâ”€â”€ docs/           # Design and implementation notes
+â”œâ”€â”€ game-unreal/    # Unreal Engine 5 client
+â”œâ”€â”€ scripts/        # Track pipeline runner and Python content helpers
+â”œâ”€â”€ server/         # Rust backend (source, config, docs)
+â”œâ”€â”€ track-editor/   # Rust + Bevy circuit scene authoring tool
+â”œâ”€â”€ README.md       # This overview
+â””â”€â”€ LICENSE         # Project license
 ```
 
 ### Directory Highlights
 
 - [content/](content): Authoring-ready data. Cars are `cars/<name>/car.toml`; tracks are `tracks/real/*.yaml` (the logical circuit the server simulates) alongside `.ats` scene sidecars (the 3D dressing, read only by the editor and the Unreal importer).
 - [game-unreal/](game-unreal): Unreal Engine 5 client. Source lives in `Source/ApexSim`, `Source/ApexSimNet` and `Source/ApexTrackEditor`.
-- [scripts/](scripts): Build and content helpers — `build_track_levels.ps1` runs the whole track pipeline; the Python scripts generate track preview images and racing lines.
+- [scripts/](scripts): Build and content helpers â€” `build_track_levels.ps1` runs the whole track pipeline; the Python scripts generate track preview images and racing lines.
 - [server/](server): Full Rust crate with source, configuration files and supporting docs for the backend runtime.
 - [track-editor/](track-editor): The circuit scene editor and the `ats-export` baker.
 
@@ -126,12 +126,12 @@ cd server
 cargo run                 # uses server.toml
 ```
 
-The server listens on TCP 9000, UDP 9001 and HTTP 9002 (`/health`, `/ready`, `/metrics`). See [server/README.md](server/README.md) for configuration and TLS setup — TLS is fail-closed by default, with a development opt-out in `server.toml`.
+The server listens on TCP 9000, UDP 9001 and HTTP 9002 (`/health`, `/ready`, `/metrics`). See [server/README.md](server/README.md) for configuration and TLS setup â€” TLS is fail-closed by default, with a development opt-out in `server.toml`.
 
 ### 2. Build the track levels
 
 The Unreal content directory is generated, not committed, so a fresh clone has
-no circuits to drive on — the race view would load an empty world. Bake and
+no circuits to drive on â€” the race view would load an empty world. Bake and
 import all 26 of them once, before the first run:
 
 ```powershell
@@ -166,8 +166,8 @@ To produce something other people can download and run:
 ./scripts/build_release.ps1 -Zip
 ```
 
-That runs the whole pipeline � `cargo build --release`, the track bake and
-import, the track catalog sync, and the client package � and assembles
+That runs the whole pipeline — `cargo build --release`, the track bake and
+import, the track catalog sync, and the client package — and assembles
 `artifacts/release/ApexSim-<version>-Win64/` (plus a zip to attach to a GitHub
 release). The package holds the packaged client in `Game/`, the server with its
 config and content in `Server/`, and a `Play.bat` that starts both. It is
@@ -216,7 +216,7 @@ cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and treats w
 cargo test
 ```
 
-Wire-format changes must be made on both sides at once — `server/src/network.rs` and `game-unreal/Source/ApexSimNet` — and the client's codec tests pin every message against a golden byte blob, so a mismatch fails loudly rather than silently decoding to an empty list.
+Wire-format changes must be made on both sides at once â€” `server/src/network.rs` and `game-unreal/Source/ApexSimNet` â€” and the client's codec tests pin every message against a golden byte blob, so a mismatch fails loudly rather than silently decoding to an empty list.
 
 ## License
 
