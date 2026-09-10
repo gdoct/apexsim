@@ -67,8 +67,15 @@
     Reuse the DT_TrackCatalog rows and preview textures already imported.
 
 .PARAMETER SkipClient
-    Reuse the packaged client already sitting in the release folder. Handy
-    while the Unreal client is mid-refactor and will not compile.
+    Reuse a packaged client instead of running BuildCookRun. Uses the build
+    already staged in this release's Game/ folder if present, otherwise falls
+    back to -ClientArtifactDirectory (the output of build_game_standalone.ps1).
+    Handy while the Unreal client is mid-refactor and will not compile.
+
+.PARAMETER ClientArtifactDirectory
+    Fallback client build for -SkipClient when the release folder does not
+    already have one staged. Defaults to artifacts\ApexSim-Win64\Windows, the
+    default output of build_game_standalone.ps1.
 
 .EXAMPLE
     ./scripts/build_release.ps1 -Zip
@@ -90,7 +97,8 @@ param(
     [switch]$SkipServer,
     [switch]$SkipTracks,
     [switch]$SkipCatalog,
-    [switch]$SkipClient
+    [switch]$SkipClient,
+    [string]$ClientArtifactDirectory
 )
 
 Set-StrictMode -Version Latest
@@ -103,6 +111,9 @@ $TrackDir     = Join-Path $RepoRoot 'content\tracks\real'
 $LevelDir     = Join-Path $RepoRoot 'game-unreal\Content\Tracks'
 $CatalogAsset = Join-Path $RepoRoot 'game-unreal\Content\Data\DT_TrackCatalog.uasset'
 $ServerExe    = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
+if (-not $ClientArtifactDirectory) {
+    $ClientArtifactDirectory = Join-Path $RepoRoot 'artifacts\ApexSim-Win64\Windows'
+}
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 
@@ -311,8 +322,11 @@ $Commit      = Get-GitCommit
 Write-Detail "version $Version ($Commit), client configuration $Configuration"
 Write-Detail "package $ReleaseDir"
 
-if ($SkipClient -and -not (Test-Path (Join-Path $GameDir 'ApexSim.exe'))) {
-    throw "-SkipClient, but there is no packaged client at $(Join-Path $GameDir 'ApexSim.exe')"
+if ($SkipClient -and
+    -not (Test-Path (Join-Path $GameDir 'ApexSim.exe')) -and
+    -not (Test-Path (Join-Path $ClientArtifactDirectory 'ApexSim.exe'))) {
+    throw ("-SkipClient, but there is no packaged client at " +
+           "$(Join-Path $GameDir 'ApexSim.exe') or $(Join-Path $ClientArtifactDirectory 'ApexSim.exe')")
 }
 
 # --- server ----------------------------------------------------------------
@@ -372,7 +386,16 @@ else {
 # --- client ----------------------------------------------------------------
 
 if ($SkipClient) {
-    Write-Step 'Skipping the client package; using the build already staged'
+    if (Test-Path (Join-Path $GameDir 'ApexSim.exe')) {
+        Write-Step 'Skipping the client package; using the build already staged'
+    }
+    else {
+        Write-Step 'Skipping the client package; copying the standalone build artifact'
+        Write-Detail "source: $ClientArtifactDirectory"
+        if (Test-Path $GameDir) { Remove-Item -LiteralPath $GameDir -Recurse -Force }
+        New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null
+        Copy-Item -LiteralPath $ClientArtifactDirectory -Destination $GameDir -Recurse -Force
+    }
 }
 else {
     Write-Step "Packaging the client ($Configuration, Win64)"
