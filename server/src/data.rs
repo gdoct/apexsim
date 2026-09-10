@@ -391,6 +391,12 @@ pub struct TrackConfig {
     /// Optional procedural world data
     #[serde(default)]
     pub procedural_world: Option<crate::procgen::ProceduralWorldData>,
+    /// Baked ground heightfield exported by the track editor alongside the
+    /// Unreal scene (`<Track>.ground.msgpack`). Off the asphalt the sim
+    /// follows this instead of the centerline elevation, so the car rests on
+    /// the ground the client renders. Runtime-only; loaded from the sidecar.
+    #[serde(skip)]
+    pub ground: Option<crate::ground::GroundHeightfield>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -540,6 +546,7 @@ impl Default for TrackConfig {
             checkpoints: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
+            ground: None,
         }
     }
 }
@@ -684,6 +691,15 @@ pub struct CarState {
     pub player_id: PlayerId,
     pub car_config_id: CarConfigId,
     pub grid_position: u8,
+    /// Server-side automatic gearbox, set by `ClientMessage::SetDriverAids`.
+    /// The client only ever sends manual shifts; the server picks gears from
+    /// the car's rev range and ratios, which the wire protocol never tells
+    /// the client.
+    #[serde(default)]
+    pub auto_gearbox: bool,
+    /// Ticks until the automatic box may shift again.
+    #[serde(default)]
+    pub auto_shift_hold_ticks: u16,
 
     // 3D Position
     pub pos_x: f32,
@@ -789,6 +805,8 @@ impl CarState {
             player_id,
             car_config_id,
             grid_position: grid_slot.position,
+            auto_gearbox: false,
+            auto_shift_hold_ticks: 0,
 
             // 3D Position
             pos_x: grid_slot.x,

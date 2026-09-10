@@ -27,6 +27,7 @@ pub struct PathSample {
     pub surface_color: [f32; 4],
 }
 
+#[derive(Debug, Clone)]
 pub struct CenterlinePath {
     samples: Vec<PathSample>,
     total_len_m: f32,
@@ -102,9 +103,19 @@ impl CenterlinePath {
         Self::finish(samples, track.closed_loop)
     }
 
-    /// Sample a free-standing polyline (e.g. the pit lane) with a constant
-    /// width and no banking, through the same Catmull-Rom spline.
+    /// Sample a free-standing open polyline (e.g. the pit lane) with a
+    /// constant width and no banking, through the same Catmull-Rom spline.
     pub fn from_polyline(points: &[[f32; 3]], half_width_m: f32) -> Option<Self> {
+        Self::from_polyline_with(points, half_width_m, false)
+    }
+
+    /// [`Self::from_polyline`], optionally closing the polyline back onto
+    /// its first point (a racing line stored as a lap of points, say).
+    pub fn from_polyline_with(
+        points: &[[f32; 3]],
+        half_width_m: f32,
+        closed: bool,
+    ) -> Option<Self> {
         if points.len() < 2 {
             return None;
         }
@@ -112,11 +123,16 @@ impl CenterlinePath {
         let mut samples = Vec::new();
         let color = [0.32, 0.32, 0.34, 1.0];
 
-        for i in 0..positions.len() - 1 {
-            let p0 = control_point(&positions, i, -1, false);
+        let segments = if closed {
+            positions.len()
+        } else {
+            positions.len() - 1
+        };
+        for i in 0..segments {
+            let p0 = control_point(&positions, i, -1, closed);
             let p1 = positions[i];
-            let p2 = control_point(&positions, i, 1, false);
-            let p3 = control_point(&positions, i, 2, false);
+            let p2 = control_point(&positions, i, 1, closed);
+            let p3 = control_point(&positions, i, 2, closed);
 
             let chord_len = ((p2.0 - p1.0).powi(2) + (p2.1 - p1.1).powi(2)).sqrt();
             let points_per_segment = ((chord_len / TARGET_POINT_SPACING_M).ceil() as usize)
@@ -135,18 +151,20 @@ impl CenterlinePath {
                 });
             }
         }
-        let last = positions.last().unwrap();
-        samples.push(PathSample {
-            station_m: 0.0,
-            pos: *last,
-            heading_rad: 0.0,
-            width_left_m: half_width_m,
-            width_right_m: half_width_m,
-            banking_rad: 0.0,
-            surface_color: color,
-        });
+        if !closed {
+            let last = positions.last().unwrap();
+            samples.push(PathSample {
+                station_m: 0.0,
+                pos: *last,
+                heading_rad: 0.0,
+                width_left_m: half_width_m,
+                width_right_m: half_width_m,
+                banking_rad: 0.0,
+                surface_color: color,
+            });
+        }
 
-        Self::finish(samples, false)
+        Self::finish(samples, closed)
     }
 
     fn finish(mut samples: Vec<PathSample>, closed: bool) -> Option<Self> {

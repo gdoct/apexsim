@@ -39,6 +39,7 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeDisconnect();
 	APEXSIMNET_API TArray<uint8> EncodeSetGameMode(EApexGameMode Mode);
 	APEXSIMNET_API TArray<uint8> EncodeStartCountdown(uint16 CountdownSeconds, EApexGameMode NextMode);
+	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(bool bAutoGearbox);
 
 	// --- Client -> server over UDP -------------------------------------------
 	// Sent as bare datagrams: no length prefix, unlike the TCP stream. The

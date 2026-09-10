@@ -4,6 +4,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
+#include "Race/ApexCockpitLayout.h"
 
 #include "ApexCatalogRows.generated.h"
 
@@ -74,6 +75,14 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Preview")
 	float PreviewScale = 1.0f;
+
+	/**
+	 * Hand-placed cockpit points for the driver's view, in the car's frame.
+	 * Left at zero, the seat and mirrors are derived from the mesh bounds;
+	 * a mesh with a modelled interior wants its eye put exactly in the seat.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
+	FApexCockpitOverrides Cockpit;
 };
 
 /** One row per track. RowName == the `track_id` from the track's YAML. */

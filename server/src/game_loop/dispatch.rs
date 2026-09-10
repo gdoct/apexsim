@@ -87,6 +87,9 @@ pub(crate) async fn handle_message(
         ClientMessage::SetGameMode { mode } => {
             handle_set_game_mode(ctx, connection_id, mode).await;
         }
+        ClientMessage::SetDriverAids { auto_gearbox } => {
+            handle_set_driver_aids(ctx, connection_id, auto_gearbox).await;
+        }
         ClientMessage::StartCountdown {
             countdown_seconds,
             next_mode,
@@ -534,6 +537,36 @@ async fn handle_start_session(ctx: &GameLoopCtx, connection_id: ConnectionId) {
         } else {
             warn!("Could not find connection for player {}", player_id);
         }
+    }
+}
+
+async fn handle_set_driver_aids(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    auto_gearbox: bool,
+) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    if let Some(car) = game_session
+        .session
+        .participants
+        .get_mut(&conn_info.player_id)
+    {
+        car.auto_gearbox = auto_gearbox;
+        car.auto_shift_hold_ticks = 0;
+        tracing::debug!(
+            "Player {} auto gearbox {}",
+            conn_info.player_id,
+            if auto_gearbox { "on" } else { "off" }
+        );
     }
 }
 

@@ -161,6 +161,12 @@ private:
 	void HandleSessionJoined(const FString& SessionId, int32 GridPosition);
 
 	UFUNCTION()
+	void HandleSettingsChangedForDriverAids(EApexSettingsGroup Group);
+
+	/** Tell the server which aids to run for this player (auto gearbox). */
+	void SendDriverAids();
+
+	UFUNCTION()
 	void HandleSessionLeft();
 
 	UFUNCTION()
@@ -207,6 +213,8 @@ private:
 	/** -ApexNoStart: create the session but leave it in the lobby. */
 	bool bAutoRaceNoStart = false;
 	int32 AutoRaceAiCount = 3;
+	/** -ApexCountdown=N: seconds of countdown before the auto race goes green. */
+	int32 AutoRaceCountdown = 3;
 	int32 AutoRaceLaps = 5;
 	/** -ApexTrack=<name>: substring-matches a lobby track, overriding the profile. */
 	FString AutoRaceTrack;

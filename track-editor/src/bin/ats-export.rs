@@ -1,5 +1,6 @@
 //! Batch-bake tracks into the `.uescene.json` the Unreal `ApexTrackImport`
-//! commandlet consumes.
+//! commandlet consumes, plus the `.ground.msgpack` heightfield the server
+//! reads from beside each YAML.
 //!
 //! ```text
 //! ats-export --all                          # every track under content/tracks/real
@@ -66,14 +67,22 @@ fn main() -> ExitCode {
     let mut failures = 0usize;
     for track in &tracks {
         match ue_export_io::export_track(track, &out_dir) {
-            Ok(path) => {
-                let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            Ok(exported) => {
+                let size_kb = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0) / 1024;
                 println!(
                     "{} -> {} ({} KB)",
                     track.display(),
-                    path.display(),
-                    size / 1024
+                    exported.scene_path.display(),
+                    size_kb(&exported.scene_path)
                 );
+                if let Some(ground) = &exported.ground_path {
+                    println!(
+                        "{} -> {} ({} KB)",
+                        track.display(),
+                        ground.display(),
+                        size_kb(ground)
+                    );
+                }
             }
             Err(e) => {
                 eprintln!("{}: {e}", track.display());
@@ -99,5 +108,6 @@ const USAGE: &str = "\
 usage: ats-export [--all] [--out DIR] [TRACK.yaml ...]
 
   --all, -a      export every *.yaml under content/tracks/real
-  --out, -o DIR  destination (default: content/tracks/export)
+  --out, -o DIR  destination for the .uescene.json (default: content/tracks/export);
+                 the .ground.msgpack sidecar always lands beside the YAML
 ";

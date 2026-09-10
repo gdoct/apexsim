@@ -174,6 +174,9 @@ impl TrackLoader {
 
         let start_positions = Self::generate_start_positions(&track_file, &centerline_points);
 
+        let ground =
+            track_path.and_then(|path| Self::load_ground_heightfield(&track_file.name, path));
+
         // Use track_id from file if provided, otherwise generate new UUID
         let track_id = if let Some(track_id_str) = &track_file.track_id {
             uuid::Uuid::parse_str(track_id_str).map_err(|e| {
@@ -236,9 +239,47 @@ impl TrackLoader {
             checkpoints,
             metadata,
             procedural_world,
+            ground,
         };
         config.rebuild_raceline_distances();
         Ok(config)
+    }
+
+    /// Load the baked ground heightfield the track editor writes next to the
+    /// track file, if present. Missing is normal (the sidecar is generated,
+    /// not committed); a present-but-broken file is a warning, and the track
+    /// falls back to centerline elevation everywhere.
+    fn load_ground_heightfield(
+        track_name: &str,
+        track_path: &Path,
+    ) -> Option<crate::ground::GroundHeightfield> {
+        let sidecar = crate::ground::GroundHeightfield::sidecar_path(track_path);
+        if !sidecar.exists() {
+            debug!(
+                "No ground heightfield for {} ({}); off-track elevation follows the centerline",
+                track_name,
+                sidecar.display()
+            );
+            return None;
+        }
+        match crate::ground::GroundHeightfield::load(&sidecar) {
+            Ok(field) => {
+                info!(
+                    "Loaded ground heightfield for {}: {}x{} cells of {} m",
+                    track_name, field.cols, field.rows, field.cell_m
+                );
+                Some(field)
+            }
+            Err(e) => {
+                warn!(
+                    "Ignoring ground heightfield {} for {}: {}",
+                    sidecar.display(),
+                    track_name,
+                    e
+                );
+                None
+            }
+        }
     }
 
     fn load_or_generate_procedural_world(
@@ -352,6 +393,25 @@ impl TrackLoader {
         }
     }
 
+    /// Elevation of the road surface at a world position: the nearest
+    /// centerline point's height plus the banking shear at that lateral
+    /// offset (the same formula the track editor bakes the ribbon with, and
+    /// that physics uses at runtime). Load-time only, so a full scan is fine.
+    fn road_surface_z(centerline: &[TrackPoint], x: f32, y: f32) -> f32 {
+        let Some(nearest) = centerline.iter().min_by(|a, b| {
+            let da = (a.x - x).powi(2) + (a.y - y).powi(2);
+            let db = (b.x - x).powi(2) + (b.y - y).powi(2);
+            da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+        }) else {
+            return 0.0;
+        };
+        let dx = x - nearest.x;
+        let dy = y - nearest.y;
+        // Positive = right of the centerline, matching physics.
+        let lateral_right = dx * nearest.heading_rad.sin() - dy * nearest.heading_rad.cos();
+        nearest.z - lateral_right * nearest.banking_rad.sin()
+    }
+
     fn generate_start_positions(
         track_file: &TrackFileFormat,
         centerline: &[TrackPoint],
@@ -364,11 +424,13 @@ impl TrackLoader {
                 .filter_map(|(idx, spawn)| {
                     if spawn.position < centerline.len() {
                         let point = &centerline[spawn.position];
+                        let x = point.x + spawn.offset_x;
+                        let y = point.y + spawn.offset_y;
                         Some(GridSlot {
                             position: idx as u8 + 1,
-                            x: point.x + spawn.offset_x,
-                            y: point.y + spawn.offset_y,
-                            z: point.z,
+                            x,
+                            y,
+                            z: Self::road_surface_z(centerline, x, y),
                             yaw_rad: point.heading_rad,
                         })
                     } else {
@@ -394,12 +456,18 @@ impl TrackLoader {
 
                     let cos_h = start_point.heading_rad.cos();
                     let sin_h = start_point.heading_rad.sin();
+                    let x = start_point.x + offset_forward * cos_h - offset_lateral * sin_h;
+                    let y = start_point.y + offset_forward * sin_h + offset_lateral * cos_h;
 
+                    // The back of the grid is 56 m down the road: seat every
+                    // slot on the asphalt under it, not on the start line's
+                    // elevation, or the rear rows float (or sink) until the
+                    // first physics tick snaps them.
                     GridSlot {
                         position: i + 1,
-                        x: start_point.x + offset_forward * cos_h - offset_lateral * sin_h,
-                        y: start_point.y + offset_forward * sin_h + offset_lateral * cos_h,
-                        z: start_point.z,
+                        x,
+                        y,
+                        z: Self::road_surface_z(centerline, x, y),
                         yaw_rad: start_point.heading_rad,
                     }
                 })
@@ -745,5 +813,47 @@ nodes:
 
         let points = SplineInterpolator::interpolate_spline(&nodes, false, 10.0).unwrap();
         assert!(points[0].heading_rad.abs() < 0.1);
+    }
+
+    /// The grid stretches 56 m back down the road; every slot has to sit on
+    /// the asphalt under it, not at the start line's elevation. Spa's start
+    /// straight climbs about a metre over the grid, which used to leave the
+    /// back rows hanging in the air until the first physics tick.
+    #[test]
+    fn grid_slots_sit_on_the_road_under_them() {
+        let path = Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../content/tracks/real/Spa.yaml"
+        ));
+        if !path.exists() {
+            eprintln!("skipping: {} not present", path.display());
+            return;
+        }
+        let track = TrackLoader::load_from_file(path).expect("Spa loads");
+        assert_eq!(track.start_positions.len(), 16);
+        let mut spread = 0.0f32;
+        for slot in &track.start_positions {
+            let nearest = track
+                .centerline
+                .iter()
+                .min_by(|a, b| {
+                    let da = (a.x - slot.x).powi(2) + (a.y - slot.y).powi(2);
+                    let db = (b.x - slot.x).powi(2) + (b.y - slot.y).powi(2);
+                    da.partial_cmp(&db).unwrap()
+                })
+                .unwrap();
+            assert!(
+                (slot.z - nearest.z).abs() < 0.1,
+                "slot {} z {} vs road {}",
+                slot.position,
+                slot.z,
+                nearest.z
+            );
+            spread = spread.max((slot.z - track.start_positions[0].z).abs());
+        }
+        assert!(
+            spread > 0.3,
+            "expected the grid to follow the climb, spread {spread}"
+        );
     }
 }

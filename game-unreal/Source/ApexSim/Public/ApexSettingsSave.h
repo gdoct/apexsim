@@ -167,9 +167,62 @@ public:
 	UPROPERTY()
 	float MotionBlur = 0.3f;
 
-	/** Horizontal field of view of the driving cameras, in degrees. */
+	// --- Camera ---------------------------------------------------------------
+	//
+	// The driver's view: where the seat is, how the head behaves, and what of
+	// the cockpit is drawn. All of it previews live behind the settings panel.
+
+	/** Horizontal field of view of the cockpit camera, in degrees; the chase view sits 15° narrower. */
 	UPROPERTY()
 	float FieldOfView = 96.0f;
+
+	/** Which camera a race starts in. C swaps at any time. */
+	UPROPERTY()
+	bool bStartInCockpit = true;
+
+	/** Seat slide from the car's own driving position, cm, positive forward. */
+	UPROPERTY()
+	float SeatForwardCm = 0.0f;
+
+	/** Seat height from the car's own driving position, cm, positive up. */
+	UPROPERTY()
+	float SeatHeightCm = 0.0f;
+
+	/** Resting gaze, degrees, positive looking up. */
+	UPROPERTY()
+	float ViewPitchDeg = 0.0f;
+
+	/** 0..1. 0 rides the car's pitch and roll, 1 keeps the horizon level. */
+	UPROPERTY()
+	float HorizonLock = 0.25f;
+
+	/** 0..1. How far braking and cornering throw the head. */
+	UPROPERTY()
+	float HeadMotion = 0.5f;
+
+	/** 0..1. How far the head turns into a corner with the steering. */
+	UPROPERTY()
+	float LookToApex = 0.3f;
+
+	/** Draw the car's own bodywork from inside; off for a mesh with no interior. */
+	UPROPERTY()
+	bool bCockpitShowCar = true;
+
+	/** The steering wheel and its display. */
+	UPROPERTY()
+	bool bCockpitWheel = true;
+
+	/** The mirrors on the car. */
+	UPROPERTY()
+	bool bCockpitMirrors = true;
+
+	/** A rear-view strip at the top of the HUD, in either camera. */
+	UPROPERTY()
+	bool bVirtualMirror = false;
+
+	/** 0 low .. 2 high: mirror capture resolution and refresh rate. */
+	UPROPERTY()
+	int32 MirrorQuality = 1;
 
 	// --- Controls -------------------------------------------------------------
 

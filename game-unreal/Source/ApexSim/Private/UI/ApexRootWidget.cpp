@@ -196,6 +196,10 @@ void UApexRootWidget::NativeConstruct()
 		Net->OnLobbyStateUpdated.AddDynamic(this, &UApexRootWidget::HandleLobbyStateForAutoRace);
 		Net->OnSessionStateChanged.AddDynamic(this, &UApexRootWidget::HandleSessionStateChanged);
 	}
+	if (UApexSettingsSubsystem* Settings = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr)
+	{
+		Settings->OnSettingsChanged.AddDynamic(this, &UApexRootWidget::HandleSettingsChangedForDriverAids);
+	}
 
 	// -ApexScreenshotAfter=N grabs the viewport N seconds in. Together with
 	// -ApexStartScreen it makes any screen inspectable from a headless run,
@@ -221,7 +225,8 @@ void UApexRootWidget::NativeConstruct()
 	// -ApexOpenPause=N / -ApexOpenSettings=N open a race overlay N seconds in.
 	// Both are otherwise only reachable with a keypress, which an unattended run
 	// cannot make — and the overlays are exactly what a screenshot pass wants to
-	// look at. -ApexSettingsTab picks the page (see EApexSettingsTab).
+	// look at. -ApexSettingsTab picks the page (see EApexSettingsTab: 0 gameplay,
+	// 1 graphics, 2 camera, 3 controls, 4 audio).
 	float OverlayDelay = 0.0f;
 	const bool bOpenSettings = FParse::Value(FCommandLine::Get(), TEXT("ApexOpenSettings="), OverlayDelay);
 	const bool bOpenPause = !bOpenSettings && FParse::Value(FCommandLine::Get(), TEXT("ApexOpenPause="), OverlayDelay);
@@ -251,6 +256,7 @@ void UApexRootWidget::NativeConstruct()
 
 	bAutoRaceRequested = FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"));
 	FParse::Value(FCommandLine::Get(), TEXT("ApexAiCount="), AutoRaceAiCount);
+	FParse::Value(FCommandLine::Get(), TEXT("ApexCountdown="), AutoRaceCountdown);
 	FParse::Value(FCommandLine::Get(), TEXT("ApexLaps="), AutoRaceLaps);
 	FParse::Value(FCommandLine::Get(), TEXT("ApexTrack="), AutoRaceTrack);
 
@@ -765,6 +771,26 @@ void UApexRootWidget::StartRequestedSession()
 	Net->StartCountdown(AutoStartCountdownSeconds, Flow->AutoStartMode);
 }
 
+void UApexRootWidget::SendDriverAids()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const UApexSettingsSubsystem* Settings = GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+	if (!Net || !Net->IsInSession() || !Settings || !Settings->Get())
+	{
+		return;
+	}
+	Net->SetDriverAids(Settings->Get()->bAutoGearbox);
+}
+
+void UApexRootWidget::HandleSettingsChangedForDriverAids(EApexSettingsGroup Group)
+{
+	if (Group == EApexSettingsGroup::Gameplay)
+	{
+		SendDriverAids();
+	}
+}
+
 void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPosition)
 {
 	// Joining always lands in the lobby, whether the session was created or
@@ -772,6 +798,7 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 	// both screens.
 	BackStack.Reset();
 	ActivateScreen(EApexScreen::SessionLobby);
+	SendDriverAids();
 
 	if (UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr)
 	{
@@ -802,7 +829,7 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 			// leaves Countdown.
 			UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: session joined, counting into mode %d"),
 				static_cast<int32>(AutoRaceMode));
-			Net->StartCountdown(3, AutoRaceMode);
+			Net->StartCountdown(FMath::Clamp(AutoRaceCountdown, 1, 60), AutoRaceMode);
 		}
 	}
 }

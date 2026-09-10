@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 
 struct FApexTrackScene;
+struct FMeshDescription;
 class UMaterialInterface;
 class UStaticMesh;
 
@@ -38,6 +39,21 @@ private:
 
 	bool BuildMaterials(const FApexTrackScene& Scene, FString& OutError);
 	bool BuildMeshes(const FApexTrackScene& Scene, FString& OutError);
+	/**
+	 * Generated stand-ins for the prop kinds the level places, one mesh per
+	 * kind, plus the start-light gantry sized to this track's line.
+	 */
+	bool BuildPropMeshes(const FApexTrackScene& Scene, FString& OutError);
+	/** The emissive parent material and its start-light instance. */
+	bool BuildEmissiveMaterial(FString& OutError);
+	/** The `StartLights` actor the race director drives during the countdown. */
+	void SpawnStartLights(const FApexTrackScene& Scene, class UWorld* World);
+	/**
+	 * Build and register `SM_<Name>` from a mesh description whose polygon
+	 * groups are named after `MaterialKeys`, in slot order.
+	 */
+	UStaticMesh* CreateStaticMesh(const FString& Name, FMeshDescription& MeshDescription,
+		const TArray<FString>& MaterialKeys, bool bSimpleCollision, FString& OutError);
 	/** Reject meshes Unreal built badly, e.g. with NaN or empty bounds. */
 	bool ValidateMeshes(FString& OutError);
 	bool BuildLevel(const FApexTrackScene& Scene, FString& OutError);
@@ -55,6 +71,8 @@ private:
 	TMap<FString, TObjectPtr<UMaterialInterface>> Materials;
 	/** Mesh name -> generated static mesh. */
 	TMap<FString, TObjectPtr<UStaticMesh>> Meshes;
+	/** Prop kind -> generated stand-in mesh (ground pivot, metres at scale 1). */
+	TMap<FString, TObjectPtr<UStaticMesh>> PropMeshes;
 
 	TArray<TObjectPtr<UPackage>> TouchedPackages;
 };

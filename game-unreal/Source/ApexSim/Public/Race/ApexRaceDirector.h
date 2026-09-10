@@ -6,6 +6,7 @@
 
 #include "ApexRaceDirector.generated.h"
 
+class AApexCockpitRig;
 class AApexRaceCarActor;
 class ADirectionalLight;
 class ASkyLight;
@@ -14,7 +15,9 @@ class UApexNetSubsystem;
 class UApexSettingsSubsystem;
 class UCameraComponent;
 class ULevelStreamingDynamic;
+class UMaterialInstanceDynamic;
 class USpringArmComponent;
+class UTextureRenderTarget2D;
 
 /**
  * Spawns a car per roster entry and drives them from telemetry.
@@ -66,6 +69,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
 	void SetFieldOfView(float Degrees);
 
+	/**
+	 * Re-read the camera block of the settings: field of view, seat, head
+	 * behaviour and what of the cockpit is drawn. Called by the settings
+	 * subsystem on every change and by BeginRaceView, so a slider dragged
+	 * behind the pause panel moves the seat as it goes.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
+	void ApplyCameraSettings();
+
+	/** The rear view the HUD's virtual mirror shows, or null while it is off. */
+	UTextureRenderTarget2D* GetVirtualMirrorTexture() const;
+
 	/** The car the camera is following, or null outside a race. */
 	AApexRaceCarActor* GetFollowedCar() const { return FollowedCar; }
 
@@ -98,13 +113,10 @@ protected:
 	 * Driver's-eye camera. Not on the boom: the boom deliberately lags and
 	 * ignores pitch and roll, which is right for a chase view and wrong for
 	 * a cockpit, where the horizon tilting with the car is most of the point.
+	 * Where it sits comes from the car's cockpit layout plus the seat settings.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCameraComponent> CockpitCamera;
-
-	/** Eye position in the car's own frame: +X is the nose, +Z is up. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|Race")
-	FVector CockpitEyeOffset = FVector(20.0f, 0.0f, 110.0f);
 
 	/** Fallback mesh for cars with no catalog row (AI drivers have no car id). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|Race")
@@ -140,7 +152,6 @@ private:
 	 * is told — so the box is simply a client that sends the shift the driver
 	 * would have sent.
 	 */
-	int32 PollAutoGearbox();
 
 	/** Camera-view and other non-driving keys. */
 	void PollViewInput();
@@ -160,8 +171,30 @@ private:
 	/** Point the active camera and hide the car when sitting inside it. */
 	void ApplyCameraMode();
 
-	/** Ride the followed car's full orientation, banking and all. */
+	/** Ride the followed car's orientation, as far as the horizon lock lets it. */
 	void UpdateCockpitCamera();
+
+	/**
+	 * The driver's eye in the car's frame: the car's own seat, slid and
+	 * raised by the settings, thrown about by inertia.
+	 */
+	FVector CockpitEyeLocal() const;
+
+	/**
+	 * Estimate the g the driver feels from the followed car's smoothed
+	 * motion: speed change along the car, speed times yaw rate across it.
+	 * The wire carries no acceleration, and none is needed for a head lean.
+	 */
+	void UpdateHeadMotion(float DeltaSeconds);
+
+	/** Ease the head toward where the look keys, the stick and the steering say. */
+	void UpdateLook(float DeltaSeconds);
+
+	/** Spawn the cockpit rig for this race, or tear it down. */
+	void EnsureRig();
+	void DestroyRig();
+	/** Tell the rig what to draw and capture, from the settings and the view. */
+	void PushRigFeatures();
 
 	/**
 	 * Everything that makes the cameras feel speed: FOV that widens as the
@@ -194,6 +227,26 @@ private:
 	void LoadTrackLevel();
 	void UnloadTrackLevel();
 
+	/**
+	 * Drive the start-light gantry the track importer places past the line
+	 * from the countdown in the telemetry frame: one light per second over
+	 * the last five seconds, all out when the session goes racing.
+	 */
+	void UpdateStartLights(const FApexTelemetryFrame& Frame);
+	/** Find the gantry in the streamed level and take over its lens materials. */
+	void FindStartLights();
+	void ForgetStartLights();
+
+	/** Lens materials of the five lights, left to right as seen from the grid. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> StartLightLenses;
+	/** How many lenses are lit; -1 forces a refresh on the next frame. */
+	int32 LitStartLights = -1;
+	/** Done once per streamed level; a level without a gantry stops the search. */
+	bool bSearchedStartLights = false;
+	/** Emissive strength of a lit lens. The race is exposed for a 50 klux sun. */
+	static constexpr float StartLightOnEmissive = 4000.0f;
+
 	UPROPERTY(Transient)
 	TObjectPtr<ULevelStreamingDynamic> TrackLevel;
 
@@ -201,13 +254,6 @@ private:
 	UApexMenuFlowSubsystem* GetFlow() const;
 	UApexSettingsSubsystem* GetSettings() const;
 
-	/** Shift points for the automatic box. Deliberately conservative. */
-	static constexpr float AutoShiftUpRpm = 7200.0f;
-	static constexpr float AutoShiftDownRpm = 3200.0f;
-	/** Minimum spacing between automatic shifts, in seconds. */
-	static constexpr double AutoShiftHoldSeconds = 0.35;
-
-	double LastAutoShiftTime = 0.0;
 
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<AApexRaceCarActor>> Cars;
@@ -215,12 +261,25 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AApexRaceCarActor> FollowedCar;
 
+	/** Wheel, display and mirrors inside the followed car. Exists only while racing. */
+	UPROPERTY(Transient)
+	TObjectPtr<AApexCockpitRig> Rig;
+
 	bool bRaceViewActive = false;
-	/**
-	 * Chase by default — it is the view that shows the car, which is the
-	 * only piece of real art on screen. The cockpit is a keypress away.
-	 */
-	bool bCockpitView = false;
+	/** The settings pick the view a race opens in; C swaps at any time. */
+	bool bCockpitView = true;
+
+	// --- Head -------------------------------------------------------------------
+
+	/** Where the head is turned this frame, degrees in the car's frame. */
+	float LookYawDeg = 0.0f;
+	/** Inertia offset of the eye, cm in the car's frame, eased. */
+	FVector HeadOffset = FVector::ZeroVector;
+	float LateralG = 0.0f;
+	float LongitudinalG = 0.0f;
+	float PrevSpeedMps = 0.0f;
+	float PrevYawDeg = 0.0f;
+	bool bHavePrevMotion = false;
 	/** Logged once per race so the transport can be confirmed from the log alone. */
 	bool bLoggedFirstTelemetry = false;
 

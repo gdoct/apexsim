@@ -27,6 +27,11 @@ namespace ApexInput
 			{ Actions::GearDown,     1, TEXT("Shift down"),   EKeys::Q,                        false, false },
 			{ Actions::ToggleCamera, 0, TEXT("Camera"),       EKeys::Gamepad_FaceButton_Top,   false, true  },
 			{ Actions::ToggleCamera, 1, TEXT("Camera"),       EKeys::C,                        false, false },
+			{ Actions::Look,         0, TEXT("Look axis"),    EKeys::Gamepad_RightX,           false, true  },
+			{ Actions::Look,         2, TEXT("Look left"),    EKeys::Comma,                    true,  false },
+			{ Actions::Look,         3, TEXT("Look right"),   EKeys::Period,                   false, false },
+			{ Actions::LookBack,     0, TEXT("Look behind"),  EKeys::Gamepad_RightThumbstick,  false, true  },
+			{ Actions::LookBack,     1, TEXT("Look behind"),  EKeys::B,                        false, false },
 			{ Actions::PauseMenu,    0, TEXT("Pause menu"),   EKeys::Gamepad_Special_Right,    false, true  },
 			{ Actions::PauseMenu,    1, TEXT("Pause menu"),   EKeys::Escape,                   false, false },
 		};
@@ -65,6 +70,9 @@ namespace ApexInput
 			{ EKeys::Gamepad_FaceButton_Top.GetFName(),   TEXT("Y")      },
 			{ EKeys::Gamepad_Special_Left.GetFName(),     TEXT("BACK")   },
 			{ EKeys::Gamepad_Special_Right.GetFName(),    TEXT("START")  },
+			{ EKeys::Gamepad_RightThumbstick.GetFName(),  TEXT("RS")     },
+			{ EKeys::Comma.GetFName(),                    TEXT(",")      },
+			{ EKeys::Period.GetFName(),                   TEXT(".")      },
 			{ EKeys::SpaceBar.GetFName(),                 TEXT("SPACE")  },
 			{ EKeys::Escape.GetFName(),                   TEXT("ESC")    },
 		};
@@ -114,6 +122,8 @@ UApexInputConfig* UApexInputConfig::Create(UObject* Outer)
 	Config->GearDown = MakeAction(Config, TEXT("IA_GearDown"), EInputActionValueType::Boolean);
 	Config->ToggleCamera =
 		MakeAction(Config, TEXT("IA_ToggleCamera"), EInputActionValueType::Boolean);
+	Config->Look = MakeAction(Config, TEXT("IA_Look"), EInputActionValueType::Axis1D);
+	Config->LookBack = MakeAction(Config, TEXT("IA_LookBack"), EInputActionValueType::Boolean);
 
 	Config->DriveContext = NewObject<UInputMappingContext>(Config, TEXT("IMC_Drive"));
 	Config->ApplyBindings({});
@@ -129,6 +139,8 @@ UInputAction* UApexInputConfig::FindAction(FName ActionId) const
 	if (ActionId == ApexInput::Actions::GearUp)       { return GearUp; }
 	if (ActionId == ApexInput::Actions::GearDown)     { return GearDown; }
 	if (ActionId == ApexInput::Actions::ToggleCamera) { return ToggleCamera; }
+	if (ActionId == ApexInput::Actions::Look)         { return Look; }
+	if (ActionId == ApexInput::Actions::LookBack)     { return LookBack; }
 	// PauseMenu is handled by the root widget, not by Enhanced Input.
 	return nullptr;
 }

@@ -4,6 +4,7 @@ pub mod config;
 pub mod data;
 pub mod game_loop;
 pub mod game_session;
+pub mod ground;
 pub mod health;
 pub mod lobby;
 pub mod metrics;

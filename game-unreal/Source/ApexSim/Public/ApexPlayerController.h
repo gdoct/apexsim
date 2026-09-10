@@ -25,6 +25,14 @@ struct APEXSIM_API FApexDriveInput
 	/** -1..1, positive is right. The server's frame is the other way round. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
 	float Steer = 0.0f;
+
+	/** Head turn, -1..1, positive is right. Never sent; the camera's alone. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
+	float Look = 0.0f;
+
+	/** Held: look straight behind. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
+	bool bLookBack = false;
 };
 
 /**
@@ -103,6 +111,10 @@ private:
 	void HandleGearUp(const struct FInputActionValue& Value);
 	void HandleGearDown(const struct FInputActionValue& Value);
 	void HandleToggleCamera(const struct FInputActionValue& Value);
+	void HandleLook(const struct FInputActionValue& Value);
+	void HandleLookReleased(const struct FInputActionValue& Value);
+	void HandleLookBack(const struct FInputActionValue& Value);
+	void HandleLookBackReleased(const struct FInputActionValue& Value);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexInputConfig> InputConfig;

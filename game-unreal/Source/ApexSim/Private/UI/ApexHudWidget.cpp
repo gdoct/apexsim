@@ -15,8 +15,11 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Engine/GameInstance.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Race/ApexRaceCoordinate.h"
+#include "Race/ApexRaceDirector.h"
 #include "UI/ApexMinimapWidget.h"
+#include "UI/ApexMirrorWidget.h"
 #include "UI/ApexUIStyle.h"
 
 // The HUD is nothing but style primitives; qualifying every one of them would
@@ -37,6 +40,11 @@ namespace
 
 	constexpr float MinimapSize = 250.0f;
 	constexpr float HudEdgeGutter = 30.0f;
+	/** The virtual mirror's glass, screen pixels; the same 3.2:1 as the capture. */
+	constexpr float VirtualMirrorWidth = 480.0f;
+	constexpr float VirtualMirrorHeight = 150.0f;
+	/** Clearance under the race-state strip, which is about 80 px tall. */
+	constexpr float VirtualMirrorTop = HudEdgeGutter + 96.0f;
 
 	/** A lap is split into three by track position; the protocol has no sectors. */
 	constexpr int32 SectorCount = 3;
@@ -232,6 +240,7 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	RefreshCarState();
 	RefreshDelta();
 	RefreshMinimap();
+	RefreshVirtualMirror();
 }
 
 // --- Construction -----------------------------------------------------------
@@ -283,7 +292,41 @@ void UApexHudWidget::BuildHud()
 
 	AddV(RootStack, BottomRow, FMargin(Metrics::PageGutter, 0.0f, Metrics::PageGutter, HudEdgeGutter));
 
-	WidgetTree->RootWidget = RootStack;
+	// The virtual mirror floats over the stack rather than living in it: it
+	// comes and goes with a setting and a capture, and the layout underneath
+	// must not shift when it does.
+	UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>();
+	UOverlaySlot* StackSlot = Layers->AddChildToOverlay(RootStack);
+	StackSlot->SetHorizontalAlignment(HAlign_Fill);
+	StackSlot->SetVerticalAlignment(VAlign_Fill);
+
+	VirtualMirror = WidgetTree->ConstructWidget<UApexMirrorWidget>();
+	VirtualMirror->SetFaceSize(FVector2D(VirtualMirrorWidth, VirtualMirrorHeight));
+	VirtualMirror->SetVisibility(ESlateVisibility::Collapsed);
+	UOverlaySlot* MirrorSlot = Layers->AddChildToOverlay(VirtualMirror);
+	MirrorSlot->SetHorizontalAlignment(HAlign_Center);
+	MirrorSlot->SetVerticalAlignment(VAlign_Top);
+	MirrorSlot->SetPadding(FMargin(0.0f, VirtualMirrorTop, 0.0f, 0.0f));
+
+	WidgetTree->RootWidget = Layers;
+}
+
+void UApexHudWidget::RefreshVirtualMirror()
+{
+	if (!VirtualMirror)
+	{
+		return;
+	}
+	// The director owns the capture; it hands out a texture only while the
+	// setting is on and a car is being followed.
+	const AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	UTextureRenderTarget2D* Texture = Director ? Director->GetVirtualMirrorTexture() : nullptr;
+	VirtualMirror->SetTexture(Texture);
+	const ESlateVisibility Wanted = Texture ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+	if (VirtualMirror->GetVisibility() != Wanted)
+	{
+		VirtualMirror->SetVisibility(Wanted);
+	}
 }
 
 UWidget* UApexHudWidget::BuildTopBar()

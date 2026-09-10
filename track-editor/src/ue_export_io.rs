@@ -1,15 +1,22 @@
-//! Writing `.uescene.json` exports to disk.
+//! Writing `.uescene.json` exports (and the server's ground sidecar) to
+//! disk.
 //!
 //! Exports are *generated* files — the `.ats` and the `.yaml` remain the
 //! only sources of truth — so they land in their own directory rather than
 //! as siblings of the content they were baked from, and that directory is
 //! gitignored. A full circuit bakes to a few megabytes of vertex data;
 //! committing 26 of those would dwarf the content it came from.
+//!
+//! The one exception is `<Track>.ground.msgpack`: the server reads it from
+//! beside the YAML (it is the sim's ground, not client content), so it is
+//! written there — and gitignored there, since it is generated all the
+//! same.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::project;
+use crate::terrain::GroundHeightfield;
 use crate::ue_export::{self, UeScene};
 
 /// Where exports go when no destination is given, relative to the repo root.
@@ -21,6 +28,8 @@ pub enum UeExportError {
     Io(#[from] std::io::Error),
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("MessagePack error: {0}")]
+    MsgPack(#[from] rmp_serde::encode::Error),
     #[error("{0}")]
     Project(String),
     #[error("track {0} has no usable centerline")]
@@ -36,13 +45,26 @@ pub fn export_path_for(dir: &Path, track_path: &Path) -> PathBuf {
     dir.join(format!("{stem}.uescene.json"))
 }
 
-/// Bake the track at `track_path` (plus its sibling `.ats`) into `dir`.
+/// `Monza.yaml` -> `<same dir>/Monza.ground.msgpack`.
+pub fn ground_sidecar_path_for(track_path: &Path) -> PathBuf {
+    track_path.with_extension("ground.msgpack")
+}
+
+/// What one track's export wrote.
+pub struct Exported {
+    pub scene_path: PathBuf,
+    /// `None` for a track too degenerate to have a terrain.
+    pub ground_path: Option<PathBuf>,
+}
+
+/// Bake the track at `track_path` (plus its sibling `.ats`) into `dir`, and
+/// its ground sidecar next to the YAML.
 ///
 /// A track whose `.ats` is missing or unreadable still exports: the scene
 /// layers are simply empty, and you get the bare road ribbon. That is worth
 /// having — it is the difference between "the circuit is drivable in Unreal"
 /// and "nothing loads".
-pub fn export_track(track_path: &Path, dir: &Path) -> Result<PathBuf, UeExportError> {
+pub fn export_track(track_path: &Path, dir: &Path) -> Result<Exported, UeExportError> {
     let opened = project::open_project(track_path).map_err(UeExportError::Project)?;
     let scene = opened.scene.unwrap_or_else(|| {
         crate::ats::AtsScene::new_for_track(
@@ -51,11 +73,37 @@ pub fn export_track(track_path: &Path, dir: &Path) -> Result<PathBuf, UeExportEr
         )
     });
 
-    let baked = ue_export::bake(&opened.track, &scene)
+    let baked = ue_export::bake_all(&opened.track, &scene)
         .ok_or_else(|| UeExportError::Degenerate(opened.track.name.clone()))?;
-    let out = export_path_for(dir, track_path);
-    write_scene(&out, &baked)?;
-    Ok(out)
+    let scene_path = export_path_for(dir, track_path);
+    write_scene(&scene_path, &baked.scene)?;
+    let ground_path = match &baked.ground {
+        Some(ground) => {
+            let path = ground_sidecar_path_for(track_path);
+            write_ground_sidecar(&path, ground)?;
+            Some(path)
+        }
+        None => None,
+    };
+    Ok(Exported {
+        scene_path,
+        ground_path,
+    })
+}
+
+/// The server's ground heightfield, `rmp_serde::to_vec_named`, written
+/// temp-then-rename like everything else.
+pub fn write_ground_sidecar(path: &Path, ground: &GroundHeightfield) -> Result<(), UeExportError> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    let serialized = rmp_serde::to_vec_named(ground)?;
+    let tmp = path.with_extension("msgpack.tmp");
+    fs::write(&tmp, &serialized)?;
+    fs::rename(&tmp, path)?;
+    Ok(())
 }
 
 /// Compact JSON, written temp-then-rename like the `.ats` saver, so an

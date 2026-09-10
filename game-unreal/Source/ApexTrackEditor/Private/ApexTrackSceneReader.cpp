@@ -299,6 +299,20 @@ bool FApexTrackSceneReader::LoadFromFile(
 		Scene.PitLane = Pit;
 	}
 
+	// Optional: older exports have no line of their own and the builder
+	// falls back to grid slot 1.
+	const TSharedPtr<FJsonObject>* StartObject = nullptr;
+	if (Root->TryGetObjectField(TEXT("start_finish"), StartObject))
+	{
+		FApexTrackStartFinish Start;
+		if (ReadLocation(*StartObject, TEXT("location"), Start.Location))
+		{
+			Start.YawDeg = GetNumber(*StartObject, TEXT("yaw_deg"));
+			Start.WidthCm = GetNumber(*StartObject, TEXT("width_m")) * 100.0f;
+			Scene.StartFinish = Start;
+		}
+	}
+
 	// Every mesh must name a material the table declares, or the level would
 	// come out with holes of default grey and no clue why.
 	for (const FApexTrackMesh& Mesh : Scene.Meshes)

@@ -31,6 +31,7 @@ using namespace ApexUI;
 static_assert(
 	static_cast<int32>(EApexSettingsTab::Gameplay) == static_cast<int32>(EApexSettingsGroup::Gameplay)
 		&& static_cast<int32>(EApexSettingsTab::Graphics) == static_cast<int32>(EApexSettingsGroup::Graphics)
+		&& static_cast<int32>(EApexSettingsTab::Camera) == static_cast<int32>(EApexSettingsGroup::Camera)
 		&& static_cast<int32>(EApexSettingsTab::Controls) == static_cast<int32>(EApexSettingsGroup::Controls)
 		&& static_cast<int32>(EApexSettingsTab::Audio) == static_cast<int32>(EApexSettingsGroup::Audio),
 	"EApexSettingsTab and EApexSettingsGroup must stay aligned");
@@ -40,7 +41,8 @@ namespace
 	constexpr float PanelWidth = 1370.0f;
 	constexpr float RailWidth = 274.0f;
 	constexpr float SettingsRowHeight = 68.0f;
-	constexpr float ControlWidth = 480.0f;
+	/** The bindings grid is the tallest column on any page; its rows are cut down to fit. */
+	constexpr float BindingRowHeight = 58.0f;
 	/** Dropdowns and the sliders beside them share a width so the grid lines up. */
 	constexpr float DropdownWidth = 250.0f;
 	/** Wider, because the AI-skill row has a whole page column to itself. */
@@ -49,6 +51,7 @@ namespace
 	// Rail and footer actions.
 	const FName ActionTabGameplay = TEXT("Tab.Gameplay");
 	const FName ActionTabGraphics = TEXT("Tab.Graphics");
+	const FName ActionTabCamera   = TEXT("Tab.Camera");
 	const FName ActionTabControls = TEXT("Tab.Controls");
 	const FName ActionTabAudio    = TEXT("Tab.Audio");
 	/** For wrapping the page cycle; the last tab is the count minus one. */
@@ -65,6 +68,35 @@ namespace
 	const FName SegHud        = TEXT("Hud");
 	const FName SegPreset     = TEXT("Preset");
 	const FName SegVSync      = TEXT("VSync");
+	const FName SegStartView  = TEXT("StartView");
+	const FName SegCockpitCar = TEXT("CockpitCar");
+	const FName SegCockpitWheel   = TEXT("CockpitWheel");
+	const FName SegCockpitMirrors = TEXT("CockpitMirrors");
+	const FName SegVirtualMirror  = TEXT("VirtualMirror");
+	const FName SegMirrorQuality  = TEXT("MirrorQuality");
+
+	// Camera slider ranges; the sliders themselves run 0..1.
+	constexpr float FovMin = 60.0f, FovMax = 120.0f;
+	constexpr float SeatForwardRange = 30.0f;
+	constexpr float SeatHeightRange = 15.0f;
+	constexpr float ViewPitchRange = 10.0f;
+
+	FString SignedCm(float Cm)
+	{
+		const int32 Whole = FMath::RoundToInt(Cm);
+		return Whole == 0 ? FString(TEXT("0 cm")) : FString::Printf(TEXT("%+d cm"), Whole);
+	}
+
+	FString SignedDegrees(float Degrees)
+	{
+		const int32 Whole = FMath::RoundToInt(Degrees);
+		return Whole == 0 ? FString(TEXT("0°")) : FString::Printf(TEXT("%+d°"), Whole);
+	}
+
+	FString Percent(float Value01)
+	{
+		return FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value01 * 100.0f));
+	}
 
 	const TArray<FString> QualityNames = { TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("ULTRA") };
 	// GameUserSettings exposes anti-aliasing as a quality bucket, not as a choice
@@ -147,6 +179,7 @@ void UApexSettingsWidget::BuildOverlay()
 	PageHost = WidgetTree->ConstructWidget<UWidgetSwitcher>();
 	PageHost->AddChild(BuildGameplayPage());
 	PageHost->AddChild(BuildGraphicsPage());
+	PageHost->AddChild(BuildCameraPage());
 	PageHost->AddChild(BuildControlsPage());
 	PageHost->AddChild(BuildAudioPage());
 
@@ -252,6 +285,7 @@ UWidget* UApexSettingsWidget::BuildRail()
 
 	AddTab(TEXT("Gameplay"), ActionTabGameplay);
 	AddTab(TEXT("Graphics"), ActionTabGraphics);
+	AddTab(TEXT("Camera"), ActionTabCamera);
 	AddTab(TEXT("Controls"), ActionTabControls);
 	AddTab(TEXT("Audio"), ActionTabAudio);
 
@@ -306,7 +340,7 @@ UWidget* UApexSettingsWidget::MakeSectionLabel(const FString& Text)
 }
 
 UWidget* UApexSettingsWidget::MakeRow(
-	const FString& Label, const FString& Description, UWidget* Control, const FString& PendingNote)
+	const FString& Label, const FString& Description, UWidget* Control, const FString& PendingNote, float Height)
 {
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 	const bool bPending = !PendingNote.IsEmpty();
@@ -340,19 +374,16 @@ UWidget* UApexSettingsWidget::MakeRow(
 
 	if (Control)
 	{
-		// Controls are right-aligned to a fixed width so the pills and dropdowns
-		// on every row line up down one edge regardless of how wide each is.
-		UHorizontalBox* ControlCell = WidgetTree->ConstructWidget<UHorizontalBox>();
-		if (UHorizontalBoxSlot* CellSlot = AddH(ControlCell, Control, FMargin(), VAlign_Center, 1.0f))
-		{
-			CellSlot->SetHorizontalAlignment(HAlign_Right);
-		}
-		AddH(Row, MakeSized(*WidgetTree, ControlCell, ControlWidth, -1.0f), FMargin(24.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		// The text fills, so every control — pill, dropdown or slider — sits
+		// against the row's right edge and they line up down that edge
+		// whatever their widths. No fixed cell: a two-column page's rows are
+		// narrower than one, and a cell sized for the wide page overflowed them.
+		AddH(Row, Control, FMargin(24.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	}
 
 	UBorder* Panel = MakePanel(*WidgetTree, Row, FMargin(22.0f, 0.0f), MakeBrush(Palette::Surface));
 	Panel->SetVerticalAlignment(VAlign_Center);
-	return MakeSized(*WidgetTree, Panel, -1.0f, SettingsRowHeight);
+	return MakeSized(*WidgetTree, Panel, -1.0f, Height > 0.0f ? Height : SettingsRowHeight);
 }
 
 UApexSegmentedWidget* UApexSettingsWidget::MakeSegment(
@@ -364,6 +395,36 @@ UApexSegmentedWidget* UApexSettingsWidget::MakeSegment(
 	Control->OnChosen.AddDynamic(this, &UApexSettingsWidget::HandleSegmentChosen);
 	Segments.Add(ControlId, Control);
 	return Control;
+}
+
+UWidget* UApexSettingsWidget::MakeSliderCell(
+	TObjectPtr<USlider>& OutSlider, TObjectPtr<UProgressBar>& OutFill, TObjectPtr<UTextBlock>& OutValue, float Width)
+{
+	// MakeSliderTrack fills raw pointers; a TObjectPtr member does not bind to
+	// a T*&, so the members are assigned from locals afterwards.
+	USlider* Slider = nullptr;
+	UProgressBar* Fill = nullptr;
+
+	UHorizontalBox* Cell = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddH(Cell, MakeSliderTrack(*WidgetTree, Slider, Fill), FMargin(), VAlign_Center, 1.0f);
+	UTextBlock* Value = MakeText(*WidgetTree, FString(), Font::Mono(13.0f, 40), Palette::TextPrimary);
+	AddH(Cell, Value, FMargin(16.0f, 0.0f, 0.0f, 0.0f));
+
+	OutSlider = Slider;
+	OutFill = Fill;
+	OutValue = Value;
+
+	// An explicit width, because MakeRow right-aligns its control cell and a
+	// fill-width slider right-aligned to its own desired size is a stub.
+	return MakeSized(*WidgetTree, Cell, Width, -1.0f);
+}
+
+void UApexSettingsWidget::ReflectSlider(UProgressBar* Fill, UTextBlock* Value, float Alpha, const FString& Display)
+{
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	if (Fill) { Fill->SetPercent(Alpha); }
+	if (Value) { Value->SetText(FText::FromString(Display)); }
+	RefreshFooter();
 }
 
 // --- Gameplay ---------------------------------------------------------------
@@ -536,9 +597,7 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 	AntiAliasingBox->OnSelectionChanged.AddDynamic(this, &UApexSettingsWidget::HandleAntiAliasingChanged);
 	AddV(Right, MakeRow(TEXT("Anti-aliasing"), FString(), MakeSized(*WidgetTree, AntiAliasingBox, DropdownWidth, -1.0f)),
 		FMargin(0.0f, 2.0f, 0.0f, 0.0f));
-
-	AddSliderRow(Right, TEXT("Field of view"), TEXT(""), FovSlider, FovFill, FovValue, false);
-	FovSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleFovChanged);
+	// Field of view lives on the camera page with the seat it belongs to.
 
 	AddH(Grid, Left, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
 	AddH(Grid, Right, FMargin(), VAlign_Top, 1.0f);
@@ -552,6 +611,93 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 		AddH(Note,
 			MakeText(*WidgetTree,
 				TEXT("Changes apply to the frame behind this panel, so the effect is visible before returning to the race."),
+				Font::Body(13.0f), Palette::TextSecondary),
+			FMargin(18.0f, 0.0f, 0.0f, 0.0f));
+		AddV(Page, MakePanel(*WidgetTree, Note, FMargin(22.0f, 16.0f), MakeBrush(Palette::Surface)),
+			FMargin(0.0f, 18.0f, 0.0f, 0.0f));
+	}
+
+	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
+	return Page;
+}
+
+// --- Camera -----------------------------------------------------------------
+
+UWidget* UApexSettingsWidget::BuildCameraPage()
+{
+	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	UHorizontalBox* Grid = WidgetTree->ConstructWidget<UHorizontalBox>();
+	UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>();
+	UVerticalBox* Right = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	const FMargin RowGap(0.0f, 2.0f, 0.0f, 0.0f);
+
+	// Left: the seat. Everything here moves the eye.
+	AddV(Left, MakeSectionLabel(TEXT("Seat")), FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+
+	AddV(Left, MakeRow(
+		TEXT("Start in"),
+		TEXT("The view a race opens in. C swaps at any time."),
+		MakeSegment(SegStartView, { TEXT("CHASE"), TEXT("COCKPIT") }, 1, 130.0f)));
+
+	AddV(Left, MakeRow(TEXT("Field of view"), TEXT("Horizontal, cockpit. Chase sits 15° narrower."),
+		MakeSliderCell(FovSlider, FovFill, FovValue, DropdownWidth)), RowGap);
+	FovSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleFovChanged);
+
+	AddV(Left, MakeRow(TEXT("Seat forward"), TEXT("Slide from the car's own driving position."),
+		MakeSliderCell(SeatForwardSlider, SeatForwardFill, SeatForwardValue, DropdownWidth)), RowGap);
+	SeatForwardSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleSeatForwardChanged);
+
+	AddV(Left, MakeRow(TEXT("Seat height"), TEXT("Raise or lower the eye."),
+		MakeSliderCell(SeatHeightSlider, SeatHeightFill, SeatHeightValue, DropdownWidth)), RowGap);
+	SeatHeightSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleSeatHeightChanged);
+
+	AddV(Left, MakeRow(TEXT("View pitch"), TEXT("Resting gaze, up or down."),
+		MakeSliderCell(ViewPitchSlider, ViewPitchFill, ViewPitchValue, DropdownWidth)), RowGap);
+	ViewPitchSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleViewPitchChanged);
+
+	// Right: how the head behaves, and what of the cockpit is drawn.
+	AddV(Right, MakeSectionLabel(TEXT("Head")), FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+
+	AddV(Right, MakeRow(TEXT("Horizon lock"), TEXT("0 rides every bump and bank; 100 keeps the horizon level."),
+		MakeSliderCell(HorizonLockSlider, HorizonLockFill, HorizonLockValue, DropdownWidth)));
+	HorizonLockSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleHorizonLockChanged);
+
+	AddV(Right, MakeRow(TEXT("Head motion"), TEXT("How far braking and cornering throw the head."),
+		MakeSliderCell(HeadMotionSlider, HeadMotionFill, HeadMotionValue, DropdownWidth)), RowGap);
+	HeadMotionSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleHeadMotionChanged);
+
+	AddV(Right, MakeRow(TEXT("Look to apex"), TEXT("Turn the head into the corner with the steering."),
+		MakeSliderCell(LookToApexSlider, LookToApexFill, LookToApexValue, DropdownWidth)), RowGap);
+	LookToApexSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleLookToApexChanged);
+
+	AddV(Right, MakeSectionLabel(TEXT("Cockpit")), FMargin(0.0f, 18.0f, 0.0f, 12.0f));
+
+	AddV(Right, MakeRow(TEXT("Car body"), TEXT("Draw your own car from inside."),
+		MakeSegment(SegCockpitCar, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)));
+	AddV(Right, MakeRow(TEXT("Wheel & display"), TEXT("Steering wheel with gear, speed and revs."),
+		MakeSegment(SegCockpitWheel, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), RowGap);
+	AddV(Right, MakeRow(TEXT("Mirrors"), TEXT("On the car, in the cockpit view."),
+		MakeSegment(SegCockpitMirrors, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), RowGap);
+	AddV(Right, MakeRow(TEXT("Virtual mirror"), TEXT("Rear view at the top of the HUD, in either view."),
+		MakeSegment(SegVirtualMirror, { TEXT("OFF"), TEXT("ON") }, 0, 120.0f)), RowGap);
+	AddV(Right, MakeRow(TEXT("Mirror quality"), TEXT("Each mirror is another render of the scene."),
+		MakeSegment(SegMirrorQuality, { TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH") }, 1)), RowGap);
+
+	AddH(Grid, Left, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
+	AddH(Grid, Right, FMargin(), VAlign_Top, 1.0f);
+	AddV(Page, Grid);
+
+	// The seat moves behind the panel as the slider does, which is the only
+	// honest way to set one; and the look keys are not on the controls page's
+	// first screen, so say where they are.
+	{
+		UHorizontalBox* Note = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Note, MakeLabel(*WidgetTree, TEXT("Live preview"), Palette::Accent));
+		AddH(Note,
+			MakeText(*WidgetTree,
+				TEXT("The seat and mirrors move behind this panel as you drag. In the race: , and . look aside, B looks behind, C swaps views."),
 				Font::Body(13.0f), Palette::TextSecondary),
 			FMargin(18.0f, 0.0f, 0.0f, 0.0f));
 		AddV(Page, MakePanel(*WidgetTree, Note, FMargin(22.0f, 16.0f), MakeBrush(Palette::Surface)),
@@ -724,6 +870,10 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		{ TEXT("Shift up"),    ApexInput::Actions::GearUp,        0,  1 },
 		{ TEXT("Shift down"),  ApexInput::Actions::GearDown,      0,  1 },
 		{ TEXT("Camera"),      ApexInput::Actions::ToggleCamera,  0,  1 },
+		{ TEXT("Look axis"),   ApexInput::Actions::Look,          0, -1 },
+		{ TEXT("Look left"),   ApexInput::Actions::Look,         -1,  2 },
+		{ TEXT("Look right"),  ApexInput::Actions::Look,         -1,  3 },
+		{ TEXT("Look behind"), ApexInput::Actions::LookBack,      0,  1 },
 		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,     0,  1 },
 	};
 
@@ -753,7 +903,7 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		AddChip(RowSpec.KeyboardSlot, false);
 
 		UVerticalBox* Column = Index < Split ? Left : Right;
-		AddV(Column, MakeRow(RowSpec.Label, FString(), Chips),
+		AddV(Column, MakeRow(RowSpec.Label, FString(), Chips, FString(), BindingRowHeight),
 			FMargin(0.0f, Column->GetChildrenCount() == 0 ? 0.0f : 2.0f, 0.0f, 0.0f));
 	}
 
@@ -907,6 +1057,12 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
 	SetSegment(SegPreset, static_cast<int32>(Values->Preset));
 	SetSegment(SegVSync, Values->bVSync ? 1 : 0);
+	SetSegment(SegStartView, Values->bStartInCockpit ? 1 : 0);
+	SetSegment(SegCockpitCar, Values->bCockpitShowCar ? 1 : 0);
+	SetSegment(SegCockpitWheel, Values->bCockpitWheel ? 1 : 0);
+	SetSegment(SegCockpitMirrors, Values->bCockpitMirrors ? 1 : 0);
+	SetSegment(SegVirtualMirror, Values->bVirtualMirror ? 1 : 0);
+	SetSegment(SegMirrorQuality, FMath::Clamp(Values->MirrorQuality, 0, 2));
 
 	auto SetSlider = [](USlider* Slider, UProgressBar* Fill, UTextBlock* Text,
 		float Value, float Min, float Max, const FString& Display)
@@ -921,8 +1077,17 @@ void UApexSettingsWidget::RefreshFromSettings()
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->AiSkill * 100.0f)));
 	SetSlider(MotionBlurSlider, MotionBlurFill, MotionBlurValue, Values->MotionBlur, 0.0f, 1.0f,
 		FString::FromInt(FMath::RoundToInt(Values->MotionBlur * 100.0f)));
-	SetSlider(FovSlider, FovFill, FovValue, Values->FieldOfView, 60.0f, 120.0f,
+	SetSlider(FovSlider, FovFill, FovValue, Values->FieldOfView, FovMin, FovMax,
 		FString::Printf(TEXT("%d°"), FMath::RoundToInt(Values->FieldOfView)));
+	SetSlider(SeatForwardSlider, SeatForwardFill, SeatForwardValue, Values->SeatForwardCm, -SeatForwardRange, SeatForwardRange,
+		SignedCm(Values->SeatForwardCm));
+	SetSlider(SeatHeightSlider, SeatHeightFill, SeatHeightValue, Values->SeatHeightCm, -SeatHeightRange, SeatHeightRange,
+		SignedCm(Values->SeatHeightCm));
+	SetSlider(ViewPitchSlider, ViewPitchFill, ViewPitchValue, Values->ViewPitchDeg, -ViewPitchRange, ViewPitchRange,
+		SignedDegrees(Values->ViewPitchDeg));
+	SetSlider(HorizonLockSlider, HorizonLockFill, HorizonLockValue, Values->HorizonLock, 0.0f, 1.0f, Percent(Values->HorizonLock));
+	SetSlider(HeadMotionSlider, HeadMotionFill, HeadMotionValue, Values->HeadMotion, 0.0f, 1.0f, Percent(Values->HeadMotion));
+	SetSlider(LookToApexSlider, LookToApexFill, LookToApexValue, Values->LookToApex, 0.0f, 1.0f, Percent(Values->LookToApex));
 	SetSlider(SteeringSlider, SteeringFill, SteeringValue, Values->SteeringSensitivity, 0.0f, 1.0f,
 		FString::FromInt(FMath::RoundToInt(Values->SteeringSensitivity * 100.0f)));
 	SetSlider(DeadzoneSlider, DeadzoneFill, DeadzoneValue, Values->Deadzone, 0.0f, 0.5f,
@@ -1041,6 +1206,10 @@ void UApexSettingsWidget::RefreshHeaderContext()
 		}
 		break;
 
+	case EApexSettingsTab::Camera:
+		Context = TEXT("Live preview · saved on close");
+		break;
+
 	case EApexSettingsTab::Controls:
 	{
 		const bool bAttached = FSlateApplication::IsInitialized() && FSlateApplication::Get().IsGamepadAttached();
@@ -1094,6 +1263,7 @@ void UApexSettingsWidget::HandleRailActivated(UApexButtonWidget* Button)
 	const FName Action = Button->GetActionId();
 	if (Action == ActionTabGameplay)      { ShowTab(EApexSettingsTab::Gameplay); }
 	else if (Action == ActionTabGraphics) { ShowTab(EApexSettingsTab::Graphics); }
+	else if (Action == ActionTabCamera)   { ShowTab(EApexSettingsTab::Camera); }
 	else if (Action == ActionTabControls) { ShowTab(EApexSettingsTab::Controls); }
 	else if (Action == ActionTabAudio)    { ShowTab(EApexSettingsTab::Audio); }
 }
@@ -1139,6 +1309,12 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
 	else if (Id == SegVSync)      { Settings->SetVSync(Index == 1); }
+	else if (Id == SegStartView)      { Settings->SetStartInCockpit(Index == 1); }
+	else if (Id == SegCockpitCar)     { Settings->SetCockpitShowCar(Index == 1); }
+	else if (Id == SegCockpitWheel)   { Settings->SetCockpitWheel(Index == 1); }
+	else if (Id == SegCockpitMirrors) { Settings->SetCockpitMirrors(Index == 1); }
+	else if (Id == SegVirtualMirror)  { Settings->SetVirtualMirror(Index == 1); }
+	else if (Id == SegMirrorQuality)  { Settings->SetMirrorQuality(Index); }
 	else if (Id == SegPreset)
 	{
 		Settings->SetGraphicsPreset(static_cast<EApexGraphicsPreset>(Index));
@@ -1173,12 +1349,54 @@ void UApexSettingsWidget::HandleMotionBlurChanged(float Value)
 void UApexSettingsWidget::HandleFovChanged(float Value)
 {
 	if (bRefreshing) { return; }
-	ApexUiAudio::Play(this, EApexUiSound::Adjust);
-	const float Degrees = FMath::Lerp(60.0f, 120.0f, Value);
-	if (FovFill) { FovFill->SetPercent(Value); }
-	if (FovValue) { FovValue->SetText(FText::FromString(FString::Printf(TEXT("%d°"), FMath::RoundToInt(Degrees)))); }
+	const float Degrees = FMath::Lerp(FovMin, FovMax, Value);
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetFieldOfView(Degrees); }
-	RefreshFooter();
+	ReflectSlider(FovFill, FovValue, Value, FString::Printf(TEXT("%d°"), FMath::RoundToInt(Degrees)));
+}
+
+void UApexSettingsWidget::HandleSeatForwardChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Cm = FMath::Lerp(-SeatForwardRange, SeatForwardRange, Value);
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetSeatForward(Cm); }
+	ReflectSlider(SeatForwardFill, SeatForwardValue, Value, SignedCm(Cm));
+}
+
+void UApexSettingsWidget::HandleSeatHeightChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Cm = FMath::Lerp(-SeatHeightRange, SeatHeightRange, Value);
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetSeatHeight(Cm); }
+	ReflectSlider(SeatHeightFill, SeatHeightValue, Value, SignedCm(Cm));
+}
+
+void UApexSettingsWidget::HandleViewPitchChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Degrees = FMath::Lerp(-ViewPitchRange, ViewPitchRange, Value);
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetViewPitch(Degrees); }
+	ReflectSlider(ViewPitchFill, ViewPitchValue, Value, SignedDegrees(Degrees));
+}
+
+void UApexSettingsWidget::HandleHorizonLockChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetHorizonLock(Value); }
+	ReflectSlider(HorizonLockFill, HorizonLockValue, Value, Percent(Value));
+}
+
+void UApexSettingsWidget::HandleHeadMotionChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetHeadMotion(Value); }
+	ReflectSlider(HeadMotionFill, HeadMotionValue, Value, Percent(Value));
+}
+
+void UApexSettingsWidget::HandleLookToApexChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetLookToApex(Value); }
+	ReflectSlider(LookToApexFill, LookToApexValue, Value, Percent(Value));
 }
 
 void UApexSettingsWidget::HandleSteeringChanged(float Value)

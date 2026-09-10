@@ -86,6 +86,12 @@ pub enum ClientMessage {
     SetGameMode {
         mode: GameMode,
     },
+    /// Driver aids the server runs for this player. Sent on joining a
+    /// session and whenever the setting changes; ignored outside a session.
+    SetDriverAids {
+        #[serde(default)]
+        auto_gearbox: bool,
+    },
     StartCountdown {
         countdown_seconds: u16,
         next_mode: GameMode,

@@ -488,6 +488,108 @@ fn edge_lines_run_the_length_of_both_road_edges() {
     );
 }
 
+/// The start-light gantry anchor: on the line, on the road, facing the
+/// direction of travel.
+#[test]
+fn start_finish_anchor_sits_on_the_line() {
+    let baked = bake_test_scene();
+    let sf = baked.start_finish.expect("start/finish anchor");
+    // The seeded marking spans station 0..1 m, so the centre is 0.5 m down
+    // the track from the first node at the origin, along the course — which
+    // on this spline leaves the origin at 45 degrees to the right.
+    let dist_cm = sf.location[0].hypot(sf.location[1]);
+    assert!((dist_cm - 50.0).abs() < 5.0, "{:?}", sf.location);
+    assert!(sf.location[2].abs() < 5.0, "{:?}", sf.location);
+    assert!((sf.yaw_deg - 45.0).abs() < 5.0, "{}", sf.yaw_deg);
+    assert!((sf.width_m - 12.0).abs() < 0.01, "{}", sf.width_m);
+    // And it agrees with where the first centerline point heads.
+    assert!((sf.yaw_deg - baked.centerline[0].yaw_deg).abs() < 5.0);
+}
+
+/// Grid boxes are laid out in station space: slot 16 is row 8, 56 m before
+/// the line, so the outlines run from 58.5 m behind the line to the pole
+/// stub 3.5 m ahead of it — on a closed loop, wrapped past the lap length.
+#[test]
+fn monza_grid_boxes_end_56_m_before_the_line() {
+    let track_path = real_tracks_dir().join("Monza.yaml");
+    let opened = project::open_project(&track_path).unwrap();
+    let baked = ue_export::bake(&opened.track, &opened.scene.unwrap()).unwrap();
+    let lap_m = baked.length_cm / 100.0;
+    let us: Vec<f32> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("marking_grid_slot_"))
+        .flat_map(|m| m.uvs.chunks_exact(2).map(|uv| uv[0]))
+        .collect();
+    assert!(!us.is_empty(), "no grid box paint");
+    // Spans behind the line wrap past the lap length; those ahead of it
+    // don't. Fold both onto a signed station around the line.
+    let around = |u: f32| if u > lap_m / 2.0 { u - lap_m } else { u };
+    let rear = us.iter().map(|&u| around(u)).fold(f32::MAX, f32::min);
+    let front = us.iter().map(|&u| around(u)).fold(f32::MIN, f32::max);
+    assert!(
+        (rear + 58.5).abs() < 0.6,
+        "rear of box 16 at {rear} m, lap {lap_m} m"
+    );
+    assert!(
+        (front - 3.5).abs() < 0.6,
+        "front of the pole stub at {front} m"
+    );
+}
+
+/// The verge at Spa: right of the road at station 0 the ground is the
+/// road edge less the verge drop for 6 m, then eases into the terrain.
+#[test]
+fn spa_ground_hugs_the_road_edge_at_the_line() {
+    use track_editor::terrain::{TerrainHeightfield, BLEND_END_M, VERGE_DROP_M};
+    use track_editor::track_path::{offset_point, CenterlinePath};
+
+    let track_path = real_tracks_dir().join("Spa.yaml");
+    let opened = project::open_project(&track_path).unwrap();
+    let path = CenterlinePath::from_track(&opened.track).unwrap();
+    let field = TerrainHeightfield::from_path(&path).unwrap();
+    let s = path.sample_at(0.0);
+    let edge_z = offset_point(&s, -s.width_right_m).2;
+    let at = |beyond: f32| {
+        let p = offset_point(&s, -(s.width_right_m + beyond));
+        field.ground_height_at(p.0, p.1)
+    };
+    let terrain_at = |beyond: f32| {
+        let p = offset_point(&s, -(s.width_right_m + beyond));
+        field.height_at(p.0, p.1)
+    };
+    let far = terrain_at(BLEND_END_M + 5.0);
+    let profile: Vec<(f32, f32, f32)> = [1.0, 5.0, 10.0, 20.0, 40.0]
+        .iter()
+        .map(|&b| (b, at(b), terrain_at(b)))
+        .collect();
+    eprintln!(
+        "Spa station 0, right of road: edge {edge_z:.3}; (beyond, ground, terrain) {profile:?}"
+    );
+
+    assert!((at(1.0) - (edge_z - VERGE_DROP_M)).abs() < 0.02);
+    assert!((at(5.0) - (edge_z - VERGE_DROP_M)).abs() < 0.02);
+    // Past the blend the ground *is* the terrain field.
+    assert!(
+        (at(40.0) - terrain_at(40.0)).abs() < 0.02,
+        "40 m out: {} vs terrain {}",
+        at(40.0),
+        terrain_at(40.0)
+    );
+    // Stepless between the verge and the terrain.
+    let mut prev = at(6.0);
+    let span = (prev - far).abs().max(0.05);
+    for b in 7..=40 {
+        let z = at(b as f32);
+        assert!(
+            (z - prev).abs() <= span * 0.12 + 0.01,
+            "step of {} m at {b} m out",
+            z - prev
+        );
+        prev = z;
+    }
+}
+
 #[test]
 fn repeated_bakes_are_byte_identical() {
     let track = test_track();
