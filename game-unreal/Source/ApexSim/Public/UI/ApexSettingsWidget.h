@@ -21,12 +21,13 @@ class UWidgetSwitcher;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnSettingsClosed);
 
-/** The settings overlay's four pages. */
+/** The settings overlay's five pages. */
 UENUM(BlueprintType)
 enum class EApexSettingsTab : uint8
 {
 	Gameplay,
 	Graphics,
+	Camera,
 	Controls,
 	Audio,
 };
@@ -90,6 +91,12 @@ protected:
 	UFUNCTION() void HandleAiSkillChanged(float Value);
 	UFUNCTION() void HandleMotionBlurChanged(float Value);
 	UFUNCTION() void HandleFovChanged(float Value);
+	UFUNCTION() void HandleSeatForwardChanged(float Value);
+	UFUNCTION() void HandleSeatHeightChanged(float Value);
+	UFUNCTION() void HandleViewPitchChanged(float Value);
+	UFUNCTION() void HandleHorizonLockChanged(float Value);
+	UFUNCTION() void HandleHeadMotionChanged(float Value);
+	UFUNCTION() void HandleLookToApexChanged(float Value);
 	UFUNCTION() void HandleSteeringChanged(float Value);
 	UFUNCTION() void HandleDeadzoneChanged(float Value);
 	UFUNCTION() void HandleVibrationChanged(float Value);
@@ -112,6 +119,7 @@ private:
 	UWidget* BuildFooter();
 	UWidget* BuildGameplayPage();
 	UWidget* BuildGraphicsPage();
+	UWidget* BuildCameraPage();
 	UWidget* BuildControlsPage();
 	UWidget* BuildAudioPage();
 	UWidget* BuildBindingsGrid();
@@ -134,10 +142,27 @@ private:
 		const FString& Label,
 		const FString& Description,
 		UWidget* Control,
-		const FString& PendingNote = FString());
+		const FString& PendingNote = FString(),
+		float Height = 0.0f);
 
 	/** A segmented control registered under an id the single handler knows. */
 	UApexSegmentedWidget* MakeSegment(FName ControlId, const TArray<FString>& Options, int32 Selected, float Width = 118.0f);
+
+	/**
+	 * A slider track with its value read-out beside it, sized for a row's
+	 * control cell. The out-params are the members a handler updates.
+	 */
+	UWidget* MakeSliderCell(
+		TObjectPtr<USlider>& OutSlider,
+		TObjectPtr<UProgressBar>& OutFill,
+		TObjectPtr<UTextBlock>& OutValue,
+		float Width);
+
+	/**
+	 * The common tail of every slider handler: the fill and read-out follow
+	 * the thumb, the click plays, and the footer's change count moves.
+	 */
+	void ReflectSlider(UProgressBar* Fill, UTextBlock* Value, float Alpha, const FString& Display);
 
 	/** A binding chip. Its action id encodes the slot it edits. */
 	UApexButtonWidget* MakeBindingChip(FName ActionId, int32 Slot);
@@ -181,6 +206,30 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> FovSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> FovFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FovValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> SeatForwardSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> SeatForwardFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> SeatForwardValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> SeatHeightSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> SeatHeightFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> SeatHeightValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> ViewPitchSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> ViewPitchFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ViewPitchValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> HorizonLockSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> HorizonLockFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> HorizonLockValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> HeadMotionSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> HeadMotionFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeadMotionValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> LookToApexSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> LookToApexFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> LookToApexValue;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> SteeringSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> SteeringFill;

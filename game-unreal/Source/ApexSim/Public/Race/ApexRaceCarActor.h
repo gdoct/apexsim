@@ -3,9 +3,12 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
+#include "Race/ApexCockpitLayout.h"
 
 #include "ApexRaceCarActor.generated.h"
 
+class UApexEngineSoundWave;
+class UAudioComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 
@@ -27,6 +30,7 @@ public:
 	AApexRaceCarActor();
 
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void BeginPlay() override;
 
 	/** Applies one telemetry sample as the new interpolation target. */
 	void ApplyTelemetry(const FApexCarTelemetry& Car);
@@ -37,11 +41,26 @@ public:
 	/**
 	 * Show or hide just this car's bodywork.
 	 *
-	 * Used for the car the cockpit camera sits inside, which would otherwise
-	 * fill the screen with the inside of its own mesh. Per-actor rather than
-	 * a render flag because the rest of the field must stay visible.
+	 * Used for the car the cockpit camera sits inside when the player would
+	 * rather not see its own mesh from within. Per-actor rather than a render
+	 * flag because the rest of the field must stay visible.
 	 */
 	void SetMeshVisible(bool bVisible);
+
+	UStaticMeshComponent* GetMeshComponent() const { return CarMesh; }
+
+	/**
+	 * What the catalog knows about this car's cockpit: its class, which
+	 * decides open or closed, and any hand-placed points. Invalidates the
+	 * derived layout.
+	 */
+	void SetCockpitSpec(const FString& InCarClass, const FApexCockpitOverrides& InOverrides);
+
+	/**
+	 * Where the seat, wheel and mirrors sit in this car's frame, derived
+	 * from its mesh the first time it is asked for.
+	 */
+	const FApexCockpitLayout& GetCockpitLayout();
 
 	void SetDisplayName(const FString& InName) { DisplayName = InName; }
 	const FString& GetDisplayName() const { return DisplayName; }
@@ -54,12 +73,23 @@ public:
 	/** Gear the server last reported: -1 reverse, 0 neutral, 1.. forward. */
 	int32 GetGear() const { return Gear; }
 
+	float GetEngineRpm() const { return EngineRpm; }
+	float GetThrottle() const { return Throttle; }
+	float GetBrake() const { return Brake; }
+	/** Steering input as the server holds it: -1..1, positive to the LEFT. */
+	float GetSteering() const { return Steering; }
+	int32 GetCurrentLap() const { return CurrentLap; }
+	int32 GetCurrentLapTimeMs() const { return CurrentLapTimeMs; }
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USceneComponent> Root;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> CarMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UAudioComponent> EngineAudio;
 
 	/**
 	 * How quickly the actor converges on the latest telemetry, in multiples per
@@ -80,8 +110,25 @@ private:
 	FString DisplayName;
 	float SpeedMps = 0.0f;
 	int32 Gear = 0;
+	float EngineRpm = 0.0f;
+	float Throttle = 0.0f;
+	float Brake = 0.0f;
+	float Steering = 0.0f;
+	int32 CurrentLap = 0;
+	int32 CurrentLapTimeMs = 0;
 
 	FVector TargetLocation = FVector::ZeroVector;
 	FRotator TargetRotation = FRotator::ZeroRotator;
 	bool bHasTarget = false;
+
+	FString CarClass;
+	FApexCockpitOverrides CockpitOverrides;
+	FApexCockpitLayout CockpitLayout;
+	bool bCockpitLayoutValid = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UApexEngineSoundWave> EngineSound;
+
+	/** Highest RPM seen so far for this car; redline is never broadcast, so this stands in for it (see ApexHudWidget). */
+	float ObservedMaxRpm = 8000.0f;
 };

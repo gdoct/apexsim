@@ -11,6 +11,7 @@
 
 class UApexMenuFlowSubsystem;
 class UApexMinimapWidget;
+class UApexMirrorWidget;
 class UApexNetSubsystem;
 class UApexSettingsSubsystem;
 class UBorder;
@@ -79,6 +80,8 @@ private:
 	void RefreshCarState();
 	void RefreshDelta();
 	void RefreshMinimap();
+	/** Show the director's rear capture at the top of the screen while the setting is on. */
+	void RefreshVirtualMirror();
 
 	/** One car's classification, sorted best-first. */
 	struct FStanding
@@ -167,6 +170,9 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UApexMinimapWidget> Minimap;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SectorCaption;
+
+	/** The virtual mirror strip, top centre under the race state; collapsed unless a capture exists. */
+	UPROPERTY(Transient) TObjectPtr<UApexMirrorWidget> VirtualMirror;
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> RootStack;
 

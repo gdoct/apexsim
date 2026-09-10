@@ -32,6 +32,10 @@ namespace ApexInput
 		inline const FName GearUp       = TEXT("GearUp");
 		inline const FName GearDown     = TEXT("GearDown");
 		inline const FName ToggleCamera = TEXT("ToggleCamera");
+		/** Head turn, an axis: a stick, or a key either side. */
+		inline const FName Look         = TEXT("Look");
+		/** Held: look straight behind. */
+		inline const FName LookBack     = TEXT("LookBack");
 		/**
 		 * Not an Enhanced Input action: the pause key has to work while the race
 		 * view owns input, so the root widget tests it directly. Listed here so
@@ -133,4 +137,12 @@ public:
 	/** Digital. Local only — never reaches the server. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> ToggleCamera;
+
+	/** Axis1D, `+1` looks right. Local only. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> Look;
+
+	/** Digital, held. Local only. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> LookBack;
 };

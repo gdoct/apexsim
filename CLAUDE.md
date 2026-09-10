@@ -96,6 +96,13 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
 `content/tracks/{real,export}` relative to the working directory, so it must be
 run from the repo root — not from `track-editor/`.
 
+The exporter also writes `content/tracks/real/<Stem>.ground.msgpack`
+(gitignored, like the exports): a 4 m heightfield of the ground the client
+renders, in the server frame. The server loads it next to the YAML
+(`ground.rs`) so a car that leaves the asphalt follows the rendered verge and
+terrain instead of holding road height; without it, off-track elevation falls
+back to the centerline as before. `build_release.ps1` ships it in `Server/`.
+
 The exporter resolves `.ats` station spans against the YAML centerline and
 bakes triangles (Unreal can't read YAML); the `ApexTrackEditor` module's
 commandlet turns those buffers into static meshes, materials and a level per
@@ -142,13 +149,39 @@ Driving uses Enhanced Input, with actions and the mapping context built in
 C++ (`Input/ApexInputConfig.h`) rather than as `.uasset`s, so bindings are
 readable in a diff. `AApexPlayerController` owns them and adds the mapping
 context only while a race is running. Defaults: WASD to drive, Q/E to shift,
-C to swap cockpit/chase, Escape to leave.
+C to swap cockpit/chase, `,`/`.` to look aside, B to look behind, Escape to
+leave.
 
 Two traps worth remembering: the menu shell runs in `FInputModeUIOnly`, where
 the viewport discards game input entirely and no binding produces an event
 (the controller switches to game-and-UI for the race); and a Blueprint game
 mode can silently override `PlayerControllerClass`, which the C++ game mode
 now logs an error about.
+
+### Cockpit view (`Race/ApexCockpitRig`, `Race/ApexCockpitLayout`)
+The first-person view is the default (settings: Camera tab, "Start in"). The
+car meshes are exteriors, so the cockpit is built at runtime by
+`AApexCockpitRig`, spawned by the race director and attached to the followed
+car: a flat-bottomed steering wheel from engine basic shapes that rolls with
+the steering telemetry, a `UApexCockpitDashWidget` on its hub (gear, speed,
+RPM lights, lap time; the countdown while on the grid), and mirrors that are
+`USceneCaptureComponent2D`s into render targets shown on `UApexMirrorWidget`
+faces (drawn flipped, as a mirror is). Captures are refreshed round-robin by
+the rig, never "every frame"; the Mirror quality setting picks resolution and
+how many refresh per frame. The screens are unlit widget components, which
+at the race's 50 klux exposure would be black: `apexsim.cockpit.ScreenNits`
+(default 4500) is the tint that keeps them readable.
+
+Where everything sits comes from `ApexCockpit::DeriveLayout` - pure maths
+over the mesh's bounds in the car frame (open cockpit vs closed cabin from
+the catalog class, else from height), covered by `ApexSim.Cockpit.*` tests.
+Per-car overrides live on the car catalog row (`FApexCarCatalogRow::Cockpit`:
+eye, wheel, mirrors; zero means derive). The player's seat slide, height and
+view pitch, horizon lock, head motion (inertia from speed and yaw-rate
+estimates) and look-to-apex are in `UApexSettingsSave`'s camera block, applied
+live through `AApexRaceDirector::ApplyCameraSettings`. A virtual mirror strip
+at the top of the HUD reuses a fourth capture. `-ApexView=cockpit|chase` picks
+the view for a screenshot run regardless of the setting.
 
 ### Client startup settings (`settings.yml`)
 
@@ -205,7 +238,7 @@ processor's focus recovery; do not add per-widget Move cues.
 
 Volume lives on the settings overlay's Audio tab: master volume drives the
 audio device's transient primary volume (`ApplyAudio`), menu-sound volume is
-read at play time. `-ApexSettingsTab=3` opens that tab headlessly.
+read at play time. `-ApexSettingsTab=4` opens that tab headlessly.
 `ApexSim.UI.SoundCues*` automation tests check every cue is short, finite,
 click-free and the same length at 44.1k and 48k.
 

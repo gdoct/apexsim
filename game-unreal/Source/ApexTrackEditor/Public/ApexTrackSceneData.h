@@ -72,6 +72,16 @@ struct FApexTrackPitLane
 	float SpeedLimitKph = 0.0f;
 };
 
+/** The start/finish line: where the lights gantry goes. */
+struct FApexTrackStartFinish
+{
+	/** Centre of the line on the road surface, UE cm. */
+	FVector Location = FVector::ZeroVector;
+	/** Direction of travel, same convention as props. */
+	float YawDeg = 0.0f;
+	float WidthCm = 0.0f;
+};
+
 struct FApexTrackScene
 {
 	FString TrackId;
@@ -91,6 +101,7 @@ struct FApexTrackScene
 	TArray<FApexTrackGridSlot> Grid;
 	TArray<FApexTrackCenterlinePoint> Centerline;
 	TOptional<FApexTrackPitLane> PitLane;
+	TOptional<FApexTrackStartFinish> StartFinish;
 
 	const FApexTrackMaterial* FindMaterial(const FString& Key) const
 	{

@@ -355,6 +355,12 @@ fn default_scale() -> f32 {
 }
 
 impl AtsScene {
+    /// Length along the track of the seeded start/finish line, meters. The
+    /// Unreal bake paints it as a chequer of [`Self::START_FINISH_CHECK_M`]
+    /// checks, so two rows.
+    pub const START_FINISH_LEN_M: f32 = 1.0;
+    pub const START_FINISH_CHECK_M: f32 = 0.5;
+
     /// Fresh scene for a just-opened track that has no `.ats` yet. Seeds a
     /// start/finish line marking spanning the track's width at station 0 so
     /// a new scene isn't invisibly empty.
@@ -375,7 +381,7 @@ impl AtsScene {
                 id: 1,
                 kind: MarkingKind::StartFinish,
                 start_m: 0.0,
-                end_m: 0.6,
+                end_m: Self::START_FINISH_LEN_M,
                 lat_from_m: -width_right,
                 lat_to_m: width_left,
                 color: [1.0, 1.0, 1.0, 1.0],

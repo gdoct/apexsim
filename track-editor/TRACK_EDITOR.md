@@ -74,17 +74,22 @@ The `.ats` cannot be handed to Unreal as-is: every track-anchored element is a *
 | `grid` | Starting grid, resolved exactly the way `server/src/track_loader.rs` resolves it |
 | `centerline` | The sampled centerline, for splines, minimaps and AI |
 | `pit_lane` | Width, box count, speed limit (its ribbon is in `meshes`) |
+| `start_finish` | Centre of the start/finish line on the road (from the `.ats` `start_finish` marking), direction of travel, road width — the start-light gantry's anchor |
 
-Bake with `cargo run --bin ats-export -- --all`, or **File → Export for Unreal…** for the track in the editor (which bakes unsaved edits too).
+Bake with `cargo run --bin ats-export -- --all`, or **File → Export for Unreal…** for the track in the editor (which bakes unsaved edits too). The same run writes `content/tracks/real/<Track>.ground.msgpack` beside the YAML: the ground the client renders, sampled on a 4 m grid in the server's frame (`terrain::GroundHeightfield`, `rmp_serde::to_vec_named`; road surface inside the road, pit-lane deck inside the lane, the ground elsewhere; cm as `i16`), for the sim's off-track elevation. It is generated, and gitignored like the exports.
 
-### Terrain
+### Road paint
 
-Tracks carry no terrain of their own — only the centerline has heights — so `src/terrain.rs` derives one: centerline samples spread their height onto a coarse grid by inverse-distance weighting, giving a field that agrees with the road wherever the road is and rolls smoothly in between. Two things consume it, identically in the viewport and the bake:
+The parent material can only vary a base color per key, so paint is geometry with one `marking_*` key per color, each layer on its own lift so overlaps never fight: `marking_edge_line_*` (0.20 m, broken where the pit lane's tapers overlap the road edge), `marking_start_finish_*` (the `.ats` marking's span as a chequer of 0.5 m checks, light and dark keys), `marking_grid_slot_*` (5.0 × 2.6 m outlines per grid slot with a pole stub, laid out in station/lateral space so the back rows bend with the track), `marking_pit_line_*` (solid along the pit-box side, dashed 3 m / 3 m along the road side where the lane runs parallel, solid on both taper edges) and `marking_curb_strip_*` (a 0.3 m flat strip beyond each curb in its alternate color). The rubbered racing line — `wear_core` / `wear_edge`, along the YAML `raceline` (or the centerline eased toward the inside of corners without one) — is family `road`, not paint. There is deliberately no centre line on the race track.
 
-- **Ground bands** (`surfaces` in the `.ats`) hug the road edge for their first ~6 m, blend into the terrain by ~35 m out, and beyond the shoulder are clamped to at most 0.3 m above the field — which, via the road ceiling, guarantees they can never cover any road. Bands are subdivided laterally (~10 m columns, in the preview and the bake alike) so that profile is actually sampled across their width; a band left as one quad would just span a plane over whatever lies between its borders.
-- A **ground mesh** built straight from the grid (with a 180 m margin past the track's bounding box) sits 0.25 m under every authored surface, so the world is never a void.
+### Terrain and the verge
 
-Prop `z` stays absolute; newly placed props are seated on the terrain at placement time.
+Tracks carry no terrain of their own — only the centerline has heights — so `src/terrain.rs` derives one: centerline samples spread their height onto a coarse 12 m grid by inverse-distance weighting, capped by a road ceiling (0.4 m under the low edge over an 8 m apron, rising 0.15 m/m) so a hill can never bury a road. On top of that sits one answer to "how high is the ground here", `TerrainHeightfield::ground_height_at(x, y)`: within 6 m of any road edge (the track *and* the pit lane) it is the **verge**, the road edge less 0.08 m; from there it smoothsteps into the terrain field by 35 m out; where two roads run close each keeps its verge and the ground may not climb through either. Everything that touches the ground samples that one function — the ground mesh, the authored surface bands, curb outer faces, the painted curb strip, prop seating — so nothing steps against anything else, whether or not a `.ats` band was authored there.
+
+- **Ground bands** (`surfaces` in the `.ats`) therefore lie on the ground with a small per-kind lift (grass lowest, astroturf highest, all under the road edge). They are subdivided laterally on a schedule (2 m columns for the first 12 m, 4 m to 40 m, then 10 m — preview and bake alike) so the verge profile is actually sampled across their width; a band left as one quad would just span a plane over whatever lies between its borders.
+- The **ground mesh** is the field itself (with an 800 m margin past the track's bounding box), refined to 4 m facets within ~50 m of a road and seated on the same function; the coarse and fine regions meet without cracks because past the blend the ground *is* the coarse field.
+
+Prop `z` stays absolute; newly placed props are seated on the terrain at placement time (grooming re-seats them on the verge).
 
 ### Conventions at the boundary
 

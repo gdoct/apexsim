@@ -11,22 +11,32 @@
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "Components/ExponentialHeightFogComponent.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "Engine/ExponentialHeightFog.h"
 #include "Engine/PostProcessVolume.h"
+#include "Engine/Texture.h"
 #include "GameFramework/PlayerStart.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionAdd.h"
+#include "Materials/MaterialExpressionAppendVector.h"
 #include "Materials/MaterialExpressionClamp.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionConstant.h"
+#include "Materials/MaterialExpressionConstant2Vector.h"
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionFloor.h"
 #include "Materials/MaterialExpressionFmod.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionNoise.h"
+#include "Materials/MaterialExpressionNormalize.h"
+#include "Materials/MaterialExpressionPerInstanceCustomData.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
+#include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
+#include "Materials/MaterialExpressionUtils.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -40,39 +50,27 @@
 
 namespace
 {
-	/** Engine placeholder used for props until real assets exist. */
+	/** Engine placeholder used for prop kinds that have no generated mesh. */
 	const TCHAR* kPlaceholderPropMesh = TEXT("/Engine/BasicShapes/Cube.Cube");
+
+	/**
+	 * Tiling grayscale noise the track materials use as surface grain. An
+	 * engine asset, so every project has it; swap in a real asphalt/grass
+	 * texture per instance through the `DetailTexture` parameter later.
+	 */
+	const TCHAR* kDetailTexture =
+		TEXT("/Engine/EngineMaterials/Good64x64TilingNoiseHighFreq.Good64x64TilingNoiseHighFreq");
 
 	/**
 	 * Rough blockout size per prop kind, in centimeters.
 	 *
-	 * The export names an asset key per prop but the project has no art for
-	 * any of them yet, so each becomes a scaled engine cube. A tree-sized
-	 * box in the right place is worth a great deal when you are checking
-	 * whether a circuit feels right; a uniform cube everywhere is not.
+	 * Kinds without a generated stand-in (lights, cones, anything new) become
+	 * a scaled engine cube. A pole-sized box in the right place is worth a
+	 * great deal when you are checking whether a circuit feels right; a
+	 * uniform cube everywhere is not.
 	 */
 	FVector PlaceholderPropSize(const FString& Kind)
 	{
-		if (Kind == TEXT("tree"))
-		{
-			return FVector(150.0f, 150.0f, 800.0f);
-		}
-		if (Kind == TEXT("barrier") || Kind == TEXT("tire_wall"))
-		{
-			return FVector(400.0f, 60.0f, 100.0f);
-		}
-		if (Kind == TEXT("grandstand"))
-		{
-			return FVector(3000.0f, 1200.0f, 900.0f);
-		}
-		if (Kind == TEXT("building"))
-		{
-			return FVector(1500.0f, 1000.0f, 800.0f);
-		}
-		if (Kind == TEXT("sign"))
-		{
-			return FVector(30.0f, 200.0f, 250.0f);
-		}
 		if (Kind == TEXT("light"))
 		{
 			return FVector(40.0f, 40.0f, 1200.0f);
@@ -153,33 +151,653 @@ namespace
 		float Roughness;
 		float NoiseAmount;
 		float NoiseScale;
-		/** 0 disables the stripe. In cube-face UV units (0..1), not meters. */
+		/** 0 disables the stripe. In the mesh's `u` units (see each recipe below). */
 		float StripePeriod;
 		FLinearColor Secondary;
+		/**
+		 * Per-instance colour swing: albedo is scaled by `1 + data0 * Tint`
+		 * with `data0` in ±1 from the instanced component. Zero for
+		 * everything that is not instanced foliage.
+		 */
+		FLinearColor InstanceTint;
 	};
 
+	const FLinearColor kNoTint(0.0f, 0.0f, 0.0f, 0.0f);
+
 	const FPropMaterialSpec kPropMaterials[] = {
-		// Tire walls and barriers as red/white safety blocks: four stripes
-		// across each cube face, which on a 12 m wall segment is a 3 m block.
+		// Tire walls: stacks of tyres, alternating red and white per stack
+		// (each stack parks its `u` inside one stripe of period 0.26).
 		{TEXT("prop_tire_wall"), FLinearColor(0.42f, 0.05f, 0.04f), 0.85f, 0.06f, 0.001f, 0.26f,
-			FLinearColor(0.80f, 0.78f, 0.74f)},
-		{TEXT("prop_barrier"), FLinearColor(0.42f, 0.05f, 0.04f), 0.85f, 0.06f, 0.001f, 0.26f,
-			FLinearColor(0.80f, 0.78f, 0.74f)},
-		{TEXT("prop_grandstand"), FLinearColor(0.15f, 0.16f, 0.20f), 0.55f, 0.15f, 0.002f, 0.0f,
-			FLinearColor::Black},
+			FLinearColor(0.80f, 0.78f, 0.74f), kNoTint},
+		// Armco: galvanised steel.
+		{TEXT("prop_barrier"), FLinearColor(0.50f, 0.51f, 0.53f), 0.45f, 0.10f, 0.004f, 0.0f,
+			FLinearColor::Black, kNoTint},
+		{TEXT("prop_grandstand"), FLinearColor(0.30f, 0.31f, 0.34f), 0.60f, 0.12f, 0.002f, 0.0f,
+			FLinearColor::Black, kNoTint},
+		// Seat blocks alternate two colours block by block (`u` = block index).
+		{TEXT("prop_grandstand_seats"), FLinearColor(0.05f, 0.12f, 0.40f), 0.50f, 0.00f, 0.002f,
+			1.0f, FLinearColor(0.55f, 0.06f, 0.05f), kNoTint},
 		{TEXT("prop_building"), FLinearColor(0.42f, 0.39f, 0.34f), 0.80f, 0.20f, 0.002f, 0.0f,
-			FLinearColor::Black},
+			FLinearColor::Black, kNoTint},
+		{TEXT("prop_building_glass"), FLinearColor(0.03f, 0.04f, 0.05f), 0.15f, 0.00f, 0.002f,
+			0.0f, FLinearColor::Black, kNoTint},
+		// Foliage: each tree swings between a yellower and a bluer green.
 		{TEXT("prop_tree"), FLinearColor(0.06f, 0.18f, 0.05f), 1.00f, 0.50f, 0.010f, 0.0f,
-			FLinearColor::Black},
-		{TEXT("prop_sign"), FLinearColor(0.80f, 0.80f, 0.84f), 0.40f, 0.00f, 0.002f, 0.0f,
-			FLinearColor::Black},
+			FLinearColor::Black, FLinearColor(0.30f, 0.06f, -0.25f, 0.0f)},
+		{TEXT("prop_tree_bark"), FLinearColor(0.16f, 0.11f, 0.07f), 0.95f, 0.30f, 0.010f, 0.0f,
+			FLinearColor::Black, kNoTint},
+		{TEXT("prop_sign"), FLinearColor(0.85f, 0.85f, 0.80f), 0.35f, 0.00f, 0.002f, 0.0f,
+			FLinearColor::Black, kNoTint},
+		{TEXT("prop_sign_post"), FLinearColor(0.30f, 0.30f, 0.32f), 0.50f, 0.00f, 0.002f, 0.0f,
+			FLinearColor::Black, kNoTint},
 		{TEXT("prop_light"), FLinearColor(0.30f, 0.30f, 0.32f), 0.50f, 0.00f, 0.002f, 0.0f,
-			FLinearColor::Black},
+			FLinearColor::Black, kNoTint},
 		{TEXT("prop_cone"), FLinearColor(0.85f, 0.30f, 0.03f), 0.60f, 0.00f, 0.002f, 0.0f,
-			FLinearColor::Black},
+			FLinearColor::Black, kNoTint},
 		{TEXT("prop_default"), FLinearColor(0.45f, 0.45f, 0.47f), 0.70f, 0.10f, 0.002f, 0.0f,
-			FLinearColor::Black},
+			FLinearColor::Black, kNoTint},
 	};
+
+	/**
+	 * Vertex buffers for a generated mesh, one polygon group per material
+	 * slot. Everything is flat-shaded with its own vertices per face except
+	 * the lathes, which share a smooth ring; units are centimetres and the
+	 * pivot is on the ground so props sit where the export seats them.
+	 */
+	struct FProcMesh
+	{
+		struct FSlot
+		{
+			FString MaterialKey;
+			TArray<uint32> Indices;
+		};
+
+		TArray<FVector3f> Positions;
+		TArray<FVector3f> Normals;
+		TArray<FVector2f> UVs;
+		TArray<FSlot> Slots;
+
+		int32 AddSlot(const FString& MaterialKey)
+		{
+			FSlot Slot;
+			Slot.MaterialKey = MaterialKey;
+			return Slots.Add(MoveTemp(Slot));
+		}
+
+		uint32 AddVertex(const FVector3f& Position, const FVector3f& Normal, const FVector2f& UV)
+		{
+			Positions.Add(Position);
+			Normals.Add(Normal);
+			UVs.Add(UV);
+			return Positions.Num() - 1;
+		}
+
+		/**
+		 * Triangle wound to face `Normal`. Unreal's front face is clockwise
+		 * seen from its normal — the mirror of the right-hand rule — so the
+		 * corners are swapped whenever the cross product agrees with it.
+		 */
+		void AddTriangle(int32 Slot, uint32 A, uint32 B, uint32 C, const FVector3f& Normal)
+		{
+			const FVector3f Cross = FVector3f::CrossProduct(
+				Positions[B] - Positions[A], Positions[C] - Positions[A]);
+			if (FVector3f::DotProduct(Cross, Normal) > 0.0f)
+			{
+				Swap(B, C);
+			}
+			Slots[Slot].Indices.Append({A, B, C});
+		}
+
+		/** Flat triangle with its own vertices. */
+		void AddFace(int32 Slot, const FVector3f& P0, const FVector3f& P1, const FVector3f& P2,
+			const FVector3f& Normal, const FVector2f& UV0 = FVector2f::ZeroVector,
+			const FVector2f& UV1 = FVector2f(1.0f, 0.0f),
+			const FVector2f& UV2 = FVector2f(0.5f, 1.0f))
+		{
+			const uint32 A = AddVertex(P0, Normal, UV0);
+			const uint32 B = AddVertex(P1, Normal, UV1);
+			const uint32 C = AddVertex(P2, Normal, UV2);
+			AddTriangle(Slot, A, B, C, Normal);
+		}
+
+		/** Flat quad with its own vertices; corners in perimeter order. */
+		void AddQuad(int32 Slot, const FVector3f& P0, const FVector3f& P1, const FVector3f& P2,
+			const FVector3f& P3, const FVector3f& Normal, const FVector2f& UV0 = FVector2f::ZeroVector,
+			const FVector2f& UV1 = FVector2f(1.0f, 0.0f), const FVector2f& UV2 = FVector2f(1.0f, 1.0f),
+			const FVector2f& UV3 = FVector2f(0.0f, 1.0f))
+		{
+			const uint32 A = AddVertex(P0, Normal, UV0);
+			const uint32 B = AddVertex(P1, Normal, UV1);
+			const uint32 C = AddVertex(P2, Normal, UV2);
+			const uint32 D = AddVertex(P3, Normal, UV3);
+			AddTriangle(Slot, A, B, C, Normal);
+			AddTriangle(Slot, A, C, D, Normal);
+		}
+
+		/**
+		 * Axis-aligned box, six flat faces. Each face's UV is its in-plane
+		 * extent times `UvScale`, offset by `UvOffset`, so a box can be
+		 * parked inside one stripe of the parent material by offsetting `u`.
+		 */
+		void AddBox(int32 Slot, const FVector3f& Min, const FVector3f& Max,
+			const FVector2f& UvOffset = FVector2f::ZeroVector, float UvScale = 0.01f)
+		{
+			for (int32 Axis = 0; Axis < 3; ++Axis)
+			{
+				for (float Sign : {1.0f, -1.0f})
+				{
+					const int32 U = (Axis + 1) % 3;
+					const int32 V = (Axis + 2) % 3;
+					FVector3f Normal = FVector3f::ZeroVector;
+					Normal[Axis] = Sign;
+					const float Plane = Sign > 0.0f ? Max[Axis] : Min[Axis];
+					const float Us[4] = {Min[U], Max[U], Max[U], Min[U]};
+					const float Vs[4] = {Min[V], Min[V], Max[V], Max[V]};
+					FVector3f P[4];
+					FVector2f T[4];
+					for (int32 i = 0; i < 4; ++i)
+					{
+						P[i][Axis] = Plane;
+						P[i][U] = Us[i];
+						P[i][V] = Vs[i];
+						T[i] = UvOffset + FVector2f(Us[i] - Min[U], Vs[i] - Min[V]) * UvScale;
+					}
+					AddQuad(Slot, P[0], P[1], P[2], P[3], Normal, T[0], T[1], T[2], T[3]);
+				}
+			}
+		}
+
+		/**
+		 * Surface of revolution about a vertical axis through `Center`,
+		 * between a bottom ring and a top ring, smooth-shaded; a cone when
+		 * `RadiusTop` is 0. `u` runs `UvOffset.X` plus the angle fraction
+		 * times `UvScale`; `v` is 0 at the bottom and 1 at the top.
+		 */
+		void AddLathe(int32 Slot, const FVector3f& Center, float RadiusBottom, float ZBottom,
+			float RadiusTop, float ZTop, int32 Sides, bool bCapBottom, bool bCapTop,
+			const FVector2f& UvOffset = FVector2f::ZeroVector, float UvScale = 1.0f)
+		{
+			const bool bCone = RadiusTop <= KINDA_SMALL_NUMBER;
+			const float DZ = ZTop - ZBottom;
+			const float DR = RadiusBottom - RadiusTop;
+			TArray<uint32> Bottom;
+			TArray<uint32> Top;
+			TArray<FVector3f> RingNormals;
+			for (int32 i = 0; i <= Sides; ++i)
+			{
+				const float Angle = 2.0f * PI * i / Sides;
+				const float C = FMath::Cos(Angle);
+				const float S = FMath::Sin(Angle);
+				const FVector3f Normal = FVector3f(C * DZ, S * DZ, DR).GetSafeNormal();
+				RingNormals.Add(Normal);
+				const float U = UvOffset.X + UvScale * i / Sides;
+				Bottom.Add(AddVertex(Center + FVector3f(RadiusBottom * C, RadiusBottom * S, ZBottom),
+					Normal, FVector2f(U, UvOffset.Y)));
+				Top.Add(AddVertex(Center + FVector3f(RadiusTop * C, RadiusTop * S, ZTop), Normal,
+					FVector2f(U, UvOffset.Y + 1.0f)));
+			}
+			for (int32 i = 0; i < Sides; ++i)
+			{
+				// The winding test wants a normal the face agrees with; the
+				// ring normal of the first corner is close enough to the
+				// facet's own for that sign to be right.
+				const FVector3f Facet = (RingNormals[i] + RingNormals[i + 1]).GetSafeNormal();
+				AddTriangle(Slot, Bottom[i], Bottom[i + 1], Top[i], Facet);
+				if (!bCone)
+				{
+					AddTriangle(Slot, Bottom[i + 1], Top[i + 1], Top[i], Facet);
+				}
+			}
+			auto Cap = [&](float Radius, float Z, const FVector3f& Normal) {
+				const uint32 Middle = AddVertex(Center + FVector3f(0.0f, 0.0f, Z), Normal,
+					UvOffset + FVector2f(0.5f * UvScale, 0.5f));
+				TArray<uint32> Ring;
+				for (int32 i = 0; i <= Sides; ++i)
+				{
+					const float Angle = 2.0f * PI * i / Sides;
+					Ring.Add(AddVertex(
+						Center + FVector3f(Radius * FMath::Cos(Angle), Radius * FMath::Sin(Angle), Z),
+						Normal,
+						UvOffset
+							+ FVector2f(UvScale * (0.5f + 0.5f * FMath::Cos(Angle)),
+								0.5f + 0.5f * FMath::Sin(Angle))));
+				}
+				for (int32 i = 0; i < Sides; ++i)
+				{
+					AddTriangle(Slot, Middle, Ring[i], Ring[i + 1], Normal);
+				}
+			};
+			if (bCapBottom)
+			{
+				Cap(RadiusBottom, ZBottom, FVector3f(0.0f, 0.0f, -1.0f));
+			}
+			if (bCapTop && !bCone)
+			{
+				Cap(RadiusTop, ZTop, FVector3f(0.0f, 0.0f, 1.0f));
+			}
+		}
+	};
+
+	/*
+	 * Prop recipes. Local axes follow the export's yaw: +X is the prop's
+	 * heading (for anything the groomer aligns to the road, that is the
+	 * direction of travel), +Y is 90° clockwise from it seen from above.
+	 */
+
+	/** Tree: eight-sided trunk under two stacked canopy cones, ~8 m tall. */
+	void BuildTreeMesh(FProcMesh& Mesh)
+	{
+		const int32 Bark = Mesh.AddSlot(TEXT("prop_tree_bark"));
+		const int32 Foliage = Mesh.AddSlot(TEXT("prop_tree"));
+		const FVector3f Origin = FVector3f::ZeroVector;
+		Mesh.AddLathe(Bark, Origin, 40.0f, 0.0f, 30.0f, 250.0f, 8, false, false);
+		Mesh.AddLathe(Foliage, Origin, 250.0f, 250.0f, 0.0f, 650.0f, 8, true, false);
+		Mesh.AddLathe(Foliage, Origin, 180.0f, 450.0f, 0.0f, 800.0f, 8, true, false);
+	}
+
+	/**
+	 * Tire wall: six stacks of tyres along X, 4 m long and 1 m tall at scale
+	 * 1. Each stack sits inside its own stripe of the material's 0.26 period
+	 * so stacks alternate red and white.
+	 */
+	void BuildTireWallMesh(FProcMesh& Mesh)
+	{
+		const int32 Slot = Mesh.AddSlot(TEXT("prop_tire_wall"));
+		const int32 Stacks = 6;
+		const float Pitch = 400.0f / Stacks;
+		const float Radius = Pitch * 0.5f - 1.0f;
+		for (int32 i = 0; i < Stacks; ++i)
+		{
+			const FVector3f Center(-200.0f + Pitch * (i + 0.5f), 0.0f, 0.0f);
+			Mesh.AddLathe(Slot, Center, Radius, 0.0f, Radius, 100.0f, 8, false, true,
+				FVector2f(0.26f * i + 0.05f, 0.0f), 0.1f);
+		}
+	}
+
+	/**
+	 * Armco barrier: a W-profile rail along X on two posts, 4 m long at scale
+	 * 1. The rail's face bulges toward local +Y; the level turns each
+	 * segment so that side is the one the road is on.
+	 */
+	void BuildBarrierMesh(FProcMesh& Mesh)
+	{
+		const int32 Slot = Mesh.AddSlot(TEXT("prop_barrier"));
+		const float Half = 200.0f;
+		// (y, z) cross-section, bottom to top: bulge, valley, bulge.
+		const FVector2f Profile[] = {
+			FVector2f(0.0f, 44.0f), FVector2f(6.0f, 52.0f), FVector2f(1.0f, 60.0f),
+			FVector2f(6.0f, 68.0f), FVector2f(0.0f, 76.0f)};
+		const int32 Segments = UE_ARRAY_COUNT(Profile) - 1;
+		for (int32 i = 0; i < Segments; ++i)
+		{
+			const FVector2f& A = Profile[i];
+			const FVector2f& B = Profile[i + 1];
+			// Outward normal of the segment, in the (y, z) plane.
+			const FVector2f Along = (B - A).GetSafeNormal();
+			const FVector3f Front(0.0f, Along.Y, -Along.X);
+			const float V0 = static_cast<float>(i) / Segments;
+			const float V1 = static_cast<float>(i + 1) / Segments;
+			Mesh.AddQuad(Slot, FVector3f(-Half, A.X, A.Y), FVector3f(Half, A.X, A.Y),
+				FVector3f(Half, B.X, B.Y), FVector3f(-Half, B.X, B.Y), Front, FVector2f(0.0f, V0),
+				FVector2f(4.0f, V0), FVector2f(4.0f, V1), FVector2f(0.0f, V1));
+			// The back of the sheet, one centimetre behind, so the rail is
+			// not see-through from the runoff side.
+			const float Back = -1.0f;
+			Mesh.AddQuad(Slot, FVector3f(-Half, A.X + Back, A.Y), FVector3f(Half, A.X + Back, A.Y),
+				FVector3f(Half, B.X + Back, B.Y), FVector3f(-Half, B.X + Back, B.Y), -Front,
+				FVector2f(0.0f, V0), FVector2f(4.0f, V0), FVector2f(4.0f, V1), FVector2f(0.0f, V1));
+		}
+		for (float X : {-100.0f, 100.0f})
+		{
+			Mesh.AddBox(Slot, FVector3f(X - 5.0f, -13.0f, 0.0f), FVector3f(X + 5.0f, -2.0f, 72.0f));
+		}
+	}
+
+	/**
+	 * Grandstand: six raked tiers with a row of seat blocks each, a back
+	 * wall, and a roof on four posts. 30 m along X, 12 m deep, 9 m tall at
+	 * scale 1. The open (seating) side faces local +Y; the level flips the
+	 * stand 180° when the road turns out to lie on its -Y side.
+	 */
+	void BuildGrandstandMesh(FProcMesh& Mesh)
+	{
+		const int32 Structure = Mesh.AddSlot(TEXT("prop_grandstand"));
+		const int32 Seats = Mesh.AddSlot(TEXT("prop_grandstand_seats"));
+		const float HalfLength = 1500.0f;
+		const float Front = 600.0f;
+		const float Back = -600.0f;
+		const int32 Tiers = 6;
+		const float Rise = 90.0f;
+		const float Run = 100.0f;
+		for (int32 Tier = 0; Tier < Tiers; ++Tier)
+		{
+			const float FrontY = Front - Run * Tier;
+			const float Top = Rise * (Tier + 1);
+			Mesh.AddBox(Structure, FVector3f(-HalfLength, Back + 100.0f, 0.0f),
+				FVector3f(HalfLength, FrontY, Top));
+			// Seat blocks on the back half of the tread, 1 m pitch; `u` is
+			// the block index so the material's stripe alternates colours.
+			int32 Index = 0;
+			for (float X = -HalfLength + 50.0f; X + 100.0f <= HalfLength - 50.0f; X += 100.0f, ++Index)
+			{
+				Mesh.AddBox(Seats, FVector3f(X + 5.0f, FrontY - 90.0f, Top),
+					FVector3f(X + 95.0f, FrontY - 45.0f, Top + 45.0f), FVector2f(Index, 0.0f),
+					0.005f);
+			}
+		}
+		Mesh.AddBox(Structure, FVector3f(-HalfLength, Back, 0.0f),
+			FVector3f(HalfLength, Back + 100.0f, 900.0f));
+		Mesh.AddBox(Structure, FVector3f(-HalfLength - 50.0f, Back, 880.0f),
+			FVector3f(HalfLength + 50.0f, Front + 50.0f, 900.0f));
+		for (float X : {-1400.0f, -467.0f, 467.0f, 1400.0f})
+		{
+			Mesh.AddBox(Structure, FVector3f(X - 10.0f, Front - 40.0f, 0.0f),
+				FVector3f(X + 10.0f, Front - 20.0f, 880.0f));
+		}
+	}
+
+	/**
+	 * Building: a 15 × 10 m block with a pitched roof (ridge along X) and a
+	 * band of dark glazing on both long faces. 8 m to the ridge at scale 1.
+	 */
+	void BuildBuildingMesh(FProcMesh& Mesh)
+	{
+		const int32 Walls = Mesh.AddSlot(TEXT("prop_building"));
+		const int32 Glass = Mesh.AddSlot(TEXT("prop_building_glass"));
+		const FVector3f Min(-750.0f, -500.0f, 0.0f);
+		const FVector3f Max(750.0f, 500.0f, 650.0f);
+		Mesh.AddBox(Walls, Min, Max);
+
+		const float Eave = 640.0f;
+		const float Ridge = 800.0f;
+		const float Overhang = 40.0f;
+		const float X0 = Min.X - Overhang;
+		const float X1 = Max.X + Overhang;
+		for (float Side : {-1.0f, 1.0f})
+		{
+			const float EaveY = Side * (Max.Y + Overhang);
+			const FVector3f Normal =
+				FVector3f(0.0f, Side * (Ridge - Eave), Max.Y + Overhang).GetSafeNormal();
+			Mesh.AddQuad(Walls, FVector3f(X0, EaveY, Eave), FVector3f(X1, EaveY, Eave),
+				FVector3f(X1, 0.0f, Ridge), FVector3f(X0, 0.0f, Ridge), Normal);
+			// Underside of the overhang, so the eave has thickness from below.
+			Mesh.AddQuad(Walls, FVector3f(X0, EaveY, Eave - 10.0f), FVector3f(X1, EaveY, Eave - 10.0f),
+				FVector3f(X1, EaveY, Eave), FVector3f(X0, EaveY, Eave),
+				FVector3f(0.0f, Side, 0.0f));
+		}
+		for (float Side : {-1.0f, 1.0f})
+		{
+			const float X = Side > 0.0f ? Max.X : Min.X;
+			Mesh.AddFace(Walls, FVector3f(X, Min.Y, Eave), FVector3f(X, Max.Y, Eave),
+				FVector3f(X, 0.0f, Ridge), FVector3f(Side, 0.0f, 0.0f));
+		}
+		for (float Side : {-1.0f, 1.0f})
+		{
+			const float Y = Side * (Max.Y + 1.0f);
+			Mesh.AddQuad(Glass, FVector3f(Min.X + 50.0f, Y, 300.0f), FVector3f(Max.X - 50.0f, Y, 300.0f),
+				FVector3f(Max.X - 50.0f, Y, 450.0f), FVector3f(Min.X + 50.0f, Y, 450.0f),
+				FVector3f(0.0f, Side, 0.0f));
+		}
+	}
+
+	/**
+	 * Distance board: a 2 × 1.2 m board on two posts, its bottom edge 1 m
+	 * up, standing across the road (the board's plane is local YZ). The
+	 * level adds the text on both faces.
+	 */
+	void BuildSignMesh(FProcMesh& Mesh)
+	{
+		const int32 Board = Mesh.AddSlot(TEXT("prop_sign"));
+		const int32 Post = Mesh.AddSlot(TEXT("prop_sign_post"));
+		Mesh.AddBox(Board, FVector3f(-3.0f, -100.0f, 100.0f), FVector3f(3.0f, 100.0f, 220.0f));
+		Mesh.AddBox(Post, FVector3f(-5.0f, -85.0f, 0.0f), FVector3f(5.0f, -75.0f, 100.0f));
+		Mesh.AddBox(Post, FVector3f(-5.0f, 75.0f, 0.0f), FVector3f(5.0f, 85.0f, 100.0f));
+	}
+
+	/*
+	 * Start-light gantry, in the line's frame: +X is the direction of
+	 * travel, the grid is behind at -X. Two posts either side of the road,
+	 * a beam across the top, and a panel under the beam whose -X face
+	 * carries the five lights (separate components, see SpawnStartLights).
+	 */
+	const float kGantryPostSize = 30.0f;
+	const float kGantryHeight = 600.0f;
+	const float kGantryBeam = 40.0f;
+	const float kGantryPanelWidth = 500.0f;
+	const float kGantryPanelHeight = 120.0f;
+	const float kGantryPanelDepth = 25.0f;
+	const float kGantryLightPitch = 90.0f;
+	const float kGantryLightRadius = 20.0f;
+	const float kGantryLightDepth = 6.0f;
+	/** Centimetres past the line. */
+	const float kGantryOffset = 1200.0f;
+	/** Road width when the export has no line of its own. */
+	const float kDefaultStartWidth = 1400.0f;
+
+	void BuildStartGantryMesh(FProcMesh& Mesh, float RoadWidthCm)
+	{
+		const int32 Structure = Mesh.AddSlot(TEXT("prop_light"));
+		const int32 Panel = Mesh.AddSlot(TEXT("prop_building_glass"));
+		const float Half = RoadWidthCm * 0.5f + 100.0f;
+		const float P = kGantryPostSize * 0.5f;
+		for (float Side : {-1.0f, 1.0f})
+		{
+			const float Y = Side * Half;
+			Mesh.AddBox(Structure, FVector3f(-P, Y - P, 0.0f), FVector3f(P, Y + P, kGantryHeight));
+		}
+		Mesh.AddBox(Structure, FVector3f(-kGantryBeam * 0.5f, -Half - P, kGantryHeight),
+			FVector3f(kGantryBeam * 0.5f, Half + P, kGantryHeight + kGantryBeam));
+		Mesh.AddBox(Panel,
+			FVector3f(-kGantryPanelDepth * 0.5f, -kGantryPanelWidth * 0.5f,
+				kGantryHeight - kGantryPanelHeight),
+			FVector3f(kGantryPanelDepth * 0.5f, kGantryPanelWidth * 0.5f, kGantryHeight));
+	}
+
+	/** One lens: a short cylinder along -X with its face at the -X end. */
+	void BuildStartLightMesh(FProcMesh& Mesh)
+	{
+		const int32 Slot = Mesh.AddSlot(TEXT("start_light"));
+		const int32 Sides = 16;
+		const float R = kGantryLightRadius;
+		TArray<uint32> Front;
+		TArray<uint32> Back;
+		for (int32 i = 0; i <= Sides; ++i)
+		{
+			const float Angle = 2.0f * PI * i / Sides;
+			const float C = FMath::Cos(Angle);
+			const float S = FMath::Sin(Angle);
+			const FVector3f Normal(0.0f, C, S);
+			const float U = static_cast<float>(i) / Sides;
+			Front.Add(Mesh.AddVertex(
+				FVector3f(-kGantryLightDepth, R * C, R * S), Normal, FVector2f(U, 0.0f)));
+			Back.Add(Mesh.AddVertex(FVector3f(0.0f, R * C, R * S), Normal, FVector2f(U, 1.0f)));
+		}
+		for (int32 i = 0; i < Sides; ++i)
+		{
+			const FVector3f Facet =
+				(Mesh.Normals[Front[i]] + Mesh.Normals[Front[i + 1]]).GetSafeNormal();
+			Mesh.AddTriangle(Slot, Front[i], Front[i + 1], Back[i], Facet);
+			Mesh.AddTriangle(Slot, Front[i + 1], Back[i + 1], Back[i], Facet);
+		}
+		for (float X : {-kGantryLightDepth, 0.0f})
+		{
+			const FVector3f Normal(X < 0.0f ? -1.0f : 1.0f, 0.0f, 0.0f);
+			const uint32 Middle =
+				Mesh.AddVertex(FVector3f(X, 0.0f, 0.0f), Normal, FVector2f(0.5f, 0.5f));
+			TArray<uint32> Ring;
+			for (int32 i = 0; i <= Sides; ++i)
+			{
+				const float Angle = 2.0f * PI * i / Sides;
+				Ring.Add(Mesh.AddVertex(
+					FVector3f(X, R * FMath::Cos(Angle), R * FMath::Sin(Angle)), Normal,
+					FVector2f(0.5f + 0.5f * FMath::Cos(Angle), 0.5f + 0.5f * FMath::Sin(Angle))));
+			}
+			for (int32 i = 0; i < Sides; ++i)
+			{
+				Mesh.AddTriangle(Slot, Middle, Ring[i], Ring[i + 1], Normal);
+			}
+		}
+	}
+
+	/**
+	 * Where the start/finish line is. The export's own `start_finish` when it
+	 * has one; otherwise grid slot 1, which the fallback grid layout puts on
+	 * the line, at a default road width.
+	 */
+	bool ResolveStartFinish(const FApexTrackScene& Scene, FApexTrackStartFinish& Out)
+	{
+		if (Scene.StartFinish.IsSet())
+		{
+			Out = Scene.StartFinish.GetValue();
+			if (Out.WidthCm <= 0.0f)
+			{
+				Out.WidthCm = kDefaultStartWidth;
+			}
+			return true;
+		}
+		for (const FApexTrackGridSlot& Slot : Scene.Grid)
+		{
+			if (Slot.Position == 1)
+			{
+				Out.Location = Slot.Location;
+				Out.YawDeg = Slot.YawDeg;
+				Out.WidthCm = kDefaultStartWidth;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	struct FPropRecipe
+	{
+		const TCHAR* Kind;
+		void (*Build)(FProcMesh&);
+		/** Placed through one instanced component per level rather than an actor each. */
+		bool bInstanced;
+		/** Turned so local +Y faces the nearest road (stands, barriers). */
+		bool bFaceRoad;
+	};
+
+	const FPropRecipe kPropRecipes[] = {
+		{TEXT("tree"), &BuildTreeMesh, true, false},
+		{TEXT("tire_wall"), &BuildTireWallMesh, true, false},
+		{TEXT("barrier"), &BuildBarrierMesh, true, true},
+		{TEXT("grandstand"), &BuildGrandstandMesh, false, true},
+		{TEXT("building"), &BuildBuildingMesh, false, false},
+		{TEXT("sign"), &BuildSignMesh, false, false},
+	};
+
+	const FPropRecipe* FindRecipe(const FString& Kind)
+	{
+		for (const FPropRecipe& Recipe : kPropRecipes)
+		{
+			if (Kind == Recipe.Kind)
+			{
+				return &Recipe;
+			}
+		}
+		return nullptr;
+	}
+
+	/**
+	 * Which side of a prop the road is on: +1 when the nearest centerline
+	 * point lies toward the prop's local +Y, -1 toward -Y, 0 without a
+	 * centerline. The export gives props the road's heading, not the side
+	 * they stand on, so anything with a front has to work that out here.
+	 */
+	float RoadSideOf(const FApexTrackScene& Scene, const FApexTrackProp& Prop)
+	{
+		const FApexTrackCenterlinePoint* Nearest = nullptr;
+		double BestDistance = TNumericLimits<double>::Max();
+		for (const FApexTrackCenterlinePoint& Point : Scene.Centerline)
+		{
+			const double Distance = FVector::DistSquaredXY(Point.Location, Prop.Location);
+			if (Distance < BestDistance)
+			{
+				BestDistance = Distance;
+				Nearest = &Point;
+			}
+		}
+		if (!Nearest)
+		{
+			return 0.0f;
+		}
+		const FVector Offset = Nearest->Location - Prop.Location;
+		const float YawRad = FMath::DegreesToRadians(Prop.YawDeg);
+		// Local +Y after a yaw rotation: (0, 1) -> (-sin, cos).
+		const FVector Right(-FMath::Sin(YawRad), FMath::Cos(YawRad), 0.0);
+		return FMath::Sign(static_cast<float>(FVector::DotProduct(Offset, Right)));
+	}
+
+	/** Deterministic ±1 per prop index, for per-instance colour swing. */
+	float InstanceJitter(int32 Index)
+	{
+		return FMath::Frac(0.618034f * (Index + 1)) * 2.0f - 1.0f;
+	}
+
+	struct FMeshSlot
+	{
+		FString MaterialKey;
+		TArrayView<const uint32> Indices;
+	};
+
+	/** Fill a mesh description from flat buffers, one polygon group per slot. */
+	void FillMeshDescription(FMeshDescription& MeshDescription,
+		const TArray<FVector3f>& SourcePositions, const TArray<FVector3f>& SourceNormals,
+		const TArray<FVector2f>& SourceUVs, TArrayView<const FMeshSlot> Slots)
+	{
+		FStaticMeshAttributes Attributes(MeshDescription);
+		Attributes.Register();
+
+		TVertexAttributesRef<FVector3f> Positions = Attributes.GetVertexPositions();
+		TVertexInstanceAttributesRef<FVector3f> Normals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector2f> UVs = Attributes.GetVertexInstanceUVs();
+
+		int32 IndexCount = 0;
+		for (const FMeshSlot& Slot : Slots)
+		{
+			IndexCount += Slot.Indices.Num();
+		}
+		const int32 VertexCount = SourcePositions.Num();
+		MeshDescription.ReserveNewVertices(VertexCount);
+		MeshDescription.ReserveNewVertexInstances(IndexCount);
+		MeshDescription.ReserveNewTriangles(IndexCount / 3);
+		MeshDescription.ReserveNewPolygons(IndexCount / 3);
+
+		TArray<FVertexID> VertexIDs;
+		VertexIDs.Reserve(VertexCount);
+		for (int32 i = 0; i < VertexCount; ++i)
+		{
+			const FVertexID VertexID = MeshDescription.CreateVertex();
+			Positions[VertexID] = SourcePositions[i];
+			VertexIDs.Add(VertexID);
+		}
+
+		// Vertex order is taken exactly as given. The bake already wound
+		// every triangle to Unreal's front-face convention and checks it in
+		// its own test suite, and the recipes above do the same, so reversing
+		// anything here would undo that.
+		TArray<FVertexInstanceID> Corners;
+		Corners.SetNum(3);
+		for (const FMeshSlot& Slot : Slots)
+		{
+			const FPolygonGroupID PolygonGroup = MeshDescription.CreatePolygonGroup();
+			Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroup] = FName(*Slot.MaterialKey);
+			for (int32 Tri = 0; Tri + 2 < Slot.Indices.Num(); Tri += 3)
+			{
+				for (int32 Corner = 0; Corner < 3; ++Corner)
+				{
+					const uint32 Index = Slot.Indices[Tri + Corner];
+					const FVertexInstanceID InstanceID =
+						MeshDescription.CreateVertexInstance(VertexIDs[Index]);
+					Normals[InstanceID] = SourceNormals[Index];
+					UVs.Set(InstanceID, 0, SourceUVs[Index]);
+					Corners[Corner] = InstanceID;
+				}
+				MeshDescription.CreatePolygon(PolygonGroup, Corners);
+			}
+		}
+	}
 
 }	 // namespace
 
@@ -341,14 +959,174 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 	UMaterialExpressionAdd* RoughSum = AddExpr<UMaterialExpressionAdd>(Parent);
 	RoughSum->A.Expression = RoughnessParam;
 	RoughSum->B.Expression = RoughWobble;
+
+	// Per-instance colour swing for instanced foliage: `1 + data0 * Tint`,
+	// where the tint is zero (no effect) unless an instance sets it and the
+	// custom data reads as its default 0 on anything that is not instanced.
+	UMaterialExpressionVectorParameter* TintParam =
+		AddExpr<UMaterialExpressionVectorParameter>(Parent);
+	TintParam->ParameterName = TEXT("InstanceTint");
+	TintParam->DefaultValue = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	UMaterialExpressionPerInstanceCustomData* InstanceData =
+		AddExpr<UMaterialExpressionPerInstanceCustomData>(Parent);
+	InstanceData->DataIndex = 0;
+	InstanceData->ConstDefaultValue = 0.0f;
+	UMaterialExpressionMultiply* TintSwing = AddExpr<UMaterialExpressionMultiply>(Parent);
+	TintSwing->A.Expression = TintParam;
+	TintSwing->B.Expression = InstanceData;
+	UMaterialExpressionAdd* TintFactor = AddExpr<UMaterialExpressionAdd>(Parent);
+	TintFactor->A.Expression = TintSwing;
+	TintFactor->ConstB = 1.0f;
+	UMaterialExpressionMultiply* Tinted = AddExpr<UMaterialExpressionMultiply>(Parent);
+	Tinted->A.Expression = Albedo;
+	Tinted->B.Expression = TintFactor;
+
+	// Fine surface grain, in mesh UV space. Track strips carry metres in
+	// their UVs (u along the station, v across; ground tiles use world x/y),
+	// so `DetailTiling` is repeats per metre: 2 gives a 50 cm cell. Two
+	// samples at coprime scales hide the 64-texel repeat, and a finite
+	// difference of the first is turned into a bump so the grain catches
+	// light rather than just tinting it. All off (0) by default; the family
+	// branches below switch it on.
+	UMaterialExpression* FinalAlbedo = Tinted;
+	UMaterialExpression* FinalRoughness = RoughSum;
+	UMaterialExpression* FinalNormal = nullptr;
+	if (UTexture* DetailTexture = LoadObject<UTexture>(nullptr, kDetailTexture))
+	{
+		UMaterialExpressionScalarParameter* DetailTilingParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		DetailTilingParam->ParameterName = TEXT("DetailTiling");
+		DetailTilingParam->DefaultValue = 0.0f;
+		UMaterialExpressionScalarParameter* DetailAmountParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		DetailAmountParam->ParameterName = TEXT("DetailAmount");
+		DetailAmountParam->DefaultValue = 0.0f;
+		UMaterialExpressionScalarParameter* DetailRoughnessParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		DetailRoughnessParam->ParameterName = TEXT("DetailRoughness");
+		DetailRoughnessParam->DefaultValue = 0.0f;
+		UMaterialExpressionScalarParameter* DetailNormalParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		DetailNormalParam->ParameterName = TEXT("DetailNormal");
+		DetailNormalParam->DefaultValue = 0.0f;
+
+		UMaterialExpressionMultiply* DetailUV = AddExpr<UMaterialExpressionMultiply>(Parent);
+		DetailUV->A.Expression = TexCoord;
+		DetailUV->B.Expression = DetailTilingParam;
+
+		const EMaterialSamplerType SamplerType =
+			MaterialExpressionUtils::GetSamplerTypeForTexture(DetailTexture);
+		auto SampleDetail = [&](UMaterialExpression* Coordinates) {
+			UMaterialExpressionTextureSampleParameter2D* Sample =
+				AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+			Sample->ParameterName = TEXT("DetailTexture");
+			Sample->Texture = DetailTexture;
+			Sample->SamplerType = SamplerType;
+			Sample->Coordinates.Expression = Coordinates;
+			return Sample;
+		};
+		auto OffsetUV = [&](float DU, float DV) {
+			UMaterialExpressionConstant2Vector* Delta =
+				AddExpr<UMaterialExpressionConstant2Vector>(Parent);
+			Delta->R = DU;
+			Delta->G = DV;
+			UMaterialExpressionAdd* Shifted = AddExpr<UMaterialExpressionAdd>(Parent);
+			Shifted->A.Expression = DetailUV;
+			Shifted->B.Expression = Delta;
+			return Shifted;
+		};
+		// Output 1 of a texture sample is its red channel.
+		constexpr int32 kRed = 1;
+
+		UMaterialExpressionTextureSampleParameter2D* Fine = SampleDetail(DetailUV);
+		UMaterialExpressionMultiply* CoarseUV = AddExpr<UMaterialExpressionMultiply>(Parent);
+		CoarseUV->A.Expression = DetailUV;
+		CoarseUV->ConstB = 0.137f;
+		UMaterialExpressionTextureSampleParameter2D* Coarse = SampleDetail(CoarseUV);
+		UMaterialExpressionAdd* DetailSum = AddExpr<UMaterialExpressionAdd>(Parent);
+		DetailSum->A.Expression = Fine;
+		DetailSum->A.OutputIndex = kRed;
+		DetailSum->B.Expression = Coarse;
+		DetailSum->B.OutputIndex = kRed;
+		// Average of the two, recentred to ±0.5 like the macro noise.
+		UMaterialExpressionMultiply* DetailMean = AddExpr<UMaterialExpressionMultiply>(Parent);
+		DetailMean->A.Expression = DetailSum;
+		DetailMean->ConstB = 0.5f;
+		UMaterialExpressionAdd* DetailCentered = AddExpr<UMaterialExpressionAdd>(Parent);
+		DetailCentered->A.Expression = DetailMean;
+		DetailCentered->ConstB = -0.5f;
+
+		UMaterialExpressionMultiply* DetailMottle = AddExpr<UMaterialExpressionMultiply>(Parent);
+		DetailMottle->A.Expression = DetailCentered;
+		DetailMottle->B.Expression = DetailAmountParam;
+		UMaterialExpressionAdd* DetailBrightness = AddExpr<UMaterialExpressionAdd>(Parent);
+		DetailBrightness->A.Expression = DetailMottle;
+		DetailBrightness->ConstB = 1.0f;
+		UMaterialExpressionMultiply* DetailedAlbedo = AddExpr<UMaterialExpressionMultiply>(Parent);
+		DetailedAlbedo->A.Expression = Tinted;
+		DetailedAlbedo->B.Expression = DetailBrightness;
+		FinalAlbedo = DetailedAlbedo;
+
+		UMaterialExpressionMultiply* DetailRough = AddExpr<UMaterialExpressionMultiply>(Parent);
+		DetailRough->A.Expression = DetailCentered;
+		DetailRough->B.Expression = DetailRoughnessParam;
+		UMaterialExpressionAdd* DetailedRoughness = AddExpr<UMaterialExpressionAdd>(Parent);
+		DetailedRoughness->A.Expression = RoughSum;
+		DetailedRoughness->B.Expression = DetailRough;
+		FinalRoughness = DetailedRoughness;
+
+		// Bump from the fine sample: height falling along +u tilts the
+		// normal toward +u, so slope = h(uv) - h(uv + d). One texel of the
+		// 64 × 64 source per step; `DetailNormal` sets the strength.
+		const float Texel = 1.0f / 64.0f;
+		UMaterialExpressionTextureSampleParameter2D* FineU = SampleDetail(OffsetUV(Texel, 0.0f));
+		UMaterialExpressionTextureSampleParameter2D* FineV = SampleDetail(OffsetUV(0.0f, Texel));
+		UMaterialExpressionSubtract* SlopeU = AddExpr<UMaterialExpressionSubtract>(Parent);
+		SlopeU->A.Expression = Fine;
+		SlopeU->A.OutputIndex = kRed;
+		SlopeU->B.Expression = FineU;
+		SlopeU->B.OutputIndex = kRed;
+		UMaterialExpressionSubtract* SlopeV = AddExpr<UMaterialExpressionSubtract>(Parent);
+		SlopeV->A.Expression = Fine;
+		SlopeV->A.OutputIndex = kRed;
+		SlopeV->B.Expression = FineV;
+		SlopeV->B.OutputIndex = kRed;
+		UMaterialExpressionMultiply* BumpU = AddExpr<UMaterialExpressionMultiply>(Parent);
+		BumpU->A.Expression = SlopeU;
+		BumpU->B.Expression = DetailNormalParam;
+		UMaterialExpressionMultiply* BumpV = AddExpr<UMaterialExpressionMultiply>(Parent);
+		BumpV->A.Expression = SlopeV;
+		BumpV->B.Expression = DetailNormalParam;
+		UMaterialExpressionAppendVector* BumpUV = AddExpr<UMaterialExpressionAppendVector>(Parent);
+		BumpUV->A.Expression = BumpU;
+		BumpUV->B.Expression = BumpV;
+		UMaterialExpressionConstant* One = AddExpr<UMaterialExpressionConstant>(Parent);
+		One->R = 1.0f;
+		UMaterialExpressionAppendVector* BumpXYZ = AddExpr<UMaterialExpressionAppendVector>(Parent);
+		BumpXYZ->A.Expression = BumpUV;
+		BumpXYZ->B.Expression = One;
+		UMaterialExpressionNormalize* Bump = AddExpr<UMaterialExpressionNormalize>(Parent);
+		Bump->VectorInput.Expression = BumpXYZ;
+		FinalNormal = Bump;
+	}
+	else
+	{
+		UE_LOG(LogApexTrackImport, Warning,
+			TEXT("    %s is missing — track materials have no surface grain"), kDetailTexture);
+	}
+
 	UMaterialExpressionClamp* RoughOut = AddExpr<UMaterialExpressionClamp>(Parent);
-	RoughOut->Input.Expression = RoughSum;
+	RoughOut->Input.Expression = FinalRoughness;
 	RoughOut->MinDefault = 0.05f;
 	RoughOut->MaxDefault = 1.0f;
 
 	UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
-	EditorOnly->BaseColor.Expression = Albedo;
+	EditorOnly->BaseColor.Expression = FinalAlbedo;
 	EditorOnly->Roughness.Expression = RoughOut;
+	if (FinalNormal)
+	{
+		EditorOnly->Normal.Expression = FinalNormal;
+	}
 	Parent->PostEditChange();
 
 	FAssetRegistryModule::AssetCreated(Parent);
@@ -399,14 +1177,25 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		// much more — so each family scales down toward plausible albedo.
 		FLinearColor Base = Source.BaseColor;
 
+		// Every key in a family gets the family's treatment, whatever it is
+		// called (`wear_core`, `chequer_*` and the like are just more road
+		// and marking): only the base colour comes from the export.
+		auto SetDetail = [&](float Tiling, float Amount, float Roughness, float Normal) {
+			SetScalar(Instance, TEXT("DetailTiling"), Tiling);
+			SetScalar(Instance, TEXT("DetailAmount"), Amount);
+			SetScalar(Instance, TEXT("DetailRoughness"), Roughness);
+			SetScalar(Instance, TEXT("DetailNormal"), Normal);
+		};
 		if (Source.Family == TEXT("road") || Source.Family == TEXT("pit_lane"))
 		{
-			// Tarmac: patchy aggregate and uneven sheen, not one flat slab.
+			// Tarmac: patchy aggregate and uneven sheen, not one flat slab,
+			// with 50 cm grain over the 8 m patches.
 			Base *= 0.42f;
 			SetScalar(Instance, TEXT("Roughness"), 0.9f);
 			SetScalar(Instance, TEXT("NoiseAmount"), 0.35f);
 			SetScalar(Instance, TEXT("NoiseScale"), 0.0012f);
 			SetScalar(Instance, TEXT("RoughnessNoise"), 0.2f);
+			SetDetail(2.0f, 0.35f, 0.25f, 0.3f);
 		}
 		else if (Source.Family == TEXT("curb"))
 		{
@@ -423,26 +1212,31 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 			SetScalar(Instance, TEXT("Roughness"), 0.6f);
 			SetScalar(Instance, TEXT("NoiseAmount"), 0.08f);
 			SetScalar(Instance, TEXT("NoiseScale"), 0.004f);
+			SetDetail(4.0f, 0.15f, 0.1f, 0.15f);
 		}
 		else if (Source.Family == TEXT("surface"))
 		{
 			// Grass, gravel, sand and the terrain itself: desaturated a
 			// touch, darkened a lot, and mottled in ~10 m patches — the
-			// large scale is what still reads a hundred meters out.
+			// large scale is what still reads a hundred meters out — with
+			// metre-scale grain for the near field.
 			const float Luma = Base.GetLuminance();
 			Base = FMath::Lerp(Base, FLinearColor(Luma, Luma, Luma), 0.15f) * 0.33f;
 			SetScalar(Instance, TEXT("Roughness"), 0.95f);
 			SetScalar(Instance, TEXT("NoiseAmount"), 0.5f);
 			SetScalar(Instance, TEXT("NoiseScale"), 0.0008f);
 			SetScalar(Instance, TEXT("RoughnessNoise"), 0.08f);
+			SetDetail(1.0f, 0.45f, 0.1f, 0.3f);
 		}
 		else if (Source.Family == TEXT("marking"))
 		{
 			// Painted lines read as paint, not asphalt — worn paint, so a
-			// touch of the same mottling the road gets.
+			// touch of the same mottling the road gets and grain that thins
+			// the coat here and there.
 			Base *= 0.85f;
 			SetScalar(Instance, TEXT("Roughness"), 0.45f);
 			SetScalar(Instance, TEXT("NoiseAmount"), 0.08f);
+			SetDetail(2.0f, 0.25f, 0.15f, 0.2f);
 		}
 		Base.A = 1.0f;
 		SetVector(Instance, TEXT("BaseColor"), Base);
@@ -465,7 +1259,16 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 			SetScalar(Instance, TEXT("StripePeriod"), Spec.StripePeriod);
 			SetVector(Instance, TEXT("SecondaryColor"), Spec.Secondary);
 		}
+		if (!Spec.InstanceTint.IsAlmostBlack())
+		{
+			SetVector(Instance, TEXT("InstanceTint"), Spec.InstanceTint);
+		}
 		FinishInstance(Instance, Spec.Key);
+	}
+
+	if (!BuildEmissiveMaterial(OutError))
+	{
+		return false;
 	}
 
 	UE_LOG(LogApexTrackImport, Display, TEXT("    generated %d material instance(s)"),
@@ -473,103 +1276,277 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 	return true;
 }
 
-bool FApexTrackAssetBuilder::BuildMeshes(const FApexTrackScene& Scene, FString& OutError)
+bool FApexTrackAssetBuilder::BuildEmissiveMaterial(FString& OutError)
 {
-	for (const FApexTrackMesh& Source : Scene.Meshes)
+	// A second, tiny parent: the track material has no emissive input and
+	// the start lights are driven at runtime through `EmissiveStrength` on
+	// dynamic instances, so they want a graph of their own rather than
+	// another branch in the big one.
+	const FString ParentPackageName = TrackFolder / TEXT("M_ApexEmissive");
+	UPackage* ParentPackage = MakePackage(ParentPackageName);
+	if (!ParentPackage)
 	{
-		const FString PackageName = TrackFolder / (TEXT("SM_") + Source.Name);
-		UPackage* Package = MakePackage(PackageName);
-		if (!Package)
-		{
-			OutError = FString::Printf(TEXT("could not create package %s"), *PackageName);
-			return false;
-		}
+		OutError = FString::Printf(TEXT("could not create package %s"), *ParentPackageName);
+		return false;
+	}
+	UMaterial* Parent = NewObject<UMaterial>(
+		ParentPackage, *ObjectNameOf(ParentPackageName), RF_Public | RF_Standalone);
 
-		FMeshDescription MeshDescription;
-		FStaticMeshAttributes Attributes(MeshDescription);
-		Attributes.Register();
+	UMaterialExpressionVectorParameter* ColorParam =
+		AddExpr<UMaterialExpressionVectorParameter>(Parent);
+	ColorParam->ParameterName = TEXT("BaseColor");
+	ColorParam->DefaultValue = FLinearColor(0.05f, 0.01f, 0.01f, 1.0f);
+	UMaterialExpressionScalarParameter* RoughnessParam =
+		AddExpr<UMaterialExpressionScalarParameter>(Parent);
+	RoughnessParam->ParameterName = TEXT("Roughness");
+	RoughnessParam->DefaultValue = 0.4f;
+	UMaterialExpressionVectorParameter* EmissiveColor =
+		AddExpr<UMaterialExpressionVectorParameter>(Parent);
+	EmissiveColor->ParameterName = TEXT("EmissiveColor");
+	EmissiveColor->DefaultValue = FLinearColor(1.0f, 0.02f, 0.02f, 1.0f);
+	UMaterialExpressionScalarParameter* EmissiveStrength =
+		AddExpr<UMaterialExpressionScalarParameter>(Parent);
+	EmissiveStrength->ParameterName = TEXT("EmissiveStrength");
+	EmissiveStrength->DefaultValue = 0.0f;
+	UMaterialExpressionMultiply* Emissive = AddExpr<UMaterialExpressionMultiply>(Parent);
+	Emissive->A.Expression = EmissiveColor;
+	Emissive->B.Expression = EmissiveStrength;
 
-		TVertexAttributesRef<FVector3f> Positions = Attributes.GetVertexPositions();
-		TVertexInstanceAttributesRef<FVector3f> Normals = Attributes.GetVertexInstanceNormals();
-		TVertexInstanceAttributesRef<FVector2f> UVs = Attributes.GetVertexInstanceUVs();
+	UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
+	EditorOnly->BaseColor.Expression = ColorParam;
+	EditorOnly->Roughness.Expression = RoughnessParam;
+	EditorOnly->EmissiveColor.Expression = Emissive;
+	Parent->PostEditChange();
+	FAssetRegistryModule::AssetCreated(Parent);
+	ParentPackage->MarkPackageDirty();
+	TouchedPackages.Add(ParentPackage);
 
-		const int32 VertexCount = Source.Positions.Num();
-		MeshDescription.ReserveNewVertices(VertexCount);
-		MeshDescription.ReserveNewVertexInstances(Source.Indices.Num());
-		MeshDescription.ReserveNewTriangles(Source.NumTriangles());
-		MeshDescription.ReserveNewPolygons(Source.NumTriangles());
+	const FString Key = TEXT("start_light");
+	const FString PackageName = TrackFolder / (TEXT("MI_") + Key);
+	UPackage* Package = MakePackage(PackageName);
+	if (!Package)
+	{
+		OutError = FString::Printf(TEXT("could not create package %s"), *PackageName);
+		return false;
+	}
+	UMaterialInstanceConstant* Instance = NewObject<UMaterialInstanceConstant>(
+		Package, *ObjectNameOf(PackageName), RF_Public | RF_Standalone);
+	Instance->SetParentEditorOnly(Parent);
+	Instance->PostEditChange();
+	FAssetRegistryModule::AssetCreated(Instance);
+	Package->MarkPackageDirty();
+	TouchedPackages.Add(Package);
+	Materials.Add(Key, Instance);
+	return true;
+}
 
-		const FPolygonGroupID PolygonGroup = MeshDescription.CreatePolygonGroup();
-		Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroup] = FName(*Source.MaterialKey);
+UStaticMesh* FApexTrackAssetBuilder::CreateStaticMesh(const FString& Name,
+	FMeshDescription& MeshDescription, const TArray<FString>& MaterialKeys, bool bSimpleCollision,
+	FString& OutError)
+{
+	const FString PackageName = TrackFolder / (TEXT("SM_") + Name);
+	UPackage* Package = MakePackage(PackageName);
+	if (!Package)
+	{
+		OutError = FString::Printf(TEXT("could not create package %s"), *PackageName);
+		return nullptr;
+	}
 
-		TArray<FVertexID> VertexIDs;
-		VertexIDs.Reserve(VertexCount);
-		for (int32 i = 0; i < VertexCount; ++i)
-		{
-			const FVertexID VertexID = MeshDescription.CreateVertex();
-			Positions[VertexID] = Source.Positions[i];
-			VertexIDs.Add(VertexID);
-		}
+	UStaticMesh* Mesh =
+		NewObject<UStaticMesh>(Package, *ObjectNameOf(PackageName), RF_Public | RF_Standalone);
+	for (const FString& Key : MaterialKeys)
+	{
+		// The slot name matches the polygon group's, which is how the build
+		// maps sections onto slots.
+		Mesh->GetStaticMaterials().Add(FStaticMaterial(Materials.FindRef(Key), FName(*Key)));
+	}
 
-		// Vertex order is taken exactly as exported. The bake already wound
-		// every triangle to Unreal's front-face convention and checks it in
-		// its own test suite, so reversing anything here would undo that.
-		TArray<FVertexInstanceID> Corners;
-		Corners.SetNum(3);
-		for (int32 Tri = 0; Tri < Source.Indices.Num(); Tri += 3)
-		{
-			for (int32 Corner = 0; Corner < 3; ++Corner)
-			{
-				const uint32 Index = Source.Indices[Tri + Corner];
-				const FVertexInstanceID InstanceID =
-					MeshDescription.CreateVertexInstance(VertexIDs[Index]);
-				Normals[InstanceID] = Source.Normals[Index];
-				UVs.Set(InstanceID, 0, Source.UVs[Index]);
-				Corners[Corner] = InstanceID;
-			}
-			MeshDescription.CreatePolygon(PolygonGroup, Corners);
-		}
+	UStaticMesh::FBuildMeshDescriptionsParams BuildParams;
+	// Simple collision would be a box around a 250 m ribbon, which is worse
+	// than none. The road needs its actual surface, so it uses the render
+	// geometry directly (set below). Props are small enough for the box.
+	BuildParams.bBuildSimpleCollision = bSimpleCollision;
+	// Not the fast path. It leaves some meshes with NaN bounds — three of
+	// Monza's ground patches, with perfectly finite vertices — and a mesh
+	// with NaN bounds is culled from every view, so the level comes out with
+	// holes that nothing in the export explains. The full build costs a
+	// second or so per circuit and computes bounds and tangents properly.
+	// `ValidateMeshes` keeps it honest either way.
+	BuildParams.bFastBuild = false;
+	BuildParams.bMarkPackageDirty = false;
+	BuildParams.bCommitMeshDescription = true;
+	Mesh->BuildFromMeshDescriptions({&MeshDescription}, BuildParams);
 
-		UStaticMesh* Mesh = NewObject<UStaticMesh>(
-			Package, *ObjectNameOf(PackageName), RF_Public | RF_Standalone);
-		Mesh->GetStaticMaterials().Add(
-			FStaticMaterial(Materials.FindRef(Source.MaterialKey), FName(*Source.MaterialKey)));
-
-		UStaticMesh::FBuildMeshDescriptionsParams BuildParams;
-		// Simple collision would be a box around a 250 m ribbon, which is
-		// worse than none. The road needs its actual surface, so it uses the
-		// render geometry directly (set below).
-		BuildParams.bBuildSimpleCollision = false;
-		// Not the fast path. It leaves some meshes with NaN bounds — three
-		// of Monza's ground patches, with perfectly finite vertices — and a
-		// mesh with NaN bounds is culled from every view, so the level comes
-		// out with holes that nothing in the export explains. The full build
-		// costs a second or so per circuit and computes bounds and tangents
-		// properly. `ValidateMeshes` keeps it honest either way.
-		BuildParams.bFastBuild = false;
-		BuildParams.bMarkPackageDirty = false;
-		BuildParams.bCommitMeshDescription = true;
-		Mesh->BuildFromMeshDescriptions({&MeshDescription}, BuildParams);
-
+	if (!bSimpleCollision)
+	{
 		if (UBodySetup* BodySetup = Mesh->GetBodySetup())
 		{
 			BodySetup->CollisionTraceFlag = CTF_UseComplexAsSimple;
 		}
-		// Nanite is deliberately left off (it is off by default, so there is
-		// nothing to set). A whole circuit is around 35k triangles — the
-		// entire point of these meshes is that they are cheap — and Nanite
-		// would add build time and a memory floor for nothing. Revisit when
-		// the ribbons carry real displaced detail.
+	}
+	// Nanite is deliberately left off (it is off by default, so there is
+	// nothing to set). A whole circuit is around 35k triangles — the entire
+	// point of these meshes is that they are cheap — and Nanite would add
+	// build time and a memory floor for nothing. Revisit when the ribbons
+	// carry real displaced detail.
 
-		Mesh->PostEditChange();
-		FAssetRegistryModule::AssetCreated(Mesh);
-		Package->MarkPackageDirty();
-		TouchedPackages.Add(Package);
+	Mesh->PostEditChange();
+	FAssetRegistryModule::AssetCreated(Mesh);
+	Package->MarkPackageDirty();
+	TouchedPackages.Add(Package);
+	return Mesh;
+}
+
+bool FApexTrackAssetBuilder::BuildMeshes(const FApexTrackScene& Scene, FString& OutError)
+{
+	for (const FApexTrackMesh& Source : Scene.Meshes)
+	{
+		FMeshDescription MeshDescription;
+		const FMeshSlot Slot{Source.MaterialKey, Source.Indices};
+		FillMeshDescription(
+			MeshDescription, Source.Positions, Source.Normals, Source.UVs, MakeArrayView(&Slot, 1));
+		UStaticMesh* Mesh = CreateStaticMesh(Source.Name, MeshDescription, {Source.MaterialKey},
+			/*bSimpleCollision*/ false, OutError);
+		if (!Mesh)
+		{
+			return false;
+		}
 		Meshes.Add(Source.Name, Mesh);
 	}
 
 	UE_LOG(LogApexTrackImport, Display, TEXT("    generated %d static mesh(es)"), Meshes.Num());
-	return ValidateMeshes(OutError);
+	return BuildPropMeshes(Scene, OutError) && ValidateMeshes(OutError);
+}
+
+bool FApexTrackAssetBuilder::BuildPropMeshes(const FApexTrackScene& Scene, FString& OutError)
+{
+	// One stand-in per prop kind, generated rather than authored: nothing in
+	// the project is art yet, but a stand that is visibly a stand and a tree
+	// that is visibly a tree are what make a screenshot read as a circuit.
+	// Saved alongside the track's other meshes so a level is self-contained.
+	for (const FPropRecipe& Recipe : kPropRecipes)
+	{
+		FProcMesh Proc;
+		Recipe.Build(Proc);
+
+		TArray<FMeshSlot> Slots;
+		TArray<FString> Keys;
+		for (const FProcMesh::FSlot& Slot : Proc.Slots)
+		{
+			Slots.Add({Slot.MaterialKey, Slot.Indices});
+			Keys.Add(Slot.MaterialKey);
+		}
+		FMeshDescription MeshDescription;
+		FillMeshDescription(MeshDescription, Proc.Positions, Proc.Normals, Proc.UVs, Slots);
+		UStaticMesh* Mesh = CreateStaticMesh(FString(TEXT("Prop_")) + Recipe.Kind, MeshDescription,
+			Keys, /*bSimpleCollision*/ true, OutError);
+		if (!Mesh)
+		{
+			return false;
+		}
+		PropMeshes.Add(Recipe.Kind, Mesh);
+	}
+
+	// The gantry spans this track's road, so it is sized per level.
+	FApexTrackStartFinish Start;
+	if (ResolveStartFinish(Scene, Start))
+	{
+		struct FGantryPart
+		{
+			const TCHAR* Name;
+			TFunction<void(FProcMesh&)> Build;
+		};
+		const FGantryPart Parts[] = {
+			{TEXT("start_gantry"),
+				[&Start](FProcMesh& M) { BuildStartGantryMesh(M, Start.WidthCm); }},
+			{TEXT("start_light"), [](FProcMesh& M) { BuildStartLightMesh(M); }},
+		};
+		for (const FGantryPart& Part : Parts)
+		{
+			FProcMesh Proc;
+			Part.Build(Proc);
+			TArray<FMeshSlot> Slots;
+			TArray<FString> Keys;
+			for (const FProcMesh::FSlot& Slot : Proc.Slots)
+			{
+				Slots.Add({Slot.MaterialKey, Slot.Indices});
+				Keys.Add(Slot.MaterialKey);
+			}
+			FMeshDescription MeshDescription;
+			FillMeshDescription(MeshDescription, Proc.Positions, Proc.Normals, Proc.UVs, Slots);
+			UStaticMesh* Mesh = CreateStaticMesh(FString(TEXT("Prop_")) + Part.Name,
+				MeshDescription, Keys, /*bSimpleCollision*/ true, OutError);
+			if (!Mesh)
+			{
+				return false;
+			}
+			PropMeshes.Add(Part.Name, Mesh);
+		}
+	}
+	UE_LOG(LogApexTrackImport, Display, TEXT("    generated %d prop mesh(es)"), PropMeshes.Num());
+	return true;
+}
+
+void FApexTrackAssetBuilder::SpawnStartLights(const FApexTrackScene& Scene, UWorld* World)
+{
+	FApexTrackStartFinish Start;
+	UStaticMesh* GantryMesh = PropMeshes.FindRef(TEXT("start_gantry"));
+	UStaticMesh* LightMesh = PropMeshes.FindRef(TEXT("start_light"));
+	if (!ResolveStartFinish(Scene, Start) || !GantryMesh || !LightMesh)
+	{
+		UE_LOG(LogApexTrackImport, Warning,
+			TEXT("    no start/finish line and no grid — the level has no start lights"));
+		return;
+	}
+
+	// 12 m past the line, facing the way the cars go; the lights hang on the
+	// -X face, toward the grid.
+	const FRotator Rotation(0.0f, Start.YawDeg, 0.0f);
+	const FVector Location =
+		Start.Location + Rotation.RotateVector(FVector(kGantryOffset, 0.0, 0.0));
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.OverrideLevel = World->PersistentLevel;
+	SpawnParams.ObjectFlags = RF_Transactional;
+	SpawnParams.Name = MakeUniqueObjectName(
+		World->PersistentLevel, AStaticMeshActor::StaticClass(), FName(TEXT("StartLights")));
+	AStaticMeshActor* Actor = World->SpawnActor<AStaticMeshActor>(Location, Rotation, SpawnParams);
+	if (!Actor)
+	{
+		return;
+	}
+	Actor->SetActorLabel(TEXT("StartLights"));
+	Actor->Tags.Add(FName(TEXT("ApexStartLights")));
+	UStaticMeshComponent* Root = Actor->GetStaticMeshComponent();
+	Root->SetMobility(EComponentMobility::Movable);
+	Root->ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Static;
+	Root->SetStaticMesh(GantryMesh);
+
+	// Left to right as seen from the grid, which looks along +X: left is -Y.
+	UMaterialInterface* LightMaterial = Materials.FindRef(TEXT("start_light"));
+	const int32 Count = 5;
+	for (int32 i = 0; i < Count; ++i)
+	{
+		UStaticMeshComponent* Light = NewObject<UStaticMeshComponent>(
+			Actor, *FString::Printf(TEXT("Light%d"), i), RF_Transactional);
+		Light->CreationMethod = EComponentCreationMethod::Instance;
+		Light->SetMobility(EComponentMobility::Movable);
+		Light->ComponentTags.Add(FName(TEXT("ApexStartLight")));
+		Light->SetupAttachment(Root);
+		Light->SetRelativeLocation(FVector(-kGantryPanelDepth * 0.5f,
+			(i - (Count - 1) * 0.5f) * kGantryLightPitch,
+			kGantryHeight - kGantryPanelHeight * 0.5f));
+		Light->SetStaticMesh(LightMesh);
+		if (LightMaterial)
+		{
+			Light->SetMaterial(0, LightMaterial);
+		}
+		Actor->AddInstanceComponent(Light);
+		Light->RegisterComponent();
+	}
+	UE_LOG(LogApexTrackImport, Display,
+		TEXT("    start lights at (%.0f, %.0f, %.0f), %.1f m span"), Location.X, Location.Y,
+		Location.Z, (Start.WidthCm + 200.0f) / 100.0f);
 }
 
 bool FApexTrackAssetBuilder::ValidateMeshes(FString& OutError)
@@ -578,7 +1555,10 @@ bool FApexTrackAssetBuilder::ValidateMeshes(FString& OutError)
 	// with NaN or empty bounds is invisible at runtime — it fails every
 	// frustum test — and nothing about the export would tell you why. Better
 	// to fail the import than to ship a circuit with holes in it.
-	for (const TPair<FString, TObjectPtr<UStaticMesh>>& Entry : Meshes)
+	TArray<TPair<FString, TObjectPtr<UStaticMesh>>> All;
+	All.Append(Meshes.Array());
+	All.Append(PropMeshes.Array());
+	for (const TPair<FString, TObjectPtr<UStaticMesh>>& Entry : All)
 	{
 		const UStaticMesh* Mesh = Entry.Value;
 		// Note `LODResources`, not `IsInitialized()`: the latter means the
@@ -675,34 +1655,143 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 		++MeshActors;
 	}
 
-	// Props, as scaled placeholder boxes.
-	UStaticMesh* PlaceholderMesh =
-		LoadObject<UStaticMesh>(nullptr, kPlaceholderPropMesh);
-	int32 PropActors = 0;
-	if (PlaceholderMesh)
+	// Props. Kinds with a generated stand-in use it, ground-pivoted and
+	// uniformly scaled by the export's `scale`; the numerous ones (trees,
+	// tire walls, armco) go into one instanced component per kind so a few
+	// thousand of them cost a few draw calls. Anything else is still a
+	// scaled placeholder box.
+	UStaticMesh* PlaceholderMesh = LoadObject<UStaticMesh>(nullptr, kPlaceholderPropMesh);
+	if (!PlaceholderMesh)
 	{
-		for (int32 i = 0; i < Scene.Props.Num(); ++i)
+		UE_LOG(LogApexTrackImport, Warning,
+			TEXT("    %s is missing — props without a generated mesh were skipped"),
+			kPlaceholderPropMesh);
+	}
+
+	auto SettleComponent = [](UStaticMeshComponent* Component) {
+		Component->SetMobility(EComponentMobility::Movable);
+		// Props are scenery bolted to the ground; same shadow-cache reasoning
+		// as the track meshes above.
+		Component->ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Static;
+	};
+
+	TMap<FString, UHierarchicalInstancedStaticMeshComponent*> Instanced;
+	auto InstancesFor = [&](const FString& Kind) -> UHierarchicalInstancedStaticMeshComponent* {
+		if (UHierarchicalInstancedStaticMeshComponent** Found = Instanced.Find(Kind))
 		{
-			const FApexTrackProp& Prop = Scene.Props[i];
-			SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel,
-				AStaticMeshActor::StaticClass(), FName(*FString::Printf(TEXT("Prop_%d"), i)));
-			const FVector Scale = PlaceholderPropScale(Prop.Kind, Prop.Scale);
-			// The box pivot is centred; lift it so props sit on the ground
-			// rather than half-buried.
-			const FVector Location = Prop.Location + FVector(0.0f, 0.0f, Scale.Z * 0.5f);
-			AStaticMeshActor* Actor = World->SpawnActor<AStaticMeshActor>(
-				Location, FRotator(0.0f, Prop.YawDeg, 0.0f), SpawnParams);
-			if (!Actor)
+			return *Found;
+		}
+		UStaticMesh* Mesh = PropMeshes.FindRef(Kind);
+		if (!Mesh)
+		{
+			return nullptr;
+		}
+		SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel, AActor::StaticClass(),
+			FName(*FString::Printf(TEXT("Props_%s"), *Kind)));
+		AActor* Actor =
+			World->SpawnActor<AActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		if (!Actor)
+		{
+			return nullptr;
+		}
+		Actor->SetActorLabel(FString::Printf(TEXT("Props_%s"), *Kind));
+		UHierarchicalInstancedStaticMeshComponent* Component =
+			NewObject<UHierarchicalInstancedStaticMeshComponent>(
+				Actor, TEXT("Instances"), RF_Transactional);
+		Component->CreationMethod = EComponentCreationMethod::Instance;
+		SettleComponent(Component);
+		Component->SetStaticMesh(Mesh);
+		// One float per instance for the material's colour swing.
+		Component->SetNumCustomDataFloats(1);
+		Actor->SetRootComponent(Component);
+		Actor->AddInstanceComponent(Component);
+		Component->RegisterComponent();
+		Instanced.Add(Kind, Component);
+		return Component;
+	};
+
+	// Both faces of a distance board, so the text reads coming and going.
+	// A text component faces its own +X, so the face a driver approaching
+	// from -X sees is the one turned 180°.
+	auto AddSignText = [&](AStaticMeshActor* Actor, const FString& Text) {
+		for (int32 Face = 0; Face < 2; ++Face)
+		{
+			const bool bFront = Face == 0;
+			UTextRenderComponent* Label = NewObject<UTextRenderComponent>(
+				Actor, bFront ? TEXT("TextFront") : TEXT("TextBack"), RF_Transactional);
+			Label->CreationMethod = EComponentCreationMethod::Instance;
+			Label->SetMobility(EComponentMobility::Movable);
+			Label->SetupAttachment(Actor->GetStaticMeshComponent());
+			Label->SetRelativeLocation(FVector(bFront ? -4.0 : 4.0, 0.0, 160.0));
+			Label->SetRelativeRotation(FRotator(0.0, bFront ? 180.0 : 0.0, 0.0));
+			Label->SetText(FText::FromString(Text));
+			Label->SetHorizontalAlignment(EHTA_Center);
+			Label->SetVerticalAlignment(EVRTA_TextCenter);
+			Label->SetWorldSize(80.0f);
+			Label->SetTextRenderColor(FColor::Black);
+			Actor->AddInstanceComponent(Label);
+			Label->RegisterComponent();
+		}
+	};
+
+	int32 PropActors = 0;
+	int32 PropInstances = 0;
+	for (int32 i = 0; i < Scene.Props.Num(); ++i)
+	{
+		const FApexTrackProp& Prop = Scene.Props[i];
+		const FPropRecipe* Recipe = FindRecipe(Prop.Kind);
+		UStaticMesh* PropMesh = Recipe ? PropMeshes.FindRef(Prop.Kind) : nullptr;
+
+		float YawDeg = Prop.YawDeg;
+		if (Recipe && Recipe->bFaceRoad && RoadSideOf(Scene, Prop) < 0.0f)
+		{
+			YawDeg += 180.0f;
+		}
+		const FRotator Rotation(0.0f, YawDeg, 0.0f);
+
+		if (PropMesh && Recipe->bInstanced)
+		{
+			if (UHierarchicalInstancedStaticMeshComponent* Component = InstancesFor(Prop.Kind))
+			{
+				const int32 Index = Component->AddInstance(
+					FTransform(Rotation, Prop.Location, FVector(Prop.Scale)), /*bWorldSpace*/ true);
+				Component->SetCustomDataValue(Index, 0, InstanceJitter(i));
+				++PropInstances;
+			}
+			continue;
+		}
+
+		SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel,
+			AStaticMeshActor::StaticClass(), FName(*FString::Printf(TEXT("Prop_%d"), i)));
+		FVector Location = Prop.Location;
+		FVector Scale(Prop.Scale);
+		if (!PropMesh)
+		{
+			if (!PlaceholderMesh)
 			{
 				continue;
 			}
-			Actor->SetActorLabel(FString::Printf(TEXT("%s_%s"), *Prop.Kind, *Prop.Asset));
-			Actor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
-			// Props are scenery bolted to the ground; same shadow-cache
-			// reasoning as the track meshes above.
-			Actor->GetStaticMeshComponent()->ShadowCacheInvalidationBehavior =
-				EShadowCacheInvalidationBehavior::Static;
-			Actor->GetStaticMeshComponent()->SetStaticMesh(PlaceholderMesh);
+			Scale = PlaceholderPropScale(Prop.Kind, Prop.Scale) / 100.0f;
+			// The box pivot is centred; lift it so props sit on the ground
+			// rather than half-buried. Generated meshes pivot at the ground.
+			Location.Z += Scale.Z * 50.0f;
+		}
+		AStaticMeshActor* Actor =
+			World->SpawnActor<AStaticMeshActor>(Location, Rotation, SpawnParams);
+		if (!Actor)
+		{
+			continue;
+		}
+		Actor->SetActorLabel(FString::Printf(TEXT("%s_%s"), *Prop.Kind, *Prop.Asset));
+		UStaticMeshComponent* Component = Actor->GetStaticMeshComponent();
+		SettleComponent(Component);
+		if (PropMesh)
+		{
+			Component->SetStaticMesh(PropMesh);
+		}
+		else
+		{
+			Component->SetStaticMesh(PlaceholderMesh);
 			UMaterialInterface* PropMaterial = Materials.FindRef(TEXT("prop_") + Prop.Kind);
 			if (!PropMaterial)
 			{
@@ -710,16 +1799,15 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 			}
 			if (PropMaterial)
 			{
-				Actor->GetStaticMeshComponent()->SetMaterial(0, PropMaterial);
+				Component->SetMaterial(0, PropMaterial);
 			}
-			Actor->SetActorScale3D(Scale / 100.0f);
-			++PropActors;
 		}
-	}
-	else
-	{
-		UE_LOG(LogApexTrackImport, Warning,
-			TEXT("    %s is missing — props were skipped"), kPlaceholderPropMesh);
+		Actor->SetActorScale3D(Scale);
+		if (Prop.Kind == TEXT("sign") && !Prop.Text.IsEmpty())
+		{
+			AddSignText(Actor, Prop.Text);
+		}
+		++PropActors;
 	}
 
 	// Starting grid. These match the slots the server computes, so a car
@@ -735,6 +1823,8 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 			Start->SetActorLabel(FString::Printf(TEXT("GridSlot_%02d"), Slot.Position));
 		}
 	}
+
+	SpawnStartLights(Scene, World);
 
 	// Deliberately no sun and no sky light.
 	//
@@ -801,8 +1891,9 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 	TouchedPackages.Add(Package);
 
 	UE_LOG(LogApexTrackImport, Display,
-		TEXT("    level %s: %d track mesh actor(s), %d prop(s), %d grid slot(s)"), *LevelPackage,
-		MeshActors, PropActors, Scene.Grid.Num());
+		TEXT("    level %s: %d track mesh actor(s), %d prop actor(s), %d prop instance(s) in %d "
+			 "component(s), %d grid slot(s)"),
+		*LevelPackage, MeshActors, PropActors, PropInstances, Instanced.Num(), Scene.Grid.Num());
 	return true;
 }
 

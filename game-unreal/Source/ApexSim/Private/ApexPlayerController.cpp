@@ -107,6 +107,12 @@ void AApexPlayerController::SetupInputComponent()
 		InputConfig->GearDown, ETriggerEvent::Started, this, &AApexPlayerController::HandleGearDown);
 	Input->BindAction(InputConfig->ToggleCamera, ETriggerEvent::Started, this,
 		&AApexPlayerController::HandleToggleCamera);
+
+	// Look is an axis like steering, and a held button for straight behind.
+	Input->BindAction(InputConfig->Look, ETriggerEvent::Triggered, this, &AApexPlayerController::HandleLook);
+	Input->BindAction(InputConfig->Look, ETriggerEvent::Completed, this, &AApexPlayerController::HandleLookReleased);
+	Input->BindAction(InputConfig->LookBack, ETriggerEvent::Started, this, &AApexPlayerController::HandleLookBack);
+	Input->BindAction(InputConfig->LookBack, ETriggerEvent::Completed, this, &AApexPlayerController::HandleLookBackReleased);
 }
 
 void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
@@ -160,7 +166,7 @@ void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
 
 	bShowMouseCursor = true;
 	UE_LOG(LogApexSim, Log, TEXT("Driving controls %s"),
-		bEnabled ? TEXT("enabled (WASD, Q/E gears, C camera)") : TEXT("disabled"));
+		bEnabled ? TEXT("enabled (WASD, Q/E gears, C camera, ,/. look, B behind)") : TEXT("disabled"));
 }
 
 int32 AApexPlayerController::ConsumeGearDelta()
@@ -226,4 +232,24 @@ void AApexPlayerController::HandleGearDown(const FInputActionValue&)
 void AApexPlayerController::HandleToggleCamera(const FInputActionValue&)
 {
 	bPendingCameraToggle = true;
+}
+
+void AApexPlayerController::HandleLook(const FInputActionValue& Value)
+{
+	DriveInput.Look = FMath::Clamp(Value.Get<float>(), -1.0f, 1.0f);
+}
+
+void AApexPlayerController::HandleLookReleased(const FInputActionValue&)
+{
+	DriveInput.Look = 0.0f;
+}
+
+void AApexPlayerController::HandleLookBack(const FInputActionValue&)
+{
+	DriveInput.bLookBack = true;
+}
+
+void AApexPlayerController::HandleLookBackReleased(const FInputActionValue&)
+{
+	DriveInput.bLookBack = false;
 }

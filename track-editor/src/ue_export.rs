@@ -15,6 +15,25 @@
 //! wrong for a lit level: here normals follow the banked surface frame and
 //! curbs get a raised profile with a real outer face.
 //!
+//! # The ground
+//!
+//! Everything that touches the ground — the ground mesh, the authored
+//! surface bands, a curb's outer face, the painted strip beyond it — takes
+//! its height from one function, [`TerrainHeightfield::ground_height_at`]:
+//! the verge beside every road (track and pit lane), blending into the
+//! terrain further out. That is what keeps the world from stepping at the
+//! road edge, and it is also what the server's `.ground.msgpack` sidecar
+//! samples, so the sim's idea of the ground is the one the client renders.
+//!
+//! # Road paint
+//!
+//! Paint is geometry too — the parent material can only vary a base color
+//! per key — so every color is its own `marking_*` material: edge lines,
+//! the chequered start/finish line, grid boxes, pit-lane lines and the
+//! painted strip beside each curb. The rubbered racing line is the
+//! exception: `wear_core` / `wear_edge` are dark bands of family `road`,
+//! not paint.
+//!
 //! # Conventions at the boundary
 //!
 //! Everything in the output is already in Unreal's frame, so the commandlet
@@ -40,11 +59,11 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ats::{AtsScene, Curb, Marking, Side, Surface};
-use crate::terrain::{self, TerrainHeightfield};
+use crate::ats::{AtsScene, Curb, Marking, MarkingKind, Side, Surface};
+use crate::terrain::{self, GroundHeightfield, TerrainHeightfield};
 use crate::track_data::TrackFile;
 use crate::track_mesh::{
-    surface_height, surface_kind_color, surface_lift, CURB_LIFT_M, MARKING_LIFT_M,
+    surface_kind_color, surface_lateral_fractions, surface_lift, CURB_LIFT_M, MARKING_LIFT_M,
 };
 use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
 
@@ -74,6 +93,45 @@ const MIN_FACET_QUALITY: f32 = 0.01;
 const CURB_HEIGHT_M: f32 = 0.05;
 /// Where the curb's slope breaks, as a fraction of its width / height.
 const CURB_LIP_FRAC: f32 = 0.15;
+/// Painted flat strip beyond a curb, meters wide, so the curb reads as part
+/// of the road rather than a wall standing on the verge.
+const CURB_STRIP_M: f32 = 0.3;
+/// The strip's lift over the ground: above every surface band (which top
+/// out at `surface_lift(Astroturf)`), still under the curb's lip.
+const CURB_STRIP_LIFT_M: f32 = 0.09;
+
+/// The pit lane's entry and exit deliberately overlap the road so the
+/// surfaces connect; this lift keeps that overlap from z-fighting.
+const PIT_LIFT_M: f32 = 0.02;
+
+// Paint. Each layer gets its own lift so overlapping layers never fight.
+const EDGE_LINE_WIDTH_M: f32 = 0.20;
+const LINE_WIDTH_M: f32 = 0.15;
+const LINE_COLOR: [f32; 4] = [0.85, 0.85, 0.82, 1.0];
+/// Start/finish chequer and grid boxes sit a hair over the edge lines.
+const GRID_PAINT_LIFT_M: f32 = MARKING_LIFT_M + 0.005;
+/// Pit-lane lines ride on the lifted lane deck.
+const PIT_LINE_LIFT_M: f32 = PIT_LIFT_M + MARKING_LIFT_M;
+const CHEQUER_CHECK_M: f32 = 0.5;
+const CHEQUER_DARK: [f32; 4] = [0.08, 0.08, 0.09, 1.0];
+const GRID_BOX_LEN_M: f32 = 5.0;
+const GRID_BOX_WIDTH_M: f32 = 2.6;
+const GRID_POLE_STUB_M: f32 = 1.0;
+const PIT_DASH_M: f32 = 3.0;
+const PIT_GAP_M: f32 = 3.0;
+/// A pit lane counts as running parallel to the road (dashed line, no
+/// merge) once its near edge is this far off the road edge.
+const PIT_PARALLEL_GAP_M: f32 = 1.5;
+
+/// Rubbered racing line: the worn core and the softer edge strips.
+const WEAR_CORE_HALF_M: f32 = 1.2;
+const WEAR_EDGE_M: f32 = 0.8;
+const WEAR_LIFT_M: f32 = 0.02;
+/// The worn band is soft-edged and smooth; road tessellation would double
+/// its vertex count for nothing.
+const WEAR_STEP_M: f32 = 2.0;
+const WEAR_CORE_COLOR: [f32; 4] = [0.12, 0.12, 0.13, 1.0];
+const WEAR_EDGE_COLOR: [f32; 4] = [0.17, 0.17, 0.18, 1.0];
 
 // Fallback starting grid, mirroring
 // `server/src/track_loader.rs::generate_start_positions` so the client puts
@@ -109,6 +167,21 @@ pub struct UeScene {
     pub centerline: Vec<UeCenterlinePoint>,
     #[serde(default)]
     pub pit_lane: Option<UePitLane>,
+    /// The start/finish line, for the start-light gantry: the centre of the
+    /// line on the road surface, the direction of travel, and the road
+    /// width there.
+    #[serde(default)]
+    pub start_finish: Option<UeStartFinish>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UeStartFinish {
+    /// UE centimeters, on the road surface at the line's centre.
+    pub location: [f32; 3],
+    /// Direction of travel, same convention as props.
+    pub yaw_deg: f32,
+    /// Full road width at the line, meters.
+    pub width_m: f32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -191,6 +264,13 @@ pub struct UePitLane {
     pub speed_limit_kmh: f32,
 }
 
+/// Everything one bake produces: the Unreal scene and the server's ground
+/// sidecar (absent only for a track too degenerate to have a terrain).
+pub struct Baked {
+    pub scene: UeScene,
+    pub ground: Option<GroundHeightfield>,
+}
+
 // ---------------------------------------------------------------------------
 // Baking
 // ---------------------------------------------------------------------------
@@ -200,36 +280,56 @@ pub struct UePitLane {
 /// Returns `None` only for a degenerate track the centerline sampler
 /// rejects (fewer than two nodes, or zero length).
 pub fn bake(track: &TrackFile, scene: &AtsScene) -> Option<UeScene> {
-    let path = CenterlinePath::from_track(track)?;
-    let terrain = TerrainHeightfield::from_path(&path);
-    let mut chunks: Vec<Chunk> = Vec::new();
-    let mut materials: BTreeMap<String, UeMaterial> = BTreeMap::new();
+    bake_all(track, scene).map(|b| b.scene)
+}
 
-    bake_road(&path, &mut chunks, &mut materials);
-    bake_edge_lines(&path, &mut chunks, &mut materials);
+/// [`bake`], plus the ground sidecar for the server.
+pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
+    let path = CenterlinePath::from_track(track)?;
+    let lane = scene
+        .pit_lane
+        .as_ref()
+        .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
+    let terrain = match &lane {
+        Some(lane) => TerrainHeightfield::from_paths(&path, &[lane]),
+        None => TerrainHeightfield::from_path(&path),
+    };
+
+    let mut bake = Bake {
+        ground: terrain.as_ref(),
+        chunks: Vec::new(),
+        materials: BTreeMap::new(),
+    };
+
+    // The pit lane's relation to the road decides where the road's edge
+    // line breaks for the entry and exit, so it is resolved first.
+    let lane_relation = lane
+        .as_ref()
+        .map(|lane| LaneRelation::resolve(&path, lane, terrain.as_ref()))
+        .unwrap_or_default();
+
+    bake.road(&path);
+    bake.edge_lines(&path, &lane_relation.edge_gaps);
     // Ground first, then the track, then what sits on it — the same layering
     // the viewport uses, so the export reads the way the editor looked.
     if let Some(field) = &terrain {
-        bake_ground(field, &mut chunks, &mut materials);
+        bake.ground(field);
     }
     for surface in &scene.surfaces {
-        bake_surface(
-            &path,
-            surface,
-            terrain.as_ref(),
-            &mut chunks,
-            &mut materials,
-        );
+        bake.surface(&path, surface);
     }
     for curb in &scene.curbs {
-        bake_curb(&path, curb, &mut chunks, &mut materials);
+        bake.curb(&path, curb);
     }
     for marking in &scene.markings {
-        bake_marking(&path, marking, &mut chunks, &mut materials);
+        bake.marking(&path, marking);
     }
+    bake.grid_boxes(track, &path);
+    bake.wear(track, &path);
     let pit_lane = scene.pit_lane.as_ref().and_then(|pit| {
-        let lane = CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0)?;
-        bake_pit_lane(&lane, pit.width_m, &mut chunks, &mut materials);
+        let lane = lane.as_ref()?;
+        bake.pit_lane(lane, pit.width_m);
+        bake.pit_markings(lane, pit.width_m, &lane_relation);
         Some(UePitLane {
             width_cm: round(pit.width_m * M_TO_CM, 1),
             box_count: pit.box_count,
@@ -248,7 +348,11 @@ pub fn bake(track: &TrackFile, scene: &AtsScene) -> Option<UeScene> {
         })
         .unwrap_or_default();
 
-    Some(UeScene {
+    let ground = terrain
+        .as_ref()
+        .map(|field| field.bake_ground_sidecar(terrain::GROUND_SIDECAR_CELL_M));
+
+    let scene = UeScene {
         format: UE_SCENE_FORMAT.to_string(),
         version: UE_SCENE_VERSION,
         track_id: track.track_id.clone(),
@@ -257,30 +361,55 @@ pub fn bake(track: &TrackFile, scene: &AtsScene) -> Option<UeScene> {
         closed_loop: track.closed_loop,
         length_cm: round(path.total_length_m() * M_TO_CM, 1),
         metadata,
-        materials: materials.into_values().collect(),
-        meshes: merge_chunks(chunks),
+        materials: bake.materials.into_values().collect(),
+        meshes: merge_chunks(bake.chunks),
         props: bake_props(scene),
         grid: bake_grid(track, &path),
         centerline: bake_centerline(&path),
         pit_lane,
-    })
+        start_finish: Some(bake_start_finish(scene, &path)),
+    };
+    Some(Baked { scene, ground })
 }
 
 // ---------------------------------------------------------------------------
 // Strip extrusion
 // ---------------------------------------------------------------------------
 
+/// What a profile point's height is measured from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Anchor {
+    /// The road surface at the point's lateral (centerline + banking
+    /// shear), as mapped by the strip's `height` function.
+    Road,
+    /// The ground that is actually there: [`TerrainHeightfield::ground_height_at`].
+    Ground,
+}
+
 /// One point of a strip's cross-section: lateral offset from the centerline
-/// (positive = left) and height above the surface, both meters.
+/// (positive = left) and height above its anchor, both meters.
 #[derive(Clone, Copy, Debug)]
 struct ProfilePoint {
     lat_m: f32,
     lift_m: f32,
+    anchor: Anchor,
 }
 
 impl ProfilePoint {
     fn lifted(lat_m: f32, lift_m: f32) -> Self {
-        Self { lat_m, lift_m }
+        Self {
+            lat_m,
+            lift_m,
+            anchor: Anchor::Road,
+        }
+    }
+
+    fn grounded(lat_m: f32, lift_m: f32) -> Self {
+        Self {
+            lat_m,
+            lift_m,
+            anchor: Anchor::Ground,
+        }
     }
 }
 
@@ -308,139 +437,196 @@ struct Chunk {
     indices: Vec<u32>,
 }
 
-/// Extrude a cross-section profile along `path` from `start_m` to `end_m`.
-///
-/// `profile` fills the cross-section at each station; it is handed the
-/// sample and the progress through the span (0 at `start_m`, 1 at `end_m`)
-/// so tapering elements can vary their width. The profile **must be ordered
-/// by non-increasing lateral offset** (left to right): outward normals are
-/// derived from that ordering, and a profile authored the other way round
-/// comes out lit from underneath. [`normalize_profile`] enforces it.
-///
-/// `height` maps a vertex's road-following position to its final height
-/// (before the point's own lift): the identity for road-hugging strips, the
-/// terrain blend for ground bands. It runs *after* curvature clamping, on
-/// the point's final lateral — a height computed for a pre-clamp lateral
-/// would sit inconsistently over the clamped position and fold facets.
-///
-/// On a closed path `end_m <= start_m` wraps through the start/finish line.
-#[allow(clippy::too_many_arguments)]
-fn bake_strip<F>(
-    path: &CenterlinePath,
-    start_m: f32,
-    end_m: f32,
-    step_m: f32,
-    material_key: &str,
-    mut profile: F,
-    height: impl Fn(&PathSample, f32, (f32, f32, f32)) -> f32,
-    chunks: &mut Vec<Chunk>,
-) where
-    F: FnMut(&PathSample, f32, &mut Vec<ProfilePoint>),
-{
-    let Some((start, end)) = resolve_span(path, start_m, end_m) else {
-        return;
-    };
-    let span = end - start;
-    let steps = ((span / step_m).ceil() as usize).max(1);
+/// The state of one bake: the ground everything is seated on, and the
+/// geometry and materials accumulated so far.
+struct Bake<'a> {
+    ground: Option<&'a TerrainHeightfield>,
+    chunks: Vec<Chunk>,
+    materials: BTreeMap<String, UeMaterial>,
+}
 
-    // Every cross-section, in track space, before any UE conversion.
-    // `None` marks a station the element cannot be drawn at — see
-    // `clamp_profile` — which breaks the strip rather than distorting it.
-    let mut sections: Vec<Option<CrossSection>> = Vec::with_capacity(steps + 1);
-    let mut buf: Vec<ProfilePoint> = Vec::new();
-    let mut profile_len = 0usize;
-
-    for i in 0..=steps {
-        // Unwrapped on purpose: a span that wraps keeps counting past the
-        // total length, which is what the section index and the `u`
-        // coordinate both want — each must stay monotonic across
-        // start/finish.
-        let station = start + span * (i as f32 / steps as f32);
-        let sample = path.sample_at(station);
-        buf.clear();
-        profile(&sample, i as f32 / steps as f32, &mut buf);
-        if buf.len() < 2 {
-            return;
-        }
-        // Order first, then clamp: clamping is monotonic, so it cannot
-        // disturb the left-to-right ordering the normals rely on, whereas
-        // ordering a clamped profile could flip a cross-section whose
-        // points collapsed onto the limit.
-        normalize_profile(&mut buf);
-        if profile_len == 0 {
-            profile_len = buf.len();
-        } else if buf.len() != profile_len {
-            // A profile that changes point count mid-span cannot be
-            // extruded as one strip.
-            return;
-        }
-        if !clamp_profile(&mut buf, curvature_at(path, station)) {
-            sections.push(None);
-            continue;
-        }
-
-        let mut points = Vec::with_capacity(buf.len());
-        let mut v_coords = Vec::with_capacity(buf.len());
-        let mut v_acc = 0.0f32;
-        for (k, p) in buf.iter().enumerate() {
-            let mut pos = offset_point(&sample, p.lat_m);
-            pos.2 = height(&sample, p.lat_m, pos) + p.lift_m;
-            if k > 0 {
-                v_acc += distance(points[k - 1], pos);
-            }
-            points.push(pos);
-            v_coords.push(v_acc);
-        }
-        let (sin_h, cos_h) = sample.heading_rad.sin_cos();
-        sections.push(Some(CrossSection {
-            points,
-            vs: v_coords,
-            station,
-            course: (cos_h, sin_h, 0.0),
-        }));
+impl Bake<'_> {
+    fn register(&mut self, key: &str, family: &str, base_color: [f32; 4]) {
+        self.materials
+            .entry(key.to_string())
+            .or_insert_with(|| UeMaterial {
+                key: key.to_string(),
+                family: family.to_string(),
+                base_color: base_color.map(|c| round(c, 4)),
+            });
     }
 
-    // Emit each maximal run of drawable cross-sections, cut again wherever
-    // it crosses a section boundary (the shared cross-section is repeated on
-    // both sides, so the seam has no gap).
-    let mut builder = Builder::default();
-    let mut open_section: Option<i32> = None;
-    let mut flush = |builder: &mut Builder, open: &mut Option<i32>| {
-        if let Some(section) = open.take() {
-            let chunk = std::mem::take(builder).finish(section, material_key);
-            if !chunk.indices.is_empty() {
-                chunks.push(chunk);
-            }
-        }
-    };
+    /// Extrude a cross-section profile along `path` from `start_m` to
+    /// `end_m`.
+    ///
+    /// `profile` fills the cross-section at each station; it is handed the
+    /// sample and the progress through the span (0 at `start_m`, 1 at
+    /// `end_m`) so tapering elements can vary their width. The profile
+    /// **must be ordered by non-increasing lateral offset** (left to
+    /// right): outward normals are derived from that ordering, and a
+    /// profile authored the other way round comes out lit from
+    /// underneath. [`normalize_profile`] enforces it.
+    ///
+    /// `height` maps a road-anchored vertex's road-following position to
+    /// its final height (before the point's own lift): the identity for
+    /// road-hugging strips, the road-surface probe for the racing line.
+    /// Ground-anchored points take the ground height at their XY instead.
+    /// Both run *after* curvature clamping, on the point's final lateral —
+    /// a height computed for a pre-clamp lateral would sit inconsistently
+    /// over the clamped position and fold facets.
+    ///
+    /// On a closed path `end_m <= start_m` wraps through the start/finish
+    /// line.
+    #[allow(clippy::too_many_arguments)]
+    fn strip<F>(
+        &mut self,
+        path: &CenterlinePath,
+        start_m: f32,
+        end_m: f32,
+        step_m: f32,
+        material_key: &str,
+        mut profile: F,
+        height: impl Fn(&PathSample, f32, (f32, f32, f32)) -> f32,
+    ) where
+        F: FnMut(&PathSample, f32, &mut Vec<ProfilePoint>),
+    {
+        let Some((start, end)) = resolve_span(path, start_m, end_m) else {
+            return;
+        };
+        let span = end - start;
+        let steps = ((span / step_m).ceil() as usize).max(1);
 
-    for i in 0..steps {
-        let (Some(a), Some(b)) = (&sections[i], &sections[i + 1]) else {
-            // The strip is interrupted here; close whatever is open so the
-            // two sides never get stitched across the gap.
-            flush(&mut builder, &mut open_section);
-            continue;
+        // Every cross-section, in track space, before any UE conversion.
+        // `None` marks a station the element cannot be drawn at — see
+        // `clamp_profile` — which breaks the strip rather than distorting it.
+        let mut sections: Vec<Option<CrossSection>> = Vec::with_capacity(steps + 1);
+        let mut buf: Vec<ProfilePoint> = Vec::new();
+        let mut profile_len = 0usize;
+
+        for i in 0..=steps {
+            // Unwrapped on purpose: a span that wraps keeps counting past the
+            // total length, which is what the section index and the `u`
+            // coordinate both want — each must stay monotonic across
+            // start/finish.
+            let station = start + span * (i as f32 / steps as f32);
+            let sample = path.sample_at(station);
+            buf.clear();
+            profile(&sample, i as f32 / steps as f32, &mut buf);
+            if buf.len() < 2 {
+                return;
+            }
+            // Order first, then clamp: clamping is monotonic, so it cannot
+            // disturb the left-to-right ordering the normals rely on, whereas
+            // ordering a clamped profile could flip a cross-section whose
+            // points collapsed onto the limit.
+            normalize_profile(&mut buf);
+            if profile_len == 0 {
+                profile_len = buf.len();
+            } else if buf.len() != profile_len {
+                // A profile that changes point count mid-span cannot be
+                // extruded as one strip.
+                return;
+            }
+            if !clamp_profile(&mut buf, curvature_at(path, station)) {
+                sections.push(None);
+                continue;
+            }
+
+            let mut points = Vec::with_capacity(buf.len());
+            let mut v_coords = Vec::with_capacity(buf.len());
+            let mut v_acc = 0.0f32;
+            for (k, p) in buf.iter().enumerate() {
+                let mut pos = offset_point(&sample, p.lat_m);
+                pos.2 = match (p.anchor, self.ground) {
+                    (Anchor::Ground, Some(field)) => field.ground_height_at(pos.0, pos.1),
+                    _ => height(&sample, p.lat_m, pos),
+                } + p.lift_m;
+                if k > 0 {
+                    v_acc += distance(points[k - 1], pos);
+                }
+                points.push(pos);
+                v_coords.push(v_acc);
+            }
+            let (sin_h, cos_h) = sample.heading_rad.sin_cos();
+            sections.push(Some(CrossSection {
+                points,
+                vs: v_coords,
+                station,
+                course: (cos_h, sin_h, 0.0),
+            }));
+        }
+
+        // Emit each maximal run of drawable cross-sections, cut again wherever
+        // it crosses a section boundary (the shared cross-section is repeated on
+        // both sides, so the seam has no gap).
+        let mut builder = Builder::default();
+        let mut open_section: Option<i32> = None;
+        let chunks = &mut self.chunks;
+        let mut flush = |builder: &mut Builder, open: &mut Option<i32>| {
+            if let Some(section) = open.take() {
+                let chunk = std::mem::take(builder).finish(section, material_key);
+                if !chunk.indices.is_empty() {
+                    chunks.push(chunk);
+                }
+            }
         };
 
-        let section = section_index(a.station);
-        if open_section != Some(section) {
-            flush(&mut builder, &mut open_section);
-            open_section = Some(section);
-        }
+        for i in 0..steps {
+            let (Some(a), Some(b)) = (&sections[i], &sections[i + 1]) else {
+                // The strip is interrupted here; close whatever is open so the
+                // two sides never get stitched across the gap.
+                flush(&mut builder, &mut open_section);
+                continue;
+            };
 
-        let forward_a = forward_at(&sections, i);
-        let forward_b = forward_at(&sections, i + 1);
-        for k in 0..profile_len - 1 {
-            let quad = [
-                (a.points[k], a.vs[k], a.station),
-                (a.points[k + 1], a.vs[k + 1], a.station),
-                (b.points[k + 1], b.vs[k + 1], b.station),
-                (b.points[k], b.vs[k], b.station),
-            ];
-            builder.emit_quad(quad, forward_a, forward_b, a.course);
+            let section = section_index(a.station);
+            if open_section != Some(section) {
+                flush(&mut builder, &mut open_section);
+                open_section = Some(section);
+            }
+
+            let forward_a = forward_at(&sections, i);
+            let forward_b = forward_at(&sections, i + 1);
+            for k in 0..profile_len - 1 {
+                let quad = [
+                    (a.points[k], a.vs[k], a.station),
+                    (a.points[k + 1], a.vs[k + 1], a.station),
+                    (b.points[k + 1], b.vs[k + 1], b.station),
+                    (b.points[k], b.vs[k], b.station),
+                ];
+                builder.emit_quad(quad, forward_a, forward_b, a.course);
+            }
         }
+        flush(&mut builder, &mut open_section);
     }
-    flush(&mut builder, &mut open_section);
+
+    /// A flat road-anchored quad between two laterals over a station span:
+    /// the workhorse for paint.
+    #[allow(clippy::too_many_arguments)]
+    fn paint(
+        &mut self,
+        path: &CenterlinePath,
+        start_m: f32,
+        end_m: f32,
+        step_m: f32,
+        key: &str,
+        lat_a: f32,
+        lat_b: f32,
+        lift_m: f32,
+    ) {
+        self.strip(
+            path,
+            start_m,
+            end_m,
+            step_m,
+            key,
+            move |_, _, out| {
+                out.push(ProfilePoint::lifted(lat_a, lift_m));
+                out.push(ProfilePoint::lifted(lat_b, lift_m));
+            },
+            |_, _, p| p.2,
+        );
+    }
 }
 
 /// Keep lateral offsets short of the centre of curvature, and report
@@ -784,298 +970,745 @@ fn resolve_span(path: &CenterlinePath, start_m: f32, end_m: f32) -> Option<(f32,
 // Per-element profiles
 // ---------------------------------------------------------------------------
 
-fn bake_road(
-    path: &CenterlinePath,
-    chunks: &mut Vec<Chunk>,
-    materials: &mut BTreeMap<String, UeMaterial>,
-) {
-    let key = "road";
-    register(materials, key, "road", [0.24, 0.24, 0.26, 1.0]);
-    bake_strip(
-        path,
-        0.0,
-        path.total_length_m(),
-        STEP_M,
-        key,
-        |sample, _, out| {
-            out.push(ProfilePoint::lifted(sample.width_left_m, 0.0));
-            out.push(ProfilePoint::lifted(-sample.width_right_m, 0.0));
-        },
-        |_, _, p| p.2,
-        chunks,
-    );
-}
-
-/// White lines along both road edges, the full length of the circuit.
-///
-/// These are their own strips rather than paint in the road material: the
-/// road's `v` coordinate counts meters from the *left* edge, so a material
-/// has no way to know where the right edge is on a track of varying width.
-fn bake_edge_lines(
-    path: &CenterlinePath,
-    chunks: &mut Vec<Chunk>,
-    materials: &mut BTreeMap<String, UeMaterial>,
-) {
-    const LINE_WIDTH_M: f32 = 0.15;
-    const LINE_COLOR: [f32; 4] = [0.85, 0.85, 0.82, 1.0];
-    let key = format!("marking_edge_line_{}", color_hex(LINE_COLOR));
-    register(materials, &key, "marking", LINE_COLOR);
-    for side in [Side::Left, Side::Right] {
-        bake_strip(
+impl Bake<'_> {
+    fn road(&mut self, path: &CenterlinePath) {
+        let key = "road";
+        self.register(key, "road", [0.24, 0.24, 0.26, 1.0]);
+        self.strip(
             path,
             0.0,
             path.total_length_m(),
             STEP_M,
+            key,
+            |sample, _, out| {
+                out.push(ProfilePoint::lifted(sample.width_left_m, 0.0));
+                out.push(ProfilePoint::lifted(-sample.width_right_m, 0.0));
+            },
+            |_, _, p| p.2,
+        );
+    }
+
+    /// White lines along both road edges, the full length of the circuit,
+    /// broken where the pit lane joins the road so the lane reads as
+    /// connected rather than painted over.
+    ///
+    /// These are their own strips rather than paint in the road material:
+    /// the road's `v` coordinate counts meters from the *left* edge, so a
+    /// material has no way to know where the right edge is on a track of
+    /// varying width.
+    fn edge_lines(&mut self, path: &CenterlinePath, gaps: &[(Side, f32, f32)]) {
+        let key = format!("marking_edge_line_{}", color_hex(LINE_COLOR));
+        self.register(&key, "marking", LINE_COLOR);
+        let total = path.total_length_m();
+        for side in [Side::Left, Side::Right] {
+            let mut side_gaps: Vec<(f32, f32)> = gaps
+                .iter()
+                .filter(|(s, _, _)| *s == side)
+                .map(|(_, a, b)| (*a, *b))
+                .collect();
+            side_gaps.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+            // The complement of the gaps over one lap. On a closed loop the
+            // last piece runs up to `total`, which the span resolver folds
+            // back onto station 0 — so the lap closes without a seam gap.
+            let mut pieces: Vec<(f32, f32)> = Vec::new();
+            let mut cursor = 0.0f32;
+            for (a, b) in side_gaps {
+                if a > cursor + 0.01 {
+                    pieces.push((cursor, a));
+                }
+                cursor = cursor.max(b);
+            }
+            if cursor < total - 0.01 {
+                pieces.push((cursor, total));
+            }
+
+            for (start, end) in pieces {
+                self.strip(
+                    path,
+                    start,
+                    end,
+                    STEP_M,
+                    &key,
+                    move |sample, _, out| {
+                        let (edge, outward) = match side {
+                            Side::Left => (sample.width_left_m, 1.0),
+                            Side::Right => (-sample.width_right_m, -1.0),
+                        };
+                        out.push(ProfilePoint::lifted(edge, MARKING_LIFT_M));
+                        out.push(ProfilePoint::lifted(
+                            edge - outward * EDGE_LINE_WIDTH_M,
+                            MARKING_LIFT_M,
+                        ));
+                    },
+                    |_, _, p| p.2,
+                );
+            }
+        }
+    }
+
+    fn pit_lane(&mut self, lane: &CenterlinePath, width_m: f32) {
+        let key = "pit_lane";
+        self.register(key, "pit_lane", [0.32, 0.32, 0.34, 1.0]);
+        let half = width_m / 2.0;
+        self.strip(
+            lane,
+            0.0,
+            lane.total_length_m(),
+            STEP_M,
+            key,
+            move |_, _, out| {
+                out.push(ProfilePoint::lifted(half, PIT_LIFT_M));
+                out.push(ProfilePoint::lifted(-half, PIT_LIFT_M));
+            },
+            |_, _, p| p.2,
+        );
+    }
+
+    /// Pit-lane paint: a solid line along the pit-box side, a dashed line
+    /// along the road side where the lane runs parallel to the road, and
+    /// solid lines on both edges of the entry and exit tapers.
+    fn pit_markings(&mut self, lane: &CenterlinePath, width_m: f32, relation: &LaneRelation) {
+        let key = format!("marking_pit_line_{}", color_hex(LINE_COLOR));
+        self.register(&key, "marking", LINE_COLOR);
+        let half = width_m / 2.0;
+        // The lane runs the track's way, so with the lane on the track's
+        // left the road is to the lane's right.
+        let side = relation.lane_side as f32;
+        let box_edge = side * half;
+        let road_edge = -side * half;
+        let inward = |edge: f32| edge - edge.signum() * LINE_WIDTH_M;
+
+        // Pit-box side: solid, the whole lane.
+        self.paint(
+            lane,
+            0.0,
+            lane.total_length_m(),
+            STEP_M,
+            &key,
+            box_edge,
+            inward(box_edge),
+            PIT_LINE_LIFT_M,
+        );
+
+        // Road side: dashed where parallel, solid through the tapers.
+        let spans = if relation.spans.is_empty() {
+            vec![(0.0, lane.total_length_m(), true)]
+        } else {
+            relation.spans.clone()
+        };
+        for (start, end, parallel) in spans {
+            if !parallel {
+                self.paint(
+                    lane,
+                    start,
+                    end,
+                    STEP_M,
+                    &key,
+                    road_edge,
+                    inward(road_edge),
+                    PIT_LINE_LIFT_M,
+                );
+                continue;
+            }
+            let mut at = start;
+            while at < end - 0.3 {
+                let dash_end = (at + PIT_DASH_M).min(end);
+                self.paint(
+                    lane,
+                    at,
+                    dash_end,
+                    STEP_M,
+                    &key,
+                    road_edge,
+                    inward(road_edge),
+                    PIT_LINE_LIFT_M,
+                );
+                at += PIT_DASH_M + PIT_GAP_M;
+            }
+        }
+    }
+
+    /// A curb: a ramp from the track edge up to a lip, then a vertical face
+    /// dropping to the verge on the outside, and a painted flat strip on
+    /// the ground beyond it. The editor previews this as a flat painted
+    /// strip; in a lit level it needs the actual profile.
+    ///
+    /// The profile stands on the road *edge* height, not on the banking
+    /// plane extended past the edge: the verge is flat from the edge too,
+    /// so the outer face is the same [`CURB_HEIGHT_M`] + lift +
+    /// [`terrain::VERGE_DROP_M`] everywhere — on the high side of a banked
+    /// corner the extended plane would turn it into a 40 cm wall.
+    fn curb(&mut self, path: &CenterlinePath, curb: &Curb) {
+        let key = format!("curb_{}", sanitize(&curb.style));
+        let (base, alternate) = curb_style_colors(&curb.style);
+        self.register(&key, "curb", base);
+
+        let side = curb.side;
+        let width = curb.width_m.max(0.01);
+        let edge_of = move |sample: &PathSample| match side {
+            Side::Left => (sample.width_left_m, 1.0f32),
+            Side::Right => (-sample.width_right_m, -1.0f32),
+        };
+        self.strip(
+            path,
+            curb.start_m,
+            curb.end_m,
+            STEP_M,
             &key,
             move |sample, _, out| {
+                // Signed so the same arithmetic works on both sides:
+                // `outward` grows away from the centerline.
+                let (edge, outward) = edge_of(sample);
+                let at = |d: f32, lift: f32| {
+                    ProfilePoint::lifted(edge + outward * d, lift + CURB_LIFT_M)
+                };
+                out.push(at(0.0, 0.0));
+                out.push(at(width * CURB_LIP_FRAC, CURB_HEIGHT_M * 0.6));
+                out.push(at(width, CURB_HEIGHT_M));
+                // Outer face, straight down to the verge that is actually
+                // there — not to some ground metres below.
+                out.push(ProfilePoint::grounded(edge + outward * width, 0.0));
+            },
+            move |sample, _, _| offset_point(sample, edge_of(sample).0).2,
+        );
+
+        // The painted strip beyond the curb, in the curb's alternate color,
+        // flat on the ground.
+        let strip_key = format!("marking_curb_strip_{}", color_hex(alternate));
+        self.register(&strip_key, "marking", alternate);
+        self.strip(
+            path,
+            curb.start_m,
+            curb.end_m,
+            STEP_M,
+            &strip_key,
+            move |sample, _, out| {
+                let (edge, outward) = edge_of(sample);
+                out.push(ProfilePoint::grounded(
+                    edge + outward * width,
+                    CURB_STRIP_LIFT_M,
+                ));
+                out.push(ProfilePoint::grounded(
+                    edge + outward * (width + CURB_STRIP_M),
+                    CURB_STRIP_LIFT_M,
+                ));
+            },
+            |_, _, p| p.2,
+        );
+    }
+
+    fn surface(&mut self, path: &CenterlinePath, surface: &Surface) {
+        let key = format!("surface_{}", surface.kind.label());
+        self.register(&key, "surface", surface_kind_color(surface.kind));
+
+        let side = surface.side;
+        let inner = surface.inner_m;
+        let lift = surface_lift(surface.kind);
+        let spec = surface.clone();
+        // The ground profile bends across the band, so the profile needs
+        // columns across it — two border points would just span a plane
+        // over whatever lies between them. The count must be constant along
+        // the strip (`strip` requires it), so it comes from the band's
+        // widest cross-section.
+        let fractions = surface_lateral_fractions(surface);
+        self.strip(
+            path,
+            surface.start_m,
+            surface.end_m,
+            SURFACE_STEP_M,
+            &key,
+            move |sample, progress, out| {
                 let (edge, outward) = match side {
                     Side::Left => (sample.width_left_m, 1.0),
                     Side::Right => (-sample.width_right_m, -1.0),
                 };
-                out.push(ProfilePoint::lifted(edge, MARKING_LIFT_M));
-                out.push(ProfilePoint::lifted(edge - outward * LINE_WIDTH_M, MARKING_LIFT_M));
+                let width = spec.width_at(progress);
+                for f in &fractions {
+                    let lat_m = edge + outward * (inner + width * f);
+                    out.push(ProfilePoint::grounded(lat_m, lift));
+                }
             },
             |_, _, p| p.2,
-            chunks,
         );
     }
-}
 
-fn bake_pit_lane(
-    lane: &CenterlinePath,
-    width_m: f32,
-    chunks: &mut Vec<Chunk>,
-    materials: &mut BTreeMap<String, UeMaterial>,
-) {
-    let key = "pit_lane";
-    register(materials, key, "pit_lane", [0.32, 0.32, 0.34, 1.0]);
-    let half = width_m / 2.0;
-    // The lane's entry and exit deliberately overlap the road so the
-    // surfaces connect; the lift keeps that overlap from z-fighting.
-    const PIT_LIFT_M: f32 = 0.02;
-    bake_strip(
-        lane,
-        0.0,
-        lane.total_length_m(),
-        STEP_M,
-        key,
-        move |_, _, out| {
-            out.push(ProfilePoint::lifted(half, PIT_LIFT_M));
-            out.push(ProfilePoint::lifted(-half, PIT_LIFT_M));
-        },
-        |_, _, p| p.2,
-        chunks,
-    );
-}
+    /// The world ground: the terrain heightfield as meshes, tiled so Unreal
+    /// can cull them, seated on [`TerrainHeightfield::ground_height_at`].
+    /// Cells within reach of a road are subdivided so the verge profile is
+    /// actually followed there; further out the coarse field is exact.
+    fn ground(&mut self, field: &TerrainHeightfield) {
+        /// Coarse cells per tile side.
+        const TILE_CELLS: usize = 32;
+        /// Subdivisions per coarse cell beside the road: 12 m -> 4 m.
+        const SUB: usize = 3;
+        /// A coarse cell with any corner this close to a road centerline
+        /// is subdivided. Past it the ground is the coarse field itself
+        /// (the verge blend ends at `BLEND_END_M` + half width), so a
+        /// subdivided cell's boundary vertices lie on the coarse edge and
+        /// the two resolutions meet without cracks.
+        const FINE_RADIUS_M: f32 = 52.0;
 
-/// A curb: a ramp from the track edge up to a lip, then a vertical face
-/// dropping back to ground level on the outside. The editor previews this
-/// as a flat painted strip; in a lit level it needs the actual profile.
-fn bake_curb(
-    path: &CenterlinePath,
-    curb: &Curb,
-    chunks: &mut Vec<Chunk>,
-    materials: &mut BTreeMap<String, UeMaterial>,
-) {
-    let key = format!("curb_{}", sanitize(&curb.style));
-    register(materials, &key, "curb", curb_base_color(&curb.style));
+        let key = "ground";
+        self.register(key, "surface", terrain::GROUND_COLOR);
 
-    let side = curb.side;
-    let width = curb.width_m.max(0.01);
-    bake_strip(
-        path,
-        curb.start_m,
-        curb.end_m,
-        STEP_M,
-        &key,
-        move |sample, _, out| {
-            // Signed so the same arithmetic works on both sides: `outward`
-            // grows away from the centerline.
-            let (edge, outward) = match side {
-                Side::Left => (sample.width_left_m, 1.0),
-                Side::Right => (-sample.width_right_m, -1.0),
-            };
-            let at =
-                |d: f32, lift: f32| ProfilePoint::lifted(edge + outward * d, lift + CURB_LIFT_M);
-            out.push(at(0.0, 0.0));
-            out.push(at(width * CURB_LIP_FRAC, CURB_HEIGHT_M * 0.6));
-            out.push(at(width, CURB_HEIGHT_M));
-            // Outer face, straight down to the surrounding ground.
-            out.push(at(width, -CURB_LIFT_M));
-        },
-        |_, _, p| p.2,
-        chunks,
-    );
-}
+        let (cols, rows) = (field.cols(), field.rows());
+        if cols < 2 || rows < 2 {
+            return;
+        }
+        let coarse_m = field.cell_m();
+        let fine_m = coarse_m / SUB as f32;
+        let (origin_x, origin_y, _) = field.vertex(0, 0);
 
-fn bake_surface(
-    path: &CenterlinePath,
-    surface: &Surface,
-    terrain: Option<&TerrainHeightfield>,
-    chunks: &mut Vec<Chunk>,
-    materials: &mut BTreeMap<String, UeMaterial>,
-) {
-    let key = format!("surface_{}", surface.kind.label());
-    register(materials, &key, "surface", surface_kind_color(surface.kind));
+        let near: Vec<bool> = (0..rows * cols)
+            .map(|i| {
+                let (x, y, _) = field.vertex(i % cols, i / cols);
+                field.road_distance_at(x, y, FINE_RADIUS_M).is_some()
+            })
+            .collect();
+        let subdivided = |c: usize, r: usize| {
+            near[r * cols + c]
+                || near[r * cols + c + 1]
+                || near[(r + 1) * cols + c]
+                || near[(r + 1) * cols + c + 1]
+        };
 
-    let side = surface.side;
-    let inner = surface.inner_m;
-    let lift = surface_lift(surface.kind);
-    let spec = surface.clone();
-    // The height blend and its ceiling clamp act per vertex, so the profile
-    // needs columns across the band — two border points would just span a
-    // plane over whatever lies between them. The count must be constant
-    // along the strip (`bake_strip` requires it), so it comes from the
-    // band's widest cross-section.
-    let strips = crate::track_mesh::surface_lateral_strips(surface);
-    bake_strip(
-        path,
-        surface.start_m,
-        surface.end_m,
-        SURFACE_STEP_M,
-        &key,
-        move |sample, progress, out| {
-            let (edge, outward) = match side {
-                Side::Left => (sample.width_left_m, 1.0),
-                Side::Right => (-sample.width_right_m, -1.0),
-            };
-            let width = spec.width_at(progress);
-            for j in 0..=strips {
-                let lat_m = edge + outward * (inner + width * (j as f32 / strips as f32));
-                out.push(ProfilePoint::lifted(lat_m, lift));
-            }
-        },
-        // Same height blending as the viewport: hug the road near its
-        // edge, lie on (and never rise over) the terrain further out.
-        move |sample, lat_m, pos| surface_height(terrain, sample, lat_m, pos),
-        chunks,
-    );
-}
+        let mut tile = 0i32;
+        let mut r0 = 0;
+        while r0 + 1 < rows {
+            let r1 = (r0 + TILE_CELLS).min(rows - 1);
+            let mut c0 = 0;
+            while c0 + 1 < cols {
+                let c1 = (c0 + TILE_CELLS).min(cols - 1);
 
-/// The world ground: the terrain heightfield as meshes, tiled so Unreal can
-/// cull them, sitting [`terrain::GROUND_LIFT_M`] under every authored
-/// surface.
-fn bake_ground(
-    field: &TerrainHeightfield,
-    chunks: &mut Vec<Chunk>,
-    materials: &mut BTreeMap<String, UeMaterial>,
-) {
-    /// Grid vertices per tile side.
-    const TILE_VERTS: usize = 32;
-
-    let key = "ground";
-    register(materials, key, "surface", terrain::GROUND_COLOR);
-
-    let (cols, rows) = (field.cols(), field.rows());
-    if cols < 2 || rows < 2 {
-        return;
-    }
-
-    let mut tile = 0i32;
-    let mut r0 = 0;
-    while r0 + 1 < rows {
-        let r1 = (r0 + TILE_VERTS).min(rows - 1);
-        let mut c0 = 0;
-        while c0 + 1 < cols {
-            let c1 = (c0 + TILE_VERTS).min(cols - 1);
-
-            let (tw, th) = (c1 - c0 + 1, r1 - r0 + 1);
-            let mut chunk = Chunk {
-                section: tile,
-                material_key: key.to_string(),
-                positions: Vec::with_capacity(tw * th * 3),
-                normals: Vec::with_capacity(tw * th * 3),
-                uvs: Vec::with_capacity(tw * th * 2),
-                indices: Vec::with_capacity((tw - 1) * (th - 1) * 6),
-            };
-            for r in r0..=r1 {
-                for c in c0..=c1 {
-                    let (x, y, z) = field.vertex(c, r);
-                    push_position(&mut chunk.positions, (x, y, z + terrain::GROUND_LIFT_M));
-                    push_normal(&mut chunk.normals, field.normal(c, r));
-                    chunk.uvs.push(round(x, 3));
-                    chunk.uvs.push(round(y, 3));
-                }
-            }
-            for r in 0..th - 1 {
-                for c in 0..tw - 1 {
-                    let v00 = (r * tw + c) as u32;
-                    let v10 = v00 + 1;
-                    let v01 = v00 + tw as u32;
-                    let v11 = v01 + 1;
+                let mut chunk = Chunk {
+                    section: tile,
+                    material_key: key.to_string(),
+                    positions: Vec::new(),
+                    normals: Vec::new(),
+                    uvs: Vec::new(),
+                    indices: Vec::new(),
+                };
+                // Vertices keyed by fine grid coordinates, shared between
+                // every facet of the tile that touches them.
+                let mut vertices: BTreeMap<(usize, usize), u32> = BTreeMap::new();
+                let mut vertex = |fc: usize, fr: usize, chunk: &mut Chunk| -> u32 {
+                    *vertices.entry((fc, fr)).or_insert_with(|| {
+                        let x = origin_x + fc as f32 * fine_m;
+                        let y = origin_y + fr as f32 * fine_m;
+                        let z = field.ground_height_at(x, y);
+                        push_position(&mut chunk.positions, (x, y, z));
+                        push_normal(
+                            &mut chunk.normals,
+                            field.ground_normal_at(x, y, fine_m * 0.5),
+                        );
+                        chunk.uvs.push(round(x, 3));
+                        chunk.uvs.push(round(y, 3));
+                        (chunk.positions.len() / 3 - 1) as u32
+                    })
+                };
+                let mut quad = |fc: usize, fr: usize, step: usize, chunk: &mut Chunk| {
+                    let v00 = vertex(fc, fr, chunk);
+                    let v10 = vertex(fc + step, fr, chunk);
+                    let v01 = vertex(fc, fr + step, chunk);
+                    let v11 = vertex(fc + step, fr + step, chunk);
                     // Right-handed CCW facing up in track space; the
                     // track -> UE mirror turns that into Unreal's clockwise
                     // front face, same as every strip (see `emit_quad`).
                     chunk.indices.extend_from_slice(&[v00, v10, v01]);
                     chunk.indices.extend_from_slice(&[v10, v11, v01]);
+                };
+
+                for r in r0..r1 {
+                    for c in c0..c1 {
+                        if subdivided(c, r) {
+                            for l in 0..SUB {
+                                for k in 0..SUB {
+                                    quad(c * SUB + k, r * SUB + l, 1, &mut chunk);
+                                }
+                            }
+                        } else {
+                            quad(c * SUB, r * SUB, SUB, &mut chunk);
+                        }
+                    }
+                }
+                self.chunks.push(chunk);
+                tile += 1;
+                c0 = c1;
+            }
+            r0 = r1;
+        }
+    }
+
+    fn marking(&mut self, path: &CenterlinePath, marking: &Marking) {
+        let (lo, hi) = if marking.lat_from_m <= marking.lat_to_m {
+            (marking.lat_from_m, marking.lat_to_m)
+        } else {
+            (marking.lat_to_m, marking.lat_from_m)
+        };
+
+        if marking.kind == MarkingKind::StartFinish {
+            self.chequer(path, marking, lo, hi);
+            return;
+        }
+
+        // Markings of the same kind can be painted different colors, so the
+        // key carries the color too — otherwise a yellow pit-exit line and
+        // a white one would collapse onto one material.
+        let key = format!(
+            "marking_{}_{}",
+            marking.kind.label(),
+            color_hex(marking.color)
+        );
+        self.register(&key, "marking", marking.color);
+        self.paint(
+            path,
+            marking.start_m,
+            marking.end_m,
+            STEP_M,
+            &key,
+            hi,
+            lo,
+            MARKING_LIFT_M,
+        );
+    }
+
+    /// The start/finish line as a chequer: the marking's span along the
+    /// track, its lateral extent across, in [`CHEQUER_CHECK_M`] checks
+    /// alternating the marking's color with a dark one.
+    fn chequer(&mut self, path: &CenterlinePath, marking: &Marking, lo: f32, hi: f32) {
+        let light_key = format!("marking_start_finish_{}", color_hex(marking.color));
+        let dark_key = format!("marking_start_finish_{}", color_hex(CHEQUER_DARK));
+        self.register(&light_key, "marking", marking.color);
+        self.register(&dark_key, "marking", CHEQUER_DARK);
+
+        let total = path.total_length_m();
+        let length = if path.is_closed() {
+            let l = (marking.end_m - marking.start_m).rem_euclid(total);
+            if l <= f32::EPSILON {
+                total
+            } else {
+                l
+            }
+        } else {
+            marking.end_m - marking.start_m
+        };
+        if length <= 0.0 || !length.is_finite() || hi - lo <= 0.0 {
+            return;
+        }
+        let rows = (length / CHEQUER_CHECK_M).ceil() as usize;
+        let cols = ((hi - lo) / CHEQUER_CHECK_M).ceil() as usize;
+        for row in 0..rows {
+            let s0 = marking.start_m + row as f32 * CHEQUER_CHECK_M;
+            let s1 = (s0 + CHEQUER_CHECK_M).min(marking.start_m + length);
+            for col in 0..cols {
+                let l0 = lo + col as f32 * CHEQUER_CHECK_M;
+                let l1 = (l0 + CHEQUER_CHECK_M).min(hi);
+                let key = if (row + col) % 2 == 0 {
+                    &light_key
+                } else {
+                    &dark_key
+                };
+                self.paint(
+                    path,
+                    s0,
+                    s1,
+                    CHEQUER_CHECK_M,
+                    key,
+                    l1,
+                    l0,
+                    GRID_PAINT_LIFT_M,
+                );
+            }
+        }
+    }
+
+    /// White outlines for the starting grid, one per slot, in station /
+    /// lateral space so the back rows bend with the track, each with the
+    /// short "pole" stub ahead of its left side.
+    fn grid_boxes(&mut self, track: &TrackFile, path: &CenterlinePath) {
+        let key = format!("marking_grid_slot_{}", color_hex([1.0, 1.0, 1.0, 1.0]));
+        self.register(&key, "marking", [1.0, 1.0, 1.0, 1.0]);
+
+        let (half_len, half_w) = (GRID_BOX_LEN_M / 2.0, GRID_BOX_WIDTH_M / 2.0);
+        for (station, lateral) in grid_slot_frames(track, path) {
+            let (back, front) = (station - half_len, station + half_len);
+            let (right, left) = (lateral - half_w, lateral + half_w);
+            // Front and back bars, full width.
+            self.paint(
+                path,
+                front - LINE_WIDTH_M,
+                front,
+                STEP_M,
+                &key,
+                left,
+                right,
+                GRID_PAINT_LIFT_M,
+            );
+            self.paint(
+                path,
+                back,
+                back + LINE_WIDTH_M,
+                STEP_M,
+                &key,
+                left,
+                right,
+                GRID_PAINT_LIFT_M,
+            );
+            // Sides.
+            self.paint(
+                path,
+                back,
+                front,
+                STEP_M,
+                &key,
+                left,
+                left - LINE_WIDTH_M,
+                GRID_PAINT_LIFT_M,
+            );
+            self.paint(
+                path,
+                back,
+                front,
+                STEP_M,
+                &key,
+                right + LINE_WIDTH_M,
+                right,
+                GRID_PAINT_LIFT_M,
+            );
+            // Pole stub ahead of the left side.
+            self.paint(
+                path,
+                front,
+                front + GRID_POLE_STUB_M,
+                STEP_M,
+                &key,
+                left,
+                left - LINE_WIDTH_M,
+                GRID_PAINT_LIFT_M,
+            );
+        }
+    }
+
+    /// The rubbered racing line: a dark worn core with softer edge strips
+    /// either side, along the track's raceline when it has one — and along
+    /// the centerline eased toward the inside of each corner when it does
+    /// not. Family `road`, not `marking`: this is grime, not paint.
+    fn wear(&mut self, track: &TrackFile, path: &CenterlinePath) {
+        self.register("wear_core", "road", WEAR_CORE_COLOR);
+        self.register("wear_edge", "road", WEAR_EDGE_COLOR);
+
+        let ground = self.ground;
+        // Seated on the road surface wherever the line crosses it, so the
+        // band follows the banking rather than the raceline's own heights.
+        let seat = move |_: &PathSample, _: f32, p: (f32, f32, f32)| {
+            ground.map_or(p.2, |field| field.surface_height_at(p.0, p.1))
+        };
+
+        let raceline: Vec<[f32; 3]> = track.raceline.iter().map(|p| [p.x, p.y, p.z]).collect();
+        let line = if raceline.len() >= 4 {
+            CenterlinePath::from_polyline_with(&raceline, WEAR_CORE_HALF_M, track.closed_loop)
+        } else {
+            None
+        };
+
+        let (outer, inner) = (WEAR_CORE_HALF_M + WEAR_EDGE_M, WEAR_CORE_HALF_M);
+        let bands: [(&str, f32, f32); 3] = [
+            ("wear_edge", outer, inner),
+            ("wear_core", inner, -inner),
+            ("wear_edge", -inner, -outer),
+        ];
+        match &line {
+            Some(line) => {
+                for (key, a, b) in bands {
+                    self.strip(
+                        line,
+                        0.0,
+                        line.total_length_m(),
+                        WEAR_STEP_M,
+                        key,
+                        move |_, _, out| {
+                            out.push(ProfilePoint::lifted(a, WEAR_LIFT_M));
+                            out.push(ProfilePoint::lifted(b, WEAR_LIFT_M));
+                        },
+                        seat,
+                    );
                 }
             }
-            chunks.push(chunk);
-            tile += 1;
-            c0 = c1;
+            None => {
+                // Ease a metre toward the inside of each corner: curvature
+                // scaled so a 200 m radius already puts the line fully
+                // inside, without the jump a bare sign would make.
+                let centre = |sample: &PathSample| {
+                    (curvature_at(path, sample.station_m) * 200.0).clamp(-1.0, 1.0)
+                };
+                for (key, a, b) in bands {
+                    self.strip(
+                        path,
+                        0.0,
+                        path.total_length_m(),
+                        WEAR_STEP_M,
+                        key,
+                        move |sample, _, out| {
+                            let c = centre(sample);
+                            out.push(ProfilePoint::lifted(c + a, WEAR_LIFT_M));
+                            out.push(ProfilePoint::lifted(c + b, WEAR_LIFT_M));
+                        },
+                        seat,
+                    );
+                }
+            }
         }
-        r0 = r1;
     }
 }
 
-fn bake_marking(
-    path: &CenterlinePath,
-    marking: &Marking,
-    chunks: &mut Vec<Chunk>,
-    materials: &mut BTreeMap<String, UeMaterial>,
-) {
-    // Markings of the same kind can be painted different colors, so the key
-    // carries the color too — otherwise a yellow pit-exit line and a white
-    // one would collapse onto one material.
-    let key = format!(
-        "marking_{}_{}",
-        marking.kind.label(),
-        color_hex(marking.color)
-    );
-    register(materials, &key, "marking", marking.color);
-
-    let (lo, hi) = if marking.lat_from_m <= marking.lat_to_m {
-        (marking.lat_from_m, marking.lat_to_m)
-    } else {
-        (marking.lat_to_m, marking.lat_from_m)
-    };
-    bake_strip(
-        path,
-        marking.start_m,
-        marking.end_m,
-        STEP_M,
-        &key,
-        move |_, _, out| {
-            out.push(ProfilePoint::lifted(hi, MARKING_LIFT_M));
-            out.push(ProfilePoint::lifted(lo, MARKING_LIFT_M));
-        },
-        |_, _, p| p.2,
-        chunks,
-    );
+/// How the pit lane sits against the road, resolved once per bake.
+#[derive(Default)]
+struct LaneRelation {
+    /// +1 when the lane lies on the track's left, −1 on its right.
+    lane_side: i32,
+    /// Lane station spans `(start, end, parallel)`: parallel where the lane
+    /// runs clear of the road, tapering (entry / exit) otherwise.
+    spans: Vec<(f32, f32, bool)>,
+    /// Road station spans, per side, where the lane overlaps the road edge
+    /// and the edge line must break.
+    edge_gaps: Vec<(Side, f32, f32)>,
 }
 
-fn curb_base_color(style: &str) -> [f32; 4] {
+impl LaneRelation {
+    fn resolve(
+        path: &CenterlinePath,
+        lane: &CenterlinePath,
+        field: Option<&TerrainHeightfield>,
+    ) -> Self {
+        /// Widest search for the road from a lane point.
+        const REACH_M: f32 = 80.0;
+        /// Overlap spans closer than this are one break in the edge line.
+        const MERGE_M: f32 = 3.0;
+        /// Slack either side of an overlap span.
+        const SLACK_M: f32 = 1.0;
+
+        let Some(field) = field else {
+            return Self::default();
+        };
+        let half_lane = lane.sample_at(0.0).width_left_m;
+        let total = lane.total_length_m();
+        let steps = (total / STEP_M).ceil().max(1.0) as usize;
+
+        // Walk the lane, relating each point to the road.
+        let mut votes = 0i32;
+        let mut parallel_flags: Vec<bool> = Vec::with_capacity(steps + 1);
+        let mut overlaps: Vec<(Side, f32)> = Vec::new();
+        for i in 0..=steps {
+            let s = total * (i as f32 / steps as f32);
+            let p = lane.sample_at(s).pos;
+            match field.nearest_track_point(p.0, p.1, REACH_M) {
+                Some((road_s, lat, half)) => {
+                    votes += if lat >= 0.0 { 1 } else { -1 };
+                    let beyond = lat.abs() - half;
+                    parallel_flags.push(beyond >= half_lane + PIT_PARALLEL_GAP_M);
+                    if beyond < half_lane {
+                        let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+                        overlaps.push((side, road_s));
+                    }
+                }
+                None => parallel_flags.push(true),
+            }
+        }
+        let lane_side = if votes >= 0 { 1 } else { -1 };
+
+        // Runs of equal flags -> spans.
+        let mut spans: Vec<(f32, f32, bool)> = Vec::new();
+        let station = |i: usize| total * (i as f32 / steps as f32);
+        let mut run_start = 0usize;
+        for i in 1..=parallel_flags.len() {
+            if i == parallel_flags.len() || parallel_flags[i] != parallel_flags[run_start] {
+                spans.push((
+                    station(run_start),
+                    station(i.min(steps)),
+                    parallel_flags[run_start],
+                ));
+                run_start = i;
+            }
+        }
+
+        // Cluster the overlapping road stations per side into edge gaps.
+        let mut edge_gaps: Vec<(Side, f32, f32)> = Vec::new();
+        for side in [Side::Left, Side::Right] {
+            let mut stations: Vec<f32> = overlaps
+                .iter()
+                .filter(|(s, _)| *s == side)
+                .map(|(_, st)| *st)
+                .collect();
+            stations.sort_by(f32::total_cmp);
+            let mut open: Option<(f32, f32)> = None;
+            for s in stations {
+                open = match open {
+                    Some((a, b)) if s - b <= MERGE_M => Some((a, s)),
+                    Some((a, b)) => {
+                        edge_gaps.push((side, a - SLACK_M, b + SLACK_M));
+                        let _ = (a, b);
+                        Some((s, s))
+                    }
+                    None => Some((s, s)),
+                };
+            }
+            if let Some((a, b)) = open {
+                edge_gaps.push((side, a - SLACK_M, b + SLACK_M));
+            }
+        }
+        let road_total = path.total_length_m();
+        for gap in &mut edge_gaps {
+            gap.1 = gap.1.max(0.0);
+            gap.2 = gap.2.min(road_total);
+        }
+
+        Self {
+            lane_side,
+            spans,
+            edge_gaps,
+        }
+    }
+}
+
+/// Every starting slot as `(station, lateral)` on the track, in slot order:
+/// the authored spawn points projected onto their centerline sample's
+/// frame, or the server's 16-slot fallback laid out along the track.
+fn grid_slot_frames(track: &TrackFile, path: &CenterlinePath) -> Vec<(f32, f32)> {
+    let samples = path.samples();
+    if samples.is_empty() {
+        return Vec::new();
+    }
+    if !track.spawn_points.is_empty() {
+        return track
+            .spawn_points
+            .iter()
+            .filter_map(|spawn| {
+                let sample = samples.get(spawn.position)?;
+                let (sin_h, cos_h) = sample.heading_rad.sin_cos();
+                let along = cos_h * spawn.offset_x + sin_h * spawn.offset_y;
+                let lateral = -sin_h * spawn.offset_x + cos_h * spawn.offset_y;
+                Some((sample.station_m + along, lateral))
+            })
+            .collect();
+    }
+    (0..GRID_SLOTS)
+        .map(|i| {
+            let row = (i / 2) as f32;
+            let column = (i % 2) as f32;
+            (-row * GRID_SPACING_M, (column - 0.5) * GRID_LATERAL_M)
+        })
+        .collect()
+}
+
+fn curb_style_colors(style: &str) -> ([f32; 4], [f32; 4]) {
+    let white = [0.92, 0.92, 0.92, 1.0];
     match style {
-        "yellow_black" => [0.9, 0.75, 0.05, 1.0],
-        "green_white" => [0.1, 0.5, 0.15, 1.0],
-        "blue_white" => [0.1, 0.25, 0.7, 1.0],
-        _ => [0.75, 0.12, 0.1, 1.0],
+        "yellow_black" => ([0.9, 0.75, 0.05, 1.0], [0.08, 0.08, 0.08, 1.0]),
+        "green_white" => ([0.1, 0.5, 0.15, 1.0], white),
+        "blue_white" => ([0.1, 0.25, 0.7, 1.0], white),
+        _ => ([0.75, 0.12, 0.1, 1.0], white),
     }
-}
-
-fn register(
-    materials: &mut BTreeMap<String, UeMaterial>,
-    key: &str,
-    family: &str,
-    base_color: [f32; 4],
-) {
-    materials
-        .entry(key.to_string())
-        .or_insert_with(|| UeMaterial {
-            key: key.to_string(),
-            family: family.to_string(),
-            base_color: base_color.map(|c| round(c, 4)),
-        });
 }
 
 // ---------------------------------------------------------------------------
@@ -1146,6 +1779,34 @@ fn bake_grid(track: &TrackFile, path: &CenterlinePath) -> Vec<UeGridSlot> {
             }
         })
         .collect()
+}
+
+/// The start/finish line, anchored on the scene's `start_finish` marking
+/// (its centre, across and along) — or station 0 across the full road when
+/// the scene has none.
+fn bake_start_finish(scene: &AtsScene, path: &CenterlinePath) -> UeStartFinish {
+    let marking = scene
+        .markings
+        .iter()
+        .find(|m| m.kind == MarkingKind::StartFinish);
+    let (station, lateral) = match marking {
+        Some(m) => {
+            let total = path.total_length_m();
+            let length = if path.is_closed() {
+                (m.end_m - m.start_m).rem_euclid(total)
+            } else {
+                (m.end_m - m.start_m).max(0.0)
+            };
+            (m.start_m + length / 2.0, (m.lat_from_m + m.lat_to_m) / 2.0)
+        }
+        None => (0.0, 0.0),
+    };
+    let sample = path.sample_at(station);
+    UeStartFinish {
+        location: to_ue(offset_point(&sample, lateral)),
+        yaw_deg: round(-sample.heading_rad.to_degrees(), 3),
+        width_m: round(sample.width_left_m + sample.width_right_m, 3),
+    }
 }
 
 fn bake_centerline(path: &CenterlinePath) -> Vec<UeCenterlinePoint> {

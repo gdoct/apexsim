@@ -18,6 +18,9 @@
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Components/StaticMeshComponent.h"
+#include "Race/ApexCockpitRig.h"
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
 
@@ -52,10 +55,10 @@ AApexRaceDirector::AApexRaceDirector()
 	CockpitCamera->FieldOfView = 95.0f;
 
 	// Exactly one camera component may be active on a view target; the other
-	// is what `SetCockpitView` switches to. Chase starts active to match
+	// is what `SetCockpitView` switches to. Cockpit starts active to match
 	// `bCockpitView`'s default.
-	CockpitCamera->SetActive(false);
-	ChaseCamera->SetActive(true);
+	CockpitCamera->SetActive(true);
+	ChaseCamera->SetActive(false);
 }
 
 AApexRaceDirector* AApexRaceDirector::Find(const UObject* WorldContextObject)
@@ -177,14 +180,19 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 
 			// The roster says who is driving but not what they chose, and the
 			// protocol never tells us another player's car. Everyone gets the
-			// local player's mesh, or the fallback.
+			// local player's mesh, or the fallback — and with it the local
+			// car's cockpit, which is the only one anyone sits in.
 			TSoftObjectPtr<UStaticMesh> Mesh = DefaultCarMesh;
 			if (Flow && Flow->HasPendingCar())
 			{
 				FApexCarCatalogRow Row;
-				if (Flow->GetCarCatalogRow(Flow->GetPendingCarId(), Row) && !Row.Mesh.IsNull())
+				if (Flow->GetCarCatalogRow(Flow->GetPendingCarId(), Row))
 				{
-					Mesh = Row.Mesh;
+					if (!Row.Mesh.IsNull())
+					{
+						Mesh = Row.Mesh;
+					}
+					Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
 				}
 			}
 			Car->SetCarMesh(Mesh);
@@ -234,6 +242,92 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 			Actor->ApplyTelemetry(Car);
 		}
 	}
+
+	UpdateStartLights(Frame);
+	if (Rig)
+	{
+		Rig->SetCountdownMs(Frame.SessionState == EApexSessionState::Countdown ? Frame.CountdownMs : -1);
+	}
+}
+
+void AApexRaceDirector::FindStartLights()
+{
+	// A streamed level reports loaded before its actors are in the world;
+	// they arrive when it becomes visible, so search only from then on.
+	if (bSearchedStartLights || !IsTrackLevelLoaded() || !TrackLevel->IsLevelVisible())
+	{
+		return;
+	}
+	bSearchedStartLights = true;
+	StartLightLenses.Reset();
+
+	static const FName GantryTag(TEXT("ApexStartLights"));
+	static const FName LensTag(TEXT("ApexStartLight"));
+	TArray<AActor*> Found;
+	UGameplayStatics::GetAllActorsWithTag(this, GantryTag, Found);
+	if (Found.Num() == 0)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Track level has no start-light gantry"));
+		return;
+	}
+
+	TArray<UStaticMeshComponent*> Lenses;
+	Found[0]->GetComponents<UStaticMeshComponent>(Lenses);
+	Lenses.RemoveAll([](const UStaticMeshComponent* C) { return !C->ComponentHasTag(LensTag); });
+	// Light0..Light4, left to right from the grid: name order is the row order.
+	Lenses.Sort([](const UStaticMeshComponent& A, const UStaticMeshComponent& B) {
+		return A.GetName() < B.GetName();
+	});
+	for (UStaticMeshComponent* Lens : Lenses)
+	{
+		if (UMaterialInstanceDynamic* Mid = Lens->CreateAndSetMaterialInstanceDynamic(0))
+		{
+			StartLightLenses.Add(Mid);
+		}
+	}
+	LitStartLights = -1;
+	UE_LOG(LogApexSim, Log, TEXT("Start-light gantry found with %d lights"), StartLightLenses.Num());
+}
+
+void AApexRaceDirector::ForgetStartLights()
+{
+	StartLightLenses.Reset();
+	LitStartLights = -1;
+	bSearchedStartLights = false;
+}
+
+void AApexRaceDirector::UpdateStartLights(const FApexTelemetryFrame& Frame)
+{
+	FindStartLights();
+	if (StartLightLenses.Num() == 0)
+	{
+		return;
+	}
+
+	// Formula 1 procedure: the five lights come on one per second, and the
+	// race starts when they all go out. The server counts down in
+	// milliseconds and switches to Racing at zero, so "all out" is simply
+	// any frame that is not a countdown.
+	int32 Lit = 0;
+	if (Frame.SessionState == EApexSessionState::Countdown && Frame.CountdownMs >= 0)
+	{
+		const int32 WholeSecondsLeft = Frame.CountdownMs / 1000;
+		Lit = FMath::Clamp(StartLightLenses.Num() - WholeSecondsLeft, 0, StartLightLenses.Num());
+	}
+	if (Lit == LitStartLights)
+	{
+		return;
+	}
+	LitStartLights = Lit;
+
+	static const FName EmissiveParam(TEXT("EmissiveStrength"));
+	for (int32 Index = 0; Index < StartLightLenses.Num(); ++Index)
+	{
+		if (UMaterialInstanceDynamic* Mid = StartLightLenses[Index])
+		{
+			Mid->SetScalarParameterValue(EmissiveParam, Index < Lit ? StartLightOnEmissive : 0.0f);
+		}
+	}
 }
 
 void AApexRaceDirector::UpdateCameraTarget()
@@ -265,6 +359,16 @@ void AApexRaceDirector::UpdateCameraTarget()
 			FollowedCar->SetMeshVisible(true);
 		}
 		FollowedCar = Target;
+		// A new car is a new frame of reference for the inertia estimate.
+		bHavePrevMotion = false;
+		HeadOffset = FVector::ZeroVector;
+		LateralG = 0.0f;
+		LongitudinalG = 0.0f;
+		if (Rig)
+		{
+			Rig->AttachToCar(FollowedCar);
+			Rig->SetEyeLocal(CockpitEyeLocal());
+		}
 		if (bRaceViewActive)
 		{
 			ApplyCameraMode();
@@ -296,9 +400,72 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	}
 
 	UpdateCameraFeel(DeltaSeconds);
+	UpdateHeadMotion(DeltaSeconds);
+	UpdateLook(DeltaSeconds);
 	UpdateCockpitCamera();
 	PollViewInput();
 	PollDrivingInput();
+}
+
+void AApexRaceDirector::UpdateHeadMotion(float DeltaSeconds)
+{
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	const float Amount = Values ? Values->HeadMotion : 0.0f;
+	if (!FollowedCar || DeltaSeconds <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const float Speed = FollowedCar->GetSpeedMps();
+	const float Yaw = FollowedCar->GetActorRotation().Yaw;
+	if (bHavePrevMotion)
+	{
+		// Both inputs step at the broadcast rate, so the raw rates are spiky;
+		// the eases below are what turn them into a lean rather than a twitch.
+		const float RawLongG = (Speed - PrevSpeedMps) / DeltaSeconds / 9.81f;
+		const float YawRate = FMath::DegreesToRadians(FRotator::NormalizeAxis(Yaw - PrevYawDeg)) / DeltaSeconds;
+		// Unreal yaw grows clockwise from above, so a positive rate is a
+		// right turn: acceleration to the right, +Y.
+		const float RawLatG = Speed * YawRate / 9.81f;
+		LongitudinalG = FMath::FInterpTo(LongitudinalG, FMath::Clamp(RawLongG, -4.0f, 4.0f), DeltaSeconds, 5.0f);
+		LateralG = FMath::FInterpTo(LateralG, FMath::Clamp(RawLatG, -4.0f, 4.0f), DeltaSeconds, 5.0f);
+	}
+	PrevSpeedMps = Speed;
+	PrevYawDeg = Yaw;
+	bHavePrevMotion = true;
+
+	const FVector Target = ApexCockpit::HeadLean(LateralG, LongitudinalG, Amount);
+	HeadOffset = FMath::VInterpTo(HeadOffset, Target, DeltaSeconds, 6.0f);
+}
+
+void AApexRaceDirector::UpdateLook(float DeltaSeconds)
+{
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	const AApexPlayerController* PlayerController =
+		Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+
+	float Target = 0.0f;
+	bool bLookBack = false;
+	if (PlayerController)
+	{
+		const FApexDriveInput& Drive = PlayerController->GetDriveInput();
+		// Straight behind wins over the axis: a stick held sideways while the
+		// button is pressed should not settle on a quarter turn.
+		bLookBack = Drive.bLookBack;
+		Target = bLookBack ? 180.0f : Drive.Look * 90.0f;
+	}
+	if (FollowedCar && Values && !bLookBack)
+	{
+		Target += ApexCockpit::ApexLookYawDeg(FollowedCar->GetSteering(), Values->LookToApex);
+	}
+
+	// Quick enough to feel like a glance, slow enough that a tap on the key
+	// does not cut straight to the side window.
+	LookYawDeg = FMath::FInterpTo(LookYawDeg, Target, DeltaSeconds, 10.0f);
+
+	// The chase camera turns with the head too, on its boom, which keeps
+	// the rotation lag and levelled pitch it already has.
+	CameraBoom->SetRelativeRotation(FRotator(-12.0f, LookYawDeg, 0.0f));
 }
 
 void AApexRaceDirector::UpdateCameraFeel(float DeltaSeconds)
@@ -426,65 +593,10 @@ void AApexRaceDirector::PollDrivingInput()
 		// Clamped to the range the server accepts: reverse through tenth.
 		Input.Gear = FMath::Clamp(FollowedCar->GetGear() + GearDelta, -1, 10);
 	}
-	else
-	{
-		Input.Gear = PollAutoGearbox();
-	}
+	// The automatic gearbox runs on the server (see SetDriverAids): it knows
+	// the car's redline and ratios, which the client never learns.
 
 	Net->SetPlayerInput(Input);
-}
-
-int32 AApexRaceDirector::PollAutoGearbox()
-{
-	const UApexSettingsSubsystem* Settings = GetSettings();
-	const UApexNetSubsystem* Net = GetNet();
-	if (!Settings || !Settings->Get() || !Settings->Get()->bAutoGearbox || !Net)
-	{
-		return -128;
-	}
-
-	// The server has no automatic-gearbox flag, so an auto box is a client that
-	// sends the shift the driver would have. Everything it needs — revs and the
-	// gear actually engaged — is on the telemetry frame.
-	const int32 LocalIndex = Net->GetLocalCarIndex();
-	const FApexCarTelemetry* Local = Net->GetLatestTelemetry().Cars.FindByPredicate(
-		[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; });
-	if (!Local || Local->Gear < 0)
-	{
-		// Reverse is never chosen automatically: only the driver knows they meant
-		// to back up rather than to stop.
-		return -128;
-	}
-
-	int32 Wanted = Local->Gear;
-	if (Local->EngineRpm > AutoShiftUpRpm && Local->Gear < 10)
-	{
-		Wanted = Local->Gear + 1;
-	}
-	else if (Local->EngineRpm < AutoShiftDownRpm && Local->Gear > 1)
-	{
-		Wanted = Local->Gear - 1;
-	}
-	else if (Local->Gear == 0 && Local->Throttle > 0.05f)
-	{
-		// Pulling away from neutral.
-		Wanted = 1;
-	}
-
-	if (Wanted == Local->Gear)
-	{
-		return -128;
-	}
-
-	// Telemetry lags the request by a frame or two, so without a hold the same
-	// shift is sent repeatedly and the box hunts.
-	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-	if (Now - LastAutoShiftTime < AutoShiftHoldSeconds)
-	{
-		return -128;
-	}
-	LastAutoShiftTime = Now;
-	return Wanted;
 }
 
 void AApexRaceDirector::SetCockpitView(bool bCockpit)
@@ -516,13 +628,28 @@ void AApexRaceDirector::ApplyCameraMode()
 	CockpitCamera->SetActive(bCockpitView);
 	ChaseCamera->SetActive(!bCockpitView);
 
-	// From the driver's seat the car's own bodywork fills the screen, so the
-	// followed car stops drawing. Only that one: the rest of the field has to
+	// From the driver's seat the car's own bodywork is what frames the view —
+	// unless the mesh has no interior to speak of, in which case the player
+	// can switch it off. Only the followed car: the rest of the field has to
 	// stay visible, which is why this is not a flag on the mesh itself.
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	const bool bShowOwnCar = !bCockpitView || !Values || Values->bCockpitShowCar;
 	if (FollowedCar)
 	{
-		FollowedCar->SetMeshVisible(!bCockpitView);
+		FollowedCar->SetMeshVisible(bShowOwnCar);
 	}
+	PushRigFeatures();
+}
+
+FVector AApexRaceDirector::CockpitEyeLocal() const
+{
+	if (!FollowedCar)
+	{
+		return FVector::ZeroVector;
+	}
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	const FVector Seat = Values ? FVector(Values->SeatForwardCm, 0.0f, Values->SeatHeightCm) : FVector::ZeroVector;
+	return FollowedCar->GetCockpitLayout().Eye + Seat;
 }
 
 void AApexRaceDirector::UpdateCockpitCamera()
@@ -531,14 +658,85 @@ void AApexRaceDirector::UpdateCockpitCamera()
 	{
 		return;
 	}
-	// Full rotation, not the levelled yaw the boom uses: through a banked
-	// corner or over a kerb the horizon should tilt with the car. The shake
-	// composes in the car's own frame, after its orientation.
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	const float HorizonLock = Values ? Values->HorizonLock : 0.0f;
+	const float ViewPitch = Values ? Values->ViewPitchDeg : 0.0f;
+
+	// The car's orientation as far as the horizon lock allows, then the
+	// driver's gaze and head turn in the car's frame, then the shake.
 	const FRotator CarRotation = FollowedCar->GetActorRotation();
-	const FQuat ShakenRotation = CarRotation.Quaternion() * CockpitShake.Quaternion();
+	const FQuat View = ApexCockpit::ViewRotation(CarRotation, HorizonLock, ViewPitch, LookYawDeg)
+		* CockpitShake.Quaternion();
+	const FVector EyeLocal = CockpitEyeLocal() + HeadOffset;
 	CockpitCamera->SetWorldLocationAndRotation(
-		FollowedCar->GetActorLocation() + CarRotation.RotateVector(CockpitEyeOffset),
-		ShakenRotation);
+		FollowedCar->GetActorLocation() + CarRotation.RotateVector(EyeLocal), View);
+}
+
+void AApexRaceDirector::ApplyCameraSettings()
+{
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	if (!Values)
+	{
+		return;
+	}
+	SetFieldOfView(Values->FieldOfView);
+	if (Rig)
+	{
+		// The seat moved: the screens turn to face the new eye.
+		Rig->SetEyeLocal(CockpitEyeLocal());
+	}
+	ApplyCameraMode();
+}
+
+void AApexRaceDirector::PushRigFeatures()
+{
+	if (!Rig)
+	{
+		return;
+	}
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	FApexCockpitFeatures Features;
+	Features.bCockpitActive = bCockpitView;
+	if (Values)
+	{
+		Features.bWheel = Values->bCockpitWheel;
+		Features.bMirrors = Values->bCockpitMirrors;
+		Features.bVirtualMirror = Values->bVirtualMirror;
+		Features.MirrorQuality = Values->MirrorQuality;
+		Features.bMetric = Values->Units == EApexUnits::Metric;
+	}
+	Rig->SetFeatures(Features);
+}
+
+UTextureRenderTarget2D* AApexRaceDirector::GetVirtualMirrorTexture() const
+{
+	return Rig ? Rig->GetVirtualMirrorTexture() : nullptr;
+}
+
+void AApexRaceDirector::EnsureRig()
+{
+	UWorld* World = GetWorld();
+	if (Rig || !World)
+	{
+		return;
+	}
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Rig = World->SpawnActor<AApexCockpitRig>(AApexCockpitRig::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, Params);
+	if (Rig && FollowedCar)
+	{
+		Rig->AttachToCar(FollowedCar);
+		Rig->SetEyeLocal(CockpitEyeLocal());
+	}
+}
+
+void AApexRaceDirector::DestroyRig()
+{
+	if (Rig)
+	{
+		Rig->Destroy();
+		Rig = nullptr;
+	}
 }
 
 void AApexRaceDirector::ApplyRaceInputMode(bool bRacing)
@@ -577,24 +775,32 @@ void AApexRaceDirector::BeginRaceView()
 	LoadTrackLevel();
 	ApplyRaceEnvironment();
 
+	// The view a race opens in comes from the settings; -ApexView=chase or
+	// -ApexView=cockpit overrides it for a screenshot run.
+	if (const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr)
+	{
+		bCockpitView = Values->bStartInCockpit;
+	}
+	FString RequestedView;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexView="), RequestedView))
+	{
+		bCockpitView = !RequestedView.Equals(TEXT("chase"), ESearchCase::IgnoreCase);
+	}
+	LookYawDeg = 0.0f;
+	HeadOffset = FVector::ZeroVector;
+	bHavePrevMotion = false;
+
 	if (const UApexNetSubsystem* Net = GetNet())
 	{
 		SyncCarsToRoster(Net->GetSessionRoster());
 	}
 	UpdateCameraTarget();
+	EnsureRig();
 	UpdateCockpitCamera();
-	ApplyCameraMode();
+	// The cameras only exist while racing, so the saved camera block has had
+	// nowhere to land until now. This also applies the camera mode.
+	ApplyCameraSettings();
 	ApplyRaceInputMode(true);
-
-	// The cameras only exist while racing, so the saved field of view has had
-	// nowhere to land until now.
-	if (const UApexSettingsSubsystem* Settings = GetSettings())
-	{
-		if (const UApexSettingsSave* Values = Settings->Get())
-		{
-			SetFieldOfView(Values->FieldOfView);
-		}
-	}
 
 	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
 	{
@@ -602,8 +808,8 @@ void AApexRaceDirector::BeginRaceView()
 	}
 
 	UE_LOG(LogApexSim, Log,
-		TEXT("Race view active with %d car(s). Drive with WASD, C swaps cockpit/chase"),
-		Cars.Num());
+		TEXT("Race view active with %d car(s) in the %s view. Drive with WASD, C swaps cockpit/chase"),
+		Cars.Num(), bCockpitView ? TEXT("cockpit") : TEXT("chase"));
 }
 
 void AApexRaceDirector::EndRaceView()
@@ -620,6 +826,7 @@ void AApexRaceDirector::EndRaceView()
 		FollowedCar->SetMeshVisible(true);
 	}
 	FollowedCar = nullptr;
+	DestroyRig();
 	DestroyAllCars();
 	UnloadTrackLevel();
 	RestoreMenuEnvironment();
@@ -695,6 +902,7 @@ void AApexRaceDirector::LoadTrackLevel()
 	}
 
 	UE_LOG(LogApexSim, Log, TEXT("Streaming track level %s"), *PackagePath);
+	ForgetStartLights();
 }
 
 void AApexRaceDirector::UnloadTrackLevel()
@@ -708,6 +916,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	TrackLevel->SetShouldBeVisible(false);
 	TrackLevel->SetShouldBeLoaded(false);
 	TrackLevel = nullptr;
+	ForgetStartLights();
 }
 
 void AApexRaceDirector::DestroyAllCars()

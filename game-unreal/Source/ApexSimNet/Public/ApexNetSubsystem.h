@@ -178,6 +178,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void StartCountdown(int32 Seconds, EApexGameMode NextMode);
 
+	/**
+	 * Driver aids the server runs for this player. The automatic gearbox
+	 * lives on the server because it needs the car's redline and ratios,
+	 * which the protocol never sends; the client only forwards the setting,
+	 * on joining a session and whenever it changes.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void SetDriverAids(bool bAutoGearbox);
+
 	// --- State ----------------------------------------------------------------
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")

@@ -1,4 +1,5 @@
-//! A coarse terrain heightfield derived from the track's own centerline.
+//! The ground: a coarse terrain heightfield derived from the track's own
+//! centerline, plus the verge that ties it to the road.
 //!
 //! Tracks carry no terrain of their own — only the centerline has heights.
 //! Ground bands used to be extruded sideways at their own station's height,
@@ -7,22 +8,33 @@
 //! high section would hang in mid-air above (or knife through) a lower
 //! section 30 m away.
 //!
-//! The fix is a shared notion of "the ground here": every centerline sample
-//! contributes its height to a regular grid via inverse-distance weighting,
-//! so the terrain between two neighbouring track sections interpolates
-//! smoothly between their elevations — and *at* any track section it agrees
-//! with that section's own height. Ground bands blend from the road edge
-//! into this field as they extend outward ([`blend_toward_terrain`]), and a
-//! ground mesh built straight from the grid fills the world under
-//! everything else.
+//! The fix is a shared notion of "the ground here", answered for any XY by
+//! [`TerrainHeightfield::ground_height_at`]:
+//!
+//! - Far from every road it is the **terrain field**: every centerline
+//!   sample contributes its height to a regular grid via inverse-distance
+//!   weighting, so the terrain between two neighbouring track sections
+//!   interpolates smoothly between their elevations, capped by a road
+//!   ceiling so a hill can never bury a road.
+//! - Within [`BLEND_START_M`] of a road edge it is the **verge**: the road
+//!   edge's own height less [`VERGE_DROP_M`], all the way round the circuit
+//!   and along the pit lane, whether or not a `.ats` band is authored there.
+//! - In between it is a smoothstep from the verge into the terrain, reached
+//!   by [`BLEND_END_M`] out.
+//!
+//! Every consumer — the ground mesh, the authored surface bands, curb outer
+//! faces, prop seating, the server's ground sidecar — samples that one
+//! function, which is what keeps them from stepping against each other.
 //!
 //! Building the field is deterministic: fixed iteration order, no wall
 //! clock, plain `f32` arithmetic — repeated bakes stay byte-identical.
 
-use crate::track_path::CenterlinePath;
+use serde::{Deserialize, Serialize};
 
-/// Grid spacing of the sampled heightfield, meters. Coarse on purpose: this
-/// is rolling ground, not road surface.
+use crate::track_path::{offset_point, CenterlinePath};
+
+/// Grid spacing of the sampled terrain field, meters. Coarse on purpose:
+/// this is rolling ground, not road surface.
 const CELL_M: f32 = 12.0;
 /// Extra ground beyond the centerline's bounding box, meters. Must cover
 /// the widest surface band content ships (130 m) with room to spare.
@@ -45,25 +57,125 @@ const APRON_M: f32 = 8.0;
 /// walls climb at this grade, instead of blankets over the lower road.
 const RISE_SLOPE: f32 = 0.15;
 
-/// How far below every scene surface the ground mesh sits, meters.
-pub const GROUND_LIFT_M: f32 = -0.25;
+/// How far below the road edge the verge sits, meters. A real road stands
+/// a few centimetres proud of the grass beside it; this is also what keeps
+/// the verge from z-fighting the road ribbon.
+pub const VERGE_DROP_M: f32 = 0.08;
 
-/// Lateral distance beyond the track edge where a ground band still follows
-/// the road surface exactly, meters…
+/// Lateral distance beyond the track edge where the ground still follows
+/// the road edge exactly, meters…
 pub const BLEND_START_M: f32 = 6.0;
 /// …and where it has fully blended into the terrain field.
 pub const BLEND_END_M: f32 = 35.0;
 
-/// How far above the carved terrain a ground band may reach. The terrain
-/// is guaranteed to stay [`ROAD_CLEARANCE_M`] under every road, so a band
-/// clamped to `terrain + BAND_CLEAR_M` can never bury one either — while a
-/// band at its own road edge (terrain = road − 0.4 there) still reaches to
-/// a few centimeters under its own road surface.
-pub const BAND_CLEAR_M: f32 = 0.3;
+/// Under the road itself the ground dives below the surface at this grade
+/// (m per m in from the edge), capped at [`ROAD_DIVE_MAX_M`]. It starts at
+/// verge height right at the edge, so it is continuous with the verge on
+/// both sides of a banked road, and it drops away fast enough that a 4 m
+/// ground facet straddling the low edge of a banked corner cannot rise up
+/// through the road surface.
+const ROAD_DIVE_PER_M: f32 = 0.5;
+const ROAD_DIVE_MAX_M: f32 = 2.0;
+
+/// Where two roads run close at different heights, the ground near the
+/// lower one may not climb toward the upper one faster than this (m per
+/// m beyond the lower road's verge). It only ever binds between two roads;
+/// a lone road's blend never reaches it.
+const CEILING_RISE: f32 = 0.5;
+
+/// Softening in the road weights: a road inside its verge weighs
+/// `1 / HUG_EPS` against the terrain's 1, so the verge follows the road to
+/// within a millimetre while the weight stays finite (and the blend stays
+/// continuous) across the verge boundary.
+const HUG_EPS: f32 = 1e-3;
+
+/// Spatial bucket size of the road segment index, meters.
+const BUCKET_M: f32 = 16.0;
+/// How far past the road bounding box the segment index reaches. Queries
+/// outside it simply find no road.
+const INDEX_MARGIN_M: f32 = 80.0;
+/// Most nearby road runs considered by one ground query.
+const MAX_CANDIDATES: usize = 6;
 
 /// Preview / material color for the ground itself: darker than any grass
 /// band so authored surfaces still read on top of it.
 pub const GROUND_COLOR: [f32; 4] = [0.11, 0.27, 0.10, 1.0];
+
+/// Grid spacing of the server's ground sidecar, meters.
+pub const GROUND_SIDECAR_CELL_M: f32 = 4.0;
+/// Margin of the sidecar past the road bounding box, meters.
+pub const GROUND_SIDECAR_MARGIN_M: f32 = 80.0;
+pub const GROUND_SIDECAR_VERSION: u32 = 1;
+
+/// The heightfield the server reads (`<Track>.ground.msgpack`, written
+/// with `rmp_serde::to_vec_named`). Row-major, `index = row * cols + col`,
+/// sample `(col, row)` at `(origin_x + col * cell_m, origin_y + row *
+/// cell_m)`, all in the server's frame (meters, x forward at start/finish,
+/// y left, z up — the YAML's frame, not Unreal's). Each sample is the
+/// surface the client renders at that XY: the road (with banking) inside
+/// the road, the pit lane inside the pit lane, the verge / band / terrain
+/// ground elsewhere. Heights in centimeters, clamped to the `i16` range.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GroundHeightfield {
+    pub version: u32,
+    pub origin_x: f32,
+    pub origin_y: f32,
+    pub cell_m: f32,
+    pub cols: u32,
+    pub rows: u32,
+    pub heights_cm: Vec<i16>,
+}
+
+impl GroundHeightfield {
+    /// Height at sample `(col, row)`, meters.
+    pub fn height_m(&self, col: u32, row: u32) -> f32 {
+        self.heights_cm[(row * self.cols + col) as usize] as f32 / 100.0
+    }
+}
+
+/// One road-like polyline the ground hugs: the track itself, the pit lane.
+struct Road {
+    path: CenterlinePath,
+    /// Widest half-width along it, for the search radius.
+    max_half_m: f32,
+}
+
+/// Uniform buckets over the road segments, so a ground query only looks at
+/// the handful of segments near it instead of every one on the circuit.
+/// CSR layout: `entries[offsets[b]..offsets[b + 1]]` are bucket `b`'s
+/// `(road, segment)` pairs, in `(road, segment)` order.
+struct SegmentIndex {
+    origin: (f32, f32),
+    cols: usize,
+    rows: usize,
+    offsets: Vec<u32>,
+    entries: Vec<(u32, u32)>,
+}
+
+/// A road segment near a query point, with the point resolved against it.
+#[derive(Clone, Copy, Debug)]
+struct Hit {
+    road: u32,
+    segment: u32,
+    /// 2D distance from the point to its foot on the segment, meters.
+    dist: f32,
+    /// Station of that foot along the road.
+    station: f32,
+    /// Signed lateral: `dist` with the sign of the road's left/right.
+    lat: f32,
+}
+
+/// What one nearby road contributes to the ground at a point.
+struct Contribution {
+    /// The height the ground would have following this road alone.
+    hug: f32,
+    /// Its weight against the terrain's weight of 1.
+    weight: f32,
+    /// The ground may not rise above this on this road's account.
+    ceiling: f32,
+    /// The road surface at the point, when the point is on the road.
+    surface: Option<f32>,
+}
 
 pub struct TerrainHeightfield {
     /// Track-space position of grid vertex (0, 0).
@@ -74,12 +186,26 @@ pub struct TerrainHeightfield {
     rows: usize,
     /// Row-major heights, `rows * cols` entries.
     heights: Vec<f32>,
+
+    roads: Vec<Road>,
+    index: SegmentIndex,
+    /// Radius within which a road can still shape the ground.
+    search_radius_m: f32,
+    /// Bounding box of every road including its width: `(min_x, min_y,
+    /// max_x, max_y)`.
+    road_bounds: (f32, f32, f32, f32),
 }
 
 impl TerrainHeightfield {
     /// Build the field for a sampled centerline. Returns `None` for a
     /// degenerate path (no samples, or a bounding box of zero extent).
     pub fn from_path(path: &CenterlinePath) -> Option<Self> {
+        Self::from_paths(path, &[])
+    }
+
+    /// [`Self::from_path`] with further road-like paths — the pit lane —
+    /// that the ground hugs exactly like the track.
+    pub fn from_paths(path: &CenterlinePath, extra: &[&CenterlinePath]) -> Option<Self> {
         let samples = path.samples();
         if samples.is_empty() {
             return None;
@@ -102,23 +228,27 @@ impl TerrainHeightfield {
         let (mut min_x, mut min_y) = (f32::MAX, f32::MAX);
         let (mut max_x, mut max_y) = (f32::MIN, f32::MIN);
         let mut sources: Vec<Source> = Vec::new();
-        let mut next_station = 0.0f32;
-        for s in samples {
-            min_x = min_x.min(s.pos.0);
-            min_y = min_y.min(s.pos.1);
-            max_x = max_x.max(s.pos.0);
-            max_y = max_y.max(s.pos.1);
-            if s.station_m >= next_station {
-                let half_width = s.width_left_m.max(s.width_right_m);
-                let edge_drop = half_width * s.banking_rad.sin().abs();
-                sources.push(Source {
-                    x: s.pos.0,
-                    y: s.pos.1,
-                    z: s.pos.2,
-                    ceiling_z: s.pos.2 - edge_drop - ROAD_CLEARANCE_M,
-                    reach_m: half_width + APRON_M,
-                });
-                next_station = s.station_m + SOURCE_SPACING_M;
+        let mut all_paths: Vec<&CenterlinePath> = vec![path];
+        all_paths.extend(extra.iter().copied());
+        for p in &all_paths {
+            let mut next_station = 0.0f32;
+            for s in p.samples() {
+                min_x = min_x.min(s.pos.0);
+                min_y = min_y.min(s.pos.1);
+                max_x = max_x.max(s.pos.0);
+                max_y = max_y.max(s.pos.1);
+                if s.station_m >= next_station {
+                    let half_width = s.width_left_m.max(s.width_right_m);
+                    let edge_drop = half_width * s.banking_rad.sin().abs();
+                    sources.push(Source {
+                        x: s.pos.0,
+                        y: s.pos.1,
+                        z: s.pos.2,
+                        ceiling_z: s.pos.2 - edge_drop - ROAD_CLEARANCE_M,
+                        reach_m: half_width + APRON_M,
+                    });
+                    next_station = s.station_m + SOURCE_SPACING_M;
+                }
             }
         }
         if sources.is_empty() || !(min_x < max_x || min_y < max_y) {
@@ -151,17 +281,42 @@ impl TerrainHeightfield {
             }
         }
 
+        let roads: Vec<Road> = all_paths
+            .iter()
+            .map(|p| Road {
+                path: (*p).clone(),
+                max_half_m: p
+                    .samples()
+                    .iter()
+                    .map(|s| s.width_left_m.max(s.width_right_m))
+                    .fold(0.0, f32::max),
+            })
+            .collect();
+        let max_half = roads.iter().map(|r| r.max_half_m).fold(0.0, f32::max);
+        let road_bounds = (
+            min_x - max_half,
+            min_y - max_half,
+            max_x + max_half,
+            max_y + max_half,
+        );
+        let index = SegmentIndex::build(&roads, road_bounds);
+
         Some(Self {
             origin,
             cell_m: CELL_M,
             cols,
             rows,
             heights,
+            roads,
+            index,
+            search_radius_m: BLEND_END_M + max_half + 1.0,
+            road_bounds,
         })
     }
 
-    /// Terrain height at a track-space position, bilinear between grid
-    /// vertices, clamped to the grid at its borders.
+    /// Raw terrain height at a track-space position — the far field, with
+    /// no verge: bilinear between grid vertices, clamped to the grid at its
+    /// borders. Most callers want [`Self::ground_height_at`].
     pub fn height_at(&self, x: f32, y: f32) -> f32 {
         let fx = ((x - self.origin.0) / self.cell_m).clamp(0.0, (self.cols - 1) as f32);
         let fy = ((y - self.origin.1) / self.cell_m).clamp(0.0, (self.rows - 1) as f32);
@@ -178,6 +333,172 @@ impl TerrainHeightfield {
         top + (bottom - top) * ty
     }
 
+    /// The visible ground height at a track-space position: the verge
+    /// beside any road (track or pit lane), blending into the terrain
+    /// field further out, and never rising through a road passing over.
+    /// Under a road it dips below the surface; see [`Self::surface_height_at`]
+    /// for the surface a car drives on.
+    pub fn ground_height_at(&self, x: f32, y: f32) -> f32 {
+        self.probe(x, y).0
+    }
+
+    /// The surface at a track-space position: the road (with banking)
+    /// inside the road, the pit lane inside the pit lane, and otherwise the
+    /// ground of [`Self::ground_height_at`]. Where roads overlap the higher
+    /// one wins.
+    pub fn surface_height_at(&self, x: f32, y: f32) -> f32 {
+        self.probe(x, y).1
+    }
+
+    /// `(ground, surface)` at a point, from one candidate search.
+    fn probe(&self, x: f32, y: f32) -> (f32, f32) {
+        let terrain = self.height_at(x, y);
+        let candidates = self.candidates(x, y, self.search_radius_m);
+        if candidates.is_empty() {
+            return (terrain, terrain);
+        }
+
+        let mut num = terrain;
+        let mut den = 1.0f32;
+        let mut ceiling = f32::INFINITY;
+        let mut surface: Option<f32> = None;
+        for hit in &candidates {
+            let c = self.contribution(hit);
+            num += c.hug * c.weight;
+            den += c.weight;
+            ceiling = ceiling.min(c.ceiling);
+            if let Some(s) = c.surface {
+                surface = Some(surface.map_or(s, |prev: f32| prev.max(s)));
+            }
+        }
+        let ground = (num / den).min(ceiling);
+        (ground, surface.unwrap_or(ground))
+    }
+
+    /// Evaluate one nearby road's say over the ground at the query point.
+    fn contribution(&self, hit: &Hit) -> Contribution {
+        let road = &self.roads[hit.road as usize];
+        let sample = road.path.sample_at(hit.station);
+        let (half, edge_lat) = if hit.lat >= 0.0 {
+            (sample.width_left_m, sample.width_left_m)
+        } else {
+            (sample.width_right_m, -sample.width_right_m)
+        };
+        let beyond = hit.dist - half;
+        let edge_z = offset_point(&sample, edge_lat).2;
+
+        if beyond < 0.0 {
+            // On the road: follow the surface (banking included) and dive
+            // under it, continuous with the verge at the edge.
+            let surface_z = offset_point(&sample, hit.lat).2;
+            let depth_in = (-beyond).min(sample.width_left_m + sample.width_right_m + beyond);
+            let dive = (depth_in * ROAD_DIVE_PER_M).min(ROAD_DIVE_MAX_M);
+            let hug = surface_z - VERGE_DROP_M - dive;
+            return Contribution {
+                hug,
+                weight: 1.0 / HUG_EPS,
+                ceiling: hug,
+                surface: Some(surface_z),
+            };
+        }
+
+        let hug = edge_z - VERGE_DROP_M;
+        let t = ((beyond - BLEND_START_M) / (BLEND_END_M - BLEND_START_M)).clamp(0.0, 1.0);
+        // Smoothstep, so the ground leaves the verge with zero slope. With
+        // a single road the weighted mean below reduces to exactly
+        // `hug + (terrain - hug) * t`.
+        let t = t * t * (3.0 - 2.0 * t);
+        let w = 1.0 - t;
+        Contribution {
+            hug,
+            weight: w / (1.0 - w + HUG_EPS),
+            ceiling: hug + (beyond - BLEND_START_M).max(0.0) * CEILING_RISE,
+            surface: None,
+        }
+    }
+
+    /// Nearest road runs to a point, at most [`MAX_CANDIDATES`], nearest
+    /// first. A *run* is a stretch of consecutive segments of one road
+    /// within `radius`; a hairpin yields two, a straight one. Each run is
+    /// represented by its nearest segment.
+    fn candidates(&self, x: f32, y: f32, radius: f32) -> Vec<Hit> {
+        let mut hits = self.index.gather(&self.roads, x, y, radius);
+        if hits.len() <= 1 {
+            return hits;
+        }
+        hits.sort_unstable_by_key(|h| (h.road, h.segment));
+        // A segment straddling several buckets was reported once per bucket.
+        hits.dedup_by_key(|h| (h.road, h.segment));
+
+        let mut runs: Vec<Hit> = Vec::new();
+        let mut best: Option<Hit> = None;
+        let mut prev: Option<(u32, u32)> = None;
+        for hit in hits {
+            let contiguous =
+                matches!(prev, Some((road, seg)) if road == hit.road && hit.segment <= seg + 1);
+            if !contiguous {
+                if let Some(b) = best.take() {
+                    runs.push(b);
+                }
+            }
+            best = match best {
+                Some(b) if b.dist <= hit.dist => Some(b),
+                _ => Some(hit),
+            };
+            prev = Some((hit.road, hit.segment));
+        }
+        if let Some(b) = best {
+            runs.push(b);
+        }
+
+        runs.sort_by(|a, b| {
+            a.dist
+                .total_cmp(&b.dist)
+                .then((a.road, a.segment).cmp(&(b.road, b.segment)))
+        });
+        runs.truncate(MAX_CANDIDATES);
+        runs
+    }
+
+    /// 2D distance from a point to the nearest road centerline within
+    /// `radius`, if any road is that close.
+    pub fn road_distance_at(&self, x: f32, y: f32, radius: f32) -> Option<f32> {
+        self.index
+            .gather(&self.roads, x, y, radius)
+            .iter()
+            .map(|h| h.dist)
+            .fold(None, |acc: Option<f32>, d| {
+                Some(acc.map_or(d, |a| a.min(d)))
+            })
+    }
+
+    /// The nearest point of the *track* (not the pit lane) within
+    /// `radius`: `(station, signed lateral, half-width on that side)`.
+    pub fn nearest_track_point(&self, x: f32, y: f32, radius: f32) -> Option<(f32, f32, f32)> {
+        let hit = self
+            .index
+            .gather(&self.roads, x, y, radius)
+            .into_iter()
+            .filter(|h| h.road == 0)
+            .min_by(|a, b| a.dist.total_cmp(&b.dist).then(a.segment.cmp(&b.segment)))?;
+        let sample = self.roads[0].path.sample_at(hit.station);
+        let half = if hit.lat >= 0.0 {
+            sample.width_left_m
+        } else {
+            sample.width_right_m
+        };
+        Some((hit.station, hit.lat, half))
+    }
+
+    /// Upward ground normal at a point, from central differences of
+    /// [`Self::ground_height_at`] over `h` meters.
+    pub fn ground_normal_at(&self, x: f32, y: f32, h: f32) -> (f32, f32, f32) {
+        let dx = (self.ground_height_at(x + h, y) - self.ground_height_at(x - h, y)) / (2.0 * h);
+        let dy = (self.ground_height_at(x, y + h) - self.ground_height_at(x, y - h)) / (2.0 * h);
+        let len = (dx * dx + dy * dy + 1.0).sqrt();
+        (-dx / len, -dy / len, 1.0 / len)
+    }
+
     /// Track-space position of grid vertex `(col, row)`.
     pub fn vertex(&self, col: usize, row: usize) -> (f32, f32, f32) {
         (
@@ -187,8 +508,9 @@ impl TerrainHeightfield {
         )
     }
 
-    /// Outward (up) surface normal at grid vertex `(col, row)`, track space,
-    /// from central differences of the stored heights.
+    /// Outward (up) surface normal of the raw terrain at grid vertex
+    /// `(col, row)`, track space, from central differences of the stored
+    /// heights.
     pub fn normal(&self, col: usize, row: usize) -> (f32, f32, f32) {
         let h = |r: usize, c: usize| self.heights[r * self.cols + c];
         let (c0, c1) = (col.saturating_sub(1), (col + 1).min(self.cols - 1));
@@ -210,16 +532,170 @@ impl TerrainHeightfield {
     pub fn cell_m(&self) -> f32 {
         self.cell_m
     }
+
+    /// Bounding box of every road including its width:
+    /// `(min_x, min_y, max_x, max_y)`, meters.
+    pub fn road_bounds(&self) -> (f32, f32, f32, f32) {
+        self.road_bounds
+    }
+
+    /// Sample [`Self::surface_height_at`] onto the server's grid: the road
+    /// bounding box plus [`GROUND_SIDECAR_MARGIN_M`], `cell_m` apart.
+    pub fn bake_ground_sidecar(&self, cell_m: f32) -> GroundHeightfield {
+        let (min_x, min_y, max_x, max_y) = self.road_bounds;
+        let origin_x = min_x - GROUND_SIDECAR_MARGIN_M;
+        let origin_y = min_y - GROUND_SIDECAR_MARGIN_M;
+        let cols = ((max_x + GROUND_SIDECAR_MARGIN_M - origin_x) / cell_m).ceil() as u32 + 1;
+        let rows = ((max_y + GROUND_SIDECAR_MARGIN_M - origin_y) / cell_m).ceil() as u32 + 1;
+        let mut heights_cm = Vec::with_capacity((cols * rows) as usize);
+        for r in 0..rows {
+            let y = origin_y + r as f32 * cell_m;
+            for c in 0..cols {
+                let x = origin_x + c as f32 * cell_m;
+                let z = self.surface_height_at(x, y);
+                let cm = if z.is_finite() {
+                    (z * 100.0).round()
+                } else {
+                    0.0
+                };
+                heights_cm.push(cm.clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+            }
+        }
+        GroundHeightfield {
+            version: GROUND_SIDECAR_VERSION,
+            origin_x,
+            origin_y,
+            cell_m,
+            cols,
+            rows,
+            heights_cm,
+        }
+    }
 }
 
-/// Blend a ground-band vertex height from the road edge into the terrain.
-///
-/// `edge_z` is the height the band would have had following the road
-/// (centerline + banking shear), `terrain_z` the field's height at the
-/// vertex's XY, and `beyond_edge_m` how far the vertex sits outside the
-/// track edge. Inside [`BLEND_START_M`] the band hugs the road exactly so
-/// curbs and verges stay seated; past [`BLEND_END_M`] it lies on the
-/// terrain, whatever its own station's height was.
+impl SegmentIndex {
+    fn build(roads: &[Road], bounds: (f32, f32, f32, f32)) -> Self {
+        let origin = (bounds.0 - INDEX_MARGIN_M, bounds.1 - INDEX_MARGIN_M);
+        let cols = (((bounds.2 + INDEX_MARGIN_M - origin.0) / BUCKET_M).ceil() as usize).max(1);
+        let rows = (((bounds.3 + INDEX_MARGIN_M - origin.1) / BUCKET_M).ceil() as usize).max(1);
+
+        let bucket_of = |x: f32, y: f32| -> (usize, usize) {
+            let c = (((x - origin.0) / BUCKET_M).floor().max(0.0) as usize).min(cols - 1);
+            let r = (((y - origin.1) / BUCKET_M).floor().max(0.0) as usize).min(rows - 1);
+            (c, r)
+        };
+
+        // Every bucket a segment's bounding box touches gets the segment.
+        let mut placements: Vec<(usize, (u32, u32))> = Vec::new();
+        for (ri, road) in roads.iter().enumerate() {
+            let samples = road.path.samples();
+            let count = segment_count(&road.path);
+            for i in 0..count {
+                let a = samples[i].pos;
+                let b = samples[(i + 1) % samples.len()].pos;
+                let (c0, r0) = bucket_of(a.0.min(b.0), a.1.min(b.1));
+                let (c1, r1) = bucket_of(a.0.max(b.0), a.1.max(b.1));
+                for r in r0..=r1 {
+                    for c in c0..=c1 {
+                        placements.push((r * cols + c, (ri as u32, i as u32)));
+                    }
+                }
+            }
+        }
+        placements.sort_unstable();
+
+        let mut offsets = vec![0u32; cols * rows + 1];
+        for (bucket, _) in &placements {
+            offsets[bucket + 1] += 1;
+        }
+        for b in 0..cols * rows {
+            offsets[b + 1] += offsets[b];
+        }
+        let entries = placements.into_iter().map(|(_, e)| e).collect();
+
+        Self {
+            origin,
+            cols,
+            rows,
+            offsets,
+            entries,
+        }
+    }
+
+    /// Every segment within `radius` of `(x, y)`, resolved against the
+    /// point. Order is by bucket then `(road, segment)`; deterministic.
+    fn gather(&self, roads: &[Road], x: f32, y: f32, radius: f32) -> Vec<Hit> {
+        let mut hits = Vec::new();
+        let lo_c = ((x - radius - self.origin.0) / BUCKET_M).floor();
+        let hi_c = ((x + radius - self.origin.0) / BUCKET_M).floor();
+        let lo_r = ((y - radius - self.origin.1) / BUCKET_M).floor();
+        let hi_r = ((y + radius - self.origin.1) / BUCKET_M).floor();
+        if hi_c < 0.0 || hi_r < 0.0 || lo_c >= self.cols as f32 || lo_r >= self.rows as f32 {
+            return hits;
+        }
+        let lo_c = lo_c.max(0.0) as usize;
+        let hi_c = (hi_c as usize).min(self.cols - 1);
+        let lo_r = lo_r.max(0.0) as usize;
+        let hi_r = (hi_r as usize).min(self.rows - 1);
+
+        for r in lo_r..=hi_r {
+            for c in lo_c..=hi_c {
+                let b = r * self.cols + c;
+                for &(road_i, seg) in
+                    &self.entries[self.offsets[b] as usize..self.offsets[b + 1] as usize]
+                {
+                    let road = &roads[road_i as usize];
+                    let samples = road.path.samples();
+                    let i = seg as usize;
+                    let a = samples[i];
+                    let (b_pos, b_station) = if i + 1 < samples.len() {
+                        (samples[i + 1].pos, samples[i + 1].station_m)
+                    } else {
+                        (samples[0].pos, road.path.total_length_m())
+                    };
+                    let (ex, ey) = (b_pos.0 - a.pos.0, b_pos.1 - a.pos.1);
+                    let (px, py) = (x - a.pos.0, y - a.pos.1);
+                    let len2 = ex * ex + ey * ey;
+                    let t = if len2 > 1e-9 {
+                        ((px * ex + py * ey) / len2).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    };
+                    let (fx, fy) = (px - ex * t, py - ey * t);
+                    let dist = (fx * fx + fy * fy).sqrt();
+                    if dist > radius {
+                        continue;
+                    }
+                    // Left of the course is positive lateral.
+                    let left = ex * py - ey * px >= 0.0;
+                    hits.push(Hit {
+                        road: road_i,
+                        segment: seg,
+                        dist,
+                        station: a.station_m + (b_station - a.station_m) * t,
+                        lat: if left { dist } else { -dist },
+                    });
+                }
+            }
+        }
+        hits
+    }
+}
+
+/// Segments of a path: one per sample, the last closing the loop on a
+/// closed path; one fewer on an open path.
+fn segment_count(path: &CenterlinePath) -> usize {
+    let n = path.samples().len();
+    if path.is_closed() {
+        n
+    } else {
+        n.saturating_sub(1)
+    }
+}
+
+/// Blend a height from the road edge into the terrain with distance — the
+/// single-road profile of [`TerrainHeightfield::ground_height_at`], kept
+/// as a plain function for callers that already know both heights.
 pub fn blend_toward_terrain(edge_z: f32, terrain_z: f32, beyond_edge_m: f32) -> f32 {
     let t = ((beyond_edge_m - BLEND_START_M) / (BLEND_END_M - BLEND_START_M)).clamp(0.0, 1.0);
     // Smoothstep, so the band leaves the road edge with zero slope.
@@ -347,6 +823,9 @@ mod tests {
                 "terrain {} at ({x}, 30) buries the high road",
                 f.height_at(x, 30.0)
             );
+            // The ground itself too, on both roads' account.
+            assert!(f.ground_height_at(x, 0.0) < -0.05);
+            assert!(f.ground_height_at(x, 30.0) < 24.95);
         }
     }
 
@@ -363,5 +842,144 @@ mod tests {
     fn same_path_builds_an_identical_field() {
         let (a, b) = (field(), field());
         assert_eq!(a.heights, b.heights);
+    }
+
+    /// The verge: right beside the road the ground is the road edge less
+    /// [`VERGE_DROP_M`], everywhere, and it eases into the terrain by
+    /// [`BLEND_END_M`] out.
+    #[test]
+    fn ground_hugs_the_road_edge_then_blends_to_terrain() {
+        let path = CenterlinePath::from_track(&hilly_loop()).unwrap();
+        let f = TerrainHeightfield::from_path(&path).unwrap();
+        // 200 m into the low leg, measuring out from its right edge. (The
+        // leg is a spline through four nodes, so it bulges: probe relative
+        // to the sampled cross-section, not to the node line.)
+        let s = path.sample_at(200.0);
+        let road_z = offset_point(&s, -s.width_right_m).2;
+        let at = |beyond: f32| {
+            let p = offset_point(&s, -(s.width_right_m + beyond));
+            f.ground_height_at(p.0, p.1)
+        };
+        let terrain_far = {
+            let p = offset_point(&s, -(s.width_right_m + 60.0));
+            f.height_at(p.0, p.1)
+        };
+
+        for beyond in [0.0, 1.0, 3.0, 5.0, 6.0] {
+            assert!(
+                (at(beyond) - (road_z - VERGE_DROP_M)).abs() < 0.02,
+                "{beyond} m out: {} vs verge {}",
+                at(beyond),
+                road_z - VERGE_DROP_M
+            );
+        }
+        assert!(
+            (at(60.0) - terrain_far).abs() < 0.02,
+            "60 m out: {} vs terrain {terrain_far}",
+            at(60.0)
+        );
+        // Monotone between, and no step: consecutive metres differ by less
+        // than a tenth of the whole drop.
+        let total = (at(6.0) - at(40.0)).abs().max(0.01);
+        let mut prev = at(6.0);
+        for beyond in 7..=40 {
+            let z = at(beyond as f32);
+            assert!(
+                (z - prev).abs() <= total * 0.12 + 0.01,
+                "step of {} m at {beyond} m out",
+                z - prev
+            );
+            prev = z;
+        }
+    }
+
+    /// The pit lane is a road too: the ground hugs it, and the surface
+    /// query reports its deck inside it.
+    #[test]
+    fn pit_lane_is_treated_like_road() {
+        let track = hilly_loop();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        // A 10 m wide lane 20 m right of the centerline along the low leg.
+        let lane_node = |station: f32| {
+            let p = offset_point(&path.sample_at(station), -20.0);
+            [p.0, p.1, p.2]
+        };
+        let lane = CenterlinePath::from_polyline(
+            &[
+                lane_node(100.0),
+                lane_node(150.0),
+                lane_node(200.0),
+                lane_node(250.0),
+                lane_node(300.0),
+            ],
+            5.0,
+        )
+        .unwrap();
+        let f = TerrainHeightfield::from_paths(&path, &[&lane]).unwrap();
+        let s = path.sample_at(200.0);
+        let probe = |lat: f32| offset_point(&s, lat);
+        let verge = probe(-s.width_right_m).2 - VERGE_DROP_M;
+        // 8 m from the track edge, a lone-road blend would already be
+        // leaving the verge; with the lane 2 m further out the ground
+        // stays put.
+        let p = probe(-13.0);
+        assert!(
+            (f.ground_height_at(p.0, p.1) - verge).abs() < 0.02,
+            "{} vs {verge}",
+            f.ground_height_at(p.0, p.1)
+        );
+        // Inside the lane, the surface is the lane deck, not the verge.
+        let p = probe(-20.0);
+        assert!((f.surface_height_at(p.0, p.1) - p.2).abs() < 0.02);
+        // Beside the lane's far edge, still the verge.
+        let p = probe(-28.0);
+        assert!((f.ground_height_at(p.0, p.1) - verge).abs() < 0.02);
+    }
+
+    /// The surface query: road (with banking) on the road, ground off it.
+    #[test]
+    fn surface_is_the_banked_road_inside_and_the_verge_outside() {
+        let mut track = hilly_loop();
+        for n in &mut track.nodes {
+            n.banking = Some(0.2);
+        }
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let f = TerrainHeightfield::from_path(&path).unwrap();
+        let s = path.sample_at(200.0);
+        let expect = |lat: f32| offset_point(&s, lat).2;
+        let at = |lat: f32| {
+            let p = offset_point(&s, lat);
+            f.surface_height_at(p.0, p.1)
+        };
+        let on = at(3.0);
+        assert!((on - expect(3.0)).abs() < 0.05, "{on} vs {}", expect(3.0));
+        let off = at(7.0);
+        assert!(
+            (off - (expect(5.0) - VERGE_DROP_M)).abs() < 0.05,
+            "{off} vs {}",
+            expect(5.0) - VERGE_DROP_M
+        );
+        // The ground never rises through the low edge of the banked road.
+        for lat in [-4.9f32, -3.0, 0.0, 3.0, 4.9] {
+            let (x, y, _) = offset_point(&s, lat);
+            assert!(f.ground_height_at(x, y) < expect(lat) - 0.05);
+        }
+    }
+
+    #[test]
+    fn sidecar_covers_the_road_with_its_margin() {
+        let f = field();
+        let g = f.bake_ground_sidecar(GROUND_SIDECAR_CELL_M);
+        assert_eq!(g.version, GROUND_SIDECAR_VERSION);
+        assert_eq!(g.heights_cm.len(), (g.cols * g.rows) as usize);
+        assert!(g.origin_x <= -5.0 - GROUND_SIDECAR_MARGIN_M + 0.01);
+        let max_x = g.origin_x + (g.cols - 1) as f32 * g.cell_m;
+        assert!(max_x >= 400.0 + 5.0 + GROUND_SIDECAR_MARGIN_M - 0.01);
+        // A sample on the low straight's centerline reads the road.
+        let col = ((200.0 - g.origin_x) / g.cell_m).round() as u32;
+        let row = ((0.0 - g.origin_y) / g.cell_m).round() as u32;
+        let x = g.origin_x + col as f32 * g.cell_m;
+        let y = g.origin_y + row as f32 * g.cell_m;
+        assert!((g.height_m(col, row) - f.surface_height_at(x, y)).abs() < 0.011);
     }
 }

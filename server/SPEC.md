@@ -186,6 +186,11 @@ pub enum ClientMessage {
     StartSession, // Host only, starts countdown
     SetGameMode { mode: GameMode },
     StartCountdown { countdown_seconds: u16, next_mode: GameMode },
+    // Driver aids the server runs for this player; sent on joining a session
+    // and whenever the setting changes, ignored outside a session. The
+    // automatic gearbox is server-side because it needs the car's redline
+    // and gear ratios, which the protocol never sends to the client.
+    SetDriverAids { auto_gearbox: bool },
     Disconnect,
 
     // UDP - binds the sender's address to the connection that owns `token`

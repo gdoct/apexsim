@@ -170,6 +170,19 @@ pub fn update_car_3d(
         return;
     }
 
+    // Automatic gearbox: a manual shift from the driver always wins, the
+    // box only fills in when none was sent this tick.
+    let auto_gear = if state.auto_gearbox && input.gear.is_none() {
+        auto_gear_selection(state, config, input, dt)
+    } else {
+        None
+    };
+    let auto_input = PlayerInputData {
+        gear: input.gear.or(auto_gear),
+        ..*input
+    };
+    let input = &auto_input;
+
     // Keep fuel capacity in sync with config (for moddable cars)
     state.fuel_capacity_liters = config.fuel.capacity_liters;
     state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
@@ -364,14 +377,20 @@ pub fn update_car_3d(
         let susp_delta_rl = wheel_rear_left.load_n - rear_mean_load;
         let susp_delta_rr = wheel_rear_right.load_n - rear_mean_load;
 
+        // Lateral transfer is signed with the acceleration (+ = left). Load
+        // moves to the OUTSIDE of the turn, i.e. away from the acceleration:
+        // accelerating left loads the right wheels. With the sign the other
+        // way the inside wheels carry the load, and under ABS braking (every
+        // wheel at its load limit) the inside brakes harder, yaws the nose
+        // further off line and the car spins from a straight-line stop.
         state.weight_front_left_n =
-            (front_weight / 2.0 + weight_transfer_lat_front + susp_delta_fl).max(0.0);
+            (front_weight / 2.0 - weight_transfer_lat_front + susp_delta_fl).max(0.0);
         state.weight_front_right_n =
-            (front_weight / 2.0 - weight_transfer_lat_front + susp_delta_fr).max(0.0);
+            (front_weight / 2.0 + weight_transfer_lat_front + susp_delta_fr).max(0.0);
         state.weight_rear_left_n =
-            (rear_weight / 2.0 + weight_transfer_lat_rear + susp_delta_rl).max(0.0);
+            (rear_weight / 2.0 - weight_transfer_lat_rear + susp_delta_rl).max(0.0);
         state.weight_rear_right_n =
-            (rear_weight / 2.0 - weight_transfer_lat_rear + susp_delta_rr).max(0.0);
+            (rear_weight / 2.0 + weight_transfer_lat_rear + susp_delta_rr).max(0.0);
 
         let front_anti_roll_transfer = config.suspension.anti_roll_bar_front
             * (wheel_front_left.suspension_compression - wheel_front_right.suspension_compression)
@@ -619,9 +638,13 @@ pub fn update_car_3d(
 
     let post_track_ctx = get_track_context(state, track);
     state.nearest_centerline_idx = Some(post_track_ctx.nearest_point as u32);
+    // With a baked ground heightfield the surface is defined everywhere and
+    // the car follows it wherever it goes. Without one, the centerline height
+    // is only meaningful near the road, so beyond a margin z is held.
     let post_lateral_query_limit =
         post_track_ctx.width_left.max(post_track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
-    let can_query_post_surface = post_track_ctx.lateral_offset.abs() <= post_lateral_query_limit;
+    let can_query_post_surface =
+        track.ground.is_some() || post_track_ctx.lateral_offset.abs() <= post_lateral_query_limit;
 
     // Height a grounded car will follow the surface DOWN in one tick before
     // being considered launched (crest handling). Suspension keeps wheels in
@@ -1162,6 +1185,59 @@ fn solve_wheel_forces(
     }
 }
 
+/// Automatic gearbox thresholds, as fractions of the car's redline.
+/// Upshift just under the limiter; downshift once revs have fallen out of
+/// the power band off throttle (or much further on throttle, a kickdown),
+/// and only when the lower gear lands the engine safely below the limiter.
+const AUTO_UPSHIFT_FRAC: f32 = 0.95;
+const AUTO_DOWNSHIFT_FRAC: f32 = 0.60;
+const AUTO_KICKDOWN_FRAC: f32 = 0.45;
+const AUTO_DOWNSHIFT_CEILING_FRAC: f32 = 0.92;
+/// Minimum time between automatic shifts: a sequential box under braking
+/// steps down one gear at a time rather than dumping four at once.
+const AUTO_SHIFT_HOLD_S: f32 = 0.3;
+
+/// Gear the automatic box wants this tick, or `None` to keep the current
+/// one. Reverse is never chosen automatically; neutral goes to first on
+/// throttle. Runs on the server because it needs the car's redline and gear
+/// ratios, which the client never learns from the wire protocol.
+pub fn auto_gear_selection(
+    state: &mut CarState,
+    config: &CarConfig,
+    input: &PlayerInputData,
+    dt: f32,
+) -> Option<i8> {
+    if state.auto_shift_hold_ticks > 0 {
+        state.auto_shift_hold_ticks -= 1;
+        return None;
+    }
+    let max_gear = (config.gear_ratios.len() as i8 - 1).max(1);
+    let redline = config.redline_rpm.max(config.idle_rpm + 1.0);
+    let rpm = state.engine_rpm;
+    let wanted = match state.gear {
+        g if g < 0 => None,
+        0 => (input.throttle > 0.05).then_some(1),
+        g => {
+            if g < max_gear && rpm >= redline * AUTO_UPSHIFT_FRAC {
+                Some(g + 1)
+            } else if g > 1 && (g as usize) < config.gear_ratios.len() {
+                let ratio_now = config.gear_ratios[g as usize].abs().max(1e-3);
+                let ratio_down = config.gear_ratios[g as usize - 1].abs();
+                let rpm_after = rpm * ratio_down / ratio_now;
+                let wants_lower = rpm < redline * AUTO_KICKDOWN_FRAC
+                    || (rpm < redline * AUTO_DOWNSHIFT_FRAC && input.throttle < 0.5);
+                (wants_lower && rpm_after <= redline * AUTO_DOWNSHIFT_CEILING_FRAC).then_some(g - 1)
+            } else {
+                None
+            }
+        }
+    };
+    if wanted.is_some() {
+        state.auto_shift_hold_ticks = (AUTO_SHIFT_HOLD_S / dt.max(1e-4)).round() as u16;
+    }
+    wanted
+}
+
 /// Half-width of the windowed nearest-point search around a previous tick's
 /// index. At 240Hz a car at 100 m/s moves ~0.4m per tick, a small fraction
 /// of the window at typical centerline point spacing.
@@ -1281,6 +1357,46 @@ fn query_track_surface_mesh_heightfield_stub(
     Some(centerline_sample)
 }
 
+/// Lateral distance past the road edge over which the surface blends from
+/// the asphalt onto the baked ground, so the verge is a small ramp rather
+/// than a step for the wheel that crosses the white line first.
+const ROAD_EDGE_BLEND_M: f32 = 1.5;
+
+/// Height of the surface under (world_x, world_y) given the nearest
+/// centerline point and the signed lateral offset (positive = right).
+///
+/// On the asphalt it is the centerline elevation sheared by the banking, the
+/// formula the track editor bakes the road ribbon with. Off the asphalt it is
+/// the baked ground heightfield when the track ships one (the grass the
+/// client actually draws), blended in over [`ROAD_EDGE_BLEND_M`]. Without a
+/// heightfield the road-edge height is held, as before.
+fn surface_elevation(
+    track: &TrackConfig,
+    nearest: &TrackPoint,
+    lateral_offset: f32,
+    world_x: f32,
+    world_y: f32,
+) -> f32 {
+    let (half_width, edge_lateral) = if lateral_offset >= 0.0 {
+        (nearest.width_right_m, nearest.width_right_m)
+    } else {
+        (nearest.width_left_m, -nearest.width_left_m)
+    };
+    let shear = nearest.banking_rad.sin();
+    let overhang = lateral_offset.abs() - half_width;
+    if overhang <= 0.0 {
+        return nearest.z - lateral_offset * shear;
+    }
+    let edge_z = nearest.z - edge_lateral * shear;
+    match track.ground.as_ref() {
+        Some(ground) => {
+            let t = (overhang / ROAD_EDGE_BLEND_M).clamp(0.0, 1.0);
+            edge_z + (ground.sample(world_x, world_y) - edge_z) * t
+        }
+        None => edge_z,
+    }
+}
+
 /// Centerline-backed surface query implementation.
 fn query_track_surface_centerline(
     track: &TrackConfig,
@@ -1299,7 +1415,7 @@ fn query_track_surface_centerline(
 
     Some(SurfaceQuerySample {
         nearest_point: nearest_idx,
-        elevation: nearest.z,
+        elevation: surface_elevation(track, nearest, lateral_offset, world_x, world_y),
         banking_rad: nearest.banking_rad,
         slope_rad: nearest.slope_rad,
         heading_rad: nearest.heading_rad,
@@ -2021,6 +2137,129 @@ mod tests {
     }
 
     #[test]
+    fn auto_gearbox_shifts_from_the_cars_own_rev_range() {
+        let config = create_test_config();
+        let redline = config.redline_rpm;
+        let top = config.gear_ratios.len() as i8 - 1;
+        let dt = 1.0 / 240.0;
+        let coast = PlayerInputData::default();
+        let full = PlayerInputData {
+            throttle: 1.0,
+            ..PlayerInputData::default()
+        };
+
+        // Near the limiter: up one.
+        let mut state = create_test_car_state();
+        state.auto_gearbox = true;
+        state.gear = 2;
+        state.engine_rpm = redline * 0.97;
+        assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), Some(3));
+        // ...but not past the last gear.
+        state.auto_shift_hold_ticks = 0;
+        state.gear = top;
+        assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), None);
+
+        // Revs fallen out of the band off throttle: down one.
+        state.auto_shift_hold_ticks = 0;
+        state.gear = 4;
+        state.engine_rpm = redline * 0.5;
+        assert_eq!(
+            auto_gear_selection(&mut state, &config, &coast, dt),
+            Some(3)
+        );
+
+        // Right after an upshift the revs sit at ~0.55 redline: on throttle
+        // that must not bounce straight back down (hunting).
+        state.auto_shift_hold_ticks = 0;
+        state.gear = 2;
+        state.engine_rpm = redline * 0.56;
+        assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), None);
+
+        // Neutral goes to first on throttle, never to reverse.
+        state.auto_shift_hold_ticks = 0;
+        state.gear = 0;
+        assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), Some(1));
+        state.auto_shift_hold_ticks = 0;
+        state.gear = -1;
+        assert_eq!(auto_gear_selection(&mut state, &config, &coast, dt), None);
+    }
+
+    #[test]
+    fn auto_gearbox_downshifts_while_braking_to_a_stop() {
+        let mut state = create_test_car_state();
+        state.auto_gearbox = true;
+        state.vel_x = 45.0;
+        state.speed_mps = 45.0;
+        state.gear = 4;
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 1.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+        let dt = 1.0 / 240.0;
+        let mut lowest = state.gear;
+        for _ in 0..(240 * 6) {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+            lowest = lowest.min(state.gear);
+        }
+        assert!(
+            state.speed_mps < 2.0,
+            "should have stopped, still doing {:.1} m/s",
+            state.speed_mps
+        );
+        assert_eq!(
+            lowest, 1,
+            "the box should have worked its way down to first"
+        );
+        assert_eq!(state.gear, 1);
+    }
+
+    #[test]
+    fn straight_line_braking_is_yaw_stable() {
+        // Hard braking with a small sideways nudge must settle, not spin.
+        // With the lateral load transfer signed the wrong way the loaded
+        // inside wheels braked harder under ABS and a 0.05 m/s nudge became
+        // a full spin within 1.5 s ("braking feels like ice").
+        let mut state = create_test_car_state();
+        state.vel_x = 50.0;
+        state.vel_y = 0.05;
+        state.speed_mps = 50.0;
+        state.gear = 4;
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 1.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+        let dt = 1.0 / 240.0;
+        for _ in 0..480 {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+        }
+        let v_lat = -state.vel_x * state.yaw_rad.sin() + state.vel_y * state.yaw_rad.cos();
+        assert!(
+            state.yaw_rad.abs() < 0.02 && v_lat.abs() < 0.05,
+            "car yawed {:.3} rad with {:.2} m/s lateral velocity under straight braking",
+            state.yaw_rad,
+            v_lat
+        );
+        assert!(
+            state.g_forces.longitudinal_g < -0.9,
+            "still braking hard at the end: {:.2} g",
+            state.g_forces.longitudinal_g
+        );
+        // Load went to the outside: the nudge is leftward, the correction
+        // accelerates right, so the LEFT wheels carry more than the right.
+        assert!(state.weight_front_left_n >= state.weight_front_right_n - 1.0);
+    }
+
+    #[test]
     fn test_braking_without_abs_locks_wheels() {
         let mut state = create_test_car_state();
         state.vel_x = 40.0;
@@ -2573,6 +2812,7 @@ mod tests {
             checkpoints: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
+            ground: None,
         };
 
         state.pos_x = 0.0;
@@ -2660,6 +2900,7 @@ mod tests {
                 decal_profile: "default".to_string(),
                 preset: crate::procgen::EnvironmentPreset::plains(),
             }),
+            ground: None,
         };
 
         let centerline_sample = query_track_surface_centerline(&track, 0.5, 0.5, None)
@@ -2729,6 +2970,7 @@ mod tests {
             checkpoints: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
+            ground: None,
         }
     }
 

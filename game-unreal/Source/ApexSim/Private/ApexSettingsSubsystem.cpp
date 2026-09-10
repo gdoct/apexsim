@@ -145,6 +145,7 @@ void UApexSettingsSubsystem::ApplyGroup(EApexSettingsGroup Group)
 	{
 	case EApexSettingsGroup::Gameplay: ApplyGameplay(); break;
 	case EApexSettingsGroup::Graphics: ApplyGraphics(); break;
+	case EApexSettingsGroup::Camera:   ApplyCamera();   break;
 	case EApexSettingsGroup::Controls: ApplyControls(); break;
 	case EApexSettingsGroup::Audio:    ApplyAudio();    break;
 	}
@@ -303,14 +304,6 @@ void UApexSettingsSubsystem::SetMotionBlur(float Amount01)
 	Changed(EApexSettingsGroup::Graphics);
 }
 
-void UApexSettingsSubsystem::SetFieldOfView(float Degrees)
-{
-	const float Clamped = FMath::Clamp(Degrees, 60.0f, 120.0f);
-	if (!Settings || FMath::IsNearlyEqual(Settings->FieldOfView, Clamped)) { return; }
-	Settings->FieldOfView = Clamped;
-	Changed(EApexSettingsGroup::Graphics);
-}
-
 void UApexSettingsSubsystem::ReconcilePreset()
 {
 	if (!Settings || bApplyingPreset)
@@ -380,10 +373,116 @@ void UApexSettingsSubsystem::ApplyGraphics()
 	{
 		Amount->Set(Settings->MotionBlur, ECVF_SetByGameSetting);
 	}
+}
 
+// --- Camera -----------------------------------------------------------------
+
+void UApexSettingsSubsystem::SetFieldOfView(float Degrees)
+{
+	const float Clamped = FMath::Clamp(Degrees, 60.0f, 120.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->FieldOfView, Clamped)) { return; }
+	Settings->FieldOfView = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetStartInCockpit(bool bCockpit)
+{
+	if (!Settings || Settings->bStartInCockpit == bCockpit) { return; }
+	Settings->bStartInCockpit = bCockpit;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetSeatForward(float Cm)
+{
+	const float Clamped = FMath::Clamp(Cm, -30.0f, 30.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->SeatForwardCm, Clamped)) { return; }
+	Settings->SeatForwardCm = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetSeatHeight(float Cm)
+{
+	const float Clamped = FMath::Clamp(Cm, -15.0f, 15.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->SeatHeightCm, Clamped)) { return; }
+	Settings->SeatHeightCm = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetViewPitch(float Degrees)
+{
+	const float Clamped = FMath::Clamp(Degrees, -10.0f, 10.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->ViewPitchDeg, Clamped)) { return; }
+	Settings->ViewPitchDeg = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetHorizonLock(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->HorizonLock, Clamped)) { return; }
+	Settings->HorizonLock = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetHeadMotion(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->HeadMotion, Clamped)) { return; }
+	Settings->HeadMotion = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetLookToApex(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->LookToApex, Clamped)) { return; }
+	Settings->LookToApex = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetCockpitShowCar(bool bShow)
+{
+	if (!Settings || Settings->bCockpitShowCar == bShow) { return; }
+	Settings->bCockpitShowCar = bShow;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetCockpitWheel(bool bShow)
+{
+	if (!Settings || Settings->bCockpitWheel == bShow) { return; }
+	Settings->bCockpitWheel = bShow;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetCockpitMirrors(bool bShow)
+{
+	if (!Settings || Settings->bCockpitMirrors == bShow) { return; }
+	Settings->bCockpitMirrors = bShow;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetVirtualMirror(bool bShow)
+{
+	if (!Settings || Settings->bVirtualMirror == bShow) { return; }
+	Settings->bVirtualMirror = bShow;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetMirrorQuality(int32 Bucket)
+{
+	const int32 Clamped = FMath::Clamp(Bucket, 0, 2);
+	if (!Settings || Settings->MirrorQuality == Clamped) { return; }
+	Settings->MirrorQuality = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::ApplyCamera()
+{
+	// The cameras only exist while racing; the director reads the whole
+	// block again at the start of every race.
 	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
 	{
-		Director->SetFieldOfView(Settings->FieldOfView);
+		Director->ApplyCameraSettings();
 	}
 }
 
@@ -603,9 +702,24 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->AntiAliasingQuality = Defaults->AntiAliasingQuality;
 		Settings->TextureQuality = Defaults->TextureQuality;
 		Settings->MotionBlur = Defaults->MotionBlur;
-		Settings->FieldOfView = Defaults->FieldOfView;
 		// Display mode and resolution are left alone on purpose: they describe
 		// this machine's monitor, not a preference that has a shipped default.
+		break;
+
+	case EApexSettingsGroup::Camera:
+		Settings->FieldOfView = Defaults->FieldOfView;
+		Settings->bStartInCockpit = Defaults->bStartInCockpit;
+		Settings->SeatForwardCm = Defaults->SeatForwardCm;
+		Settings->SeatHeightCm = Defaults->SeatHeightCm;
+		Settings->ViewPitchDeg = Defaults->ViewPitchDeg;
+		Settings->HorizonLock = Defaults->HorizonLock;
+		Settings->HeadMotion = Defaults->HeadMotion;
+		Settings->LookToApex = Defaults->LookToApex;
+		Settings->bCockpitShowCar = Defaults->bCockpitShowCar;
+		Settings->bCockpitWheel = Defaults->bCockpitWheel;
+		Settings->bCockpitMirrors = Defaults->bCockpitMirrors;
+		Settings->bVirtualMirror = Defaults->bVirtualMirror;
+		Settings->MirrorQuality = Defaults->MirrorQuality;
 		break;
 
 	case EApexSettingsGroup::Controls:

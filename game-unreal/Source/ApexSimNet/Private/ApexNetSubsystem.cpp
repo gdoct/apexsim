@@ -256,6 +256,12 @@ void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
 		static_cast<uint16>(FMath::Clamp(Seconds, 0, 65535)), NextMode));
 }
 
+void UApexNetSubsystem::SetDriverAids(bool bAutoGearbox)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d"), bAutoGearbox ? 1 : 0);
+	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox));
+}
+
 bool UApexNetSubsystem::FindCarById(const FString& CarId, FApexCarConfigSummary& OutCar) const
 {
 	for (const FApexCarConfigSummary& Car : CachedLobbyState.CarConfigs)

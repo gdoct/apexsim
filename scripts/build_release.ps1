@@ -264,6 +264,9 @@ function Get-GitCommit {
 # Server content: only what the server actually reads at startup. The .glb car
 # models (~43 MB) are already cooked into the client, the .ats sidecars belong
 # to the track editor, and content/tracks/export is intermediate bake output.
+# The <Track>.ground.msgpack heightfield the bake writes next to each YAML is
+# server input: without it a car that leaves the asphalt stays at road height
+# instead of following the ground the client draws.
 function Copy-ServerContent {
     param([string]$Destination)
 
@@ -276,8 +279,18 @@ function Copy-ServerContent {
 
     $tracksOut = Join-Path $Destination 'tracks\real'
     New-Item -ItemType Directory -Path $tracksOut -Force | Out-Null
+    $missingGround = [Collections.Generic.List[string]]::new()
     foreach ($track in Get-TrackFiles) {
         Copy-Item -LiteralPath $track.FullName -Destination $tracksOut -Force
+        $ground = Join-Path $track.DirectoryName ($track.BaseName + '.ground.msgpack')
+        if (Test-Path -LiteralPath $ground) {
+            Copy-Item -LiteralPath $ground -Destination $tracksOut -Force
+        } else {
+            $missingGround.Add($track.BaseName)
+        }
+    }
+    if ($missingGround.Count -gt 0) {
+        Write-Warning ("no ground heightfield for: {0} (run the track bake; off-track cars will sit at road height)" -f ($missingGround -join ', '))
     }
 }
 

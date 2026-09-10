@@ -17,6 +17,7 @@ enum class EApexSettingsGroup : uint8
 {
 	Gameplay,
 	Graphics,
+	Camera,
 	Controls,
 	Audio,
 };
@@ -104,11 +105,49 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetMotionBlur(float Amount01);
 
+	/** Modes the display actually supports, widest first. Cached after the first call. */
+	const TArray<FIntPoint>& GetAvailableResolutions() const;
+
+	// --- Camera ---------------------------------------------------------------
+
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetFieldOfView(float Degrees);
 
-	/** Modes the display actually supports, widest first. Cached after the first call. */
-	const TArray<FIntPoint>& GetAvailableResolutions() const;
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetStartInCockpit(bool bCockpit);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetSeatForward(float Cm);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetSeatHeight(float Cm);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetViewPitch(float Degrees);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetHorizonLock(float Value01);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetHeadMotion(float Value01);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetLookToApex(float Value01);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetCockpitShowCar(bool bShow);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetCockpitWheel(bool bShow);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetCockpitMirrors(bool bShow);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetVirtualMirror(bool bShow);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetMirrorQuality(int32 Bucket);
 
 	// --- Controls -------------------------------------------------------------
 
@@ -178,6 +217,7 @@ private:
 	void Changed(EApexSettingsGroup Group);
 
 	void ApplyGraphics();
+	void ApplyCamera();
 	void ApplyGameplay();
 	void ApplyControls();
 	void ApplyAudio();

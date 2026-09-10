@@ -768,6 +768,15 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
+	TArray<uint8> EncodeSetDriverAids(bool bAutoGearbox)
+	{
+		FMsgPackWriter Writer(32);
+		BeginDataVariant(Writer, "SetDriverAids", 1);
+		Writer.WriteString("auto_gearbox");
+		Writer.WriteBool(bAutoGearbox);
+		return MoveTemp(Writer.GetBuffer());
+	}
+
 	TArray<uint8> EncodeUdpHandshake(const FString& UdpToken)
 	{
 		FMsgPackWriter Writer(64);
