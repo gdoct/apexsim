@@ -242,6 +242,26 @@ read at play time. `-ApexSettingsTab=4` opens that tab headlessly.
 `ApexSim.UI.SoundCues*` automation tests check every cue is short, finite,
 click-free and the same length at 44.1k and 48k.
 
+### Car sound (`Audio/ApexEngineSound.h`, `ApexEngineSoundWave.h`)
+
+Engines are synthesised too, per car: `AApexRaceCarActor` owns a
+`UApexEngineSoundWave` on an attenuated audio component, feeds it RPM,
+throttle and gear from every telemetry frame, and its generator renders
+continuously on the audio thread from a lock-free `FApexEngineLiveState`.
+
+The note is **proportional to RPM** (`ApexEngineSynth::NoteHz` — Rpm/60 times a
+firing order), not a lerp across the rev range. That matters because neither
+idle nor redline is on the wire: a lerp needs a guessed maximum, and any guess
+too low pins the pitch part way up a gear while the revs keep climbing — the
+F1 idles at 4500 and revs to 15,500, so an 8000rpm guess flattened the top half
+of every gear to one note. The observed range (grown from the lowest and
+highest readings seen: `ObservedIdleRpm`/`ObservedMaxRpm`) now only drives
+timbre and loudness, where a stale value costs brightness rather than the
+sweep. Each gear above first also trims the note down a little (`GearTrim`,
+about two semitones across a six-speed) so a shift is audible in the instant
+before the revs fall. `ApexSim.Audio.*` automation tests cover the monotonic
+sweep, the per-gear trim, and that pitch still rises past a stale maximum.
+
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)
 - `tracks/` - Track definitions (YAML/JSON) + procedural terrain caches (`.terrain.msgpack`)

@@ -129,6 +129,12 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UApexEngineSoundWave> EngineSound;
 
-	/** Highest RPM seen so far for this car; redline is never broadcast, so this stands in for it (see ApexHudWidget). */
+	/**
+	 * The rev range seen so far for this car. Neither idle nor redline is
+	 * broadcast, so the engine note's timbre rides what has been observed:
+	 * lowest reading for idle, highest for the redline (see ApexHudWidget).
+	 */
+	float ObservedIdleRpm = 800.0f;
 	float ObservedMaxRpm = 8000.0f;
+	bool bHasEngineRange = false;
 };

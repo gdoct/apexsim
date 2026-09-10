@@ -21,6 +21,7 @@ struct FApexEngineLiveState
 {
 	std::atomic<float> Rpm{0.0f};
 	std::atomic<float> Throttle{0.0f};
+	std::atomic<int32> Gear{0};
 	std::atomic<float> IdleRpm{800.0f};
 	std::atomic<float> MaxRpm{8000.0f};
 };
@@ -42,11 +43,15 @@ class APEXSIM_API UApexEngineSoundWave : public USoundWave
 public:
 	UApexEngineSoundWave(const FObjectInitializer& ObjectInitializer);
 
-	/** Redline is never broadcast; callers grow MaxRpm from what they've observed so far. */
+	/**
+	 * The rev range the timbre opens up across. Neither end is broadcast, so
+	 * callers grow it from what they have observed (see AApexRaceCarActor); the
+	 * note itself is proportional to RPM and does not depend on this.
+	 */
 	void SetRpmRange(float IdleRpm, float MaxRpm);
 
 	/** Latest telemetry sample. Safe to call from the game thread every frame. */
-	void SetLive(float Rpm, float Throttle);
+	void SetLive(float Rpm, float Throttle, int32 Gear);
 
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 
