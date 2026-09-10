@@ -119,13 +119,26 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car)
 	}
 	bHasTarget = true;
 
-	// Redline is never broadcast, so the pitch range only ever grows to fit
-	// what has actually been seen — same trick as the HUD's RPM strip.
-	ObservedMaxRpm = FMath::Max(ObservedMaxRpm, EngineRpm);
+	// Neither end of the rev range is broadcast, so both grow to fit what has
+	// actually been seen — same trick as the HUD's RPM strip, but from both
+	// ends: idle is 900rpm in the GT3 and 4500 in the F1, and assuming the
+	// lower left the F1 sounding a quarter opened up while stood on the grid.
+	// The car's first frame is the grid, so the first reading *is* idle.
+	if (bHasEngineRange)
+	{
+		ObservedIdleRpm = FMath::Min(ObservedIdleRpm, EngineRpm);
+		ObservedMaxRpm = FMath::Max(ObservedMaxRpm, EngineRpm);
+	}
+	else
+	{
+		ObservedIdleRpm = EngineRpm;
+		ObservedMaxRpm = EngineRpm;
+		bHasEngineRange = true;
+	}
 	if (EngineSound)
 	{
-		EngineSound->SetRpmRange(800.0f, ObservedMaxRpm);
-		EngineSound->SetLive(EngineRpm, Throttle);
+		EngineSound->SetRpmRange(ObservedIdleRpm, ObservedMaxRpm);
+		EngineSound->SetLive(EngineRpm, Throttle, Gear);
 	}
 }
 

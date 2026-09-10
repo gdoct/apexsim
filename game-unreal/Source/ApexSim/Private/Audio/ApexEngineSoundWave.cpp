@@ -7,16 +7,16 @@
 namespace
 {
 	/** Nominal rate for the asset's metadata; the generator renders at the device's real one. */
-	constexpr int32 NominalSampleRate = 48000;
+	constexpr int32 EngineNominalSampleRate = 48000;
 
-	/** Continuously renders the engine tone from the live RPM/throttle the wave last set. */
+	/** Continuously renders the engine tone from the live RPM/gear/throttle the wave last set. */
 	class FApexEngineSoundGenerator : public ISoundGenerator
 	{
 	public:
 		FApexEngineSoundGenerator(TSharedRef<FApexEngineLiveState, ESPMode::ThreadSafe> InLive,
 			float InSampleRate, int32 InNumChannels)
 			: Live(MoveTemp(InLive))
-			, SampleRate(InSampleRate > 0.0f ? InSampleRate : static_cast<float>(NominalSampleRate))
+			, SampleRate(InSampleRate > 0.0f ? InSampleRate : static_cast<float>(EngineNominalSampleRate))
 			, NumChannels(FMath::Max(1, InNumChannels))
 		{
 		}
@@ -32,7 +32,8 @@ namespace
 				Live->IdleRpm.load(std::memory_order_relaxed), Live->MaxRpm.load(std::memory_order_relaxed)
 			};
 			ApexEngineSynth::Render(State, Params, Live->Rpm.load(std::memory_order_relaxed),
-				Live->Throttle.load(std::memory_order_relaxed), SampleRate, Mono.GetData(), NumFrames);
+				Live->Throttle.load(std::memory_order_relaxed), Live->Gear.load(std::memory_order_relaxed),
+				SampleRate, Mono.GetData(), NumFrames);
 
 			int32 Written = 0;
 			for (int32 Frame = 0; Frame < NumFrames; ++Frame)
@@ -71,7 +72,7 @@ UApexEngineSoundWave::UApexEngineSoundWave(const FObjectInitializer& ObjectIniti
 	bProcedural = true;
 	bLooping = true;
 	NumChannels = 1;
-	SetSampleRate(NominalSampleRate);
+	SetSampleRate(EngineNominalSampleRate);
 	SoundGroup = SOUNDGROUP_Effects;
 	Duration = INDEFINITELY_LOOPING_DURATION;
 }
@@ -82,10 +83,11 @@ void UApexEngineSoundWave::SetRpmRange(float IdleRpm, float MaxRpm)
 	Live->MaxRpm.store(FMath::Max(MaxRpm, IdleRpm + 1.0f), std::memory_order_relaxed);
 }
 
-void UApexEngineSoundWave::SetLive(float Rpm, float Throttle)
+void UApexEngineSoundWave::SetLive(float Rpm, float Throttle, int32 Gear)
 {
 	Live->Rpm.store(Rpm, std::memory_order_relaxed);
 	Live->Throttle.store(FMath::Clamp(Throttle, 0.0f, 1.0f), std::memory_order_relaxed);
+	Live->Gear.store(Gear, std::memory_order_relaxed);
 }
 
 ISoundGeneratorPtr UApexEngineSoundWave::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)

@@ -11,7 +11,7 @@
 namespace
 {
 	/** Nominal rate for the asset's metadata; the generator renders at the device's real one. */
-	constexpr int32 NominalSampleRate = 48000;
+	constexpr int32 UiNominalSampleRate = 48000;
 
 	/**
 	 * Shortest gap between two plays of the same cue.
@@ -89,7 +89,7 @@ UApexUiSoundWave::UApexUiSoundWave(const FObjectInitializer& ObjectInitializer)
 	// precache it at all.
 	bProcedural = true;
 	NumChannels = 1;
-	SetSampleRate(NominalSampleRate);
+	SetSampleRate(UiNominalSampleRate);
 	SoundGroup = SOUNDGROUP_UI;
 	bLooping = false;
 }
@@ -105,7 +105,7 @@ ISoundGeneratorPtr UApexUiSoundWave::CreateSoundGenerator(const FSoundGeneratorI
 	// Called on the audio thread. Cue is set once at creation, so reading it
 	// here is safe, and the synth touches nothing but its own buffer.
 	TArray<float> Samples;
-	ApexUiSynth::Render(Cue, InParams.SampleRate > 0.0f ? InParams.SampleRate : NominalSampleRate, Samples);
+	ApexUiSynth::Render(Cue, InParams.SampleRate > 0.0f ? InParams.SampleRate : UiNominalSampleRate, Samples);
 	return MakeShared<FApexUiCueGenerator, ESPMode::ThreadSafe>(MoveTemp(Samples), InParams.NumChannels);
 }
 
