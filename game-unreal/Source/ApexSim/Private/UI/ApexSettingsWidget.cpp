@@ -435,9 +435,8 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 
 	AddV(Page, MakeSectionLabel(TEXT("Driving aids")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
 
-	// Traction control, ABS and the racing line are stored and saved but nothing
-	// consumes them: the aids are server-side physics and the protocol has no
-	// field for them, and there is no raceline renderer in the client yet.
+	// Traction control and ABS are stored and saved but nothing consumes them:
+	// the aids are server-side physics and the protocol has no field for them.
 	static const FString AidNote = TEXT("Saved, but the server has no field for it yet.");
 
 	AddV(Page, MakeRow(
@@ -457,11 +456,12 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 		TEXT("Automatic shifting is done on this machine, from the car's revs."),
 		MakeSegment(SegGearbox, { TEXT("MANUAL"), TEXT("AUTO") }, 1, 178.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
+	// The server works the line out for the car being driven, so the braking
+	// points are that car's; see AApexRacingLineActor.
 	AddV(Page, MakeRow(
 		TEXT("Racing line"),
-		TEXT("Drawn from the track's measured raceline."),
-		MakeSegment(SegRacingLine, { TEXT("OFF"), TEXT("BRAKING ONLY"), TEXT("FULL") }, 1),
-		TEXT("Saved, but nothing draws the line yet.")),
+		TEXT("Dots on the road: green flat out, amber at the limit, red braking."),
+		MakeSegment(SegRacingLine, { TEXT("OFF"), TEXT("BRAKING ONLY"), TEXT("FULL") }, 0)),
 		FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
 	AddV(Page, MakeSectionLabel(TEXT("Session")), FMargin(0.0f, 26.0f, 0.0f, 14.0f));

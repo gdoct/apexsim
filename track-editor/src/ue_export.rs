@@ -264,11 +264,93 @@ pub struct UePitLane {
     pub speed_limit_kmh: f32,
 }
 
-/// Everything one bake produces: the Unreal scene and the server's ground
-/// sidecar (absent only for a track too degenerate to have a terrain).
+/// Everything one bake produces: the Unreal scene and the server's
+/// sidecars — the ground heightfield (absent only for a track too
+/// degenerate to have a terrain) and the curb bands.
 pub struct Baked {
     pub scene: UeScene,
     pub ground: Option<GroundHeightfield>,
+    pub curbs: Option<CurbBands>,
+}
+
+/// Station spacing of the curb sidecar, meters. Curbs run for tens of
+/// meters, so a metre of granularity at their ends costs nothing.
+pub const CURB_BAND_STEP_M: f32 = 1.0;
+pub const CURB_BANDS_VERSION: u32 = 1;
+
+/// The curbs as the *server* needs them (`<Track>.curbs.msgpack`, written
+/// with `rmp_serde::to_vec_named`): not geometry, just how far the curb
+/// reaches out from each road edge, so the sim can count a car on the curb
+/// as on the track instead of off it.
+///
+/// Sample `i` is the cross-section at station `i * step_m` along the
+/// centerline, the value the curb's width outward from that side's road
+/// edge in centimeters (0 where the edge has no curb). Left and right are
+/// the track's own sides — the same `width_left_m` / `width_right_m` the
+/// YAML centerline carries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CurbBands {
+    pub version: u32,
+    pub step_m: f32,
+    pub left_cm: Vec<u16>,
+    pub right_cm: Vec<u16>,
+}
+
+/// Flatten the scene's curb spans into the per-station bands the server
+/// reads.
+///
+/// Overlapping curbs on a side keep the widest, and a curb shorter than a
+/// step still claims the sample nearest its middle rather than vanishing.
+fn bake_curb_bands(path: &CenterlinePath, curbs: &[Curb]) -> Option<CurbBands> {
+    let total = path.total_length_m();
+    if !(total.is_finite() && total > 0.0) {
+        return None;
+    }
+    // A closed loop wraps at `count`, so the last sample must be one step
+    // short of the line; an open path ends *on* it.
+    let count = if path.is_closed() {
+        (total / CURB_BAND_STEP_M).ceil().max(1.0) as usize
+    } else {
+        (total / CURB_BAND_STEP_M).floor() as usize + 1
+    };
+    let mut left = vec![0u16; count];
+    let mut right = vec![0u16; count];
+
+    for curb in curbs {
+        let Some((start, end)) = resolve_span(path, curb.start_m, curb.end_m) else {
+            continue;
+        };
+        // A NaN width lands here as 0 (`f32::max` prefers the number) and
+        // is dropped with the rest of the sub-centimeter curbs.
+        let width_cm = (curb.width_m.max(0.0) * 100.0).round();
+        if width_cm < 1.0 {
+            continue;
+        }
+        let width_cm = width_cm.min(u16::MAX as f32) as u16;
+        let band = match curb.side {
+            Side::Left => &mut left,
+            Side::Right => &mut right,
+        };
+        let first = (start / CURB_BAND_STEP_M).ceil() as i64;
+        let last = (end / CURB_BAND_STEP_M).floor() as i64;
+        let (first, last) = if last < first {
+            let mid = ((start + end) * 0.5 / CURB_BAND_STEP_M).round() as i64;
+            (mid, mid)
+        } else {
+            (first, last)
+        };
+        for i in first..=last {
+            let idx = i.rem_euclid(count as i64) as usize;
+            band[idx] = band[idx].max(width_cm);
+        }
+    }
+
+    Some(CurbBands {
+        version: CURB_BANDS_VERSION,
+        step_m: CURB_BAND_STEP_M,
+        left_cm: left,
+        right_cm: right,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -351,6 +433,7 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
     let ground = terrain
         .as_ref()
         .map(|field| field.bake_ground_sidecar(terrain::GROUND_SIDECAR_CELL_M));
+    let curbs = bake_curb_bands(&path, &scene.curbs);
 
     let scene = UeScene {
         format: UE_SCENE_FORMAT.to_string(),
@@ -369,7 +452,11 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
         pit_lane,
         start_finish: Some(bake_start_finish(scene, &path)),
     };
-    Some(Baked { scene, ground })
+    Some(Baked {
+        scene,
+        ground,
+        curbs,
+    })
 }
 
 // ---------------------------------------------------------------------------

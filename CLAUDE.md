@@ -96,12 +96,20 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
 `content/tracks/{real,export}` relative to the working directory, so it must be
 run from the repo root — not from `track-editor/`.
 
-The exporter also writes `content/tracks/real/<Stem>.ground.msgpack`
-(gitignored, like the exports): a 4 m heightfield of the ground the client
-renders, in the server frame. The server loads it next to the YAML
-(`ground.rs`) so a car that leaves the asphalt follows the rendered verge and
-terrain instead of holding road height; without it, off-track elevation falls
-back to the centerline as before. `build_release.ps1` ships it in `Server/`.
+The exporter also writes two gitignored sidecars (like the exports) into
+`content/tracks/real/`, both loaded by the server from beside the YAML and
+both shipped in `Server/` by `build_release.ps1`:
+
+- `<Stem>.ground.msgpack` — a 4 m heightfield of the ground the client
+  renders, in the server frame (`ground.rs`), so a car that leaves the
+  asphalt follows the rendered verge and terrain instead of holding road
+  height. Without it, off-track elevation falls back to the centerline.
+- `<Stem>.curbs.msgpack` — how far the curbs reach past each road edge,
+  one sample per metre of centerline station (`curbs.rs`). The curbs are
+  authored in the `.ats` and reach the server only as this number: physics
+  counts a car within the band as on the track, with `curb_grip` and no
+  off-track speed penalty. Without it the road edge is the track limit and
+  a driver using the curbs is slowed as if on grass.
 
 The exporter resolves `.ats` station spans against the YAML centerline and
 bakes triangles (Unreal can't read YAML); the `ApexTrackEditor` module's
@@ -136,6 +144,8 @@ per start and no catalog row can ever match it.
   - `game_loop/` — the tick orchestrator: `dispatch.rs` (message handlers), `tick.rs` (session ticking + panic boundary), `broadcast.rs` (telemetry fan-out, serialized once per session), `lifecycle.rs` (unified disconnect)
   - `transport.rs` — TCP/TLS/UDP IO, token auth, per-connection rate limiting, backpressure with priority-based drops
   - `physics.rs` — 4-wheel 3D vehicle model (per-wheel loads, Pacejka-style tires, suspension), yaw-aware OBB collision (SAT), windowed nearest-centerline search cached per car
+  - `curbs.rs` — baked curb widths per station; the sim's track limits
+  - `racing_line.rs` - the racing-line driving aid: a per-car speed profile along the raceline (throttle / partial / brake per point), sent to the joining player as `RacingLine`
   - `game_session.rs` — session/game-mode state machine, `lobby.rs` — matchmaking (single-lock), `metrics.rs`, `config.rs`, `car_loader.rs`, `track_loader.rs` (adaptive-density Catmull-Rom spline)
 
 ### Godot Client (`game-godot/`)
@@ -157,6 +167,18 @@ the viewport discards game input entirely and no binding produces an event
 (the controller switches to game-and-UI for the race); and a Blueprint game
 mode can silently override `PlayerControllerClass`, which the C++ game mode
 now logs an error about.
+
+### Racing line (`Race/ApexRacingLineActor`)
+Gameplay settings -> Racing line: OFF / BRAKING ONLY / FULL (default off).
+The server works the line out per car (`server/src/racing_line.rs`: the
+track's raceline, or its centerline, with a quasi-steady-state speed profile
+from the car's grip, downforce, power and brakes) and sends it as
+`RacingLine` right after `SessionJoined`. `AApexRacingLineActor` draws it as
+dots on the road, one instanced mesh per colour (green flat out, amber at the
+grip limit or lifting, red braking), dropped onto the track level's own meshes
+by line traces once the level is visible. BRAKING ONLY draws just the red.
+For screenshot runs `-ApexRacingLine=off|braking|full` overrides the setting
+and `-ApexCar=<name>` picks the auto-race car (otherwise the lobby's first).
 
 ### Cockpit view (`Race/ApexCockpitRig`, `Race/ApexCockpitLayout`)
 The first-person view is the default (settings: Camera tab, "Start in"). The

@@ -1,7 +1,7 @@
 use crate::data::*;
 use serde::Deserialize;
 use std::path::Path;
-use tracing::debug;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -140,11 +140,176 @@ struct TransmissionToml {
     #[serde(default)]
     gear_ratios: Option<Vec<f32>>,
     #[serde(default)]
+    ratio_curve: Option<RatioCurveToml>,
+    #[serde(default)]
     final_drive_ratio: Option<f32>,
     #[serde(default)]
     shift_time_s: Option<f32>,
     #[serde(default)]
     efficiency: Option<f32>,
+}
+
+/// A gearbox described by its two end ratios and the shape of the
+/// progression between them, instead of a hand-typed ladder.
+///
+/// It is the shape that makes a box right or wrong: hand-typed ladders
+/// drift into ratios nothing checks, and a single wrong number there means
+/// a gear the engine cannot pull. Here the only numbers to get right are
+/// the two ends, and each is a road speed you can read off the car.
+#[derive(Debug, Deserialize, Default)]
+struct RatioCurveToml {
+    gears: usize,
+    first: f32,
+    top: f32,
+    #[serde(default)]
+    shape: Option<String>,
+    #[serde(default)]
+    reverse: Option<f32>,
+}
+
+/// How the ratios between first and top are spaced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RatioCurveShape {
+    /// Equal steps: every shift drops the same fraction of the revs. The
+    /// neutral choice, and what a two-point curve means if unqualified.
+    Geometric,
+    /// Steps that narrow towards top gear — a long first for getting off
+    /// the line, tight ratios up top where the car lives in the power band.
+    /// What a racing box actually does.
+    Progressive,
+}
+
+impl RatioCurveShape {
+    fn parse(name: &str) -> Option<Self> {
+        match name.to_ascii_lowercase().as_str() {
+            "geometric" | "constant" => Some(Self::Geometric),
+            "progressive" => Some(Self::Progressive),
+            _ => None,
+        }
+    }
+
+    /// Exponent warping the progression. 1.0 is a pure geometric ladder;
+    /// below 1.0 the early steps grow and the late ones shrink, which is
+    /// what "progressive" means on a gearbox spec sheet.
+    fn exponent(self) -> f32 {
+        match self {
+            Self::Geometric => 1.0,
+            Self::Progressive => 0.75,
+        }
+    }
+}
+
+/// Road speed in m/s at `rpm` through a gear ratio, the same drivetrain
+/// arithmetic the sim uses to turn wheel speed back into engine rpm.
+pub fn geared_speed_mps(config: &CarConfig, ratio: f32, rpm: f32) -> f32 {
+    let total = ratio.abs() * config.final_drive_ratio;
+    if total < 1e-3 {
+        return 0.0;
+    }
+    (rpm / 60.0) * 2.0 * std::f32::consts::PI * config.wheel_radius_m / total
+}
+
+/// The speed the car can actually drag itself to on full power, m/s, from
+/// the same aero model the sim runs (`P = ½ρ·Cd·A·v³`). Hybrid assist
+/// counts: it is there on the straight where top gear matters.
+pub fn drag_limited_speed_mps(config: &CarConfig) -> f32 {
+    let hybrid_w = if config.hybrid.enabled {
+        config.hybrid.motor_max_power_kw * 1000.0
+    } else {
+        0.0
+    };
+    let power_w = (config.max_engine_power_w + hybrid_w) * config.transmission.efficiency;
+    let drag_area = crate::physics::AIR_DENSITY * config.drag_coefficient * config.frontal_area_m2;
+    if power_w <= 0.0 || drag_area <= 0.0 {
+        return f32::INFINITY;
+    }
+    (2.0 * power_w / drag_area).cbrt()
+}
+
+/// How far past the drag-limited speed a top gear may be geared before the
+/// gearing is more decoration than transmission. A little over is normal —
+/// a car should be pulling near the limiter in top, not bouncing off it —
+/// but a top gear good for twice the car's terminal speed means every gear
+/// below it is too long to use.
+const TOP_GEAR_OVERRUN_LIMIT: f32 = 1.35;
+
+/// Gearing nobody can drive is not a load failure — a modder is allowed an
+/// odd box, and the sim runs it fine — but it is never intentional, so say
+/// so loudly with the numbers that show it.
+fn warn_about_unusable_gearing(config: &CarConfig, path: &str) {
+    let Some(top) = config.gear_ratios.iter().skip(1).copied().last() else {
+        return;
+    };
+    let top_speed_mps = geared_speed_mps(config, top, config.redline_rpm);
+    let drag_limit_mps = drag_limited_speed_mps(config);
+    if !drag_limit_mps.is_finite() || top_speed_mps <= drag_limit_mps * TOP_GEAR_OVERRUN_LIMIT {
+        return;
+    }
+    warn!(
+        "{}: top gear is geared for {:.0} km/h at the redline but {} can only reach          {:.0} km/h; every gear is too long and the engine will never reach the limiter",
+        path,
+        top_speed_mps * 3.6,
+        config.name,
+        drag_limit_mps * 3.6,
+    );
+}
+
+/// The most gears a curve may generate. Gear numbers are `i8` on the wire
+/// and a real sequential box tops out at eight; this is only here so a typo
+/// cannot ask for a million-speed gearbox.
+const MAX_CURVE_GEARS: usize = 12;
+
+/// Build the gear ladder from a ratio curve: reverse first (negative), then
+/// `gears` forward ratios from `first` down to `top`.
+///
+/// The ratios are spaced evenly in *log* space — the space a gearbox is
+/// actually designed in, where a step is the fraction of the revs a shift
+/// drops — warped by the shape's exponent so a progressive box gets its
+/// long first gear and its tight top end.
+pub fn gear_ratios_from_curve(
+    gears: usize,
+    first: f32,
+    top: f32,
+    shape: RatioCurveShape,
+    reverse: Option<f32>,
+) -> Result<Vec<f32>, String> {
+    if gears == 0 || gears > MAX_CURVE_GEARS {
+        return Err(format!(
+            "transmission.ratio_curve.gears must be 1..={MAX_CURVE_GEARS} (got {gears})"
+        ));
+    }
+    for (name, value) in [("first", first), ("top", top)] {
+        if !(value.is_finite() && value > 0.0) {
+            return Err(format!(
+                "transmission.ratio_curve.{name} must be positive (got {value})"
+            ));
+        }
+    }
+    if gears > 1 && first <= top {
+        return Err(format!(
+            "transmission.ratio_curve.first ({first}) must be taller than top ({top});              ratios count down"
+        ));
+    }
+    // Reverse is a reverse gear whichever sign it was written with; absent,
+    // it matches first, which is how a real box is laid out.
+    let reverse = -reverse.unwrap_or(first).abs();
+    if !reverse.is_finite() || reverse == 0.0 {
+        return Err("transmission.ratio_curve.reverse must be a non-zero ratio".to_string());
+    }
+
+    let mut ratios = Vec::with_capacity(gears + 1);
+    ratios.push(reverse);
+    if gears == 1 {
+        ratios.push(first);
+        return Ok(ratios);
+    }
+    let exponent = shape.exponent();
+    let span = (top / first).ln();
+    for gear in 0..gears {
+        let t = gear as f32 / (gears - 1) as f32;
+        ratios.push(first * (span * t.powf(exponent)).exp());
+    }
+    Ok(ratios)
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -253,6 +418,41 @@ impl CarLoader {
             max_engine_power_w
         );
 
+        // Gearing: either a hand-typed ladder or a ratio curve to generate
+        // one from, never both — a car carrying two answers has no answer.
+        let gear_ratios = match (
+            transmission_toml.gear_ratios,
+            &transmission_toml.ratio_curve,
+        ) {
+            (Some(_), Some(_)) => {
+                return Err(CarLoadError::Invalid {
+                    path: path_str.clone(),
+                    reason: "transmission has both gear_ratios and ratio_curve; keep one"
+                        .to_string(),
+                })
+            }
+            (None, Some(curve)) => {
+                let shape = match curve.shape.as_deref() {
+                    None => RatioCurveShape::Geometric,
+                    Some(name) => RatioCurveShape::parse(name).ok_or_else(|| {
+                        CarLoadError::Invalid {
+                            path: path_str.clone(),
+                            reason: format!(
+                                "unknown transmission.ratio_curve.shape {name:?}                                  (geometric or progressive)"
+                            ),
+                        }
+                    })?,
+                };
+                gear_ratios_from_curve(curve.gears, curve.first, curve.top, shape, curve.reverse)
+                    .map_err(|reason| CarLoadError::Invalid {
+                        path: path_str.clone(),
+                        reason,
+                    })?
+            }
+            (Some(ratios), None) => ratios,
+            (None, None) => vec![-3.5, 3.8, 2.4, 1.7, 1.3, 1.0, 0.8],
+        };
+
         let config = CarConfig {
             id,
             name: car_toml.name,
@@ -279,9 +479,7 @@ impl CarLoader {
             max_engine_rpm: engine_toml.max_rpm.unwrap_or(8000.0),
             idle_rpm: engine_toml.idle_rpm.unwrap_or(900.0),
             redline_rpm: engine_toml.redline_rpm.unwrap_or(7500.0),
-            gear_ratios: transmission_toml
-                .gear_ratios
-                .unwrap_or_else(|| vec![-3.5, 3.8, 2.4, 1.7, 1.3, 1.0, 0.8]),
+            gear_ratios,
             final_drive_ratio: transmission_toml.final_drive_ratio.unwrap_or(3.7),
             drivetrain: match drivetrain_toml.layout.as_deref() {
                 Some("FWD") | Some("fwd") => Drivetrain::FWD,
@@ -403,6 +601,7 @@ impl CarLoader {
         };
 
         Self::validate(&config, &path_str)?;
+        warn_about_unusable_gearing(&config, &path_str);
         Ok(config)
     }
 
@@ -422,6 +621,33 @@ impl CarLoader {
         }
         if config.gear_ratios.is_empty() {
             problems.push("gear_ratios must not be empty".to_string());
+        } else {
+            // Index 0 is reverse and the rest count down: physics indexes
+            // this table by gear number and reads the sign as direction, so
+            // a ladder out of order is a car that shifts into the wrong gear.
+            if !(config.gear_ratios[0].is_finite() && config.gear_ratios[0] < 0.0) {
+                problems.push(format!(
+                    "gear_ratios[0] is reverse and must be negative (got {})",
+                    config.gear_ratios[0]
+                ));
+            }
+            for (i, ratio) in config.gear_ratios.iter().enumerate().skip(1) {
+                if !(ratio.is_finite() && *ratio > 0.0) {
+                    problems.push(format!(
+                        "gear_ratios[{i}] must be a positive ratio (got {ratio})"
+                    ));
+                }
+            }
+            let forward = &config.gear_ratios[1..];
+            if let Some(i) = forward.windows(2).position(|w| w[0] <= w[1]) {
+                problems.push(format!(
+                    "gear ratios must count down: gear {} ({}) is not taller than gear {} ({})",
+                    i + 1,
+                    forward[i],
+                    i + 2,
+                    forward[i + 1]
+                ));
+            }
         }
         if !(config.max_steering_angle_rad.is_finite() && config.max_steering_angle_rad > 0.0) {
             problems.push(format!(
@@ -703,5 +929,198 @@ max_travel_m = 0.10
                 SuspensionConfig::default().spring_rate_front_n_per_m
             );
         }
+    }
+
+    fn steps(ratios: &[f32]) -> Vec<f32> {
+        ratios[1..].windows(2).map(|w| w[0] / w[1]).collect()
+    }
+
+    #[test]
+    fn ratio_curve_hits_both_ends_exactly() {
+        for shape in [RatioCurveShape::Geometric, RatioCurveShape::Progressive] {
+            let ratios = gear_ratios_from_curve(8, 4.9, 1.8, shape, None).unwrap();
+            assert_eq!(ratios.len(), 9, "reverse plus eight");
+            assert!((ratios[1] - 4.9).abs() < 1e-4);
+            assert!((ratios[8] - 1.8).abs() < 1e-4);
+            assert!(
+                ratios[1..].windows(2).all(|w| w[0] > w[1]),
+                "{shape:?} must count down: {ratios:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn geometric_curve_drops_the_same_revs_every_shift() {
+        let ratios = gear_ratios_from_curve(6, 3.6, 0.9, RatioCurveShape::Geometric, None).unwrap();
+        let steps = steps(&ratios);
+        for step in &steps {
+            assert!((step - steps[0]).abs() < 1e-4, "uneven steps {steps:?}");
+        }
+    }
+
+    #[test]
+    fn progressive_curve_closes_up_towards_top_gear() {
+        let ratios =
+            gear_ratios_from_curve(8, 4.9, 1.8, RatioCurveShape::Progressive, None).unwrap();
+        let steps = steps(&ratios);
+        assert!(
+            steps.windows(2).all(|w| w[0] > w[1]),
+            "each shift should drop fewer revs than the one before: {steps:?}"
+        );
+    }
+
+    #[test]
+    fn ratio_curve_reverse_defaults_to_first_and_is_always_negative() {
+        let shape = RatioCurveShape::Geometric;
+        assert_eq!(
+            gear_ratios_from_curve(5, 3.0, 1.0, shape, None).unwrap()[0],
+            -3.0
+        );
+        assert_eq!(
+            gear_ratios_from_curve(5, 3.0, 1.0, shape, Some(3.4)).unwrap()[0],
+            -3.4
+        );
+        assert_eq!(
+            gear_ratios_from_curve(5, 3.0, 1.0, shape, Some(-3.4)).unwrap()[0],
+            -3.4
+        );
+        // A single-speed box is just its one ratio.
+        assert_eq!(
+            gear_ratios_from_curve(1, 9.0, 9.0, shape, None).unwrap(),
+            vec![-9.0, 9.0]
+        );
+    }
+
+    #[test]
+    fn ratio_curve_rejects_nonsense() {
+        let shape = RatioCurveShape::Geometric;
+        assert!(gear_ratios_from_curve(0, 3.0, 1.0, shape, None).is_err());
+        assert!(gear_ratios_from_curve(MAX_CURVE_GEARS + 1, 3.0, 1.0, shape, None).is_err());
+        assert!(
+            gear_ratios_from_curve(6, 1.0, 3.0, shape, None).is_err(),
+            "inverted"
+        );
+        assert!(
+            gear_ratios_from_curve(6, 2.0, 2.0, shape, None).is_err(),
+            "flat"
+        );
+        assert!(gear_ratios_from_curve(6, 3.0, 0.0, shape, None).is_err());
+        assert!(gear_ratios_from_curve(6, f32::NAN, 1.0, shape, None).is_err());
+        assert!(gear_ratios_from_curve(6, 3.0, 1.0, shape, Some(0.0)).is_err());
+    }
+
+    #[test]
+    fn ratio_curve_loads_from_toml() {
+        let toml = format!(
+            "{BASE_TOML}
+[transmission]
+final_drive_ratio = 3.5
+efficiency = 0.9
+
+[transmission.ratio_curve]
+gears = 6
+first = 3.6
+top = 0.9
+shape = \"Progressive\"
+reverse = 3.2
+"
+        );
+        let config = load_toml_str(&toml).expect("ratio curve should load");
+        assert_eq!(config.gear_ratios.len(), 7);
+        assert_eq!(config.gear_ratios[0], -3.2);
+        assert!((config.gear_ratios[1] - 3.6).abs() < 1e-4);
+        assert!((config.gear_ratios[6] - 0.9).abs() < 1e-4);
+        // The keys around the sub-table still land on the transmission.
+        assert_eq!(config.final_drive_ratio, 3.5);
+        assert_eq!(config.transmission.efficiency, 0.9);
+    }
+
+    #[test]
+    fn gearing_must_be_unambiguous_and_in_order() {
+        let both = format!(
+            "{BASE_TOML}
+[transmission]
+gear_ratios = [-3.0, 3.0, 2.0]
+
+[transmission.ratio_curve]
+gears = 2
+first = 3.0
+top = 2.0
+"
+        );
+        assert!(matches!(
+            load_toml_str(&both),
+            Err(CarLoadError::Invalid { .. })
+        ));
+
+        let bad_shape = format!(
+            "{BASE_TOML}
+[transmission.ratio_curve]
+gears = 4
+first = 3.0
+top = 1.0
+shape = \"wobbly\"
+"
+        );
+        assert!(matches!(
+            load_toml_str(&bad_shape),
+            Err(CarLoadError::Invalid { .. })
+        ));
+
+        let out_of_order = format!(
+            "{BASE_TOML}
+[transmission]
+gear_ratios = [-3.0, 2.0, 3.0]
+"
+        );
+        assert!(matches!(
+            load_toml_str(&out_of_order),
+            Err(CarLoadError::Invalid { .. })
+        ));
+
+        let forward_reverse = format!(
+            "{BASE_TOML}
+[transmission]
+gear_ratios = [3.0, 3.0, 2.0]
+"
+        );
+        assert!(matches!(
+            load_toml_str(&forward_reverse),
+            Err(CarLoadError::Invalid { .. })
+        ));
+    }
+
+    /// Every shipped car must be geared for speeds it can actually reach.
+    /// This is the check that would have caught both F1 cars being geared
+    /// for 620 km/h: first gear ran to 190 and the engine never saw the
+    /// limiter above fourth.
+    #[test]
+    fn shipped_cars_are_geared_for_speeds_they_can_reach() {
+        let dir = Path::new("../content/cars");
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            eprintln!("skipping: content not present");
+            return;
+        };
+        let mut checked = 0;
+        for entry in entries.flatten() {
+            let path = entry.path().join("car.toml");
+            if !path.exists() {
+                continue;
+            }
+            let config = CarLoader::load_from_file(&path)
+                .unwrap_or_else(|e| panic!("{} should load: {e}", path.display()));
+            let top = *config.gear_ratios.last().unwrap();
+            let top_speed = geared_speed_mps(&config, top, config.redline_rpm);
+            let reachable = drag_limited_speed_mps(&config);
+            assert!(
+                top_speed <= reachable * TOP_GEAR_OVERRUN_LIMIT,
+                "{}: top gear runs to {:.0} km/h, the car can reach {:.0}",
+                config.name,
+                top_speed * 3.6,
+                reachable * 3.6
+            );
+            checked += 1;
+        }
+        assert!(checked > 0, "no cars found under {}", dir.display());
     }
 }

@@ -13,7 +13,9 @@ use track_editor::ats::{
 };
 use track_editor::project;
 use track_editor::track_data::{TrackFile, TrackNode};
-use track_editor::ue_export::{self, UeMesh, UeScene, UE_SCENE_FORMAT, UE_SCENE_VERSION};
+use track_editor::ue_export::{
+    self, UeMesh, UeScene, CURB_BANDS_VERSION, CURB_BAND_STEP_M, UE_SCENE_FORMAT, UE_SCENE_VERSION,
+};
 use track_editor::ue_export_io;
 
 fn real_tracks_dir() -> PathBuf {
@@ -707,5 +709,83 @@ fn every_real_track_bakes() {
                 );
             }
         }
+    }
+}
+
+/// The curb sidecar is the sim's only knowledge of the curbs: get a span
+/// wrong and the server counts a car on the curb as off the track.
+#[test]
+fn curb_sidecar_covers_each_curb_span() {
+    let track = test_track();
+    let scene = test_scene(&track);
+    let baked = ue_export::bake_all(&track, &scene).expect("test track must bake");
+    let curbs = baked.curbs.expect("a track with a length has curb bands");
+
+    assert_eq!(curbs.version, CURB_BANDS_VERSION);
+    assert_eq!(curbs.step_m, CURB_BAND_STEP_M);
+    assert_eq!(curbs.left_cm.len(), curbs.right_cm.len());
+    let at = |band: &[u16], station_m: f32| {
+        band[(station_m / CURB_BAND_STEP_M).round() as usize % band.len()]
+    };
+
+    // Left curb: stations 30..90, 1.2 m wide.
+    assert_eq!(at(&curbs.left_cm, 60.0), 120);
+    assert_eq!(at(&curbs.left_cm, 30.0), 120);
+    assert_eq!(at(&curbs.left_cm, 90.0), 120);
+    assert_eq!(at(&curbs.left_cm, 29.0), 0);
+    assert_eq!(at(&curbs.left_cm, 91.0), 0);
+    // ...and it is a *left* curb, so the right edge stays bare there.
+    assert_eq!(at(&curbs.right_cm, 60.0), 0);
+
+    // Right curb: 780 through start/finish to 25, 1.0 m wide.
+    assert_eq!(at(&curbs.right_cm, 790.0), 100);
+    assert_eq!(at(&curbs.right_cm, 0.0), 100);
+    assert_eq!(at(&curbs.right_cm, 20.0), 100);
+    assert_eq!(at(&curbs.right_cm, 40.0), 0);
+}
+
+/// Every shipped circuit must bake curb bands that fit the track and stay
+/// within the widths the editor allows, since the server trusts them as
+/// track limits without re-checking against the `.ats`.
+#[test]
+fn real_tracks_bake_plausible_curb_bands() {
+    for track_path in ue_export_io::track_files_in(&real_tracks_dir()).unwrap() {
+        let opened = project::open_project(&track_path).unwrap();
+        let Some(scene) = opened.scene else { continue };
+        let baked = ue_export::bake_all(&opened.track, &scene).unwrap();
+        let curbs = baked.curbs.expect("a real circuit has a length");
+        let samples = curbs.left_cm.len();
+        assert_eq!(curbs.right_cm.len(), samples);
+        let length_m = opened
+            .track
+            .metadata
+            .as_ref()
+            .and_then(|m| m.length_m)
+            .unwrap_or(0.0);
+        if length_m > 0.0 {
+            let spanned = samples as f32 * CURB_BAND_STEP_M;
+            assert!(
+                (spanned - length_m).abs() < 5.0,
+                "{}: {spanned} m of curb bands for a {length_m} m lap",
+                track_path.display()
+            );
+        }
+        let widest = curbs
+            .left_cm
+            .iter()
+            .chain(&curbs.right_cm)
+            .copied()
+            .max()
+            .unwrap_or(0);
+        assert!(
+            widest <= 600,
+            "{}: a {widest} cm curb is wider than the editor allows",
+            track_path.display()
+        );
+        assert!(
+            curbs.left_cm.iter().chain(&curbs.right_cm).any(|w| *w > 0),
+            "{}: every circuit has curbs somewhere",
+            track_path.display()
+        );
     }
 }

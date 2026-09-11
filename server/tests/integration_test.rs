@@ -718,6 +718,60 @@ async fn test_telemetry_broadcast() {
 }
 
 #[tokio::test]
+async fn test_joining_player_receives_racing_line() {
+    let result = timeout(TEST_TIMEOUT, async {
+        let server = common::start_test_server().await;
+        let mut client = TestClient::connect("LinePlayer", server.tcp_addr).await?;
+        let (_, lobby_state) = client.authenticate().await?;
+        let (car_id, track_id) = match lobby_state {
+            ServerMessage::LobbyState(lobby) => (
+                lobby.car_configs.first().ok_or("no cars")?.id,
+                lobby.track_configs.first().ok_or("no tracks")?.id,
+            ),
+            _ => return Err("Expected lobby state after authentication".into()),
+        };
+        client.select_car(car_id).await?;
+        let session_id = client
+            .create_session(track_id, 1, SessionKind::Practice)
+            .await?;
+
+        // The line follows SessionJoined on the same reliable stream.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let line = loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            match timeout(remaining, client.receive_tcp_message()).await?? {
+                ServerMessage::RacingLine(line) => break line,
+                ServerMessage::Error { code, message } => {
+                    return Err(format!("Server error {}: {}", code, message).into());
+                }
+                _ => continue,
+            }
+        };
+
+        assert_eq!(line.session_id, session_id);
+        let n = line.x.len();
+        assert!(n > 100, "a circuit's worth of points, got {n}");
+        assert_eq!(line.y.len(), n);
+        assert_eq!(line.z.len(), n);
+        assert_eq!(line.phase.len(), n);
+        assert!(line.spacing_m > 1.0 && line.spacing_m < 5.0);
+        assert!(line.phase.iter().all(|&p| p <= 2));
+        assert!(line.phase.contains(&0), "somewhere to be flat out");
+        assert!(line.phase.contains(&2), "somewhere to brake");
+
+        server.shutdown().await;
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => panic!("Test failed: {}", e),
+        Err(_) => panic!("Test timed out - server may not be responding"),
+    }
+}
+
+#[tokio::test]
 async fn test_sandbox_session_workflow() {
     println!("=== Sandbox Session Workflow Test ===");
     println!();
@@ -793,6 +847,7 @@ async fn test_sandbox_session_workflow() {
                     return Err(format!("Server error {}: {}", code, message).into());
                 }
                 ServerMessage::SessionRoster(_)
+                | ServerMessage::RacingLine(_)
                 | ServerMessage::LobbyState(_)
                 | ServerMessage::HeartbeatAck { .. } => continue,
                 _ => {

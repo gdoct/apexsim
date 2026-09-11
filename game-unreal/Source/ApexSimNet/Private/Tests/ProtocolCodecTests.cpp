@@ -415,4 +415,37 @@ bool FApexProtocolRobustnessTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+// RacingLine: parallel X/Y/Z/Phase arrays zipped into points.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolRacingLineDecodeTest,
+	"ApexSim.Net.Protocol.RacingLineDecode",
+	ApexTestFlags)
+
+bool FApexProtocolRacingLineDecodeTest::RunTest(const FString& Parameters)
+{
+	FApexServerMessage Message;
+	FString Error;
+	if (!TestTrue(FString::Printf(TEXT("RacingLine decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_RacingLine, Message, Error)))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("RacingLine type"), Message.Type, EApexServerMessageType::RacingLine);
+	const FApexRacingLineData& Line = Message.RacingLine;
+	TestEqual(TEXT("session id"), Line.SessionId, SessId);
+	TestEqual(TEXT("spacing"), Line.SpacingM, 2.5f);
+	if (TestEqual(TEXT("two points"), Line.Points.Num(), 2) && TestEqual(TEXT("two phases"), Line.Phases.Num(), 2))
+	{
+		TestEqual(TEXT("point 0"), Line.Points[0], FVector(1.5, 0.25, 0.0));
+		TestEqual(TEXT("point 1"), Line.Points[1], FVector(-2.0, 3.0, 1.0));
+		TestEqual(TEXT("phase 0 is throttle"), Line.Phases[0], EApexLinePhase::Throttle);
+		TestEqual(TEXT("phase 1 is brake"), Line.Phases[1], EApexLinePhase::Brake);
+	}
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

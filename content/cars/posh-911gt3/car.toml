@@ -71,13 +71,19 @@ torque_nm = 400.0
 # One of: Manual, DCT, Sequential, Automatic, CVT
 transmission_type = "Manual"
 
-# Gear ratios: include reverse as the first (negative) entry.
-gear_ratios = [-3.44, 3.91, 2.29, 1.58, 1.18, 0.94, 0.81]
 final_drive_ratio = 3.97
 
 # Shift timing and drivetrain efficiency
 shift_time_s = 0.18
 efficiency = 0.93
+
+# 6 forward gears: a long first (72 km/h at the 9000 rpm limiter) for getting
+# off the line, closing up to 321 km/h in sixth.
+[transmission.ratio_curve]
+gears = 6
+first = 3.91
+top = 0.88
+shape = "progressive"
 
 [drivetrain]
 # One of: RWD, FWD, AWD

@@ -259,6 +259,7 @@ void UApexRootWidget::NativeConstruct()
 	FParse::Value(FCommandLine::Get(), TEXT("ApexCountdown="), AutoRaceCountdown);
 	FParse::Value(FCommandLine::Get(), TEXT("ApexLaps="), AutoRaceLaps);
 	FParse::Value(FCommandLine::Get(), TEXT("ApexTrack="), AutoRaceTrack);
+	FParse::Value(FCommandLine::Get(), TEXT("ApexCar="), AutoRaceCar);
 
 	// -ApexNoStart stops after creating the session, which is the only way to
 	// reach the lobby unattended: a started session hands the view straight to
@@ -706,7 +707,21 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 
 	bAutoRaceSessionRequested = true;
 
-	const FApexCarConfigSummary& Car = LobbyState.CarConfigs[0];
+	FApexCarConfigSummary Car = LobbyState.CarConfigs[0];
+	if (!AutoRaceCar.IsEmpty())
+	{
+		if (const FApexCarConfigSummary* Named = LobbyState.CarConfigs.FindByPredicate(
+				[this](const FApexCarConfigSummary& Candidate) {
+					return Candidate.Name.Contains(AutoRaceCar);
+				}))
+		{
+			Car = *Named;
+		}
+		else
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("-ApexCar: no lobby car matches '%s'"), *AutoRaceCar);
+		}
+	}
 	// -ApexTrack wins, then the player's remembered track, then the server's
 	// first. Le Mans sorts first and is 13 km, which makes for a long wait.
 	FApexTrackConfigSummary Track = LobbyState.TrackConfigs[0];

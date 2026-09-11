@@ -1,5 +1,4 @@
-//! Writing `.uescene.json` exports (and the server's ground sidecar) to
-//! disk.
+//! Writing `.uescene.json` exports (and the server's sidecars) to disk.
 //!
 //! Exports are *generated* files — the `.ats` and the `.yaml` remain the
 //! only sources of truth — so they land in their own directory rather than
@@ -7,17 +6,18 @@
 //! gitignored. A full circuit bakes to a few megabytes of vertex data;
 //! committing 26 of those would dwarf the content it came from.
 //!
-//! The one exception is `<Track>.ground.msgpack`: the server reads it from
-//! beside the YAML (it is the sim's ground, not client content), so it is
-//! written there — and gitignored there, since it is generated all the
-//! same.
+//! The exceptions are the server's sidecars, `<Track>.ground.msgpack` and
+//! `<Track>.curbs.msgpack`: the server reads them from beside the YAML
+//! (they are the sim's ground and track limits, not client content), so
+//! they are written there — and gitignored there, since they are generated
+//! all the same.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::project;
 use crate::terrain::GroundHeightfield;
-use crate::ue_export::{self, UeScene};
+use crate::ue_export::{self, CurbBands, UeScene};
 
 /// Where exports go when no destination is given, relative to the repo root.
 pub const DEFAULT_EXPORT_DIR: &str = "content/tracks/export";
@@ -50,15 +50,22 @@ pub fn ground_sidecar_path_for(track_path: &Path) -> PathBuf {
     track_path.with_extension("ground.msgpack")
 }
 
+/// `Monza.yaml` -> `<same dir>/Monza.curbs.msgpack`.
+pub fn curb_sidecar_path_for(track_path: &Path) -> PathBuf {
+    track_path.with_extension("curbs.msgpack")
+}
+
 /// What one track's export wrote.
 pub struct Exported {
     pub scene_path: PathBuf,
     /// `None` for a track too degenerate to have a terrain.
     pub ground_path: Option<PathBuf>,
+    /// `None` for a track with no usable centerline length.
+    pub curb_path: Option<PathBuf>,
 }
 
 /// Bake the track at `track_path` (plus its sibling `.ats`) into `dir`, and
-/// its ground sidecar next to the YAML.
+/// its server sidecars next to the YAML.
 ///
 /// A track whose `.ats` is missing or unreadable still exports: the scene
 /// layers are simply empty, and you get the bare road ribbon. That is worth
@@ -85,25 +92,42 @@ pub fn export_track(track_path: &Path, dir: &Path) -> Result<Exported, UeExportE
         }
         None => None,
     };
+    let curb_path = match &baked.curbs {
+        Some(curbs) => {
+            let path = curb_sidecar_path_for(track_path);
+            write_curb_sidecar(&path, curbs)?;
+            Some(path)
+        }
+        None => None,
+    };
     Ok(Exported {
         scene_path,
         ground_path,
+        curb_path,
     })
 }
 
 /// The server's ground heightfield, `rmp_serde::to_vec_named`, written
 /// temp-then-rename like everything else.
 pub fn write_ground_sidecar(path: &Path, ground: &GroundHeightfield) -> Result<(), UeExportError> {
+    write_msgpack(path, &rmp_serde::to_vec_named(ground)?)
+}
+
+fn write_msgpack(path: &Path, serialized: &[u8]) -> Result<(), UeExportError> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent)?;
         }
     }
-    let serialized = rmp_serde::to_vec_named(ground)?;
     let tmp = path.with_extension("msgpack.tmp");
-    fs::write(&tmp, &serialized)?;
+    fs::write(&tmp, serialized)?;
     fs::rename(&tmp, path)?;
     Ok(())
+}
+
+/// The server's curb bands, written the same way as the ground sidecar.
+pub fn write_curb_sidecar(path: &Path, curbs: &CurbBands) -> Result<(), UeExportError> {
+    write_msgpack(path, &rmp_serde::to_vec_named(curbs)?)
 }
 
 /// Compact JSON, written temp-then-rename like the `.ats` saver, so an

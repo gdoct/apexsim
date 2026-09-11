@@ -58,12 +58,19 @@ torque_nm = 430.0
 [transmission]
 transmission_type = "Sequential"
 
-# 8 forward gears + reverse (ratios are representative, not team-specific)
-gear_ratios = [-3.20, 3.00, 2.40, 2.00, 1.70, 1.45, 1.25, 1.08, 0.94]
 final_drive_ratio = 3.20
 
 shift_time_s = 0.06
 efficiency = 0.96
+
+# 8 forward gears (representative, not team-specific): first runs to 122 km/h
+# and eighth to 335 at the 15 000 rpm limiter, a shade past the ~320 the car
+# can drag its way to.
+[transmission.ratio_curve]
+gears = 8
+first = 4.78
+top = 1.74
+shape = "progressive"
 
 [drivetrain]
 layout = "RWD"

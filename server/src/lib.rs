@@ -1,6 +1,7 @@
 pub mod ai_driver;
 pub mod car_loader;
 pub mod config;
+pub mod curbs;
 pub mod data;
 pub mod game_loop;
 pub mod game_session;
@@ -11,6 +12,7 @@ pub mod metrics;
 pub mod network;
 pub mod physics;
 pub mod procgen;
+pub mod racing_line;
 pub mod replay;
 pub mod server;
 pub mod track_loader;

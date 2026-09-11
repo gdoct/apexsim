@@ -176,6 +176,7 @@ impl TrackLoader {
 
         let ground =
             track_path.and_then(|path| Self::load_ground_heightfield(&track_file.name, path));
+        let curbs = track_path.and_then(|path| Self::load_curb_bands(&track_file.name, path));
 
         // Use track_id from file if provided, otherwise generate new UUID
         let track_id = if let Some(track_id_str) = &track_file.track_id {
@@ -240,6 +241,7 @@ impl TrackLoader {
             metadata,
             procedural_world,
             ground,
+            curbs,
         };
         config.rebuild_raceline_distances();
         Ok(config)
@@ -273,6 +275,42 @@ impl TrackLoader {
             Err(e) => {
                 warn!(
                     "Ignoring ground heightfield {} for {}: {}",
+                    sidecar.display(),
+                    track_name,
+                    e
+                );
+                None
+            }
+        }
+    }
+
+    /// Load the baked curb bands the track editor writes next to the track
+    /// file, if present. Missing is normal (the sidecar is generated, not
+    /// committed); a present-but-broken file is a warning, and the road edge
+    /// is the track limit as it was before curbs were baked at all.
+    fn load_curb_bands(track_name: &str, track_path: &Path) -> Option<crate::curbs::CurbBands> {
+        let sidecar = crate::curbs::CurbBands::sidecar_path(track_path);
+        if !sidecar.exists() {
+            debug!(
+                "No curb bands for {} ({}); the road edge is the track limit",
+                track_name,
+                sidecar.display()
+            );
+            return None;
+        }
+        match crate::curbs::CurbBands::load(&sidecar) {
+            Ok(bands) => {
+                info!(
+                    "Loaded curb bands for {}: {} stations of {} m",
+                    track_name,
+                    bands.len(),
+                    bands.step_m
+                );
+                Some(bands)
+            }
+            Err(e) => {
+                warn!(
+                    "Ignoring curb bands {} for {}: {}",
                     sidecar.display(),
                     track_name,
                     e

@@ -17,6 +17,13 @@ use crate::data::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Fraction of the car's shift point at which the least skilled AI upshifts;
+/// the most skilled shifts right on it.
+const AI_NOVICE_SHIFT_FRAC: f32 = 0.9;
+/// An AI driver drops a gear once the gear below would land at or under
+/// this fraction of its own shift point.
+const AI_DOWNSHIFT_HEADROOM: f32 = 0.85;
+
 /// Skill level bounds for AI drivers
 pub const MIN_SKILL_LEVEL: u8 = 70;
 pub const MAX_SKILL_LEVEL: u8 = 110;
@@ -589,48 +596,54 @@ impl<'a> AiDriverController<'a> {
         }
     }
 
-    /// Calculate gear selection based on engine RPM and skill level.
+    /// Gear selection from the car's own shift points.
     ///
-    /// Implements the gear shifting logic as per spec:
-    /// - Shift up when RPM exceeds upshift threshold (skill-dependent)
-    /// - Shift down when RPM drops below downshift threshold
-    /// - Higher skill = better timing (closer to optimal RPM range)
+    /// Upshifts come from the same torque-curve crossover the automatic box
+    /// uses ([`crate::physics::auto_upshift_rpm`]), so an AI F1 car runs its
+    /// engine to 14 000+ and a torquey road car shifts where its torque does
+    /// — not at one rev figure for every engine. Skill decides how close to
+    /// that point the driver gets: a novice short-shifts, an ace doesn't.
+    ///
+    /// Downshifts are measured against the lower gear's own shift point: drop
+    /// a gear once it would land with [`AI_DOWNSHIFT_HEADROOM`] of its range
+    /// to spare. That is also the hysteresis — straight after an upshift the
+    /// gear below would land exactly at its shift point, well above the
+    /// headroom, so the driver never hunts between two gears.
     fn calculate_gear(&self, state: &CarState, skill_factor: f32) -> i8 {
         let current_gear = state.gear;
         let rpm = state.engine_rpm;
+        let ratios = &self.car_config.gear_ratios;
 
         // Gear count from car config (exclude reverse which is negative)
-        let max_gear = self
-            .car_config
-            .gear_ratios
-            .iter()
-            .filter(|&&g| g > 0.0)
-            .count() as i8;
+        let max_gear = ratios.iter().filter(|&&g| g > 0.0).count() as i8;
 
-        // Skill-based shift points
-        // Lower skill = shifts early (conservative), higher skill = shifts near redline
-        let upshift_base = 6000.0;
-        let upshift_rpm = upshift_base + (skill_factor * 1500.0); // 6000-7500 RPM
-
-        let downshift_base = 2500.0;
-        let downshift_rpm = downshift_base - (skill_factor * 500.0); // 2000-2500 RPM
-
-        // Shift up if RPM is too high and not in highest gear
-        if rpm > upshift_rpm && current_gear < max_gear && current_gear > 0 {
-            return current_gear + 1;
-        }
-
-        // Shift down if RPM is too low and not in first gear
-        if rpm < downshift_rpm && current_gear > 1 {
-            return current_gear - 1;
-        }
-
-        // Start in first gear if in neutral
         if current_gear == 0 {
             return 1;
         }
+        if current_gear < 0 {
+            return current_gear;
+        }
 
-        // Otherwise, maintain current gear
+        let early = AI_NOVICE_SHIFT_FRAC + (1.0 - AI_NOVICE_SHIFT_FRAC) * skill_factor;
+        let shift_point =
+            |gear: i8| crate::physics::auto_upshift_rpm(self.car_config, gear).map(|u| u * early);
+
+        if current_gear < max_gear && shift_point(current_gear).is_some_and(|up| rpm >= up) {
+            return current_gear + 1;
+        }
+
+        if current_gear > 1 {
+            let (now, down) = (
+                ratios[current_gear as usize].abs(),
+                ratios[current_gear as usize - 1].abs(),
+            );
+            let rpm_down = rpm * down / now.max(1e-3);
+            if shift_point(current_gear - 1).is_some_and(|up| rpm_down < up * AI_DOWNSHIFT_HEADROOM)
+            {
+                return current_gear - 1;
+            }
+        }
+
         current_gear
     }
 

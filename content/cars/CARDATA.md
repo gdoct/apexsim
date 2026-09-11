@@ -92,10 +92,59 @@ torque_nm = 240.0
 | Key | Type | Unit | Required | Description |
 |---|---:|---:|---:|---|
 | `transmission_type` | string | - | no | One of: `Manual`, `DCT`, `Sequential`, `Automatic`, `CVT`. |
-| `gear_ratios` | array(float) | ratio | no | Include reverse as the first (negative) entry. Indexing matches server gear mapping. |
+| `gear_ratios` | array(float) | ratio | no | Hand-typed ladder: reverse first (negative), then forward gears counting down. Use this *or* `ratio_curve`, not both. |
 | `final_drive_ratio` | float | ratio | no | Final drive ratio. |
 | `shift_time_s` | float | s | no | Shift latency used by higher-level logic (reserved). |
 | `efficiency` | float | 0-1 | no | Drivetrain efficiency multiplier applied to wheel torque. |
+
+#### [transmission.ratio_curve]
+
+The preferred way to describe a gearbox: give the two ends and the shape, and
+the server generates every ratio in between. Put this table *after* the
+`[transmission]` keys — TOML assigns every key below a table header to that
+table, so `efficiency = 0.96` written under `[transmission.ratio_curve]` is
+silently not a transmission setting.
+
+| Key | Type | Unit | Required | Description |
+|---|---:|---:|---:|---|
+| `gears` | int | - | yes | Forward gears, 1-12. |
+| `first` | float | ratio | yes | First gear ratio (before the final drive). |
+| `top` | float | ratio | yes | Top gear ratio; must be lower than `first`. |
+| `shape` | string | - | no | `geometric` (default): every shift drops the same fraction of the revs. `progressive`: a long first, steps closing up towards top gear, the way a racing box is laid out. |
+| `reverse` | float | ratio | no | Reverse ratio, either sign. Defaults to `first`. |
+
+Pick the two ends from road speeds. At the redline a gear reaches
+
+    speed_kmh = redline_rpm / 60 * 2 * pi * wheel_radius_m * 3.6 / (ratio * final_drive_ratio)
+
+so solve for `first` from how fast first gear should run, and for `top` from
+the speed the car can actually reach. Gear top gear a little past that
+drag-limited speed, so the engine pulls close to the limiter on a straight.
+Much further and every gear is too long: the server warns at load when top
+gear runs more than 35% past what the car's power can hold against its drag
+(`P = 1/2 * rho * Cd * A * v^3`, hybrid assist included).
+
+```toml
+[transmission]
+transmission_type = "Sequential"
+final_drive_ratio = 3.15
+efficiency = 0.96
+
+[transmission.ratio_curve]
+gears = 8
+first = 4.94    # 120 km/h at 15 000 rpm on 0.33 m wheels
+top = 1.80      # 329 km/h; the car drags itself to ~315
+shape = "progressive"
+```
+
+#### Shift points
+
+Nothing to configure: the automatic gearbox and the AI drivers shift where
+the car's `[[engine.torque_curve]]` says to. A gear is kept while it puts more
+torque on the road than the next one would at the same road speed, so a
+peaky engine runs to the limiter and a torquey one shifts well short of it.
+98% of `redline_rpm` is the backstop for an engine whose torque never falls
+away. Change the torque curve and the shift points follow.
 
 ### [drivetrain]
 
