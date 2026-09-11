@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
+#include "Widgets/SViewport.h"
 
 namespace
 {
@@ -36,6 +37,25 @@ bool FApexMenuInputProcessor::RecoverFocus(FSlateApplication& SlateApp, UApexRoo
 	ApexNav::FNavigationScope Scope;
 	Root.FocusDefault();
 	return true;
+}
+
+void FApexMenuInputProcessor::KeepFocusOnGame(FSlateApplication& SlateApp, uint32 UserIndex) const
+{
+	const TSharedPtr<SViewport> Viewport = SlateApp.GetGameViewport();
+	if (!Viewport.IsValid() || SlateApp.GetUserFocusedWidget(UserIndex) == Viewport)
+	{
+		return;
+	}
+
+	// Before routing, so this very event already goes to the car. Not a
+	// navigation scope: nothing in the shell moved, so no Move cue.
+	UE_LOG(LogApexSim, Verbose, TEXT("Focus was in the shell while driving; handing it to the viewport"));
+	SlateApp.SetUserFocus(UserIndex, Viewport);
+}
+
+bool FApexMenuInputProcessor::IsDriving(const UApexRootWidget& Root)
+{
+	return Root.IsRaceViewActive() && !Root.IsPaused() && !Root.IsSettingsOpen();
 }
 
 void FApexMenuInputProcessor::SetGamepadActive(UApexRootWidget& Root, bool bActive)
@@ -90,6 +110,7 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 		if (!Root->IsPaused())
 		{
 			// Driving: the keys belong to the car.
+			KeepFocusOnGame(SlateApp, InKeyEvent.GetUserIndex());
 			return false;
 		}
 	}
@@ -109,7 +130,16 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 bool FApexMenuInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent)
 {
 	UApexRootWidget* Root = Owner.Get();
-	if (!Root || !ApexNav::IsAnalogNavigationKey(InAnalogInputEvent.GetKey()))
+	if (!Root)
+	{
+		return false;
+	}
+	if (IsDriving(*Root))
+	{
+		// Ahead of the filters below: a small steering input is still steering.
+		KeepFocusOnGame(SlateApp, InAnalogInputEvent.GetUserIndex());
+	}
+	if (!ApexNav::IsAnalogNavigationKey(InAnalogInputEvent.GetKey()))
 	{
 		return false;
 	}
@@ -120,7 +150,7 @@ bool FApexMenuInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp
 
 	SetGamepadActive(*Root, true);
 
-	if (Root->IsSettingsOpen() || (Root->IsRaceViewActive() && !Root->IsPaused()))
+	if (Root->IsSettingsOpen() || IsDriving(*Root))
 	{
 		return false;
 	}

@@ -21,6 +21,13 @@ grip_coefficient = 1.18
 max_steering_angle_rad = 0.51
 wheelbase_m = 2.65
 
+# Aerodynamics. Drag and downforce both scale with the reference area, so
+# what counts is Cd*A (0.75 m2) and Cl*A (1.0 m2): a road GT3 with its wing,
+# ~190 kg of downforce at 200 km/h, 40% of it on the nose.
+frontal_area_m2 = 2.2
+lift_coefficient_front = -0.18
+lift_coefficient_rear = -0.27
+
 # Engine & drivetrain simulation parameters.
 # Notes:
 # - The server currently uses these fields where available; otherwise it falls back to legacy defaults.

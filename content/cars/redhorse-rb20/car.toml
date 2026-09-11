@@ -19,6 +19,14 @@ grip_coefficient = 1.85
 max_steering_angle_rad = 0.34
 wheelbase_m = 3.6
 
+# Aerodynamics. Drag and downforce both scale with the reference area, so
+# what counts is Cd*A (1.5 m2) and Cl*A (4.4 m2): the car's own weight in
+# downforce by ~190 km/h and ~3 g of it at 330. The balance is 42% front,
+# behind the static weight, so the car gets more stable as speed rises.
+frontal_area_m2 = 2.2
+lift_coefficient_front = -0.84
+lift_coefficient_rear = -1.16
+
 # Powertrain (approximate / semantically-correct for modern F1 hybrid).
 
 [engine]

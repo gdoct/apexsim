@@ -44,6 +44,15 @@ cargo run                                    # Run track editor
 cargo run --bin ats-export -- --all          # Bake every track for Unreal
 ```
 
+### Play from the editor build
+`scripts/play_editor.ps1` runs the game through `UnrealEditor.exe -game` on
+the ApexSimEditor binaries - no cook, so a C++ change is one incremental build
+from playable. It starts a local server (`cargo build --release` first) when
+settings.yml points at this machine and nothing is listening, and warns when
+the running server or the editor build is older than the source. `-Build`,
+`-RestartServer`, `-DryRun`; `-CreateShortcut` puts a desktop shortcut
+that runs it with `-Interactive` (asks instead of warning).
+
 ### Standalone game build
 `scripts/build_game_standalone.ps1` runs UAT BuildCookRun into `artifacts/ApexSim-Win64`.
 Packaging relies on `bCookAll=True` in `DefaultGame.ini`: the track levels and
@@ -52,8 +61,8 @@ catalog tables are only ever found by path at runtime, and the cooker's
 packaged build races in an empty world with no previews.
 
 ### Release package
-`scripts/build_release.ps1` runs the whole pipeline front to back — server,
-track levels, track catalog, client package — and assembles a folder a player
+`scripts/build_release.ps1` runs the whole pipeline front to back ï¿½ server,
+track levels, track catalog, client package ï¿½ and assembles a folder a player
 can unzip and run:
 
 ```powershell
@@ -62,14 +71,14 @@ can unzip and run:
 ```
 
 Layout: `Game/` (the packaged client, plus a `settings.sample.yml`), `Server/` (`apexsim-server.exe`,
-`server.toml` and only the content the server reads — `car.toml` per car and
+`server.toml` and only the content the server reads ï¿½ `car.toml` per car and
 the track YAML, not the `.glb` models or `.ats` sidecars), plus `Play.bat`,
 `Start-Server.bat`, `README.txt`, `LICENSE` and `release.json`.
 
 The run aborts before any long build if the car or track data is missing, or if
 a track YAML has no `track_id`. Every stage has a `-Skip*` switch for when one
 piece is mid-refactor, but a skipped stage must still find the output it would
-have produced — a `-SkipTracks` run checks `L_<Stem>.umap` exists for every
+have produced ï¿½ a `-SkipTracks` run checks `L_<Stem>.umap` exists for every
 circuit rather than shipping a package that races in an empty world.
 `build_game_standalone.ps1` archives into `<dir>\Windows`, so the release
 script points it straight at the release folder and renames that to `Game`
@@ -162,11 +171,16 @@ context only while a race is running. Defaults: WASD to drive, Q/E to shift,
 C to swap cockpit/chase, `,`/`.` to look aside, B to look behind, Escape to
 leave.
 
-Two traps worth remembering: the menu shell runs in `FInputModeUIOnly`, where
+Three traps worth remembering: the menu shell runs in `FInputModeUIOnly`, where
 the viewport discards game input entirely and no binding produces an event
-(the controller switches to game-and-UI for the race); and a Blueprint game
+(the controller switches to game-and-UI for the race); a Blueprint game
 mode can silently override `PlayerControllerClass`, which the C++ game mode
-now logs an error about.
+now logs an error about; and game-and-UI does not move focus by itself, so
+the controller names the viewport as the widget to focus and
+`FApexMenuInputProcessor` puts focus back on it whenever an event arrives while
+driving. Focus left in the shell routes events through the focusable
+`WBP_Root`, whose default Slate handler eats the left stick, D-pad and arrows
+as menu navigation - pad steering died while throttle and shoulders worked.
 
 ### Racing line (`Race/ApexRacingLineActor`)
 Gameplay settings -> Racing line: OFF / BRAKING ONLY / FULL (default off).

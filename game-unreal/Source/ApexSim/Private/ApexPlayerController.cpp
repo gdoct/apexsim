@@ -5,8 +5,10 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/GameInstance.h"
+#include "Engine/GameViewportClient.h"
 #include "Input/ApexInputConfig.h"
 #include "InputActionValue.h"
+#include "Widgets/SViewport.h"
 
 namespace
 {
@@ -146,9 +148,20 @@ void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
 		// bindings above would receive nothing at all. Game-and-UI keeps the
 		// menu clickable and lets Escape through to the root widget, which
 		// handles it and passes everything else down to us.
+		//
+		// Focus has to be moved explicitly: game-and-UI without a widget to
+		// focus leaves it wherever the menu had it, and a focus path through
+		// the shell ends on the root widget, where Slate's default handler
+		// answers the left stick, D-pad and arrows with menu navigation and
+		// consumes them. Throttle and the shoulder buttons still got through,
+		// which is what made it look like a binding problem.
 		FInputModeGameAndUI InputMode;
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		InputMode.SetHideCursorDuringCapture(false);
+		if (const UGameViewportClient* GameViewport = GetWorld() ? GetWorld()->GetGameViewport() : nullptr)
+		{
+			InputMode.SetWidgetToFocus(GameViewport->GetGameViewportWidget());
+		}
 		SetInputMode(InputMode);
 	}
 	else
