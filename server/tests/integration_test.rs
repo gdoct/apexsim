@@ -723,13 +723,49 @@ async fn test_joining_player_receives_racing_line() {
         let server = common::start_test_server().await;
         let mut client = TestClient::connect("LinePlayer", server.tcp_addr).await?;
         let (_, lobby_state) = client.authenticate().await?;
-        let (car_id, track_id) = match lobby_state {
-            ServerMessage::LobbyState(lobby) => (
-                lobby.car_configs.first().ok_or("no cars")?.id,
-                lobby.track_configs.first().ok_or("no tracks")?.id,
-            ),
-            _ => return Err("Expected lobby state after authentication".into()),
+        // The fastest car for power to weight, not the first: the lobby's
+        // car order is a HashMap's, and the golf cart never needs to brake,
+        // so "first" failed the braking assertion on a random share of runs.
+        let ServerMessage::LobbyState(lobby) = lobby_state else {
+            return Err("Expected lobby state after authentication".into());
         };
+        let car = lobby
+            .car_configs
+            .iter()
+            .max_by(|a, b| {
+                (a.max_engine_force_n / a.mass_kg).total_cmp(&(b.max_engine_force_n / b.mass_kg))
+            })
+            .ok_or("no cars")?;
+        // And the twistiest circuit, not the first: an F1 takes the
+        // Indianapolis oval flat out, so it has no braking zone at all.
+        let turning_per_metre = |points: &[apexsim_server::network::TrackPoint]| {
+            let headings: Vec<f32> = points
+                .windows(2)
+                .map(|w| (w[1].y - w[0].y).atan2(w[1].x - w[0].x))
+                .collect();
+            let turning: f32 = headings
+                .windows(2)
+                .map(|h| {
+                    let d = (h[1] - h[0]).rem_euclid(std::f32::consts::TAU);
+                    d.min(std::f32::consts::TAU - d)
+                })
+                .sum();
+            let length: f32 = points
+                .windows(2)
+                .map(|w| ((w[1].x - w[0].x).powi(2) + (w[1].y - w[0].y).powi(2)).sqrt())
+                .sum();
+            turning / length.max(1.0)
+        };
+        let track = lobby
+            .track_configs
+            .iter()
+            .filter(|t| t.centerline.len() > 10)
+            .max_by(|a, b| {
+                turning_per_metre(&a.centerline).total_cmp(&turning_per_metre(&b.centerline))
+            })
+            .ok_or("no tracks")?;
+        let (car_id, track_id) = (car.id, track.id);
+        let driving = format!("{} on {}", car.name, track.name);
         client.select_car(car_id).await?;
         let session_id = client
             .create_session(track_id, 1, SessionKind::Practice)
@@ -756,8 +792,11 @@ async fn test_joining_player_receives_racing_line() {
         assert_eq!(line.phase.len(), n);
         assert!(line.spacing_m > 1.0 && line.spacing_m < 5.0);
         assert!(line.phase.iter().all(|&p| p <= 2));
-        assert!(line.phase.contains(&0), "somewhere to be flat out");
-        assert!(line.phase.contains(&2), "somewhere to brake");
+        assert!(
+            line.phase.contains(&0),
+            "somewhere to be flat out: {driving}"
+        );
+        assert!(line.phase.contains(&2), "somewhere to brake: {driving}");
 
         server.shutdown().await;
         Ok::<(), Box<dyn std::error::Error>>(())
