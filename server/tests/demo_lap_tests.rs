@@ -202,9 +202,15 @@ async fn test_demo_lap_timing() {
         // the lobby's simplified centerline) so the AI demo driver can
         // complete the laps within the soak budget. Track order in the
         // lobby is HashMap-random — "first" could be Le Mans.
-        let car_id = lobby_state.car_configs.first()
-            .ok_or("No car configs available")?.id;
-        let car_name = &lobby_state.car_configs.first().unwrap().name;
+        // The fastest car for power to weight: "first" was a HashMap's pick,
+        // and when it drew the golf cart two laps never fit the budget.
+        let car = lobby_state.car_configs.iter()
+            .max_by(|a, b| {
+                (a.max_engine_force_n / a.mass_kg).total_cmp(&(b.max_engine_force_n / b.mass_kg))
+            })
+            .ok_or("No car configs available")?;
+        let car_id = car.id;
+        let car_name = &car.name;
 
         let estimated_length = |points: &[apexsim_server::network::TrackPoint]| -> f32 {
             points.windows(2)

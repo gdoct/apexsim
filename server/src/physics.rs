@@ -328,9 +328,10 @@ pub fn update_car_3d(
         }
     };
 
+    // Body frame: +y is LEFT, so the left wheels sit at +track/2.
     let mut wheel_front_left = sample_wheel_state(
         config.wheelbase_m / 2.0,
-        -config.track_width_front_m / 2.0,
+        config.track_width_front_m / 2.0,
         config.suspension.spring_rate_front_n_per_m,
         config.suspension.damper_compression_front,
         config.suspension.damper_rebound_front,
@@ -338,7 +339,7 @@ pub fn update_car_3d(
     );
     let mut wheel_front_right = sample_wheel_state(
         config.wheelbase_m / 2.0,
-        config.track_width_front_m / 2.0,
+        -config.track_width_front_m / 2.0,
         config.suspension.spring_rate_front_n_per_m,
         config.suspension.damper_compression_front,
         config.suspension.damper_rebound_front,
@@ -346,7 +347,7 @@ pub fn update_car_3d(
     );
     let mut wheel_rear_left = sample_wheel_state(
         -config.wheelbase_m / 2.0,
-        -config.track_width_rear_m / 2.0,
+        config.track_width_rear_m / 2.0,
         config.suspension.spring_rate_rear_n_per_m,
         config.suspension.damper_compression_rear,
         config.suspension.damper_rebound_rear,
@@ -354,7 +355,7 @@ pub fn update_car_3d(
     );
     let mut wheel_rear_right = sample_wheel_state(
         -config.wheelbase_m / 2.0,
-        config.track_width_rear_m / 2.0,
+        -config.track_width_rear_m / 2.0,
         config.suspension.spring_rate_rear_n_per_m,
         config.suspension.damper_compression_rear,
         config.suspension.damper_rebound_rear,
@@ -411,18 +412,23 @@ pub fn update_car_3d(
         state.weight_rear_right_n =
             (rear_weight / 2.0 + weight_transfer_lat_rear + susp_delta_rr).max(0.0);
 
+        // The anti-roll bar resists one wheel of an axle compressing more
+        // than the other: twisted, it pushes harder on the more compressed
+        // wheel and eases off the other, so that wheel carries more load.
+        // The body has no roll of its own here, so the difference comes from
+        // the ground under each wheel, as when one wheel runs over a bump.
         let front_anti_roll_transfer = config.suspension.anti_roll_bar_front
             * (wheel_front_left.suspension_compression - wheel_front_right.suspension_compression)
             * 0.5;
-        state.weight_front_left_n = (state.weight_front_left_n - front_anti_roll_transfer).max(0.0);
+        state.weight_front_left_n = (state.weight_front_left_n + front_anti_roll_transfer).max(0.0);
         state.weight_front_right_n =
-            (state.weight_front_right_n + front_anti_roll_transfer).max(0.0);
+            (state.weight_front_right_n - front_anti_roll_transfer).max(0.0);
 
         let rear_anti_roll_transfer = config.suspension.anti_roll_bar_rear
             * (wheel_rear_left.suspension_compression - wheel_rear_right.suspension_compression)
             * 0.5;
-        state.weight_rear_left_n = (state.weight_rear_left_n - rear_anti_roll_transfer).max(0.0);
-        state.weight_rear_right_n = (state.weight_rear_right_n + rear_anti_roll_transfer).max(0.0);
+        state.weight_rear_left_n = (state.weight_rear_left_n + rear_anti_roll_transfer).max(0.0);
+        state.weight_rear_right_n = (state.weight_rear_right_n - rear_anti_roll_transfer).max(0.0);
 
         wheel_front_left.load_n = state.weight_front_left_n;
         wheel_front_right.load_n = state.weight_front_right_n;
@@ -572,15 +578,11 @@ pub fn update_car_3d(
     let per_slip_angle =
         |w: &WheelForces| w.slip_angle / config.tire_config.optimal_slip_angle_rad.max(1e-4);
     let wheels = [&fl, &fr, &rl, &rr];
-    // The ground samplers above put `wheel_front_left` at local -y, which
-    // is the car's RIGHT (+y is left), while the load, yaw and tyre code
-    // treat `fl` as the left wheel. Feedback reports what is under each
-    // real side, so the sampled pairs are swapped back here.
     let wheel_states = [
-        &wheel_front_right,
         &wheel_front_left,
-        &wheel_rear_right,
+        &wheel_front_right,
         &wheel_rear_left,
+        &wheel_rear_right,
     ];
     state.feedback.record_tick(&FeedbackTick {
         steer_torque: steering_column_torque(
@@ -1102,7 +1104,9 @@ pub fn assisted_steering(
     (input.clamp(-1.0, 1.0) * lock / full_lock).clamp(-1.0, 1.0)
 }
 
-/// Calculate Ackermann steering geometry
+/// Ackermann steering geometry: (left, right) wheel angles for a centre
+/// angle, positive to the LEFT as everywhere in the sim. The inner wheel runs
+/// the tighter circle, so it turns further.
 fn calculate_ackermann_steering(
     steering_angle: f32,
     wheelbase: f32,
@@ -1123,11 +1127,11 @@ fn calculate_ackermann_steering(
     let outer_angle = (wheelbase / outer_radius).atan();
 
     if steering_angle > 0.0 {
-        // Turning right: right wheel is inner
-        (outer_angle, inner_angle)
+        // Turning left: the left wheel is inner
+        (inner_angle, outer_angle)
     } else {
-        // Turning left: left wheel is inner
-        (-inner_angle, -outer_angle)
+        // Turning right: the right wheel is inner
+        (-outer_angle, -inner_angle)
     }
 }
 
@@ -3732,10 +3736,20 @@ mod tests {
         let wheelbase = 2.7;
         let track_width = 1.6;
 
-        // Test right turn
+        // Positive steering is a LEFT turn (+y is left): the left wheel is
+        // inner and turns further.
         let (left, right) = calculate_ackermann_steering(0.3, wheelbase, track_width);
-        assert!(left > 0.0 && right > 0.0, "Both wheels should turn");
-        assert!(right > left, "Inner wheel (right) should turn more");
+        assert!(left > 0.0 && right > 0.0, "Both wheels should turn left");
+        assert!(left > right, "Inner wheel (left) should turn more");
+
+        // And a right turn mirrors it.
+        let (left_r, right_r) = calculate_ackermann_steering(-0.3, wheelbase, track_width);
+        assert!(
+            left_r < 0.0 && right_r < 0.0,
+            "Both wheels should turn right"
+        );
+        assert!(right_r < left_r, "Inner wheel (right) should turn more");
+        assert!((left_r + right).abs() < 1e-6 && (right_r + left).abs() < 1e-6);
 
         // Test straight
         let (left, right) = calculate_ackermann_steering(0.0, wheelbase, track_width);
@@ -3918,6 +3932,8 @@ mod tests {
         assert!((mesh_sample.grip_modifier - centerline_sample.grip_modifier).abs() < 0.0001);
     }
 
+    /// Ground rising from `left_z` at y = +1 to `right_z` at y = -1: for a
+    /// car at the origin heading +x, its left side (+y) sits on `left_z`.
     fn create_split_height_track(left_z: f32, right_z: f32) -> TrackConfig {
         TrackConfig {
             id: Uuid::new_v4(),
@@ -3925,7 +3941,7 @@ mod tests {
             centerline: vec![
                 TrackPoint {
                     x: 0.0,
-                    y: -1.0,
+                    y: 1.0,
                     z: left_z,
                     distance_from_start_m: 0.0,
                     width_left_m: 20.0,
@@ -3939,7 +3955,7 @@ mod tests {
                 },
                 TrackPoint {
                     x: 0.0,
-                    y: 1.0,
+                    y: -1.0,
                     z: right_z,
                     distance_from_start_m: 1.0,
                     width_left_m: 20.0,
@@ -3996,8 +4012,13 @@ mod tests {
         );
     }
 
+    /// Ground higher under the car's right side compresses the right wheels
+    /// more. That side carries the extra spring load, and an anti-roll bar,
+    /// twisted by the difference, loads it further still. (Before the wheel
+    /// samplers were put on their real sides, the spring load went to the
+    /// wrong wheel and this test asserted the bar evened the axle out.)
     #[test]
-    fn test_anti_roll_coupling_reduces_axle_load_split() {
+    fn test_anti_roll_bar_loads_the_more_compressed_wheel() {
         let mut state_no_arb = create_test_car_state();
         state_no_arb.pos_x = 0.0;
         state_no_arb.pos_y = 0.0;
@@ -4012,7 +4033,7 @@ mod tests {
         let mut config_with_arb = config_no_arb.clone();
         config_with_arb.suspension.anti_roll_bar_front = 20000.0;
 
-        let track = create_split_height_track(0.0, 0.2);
+        let track = create_split_height_track(0.0, 0.03);
         let input = PlayerInputData {
             throttle: 0.0,
             brake: 0.0,
@@ -4021,18 +4042,33 @@ mod tests {
             clutch: None,
         };
 
+        // A second to settle: on the first tick the suspension travel jumps
+        // from nothing, and the damper spike swamps everything else.
         let dt = 1.0 / 240.0;
-        update_car_3d(&mut state_no_arb, &config_no_arb, &input, &track, dt);
-        update_car_3d(&mut state_with_arb, &config_with_arb, &input, &track, dt);
+        for _ in 0..240 {
+            update_car_3d(&mut state_no_arb, &config_no_arb, &input, &track, dt);
+            update_car_3d(&mut state_with_arb, &config_with_arb, &input, &track, dt);
+        }
 
+        // Right minus left: positive when the higher (right) side is loaded.
         let front_split_no_arb =
-            (state_no_arb.weight_front_right_n - state_no_arb.weight_front_left_n).abs();
+            state_no_arb.weight_front_right_n - state_no_arb.weight_front_left_n;
         let front_split_with_arb =
-            (state_with_arb.weight_front_right_n - state_with_arb.weight_front_left_n).abs();
+            state_with_arb.weight_front_right_n - state_with_arb.weight_front_left_n;
 
         assert!(
-            front_split_with_arb < front_split_no_arb,
-            "Front anti-roll coupling should reduce left/right front axle load split under asymmetric contact"
+            front_split_no_arb > 0.0,
+            "the more compressed right front should carry more load: split {front_split_no_arb:.0} N"
+        );
+        assert!(
+            front_split_with_arb > front_split_no_arb,
+            "the bar should load the compressed wheel further: {front_split_with_arb:.0} N with, \
+             {front_split_no_arb:.0} N without"
+        );
+        let axle = |s: &CarState| s.weight_front_left_n + s.weight_front_right_n;
+        assert!(
+            (axle(&state_with_arb) - axle(&state_no_arb)).abs() < 1.0,
+            "the bar moves load across the axle, it does not add any"
         );
     }
 

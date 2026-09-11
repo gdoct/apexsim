@@ -16,6 +16,7 @@ pub mod procgen;
 pub mod racing_line;
 pub mod replay;
 pub mod server;
+pub mod timer_resolution;
 pub mod track_loader;
 pub mod track_mesh;
 pub mod transport;

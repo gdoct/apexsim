@@ -161,6 +161,86 @@ async fn bind_udp(server_ip: std::net::IpAddr, udp_token: &str, udp_port: u16) -
     udp
 }
 
+/// Selects the lobby's first car and track, creates a one-player practice
+/// session and puts it in free practice, so the car is simulated.
+async fn start_free_practice(client: &mut ProtocolTestClient) {
+    client.send(&ClientMessage::RequestLobbyState).await;
+    let (car_id, track_id) = match client
+        .recv_until(|m| matches!(m, ServerMessage::LobbyState(_)))
+        .await
+    {
+        ServerMessage::LobbyState(lobby) => (lobby.car_configs[0].id, lobby.track_configs[0].id),
+        _ => unreachable!(),
+    };
+    client
+        .send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+        })
+        .await;
+    client
+        .send(&ClientMessage::CreateSession {
+            track_config_id: track_id,
+            max_players: 1,
+            ai_count: 0,
+            lap_limit: 2,
+            session_kind: apexsim_server::data::SessionKind::Practice,
+        })
+        .await;
+    client
+        .recv_until(|m| matches!(m, ServerMessage::SessionJoined(_)))
+        .await;
+    client
+        .send(&ClientMessage::SetGameMode {
+            mode: apexsim_server::data::GameMode::FreePractice,
+        })
+        .await;
+    client
+        .recv_until(|m| matches!(m, ServerMessage::GameModeChanged { .. }))
+        .await;
+}
+
+/// The simulation keeps real time: a session advances the configured number
+/// of ticks per wall-clock second. On Windows the 240 Hz loop used to wake
+/// on the default 15.6 ms timer and ran 64 ticks a second, so every car
+/// moved at 27% of real time while its reported speed and lap times looked
+/// normal (see `timer_resolution.rs`).
+#[tokio::test]
+async fn test_session_ticks_at_the_configured_rate() {
+    let server = common::start_test_server().await;
+    let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
+    assert!(matches!(
+        client.authenticate("Clock", PROTOCOL_VERSION).await,
+        ServerMessage::AuthSuccess(_)
+    ));
+    start_free_practice(&mut client).await;
+
+    // Telemetry comes over TCP here (no UDP handshake); each frame carries
+    // the session's tick, so dropped frames do not matter.
+    let next_tick = |msg: ServerMessage| match msg {
+        ServerMessage::TelemetryCompact(t) => t.server_tick,
+        _ => unreachable!(),
+    };
+    let is_telemetry = |m: &ServerMessage| matches!(m, ServerMessage::TelemetryCompact(_));
+
+    let first_tick = next_tick(client.recv_until(is_telemetry).await);
+    let started = std::time::Instant::now();
+    let mut last_tick = first_tick;
+    while started.elapsed() < Duration::from_secs(3) {
+        last_tick = next_tick(client.recv_until(is_telemetry).await);
+    }
+    let rate = (last_tick - first_tick) as f64 / started.elapsed().as_secs_f64();
+
+    let target = apexsim_server::config::ServerConfig::default()
+        .server
+        .tick_rate_hz as f64;
+    assert!(
+        rate > 0.8 * target && rate < 1.1 * target,
+        "the session ticked at {rate:.0} Hz of a configured {target} Hz"
+    );
+
+    server.shutdown().await;
+}
+
 /// Full UDP loopback: handshake binds the socket, input flows in over UDP,
 /// compact telemetry flows back out over UDP, and the roster (TCP) maps the
 /// compact car index to the player.
@@ -305,40 +385,7 @@ async fn test_driver_feedback_reaches_the_driver_over_udp() {
         other => panic!("expected AuthSuccess, got {:?}", other),
     };
     let udp = bind_udp(server.tcp_addr.ip(), &udp_token, udp_port).await;
-
-    client.send(&ClientMessage::RequestLobbyState).await;
-    let (car_id, track_id) = match client
-        .recv_until(|m| matches!(m, ServerMessage::LobbyState(_)))
-        .await
-    {
-        ServerMessage::LobbyState(lobby) => (lobby.car_configs[0].id, lobby.track_configs[0].id),
-        _ => unreachable!(),
-    };
-    client
-        .send(&ClientMessage::SelectCar {
-            car_config_id: car_id,
-        })
-        .await;
-    client
-        .send(&ClientMessage::CreateSession {
-            track_config_id: track_id,
-            max_players: 1,
-            ai_count: 0,
-            lap_limit: 2,
-            session_kind: apexsim_server::data::SessionKind::Practice,
-        })
-        .await;
-    client
-        .recv_until(|m| matches!(m, ServerMessage::SessionJoined(_)))
-        .await;
-    client
-        .send(&ClientMessage::SetGameMode {
-            mode: apexsim_server::data::GameMode::FreePractice,
-        })
-        .await;
-    client
-        .recv_until(|m| matches!(m, ServerMessage::GameModeChanged { .. }))
-        .await;
+    start_free_practice(&mut client).await;
 
     // Accelerate with a little left lock (positive is left).
     let input = rmp_serde::to_vec_named(&ClientMessage::PlayerInput {

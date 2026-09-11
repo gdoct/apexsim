@@ -98,6 +98,13 @@ impl GameLoopCtx {
     }
 }
 
+/// Window over which the achieved tick rate is checked.
+const RATE_WINDOW_SECONDS: u64 = 5;
+
+/// Below this share of the configured rate the loop warns that the
+/// simulation is falling behind real time.
+const MIN_RATE_FRACTION: f64 = 0.9;
+
 /// Run the fixed-rate game loop until the runtime shuts down.
 pub(crate) async fn run_game_loop(
     state: Arc<RwLock<ServerState>>,
@@ -123,6 +130,11 @@ pub(crate) async fn run_game_loop(
         telemetry_divisor,
     };
 
+    // The ticker below sleeps between ticks, and on Windows a sleep is only
+    // as fine as the process's timer resolution: 15.6 ms by default, which
+    // held a 240 Hz loop to 64 ticks a second (see timer_resolution.rs).
+    let _timer_resolution = crate::timer_resolution::HighResolutionTimer::acquire();
+
     let tick_duration = Duration::from_micros((1_000_000.0 / tick_rate as f64) as u64);
     let mut ticker = interval(tick_duration);
     // Skip missed ticks instead of bursting to catch up: the sim advances a
@@ -133,10 +145,28 @@ pub(crate) async fn run_game_loop(
     let mut player_inputs: HashMap<PlayerId, PlayerInputData> = HashMap::new();
     let mut lobby_state_cache = broadcast::LobbyStateCache::default();
 
+    // Skipped ticks never show up as overruns (each tick's own work is
+    // tiny), yet every one is simulation time lost against the wall clock.
+    // So the rate actually achieved is checked over a window.
+    let rate_window_ticks = tick_rate as u64 * RATE_WINDOW_SECONDS;
+    let mut rate_window_start = std::time::Instant::now();
+
     loop {
         ticker.tick().await;
         let tick_start = std::time::Instant::now();
         tick_count += 1;
+
+        if tick_count.is_multiple_of(rate_window_ticks) {
+            let achieved = rate_window_ticks as f64 / rate_window_start.elapsed().as_secs_f64();
+            if achieved < MIN_RATE_FRACTION * tick_rate as f64 {
+                warn!(
+                    "Game loop ran at {:.0} Hz of {} Hz over the last {} s: the simulation is \
+                     running slower than real time",
+                    achieved, tick_rate, RATE_WINDOW_SECONDS
+                );
+            }
+            rate_window_start = tick_start;
+        }
 
         // Drain inbound events fast (lock-free), then dispatch each one with
         // short per-handler locks. `try_recv` is non-blocking, unlike an
