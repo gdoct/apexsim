@@ -18,6 +18,15 @@ drag_coefficient = 0.65
 grip_coefficient = 0.75
 max_steering_angle_rad = 0.60
 wheelbase_m = 1.8
+# Batteries and both seats sit over the rear axle. At the loader's default
+# (52% front) the cart oversteered and spun from a lane change at 100 km/h.
+weight_distribution_front = 0.42
+
+# Aerodynamics: a golf cart makes no downforce. frontal_area_m2 is the
+# reference area for the drag coefficient too, so it stays at the default.
+frontal_area_m2 = 2.2
+lift_coefficient_front = 0.0
+lift_coefficient_rear = 0.0
 
 # Powertrain (approximate / semantically-correct for a small electric cart).
 

@@ -268,6 +268,14 @@ pub fn update_car_3d(
 
     let cos_yaw = state.yaw_rad.cos();
     let sin_yaw = state.yaw_rad.sin();
+    // The body sits parallel to the road under it (grounded pitch and roll
+    // follow the track's slope and banking), so each hub rides on that plane
+    // rather than all four at the centre's height. Without this a 3% grade
+    // parks one axle on its bump stop and the other at full droop, and on a
+    // banked road the lower wheels carry kilonewtons more than the upper ones
+    // on a dead-straight line.
+    let (cos_track, sin_track) = (track_ctx.heading_rad.cos(), track_ctx.heading_rad.sin());
+    let (grade, cross_fall) = (track_ctx.slope_rad.tan(), track_ctx.banking_rad.sin());
     let sample_wheel_state = |local_x: f32,
                               local_y: f32,
                               spring_rate_n_per_m: f32,
@@ -275,8 +283,10 @@ pub fn update_car_3d(
                               damper_rebound: f32,
                               previous_compression: f32|
      -> WheelState {
-        let world_x = state.pos_x + local_x * cos_yaw - local_y * sin_yaw;
-        let world_y = state.pos_y + local_x * sin_yaw + local_y * cos_yaw;
+        let offset_x = local_x * cos_yaw - local_y * sin_yaw;
+        let offset_y = local_x * sin_yaw + local_y * cos_yaw;
+        let world_x = state.pos_x + offset_x;
+        let world_y = state.pos_y + offset_y;
 
         // Wheels sit within a couple meters of the car: the car's own
         // nearest index is an excellent hint.
@@ -284,7 +294,12 @@ pub fn update_car_3d(
             .map(|sample| sample.elevation)
             .unwrap_or(track_ctx.elevation);
 
-        let wheel_extension = (hub_z - contact_z - config.wheel_radius_m).max(0.0);
+        // Along-track and leftward components of the wheel's offset.
+        let along = offset_x * cos_track + offset_y * sin_track;
+        let left = -offset_x * sin_track + offset_y * cos_track;
+        let wheel_hub_z = hub_z + along * grade + left * cross_fall;
+
+        let wheel_extension = (wheel_hub_z - contact_z - config.wheel_radius_m).max(0.0);
         let compression =
             (suspension_rest_length_m - wheel_extension).clamp(0.0, config.suspension.max_travel_m);
 
@@ -1481,6 +1496,83 @@ fn surface_elevation(
     }
 }
 
+/// Longest gap between consecutive centerline points that still counts as a
+/// segment of road. It separates a closed loop's last-to-first segment (a
+/// normal point spacing) from an open track's two far-apart ends.
+const MAX_CENTERLINE_SEGMENT_M: f32 = 50.0;
+
+/// The centerline between the points either side of (x, y): the nearest
+/// point on the polyline through `nearest` and its neighbours, as a
+/// centerline point interpolated along that segment, plus the signed lateral
+/// offset from it (positive = right).
+///
+/// Interpolating is what keeps the ground continuous under a wheel. Reading
+/// the nearest point's height outright turns every slope into a staircase
+/// (a centimetre or two per point at ~1 m spacing), and a wheel that drops
+/// down one step a tick before its partner on the same axle reads it as a
+/// 4 m/s suspension stroke: the damper puts the whole axle load on one wheel
+/// and none on the other. At speed on Le Mans that happened several times a
+/// second, with the unloaded rear wheel spinning up under drive, and the car
+/// wobbled and stepped out on the straights.
+fn centerline_at(centerline: &[TrackPoint], nearest: usize, x: f32, y: f32) -> (TrackPoint, f32) {
+    let n = centerline.len();
+    let p = &centerline[nearest];
+    let neighbour = |idx: usize| {
+        let q = &centerline[idx];
+        let gap_sq = (q.x - p.x).powi(2) + (q.y - p.y).powi(2);
+        (idx != nearest && gap_sq <= MAX_CENTERLINE_SEGMENT_M.powi(2)).then_some(idx)
+    };
+    let next = neighbour((nearest + 1) % n);
+    let prev = neighbour((nearest + n - 1) % n);
+
+    // Closest point on each segment touching `nearest`; the nearer one wins.
+    let project = |a: usize, b: usize| {
+        let (pa, pb) = (&centerline[a], &centerline[b]);
+        let (sx, sy) = (pb.x - pa.x, pb.y - pa.y);
+        let len_sq = (sx * sx + sy * sy).max(1e-9);
+        let t = (((x - pa.x) * sx + (y - pa.y) * sy) / len_sq).clamp(0.0, 1.0);
+        let dist_sq = (x - pa.x - sx * t).powi(2) + (y - pa.y - sy * t).powi(2);
+        (a, b, t, dist_sq)
+    };
+    let segment = match (
+        prev.map(|a| project(a, nearest)),
+        next.map(|b| project(nearest, b)),
+    ) {
+        (Some(back), Some(fwd)) => Some(if back.3 < fwd.3 { back } else { fwd }),
+        (back, fwd) => back.or(fwd),
+    };
+    let Some((a, b, t, _)) = segment else {
+        // A single point: nothing to interpolate.
+        let cross = (x - p.x) * p.heading_rad.sin() - (y - p.y) * p.heading_rad.cos();
+        return (p.clone(), cross);
+    };
+
+    let (pa, pb) = (&centerline[a], &centerline[b]);
+    let lerp = |from: f32, to: f32| from + (to - from) * t;
+    let (sx, sy) = (pb.x - pa.x, pb.y - pa.y);
+    let len = (sx * sx + sy * sy).sqrt().max(1e-6);
+    let foot_x = lerp(pa.x, pb.x);
+    let foot_y = lerp(pa.y, pb.y);
+    // Positive = right of the direction of travel along the segment.
+    let lateral_offset = ((x - foot_x) * sy - (y - foot_y) * sx) / len;
+    let point = TrackPoint {
+        x: foot_x,
+        y: foot_y,
+        z: lerp(pa.z, pb.z),
+        distance_from_start_m: lerp(pa.distance_from_start_m, pb.distance_from_start_m),
+        width_left_m: lerp(pa.width_left_m, pb.width_left_m),
+        width_right_m: lerp(pa.width_right_m, pb.width_right_m),
+        banking_rad: lerp(pa.banking_rad, pb.banking_rad),
+        camber_rad: lerp(pa.camber_rad, pb.camber_rad),
+        // A point's slope and heading describe the segment leaving it.
+        slope_rad: pa.slope_rad,
+        heading_rad: sy.atan2(sx),
+        surface_type: p.surface_type,
+        grip_modifier: p.grip_modifier,
+    };
+    (point, lateral_offset)
+}
+
 /// Centerline-backed surface query implementation.
 fn query_track_surface_centerline(
     track: &TrackConfig,
@@ -1489,25 +1581,19 @@ fn query_track_surface_centerline(
     hint: Option<usize>,
 ) -> Option<SurfaceQuerySample> {
     let nearest_idx = find_nearest_centerline_idx(&track.centerline, world_x, world_y, hint)?;
-    let nearest = &track.centerline[nearest_idx];
-
-    // Calculate lateral offset (signed distance from centerline)
-    let dx = world_x - nearest.x;
-    let dy = world_y - nearest.y;
-    let cross = dx * nearest.heading_rad.sin() - dy * nearest.heading_rad.cos();
-    let lateral_offset = cross; // Positive = right of centerline
+    let (line, lateral_offset) = centerline_at(&track.centerline, nearest_idx, world_x, world_y);
 
     Some(SurfaceQuerySample {
         nearest_point: nearest_idx,
-        elevation: surface_elevation(track, nearest, lateral_offset, world_x, world_y),
-        banking_rad: nearest.banking_rad,
-        slope_rad: nearest.slope_rad,
-        heading_rad: nearest.heading_rad,
+        elevation: surface_elevation(track, &line, lateral_offset, world_x, world_y),
+        banking_rad: line.banking_rad,
+        slope_rad: line.slope_rad,
+        heading_rad: line.heading_rad,
         lateral_offset,
-        width_left: nearest.width_left_m,
-        width_right: nearest.width_right_m,
-        surface_type: nearest.surface_type,
-        grip_modifier: nearest.grip_modifier,
+        width_left: line.width_left_m,
+        width_right: line.width_right_m,
+        surface_type: line.surface_type,
+        grip_modifier: line.grip_modifier,
     })
 }
 
@@ -2529,6 +2615,132 @@ mod tests {
             "the box should have worked its way down to first"
         );
         assert_eq!(state.gear, 1);
+    }
+
+    /// A straight along +x with a point every metre, climbing `grade` and
+    /// banked `banking_rad`, like the real circuits' adaptive centerlines.
+    fn graded_straight(grade: f32, banking_rad: f32) -> TrackConfig {
+        let slope_rad = grade.atan();
+        TrackConfig {
+            centerline: (0..3000)
+                .map(|i| TrackPoint {
+                    x: i as f32,
+                    z: i as f32 * grade,
+                    distance_from_start_m: i as f32,
+                    width_left_m: 10.0,
+                    width_right_m: 10.0,
+                    slope_rad,
+                    banking_rad,
+                    ..Default::default()
+                })
+                .collect(),
+            ..TrackConfig::default()
+        }
+    }
+
+    #[test]
+    fn surface_height_is_continuous_between_centerline_points() {
+        // The height under a wheel must not step at each centerline point:
+        // a step taken in one tick reads as a violent suspension stroke.
+        let track = graded_straight(0.03, 0.0);
+        let mut previous: Option<f32> = None;
+        let mut hint = None;
+        for i in 0..2000 {
+            let x = 100.0 + i as f32 * 0.005;
+            let sample = query_track_surface_centerline(&track, x, 0.7, hint).unwrap();
+            hint = Some(sample.nearest_point);
+            assert!((sample.elevation - x * 0.03).abs() < 1e-3);
+            if let Some(previous) = previous {
+                assert!(
+                    (sample.elevation - previous).abs() < 1e-3,
+                    "height jumped {:.4} m at x={x}",
+                    sample.elevation - previous
+                );
+            }
+            previous = Some(sample.elevation);
+        }
+    }
+
+    #[test]
+    fn rear_loads_stay_even_at_speed_on_a_graded_straight() {
+        // Flat out up a 3% grade, a hair off the centerline's heading so the
+        // two rear wheels pass each centerline point on different ticks.
+        // With the ground read from the nearest point the surface was a
+        // staircase, the wheel that dropped a step first took the whole
+        // axle's load from the damper, and the other one spun up under
+        // drive: several times a second on the Mulsanne, and the car
+        // wobbled and stepped out on the straight.
+        let track = graded_straight(0.03, 0.0);
+        let config = create_test_config();
+        let mut state = create_test_car_state();
+        state.pos_x = 20.0;
+        state.pos_z = 20.0 * 0.03;
+        state.yaw_rad = 0.01;
+        state.vel_x = 70.0 * state.yaw_rad.cos();
+        state.vel_y = 70.0 * state.yaw_rad.sin();
+        state.speed_mps = 70.0;
+        state.gear = 5;
+        state.auto_gearbox = true;
+        let input = PlayerInputData {
+            throttle: 1.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+        let dt = 1.0 / 240.0;
+        let mut worst: f32 = 0.0;
+        for tick in 0..(240 * 3) {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+            if tick > 10 {
+                let (rl, rr) = (state.weight_rear_left_n, state.weight_rear_right_n);
+                worst = worst.max((rl - rr).abs() / (rl + rr));
+            }
+        }
+        assert!(
+            worst < 0.1,
+            "rear loads split {:.0}% between the wheels on a straight",
+            worst * 100.0
+        );
+        assert!(
+            state.angular_vel_yaw.abs() < 0.01,
+            "car is yawing at {:.3} rad/s",
+            state.angular_vel_yaw
+        );
+    }
+
+    #[test]
+    fn banked_road_does_not_load_the_lower_wheels() {
+        // The body sits parallel to a banked road, so its suspension is
+        // evenly compressed and left and right carry the same load. With
+        // every hub at the centre's height the lower wheels were held
+        // compressed, the upper ones hung out, and a straight line on a
+        // cambered road ran with kilonewtons more on one side.
+        let track = graded_straight(0.0, 0.06);
+        let config = create_test_config();
+        let mut state = create_test_car_state();
+        state.pos_x = 100.0;
+        let input = PlayerInputData::default();
+        update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        let s = &state.suspension;
+        assert!(
+            (s.front_left_travel_m - s.front_right_travel_m).abs() < 1e-3,
+            "front suspension {:.3} vs {:.3}",
+            s.front_left_travel_m,
+            s.front_right_travel_m
+        );
+        assert!(
+            (state.weight_front_left_n - state.weight_front_right_n).abs() < 50.0,
+            "front loads {:.0} vs {:.0}",
+            state.weight_front_left_n,
+            state.weight_front_right_n
+        );
+        assert!(
+            (state.weight_rear_left_n - state.weight_rear_right_n).abs() < 50.0,
+            "rear loads {:.0} vs {:.0}",
+            state.weight_rear_left_n,
+            state.weight_rear_right_n
+        );
     }
 
     #[test]
