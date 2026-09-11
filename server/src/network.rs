@@ -1,4 +1,5 @@
 use crate::data::*;
+pub use crate::feedback::DriverFeedback;
 use serde::{Deserialize, Serialize};
 
 fn deserialize_uuid_from_string<'de, D>(deserializer: D) -> Result<uuid::Uuid, D::Error>
@@ -91,6 +92,10 @@ pub enum ClientMessage {
     SetDriverAids {
         #[serde(default)]
         auto_gearbox: bool,
+        /// Speed-sensitive steering: full input asks for the tightest turn
+        /// the car can hold at its speed (`physics::assisted_steering`).
+        #[serde(default)]
+        steering_assist: bool,
     },
     StartCountdown {
         countdown_seconds: u16,
@@ -218,6 +223,11 @@ pub enum ServerMessage {
 
     // UDP - High frequency telemetry, positional encoding (`rmp_serde::to_vec`).
     TelemetryCompact(CompactTelemetry),
+
+    // UDP - What one car's driver should feel (force feedback), positional
+    // encoding, sent only to that car's human driver with each telemetry
+    // frame. UDP only: a late force is worse than none.
+    DriverFeedback(DriverFeedback),
 }
 
 impl ServerMessage {
@@ -241,6 +251,7 @@ impl ServerMessage {
             ServerMessage::LobbyState(_) => MessagePriority::Droppable,
             ServerMessage::Telemetry(_) => MessagePriority::Droppable,
             ServerMessage::TelemetryCompact(_) => MessagePriority::Droppable,
+            ServerMessage::DriverFeedback(_) => MessagePriority::Droppable,
             ServerMessage::UdpHandshakeAck => MessagePriority::Droppable,
             ServerMessage::PlayerDisconnected(_) => MessagePriority::Droppable,
         }
@@ -620,6 +631,45 @@ mod tests {
     }
 
     #[test]
+    fn test_driver_aids_without_steering_assist_leave_it_off() {
+        // A client from before the steering aid sends only auto_gearbox.
+        #[derive(Serialize)]
+        struct OldAids {
+            auto_gearbox: bool,
+        }
+        #[derive(Serialize)]
+        struct Envelope {
+            r#type: String,
+            data: OldAids,
+        }
+        let old = rmp_serde::to_vec_named(&Envelope {
+            r#type: "SetDriverAids".to_string(),
+            data: OldAids { auto_gearbox: true },
+        })
+        .unwrap();
+        match rmp_serde::from_slice(&old).unwrap() {
+            ClientMessage::SetDriverAids {
+                auto_gearbox,
+                steering_assist,
+            } => assert!(auto_gearbox && !steering_assist),
+            _ => panic!("Wrong message type"),
+        }
+
+        let both = ClientMessage::SetDriverAids {
+            auto_gearbox: false,
+            steering_assist: true,
+        };
+        let bytes = rmp_serde::to_vec_named(&both).unwrap();
+        match rmp_serde::from_slice(&bytes).unwrap() {
+            ClientMessage::SetDriverAids {
+                auto_gearbox,
+                steering_assist,
+            } => assert!(!auto_gearbox && steering_assist),
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    #[test]
     fn test_server_message_serialization() {
         let player_id = Uuid::new_v4();
         let msg = ServerMessage::AuthSuccess(AuthSuccessData {
@@ -762,6 +812,45 @@ mod tests {
             phase: vec![0, 2],
         });
         assert_eq!(rmp_serde::to_vec_named(&msg).unwrap(), GOLDEN);
+    }
+
+    /// The exact bytes of a `DriverFeedback` datagram, pinned because the
+    /// Unreal client reads them positionally: the same array is its golden
+    /// blob `ApexUdpGolden::S_DriverFeedback` (UdpProtocolTests.cpp). Change
+    /// both together.
+    #[test]
+    fn test_driver_feedback_wire_format() {
+        const GOLDEN: [u8; 106] = [
+            0x92, 0xAE, 0x44, 0x72, 0x69, 0x76, 0x65, 0x72, 0x46, 0x65, 0x65, 0x64, 0x62, 0x61,
+            0x63, 0x6B, 0x99, 0xCD, 0x04, 0xD2, 0x92, 0xCA, 0x3E, 0x80, 0x00, 0x00, 0xCA, 0xBF,
+            0x00, 0x00, 0x00, 0x94, 0xCA, 0x3F, 0xC0, 0x00, 0x00, 0xCA, 0xC0, 0x00, 0x00, 0x00,
+            0xCA, 0x00, 0x00, 0x00, 0x00, 0xCA, 0x3F, 0x00, 0x00, 0x00, 0x94, 0xCA, 0x00, 0x00,
+            0x00, 0x00, 0xCA, 0x3E, 0x80, 0x00, 0x00, 0xCA, 0xBF, 0x80, 0x00, 0x00, 0xCA, 0x40,
+            0x40, 0x00, 0x00, 0x94, 0x00, 0x01, 0x02, 0x00, 0x94, 0xCA, 0x3F, 0x00, 0x00, 0x00,
+            0xCA, 0xBE, 0x80, 0x00, 0x00, 0xCA, 0x00, 0x00, 0x00, 0x00, 0xCA, 0x40, 0x00, 0x00,
+            0x00, 0xC3, 0xC2, 0xCA, 0x40, 0x90, 0x00, 0x00,
+        ];
+        let msg = ServerMessage::DriverFeedback(DriverFeedback {
+            server_tick: 1234,
+            steer_torque: vec![0.25, -0.5],
+            slip_ratio: [1.5, -2.0, 0.0, 0.5],
+            slip_angle: [0.0, 0.25, -1.0, 3.0],
+            surface: [0, 1, 2, 0],
+            suspension_mps: [0.5, -0.25, 0.0, 2.0],
+            abs_active: true,
+            tc_active: false,
+            impact_mps: 4.5,
+        });
+        let bytes = rmp_serde::to_vec(&msg).unwrap();
+        assert_eq!(bytes, GOLDEN);
+
+        match rmp_serde::from_slice(&bytes).unwrap() {
+            ServerMessage::DriverFeedback(decoded) => match msg {
+                ServerMessage::DriverFeedback(original) => assert_eq!(decoded, original),
+                _ => unreachable!(),
+            },
+            other => panic!("Wrong message type: {:?}", other),
+        }
     }
 
     #[test]

@@ -187,13 +187,14 @@ public:
 	void StartCountdown(int32 Seconds, EApexGameMode NextMode);
 
 	/**
-	 * Driver aids the server runs for this player. The automatic gearbox
-	 * lives on the server because it needs the car's redline and ratios,
-	 * which the protocol never sends; the client only forwards the setting,
-	 * on joining a session and whenever it changes.
+	 * Driver aids the server runs for this player. Both live on the server
+	 * because they need what the protocol never sends: the automatic gearbox
+	 * the car's redline and ratios, speed-sensitive steering its grip,
+	 * downforce and wheelbase. The client only forwards the settings, on
+	 * joining a session and whenever they change.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
-	void SetDriverAids(bool bAutoGearbox);
+	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist);
 
 	// --- State ----------------------------------------------------------------
 
@@ -258,6 +259,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexTelemetryFrame& GetLatestTelemetry() const { return LatestTelemetry; }
 
+	/**
+	 * What the local car's driver should feel: every `DriverFeedback` taken
+	 * off the socket since the last net tick, merged into one (see
+	 * FApexDriverFeedback::Absorb). Polled by the force-feedback devices.
+	 */
+	const FApexDriverFeedback& GetDriverFeedback() const { return LatestDriverFeedback; }
+
+	/** Bumps each net tick that brought new feedback, so a device fires each transient once. */
+	uint32 GetDriverFeedbackSerial() const { return DriverFeedbackSerial; }
+
+	/** FPlatformTime::Seconds when feedback last arrived; 0 before the first. The stream stops when the car does. */
+	double GetDriverFeedbackTime() const { return DriverFeedbackTime; }
+
 	/** The car index assigned to this player, or -1 if the roster has no entry yet. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	int32 GetLocalCarIndex() const;
@@ -307,6 +321,10 @@ private:
 
 	UPROPERTY()
 	FApexTelemetryFrame LatestTelemetry;
+
+	FApexDriverFeedback LatestDriverFeedback;
+	uint32 DriverFeedbackSerial = 0;
+	double DriverFeedbackTime = 0.0;
 
 	/** Latched so OnUdpReady fires exactly once per connection. */
 	bool bUdpReadyBroadcast = false;

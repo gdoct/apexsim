@@ -1,5 +1,6 @@
 #include "UI/ApexSettingsWidget.h"
 
+#include "ApexPlayerController.h"
 #include "ApexSettingsSave.h"
 #include "ApexSim.h"
 #include "Audio/ApexUiAudioSubsystem.h"
@@ -63,6 +64,7 @@ namespace
 	const FName SegTraction   = TEXT("Traction");
 	const FName SegAbs        = TEXT("Abs");
 	const FName SegGearbox    = TEXT("Gearbox");
+	const FName SegSteering   = TEXT("Steering");
 	const FName SegRacingLine = TEXT("RacingLine");
 	const FName SegUnits      = TEXT("Units");
 	const FName SegHud        = TEXT("Hud");
@@ -453,8 +455,15 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 
 	AddV(Page, MakeRow(
 		TEXT("Gearbox"),
-		TEXT("Automatic shifting is done on this machine, from the car's revs."),
+		TEXT("Automatic shifting by the server, from the car's torque curve."),
 		MakeSegment(SegGearbox, { TEXT("MANUAL"), TEXT("AUTO") }, 1, 178.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	// Also server-side: the lock worth having depends on the car's grip,
+	// downforce and wheelbase, none of which the protocol sends.
+	AddV(Page, MakeRow(
+		TEXT("Steering"),
+		TEXT("Less lock as speed rises, so the stick can't overdrive the tyres."),
+		MakeSegment(SegSteering, { TEXT("FULL LOCK"), TEXT("SPEED SENSITIVE") }, 1, 178.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
 	// The server works the line out for the car being driven, so the braking
 	// points are that car's; see AApexRacingLineActor.
@@ -773,9 +782,9 @@ UWidget* UApexSettingsWidget::BuildControlsPage()
 
 		AddSliderCell(TEXT("Steering sensitivity"), SteeringSlider, SteeringFill, SteeringValue, true);
 		AddSliderCell(TEXT("Deadzone"), DeadzoneSlider, DeadzoneFill, DeadzoneValue, false);
-		// Stored and saved, but nothing plays force feedback yet — there is no
-		// force-feedback path from the telemetry stream to the pad.
-		AddSliderCell(TEXT("Vibration (not yet wired)"), VibrationSlider, VibrationFill, VibrationValue, false);
+		// The pad's rumble from the server's DriverFeedback: tyres past their
+		// grip, curbs, grass, bumps and contact. Dragging it plays a pulse.
+		AddSliderCell(TEXT("Force feedback"), VibrationSlider, VibrationFill, VibrationValue, false);
 
 		SteeringSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleSteeringChanged);
 		DeadzoneSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleDeadzoneChanged);
@@ -1052,6 +1061,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegTraction, static_cast<int32>(Values->TractionControl));
 	SetSegment(SegAbs, Values->bAbs ? 1 : 0);
 	SetSegment(SegGearbox, Values->bAutoGearbox ? 1 : 0);
+	SetSegment(SegSteering, Values->bSteeringAssist ? 1 : 0);
 	SetSegment(SegRacingLine, static_cast<int32>(Values->RacingLine));
 	SetSegment(SegUnits, static_cast<int32>(Values->Units));
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
@@ -1305,6 +1315,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	if (Id == SegTraction)        { Settings->SetTractionControl(static_cast<EApexAssistLevel>(Index)); }
 	else if (Id == SegAbs)        { Settings->SetAbs(Index == 1); }
 	else if (Id == SegGearbox)    { Settings->SetAutoGearbox(Index == 1); }
+	else if (Id == SegSteering)   { Settings->SetSteeringAssist(Index == 1); }
 	else if (Id == SegRacingLine) { Settings->SetRacingLine(static_cast<EApexRacingLine>(Index)); }
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
@@ -1428,6 +1439,12 @@ void UApexSettingsWidget::HandleVibrationChanged(float Value)
 	if (VibrationFill) { VibrationFill->SetPercent(Value); }
 	if (VibrationValue) { VibrationValue->SetText(FText::FromString(FString::FromInt(FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetVibration(Value); }
+	// Rumble at the new strength while the slider moves: the only honest way
+	// to pick one.
+	if (AApexPlayerController* PlayerController = Cast<AApexPlayerController>(GetOwningPlayer()))
+	{
+		PlayerController->PreviewForceFeedback();
+	}
 	RefreshFooter();
 }
 

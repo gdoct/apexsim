@@ -10,7 +10,8 @@ This project is in active development. The simulation and the networking underne
 
 **Server**
 * Authoritative 240 Hz physics loop â€” the server decides where every car is, and the client renders what it is told
-* 4-wheel vehicle model with per-wheel loads, Pacejka-style tires, suspension, aero and drivetrain; yaw-aware OBB collision
+* 4-wheel vehicle model with per-wheel loads, Pacejka-style tires, suspension, drivetrain with per-gear ratios, and aerodynamic drag/downforce (front and rear, feeding wheel loads and steering assist); yaw-aware OBB collision
+* A per-car racing line: a quasi-steady-state speed profile along the raceline (or centerline) derived from the car's grip, downforce, power and brakes, sent to joining players
 * Deterministic simulation, guarded by a test that asserts bit-identical runs
 * Protocol v2: TCP+TLS for auth, lobby and session management; UDP for telemetry out and player input in, bound by a token handshake
 * AI drivers, lap timing and lap validation, race classification
@@ -29,9 +30,12 @@ This project is in active development. The simulation and the networking underne
 **Unreal client (`game-unreal/`)**
 * Full menu shell â€” connect, session browser and create, car and track selection, lobby, session results â€” built as C++ widget trees rather than widget blueprints, so layout is reviewable in a diff
 * Race view: a car per roster entry driven from telemetry, with the circuit streamed in as a level instance; cockpit and chase cameras
+* A first-person cockpit view built at runtime per car â€” steering wheel, dashboard widget (gear, speed, RPM, lap time) and mirrors rendered from scene captures
+* Synthesized audio: per-car engine sound driven by live RPM/throttle/gear telemetry (no audio assets, no wire fields for redline/idle), plus a synthesized UI sound set for menu navigation
+* Optional racing-line overlay (off / braking only / full), drawn as coloured dots on the track from the server's per-car speed profile
 * Driving via Enhanced Input, with actions and bindings defined in C++
 * Race HUD: position, gaps, standings, live delta, sector times, minimap, pedal and engine telemetry
-* Pause menu and a settings overlay covering gameplay, graphics and rebindable controls
+* Pause menu and a settings overlay covering gameplay, graphics, audio and rebindable controls
 * Local profile and settings save slots (the server has no account model, so anything "yours" lives on your machine)
 
 **Tooling**
@@ -39,10 +43,9 @@ This project is in active development. The simulation and the networking underne
 
 ### Missing
 
-* **No audio at all** in the Unreal client â€” no engine, tire or collision sound
+* No tire or collision sound â€” only engine and UI audio are synthesized so far
 * No client-side prediction; cars are pure telemetry puppets, smoothed by interpolation
 * Driving aids (traction control, ABS) and AI skill cannot be set per session from the client â€” the wire protocol has no fields for them, so those settings are stored but inert
-* No racing-line overlay and no mirrors
 * No trackside environment art beyond the generated track meshes
 * No server-side player accounts or persistence
 

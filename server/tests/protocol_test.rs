@@ -127,28 +127,15 @@ async fn test_auth_success_carries_udp_binding_info() {
     server.shutdown().await;
 }
 
-/// Full UDP loopback: handshake binds the socket, input flows in over UDP,
-/// compact telemetry flows back out over UDP, and the roster (TCP) maps the
-/// compact car index to the player.
-#[tokio::test]
-async fn test_udp_handshake_input_and_telemetry_loopback() {
-    let server = common::start_test_server().await;
-    let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
-
-    // --- Authenticate over TCP (v2) ---
-    let (player_id, udp_token, udp_port) =
-        match client.authenticate("UdpDriver", PROTOCOL_VERSION).await {
-            ServerMessage::AuthSuccess(data) => (data.player_id, data.udp_token, data.udp_port),
-            other => panic!("expected AuthSuccess, got {:?}", other),
-        };
-
-    // --- UDP handshake (retry until acked; datagrams may race the bind) ---
+/// Binds a UDP socket to the authenticated connection: re-sends the
+/// handshake until it is acked, since datagrams may race the bind.
+async fn bind_udp(server_ip: std::net::IpAddr, udp_token: &str, udp_port: u16) -> UdpSocket {
     let udp = UdpSocket::bind("127.0.0.1:0").await.expect("bind udp");
-    let server_udp: SocketAddr = SocketAddr::new(server.tcp_addr.ip(), udp_port);
+    let server_udp: SocketAddr = SocketAddr::new(server_ip, udp_port);
     udp.connect(server_udp).await.expect("connect udp");
 
     let handshake = rmp_serde::to_vec_named(&ClientMessage::UdpHandshake {
-        token: udp_token.clone(),
+        token: udp_token.to_string(),
     })
     .expect("serialize handshake");
 
@@ -171,6 +158,27 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
     .await
     .unwrap_or(false);
     assert!(acked, "UDP handshake was never acked");
+    udp
+}
+
+/// Full UDP loopback: handshake binds the socket, input flows in over UDP,
+/// compact telemetry flows back out over UDP, and the roster (TCP) maps the
+/// compact car index to the player.
+#[tokio::test]
+async fn test_udp_handshake_input_and_telemetry_loopback() {
+    let server = common::start_test_server().await;
+    let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
+
+    // --- Authenticate over TCP (v2) ---
+    let (player_id, udp_token, udp_port) =
+        match client.authenticate("UdpDriver", PROTOCOL_VERSION).await {
+            ServerMessage::AuthSuccess(data) => (data.player_id, data.udp_token, data.udp_port),
+            other => panic!("expected AuthSuccess, got {:?}", other),
+        };
+
+    // --- UDP handshake ---
+    let udp = bind_udp(server.tcp_addr.ip(), &udp_token, udp_port).await;
+    let mut buf = vec![0u8; 65_536];
 
     // --- Set up a session over TCP ---
     let car_id = {
@@ -279,6 +287,109 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
     assert!(
         moving,
         "expected compact telemetry over UDP showing the car accelerating from UDP input"
+    );
+
+    server.shutdown().await;
+}
+
+/// Force feedback: the driver of a car receives its `DriverFeedback` over
+/// UDP, one steering-torque sample per physics tick since the last message,
+/// and the torque pushes back against the lock.
+#[tokio::test]
+async fn test_driver_feedback_reaches_the_driver_over_udp() {
+    let server = common::start_test_server().await;
+    let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
+
+    let (udp_token, udp_port) = match client.authenticate("FfbDriver", PROTOCOL_VERSION).await {
+        ServerMessage::AuthSuccess(data) => (data.udp_token, data.udp_port),
+        other => panic!("expected AuthSuccess, got {:?}", other),
+    };
+    let udp = bind_udp(server.tcp_addr.ip(), &udp_token, udp_port).await;
+
+    client.send(&ClientMessage::RequestLobbyState).await;
+    let (car_id, track_id) = match client
+        .recv_until(|m| matches!(m, ServerMessage::LobbyState(_)))
+        .await
+    {
+        ServerMessage::LobbyState(lobby) => (lobby.car_configs[0].id, lobby.track_configs[0].id),
+        _ => unreachable!(),
+    };
+    client
+        .send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+        })
+        .await;
+    client
+        .send(&ClientMessage::CreateSession {
+            track_config_id: track_id,
+            max_players: 1,
+            ai_count: 0,
+            lap_limit: 2,
+            session_kind: apexsim_server::data::SessionKind::Practice,
+        })
+        .await;
+    client
+        .recv_until(|m| matches!(m, ServerMessage::SessionJoined(_)))
+        .await;
+    client
+        .send(&ClientMessage::SetGameMode {
+            mode: apexsim_server::data::GameMode::FreePractice,
+        })
+        .await;
+    client
+        .recv_until(|m| matches!(m, ServerMessage::GameModeChanged { .. }))
+        .await;
+
+    // Accelerate with a little left lock (positive is left).
+    let input = rmp_serde::to_vec_named(&ClientMessage::PlayerInput {
+        server_tick_ack: 0,
+        throttle: 0.6,
+        brake: 0.0,
+        steering: 0.15,
+        gear: Some(1),
+        clutch: Some(1.0),
+    })
+    .expect("serialize input");
+
+    let mut buf = vec![0u8; 65_536];
+    let default_divisor = apexsim_server::config::ServerConfig::default()
+        .network
+        .telemetry_divisor as usize;
+    let feedback = timeout(TEST_TIMEOUT, async {
+        let mut seen = 0u32;
+        loop {
+            udp.send(&input).await.expect("send input");
+            let Ok(Ok(n)) = timeout(Duration::from_millis(100), udp.recv(&mut buf)).await else {
+                continue;
+            };
+            if let Ok(ServerMessage::DriverFeedback(f)) =
+                rmp_serde::from_slice::<ServerMessage>(&buf[..n])
+            {
+                seen += 1;
+                assert!(
+                    f.steer_torque.len() <= default_divisor,
+                    "one sample per tick since the last message, got {}",
+                    f.steer_torque.len()
+                );
+                // Once the car is rolling the fronts are working.
+                if seen > 30 && f.steer_torque.iter().any(|&t| t < -0.01) {
+                    return f;
+                }
+            }
+        }
+    })
+    .await
+    .expect("no DriverFeedback with a centring steering torque arrived over UDP");
+
+    assert_eq!(
+        feedback.steer_torque.len(),
+        default_divisor,
+        "a steady stream carries every tick"
+    );
+    assert!(
+        feedback.steer_torque.iter().all(|t| *t <= 0.0),
+        "a left turn pushes the wheel right: {:?}",
+        feedback.steer_torque
     );
 
     server.shutdown().await;

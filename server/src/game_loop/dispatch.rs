@@ -89,8 +89,11 @@ pub(crate) async fn handle_message(
         ClientMessage::SetGameMode { mode } => {
             handle_set_game_mode(ctx, connection_id, mode).await;
         }
-        ClientMessage::SetDriverAids { auto_gearbox } => {
-            handle_set_driver_aids(ctx, connection_id, auto_gearbox).await;
+        ClientMessage::SetDriverAids {
+            auto_gearbox,
+            steering_assist,
+        } => {
+            handle_set_driver_aids(ctx, connection_id, auto_gearbox, steering_assist).await;
         }
         ClientMessage::StartCountdown {
             countdown_seconds,
@@ -570,6 +573,7 @@ async fn handle_set_driver_aids(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,
     auto_gearbox: bool,
+    steering_assist: bool,
 ) {
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
@@ -588,10 +592,13 @@ async fn handle_set_driver_aids(
     {
         car.auto_gearbox = auto_gearbox;
         car.auto_shift_hold_ticks = 0;
+        car.steering_assist = steering_assist;
+        let on_off = |on: bool| if on { "on" } else { "off" };
         tracing::debug!(
-            "Player {} auto gearbox {}",
+            "Player {} auto gearbox {}, steering assist {}",
             conn_info.player_id,
-            if auto_gearbox { "on" } else { "off" }
+            on_off(auto_gearbox),
+            on_off(steering_assist)
         );
     }
 }

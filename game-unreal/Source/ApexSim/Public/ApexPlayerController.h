@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Input/ApexForceFeedback.h"
 
 #include "ApexPlayerController.generated.h"
 
@@ -89,11 +90,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Input")
 	void RebuildBindings();
 
+	/**
+	 * A short rumble at the saved strength, so the settings slider can be
+	 * felt while it is dragged. Plays in menus too.
+	 */
+	void PreviewForceFeedback();
+
 protected:
 	virtual void SetupInputComponent() override;
 	virtual void BeginPlay() override;
 
+	/**
+	 * Where the driving rumble joins the pad. The engine calls this every tick
+	 * with whatever its own force-feedback effects add up to; the car's
+	 * feedback is mixed in on top.
+	 */
+	virtual void UpdateForceFeedback(IInputInterface* InputInterface, const int32 ControllerId) override;
+
 private:
+	/** This frame's rumble from the car: the server's DriverFeedback through the gamepad mixer. */
+	ApexFfb::FRumble TickDrivingFeedback(float DeltaSeconds);
+
 	/** Create the input config once, whichever init step gets there first. */
 	void EnsureInputConfig();
 
@@ -123,4 +140,9 @@ private:
 	int32 PendingGearDelta = 0;
 	bool bPendingCameraToggle = false;
 	bool bDriveInputEnabled = false;
+
+	ApexFfb::FGamepadState FeedbackState;
+	/** The net subsystem's feedback serial last mixed, so each message's hits fire once. */
+	uint32 LastFeedbackSerial = 0;
+	float FeedbackPreviewSeconds = 0.0f;
 };

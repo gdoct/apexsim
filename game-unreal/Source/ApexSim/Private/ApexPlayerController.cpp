@@ -1,19 +1,40 @@
 #include "ApexPlayerController.h"
 
+#include "ApexNetSubsystem.h"
+#include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
+#include "GenericPlatform/IInputInterface.h"
+#include "HAL/IConsoleManager.h"
 #include "Input/ApexInputConfig.h"
 #include "InputActionValue.h"
+#include "Misc/App.h"
 #include "Widgets/SViewport.h"
 
 namespace
 {
 	/** Priority of the driving context. Nothing else competes for it yet. */
 	constexpr int32 kDriveContextPriority = 0;
+
+	/**
+	 * Feedback older than this is a car that no longer exists (session left,
+	 * connection lost) or a stalled stream; the rumble lets go rather than
+	 * holding the last slide forever. Several 60 Hz messages' worth.
+	 */
+	constexpr double kFeedbackStaleSeconds = 0.25;
+
+	/** How long the settings slider's preview rumble lasts after each change. */
+	constexpr float kPreviewSeconds = 0.25f;
+
+	TAutoConsoleVariable<bool> CVarFeedbackDebug(
+		TEXT("apexsim.ffb.Debug"),
+		false,
+		TEXT("Print the force-feedback signals and the pad's motor levels on screen every frame."));
 }	 // namespace
 
 AApexPlayerController::AApexPlayerController()
@@ -180,6 +201,87 @@ void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
 	bShowMouseCursor = true;
 	UE_LOG(LogApexSim, Log, TEXT("Driving controls %s"),
 		bEnabled ? TEXT("enabled (WASD, Q/E gears, C camera, ,/. look, B behind)") : TEXT("disabled"));
+}
+
+void AApexPlayerController::PreviewForceFeedback()
+{
+	FeedbackPreviewSeconds = kPreviewSeconds;
+}
+
+void AApexPlayerController::UpdateForceFeedback(IInputInterface* InputInterface, const int32 ControllerId)
+{
+	FForceFeedbackValues Values = ForceFeedbackValues;
+	const ApexFfb::FRumble Driving = TickDrivingFeedback(static_cast<float>(FApp::GetDeltaTime()));
+
+	// XInput, the engine's pad backend on Windows, drives the heavy motor from
+	// the larger of the two Large channels and the light one from the Small
+	// channels. Under the GameInput plugin the Small channels are the trigger
+	// motors instead; it is not enabled in this project.
+	Values.LeftLarge = FMath::Max(Values.LeftLarge, Driving.Low);
+	Values.LeftSmall = FMath::Max(Values.LeftSmall, Driving.High);
+
+	InputInterface->SetForceFeedbackChannelValues(ControllerId, bForceFeedbackEnabled ? Values : FForceFeedbackValues());
+}
+
+ApexFfb::FRumble AApexPlayerController::TickDrivingFeedback(float DeltaSeconds)
+{
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const float Strength = Settings && Settings->Get() ? Settings->Get()->Vibration : 0.0f;
+	const float Gain = ApexFfb::GainFromStrength(Strength);
+
+	// Only the car being driven: not in menus, not behind the pause menu, and
+	// only while the server is actually sending feedback for it.
+	ApexFfb::FSignals Signals;
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+
+	// Tracked while paused too, or resuming would replay the last message's hits.
+	const uint32 Serial = Net ? Net->GetDriverFeedbackSerial() : 0;
+	const bool bNewMessage = Serial != LastFeedbackSerial;
+	LastFeedbackSerial = Serial;
+
+	if (bDriveInputEnabled && Net
+		&& FPlatformTime::Seconds() - Net->GetDriverFeedbackTime() < kFeedbackStaleSeconds)
+	{
+		// Speed and gear are telemetry's; the feedback carries only what it adds.
+		float SpeedMps = 0.0f;
+		int32 Gear = 0;
+		const int32 CarIndex = Net->GetLocalCarIndex();
+		for (const FApexCarTelemetry& Car : Net->GetLatestTelemetry().Cars)
+		{
+			if (Car.CarIndex == CarIndex)
+			{
+				SpeedMps = Car.SpeedMps;
+				Gear = Car.Gear;
+				break;
+			}
+		}
+		Signals = ApexFfb::MakeSignals(Net->GetDriverFeedback(), SpeedMps, Gear, bNewMessage);
+	}
+
+	ApexFfb::FRumble Rumble = ApexFfb::MixGamepad(Signals, FeedbackState, DeltaSeconds, Gain);
+
+	if (FeedbackPreviewSeconds > 0.0f)
+	{
+		FeedbackPreviewSeconds -= DeltaSeconds;
+		const float Preview = FMath::Clamp(0.5f * Gain, 0.0f, 1.0f);
+		Rumble.Low = FMath::Max(Rumble.Low, Preview);
+		Rumble.High = FMath::Max(Rumble.High, Preview);
+	}
+
+	if (CVarFeedbackDebug.GetValueOnGameThread() && GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(static_cast<uint64>(0xFFB0), 0.0f, FColor::Cyan,
+			FString::Printf(TEXT("FFB %s  gain %.2f  low %.2f  high %.2f\n")
+				TEXT("  speed %.1f  torque %+.2f  front %.2f  rear %.2f  lock %.2f  spin %.2f  abs %d  tc %d\n")
+				TEXT("  curb L %.1f R %.1f  off %.2f  bump %.2f  impact %.1f"),
+				Signals.bActive ? TEXT("live") : TEXT("idle"), Gain, Rumble.Low, Rumble.High,
+				Signals.SpeedMps, Signals.SteerTorque, Signals.FrontSlide, Signals.RearSlide,
+				Signals.Lockup, Signals.Wheelspin, Signals.bAbs ? 1 : 0, Signals.bTractionControl ? 1 : 0,
+				Signals.CurbLeft, Signals.CurbRight, Signals.OffTrack, Signals.BumpMps, Signals.ImpactMps));
+	}
+
+	return Rumble;
 }
 
 int32 AApexPlayerController::ConsumeGearDelta()
