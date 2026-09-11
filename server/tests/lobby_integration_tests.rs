@@ -115,6 +115,7 @@ impl LobbyTestClient {
                 }
                 ServerMessage::LobbyState(_) => continue,
                 ServerMessage::SessionRoster(_) => continue,
+                ServerMessage::RacingLine(_) => continue,
                 other => {
                     return Err(
                         format!("Unexpected response to session creation: {:?}", other).into(),
@@ -168,6 +169,7 @@ impl LobbyTestClient {
                 }
                 Ok(Ok(ServerMessage::LobbyState(_))) => continue,
                 Ok(Ok(ServerMessage::SessionRoster(_))) => continue,
+                Ok(Ok(ServerMessage::RacingLine(_))) => continue,
                 Ok(Ok(ServerMessage::TelemetryCompact(_))) => continue,
                 Ok(Ok(ServerMessage::HeartbeatAck { .. })) => continue,
                 Ok(Ok(ServerMessage::GameModeChanged { .. })) => continue,

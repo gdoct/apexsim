@@ -433,6 +433,89 @@ namespace
 		return true;
 	}
 
+	bool ParseFloatArray(FMsgPackReader& Reader, TArray<float>& Out)
+	{
+		int32 Count = 0;
+		if (!Reader.ReadArrayHeader(Count))
+		{
+			return false;
+		}
+		Out.SetNumUninitialized(Count);
+		for (int32 i = 0; i < Count; ++i)
+		{
+			if (!Reader.ReadFloat(Out[i]))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * `RacingLineData` — PascalCase keys. The positions arrive as parallel
+	 * X/Y/Z arrays and are zipped into points once all three are in, since
+	 * nothing guarantees the key order.
+	 */
+	bool ParseRacingLine(FMsgPackReader& Reader, FApexRacingLineData& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		TArray<float> X, Y, Z;
+		TArray<uint8> Phase;
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("SessionId"))     { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("SpacingM")) { bOk = Reader.ReadFloat(Out.SpacingM); }
+			else if (Key == TEXT("X"))        { bOk = ParseFloatArray(Reader, X); }
+			else if (Key == TEXT("Y"))        { bOk = ParseFloatArray(Reader, Y); }
+			else if (Key == TEXT("Z"))        { bOk = ParseFloatArray(Reader, Z); }
+			else if (Key == TEXT("Phase"))
+			{
+				int32 Count = 0;
+				bOk = Reader.ReadArrayHeader(Count);
+				Phase.Reserve(Count);
+				for (int32 p = 0; p < Count && bOk; ++p)
+				{
+					uint64 Raw = 0;
+					bOk = Reader.ReadUInt64(Raw);
+					Phase.Add(static_cast<uint8>(FMath::Min<uint64>(Raw, 255)));
+				}
+			}
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+
+		// Mismatched arrays mean a broken message, not a shorter line: drop it
+		// rather than draw points at the origin.
+		const int32 Count = X.Num();
+		if (Y.Num() != Count || Z.Num() != Count || Phase.Num() != Count)
+		{
+			return false;
+		}
+		Out.Points.SetNumUninitialized(Count);
+		Out.Phases.SetNumUninitialized(Count);
+		for (int32 i = 0; i < Count; ++i)
+		{
+			Out.Points[i] = FVector(X[i], Y[i], Z[i]);
+			Out.Phases[i] = Phase[i] <= static_cast<uint8>(EApexLinePhase::Brake)
+				? static_cast<EApexLinePhase>(Phase[i])
+				: EApexLinePhase::Partial;
+		}
+		return true;
+	}
+
 	/** `PlayerDisconnectedData` — PascalCase keys. */
 	bool ParsePlayerDisconnected(FMsgPackReader& Reader, FApexServerMessage& Out)
 	{
@@ -608,6 +691,7 @@ namespace
 		if (Variant == TEXT("Error"))              { return EApexServerMessageType::Error; }
 		if (Variant == TEXT("PlayerDisconnected")) { return EApexServerMessageType::PlayerDisconnected; }
 		if (Variant == TEXT("SessionRoster"))      { return EApexServerMessageType::SessionRoster; }
+		if (Variant == TEXT("RacingLine"))         { return EApexServerMessageType::RacingLine; }
 		if (Variant == TEXT("UdpHandshakeAck"))    { return EApexServerMessageType::UdpHandshakeAck; }
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 
@@ -639,6 +723,9 @@ namespace
 
 		case EApexServerMessageType::SessionRoster:
 			return ParseSessionRoster(Reader, Out.Roster);
+
+		case EApexServerMessageType::RacingLine:
+			return ParseRacingLine(Reader, Out.RacingLine);
 
 		case EApexServerMessageType::TelemetryCompact:
 			// Only reachable if a compact frame ever arrives named; the UDP path

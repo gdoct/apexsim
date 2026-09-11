@@ -285,6 +285,50 @@ struct APEXSIMNET_API FApexSessionRoster
 	TArray<FApexRosterEntry> Entries;
 };
 
+/** What the driver does at a point of the racing line. The wire value is a u8. */
+UENUM(BlueprintType)
+enum class EApexLinePhase : uint8
+{
+	/** Flat out, or accelerating as hard as the car can. */
+	Throttle = 0,
+	/** At the grip limit through a corner, or lifting for a kink. */
+	Partial  = 1,
+	Brake    = 2,
+};
+
+/**
+ * `RacingLineData` (network.rs) — PascalCase keys, TCP, sent once right after
+ * SessionJoined.
+ *
+ * The line the joining player's car should take: a closed loop of evenly
+ * spaced points, each tagged with what to do there. The server builds it from
+ * the track's raceline and the car's grip, power and brakes, so the braking
+ * points are that car's. On the wire the positions are parallel X/Y/Z arrays;
+ * they are zipped into points here.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexRacingLineData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString SessionId;
+
+	/** Distance between consecutive points, metres. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float SpacingM = 0.0f;
+
+	/** Server-frame positions, metres. The last point joins back to the first. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<FVector> Points;
+
+	/** One per point. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<EApexLinePhase> Phases;
+
+	bool IsValid() const { return Points.Num() >= 3 && Phases.Num() == Points.Num(); }
+};
+
 /**
  * One car from `CompactCarState` (network.rs:388).
  *
@@ -411,6 +455,7 @@ enum class EApexServerMessageType : uint8
 	Error,
 	PlayerDisconnected,
 	SessionRoster,
+	RacingLine,
 	UdpHandshakeAck,
 	TelemetryCompact,
 	/** Full named-encoding Telemetry — replays only; the wire uses the compact form. */
@@ -432,6 +477,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexAuthSuccess AuthSuccess;
 	FApexLobbyState LobbyState;
 	FApexSessionRoster Roster;
+	FApexRacingLineData RacingLine;
 	FApexTelemetryFrame Telemetry;
 
 	/** AuthFailure::reason, or Error::message. */

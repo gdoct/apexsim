@@ -121,8 +121,9 @@ public:
 	UPROPERTY()
 	bool bAutoGearbox = true;
 
+	/** The dotted line on the road: green flat out, amber at the limit, red braking. */
 	UPROPERTY()
-	EApexRacingLine RacingLine = EApexRacingLine::BrakingOnly;
+	EApexRacingLine RacingLine = EApexRacingLine::Off;
 
 	/** 0..1. Applied to AI cars when a session is created. */
 	UPROPERTY()

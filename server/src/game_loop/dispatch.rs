@@ -5,8 +5,10 @@
 
 use super::{broadcast, lifecycle, GameLoopCtx};
 use crate::data::*;
+use crate::game_session::GameSession;
 use crate::lobby::{LobbyPlayerState, LobbySessionInfo, SessionVisibility};
-use crate::network::{ClientMessage, ServerMessage, SessionJoinedData};
+use crate::network::{ClientMessage, RacingLineData, ServerMessage, SessionJoinedData};
+use crate::racing_line;
 use crate::transport::TransportEvent;
 use std::collections::HashMap;
 use tracing::{debug, warn};
@@ -292,6 +294,7 @@ async fn handle_create_session(
     };
 
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
+        let racing_line = racing_line_message(game_session, session_id, car_id);
         drop(state_write);
         let _ = ctx
             .send(
@@ -302,6 +305,9 @@ async fn handle_create_session(
                 }),
             )
             .await;
+        if let Some(msg) = racing_line {
+            let _ = ctx.send(connection_id, msg).await;
+        }
         // Track that player is in a session
         ctx.set_player_session(connection_id, Some(session_id))
             .await;
@@ -368,6 +374,7 @@ async fn handle_join_session(
             "Player {} joined session {} at grid position {}",
             conn_info.player_name, session_id, grid_pos
         );
+        let racing_line = racing_line_message(game_session, session_id, car_id);
         drop(state_write);
         let _ = ctx
             .send(
@@ -378,6 +385,9 @@ async fn handle_join_session(
                 }),
             )
             .await;
+        if let Some(msg) = racing_line {
+            let _ = ctx.send(connection_id, msg).await;
+        }
         // Track that player is in a session
         ctx.set_player_session(connection_id, Some(session_id))
             .await;
@@ -387,6 +397,22 @@ async fn handle_join_session(
         drop(state_write);
         ctx.send_error(connection_id, 400, "Session is full").await;
     }
+}
+
+/// The racing line for `car_id` on the session's track, for the client's
+/// racing-line overlay; `None` when the car is unknown or the track has no
+/// usable line. Built under the state lock, which costs well under a
+/// millisecond for a full circuit.
+fn racing_line_message(
+    game_session: &GameSession,
+    session_id: SessionId,
+    car_id: CarConfigId,
+) -> Option<ServerMessage> {
+    let car = game_session.car_configs.get(&car_id)?;
+    let profile = racing_line::build(&game_session.track_config, car)?;
+    Some(ServerMessage::RacingLine(RacingLineData::from_profile(
+        session_id, &profile,
+    )))
 }
 
 /// Undo a lobby join that could not be completed in the game session; removes

@@ -218,6 +218,8 @@ private:
 	int32 AutoRaceLaps = 5;
 	/** -ApexTrack=<name>: substring-matches a lobby track, overriding the profile. */
 	FString AutoRaceTrack;
+	/** -ApexCar=<name>: substring-matches a lobby car instead of taking the first. */
+	FString AutoRaceCar;
 	EApexGameMode AutoRaceMode = EApexGameMode::Race;
 
 	/** Notifies the outgoing and incoming screens, then flips the switcher. */

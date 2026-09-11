@@ -24,6 +24,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FApexOnServerError, int32, Code, co
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPlayerDisconnected, const FString&, PlayerId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnDisconnected, const FString&, Reason);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionRosterUpdated, const FApexSessionRoster&, Roster);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnRacingLineUpdated, const FApexRacingLineData&, Line);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnTelemetry, const FApexTelemetryFrame&, Frame);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
@@ -94,6 +95,13 @@ public:
 	/** Car index -> player identity. Arrives reliably over TCP on join and on change. */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
 	FApexOnSessionRosterUpdated OnSessionRosterUpdated;
+
+	/**
+	 * The racing line for the local car, from the server once per session join.
+	 * Also fires with an empty line when the session is left.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnRacingLineUpdated OnRacingLineUpdated;
 
 	/** Fires once the UDP handshake is acknowledged and telemetry can flow. */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
@@ -242,6 +250,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexSessionRoster& GetSessionRoster() const { return CachedRoster; }
 
+	/** The current session's racing line; empty (not IsValid) until one arrives. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	const FApexRacingLineData& GetRacingLine() const { return CachedRacingLine; }
+
 	/** The most recent telemetry frame, for anything that polls rather than binds. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexTelemetryFrame& GetLatestTelemetry() const { return LatestTelemetry; }
@@ -286,6 +298,12 @@ private:
 
 	UPROPERTY()
 	FApexSessionRoster CachedRoster;
+
+	UPROPERTY()
+	FApexRacingLineData CachedRacingLine;
+
+	/** Forget the racing line, telling listeners if there was one. */
+	void ClearRacingLine();
 
 	UPROPERTY()
 	FApexTelemetryFrame LatestTelemetry;

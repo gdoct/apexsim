@@ -397,6 +397,12 @@ pub struct TrackConfig {
     /// the ground the client renders. Runtime-only; loaded from the sidecar.
     #[serde(skip)]
     pub ground: Option<crate::ground::GroundHeightfield>,
+    /// Baked curb widths exported alongside the Unreal scene
+    /// (`<Track>.curbs.msgpack`). How far the curbs reach past each road
+    /// edge, so a car using them counts as on the track. Runtime-only;
+    /// loaded from the sidecar.
+    #[serde(skip)]
+    pub curbs: Option<crate::curbs::CurbBands>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -547,6 +553,7 @@ impl Default for TrackConfig {
             metadata: TrackMetadata::default(),
             procedural_world: None,
             ground: None,
+            curbs: None,
         }
     }
 }

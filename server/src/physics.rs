@@ -18,7 +18,7 @@ use tracing::debug;
 const GRAVITY: f32 = 9.81;
 
 /// Air density at sea level (kg/m³)
-const AIR_DENSITY: f32 = 1.225;
+pub const AIR_DENSITY: f32 = 1.225;
 
 /// Minimum speed threshold for calculations (m/s)
 const MIN_SPEED_THRESHOLD: f32 = 0.1;
@@ -795,15 +795,7 @@ fn calculate_engine_output(
         config.idle_rpm + input.throttle * (config.redline_rpm - config.idle_rpm) * 0.3
     };
 
-    let torque_at_rpm = if !config.engine.torque_curve.is_empty() {
-        interpolate_torque_curve(&config.engine.torque_curve, engine_rpm)
-    } else {
-        // Legacy simple torque curve (peak at ~60% of redline)
-        let rpm_normalized =
-            (engine_rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm);
-        let torque_factor = 1.0 - (rpm_normalized - 0.6).powi(2);
-        config.max_engine_torque_nm * torque_factor.clamp(0.3, 1.0)
-    };
+    let torque_at_rpm = engine_curve_torque_nm(config, engine_rpm);
 
     // Rev limiter torque cut
     let limiter_rpm = config.engine.rev_limiter_rpm.max(config.redline_rpm);
@@ -831,6 +823,27 @@ fn calculate_engine_output(
     engine_torque -= config.engine.friction_torque_nm * rpm_frac;
 
     (engine_torque, engine_rpm)
+}
+
+/// Torque the engine makes at `rpm` with the throttle wide open, before the
+/// limiter cut: the car's torque curve, or the legacy parabola (peak at ~60%
+/// of the redline) for a car that has none.
+fn engine_curve_torque_nm(config: &CarConfig, rpm: f32) -> f32 {
+    if !config.engine.torque_curve.is_empty() {
+        interpolate_torque_curve(&config.engine.torque_curve, rpm)
+    } else {
+        let rpm_normalized = (rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm);
+        let torque_factor = 1.0 - (rpm_normalized - 0.6).powi(2);
+        config.max_engine_torque_nm * torque_factor.clamp(0.3, 1.0)
+    }
+}
+
+/// What reaches the gearbox at full throttle: the curve less the engine's
+/// internal friction, which grows with revs exactly as it does on the road.
+fn full_throttle_net_torque_nm(config: &CarConfig, rpm: f32) -> f32 {
+    let rpm_frac =
+        ((rpm - config.idle_rpm) / (config.redline_rpm - config.idle_rpm).max(1.0)).clamp(0.0, 1.0);
+    engine_curve_torque_nm(config, rpm) - config.engine.friction_torque_nm * rpm_frac
 }
 
 fn interpolate_torque_curve(curve: &[TorqueCurvePoint], rpm: f32) -> f32 {
@@ -1185,22 +1198,71 @@ fn solve_wheel_forces(
     }
 }
 
-/// Automatic gearbox thresholds, as fractions of the car's redline.
-/// Upshift just under the limiter; downshift once revs have fallen out of
-/// the power band off throttle (or much further on throttle, a kickdown),
-/// and only when the lower gear lands the engine safely below the limiter.
-const AUTO_UPSHIFT_FRAC: f32 = 0.95;
+/// Automatic gearbox. Where it shifts comes from the engine's torque curve,
+/// not a fixed fraction of the redline: a gear is worth being in while it
+/// puts more torque on the road than its neighbour would at the same road
+/// speed. A peaky engine therefore shifts at the limiter and a torquey one
+/// well short of it, each at the point that accelerates the car hardest.
+///
+/// The limiter is still a hard backstop for an engine that pulls all the way
+/// to it (a torque curve flat to the redline has no crossover at all).
+const AUTO_UPSHIFT_CEILING_FRAC: f32 = 0.98;
+/// On throttle, a lower gear must pull this much harder than the current one
+/// before the box kicks down. The margin is the hysteresis: right after an
+/// upshift the gear below pulls about as hard as the new one, and without it
+/// the box would hunt between the two.
+const AUTO_KICKDOWN_TORQUE_GAIN: f32 = 1.05;
+/// Throttle at or above which the driver is asking to accelerate, so the box
+/// picks gears for torque; below it the box only keeps the revs up.
+const AUTO_KICKDOWN_THROTTLE: f32 = 0.5;
+/// Off throttle, drop a gear once revs have fallen out of the power band,
+/// so there is drive waiting when the throttle comes back.
 const AUTO_DOWNSHIFT_FRAC: f32 = 0.60;
-const AUTO_KICKDOWN_FRAC: f32 = 0.45;
+/// Never downshift into a gear that would put the engine above this.
 const AUTO_DOWNSHIFT_CEILING_FRAC: f32 = 0.92;
 /// Minimum time between automatic shifts: a sequential box under braking
 /// steps down one gear at a time rather than dumping four at once.
 const AUTO_SHIFT_HOLD_S: f32 = 0.3;
 
+/// Torque at the wheels, bar the constant final drive and efficiency, in
+/// gear ratio `ratio` with the engine at `rpm` and the throttle wide open.
+fn wheel_torque_potential(config: &CarConfig, ratio: f32, rpm: f32) -> f32 {
+    full_throttle_net_torque_nm(config, rpm) * ratio
+}
+
+/// Whether the next gear up would put more torque on the road than this one
+/// does now, at the same road speed.
+fn next_gear_pulls_harder(config: &CarConfig, ratio_now: f32, ratio_up: f32, rpm: f32) -> bool {
+    let rpm_up = rpm * ratio_up / ratio_now;
+    rpm_up >= config.idle_rpm
+        && wheel_torque_potential(config, ratio_up, rpm_up)
+            > wheel_torque_potential(config, ratio_now, rpm)
+}
+
+/// Engine rpm at which the box leaves `gear` for the next one up on full
+/// throttle: the torque crossover, or the limiter backstop if the engine
+/// pulls all the way there. `None` in top gear.
+pub fn auto_upshift_rpm(config: &CarConfig, gear: i8) -> Option<f32> {
+    let g = usize::try_from(gear).ok().filter(|g| *g >= 1)?;
+    let ratio_now = config.gear_ratios.get(g)?.abs();
+    let ratio_up = config.gear_ratios.get(g + 1)?.abs();
+    let ceiling = config.redline_rpm * AUTO_UPSHIFT_CEILING_FRAC;
+    // Walk up from idle in 10 rpm steps; the curve is piecewise linear, so
+    // this finds the crossover to well inside a tick's worth of revs.
+    let mut rpm = config.idle_rpm;
+    while rpm < ceiling {
+        if next_gear_pulls_harder(config, ratio_now, ratio_up, rpm) {
+            return Some(rpm);
+        }
+        rpm += 10.0;
+    }
+    Some(ceiling)
+}
+
 /// Gear the automatic box wants this tick, or `None` to keep the current
 /// one. Reverse is never chosen automatically; neutral goes to first on
-/// throttle. Runs on the server because it needs the car's redline and gear
-/// ratios, which the client never learns from the wire protocol.
+/// throttle. Runs on the server because it needs the car's torque curve and
+/// gear ratios, which the client never learns from the wire protocol.
 pub fn auto_gear_selection(
     state: &mut CarState,
     config: &CarConfig,
@@ -1214,19 +1276,41 @@ pub fn auto_gear_selection(
     let max_gear = (config.gear_ratios.len() as i8 - 1).max(1);
     let redline = config.redline_rpm.max(config.idle_rpm + 1.0);
     let rpm = state.engine_rpm;
+    let ratio = |g: i8| {
+        config
+            .gear_ratios
+            .get(g as usize)
+            .map(|r| r.abs().max(1e-3))
+    };
     let wanted = match state.gear {
         g if g < 0 => None,
         0 => (input.throttle > 0.05).then_some(1),
         g => {
-            if g < max_gear && rpm >= redline * AUTO_UPSHIFT_FRAC {
+            let upshift = match (ratio(g), ratio(g + 1)) {
+                (Some(now), Some(up)) if g < max_gear => {
+                    rpm >= redline * AUTO_UPSHIFT_CEILING_FRAC
+                        || next_gear_pulls_harder(config, now, up, rpm)
+                }
+                _ => false,
+            };
+            let downshift = match (ratio(g), ratio(g - 1)) {
+                (Some(now), Some(down)) if g > 1 => {
+                    let rpm_down = rpm * down / now;
+                    let fits = rpm_down <= redline * AUTO_DOWNSHIFT_CEILING_FRAC;
+                    let wants = if input.throttle >= AUTO_KICKDOWN_THROTTLE {
+                        wheel_torque_potential(config, down, rpm_down)
+                            > wheel_torque_potential(config, now, rpm) * AUTO_KICKDOWN_TORQUE_GAIN
+                    } else {
+                        rpm < redline * AUTO_DOWNSHIFT_FRAC
+                    };
+                    fits && wants
+                }
+                _ => false,
+            };
+            if upshift {
                 Some(g + 1)
-            } else if g > 1 && (g as usize) < config.gear_ratios.len() {
-                let ratio_now = config.gear_ratios[g as usize].abs().max(1e-3);
-                let ratio_down = config.gear_ratios[g as usize - 1].abs();
-                let rpm_after = rpm * ratio_down / ratio_now;
-                let wants_lower = rpm < redline * AUTO_KICKDOWN_FRAC
-                    || (rpm < redline * AUTO_DOWNSHIFT_FRAC && input.throttle < 0.5);
-                (wants_lower && rpm_after <= redline * AUTO_DOWNSHIFT_CEILING_FRAC).then_some(g - 1)
+            } else if downshift {
+                Some(g - 1)
             } else {
                 None
             }
@@ -1434,11 +1518,34 @@ fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
         return TrackContext::default();
     };
 
-    // Check if on track
-    let is_on_track = surface.lateral_offset.abs() <= surface.width_right.max(surface.width_left);
+    // How far past this side's road edge the car sits. The curbs reach a
+    // little further still: a driver who puts two wheels on a curb is using
+    // the track, not cutting it, so they count as on it — with the curb's
+    // own grip, and without the off-track speed penalty.
+    let half_width = if surface.lateral_offset >= 0.0 {
+        surface.width_right
+    } else {
+        surface.width_left
+    };
+    let overhang = surface.lateral_offset.abs() - half_width;
+    let curb_width = if overhang > 0.0 {
+        let station_m = track
+            .centerline
+            .get(surface.nearest_point)
+            .map_or(0.0, |p| p.distance_from_start_m);
+        track.curbs.as_ref().map_or(0.0, |bands| {
+            bands.width_at(station_m, surface.lateral_offset)
+        })
+    } else {
+        0.0
+    };
+    let on_curb = overhang > 0.0 && overhang <= curb_width;
+    let is_on_track = overhang <= 0.0 || on_curb;
 
     // Determine surface type and grip
-    let (surface_type, grip_modifier) = if is_on_track {
+    let (surface_type, grip_modifier) = if on_curb {
+        (SurfaceType::Curb, track.track_surface.curb_grip)
+    } else if is_on_track {
         (surface.surface_type, surface.grip_modifier)
     } else {
         // Off track
@@ -2033,6 +2140,109 @@ mod tests {
         }
     }
 
+    /// The straight above, with a curb of `curb_m` along its right edge for
+    /// the whole length.
+    fn straight_track_with_right_curb(curb_m: f32) -> TrackConfig {
+        let mut track = create_straight_test_track();
+        let stations = (track.centerline.len() as f32 * 4.0) as usize;
+        track.curbs = Some(crate::curbs::CurbBands {
+            version: 1,
+            step_m: 1.0,
+            left_cm: vec![0; stations],
+            right_cm: vec![(curb_m * 100.0) as u16; stations],
+        });
+        track
+    }
+
+    fn context_at(track: &TrackConfig, y: f32) -> TrackContext {
+        let mut state = create_test_car_state();
+        state.pos_x = 100.0;
+        state.pos_y = y;
+        get_track_context(&state, track)
+    }
+
+    /// Driving over a curb is using the track, not leaving it: the sim has
+    /// to agree, or a driver taking the normal line through a chicane is
+    /// slowed as if they had put two wheels on the grass.
+    #[test]
+    fn test_curb_counts_as_on_track() {
+        // 10 m of asphalt each side of the centerline, then 1.5 m of curb
+        // on the right.
+        let track = straight_track_with_right_curb(1.5);
+
+        // Negative y is to the right of a car heading along +x.
+        let asphalt = context_at(&track, -9.0);
+        assert!(asphalt.is_on_track);
+        assert_eq!(asphalt.surface_type, SurfaceType::Asphalt);
+
+        let curb = context_at(&track, -11.0);
+        assert!(curb.is_on_track, "1 m past the edge is still curb");
+        assert_eq!(curb.surface_type, SurfaceType::Curb);
+        assert_eq!(curb.grip_modifier, track.track_surface.curb_grip);
+
+        let past_the_curb = context_at(&track, -12.0);
+        assert!(!past_the_curb.is_on_track, "2 m past the edge is grass");
+        assert_eq!(past_the_curb.surface_type, SurfaceType::Grass);
+
+        // The curb is on the right edge only.
+        let other_side = context_at(&track, 11.0);
+        assert!(!other_side.is_on_track);
+        assert_eq!(other_side.surface_type, SurfaceType::Grass);
+    }
+
+    /// Without the sidecar the road edge is the limit, exactly as it was
+    /// before curbs were baked for the sim.
+    #[test]
+    fn test_without_curb_bands_the_road_edge_is_the_limit() {
+        let track = create_straight_test_track();
+        assert!(track.curbs.is_none());
+        let just_off = context_at(&track, -11.0);
+        assert!(!just_off.is_on_track);
+        assert_eq!(just_off.surface_type, SurfaceType::Grass);
+    }
+
+    /// The off-track penalty is what the driver actually feels, so check it
+    /// through the real tick rather than the surface query alone.
+    #[test]
+    fn test_curb_does_not_trigger_the_off_track_penalty() {
+        let config = create_test_config();
+        let input = PlayerInputData {
+            throttle: 0.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+        let dt = 1.0 / 240.0;
+
+        let run = |track: &TrackConfig, y: f32| {
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.pos_y = y;
+            state.vel_x = 50.0;
+            state.speed_mps = 50.0;
+            state.gear = 4;
+            for _ in 0..120 {
+                update_car_3d(&mut state, &config, &input, track, dt);
+            }
+            state.speed_mps
+        };
+
+        let curbed = straight_track_with_right_curb(1.5);
+        let on_curb = run(&curbed, -11.0);
+        let on_asphalt = run(&curbed, -9.0);
+        let on_grass = run(&curbed, -12.0);
+
+        assert!(
+            (on_curb - on_asphalt).abs() < 0.5,
+            "a lap over the curb should coast like the asphalt: {on_curb} vs {on_asphalt}"
+        );
+        assert!(
+            on_grass < on_curb - 1.0,
+            "grass should still cost speed: {on_grass} vs {on_curb}"
+        );
+    }
+
     #[test]
     fn test_update_car_acceleration() {
         let mut state = create_test_car_state();
@@ -2152,7 +2362,7 @@ mod tests {
         let mut state = create_test_car_state();
         state.auto_gearbox = true;
         state.gear = 2;
-        state.engine_rpm = redline * 0.97;
+        state.engine_rpm = redline * 0.99;
         assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), Some(3));
         // ...but not past the last gear.
         state.auto_shift_hold_ticks = 0;
@@ -2168,11 +2378,12 @@ mod tests {
             Some(3)
         );
 
-        // Right after an upshift the revs sit at ~0.55 redline: on throttle
-        // that must not bounce straight back down (hunting).
+        // Right after an upshift the revs sit where the shift left them: on
+        // throttle that must not bounce straight back down (hunting).
         state.auto_shift_hold_ticks = 0;
         state.gear = 2;
-        state.engine_rpm = redline * 0.56;
+        let shifted_at = auto_upshift_rpm(&config, 1).unwrap();
+        state.engine_rpm = shifted_at * config.gear_ratios[2] / config.gear_ratios[1];
         assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), None);
 
         // Neutral goes to first on throttle, never to reverse.
@@ -2182,6 +2393,108 @@ mod tests {
         state.auto_shift_hold_ticks = 0;
         state.gear = -1;
         assert_eq!(auto_gear_selection(&mut state, &config, &coast, dt), None);
+    }
+
+    /// An engine whose torque falls away hard after a mid-range peak, on a
+    /// close-ratio box: the torque crossover sits well short of the redline.
+    fn peaky_config() -> CarConfig {
+        let mut config = create_test_config();
+        config.idle_rpm = 1000.0;
+        config.redline_rpm = 9000.0;
+        config.engine.friction_torque_nm = 0.0;
+        config.gear_ratios = vec![-3.0, 3.0, 2.5, 2.1, 1.8];
+        config.engine.torque_curve = [(1000.0, 200.0), (5000.0, 400.0), (9000.0, 150.0)]
+            .into_iter()
+            .map(|(rpm, torque_nm)| TorqueCurvePoint { rpm, torque_nm })
+            .collect();
+        config
+    }
+
+    #[test]
+    fn auto_gearbox_upshifts_where_the_next_gear_pulls_harder() {
+        let config = peaky_config();
+        let dt = 1.0 / 240.0;
+        let full = PlayerInputData {
+            throttle: 1.0,
+            ..PlayerInputData::default()
+        };
+        let crossover = auto_upshift_rpm(&config, 1).unwrap();
+        assert!(
+            crossover < config.redline_rpm * 0.9,
+            "a peaky engine on close ratios should shift well short of the              redline, not at it: {crossover}"
+        );
+        // It really is the crossover: second pulls harder above it, first
+        // below it.
+        let (first, second) = (config.gear_ratios[1], config.gear_ratios[2]);
+        let at = |rpm: f32, ratio: f32| full_throttle_net_torque_nm(&config, rpm) * ratio;
+        let above = crossover + 50.0;
+        let below = crossover - 50.0;
+        assert!(at(above * second / first, second) > at(above, first));
+        assert!(at(below * second / first, second) <= at(below, first));
+
+        let mut state = create_test_car_state();
+        state.auto_gearbox = true;
+        state.gear = 1;
+        state.engine_rpm = below;
+        assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), None);
+        state.engine_rpm = above;
+        assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), Some(2));
+    }
+
+    #[test]
+    fn auto_gearbox_kicks_down_on_throttle_but_not_when_cruising() {
+        let config = peaky_config();
+        let dt = 1.0 / 240.0;
+        let full = PlayerInputData {
+            throttle: 1.0,
+            ..PlayerInputData::default()
+        };
+        let cruise = PlayerInputData {
+            throttle: 0.3,
+            ..PlayerInputData::default()
+        };
+        // Third gear, well below the peak: second would land near the peak
+        // and put far more torque down.
+        let mut state = create_test_car_state();
+        state.auto_gearbox = true;
+        state.gear = 3;
+        state.engine_rpm = 3500.0;
+        assert_eq!(auto_gear_selection(&mut state, &config, &full, dt), Some(2));
+
+        // Easing along at the same revs the box leaves the gear alone: the
+        // revs are still above the band it drops out of off throttle.
+        state.auto_shift_hold_ticks = 0;
+        state.gear = 3;
+        state.engine_rpm = config.redline_rpm * AUTO_DOWNSHIFT_FRAC + 100.0;
+        assert_eq!(auto_gear_selection(&mut state, &config, &cruise, dt), None);
+
+        // A kickdown that would throw the engine at the limiter is refused,
+        // however hard the lower gear would pull. (Torque rising to the
+        // redline, so the gear below always pulls harder and upshifting is
+        // never the better answer at these revs.)
+        let mut rising = config.clone();
+        rising.engine.torque_curve = [(1000.0, 200.0), (9000.0, 400.0)]
+            .into_iter()
+            .map(|(rpm, torque_nm)| TorqueCurvePoint { rpm, torque_nm })
+            .collect();
+        state.auto_shift_hold_ticks = 0;
+        state.gear = 3;
+        state.engine_rpm = rising.redline_rpm * 0.85;
+        assert_eq!(auto_gear_selection(&mut state, &rising, &full, dt), None);
+    }
+
+    /// Flat torque to the redline has no crossover: the box must still
+    /// shift, at the limiter backstop, rather than sit on the limiter.
+    #[test]
+    fn auto_gearbox_shifts_at_the_backstop_when_torque_never_falls() {
+        let mut config = peaky_config();
+        config.engine.torque_curve = [(1000.0, 300.0), (9000.0, 300.0)]
+            .into_iter()
+            .map(|(rpm, torque_nm)| TorqueCurvePoint { rpm, torque_nm })
+            .collect();
+        let backstop = config.redline_rpm * AUTO_UPSHIFT_CEILING_FRAC;
+        assert_eq!(auto_upshift_rpm(&config, 1), Some(backstop));
+        assert_eq!(auto_upshift_rpm(&config, 4), None, "no gear above top");
     }
 
     #[test]
@@ -2813,6 +3126,7 @@ mod tests {
             metadata: TrackMetadata::default(),
             procedural_world: None,
             ground: None,
+            curbs: None,
         };
 
         state.pos_x = 0.0;
@@ -2901,6 +3215,7 @@ mod tests {
                 preset: crate::procgen::EnvironmentPreset::plains(),
             }),
             ground: None,
+            curbs: None,
         };
 
         let centerline_sample = query_track_surface_centerline(&track, 0.5, 0.5, None)
@@ -2971,6 +3286,7 @@ mod tests {
             metadata: TrackMetadata::default(),
             procedural_world: None,
             ground: None,
+            curbs: None,
         }
     }
 

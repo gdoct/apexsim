@@ -236,6 +236,9 @@ void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 
 	Layout = Car->GetCockpitLayout();
 	AttachToActor(Car, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	// The parts ride the attachment, but the display reads the car's
+	// telemetry: same frame's values, after the car has taken them.
+	AddTickPrerequisiteActor(Car);
 	SetActorRelativeTransform(FTransform::Identity);
 
 	// Nothing on the rig belongs in a mirror — the centre one looks back

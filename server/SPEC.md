@@ -27,6 +27,7 @@ The server is a single Rust application running as a standalone async process us
 *   **`game_session`:** State and logic for a single race session (game modes, rosters, race rules).
 *   **`physics`:** 4-wheel 3D physics engine with yaw-aware OBB (SAT) collisions.
 *   **`ai_driver`:** Deterministic AI drivers (raceline planning + low-level control).
+*   **`racing_line`:** The racing-line driving aid: a per-car speed profile along the raceline (throttle / partial / brake per point), sent to clients on join.
 *   **`data`:** Centralized definition of all core data structures.
 *   **`car_loader` / `track_loader`:** Moddable content loading with validation (TOML cars, YAML/JSON tracks, adaptive-density Catmull-Rom centerline splines).
 *   **`replay`:** Full-rate telemetry recording to disk per racing session.
@@ -242,6 +243,13 @@ pub enum ServerMessage {
     // TCP (reliable) - maps session-scoped car indices to player identity.
     // Sent on join and whenever session membership changes.
     SessionRoster { session_id: SessionId, entries: Vec<RosterEntry> },
+
+    // TCP (reliable) - the racing line for the joining player's car, sent
+    // once right after SessionJoined (racing_line.rs). A closed loop of
+    // points every spacing_m, as parallel x/y/z arrays, each with a phase:
+    // 0 full throttle, 1 partial (grip limit or lift), 2 braking.
+    RacingLine { session_id: SessionId, spacing_m: f32, x: Vec<f32>,
+                 y: Vec<f32>, z: Vec<f32>, phase: Vec<u8> },
 
     // UDP (TCP fallback for clients without a UDP binding) - high frequency
     // telemetry, positional encoding (rmp_serde::to_vec). Cars are

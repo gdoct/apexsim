@@ -57,11 +57,19 @@ torque_nm = 425.0
 
 [transmission]
 transmission_type = "Sequential"
-gear_ratios = [-3.10, 3.05, 2.45, 2.05, 1.72, 1.48, 1.28, 1.10, 0.96]
 final_drive_ratio = 3.15
 
 shift_time_s = 0.06
 efficiency = 0.96
+
+# 8 forward gears. First runs to 120 km/h and eighth to 329 at the 15 000 rpm
+# limiter, just past what the car can drag its way to (~315), so top gear is
+# pulled almost to the limiter on a long straight.
+[transmission.ratio_curve]
+gears = 8
+first = 4.94
+top = 1.80
+shape = "progressive"
 
 [drivetrain]
 layout = "RWD"

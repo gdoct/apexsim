@@ -23,10 +23,18 @@
 #include "Race/ApexCockpitRig.h"
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
+#include "Race/ApexRacingLineActor.h"
 
 AApexRaceDirector::AApexRaceDirector()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	// The cockpit camera is placed from the followed car's transform, so this
+	// has to tick after the car has moved for the frame. Cars tick in the
+	// default group; without this (and the per-car prerequisite set in
+	// UpdateCameraTarget) the order varied frame to frame, and the wheel and
+	// mirrors — attached to the car, centimetres from the eye — jumped a
+	// frame's worth of travel forward and back against the camera.
+	PrimaryActorTick.TickGroup = TG_PostPhysics;
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
@@ -105,6 +113,7 @@ void AApexRaceDirector::BeginPlay()
 		Net->OnTelemetry.AddDynamic(this, &AApexRaceDirector::HandleTelemetry);
 		Net->OnSessionLeft.AddDynamic(this, &AApexRaceDirector::HandleSessionLeft);
 		Net->OnLobbyStateUpdated.AddDynamic(this, &AApexRaceDirector::HandleLobbyStateUpdated);
+		Net->OnRacingLineUpdated.AddDynamic(this, &AApexRaceDirector::HandleRacingLineUpdated);
 	}
 }
 
@@ -116,6 +125,7 @@ void AApexRaceDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Net->OnTelemetry.RemoveDynamic(this, &AApexRaceDirector::HandleTelemetry);
 		Net->OnSessionLeft.RemoveDynamic(this, &AApexRaceDirector::HandleSessionLeft);
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &AApexRaceDirector::HandleLobbyStateUpdated);
+		Net->OnRacingLineUpdated.RemoveDynamic(this, &AApexRaceDirector::HandleRacingLineUpdated);
 	}
 	DestroyAllCars();
 	Super::EndPlay(EndPlayReason);
@@ -141,6 +151,76 @@ void AApexRaceDirector::HandleLobbyStateUpdated(const FApexLobbyState& LobbyStat
 	{
 		LoadTrackLevel();
 	}
+}
+
+void AApexRaceDirector::HandleRacingLineUpdated(const FApexRacingLineData& Line)
+{
+	// Normally the line lands between SessionJoined and the race view, and
+	// BeginRaceView picks it up from the cache; this is for one that arrives
+	// (or is withdrawn) mid-race.
+	if (RacingLine)
+	{
+		RacingLine->SetLine(Line);
+	}
+}
+
+void AApexRaceDirector::EnsureRacingLine()
+{
+	UWorld* World = GetWorld();
+	if (RacingLine || !World)
+	{
+		return;
+	}
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	RacingLine = World->SpawnActor<AApexRacingLineActor>(
+		AApexRacingLineActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, Params);
+	if (RacingLine)
+	{
+		if (const UApexNetSubsystem* Net = GetNet())
+		{
+			RacingLine->SetLine(Net->GetRacingLine());
+		}
+		ApplyRacingLineSetting();
+	}
+}
+
+void AApexRaceDirector::DestroyRacingLine()
+{
+	if (RacingLine)
+	{
+		RacingLine->Destroy();
+		RacingLine = nullptr;
+	}
+}
+
+void AApexRaceDirector::SnapRacingLineToTrack()
+{
+	// Like the start lights: the level's actors, and their collision, only
+	// exist once it is visible, not merely loaded.
+	if (RacingLine && RacingLine->HasLine() && !RacingLine->IsOnGround() && IsTrackLevelLoaded()
+		&& TrackLevel->IsLevelVisible())
+	{
+		RacingLine->SnapToGround(TrackLevel->GetLoadedLevel());
+	}
+}
+
+void AApexRaceDirector::ApplyRacingLineSetting()
+{
+	if (!RacingLine)
+	{
+		return;
+	}
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	EApexRacingLine Mode = Values ? Values->RacingLine : EApexRacingLine::Off;
+	FString Requested;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexRacingLine="), Requested))
+	{
+		Mode = Requested.Equals(TEXT("full"), ESearchCase::IgnoreCase)       ? EApexRacingLine::Full
+			: Requested.Equals(TEXT("braking"), ESearchCase::IgnoreCase) ? EApexRacingLine::BrakingOnly
+			                                                                  : EApexRacingLine::Off;
+	}
+	RacingLine->SetMode(Mode);
 }
 
 AApexRaceCarActor* AApexRaceDirector::FindCar(int32 CarIndex) const
@@ -357,8 +437,14 @@ void AApexRaceDirector::UpdateCameraTarget()
 		if (FollowedCar)
 		{
 			FollowedCar->SetMeshVisible(true);
+			RemoveTickPrerequisiteActor(FollowedCar);
 		}
 		FollowedCar = Target;
+		if (FollowedCar)
+		{
+			// Same frame, after the car: see the tick group note in the constructor.
+			AddTickPrerequisiteActor(FollowedCar);
+		}
 		// A new car is a new frame of reference for the inertia estimate.
 		bHavePrevMotion = false;
 		HeadOffset = FVector::ZeroVector;
@@ -399,6 +485,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 		SetActorRotation(FRotator(0.0f, FollowedCar->GetActorRotation().Yaw, 0.0f));
 	}
 
+	SnapRacingLineToTrack();
 	UpdateCameraFeel(DeltaSeconds);
 	UpdateHeadMotion(DeltaSeconds);
 	UpdateLook(DeltaSeconds);
@@ -416,12 +503,16 @@ void AApexRaceDirector::UpdateHeadMotion(float DeltaSeconds)
 		return;
 	}
 
-	const float Speed = FollowedCar->GetSpeedMps();
+	// Both from the actor's eased transform rather than the wire: telemetry
+	// speed steps at the broadcast rate, and a rate taken from a step is a
+	// spike on the frame it lands and nothing on the frames between.
+	const FVector Location = FollowedCar->GetActorLocation();
 	const float Yaw = FollowedCar->GetActorRotation().Yaw;
+	const float Speed = bHavePrevMotion
+		? static_cast<float>(FVector::Dist(Location, PrevLocation) / ApexRace::MetresToCentimetres) / DeltaSeconds
+		: FollowedCar->GetSpeedMps();
 	if (bHavePrevMotion)
 	{
-		// Both inputs step at the broadcast rate, so the raw rates are spiky;
-		// the eases below are what turn them into a lean rather than a twitch.
 		const float RawLongG = (Speed - PrevSpeedMps) / DeltaSeconds / 9.81f;
 		const float YawRate = FMath::DegreesToRadians(FRotator::NormalizeAxis(Yaw - PrevYawDeg)) / DeltaSeconds;
 		// Unreal yaw grows clockwise from above, so a positive rate is a
@@ -430,6 +521,7 @@ void AApexRaceDirector::UpdateHeadMotion(float DeltaSeconds)
 		LongitudinalG = FMath::FInterpTo(LongitudinalG, FMath::Clamp(RawLongG, -4.0f, 4.0f), DeltaSeconds, 5.0f);
 		LateralG = FMath::FInterpTo(LateralG, FMath::Clamp(RawLatG, -4.0f, 4.0f), DeltaSeconds, 5.0f);
 	}
+	PrevLocation = Location;
 	PrevSpeedMps = Speed;
 	PrevYawDeg = Yaw;
 	bHavePrevMotion = true;
@@ -796,6 +888,7 @@ void AApexRaceDirector::BeginRaceView()
 	}
 	UpdateCameraTarget();
 	EnsureRig();
+	EnsureRacingLine();
 	UpdateCockpitCamera();
 	// The cameras only exist while racing, so the saved camera block has had
 	// nowhere to land until now. This also applies the camera mode.
@@ -827,6 +920,7 @@ void AApexRaceDirector::EndRaceView()
 	}
 	FollowedCar = nullptr;
 	DestroyRig();
+	DestroyRacingLine();
 	DestroyAllCars();
 	UnloadTrackLevel();
 	RestoreMenuEnvironment();

@@ -208,6 +208,10 @@ pub enum ServerMessage {
     // player identity. Sent on join and whenever session membership changes.
     SessionRoster(SessionRosterData),
 
+    // TCP - The racing line for the joining player's car, for the client's
+    // racing-line overlay. Sent once, right after `SessionJoined`.
+    RacingLine(RacingLineData),
+
     // Full (named-encoding) telemetry. Used internally for replays; the wire
     // uses `TelemetryCompact` since protocol v2.
     Telemetry(Telemetry),
@@ -229,6 +233,7 @@ impl ServerMessage {
             ServerMessage::SessionLeft => MessagePriority::Critical,
             ServerMessage::GameModeChanged { .. } => MessagePriority::Critical,
             ServerMessage::SessionRoster(_) => MessagePriority::Critical,
+            ServerMessage::RacingLine(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -482,6 +487,47 @@ pub struct SessionRosterData {
     pub entries: Vec<RosterEntry>,
 }
 
+// --- Racing line (driving aid) ---
+
+/// A closed loop of evenly spaced points along the line a car should take,
+/// each tagged with what the driver does there. Parallel arrays rather than
+/// a list of point structs: a few thousand points, and a map per point would
+/// triple the size of the message.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RacingLineData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub session_id: SessionId,
+    /// Distance between consecutive points, metres.
+    pub spacing_m: f32,
+    /// Server-frame positions, metres. The last point joins back to the first.
+    pub x: Vec<f32>,
+    pub y: Vec<f32>,
+    pub z: Vec<f32>,
+    /// Per point: 0 full throttle, 1 partial throttle (at the grip limit or
+    /// lifting), 2 braking.
+    pub phase: Vec<u8>,
+}
+
+impl RacingLineData {
+    pub fn from_profile(
+        session_id: SessionId,
+        profile: &crate::racing_line::RacingLineProfile,
+    ) -> Self {
+        Self {
+            session_id,
+            spacing_m: profile.spacing_m,
+            x: profile.points.iter().map(|p| p[0]).collect(),
+            y: profile.points.iter().map(|p| p[1]).collect(),
+            z: profile.points.iter().map(|p| p[2]).collect(),
+            phase: profile.phases.iter().map(|p| p.as_u8()).collect(),
+        }
+    }
+}
+
 impl From<&CarState> for CarStateTelemetry {
     fn from(state: &CarState) -> Self {
         Self {
@@ -687,6 +733,35 @@ mod tests {
             }
             _ => panic!("Wrong message type"),
         }
+    }
+
+    /// The exact bytes of a small `RacingLine`, pinned because the Unreal
+    /// client parses them by hand: the same array is its golden blob
+    /// `ApexGolden::S_RacingLine` (ProtocolCodecTests.cpp). Change both
+    /// together.
+    #[test]
+    fn test_racing_line_wire_format() {
+        const GOLDEN: [u8; 133] = [
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAA, 0x52, 0x61, 0x63, 0x69, 0x6E, 0x67, 0x4C,
+            0x69, 0x6E, 0x65, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x86, 0xA9, 0x53, 0x65, 0x73, 0x73,
+            0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
+            0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66, 0x2D, 0x30, 0x31,
+            0x32, 0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65,
+            0x66, 0xA8, 0x53, 0x70, 0x61, 0x63, 0x69, 0x6E, 0x67, 0x4D, 0xCA, 0x40, 0x20, 0x00,
+            0x00, 0xA1, 0x58, 0x92, 0xCA, 0x3F, 0xC0, 0x00, 0x00, 0xCA, 0xC0, 0x00, 0x00, 0x00,
+            0xA1, 0x59, 0x92, 0xCA, 0x3E, 0x80, 0x00, 0x00, 0xCA, 0x40, 0x40, 0x00, 0x00, 0xA1,
+            0x5A, 0x92, 0xCA, 0x00, 0x00, 0x00, 0x00, 0xCA, 0x3F, 0x80, 0x00, 0x00, 0xA5, 0x50,
+            0x68, 0x61, 0x73, 0x65, 0x92, 0x00, 0x02,
+        ];
+        let msg = ServerMessage::RacingLine(RacingLineData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            spacing_m: 2.5,
+            x: vec![1.5, -2.0],
+            y: vec![0.25, 3.0],
+            z: vec![0.0, 1.0],
+            phase: vec![0, 2],
+        });
+        assert_eq!(rmp_serde::to_vec_named(&msg).unwrap(), GOLDEN);
     }
 
     #[test]

@@ -217,6 +217,13 @@ void UApexSettingsSubsystem::ApplyGameplay()
 	{
 		CVar->Set(Settings->HudDetail == EApexHudDetail::All ? 1 : 0, ECVF_SetByGameSetting);
 	}
+
+	// The racing line only exists while racing; the director reads the
+	// setting again when the next race starts.
+	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+	{
+		Director->ApplyRacingLineSetting();
+	}
 }
 
 // --- Graphics ---------------------------------------------------------------

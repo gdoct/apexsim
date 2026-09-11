@@ -288,6 +288,16 @@ bool UApexNetSubsystem::FindTrackById(const FString& TrackId, FApexTrackConfigSu
 	return false;
 }
 
+void UApexNetSubsystem::ClearRacingLine()
+{
+	if (CachedRacingLine.Points.Num() == 0)
+	{
+		return;
+	}
+	CachedRacingLine = FApexRacingLineData();
+	OnRacingLineUpdated.Broadcast(CachedRacingLine);
+}
+
 bool UApexNetSubsystem::FindSessionById(const FString& SessionId, FApexSessionSummary& OutSession) const
 {
 	for (const FApexSessionSummary& Session : CachedLobbyState.AvailableSessions)
@@ -493,6 +503,9 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::SessionJoined:
+		// The new session's line follows this message; the old one is for a
+		// different track or car.
+		ClearRacingLine();
 		CurrentSessionId = Message.SessionId;
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d"),
 			*CurrentSessionId, Message.GridPosition);
@@ -508,6 +521,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 	case EApexServerMessageType::SessionLeft:
 		CurrentSessionId.Reset();
 		CachedRoster = FApexSessionRoster();
+		ClearRacingLine();
 		// Telemetry stops when the session ends, so nothing would ever drive
 		// this back to Lobby otherwise.
 		if (CurrentSessionState != EApexSessionState::Lobby)
@@ -547,6 +561,13 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionRoster %d car(s) for session %s"),
 			CachedRoster.Entries.Num(), *CachedRoster.SessionId);
 		OnSessionRosterUpdated.Broadcast(CachedRoster);
+		break;
+
+	case EApexServerMessageType::RacingLine:
+		CachedRacingLine = Message.RacingLine;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- RacingLine %d point(s) every %.2f m for session %s"),
+			CachedRacingLine.Points.Num(), CachedRacingLine.SpacingM, *CachedRacingLine.SessionId);
+		OnRacingLineUpdated.Broadcast(CachedRacingLine);
 		break;
 
 	default:

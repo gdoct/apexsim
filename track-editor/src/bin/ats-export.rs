@@ -1,6 +1,6 @@
 //! Batch-bake tracks into the `.uescene.json` the Unreal `ApexTrackImport`
-//! commandlet consumes, plus the `.ground.msgpack` heightfield the server
-//! reads from beside each YAML.
+//! commandlet consumes, plus the `.ground.msgpack` heightfield and
+//! `.curbs.msgpack` track limits the server reads from beside each YAML.
 //!
 //! ```text
 //! ats-export --all                          # every track under content/tracks/real
@@ -75,12 +75,15 @@ fn main() -> ExitCode {
                     exported.scene_path.display(),
                     size_kb(&exported.scene_path)
                 );
-                if let Some(ground) = &exported.ground_path {
+                for sidecar in [&exported.ground_path, &exported.curb_path]
+                    .into_iter()
+                    .flatten()
+                {
                     println!(
                         "{} -> {} ({} KB)",
                         track.display(),
-                        ground.display(),
-                        size_kb(ground)
+                        sidecar.display(),
+                        size_kb(sidecar)
                     );
                 }
             }
@@ -109,5 +112,6 @@ usage: ats-export [--all] [--out DIR] [TRACK.yaml ...]
 
   --all, -a      export every *.yaml under content/tracks/real
   --out, -o DIR  destination for the .uescene.json (default: content/tracks/export);
-                 the .ground.msgpack sidecar always lands beside the YAML
+                 the .ground.msgpack and .curbs.msgpack sidecars always land
+                 beside the YAML
 ";

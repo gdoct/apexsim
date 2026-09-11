@@ -8,6 +8,7 @@
 
 class AApexCockpitRig;
 class AApexRaceCarActor;
+class AApexRacingLineActor;
 class ADirectionalLight;
 class ASkyLight;
 class UApexMenuFlowSubsystem;
@@ -78,6 +79,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
 	void ApplyCameraSettings();
 
+	/**
+	 * Show or hide the racing line as the Gameplay settings ask. Called by the
+	 * settings subsystem on every change and by BeginRaceView;
+	 * `-ApexRacingLine=off|braking|full` overrides it for a screenshot run.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
+	void ApplyRacingLineSetting();
+
 	/** The rear view the HUD's virtual mirror shows, or null while it is off. */
 	UTextureRenderTarget2D* GetVirtualMirrorTexture() const;
 
@@ -134,6 +143,15 @@ private:
 
 	UFUNCTION()
 	void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
+
+	UFUNCTION()
+	void HandleRacingLineUpdated(const FApexRacingLineData& Line);
+
+	/** Spawn the racing line for this race with whatever line has arrived, or tear it down. */
+	void EnsureRacingLine();
+	void DestroyRacingLine();
+	/** Drop the dots onto the road once the track level's geometry is in the world. */
+	void SnapRacingLineToTrack();
 
 	/** Creates or destroys car actors so they match the roster. */
 	void SyncCarsToRoster(const FApexSessionRoster& Roster);
@@ -265,6 +283,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AApexCockpitRig> Rig;
 
+	/** The dotted line on the road. Exists only while racing, hidden when the setting is off. */
+	UPROPERTY(Transient)
+	TObjectPtr<AApexRacingLineActor> RacingLine;
+
 	bool bRaceViewActive = false;
 	/** The settings pick the view a race opens in; C swaps at any time. */
 	bool bCockpitView = true;
@@ -277,6 +299,7 @@ private:
 	FVector HeadOffset = FVector::ZeroVector;
 	float LateralG = 0.0f;
 	float LongitudinalG = 0.0f;
+	FVector PrevLocation = FVector::ZeroVector;
 	float PrevSpeedMps = 0.0f;
 	float PrevYawDeg = 0.0f;
 	bool bHavePrevMotion = false;
