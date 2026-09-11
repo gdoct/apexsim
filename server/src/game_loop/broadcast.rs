@@ -70,12 +70,22 @@ pub(crate) async fn broadcast_telemetry(
 
         let mut sent_players = 0usize;
         let mut sent_spectators = 0usize;
-        for player_id in players {
-            if send_telemetry_to(&transport_read, player_id, &entry.data).await {
+        for player_id in &players {
+            if send_telemetry_to(&transport_read, *player_id, &entry.data).await {
                 ctx.metrics
                     .telemetry_messages_sent
                     .fetch_add(1, Ordering::Relaxed);
                 sent_players += 1;
+            }
+        }
+        // Each driver's own force feedback, over UDP only: there is no TCP
+        // fallback, because a force that arrives late is worse than none.
+        for (player_id, data) in &entry.driver_feedback {
+            if !players.contains(player_id) {
+                continue;
+            }
+            if let Some((_, Some(addr))) = transport_read.get_player_route(*player_id).await {
+                let _ = transport_read.send_udp_serialized(addr, data.clone());
             }
         }
         for player_id in spectators {

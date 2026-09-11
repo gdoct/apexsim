@@ -298,6 +298,37 @@ about two semitones across a six-speed) so a shift is audible in the instant
 before the revs fall. `ApexSim.Audio.*` automation tests cover the monotonic
 sweep, the per-gear trim, and that pitch still rises past a stale maximum.
 
+### Force feedback (`server/src/feedback.rs`, `Input/ApexForceFeedback.h`)
+
+The server works out what the driver should feel, because only it has the
+tyre forces. Every tick `update_car_3d` records a `FeedbackTick` into
+`CarState::feedback`: the steering-column torque (each front tyre's `-Fy`
+times a pneumatic trail that shrinks to zero at twice the peak slip angle,
+plus a fixed caster share, so the wheel goes light as the fronts let go;
+1.0 = the front axle at its static grip limit, positive turns the wheel
+left), slip per wheel as a multiple of the tyre's peak, the surface under
+each wheel (road/curb/off, from the same `contact_surface` that sets the
+track limits), suspension speed, ABS/TC activity, and contact closing speed.
+On each telemetry tick the game loop drains it into a `DriverFeedback` for
+the car's human driver: positional encoding, UDP only (no TCP fallback: a late
+force is worse than none), every torque sample kept and the transients
+peak-held. Golden bytes live in `network.rs` and `ApexUdpGolden::S_DriverFeedback`.
+
+On the client `UApexNetSubsystem` merges everything that arrived since its
+last tick (`FApexDriverFeedback::Absorb`), `ApexFfb::MakeSignals` turns it
+into device-agnostic signals, and `ApexFfb::MixGamepad` into two motors:
+front slide on the light motor, rear slide on the heavy one, curb ribs at a
+speed-set rate, ABS/TC pulse trains, grass noise, and decaying thumps for
+bumps, contact and shifts. `AApexPlayerController::UpdateForceFeedback` adds
+it to the pad while driving input is enabled (not in menus or behind pause).
+It assumes XInput's channel layout; the GameInput plugin would put the Small
+channels on the trigger motors. Strength is the Controls tab's "Force
+feedback" slider (`UApexSettingsSave::Vibration`, 0.5 = as designed), which
+pulses the pad while dragged. `apexsim.ffb.Debug 1` prints signals and motor
+levels on screen. A racing wheel would be a second mixer over the same
+signals, with `SteerTorque` as its constant force; it needs a device layer
+that reads wheel axes first.
+
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)
 - `tracks/` - Track definitions (YAML/JSON) + procedural terrain caches (`.terrain.msgpack`)

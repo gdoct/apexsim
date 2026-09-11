@@ -117,9 +117,18 @@ public:
 	UPROPERTY()
 	bool bAbs = true;
 
-	/** Automatic shifting is done on the client, from the followed car's RPM. */
+	/** Automatic shifting, done by the server from the car's torque curve (SetDriverAids). */
 	UPROPERTY()
 	bool bAutoGearbox = true;
+
+	/**
+	 * Speed-sensitive steering, done by the server (SetDriverAids): full input
+	 * asks for the tightest turn the car can hold at its speed, so the lock
+	 * shrinks as speed rises. On by default: on a pad, the rack's full lock at
+	 * racing speed is a spin a few millimetres of stick away.
+	 */
+	UPROPERTY()
+	bool bSteeringAssist = true;
 
 	/** The dotted line on the road: green flat out, amber at the limit, red braking. */
 	UPROPERTY()
@@ -235,7 +244,10 @@ public:
 	UPROPERTY()
 	float Deadzone = 0.08f;
 
-	/** 0..1. Stored and reported; nothing consumes it until force feedback lands. */
+	/**
+	 * 0..1, force-feedback strength (ApexFfb::GainFromStrength): 0.5 plays the
+	 * effects as designed, 0 is off. Read every frame, so a change is live.
+	 */
 	UPROPERTY()
 	float Vibration = 0.45f;
 

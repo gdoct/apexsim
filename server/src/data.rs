@@ -707,6 +707,13 @@ pub struct CarState {
     /// Ticks until the automatic box may shift again.
     #[serde(default)]
     pub auto_shift_hold_ticks: u16,
+    /// Speed-sensitive steering, set by `ClientMessage::SetDriverAids`: full
+    /// steering input asks for the tightest turn the car can hold at its
+    /// speed rather than the rack's full lock (`physics::assisted_steering`).
+    /// Server-side because it needs the car's grip, downforce and wheelbase.
+    /// Never set for AI drivers.
+    #[serde(default)]
+    pub steering_assist: bool,
 
     // 3D Position
     pub pos_x: f32,
@@ -804,6 +811,11 @@ pub struct CarState {
     pub downforce_front_n: f32,
     pub downforce_rear_n: f32,
     pub drag_force_n: f32,
+
+    /// What the driver should feel, collected each tick for the next
+    /// `DriverFeedback` message. Output only: nothing in the sim reads it.
+    #[serde(skip)]
+    pub feedback: crate::feedback::FeedbackAccumulator,
 }
 
 impl CarState {
@@ -814,6 +826,7 @@ impl CarState {
             grid_position: grid_slot.position,
             auto_gearbox: false,
             auto_shift_hold_ticks: 0,
+            steering_assist: false,
 
             // 3D Position
             pos_x: grid_slot.x,
@@ -897,6 +910,8 @@ impl CarState {
             downforce_front_n: 0.0,
             downforce_rear_n: 0.0,
             drag_force_n: 0.0,
+
+            feedback: Default::default(),
         }
     }
 }

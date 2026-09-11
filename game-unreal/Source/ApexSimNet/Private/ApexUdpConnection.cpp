@@ -54,6 +54,11 @@ bool FApexUdpConnection::PopTelemetry(FApexTelemetryFrame& OutFrame)
 	return TelemetryQueue.Dequeue(OutFrame);
 }
 
+bool FApexUdpConnection::PopDriverFeedback(FApexDriverFeedback& OutFeedback)
+{
+	return DriverFeedbackQueue.Dequeue(OutFeedback);
+}
+
 bool FApexUdpConnection::Init()
 {
 	return true;
@@ -190,6 +195,10 @@ void FApexUdpConnection::ReceiveAvailable()
 			}
 			LastServerTick.Set(static_cast<int32>(Message.Telemetry.ServerTick));
 			TelemetryQueue.Enqueue(MoveTemp(Message.Telemetry));
+			break;
+
+		case EApexServerMessageType::DriverFeedback:
+			DriverFeedbackQueue.Enqueue(MoveTemp(Message.DriverFeedback));
 			break;
 
 		default:

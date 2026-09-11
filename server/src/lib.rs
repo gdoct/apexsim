@@ -3,6 +3,7 @@ pub mod car_loader;
 pub mod config;
 pub mod curbs;
 pub mod data;
+pub mod feedback;
 pub mod game_loop;
 pub mod game_session;
 pub mod ground;

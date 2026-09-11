@@ -39,7 +39,7 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeDisconnect();
 	APEXSIMNET_API TArray<uint8> EncodeSetGameMode(EApexGameMode Mode);
 	APEXSIMNET_API TArray<uint8> EncodeStartCountdown(uint16 CountdownSeconds, EApexGameMode NextMode);
-	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(bool bAutoGearbox);
+	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(bool bAutoGearbox, bool bSteeringAssist);
 
 	// --- Client -> server over UDP -------------------------------------------
 	// Sent as bare datagrams: no length prefix, unlike the TCP stream. The
@@ -65,9 +65,10 @@ namespace ApexProtocol
 	 * Decodes one UDP datagram.
 	 *
 	 * UDP carries two different encodings: `UdpHandshakeAck` arrives named (a
-	 * `{"type": ...}` map, same as TCP) while `TelemetryCompact` arrives
-	 * positional (a `["TelemetryCompact", [...]]` array). This dispatches on the
-	 * leading format byte and hands off to the right decoder.
+	 * `{"type": ...}` map, same as TCP) while `TelemetryCompact` and
+	 * `DriverFeedback` arrive positional (a `["TelemetryCompact", [...]]`
+	 * array). This dispatches on the leading format byte and hands off to the
+	 * right decoder.
 	 */
 	APEXSIMNET_API bool DecodeUdpMessage(
 		TArrayView<const uint8> Payload,

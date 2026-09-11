@@ -795,7 +795,7 @@ void UApexRootWidget::SendDriverAids()
 	{
 		return;
 	}
-	Net->SetDriverAids(Settings->Get()->bAutoGearbox);
+	Net->SetDriverAids(Settings->Get()->bAutoGearbox, Settings->Get()->bSteeringAssist);
 }
 
 void UApexRootWidget::HandleSettingsChangedForDriverAids(EApexSettingsGroup Group)

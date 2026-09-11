@@ -50,69 +50,104 @@ fn shipped_cars() -> Vec<CarConfig> {
     cars
 }
 
-#[test]
-fn shipped_cars_settle_after_a_steering_step_at_speed() {
+/// The speed each car is tested at: fast, but short of its top speed.
+fn test_speed(config: &CarConfig) -> f32 {
+    (0.85 * drag_limited_speed_mps(config)).min(80.0)
+}
+
+/// Hold `steering` for `hold_s` at `speed` (throttle keeping the speed up),
+/// centre the wheel, and let the car run until 3 s have passed. `Err` says
+/// how it failed to settle.
+fn steering_step(
+    config: &CarConfig,
+    speed: f32,
+    steering: f32,
+    hold_s: f32,
+    steering_assist: bool,
+) -> Result<(), String> {
     let track = skidpad();
-    let mut failures = Vec::new();
-    for config in shipped_cars() {
-        let speed = (0.85 * drag_limited_speed_mps(&config)).min(80.0);
-        // A step asking for most of the grip the car has at this speed,
-        // downforce included, in steady state (neutral-steer estimate: yaw
-        // rate v*delta/L, lateral accel v*r).
-        let lift = config.lift_coefficient_front + config.lift_coefficient_rear;
-        let downforce_accel =
-            0.5 * AIR_DENSITY * config.frontal_area_m2 * (-lift).max(0.0) * speed * speed
-                / config.mass_kg;
-        let demand =
-            GRIP_DEMAND * config.tire_config.grip_coefficient * (GRAVITY + downforce_accel);
-        let wheel_angle = demand * config.wheelbase_m / (speed * speed);
-        let steering = wheel_angle / config.max_steering_angle_rad;
+    let slot = GridSlot {
+        position: 1,
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+        yaw_rad: 0.0,
+    };
+    let mut state = CarState::new(uuid::Uuid::new_v4(), config.id, &slot);
+    state.vel_x = speed;
+    state.speed_mps = speed;
+    state.gear = 5;
+    state.auto_gearbox = true;
+    state.steering_assist = steering_assist;
 
-        let slot = GridSlot {
-            position: 1,
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            yaw_rad: 0.0,
+    let hold_ticks = (hold_s / DT) as u32;
+    let mut peak_in_step: f32 = 0.0;
+    let mut peak_after: f32 = 0.0;
+    for tick in 0..(240 * 3) {
+        let held = tick < hold_ticks;
+        let input = PlayerInputData {
+            throttle: ((speed - state.speed_mps) * 0.5 + 0.3).clamp(0.0, 1.0),
+            steering: if held { steering } else { 0.0 },
+            ..Default::default()
         };
-        let mut state = CarState::new(uuid::Uuid::new_v4(), config.id, &slot);
-        state.vel_x = speed;
-        state.speed_mps = speed;
-        state.gear = 5;
-        state.auto_gearbox = true;
-
-        let mut peak_in_step: f32 = 0.0;
-        let mut peak_after: f32 = 0.0;
-        for tick in 0..(240 * 3) {
-            let held = tick < 240;
-            let input = PlayerInputData {
-                throttle: ((speed - state.speed_mps) * 0.5 + 0.3).clamp(0.0, 1.0),
-                steering: if held { steering } else { 0.0 },
-                ..Default::default()
-            };
-            update_car_3d(&mut state, &config, &input, &track, DT);
-            let rate = state.angular_vel_yaw.abs();
-            if held {
-                peak_in_step = peak_in_step.max(rate);
-            } else {
-                peak_after = peak_after.max(rate);
-            }
-        }
-
-        let v_lat = -state.vel_x * state.yaw_rad.sin() + state.vel_y * state.yaw_rad.cos();
-        if peak_after > peak_in_step * 1.05 {
-            failures.push(format!(
-                "{} kept rotating after the wheel was centred at {speed:.0} m/s: \
-                 {peak_after:.2} rad/s vs {peak_in_step:.2} while steering",
-                config.name
-            ));
-        } else if state.angular_vel_yaw.abs() > 0.02 || v_lat.abs() > 0.5 {
-            failures.push(format!(
-                "{} did not settle 2 s after a steering step at {speed:.0} m/s: \
-                 yaw rate {:.3} rad/s, sliding {v_lat:.2} m/s",
-                config.name, state.angular_vel_yaw
-            ));
+        update_car_3d(&mut state, config, &input, &track, DT);
+        let rate = state.angular_vel_yaw.abs();
+        if held {
+            peak_in_step = peak_in_step.max(rate);
+        } else {
+            peak_after = peak_after.max(rate);
         }
     }
+
+    let v_lat = -state.vel_x * state.yaw_rad.sin() + state.vel_y * state.yaw_rad.cos();
+    if peak_after > peak_in_step * 1.05 {
+        Err(format!(
+            "{} kept rotating after the wheel was centred at {speed:.0} m/s: \
+             {peak_after:.2} rad/s vs {peak_in_step:.2} while steering",
+            config.name
+        ))
+    } else if state.angular_vel_yaw.abs() > 0.02 || v_lat.abs() > 0.5 {
+        Err(format!(
+            "{} did not settle after a steering step at {speed:.0} m/s: \
+             yaw rate {:.3} rad/s, sliding {v_lat:.2} m/s",
+            config.name, state.angular_vel_yaw
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+#[test]
+fn shipped_cars_settle_after_a_steering_step_at_speed() {
+    let failures: Vec<String> = shipped_cars()
+        .iter()
+        .filter_map(|config| {
+            let speed = test_speed(config);
+            // A step asking for most of the grip the car has at this speed,
+            // downforce included, in steady state (neutral-steer estimate:
+            // yaw rate v*delta/L, lateral accel v*r).
+            let lift = config.lift_coefficient_front + config.lift_coefficient_rear;
+            let downforce_accel =
+                0.5 * AIR_DENSITY * config.frontal_area_m2 * (-lift).max(0.0) * speed * speed
+                    / config.mass_kg;
+            let demand =
+                GRIP_DEMAND * config.tire_config.grip_coefficient * (GRAVITY + downforce_accel);
+            let wheel_angle = demand * config.wheelbase_m / (speed * speed);
+            let steering = wheel_angle / config.max_steering_angle_rad;
+            steering_step(config, speed, steering, 1.0, false).err()
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn shipped_cars_survive_a_full_lock_flick_with_the_steering_aid() {
+    // A pad stick slammed to the stop at speed. The aid turns it into the
+    // most lock the front tyres can use, so the car turns in hard and has to
+    // come back once the stick is let go, not spin.
+    let failures: Vec<String> = shipped_cars()
+        .iter()
+        .filter_map(|config| steering_step(config, test_speed(config), 1.0, 0.5, true).err())
+        .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

@@ -101,6 +101,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeStartCountdown(10, EApexGameMode::Race),
 		ApexGolden::C_StartCountdown);
 
+	CheckBytes(TEXT("SetDriverAids"),
+		ApexProtocol::EncodeSetDriverAids(true, true),
+		ApexGolden::C_SetDriverAids);
+
 	return true;
 }
 

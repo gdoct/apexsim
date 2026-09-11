@@ -64,6 +64,9 @@ public:
 	void SetAutoGearbox(bool bAuto);
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetSteeringAssist(bool bAssist);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetRacingLine(EApexRacingLine Line);
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")

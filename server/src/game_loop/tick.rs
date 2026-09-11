@@ -22,6 +22,9 @@ pub(crate) struct SessionTelemetry {
     pub player_recipients: Vec<PlayerId>,
     pub participant_count: usize,
     pub session_state: SessionState,
+    /// Each human driver's own `DriverFeedback`, pre-encoded (positional).
+    /// Unlike telemetry these go to one recipient each.
+    pub driver_feedback: Vec<(PlayerId, Bytes)>,
 }
 
 /// A `SessionRoster` message to deliver reliably over TCP.
@@ -187,6 +190,28 @@ pub(crate) async fn tick_sessions(
         // Telemetry: the broadcast payload uses the compact positional
         // encoding and is only produced on divisor ticks; the replay frame
         // (full telemetry) is captured every racing tick.
+        // Driver feedback is drained on every telemetry tick, broadcasting
+        // or not, so a message never carries more than one interval (a car
+        // that drove while nothing was sent would otherwise open with stale
+        // samples).
+        let mut driver_feedback = Vec::new();
+        if telemetry_tick {
+            let server_tick = game_session.session.current_tick;
+            for player_id in &player_recipients {
+                let Some(car) = game_session.session.participants.get_mut(player_id) else {
+                    continue;
+                };
+                let feedback = car.feedback.take(server_tick);
+                if !should_broadcast {
+                    continue;
+                }
+                match rmp_serde::to_vec(&ServerMessage::DriverFeedback(feedback)) {
+                    Ok(data) => driver_feedback.push((*player_id, Bytes::from(data))),
+                    Err(e) => error!("Failed to serialize driver feedback: {}", e),
+                }
+            }
+        }
+
         if should_broadcast && telemetry_tick {
             let compact = game_session.get_compact_telemetry();
             match rmp_serde::to_vec(&ServerMessage::TelemetryCompact(compact)) {
@@ -197,6 +222,7 @@ pub(crate) async fn tick_sessions(
                         player_recipients,
                         participant_count: game_session.session.participants.len(),
                         session_state: new_state,
+                        driver_feedback,
                     });
                 }
                 Err(e) => {

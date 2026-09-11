@@ -417,6 +417,94 @@ struct APEXSIMNET_API FApexTelemetryFrame
 	TArray<FApexCarTelemetry> Cars;
 };
 
+/** What is under one tyre (`feedback::ContactSurface`). Ordered by roughness. */
+enum class EApexContactSurface : uint8
+{
+	Road = 0,
+	/** Within the curb band past the road edge. */
+	Curb = 1,
+	/** Past the curbs: grass, gravel, the verge. */
+	Off  = 2,
+};
+
+/** One wheel's share of FApexDriverFeedback. Transients are the peak since the previous message. */
+struct FApexWheelFeedback
+{
+	/** Longitudinal slip in multiples of the tyre's peak slip ratio, negative braking. Past ±1 the wheel is locking or spinning. */
+	float SlipRatio = 0.0f;
+
+	/** Slip angle in multiples of the tyre's peak slip angle. Past ±1 the tyre is sliding. */
+	float SlipAngle = 0.0f;
+
+	/** The roughest surface the tyre touched since the previous message. */
+	EApexContactSurface Surface = EApexContactSurface::Road;
+
+	/** Suspension compression speed, m/s (positive compressing), largest magnitude: bumps and landings. */
+	float SuspensionMps = 0.0f;
+};
+
+/**
+ * `DriverFeedback` (server/src/feedback.rs) - positional encoding, UDP only,
+ * sent to a car's own driver with every telemetry frame. It carries what the
+ * driver should feel, whatever the device: a wheel's constant force comes
+ * from SteerTorque, and a pad's rumble from the slip, surface and hits.
+ */
+struct APEXSIMNET_API FApexDriverFeedback
+{
+	static constexpr int32 FrontLeft = 0;
+	static constexpr int32 FrontRight = 1;
+	static constexpr int32 RearLeft = 2;
+	static constexpr int32 RearRight = 3;
+
+	/** Tick of the newest sample; 0 until a message arrives. */
+	int64 ServerTick = 0;
+
+	/**
+	 * Steering-column torque for every physics tick since the previous
+	 * message, oldest first (4 at the default 240 Hz sim and 60 Hz telemetry).
+	 * SERVER sign: positive turns the wheel LEFT. 1.0 is the car's reference,
+	 * the front axle at its static grip limit; downforce takes it past 1.
+	 */
+	TArray<float, TInlineAllocator<8>> SteerTorque;
+
+	/** FL, FR, RL, RR. */
+	FApexWheelFeedback Wheels[4];
+
+	/** ABS held a wheel back from locking during the interval. */
+	bool bAbsActive = false;
+
+	/** Traction control cut drive to a wheel during the interval. */
+	bool bTcActive = false;
+
+	/** Closing speed of the hardest contact with another car in the interval, m/s; 0 when none. */
+	float ImpactMps = 0.0f;
+
+	/**
+	 * Folds the next message in, as if the server had sent one message for
+	 * both intervals: samples appended, peaks kept, the roughest surface.
+	 * Used when several arrive between two game frames, so a kerb strike in
+	 * the first is not lost to the second.
+	 */
+	void Absorb(const FApexDriverFeedback& Next)
+	{
+		auto Peak = [](float Held, float New) { return FMath::Abs(New) > FMath::Abs(Held) ? New : Held; };
+		ServerTick = Next.ServerTick;
+		SteerTorque.Append(Next.SteerTorque);
+		for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+		{
+			FApexWheelFeedback& Mine = Wheels[Wheel];
+			const FApexWheelFeedback& Theirs = Next.Wheels[Wheel];
+			Mine.SlipRatio = Peak(Mine.SlipRatio, Theirs.SlipRatio);
+			Mine.SlipAngle = Peak(Mine.SlipAngle, Theirs.SlipAngle);
+			Mine.SuspensionMps = Peak(Mine.SuspensionMps, Theirs.SuspensionMps);
+			Mine.Surface = FMath::Max(Mine.Surface, Theirs.Surface);
+		}
+		bAbsActive |= Next.bAbsActive;
+		bTcActive |= Next.bTcActive;
+		ImpactMps = FMath::Max(ImpactMps, Next.ImpactMps);
+	}
+};
+
 /** The player's control inputs, sent over UDP at frame rate. */
 USTRUCT(BlueprintType)
 struct APEXSIMNET_API FApexPlayerInput
@@ -458,6 +546,7 @@ enum class EApexServerMessageType : uint8
 	RacingLine,
 	UdpHandshakeAck,
 	TelemetryCompact,
+	DriverFeedback,
 	/** Full named-encoding Telemetry — replays only; the wire uses the compact form. */
 	IgnoredVariant,
 };
@@ -479,6 +568,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexSessionRoster Roster;
 	FApexRacingLineData RacingLine;
 	FApexTelemetryFrame Telemetry;
+	FApexDriverFeedback DriverFeedback;
 
 	/** AuthFailure::reason, or Error::message. */
 	FString Reason;

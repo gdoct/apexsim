@@ -677,6 +677,98 @@ namespace
 		return true;
 	}
 
+	/** Number of fields in `DriverFeedback` (server/src/feedback.rs). */
+	constexpr int32 DriverFeedbackFieldCount = 9;
+
+	/** More steering samples than any sane tick/telemetry ratio sends; the server caps at 32. */
+	constexpr int32 MaxSteerSamples = 256;
+
+	/**
+	 * One per-wheel `[T; 4]` from `DriverFeedback`, element by element into the
+	 * wheels. Anything past four is skipped, so a server that ever sends more
+	 * wheels cannot desynchronise the fields after it.
+	 */
+	template <typename ReadFn>
+	bool ParseWheelArray(FMsgPackReader& Reader, FApexWheelFeedback (&Wheels)[4], ReadFn&& Read)
+	{
+		int32 Count = 0;
+		if (!Reader.ReadArrayHeader(Count) || Count < 4)
+		{
+			return false;
+		}
+		for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+		{
+			if (!Read(Reader, Wheels[Wheel]))
+			{
+				return false;
+			}
+		}
+		for (int32 Extra = 4; Extra < Count; ++Extra)
+		{
+			if (!Reader.SkipValue())
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool ParseDriverFeedback(FMsgPackReader& Reader, FApexDriverFeedback& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadArrayHeader(FieldCount) || FieldCount < DriverFeedbackFieldCount)
+		{
+			return false;
+		}
+
+		uint64 Raw = 0;
+		if (!Reader.ReadUInt64(Raw)) { return false; }
+		Out.ServerTick = static_cast<int64>(Raw);
+
+		int32 SampleCount = 0;
+		if (!Reader.ReadArrayHeader(SampleCount) || SampleCount > MaxSteerSamples)
+		{
+			return false;
+		}
+		Out.SteerTorque.Reset(SampleCount);
+		for (int32 i = 0; i < SampleCount; ++i)
+		{
+			float Sample = 0.0f;
+			if (!Reader.ReadFloat(Sample)) { return false; }
+			Out.SteerTorque.Add(Sample);
+		}
+
+		const bool bWheelsOk =
+			ParseWheelArray(Reader, Out.Wheels, [](FMsgPackReader& R, FApexWheelFeedback& W) { return R.ReadFloat(W.SlipRatio); })
+			&& ParseWheelArray(Reader, Out.Wheels, [](FMsgPackReader& R, FApexWheelFeedback& W) { return R.ReadFloat(W.SlipAngle); })
+			&& ParseWheelArray(Reader, Out.Wheels, [](FMsgPackReader& R, FApexWheelFeedback& W)
+				{
+					uint64 Surface = 0;
+					if (!R.ReadUInt64(Surface)) { return false; }
+					// A surface this client does not know yet is at least not road.
+					W.Surface = static_cast<EApexContactSurface>(FMath::Min<uint64>(Surface, static_cast<uint64>(EApexContactSurface::Off)));
+					return true;
+				})
+			&& ParseWheelArray(Reader, Out.Wheels, [](FMsgPackReader& R, FApexWheelFeedback& W) { return R.ReadFloat(W.SuspensionMps); });
+		if (!bWheelsOk)
+		{
+			return false;
+		}
+
+		if (!Reader.ReadBool(Out.bAbsActive)) { return false; }
+		if (!Reader.ReadBool(Out.bTcActive)) { return false; }
+		if (!Reader.ReadFloat(Out.ImpactMps)) { return false; }
+
+		for (int32 Extra = DriverFeedbackFieldCount; Extra < FieldCount; ++Extra)
+		{
+			if (!Reader.SkipValue())
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	EApexServerMessageType VariantToType(const FString& Variant)
 	{
 		if (Variant == TEXT("AuthSuccess"))        { return EApexServerMessageType::AuthSuccess; }
@@ -694,6 +786,7 @@ namespace
 		if (Variant == TEXT("RacingLine"))         { return EApexServerMessageType::RacingLine; }
 		if (Variant == TEXT("UdpHandshakeAck"))    { return EApexServerMessageType::UdpHandshakeAck; }
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
+		if (Variant == TEXT("DriverFeedback"))     { return EApexServerMessageType::DriverFeedback; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -728,8 +821,9 @@ namespace
 			return ParseRacingLine(Reader, Out.RacingLine);
 
 		case EApexServerMessageType::TelemetryCompact:
-			// Only reachable if a compact frame ever arrives named; the UDP path
-			// decodes it positionally.
+		case EApexServerMessageType::DriverFeedback:
+			// Only reachable if a positional message ever arrives named; the UDP
+			// path decodes them positionally.
 			return Reader.SkipValue();
 
 		case EApexServerMessageType::AuthFailure:
@@ -855,12 +949,14 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
-	TArray<uint8> EncodeSetDriverAids(bool bAutoGearbox)
+	TArray<uint8> EncodeSetDriverAids(bool bAutoGearbox, bool bSteeringAssist)
 	{
-		FMsgPackWriter Writer(32);
-		BeginDataVariant(Writer, "SetDriverAids", 1);
+		FMsgPackWriter Writer(64);
+		BeginDataVariant(Writer, "SetDriverAids", 2);
 		Writer.WriteString("auto_gearbox");
 		Writer.WriteBool(bAutoGearbox);
+		Writer.WriteString("steering_assist");
+		Writer.WriteBool(bSteeringAssist);
 		return MoveTemp(Writer.GetBuffer());
 	}
 
@@ -945,6 +1041,14 @@ namespace ApexProtocol
 			if (!ParseCompactTelemetry(Reader, OutMessage.Telemetry))
 			{
 				OutError = Reader.HasError() ? Reader.GetError() : TEXT("failed to parse compact telemetry");
+				return false;
+			}
+		}
+		else if (OutMessage.Type == EApexServerMessageType::DriverFeedback)
+		{
+			if (!ParseDriverFeedback(Reader, OutMessage.DriverFeedback))
+			{
+				OutError = Reader.HasError() ? Reader.GetError() : TEXT("failed to parse driver feedback");
 				return false;
 			}
 		}

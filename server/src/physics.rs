@@ -10,6 +10,7 @@
 //! - Engine and drivetrain simulation
 
 use crate::data::*;
+use crate::feedback::{ContactSurface, FeedbackTick};
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::Once;
@@ -45,6 +46,8 @@ pub struct WheelState {
     pub suspension_velocity_mps: f32,
     pub spring_force_n: f32,
     pub damper_force_n: f32,
+    /// Road, curb or off track under this tyre (driver feedback only).
+    pub surface: ContactSurface,
 }
 
 /// Complete intermediate physics state for a vehicle
@@ -290,9 +293,9 @@ pub fn update_car_3d(
 
         // Wheels sit within a couple meters of the car: the car's own
         // nearest index is an excellent hint.
-        let contact_z = query_track_surface(track, world_x, world_y, Some(track_ctx.nearest_point))
-            .map(|sample| sample.elevation)
-            .unwrap_or(track_ctx.elevation);
+        let sample = query_track_surface(track, world_x, world_y, Some(track_ctx.nearest_point));
+        let contact_z = sample.map_or(track_ctx.elevation, |s| s.elevation);
+        let surface = sample.map_or(ContactSurface::Road, |s| contact_surface(track, &s));
 
         // Along-track and leftward components of the wheel's offset.
         let along = offset_x * cos_track + offset_y * sin_track;
@@ -320,6 +323,7 @@ pub fn update_car_3d(
             suspension_velocity_mps: compression_velocity,
             spring_force_n: spring_force,
             damper_force_n: damper_force,
+            surface,
             ..Default::default()
         }
     };
@@ -445,8 +449,26 @@ pub fn update_car_3d(
 
     state.is_airborne = is_airborne;
 
-    // 9. Calculate steering angle
-    let steering_angle = input.steering * config.max_steering_angle_rad;
+    // Body-frame velocities: forward (+x) and leftward (+y) components
+    let v_long = state.vel_x * cos_yaw + state.vel_y * sin_yaw;
+    let v_lat = -state.vel_x * sin_yaw + state.vel_y * cos_yaw;
+
+    // 9. Calculate steering angle, through the speed-sensitive aid when the
+    // driver has it on.
+    let steering = if state.steering_assist {
+        let front_axle_travel_rad = (v_lat + state.angular_vel_yaw * config.wheelbase_m / 2.0)
+            .atan2(v_long.max(MIN_SPEED_THRESHOLD));
+        assisted_steering(
+            config,
+            input.steering,
+            state.speed_mps,
+            downforce_front + downforce_rear,
+            front_axle_travel_rad,
+        )
+    } else {
+        input.steering
+    };
+    let steering_angle = steering * config.max_steering_angle_rad;
 
     // Apply Ackermann steering geometry (inner wheel turns more)
     let (steer_left, steer_right) = calculate_ackermann_steering(
@@ -457,10 +479,6 @@ pub fn update_car_3d(
 
     // 10. Calculate tire forces using Pacejka-inspired model
     let effective_grip = config.tire_config.grip_coefficient * track_ctx.grip_modifier;
-
-    // Body-frame velocities: forward (+x) and leftward (+y) components
-    let v_long = state.vel_x * cos_yaw + state.vel_y * sin_yaw;
-    let v_lat = -state.vel_x * sin_yaw + state.vel_y * cos_yaw;
 
     // Solve per-wheel tire forces (quasi-static torque balance with
     // wheelspin / lockup / ABS behavior and friction-ellipse coupling)
@@ -546,6 +564,41 @@ pub fn update_car_3d(
     let rl_forces = (rl.fx, rl.fy);
     let rr_forces = (rr.fx, rr.fy);
     state.wheel_angular_vel = [fl.omega, fr.omega, rl.omega, rr.omega];
+
+    // 10b. What the driver feels, for the DriverFeedback message. Output
+    // only: nothing below reads it back.
+    let per_slip_ratio =
+        |w: &WheelForces| w.slip_ratio / config.tire_config.optimal_slip_ratio.max(1e-4);
+    let per_slip_angle =
+        |w: &WheelForces| w.slip_angle / config.tire_config.optimal_slip_angle_rad.max(1e-4);
+    let wheels = [&fl, &fr, &rl, &rr];
+    // The ground samplers above put `wheel_front_left` at local -y, which
+    // is the car's RIGHT (+y is left), while the load, yaw and tyre code
+    // treat `fl` as the left wheel. Feedback reports what is under each
+    // real side, so the sampled pairs are swapped back here.
+    let wheel_states = [
+        &wheel_front_right,
+        &wheel_front_left,
+        &wheel_rear_right,
+        &wheel_rear_left,
+    ];
+    state.feedback.record_tick(&FeedbackTick {
+        steer_torque: steering_column_torque(
+            [(fl.fy, fl.slip_angle), (fr.fy, fr.slip_angle)],
+            config,
+            static_front_weight,
+        ),
+        slip_ratio: wheels.map(per_slip_ratio),
+        slip_angle: wheels.map(per_slip_angle),
+        surface: if is_airborne {
+            [ContactSurface::Road; 4]
+        } else {
+            wheel_states.map(|w| w.surface)
+        },
+        suspension_mps: wheel_states.map(|w| w.suspension_velocity_mps),
+        abs_active: wheels.iter().any(|w| w.abs_active),
+        tc_active: wheels.iter().any(|w| w.tc_active),
+    });
 
     // 11. Sum all forces
     // Rotate front tire forces by steering angle
@@ -715,7 +768,9 @@ pub fn update_car_3d(
     // 19. Store inputs
     state.throttle_input = input.throttle;
     state.brake_input = input.brake;
-    state.steering_input = input.steering;
+    // What the front wheels were given, after the steering aid, so the
+    // cockpit wheel turns as far as the road wheels do.
+    state.steering_input = steering;
 
     // Apply gear and clutch inputs if provided
     if let Some(gear) = input.gear {
@@ -1011,6 +1066,42 @@ fn calculate_weight_transfer(
     )
 }
 
+/// Wheel angle of the tightest turn the car can hold at `speed_mps`: the
+/// radius at which cornering takes all its grip (downforce included), as a
+/// steering angle `L·a/v²`.
+pub fn grip_limit_lock_rad(config: &CarConfig, speed_mps: f32, downforce_n: f32) -> f32 {
+    let grip_accel = config.tire_config.grip_coefficient
+        * (GRAVITY + downforce_n.max(0.0) / config.mass_kg.max(1.0));
+    config.wheelbase_m * grip_accel / (speed_mps * speed_mps).max(1e-3)
+}
+
+/// The speed-sensitive steering aid: the driver's input (-1..1, + = left)
+/// turned into the share of the rack's lock the front wheels get.
+///
+/// Full input asks for the tightest turn the car can hold at this speed and
+/// no more, so a pad's stick at the stop never overdrives the tyres: at
+/// walking pace that is full lock, at 300 km/h about 2° for an F1 and under
+/// half a degree for a road car with little downforce.
+/// Any lock past it would only make the car rotate faster than it can
+/// corner, which is how a flick of the stick at speed became a spin.
+///
+/// The lock towards whichever side the front axle is already travelling
+/// grows by that angle, so the stick can still point the wheels where the
+/// car is going and catch a slide. Centred, the wheels stay straight: the
+/// aid never countersteers by itself.
+pub fn assisted_steering(
+    config: &CarConfig,
+    input: f32,
+    speed_mps: f32,
+    downforce_n: f32,
+    front_axle_travel_rad: f32,
+) -> f32 {
+    let full_lock = config.max_steering_angle_rad.max(1e-3);
+    let toward_travel = (input.signum() * front_axle_travel_rad).max(0.0);
+    let lock = (grip_limit_lock_rad(config, speed_mps, downforce_n) + toward_travel).min(full_lock);
+    (input.clamp(-1.0, 1.0) * lock / full_lock).clamp(-1.0, 1.0)
+}
+
 /// Calculate Ackermann steering geometry
 fn calculate_ackermann_steering(
     steering_angle: f32,
@@ -1075,6 +1166,59 @@ struct WheelForces {
     slip_angle: f32,
     /// Wheel angular velocity (rad/s) consistent with the slip solution.
     omega: f32,
+    /// ABS held the wheel at peak slip instead of letting it lock.
+    abs_active: bool,
+    /// Traction control cut drive torque to the traction limit.
+    tc_active: bool,
+}
+
+/// Where the zero-slip pneumatic trail has shrunk to nothing, in multiples of
+/// the tyre's peak slip angle. As the rear of the contact patch starts to
+/// slide, its centre of pressure walks forward toward the steering axis. The
+/// aligning torque therefore peaks before the lateral force does and falls
+/// away past it, which is how a driver feels the fronts letting go.
+const PNEUMATIC_TRAIL_ZERO_AT_SLIP: f32 = 2.0;
+
+/// Caster (mechanical) trail as a share of the zero-slip pneumatic trail.
+/// It never shrinks, so a sliding front still pulls the wheel toward where
+/// the car is going.
+const MECHANICAL_TRAIL_SHARE: f32 = 0.5;
+
+/// Torque the two front tyres put into the steering column, from each tyre's
+/// lateral force (wheel frame) and slip angle: `-Fy · (pneumatic + caster
+/// trail)` per tyre. Positive turns the wheel left, the steering sign, so in
+/// a corner it is always against the lock: the self-centring a driver
+/// steers against.
+///
+/// 1.0 is the car's reference: the front axle cornering at its static grip
+/// limit on zero-slip trail. Downforce and load transfer take it past 1. The
+/// value is not clamped, because a device with more headroom can use it.
+///
+/// Shape, for an evenly loaded axle at slip `n` times the tyre's peak
+/// (C_LAT = 1.3): 0.55 at n = 0.2, 0.78 at 0.5, 0.67 at the peak, 0.49 at
+/// 1.5 and about 0.32 from 2 on. The wheel goes light as the fronts wash
+/// out, with a little left from the caster.
+fn steering_column_torque(
+    front: [(f32, f32); 2],
+    config: &CarConfig,
+    static_front_load_n: f32,
+) -> f32 {
+    let peak_slip = config.tire_config.optimal_slip_angle_rad.max(1e-4);
+    let moment: f32 = front
+        .iter()
+        .map(|&(fy, slip_angle)| {
+            let n = (slip_angle / peak_slip).abs();
+            let pneumatic = (1.0 - n / PNEUMATIC_TRAIL_ZERO_AT_SLIP).max(0.0);
+            -fy * (pneumatic + MECHANICAL_TRAIL_SHARE)
+        })
+        .sum();
+    let reference =
+        config.tire_config.grip_coefficient * static_front_load_n * (1.0 + MECHANICAL_TRAIL_SHARE);
+    if reference > 1.0 {
+        moment / reference
+    } else {
+        0.0
+    }
 }
 
 /// Solve one wheel's tire forces from the applied torques using a
@@ -1117,11 +1261,8 @@ fn solve_wheel_forces(
 
     if wheel_load < 1.0 {
         return WheelForces {
-            fx: 0.0,
-            fy: 0.0,
-            slip_ratio: 0.0,
-            slip_angle: 0.0,
             omega: free_rolling_omega,
+            ..Default::default()
         };
     }
 
@@ -1210,6 +1351,8 @@ fn solve_wheel_forces(
         slip_ratio,
         slip_angle,
         omega,
+        abs_active: abs_enabled && requested_force < -d,
+        tc_active: tc_enabled && requested_force > d,
     }
 }
 
@@ -1597,6 +1740,36 @@ fn query_track_surface_centerline(
     })
 }
 
+/// Where a surface sample sits against the track limits: on the road, on the
+/// curb band past its edge, or beyond both.
+///
+/// The curbs reach a little past the road edge: a driver who puts two wheels
+/// on a curb is using the track, not cutting it, so the band counts as on it
+/// (with the curb's own grip, and without the off-track speed penalty).
+fn contact_surface(track: &TrackConfig, surface: &SurfaceQuerySample) -> ContactSurface {
+    let half_width = if surface.lateral_offset >= 0.0 {
+        surface.width_right
+    } else {
+        surface.width_left
+    };
+    let overhang = surface.lateral_offset.abs() - half_width;
+    if overhang <= 0.0 {
+        return ContactSurface::Road;
+    }
+    let station_m = track
+        .centerline
+        .get(surface.nearest_point)
+        .map_or(0.0, |p| p.distance_from_start_m);
+    let curb_width = track.curbs.as_ref().map_or(0.0, |bands| {
+        bands.width_at(station_m, surface.lateral_offset)
+    });
+    if overhang <= curb_width {
+        ContactSurface::Curb
+    } else {
+        ContactSurface::Off
+    }
+}
+
 /// Get track context at the car's current position
 fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
     let hint = state.nearest_centerline_idx.map(|i| i as usize);
@@ -1604,29 +1777,9 @@ fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
         return TrackContext::default();
     };
 
-    // How far past this side's road edge the car sits. The curbs reach a
-    // little further still: a driver who puts two wheels on a curb is using
-    // the track, not cutting it, so they count as on it — with the curb's
-    // own grip, and without the off-track speed penalty.
-    let half_width = if surface.lateral_offset >= 0.0 {
-        surface.width_right
-    } else {
-        surface.width_left
-    };
-    let overhang = surface.lateral_offset.abs() - half_width;
-    let curb_width = if overhang > 0.0 {
-        let station_m = track
-            .centerline
-            .get(surface.nearest_point)
-            .map_or(0.0, |p| p.distance_from_start_m);
-        track.curbs.as_ref().map_or(0.0, |bands| {
-            bands.width_at(station_m, surface.lateral_offset)
-        })
-    } else {
-        0.0
-    };
-    let on_curb = overhang > 0.0 && overhang <= curb_width;
-    let is_on_track = overhang <= 0.0 || on_curb;
+    let contact = contact_surface(track, &surface);
+    let on_curb = contact == ContactSurface::Curb;
+    let is_on_track = contact != ContactSurface::Off;
 
     // Determine surface type and grip
     let (surface_type, grip_modifier) = if on_curb {
@@ -1812,6 +1965,11 @@ pub fn check_collisions_refs(
                     let rel_vel_x = states[j].vel_x - states[i].vel_x;
                     let rel_vel_y = states[j].vel_y - states[i].vel_y;
                     let rel_vel_normal = rel_vel_x * nx + rel_vel_y * ny;
+
+                    // Both drivers feel the hit by how fast they were closing.
+                    let closing_mps = (-rel_vel_normal).max(0.0);
+                    states[i].feedback.record_impact(closing_mps);
+                    states[j].feedback.record_impact(closing_mps);
 
                     if rel_vel_normal < 0.0 {
                         // Collision impulse (elastic coefficient)
@@ -2187,6 +2345,7 @@ pub fn check_aabb_collisions(states: &mut [CarState], configs: &HashMap<CarConfi
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::feedback::DriverFeedback;
     use uuid::Uuid;
 
     fn create_test_car_state() -> CarState {
@@ -2740,6 +2899,312 @@ mod tests {
             "rear loads {:.0} vs {:.0}",
             state.weight_rear_left_n,
             state.weight_rear_right_n
+        );
+    }
+
+    /// A straight far wider than any turn in these tests, so a car can
+    /// corner for seconds without leaving the asphalt.
+    fn open_asphalt() -> TrackConfig {
+        TrackConfig {
+            centerline: (0..2000)
+                .map(|i| TrackPoint {
+                    x: i as f32 * 4.0,
+                    distance_from_start_m: i as f32 * 4.0,
+                    width_left_m: 2000.0,
+                    width_right_m: 2000.0,
+                    ..Default::default()
+                })
+                .collect(),
+            ..TrackConfig::default()
+        }
+    }
+
+    /// Steering input held for `seconds` at a steady `speed`; the feedback
+    /// collected over the last tick.
+    fn feedback_after_steering(steering: f32, speed: f32, seconds: f32) -> DriverFeedback {
+        let config = create_test_config();
+        let track = open_asphalt();
+        let mut state = create_test_car_state();
+        state.vel_x = speed;
+        state.speed_mps = speed;
+        state.gear = 3;
+        for _ in 0..(seconds * 240.0) as u32 {
+            state.feedback.take(0);
+            let input = PlayerInputData {
+                throttle: ((speed - state.speed_mps) * 0.5 + 0.2).clamp(0.0, 1.0),
+                steering,
+                ..Default::default()
+            };
+            update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        }
+        state.feedback.take(0)
+    }
+
+    #[test]
+    fn steering_torque_centres_the_wheel_and_is_quiet_straight_ahead() {
+        let straight = feedback_after_steering(0.0, 30.0, 0.5);
+        assert!(
+            straight.steer_torque[0].abs() < 0.01,
+            "straight ahead the wheel should carry no torque: {:?}",
+            straight.steer_torque
+        );
+
+        // Positive steering is left; the tyres push back toward centre.
+        let left = feedback_after_steering(0.05, 25.0, 1.5).steer_torque[0];
+        let right = feedback_after_steering(-0.05, 25.0, 1.5).steer_torque[0];
+        assert!(left < -0.05 && left > -1.5, "left turn torque {left}");
+        assert!(right > 0.05 && right < 1.5, "right turn torque {right}");
+        assert!(
+            (left + right).abs() < 0.1 * left.abs(),
+            "the two sides should mirror: {left} vs {right}"
+        );
+    }
+
+    #[test]
+    fn steering_goes_light_as_the_front_tyres_pass_their_peak() {
+        let config = create_test_config();
+        let static_front = config.mass_kg * GRAVITY * config.weight_distribution_front;
+        let d = config.tire_config.grip_coefficient * static_front / 2.0;
+        let peak = config.tire_config.optimal_slip_angle_rad;
+        // A left turn: the tyres run a negative slip angle and push left.
+        let torque_at = |n: f32| {
+            let slip = -n * peak;
+            let fy = -pacejka(d, PACEJKA_C_LAT, -n);
+            steering_column_torque([(fy, slip), (fy, slip)], &config, static_front)
+        };
+        let weight = |n: f32| -torque_at(n);
+
+        assert!(torque_at(0.5) < 0.0, "the torque is against the lock");
+        assert!((weight(0.5) - 0.78).abs() < 0.02, "{}", weight(0.5));
+        assert!((weight(1.0) - 0.67).abs() < 0.02, "{}", weight(1.0));
+        assert!((weight(2.0) - 0.32).abs() < 0.02, "{}", weight(2.0));
+        assert!(weight(0.2) < weight(0.5), "it builds with cornering force");
+        assert!(
+            weight(1.5) < 0.7 * weight(0.5),
+            "and falls away past the peak: {} vs {}",
+            weight(1.5),
+            weight(0.5)
+        );
+        assert!(weight(3.0) > 0.2, "the caster trail keeps some centring");
+    }
+
+    /// Which wheels touch the curb is judged per wheel and reported on the
+    /// car's real sides, in FL, FR, RL, RR order.
+    #[test]
+    fn feedback_reports_the_surface_under_each_wheel() {
+        // Asphalt to 10 m right of the centerline, then 1.5 m of curb. The
+        // wheels sit about 0.8 m either side of the car's centre.
+        let track = straight_track_with_right_curb(1.5);
+        let config = create_test_config();
+        let surfaces_at = |y: f32| {
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.pos_y = y;
+            state.vel_x = 30.0;
+            state.speed_mps = 30.0;
+            state.gear = 3;
+            let input = PlayerInputData::default();
+            update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            state.feedback.take(0).surface
+        };
+        let (road, curb, off) = (
+            ContactSurface::Road as u8,
+            ContactSurface::Curb as u8,
+            ContactSurface::Off as u8,
+        );
+
+        // Negative y is right of a car heading +x: right wheels on the curb.
+        assert_eq!(surfaces_at(-10.2), [road, curb, road, curb]);
+        // Further out: left wheels on the curb, right wheels past it.
+        assert_eq!(surfaces_at(-11.2), [curb, off, curb, off]);
+        assert_eq!(surfaces_at(0.0), [road; 4]);
+    }
+
+    #[test]
+    fn feedback_tells_abs_from_a_locked_wheel() {
+        let track = create_straight_test_track();
+        let run = |abs: bool| {
+            let mut config = create_test_config();
+            config.abs_enabled = abs;
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.vel_x = 40.0;
+            state.speed_mps = 40.0;
+            state.gear = 4;
+            let input = PlayerInputData {
+                brake: 1.0,
+                ..Default::default()
+            };
+            for _ in 0..24 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            }
+            state.feedback.take(0)
+        };
+
+        let with_abs = run(true);
+        assert!(with_abs.abs_active);
+        let deepest = with_abs.slip_ratio.iter().cloned().fold(0.0f32, f32::min);
+        assert!(
+            (deepest + 1.0).abs() < 0.05,
+            "ABS holds the tyres at their peak slip: {:?}",
+            with_abs.slip_ratio
+        );
+
+        let locked = run(false);
+        assert!(!locked.abs_active);
+        assert!(
+            locked.slip_ratio.iter().any(|&s| s < -5.0),
+            "a locked wheel is far past its peak: {:?}",
+            locked.slip_ratio
+        );
+    }
+
+    #[test]
+    fn a_collision_is_felt_by_both_drivers() {
+        let config = create_test_config();
+        // Nose to tail with half a metre of overlap, so the contact normal
+        // is along the cars' length; closing at 8 m/s.
+        let slot = |position: u8, x: f32| GridSlot {
+            position,
+            x,
+            y: 0.0,
+            z: 0.0,
+            yaw_rad: 0.0,
+        };
+        let mut states = vec![
+            CarState::new(Uuid::new_v4(), config.id, &slot(1, 0.0)),
+            CarState::new(Uuid::new_v4(), config.id, &slot(2, config.length_m - 0.5)),
+        ];
+        states[0].vel_x = 5.0;
+        states[1].vel_x = -3.0;
+        let mut configs = HashMap::new();
+        configs.insert(config.id, config.clone());
+
+        check_aabb_collisions_3d(&mut states, &configs);
+
+        for state in &mut states {
+            let impact = state.feedback.take(0).impact_mps;
+            assert!((impact - 8.0).abs() < 0.01, "impact {impact}");
+        }
+    }
+
+    #[test]
+    fn steering_assist_gives_full_lock_slowly_and_less_at_speed() {
+        let config = create_test_config();
+        let full =
+            |speed: f32, downforce: f32| assisted_steering(&config, 1.0, speed, downforce, 0.0);
+        assert_eq!(full(0.0, 0.0), 1.0);
+        assert_eq!(full(5.0, 0.0), 1.0);
+        // Where full lock is allowed, the input maps straight through.
+        assert_eq!(assisted_steering(&config, 0.5, 5.0, 0.0, 0.0), 0.5);
+        let mut previous = 1.0;
+        for speed in [20.0, 40.0, 60.0, 80.0] {
+            let share = full(speed, 0.0);
+            assert!(share < previous, "lock should shrink with speed");
+            previous = share;
+        }
+        // Downforce is grip, and grip is lock worth having.
+        assert!(full(80.0, 20000.0) > previous);
+        // Centred is centred, whatever the car is doing.
+        assert_eq!(assisted_steering(&config, 0.0, 60.0, 0.0, -0.2), 0.0);
+    }
+
+    /// Full input held for `seconds` at `speed`, then the car's sideslip at
+    /// the rear axle (rad), lateral g, and the front tyres' slip angle (rad).
+    fn hold_full_lock(assist: bool, speed: f32, seconds: f32) -> (f32, f32, f32) {
+        let config = create_test_config();
+        let track = TrackConfig {
+            centerline: (0..2000)
+                .map(|i| TrackPoint {
+                    x: i as f32 * 4.0,
+                    distance_from_start_m: i as f32 * 4.0,
+                    width_left_m: 2000.0,
+                    width_right_m: 2000.0,
+                    ..Default::default()
+                })
+                .collect(),
+            ..TrackConfig::default()
+        };
+        let mut state = create_test_car_state();
+        state.vel_x = speed;
+        state.speed_mps = speed;
+        state.gear = 5;
+        state.steering_assist = assist;
+        for _ in 0..(seconds * 240.0) as u32 {
+            let input = PlayerInputData {
+                throttle: ((speed - state.speed_mps) * 0.5 + 0.3).clamp(0.0, 1.0),
+                steering: 1.0,
+                ..Default::default()
+            };
+            update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        }
+        let v_long = state.vel_x * state.yaw_rad.cos() + state.vel_y * state.yaw_rad.sin();
+        let v_lat = -state.vel_x * state.yaw_rad.sin() + state.vel_y * state.yaw_rad.cos();
+        let rear = (v_lat - state.angular_vel_yaw * config.wheelbase_m / 2.0).atan2(v_long);
+        (
+            rear,
+            state.g_forces.lateral_g,
+            state.tires.front_left.slip_angle_rad,
+        )
+    }
+
+    #[test]
+    fn steering_assist_holds_the_limit_with_the_stick_at_the_stop() {
+        // A pad stick held at the stop at 60 m/s. With the aid the car
+        // corners hard with its tail in line and its front tyres near their
+        // peak; the rack's full lock throws the fronts far past it, where
+        // they only scrub.
+        let peak = create_test_config().tire_config.optimal_slip_angle_rad;
+        let (rear_slip, lateral_g, front_slip) = hold_full_lock(true, 60.0, 3.0);
+        assert!(
+            rear_slip.abs() < 0.15,
+            "rear axle sliding at {rear_slip:.2} rad with the aid"
+        );
+        assert!(lateral_g > 0.7, "only {lateral_g:.2} g at the stop");
+        assert!(
+            front_slip.abs() < 1.5 * peak,
+            "fronts at {front_slip:.2} rad with the aid, peak {peak:.2}"
+        );
+
+        let (_, _, front_slip) = hold_full_lock(false, 60.0, 3.0);
+        assert!(
+            front_slip.abs() > 2.5 * peak,
+            "full rack lock left the fronts at {front_slip:.2} rad"
+        );
+    }
+
+    #[test]
+    fn steering_assist_lets_the_stick_catch_a_slide() {
+        // The car points 0.15 rad left of where it is going: the tail is
+        // out. Full opposite lock must reach past the direction the front
+        // axle travels, or a slide at speed could never be caught; the other
+        // way the lock stays at the grip limit.
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let slide = |steering: f32| {
+            let mut state = create_test_car_state();
+            state.vel_x = 50.0;
+            state.speed_mps = 50.0;
+            state.yaw_rad = 0.15;
+            state.gear = 5;
+            state.steering_assist = true;
+            let input = PlayerInputData {
+                steering,
+                ..Default::default()
+            };
+            update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            state.steering_input * config.max_steering_angle_rad
+        };
+        let grip_lock = grip_limit_lock_rad(&config, 50.0, 0.0);
+        let countersteer = slide(-1.0);
+        assert!(
+            countersteer < -0.15 && countersteer > -(0.15 + grip_lock + 0.01),
+            "countersteer reached {countersteer:.3} rad"
+        );
+        let into = slide(1.0);
+        assert!(
+            into > 0.0 && into < grip_lock + 0.01,
+            "into the slide reached {into:.3} rad"
         );
     }
 

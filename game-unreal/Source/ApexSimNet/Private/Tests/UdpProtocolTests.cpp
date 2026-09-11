@@ -151,6 +151,79 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// Force feedback, positional as well. Every per-wheel array is read into
+	// the same four wheels, so a slip by one element would shift a value onto
+	// the wrong wheel rather than fail.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("DriverFeedback decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_DriverFeedback, Message, Error)))
+		{
+			TestEqual(TEXT("DriverFeedback type"), Message.Type, EApexServerMessageType::DriverFeedback);
+			const FApexDriverFeedback& Feedback = Message.DriverFeedback;
+			TestEqual(TEXT("server tick"), Feedback.ServerTick, static_cast<int64>(1234));
+			if (TestEqual(TEXT("two steering samples"), Feedback.SteerTorque.Num(), 2))
+			{
+				TestEqual(TEXT("first sample"), Feedback.SteerTorque[0], 0.25f);
+				TestEqual(TEXT("second sample"), Feedback.SteerTorque[1], -0.5f);
+			}
+			const FApexWheelFeedback* W = Feedback.Wheels;
+			TestEqual(TEXT("FL slip ratio"), W[0].SlipRatio, 1.5f);
+			TestEqual(TEXT("FR slip ratio"), W[1].SlipRatio, -2.0f);
+			TestEqual(TEXT("RR slip ratio"), W[3].SlipRatio, 0.5f);
+			TestEqual(TEXT("FR slip angle"), W[1].SlipAngle, 0.25f);
+			TestEqual(TEXT("RL slip angle"), W[2].SlipAngle, -1.0f);
+			TestEqual(TEXT("RR slip angle"), W[3].SlipAngle, 3.0f);
+			TestEqual(TEXT("FL on the road"), W[0].Surface, EApexContactSurface::Road);
+			TestEqual(TEXT("FR on a curb"), W[1].Surface, EApexContactSurface::Curb);
+			TestEqual(TEXT("RL off track"), W[2].Surface, EApexContactSurface::Off);
+			TestEqual(TEXT("FL suspension"), W[0].SuspensionMps, 0.5f);
+			TestEqual(TEXT("FR suspension"), W[1].SuspensionMps, -0.25f);
+			TestEqual(TEXT("RR suspension"), W[3].SuspensionMps, 2.0f);
+			TestTrue(TEXT("ABS active"), Feedback.bAbsActive);
+			TestFalse(TEXT("TC idle"), Feedback.bTcActive);
+			TestEqual(TEXT("impact"), Feedback.ImpactMps, 4.5f);
+		}
+	}
+
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexDriverFeedbackAbsorbTest,
+	"ApexSim.Net.Udp.DriverFeedbackAbsorb",
+	ApexUdpTestFlags)
+
+bool FApexDriverFeedbackAbsorbTest::RunTest(const FString& Parameters)
+{
+	// Two messages arriving in one game frame must read as one interval: the
+	// kerb strike and impact in the first survive the quiet second.
+	FApexDriverFeedback First;
+	First.ServerTick = 100;
+	First.SteerTorque = {0.1f, 0.2f};
+	First.Wheels[1].Surface = EApexContactSurface::Curb;
+	First.Wheels[2].SuspensionMps = -3.0f;
+	First.ImpactMps = 6.0f;
+
+	FApexDriverFeedback Second;
+	Second.ServerTick = 104;
+	Second.SteerTorque = {0.3f, 0.4f};
+	Second.Wheels[2].SuspensionMps = 1.0f;
+	Second.Wheels[0].SlipAngle = -1.5f;
+	Second.bAbsActive = true;
+
+	First.Absorb(Second);
+	TestEqual(TEXT("newest tick"), First.ServerTick, static_cast<int64>(104));
+	TestEqual(TEXT("samples appended"), First.SteerTorque.Num(), 4);
+	TestEqual(TEXT("samples in order"), First.SteerTorque[3], 0.4f);
+	TestEqual(TEXT("curb kept"), First.Wheels[1].Surface, EApexContactSurface::Curb);
+	TestEqual(TEXT("largest hit kept, with its sign"), First.Wheels[2].SuspensionMps, -3.0f);
+	TestEqual(TEXT("later slide taken"), First.Wheels[0].SlipAngle, -1.5f);
+	TestTrue(TEXT("ABS from the second"), First.bAbsActive);
+	TestEqual(TEXT("impact kept"), First.ImpactMps, 6.0f);
 	return true;
 }
 
@@ -174,6 +247,18 @@ bool FApexUdpRobustnessTest::RunTest(const FString& Parameters)
 			const bool bDecoded = ApexProtocol::DecodeUdpMessage(
 				TArrayView<const uint8>(Full.GetData(), PrefixLength), Message, Error);
 			TestFalse(FString::Printf(TEXT("a %d byte prefix of telemetry is rejected"), PrefixLength), bDecoded);
+		}
+	}
+
+	{
+		TArrayView<const uint8> Full(ApexUdpGolden::S_DriverFeedback);
+		for (int32 PrefixLength = 0; PrefixLength < Full.Num(); ++PrefixLength)
+		{
+			FApexServerMessage Message;
+			FString Error;
+			const bool bDecoded = ApexProtocol::DecodeUdpMessage(
+				TArrayView<const uint8>(Full.GetData(), PrefixLength), Message, Error);
+			TestFalse(FString::Printf(TEXT("a %d byte prefix of driver feedback is rejected"), PrefixLength), bDecoded);
 		}
 	}
 

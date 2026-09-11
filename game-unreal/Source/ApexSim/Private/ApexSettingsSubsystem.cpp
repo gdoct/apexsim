@@ -174,6 +174,13 @@ void UApexSettingsSubsystem::SetAutoGearbox(bool bAuto)
 	Changed(EApexSettingsGroup::Gameplay);
 }
 
+void UApexSettingsSubsystem::SetSteeringAssist(bool bAssist)
+{
+	if (!Settings || Settings->bSteeringAssist == bAssist) { return; }
+	Settings->bSteeringAssist = bAssist;
+	Changed(EApexSettingsGroup::Gameplay);
+}
+
 void UApexSettingsSubsystem::SetRacingLine(EApexRacingLine Line)
 {
 	if (!Settings || Settings->RacingLine == Line) { return; }
@@ -695,6 +702,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->TractionControl = Defaults->TractionControl;
 		Settings->bAbs = Defaults->bAbs;
 		Settings->bAutoGearbox = Defaults->bAutoGearbox;
+		Settings->bSteeringAssist = Defaults->bSteeringAssist;
 		Settings->RacingLine = Defaults->RacingLine;
 		Settings->AiSkill = Defaults->AiSkill;
 		Settings->Units = Defaults->Units;

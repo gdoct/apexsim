@@ -46,6 +46,9 @@ public:
 	/** Pops one decoded telemetry frame. Returns false when the queue is empty. */
 	bool PopTelemetry(FApexTelemetryFrame& OutFrame);
 
+	/** Pops one decoded force-feedback message. Returns false when the queue is empty. */
+	bool PopDriverFeedback(FApexDriverFeedback& OutFeedback);
+
 	/** Total datagrams received, for diagnostics. */
 	int32 GetReceivedDatagramCount() const { return ReceivedDatagrams.GetValue(); }
 
@@ -86,6 +89,7 @@ private:
 
 	/** Worker produces, game thread consumes. */
 	TQueue<FApexTelemetryFrame, EQueueMode::Spsc> TelemetryQueue;
+	TQueue<FApexDriverFeedback, EQueueMode::Spsc> DriverFeedbackQueue;
 
 	/** Written by the game thread, read by the worker. */
 	mutable FCriticalSection InputLock;

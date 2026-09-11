@@ -256,10 +256,11 @@ void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
 		static_cast<uint16>(FMath::Clamp(Seconds, 0, 65535)), NextMode));
 }
 
-void UApexNetSubsystem::SetDriverAids(bool bAutoGearbox)
+void UApexNetSubsystem::SetDriverAids(bool bAutoGearbox, bool bSteeringAssist)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d"), bAutoGearbox ? 1 : 0);
-	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox));
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d"),
+		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0);
+	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist));
 }
 
 bool UApexNetSubsystem::FindCarById(const FString& CarId, FApexCarConfigSummary& OutCar) const
@@ -388,6 +389,29 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		{
 			bUdpReadyBroadcast = true;
 			OnUdpReady.Broadcast();
+		}
+
+		// Force feedback is not a snapshot: each message holds the peaks of its
+		// own interval, so everything that arrived since the last tick is
+		// merged rather than only the newest kept.
+		FApexDriverFeedback Feedback;
+		bool bFeedbackArrived = false;
+		while (UdpConnection->PopDriverFeedback(Feedback))
+		{
+			if (bFeedbackArrived)
+			{
+				LatestDriverFeedback.Absorb(Feedback);
+			}
+			else
+			{
+				LatestDriverFeedback = MoveTemp(Feedback);
+				bFeedbackArrived = true;
+			}
+		}
+		if (bFeedbackArrived)
+		{
+			++DriverFeedbackSerial;
+			DriverFeedbackTime = FPlatformTime::Seconds();
 		}
 
 		// Drain to the newest frame. Telemetry is a snapshot, not a stream of
@@ -522,6 +546,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentSessionId.Reset();
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
+		LatestDriverFeedback = FApexDriverFeedback();
+		DriverFeedbackTime = 0.0;
 		// Telemetry stops when the session ends, so nothing would ever drive
 		// this back to Lobby otherwise.
 		if (CurrentSessionState != EApexSessionState::Lobby)
