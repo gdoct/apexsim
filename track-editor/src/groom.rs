@@ -85,6 +85,18 @@ const PROP_CLEARANCE_M: f32 = 1.5;
 /// lane so the pit complex reads as a row, not a scatter.
 const PIT_BOX_ALIGN_RANGE_M: f32 = 40.0;
 
+// ---- Boards and fences ----------------------------------------------------
+
+/// A `board` snaps onto the nearest barrier or tire wall within this
+/// distance; further than that it is groomed like a sign.
+const BOARD_SNAP_RANGE_M: f32 = 40.0;
+/// How far behind the barrier line (away from the road) a snapped board
+/// stands, so its face clears the rail.
+const BOARD_BEHIND_BARRIER_M: f32 = 0.4;
+/// A `fence` panel stands this far behind where a wall would stand at its
+/// station (the spectator fence runs behind the armco).
+const FENCE_BEHIND_WALL_M: f32 = 1.5;
+
 // ---- Distance boards ------------------------------------------------------
 
 /// Asset keys of the three boards, with their distance before the corner
@@ -167,11 +179,19 @@ fn prop_radius(kind: PropKind) -> f32 {
     match kind {
         PropKind::Building => 6.4,
         PropKind::Grandstand => 8.7,
+        // The authored kit (docs/PROPS.md): a ferris wheel's 45 m footprint,
+        // a transporter, a 6 m garage module.
+        PropKind::Attraction => 25.0,
+        PropKind::Vehicle => 3.0,
+        PropKind::Pit => 3.0,
         PropKind::Tree => 1.5,
-        PropKind::Sign => 1.0,
+        PropKind::Sign | PropKind::Board => 1.0,
         PropKind::Light => 0.7,
         PropKind::Cone => 0.3,
-        PropKind::Misc | PropKind::TireWall | PropKind::Barrier => 0.6,
+        PropKind::Misc | PropKind::TireWall | PropKind::Barrier | PropKind::Fence => 0.6,
+        // Never pushed: a bridge stands on the road by design and a sky prop
+        // is not on the ground at all.
+        PropKind::Bridge | PropKind::Sky => 0.0,
     }
 }
 
@@ -465,6 +485,45 @@ pub fn groom_props(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomRepor
                 anchors.push(wall_anchor_of(&path, &surfaces, &prop));
                 original_walls.push(prop);
             }
+            // The exporter lays the pit complex from the pit lane's box
+            // layout, so an authored pit module is left exactly where it
+            // is; a sky prop's z is its altitude and never gets seated.
+            PropKind::Pit | PropKind::Sky => kept.push(prop),
+            PropKind::Bridge => {
+                // A bridge spans the road on purpose: never pushed, its
+                // pivot is the road centre, so it takes the road's height
+                // at its station (banking included) rather than the ground.
+                let (sample, lat, _) = nearest_cross_section(&path, prop.x, prop.y);
+                let z = offset_point(&sample, lat).2;
+                if (z - prop.z).abs() > MIN_MOVE_M {
+                    prop.z = z;
+                    report.reseated += 1;
+                }
+                kept.push(prop);
+            }
+            PropKind::Fence => {
+                // Laid like a wall segment at its own station — the runoff
+                // edge or the verge — but behind it, where the spectator
+                // fence runs.
+                let (sample, lat, along) = nearest_cross_section(&path, prop.x, prop.y);
+                let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+                let station = path.sample_at(sample.station_m + along);
+                let beyond = wall_offset(&path, &surfaces, &station, side) + FENCE_BEHIND_WALL_M;
+                let target_lat = signed(side, side_half_width(&station, side) + beyond);
+                let pos = offset_point(&station, target_lat);
+                let z = seat_z(&terrain, &station, target_lat, pos.0, pos.1);
+                if (pos.0 - prop.x).hypot(pos.1 - prop.y) > MIN_MOVE_M
+                    || yaw_distance(station.heading_rad, prop.yaw_rad) > MIN_YAW_RAD
+                {
+                    (prop.x, prop.y, prop.yaw_rad) = (pos.0, pos.1, station.heading_rad);
+                    prop.z = z;
+                    report.pushed += 1;
+                } else if (z - prop.z).abs() > MIN_MOVE_M {
+                    prop.z = z;
+                    report.reseated += 1;
+                }
+                kept.push(prop);
+            }
             _ => {
                 let (sample, lat, _) = nearest_cross_section(&path, prop.x, prop.y);
                 let radius = prop_radius(prop.kind) * prop.scale;
@@ -600,6 +659,10 @@ pub fn groom_props(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomRepor
         &mut report.barriers_rebuilt,
     ));
 
+    // Boards go on the barriers, so they wait until every wall and armco
+    // segment is in its final place.
+    report.pushed += snap_boards_to_barriers(&path, &terrain, &mut props);
+
     let trees = lay_tree_belts(
         &path,
         &terrain,
@@ -618,6 +681,53 @@ pub fn groom_props(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomRepor
 
     scene.props = props;
     Some(report)
+}
+
+/// Snap every `board` prop onto the nearest barrier or tire wall within
+/// [`BOARD_SNAP_RANGE_M`]: same station as the board, the barrier's
+/// lateral plus [`BOARD_BEHIND_BARRIER_M`] further out, facing along the
+/// course (the importer turns the face to the road). A board with no
+/// barrier in reach keeps the place the generic pass gave it. Returns how
+/// many boards moved.
+fn snap_boards_to_barriers(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    props: &mut [Prop],
+) -> usize {
+    let rails: Vec<(f32, f32)> = props
+        .iter()
+        .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+        .map(|p| (p.x, p.y))
+        .collect();
+    let mut moved = 0;
+    for board in props.iter_mut().filter(|p| p.kind == PropKind::Board) {
+        let Some((rx, ry)) = rails
+            .iter()
+            .copied()
+            .filter(|(rx, ry)| (rx - board.x).hypot(ry - board.y) <= BOARD_SNAP_RANGE_M)
+            .min_by(|a, b| {
+                let da = (a.0 - board.x).hypot(a.1 - board.y);
+                let db = (b.0 - board.x).hypot(b.1 - board.y);
+                da.total_cmp(&db)
+            })
+        else {
+            continue;
+        };
+        let (_, rail_lat, _) = nearest_cross_section(path, rx, ry);
+        let (sample, _, along) = nearest_cross_section(path, board.x, board.y);
+        let station = path.sample_at(sample.station_m + along);
+        let lat = rail_lat + BOARD_BEHIND_BARRIER_M.copysign(rail_lat);
+        let pos = offset_point(&station, lat);
+        let z = seat_z(terrain, &station, lat, pos.0, pos.1);
+        if (pos.0 - board.x).hypot(pos.1 - board.y) > MIN_MOVE_M
+            || yaw_distance(station.heading_rad, board.yaw_rad) > MIN_YAW_RAD
+            || (z - board.z).abs() > MIN_MOVE_M
+        {
+            (board.x, board.y, board.z, board.yaw_rad) = (pos.0, pos.1, z, station.heading_rad);
+            moved += 1;
+        }
+    }
+    moved
 }
 
 /// Keep `original` (ids and all) when `fresh` reproduces it within the
@@ -794,6 +904,7 @@ fn lay_wall_runs(
                 yaw_rad: sample.heading_rad,
                 scale: WALL_SCALE,
                 text: None,
+                length_m: None,
             }
         })
         .collect();
@@ -1035,6 +1146,7 @@ fn lay_distance_boards(
                 yaw_rad: sample.heading_rad,
                 scale: 1.0,
                 text,
+                length_m: None,
             });
         }
     }
@@ -1140,9 +1252,14 @@ fn lay_straight_barriers(
             }
             let blocked = others.iter().any(|p| {
                 let clear = match p.kind {
-                    PropKind::TireWall | PropKind::Building | PropKind::Grandstand => {
-                        BARRIER_CLEAR_M
-                    }
+                    PropKind::TireWall
+                    | PropKind::Building
+                    | PropKind::Grandstand
+                    | PropKind::Pit
+                    | PropKind::Attraction => BARRIER_CLEAR_M,
+                    // A board stands on the barrier line by design, and a
+                    // bridge's footings are off the verge either side.
+                    PropKind::Board | PropKind::Bridge => return false,
                     _ => BOARD_PROP_CLEAR_M,
                 };
                 footprint_gap(p, pos.0, pos.1) < clear
@@ -1160,6 +1277,7 @@ fn lay_straight_barriers(
                 yaw_rad: sample.heading_rad,
                 scale: 1.0,
                 text: None,
+                length_m: None,
             });
         }
     }
@@ -1260,7 +1378,11 @@ fn lay_tree_belts(
                 }
                 let blocked = others.iter().any(|p| {
                     let clear = match p.kind {
-                        PropKind::Building | PropKind::Grandstand => TREE_STAND_CLEAR_M,
+                        PropKind::Building
+                        | PropKind::Grandstand
+                        | PropKind::Pit
+                        | PropKind::Attraction => TREE_STAND_CLEAR_M,
+                        PropKind::Sky => return false,
                         _ => TREE_PROP_CLEAR_M,
                     };
                     footprint_gap(p, pos.0, pos.1) < clear
@@ -1292,6 +1414,7 @@ fn lay_tree_belts(
                     yaw_rad: hash01(&tree, 3) * TAU,
                     scale: TREE_SCALE_MIN + hash01(&tree, 4) * (TREE_SCALE_MAX - TREE_SCALE_MIN),
                     text: None,
+                    length_m: None,
                 });
             }
         }
@@ -1512,6 +1635,7 @@ mod tests {
             yaw_rad: 1.0,
             scale: 1.0,
             text: None,
+            length_m: None,
         }
     }
 
@@ -1870,5 +1994,113 @@ mod tests {
         assert!(!second.changed(), "second pass changed: {second:?}");
         assert_eq!(scene, after_first);
         assert!(scene.validate().is_ok());
+    }
+
+    #[test]
+    fn boards_snap_onto_the_nearest_barrier_run() {
+        let track = track();
+        // Mid-straight, where the armco pass lays a rail 7 m off the edge
+        // (6 m half width): the board starts 20 m out and comes in behind it.
+        let mut scene = scene_with(&track, vec![prop(PropKind::Board, 400.0, 20.0, 0.0)]);
+        groom_props(&track, &mut scene).unwrap();
+        let board = of_kind(&scene, PropKind::Board)[0];
+        let rail = scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Barrier)
+            .min_by(|a, b| {
+                (a.x - board.x)
+                    .hypot(a.y - board.y)
+                    .total_cmp(&(b.x - board.x).hypot(b.y - board.y))
+            })
+            .expect("armco was laid");
+        assert!(
+            (board.y - (rail.y + BOARD_BEHIND_BARRIER_M)).abs() < 0.05,
+            "board y {} vs rail y {}",
+            board.y,
+            rail.y
+        );
+        assert!(
+            (board.x - 400.0).abs() < 0.5,
+            "board keeps its station: {}",
+            board.x
+        );
+        assert!(yaw_distance(board.yaw_rad, 0.0) < 1e-3);
+
+        let before = scene.clone();
+        let again = groom_props(&track, &mut scene).unwrap();
+        assert_eq!(scene, before);
+        assert!(!again.changed(), "{again:?}");
+    }
+
+    #[test]
+    fn fences_stand_behind_the_wall_line() {
+        let track = track();
+        let mut scene = scene_with(&track, vec![prop(PropKind::Fence, 400.0, 30.0, 5.0)]);
+        groom_props(&track, &mut scene).unwrap();
+        let fence = of_kind(&scene, PropKind::Fence)[0];
+        // No runoff authored: the wall line is the verge offset.
+        let expected = 6.0 + VERGE_OFFSET_M + FENCE_BEHIND_WALL_M;
+        assert!(
+            (fence.y - expected).abs() < 0.05,
+            "fence y {} vs {expected}",
+            fence.y
+        );
+        assert!(
+            fence.z.abs() < 0.5,
+            "seated on the flat ground: {}",
+            fence.z
+        );
+        let before = scene.clone();
+        assert!(!groom_props(&track, &mut scene).unwrap().changed());
+        assert_eq!(scene, before);
+    }
+
+    #[test]
+    fn bridges_pits_and_sky_props_are_never_pushed() {
+        let track = track();
+        let mut bridge = prop(PropKind::Bridge, 400.0, 0.0, 3.0);
+        bridge.yaw_rad = 0.0;
+        let blimp = prop(PropKind::Sky, 400.0, 0.0, 150.0);
+        let garage = prop(PropKind::Pit, 400.0, 2.0, 0.0);
+        let mut scene = scene_with(&track, vec![bridge, blimp, garage]);
+        let report = groom_props(&track, &mut scene).unwrap();
+        assert_eq!(report.pushed, 0);
+        assert!(report.deleted.is_empty());
+        let bridge = of_kind(&scene, PropKind::Bridge)[0];
+        assert_eq!(
+            (bridge.x, bridge.y),
+            (400.0, 0.0),
+            "bridge stays on the road"
+        );
+        assert!(
+            bridge.z.abs() < 0.05,
+            "bridge takes the road height: {}",
+            bridge.z
+        );
+        let blimp = of_kind(&scene, PropKind::Sky)[0];
+        assert_eq!(
+            (blimp.x, blimp.y, blimp.z),
+            (400.0, 0.0, 150.0),
+            "altitude kept"
+        );
+        let garage = of_kind(&scene, PropKind::Pit)[0];
+        assert_eq!(
+            (garage.x, garage.y, garage.z),
+            (400.0, 2.0, 0.0),
+            "pit left alone"
+        );
+    }
+
+    #[test]
+    fn attractions_are_pushed_clear_by_their_footprint() {
+        let track = track();
+        let mut scene = scene_with(&track, vec![prop(PropKind::Attraction, 400.0, 10.0, 0.0)]);
+        groom_props(&track, &mut scene).unwrap();
+        let wheel = of_kind(&scene, PropKind::Attraction)[0];
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let (s, lat, _) = nearest_cross_section(&path, wheel.x, wheel.y);
+        let needed = prop_lat_clearance(&s, lat, prop_radius(PropKind::Attraction));
+        assert!(lat.abs() >= needed - 0.05, "lat {lat} < needed {needed}");
     }
 }

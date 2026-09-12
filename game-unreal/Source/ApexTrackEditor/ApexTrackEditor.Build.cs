@@ -24,6 +24,12 @@ public class ApexTrackEditor : ModuleRules
 			"ApexSim",
 			// FImage, for importing preview PNGs as textures.
 			"ImageCore",
+			// ApexPropImport: the authored GLB kit comes in through
+			// Interchange's glTF translator and generic pipelines.
+			"InterchangeCore",
+			"InterchangeEngine",
+			"InterchangePipelines",
+			"InterchangeNodes",
 		});
 	}
 }

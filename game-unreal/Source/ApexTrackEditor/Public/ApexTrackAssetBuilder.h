@@ -2,10 +2,12 @@
 
 #include "CoreMinimal.h"
 
+struct FApexTrackProp;
 struct FApexTrackScene;
 struct FMeshDescription;
 class UMaterialInterface;
 class UStaticMesh;
+class UStaticMeshComponent;
 
 /**
  * Turns a parsed track export into Unreal assets and a level.
@@ -46,8 +48,41 @@ private:
 	bool BuildPropMeshes(const FApexTrackScene& Scene, FString& OutError);
 	/** The emissive parent material and its start-light instance. */
 	bool BuildEmissiveMaterial(FString& OutError);
+	/** `M_ApexBrand`: a textured surface for the brand and marker slots of authored props. */
+	bool BuildBrandMaterial(FString& OutError);
 	/** The `StartLights` actor the race director drives during the countdown. */
 	void SpawnStartLights(const FApexTrackScene& Scene, class UWorld* World);
+
+	/**
+	 * What a prop resolves to. The authored kit first — `SM_<asset>` under
+	 * the props root, then the kind's default asset — else the generated
+	 * stand-in for the prop's own kind, else nothing (the placeholder cube).
+	 */
+	struct FResolvedProp
+	{
+		FString Kind;
+		FString Asset;
+		FString Text;
+		TObjectPtr<UStaticMesh> Mesh;
+		bool bAuthored = false;
+		bool bFaceRoad = false;
+		bool bInstanced = false;
+	};
+	FResolvedProp ResolveProp(const FApexTrackProp& Prop);
+	/** `SM_<asset>` of the authored kit, or null; cached either way. */
+	UStaticMesh* FindAuthoredMesh(const FString& Kind, const FString& Asset);
+	/**
+	 * A material instance of `M_ApexBrand` showing the texture at `TexturePath`,
+	 * made once per key; null when the texture does not exist.
+	 */
+	UMaterialInterface* TextureMaterialFor(const FString& Key, const FString& TexturePath);
+	/** A lit instance of `M_ApexEmissive` for one of the kit's lamp/screen slots. */
+	UMaterialInterface* EmissiveMaterialFor(FName Slot);
+	/** Brand, marker and emissive slot overrides for an authored mesh on a component. */
+	void ApplyAuthoredSlots(UStaticMeshComponent* Component, const UStaticMesh* Mesh, const FString& Text);
+	/** A stand laid out of bays and end caps under one actor. */
+	void SpawnGrandstand(class UWorld* World, const FApexTrackProp& Prop, const FResolvedProp& Resolved,
+		float YawDeg, int32 Index);
 	/**
 	 * Build and register `SM_<Name>` from a mesh description whose polygon
 	 * groups are named after `MaterialKeys`, in slot order.
@@ -73,6 +108,16 @@ private:
 	TMap<FString, TObjectPtr<UStaticMesh>> Meshes;
 	/** Prop kind -> generated stand-in mesh (ground pivot, metres at scale 1). */
 	TMap<FString, TObjectPtr<UStaticMesh>> PropMeshes;
+	/** Content root of the authored kit (`ApexPropImport`). */
+	FString PropsRoot;
+	/** Object path -> authored mesh, null for the ones that are not imported. */
+	TMap<FString, TObjectPtr<UStaticMesh>> AuthoredMeshes;
+	TObjectPtr<UMaterialInterface> EmissiveParent;
+	TObjectPtr<UMaterialInterface> BrandParent;
+	/** Key -> brand/marker/emissive slot override; a null entry means "tried, no texture". */
+	TMap<FString, TObjectPtr<UMaterialInterface>> SlotMaterials;
+	/** Texts with no brand or marker texture, logged once each. */
+	TSet<FString> UnknownTexts;
 
 	TArray<TObjectPtr<UPackage>> TouchedPackages;
 };

@@ -154,6 +154,101 @@ The sync is additive unless `-force`; existing rows keep their values. Every
 track YAML needs a fixed `track_id` — without one the server mints a new UUID
 per start and no catalog row can ever match it.
 
+### Prop kit (`content/props`, `ApexPropImport`)
+The trackside scenery is an authored kit of GLBs, `content/props/<kind>/<asset>.glb`
+(catalogue and conventions in `docs/PROPS.md`; the loader's design in
+`docs/PROPS_LOADER.md`). It reaches Unreal once, not per track:
+
+```bash
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexPropImport -all          # or -kind=barrier,board / -asset=barrier/armco_4m
+./scripts/build_track_levels.ps1 -ImportProps   # the same, before the bake + import
+```
+
+`ApexPropImportCommandlet` runs each GLB through Interchange (the engine's
+glTF stack, adjusted: one combined mesh, authored normals kept, Nanite on
+`grandstand/building/pit/bridge/attraction`, box collision on all but trees
+and the sky) into `/Game/Props/<kind>/SM_<asset>`, with the materials and
+textures under `/Game/Props/<kind>/Materials` shared by name across the kind
+(the first GLB to bring `armco_galv` in owns it). Material slot names are the
+glTF material names, which is what everything below keys on. The ferris
+wheel imports as `SM_ferris_wheel` plus `SM_ferris_wheel_rotor` (the `rotor`
+node, pivot at the hub). Brand and marker PNGs become
+`/Game/Props/board/Brands/T_brand_<name>` and `Markers/T_marker_<n>`.
+Every run is a fresh import (the target mesh package is deleted from disk
+first and the registry rescanned): reimporting over an existing mesh keeps
+its old slots and creates no materials. A kind-wide run clears the kind's
+material folder first. The glTF materials come in as instances of the
+engine's glTF library parent (importing them as full materials trips an
+engine error on the library's `AlphaMode` input); that parent has neither
+the Nanite nor the instanced-mesh usage flag, which the editor sets on the
+fly but a cooked build does not, so each instance is re-parented onto a
+flagged copy under `/Game/Props/_Parents`. The per-track parents
+(`M_ApexTrackBase`, `M_ApexEmissive`, `M_ApexBrand`) carry the flags too.
+`build_release.ps1` has a props stage (`-SkipProps` still checks
+`/Game/Props` holds meshes).
+
+Frames: glTF (x, y, z) lands in Unreal as (x, z, y), so a prop modelled in
+Blender with the road on **-Y** arrives with the road on local **+Y** — the
+same side the generated recipes use, and no extra yaw is applied to
+authored assets. The exporter's yaw is the road heading; the builder flips
+face-road kinds 180° by `RoadSideOf` as before.
+
+The track builder (`ApexTrackAssetBuilder::ResolveProp`, data in
+`ApexPropLibrary`) resolves every prop as `SM_<asset>` → the kind's default
+(`armco_4m`, `tires_4m`, `hoarding_3m`, `mesh_4m`, `bay_10m`, `garage_6m`,
+`start_gantry`, `floodlight_tower`, `broadleaf_m`, `blimp`) → the generated
+recipe for the prop's own kind → placeholder cube, so levels still build with
+`/Game/Props` empty. An alias table maps the pre-kit keys the groomer and
+scenes carry (`tree_generic`, `armco_generic`, `tire_wall_generic`,
+`sign/board_200m|100m|50m` → `board/braking_marker` with the number as text,
+`grandstand_main|corner`, `building/pit_garage`) — data, so the `.ats` files
+are untouched. Instanced kinds go into one HISM per resolved (kind, asset,
+text), actor `Props_<kind>_<asset>[_<text>]`; every prop actor is tagged
+`ApexProp`, which the racing line's ground snap and the TV camera's ground
+trace use to ignore bridge decks and garage roofs.
+
+- **Text → material**: a `text` naming a brand (`piretti`, `rolux`, …)
+  overrides the `board_brand` / `bridge_brand*` / `pit_team_board` /
+  `tyre_bridge_brand` / `blimp_brand` slots with an instance of the
+  per-track `M_ApexBrand` showing `T_brand_<text>`; a braking marker's
+  `board_marker` slot takes `T_marker_<text>`. Unknown text keeps the
+  imported default and logs once per track. `led_panel` / `led_screen` slots
+  get a lit `M_ApexEmissive` instance and the component a tag
+  `ApexEmissive_<slot>` (fixed glow: there is no flag state on the wire yet).
+- **Grandstands**: one prop is a stand of `round(length_m × scale / 10)`
+  bays (`length_m` from the `.ats`, 30 m when absent; scale is a length
+  multiplier so the legacy 30 m × 2.6 stands come out as eight bays) plus
+  two end caps, under one `Grandstand_<n>` actor with a HISM per asset.
+  The exporter writes `radius_m` (signed bend radius, positive on the
+  outside) and the builder picks the wedge whose front radius is nearest:
+  `_curve6` (95 m), `_curve12` (48 m), `_curve6_in` inside; the large
+  family is straight only. `ApexProps::LayoutGrandstand` is the pure maths.
+- **Bridges**: never flipped or pushed; local Y scaled by `span_m / 15`
+  (`span_m` = road width at the station from the exporter, else measured
+  from the centerline). The start lights use `bridge/SM_start_gantry` as the
+  `StartLights` root when it exists, with the five `ApexStartLight` lens
+  components over the panel's upper lamp row (x −37, y (i−2)·80, z 545 cm)
+  so the race director's countdown contract is unchanged; the recipe gantry
+  is the fallback.
+- **Pit complex**: `ats-export` generates it from the pit lane — one
+  `pit/garage_6m` per box on the far side of the parallel pit road (6 m
+  pitch, centred), `garage_end` beyond each end, `pit_wall_6m` on the road
+  side over the box span and `pit_wall_plain_6m` over the rest of the pit
+  road, all facing the track — and drops the legacy `building/pit_garage`
+  stand-ins whenever it does. Nothing goes on the entry/exit tapers.
+- **Runtime**: `sky` props spawn as `AApexSkyDriftActor` (drift along the
+  heading ±150 m at 2 m/s, a slow yaw sway); the ferris wheel as
+  `AApexRotorActor`, its rotor at the hub turning at 0.5 rpm about local Y
+  (`Race/ApexPropActors.h`).
+
+New `PropKind`s `board, fence, pit, bridge, vehicle, attraction, sky` exist
+in `ats.rs`; the groomer snaps a `board` onto the nearest barrier run, lays a
+`fence` 1.5 m behind the wall line, seats a `bridge` at road height without
+pushing it, leaves `pit` and `sky` alone and pushes `vehicle`/`attraction` by
+their footprint. `ApexSim.Props.*` automation tests cover the alias table,
+the kind tables and the bay layout; `cargo test` in `track-editor` covers the
+export hints, the pit complex and the groom behaviours.
+
 ## Architecture
 
 ### Server (`server/`)
@@ -257,7 +352,10 @@ not in a session: unlisted, unjoinable, spectated by its creator, counted
 straight into a race, no replay written, removed when the spectator leaves.
 `SessionJoined` carries `SessionKind`, and `UApexNetSubsystem` keeps a demo out
 of every session delegate (`OnDemoSessionChanged` instead; `IsInSession()` is
-false) and leaves it by itself before any create or join. The race director's
+false) and leaves it by itself before any create or join. A telemetry frame
+is only applied when every car index fits the current roster: a demo frame
+still in the UDP queue when the player's session is joined would otherwise
+stamp the demo's `Racing` state on the new session and skip its countdown. The race director's
 demo view streams the track (the player's pending track when it has a level),
 and the root widget fades page backgrounds by `GetDemoBackdropOpacity()` under a
 left-heavy scrim. Car select and session create return false from

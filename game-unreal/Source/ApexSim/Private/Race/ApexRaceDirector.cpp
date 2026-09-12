@@ -231,11 +231,20 @@ namespace
 				}
 			}));
 
-	/** A generated prop: a tree or a stand is not ground for a camera to stand on. */
+	/**
+	 * A prop: a tree, a stand or a bridge deck is not ground for a camera to
+	 * stand on. The track import tags every prop actor `ApexProp`; the
+	 * generated stand-ins are also named `SM_Prop_<kind>`.
+	 */
 	bool IsPropHit(const FHitResult& Hit)
 	{
+		static const FName PropTag(TEXT("ApexProp"));
+		if (const AActor* Actor = Hit.GetActor(); Actor && Actor->ActorHasTag(PropTag))
+		{
+			return true;
+		}
 		const UStaticMeshComponent* Mesh = Cast<UStaticMeshComponent>(Hit.GetComponent());
-		return Mesh && Mesh->GetStaticMesh() && Mesh->GetStaticMesh()->GetName().StartsWith(TEXT("Prop_"));
+		return Mesh && Mesh->GetStaticMesh() && Mesh->GetStaticMesh()->GetName().StartsWith(TEXT("SM_Prop_"));
 	}
 
 	FAutoConsoleCommandWithWorldAndArgs ShotFovCommand(

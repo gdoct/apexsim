@@ -375,6 +375,24 @@ bool UApexNetSubsystem::FindSessionById(const FString& SessionId, FApexSessionSu
 	return false;
 }
 
+bool UApexNetSubsystem::FrameFitsRoster(const FApexTelemetryFrame& Frame) const
+{
+	if (CachedRoster.Entries.IsEmpty())
+	{
+		// Before the roster there is nothing to place a car by; the roster
+		// follows SessionJoined on the same TCP stream, so this is brief.
+		return Frame.Cars.IsEmpty();
+	}
+	for (const FApexCarTelemetry& Car : Frame.Cars)
+	{
+		if (Car.CarIndex < 0 || Car.CarIndex >= CachedRoster.Entries.Num())
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool UApexNetSubsystem::Tick(float DeltaSeconds)
 {
 	TimeSinceLobbyRequest += DeltaSeconds;
@@ -497,6 +515,17 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 			if (DemoLeavesInFlight > 0)
 			{
 				// The tail of a demo being left.
+				continue;
+			}
+			if (!FrameFitsRoster(Frame))
+			{
+				// A frame of the session just left, still in the UDP queue
+				// when the new session's roster arrived over TCP: its car
+				// indices point past the new roster. Applying it would take
+				// the other session's state (Racing) for this one and skip
+				// the countdown.
+				UE_LOG(LogApexSimNet, Verbose, TEXT("Telemetry frame with %d car(s) ignored: roster has %d"),
+					Frame.Cars.Num(), CachedRoster.Entries.Num());
 				continue;
 			}
 

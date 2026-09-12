@@ -134,6 +134,7 @@ mod tests {
             yaw_rad: 1.2,
             scale: 1.0,
             text: Some("100".to_string()),
+            length_m: None,
         });
         scene.pit_lane = Some(PitLane {
             nodes: vec![[0.0, -10.0, 0.0], [80.0, -10.0, 0.0]],

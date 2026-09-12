@@ -8,8 +8,9 @@
 
         1. preflight  - the car and track data the build consumes must exist
         2. server     - cargo build --release -> apexsim-server.exe
-        3. tracks     - scripts/build_track_levels.ps1 (bake + import levels)
-        4. catalog    - build_track_catalog.py + ApexTrackCatalogSync, so the
+        3. props      - ApexPropImport, the authored prop kit into /Game/Props
+        4. tracks     - scripts/build_track_levels.ps1 (bake + import levels)
+        5. catalog    - build_track_catalog.py + ApexTrackCatalogSync, so the
                         track picker has names, metadata and preview art
         5. client     - scripts/build_game_standalone.ps1 (BuildCookRun)
         6. assemble   - server binary, server.toml and the content the server
@@ -60,6 +61,9 @@
 .PARAMETER SkipServer
     Reuse the apexsim-server.exe already in server/target/release.
 
+.PARAMETER SkipProps
+    Reuse the prop kit already imported under game-unreal/Content/Props.
+
 .PARAMETER SkipTracks
     Reuse the track levels already under game-unreal/Content/Tracks.
 
@@ -95,6 +99,7 @@ param(
     [switch]$BuildEditor,
     [switch]$Zip,
     [switch]$SkipServer,
+    [switch]$SkipProps,
     [switch]$SkipTracks,
     [switch]$SkipCatalog,
     [switch]$SkipClient,
@@ -109,6 +114,8 @@ $Uproject     = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 $CarsDir      = Join-Path $RepoRoot 'content\cars'
 $TrackDir     = Join-Path $RepoRoot 'content\tracks\real'
 $LevelDir     = Join-Path $RepoRoot 'game-unreal\Content\Tracks'
+$PropsSrcDir  = Join-Path $RepoRoot 'content\props'
+$PropsDir     = Join-Path $RepoRoot 'game-unreal\Content\Props'
 $CatalogAsset = Join-Path $RepoRoot 'game-unreal\Content\Data\DT_TrackCatalog.uasset'
 $ServerExe    = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
 if (-not $ClientArtifactDirectory) {
@@ -234,6 +241,18 @@ function Invoke-Preflight {
         $problems.Add("-SkipCatalog, but DT_TrackCatalog has never been synced ($CatalogAsset)")
     }
 
+    # The levels reference the kit by path; a skipped import has to find it
+    # already there, or every barrier and stand ships as a generated box.
+    if ($SkipProps) {
+        $imported = @(Get-ChildItem $PropsDir -Filter 'SM_*.uasset' -Recurse -File -ErrorAction SilentlyContinue)
+        if ($imported.Count -eq 0) {
+            $problems.Add("-SkipProps, but no prop meshes have been imported under $PropsDir")
+        }
+    }
+    elseif (-not (Test-Path $PropsSrcDir)) {
+        $problems.Add("no prop kit at $PropsSrcDir; pass -SkipProps to build without it")
+    }
+
     # A packaged build with no track levels races in an empty world, so a
     # skipped bake has to prove the levels are already there.
     if ($SkipTracks -and $tracks.Count -gt 0) {
@@ -353,6 +372,31 @@ else {
 }
 if (-not (Test-Path $ServerExe)) {
     throw "the server build did not produce $ServerExe"
+}
+
+# --- props -----------------------------------------------------------------
+
+if ($SkipProps) {
+    Write-Step 'Skipping the prop import; using the kit already imported'
+}
+else {
+    Write-Step 'Importing the prop kit into /Game/Props'
+    $engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
+        -Requires 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
+    if ($BuildEditor) {
+        # The commandlet has to match the source; the track step's own
+        # build then finds the target up to date.
+        Invoke-Tool -Exe (Join-Path $engine 'Engine\Build\BatchFiles\Build.bat') -What 'build' `
+            -Arguments @('ApexSimEditor', 'Win64', 'Development', "-Project=$Uproject", '-WaitMutex')
+    }
+    Invoke-Tool -Exe (Join-Path $engine 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe') `
+        -What 'ApexPropImport' `
+        -Arguments @($Uproject, '-run=ApexPropImport', '-all', '-unattended',
+                     '-nopause', '-nosplash', '-stdout', '-utf8output')
+    $imported = @(Get-ChildItem $PropsDir -Filter 'SM_*.uasset' -Recurse -File -ErrorAction SilentlyContinue)
+    if ($imported.Count -eq 0) {
+        throw "the prop import left nothing under $PropsDir"
+    }
 }
 
 # --- tracks ----------------------------------------------------------------

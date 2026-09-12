@@ -684,6 +684,75 @@ fn prop_pieces(prop: &Prop) -> Vec<Piece> {
             offset: Vec3::new(0.0, 0.5 * s, 0.0),
             emissive: false,
         }],
+        // The stand-ins below mirror the authored kit's footprints
+        // (docs/PROPS.md) so a placement previews at the size it imports.
+        PropKind::Board => vec![
+            Piece {
+                mesh: Cuboid::new(3.0 * s, 1.0 * s, 0.1 * s).into(),
+                color: Color::srgb(0.9, 0.2, 0.15),
+                offset: Vec3::new(0.0, 1.5 * s, 0.0),
+                emissive: false,
+            },
+            Piece {
+                mesh: Cuboid::new(3.0 * s, 1.0 * s, 0.1 * s).into(),
+                color: Color::srgb(0.3, 0.3, 0.32),
+                offset: Vec3::new(0.0, 0.5 * s, 0.0),
+                emissive: false,
+            },
+        ],
+        PropKind::Fence => vec![Piece {
+            mesh: Cuboid::new(4.0 * s, 2.5 * s, 0.1 * s).into(),
+            color: Color::srgb(0.55, 0.58, 0.6),
+            offset: Vec3::new(0.0, 1.25 * s, 0.0),
+            emissive: false,
+        }],
+        // A garage: 6 m wide, 12 m deep behind the pivot (the door line).
+        PropKind::Pit => vec![Piece {
+            mesh: Cuboid::new(6.0 * s, 5.0 * s, 12.0 * s).into(),
+            color: Color::srgb(0.75, 0.75, 0.78),
+            offset: Vec3::new(0.0, 2.5 * s, 6.0 * s),
+            emissive: false,
+        }],
+        // A 15 m span on two posts, its pivot on the road centre.
+        PropKind::Bridge => vec![
+            Piece {
+                mesh: Cuboid::new(1.0 * s, 1.0 * s, 20.0 * s).into(),
+                color: Color::srgb(0.85, 0.85, 0.88),
+                offset: Vec3::new(0.0, 6.5 * s, 0.0),
+                emissive: false,
+            },
+            Piece {
+                mesh: Cuboid::new(1.0 * s, 6.0 * s, 1.0 * s).into(),
+                color: Color::srgb(0.6, 0.6, 0.62),
+                offset: Vec3::new(0.0, 3.0 * s, 9.5 * s),
+                emissive: false,
+            },
+            Piece {
+                mesh: Cuboid::new(1.0 * s, 6.0 * s, 1.0 * s).into(),
+                color: Color::srgb(0.6, 0.6, 0.62),
+                offset: Vec3::new(0.0, 3.0 * s, -9.5 * s),
+                emissive: false,
+            },
+        ],
+        PropKind::Vehicle => vec![Piece {
+            mesh: Cuboid::new(4.5 * s, 1.5 * s, 2.0 * s).into(),
+            color: Color::srgb(0.85, 0.85, 0.9),
+            offset: Vec3::new(0.0, 0.75 * s, 0.0),
+            emissive: false,
+        }],
+        PropKind::Attraction => vec![Piece {
+            mesh: Cuboid::new(12.0 * s, 12.0 * s, 12.0 * s).into(),
+            color: Color::srgb(0.9, 0.5, 0.2),
+            offset: Vec3::new(0.0, 6.0 * s, 0.0),
+            emissive: false,
+        }],
+        // Origin at the hull centre: `z` is the altitude.
+        PropKind::Sky => vec![Piece {
+            mesh: Cuboid::new(30.0 * s, 8.0 * s, 8.0 * s).into(),
+            color: Color::srgb(0.95, 0.95, 0.97),
+            offset: Vec3::ZERO,
+            emissive: false,
+        }],
     }
 }
 

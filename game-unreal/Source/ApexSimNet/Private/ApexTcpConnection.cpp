@@ -4,6 +4,7 @@
 #include "ApexSimNetModule.h"
 #include "Common/TcpSocketBuilder.h"
 #include "HAL/RunnableThread.h"
+#include "Misc/ScopeLock.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 
@@ -97,6 +98,7 @@ void FApexTcpConnection::Stop()
 	// Break the worker out of Socket->Wait() immediately rather than waiting
 	// for the poll to expire. Shutdown/Close are safe to call cross-thread;
 	// destroying the socket is not, so that stays in Exit().
+	FScopeLock Lock(&SocketLock);
 	if (Socket)
 	{
 		Socket->Shutdown(ESocketShutdownMode::ReadWrite);
@@ -112,6 +114,7 @@ void FApexTcpConnection::Exit()
 
 void FApexTcpConnection::DestroySocket()
 {
+	FScopeLock Lock(&SocketLock);
 	if (Socket)
 	{
 		if (!SocketSubsystem)
@@ -153,15 +156,25 @@ bool FApexTcpConnection::ConnectSocket(FString& OutError)
 	TSharedRef<FInternetAddr> Address = AddressResult.Results[0].Address->Clone();
 	Address->SetPort(Port);
 
-	Socket = FTcpSocketBuilder(TEXT("ApexSimTcp"))
+	FSocket* NewSocket = FTcpSocketBuilder(TEXT("ApexSimTcp"))
 		.AsBlocking()
 		.WithReceiveBufferSize(ReceiveBufferBytes)
 		.WithSendBufferSize(SendBufferBytes)
 		.Build();
-
-	if (!Socket)
+	if (!NewSocket)
 	{
 		OutError = TEXT("Could not create a TCP socket");
+		return false;
+	}
+	{
+		FScopeLock Lock(&SocketLock);
+		Socket = NewSocket;
+	}
+	if (bStopRequested)
+	{
+		// Stopped while the socket was being made: Stop() had nothing to
+		// close, so do not sit in Connect().
+		OutError = TEXT("Stopped before connecting");
 		return false;
 	}
 

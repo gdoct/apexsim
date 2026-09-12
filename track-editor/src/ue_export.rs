@@ -59,7 +59,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ats::{AtsScene, Curb, Marking, MarkingKind, Side, Surface};
+use crate::ats::{AtsScene, Curb, Marking, MarkingKind, Prop, PropKind, Side, Surface};
 use crate::terrain::{self, GroundHeightfield, TerrainHeightfield, Underpass};
 use crate::track_data::TrackFile;
 use crate::track_mesh::{
@@ -262,6 +262,19 @@ pub struct UeProp {
     pub scale: f32,
     #[serde(default)]
     pub text: Option<String>,
+    /// Grandstands: the stand's length along its heading, metres; the
+    /// importer lays bays from it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub length_m: Option<f32>,
+    /// Grandstands: the signed centerline radius at the stand's station,
+    /// metres — positive when the stand is on the outside of the bend,
+    /// negative on the inside, absent on a straight. Picks the wedge bay.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radius_m: Option<f32>,
+    /// Bridges: the road width at the prop's station, metres, which the
+    /// importer scales the 15 m span to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span_m: Option<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -474,7 +487,13 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
         metadata,
         materials: bake.materials.into_values().collect(),
         meshes: merge_chunks(bake.chunks),
-        props: bake_props(scene),
+        props: bake_props(
+            scene,
+            &path,
+            lane.as_ref(),
+            &lane_relation,
+            terrain.as_ref(),
+        ),
         grid: bake_grid(track, &path),
         centerline: bake_centerline(&path),
         pit_lane,
@@ -2179,19 +2198,270 @@ fn curb_style_colors(style: &str) -> ([f32; 4], [f32; 4]) {
 // Non-geometry payload
 // ---------------------------------------------------------------------------
 
-fn bake_props(scene: &AtsScene) -> Vec<UeProp> {
+/// Curvature below which a grandstand's station counts as straight and no
+/// `radius_m` is emitted (radius over 1 km).
+const STAND_STRAIGHT_KAPPA: f32 = 1.0 / 1000.0;
+/// Default stand length when the scene does not say.
+const STAND_DEFAULT_LENGTH_M: f32 = 30.0;
+/// Pit modules tile at this pitch along the lane (`garage_6m`,
+/// `pit_wall_6m`).
+const PIT_MODULE_M: f32 = 6.0;
+/// Asset the pre-kit scenes used for pit garages; superseded by the
+/// generated complex whenever the scene has a pit lane.
+const LEGACY_PIT_GARAGE_ASSET: &str = "pit_garage";
+/// The pit wall stands in the apron between the lane and the road, at most
+/// this far off the lane's edge (its team stand reaches 2.3 m back over
+/// the lane).
+const PIT_WALL_MAX_OFFSET_M: f32 = 1.0;
+/// How far from the lane the road is looked for when sizing the apron.
+const PIT_APRON_REACH_M: f32 = 80.0;
+
+/// The nearest centerline sample to a point and the point's signed
+/// lateral offset from it (positive = left of the course).
+fn nearest_sample(path: &CenterlinePath, x: f32, y: f32) -> (PathSample, f32) {
+    let sample = *path
+        .samples()
+        .iter()
+        .min_by(|a, b| {
+            let da = (a.pos.0 - x).powi(2) + (a.pos.1 - y).powi(2);
+            let db = (b.pos.0 - x).powi(2) + (b.pos.1 - y).powi(2);
+            da.total_cmp(&db)
+        })
+        .expect("a centerline path always has samples");
+    let (sin_h, cos_h) = sample.heading_rad.sin_cos();
+    let lat = -sin_h * (x - sample.pos.0) + cos_h * (y - sample.pos.1);
+    (sample, lat)
+}
+
+/// Signed centerline radius at a stand: positive when the stand is on the
+/// outside of the bend, `None` on a straight.
+fn stand_radius_m(path: &CenterlinePath, x: f32, y: f32) -> Option<f32> {
+    let (sample, lat) = nearest_sample(path, x, y);
+    let kappa = curvature_at(path, sample.station_m);
+    if kappa.abs() < STAND_STRAIGHT_KAPPA {
+        return None;
+    }
+    // Curvature is positive turning left, whose outside is the right-hand
+    // side (negative lateral): outside means the two signs disagree.
+    let outside = kappa * lat < 0.0;
+    let radius = 1.0 / kappa.abs();
+    Some(round(if outside { radius } else { -radius }, 2))
+}
+
+fn bake_prop(p: &Prop, path: &CenterlinePath) -> UeProp {
+    let (length_m, radius_m, span_m) = match p.kind {
+        PropKind::Grandstand => (
+            Some(round(p.length_m.unwrap_or(STAND_DEFAULT_LENGTH_M), 2)),
+            stand_radius_m(path, p.x, p.y),
+            None,
+        ),
+        PropKind::Bridge => {
+            let (sample, _) = nearest_sample(path, p.x, p.y);
+            (
+                None,
+                None,
+                Some(round(sample.width_left_m + sample.width_right_m, 2)),
+            )
+        }
+        _ => (None, None, None),
+    };
+    UeProp {
+        kind: p.kind.label().to_string(),
+        asset: p.asset.clone(),
+        location: to_ue((p.x, p.y, p.z)),
+        yaw_deg: round(-p.yaw_rad.to_degrees(), 3),
+        scale: round(p.scale, 4),
+        text: p.text.clone(),
+        length_m,
+        radius_m,
+        span_m,
+    }
+}
+
+/// The scene's props, plus the pit complex the pit lane implies.
+///
+/// A `grandstand` carries its length and the signed bend radius at its
+/// station so the importer can lay straight or wedge bays; a `bridge`
+/// carries the road width its span is scaled to. When the scene has a pit
+/// lane the garages, end blocks and pit walls are generated from its box
+/// layout ([`bake_pit_complex`]) and the pre-kit `building/pit_garage`
+/// stand-ins are dropped, since they stood in for exactly that.
+fn bake_props(
+    scene: &AtsScene,
+    path: &CenterlinePath,
+    lane: Option<&CenterlinePath>,
+    relation: &LaneRelation,
+    terrain: Option<&TerrainHeightfield>,
+) -> Vec<UeProp> {
+    let pit = scene
+        .pit_lane
+        .as_ref()
+        .zip(lane)
+        .map(|(pit, lane)| bake_pit_complex(lane, pit.width_m, pit.box_count, relation, terrain))
+        .unwrap_or_default();
+    let complex_present = !pit.is_empty();
     scene
         .props
         .iter()
-        .map(|p| UeProp {
-            kind: p.kind.label().to_string(),
-            asset: p.asset.clone(),
-            location: to_ue((p.x, p.y, p.z)),
-            yaw_deg: round(-p.yaw_rad.to_degrees(), 3),
-            scale: round(p.scale, 4),
-            text: p.text.clone(),
+        .filter(|p| {
+            !(complex_present && p.kind == PropKind::Building && p.asset == LEGACY_PIT_GARAGE_ASSET)
         })
+        .map(|p| bake_prop(p, path))
+        .chain(pit)
         .collect()
+}
+
+/// A pit module in the lane's frame: station, signed lateral (positive =
+/// left of the lane), and whether it faces the lane's left.
+fn pit_module(
+    lane: &CenterlinePath,
+    kind_asset: (&str, &str),
+    station_m: f32,
+    lat_m: f32,
+    faces_left: bool,
+) -> UeProp {
+    use std::f32::consts::PI;
+    let sample = lane.sample_at(station_m);
+    let pos = offset_point(&sample, lat_m);
+    // The authored modules open toward local +Y in Unreal's frame, which
+    // is the right-hand side of the heading in the server frame; facing
+    // left is the same module turned round.
+    let yaw = if faces_left {
+        sample.heading_rad + PI
+    } else {
+        sample.heading_rad
+    };
+    UeProp {
+        kind: kind_asset.0.to_string(),
+        asset: kind_asset.1.to_string(),
+        location: to_ue((pos.0, pos.1, sample.pos.2)),
+        yaw_deg: round(-yaw.to_degrees(), 3),
+        scale: 1.0,
+        text: None,
+        length_m: None,
+        radius_m: None,
+        span_m: None,
+    }
+}
+
+/// The pit complex implied by the lane: one `pit/garage_6m` per box on the
+/// garage side of the parallel pit road (6 m pitch, centred on the road,
+/// door on the lane), a `pit/garage_end` beyond the first and last box,
+/// `pit/pit_wall_6m` along the road side of the lane over the box span and
+/// `pit/pit_wall_plain_6m` over the rest of the parallel road. Nothing on
+/// the entry and exit tapers, where the lane merges with the road.
+fn bake_pit_complex(
+    lane: &CenterlinePath,
+    width_m: f32,
+    box_count: u32,
+    relation: &LaneRelation,
+    terrain: Option<&TerrainHeightfield>,
+) -> Vec<UeProp> {
+    let total = lane.total_length_m();
+    // The longest stretch of pit road that runs clear of the track; a lane
+    // whose relation could not be resolved is taken as parallel throughout.
+    let (start, end) = relation
+        .spans
+        .iter()
+        .filter(|(_, _, parallel)| *parallel)
+        .map(|(s, e, _)| (*s, *e))
+        .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
+        .unwrap_or((0.0, total));
+    let span = end - start;
+    let boxes = (box_count as f32).min((span / PIT_MODULE_M).floor()) as u32;
+    if boxes == 0 {
+        return Vec::new();
+    }
+
+    let half = width_m / 2.0;
+    // The lane runs the track's way: with the lane on the track's left the
+    // garages are further left (+), the track to the right (-). Every
+    // module looks toward the track — the garages across the lane, the
+    // walls straight at it — so with the lane on the left they all face
+    // right, and the other way round.
+    let side = relation.lane_side as f32;
+    let face_left = relation.lane_side < 0;
+    let box_edge = side * half;
+    let mid = (start + end) / 2.0;
+    let row = boxes as f32 * PIT_MODULE_M;
+    let row_start = mid - row / 2.0;
+
+    let mut out = Vec::new();
+    for i in 0..boxes {
+        let s = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
+        out.push(pit_module(
+            lane,
+            ("pit", "garage_6m"),
+            s,
+            box_edge,
+            face_left,
+        ));
+    }
+    for s in [
+        row_start - PIT_MODULE_M / 2.0,
+        row_start + row + PIT_MODULE_M / 2.0,
+    ] {
+        if s - PIT_MODULE_M / 2.0 >= start && s + PIT_MODULE_M / 2.0 <= end {
+            out.push(pit_module(
+                lane,
+                ("pit", "garage_end"),
+                s,
+                box_edge,
+                face_left,
+            ));
+        }
+    }
+
+    // The pit wall stands in the apron between the lane and the road: half
+    // way across it, capped so the wall face never reaches the road edge
+    // and the team stand behind it never reaches far into the lane.
+    let wall_lat = |s: f32| {
+        let sample = lane.sample_at(s);
+        let shift = terrain
+            .and_then(|field| {
+                let edge = offset_point(&sample, -side * half);
+                let (_, lat, road_half) =
+                    field.nearest_track_point(edge.0, edge.1, PIT_APRON_REACH_M)?;
+                Some(((lat.abs() - road_half) * 0.5).clamp(0.0, PIT_WALL_MAX_OFFSET_M))
+            })
+            .unwrap_or(0.0);
+        -side * (half + shift)
+    };
+    let mut s = row_start + PIT_MODULE_M / 2.0;
+    while s < row_start + row {
+        out.push(pit_module(
+            lane,
+            ("pit", "pit_wall_6m"),
+            s,
+            wall_lat(s),
+            face_left,
+        ));
+        s += PIT_MODULE_M;
+    }
+    // Plain walls over the rest of the pit road, whole modules only.
+    let mut s = row_start - PIT_MODULE_M / 2.0;
+    while s - PIT_MODULE_M / 2.0 >= start {
+        out.push(pit_module(
+            lane,
+            ("pit", "pit_wall_plain_6m"),
+            s,
+            wall_lat(s),
+            face_left,
+        ));
+        s -= PIT_MODULE_M;
+    }
+    let mut s = row_start + row + PIT_MODULE_M / 2.0;
+    while s + PIT_MODULE_M / 2.0 <= end {
+        out.push(pit_module(
+            lane,
+            ("pit", "pit_wall_plain_6m"),
+            s,
+            wall_lat(s),
+            face_left,
+        ));
+        s += PIT_MODULE_M;
+    }
+    out
 }
 
 /// The starting grid, resolved exactly the way the server resolves it, so a
