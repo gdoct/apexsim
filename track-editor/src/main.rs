@@ -584,6 +584,14 @@ fn inspector_ui(
                         changed = true;
                     }
                 });
+                if prop.kind == PropKind::Grandstand {
+                    // Bays are laid from this on import; 0 means the 30 m default.
+                    let mut length = prop.length_m.unwrap_or(0.0);
+                    if drag_row(ui, "length (m, 0 = 30)", &mut length, 1.0, 0.0..=400.0) {
+                        prop.length_m = (length > 0.0).then_some(length);
+                        changed = true;
+                    }
+                }
             }
             None => selection.0 = None,
         },
@@ -739,6 +747,7 @@ fn apply_ui_action(
                 yaw_rad: 0.0,
                 scale: 1.0,
                 text: None,
+                length_m: None,
             });
             selection.0 = Some(SelectedElement::Prop(id));
             status.0 = format!("Added {} #{id} at the camera focus.", kind.label());

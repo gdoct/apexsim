@@ -1,7 +1,9 @@
 #include "ApexTrackAssetBuilder.h"
 
+#include "ApexPropLibrary.h"
 #include "ApexTrackEditorModule.h"
 #include "ApexTrackSceneData.h"
+#include "Race/ApexPropActors.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
@@ -16,6 +18,7 @@
 #include "Engine/ExponentialHeightFog.h"
 #include "Engine/PostProcessVolume.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/PlayerStart.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionAdd.h"
@@ -52,6 +55,30 @@ namespace
 {
 	/** Engine placeholder used for prop kinds that have no generated mesh. */
 	const TCHAR* kPlaceholderPropMesh = TEXT("/Engine/BasicShapes/Cube.Cube");
+
+	/**
+	 * Every prop actor carries this tag, so the racing line's ground snap
+	 * and the TV camera's ground trace know a bridge deck or a garage roof
+	 * is not the road.
+	 */
+	const FName kPropTag(TEXT("ApexProp"));
+
+	/** Default length of a grandstand the scene gives none for, metres. */
+	constexpr float kDefaultStandLengthM = 30.0f;
+
+	/** A text as an asset name fragment: lower case, one word. */
+	FString TextKey(const FString& Text)
+	{
+		FString Key = Text.ToLower();
+		for (TCHAR& C : Key)
+		{
+			if (!FChar::IsAlnum(C))
+			{
+				C = TEXT('_');
+			}
+		}
+		return Key;
+	}
 
 	/**
 	 * Tiling grayscale noise the track materials use as surface grain. An
@@ -729,6 +756,23 @@ namespace
 		return FMath::Sign(static_cast<float>(FVector::DotProduct(Offset, Right)));
 	}
 
+	/** Road width at the nearest centerline point, metres; 0 without a centerline. */
+	float RoadWidthAt(const FApexTrackScene& Scene, const FVector& Location)
+	{
+		const FApexTrackCenterlinePoint* Nearest = nullptr;
+		double BestDistance = TNumericLimits<double>::Max();
+		for (const FApexTrackCenterlinePoint& Point : Scene.Centerline)
+		{
+			const double Distance = FVector::DistSquaredXY(Point.Location, Location);
+			if (Distance < BestDistance)
+			{
+				BestDistance = Distance;
+				Nearest = &Point;
+			}
+		}
+		return Nearest ? (Nearest->HalfLeftCm + Nearest->HalfRightCm) / 100.0f : 0.0f;
+	}
+
 	/** Deterministic ±1 per prop index, for per-instance colour swing. */
 	float InstanceJitter(int32 Index)
 	{
@@ -804,6 +848,7 @@ namespace
 FApexTrackAssetBuilder::FApexTrackAssetBuilder(const FString& DestRoot, const FString& TrackStem)
 	: TrackFolder(DestRoot / TrackStem)
 	, TrackName(TrackStem)
+	, PropsRoot(ApexProps::DefaultRoot)
 {
 	LevelPackage = TrackFolder / (TEXT("L_") + TrackStem);
 }
@@ -1127,6 +1172,9 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 	{
 		EditorOnly->Normal.Expression = FinalNormal;
 	}
+	// The prop stand-ins go through instanced components; without the flag
+	// a cooked build draws them with the default material.
+	Parent->bUsedWithInstancedStaticMeshes = true;
 	Parent->PostEditChange();
 
 	FAssetRegistryModule::AssetCreated(Parent);
@@ -1277,7 +1325,7 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		FinishInstance(Instance, Spec.Key);
 	}
 
-	if (!BuildEmissiveMaterial(OutError))
+	if (!BuildEmissiveMaterial(OutError) || !BuildBrandMaterial(OutError))
 	{
 		return false;
 	}
@@ -1327,10 +1375,14 @@ bool FApexTrackAssetBuilder::BuildEmissiveMaterial(FString& OutError)
 	EditorOnly->BaseColor.Expression = ColorParam;
 	EditorOnly->Roughness.Expression = RoughnessParam;
 	EditorOnly->EmissiveColor.Expression = Emissive;
+	// Its instances land on the kit's instanced boards and Nanite screens.
+	Parent->bUsedWithInstancedStaticMeshes = true;
+	Parent->bUsedWithNanite = true;
 	Parent->PostEditChange();
 	FAssetRegistryModule::AssetCreated(Parent);
 	ParentPackage->MarkPackageDirty();
 	TouchedPackages.Add(ParentPackage);
+	EmissiveParent = Parent;
 
 	const FString Key = TEXT("start_light");
 	const FString PackageName = TrackFolder / (TEXT("MI_") + Key);
@@ -1349,6 +1401,249 @@ bool FApexTrackAssetBuilder::BuildEmissiveMaterial(FString& OutError)
 	TouchedPackages.Add(Package);
 	Materials.Add(Key, Instance);
 	return true;
+}
+
+bool FApexTrackAssetBuilder::BuildBrandMaterial(FString& OutError)
+{
+	// The authored boards carry a default brand baked into their material;
+	// a prop's `text` swaps that slot for an instance of this, which is
+	// nothing but a texture on a matte surface.
+	UTexture* Placeholder = LoadObject<UTexture>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+	if (!Placeholder)
+	{
+		UE_LOG(LogApexTrackImport, Warning,
+			TEXT("    the engine's DefaultTexture is missing; boards keep their imported brands"));
+		return true;
+	}
+
+	const FString ParentPackageName = TrackFolder / TEXT("M_ApexBrand");
+	UPackage* ParentPackage = MakePackage(ParentPackageName);
+	if (!ParentPackage)
+	{
+		OutError = FString::Printf(TEXT("could not create package %s"), *ParentPackageName);
+		return false;
+	}
+	UMaterial* Parent = NewObject<UMaterial>(
+		ParentPackage, *ObjectNameOf(ParentPackageName), RF_Public | RF_Standalone);
+
+	UMaterialExpressionTextureSampleParameter2D* Sample =
+		AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+	Sample->ParameterName = TEXT("BrandTexture");
+	Sample->Texture = Placeholder;
+	Sample->SamplerType = SAMPLERTYPE_Color;
+	UMaterialExpressionScalarParameter* RoughnessParam =
+		AddExpr<UMaterialExpressionScalarParameter>(Parent);
+	RoughnessParam->ParameterName = TEXT("Roughness");
+	RoughnessParam->DefaultValue = 0.45f;
+
+	UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
+	EditorOnly->BaseColor.Expression = Sample;
+	EditorOnly->Roughness.Expression = RoughnessParam;
+	// Brands go on instanced boards and on Nanite bridges and garages.
+	Parent->bUsedWithInstancedStaticMeshes = true;
+	Parent->bUsedWithNanite = true;
+	Parent->PostEditChange();
+	FAssetRegistryModule::AssetCreated(Parent);
+	ParentPackage->MarkPackageDirty();
+	TouchedPackages.Add(ParentPackage);
+	BrandParent = Parent;
+	return true;
+}
+
+UStaticMesh* FApexTrackAssetBuilder::FindAuthoredMesh(const FString& Kind, const FString& Asset)
+{
+	const FString ObjectPath = ApexProps::MeshObjectPath(PropsRoot, Kind, Asset);
+	if (const TObjectPtr<UStaticMesh>* Cached = AuthoredMeshes.Find(ObjectPath))
+	{
+		return *Cached;
+	}
+	UStaticMesh* Mesh = nullptr;
+	// Checked on disk first: a missing asset is the normal case for a kind
+	// nobody has authored yet, and LoadObject would warn about each one.
+	if (FPackageName::DoesPackageExist(ApexProps::MeshPackageName(PropsRoot, Kind, Asset)))
+	{
+		Mesh = LoadObject<UStaticMesh>(nullptr, *ObjectPath);
+	}
+	AuthoredMeshes.Add(ObjectPath, Mesh);
+	return Mesh;
+}
+
+FApexTrackAssetBuilder::FResolvedProp FApexTrackAssetBuilder::ResolveProp(const FApexTrackProp& Prop)
+{
+	FResolvedProp Resolved;
+	Resolved.Kind = Prop.Kind;
+	Resolved.Asset = Prop.Asset;
+	Resolved.Text = Prop.Text;
+	ApexProps::ResolveAlias(Resolved.Kind, Resolved.Asset, Resolved.Text);
+
+	Resolved.Mesh = FindAuthoredMesh(Resolved.Kind, Resolved.Asset);
+	if (!Resolved.Mesh)
+	{
+		const FString Default = ApexProps::DefaultAssetFor(Resolved.Kind);
+		if (!Default.IsEmpty() && Default != Resolved.Asset)
+		{
+			if (UStaticMesh* Mesh = FindAuthoredMesh(Resolved.Kind, Default))
+			{
+				Resolved.Mesh = Mesh;
+				Resolved.Asset = Default;
+			}
+		}
+	}
+	if (Resolved.Mesh)
+	{
+		Resolved.bAuthored = true;
+		Resolved.bFaceRoad = ApexProps::FacesRoad(Resolved.Kind, Resolved.Asset);
+		Resolved.bInstanced = ApexProps::IsInstancedKind(Resolved.Kind);
+		return Resolved;
+	}
+
+	// Nothing authored: the prop's own kind and its generated stand-in, as
+	// before the kit existed (an alias that changed the kind is undone, so
+	// a `sign` still gets the board-and-post with its text on it).
+	Resolved.Kind = Prop.Kind;
+	Resolved.Asset = Prop.Asset;
+	Resolved.Text = Prop.Text;
+	if (const FPropRecipe* Recipe = FindRecipe(Prop.Kind))
+	{
+		Resolved.Mesh = PropMeshes.FindRef(Prop.Kind);
+		Resolved.bFaceRoad = Recipe->bFaceRoad;
+		Resolved.bInstanced = Recipe->bInstanced && Resolved.Mesh != nullptr;
+	}
+	return Resolved;
+}
+
+UMaterialInterface* FApexTrackAssetBuilder::TextureMaterialFor(const FString& Key, const FString& TexturePath)
+{
+	if (const TObjectPtr<UMaterialInterface>* Cached = SlotMaterials.Find(Key))
+	{
+		return *Cached;
+	}
+	UMaterialInterface* Result = nullptr;
+	FString PackageName;
+	FString ObjectName;
+	TexturePath.Split(TEXT("."), &PackageName, &ObjectName, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+	UTexture* Texture = BrandParent && FPackageName::DoesPackageExist(PackageName)
+		? LoadObject<UTexture>(nullptr, *TexturePath)
+		: nullptr;
+	if (Texture)
+	{
+		const FString PackagePath = TrackFolder / (TEXT("MI_") + Key);
+		if (UPackage* Package = MakePackage(PackagePath))
+		{
+			UMaterialInstanceConstant* Instance = NewObject<UMaterialInstanceConstant>(
+				Package, *ObjectNameOf(PackagePath), RF_Public | RF_Standalone);
+			Instance->SetParentEditorOnly(BrandParent);
+			Instance->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("BrandTexture")), Texture);
+			Instance->PostEditChange();
+			FAssetRegistryModule::AssetCreated(Instance);
+			Package->MarkPackageDirty();
+			TouchedPackages.Add(Package);
+			Result = Instance;
+		}
+	}
+	SlotMaterials.Add(Key, Result);
+	return Result;
+}
+
+UMaterialInterface* FApexTrackAssetBuilder::EmissiveMaterialFor(FName Slot)
+{
+	// The lamps the race director drives are its own components on the
+	// gantry; the authored lamp housing stays dark. The panels and screens
+	// glow at a fixed level for now — there is no flag state on the wire
+	// yet — and carry a tag so a director can find them later.
+	struct FGlow
+	{
+		const TCHAR* Slot;
+		FLinearColor Color;
+		float Strength;
+	};
+	const FGlow Glows[] = {
+		{TEXT("led_panel"), FLinearColor(0.1f, 1.0f, 0.2f), 40.0f},
+		{TEXT("led_screen"), FLinearColor(0.35f, 0.5f, 1.0f), 15.0f},
+		{TEXT("floodlight_lamp"), FLinearColor(1.0f, 0.95f, 0.8f), 0.0f},
+	};
+	const FString Key = TEXT("glow_") + Slot.ToString();
+	if (const TObjectPtr<UMaterialInterface>* Cached = SlotMaterials.Find(Key))
+	{
+		return *Cached;
+	}
+	UMaterialInterface* Result = nullptr;
+	for (const FGlow& Glow : Glows)
+	{
+		if (Slot != FName(Glow.Slot) || !EmissiveParent)
+		{
+			continue;
+		}
+		const FString PackagePath = TrackFolder / (TEXT("MI_") + Key);
+		if (UPackage* Package = MakePackage(PackagePath))
+		{
+			UMaterialInstanceConstant* Instance = NewObject<UMaterialInstanceConstant>(
+				Package, *ObjectNameOf(PackagePath), RF_Public | RF_Standalone);
+			Instance->SetParentEditorOnly(EmissiveParent);
+			Instance->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(TEXT("BaseColor")), Glow.Color * 0.05f);
+			Instance->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(TEXT("EmissiveColor")), Glow.Color);
+			Instance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(TEXT("EmissiveStrength")), Glow.Strength);
+			Instance->PostEditChange();
+			FAssetRegistryModule::AssetCreated(Instance);
+			Package->MarkPackageDirty();
+			TouchedPackages.Add(Package);
+			Result = Instance;
+		}
+	}
+	SlotMaterials.Add(Key, Result);
+	return Result;
+}
+
+void FApexTrackAssetBuilder::ApplyAuthoredSlots(
+	UStaticMeshComponent* Component, const UStaticMesh* Mesh, const FString& Text)
+{
+	if (!Component || !Mesh)
+	{
+		return;
+	}
+	const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		const FName Slot = Slots[i].MaterialSlotName.IsNone() ? Slots[i].ImportedMaterialSlotName
+																: Slots[i].MaterialSlotName;
+		UMaterialInterface* Override = nullptr;
+		if (ApexProps::IsBrandSlot(Slot) && !Text.IsEmpty())
+		{
+			const FString Key = TextKey(Text);
+			Override = TextureMaterialFor(TEXT("brand_") + Key, ApexProps::BrandTextureObjectPath(PropsRoot, Key));
+			if (!Override && !UnknownTexts.Contains(Key))
+			{
+				UnknownTexts.Add(Key);
+				UE_LOG(LogApexTrackImport, Warning,
+					TEXT("    no brand texture for text \"%s\" (T_brand_%s); boards keep their imported brand"),
+					*Text, *Key);
+			}
+		}
+		else if (ApexProps::IsMarkerSlot(Slot) && !Text.IsEmpty())
+		{
+			const FString Key = TextKey(Text);
+			Override = TextureMaterialFor(TEXT("marker_") + Key, ApexProps::MarkerTextureObjectPath(PropsRoot, Key));
+			if (!Override && !UnknownTexts.Contains(Key))
+			{
+				UnknownTexts.Add(Key);
+				UE_LOG(LogApexTrackImport, Warning,
+					TEXT("    no marker texture for text \"%s\" (T_marker_%s); the marker keeps its imported number"),
+					*Text, *Key);
+			}
+		}
+		else if (ApexProps::IsEmissiveSlot(Slot))
+		{
+			Override = EmissiveMaterialFor(Slot);
+			if (Override)
+			{
+				Component->ComponentTags.AddUnique(FName(*(TEXT("ApexEmissive_") + Slot.ToString())));
+			}
+		}
+		if (Override)
+		{
+			Component->SetMaterial(i, Override);
+		}
+	}
 }
 
 UStaticMesh* FApexTrackAssetBuilder::CreateStaticMesh(const FString& Name,
@@ -1501,7 +1796,11 @@ bool FApexTrackAssetBuilder::BuildPropMeshes(const FApexTrackScene& Scene, FStri
 void FApexTrackAssetBuilder::SpawnStartLights(const FApexTrackScene& Scene, UWorld* World)
 {
 	FApexTrackStartFinish Start;
-	UStaticMesh* GantryMesh = PropMeshes.FindRef(TEXT("start_gantry"));
+	// The authored gantry when the kit has it, else the generated one. Both
+	// stand on the road centre with the beam along Y and the lamp panel
+	// facing -X, toward the cars on the grid.
+	UStaticMesh* AuthoredGantry = FindAuthoredMesh(TEXT("bridge"), TEXT("start_gantry"));
+	UStaticMesh* GantryMesh = AuthoredGantry ? AuthoredGantry : PropMeshes.FindRef(TEXT("start_gantry")).Get();
 	UStaticMesh* LightMesh = PropMeshes.FindRef(TEXT("start_light"));
 	if (!ResolveStartFinish(Scene, Start) || !GantryMesh || !LightMesh)
 	{
@@ -1528,12 +1827,24 @@ void FApexTrackAssetBuilder::SpawnStartLights(const FApexTrackScene& Scene, UWor
 	}
 	Actor->SetActorLabel(TEXT("StartLights"));
 	Actor->Tags.Add(FName(TEXT("ApexStartLights")));
+	Actor->Tags.Add(kPropTag);
 	UStaticMeshComponent* Root = Actor->GetStaticMeshComponent();
 	Root->SetMobility(EComponentMobility::Movable);
 	Root->ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Static;
 	Root->SetStaticMesh(GantryMesh);
+	// The authored gantry is built for a 15 m road and stretched across
+	// this one; the generated one was already sized to it.
+	const float SpanScale = AuthoredGantry ? ApexProps::BridgeSpanScale(Start.WidthCm / 100.0f) : 1.0f;
+	Actor->SetActorScale3D(FVector(1.0, SpanScale, 1.0));
+	if (AuthoredGantry)
+	{
+		ApplyAuthoredSlots(Root, AuthoredGantry, FString());
+	}
 
 	// Left to right as seen from the grid, which looks along +X: left is -Y.
+	// On the authored panel the five columns sit over its upper lamp row;
+	// the lower row stays decoration. The lenses ride the span scale in
+	// position (so do the housing's lamps) but not in shape.
 	UMaterialInterface* LightMaterial = Materials.FindRef(TEXT("start_light"));
 	const int32 Count = 5;
 	for (int32 i = 0; i < Count; ++i)
@@ -1544,9 +1855,20 @@ void FApexTrackAssetBuilder::SpawnStartLights(const FApexTrackScene& Scene, UWor
 		Light->SetMobility(EComponentMobility::Movable);
 		Light->ComponentTags.Add(FName(TEXT("ApexStartLight")));
 		Light->SetupAttachment(Root);
-		Light->SetRelativeLocation(FVector(-kGantryPanelDepth * 0.5f,
-			(i - (Count - 1) * 0.5f) * kGantryLightPitch,
-			kGantryHeight - kGantryPanelHeight * 0.5f));
+		const float Across = i - (Count - 1) * 0.5f;
+		if (AuthoredGantry)
+		{
+			Light->SetRelativeLocation(FVector(ApexProps::GantryLampX, Across * ApexProps::GantryLampPitchY,
+				ApexProps::GantryLampZ));
+			Light->SetAbsolute(false, false, /*bAbsoluteScale*/ true);
+			Light->SetWorldScale3D(FVector(1.0, ApexProps::GantryLampRadius / kGantryLightRadius,
+				ApexProps::GantryLampRadius / kGantryLightRadius));
+		}
+		else
+		{
+			Light->SetRelativeLocation(FVector(-kGantryPanelDepth * 0.5f, Across * kGantryLightPitch,
+				kGantryHeight - kGantryPanelHeight * 0.5f));
+		}
 		Light->SetStaticMesh(LightMesh);
 		if (LightMaterial)
 		{
@@ -1556,8 +1878,79 @@ void FApexTrackAssetBuilder::SpawnStartLights(const FApexTrackScene& Scene, UWor
 		Light->RegisterComponent();
 	}
 	UE_LOG(LogApexTrackImport, Display,
-		TEXT("    start lights at (%.0f, %.0f, %.0f), %.1f m span"), Location.X, Location.Y,
-		Location.Z, (Start.WidthCm + 200.0f) / 100.0f);
+		TEXT("    start lights at (%.0f, %.0f, %.0f), %.1f m span%s"), Location.X, Location.Y,
+		Location.Z, (Start.WidthCm + 200.0f) / 100.0f,
+		AuthoredGantry ? TEXT(" (authored gantry)") : TEXT(" (generated gantry)"));
+}
+
+void FApexTrackAssetBuilder::SpawnGrandstand(
+	UWorld* World, const FApexTrackProp& Prop, const FResolvedProp& Resolved, float YawDeg, int32 Index)
+{
+	// One prop is a whole stand: bays at 10 m pitch, capped at both ends,
+	// wedges around a corner. The scene's `length_m` (30 m when it has
+	// none) times the prop's scale is the stand's length; the bays
+	// themselves are never scaled, so a legacy 30 m stand at scale 2.6
+	// comes out as eight bays rather than one giant one.
+	const float LengthM = (Prop.LengthM.IsSet() ? Prop.LengthM.GetValue() : kDefaultStandLengthM)
+		* FMath::Max(Prop.Scale, 0.01f);
+	bool bWedge = false;
+	ApexProps::FStandLayout Layout = ApexProps::LayoutGrandstand(Resolved.Asset, LengthM, Prop.RadiusM, &bWedge);
+	UStaticMesh* BayMesh = FindAuthoredMesh(TEXT("grandstand"), Layout.BayAsset);
+	if (!BayMesh && bWedge)
+	{
+		// No wedge of that family authored: straight bays around the bend.
+		Layout = ApexProps::LayoutGrandstand(Resolved.Asset, LengthM, TOptional<float>());
+		BayMesh = FindAuthoredMesh(TEXT("grandstand"), Layout.BayAsset);
+	}
+	if (!BayMesh)
+	{
+		BayMesh = Resolved.Mesh;
+	}
+	UStaticMesh* CapMesh = FindAuthoredMesh(TEXT("grandstand"), Layout.CapAsset);
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.OverrideLevel = World->PersistentLevel;
+	SpawnParams.ObjectFlags = RF_Transactional;
+	SpawnParams.Name = MakeUniqueObjectName(
+		World->PersistentLevel, AActor::StaticClass(), FName(*FString::Printf(TEXT("Grandstand_%d"), Index)));
+	const FRotator Rotation(0.0f, YawDeg, 0.0f);
+	AActor* Actor = World->SpawnActor<AActor>(Prop.Location, Rotation, SpawnParams);
+	if (!Actor)
+	{
+		return;
+	}
+	Actor->SetActorLabel(FString::Printf(TEXT("Grandstand_%d"), Index));
+	Actor->Tags.Add(kPropTag);
+	USceneComponent* Root = NewObject<USceneComponent>(Actor, TEXT("Root"), RF_Transactional);
+	Root->CreationMethod = EComponentCreationMethod::Instance;
+	Root->SetMobility(EComponentMobility::Movable);
+	Actor->SetRootComponent(Root);
+	Actor->AddInstanceComponent(Root);
+	Root->RegisterComponent();
+	Root->SetWorldLocationAndRotation(Prop.Location, Rotation);
+
+	auto AddRow = [&](const TCHAR* Name, UStaticMesh* Mesh, const TArray<FTransform>& Placements) {
+		if (!Mesh || Placements.IsEmpty())
+		{
+			return;
+		}
+		UHierarchicalInstancedStaticMeshComponent* Row =
+			NewObject<UHierarchicalInstancedStaticMeshComponent>(Actor, Name, RF_Transactional);
+		Row->CreationMethod = EComponentCreationMethod::Instance;
+		Row->SetMobility(EComponentMobility::Movable);
+		Row->ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Static;
+		Row->SetupAttachment(Root);
+		Row->SetStaticMesh(Mesh);
+		Row->SetNumCustomDataFloats(1);
+		Actor->AddInstanceComponent(Row);
+		Row->RegisterComponent();
+		for (const FTransform& Placement : Placements)
+		{
+			Row->AddInstance(Placement, /*bWorldSpace*/ false);
+		}
+	};
+	AddRow(TEXT("Bays"), BayMesh, Layout.Bays);
+	AddRow(TEXT("Caps"), CapMesh, Layout.Caps);
 }
 
 bool FApexTrackAssetBuilder::ValidateMeshes(FString& OutError)
@@ -1666,11 +2059,11 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 		++MeshActors;
 	}
 
-	// Props. Kinds with a generated stand-in use it, ground-pivoted and
-	// uniformly scaled by the export's `scale`; the numerous ones (trees,
-	// tire walls, armco) go into one instanced component per kind so a few
-	// thousand of them cost a few draw calls. Anything else is still a
-	// scaled placeholder box.
+	// Props. Each resolves to an authored mesh from the kit, the generated
+	// stand-in for its kind, or a placeholder box (ResolveProp). The
+	// numerous kinds go into one instanced component per resolved mesh and
+	// text so a few thousand of them cost a few draw calls; stands become a
+	// row of bays under one actor; the rest are an actor each.
 	UStaticMesh* PlaceholderMesh = LoadObject<UStaticMesh>(nullptr, kPlaceholderPropMesh);
 	if (!PlaceholderMesh)
 	{
@@ -1687,25 +2080,25 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 	};
 
 	TMap<FString, UHierarchicalInstancedStaticMeshComponent*> Instanced;
-	auto InstancesFor = [&](const FString& Kind) -> UHierarchicalInstancedStaticMeshComponent* {
-		if (UHierarchicalInstancedStaticMeshComponent** Found = Instanced.Find(Kind))
+	auto InstancesFor = [&](const FString& Key, const FString& Label, UStaticMesh* Mesh,
+						   const FResolvedProp& Resolved) -> UHierarchicalInstancedStaticMeshComponent* {
+		if (UHierarchicalInstancedStaticMeshComponent** Found = Instanced.Find(Key))
 		{
 			return *Found;
 		}
-		UStaticMesh* Mesh = PropMeshes.FindRef(Kind);
 		if (!Mesh)
 		{
 			return nullptr;
 		}
-		SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel, AActor::StaticClass(),
-			FName(*FString::Printf(TEXT("Props_%s"), *Kind)));
+		SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel, AActor::StaticClass(), FName(*Label));
 		AActor* Actor =
 			World->SpawnActor<AActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 		if (!Actor)
 		{
 			return nullptr;
 		}
-		Actor->SetActorLabel(FString::Printf(TEXT("Props_%s"), *Kind));
+		Actor->SetActorLabel(Label);
+		Actor->Tags.Add(kPropTag);
 		UHierarchicalInstancedStaticMeshComponent* Component =
 			NewObject<UHierarchicalInstancedStaticMeshComponent>(
 				Actor, TEXT("Instances"), RF_Transactional);
@@ -1717,7 +2110,11 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 		Actor->SetRootComponent(Component);
 		Actor->AddInstanceComponent(Component);
 		Component->RegisterComponent();
-		Instanced.Add(Kind, Component);
+		if (Resolved.bAuthored)
+		{
+			ApplyAuthoredSlots(Component, Mesh, Resolved.Text);
+		}
+		Instanced.Add(Key, Component);
 		return Component;
 	};
 
@@ -1745,24 +2142,126 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 		}
 	};
 
+	auto SpawnMeshActor = [&](int32 Index, const FString& Label, const FVector& Location,
+							  const FRotator& Rotation) -> AStaticMeshActor* {
+		SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel,
+			AStaticMeshActor::StaticClass(), FName(*FString::Printf(TEXT("Prop_%d"), Index)));
+		AStaticMeshActor* Actor = World->SpawnActor<AStaticMeshActor>(Location, Rotation, SpawnParams);
+		if (Actor)
+		{
+			Actor->SetActorLabel(Label);
+			Actor->Tags.Add(kPropTag);
+			SettleComponent(Actor->GetStaticMeshComponent());
+		}
+		return Actor;
+	};
+
 	int32 PropActors = 0;
 	int32 PropInstances = 0;
+	int32 AuthoredProps = 0;
+	TSet<FString> FallbackKinds;
 	for (int32 i = 0; i < Scene.Props.Num(); ++i)
 	{
 		const FApexTrackProp& Prop = Scene.Props[i];
-		const FPropRecipe* Recipe = FindRecipe(Prop.Kind);
-		UStaticMesh* PropMesh = Recipe ? PropMeshes.FindRef(Prop.Kind) : nullptr;
+		const FResolvedProp Resolved = ResolveProp(Prop);
 
 		float YawDeg = Prop.YawDeg;
-		if (Recipe && Recipe->bFaceRoad && RoadSideOf(Scene, Prop) < 0.0f)
+		if (Resolved.bFaceRoad && RoadSideOf(Scene, Prop) < 0.0f)
 		{
 			YawDeg += 180.0f;
 		}
 		const FRotator Rotation(0.0f, YawDeg, 0.0f);
 
-		if (PropMesh && Recipe->bInstanced)
+		if (Resolved.bAuthored)
 		{
-			if (UHierarchicalInstancedStaticMeshComponent* Component = InstancesFor(Prop.Kind))
+			++AuthoredProps;
+			if (Resolved.Kind == TEXT("grandstand"))
+			{
+				SpawnGrandstand(World, Prop, Resolved, YawDeg, i);
+				++PropActors;
+				continue;
+			}
+			if (Resolved.Kind == TEXT("sky"))
+			{
+				// Origin at the hull centre, `z` the altitude; it drifts from here.
+				SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel,
+					AApexSkyDriftActor::StaticClass(), FName(*FString::Printf(TEXT("Prop_%d"), i)));
+				if (AApexSkyDriftActor* Actor = World->SpawnActor<AApexSkyDriftActor>(Prop.Location, Rotation, SpawnParams))
+				{
+					Actor->SetActorLabel(FString::Printf(TEXT("%s_%s"), *Resolved.Kind, *Resolved.Asset));
+					Actor->Tags.Add(kPropTag);
+					Actor->GetMesh()->SetStaticMesh(Resolved.Mesh);
+					Actor->GetMesh()->ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Static;
+					Actor->SetActorScale3D(FVector(Prop.Scale));
+					ApplyAuthoredSlots(Actor->GetMesh(), Resolved.Mesh, Resolved.Text);
+					++PropActors;
+				}
+				continue;
+			}
+			if (Resolved.Kind == ApexProps::FerrisWheelKind && Resolved.Asset == ApexProps::FerrisWheelAsset)
+			{
+				SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel,
+					AApexRotorActor::StaticClass(), FName(*FString::Printf(TEXT("Prop_%d"), i)));
+				if (AApexRotorActor* Actor = World->SpawnActor<AApexRotorActor>(Prop.Location, Rotation, SpawnParams))
+				{
+					Actor->SetActorLabel(FString::Printf(TEXT("%s_%s"), *Resolved.Kind, *Resolved.Asset));
+					Actor->Tags.Add(kPropTag);
+					Actor->GetMesh()->SetStaticMesh(Resolved.Mesh);
+					Actor->GetMesh()->ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Static;
+					Actor->GetRotor()->SetStaticMesh(
+						FindAuthoredMesh(ApexProps::FerrisWheelKind, ApexProps::FerrisRotorAsset));
+					Actor->GetRotor()->SetRelativeLocation(ApexProps::FerrisHubOffsetCm);
+					Actor->SetActorScale3D(FVector(Prop.Scale));
+					++PropActors;
+				}
+				continue;
+			}
+
+			FVector Scale(Prop.Scale);
+			if (Resolved.Kind == TEXT("bridge"))
+			{
+				// Authored for a 15 m road; the span (local Y) stretches to this one.
+				const float SpanM = Prop.SpanM.IsSet() ? Prop.SpanM.GetValue() : RoadWidthAt(Scene, Prop.Location);
+				Scale.Y *= ApexProps::BridgeSpanScale(SpanM);
+			}
+
+			if (Resolved.bInstanced)
+			{
+				const FString Key = FString::Printf(TEXT("%s/%s/%s"), *Resolved.Kind, *Resolved.Asset, *Resolved.Text);
+				FString Label = FString::Printf(TEXT("Props_%s_%s"), *Resolved.Kind, *Resolved.Asset);
+				if (!Resolved.Text.IsEmpty())
+				{
+					Label += TEXT("_") + TextKey(Resolved.Text);
+				}
+				if (UHierarchicalInstancedStaticMeshComponent* Component =
+						InstancesFor(Key, Label, Resolved.Mesh, Resolved))
+				{
+					const int32 Index = Component->AddInstance(
+						FTransform(Rotation, Prop.Location, Scale), /*bWorldSpace*/ true);
+					Component->SetCustomDataValue(Index, 0, InstanceJitter(i));
+					++PropInstances;
+				}
+				continue;
+			}
+
+			if (AStaticMeshActor* Actor = SpawnMeshActor(i,
+					FString::Printf(TEXT("%s_%s"), *Resolved.Kind, *Resolved.Asset), Prop.Location, Rotation))
+			{
+				UStaticMeshComponent* Component = Actor->GetStaticMeshComponent();
+				Component->SetStaticMesh(Resolved.Mesh);
+				Actor->SetActorScale3D(Scale);
+				ApplyAuthoredSlots(Component, Resolved.Mesh, Resolved.Text);
+				++PropActors;
+			}
+			continue;
+		}
+
+		// Generated stand-in or placeholder, as before the kit.
+		FallbackKinds.Add(Prop.Kind);
+		if (Resolved.bInstanced)
+		{
+			if (UHierarchicalInstancedStaticMeshComponent* Component = InstancesFor(
+					Prop.Kind, FString::Printf(TEXT("Props_%s"), *Prop.Kind), Resolved.Mesh, Resolved))
 			{
 				const int32 Index = Component->AddInstance(
 					FTransform(Rotation, Prop.Location, FVector(Prop.Scale)), /*bWorldSpace*/ true);
@@ -1772,11 +2271,9 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 			continue;
 		}
 
-		SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel,
-			AStaticMeshActor::StaticClass(), FName(*FString::Printf(TEXT("Prop_%d"), i)));
 		FVector Location = Prop.Location;
 		FVector Scale(Prop.Scale);
-		if (!PropMesh)
+		if (!Resolved.Mesh)
 		{
 			if (!PlaceholderMesh)
 			{
@@ -1788,17 +2285,15 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 			Location.Z += Scale.Z * 50.0f;
 		}
 		AStaticMeshActor* Actor =
-			World->SpawnActor<AStaticMeshActor>(Location, Rotation, SpawnParams);
+			SpawnMeshActor(i, FString::Printf(TEXT("%s_%s"), *Prop.Kind, *Prop.Asset), Location, Rotation);
 		if (!Actor)
 		{
 			continue;
 		}
-		Actor->SetActorLabel(FString::Printf(TEXT("%s_%s"), *Prop.Kind, *Prop.Asset));
 		UStaticMeshComponent* Component = Actor->GetStaticMeshComponent();
-		SettleComponent(Component);
-		if (PropMesh)
+		if (Resolved.Mesh)
 		{
-			Component->SetStaticMesh(PropMesh);
+			Component->SetStaticMesh(Resolved.Mesh);
 		}
 		else
 		{
@@ -1819,6 +2314,19 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 			AddSignText(Actor, Prop.Text);
 		}
 		++PropActors;
+	}
+	if (!FallbackKinds.IsEmpty())
+	{
+		TArray<FString> Kinds = FallbackKinds.Array();
+		Kinds.Sort();
+		UE_LOG(LogApexTrackImport, Display,
+			TEXT("    %d of %d prop(s) use the authored kit; generated stand-ins for: %s%s"), AuthoredProps,
+			Scene.Props.Num(), *FString::Join(Kinds, TEXT(", ")),
+			AuthoredProps == 0 ? TEXT(" (run ApexPropImport to bring the kit in)") : TEXT(""));
+	}
+	else if (Scene.Props.Num() > 0)
+	{
+		UE_LOG(LogApexTrackImport, Display, TEXT("    every prop uses the authored kit"));
 	}
 
 	// Starting grid. These match the slots the server computes, so a car

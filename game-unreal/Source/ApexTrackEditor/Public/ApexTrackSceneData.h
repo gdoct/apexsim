@@ -45,7 +45,17 @@ struct FApexTrackProp
 	FVector Location = FVector::ZeroVector;
 	float YawDeg = 0.0f;
 	float Scale = 1.0f;
+	/** Brand on a hoarding, distance on a braking marker, number on a post. */
 	FString Text;
+	/** Grandstands: length along the heading, metres (bays are laid from it). */
+	TOptional<float> LengthM;
+	/**
+	 * Grandstands: signed bend radius at the station, metres — positive on
+	 * the outside of the corner, negative inside, unset on a straight.
+	 */
+	TOptional<float> RadiusM;
+	/** Bridges: road width at the station, metres, which the span is scaled to. */
+	TOptional<float> SpanM;
 };
 
 struct FApexTrackGridSlot

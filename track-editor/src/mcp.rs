@@ -233,6 +233,9 @@ struct AddPropParams {
     asset: Option<String>,
     /// Optional sign/board text.
     text: Option<String>,
+    /// Grandstand length along its heading, metres (bays are laid from it
+    /// on import). Defaults to 30.
+    length_m: Option<f32>,
 }
 
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
@@ -248,6 +251,8 @@ struct UpdatePropParams {
     asset: Option<String>,
     /// New sign text; pass an empty string to clear it.
     text: Option<String>,
+    /// Grandstand length, metres; pass 0 to clear it (back to the 30 m default).
+    length_m: Option<f32>,
 }
 
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
@@ -548,6 +553,7 @@ fn drain_mcp_commands(
                         yaw_rad: params.yaw_rad.unwrap_or(0.0),
                         scale: params.scale.unwrap_or(1.0),
                         text: params.text.clone(),
+                        length_m: params.length_m,
                     });
                     Ok(id)
                 });
@@ -582,6 +588,9 @@ fn drain_mcp_commands(
                     }
                     if let Some(v) = params.text.clone() {
                         prop.text = if v.is_empty() { None } else { Some(v) };
+                    }
+                    if let Some(v) = params.length_m {
+                        prop.length_m = (v > 0.0).then_some(v);
                     }
                     Ok(())
                 });
@@ -1026,7 +1035,7 @@ impl TrackEditorMcp {
     }
 
     #[tool(
-        description = "Add a world-anchored prop (tree, sign, barrier, tire_wall, building, grandstand, light, cone, misc) at a track-space position. Returns the new prop's id. Records an undo entry."
+        description = "Add a world-anchored prop (tree, sign, barrier, tire_wall, building, grandstand, light, cone, misc, board, fence, pit, bridge, vehicle, attraction, sky) at a track-space position. Returns the new prop's id. Records an undo entry."
     )]
     async fn add_prop(
         &self,

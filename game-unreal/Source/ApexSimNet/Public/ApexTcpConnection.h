@@ -89,6 +89,12 @@ private:
 	FSocket* Socket = nullptr;
 	ISocketSubsystem* SocketSubsystem = nullptr;
 	FRunnableThread* Thread = nullptr;
+	/**
+	 * Guards `Socket` between the game thread's Stop() and the worker, which
+	 * creates it in ConnectSocket() and destroys it on a failed connect or in
+	 * Exit(). Stop() reading a pointer the worker is freeing crashed on exit.
+	 */
+	FCriticalSection SocketLock;
 
 	FThreadSafeBool bStopRequested{false};
 	FThreadSafeBool bConnected{false};

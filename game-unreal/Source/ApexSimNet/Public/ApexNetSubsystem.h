@@ -404,6 +404,8 @@ private:
 	 * one for a demo request that failed and left nothing to leave.
 	 */
 	int32 DemoLeavesInFlight = 0;
+	/** Whether every car in a telemetry frame is in the current roster (a stale frame of another session is not). */
+	bool FrameFitsRoster(const FApexTelemetryFrame& Frame) const;
 	EApexSessionState DemoSessionState = EApexSessionState::Lobby;
 	bool bSessionRequestPending = false;
 	double SessionRequestSentSeconds = 0.0;

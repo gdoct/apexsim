@@ -8,8 +8,10 @@
 
         1. (optional) build the ApexSimEditor target, so the commandlet in the
            ApexTrackEditor module matches the current C++ source
-        2. cargo run --bin ats-export -- --all   -> content/tracks/export/*.uescene.json
-        3. UnrealEditor-Cmd -run=ApexTrackImport -> game-unreal/Content/Tracks/...
+        2. (optional, -ImportProps) UnrealEditor-Cmd -run=ApexPropImport -all
+                                                 -> game-unreal/Content/Props/...
+        3. cargo run --bin ats-export -- --all   -> content/tracks/export/*.uescene.json
+        4. UnrealEditor-Cmd -run=ApexTrackImport -> game-unreal/Content/Tracks/...
 
     Both generated stages are regenerated wholesale; nothing under
     content/tracks/export or Content/Tracks should be hand-edited.
@@ -30,6 +32,12 @@
 .PARAMETER Build
     Compile the ApexSimEditor target before importing. Needed after touching
     C++ under game-unreal/Source; skip it for a content-only rebake.
+
+.PARAMETER ImportProps
+    Bring the authored prop kit (content/props/<kind>/*.glb, docs/PROPS.md)
+    into /Game/Props first, with the ApexPropImport commandlet. Needed once,
+    and again whenever a GLB changes; the track import places whatever is
+    there and falls back to generated stand-ins for the rest.
 
 .PARAMETER Release
     Build the exporter in release mode. Slower to compile, much faster to bake
@@ -63,6 +71,7 @@ param(
     [string[]]$Track,
     [string]$EngineRoot,
     [switch]$Build,
+    [switch]$ImportProps,
     [switch]$Release,
     [switch]$DryRun,
     [switch]$SkipExport,
@@ -160,6 +169,19 @@ if ($Build) {
     Invoke-Tool -Exe (Join-Path $engine 'Engine\Build\BatchFiles\Build.bat') `
         -Arguments @('ApexSimEditor', 'Win64', 'Development', "-Project=$Uproject", '-WaitMutex') `
         -What 'build'
+}
+
+if ($ImportProps) {
+    if ($SkipImport) {
+        throw '-ImportProps needs the Unreal import step; drop -SkipImport'
+    }
+    Write-Step 'Importing the prop kit into /Game/Props'
+    $propArgs = @($Uproject, '-run=ApexPropImport', '-all',
+        '-unattended', '-nopause', '-nosplash', '-stdout', '-utf8output')
+    if ($DryRun) { $propArgs += '-dryrun' }
+    if ($ExtraEditorArgs) { $propArgs += $ExtraEditorArgs }
+    Invoke-Tool -Exe (Join-Path $engine 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe') `
+        -Arguments $propArgs -What 'ApexPropImport'
 }
 
 if ($SkipExport) {

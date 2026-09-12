@@ -124,6 +124,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         yaw_rad: std::f32::consts::FRAC_PI_2,
         scale: 1.4,
         text: None,
+        length_m: None,
     });
     scene.pit_lane = Some(PitLane {
         nodes: vec![[0.0, -20.0, 0.0], [80.0, -20.0, 0.0], [160.0, -18.0, 1.0]],
@@ -376,8 +377,10 @@ fn scene_header_and_gameplay_anchors_are_populated() {
     assert_eq!(baked.centerline[0].s_cm, 0.0);
     assert!(baked.centerline[0].half_left_cm > 0.0);
 
-    assert_eq!(baked.props.len(), 1);
-    let prop = &baked.props[0];
+    // The scene's own prop; the pit lane adds its generated complex on top.
+    let authored: Vec<_> = baked.props.iter().filter(|p| p.kind != "pit").collect();
+    assert_eq!(authored.len(), 1);
+    let prop = authored[0];
     assert_eq!(prop.asset, "tree_oak_large");
     // Track (30, 25) m -> UE (3000, -2500) cm; yaw +90 deg CCW -> -90 deg.
     assert!((prop.location[0] - 3000.0).abs() < 0.5);
@@ -387,6 +390,241 @@ fn scene_header_and_gameplay_anchors_are_populated() {
     let pit = baked.pit_lane.expect("pit lane should export");
     assert_eq!(pit.box_count, 10);
     assert!(baked.meshes.iter().any(|m| m.material_key == "pit_lane"));
+}
+
+fn props_with<'a>(scene: &'a UeScene, kind: &str, asset: &str) -> Vec<&'a ue_export::UeProp> {
+    scene
+        .props
+        .iter()
+        .filter(|p| p.kind == kind && p.asset == asset)
+        .collect()
+}
+
+/// A flat stadium, counter-clockwise: an 800 m straight along y = 0, a
+/// 70 m hairpin, the return straight along y = 140 and a hairpin back.
+/// Dense nodes keep the spline straight on the straights, which the
+/// rounded square above is not.
+fn stadium_track() -> TrackFile {
+    const R: f32 = 70.0;
+    let mut nodes = Vec::new();
+    for i in 0..=32 {
+        nodes.push(node(i as f32 * 25.0, 0.0, 0.0, 0.0));
+    }
+    for deg in (-80..=80).step_by(10) {
+        let (sin, cos) = (deg as f32).to_radians().sin_cos();
+        nodes.push(node(800.0 + R * cos, R + R * sin, 0.0, 0.0));
+    }
+    for i in (0..=32).rev() {
+        nodes.push(node(i as f32 * 25.0, 2.0 * R, 0.0, 0.0));
+    }
+    for deg in (100..=260).step_by(10) {
+        let (sin, cos) = (deg as f32).to_radians().sin_cos();
+        nodes.push(node(R * cos, R + R * sin, 0.0, 0.0));
+    }
+    TrackFile {
+        name: "Stadium".to_string(),
+        track_id: Some("stadium".to_string()),
+        nodes,
+        checkpoints: vec![],
+        spawn_points: vec![],
+        default_width: 12.0,
+        closed_loop: true,
+        raceline: vec![],
+        metadata: None,
+    }
+}
+
+/// The stadium with a 10 m pit lane on the right of the start straight:
+/// tapers off the road at both ends, 240 m of pit road parallel to it at
+/// y = -20 in between.
+fn stadium_scene() -> (TrackFile, AtsScene) {
+    let track = stadium_track();
+    let mut scene = AtsScene::new_for_track(&track, "Stadium.yaml");
+    scene.pit_lane = Some(PitLane {
+        nodes: {
+            // Nodes every 30 m along the pit road, as `pit.rs` lays them,
+            // so the spline stays straight rather than sagging between
+            // two far-apart nodes.
+            let mut nodes = vec![[100.0, -3.0, 0.0], [140.0, -12.0, 0.0]];
+            nodes.extend((0..=8).map(|i| [160.0 + 30.0 * i as f32, -20.0, 0.0]));
+            nodes.extend([[420.0, -12.0, 0.0], [460.0, -3.0, 0.0]]);
+            nodes
+        },
+        width_m: 10.0,
+        box_count: 10,
+        speed_limit_kmh: 80.0,
+    });
+    (track, scene)
+}
+
+/// The pit lane bakes its own complex: one garage per box on the far side
+/// of the lane with an end block beyond each end of the row, and pit walls
+/// on the road side, every module turned to face the track.
+#[test]
+fn the_pit_lane_bakes_a_garage_row_and_pit_walls() {
+    let (track, scene) = stadium_scene();
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    let garages = props_with(&baked, "pit", "garage_6m");
+    assert_eq!(garages.len(), 10, "one garage per box");
+    assert_eq!(props_with(&baked, "pit", "garage_end").len(), 2);
+    let walls = props_with(&baked, "pit", "pit_wall_6m");
+    assert_eq!(walls.len(), 10, "a wall module per box");
+    let plain = props_with(&baked, "pit", "pit_wall_plain_6m");
+    assert!(
+        !plain.is_empty(),
+        "plain walls fill the rest of the pit road"
+    );
+
+    // The lane runs at y = -20 m (UE +2000 cm) on the right of a road
+    // along +X: garages beyond it (UE y 2500), walls between it and the
+    // road (UE y 1400..1500), both looking toward the road, which is on
+    // their left in the server frame — a module's front is its right-hand
+    // side, so they are turned round (UE yaw ±180).
+    for garage in &garages {
+        assert!(
+            (garage.location[1] - 2500.0).abs() < 1.0,
+            "garage y {}",
+            garage.location[1]
+        );
+        assert!(
+            (garage.yaw_deg.abs() - 180.0).abs() < 0.5,
+            "garage yaw {}",
+            garage.yaw_deg
+        );
+        assert!(garage.location[0] > 16000.0 && garage.location[0] < 40000.0);
+    }
+    for wall in walls.iter().chain(&plain) {
+        // The plain walls reach toward the tapers, where the lane already
+        // bends away a little.
+        let box_span = wall.asset == "pit_wall_6m";
+        let range = if box_span {
+            1399.0..=1501.0
+        } else {
+            // Toward the tapers the lane edge closes to 1.5 m off the
+            // road edge, which is where a real pit wall runs.
+            800.0..=1600.0
+        };
+        assert!(
+            range.contains(&wall.location[1]),
+            "wall y {}",
+            wall.location[1]
+        );
+        if box_span {
+            assert!(
+                (wall.yaw_deg.abs() - 180.0).abs() < 0.5,
+                "wall yaw {}",
+                wall.yaw_deg
+            );
+        }
+        // The relation counts the lane as parallel until it is within
+        // 7.5 m of the road, a little way into each taper.
+        let (lo, hi) = if box_span {
+            (16000.0, 40000.0)
+        } else {
+            (14000.0, 42000.0)
+        };
+        assert!(
+            wall.location[0] > lo && wall.location[0] < hi,
+            "wall x {}",
+            wall.location[0]
+        );
+    }
+    // Boxes tile at 6 m along the lane.
+    let mut xs: Vec<f32> = garages.iter().map(|g| g.location[0]).collect();
+    xs.sort_by(|a, b| a.total_cmp(b));
+    for pair in xs.windows(2) {
+        assert!((pair[1] - pair[0] - 600.0).abs() < 1.0, "pitch {:?}", pair);
+    }
+}
+
+/// The pre-kit scenes stood pit garages in as `building/pit_garage`; the
+/// generated complex replaces them rather than doubling up.
+#[test]
+fn legacy_pit_garage_stand_ins_give_way_to_the_generated_complex() {
+    let (track, mut scene) = stadium_scene();
+    let id = scene.alloc_id();
+    scene.props.push(Prop {
+        id,
+        kind: PropKind::Building,
+        asset: "pit_garage".to_string(),
+        x: 280.0,
+        y: -34.0,
+        z: 0.0,
+        yaw_rad: 0.0,
+        scale: 1.0,
+        text: None,
+        length_m: None,
+    });
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    assert!(props_with(&baked, "building", "pit_garage").is_empty());
+    assert!(!props_with(&baked, "pit", "garage_6m").is_empty());
+
+    // Without a pit lane the stand-in is exported as it always was.
+    scene.pit_lane = None;
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    assert_eq!(props_with(&baked, "building", "pit_garage").len(), 1);
+    assert!(props_with(&baked, "pit", "garage_6m").is_empty());
+}
+
+/// Grandstands carry their length and the signed bend radius (positive
+/// outside the corner), bridges the road width their span is scaled to.
+#[test]
+fn stands_and_bridges_carry_their_layout_hints() {
+    let (track, mut scene) = stadium_scene();
+    let mut add = |kind: PropKind, x: f32, y: f32, length_m: Option<f32>| {
+        let id = scene.alloc_id();
+        scene.props.push(Prop {
+            id,
+            kind,
+            asset: "test".to_string(),
+            x,
+            y,
+            z: 0.0,
+            yaw_rad: 0.0,
+            scale: 1.0,
+            text: None,
+            length_m,
+        });
+    };
+    // The far hairpin turns left around (800, 70): a stand beyond it is on
+    // the outside, one at its centre on the inside; the start straight
+    // has no bend at all.
+    add(PropKind::Grandstand, 900.0, 70.0, Some(50.0));
+    add(PropKind::Grandstand, 830.0, 70.0, None);
+    add(PropKind::Grandstand, 400.0, 40.0, None);
+    add(PropKind::Bridge, 600.0, 0.0, None);
+    let baked = ue_export::bake(&track, &scene).unwrap();
+
+    let stands = props_with(&baked, "grandstand", "test");
+    assert_eq!(stands.len(), 3);
+    let outside = stands.iter().find(|p| p.location[0] > 89000.0).unwrap();
+    let inside = stands
+        .iter()
+        .find(|p| (p.location[0] - 83000.0).abs() < 100.0)
+        .unwrap();
+    let straight = stands.iter().find(|p| p.location[0] < 41000.0).unwrap();
+    assert_eq!(outside.length_m, Some(50.0));
+    assert_eq!(inside.length_m, Some(30.0), "default length");
+    assert!(
+        outside.radius_m.is_some_and(|r| r > 50.0 && r < 90.0),
+        "{:?}",
+        outside.radius_m
+    );
+    assert!(
+        inside.radius_m.is_some_and(|r| r < -50.0 && r > -90.0),
+        "{:?}",
+        inside.radius_m
+    );
+    assert_eq!(straight.radius_m, None);
+    assert_eq!(straight.span_m, None);
+
+    let bridge = props_with(&baked, "bridge", "test")[0];
+    assert!(
+        (bridge.span_m.unwrap() - 12.0).abs() < 0.05,
+        "{:?}",
+        bridge.span_m
+    );
+    assert_eq!(bridge.length_m, None);
 }
 
 /// Authored spawn points win over the fallback grid, resolved exactly the

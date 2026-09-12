@@ -286,10 +286,27 @@ pub enum PropKind {
     Light,
     Cone,
     Misc,
+    /// Advertising hoarding or braking marker; snaps onto the nearest
+    /// barrier run and faces the road.
+    Board,
+    /// Spectator fence panel, laid behind the barriers.
+    Fence,
+    /// Pit garage or pit wall module. Placed by the exporter from the pit
+    /// lane's box layout; the groomer leaves any authored one alone.
+    Pit,
+    /// Spans the road (start gantry, footbridge): never pushed clear, its
+    /// pivot is the road centre.
+    Bridge,
+    /// Parked vehicle (transporter, fire truck).
+    Vehicle,
+    /// Big-footprint fairground piece (ferris wheel, video screen).
+    Attraction,
+    /// Airborne (blimp, balloon): `z` is the absolute altitude, never seated.
+    Sky,
 }
 
 impl PropKind {
-    pub const ALL: [PropKind; 9] = [
+    pub const ALL: [PropKind; 16] = [
         PropKind::Tree,
         PropKind::Sign,
         PropKind::Barrier,
@@ -299,6 +316,13 @@ impl PropKind {
         PropKind::Light,
         PropKind::Cone,
         PropKind::Misc,
+        PropKind::Board,
+        PropKind::Fence,
+        PropKind::Pit,
+        PropKind::Bridge,
+        PropKind::Vehicle,
+        PropKind::Attraction,
+        PropKind::Sky,
     ];
 
     pub fn label(self) -> &'static str {
@@ -312,6 +336,13 @@ impl PropKind {
             PropKind::Light => "light",
             PropKind::Cone => "cone",
             PropKind::Misc => "misc",
+            PropKind::Board => "board",
+            PropKind::Fence => "fence",
+            PropKind::Pit => "pit",
+            PropKind::Bridge => "bridge",
+            PropKind::Vehicle => "vehicle",
+            PropKind::Attraction => "attraction",
+            PropKind::Sky => "sky",
         }
     }
 
@@ -345,9 +376,15 @@ pub struct Prop {
     pub yaw_rad: f32,
     #[serde(default = "default_scale")]
     pub scale: f32,
-    /// Optional text for signs/boards.
+    /// Optional text for signs/boards: the brand on a hoarding, the
+    /// distance on a braking marker.
     #[serde(default)]
     pub text: Option<String>,
+    /// Length of a grandstand along its local X, metres. The Unreal
+    /// importer lays `round(length_m / 10)` bays (plus end caps) from the
+    /// one prop; absent means 30 m. Ignored by every other kind.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub length_m: Option<f32>,
 }
 
 fn default_scale() -> f32 {
@@ -618,6 +655,7 @@ mod tests {
             yaw_rad: 0.0,
             scale: 1.0,
             text: None,
+            length_m: None,
         });
         assert!(prop_id > curb_id);
         assert!(scene.validate().is_ok());

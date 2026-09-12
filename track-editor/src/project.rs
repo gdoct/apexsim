@@ -128,6 +128,7 @@ closed_loop: false
             yaw_rad: 0.0,
             scale: 1.0,
             text: None,
+            length_m: None,
         });
         ats_io::save_ats(&first.ats_path, &scene).unwrap();
 

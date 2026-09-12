@@ -58,14 +58,17 @@ namespace
 	/**
 	 * Whether a trace hit is the road a dot belongs on: one of the track level's
 	 * own baked meshes. Props are generated as `SM_Prop_*` meshes or instanced
-	 * components (trees, walls), and a dot on top of a tyre wall is worse than
-	 * one floating a few centimetres off the tarmac.
+	 * components (trees, walls), or authored kit actors tagged `ApexProp` (a
+	 * bridge deck over the road, a garage), and a dot on top of a tyre wall
+	 * is worse than one floating a few centimetres off the tarmac.
 	 */
 	bool IsRoadSurface(const FHitResult& Hit, const ULevel* Ground)
 	{
+		static const FName PropTag(TEXT("ApexProp"));
 		const UPrimitiveComponent* Component = Hit.GetComponent();
 		const AActor* Actor = Hit.GetActor();
-		if (!Component || !Actor || Actor->GetLevel() != Ground || Component->IsA<UInstancedStaticMeshComponent>())
+		if (!Component || !Actor || Actor->GetLevel() != Ground || Component->IsA<UInstancedStaticMeshComponent>()
+			|| Actor->ActorHasTag(PropTag))
 		{
 			return false;
 		}

@@ -248,6 +248,20 @@ bool FApexTrackSceneReader::LoadFromFile(
 			Prop.YawDeg = GetNumber(Object, TEXT("yaw_deg"));
 			Prop.Scale = GetNumber(Object, TEXT("scale"), 1.0f);
 			Prop.Text = GetString(Object, TEXT("text"));
+			// Layout hints the exporter only writes for the kinds that use them.
+			double Hint = 0.0;
+			if (Object->TryGetNumberField(TEXT("length_m"), Hint))
+			{
+				Prop.LengthM = static_cast<float>(Hint);
+			}
+			if (Object->TryGetNumberField(TEXT("radius_m"), Hint))
+			{
+				Prop.RadiusM = static_cast<float>(Hint);
+			}
+			if (Object->TryGetNumberField(TEXT("span_m"), Hint))
+			{
+				Prop.SpanM = static_cast<float>(Hint);
+			}
 			Scene.Props.Add(MoveTemp(Prop));
 		}
 	}
