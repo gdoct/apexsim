@@ -29,6 +29,8 @@ public:
 	UApexSessionCreateWidget(const FObjectInitializer& ObjectInitializer);
 
 	virtual void OnScreenActivated() override;
+	/** The turntable shares the world with the demo race. */
+	virtual bool WantsLiveBackdrop() const override { return false; }
 
 	/** The primary action when it is possible, otherwise the top of the setup column. */
 	virtual void FocusDefault() override;

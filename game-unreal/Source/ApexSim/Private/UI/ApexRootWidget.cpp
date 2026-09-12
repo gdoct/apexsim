@@ -8,6 +8,8 @@
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/Image.h"
+#include "Engine/Texture2D.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/WidgetSwitcher.h"
@@ -150,6 +152,13 @@ void UApexRootWidget::BuildShell()
 	BackgroundSlot->SetHorizontalAlignment(HAlign_Fill);
 	BackgroundSlot->SetVerticalAlignment(VAlign_Fill);
 
+	BackdropScrim = WidgetTree->ConstructWidget<UImage>();
+	BackdropScrim->SetBrushFromTexture(MakeScrimTexture());
+	BackdropScrim->SetVisibility(ESlateVisibility::Collapsed);
+	UOverlaySlot* ScrimSlot = Frame->AddChildToOverlay(BackdropScrim);
+	ScrimSlot->SetHorizontalAlignment(HAlign_Fill);
+	ScrimSlot->SetVerticalAlignment(VAlign_Fill);
+
 	UOverlaySlot* SwitcherSlot = Frame->AddChildToOverlay(ScreenHost);
 	SwitcherSlot->SetHorizontalAlignment(HAlign_Fill);
 	SwitcherSlot->SetVerticalAlignment(VAlign_Fill);
@@ -204,22 +213,34 @@ void UApexRootWidget::NativeConstruct()
 	// -ApexScreenshotAfter=N grabs the viewport N seconds in. Together with
 	// -ApexStartScreen it makes any screen inspectable from a headless run,
 	// which is the only way to look at the UI without opening the editor.
-	float ScreenshotDelay = 0.0f;
-	if (FParse::Value(FCommandLine::Get(), TEXT("ApexScreenshotAfter="), ScreenshotDelay)
-		&& ScreenshotDelay > 0.0f
+	// A comma list (-ApexScreenshotAfter=20,30,40) takes one at each, for
+	// something that moves, like the demo race behind the menu.
+	FString ScreenshotDelays;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexScreenshotAfter="), ScreenshotDelays, /*bShouldStopOnSeparator*/ false)
 		&& GetWorld())
 	{
-		FTimerHandle Handle;
-		GetWorld()->GetTimerManager().SetTimer(
-			Handle,
-			FTimerDelegate::CreateWeakLambda(this, []()
+		TArray<FString> Delays;
+		ScreenshotDelays.ParseIntoArray(Delays, TEXT(","));
+		for (const FString& Delay : Delays)
+		{
+			const float Seconds = FCString::Atof(*Delay);
+			if (Seconds <= 0.0f)
 			{
-				UE_LOG(LogApexSim, Log, TEXT("-ApexScreenshotAfter: requesting a viewport screenshot"));
-				// bShowUI, or the grab is of the empty 3D scene behind the menu.
-				FScreenshotRequest::RequestScreenshot(true);
-			}),
-			ScreenshotDelay,
-			false);
+				continue;
+			}
+			FTimerHandle Handle;
+			GetWorld()->GetTimerManager().SetTimer(
+				Handle,
+				FTimerDelegate::CreateWeakLambda(this, [Seconds]()
+				{
+					UE_LOG(LogApexSim, Log, TEXT("-ApexScreenshotAfter: requesting a viewport screenshot (%.0f s)"), Seconds);
+					// bShowUI, or the grab is of the empty 3D scene behind the menu.
+					// Each grab gets the next free file name.
+					FScreenshotRequest::RequestScreenshot(true);
+				}),
+				Seconds,
+				false);
+		}
 	}
 
 	// -ApexOpenPause=N / -ApexOpenSettings=N open a race overlay N seconds in.
@@ -410,6 +431,90 @@ FReply UApexRootWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 		return FReply::Handled();
 	}
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+void UApexRootWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	UpdateBackdrop(InDeltaTime);
+}
+
+UTexture2D* UApexRootWidget::MakeScrimTexture()
+{
+	if (ScrimTexture)
+	{
+		return ScrimTexture;
+	}
+	constexpr int32 Width = 256;
+	ScrimTexture = UTexture2D::CreateTransient(Width, 1, PF_B8G8R8A8);
+	if (!ScrimTexture)
+	{
+		return nullptr;
+	}
+	ScrimTexture->SRGB = true;
+	ScrimTexture->Filter = TF_Bilinear;
+	ScrimTexture->AddressX = TA_Clamp;
+	ScrimTexture->AddressY = TA_Clamp;
+
+	const FColor Base = ApexUI::Palette::Background.ToFColorSRGB();
+	FTexture2DMipMap& Mip = ScrimTexture->GetPlatformData()->Mips[0];
+	FColor* Pixels = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+	for (int32 X = 0; X < Width; ++X)
+	{
+		// Dense behind the headings on the left, thin over the right half
+		// where the race is left to be seen.
+		const float U = static_cast<float>(X) / static_cast<float>(Width - 1);
+		const float Alpha = FMath::Lerp(0.88f, 0.32f, FMath::SmoothStep(0.12f, 0.8f, U));
+		Pixels[X] = FColor(Base.R, Base.G, Base.B, static_cast<uint8>(FMath::RoundToInt(Alpha * 255.0f)));
+	}
+	Mip.BulkData.Unlock();
+	ScrimTexture->UpdateResource();
+	return ScrimTexture;
+}
+
+void UApexRootWidget::UpdateBackdrop(float DeltaSeconds)
+{
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	const bool bDemo = Director && Director->IsDemoViewActive() && !bRaceViewActive;
+	const UApexScreenWidget* Screen = GetScreenWidget(CurrentScreen);
+	const bool bScreenWants = Screen && Screen->WantsLiveBackdrop();
+
+	BackdropGate = FMath::FInterpConstantTo(BackdropGate, bScreenWants ? 1.0f : 0.0f, DeltaSeconds, 4.0f);
+	if (bDemo)
+	{
+		// Hidden once faded, shown again as soon as a screen wants it.
+		Director->SetDemoWorldVisible(bScreenWants || BackdropGate > 0.0f);
+	}
+
+	const float Opacity = bDemo ? Director->GetDemoBackdropOpacity() * BackdropGate : 0.0f;
+	if (FMath::IsNearlyEqual(Opacity, AppliedBackdrop, 0.002f) && AppliedBackdropScreen == CurrentScreen)
+	{
+		return;
+	}
+	if (AppliedBackdropScreen != CurrentScreen)
+	{
+		// The screen left behind is hidden, but must not come back see-through.
+		if (UApexScreenWidget* Previous = GetScreenWidget(AppliedBackdropScreen))
+		{
+			Previous->SetBackdropOpacity(0.0f);
+		}
+	}
+	AppliedBackdrop = Opacity;
+	AppliedBackdropScreen = CurrentScreen;
+
+	if (Background && !bRaceViewActive)
+	{
+		Background->SetBrushColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f - Opacity));
+	}
+	if (BackdropScrim)
+	{
+		BackdropScrim->SetVisibility(Opacity > 0.0f && !bRaceViewActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		BackdropScrim->SetRenderOpacity(Opacity);
+	}
+	if (UApexScreenWidget* Current = GetScreenWidget(CurrentScreen))
+	{
+		Current->SetBackdropOpacity(Opacity);
+	}
 }
 
 void UApexRootWidget::HandleFocusChanging(
@@ -919,6 +1024,12 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 	{
 		Background->SetVisibility(bActive ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
+	if (bActive && BackdropScrim)
+	{
+		BackdropScrim->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	// Re-applied from scratch on the next tick either way.
+	AppliedBackdrop = -1.0f;
 
 	if (Hud)
 	{

@@ -18,6 +18,8 @@ class UApexScreenWidget;
 class UApexSettingsWidget;
 class UApexToastWidget;
 class UBorder;
+class UImage;
+class UTexture2D;
 class UWidgetSwitcher;
 enum class EApexPauseAction : uint8;
 
@@ -43,6 +45,7 @@ public:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	/** Switches to a screen and pushes the current one onto the back stack. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
@@ -122,6 +125,13 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexToastWidget> ToastPanel;
+
+	/**
+	 * Darkening over the demo race, heaviest on the left where every screen
+	 * puts its heading and its first column. Shown only while the demo is.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
+	TObjectPtr<UImage> BackdropScrim;
 
 	/**
 	 * The race layers, stacked above the menu: the HUD, then the pause menu,
@@ -221,6 +231,26 @@ private:
 	/** -ApexCar=<name>: substring-matches a lobby car instead of taking the first. */
 	FString AutoRaceCar;
 	EApexGameMode AutoRaceMode = EApexGameMode::Race;
+
+	/**
+	 * Let the menu's demo race show through: the page backgrounds fade by the
+	 * race director's demo opacity, times a gate that closes over screens
+	 * that do not want it. The director's world is hidden only once the gate
+	 * has closed, so leaving for the car picker fades rather than cuts.
+	 */
+	void UpdateBackdrop(float DeltaSeconds);
+
+	/** A left-to-right fade of the palette's background, built once in memory. */
+	UTexture2D* MakeScrimTexture();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> ScrimTexture;
+
+	/** 0 over a screen that refuses the demo, 1 over one that takes it; eased. */
+	float BackdropGate = 0.0f;
+	/** What was last pushed to the widgets, so an unchanged value costs nothing. */
+	float AppliedBackdrop = -1.0f;
+	EApexScreen AppliedBackdropScreen = EApexScreen::MainMenu;
 
 	/** Notifies the outgoing and incoming screens, then flips the switcher. */
 	void ActivateScreen(EApexScreen Screen);

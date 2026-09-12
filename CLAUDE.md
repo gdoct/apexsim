@@ -249,6 +249,33 @@ Command line, applied when the race view begins and held for that race:
 -ApexCameraLookAt=... -ApexScreenshotAfter=12`. The conversions live in
 `ApexRaceCoordinate.h`; `ApexSim.Camera.*` tests cover the parsing and the frame.
 
+### Demo mode and the broadcast camera (`ApexDemoModeSubsystem`, `Race/ApexTvDirector.h`)
+
+The menu plays an AI race behind its screens. `UApexDemoModeSubsystem` asks the
+server for a `SessionKind::Demo` session whenever the client is connected and
+not in a session: unlisted, unjoinable, spectated by its creator, counted
+straight into a race, no replay written, removed when the spectator leaves.
+`SessionJoined` carries `SessionKind`, and `UApexNetSubsystem` keeps a demo out
+of every session delegate (`OnDemoSessionChanged` instead; `IsInSession()` is
+false) and leaves it by itself before any create or join. The race director's
+demo view streams the track (the player's pending track when it has a level),
+and the root widget fades page backgrounds by `GetDemoBackdropOpacity()` under a
+left-heavy scrim. Car select and session create return false from
+`WantsLiveBackdrop` because the turntable shares the world, so the demo world is
+hidden behind them. It restarts on a finished race, a track change or after
+`apexsim.demo.MaxMinutes`. `-ApexNoDemo`/`apexsim.demo.Enabled 0` turn it off;
+`-ApexAutoRace` never starts one.
+
+`ApexTv::FDirector` is the TV director, pure logic with ground and visibility
+traces injected: it picks a car (battles, the leader, an incident: off track or
+stopped, at most once per 12 s) and cuts between grid, trackside (long lens
+from the lobby centerline, outside of the bend), helicopter, tracking, chase,
+onboard, nose and reverse shots, with lag-compensated pans and depth of field.
+`-ApexView=tv` or `apexsim.tv.View 1` uses it in a race; `apexsim.tv.Shot <name>`,
+`apexsim.tv.Cut`, `apexsim.tv.Pace`, `apexsim.tv.Debug 1`; each cut and its
+reason is logged at `LogApexSim Verbose`. `ApexSim.Tv.*` tests drive it on a
+synthetic ring. `-ApexScreenshotAfter` takes a comma list of times.
+
 ### Client startup settings (`settings.yml`)
 
 The few settings a player may need to change *before* the game is usable -

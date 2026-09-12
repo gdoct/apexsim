@@ -3,6 +3,7 @@
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Engine/GameInstance.h"
 #include "UI/ApexRootWidget.h"
 
@@ -28,6 +29,16 @@ bool UApexScreenWidget::HandleBack()
 	}
 	Root->GoBack();
 	return true;
+}
+
+void UApexScreenWidget::SetBackdropOpacity(float Opacity)
+{
+	// The page brush's own tint is the palette's background; the border's
+	// brush colour multiplies it, so its alpha alone fades the page.
+	if (UBorder* Page = WidgetTree ? Cast<UBorder>(WidgetTree->RootWidget) : nullptr)
+	{
+		Page->SetBrushColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f - FMath::Clamp(Opacity, 0.0f, 1.0f)));
+	}
 }
 
 bool UApexScreenWidget::IsActiveScreen() const
