@@ -35,6 +35,8 @@ public:
 	UApexCarSelectWidget(const FObjectInitializer& ObjectInitializer);
 
 	virtual void OnScreenActivated() override;
+	/** The turntable shares the world with the demo race. */
+	virtual bool WantsLiveBackdrop() const override { return false; }
 	virtual void OnScreenDeactivated() override;
 
 	// --- Navigation ---------------------------------------------------------

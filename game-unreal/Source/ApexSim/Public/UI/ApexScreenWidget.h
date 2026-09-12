@@ -39,6 +39,20 @@ public:
 	/** Back walks the root's history. Screens at the bottom of a flow override this. */
 	virtual bool HandleBack() override;
 
+	/**
+	 * Whether the menu's demo race may show behind this screen. A screen that
+	 * renders the car turntable says no: the preview stage shares the world,
+	 * and would pick up the circuit and the race's lighting.
+	 */
+	virtual bool WantsLiveBackdrop() const { return true; }
+
+	/**
+	 * How much of the demo race shows through the page, 0..1. Fades the page's
+	 * own background (the root border every redesigned screen is built on),
+	 * leaving its panels, bars and text as they are.
+	 */
+	void SetBackdropOpacity(float Opacity);
+
 	/** True while this is the screen on show and no race view is covering it. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsActiveScreen() const;

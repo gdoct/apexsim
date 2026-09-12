@@ -225,9 +225,10 @@ namespace ApexTv
 			// A car within a few lengths of another is a race; one 35 m clear is not.
 			double Score = FMath::Clamp(1.0 - Gap / 35.0, 0.0, 1.0);
 			Score += Position == 0 ? 0.35 : Position <= 2 ? 0.15 : 0.0;
-			if (CarsInTrouble.Contains(Car.CarIndex))
+			if (CarsInTrouble.Contains(Car.CarIndex) && !(Car.CarIndex == CurrentCarIndex && ShotsOnCurrent >= 2))
 			{
-				Score += 1.4;
+				// The news, whoever else is on screen: for a couple of shots.
+				Score += 2.5;
 			}
 			if (Car.CarIndex == CurrentCarIndex)
 			{
@@ -264,6 +265,9 @@ namespace ApexTv
 		ShotLength = 0.0f;
 		HiddenFor = 0.0f;
 		CutCount = 0;
+		PendingCutReason = TEXT("start");
+		LastCutReason = TEXT("start");
+		LastShotHeld = 0.0f;
 		bCutRequested = false;
 		bWasCountdown = false;
 		History.Reset();
@@ -271,6 +275,8 @@ namespace ApexTv
 		bApproached = false;
 		SlowFor.Reset();
 		InTrouble.Reset();
+		bTroubleUnseen = false;
+		TroubleCooldown = 0.0f;
 		RacingFor = 0.0f;
 	}
 
@@ -316,14 +322,14 @@ namespace ApexTv
 		if (bCountdown != bWasCountdown)
 		{
 			bWasCountdown = bCountdown;
-			bCutRequested = true;
+			RequestCutFor(TEXT("lights"));
 		}
 
 		const FCar* Target = FindCar(Cars, TargetCarIndex);
 		if (Target && !bFresh && FVector::Dist(Target->Location, PrevTargetLocation) > 30.0 * Metre)
 		{
 			// The car was put somewhere else (a reset, a new race): no shot survives that.
-			bCutRequested = true;
+			RequestCutFor(TEXT("car moved"));
 		}
 		if (!Target || bCutRequested || Shot == EShot::None)
 		{
@@ -344,7 +350,7 @@ namespace ApexTv
 
 		// A camera that cannot see its car is not a shot. The onboard ones are
 		// on the car; everything else has to look past barriers and trees.
-		if (!IsOnboard(Shot) && World.IsClear && !World.IsClear(OutPose.Location, Target->Centre()))
+		if (!IsOnboard(Shot) && World.IsClear && !World.IsClear(OutPose.Location, Target->Centre() + FVector(0.0, 0.0, 30.0)))
 		{
 			HiddenFor += DeltaSeconds;
 		}
@@ -353,9 +359,19 @@ namespace ApexTv
 			HiddenFor = 0.0f;
 		}
 
-		if (ShotAge >= ShotLength || HiddenFor > 0.45f || IsShotSpent(*Target, OutPose))
+		// A pole or a trunk crossing the lens is part of the picture; a wall
+		// that stays there is not.
+		if (HiddenFor > BlockedCutSeconds)
 		{
-			bCutRequested = true;
+			RequestCutFor(TEXT("blocked"));
+		}
+		else if (ShotAge >= ShotLength)
+		{
+			RequestCutFor(TEXT("held its time"));
+		}
+		else if (IsShotSpent(*Target, OutPose))
+		{
+			RequestCutFor(TEXT("done"));
 		}
 		return true;
 	}
@@ -367,27 +383,41 @@ namespace ApexTv
 			RacingFor = 0.0f;
 			SlowFor.Reset();
 			InTrouble.Reset();
+			bTroubleUnseen = false;
 			return;
 		}
 		RacingFor += DeltaSeconds;
+		TroubleCooldown = FMath::Max(0.0f, TroubleCooldown - DeltaSeconds);
+
+		// Go to it as soon as the shot on screen has had a moment: a cut in
+		// its first second would look like a mistake. One incident at a time,
+		// though, or a scrappy lap is nothing but cuts.
+		if (bTroubleUnseen && ShotAge > 1.0f && ForcedShot == EShot::None)
+		{
+			bTroubleUnseen = false;
+			if (TroubleCooldown <= 0.0f)
+			{
+				TroubleCooldown = 12.0f;
+				RequestCutFor(TEXT("car in trouble"));
+			}
+		}
 
 		for (const FCar& Car : Cars)
 		{
 			float& Slow = SlowFor.FindOrAdd(Car.CarIndex);
-			// Off the start every car is slow; after that a crawl is a spin, a
-			// trip through the gravel or a car parked against a wall.
-			const bool bCrawling = RacingFor > 12.0f && Car.SpeedCmPerS() < 12.0f * Metre;
-			Slow = bCrawling ? Slow + DeltaSeconds : FMath::Max(0.0f, Slow - 2.0f * DeltaSeconds);
+			// Off the road, or all but stopped once the start has cleared: a
+			// spin, the gravel, a wall. Merely slow is not news; slow corners
+			// are.
+			const bool bStopped = RacingFor > 12.0f && Car.SpeedCmPerS() < 5.0f * Metre;
+			const bool bOff = RacingFor > 5.0f && Car.bOffTrack;
+			Slow = bStopped || bOff ? Slow + DeltaSeconds : FMath::Max(0.0f, Slow - 2.0f * DeltaSeconds);
 
 			// News for twenty seconds; a car stopped for good is not a story.
-			const bool bNews = Slow > 0.6f && Slow < 20.0f;
+			const bool bNews = Slow > 1.0f && Slow < 20.0f;
 			if (bNews && !InTrouble.Contains(Car.CarIndex))
 			{
 				InTrouble.Add(Car.CarIndex);
-				if (Car.CarIndex != TargetCarIndex && ShotAge > 2.0f && ForcedShot == EShot::None)
-				{
-					bCutRequested = true;
-				}
+				bTroubleUnseen |= Car.CarIndex != TargetCarIndex;
 			}
 			else if (!bNews)
 			{
@@ -396,9 +426,21 @@ namespace ApexTv
 		}
 	}
 
+	void FDirector::RequestCutFor(const TCHAR* Reason)
+	{
+		if (!bCutRequested)
+		{
+			PendingCutReason = Reason;
+		}
+		bCutRequested = true;
+	}
+
 	void FDirector::Cut(TConstArrayView<FCar> Cars, bool bCountdown, const FWorldQueries& World)
 	{
 		bCutRequested = false;
+		LastCutReason = PendingCutReason;
+		PendingCutReason = TEXT("asked");
+		LastShotHeld = ShotAge;
 
 		int32 NewTarget = INDEX_NONE;
 		if (bCountdown)
@@ -598,11 +640,28 @@ namespace ApexTv
 				FVector Road = Point;
 				Road.Z = GroundBelow(Point + FVector(0, 0, Target.Location.Z + 50.0 * Metre), Target.Location.Z, World) + Metre;
 
+				// The road the car will come along, not just the spot the camera
+				// faces: a tripod behind a row of trees sees the car for a moment.
+				FVector Approach[3];
+				for (int32 Back = 0; Back < 3; ++Back)
+				{
+					FVector Along;
+					FVector Unused;
+					Path.Sample(Here + Ahead - Back * 35.0 * Metre, Along, Unused);
+					Along.Z = GroundBelow(Along + FVector(0, 0, Target.Location.Z + 50.0 * Metre), Target.Location.Z, World) + Metre;
+					Approach[Back] = Along;
+				}
+
 				for (double SideTry : { Outside, -Outside })
 				{
 					FVector Camera = Point + RightOf(Tangent) * SideTry * Lateral;
 					Camera.Z = GroundBelow(Camera + FVector(0, 0, Target.Location.Z + 50.0 * Metre), Target.Location.Z, World) + Height;
-					if (!World.IsClear || World.IsClear(Camera, Road))
+					int32 Seen = 0;
+					for (const FVector& OnRoad : Approach)
+					{
+						Seen += !World.IsClear || World.IsClear(Camera, OnRoad);
+					}
+					if (Seen == 3 || (Seen == 2 && (!World.IsClear || World.IsClear(Camera, Road))))
 					{
 						S.Anchor = Camera;
 						S.Axis = Tangent;
@@ -759,7 +818,7 @@ namespace ApexTv
 			Setup.OrbitDeg += Setup.OrbitRateDegPerS * DeltaSeconds;
 			const FVector Out = Heading(FrameYawDeg + 180.0 + Setup.OrbitDeg);
 			Location = Target.Location + Out * Setup.DistanceCm + FVector(0, 0, Setup.HeightCm);
-			LookAt = Centre + Velocity * 0.25;
+			LookAt = Centre + Velocity * 0.15;
 			FollowRate = 3.0;
 			Fov = FramingFovDeg(BodyLength, FVector::Dist(Location, Centre), Setup.FrameFraction, 8.0f, 70.0f);
 			FovRate = 1.5f;
@@ -836,9 +895,12 @@ namespace ApexTv
 			{
 				Location.Z = Ground + 60.0;
 			}
-			// An operator's pan lags by about 1/rate; aim that far down the road
-			// so the car sits in the frame rather than trailing out of it.
-			LookAt += Velocity * (1.0 / FollowRate + 0.05);
+			// An operator's pan lags by about 1/rate behind the car's motion
+			// across the lens; aim that far ahead so the car sits in the frame
+			// rather than trailing out of it. A camera travelling with the car
+			// sees little of that motion, a tripod all of it.
+			const FVector CameraVelocity = !bFresh && DeltaSeconds > 0.0f ? (Location - CamLocation) / DeltaSeconds : FVector::ZeroVector;
+			LookAt += (Velocity - CameraVelocity) * (1.0 / FollowRate) + Velocity * 0.05;
 		}
 
 		const FQuat Wanted = bRigid ? Rigid : FRotationMatrix::MakeFromX(LookAt - Location).ToQuat();

@@ -390,6 +390,8 @@ private:
 	bool bTvView = false;
 	/** The TV director has placed the camera at least once since the view began. */
 	bool bHasTvPose = false;
+	/** Cuts already written to the log (Verbose), so each is logged once. */
+	int32 LoggedTvCuts = 0;
 	bool bDemoView = false;
 	bool bDemoWorldVisible = true;
 	bool bDemoFadeOut = false;
@@ -408,6 +410,7 @@ private:
 	{
 		int32 Lap = 0;
 		float StationM = 0.0f;
+		bool bOnTrack = true;
 	};
 	TMap<int32, FCarProgress> CarProgress;
 

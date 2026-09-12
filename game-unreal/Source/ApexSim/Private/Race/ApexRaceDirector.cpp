@@ -517,6 +517,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		FCarProgress& Progress = CarProgress.FindOrAdd(Car.CarIndex);
 		Progress.Lap = Car.CurrentLap;
 		Progress.StationM = Car.TrackProgress;
+		Progress.bOnTrack = Car.bIsOnTrack;
 	}
 
 	UpdateStartLights(Frame);
@@ -1407,6 +1408,7 @@ void AApexRaceDirector::UpdateTvCamera(float DeltaSeconds)
 		Entry.EyeLocal = Car->GetCockpitLayout().Eye;
 		const FCarProgress* Progress = CarProgress.Find(Pair.Key);
 		Entry.RaceDistanceM = Progress ? ApexRace::RaceDistanceM(Progress->Lap, Progress->StationM, TrackLengthM) : 0.0f;
+		Entry.bOffTrack = Progress && !Progress->bOnTrack;
 	}
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexTvCamera), /*bTraceComplex*/ true, this);
@@ -1450,6 +1452,12 @@ void AApexRaceDirector::UpdateTvCamera(float DeltaSeconds)
 	if (!FollowedCar || FollowedCar->GetCarIndex() != Tv.GetTargetCarIndex())
 	{
 		UpdateCameraTarget();
+	}
+	if (Tv.GetCutCount() != LoggedTvCuts)
+	{
+		LoggedTvCuts = Tv.GetCutCount();
+		UE_LOG(LogApexSim, Verbose, TEXT("Broadcast camera: %s on car %d (cut: %s, after %.1f s)"),
+			ApexTv::ShotName(Tv.GetShot()), Tv.GetTargetCarIndex(), Tv.GetLastCutReason(), Tv.GetLastShotHeld());
 	}
 
 	if (CVarTvDebug.GetValueOnGameThread() != 0 && GEngine)

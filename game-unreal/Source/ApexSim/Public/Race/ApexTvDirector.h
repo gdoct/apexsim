@@ -60,6 +60,8 @@ namespace ApexTv
 		FVector EyeLocal = FVector(-40.0, 0.0, 90.0);
 		/** Race order: laps and centerline station together (ApexRace::RaceDistanceM). */
 		float RaceDistanceM = 0.0f;
+		/** Past the track limits (curbs count as track), as the server says. */
+		bool bOffTrack = false;
 
 		float SpeedCmPerS() const { return static_cast<float>(Velocity.Size2D()); }
 		/** Where a camera should look: the middle of the body. */
@@ -165,11 +167,27 @@ namespace ApexTv
 		float GetShotAge() const { return ShotAge; }
 		/** Cuts so far, for tests and the debug readout. */
 		int32 GetCutCount() const { return CutCount; }
+		/** Why the last cut happened, and how long the shot before it had been held. */
+		const TCHAR* GetLastCutReason() const { return LastCutReason; }
+		float GetLastShotHeld() const { return LastShotHeld; }
 
-		/** Cut to a shot on the next tick (debugging); None goes back to the director's choice. */
-		void ForceShot(EShot InShot) { ForcedShot = InShot; bCutRequested = true; }
+		/** Seconds a view may stay blocked before it is cut. */
+		static constexpr float BlockedCutSeconds = 0.8f;
+
+		/**
+		 * Cut to a shot on the next tick and keep coming back to it (debugging).
+		 * None lets the director choose again, from the end of the shot on screen.
+		 */
+		void ForceShot(EShot InShot)
+		{
+			ForcedShot = InShot;
+			if (InShot != EShot::None)
+			{
+				RequestCutFor(TEXT("forced"));
+			}
+		}
 		/** Cut on the next tick. */
-		void RequestCut() { bCutRequested = true; }
+		void RequestCut() { RequestCutFor(TEXT("asked")); }
 
 	private:
 		/** Where a shot's camera stands, decided at the cut. */
@@ -188,6 +206,7 @@ namespace ApexTv
 			int32 Variant = 0;
 		};
 
+		void RequestCutFor(const TCHAR* Reason);
 		void Cut(TConstArrayView<FCar> Cars, bool bCountdown, const FWorldQueries& World);
 		EShot ChooseShot(const FCar& Target, TConstArrayView<FCar> Cars, bool bCountdown);
 		bool SetUpShot(EShot InShot, const FCar& Target, TConstArrayView<FCar> Cars, const FWorldQueries& World);
@@ -213,6 +232,9 @@ namespace ApexTv
 		float ShotLength = 0.0f;
 		float HiddenFor = 0.0f;
 		int32 CutCount = 0;
+		const TCHAR* PendingCutReason = TEXT("start");
+		const TCHAR* LastCutReason = TEXT("start");
+		float LastShotHeld = 0.0f;
 		bool bCutRequested = false;
 		bool bWasCountdown = false;
 		/** The last few shots, newest first, so the cutting does not repeat itself. */
@@ -229,9 +251,13 @@ namespace ApexTv
 		/** The trackside camera saw the car arrive: now it waits for it to leave. */
 		bool bApproached = false;
 
-		/** Car index -> seconds it has looked in trouble (stopped, or crawling). */
+		/** Car index -> seconds it has looked in trouble (off the road, or stopped). */
 		TMap<int32, float> SlowFor;
 		TSet<int32> InTrouble;
+		/** A car got into trouble off camera; cut to it once the current shot allows. */
+		bool bTroubleUnseen = false;
+		/** Seconds until an incident may interrupt the coverage again. */
+		float TroubleCooldown = 0.0f;
 		float RacingFor = 0.0f;
 	};
 }
