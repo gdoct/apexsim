@@ -10,6 +10,11 @@
 			"LoadingPhase": "PreDefault"
 		},
 		{
+			"Name": "ApexSimInput",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
 			"Name": "ApexSim",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",

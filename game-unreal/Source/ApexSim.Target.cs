@@ -7,6 +7,6 @@ public class ApexSimTarget : TargetRules
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
-		ExtraModuleNames.AddRange(new string[] { "ApexSimNet", "ApexSim" });
+		ExtraModuleNames.AddRange(new string[] { "ApexSimNet", "ApexSimInput", "ApexSim" });
 	}
 }

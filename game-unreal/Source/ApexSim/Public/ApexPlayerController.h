@@ -96,6 +96,15 @@ public:
 	 */
 	void PreviewForceFeedback();
 
+	/**
+	 * Pushes the wheel to the right for a moment.
+	 *
+	 * Which way a force turns a rim is the device's business — DirectInput does
+	 * not promise it — so the Wheel page offers this and asks the player what
+	 * happened, rather than the game guessing and a car fighting its driver.
+	 */
+	void TestWheelForce();
+
 protected:
 	virtual void SetupInputComponent() override;
 	virtual void BeginPlay() override;
@@ -108,8 +117,18 @@ protected:
 	virtual void UpdateForceFeedback(IInputInterface* InputInterface, const int32 ControllerId) override;
 
 private:
-	/** This frame's rumble from the car: the server's DriverFeedback through the gamepad mixer. */
-	ApexFfb::FRumble TickDrivingFeedback(float DeltaSeconds);
+	/**
+	 * What the car is doing this frame, as force-feedback signals: the server's
+	 * DriverFeedback plus the speed and gear from telemetry. Inactive in the
+	 * menus, behind the pause menu, and whenever the stream has gone quiet.
+	 */
+	ApexFfb::FSignals ReadDrivingSignals();
+
+	/** This frame's rumble from the car, through the gamepad mixer. */
+	ApexFfb::FRumble TickDrivingFeedback(const ApexFfb::FSignals& Signals, float DeltaSeconds);
+
+	/** The same signals through the wheel mixer, onto whichever wheelbase steers. */
+	void TickWheelFeedback(const ApexFfb::FSignals& Signals, float DeltaSeconds);
 
 	/** Create the input config once, whichever init step gets there first. */
 	void EnsureInputConfig();
@@ -142,7 +161,12 @@ private:
 	bool bDriveInputEnabled = false;
 
 	ApexFfb::FGamepadState FeedbackState;
+	ApexFfb::FWheelState WheelState;
+	/** The last frame's forces, for `apexsim.ffb.Debug`. */
+	FApexWheelEffects LastWheelEffects;
 	/** The net subsystem's feedback serial last mixed, so each message's hits fire once. */
 	uint32 LastFeedbackSerial = 0;
 	float FeedbackPreviewSeconds = 0.0f;
+	/** Counts down while the Wheel page's test force is pushing. */
+	float WheelTestSeconds = 0.0f;
 };

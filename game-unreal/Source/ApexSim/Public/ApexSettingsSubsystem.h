@@ -19,6 +19,8 @@ enum class EApexSettingsGroup : uint8
 	Graphics,
 	Camera,
 	Controls,
+	/** The wheel: its devices, its forces and its own bindings. */
+	Wheel,
 	Audio,
 };
 
@@ -163,11 +165,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetVibration(float Value01);
 
-	/** The key on a slot, falling back to the slot's default when unbound. */
+	/**
+	 * The key on a slot, falling back to the slot's default when unbound.
+	 *
+	 * A wheel slot resolves to the attached device's binding, so a player with
+	 * two wheelbases sees the one they are using (ApexInput::FindBinding).
+	 */
 	FKey GetBoundKey(FName ActionId, int32 Slot) const;
 
-	/** An invalid key clears the slot without restoring its default. */
-	void SetBoundKey(FName ActionId, int32 Slot, const FKey& Key);
+	/**
+	 * An invalid key clears the slot without restoring its default. `bInvert`
+	 * is for a device axis that runs backwards — a pedal resting at the top of
+	 * its travel — and is worked out while the binding is captured.
+	 */
+	void SetBoundKey(FName ActionId, int32 Slot, const FKey& Key, bool bInvert = false);
+
+	/** True when the slot's binding is on a device that is not attached now. */
+	bool IsBindingDetached(FName ActionId, int32 Slot) const;
 
 	/** Slots whose key equals this one, excluding the slot being edited. */
 	TArray<const ApexInput::FSlotDef*> FindConflicts(const FKey& Key, FName ExceptAction, int32 ExceptSlot) const;
@@ -175,8 +189,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void ResetBindings();
 
-	/** True when the key matches either slot of the pause action. */
+	/** True when the key matches any slot of the pause action, wheel buttons included. */
 	bool IsPauseKey(const FKey& Key) const;
+
+	// --- Wheel ----------------------------------------------------------------
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetWheelForce(float Value01);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetWheelRoadEffects(float Value01);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetWheelDamping(float Value01);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetWheelInvertForce(bool bInvert);
+
+	/**
+	 * The DirectInput device the forces go to — the one the steering is bound
+	 * to — or INDEX_NONE when there is no wheel that can play them.
+	 */
+	int32 GetWheelDeviceSlot() const;
+
+	/** Fires when a device is plugged in or pulled out, after the bindings are rebuilt. */
+	FSimpleMulticastDelegate OnInputDevicesChanged;
 
 	// --- Audio ----------------------------------------------------------------
 
@@ -225,6 +262,9 @@ private:
 	void ApplyControls();
 	void ApplyAudio();
 
+	/** A device arrived or left: the bindings are rebuilt around what is here now. */
+	void HandleInputDevicesChanged();
+
 	/** Marks the preset Custom when a quality row no longer matches it. */
 	void ReconcilePreset();
 
@@ -237,6 +277,9 @@ private:
 	TObjectPtr<UApexSettingsSave> Settings;
 
 	mutable TArray<FIntPoint> AvailableResolutions;
+
+	/** The input module's device-change subscription, dropped on the way out. */
+	FDelegateHandle DevicesChangedHandle;
 
 	int32 ChangeCount = 0;
 	/** Suppresses the per-row counting and broadcasting while a preset applies. */

@@ -1,8 +1,10 @@
 #include "ApexSettingsSubsystem.h"
 
 #include "ApexBootSettings.h"
+#include "ApexDirectInputTypes.h"
 #include "ApexPlayerController.h"
 #include "ApexSim.h"
+#include "ApexSimInputModule.h"
 #include "AudioDevice.h"
 #include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
@@ -48,12 +50,37 @@ void UApexSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// The audio device exists by now, and the first menu cue plays before any
 	// overlay could have applied the volume.
 	ApplyAudio();
+
+	// A wheel plugged in mid-session has to reach the mapping context: its
+	// bindings name device slots, and the steering default is whichever
+	// wheelbase is attached.
+	if (FApexSimInputModule* Input = FApexSimInputModule::Get())
+	{
+		DevicesChangedHandle = Input->OnDevicesChanged().AddUObject(this, &UApexSettingsSubsystem::HandleInputDevicesChanged);
+	}
 }
 
 void UApexSettingsSubsystem::Deinitialize()
 {
+	if (DevicesChangedHandle.IsValid())
+	{
+		if (FApexSimInputModule* Input = FApexSimInputModule::Get())
+		{
+			Input->OnDevicesChanged().Remove(DevicesChangedHandle);
+		}
+		DevicesChangedHandle.Reset();
+	}
+
 	Save();
 	Super::Deinitialize();
+}
+
+void UApexSettingsSubsystem::HandleInputDevicesChanged()
+{
+	// Not a change the player made: no change count, and nothing to save.
+	ApplyControls();
+	OnInputDevicesChanged.Broadcast();
+	OnSettingsChanged.Broadcast(EApexSettingsGroup::Wheel);
 }
 
 void UApexSettingsSubsystem::Load()
@@ -147,6 +174,9 @@ void UApexSettingsSubsystem::ApplyGroup(EApexSettingsGroup Group)
 	case EApexSettingsGroup::Graphics: ApplyGraphics(); break;
 	case EApexSettingsGroup::Camera:   ApplyCamera();   break;
 	case EApexSettingsGroup::Controls: ApplyControls(); break;
+	// The wheel's forces are read every frame by the player controller, and its
+	// bindings go through the same mapping context as everything else.
+	case EApexSettingsGroup::Wheel:    ApplyControls(); break;
 	case EApexSettingsGroup::Audio:    ApplyAudio();    break;
 	}
 }
@@ -526,56 +556,57 @@ void UApexSettingsSubsystem::SetVibration(float Value01)
 	Changed(EApexSettingsGroup::Controls);
 }
 
+namespace
+{
+	/** The binding rules ask this; nothing is attached when the module is not loaded. */
+	bool IsDeviceAttached(int32 DeviceSlot)
+	{
+		const FApexSimInputModule* Input = FApexSimInputModule::Get();
+		return Input && Input->IsAttached(DeviceSlot);
+	}
+}
+
 FKey UApexSettingsSubsystem::GetBoundKey(FName ActionId, int32 Slot) const
 {
 	if (Settings)
 	{
-		if (const FApexKeyBinding* Binding = Settings->Bindings.FindByPredicate(
-				[ActionId, Slot](const FApexKeyBinding& Candidate)
-				{
-					return Candidate.ActionId == ActionId && Candidate.Slot == Slot;
-				}))
+		if (const FApexKeyBinding* Binding = ApexInput::FindBinding(Settings->Bindings, ActionId, Slot, &IsDeviceAttached))
 		{
 			return Binding->Key;
 		}
+	}
+
+	if (ApexInput::IsWheelSlot(Slot))
+	{
+		return ApexInput::GetWheelDefaultKey(ActionId, Slot);
 	}
 
 	const ApexInput::FSlotDef* Def = ApexInput::FindSlot(ActionId, Slot);
 	return Def ? Def->DefaultKey : FKey();
 }
 
-void UApexSettingsSubsystem::SetBoundKey(FName ActionId, int32 Slot, const FKey& Key)
+bool UApexSettingsSubsystem::IsBindingDetached(FName ActionId, int32 Slot) const
+{
+	const FKey Key = GetBoundKey(ActionId, Slot);
+	const ApexDirectInput::FControl Control = ApexDirectInput::ParseKey(Key);
+	return Control.IsValid() && !IsDeviceAttached(Control.Slot);
+}
+
+void UApexSettingsSubsystem::SetBoundKey(FName ActionId, int32 Slot, const FKey& Key, bool bInvert)
 {
 	if (!Settings)
 	{
 		return;
 	}
 
-	const ApexInput::FSlotDef* Def = ApexInput::FindSlot(ActionId, Slot);
-	if (!Def)
+	if (!ApexInput::FindSlot(ActionId, Slot))
 	{
 		UE_LOG(LogApexSim, Warning, TEXT("Rebind of unknown slot %s/%d ignored"), *ActionId.ToString(), Slot);
 		return;
 	}
 
-	FApexKeyBinding* Existing = Settings->Bindings.FindByPredicate(
-		[ActionId, Slot](const FApexKeyBinding& Candidate)
-		{
-			return Candidate.ActionId == ActionId && Candidate.Slot == Slot;
-		});
-
-	if (Existing)
-	{
-		Existing->Key = Key;
-	}
-	else
-	{
-		// bNegate comes from the slot, not the key: which half of an axis a slot
-		// drives is a property of the control, not of what is bound to it.
-		Settings->Bindings.Emplace(ActionId, Slot, Key, Def->bNegate);
-	}
-
-	Changed(EApexSettingsGroup::Controls);
+	ApexInput::StoreBinding(Settings->Bindings, ActionId, Slot, Key, bInvert, &IsDeviceAttached);
+	Changed(ApexInput::IsWheelSlot(Slot) ? EApexSettingsGroup::Wheel : EApexSettingsGroup::Controls);
 }
 
 TArray<const ApexInput::FSlotDef*> UApexSettingsSubsystem::FindConflicts(
@@ -613,9 +644,62 @@ void UApexSettingsSubsystem::ResetBindings()
 
 bool UApexSettingsSubsystem::IsPauseKey(const FKey& Key) const
 {
-	return Key.IsValid()
-		&& (GetBoundKey(ApexInput::Actions::PauseMenu, 0) == Key
-			|| GetBoundKey(ApexInput::Actions::PauseMenu, 1) == Key);
+	if (!Key.IsValid())
+	{
+		return false;
+	}
+	if (GetBoundKey(ApexInput::Actions::PauseMenu, ApexInput::Slot::Gamepad) == Key
+		|| GetBoundKey(ApexInput::Actions::PauseMenu, ApexInput::Slot::Keyboard) == Key)
+	{
+		return true;
+	}
+
+	// Every wheel's pause button, not only the attached one's: the binding that
+	// resolves is the attached device's, and this is asked with a key in hand.
+	return Settings && Settings->Bindings.ContainsByPredicate([&Key](const FApexKeyBinding& Binding)
+	{
+		return Binding.ActionId == ApexInput::Actions::PauseMenu
+			&& ApexInput::IsWheelSlot(Binding.Slot)
+			&& Binding.Key == Key;
+	});
+}
+
+// --- Wheel ------------------------------------------------------------------
+
+void UApexSettingsSubsystem::SetWheelForce(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->WheelForce, Clamped)) { return; }
+	Settings->WheelForce = Clamped;
+	Changed(EApexSettingsGroup::Wheel);
+}
+
+void UApexSettingsSubsystem::SetWheelRoadEffects(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->WheelRoadEffects, Clamped)) { return; }
+	Settings->WheelRoadEffects = Clamped;
+	Changed(EApexSettingsGroup::Wheel);
+}
+
+void UApexSettingsSubsystem::SetWheelDamping(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->WheelDamping, Clamped)) { return; }
+	Settings->WheelDamping = Clamped;
+	Changed(EApexSettingsGroup::Wheel);
+}
+
+void UApexSettingsSubsystem::SetWheelInvertForce(bool bInvert)
+{
+	if (!Settings || Settings->bWheelInvertForce == bInvert) { return; }
+	Settings->bWheelInvertForce = bInvert;
+	Changed(EApexSettingsGroup::Wheel);
+}
+
+int32 UApexSettingsSubsystem::GetWheelDeviceSlot() const
+{
+	return Settings ? ApexInput::FindForceFeedbackDevice(Settings->Bindings) : INDEX_NONE;
 }
 
 float UApexSettingsSubsystem::ShapeSteering(float RawAxis) const
@@ -741,7 +825,17 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->SteeringSensitivity = Defaults->SteeringSensitivity;
 		Settings->Deadzone = Defaults->Deadzone;
 		Settings->Vibration = Defaults->Vibration;
-		Settings->Bindings.Reset();
+		// Only the pad's and the keyboard's: a wheel user resetting the pad
+		// page must not lose the mapping they spent ten minutes on.
+		ApexInput::ResetColumn(Settings->Bindings, ApexInput::EColumn::Keyboard);
+		break;
+
+	case EApexSettingsGroup::Wheel:
+		Settings->WheelForce = Defaults->WheelForce;
+		Settings->WheelRoadEffects = Defaults->WheelRoadEffects;
+		Settings->WheelDamping = Defaults->WheelDamping;
+		Settings->bWheelInvertForce = Defaults->bWheelInvertForce;
+		ApexInput::ResetColumn(Settings->Bindings, ApexInput::EColumn::Wheel);
 		break;
 
 	case EApexSettingsGroup::Audio:

@@ -315,19 +315,93 @@ force is worse than none), every torque sample kept and the transients
 peak-held. Golden bytes live in `network.rs` and `ApexUdpGolden::S_DriverFeedback`.
 
 On the client `UApexNetSubsystem` merges everything that arrived since its
-last tick (`FApexDriverFeedback::Absorb`), `ApexFfb::MakeSignals` turns it
-into device-agnostic signals, and `ApexFfb::MixGamepad` into two motors:
-front slide on the light motor, rear slide on the heavy one, curb ribs at a
-speed-set rate, ABS/TC pulse trains, grass noise, and decaying thumps for
-bumps, contact and shifts. `AApexPlayerController::UpdateForceFeedback` adds
-it to the pad while driving input is enabled (not in menus or behind pause).
+last tick (`FApexDriverFeedback::Absorb`) and `ApexFfb::MakeSignals` turns it
+into device-agnostic signals, which two mixers read.
+
+`ApexFfb::MixGamepad` drives a pad's two motors: front slide on the light
+motor, rear slide on the heavy one, curb ribs at a speed-set rate, ABS/TC
+pulse trains, grass noise, and decaying thumps for bumps, contact and shifts.
 It assumes XInput's channel layout; the GameInput plugin would put the Small
-channels on the trigger motors. Strength is the Controls tab's "Force
-feedback" slider (`UApexSettingsSave::Vibration`, 0.5 = as designed), which
-pulses the pad while dragged. `apexsim.ffb.Debug 1` prints signals and motor
-levels on screen. A racing wheel would be a second mixer over the same
-signals, with `SteerTorque` as its constant force; it needs a device layer
-that reads wheel axes first.
+channels on the trigger motors. Strength is the Controls tab's "Pad
+vibration" slider (`UApexSettingsSave::Vibration`, 0.5 = as designed), which
+pulses the pad while dragged.
+
+`ApexFfb::MixWheel` drives a wheelbase: the torque *is* the feel (the rim
+going light is the front tyres letting go), soft-limited past 0.75 so a car
+loaded past its reference still feels stronger rather than clipping, and
+smoothed with a 12 ms pole because the samples arrive in 60 Hz lumps and a
+direct drive base feels that as grain. On top of it one vibration channel
+carries whichever of curbs, grass, ABS, lockup or a hit is loudest, plus a
+damper that is heaviest at a standstill and a centring spring used only in
+the menus. Its settings are the Wheel tab's Force / Road effects / Damping /
+Direction (`UApexSettingsSave::WheelForce` and friends).
+
+`AApexPlayerController::UpdateForceFeedback` runs both every frame — it is
+the one hook that ticks with no pawn, no race and a pause menu up.
+`apexsim.ffb.Debug 1` prints the signals, the motor levels and the wheel's
+forces on screen.
+
+### Wheels and pedals (`Source/ApexSimInput/`)
+
+XInput is the engine's pad path and knows nothing else; every wheelbase,
+pedal set, shifter and button box on Windows speaks DirectInput. The
+`ApexSimInput` module is an input-device plugin like the engine's XInput one:
+`FApexDirectInputDevice` is created on the platform application's first poll,
+ticked every frame, and told about WM_DEVICECHANGE, so a wheel plugged in
+mid-session works without a restart. XInput devices are skipped (their path
+carries `IG_`), or an Xbox pad would arrive twice with its triggers merged.
+
+Every control is an ordinary `FKey` — `DInput1_X`, `DInput2_Button7`,
+`DInput1_Hat1Up`, registered with `EKeys` at module startup — so Enhanced
+Input, the rebinding screen and the settings slot need no second input path.
+The number is a device **slot**, not an enumeration index: a slot belongs to
+one physical device by instance GUID (falling back to the product GUID when
+the same wheel moves USB port) and is remembered in
+`Saved/ApexInputDevices.json`, so plugging in a button box cannot shift the
+pedals' bindings onto it.
+
+Three things about how it reads devices:
+
+- **Axes are sent when they move and every frame they rest away from zero.**
+  A pedal rests at -1, and `FlushPressedKeys` at the end of a race clears the
+  player input's key state, so the resting value has to keep arriving.
+- **A pedal's -1..1 is folded into 0..1 by a mapping modifier**
+  (`UApexInputModifierPedal`), never by the handler — the same action is also
+  fed by a trigger and a key, which are 0..1 already. The pad's deadzone and
+  steering curve are likewise a modifier (`UApexInputModifierPadSteering`) so
+  a wheel does not get a thumbstick's deadzone; both read the settings live,
+  so dragging a slider needs no context rebuild.
+- **A lost device sends its axes back to where they were when it arrived**,
+  not to zero: zero is half throttle to a pedal binding.
+
+Force feedback is taken **late and given back**: devices are opened shared,
+and only the wheel the steering is bound to is taken exclusively, the first
+frame a race asks for forces (`AcquireForForces`). That is what lets an open
+editor and a launched game share a wheelbase. Effects are a constant force, a
+sine, a damper and a spring, updated only when they change; a watchdog drops
+every force if the game stops updating them for 0.3 s, so a hitch or a crash
+never leaves a wheel pulling. Which way a positive force turns a rim is not
+something DirectInput promises — hence the Wheel page's Direction test, which
+pushes right and asks.
+
+Bindings live in the settings overlay's **Wheel** tab (devices, forces, and
+the wheel's own slots with live meters on steering, throttle and brake);
+slots 4-6 are the wheel column. They are kept **per device**: rebinding with
+one base plugged in leaves the other base's mapping alone, and unbinding
+unbinds the device in front of the player
+(`ApexInput::FindBinding`/`StoreBinding`). Binding an axis reads how far it
+*moves*, not where it sits, and the direction of the move is what sets
+`FApexKeyBinding::bInvert` — which is how a pedal that rests at the top of
+its travel configures itself.
+
+`apexsim.input.Devices` lists what is attached, with slots, capabilities and
+live readings; `apexsim.input.Rescan` enumerates again. `ApexSim.Input.*`
+automation tests cover the slot registry, the key names, the readings, the
+binding rules and both mixers.
+
+There is no wheel support for an H-pattern shifter (the wire protocol's gear
+field is filled from a shift delta, not an absolute gear) and no soft lock or
+rotation setting; a wheelbase's own driver sets its rotation.
 
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)

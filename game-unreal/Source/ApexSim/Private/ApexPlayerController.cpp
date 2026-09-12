@@ -4,6 +4,7 @@
 #include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
+#include "ApexSimInputModule.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
@@ -30,6 +31,10 @@ namespace
 
 	/** How long the settings slider's preview rumble lasts after each change. */
 	constexpr float kPreviewSeconds = 0.25f;
+
+	/** How long the wheel's direction test pushes, and how hard. */
+	constexpr float kWheelTestSeconds = 0.7f;
+	constexpr float kWheelTestForce = 0.35f;
 
 	TAutoConsoleVariable<bool> CVarFeedbackDebug(
 		TEXT("apexsim.ffb.Debug"),
@@ -208,10 +213,21 @@ void AApexPlayerController::PreviewForceFeedback()
 	FeedbackPreviewSeconds = kPreviewSeconds;
 }
 
+void AApexPlayerController::TestWheelForce()
+{
+	WheelTestSeconds = kWheelTestSeconds;
+}
+
 void AApexPlayerController::UpdateForceFeedback(IInputInterface* InputInterface, const int32 ControllerId)
 {
+	const float DeltaSeconds = static_cast<float>(FApp::GetDeltaTime());
+	const ApexFfb::FSignals Signals = ReadDrivingSignals();
+
 	FForceFeedbackValues Values = ForceFeedbackValues;
-	const ApexFfb::FRumble Driving = TickDrivingFeedback(static_cast<float>(FApp::GetDeltaTime()));
+	const ApexFfb::FRumble Driving = TickDrivingFeedback(Signals, DeltaSeconds);
+	// The wheel rides on the same hook: it is the one place that runs every
+	// frame whether or not there is a pawn, a race or a pause menu in front.
+	TickWheelFeedback(Signals, DeltaSeconds);
 
 	// XInput, the engine's pad backend on Windows, drives the heavy motor from
 	// the larger of the two Large channels and the light one from the Small
@@ -223,12 +239,8 @@ void AApexPlayerController::UpdateForceFeedback(IInputInterface* InputInterface,
 	InputInterface->SetForceFeedbackChannelValues(ControllerId, bForceFeedbackEnabled ? Values : FForceFeedbackValues());
 }
 
-ApexFfb::FRumble AApexPlayerController::TickDrivingFeedback(float DeltaSeconds)
+ApexFfb::FSignals AApexPlayerController::ReadDrivingSignals()
 {
-	const UApexSettingsSubsystem* Settings = GetSettings();
-	const float Strength = Settings && Settings->Get() ? Settings->Get()->Vibration : 0.0f;
-	const float Gain = ApexFfb::GainFromStrength(Strength);
-
 	// Only the car being driven: not in menus, not behind the pause menu, and
 	// only while the server is actually sending feedback for it.
 	ApexFfb::FSignals Signals;
@@ -258,6 +270,57 @@ ApexFfb::FRumble AApexPlayerController::TickDrivingFeedback(float DeltaSeconds)
 		}
 		Signals = ApexFfb::MakeSignals(Net->GetDriverFeedback(), SpeedMps, Gear, bNewMessage);
 	}
+	return Signals;
+}
+
+void AApexPlayerController::TickWheelFeedback(const ApexFfb::FSignals& Signals, float DeltaSeconds)
+{
+	FApexSimInputModule* Input = FApexSimInputModule::Get();
+	UApexSettingsSubsystem* Settings = GetSettings();
+	const UApexSettingsSave* Values = Settings ? Settings->Get() : nullptr;
+	if (!Input || !Values)
+	{
+		return;
+	}
+
+	// Which wheelbase gets them is the steering binding's answer, worked out
+	// every frame because a wheel can be plugged in mid-session.
+	const int32 Slot = Settings->GetWheelDeviceSlot();
+	if (Slot == INDEX_NONE)
+	{
+		LastWheelEffects = FApexWheelEffects();
+		Input->SetWheelEffects(INDEX_NONE, LastWheelEffects);
+		return;
+	}
+
+	ApexFfb::FWheelTuning Tuning;
+	Tuning.Force = Values->WheelForce;
+	Tuning.RoadEffects = Values->WheelRoadEffects;
+	Tuning.Damping = Values->WheelDamping;
+	Tuning.bInvert = Values->bWheelInvertForce;
+
+	FApexWheelEffects Effects = ApexFfb::MixWheel(Signals, WheelState, DeltaSeconds, Tuning);
+
+	if (WheelTestSeconds > 0.0f)
+	{
+		WheelTestSeconds -= DeltaSeconds;
+		// Deliberately not the player's strength: the test has to be felt even
+		// with the force slider down, and it is what tells them which way
+		// "positive" turns their rim.
+		const float Push = Values->bWheelInvertForce ? -kWheelTestForce : kWheelTestForce;
+		Effects.Constant = FMath::Clamp(Effects.Constant + Push, -1.0f, 1.0f);
+		Effects.Spring = 0.0f;
+	}
+
+	LastWheelEffects = Effects;
+	Input->SetWheelEffects(Slot, Effects);
+}
+
+ApexFfb::FRumble AApexPlayerController::TickDrivingFeedback(const ApexFfb::FSignals& Signals, float DeltaSeconds)
+{
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const float Strength = Settings && Settings->Get() ? Settings->Get()->Vibration : 0.0f;
+	const float Gain = ApexFfb::GainFromStrength(Strength);
 
 	ApexFfb::FRumble Rumble = ApexFfb::MixGamepad(Signals, FeedbackState, DeltaSeconds, Gain);
 
@@ -271,14 +334,19 @@ ApexFfb::FRumble AApexPlayerController::TickDrivingFeedback(float DeltaSeconds)
 
 	if (CVarFeedbackDebug.GetValueOnGameThread() && GEngine)
 	{
+		const int32 WheelSlot = Settings ? Settings->GetWheelDeviceSlot() : INDEX_NONE;
 		GEngine->AddOnScreenDebugMessage(static_cast<uint64>(0xFFB0), 0.0f, FColor::Cyan,
 			FString::Printf(TEXT("FFB %s  gain %.2f  low %.2f  high %.2f\n")
 				TEXT("  speed %.1f  torque %+.2f  front %.2f  rear %.2f  lock %.2f  spin %.2f  abs %d  tc %d\n")
-				TEXT("  curb L %.1f R %.1f  off %.2f  bump %.2f  impact %.1f"),
+				TEXT("  curb L %.1f R %.1f  off %.2f  bump %.2f  impact %.1f\n")
+				TEXT("  wheel %s  force %+.2f  vibration %.2f @ %.0f Hz  damper %.2f  spring %.2f"),
 				Signals.bActive ? TEXT("live") : TEXT("idle"), Gain, Rumble.Low, Rumble.High,
 				Signals.SpeedMps, Signals.SteerTorque, Signals.FrontSlide, Signals.RearSlide,
 				Signals.Lockup, Signals.Wheelspin, Signals.bAbs ? 1 : 0, Signals.bTractionControl ? 1 : 0,
-				Signals.CurbLeft, Signals.CurbRight, Signals.OffTrack, Signals.BumpMps, Signals.ImpactMps));
+				Signals.CurbLeft, Signals.CurbRight, Signals.OffTrack, Signals.BumpMps, Signals.ImpactMps,
+				WheelSlot == INDEX_NONE ? TEXT("none") : *FString::Printf(TEXT("device %d"), WheelSlot + 1),
+				LastWheelEffects.Constant, LastWheelEffects.VibrationAmplitude, LastWheelEffects.VibrationHz,
+				LastWheelEffects.Damper, LastWheelEffects.Spring));
 	}
 
 	return Rumble;
@@ -320,13 +388,11 @@ void AApexPlayerController::HandleBrakeReleased(const FInputActionValue&)
 
 void AApexPlayerController::HandleSteer(const FInputActionValue& Value)
 {
-	const float Raw = FMath::Clamp(Value.Get<float>(), -1.0f, 1.0f);
-
-	// Deadzone and sensitivity are applied here rather than as Enhanced Input
-	// modifiers: the modifiers live on the mapping, so changing either would
-	// mean rebuilding the context on every slider frame.
-	const UApexSettingsSubsystem* Settings = GetSettings();
-	DriveInput.Steer = Settings ? Settings->ShapeSteering(Raw) : Raw;
+	// Already shaped, and only where shaping belongs: the pad's deadzone and
+	// curve are a modifier on the pad's own mappings
+	// (UApexInputModifierPadSteering), because a wheel must not be given a
+	// thumbstick's deadzone and this handler cannot tell the two apart.
+	DriveInput.Steer = FMath::Clamp(Value.Get<float>(), -1.0f, 1.0f);
 }
 
 void AApexPlayerController::HandleSteerReleased(const FInputActionValue&)

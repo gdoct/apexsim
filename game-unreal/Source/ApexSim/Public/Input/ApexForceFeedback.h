@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ApexDirectInputTypes.h"
 
 struct FApexDriverFeedback;
 
@@ -11,14 +12,14 @@ struct FApexDriverFeedback;
  * tyre forces: the steering-column torque, each tyre's slip against its peak,
  * the surface under each wheel, suspension hits and contact. This file
  * reduces that to device-agnostic signals (FSignals) and mixes them for the
- * one device the client drives today, a gamepad's two rumble motors.
+ * two kinds of device the client drives: a gamepad's two rumble motors
+ * (MixGamepad) and a wheelbase's forces (MixWheel).
  *
- * A racing wheel is a second mixer over the same signals. Its constant force
- * is SteerTorque (every physics tick's sample is on the wire, see
- * FApexDriverFeedback::SteerTorque), with the curb and slip textures as
- * periodic effects on top. Nothing on the server or the wire changes for
- * it: a wheel needs a device layer that reads its axes (DirectInput, or the
- * GameInput plugin) and plays effects on it.
+ * The two mixers read the same signals and are otherwise unalike, because the
+ * devices are: a pad can only shake, so a slide has to be *described* to it,
+ * while a wheel can push, so the steering torque the server worked out is the
+ * whole of the feel — the front tyres letting go is the rim going light —
+ * and the road textures are detail on top of it.
  *
  * Everything here is pure maths over plain structs, so the feel is covered
  * by `ApexSim.Input.ForceFeedback.*` tests rather than by holding a pad.
@@ -123,4 +124,51 @@ namespace ApexFfb
 
 	/** One frame of rumble. `Gain` from GainFromStrength. */
 	APEXSIM_API FRumble MixGamepad(const FSignals& Signals, FGamepadState& State, float DeltaSeconds, float Gain);
+
+	/** A wheelbase's settings, 0..1 each (UApexSettingsSave's wheel block). */
+	struct FWheelTuning
+	{
+		float Force = 0.5f;
+		float RoadEffects = 0.5f;
+		float Damping = 0.25f;
+		/** The base turns the other way to what DirectInput's sign says. */
+		bool bInvert = false;
+	};
+
+	/** The smoothed torque and the decaying hits, carried from frame to frame. */
+	struct FWheelState
+	{
+		/**
+		 * The torque the rim is being held at.
+		 *
+		 * Smoothed, because the samples arrive in one lump per telemetry frame:
+		 * stepping the force 60 times a second is felt as grain on a direct
+		 * drive base, where the same steps are invisible to a rumble motor.
+		 */
+		float Torque = 0.0f;
+
+		/** Decaying hits: a landing, a collision, a gear change. */
+		float Bump = 0.0f;
+		float Impact = 0.0f;
+		float ShiftKick = 0.0f;
+
+		/** Off-track roughness, resampled at a fixed rate like the pad's. */
+		float NoiseClock = 0.0f;
+		float NoiseLevel = 0.0f;
+		uint32 NoiseSeed = 0x9E3779B9u;
+
+		/** INDEX_NONE until a car has been seen. */
+		int32 LastGear = INDEX_NONE;
+	};
+
+	/**
+	 * One frame of forces for a wheelbase.
+	 *
+	 * The torque is the signal; everything else is texture. A device plays one
+	 * vibration at a time, so the loudest of the road's voices — curb ribs,
+	 * grass, an ABS pulse train, a hit — takes the channel, which is also how
+	 * it feels in a car: the loudest thing is what comes through the rim.
+	 */
+	APEXSIM_API FApexWheelEffects MixWheel(
+		const FSignals& Signals, FWheelState& State, float DeltaSeconds, const FWheelTuning& Tuning);
 }
