@@ -21,7 +21,7 @@ class UWidgetSwitcher;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnSettingsClosed);
 
-/** The settings overlay's five pages. */
+/** The settings overlay's six pages. */
 UENUM(BlueprintType)
 enum class EApexSettingsTab : uint8
 {
@@ -29,6 +29,8 @@ enum class EApexSettingsTab : uint8
 	Graphics,
 	Camera,
 	Controls,
+	/** Wheels and pedals: the devices, their forces and their own bindings. */
+	Wheel,
 	Audio,
 };
 
@@ -52,6 +54,7 @@ public:
 	UApexSettingsWidget(const FObjectInitializer& ObjectInitializer);
 
 	virtual void NativeOnInitialized() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
@@ -100,6 +103,10 @@ protected:
 	UFUNCTION() void HandleSteeringChanged(float Value);
 	UFUNCTION() void HandleDeadzoneChanged(float Value);
 	UFUNCTION() void HandleVibrationChanged(float Value);
+	UFUNCTION() void HandleWheelForceChanged(float Value);
+	UFUNCTION() void HandleWheelRoadChanged(float Value);
+	UFUNCTION() void HandleWheelDampingChanged(float Value);
+	UFUNCTION() void HandleWheelTestActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleMasterVolumeChanged(float Value);
 	UFUNCTION() void HandleUiVolumeChanged(float Value);
 
@@ -121,8 +128,18 @@ private:
 	UWidget* BuildGraphicsPage();
 	UWidget* BuildCameraPage();
 	UWidget* BuildControlsPage();
+	UWidget* BuildWheelPage();
 	UWidget* BuildAudioPage();
 	UWidget* BuildBindingsGrid();
+
+	/** The wheel column's slots, with a live meter beside each axis. */
+	UWidget* BuildWheelBindings();
+
+	/** Redraws the device cards; the attached set changes while the page is open. */
+	void RefreshWheelDevices();
+
+	/** Moves the meters to what the wheel is reading right now. */
+	void RefreshWheelMeters();
 
 	/** Section caption above a group of rows. */
 	UWidget* MakeSectionLabel(const FString& Text);
@@ -179,10 +196,18 @@ private:
 	/** Starts listening for the key that will fill a slot. */
 	void BeginListening(FName ActionId, int32 Slot);
 	/** Stores the captured key, or cancels when it is invalid. */
-	void FinishListening(const FKey& Key, bool bCancelled);
+	void FinishListening(const FKey& Key, bool bCancelled, bool bInvert = false);
 
 	/** True for keys that must never become a binding. */
 	static bool IsRejectedBindingKey(const FKey& Key);
+
+	/**
+	 * True when the key is for the column being edited: the wheel column takes
+	 * DirectInput keys and nothing else, and the other two take everything but.
+	 * Binding a wheel button in the gamepad column would put one device in two
+	 * columns, where only one of them can be shown.
+	 */
+	bool IsKeyForListeningSlot(const FKey& Key) const;
 
 	UApexSettingsSubsystem* GetSettings() const;
 
@@ -258,9 +283,26 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> AntiAliasingBox;
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> TexturesBox;
 
+	UPROPERTY(Transient) TObjectPtr<USlider> WheelForceSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> WheelForceFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelForceValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> WheelRoadSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> WheelRoadFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelRoadValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> WheelDampingSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> WheelDampingFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelDampingValue;
+
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> DeviceCountText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GamepadStateText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> BindingChips;
+
+	/** The wheel page's device cards, rebuilt whenever the attached set moves. */
+	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> WheelDeviceRow;
+	UPROPERTY(Transient) TArray<TObjectPtr<UProgressBar>> WheelMeterBars;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> WheelMeterValues;
 
 	/** The "press any key" card. Hidden unless a rebind is in progress. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> ListenOverlay;
@@ -277,4 +319,18 @@ private:
 	bool bListening = false;
 	FName ListeningAction;
 	int32 ListeningSlot = 0;
+
+	/**
+	 * Where each axis was when the capture opened.
+	 *
+	 * An axis is bound by how far it MOVES, not by where it sits: a pedal
+	 * rests at one end of its travel and reports that every frame, so a
+	 * threshold on the value alone would bind the first pedal it heard from.
+	 * The direction of the move is also the answer to which way round the axis
+	 * is (FApexKeyBinding::bInvert).
+	 */
+	TMap<FKey, float> ListenBaselines;
+
+	/** The device list this page was drawn for; a change redraws the cards. */
+	uint32 WheelDevicesSerial = 0;
 };

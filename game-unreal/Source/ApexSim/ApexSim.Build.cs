@@ -17,6 +17,9 @@ public class ApexSim : ModuleRules
 			"Slate",
 			"SlateCore",
 			"ApexSimNet",
+			// Wheels, pedals and their force feedback: DirectInput devices as
+			// ordinary keys, which is what the bindings and the FFB mixer use.
+			"ApexSimInput",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

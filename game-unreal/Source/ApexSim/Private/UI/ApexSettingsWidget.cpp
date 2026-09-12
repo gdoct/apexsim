@@ -1,8 +1,10 @@
 #include "UI/ApexSettingsWidget.h"
 
+#include "ApexDirectInputTypes.h"
 #include "ApexPlayerController.h"
 #include "ApexSettingsSave.h"
 #include "ApexSim.h"
+#include "ApexSimInputModule.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -34,6 +36,7 @@ static_assert(
 		&& static_cast<int32>(EApexSettingsTab::Graphics) == static_cast<int32>(EApexSettingsGroup::Graphics)
 		&& static_cast<int32>(EApexSettingsTab::Camera) == static_cast<int32>(EApexSettingsGroup::Camera)
 		&& static_cast<int32>(EApexSettingsTab::Controls) == static_cast<int32>(EApexSettingsGroup::Controls)
+		&& static_cast<int32>(EApexSettingsTab::Wheel) == static_cast<int32>(EApexSettingsGroup::Wheel)
 		&& static_cast<int32>(EApexSettingsTab::Audio) == static_cast<int32>(EApexSettingsGroup::Audio),
 	"EApexSettingsTab and EApexSettingsGroup must stay aligned");
 
@@ -44,6 +47,8 @@ namespace
 	constexpr float SettingsRowHeight = 68.0f;
 	/** The bindings grid is the tallest column on any page; its rows are cut down to fit. */
 	constexpr float BindingRowHeight = 58.0f;
+	/** The wheel page's rows sit above devices and three sliders, so they are shorter still. */
+	constexpr float WheelRowHeight = 52.0f;
 	/** Dropdowns and the sliders beside them share a width so the grid lines up. */
 	constexpr float DropdownWidth = 250.0f;
 	/** Wider, because the AI-skill row has a whole page column to itself. */
@@ -54,6 +59,7 @@ namespace
 	const FName ActionTabGraphics = TEXT("Tab.Graphics");
 	const FName ActionTabCamera   = TEXT("Tab.Camera");
 	const FName ActionTabControls = TEXT("Tab.Controls");
+	const FName ActionTabWheel    = TEXT("Tab.Wheel");
 	const FName ActionTabAudio    = TEXT("Tab.Audio");
 	/** For wrapping the page cycle; the last tab is the count minus one. */
 	constexpr int32 TabCount = static_cast<int32>(EApexSettingsTab::Audio) + 1;
@@ -76,6 +82,20 @@ namespace
 	const FName SegCockpitMirrors = TEXT("CockpitMirrors");
 	const FName SegVirtualMirror  = TEXT("VirtualMirror");
 	const FName SegMirrorQuality  = TEXT("MirrorQuality");
+	const FName SegWheelDirection = TEXT("WheelDirection");
+	const FName ActionWheelTest   = TEXT("WheelTest");
+
+	/** How far an axis has to travel from where it started before it is a binding. */
+	constexpr float AxisCaptureTravel = 0.5f;
+
+	/** The wheel page's meters: the axes a player has to see to trust a mapping. */
+	struct FMeterSpec
+	{
+		const TCHAR* Label;
+		FName ActionId;
+		/** A steering axis reads -1..1 and draws from the middle; a pedal reads 0..1. */
+		bool bCentred;
+	};
 
 	// Camera slider ranges; the sliders themselves run 0..1.
 	constexpr float FovMin = 60.0f, FovMax = 120.0f;
@@ -167,6 +187,26 @@ void UApexSettingsWidget::NativeOnInitialized()
 	BuildOverlay();
 }
 
+void UApexSettingsWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// Only the wheel page ticks, and only while it is the one on screen: the
+	// meters are live readings and the device cards follow what is plugged in.
+	if (!bOpen || CurrentTab != EApexSettingsTab::Wheel)
+	{
+		return;
+	}
+
+	const FApexSimInputModule* Input = FApexSimInputModule::Get();
+	if (Input && Input->GetDevicesSerial() != WheelDevicesSerial)
+	{
+		RefreshWheelDevices();
+		RefreshBindingChips();
+	}
+	RefreshWheelMeters();
+}
+
 void UApexSettingsWidget::BuildOverlay()
 {
 	UVerticalBox* Panel = WidgetTree->ConstructWidget<UVerticalBox>();
@@ -183,6 +223,7 @@ void UApexSettingsWidget::BuildOverlay()
 	PageHost->AddChild(BuildGraphicsPage());
 	PageHost->AddChild(BuildCameraPage());
 	PageHost->AddChild(BuildControlsPage());
+	PageHost->AddChild(BuildWheelPage());
 	PageHost->AddChild(BuildAudioPage());
 
 	// The page area is darker than the card it sits in, so that the rows — which
@@ -289,6 +330,7 @@ UWidget* UApexSettingsWidget::BuildRail()
 	AddTab(TEXT("Graphics"), ActionTabGraphics);
 	AddTab(TEXT("Camera"), ActionTabCamera);
 	AddTab(TEXT("Controls"), ActionTabControls);
+	AddTab(TEXT("Wheel"), ActionTabWheel);
 	AddTab(TEXT("Audio"), ActionTabAudio);
 
 	AddV(Stack, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
@@ -725,10 +767,9 @@ UWidget* UApexSettingsWidget::BuildControlsPage()
 
 	AddV(Page, MakeSectionLabel(TEXT("Device")), FMargin(0.0f, 0.0f, 0.0f, 12.0f));
 
-	// Two cards, because two is what the platform can actually tell us about:
-	// the keyboard, which is always there, and whether a gamepad is attached.
-	// Enumerating wheels and pedals by name needs a device layer this client
-	// does not have yet.
+	// The keyboard, which is always there, and whether a gamepad is attached.
+	// Wheels and pedals have a page of their own, because there can be several
+	// of them and each has a name, axes and forces worth showing.
 	{
 		UHorizontalBox* Devices = WidgetTree->ConstructWidget<UHorizontalBox>();
 
@@ -748,6 +789,7 @@ UWidget* UApexSettingsWidget::BuildControlsPage()
 		TObjectPtr<UTextBlock> KeyboardState;
 		AddDeviceCard(TEXT("Keyboard"), KeyboardState, TEXT("Always available"), true);
 		AddDeviceCard(TEXT("Gamepad"), GamepadStateText, TEXT("Not detected"), false);
+		AddDeviceCard(TEXT("Wheel & pedals"), DeviceCountText, TEXT("See the Wheel page"), false);
 
 		AddV(Page, Devices);
 	}
@@ -780,11 +822,14 @@ UWidget* UApexSettingsWidget::BuildControlsPage()
 			OutValue = Value;
 		};
 
+		// All three are the pad's and the keyboard's: a wheel gets none of this
+		// shaping (a thumbstick's deadzone is several degrees of a rim) and its
+		// forces are on the Wheel page.
 		AddSliderCell(TEXT("Steering sensitivity"), SteeringSlider, SteeringFill, SteeringValue, true);
 		AddSliderCell(TEXT("Deadzone"), DeadzoneSlider, DeadzoneFill, DeadzoneValue, false);
 		// The pad's rumble from the server's DriverFeedback: tyres past their
 		// grip, curbs, grass, bumps and contact. Dragging it plays a pulse.
-		AddSliderCell(TEXT("Force feedback"), VibrationSlider, VibrationFill, VibrationValue, false);
+		AddSliderCell(TEXT("Pad vibration"), VibrationSlider, VibrationFill, VibrationValue, false);
 
 		SteeringSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleSteeringChanged);
 		DeadzoneSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleDeadzoneChanged);
@@ -810,6 +855,293 @@ UWidget* UApexSettingsWidget::BuildControlsPage()
 
 	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
 	return Page;
+}
+
+// --- Wheel page -------------------------------------------------------------
+
+UWidget* UApexSettingsWidget::BuildWheelPage()
+{
+	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	AddV(Page, MakeSectionLabel(TEXT("Devices")), FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+
+	// Filled by RefreshWheelDevices: what is attached changes while this page
+	// is open, which is exactly when a player is plugging things in.
+	WheelDeviceRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddV(Page, WheelDeviceRow);
+
+	AddV(Page, MakeSectionLabel(TEXT("Force feedback")), FMargin(0.0f, 24.0f, 0.0f, 12.0f));
+
+	{
+		UHorizontalBox* Sliders = WidgetTree->ConstructWidget<UHorizontalBox>();
+
+		auto AddSliderCell = [this, Sliders](const TCHAR* Label, const TCHAR* Note,
+			TObjectPtr<USlider>& OutSlider, TObjectPtr<UProgressBar>& OutFill, TObjectPtr<UTextBlock>& OutValue, bool bFirst)
+		{
+			USlider* Slider = nullptr;
+			UProgressBar* Fill = nullptr;
+
+			UVerticalBox* Cell = WidgetTree->ConstructWidget<UVerticalBox>();
+
+			UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
+			AddH(Head, MakeLabel(*WidgetTree, Label));
+			AddH(Head, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+			UTextBlock* Value = MakeText(*WidgetTree, FString(), Font::Mono(13.0f, 40), Palette::TextPrimary);
+			AddH(Head, Value);
+			AddV(Cell, Head);
+
+			AddV(Cell, MakeSliderTrack(*WidgetTree, Slider, Fill), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+			AddV(Cell, MakeText(*WidgetTree, Note, Font::Body(12.0f), Palette::TextMuted), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+
+			AddH(Sliders, Cell, FMargin(bFirst ? 0.0f : 26.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
+
+			OutSlider = Slider;
+			OutFill = Fill;
+			OutValue = Value;
+		};
+
+		AddSliderCell(TEXT("Force"), TEXT("The steering torque the car is actually making."),
+			WheelForceSlider, WheelForceFill, WheelForceValue, true);
+		AddSliderCell(TEXT("Road effects"), TEXT("Curbs, grass, ABS and impacts on top of it."),
+			WheelRoadSlider, WheelRoadFill, WheelRoadValue, false);
+		AddSliderCell(TEXT("Damping"), TEXT("Weight in the rim. A little steadies a wheel on a network."),
+			WheelDampingSlider, WheelDampingFill, WheelDampingValue, false);
+
+		WheelForceSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelForceChanged);
+		WheelRoadSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelRoadChanged);
+		WheelDampingSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelDampingChanged);
+
+		AddV(Page, Sliders);
+	}
+
+	// Direction, with the test that answers it. DirectInput does not say which
+	// way a positive force turns a rim, so the player is asked rather than told.
+	{
+		UHorizontalBox* Cell = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Cell, MakeSegment(SegWheelDirection, { TEXT("NORMAL"), TEXT("INVERTED") }, 0));
+
+		UApexButtonWidget* Test = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		FApexButtonSpec TestSpec;
+		TestSpec.Label = TEXT("Test");
+		TestSpec.Variant = EApexButtonVariant::Ghost;
+		TestSpec.bCentreLabel = true;
+		TestSpec.Height = 38.0f;
+		TestSpec.LabelSize = 13.0f;
+		TestSpec.ActionId = ActionWheelTest;
+		Test->Setup(TestSpec);
+		Test->OnActivated.AddDynamic(this, &UApexSettingsWidget::HandleWheelTestActivated);
+		AddH(Cell, MakeSized(*WidgetTree, Test, 104.0f, 38.0f), FMargin(12.0f, 0.0f, 0.0f, 0.0f));
+
+		AddV(Page, MakeRow(
+			TEXT("Direction"),
+			TEXT("Test pushes the wheel to the right. If it went left, invert it."),
+			Cell), FMargin(0.0f, 18.0f, 0.0f, 0.0f));
+	}
+
+	UHorizontalBox* BindingsHead = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddH(BindingsHead, MakeSectionLabel(TEXT("Wheel bindings")));
+	AddH(BindingsHead, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+	AddH(BindingsHead, MakeLabel(*WidgetTree,
+		TEXT("Click a slot, then move that control  ·  kept per device")));
+	AddV(Page, BindingsHead, FMargin(0.0f, 20.0f, 0.0f, 10.0f));
+
+	AddV(Page, BuildWheelBindings());
+
+	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
+	return Page;
+}
+
+UWidget* UApexSettingsWidget::BuildWheelBindings()
+{
+	// The axes come first and carry a meter each: a binding that reads
+	// backwards, or not at all, is the whole of what goes wrong with a wheel,
+	// and a bar says so at a glance. Ten slots, split evenly down two columns.
+	struct FWheelRowSpec
+	{
+		const TCHAR* Label;
+		FName ActionId;
+		int32 Slot;
+		/** Meters are only on the three that decide whether the car is drivable. */
+		bool bMeter;
+	};
+	static const TArray<FWheelRowSpec> RowSpecs = {
+		{ TEXT("Steering"),    ApexInput::Actions::Steer,        ApexInput::Slot::Wheel,     true  },
+		{ TEXT("Throttle"),    ApexInput::Actions::Throttle,     ApexInput::Slot::Wheel,     true  },
+		{ TEXT("Brake"),       ApexInput::Actions::Brake,        ApexInput::Slot::Wheel,     true  },
+		{ TEXT("Shift up"),    ApexInput::Actions::GearUp,       ApexInput::Slot::Wheel,     false },
+		{ TEXT("Shift down"),  ApexInput::Actions::GearDown,     ApexInput::Slot::Wheel,     false },
+		{ TEXT("Camera"),      ApexInput::Actions::ToggleCamera, ApexInput::Slot::Wheel,     false },
+		{ TEXT("Look left"),   ApexInput::Actions::Look,         ApexInput::Slot::WheelLow,  false },
+		{ TEXT("Look right"),  ApexInput::Actions::Look,         ApexInput::Slot::WheelHigh, false },
+		{ TEXT("Look behind"), ApexInput::Actions::LookBack,     ApexInput::Slot::Wheel,     false },
+		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,    ApexInput::Slot::Wheel,     false },
+	};
+
+	UHorizontalBox* Grid = WidgetTree->ConstructWidget<UHorizontalBox>();
+	UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>();
+	UVerticalBox* Right = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	WheelMeterBars.Reset();
+	WheelMeterValues.Reset();
+
+	const int32 Split = FMath::DivideAndRoundUp(RowSpecs.Num(), 2);
+	for (int32 Index = 0; Index < RowSpecs.Num(); ++Index)
+	{
+		const FWheelRowSpec& RowSpec = RowSpecs[Index];
+		UHorizontalBox* Cell = WidgetTree->ConstructWidget<UHorizontalBox>();
+
+		if (RowSpec.bMeter)
+		{
+			UProgressBar* Bar = WidgetTree->ConstructWidget<UProgressBar>();
+			FProgressBarStyle BarStyle = Bar->GetWidgetStyle();
+			BarStyle.SetBackgroundImage(MakeBrush(Palette::Border));
+			BarStyle.SetFillImage(MakeBrush(Palette::Accent));
+			Bar->SetWidgetStyle(BarStyle);
+			Bar->SetPercent(0.0f);
+			AddH(Cell, MakeSized(*WidgetTree, Bar, 86.0f, 6.0f), FMargin(0.0f, 0.0f, 12.0f, 0.0f), VAlign_Center);
+
+			UTextBlock* Value = MakeText(*WidgetTree, TEXT("—"), Font::Mono(12.0f, 40), Palette::TextMuted);
+			AddH(Cell, MakeSized(*WidgetTree, Value, 46.0f, -1.0f), FMargin(0.0f, 0.0f, 10.0f, 0.0f), VAlign_Center);
+
+			WheelMeterBars.Add(Bar);
+			WheelMeterValues.Add(Value);
+		}
+
+		AddH(Cell, MakeSized(*WidgetTree, MakeBindingChip(RowSpec.ActionId, RowSpec.Slot), 116.0f, 36.0f));
+
+		UVerticalBox* Column = Index < Split ? Left : Right;
+		AddV(Column, MakeRow(RowSpec.Label, FString(), Cell, FString(), WheelRowHeight),
+			FMargin(0.0f, Column->GetChildrenCount() == 0 ? 0.0f : 2.0f, 0.0f, 0.0f));
+	}
+
+	AddH(Grid, Left, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
+	AddH(Grid, Right, FMargin(), VAlign_Top, 1.0f);
+	return Grid;
+}
+
+void UApexSettingsWidget::RefreshWheelDevices()
+{
+	if (!WheelDeviceRow)
+	{
+		return;
+	}
+
+	const FApexSimInputModule* Input = FApexSimInputModule::Get();
+	WheelDevicesSerial = Input ? Input->GetDevicesSerial() : 0;
+	WheelDeviceRow->ClearChildren();
+
+	const TArray<ApexDirectInput::FDeviceInfo> Devices = Input ? Input->GetDevices() : TArray<ApexDirectInput::FDeviceInfo>();
+	if (Devices.IsEmpty())
+	{
+		UVerticalBox* Empty = WidgetTree->ConstructWidget<UVerticalBox>();
+		AddV(Empty, MakeText(*WidgetTree, TEXT("No wheel detected"), Font::Body(17.0f, true), Palette::TextSecondary));
+		AddV(Empty,
+			MakeText(*WidgetTree,
+				TEXT("Plug a wheel, pedals or a button box in and it appears here — the game does not need restarting. Devices already in use by another program can still be driven, but cannot play forces."),
+				Font::Body(12.0f), Palette::TextMuted),
+			FMargin(0.0f, 7.0f, 0.0f, 0.0f));
+		AddH(WheelDeviceRow, MakePanel(*WidgetTree, Empty, FMargin(20.0f, 14.0f),
+			MakeBrush(Palette::Surface, Palette::Border, 1.0f)), FMargin(), VAlign_Fill, 1.0f);
+		return;
+	}
+
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const int32 ForceSlot = Settings ? Settings->GetWheelDeviceSlot() : INDEX_NONE;
+
+	for (const ApexDirectInput::FDeviceInfo& Device : Devices)
+	{
+		UVerticalBox* Card = WidgetTree->ConstructWidget<UVerticalBox>();
+
+		UTextBlock* Name = MakeText(*WidgetTree, Device.Name, Font::Body(15.0f, true), Palette::TextPrimary);
+		Name->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		AddV(Card, Name);
+
+		// The tag is what its bindings are called on the chips, so the card is
+		// where a player learns to read them.
+		AddV(Card, MakeText(*WidgetTree,
+			FString::Printf(TEXT("%s · %d axes · %d buttons"),
+				ApexDirectInput::KindTag(Device.Kind), FMath::CountBits(Device.AxisMask), Device.NumButtons),
+			Font::Mono(11.0f, 40), Palette::TextMuted), FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+
+		// "Force feedback" is the wheel the steering is bound to; a second base
+		// left plugged in can play forces but is not being asked to.
+		const bool bDrivingForces = Device.Slot == ForceSlot && Device.bCanPlayForces;
+		const TCHAR* State = bDrivingForces ? TEXT("FORCE FEEDBACK")
+			: (Device.bCanPlayForces ? TEXT("FORCES AVAILABLE") : TEXT("INPUT ONLY"));
+		AddV(Card, MakeLabel(*WidgetTree, State, bDrivingForces ? Palette::Live : Palette::TextSecondary),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+
+		AddH(WheelDeviceRow, MakePanel(*WidgetTree, Card, FMargin(18.0f, 13.0f),
+			MakeBrush(Palette::Surface, bDrivingForces ? Palette::Accent : Palette::Border, 1.0f)),
+			FMargin(WheelDeviceRow->GetChildrenCount() == 0 ? 0.0f : 12.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	}
+}
+
+void UApexSettingsWidget::RefreshWheelMeters()
+{
+	static const TArray<FMeterSpec> Meters = {
+		{ TEXT("Steering"), ApexInput::Actions::Steer,    true  },
+		{ TEXT("Throttle"), ApexInput::Actions::Throttle, false },
+		{ TEXT("Brake"),    ApexInput::Actions::Brake,    false },
+	};
+
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const FApexSimInputModule* Input = FApexSimInputModule::Get();
+	if (!Settings || !Input)
+	{
+		return;
+	}
+
+	for (int32 Index = 0; Index < Meters.Num(); ++Index)
+	{
+		if (!WheelMeterBars.IsValidIndex(Index) || !WheelMeterBars[Index] || !WheelMeterValues[Index])
+		{
+			continue;
+		}
+
+		const FMeterSpec& Meter = Meters[Index];
+		const FKey Key = Settings->GetBoundKey(Meter.ActionId, ApexInput::Slot::Wheel);
+		const ApexDirectInput::FControl Control = ApexDirectInput::ParseKey(Key);
+		const bool bLive = Control.IsValid() && Input->IsAttached(Control.Slot);
+
+		// What the car will be given, not what the device reports: the
+		// binding's own inversion and a pedal's fold into 0..1 are exactly
+		// what a meter is here to prove.
+		float Value = bLive ? Input->GetControlValue(Control) : 0.0f;
+		if (bLive && Settings->Get())
+		{
+			const FApexKeyBinding* Binding = ApexInput::FindBinding(
+				Settings->Get()->Bindings, Meter.ActionId, ApexInput::Slot::Wheel,
+				[Input](int32 DeviceSlot) { return Input->IsAttached(DeviceSlot); });
+			if (Binding && Binding->bInvert)
+			{
+				Value = -Value;
+			}
+		}
+
+		// A pedal is folded into 0..1 the way the car will read it; steering
+		// stays signed and draws from the middle of the bar. Unbound reads
+		// empty — a pedal sitting at half would look like a stuck throttle.
+		float Fill = Meter.bCentred ? 0.5f : 0.0f;
+		FString Text = TEXT("—");
+		if (bLive)
+		{
+			if (Meter.bCentred)
+			{
+				Fill = FMath::Clamp(0.5f * (Value + 1.0f), 0.0f, 1.0f);
+				Text = FString::Printf(TEXT("%+d %%"), FMath::RoundToInt(Value * 100.0f));
+			}
+			else
+			{
+				Fill = FMath::Clamp(0.5f * (Value + 1.0f), 0.0f, 1.0f);
+				Text = FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Fill * 100.0f));
+			}
+		}
+
+		WheelMeterBars[Index]->SetPercent(Fill);
+		WheelMeterValues[Index]->SetText(FText::FromString(Text));
+		WheelMeterValues[Index]->SetColorAndOpacity(FSlateColor(bLive ? Palette::TextPrimary : Palette::TextMuted));
+	}
 }
 
 // --- Audio page -------------------------------------------------------------
@@ -1073,6 +1405,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegCockpitMirrors, Values->bCockpitMirrors ? 1 : 0);
 	SetSegment(SegVirtualMirror, Values->bVirtualMirror ? 1 : 0);
 	SetSegment(SegMirrorQuality, FMath::Clamp(Values->MirrorQuality, 0, 2));
+	SetSegment(SegWheelDirection, Values->bWheelInvertForce ? 1 : 0);
 
 	auto SetSlider = [](USlider* Slider, UProgressBar* Fill, UTextBlock* Text,
 		float Value, float Min, float Max, const FString& Display)
@@ -1104,6 +1437,12 @@ void UApexSettingsWidget::RefreshFromSettings()
 		FString::FromInt(FMath::RoundToInt(Values->Deadzone * 100.0f)));
 	SetSlider(VibrationSlider, VibrationFill, VibrationValue, Values->Vibration, 0.0f, 1.0f,
 		FString::FromInt(FMath::RoundToInt(Values->Vibration * 100.0f)));
+	SetSlider(WheelForceSlider, WheelForceFill, WheelForceValue, Values->WheelForce, 0.0f, 1.0f,
+		Percent(Values->WheelForce));
+	SetSlider(WheelRoadSlider, WheelRoadFill, WheelRoadValue, Values->WheelRoadEffects, 0.0f, 1.0f,
+		Percent(Values->WheelRoadEffects));
+	SetSlider(WheelDampingSlider, WheelDampingFill, WheelDampingValue, Values->WheelDamping, 0.0f, 1.0f,
+		Percent(Values->WheelDamping));
 	SetSlider(MasterVolumeSlider, MasterVolumeFill, MasterVolumeValue, Values->MasterVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->MasterVolume * 100.0f)));
 	SetSlider(UiVolumeSlider, UiVolumeFill, UiVolumeValue, Values->UiVolume, 0.0f, 1.0f,
@@ -1149,7 +1488,19 @@ void UApexSettingsWidget::RefreshFromSettings()
 		GamepadStateText->SetColorAndOpacity(FSlateColor(bAttached ? Palette::Live : Palette::TextMuted));
 	}
 
+	if (DeviceCountText)
+	{
+		const FApexSimInputModule* Input = FApexSimInputModule::Get();
+		const int32 Count = Input ? Input->GetDevices().Num() : 0;
+		DeviceCountText->SetText(FText::FromString(Count == 0
+			? TEXT("NOT DETECTED")
+			: FString::Printf(TEXT("%d ATTACHED · WHEEL PAGE"), Count)));
+		DeviceCountText->SetColorAndOpacity(FSlateColor(Count > 0 ? Palette::Live : Palette::TextMuted));
+	}
+
 	RefreshBindingChips();
+	RefreshWheelDevices();
+	RefreshWheelMeters();
 	RefreshHeaderContext();
 	RefreshFooter();
 }
@@ -1227,6 +1578,14 @@ void UApexSettingsWidget::RefreshHeaderContext()
 		break;
 	}
 
+	case EApexSettingsTab::Wheel:
+	{
+		const FApexSimInputModule* Input = FApexSimInputModule::Get();
+		const int32 Count = Input ? Input->GetDevices().Num() : 0;
+		Context = Count == 1 ? TEXT("1 device attached") : FString::Printf(TEXT("%d devices attached"), Count);
+		break;
+	}
+
 	case EApexSettingsTab::Audio:
 		Context = TEXT("Applies immediately · saved on close");
 		break;
@@ -1275,6 +1634,7 @@ void UApexSettingsWidget::HandleRailActivated(UApexButtonWidget* Button)
 	else if (Action == ActionTabGraphics) { ShowTab(EApexSettingsTab::Graphics); }
 	else if (Action == ActionTabCamera)   { ShowTab(EApexSettingsTab::Camera); }
 	else if (Action == ActionTabControls) { ShowTab(EApexSettingsTab::Controls); }
+	else if (Action == ActionTabWheel)    { ShowTab(EApexSettingsTab::Wheel); }
 	else if (Action == ActionTabAudio)    { ShowTab(EApexSettingsTab::Audio); }
 }
 
@@ -1326,6 +1686,16 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegCockpitMirrors) { Settings->SetCockpitMirrors(Index == 1); }
 	else if (Id == SegVirtualMirror)  { Settings->SetVirtualMirror(Index == 1); }
 	else if (Id == SegMirrorQuality)  { Settings->SetMirrorQuality(Index); }
+	else if (Id == SegWheelDirection)
+	{
+		Settings->SetWheelInvertForce(Index == 1);
+		// Push again the moment it is flipped, so the answer to "which way?" is
+		// immediate rather than one more button press away.
+		if (AApexPlayerController* PlayerController = Cast<AApexPlayerController>(GetOwningPlayer()))
+		{
+			PlayerController->TestWheelForce();
+		}
+	}
 	else if (Id == SegPreset)
 	{
 		Settings->SetGraphicsPreset(static_cast<EApexGraphicsPreset>(Index));
@@ -1448,6 +1818,35 @@ void UApexSettingsWidget::HandleVibrationChanged(float Value)
 	RefreshFooter();
 }
 
+void UApexSettingsWidget::HandleWheelForceChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetWheelForce(Value); }
+	ReflectSlider(WheelForceFill, WheelForceValue, Value, Percent(Value));
+}
+
+void UApexSettingsWidget::HandleWheelRoadChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetWheelRoadEffects(Value); }
+	ReflectSlider(WheelRoadFill, WheelRoadValue, Value, Percent(Value));
+}
+
+void UApexSettingsWidget::HandleWheelDampingChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetWheelDamping(Value); }
+	ReflectSlider(WheelDampingFill, WheelDampingValue, Value, Percent(Value));
+}
+
+void UApexSettingsWidget::HandleWheelTestActivated(UApexButtonWidget* Button)
+{
+	if (AApexPlayerController* PlayerController = Cast<AApexPlayerController>(GetOwningPlayer()))
+	{
+		PlayerController->TestWheelForce();
+	}
+}
+
 void UApexSettingsWidget::HandleMasterVolumeChanged(float Value)
 {
 	if (bRefreshing) { return; }
@@ -1558,13 +1957,31 @@ void UApexSettingsWidget::BeginListening(FName ActionId, int32 ListenSlot)
 	bListening = true;
 	ListeningAction = ActionId;
 	ListeningSlot = ListenSlot;
+	ListenBaselines.Reset();
 
 	if (ListenTitleText)
 	{
 		const ApexInput::FSlotDef* Def = ApexInput::FindSlot(ActionId, ListenSlot);
-		ListenTitleText->SetText(FText::FromString(
-			Def ? FString::Printf(TEXT("Press any key or move an axis for %s"), Def->Label)
-				: TEXT("Press any key or move an axis")));
+		const TCHAR* Label = Def ? Def->Label : TEXT("this control");
+		FString Prompt;
+		if (!ApexInput::IsWheelSlot(ListenSlot))
+		{
+			Prompt = FString::Printf(TEXT("Press any key or move an axis for %s"), Label);
+		}
+		else if (ApexInput::IsCentredAxisSlot(ActionId, ListenSlot))
+		{
+			// Which way it is moved is the answer to which way round it runs.
+			Prompt = FString::Printf(TEXT("Turn the wheel RIGHT for %s"), Label);
+		}
+		else if (ActionId == ApexInput::Actions::Throttle || ActionId == ApexInput::Actions::Brake)
+		{
+			Prompt = FString::Printf(TEXT("Press the %s pedal all the way down"), *FString(Label).ToLower());
+		}
+		else
+		{
+			Prompt = FString::Printf(TEXT("Press a button on the wheel for %s"), Label);
+		}
+		ListenTitleText->SetText(FText::FromString(Prompt));
 	}
 	if (ListenOverlay)
 	{
@@ -1576,9 +1993,10 @@ void UApexSettingsWidget::BeginListening(FName ActionId, int32 ListenSlot)
 	SetKeyboardFocus();
 }
 
-void UApexSettingsWidget::FinishListening(const FKey& Key, bool bCancelled)
+void UApexSettingsWidget::FinishListening(const FKey& Key, bool bCancelled, bool bInvert)
 {
 	bListening = false;
+	ListenBaselines.Reset();
 	if (ListenOverlay)
 	{
 		ListenOverlay->SetVisibility(ESlateVisibility::Collapsed);
@@ -1588,9 +2006,10 @@ void UApexSettingsWidget::FinishListening(const FKey& Key, bool bCancelled)
 	{
 		if (UApexSettingsSubsystem* Settings = GetSettings())
 		{
-			Settings->SetBoundKey(ListeningAction, ListeningSlot, Key);
+			Settings->SetBoundKey(ListeningAction, ListeningSlot, Key, bInvert);
 		}
 		RefreshBindingChips();
+		RefreshWheelDevices();
 		RefreshFooter();
 	}
 
@@ -1608,14 +2027,21 @@ bool UApexSettingsWidget::IsRejectedBindingKey(const FKey& Key)
 		|| Key == EKeys::LeftAlt || Key == EKeys::RightAlt;
 }
 
+bool UApexSettingsWidget::IsKeyForListeningSlot(const FKey& Key) const
+{
+	return ApexDirectInput::IsDirectInputKey(Key) == ApexInput::IsWheelSlot(ListeningSlot);
+}
+
 FReply UApexSettingsWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
 
 	if (bListening)
 	{
-		if (Key == EKeys::Escape)
+		if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right)
 		{
+			// The pad's Back cancels too: a wheel capture ignores pad keys, so
+			// without it there would be no way out but the keyboard.
 			FinishListening(FKey(), /*bCancelled*/ true);
 		}
 		else if (Key == EKeys::Delete || Key == EKeys::BackSpace)
@@ -1624,7 +2050,7 @@ FReply UApexSettingsWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 			// touched the slot — the default does not come back.
 			FinishListening(FKey(), /*bCancelled*/ false);
 		}
-		else if (!IsRejectedBindingKey(Key))
+		else if (!IsRejectedBindingKey(Key) && IsKeyForListeningSlot(Key))
 		{
 			FinishListening(Key, /*bCancelled*/ false);
 		}
@@ -1649,11 +2075,35 @@ FReply UApexSettingsWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 FReply UApexSettingsWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent)
 {
 	// An axis binding is made by moving the axis, which never produces a key
-	// event — only this one. The threshold keeps a resting stick from binding
-	// itself the moment the prompt opens.
-	if (bListening && FMath::Abs(InAnalogEvent.GetAnalogValue()) > 0.5f)
+	// event — only this one.
+	if (bListening)
 	{
-		FinishListening(InAnalogEvent.GetKey(), /*bCancelled*/ false);
+		const FKey Key = InAnalogEvent.GetKey();
+		if (!IsKeyForListeningSlot(Key))
+		{
+			return FReply::Handled();
+		}
+
+		// How far it MOVED, not where it sits: a pedal rests at one end of its
+		// travel and reports that every frame, so a threshold on the value
+		// alone would bind whichever pedal spoke first. The first reading of
+		// each axis is only a baseline.
+		const float Value = InAnalogEvent.GetAnalogValue();
+		const float* Baseline = ListenBaselines.Find(Key);
+		if (!Baseline)
+		{
+			ListenBaselines.Add(Key, Value);
+			return FReply::Handled();
+		}
+
+		const float Travel = Value - *Baseline;
+		if (FMath::Abs(Travel) > AxisCaptureTravel)
+		{
+			// Moved the way the prompt asked for: the right way round. Moved
+			// the other way: the axis runs backwards, and saying so here saves
+			// the player an inversion setting they would have to find.
+			FinishListening(Key, /*bCancelled*/ false, /*bInvert*/ Travel < 0.0f);
+		}
 		return FReply::Handled();
 	}
 	return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogEvent);

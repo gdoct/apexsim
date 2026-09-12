@@ -56,10 +56,15 @@ enum class EApexGraphicsPreset : uint8
 /**
  * One key bound to one action.
  *
- * An action can hold several of these — steering has a gamepad axis and two
- * keyboard halves — so the slot index, not the action id, is what a rebind
- * addresses. Slots are stable: the settings screen's row list names the slot it
- * edits, and the input config maps whatever key is stored there.
+ * An action can hold several of these — steering has a gamepad axis, two
+ * keyboard halves and a wheel's axis — so the slot index, not the action id, is
+ * what a rebind addresses. Slots are stable: the settings screen's row list
+ * names the slot it edits, and the input config maps whatever key is stored
+ * there.
+ *
+ * The wheel column is the exception to one binding per slot: it holds one per
+ * DirectInput device, so a player with two wheelbases keeps both mappings
+ * (ApexInput::FindBinding).
  */
 USTRUCT()
 struct APEXSIM_API FApexKeyBinding
@@ -77,15 +82,24 @@ struct APEXSIM_API FApexKeyBinding
 
 	/**
 	 * Feeds the axis in the negative direction. Only meaningful for the
-	 * keyboard halves of an Axis1D action — "steer left" is the same action as
-	 * "steer right", inverted.
+	 * halves of an Axis1D action — "steer left" is the same action as
+	 * "steer right", inverted. A property of the slot, not of the key.
 	 */
 	UPROPERTY()
 	bool bNegate = false;
 
+	/**
+	 * The device's axis runs the other way: a pedal that rests at the top of
+	 * its range, a wheel wired backwards. Worked out while the binding is
+	 * captured, from which way the axis moved, so nothing has to be inverted
+	 * by hand.
+	 */
+	UPROPERTY()
+	bool bInvert = false;
+
 	FApexKeyBinding() = default;
-	FApexKeyBinding(FName InActionId, int32 InSlot, const FKey& InKey, bool bInNegate = false)
-		: ActionId(InActionId), Slot(InSlot), Key(InKey), bNegate(bInNegate)
+	FApexKeyBinding(FName InActionId, int32 InSlot, const FKey& InKey, bool bInNegate = false, bool bInInvert = false)
+		: ActionId(InActionId), Slot(InSlot), Key(InKey), bNegate(bInNegate), bInvert(bInInvert)
 	{
 	}
 };
@@ -245,11 +259,45 @@ public:
 	float Deadzone = 0.08f;
 
 	/**
-	 * 0..1, force-feedback strength (ApexFfb::GainFromStrength): 0.5 plays the
+	 * 0..1, pad rumble strength (ApexFfb::GainFromStrength): 0.5 plays the
 	 * effects as designed, 0 is off. Read every frame, so a change is live.
 	 */
 	UPROPERTY()
 	float Vibration = 0.45f;
+
+	// --- Wheel ----------------------------------------------------------------
+	//
+	// A wheelbase's forces, as fractions of whatever the device can produce:
+	// the same numbers have to suit a 2 Nm belt drive and a 25 Nm direct drive,
+	// so the base's own strength setting still does the coarse work.
+
+	/**
+	 * 0..1: how hard the steering torque pushes. 0.5 puts a car at the front
+	 * axle's grip limit at about 60% of the base's peak, which leaves room for
+	 * the extra load downforce brings. 0 is off.
+	 */
+	UPROPERTY()
+	float WheelForce = 0.5f;
+
+	/** 0..1: curbs, grass, ABS and impacts on top of the torque. 0.5 is as designed. */
+	UPROPERTY()
+	float WheelRoadEffects = 0.5f;
+
+	/**
+	 * 0..1: resistance to turning the rim, strongest at a standstill. A little
+	 * is worth having — the torque arrives over the network, and a delayed
+	 * force with nothing damping it is what makes a wheel oscillate.
+	 */
+	UPROPERTY()
+	float WheelDamping = 0.25f;
+
+	/**
+	 * The base pulls the wrong way. Which direction a positive force turns the
+	 * rim is the device's business, not something DirectInput promises, so this
+	 * is a switch rather than a guess (the Wheel page has a test that moves it).
+	 */
+	UPROPERTY()
+	bool bWheelInvertForce = false;
 
 	// --- Audio ----------------------------------------------------------------
 

@@ -35,6 +35,36 @@ namespace
 		return Peak;
 	}
 
+	/** The wheel's forces once the smoothed torque has settled on these signals. */
+	FApexWheelEffects SettledWheel(
+		const ApexFfb::FSignals& Signals, const ApexFfb::FWheelTuning& Tuning, float Seconds = 0.5f)
+	{
+		ApexFfb::FWheelState State;
+		FApexWheelEffects Effects;
+		for (float T = 0.0f; T < Seconds; T += FeedbackTestDt)
+		{
+			Effects = ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Tuning);
+		}
+		return Effects;
+	}
+
+	/** The loudest vibration the wheel is asked for over `Seconds`, and at what rate. */
+	FApexWheelEffects PeakWheelVibration(
+		const ApexFfb::FSignals& Signals, const ApexFfb::FWheelTuning& Tuning, float Seconds = 0.5f)
+	{
+		ApexFfb::FWheelState State;
+		FApexWheelEffects Peak;
+		for (float T = 0.0f; T < Seconds; T += FeedbackTestDt)
+		{
+			const FApexWheelEffects Frame = ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Tuning);
+			if (Frame.VibrationAmplitude > Peak.VibrationAmplitude)
+			{
+				Peak = Frame;
+			}
+		}
+		return Peak;
+	}
+
 	/** Times the heavy motor switches from its quiet level to a pulse over one second. */
 	int32 PulsesPerSecond(const ApexFfb::FSignals& Signals)
 	{
@@ -275,6 +305,190 @@ bool FApexFfbStrengthTest::RunTest(const FString& Parameters)
 	Rear.RearSlide = 0.5f;
 	TestTrue(TEXT("more strength, more rumble"),
 		PeakOver(Rear, 0.1f, ApexFfb::GainFromStrength(0.8f)).Low > PeakOver(Rear, 0.1f, ApexFfb::GainFromStrength(0.3f)).Low);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelTorqueTest,
+	"ApexSim.Input.ForceFeedback.WheelTorque",
+	ApexTestFlags)
+
+bool FApexFfbWheelTorqueTest::RunTest(const FString& Parameters)
+{
+	const ApexFfb::FWheelTuning Designed;	 // force 0.5, the strength the numbers were chosen at
+
+	// Straight and gripping: the rim is being held where the driver put it.
+	{
+		const FApexWheelEffects Quiet = SettledWheel(Cruising(50.0f), Designed);
+		TestTrue(FString::Printf(TEXT("no torque with no torque (%.3f)"), Quiet.Constant),
+			FMath::Abs(Quiet.Constant) < 0.01f);
+		TestEqual(TEXT("and nothing to feel from the road"), Quiet.VibrationAmplitude, 0.0f);
+		TestTrue(TEXT("but some weight in the rim"), Quiet.Damper > 0.0f);
+		TestEqual(TEXT("and no centring while driving"), Quiet.Spring, 0.0f);
+	}
+
+	// The car's own torque, and which way it pushes.
+	ApexFfb::FSignals Loaded = Cruising(45.0f);
+	Loaded.SteerTorque = 1.0f;
+	const float AtTheLimit = SettledWheel(Loaded, Designed).Constant;
+	TestTrue(FString::Printf(TEXT("the grip limit is most of the base's force (%.2f)"), AtTheLimit),
+		AtTheLimit > 0.5f && AtTheLimit < 0.7f);
+
+	Loaded.SteerTorque = -1.0f;
+	TestTrue(TEXT("the other way round pushes the other way"),
+		FMath::IsNearlyEqual(SettledWheel(Loaded, Designed).Constant, -AtTheLimit, 0.01f));
+
+	// Downforce takes the torque past its reference; a fast corner must still
+	// feel stronger than a slow one rather than both hitting the stop.
+	Loaded.SteerTorque = 2.0f;
+	const float Loaded2 = SettledWheel(Loaded, Designed).Constant;
+	Loaded.SteerTorque = 3.5f;
+	const float Loaded3 = SettledWheel(Loaded, Designed).Constant;
+	TestTrue(FString::Printf(TEXT("past the reference it keeps growing (%.2f then %.2f)"), Loaded2, Loaded3),
+		Loaded2 > AtTheLimit && Loaded3 > Loaded2 && Loaded3 <= 1.0f);
+
+	// A base wired the other way: the same feel, mirrored, and nothing else moved.
+	ApexFfb::FWheelTuning Inverted = Designed;
+	Inverted.bInvert = true;
+	Loaded.SteerTorque = 1.0f;
+	const FApexWheelEffects Mirrored = SettledWheel(Loaded, Inverted);
+	TestTrue(TEXT("inverting flips the force"), FMath::IsNearlyEqual(Mirrored.Constant, -AtTheLimit, 0.01f));
+
+	// Strength: more is more, and zero is a wheel the game is not touching.
+	ApexFfb::FWheelTuning Strong = Designed;
+	Strong.Force = 1.0f;
+	TestTrue(TEXT("more strength, more force"), SettledWheel(Loaded, Strong).Constant > AtTheLimit);
+
+	ApexFfb::FWheelTuning Off;
+	Off.Force = 0.0f;
+	Off.Damping = 0.0f;
+	Off.RoadEffects = 0.0f;
+	const FApexWheelEffects Silent = SettledWheel(Loaded, Off);
+	TestEqual(TEXT("no force"), Silent.Constant, 0.0f);
+	TestEqual(TEXT("no damper"), Silent.Damper, 0.0f);
+	TestEqual(TEXT("and no centring either"), Silent.Spring, 0.0f);
+
+	// No car: the force is let down rather than dropped, and the rim is given
+	// something to sit against while the player is in the menus.
+	{
+		ApexFfb::FWheelState State;
+		ApexFfb::MixWheel(Loaded, State, FeedbackTestDt, Designed);
+		FApexWheelEffects Idle;
+		for (int32 Frame = 0; Frame < 240; ++Frame)
+		{
+			Idle = ApexFfb::MixWheel(ApexFfb::FSignals(), State, FeedbackTestDt, Designed);
+		}
+		TestTrue(FString::Printf(TEXT("the force runs down to nothing (%.3f)"), Idle.Constant),
+			FMath::Abs(Idle.Constant) < 0.02f);
+		TestTrue(TEXT("and the rim is centred in the menus"), Idle.Spring > 0.0f);
+	}
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelRoadTest,
+	"ApexSim.Input.ForceFeedback.WheelRoad",
+	ApexTestFlags)
+
+bool FApexFfbWheelRoadTest::RunTest(const FString& Parameters)
+{
+	const ApexFfb::FWheelTuning Designed;
+
+	// Curb ribs pass under the tyre faster the faster the car is going, and
+	// that rate is what a curb feels like rather than how hard it buzzes.
+	{
+		ApexFfb::FSignals Slow = Cruising(8.0f);
+		Slow.CurbLeft = 1.0f;
+		ApexFfb::FSignals Fast = Slow;
+		Fast.SpeedMps = 25.0f;
+
+		const FApexWheelEffects SlowCurb = PeakWheelVibration(Slow, Designed);
+		const FApexWheelEffects FastCurb = PeakWheelVibration(Fast, Designed);
+		TestTrue(FString::Printf(TEXT("a curb is felt (%.2f at %.0f Hz)"), SlowCurb.VibrationAmplitude, SlowCurb.VibrationHz),
+			SlowCurb.VibrationAmplitude > 0.2f);
+		TestTrue(FString::Printf(TEXT("faster ribs at speed (%.0f Hz then %.0f Hz)"), SlowCurb.VibrationHz, FastCurb.VibrationHz),
+			FastCurb.VibrationHz > SlowCurb.VibrationHz + 5.0f);
+	}
+
+	// Grass is rough, and it is the only thing the rim is saying while on it.
+	{
+		ApexFfb::FSignals Grass = Cruising(30.0f);
+		Grass.OffTrack = 1.0f;
+		TestTrue(TEXT("grass shakes the wheel"), PeakWheelVibration(Grass, Designed).VibrationAmplitude > 0.2f);
+	}
+
+	// ABS through the column, as a real car's pedal and rack both do.
+	{
+		ApexFfb::FSignals Braking = Cruising(30.0f);
+		Braking.bAbs = true;
+		const FApexWheelEffects Pulsing = PeakWheelVibration(Braking, Designed);
+		TestTrue(TEXT("ABS is felt"), Pulsing.VibrationAmplitude > 0.1f);
+		TestTrue(FString::Printf(TEXT("at the rate it cycles (%.0f Hz)"), Pulsing.VibrationHz),
+			Pulsing.VibrationHz > 8.0f && Pulsing.VibrationHz < 20.0f);
+	}
+
+	// A hit is the loudest thing a rim can say, so it takes the channel from
+	// whatever else was on it.
+	{
+		ApexFfb::FSignals Curbing = Cruising(20.0f);
+		Curbing.CurbRight = 1.0f;
+		ApexFfb::FSignals Landing = Curbing;
+		Landing.BumpMps = 3.0f;
+
+		ApexFfb::FWheelState State;
+		const float Steady = ApexFfb::MixWheel(Curbing, State, FeedbackTestDt, Designed).VibrationAmplitude;
+		ApexFfb::FWheelState HitState;
+		const float Hit = ApexFfb::MixWheel(Landing, HitState, FeedbackTestDt, Designed).VibrationAmplitude;
+		TestTrue(FString::Printf(TEXT("a landing is louder than the curb it lands on (%.2f vs %.2f)"), Hit, Steady),
+			Hit > Steady);
+	}
+
+	// The road-effects slider, and everything at once staying inside what a
+	// device can be asked for, at every setting.
+	{
+		ApexFfb::FSignals Everything = Cruising(40.0f);
+		Everything.SteerTorque = 2.5f;
+		Everything.FrontSlide = Everything.RearSlide = Everything.Lockup = Everything.Wheelspin = 1.0f;
+		Everything.bAbs = Everything.bTractionControl = true;
+		Everything.CurbLeft = Everything.CurbRight = Everything.OffTrack = 1.0f;
+		Everything.BumpMps = 10.0f;
+		Everything.ImpactMps = 50.0f;
+
+		for (float Setting = 0.0f; Setting <= 1.0f; Setting += 0.25f)
+		{
+			ApexFfb::FWheelTuning Tuning;
+			Tuning.Force = Tuning.RoadEffects = Tuning.Damping = Setting;
+
+			ApexFfb::FWheelState State;
+			for (int32 Frame = 0; Frame < 120; ++Frame)
+			{
+				const FApexWheelEffects Out = ApexFfb::MixWheel(Everything, State, FeedbackTestDt, Tuning);
+				const bool bInRange = FMath::Abs(Out.Constant) <= 1.0f
+					&& Out.VibrationAmplitude >= 0.0f && Out.VibrationAmplitude <= 1.0f
+					&& Out.Damper >= 0.0f && Out.Damper <= 1.0f
+					&& Out.Spring >= 0.0f && Out.Spring <= 1.0f
+					&& Out.VibrationHz >= 0.0f && Out.VibrationHz < 200.0f;
+				if (!bInRange)
+				{
+					AddError(FString::Printf(
+						TEXT("setting %.2f frame %d out of range: force %f, vibration %f @ %f Hz, damper %f, spring %f"),
+						Setting, Frame, Out.Constant, Out.VibrationAmplitude, Out.VibrationHz, Out.Damper, Out.Spring));
+					return false;
+				}
+			}
+		}
+
+		ApexFfb::FWheelTuning Quiet;
+		Quiet.RoadEffects = 0.2f;
+		ApexFfb::FWheelTuning Loud;
+		Loud.RoadEffects = 0.9f;
+		TestTrue(TEXT("more road effects, more vibration"),
+			PeakWheelVibration(Everything, Loud).VibrationAmplitude > PeakWheelVibration(Everything, Quiet).VibrationAmplitude);
+	}
 	return true;
 }
 

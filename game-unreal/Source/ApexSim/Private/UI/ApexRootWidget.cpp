@@ -226,7 +226,7 @@ void UApexRootWidget::NativeConstruct()
 	// Both are otherwise only reachable with a keypress, which an unattended run
 	// cannot make — and the overlays are exactly what a screenshot pass wants to
 	// look at. -ApexSettingsTab picks the page (see EApexSettingsTab: 0 gameplay,
-	// 1 graphics, 2 camera, 3 controls, 4 audio).
+	// 1 graphics, 2 camera, 3 controls, 4 wheel, 5 audio).
 	float OverlayDelay = 0.0f;
 	const bool bOpenSettings = FParse::Value(FCommandLine::Get(), TEXT("ApexOpenSettings="), OverlayDelay);
 	const bool bOpenPause = !bOpenSettings && FParse::Value(FCommandLine::Get(), TEXT("ApexOpenPause="), OverlayDelay);
