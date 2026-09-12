@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
+#include "Race/ApexTvDirector.h"
 
 #include "ApexRaceDirector.generated.h"
 
@@ -66,6 +67,53 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	bool IsCockpitView() const { return bCockpitView; }
 
+	/**
+	 * The broadcast camera (ApexTvDirector) instead of the driving cameras:
+	 * always on in the demo view, `-ApexView=tv` or `apexsim.tv.View 1` in a race.
+	 */
+	void SetTvView(bool bTv);
+	bool IsTvView() const { return bTvView; }
+
+	/** The broadcast camera's director, for the console commands and the debug readout. */
+	ApexTv::FDirector& GetTvDirector() { return Tv; }
+
+	// --- Demo view ---------------------------------------------------------------
+
+	/**
+	 * Show the menu's demo race behind the shell: stream the circuit in, spawn
+	 * the AI field from the roster as it arrives, and film it with the
+	 * broadcast camera. No HUD, no cockpit, no input: the menu keeps all of
+	 * that. A race view that begins takes over from it.
+	 *
+	 * @param TrackStem   the track's YAML base name, which names its level
+	 * @param Centerline  the track's centerline from the lobby (server frame),
+	 *                    where the trackside cameras stand
+	 */
+	void BeginDemoView(const FString& TrackStem, const TArray<FVector2D>& Centerline);
+
+	/** Drop the demo race: cars, circuit and lighting go back to the menu's. */
+	void EndDemoView();
+
+	bool IsDemoViewActive() const { return bDemoView; }
+
+	/**
+	 * Hide the demo's world without ending it, for a screen that renders its
+	 * own 3D preview in the same world (the car picker's turntable would pick
+	 * up the circuit and the race lighting).
+	 */
+	void SetDemoWorldVisible(bool bVisible);
+
+	/**
+	 * How much of the demo the menu should let through, 0..1: rises once the
+	 * circuit is in and the camera has a shot, falls when the world is hidden.
+	 * The shell fades its backdrop by it, so the menu never shows a half-loaded
+	 * level or the empty menu world.
+	 */
+	float GetDemoBackdropOpacity() const { return DemoOpacity; }
+
+	/** Fade the backdrop out ahead of ending the demo; watch GetDemoBackdropOpacity reach 0. */
+	void FadeOutDemo() { bDemoFadeOut = true; }
+
 	/** Horizontal field of view of both driving cameras, in degrees. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
 	void SetFieldOfView(float Degrees);
@@ -86,6 +134,22 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
 	void ApplyRacingLineSetting();
+
+	/**
+	 * Park the free screenshot camera at a pose in Unreal world space and
+	 * make it the view. It stays there — cars spawning, the followed car
+	 * changing and C all leave it alone — until `ReleaseShotCamera`. Set
+	 * outside a race, it is waiting for the next race view.
+	 */
+	void SetShotCameraPose(const FVector& LocationCm, const FRotator& Rotation);
+
+	/** Back to the cockpit or chase camera. */
+	void ReleaseShotCamera();
+
+	bool HasShotCameraPose() const { return bShotCameraPose; }
+
+	/** Horizontal field of view of the shot camera, in degrees. */
+	void SetShotCameraFov(float Degrees);
 
 	/** The rear view the HUD's virtual mirror shows, or null while it is off. */
 	UTextureRenderTarget2D* GetVirtualMirrorTexture() const;
@@ -126,6 +190,22 @@ protected:
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCameraComponent> CockpitCamera;
+
+	/**
+	 * Free camera for screenshots from anywhere on the circuit, placed by
+	 * `apexsim.cam.*` or `-ApexCamera=` / `-ApexCameraLookAt=`. Absolute and
+	 * untouched by the driving-camera updates; active only while a shot pose
+	 * is set.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCameraComponent> ShotCamera;
+
+	/**
+	 * The broadcast camera, placed every frame by the TV director. Absolute,
+	 * like the shot camera; carries its own depth of field for the long lens.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCameraComponent> TvCamera;
 
 	/** Fallback mesh for cars with no catalog row (AI drivers have no car id). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|Race")
@@ -173,6 +253,15 @@ private:
 
 	/** Camera-view and other non-driving keys. */
 	void PollViewInput();
+
+	/** Film the field: feed the TV director this frame's cars and place the camera where it says. */
+	void UpdateTvCamera(float DeltaSeconds);
+
+	/** Ease the demo backdrop's opacity toward whether there is anything worth showing. */
+	void UpdateDemoOpacity(float DeltaSeconds);
+
+	/** Cars, level and engine sound of the demo, shown or hidden together. */
+	void ApplyDemoWorldVisibility();
 
 	/**
 	 * Give the player controller key input while racing, and hand it back to
@@ -287,7 +376,51 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AApexRacingLineActor> RacingLine;
 
+	/**
+	 * Apply `-ApexCamera=X,Y,Z,Yaw,Pitch`, `-ApexCameraLookAt=X,Y,Z,TX,TY,TZ`
+	 * and `-ApexCameraFov=` (server frame) for a screenshot run.
+	 */
+	void ApplyShotCameraCommandLine();
+
 	bool bRaceViewActive = false;
+
+	// --- Broadcast camera and demo --------------------------------------------------
+
+	ApexTv::FDirector Tv;
+	bool bTvView = false;
+	/** The TV director has placed the camera at least once since the view began. */
+	bool bHasTvPose = false;
+	bool bDemoView = false;
+	bool bDemoWorldVisible = true;
+	bool bDemoFadeOut = false;
+	FString DemoTrackStem;
+	float DemoOpacity = 0.0f;
+	/** Seconds the demo has had everything it needs on screen. */
+	float DemoReadyFor = 0.0f;
+	/** The demo's cars sit under the menu's own sounds. */
+	static constexpr float DemoEngineVolume = 0.35f;
+
+	/** The newest frame's state; the net subsystem keeps a demo's state out of its own. */
+	EApexSessionState LatestFrameState = EApexSessionState::Lobby;
+
+	/** What race order needs from the wire, per car index. */
+	struct FCarProgress
+	{
+		int32 Lap = 0;
+		float StationM = 0.0f;
+	};
+	TMap<int32, FCarProgress> CarProgress;
+
+	/** Velocity measured from each car's eased motion, for the camera's lead. */
+	struct FCarMotion
+	{
+		FVector PrevLocation = FVector::ZeroVector;
+		FVector Velocity = FVector::ZeroVector;
+		bool bValid = false;
+	};
+	TMap<int32, FCarMotion> CarMotion;
+	/** A shot pose is set: the shot camera is the view. */
+	bool bShotCameraPose = false;
 	/** The settings pick the view a race opens in; C swaps at any time. */
 	bool bCockpitView = true;
 

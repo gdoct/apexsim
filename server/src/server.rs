@@ -220,11 +220,18 @@ impl ServerState {
         let session_id = session.id;
 
         // Create AI profiles if AI count is specified
-        let ai_profiles = if ai_count > 0 {
+        let mut ai_profiles = if ai_count > 0 {
             generate_default_ai_profiles(ai_count)
         } else {
             Vec::new()
         };
+        // The client draws every car with one mesh, so a demo field all in
+        // the car it asked for is the one whose driving matches the picture.
+        if session_kind == SessionKind::Demo {
+            for profile in &mut ai_profiles {
+                profile.preferred_car_id = Some(host_car_id);
+            }
+        }
 
         // Create game session with AI profiles
         let mut game_session = if !ai_profiles.is_empty() {

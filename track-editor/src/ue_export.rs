@@ -60,7 +60,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::ats::{AtsScene, Curb, Marking, MarkingKind, Side, Surface};
-use crate::terrain::{self, GroundHeightfield, TerrainHeightfield};
+use crate::terrain::{self, GroundHeightfield, TerrainHeightfield, Underpass};
 use crate::track_data::TrackFile;
 use crate::track_mesh::{
     surface_kind_color, surface_lateral_fractions, surface_lift, CURB_LIFT_M, MARKING_LIFT_M,
@@ -88,6 +88,31 @@ const SECTION_LEN_M: f32 = 250.0;
 /// Minimum `facet_quality` a triangle needs to be worth exporting: the sine
 /// of the angle between its edges, so roughly half a degree.
 const MIN_FACET_QUALITY: f32 = 0.01;
+
+/// Grid ground within this of an underpass wall line is left out of the
+/// grid and drawn along the road instead, meters: a 4 m ground cell's
+/// diagonal, so no grid facet can straddle the wall.
+const UNDERPASS_CUT_M: f32 = 5.8;
+/// Diagonal of the fine ground grid, meters.
+const GRID_DIAGONAL_M: f32 = 5.7;
+/// Lift of the ground drawn along an underpass over the grid it overlaps.
+const COVER_LIFT_M: f32 = 0.03;
+/// Walls lower than this are not drawn; the ground meets the slot floor.
+const WALL_MIN_HEIGHT_M: f32 = 0.25;
+/// Wall coping: how far it stands above the embankment and how thick it is.
+const WALL_PARAPET_M: f32 = 0.5;
+const WALL_COPING_M: f32 = 0.6;
+/// Bridge parapets along the deck edges.
+const PARAPET_HEIGHT_M: f32 = 1.1;
+const PARAPET_WIDTH_M: f32 = 0.35;
+/// The fascia leans out this much over the deck's depth: a profile segment
+/// needs some lateral extent to be extruded at all.
+const FASCIA_LEAN_M: f32 = 0.05;
+const STRUCTURE_KEY: &str = "structure_concrete";
+const STRUCTURE_COLOR: [f32; 4] = [0.62, 0.61, 0.58, 1.0];
+/// Suzuka's crossover wears a yellow sponsor board; so do most.
+const FASCIA_KEY: &str = "structure_fascia";
+const FASCIA_COLOR: [f32; 4] = [0.95, 0.76, 0.05, 1.0];
 
 /// Height of a curb's outer lip above the track surface, meters.
 const CURB_HEIGHT_M: f32 = 0.05;
@@ -396,6 +421,9 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
     // the viewport uses, so the export reads the way the editor looked.
     if let Some(field) = &terrain {
         bake.ground(field);
+        for underpass in field.underpasses() {
+            bake.underpass(field, underpass);
+        }
     }
     for surface in &scene.surfaces {
         bake.surface(&path, surface);
@@ -470,7 +498,13 @@ enum Anchor {
     /// shear), as mapped by the strip's `height` function.
     Road,
     /// The ground that is actually there: [`TerrainHeightfield::ground_height_at`].
+    /// Near an underpass this is seated on the level the element belongs
+    /// to (see [`seat_on_ground`]).
     Ground,
+    /// The ground field as it is, whatever level the element is on, but
+    /// never above the underside of a bridge deck: for the underpass's own
+    /// walls and slot.
+    Terrain,
 }
 
 /// One point of a strip's cross-section: lateral offset from the centerline
@@ -498,11 +532,58 @@ impl ProfilePoint {
             anchor: Anchor::Ground,
         }
     }
+
+    fn terrain(lat_m: f32, lift_m: f32) -> Self {
+        Self {
+            lat_m,
+            lift_m,
+            anchor: Anchor::Terrain,
+        }
+    }
+}
+
+/// How a strip point sits against an underpass.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Seat {
+    /// An element of the level above, draped down into the slot: its facets
+    /// are not drawn.
+    hanging: bool,
+    /// `Some(inside the slot)` near an underpass wall, `None` elsewhere.
+    slot: Option<bool>,
+}
+
+/// Where a ground-anchored point of an element on `sample`'s stretch of road
+/// goes. Away from an underpass that is simply the ground. Near one, the
+/// ground can belong to the other level: an element of the upper road over
+/// the deck sits on the deck, and one over the slot beyond the deck hangs.
+fn seat_on_ground(
+    field: &TerrainHeightfield,
+    sample: &PathSample,
+    pos: (f32, f32, f32),
+) -> (f32, Seat) {
+    let ground = field.ground_height_at(pos.0, pos.1);
+    let own = sample.pos.2;
+    if let Some(top) = field.deck_top_at(pos.0, pos.1) {
+        if (own - top).abs() <= terrain::OVERHEAD_M && ground < top - terrain::OVERHEAD_M {
+            return (top - terrain::VERGE_DROP_M, Seat::default());
+        }
+    }
+    let Some((past_wall, _)) = field.wall_relation(pos.0, pos.1) else {
+        return (ground, Seat::default());
+    };
+    let inside = past_wall < 0.0;
+    let seat = Seat {
+        hanging: inside && ground < own - terrain::OVERHEAD_M,
+        slot: Some(inside),
+    };
+    (ground, seat)
 }
 
 /// One drawable cross-section, in track space.
 struct CrossSection {
     points: Vec<(f32, f32, f32)>,
+    /// Per point, how it sits against an underpass.
+    seats: Vec<Seat>,
     /// Lateral arc length at each point, for the `v` texture coordinate.
     vs: Vec<f32>,
     /// Unwrapped station, so it stays monotonic across start/finish.
@@ -572,8 +653,63 @@ impl Bake<'_> {
         end_m: f32,
         step_m: f32,
         material_key: &str,
+        profile: F,
+        height: impl Fn(&PathSample, f32, (f32, f32, f32)) -> f32,
+    ) where
+        F: FnMut(&PathSample, f32, &mut Vec<ProfilePoint>),
+    {
+        self.extrude(
+            path,
+            start_m,
+            end_m,
+            step_m,
+            material_key,
+            profile,
+            height,
+            true,
+        );
+    }
+
+    /// [`Self::strip`] for a closed or folded shape — a wall, a deck — whose
+    /// profile is a path around the cross-section rather than a surface
+    /// left to right. The order is taken as given: each segment faces the
+    /// way a left-to-right surface segment would, so going up faces left,
+    /// going down faces right, and going right to left faces down.
+    #[allow(clippy::too_many_arguments)]
+    fn shape<F>(
+        &mut self,
+        path: &CenterlinePath,
+        start_m: f32,
+        end_m: f32,
+        step_m: f32,
+        material_key: &str,
+        profile: F,
+    ) where
+        F: FnMut(&PathSample, f32, &mut Vec<ProfilePoint>),
+    {
+        self.extrude(
+            path,
+            start_m,
+            end_m,
+            step_m,
+            material_key,
+            profile,
+            |_, _, p| p.2,
+            false,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn extrude<F>(
+        &mut self,
+        path: &CenterlinePath,
+        start_m: f32,
+        end_m: f32,
+        step_m: f32,
+        material_key: &str,
         mut profile: F,
         height: impl Fn(&PathSample, f32, (f32, f32, f32)) -> f32,
+        normalize: bool,
     ) where
         F: FnMut(&PathSample, f32, &mut Vec<ProfilePoint>),
     {
@@ -606,7 +742,9 @@ impl Bake<'_> {
             // disturb the left-to-right ordering the normals rely on, whereas
             // ordering a clamped profile could flip a cross-section whose
             // points collapsed onto the limit.
-            normalize_profile(&mut buf);
+            if normalize {
+                normalize_profile(&mut buf);
+            }
             if profile_len == 0 {
                 profile_len = buf.len();
             } else if buf.len() != profile_len {
@@ -620,23 +758,38 @@ impl Bake<'_> {
             }
 
             let mut points = Vec::with_capacity(buf.len());
+            let mut seats = Vec::with_capacity(buf.len());
             let mut v_coords = Vec::with_capacity(buf.len());
             let mut v_acc = 0.0f32;
             for (k, p) in buf.iter().enumerate() {
                 let mut pos = offset_point(&sample, p.lat_m);
+                let mut seat = Seat::default();
                 pos.2 = match (p.anchor, self.ground) {
-                    (Anchor::Ground, Some(field)) => field.ground_height_at(pos.0, pos.1),
-                    _ => height(&sample, p.lat_m, pos),
-                } + p.lift_m;
+                    (Anchor::Ground, Some(field)) => {
+                        let (z, s) = seat_on_ground(field, &sample, pos);
+                        seat = s;
+                        z + p.lift_m
+                    }
+                    (Anchor::Terrain, Some(field)) => {
+                        let z = field.ground_height_at(pos.0, pos.1) + p.lift_m;
+                        match field.deck_top_at(pos.0, pos.1) {
+                            Some(top) => z.min(top - terrain::DECK_DEPTH_M),
+                            None => z,
+                        }
+                    }
+                    _ => height(&sample, p.lat_m, pos) + p.lift_m,
+                };
                 if k > 0 {
                     v_acc += distance(points[k - 1], pos);
                 }
                 points.push(pos);
+                seats.push(seat);
                 v_coords.push(v_acc);
             }
             let (sin_h, cos_h) = sample.heading_rad.sin_cos();
             sections.push(Some(CrossSection {
                 points,
+                seats,
                 vs: v_coords,
                 station,
                 course: (cos_h, sin_h, 0.0),
@@ -675,6 +828,14 @@ impl Bake<'_> {
             let forward_a = forward_at(&sections, i);
             let forward_b = forward_at(&sections, i + 1);
             for k in 0..profile_len - 1 {
+                if underpass_hides([
+                    (a.points[k], a.seats[k]),
+                    (a.points[k + 1], a.seats[k + 1]),
+                    (b.points[k + 1], b.seats[k + 1]),
+                    (b.points[k], b.seats[k]),
+                ]) {
+                    continue;
+                }
                 let quad = [
                     (a.points[k], a.vs[k], a.station),
                     (a.points[k + 1], a.vs[k + 1], a.station),
@@ -714,6 +875,26 @@ impl Bake<'_> {
             |_, _, p| p.2,
         );
     }
+}
+
+/// Whether a strip facet is one an underpass cannot show: part of it hangs
+/// into the slot from the level above, or it spans the wall line from the
+/// slot floor to the embankment — a ramp through the wall.
+fn underpass_hides(corners: [((f32, f32, f32), Seat); 4]) -> bool {
+    if corners.iter().any(|(_, seat)| seat.hanging) {
+        return true;
+    }
+    let inside = corners.iter().any(|(_, s)| s.slot == Some(true));
+    let outside = corners.iter().any(|(_, s)| s.slot == Some(false));
+    if !(inside && outside) {
+        return false;
+    }
+    let (lo, hi) = corners
+        .iter()
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), (p, _)| {
+            (lo.min(p.2), hi.max(p.2))
+        });
+    hi - lo > terrain::OVERHEAD_M
 }
 
 /// Keep lateral offsets short of the centre of curvature, and report
@@ -982,6 +1163,47 @@ impl Builder {
             indices: self.indices,
         }
     }
+}
+
+/// Station runs along the lower road where the wall on one side
+/// (`outward` +1 left, -1 right) stands at least [`WALL_MIN_HEIGHT_M`]
+/// above the slot floor.
+fn wall_runs(
+    field: &TerrainHeightfield,
+    lower: &CenterlinePath,
+    u: &Underpass,
+    outward: f32,
+) -> Vec<(f32, f32)> {
+    let gap = terrain::UNDERPASS_WALL_GAP_M;
+    let (start, end) = u.wall_span_m;
+    let mut runs: Vec<(f32, f32)> = Vec::new();
+    let mut open: Option<f32> = None;
+    let mut station = start;
+    while station <= end {
+        let s = lower.sample_at(station);
+        let edge = if outward > 0.0 {
+            s.width_left_m
+        } else {
+            -s.width_right_m
+        };
+        let floor = offset_point(&s, edge + outward * (gap - 0.1));
+        let bank = offset_point(&s, edge + outward * (gap + 0.1));
+        let height =
+            field.ground_height_at(bank.0, bank.1) - field.ground_height_at(floor.0, floor.1);
+        match (height >= WALL_MIN_HEIGHT_M, open) {
+            (true, None) => open = Some(station),
+            (false, Some(from)) => {
+                runs.push((from, station));
+                open = None;
+            }
+            _ => {}
+        }
+        station += STEP_M;
+    }
+    if let Some(from) = open {
+        runs.push((from, end));
+    }
+    runs
 }
 
 /// Merge chunks that share a section and a material into one mesh each.
@@ -1394,7 +1616,24 @@ impl Bake<'_> {
                         (chunk.positions.len() / 3 - 1) as u32
                     })
                 };
+                // Near an underpass wall the ground steps straight up, and
+                // a grid facet across the step would be a slope reaching
+                // metres into the slot — over the road itself. Those facets
+                // are left out; `underpass` draws that ground along the road.
+                let cut = |fc: usize, fr: usize| {
+                    let x = origin_x + fc as f32 * fine_m;
+                    let y = origin_y + fr as f32 * fine_m;
+                    field
+                        .wall_relation(x, y)
+                        .is_some_and(|(past_wall, _)| past_wall.abs() < UNDERPASS_CUT_M)
+                };
                 let mut quad = |fc: usize, fr: usize, step: usize, chunk: &mut Chunk| {
+                    if [(0, 0), (step, 0), (0, step), (step, step)]
+                        .iter()
+                        .any(|&(dc, dr)| cut(fc + dc, fr + dr))
+                    {
+                        return;
+                    }
                     let v00 = vertex(fc, fr, chunk);
                     let v10 = vertex(fc + step, fr, chunk);
                     let v01 = vertex(fc, fr + step, chunk);
@@ -1425,6 +1664,144 @@ impl Bake<'_> {
             }
             r0 = r1;
         }
+    }
+
+    /// A road passing under another: the ground along the slot that the
+    /// grid leaves out, the abutment walls, and the deck carrying the upper
+    /// road, with its parapets and fascia.
+    fn underpass(&mut self, field: &TerrainHeightfield, u: &Underpass) {
+        let lower = field.road_path(u.lower_road).clone();
+        let upper = field.road_path(u.upper_road).clone();
+        let gap = terrain::UNDERPASS_WALL_GAP_M;
+        self.register("ground", "surface", terrain::GROUND_COLOR);
+        self.register(STRUCTURE_KEY, "structure", STRUCTURE_COLOR);
+        self.register(FASCIA_KEY, "structure", FASCIA_COLOR);
+
+        // The ground either side of the wall line, over everything the grid
+        // cut (a grid cell reaches a diagonal past the cut) and a margin
+        // past the ends of the walls.
+        let (start, end) = u.wall_span_m;
+        let reach = UNDERPASS_CUT_M + GRID_DIAGONAL_M;
+        for outward in [1.0f32, -1.0] {
+            let edge = move |s: &PathSample| {
+                if outward > 0.0 {
+                    s.width_left_m
+                } else {
+                    -s.width_right_m
+                }
+            };
+            let floor_from = gap - reach;
+            let floor_cols = ((gap - floor_from) / 1.0).ceil() as usize;
+            self.strip(
+                &lower,
+                start - GRID_DIAGONAL_M,
+                end + GRID_DIAGONAL_M,
+                2.0,
+                "ground",
+                move |s, _, out| {
+                    for c in 0..=floor_cols {
+                        let b =
+                            floor_from + (gap - 0.1 - floor_from) * (c as f32 / floor_cols as f32);
+                        out.push(ProfilePoint::terrain(edge(s) + outward * b, COVER_LIFT_M));
+                    }
+                },
+                |_, _, p| p.2,
+            );
+            let ridge_cols = (reach / 1.5).ceil() as usize;
+            self.strip(
+                &lower,
+                start - GRID_DIAGONAL_M,
+                end + GRID_DIAGONAL_M,
+                2.0,
+                "ground",
+                move |s, _, out| {
+                    for c in 0..=ridge_cols {
+                        let b = gap + 0.1 + reach * (c as f32 / ridge_cols as f32);
+                        out.push(ProfilePoint::terrain(edge(s) + outward * b, COVER_LIFT_M));
+                    }
+                },
+                |_, _, p| p.2,
+            );
+
+            // The wall itself, where there is a wall's worth of height:
+            // its face, a coping, and the back of the coping down onto the
+            // embankment.
+            for (from, to) in wall_runs(field, &lower, u, outward) {
+                self.shape(&lower, from, to, STEP_M, STRUCTURE_KEY, move |s, _, out| {
+                    let face = edge(s) + outward * gap;
+                    let back = face + outward * WALL_COPING_M;
+                    let inner = face - outward * 0.05;
+                    let outer = face + outward * 0.05;
+                    let points = [
+                        ProfilePoint::terrain(back, 0.0),
+                        ProfilePoint::terrain(back, WALL_PARAPET_M),
+                        ProfilePoint::terrain(outer, WALL_PARAPET_M),
+                        ProfilePoint::terrain(inner, 0.0),
+                    ];
+                    // Left of the road the path runs outside-in; right of
+                    // it, mirrored, so every face still points out of the
+                    // wall.
+                    if outward > 0.0 {
+                        out.extend(points);
+                    } else {
+                        out.extend(points.into_iter().rev());
+                    }
+                });
+            }
+        }
+
+        // The deck: the upper road's own ribbon is its top, so this is the
+        // parapets, the underside and the fascia down each side.
+        let (start, end) = u.deck_span_m;
+        let top = -0.1;
+        let depth = terrain::DECK_DEPTH_M;
+        let over = terrain::DECK_OVERHANG_M;
+        self.shape(
+            &upper,
+            start,
+            end,
+            STEP_M,
+            STRUCTURE_KEY,
+            move |s, _, out| {
+                let left = s.width_left_m + over;
+                let right = -(s.width_right_m + over);
+                out.extend([
+                    ProfilePoint::lifted(left, PARAPET_HEIGHT_M),
+                    ProfilePoint::lifted(left - PARAPET_WIDTH_M, PARAPET_HEIGHT_M),
+                    ProfilePoint::lifted(left - PARAPET_WIDTH_M, top),
+                    ProfilePoint::lifted(right + PARAPET_WIDTH_M, top),
+                    ProfilePoint::lifted(right + PARAPET_WIDTH_M, PARAPET_HEIGHT_M),
+                    ProfilePoint::lifted(right, PARAPET_HEIGHT_M),
+                ]);
+            },
+        );
+        self.shape(
+            &upper,
+            start,
+            end,
+            STEP_M,
+            STRUCTURE_KEY,
+            move |s, _, out| {
+                out.extend([
+                    ProfilePoint::lifted(-(s.width_right_m + over + FASCIA_LEAN_M), -depth),
+                    ProfilePoint::lifted(s.width_left_m + over + FASCIA_LEAN_M, -depth),
+                ]);
+            },
+        );
+        self.shape(&upper, start, end, STEP_M, FASCIA_KEY, move |s, _, out| {
+            let left = s.width_left_m + over;
+            out.extend([
+                ProfilePoint::lifted(left + FASCIA_LEAN_M, -depth),
+                ProfilePoint::lifted(left, PARAPET_HEIGHT_M),
+            ]);
+        });
+        self.shape(&upper, start, end, STEP_M, FASCIA_KEY, move |s, _, out| {
+            let right = -(s.width_right_m + over);
+            out.extend([
+                ProfilePoint::lifted(right, PARAPET_HEIGHT_M),
+                ProfilePoint::lifted(right - FASCIA_LEAN_M, -depth),
+            ]);
+        });
     }
 
     fn marking(&mut self, path: &CenterlinePath, marking: &Marking) {
@@ -1589,7 +1966,7 @@ impl Bake<'_> {
         // Seated on the road surface wherever the line crosses it, so the
         // band follows the banking rather than the raceline's own heights.
         let seat = move |_: &PathSample, _: f32, p: (f32, f32, f32)| {
-            ground.map_or(p.2, |field| field.surface_height_at(p.0, p.1))
+            ground.map_or(p.2, |field| field.surface_height_near(p.0, p.1, p.2))
         };
 
         let raceline: Vec<[f32; 3]> = track.raceline.iter().map(|p| [p.x, p.y, p.z]).collect();

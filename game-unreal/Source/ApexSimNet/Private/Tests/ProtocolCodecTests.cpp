@@ -396,6 +396,30 @@ bool FApexProtocolRobustnessTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("the known variant still resolves"), Message.Type, EApexServerMessageType::SessionJoined);
 		TestEqual(TEXT("known fields survive an unknown neighbour"), Message.SessionId, FString(TEXT("abcd")));
 		TestEqual(TEXT("grid position survives an unknown neighbour"), Message.GridPosition, 3);
+		TestEqual(TEXT("a join without a kind is an ordinary session"), Message.SessionKind, EApexSessionKind::Multiplayer);
+	}
+
+	// The menu's demo session is told apart by the kind on the join itself.
+	{
+		// {"type": "SessionJoined", "data": {"SessionId": "abcd", "YourGridPosition": 0, "SessionKind": 3}}
+		const uint8 DemoJoin[] = {
+			0x82,
+			0xA4, 't', 'y', 'p', 'e',
+			0xAD, 'S', 'e', 's', 's', 'i', 'o', 'n', 'J', 'o', 'i', 'n', 'e', 'd',
+			0xA4, 'd', 'a', 't', 'a',
+			0x83,
+			0xA9, 'S', 'e', 's', 's', 'i', 'o', 'n', 'I', 'd',
+			0xA4, 'a', 'b', 'c', 'd',
+			0xB0, 'Y', 'o', 'u', 'r', 'G', 'r', 'i', 'd', 'P', 'o', 's', 'i', 't', 'i', 'o', 'n', 0x00,
+			0xAB, 'S', 'e', 's', 's', 'i', 'o', 'n', 'K', 'i', 'n', 'd', 0x03
+		};
+		FApexServerMessage Message;
+		FString Error;
+		TestTrue(
+			FString::Printf(TEXT("a demo join decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(
+				TArrayView<const uint8>(DemoJoin, UE_ARRAY_COUNT(DemoJoin)), Message, Error));
+		TestEqual(TEXT("the join says it is a demo"), Message.SessionKind, EApexSessionKind::Demo);
 	}
 
 	// Garbage must be rejected rather than misread.

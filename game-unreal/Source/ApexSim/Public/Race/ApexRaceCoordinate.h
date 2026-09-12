@@ -45,6 +45,51 @@ namespace ApexRace
 			-FMath::RadiansToDegrees(RollRad));
 	}
 
+	/** Unreal world position (cm, +Y right) -> server position (metres, +Y left). */
+	inline FVector UnrealToServerPosition(const FVector& UnrealCm)
+	{
+		return FVector(
+			UnrealCm.X / MetresToCentimetres,
+			-UnrealCm.Y / MetresToCentimetres,
+			UnrealCm.Z / MetresToCentimetres);
+	}
+
+	/**
+	 * A view direction given the server's way -> Unreal rotator, no roll.
+	 *
+	 * Degrees, yaw counter-clockwise from +X as the server measures it, and
+	 * pitch positive UP. That is a camera's convention rather than the car
+	 * body's, so it is kept apart from `ServerToUnrealRotation`: the yaw
+	 * negates with the Y flip and the pitch is Unreal's own.
+	 */
+	inline FRotator ServerViewToUnrealRotation(double YawDeg, double PitchDeg)
+	{
+		return FRotator(PitchDeg, -YawDeg, 0.0);
+	}
+
+	/** Inverse of `ServerViewToUnrealRotation`, for logging a pose in the server frame. */
+	inline void UnrealRotationToServerView(const FRotator& Rotation, double& OutYawDeg, double& OutPitchDeg)
+	{
+		OutYawDeg = FRotator::NormalizeAxis(-Rotation.Yaw);
+		OutPitchDeg = FRotator::NormalizeAxis(Rotation.Pitch);
+	}
+
+	/**
+	 * Unreal rotator that looks from one server-frame point (metres) at
+	 * another, with no roll. Coincident points give a zero rotator.
+	 */
+	inline FRotator ServerLookAtUnrealRotation(const FVector& FromMetres, const FVector& TargetMetres)
+	{
+		const FVector Direction = ServerToUnrealPosition(TargetMetres) - ServerToUnrealPosition(FromMetres);
+		if (Direction.IsNearlyZero())
+		{
+			return FRotator::ZeroRotator;
+		}
+		FRotator Rotation = Direction.Rotation();
+		Rotation.Roll = 0.0;
+		return Rotation;
+	}
+
 	/** Metres per second -> kilometres per hour, for anything user-facing. */
 	inline float MpsToKph(float Mps)
 	{

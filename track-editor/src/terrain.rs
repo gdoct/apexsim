@@ -26,6 +26,17 @@
 //! faces, prop seating, the server's ground sidecar — samples that one
 //! function, which is what keeps them from stepping against each other.
 //!
+//! Where the course passes over itself — Suzuka's crossover — a heightfield
+//! cannot hold both levels, and the "never bury a road" ceiling used to
+//! carve the upper road's ground into a 70 m valley around the lower one,
+//! leaving the upper road floating over it. Such a crossing is an
+//! [`Underpass`]: behind a wall line [`UNDERPASS_WALL_GAP_M`] past the
+//! lower road's edges the lower road stops shaping the ground, so the upper
+//! road keeps its embankment and the lower road runs through a slot in it.
+//! The step at the wall line is vertical, which a gridded mesh cannot show;
+//! the exporter cuts the grid there and draws the walls, the slot floor and
+//! the deck itself (`ue_export`).
+//!
 //! Building the field is deterministic: fixed iteration order, no wall
 //! clock, plain `f32` arithmetic — repeated bakes stay byte-identical.
 
@@ -82,6 +93,29 @@ const ROAD_DIVE_MAX_M: f32 = 2.0;
 /// m beyond the lower road's verge). It only ever binds between two roads;
 /// a lone road's blend never reaches it.
 const CEILING_RISE: f32 = 0.5;
+
+/// Least height between two roads crossing in plan for the crossing to be
+/// a bridge rather than two sections that merely meet, meters.
+pub const UNDERPASS_CLEARANCE_M: f32 = 4.0;
+/// Where the abutment walls stand, meters past the lower road's edges.
+pub const UNDERPASS_WALL_GAP_M: f32 = 3.5;
+/// How far the bridge deck reaches past the upper road's edges, meters.
+pub const DECK_OVERHANG_M: f32 = 1.6;
+/// Depth of the deck below the road surface, meters.
+pub const DECK_DEPTH_M: f32 = 1.2;
+/// A road surface further than this from the height being asked about is
+/// another level — a bridge overhead, or the road below one — not the
+/// surface there, meters. The ground under a road sits at most
+/// `VERGE_DROP_M + ROAD_DIVE_MAX_M` below it, so this never splits a road
+/// from its own ground.
+pub const OVERHEAD_M: f32 = 3.0;
+/// Over this much station at each end of the walls the lower road's say
+/// over the ground behind them comes back, meters, so the wall height runs
+/// out to nothing instead of stopping at a step.
+const UNDERPASS_FADE_M: f32 = 12.0;
+/// Farthest along either road an underpass is looked for from its
+/// crossing, meters.
+const UNDERPASS_REACH_M: f32 = 250.0;
 
 /// Softening in the road weights: a road inside its verge weighs
 /// `1 / HUG_EPS` against the terrain's 1, so the verge follows the road to
@@ -175,6 +209,31 @@ struct Contribution {
     ceiling: f32,
     /// The road surface at the point, when the point is on the road.
     surface: Option<f32>,
+    /// Distance past this road's edge on the point's side; negative on the
+    /// road.
+    beyond: f32,
+}
+
+/// One place the course passes over itself (or the pit lane over the
+/// course): the lower road runs through a slot in the upper road's
+/// embankment, under a deck. Stations of both spans are unwrapped — `.0 <=
+/// .1`, and on a closed road they may run past the total length.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Underpass {
+    /// Road index (0 = the track, then any pit lane) passing below.
+    pub lower_road: u32,
+    pub upper_road: u32,
+    /// Stations of the crossing point on each road.
+    pub lower_station_m: f32,
+    pub upper_station_m: f32,
+    /// Where the centerlines cross, track space.
+    pub at: (f32, f32),
+    /// Height of the upper road over the lower one at the crossing, meters.
+    pub clearance_m: f32,
+    /// Stretch of the lower road with the embankment beside it: the walls.
+    pub wall_span_m: (f32, f32),
+    /// Stretch of the upper road carried over the slot: the deck.
+    pub deck_span_m: (f32, f32),
 }
 
 pub struct TerrainHeightfield {
@@ -194,6 +253,7 @@ pub struct TerrainHeightfield {
     /// Bounding box of every road including its width: `(min_x, min_y,
     /// max_x, max_y)`.
     road_bounds: (f32, f32, f32, f32),
+    underpasses: Vec<Underpass>,
 }
 
 impl TerrainHeightfield {
@@ -301,7 +361,7 @@ impl TerrainHeightfield {
         );
         let index = SegmentIndex::build(&roads, road_bounds);
 
-        Some(Self {
+        let mut field = Self {
             origin,
             cell_m: CELL_M,
             cols,
@@ -311,7 +371,10 @@ impl TerrainHeightfield {
             index,
             search_radius_m: BLEND_END_M + max_half + 1.0,
             road_bounds,
-        })
+            underpasses: Vec::new(),
+        };
+        field.underpasses = field.find_underpasses();
+        Some(field)
     }
 
     /// Raw terrain height at a track-space position — the far field, with
@@ -339,40 +402,341 @@ impl TerrainHeightfield {
     /// Under a road it dips below the surface; see [`Self::surface_height_at`]
     /// for the surface a car drives on.
     pub fn ground_height_at(&self, x: f32, y: f32) -> f32 {
-        self.probe(x, y).0
+        self.probe(x, y, UNDERPASS_WALL_GAP_M).ground
     }
 
     /// The surface at a track-space position: the road (with banking)
     /// inside the road, the pit lane inside the pit lane, and otherwise the
-    /// ground of [`Self::ground_height_at`]. Where roads overlap the higher
-    /// one wins.
+    /// ground of [`Self::ground_height_at`]. Where roads overlap at about
+    /// the same height the higher one wins; a road passing overhead is not
+    /// the surface under it.
     pub fn surface_height_at(&self, x: f32, y: f32) -> f32 {
-        self.probe(x, y).1
+        let probe = self.probe(x, y, UNDERPASS_WALL_GAP_M);
+        probe.road_near(probe.ground).unwrap_or(probe.ground)
     }
 
-    /// `(ground, surface)` at a point, from one candidate search.
-    fn probe(&self, x: f32, y: f32) -> (f32, f32) {
+    /// [`Self::surface_height_at`] for something that knows roughly how
+    /// high it is: of the road surfaces at the point, the level nearest
+    /// `reference_z`. On a bridge that is the bridge, its deck past the road
+    /// edges included; under it, the road below.
+    pub fn surface_height_near(&self, x: f32, y: f32, reference_z: f32) -> f32 {
+        let probe = self.probe(x, y, UNDERPASS_WALL_GAP_M);
+        probe
+            .road_near(reference_z)
+            .or_else(|| {
+                self.deck_top_at(x, y)
+                    .filter(|top| (top - reference_z).abs() <= OVERHEAD_M)
+            })
+            .unwrap_or(probe.ground)
+    }
+
+    /// Ground and road surfaces at a point, from one candidate search, with
+    /// the underpass walls `wall_gap` past the lower road's edges.
+    fn probe(&self, x: f32, y: f32, wall_gap: f32) -> Probe {
         let terrain = self.height_at(x, y);
+        let mut probe = Probe {
+            ground: terrain,
+            surfaces: [0.0; MAX_CANDIDATES],
+            surface_count: 0,
+        };
         let candidates = self.candidates(x, y, self.search_radius_m);
         if candidates.is_empty() {
-            return (terrain, terrain);
+            return probe;
         }
 
         let mut num = terrain;
         let mut den = 1.0f32;
         let mut ceiling = f32::INFINITY;
-        let mut surface: Option<f32> = None;
         for hit in &candidates {
-            let c = self.contribution(hit);
+            let mut c = self.contribution(hit);
+            if let Some((k, relief)) = self.behind_wall(hit, c.beyond, wall_gap) {
+                // Behind an underpass wall the ground is the upper road's
+                // embankment: the lower road gives up its pull on it and
+                // its ceiling, fully once past the fade at the walls' ends.
+                c.weight *= 1.0 - k;
+                c.ceiling += k * relief;
+            }
             num += c.hug * c.weight;
             den += c.weight;
             ceiling = ceiling.min(c.ceiling);
             if let Some(s) = c.surface {
-                surface = Some(surface.map_or(s, |prev: f32| prev.max(s)));
+                probe.surfaces[probe.surface_count] = s;
+                probe.surface_count += 1;
             }
         }
-        let ground = (num / den).min(ceiling);
-        (ground, surface.unwrap_or(ground))
+        probe.ground = (num / den).min(ceiling);
+        probe
+    }
+
+    /// Whether `hit` is on the far side of an underpass wall from its road,
+    /// and if so how much of the ground there the wall takes over (1 along
+    /// the walls, easing to 0 at their ends) and how far the road's ceiling
+    /// must lift to stop binding.
+    fn behind_wall(&self, hit: &Hit, beyond: f32, wall_gap: f32) -> Option<(f32, f32)> {
+        if beyond <= wall_gap || self.underpasses.is_empty() {
+            return None;
+        }
+        let total = self.roads[hit.road as usize].path.total_length_m();
+        self.underpasses
+            .iter()
+            .filter(|u| u.lower_road == hit.road)
+            .find_map(|u| {
+                let into = span_offset(u.wall_span_m, hit.station, total)?;
+                let length = u.wall_span_m.1 - u.wall_span_m.0;
+                let t = (into.min(length - into) / UNDERPASS_FADE_M).clamp(0.0, 1.0);
+                let k = t * t * (3.0 - 2.0 * t);
+                (k > 0.0).then_some((k, u.clearance_m + 10.0))
+            })
+    }
+
+    /// The underpasses in this field's roads, ordered by lower road and
+    /// station.
+    pub fn underpasses(&self) -> &[Underpass] {
+        &self.underpasses
+    }
+
+    /// Road `road`'s centerline: 0 is the track, then the extra paths in the
+    /// order given to [`Self::from_paths`].
+    pub fn road_path(&self, road: u32) -> &CenterlinePath {
+        &self.roads[road as usize].path
+    }
+
+    /// Height of the bridge deck's top — the upper road's surface at the
+    /// nearest point of the road — over a point under a deck, its overhang
+    /// past the road edges included.
+    pub fn deck_top_at(&self, x: f32, y: f32) -> Option<f32> {
+        self.underpasses
+            .iter()
+            .filter(|u| u.reaches(x, y))
+            .find_map(|u| {
+                let upper = &self.roads[u.upper_road as usize].path;
+                let hit = self.nearest_on_road(u.upper_road, u.upper_station_m, x, y)?;
+                span_offset(u.deck_span_m, hit.station, upper.total_length_m())?;
+                let sample = upper.sample_at(hit.station);
+                let half = if hit.lat >= 0.0 {
+                    sample.width_left_m
+                } else {
+                    sample.width_right_m
+                };
+                (hit.dist <= half + DECK_OVERHANG_M).then(|| {
+                    let lat = hit.lat.clamp(-sample.width_right_m, sample.width_left_m);
+                    offset_point(&sample, lat).2
+                })
+            })
+    }
+
+    /// Where a point sits relative to the underpass walls: `None` away from
+    /// every wall, else how far past the wall line it is (negative inside
+    /// the slot) and the lower road's centerline height there.
+    pub fn wall_relation(&self, x: f32, y: f32) -> Option<(f32, f32)> {
+        self.underpasses
+            .iter()
+            .filter(|u| u.reaches(x, y))
+            .find_map(|u| {
+                let lower = &self.roads[u.lower_road as usize].path;
+                let hit = self.nearest_on_road(u.lower_road, u.lower_station_m, x, y)?;
+                span_offset(u.wall_span_m, hit.station, lower.total_length_m())?;
+                let sample = lower.sample_at(hit.station);
+                let half = if hit.lat >= 0.0 {
+                    sample.width_left_m
+                } else {
+                    sample.width_right_m
+                };
+                Some((hit.dist - half - UNDERPASS_WALL_GAP_M, sample.pos.2))
+            })
+    }
+
+    /// The sidecar's surface: [`Self::surface_height_at`] with the walls
+    /// pushed one diagonal of the sidecar grid further out. A wall is a
+    /// vertical step, and a bilinear sample within a cell of one already
+    /// climbs part of the way up it: a car a metre wide of the edge under
+    /// the bridge would ride up a ramp that isn't there.
+    fn physics_surface_at(&self, x: f32, y: f32, cell_m: f32) -> f32 {
+        let probe = self.probe(
+            x,
+            y,
+            UNDERPASS_WALL_GAP_M + cell_m * std::f32::consts::SQRT_2,
+        );
+        probe.road_near(probe.ground).unwrap_or(probe.ground)
+    }
+
+    /// The nearest point of road `road` to `(x, y)`, searching only the
+    /// stretch within reach of `station_m` so that the other level at the
+    /// same XY is never the answer.
+    fn nearest_on_road(&self, road: u32, station_m: f32, x: f32, y: f32) -> Option<Hit> {
+        let r = &self.roads[road as usize];
+        let radius = r.max_half_m + UNDERPASS_WALL_GAP_M + BLEND_END_M;
+        let total = r.path.total_length_m();
+        self.index
+            .gather(&self.roads, x, y, radius)
+            .into_iter()
+            .filter(|h| {
+                h.road == road && station_gap(h.station, station_m, total) <= UNDERPASS_REACH_M
+            })
+            .min_by(|a, b| a.dist.total_cmp(&b.dist).then(a.segment.cmp(&b.segment)))
+    }
+
+    /// Every place a road crosses a road (itself included) with at least
+    /// [`UNDERPASS_CLEARANCE_M`] between the two, with the spans of its
+    /// walls and deck.
+    fn find_underpasses(&self) -> Vec<Underpass> {
+        let mut found: Vec<Underpass> = Vec::new();
+        for (ri, road) in self.roads.iter().enumerate() {
+            let total = road.path.total_length_m();
+            for i in 0..segment_count(&road.path) {
+                let (a, b, sa, sb) = segment_ends(&road.path, i);
+                let len = ((b.0 - a.0).powi(2) + (b.1 - a.1).powi(2)).sqrt();
+                let mid = ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5);
+                let mut others = self
+                    .index
+                    .gather(&self.roads, mid.0, mid.1, len * 0.5 + 0.5);
+                others.sort_unstable_by_key(|h| (h.road, h.segment));
+                others.dedup_by_key(|h| (h.road, h.segment));
+                for other in others {
+                    // Each pair once, and never a segment against its own
+                    // neighbourhood on the same road.
+                    if (other.road as usize, other.segment as usize) <= (ri, i) {
+                        continue;
+                    }
+                    let other_path = &self.roads[other.road as usize].path;
+                    let (c, d, sc, sd) = segment_ends(other_path, other.segment as usize);
+                    if other.road as usize == ri && station_gap(sa, sc, total) < 2.0 * BLEND_END_M {
+                        continue;
+                    }
+                    let Some((t, u)) = segment_intersection(a, b, c, d) else {
+                        continue;
+                    };
+                    let z1 = a.2 + (b.2 - a.2) * t;
+                    let z2 = c.2 + (d.2 - c.2) * u;
+                    if (z1 - z2).abs() < UNDERPASS_CLEARANCE_M {
+                        continue;
+                    }
+                    let s1 = sa + (sb - sa) * t;
+                    let s2 = sc + (sd - sc) * u;
+                    let ((lower, ls), (upper, us)) = if z1 < z2 {
+                        ((ri as u32, s1), (other.road, s2))
+                    } else {
+                        ((other.road, s2), (ri as u32, s1))
+                    };
+                    let lower_total = self.roads[lower as usize].path.total_length_m();
+                    let duplicate = found.iter().any(|f| {
+                        f.lower_road == lower
+                            && f.upper_road == upper
+                            && station_gap(f.lower_station_m, ls, lower_total) < 10.0
+                    });
+                    if duplicate {
+                        continue;
+                    }
+                    found.push(Underpass {
+                        lower_road: lower,
+                        upper_road: upper,
+                        lower_station_m: ls,
+                        upper_station_m: us,
+                        at: (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t),
+                        clearance_m: (z1 - z2).abs(),
+                        wall_span_m: (ls, ls),
+                        deck_span_m: (us, us),
+                    });
+                }
+            }
+        }
+        // Spans use `nearest_on_road`, which needs the crossing stations
+        // but not the spans themselves.
+        let spans: Vec<_> = found
+            .iter()
+            .map(|u| (self.wall_span(u), self.deck_span(u)))
+            .collect();
+        for (u, (walls, deck)) in found.iter_mut().zip(spans) {
+            u.wall_span_m = walls;
+            u.deck_span_m = deck;
+        }
+        found.sort_by(|a, b| {
+            a.lower_road
+                .cmp(&b.lower_road)
+                .then(a.lower_station_m.total_cmp(&b.lower_station_m))
+        });
+        found
+    }
+
+    /// The stretch of the lower road whose wall lines are within the upper
+    /// road's verge blend — where its embankment stands — plus the fade.
+    fn wall_span(&self, u: &Underpass) -> (f32, f32) {
+        const STEP_M: f32 = 2.0;
+        let lower = &self.roads[u.lower_road as usize].path;
+        let upper = &self.roads[u.upper_road as usize].path;
+        let reaches = |station: f32| {
+            let s = lower.sample_at(station);
+            [
+                s.width_left_m + UNDERPASS_WALL_GAP_M,
+                -(s.width_right_m + UNDERPASS_WALL_GAP_M),
+            ]
+            .into_iter()
+            .any(|lat| {
+                let p = offset_point(&s, lat);
+                self.nearest_on_road(u.upper_road, u.upper_station_m, p.0, p.1)
+                    .is_some_and(|h| {
+                        let us = upper.sample_at(h.station);
+                        h.dist - us.width_left_m.max(us.width_right_m) < BLEND_END_M
+                    })
+            })
+        };
+        let walk = |dir: f32| {
+            let mut last = 0.0f32;
+            let mut d = STEP_M;
+            while d <= UNDERPASS_REACH_M && d - last <= 3.0 * STEP_M {
+                if reaches(u.lower_station_m + dir * d) {
+                    last = d;
+                }
+                d += STEP_M;
+            }
+            last + UNDERPASS_FADE_M
+        };
+        clamp_span(
+            lower,
+            u.lower_station_m - walk(-1.0),
+            u.lower_station_m + walk(1.0),
+        )
+    }
+
+    /// The stretch of the upper road whose deck, overhang included, is over
+    /// the slot or bearing on the walls either side of it.
+    fn deck_span(&self, u: &Underpass) -> (f32, f32) {
+        const STEP_M: f32 = 0.5;
+        /// How far the deck rests on the ground past each wall line.
+        const BEARING_M: f32 = 1.0;
+        let upper = &self.roads[u.upper_road as usize].path;
+        let lower = &self.roads[u.lower_road as usize].path;
+        let over = |station: f32| {
+            let s = upper.sample_at(station);
+            let left = s.width_left_m + DECK_OVERHANG_M;
+            let right = -(s.width_right_m + DECK_OVERHANG_M);
+            (0..=8).any(|k| {
+                let lat = left + (right - left) * (k as f32 / 8.0);
+                let p = offset_point(&s, lat);
+                self.nearest_on_road(u.lower_road, u.lower_station_m, p.0, p.1)
+                    .is_some_and(|h| {
+                        let ls = lower.sample_at(h.station);
+                        let half = if h.lat >= 0.0 {
+                            ls.width_left_m
+                        } else {
+                            ls.width_right_m
+                        };
+                        h.dist - half <= UNDERPASS_WALL_GAP_M + BEARING_M
+                    })
+            })
+        };
+        let walk = |dir: f32| {
+            let mut d = 0.0f32;
+            while d < UNDERPASS_REACH_M && over(u.upper_station_m + dir * (d + STEP_M)) {
+                d += STEP_M;
+            }
+            d
+        };
+        clamp_span(
+            upper,
+            u.upper_station_m - walk(-1.0),
+            u.upper_station_m + walk(1.0),
+        )
     }
 
     /// Evaluate one nearby road's say over the ground at the query point.
@@ -399,6 +763,7 @@ impl TerrainHeightfield {
                 weight: 1.0 / HUG_EPS,
                 ceiling: hug,
                 surface: Some(surface_z),
+                beyond,
             };
         }
 
@@ -414,6 +779,7 @@ impl TerrainHeightfield {
             weight: w / (1.0 - w + HUG_EPS),
             ceiling: hug + (beyond - BLEND_START_M).max(0.0) * CEILING_RISE,
             surface: None,
+            beyond,
         }
     }
 
@@ -552,7 +918,7 @@ impl TerrainHeightfield {
             let y = origin_y + r as f32 * cell_m;
             for c in 0..cols {
                 let x = origin_x + c as f32 * cell_m;
-                let z = self.surface_height_at(x, y);
+                let z = self.physics_surface_at(x, y, cell_m);
                 let cm = if z.is_finite() {
                     (z * 100.0).round()
                 } else {
@@ -679,6 +1045,114 @@ impl SegmentIndex {
             }
         }
         hits
+    }
+}
+
+impl Underpass {
+    /// Whether a point is close enough to the crossing for its walls or
+    /// deck to matter: a cheap test before any road search.
+    fn reaches(&self, x: f32, y: f32) -> bool {
+        let r = UNDERPASS_REACH_M + UNDERPASS_FADE_M + BLEND_END_M + 20.0;
+        (x - self.at.0).powi(2) + (y - self.at.1).powi(2) <= r * r
+    }
+}
+
+/// What one ground query found.
+struct Probe {
+    ground: f32,
+    /// Road surfaces at the point, one per road run it is on.
+    surfaces: [f32; MAX_CANDIDATES],
+    surface_count: usize,
+}
+
+impl Probe {
+    /// The road surface at the point at the level asked about, if a road is
+    /// there: only roads within [`OVERHEAD_M`] of `reference` count, the
+    /// level nearest it wins, and of roads overlapping at that level the
+    /// highest.
+    fn road_near(&self, reference: f32) -> Option<f32> {
+        let surfaces = &self.surfaces[..self.surface_count];
+        let nearest = surfaces
+            .iter()
+            .copied()
+            .filter(|s| (s - reference).abs() <= OVERHEAD_M)
+            .min_by(|a, b| (a - reference).abs().total_cmp(&(b - reference).abs()))?;
+        Some(
+            surfaces
+                .iter()
+                .copied()
+                .filter(|s| (s - nearest).abs() <= OVERHEAD_M)
+                .fold(nearest, f32::max),
+        )
+    }
+}
+
+/// A track-space position, meters.
+type Point = (f32, f32, f32);
+
+/// Endpoints and stations of segment `i` of a path; the closing segment of
+/// a closed path ends at the total length.
+fn segment_ends(path: &CenterlinePath, i: usize) -> (Point, Point, f32, f32) {
+    let samples = path.samples();
+    let a = samples[i];
+    if i + 1 < samples.len() {
+        (
+            a.pos,
+            samples[i + 1].pos,
+            a.station_m,
+            samples[i + 1].station_m,
+        )
+    } else {
+        (a.pos, samples[0].pos, a.station_m, path.total_length_m())
+    }
+}
+
+/// Parameters `(t, u)` along `a-b` and `c-d` where the two cross in plan.
+fn segment_intersection(
+    a: (f32, f32, f32),
+    b: (f32, f32, f32),
+    c: (f32, f32, f32),
+    d: (f32, f32, f32),
+) -> Option<(f32, f32)> {
+    let r = (b.0 - a.0, b.1 - a.1);
+    let q = (d.0 - c.0, d.1 - c.1);
+    let den = r.0 * q.1 - r.1 * q.0;
+    if den.abs() < 1e-9 {
+        return None;
+    }
+    let (wx, wy) = (c.0 - a.0, c.1 - a.1);
+    let t = (wx * q.1 - wy * q.0) / den;
+    let u = (wx * r.1 - wy * r.0) / den;
+    ((0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u)).then_some((t, u))
+}
+
+/// Distance between two stations along a road, the short way round a loop.
+fn station_gap(a: f32, b: f32, total: f32) -> f32 {
+    if total > 0.0 {
+        let d = (a - b).abs().rem_euclid(total);
+        d.min(total - d)
+    } else {
+        (a - b).abs()
+    }
+}
+
+/// How far `station` is into an unwrapped `span`, trying it a lap either
+/// way round; `None` outside the span.
+fn span_offset(span: (f32, f32), station: f32, total: f32) -> Option<f32> {
+    [station, station + total, station - total]
+        .into_iter()
+        .find(|s| *s >= span.0 && *s <= span.1)
+        .map(|s| s - span.0)
+}
+
+/// An unwrapped span, kept inside the path when the path is open; a loop's
+/// spans may wrap.
+fn clamp_span(path: &CenterlinePath, start: f32, end: f32) -> (f32, f32) {
+    if path.is_closed() {
+        (start, end)
+    } else {
+        let total = path.total_length_m();
+        (start.clamp(0.0, total), end.clamp(0.0, total))
     }
 }
 

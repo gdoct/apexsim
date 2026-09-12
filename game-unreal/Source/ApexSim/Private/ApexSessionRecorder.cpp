@@ -160,11 +160,23 @@ void UApexSessionRecorder::HandleSessionStateChanged(EApexSessionState NewState)
 void UApexSessionRecorder::HandleRosterUpdated(const FApexSessionRoster& Roster)
 {
 	// Names can arrive after the cars have already been seen in telemetry.
-	ApplyRosterNames();
+	// Not the demo's: its roster would rename the last race's results.
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net || !Net->IsInDemoSession())
+	{
+		ApplyRosterNames();
+	}
 }
 
 void UApexSessionRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 {
+	// The menu's demo race is somebody else's results.
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (Net && Net->IsInDemoSession())
+	{
+		return;
+	}
+
 	if (!bRecording)
 	{
 		// A frame can arrive before the state transition that starts recording.

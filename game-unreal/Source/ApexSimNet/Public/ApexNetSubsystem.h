@@ -28,6 +28,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnRacingLineUpdated, const FApe
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnTelemetry, const FApexTelemetryFrame&, Frame);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnDemoSessionChanged, bool /*bJoined*/);
 
 /**
  * Owns the connection to the ApexSim server and translates it into Blueprint
@@ -121,6 +122,15 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
 	FApexOnSessionStateChanged OnSessionStateChanged;
 
+	/**
+	 * The menu's demo session was joined (true) or left (false), which covers
+	 * a failed request too. A demo session raises none of the session
+	 * delegates above — no OnSessionJoined, OnSessionLeft, OnSessionStateChanged
+	 * or OnGameModeChanged — so nothing that reacts to the player's own session
+	 * sees it. The roster and telemetry still flow: the race director draws it.
+	 */
+	FApexOnDemoSessionChanged OnDemoSessionChanged;
+
 	// --- Actions --------------------------------------------------------------
 
 	/**
@@ -161,6 +171,35 @@ public:
 		int32 AiCount = 0,
 		int32 LapLimit = 5,
 		EApexSessionKind SessionKind = EApexSessionKind::Multiplayer);
+
+	/**
+	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
+	 * Answered with OnDemoSessionChanged, never with the session delegates.
+	 */
+	void CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit);
+
+	/** Leave the demo session, or withdraw a request for one. Nothing if there is neither. */
+	void LeaveDemoSession();
+
+	/** Joined to a demo session. `IsInSession` is false throughout one. */
+	bool IsInDemoSession() const { return bInDemoSession; }
+
+	/** A demo session has been asked for and not yet answered. */
+	bool IsDemoSessionRequested() const { return bDemoRequested; }
+
+	/** State of the demo session from its telemetry; Lobby before the first frame. */
+	EApexSessionState GetDemoSessionState() const { return DemoSessionState; }
+
+	/**
+	 * A create or join for a session the player takes part in is on its way
+	 * and has not been answered by SessionJoined or an Error yet. The demo
+	 * waits for it rather than taking the connection back.
+	 */
+	bool IsSessionRequestPending() const
+	{
+		// A request the server never answers must not park the demo for good.
+		return bSessionRequestPending && FPlatformTime::Seconds() - SessionRequestSentSeconds < 10.0;
+	}
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void JoinSession(const FString& SessionId);
@@ -213,8 +252,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FString& GetCurrentSessionId() const { return CurrentSessionId; }
 
+	/** In a session the player takes part in: a demo session does not count. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
-	bool IsInSession() const { return !CurrentSessionId.IsEmpty(); }
+	bool IsInSession() const { return !CurrentSessionId.IsEmpty() && !bInDemoSession; }
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FApexLobbyState& GetCachedLobbyState() const { return CachedLobbyState; }
@@ -349,6 +389,24 @@ private:
 	int32 ReconnectAttempt = 0;
 	float TimeUntilReconnect = 0.0f;
 	FString CurrentSessionId;
+
+	// --- Demo session -----------------------------------------------------------
+
+	/** Clear the demo bookkeeping, telling listeners if a demo was joined or asked for. */
+	void ResetDemoSession();
+
+	bool bInDemoSession = false;
+	bool bDemoRequested = false;
+	/**
+	 * LeaveSession messages sent on the demo's behalf that the server has not
+	 * answered yet. The server answers every LeaveSession with SessionLeft, in
+	 * order, so the next that many SessionLefts belong to the demo — including
+	 * one for a demo request that failed and left nothing to leave.
+	 */
+	int32 DemoLeavesInFlight = 0;
+	EApexSessionState DemoSessionState = EApexSessionState::Lobby;
+	bool bSessionRequestPending = false;
+	double SessionRequestSentSeconds = 0.0;
 
 	uint32 ClientTick = 0;
 	float TimeSinceHeartbeat = 0.0f;

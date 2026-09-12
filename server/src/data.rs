@@ -941,6 +941,11 @@ pub enum SessionKind {
     Multiplayer = 0,
     Practice = 1,
     Sandbox = 2,
+    /// An AI-only race the creator watches: the backdrop behind a client's
+    /// menu. Unlisted, unjoinable, spectated by its creator, counted straight
+    /// into a race, and never recorded as a replay. It ends when its last
+    /// spectator leaves.
+    Demo = 3,
 }
 
 /// Game modes determine the behavior and rules during a session

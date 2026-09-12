@@ -168,6 +168,11 @@ pub struct SessionJoinedData {
     )]
     pub session_id: SessionId,
     pub your_grid_position: u8,
+    /// What was joined, so a client can tell its menu's demo session from a
+    /// session the player takes part in without waiting for a lobby snapshot
+    /// (a demo session is never in one).
+    #[serde(default)]
+    pub session_kind: SessionKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

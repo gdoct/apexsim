@@ -189,6 +189,11 @@ impl LobbyManager {
                 warn!("Session {} is not in lobby state", session_id);
                 return false;
             }
+
+            if session.session_kind == SessionKind::Demo {
+                warn!("Session {} is a demo and takes no players", session_id);
+                return false;
+            }
         } else {
             warn!("Session {} does not exist", session_id);
             return false;

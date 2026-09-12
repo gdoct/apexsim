@@ -42,7 +42,7 @@ use std::collections::BTreeMap;
 use std::f32::consts::TAU;
 
 use crate::ats::{AtsScene, Prop, PropKind, Side, SurfaceKind};
-use crate::terrain::TerrainHeightfield;
+use crate::terrain::{self, TerrainHeightfield};
 use crate::track_data::TrackFile;
 use crate::track_mesh::surface_height;
 use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
@@ -1124,6 +1124,18 @@ fn lay_straight_barriers(
             let lat = signed(side, side_half_width(&sample, side) + BARRIER_OFFSET_M);
             let pos = offset_point(&sample, lat);
             if lane.is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < BARRIER_CLEAR_M) {
+                continue;
+            }
+            // At an underpass the lower road has its walls instead, and the
+            // upper road's armco would stand in the slot beneath it.
+            let at_underpass =
+                terrain
+                    .wall_relation(pos.0, pos.1)
+                    .is_some_and(|(past_wall, lower_z)| {
+                        (sample.pos.2 - lower_z).abs() <= terrain::OVERHEAD_M
+                            || past_wall < BARRIER_CLEAR_M
+                    });
+            if at_underpass {
                 continue;
             }
             let blocked = others.iter().any(|p| {

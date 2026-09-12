@@ -1608,6 +1608,17 @@ fn query_track_surface_mesh_heightfield_stub(
 /// than a step for the wheel that crosses the white line first.
 const ROAD_EDGE_BLEND_M: f32 = 1.5;
 
+/// Within this far past the road edge, baked ground more than
+/// [`OTHER_LEVEL_M`] from the edge's height belongs to another level of the
+/// circuit, so the road edge height is held instead. The exporter keeps the
+/// verge within centimetres of the edge everywhere else, so only a grade
+/// separation trips it: the lower road seen from a car on the bridge (the
+/// deck reaches `DECK_OVERHANG_M`, 1.6 m, past the edge, the parapet a
+/// little further), or the upper road seen from the lower one.
+const DECK_REACH_M: f32 = 2.5;
+/// See [`DECK_REACH_M`]; the exporter's `OVERHEAD_M`.
+const OTHER_LEVEL_M: f32 = 3.0;
+
 /// Height of the surface under (world_x, world_y) given the nearest
 /// centerline point and the signed lateral offset (positive = right).
 ///
@@ -1636,8 +1647,12 @@ fn surface_elevation(
     let edge_z = nearest.z - edge_lateral * shear;
     match track.ground.as_ref() {
         Some(ground) => {
+            let ground_z = ground.sample(world_x, world_y);
+            if overhang <= DECK_REACH_M && (ground_z - edge_z).abs() > OTHER_LEVEL_M {
+                return edge_z;
+            }
             let t = (overhang / ROAD_EDGE_BLEND_M).clamp(0.0, 1.0);
-            edge_z + (ground.sample(world_x, world_y) - edge_z) * t
+            edge_z + (ground_z - edge_z) * t
         }
         None => edge_z,
     }
@@ -2408,6 +2423,46 @@ mod tests {
         state.pos_x = 100.0;
         state.pos_y = y;
         get_track_context(&state, track)
+    }
+
+    /// Off the edge of a bridge the baked ground is the road far below it.
+    /// A wheel over the deck's overhang stays at road height; past the deck
+    /// it is over the drop.
+    #[test]
+    fn test_bridge_deck_holds_road_height_past_the_edge() {
+        let mut track = create_straight_test_track();
+        for p in &mut track.centerline {
+            p.z = 12.0;
+        }
+        // 10 m of asphalt each side; everything around is 12 m below.
+        track.ground = Some(crate::ground::GroundHeightfield {
+            version: 1,
+            origin_x: -50.0,
+            origin_y: -50.0,
+            cell_m: 4.0,
+            cols: 100,
+            rows: 26,
+            heights_cm: vec![0; 2600],
+        });
+
+        let on_the_deck = context_at(&track, -11.5);
+        assert!(
+            (on_the_deck.elevation - 12.0).abs() < 1e-3,
+            "1.5 m past the edge is deck, got {}",
+            on_the_deck.elevation
+        );
+        let over_the_drop = context_at(&track, -14.0);
+        assert!(
+            over_the_drop.elevation < 0.5,
+            "4 m past the edge is over the drop, got {}",
+            over_the_drop.elevation
+        );
+
+        // An ordinary verge, a little below the edge, still blends in.
+        let mut verge = track.clone();
+        verge.ground.as_mut().unwrap().heights_cm = vec![1150; 2600];
+        let blended = context_at(&verge, -10.75);
+        assert!(blended.elevation < 12.0 && blended.elevation > 11.5);
     }
 
     /// Driving over a curb is using the track, not leaving it: the sim has
