@@ -28,7 +28,7 @@
  * so their fields are PascalCase:
  *     AuthSuccessData { PlayerId, ServerVersion, ProtocolVersion, UdpToken, UdpPort }
  *     LobbyStateData  { PlayersInLobby, AvailableSessions, CarConfigs, TrackConfigs }
- *     SessionJoinedData { SessionId, YourGridPosition }
+ *     SessionJoinedData { SessionId, YourGridPosition, SessionKind }
  *
  * And one exception breaks even that: TrackPoint (network.rs:318-322) has NO
  * rename_all, so its keys are lowercase "x"/"y" while nested inside a
@@ -59,6 +59,12 @@ enum class EApexSessionKind : uint8
 	Multiplayer = 0,
 	Practice    = 1,
 	Sandbox     = 2,
+	/**
+	 * An AI-only race this client watches behind its menu: unlisted and
+	 * unjoinable. Created by UApexDemoModeSubsystem; the net subsystem keeps
+	 * it out of every session delegate (see IsInDemoSession).
+	 */
+	Demo        = 3,
 };
 
 /** Mirrors `GameMode` (data.rs:906). Serialize_repr => a plain u8 on the wire. */
@@ -578,6 +584,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FString PlayerId;
 
 	int32 GridPosition = 0;
+	/** SessionJoined::SessionKind; Multiplayer from a server that predates the field. */
+	EApexSessionKind SessionKind = EApexSessionKind::Multiplayer;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

@@ -72,6 +72,20 @@ void AApexRaceCarActor::SetCockpitSpec(const FString& InCarClass, const FApexCoc
 	bCockpitLayoutValid = false;
 }
 
+FBox AApexRaceCarActor::GetBodyBox() const
+{
+	const UStaticMesh* Mesh = CarMesh->GetStaticMesh();
+	return Mesh ? ApexCockpit::ActorFrameBox(Mesh->GetBounds(), CarMesh->GetRelativeTransform()) : ApexCockpit::FallbackBox();
+}
+
+void AApexRaceCarActor::SetEngineVolume(float Scale)
+{
+	if (EngineAudio)
+	{
+		EngineAudio->SetVolumeMultiplier(FMath::Max(Scale, 0.0f));
+	}
+}
+
 const FApexCockpitLayout& AApexRaceCarActor::GetCockpitLayout()
 {
 	if (!bCockpitLayoutValid)

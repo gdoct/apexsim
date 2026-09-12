@@ -9,7 +9,7 @@ use crate::game_session::GameSession;
 use crate::lobby::{LobbyPlayerState, LobbySessionInfo, SessionVisibility};
 use crate::network::{ClientMessage, RacingLineData, ServerMessage, SessionJoinedData};
 use crate::racing_line;
-use crate::transport::TransportEvent;
+use crate::transport::{ConnectionInfo, TransportEvent};
 use std::collections::HashMap;
 use tracing::{debug, warn};
 
@@ -192,8 +192,25 @@ async fn handle_create_session(
     };
     let mut state_write = ctx.state.write().await;
 
+    // A demo is watched, not driven, so it needs no car of the host's: it
+    // falls back to the default AI car (smallest id, for determinism).
+    let is_demo = session_kind == SessionKind::Demo;
+    let selected_car = state_write.lobby.get_player_car(conn_info.player_id).await;
+    let fallback_car = || state_write.car_configs.keys().min().copied();
+    let car_id = if is_demo {
+        selected_car.or_else(fallback_car)
+    } else {
+        selected_car
+    };
+    // Nobody but the AI takes a seat in a demo.
+    let max_players = if is_demo {
+        ai_count.max(1)
+    } else {
+        max_players
+    };
+
     // Get host's selected car
-    let Some(car_id) = state_write.lobby.get_player_car(conn_info.player_id).await else {
+    let Some(car_id) = car_id else {
         drop(state_write);
         ctx.send_error(
             connection_id,
@@ -263,12 +280,22 @@ async fn handle_create_session(
         current_player_count: 0, // join_session will increment this
         spectator_count: 0,
         state: SessionState::Lobby,
-        visibility: SessionVisibility::Public,
+        // Unlisted: a demo is one client's menu backdrop.
+        visibility: if is_demo {
+            SessionVisibility::Private
+        } else {
+            SessionVisibility::Public
+        },
         password_hash: None,
         created_at: std::time::Instant::now(),
     };
 
     state_write.lobby.register_session(session_info).await;
+
+    if is_demo {
+        start_demo_session(ctx, state_write, &conn_info, connection_id, session_id).await;
+        return;
+    }
 
     // Join host to their own session (lobby and game session)
     let joined = state_write
@@ -305,6 +332,7 @@ async fn handle_create_session(
                 ServerMessage::SessionJoined(SessionJoinedData {
                     session_id,
                     your_grid_position: grid_pos,
+                    session_kind,
                 }),
             )
             .await;
@@ -323,6 +351,68 @@ async fn handle_create_session(
         ctx.send_error(connection_id, 500, "Failed to add player to game session")
             .await;
     }
+}
+
+/// Seconds of grid before a demo race goes green: long enough for the
+/// client's broadcast camera to open on the grid.
+const DEMO_COUNTDOWN_SECONDS: u16 = 8;
+
+/// Second half of creating a `SessionKind::Demo`: the host watches as a
+/// spectator (so no car of theirs is on the grid) and the AI field is counted
+/// straight into a race, since nobody will ever press start.
+async fn start_demo_session(
+    ctx: &GameLoopCtx,
+    mut state_write: tokio::sync::RwLockWriteGuard<'_, crate::server::ServerState>,
+    conn_info: &ConnectionInfo,
+    connection_id: ConnectionId,
+    session_id: SessionId,
+) {
+    let joined = state_write
+        .lobby
+        .join_as_spectator(conn_info.player_id, session_id)
+        .await;
+    let started = joined
+        && match state_write.sessions.get_mut(&session_id) {
+            Some(game_session) => {
+                game_session.start_countdown_mode(DEMO_COUNTDOWN_SECONDS, GameMode::Race);
+                true
+            }
+            None => false,
+        };
+    if !started {
+        warn!(
+            "Demo session {} for player {} could not be started",
+            session_id, conn_info.player_id
+        );
+        state_write
+            .lobby
+            .leave_session(conn_info.player_id, connection_id)
+            .await;
+        state_write.sessions.remove(&session_id);
+        state_write.lobby.unregister_session(session_id).await;
+        drop(state_write);
+        ctx.send_error(connection_id, 500, "Failed to start demo session")
+            .await;
+        return;
+    }
+    drop(state_write);
+
+    debug!(
+        "Demo session {} started for player {}",
+        session_id, conn_info.player_name
+    );
+    let _ = ctx
+        .send(
+            connection_id,
+            ServerMessage::SessionJoined(SessionJoinedData {
+                session_id,
+                your_grid_position: 0, // 0 indicates spectator
+                session_kind: SessionKind::Demo,
+            }),
+        )
+        .await;
+    ctx.set_player_session(connection_id, Some(session_id))
+        .await;
 }
 
 async fn handle_join_session(
@@ -372,6 +462,7 @@ async fn handle_join_session(
         return;
     };
 
+    let game_session_kind = game_session.session.session_kind;
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         debug!(
             "Player {} joined session {} at grid position {}",
@@ -385,6 +476,7 @@ async fn handle_join_session(
                 ServerMessage::SessionJoined(SessionJoinedData {
                     session_id,
                     your_grid_position: grid_pos,
+                    session_kind: game_session_kind,
                 }),
             )
             .await;
@@ -448,12 +540,18 @@ async fn handle_join_as_spectator(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
-    let joined = {
+    let (joined, session_kind) = {
         let state_read = ctx.state.read().await;
-        state_read
+        let session_kind = state_read
+            .sessions
+            .get(&session_id)
+            .map(|s| s.session.session_kind)
+            .unwrap_or_default();
+        let joined = state_read
             .lobby
             .join_as_spectator(conn_info.player_id, session_id)
-            .await
+            .await;
+        (joined, session_kind)
     };
 
     if joined {
@@ -467,6 +565,7 @@ async fn handle_join_as_spectator(
                 ServerMessage::SessionJoined(SessionJoinedData {
                     session_id,
                     your_grid_position: 0, // 0 indicates spectator
+                    session_kind,
                 }),
             )
             .await;

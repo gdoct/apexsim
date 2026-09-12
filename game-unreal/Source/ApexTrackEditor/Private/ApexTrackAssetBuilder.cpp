@@ -1228,6 +1228,17 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 			SetScalar(Instance, TEXT("RoughnessNoise"), 0.08f);
 			SetDetail(1.0f, 0.45f, 0.1f, 0.3f);
 		}
+		else if (Source.Family == TEXT("structure"))
+		{
+			// Bridges and retaining walls: weathered concrete, and the painted
+			// fascia on a deck. Stained in broad patches, little grain.
+			Base *= 0.6f;
+			SetScalar(Instance, TEXT("Roughness"), 0.8f);
+			SetScalar(Instance, TEXT("NoiseAmount"), 0.18f);
+			SetScalar(Instance, TEXT("NoiseScale"), 0.002f);
+			SetScalar(Instance, TEXT("RoughnessNoise"), 0.1f);
+			SetDetail(1.0f, 0.2f, 0.1f, 0.15f);
+		}
 		else if (Source.Family == TEXT("marking"))
 		{
 			// Painted lines read as paint, not asphalt — worn paint, so a

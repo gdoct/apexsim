@@ -62,6 +62,15 @@ public:
 	 */
 	const FApexCockpitLayout& GetCockpitLayout();
 
+	/** The body's bounds in the car's frame (cm, +X nose, +Z up), for framing it from outside. */
+	FBox GetBodyBox() const;
+
+	/**
+	 * Scale on the engine note, 1 as designed. The menu's demo race turns it
+	 * down so the cars sit under the shell's own sounds.
+	 */
+	void SetEngineVolume(float Scale);
+
 	void SetDisplayName(const FString& InName) { DisplayName = InName; }
 	const FString& GetDisplayName() const { return DisplayName; }
 

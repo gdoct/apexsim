@@ -120,6 +120,19 @@ both shipped in `Server/` by `build_release.ps1`:
   off-track speed penalty. Without it the road edge is the track limit and
   a driver using the curbs is slowed as if on grass.
 
+Where the course passes over itself with at least 4 m to spare (Suzuka's
+crossover) the terrain finds an `Underpass` (`terrain.rs`): behind wall lines
+3.5 m past the lower road's edges the ground is the upper road's embankment,
+so the lower road runs through a slot. The heightfield cannot draw that
+vertical step, so `ue_export` cuts the ground grid along the walls and draws
+the slot floor, abutment walls and the deck (parapets, yellow fascia; material
+family `structure`) itself; ground-anchored strips of the upper road sit on the
+deck or are dropped over the slot, and `ats-groom` lays no armco there. The
+ground sidecar reports the lower level under the bridge, and the server holds
+road height within 2.5 m of an edge when the ground there is a level away (the
+deck). A heightfield still cannot hold both levels, so a car that leaves the
+bridge past the parapet falls into the slot.
+
 The exporter resolves `.ats` station spans against the YAML centerline and
 bakes triangles (Unreal can't read YAML); the `ApexTrackEditor` module's
 commandlet turns those buffers into static meshes, materials and a level per
@@ -218,6 +231,23 @@ estimates) and look-to-apex are in `UApexSettingsSave`'s camera block, applied
 live through `AApexRaceDirector::ApplyCameraSettings`. A virtual mirror strip
 at the top of the HUD reuses a fourth capture. `-ApexView=cockpit|chase` picks
 the view for a screenshot run regardless of the setting.
+
+### Screenshot camera (`Race/ApexShotCamera.h`)
+A third camera on the race director, `ShotCamera`, parks anywhere on the
+circuit for a screenshot. While a pose is set it is the only active camera,
+the followed car's bodywork is shown and the cockpit rig hidden; cars
+spawning, the followed car changing and C all go through `ApplyCameraMode`,
+which keeps it. Every number is in the SERVER frame (metres, +Y left, yaw
+counter-clockwise from +X, pitch positive up), so a shot can be worked out
+straight from the track YAML's centerline. Console: `apexsim.cam.Goto X Y Z
+[Yaw] [Pitch]`, `apexsim.cam.LookAt X Y Z TX TY TZ`, `apexsim.cam.Fov Deg`,
+`apexsim.cam.Release`; each logs the pose back as an `-ApexCamera=` switch.
+Command line, applied when the race view begins and held for that race:
+`-ApexCamera=X,Y,Z,Yaw,Pitch` (yaw and pitch optional),
+`-ApexCameraLookAt=X,Y,Z,TX,TY,TZ` (wins if both are given) and
+`-ApexCameraFov=Deg` (default 70), e.g. `-game -ApexAutoRace -ApexTrack=Suzuka
+-ApexCameraLookAt=... -ApexScreenshotAfter=12`. The conversions live in
+`ApexRaceCoordinate.h`; `ApexSim.Camera.*` tests cover the parsing and the frame.
 
 ### Client startup settings (`settings.yml`)
 

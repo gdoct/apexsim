@@ -12,6 +12,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Engine/SkyLight.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -24,6 +26,7 @@
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Race/ApexRacingLineActor.h"
+#include "Race/ApexShotCamera.h"
 
 AApexRaceDirector::AApexRaceDirector()
 {
@@ -62,11 +65,195 @@ AApexRaceDirector::AApexRaceDirector()
 	CockpitCamera->SetAbsolute(true, true, false);
 	CockpitCamera->FieldOfView = 95.0f;
 
+	// Placed only by the shot commands, in world space, and never by Tick.
+	ShotCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ShotCamera"));
+	ShotCamera->SetupAttachment(Root);
+	ShotCamera->SetAbsolute(true, true, false);
+	ShotCamera->FieldOfView = 70.0f;
+
+	TvCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("TvCamera"));
+	TvCamera->SetupAttachment(Root);
+	TvCamera->SetAbsolute(true, true, false);
+	TvCamera->FieldOfView = 60.0f;
+	// Focus and aperture change per shot; the overrides stay on and a zero
+	// focal distance is what turns the effect off for the onboard views.
+	TvCamera->PostProcessBlendWeight = 1.0f;
+	TvCamera->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = true;
+	TvCamera->PostProcessSettings.bOverride_DepthOfFieldFstop = true;
+	TvCamera->PostProcessSettings.DepthOfFieldFocalDistance = 0.0f;
+	TvCamera->PostProcessSettings.DepthOfFieldFstop = 4.0f;
+
 	// Exactly one camera component may be active on a view target; the other
 	// is what `SetCockpitView` switches to. Cockpit starts active to match
 	// `bCockpitView`'s default.
 	CockpitCamera->SetActive(true);
 	ChaseCamera->SetActive(false);
+	ShotCamera->SetActive(false);
+	TvCamera->SetActive(false);
+}
+
+namespace
+{
+	/** Log a shot pose in both frames, so it can be pasted back as a switch. */
+	void LogShotPose(const FVector& LocationCm, const FRotator& Rotation, float Fov)
+	{
+		const FVector Server = ApexRace::UnrealToServerPosition(LocationCm);
+		double Yaw = 0.0;
+		double Pitch = 0.0;
+		ApexRace::UnrealRotationToServerView(Rotation, Yaw, Pitch);
+		UE_LOG(LogApexSim, Log,
+			TEXT("Shot camera: -ApexCamera=%.2f,%.2f,%.2f,%.2f,%.2f (server m / deg) fov %.1f; "
+				 "Unreal loc (%.0f, %.0f, %.0f) cm rot (P=%.2f Y=%.2f R=%.2f)"),
+			Server.X, Server.Y, Server.Z, Yaw, Pitch, Fov, LocationCm.X, LocationCm.Y, LocationCm.Z,
+			Rotation.Pitch, Rotation.Yaw, Rotation.Roll);
+	}
+
+	AApexRaceDirector* FindDirectorForCommand(UWorld* World)
+	{
+		AApexRaceDirector* Director = AApexRaceDirector::Find(World);
+		if (!Director)
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("apexsim.cam: no race director in this world"));
+		}
+		return Director;
+	}
+
+	/** Parse a Goto (X Y Z [Yaw [Pitch]]) or LookAt (X Y Z TX TY TZ) list into a pose. */
+	bool ParseShotPose(const FString& Text, bool bLookAt, ApexShotCamera::FPose& OutPose)
+	{
+		TArray<double> Values;
+		return ApexShotCamera::ParseNumberList(Text, Values)
+			&& (bLookAt ? ApexShotCamera::PoseFromLookAt(Values, OutPose)
+						: ApexShotCamera::PoseFromGoto(Values, OutPose));
+	}
+
+	void RunShotCommand(const TArray<FString>& Args, UWorld* World, bool bLookAt)
+	{
+		ApexShotCamera::FPose Pose;
+		if (!ParseShotPose(FString::Join(Args, TEXT(" ")), bLookAt, Pose))
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("Usage: %s (server frame: metres, +Y left, yaw CCW, pitch up)"),
+				bLookAt ? TEXT("apexsim.cam.LookAt X Y Z TX TY TZ") : TEXT("apexsim.cam.Goto X Y Z [YawDeg] [PitchDeg]"));
+			return;
+		}
+		if (AApexRaceDirector* Director = FindDirectorForCommand(World))
+		{
+			Director->SetShotCameraPose(Pose.LocationCm, Pose.Rotation);
+		}
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs ShotGotoCommand(
+		TEXT("apexsim.cam.Goto"),
+		TEXT("Park the shot camera: X Y Z [YawDeg] [PitchDeg], server frame (metres, +Y left, yaw CCW from +X, pitch up)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+			{ RunShotCommand(Args, World, /*bLookAt*/ false); }));
+
+	FAutoConsoleCommandWithWorldAndArgs ShotLookAtCommand(
+		TEXT("apexsim.cam.LookAt"),
+		TEXT("Park the shot camera at X Y Z looking at TX TY TZ, server frame (metres, +Y left)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+			{ RunShotCommand(Args, World, /*bLookAt*/ true); }));
+
+	FAutoConsoleCommandWithWorldAndArgs ShotReleaseCommand(
+		TEXT("apexsim.cam.Release"),
+		TEXT("Hand the view back from the shot camera to the cockpit or chase camera."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+			{
+				if (AApexRaceDirector* Director = FindDirectorForCommand(World))
+				{
+					Director->ReleaseShotCamera();
+				}
+			}));
+
+	TAutoConsoleVariable<int32> CVarTvDebug(
+		TEXT("apexsim.tv.Debug"),
+		0,
+		TEXT("1 prints the broadcast camera's shot, subject and lens on screen."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarTvPace(
+		TEXT("apexsim.tv.Pace"),
+		1.0f,
+		TEXT("Scales how long the broadcast camera holds a shot: below 1 cuts faster."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarTvDof(
+		TEXT("apexsim.tv.DepthOfField"),
+		1,
+		TEXT("0 turns off the broadcast camera's depth of field."),
+		ECVF_Default);
+
+	FAutoConsoleCommandWithWorldAndArgs TvViewCommand(
+		TEXT("apexsim.tv.View"),
+		TEXT("1 films the race with the broadcast camera, 0 hands back to the driving cameras."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+			{
+				if (AApexRaceDirector* Director = FindDirectorForCommand(World))
+				{
+					Director->SetTvView(Args.Num() == 0 || FCString::Atoi(*Args[0]) != 0);
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs TvShotCommand(
+		TEXT("apexsim.tv.Shot"),
+		TEXT("Hold the broadcast camera on one shot: grid, trackside, helicopter, tracking, chase, onboard, nose, reverse; none (or no argument) cuts freely again."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+			{
+				AApexRaceDirector* Director = FindDirectorForCommand(World);
+				if (!Director)
+				{
+					return;
+				}
+				ApexTv::EShot Wanted = ApexTv::EShot::None;
+				if (Args.Num() > 0)
+				{
+					for (int32 Index = 1; Index < static_cast<int32>(ApexTv::EShot::Count); ++Index)
+					{
+						if (Args[0].Equals(ApexTv::ShotName(static_cast<ApexTv::EShot>(Index)), ESearchCase::IgnoreCase))
+						{
+							Wanted = static_cast<ApexTv::EShot>(Index);
+						}
+					}
+				}
+				Director->GetTvDirector().ForceShot(Wanted);
+				UE_LOG(LogApexSim, Log, TEXT("Broadcast camera: %s"),
+					Wanted == ApexTv::EShot::None ? TEXT("cutting freely") : ApexTv::ShotName(Wanted));
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs TvCutCommand(
+		TEXT("apexsim.tv.Cut"),
+		TEXT("Make the broadcast camera cut now."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+			{
+				if (AApexRaceDirector* Director = FindDirectorForCommand(World))
+				{
+					Director->GetTvDirector().RequestCut();
+				}
+			}));
+
+	/** A generated prop: a tree or a stand is not ground for a camera to stand on. */
+	bool IsPropHit(const FHitResult& Hit)
+	{
+		const UStaticMeshComponent* Mesh = Cast<UStaticMeshComponent>(Hit.GetComponent());
+		return Mesh && Mesh->GetStaticMesh() && Mesh->GetStaticMesh()->GetName().StartsWith(TEXT("Prop_"));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs ShotFovCommand(
+		TEXT("apexsim.cam.Fov"),
+		TEXT("Horizontal field of view of the shot camera, degrees."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+			{
+				TArray<double> Values;
+				if (!ApexShotCamera::ParseNumberList(FString::Join(Args, TEXT(" ")), Values) || Values.Num() != 1)
+				{
+					UE_LOG(LogApexSim, Warning, TEXT("Usage: apexsim.cam.Fov Degrees"));
+					return;
+				}
+				if (AApexRaceDirector* Director = FindDirectorForCommand(World))
+				{
+					Director->SetShotCameraFov(static_cast<float>(Values[0]));
+				}
+			}));
 }
 
 AApexRaceDirector* AApexRaceDirector::Find(const UObject* WorldContextObject)
@@ -299,6 +486,11 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 		}
 	}
 
+	if (bDemoView)
+	{
+		ApplyDemoWorldVisibility();
+	}
+
 	UE_LOG(LogApexSim, Log, TEXT("Race roster: %d car(s) spawned"), Cars.Num());
 }
 
@@ -315,12 +507,16 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 			ApexRace::MpsToKph(First.SpeedMps));
 	}
 
+	LatestFrameState = Frame.SessionState;
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
 		if (AApexRaceCarActor* Actor = FindCar(Car.CarIndex))
 		{
 			Actor->ApplyTelemetry(Car);
 		}
+		FCarProgress& Progress = CarProgress.FindOrAdd(Car.CarIndex);
+		Progress.Lap = Car.CurrentLap;
+		Progress.StationM = Car.TrackProgress;
 	}
 
 	UpdateStartLights(Frame);
@@ -415,7 +611,12 @@ void AApexRaceDirector::UpdateCameraTarget()
 	const UApexNetSubsystem* Net = GetNet();
 	const int32 LocalIndex = Net ? Net->GetLocalCarIndex() : -1;
 
-	AApexRaceCarActor* Target = FindCar(LocalIndex);
+	// The broadcast camera decides who is on screen; the driving cameras ride the player's car.
+	AApexRaceCarActor* Target = bTvView ? FindCar(Tv.GetTargetCarIndex()) : FindCar(LocalIndex);
+	if (!Target && bTvView)
+	{
+		Target = FindCar(LocalIndex);
+	}
 	if (!Target)
 	{
 		// Spectating, or the roster has no entry for us yet: follow whatever
@@ -487,6 +688,16 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 
 	SnapRacingLineToTrack();
 	UpdateCameraFeel(DeltaSeconds);
+	if (bTvView)
+	{
+		UpdateTvCamera(DeltaSeconds);
+	}
+	if (bDemoView)
+	{
+		// The menu owns input; nothing here drives, looks or swaps cameras.
+		UpdateDemoOpacity(DeltaSeconds);
+		return;
+	}
 	UpdateHeadMotion(DeltaSeconds);
 	UpdateLook(DeltaSeconds);
 	UpdateCockpitCamera();
@@ -715,18 +926,80 @@ void AApexRaceDirector::SetFieldOfView(float Degrees)
 	ChaseCamera->SetFieldOfView(BaseChaseFov);
 }
 
+void AApexRaceDirector::SetShotCameraPose(const FVector& LocationCm, const FRotator& Rotation)
+{
+	ShotCamera->SetWorldLocationAndRotation(LocationCm, Rotation);
+	bShotCameraPose = true;
+	ApplyCameraMode();
+	LogShotPose(LocationCm, Rotation, ShotCamera->FieldOfView);
+	if (!bRaceViewActive)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Shot camera: no race view yet; the pose applies when one begins"));
+	}
+}
+
+void AApexRaceDirector::ReleaseShotCamera()
+{
+	if (!bShotCameraPose)
+	{
+		return;
+	}
+	bShotCameraPose = false;
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Shot camera released: %s view"), bCockpitView ? TEXT("cockpit") : TEXT("chase"));
+}
+
+void AApexRaceDirector::SetShotCameraFov(float Degrees)
+{
+	ShotCamera->SetFieldOfView(FMath::Clamp(Degrees, 5.0f, 170.0f));
+	UE_LOG(LogApexSim, Log, TEXT("Shot camera fov %.1f"), ShotCamera->FieldOfView);
+}
+
+void AApexRaceDirector::ApplyShotCameraCommandLine()
+{
+	FString Fov;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexCameraFov="), Fov))
+	{
+		SetShotCameraFov(FCString::Atof(*Fov));
+	}
+
+	// Not stopping on separators: the value is itself a comma list.
+	FString Requested;
+	const bool bLookAt = FParse::Value(FCommandLine::Get(), TEXT("ApexCameraLookAt="), Requested, false);
+	if (!bLookAt && !FParse::Value(FCommandLine::Get(), TEXT("ApexCamera="), Requested, false))
+	{
+		return;
+	}
+	ApexShotCamera::FPose Pose;
+	if (ParseShotPose(Requested, bLookAt, Pose))
+	{
+		SetShotCameraPose(Pose.LocationCm, Pose.Rotation);
+	}
+	else
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("%s\"%s\" is not %s (server frame, comma separated)"),
+			bLookAt ? TEXT("-ApexCameraLookAt=") : TEXT("-ApexCamera="), *Requested,
+			bLookAt ? TEXT("X,Y,Z,TX,TY,TZ") : TEXT("X,Y,Z[,Yaw[,Pitch]]"));
+	}
+}
+
 void AApexRaceDirector::ApplyCameraMode()
 {
-	CockpitCamera->SetActive(bCockpitView);
-	ChaseCamera->SetActive(!bCockpitView);
+	// A shot pose outranks both driving cameras, and everything that re-applies
+	// the mode (a new followed car, C, a settings change) comes through here,
+	// which is what keeps it parked.
+	CockpitCamera->SetActive(bCockpitView && !bTvView && !bShotCameraPose);
+	ChaseCamera->SetActive(!bCockpitView && !bTvView && !bShotCameraPose);
+	TvCamera->SetActive(bTvView && !bShotCameraPose);
+	ShotCamera->SetActive(bShotCameraPose);
 
 	// From the driver's seat the car's own bodywork is what frames the view —
 	// unless the mesh has no interior to speak of, in which case the player
 	// can switch it off. Only the followed car: the rest of the field has to
 	// stay visible, which is why this is not a flag on the mesh itself.
 	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
-	const bool bShowOwnCar = !bCockpitView || !Values || Values->bCockpitShowCar;
-	if (FollowedCar)
+	const bool bShowOwnCar = bShotCameraPose || bTvView || !bCockpitView || !Values || Values->bCockpitShowCar;
+	if (FollowedCar && !(bDemoView && !bDemoWorldVisible))
 	{
 		FollowedCar->SetMeshVisible(bShowOwnCar);
 	}
@@ -788,7 +1061,8 @@ void AApexRaceDirector::PushRigFeatures()
 	}
 	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
 	FApexCockpitFeatures Features;
-	Features.bCockpitActive = bCockpitView;
+	// From the shot or broadcast camera the wheel and mirrors would float in mid-air.
+	Features.bCockpitActive = bCockpitView && !bShotCameraPose && !bTvView;
 	if (Values)
 	{
 		Features.bWheel = Values->bCockpitWheel;
@@ -857,12 +1131,22 @@ float AApexRaceDirector::GetFollowedSpeedKph() const
 
 void AApexRaceDirector::BeginRaceView()
 {
+	if (bDemoView)
+	{
+		// The player's own race takes the view from the menu's demo.
+		EndDemoView();
+	}
 	if (bRaceViewActive)
 	{
 		return;
 	}
 	bRaceViewActive = true;
 	bLoggedFirstTelemetry = false;
+	bHasTvPose = false;
+	bTvView = false;
+	Tv.Reset(static_cast<int32>(FPlatformTime::Cycles()));
+	CarProgress.Reset();
+	CarMotion.Reset();
 
 	LoadTrackLevel();
 	ApplyRaceEnvironment();
@@ -877,10 +1161,30 @@ void AApexRaceDirector::BeginRaceView()
 	if (FParse::Value(FCommandLine::Get(), TEXT("ApexView="), RequestedView))
 	{
 		bCockpitView = !RequestedView.Equals(TEXT("chase"), ESearchCase::IgnoreCase);
+		bTvView = RequestedView.Equals(TEXT("tv"), ESearchCase::IgnoreCase);
+	}
+	// Whether or not it opens on it, a race can be switched to the broadcast
+	// camera, which wants the circuit's centerline for its trackside positions.
+	if (const UApexNetSubsystem* Net = GetNet())
+	{
+		FApexSessionSummary Session;
+		if (Net->FindSessionById(Net->GetCurrentSessionId(), Session))
+		{
+			for (const FApexTrackConfigSummary& Candidate : Net->GetCachedLobbyState().TrackConfigs)
+			{
+				if (Candidate.Name == Session.TrackName)
+				{
+					Tv.SetPath(Candidate.Centerline);
+					break;
+				}
+			}
+		}
 	}
 	LookYawDeg = 0.0f;
 	HeadOffset = FVector::ZeroVector;
 	bHavePrevMotion = false;
+	// Before the camera mode is first applied below, so the race opens on the shot.
+	ApplyShotCameraCommandLine();
 
 	if (const UApexNetSubsystem* Net = GetNet())
 	{
@@ -907,11 +1211,16 @@ void AApexRaceDirector::BeginRaceView()
 
 void AApexRaceDirector::EndRaceView()
 {
-	if (!bRaceViewActive)
+	// The demo view is ended by whoever began it (UApexDemoModeSubsystem).
+	if (!bRaceViewActive || bDemoView)
 	{
 		return;
 	}
 	bRaceViewActive = false;
+	bTvView = false;
+	// A shot is for one race; the next one re-reads the command line.
+	bShotCameraPose = false;
+	ApplyCameraMode();
 	// Un-hide before dropping the reference, or a car kept for a later race
 	// would come back invisible.
 	if (FollowedCar)
@@ -936,6 +1245,14 @@ bool AApexRaceDirector::IsTrackLevelLoaded() const
 
 FString AApexRaceDirector::ResolveTrackLevelPath() const
 {
+	if (bDemoView)
+	{
+		// A demo session is unlisted, so there is no session summary to read
+		// the track file from; whoever started it named the track.
+		const FString DemoPath = FString::Printf(TEXT("/Game/Tracks/%s/L_%s"), *DemoTrackStem, *DemoTrackStem);
+		return !DemoTrackStem.IsEmpty() && FPackageName::DoesPackageExist(DemoPath) ? DemoPath : FString();
+	}
+
 	const UApexNetSubsystem* Net = GetNet();
 	if (!Net)
 	{
@@ -1023,4 +1340,259 @@ void AApexRaceDirector::DestroyAllCars()
 		}
 	}
 	Cars.Reset();
+}
+
+// --- Broadcast camera ------------------------------------------------------------
+
+void AApexRaceDirector::SetTvView(bool bTv)
+{
+	if (bDemoView || bTvView == bTv)
+	{
+		// The demo is filmed by nothing else.
+		return;
+	}
+	bTvView = bTv;
+	bHasTvPose = false;
+	if (bTvView)
+	{
+		Tv.RequestCut();
+	}
+	else
+	{
+		UpdateCameraTarget();
+	}
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Camera: %s"), bTvView ? TEXT("broadcast") : bCockpitView ? TEXT("cockpit") : TEXT("chase"));
+}
+
+void AApexRaceDirector::UpdateTvCamera(float DeltaSeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || DeltaSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	const float TrackLengthM = static_cast<float>(Tv.GetPath().LengthCm / ApexRace::MetresToCentimetres);
+	TArray<ApexTv::FCar> Field;
+	Field.Reserve(Cars.Num());
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		AApexRaceCarActor* Car = Pair.Value.Get();
+		// Hidden until its first telemetry: it is still sitting at the origin.
+		if (!Car || Car->IsHidden())
+		{
+			continue;
+		}
+		const FVector Location = Car->GetActorLocation();
+		FCarMotion& Motion = CarMotion.FindOrAdd(Pair.Key);
+		if (Motion.bValid && FVector::Dist(Location, Motion.PrevLocation) < 3000.0)
+		{
+			const FVector Measured = (Location - Motion.PrevLocation) / DeltaSeconds;
+			Motion.Velocity = FMath::VInterpTo(Motion.Velocity, Measured, DeltaSeconds, 8.0f);
+		}
+		else
+		{
+			Motion.Velocity = Car->GetActorForwardVector() * Car->GetSpeedMps() * ApexRace::MetresToCentimetres;
+		}
+		Motion.PrevLocation = Location;
+		Motion.bValid = true;
+
+		ApexTv::FCar& Entry = Field.AddDefaulted_GetRef();
+		Entry.CarIndex = Pair.Key;
+		Entry.Location = Location;
+		Entry.Rotation = Car->GetActorRotation();
+		Entry.Velocity = Motion.Velocity;
+		Entry.Body = Car->GetBodyBox();
+		Entry.EyeLocal = Car->GetCockpitLayout().Eye;
+		const FCarProgress* Progress = CarProgress.Find(Pair.Key);
+		Entry.RaceDistanceM = Progress ? ApexRace::RaceDistanceM(Progress->Lap, Progress->StationM, TrackLengthM) : 0.0f;
+	}
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexTvCamera), /*bTraceComplex*/ true, this);
+	const FCollisionObjectQueryParams Statics(ECC_WorldStatic);
+	ApexTv::FWorldQueries Queries;
+	Queries.GroundZ = [World, &Params, &Statics](const FVector& Above, double& OutGroundZ)
+	{
+		TArray<FHitResult> Hits;
+		World->LineTraceMultiByObjectType(Hits, Above, Above - FVector(0.0, 0.0, 200000.0), Statics, Params);
+		Hits.Sort([](const FHitResult& A, const FHitResult& B) { return A.Distance < B.Distance; });
+		for (const FHitResult& Hit : Hits)
+		{
+			if (!IsPropHit(Hit))
+			{
+				OutGroundZ = Hit.ImpactPoint.Z;
+				return true;
+			}
+		}
+		return false;
+	};
+	Queries.IsClear = [World, &Params, &Statics](const FVector& From, const FVector& To)
+	{
+		return !World->LineTraceTestByObjectType(From, To, Statics, Params);
+	};
+
+	Tv.Tuning().PaceScale = CVarTvPace.GetValueOnGameThread();
+	ApexTv::FPose Pose;
+	const bool bCountdown = LatestFrameState == EApexSessionState::Countdown;
+	if (!Tv.Tick(Field, bCountdown, DeltaSeconds, static_cast<float>(World->GetRealTimeSeconds()), Queries, Pose))
+	{
+		return;
+	}
+	bHasTvPose = true;
+
+	TvCamera->SetWorldLocationAndRotation(Pose.Location, Pose.Rotation);
+	TvCamera->SetFieldOfView(Pose.FovDeg);
+	const bool bDof = Pose.Aperture > 0.0f && CVarTvDof.GetValueOnGameThread() != 0;
+	TvCamera->PostProcessSettings.DepthOfFieldFocalDistance = bDof ? Pose.FocusDistanceCm : 0.0f;
+	TvCamera->PostProcessSettings.DepthOfFieldFstop = bDof ? Pose.Aperture : 22.0f;
+
+	if (!FollowedCar || FollowedCar->GetCarIndex() != Tv.GetTargetCarIndex())
+	{
+		UpdateCameraTarget();
+	}
+
+	if (CVarTvDebug.GetValueOnGameThread() != 0 && GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(static_cast<uint64>(GetUniqueID()) + 7000, 0.0f, FColor::Yellow,
+			FString::Printf(TEXT("TV %s on car %d  %.1f s  fov %.1f  f/%.1f @ %.0f m  cuts %d"),
+				ApexTv::ShotName(Tv.GetShot()), Tv.GetTargetCarIndex(), Tv.GetShotAge(), Pose.FovDeg,
+				Pose.Aperture, Pose.FocusDistanceCm / 100.0f, Tv.GetCutCount()));
+	}
+}
+
+// --- Demo view -------------------------------------------------------------------
+
+void AApexRaceDirector::BeginDemoView(const FString& TrackStem, const TArray<FVector2D>& Centerline)
+{
+	if (bRaceViewActive && !bDemoView)
+	{
+		// The player's race has the view.
+		return;
+	}
+	if (bDemoView)
+	{
+		EndDemoView();
+	}
+
+	bDemoView = true;
+	bRaceViewActive = true;
+	bTvView = true;
+	bHasTvPose = false;
+	bDemoWorldVisible = true;
+	bDemoFadeOut = false;
+	bLoggedFirstTelemetry = false;
+	bShotCameraPose = false;
+	DemoTrackStem = TrackStem;
+	DemoOpacity = 0.0f;
+	DemoReadyFor = 0.0f;
+	LatestFrameState = EApexSessionState::Lobby;
+	CarProgress.Reset();
+	CarMotion.Reset();
+	Tv.Reset(static_cast<int32>(FPlatformTime::Cycles()));
+	Tv.SetPath(Centerline);
+
+	LoadTrackLevel();
+	ApplyRaceEnvironment();
+	if (const UApexNetSubsystem* Net = GetNet())
+	{
+		SyncCarsToRoster(Net->GetSessionRoster());
+	}
+	UpdateCameraTarget();
+	ApplyCameraMode();
+
+	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
+	{
+		// The shell stays opaque until the backdrop fades in, so no blend is needed.
+		PlayerController->SetViewTarget(this);
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Demo view: %s, %d centerline point(s) for the trackside cameras"),
+		*TrackStem, Tv.GetPath().Points.Num());
+}
+
+void AApexRaceDirector::EndDemoView()
+{
+	if (!bDemoView)
+	{
+		return;
+	}
+	bDemoView = false;
+	bRaceViewActive = false;
+	bTvView = false;
+	bHasTvPose = false;
+	DemoOpacity = 0.0f;
+	DemoReadyFor = 0.0f;
+	LatestFrameState = EApexSessionState::Lobby;
+	if (FollowedCar)
+	{
+		RemoveTickPrerequisiteActor(FollowedCar);
+	}
+	FollowedCar = nullptr;
+	DestroyAllCars();
+	CarProgress.Reset();
+	CarMotion.Reset();
+	UnloadTrackLevel();
+	if (bDemoWorldVisible)
+	{
+		// Hidden, it already gave the menu its lighting back.
+		RestoreMenuEnvironment();
+	}
+	bDemoWorldVisible = true;
+	DemoTrackStem.Reset();
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Demo view ended"));
+}
+
+void AApexRaceDirector::SetDemoWorldVisible(bool bVisible)
+{
+	if (!bDemoView || bDemoWorldVisible == bVisible)
+	{
+		return;
+	}
+	bDemoWorldVisible = bVisible;
+	if (!bVisible)
+	{
+		DemoOpacity = 0.0f;
+	}
+	DemoReadyFor = 0.0f;
+	if (TrackLevel)
+	{
+		TrackLevel->SetShouldBeVisible(bVisible);
+	}
+	if (bVisible)
+	{
+		ApplyRaceEnvironment();
+	}
+	else
+	{
+		RestoreMenuEnvironment();
+	}
+	ApplyDemoWorldVisibility();
+	// The gantry's actors leave the world with the level and come back new.
+	ForgetStartLights();
+}
+
+void AApexRaceDirector::ApplyDemoWorldVisibility()
+{
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		if (AApexRaceCarActor* Car = Pair.Value.Get())
+		{
+			Car->SetMeshVisible(bDemoWorldVisible);
+			Car->SetEngineVolume(bDemoWorldVisible ? DemoEngineVolume : 0.0f);
+		}
+	}
+}
+
+void AApexRaceDirector::UpdateDemoOpacity(float DeltaSeconds)
+{
+	const bool bReady = bDemoWorldVisible && !bDemoFadeOut && bHasTvPose && Cars.Num() > 0 && IsTrackLevelLoaded()
+		&& TrackLevel->IsLevelVisible();
+	DemoReadyFor = bReady ? DemoReadyFor + DeltaSeconds : 0.0f;
+	// A moment's grace once everything is in: the sky capture and the first
+	// textures settle before anyone sees them.
+	const float Target = DemoReadyFor > 0.75f ? 1.0f : 0.0f;
+	DemoOpacity = Target > DemoOpacity
+		? FMath::Min(Target, DemoOpacity + DeltaSeconds * 0.8f)
+		: FMath::Max(Target, DemoOpacity - DeltaSeconds * 3.0f);
 }

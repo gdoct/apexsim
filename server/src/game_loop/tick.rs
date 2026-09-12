@@ -94,8 +94,11 @@ pub(crate) async fn tick_sessions(
         // Keep session alive if it's in Demo Lap mode with AI drivers
         let is_demo_lap_with_ai = game_session.session.game_mode == GameMode::DemoLap
             && !game_session.session.ai_player_ids.is_empty();
+        // A demo session never has a human participant: it lives as long as
+        // its spectator does, and the lobby removes it when they leave.
+        let is_demo_session = game_session.session.session_kind == SessionKind::Demo;
 
-        if real_player_count == 0 && !is_demo_lap_with_ai {
+        if real_player_count == 0 && !is_demo_lap_with_ai && !is_demo_session {
             debug!(
                 "Session {} has no real players, marking for removal",
                 session_id
@@ -142,8 +145,12 @@ pub(crate) async fn tick_sessions(
         }
         let new_state = game_session.session.state;
 
-        // Collect replay recording operations
-        if prev_state != SessionState::Racing && new_state == SessionState::Racing {
+        // Collect replay recording operations. A demo is a menu backdrop, and
+        // every client idling in the menu would otherwise write a replay.
+        if !is_demo_session
+            && prev_state != SessionState::Racing
+            && new_state == SessionState::Racing
+        {
             let participants: Vec<_> = game_session
                 .session
                 .participants
@@ -235,14 +242,17 @@ pub(crate) async fn tick_sessions(
         }
 
         // Collect telemetry frame if racing
-        if new_state == SessionState::Racing {
+        if !is_demo_session && new_state == SessionState::Racing {
             if let ServerMessage::Telemetry(tel) = game_session.get_telemetry() {
                 replay_frames.push((*session_id, game_session.session.current_tick, tel));
             }
         }
 
         // Collect replay stops when session finishes
-        if prev_state == SessionState::Racing && new_state == SessionState::Finished {
+        if !is_demo_session
+            && prev_state == SessionState::Racing
+            && new_state == SessionState::Finished
+        {
             replay_stops.push(*session_id);
         }
 

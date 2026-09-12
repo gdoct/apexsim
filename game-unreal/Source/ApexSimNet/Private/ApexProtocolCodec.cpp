@@ -367,6 +367,7 @@ namespace
 			uint64 Raw = 0;
 			if (Key == TEXT("SessionId"))              { bOk = Reader.ReadString(Out.SessionId); }
 			else if (Key == TEXT("YourGridPosition"))  { bOk = Reader.ReadUInt64(Raw); Out.GridPosition = static_cast<int32>(Raw); }
+			else if (Key == TEXT("SessionKind"))       { bOk = Reader.ReadUInt64(Raw); Out.SessionKind = static_cast<EApexSessionKind>(Raw); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

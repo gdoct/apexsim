@@ -171,6 +171,7 @@ void UApexNetSubsystem::Disconnect()
 
 	PlayerId.Reset();
 	CurrentSessionId.Reset();
+	ResetDemoSession();
 	SetConnectionState(EApexConnectionState::Disconnected, TEXT("Disconnected"));
 }
 
@@ -211,6 +212,10 @@ void UApexNetSubsystem::CreateSession(
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit);
+	// The server holds one session per player: the menu's demo goes first.
+	LeaveDemoSession();
+	bSessionRequestPending = true;
+	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeCreateSession(
 		TrackConfigId,
 		static_cast<uint8>(FMath::Clamp(MaxPlayers, 1, 255)),
@@ -222,13 +227,71 @@ void UApexNetSubsystem::CreateSession(
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> JoinSession %s"), *SessionId);
+	LeaveDemoSession();
+	bSessionRequestPending = true;
+	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeJoinSession(SessionId));
 }
 
 void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> JoinAsSpectator %s"), *SessionId);
+	LeaveDemoSession();
+	bSessionRequestPending = true;
+	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeJoinAsSpectator(SessionId));
+}
+
+void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit)
+{
+	if (bInDemoSession || bDemoRequested || !CurrentSessionId.IsEmpty() || !IsAuthenticated())
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (demo) track=%s ai=%d laps=%d"), *TrackConfigId, AiCount, LapLimit);
+	bDemoRequested = true;
+	DemoSessionState = EApexSessionState::Lobby;
+	const uint8 Field = static_cast<uint8>(FMath::Clamp(AiCount, 1, 255));
+	SendPayload(ApexProtocol::EncodeCreateSession(
+		TrackConfigId, Field, Field, static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)), EApexSessionKind::Demo));
+}
+
+void UApexNetSubsystem::LeaveDemoSession()
+{
+	if (!bInDemoSession && !bDemoRequested)
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> LeaveSession (demo)"));
+	++DemoLeavesInFlight;
+	SendPayload(ApexProtocol::EncodeLeaveSession());
+	// From here the demo is over as far as the client is concerned: whatever
+	// the server still sends for it (its join, if the request was in flight)
+	// is dropped.
+	ResetDemoSession();
+}
+
+void UApexNetSubsystem::ResetDemoSession()
+{
+	const bool bWasDemo = bInDemoSession || bDemoRequested;
+	if (bInDemoSession)
+	{
+		CurrentSessionId.Reset();
+		CachedRoster = FApexSessionRoster();
+	}
+	bInDemoSession = false;
+	bDemoRequested = false;
+	DemoSessionState = EApexSessionState::Lobby;
+	if (!Connection)
+	{
+		// No socket, no answers left to wait for.
+		DemoLeavesInFlight = 0;
+		bSessionRequestPending = false;
+	}
+	if (bWasDemo)
+	{
+		OnDemoSessionChanged.Broadcast(false);
+	}
 }
 
 void UApexNetSubsystem::LeaveSession()
@@ -348,6 +411,7 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		TeardownConnection();
 		PlayerId.Reset();
 		CurrentSessionId.Reset();
+		ResetDemoSession();
 
 		if (bAuthRejected)
 		{
@@ -422,6 +486,19 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		while (UdpConnection->PopTelemetry(Frame))
 		{
 			LatestTelemetry = Frame;
+
+			if (bInDemoSession)
+			{
+				// The demo's state is its own: the player's session is still Lobby.
+				DemoSessionState = Frame.SessionState;
+				OnTelemetry.Broadcast(LatestTelemetry);
+				continue;
+			}
+			if (DemoLeavesInFlight > 0)
+			{
+				// The tail of a demo being left.
+				continue;
+			}
 
 			// Every frame carries the authoritative state and mode. `StartSession`
 			// moves the server to Countdown without any TCP notification, so this
@@ -527,6 +604,26 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::SessionJoined:
+		if (Message.SessionKind == EApexSessionKind::Demo)
+		{
+			if (!bDemoRequested)
+			{
+				// Withdrawn while in flight; the LeaveSession sent then takes
+				// the server back out of it.
+				UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined (demo, already withdrawn) SessionId=%s"), *Message.SessionId);
+				break;
+			}
+			bDemoRequested = false;
+			bInDemoSession = true;
+			DemoSessionState = EApexSessionState::Lobby;
+			CurrentSessionId = Message.SessionId;
+			CachedRoster = FApexSessionRoster();
+			ClearRacingLine();
+			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined (demo) SessionId=%s"), *CurrentSessionId);
+			OnDemoSessionChanged.Broadcast(true);
+			break;
+		}
+		bSessionRequestPending = false;
 		// The new session's line follows this message; the old one is for a
 		// different track or car.
 		ClearRacingLine();
@@ -543,6 +640,20 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::SessionLeft:
+		if (DemoLeavesInFlight > 0)
+		{
+			// The answer to a LeaveSession sent for the demo, which was reset
+			// when it went out.
+			--DemoLeavesInFlight;
+			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionLeft (demo)"));
+			break;
+		}
+		if (bInDemoSession)
+		{
+			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionLeft (demo, ended by the server)"));
+			ResetDemoSession();
+			break;
+		}
 		CurrentSessionId.Reset();
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
@@ -565,6 +676,10 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::GameModeChanged:
+		if (bInDemoSession || DemoLeavesInFlight > 0)
+		{
+			break;
+		}
 		UE_LOG(LogApexSimNet, Log, TEXT("<- GameModeChanged mode=%d"), static_cast<int32>(Message.GameMode));
 		OnGameModeChanged.Broadcast(Message.GameMode);
 		break;
@@ -574,6 +689,16 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::Error:
+		if (bDemoRequested && !bSessionRequestPending)
+		{
+			// Errors carry no request id; one that lands while only a demo is
+			// being asked for is the demo's, and a backdrop that could not
+			// start is not news for the player.
+			UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d for the demo session: %s"), Message.ErrorCode, *Message.Reason);
+			ResetDemoSession();
+			break;
+		}
+		bSessionRequestPending = false;
 		UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d: %s"), Message.ErrorCode, *Message.Reason);
 		OnServerError.Broadcast(Message.ErrorCode, Message.Reason);
 		break;
@@ -583,6 +708,14 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::SessionRoster:
+		if (!Message.Roster.SessionId.Equals(CurrentSessionId, ESearchCase::IgnoreCase))
+		{
+			// For a demo being left, or a session not joined yet: telemetry
+			// indices would be read against the wrong field.
+			UE_LOG(LogApexSimNet, Verbose, TEXT("<- SessionRoster for session %s ignored (current: %s)"),
+				*Message.Roster.SessionId, *CurrentSessionId);
+			break;
+		}
 		CachedRoster = Message.Roster;
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionRoster %d car(s) for session %s"),
 			CachedRoster.Entries.Num(), *CachedRoster.SessionId);
