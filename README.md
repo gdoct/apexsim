@@ -17,7 +17,7 @@ This project is in active development. The simulation and the networking underne
 * AI drivers, lap timing and lap validation, race classification
 * Prometheus metrics plus health and readiness endpoints
 
-<img width="1000" alt="image" src="https://github.com/user-attachments/assets/ef99e9e7-dff0-4661-bb83-36ee007ff39b" />
+<img width="1000" alt="image" src="https://github.com/user-attachments/assets/4b63071d-119b-4d1d-b1e5-75ac2fc58b06" />
 <img width="1000" alt="image" src="https://github.com/user-attachments/assets/5d3248d3-155b-4703-b04f-34b05afe2472" />
 <img width="1000" alt="image" src="https://github.com/user-attachments/assets/8961e3b0-7d88-44cb-b160-b0ad1f6c30ed" />
 
