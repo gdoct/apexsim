@@ -50,8 +50,72 @@ pub struct AtsScene {
     pub pit_lane: Option<PitLane>,
     #[serde(default)]
     pub props: Vec<Prop>,
+    /// How the kit is dressed on import: season and spectators.
+    #[serde(default, skip_serializing_if = "Dressing::is_default")]
+    pub dressing: Dressing,
     /// Next element id to hand out. Monotonic, never reused.
     pub next_id: u64,
+}
+
+/// Scene-wide choices the Unreal importer makes among the kit's variants
+/// (docs/PROPS.md): the `_crowd` stands and the `_autumn` trees. The props
+/// themselves keep their base asset keys, so a scene can be re-dressed
+/// without touching a single placement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Dressing {
+    #[serde(default)]
+    pub season: Season,
+    /// Fill the stands: every grandstand bay imports as its `_crowd`
+    /// variant.
+    #[serde(default = "default_spectators")]
+    pub spectators: bool,
+}
+
+fn default_spectators() -> bool {
+    true
+}
+
+impl Default for Dressing {
+    fn default() -> Self {
+        Dressing {
+            season: Season::Summer,
+            spectators: true,
+        }
+    }
+}
+
+impl Dressing {
+    fn is_default(&self) -> bool {
+        *self == Dressing::default()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Season {
+    #[default]
+    Summer,
+    /// Broadleaf trees, poplars and bushes import with autumn foliage.
+    Autumn,
+}
+
+impl Season {
+    pub const ALL: [Season; 2] = [Season::Summer, Season::Autumn];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Season::Summer => "summer",
+            Season::Autumn => "autumn",
+        }
+    }
+
+    pub fn parse(s: &str) -> Result<Self, String> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "summer" => Ok(Season::Summer),
+            "autumn" => Ok(Season::Autumn),
+            other => Err(format!("unknown season {other:?} (expected summer|autumn)")),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -425,6 +489,7 @@ impl AtsScene {
             }],
             pit_lane: None,
             props: Vec::new(),
+            dressing: Dressing::default(),
             next_id: 2,
         }
     }

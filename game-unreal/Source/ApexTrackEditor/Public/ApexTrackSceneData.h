@@ -92,6 +92,20 @@ struct FApexTrackStartFinish
 	float WidthCm = 0.0f;
 };
 
+/** Which kit variants the importer picks, scene-wide (`.ats` `dressing`). */
+struct FApexTrackDressing
+{
+	/** `summer` or `autumn`: autumn swaps the broadleaf trees for their `_autumn` meshes. */
+	FString Season = TEXT("summer");
+	/** Full stands: every grandstand module imports as its `_crowd` variant. */
+	bool bSpectators = true;
+
+	bool IsAutumn() const
+	{
+		return Season == TEXT("autumn");
+	}
+};
+
 struct FApexTrackScene
 {
 	FString TrackId;
@@ -104,6 +118,8 @@ struct FApexTrackScene
 	FString City;
 	FString Category;
 	FString EnvironmentType;
+
+	FApexTrackDressing Dressing;
 
 	TArray<FApexTrackMaterial> Materials;
 	TArray<FApexTrackMesh> Meshes;

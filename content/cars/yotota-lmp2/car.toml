@@ -1,0 +1,104 @@
+id = "f7f70d97-08b6-4787-ac47-2f096a75f371"
+name = "Yotota LMP2"
+version = "1.0.0"
+model = "yotota_lmp2.glb"
+brand = "Yotota"
+model_year = 2026
+class = "LMP2"
+model_type = "YR-2 Prototype"
+manufacturer_country = "Japan"
+
+[physics]
+mass_kg = 930.0
+length_m = 4.75
+width_m = 1.9
+max_engine_force_n = 9000.0
+max_brake_force_n = 22000.0
+drag_coefficient = 0.52
+# Prototype slicks on a high-downforce chassis.
+grip_coefficient = 1.35
+max_steering_angle_rad = 0.42
+wheelbase_m = 3.0
+
+# Aerodynamics. Cd*A ≈ 0.88 m2, Cl*A ≈ -3.6 m2: roughly a tonne of downforce
+# at 250 km/h, 40% on the nose, which is what makes the car feel planted in
+# the fast stuff and draggy on the straights compared with the GT3.
+frontal_area_m2 = 1.7
+lift_coefficient_front = -0.85
+lift_coefficient_rear = -1.25
+
+# Spec-series 4.2 L V8, restricted to ~405 kW.
+
+[engine]
+max_power_w = 405000.0
+max_torque_nm = 520.0
+idle_rpm = 1500.0
+redline_rpm = 8200.0
+max_rpm = 8400.0
+rev_limiter_rpm = 8300.0
+
+inertia_kg_m2 = 0.16
+friction_torque_nm = 20.0
+engine_brake_torque_nm = 110.0
+idle_control_gain = 0.15
+
+[[engine.torque_curve]]
+rpm = 1500.0
+torque_nm = 300.0
+
+[[engine.torque_curve]]
+rpm = 3500.0
+torque_nm = 430.0
+
+[[engine.torque_curve]]
+rpm = 5000.0
+torque_nm = 500.0
+
+[[engine.torque_curve]]
+rpm = 6200.0
+torque_nm = 520.0
+
+[[engine.torque_curve]]
+rpm = 7400.0
+torque_nm = 505.0
+
+[[engine.torque_curve]]
+rpm = 8200.0
+torque_nm = 450.0
+
+[transmission]
+transmission_type = "Sequential"
+final_drive_ratio = 3.60
+shift_time_s = 0.06
+efficiency = 0.95
+
+# 6 forward gears on 0.35 m wheels: 100 km/h in first at the limiter,
+# 335 km/h in sixth — a Le Mans set-up; the car drags itself to ~325.
+[transmission.ratio_curve]
+gears = 6
+first = 3.00
+top = 0.90
+shape = "progressive"
+
+[drivetrain]
+layout = "RWD"
+
+[differential]
+differential_type = "ClutchLSD"
+preload_nm = 80.0
+lock_power = 0.45
+lock_coast = 0.30
+
+[fuel]
+capacity_liters = 75.0
+idle_consumption_lps = 0.00006
+load_consumption_scale = 0.0032
+
+[hybrid]
+enabled = false
+battery_capacity_kwh = 0.0
+battery_max_discharge_kw = 0.0
+battery_max_charge_kw = 0.0
+motor_max_torque_nm = 0.0
+motor_max_power_kw = 0.0
+regen_max_power_kw = 0.0

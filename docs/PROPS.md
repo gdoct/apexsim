@@ -85,23 +85,23 @@ the look more than anything else.
 | barrier | `armco_4m` | 4 m | default; straight, 3-rail — **done** | P1 |
 | barrier | `armco_4m_fence` | 4 m, 3.5 m tall | with debris-fence posts and mesh (masked chain-link texture) — **done** | P1 |
 | barrier | `armco_end` | 2 m | terminal ramp; tiles onto `armco_4m` at x = -1 — **done** | P1 |
-| barrier | `concrete_4m` | 4 m | plain concrete wall | P1 |
-| barrier | `concrete_4m_rail` | 4 m | pit-wall style with top rail | P2 |
-| barrier | `tecpro_2m` | 2 m | red/white padded block | P2 |
+| barrier | `concrete_4m` | 4 m, 1.0 m tall | precast wall, slanted faces — **done** | P1 |
+| barrier | `concrete_4m_rail` | 4 m, 1.55 m | with top rail — **done** | P2 |
+| barrier | `tecpro_2m` | 2 m, 1.15 m | red + white block pair — **done** | P2 |
 | tire_wall | `tires_4m` | 4 m, 4 tyres tall, 2 rows | default; conveyor-belt strip in front — **done** | P1 |
-| tire_wall | `tires_corner` | 2 m | curved cap | P2 |
+| tire_wall | `tires_corner` | 2 m quarter arc | curved cap, tiles onto `tires_4m` at x = -1 — **done** | P2 |
 | board | `hoarding_3m` | 3 × 1 m | default; brand from `text` — **done** | P1 |
 | board | `hoarding_6m` | 6 × 1 m | brand from `text`, logo twice — **done** | P1 |
 | board | `braking_marker` | 0.75 × 1 m on a 1.9 m post | `text` = 50/100/150/200 — **done** | P1 |
-| board | `light_panel` | 1 × 0.6 m | LED flag panel on a post | P2 |
-| sign | `marshal_post` | 2 × 2 m hut | flag pole, number from `text` | P2 |
-| sign | `pit_speed_limit` | | pit entry / exit sign, limit from `text` | P2 |
-| sign | `pit_exit_light` | | | P2 |
-| sign | `flag_pole` | 8 m | flag texture from `text` (country code) | P3 |
-| fence | `mesh_4m` | 4 × 2.5 m | default; spectator fence panel | P2 |
-| fence | `mesh_4m_hoarding` | 4 × 2.5 m | with a hoarding strip, brand from `text` | P2 |
-| fence | `wood_4m` | 4 m | rural post-and-rail | P3 |
-| fence | `hedge_4m` | 4 m | hedge row module | P3 |
+| board | `light_panel` | 1 × 0.6 m on a 2 m post | LED face is the `led_panel` slot (drive emissive for flags) — **done** | P2 |
+| sign | `marshal_post` | 2.4 × 2.4 m hut on a plinth, 3.1 m | flag pole, number board (`text` later) — **done** | P2 |
+| sign | `pit_speed_limit` | 2.8 m | round sign on a post; number from `text` later — **done** | P2 |
+| sign | `pit_exit_light` | 4.2 m | red/green lamps (`pit_light_red` / `pit_light_green` slots) — **done** | P2 |
+| sign | `flag_pole` | 8 m, 1.5 × 1 m flag | `flag_cloth` slot; `text` = country code → `sign/flags/<cc>.png` (nl de at fr it be ie es jp ch fin chequer) — **done** | P3 |
+| fence | `mesh_4m` | 4 × 2.5 m | default; chain-link masked texture — **done** | P2 |
+| fence | `mesh_4m_hoarding` | 4 × 2.5 m | 0.8 m brand strip at the bottom — **done** | P2 |
+| fence | `wood_4m` | 4 × 1.2 m | post-and-rail — **done** | P3 |
+| fence | `hedge_4m` | 4 × 1.6 m | — **done** | P3 |
 
 ### 2. Overhead
 
@@ -110,9 +110,9 @@ the look more than anything else.
 | bridge | `start_gantry` | 15 m span | default; replaces the generated gantry; lamps are the `gantry_lamp` slot (drive emissive from the race director) — **done** | P2 |
 | bridge | `truss_bridge` | 15 m span | box-truss footbridge, hoarding both faces, brand from `text` — **done** | P2 |
 | bridge | `tyre_bridge` | 15 m span, 13.6 m tall, 11.5 m clearance | the donut, `piretti` along the sidewalls, walkway through it — **done** | P2 |
-| bridge | `timing_gantry` | spans pit lane / straight | big screen + timing strip | P3 |
-| light | `floodlight_tower` | 30 m | default; for night tracks | P2 |
-| light | `lamp_post` | 8 m | pit lane / paddock | P3 |
+| bridge | `timing_gantry` | 15 m span, 10.5 m | 12 × 3 m `led_screen` facing the approach, brand strip — **done** | P3 |
+| light | `floodlight_tower` | 30 m lattice mast, 12 lamps | lamps are the `floodlight_lamp` slot — **done** | P2 |
+| light | `lamp_post` | 8 m | `floodlight_lamp` slot — **done** | P3 |
 
 Bridges take a `span_m` from the road width at their station; the mesh is
 authored for a 15 m road (supports 1.5 m off each edge, so 18 m between the
@@ -123,16 +123,18 @@ so the span is across Y.
 
 | kind | asset | size | notes | prio |
 | --- | --- | --- | --- | --- |
-| pit | `garage_6m` | 6 × 12 m | default; open front, roller door up | P2 |
-| pit | `garage_6m_closed` | 6 × 12 m | roller door down | P3 |
-| pit | `garage_end` | 6 × 12 m | end cap / race-control corner block | P2 |
-| pit | `pit_wall_6m` | 6 m | wall + team-stand gantry (stools, monitors) | P2 |
-| pit | `pit_wall_plain_6m` | 6 m | wall only | P2 |
-| pit | `box_kit` | per box | fuel rig, wheel-gun trolley, 4 tyre stacks, jack, pit board | P3 |
-| building | `hospitality_3f` | 30 × 12 m | glass-fronted 3-storey paddock block | P3 |
-| building | `media_centre` | 40 × 15 m | | P4 |
-| vehicle | `race_truck` | 16 m | team transporter, brand from `text` | P3 |
-| vehicle | `motorhome` | 10 m | | P4 |
+| pit | `garage_6m` | 6 × 12 m, 9.9 m tall | default; door up, upper storey with balcony (branded balustrade) 2.2 m over the lane — **done** | P2 |
+| pit | `garage_6m_closed` | 6 × 12 m | roller door down — **done** | P3 |
+| pit | `garage_end` | 6 × 12 m, 15.9 m with mast | race-control block — **done** | P2 |
+| pit | `pit_wall_6m` | 6 m, 3.8 m tall | 1.1 m wall + fence on the track side (-Y), team stand on the lane side — **done** | P2 |
+| pit | `pit_wall_plain_6m` | 6 m, 2.9 m | wall + fence — **done** | P2 |
+| pit | `box_kit` | 5.8 × 3 m in front of a garage | fuel rig, wheel-gun trolley, 4 tyre stacks, jack, pit board — **done** | P3 |
+| building | `hospitality_3f` | 30 × 12 m, 12.4 m | glass front, roof terrace — **done** | P3 |
+| building | `media_centre` | 40 × 15 m, 21 m with mast | 4 storeys — **done** | P4 |
+| building | `control_tower` | 12 × 12 m cab on an 8 × 8 core, 29 m | glass cab, brand board on the track face, antenna — **done** | P3 |
+| building | `clubhouse` | 24 × 14 m, 11.5 m | brick, pitched roof, timber balcony over the front, flag pole — **done** | P3 |
+| vehicle | `race_truck` | 8.6 m | transporter, brand on both trailer sides (`board_brand`) — **done** | P3 |
+| vehicle | `motorhome` | 10 m | with awning — **done** | P4 |
 
 The exporter emits one `pit`/`garage_6m` per pit box (positions from the
 existing box layout), a `pit_wall_6m` run along the road side, and one
@@ -151,15 +153,16 @@ existing box layout), a `pit_wall_6m` run along the road side, and one
 | grandstand | `bay_10m_curve6_in` / `_roof` | 10 m front, -6° wedge | inside-of-corner stand (front wider than back) — **done** | P2 |
 | grandstand | `end_cap` | 1 × 9 m | stepped side block, symmetric about x=0: place at ±(L/2 + 0.5) — **done** | P2 |
 | grandstand | `end_cap_large` | 1 × 14.2 m | end cap for the 14-tier bays — **done** | P2 |
+| grandstand | `<any bay>_crowd`, `scaffold_10m_crowd`, `banking_seats_crowd` | same as the base asset | seated crowd on masked card strips per row (`crowd_cards` slot, `grandstand/T_crowd.png`, 16 people per 8 m tile, ~15 % empty seats); the importer picks `_crowd` when the scene's `dressing.spectators` is on (the default) — **done** | P2 |
 | grandstand | `stair_tower` | 4 × 4 m | between bays | P3 |
-| grandstand | `scaffold_10m` | 10 × 8 m, 5 tiers | temporary/club stand | P3 |
-| grandstand | `banking_seats` | 10 m | bench rows on a grass bank | P4 |
-| attraction | `video_screen` | 12 × 7 m | LED wall on a truss stand | P2 |
-| attraction | `camera_tower` | 4 × 4 × 12 m | TV scaffold | P3 |
+| grandstand | `scaffold_10m` | 10 × 5 m, 5 tiers | tube-and-plank club stand — **done** | P3 |
+| grandstand | `banking_seats` | 10 × 6 m | 4 bench rows on a grass bank — **done** | P4 |
+| attraction | `video_screen` | 12 × 7 m screen, 11 m tall | `led_screen` slot for a render target; brand strip on top — **done** | P2 |
+| attraction | `camera_tower` | 4 × 4 × 13 m | — **done** | P3 |
 | attraction | `ferris_wheel` | 60 m dia, hub at 35 m, 45 × 15 m footprint | wheel plane faces the road; GLB has a child node `rotor` with its origin at the hub for in-game rotation (gondolas are rigid to it) — **done** | P2 |
-| attraction | `tent_6m` | 6 × 6 m | food/merch tent, colour from `text` | P3 |
-| attraction | `portaloo_row` | 6 m | 5 units | P4 |
-| attraction | `fanzone_stage` | 12 × 8 m | | P4 |
+| attraction | `tent_6m` | 6 × 6 m, 5.2 m | open front on -Y, `tent_colour` slot — **done** | P3 |
+| attraction | `portaloo_row` | 5.4 m | 5 units — **done** | P4 |
+| attraction | `fanzone_stage` | 12 × 8 m, 8.5 m | truss roof, `led_screen` back wall, brand strip — **done** | P4 |
 
 A stand of length L is `bay_*` repeated L/10 times plus two `end_cap`s. The
 importer does the repetition from one `grandstand` prop with a `length_m`
@@ -183,18 +186,19 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 
 | kind | asset | size | notes | prio |
 | --- | --- | --- | --- | --- |
-| tree | `broadleaf_s` / `_m` / `_l` | 6 / 10 / 16 m | default = `_m`; card-hybrid (trunk mesh + leaf cards) | P2 |
-| tree | `conifer_m` / `_l` | 12 / 20 m | | P2 |
-| tree | `poplar` | 18 m | for the Monza/Le Mans look | P3 |
-| tree | `bush_cluster` | 3 m | | P3 |
-| vehicle | `car_a` / `car_b` / `car_c` | 4.5 m | generic parked cars, paint from `text` | P3 |
-| vehicle | `fire_truck` | 8 m | marshal post | P3 |
-| vehicle | `ambulance` | 6 m | | P3 |
-| vehicle | `tractor` | 5 m | recovery, behind the tyre wall | P3 |
-| misc | `bollard` | | | P3 |
-| misc | `kerb_marker` | | yellow edge marker | P3 |
-| misc | `generator` | 2 m | | P4 |
-| misc | `photographer_stand` | 2 × 2 m | | P4 |
+| tree | `broadleaf_s` / `_m` / `_l` | 6 / 10 / 16 m | default = `_m`; trunk + 3 crossed cards + 1 horizontal, spherical normals, masked foliage texture — **done** | P2 |
+| tree | `conifer_m` / `_l` | 12 / 20 m | — **done** | P2 |
+| tree | `poplar` | 18 m | — **done** | P3 |
+| tree | `bush_cluster` | 3 m | — **done** | P3 |
+| tree | `broadleaf_s/m/l_autumn`, `poplar_autumn`, `bush_cluster_autumn` | as the base asset | autumn foliage textures (`tree_foliage_round_autumn`, `tree_foliage_poplar_autumn`); the importer picks them when the scene's `dressing.season` is `autumn` — **done** | P3 |
+| vehicle | `car_a` / `car_b` / `car_c` | 4–4.7 m | hatch / saloon / SUV, `vehicle_paint_*` slot for colour — **done** | P3 |
+| vehicle | `fire_truck` | 5.5 m | — **done** | P3 |
+| vehicle | `ambulance` | 6 m | — **done** | P3 |
+| vehicle | `tractor` | 4.5 m | with front forks — **done** | P3 |
+| misc | `bollard` | 0.9 m | — **done** | P3 |
+| misc | `kerb_marker` | 0.7 m | yellow/black — **done** | P3 |
+| misc | `generator` | 2.2 × 1.2 m | — **done** | P4 |
+| misc | `photographer_stand` | 2 × 2 × 2.5 m | — **done** | P4 |
 | cone | `cone` | | exists | — |
 
 ### 6. Sky
@@ -202,8 +206,38 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 | kind | asset | size | notes | prio |
 | --- | --- | --- | --- | --- |
 | sky | `blimp` | 60 m | `rolux`; slow drift + yaw in-game — **done** | P1 |
-| sky | `balloon` | 20 m | hot-air balloon, static | P3 |
-| sky | `helicopter` | 12 m | static first, orbit later | P4 |
+| sky | `balloon` | 16 m envelope, 22 m with basket | origin at the envelope centre; `balloon_envelope` brand slot — **done** | P3 |
+| sky | `helicopter` | 12 m, 11 m rotor | origin at the fuselage; `rotor_disc` slot — **done** | P4 |
+
+## Unreal import notes
+
+- Every asset in the tables above is authored (**done**); the recipe fallback
+  only matters for unknown asset keys now. The editor's catalogue of them is
+  `track-editor/src/props.rs` — add a row there for a new asset so it shows
+  up in the inspector's dropdown and previews at the right size.
+- Text slots the builder drives today: the brand slots (`board_brand`,
+  `bridge_brand*`, `pit_team_board`, `tyre_bridge_brand`, `blimp_brand`,
+  `balloon_envelope`) from `T_brand_<text>`, `board_marker` from
+  `T_marker_<text>`, `flag_cloth` from `T_flag_<text>` (the `sign/flags`
+  PNGs are imported with the `sign` kind). `tent_colour` and
+  `vehicle_paint_*` keep their imported colours; the marshal post's number
+  and the pit speed limit's figure are not wired yet.
+- Scene-wide variants come from the `.ats` `dressing` block (season,
+  spectators), so the props keep their base keys.
+
+- Masked materials (`fence_mesh`, `tree_foliage_*`) arrive as glTF `MASK`; keep
+  them two-sided. Trees carry custom (spherical) normals — do not recompute.
+- Emissive-able slots: `gantry_lamp`, `led_panel`, `floodlight_lamp`,
+  `led_screen` (the last is meant for a render target / media texture).
+- **Night pass.** These slots carry an emissive colour/texture in the GLB and
+  need one scalar (`EmissiveStrength`, 0 by day, 1 at night) on their material
+  instances: `pit_glass` (window-glow texture on garages, `garage_end`,
+  `hospitality_3f`, `media_centre`, `control_tower`, `clubhouse`, `motorhome`,
+  `race_truck`), `pit_interior` (lit garage ceilings), and on the Ferris
+  wheel `ferris_lights` (warm spoke + gondola strips), `ferris_lights_rim`
+  (blue rim ring and leg strips) and `ferris_lights_hub`. A slow hue cycle on
+  `ferris_lights_rim` is cheap and looks right.
+- Chain-link and foliage go sub-pixel at distance; mip bias or a fade helps.
 
 ## Build order
 
@@ -219,12 +253,19 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 
 ## Code touch points
 
-- `track-editor/src/ats.rs` — new `PropKind` variants.
+- `track-editor/src/ats.rs` — new `PropKind` variants; the `dressing` block.
+- `track-editor/src/props.rs` — the kit catalogue (keys, footprints,
+  defaults) behind the editor's asset dropdown, the stand-in sizes and the
+  groomer's push-off.
 - `track-editor/src/groom.rs` — behaviour per new kind (board snapping,
   bridge exemption, pit alignment, sky not seated).
 - `track-editor/src/ue_export.rs` — pit garages/walls emitted per box;
   `length_m` on grandstands; `span_m` on bridges.
 - `game-unreal/Source/ApexTrackEditor/Private/ApexTrackAssetBuilder.cpp` —
   asset lookup by `/Game/Props/<kind>/SM_<asset>` before the recipe fallback;
-  bay repetition; brand/text → material parameter.
+  bay repetition; brand/text → material parameter; the `_crowd`/`_autumn`
+  swaps from the dressing.
+- `game-unreal/Source/ApexTrackEditor/Private/ApexPropLibrary.cpp` — the
+  kind table (instanced / Nanite / faces road / default), the slot names,
+  the aliases, the variant names and the stand layout.
 - `game-unreal/Content/Props/` — imported meshes and material instances.

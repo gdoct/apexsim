@@ -17,6 +17,7 @@ use bevy_egui::EguiStartupSet;
 
 use crate::ats::{Prop, PropKind};
 use crate::coords;
+use crate::props;
 use crate::state::{
     DragActive, OpenScene, OpenTrack, SelectedElement, Selection, StatusLine, UndoStack,
 };
@@ -596,6 +597,118 @@ struct Piece {
 }
 
 fn prop_pieces(prop: &Prop) -> Vec<Piece> {
+    if let Some(entry) = props::resolve(prop.kind, &prop.asset) {
+        return kit_pieces(prop, entry);
+    }
+    generic_pieces(prop)
+}
+
+/// A stand-in at the authored asset's size (`props::KIT`), so a placement
+/// previews at the footprint it imports. Bevy axes: x along the road, y
+/// up, z across it. A kind that faces the road has its front at the
+/// pivot and its body behind it (the road is on local -Y in the server
+/// frame, +z here, so the body reaches toward -z); everything else is
+/// centred on the pivot, and a sky prop on its hull centre.
+fn kit_pieces(prop: &Prop, entry: &props::KitAsset) -> Vec<Piece> {
+    let s = prop.scale;
+    let (length, depth, height) = (entry.length_m * s, entry.depth_m * s, entry.height_m * s);
+    let color = kind_color(prop.kind);
+    match prop.kind {
+        PropKind::Tree => {
+            let trunk = (height * 0.3).max(0.5);
+            vec![
+                Piece {
+                    mesh: Cylinder::new((length * 0.035).max(0.08), trunk).into(),
+                    color: Color::srgb(0.42, 0.28, 0.15),
+                    offset: Vec3::new(0.0, trunk / 2.0, 0.0),
+                    emissive: false,
+                },
+                Piece {
+                    mesh: Cone {
+                        radius: length / 2.0,
+                        height: height - trunk,
+                    }
+                    .into(),
+                    color,
+                    offset: Vec3::new(0.0, trunk + (height - trunk) / 2.0, 0.0),
+                    emissive: false,
+                },
+            ]
+        }
+        PropKind::Grandstand => {
+            // The stand's own length, not one bay's.
+            let stand_len = prop.length_m.unwrap_or(30.0) * s;
+            vec![Piece {
+                mesh: Cuboid::new(stand_len, height, depth).into(),
+                color,
+                offset: Vec3::new(0.0, height / 2.0, -depth / 2.0),
+                emissive: false,
+            }]
+        }
+        PropKind::Sky => vec![Piece {
+            mesh: Cuboid::new(length, height, depth).into(),
+            color,
+            offset: Vec3::ZERO,
+            emissive: false,
+        }],
+        PropKind::Light => vec![
+            Piece {
+                mesh: Cylinder::new((length * 0.1).max(0.08), height).into(),
+                color: Color::srgb(0.45, 0.45, 0.5),
+                offset: Vec3::new(0.0, height / 2.0, 0.0),
+                emissive: false,
+            },
+            Piece {
+                mesh: Cuboid::new(length, height * 0.05, depth).into(),
+                color: Color::srgb(0.95, 0.9, 0.6),
+                offset: Vec3::new(0.0, height * 0.975, 0.0),
+                emissive: true,
+            },
+        ],
+        PropKind::Barrier
+        | PropKind::TireWall
+        | PropKind::Board
+        | PropKind::Fence
+        | PropKind::Sign
+        | PropKind::Pit
+        | PropKind::Building => vec![Piece {
+            mesh: Cuboid::new(length, height, depth).into(),
+            color,
+            offset: Vec3::new(0.0, height / 2.0, -depth / 2.0),
+            emissive: false,
+        }],
+        _ => vec![Piece {
+            mesh: Cuboid::new(length, height, depth).into(),
+            color,
+            offset: Vec3::new(0.0, height / 2.0, 0.0),
+            emissive: false,
+        }],
+    }
+}
+
+fn kind_color(kind: PropKind) -> Color {
+    match kind {
+        PropKind::Tree => Color::srgb(0.13, 0.42, 0.15),
+        PropKind::Sign => Color::srgb(0.12, 0.3, 0.75),
+        PropKind::Barrier => Color::srgb(0.8, 0.82, 0.85),
+        PropKind::TireWall => Color::srgb(0.1, 0.1, 0.12),
+        PropKind::Building => Color::srgb(0.72, 0.68, 0.6),
+        PropKind::Grandstand => Color::srgb(0.35, 0.4, 0.55),
+        PropKind::Light => Color::srgb(0.45, 0.45, 0.5),
+        PropKind::Cone => Color::srgb(0.95, 0.45, 0.05),
+        PropKind::Misc => Color::srgb(0.6, 0.4, 0.7),
+        PropKind::Board => Color::srgb(0.9, 0.2, 0.15),
+        PropKind::Fence => Color::srgb(0.55, 0.58, 0.6),
+        PropKind::Pit => Color::srgb(0.75, 0.75, 0.78),
+        PropKind::Bridge => Color::srgb(0.85, 0.85, 0.88),
+        PropKind::Vehicle => Color::srgb(0.85, 0.85, 0.9),
+        PropKind::Attraction => Color::srgb(0.9, 0.5, 0.2),
+        PropKind::Sky => Color::srgb(0.95, 0.95, 0.97),
+    }
+}
+
+/// The per-kind stand-in for a key the kit does not know.
+fn generic_pieces(prop: &Prop) -> Vec<Piece> {
     let s = prop.scale;
     match prop.kind {
         PropKind::Tree => vec![

@@ -98,8 +98,8 @@ private:
 		TArray<UMaterialInterface*>& Materials, TArray<UTexture*>& Textures, FStats& Stats,
 		TSet<UPackage*>& OutPackages, FString& OutError);
 
-	/** The brand and marker PNGs, as sRGB textures. */
-	bool ImportBoardTextures(const FOptions& Options, FStats& Stats);
+	/** The loose PNGs — brands, markers, flags — as sRGB textures. */
+	bool ImportLooseTextures(const FOptions& Options, FStats& Stats, const TSet<FString>& WholeKinds);
 	static UTexture2D* ImportPng(const FString& PackageName, const FString& PngPath, FString& OutError);
 
 	static bool SavePackages(const TSet<UPackage*>& Packages, FString& OutError);

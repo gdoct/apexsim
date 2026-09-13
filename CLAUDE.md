@@ -154,6 +154,29 @@ The sync is additive unless `-force`; existing rows keep their values. Every
 track YAML needs a fixed `track_id` — without one the server mints a new UUID
 per start and no catalog row can ever match it.
 
+### Cars (`content/cars`, `ApexCarImport`)
+A car is `content/cars/<folder>/car.toml` plus the GLB its `model` names.
+The client finds its mesh through `/Game/Data/DT_CarCatalog`, keyed by the
+TOML's `id` (the wire only carries id and name); a car with no row shows
+placeholder art and an empty turntable, and a row whose mesh belongs to
+another folder previews as that other car. `ApexCarImport` keeps both in
+step:
+
+```bash
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexCarImport -all          # or -car=yotota-lmp2 / -list / -force / -dryrun
+```
+
+Each GLB goes through Interchange (one combined mesh, no collision, no
+Nanite, materials beside it) to `/Game/Cars/<folder>/SM_<folder>` (hyphens
+become underscores), and the row gets name, brand, class, year, country,
+mass, power, folder and mesh from the TOML. Without `-force` the run is
+additive: existing rows keep their preview framing, cockpit points and
+hand-tuned fields, and only a missing or foreign mesh is replaced; the four
+cars imported by hand before the commandlet existed keep their meshes.
+`AApexRaceCarActor` turns the mesh −90° about Z, so a car must be long along
+its local Y; the import logs a warning when it is not. `ApexSim.Cars.Toml`
+tests the TOML scan.
+
 ### Prop kit (`content/props`, `ApexPropImport`)
 The trackside scenery is an authored kit of GLBs, `content/props/<kind>/<asset>.glb`
 (catalogue and conventions in `docs/PROPS.md`; the loader's design in
@@ -172,8 +195,10 @@ textures under `/Game/Props/<kind>/Materials` shared by name across the kind
 (the first GLB to bring `armco_galv` in owns it). Material slot names are the
 glTF material names, which is what everything below keys on. The ferris
 wheel imports as `SM_ferris_wheel` plus `SM_ferris_wheel_rotor` (the `rotor`
-node, pivot at the hub). Brand and marker PNGs become
-`/Game/Props/board/Brands/T_brand_<name>` and `Markers/T_marker_<n>`.
+node, pivot at the hub). The loose PNGs become textures: brands and
+markers as `/Game/Props/board/Brands/T_brand_<name>` and
+`Markers/T_marker_<n>`, the flags (`sign/flags/<cc>.png`) as
+`/Game/Props/sign/Flags/T_flag_<cc>`; each set comes along with its kind.
 Every run is a fresh import (the target mesh package is deleted from disk
 first and the registry rescanned): reimporting over an existing mesh keeps
 its old slots and creates no materials. A kind-wide run clears the kind's
@@ -196,9 +221,13 @@ face-road kinds 180° by `RoadSideOf` as before.
 The track builder (`ApexTrackAssetBuilder::ResolveProp`, data in
 `ApexPropLibrary`) resolves every prop as `SM_<asset>` → the kind's default
 (`armco_4m`, `tires_4m`, `hoarding_3m`, `mesh_4m`, `bay_10m`, `garage_6m`,
-`start_gantry`, `floodlight_tower`, `broadleaf_m`, `blimp`) → the generated
+`start_gantry`, `floodlight_tower`, `broadleaf_m`, `blimp`, `marshal_post`,
+`car_a`, `tent_6m`, `clubhouse`, `bollard`; only `cone` has none) → the generated
 recipe for the prop's own kind → placeholder cube, so levels still build with
-`/Game/Props` empty. An alias table maps the pre-kit keys the groomer and
+`/Game/Props` empty. Buildings face the road like the stands (every
+authored one has a front); of the attractions the video screen, the stage
+and the tent do, the ferris wheel, camera tower and portaloos do not;
+vehicles are left as placed. An alias table maps the pre-kit keys the groomer and
 scenes carry (`tree_generic`, `armco_generic`, `tire_wall_generic`,
 `sign/board_200m|100m|50m` → `board/braking_marker` with the number as text,
 `grandstand_main|corner`, `building/pit_garage`) — data, so the `.ats` files
@@ -209,12 +238,23 @@ trace use to ignore bridge decks and garage roofs.
 
 - **Text → material**: a `text` naming a brand (`piretti`, `rolux`, …)
   overrides the `board_brand` / `bridge_brand*` / `pit_team_board` /
-  `tyre_bridge_brand` / `blimp_brand` slots with an instance of the
-  per-track `M_ApexBrand` showing `T_brand_<text>`; a braking marker's
-  `board_marker` slot takes `T_marker_<text>`. Unknown text keeps the
-  imported default and logs once per track. `led_panel` / `led_screen` slots
-  get a lit `M_ApexEmissive` instance and the component a tag
-  `ApexEmissive_<slot>` (fixed glow: there is no flag state on the wire yet).
+  `tyre_bridge_brand` / `blimp_brand` / `balloon_envelope` slots with an
+  instance of the per-track `M_ApexBrand` showing `T_brand_<text>`; a
+  braking marker's `board_marker` slot takes `T_marker_<text>`; a flag
+  pole's `flag_cloth` takes `T_flag_<text>` (`nl`, `de`, … `chequer`).
+  Unknown text keeps the imported default and logs once per track.
+  `led_panel` / `led_screen` / `pit_light_green` slots get a lit
+  `M_ApexEmissive` instance (`pit_light_red` a dark one: the pit exit shows
+  open) and the component a tag `ApexEmissive_<slot>` (fixed glow: there is
+  no flag state on the wire yet).
+- **Dressing**: the `.ats` carries a scene-wide `dressing { season,
+  spectators }` (`summer`/`autumn`, default summer with spectators),
+  exported as-is; the builder swaps meshes, not keys: with spectators every
+  stand module becomes its `_crowd` twin (`ApexProps::CrowdVariant`; the
+  caps have none), in autumn the broadleaf trees, poplars and bushes become
+  `_autumn` (`AutumnVariant`; conifers stay). A missing variant falls back
+  to the base mesh. The editor has a Dressing panel and the MCP a
+  `set_dressing` tool.
 - **Grandstands**: one prop is a stand of `round(length_m × scale / 10)`
   bays (`length_m` from the `.ats`, 30 m when absent; scale is a length
   multiplier so the legacy 30 m × 2.6 stands come out as eight bays) plus
@@ -222,7 +262,9 @@ trace use to ignore bridge decks and garage roofs.
   The exporter writes `radius_m` (signed bend radius, positive on the
   outside) and the builder picks the wedge whose front radius is nearest:
   `_curve6` (95 m), `_curve12` (48 m), `_curve6_in` inside; the large
-  family is straight only. `ApexProps::LayoutGrandstand` is the pure maths.
+  family is straight only. `scaffold_10m` and `banking_seats` are not bay
+  families: the module is tiled at 10 m, straight, with no caps.
+  `ApexProps::LayoutGrandstand` is the pure maths.
 - **Bridges**: never flipped or pushed; local Y scaled by `span_m / 15`
   (`span_m` = road width at the station from the exporter, else measured
   from the centerline). The start lights use `bridge/SM_start_gantry` as the
@@ -232,7 +274,8 @@ trace use to ignore bridge decks and garage roofs.
   is the fallback.
 - **Pit complex**: `ats-export` generates it from the pit lane — one
   `pit/garage_6m` per box on the far side of the parallel pit road (6 m
-  pitch, centred), `garage_end` beyond each end, `pit_wall_6m` on the road
+  pitch, centred) with a `pit/box_kit` on the same pivot (it reaches 2.6 m
+  out of the door onto the working lane), `garage_end` beyond each end, `pit_wall_6m` on the road
   side over the box span and `pit_wall_plain_6m` over the rest of the pit
   road, all facing the track — and drops the legacy `building/pit_garage`
   stand-ins whenever it does. Nothing goes on the entry/exit tapers.
@@ -245,8 +288,15 @@ New `PropKind`s `board, fence, pit, bridge, vehicle, attraction, sky` exist
 in `ats.rs`; the groomer snaps a `board` onto the nearest barrier run, lays a
 `fence` 1.5 m behind the wall line, seats a `bridge` at road height without
 pushing it, leaves `pit` and `sky` alone and pushes `vehicle`/`attraction` by
-their footprint. `ApexSim.Props.*` automation tests cover the alias table,
-the kind tables and the bay layout; `cargo test` in `track-editor` covers the
+their footprint. The editor's copy of the kit is `track-editor/src/props.rs`
+(`props::KIT`: kind, key and authored footprint per asset, default first,
+plus `resolve` for the legacy keys): the inspector offers the kind's keys
+in a dropdown (a free-text `key` row stays for anything else), a new prop
+starts as the kind's default, the stand-ins are drawn at the asset's size,
+and the groomer pushes by that footprint. The MCP's `list_prop_assets`
+lists it. `ApexSim.Props.*` automation tests cover the alias table, the
+kind tables, the variants and the bay layout; `cargo test` in
+`track-editor` covers the catalogue (every default is a kit file), the
 export hints, the pit complex and the groom behaviours.
 
 ## Architecture

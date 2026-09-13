@@ -3,7 +3,8 @@
 #include "CoreMinimal.h"
 
 struct FApexTrackProp;
-struct FApexTrackScene;
+#include "ApexTrackSceneData.h"
+
 struct FMeshDescription;
 class UMaterialInterface;
 class UStaticMesh;
@@ -97,6 +98,8 @@ private:
 	FString TrackFolder;
 	FString TrackName;
 	FString LevelPackage;
+	/** The scene's season and spectators, for the variant picks. */
+	FApexTrackDressing Dressing;
 	/** The generated world, needed when saving its map package. */
 	TObjectPtr<class UWorld> LevelWorld;
 

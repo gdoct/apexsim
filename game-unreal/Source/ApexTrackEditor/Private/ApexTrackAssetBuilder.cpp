@@ -856,6 +856,7 @@ FApexTrackAssetBuilder::FApexTrackAssetBuilder(const FString& DestRoot, const FS
 bool FApexTrackAssetBuilder::Build(const FApexTrackScene& Scene, FString& OutError)
 {
 	PurgeExistingAssets();
+	Dressing = Scene.Dressing;
 	return BuildMaterials(Scene, OutError) && BuildMeshes(Scene, OutError)
 		&& BuildLevel(Scene, OutError) && SaveTouchedPackages(OutError);
 }
@@ -1489,6 +1490,16 @@ FApexTrackAssetBuilder::FResolvedProp FApexTrackAssetBuilder::ResolveProp(const 
 			}
 		}
 	}
+	if (Resolved.Mesh && Dressing.IsAutumn())
+	{
+		// The season's foliage where the tree has it.
+		const FString Autumn = ApexProps::AutumnVariant(Resolved.Kind, Resolved.Asset);
+		if (UStaticMesh* Mesh = Autumn.IsEmpty() ? nullptr : FindAuthoredMesh(Resolved.Kind, Autumn))
+		{
+			Resolved.Mesh = Mesh;
+			Resolved.Asset = Autumn;
+		}
+	}
 	if (Resolved.Mesh)
 	{
 		Resolved.bAuthored = true;
@@ -1561,6 +1572,9 @@ UMaterialInterface* FApexTrackAssetBuilder::EmissiveMaterialFor(FName Slot)
 		{TEXT("led_panel"), FLinearColor(0.1f, 1.0f, 0.2f), 40.0f},
 		{TEXT("led_screen"), FLinearColor(0.35f, 0.5f, 1.0f), 15.0f},
 		{TEXT("floodlight_lamp"), FLinearColor(1.0f, 0.95f, 0.8f), 0.0f},
+		// The pit exit light shows green (pit open) until a director drives it.
+		{TEXT("pit_light_green"), FLinearColor(0.1f, 1.0f, 0.25f), 30.0f},
+		{TEXT("pit_light_red"), FLinearColor(1.0f, 0.1f, 0.1f), 0.0f},
 	};
 	const FString Key = TEXT("glow_") + Slot.ToString();
 	if (const TObjectPtr<UMaterialInterface>* Cached = SlotMaterials.Find(Key))
@@ -1616,6 +1630,18 @@ void FApexTrackAssetBuilder::ApplyAuthoredSlots(
 				UnknownTexts.Add(Key);
 				UE_LOG(LogApexTrackImport, Warning,
 					TEXT("    no brand texture for text \"%s\" (T_brand_%s); boards keep their imported brand"),
+					*Text, *Key);
+			}
+		}
+		else if (ApexProps::IsFlagSlot(Slot) && !Text.IsEmpty())
+		{
+			const FString Key = TextKey(Text);
+			Override = TextureMaterialFor(TEXT("flag_") + Key, ApexProps::FlagTextureObjectPath(PropsRoot, Key));
+			if (!Override && !UnknownTexts.Contains(Key))
+			{
+				UnknownTexts.Add(Key);
+				UE_LOG(LogApexTrackImport, Warning,
+					TEXT("    no flag texture for text \"%s\" (T_flag_%s); the pole keeps its imported flag"),
 					*Text, *Key);
 			}
 		}
@@ -1893,20 +1919,34 @@ void FApexTrackAssetBuilder::SpawnGrandstand(
 	// comes out as eight bays rather than one giant one.
 	const float LengthM = (Prop.LengthM.IsSet() ? Prop.LengthM.GetValue() : kDefaultStandLengthM)
 		* FMath::Max(Prop.Scale, 0.01f);
+	// With spectators the `_crowd` twin of the module is used when it is
+	// authored; the caps have no crowd and stay as they are.
+	auto FindBay = [&](const FString& Asset) -> UStaticMesh* {
+		if (Dressing.bSpectators)
+		{
+			const FString Crowd = ApexProps::CrowdVariant(TEXT("grandstand"), Asset);
+			if (UStaticMesh* Mesh = Crowd.IsEmpty() ? nullptr : FindAuthoredMesh(TEXT("grandstand"), Crowd))
+			{
+				return Mesh;
+			}
+		}
+		return FindAuthoredMesh(TEXT("grandstand"), Asset);
+	};
 	bool bWedge = false;
 	ApexProps::FStandLayout Layout = ApexProps::LayoutGrandstand(Resolved.Asset, LengthM, Prop.RadiusM, &bWedge);
-	UStaticMesh* BayMesh = FindAuthoredMesh(TEXT("grandstand"), Layout.BayAsset);
+	UStaticMesh* BayMesh = FindBay(Layout.BayAsset);
 	if (!BayMesh && bWedge)
 	{
 		// No wedge of that family authored: straight bays around the bend.
 		Layout = ApexProps::LayoutGrandstand(Resolved.Asset, LengthM, TOptional<float>());
-		BayMesh = FindAuthoredMesh(TEXT("grandstand"), Layout.BayAsset);
+		BayMesh = FindBay(Layout.BayAsset);
 	}
 	if (!BayMesh)
 	{
 		BayMesh = Resolved.Mesh;
 	}
-	UStaticMesh* CapMesh = FindAuthoredMesh(TEXT("grandstand"), Layout.CapAsset);
+	UStaticMesh* CapMesh =
+		Layout.CapAsset.IsEmpty() ? nullptr : FindAuthoredMesh(TEXT("grandstand"), Layout.CapAsset);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.OverrideLevel = World->PersistentLevel;

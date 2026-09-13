@@ -190,6 +190,17 @@ bool FApexTrackSceneReader::LoadFromFile(
 		Scene.EnvironmentType = GetString(*Metadata, TEXT("environment_type"));
 	}
 
+	const TSharedPtr<FJsonObject>* Dressing = nullptr;
+	if (Root->TryGetObjectField(TEXT("dressing"), Dressing))
+	{
+		const FString Season = GetString(*Dressing, TEXT("season"));
+		if (!Season.IsEmpty())
+		{
+			Scene.Dressing.Season = Season;
+		}
+		(*Dressing)->TryGetBoolField(TEXT("spectators"), Scene.Dressing.bSpectators);
+	}
+
 	const TArray<TSharedPtr<FJsonValue>>* Array = nullptr;
 
 	if (Root->TryGetArrayField(TEXT("materials"), Array))

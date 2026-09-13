@@ -59,7 +59,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ats::{AtsScene, Curb, Marking, MarkingKind, Prop, PropKind, Side, Surface};
+use crate::ats::{AtsScene, Curb, Dressing, Marking, MarkingKind, Prop, PropKind, Side, Surface};
 use crate::terrain::{self, GroundHeightfield, TerrainHeightfield, Underpass};
 use crate::track_data::TrackFile;
 use crate::track_mesh::{
@@ -181,6 +181,9 @@ pub struct UeScene {
     pub closed_loop: bool,
     pub length_cm: f32,
     pub metadata: UeMetadata,
+    /// Season and spectators: which kit variants the importer picks
+    /// (`_autumn` trees, `_crowd` stands). The props keep their base keys.
+    pub dressing: UeDressing,
     /// Every material key referenced by `meshes`, with what the commandlet
     /// needs to generate a material for it. Sorted by key.
     pub materials: Vec<UeMaterial>,
@@ -249,6 +252,22 @@ pub struct UeMesh {
     pub uvs: Vec<f32>,
     /// Triangle list, already wound for Unreal's left-handed frame.
     pub indices: Vec<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct UeDressing {
+    /// `summer` or `autumn`.
+    pub season: String,
+    pub spectators: bool,
+}
+
+impl From<Dressing> for UeDressing {
+    fn from(d: Dressing) -> Self {
+        UeDressing {
+            season: d.season.label().to_string(),
+            spectators: d.spectators,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -485,6 +504,7 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
         closed_loop: track.closed_loop,
         length_cm: round(path.total_length_m() * M_TO_CM, 1),
         metadata,
+        dressing: scene.dressing.into(),
         materials: bake.materials.into_values().collect(),
         meshes: merge_chunks(bake.chunks),
         props: bake_props(
@@ -2344,7 +2364,8 @@ fn pit_module(
     }
 }
 
-/// The pit complex implied by the lane: one `pit/garage_6m` per box on the
+/// The pit complex implied by the lane: one `pit/garage_6m` per box (with a
+/// `pit/box_kit` in front of it) on the
 /// garage side of the parallel pit road (6 m pitch, centred on the road,
 /// door on the lane), a `pit/garage_end` beyond the first and last box,
 /// `pit/pit_wall_6m` along the road side of the lane over the box span and
@@ -2396,6 +2417,9 @@ fn bake_pit_complex(
             box_edge,
             face_left,
         ));
+        // The crew's kit on the working lane in front of the door, on the
+        // same pivot: it is authored to reach 2.6 m out from the garage.
+        out.push(pit_module(lane, ("pit", "box_kit"), s, box_edge, face_left));
     }
     for s in [
         row_start - PIT_MODULE_M / 2.0,
