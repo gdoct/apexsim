@@ -156,6 +156,10 @@ bool UApexCarImportCommandlet::ParseOptions(const FString& Params, FOptions& Out
 	{
 		Cars->ParseIntoArray(Out.Cars, TEXT(","), true);
 	}
+	if (const FString* Remove = Values.Find(TEXT("remove")))
+	{
+		Remove->ParseIntoArray(Out.Remove, TEXT(","), true);
+	}
 	Out.SourceDir = Values.Contains(TEXT("source"))
 		? FPaths::ConvertRelativePathToFull(Values[TEXT("source")])
 		: FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("../content/cars")));
@@ -170,9 +174,9 @@ bool UApexCarImportCommandlet::ParseOptions(const FString& Params, FOptions& Out
 			return false;
 		}
 	}
-	if (!Out.bAll && !Out.bList && Out.Cars.IsEmpty())
+	if (!Out.bAll && !Out.bList && Out.Cars.IsEmpty() && Out.Remove.IsEmpty())
 	{
-		OutError = TEXT("nothing to do: pass -all, -car=FOLDER or -list");
+		OutError = TEXT("nothing to do: pass -all, -car=FOLDER, -remove=FOLDER or -list");
 		return false;
 	}
 	return true;
@@ -219,7 +223,7 @@ bool UApexCarImportCommandlet::CollectSources(const FOptions& Options, TArray<FS
 			return false;
 		}
 	}
-	if (OutSources.IsEmpty())
+	if (OutSources.IsEmpty() && Options.Remove.IsEmpty())
 	{
 		OutError = FString::Printf(TEXT("%s holds no car.toml"), *Options.SourceDir);
 		return false;
@@ -423,6 +427,78 @@ void UApexCarImportCommandlet::ListRows(const UDataTable& Table, const TArray<FS
 	}
 }
 
+int32 UApexCarImportCommandlet::RemoveCars(UDataTable& Table, const TArray<FString>& Names, const FOptions& Options)
+{
+	int32 Failures = 0;
+	TSet<UPackage*> Touched;
+	for (const FString& Name : Names)
+	{
+		// By folder or by id; the row tells where the mesh lives.
+		FName RowName;
+		const FApexCarCatalogRow* Row = nullptr;
+		for (const TPair<FName, uint8*>& Pair : Table.GetRowMap())
+		{
+			const FApexCarCatalogRow* Candidate = reinterpret_cast<const FApexCarCatalogRow*>(Pair.Value);
+			if (Pair.Key.ToString().Equals(Name, ESearchCase::IgnoreCase)
+				|| Candidate->FolderName.Equals(Name, ESearchCase::IgnoreCase))
+			{
+				RowName = Pair.Key;
+				Row = Candidate;
+				break;
+			}
+		}
+		TArray<FString> Folders;
+		if (Row && !Row->Mesh.IsNull())
+		{
+			Folders.Add(FPackageName::GetLongPackagePath(Row->Mesh.GetLongPackageName()));
+		}
+		Folders.AddUnique(Options.DestRoot / PackageSegment(Name));
+		UE_LOG(LogApexTrackImport, Display, TEXT("  %s: %s"), *Name,
+			Row ? *FString::Printf(TEXT("dropping row %s (\"%s\")"), *RowName.ToString(), *Row->DisplayName)
+				: TEXT("no row"));
+		if (Options.bDryRun)
+		{
+			continue;
+		}
+		if (Row)
+		{
+			Table.RemoveRow(RowName);
+			Touched.Add(Table.GetOutermost());
+		}
+		for (const FString& Folder : Folders)
+		{
+			if (!Folder.StartsWith(Options.DestRoot + TEXT("/")))
+			{
+				continue;
+			}
+			const FString Dir = FPackageName::LongPackageNameToFilename(Folder);
+			if (IFileManager::Get().DirectoryExists(*Dir))
+			{
+				if (IFileManager::Get().DeleteDirectory(*Dir, false, true))
+				{
+					UE_LOG(LogApexTrackImport, Display, TEXT("    deleted %s"), *Folder);
+				}
+				else
+				{
+					UE_LOG(LogApexTrackImport, Error, TEXT("    could not delete %s"), *Dir);
+					++Failures;
+				}
+			}
+		}
+	}
+	FString Error;
+	if (!Options.bDryRun && Touched.Num() > 0)
+	{
+		Table.MarkPackageDirty();
+		if (!SavePackages(Touched, Error))
+		{
+			UE_LOG(LogApexTrackImport, Error, TEXT("%s"), *Error);
+			++Failures;
+		}
+	}
+	return Failures;
+}
+
 int32 UApexCarImportCommandlet::Main(const FString& Params)
 {
 	FOptions Options;
@@ -457,6 +533,10 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 	{
 		ListRows(*Table, Sources, Options.DestRoot);
 		return 0;
+	}
+	if (!Options.Remove.IsEmpty())
+	{
+		return RemoveCars(*Table, Options.Remove, Options) > 0 ? 1 : 0;
 	}
 	if (!Options.bDryRun && !UInterchangeManager::IsInterchangeImportEnabled())
 	{

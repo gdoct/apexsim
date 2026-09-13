@@ -478,8 +478,12 @@ void UApexSessionCreateWidget::RefreshContent()
 		// Cars have meshes rather than preview textures, so the card borrows the
 		// garage's turntable: it is idle whenever this screen is up, and a still
 		// of the pending car from it beats a captioned placeholder.
+		// Only while this screen is in front, though: the content is also
+		// rebuilt on every lobby snapshot while the garage is showing, and
+		// the garage's own pick would be swapped for the pending car and the
+		// turntable stopped under it.
 		UWidget* CarArt = nullptr;
-		AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this);
+		AApexCarPreviewStage* Stage = IsActiveScreen() ? AApexCarPreviewStage::Find(this) : nullptr;
 		if (Stage && bHasRow && !Row.Mesh.IsNull() && Stage->GetPreviewRenderTarget())
 		{
 			Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);

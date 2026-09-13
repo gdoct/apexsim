@@ -25,6 +25,8 @@ struct FApexCarCatalogRow;
  *   -all              every car folder with a car.toml
  *   -car=A,B          those folders
  *   -list             print the catalog rows against the car folders and stop
+ *   -remove=A,B       delete those cars' catalog rows and their mesh folders
+ *                     under -dest (by folder name or row id) and stop
  *   -force            re-import the mesh and rewrite the row's fields from the
  *                     TOML (the preview and cockpit tweaks are kept)
  *   -source=DIR       the cars (default: <project>/../content/cars)
@@ -77,6 +79,7 @@ private:
 	{
 		bool bAll = false;
 		bool bList = false;
+		TArray<FString> Remove;
 		bool bForce = false;
 		bool bDryRun = false;
 		TArray<FString> Cars;
@@ -102,4 +105,6 @@ private:
 	UStaticMesh* ImportGlb(const FString& GlbPath, const FString& DestRoot, const FString& Folder, FString& OutError);
 	static bool SavePackages(const TSet<UPackage*>& Packages, FString& OutError);
 	static void ListRows(const UDataTable& Table, const TArray<FSource>& Sources, const FString& DestRoot);
+	/** Drop the rows named by folder or id and delete the mesh folders they point at. */
+	static int32 RemoveCars(UDataTable& Table, const TArray<FString>& Names, const FOptions& Options);
 };
