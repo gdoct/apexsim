@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 
 use track_editor::ats::{
-    AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface, SurfaceKind,
+    AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Season, Side, Surface,
+    SurfaceKind,
 };
 use track_editor::ats_io;
 use track_editor::coords;
@@ -45,6 +46,8 @@ enum UiAction {
     AddProp(PropKind),
     CreatePitLane,
     DeleteSelected,
+    SetSeason(Season),
+    SetSpectators(bool),
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -429,6 +432,34 @@ fn scene_layers_ui(
                 }
             });
         });
+
+    egui::CollapsingHeader::new("Dressing")
+        .default_open(true)
+        .show(ui, |ui| {
+            // Scene-wide variant picks the importer makes: the props keep
+            // their base asset keys.
+            ui.horizontal(|ui| {
+                ui.label("season");
+                let mut season = scene.dressing.season;
+                egui::ComboBox::from_id_salt("dressing_season")
+                    .selected_text(season.label())
+                    .show_ui(ui, |ui| {
+                        for candidate in Season::ALL {
+                            ui.selectable_value(&mut season, candidate, candidate.label());
+                        }
+                    });
+                if season != scene.dressing.season {
+                    *action = Some(UiAction::SetSeason(season));
+                }
+            });
+            let mut spectators = scene.dressing.spectators;
+            if ui
+                .checkbox(&mut spectators, "spectators in the stands")
+                .changed()
+            {
+                *action = Some(UiAction::SetSpectators(spectators));
+            }
+        });
 }
 
 // ---------------------------------------------------------------------
@@ -563,6 +594,33 @@ fn inspector_ui(
                     });
                 ui.horizontal(|ui| {
                     ui.label("asset");
+                    // The kit's keys for the kind, plus whatever the field
+                    // holds now (a legacy key, or one typed by hand).
+                    let known = track_editor::props::find(prop.kind, &prop.asset).is_some();
+                    egui::ComboBox::from_id_salt("prop_asset")
+                        .selected_text(if known {
+                            prop.asset.clone()
+                        } else {
+                            format!("{} (not in kit)", prop.asset)
+                        })
+                        .show_ui(ui, |ui| {
+                            for entry in track_editor::props::assets_for(prop.kind) {
+                                let label = format!(
+                                    "{}  {:.0}×{:.0}×{:.0} m",
+                                    entry.asset, entry.length_m, entry.depth_m, entry.height_m
+                                );
+                                if ui
+                                    .selectable_label(prop.asset == entry.asset, label)
+                                    .clicked()
+                                {
+                                    prop.asset = entry.asset.to_string();
+                                    changed = true;
+                                }
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("key");
                     changed |= ui.text_edit_singleline(&mut prop.asset).changed();
                 });
                 changed |= drag_row(ui, "x (m)", &mut prop.x, 0.5, -100_000.0..=100_000.0);
@@ -740,7 +798,7 @@ fn apply_ui_action(
             scene.props.push(Prop {
                 id,
                 kind,
-                asset: format!("{}_generic", kind.label()),
+                asset: track_editor::props::default_asset(kind),
                 x,
                 y,
                 z,
@@ -751,6 +809,18 @@ fn apply_ui_action(
             });
             selection.0 = Some(SelectedElement::Prop(id));
             status.0 = format!("Added {} #{id} at the camera focus.", kind.label());
+        }
+        UiAction::SetSeason(season) => {
+            scene.dressing.season = season;
+            status.0 = format!("Season set to {}.", season.label());
+        }
+        UiAction::SetSpectators(on) => {
+            scene.dressing.spectators = on;
+            status.0 = if on {
+                "Stands import full.".to_string()
+            } else {
+                "Stands import empty.".to_string()
+            };
         }
         UiAction::CreatePitLane => {
             let nodes = default_pit_lane_nodes(track_path);

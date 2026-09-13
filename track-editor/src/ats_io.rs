@@ -103,6 +103,10 @@ mod tests {
 
     fn populated_scene() -> AtsScene {
         let mut scene = AtsScene::new_for_track(&test_track(), "Test.yaml");
+        scene.dressing = crate::ats::Dressing {
+            season: crate::ats::Season::Autumn,
+            spectators: false,
+        };
         let id = scene.alloc_id();
         scene.surfaces.push(Surface {
             id,

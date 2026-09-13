@@ -42,6 +42,7 @@ use std::collections::BTreeMap;
 use std::f32::consts::TAU;
 
 use crate::ats::{AtsScene, Prop, PropKind, Side, SurfaceKind};
+use crate::props;
 use crate::terrain::{self, TerrainHeightfield};
 use crate::track_data::TrackFile;
 use crate::track_mesh::surface_height;
@@ -200,13 +201,38 @@ fn prop_radius(kind: PropKind) -> f32 {
 /// `PlaceholderPropSize`: a grandstand is 30 m × 12 m, a building
 /// 15 m × 10 m, a wall or barrier 6 m / 4 m long, all times scale. A
 /// grandstand's seating faces local +Y.
-fn footprint_half_extents(kind: PropKind, scale: f32) -> Option<(f32, f32)> {
-    match kind {
-        PropKind::Grandstand => Some((15.0 * scale, 6.0 * scale)),
-        PropKind::Building => Some((7.5 * scale, 5.0 * scale)),
-        PropKind::TireWall => Some((3.0 * scale, 0.5 * scale)),
-        PropKind::Barrier => Some((2.0 * scale, 0.3 * scale)),
+fn footprint_half_extents(prop: &Prop) -> Option<(f32, f32)> {
+    let scale = prop.scale;
+    match prop.kind {
+        // A stand is laid from its length; the bays' depth is the family's.
+        PropKind::Grandstand => Some((
+            prop.length_m.unwrap_or(STAND_DEFAULT_LENGTH_M) * scale / 2.0,
+            props::resolve(prop.kind, &prop.asset).map_or(6.0, |a| a.depth_m / 2.0) * scale,
+        )),
+        PropKind::Building | PropKind::TireWall | PropKind::Barrier => {
+            let (half_len, half_wid) = match props::resolve(prop.kind, &prop.asset) {
+                Some(a) => (a.length_m / 2.0, a.depth_m / 2.0),
+                None => match prop.kind {
+                    PropKind::Building => (7.5, 5.0),
+                    PropKind::TireWall => (3.0, 0.5),
+                    _ => (2.0, 0.3),
+                },
+            };
+            Some((half_len * scale, half_wid * scale))
+        }
         _ => None,
+    }
+}
+
+/// Default stand length when the scene does not say (the importer's too).
+const STAND_DEFAULT_LENGTH_M: f32 = 30.0;
+
+/// A prop's push-off radius: the circle round its authored footprint when
+/// the kit knows the asset, else the kind's stand-in radius.
+fn prop_radius_of(prop: &Prop) -> f32 {
+    match props::resolve(prop.kind, &prop.asset) {
+        Some(entry) if prop_radius(prop.kind) > 0.0 => entry.footprint_radius_m() * prop.scale,
+        _ => prop_radius(prop.kind) * prop.scale,
     }
 }
 
@@ -258,7 +284,7 @@ pub fn stand_road_clearance_m(path: &CenterlinePath, prop: &Prop) -> Option<f32>
     if !matches!(prop.kind, PropKind::Grandstand | PropKind::Building) {
         return None;
     }
-    let ext = footprint_half_extents(prop.kind, prop.scale)?;
+    let ext = footprint_half_extents(prop)?;
     footprint_samples(prop.x, prop.y, prop.yaw_rad, ext)
         .iter()
         .map(|&(sx, sy)| {
@@ -526,10 +552,10 @@ pub fn groom_props(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomRepor
             }
             _ => {
                 let (sample, lat, _) = nearest_cross_section(&path, prop.x, prop.y);
-                let radius = prop_radius(prop.kind) * prop.scale;
+                let radius = prop_radius_of(&prop);
                 let (mut x, mut y, mut yaw) = (prop.x, prop.y, prop.yaw_rad);
 
-                if let Some(ext) = footprint_half_extents(prop.kind, prop.scale) {
+                if let Some(ext) = footprint_half_extents(&prop) {
                     // The whole slab has to clear the road — a 78 m stand
                     // whose centre is 20 m out still has a corner on the
                     // asphalt. Where the circuit folds, another section may
@@ -1457,7 +1483,7 @@ fn hash01(keys: &[u64], salt: u64) -> f32 {
 /// segment is nothing like a disc — everything else a disc of
 /// [`prop_radius`].
 fn footprint_gap(prop: &Prop, x: f32, y: f32) -> f32 {
-    match footprint_half_extents(prop.kind, prop.scale) {
+    match footprint_half_extents(prop) {
         Some((half_len, half_thick)) => {
             let (sin_h, cos_h) = prop.yaw_rad.sin_cos();
             let (dx, dy) = (x - prop.x, y - prop.y);
@@ -1469,7 +1495,7 @@ fn footprint_gap(prop: &Prop, x: f32, y: f32) -> f32 {
                 along.max(across)
             }
         }
-        None => (x - prop.x).hypot(y - prop.y) - prop_radius(prop.kind) * prop.scale,
+        None => (x - prop.x).hypot(y - prop.y) - prop_radius_of(prop),
     }
 }
 

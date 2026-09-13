@@ -134,6 +134,53 @@ class Builder:
                                        grid[(i + 1) % segs][(j + 1) % rings], grid[i][(j + 1) % rings]))
                 f.material_index = s
 
+    def bar(self, mat, p0, p1, r, segs=6):
+        """Cylinder from p0 to p1 in any direction (no caps)."""
+        s = self.slot(mat)
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        L = d.length
+        if L < 1e-6:
+            return
+        M = d.normalized().to_track_quat('Z', 'Y').to_matrix()
+        rings = []
+        for k in (0.0, L):
+            rings.append([self.bm.verts.new(p0 + M @ Vector((math.cos(2 * math.pi * i / segs) * r,
+                                                              math.sin(2 * math.pi * i / segs) * r, k)))
+                          for i in range(segs)])
+        for i in range(segs):
+            j = (i + 1) % segs
+            f = self.bm.faces.new((rings[0][i], rings[0][j], rings[1][j], rings[1][i]))
+            f.material_index = s
+
+    def truss(self, mat, p0, p1, w, h, pitch=1.5, r_chord=0.05, r_diag=0.025):
+        """Box truss from p0 to p1: four chords, lacing rings every `pitch`, zigzag diagonals."""
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        L = d.length
+        u = d.normalized()
+        a = Vector((0, 0, 1)).cross(u)
+        a = a.normalized() if a.length > 1e-6 else Vector((1, 0, 0))
+        b = u.cross(a).normalized()
+        c = [a * (w / 2) + b * (h / 2), -a * (w / 2) + b * (h / 2), -a * (w / 2) - b * (h / 2), a * (w / 2) - b * (h / 2)]
+        for cc in c:
+            self.bar(mat, p0 + cc, p1 + cc, r_chord)
+        n = max(1, round(L / pitch))
+        step = L / n
+        for i in range(n + 1):
+            x = p0 + u * (i * step)
+            for k in range(4):
+                self.bar(mat, x + c[k], x + c[(k + 1) % 4], r_diag)
+        for i in range(n):
+            x0 = p0 + u * (i * step)
+            x1 = p0 + u * ((i + 1) * step)
+            for k in range(4):
+                c0, c1 = c[k], c[(k + 1) % 4]
+                if i % 2 == 0:
+                    self.bar(mat, x0 + c0, x1 + c1, r_diag)
+                else:
+                    self.bar(mat, x0 + c1, x1 + c0, r_diag)
+
     def extrude_profile(self, mat, profile_yz, x0, x1, closed=False, flip=False):
         """Sweep a 2D (y, z) polyline along X from x0 to x1."""
         s = self.slot(mat)

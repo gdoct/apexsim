@@ -7,26 +7,28 @@ namespace ApexProps
 		/*
 		 * The kit's kinds (docs/PROPS.md). Instanced kinds are the ones placed
 		 * by the hundred; Nanite goes on the big one-offs. Everything with a
-		 * front faces the road; bridges span it, trees and the sky do not care.
+		 * front faces the road (the buildings all have one: glass front,
+		 * balcony, brand board); bridges span it, trees, parked vehicles and
+		 * the sky do not care. Every kind but `cone` has an authored default.
 		 */
 		const FKindInfo kKinds[] = {
 			//  kind            instanced  nanite  face-road  default
 			{TEXT("barrier"), true, false, true, TEXT("armco_4m")},
 			{TEXT("tire_wall"), true, false, true, TEXT("tires_4m")},
 			{TEXT("board"), true, false, true, TEXT("hoarding_3m")},
-			{TEXT("sign"), true, false, true, TEXT("")},
+			{TEXT("sign"), true, false, true, TEXT("marshal_post")},
 			{TEXT("fence"), true, false, true, TEXT("mesh_4m")},
 			{TEXT("grandstand"), false, true, true, TEXT("bay_10m")},
-			{TEXT("building"), false, true, false, TEXT("")},
+			{TEXT("building"), false, true, true, TEXT("clubhouse")},
 			{TEXT("pit"), false, true, true, TEXT("garage_6m")},
 			{TEXT("bridge"), false, true, false, TEXT("start_gantry")},
 			{TEXT("light"), true, false, true, TEXT("floodlight_tower")},
 			{TEXT("tree"), true, false, false, TEXT("broadleaf_m")},
-			{TEXT("vehicle"), true, false, false, TEXT("")},
-			{TEXT("attraction"), false, true, false, TEXT("")},
+			{TEXT("vehicle"), true, false, false, TEXT("car_a")},
+			{TEXT("attraction"), false, true, false, TEXT("tent_6m")},
 			{TEXT("sky"), false, false, false, TEXT("blimp")},
 			{TEXT("cone"), true, false, false, TEXT("")},
-			{TEXT("misc"), true, false, false, TEXT("")},
+			{TEXT("misc"), true, false, false, TEXT("bollard")},
 		};
 
 		struct FAlias
@@ -93,7 +95,9 @@ namespace ApexProps
 	{
 		if (Kind == TEXT("attraction"))
 		{
-			return Asset == TEXT("video_screen");
+			// A screen, a stage and a tent's open front look at the road; a
+			// ferris wheel, a camera tower and a row of portaloos have no front.
+			return Asset == TEXT("video_screen") || Asset == TEXT("fanzone_stage") || Asset == TEXT("tent_6m");
 		}
 		const FKindInfo* Info = FindKind(Kind);
 		return Info && Info->bFaceRoad;
@@ -168,11 +172,58 @@ namespace ApexProps
 		return FString::Printf(TEXT("%s/T_marker_%s.T_marker_%s"), *MarkersFolder(Root), *Marker, *Marker);
 	}
 
+	FString FlagsFolder(const FString& Root)
+	{
+		return Root / TEXT("sign/Flags");
+	}
+
+	FString FlagTextureObjectPath(const FString& Root, const FString& Code)
+	{
+		return FString::Printf(TEXT("%s/T_flag_%s.T_flag_%s"), *FlagsFolder(Root), *Code, *Code);
+	}
+
+	bool IsFlagSlot(FName SlotName)
+	{
+		return NameIs(SlotName, TEXT("flag_cloth"));
+	}
+
+	FString CrowdVariant(const FString& Kind, const FString& Asset)
+	{
+		if (Kind != TEXT("grandstand") || Asset.EndsWith(TEXT("_crowd")))
+		{
+			return FString();
+		}
+		if (Asset.StartsWith(TEXT("bay_10m")) || Asset == TEXT("scaffold_10m") || Asset == TEXT("banking_seats"))
+		{
+			return Asset + TEXT("_crowd");
+		}
+		return FString();
+	}
+
+	FString AutumnVariant(const FString& Kind, const FString& Asset)
+	{
+		if (Kind != TEXT("tree") || Asset.EndsWith(TEXT("_autumn")))
+		{
+			return FString();
+		}
+		if (Asset.StartsWith(TEXT("broadleaf_")) || Asset == TEXT("poplar") || Asset == TEXT("bush_cluster"))
+		{
+			return Asset + TEXT("_autumn");
+		}
+		return FString();
+	}
+
+	bool IsBayFamily(const FString& Asset)
+	{
+		return Asset.StartsWith(TEXT("bay_10m"));
+	}
+
 	bool IsBrandSlot(FName SlotName)
 	{
 		const FString Name = SlotName.ToString();
 		return Name == TEXT("board_brand") || Name == TEXT("bridge_brand") || Name.StartsWith(TEXT("bridge_brand_"))
-			|| Name == TEXT("pit_team_board") || Name == TEXT("tyre_bridge_brand") || Name == TEXT("blimp_brand");
+			|| Name == TEXT("pit_team_board") || Name == TEXT("tyre_bridge_brand") || Name == TEXT("blimp_brand")
+			|| Name == TEXT("balloon_envelope");
 	}
 
 	bool IsMarkerSlot(FName SlotName)
@@ -183,13 +234,14 @@ namespace ApexProps
 	bool IsEmissiveSlot(FName SlotName)
 	{
 		return NameIs(SlotName, TEXT("gantry_lamp")) || NameIs(SlotName, TEXT("led_panel"))
-			|| NameIs(SlotName, TEXT("floodlight_lamp")) || NameIs(SlotName, TEXT("led_screen"));
+			|| NameIs(SlotName, TEXT("floodlight_lamp")) || NameIs(SlotName, TEXT("led_screen"))
+			|| NameIs(SlotName, TEXT("pit_light_red")) || NameIs(SlotName, TEXT("pit_light_green"));
 	}
 
 	bool IsMaskedSlot(FName SlotName)
 	{
 		const FString Name = SlotName.ToString();
-		return Name == TEXT("fence_mesh") || Name.StartsWith(TEXT("tree_foliage"));
+		return Name == TEXT("fence_mesh") || Name.StartsWith(TEXT("tree_foliage")) || Name == TEXT("crowd_cards");
 	}
 
 	float BridgeSpanScale(float SpanM)
@@ -200,9 +252,24 @@ namespace ApexProps
 	FStandLayout LayoutGrandstand(const FString& Asset, float LengthM, TOptional<float> RadiusM, bool* bWedge)
 	{
 		FStandLayout Layout;
+		const int32 Bays = FMath::Max(1, FMath::RoundToInt(LengthM / BayPitchM));
+		if (!IsBayFamily(Asset))
+		{
+			// A club stand or a grass bank: the module repeated, no caps.
+			if (bWedge)
+			{
+				*bWedge = false;
+			}
+			Layout.BayAsset = Asset;
+			for (int32 i = 0; i < Bays; ++i)
+			{
+				const float X = (i - (Bays - 1) * 0.5f) * BayPitchM * 100.0f;
+				Layout.Bays.Add(FTransform(FVector(X, 0.0, 0.0)));
+			}
+			return Layout;
+		}
 		const bool bRoof = Asset.EndsWith(TEXT("_roof"));
 		const bool bLarge = Asset.Contains(TEXT("_large"));
-		const int32 Bays = FMath::Max(1, FMath::RoundToInt(LengthM / BayPitchM));
 
 		// Wedge choice: the family whose front radius is nearest the bend's,
 		// on the inside always the one inside wedge there is. The large

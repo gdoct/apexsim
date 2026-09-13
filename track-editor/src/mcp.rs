@@ -28,7 +28,8 @@ use serde_json::{json, Value};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::ats::{
-    AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface, SurfaceKind,
+    AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Season, Side, Surface,
+    SurfaceKind,
 };
 use crate::ats_io;
 use crate::coords;
@@ -229,7 +230,8 @@ struct AddPropParams {
     yaw_rad: Option<f32>,
     /// Uniform scale. Defaults to 1.
     scale: Option<f32>,
-    /// Asset key for the Unreal importer; defaults to "<kind>_generic".
+    /// Asset key for the Unreal importer (see list_prop_assets); defaults
+    /// to the kind's kit default.
     asset: Option<String>,
     /// Optional sign/board text.
     text: Option<String>,
@@ -253,6 +255,15 @@ struct UpdatePropParams {
     text: Option<String>,
     /// Grandstand length, metres; pass 0 to clear it (back to the 30 m default).
     length_m: Option<f32>,
+}
+
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+struct SetDressingParams {
+    /// "summer" or "autumn"; autumn imports the broadleaf trees, poplars
+    /// and bushes with autumn foliage.
+    season: Option<String>,
+    /// Whether the grandstands import full (`_crowd` bays).
+    spectators: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
@@ -322,6 +333,7 @@ enum EditorCommand {
     RemoveElement(ElementIdParams, oneshot::Sender<Result<(), String>>),
     SetPitLane(SetPitLaneParams, oneshot::Sender<Result<(), String>>),
     ClearPitLane(oneshot::Sender<Result<(), String>>),
+    SetDressing(SetDressingParams, oneshot::Sender<Result<(), String>>),
     Undo(oneshot::Sender<Result<(), String>>),
     Redo(oneshot::Sender<Result<(), String>>),
     Save(oneshot::Sender<Result<(), String>>),
@@ -546,7 +558,7 @@ fn drain_mcp_commands(
                         asset: params
                             .asset
                             .clone()
-                            .unwrap_or_else(|| format!("{}_generic", kind.label())),
+                            .unwrap_or_else(|| crate::props::default_asset(kind)),
                         x: params.x,
                         y: params.y,
                         z: params.z,
@@ -625,6 +637,18 @@ fn drain_mcp_commands(
                 let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
                     if s.pit_lane.take().is_none() {
                         return Err("no pit lane to clear".to_string());
+                    }
+                    Ok(())
+                });
+                let _ = reply.send(result);
+            }
+            EditorCommand::SetDressing(params, reply) => {
+                let result = mutate_scene(&mut open_scene, &mut undo_stack, &mut status, |s| {
+                    if let Some(season) = params.season.as_deref() {
+                        s.dressing.season = Season::parse(season)?;
+                    }
+                    if let Some(spectators) = params.spectators {
+                        s.dressing.spectators = spectators;
                     }
                     Ok(())
                 });
@@ -1087,6 +1111,39 @@ impl TrackEditorMcp {
     async fn clear_pit_lane(&self) -> Result<CallToolResult, McpError> {
         self.request_fallible(EditorCommand::ClearPitLane).await?;
         Ok(text_result("pit lane cleared"))
+    }
+
+    #[tool(
+        description = "List the authored prop kit: every asset key per kind with its footprint (length along the road, depth, height, metres). The first asset of a kind is its default. Read-only."
+    )]
+    async fn list_prop_assets(&self) -> Result<CallToolResult, McpError> {
+        let mut kinds = serde_json::Map::new();
+        for kind in PropKind::ALL {
+            let assets: Vec<Value> = crate::props::assets_for(kind)
+                .map(|a| {
+                    serde_json::json!({
+                        "asset": a.asset,
+                        "length_m": a.length_m,
+                        "depth_m": a.depth_m,
+                        "height_m": a.height_m,
+                    })
+                })
+                .collect();
+            kinds.insert(kind.label().to_string(), Value::Array(assets));
+        }
+        Ok(json_result(Value::Object(kinds)))
+    }
+
+    #[tool(
+        description = "Set the scene's dressing: season (summer|autumn foliage) and whether the grandstands are full of spectators. Only provided fields change. Records an undo entry."
+    )]
+    async fn set_dressing(
+        &self,
+        Parameters(params): Parameters<SetDressingParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.request_fallible(|reply| EditorCommand::SetDressing(params, reply))
+            .await?;
+        Ok(text_result("dressing set"))
     }
 
     #[tool(description = "Undo the last scene edit (from either Claude or the human user).")]

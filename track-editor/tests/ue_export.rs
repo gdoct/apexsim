@@ -390,6 +390,42 @@ fn scene_header_and_gameplay_anchors_are_populated() {
     let pit = baked.pit_lane.expect("pit lane should export");
     assert_eq!(pit.box_count, 10);
     assert!(baked.meshes.iter().any(|m| m.material_key == "pit_lane"));
+
+    // A scene that says nothing is dressed for a summer race day.
+    assert_eq!(baked.dressing.season, "summer");
+    assert!(baked.dressing.spectators);
+}
+
+/// The scene's dressing reaches the importer as words it can key on,
+/// while the props keep their base asset keys: the importer swaps in the
+/// `_autumn` and `_crowd` meshes itself.
+#[test]
+fn dressing_is_exported_without_renaming_the_props() {
+    use track_editor::ats::{Dressing, Season};
+    let track = test_track();
+    let mut scene = test_scene(&track);
+    scene.dressing = Dressing {
+        season: Season::Autumn,
+        spectators: false,
+    };
+    let id = scene.alloc_id();
+    scene.props.push(track_editor::ats::Prop {
+        id,
+        kind: track_editor::ats::PropKind::Tree,
+        asset: "broadleaf_m".to_string(),
+        x: 60.0,
+        y: 30.0,
+        z: 0.0,
+        yaw_rad: 0.0,
+        scale: 1.0,
+        text: None,
+        length_m: None,
+    });
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    assert_eq!(baked.dressing.season, "autumn");
+    assert!(!baked.dressing.spectators);
+    assert_eq!(props_with(&baked, "tree", "broadleaf_m").len(), 1);
+    assert!(props_with(&baked, "tree", "broadleaf_m_autumn").is_empty());
 }
 
 fn props_with<'a>(scene: &'a UeScene, kind: &str, asset: &str) -> Vec<&'a ue_export::UeProp> {
@@ -467,6 +503,14 @@ fn the_pit_lane_bakes_a_garage_row_and_pit_walls() {
     let garages = props_with(&baked, "pit", "garage_6m");
     assert_eq!(garages.len(), 10, "one garage per box");
     assert_eq!(props_with(&baked, "pit", "garage_end").len(), 2);
+    // The crew's kit shares each garage's pivot and heading: authored to
+    // reach out from the door onto the working lane.
+    let kits = props_with(&baked, "pit", "box_kit");
+    assert_eq!(kits.len(), 10, "a box kit per garage");
+    for (garage, kit) in garages.iter().zip(&kits) {
+        assert_eq!(garage.location, kit.location);
+        assert_eq!(garage.yaw_deg, kit.yaw_deg);
+    }
     let walls = props_with(&baked, "pit", "pit_wall_6m");
     assert_eq!(walls.len(), 10, "a wall module per box");
     let plain = props_with(&baked, "pit", "pit_wall_plain_6m");

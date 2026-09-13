@@ -69,10 +69,31 @@ namespace ApexProps
 	APEXTRACKEDITOR_API bool IsBrandSlot(FName SlotName);
 	/** The braking marker's number panel; `text` is 50/100/150/200. */
 	APEXTRACKEDITOR_API bool IsMarkerSlot(FName SlotName);
+	/** The flag pole's cloth; `text` is a country code (`nl`, `de`, … `chequer`). */
+	APEXTRACKEDITOR_API bool IsFlagSlot(FName SlotName);
+	/** Flag textures, `T_flag_<code>` (object path) and their folder. */
+	APEXTRACKEDITOR_API FString FlagTextureObjectPath(const FString& Root, const FString& Code);
+	APEXTRACKEDITOR_API FString FlagsFolder(const FString& Root);
 	/** Lamps and screens the runtime may light up. */
 	APEXTRACKEDITOR_API bool IsEmissiveSlot(FName SlotName);
 	/** Masked foliage and fence mesh: must import Masked and two-sided. */
 	APEXTRACKEDITOR_API bool IsMaskedSlot(FName SlotName);
+
+	// ---- Variants the scene's dressing picks --------------------------------
+
+	/**
+	 * `<asset>_crowd` for the stand assets that come with a seated crowd
+	 * (every `bay_10m*`, `scaffold_10m`, `banking_seats`); empty otherwise.
+	 */
+	APEXTRACKEDITOR_API FString CrowdVariant(const FString& Kind, const FString& Asset);
+	/** `<asset>_autumn` for the trees with autumn foliage; empty for the rest. */
+	APEXTRACKEDITOR_API FString AutumnVariant(const FString& Kind, const FString& Asset);
+	/**
+	 * Whether a grandstand asset is a bay family (`bay_10m`, `_roof`,
+	 * `_large`…): laid with end caps and turned into wedges round a bend.
+	 * The other stands (`scaffold_10m`, `banking_seats`) tile plain.
+	 */
+	APEXTRACKEDITOR_API bool IsBayFamily(const FString& Asset);
 
 	/** The one asset imported as two meshes: the wheel and its `rotor` node. */
 	inline const TCHAR* const FerrisWheelKind = TEXT("attraction");
@@ -117,6 +138,8 @@ namespace ApexProps
 	 * inside — and the bays are turned about the wedges' common centre so
 	 * they share their side edges; the large family is straight only.
 	 * `bWedge` reports whether a wedge was chosen. See docs/PROPS.md.
+	 * A non-bay stand (`scaffold_10m`, `banking_seats`) is the module
+	 * repeated at the same pitch, straight, with no caps.
 	 */
 	APEXTRACKEDITOR_API FStandLayout LayoutGrandstand(
 		const FString& Asset, float LengthM, TOptional<float> RadiusM, bool* bWedge = nullptr);

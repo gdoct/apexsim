@@ -66,9 +66,15 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("trees are never flipped"), ApexProps::FacesRoad(TEXT("tree"), TEXT("poplar")));
 	TestTrue(TEXT("a video screen has a front"), ApexProps::FacesRoad(TEXT("attraction"), TEXT("video_screen")));
 	TestFalse(TEXT("a ferris wheel has none"), ApexProps::FacesRoad(TEXT("attraction"), TEXT("ferris_wheel")));
+	TestTrue(TEXT("a tent's open front looks at the road"), ApexProps::FacesRoad(TEXT("attraction"), TEXT("tent_6m")));
+	TestFalse(TEXT("a camera tower has no front"), ApexProps::FacesRoad(TEXT("attraction"), TEXT("camera_tower")));
+	TestTrue(TEXT("buildings have a front"), ApexProps::FacesRoad(TEXT("building"), TEXT("control_tower")));
+	TestFalse(TEXT("parked cars are left as placed"), ApexProps::FacesRoad(TEXT("vehicle"), TEXT("car_b")));
 	TestEqual(TEXT("sky default"), ApexProps::DefaultAssetFor(TEXT("sky")), FString(TEXT("blimp")));
 	TestEqual(TEXT("barrier default"), ApexProps::DefaultAssetFor(TEXT("barrier")), FString(TEXT("armco_4m")));
-	TestTrue(TEXT("signs have no default"), ApexProps::DefaultAssetFor(TEXT("sign")).IsEmpty());
+	TestEqual(TEXT("sign default"), ApexProps::DefaultAssetFor(TEXT("sign")), FString(TEXT("marshal_post")));
+	TestEqual(TEXT("vehicle default"), ApexProps::DefaultAssetFor(TEXT("vehicle")), FString(TEXT("car_a")));
+	TestTrue(TEXT("cones have no default"), ApexProps::DefaultAssetFor(TEXT("cone")).IsEmpty());
 	TestTrue(TEXT("unknown kinds have no default"), ApexProps::DefaultAssetFor(TEXT("spaceship")).IsEmpty());
 	TestNull(TEXT("unknown kind"), ApexProps::FindKind(TEXT("spaceship")));
 
@@ -79,6 +85,31 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("brand slot"), ApexProps::IsBrandSlot(FName(TEXT("bridge_brand_piretti"))));
 	TestFalse(TEXT("a post is not a brand slot"), ApexProps::IsBrandSlot(FName(TEXT("board_post"))));
 	TestTrue(TEXT("foliage is masked"), ApexProps::IsMaskedSlot(FName(TEXT("tree_foliage_conifer"))));
+	TestTrue(TEXT("crowd cards are masked"), ApexProps::IsMaskedSlot(FName(TEXT("crowd_cards"))));
+	TestTrue(TEXT("a balloon carries a brand"), ApexProps::IsBrandSlot(FName(TEXT("balloon_envelope"))));
+	TestTrue(TEXT("flag cloth"), ApexProps::IsFlagSlot(FName(TEXT("flag_cloth"))));
+	TestFalse(TEXT("a flag is not a brand"), ApexProps::IsBrandSlot(FName(TEXT("flag_cloth"))));
+	TestEqual(TEXT("flag path"), ApexProps::FlagTextureObjectPath(TEXT("/Game/Props"), TEXT("nl")),
+		FString(TEXT("/Game/Props/sign/Flags/T_flag_nl.T_flag_nl")));
+	TestTrue(TEXT("pit lights glow"), ApexProps::IsEmissiveSlot(FName(TEXT("pit_light_green"))));
+
+	// The dressing's variants: every stand module has a crowd twin, the
+	// caps do not; broadleaf trees turn, conifers stay green.
+	TestEqual(TEXT("bay crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("bay_10m_curve6_roof")),
+		FString(TEXT("bay_10m_curve6_roof_crowd")));
+	TestEqual(TEXT("scaffold crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("scaffold_10m")),
+		FString(TEXT("scaffold_10m_crowd")));
+	TestTrue(TEXT("caps have no crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("end_cap")).IsEmpty());
+	TestTrue(TEXT("crowd is not doubled"),
+		ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("bay_10m_crowd")).IsEmpty());
+	TestTrue(TEXT("only stands have crowds"), ApexProps::CrowdVariant(TEXT("pit"), TEXT("bay_10m")).IsEmpty());
+	TestEqual(TEXT("broadleaf autumn"), ApexProps::AutumnVariant(TEXT("tree"), TEXT("broadleaf_l")),
+		FString(TEXT("broadleaf_l_autumn")));
+	TestEqual(TEXT("poplar autumn"), ApexProps::AutumnVariant(TEXT("tree"), TEXT("poplar")),
+		FString(TEXT("poplar_autumn")));
+	TestTrue(TEXT("conifers stay"), ApexProps::AutumnVariant(TEXT("tree"), TEXT("conifer_l")).IsEmpty());
+	TestTrue(TEXT("autumn is not doubled"),
+		ApexProps::AutumnVariant(TEXT("tree"), TEXT("poplar_autumn")).IsEmpty());
 
 	TestEqual(TEXT("15 m road keeps the span"), ApexProps::BridgeSpanScale(15.0f), 1.0f);
 	TestEqual(TEXT("12 m road shortens it"), ApexProps::BridgeSpanScale(12.0f), 0.8f);
@@ -119,6 +150,23 @@ bool FApexPropStraightStandTest::RunTest(const FString& Parameters)
 	// A gentle bend is straight too.
 	ApexProps::LayoutGrandstand(TEXT("bay_10m"), 30.0f, TOptional<float>(400.0f), &bWedge);
 	TestFalse(TEXT("400 m radius is straight"), bWedge);
+
+	// A club stand is the module repeated: no caps, never a wedge, even on
+	// a tight bend.
+	TestFalse(TEXT("scaffold is not a bay family"), ApexProps::IsBayFamily(TEXT("scaffold_10m")));
+	TestTrue(TEXT("roofed bays are"), ApexProps::IsBayFamily(TEXT("bay_10m_large_roof")));
+	bWedge = true;
+	const ApexProps::FStandLayout Scaffold =
+		ApexProps::LayoutGrandstand(TEXT("scaffold_10m"), 20.0f, TOptional<float>(48.0f), &bWedge);
+	TestFalse(TEXT("scaffold stays straight"), bWedge);
+	TestEqual(TEXT("scaffold module"), Scaffold.BayAsset, FString(TEXT("scaffold_10m")));
+	TestTrue(TEXT("scaffold has no caps"), Scaffold.CapAsset.IsEmpty() && Scaffold.Caps.IsEmpty());
+	TestEqual(TEXT("two modules"), Scaffold.Bays.Num(), 2);
+	if (Scaffold.Bays.Num() == 2)
+	{
+		TestEqual(TEXT("module 0 x"), Scaffold.Bays[0].GetLocation().X, -500.0);
+		TestEqual(TEXT("module 1 x"), Scaffold.Bays[1].GetLocation().X, 500.0);
+	}
 	return true;
 }
 

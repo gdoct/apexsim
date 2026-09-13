@@ -765,22 +765,30 @@ UTexture2D* UApexPropImportCommandlet::ImportPng(const FString& PackageName, con
 	return Texture;
 }
 
-bool UApexPropImportCommandlet::ImportBoardTextures(const FOptions& Options, FStats& Stats)
+bool UApexPropImportCommandlet::ImportLooseTextures(
+	const FOptions& Options, FStats& Stats, const TSet<FString>& WholeKinds)
 {
 	struct FSet
 	{
+		/** The kind whose import brings the set along. */
+		const TCHAR* Kind;
 		const TCHAR* Folder;
 		FString Dest;
 		const TCHAR* Prefix;
 	};
 	const FSet Sets[] = {
-		{TEXT("board/brands"), ApexProps::BrandsFolder(Options.DestRoot), TEXT("T_brand_")},
-		{TEXT("board/markers"), ApexProps::MarkersFolder(Options.DestRoot), TEXT("T_marker_")},
+		{TEXT("board"), TEXT("board/brands"), ApexProps::BrandsFolder(Options.DestRoot), TEXT("T_brand_")},
+		{TEXT("board"), TEXT("board/markers"), ApexProps::MarkersFolder(Options.DestRoot), TEXT("T_marker_")},
+		{TEXT("sign"), TEXT("sign/flags"), ApexProps::FlagsFolder(Options.DestRoot), TEXT("T_flag_")},
 	};
 	bool bOk = true;
 	TSet<UPackage*> Packages;
 	for (const FSet& Set : Sets)
 	{
+		if (!Options.bAll && !WholeKinds.Contains(Set.Kind))
+		{
+			continue;
+		}
 		TArray<FString> Files;
 		IFileManager::Get().FindFiles(Files, *(Options.SourceDir / Set.Folder / TEXT("*.png")), true, false);
 		Files.Sort();
@@ -894,9 +902,9 @@ int32 UApexPropImportCommandlet::Main(const FString& Params)
 		}
 	}
 
-	if (Options.bAll || WholeKinds.Contains(TEXT("board")))
+	if (Options.bAll || WholeKinds.Contains(TEXT("board")) || WholeKinds.Contains(TEXT("sign")))
 	{
-		ImportBoardTextures(Options, Stats);
+		ImportLooseTextures(Options, Stats, WholeKinds);
 	}
 
 	UE_LOG(LogApexTrackImport, Display,

@@ -5,6 +5,7 @@ pub mod groom;
 pub mod mcp;
 pub mod pit;
 pub mod project;
+pub mod props;
 pub mod scene;
 pub mod state;
 pub mod terrain;

@@ -1,0 +1,118 @@
+id = "bcfabec3-f0a2-4c4f-ae71-2478835fa423"
+name = "Posh GT3 RS"
+version = "1.0.0"
+model = "posh_gt3rs.glb"
+brand = "Posh"
+model_year = 2026
+class = "GT3"
+model_type = "GT3 RS"
+manufacturer_country = "Germany"
+
+[physics]
+mass_kg = 1290.0
+length_m = 4.57
+width_m = 2.0
+max_engine_force_n = 8500.0
+max_brake_force_n = 15500.0
+drag_coefficient = 0.36
+# Retuned after the physically-correct normal-load + slip-model overhaul
+# (cars lost the accidental ~2x grip): GT3 slick territory.
+grip_coefficient = 1.2
+max_steering_angle_rad = 0.51
+wheelbase_m = 2.75
+
+# Aerodynamics. Drag and downforce both scale with the reference area, so
+# what counts is Cd*A (0.75 m2) and Cl*A (1.0 m2): a road GT3 with its wing,
+# ~190 kg of downforce at 200 km/h, 40% of it on the nose.
+frontal_area_m2 = 2.2
+lift_coefficient_front = -0.22
+lift_coefficient_rear = -0.34
+
+# Engine & drivetrain simulation parameters.
+# Notes:
+# - The server currently uses these fields where available; otherwise it falls back to legacy defaults.
+# - RPM values are in revolutions per minute, torque in N·m, power in Watts.
+
+[engine]
+# rear-engined 4.0 L flat-six, naturally aspirated, high-revving.
+max_power_w = 382000.0
+max_torque_nm = 475.0
+idle_rpm = 900.0
+redline_rpm = 9000.0
+max_rpm = 9200.0
+rev_limiter_rpm = 9150.0
+
+# Rotational dynamics / losses
+inertia_kg_m2 = 0.20
+friction_torque_nm = 18.0
+engine_brake_torque_nm = 95.0
+idle_control_gain = 0.15
+
+# Optional torque curve used by physics when provided.
+# Provide points ordered by RPM.
+[[engine.torque_curve]]
+rpm = 1000.0
+torque_nm = 222.3
+
+[[engine.torque_curve]]
+rpm = 3000.0
+torque_nm = 353.7
+
+[[engine.torque_curve]]
+rpm = 4500.0
+torque_nm = 424.5
+
+[[engine.torque_curve]]
+rpm = 6100.0
+torque_nm = 475.0
+
+[[engine.torque_curve]]
+rpm = 8000.0
+torque_nm = 459.8
+
+[[engine.torque_curve]]
+rpm = 9000.0
+torque_nm = 404.3
+
+[transmission]
+# One of: Manual, DCT, Sequential, Automatic, CVT
+transmission_type = "Sequential"
+
+final_drive_ratio = 3.95
+
+# Shift timing and drivetrain efficiency
+shift_time_s = 0.08
+efficiency = 0.93
+
+# 6 forward gears: a long first (72 km/h at the 9000 rpm limiter) for getting
+# off the line, closing up to 321 km/h in sixth.
+[transmission.ratio_curve]
+gears = 6
+first = 3.85
+top = 0.9
+shape = "progressive"
+
+[drivetrain]
+# One of: RWD, FWD, AWD
+layout = "RWD"
+
+[differential]
+# One of: Open, Locked, ClutchLSD, ViscousLSD, Torsen
+differential_type = "ClutchLSD"
+preload_nm = 60.0
+lock_power = 0.35
+lock_coast = 0.20
+
+[fuel]
+capacity_liters = 64.0
+idle_consumption_lps = 0.00005
+load_consumption_scale = 0.003
+
+[hybrid]
+enabled = false
+battery_capacity_kwh = 0.0
+battery_max_discharge_kw = 0.0
+battery_max_charge_kw = 0.0
+motor_max_torque_nm = 0.0
+motor_max_power_kw = 0.0
+regen_max_power_kw = 0.0
