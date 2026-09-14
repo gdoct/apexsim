@@ -11,6 +11,8 @@ struct CarToml {
     #[allow(dead_code)]
     version: String,
     model: String,
+    #[serde(default)]
+    class: String,
     #[allow(dead_code)]
     texture_folder: Option<String>,
     physics: PhysicsToml,
@@ -457,6 +459,7 @@ impl CarLoader {
             id,
             name: car_toml.name,
             model: car_toml.model,
+            class: car_toml.class,
             content_crc: crate::content_crc::content_crc(content.as_bytes()),
 
             // Physical dimensions

@@ -797,9 +797,9 @@ impl GameSession {
         let entries = self
             .session
             .participants
-            .keys()
+            .iter()
             .enumerate()
-            .map(|(idx, player_id)| {
+            .map(|(idx, (player_id, state))| {
                 let is_ai = self.ai_profiles.contains_key(player_id);
                 let player_name = self
                     .ai_profiles
@@ -812,6 +812,7 @@ impl GameSession {
                     player_id: *player_id,
                     player_name,
                     is_ai,
+                    car_config_id: state.car_config_id,
                 }
             })
             .collect();
@@ -943,21 +944,32 @@ impl GameSession {
             .map(|p| (p.id, p.preferred_car_id))
             .collect();
 
-        // Deterministic default car: HashMap iteration order varies per run,
-        // so pick the smallest ID instead of whatever comes first.
-        let default_car_id = self.car_configs.keys().min().copied();
+        // The field races in the host car's class; without a host car, the
+        // smallest id anchors it (HashMap order varies per run).
+        let anchor = self
+            .session
+            .host_car_id
+            .filter(|id| self.car_configs.contains_key(id))
+            .or_else(|| self.car_configs.keys().min().copied());
+        let Some(anchor) = anchor else {
+            tracing::error!("Cannot spawn AI drivers: no car configurations loaded");
+            return;
+        };
+        let field = class_field(&self.car_configs, anchor);
+        // Carry on the rotation from the AI already on the grid, so a later
+        // spawn does not stack the same car again.
+        let mut next_car = self.session.ai_player_ids.len();
 
         for (ai_id, preferred_car) in profiles_to_spawn {
             if self.session.participants.len() >= self.session.max_players as usize {
                 break;
             }
 
-            // Use preferred car or default; without any car configs we
-            // cannot spawn AI at all.
-            let Some(car_id) = preferred_car.or(default_car_id) else {
-                tracing::error!("Cannot spawn AI drivers: no car configurations loaded");
-                return;
-            };
+            let car_id = preferred_car.unwrap_or_else(|| {
+                let car = field[next_car % field.len()];
+                next_car += 1;
+                car
+            });
 
             if self.add_player(ai_id, car_id).is_some() {
                 self.session.ai_player_ids.push(ai_id);
@@ -980,6 +992,38 @@ impl GameSession {
     pub fn set_ai_profiles(&mut self, profiles: Vec<AiDriverProfile>) {
         self.ai_profiles = profiles.into_iter().map(|p| (p.id, p)).collect();
     }
+}
+
+/// The cars an AI field is dealt from, in dealing order: every car of
+/// `anchor`'s class, ordered by id and starting just after `anchor`, so a
+/// GT3 host races a mixed GT3 field with its own model coming round last.
+/// A car with no class races only against itself. Never empty: `anchor` is
+/// always in it.
+pub fn class_field(
+    car_configs: &HashMap<CarConfigId, CarConfig>,
+    anchor: CarConfigId,
+) -> Vec<CarConfigId> {
+    let class = car_configs
+        .get(&anchor)
+        .map(|car| car.class.trim())
+        .unwrap_or_default();
+    let mut pool: Vec<CarConfigId> = if class.is_empty() {
+        vec![anchor]
+    } else {
+        car_configs
+            .values()
+            .filter(|car| car.class.trim().eq_ignore_ascii_case(class))
+            .map(|car| car.id)
+            .collect()
+    };
+    if !pool.contains(&anchor) {
+        pool.push(anchor);
+    }
+    pool.sort();
+    let at = pool.iter().position(|id| *id == anchor).unwrap_or(0);
+    let len = pool.len();
+    pool.rotate_left((at + 1) % len);
+    pool
 }
 
 #[cfg(test)]
@@ -1810,6 +1854,93 @@ mod tests {
             "AI should have made significant forward progress, x position: {}m",
             final_state.pos_x
         );
+    }
+
+    fn classed_car(class: &str, id: u128) -> CarConfig {
+        CarConfig {
+            id: Uuid::from_u128(id),
+            class: class.to_string(),
+            ..CarConfig::default()
+        }
+    }
+
+    #[test]
+    fn class_field_deals_the_host_class_starting_after_the_host() {
+        let cars: HashMap<CarConfigId, CarConfig> = [
+            classed_car("GT3", 1),
+            classed_car("LMP2", 2),
+            classed_car("gt3", 3),
+            classed_car("GT3", 4),
+            classed_car("", 5),
+        ]
+        .into_iter()
+        .map(|c| (c.id, c))
+        .collect();
+
+        let gt3 = class_field(&cars, Uuid::from_u128(3));
+        assert_eq!(
+            gt3,
+            vec![Uuid::from_u128(4), Uuid::from_u128(1), Uuid::from_u128(3)],
+            "every GT3 (class compared case-blind), host's model last"
+        );
+        assert_eq!(
+            class_field(&cars, Uuid::from_u128(2)),
+            vec![Uuid::from_u128(2)]
+        );
+        assert_eq!(
+            class_field(&cars, Uuid::from_u128(5)),
+            vec![Uuid::from_u128(5)],
+            "an unclassed car races only against itself"
+        );
+    }
+
+    #[test]
+    fn ai_field_is_a_mix_of_the_host_class() {
+        let cars = [
+            classed_car("GT3", 1),
+            classed_car("GT3", 2),
+            classed_car("LMP2", 3),
+            classed_car("GT3", 4),
+        ];
+        let car_configs: HashMap<CarConfigId, CarConfig> =
+            cars.iter().map(|c| (c.id, c.clone())).collect();
+        let track = TrackConfig::default();
+        let mut session =
+            RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 5, 3);
+        session.host_car_id = Some(Uuid::from_u128(2));
+        let mut game_session = GameSession::with_ai_profiles(
+            session,
+            track,
+            car_configs,
+            crate::ai_driver::generate_default_ai_profiles(5),
+        );
+        game_session.spawn_ai_drivers();
+
+        let driven: Vec<CarConfigId> = game_session
+            .session
+            .ai_player_ids
+            .iter()
+            .map(|id| game_session.session.participants[id].car_config_id)
+            .collect();
+        assert_eq!(driven.len(), 5);
+        assert!(
+            !driven.contains(&Uuid::from_u128(3)),
+            "no LMP2 in a GT3 field"
+        );
+        for gt3 in [1, 2, 4] {
+            assert!(
+                driven.contains(&Uuid::from_u128(gt3)),
+                "GT3 {gt3} is on the grid"
+            );
+        }
+
+        let roster = game_session.build_roster(&HashMap::new());
+        for entry in &roster.entries {
+            assert_eq!(
+                entry.car_config_id,
+                game_session.session.participants[&entry.player_id].car_config_id
+            );
+        }
     }
 
     #[test]
