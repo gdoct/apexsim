@@ -28,6 +28,8 @@ public class ApexSim : ModuleRules
 			// UApexUiSoundWave derives from USoundWave, whose vtable reaches
 			// IAudioProxyDataFactory; that symbol is exported from here.
 			"AudioExtensions",
+			// The startup splash hold, which UApexStartupSplashSubsystem ends.
+			"ApexSimBoot",
 		});
 	}
 }

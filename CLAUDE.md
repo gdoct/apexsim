@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ApexSim is an open-source simracing platform with a high-frequency authoritative Rust server (240Hz) and a Godot 4.5 C# client (the client is deprecated; server work does not need to keep it in sync). The server owns physics simulation and distributes telemetry while handling lobby/session management over TCP+TLS with MessagePack serialization. Protocol v2: after a token handshake binds the client's UDP address, telemetry (compact positional encoding, session-scoped car indices announced via a reliable `SessionRoster` message) and player input flow over UDP, with TCP fallback for un-handshaken clients.
+ApexSim is a source-available, proprietary simracing platform with a high-frequency authoritative Rust server (240Hz) and a Godot 4.5 C# client (the client is deprecated; server work does not need to keep it in sync). The server owns physics simulation and distributes telemetry while handling lobby/session management over TCP+TLS with MessagePack serialization. Protocol v2: after a token handshake binds the client's UDP address, telemetry (compact positional encoding, session-scoped car indices announced via a reliable `SessionRoster` message) and player input flow over UDP, with TCP fallback for un-handshaken clients.
 
 ## Build Commands
 
@@ -251,6 +251,32 @@ cars imported by hand before the commandlet existed keep their meshes.
 `AApexRaceCarActor` turns the mesh −90° about Z, so a car must be long along
 its local Y; the import logs a warning when it is not. `ApexSim.Cars.Toml`
 tests the TOML scan.
+
+### Content checksums (`content_crc.rs`, `ApexContentCrc.h`)
+The client races on a level baked from the track YAML and shows a mesh
+imported beside a `car.toml`, while the server simulates from those files
+themselves, so each file carries one checksum computed the same way in three
+places: the CRC-32 of zlib/PNG over the file's bytes with every carriage
+return dropped (so `core.autocrlf` cannot split the two sides; check vector
+`"123456789"` → `0xCBF43926`). The server computes it as it loads
+(`CarConfig::content_crc`, `TrackConfig::content_crc`) and sends it as
+`ContentCrc` in the lobby's car and track summaries; `SessionSummary` now also
+carries `TrackId` so a client can find the session's track without matching
+names. On the client `build_track_catalog.py` writes `source_crc` into the
+manifest and `ApexTrackCatalogSync` puts it on the row as `SourceCrc`;
+`ApexCarImport` hashes the TOML bytes onto the car row. Both commandlets
+refresh that one field even on an additive run, because it is derived, never
+hand-tuned. When the race director streams a track level, and when it spawns
+the local player's car, `UApexMenuFlowSubsystem::VerifyTrackContent` /
+`VerifyCarContent` compare row against server: a mismatch is a warning in the
+log and a toast (`OnContentMismatch` → the root widget); a demo session only
+logs; a side with no checksum (an old server, a row from before the field) is
+"unknown" and logged once, never toasted. The first `LobbyState` also lists
+every stale row at once (`ReportUnmatchedCatalogIds`). A row imported before
+the field has `SourceCrc = 0`: re-run the sync or import to fill it in.
+`ApexSim.Content.*` tests pin the check vector, the line-ending rule and the
+compare semantics; `content_crc::tests` and `test_lobby_summaries_carry_content_crc`
+do the same on the server.
 
 ### Prop kit (`content/props`, `ApexPropImport`)
 The trackside scenery is an authored kit of GLBs, `content/props/<kind>/<asset>.glb`
@@ -565,6 +591,38 @@ every setting before the first run creates one. It is a sample and not a live
 display detection, pinning an arbitrary monitor to a 1920x1080 guess. Its text
 is a second copy of what `ApexBootSettingsIo::Serialise` writes; the two carry
 comments pointing at each other.
+
+### Startup splash hold (`ApexSimBoot`, `UApexStartupSplashSubsystem`)
+
+The splash stays up until the menu's demo race is running behind it; the first
+thing a player sees after it is the finished menu over a moving race, not the
+UI on black, the window resize to the settings.yml mode and the race fading
+in. The engine closes its own splash on the first frame, long before that.
+
+`ApexSimBoot` is a UObject-free module at `LoadingPhase` `PostConfigInit`,
+because the engine creates its game window in pre-init (the preload screen
+manager), before any other project module loads. It installs two
+thread-local hooks: when the first top-level `UnrealWindow` is created it
+opens a copy of the splash (the same `Content/Splash/Splash.bmp` at the
+engine splash's own rectangle, just beneath it, so the engine closing its
+splash changes nothing on screen), and on that window's `WM_SHOWWINDOW` it
+cloaks it with `DWMWA_CLOAK` (DWM refuses at creation with `E_HANDLE`). A
+cloaked window is shown as far as the engine and Slate know: it ticks,
+renders, lays out and takes its resize, but the compositor does not draw it.
+
+`UApexStartupSplashSubsystem` claims the hold at game instance init, checks
+the viewport's window is the cloaked one, and ends it: when
+`AApexRaceDirector::IsDemoReady` (backdrop fully faded in), early when
+`UApexDemoModeSubsystem::IsDemoExpected` is false (demo off, no server,
+refused login, no track with a level, a refused create), or after
+`apexsim.splash.MaxSeconds` (20). The reveal uncloaks the window beneath the
+splash and fades the splash out over 0.35 s. An unclaimed hold is dropped at
+engine init complete and a claimed one after 45 s, so a broken game cannot
+stay invisible. Nothing is held in the editor, commandlets, `-nullrhi`,
+`-nosplash`, `-ApexNoSplashHold`, `-ApexNoDemo`, `-ApexAutoRace`, or
+exclusive fullscreen (a cloaked window cannot own the display). Screen
+grabs that go through the compositor do not see a cloaked window, which is
+how the hold was checked: a Python `ImageGrab` loop around a launch.
 
 ### Menu sound (`Audio/`)
 

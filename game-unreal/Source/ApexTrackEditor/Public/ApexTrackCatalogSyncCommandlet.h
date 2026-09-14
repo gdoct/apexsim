@@ -62,6 +62,8 @@ private:
 		FString EnvironmentType;
 		float LengthM = 0.0f;
 		FString PreviewPng;
+		/** `source_crc` from the manifest: the YAML's checksum as the server computes it. */
+		int64 SourceCrc = 0;
 	};
 
 	static bool ParseOptions(const FString& Params, FOptions& Out, FString& OutError);

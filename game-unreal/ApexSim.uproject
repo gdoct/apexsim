@@ -5,6 +5,11 @@
 	"Description": "ApexSim UE5 client shell (menus)",
 	"Modules": [
 		{
+			"Name": "ApexSimBoot",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
 			"Name": "ApexSimNet",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"

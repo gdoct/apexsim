@@ -40,6 +40,16 @@ public:
 	/** True while the demo is joined and on the director. */
 	bool IsDemoRunning() const { return bViewBegun; }
 
+	/** -ApexNoDemo, -ApexAutoRace or apexsim.demo.Enabled 0. */
+	static bool IsDemoDisabled();
+
+	/**
+	 * Whether a demo is on its way: allowed, and nothing has yet shown it will
+	 * not come (no server, a rejected login, no track with a level, a request
+	 * the server turned down). The startup splash waits only while this holds.
+	 */
+	bool IsDemoExpected() const;
+
 	/** The track the demo is on (or being started on), by id. */
 	const FString& GetDemoTrackId() const { return TrackId; }
 

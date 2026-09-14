@@ -1,6 +1,7 @@
 #include "ApexMenuFlowSubsystem.h"
 
 #include "ApexBootSettings.h"
+#include "ApexNetSubsystem.h"
 #include "ApexProfileSave.h"
 #include "ApexSim.h"
 #include "Engine/DataTable.h"
@@ -325,9 +326,118 @@ void UApexMenuFlowSubsystem::ReportUnmatchedCatalogIds(const FApexLobbyState& Lo
 		UE_LOG(LogApexSim, Warning, TEXT("%d track(s) have no DT_TrackCatalog row and will show placeholder art: %s"),
 			MissingTracks.Num(), *FString::Join(MissingTracks, TEXT(", ")));
 	}
+	// A row that matched but was baked from another version of the file is
+	// worse than a missing one: the art is there and wrong. Say so once here;
+	// the race director repeats it, with a toast, for the content actually used.
+	int32 Stale = 0;
+	for (const FApexCarConfigSummary& Car : LobbyState.CarConfigs)
+	{
+		if (const FApexCarCatalogRow* Row = FindCarRow(Car.Id))
+		{
+			if (ApexContent::Compare(Row->SourceCrc, Car.ContentCrc) == EApexContentMatch::Mismatch)
+			{
+				++Stale;
+				UE_LOG(LogApexSim, Warning, TEXT("%s"), *ApexContent::DescribeMismatch(TEXT("Car"), Car.Name, Row->SourceCrc, Car.ContentCrc));
+			}
+		}
+	}
+	for (const FApexTrackConfigSummary& Track : LobbyState.TrackConfigs)
+	{
+		if (const FApexTrackCatalogRow* Row = FindTrackRow(Track.Id))
+		{
+			if (ApexContent::Compare(Row->SourceCrc, Track.ContentCrc) == EApexContentMatch::Mismatch)
+			{
+				++Stale;
+				UE_LOG(LogApexSim, Warning, TEXT("%s"), *ApexContent::DescribeMismatch(TEXT("Track"), Track.Name, Row->SourceCrc, Track.ContentCrc));
+			}
+		}
+	}
+	if (Stale > 0)
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("%d catalog row(s) were imported from a different version of the file than the server runs"), Stale);
+	}
+
 	if (MissingCars.Num() == 0 && MissingTracks.Num() == 0)
 	{
 		UE_LOG(LogApexSim, Log, TEXT("Catalog join complete: %d car(s) and %d track(s) all matched"),
 			LobbyState.CarConfigs.Num(), LobbyState.TrackConfigs.Num());
 	}
+}
+
+// --- Content checksums ---------------------------------------------------------
+
+const FApexLobbyState* UApexMenuFlowSubsystem::CachedLobbyState() const
+{
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	return Net ? &Net->GetCachedLobbyState() : nullptr;
+}
+
+EApexContentMatch UApexMenuFlowSubsystem::VerifyContent(
+	const TCHAR* Kind, const FString& Id, const FString& Name, int64 LocalCrc, int64 ServerCrc, bool bNotify)
+{
+	const EApexContentMatch Verdict = ApexContent::Compare(LocalCrc, ServerCrc);
+	switch (Verdict)
+	{
+	case EApexContentMatch::Match:
+		UE_LOG(LogApexSim, Log, TEXT("%s \"%s\" matches the server's file (%08X)"), Kind, *Name, static_cast<uint32>(LocalCrc & 0xFFFFFFFF));
+		break;
+	case EApexContentMatch::Mismatch:
+	{
+		const FString Message = ApexContent::DescribeMismatch(Kind, Name, LocalCrc, ServerCrc);
+		UE_LOG(LogApexSim, Warning, TEXT("%s"), *Message);
+		if (bNotify)
+		{
+			OnContentMismatch.Broadcast(Message);
+		}
+		break;
+	}
+	case EApexContentMatch::Unknown:
+		if (!ReportedUnknownContent.Contains(Id))
+		{
+			ReportedUnknownContent.Add(Id);
+			UE_LOG(LogApexSim, Log, TEXT("%s \"%s\" cannot be checked against the server: %s"), Kind, *Name,
+				ServerCrc == 0 ? TEXT("the server sent no checksum") : TEXT("the catalog row has no checksum (re-run the import)"));
+		}
+		break;
+	}
+	return Verdict;
+}
+
+EApexContentMatch UApexMenuFlowSubsystem::VerifyTrackContent(const FString& TrackId, bool bNotify)
+{
+	const FApexTrackCatalogRow* Row = FindTrackRow(TrackId);
+	const FApexLobbyState* Lobby = CachedLobbyState();
+	const FApexTrackConfigSummary* Server = Lobby
+		? Lobby->TrackConfigs.FindByPredicate([&TrackId](const FApexTrackConfigSummary& T) { return T.Id.Equals(TrackId, ESearchCase::IgnoreCase); })
+		: nullptr;
+	const FString Name = Server ? Server->Name : (Row ? Row->DisplayName : TrackId);
+	return VerifyContent(TEXT("Track"), TrackId, Name, Row ? Row->SourceCrc : 0, Server ? Server->ContentCrc : 0, bNotify);
+}
+
+EApexContentMatch UApexMenuFlowSubsystem::VerifyCarContent(const FString& CarId, bool bNotify)
+{
+	const FApexCarCatalogRow* Row = FindCarRow(CarId);
+	const FApexLobbyState* Lobby = CachedLobbyState();
+	const FApexCarConfigSummary* Server = Lobby
+		? Lobby->CarConfigs.FindByPredicate([&CarId](const FApexCarConfigSummary& C) { return C.Id.Equals(CarId, ESearchCase::IgnoreCase); })
+		: nullptr;
+	const FString Name = Server ? Server->Name : (Row ? Row->DisplayName : CarId);
+	return VerifyContent(TEXT("Car"), CarId, Name, Row ? Row->SourceCrc : 0, Server ? Server->ContentCrc : 0, bNotify);
+}
+
+FString UApexMenuFlowSubsystem::FindTrackIdByStem(const FString& Stem) const
+{
+	if (!TrackCatalog || Stem.IsEmpty())
+	{
+		return FString();
+	}
+	for (const TPair<FName, uint8*>& Pair : TrackCatalog->GetRowMap())
+	{
+		const FApexTrackCatalogRow* Row = reinterpret_cast<const FApexTrackCatalogRow*>(Pair.Value);
+		if (Row && Row->YamlBaseName.Equals(Stem, ESearchCase::IgnoreCase))
+		{
+			return Pair.Key.ToString();
+		}
+	}
+	return FString();
 }

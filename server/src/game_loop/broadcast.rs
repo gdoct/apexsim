@@ -178,6 +178,7 @@ async fn build_lobby_state_with(
             id: c.id,
             name: c.name.clone(),
             model_path: format!("res://content/cars/{}/{}", c.id, c.model),
+            content_crc: c.content_crc,
             mass_kg: c.mass_kg,
             max_engine_force_n: c.max_engine_power_w / 100.0, // Rough approximation
         })
@@ -189,6 +190,7 @@ async fn build_lobby_state_with(
         .map(|t| TrackConfigSummary {
             id: t.id,
             name: t.name.clone(),
+            content_crc: t.content_crc,
             centerline: t
                 .centerline
                 .iter()

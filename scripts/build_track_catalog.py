@@ -18,11 +18,17 @@ Outputs (both gitignored build products, regenerated wholesale):
 A track without a `track_id` is skipped with a warning: the catalog is keyed
 by that id, and without one the server mints a fresh UUID on every start, so
 no row could ever match it.
+
+Each entry also carries `source_crc`, the checksum of the YAML as the server
+computes it (`server/src/content_crc.rs`: CRC-32 over the bytes with every
+carriage return dropped). The sync commandlet writes it onto the row, and the
+client compares it with the server's when it loads the track.
 """
 
 import json
 import math
 import sys
+import zlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -33,6 +39,11 @@ TRACK_DIR = REPO_ROOT / "content" / "tracks" / "real"
 EXPORT_DIR = REPO_ROOT / "content" / "tracks" / "export"
 PREVIEW_DIR = EXPORT_DIR / "previews"
 MANIFEST = EXPORT_DIR / "track_catalog.json"
+
+
+def source_crc(path):
+    """CRC-32 of the file with carriage returns removed; see content_crc.rs."""
+    return zlib.crc32(path.read_bytes().replace(b"\r", b"")) & 0xFFFFFFFF
 
 
 def polyline_length(points, closed):
@@ -88,6 +99,7 @@ def main(argv):
             "environment_type": meta.get("environment_type") or "",
             "length_m": float(length_m),
             "preview_png": str(png),
+            "source_crc": source_crc(yaml_path),
         })
         print(f"  {stem}: {track['name']} ({len(track['points'])} points, {length_m:.0f} m)")
 

@@ -62,6 +62,15 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	FString FolderName;
 
+	/**
+	 * Checksum of the car.toml the row was imported from, as the server
+	 * computes it (ApexContentCrc.h / content_crc.rs). Refreshed on every
+	 * ApexCarImport run; compared with the server's `ContentCrc` when the car
+	 * is raced. 0 on a row imported before the field existed.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	int64 SourceCrc = 0;
+
 	/** Soft so the menu does not pull four car meshes into memory at startup. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	TSoftObjectPtr<UStaticMesh> Mesh;
@@ -114,6 +123,16 @@ struct APEXSIM_API FApexTrackCatalogRow : public FTableRowBase
 	/** YAML base name, e.g. "Austin" — this is what the preview PNG is named after. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
 	FString YamlBaseName;
+
+	/**
+	 * Checksum of the track YAML the catalog entry (and the baked level) came
+	 * from, as the server computes it (`source_crc` in track_catalog.json).
+	 * Refreshed on every ApexTrackCatalogSync run; compared with the server's
+	 * `ContentCrc` when the level is streamed. 0 on a row synced before the
+	 * field existed.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
+	int64 SourceCrc = 0;
 
 	/** Empty for tracks with no preview art (Le Mans); falls back to a placeholder. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")

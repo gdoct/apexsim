@@ -457,6 +457,7 @@ impl CarLoader {
             id,
             name: car_toml.name,
             model: car_toml.model,
+            content_crc: crate::content_crc::content_crc(content.as_bytes()),
 
             // Physical dimensions
             mass_kg: car_toml.physics.mass_kg,
@@ -920,6 +921,15 @@ max_travel_m = 0.10
             let config = CarLoader::load_from_file(path)
                 .unwrap_or_else(|e| panic!("{candidate} should load: {e}"));
             assert!(config.mass_kg > 0.0);
+            // The checksum a client compares against is the file's, so the
+            // car catalog importer can reproduce it from the same bytes.
+            let bytes = std::fs::read(path).unwrap();
+            assert_eq!(
+                config.content_crc,
+                crate::content_crc::content_crc(&bytes),
+                "{candidate}: content_crc is not the file's checksum"
+            );
+            assert_ne!(config.content_crc, 0);
             // Content cars don't set the new fields yet, so they must keep
             // the previously hardcoded defaults.
             assert_eq!(config.height_m, 1.3);

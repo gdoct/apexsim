@@ -25,6 +25,11 @@ pub struct CarConfig {
     pub id: CarConfigId,
     pub name: String,
     pub model: String,
+    /// Checksum of the `car.toml` this was loaded from (`content_crc`), 0 for
+    /// a config that never came from a file. Sent to clients so they can tell
+    /// whether their imported car matches.
+    #[serde(default)]
+    pub content_crc: u32,
 
     // Physical dimensions
     pub mass_kg: f32,
@@ -298,6 +303,7 @@ impl Default for CarConfig {
             id: Uuid::new_v4(),
             name: "Default Car".to_string(),
             model: "default.glb".to_string(),
+            content_crc: 0,
 
             // Physical dimensions
             mass_kg: 1200.0,
@@ -368,6 +374,11 @@ pub struct TrackConfig {
     /// Path to the source track file, relative to the content folder (e.g. "tracks/real/Austin.yaml")
     #[serde(default)]
     pub source_path: Option<String>,
+    /// Checksum of the track file this was loaded from (`content_crc`), 0
+    /// for a track built in memory. Sent to clients so they can tell whether
+    /// their baked level matches.
+    #[serde(default)]
+    pub content_crc: u32,
     pub start_positions: Vec<GridSlot>,
     pub track_surface: TrackSurface,
     pub pit_lane: Option<PitLaneConfig>,
@@ -551,6 +562,7 @@ impl Default for TrackConfig {
             centerline,
             width_m: 15.0,
             source_path: None,
+            content_crc: 0,
             start_positions,
             track_surface: TrackSurface::default(),
             pit_lane: None,

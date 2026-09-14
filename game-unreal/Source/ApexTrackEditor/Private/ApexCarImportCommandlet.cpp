@@ -3,6 +3,7 @@
 #include "ApexTrackEditorModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Catalog/ApexCatalogRows.h"
+#include "Catalog/ApexContentCrc.h"
 #include "Engine/DataTable.h"
 #include "Engine/StaticMesh.h"
 #include "HAL/FileManager.h"
@@ -206,11 +207,21 @@ bool UApexCarImportCommandlet::CollectSources(const FOptions& Options, TArray<FS
 		FSource Source;
 		Source.Folder = Folder;
 		Source.TomlPath = TomlPath;
-		FString Text;
+		TArray<uint8> Bytes;
 		FString Error;
-		if (!FFileHelper::LoadFileToString(Text, *TomlPath) || !ParseCarToml(Text, Source.Toml, Error))
+		if (!FFileHelper::LoadFileToArray(Bytes, *TomlPath))
 		{
-			OutError = FString::Printf(TEXT("%s: %s"), *TomlPath, Error.IsEmpty() ? TEXT("unreadable") : *Error);
+			OutError = FString::Printf(TEXT("%s: unreadable"), *TomlPath);
+			return false;
+		}
+		// Hashed from the raw bytes, exactly as the server does, before the
+		// text is decoded: a BOM or an odd encoding must change both or neither.
+		Source.SourceCrc = ApexContentCrc::Compute(Bytes);
+		FString Text;
+		FFileHelper::BufferToString(Text, Bytes.GetData(), Bytes.Num());
+		if (!ParseCarToml(Text, Source.Toml, Error))
+		{
+			OutError = FString::Printf(TEXT("%s: %s"), *TomlPath, *Error);
 			return false;
 		}
 		OutSources.Add(MoveTemp(Source));
@@ -565,9 +576,21 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		const bool bRowMeshOk = Existing && !Existing->Mesh.IsNull()
 			&& (Existing->FolderName.IsEmpty() || Existing->FolderName == Source.Folder)
 			&& FPackageName::DoesPackageExist(Existing->Mesh.GetLongPackageName());
+		// The checksum is derived, never hand-tuned, so it follows the TOML
+		// even on an additive run: it is what tells the client its import is stale.
+		const bool bNeedsCrc = Existing && Existing->SourceCrc != Source.SourceCrc;
 		if (bRowMeshOk && !Options.bForce)
 		{
-			UE_LOG(LogApexTrackImport, Display, TEXT("    keeps %s"), *Existing->Mesh.ToString());
+			UE_LOG(LogApexTrackImport, Display, TEXT("    keeps %s%s"), *Existing->Mesh.ToString(),
+				bNeedsCrc ? TEXT(", updating checksum") : TEXT(""));
+			if (bNeedsCrc && !Options.bDryRun)
+			{
+				FApexCarCatalogRow Row = *Existing;
+				Row.SourceCrc = Source.SourceCrc;
+				Table->AddRow(RowName, Row);
+				++RowsUpdated;
+				Touched.Add(Table->GetOutermost());
+			}
 			continue;
 		}
 		FString MeshError;
@@ -599,6 +622,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 			Row.MaxPowerKw = Source.Toml.MaxPowerKw;
 			Row.FolderName = Source.Folder;
 		}
+		Row.SourceCrc = Source.SourceCrc;
 		const bool bMeshMissing = Row.Mesh.IsNull() || !FPackageName::DoesPackageExist(Row.Mesh.GetLongPackageName());
 		const bool bMeshForeign = !Row.FolderName.IsEmpty() && Row.FolderName != Source.Folder;
 		const bool bSetMesh = Mesh && (bFillFields || bMeshMissing || bMeshForeign);
@@ -612,7 +636,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 			Row.Mesh = Mesh;
 			Row.FolderName = Source.Folder;
 		}
-		if (Existing && !bFillFields && !bSetMesh)
+		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc)
 		{
 			continue;
 		}

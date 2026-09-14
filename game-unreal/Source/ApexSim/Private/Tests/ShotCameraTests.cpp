@@ -42,7 +42,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FApexShotCameraPoseTest::RunTest(const FString& Parameters)
 {
 	using namespace ApexShotCamera;
-	FPose Pose;
+	ApexShotCamera::FPose Pose;
 
 	// Position: metres to centimetres, +Y left becomes -Y.
 	TestTrue(TEXT("goto with position only"), PoseFromGoto(TArray<double>{ 10.0, 5.0, 2.0 }, Pose));

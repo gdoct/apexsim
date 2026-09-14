@@ -96,10 +96,7 @@ AApexRaceDirector* UApexDemoModeSubsystem::GetDirector() const
 
 bool UApexDemoModeSubsystem::IsDemoAllowed(const UApexNetSubsystem& Net) const
 {
-	static const bool bCommandLineOff = FParse::Param(FCommandLine::Get(), TEXT("ApexNoDemo"))
-		// An unattended run is there to look at something else.
-		|| FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"));
-	if (bCommandLineOff || CVarDemoEnabled.GetValueOnGameThread() == 0)
+	if (IsDemoDisabled())
 	{
 		return false;
 	}
@@ -111,6 +108,40 @@ bool UApexDemoModeSubsystem::IsDemoAllowed(const UApexNetSubsystem& Net) const
 		&& Net.GetCachedLobbyState().TrackConfigs.Num() > 0
 		// The player's own race has the director.
 		&& (!Director->IsRaceViewActive() || Director->IsDemoViewActive());
+}
+
+bool UApexDemoModeSubsystem::IsDemoExpected() const
+{
+	if (IsDemoDisabled())
+	{
+		return false;
+	}
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net)
+	{
+		return false;
+	}
+	switch (Net->GetConnectionState())
+	{
+	case EApexConnectionState::Connecting:
+	case EApexConnectionState::Authenticating:
+		return true;
+	case EApexConnectionState::Authenticated:
+		// A failed create backs off for seconds; a startup should not wait it out.
+		return !bWarnedNoTracks && (Failures == 0 || Net->IsInDemoSession() || Net->IsDemoSessionRequested());
+	default:
+		// Disconnected (nobody asked to connect), Failed, or Reconnecting after
+		// the server could not be reached.
+		return false;
+	}
+}
+
+bool UApexDemoModeSubsystem::IsDemoDisabled()
+{
+	static const bool bCommandLineOff = FParse::Param(FCommandLine::Get(), TEXT("ApexNoDemo"))
+		// An unattended run is there to look at something else.
+		|| FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"));
+	return bCommandLineOff || CVarDemoEnabled.GetValueOnGameThread() == 0;
 }
 
 bool UApexDemoModeSubsystem::ChooseTrack(const UApexNetSubsystem& Net)

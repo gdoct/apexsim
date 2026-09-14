@@ -167,6 +167,10 @@ private:
 	UFUNCTION()
 	void HandleServerError(int32 Code, const FString& Message);
 
+	/** The track or car about to be raced was baked from a different file than the server's. */
+	UFUNCTION()
+	void HandleContentMismatch(const FString& Message);
+
 	UFUNCTION()
 	void HandleSessionJoined(const FString& SessionId, int32 GridPosition);
 

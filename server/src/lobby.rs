@@ -302,6 +302,7 @@ impl LobbyManager {
                 id: s.session_id,
                 track_name: s.track_name.clone(),
                 track_file: s.track_file.clone(),
+                track_id: s.track_config_id,
                 host_name: s.host_name.clone(),
                 session_kind: s.session_kind,
                 player_count: s.current_player_count,
