@@ -357,6 +357,7 @@ impl GameSession {
         // order-dependent solver deterministic; no clone/rebuild needed)
         let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
         physics::check_collisions_refs(&mut state_refs, &self.car_configs);
+        physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
     }
 
     /// Replay mode: Send telemetry from recorded data (view-only)
@@ -413,6 +414,7 @@ impl GameSession {
         // order-dependent solver deterministic; no clone/rebuild needed)
         let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
         physics::check_collisions_refs(&mut state_refs, &self.car_configs);
+        physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
 
         // Assign finish positions to cars that just completed the race
         // distance (in crossing order), then finish the session exactly once

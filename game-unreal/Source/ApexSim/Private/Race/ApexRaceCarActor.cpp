@@ -6,6 +6,7 @@
 #include "Engine/StaticMesh.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/Engine.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Sound/SoundAttenuation.h"
 
@@ -20,6 +21,31 @@ namespace
 		TEXT("apexsim.car.BrakeLightNits"),
 		3000.0f,
 		TEXT("Brightness of a car's brake lights while braking, as an emissive multiplier"),
+		ECVF_Default);
+
+	/**
+	 * How far behind the newest telemetry frame a car is drawn, in frames.
+	 * Two frames (33 ms at 60Hz) rides out the usual lumping of arrivals;
+	 * lower is closer to live but runs off the end of the data more often.
+	 */
+	TAutoConsoleVariable<float> CVarInterpDelayFrames(
+		TEXT("apexsim.car.InterpDelayFrames"),
+		2.0f,
+		TEXT("Telemetry frames a car is drawn behind the newest sample (blend room; lower is closer to live)"),
+		ECVF_Default);
+
+	/** How long a car keeps moving on its last velocity once telemetry stops. */
+	TAutoConsoleVariable<float> CVarInterpMaxExtrapolationMs(
+		TEXT("apexsim.car.InterpMaxExtrapolationMs"),
+		250.0f,
+		TEXT("Longest a car is dead-reckoned past its newest telemetry sample before it holds still"),
+		ECVF_Default);
+
+	/** On-screen readout of every car's motion buffer. */
+	TAutoConsoleVariable<int32> CVarInterpDebug(
+		TEXT("apexsim.car.InterpDebug"),
+		0,
+		TEXT("1: show each car's motion buffer (tick rate estimate, lag, extrapolation) on screen"),
 		ECVF_Default);
 
 	/** The material slot every car GLB gives its brake lights (docs/CAR_MODELS.md). */
@@ -154,28 +180,41 @@ const FApexCockpitLayout& AApexRaceCarActor::GetCockpitLayout()
 	return CockpitLayout;
 }
 
-void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car)
+ApexMotion::FSettings AApexRaceCarActor::MotionSettings() const
+{
+	ApexMotion::FSettings Settings;
+	Settings.DelayFrames = CVarInterpDelayFrames.GetValueOnGameThread();
+	Settings.MaxExtrapolationSeconds = FMath::Max(CVarInterpMaxExtrapolationMs.GetValueOnGameThread(), 0.0f) / 1000.0f;
+	Settings.TeleportDistance = TeleportDistanceCm;
+	return Settings;
+}
+
+void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 ServerTick)
 {
 	CarIndex = Car.CarIndex;
-	SpeedMps = Car.SpeedMps;
 	// Kept so a shift request can be expressed relative to it; the protocol
 	// wants an absolute target gear, not a delta.
 	Gear = Car.Gear;
-	EngineRpm = Car.EngineRpm;
 	Throttle = Car.Throttle;
 	Brake = Car.Brake;
 	UpdateBrakeLights();
-	Steering = Car.Steering;
 	CurrentLap = Car.CurrentLap;
 	CurrentLapTimeMs = Car.CurrentLapTimeMs;
 
-	TargetLocation = ApexRace::ServerToUnrealPosition(Car.Position);
-	TargetRotation = ApexRace::ServerToUnrealRotation(Car.YawRad, Car.PitchRad, Car.RollRad);
+	ApexMotion::FSnapshot Snapshot;
+	Snapshot.Tick = ServerTick;
+	Snapshot.Location = ApexRace::ServerToUnrealPosition(Car.Position);
+	Snapshot.Rotation = ApexRace::ServerToUnrealRotation(Car.YawRad, Car.PitchRad, Car.RollRad).Quaternion();
+	Snapshot.Steering = Car.Steering;
+	Snapshot.SpeedMps = Car.SpeedMps;
+	Snapshot.EngineRpm = Car.EngineRpm;
+	const ApexMotion::EPushResult Pushed = Motion.Push(Snapshot, FPlatformTime::Seconds(), MotionSettings());
 
 	// First frame, or a jump too large to be real motion: go straight there.
-	if (!bHasTarget || FVector::Dist(GetActorLocation(), TargetLocation) > TeleportDistanceCm)
+	// Tick reads the same pose back until a second sample gives it motion.
+	if (Pushed == ApexMotion::EPushResult::Restarted)
 	{
-		SetActorLocationAndRotation(TargetLocation, TargetRotation);
+		SetActorLocationAndRotation(Snapshot.Location, Snapshot.Rotation);
 	}
 	if (!bHasTarget)
 	{
@@ -194,19 +233,28 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car)
 	// The car's first frame is the grid, so the first reading *is* idle.
 	if (bHasEngineRange)
 	{
-		ObservedIdleRpm = FMath::Min(ObservedIdleRpm, EngineRpm);
-		ObservedMaxRpm = FMath::Max(ObservedMaxRpm, EngineRpm);
+		ObservedIdleRpm = FMath::Min(ObservedIdleRpm, Car.EngineRpm);
+		ObservedMaxRpm = FMath::Max(ObservedMaxRpm, Car.EngineRpm);
 	}
 	else
 	{
-		ObservedIdleRpm = EngineRpm;
-		ObservedMaxRpm = EngineRpm;
+		ObservedIdleRpm = Car.EngineRpm;
+		ObservedMaxRpm = Car.EngineRpm;
 		bHasEngineRange = true;
 	}
 	if (EngineSound)
 	{
+		// The synth smooths its own inputs, and the note should follow the
+		// revs as soon as they are known rather than two frames later.
 		EngineSound->SetRpmRange(ObservedIdleRpm, ObservedMaxRpm);
-		EngineSound->SetLive(EngineRpm, Throttle, Gear);
+		EngineSound->SetLive(Car.EngineRpm, Throttle, Gear);
+	}
+	if (Motion.Num() < 2)
+	{
+		// Until the buffer can blend, the dials show the sample itself.
+		SpeedMps = Car.SpeedMps;
+		EngineRpm = Car.EngineRpm;
+		Steering = Car.Steering;
 	}
 }
 
@@ -219,12 +267,28 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 		return;
 	}
 
-	// Telemetry lands at 60Hz but the client renders faster, so ease towards the
-	// latest sample rather than snapping to it.
-	const FVector NewLocation =
-		FMath::VInterpTo(GetActorLocation(), TargetLocation, DeltaSeconds, InterpolationSpeed);
-	const FRotator NewRotation =
-		FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaSeconds, InterpolationSpeed);
+	ApexMotion::FPose Pose;
+	if (!Motion.Sample(DeltaSeconds, MotionSettings(), Pose))
+	{
+		return;
+	}
+	SetActorLocationAndRotation(Pose.Location, Pose.Rotation);
+	// Nothing else sets a velocity on a puppet; the audio's doppler and
+	// anything asking the actor read this.
+	Root->ComponentVelocity = Pose.Velocity;
+	SpeedMps = Pose.SpeedMps;
+	EngineRpm = Pose.EngineRpm;
+	Steering = Pose.Steering;
 
-	SetActorLocationAndRotation(NewLocation, NewRotation);
+	if (CVarInterpDebug.GetValueOnGameThread() != 0 && GEngine)
+	{
+		const double Rate = Motion.GetTicksPerSecond();
+		const double LagMs = Rate > 0.0 ? Motion.GetLagTicks() / Rate * 1000.0 : 0.0;
+		GEngine->AddOnScreenDebugMessage(
+			static_cast<uint64>(0x4D4F00) + static_cast<uint64>(FMath::Max(CarIndex, 0)), 0.5f,
+			Pose.bExtrapolated ? FColor::Orange : FColor::Green,
+			FString::Printf(TEXT("car %d %s: %d buffered, tick rate %.0f/s, spacing %lld, lag %.1f ms%s"),
+				CarIndex, *DisplayName, Motion.Num(), Rate, Motion.GetFrameSpacingTicks(), LagMs,
+				Pose.bExtrapolated ? TEXT(" EXTRAPOLATING") : TEXT("")));
+	}
 }

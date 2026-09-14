@@ -161,9 +161,9 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
 `content/tracks/{real,export}` relative to the working directory, so it must be
 run from the repo root — not from `track-editor/`.
 
-The exporter also writes two gitignored sidecars (like the exports) into
-`content/tracks/real/`, both loaded by the server from beside the YAML and
-both shipped in `Server/` by `build_release.ps1`:
+The exporter also writes three gitignored sidecars (like the exports) into
+`content/tracks/real/`, all loaded by the server from beside the YAML and
+all shipped in `Server/` by `build_release.ps1`:
 
 - `<Stem>.ground.msgpack` — a 4 m heightfield of the ground the client
   renders, in the server frame (`ground.rs`), so a car that leaves the
@@ -175,6 +175,25 @@ both shipped in `Server/` by `build_release.ps1`:
   counts a car within the band as on the track, with `curb_grip` and no
   off-track speed penalty. Without it the road edge is the track limit and
   a driver using the curbs is slowed as if on grass.
+- `<Stem>.walls.msgpack` — the barriers as the sim needs them
+  (`walls.rs`): every armco, tire wall, fence and pit wall as a line
+  segment along its heading, every stand, building, garage and fairground
+  piece as the four sides of its footprint, plus an underpass's abutment
+  walls and deck parapets, each with the ground height at its base, its
+  height and a material (armco / tires / concrete). Runs of thin walls
+  with ends under 4.5 m apart are joined so a car cannot slip between two
+  modules. `physics::check_wall_collisions` runs after the car-car pass
+  every tick: the car's box against each nearby segment (uniform 16 m
+  grid, ascending index order for determinism) with the same SAT as
+  car-car, pushed out along the wall normal, bounced by the material's
+  restitution, scrubbed by its friction, spun by the impulse's moment
+  about the deepest corner, damaged and fed back like a car-car hit; a
+  car resting on the wall grinds along it. A wall only counts when the
+  car's height band overlaps it, which is what keeps a car on Suzuka's
+  deck off the abutment walls below (written a metre short of the upper
+  ground) and a car in the slot off the parapets. Without it nothing
+  stops a car off the road: the client has no physics, cars are telemetry
+  puppets, so barrier collision lives here and nowhere else.
 
 Where the course passes over itself with at least 4 m to spare (Suzuka's
 crossover) the terrain finds an `Underpass` (`terrain.rs`): behind wall lines
@@ -407,6 +426,29 @@ grip limit or lifting, red braking), dropped onto the track level's own meshes
 by line traces once the level is visible. BRAKING ONLY draws just the red.
 For screenshot runs `-ApexRacingLine=off|braking|full` overrides the setting
 and `-ApexCar=<name>` picks the auto-race car (otherwise the lobby's first).
+
+### Car motion on the client (`Race/ApexCarMotion.h`)
+Cars are puppets of the telemetry; there is no client physics. Each frame's
+sample goes into the car actor's `ApexMotion::FApexCarMotionBuffer`, and
+every render frame reads the pose from a *playhead* that runs two telemetry
+frames (33 ms at 60 Hz) behind the newest sample, blended between the
+samples either side: location lerp, rotation slerp (so the ±180° yaw seam is
+crossed the short way), and steering, speed and revs blended the same way
+for the cockpit wheel and the dials. The playhead's clock is in **server
+ticks**, which are exact where arrival times are not; its ticks-per-second
+is a least-squares fit of tick against arrival time over the last two
+seconds of frames (240 assumed until a second has been seen; a surprise of
+more than 10% re-seats the playhead once), trimmed by a critically damped
+loop (0.4 s error filter, 1.6 s correction) that holds the delay. Past the
+newest sample the pose is dead-reckoned from the last two for up to 250 ms
+(position and turn rate), then held; a jump of more than 20 m between
+samples, or a tick that runs back more than a second, restarts the buffer
+at the new place. The previous `VInterpTo` chase lagged by speed/18 (over
+4 m at 80 m/s) and pumped at the broadcast rate whenever frames arrived in
+lumps. `apexsim.car.InterpDelayFrames`, `apexsim.car.InterpMaxExtrapolationMs`,
+`apexsim.car.InterpDebug 1` (per-car readout: buffered, measured tick rate,
+spacing, lag, extrapolating). `ApexSim.Motion.*` tests run the buffer on
+synthetic streams (lumpy arrivals, lost frames, a stall, a 120 Hz server).
 
 ### Race start and finish (`game_session.rs`, `UApexRootWidget`)
 A car is seeded onto the centerline when it is put on the grid

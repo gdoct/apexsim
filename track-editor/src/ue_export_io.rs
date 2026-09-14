@@ -7,7 +7,7 @@
 //! committing 26 of those would dwarf the content it came from.
 //!
 //! The exceptions are the server's sidecars, `<Track>.ground.msgpack` and
-//! `<Track>.curbs.msgpack`: the server reads them from beside the YAML
+//! `<Track>.curbs.msgpack` and `<Track>.walls.msgpack`: the server reads them from beside the YAML
 //! (they are the sim's ground and track limits, not client content), so
 //! they are written there — and gitignored there, since they are generated
 //! all the same.
@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 
 use crate::project;
 use crate::terrain::GroundHeightfield;
-use crate::ue_export::{self, CurbBands, UeScene};
+use crate::ue_export::{self, CurbBands, UeScene, Walls};
 
 /// Where exports go when no destination is given, relative to the repo root.
 pub const DEFAULT_EXPORT_DIR: &str = "content/tracks/export";
@@ -55,6 +55,11 @@ pub fn curb_sidecar_path_for(track_path: &Path) -> PathBuf {
     track_path.with_extension("curbs.msgpack")
 }
 
+/// `Monza.yaml` -> `<same dir>/Monza.walls.msgpack`.
+pub fn walls_sidecar_path_for(track_path: &Path) -> PathBuf {
+    track_path.with_extension("walls.msgpack")
+}
+
 /// What one track's export wrote.
 pub struct Exported {
     pub scene_path: PathBuf,
@@ -62,6 +67,9 @@ pub struct Exported {
     pub ground_path: Option<PathBuf>,
     /// `None` for a track with no usable centerline length.
     pub curb_path: Option<PathBuf>,
+    /// The walls, always written (a track with nothing to hit gets an
+    /// empty file, which the server reads as such).
+    pub walls_path: PathBuf,
 }
 
 /// Bake the track at `track_path` (plus its sibling `.ats`) into `dir`, and
@@ -100,10 +108,13 @@ pub fn export_track(track_path: &Path, dir: &Path) -> Result<Exported, UeExportE
         }
         None => None,
     };
+    let walls_path = walls_sidecar_path_for(track_path);
+    write_walls_sidecar(&walls_path, &baked.walls)?;
     Ok(Exported {
         scene_path,
         ground_path,
         curb_path,
+        walls_path,
     })
 }
 
@@ -128,6 +139,11 @@ fn write_msgpack(path: &Path, serialized: &[u8]) -> Result<(), UeExportError> {
 /// The server's curb bands, written the same way as the ground sidecar.
 pub fn write_curb_sidecar(path: &Path, curbs: &CurbBands) -> Result<(), UeExportError> {
     write_msgpack(path, &rmp_serde::to_vec_named(curbs)?)
+}
+
+/// The server's walls, written the same way.
+pub fn write_walls_sidecar(path: &Path, walls: &Walls) -> Result<(), UeExportError> {
+    write_msgpack(path, &rmp_serde::to_vec_named(walls)?)
 }
 
 /// Compact JSON, written temp-then-rename like the `.ats` saver, so an
