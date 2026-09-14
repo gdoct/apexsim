@@ -91,6 +91,8 @@ private:
 		/** Race distance in metres; negative on the grid behind the line. */
 		float Progress = 0.0f;
 		float SpeedMps = 0.0f;
+		/** Classified position once the car has finished, else 0. */
+		int32 FinishPosition = 0;
 		bool bIsLocal = false;
 	};
 

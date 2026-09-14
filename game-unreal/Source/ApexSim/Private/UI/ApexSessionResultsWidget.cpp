@@ -29,6 +29,9 @@ namespace
 
 	constexpr float ResultsSidePanelWidth = 470.0f;
 
+	/** How often the provisional table follows the running order. */
+	constexpr float LiveRefreshSeconds = 0.5f;
+
 	/** Column widths for the classification table, in slate units. */
 	constexpr float ColPos = 60.0f;
 	constexpr float ColDriver = 260.0f;
@@ -58,8 +61,38 @@ void UApexSessionResultsWidget::OnScreenActivated()
 {
 	Super::OnScreenActivated();
 
+	LiveRefreshCountdown = LiveRefreshSeconds;
 	RefreshTable();
 	RefreshSidePanel();
+}
+
+void UApexSessionResultsWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	const bool bLive = IsLive();
+	if (!bLive && !bShowingLive)
+	{
+		return;
+	}
+	LiveRefreshCountdown -= InDeltaTime;
+	if (bLive && LiveRefreshCountdown > 0.0f)
+	{
+		return;
+	}
+	LiveRefreshCountdown = LiveRefreshSeconds;
+	RefreshTable();
+	if (!bLive)
+	{
+		// The session just ended: the recorder has filed the local best by now.
+		RefreshSidePanel();
+	}
+}
+
+bool UApexSessionResultsWidget::IsLive() const
+{
+	const UApexSessionRecorder* Recorder = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSessionRecorder>() : nullptr;
+	return Recorder && Recorder->IsRecording();
 }
 
 void UApexSessionResultsWidget::FocusDefault()
@@ -120,7 +153,8 @@ UWidget* UApexSessionResultsWidget::BuildHeader()
 {
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 
-	ApexUI::AddH(Row, ApexUI::MakeText(*WidgetTree, TEXT("SESSION COMPLETE"), ApexUI::Font::Mono(10.0f, 160), ApexUI::Palette::Accent));
+	HeaderStatusText = ApexUI::MakeText(*WidgetTree, TEXT("SESSION COMPLETE"), ApexUI::Font::Mono(10.0f, 160), ApexUI::Palette::Accent);
+	ApexUI::AddH(Row, HeaderStatusText);
 	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, ApexUI::MakeDivider(*WidgetTree, true), 1.0f, 22.0f), FMargin(18.0f, 0.0f));
 
 	HeaderTrackText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Display(22.0f), ApexUI::Palette::TextPrimary);
@@ -211,7 +245,16 @@ void UApexSessionResultsWidget::RefreshTable()
 		return;
 	}
 
+	const bool bLive = Recorder->IsRecording();
+	bShowingLive = bLive;
+
 	// Header.
+	if (HeaderStatusText)
+	{
+		HeaderStatusText->SetText(FText::FromString(bLive ? TEXT("PROVISIONAL · RACE RUNNING") : TEXT("SESSION COMPLETE")));
+		HeaderStatusText->SetColorAndOpacity(FSlateColor(bLive ? ApexUI::Palette::Live : ApexUI::Palette::Accent));
+	}
+
 	FString TrackName;
 	FApexTrackCatalogRow TrackRow;
 	if (Flow->GetTrackCatalogRow(Recorder->GetTrackId(), TrackRow))
@@ -243,6 +286,10 @@ void UApexSessionResultsWidget::RefreshTable()
 			ApexUI::Palette::TextMuted));
 		return;
 	}
+
+	// Once anyone has taken the flag the server's classification is the result,
+	// and a car without a position has not finished (yet).
+	const bool bClassified = Results.ContainsByPredicate([](const FApexCarResult& Result) { return Result.FinishPosition > 0; });
 
 	// The gap column is measured against the quickest lap set by anyone.
 	float LeaderBest = 0.0f;
@@ -304,7 +351,11 @@ void UApexSessionResultsWidget::RefreshTable()
 			ColBest));
 
 		FString Gap = TEXT("—");
-		if (bHasLap && LeaderBest > 0.0f)
+		if (bClassified && Result.FinishPosition == 0)
+		{
+			Gap = bLive ? TEXT("ON TRACK") : TEXT("DNF");
+		}
+		else if (bHasLap && LeaderBest > 0.0f)
 		{
 			const float Delta = Result.BestLapSeconds - LeaderBest;
 			Gap = Delta <= 0.0f ? TEXT("—") : FString::Printf(TEXT("+%.3f"), Delta);
@@ -484,6 +535,12 @@ void UApexSessionResultsWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			// The session is gone; the main menu's start button rebuilds one from
 			// the same setup.
 			ShowScreen(EApexScreen::MainMenu);
+			return;
+		}
+		if (IsLive())
+		{
+			// Starting again now would put everyone still racing back on the grid.
+			ShowToast(TEXT("The race is still running — wait for the field to finish"), true);
 			return;
 		}
 		if (!Net->IsUdpReady())

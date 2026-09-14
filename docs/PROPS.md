@@ -153,7 +153,7 @@ existing box layout), a `pit_wall_6m` run along the road side, and one
 | grandstand | `bay_10m_curve6_in` / `_roof` | 10 m front, -6° wedge | inside-of-corner stand (front wider than back) — **done** | P2 |
 | grandstand | `end_cap` | 1 × 9 m | stepped side block, symmetric about x=0: place at ±(L/2 + 0.5) — **done** | P2 |
 | grandstand | `end_cap_large` | 1 × 14.2 m | end cap for the 14-tier bays — **done** | P2 |
-| grandstand | `<any bay>_crowd`, `scaffold_10m_crowd`, `banking_seats_crowd` | same as the base asset | seated crowd on masked card strips per row (`crowd_cards` slot, `grandstand/T_crowd.png`, 16 people per 8 m tile, ~15 % empty seats); the importer picks `_crowd` when the scene's `dressing.spectators` is on (the default) — **done** | P2 |
+| grandstand | `<any bay>_crowd`, `scaffold_10m_crowd`, `banking_seats_crowd` | same as the base asset | seated crowd on masked card strips per row (`crowd_cards` slot, `grandstand/T_crowd.png`, 16 people per 8 m tile, ~15 % empty seats); the importer picks `_crowd` when the session wants spectators — **done** | P2 |
 | grandstand | `stair_tower` | 4 × 4 m | between bays | P3 |
 | grandstand | `scaffold_10m` | 10 × 5 m, 5 tiers | tube-and-plank club stand — **done** | P3 |
 | grandstand | `banking_seats` | 10 × 6 m | 4 bench rows on a grass bank — **done** | P4 |
@@ -186,11 +186,11 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 
 | kind | asset | size | notes | prio |
 | --- | --- | --- | --- | --- |
-| tree | `broadleaf_s` / `_m` / `_l` | 6 / 10 / 16 m | default = `_m`; trunk + 3 crossed cards + 1 horizontal, spherical normals, masked foliage texture — **done** | P2 |
-| tree | `conifer_m` / `_l` | 12 / 20 m | — **done** | P2 |
+| tree | `broadleaf_s` / `_m` / `_l` | 6 / 10 / 16 m | default = `_m`; **solid** low-poly foliage blobs (240–520 tris, no alpha), three green slots `tree_foliage_a/b/c` — **done** | P2 |
+| tree | `conifer_m` / `_l` | 12 / 20 m | stacked cones, solid — **done** | P2 |
 | tree | `poplar` | 18 m | — **done** | P3 |
 | tree | `bush_cluster` | 3 m | — **done** | P3 |
-| tree | `broadleaf_s/m/l_autumn`, `poplar_autumn`, `bush_cluster_autumn` | as the base asset | autumn foliage textures (`tree_foliage_round_autumn`, `tree_foliage_poplar_autumn`); the importer picks them when the scene's `dressing.season` is `autumn` — **done** | P3 |
+| tree | `broadleaf_s/m/l_autumn`, `poplar_autumn`, `bush_cluster_autumn` | as the base asset | autumn colour set (`tree_autumn_a/b/c`); pick by the track's season — **done** | P3 |
 | vehicle | `car_a` / `car_b` / `car_c` | 4–4.7 m | hatch / saloon / SUV, `vehicle_paint_*` slot for colour — **done** | P3 |
 | vehicle | `fire_truck` | 5.5 m | — **done** | P3 |
 | vehicle | `ambulance` | 6 m | — **done** | P3 |
@@ -212,21 +212,12 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 ## Unreal import notes
 
 - Every asset in the tables above is authored (**done**); the recipe fallback
-  only matters for unknown asset keys now. The editor's catalogue of them is
-  `track-editor/src/props.rs` — add a row there for a new asset so it shows
-  up in the inspector's dropdown and previews at the right size.
-- Text slots the builder drives today: the brand slots (`board_brand`,
-  `bridge_brand*`, `pit_team_board`, `tyre_bridge_brand`, `blimp_brand`,
-  `balloon_envelope`) from `T_brand_<text>`, `board_marker` from
-  `T_marker_<text>`, `flag_cloth` from `T_flag_<text>` (the `sign/flags`
-  PNGs are imported with the `sign` kind). `tent_colour` and
-  `vehicle_paint_*` keep their imported colours; the marshal post's number
-  and the pit speed limit's figure are not wired yet.
-- Scene-wide variants come from the `.ats` `dressing` block (season,
-  spectators), so the props keep their base keys.
+  only matters for unknown asset keys now.
 
-- Masked materials (`fence_mesh`, `tree_foliage_*`) arrive as glTF `MASK`; keep
-  them two-sided. Trees carry custom (spherical) normals — do not recompute.
+- Masked materials (`fence_mesh`, `crowd_cards`) arrive as glTF `MASK` +
+  `doubleSided`; the importer must make them Masked and two-sided or they render
+  as opaque black cards. Trees no longer use alpha at all (solid geometry) after
+  exactly that happened in the first import.
 - Emissive-able slots: `gantry_lamp`, `led_panel`, `floodlight_lamp`,
   `led_screen` (the last is meant for a render target / media texture).
 - **Night pass.** These slots carry an emissive colour/texture in the GLB and
@@ -237,7 +228,7 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
   wheel `ferris_lights` (warm spoke + gondola strips), `ferris_lights_rim`
   (blue rim ring and leg strips) and `ferris_lights_hub`. A slow hue cycle on
   `ferris_lights_rim` is cheap and looks right.
-- Chain-link and foliage go sub-pixel at distance; mip bias or a fade helps.
+- Chain-link goes sub-pixel at distance; mip bias or a fade helps.
 
 ## Build order
 
@@ -253,19 +244,12 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 
 ## Code touch points
 
-- `track-editor/src/ats.rs` — new `PropKind` variants; the `dressing` block.
-- `track-editor/src/props.rs` — the kit catalogue (keys, footprints,
-  defaults) behind the editor's asset dropdown, the stand-in sizes and the
-  groomer's push-off.
+- `track-editor/src/ats.rs` — new `PropKind` variants.
 - `track-editor/src/groom.rs` — behaviour per new kind (board snapping,
   bridge exemption, pit alignment, sky not seated).
 - `track-editor/src/ue_export.rs` — pit garages/walls emitted per box;
   `length_m` on grandstands; `span_m` on bridges.
 - `game-unreal/Source/ApexTrackEditor/Private/ApexTrackAssetBuilder.cpp` —
   asset lookup by `/Game/Props/<kind>/SM_<asset>` before the recipe fallback;
-  bay repetition; brand/text → material parameter; the `_crowd`/`_autumn`
-  swaps from the dressing.
-- `game-unreal/Source/ApexTrackEditor/Private/ApexPropLibrary.cpp` — the
-  kind table (instanced / Nanite / faces road / default), the slot names,
-  the aliases, the variant names and the stand layout.
+  bay repetition; brand/text → material parameter.
 - `game-unreal/Content/Props/` — imported meshes and material instances.

@@ -674,6 +674,7 @@ void UApexHudWidget::ComputeStandings(TArray<FStanding>& OutOrder) const
 		// RaceDistanceM also folds in the grid sitting behind the line.
 		Entry.Progress = ApexRace::RaceDistanceM(Car.CurrentLap, Car.TrackProgress, RankLength);
 		Entry.SpeedMps = Car.SpeedMps;
+		Entry.FinishPosition = Car.FinishPosition;
 		Entry.bIsLocal = Car.CarIndex == LocalIndex;
 
 		if (const FApexRosterEntry* Row = Roster.Entries.FindByPredicate(
@@ -689,13 +690,14 @@ void UApexHudWidget::ComputeStandings(TArray<FStanding>& OutOrder) const
 		OutOrder.Add(MoveTemp(Entry));
 	}
 
-	// Furthest round the race is leading. Ties break on car index so the order
-	// does not flicker between two cars sitting on the grid.
+	// Finishers first, in classified order; then furthest round the race. Ties
+	// break on car index so the order does not flicker between two cars sitting
+	// on the grid.
 	OutOrder.Sort([](const FStanding& A, const FStanding& B)
 	{
-		if (!FMath::IsNearlyEqual(A.Progress, B.Progress))
+		if (A.FinishPosition != B.FinishPosition || !FMath::IsNearlyEqual(A.Progress, B.Progress))
 		{
-			return A.Progress > B.Progress;
+			return ApexRace::RanksAhead(A.FinishPosition, A.Progress, B.FinishPosition, B.Progress);
 		}
 		return A.CarIndex < B.CarIndex;
 	});
@@ -878,10 +880,11 @@ void UApexHudWidget::RefreshRaceState()
 	PositionOfText->SetText(FText::FromString(FString::Printf(TEXT("/%d"), Order.Num())));
 
 	const FApexCarTelemetry* Local = FindLocalCar();
-	LapText->SetText(FText::FromString(Local ? FString::FromInt(FMath::Max(1, Local->CurrentLap)) : TEXT("-")));
-
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
 	const int32 LapLimit = Flow ? Flow->CreateLapLimit : 0;
+
+	// The counter keeps stepping on the cool-down lap after the flag.
+	LapText->SetText(FText::FromString(Local ? FString::FromInt(ApexRace::DisplayLap(Local->CurrentLap, LapLimit)) : TEXT("-")));
 	LapOfText->SetText(FText::FromString(LapLimit > 0 ? FString::Printf(TEXT("/%d"), LapLimit) : TEXT("")));
 
 	// Gaps are a time, not a distance: how long it would take this car, at its
@@ -992,8 +995,13 @@ void UApexHudWidget::RefreshStandings()
 		StandingName[Row]->SetColorAndOpacity(FSlateColor(bLocal ? Palette::OnAccent : Palette::TextPrimary));
 
 		// The leader's cell carries a lap time; everyone else's a gap to them.
+		// A gap means nothing once a car has taken the flag.
 		FString Right;
-		if (Place == 0)
+		if (Entry.FinishPosition > 0)
+		{
+			Right = TEXT("FINISHED");
+		}
+		else if (Place == 0)
 		{
 			Right = bLocal && BestLapSeconds > 0.0f ? FormatTime(BestLapSeconds) : TEXT("LEADER");
 		}
@@ -1074,7 +1082,7 @@ void UApexHudWidget::RefreshCarState()
 		const int32 LapLimit = Flow ? Flow->CreateLapLimit : 0;
 		LapsLeftText->SetText(FText::FromString(
 			LapLimit > 0
-				? FString::FromInt(FMath::Max(0, LapLimit - FMath::Max(0, Local->CurrentLap - 1)))
+				? FString::FromInt(Local->FinishPosition > 0 ? 0 : FMath::Max(0, LapLimit - FMath::Max(0, Local->CurrentLap - 1)))
 				: TEXT("—")));
 	}
 }

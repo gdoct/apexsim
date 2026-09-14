@@ -141,6 +141,7 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 				// array, so it only lands if that array was skipped correctly.
 				TestEqual(TEXT("car 0 lap"), Car.CurrentLap, 3);
 				TestEqual(TEXT("car 0 track progress"), Car.TrackProgress, 0.75f);
+				TestEqual(TEXT("car 0 still racing"), Car.FinishPosition, 0);
 				TestEqual(TEXT("car 0 lap time"), Car.CurrentLapTimeMs, 65432);
 				TestTrue(TEXT("car 0 on track"), Car.bIsOnTrack);
 				TestFalse(TEXT("car 0 not colliding"), Car.bIsColliding);

@@ -336,6 +336,11 @@ pub struct PitLane {
     /// Number of pit boxes, evenly distributed along the lane.
     pub box_count: u32,
     pub speed_limit_kmh: f32,
+    /// The lane is the circuit's real one ([`crate::dress`] laid it from
+    /// the layout dossier), not a shape generated from the centerline.
+    /// Grooming re-seats everything around it but never replaces it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub authored: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

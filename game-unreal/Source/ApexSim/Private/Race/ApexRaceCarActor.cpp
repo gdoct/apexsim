@@ -4,8 +4,36 @@
 #include "Components/AudioComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "HAL/IConsoleManager.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Sound/SoundAttenuation.h"
+
+namespace
+{
+	/**
+	 * Emissive strength of a lit brake light. The race is exposed for a 50 klux
+	 * sun, where the GLB's own strength of 1 is invisible; the start lights
+	 * read at 4000. A knob so it can be tuned against a screenshot.
+	 */
+	TAutoConsoleVariable<float> CVarBrakeLightNits(
+		TEXT("apexsim.car.BrakeLightNits"),
+		3000.0f,
+		TEXT("Brightness of a car's brake lights while braking, as an emissive multiplier"),
+		ECVF_Default);
+
+	/** The material slot every car GLB gives its brake lights (docs/CAR_MODELS.md). */
+	const FName BrakeLightSlot(TEXT("car_brakelight"));
+
+	/** Parameter on the Interchange glTF parent that scales `EmissiveFactor`. */
+	const FName EmissiveStrengthParam(TEXT("EmissiveStrength"));
+
+	/**
+	 * Pedal travel that turns the lights on. A real brake-light switch is
+	 * on/off at the first bit of pedal, not dimmed by how hard it is pressed.
+	 */
+	constexpr float BrakeLightThreshold = 0.02f;
+}
 
 AApexRaceCarActor::AApexRaceCarActor()
 {
@@ -55,9 +83,34 @@ void AApexRaceCarActor::BeginPlay()
 void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow)
 {
 	UStaticMesh* Loaded = MeshToShow.IsNull() ? nullptr : MeshToShow.LoadSynchronous();
+	// Overrides are per slot index, and the new body's slots need not line up
+	// with the old one's.
+	CarMesh->EmptyOverrideMaterials();
 	CarMesh->SetStaticMesh(Loaded);
 	// A different body is a different seat.
 	bCockpitLayoutValid = false;
+
+	BrakeLightMaterial = nullptr;
+	const int32 BrakeSlot = Loaded ? CarMesh->GetMaterialIndex(BrakeLightSlot) : INDEX_NONE;
+	if (BrakeSlot != INDEX_NONE)
+	{
+		BrakeLightMaterial = CarMesh->CreateDynamicMaterialInstance(BrakeSlot);
+	}
+	// Force the next update to write the parameter: the imported material ships lit.
+	bBrakeLightsOn = true;
+	UpdateBrakeLights();
+}
+
+void AApexRaceCarActor::UpdateBrakeLights()
+{
+	const bool bOn = Brake > BrakeLightThreshold;
+	if (bOn == bBrakeLightsOn || !BrakeLightMaterial)
+	{
+		bBrakeLightsOn = bOn;
+		return;
+	}
+	bBrakeLightsOn = bOn;
+	BrakeLightMaterial->SetScalarParameterValue(EmissiveStrengthParam, bOn ? CVarBrakeLightNits.GetValueOnGameThread() : 0.0f);
 }
 
 void AApexRaceCarActor::SetMeshVisible(bool bVisible)
@@ -111,6 +164,7 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car)
 	EngineRpm = Car.EngineRpm;
 	Throttle = Car.Throttle;
 	Brake = Car.Brake;
+	UpdateBrakeLights();
 	Steering = Car.Steering;
 	CurrentLap = Car.CurrentLap;
 	CurrentLapTimeMs = Car.CurrentLapTimeMs;

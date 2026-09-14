@@ -23,7 +23,7 @@ from mathutils import Vector
 
 VARIANTS = {
     # shape factors are multipliers/offsets on the base hull; see apply_variant()
-    "yotota":   dict(folder="yotota-lmp2",   stem="car_lmp2",   logo="car_logo.png",
+    "yotota":   dict(folder="yotota-lmp2",   stem="yotota_lmp2",   logo="yotota_logo.png",
                      paint=(0.93, 0.93, 0.92), accent=(0.85, 0.05, 0.05), caliper=(0.85, 0.10, 0.05),
                      nose_w=1.00, fender=1.00, roof=1.00, canopy_shift=0.00, tail_h=1.00, side_w=1.00,
                      wing_z=0.00, fin=True, lights="tri", scoop=(1.0, 1.9, 0.5), mirror="pod"),
@@ -86,6 +86,8 @@ caliper = mat("car_caliper", V["caliper"], 0.2, 0.4)
 lamp = mat("car_headlight", (0.95, 0.95, 0.9), 0.0, 0.1, emission=(1.0, 0.98, 0.9))
 lamp_h = mat("car_lamp_housing", (0.02, 0.02, 0.02), 0.6, 0.3)
 tail = mat("car_taillight", (0.5, 0.03, 0.02), 0.0, 0.15, emission=(1.0, 0.08, 0.04))
+brake = mat("car_brakelight", (0.6, 0.02, 0.02), 0.0, 0.15, emission=(1.0, 0.02, 0.0))
+rain = mat("car_rainlight", (0.6, 0.02, 0.02), 0.0, 0.15, emission=(1.0, 0.02, 0.0))
 display = mat("car_display", (0.02, 0.02, 0.03), 0.0, 0.2, emission=(0.1, 0.4, 0.2))
 logo = apex.image_material("car_logo", os.path.join(CAR_DIR, "textures", V["logo"]), roughness=0.3, masked=True)
 
@@ -278,6 +280,10 @@ for x in (-0.12, 0.0, 0.12):
 WZ = V["wing_z"]
 foil(p, carbon, -0.94, 0.94, 0.36, 0.11, 0.06, 1.92, 1.05 + WZ, angle_deg=-9.0)
 foil(p, carbon, -0.94, 0.94, 0.14, 0.10, 0.05, 2.22, 1.13 + WZ, angle_deg=-24.0)
+# full-width brake LED strip along the flap's trailing edge, endplate to endplate
+_a = math.radians(-24.0); _ty, _tz = 2.22 + 0.14 * math.cos(_a), 1.13 + WZ + 0.14 * math.sin(_a)
+p.box(lamp_h, (-0.94, _ty - 0.05, _tz - 0.018), (0.94, _ty + 0.004, _tz + 0.018))
+p.box(brake, (-0.93, _ty + 0.004, _tz - 0.014), (0.93, _ty + 0.010, _tz + 0.014))
 for x in (-0.95, 0.95):
     s = p.slot(carbon); pts = [(x, 1.82, 0.86 + WZ), (x, 2.38, 0.86 + WZ), (x, 2.40, 1.32 + WZ), (x, 1.98, 1.32 + WZ), (x, 1.82, 1.15 + WZ)]
     f = bm.faces.new([bm.verts.new(q) for q in (pts if x > 0 else list(reversed(pts)))]); f.material_index = s
@@ -311,7 +317,9 @@ for sx in (-1, 1):
             p.cylinder(lamp, (sx * 0.64 - 0.09 + k * 0.18, -2.385, 0.38), 0.065, -0.01, segs=20, axis='Y')
     else:
         p.box(lamp, (sx * 0.64 - 0.19, -2.39, 0.35), (sx * 0.64 + 0.19, -2.38, 0.41))
-    p.box(tail, (sx * 0.56 - 0.24, 2.325, 0.50), (sx * 0.56 + 0.24, 2.34, 0.54))
+    p.box(tail, (sx * 0.56 - 0.24, 2.325, 0.52), (sx * 0.56 + 0.24, 2.34, 0.55))      # running light
+    p.box(brake, (sx * 0.56 - 0.24, 2.325, 0.46), (sx * 0.56 + 0.24, 2.34, 0.51))     # brake segment
+    p.box(brake, (sx * 0.84 - 0.04, 2.20, 0.40), (sx * 0.84 + 0.04, 2.30, 0.62))      # vertical corner element
     p.box(lamp_h, (sx * 0.96 - 0.02, -0.95, 0.20), (sx * 0.96 + 0.02, -0.30, 0.52))
     if V["mirror"] == "pod":
         p.bar(carbon, (sx * 0.93, -0.62 + CS, 0.72), (sx * 1.01, -0.60 + CS, 0.80), 0.015)
@@ -320,6 +328,8 @@ for sx in (-1, 1):
         p.bar(carbon, (sx * 0.60, -0.70 + CS, 0.95), (sx * 0.98, -0.62 + CS, 0.98), 0.012)
         p.box(carbon, (sx * 0.98 - 0.03, -0.70 + CS, 0.93), (sx * 0.98 + 0.03, -0.54 + CS, 1.02))
     p.cylinder(metal, (sx * 0.30, 2.30, 0.28), 0.04, 0.12, segs=12, axis='Y')
+# LMP-style vertical rain light on the centre of the tail
+p.box(lamp_h, (-0.05, 2.30, 0.34), (0.05, 2.40, 0.62)); p.box(rain, (-0.04, 2.40, 0.36), (0.04, 2.405, 0.60))
 p.bar(carbon, (0.2, 0.9, 0.96), (0.2, 0.9, 1.20), 0.006)
 # accent stripe along the sill
 for sx in (-1, 1):

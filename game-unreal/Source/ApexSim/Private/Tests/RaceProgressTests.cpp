@@ -55,4 +55,39 @@ bool FApexRaceDistanceTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexRaceOrderTest,
+	"ApexSim.Race.RaceOrder",
+	ApexTestFlags)
+
+bool FApexRaceOrderTest::RunTest(const FString& Parameters)
+{
+	using ApexRace::RanksAhead;
+	using ApexRace::DisplayLap;
+
+	// A finished car drives on into its cool-down lap: its distance keeps
+	// growing, but a car still racing must never be ranked with it.
+	TestTrue(TEXT("finisher ahead of a car further round"), RanksAhead(2, L * 3.0f, 0, L * 3.5f));
+	TestFalse(TEXT("car still racing behind a finisher"), RanksAhead(0, L * 3.5f, 2, L * 3.0f));
+
+	// Finishers stay in crossing order whatever they do afterwards.
+	TestTrue(TEXT("winner ahead of second"), RanksAhead(1, L * 3.0f, 2, L * 3.4f));
+	TestFalse(TEXT("second behind winner"), RanksAhead(2, L * 3.4f, 1, L * 3.0f));
+
+	// Nobody finished: race distance decides, and a tie is not "ahead".
+	TestTrue(TEXT("further round is ahead"), RanksAhead(0, 1200.0f, 0, 1100.0f));
+	TestFalse(TEXT("a tie is not ahead"), RanksAhead(0, 1200.0f, 0, 1200.0f));
+
+	// The lap counter keeps stepping past the race distance on the cool-down
+	// lap; the driver still reads the last lap.
+	TestEqual(TEXT("grid shows lap 1"), DisplayLap(0, 3), 1);
+	TestEqual(TEXT("mid race"), DisplayLap(2, 3), 2);
+	TestEqual(TEXT("cool-down lap clamps"), DisplayLap(4, 3), 3);
+	TestEqual(TEXT("no limit, no clamp"), DisplayLap(7, 0), 7);
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

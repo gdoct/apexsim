@@ -101,17 +101,19 @@ namespace ApexRace
 	 *
 	 * The wire's `TrackProgress` is the centerline station in METRES — the
 	 * server writes `distance_from_start_m` straight into it (physics.rs) —
-	 * not a fraction of the lap. Lap numbers are 1-based, and stay 0 until
-	 * the car has crossed the start line and cleared 10% of the lap.
+	 * not a fraction of the lap. Lap numbers are 1-based and stay 0 until the
+	 * car starts its first lap: a car on the grid behind the line starts it
+	 * as it crosses the line, pole (on the line) with the green light, and a
+	 * car placed past the line on clearing 10% of the lap.
 	 *
 	 * The grid sits BEHIND the start/finish line, so a car that has not
 	 * started yet carries a station just short of the full track length.
 	 * Counted forward that would rank the whole field nearly a lap ahead,
 	 * so on lap 0 a station in the back half of the track reads as distance
 	 * still to cover. Every transition the server emits then stays
-	 * continuous: grid to line (negative to zero), lap 0 to 1 at the 10%
-	 * mark (identical value either side), and each later wrap (the station
-	 * resets to zero exactly as the lap counter steps).
+	 * continuous: grid to line (negative to zero, the lap stepping 0 to 1),
+	 * lap 0 to 1 at the 10% mark (identical value either side), and each
+	 * later wrap (the station resets to zero exactly as the lap counter steps).
 	 */
 	inline float RaceDistanceM(int32 CurrentLap, float StationM, float TrackLengthM)
 	{
@@ -121,5 +123,34 @@ namespace ApexRace
 			return Station - TrackLengthM;
 		}
 		return FMath::Max(0, CurrentLap - 1) * TrackLengthM + Station;
+	}
+
+	/**
+	 * Race order: whether car A is ahead of car B. A car that has taken the
+	 * flag (`FinishPosition` > 0) is ahead of every car still racing, and
+	 * finishers are in their classified order. That matters once the winner
+	 * is in: a finished car drives on, and its lap count or station says
+	 * nothing about the result. Everyone else is ordered by race distance.
+	 */
+	inline bool RanksAhead(int32 FinishA, float DistanceA, int32 FinishB, float DistanceB)
+	{
+		const bool bFinishedA = FinishA > 0;
+		const bool bFinishedB = FinishB > 0;
+		if (bFinishedA != bFinishedB)
+		{
+			return bFinishedA;
+		}
+		if (bFinishedA)
+		{
+			return FinishA < FinishB;
+		}
+		return DistanceA > DistanceB;
+	}
+
+	/** The lap to show a driver: never 0 on the grid, never past the race distance. */
+	inline int32 DisplayLap(int32 CurrentLap, int32 LapLimit)
+	{
+		const int32 Lap = FMath::Max(1, CurrentLap);
+		return LapLimit > 0 ? FMath::Min(Lap, LapLimit) : Lap;
 	}
 }

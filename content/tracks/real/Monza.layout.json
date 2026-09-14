@@ -1,0 +1,2539 @@
+{
+ "format": "apex-track-layout",
+ "version": 1,
+ "source_track": "Monza.yaml",
+ "track_name": "Autodromo Nazionale di Monza",
+ "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
+ "osm_bbox": [
+  [
+   9.275,
+   45.612,
+   9.3,
+   45.635
+  ]
+ ],
+ "fit": {
+  "rmse_m": 1.79,
+  "raceway_matched": 0.551,
+  "centerline_covered": 1.0,
+  "centerline_covered_m": 4638
+ },
+ "corners": [
+  {
+   "name": "Rettifilo di partenza",
+   "station_m": 492.4,
+   "from_m": 5788.3,
+   "to_m": 921.4
+  },
+  {
+   "name": "Variante del Rettifilo",
+   "station_m": 960.0,
+   "from_m": 921.4,
+   "to_m": 996.2
+  },
+  {
+   "name": "Curva Biassono",
+   "station_m": 1517.3,
+   "from_m": 1286.2,
+   "to_m": 1767.8
+  },
+  {
+   "name": "Variante della Roggia",
+   "station_m": 2159.9,
+   "from_m": 2135.2,
+   "to_m": 2204.0
+  },
+  {
+   "name": "Lesmo 1",
+   "station_m": 2559.7,
+   "from_m": 2492.7,
+   "to_m": 2633.4
+  },
+  {
+   "name": "Lesmo 2",
+   "station_m": 2886.0,
+   "from_m": 2858.3,
+   "to_m": 2905.0
+  },
+  {
+   "name": "Curva del Serraglio",
+   "station_m": 3309.4,
+   "from_m": 3243.2,
+   "to_m": 3379.9
+  },
+  {
+   "name": "Autodromo nazionale di Monza - anello alta velocità",
+   "station_m": 3603.8,
+   "from_m": 3603.5,
+   "to_m": 3603.8
+  },
+  {
+   "name": "Curva Vialone",
+   "station_m": 3954.8,
+   "from_m": 3936.5,
+   "to_m": 3975.2
+  },
+  {
+   "name": "Variante Ascari",
+   "station_m": 4097.1,
+   "from_m": 4007.0,
+   "to_m": 4172.3
+  },
+  {
+   "name": "Curva Alboreto",
+   "station_m": 5290.7,
+   "from_m": 5114.9,
+   "to_m": 5788.3
+  }
+ ],
+ "pit_lane": {
+  "side": "right",
+  "length_m": 742.7,
+  "nodes": [
+   [
+    -4.19,
+    -248.88
+   ],
+   [
+    -3.23,
+    -239.67
+   ],
+   [
+    -2.28,
+    -230.45
+   ],
+   [
+    -1.32,
+    -221.23
+   ],
+   [
+    -0.36,
+    -212.01
+   ],
+   [
+    0.59,
+    -202.8
+   ],
+   [
+    1.14,
+    -196.46
+   ],
+   [
+    1.6,
+    -188.58
+   ],
+   [
+    2.27,
+    -173.63
+   ],
+   [
+    2.46,
+    -170.25
+   ],
+   [
+    2.77,
+    -166.56
+   ],
+   [
+    3.06,
+    -162.71
+   ],
+   [
+    3.46,
+    -158.56
+   ],
+   [
+    4.59,
+    -147.99
+   ],
+   [
+    5.72,
+    -137.43
+   ],
+   [
+    6.85,
+    -126.86
+   ],
+   [
+    7.96,
+    -117.53
+   ],
+   [
+    9.08,
+    -108.2
+   ],
+   [
+    10.19,
+    -98.87
+   ],
+   [
+    11.31,
+    -89.55
+   ],
+   [
+    11.83,
+    -81.11
+   ],
+   [
+    12.36,
+    -72.68
+   ],
+   [
+    12.88,
+    -64.25
+   ],
+   [
+    13.41,
+    -55.82
+   ],
+   [
+    13.93,
+    -47.38
+   ],
+   [
+    14.45,
+    -38.95
+   ],
+   [
+    14.98,
+    -30.52
+   ],
+   [
+    15.5,
+    -22.09
+   ],
+   [
+    16.85,
+    -8.75
+   ],
+   [
+    17.66,
+    -0.53
+   ],
+   [
+    18.47,
+    7.68
+   ],
+   [
+    19.29,
+    15.89
+   ],
+   [
+    20.1,
+    24.1
+   ],
+   [
+    20.92,
+    32.31
+   ],
+   [
+    21.73,
+    40.52
+   ],
+   [
+    22.54,
+    48.74
+   ],
+   [
+    23.36,
+    56.95
+   ],
+   [
+    24.17,
+    65.16
+   ],
+   [
+    24.99,
+    73.37
+   ],
+   [
+    25.8,
+    81.58
+   ],
+   [
+    26.61,
+    89.79
+   ],
+   [
+    27.43,
+    98.01
+   ],
+   [
+    28.24,
+    106.22
+   ],
+   [
+    29.05,
+    114.43
+   ],
+   [
+    29.87,
+    122.64
+   ],
+   [
+    30.68,
+    130.85
+   ],
+   [
+    31.5,
+    139.07
+   ],
+   [
+    32.31,
+    147.28
+   ],
+   [
+    33.12,
+    155.49
+   ],
+   [
+    33.94,
+    163.7
+   ],
+   [
+    34.75,
+    171.91
+   ],
+   [
+    35.57,
+    180.12
+   ],
+   [
+    36.38,
+    188.34
+   ],
+   [
+    37.19,
+    196.55
+   ],
+   [
+    38.01,
+    204.76
+   ],
+   [
+    38.82,
+    212.97
+   ],
+   [
+    39.64,
+    221.18
+   ],
+   [
+    40.45,
+    229.39
+   ],
+   [
+    41.26,
+    237.61
+   ],
+   [
+    42.08,
+    245.82
+   ],
+   [
+    43.13,
+    256.41
+   ],
+   [
+    44.18,
+    267.0
+   ],
+   [
+    45.23,
+    277.59
+   ],
+   [
+    46.0,
+    285.86
+   ],
+   [
+    46.76,
+    294.14
+   ],
+   [
+    47.52,
+    302.42
+   ],
+   [
+    48.28,
+    310.69
+   ],
+   [
+    49.04,
+    318.97
+   ],
+   [
+    49.81,
+    327.25
+   ],
+   [
+    49.98,
+    335.31
+   ],
+   [
+    50.15,
+    343.38
+   ],
+   [
+    50.06,
+    345.01
+   ],
+   [
+    49.61,
+    353.85
+   ],
+   [
+    49.16,
+    362.7
+   ],
+   [
+    48.71,
+    371.54
+   ],
+   [
+    48.73,
+    380.36
+   ],
+   [
+    48.75,
+    389.19
+   ],
+   [
+    48.78,
+    398.02
+   ],
+   [
+    48.8,
+    406.84
+   ],
+   [
+    48.82,
+    415.67
+   ],
+   [
+    48.84,
+    424.5
+   ],
+   [
+    48.86,
+    433.32
+   ],
+   [
+    48.88,
+    442.15
+   ],
+   [
+    48.9,
+    450.98
+   ],
+   [
+    48.66,
+    459.0
+   ],
+   [
+    48.42,
+    467.03
+   ],
+   [
+    48.17,
+    475.05
+   ],
+   [
+    47.93,
+    483.08
+   ],
+   [
+    47.69,
+    491.1
+   ]
+  ]
+ },
+ "stands": [
+  {
+   "name": "Tribuna Laterale Destra",
+   "station_m": 126.5,
+   "side": "left",
+   "offset_m": 19.2,
+   "length_m": 220.2,
+   "depth_m": 24.9,
+   "yaw_rad": 1.4856,
+   "centre": [
+    -23.03,
+    130.41
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -15.65,
+     41.4
+    ],
+    [
+     3.08,
+     260.76
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Centrale",
+   "station_m": 315.5,
+   "side": "left",
+   "offset_m": 25.1,
+   "length_m": 67.4,
+   "depth_m": 23.5,
+   "yaw_rad": 1.4532,
+   "centre": [
+    -8.74,
+    318.99
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     8.44,
+     344.1
+    ],
+    [
+     0.53,
+     277.16
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Laterale Sinistra",
+   "station_m": 401.0,
+   "side": "left",
+   "offset_m": 21.0,
+   "length_m": 73.7,
+   "depth_m": 21.7,
+   "yaw_rad": 1.4662,
+   "centre": [
+    4.7,
+    403.33
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     20.73,
+     431.3
+    ],
+    [
+     13.03,
+     357.96
+    ]
+   ]
+  },
+  {
+   "name": "tribune",
+   "station_m": 408.4,
+   "side": "right",
+   "offset_m": 20.4,
+   "length_m": 71.9,
+   "depth_m": 11.1,
+   "yaw_rad": 1.4725,
+   "centre": [
+    64.58,
+    405.27
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     55.95,
+     362.8
+    ],
+    [
+     63.0,
+     434.31
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Piscina",
+   "station_m": 500.5,
+   "side": "left",
+   "offset_m": 18.7,
+   "length_m": 82.8,
+   "depth_m": 10.9,
+   "yaw_rad": 1.4909,
+   "centre": [
+    22.47,
+    501.42
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     26.33,
+     467.91
+    ],
+    [
+     32.94,
+     550.4
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 706.9,
+   "side": "left",
+   "offset_m": 19.1,
+   "length_m": 50.2,
+   "depth_m": 10.3,
+   "yaw_rad": 1.5029,
+   "centre": [
+    39.77,
+    707.05
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     47.35,
+     726.7
+    ],
+    [
+     43.71,
+     676.8
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Alta Velocità",
+   "station_m": 710.7,
+   "side": "right",
+   "offset_m": 20.7,
+   "length_m": 91.4,
+   "depth_m": 11.7,
+   "yaw_rad": 1.4663,
+   "centre": [
+    91.87,
+    706.48
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     81.5,
+     652.42
+    ],
+    [
+     91.04,
+     743.33
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Alta Velocità",
+   "station_m": 806.4,
+   "side": "right",
+   "offset_m": 23.2,
+   "length_m": 90.0,
+   "depth_m": 11.6,
+   "yaw_rad": 1.3116,
+   "centre": [
+    110.7,
+    800.92
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     103.62,
+     746.96
+    ],
+    [
+     92.36,
+     749.95
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Alta Velocità",
+   "station_m": 865.9,
+   "side": "right",
+   "offset_m": 40.1,
+   "length_m": 51.2,
+   "depth_m": 11.6,
+   "yaw_rad": 1.1641,
+   "centre": [
+    129.61,
+    859.01
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     137.49,
+     889.07
+    ],
+    [
+     117.24,
+     842.04
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 995.1,
+   "side": "right",
+   "offset_m": 26.0,
+   "length_m": 12.8,
+   "depth_m": 7.9,
+   "yaw_rad": 2.0282,
+   "centre": [
+    155.58,
+    964.24
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     150.5,
+     967.44
+    ],
+    [
+     156.14,
+     955.96
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Prima Variante Esterna",
+   "station_m": 1050.4,
+   "side": "left",
+   "offset_m": 20.5,
+   "length_m": 146.1,
+   "depth_m": 26.9,
+   "yaw_rad": 1.4939,
+   "centre": [
+    52.79,
+    994.62
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     66.39,
+     938.2
+    ],
+    [
+     77.62,
+     1083.86
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1755.2,
+   "side": "left",
+   "offset_m": 143.5,
+   "length_m": 39.7,
+   "depth_m": 6.3,
+   "yaw_rad": 1.5526,
+   "centre": [
+    412.51,
+    1694.22
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     415.84,
+     1670.32
+    ],
+    [
+     409.56,
+     1670.42
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Seconda Variante",
+   "station_m": 2256.7,
+   "side": "right",
+   "offset_m": 35.9,
+   "length_m": 28.2,
+   "depth_m": 9.2,
+   "yaw_rad": 1.1898,
+   "centre": [
+    919.78,
+    1562.86
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     931.18,
+     1576.52
+    ],
+    [
+     922.66,
+     1579.94
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Roggia",
+   "station_m": 2283.0,
+   "side": "right",
+   "offset_m": 26.7,
+   "length_m": 27.2,
+   "depth_m": 9.0,
+   "yaw_rad": 0.5227,
+   "centre": [
+    940.7,
+    1588.17
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     953.06,
+     1599.43
+    ],
+    [
+     929.48,
+     1585.84
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Ascari Tre",
+   "station_m": 3944.1,
+   "side": "right",
+   "offset_m": 17.4,
+   "length_m": 32.5,
+   "depth_m": 8.9,
+   "yaw_rad": 0.731,
+   "centre": [
+    382.18,
+    745.25
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     376.06,
+     732.61
+    ],
+    [
+     400.25,
+     754.31
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Ascari Due",
+   "station_m": 4049.5,
+   "side": "right",
+   "offset_m": 69.5,
+   "length_m": 31.2,
+   "depth_m": 5.5,
+   "yaw_rad": 1.3946,
+   "centre": [
+    316.92,
+    654.29
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     316.91,
+     635.3
+    ],
+    [
+     311.46,
+     636.26
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Amici Autodromo",
+   "station_m": 4128.6,
+   "side": "right",
+   "offset_m": 52.0,
+   "length_m": 20.9,
+   "depth_m": 9.6,
+   "yaw_rad": 1.3852,
+   "centre": [
+    305.23,
+    620.47
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     308.56,
+     607.07
+    ],
+    [
+     299.15,
+     608.84
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Ascari Uno",
+   "station_m": 4138.9,
+   "side": "right",
+   "offset_m": 37.2,
+   "length_m": 20.0,
+   "depth_m": 8.3,
+   "yaw_rad": 1.4756,
+   "centre": [
+    301.04,
+    594.37
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     304.83,
+     581.96
+    ],
+    [
+     296.61,
+     582.74
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Ascari",
+   "station_m": 4152.5,
+   "side": "right",
+   "offset_m": 25.1,
+   "length_m": 60.1,
+   "depth_m": 9.4,
+   "yaw_rad": 1.474,
+   "centre": [
+    297.19,
+    557.23
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     296.07,
+     578.41
+    ],
+    [
+     305.43,
+     577.49
+    ],
+    [
+     299.62,
+     517.72
+    ],
+    [
+     290.27,
+     518.63
+    ],
+    [
+     295.7,
+     572.72
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Uscita Ascari A",
+   "station_m": 4300.1,
+   "side": "right",
+   "offset_m": 28.8,
+   "length_m": 48.2,
+   "depth_m": 9.5,
+   "yaw_rad": 1.4823,
+   "centre": [
+    275.89,
+    407.13
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     283.28,
+     425.82
+    ],
+    [
+     279.03,
+     377.83
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Uscita Ascari B",
+   "station_m": 4350.9,
+   "side": "right",
+   "offset_m": 25.7,
+   "length_m": 30.6,
+   "depth_m": 9.5,
+   "yaw_rad": 1.4828,
+   "centre": [
+    273.43,
+    356.02
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     280.17,
+     367.7
+    ],
+    [
+     277.48,
+     337.25
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Museo",
+   "station_m": 4383.5,
+   "side": "right",
+   "offset_m": 25.5,
+   "length_m": 20.7,
+   "depth_m": 9.2,
+   "yaw_rad": 1.4508,
+   "centre": [
+    270.49,
+    323.43
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     276.96,
+     330.98
+    ],
+    [
+     274.49,
+     310.45
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Laterale Parabolica",
+   "station_m": 4898.3,
+   "side": "left",
+   "offset_m": 17.3,
+   "length_m": 71.2,
+   "depth_m": 12.5,
+   "yaw_rad": 1.4632,
+   "centre": [
+    272.4,
+    -194.42
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     262.85,
+     -236.36
+    ],
+    [
+     270.49,
+     -165.56
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Laterale Parabolica",
+   "station_m": 4967.8,
+   "side": "left",
+   "offset_m": 18.3,
+   "length_m": 51.8,
+   "depth_m": 12.0,
+   "yaw_rad": 1.4724,
+   "centre": [
+    265.95,
+    -263.66
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     258.11,
+     -294.12
+    ],
+    [
+     263.19,
+     -242.56
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Laterale Parabolica",
+   "station_m": 5017.0,
+   "side": "left",
+   "offset_m": 18.0,
+   "length_m": 34.4,
+   "depth_m": 12.8,
+   "yaw_rad": 1.469,
+   "centre": [
+    261.18,
+    -312.59
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     253.97,
+     -332.62
+    ],
+    [
+     257.47,
+     -298.36
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Laterale Parabolica",
+   "station_m": 5057.6,
+   "side": "left",
+   "offset_m": 18.3,
+   "length_m": 34.4,
+   "depth_m": 11.9,
+   "yaw_rad": 1.4785,
+   "centre": [
+    257.15,
+    -352.96
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     250.49,
+     -373.07
+    ],
+    [
+     253.66,
+     -338.82
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Laterale Parabolica",
+   "station_m": 5098.2,
+   "side": "left",
+   "offset_m": 17.8,
+   "length_m": 36.7,
+   "depth_m": 12.3,
+   "yaw_rad": 1.4932,
+   "centre": [
+    252.97,
+    -393.63
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     246.36,
+     -415.17
+    ],
+    [
+     249.2,
+     -378.63
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Parabolica",
+   "station_m": 5151.2,
+   "side": "left",
+   "offset_m": 14.6,
+   "length_m": 82.0,
+   "depth_m": 13.9,
+   "yaw_rad": 1.4728,
+   "centre": [
+    244.58,
+    -459.7
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     239.51,
+     -426.22
+    ],
+    [
+     253.31,
+     -427.59
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5425.6,
+   "side": "right",
+   "offset_m": 12.9,
+   "length_m": 17.8,
+   "depth_m": 4.4,
+   "yaw_rad": 1.8767,
+   "centre": [
+    26.44,
+    -356.68
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     27.98,
+     -367.37
+    ],
+    [
+     22.63,
+     -350.44
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5425.9,
+   "side": "right",
+   "offset_m": 20.5,
+   "length_m": 15.1,
+   "depth_m": 3.0,
+   "yaw_rad": 1.8824,
+   "centre": [
+    33.38,
+    -354.0
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     34.46,
+     -363.2
+    ],
+    [
+     29.81,
+     -348.78
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5447.3,
+   "side": "right",
+   "offset_m": 13.8,
+   "length_m": 18.8,
+   "depth_m": 4.4,
+   "yaw_rad": 1.8149,
+   "centre": [
+    21.38,
+    -337.0
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     22.4,
+     -348.36
+    ],
+    [
+     17.86,
+     -330.15
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5447.5,
+   "side": "right",
+   "offset_m": 20.9,
+   "length_m": 17.6,
+   "depth_m": 3.2,
+   "yaw_rad": 1.8245,
+   "centre": [
+    28.29,
+    -335.08
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     29.07,
+     -345.79
+    ],
+    [
+     24.66,
+     -328.74
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5468.9,
+   "side": "right",
+   "offset_m": 13.7,
+   "length_m": 17.7,
+   "depth_m": 4.9,
+   "yaw_rad": 1.7438,
+   "centre": [
+    17.16,
+    -316.94
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     17.04,
+     -327.72
+    ],
+    [
+     14.0,
+     -310.32
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5469.6,
+   "side": "right",
+   "offset_m": 21.1,
+   "length_m": 17.0,
+   "depth_m": 3.1,
+   "yaw_rad": 1.7505,
+   "centre": [
+    24.23,
+    -315.13
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     24.2,
+     -325.5
+    ],
+    [
+     21.16,
+     -308.78
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5490.9,
+   "side": "right",
+   "offset_m": 14.0,
+   "length_m": 18.7,
+   "depth_m": 3.9,
+   "yaw_rad": 1.6724,
+   "centre": [
+    14.19,
+    -296.14
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     13.76,
+     -307.44
+    ],
+    [
+     11.87,
+     -288.87
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5491.0,
+   "side": "right",
+   "offset_m": 21.4,
+   "length_m": 17.6,
+   "depth_m": 3.1,
+   "yaw_rad": 1.6654,
+   "centre": [
+    21.89,
+    -295.17
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     21.02,
+     -305.86
+    ],
+    [
+     19.35,
+     -288.33
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5512.0,
+   "side": "right",
+   "offset_m": 14.2,
+   "length_m": 18.4,
+   "depth_m": 5.2,
+   "yaw_rad": 1.6175,
+   "centre": [
+    13.22,
+    -275.82
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     11.64,
+     -286.91
+    ],
+    [
+     10.78,
+     -268.58
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5533.3,
+   "side": "right",
+   "offset_m": 14.8,
+   "length_m": 18.9,
+   "depth_m": 2.9,
+   "yaw_rad": 1.5919,
+   "centre": [
+    11.8,
+    -255.13
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     10.89,
+     -266.5
+    ],
+    [
+     10.5,
+     -247.59
+    ]
+   ]
+  },
+  {
+   "name": "Tribune",
+   "station_m": 5534.7,
+   "side": "right",
+   "offset_m": 19.3,
+   "length_m": 12.8,
+   "depth_m": 2.4,
+   "yaw_rad": 1.6007,
+   "centre": [
+    16.37,
+    -253.64
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     15.16,
+     -261.37
+    ],
+    [
+     14.78,
+     -248.57
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Parabolica interna",
+   "station_m": 5579.8,
+   "side": "right",
+   "offset_m": 14.0,
+   "length_m": 59.0,
+   "depth_m": 10.4,
+   "yaw_rad": 1.5113,
+   "centre": [
+    15.64,
+    -209.06
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     9.4,
+     -244.15
+    ],
+    [
+     12.9,
+     -185.25
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Parabolica interna",
+   "station_m": 5630.5,
+   "side": "right",
+   "offset_m": 19.6,
+   "length_m": 38.3,
+   "depth_m": 8.5,
+   "yaw_rad": 1.4967,
+   "centre": [
+    19.74,
+    -157.92
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     14.64,
+     -180.57
+    ],
+    [
+     17.48,
+     -142.4
+    ]
+   ]
+  },
+  {
+   "name": "Tribuna Vedano",
+   "station_m": 5648.8,
+   "side": "left",
+   "offset_m": 23.7,
+   "length_m": 145.3,
+   "depth_m": 14.8,
+   "yaw_rad": 1.4582,
+   "centre": [
+    -47.12,
+    -140.9
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -28.51,
+     -55.26
+    ],
+    [
+     -43.2,
+     -53.6
+    ]
+   ]
+  }
+ ],
+ "structures": [
+  {
+   "name": "Palazzina Box",
+   "station_m": 88.4,
+   "side": "right",
+   "offset_m": 26.3,
+   "length_m": 230.5,
+   "depth_m": 25.3,
+   "yaw_rad": 1.4666,
+   "centre": [
+    43.37,
+    85.68
+   ],
+   "levels": 0,
+   "osm_building": "commercial",
+   "area_m2": 5788
+  },
+  {
+   "name": "Hospitality Building",
+   "station_m": 311.8,
+   "side": "right",
+   "offset_m": 22.5,
+   "length_m": 90.4,
+   "depth_m": 29.2,
+   "yaw_rad": 1.4794,
+   "centre": [
+    64.15,
+    308.0
+   ],
+   "levels": 0,
+   "osm_building": "commercial",
+   "area_m2": 2641
+  },
+  {
+   "name": null,
+   "station_m": 323.7,
+   "side": "right",
+   "offset_m": 59.5,
+   "length_m": 72.4,
+   "depth_m": 6.9,
+   "yaw_rad": 3.0413,
+   "centre": [
+    119.6,
+    314.51
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 498
+  },
+  {
+   "name": "Vecchie rimesse",
+   "station_m": 365.3,
+   "side": "right",
+   "offset_m": 65.2,
+   "length_m": 64.9,
+   "depth_m": 12.5,
+   "yaw_rad": 3.0455,
+   "centre": [
+    126.37,
+    355.92
+   ],
+   "levels": 0,
+   "osm_building": "service",
+   "area_m2": 809
+  },
+  {
+   "name": null,
+   "station_m": 1618.8,
+   "side": "left",
+   "offset_m": 99.0,
+   "length_m": 164.1,
+   "depth_m": 89.3,
+   "yaw_rad": 1.5569,
+   "centre": [
+    235.58,
+    1650.19
+   ],
+   "levels": 0,
+   "osm_building": "industrial",
+   "area_m2": 11557
+  },
+  {
+   "name": null,
+   "station_m": 1723.4,
+   "side": "left",
+   "offset_m": 63.0,
+   "length_m": 38.5,
+   "depth_m": 31.6,
+   "yaw_rad": 1.5637,
+   "centre": [
+    387.37,
+    1600.32
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 942
+  },
+  {
+   "name": "PalaRovagnati",
+   "station_m": 1864.5,
+   "side": "left",
+   "offset_m": 60.8,
+   "length_m": 58.2,
+   "depth_m": 42.0,
+   "yaw_rad": 1.5532,
+   "centre": [
+    534.22,
+    1634.77
+   ],
+   "levels": 1,
+   "osm_building": "stadium",
+   "area_m2": 2445
+  },
+  {
+   "name": null,
+   "station_m": 1878.8,
+   "side": "left",
+   "offset_m": 122.9,
+   "length_m": 35.9,
+   "depth_m": 21.7,
+   "yaw_rad": 1.5658,
+   "centre": [
+    544.55,
+    1684.09
+   ],
+   "levels": 0,
+   "osm_building": "pavilion",
+   "area_m2": 596
+  },
+  {
+   "name": null,
+   "station_m": 2359.0,
+   "side": "left",
+   "offset_m": 57.0,
+   "length_m": 67.4,
+   "depth_m": 6.7,
+   "yaw_rad": 1.7411,
+   "centre": [
+    970.94,
+    1737.0
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 452
+  },
+  {
+   "name": null,
+   "station_m": 2372.2,
+   "side": "left",
+   "offset_m": 123.3,
+   "length_m": 27.4,
+   "depth_m": 10.0,
+   "yaw_rad": 1.7522,
+   "centre": [
+    970.26,
+    1781.94
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 275
+  },
+  {
+   "name": null,
+   "station_m": 2379.2,
+   "side": "left",
+   "offset_m": 76.5,
+   "length_m": 21.1,
+   "depth_m": 20.5,
+   "yaw_rad": 1.7216,
+   "centre": [
+    992.67,
+    1737.33
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 433
+  },
+  {
+   "name": null,
+   "station_m": 2388.8,
+   "side": "left",
+   "offset_m": 37.3,
+   "length_m": 17.5,
+   "depth_m": 14.5,
+   "yaw_rad": 0.1894,
+   "centre": [
+    1015.65,
+    1698.9
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 255
+  },
+  {
+   "name": null,
+   "station_m": 2389.5,
+   "side": "left",
+   "offset_m": 98.4,
+   "length_m": 49.7,
+   "depth_m": 19.5,
+   "yaw_rad": 1.7487,
+   "centre": [
+    990.68,
+    1776.69
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 968
+  },
+  {
+   "name": null,
+   "station_m": 2397.9,
+   "side": "left",
+   "offset_m": 54.3,
+   "length_m": 43.4,
+   "depth_m": 10.7,
+   "yaw_rad": 1.7493,
+   "centre": [
+    1013.78,
+    1733.75
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 466
+  },
+  {
+   "name": null,
+   "station_m": 2417.1,
+   "side": "left",
+   "offset_m": 45.9,
+   "length_m": 48.6,
+   "depth_m": 20.3,
+   "yaw_rad": 1.7417,
+   "centre": [
+    1033.63,
+    1734.92
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 984
+  },
+  {
+   "name": null,
+   "station_m": 2418.2,
+   "side": "left",
+   "offset_m": 96.1,
+   "length_m": 45.8,
+   "depth_m": 25.9,
+   "yaw_rad": 1.7571,
+   "centre": [
+    1020.78,
+    1777.43
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 767
+  },
+  {
+   "name": null,
+   "station_m": 2603.5,
+   "side": "left",
+   "offset_m": 129.5,
+   "length_m": 19.8,
+   "depth_m": 19.6,
+   "yaw_rad": 0.2604,
+   "centre": [
+    1345.29,
+    1707.6
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 389
+  },
+  {
+   "name": null,
+   "station_m": 4371.3,
+   "side": "right",
+   "offset_m": 87.3,
+   "length_m": 30.9,
+   "depth_m": 19.7,
+   "yaw_rad": 3.0296,
+   "centre": [
+    201.31,
+    343.35
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 404
+  },
+  {
+   "name": "Padiglione Esposizioni",
+   "station_m": 4386.9,
+   "side": "right",
+   "offset_m": 40.3,
+   "length_m": 48.6,
+   "depth_m": 29.0,
+   "yaw_rad": 2.0359,
+   "centre": [
+    240.86,
+    323.14
+   ],
+   "levels": 0,
+   "osm_building": "public",
+   "area_m2": 961
+  },
+  {
+   "name": null,
+   "station_m": 4460.5,
+   "side": "right",
+   "offset_m": 53.2,
+   "length_m": 52.2,
+   "depth_m": 51.4,
+   "yaw_rad": 1.4509,
+   "centre": [
+    209.5,
+    251.86
+   ],
+   "levels": 0,
+   "osm_building": "commercial",
+   "area_m2": 2684
+  },
+  {
+   "name": "Centro Medico",
+   "station_m": 5768.6,
+   "side": "right",
+   "offset_m": 54.9,
+   "length_m": 37.9,
+   "depth_m": 15.2,
+   "yaw_rad": 3.0968,
+   "centre": [
+    67.33,
+    -26.64
+   ],
+   "levels": 0,
+   "osm_building": "hospital",
+   "area_m2": 487
+  }
+ ],
+ "crossings": [
+  {
+   "name": null,
+   "station_m": 3596.3,
+   "kind": "footbridge"
+  },
+  {
+   "name": null,
+   "station_m": 4437.8,
+   "kind": "footbridge"
+  },
+  {
+   "name": null,
+   "station_m": 4731.2,
+   "kind": "footbridge"
+  }
+ ],
+ "landmarks": [
+  {
+   "kind": "tower",
+   "name": "Torre Nord",
+   "station_m": 584.2,
+   "side": "left",
+   "centre": [
+    41.15,
+    583.84
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1706.3,
+   "side": "left",
+   "centre": [
+    329.67,
+    1778.15
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1756.5,
+   "side": "left",
+   "centre": [
+    404.59,
+    1777.12
+   ]
+  },
+  {
+   "kind": "tower",
+   "name": "Torre Sud",
+   "station_m": 5787.6,
+   "side": "left",
+   "centre": [
+    -10.78,
+    -0.51
+   ]
+  }
+ ],
+ "woods": [
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     141.6,
+     973.0
+    ],
+    [
+     107.2,
+     1085.7
+    ],
+    [
+     116.5,
+     1216.1
+    ],
+    [
+     168.0,
+     1304.2
+    ],
+    [
+     155.9,
+     1329.5
+    ],
+    [
+     166.7,
+     1375.5
+    ],
+    [
+     240.4,
+     1449.6
+    ],
+    [
+     319.7,
+     1491.5
+    ],
+    [
+     410.1,
+     1513.6
+    ],
+    [
+     922.0,
+     1549.6
+    ],
+    [
+     962.5,
+     1597.8
+    ],
+    [
+     971.6,
+     1626.0
+    ],
+    [
+     1138.8,
+     1683.6
+    ],
+    [
+     1188.8,
+     1667.3
+    ],
+    [
+     1208.0,
+     1639.6
+    ],
+    [
+     1228.5,
+     1436.2
+    ],
+    [
+     1209.5,
+     1380.6
+    ],
+    [
+     1181.6,
+     1354.8
+    ],
+    [
+     852.6,
+     1155.9
+    ],
+    [
+     801.1,
+     1163.4
+    ],
+    [
+     770.0,
+     1155.8
+    ],
+    [
+     756.2,
+     1140.2
+    ],
+    [
+     803.2,
+     1095.6
+    ],
+    [
+     665.2,
+     972.4
+    ],
+    [
+     621.6,
+     1016.8
+    ],
+    [
+     737.4,
+     1092.7
+    ],
+    [
+     737.1,
+     1100.2
+    ],
+    [
+     466.0,
+     1124.0
+    ],
+    [
+     452.9,
+     1078.8
+    ],
+    [
+     370.5,
+     1076.9
+    ],
+    [
+     304.8,
+     1061.7
+    ],
+    [
+     216.2,
+     1016.8
+    ],
+    [
+     168.4,
+     965.3
+    ],
+    [
+     141.6,
+     973.0
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     604.7,
+     -213.2
+    ],
+    [
+     597.7,
+     -247.5
+    ],
+    [
+     567.9,
+     -275.2
+    ],
+    [
+     559.6,
+     -304.1
+    ],
+    [
+     558.7,
+     -336.4
+    ],
+    [
+     578.4,
+     -379.7
+    ],
+    [
+     560.5,
+     -463.0
+    ],
+    [
+     542.9,
+     -491.8
+    ],
+    [
+     288.5,
+     -449.3
+    ],
+    [
+     263.5,
+     -683.7
+    ],
+    [
+     324.9,
+     -682.6
+    ],
+    [
+     387.7,
+     -666.0
+    ],
+    [
+     481.9,
+     -612.8
+    ],
+    [
+     519.8,
+     -573.0
+    ],
+    [
+     567.8,
+     -494.6
+    ],
+    [
+     589.6,
+     -426.1
+    ],
+    [
+     604.1,
+     -357.9
+    ],
+    [
+     573.2,
+     -336.8
+    ],
+    [
+     575.1,
+     -300.7
+    ],
+    [
+     578.2,
+     -276.8
+    ],
+    [
+     615.4,
+     -270.9
+    ],
+    [
+     624.5,
+     -194.2
+    ],
+    [
+     609.0,
+     -198.4
+    ],
+    [
+     604.7,
+     -213.2
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     263.4,
+     -707.7
+    ],
+    [
+     249.1,
+     -834.6
+    ],
+    [
+     545.1,
+     -913.0
+    ],
+    [
+     612.3,
+     -412.6
+    ],
+    [
+     576.6,
+     -522.4
+    ],
+    [
+     499.9,
+     -631.9
+    ],
+    [
+     401.2,
+     -685.2
+    ],
+    [
+     263.4,
+     -707.7
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     30.5,
+     -460.5
+    ],
+    [
+     -9.4,
+     -410.9
+    ],
+    [
+     -3.1,
+     -468.5
+    ],
+    [
+     15.7,
+     -519.8
+    ],
+    [
+     70.2,
+     -596.4
+    ],
+    [
+     122.4,
+     -637.3
+    ],
+    [
+     175.9,
+     -664.4
+    ],
+    [
+     249.4,
+     -681.8
+    ],
+    [
+     268.0,
+     -520.1
+    ],
+    [
+     249.7,
+     -518.4
+    ],
+    [
+     240.2,
+     -536.2
+    ],
+    [
+     218.6,
+     -543.8
+    ],
+    [
+     154.5,
+     -522.3
+    ],
+    [
+     142.3,
+     -526.9
+    ],
+    [
+     107.3,
+     -513.4
+    ],
+    [
+     30.5,
+     -460.5
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     94.5,
+     562.8
+    ],
+    [
+     71.3,
+     511.5
+    ],
+    [
+     87.2,
+     459.5
+    ],
+    [
+     126.5,
+     447.8
+    ],
+    [
+     277.5,
+     434.2
+    ],
+    [
+     283.2,
+     456.4
+    ],
+    [
+     276.0,
+     471.3
+    ],
+    [
+     190.2,
+     483.0
+    ],
+    [
+     125.4,
+     563.5
+    ],
+    [
+     94.5,
+     562.8
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     670.5,
+     952.4
+    ],
+    [
+     721.7,
+     863.0
+    ],
+    [
+     745.8,
+     751.7
+    ],
+    [
+     665.7,
+     -36.2
+    ],
+    [
+     677.5,
+     -38.2
+    ],
+    [
+     771.2,
+     860.9
+    ],
+    [
+     838.1,
+     1084.2
+    ],
+    [
+     909.5,
+     1149.1
+    ],
+    [
+     1093.1,
+     1251.4
+    ],
+    [
+     1105.4,
+     1249.0
+    ],
+    [
+     1109.7,
+     1263.5
+    ],
+    [
+     1139.4,
+     1284.9
+    ],
+    [
+     1131.0,
+     1289.7
+    ],
+    [
+     895.5,
+     1153.2
+    ],
+    [
+     670.5,
+     952.4
+    ]
+   ]
+  },
+  {
+   "leaf": "broadleaved",
+   "ring": [
+    [
+     40.1,
+     -383.8
+    ],
+    [
+     47.7,
+     -417.0
+    ],
+    [
+     76.2,
+     -446.7
+    ],
+    [
+     144.9,
+     -470.9
+    ],
+    [
+     168.5,
+     -466.9
+    ],
+    [
+     178.6,
+     -455.1
+    ],
+    [
+     160.9,
+     -438.7
+    ],
+    [
+     124.0,
+     -430.9
+    ],
+    [
+     90.9,
+     -382.3
+    ],
+    [
+     46.2,
+     -374.6
+    ],
+    [
+     40.1,
+     -383.8
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     37.4,
+     -133.4
+    ],
+    [
+     31.4,
+     -256.7
+    ],
+    [
+     45.2,
+     -299.9
+    ],
+    [
+     189.2,
+     -294.4
+    ],
+    [
+     206.8,
+     -263.7
+    ],
+    [
+     213.3,
+     -176.5
+    ],
+    [
+     236.3,
+     -116.8
+    ],
+    [
+     244.3,
+     -40.6
+    ],
+    [
+     229.9,
+     -23.9
+    ],
+    [
+     207.3,
+     -24.8
+    ],
+    [
+     202.5,
+     -103.1
+    ],
+    [
+     187.2,
+     -124.4
+    ],
+    [
+     101.7,
+     -123.8
+    ],
+    [
+     68.7,
+     -111.3
+    ],
+    [
+     42.0,
+     -120.0
+    ],
+    [
+     37.4,
+     -133.4
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     502.8,
+     1886.0
+    ],
+    [
+     587.2,
+     1909.1
+    ],
+    [
+     564.8,
+     1904.6
+    ],
+    [
+     568.7,
+     1776.8
+    ],
+    [
+     558.1,
+     1819.3
+    ],
+    [
+     537.6,
+     1829.3
+    ],
+    [
+     537.6,
+     1747.4
+    ],
+    [
+     527.1,
+     1747.7
+    ],
+    [
+     526.8,
+     1785.3
+    ],
+    [
+     506.3,
+     1785.5
+    ],
+    [
+     502.8,
+     1886.0
+    ]
+   ]
+  }
+ ]
+}

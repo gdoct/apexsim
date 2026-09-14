@@ -145,6 +145,7 @@ mod tests {
             width_m: 8.0,
             box_count: 10,
             speed_limit_kmh: 80.0,
+            authored: false,
         });
         scene
     }

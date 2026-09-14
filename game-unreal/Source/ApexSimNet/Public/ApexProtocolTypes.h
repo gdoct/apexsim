@@ -390,6 +390,14 @@ struct APEXSIMNET_API FApexCarTelemetry
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	float TrackProgress = 0.0f;
 
+	/**
+	 * Classified position once the car has completed the race distance, 1 for
+	 * the winner; 0 while it is still racing (the server sends nil). Set in
+	 * crossing order and never changed afterwards.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 FinishPosition = 0;
+
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	int32 CurrentLapTimeMs = 0;
 

@@ -188,6 +188,21 @@ private:
 	/** Hides the menu and hands the view to the race director, or takes it back. */
 	void SetRaceViewActive(bool bActive);
 
+	/**
+	 * Watches the race for the chequered flag. When the winner crosses the line
+	 * everyone still racing is told; when the local car finishes, its race is
+	 * over and the results screen takes over while the others come in. The
+	 * session itself only ends once the whole field is in (or out of time).
+	 */
+	UFUNCTION()
+	void HandleTelemetryForFinish(const FApexTelemetryFrame& Frame);
+
+	/** Leaves the race view for the live results, a moment after the flag. */
+	void ShowResultsAfterFinish(int32 Position);
+
+	/** Forgets the flags seen, for a race that is about to start. */
+	void ResetFinishWatch();
+
 	UFUNCTION()
 	void HandlePauseAction(EApexPauseAction Action);
 
@@ -216,6 +231,11 @@ private:
 
 	bool bRaceViewActive = false;
 	bool bPauseMenuOpen = false;
+	/** The winner's flag has been announced for this race. */
+	bool bWinnerAnnounced = false;
+	/** The local car has taken the flag in this race. */
+	bool bLocalFinished = false;
+	FTimerHandle ResultsAfterFinishTimer;
 	/** A one-click start joined before the telemetry channel was up. */
 	bool bStartWhenUdpReady = false;
 	bool bAutoRaceRequested = false;

@@ -22,6 +22,96 @@ fn format_lap_time(ms: u32) -> String {
     format!("{}:{:06.3}", ms / 60_000, (ms % 60_000) as f32 / 1000.0)
 }
 
+/// Race distance the way the client ranks cars (`ApexRace::RaceDistanceM`):
+/// a lap-0 car in the back half of the lap is still short of the line.
+fn race_distance(state: &CarState, track_length: f32) -> f32 {
+    if state.current_lap == 0 && state.track_progress > track_length * 0.5 {
+        return state.track_progress - track_length;
+    }
+    (state.current_lap.max(1) - 1) as f32 * track_length + state.track_progress
+}
+
+/// The grid sits behind the start line. At the green light the order by race
+/// distance must be the grid order, and nobody behind the line may be a lap
+/// up: a car used to start lap 1 on the first racing tick, which ranked the
+/// back of the grid ahead of everyone who had already crossed the line.
+#[test]
+fn test_grid_order_holds_at_the_green_light_monza() {
+    let track = TrackLoader::load_from_file("../content/tracks/real/Monza.yaml")
+        .expect("failed to load Monza");
+    let track_length = track.centerline.last().unwrap().distance_from_start_m;
+
+    let car = CarConfig::default();
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car.clone());
+
+    let ai_profiles: Vec<AiDriverProfile> = (0..6)
+        .map(|i| {
+            let mut p = AiDriverProfile::new(format!("Grid AI {}", i), 90);
+            p.id = fixed_uuid(3000 + i as u128);
+            p
+        })
+        .collect();
+    let ai_ids: Vec<PlayerId> = ai_profiles.iter().map(|p| p.id).collect();
+    let session = RaceSession::new(fixed_uuid(1), track.id, SessionKind::Multiplayer, 8, 6, 3);
+    let mut gs = GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);
+    gs.spawn_ai_drivers();
+    gs.start_countdown_mode(1, GameMode::Race);
+
+    let ranked = |gs: &GameSession| {
+        let mut cars: Vec<&CarState> = gs.session.participants.values().collect();
+        cars.sort_by(|a, b| {
+            race_distance(b, track_length)
+                .partial_cmp(&race_distance(a, track_length))
+                .unwrap()
+        });
+        cars.iter().map(|c| c.grid_position).collect::<Vec<u8>>()
+    };
+
+    let mut green = false;
+    for _ in 0..(240 * 20) {
+        let inputs: HashMap<PlayerId, PlayerInputData> = ai_ids
+            .iter()
+            .map(|id| (*id, gs.generate_ai_input(id)))
+            .collect();
+        gs.tick(&inputs);
+        if gs.session.game_mode != GameMode::Race {
+            continue;
+        }
+        if !green {
+            green = true;
+            // Only the front row may differ (side by side on the line).
+            let order = ranked(&gs);
+            assert!(
+                order[2..].windows(2).all(|w| w[0] < w[1]),
+                "grid order must hold at the green light, got {:?}",
+                order
+            );
+        }
+        for state in gs.session.participants.values() {
+            if state.current_lap >= 1 {
+                assert!(
+                    state.track_progress < track_length * 0.5,
+                    "car P{} is on lap 1 at station {:.0} m of {:.0} m: still behind the line",
+                    state.grid_position,
+                    state.track_progress,
+                    track_length
+                );
+            }
+        }
+        if gs.session.participants.values().all(|s| s.current_lap >= 1)
+            && gs
+                .session
+                .participants
+                .values()
+                .all(|s| s.track_progress > 100.0 && s.track_progress < track_length * 0.5)
+        {
+            return;
+        }
+    }
+    panic!("every car should have crossed the line within 20 s");
+}
+
 #[test]
 fn test_race_flow_countdown_to_finish_monza() {
     let track = TrackLoader::load_from_file("../content/tracks/real/Monza.yaml")

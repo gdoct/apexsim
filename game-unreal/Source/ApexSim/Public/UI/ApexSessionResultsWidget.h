@@ -16,6 +16,10 @@ class UWidget;
  *
  * Everything here comes from UApexSessionRecorder, which derives it from the
  * telemetry stream — the protocol has no results message of its own.
+ *
+ * The screen also opens the moment the local driver takes the flag, while the
+ * rest of the field is still racing. Until the session ends it is provisional:
+ * the table follows the running order and fills in as the others finish.
  */
 UCLASS()
 class APEXSIM_API UApexSessionResultsWidget : public UApexScreenWidget
@@ -34,6 +38,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
 	void BuildLayout();
@@ -45,6 +50,10 @@ private:
 
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 
+	/** Whether the results are final; drawn from the recorder. */
+	bool IsLive() const;
+
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderStatusText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderTrackText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderFormatText;
 
@@ -54,4 +63,9 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DriveAgainButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BackToLobbyButton;
+
+	/** Seconds until the provisional table is redrawn. */
+	float LiveRefreshCountdown = 0.0f;
+	/** What the last refresh showed, so the switch to final redraws everything. */
+	bool bShowingLive = false;
 };

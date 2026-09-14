@@ -2149,6 +2149,20 @@ fn checkpoint_distance_m(track: &TrackConfig, track_length: f32, idx: usize) -> 
     }
 }
 
+/// Place a car on the centerline without counting anything: the station and
+/// the search hint are set from where the car stands. Called when a car is
+/// put on the grid, so the first racing tick sees no movement. Otherwise the
+/// jump from the default station 0 to a grid slot just short of the line
+/// reads as crossing the 10% mark and starts lap 1 almost a lap early.
+pub fn seed_track_progress(state: &mut CarState, track: &TrackConfig) {
+    let Some(idx) = find_nearest_centerline_idx(&track.centerline, state.pos_x, state.pos_y, None)
+    else {
+        return;
+    };
+    state.nearest_centerline_idx = Some(idx as u32);
+    state.track_progress = track.centerline[idx].distance_from_start_m;
+}
+
 /// Update track progress and detect lap completion.
 ///
 /// Laps are validated with checkpoints: a lap only counts when every
@@ -2251,8 +2265,23 @@ pub fn update_track_progress_3d(
         state.next_checkpoint = 0;
     }
 
-    // Start lap 1 - only when crossing the start line going forward
-    // This prevents false start detection when spawning near the finish line.
+    // Start lap 1. A car waiting behind the line (the grid) starts it as it
+    // crosses the line, so the first lap is timed from the line like every
+    // other. Checkpoints are credited from the line on: any behind the car's
+    // new station were passed on this lap.
+    if state.current_lap == 0
+        && old_progress > track_length * 0.8
+        && state.track_progress < track_length * 0.2
+    {
+        state.current_lap = 1;
+        state.lap_start_tick = current_tick;
+        state.current_lap_time_ms = 0;
+        state.next_checkpoint = checkpoints_before(track, track_length, state.track_progress);
+    }
+
+    // A car that starts past the line (placed there, not on a grid behind
+    // it) starts lap 1 on clearing 10% of the track, so spawning near the
+    // finish cannot trigger it.
     // (next_checkpoint is NOT reset here: checkpoint tracking began when the
     // car crossed the start line, so any checkpoint inside the first 10% of
     // the track has already been credited for this lap.)
@@ -2264,6 +2293,38 @@ pub fn update_track_progress_3d(
         state.lap_start_tick = current_tick; // Start timing first lap
         state.current_lap_time_ms = 0;
     }
+}
+
+/// How many checkpoints lie at or before `station_m` on the lap: the value
+/// of `next_checkpoint` for a car that starts a lap standing there.
+fn checkpoints_before(track: &TrackConfig, track_length: f32, station_m: f32) -> u8 {
+    let count = if track.checkpoints.is_empty() {
+        VIRTUAL_CHECKPOINT_COUNT
+    } else {
+        track.checkpoints.len()
+    };
+    (0..count)
+        .take_while(|&idx| checkpoint_distance_m(track, track_length, idx) <= station_m)
+        .count() as u8
+}
+
+/// Start lap 1 for a car standing at or past the start line when the race
+/// goes green (pole sits on the line). Cars behind the line are left on lap 0
+/// and start it as they cross. Returns whether the lap was started.
+pub fn start_lap_on_green(state: &mut CarState, track: &TrackConfig, current_tick: u32) -> bool {
+    let track_length = track
+        .centerline
+        .last()
+        .map(|p| p.distance_from_start_m)
+        .unwrap_or(0.0);
+    if state.current_lap != 0 || track_length <= 0.0 || state.track_progress >= track_length * 0.5 {
+        return false;
+    }
+    state.current_lap = 1;
+    state.lap_start_tick = current_tick;
+    state.current_lap_time_ms = 0;
+    state.next_checkpoint = checkpoints_before(track, track_length, state.track_progress);
+    true
 }
 
 /// Normalize angle to -PI to PI range
