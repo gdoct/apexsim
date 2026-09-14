@@ -63,6 +63,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
         (0.180, 47.958, 0.212, 47.966),
         (0.212, 47.958, 0.240, 47.966),
     ],
+    "Shanghai": [(121.205, 31.328, 121.235, 31.352)],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -603,6 +604,11 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
 
     corners = []
     pit_ways: list[np.ndarray] = []
+    # Ways that are neither part of the fitted main loop (they run wide of
+    # it) nor named/tagged as anything in particular -- a circuit whose pit
+    # lane carries no "pit" name and no raceway=pitlane tag (nothing in the
+    # Shanghai extract does) still has it in here, just unlabelled.
+    untagged_ways: list[np.ndarray] = []
     for w in osm.ways:
         t = w.get("tags") or {}
         if t.get("highway") != "raceway":
@@ -617,6 +623,12 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             continue
         name = t.get("name")
         if not name or float(np.median(d)) > 12.0:
+            if (
+                not name
+                and len(p) > 2
+                and 12.0 < float(np.median(d)) < 90.0
+            ):
+                untagged_ways.append(p)
             continue
         mid = p[len(p) // 2 : len(p) // 2 + 1]
         s0, _ = track.locate(p[:1])
@@ -637,39 +649,40 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         seen.setdefault(c["name"], c)
     corners = sorted(seen.values(), key=lambda c: c["station_m"])
 
-    pit = None
-    # A circuit has more than one lane tagged "pit" (Spa's support pit
-    # lane, the Bugatti lanes at Le Mans, the roads behind the garages),
-    # and chaining joins whatever shares an end. Clip every chain to the
-    # part that runs beside the track, keep the ones of a pit lane's
-    # length, and take whichever reaches the start/finish line.
-    candidates = []
-    for run in chain_ways(pit_ways):
-        run = densify(run, 8.0, closed=False)
-        d, _ = track.grid.query(run, max_rings=4)
-        near = d < 70.0
-        span = None
-        i = 0
-        while i < len(run):
-            if not near[i]:
-                i += 1
+    def pit_lane_from(ways: list[np.ndarray]) -> dict | None:
+        # A circuit has more than one lane tagged "pit" (Spa's support pit
+        # lane, the Bugatti lanes at Le Mans, the roads behind the garages),
+        # and chaining joins whatever shares an end. Clip every chain to the
+        # part that runs beside the track, keep the ones of a pit lane's
+        # length, and take whichever reaches the start/finish line.
+        candidates = []
+        for run in chain_ways(ways):
+            run = densify(run, 8.0, closed=False)
+            d, _ = track.grid.query(run, max_rings=4)
+            near = d < 70.0
+            span = None
+            i = 0
+            while i < len(run):
+                if not near[i]:
+                    i += 1
+                    continue
+                j = i
+                while j + 1 < len(run) and near[j + 1]:
+                    j += 1
+                if span is None or (j - i) > (span[1] - span[0]):
+                    span = (i, j)
+                i = j + 1
+            if span is None or span[1] - span[0] < 2:
                 continue
-            j = i
-            while j + 1 < len(run) and near[j + 1]:
-                j += 1
-            if span is None or (j - i) > (span[1] - span[0]):
-                span = (i, j)
-            i = j + 1
-        if span is None or span[1] - span[0] < 2:
-            continue
-        clipped = run[span[0] : span[1] + 1]
-        length = float(np.hypot(*np.diff(clipped, axis=0).T).sum())
-        if not 120.0 <= length <= 1200.0:
-            continue
-        s_here, _ = track.locate(clipped)
-        to_line = float(np.minimum(s_here, track.total - s_here).min())
-        candidates.append((to_line, length, clipped))
-    if candidates:
+            clipped = run[span[0] : span[1] + 1]
+            length = float(np.hypot(*np.diff(clipped, axis=0).T).sum())
+            if not 120.0 <= length <= 1200.0:
+                continue
+            s_here, _ = track.locate(clipped)
+            to_line = float(np.minimum(s_here, track.total - s_here).min())
+            candidates.append((to_line, length, clipped))
+        if not candidates:
+            return None
         # Of the lanes that reach the start/finish line, the circuit's own
         # is the long one: the others are a support paddock's or a link
         # road that happens to pass it.
@@ -686,11 +699,23 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         ang = np.unwrap(s_best / track.total * 2 * math.pi)
         if float(np.median(np.diff(ang))) < 0:
             best = best[::-1]
-        pit = {
+        return {
             "side": side,
             "length_m": round(candidates[0][1], 1),
             "nodes": round_pts(densify(best, 12.0, closed=False)),
         }
+
+    pit = pit_lane_from(pit_ways)
+    if pit is None:
+        # Nothing was tagged as a pit lane at all. Fall back to any
+        # raceway way that runs wide of the main loop instead of on it
+        # (the untagged pool collected above): the same near/length/
+        # reaches-the-line filter above is strict enough (a contiguous
+        # 120-1200 m run that comes back within 60 m of the start/finish
+        # station) that an unrelated paddock spur will not pass it by
+        # accident, and every existing dossier already finds its pit lane
+        # from a tagged way, so this path never fires for them.
+        pit = pit_lane_from(untagged_ways)
 
     stands = []
     structures = []
