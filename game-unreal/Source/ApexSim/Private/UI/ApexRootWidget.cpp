@@ -204,6 +204,7 @@ void UApexRootWidget::NativeConstruct()
 		Net->OnGameModeChanged.AddDynamic(this, &UApexRootWidget::HandleGameModeChanged);
 		Net->OnLobbyStateUpdated.AddDynamic(this, &UApexRootWidget::HandleLobbyStateForAutoRace);
 		Net->OnSessionStateChanged.AddDynamic(this, &UApexRootWidget::HandleSessionStateChanged);
+		Net->OnTelemetry.AddDynamic(this, &UApexRootWidget::HandleTelemetryForFinish);
 	}
 	if (UApexSettingsSubsystem* Settings = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr)
 	{
@@ -383,6 +384,11 @@ void UApexRootWidget::NativeDestruct()
 		Net->OnGameModeChanged.RemoveDynamic(this, &UApexRootWidget::HandleGameModeChanged);
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &UApexRootWidget::HandleLobbyStateForAutoRace);
 		Net->OnSessionStateChanged.RemoveDynamic(this, &UApexRootWidget::HandleSessionStateChanged);
+		Net->OnTelemetry.RemoveDynamic(this, &UApexRootWidget::HandleTelemetryForFinish);
+	}
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(ResultsAfterFinishTimer);
 	}
 
 	Super::NativeDestruct();
@@ -956,6 +962,7 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 
 void UApexRootWidget::HandleSessionLeft()
 {
+	ResetFinishWatch();
 	SetRaceViewActive(false);
 	BackStack.Reset();
 	ActivateScreen(EApexScreen::MainMenu);
@@ -993,10 +1000,19 @@ void UApexRootWidget::HandleSessionStateChanged(EApexSessionState NewState)
 {
 	// This is the signal that actually fires for `StartSession`: the state goes
 	// Lobby -> Countdown -> Racing while the game mode stays Lobby throughout.
+	if (NewState == EApexSessionState::Countdown || NewState == EApexSessionState::Lobby)
+	{
+		ResetFinishWatch();
+	}
+
 	if (NewState == EApexSessionState::Finished)
 	{
 		// The session recorder has classified it by now — the recorder handles
 		// this same transition, and subsystems are notified before widgets.
+		if (GetWorld())
+		{
+			GetWorld()->GetTimerManager().ClearTimer(ResultsAfterFinishTimer);
+		}
 		SetRaceViewActive(false);
 		BackStack.Reset();
 		ActivateScreen(EApexScreen::SessionResults);
@@ -1004,6 +1020,98 @@ void UApexRootWidget::HandleSessionStateChanged(EApexSessionState NewState)
 	}
 
 	SetRaceViewActive(NewState != EApexSessionState::Lobby);
+}
+
+void UApexRootWidget::ResetFinishWatch()
+{
+	bWinnerAnnounced = false;
+	bLocalFinished = false;
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(ResultsAfterFinishTimer);
+	}
+}
+
+void UApexRootWidget::HandleTelemetryForFinish(const FApexTelemetryFrame& Frame)
+{
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	// The menu's demo race finishes too, behind the screens; nobody is in it.
+	if (!Net || Net->IsInDemoSession() || !Net->IsInSession()
+		|| Frame.SessionState != EApexSessionState::Racing || Frame.GameMode != EApexGameMode::Race)
+	{
+		return;
+	}
+
+	const int32 LocalIndex = Net->GetLocalCarIndex();
+	const FApexCarTelemetry* Winner = nullptr;
+	const FApexCarTelemetry* Local = nullptr;
+	for (const FApexCarTelemetry& Car : Frame.Cars)
+	{
+		if (Car.FinishPosition == 1)
+		{
+			Winner = &Car;
+		}
+		if (Car.CarIndex == LocalIndex)
+		{
+			Local = &Car;
+		}
+	}
+
+	// Positions never change once given and every frame repeats them, so a lost
+	// datagram only delays this by a frame.
+	if (Winner && !bWinnerAnnounced)
+	{
+		bWinnerAnnounced = true;
+		if (Winner->CarIndex != LocalIndex && !(Local && Local->FinishPosition > 0))
+		{
+			FString Name;
+			if (const FApexRosterEntry* Row = Net->GetSessionRoster().Entries.FindByPredicate(
+					[Winner](const FApexRosterEntry& Entry) { return Entry.CarIndex == Winner->CarIndex; }))
+			{
+				Name = Row->PlayerName;
+			}
+			ShowToast(Name.IsEmpty()
+				? TEXT("Chequered flag: the winner is in — finish your race")
+				: FString::Printf(TEXT("Chequered flag: %s wins — finish your race"), *Name));
+		}
+	}
+
+	if (Local && Local->FinishPosition > 0 && !bLocalFinished)
+	{
+		bLocalFinished = true;
+		ShowResultsAfterFinish(Local->FinishPosition);
+	}
+}
+
+void UApexRootWidget::ShowResultsAfterFinish(int32 Position)
+{
+	UE_LOG(LogApexSim, Log, TEXT("Local car took the flag in P%d; showing live results"), Position);
+	ShowToast(Position == 1
+		? FString(TEXT("Chequered flag — you win!"))
+		: FString::Printf(TEXT("Chequered flag — you finished P%d"), Position));
+
+	// A beat to see the line go by before the race view gives way. The server
+	// drives the car on from here, so nothing is lost by leaving.
+	constexpr float FlagToResultsSeconds = 2.5f;
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	World->GetTimerManager().SetTimer(
+		ResultsAfterFinishTimer,
+		FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (!bLocalFinished || !bRaceViewActive)
+			{
+				return;
+			}
+			SetRaceViewActive(false);
+			BackStack.Reset();
+			ActivateScreen(EApexScreen::SessionResults);
+		}),
+		FlagToResultsSeconds,
+		false);
 }
 
 void UApexRootWidget::SetRaceViewActive(bool bActive)

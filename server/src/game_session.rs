@@ -1,7 +1,8 @@
-use crate::ai_driver::{AiDriverController, AiDriverProfile};
+use crate::ai_driver::{AiDriverController, AiDriverProfile, TrafficCar};
 use crate::data::*;
 use crate::network::*;
 use crate::physics;
+use crate::racing_line::{self, RacingLineProfile};
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -9,17 +10,38 @@ use tracing::debug;
 /// (tests, benches) so behavior matches the historical hardcoded 240Hz.
 pub const DEFAULT_TICK_RATE_HZ: u16 = 240;
 
+/// Once the winner has finished, the rest of the field has this many of the
+/// winner's average laps to complete the distance...
+pub const FINISH_GRACE_LAPS: f32 = 2.0;
+/// ...but never less than this. Past it the race ends with whoever has not
+/// finished unclassified, so a car stuck in a gravel trap (or a player who
+/// walked away) cannot hold the session open forever.
+pub const FINISH_GRACE_MIN_SECONDS: u32 = 60;
+/// Skill of the server driver that takes a human's car round on the
+/// cool-down lap after they finish: unhurried, off the racing pace.
+const COOLDOWN_SKILL: u8 = 75;
+
 pub struct GameSession {
     pub session: RaceSession,
     pub track_config: TrackConfig,
     pub car_configs: HashMap<CarConfigId, CarConfig>,
     /// AI driver profiles indexed by their player ID
     pub ai_profiles: std::collections::BTreeMap<PlayerId, AiDriverProfile>,
+    /// Speed profile along the line per car the AI drives, built when the AI
+    /// is seated. Looked up by key only, never iterated.
+    ai_speed_profiles: HashMap<CarConfigId, RacingLineProfile>,
     /// Simulation tick rate (Hz); the fixed timestep is `1 / tick_rate_hz`.
     tick_rate_hz: u16,
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
+    /// Tick at which the race ends whether or not every car has finished,
+    /// set when the winner crosses the line.
+    finish_deadline_tick: Option<u32>,
+    /// A finished human's steering aid, held while the server drives their
+    /// car on the cool-down lap (the AI steers the rack directly) and given
+    /// back when the grid is lined up again. Looked up by key only.
+    held_steering_assist: HashMap<PlayerId, bool>,
 }
 
 impl GameSession {
@@ -35,6 +57,9 @@ impl GameSession {
             ai_profiles: std::collections::BTreeMap::new(),
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
             roster_dirty: true,
+            ai_speed_profiles: HashMap::new(),
+            finish_deadline_tick: None,
+            held_steering_assist: HashMap::new(),
         }
     }
 
@@ -61,6 +86,9 @@ impl GameSession {
             ai_profiles: ai_profiles_map,
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
             roster_dirty: true,
+            ai_speed_profiles: HashMap::new(),
+            finish_deadline_tick: None,
+            held_steering_assist: HashMap::new(),
         }
     }
 
@@ -344,12 +372,27 @@ impl GameSession {
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         let dt = self.dt(); // Fixed timestep derived from tick rate
 
+        // A human who has finished is looking at the results and stops
+        // sending input, while the last input received stays applied. The
+        // server drives the car round instead.
+        let cooldown_inputs: HashMap<PlayerId, PlayerInputData> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| s.finish_position.is_some() && !self.is_ai_player(&s.player_id))
+            .map(|s| (s.player_id, self.cooldown_input(&s.player_id)))
+            .collect();
+
         // Update each car
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
 
         for state in states.iter_mut() {
             // Get input for this player (default to coasting if missing)
-            let input = inputs.get(&state.player_id).copied().unwrap_or_default();
+            let input = cooldown_inputs
+                .get(&state.player_id)
+                .or_else(|| inputs.get(&state.player_id))
+                .copied()
+                .unwrap_or_default();
 
             // Get car config
             if let Some(config) = self.car_configs.get(&state.car_config_id) {
@@ -492,6 +535,13 @@ impl GameSession {
                 self.session.state = SessionState::Racing;
                 self.session.race_start_tick = Some(self.session.current_tick);
                 self.session.demo_lap_progress = None;
+                self.finish_deadline_tick = None;
+                // Pole sits on the line, so it never crosses it to start lap
+                // 1: its lap starts with the green light.
+                let tick = self.session.current_tick;
+                for state in self.session.participants.values_mut() {
+                    physics::start_lap_on_green(state, &self.track_config, tick);
+                }
             }
             GameMode::Qualification => {
                 // Practice-with-timing: telemetry must flow
@@ -507,6 +557,12 @@ impl GameSession {
     /// Start countdown mode with custom duration. The stored `next_mode` is
     /// transitioned to automatically when the countdown reaches zero.
     pub fn start_countdown_mode(&mut self, countdown_seconds: u16, next_mode: GameMode) {
+        if next_mode == GameMode::Race {
+            // A race starts from the grid: after a finished race (or practice)
+            // the cars are wherever they stopped, with their laps and finish
+            // positions still set.
+            self.line_up_on_grid();
+        }
         self.session.game_mode = GameMode::Countdown;
         self.session.state = SessionState::Countdown;
         self.session.countdown_ticks_remaining = Some(self.tick_rate_hz * countdown_seconds);
@@ -553,7 +609,8 @@ impl GameSession {
             .iter()
             .find(|s| s.position == grid_position)
         {
-            let car_state = CarState::new(player_id, car_config_id, grid_slot);
+            let mut car_state = CarState::new(player_id, car_config_id, grid_slot);
+            physics::seed_track_progress(&mut car_state, &self.track_config);
             self.session.participants.insert(player_id, car_state);
             self.roster_dirty = true;
             Some(grid_position)
@@ -569,6 +626,78 @@ impl GameSession {
         }
     }
 
+    /// Put every car back on its grid slot with a clean race state (laps,
+    /// times, finish position, damage), keeping the driver's aids.
+    pub fn line_up_on_grid(&mut self) {
+        self.finish_deadline_tick = None;
+        for state in self.session.participants.values_mut() {
+            let Some(slot) = self
+                .track_config
+                .start_positions
+                .iter()
+                .find(|s| s.position == state.grid_position)
+            else {
+                continue;
+            };
+            let mut fresh = CarState::new(state.player_id, state.car_config_id, slot);
+            fresh.auto_gearbox = state.auto_gearbox;
+            fresh.steering_assist = self
+                .held_steering_assist
+                .remove(&state.player_id)
+                .unwrap_or(state.steering_assist);
+            physics::seed_track_progress(&mut fresh, &self.track_config);
+            *state = fresh;
+        }
+        self.held_steering_assist.clear();
+    }
+
+    /// Input for a finished human's car: a gentle server driver on the line,
+    /// seeded from the player's id so the sim stays deterministic.
+    fn cooldown_input(&self, player_id: &PlayerId) -> PlayerInputData {
+        let Some(state) = self.session.participants.get(player_id) else {
+            return PlayerInputData::default();
+        };
+        let Some(car_config) = self.car_configs.get(&state.car_config_id) else {
+            return PlayerInputData::default();
+        };
+        let mut profile = AiDriverProfile::new("Cool-down", COOLDOWN_SKILL);
+        profile.id = *player_id;
+        self.ai_input_for(&profile, state, car_config)
+    }
+
+    /// Input from `profile` driving `state` among the rest of the field.
+    fn ai_input_for(
+        &self,
+        profile: &AiDriverProfile,
+        state: &CarState,
+        car_config: &CarConfig,
+    ) -> PlayerInputData {
+        let controller = AiDriverController::new(profile, &self.track_config, car_config)
+            .with_speed_profile(self.ai_speed_profiles.get(&state.car_config_id));
+        // BTreeMap order: the traffic list, and so the input, is
+        // deterministic.
+        let traffic: Vec<TrafficCar> = self
+            .session
+            .participants
+            .values()
+            .filter(|other| other.player_id != state.player_id)
+            .filter_map(|other| {
+                let config = self.car_configs.get(&other.car_config_id)?;
+                Some(TrafficCar {
+                    state: other,
+                    length_m: config.length_m,
+                    width_m: config.width_m,
+                })
+            })
+            .collect();
+        controller.generate_input_in_traffic(
+            state,
+            &traffic,
+            self.session.current_tick,
+            self.tick_rate_hz,
+        )
+    }
+
     /// Generate AI input for a player using their AI profile.
     ///
     /// Returns default input if the player is not an AI or has no profile.
@@ -578,13 +707,7 @@ impl GameSession {
             if let Some(state) = self.session.participants.get(player_id) {
                 // Get the car config for this AI player
                 if let Some(car_config) = self.car_configs.get(&state.car_config_id) {
-                    let controller =
-                        AiDriverController::new(profile, &self.track_config, car_config);
-                    return controller.generate_input(
-                        state,
-                        self.session.current_tick,
-                        self.tick_rate_hz,
-                    );
+                    return self.ai_input_for(profile, state, car_config);
                 }
             }
         }
@@ -703,6 +826,13 @@ impl GameSession {
         if self.session.participants.is_empty() {
             return false;
         }
+        // The winner's finish started the clock on everyone else.
+        if self
+            .finish_deadline_tick
+            .is_some_and(|deadline| self.session.current_tick >= deadline)
+        {
+            return true;
+        }
 
         // A car counts as done when it is classified (finished the race
         // distance) OR is a DNF (undrivable — it can never finish, and must
@@ -752,6 +882,42 @@ impl GameSession {
                 state.finish_position = Some(assigned + offset as u8 + 1);
             }
         }
+
+        if assigned == 0 {
+            // The winner is in: the rest of the field is on the clock.
+            let race_ticks = self
+                .session
+                .current_tick
+                .saturating_sub(self.session.race_start_tick.unwrap_or(0));
+            let average_lap_ticks = race_ticks as f32 / lap_limit.max(1) as f32;
+            let grace_ticks = ((average_lap_ticks * FINISH_GRACE_LAPS) as u32)
+                .max(FINISH_GRACE_MIN_SECONDS * self.tick_rate_hz as u32);
+            self.finish_deadline_tick = Some(self.session.current_tick + grace_ticks);
+        }
+
+        // Humans who just finished hand their car to the cool-down driver,
+        // which steers the rack directly and plans on the car's own speeds.
+        for (player_id, _, _) in &new_finishers {
+            if self.is_ai_player(player_id) {
+                continue;
+            }
+            let Some(state) = self.session.participants.get_mut(player_id) else {
+                continue;
+            };
+            self.held_steering_assist
+                .insert(*player_id, state.steering_assist);
+            state.steering_assist = false;
+            let car_id = state.car_config_id;
+            if !self.ai_speed_profiles.contains_key(&car_id) {
+                if let Some(speeds) = self
+                    .car_configs
+                    .get(&car_id)
+                    .and_then(|car| racing_line::build(&self.track_config, car))
+                {
+                    self.ai_speed_profiles.insert(car_id, speeds);
+                }
+            }
+        }
     }
 
     /// Spawn AI drivers using the provided profiles.
@@ -793,6 +959,15 @@ impl GameSession {
 
             if self.add_player(ai_id, car_id).is_some() {
                 self.session.ai_player_ids.push(ai_id);
+                if !self.ai_speed_profiles.contains_key(&car_id) {
+                    if let Some(speeds) = self
+                        .car_configs
+                        .get(&car_id)
+                        .and_then(|car| racing_line::build(&self.track_config, car))
+                    {
+                        self.ai_speed_profiles.insert(car_id, speeds);
+                    }
+                }
             }
         }
     }
@@ -1223,6 +1398,85 @@ mod tests {
             game_session.session.countdown_ticks_remaining,
             Some(240 * 10)
         );
+    }
+
+    /// Two humans racing on the default oval, lap limit 3.
+    fn racing_session_with_two_humans() -> (GameSession, PlayerId, PlayerId) {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (a, b) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        game_session.add_player(a, car_id).unwrap();
+        game_session.add_player(b, car_id).unwrap();
+        game_session.set_game_mode(GameMode::Race);
+        (game_session, a, b)
+    }
+
+    #[test]
+    fn test_winner_finishing_starts_the_clock_on_the_rest() {
+        let (mut game_session, winner, _) = racing_session_with_two_humans();
+        game_session
+            .session
+            .participants
+            .get_mut(&winner)
+            .unwrap()
+            .current_lap = 4;
+
+        game_session.tick(&HashMap::new());
+        assert_eq!(
+            game_session.session.participants[&winner].finish_position,
+            Some(1)
+        );
+        assert_eq!(game_session.session.state, SessionState::Racing);
+
+        // A quick race: the floor applies.
+        let deadline = game_session.finish_deadline_tick.expect("deadline set");
+        assert!(deadline >= game_session.session.current_tick + FINISH_GRACE_MIN_SECONDS * 240);
+
+        game_session.session.current_tick = deadline - 1;
+        game_session.tick(&HashMap::new());
+        assert_eq!(
+            game_session.session.state,
+            SessionState::Finished,
+            "the race ends at the deadline with the second car unclassified"
+        );
+    }
+
+    #[test]
+    fn test_finished_human_is_driven_by_the_server_and_gets_aids_back() {
+        let (mut game_session, winner, _) = racing_session_with_two_humans();
+        let car = game_session.session.participants.get_mut(&winner).unwrap();
+        car.current_lap = 4;
+        car.steering_assist = true;
+
+        // The client's last input stays in the server's map after it stops
+        // sending: here, standing on the brake. Only the cool-down driver can
+        // get the car moving.
+        let stale = PlayerInputData {
+            brake: 1.0,
+            ..Default::default()
+        };
+        let inputs: HashMap<PlayerId, PlayerInputData> = [(winner, stale)].into();
+        for _ in 0..480 {
+            game_session.tick(&inputs);
+        }
+        let car = &game_session.session.participants[&winner];
+        assert!(car.finish_position.is_some());
+        assert!(
+            car.speed_mps > 2.0,
+            "the stale input must not be driving the car, speed={}",
+            car.speed_mps
+        );
+        assert!(
+            !car.steering_assist,
+            "the cool-down driver steers without the aid"
+        );
+
+        game_session.start_countdown_mode(5, GameMode::Race);
+        let car = &game_session.session.participants[&winner];
+        assert!(car.steering_assist, "lining up again restores the aid");
+        assert_eq!(car.current_lap, 0);
+        assert_eq!(car.finish_position, None);
+        assert_eq!(game_session.finish_deadline_tick, None);
     }
 
     #[test]

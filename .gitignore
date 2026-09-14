@@ -199,6 +199,10 @@ content/tracks/export/
 # written next to each track YAML by the same ats-export run
 content/tracks/real/*.ground.msgpack
 content/tracks/real/*.curbs.msgpack
+# Raw OpenStreetMap extracts the layout dossiers are built from
+# (scripts/osm_layout.py). Tens of MB, refetchable, and the dossier that
+# comes out of them is what is checked in.
+content/tracks/osm-cache/
 # Build outputs: the packaged client (scripts/build_game_standalone.ps1)
 # and the release packages and zips (scripts/build_release.ps1)
 artifacts/

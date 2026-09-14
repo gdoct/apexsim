@@ -45,6 +45,10 @@ struct FApexCarResult
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
 	float DistanceM = 0.0f;
 
+	/** Classified position from the server once the car took the flag; 0 if it did not. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
+	int32 FinishPosition = 0;
+
 	int32 LapsCompleted() const { return LapTimes.Num(); }
 };
 
@@ -68,12 +72,27 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	/** Results for the session that just ended, best-classified first. */
+	/**
+	 * Results best-classified first: for the session that just ended, or — while
+	 * it is still being recorded — the running order, kept up to date frame by
+	 * frame so a driver who has finished can watch the rest come in.
+	 */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Results")
 	const TArray<FApexCarResult>& GetResults() const { return Results; }
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Results")
 	bool HasResults() const { return Results.Num() > 0; }
+
+	/** True while the session is still running, so the results are provisional. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Results")
+	bool IsRecording() const { return bRecording; }
+
+	/**
+	 * Classification order. Cars the server classified come first, by position;
+	 * then, when `bByDistance` (a race), the rest by distance covered; then most
+	 * laps and the quickest lap, which is all a practice session has to go on.
+	 */
+	static bool ClassifiesAhead(const FApexCarResult& A, const FApexCarResult& B, bool bByDistance);
 
 	/** The local player's row, or null if this client did not drive. */
 	const FApexCarResult* FindLocalResult() const;
@@ -110,6 +129,7 @@ private:
 	void FinishRecording();
 
 	FApexCarResult& FindOrAddCar(int32 CarIndex);
+	void SortResults();
 	/** Names and AI flags come from the roster, not the telemetry. */
 	void ApplyRosterNames();
 

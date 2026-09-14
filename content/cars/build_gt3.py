@@ -36,23 +36,25 @@ VARIANTS = {
     "limbotiti": dict(
         folder="limbotiti-caravan-gt3", stem="limbotiti_caravan", logo="limbotiti_logo.png",
         paint=(0.95, 0.72, 0.02), accent=(0.05, 0.05, 0.05), caliper=(0.05, 0.05, 0.05),
-        wheels=((-1.35, 0.265), (1.35, 0.275)), arch_r=0.42, glass_y=(-1.00, 0.55), screen_y=(-1.00, -0.32), rear_glass_y=(0.38, 0.58),
-        wing="swan", wing_z=1.05, wing_y=1.80, ducktail=False, lights="ybar", grille=False, louvres=True, smooth=False,
+        wheels=((-1.35, 0.265), (1.35, 0.275)), arch_r=0.42, glass_y=(-1.00, 0.55), screen_y=(-1.00, -0.32), rear_glass_y=(0.36, 0.82),
+        wing="swan", wing_z=1.15, wing_y=1.80, ducktail=False, lights="ybar", grille=False, louvres=True, smooth=False,
         exhaust="hexquad", mirror="stalk",
-        panel_lines=[(-1.70, "upper"), (-1.00, "side"), (0.58, "side"), (0.60, "upper"), (1.80, "upper")],
+        panel_lines=[(-1.70, "upper"), (-1.00, "side"), (0.58, "side"), (0.84, "upper"), (1.80, "upper")],
         vents=["fender", "side_intake"], scoop=(0.0, 0.28, 0.14),
+        # Low bonnet (0.70 m cowl, fenders standing proud of it), fast windscreen, and an engine deck that
+        # drops to 0.84 m behind the rear glass so the centre mirror looks out between deck and wing.
         keys=[
-            (-2.25, [(0, .18), (.70, .18), (.86, .28), (.92, .44), (.70, .52), (.50, .54), (.30, .56), (.14, .57), (0, .58)]),
-            (-1.85, [(0, .10), (.90, .10), (.98, .32), (1.00, .58), (.82, .70), (.62, .74), (.42, .76), (.20, .78), (0, .79)]),
-            (-1.35, [(0, .08), (.92, .08), (1.00, .36), (1.01, .64), (.84, .74), (.64, .74), (.44, .74), (.20, .75), (0, .76)]),
-            (-1.00, [(0, .08), (.92, .08), (1.00, .36), (1.00, .66), (.88, .78), (.76, .78), (.60, .78), (.30, .78), (0, .78)]),
-            (-0.65, [(0, .08), (.92, .08), (1.00, .36), (1.00, .66), (.88, .80), (.76, .84), (.60, .96), (.30, 1.00), (0, 1.01)]),
-            (-0.30, [(0, .08), (.92, .08), (1.00, .36), (1.00, .68), (.90, .82), (.78, .86), (.62, 1.08), (.32, 1.12), (0, 1.13)]),
-            ( 0.30, [(0, .08), (.94, .08), (1.02, .38), (1.02, .70), (.92, .84), (.80, .88), (.62, 1.06), (.32, 1.10), (0, 1.11)]),
-            ( 0.85, [(0, .08), (.96, .08), (1.04, .40), (1.04, .72), (.92, .84), (.76, .90), (.54, .98), (.26, 1.02), (0, 1.03)]),
-            ( 1.35, [(0, .08), (.96, .08), (1.04, .40), (1.05, .74), (.92, .86), (.74, .92), (.50, .96), (.24, .98), (0, .99)]),
-            ( 1.85, [(0, .14), (.94, .14), (1.02, .40), (1.02, .72), (.90, .84), (.70, .90), (.46, .94), (.22, .96), (0, .97)]),
-            ( 2.25, [(0, .32), (.84, .32), (.92, .50), (.94, .70), (.80, .80), (.60, .86), (.38, .90), (.16, .92), (0, .93)]),
+            (-2.25, [(0, .16), (.70, .16), (.86, .26), (.92, .42), (.70, .50), (.50, .52), (.30, .54), (.14, .545), (0, .55)]),
+            (-1.85, [(0, .10), (.90, .10), (.98, .32), (1.00, .56), (.82, .70), (.62, .69), (.42, .66), (.20, .65), (0, .65)]),
+            (-1.35, [(0, .08), (.92, .08), (1.00, .36), (1.01, .64), (.84, .79), (.64, .76), (.44, .70), (.20, .68), (0, .67)]),
+            (-1.00, [(0, .08), (.92, .08), (1.00, .36), (1.00, .66), (.88, .78), (.76, .76), (.60, .72), (.30, .70), (0, .70)]),
+            (-0.65, [(0, .08), (.92, .08), (1.00, .36), (1.00, .66), (.88, .80), (.76, .84), (.60, .90), (.30, .94), (0, .95)]),
+            (-0.30, [(0, .08), (.92, .08), (1.00, .36), (1.00, .68), (.90, .82), (.78, .86), (.62, 1.10), (.32, 1.15), (0, 1.16)]),
+            ( 0.30, [(0, .08), (.94, .08), (1.02, .38), (1.02, .70), (.92, .84), (.80, .88), (.62, 1.08), (.32, 1.13), (0, 1.14)]),
+            ( 0.85, [(0, .08), (.96, .08), (1.04, .40), (1.04, .72), (.92, .84), (.76, .88), (.54, .91), (.26, .93), (0, .93)]),
+            ( 1.35, [(0, .08), (.96, .08), (1.04, .40), (1.05, .74), (.92, .84), (.74, .87), (.50, .88), (.24, .88), (0, .88)]),
+            ( 1.85, [(0, .14), (.94, .14), (1.02, .40), (1.02, .72), (.90, .82), (.70, .85), (.46, .86), (.22, .86), (0, .86)]),
+            ( 2.25, [(0, .32), (.84, .32), (.92, .50), (.94, .68), (.80, .78), (.60, .82), (.38, .84), (.16, .84), (0, .84)]),
         ]),
     "murcetes": dict(
         folder="murcetes-amd-gt3", stem="murcetes_amd_gt3", logo="murcetes_logo.png",
@@ -117,6 +119,8 @@ caliper = mat("car_caliper", V["caliper"], 0.2, 0.4)
 lamp = mat("car_headlight", (0.95, 0.95, 0.9), 0.0, 0.1, emission=(1.0, 0.98, 0.9))
 lamp_h = mat("car_lamp_housing", (0.02, 0.02, 0.02), 0.6, 0.3)
 tail = mat("car_taillight", (0.5, 0.03, 0.02), 0.0, 0.15, emission=(1.0, 0.08, 0.04))
+brake = mat("car_brakelight", (0.6, 0.02, 0.02), 0.0, 0.15, emission=(1.0, 0.02, 0.0))
+rain = mat("car_rainlight", (0.6, 0.02, 0.02), 0.0, 0.15, emission=(1.0, 0.02, 0.0))
 display = mat("car_display", (0.02, 0.02, 0.03), 0.0, 0.2, emission=(0.1, 0.4, 0.2))
 logo = apex.image_material("car_logo", os.path.join(CAR_DIR, "textures", V["logo"]), roughness=0.3, masked=True)
 
@@ -239,24 +243,31 @@ for (y, R) in V["wheels"]:
 # cockpit (LHD: driver on +X), cage, dash
 def roof_z(y): return ctrl_at(y)[8][1]
 DX = 0.38
-EYE_Z = 0.70 * (V["wing_z"] + 0.22)        # the client's closed-cockpit eye: 70% of the box height (the wing endplates top it)
-DASH_Z = min(EYE_Z - 0.16, roof_z(-0.45) - 0.06); WHEEL_Z = EYE_Z - 0.20
+# The client's closed-cockpit eye, from the mesh box: 70% of the height (floor = arch liners at -0.057, top = wing
+# endplates at wing_z + 0.22), 5% of the length (splitter to diffuser) behind centre, 18% of the width to the left.
+EYE_Z = -0.057 + 0.70 * (V["wing_z"] + 0.22 + 0.057)
+EYE_Y = (NOSE - 0.14 + TAIL + 0.12) / 2 + 0.05 * (TAIL - NOSE + 0.26)
+DASH_Z = min(EYE_Z - 0.16, roof_z(-0.45) - 0.06); WHEEL_Z = EYE_Z - 0.20; WHEEL_Y = EYE_Y - 0.40   # where the client puts the wheel
 p.box(interior, (-0.80, -0.55, 0.12), (0.80, 1.20, 0.16))
 p.box(interior, (-0.85, -0.55, 0.16), (-0.78, 1.20, 0.60)); p.box(interior, (0.78, -0.55, 0.16), (0.85, 1.20, 0.60))
-p.box(seat_m, (DX - 0.26, 0.15, 0.16), (DX + 0.26, 0.62, 0.32)); p.box(seat_m, (DX - 0.28, 0.50, 0.32), (DX + 0.28, 0.66, 1.00))
+p.box(seat_m, (DX - 0.26, 0.15, 0.16), (DX + 0.26, 0.62, 0.32)); p.box(seat_m, (DX - 0.28, 0.50, 0.32), (DX + 0.28, 0.66, 0.92))   # headrest below the mirror line
 p.box(seat_m, (DX - 0.32, 0.13, 0.32), (DX - 0.24, 0.62, 0.45)); p.box(seat_m, (DX + 0.24, 0.13, 0.32), (DX + 0.32, 0.62, 0.45))
-p.box(interior, (-0.80, -0.55, 0.55), (0.80, -0.20, DASH_Z))
-p.box(display, (DX - 0.12, -0.21, DASH_Z - 0.16), (DX + 0.12, -0.20, DASH_Z - 0.04))
-p.bar(metal, (DX, -0.25, WHEEL_Z - 0.04), (DX, 0.05, WHEEL_Z), 0.02)
-wr = [Vector((DX + 0.16 * math.cos(2 * math.pi * i / 24), 0.05, WHEEL_Z + 0.16 * math.sin(2 * math.pi * i / 24))) for i in range(24)]
+p.box(interior, (-0.80, -0.55, 0.55), (0.80, WHEEL_Y - 0.10, DASH_Z))
+p.box(display, (DX - 0.12, WHEEL_Y - 0.11, DASH_Z - 0.16), (DX + 0.12, WHEEL_Y - 0.10, DASH_Z - 0.04))
+p.bar(metal, (DX, WHEEL_Y - 0.15, WHEEL_Z - 0.04), (DX, WHEEL_Y, WHEEL_Z), 0.02)
+wr = [Vector((DX + 0.16 * math.cos(2 * math.pi * i / 24), WHEEL_Y, WHEEL_Z + 0.16 * math.sin(2 * math.pi * i / 24))) for i in range(24)]
 for i in range(24): p.bar(alc, wr[i], wr[(i + 1) % 24], 0.018, segs=6)
-p.box(alc, (DX - 0.15, 0.04, WHEEL_Z - 0.02), (DX + 0.15, 0.065, WHEEL_Z + 0.02)); p.box(alc, (DX - 0.03, 0.04, WHEEL_Z - 0.16), (DX + 0.03, 0.065, WHEEL_Z))
+p.box(alc, (DX - 0.15, WHEEL_Y - 0.01, WHEEL_Z - 0.02), (DX + 0.15, WHEEL_Y + 0.015, WHEEL_Z + 0.02)); p.box(alc, (DX - 0.03, WHEEL_Y - 0.01, WHEEL_Z - 0.16), (DX + 0.03, WHEEL_Y + 0.015, WHEEL_Z))
 # roll cage: main hoop, A-pillar bars, door bars, rear stays; sized from the roof line
-HZ = roof_z(0.70) - 0.10; AZ = roof_z(-0.40) - 0.10
+s0, s1 = V["screen_y"]
+HZ = roof_z(0.70) - 0.10; AZ = roof_z(s1) - 0.08
+PY = s0 + 0.05; PZ = ctrl_at(PY)[4][1] - 0.04             # A-pillar foot: the cowl corner at the base of the screen
 for x in (-0.72, 0.72):
-    p.bar(cage, (x, 0.70, 0.20), (x, 0.70, HZ), 0.022); p.bar(cage, (x, 0.70, HZ), (x * 0.9, -0.40, AZ), 0.022)
-    p.bar(cage, (x * 0.9, -0.40, AZ), (x * 0.95, -0.55, 0.60), 0.022); p.bar(cage, (x, 0.70, HZ - 0.07), (x * 0.8, 1.30, 0.55), 0.02)
-    p.bar(cage, (x, 0.70, 0.55), (x * 0.95, -0.50, 0.60), 0.02)
+    p.bar(cage, (x, 0.70, 0.20), (x, 0.70, HZ), 0.022)                        # main hoop legs
+    p.bar(cage, (x, 0.70, HZ), (x * 0.88, s1, AZ - 0.04), 0.020)              # roof rail, out to the screen's top corner
+    p.bar(cage, (x * 0.88, s1, AZ - 0.04), (x * 1.18, PY, PZ), 0.018)         # A-pillar hugging the screen edge, out of the driver's view
+    p.bar(cage, (x, 0.70, HZ - 0.07), (x * 0.8, 1.30, 0.55), 0.02)            # rear stays
+    p.bar(cage, (x, 0.70, 0.55), (x * 0.95, -0.50, 0.60), 0.02)              # door bar
 p.bar(cage, (-0.72, 0.70, HZ), (0.72, 0.70, HZ), 0.022); p.bar(cage, (-0.72, 0.70, HZ), (0.72, 0.70, 0.55), 0.018)
 # splitter, dive planes, diffuser, side skirts
 p.box(carbon, (-1.02, NOSE - 0.14, 0.04), (1.02, NOSE + 0.35, 0.07))
@@ -269,6 +280,10 @@ for sx in (-1, 1): p.box(carbon, (sx * 1.00 - 0.05, -0.95, 0.06), (sx * 1.00 + 0
 # rear wing
 WZ, WY = V["wing_z"], V["wing_y"]
 foil(p, carbon, -0.95, 0.95, 0.34, 0.11, 0.06, WY, WZ, angle_deg=-8.0)
+# full-width brake LED strip along the wing's trailing edge, endplate to endplate
+_a = math.radians(-8.0); _ty, _tz = WY + 0.34 * math.cos(_a), WZ + 0.34 * math.sin(_a)
+p.box(lamp_h, (-0.95, _ty - 0.05, _tz - 0.018), (0.95, _ty + 0.004, _tz + 0.018))
+p.box(brake, (-0.94, _ty + 0.004, _tz - 0.014), (0.94, _ty + 0.010, _tz + 0.014))
 for x in (-0.96, 0.96):
     s = p.slot(carbon); pts = [(x, WY - 0.10, WZ - 0.14), (x, WY + 0.44, WZ - 0.14), (x, WY + 0.46, WZ + 0.22), (x, WY + 0.06, WZ + 0.22), (x, WY - 0.10, WZ + 0.10)]
     f = bm.faces.new([bm.verts.new(q) for q in (pts if x > 0 else list(reversed(pts)))]); f.material_index = s
@@ -285,19 +300,23 @@ for sx in (-1, 1):
     if V["lights"] == "round":
         p.cylinder(lamp_h, (x, yN - 0.005, 0.62), 0.14, 0.10, segs=24, axis='Y'); p.cylinder(lamp, (x, yN - 0.008, 0.62), 0.11, -0.012, segs=24, axis='Y')
     elif V["lights"] == "ybar":
-        p.box(lamp_h, (x - 0.24, yN - 0.01, 0.48), (x + 0.24, yN + 0.14, 0.60))
-        p.box(lamp, (x - 0.22, yN - 0.015, 0.545), (x + 0.22, yN - 0.005, 0.565)); p.box(lamp, (x - 0.03, yN - 0.015, 0.50), (x + 0.03, yN - 0.005, 0.55))
+        p.box(lamp_h, (x - 0.20, yN - 0.01, 0.38), (x + 0.20, yN + 0.14, 0.50))
+        p.box(lamp, (x - 0.18, yN - 0.015, 0.455), (x + 0.18, yN - 0.005, 0.475)); p.box(lamp, (x - 0.03, yN - 0.015, 0.40), (x + 0.03, yN - 0.005, 0.455))
     else:
         p.box(lamp_h, (x - 0.26, yN - 0.01, 0.56), (x + 0.26, yN + 0.16, 0.70))
         p.box(lamp, (x - 0.24, yN - 0.015, 0.60 + sx * 0.0), (x + 0.24, yN - 0.005, 0.66))
-    p.box(tail, (sx * 0.55 - 0.28, TAIL - 0.015, 0.66), (sx * 0.55 + 0.28, TAIL + 0.002, 0.72))
+    p.box(tail, (sx * 0.55 - 0.28, TAIL - 0.015, 0.68), (sx * 0.55 + 0.28, TAIL + 0.002, 0.72))     # running light strip
+    p.box(brake, (sx * 0.55 - 0.28, TAIL - 0.015, 0.60), (sx * 0.55 + 0.28, TAIL + 0.002, 0.67))    # brake segment below it
+    p.box(brake, (sx * 0.86 - 0.05, TAIL - 0.20, 0.60), (sx * 0.86 + 0.05, TAIL - 0.10, 0.72))     # wrap-around corner element
 if V["grille"]:
     p.box(lamp_h, (-0.55, NOSE - 0.02, 0.28), (0.55, NOSE + 0.06, 0.62))
     for k in range(5): p.box(metal, (-0.53, NOSE - 0.03, 0.31 + k * 0.065), (0.53, NOSE + 0.0, 0.325 + k * 0.065))
 if V["louvres"]:
-    for k in range(7):
-        y0 = 0.62 + k * 0.10; zt = roof_z(y0 + 0.02)
+    for k in range(5):                                        # engine-cover louvres start behind the rear glass, so the mirror sees over them
+        y0 = r1 + 0.04 + k * 0.10; zt = roof_z(y0 + 0.02)
         p.box(carbon, (-0.42, y0, zt - 0.02), (0.42, y0 + 0.04, zt + 0.015))
+# rain light: centre of the tail, below the wing
+p.box(lamp_h, (-0.14, TAIL - 0.02, 0.42), (0.14, TAIL + 0.02, 0.52)); p.box(rain, (-0.12, TAIL + 0.02, 0.44), (0.12, TAIL + 0.03, 0.50))
 # mirrors, exhausts, antenna
 for sx in (-1, 1):
     if V["mirror"] == "pod":
@@ -361,8 +380,8 @@ hook = mat("car_towhook", (0.9, 0.1, 0.05), 0.3, 0.5)
 for yy in (NOSE + 0.08, TAIL - 0.08):
     zt = surf_z(yy, 0.30) if yy < 0 else surf_z(yy, 0.30)
     p.cylinder(hook, (0.30, yy - 0.06 if yy < 0 else yy + 0.06, zt - 0.10), 0.035, 0.03, segs=10, axis='Y')
-wy = g0 + 0.10; wz = roof_z(wy) - 0.16
-p.bar(carbon, (DX - 0.10, wy, wz), (DX + 0.35, wy - 0.02, wz + 0.42), 0.012)
+wy = s0 + 0.05; wy2 = wy + 0.03                                               # wiper parked along the base of the screen
+p.bar(carbon, (DX - 0.45, wy, roof_z(wy) + 0.012), (DX + 0.30, wy2, roof_z(wy2) + 0.012), 0.012)
 # door logos
 s = p.slot(logo)
 for sx in (-1, 1):

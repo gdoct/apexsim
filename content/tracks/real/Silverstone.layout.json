@@ -1,0 +1,3481 @@
+{
+ "format": "apex-track-layout",
+ "version": 1,
+ "source_track": "Silverstone.yaml",
+ "track_name": "Silverstone Circuit",
+ "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
+ "osm_bbox": [
+  [
+   -1.035,
+   52.063,
+   -0.995,
+   52.083
+  ]
+ ],
+ "fit": {
+  "rmse_m": 1.9,
+  "raceway_matched": 0.339,
+  "centerline_covered": 0.936,
+  "centerline_covered_m": 4410
+ },
+ "corners": [
+  {
+   "name": "Hamilton Straight",
+   "station_m": 135.9,
+   "from_m": 5813.7,
+   "to_m": 365.8
+  },
+  {
+   "name": "Abbey",
+   "station_m": 426.1,
+   "from_m": 365.8,
+   "to_m": 520.2
+  },
+  {
+   "name": "Farm Curve",
+   "station_m": 635.5,
+   "from_m": 589.4,
+   "to_m": 688.0
+  },
+  {
+   "name": "Village",
+   "station_m": 895.5,
+   "from_m": 867.4,
+   "to_m": 937.7
+  },
+  {
+   "name": "The Loop",
+   "station_m": 1056.9,
+   "from_m": 937.7,
+   "to_m": 1181.1
+  },
+  {
+   "name": "Aintree",
+   "station_m": 1239.9,
+   "from_m": 1181.1,
+   "to_m": 1277.4
+  },
+  {
+   "name": "Wellington Straight",
+   "station_m": 1569.8,
+   "from_m": 1277.4,
+   "to_m": 1900.5
+  },
+  {
+   "name": "Brooklands",
+   "station_m": 1943.0,
+   "from_m": 1900.5,
+   "to_m": 1990.1
+  },
+  {
+   "name": "Luffield",
+   "station_m": 2208.0,
+   "from_m": 2097.9,
+   "to_m": 2329.7
+  },
+  {
+   "name": "Woodcote",
+   "station_m": 2550.0,
+   "from_m": 2436.0,
+   "to_m": 2670.8
+  },
+  {
+   "name": "Copse",
+   "station_m": 3106.0,
+   "from_m": 3021.0,
+   "to_m": 3196.1
+  },
+  {
+   "name": "Maggotts",
+   "station_m": 3692.0,
+   "from_m": 3563.9,
+   "to_m": 3748.9
+  },
+  {
+   "name": "Becketts",
+   "station_m": 3878.0,
+   "from_m": 3808.7,
+   "to_m": 3964.2
+  },
+  {
+   "name": "Chapel Curve",
+   "station_m": 4027.3,
+   "from_m": 3964.2,
+   "to_m": 4099.6
+  },
+  {
+   "name": "Hangar Straight",
+   "station_m": 4828.8,
+   "from_m": 4230.8,
+   "to_m": 4961.3
+  },
+  {
+   "name": "Stowe",
+   "station_m": 5067.4,
+   "from_m": 4961.3,
+   "to_m": 5175.6
+  },
+  {
+   "name": "Vale",
+   "station_m": 5283.5,
+   "from_m": 5175.6,
+   "to_m": 5507.5
+  },
+  {
+   "name": "Club",
+   "station_m": 5686.1,
+   "from_m": 5571.0,
+   "to_m": 5813.7
+  }
+ ],
+ "pit_lane": {
+  "side": "right",
+  "length_m": 737.5,
+  "nodes": [
+   [
+    26.27,
+    -80.18
+   ],
+   [
+    23.61,
+    -77.41
+   ],
+   [
+    21.59,
+    -74.52
+   ],
+   [
+    19.83,
+    -71.58
+   ],
+   [
+    18.9,
+    -69.91
+   ],
+   [
+    17.7,
+    -67.3
+   ],
+   [
+    16.78,
+    -64.71
+   ],
+   [
+    15.86,
+    -61.68
+   ],
+   [
+    15.05,
+    -57.67
+   ],
+   [
+    14.59,
+    -54.06
+   ],
+   [
+    14.37,
+    -50.62
+   ],
+   [
+    14.41,
+    -47.2
+   ],
+   [
+    14.89,
+    -43.24
+   ],
+   [
+    15.89,
+    -38.72
+   ],
+   [
+    17.01,
+    -35.02
+   ],
+   [
+    18.54,
+    -31.31
+   ],
+   [
+    23.11,
+    -23.52
+   ],
+   [
+    25.44,
+    -19.98
+   ],
+   [
+    27.09,
+    -17.26
+   ],
+   [
+    32.23,
+    -9.67
+   ],
+   [
+    37.36,
+    -2.07
+   ],
+   [
+    43.63,
+    7.37
+   ],
+   [
+    49.6,
+    16.39
+   ],
+   [
+    55.6,
+    25.28
+   ],
+   [
+    61.61,
+    34.17
+   ],
+   [
+    67.53,
+    43.07
+   ],
+   [
+    73.46,
+    51.97
+   ],
+   [
+    79.23,
+    60.75
+   ],
+   [
+    85.0,
+    69.53
+   ],
+   [
+    91.15,
+    78.64
+   ],
+   [
+    97.3,
+    87.74
+   ],
+   [
+    103.21,
+    96.62
+   ],
+   [
+    109.12,
+    105.49
+   ],
+   [
+    115.04,
+    114.13
+   ],
+   [
+    120.96,
+    122.77
+   ],
+   [
+    127.05,
+    131.87
+   ],
+   [
+    133.13,
+    140.97
+   ],
+   [
+    137.63,
+    147.69
+   ],
+   [
+    142.13,
+    154.4
+   ],
+   [
+    146.63,
+    161.12
+   ],
+   [
+    151.13,
+    167.83
+   ],
+   [
+    156.87,
+    176.48
+   ],
+   [
+    162.62,
+    185.14
+   ],
+   [
+    169.09,
+    194.64
+   ],
+   [
+    175.56,
+    204.14
+   ],
+   [
+    180.21,
+    211.21
+   ],
+   [
+    184.85,
+    218.28
+   ],
+   [
+    189.5,
+    225.35
+   ],
+   [
+    195.47,
+    234.2
+   ],
+   [
+    201.44,
+    243.06
+   ],
+   [
+    207.21,
+    251.75
+   ],
+   [
+    212.97,
+    260.44
+   ],
+   [
+    217.79,
+    267.43
+   ],
+   [
+    222.61,
+    274.42
+   ],
+   [
+    227.01,
+    279.97
+   ],
+   [
+    230.02,
+    283.14
+   ],
+   [
+    233.26,
+    285.69
+   ],
+   [
+    236.74,
+    288.43
+   ],
+   [
+    241.05,
+    291.25
+   ],
+   [
+    245.85,
+    293.7
+   ],
+   [
+    250.86,
+    295.97
+   ],
+   [
+    255.22,
+    297.58
+   ],
+   [
+    259.71,
+    298.78
+   ],
+   [
+    265.76,
+    299.91
+   ],
+   [
+    273.2,
+    300.91
+   ],
+   [
+    282.59,
+    301.96
+   ],
+   [
+    291.97,
+    303.01
+   ],
+   [
+    301.35,
+    304.06
+   ],
+   [
+    309.97,
+    305.02
+   ],
+   [
+    318.59,
+    305.97
+   ],
+   [
+    327.21,
+    306.93
+   ],
+   [
+    336.02,
+    307.87
+   ],
+   [
+    344.83,
+    308.81
+   ],
+   [
+    353.64,
+    309.76
+   ],
+   [
+    362.46,
+    310.7
+   ],
+   [
+    371.27,
+    311.64
+   ],
+   [
+    380.08,
+    312.58
+   ],
+   [
+    388.89,
+    313.53
+   ],
+   [
+    397.71,
+    314.47
+   ],
+   [
+    406.52,
+    315.41
+   ],
+   [
+    416.24,
+    316.48
+   ],
+   [
+    428.03,
+    317.72
+   ],
+   [
+    441.14,
+    319.11
+   ],
+   [
+    451.96,
+    320.79
+   ],
+   [
+    460.35,
+    322.63
+   ],
+   [
+    467.75,
+    324.47
+   ],
+   [
+    474.83,
+    326.74
+   ],
+   [
+    483.36,
+    330.53
+   ],
+   [
+    490.81,
+    334.31
+   ],
+   [
+    498.0,
+    338.42
+   ],
+   [
+    505.0,
+    342.77
+   ],
+   [
+    512.41,
+    347.63
+   ],
+   [
+    518.95,
+    357.37
+   ]
+  ]
+ },
+ "stands": [
+  {
+   "name": "Hamilton Straight A",
+   "station_m": 11.4,
+   "side": "left",
+   "offset_m": 29.4,
+   "length_m": 94.8,
+   "depth_m": 18.5,
+   "yaw_rad": 0.9046,
+   "centre": [
+    -23.81,
+    33.28
+   ],
+   "source": "osm",
+   "covered": true,
+   "front": [
+    [
+     8.37,
+     56.54
+    ],
+    [
+     -50.23,
+     -18.02
+    ]
+   ]
+  },
+  {
+   "name": "Abbey",
+   "station_m": 353.9,
+   "side": "left",
+   "offset_m": 31.4,
+   "length_m": 141.0,
+   "depth_m": 17.7,
+   "yaw_rad": 0.8976,
+   "centre": [
+    179.31,
+    308.81
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     228.79,
+     353.41
+    ],
+    [
+     140.88,
+     243.17
+    ]
+   ]
+  },
+  {
+   "name": "The View",
+   "station_m": 489.7,
+   "side": "left",
+   "offset_m": 72.7,
+   "length_m": 67.0,
+   "depth_m": 15.0,
+   "yaw_rad": 2.4858,
+   "centre": [
+    330.43,
+    433.77
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     351.98,
+     403.01
+    ],
+    [
+     361.13,
+     414.93
+    ],
+    [
+     351.38,
+     422.42
+    ]
+   ]
+  },
+  {
+   "name": "International Paddock",
+   "station_m": 568.5,
+   "side": "right",
+   "offset_m": 49.2,
+   "length_m": 103.4,
+   "depth_m": 16.2,
+   "yaw_rad": 2.9885,
+   "centre": [
+    402.5,
+    267.34
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     444.31,
+     269.98
+    ],
+    [
+     430.99,
+     268.03
+    ],
+    [
+     345.35,
+     281.25
+    ]
+   ]
+  },
+  {
+   "name": "Farm Curve",
+   "station_m": 751.7,
+   "side": "left",
+   "offset_m": 42.9,
+   "length_m": 163.4,
+   "depth_m": 11.1,
+   "yaw_rad": 0.311,
+   "centre": [
+    522.46,
+    450.59
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     545.22,
+     462.28
+    ],
+    [
+     570.99,
+     470.56
+    ],
+    [
+     574.39,
+     459.98
+    ],
+    [
+     520.36,
+     442.61
+    ]
+   ]
+  },
+  {
+   "name": "Village B",
+   "station_m": 883.2,
+   "side": "left",
+   "offset_m": 40.6,
+   "length_m": 73.2,
+   "depth_m": 15.8,
+   "yaw_rad": 0.7113,
+   "centre": [
+    671.2,
+    547.38
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     655.21,
+     521.12
+    ],
+    [
+     710.62,
+     568.87
+    ],
+    [
+     700.33,
+     580.82
+    ]
+   ]
+  },
+  {
+   "name": "Wellington",
+   "station_m": 1703.6,
+   "side": "right",
+   "offset_m": 23.4,
+   "length_m": 39.9,
+   "depth_m": 10.9,
+   "yaw_rad": 2.1561,
+   "centre": [
+    483.98,
+    865.26
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     493.57,
+     842.93
+    ],
+    [
+     502.62,
+     848.92
+    ]
+   ]
+  },
+  {
+   "name": "Luffield",
+   "station_m": 2307.9,
+   "side": "left",
+   "offset_m": 35.8,
+   "length_m": 171.5,
+   "depth_m": 15.9,
+   "yaw_rad": 1.1447,
+   "centre": [
+    66.71,
+    940.33
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     42.14,
+     866.99
+    ],
+    [
+     108.22,
+     1012.57
+    ],
+    [
+     93.86,
+     1019.35
+    ],
+    [
+     76.42,
+     980.93
+    ]
+   ]
+  },
+  {
+   "name": "Woodcote A",
+   "station_m": 2469.7,
+   "side": "left",
+   "offset_m": 33.4,
+   "length_m": 90.9,
+   "depth_m": 18.3,
+   "yaw_rad": 1.0084,
+   "centre": [
+    143.34,
+    1097.2
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     176.6,
+     1126.01
+    ],
+    [
+     126.97,
+     1049.88
+    ]
+   ]
+  },
+  {
+   "name": "Woodcote B",
+   "station_m": 2555.3,
+   "side": "left",
+   "offset_m": 44.4,
+   "length_m": 91.0,
+   "depth_m": 18.9,
+   "yaw_rad": 0.6615,
+   "centre": [
+    217.82,
+    1171.78
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     176.6,
+     1126.01
+    ],
+    [
+     248.37,
+     1181.88
+    ]
+   ]
+  },
+  {
+   "name": "National Pit Straight",
+   "station_m": 2687.3,
+   "side": "left",
+   "offset_m": 60.7,
+   "length_m": 94.4,
+   "depth_m": 12.3,
+   "yaw_rad": 0.1088,
+   "centre": [
+    360.35,
+    1222.5
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     323.62,
+     1211.07
+    ],
+    [
+     417.44,
+     1221.31
+    ]
+   ]
+  },
+  {
+   "name": "Copse A",
+   "station_m": 3072.3,
+   "side": "left",
+   "offset_m": 53.9,
+   "length_m": 72.6,
+   "depth_m": 11.0,
+   "yaw_rad": 3.1075,
+   "centre": [
+    772.72,
+    1244.19
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     748.37,
+     1250.17
+    ],
+    [
+     750.16,
+     1240.15
+    ]
+   ]
+  },
+  {
+   "name": "Copse B",
+   "station_m": 3124.4,
+   "side": "left",
+   "offset_m": 86.5,
+   "length_m": 56.5,
+   "depth_m": 11.2,
+   "yaw_rad": 2.4195,
+   "centre": [
+    855.72,
+    1224.95
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     836.11,
+     1236.33
+    ],
+    [
+     878.2,
+     1199.26
+    ]
+   ]
+  },
+  {
+   "name": "Copse C",
+   "station_m": 3163.5,
+   "side": "left",
+   "offset_m": 83.3,
+   "length_m": 69.2,
+   "depth_m": 10.9,
+   "yaw_rad": 1.8383,
+   "centre": [
+    900.28,
+    1158.43
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     888.91,
+     1183.03
+    ],
+    [
+     907.14,
+     1118.15
+    ]
+   ]
+  },
+  {
+   "name": "Silverstone Six",
+   "station_m": 3599.4,
+   "side": "right",
+   "offset_m": 49.1,
+   "length_m": 38.0,
+   "depth_m": 22.3,
+   "yaw_rad": 3.0754,
+   "centre": [
+    818.44,
+    684.01
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     842.71,
+     675.66
+    ],
+    [
+     833.51,
+     697.62
+    ]
+   ]
+  },
+  {
+   "name": "Becketts",
+   "station_m": 3964.7,
+   "side": "left",
+   "offset_m": 65.8,
+   "length_m": 207.8,
+   "depth_m": 17.8,
+   "yaw_rad": 1.7222,
+   "centre": [
+    1013.2,
+    413.13
+   ],
+   "source": "osm",
+   "covered": true,
+   "front": [
+    [
+     997.03,
+     500.74
+    ],
+    [
+     993.84,
+     500.26
+    ],
+    [
+     1025.18,
+     294.86
+    ],
+    [
+     1028.37,
+     295.35
+    ]
+   ]
+  },
+  {
+   "name": "Chapel",
+   "station_m": 4122.0,
+   "side": "left",
+   "offset_m": 54.3,
+   "length_m": 85.6,
+   "depth_m": 12.7,
+   "yaw_rad": 0.2957,
+   "centre": [
+    935.2,
+    173.42
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     903.94,
+     158.58
+    ],
+    [
+     900.24,
+     170.73
+    ]
+   ]
+  }
+ ],
+ "structures": [
+  {
+   "name": "Hilton Garden Inn Silverstone",
+   "station_m": 112.4,
+   "side": "left",
+   "offset_m": 36.2,
+   "length_m": 122.4,
+   "depth_m": 19.1,
+   "yaw_rad": 0.9152,
+   "centre": [
+    31.93,
+    117.65
+   ],
+   "levels": 6,
+   "osm_building": "hotel",
+   "area_m2": 2337
+  },
+  {
+   "name": null,
+   "station_m": 121.2,
+   "side": "left",
+   "offset_m": 31.5,
+   "length_m": 69.8,
+   "depth_m": 4.8,
+   "yaw_rad": 2.532,
+   "centre": [
+    67.86,
+    102.54
+   ],
+   "levels": 0,
+   "osm_building": "bridge",
+   "area_m2": 332
+  },
+  {
+   "name": "Silverstone Wing",
+   "station_m": 131.4,
+   "side": "right",
+   "offset_m": 24.0,
+   "length_m": 375.8,
+   "depth_m": 32.8,
+   "yaw_rad": 0.9763,
+   "centre": [
+    114.02,
+    81.71
+   ],
+   "levels": 3,
+   "osm_building": "yes",
+   "area_m2": 9917
+  },
+  {
+   "name": null,
+   "station_m": 170.1,
+   "side": "right",
+   "offset_m": 106.4,
+   "length_m": 28.5,
+   "depth_m": 14.9,
+   "yaw_rad": 0.9717,
+   "centre": [
+    194.42,
+    71.28
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 418
+  },
+  {
+   "name": null,
+   "station_m": 425.0,
+   "side": "left",
+   "offset_m": 134.7,
+   "length_m": 101.4,
+   "depth_m": 48.7,
+   "yaw_rad": 1.7507,
+   "centre": [
+    222.2,
+    501.81
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1628
+  },
+  {
+   "name": null,
+   "station_m": 446.7,
+   "side": "left",
+   "offset_m": 126.9,
+   "length_m": 41.2,
+   "depth_m": 29.4,
+   "yaw_rad": 1.5586,
+   "centre": [
+    282.24,
+    486.19
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1142
+  },
+  {
+   "name": "Village A",
+   "station_m": 855.1,
+   "side": "left",
+   "offset_m": 39.1,
+   "length_m": 77.5,
+   "depth_m": 12.6,
+   "yaw_rad": 0.704,
+   "centre": [
+    616.16,
+    500.33
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 972
+  },
+  {
+   "name": "Medical Centre",
+   "station_m": 1744.1,
+   "side": "right",
+   "offset_m": 51.3,
+   "length_m": 36.3,
+   "depth_m": 22.1,
+   "yaw_rad": 2.4419,
+   "centre": [
+    473.77,
+    915.68
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 703
+  },
+  {
+   "name": null,
+   "station_m": 1820.3,
+   "side": "right",
+   "offset_m": 51.2,
+   "length_m": 28.0,
+   "depth_m": 16.6,
+   "yaw_rad": 0.845,
+   "centre": [
+    413.96,
+    963.56
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 426
+  },
+  {
+   "name": null,
+   "station_m": 1876.3,
+   "side": "right",
+   "offset_m": 33.8,
+   "length_m": 51.5,
+   "depth_m": 15.2,
+   "yaw_rad": 2.4354,
+   "centre": [
+    358.63,
+    984.55
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 688
+  },
+  {
+   "name": "BRDC",
+   "station_m": 1925.7,
+   "side": "right",
+   "offset_m": 33.0,
+   "length_m": 30.5,
+   "depth_m": 14.9,
+   "yaw_rad": 2.4294,
+   "centre": [
+    304.66,
+    1020.96
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 448
+  },
+  {
+   "name": "Silverstone Museum",
+   "station_m": 2188.3,
+   "side": "left",
+   "offset_m": 123.8,
+   "length_m": 102.4,
+   "depth_m": 38.0,
+   "yaw_rad": 1.6907,
+   "centre": [
+    90.34,
+    676.96
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 3826
+  },
+  {
+   "name": null,
+   "station_m": 2227.7,
+   "side": "left",
+   "offset_m": 119.4,
+   "length_m": 49.4,
+   "depth_m": 26.2,
+   "yaw_rad": 0.0079,
+   "centre": [
+    -5.97,
+    744.27
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1295
+  },
+  {
+   "name": null,
+   "station_m": 2239.9,
+   "side": "left",
+   "offset_m": 93.4,
+   "length_m": 51.4,
+   "depth_m": 21.5,
+   "yaw_rad": 1.5919,
+   "centre": [
+    -6.5,
+    812.01
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1106
+  },
+  {
+   "name": "Grand Prix Racewear",
+   "station_m": 2269.9,
+   "side": "left",
+   "offset_m": 89.3,
+   "length_m": 38.3,
+   "depth_m": 21.9,
+   "yaw_rad": 0.072,
+   "centre": [
+    -11.07,
+    880.91
+   ],
+   "levels": 0,
+   "osm_building": "commercial",
+   "area_m2": 841
+  },
+  {
+   "name": null,
+   "station_m": 2282.3,
+   "side": "left",
+   "offset_m": 128.7,
+   "length_m": 51.4,
+   "depth_m": 24.8,
+   "yaw_rad": 0.5388,
+   "centre": [
+    -53.35,
+    933.66
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1272
+  },
+  {
+   "name": "Delta Motorsport",
+   "station_m": 2331.2,
+   "side": "left",
+   "offset_m": 115.8,
+   "length_m": 55.2,
+   "depth_m": 25.9,
+   "yaw_rad": 1.4067,
+   "centre": [
+    -12.71,
+    1002.73
+   ],
+   "levels": 0,
+   "osm_building": "commercial",
+   "area_m2": 1428
+  },
+  {
+   "name": "Ducati UK",
+   "station_m": 2366.6,
+   "side": "left",
+   "offset_m": 130.5,
+   "length_m": 25.9,
+   "depth_m": 23.8,
+   "yaw_rad": 2.9751,
+   "centre": [
+    -6.81,
+    1037.31
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 612
+  },
+  {
+   "name": null,
+   "station_m": 2420.0,
+   "side": "left",
+   "offset_m": 43.0,
+   "length_m": 31.5,
+   "depth_m": 12.3,
+   "yaw_rad": 1.162,
+   "centre": [
+    109.2,
+    1044.74
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 388
+  },
+  {
+   "name": null,
+   "station_m": 2471.1,
+   "side": "left",
+   "offset_m": 132.1,
+   "length_m": 19.1,
+   "depth_m": 16.9,
+   "yaw_rad": 0.6505,
+   "centre": [
+    73.59,
+    1161.57
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 322
+  },
+  {
+   "name": "BRDC Clubhouse",
+   "station_m": 2525.6,
+   "side": "right",
+   "offset_m": 45.3,
+   "length_m": 37.4,
+   "depth_m": 17.0,
+   "yaw_rad": 2.4111,
+   "centre": [
+    265.11,
+    1058.73
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 513
+  },
+  {
+   "name": null,
+   "station_m": 2629.7,
+   "side": "right",
+   "offset_m": 14.0,
+   "length_m": 134.4,
+   "depth_m": 37.2,
+   "yaw_rad": 0.556,
+   "centre": [
+    318.61,
+    1107.74
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1135
+  },
+  {
+   "name": null,
+   "station_m": 2716.6,
+   "side": "right",
+   "offset_m": 22.8,
+   "length_m": 18.9,
+   "depth_m": 16.8,
+   "yaw_rad": 0.1256,
+   "centre": [
+    402.67,
+    1128.46
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 317
+  },
+  {
+   "name": null,
+   "station_m": 2782.0,
+   "side": "left",
+   "offset_m": 83.7,
+   "length_m": 53.9,
+   "depth_m": 19.5,
+   "yaw_rad": 0.1257,
+   "centre": [
+    451.87,
+    1261.81
+   ],
+   "levels": 0,
+   "osm_building": "no",
+   "area_m2": 295
+  },
+  {
+   "name": "Pit Stop Cafe",
+   "station_m": 2795.4,
+   "side": "right",
+   "offset_m": 87.6,
+   "length_m": 86.1,
+   "depth_m": 17.9,
+   "yaw_rad": 0.1199,
+   "centre": [
+    488.85,
+    1070.54
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1426
+  },
+  {
+   "name": null,
+   "station_m": 2810.8,
+   "side": "right",
+   "offset_m": 21.1,
+   "length_m": 121.4,
+   "depth_m": 18.4,
+   "yaw_rad": 0.1189,
+   "centre": [
+    496.11,
+    1137.51
+   ],
+   "levels": 0,
+   "osm_building": "garages",
+   "area_m2": 2228
+  },
+  {
+   "name": "Silverstone UTC",
+   "station_m": 2841.1,
+   "side": "left",
+   "offset_m": 85.2,
+   "length_m": 93.5,
+   "depth_m": 31.0,
+   "yaw_rad": 0.1176,
+   "centre": [
+    510.02,
+    1276.23
+   ],
+   "levels": 0,
+   "osm_building": "school",
+   "area_m2": 2708
+  },
+  {
+   "name": null,
+   "station_m": 2922.4,
+   "side": "right",
+   "offset_m": 22.3,
+   "length_m": 122.4,
+   "depth_m": 17.7,
+   "yaw_rad": 0.1069,
+   "centre": [
+    606.47,
+    1149.44
+   ],
+   "levels": 0,
+   "osm_building": "garages",
+   "area_m2": 2164
+  },
+  {
+   "name": null,
+   "station_m": 3058.2,
+   "side": "right",
+   "offset_m": 31.8,
+   "length_m": 23.7,
+   "depth_m": 17.7,
+   "yaw_rad": 1.6709,
+   "centre": [
+    725.3,
+    1141.6
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 364
+  },
+  {
+   "name": null,
+   "station_m": 3413.5,
+   "side": "left",
+   "offset_m": 33.6,
+   "length_m": 28.8,
+   "depth_m": 12.8,
+   "yaw_rad": 2.7935,
+   "centre": [
+    923.36,
+    886.72
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 267
+  },
+  {
+   "name": null,
+   "station_m": 3463.8,
+   "side": "left",
+   "offset_m": 32.6,
+   "length_m": 29.7,
+   "depth_m": 14.3,
+   "yaw_rad": 2.8353,
+   "centre": [
+    927.03,
+    835.38
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 285
+  },
+  {
+   "name": null,
+   "station_m": 3490.3,
+   "side": "left",
+   "offset_m": 33.5,
+   "length_m": 28.9,
+   "depth_m": 13.2,
+   "yaw_rad": 2.8722,
+   "centre": [
+    927.46,
+    808.59
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 257
+  },
+  {
+   "name": null,
+   "station_m": 3515.6,
+   "side": "left",
+   "offset_m": 33.6,
+   "length_m": 29.5,
+   "depth_m": 13.3,
+   "yaw_rad": 2.8782,
+   "centre": [
+    929.09,
+    783.27
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 271
+  },
+  {
+   "name": null,
+   "station_m": 3540.7,
+   "side": "left",
+   "offset_m": 33.2,
+   "length_m": 29.4,
+   "depth_m": 13.3,
+   "yaw_rad": 2.9417,
+   "centre": [
+    931.46,
+    758.27
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 266
+  },
+  {
+   "name": null,
+   "station_m": 3566.0,
+   "side": "left",
+   "offset_m": 33.0,
+   "length_m": 28.1,
+   "depth_m": 13.5,
+   "yaw_rad": 0.0456,
+   "centre": [
+    932.08,
+    733.05
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 268
+  },
+  {
+   "name": null,
+   "station_m": 3596.0,
+   "side": "left",
+   "offset_m": 32.9,
+   "length_m": 29.2,
+   "depth_m": 12.3,
+   "yaw_rad": 3.1158,
+   "centre": [
+    936.38,
+    707.99
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 254
+  },
+  {
+   "name": null,
+   "station_m": 3630.0,
+   "side": "left",
+   "offset_m": 34.9,
+   "length_m": 27.9,
+   "depth_m": 13.2,
+   "yaw_rad": 2.9928,
+   "centre": [
+    940.63,
+    684.66
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 254
+  },
+  {
+   "name": null,
+   "station_m": 3716.4,
+   "side": "left",
+   "offset_m": 42.5,
+   "length_m": 26.5,
+   "depth_m": 18.2,
+   "yaw_rad": 0.3542,
+   "centre": [
+    991.17,
+    603.38
+   ],
+   "levels": 3,
+   "osm_building": "detached",
+   "area_m2": 287
+  },
+  {
+   "name": null,
+   "station_m": 3726.9,
+   "side": "left",
+   "offset_m": 54.8,
+   "length_m": 28.6,
+   "depth_m": 13.2,
+   "yaw_rad": 0.1142,
+   "centre": [
+    1006.33,
+    583.39
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 316
+  },
+  {
+   "name": "Escapade Silverstone",
+   "station_m": 3734.9,
+   "side": "left",
+   "offset_m": 61.6,
+   "length_m": 30.2,
+   "depth_m": 25.8,
+   "yaw_rad": 1.7392,
+   "centre": [
+    1010.11,
+    558.55
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 780
+  },
+  {
+   "name": null,
+   "station_m": 4016.1,
+   "side": "left",
+   "offset_m": 88.4,
+   "length_m": 78.7,
+   "depth_m": 13.3,
+   "yaw_rad": 1.767,
+   "centre": [
+    1059.24,
+    305.93
+   ],
+   "levels": 0,
+   "osm_building": "garages",
+   "area_m2": 1044
+  },
+  {
+   "name": "Workshop",
+   "station_m": 4386.5,
+   "side": "right",
+   "offset_m": 53.5,
+   "length_m": 66.8,
+   "depth_m": 41.3,
+   "yaw_rad": 1.3143,
+   "centre": [
+    674.68,
+    58.9
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2283
+  },
+  {
+   "name": "Silverstone Experience Centre",
+   "station_m": 4440.9,
+   "side": "right",
+   "offset_m": 56.7,
+   "length_m": 30.7,
+   "depth_m": 24.6,
+   "yaw_rad": 2.8827,
+   "centre": [
+    663.66,
+    3.59
+   ],
+   "levels": 0,
+   "osm_building": "commercial",
+   "area_m2": 755
+  },
+  {
+   "name": "Porsche Experience Centre",
+   "station_m": 4580.2,
+   "side": "left",
+   "offset_m": 56.2,
+   "length_m": 43.3,
+   "depth_m": 28.7,
+   "yaw_rad": 1.8722,
+   "centre": [
+    729.61,
+    -185.94
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 851
+  },
+  {
+   "name": null,
+   "station_m": 4944.5,
+   "side": "right",
+   "offset_m": 70.6,
+   "length_m": 22.9,
+   "depth_m": 18.9,
+   "yaw_rad": 2.9051,
+   "centre": [
+    421.51,
+    -429.7
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 370
+  },
+  {
+   "name": "Stowe A",
+   "station_m": 4999.6,
+   "side": "left",
+   "offset_m": 48.5,
+   "length_m": 101.6,
+   "depth_m": 17.7,
+   "yaw_rad": 0.8456,
+   "centre": [
+    490.43,
+    -558.92
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1595
+  },
+  {
+   "name": "Stowe C",
+   "station_m": 5099.9,
+   "side": "left",
+   "offset_m": 70.1,
+   "length_m": 71.6,
+   "depth_m": 15.8,
+   "yaw_rad": 2.5243,
+   "centre": [
+    323.16,
+    -592.04
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1026
+  },
+  {
+   "name": null,
+   "station_m": 5270.8,
+   "side": "right",
+   "offset_m": 67.3,
+   "length_m": 111.4,
+   "depth_m": 47.6,
+   "yaw_rad": 2.1156,
+   "centre": [
+    343.45,
+    -323.58
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 4617
+  },
+  {
+   "name": "Vale",
+   "station_m": 5417.3,
+   "side": "left",
+   "offset_m": 82.8,
+   "length_m": 149.5,
+   "depth_m": 17.2,
+   "yaw_rad": 2.4097,
+   "centre": [
+    81.11,
+    -354.37
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2503
+  },
+  {
+   "name": null,
+   "station_m": 5469.8,
+   "side": "right",
+   "offset_m": 40.7,
+   "length_m": 123.4,
+   "depth_m": 11.9,
+   "yaw_rad": 2.2297,
+   "centre": [
+    168.3,
+    -202.6
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1463
+  },
+  {
+   "name": null,
+   "station_m": 5601.5,
+   "side": "left",
+   "offset_m": 45.4,
+   "length_m": 39.5,
+   "depth_m": 7.5,
+   "yaw_rad": 2.4148,
+   "centre": [
+    13.78,
+    -293.43
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 292
+  },
+  {
+   "name": "Club A",
+   "station_m": 5618.7,
+   "side": "left",
+   "offset_m": 41.9,
+   "length_m": 41.6,
+   "depth_m": 14.5,
+   "yaw_rad": 2.3782,
+   "centre": [
+    -26.56,
+    -267.27
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 587
+  },
+  {
+   "name": "Club B",
+   "station_m": 5726.7,
+   "side": "left",
+   "offset_m": 42.2,
+   "length_m": 170.5,
+   "depth_m": 45.7,
+   "yaw_rad": 2.0202,
+   "centre": [
+    -99.7,
+    -155.97
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 3262
+  },
+  {
+   "name": null,
+   "station_m": 5749.4,
+   "side": "left",
+   "offset_m": 130.5,
+   "length_m": 60.6,
+   "depth_m": 47.3,
+   "yaw_rad": 1.6291,
+   "centre": [
+    -215.32,
+    -155.91
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2867
+  },
+  {
+   "name": null,
+   "station_m": 5776.5,
+   "side": "left",
+   "offset_m": 132.3,
+   "length_m": 70.1,
+   "depth_m": 37.5,
+   "yaw_rad": 0.0711,
+   "centre": [
+    -234.11,
+    -73.03
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2627
+  }
+ ],
+ "crossings": [
+  {
+   "name": null,
+   "station_m": 121.7,
+   "kind": "footbridge"
+  },
+  {
+   "name": null,
+   "station_m": 1605.6,
+   "kind": "footbridge"
+  },
+  {
+   "name": null,
+   "station_m": 4502.2,
+   "kind": "road"
+  }
+ ],
+ "landmarks": [
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1729.8,
+   "side": "left",
+   "centre": [
+    392.88,
+    798.98
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1730.1,
+   "side": "left",
+   "centre": [
+    364.25,
+    766.0
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1788.5,
+   "side": "left",
+   "centre": [
+    335.48,
+    821.55
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1838.3,
+   "side": "left",
+   "centre": [
+    314.62,
+    873.84
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2118.1,
+   "side": "left",
+   "centre": [
+    286.24,
+    819.93
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2128.5,
+   "side": "left",
+   "centre": [
+    298.43,
+    757.91
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2129.8,
+   "side": "left",
+   "centre": [
+    266.18,
+    783.59
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2141.3,
+   "side": "left",
+   "centre": [
+    309.68,
+    689.16
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2148.7,
+   "side": "left",
+   "centre": [
+    237.88,
+    751.37
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2153.4,
+   "side": "left",
+   "centre": [
+    238.55,
+    648.72
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2153.7,
+   "side": "left",
+   "centre": [
+    304.66,
+    651.66
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2160.8,
+   "side": "left",
+   "centre": [
+    218.78,
+    702.34
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2171.1,
+   "side": "left",
+   "centre": [
+    181.38,
+    696.5
+   ]
+  }
+ ],
+ "woods": [
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     214.9,
+     1257.6
+    ],
+    [
+     281.2,
+     1427.9
+    ],
+    [
+     362.2,
+     1537.5
+    ],
+    [
+     374.6,
+     1573.2
+    ],
+    [
+     375.6,
+     1595.0
+    ],
+    [
+     319.6,
+     1633.3
+    ],
+    [
+     248.4,
+     1523.7
+    ],
+    [
+     222.2,
+     1506.6
+    ],
+    [
+     182.6,
+     1501.7
+    ],
+    [
+     130.3,
+     1461.4
+    ],
+    [
+     60.8,
+     1350.2
+    ],
+    [
+     214.9,
+     1257.6
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     236.3,
+     -780.6
+    ],
+    [
+     246.1,
+     -802.2
+    ],
+    [
+     327.9,
+     -855.6
+    ],
+    [
+     364.0,
+     -813.9
+    ],
+    [
+     369.1,
+     -785.5
+    ],
+    [
+     332.7,
+     -706.4
+    ],
+    [
+     355.9,
+     -709.1
+    ],
+    [
+     359.5,
+     -696.2
+    ],
+    [
+     324.0,
+     -674.7
+    ],
+    [
+     281.1,
+     -609.7
+    ],
+    [
+     229.4,
+     -554.0
+    ],
+    [
+     217.3,
+     -566.5
+    ],
+    [
+     209.0,
+     -561.5
+    ],
+    [
+     209.2,
+     -574.8
+    ],
+    [
+     236.3,
+     -780.6
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     209.0,
+     -929.6
+    ],
+    [
+     131.3,
+     -944.8
+    ],
+    [
+     83.0,
+     -941.0
+    ],
+    [
+     59.0,
+     -889.8
+    ],
+    [
+     37.0,
+     -871.5
+    ],
+    [
+     24.8,
+     -836.2
+    ],
+    [
+     57.4,
+     -682.0
+    ],
+    [
+     112.0,
+     -507.5
+    ],
+    [
+     123.2,
+     -498.0
+    ],
+    [
+     178.0,
+     -537.6
+    ],
+    [
+     166.1,
+     -545.6
+    ],
+    [
+     189.9,
+     -758.6
+    ],
+    [
+     64.8,
+     -666.9
+    ],
+    [
+     62.2,
+     -677.5
+    ],
+    [
+     191.5,
+     -772.8
+    ],
+    [
+     209.0,
+     -929.6
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     -918.8,
+     420.9
+    ],
+    [
+     -989.1,
+     424.3
+    ],
+    [
+     -1037.4,
+     455.0
+    ],
+    [
+     -1088.9,
+     467.9
+    ],
+    [
+     -1122.2,
+     487.8
+    ],
+    [
+     -1195.1,
+     493.7
+    ],
+    [
+     -1252.2,
+     512.9
+    ],
+    [
+     -1311.8,
+     513.5
+    ],
+    [
+     -1396.5,
+     538.5
+    ],
+    [
+     -1443.6,
+     533.8
+    ],
+    [
+     -1428.1,
+     554.4
+    ],
+    [
+     -1344.5,
+     560.8
+    ],
+    [
+     -1287.4,
+     584.7
+    ],
+    [
+     -680.8,
+     680.4
+    ],
+    [
+     -899.8,
+     1101.8
+    ],
+    [
+     -945.4,
+     1171.1
+    ],
+    [
+     -929.0,
+     1183.9
+    ],
+    [
+     -943.5,
+     1195.6
+    ],
+    [
+     -969.9,
+     1262.4
+    ],
+    [
+     -1019.2,
+     1342.5
+    ],
+    [
+     -1153.5,
+     1307.3
+    ],
+    [
+     -1233.0,
+     1269.0
+    ],
+    [
+     -1302.1,
+     1221.6
+    ],
+    [
+     -1454.3,
+     1087.3
+    ],
+    [
+     -1435.6,
+     1055.3
+    ],
+    [
+     -1486.4,
+     1014.4
+    ],
+    [
+     -1447.0,
+     965.2
+    ],
+    [
+     -1504.5,
+     919.1
+    ],
+    [
+     -1563.0,
+     989.4
+    ],
+    [
+     -1797.6,
+     776.6
+    ],
+    [
+     -1915.0,
+     650.0
+    ],
+    [
+     -2065.4,
+     443.7
+    ],
+    [
+     -2029.7,
+     412.2
+    ],
+    [
+     -1979.9,
+     399.2
+    ],
+    [
+     -1949.8,
+     366.4
+    ],
+    [
+     -2013.6,
+     297.3
+    ],
+    [
+     -2087.0,
+     269.4
+    ],
+    [
+     -2109.3,
+     353.2
+    ],
+    [
+     -2063.2,
+     361.8
+    ],
+    [
+     -2098.9,
+     385.6
+    ],
+    [
+     -2179.1,
+     268.9
+    ],
+    [
+     -2284.1,
+     165.9
+    ],
+    [
+     -2285.1,
+     151.1
+    ],
+    [
+     -2224.8,
+     208.7
+    ],
+    [
+     -2172.1,
+     234.5
+    ],
+    [
+     -2163.6,
+     227.1
+    ],
+    [
+     -2161.1,
+     240.0
+    ],
+    [
+     -2129.7,
+     240.0
+    ],
+    [
+     -2034.8,
+     272.1
+    ],
+    [
+     -1893.5,
+     397.8
+    ],
+    [
+     -1675.9,
+     465.5
+    ],
+    [
+     -1576.8,
+     387.9
+    ],
+    [
+     -1542.5,
+     401.9
+    ],
+    [
+     -1507.9,
+     322.2
+    ],
+    [
+     -1496.3,
+     222.4
+    ],
+    [
+     -1445.3,
+     136.9
+    ],
+    [
+     -1423.0,
+     70.3
+    ],
+    [
+     -1566.3,
+     36.5
+    ],
+    [
+     -1664.7,
+     187.9
+    ],
+    [
+     -1803.0,
+     123.3
+    ],
+    [
+     -1667.2,
+     13.5
+    ],
+    [
+     -1922.0,
+     -136.4
+    ],
+    [
+     -1964.0,
+     -141.8
+    ],
+    [
+     -1992.1,
+     -132.8
+    ],
+    [
+     -2019.3,
+     -110.3
+    ],
+    [
+     -2068.0,
+     5.4
+    ],
+    [
+     -2067.1,
+     72.6
+    ],
+    [
+     -2101.8,
+     125.7
+    ],
+    [
+     -2174.9,
+     147.7
+    ],
+    [
+     -2279.7,
+     136.7
+    ],
+    [
+     -2307.6,
+     108.1
+    ],
+    [
+     -2402.1,
+     -41.2
+    ],
+    [
+     -2479.2,
+     -15.5
+    ],
+    [
+     -2538.8,
+     -57.2
+    ],
+    [
+     -2469.5,
+     -115.7
+    ],
+    [
+     -2495.3,
+     -140.7
+    ],
+    [
+     -2449.6,
+     -188.5
+    ],
+    [
+     -2455.1,
+     -204.3
+    ],
+    [
+     -2478.1,
+     -244.4
+    ],
+    [
+     -2509.9,
+     -275.4
+    ],
+    [
+     -2534.3,
+     -244.1
+    ],
+    [
+     -2666.1,
+     -291.2
+    ],
+    [
+     -2690.4,
+     -333.0
+    ],
+    [
+     -2717.2,
+     -448.7
+    ],
+    [
+     -3126.0,
+     -309.1
+    ],
+    [
+     -3168.9,
+     -474.2
+    ],
+    [
+     -2907.2,
+     -546.1
+    ],
+    [
+     -2804.9,
+     -618.7
+    ],
+    [
+     -2785.3,
+     -594.7
+    ],
+    [
+     -2776.1,
+     -564.2
+    ],
+    [
+     -2743.4,
+     -573.6
+    ],
+    [
+     -2684.0,
+     -617.7
+    ],
+    [
+     -2598.3,
+     -721.5
+    ],
+    [
+     -2532.3,
+     -770.5
+    ],
+    [
+     -2278.8,
+     -904.3
+    ],
+    [
+     -2216.7,
+     -931.3
+    ],
+    [
+     -2146.2,
+     -947.3
+    ],
+    [
+     -2164.1,
+     -992.3
+    ],
+    [
+     -2069.6,
+     -1048.5
+    ],
+    [
+     -2091.0,
+     -1222.2
+    ],
+    [
+     -2149.9,
+     -1193.1
+    ],
+    [
+     -2207.6,
+     -1283.9
+    ],
+    [
+     -1966.1,
+     -1457.5
+    ],
+    [
+     -1917.4,
+     -1226.5
+    ],
+    [
+     -1962.4,
+     -1148.1
+    ],
+    [
+     -1967.1,
+     -1065.8
+    ],
+    [
+     -1981.0,
+     -1050.6
+    ],
+    [
+     -1982.0,
+     -1017.9
+    ],
+    [
+     -1966.4,
+     -998.3
+    ],
+    [
+     -1953.4,
+     -955.1
+    ],
+    [
+     -1874.2,
+     -879.0
+    ],
+    [
+     -1793.4,
+     -829.8
+    ],
+    [
+     -1700.8,
+     -686.7
+    ],
+    [
+     -1216.1,
+     -347.6
+    ],
+    [
+     -1138.7,
+     -312.3
+    ],
+    [
+     -1075.0,
+     -300.3
+    ],
+    [
+     -1046.1,
+     -264.6
+    ],
+    [
+     -1019.2,
+     -268.3
+    ],
+    [
+     -959.9,
+     -302.7
+    ],
+    [
+     -915.4,
+     -369.1
+    ],
+    [
+     -733.8,
+     -463.3
+    ],
+    [
+     -656.1,
+     -553.1
+    ],
+    [
+     -577.8,
+     -576.1
+    ],
+    [
+     -485.9,
+     -622.5
+    ],
+    [
+     -441.0,
+     -607.7
+    ],
+    [
+     -352.6,
+     -551.8
+    ],
+    [
+     -249.8,
+     -524.7
+    ],
+    [
+     -231.4,
+     -501.7
+    ],
+    [
+     -235.0,
+     -489.4
+    ],
+    [
+     -215.1,
+     -479.2
+    ],
+    [
+     -195.8,
+     -445.6
+    ],
+    [
+     -163.2,
+     -313.4
+    ],
+    [
+     -358.4,
+     -45.6
+    ],
+    [
+     -366.8,
+     8.5
+    ],
+    [
+     -420.2,
+     150.7
+    ],
+    [
+     -488.0,
+     228.7
+    ],
+    [
+     -479.3,
+     247.2
+    ],
+    [
+     -511.9,
+     249.2
+    ],
+    [
+     -534.1,
+     261.1
+    ],
+    [
+     -569.4,
+     301.4
+    ],
+    [
+     -605.6,
+     300.2
+    ],
+    [
+     -712.7,
+     344.6
+    ],
+    [
+     -710.5,
+     353.0
+    ],
+    [
+     -918.8,
+     420.9
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     884.0,
+     89.4
+    ],
+    [
+     861.6,
+     73.8
+    ],
+    [
+     846.2,
+     81.4
+    ],
+    [
+     847.5,
+     91.8
+    ],
+    [
+     880.7,
+     118.0
+    ],
+    [
+     883.0,
+     106.2
+    ],
+    [
+     853.1,
+     85.4
+    ],
+    [
+     884.0,
+     89.4
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     879.2,
+     -179.0
+    ],
+    [
+     1161.8,
+     -77.9
+    ],
+    [
+     995.4,
+     -133.5
+    ],
+    [
+     962.0,
+     -121.2
+    ],
+    [
+     938.6,
+     -156.8
+    ],
+    [
+     879.2,
+     -179.0
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     1022.8,
+     -119.7
+    ],
+    [
+     990.5,
+     -122.3
+    ],
+    [
+     975.0,
+     -114.5
+    ],
+    [
+     1055.1,
+     -102.0
+    ],
+    [
+     1136.4,
+     -67.8
+    ],
+    [
+     1095.5,
+     56.2
+    ],
+    [
+     1101.1,
+     118.9
+    ],
+    [
+     1111.5,
+     138.5
+    ],
+    [
+     1109.3,
+     43.8
+    ],
+    [
+     1148.8,
+     -74.4
+    ],
+    [
+     1022.8,
+     -119.7
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     1161.8,
+     -77.9
+    ],
+    [
+     1180.5,
+     -59.5
+    ],
+    [
+     1168.8,
+     -21.9
+    ],
+    [
+     1172.3,
+     -1.6
+    ],
+    [
+     1122.5,
+     52.5
+    ],
+    [
+     1128.8,
+     165.9
+    ],
+    [
+     1121.8,
+     173.9
+    ],
+    [
+     1112.4,
+     50.6
+    ],
+    [
+     1161.8,
+     -77.9
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     408.1,
+     552.4
+    ],
+    [
+     457.6,
+     543.1
+    ],
+    [
+     545.6,
+     549.2
+    ],
+    [
+     562.1,
+     539.9
+    ],
+    [
+     540.4,
+     530.1
+    ],
+    [
+     446.8,
+     527.8
+    ],
+    [
+     409.6,
+     540.3
+    ],
+    [
+     408.1,
+     552.4
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     280.1,
+     591.1
+    ],
+    [
+     284.4,
+     601.7
+    ],
+    [
+     388.6,
+     588.0
+    ],
+    [
+     391.3,
+     581.3
+    ],
+    [
+     280.1,
+     591.1
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     927.9,
+     1018.8
+    ],
+    [
+     917.5,
+     978.3
+    ],
+    [
+     906.6,
+     975.4
+    ],
+    [
+     932.5,
+     1062.8
+    ],
+    [
+     927.9,
+     1018.8
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     449.0,
+     525.2
+    ],
+    [
+     427.5,
+     528.4
+    ],
+    [
+     428.3,
+     520.5
+    ],
+    [
+     464.2,
+     518.5
+    ],
+    [
+     544.5,
+     529.0
+    ],
+    [
+     449.0,
+     525.2
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     963.3,
+     1348.9
+    ],
+    [
+     1064.0,
+     1409.4
+    ],
+    [
+     1066.8,
+     1509.7
+    ],
+    [
+     1081.2,
+     1522.3
+    ],
+    [
+     1082.8,
+     1670.5
+    ],
+    [
+     1094.3,
+     1696.4
+    ],
+    [
+     1182.3,
+     1800.6
+    ],
+    [
+     1067.4,
+     1830.9
+    ],
+    [
+     932.1,
+     1898.5
+    ],
+    [
+     901.6,
+     1905.4
+    ],
+    [
+     963.3,
+     1348.9
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     964.9,
+     1098.0
+    ],
+    [
+     992.9,
+     1198.0
+    ],
+    [
+     1374.8,
+     1074.3
+    ],
+    [
+     1392.3,
+     1013.4
+    ],
+    [
+     1382.7,
+     983.7
+    ],
+    [
+     1271.1,
+     865.3
+    ],
+    [
+     1246.9,
+     787.7
+    ],
+    [
+     1189.3,
+     702.3
+    ],
+    [
+     972.9,
+     831.8
+    ],
+    [
+     969.8,
+     879.2
+    ],
+    [
+     955.6,
+     909.4
+    ],
+    [
+     937.9,
+     918.7
+    ],
+    [
+     930.0,
+     955.4
+    ],
+    [
+     964.9,
+     1098.0
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     992.9,
+     1198.0
+    ],
+    [
+     992.1,
+     1210.1
+    ],
+    [
+     980.7,
+     1206.4
+    ],
+    [
+     963.3,
+     1348.9
+    ],
+    [
+     1064.0,
+     1409.4
+    ],
+    [
+     1066.0,
+     1502.0
+    ],
+    [
+     1099.2,
+     1510.8
+    ],
+    [
+     1163.9,
+     1503.7
+    ],
+    [
+     1613.8,
+     1440.9
+    ],
+    [
+     1644.5,
+     1450.3
+    ],
+    [
+     1581.3,
+     1303.0
+    ],
+    [
+     1488.8,
+     1180.6
+    ],
+    [
+     1382.7,
+     1101.3
+    ],
+    [
+     1370.6,
+     1089.4
+    ],
+    [
+     1374.8,
+     1074.3
+    ],
+    [
+     992.9,
+     1198.0
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     -122.5,
+     984.0
+    ],
+    [
+     -76.5,
+     1010.6
+    ],
+    [
+     -79.2,
+     1019.2
+    ],
+    [
+     -93.1,
+     1021.2
+    ],
+    [
+     -94.5,
+     1007.4
+    ],
+    [
+     -109.1,
+     998.5
+    ],
+    [
+     -129.8,
+     1001.2
+    ],
+    [
+     -122.5,
+     984.0
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     131.4,
+     -495.8
+    ],
+    [
+     221.2,
+     -562.4
+    ],
+    [
+     229.4,
+     -554.0
+    ],
+    [
+     206.8,
+     -527.7
+    ],
+    [
+     131.4,
+     -495.8
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     1166.4,
+     379.2
+    ],
+    [
+     1178.4,
+     339.1
+    ],
+    [
+     1160.5,
+     345.7
+    ],
+    [
+     1157.4,
+     374.5
+    ],
+    [
+     1166.4,
+     379.2
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     1166.5,
+     393.1
+    ],
+    [
+     1183.5,
+     368.4
+    ],
+    [
+     1207.2,
+     410.5
+    ],
+    [
+     1242.4,
+     441.1
+    ],
+    [
+     1354.4,
+     511.2
+    ],
+    [
+     1409.5,
+     520.2
+    ],
+    [
+     1448.4,
+     514.2
+    ],
+    [
+     1476.2,
+     497.9
+    ],
+    [
+     1500.8,
+     503.1
+    ],
+    [
+     1568.1,
+     488.4
+    ],
+    [
+     1656.5,
+     492.3
+    ],
+    [
+     1691.9,
+     507.8
+    ],
+    [
+     1735.3,
+     509.1
+    ],
+    [
+     1814.0,
+     548.0
+    ],
+    [
+     1885.9,
+     564.6
+    ],
+    [
+     1910.4,
+     582.8
+    ],
+    [
+     1937.1,
+     565.2
+    ],
+    [
+     1947.8,
+     579.9
+    ],
+    [
+     1894.3,
+     596.0
+    ],
+    [
+     1864.3,
+     580.3
+    ],
+    [
+     1840.2,
+     579.6
+    ],
+    [
+     1795.4,
+     550.9
+    ],
+    [
+     1756.8,
+     546.2
+    ],
+    [
+     1725.4,
+     528.3
+    ],
+    [
+     1648.2,
+     506.5
+    ],
+    [
+     1572.5,
+     502.0
+    ],
+    [
+     1399.5,
+     526.8
+    ],
+    [
+     1363.3,
+     520.1
+    ],
+    [
+     1241.0,
+     450.3
+    ],
+    [
+     1166.5,
+     393.1
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     -162.1,
+     938.0
+    ],
+    [
+     -140.5,
+     936.5
+    ],
+    [
+     -128.2,
+     947.3
+    ],
+    [
+     -101.0,
+     920.7
+    ],
+    [
+     -134.5,
+     974.6
+    ],
+    [
+     -150.9,
+     959.5
+    ],
+    [
+     -152.4,
+     944.7
+    ],
+    [
+     -178.4,
+     958.5
+    ],
+    [
+     -177.3,
+     935.2
+    ],
+    [
+     -162.1,
+     938.0
+    ]
+   ]
+  }
+ ]
+}

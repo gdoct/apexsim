@@ -12,6 +12,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Engine/GameInstance.h"
+#include "Race/ApexRaceCoordinate.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -178,7 +179,7 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	{
 		const int32 LapLimit = Flow ? Flow->CreateLapLimit : 0;
 		Parts.Add(LapLimit > 0
-			? FString::Printf(TEXT("Lap %d / %d"), FMath::Max(1, Local->CurrentLap), LapLimit)
+			? FString::Printf(TEXT("Lap %d / %d"), ApexRace::DisplayLap(Local->CurrentLap, LapLimit), LapLimit)
 			: FString::Printf(TEXT("Lap %d"), FMath::Max(1, Local->CurrentLap)));
 	}
 

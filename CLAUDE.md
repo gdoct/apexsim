@@ -87,6 +87,62 @@ instead of copying 1.8 GB.
 The Unreal Engine lookup shared by all three scripts lives in
 `scripts/lib/ApexEngine.ps1`.
 
+### Real-world layouts (`<Stem>.layout.json`, `ats-dress`)
+The centerlines are real (public GPS traces), but everything beside the road
+used to be invented: the procedural enrichment pass put grandstands wherever
+there was room, guessed which side the pit lane went, gave no circuit its
+landmarks and ringed every venue — dunes included — with the same tree belt.
+
+A circuit's real furniture now comes from a **layout dossier** checked in
+beside its YAML, `content/tracks/real/<Stem>.layout.json`: named corners, the
+pit lane's real polyline and side, the grandstands with their names, sizes and
+road-facing outlines, the buildings, what crosses over the road, landmarks,
+and the outlines of the real woodland with its leaf type. It is built from
+OpenStreetMap (ODbL; the attribution travels in the file) by
+
+```bash
+python scripts/osm_layout.py --all            # or: Monza Spa [--offline]
+```
+
+which georeferences the extract onto the track's own frame — an FFT
+rotation/translation search, then trimmed ICP — and refuses to write a dossier
+the fit does not explain (`fit` records the rmse and the coverage; every
+circuit but Le Mans matches end to end, and there two thirds of the Sarthe is
+public road in OSM rather than `highway=raceway`). Facts OSM lacks live in
+`MANUAL_STANDS` / `MANUAL_CROSSINGS` / `MANUAL_LANDMARKS` in that script, from
+each circuit's published seating map, and survive a refetch; a manual stand is
+given as a station span and `outside`/`inside`, and the script lays its front
+along the centerline so it curves with the bend. Raw extracts are cached,
+gitignored, under `content/tracks/osm-cache/`.
+
+`ats-dress` turns a dossier into scenery and then grooms around it:
+
+```bash
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
+                                            # or: content/tracks/real/Spa.yaml [--dry-run]
+```
+
+It owns every prop of the kinds it lays (grandstand, building, attraction,
+bridge, light, vehicle, sky) plus the pit lane, deleting and re-laying them
+each run — so it also clears the old scatter — while barriers, tire walls,
+distance boards and trees stay `groom`'s. A stand is laid as 40 m runs along
+its real front, each carrying its own `length_m`, so the Unreal side builds
+bays that follow the outline; the family comes from the real depth and roof.
+The pit lane is written with `authored: true`, which is what stops grooming
+replacing it with a generated ribbon, and the Unreal bake generates the
+garages, boxes and pit walls from it as before. Buildings inside the pit
+complex are skipped for that reason.
+
+Grooming is dossier-aware too (`groom_scene_with`, and `ats-groom` loads the
+dossier by itself): dressed props are re-seated but never pushed, and tree
+belts are planted **only inside the real woods**, with the species taken from
+the wood's leaf type — which is what leaves Zandvoort's dunes bare, Spa's
+Ardennes in spruce and the Parco di Monza in broadleaf. Both passes recycle
+their own element ids, so re-running either writes a byte-identical file.
+
+Le Mans, Zandvoort, Spa, Monza and Silverstone have dossiers; a track without
+one is groomed exactly as before.
+
 ### Track pipeline into Unreal
 Circuits reach the Unreal client in two generated steps; both outputs are
 regenerated wholesale and neither should be hand-edited.
@@ -163,7 +219,7 @@ another folder previews as that other car. `ApexCarImport` keeps both in
 step:
 
 ```bash
-"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexCarImport -all          # or -car=yotota-lmp2 / -list / -force / -dryrun
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexCarImport -all          # or -car=yotota-lmp2 / -list / -remove=folder / -force / -dryrun
 ```
 
 Each GLB goes through Interchange (one combined mesh, no collision, no
@@ -351,6 +407,19 @@ grip limit or lifting, red braking), dropped onto the track level's own meshes
 by line traces once the level is visible. BRAKING ONLY draws just the red.
 For screenshot runs `-ApexRacingLine=off|braking|full` overrides the setting
 and `-ApexCar=<name>` picks the auto-race car (otherwise the lobby's first).
+
+### Race start and finish (`game_session.rs`, `UApexRootWidget`)
+A car is seeded onto the centerline when it is put on the grid
+(`physics::seed_track_progress`); lap 1 starts as a grid car crosses the line,
+or on green for pole. The server classifies a car (`finish_position`) when it
+completes `lap_limit` laps; once the winner is in, the session finishes when
+every car is classified or at a deadline of max(60 s, 2 x the winner's average
+lap). A finished human's car is driven by a server cool-down AI, because the
+last input received otherwise stays applied. `start_countdown_mode(_, Race)`
+lines the field up on the grid again. On the client the HUD ranks finishers
+first (`ApexRace::RanksAhead`); cars still racing get a toast when P1 takes
+the flag, and 2.5 s after the local car finishes the root widget swaps the race
+view for a provisional `SessionResults` that re-sorts until the session ends.
 
 ### Cockpit view (`Race/ApexCockpitRig`, `Race/ApexCockpitLayout`)
 The first-person view is the default (settings: Camera tab, "Start in"). The

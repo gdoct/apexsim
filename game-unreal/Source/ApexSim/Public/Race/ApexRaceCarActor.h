@@ -9,6 +9,7 @@
 
 class UApexEngineSoundWave;
 class UAudioComponent;
+class UMaterialInstanceDynamic;
 class UStaticMesh;
 class UStaticMeshComponent;
 
@@ -137,6 +138,18 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexEngineSoundWave> EngineSound;
+
+	/**
+	 * The mesh's `car_brakelight` slot as a dynamic instance, its
+	 * `EmissiveStrength` switched by the brake input; null for a mesh
+	 * without the slot.
+	 */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> BrakeLightMaterial;
+	bool bBrakeLightsOn = false;
+
+	/** Lights or darkens the brake lights from `Brake`, writing only on a change. */
+	void UpdateBrakeLights();
 
 	/**
 	 * The rev range seen so far for this car. Neither idle nor redline is

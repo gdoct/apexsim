@@ -42,6 +42,7 @@ use std::collections::BTreeMap;
 use std::f32::consts::TAU;
 
 use crate::ats::{AtsScene, Prop, PropKind, Side, SurfaceKind};
+use crate::layout::{Layout, Wood};
 use crate::props;
 use crate::terrain::{self, TerrainHeightfield};
 use crate::track_data::TrackFile;
@@ -131,8 +132,40 @@ const BOARD_PROP_CLEAR_M: f32 = 0.5;
 
 // ---- Trees ----------------------------------------------------------------
 
-/// Asset key every generated tree carries; the tree pass owns those.
+/// Asset key the tree pass used before the prop kit had species; still
+/// owned by the pass, so an old scene's belt is replaced rather than kept
+/// alongside the new one.
 pub const TREE_ASSET: &str = "tree_generic";
+/// The species the belts are planted from, by the leaf type of the wood
+/// the tree stands in ([`Wood::leaf`]). Without a dossier the pass plants
+/// the mixed set, which is what the generic key used to resolve to.
+const BROADLEAF: [&str; 4] = ["broadleaf_m", "broadleaf_l", "broadleaf_s", "bush_cluster"];
+const NEEDLELEAF: [&str; 3] = ["conifer_m", "conifer_l", "poplar"];
+const MIXED: [&str; 5] = [
+    "broadleaf_m",
+    "broadleaf_l",
+    "conifer_m",
+    "poplar",
+    "bush_cluster",
+];
+
+/// Every asset the tree pass may plant, so it recognises its own work.
+fn is_tree_pass_asset(asset: &str) -> bool {
+    asset == TREE_ASSET
+        || BROADLEAF.contains(&asset)
+        || NEEDLELEAF.contains(&asset)
+        || MIXED.contains(&asset)
+}
+
+/// The species for a tree, from the wood it stands in and its own hash.
+fn tree_asset(leaf: Option<&str>, roll: f32) -> &'static str {
+    let set: &[&'static str] = match leaf {
+        Some("broadleaved") => &BROADLEAF,
+        Some("needleleaved") => &NEEDLELEAF,
+        _ => &MIXED,
+    };
+    set[((roll * set.len() as f32) as usize).min(set.len() - 1)]
+}
 /// Station cell size of the tree belts.
 const TREE_CELL_M: f32 = 12.0;
 /// Depth range of the belt, measured beyond the road edge.
@@ -431,7 +464,7 @@ fn owned_by_board_pass(prop: &Prop) -> bool {
 }
 
 fn owned_by_tree_pass(prop: &Prop) -> bool {
-    prop.kind == PropKind::Tree && prop.asset == TREE_ASSET
+    prop.kind == PropKind::Tree && is_tree_pass_asset(&prop.asset)
 }
 
 fn owned_by_barrier_pass(prop: &Prop) -> bool {
@@ -443,7 +476,25 @@ fn owned_by_barrier_pass(prop: &Prop) -> bool {
 /// props clear of the *final* lane, then every prop is placed by
 /// [`groom_props`].
 pub fn groom_scene(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomReport> {
+    groom_scene_with(track, scene, None)
+}
+
+/// Groom against the circuit's real-world dossier where it has one
+/// ([`crate::layout`]): the pit lane [`crate::dress`] laid from it is kept
+/// as it is, and the tree belts are planted only inside the woods that are
+/// really there.
+pub fn groom_scene_with(
+    track: &TrackFile,
+    scene: &mut AtsScene,
+    layout: Option<&Layout>,
+) -> Option<GroomReport> {
     let path = CenterlinePath::from_track(track)?;
+    // The circuit's own pit lane is a fact, not a shape to regenerate.
+    if scene.pit_lane.as_ref().is_some_and(|pit| pit.authored) {
+        let mut report = groom_props_with(track, scene, layout)?;
+        report.pit_rebuilt = false;
+        return Some(report);
+    }
     let pit_rebuilt = match crate::pit::generate_pit_lane(&path, scene.pit_lane.as_ref()) {
         Some(pit) => {
             let rebuilt = scene.pit_lane.as_ref() != Some(&pit);
@@ -453,7 +504,7 @@ pub fn groom_scene(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomRepor
         None => false,
     };
 
-    let mut report = groom_props(track, scene)?;
+    let mut report = groom_props_with(track, scene, layout)?;
     report.pit_rebuilt = pit_rebuilt;
     Some(report)
 }
@@ -466,8 +517,17 @@ pub fn groom_scene(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomRepor
 /// keeps clear of an earlier one and re-grooming reproduces the same
 /// decisions.
 pub fn groom_props(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomReport> {
+    groom_props_with(track, scene, None)
+}
+
+pub fn groom_props_with(
+    track: &TrackFile,
+    scene: &mut AtsScene,
+    layout: Option<&Layout>,
+) -> Option<GroomReport> {
     let path = CenterlinePath::from_track(track)?;
     let terrain = TerrainHeightfield::from_path(&path)?;
+    let dressed = layout.is_some();
 
     let mut report = GroomReport {
         total: scene.props.len(),
@@ -545,6 +605,18 @@ pub fn groom_props(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomRepor
                     prop.z = z;
                     report.pushed += 1;
                 } else if (z - prop.z).abs() > MIN_MOVE_M {
+                    prop.z = z;
+                    report.reseated += 1;
+                }
+                kept.push(prop);
+            }
+            _ if dressed && crate::dress::dressed_kind(prop.kind) => {
+                // The dossier put this stand, building or landmark where
+                // the real one is. Seat it on the ground and leave it
+                // alone: a push would trade a fact for a guess.
+                let (sample, lat, _) = nearest_cross_section(&path, prop.x, prop.y);
+                let z = seat_z(&terrain, &sample, lat, prop.x, prop.y);
+                if (z - prop.z).abs() > MIN_MOVE_M {
                     prop.z = z;
                     report.reseated += 1;
                 }
@@ -696,6 +768,7 @@ pub fn groom_props(track: &TrackFile, scene: &mut AtsScene) -> Option<GroomRepor
         lane.as_ref(),
         &props,
         tree_density(track),
+        layout.map(|l| l.woods.as_slice()).unwrap_or(&[]),
     );
     report.trees = trees.len();
     props.extend(adopt(
@@ -1278,9 +1351,13 @@ fn lay_straight_barriers(
             }
             let blocked = others.iter().any(|p| {
                 let clear = match p.kind {
+                    // A grandstand stands *behind* the barrier that
+                    // separates it from the road — that is what the
+                    // barrier is for — so only armco that would land
+                    // inside the seating is dropped.
+                    PropKind::Grandstand => 0.5,
                     PropKind::TireWall
                     | PropKind::Building
-                    | PropKind::Grandstand
                     | PropKind::Pit
                     | PropKind::Attraction => BARRIER_CLEAR_M,
                     // A board stands on the barrier line by design, and a
@@ -1343,6 +1420,7 @@ fn lay_tree_belts(
     lane: Option<&CenterlinePath>,
     others: &[Prop],
     density: f32,
+    woods: &[Wood],
 ) -> Vec<Prop> {
     const GRID_M: f32 = TREE_PROP_CLEAR_M;
     let grid_key = |x: f32, y: f32| ((x / GRID_M).floor() as i64, (y / GRID_M).floor() as i64);
@@ -1429,11 +1507,23 @@ fn lay_tree_belts(
                     continue;
                 }
 
+                // With a dossier the belt is the real woodland and
+                // nothing else: the dunes at Zandvoort stay bare, the
+                // Ardennes stay dense, and both are right for once.
+                let leaf = if woods.is_empty() {
+                    None
+                } else {
+                    match woods.iter().find(|w| w.contains(pos.0, pos.1)) {
+                        Some(wood) => Some(wood.leaf.as_str()),
+                        None => continue,
+                    }
+                };
+
                 planted.entry((gx, gy)).or_default().push((pos.0, pos.1));
                 trees.push(Prop {
                     id: 0,
                     kind: PropKind::Tree,
-                    asset: TREE_ASSET.to_string(),
+                    asset: tree_asset(leaf, hash01(&tree, 5)).to_string(),
                     x: pos.0,
                     y: pos.1,
                     z: seat_z(terrain, &ns, nlat, pos.0, pos.1),
@@ -1933,7 +2023,11 @@ mod tests {
         let trees = of_kind(&scene, PropKind::Tree);
         assert!(trees.len() > 200, "only {} trees", trees.len());
         for (i, t) in trees.iter().enumerate() {
-            assert_eq!(t.asset, TREE_ASSET);
+            assert!(
+                is_tree_pass_asset(&t.asset),
+                "tree {i} planted as {}",
+                t.asset
+            );
             assert!((TREE_SCALE_MIN..=TREE_SCALE_MAX).contains(&t.scale));
             let (sample, lat, _) = nearest_cross_section(&path, t.x, t.y);
             let beyond = lat.abs() - half_width_on(&sample, lat);

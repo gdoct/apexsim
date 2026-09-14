@@ -63,19 +63,7 @@ void UApexSessionRecorder::FinishRecording()
 	bRecording = false;
 
 	ApplyRosterNames();
-
-	// Classification: most laps first, then the quickest lap. A car with no lap
-	// at all sorts last however far it got.
-	Results.Sort([](const FApexCarResult& A, const FApexCarResult& B)
-	{
-		if (A.LapsCompleted() != B.LapsCompleted())
-		{
-			return A.LapsCompleted() > B.LapsCompleted();
-		}
-		if (A.BestLapSeconds <= 0.0f) { return false; }
-		if (B.BestLapSeconds <= 0.0f) { return true; }
-		return A.BestLapSeconds < B.BestLapSeconds;
-	});
+	SortResults();
 
 	// File the local driver's best lap against the profile.
 	UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
@@ -95,6 +83,43 @@ void UApexSessionRecorder::FinishRecording()
 		Local && Local->BestLapSeconds > 0.0f
 			? *UApexMenuFlowSubsystem::FormatLapTime(Local->BestLapSeconds)
 			: TEXT("none"));
+}
+
+bool UApexSessionRecorder::ClassifiesAhead(const FApexCarResult& A, const FApexCarResult& B, bool bByDistance)
+{
+	// The server's classification, when there is one, is the result.
+	if (A.FinishPosition > 0 || B.FinishPosition > 0)
+	{
+		if (A.FinishPosition > 0 && B.FinishPosition > 0)
+		{
+			return A.FinishPosition < B.FinishPosition;
+		}
+		return A.FinishPosition > 0;
+	}
+	// A race not yet run to the flag: the running order.
+	if (bByDistance && !FMath::IsNearlyEqual(A.DistanceM, B.DistanceM))
+	{
+		return A.DistanceM > B.DistanceM;
+	}
+	// Most laps first, then the quickest lap. A car with no lap at all sorts
+	// last however far it got.
+	if (A.LapsCompleted() != B.LapsCompleted())
+	{
+		return A.LapsCompleted() > B.LapsCompleted();
+	}
+	if (A.BestLapSeconds <= 0.0f) { return false; }
+	if (B.BestLapSeconds <= 0.0f) { return true; }
+	return A.BestLapSeconds < B.BestLapSeconds;
+}
+
+void UApexSessionRecorder::SortResults()
+{
+	const bool bByDistance = RecordedMode == EApexGameMode::Race
+		|| Results.ContainsByPredicate([](const FApexCarResult& Result) { return Result.FinishPosition > 0; });
+	Results.StableSort([bByDistance](const FApexCarResult& A, const FApexCarResult& B)
+	{
+		return ClassifiesAhead(A, B, bByDistance);
+	});
 }
 
 FApexCarResult& UApexSessionRecorder::FindOrAddCar(int32 CarIndex)
@@ -191,6 +216,15 @@ void UApexSessionRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	{
 		FApexCarResult& Result = FindOrAddCar(Car.CarIndex);
 
+		// The server classifies a car on the frame its last lap rolls over, so
+		// that lap still counts; anything after it is the cool-down lap.
+		const bool bAlreadyFinished = Result.FinishPosition > 0;
+		if (bAlreadyFinished)
+		{
+			continue;
+		}
+		Result.FinishPosition = Car.FinishPosition;
+
 		Result.TopSpeedMps = FMath::Max(Result.TopSpeedMps, Car.SpeedMps);
 
 		if (TrackLengthM > 0.0f)
@@ -234,6 +268,11 @@ void UApexSessionRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		LastLapNumber.Add(Car.CarIndex, Car.CurrentLap);
 		LastLapTimeMs.Add(Car.CarIndex, Car.CurrentLapTimeMs);
 	}
+
+	// Kept in order as it goes: a driver who has finished watches the results
+	// screen fill in while the rest of the field is still out. A handful of
+	// cars, once a frame.
+	SortResults();
 }
 
 const FApexCarResult* UApexSessionRecorder::FindLocalResult() const

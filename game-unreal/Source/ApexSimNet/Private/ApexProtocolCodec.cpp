@@ -606,7 +606,15 @@ namespace
 		bOk &= Next([&] { return Reader.SkipValue(); });
 		bOk &= Next([&] { return Reader.ReadUInt64(Raw) ? (Out.CurrentLap = static_cast<int32>(Raw), true) : false; });
 		bOk &= Next([&] { return Reader.ReadFloat(Out.TrackProgress); });
-		bOk &= Next([&] { return SkipOptional(Reader); });   // finish_position
+		bOk &= Next([&]
+		{
+			Out.FinishPosition = 0;
+			if (Reader.TryReadNil())
+			{
+				return true;
+			}
+			return Reader.ReadUInt64(Raw) ? (Out.FinishPosition = static_cast<int32>(Raw), true) : false;
+		});
 		bOk &= Next([&] { return Reader.ReadUInt64(Raw) ? (Out.CurrentLapTimeMs = static_cast<int32>(Raw), true) : false; });
 		bOk &= Next([&] { return SkipOptional(Reader); });   // last_lap_time_ms
 		bOk &= Next([&] { return SkipOptional(Reader); });   // best_lap_time_ms

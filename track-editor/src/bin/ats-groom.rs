@@ -3,6 +3,11 @@
 //! terrain, and distance boards, armco and tree belts are laid. See
 //! `src/groom.rs` for the rules.
 //!
+//! A track with a layout dossier (`<Stem>.layout.json`) is groomed against
+//! it — the real pit lane and the dressed stands are left alone and the
+//! tree belts stay inside the real woods — so this is safe to run over a
+//! circuit `ats-dress` has already rebuilt.
+//!
 //! ```text
 //! ats-groom --all                          # every track under content/tracks/real
 //! ats-groom content/tracks/real/Monza.yaml # one track
@@ -17,7 +22,7 @@ use std::process::ExitCode;
 
 use track_editor::track_data::TrackFile;
 use track_editor::track_path::CenterlinePath;
-use track_editor::{ats_io, groom, project, ue_export_io};
+use track_editor::{ats_io, groom, layout, project, ue_export_io};
 
 const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 
@@ -77,7 +82,20 @@ fn main() -> ExitCode {
             failures += 1;
             continue;
         };
-        let Some(report) = groom::groom_scene(&opened.track, &mut scene) else {
+        // Groom against the circuit's dossier when it has one, so a groom
+        // run never undoes what `ats-dress` laid: the real pit lane stays,
+        // the stands are not pushed off their footprints, and the tree
+        // belts stay inside the woods that are really there.
+        let layout = match layout::load_layout(layout::layout_path_for(track_path)) {
+            Ok(layout) => layout,
+            Err(e) => {
+                eprintln!("{name}: layout dossier unusable: {e}");
+                failures += 1;
+                continue;
+            }
+        };
+        let Some(report) = groom::groom_scene_with(&opened.track, &mut scene, layout.as_ref())
+        else {
             eprintln!("{name}: degenerate centerline, skipping");
             failures += 1;
             continue;
