@@ -1,6 +1,6 @@
 # ApexSim Server
 
-Authoritative racing simulation backend written in Rust. The server owns the 240 Hz physics loop, runs multiplayer race sessions, and distributes telemetry to connected clients. Lobby, session management, and telemetry currently all run over TCP (+TLS); the UDP socket is bound but not yet carrying game traffic. See SPEC.md for the full design (including which parts are implemented vs. planned).
+Authoritative racing simulation backend written in Rust. The server owns the 240 Hz physics loop, runs multiplayer race sessions, and distributes telemetry to connected clients. Auth, lobby, session management and rosters run over TCP (+TLS); after a token handshake binds a client's UDP address, telemetry, player input and force feedback flow over UDP (protocol v2), with TCP fallback for telemetry to clients that have not completed the handshake. See SPEC.md for the full design (including which parts are implemented vs. planned).
 
 ## Repository Layout
 
@@ -17,7 +17,7 @@ server/
 │   ├── transport.rs     # Async TCP+UDP IO, TLS, heartbeats, routing
 │   ├── lobby.rs         # Player lobby management and session discovery
 │   ├── game_session.rs  # Session lifecycle + AI helpers
-│   ├── physics.rs       # 4-wheel 3D vehicle model + AABB collision detection
+│   ├── physics.rs       # 4-wheel 3D vehicle model + yaw-aware OBB (SAT) car-car and wall collision
 │   ├── ai_driver.rs     # AI driver profiles and input generation
 │   ├── track_loader.rs  # Track YAML/JSON loading + spline interpolation
 │   ├── car_loader.rs    # Car TOML loading
@@ -103,7 +103,7 @@ Operational checklist:
    - **Production**: Set `require_tls = true` and provide valid TLS certificate/key files via `tls_cert_path` and `tls_key_path`. The server will fail to start if certificates are missing or invalid, preventing accidental plaintext deployments.
 3. After startup, verify health probes: `curl http://127.0.0.1:9002/health` should return `OK`, while `/ready` flips to `Ready` once content and config are loaded.
 4. Check startup logs to confirm the TLS state.
-5. Clients authenticate over TCP and currently send `PlayerInput` and receive `Telemetry` over the same TCP connection. Moving high-frequency traffic to UDP (per SPEC.md §3) is planned and will require coordinated client changes.
+5. Clients authenticate over TCP, then present the token from `AuthSuccess` in a `UdpHandshake` on the UDP port. From then on `Telemetry`, `PlayerInput` and `DriverFeedback` use UDP (SPEC.md §3); a client that never handshakes still receives telemetry over TCP, but force feedback is UDP only.
 
 ## Deployment Notes
 
@@ -114,4 +114,4 @@ Operational checklist:
 
 ## Further Reading
 
-- SPEC.md: end-to-end architecture, data model, and gameplay rules. Note that parts of the spec (SQLite persistence, race templates/rotation, content hot-reload, Prometheus metrics) are not yet implemented; the spec is being reconciled with reality as the implementation evolves.
+- SPEC.md: end-to-end architecture, data model, and gameplay rules. Note that parts of the spec (SQLite persistence, race templates/rotation, content hot-reload) are not yet implemented; its header lists what has shipped.

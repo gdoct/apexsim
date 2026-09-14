@@ -73,12 +73,11 @@ const CORNER_WINDOW_M: f32 = 60.0;
 /// Corner walls are re-laid as continuous runs: anchors on one side within
 /// this gap along the course fuse into one chain…
 const WALL_GROUP_GAP_M: f32 = 45.0;
-/// …of segments spaced this far apart. The tire-wall stand-in is 6 m at
-/// scale 1; the scale is set slightly above `WALL_SEGMENT_M / 6` so
-/// neighbouring segments overlap ~10 % and a run stays visually continuous
-/// through a curve instead of opening chinks on its outside.
-const WALL_SEGMENT_M: f32 = 12.0;
-const WALL_SCALE: f32 = 2.2;
+/// …of one kit module per cell. The tire-wall module (`tires_4m`) is 4 m
+/// long at scale 1, so 4 m cells give a continuous run, as the armco's
+/// do; the old 12 m cells at scale 2.2 left a 3 m gap between blocks.
+const WALL_SEGMENT_M: f32 = 4.0;
+const WALL_SCALE: f32 = 1.0;
 
 /// Free clearance between a prop's footprint and the road edge or the pit
 /// lane's edge.

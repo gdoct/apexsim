@@ -1922,7 +1922,7 @@ fn update_fuel_consumption(
 }
 
 /// Check and resolve 3D OBB collisions between cars (owned-slice wrapper).
-pub fn check_aabb_collisions_3d(
+pub fn check_obb_collisions_3d(
     states: &mut [CarState],
     configs: &HashMap<CarConfigId, CarConfig>,
 ) {
@@ -2587,8 +2587,8 @@ pub fn update_track_progress(
 }
 
 /// Legacy collision check - wraps 3D version
-pub fn check_aabb_collisions(states: &mut [CarState], configs: &HashMap<CarConfigId, CarConfig>) {
-    check_aabb_collisions_3d(states, configs);
+pub fn check_obb_collisions(states: &mut [CarState], configs: &HashMap<CarConfigId, CarConfig>) {
+    check_obb_collisions_3d(states, configs);
 }
 
 // ============================================================================
@@ -3551,7 +3551,7 @@ mod tests {
         let mut configs = HashMap::new();
         configs.insert(config.id, config.clone());
 
-        check_aabb_collisions_3d(&mut states, &configs);
+        check_obb_collisions_3d(&mut states, &configs);
 
         for state in &mut states {
             let impact = state.feedback.take(0).impact_mps;
@@ -3971,7 +3971,7 @@ mod tests {
         let mut configs = HashMap::new();
         configs.insert(config.id, config.clone());
 
-        check_aabb_collisions_3d(&mut states, &configs);
+        check_obb_collisions_3d(&mut states, &configs);
 
         assert!(states[0].is_colliding, "Car 1 should be colliding");
         assert!(states[1].is_colliding, "Car 2 should be colliding");
@@ -4601,7 +4601,7 @@ mod tests {
         let mut configs = HashMap::new();
         configs.insert(config.id, config.clone());
 
-        check_aabb_collisions_3d(&mut states, &configs);
+        check_obb_collisions_3d(&mut states, &configs);
 
         // Check that damage was applied
         let total_damage_0 = states[0].damage.front_damage_percent

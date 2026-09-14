@@ -11,7 +11,7 @@ use apexsim_server::data::{
     CarConfig, CarState, GridSlot, PlayerInputData, SuspensionConfig, TrackConfig,
 };
 use apexsim_server::network::{AuthSuccessData, ClientMessage, ServerMessage};
-use apexsim_server::physics::{check_aabb_collisions_3d, update_car_3d};
+use apexsim_server::physics::{check_obb_collisions_3d, update_car_3d};
 use proptest::prelude::*;
 use uuid::Uuid;
 
@@ -129,7 +129,7 @@ proptest! {
         let mut states = vec![state_a, state_b];
         let distance_before = distance_2d(&states[0], &states[1]);
 
-        check_aabb_collisions_3d(&mut states, &configs);
+        check_obb_collisions_3d(&mut states, &configs);
 
         // Cars whose centers are closer than twice the width half-extent
         // (the OBB inradius) must overlap regardless of yaw.
@@ -178,7 +178,7 @@ proptest! {
             .collect();
 
         let mut states = vec![state_a, state_b];
-        check_aabb_collisions_3d(&mut states, &configs);
+        check_obb_collisions_3d(&mut states, &configs);
 
         for (i, state) in states.iter().enumerate() {
             prop_assert!(!state.is_colliding, "distant car {i} flagged as colliding");
