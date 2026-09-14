@@ -110,14 +110,14 @@ These numbers held (within noise) through the move from a synthesized slip model
 
 ```
 apexsim/
-â”œâ”€â”€ content/        # Car and track definitions, shared by server, editor and client
-â”œâ”€â”€ docs/           # Design and implementation notes
-â”œâ”€â”€ game-unreal/    # Unreal Engine 5 client
-â”œâ”€â”€ scripts/        # Track pipeline runner and Python content helpers
-â”œâ”€â”€ server/         # Rust backend (source, config, docs)
-â”œâ”€â”€ track-editor/   # Rust + Bevy circuit scene authoring tool
-â”œâ”€â”€ README.md       # This overview
-â””â”€â”€ LICENSE         # Project license
+├── content/        # Car and track definitions, shared by server, editor and client
+├── docs/           # Design and implementation notes
+├── game-unreal/    # Unreal Engine 5 client
+├── scripts/        # Track pipeline runner and Python content helpers
+├── server/         # Rust backend (source, config, docs)
+├── track-editor/   # Rust + Bevy circuit scene authoring tool
+├── README.md       # This overview
+└── LICENSE         # Project license
 ```
 
 ### Directory Highlights
