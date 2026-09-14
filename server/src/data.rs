@@ -25,6 +25,10 @@ pub struct CarConfig {
     pub id: CarConfigId,
     pub name: String,
     pub model: String,
+    /// Racing class from `car.toml` (`GT3`, `LMP2`, `F1`, ...), empty when the
+    /// file names none. AI fields are drawn from the host car's class.
+    #[serde(default)]
+    pub class: String,
     /// Checksum of the `car.toml` this was loaded from (`content_crc`), 0 for
     /// a config that never came from a file. Sent to clients so they can tell
     /// whether their imported car matches.
@@ -303,6 +307,7 @@ impl Default for CarConfig {
             id: Uuid::new_v4(),
             name: "Default Car".to_string(),
             model: "default.glb".to_string(),
+            class: String::new(),
             content_crc: 0,
 
             // Physical dimensions

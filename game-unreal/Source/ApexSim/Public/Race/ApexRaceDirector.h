@@ -383,6 +383,13 @@ private:
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<AApexRaceCarActor>> Cars;
 
+	/**
+	 * The car id each index's mesh was chosen for. Indices follow the
+	 * roster's order, so when someone leaves an actor can pass to a driver
+	 * in a different car.
+	 */
+	TMap<int32, FString> CarIdShown;
+
 	UPROPERTY(Transient)
 	TObjectPtr<AApexRaceCarActor> FollowedCar;
 

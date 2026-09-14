@@ -453,26 +453,38 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 			}
 			Car->SetCarIndex(Entry.CarIndex);
 			Cars.Add(Entry.CarIndex, Car);
+			CarIdShown.Remove(Entry.CarIndex);
+			VerifyLocalCarContent();
+		}
 
-			// The roster says who is driving but not what they chose, and the
-			// protocol never tells us another player's car. Everyone gets the
-			// local player's mesh, or the fallback — and with it the local
-			// car's cockpit, which is the only one anyone sits in.
+		// Each car in its own mesh and cockpit. An older server sends no car
+		// id: then everyone gets the local player's car, as before.
+		FString CarId = Entry.CarConfigId;
+		if (CarId.IsEmpty() && Flow && Flow->HasPendingCar())
+		{
+			CarId = Flow->GetPendingCarId();
+		}
+		const FString* Shown = CarIdShown.Find(Entry.CarIndex);
+		if (!Shown || !Shown->Equals(CarId, ESearchCase::IgnoreCase))
+		{
+			CarIdShown.Add(Entry.CarIndex, CarId);
 			TSoftObjectPtr<UStaticMesh> Mesh = DefaultCarMesh;
-			if (Flow && Flow->HasPendingCar())
+			FApexCarCatalogRow Row;
+			if (Flow && !CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, Row))
 			{
-				FApexCarCatalogRow Row;
-				if (Flow->GetCarCatalogRow(Flow->GetPendingCarId(), Row))
+				if (!Row.Mesh.IsNull())
 				{
-					if (!Row.Mesh.IsNull())
-					{
-						Mesh = Row.Mesh;
-					}
-					Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
+					Mesh = Row.Mesh;
 				}
+				Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
+			}
+			else
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("Race roster: no catalog row for car %s (car %d), drawing the fallback"),
+					*CarId, Entry.CarIndex);
+				Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
 			}
 			Car->SetCarMesh(Mesh);
-			VerifyLocalCarContent();
 		}
 
 		Car->SetDisplayName(Entry.PlayerName);
@@ -492,6 +504,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 			{
 				Car->Destroy();
 			}
+			CarIdShown.Remove(It.Key());
 			It.RemoveCurrent();
 		}
 	}
@@ -1400,6 +1413,7 @@ void AApexRaceDirector::DestroyAllCars()
 		}
 	}
 	Cars.Reset();
+	CarIdShown.Reset();
 	VerifiedCarId.Reset();
 }
 

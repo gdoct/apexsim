@@ -74,6 +74,7 @@ pub const KIT: &[KitAsset] = kit![
     Bridge "truss_bridge" 2.7 x 20.4 x 8.7,
     Bridge "tyre_bridge" 4.0 x 23.7 x 13.6,
     Bridge "timing_gantry" 2.0 x 20.0 x 10.5,
+    Bridge "span_building" 8.2 x 20.7 x 22.0,
     Light "floodlight_tower" 4.9 x 3.0 x 30.3,
     Light "lamp_post" 0.6 x 2.5 x 8.1,
     // Pit complex
@@ -87,11 +88,24 @@ pub const KIT: &[KitAsset] = kit![
     Building "hospitality_3f" 30.6 x 12.6 x 12.4,
     Building "media_centre" 40.6 x 15.6 x 21.0,
     Building "control_tower" 13.2 x 13.2 x 29.0,
+    Building "observation_tower" 8.3 x 8.3 x 60.5,
+    // Skyline: city backdrop for street circuits, set well back.
+    Building "skyline_lowrise" 26.2 x 18.2 x 40.8,
+    Building "skyline_crane" 34.5 x 16.1 x 76.3,
+    Building "skyline_slab_a" 24.1 x 16.1 x 96.2,
+    Building "skyline_pyramid" 20.1 x 20.1 x 112.0,
+    Building "skyline_podium" 40.2 x 30.2 x 121.2,
+    Building "skyline_slab_b" 18.1 x 18.1 x 135.0,
+    Building "skyline_cylinder" 20.3 x 20.3 x 145.0,
+    Building "skyline_step" 30.1 x 22.1 x 150.0,
+    Building "skyline_twin" 32.1 x 12.1 x 161.2,
+    Building "skyline_needle" 14.1 x 14.1 x 190.0,
     // Spectators: a stand family is one bay; the stand's length lays more.
     Grandstand "bay_10m" 10.0 x 9.1 x 5.6,
     Grandstand "bay_10m_roof" 10.0 x 10.4 x 10.6,
     Grandstand "bay_10m_large" 10.0 x 14.4 x 8.3,
     Grandstand "bay_10m_large_roof" 10.0 x 15.8 x 13.3,
+    Grandstand "bay_10m_stadium_roof" 10.6 x 35.1 x 28.0,
     Grandstand "scaffold_10m" 10.1 x 5.1 x 4.1,
     Grandstand "banking_seats" 10.0 x 6.0 x 2.6,
     Attraction "tent_6m" 6.5 x 6.5 x 5.2,
@@ -108,6 +122,8 @@ pub const KIT: &[KitAsset] = kit![
     Tree "conifer_l" 8.0 x 6.9 x 20.0,
     Tree "poplar" 4.0 x 3.5 x 18.0,
     Tree "bush_cluster" 4.0 x 3.6 x 3.0,
+    Tree "palm_oil" 4.4 x 4.4 x 8.4,
+    Tree "palm_ornamental" 3.8 x 4.8 x 13.2,
     Vehicle "car_a" 3.9 x 1.7 x 1.4,
     Vehicle "car_b" 4.7 x 1.7 x 1.4,
     Vehicle "car_c" 4.5 x 1.7 x 1.8,
@@ -120,6 +136,8 @@ pub const KIT: &[KitAsset] = kit![
     Misc "kerb_marker" 0.1 x 0.1 x 0.7,
     Misc "generator" 2.2 x 1.2 x 1.9,
     Misc "photographer_stand" 2.0 x 2.0 x 2.5,
+    Misc "rock_cluster" 0.9 x 0.7 x 0.5,
+    Misc "scrub_clump" 0.7 x 0.6 x 0.3,
     // Sky: origin at the hull centre, sized round it.
     Sky "blimp" 60.0 x 19.5 x 19.7,
     Sky "balloon" 16.0 x 16.0 x 22.1,
@@ -234,6 +252,40 @@ mod tests {
                 assert!(glb.exists(), "no {}", glb.display());
             }
         }
+    }
+
+    #[test]
+    fn every_kit_file_is_catalogued() {
+        // A GLB added to content/props without a KIT row is invisible to the
+        // inspector's dropdown and gets no footprint. Variants the importer
+        // picks by itself (dressing, bend radius, stand ends) are exempt.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/props");
+        let Ok(kinds) = std::fs::read_dir(&root) else {
+            return;
+        };
+        let mut missing = Vec::new();
+        for kind_dir in kinds.flatten() {
+            let Some(kind) = PropKind::ALL
+                .into_iter()
+                .find(|k| k.label() == kind_dir.file_name().to_string_lossy())
+            else {
+                continue;
+            };
+            for file in std::fs::read_dir(kind_dir.path()).unwrap().flatten() {
+                let name = file.file_name().to_string_lossy().into_owned();
+                let Some(asset) = name.strip_suffix(".glb") else {
+                    continue;
+                };
+                let variant = asset.ends_with("_crowd")
+                    || asset.ends_with("_autumn")
+                    || asset.contains("_curve")
+                    || asset.starts_with("end_cap");
+                if !variant && find(kind, asset).is_none() {
+                    missing.push(format!("{}/{asset}", kind.label()));
+                }
+            }
+        }
+        assert!(missing.is_empty(), "not in props::KIT: {missing:?}");
     }
 
     #[test]
