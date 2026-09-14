@@ -56,6 +56,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Spa": [(5.955, 50.428, 5.988, 50.448)],
     "Monza": [(9.275, 45.612, 9.300, 45.635)],
     "Silverstone": [(-1.035, 52.063, -0.995, 52.083)],
+    "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
     "LeMans": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
@@ -383,7 +384,10 @@ class Osm:
 
 def is_pit_way(t: dict) -> bool:
     name = (t.get("name") or "").lower()
-    return t.get("raceway") in ("pitlane", "pit_lane") or "pit" in name
+    # German circuits name the pit lane "Boxengasse" (Oschersleben,
+    # Hockenheim, the Nuerburgring, Spielberg): no "pit" substring at all,
+    # so the English-only check missed it entirely.
+    return t.get("raceway") in ("pitlane", "pit_lane") or "pit" in name or "boxengasse" in name
 
 
 def raceway_cloud(osm: Osm) -> np.ndarray:

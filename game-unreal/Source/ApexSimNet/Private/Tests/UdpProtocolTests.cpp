@@ -100,6 +100,8 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 				TestEqual(TEXT("entry 1 name decodes UTF-8"), Message.Roster.Entries[1].PlayerName,
 					FString(TEXT("AI Nürburgring")));
 				TestTrue(TEXT("entry 1 is AI"), Message.Roster.Entries[1].bIsAi);
+				// The blob predates the car id: an older server's roster still decodes.
+				TestTrue(TEXT("no car id in an old roster"), Message.Roster.Entries[1].CarConfigId.IsEmpty());
 			}
 		}
 	}

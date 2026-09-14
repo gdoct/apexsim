@@ -506,6 +506,13 @@ pub struct RosterEntry {
     pub player_id: PlayerId,
     pub player_name: String,
     pub is_ai: bool,
+    /// The car this entry drives, so a client can draw each car with its own
+    /// mesh: an AI field is a mix of the host class's cars.
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub car_config_id: CarConfigId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

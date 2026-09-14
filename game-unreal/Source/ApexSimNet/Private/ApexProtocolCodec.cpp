@@ -407,6 +407,7 @@ namespace
 			else if (Key == TEXT("PlayerId"))   { bOk = Reader.ReadString(Out.PlayerId); }
 			else if (Key == TEXT("PlayerName")) { bOk = Reader.ReadString(Out.PlayerName); }
 			else if (Key == TEXT("IsAi"))       { bOk = Reader.ReadBool(Out.bIsAi); }
+			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.CarConfigId); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
