@@ -18,7 +18,8 @@ vocabulary for both.
   video screen and portaloos — have it on the **road-facing edge**, and the
   footprint reaches away from the road from there; only the thin modules
   (barriers, tyre walls, fences, boards) and the free-standing pieces
-  (`control_tower`, `camera_tower`, `ferris_wheel`, `tent_6m`) are centred
+  (`control_tower`, `camera_tower`, `ferris_wheel`, `tent_6m`,
+  `observation_tower`, the `skyline_*` backdrop buildings) are centred
   on their footprint (bridges: centre of the span; sky props: on the ground
   directly below). Anything that needs the footprint — the groomer, the
   server's wall bake — offsets the deep kinds half their depth behind the
@@ -119,6 +120,7 @@ the look more than anything else.
 | bridge | `truss_bridge` | 15 m span | box-truss footbridge, hoarding both faces, brand from `text` — **done** | P2 |
 | bridge | `tyre_bridge` | 15 m span, 13.6 m tall, 11.5 m clearance | the donut, `piretti` along the sidewalls, walkway through it — **done** | P2 |
 | bridge | `timing_gantry` | 15 m span, 10.5 m | 12 × 3 m `led_screen` facing the approach, brand strip — **done** | P3 |
+| bridge | `span_building` | 15 m span (scales with `span_m` like the other bridges), 8 m deep, 22 m tall | wide glazed block on two piers, 10 m clearance; brand strip (`bridge_brand`) at the base, two glazing bands (`bridge_glass`) per face — for structures that cross the road, like the W hotel at Yas Marina or Shanghai's pit-building wings — **done** | P3 |
 | light | `floodlight_tower` | 30 m lattice mast, 12 lamps | lamps are the `floodlight_lamp` slot — **done** | P2 |
 | light | `lamp_post` | 8 m | `floodlight_lamp` slot — **done** | P3 |
 
@@ -141,6 +143,7 @@ so the span is across Y.
 | building | `media_centre` | 40 × 15 m, 21 m with mast | 4 storeys — **done** | P4 |
 | building | `control_tower` | 12 × 12 m cab on an 8 × 8 core, 29 m | glass cab, brand board on the track face, antenna — **done** | P3 |
 | building | `clubhouse` | 24 × 14 m, 11.5 m | brick, pitched roof, timber balcony over the front, flag pole — **done** | P3 |
+| building | `observation_tower` | 8 × 8 m footprint tapering to 2 × 2 m, 60.5 m | 4-leg steel lattice on a concrete lift core, glazed pod + spire; centred on its footprint like `control_tower` (not road-facing); generic enough to cover Austin's 77 m tower or the Sakhir Tower via `Prop.Scale` — **done** | P4 |
 | vehicle | `race_truck` | 8.6 m | transporter, brand on both trailer sides (`board_brand`) — **done** | P3 |
 | vehicle | `motorhome` | 10 m | with awning — **done** | P4 |
 
@@ -162,6 +165,9 @@ existing box layout), a `pit_wall_6m` run along the road side, and one
 | grandstand | `end_cap` | 1 × 9 m | stepped side block, symmetric about x=0: place at ±(L/2 + 0.5) — **done** | P2 |
 | grandstand | `end_cap_large` | 1 × 14.2 m | end cap for the 14-tier bays — **done** | P2 |
 | grandstand | `<any bay>_crowd`, `scaffold_10m_crowd`, `banking_seats_crowd` | same as the base asset | seated crowd on masked card strips per row (`crowd_cards` slot, `grandstand/T_crowd.png`, 16 people per 8 m tile, ~15 % empty seats); the importer picks `_crowd` when the session wants spectators — **done** | P2 |
+| grandstand | `bay_10m_stadium_roof` | 10 × 32.7 m, 3 tiers, 27.96 m tall | stadium-scale roofed bay: three raked decks behind two podium breaks, cantilever roof over the top deck — for the IMS oval, Hockenheim's Motodrom, Foro Sol and the Shanghai/Yas/Sepang main stands — **done** | P2 |
+| grandstand | `bay_10m_stadium_curve6_roof` | as `bay_10m_stadium_roof`, 6° wedge | curved counterpart, same `Rf` convention as `bay_10m_curve6` — **done** | P3 |
+| grandstand | `end_cap_stadium` | 1 × 32.7 m, 25.46 m tall | end cap sized to `bay_10m_stadium_roof`'s seating bowl (roof excluded, same convention as `end_cap`/`end_cap_large`) — **done** | P2 |
 | grandstand | `stair_tower` | 4 × 4 m | between bays | P3 |
 | grandstand | `scaffold_10m` | 10 × 5 m, 5 tiers | tube-and-plank club stand — **done** | P3 |
 | grandstand | `banking_seats` | 10 × 6 m | 4 bench rows on a grass bank — **done** | P4 |
@@ -199,6 +205,8 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 | tree | `poplar` | 18 m | — **done** | P3 |
 | tree | `bush_cluster` | 3 m | — **done** | P3 |
 | tree | `broadleaf_s/m/l_autumn`, `poplar_autumn`, `bush_cluster_autumn` | as the base asset | autumn colour set (`tree_autumn_a/b/c`); pick by the track's season — **done** | P3 |
+| tree | `palm_ornamental` | 13.15 m | tall avenue date palm, ringed tapering trunk, drooping 2-segment fronds on `tree_foliage_a/b/c` (same shared slots as the broadleaf trees) — for Sakhir and Yas Marina landscaping — **done** | P1 |
+| tree | `palm_oil` | 8.35 m | shorter, denser plantation palm, fuller radiating crown — for the oil-palm plantations around Sepang — **done** | P1 |
 | vehicle | `car_a` / `car_b` / `car_c` | 4–4.7 m | hatch / saloon / SUV, `vehicle_paint_*` slot for colour — **done** | P3 |
 | vehicle | `fire_truck` | 5.5 m | — **done** | P3 |
 | vehicle | `ambulance` | 6 m | — **done** | P3 |
@@ -207,6 +215,8 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 | misc | `kerb_marker` | 0.7 m | yellow/black — **done** | P3 |
 | misc | `generator` | 2.2 × 1.2 m | — **done** | P4 |
 | misc | `photographer_stand` | 2 × 2 × 2.5 m | — **done** | P4 |
+| misc | `scrub_clump` | 0.68 × 0.6 m, 0.29 m tall | low dry-scrub mound, two tones (`misc_scrub_a/b`); filed under `misc` rather than a dedicated kind — no `.ats`/groomer/importer change needed to place it — **done** | P1 |
+| misc | `rock_cluster` | 0.92 × 0.7 m, 0.45 m tall | angular rock chunks, two tones (`misc_rock_a/b`); same `misc`-kind placement as `scrub_clump` — for Sakhir/Yas desert ground cover — **done** | P1 |
 | cone | `cone` | | exists | — |
 
 ### 6. Sky
@@ -216,6 +226,30 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 | sky | `blimp` | 60 m | `rolux`; slow drift + yaw in-game — **done** | P1 |
 | sky | `balloon` | 16 m envelope, 22 m with basket | origin at the envelope centre; `balloon_envelope` brand slot — **done** | P3 |
 | sky | `helicopter` | 12 m, 11 m rotor | origin at the fuselage; `rotor_disc` slot — **done** | P4 |
+
+### 7. Street-circuit skyline
+
+Distant backdrop buildings for street circuits (Singapore, Baku, Monaco-style
+venues) — filled the empty horizon those tracks leave. All `building` kind,
+centred pivot (see Conventions), `nanite`, no `text`/brand slot. Ten distinct
+massings so a scattered skyline doesn't repeat; five glass tints
+(`skyline_glass_blue/green/bronze/teal/grey`) shared and re-used across them
+on purpose, the way a real skyline repeats curtain-wall colours. Simple boxy
+massing + a few `skyline_frame` belt bands stand in for floor lines — no
+window grid geometry, since these are only ever seen at a distance.
+
+| kind | asset | size | notes | prio |
+| --- | --- | --- | --- | --- |
+| building | `skyline_slab_a` | 24 × 16 m, 96.2 m | plain glass slab, blue — **done** | P2 |
+| building | `skyline_slab_b` | 18 × 18 m, 135 m | taller slab, bronze, rooftop plant block — **done** | P2 |
+| building | `skyline_step` | 30 × 22 m tapering to 10 × 8 m, 150 m | art-deco 3-tier setback tower, teal — **done** | P2 |
+| building | `skyline_twin` | 32 × 12 m overall (two 12 × 12 m towers), 161.2 m | linked towers with a sky-bridge at 100 m, grey — **done** | P3 |
+| building | `skyline_pyramid` | 20 × 20 m, 112 m | glass shaft with a pyramidal cap, green — **done** | P3 |
+| building | `skyline_cylinder` | 20 m dia, 145 m | cylindrical glass tower, ring-belt floors, blue — **done** | P3 |
+| building | `skyline_podium` | 40 × 30 m podium, 16 × 16 m tower, 121.2 m | retail podium (glazed band) + slender tower, teal — **done** | P2 |
+| building | `skyline_needle` | 14 × 14 m tapering to 9 × 9 m, 190 m | tallest of the set, one setback + antenna spire, grey — **done** | P3 |
+| building | `skyline_lowrise` | 26 × 18 m, 40.8 m | mid-rise infill block, concrete with bronze strip windows, roof tank + AC unit — **done** | P2 |
+| building | `skyline_crane` | 20 × 16 m building (crane jib reaches to x = -20), 76.3 m | unfinished concrete-frame building topped with a working tower crane (`skyline_crane_yellow`) — **done** | P3 |
 
 ## Unreal import notes
 

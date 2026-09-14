@@ -296,6 +296,10 @@ struct APEXSIMNET_API FApexRosterEntry
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bIsAi = false;
+
+	/** The car this entry drives (the catalog's key); empty from an older server. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString CarConfigId;
 };
 
 /** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */

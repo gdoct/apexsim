@@ -228,8 +228,7 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 		if (Cooldown <= 0.0f && ChooseTrack(*Net))
 		{
 			UApexMenuFlowSubsystem* Flow = GetFlow();
-			// The field drives the car the player picked, which is the mesh
-			// every car is drawn with.
+			// The field races in the class of the car the player picked.
 			if (Flow && Flow->HasPendingCar())
 			{
 				Net->SelectCar(Flow->GetPendingCarId());

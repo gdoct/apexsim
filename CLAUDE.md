@@ -790,7 +790,7 @@ rotation setting; a wheelbase's own driver sets its rotation.
 - **Determinism**: `participants` is a `BTreeMap` (ordered iteration); AI noise is hash-based; no env/wall-clock reads in the sim path. Guarded by `tests/determinism_test.rs`
 - **Tick timing on Windows**: the game loop sleeps between ticks on a tokio `interval`, and a Windows sleep is only as fine as the process's timer resolution (15.6 ms by default, per process since Windows 10 2004). `timer_resolution::HighResolutionTimer` holds 1 ms for the loop's lifetime; without it 240 Hz ran at 64 and the sim at 27% of real time. The loop warns when the achieved rate over 5 s drops below 90%; `test_session_ticks_at_the_configured_rate` guards it end to end
 - **Hot loop**: nearest-centerline queries use a windowed search seeded by each car's cached index (`CarState::nearest_centerline_idx`) — keep new per-tick track queries on this path
-- **AI Drivers**: deterministic synthetic input per tick from line look-ahead
+- **AI Drivers**: deterministic synthetic input per tick from line look-ahead. The field races in the host car's `class` from `car.toml` (`game_session::class_field`: every car of that class, dealt round-robin by id starting after the host's; a car with no class races only against itself), and each `RosterEntry` carries `CarConfigId` so the client's race director draws every car with its own catalog mesh (an older server's roster falls back to the local player's car)
 - **Bounded queues**: Network channels use bounded MPSC to prevent OOM; droppable messages (telemetry) may be dropped for slow clients
 
 ## Configuration
