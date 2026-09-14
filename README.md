@@ -47,7 +47,7 @@ This project is in active development. The simulation and the networking underne
 * No tire or collision sound â€” only engine and UI audio are synthesized so far
 * No client-side prediction; cars are pure telemetry puppets, smoothed by interpolation
 * Driving aids (traction control, ABS) and AI skill cannot be set per session from the client â€” the wire protocol has no fields for them, so those settings are stored but inert
-* No trackside environment art beyond the generated track meshes
+* Trackside scenery is an authored prop kit placed from real-circuit layout dossiers; there is no hand-modelled terrain beyond the generated heightfield, and only the five real circuits with a dossier get their real furniture
 * No server-side player accounts or persistence
 
 ## Architecture Overview

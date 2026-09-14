@@ -51,6 +51,11 @@ const PIT_BUILDING_RANGE_M: f32 = 30.0;
 const PIT_STAND_RANGE_M: f32 = 20.0;
 /// Footprint below which a building is a shed, not scenery.
 const MIN_BUILDING_AREA_M2: f32 = 250.0;
+/// A building's front stands at least this far past the road edge. The
+/// dossier's footprint is the bounding box of the real outline, and the
+/// box round an L-shaped or diagonal building can reach onto a road the
+/// building itself keeps clear of.
+const BUILDING_ROAD_CLEAR_M: f32 = 3.0;
 /// A building with a footprint at least this square and this many levels
 /// is a tower.
 const TOWER_LEVELS: u32 = 4;
@@ -385,6 +390,11 @@ fn lay_structure(
     if structure.area_m2 < MIN_BUILDING_AREA_M2 {
         return Err("footprint too small".to_string());
     }
+    // OSM maps a footbridge over the track as `building=bridge`; laid as
+    // a row of clubhouses it stands across the road.
+    if structure.osm_building.as_deref() == Some("bridge") {
+        return Err("a bridge, not a building".to_string());
+    }
     if let Some(lane) = lane {
         let (x, y) = (structure.centre[0], structure.centre[1]);
         if lane_gap(lane, x, y) < PIT_BUILDING_RANGE_M {
@@ -396,17 +406,54 @@ fn lay_structure(
     let (sin, cos) = structure.yaw_rad.sin_cos();
     // The pivot is the face toward the road: the kit's footprint runs from
     // the pivot away from it.
-    let (sample, lat) = nearest_cross_section(path, structure.centre[0], structure.centre[1]);
-    let toward_road = if lat >= 0.0 { -1.0 } else { 1.0 };
+    let (_, centre_lat) = nearest_cross_section(path, structure.centre[0], structure.centre[1]);
+    let toward_road = if centre_lat >= 0.0 { -1.0 } else { 1.0 };
     let normal = (-sin * toward_road, cos * toward_road);
-    let front_x = structure.centre[0] + normal.0 * structure.depth_m / 2.0;
-    let front_y = structure.centre[1] + normal.1 * structure.depth_m / 2.0;
-    let span = units as f32 * unit_m;
+    let mut front_x = structure.centre[0] + normal.0 * structure.depth_m / 2.0;
+    let mut front_y = structure.centre[1] + normal.1 * structure.depth_m / 2.0;
+    let unit_at = |front: (f32, f32), i: usize| {
+        let along = (i as f32 - (units as f32 - 1.0) / 2.0) * unit_m;
+        (front.0 + cos * along, front.1 + sin * along)
+    };
+
+    // Move the row back until every unit's front is clear of the road.
+    // The row's normal is not the road's where the building sits at an
+    // angle to it, so the push is scaled by the cosine between them and
+    // repeated; a row that runs across the road rather than beside it
+    // cannot be pushed clear.
+    let shortfall = |front: (f32, f32)| -> Result<f32, String> {
+        let mut worst: f32 = 0.0;
+        for i in 0..units {
+            let (x, y) = unit_at(front, i);
+            let (sample, lat) = nearest_cross_section(path, x, y);
+            if (lat >= 0.0) != (centre_lat >= 0.0) {
+                return Err("reaches across the road".to_string());
+            }
+            let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+            worst = worst.max(side_half_width(&sample, side) + BUILDING_ROAD_CLEAR_M - lat.abs());
+        }
+        Ok(worst)
+    };
+    for _ in 0..4 {
+        let short = shortfall((front_x, front_y))?;
+        if short <= 0.05 {
+            break;
+        }
+        let (sample, _) = nearest_cross_section(path, front_x, front_y);
+        let cosine = (structure.yaw_rad - sample.heading_rad).cos().abs();
+        if cosine < 0.5 {
+            return Err("runs across the road".to_string());
+        }
+        front_x -= normal.0 * short / cosine;
+        front_y -= normal.1 * short / cosine;
+    }
+    if shortfall((front_x, front_y))? > 0.5 {
+        return Err("cannot be laid clear of the road".to_string());
+    }
+
     let mut out = Vec::new();
     for i in 0..units {
-        let along = (i as f32 - (units as f32 - 1.0) / 2.0) * unit_m;
-        let x = front_x + cos * along;
-        let y = front_y + sin * along;
+        let (x, y) = unit_at((front_x, front_y), i);
         let (sample, lat) = nearest_cross_section(path, x, y);
         out.push(Prop {
             id: 0,
@@ -421,7 +468,6 @@ fn lay_structure(
             length_m: None,
         });
     }
-    let _ = (sample, span);
     Ok(out)
 }
 
@@ -633,6 +679,85 @@ mod tests {
             landmarks: vec![],
             woods: vec![],
         }
+    }
+
+    fn structure(centre: [f32; 2], length_m: f32, depth_m: f32, yaw_rad: f32) -> Structure {
+        Structure {
+            name: None,
+            station_m: centre[0],
+            side: if centre[1] >= 0.0 {
+                Side::Left
+            } else {
+                Side::Right
+            },
+            offset_m: centre[1].abs(),
+            length_m,
+            depth_m,
+            yaw_rad,
+            centre,
+            levels: 1,
+            area_m2: 900.0,
+            osm_building: Some("yes".to_string()),
+        }
+    }
+
+    fn building_lats(track: &TrackFile, scene: &AtsScene) -> Vec<f32> {
+        let path = CenterlinePath::from_track(track).unwrap();
+        scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Building)
+            .map(|p| nearest_cross_section(&path, p.x, p.y).1)
+            .collect()
+    }
+
+    /// A slightly skewed building right of the main straight whose
+    /// bounding box reaches onto the asphalt (front at y = -2 on a 6 m
+    /// half-width) is moved back until its front clears the road.
+    #[test]
+    fn a_building_boxed_onto_the_road_is_laid_clear_of_it() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout
+            .structures
+            .push(structure([300.0, -12.0], 60.0, 20.0, 0.1));
+        let report = dress_scene(&track, &mut scene, &layout).unwrap();
+        assert!(report.buildings >= 1, "{:?}", report.skipped);
+        let lats = building_lats(&track, &scene);
+        for lat in &lats {
+            assert!(
+                *lat <= -(6.0 + BUILDING_ROAD_CLEAR_M) + 0.1,
+                "a building front at lateral {lat} m: {lats:?}"
+            );
+        }
+    }
+
+    /// A box that straddles the centerline is not a building beside the
+    /// road, and a footbridge mapped as a building is not one at all.
+    #[test]
+    fn buildings_across_the_road_are_skipped() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout
+            .structures
+            .push(structure([300.0, -12.0], 60.0, 40.0, 0.1));
+        let mut bridge = structure([500.0, 0.0], 70.0, 4.8, 1.6);
+        bridge.osm_building = Some("bridge".to_string());
+        layout.structures.push(bridge);
+        let report = dress_scene(&track, &mut scene, &layout).unwrap();
+        assert_eq!(report.buildings, 0, "{:?}", report.skipped);
+        assert!(
+            report.skipped.iter().any(|s| s.contains("across the road")),
+            "{:?}",
+            report.skipped
+        );
+        assert!(
+            report.skipped.iter().any(|s| s.contains("a bridge")),
+            "{:?}",
+            report.skipped
+        );
     }
 
     fn stand(name: &str, front: Vec<[f32; 2]>, depth_m: f32, covered: bool) -> Stand {

@@ -71,8 +71,8 @@ pub struct CarConfig {
     pub id: CarConfigId,
     pub name: String,
     pub mass_kg: f32,              // Total mass of the car (700-1500 typical)
-    pub length_m: f32,             // Length for collision AABB
-    pub width_m: f32,              // Width for collision AABB
+    pub length_m: f32,             // Length of the collision box (yaw-aware OBB)
+    pub width_m: f32,              // Width of the collision box (yaw-aware OBB)
     pub max_engine_force_n: f32,   // Peak engine force in Newtons (5000-15000 typical)
     pub max_brake_force_n: f32,    // Peak brake force in Newtons (10000-25000 typical)
     pub drag_coefficient: f32,     // Aerodynamic drag (0.3-0.5 typical)
@@ -127,7 +127,7 @@ pub struct CarState {
     pub finish_position: Option<u8>, // Set when player crosses finish on final lap
     pub last_lap_time_ms: Option<u32>,
     pub best_lap_time_ms: Option<u32>,
-    pub is_colliding: bool,          // True if AABB overlaps another car
+    pub is_colliding: bool,          // True if the car's OBB overlaps another car's
 }
 
 // --- Race Session State (Server Authoritative) ---
@@ -356,7 +356,7 @@ Loop (240Hz, Δt = 4.1667ms):
         Call physics::update_car_2d()
         Update track_progress via centerline projection
         Detect lap completion (progress wrap)
-        Check AABB collisions, set is_colliding flags
+        Check OBB (separating-axis) collisions, set is_colliding flags
       Check race completion (all cars finished or timeout)
 
   // 3. Send Network Output
@@ -541,7 +541,7 @@ OPTIONS:
 **Testing Strategy:**
 *   **Unit Tests:** Required for:
     *   `physics::update_car_2d` — verify acceleration, braking, turning at known inputs
-    *   `physics::check_aabb_collisions` — verify collision detection and response
+    *   `physics::check_obb_collisions` — verify collision detection and response
     *   `physics::update_track_progress` — verify lap detection edge cases
     *   Message serialization round-trips
     *   Session state machine transitions

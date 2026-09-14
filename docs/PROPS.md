@@ -13,8 +13,16 @@ vocabulary for both.
 
 ## Conventions
 
-- **Pivot** on the ground, at the centre of the footprint (bridges: centre of
-  the span; sky props: on the ground directly below).
+- **Pivot** on the ground. The deep kinds that face the road — grandstand
+  bays and caps, buildings, pit garages and pit walls, the fanzone stage,
+  video screen and portaloos — have it on the **road-facing edge**, and the
+  footprint reaches away from the road from there; only the thin modules
+  (barriers, tyre walls, fences, boards) and the free-standing pieces
+  (`control_tower`, `camera_tower`, `ferris_wheel`, `tent_6m`) are centred
+  on their footprint (bridges: centre of the span; sky props: on the ground
+  directly below). Anything that needs the footprint — the groomer, the
+  server's wall bake — offsets the deep kinds half their depth behind the
+  pivot.
 - **Axes**: local +X runs along the track, +Y is the side the road is on
   (the importer flips a `faces_road` kind 180° when the road turns out to be
   on -Y). Z up.

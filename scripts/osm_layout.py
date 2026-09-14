@@ -700,7 +700,9 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if p is None or len(p) < 4:
             continue
         is_stand = t.get("building") == "grandstand" or t.get("leisure") == "grandstand"
-        is_building = "building" in t and not is_stand
+        # A footbridge over the track is mapped as building=bridge; it is
+        # a crossing, not a building to stand beside the road.
+        is_building = "building" in t and not is_stand and t.get("building") != "bridge"
         if not (is_stand or is_building):
             continue
         d, _ = track.grid.query(p, max_rings=30)
