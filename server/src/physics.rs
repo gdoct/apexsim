@@ -1922,10 +1922,7 @@ fn update_fuel_consumption(
 }
 
 /// Check and resolve 3D OBB collisions between cars (owned-slice wrapper).
-pub fn check_obb_collisions_3d(
-    states: &mut [CarState],
-    configs: &HashMap<CarConfigId, CarConfig>,
-) {
+pub fn check_obb_collisions_3d(states: &mut [CarState], configs: &HashMap<CarConfigId, CarConfig>) {
     let mut refs: Vec<&mut CarState> = states.iter_mut().collect();
     check_collisions_refs(&mut refs, configs);
 }
@@ -4275,6 +4272,7 @@ mod tests {
             }],
             width_m: 40.0,
             source_path: None,
+            content_crc: 0,
             start_positions: Vec::new(),
             track_surface: TrackSurface::default(),
             pit_lane: None,
@@ -4357,6 +4355,7 @@ mod tests {
             }],
             width_m: 40.0,
             source_path: None,
+            content_crc: 0,
             start_positions: Vec::new(),
             track_surface: TrackSurface::default(),
             pit_lane: None,
@@ -4439,6 +4438,7 @@ mod tests {
             ],
             width_m: 40.0,
             source_path: None,
+            content_crc: 0,
             start_positions: Vec::new(),
             track_surface: TrackSurface::default(),
             pit_lane: None,

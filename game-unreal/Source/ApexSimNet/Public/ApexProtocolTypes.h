@@ -145,6 +145,10 @@ struct APEXSIMNET_API FApexSessionSummary
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	FString TrackFile;
 
+	/** The track config the session runs on; joins the track summaries and DT_TrackCatalog. Empty from an older server. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	FString TrackId;
+
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	FString HostName;
 
@@ -189,6 +193,14 @@ struct APEXSIMNET_API FApexCarConfigSummary
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	float MaxEngineForceN = 0.0f;
+
+	/**
+	 * Checksum of the car.toml the server loaded (content_crc.rs); compared
+	 * with the DT_CarCatalog row's SourceCrc when the car is used. 0 from a
+	 * server that predates it.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	int64 ContentCrc = 0;
 };
 
 /** `TrackConfigSummary` (network.rs:326) — PascalCase keys, but see FApexTrackPoint. */
@@ -210,6 +222,14 @@ struct APEXSIMNET_API FApexTrackConfigSummary
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	TArray<FVector2D> Centerline;
+
+	/**
+	 * Checksum of the track file the server loaded (content_crc.rs); compared
+	 * with the DT_TrackCatalog row's SourceCrc when the level is streamed. 0
+	 * from a server that predates it.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	int64 ContentCrc = 0;
 };
 
 /** `LobbyStateData` (network.rs:174) — PascalCase keys. */

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 #include "Catalog/ApexCatalogRows.h"
+#include "Catalog/ApexContentCrc.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "ApexMenuFlowSubsystem.generated.h"
@@ -29,6 +30,8 @@ enum class EApexScreen : uint8
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingCarChanged, const FString&, CarId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingTrackChanged, const FString&, TrackId);
+/** A track or car about to be used does not match the server's file; Message is player-facing. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnContentMismatch, const FString&, Message);
 
 /**
  * Client-side menu state that the protocol has no message for, plus the
@@ -56,6 +59,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Menu")
 	FApexOnPendingTrackChanged OnPendingTrackChanged;
+
+	/** Raised by VerifyTrackContent / VerifyCarContent with bNotify; the root widget shows it as a toast. */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Catalog")
+	FApexOnContentMismatch OnContentMismatch;
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Menu")
 	void SetPendingCar(const FString& CarId);
@@ -174,7 +181,23 @@ public:
 	 */
 	void ReportUnmatchedCatalogIds(const FApexLobbyState& LobbyState);
 
+	/**
+	 * Compares the catalog row's SourceCrc with the ContentCrc the server sent
+	 * for the same id in its last LobbyState (ApexContentCrc.h). A mismatch is
+	 * logged as a warning, and with bNotify also raised on OnContentMismatch so
+	 * the player sees it; Unknown (no row, no server checksum) is logged once.
+	 * Called by the race director as the level streams and the car spawns.
+	 */
+	EApexContentMatch VerifyTrackContent(const FString& TrackId, bool bNotify);
+	EApexContentMatch VerifyCarContent(const FString& CarId, bool bNotify);
+
+	/** Row id of the track whose YAML base name is Stem ("Monza"), or empty. The demo session names its track that way. */
+	FString FindTrackIdByStem(const FString& Stem) const;
+
 private:
+	EApexContentMatch VerifyContent(const TCHAR* Kind, const FString& Id, const FString& Name, int64 LocalCrc, int64 ServerCrc, bool bNotify);
+	const FApexLobbyState* CachedLobbyState() const;
+
 	const FApexCarCatalogRow* FindCarRow(const FString& CarId) const;
 	const FApexTrackCatalogRow* FindTrackRow(const FString& TrackId) const;
 
@@ -204,4 +227,6 @@ private:
 
 	bool bAutoConnectConsumed = false;
 	bool bReportedUnmatchedIds = false;
+	/** Ids whose Unknown verdict has been logged, so a missing checksum is said once. */
+	TSet<FString> ReportedUnknownContent;
 };

@@ -300,6 +300,14 @@ pub struct SessionSummary {
     pub track_name: String,
     /// Track file relative to content folder (e.g. "tracks/real/Austin.yaml")
     pub track_file: String,
+    /// The track config the session runs on, so a client can find its
+    /// `TrackConfigSummary` (and catalog row) without matching names.
+    #[serde(
+        default = "uuid::Uuid::nil",
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub track_id: TrackConfigId,
     pub host_name: String,
     pub session_kind: SessionKind,
     pub player_count: u8,
@@ -318,6 +326,10 @@ pub struct CarConfigSummary {
     pub id: CarConfigId,
     pub name: String,
     pub model_path: String,
+    /// `content_crc` of the car.toml the server loaded; a client compares it
+    /// with the checksum baked into its own catalog row. 0 when unknown.
+    #[serde(default)]
+    pub content_crc: u32,
     pub mass_kg: f32,
     pub max_engine_force_n: f32,
 }
@@ -358,6 +370,10 @@ pub struct TrackConfigSummary {
     )]
     pub id: TrackConfigId,
     pub name: String,
+    /// `content_crc` of the track file the server loaded; a client compares it
+    /// with the checksum baked into its own catalog row. 0 when unknown.
+    #[serde(default)]
+    pub content_crc: u32,
     /// Simplified centerline points for visualization (every Nth point)
     #[serde(default)]
     pub centerline: Vec<TrackPoint>,
@@ -788,6 +804,68 @@ mod tests {
             }
             _ => panic!("Wrong message type"),
         }
+    }
+
+    /// The lobby summaries carry each content file's checksum, and a client
+    /// that predates the field must still read the message.
+    #[test]
+    fn test_lobby_summaries_carry_content_crc() {
+        let msg = ServerMessage::LobbyState(LobbyStateData {
+            players_in_lobby: vec![],
+            available_sessions: vec![SessionSummary {
+                id: Uuid::nil(),
+                track_name: "Monza".into(),
+                track_file: "tracks/real/Monza.yaml".into(),
+                track_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+                host_name: "host".into(),
+                session_kind: SessionKind::Multiplayer,
+                player_count: 1,
+                max_players: 8,
+                state: SessionState::Lobby,
+            }],
+            car_configs: vec![CarConfigSummary {
+                id: Uuid::nil(),
+                name: "Car".into(),
+                model_path: String::new(),
+                content_crc: 0xCBF4_3926,
+                mass_kg: 1000.0,
+                max_engine_force_n: 1.0,
+            }],
+            track_configs: vec![TrackConfigSummary {
+                id: Uuid::nil(),
+                name: "Monza".into(),
+                content_crc: 0xDEAD_BEEF,
+                centerline: vec![],
+            }],
+        });
+        let bytes = rmp_serde::to_vec_named(&msg).unwrap();
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(
+            text.contains("ContentCrc"),
+            "summaries must name the checksum"
+        );
+        assert!(text.contains("TrackId"), "a session must name its track");
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::LobbyState(l) => {
+                assert_eq!(l.car_configs[0].content_crc, 0xCBF4_3926);
+                assert_eq!(l.track_configs[0].content_crc, 0xDEAD_BEEF);
+                assert_eq!(
+                    l.available_sessions[0].track_id.to_string(),
+                    "01234567-89ab-cdef-0123-456789abcdef"
+                );
+            }
+            _ => panic!("wrong message type"),
+        }
+
+        // A summary written before the field existed decodes with 0.
+        let legacy = rmp_serde::to_vec_named(&serde_json::json!({
+            "Id": "00000000-0000-0000-0000-000000000000",
+            "Name": "Old",
+            "Centerline": [],
+        }))
+        .unwrap();
+        let decoded: TrackConfigSummary = rmp_serde::from_slice(&legacy).unwrap();
+        assert_eq!(decoded.content_crc, 0);
     }
 
     /// The exact bytes of a small `RacingLine`, pinned because the Unreal

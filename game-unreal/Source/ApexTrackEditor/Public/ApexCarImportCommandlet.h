@@ -93,6 +93,8 @@ private:
 		FString Folder;
 		FString TomlPath;
 		FCarToml Toml;
+		/** The TOML's checksum as the server computes it (ApexContentCrc.h). */
+		int64 SourceCrc = 0;
 	};
 
 	static bool ParseOptions(const FString& Params, FOptions& Out, FString& OutError);

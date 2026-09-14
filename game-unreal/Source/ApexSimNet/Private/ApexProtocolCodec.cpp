@@ -90,6 +90,7 @@ namespace
 			if (Key == TEXT("Id"))              { bOk = Reader.ReadString(Out.Id); }
 			else if (Key == TEXT("TrackName"))  { bOk = Reader.ReadString(Out.TrackName); }
 			else if (Key == TEXT("TrackFile"))  { bOk = Reader.ReadString(Out.TrackFile); }
+			else if (Key == TEXT("TrackId"))    { bOk = Reader.ReadString(Out.TrackId); }
 			else if (Key == TEXT("HostName"))   { bOk = Reader.ReadString(Out.HostName); }
 			else if (Key == TEXT("SessionKind")){ bOk = Reader.ReadUInt64(Raw); Out.SessionKind = static_cast<EApexSessionKind>(Raw); }
 			else if (Key == TEXT("PlayerCount")){ bOk = Reader.ReadUInt64(Raw); Out.PlayerCount = static_cast<int32>(Raw); }
@@ -119,11 +120,13 @@ namespace
 				return false;
 			}
 			bool bOk = true;
+			uint64 Raw = 0;
 			if (Key == TEXT("Id"))                   { bOk = Reader.ReadString(Out.Id); }
 			else if (Key == TEXT("Name"))            { bOk = Reader.ReadString(Out.Name); }
 			else if (Key == TEXT("ModelPath"))       { bOk = Reader.ReadString(Out.ModelPath); }
 			else if (Key == TEXT("MassKg"))          { bOk = Reader.ReadFloat(Out.MassKg); }
 			else if (Key == TEXT("MaxEngineForceN")) { bOk = Reader.ReadFloat(Out.MaxEngineForceN); }
+			else if (Key == TEXT("ContentCrc"))      { bOk = Reader.ReadUInt64(Raw); Out.ContentCrc = static_cast<int64>(Raw & 0xFFFFFFFFu); }
 			else                                     { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -186,6 +189,12 @@ namespace
 			else if (Key == TEXT("Name"))
 			{
 				bOk = Reader.ReadString(Out.Name);
+			}
+			else if (Key == TEXT("ContentCrc"))
+			{
+				uint64 Raw = 0;
+				bOk = Reader.ReadUInt64(Raw);
+				Out.ContentCrc = static_cast<int64>(Raw & 0xFFFFFFFFu);
 			}
 			else if (Key == TEXT("Centerline"))
 			{

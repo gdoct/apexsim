@@ -114,7 +114,9 @@ impl TrackLoader {
         };
 
         Self::validate(&track_file)?;
-        Self::build_track_config(track_file, track_path)
+        let mut config = Self::build_track_config(track_file, track_path)?;
+        config.content_crc = crate::content_crc::content_crc(content.as_bytes());
+        Ok(config)
     }
 
     fn validate(track: &TrackFileFormat) -> Result<(), TrackLoadError> {
@@ -228,6 +230,7 @@ impl TrackLoader {
             centerline: centerline_points,
             width_m: default_width,
             source_path: None,
+            content_crc: 0,
             start_positions,
             track_surface: TrackSurface {
                 base_grip: 1.0,
@@ -926,5 +929,32 @@ nodes:
             spread > 0.3,
             "expected the grid to follow the climb, spread {spread}"
         );
+    }
+
+    #[test]
+    fn content_crc_is_the_source_text_checksum() {
+        let yaml = concat!(
+            "name: Crc Track\n",
+            "track_id: 6f1b5a2e-4c3d-4e2f-9a1b-0c2d3e4f5a6b\n",
+            "default_width: 12.0\n",
+            "nodes:\n",
+            "  - {x: 0.0, y: 0.0}\n",
+            "  - {x: 100.0, y: 0.0}\n",
+            "  - {x: 100.0, y: 50.0}\n",
+            "  - {x: 0.0, y: 50.0}\n",
+        );
+        let track = TrackLoader::load_from_string(yaml).unwrap();
+        assert_eq!(
+            track.content_crc,
+            crate::content_crc::content_crc(yaml.as_bytes())
+        );
+        assert_ne!(track.content_crc, 0);
+        // Same file checked out with CRLF line endings: same checksum.
+        let crlf = yaml.replace('\n', "\r\n");
+        assert_eq!(
+            TrackLoader::load_from_string(&crlf).unwrap().content_crc,
+            track.content_crc
+        );
+        assert_eq!(TrackConfig::default().content_crc, 0);
     }
 }

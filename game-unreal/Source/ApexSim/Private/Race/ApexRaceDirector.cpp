@@ -472,6 +472,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 				}
 			}
 			Car->SetCarMesh(Mesh);
+			VerifyLocalCarContent();
 		}
 
 		Car->SetDisplayName(Entry.PlayerName);
@@ -1324,6 +1325,54 @@ void AApexRaceDirector::LoadTrackLevel()
 
 	UE_LOG(LogApexSim, Log, TEXT("Streaming track level %s"), *PackagePath);
 	ForgetStartLights();
+	VerifyTrackContent();
+}
+
+void AApexRaceDirector::VerifyTrackContent()
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Flow || !Net)
+	{
+		return;
+	}
+
+	FString TrackId;
+	if (bDemoView)
+	{
+		// Unlisted, so no summary carries its id; the stem is all the demo knows.
+		TrackId = Flow->FindTrackIdByStem(DemoTrackStem);
+	}
+	else
+	{
+		FApexSessionSummary Session;
+		if (Net->FindSessionById(Net->GetCurrentSessionId(), Session))
+		{
+			TrackId = Session.TrackId;
+		}
+	}
+	if (TrackId.IsEmpty() || TrackId == VerifiedTrackId)
+	{
+		return;
+	}
+	VerifiedTrackId = TrackId;
+	Flow->VerifyTrackContent(TrackId, !bDemoView);
+}
+
+void AApexRaceDirector::VerifyLocalCarContent()
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow || bDemoView || !Flow->HasPendingCar())
+	{
+		return;
+	}
+	const FString CarId = Flow->GetPendingCarId();
+	if (CarId == VerifiedCarId)
+	{
+		return;
+	}
+	VerifiedCarId = CarId;
+	Flow->VerifyCarContent(CarId, true);
 }
 
 void AApexRaceDirector::UnloadTrackLevel()
@@ -1338,6 +1387,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	TrackLevel->SetShouldBeLoaded(false);
 	TrackLevel = nullptr;
 	ForgetStartLights();
+	VerifiedTrackId.Reset();
 }
 
 void AApexRaceDirector::DestroyAllCars()
@@ -1350,6 +1400,7 @@ void AApexRaceDirector::DestroyAllCars()
 		}
 	}
 	Cars.Reset();
+	VerifiedCarId.Reset();
 }
 
 // --- Broadcast camera ------------------------------------------------------------
@@ -1599,6 +1650,19 @@ void AApexRaceDirector::ApplyDemoWorldVisibility()
 			Car->SetEngineVolume(bDemoWorldVisible ? DemoEngineVolume : 0.0f);
 		}
 	}
+}
+
+bool AApexRaceDirector::IsDemoReady() const
+{
+	if (!bDemoView || bDemoFadeOut)
+	{
+		return false;
+	}
+	if (!bDemoWorldVisible)
+	{
+		return Cars.Num() > 0 && IsTrackLevelLoaded();
+	}
+	return DemoOpacity >= 1.0f;
 }
 
 void AApexRaceDirector::UpdateDemoOpacity(float DeltaSeconds)

@@ -7,6 +7,6 @@ public class ApexSimEditorTarget : TargetRules
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
-		ExtraModuleNames.AddRange(new string[] { "ApexSimNet", "ApexSimInput", "ApexSim", "ApexTrackEditor" });
+		ExtraModuleNames.AddRange(new string[] { "ApexSimBoot", "ApexSimNet", "ApexSimInput", "ApexSim", "ApexTrackEditor" });
 	}
 }

@@ -210,6 +210,10 @@ void UApexRootWidget::NativeConstruct()
 	{
 		Settings->OnSettingsChanged.AddDynamic(this, &UApexRootWidget::HandleSettingsChangedForDriverAids);
 	}
+	if (UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr)
+	{
+		Flow->OnContentMismatch.AddDynamic(this, &UApexRootWidget::HandleContentMismatch);
+	}
 
 	// -ApexScreenshotAfter=N grabs the viewport N seconds in. Together with
 	// -ApexStartScreen it makes any screen inspectable from a headless run,
@@ -385,6 +389,10 @@ void UApexRootWidget::NativeDestruct()
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &UApexRootWidget::HandleLobbyStateForAutoRace);
 		Net->OnSessionStateChanged.RemoveDynamic(this, &UApexRootWidget::HandleSessionStateChanged);
 		Net->OnTelemetry.RemoveDynamic(this, &UApexRootWidget::HandleTelemetryForFinish);
+	}
+	if (UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr)
+	{
+		Flow->OnContentMismatch.RemoveDynamic(this, &UApexRootWidget::HandleContentMismatch);
 	}
 	if (GetWorld())
 	{
@@ -915,6 +923,11 @@ void UApexRootWidget::HandleSettingsChangedForDriverAids(EApexSettingsGroup Grou
 	{
 		SendDriverAids();
 	}
+}
+
+void UApexRootWidget::HandleContentMismatch(const FString& Message)
+{
+	ShowToast(Message, true);
 }
 
 void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPosition)

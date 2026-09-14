@@ -83,13 +83,13 @@ namespace ApexTvTest
 		}
 	};
 
-	bool IsFinitePose(const FPose& Pose)
+	bool IsFinitePose(const ApexTv::FPose& Pose)
 	{
 		return !Pose.Location.ContainsNaN() && !Pose.Rotation.ContainsNaN() && FMath::IsFinite(Pose.FovDeg);
 	}
 
 	/** Angle between where the camera looks and where the car is, degrees. */
-	double OffAxisDeg(const FPose& Pose, const FCar& Car)
+	double OffAxisDeg(const ApexTv::FPose& Pose, const FCar& Car)
 	{
 		const FVector ToCar = (Car.Centre() - Pose.Location).GetSafeNormal();
 		return FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(Pose.Rotation.Vector(), ToCar), -1.0, 1.0)));
@@ -224,7 +224,7 @@ bool FApexTvCuttingTest::RunTest(const FString& Parameters)
 		const bool bCountdown = Time < GridSeconds;
 		Field.Step(Dt, !bCountdown);
 
-		FPose Pose;
+		ApexTv::FPose Pose;
 		if (!Director.Tick(Field.Cars, bCountdown, Dt, static_cast<float>(Time), Flat, Pose))
 		{
 			AddError(TEXT("the director had nothing to film with a full field"));
@@ -303,7 +303,7 @@ bool FApexTvTracksideTest::RunTest(const FString& Parameters)
 	const FWorldQueries Flat;
 
 	constexpr double Dt = 1.0 / 30.0;
-	FPose Pose;
+	ApexTv::FPose Pose;
 	Field.Step(Dt, true);
 	TestTrue(TEXT("filmed"), Director.Tick(Field.Cars, false, Dt, 0.0f, Flat, Pose));
 	TestTrue(TEXT("on the trackside shot"), Director.GetShot() == EShot::Trackside);
@@ -358,7 +358,7 @@ bool FApexTvBlockedTest::RunTest(const FString& Parameters)
 	Walled.IsClear = [](const FVector&, const FVector&) { return false; };
 
 	constexpr double Dt = 1.0 / 30.0;
-	FPose Pose;
+	ApexTv::FPose Pose;
 	int32 LastCuts = 0;
 	EShot LastShot = EShot::None;
 	float LastAge = 0.0f;
@@ -416,7 +416,7 @@ bool FApexTvIncidentTest::RunTest(const FString& Parameters)
 	constexpr double Dt = 1.0 / 30.0;
 	constexpr int32 Stricken = 4;
 	double FoundAfter = -1.0;
-	FPose Pose;
+	ApexTv::FPose Pose;
 	for (int32 Frame = 0; Frame < static_cast<int32>(40.0 / Dt); ++Frame)
 	{
 		const double Time = Frame * Dt;

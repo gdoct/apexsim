@@ -111,6 +111,14 @@ public:
 	 */
 	float GetDemoBackdropOpacity() const { return DemoOpacity; }
 
+	/**
+	 * True once the demo is all the way in: faded up to full opacity, or loaded
+	 * with cars on the road behind a screen that keeps the world hidden. The
+	 * startup splash holds until this, so the first frame the player sees is
+	 * the menu over a running race.
+	 */
+	bool IsDemoReady() const;
+
 	/** Fade the backdrop out ahead of ending the demo; watch GetDemoBackdropOpacity reach 0. */
 	void FadeOutDemo() { bDemoFadeOut = true; }
 
@@ -333,6 +341,16 @@ private:
 
 	void LoadTrackLevel();
 	void UnloadTrackLevel();
+
+	/**
+	 * Checks the content about to be shown against the server's files: the
+	 * track as its level streams, the local player's car as it spawns. Each is
+	 * checked once per race; a demo only logs, a real session also toasts.
+	 */
+	void VerifyTrackContent();
+	void VerifyLocalCarContent();
+	FString VerifiedTrackId;
+	FString VerifiedCarId;
 
 	/**
 	 * Drive the start-light gantry the track importer places past the line

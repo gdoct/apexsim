@@ -98,6 +98,11 @@ bool UApexTrackCatalogSyncCommandlet::LoadManifest(const FString& Path, TArray<F
 		Entry.EnvironmentType = (*Object)->GetStringField(TEXT("environment_type"));
 		Entry.LengthM = static_cast<float>((*Object)->GetNumberField(TEXT("length_m")));
 		Entry.PreviewPng = (*Object)->GetStringField(TEXT("preview_png"));
+		double Crc = 0.0;
+		if ((*Object)->TryGetNumberField(TEXT("source_crc"), Crc))
+		{
+			Entry.SourceCrc = static_cast<int64>(Crc);
+		}
 
 		if (Entry.TrackId.IsEmpty() || Entry.Stem.IsEmpty())
 		{
@@ -254,13 +259,17 @@ int32 UApexTrackCatalogSyncCommandlet::Main(const FString& Params)
 
 		const bool bNeedsRow = !Existing || Options.bForce;
 		const bool bNeedsPreview = Existing && Existing->PreviewImage.IsNull();
-		if (!bNeedsRow && !bNeedsPreview)
+		// The checksum is derived, never hand-tuned, so it follows the YAML
+		// even on an additive run: it is what tells the client its bake is stale.
+		const bool bNeedsCrc = Existing && Existing->SourceCrc != Entry.SourceCrc;
+		if (!bNeedsRow && !bNeedsPreview && !bNeedsCrc)
 		{
 			continue;
 		}
 
 		UE_LOG(LogApexTrackImport, Display, TEXT("%s (%s): %s"), *Entry.Stem, *Entry.TrackId,
-			bNeedsRow ? (Existing ? TEXT("rewriting row") : TEXT("adding row")) : TEXT("filling in preview"));
+			bNeedsRow ? (Existing ? TEXT("rewriting row") : TEXT("adding row"))
+			: bNeedsPreview ? TEXT("filling in preview") : TEXT("updating checksum"));
 
 		FString PreviewError;
 		UTexture2D* Preview = ResolvePreview(Entry, Options, TouchedPackages, PreviewError);
@@ -292,6 +301,7 @@ int32 UApexTrackCatalogSyncCommandlet::Main(const FString& Params)
 			Row.LengthM = Entry.LengthM;
 			Row.YamlBaseName = Entry.Stem;
 		}
+		Row.SourceCrc = Entry.SourceCrc;
 		if (Preview)
 		{
 			Row.PreviewImage = Preview;
