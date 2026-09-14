@@ -14,7 +14,8 @@ use track_editor::ats::{
 use track_editor::project;
 use track_editor::track_data::{TrackFile, TrackNode};
 use track_editor::ue_export::{
-    self, UeMesh, UeScene, CURB_BANDS_VERSION, CURB_BAND_STEP_M, UE_SCENE_FORMAT, UE_SCENE_VERSION,
+    self, UeMesh, UeScene, WallSegment, CURB_BANDS_VERSION, CURB_BAND_STEP_M, UE_SCENE_FORMAT,
+    UE_SCENE_VERSION, WALLS_VERSION, WALL_KIND_ARMCO, WALL_KIND_CONCRETE, WALL_KIND_TIRES,
 };
 use track_editor::ue_export_io;
 
@@ -919,17 +920,258 @@ fn exporting_leaves_the_source_track_and_scene_untouched() {
     let yaml_before = fs::read(&yaml).unwrap();
 
     let out = dir.path().join("export");
-    ue_export_io::export_track(&yaml, &out).unwrap();
+    let exported = ue_export_io::export_track(&yaml, &out).unwrap();
 
     assert_eq!(
         fs::read(&yaml).unwrap(),
         yaml_before,
         "the YAML was written to"
     );
+    assert_eq!(
+        exported.walls_path,
+        dir.path().join("Mini.walls.msgpack"),
+        "the walls sidecar sits beside the YAML"
+    );
+    assert!(exported.walls_path.exists());
     assert!(
         !dir.path().join("Mini.ats").exists(),
         "exporting must not create an .ats"
     );
+}
+
+fn wall_prop(
+    id: u64,
+    kind: PropKind,
+    asset: &str,
+    x: f32,
+    y: f32,
+    yaw_rad: f32,
+    scale: f32,
+) -> Prop {
+    Prop {
+        id,
+        kind,
+        asset: asset.to_string(),
+        x,
+        y,
+        z: 0.0,
+        yaw_rad,
+        scale,
+        text: None,
+        length_m: None,
+    }
+}
+
+fn wall_ends(w: &WallSegment) -> [(f32, f32); 2] {
+    [(w.x0, w.y0), (w.x1, w.y1)]
+}
+
+fn close(a: (f32, f32), b: (f32, f32)) -> bool {
+    (a.0 - b.0).abs() < 1e-3 && (a.1 - b.1).abs() < 1e-3
+}
+
+/// The walls sidecar is the sim's only knowledge of the barriers: a
+/// barrier it misses is one a car drives through, and a gap between two
+/// modules of a run is a hole in the wall.
+#[test]
+fn walls_sidecar_follows_the_barriers_and_footprints() {
+    use std::f32::consts::FRAC_PI_2;
+    let track = test_track();
+    let mut scene = test_scene(&track);
+    let mut id = scene.next_id;
+    let mut next = || {
+        id += 1;
+        id - 1
+    };
+    // Two armco modules laid half a metre apart, a tire wall run segment
+    // at the groomer's scale, and a 40 m stand.
+    scene.props.push(wall_prop(
+        next(),
+        PropKind::Barrier,
+        "armco_generic",
+        50.0,
+        20.0,
+        0.0,
+        1.0,
+    ));
+    scene.props.push(wall_prop(
+        next(),
+        PropKind::Barrier,
+        "armco_generic",
+        54.5,
+        20.0,
+        0.0,
+        1.0,
+    ));
+    scene.props.push(wall_prop(
+        next(),
+        PropKind::TireWall,
+        "tire_wall_generic",
+        80.0,
+        -30.0,
+        FRAC_PI_2,
+        2.2,
+    ));
+    let mut stand = wall_prop(
+        next(),
+        PropKind::Grandstand,
+        "grandstand_main",
+        100.0,
+        60.0,
+        0.0,
+        1.0,
+    );
+    stand.length_m = Some(40.0);
+    scene.props.push(stand);
+    scene.next_id = id;
+
+    let baked = ue_export::bake_all(&track, &scene).expect("test track must bake");
+    let walls = baked.walls;
+    assert_eq!(walls.version, WALLS_VERSION);
+    for w in &walls.segments {
+        assert!(
+            [w.x0, w.y0, w.x1, w.y1, w.z, w.height_m]
+                .iter()
+                .all(|v| v.is_finite()),
+            "non-finite wall {w:?}"
+        );
+        assert!(w.height_m > 0.0, "flat wall {w:?}");
+    }
+
+    // The armco: one 4 m face per module, the gap between them closed.
+    let mut armco: Vec<&WallSegment> = walls
+        .segments
+        .iter()
+        .filter(|w| w.kind == WALL_KIND_ARMCO)
+        .collect();
+    armco.sort_by(|a, b| a.x0.total_cmp(&b.x0));
+    assert_eq!(armco.len(), 2, "{armco:?}");
+    assert!(
+        close(wall_ends(armco[0])[0], (48.0, 20.0)),
+        "{:?}",
+        armco[0]
+    );
+    assert!(
+        close(wall_ends(armco[0])[1], (52.25, 20.0)),
+        "{:?}",
+        armco[0]
+    );
+    assert!(
+        close(wall_ends(armco[1])[0], (52.25, 20.0)),
+        "{:?}",
+        armco[1]
+    );
+    assert!(
+        close(wall_ends(armco[1])[1], (56.5, 20.0)),
+        "{:?}",
+        armco[1]
+    );
+
+    // The tire wall: the kit's 4 m at scale 2.2, along its own heading.
+    let tires: Vec<&WallSegment> = walls
+        .segments
+        .iter()
+        .filter(|w| w.kind == WALL_KIND_TIRES)
+        .collect();
+    assert_eq!(tires.len(), 1, "{tires:?}");
+    let ends = wall_ends(tires[0]);
+    assert!(
+        close(ends[0], (80.0, -34.4)) && close(ends[1], (80.0, -25.6)),
+        "{:?}",
+        tires[0]
+    );
+
+    // The stand: its four sides, 40 m long and the family's depth, its
+    // front through the pivot and the rest behind it.
+    let stand_sides: Vec<&WallSegment> = walls
+        .segments
+        .iter()
+        .filter(|w| w.kind == WALL_KIND_CONCRETE)
+        .filter(|w| {
+            ((w.x0 + w.x1) / 2.0 - 100.0).abs() < 30.0 && ((w.y0 + w.y1) / 2.0 - 60.0).abs() < 30.0
+        })
+        .collect();
+    assert_eq!(stand_sides.len(), 4, "{stand_sides:?}");
+    let xs: Vec<f32> = stand_sides.iter().flat_map(|w| [w.x0, w.x1]).collect();
+    let ys: Vec<f32> = stand_sides.iter().flat_map(|w| [w.y0, w.y1]).collect();
+    let span = |v: &[f32]| {
+        v.iter().cloned().fold(f32::NEG_INFINITY, f32::max)
+            - v.iter().cloned().fold(f32::INFINITY, f32::min)
+    };
+    assert!(
+        (span(&xs) - 40.0).abs() < 1e-3,
+        "stand length {}",
+        span(&xs)
+    );
+    assert!(
+        (5.0..=16.0).contains(&span(&ys)),
+        "stand depth {}",
+        span(&ys)
+    );
+    assert!((xs.iter().sum::<f32>() / xs.len() as f32 - 100.0).abs() < 1e-3);
+    let front = stand_sides
+        .iter()
+        .filter(|w| (w.y0 - 60.0).abs() < 1e-3 && (w.y1 - 60.0).abs() < 1e-3)
+        .count();
+    assert_eq!(front, 1, "one side runs through the pivot: {stand_sides:?}");
+    let mean_y = ys.iter().sum::<f32>() / ys.len() as f32;
+    assert!(
+        ((mean_y - 60.0).abs() - span(&ys) / 2.0).abs() < 1e-3,
+        "the stand reaches back from its front, not across it: mean y {mean_y}"
+    );
+
+    // A tree stops nothing.
+    assert!(
+        walls.segments.iter().all(|w| wall_ends(w)
+            .iter()
+            .all(|e| (e.0 - 30.0).hypot(e.1 - 25.0) > 3.0)),
+        "a wall at the tree"
+    );
+}
+
+/// The pit complex the lane implies is solid too: the pit wall between
+/// the lane and the road as faces, the garages as footprints.
+#[test]
+fn walls_sidecar_carries_the_pit_complex() {
+    let (track, scene) = stadium_scene();
+    let walls = ue_export::bake_all(&track, &scene).unwrap().walls.segments;
+    let concrete: Vec<&WallSegment> = walls
+        .iter()
+        .filter(|w| w.kind == WALL_KIND_CONCRETE)
+        .collect();
+    let length = |w: &WallSegment| (w.x1 - w.x0).hypot(w.y1 - w.y0);
+    // Ten 6 m pit-wall modules plus the plain ones, laid end to end and
+    // joined into a run: every face is at least a module long.
+    let pit_wall_faces = concrete
+        .iter()
+        .filter(|w| length(w) >= 5.9 && length(w) <= 6.5 && (w.y0 - w.y1).abs() < 0.1)
+        .filter(|w| (-16.0..=-13.0).contains(&w.y0))
+        .count();
+    assert!(pit_wall_faces >= 10, "pit wall faces: {pit_wall_faces}");
+    // Ten garages and two end blocks, four sides each, beyond the lane.
+    let garage_sides = concrete
+        .iter()
+        .filter(|w| (w.y0 + w.y1) / 2.0 < -17.0)
+        .count();
+    assert!(garage_sides >= 12 * 4, "garage sides: {garage_sides}");
+    // The crew's kit is not a wall.
+    assert!(
+        !concrete
+            .iter()
+            .any(|w| (2.0..=3.0).contains(&length(w)) && w.height_m < 2.5),
+        "a box kit became a wall"
+    );
+}
+
+/// Written and read back the way the server does it.
+#[test]
+fn walls_sidecar_roundtrips_through_msgpack() {
+    let track = test_track();
+    let scene = test_scene(&track);
+    let baked = ue_export::bake_all(&track, &scene).expect("test track must bake");
+    let bytes = rmp_serde::to_vec_named(&baked.walls).unwrap();
+    let back: ue_export::Walls = rmp_serde::from_slice(&bytes).unwrap();
+    assert_eq!(back, baked.walls);
 }
 
 /// The real payload: every shipped circuit has to bake without a hand-hold.

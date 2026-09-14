@@ -403,6 +403,13 @@ pub struct TrackConfig {
     /// loaded from the sidecar.
     #[serde(skip)]
     pub curbs: Option<crate::curbs::CurbBands>,
+    /// Baked walls exported alongside the Unreal scene
+    /// (`<Track>.walls.msgpack`): the barriers, tire walls, pit walls,
+    /// stands and buildings as solid faces, so a car that leaves the road
+    /// is stopped by them rather than driving through. Runtime-only;
+    /// loaded from the sidecar.
+    #[serde(skip)]
+    pub walls: Option<crate::walls::Walls>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -554,6 +561,7 @@ impl Default for TrackConfig {
             procedural_world: None,
             ground: None,
             curbs: None,
+            walls: None,
         }
     }
 }

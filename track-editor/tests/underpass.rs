@@ -12,7 +12,8 @@ use std::path::Path;
 use track_editor::ats::{AtsScene, Curb, Side, Surface, SurfaceKind};
 use track_editor::ats_io;
 use track_editor::terrain::{
-    TerrainHeightfield, Underpass, DECK_DEPTH_M, UNDERPASS_WALL_GAP_M, VERGE_DROP_M,
+    TerrainHeightfield, Underpass, DECK_DEPTH_M, DECK_OVERHANG_M, UNDERPASS_WALL_GAP_M,
+    VERGE_DROP_M,
 };
 use track_editor::track_data::{TrackFile, TrackNode};
 use track_editor::track_io;
@@ -307,6 +308,63 @@ fn the_server_ground_under_the_bridge_is_the_lower_level() {
 }
 
 /// The real thing: Suzuka's crossover, the reason this exists.
+/// The server's walls carry the underpass: abutment walls beside the
+/// lower road, footed at its level and stopping short of the deck, and the
+/// parapets along the deck at the upper level — so a car on either level
+/// meets the wall of its own road and not the other's.
+#[test]
+fn the_walls_sidecar_carries_the_abutments_and_the_parapets() {
+    let track = figure_eight();
+    let field = field(&track);
+    let u = the_underpass(&field);
+    let walls = ue_export::bake_all(&track, &scene_with_dressing(&track, &u))
+        .unwrap()
+        .walls
+        .segments;
+    let near = |w: &ue_export::WallSegment| {
+        ((w.x0 + w.x1) / 2.0 - u.at.0).abs() < 30.0 && ((w.y0 + w.y1) / 2.0 - u.at.1).abs() < 30.0
+    };
+
+    // The lower road runs east along y = 0: its walls stand 3.5 m past
+    // each edge, footed at the ground, and reach short of the deck.
+    let low: Vec<_> = walls
+        .iter()
+        .filter(|w| near(w) && w.z < HIGH_M / 2.0)
+        .collect();
+    assert!(!low.is_empty(), "no abutment walls");
+    let wall_y = HALF_WIDTH_M + UNDERPASS_WALL_GAP_M;
+    assert!(
+        low.iter().any(|w| (w.y0 - wall_y).abs() < 0.3)
+            && low.iter().any(|w| (w.y0 + wall_y).abs() < 0.3),
+        "walls on both sides of the lower road: {low:?}"
+    );
+    for w in &low {
+        assert!(w.z < 1.0, "abutment footed above the lower road: {w:?}");
+        assert!(
+            w.z + w.height_m <= HIGH_M - 0.5,
+            "abutment reaches the deck: {w:?}"
+        );
+        assert!(w.height_m >= 0.3);
+    }
+
+    // The upper road crosses southbound along x = 0: its parapets sit on
+    // the deck's overhang, at the deck's level.
+    let high: Vec<_> = walls
+        .iter()
+        .filter(|w| near(w) && w.z > HIGH_M - 2.0)
+        .collect();
+    assert!(!high.is_empty(), "no parapets");
+    let parapet_x = HALF_WIDTH_M + DECK_OVERHANG_M;
+    assert!(
+        high.iter().any(|w| (w.x0 - parapet_x).abs() < 0.3)
+            && high.iter().any(|w| (w.x0 + parapet_x).abs() < 0.3),
+        "parapets on both sides of the deck: {high:?}"
+    );
+    for w in &high {
+        assert!((1.0..=1.2).contains(&w.height_m), "parapet height: {w:?}");
+    }
+}
+
 #[test]
 fn suzuka_has_its_crossover() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/real");

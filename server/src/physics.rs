@@ -11,6 +11,7 @@
 
 use crate::data::*;
 use crate::feedback::{ContactSurface, FeedbackTick};
+use crate::walls::Walls;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::Once;
@@ -2056,18 +2057,40 @@ fn check_obb_overlap(
     if dz >= (config_a.height_m + config_b.height_m) / 2.0 {
         return None;
     }
+    obb_overlap(
+        (state_a.pos_x, state_a.pos_y),
+        (state_a.yaw_rad.cos(), state_a.yaw_rad.sin()),
+        config_a.length_m / 2.0,
+        config_a.width_m / 2.0,
+        (state_b.pos_x, state_b.pos_y),
+        (state_b.yaw_rad.cos(), state_b.yaw_rad.sin()),
+        config_b.length_m / 2.0,
+        config_b.width_m / 2.0,
+    )
+}
 
-    let (half_l_a, half_w_a) = (config_a.length_m / 2.0, config_a.width_m / 2.0);
-    let (half_l_b, half_w_b) = (config_b.length_m / 2.0, config_b.width_m / 2.0);
-
+/// Separating-axis test between two rectangles in the ground plane, each
+/// given by its centre, unit forward axis and half extents along and
+/// across it. The normal points from A toward B.
+#[allow(clippy::too_many_arguments)]
+fn obb_overlap(
+    center_a: (f32, f32),
+    fwd_a: (f32, f32),
+    half_l_a: f32,
+    half_w_a: f32,
+    center_b: (f32, f32),
+    fwd_b: (f32, f32),
+    half_l_b: f32,
+    half_w_b: f32,
+) -> Option<ObbOverlap> {
     // Local axes of each box (forward, left)
-    let ax_a = (state_a.yaw_rad.cos(), state_a.yaw_rad.sin());
-    let ay_a = (-state_a.yaw_rad.sin(), state_a.yaw_rad.cos());
-    let ax_b = (state_b.yaw_rad.cos(), state_b.yaw_rad.sin());
-    let ay_b = (-state_b.yaw_rad.sin(), state_b.yaw_rad.cos());
+    let ax_a = fwd_a;
+    let ay_a = (-fwd_a.1, fwd_a.0);
+    let ax_b = fwd_b;
+    let ay_b = (-fwd_b.1, fwd_b.0);
 
-    let dx = state_b.pos_x - state_a.pos_x;
-    let dy = state_b.pos_y - state_a.pos_y;
+    let dx = center_b.0 - center_a.0;
+    let dy = center_b.1 - center_a.1;
 
     // Projected extent of a box onto a unit axis
     let extent = |axis: (f32, f32), fwd: (f32, f32), left: (f32, f32), hl: f32, hw: f32| {
@@ -2124,6 +2147,156 @@ fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
 
     car.damage.is_drivable =
         car.damage.front_damage_percent < 80.0 && car.damage.engine_damage_percent < 80.0;
+}
+
+// ---------------------------------------------------------------------------
+// Walls
+// ---------------------------------------------------------------------------
+
+/// A wall is solid this far below its footing too, so a car on a verge a
+/// little lower than the barrier's base still meets it.
+const WALL_BELOW_M: f32 = 0.3;
+/// Half-thickness a wall face is given for the overlap test.
+const WALL_HALF_THICKNESS_M: f32 = 0.05;
+/// Fraction of the tangential speed lost per second while the flank grinds
+/// along a wall.
+const WALL_SCRAPE_RATE_PER_SEC: f32 = 0.4;
+/// Cap on the yaw-rate change one wall contact may apply.
+const WALL_MAX_YAW_KICK_RAD_S: f32 = 4.0;
+
+/// Stop every car at the track's walls (`TrackConfig::walls`, the baked
+/// barriers). Runs after the car-car pass, so the contact flags it sets
+/// survive the tick; a track without a walls sidecar has nothing to hit.
+pub fn check_wall_collisions(
+    states: &mut [&mut CarState],
+    configs: &HashMap<CarConfigId, CarConfig>,
+    track: &TrackConfig,
+    dt: f32,
+) {
+    let Some(walls) = track.walls.as_ref() else {
+        return;
+    };
+    let mut nearby = Vec::new();
+    for state in states.iter_mut() {
+        if let Some(config) = configs.get(&state.car_config_id) {
+            resolve_wall_contacts(state, config, walls, dt, &mut nearby);
+        }
+    }
+}
+
+/// Push one car out of every wall it overlaps and take the hit out of its
+/// velocity. `nearby` is scratch for the wall query, kept by the caller so
+/// the tick does not allocate per car.
+///
+/// Each wall is a thin rectangle; the same separating-axis test as the
+/// car-car pass gives the push. A closing hit bounces by the wall's
+/// restitution, loses tangential speed to its friction, and spins the car
+/// by the moment of that impulse about the deepest corner, so a nose-in
+/// hit swings the car round rather than stopping it dead. A car already
+/// resting against the wall just scrapes along it.
+pub fn resolve_wall_contacts(
+    state: &mut CarState,
+    config: &CarConfig,
+    walls: &Walls,
+    dt: f32,
+    nearby: &mut Vec<u32>,
+) {
+    let half_l = config.length_m / 2.0;
+    let half_w = config.width_m / 2.0;
+    walls.candidates(state.pos_x, state.pos_y, half_l.hypot(half_w) + 0.5, nearby);
+    for &idx in nearby.iter() {
+        let wall = walls.segments()[idx as usize];
+
+        // Height gate: a car on a bridge deck is above the abutment walls
+        // of the road beneath, and a car below is under the parapets.
+        let car_low = state.pos_z - WALL_BELOW_M;
+        let car_high = state.pos_z + config.height_m;
+        if car_high <= wall.z || car_low >= wall.z + wall.height_m {
+            continue;
+        }
+
+        let len = wall.length();
+        let dir = ((wall.x1 - wall.x0) / len, (wall.y1 - wall.y0) / len);
+        let car_fwd = (state.yaw_rad.cos(), state.yaw_rad.sin());
+        let Some(overlap) = obb_overlap(
+            (state.pos_x, state.pos_y),
+            car_fwd,
+            half_l,
+            half_w,
+            ((wall.x0 + wall.x1) / 2.0, (wall.y0 + wall.y1) / 2.0),
+            dir,
+            len / 2.0,
+            WALL_HALF_THICKNESS_M,
+        ) else {
+            continue;
+        };
+
+        // Normal from the wall into the car.
+        let (nx, ny) = (-overlap.normal_x, -overlap.normal_y);
+        state.pos_x += nx * overlap.penetration;
+        state.pos_y += ny * overlap.penetration;
+        state.is_colliding = true;
+        state.collision_normal_x = nx;
+        state.collision_normal_y = ny;
+        state.collision_normal_z = 0.0;
+
+        let vn = state.vel_x * nx + state.vel_y * ny;
+        let (tx, ty) = (-ny, nx);
+        let vt = state.vel_x * tx + state.vel_y * ty;
+        let kind = wall.kind();
+        if vn < 0.0 {
+            let closing = -vn;
+            let dvn = (1.0 + kind.restitution()) * closing;
+            let dvt = -vt.signum() * (kind.friction() * dvn).min(vt.abs());
+            let (jx, jy) = (dvn * nx + dvt * tx, dvn * ny + dvt * ty);
+            state.vel_x += jx;
+            state.vel_y += jy;
+
+            // The impulse lands on the corner deepest in the wall; its
+            // moment about the centre is the yaw kick (impulse and inertia
+            // both per unit mass).
+            let (rx, ry) = deepest_corner(car_fwd, half_l, half_w, (nx, ny));
+            let inertia = (config.length_m.powi(2) + config.width_m.powi(2)) / 12.0;
+            let kick = ((rx * jy - ry * jx) / inertia.max(0.1))
+                .clamp(-WALL_MAX_YAW_KICK_RAD_S, WALL_MAX_YAW_KICK_RAD_S);
+            state.angular_vel_yaw += kick;
+
+            state.feedback.record_impact(closing);
+            let impact_speed = closing.min(50.0);
+            if impact_speed > 1.0 {
+                let damage_amount = (impact_speed / 50.0) * 5.0;
+                // Where the wall is, seen from the car (0 = dead ahead),
+                // as the car-car pass measures it.
+                let angle = ((-ny).atan2(-nx) - state.yaw_rad).rem_euclid(2.0 * PI);
+                apply_damage_to_car(state, angle, damage_amount);
+            }
+        } else {
+            // Resting against the wall: the flank grinds along it.
+            let scraped = vt * (-WALL_SCRAPE_RATE_PER_SEC * dt).exp();
+            state.vel_x += (scraped - vt) * tx;
+            state.vel_y += (scraped - vt) * ty;
+        }
+        state.speed_mps = (state.vel_x.powi(2) + state.vel_y.powi(2) + state.vel_z.powi(2)).sqrt();
+    }
+}
+
+/// The car corner furthest along `-normal`, relative to the car's centre.
+fn deepest_corner(fwd: (f32, f32), half_l: f32, half_w: f32, normal: (f32, f32)) -> (f32, f32) {
+    let left = (-fwd.1, fwd.0);
+    let mut best = (0.0, 0.0);
+    let mut best_depth = f32::INFINITY;
+    for (sl, sw) in [(1.0, 1.0), (1.0, -1.0), (-1.0, 1.0), (-1.0, -1.0)] {
+        let corner = (
+            fwd.0 * half_l * sl + left.0 * half_w * sw,
+            fwd.1 * half_l * sl + left.1 * half_w * sw,
+        );
+        let depth = corner.0 * normal.0 + corner.1 * normal.1;
+        if depth < best_depth {
+            best_depth = depth;
+            best = corner;
+        }
+    }
+    best
 }
 
 /// Number of virtual checkpoints synthesized (at 25%/50%/75% of track
@@ -3179,6 +3352,184 @@ mod tests {
         );
     }
 
+    use crate::walls::WallSegment;
+
+    fn wall_across(x: f32, kind: u8) -> Walls {
+        Walls::from_segments(vec![WallSegment {
+            x0: x,
+            y0: -30.0,
+            x1: x,
+            y1: 30.0,
+            z: 0.0,
+            height_m: 1.0,
+            kind,
+        }])
+    }
+
+    fn car_at(config: &CarConfig, x: f32, y: f32, yaw_rad: f32) -> CarState {
+        let slot = GridSlot {
+            position: 1,
+            x,
+            y,
+            z: 0.0,
+            yaw_rad,
+        };
+        CarState::new(Uuid::new_v4(), config.id, &slot)
+    }
+
+    /// Step a car on at its velocity, resolving walls each tick, and
+    /// report whether it ever touched one.
+    fn drive_into_walls(
+        state: &mut CarState,
+        config: &CarConfig,
+        walls: &Walls,
+        ticks: usize,
+    ) -> bool {
+        let dt = 1.0 / 240.0;
+        let mut nearby = Vec::new();
+        let mut hit = false;
+        for _ in 0..ticks {
+            state.pos_x += state.vel_x * dt;
+            state.pos_y += state.vel_y * dt;
+            state.is_colliding = false;
+            resolve_wall_contacts(state, config, walls, dt, &mut nearby);
+            hit |= state.is_colliding;
+        }
+        hit
+    }
+
+    #[test]
+    fn a_wall_stops_a_car_driving_into_it() {
+        let config = create_test_config();
+        let mut state = car_at(&config, 0.0, 0.0, 0.0);
+        state.vel_x = 40.0;
+        state.speed_mps = 40.0;
+        let walls = wall_across(10.0, 2);
+        let dt = 1.0 / 240.0;
+        let mut nearby = Vec::new();
+        let mut hit = false;
+        for _ in 0..240 {
+            state.pos_x += state.vel_x * dt;
+            resolve_wall_contacts(&mut state, &config, &walls, dt, &mut nearby);
+            hit |= state.is_colliding;
+            assert!(
+                state.pos_x + config.length_m / 2.0 <= 10.0 + 0.2,
+                "nose through the wall at x = {}",
+                state.pos_x
+            );
+        }
+        assert!(hit, "never touched the wall");
+        assert!(state.vel_x <= 0.0, "still going forward at {}", state.vel_x);
+        assert!(
+            state.damage.front_damage_percent > 0.0,
+            "a 144 km/h hit dents the nose"
+        );
+        assert!(
+            state.feedback.take(0).impact_mps > 30.0,
+            "the driver feels the hit"
+        );
+    }
+
+    #[test]
+    fn a_glancing_hit_keeps_the_car_moving_along_the_wall() {
+        let config = create_test_config();
+        // A wall along the road to the car's left, the car drifting into it.
+        let wall_y = config.width_m / 2.0 + 0.4;
+        let walls = Walls::from_segments(vec![WallSegment {
+            x0: -50.0,
+            y0: wall_y,
+            x1: 300.0,
+            y1: wall_y,
+            z: 0.0,
+            height_m: 1.0,
+            kind: 0,
+        }]);
+        let mut state = car_at(&config, 0.0, 0.0, 0.0);
+        state.vel_x = 30.0;
+        state.vel_y = 2.0;
+        state.speed_mps = state.vel_x.hypot(state.vel_y);
+        assert!(drive_into_walls(&mut state, &config, &walls, 240));
+        assert!(
+            state.vel_y <= 0.0,
+            "still moving into the wall at {}",
+            state.vel_y
+        );
+        assert!(
+            state.vel_x > 20.0,
+            "a glancing armco hit is not a stop: {}",
+            state.vel_x
+        );
+        assert!(
+            state.pos_y + config.width_m / 2.0 <= wall_y + 0.1,
+            "flank through the wall at y = {}",
+            state.pos_y
+        );
+    }
+
+    #[test]
+    fn a_wall_the_car_is_not_level_with_is_ignored() {
+        let config = create_test_config();
+        for wall_z in [5.0f32, -3.0] {
+            let mut segments = wall_across(10.0, 2).segments().to_vec();
+            segments[0].z = wall_z;
+            let walls = Walls::from_segments(segments);
+            let mut state = car_at(&config, 0.0, 0.0, 0.0);
+            state.vel_x = 40.0;
+            let hit = drive_into_walls(&mut state, &config, &walls, 120);
+            assert!(!hit, "hit a wall footed at z = {wall_z}");
+            assert!(state.pos_x > 15.0);
+        }
+    }
+
+    #[test]
+    fn a_nose_first_hit_turns_the_car() {
+        let config = create_test_config();
+        // Yawed a little left, so the right-front corner meets the wall
+        // first and the push on it swings the nose right (clockwise).
+        let mut state = car_at(&config, 0.0, 0.0, 0.2);
+        state.vel_x = 30.0;
+        state.speed_mps = 30.0;
+        let walls = wall_across(10.0, 2);
+        assert!(drive_into_walls(&mut state, &config, &walls, 240));
+        assert!(
+            state.angular_vel_yaw < -0.1,
+            "expected a clockwise kick, got {}",
+            state.angular_vel_yaw
+        );
+    }
+
+    #[test]
+    fn tires_absorb_more_of_the_hit_than_concrete() {
+        let config = create_test_config();
+        let bounce = |kind: u8| {
+            let mut state = car_at(&config, 0.0, 0.0, 0.0);
+            state.vel_x = 30.0;
+            drive_into_walls(&mut state, &config, &wall_across(10.0, kind), 120);
+            -state.vel_x
+        };
+        assert!(
+            bounce(1) < bounce(2),
+            "tires {} vs concrete {}",
+            bounce(1),
+            bounce(2)
+        );
+        assert!(bounce(1) >= 0.0);
+    }
+
+    #[test]
+    fn a_track_without_walls_stops_nothing() {
+        let config = create_test_config();
+        let track = TrackConfig::default();
+        let mut configs = HashMap::new();
+        configs.insert(config.id, config.clone());
+        let mut state = car_at(&config, 0.0, 0.0, 0.0);
+        state.vel_x = 40.0;
+        let mut refs = vec![&mut state];
+        check_wall_collisions(&mut refs, &configs, &track, 1.0 / 240.0);
+        assert!(!state.is_colliding);
+        assert_eq!(state.vel_x, 40.0);
+    }
+
     #[test]
     fn a_collision_is_felt_by_both_drivers() {
         let config = create_test_config();
@@ -3934,6 +4285,7 @@ mod tests {
             procedural_world: None,
             ground: None,
             curbs: None,
+            walls: None,
         };
 
         state.pos_x = 0.0;
@@ -4023,6 +4375,7 @@ mod tests {
             }),
             ground: None,
             curbs: None,
+            walls: None,
         };
 
         let centerline_sample = query_track_surface_centerline(&track, 0.5, 0.5, None)
@@ -4096,6 +4449,7 @@ mod tests {
             procedural_world: None,
             ground: None,
             curbs: None,
+            walls: None,
         }
     }
 

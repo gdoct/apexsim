@@ -294,10 +294,12 @@ function Get-GitCommit {
 # Server content: only what the server actually reads at startup. The .glb car
 # models (~43 MB) are already cooked into the client, the .ats sidecars belong
 # to the track editor, and content/tracks/export is intermediate bake output.
-# The <Track>.ground.msgpack heightfield and <Track>.curbs.msgpack bands the
-# bake writes next to each YAML are server input: without the first a car that
-# leaves the asphalt stays at road height instead of following the ground the
-# client draws, and without the second the curbs count as off track.
+# The <Track>.ground.msgpack heightfield, <Track>.curbs.msgpack bands and
+# <Track>.walls.msgpack barriers the bake writes next to each YAML are server
+# input: without the first a car that leaves the asphalt stays at road height
+# instead of following the ground the client draws, without the second the
+# curbs count as off track, and without the third nothing stops a car at the
+# barriers.
 function Copy-ServerContent {
     param([string]$Destination)
 
@@ -312,6 +314,7 @@ function Copy-ServerContent {
     New-Item -ItemType Directory -Path $tracksOut -Force | Out-Null
     $missingGround = [Collections.Generic.List[string]]::new()
     $missingCurbs = [Collections.Generic.List[string]]::new()
+    $missingWalls = [Collections.Generic.List[string]]::new()
     foreach ($track in Get-TrackFiles) {
         Copy-Item -LiteralPath $track.FullName -Destination $tracksOut -Force
         $ground = Join-Path $track.DirectoryName ($track.BaseName + '.ground.msgpack')
@@ -326,12 +329,21 @@ function Copy-ServerContent {
         } else {
             $missingCurbs.Add($track.BaseName)
         }
+        $walls = Join-Path $track.DirectoryName ($track.BaseName + '.walls.msgpack')
+        if (Test-Path -LiteralPath $walls) {
+            Copy-Item -LiteralPath $walls -Destination $tracksOut -Force
+        } else {
+            $missingWalls.Add($track.BaseName)
+        }
     }
     if ($missingGround.Count -gt 0) {
         Write-Warning ("no ground heightfield for: {0} (run the track bake; off-track cars will sit at road height)" -f ($missingGround -join ', '))
     }
     if ($missingCurbs.Count -gt 0) {
         Write-Warning ("no curb bands for: {0} (run the track bake; curbs will count as off track)" -f ($missingCurbs -join ', '))
+    }
+    if ($missingWalls.Count -gt 0) {
+        Write-Warning ("no walls for: {0} (run the track bake; cars will drive through the barriers)" -f ($missingWalls -join ', '))
     }
 }
 

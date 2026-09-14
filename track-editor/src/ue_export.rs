@@ -60,6 +60,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::ats::{AtsScene, Curb, Dressing, Marking, MarkingKind, Prop, PropKind, Side, Surface};
+use crate::props;
 use crate::terrain::{self, GroundHeightfield, TerrainHeightfield, Underpass};
 use crate::track_data::TrackFile;
 use crate::track_mesh::{
@@ -323,11 +324,12 @@ pub struct UePitLane {
 
 /// Everything one bake produces: the Unreal scene and the server's
 /// sidecars — the ground heightfield (absent only for a track too
-/// degenerate to have a terrain) and the curb bands.
+/// degenerate to have a terrain), the curb bands and the walls.
 pub struct Baked {
     pub scene: UeScene,
     pub ground: Option<GroundHeightfield>,
     pub curbs: Option<CurbBands>,
+    pub walls: Walls,
 }
 
 /// Station spacing of the curb sidecar, meters. Curbs run for tens of
@@ -411,6 +413,444 @@ fn bake_curb_bands(path: &CenterlinePath, curbs: &[Curb]) -> Option<CurbBands> {
 }
 
 // ---------------------------------------------------------------------------
+// Walls for the server
+// ---------------------------------------------------------------------------
+
+pub const WALLS_VERSION: u32 = 1;
+/// Steel armco or a fence: springy.
+pub const WALL_KIND_ARMCO: u8 = 0;
+/// Tires or TecPro: absorbs the hit.
+pub const WALL_KIND_TIRES: u8 = 1;
+/// Concrete, a building, a stand, a parapet: hard.
+pub const WALL_KIND_CONCRETE: u8 = 2;
+
+/// Two thin walls whose ends are this close along the run are joined, so
+/// a run of 4 m armco modules or tire-wall blocks laid a little apart
+/// reads as one continuous barrier and a car cannot slip between them.
+const WALL_JOIN_GAP_M: f32 = 4.5;
+/// …provided the ends are within this much of each other sideways…
+const WALL_JOIN_SIDESTEP_M: f32 = 1.0;
+/// …and the two run within about 35° of each other.
+const WALL_JOIN_ALIGN_COS: f32 = 0.82;
+/// A pit module deeper than this is a garage (a footprint), not a wall.
+const PIT_WALL_MAX_DEPTH_M: f32 = 2.5;
+/// Station step the underpass walls and parapets are sampled at.
+const UNDERPASS_WALL_STEP_M: f32 = 2.0;
+/// An underpass wall is written short of the upper ground by this much,
+/// so a car on the embankment above — its wheels at the wall's top — is
+/// not level with it; and dropped where less than a bumper's height is
+/// left.
+const UNDERPASS_WALL_TRIM_M: f32 = 1.0;
+const UNDERPASS_WALL_MIN_M: f32 = 0.3;
+/// Footprint of a building the kit does not know, metres.
+const UNKNOWN_BUILDING_FOOTPRINT: (f32, f32, f32) = (15.0, 10.0, 8.0);
+
+/// One solid face in the ground plane, track frame (metres, +Y left):
+/// the ground height at its base, how tall it is, and what it is made of
+/// (`WALL_KIND_*`).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WallSegment {
+    pub x0: f32,
+    pub y0: f32,
+    pub x1: f32,
+    pub y1: f32,
+    pub z: f32,
+    pub height_m: f32,
+    pub kind: u8,
+}
+
+/// The walls as the *server* needs them (`<Track>.walls.msgpack`, written
+/// with `rmp_serde::to_vec_named`): not meshes, just where the solid faces
+/// are, so the sim can stop a car at the armco the player sees instead of
+/// letting it drive through.
+///
+/// A barrier, tire wall, fence or pit wall is one segment along its
+/// heading; a grandstand, building, garage or fairground piece is the four
+/// sides of its footprint, laid behind the pivot where the mesh stands
+/// behind it; an underpass contributes the abutment walls
+/// beside the lower road and the deck's parapets. Heights let the server
+/// tell a wall the car is level with from one on the road above or below.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Walls {
+    pub version: u32,
+    pub segments: Vec<WallSegment>,
+}
+
+/// Unreal centimetres back to the track frame.
+fn from_ue(p: [f32; 3]) -> (f32, f32, f32) {
+    (p[0] / M_TO_CM, -p[1] / M_TO_CM, p[2] / M_TO_CM)
+}
+
+/// A wall of `length_m` centred on `at`, running along `yaw`.
+fn wall_face(
+    at: (f32, f32),
+    yaw: f32,
+    length_m: f32,
+    z: f32,
+    height_m: f32,
+    kind: u8,
+) -> WallSegment {
+    let (sin, cos) = yaw.sin_cos();
+    let (hx, hy) = (cos * length_m / 2.0, sin * length_m / 2.0);
+    WallSegment {
+        x0: at.0 - hx,
+        y0: at.1 - hy,
+        x1: at.0 + hx,
+        y1: at.1 + hy,
+        z,
+        height_m,
+        kind,
+    }
+}
+
+/// The deep kit meshes stand with their pivot on the road-facing edge and
+/// reach away from the road; these few are centred on it instead.
+fn footprint_is_centred(kind: PropKind, asset: &str) -> bool {
+    matches!(
+        (kind, asset),
+        (PropKind::Building, "control_tower")
+            | (
+                PropKind::Attraction,
+                "camera_tower" | "ferris_wheel" | "tent_6m"
+            )
+    )
+}
+
+/// Where a `length_m` × `depth_m` footprint pivoted at `at` is centred:
+/// on the pivot for a centred asset, else half its depth behind it, away
+/// from the road — the side of the prop's own normal the nearest
+/// centerline point is not on.
+fn footprint_centre(
+    at: (f32, f32),
+    yaw: f32,
+    depth_m: f32,
+    centred: bool,
+    path: &CenterlinePath,
+) -> (f32, f32) {
+    if centred {
+        return at;
+    }
+    let (sin, cos) = yaw.sin_cos();
+    let normal = (-sin, cos);
+    let (sample, _) = nearest_sample(path, at.0, at.1);
+    let toward = (at.0 - sample.pos.0) * normal.0 + (at.1 - sample.pos.1) * normal.1;
+    let away = if toward >= 0.0 { 1.0 } else { -1.0 };
+    (
+        at.0 + away * normal.0 * depth_m / 2.0,
+        at.1 + away * normal.1 * depth_m / 2.0,
+    )
+}
+
+/// The four sides of a `length_m` × `depth_m` footprint centred on `at`,
+/// its length along `yaw`.
+fn wall_footprint(
+    at: (f32, f32),
+    yaw: f32,
+    length_m: f32,
+    depth_m: f32,
+    z: f32,
+    height_m: f32,
+    kind: u8,
+) -> [WallSegment; 4] {
+    let (sin, cos) = yaw.sin_cos();
+    let (ux, uy) = (cos * length_m / 2.0, sin * length_m / 2.0);
+    let (vx, vy) = (-sin * depth_m / 2.0, cos * depth_m / 2.0);
+    let corner = |su: f32, sv: f32| (at.0 + su * ux + sv * vx, at.1 + su * uy + sv * vy);
+    let corners = [
+        corner(-1.0, -1.0),
+        corner(1.0, -1.0),
+        corner(1.0, 1.0),
+        corner(-1.0, 1.0),
+    ];
+    let side = |a: (f32, f32), b: (f32, f32)| WallSegment {
+        x0: a.0,
+        y0: a.1,
+        x1: b.0,
+        y1: b.1,
+        z,
+        height_m,
+        kind,
+    };
+    [
+        side(corners[0], corners[1]),
+        side(corners[1], corners[2]),
+        side(corners[2], corners[3]),
+        side(corners[3], corners[0]),
+    ]
+}
+
+/// What a barrier asset is made of, by its key.
+fn barrier_material(kind: PropKind, asset: &str) -> u8 {
+    match kind {
+        PropKind::TireWall => WALL_KIND_TIRES,
+        PropKind::Barrier if asset.starts_with("tecpro") => WALL_KIND_TIRES,
+        PropKind::Barrier if asset.starts_with("concrete") => WALL_KIND_CONCRETE,
+        _ => WALL_KIND_ARMCO,
+    }
+}
+
+/// The walls the exported props imply (see [`Walls`]), plus an underpass's
+/// structure when the terrain has one.
+fn bake_walls(
+    props: &[UeProp],
+    path: &CenterlinePath,
+    terrain: Option<&TerrainHeightfield>,
+) -> Walls {
+    let mut thin: Vec<WallSegment> = Vec::new();
+    let mut solid: Vec<WallSegment> = Vec::new();
+    for prop in props {
+        let Some(kind) = PropKind::ALL
+            .iter()
+            .copied()
+            .find(|k| k.label() == prop.kind)
+        else {
+            continue;
+        };
+        let (x, y, z) = from_ue(prop.location);
+        let yaw = -prop.yaw_deg.to_radians();
+        let kit = props::resolve(kind, &prop.asset);
+        let scale = if prop.scale.is_finite() && prop.scale > 0.0 {
+            prop.scale
+        } else {
+            1.0
+        };
+        match kind {
+            PropKind::Barrier | PropKind::Fence | PropKind::TireWall => {
+                let (length, height) = kit.map_or((4.0, 1.0), |a| (a.length_m, a.height_m));
+                thin.push(wall_face(
+                    (x, y),
+                    yaw,
+                    length * scale,
+                    z,
+                    height,
+                    barrier_material(kind, &prop.asset),
+                ));
+            }
+            PropKind::Pit => {
+                // The crew's kit stands on the working lane; a car may
+                // drive over it rather than crash into it.
+                let Some(a) = kit.filter(|_| prop.asset != "box_kit") else {
+                    continue;
+                };
+                if a.depth_m <= PIT_WALL_MAX_DEPTH_M {
+                    thin.push(wall_face(
+                        (x, y),
+                        yaw,
+                        a.length_m * scale,
+                        z,
+                        a.height_m,
+                        WALL_KIND_CONCRETE,
+                    ));
+                } else {
+                    let depth = a.depth_m * scale;
+                    solid.extend(wall_footprint(
+                        footprint_centre((x, y), yaw, depth, false, path),
+                        yaw,
+                        a.length_m * scale,
+                        depth,
+                        z,
+                        a.height_m,
+                        WALL_KIND_CONCRETE,
+                    ));
+                }
+            }
+            PropKind::Grandstand => {
+                // Scale is a length multiplier for a stand; the bays'
+                // depth is the family's.
+                let length = prop.length_m.unwrap_or(STAND_DEFAULT_LENGTH_M) * scale;
+                let (depth, height) = kit.map_or((12.0, 8.0), |a| (a.depth_m, a.height_m));
+                solid.extend(wall_footprint(
+                    footprint_centre((x, y), yaw, depth, false, path),
+                    yaw,
+                    length,
+                    depth,
+                    z,
+                    height,
+                    WALL_KIND_CONCRETE,
+                ));
+            }
+            PropKind::Building | PropKind::Attraction => {
+                let (length, depth, height) = match kit {
+                    Some(a) => (a.length_m, a.depth_m, a.height_m),
+                    None if kind == PropKind::Building => UNKNOWN_BUILDING_FOOTPRINT,
+                    None => continue,
+                };
+                let depth = depth * scale;
+                let centred = footprint_is_centred(kind, &prop.asset);
+                solid.extend(wall_footprint(
+                    footprint_centre((x, y), yaw, depth, centred, path),
+                    yaw,
+                    length * scale,
+                    depth,
+                    z,
+                    height,
+                    WALL_KIND_CONCRETE,
+                ));
+            }
+            // Trees, signs, lights, cones, boards (on the barrier line
+            // already), bridges (their footings are off the verge),
+            // vehicles and sky props stop nothing.
+            _ => {}
+        }
+    }
+    join_wall_runs(&mut thin);
+    if let Some(field) = terrain {
+        underpass_walls(field, &mut solid);
+    }
+    let mut segments = thin;
+    segments.extend(solid);
+    Walls {
+        version: WALLS_VERSION,
+        segments,
+    }
+}
+
+/// Close the small gaps in runs of thin walls: an end that has another
+/// wall's end within [`WALL_JOIN_GAP_M`] straight ahead of it, roughly in
+/// line, is moved to halfway between them (and that end is moved to the
+/// same place), so the run is continuous.
+fn join_wall_runs(walls: &mut [WallSegment]) {
+    let ends: Vec<[(f32, f32); 2]> = walls.iter().map(|w| [(w.x0, w.y0), (w.x1, w.y1)]).collect();
+    let dirs: Vec<(f32, f32)> = walls
+        .iter()
+        .map(|w| {
+            let len = (w.x1 - w.x0).hypot(w.y1 - w.y0).max(1e-6);
+            ((w.x1 - w.x0) / len, (w.y1 - w.y0) / len)
+        })
+        .collect();
+    let mut moved: Vec<[Option<(f32, f32)>; 2]> = vec![[None, None]; walls.len()];
+    for i in 0..walls.len() {
+        for end in 0..2 {
+            let p = ends[i][end];
+            // Which way is "beyond" this end.
+            let out = if end == 1 {
+                dirs[i]
+            } else {
+                (-dirs[i].0, -dirs[i].1)
+            };
+            let mut best: Option<(f32, (f32, f32))> = None;
+            for j in 0..walls.len() {
+                if j == i
+                    || (dirs[i].0 * dirs[j].0 + dirs[i].1 * dirs[j].1).abs() < WALL_JOIN_ALIGN_COS
+                {
+                    continue;
+                }
+                for q in ends[j] {
+                    let (dx, dy) = (q.0 - p.0, q.1 - p.1);
+                    let along = dx * out.0 + dy * out.1;
+                    let aside = (dx * out.1 - dy * out.0).abs();
+                    let gap = dx.hypot(dy);
+                    if along <= 0.0 || gap > WALL_JOIN_GAP_M || aside > WALL_JOIN_SIDESTEP_M {
+                        continue;
+                    }
+                    if best.is_none_or(|(g, _)| gap < g) {
+                        best = Some((gap, q));
+                    }
+                }
+            }
+            if let Some((_, q)) = best {
+                moved[i][end] = Some(((p.0 + q.0) / 2.0, (p.1 + q.1) / 2.0));
+            }
+        }
+    }
+    for (wall, m) in walls.iter_mut().zip(moved) {
+        if let Some((x, y)) = m[0] {
+            (wall.x0, wall.y0) = (x, y);
+        }
+        if let Some((x, y)) = m[1] {
+            (wall.x1, wall.y1) = (x, y);
+        }
+    }
+}
+
+/// A polyline sampled along `path` at `step`, as segments into `out`.
+fn wall_polyline(
+    path: &CenterlinePath,
+    from: f32,
+    to: f32,
+    step: f32,
+    mut point: impl FnMut(&PathSample) -> Option<(f32, f32, f32, f32)>,
+    kind: u8,
+    out: &mut Vec<WallSegment>,
+) {
+    let mut prev: Option<(f32, f32, f32, f32)> = None;
+    let mut station = from;
+    loop {
+        let here = point(&path.sample_at(station));
+        if let (Some(a), Some(b)) = (prev, here) {
+            let height = a.3.max(b.3);
+            if height >= UNDERPASS_WALL_MIN_M {
+                out.push(WallSegment {
+                    x0: a.0,
+                    y0: a.1,
+                    x1: b.0,
+                    y1: b.1,
+                    z: a.2.min(b.2),
+                    height_m: height,
+                    kind,
+                });
+            }
+        }
+        prev = here;
+        if station >= to {
+            break;
+        }
+        station = (station + step).min(to);
+    }
+}
+
+/// The abutment walls beside the lower road (where the export draws them)
+/// and the parapets along the deck.
+fn underpass_walls(field: &TerrainHeightfield, out: &mut Vec<WallSegment>) {
+    let gap = terrain::UNDERPASS_WALL_GAP_M;
+    let over = terrain::DECK_OVERHANG_M;
+    for u in field.underpasses() {
+        let lower = field.road_path(u.lower_road);
+        let upper = field.road_path(u.upper_road);
+        for outward in [1.0f32, -1.0] {
+            let edge = move |s: &PathSample| {
+                if outward > 0.0 {
+                    s.width_left_m
+                } else {
+                    -s.width_right_m
+                }
+            };
+            for (from, to) in wall_runs(field, lower, u, outward) {
+                wall_polyline(
+                    lower,
+                    from,
+                    to,
+                    UNDERPASS_WALL_STEP_M,
+                    |s| {
+                        let face = offset_point(s, edge(s) + outward * gap);
+                        let floor = offset_point(s, edge(s) + outward * (gap - 0.1));
+                        let bank = offset_point(s, edge(s) + outward * (gap + 0.1));
+                        let z = field.ground_height_at(floor.0, floor.1);
+                        let top = field.ground_height_at(bank.0, bank.1);
+                        Some((face.0, face.1, z, top - z - UNDERPASS_WALL_TRIM_M))
+                    },
+                    WALL_KIND_CONCRETE,
+                    out,
+                );
+            }
+            let (start, end) = u.deck_span_m;
+            wall_polyline(
+                upper,
+                start,
+                end,
+                UNDERPASS_WALL_STEP_M,
+                |s| {
+                    let p = offset_point(s, edge(s) + outward * over);
+                    Some((p.0, p.1, p.2, PARAPET_HEIGHT_M))
+                },
+                WALL_KIND_CONCRETE,
+                out,
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Baking
 // ---------------------------------------------------------------------------
 
@@ -422,7 +862,7 @@ pub fn bake(track: &TrackFile, scene: &AtsScene) -> Option<UeScene> {
     bake_all(track, scene).map(|b| b.scene)
 }
 
-/// [`bake`], plus the ground sidecar for the server.
+/// [`bake`], plus the sidecars for the server.
 pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
     let path = CenterlinePath::from_track(track)?;
     let lane = scene
@@ -494,6 +934,14 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
         .as_ref()
         .map(|field| field.bake_ground_sidecar(terrain::GROUND_SIDECAR_CELL_M));
     let curbs = bake_curb_bands(&path, &scene.curbs);
+    let props = bake_props(
+        scene,
+        &path,
+        lane.as_ref(),
+        &lane_relation,
+        terrain.as_ref(),
+    );
+    let walls = bake_walls(&props, &path, terrain.as_ref());
 
     let scene = UeScene {
         format: UE_SCENE_FORMAT.to_string(),
@@ -507,13 +955,7 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
         dressing: scene.dressing.into(),
         materials: bake.materials.into_values().collect(),
         meshes: merge_chunks(bake.chunks),
-        props: bake_props(
-            scene,
-            &path,
-            lane.as_ref(),
-            &lane_relation,
-            terrain.as_ref(),
-        ),
+        props,
         grid: bake_grid(track, &path),
         centerline: bake_centerline(&path),
         pit_lane,
@@ -523,6 +965,7 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
         scene,
         ground,
         curbs,
+        walls,
     })
 }
 

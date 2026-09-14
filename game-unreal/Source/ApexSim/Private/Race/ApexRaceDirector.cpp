@@ -521,7 +521,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	{
 		if (AApexRaceCarActor* Actor = FindCar(Car.CarIndex))
 		{
-			Actor->ApplyTelemetry(Car);
+			Actor->ApplyTelemetry(Car, Frame.ServerTick);
 		}
 		FCarProgress& Progress = CarProgress.FindOrAdd(Car.CarIndex);
 		Progress.Lap = Car.CurrentLap;

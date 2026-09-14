@@ -177,6 +177,7 @@ impl TrackLoader {
         let ground =
             track_path.and_then(|path| Self::load_ground_heightfield(&track_file.name, path));
         let curbs = track_path.and_then(|path| Self::load_curb_bands(&track_file.name, path));
+        let walls = track_path.and_then(|path| Self::load_walls(&track_file.name, path));
 
         // Use track_id from file if provided, otherwise generate new UUID
         let track_id = if let Some(track_id_str) = &track_file.track_id {
@@ -242,6 +243,7 @@ impl TrackLoader {
             procedural_world,
             ground,
             curbs,
+            walls,
         };
         config.rebuild_raceline_distances();
         Ok(config)
@@ -311,6 +313,37 @@ impl TrackLoader {
             Err(e) => {
                 warn!(
                     "Ignoring curb bands {} for {}: {}",
+                    sidecar.display(),
+                    track_name,
+                    e
+                );
+                None
+            }
+        }
+    }
+
+    /// Load the baked walls the track editor writes next to the track file,
+    /// if present. Missing is normal (the sidecar is generated, not
+    /// committed) and means nothing stops a car off the road, as before; a
+    /// present-but-broken file is a warning.
+    fn load_walls(track_name: &str, track_path: &Path) -> Option<crate::walls::Walls> {
+        let sidecar = crate::walls::Walls::sidecar_path(track_path);
+        if !sidecar.exists() {
+            debug!(
+                "No walls for {} ({}); nothing stops a car off the road",
+                track_name,
+                sidecar.display()
+            );
+            return None;
+        }
+        match crate::walls::Walls::load(&sidecar) {
+            Ok(walls) => {
+                info!("Loaded walls for {}: {} segments", track_name, walls.len());
+                Some(walls)
+            }
+            Err(e) => {
+                warn!(
+                    "Ignoring walls {} for {}: {}",
                     sidecar.display(),
                     track_name,
                     e
