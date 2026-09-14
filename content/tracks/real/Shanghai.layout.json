@@ -1,0 +1,1608 @@
+{
+ "format": "apex-track-layout",
+ "version": 1,
+ "source_track": "Shanghai.yaml",
+ "track_name": "Shanghai International Circuit",
+ "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
+ "osm_bbox": [
+  [
+   121.205,
+   31.328,
+   121.235,
+   31.352
+  ]
+ ],
+ "fit": {
+  "rmse_m": 2.29,
+  "raceway_matched": 0.588,
+  "centerline_covered": 0.99,
+  "centerline_covered_m": 4320
+ },
+ "corners": [],
+ "pit_lane": {
+  "side": "right",
+  "length_m": 707.6,
+  "nodes": [
+   [
+    177.03,
+    110.67
+   ],
+   [
+    168.19,
+    106.78
+   ],
+   [
+    159.42,
+    102.26
+   ],
+   [
+    149.63,
+    96.48
+   ],
+   [
+    135.86,
+    88.81
+   ],
+   [
+    128.14,
+    84.34
+   ],
+   [
+    120.41,
+    79.86
+   ],
+   [
+    107.06,
+    72.12
+   ],
+   [
+    99.78,
+    68.0
+   ],
+   [
+    92.5,
+    63.89
+   ],
+   [
+    85.22,
+    59.77
+   ],
+   [
+    77.95,
+    55.66
+   ],
+   [
+    70.67,
+    51.54
+   ],
+   [
+    63.39,
+    47.43
+   ],
+   [
+    56.11,
+    43.32
+   ],
+   [
+    48.84,
+    39.2
+   ],
+   [
+    41.56,
+    35.09
+   ],
+   [
+    34.28,
+    30.97
+   ],
+   [
+    26.45,
+    26.59
+   ],
+   [
+    19.88,
+    23.33
+   ],
+   [
+    9.11,
+    18.42
+   ],
+   [
+    0.94,
+    15.76
+   ],
+   [
+    -7.23,
+    13.1
+   ],
+   [
+    -15.59,
+    11.0
+   ],
+   [
+    -23.94,
+    8.89
+   ],
+   [
+    -31.92,
+    7.16
+   ],
+   [
+    -39.89,
+    5.43
+   ],
+   [
+    -47.86,
+    3.69
+   ],
+   [
+    -55.83,
+    1.96
+   ],
+   [
+    -63.81,
+    0.23
+   ],
+   [
+    -71.78,
+    -1.51
+   ],
+   [
+    -79.75,
+    -3.24
+   ],
+   [
+    -87.72,
+    -4.97
+   ],
+   [
+    -95.7,
+    -6.71
+   ],
+   [
+    -103.67,
+    -8.44
+   ],
+   [
+    -111.64,
+    -10.17
+   ],
+   [
+    -119.61,
+    -11.91
+   ],
+   [
+    -127.59,
+    -13.64
+   ],
+   [
+    -135.56,
+    -15.37
+   ],
+   [
+    -143.53,
+    -17.11
+   ],
+   [
+    -151.5,
+    -18.84
+   ],
+   [
+    -159.48,
+    -20.57
+   ],
+   [
+    -167.45,
+    -22.3
+   ],
+   [
+    -175.42,
+    -24.04
+   ],
+   [
+    -183.39,
+    -25.77
+   ],
+   [
+    -191.37,
+    -27.5
+   ],
+   [
+    -199.34,
+    -29.24
+   ],
+   [
+    -207.31,
+    -30.97
+   ],
+   [
+    -215.29,
+    -32.7
+   ],
+   [
+    -223.26,
+    -34.44
+   ],
+   [
+    -231.23,
+    -36.17
+   ],
+   [
+    -239.2,
+    -37.9
+   ],
+   [
+    -247.18,
+    -39.64
+   ],
+   [
+    -255.15,
+    -41.37
+   ],
+   [
+    -263.12,
+    -43.1
+   ],
+   [
+    -271.09,
+    -44.84
+   ],
+   [
+    -279.07,
+    -46.57
+   ],
+   [
+    -287.04,
+    -48.3
+   ],
+   [
+    -295.01,
+    -50.04
+   ],
+   [
+    -302.98,
+    -51.77
+   ],
+   [
+    -310.96,
+    -53.5
+   ],
+   [
+    -318.93,
+    -55.24
+   ],
+   [
+    -326.9,
+    -56.97
+   ],
+   [
+    -334.87,
+    -58.7
+   ],
+   [
+    -342.85,
+    -60.44
+   ],
+   [
+    -351.0,
+    -62.41
+   ],
+   [
+    -359.15,
+    -64.37
+   ],
+   [
+    -367.3,
+    -66.34
+   ],
+   [
+    -375.45,
+    -68.31
+   ],
+   [
+    -386.94,
+    -71.36
+   ],
+   [
+    -395.7,
+    -74.36
+   ],
+   [
+    -404.59,
+    -78.13
+   ],
+   [
+    -413.18,
+    -82.44
+   ],
+   [
+    -421.35,
+    -86.35
+   ],
+   [
+    -432.56,
+    -90.27
+   ],
+   [
+    -440.5,
+    -92.31
+   ],
+   [
+    -448.44,
+    -94.36
+   ],
+   [
+    -456.81,
+    -97.0
+   ],
+   [
+    -465.17,
+    -99.63
+   ],
+   [
+    -473.54,
+    -102.27
+   ],
+   [
+    -481.91,
+    -104.91
+   ],
+   [
+    -490.28,
+    -107.55
+   ]
+  ]
+ },
+ "stands": [
+  {
+   "name": "A看台",
+   "station_m": 180.7,
+   "side": "right",
+   "offset_m": 17.1,
+   "length_m": 391.2,
+   "depth_m": 139.6,
+   "yaw_rad": 0.2125,
+   "centre": [
+    -177.7,
+    -33.03
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -338.05,
+     -33.02
+    ],
+    [
+     -326.14,
+     -88.28
+    ],
+    [
+     -4.24,
+     -18.85
+    ],
+    [
+     -16.2,
+     36.6
+    ]
+   ]
+  },
+  {
+   "name": "B1看台",
+   "station_m": 511.5,
+   "side": "left",
+   "offset_m": 23.4,
+   "length_m": 160.9,
+   "depth_m": 32.8,
+   "yaw_rad": 0.2435,
+   "centre": [
+    -497.39,
+    -153.24
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -439.68,
+     -118.65
+    ],
+    [
+     -431.78,
+     -150.45
+    ]
+   ]
+  },
+  {
+   "name": "B2看台",
+   "station_m": 590.2,
+   "side": "left",
+   "offset_m": 89.0,
+   "length_m": 105.1,
+   "depth_m": 39.7,
+   "yaw_rad": 3.033,
+   "centre": [
+    -649.17,
+    -181.46
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -626.5,
+     -183.01
+    ],
+    [
+     -597.1,
+     -174.79
+    ],
+    [
+     -593.17,
+     -190.25
+    ]
+   ]
+  },
+  {
+   "name": "B3看台",
+   "station_m": 642.2,
+   "side": "left",
+   "offset_m": 104.4,
+   "length_m": 196.6,
+   "depth_m": 45.9,
+   "yaw_rad": 1.7014,
+   "centre": [
+    -710.61,
+    -68.39
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -702.85,
+     28.93
+    ],
+    [
+     -710.07,
+     -9.7
+    ],
+    [
+     -712.17,
+     -40.88
+    ],
+    [
+     -706.99,
+     -80.37
+    ],
+    [
+     -696.71,
+     -112.32
+    ],
+    [
+     -677.69,
+     -146.67
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3256.5,
+   "side": "left",
+   "offset_m": 49.8,
+   "length_m": 36.0,
+   "depth_m": 15.8,
+   "yaw_rad": 2.5696,
+   "centre": [
+    -348.71,
+    679.75
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -363.47,
+     696.77
+    ],
+    [
+     -333.16,
+     677.26
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3283.6,
+   "side": "left",
+   "offset_m": 58.4,
+   "length_m": 35.4,
+   "depth_m": 16.2,
+   "yaw_rad": 2.2509,
+   "centre": [
+    -384.5,
+    711.33
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -388.36,
+     726.4
+    ],
+    [
+     -366.13,
+     698.91
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3304.7,
+   "side": "left",
+   "offset_m": 65.2,
+   "length_m": 36.1,
+   "depth_m": 16.1,
+   "yaw_rad": 1.9203,
+   "centre": [
+    -403.29,
+    746.83
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -402.2,
+     762.61
+    ],
+    [
+     -389.82,
+     728.67
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3328.3,
+   "side": "left",
+   "offset_m": 69.1,
+   "length_m": 36.5,
+   "depth_m": 15.6,
+   "yaw_rad": 1.6048,
+   "centre": [
+    -410.19,
+    786.54
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -404.46,
+     801.34
+    ],
+    [
+     -403.21,
+     764.87
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3349.8,
+   "side": "left",
+   "offset_m": 70.1,
+   "length_m": 36.7,
+   "depth_m": 15.6,
+   "yaw_rad": 1.3788,
+   "centre": [
+    -406.36,
+    826.26
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -397.42,
+     839.49
+    ],
+    [
+     -404.43,
+     803.44
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3368.7,
+   "side": "left",
+   "offset_m": 71.5,
+   "length_m": 36.3,
+   "depth_m": 17.0,
+   "yaw_rad": 1.1342,
+   "centre": [
+    -393.3,
+    863.89
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -380.99,
+     874.18
+    ],
+    [
+     -396.35,
+     841.27
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3388.7,
+   "side": "left",
+   "offset_m": 73.6,
+   "length_m": 35.8,
+   "depth_m": 17.3,
+   "yaw_rad": 0.9034,
+   "centre": [
+    -371.29,
+    897.13
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -356.98,
+     904.11
+    ],
+    [
+     -379.17,
+     875.96
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3409.8,
+   "side": "left",
+   "offset_m": 75.9,
+   "length_m": 35.8,
+   "depth_m": 17.7,
+   "yaw_rad": 0.6333,
+   "centre": [
+    -341.47,
+    923.98
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -325.75,
+     926.73
+    ],
+    [
+     -354.57,
+     905.57
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3430.1,
+   "side": "left",
+   "offset_m": 77.0,
+   "length_m": 35.3,
+   "depth_m": 16.9,
+   "yaw_rad": 0.3685,
+   "centre": [
+    -305.57,
+    941.65
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -289.99,
+     940.43
+    ],
+    [
+     -322.88,
+     927.74
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3454.5,
+   "side": "left",
+   "offset_m": 74.9,
+   "length_m": 36.2,
+   "depth_m": 17.0,
+   "yaw_rad": 0.0925,
+   "centre": [
+    -266.28,
+    949.75
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -251.23,
+     944.34
+    ],
+    [
+     -287.28,
+     940.99
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 3475.2,
+   "side": "left",
+   "offset_m": 74.6,
+   "length_m": 36.2,
+   "depth_m": 17.2,
+   "yaw_rad": 3.1097,
+   "centre": [
+    -227.54,
+    950.36
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -213.3,
+     943.01
+    ],
+    [
+     -249.43,
+     944.17
+    ]
+   ]
+  },
+  {
+   "name": "H看台",
+   "station_m": 4656.2,
+   "side": "left",
+   "offset_m": 7.3,
+   "length_m": 319.0,
+   "depth_m": 41.4,
+   "yaw_rad": 2.1432,
+   "centre": [
+    455.32,
+    -74.41
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     529.49,
+     -209.4
+    ],
+    [
+     516.76,
+     -204.29
+    ],
+    [
+     514.66,
+     -188.33
+    ],
+    [
+     501.77,
+     -183.28
+    ],
+    [
+     500.55,
+     -168.71
+    ],
+    [
+     493.73,
+     -166.58
+    ],
+    [
+     488.36,
+     -159.74
+    ],
+    [
+     489.49,
+     -148.72
+    ],
+    [
+     475.87,
+     -142.71
+    ],
+    [
+     474.86,
+     -127.78
+    ],
+    [
+     467.33,
+     -125.61
+    ],
+    [
+     461.96,
+     -118.77
+    ],
+    [
+     463.25,
+     -107.41
+    ],
+    [
+     449.84,
+     -102.52
+    ],
+    [
+     448.68,
+     -87.83
+    ],
+    [
+     438.41,
+     -82.83
+    ],
+    [
+     437.29,
+     -66.55
+    ],
+    [
+     423.43,
+     -61.81
+    ],
+    [
+     420.87,
+     -53.55
+    ],
+    [
+     422.48,
+     -46.76
+    ],
+    [
+     415.02,
+     -44.6
+    ],
+    [
+     409.64,
+     -37.76
+    ],
+    [
+     411.35,
+     -25.73
+    ],
+    [
+     398.04,
+     -20.75
+    ],
+    [
+     397.02,
+     -5.83
+    ],
+    [
+     389.0,
+     -3.65
+    ],
+    [
+     383.62,
+     3.19
+    ],
+    [
+     385.23,
+     15.38
+    ],
+    [
+     371.64,
+     20.21
+    ],
+    [
+     370.55,
+     35.03
+    ],
+    [
+     360.21,
+     40.02
+    ],
+    [
+     357.66,
+     48.29
+    ],
+    [
+     361.06,
+     58.24
+    ],
+    [
+     367.26,
+     63.13
+    ]
+   ]
+  },
+  {
+   "name": "K看台",
+   "station_m": 4960.2,
+   "side": "left",
+   "offset_m": 26.8,
+   "length_m": 317.9,
+   "depth_m": 35.7,
+   "yaw_rad": 2.1779,
+   "centre": [
+    350.27,
+    -145.16
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     251.33,
+     -20.86
+    ],
+    [
+     256.48,
+     -13.61
+    ],
+    [
+     264.65,
+     -9.53
+    ],
+    [
+     278.92,
+     -13.5
+    ],
+    [
+     329.62,
+     -89.12
+    ],
+    [
+     335.1,
+     -92.42
+    ],
+    [
+     356.38,
+     -127.81
+    ],
+    [
+     362.3,
+     -131.22
+    ],
+    [
+     366.13,
+     -141.92
+    ],
+    [
+     374.51,
+     -150.14
+    ],
+    [
+     383.67,
+     -167.28
+    ],
+    [
+     390.0,
+     -170.79
+    ],
+    [
+     393.81,
+     -181.93
+    ],
+    [
+     402.85,
+     -190.11
+    ],
+    [
+     411.3,
+     -207.22
+    ],
+    [
+     417.71,
+     -210.75
+    ],
+    [
+     424.24,
+     -225.93
+    ],
+    [
+     430.55,
+     -229.43
+    ],
+    [
+     437.94,
+     -245.76
+    ],
+    [
+     445.42,
+     -249.56
+    ]
+   ]
+  }
+ ],
+ "structures": [
+  {
+   "name": null,
+   "station_m": 38.2,
+   "side": "right",
+   "offset_m": 90.9,
+   "length_m": 20.8,
+   "depth_m": 18.3,
+   "yaw_rad": 1.7864,
+   "centre": [
+    -59.12,
+    93.82
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 379
+  },
+  {
+   "name": null,
+   "station_m": 40.7,
+   "side": "right",
+   "offset_m": 121.5,
+   "length_m": 21.0,
+   "depth_m": 15.8,
+   "yaw_rad": 1.7985,
+   "centre": [
+    -67.13,
+    119.22
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 331
+  },
+  {
+   "name": null,
+   "station_m": 59.7,
+   "side": "right",
+   "offset_m": 99.0,
+   "length_m": 21.3,
+   "depth_m": 16.3,
+   "yaw_rad": 0.2141,
+   "centre": [
+    -80.92,
+    91.28
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 349
+  },
+  {
+   "name": null,
+   "station_m": 70.1,
+   "side": "right",
+   "offset_m": 130.7,
+   "length_m": 20.9,
+   "depth_m": 16.0,
+   "yaw_rad": 0.1907,
+   "centre": [
+    -97.88,
+    119.59
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 336
+  },
+  {
+   "name": null,
+   "station_m": 83.3,
+   "side": "right",
+   "offset_m": 90.4,
+   "length_m": 21.0,
+   "depth_m": 18.7,
+   "yaw_rad": 1.8004,
+   "centre": [
+    -103.09,
+    80.99
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 393
+  },
+  {
+   "name": null,
+   "station_m": 108.3,
+   "side": "right",
+   "offset_m": 87.2,
+   "length_m": 21.0,
+   "depth_m": 15.9,
+   "yaw_rad": 0.2186,
+   "centre": [
+    -126.13,
+    68.79
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 334
+  },
+  {
+   "name": null,
+   "station_m": 130.2,
+   "side": "right",
+   "offset_m": 133.2,
+   "length_m": 20.8,
+   "depth_m": 18.7,
+   "yaw_rad": 1.7841,
+   "centre": [
+    -157.84,
+    110.16
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 388
+  },
+  {
+   "name": null,
+   "station_m": 134.1,
+   "side": "right",
+   "offset_m": 91.5,
+   "length_m": 21.1,
+   "depth_m": 18.8,
+   "yaw_rad": 1.7834,
+   "centre": [
+    -153.11,
+    70.94
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 397
+  },
+  {
+   "name": null,
+   "station_m": 170.7,
+   "side": "right",
+   "offset_m": 91.1,
+   "length_m": 20.8,
+   "depth_m": 18.2,
+   "yaw_rad": 1.7811,
+   "centre": [
+    -188.61,
+    62.98
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 378
+  },
+  {
+   "name": null,
+   "station_m": 188.4,
+   "side": "right",
+   "offset_m": 130.8,
+   "length_m": 20.1,
+   "depth_m": 16.9,
+   "yaw_rad": 1.7876,
+   "centre": [
+    -214.53,
+    99.35
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 339
+  },
+  {
+   "name": null,
+   "station_m": 190.5,
+   "side": "right",
+   "offset_m": 26.4,
+   "length_m": 322.3,
+   "depth_m": 31.1,
+   "yaw_rad": 0.2124,
+   "centre": [
+    -195.47,
+    2.69
+   ],
+   "levels": 2,
+   "osm_building": "garages",
+   "area_m2": 10008
+  },
+  {
+   "name": null,
+   "station_m": 195.0,
+   "side": "right",
+   "offset_m": 87.3,
+   "length_m": 20.8,
+   "depth_m": 15.7,
+   "yaw_rad": 0.1991,
+   "centre": [
+    -210.96,
+    52.53
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 327
+  },
+  {
+   "name": null,
+   "station_m": 206.5,
+   "side": "right",
+   "offset_m": 130.9,
+   "length_m": 20.1,
+   "depth_m": 17.7,
+   "yaw_rad": 1.7813,
+   "centre": [
+    -231.01,
+    91.74
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 356
+  },
+  {
+   "name": null,
+   "station_m": 221.9,
+   "side": "right",
+   "offset_m": 95.2,
+   "length_m": 21.2,
+   "depth_m": 18.6,
+   "yaw_rad": 1.7889,
+   "centre": [
+    -238.74,
+    55.58
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 395
+  },
+  {
+   "name": null,
+   "station_m": 246.0,
+   "side": "right",
+   "offset_m": 88.9,
+   "length_m": 21.1,
+   "depth_m": 18.3,
+   "yaw_rad": 1.787,
+   "centre": [
+    -261.07,
+    45.49
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 386
+  },
+  {
+   "name": null,
+   "station_m": 256.7,
+   "side": "right",
+   "offset_m": 123.3,
+   "length_m": 21.2,
+   "depth_m": 16.3,
+   "yaw_rad": 1.7995,
+   "centre": [
+    -279.03,
+    78.02
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 345
+  },
+  {
+   "name": null,
+   "station_m": 273.2,
+   "side": "right",
+   "offset_m": 90.0,
+   "length_m": 21.2,
+   "depth_m": 16.1,
+   "yaw_rad": 0.2193,
+   "centre": [
+    -288.0,
+    40.43
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 340
+  },
+  {
+   "name": null,
+   "station_m": 285.6,
+   "side": "right",
+   "offset_m": 128.6,
+   "length_m": 21.0,
+   "depth_m": 18.6,
+   "yaw_rad": 1.7849,
+   "centre": [
+    -308.18,
+    74.0
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 389
+  },
+  {
+   "name": null,
+   "station_m": 296.1,
+   "side": "right",
+   "offset_m": 93.1,
+   "length_m": 20.9,
+   "depth_m": 18.8,
+   "yaw_rad": 1.7999,
+   "centre": [
+    -311.18,
+    37.02
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 394
+  },
+  {
+   "name": null,
+   "station_m": 322.6,
+   "side": "right",
+   "offset_m": 86.4,
+   "length_m": 21.0,
+   "depth_m": 16.3,
+   "yaw_rad": 0.204,
+   "centre": [
+    -335.7,
+    26.65
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 342
+  },
+  {
+   "name": null,
+   "station_m": 1431.0,
+   "side": "left",
+   "offset_m": 123.9,
+   "length_m": 51.3,
+   "depth_m": 32.6,
+   "yaw_rad": 2.0994,
+   "centre": [
+    -810.0,
+    307.69
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1670
+  },
+  {
+   "name": null,
+   "station_m": 2124.5,
+   "side": "right",
+   "offset_m": 127.5,
+   "length_m": 20.6,
+   "depth_m": 16.2,
+   "yaw_rad": 1.7767,
+   "centre": [
+    -259.09,
+    109.7
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 334
+  },
+  {
+   "name": null,
+   "station_m": 2144.6,
+   "side": "right",
+   "offset_m": 133.6,
+   "length_m": 21.0,
+   "depth_m": 15.8,
+   "yaw_rad": 1.787,
+   "centre": [
+    -219.76,
+    133.3
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 331
+  },
+  {
+   "name": null,
+   "station_m": 2216.4,
+   "side": "left",
+   "offset_m": 105.4,
+   "length_m": 55.4,
+   "depth_m": 15.5,
+   "yaw_rad": 0.4935,
+   "centre": [
+    -396.73,
+    354.22
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 860
+  },
+  {
+   "name": null,
+   "station_m": 2286.1,
+   "side": "left",
+   "offset_m": 127.7,
+   "length_m": 70.9,
+   "depth_m": 12.2,
+   "yaw_rad": 0.4795,
+   "centre": [
+    -365.52,
+    448.69
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 866
+  },
+  {
+   "name": null,
+   "station_m": 2315.8,
+   "side": "left",
+   "offset_m": 115.4,
+   "length_m": 37.5,
+   "depth_m": 21.6,
+   "yaw_rad": 2.0499,
+   "centre": [
+    -299.15,
+    499.01
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 809
+  },
+  {
+   "name": null,
+   "station_m": 2328.5,
+   "side": "left",
+   "offset_m": 124.4,
+   "length_m": 29.2,
+   "depth_m": 28.8,
+   "yaw_rad": 0.48,
+   "centre": [
+    -269.21,
+    519.3
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 840
+  },
+  {
+   "name": null,
+   "station_m": 2530.3,
+   "side": "right",
+   "offset_m": 137.6,
+   "length_m": 20.8,
+   "depth_m": 15.7,
+   "yaw_rad": 0.2229,
+   "centre": [
+    -167.6,
+    162.32
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 325
+  },
+  {
+   "name": null,
+   "station_m": 2544.6,
+   "side": "right",
+   "offset_m": 114.6,
+   "length_m": 21.1,
+   "depth_m": 16.4,
+   "yaw_rad": 1.7817,
+   "centre": [
+    -126.37,
+    158.57
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 346
+  },
+  {
+   "name": null,
+   "station_m": 2556.0,
+   "side": "right",
+   "offset_m": 106.6,
+   "length_m": 21.0,
+   "depth_m": 16.3,
+   "yaw_rad": 1.7848,
+   "centre": [
+    -88.62,
+    153.28
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 343
+  },
+  {
+   "name": null,
+   "station_m": 2971.0,
+   "side": "left",
+   "offset_m": 102.5,
+   "length_m": 52.2,
+   "depth_m": 35.3,
+   "yaw_rad": 2.0583,
+   "centre": [
+    -233.83,
+    543.84
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1712
+  },
+  {
+   "name": null,
+   "station_m": 3846.8,
+   "side": "left",
+   "offset_m": 83.5,
+   "length_m": 23.9,
+   "depth_m": 12.6,
+   "yaw_rad": 1.7482,
+   "centre": [
+    77.96,
+    644.09
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 301
+  },
+  {
+   "name": null,
+   "station_m": 4413.2,
+   "side": "left",
+   "offset_m": 55.3,
+   "length_m": 23.3,
+   "depth_m": 12.6,
+   "yaw_rad": 2.1263,
+   "centre": [
+    352.48,
+    147.75
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 293
+  },
+  {
+   "name": null,
+   "station_m": 4716.9,
+   "side": "left",
+   "offset_m": 125.0,
+   "length_m": 89.0,
+   "depth_m": 38.4,
+   "yaw_rad": 2.1392,
+   "centre": [
+    585.85,
+    -62.38
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 3417
+  },
+  {
+   "name": "F1 Accreditation Centre",
+   "station_m": 4764.3,
+   "side": "left",
+   "offset_m": 125.0,
+   "length_m": 33.8,
+   "depth_m": 10.3,
+   "yaw_rad": 0.5684,
+   "centre": [
+    607.78,
+    -105.8
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 330
+  },
+  {
+   "name": null,
+   "station_m": 4798.6,
+   "side": "left",
+   "offset_m": 132.8,
+   "length_m": 36.4,
+   "depth_m": 22.1,
+   "yaw_rad": 0.5853,
+   "centre": [
+    646.8,
+    -148.37
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 376
+  },
+  {
+   "name": null,
+   "station_m": 5392.6,
+   "side": "right",
+   "offset_m": 39.7,
+   "length_m": 27.3,
+   "depth_m": 25.4,
+   "yaw_rad": 1.7922,
+   "centre": [
+    40.86,
+    60.58
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 693
+  }
+ ],
+ "crossings": [],
+ "landmarks": [],
+ "woods": []
+}
