@@ -57,6 +57,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Monza": [(9.275, 45.612, 9.300, 45.635)],
     "Silverstone": [(-1.035, 52.063, -0.995, 52.083)],
     "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
+    "Austin": [(-97.652, 30.122, -97.626, 30.145)],
     "LeMans": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
@@ -105,6 +106,19 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Eastside", from_m=3330, to_m=3800, side="left", depth_m=16),
         dict(name="Arena", from_m=3300, to_m=3760, side="right", depth_m=16),
         dict(name="Ben Pon", from_m=4030, to_m=4240, side="left", depth_m=20),
+    ],
+    # COTA's own grandstand map (circuitoftheamericas.com/ticket/grandstands-
+    # and-reserved-seating-f1/) and third-party guides (oversteer48.com/cota-
+    # turn-4/, oversteer48.com/cota-turn-9/) both put these on the outside
+    # (right-hand side, as seen driving the lap) of the track; neither has an
+    # OSM building outline, unlike the Main Grandstand and the Turn 1/12/15/
+    # 19-20 stands, which OSM already traces. The Turn 4 grandstand runs the
+    # length of the T3-T4-T5 sequence and is partly covered (premium upper
+    # rows under a roof); the Turn 9 grandstand, between T9 and T10, is tall
+    # (37 rows) open bleachers with no roof.
+    "Austin": [
+        dict(name="Turn 4 Grandstand", from_m=1050, to_m=1400, side="right", depth_m=18, covered=True),
+        dict(name="Turn 9 Grandstand", from_m=2017, to_m=2154, side="right", depth_m=22, covered=False),
     ],
 }
 
