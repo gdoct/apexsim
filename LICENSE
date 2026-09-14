@@ -1,8 +1,111 @@
-MIT License https://mit-license.org/
-Copyright © 2025 Guido Docter
+ApexSim Restricted Commercial License
+Version 1.0, 14 September 2026
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Copyright (c) 2025-2026 Guido Docter. All rights reserved.
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+This software, its source code, content and documentation (together the
+"Software") are proprietary. The Software is NOT open source. It is made
+available under the following terms; any use not expressly permitted here is
+prohibited.
 
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+1. Definitions
+
+   "Licensor" is Guido Docter.
+   "You" is the individual or legal entity exercising rights under this
+   license.
+   "Commercial Use" is any use of the Software, in whole or in part, that is
+   intended for or directed toward commercial advantage or monetary
+   compensation, including but not limited to: selling or licensing the
+   Software or a derivative; offering it as a hosted or managed service;
+   running public or paid multiplayer servers; using it in a product,
+   service, competition, event or venue for which a fee is charged; and
+   using it inside a company or organisation for its business.
+   "Commercial License" is a separate written agreement with the Licensor
+   that grants rights beyond this license.
+
+2. Grant for personal, non-commercial use
+
+   Subject to the conditions below, the Licensor grants You a limited,
+   non-exclusive, non-transferable, revocable, royalty-free license to:
+
+   a) download, install and run the Software, in source or binary form,
+      for Your own personal, non-commercial use;
+   b) view and study the source code;
+   c) modify the Software for Your own personal, non-commercial use.
+
+3. Restrictions
+
+   Unless You hold a Commercial License that says otherwise, You may NOT:
+
+   a) make Commercial Use of the Software or any derivative of it;
+   b) distribute, publish, sublicense, sell, rent, lease or lend the
+      Software or any derivative, in source or binary form, to anyone else,
+      including by hosting it in a public repository or package registry;
+   c) run the Software as a service for third parties, whether or not a fee
+      is charged;
+   d) remove, alter or obscure any copyright, license or attribution notice
+      in the Software;
+   e) use the Licensor's name, or the "ApexSim" name or marks, to endorse
+      or promote a product or service, or to name a derivative, without
+      prior written permission;
+   f) use the Software to train, fine-tune or evaluate machine-learning
+      models, or include it in a dataset for that purpose.
+
+4. Commercial licensing
+
+   Commercial Use, redistribution and any other right not granted in
+   section 2 require a Commercial License. Contact the Licensor at
+   guido.docter@gmail.com to obtain one.
+
+5. Contributions
+
+   If You submit a contribution (code, content, documentation or other
+   material) to the Licensor for inclusion in the Software, You grant the
+   Licensor a perpetual, worldwide, irrevocable, royalty-free license to
+   use, reproduce, modify, distribute, sublicense and commercially exploit
+   that contribution as part of the Software or otherwise, and You warrant
+   that You have the right to grant it.
+
+6. Third-party components
+
+   The Software depends on and includes third-party components and data
+   that are governed by their own licenses (for example the Rust crates
+   listed in the Cargo manifests, Unreal Engine under the Unreal Engine
+   EULA, and track layout data derived from OpenStreetMap under the ODbL).
+   Nothing in this license restricts Your rights under those licenses, and
+   nothing in this license grants You rights to those components beyond
+   what their own licenses allow.
+
+7. Ownership
+
+   The Software is licensed, not sold. The Licensor retains all right,
+   title and interest in and to the Software, including all intellectual
+   property rights. No rights are granted by implication, estoppel or
+   otherwise except as expressly set out here.
+
+8. Termination
+
+   This license terminates automatically if You breach any of its terms.
+   The Licensor may also terminate it at any time by written notice. On
+   termination You must stop using the Software and destroy all copies in
+   Your possession. Sections 5 through 10 survive termination.
+
+9. Disclaimer of warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+
+10. Limitation of liability
+
+   IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+11. Prior versions
+
+   Copies of the Software that were obtained under the MIT License before
+   this license took effect remain subject to the MIT License for those
+   copies only. All later versions and all new material are licensed
+   exclusively under this license.

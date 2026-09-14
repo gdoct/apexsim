@@ -1,6 +1,6 @@
 # ApexSim SimRacing Platform
 
-ApexSim is an open-source simracing platform composed of a high-frequency authoritative server written in Rust and an Unreal Engine 5 client. The codebase is tuned for realistic vehicle physics, low-latency multiplayer, and mod-friendly content pipelines.
+ApexSim is a source-available simracing platform composed of a high-frequency authoritative server written in Rust and an Unreal Engine 5 client. The codebase is tuned for realistic vehicle physics, low-latency multiplayer, and mod-friendly content pipelines.
 
 <img width="1000" alt="image" src="https://github.com/user-attachments/assets/4b63071d-119b-4d1d-b1e5-75ac2fc58b06" />
 <img width="1000" alt="image" src="https://github.com/user-attachments/assets/a31b7336-6ac6-46c5-961b-476c45c5881f" />
@@ -117,7 +117,7 @@ apexsim/
 ├── server/         # Rust backend (source, config, docs)
 ├── track-editor/   # Rust + Bevy circuit scene authoring tool
 ├── README.md       # This overview
-└── LICENSE         # Project license
+└── LICENSE         # Restricted commercial license
 ```
 
 ### Directory Highlights
@@ -233,6 +233,6 @@ Wire-format changes must be made on both sides at once — `server/src/network.r
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+ApexSim is proprietary software released under the [ApexSim Restricted Commercial License](LICENSE). You may run, read and modify it for your own personal, non-commercial use; any commercial use, redistribution or hosting as a service requires a separate commercial license. See LICENSE for the terms and contact details.
 
 ---
