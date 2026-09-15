@@ -59,6 +59,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
     "Austin": [(-97.652, 30.122, -97.626, 30.145)],
     "Hockenheim": [(8.552, 49.318, 8.582, 49.338)],
+    "BrandsHatch": [(0.250, 51.350, 0.275, 51.364)],
     # MoscowRaceway is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
