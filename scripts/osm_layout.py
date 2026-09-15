@@ -100,6 +100,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     # filtering or fit problem, so no code change can close it. Once OSM
     # gains linework through the stadium, add:
     #   "MexicoCity": [(-99.102, 19.396, -99.080, 19.413)],
+    "Montreal": [(-73.540, 45.490, -73.510, 45.515)],
     "LeMans": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
@@ -382,6 +383,34 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Prost", from_m=4780, to_m=4870, side="outside", depth_m=16, covered=False),
         dict(name="Senna", from_m=4870, to_m=4950, side="outside", depth_m=18, covered=False),
     ],
+    # The circuit numbers its stands rather than naming them
+    # (https://gpcanada.ca/en/type-de-billet/grandstands/); none of the
+    # numbered stands are traced in OSM (only three small, unnamed
+    # buildings near the rowing basin, which turned out on inspection to be
+    # Place des Nations, an Expo 67 amphitheatre wikidata:Q101013014 -- not
+    # a grandstand at all -- and were dropped, see the hand-back). Stations
+    # are estimated from the centerline's own curvature (no named OSM
+    # corners) and cross-checked against each stand's own description
+    # (grandstandguide/oversteer48/gpcanada); not verified against
+    # satellite imagery (no image access this run), so treat the spans as
+    # approximate pending a look. Pit lane confirmed on the left (OSM's own
+    # "Circuit Gilles Villeneuve pit lane" way), so GS1/2 face it from the
+    # right.
+    "Montreal": [
+        dict(name="Grandstand 1", from_m=4300, to_m=30, side="right", depth_m=14),
+        dict(name="Grandstand 2", from_m=30, to_m=170, side="right", depth_m=12),
+        dict(name="Grandstand 12", from_m=200, to_m=280, side="left", depth_m=12),
+        dict(name="Grandstand 11", from_m=280, to_m=380, side="left", depth_m=12),
+        dict(name="Grandstand 33", from_m=1230, to_m=1340, side="inside", depth_m=12),
+        dict(name="Grandstand 31", from_m=1900, to_m=1970, side="outside", depth_m=12),
+        dict(name="Grandstand 21", from_m=1970, to_m=2010, side="outside", depth_m=12),
+        dict(name="Grandstand 22", from_m=2010, to_m=2040, side="outside", depth_m=10),
+        dict(name="Grandstand 15", from_m=2040, to_m=2080, side="outside", depth_m=12),
+        dict(name="Grandstand 34", from_m=2080, to_m=2120, side="outside", depth_m=12),
+        dict(name="Grandstand 24", from_m=2120, to_m=2160, side="outside", depth_m=12),
+        dict(name="Grandstand 47", from_m=2170, to_m=2230, side="left", depth_m=12),
+        dict(name="Grandstand 46", from_m=2230, to_m=2290, side="right", depth_m=12),
+    ],
 }
 
 # Landmarks that span the road and are not in OSM as bridges.
@@ -480,6 +509,16 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # 2660040429 at 43.4051613N 39.9547853E).
     "Sochi": [
         dict(kind="tower", name="Olympic Cauldron", station_m=2001.7, side="left", offset_m=140.0),
+    ],
+    # The Casino de Montreal (the former France/Quebec Expo 67 pavilions) is
+    # the building every TV shot of the Casino Straight shows in the
+    # background; its own footprint is not in this bbox's extract (only the
+    # access road, "Avenue du Casino", is), so it is authored from its real
+    # position beside the Casino Straight. The kit has no casino/exhibition-
+    # hall asset, so this reuses the control-tower stand-in, as Austin and
+    # Sakhir do for buildings the kit can't represent.
+    "Montreal": [
+        dict(kind="tower", station_m=2350.0, side="left", offset_m=150.0),
     ],
 }
 
@@ -797,6 +836,14 @@ class Osm:
         return np.array([enu(p[0], p[1], self.lon0, self.lat0) for p in pts])
 
 
+def osm_name(t: dict) -> str | None:
+    """A way/node's own name, falling back through OSM's localised name
+    tags.  Montreal's pit lane carries only `name:en`/`name:fr` and no
+    plain `name` at all; a circuit whose ways are named only in their own
+    language would be silently unnamed without this."""
+    return t.get("name") or t.get("name:en") or t.get("name:fr") or t.get("name:de")
+
+
 def relation_raceway_roles(osm: Osm) -> dict[int, str]:
     """Way id -> its role in an OSM route relation tagged highway=raceway.
 
@@ -822,15 +869,15 @@ def relation_raceway_roles(osm: Osm) -> dict[int, str]:
 
 
 def is_pit_way(t: dict) -> bool:
-    name = (t.get("name") or "").lower()
-    name_en = (t.get("name:en") or "").lower()
+    name = (osm_name(t) or "").lower()
     # German circuits name the pit lane "Boxengasse" (Oschersleben) or
     # "Boxenstraße" (Spielberg; also Hockenheim, the Nürburgring):
     # no "pit" substring at all, so the English-only check missed both.
     # "boxen" (rather than the whole word) is the generic match, since any
-    # German compound built on it names the same thing; checking name:en
-    # too catches a "Pit Lane" translation tag OSM carries on some ways
-    # (Spielberg's does) even when the local-language name has neither.
+    # German compound built on it names the same thing; `osm_name()`'s
+    # localised-tag fallback catches a "Pit Lane" translation tag OSM
+    # carries on some ways (Spielberg's does, Montreal's pit lane only has
+    # name:en/name:fr at all) even when the local-language name has neither.
     # The Hungaroring's is "Bokszutca" (Hungarian, the same "box" root +
     # "utca" = street): same gap, different language, so it needs its own
     # substring -- "boxen" doesn't match the Hungarian spelling.
@@ -839,7 +886,6 @@ def is_pit_way(t: dict) -> bool:
         or "pit" in name
         or "boxen" in name
         or "bokszutca" in name
-        or "pit" in name_en
     )
 
 
@@ -873,7 +919,7 @@ def raceway_cloud(osm: Osm) -> np.ndarray:
             continue
         if role == "pit_lane":
             continue
-        if is_pit_way(t) or "kart" in (t.get("name") or "").lower():
+        if is_pit_way(t) or "kart" in (osm_name(t) or "").lower():
             continue
         xy = osm.way_xy(w)
         if xy is not None:
@@ -1183,7 +1229,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             if float(np.median(d)) < 80.0 and len(p) > 2:
                 pit_ways.append(p)
             continue
-        name = t.get("name")
+        name = osm_name(t)
         if not name or float(np.median(d)) > 12.0:
             if (
                 not name
@@ -1343,7 +1389,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             continue
         s, lat = track.locate(centre[None, :])
         entry = {
-            "name": t.get("name"),
+            "name": osm_name(t),
             "station_m": round(float(s[0]), 1),
             "side": "left" if lat[0] > 0 else "right",
             "offset_m": round(near, 1),
@@ -1421,7 +1467,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         s, _ = track.locate(hit)
         crossings.append(
             {
-                "name": t.get("name"),
+                "name": osm_name(t),
                 "station_m": round(float(s[0]), 1),
                 "kind": "footbridge" if t.get("highway") in ("footway", "path", "steps") else "road",
             }
@@ -1478,7 +1524,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         landmarks.append(
             {
                 "kind": kind,
-                "name": t.get("name"),
+                "name": osm_name(t),
                 "station_m": round(float(s[0]), 1),
                 "side": "left" if lat[0] > 0 else "right",
                 "centre": round_pts(p)[0],
@@ -1502,7 +1548,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         landmarks.append(
             {
                 "kind": "big_wheel",
-                "name": t.get("name"),
+                "name": osm_name(t),
                 "station_m": round(float(s[0]), 1),
                 "side": "left" if lat[0] > 0 else "right",
                 "centre": round_pts(c)[0],
