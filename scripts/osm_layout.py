@@ -60,6 +60,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Austin": [(-97.652, 30.122, -97.626, 30.145)],
     "Hockenheim": [(8.552, 49.318, 8.582, 49.338)],
     "BrandsHatch": [(0.250, 51.350, 0.275, 51.364)],
+    "Spielberg": [(14.752, 47.212, 14.780, 47.228)],
     # MoscowRaceway is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
@@ -175,6 +176,16 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # Placed at the corner's midpoint, which is also roughly where the old
     # forest-straight/Parabolika transition sits.
     "Hockenheim": [dict(name="Parabolika footbridge", station_m=1400.0, kind="footbridge")],
+    # The spectator footbridge on the climb out of Niki Lauda Kurve (T1),
+    # carrying fans from the paddock/pit side over to the hillside Red Bull
+    # Tribune. Not in OSM (nothing bridge-tagged near the track in this
+    # bbox is within 350 m of the centerline -- checked directly against the
+    # cached extract), and no aerial source gives its exact position, so the
+    # station is placed by judgement partway up the climb, just before the
+    # Red Bull Tribune's OSM-traced footprint begins (station_m 646.7):
+    # authored per docs/ADDITIONAL_TRACKS.md 6.19, an approximation to flag
+    # in the hand-back rather than a sourced fact.
+    "Spielberg": [dict(name="T1 climb footbridge", station_m=600.0, kind="footbridge", brand="kronos")],
 }
 
 # Point features OSM does not carry, but that are part of what the place
@@ -439,10 +450,20 @@ class Osm:
 
 def is_pit_way(t: dict) -> bool:
     name = (t.get("name") or "").lower()
-    # German circuits name the pit lane "Boxengasse" (Oschersleben,
-    # Hockenheim, the Nuerburgring, Spielberg): no "pit" substring at all,
-    # so the English-only check missed it entirely.
-    return t.get("raceway") in ("pitlane", "pit_lane") or "pit" in name or "boxengasse" in name
+    name_en = (t.get("name:en") or "").lower()
+    # German circuits name the pit lane "Boxengasse" (Oschersleben) or
+    # "Boxenstraße" (Spielberg; also Hockenheim, the Nürburgring):
+    # no "pit" substring at all, so the English-only check missed both.
+    # "boxen" (rather than the whole word) is the generic match, since any
+    # German compound built on it names the same thing; checking name:en
+    # too catches a "Pit Lane" translation tag OSM carries on some ways
+    # (Spielberg's does) even when the local-language name has neither.
+    return (
+        t.get("raceway") in ("pitlane", "pit_lane")
+        or "pit" in name
+        or "boxen" in name
+        or "pit" in name_en
+    )
 
 
 def raceway_cloud(osm: Osm) -> np.ndarray:
