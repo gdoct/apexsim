@@ -116,6 +116,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     ],
     "Shanghai": [(121.205, 31.328, 121.235, 31.352)],
     "Sepang": [(101.725, 2.750, 101.752, 2.772)],
+    "Sochi": [(39.945, 43.398, 39.972, 43.415)],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -293,6 +294,41 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # OSM-traced "Silver 5" structure around station 3355.
         dict(name="T12-T14 Stand", from_m=3600, to_m=3950, side="outside", depth_m=8),
     ],
+    # OSM only traces the Main Grandstand (opposite the pits, station ~143).
+    # The circuit numbers the rest and sells them under those numbers
+    # (f1.sochiautodrom.ru ticket pages confirm "T2 Grandstand" and
+    # "T3 Grandstand" by name; RaceFans/enterF1 confirm T4/T5 as a pair
+    # and T10/T13/T15 as corners with dedicated stands, though their own
+    # ticket pages for those five were unreachable this run -- the site is
+    # gone since the circuit lost its F1 date). Spans/sides are this
+    # track's own centerline geometry (a heading-curvature scan of the
+    # YAML nodes, matched in order to the published turn descriptions),
+    # not GPS-traced outlines, same approach as Budapest's Bronze/T1/T12-14
+    # entries above.
+    "Sochi": [
+        # "T2 Grandstand (Vitaly Petrov)": the tight ~90 degree right
+        # braking zone, described as facing the Olympic Park's Central
+        # Square (the Medals Plaza) with two big screens.
+        dict(name="T2 Grandstand", from_m=1140, to_m=1230, side="outside", depth_m=12),
+        # "T3 Grandstand": along the long (~600 m), constant-radius left
+        # sweeper round the outside of the plaza/fountain -- the circuit's
+        # own description of T3. Placed centrally on the bend rather than
+        # spanning all 590 m of it.
+        dict(name="T3 Grandstand", from_m=1400, to_m=1700, side="outside", depth_m=12),
+        # T4/T5: sold and described together ("T4 and T5 grandstands...").
+        # T4 is the right-hander directly after the T3 sweeper ends; T5 is
+        # the tighter right just past it, closest point to the Black Sea.
+        dict(name="T4 Grandstand", from_m=2000, to_m=2110, side="outside", depth_m=12),
+        dict(name="T5 Grandstand", from_m=2430, to_m=2560, side="outside", depth_m=12),
+        # T10: the tight 90 degree right onto the back straight.
+        dict(name="T10 Grandstand", from_m=3550, to_m=3660, side="outside", depth_m=12),
+        # T13: the heavy-braking hairpin at the end of the ~1 km back
+        # straight ("100 degree right, an excellent place to pass").
+        dict(name="T13 Grandstand", from_m=4670, to_m=4790, side="outside", depth_m=12),
+        # T15: the first (left) half of the T15-16 chicane that turns the
+        # lap back in behind the pit building.
+        dict(name="T15 Grandstand", from_m=5040, to_m=5160, side="outside", depth_m=12),
+    ],
 }
 
 # Landmarks that span the road and are not in OSM as bridges.
@@ -379,6 +415,18 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # stand-in for the real tower, which the kit does not model) remains.
     "Sakhir": [
         dict(kind="tower", name="Sakhir Tower", station_m=582.3, side="right", offset_m=73.9),
+    ],
+    # The 2014 Winter Olympics cauldron still stands in the Medals Plaza,
+    # inside the loop of T3; OSM has it only as a tourism=attraction node
+    # ("Олимпийский огонь" / "Olympic flame"), which the automatic
+    # landmark scan does not look at (it only picks up man_made=tower /
+    # tower:type=lighting / attraction=big_wheel). The kit has no cauldron
+    # asset, so this is authored as the "tower" stand-in the task card
+    # accepts, at the node's own real position converted through this
+    # dossier's own fit (station/offset computed from the OSM node
+    # 2660040429 at 43.4051613N 39.9547853E).
+    "Sochi": [
+        dict(kind="tower", name="Olympic Cauldron", station_m=2001.7, side="left", offset_m=140.0),
     ],
 }
 
