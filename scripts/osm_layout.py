@@ -99,6 +99,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
         (-46.700, -23.703, -46.688, -23.695),
     ],
     "Shanghai": [(121.205, 31.328, 121.235, 31.352)],
+    "Sepang": [(101.725, 2.750, 101.752, 2.772)],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -198,6 +199,38 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     "Suzuka": [
         dict(name="M", from_m=3600, to_m=3760, side="right", depth_m=16, covered=False),
     ],
+    # Sepang's own OSM building=grandstand way for the Main Grandstand is
+    # dropped by front_edge_is_broken() (see its docstring): it traces the
+    # whole 1.3 km double-fronted complex as one polygon ("1.3 km long
+    # double frontage Main Grandstand... dominating two long straights",
+    # https://www.sepangcircuit.com/main-grandstand), between the pit
+    # straight and the back straight, which oriented_box() and
+    # front_edge() cannot turn into a sane single front. Authored here as
+    # its two real faces instead: the pit-straight face is on the
+    # circuit's right (the same side as the pit lane -- confirmed by this
+    # card's own risk note, which is only true if both stands are on the
+    # pit lane's side: "the double-sided main stand is inside 20 m of the
+    # pit lane on the pit-straight side and will be dropped there
+    # (correct)"), and the back-straight face carries the same name and
+    # side since it is physically the other side of one stand.
+    "Sepang": [
+        dict(name="Main Grandstand", from_m=20, to_m=560, side="right", depth_m=20, covered=True),
+        dict(name="Main Grandstand", from_m=4300, to_m=4950, side="right", depth_m=20, covered=True),
+        # K2 Hillstand: an open grass mound at the Turn 1/2 hairpin,
+        # opposite the K1 Grandstand OSM already gives us
+        # (sepangcircuit.com spectator guide: "K2 Hillstand... open-air
+        # grassy viewing area", the cheap uncovered option beside K1).
+        dict(name="K2 Hillstand", from_m=650, to_m=850, side="inside", depth_m=15, covered=False),
+        # Turn 4 grandstand. Sepang's own corner numbering is not in OSM
+        # (no named raceway sections at all here) and no published station
+        # exists to check it against, so this is placed from the YAML
+        # centerline's own curvature: the fourth significant apex after
+        # the line (632 m T1/T2, ~792 m, a shallow ~1030-1110 m kink, then
+        # this one at ~1607 m -- a single sustained corner, matching T4's
+        # long, high-speed real-world character). Approximate; flagged in
+        # the hand-back.
+        dict(name="Turn 4 Grandstand", from_m=1550, to_m=1720, side="outside", depth_m=14, covered=False),
+    ],
 }
 
 # Landmarks that span the road and are not in OSM as bridges.
@@ -257,6 +290,22 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
              altitude_m=150.0, broadside_to_m=0.0, brand="piretti"),
         # The fun fair inside the Esses, which runs all through the night.
         dict(kind="big_wheel", station_m=1010.0, side="right", offset_m=110.0),
+    ],
+    # Sepang was floodlit in 2018 (64 poles up to 43 m, evenly round the
+    # whole 5.543 km lap; installed for local FIA/FIM racing, not F1/MotoGP
+    # broadcast use -- https://www.thestar.com.my/sport/motorsport/2017/12/14/
+    # sepang-circuit-to-hold-night-events-with-installation-of-floodlights/).
+    # OSM has none of the poles mapped. A representative spread round the
+    # lap (outside of each corner, clear of the stands) stands in for the
+    # real 64; exact pole positions are not published.
+    "Sepang": [
+        dict(kind="floodlight", station_m=300.0, side="right", offset_m=40.0),
+        dict(kind="floodlight", station_m=650.0, side="right", offset_m=40.0),
+        dict(kind="floodlight", station_m=1650.0, side="left", offset_m=40.0),
+        dict(kind="floodlight", station_m=2600.0, side="left", offset_m=40.0),
+        dict(kind="floodlight", station_m=3900.0, side="right", offset_m=40.0),
+        dict(kind="floodlight", station_m=4600.0, side="right", offset_m=40.0),
+        dict(kind="floodlight", station_m=5200.0, side="right", offset_m=40.0),
     ],
 }
 
@@ -714,6 +763,33 @@ def front_edge(poly: np.ndarray, track: Track) -> np.ndarray:
     return chain
 
 
+def front_edge_is_broken(front: np.ndarray) -> bool:
+    """A simple stand's front is a straight or gently curved edge traced
+    corner to corner, so a short-long-short run of segments (two end caps
+    either side of the long face) is the ordinary shape of a rectangular
+    building and not what this catches, however long the long face is
+    (Oschersleben's 360 m Zuschauertribuene, Silverstone's 208 m Becketts,
+    Monza's 220 m Tribuna Laterale Destra all look exactly like this).
+
+    What it does catch is a longer chain -- at least two short segments on
+    *each* side of the outlier, i.e. the trace keeps following a real
+    facted or curved edge after the jump rather than immediately closing
+    off a simple box -- where one segment is both long in absolute terms
+    and dwarfs its neighbours: `front_edge()` only ever walks vertices
+    that were genuinely adjacent in the outline, so following a real edge
+    keeps segment lengths within a similar order of magnitude of each
+    other. A lone outlier that much longer than the rest means two
+    disjoint near-clusters got stitched across open ground -- the outline
+    is really a complex spanning more than one feature (Sepang's Main
+    Grandstand, one OSM way for the whole double-fronted stand between two
+    straights 650 m apart) and cannot be read as one stand's face."""
+    if len(front) < 5:
+        return False
+    segs = np.sort(np.hypot(*np.diff(front, axis=0).T))[::-1]
+    biggest, second = float(segs[0]), float(segs[1])
+    return biggest > 150.0 and biggest > 4.0 * max(second, 1.0) and biggest > 0.5 * float(segs.sum())
+
+
 def ring_area(poly: np.ndarray) -> float:
     x, y = poly[:, 0], poly[:, 1]
     return float(abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))) / 2)
@@ -912,6 +988,9 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if is_building and (near > STRUCTURE_RANGE_M or ring_area(p) < 250.0):
             continue
         centre, length, depth, yaw = oriented_box(p)
+        front = front_edge(p, track) if is_stand else None
+        if is_stand and front_edge_is_broken(front):
+            continue
         s, lat = track.locate(centre[None, :])
         entry = {
             "name": t.get("name"),
@@ -926,7 +1005,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if is_stand:
             entry["source"] = "osm"
             entry["covered"] = t.get("covered") == "yes" or "roof:shape" in t
-            entry["front"] = round_pts(simplify(front_edge(p, track), 2.0))
+            entry["front"] = round_pts(simplify(front, 2.0))
             stands.append(entry)
         else:
             entry["levels"] = int(t.get("building:levels", 0) or 0)
@@ -1070,10 +1149,22 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     woods = []
     for w in osm.ways:
         t = w.get("tags") or {}
-        if t.get("natural") != "wood" and t.get("landuse") not in ("forest",):
+        # A plantation (`landuse=orchard`) is tree cover a circuit can sit
+        # in exactly like a forest -- Sepang's oil-palm estate is mapped
+        # this way, never as `natural=wood` -- so it is generically
+        # treated as woods too. `leaf_type` is essentially never tagged on
+        # an orchard, so default to broadleaved rather than the `mixed`
+        # conifer/broadleaf set a real forest falls back to.
+        is_orchard = t.get("landuse") == "orchard"
+        if t.get("natural") != "wood" and t.get("landuse") not in ("forest",) and not is_orchard:
             continue
         leaf = t.get("leaf_type") or ""
-        leaf = leaf if leaf in ("broadleaved", "needleleaved", "mixed") else "mixed"
+        if leaf in ("broadleaved", "needleleaved", "mixed"):
+            pass
+        elif is_orchard:
+            leaf = "broadleaved"
+        else:
+            leaf = "mixed"
         p = xy(w)
         if p is None or len(p) < 4:
             continue
