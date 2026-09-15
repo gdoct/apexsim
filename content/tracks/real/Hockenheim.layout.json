@@ -521,39 +521,6 @@
    ]
   },
   {
-   "name": "Nordtribüne",
-   "station_m": 304.8,
-   "side": "left",
-   "offset_m": 26.6,
-   "length_m": 356.0,
-   "depth_m": 109.6,
-   "yaw_rad": 1.555,
-   "centre": [
-    -126.33,
-    283.02
-   ],
-   "source": "osm",
-   "covered": false,
-   "front": [
-    [
-     -150.73,
-     284.94
-    ],
-    [
-     -146.57,
-     253.23
-    ],
-    [
-     -68.04,
-     66.28
-    ],
-    [
-     -78.94,
-     58.32
-    ]
-   ]
-  },
-  {
    "name": "Mercedes-Tribüne",
    "source": "seating map",
    "station_m": 2166.0,
