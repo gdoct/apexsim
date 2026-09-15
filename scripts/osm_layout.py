@@ -57,6 +57,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Monza": [(9.275, 45.612, 9.300, 45.635)],
     "Silverstone": [(-1.035, 52.063, -0.995, 52.083)],
     "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
+    "Catalunya": [(2.246, 41.560, 2.275, 41.580)],
     "LeMans": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
@@ -105,6 +106,18 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Eastside", from_m=3330, to_m=3800, side="left", depth_m=16),
         dict(name="Arena", from_m=3300, to_m=3760, side="right", depth_m=16),
         dict(name="Ben Pon", from_m=4030, to_m=4240, side="left", depth_m=20),
+    ],
+    # OSM has this one only as a plain `building=yes` named "Tribuna F", so
+    # extract() files it under structures (a building) rather than stands;
+    # it sits in the same run of grandstands as (osm-traced) Tribuna E and
+    # J/K along the straight after Turn 1, and the letter matches the
+    # circuit's own tribune list (entradasmontmelo.com/tribunas,76.html:
+    # A, B, C, E, F, G, H, J, K, L, M, N, T1, T10), so it is promoted here
+    # rather than left to render as a generic building. Span and depth are
+    # taken from that same OSM footprint (station 768.2, length 97.4 m,
+    # depth 17.7 m, uncovered like its neighbours).
+    "Catalunya": [
+        dict(name="Tribuna F", from_m=719.5, to_m=816.9, side="left", depth_m=17.7, covered=False),
     ],
 }
 
@@ -761,6 +774,12 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                 "front": round_pts(front),
             }
         )
+    # A MANUAL_STANDS entry promoting a named OSM building (tagged plain
+    # `building=yes`, so extract() filed it as a structure rather than a
+    # stand) replaces that structure instead of doubling it up as a
+    # building standing behind its own grandstand.
+    manual_stand_names = {spec["name"] for spec in MANUAL_STANDS.get(stem, [])}
+    structures = [s for s in structures if s.get("name") not in manual_stand_names]
     stands.sort(key=lambda e: e["station_m"])
     structures.sort(key=lambda e: e["station_m"])
 
