@@ -86,6 +86,19 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     # traced a different variant than this YAML's rather than a
     # thin-coverage or public-road case. See docs/ADDITIONAL_TRACKS.md
     # hand-back for the full investigation; no dossier was written.
+    # MexicoCity is deliberately NOT registered here either, for the same
+    # --all-abort reason: the best achievable fit (using only the OSM ways
+    # actually named "Autodromo Hermanos Rodriguez", excluding a duplicate
+    # Formula E layer and a stray motocross track sharing the venue)
+    # explains 82.0% of the centerline (2824/4297 m) at 4.05 m rmse
+    # (raceway_matched 1.0 -- what it does match is precise). The
+    # unexplained ~580 m is the Foro Sol stadium chicane (T13-T15):
+    # Estadio GNP Seguros and Estadio Alfredo Harp Helu are mapped only as
+    # stadium/building polygons in OSM, with no raceway linework at all
+    # through the interior -- a real gap in the source data, not a
+    # filtering or fit problem, so no code change can close it. Once OSM
+    # gains linework through the stadium, add:
+    #   "MexicoCity": [(-99.102, 19.396, -99.080, 19.413)],
     "LeMans": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
