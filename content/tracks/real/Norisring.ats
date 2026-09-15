@@ -474,409 +474,1075 @@
   "pit_lane": {
     "nodes": [
       [
-        -280.18918,
-        156.12457,
-        0.91645193
+        -302.71,
+        175.7,
+        1.004
       ],
       [
-        -247.39342,
-        132.65312,
-        0.8003426
+        -298.74,
+        160.99,
+        0.9692963
       ],
       [
-        -214.46985,
-        109.5184,
-        0.68427086
+        -295.2,
+        158.09,
+        0.955037
       ],
       [
-        -191.17328,
-        96.59741,
-        0.6063039
+        -287.45,
+        152.57,
+        0.931
       ],
       [
-        -167.97136,
-        83.6155,
-        0.5289331
+        -279.04,
+        147.6,
+        0.902
       ],
       [
-        -144.8884,
-        70.52701,
-        0.45120886
+        -270.62,
+        142.64,
+        0.873
       ],
       [
-        -121.975266,
-        57.178936,
-        0.37346515
+        -262.21,
+        137.67,
+        0.844
       ],
       [
-        -99.2986,
-        43.36405,
-        0.2958289
+        -253.79,
+        132.71,
+        0.815
       ],
       [
-        -76.68915,
-        29.365116,
-        0.21809237
+        -246.73,
+        128.61,
+        0.794963
       ],
       [
-        -54.09285,
-        15.2699585,
-        0.14034593
+        -239.67,
+        124.52,
+        0.771
       ],
       [
-        -31.48044,
-        1.1274996,
-        0.062985264
+        -232.62,
+        120.42,
+        0.7467037
       ],
       [
-        -8.844934,
-        -13.002291,
-        0.016
+        -225.56,
+        116.33,
+        0.7222963
       ],
       [
-        27.175365,
-        -30.735973,
-        0.087026104
+        -218.5,
+        112.23,
+        0.698
       ],
       [
-        64.811386,
-        -46.360783,
-        0.17409027
+        -211.44,
+        108.14,
+        0.67396295
+      ],
+      [
+        -204.38,
+        104.04,
+        0.65007406
+      ],
+      [
+        -197.32,
+        99.95,
+        0.625
+      ],
+      [
+        -190.26,
+        95.85,
+        0.60096294
+      ],
+      [
+        -183.2,
+        91.76,
+        0.57703704
+      ],
+      [
+        -176.14,
+        87.66,
+        0.5577037
+      ],
+      [
+        -169.09,
+        83.57,
+        0.5332963
+      ],
+      [
+        -162.03,
+        79.47,
+        0.509
+      ],
+      [
+        -154.03,
+        74.8,
+        0.48
+      ],
+      [
+        -146.03,
+        70.13,
+        0.4557037
+      ],
+      [
+        -138.83,
+        65.92,
+        0.4267037
+      ],
+      [
+        -131.62,
+        61.72,
+        0.40229627
+      ],
+      [
+        -124.42,
+        57.51,
+        0.378
+      ],
+      [
+        -117.22,
+        53.3,
+        0.353963
+      ],
+      [
+        -110.02,
+        49.1,
+        0.33007407
+      ],
+      [
+        -102.81,
+        44.89,
+        0.305
+      ],
+      [
+        -95.61,
+        40.68,
+        0.28096294
+      ],
+      [
+        -88.41,
+        36.48,
+        0.25703704
+      ],
+      [
+        -81.2,
+        32.27,
+        0.233
+      ],
+      [
+        -74.0,
+        28.06,
+        0.20870371
+      ],
+      [
+        -66.8,
+        23.86,
+        0.1842963
+      ],
+      [
+        -59.59,
+        19.65,
+        0.16
+      ],
+      [
+        -52.39,
+        15.44,
+        0.13570371
+      ],
+      [
+        -45.19,
+        11.23,
+        0.111296296
+      ],
+      [
+        -37.98,
+        7.03,
+        0.087
+      ],
+      [
+        -30.78,
+        2.82,
+        0.06296296
+      ],
+      [
+        -23.58,
+        -1.39,
+        0.039444443
+      ],
+      [
+        -16.37,
+        -5.59,
+        0.022
+      ],
+      [
+        -9.17,
+        -9.8,
+        0.015962964
+      ],
+      [
+        -1.97,
+        -14.01,
+        0.019259257
+      ],
+      [
+        5.23,
+        -18.21,
+        0.033
+      ],
+      [
+        13.66,
+        -23.09,
+        0.055
+      ],
+      [
+        22.08,
+        -27.97,
+        0.076
+      ],
+      [
+        30.5,
+        -32.85,
+        0.09433332
+      ],
+      [
+        38.93,
+        -37.73,
+        0.11633333
+      ],
+      [
+        46.68,
+        -42.1,
+        0.13466667
+      ],
+      [
+        54.43,
+        -46.48,
+        0.153
       ]
     ],
-    "width_m": 10.0,
-    "box_count": 15,
-    "speed_limit_kmh": 80.0
+    "width_m": 12.0,
+    "box_count": 37,
+    "speed_limit_kmh": 80.0,
+    "authored": true
   },
   "props": [
     {
       "id": 201,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -286.68,
-      "y": 132.73,
-      "z": 0.9776439,
-      "yaw_rad": -0.6226441,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": -65.131,
+      "y": -218.52516,
+      "z": 0.97681284,
+      "yaw_rad": 1.0575949,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 9.45
     },
     {
       "id": 202,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -264.13,
-      "y": 119.95,
-      "z": 0.9138542,
-      "yaw_rad": -0.618951,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": -62.864094,
+      "y": -201.7814,
+      "z": 0.9636475,
+      "yaw_rad": 1.5749209,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 25.26
     },
     {
       "id": 203,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -243.12738,
-      "y": 104.79901,
-      "z": 0.8603318,
-      "yaw_rad": -0.6198756,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": -74.85991,
+      "y": -188.48808,
+      "z": 0.9569854,
+      "yaw_rad": 3.0860226,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 23.92
     },
     {
       "id": 204,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -220.62845,
-      "y": 90.11378,
-      "z": 0.826023,
-      "yaw_rad": -0.53386754,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": -95.266815,
+      "y": -202.79184,
+      "z": 0.97631615,
+      "yaw_rad": -2.0853956,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 34.39
     },
     {
       "id": 205,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -199.14253,
-      "y": 78.44051,
-      "z": 0.7653508,
-      "yaw_rad": -0.50847954,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -83.66,
+      "y": -236.47,
+      "z": 0.99382067,
+      "yaw_rad": -0.79332507,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.49
     },
     {
       "id": 206,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -177.68054,
-      "y": 66.4284,
-      "z": 0.70797396,
-      "yaw_rad": -0.5129709,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -57.565002,
+      "y": -192.345,
+      "z": 0.9542637,
+      "yaw_rad": -0.51566476,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.47
     },
     {
       "id": 207,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -154.7498,
-      "y": 53.426804,
-      "z": 0.6465696,
-      "yaw_rad": -0.5218034,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -69.91,
+      "y": -214.305,
+      "z": 0.975286,
+      "yaw_rad": -0.51527107,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.48
     },
     {
       "id": 208,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -133.70169,
-      "y": 41.18538,
-      "z": 0.5910278,
-      "yaw_rad": -0.5363677,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -327.425,
+      "y": 76.085,
+      "z": 1.1400286,
+      "yaw_rad": 2.6159666,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.06
     },
     {
       "id": 209,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -111.24254,
-      "y": 27.534279,
-      "z": 0.53422695,
-      "yaw_rad": -0.5509367,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -339.8,
+      "y": 54.425003,
+      "z": 1.1512873,
+      "yaw_rad": 2.6156404,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.21
     },
     {
       "id": 210,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -90.33037,
-      "y": 14.6012535,
-      "z": 0.48433083,
-      "yaw_rad": -0.55605006,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -352.24,
+      "y": 32.71,
+      "z": 1.1585863,
+      "yaw_rad": 2.6170182,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.34
     },
     {
       "id": 211,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -67.77437,
-      "y": 0.54150635,
-      "z": 0.43469176,
-      "yaw_rad": -0.5583814,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -364.64502,
+      "y": 11.015,
+      "z": 1.1633922,
+      "yaw_rad": 2.616578,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.47
     },
     {
       "id": 212,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -46.788177,
-      "y": -12.582546,
-      "z": 0.39468497,
-      "yaw_rad": -0.55889785,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -376.87,
+      "y": -10.085,
+      "z": 1.1667616,
+      "yaw_rad": 2.614788,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.47
     },
     {
       "id": 213,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -24.645489,
-      "y": -26.717215,
-      "z": 0.3180891,
-      "yaw_rad": -0.53156173,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -389.49,
+      "y": -31.885,
+      "z": 1.1692427,
+      "yaw_rad": 2.614788,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.47
     },
     {
       "id": 214,
-      "kind": "building",
-      "asset": "pit_garage",
-      "x": -1.6522274,
-      "y": -38.89537,
-      "z": 0.3391125,
-      "yaw_rad": -0.4572697,
-      "scale": 1.6,
-      "text": null
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": -321.21515,
+      "y": 83.41269,
+      "z": 1.1315635,
+      "yaw_rad": 1.4749968,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 20.8
     },
     {
       "id": 215,
       "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": -241.2896,
-      "y": 195.28017,
-      "z": 1.2794555,
-      "yaw_rad": -0.5252,
-      "scale": 2.6,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -318.18802,
+      "y": 100.74303,
+      "z": 1.1277815,
+      "yaw_rad": 1.2873763,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 14.54
     },
     {
       "id": 216,
       "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": -206.89552,
-      "y": 173.25673,
-      "z": 1.1946331,
-      "yaw_rad": -0.5151,
-      "scale": 2.6,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -309.20575,
+      "y": 113.53514,
+      "z": 1.1084015,
+      "yaw_rad": 0.6966732,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 18.12
     },
     {
       "id": 217,
       "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": -170.76793,
-      "y": 152.7932,
-      "z": 1.1242533,
-      "yaw_rad": -0.5145,
-      "scale": 2.6,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -296.29785,
+      "y": 126.9917,
+      "z": 1.0625877,
+      "yaw_rad": 0.9086059,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 19.38
     },
     {
       "id": 218,
       "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": -134.28487,
-      "y": 131.95558,
-      "z": 1.0540888,
-      "yaw_rad": -0.5226,
-      "scale": 2.6,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -272.23773,
+      "y": 115.67505,
+      "z": 0.9895103,
+      "yaw_rad": -2.0749357,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 33.79
     },
     {
       "id": 219,
       "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": -97.7788,
-      "y": 110.500404,
-      "z": 0.98317355,
-      "yaw_rad": -0.5384,
-      "scale": 2.6,
-      "text": null
+      "asset": "bay_10m",
+      "x": -401.575,
+      "y": -55.010002,
+      "z": 1.170321,
+      "yaw_rad": 2.8921428,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 12.48
     },
     {
       "id": 220,
       "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": -61.793076,
-      "y": 88.50271,
-      "z": 0.91206765,
-      "yaw_rad": -0.5506,
-      "scale": 2.6,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -395.5423,
+      "y": -29.891653,
+      "z": 1.1743164,
+      "yaw_rad": 1.0458597,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 9.45
     },
     {
       "id": 221,
       "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": -26.310823,
-      "y": 66.35256,
-      "z": 0.84921724,
-      "yaw_rad": -0.5561,
-      "scale": 2.6,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -382.29578,
+      "y": -19.451908,
+      "z": 1.1678752,
+      "yaw_rad": 0.5284463,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 25.19
     },
     {
       "id": 222,
       "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": 8.977814,
-      "y": 44.18048,
-      "z": 0.8158578,
-      "yaw_rad": -0.555,
-      "scale": 2.6,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -364.79474,
+      "y": -23.090675,
+      "z": 1.1523607,
+      "yaw_rad": -0.98542494,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 23.97
     },
     {
       "id": 223,
       "kind": "grandstand",
-      "asset": "grandstand_corner",
-      "x": -343.51,
-      "y": 451.23,
-      "z": 1.7842745,
-      "yaw_rad": 2.2445,
-      "scale": 2.0,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -366.75128,
+      "y": -47.985416,
+      "z": 1.1470147,
+      "yaw_rad": -2.0930636,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 34.39
     },
     {
       "id": 224,
       "kind": "grandstand",
-      "asset": "grandstand_corner",
-      "x": -447.25,
-      "y": 409.5,
-      "z": 1.7058499,
-      "yaw_rad": -1.4465,
-      "scale": 2.0,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -246.77246,
+      "y": 178.71057,
+      "z": 0.95600826,
+      "yaw_rad": -0.52244365,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
     },
     {
       "id": 225,
       "kind": "grandstand",
-      "asset": "grandstand_corner",
-      "x": 67.47855,
-      "y": -93.55778,
-      "z": 0.7546905,
-      "yaw_rad": -0.39089778,
-      "scale": 2.0,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -215.09741,
+      "y": 160.47174,
+      "z": 0.86755115,
+      "yaw_rad": -0.5224435,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
     },
     {
       "id": 226,
       "kind": "grandstand",
-      "asset": "grandstand_corner",
-      "x": 60.56,
-      "y": 25.4,
-      "z": 1.1260623,
-      "yaw_rad": 1.0253,
-      "scale": 2.0,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -183.42235,
+      "y": 142.23288,
+      "z": 0.76146483,
+      "yaw_rad": -0.52244365,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
     },
     {
       "id": 227,
       "kind": "grandstand",
-      "asset": "grandstand_corner",
-      "x": 381.69,
-      "y": -320.81,
-      "z": 1.06,
-      "yaw_rad": -0.2006,
-      "scale": 2.0,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -151.74728,
+      "y": 123.99404,
+      "z": 0.6753948,
+      "yaw_rad": -0.5224435,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
     },
     {
       "id": 228,
       "kind": "grandstand",
-      "asset": "grandstand_corner",
-      "x": 46.6933,
-      "y": -79.17188,
-      "z": 0.7123718,
-      "yaw_rad": -0.38360152,
-      "scale": 2.0,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -120.07224,
+      "y": 105.755196,
+      "z": 0.5729277,
+      "yaw_rad": -0.5224439,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
     },
     {
       "id": 229,
       "kind": "grandstand",
-      "asset": "grandstand_corner",
-      "x": 146.69,
-      "y": 4.48,
-      "z": 1.2818278,
-      "yaw_rad": 1.039,
-      "scale": 2.0,
-      "text": null
+      "asset": "bay_10m_large_roof",
+      "x": -88.3972,
+      "y": 87.51636,
+      "z": 0.5217743,
+      "yaw_rad": -0.5224435,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
     },
     {
       "id": 230,
       "kind": "grandstand",
-      "asset": "grandstand_corner",
-      "x": 127.66,
-      "y": 106.06,
-      "z": 1.4192915,
-      "yaw_rad": 2.5919,
-      "scale": 2.0,
+      "asset": "bay_10m_large_roof",
+      "x": -56.72213,
+      "y": 69.2775,
+      "z": 0.4674933,
+      "yaw_rad": -0.52244365,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
+    },
+    {
+      "id": 3275,
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": -25.047073,
+      "y": 51.038654,
+      "z": 0.4500479,
+      "yaw_rad": -0.5224435,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
+    },
+    {
+      "id": 3276,
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": 6.627983,
+      "y": 32.799812,
+      "z": 0.3812018,
+      "yaw_rad": -0.5224435,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
+    },
+    {
+      "id": 3277,
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": 38.303024,
+      "y": 14.5609665,
+      "z": 0.6014731,
+      "yaw_rad": -0.52244407,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 36.55
+    },
+    {
+      "id": 3278,
+      "kind": "grandstand",
+      "asset": "bay_10m_large_roof",
+      "x": 63.380257,
+      "y": 20.710754,
+      "z": 1.1846813,
+      "yaw_rad": 1.0266198,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 35.69
+    },
+    {
+      "id": 3279,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -56.822937,
+      "y": -151.43127,
+      "z": 0.91181237,
+      "yaw_rad": 1.0574,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3280,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -36.882713,
+      "y": -116.06537,
+      "z": 0.84785616,
+      "yaw_rad": 1.0574,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3281,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -16.94249,
+      "y": -80.69946,
+      "z": 0.74469215,
+      "yaw_rad": 1.0574,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3282,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": 2.997734,
+      "y": -45.333557,
+      "z": 0.46110955,
+      "yaw_rad": 1.0574,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3283,
+      "kind": "building",
+      "asset": "control_tower",
+      "x": 407.20807,
+      "y": -214.17458,
+      "z": 1.1343464,
+      "yaw_rad": 0.9383,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3284,
+      "kind": "building",
+      "asset": "control_tower",
+      "x": 415.01135,
+      "y": -203.52806,
+      "z": 1.1347922,
+      "yaw_rad": 0.9383,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3285,
+      "kind": "building",
+      "asset": "hospitality_3f",
+      "x": 406.94125,
+      "y": -160.16396,
+      "z": 1.1395977,
+      "yaw_rad": 0.9069,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3286,
+      "kind": "building",
+      "asset": "hospitality_3f",
+      "x": 319.10217,
+      "y": 5.3826027,
+      "z": 1.1495401,
+      "yaw_rad": 2.5262,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3287,
+      "kind": "building",
+      "asset": "hospitality_3f",
+      "x": 294.11584,
+      "y": 23.047344,
+      "z": 1.1582686,
+      "yaw_rad": 2.5262,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3288,
+      "kind": "building",
+      "asset": "hospitality_3f",
+      "x": 269.12952,
+      "y": 40.712086,
+      "z": 1.1727492,
+      "yaw_rad": 2.5262,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3289,
+      "kind": "building",
+      "asset": "hospitality_3f",
+      "x": 244.14319,
+      "y": 58.376827,
+      "z": 1.1955464,
+      "yaw_rad": 2.5262,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3290,
+      "kind": "building",
+      "asset": "hospitality_3f",
+      "x": 219.15685,
+      "y": 76.041565,
+      "z": 1.2287368,
+      "yaw_rad": 2.5262,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3291,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": 229.47751,
+      "y": 113.94548,
+      "z": 1.2317291,
+      "yaw_rad": 2.554,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3292,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": 195.68704,
+      "y": 136.45247,
+      "z": 1.2697586,
+      "yaw_rad": 2.554,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3293,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": 159.1593,
+      "y": 219.54738,
+      "z": 1.2908479,
+      "yaw_rad": 1.1053,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3294,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": 177.38327,
+      "y": 255.8275,
+      "z": 1.27868,
+      "yaw_rad": 1.1053,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3295,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": 103.688644,
+      "y": 262.7029,
+      "z": 1.3230804,
+      "yaw_rad": 1.1086,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3296,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": 121.7928,
+      "y": 299.04294,
+      "z": 1.3108286,
+      "yaw_rad": 1.1086,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3297,
+      "kind": "building",
+      "asset": "clubhouse",
+      "x": 56.24115,
+      "y": 245.70193,
+      "z": 1.3623072,
+      "yaw_rad": 2.6701,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3298,
+      "kind": "building",
+      "asset": "clubhouse",
+      "x": 30.776844,
+      "y": 272.4368,
+      "z": 1.3764174,
+      "yaw_rad": 2.6733,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3299,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -24.87777,
+      "y": 285.3968,
+      "z": 1.4255421,
+      "yaw_rad": 2.3754,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3300,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -54.13234,
+      "y": 313.5487,
+      "z": 1.4472638,
+      "yaw_rad": 2.3754,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3301,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -284.16006,
+      "y": 359.0105,
+      "z": 1.8055006,
+      "yaw_rad": 2.5637,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3302,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -318.16727,
+      "y": 381.18866,
+      "z": 1.8811593,
+      "yaw_rad": 2.5637,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3303,
+      "kind": "building",
+      "asset": "clubhouse",
+      "x": -214.3566,
+      "y": 440.99356,
+      "z": 1.596923,
+      "yaw_rad": 1.1041,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3304,
+      "kind": "building",
+      "asset": "clubhouse",
+      "x": -202.83817,
+      "y": 463.85587,
+      "z": 1.5716627,
+      "yaw_rad": 1.1041,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3305,
+      "kind": "building",
+      "asset": "hospitality_3f",
+      "x": -253.16318,
+      "y": 497.42636,
+      "z": 1.6089692,
+      "yaw_rad": 1.0965,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3306,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -427.18784,
+      "y": 591.3246,
+      "z": 1.5839624,
+      "yaw_rad": 2.5459,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3307,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -460.7949,
+      "y": 614.10455,
+      "z": 1.555975,
+      "yaw_rad": 2.5459,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3308,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -494.40195,
+      "y": 636.88446,
+      "z": 1.5303746,
+      "yaw_rad": 2.5459,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3309,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -528.00903,
+      "y": 659.6644,
+      "z": 1.5076398,
+      "yaw_rad": 2.5459,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3310,
+      "kind": "building",
+      "asset": "media_centre",
+      "x": -294.79272,
+      "y": 536.45056,
+      "z": 1.6130991,
+      "yaw_rad": 0.9887,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3311,
+      "kind": "building",
+      "asset": "hospitality_3f",
+      "x": -505.8264,
+      "y": 458.47504,
+      "z": 1.6214173,
+      "yaw_rad": 0.6371,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3312,
+      "kind": "building",
+      "asset": "control_tower",
+      "x": -478.74335,
+      "y": 464.62375,
+      "z": 1.65698,
+      "yaw_rad": 2.2514,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3313,
+      "kind": "building",
+      "asset": "control_tower",
+      "x": -487.04962,
+      "y": 474.88272,
+      "z": 1.6411042,
+      "yaw_rad": 2.2514,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3314,
+      "kind": "building",
+      "asset": "clubhouse",
+      "x": -510.97363,
+      "y": 398.31396,
+      "z": 1.6010834,
+      "yaw_rad": 2.3971,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 3315,
+      "kind": "building",
+      "asset": "clubhouse",
+      "x": -520.6844,
+      "y": 315.05527,
+      "z": 1.5188166,
+      "yaw_rad": 1.2366,
+      "scale": 1.0,
       "text": null
     },
     {
@@ -3124,7 +3790,7 @@
       "text": "50"
     },
     {
-      "id": 2488,
+      "id": 3318,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 8.035041,
@@ -3135,7 +3801,7 @@
       "text": null
     },
     {
-      "id": 2489,
+      "id": 3319,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 11.43354,
@@ -3146,7 +3812,7 @@
       "text": null
     },
     {
-      "id": 2490,
+      "id": 3320,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 14.833845,
@@ -3157,7 +3823,7 @@
       "text": null
     },
     {
-      "id": 2491,
+      "id": 3321,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 18.242552,
@@ -3168,7 +3834,7 @@
       "text": null
     },
     {
-      "id": 2492,
+      "id": 3322,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 166.54654,
@@ -3179,7 +3845,7 @@
       "text": null
     },
     {
-      "id": 2493,
+      "id": 3323,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 152.28502,
@@ -3190,7 +3856,7 @@
       "text": null
     },
     {
-      "id": 2494,
+      "id": 3324,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 170.00589,
@@ -3201,7 +3867,7 @@
       "text": null
     },
     {
-      "id": 2495,
+      "id": 3325,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 155.7493,
@@ -3212,7 +3878,7 @@
       "text": null
     },
     {
-      "id": 2496,
+      "id": 3326,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 173.46335,
@@ -3223,7 +3889,7 @@
       "text": null
     },
     {
-      "id": 2497,
+      "id": 3327,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 159.21571,
@@ -3234,7 +3900,7 @@
       "text": null
     },
     {
-      "id": 2498,
+      "id": 3328,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 176.92429,
@@ -3245,7 +3911,7 @@
       "text": null
     },
     {
-      "id": 2499,
+      "id": 3329,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 162.68982,
@@ -3256,7 +3922,7 @@
       "text": null
     },
     {
-      "id": 2500,
+      "id": 3330,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 180.38434,
@@ -3267,7 +3933,7 @@
       "text": null
     },
     {
-      "id": 2501,
+      "id": 3331,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 166.16707,
@@ -3278,7 +3944,7 @@
       "text": null
     },
     {
-      "id": 2502,
+      "id": 3332,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 183.84685,
@@ -3289,7 +3955,7 @@
       "text": null
     },
     {
-      "id": 2503,
+      "id": 3333,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 169.64558,
@@ -3300,7 +3966,7 @@
       "text": null
     },
     {
-      "id": 2504,
+      "id": 3334,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 187.30684,
@@ -3311,7 +3977,7 @@
       "text": null
     },
     {
-      "id": 2505,
+      "id": 3335,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 173.11969,
@@ -3322,7 +3988,7 @@
       "text": null
     },
     {
-      "id": 2506,
+      "id": 3336,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 190.76831,
@@ -3333,7 +3999,7 @@
       "text": null
     },
     {
-      "id": 2507,
+      "id": 3337,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 176.5935,
@@ -3344,7 +4010,7 @@
       "text": null
     },
     {
-      "id": 2508,
+      "id": 3338,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 194.23631,
@@ -3355,7 +4021,7 @@
       "text": null
     },
     {
-      "id": 2509,
+      "id": 3339,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 180.07222,
@@ -3366,7 +4032,7 @@
       "text": null
     },
     {
-      "id": 2510,
+      "id": 3340,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 313.92563,
@@ -3377,7 +4043,7 @@
       "text": null
     },
     {
-      "id": 2511,
+      "id": 3341,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 295.50845,
@@ -3388,7 +4054,7 @@
       "text": null
     },
     {
-      "id": 2512,
+      "id": 3342,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 317.0437,
@@ -3399,7 +4065,7 @@
       "text": null
     },
     {
-      "id": 2513,
+      "id": 3343,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 298.54404,
@@ -3410,7 +4076,7 @@
       "text": null
     },
     {
-      "id": 2514,
+      "id": 3344,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 320.1561,
@@ -3421,7 +4087,7 @@
       "text": null
     },
     {
-      "id": 2515,
+      "id": 3345,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 301.56305,
@@ -3432,7 +4098,7 @@
       "text": null
     },
     {
-      "id": 2516,
+      "id": 3346,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 323.26508,
@@ -3443,7 +4109,7 @@
       "text": null
     },
     {
-      "id": 2517,
+      "id": 3347,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 304.56378,
@@ -3454,7 +4120,7 @@
       "text": null
     },
     {
-      "id": 2518,
+      "id": 3348,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 326.38022,
@@ -3465,7 +4131,7 @@
       "text": null
     },
     {
-      "id": 2519,
+      "id": 3349,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 307.5422,
@@ -3476,7 +4142,7 @@
       "text": null
     },
     {
-      "id": 2520,
+      "id": 3350,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 329.49045,
@@ -3487,7 +4153,7 @@
       "text": null
     },
     {
-      "id": 2521,
+      "id": 3351,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 310.4964,
@@ -3498,7 +4164,7 @@
       "text": null
     },
     {
-      "id": 2522,
+      "id": 3352,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 332.59406,
@@ -3509,7 +4175,7 @@
       "text": null
     },
     {
-      "id": 2523,
+      "id": 3353,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 313.42325,
@@ -3520,7 +4186,7 @@
       "text": null
     },
     {
-      "id": 2524,
+      "id": 3354,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 335.6795,
@@ -3531,7 +4197,7 @@
       "text": null
     },
     {
-      "id": 2525,
+      "id": 3355,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 316.32208,
@@ -3542,7 +4208,7 @@
       "text": null
     },
     {
-      "id": 2526,
+      "id": 3356,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 348.1263,
@@ -3553,7 +4219,7 @@
       "text": null
     },
     {
-      "id": 2527,
+      "id": 3357,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 364.6628,
@@ -3564,7 +4230,7 @@
       "text": null
     },
     {
-      "id": 2528,
+      "id": 3358,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 345.32574,
@@ -3575,7 +4241,7 @@
       "text": null
     },
     {
-      "id": 2529,
+      "id": 3359,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 361.55872,
@@ -3586,7 +4252,7 @@
       "text": null
     },
     {
-      "id": 2530,
+      "id": 3360,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 342.47952,
@@ -3597,7 +4263,7 @@
       "text": null
     },
     {
-      "id": 2531,
+      "id": 3361,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 358.4079,
@@ -3608,7 +4274,7 @@
       "text": null
     },
     {
-      "id": 2532,
+      "id": 3362,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 339.57095,
@@ -3619,7 +4285,7 @@
       "text": null
     },
     {
-      "id": 2533,
+      "id": 3363,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 355.2295,
@@ -3630,7 +4296,7 @@
       "text": null
     },
     {
-      "id": 2534,
+      "id": 3364,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 244.27127,
@@ -3641,7 +4307,7 @@
       "text": null
     },
     {
-      "id": 2535,
+      "id": 3365,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 240.85826,
@@ -3652,7 +4318,7 @@
       "text": null
     },
     {
-      "id": 2536,
+      "id": 3366,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 224.82257,
@@ -3663,7 +4329,7 @@
       "text": null
     },
     {
-      "id": 2537,
+      "id": 3367,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 237.44308,
@@ -3674,7 +4340,7 @@
       "text": null
     },
     {
-      "id": 2538,
+      "id": 3368,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 221.4298,
@@ -3685,7 +4351,7 @@
       "text": null
     },
     {
-      "id": 2539,
+      "id": 3369,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 234.02585,
@@ -3696,7 +4362,7 @@
       "text": null
     },
     {
-      "id": 2540,
+      "id": 3370,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 218.02675,
@@ -3707,7 +4373,7 @@
       "text": null
     },
     {
-      "id": 2541,
+      "id": 3371,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 230.5992,
@@ -3718,7 +4384,7 @@
       "text": null
     },
     {
-      "id": 2542,
+      "id": 3372,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 214.6218,
@@ -3729,7 +4395,7 @@
       "text": null
     },
     {
-      "id": 2543,
+      "id": 3373,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 227.17122,
@@ -3740,7 +4406,7 @@
       "text": null
     },
     {
-      "id": 2544,
+      "id": 3374,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 211.22064,
@@ -3751,7 +4417,7 @@
       "text": null
     },
     {
-      "id": 2545,
+      "id": 3375,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 223.7481,
@@ -3762,7 +4428,7 @@
       "text": null
     },
     {
-      "id": 2546,
+      "id": 3376,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 207.70009,
@@ -3773,7 +4439,7 @@
       "text": null
     },
     {
-      "id": 2547,
+      "id": 3377,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 220.39162,
@@ -3784,7 +4450,7 @@
       "text": null
     },
     {
-      "id": 2548,
+      "id": 3378,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 204.01224,
@@ -3795,7 +4461,7 @@
       "text": null
     },
     {
-      "id": 2549,
+      "id": 3379,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 217.12904,
@@ -3806,7 +4472,7 @@
       "text": null
     },
     {
-      "id": 2550,
+      "id": 3380,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 200.46031,
@@ -3817,7 +4483,7 @@
       "text": null
     },
     {
-      "id": 2551,
+      "id": 3381,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 213.77267,
@@ -3828,7 +4494,7 @@
       "text": null
     },
     {
-      "id": 2552,
+      "id": 3382,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 196.899,
@@ -3839,7 +4505,7 @@
       "text": null
     },
     {
-      "id": 2553,
+      "id": 3383,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 210.41968,
@@ -3850,7 +4516,7 @@
       "text": null
     },
     {
-      "id": 2554,
+      "id": 3384,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 193.20622,
@@ -3861,7 +4527,7 @@
       "text": null
     },
     {
-      "id": 2555,
+      "id": 3385,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 207.15135,
@@ -3872,7 +4538,7 @@
       "text": null
     },
     {
-      "id": 2556,
+      "id": 3386,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 189.63666,
@@ -3883,7 +4549,7 @@
       "text": null
     },
     {
-      "id": 2557,
+      "id": 3387,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 203.84866,
@@ -3894,7 +4560,7 @@
       "text": null
     },
     {
-      "id": 2558,
+      "id": 3388,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 186.10666,
@@ -3905,7 +4571,7 @@
       "text": null
     },
     {
-      "id": 2559,
+      "id": 3389,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 200.5344,
@@ -3916,7 +4582,7 @@
       "text": null
     },
     {
-      "id": 2560,
+      "id": 3390,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 182.62546,
@@ -3927,7 +4593,7 @@
       "text": null
     },
     {
-      "id": 2561,
+      "id": 3391,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 197.15082,
@@ -3938,7 +4604,7 @@
       "text": null
     },
     {
-      "id": 2562,
+      "id": 3392,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 179.14117,
@@ -3949,7 +4615,7 @@
       "text": null
     },
     {
-      "id": 2563,
+      "id": 3393,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 193.76797,
@@ -3960,7 +4626,7 @@
       "text": null
     },
     {
-      "id": 2564,
+      "id": 3394,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 175.60545,
@@ -3971,7 +4637,7 @@
       "text": null
     },
     {
-      "id": 2565,
+      "id": 3395,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 190.44948,
@@ -3982,7 +4648,7 @@
       "text": null
     },
     {
-      "id": 2566,
+      "id": 3396,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 172.06859,
@@ -3993,7 +4659,7 @@
       "text": null
     },
     {
-      "id": 2567,
+      "id": 3397,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 187.13066,
@@ -4004,7 +4670,7 @@
       "text": null
     },
     {
-      "id": 2568,
+      "id": 3398,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 168.52968,
@@ -4015,7 +4681,7 @@
       "text": null
     },
     {
-      "id": 2569,
+      "id": 3399,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 183.81046,
@@ -4026,7 +4692,7 @@
       "text": null
     },
     {
-      "id": 2570,
+      "id": 3400,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 165.03967,
@@ -4037,7 +4703,7 @@
       "text": null
     },
     {
-      "id": 2571,
+      "id": 3401,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 180.42317,
@@ -4048,7 +4714,7 @@
       "text": null
     },
     {
-      "id": 2572,
+      "id": 3402,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 161.54794,
@@ -4059,7 +4725,7 @@
       "text": null
     },
     {
-      "id": 2573,
+      "id": 3403,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 177.03577,
@@ -4070,7 +4736,7 @@
       "text": null
     },
     {
-      "id": 2574,
+      "id": 3404,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 158.08148,
@@ -4081,7 +4747,7 @@
       "text": null
     },
     {
-      "id": 2575,
+      "id": 3405,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 173.60123,
@@ -4092,7 +4758,7 @@
       "text": null
     },
     {
-      "id": 2576,
+      "id": 3406,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 154.63078,
@@ -4103,7 +4769,7 @@
       "text": null
     },
     {
-      "id": 2577,
+      "id": 3407,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 170.14078,
@@ -4114,7 +4780,7 @@
       "text": null
     },
     {
-      "id": 2578,
+      "id": 3408,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 38.941196,
@@ -4125,7 +4791,7 @@
       "text": null
     },
     {
-      "id": 2579,
+      "id": 3409,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 54.206417,
@@ -4136,7 +4802,7 @@
       "text": null
     },
     {
-      "id": 2580,
+      "id": 3410,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 35.47186,
@@ -4147,7 +4813,7 @@
       "text": null
     },
     {
-      "id": 2581,
+      "id": 3411,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 50.743713,
@@ -4158,7 +4824,7 @@
       "text": null
     },
     {
-      "id": 2582,
+      "id": 3412,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 32.00359,
@@ -4169,7 +4835,7 @@
       "text": null
     },
     {
-      "id": 2583,
+      "id": 3413,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 47.280586,
@@ -4180,7 +4846,7 @@
       "text": null
     },
     {
-      "id": 2584,
+      "id": 3414,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 28.539572,
@@ -4191,7 +4857,7 @@
       "text": null
     },
     {
-      "id": 2585,
+      "id": 3415,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 43.820023,
@@ -4202,7 +4868,7 @@
       "text": null
     },
     {
-      "id": 2586,
+      "id": 3416,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 25.07874,
@@ -4213,7 +4879,7 @@
       "text": null
     },
     {
-      "id": 2587,
+      "id": 3417,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 40.360725,
@@ -4224,7 +4890,7 @@
       "text": null
     },
     {
-      "id": 2588,
+      "id": 3418,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 21.612799,
@@ -4235,7 +4901,7 @@
       "text": null
     },
     {
-      "id": 2589,
+      "id": 3419,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 36.896366,
@@ -4246,7 +4912,7 @@
       "text": null
     },
     {
-      "id": 2590,
+      "id": 3420,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 18.14759,
@@ -4257,7 +4923,7 @@
       "text": null
     },
     {
-      "id": 2591,
+      "id": 3421,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 33.430935,
@@ -4268,7 +4934,7 @@
       "text": null
     },
     {
-      "id": 2592,
+      "id": 3422,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 14.682318,
@@ -4279,7 +4945,7 @@
       "text": null
     },
     {
-      "id": 2593,
+      "id": 3423,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 29.965069,
@@ -4290,7 +4956,7 @@
       "text": null
     },
     {
-      "id": 2594,
+      "id": 3424,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 11.220857,
@@ -4301,7 +4967,7 @@
       "text": null
     },
     {
-      "id": 2595,
+      "id": 3425,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 26.500399,
@@ -4312,7 +4978,7 @@
       "text": null
     },
     {
-      "id": 2596,
+      "id": 3426,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 7.762162,
@@ -4323,7 +4989,7 @@
       "text": null
     },
     {
-      "id": 2597,
+      "id": 3427,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 23.036768,
@@ -4334,7 +5000,7 @@
       "text": null
     },
     {
-      "id": 2598,
+      "id": 3428,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 4.297994,
@@ -4345,7 +5011,7 @@
       "text": null
     },
     {
-      "id": 2599,
+      "id": 3429,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 19.567785,
@@ -4356,7 +5022,7 @@
       "text": null
     },
     {
-      "id": 2600,
+      "id": 3430,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 0.833477,
@@ -4367,7 +5033,7 @@
       "text": null
     },
     {
-      "id": 2601,
+      "id": 3431,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 16.097633,
@@ -4378,7 +5044,7 @@
       "text": null
     },
     {
-      "id": 2602,
+      "id": 3432,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -2.6307263,
@@ -4389,7 +5055,7 @@
       "text": null
     },
     {
-      "id": 2603,
+      "id": 3433,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 12.625996,
@@ -4400,7 +5066,7 @@
       "text": null
     },
     {
-      "id": 2604,
+      "id": 3434,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -6.093023,
@@ -4411,7 +5077,7 @@
       "text": null
     },
     {
-      "id": 2605,
+      "id": 3435,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 9.156779,
@@ -4422,7 +5088,7 @@
       "text": null
     },
     {
-      "id": 2606,
+      "id": 3436,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -9.553769,
@@ -4433,7 +5099,7 @@
       "text": null
     },
     {
-      "id": 2607,
+      "id": 3437,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 5.6888924,
@@ -4444,7 +5110,7 @@
       "text": null
     },
     {
-      "id": 2608,
+      "id": 3438,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -13.020848,
@@ -4455,7 +5121,7 @@
       "text": null
     },
     {
-      "id": 2609,
+      "id": 3439,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 2.2165675,
@@ -4466,7 +5132,7 @@
       "text": null
     },
     {
-      "id": 2610,
+      "id": 3440,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -16.48928,
@@ -4477,7 +5143,7 @@
       "text": null
     },
     {
-      "id": 2611,
+      "id": 3441,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -1.25636,
@@ -4488,7 +5154,7 @@
       "text": null
     },
     {
-      "id": 2612,
+      "id": 3442,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -19.958681,
@@ -4499,7 +5165,7 @@
       "text": null
     },
     {
-      "id": 2613,
+      "id": 3443,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -4.728935,
@@ -4510,7 +5176,7 @@
       "text": null
     },
     {
-      "id": 2614,
+      "id": 3444,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -23.42522,
@@ -4521,7 +5187,7 @@
       "text": null
     },
     {
-      "id": 2615,
+      "id": 3445,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -8.199526,
@@ -4532,7 +5198,7 @@
       "text": null
     },
     {
-      "id": 2616,
+      "id": 3446,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -26.89005,
@@ -4543,7 +5209,7 @@
       "text": null
     },
     {
-      "id": 2617,
+      "id": 3447,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -11.668331,
@@ -4554,7 +5220,7 @@
       "text": null
     },
     {
-      "id": 2618,
+      "id": 3448,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -30.361126,
@@ -4565,7 +5231,7 @@
       "text": null
     },
     {
-      "id": 2619,
+      "id": 3449,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -15.141287,
@@ -4576,7 +5242,7 @@
       "text": null
     },
     {
-      "id": 2620,
+      "id": 3450,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -33.83332,
@@ -4587,7 +5253,7 @@
       "text": null
     },
     {
-      "id": 2621,
+      "id": 3451,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -18.61426,
@@ -4598,7 +5264,7 @@
       "text": null
     },
     {
-      "id": 2622,
+      "id": 3452,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -37.306477,
@@ -4609,7 +5275,7 @@
       "text": null
     },
     {
-      "id": 2623,
+      "id": 3453,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -22.0873,
@@ -4620,7 +5286,7 @@
       "text": null
     },
     {
-      "id": 2624,
+      "id": 3454,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -40.77655,
@@ -4631,7 +5297,7 @@
       "text": null
     },
     {
-      "id": 2625,
+      "id": 3455,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -25.55788,
@@ -4642,7 +5308,7 @@
       "text": null
     },
     {
-      "id": 2626,
+      "id": 3456,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -44.244503,
@@ -4653,7 +5319,7 @@
       "text": null
     },
     {
-      "id": 2627,
+      "id": 3457,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -29.026236,
@@ -4664,7 +5330,7 @@
       "text": null
     },
     {
-      "id": 2628,
+      "id": 3458,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -47.71792,
@@ -4675,7 +5341,7 @@
       "text": null
     },
     {
-      "id": 2629,
+      "id": 3459,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -32.49782,
@@ -4686,7 +5352,7 @@
       "text": null
     },
     {
-      "id": 2630,
+      "id": 3460,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -51.19268,
@@ -4697,7 +5363,7 @@
       "text": null
     },
     {
-      "id": 2631,
+      "id": 3461,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -35.970116,
@@ -4708,7 +5374,7 @@
       "text": null
     },
     {
-      "id": 2632,
+      "id": 3462,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -54.66778,
@@ -4719,7 +5385,7 @@
       "text": null
     },
     {
-      "id": 2633,
+      "id": 3463,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -39.441998,
@@ -4730,7 +5396,7 @@
       "text": null
     },
     {
-      "id": 2634,
+      "id": 3464,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -58.13984,
@@ -4741,7 +5407,7 @@
       "text": null
     },
     {
-      "id": 2635,
+      "id": 3465,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -42.910538,
@@ -4752,7 +5418,7 @@
       "text": null
     },
     {
-      "id": 2636,
+      "id": 3466,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -61.609425,
@@ -4763,7 +5429,7 @@
       "text": null
     },
     {
-      "id": 2637,
+      "id": 3467,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -46.376755,
@@ -4774,7 +5440,7 @@
       "text": null
     },
     {
-      "id": 2638,
+      "id": 3468,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -65.08391,
@@ -4785,7 +5451,7 @@
       "text": null
     },
     {
-      "id": 2639,
+      "id": 3469,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -49.846718,
@@ -4796,7 +5462,7 @@
       "text": null
     },
     {
-      "id": 2640,
+      "id": 3470,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -68.559654,
@@ -4807,7 +5473,7 @@
       "text": null
     },
     {
-      "id": 2641,
+      "id": 3471,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -53.3165,
@@ -4818,7 +5484,7 @@
       "text": null
     },
     {
-      "id": 2642,
+      "id": 3472,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -72.035645,
@@ -4829,7 +5495,7 @@
       "text": null
     },
     {
-      "id": 2643,
+      "id": 3473,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -56.785343,
@@ -4840,7 +5506,7 @@
       "text": null
     },
     {
-      "id": 2644,
+      "id": 3474,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -75.50827,
@@ -4851,7 +5517,7 @@
       "text": null
     },
     {
-      "id": 2645,
+      "id": 3475,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -60.25149,
@@ -4862,7 +5528,7 @@
       "text": null
     },
     {
-      "id": 2646,
+      "id": 3476,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -78.97825,
@@ -4873,7 +5539,7 @@
       "text": null
     },
     {
-      "id": 2647,
+      "id": 3477,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -63.714737,
@@ -4884,7 +5550,7 @@
       "text": null
     },
     {
-      "id": 2648,
+      "id": 3478,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -82.45332,
@@ -4895,7 +5561,7 @@
       "text": null
     },
     {
-      "id": 2649,
+      "id": 3479,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -67.18124,
@@ -4906,7 +5572,7 @@
       "text": null
     },
     {
-      "id": 2650,
+      "id": 3480,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -85.92865,
@@ -4917,7 +5583,7 @@
       "text": null
     },
     {
-      "id": 2651,
+      "id": 3481,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -70.64701,
@@ -4928,7 +5594,7 @@
       "text": null
     },
     {
-      "id": 2652,
+      "id": 3482,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -89.40412,
@@ -4939,7 +5605,7 @@
       "text": null
     },
     {
-      "id": 2653,
+      "id": 3483,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -74.11234,
@@ -4950,7 +5616,7 @@
       "text": null
     },
     {
-      "id": 2654,
+      "id": 3484,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -92.87605,
@@ -4961,7 +5627,7 @@
       "text": null
     },
     {
-      "id": 2655,
+      "id": 3485,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -77.574265,
@@ -4972,7 +5638,7 @@
       "text": null
     },
     {
-      "id": 2656,
+      "id": 3486,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -96.34496,
@@ -4983,7 +5649,7 @@
       "text": null
     },
     {
-      "id": 2657,
+      "id": 3487,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -81.03332,
@@ -4994,7 +5660,7 @@
       "text": null
     },
     {
-      "id": 2658,
+      "id": 3488,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -99.81896,
@@ -5005,7 +5671,7 @@
       "text": null
     },
     {
-      "id": 2659,
+      "id": 3489,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -84.49453,
@@ -5016,7 +5682,7 @@
       "text": null
     },
     {
-      "id": 2660,
+      "id": 3490,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -103.29337,
@@ -5027,7 +5693,7 @@
       "text": null
     },
     {
-      "id": 2661,
+      "id": 3491,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -87.95586,
@@ -5038,7 +5704,7 @@
       "text": null
     },
     {
-      "id": 2662,
+      "id": 3492,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -106.76658,
@@ -5049,7 +5715,7 @@
       "text": null
     },
     {
-      "id": 2663,
+      "id": 3493,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -91.41606,
@@ -5060,7 +5726,7 @@
       "text": null
     },
     {
-      "id": 2664,
+      "id": 3494,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -110.23679,
@@ -5071,7 +5737,7 @@
       "text": null
     },
     {
-      "id": 2665,
+      "id": 3495,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -94.87225,
@@ -5082,7 +5748,7 @@
       "text": null
     },
     {
-      "id": 2666,
+      "id": 3496,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -113.70353,
@@ -5093,7 +5759,7 @@
       "text": null
     },
     {
-      "id": 2667,
+      "id": 3497,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -98.32523,
@@ -5104,7 +5770,7 @@
       "text": null
     },
     {
-      "id": 2668,
+      "id": 3498,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -117.17489,
@@ -5115,7 +5781,7 @@
       "text": null
     },
     {
-      "id": 2669,
+      "id": 3499,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -101.78111,
@@ -5126,7 +5792,7 @@
       "text": null
     },
     {
-      "id": 2670,
+      "id": 3500,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -120.646385,
@@ -5137,7 +5803,7 @@
       "text": null
     },
     {
-      "id": 2671,
+      "id": 3501,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -105.23624,
@@ -5148,7 +5814,7 @@
       "text": null
     },
     {
-      "id": 2672,
+      "id": 3502,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -124.11737,
@@ -5159,7 +5825,7 @@
       "text": null
     },
     {
-      "id": 2673,
+      "id": 3503,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -108.68922,
@@ -5170,7 +5836,7 @@
       "text": null
     },
     {
-      "id": 2674,
+      "id": 3504,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -127.5832,
@@ -5181,7 +5847,7 @@
       "text": null
     },
     {
-      "id": 2675,
+      "id": 3505,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -112.13978,
@@ -5192,7 +5858,7 @@
       "text": null
     },
     {
-      "id": 2676,
+      "id": 3506,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -131.04347,
@@ -5203,7 +5869,7 @@
       "text": null
     },
     {
-      "id": 2677,
+      "id": 3507,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -115.588844,
@@ -5214,7 +5880,7 @@
       "text": null
     },
     {
-      "id": 2678,
+      "id": 3508,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -134.50674,
@@ -5225,7 +5891,7 @@
       "text": null
     },
     {
-      "id": 2679,
+      "id": 3509,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -119.04284,
@@ -5236,7 +5902,7 @@
       "text": null
     },
     {
-      "id": 2680,
+      "id": 3510,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -137.96822,
@@ -5247,7 +5913,7 @@
       "text": null
     },
     {
-      "id": 2681,
+      "id": 3511,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -122.49876,
@@ -5258,7 +5924,7 @@
       "text": null
     },
     {
-      "id": 2682,
+      "id": 3512,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -141.42679,
@@ -5269,7 +5935,7 @@
       "text": null
     },
     {
-      "id": 2683,
+      "id": 3513,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -125.95775,
@@ -5280,7 +5946,7 @@
       "text": null
     },
     {
-      "id": 2684,
+      "id": 3514,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -144.88057,
@@ -5291,7 +5957,7 @@
       "text": null
     },
     {
-      "id": 2685,
+      "id": 3515,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -129.41646,
@@ -5302,7 +5968,7 @@
       "text": null
     },
     {
-      "id": 2686,
+      "id": 3516,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -148.32959,
@@ -5313,7 +5979,7 @@
       "text": null
     },
     {
-      "id": 2687,
+      "id": 3517,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -132.87566,
@@ -5324,7 +5990,7 @@
       "text": null
     },
     {
-      "id": 2688,
+      "id": 3518,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -151.78233,
@@ -5335,7 +6001,7 @@
       "text": null
     },
     {
-      "id": 2689,
+      "id": 3519,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -136.34094,
@@ -5346,7 +6012,7 @@
       "text": null
     },
     {
-      "id": 2690,
+      "id": 3520,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -155.23553,
@@ -5357,7 +6023,7 @@
       "text": null
     },
     {
-      "id": 2691,
+      "id": 3521,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -139.81071,
@@ -5368,7 +6034,7 @@
       "text": null
     },
     {
-      "id": 2692,
+      "id": 3522,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -158.68759,
@@ -5379,7 +6045,7 @@
       "text": null
     },
     {
-      "id": 2693,
+      "id": 3523,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -143.2848,
@@ -5390,7 +6056,7 @@
       "text": null
     },
     {
-      "id": 2694,
+      "id": 3524,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -162.1364,
@@ -5401,7 +6067,7 @@
       "text": null
     },
     {
-      "id": 2695,
+      "id": 3525,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -146.76004,
@@ -5412,7 +6078,7 @@
       "text": null
     },
     {
-      "id": 2696,
+      "id": 3526,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -165.58228,
@@ -5423,7 +6089,7 @@
       "text": null
     },
     {
-      "id": 2697,
+      "id": 3527,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -150.2374,
@@ -5434,7 +6100,7 @@
       "text": null
     },
     {
-      "id": 2698,
+      "id": 3528,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -169.03351,
@@ -5445,7 +6111,7 @@
       "text": null
     },
     {
-      "id": 2699,
+      "id": 3529,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -153.72314,
@@ -5456,7 +6122,7 @@
       "text": null
     },
     {
-      "id": 2700,
+      "id": 3530,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -172.48605,
@@ -5467,7 +6133,7 @@
       "text": null
     },
     {
-      "id": 2701,
+      "id": 3531,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -157.2145,
@@ -5478,7 +6144,7 @@
       "text": null
     },
     {
-      "id": 2702,
+      "id": 3532,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -175.93944,
@@ -5489,7 +6155,7 @@
       "text": null
     },
     {
-      "id": 2703,
+      "id": 3533,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -160.71118,
@@ -5500,7 +6166,7 @@
       "text": null
     },
     {
-      "id": 2704,
+      "id": 3534,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -179.39127,
@@ -5511,7 +6177,7 @@
       "text": null
     },
     {
-      "id": 2705,
+      "id": 3535,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -164.21155,
@@ -5522,7 +6188,7 @@
       "text": null
     },
     {
-      "id": 2706,
+      "id": 3536,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -182.84187,
@@ -5533,7 +6199,7 @@
       "text": null
     },
     {
-      "id": 2707,
+      "id": 3537,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -167.71535,
@@ -5544,7 +6210,7 @@
       "text": null
     },
     {
-      "id": 2708,
+      "id": 3538,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -186.29935,
@@ -5555,7 +6221,7 @@
       "text": null
     },
     {
-      "id": 2709,
+      "id": 3539,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -171.2289,
@@ -5566,7 +6232,7 @@
       "text": null
     },
     {
-      "id": 2710,
+      "id": 3540,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -189.76042,
@@ -5577,7 +6243,7 @@
       "text": null
     },
     {
-      "id": 2711,
+      "id": 3541,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -174.74802,
@@ -5588,7 +6254,7 @@
       "text": null
     },
     {
-      "id": 2712,
+      "id": 3542,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -193.23758,
@@ -5599,7 +6265,7 @@
       "text": null
     },
     {
-      "id": 2713,
+      "id": 3543,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -178.26091,
@@ -5610,7 +6276,7 @@
       "text": null
     },
     {
-      "id": 2714,
+      "id": 3544,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -196.72511,
@@ -5621,7 +6287,7 @@
       "text": null
     },
     {
-      "id": 2715,
+      "id": 3545,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -181.76411,
@@ -5632,7 +6298,7 @@
       "text": null
     },
     {
-      "id": 2716,
+      "id": 3546,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -200.22134,
@@ -5643,7 +6309,7 @@
       "text": null
     },
     {
-      "id": 2717,
+      "id": 3547,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -185.25607,
@@ -5654,7 +6320,7 @@
       "text": null
     },
     {
-      "id": 2718,
+      "id": 3548,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -203.73212,
@@ -5665,7 +6331,7 @@
       "text": null
     },
     {
-      "id": 2719,
+      "id": 3549,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -188.74112,
@@ -5676,7 +6342,7 @@
       "text": null
     },
     {
-      "id": 2720,
+      "id": 3550,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -207.25291,
@@ -5687,7 +6353,7 @@
       "text": null
     },
     {
-      "id": 2721,
+      "id": 3551,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -192.21487,
@@ -5698,7 +6364,7 @@
       "text": null
     },
     {
-      "id": 2722,
+      "id": 3552,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -210.78267,
@@ -5709,7 +6375,7 @@
       "text": null
     },
     {
-      "id": 2723,
+      "id": 3553,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -195.67259,
@@ -5720,7 +6386,7 @@
       "text": null
     },
     {
-      "id": 2724,
+      "id": 3554,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -214.31499,
@@ -5731,7 +6397,7 @@
       "text": null
     },
     {
-      "id": 2725,
+      "id": 3555,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -199.11266,
@@ -5742,7 +6408,7 @@
       "text": null
     },
     {
-      "id": 2726,
+      "id": 3556,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -217.84825,
@@ -5753,7 +6419,7 @@
       "text": null
     },
     {
-      "id": 2727,
+      "id": 3557,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -202.534,
@@ -5764,7 +6430,7 @@
       "text": null
     },
     {
-      "id": 2728,
+      "id": 3558,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -221.38799,
@@ -5775,7 +6441,7 @@
       "text": null
     },
     {
-      "id": 2729,
+      "id": 3559,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -205.94106,
@@ -5786,7 +6452,7 @@
       "text": null
     },
     {
-      "id": 2730,
+      "id": 3560,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -224.92984,
@@ -5797,7 +6463,7 @@
       "text": null
     },
     {
-      "id": 2731,
+      "id": 3561,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -209.3285,
@@ -5808,7 +6474,7 @@
       "text": null
     },
     {
-      "id": 2732,
+      "id": 3562,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -228.47255,
@@ -5819,7 +6485,7 @@
       "text": null
     },
     {
-      "id": 2733,
+      "id": 3563,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -212.69128,
@@ -5830,7 +6496,7 @@
       "text": null
     },
     {
-      "id": 2734,
+      "id": 3564,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -232.00833,
@@ -5841,7 +6507,7 @@
       "text": null
     },
     {
-      "id": 2735,
+      "id": 3565,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -216.02922,
@@ -5852,7 +6518,7 @@
       "text": null
     },
     {
-      "id": 2736,
+      "id": 3566,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -343.8066,
@@ -5863,18 +6529,7 @@
       "text": null
     },
     {
-      "id": 2737,
-      "kind": "barrier",
-      "asset": "armco_generic",
-      "x": -318.6443,
-      "y": 373.24603,
-      "z": 1.8918005,
-      "yaw_rad": 2.221269,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 2738,
+      "id": 3567,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -346.19492,
@@ -5885,18 +6540,7 @@
       "text": null
     },
     {
-      "id": 2739,
-      "kind": "barrier",
-      "asset": "armco_generic",
-      "x": -321.01266,
-      "y": 376.5036,
-      "z": 1.8942006,
-      "yaw_rad": 2.222924,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 2740,
+      "id": 3568,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -348.5904,
@@ -5907,18 +6551,7 @@
       "text": null
     },
     {
-      "id": 2741,
-      "kind": "barrier",
-      "asset": "armco_generic",
-      "x": -323.40002,
-      "y": 379.75003,
-      "z": 1.8958238,
-      "yaw_rad": 2.2247272,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 2742,
+      "id": 3569,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -350.99902,
@@ -5929,18 +6562,7 @@
       "text": null
     },
     {
-      "id": 2743,
-      "kind": "barrier",
-      "asset": "armco_generic",
-      "x": -325.82538,
-      "y": 382.97052,
-      "z": 1.898055,
-      "yaw_rad": 2.226667,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 2744,
+      "id": 3570,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -374.22858,
@@ -5951,7 +6573,7 @@
       "text": null
     },
     {
-      "id": 2745,
+      "id": 3571,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -407.79144,
@@ -5962,7 +6584,7 @@
       "text": null
     },
     {
-      "id": 2746,
+      "id": 3572,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -373.10974,
@@ -5973,7 +6595,7 @@
       "text": null
     },
     {
-      "id": 2747,
+      "id": 3573,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -406.62924,
@@ -5984,7 +6606,7 @@
       "text": null
     },
     {
-      "id": 2748,
+      "id": 3574,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -371.97552,
@@ -5995,7 +6617,7 @@
       "text": null
     },
     {
-      "id": 2749,
+      "id": 3575,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -405.46002,
@@ -6006,7 +6628,7 @@
       "text": null
     },
     {
-      "id": 2750,
+      "id": 3576,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -370.81558,
@@ -6017,7 +6639,7 @@
       "text": null
     },
     {
-      "id": 2751,
+      "id": 3577,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -404.27295,
@@ -6028,7 +6650,7 @@
       "text": null
     },
     {
-      "id": 2752,
+      "id": 3578,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -369.6415,
@@ -6039,7 +6661,7 @@
       "text": null
     },
     {
-      "id": 2753,
+      "id": 3579,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -403.08127,
@@ -6050,7 +6672,7 @@
       "text": null
     },
     {
-      "id": 2754,
+      "id": 3580,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -368.4565,
@@ -6061,7 +6683,7 @@
       "text": null
     },
     {
-      "id": 2755,
+      "id": 3581,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -401.8896,
@@ -6072,7 +6694,7 @@
       "text": null
     },
     {
-      "id": 2756,
+      "id": 3582,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -367.27148,
@@ -6083,7 +6705,7 @@
       "text": null
     },
     {
-      "id": 2757,
+      "id": 3583,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -400.70657,
@@ -6094,7 +6716,7 @@
       "text": null
     },
     {
-      "id": 2758,
+      "id": 3584,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -366.0877,
@@ -6105,7 +6727,7 @@
       "text": null
     },
     {
-      "id": 2759,
+      "id": 3585,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -399.5338,
@@ -6116,7 +6738,7 @@
       "text": null
     },
     {
-      "id": 2760,
+      "id": 3586,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -364.89566,
@@ -6127,7 +6749,7 @@
       "text": null
     },
     {
-      "id": 2761,
+      "id": 3587,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -398.36124,
@@ -6138,7 +6760,7 @@
       "text": null
     },
     {
-      "id": 2762,
+      "id": 3588,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -363.70554,
@@ -6149,7 +6771,7 @@
       "text": null
     },
     {
-      "id": 2763,
+      "id": 3589,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -397.1999,
@@ -6160,7 +6782,7 @@
       "text": null
     },
     {
-      "id": 2764,
+      "id": 3590,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -362.523,
@@ -6171,7 +6793,7 @@
       "text": null
     },
     {
-      "id": 2765,
+      "id": 3591,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -396.05728,
@@ -6182,7 +6804,7 @@
       "text": null
     },
     {
-      "id": 2766,
+      "id": 3592,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -361.37006,
@@ -6193,7 +6815,7 @@
       "text": null
     },
     {
-      "id": 2767,
+      "id": 3593,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -394.9429,
@@ -6204,7 +6826,7 @@
       "text": null
     },
     {
-      "id": 2768,
+      "id": 3594,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -360.23752,
@@ -6215,7 +6837,7 @@
       "text": null
     },
     {
-      "id": 2769,
+      "id": 3595,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -393.844,
@@ -6226,7 +6848,7 @@
       "text": null
     },
     {
-      "id": 2770,
+      "id": 3596,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -359.15866,
@@ -6237,7 +6859,7 @@
       "text": null
     },
     {
-      "id": 2771,
+      "id": 3597,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -392.79172,
@@ -6248,7 +6870,7 @@
       "text": null
     },
     {
-      "id": 2772,
+      "id": 3598,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -358.0944,
@@ -6259,7 +6881,7 @@
       "text": null
     },
     {
-      "id": 2773,
+      "id": 3599,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -391.74646,
@@ -6270,7 +6892,7 @@
       "text": null
     },
     {
-      "id": 2774,
+      "id": 3600,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -260.4812,
@@ -6281,7 +6903,7 @@
       "text": null
     },
     {
-      "id": 2775,
+      "id": 3601,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -257.05057,
@@ -6292,7 +6914,7 @@
       "text": null
     },
     {
-      "id": 2776,
+      "id": 3602,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -253.61378,
@@ -6303,7 +6925,7 @@
       "text": null
     },
     {
-      "id": 2777,
+      "id": 3603,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -250.16942,
@@ -6314,7 +6936,7 @@
       "text": null
     },
     {
-      "id": 2778,
+      "id": 3604,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -246.71928,
@@ -6325,7 +6947,7 @@
       "text": null
     },
     {
-      "id": 2779,
+      "id": 3605,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -243.26546,
@@ -6336,7 +6958,7 @@
       "text": null
     },
     {
-      "id": 2780,
+      "id": 3606,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -239.80699,
@@ -6347,7 +6969,7 @@
       "text": null
     },
     {
-      "id": 2781,
+      "id": 3607,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -236.3474,
@@ -6358,7 +6980,7 @@
       "text": null
     },
     {
-      "id": 2782,
+      "id": 3608,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -232.88553,
@@ -6369,7 +6991,7 @@
       "text": null
     },
     {
-      "id": 2783,
+      "id": 3609,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -229.42053,
@@ -6380,7 +7002,7 @@
       "text": null
     },
     {
-      "id": 2784,
+      "id": 3610,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -225.95284,
@@ -6391,7 +7013,7 @@
       "text": null
     },
     {
-      "id": 2785,
+      "id": 3611,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -222.4815,
@@ -6402,7 +7024,7 @@
       "text": null
     },
     {
-      "id": 2786,
+      "id": 3612,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -219.00975,
@@ -6413,7 +7035,7 @@
       "text": null
     },
     {
-      "id": 2787,
+      "id": 3613,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -215.53676,
@@ -6424,7 +7046,7 @@
       "text": null
     },
     {
-      "id": 2788,
+      "id": 3614,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -212.06107,
@@ -6435,7 +7057,7 @@
       "text": null
     },
     {
-      "id": 2789,
+      "id": 3615,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -208.58374,
@@ -6446,7 +7068,7 @@
       "text": null
     },
     {
-      "id": 2790,
+      "id": 3616,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -205.10362,
@@ -6457,7 +7079,7 @@
       "text": null
     },
     {
-      "id": 2791,
+      "id": 3617,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -201.62357,
@@ -6468,7 +7090,7 @@
       "text": null
     },
     {
-      "id": 2792,
+      "id": 3618,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -198.14308,
@@ -6479,7 +7101,7 @@
       "text": null
     },
     {
-      "id": 2793,
+      "id": 3619,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -194.66154,
@@ -6490,7 +7112,7 @@
       "text": null
     },
     {
-      "id": 2794,
+      "id": 3620,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -191.17795,
@@ -6501,7 +7123,7 @@
       "text": null
     },
     {
-      "id": 2795,
+      "id": 3621,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -187.69258,
@@ -6512,7 +7134,7 @@
       "text": null
     },
     {
-      "id": 2796,
+      "id": 3622,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -184.20819,
@@ -6523,7 +7145,7 @@
       "text": null
     },
     {
-      "id": 2797,
+      "id": 3623,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -180.72429,
@@ -6534,7 +7156,7 @@
       "text": null
     },
     {
-      "id": 2798,
+      "id": 3624,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -177.23999,
@@ -6545,7 +7167,7 @@
       "text": null
     },
     {
-      "id": 2799,
+      "id": 3625,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -173.75482,
@@ -6556,7 +7178,7 @@
       "text": null
     },
     {
-      "id": 2800,
+      "id": 3626,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -170.26851,
@@ -6567,7 +7189,7 @@
       "text": null
     },
     {
-      "id": 2801,
+      "id": 3627,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -166.78404,
@@ -6578,7 +7200,7 @@
       "text": null
     },
     {
-      "id": 2802,
+      "id": 3628,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -163.30084,
@@ -6589,7 +7211,7 @@
       "text": null
     },
     {
-      "id": 2803,
+      "id": 3629,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -159.81825,
@@ -6600,7 +7222,7 @@
       "text": null
     },
     {
-      "id": 2804,
+      "id": 3630,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -156.33542,
@@ -6611,7 +7233,7 @@
       "text": null
     },
     {
-      "id": 2805,
+      "id": 3631,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -152.8526,
@@ -6622,7 +7244,7 @@
       "text": null
     },
     {
-      "id": 2806,
+      "id": 3632,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -149.3725,
@@ -6633,7 +7255,7 @@
       "text": null
     },
     {
-      "id": 2807,
+      "id": 3633,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -145.8945,
@@ -6644,7 +7266,7 @@
       "text": null
     },
     {
-      "id": 2808,
+      "id": 3634,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -142.41757,
@@ -6655,7 +7277,7 @@
       "text": null
     },
     {
-      "id": 2809,
+      "id": 3635,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -138.9417,
@@ -6666,7 +7288,7 @@
       "text": null
     },
     {
-      "id": 2810,
+      "id": 3636,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -135.46616,
@@ -6677,7 +7299,7 @@
       "text": null
     },
     {
-      "id": 2811,
+      "id": 3637,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -131.99388,
@@ -6688,7 +7310,7 @@
       "text": null
     },
     {
-      "id": 2812,
+      "id": 3638,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -128.52502,
@@ -6699,7 +7321,7 @@
       "text": null
     },
     {
-      "id": 2813,
+      "id": 3639,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -125.05826,
@@ -6710,7 +7332,7 @@
       "text": null
     },
     {
-      "id": 2814,
+      "id": 3640,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -121.59492,
@@ -6721,7 +7343,7 @@
       "text": null
     },
     {
-      "id": 2815,
+      "id": 3641,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -118.1342,
@@ -6732,7 +7354,7 @@
       "text": null
     },
     {
-      "id": 2816,
+      "id": 3642,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -114.67865,
@@ -6743,7 +7365,7 @@
       "text": null
     },
     {
-      "id": 2817,
+      "id": 3643,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -111.22821,
@@ -6754,7 +7376,7 @@
       "text": null
     },
     {
-      "id": 2818,
+      "id": 3644,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -107.78194,
@@ -6765,7 +7387,7 @@
       "text": null
     },
     {
-      "id": 2819,
+      "id": 3645,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -104.34512,
@@ -6776,7 +7398,7 @@
       "text": null
     },
     {
-      "id": 2820,
+      "id": 3646,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -100.90701,
@@ -6787,7 +7409,7 @@
       "text": null
     },
     {
-      "id": 2821,
+      "id": 3647,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -97.47654,
@@ -6798,7 +7420,7 @@
       "text": null
     },
     {
-      "id": 2822,
+      "id": 3648,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -94.05181,
@@ -6809,7 +7431,7 @@
       "text": null
     },
     {
-      "id": 2823,
+      "id": 3649,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -90.631294,
@@ -6820,7 +7442,7 @@
       "text": null
     },
     {
-      "id": 2824,
+      "id": 3650,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -87.21149,
@@ -6831,7 +7453,7 @@
       "text": null
     },
     {
-      "id": 2825,
+      "id": 3651,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -83.7897,
@@ -6842,7 +7464,7 @@
       "text": null
     },
     {
-      "id": 2826,
+      "id": 3652,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -80.37506,
@@ -6853,7 +7475,7 @@
       "text": null
     },
     {
-      "id": 2827,
+      "id": 3653,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -76.96545,
@@ -6864,7 +7486,7 @@
       "text": null
     },
     {
-      "id": 2828,
+      "id": 3654,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -73.55861,
@@ -6875,7 +7497,7 @@
       "text": null
     },
     {
-      "id": 2829,
+      "id": 3655,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -70.15289,
@@ -6886,7 +7508,7 @@
       "text": null
     },
     {
-      "id": 2830,
+      "id": 3656,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -66.74387,
@@ -6897,7 +7519,7 @@
       "text": null
     },
     {
-      "id": 2831,
+      "id": 3657,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -63.34093,
@@ -6908,7 +7530,7 @@
       "text": null
     },
     {
-      "id": 2832,
+      "id": 3658,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -59.943386,
@@ -6919,7 +7541,7 @@
       "text": null
     },
     {
-      "id": 2833,
+      "id": 3659,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -56.54746,
@@ -6930,7 +7552,7 @@
       "text": null
     },
     {
-      "id": 2834,
+      "id": 3660,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -53.15151,
@@ -6941,7 +7563,7 @@
       "text": null
     },
     {
-      "id": 2835,
+      "id": 3661,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -49.752056,
@@ -6952,7 +7574,7 @@
       "text": null
     },
     {
-      "id": 2836,
+      "id": 3662,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -46.358353,
@@ -6963,7 +7585,7 @@
       "text": null
     },
     {
-      "id": 2837,
+      "id": 3663,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -42.9687,
@@ -6974,7 +7596,7 @@
       "text": null
     },
     {
-      "id": 2838,
+      "id": 3664,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -39.58129,
@@ -6985,7 +7607,7 @@
       "text": null
     },
     {
-      "id": 2839,
+      "id": 3665,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -36.192783,
@@ -6996,7 +7618,7 @@
       "text": null
     },
     {
-      "id": 2840,
+      "id": 3666,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -32.799866,
@@ -7007,7 +7629,7 @@
       "text": null
     },
     {
-      "id": 2841,
+      "id": 3667,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -29.41173,
@@ -7018,7 +7640,7 @@
       "text": null
     },
     {
-      "id": 2842,
+      "id": 3668,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -26.027763,
@@ -7029,7 +7651,7 @@
       "text": null
     },
     {
-      "id": 2843,
+      "id": 3669,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -22.644022,
@@ -7040,7 +7662,7 @@
       "text": null
     },
     {
-      "id": 2844,
+      "id": 3670,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -19.259138,
@@ -7051,7 +7673,7 @@
       "text": null
     },
     {
-      "id": 2845,
+      "id": 3671,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -15.869249,
@@ -7062,7 +7684,7 @@
       "text": null
     },
     {
-      "id": 2846,
+      "id": 3672,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -12.483648,
@@ -7073,7 +7695,7 @@
       "text": null
     },
     {
-      "id": 2847,
+      "id": 3673,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -9.101154,
@@ -7084,7 +7706,7 @@
       "text": null
     },
     {
-      "id": 2848,
+      "id": 3674,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -5.7195506,
@@ -7095,7 +7717,7 @@
       "text": null
     },
     {
-      "id": 2849,
+      "id": 3675,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -2.334558,
@@ -7106,7 +7728,7 @@
       "text": null
     },
     {
-      "id": 2850,
+      "id": 3676,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 1.0597944,
@@ -7117,7 +7739,7 @@
       "text": null
     },
     {
-      "id": 2851,
+      "id": 3677,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 4.4542313,
@@ -7128,194 +7750,7 @@
       "text": null
     },
     {
-      "id": 2852,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -50.343758,
-      "y": -84.74043,
-      "z": 0.7903457,
-      "yaw_rad": 0.13952072,
-      "scale": 1.3205767,
-      "text": null
-    },
-    {
-      "id": 2853,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -37.32604,
-      "y": -79.858955,
-      "z": 0.76190543,
-      "yaw_rad": 1.0618365,
-      "scale": 1.4898598,
-      "text": null
-    },
-    {
-      "id": 2854,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 71.5013,
-      "y": -155.94974,
-      "z": 0.902149,
-      "yaw_rad": 3.7409587,
-      "scale": 1.3543862,
-      "text": null
-    },
-    {
-      "id": 2855,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 97.37344,
-      "y": -166.65108,
-      "z": 0.91851383,
-      "yaw_rad": 3.2929165,
-      "scale": 0.99152863,
-      "text": null
-    },
-    {
-      "id": 2856,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 104.8656,
-      "y": -164.7734,
-      "z": 0.916356,
-      "yaw_rad": 2.7306256,
-      "scale": 1.3429246,
-      "text": null
-    },
-    {
-      "id": 2857,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 121.27677,
-      "y": -142.59909,
-      "z": 0.87685806,
-      "yaw_rad": 5.6629014,
-      "scale": 1.2739279,
-      "text": null
-    },
-    {
-      "id": 2858,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 206.73557,
-      "y": -22.43116,
-      "z": 1.1770066,
-      "yaw_rad": 3.2433147,
-      "scale": 0.8197366,
-      "text": null
-    },
-    {
-      "id": 2859,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 190.51736,
-      "y": -44.277958,
-      "z": 1.2557752,
-      "yaw_rad": 0.030252304,
-      "scale": 0.9545815,
-      "text": null
-    },
-    {
-      "id": 2860,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 192.42816,
-      "y": -29.748894,
-      "z": 1.189012,
-      "yaw_rad": 6.1177917,
-      "scale": 1.074699,
-      "text": null
-    },
-    {
-      "id": 2861,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 127.320885,
-      "y": -136.7909,
-      "z": 0.8607402,
-      "yaw_rad": 3.9711561,
-      "scale": 0.99081933,
-      "text": null
-    },
-    {
-      "id": 2862,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 133.03015,
-      "y": -149.06313,
-      "z": 0.88811713,
-      "yaw_rad": 3.9700952,
-      "scale": 1.3399371,
-      "text": null
-    },
-    {
-      "id": 2863,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 112.07617,
-      "y": -180.56079,
-      "z": 0.9373343,
-      "yaw_rad": 5.592429,
-      "scale": 1.2322667,
-      "text": null
-    },
-    {
-      "id": 2864,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 140.8034,
-      "y": -136.44273,
-      "z": 0.84229267,
-      "yaw_rad": 1.5241647,
-      "scale": 1.1066557,
-      "text": null
-    },
-    {
-      "id": 2865,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 128.78036,
-      "y": -153.62488,
-      "z": 0.8981505,
-      "yaw_rad": 5.844425,
-      "scale": 1.4863355,
-      "text": null
-    },
-    {
-      "id": 2866,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 196.53784,
-      "y": -53.258076,
-      "z": 1.3153524,
-      "yaw_rad": 1.0806614,
-      "scale": 1.2403173,
-      "text": null
-    },
-    {
-      "id": 2867,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 128.38156,
-      "y": -162.9841,
-      "z": 0.91431594,
-      "yaw_rad": 2.257019,
-      "scale": 1.3419487,
-      "text": null
-    },
-    {
-      "id": 2868,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 119.77686,
-      "y": -187.8392,
-      "z": 0.9461483,
-      "yaw_rad": 4.0129657,
-      "scale": 0.91879773,
-      "text": null
-    },
-    {
-      "id": 2869,
+      "id": 3678,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 206.5116,
@@ -7326,7 +7761,7 @@
       "text": null
     },
     {
-      "id": 2870,
+      "id": 3679,
       "kind": "tree",
       "asset": "broadleaf_m",
       "x": 214.52565,
@@ -7337,2141 +7772,7 @@
       "text": null
     },
     {
-      "id": 2871,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 157.67075,
-      "y": -142.94171,
-      "z": 0.82063293,
-      "yaw_rad": 3.893949,
-      "scale": 1.3771574,
-      "text": null
-    },
-    {
-      "id": 2872,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 134.47415,
-      "y": -184.2577,
-      "z": 0.9438952,
-      "yaw_rad": 6.0793962,
-      "scale": 1.0144317,
-      "text": null
-    },
-    {
-      "id": 2873,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 150.6127,
-      "y": -158.26247,
-      "z": 0.9043118,
-      "yaw_rad": 6.210842,
-      "scale": 0.8175418,
-      "text": null
-    },
-    {
-      "id": 2874,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 154.201,
-      "y": -150.27646,
-      "z": 0.884482,
-      "yaw_rad": 4.9285917,
-      "scale": 1.4833466,
-      "text": null
-    },
-    {
-      "id": 2875,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 227.28809,
-      "y": -47.36003,
-      "z": 1.1762916,
-      "yaw_rad": 4.2356663,
-      "scale": 0.9625035,
-      "text": null
-    },
-    {
-      "id": 2876,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 223.32487,
-      "y": -56.203358,
-      "z": 1.189543,
-      "yaw_rad": 2.3775687,
-      "scale": 1.4746727,
-      "text": null
-    },
-    {
-      "id": 2877,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 235.107,
-      "y": -35.850906,
-      "z": 1.1657487,
-      "yaw_rad": 4.1859117,
-      "scale": 1.3672894,
-      "text": null
-    },
-    {
-      "id": 2878,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 226.08319,
-      "y": -74.67926,
-      "z": 1.3266045,
-      "yaw_rad": 2.7055924,
-      "scale": 1.4177729,
-      "text": null
-    },
-    {
-      "id": 2879,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 236.70296,
-      "y": -56.963745,
-      "z": 1.1801527,
-      "yaw_rad": 2.0213766,
-      "scale": 0.8793089,
-      "text": null
-    },
-    {
-      "id": 2880,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 241.50862,
-      "y": -37.708054,
-      "z": 1.1641922,
-      "yaw_rad": 0.2101269,
-      "scale": 0.9373353,
-      "text": null
-    },
-    {
-      "id": 2881,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 173.19037,
-      "y": -171.7053,
-      "z": 0.92687863,
-      "yaw_rad": 5.083688,
-      "scale": 0.93494934,
-      "text": null
-    },
-    {
-      "id": 2882,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 160.20728,
-      "y": -178.46234,
-      "z": 0.9383312,
-      "yaw_rad": 2.0278814,
-      "scale": 1.4437338,
-      "text": null
-    },
-    {
-      "id": 2883,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 165.64566,
-      "y": -172.64151,
-      "z": 0.9290071,
-      "yaw_rad": 4.8397875,
-      "scale": 0.89765894,
-      "text": null
-    },
-    {
-      "id": 2884,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 156.93594,
-      "y": -204.22226,
-      "z": 0.9682032,
-      "yaw_rad": 3.6751494,
-      "scale": 1.264111,
-      "text": null
-    },
-    {
-      "id": 2885,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 257.74686,
-      "y": -46.88743,
-      "z": 1.1623954,
-      "yaw_rad": 0.86791897,
-      "scale": 0.9217005,
-      "text": null
-    },
-    {
-      "id": 2886,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 252.25627,
-      "y": -63.803055,
-      "z": 1.1780782,
-      "yaw_rad": 3.996278,
-      "scale": 1.0214623,
-      "text": null
-    },
-    {
-      "id": 2887,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 252.37476,
-      "y": -55.4068,
-      "z": 1.1701534,
-      "yaw_rad": 3.815736,
-      "scale": 1.4719614,
-      "text": null
-    },
-    {
-      "id": 2888,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 193.42294,
-      "y": -164.79817,
-      "z": 0.88368154,
-      "yaw_rad": 1.9372025,
-      "scale": 0.8349383,
-      "text": null
-    },
-    {
-      "id": 2889,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 190.51295,
-      "y": -159.46698,
-      "z": 0.82592875,
-      "yaw_rad": 1.5398026,
-      "scale": 0.96878606,
-      "text": null
-    },
-    {
-      "id": 2890,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 171.6687,
-      "y": -186.42657,
-      "z": 0.94974333,
-      "yaw_rad": 4.9236503,
-      "scale": 1.2062197,
-      "text": null
-    },
-    {
-      "id": 2891,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 164.84653,
-      "y": -214.00397,
-      "z": 0.9780587,
-      "yaw_rad": 0.8897718,
-      "scale": 1.3472009,
-      "text": null
-    },
-    {
-      "id": 2892,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 182.68314,
-      "y": -176.35146,
-      "z": 0.93416554,
-      "yaw_rad": 3.9711936,
-      "scale": 0.8734091,
-      "text": null
-    },
-    {
-      "id": 2893,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 264.77396,
-      "y": -59.056656,
-      "z": 1.1672086,
-      "yaw_rad": 1.4447732,
-      "scale": 1.0673151,
-      "text": null
-    },
-    {
-      "id": 2894,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 193.73189,
-      "y": -179.49994,
-      "z": 0.9391419,
-      "yaw_rad": 3.7764747,
-      "scale": 1.4008303,
-      "text": null
-    },
-    {
-      "id": 2895,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 174.23157,
-      "y": -215.44528,
-      "z": 0.98088306,
-      "yaw_rad": 1.1033584,
-      "scale": 1.0756934,
-      "text": null
-    },
-    {
-      "id": 2896,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 187.88338,
-      "y": -180.99043,
-      "z": 0.942379,
-      "yaw_rad": 3.5303345,
-      "scale": 0.86362624,
-      "text": null
-    },
-    {
-      "id": 2897,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 181.38211,
-      "y": -203.7432,
-      "z": 0.9711501,
-      "yaw_rad": 4.6955256,
-      "scale": 1.2113336,
-      "text": null
-    },
-    {
-      "id": 2898,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 188.08492,
-      "y": -193.65227,
-      "z": 0.96041405,
-      "yaw_rad": 6.269357,
-      "scale": 0.90316975,
-      "text": null
-    },
-    {
-      "id": 2899,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 174.4133,
-      "y": -201.5373,
-      "z": 0.96787953,
-      "yaw_rad": 5.2289886,
-      "scale": 1.1908119,
-      "text": null
-    },
-    {
-      "id": 2900,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 196.95398,
-      "y": -187.97598,
-      "z": 0.9524061,
-      "yaw_rad": 2.3587263,
-      "scale": 0.939184,
-      "text": null
-    },
-    {
-      "id": 2901,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 209.03265,
-      "y": -165.2761,
-      "z": 0.76375216,
-      "yaw_rad": 4.5360227,
-      "scale": 1.1298213,
-      "text": null
-    },
-    {
-      "id": 2902,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 207.76056,
-      "y": -185.69907,
-      "z": 0.94774604,
-      "yaw_rad": 3.7637992,
-      "scale": 0.98514307,
-      "text": null
-    },
-    {
-      "id": 2903,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 200.17656,
-      "y": -216.35672,
-      "z": 0.9853927,
-      "yaw_rad": 1.6975532,
-      "scale": 1.0047191,
-      "text": null
-    },
-    {
-      "id": 2904,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 205.89503,
-      "y": -203.98233,
-      "z": 0.973501,
-      "yaw_rad": 0.61019516,
-      "scale": 0.8040142,
-      "text": null
-    },
-    {
-      "id": 2905,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 190.66026,
-      "y": -220.93254,
-      "z": 0.98777324,
-      "yaw_rad": 2.9046814,
-      "scale": 1.15078,
-      "text": null
-    },
-    {
-      "id": 2906,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 291.843,
-      "y": -105.7276,
-      "z": 1.2244079,
-      "yaw_rad": 5.116625,
-      "scale": 1.0656831,
-      "text": null
-    },
-    {
-      "id": 2907,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 228.40407,
-      "y": -184.6335,
-      "z": 0.9133526,
-      "yaw_rad": 4.744167,
-      "scale": 0.99885166,
-      "text": null
-    },
-    {
-      "id": 2908,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 195.63242,
-      "y": -228.21521,
-      "z": 0.99422246,
-      "yaw_rad": 2.013919,
-      "scale": 0.8490381,
-      "text": null
-    },
-    {
-      "id": 2909,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 218.77307,
-      "y": -198.31227,
-      "z": 0.96556115,
-      "yaw_rad": 2.5650826,
-      "scale": 1.2421504,
-      "text": null
-    },
-    {
-      "id": 2910,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 290.87466,
-      "y": -113.11015,
-      "z": 1.295937,
-      "yaw_rad": 3.4214053,
-      "scale": 0.9162721,
-      "text": null
-    },
-    {
-      "id": 2911,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 209.1003,
-      "y": -215.00772,
-      "z": 0.9848528,
-      "yaw_rad": 0.9149518,
-      "scale": 1.0790019,
-      "text": null
-    },
-    {
-      "id": 2912,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 233.10815,
-      "y": -188.47829,
-      "z": 0.9204384,
-      "yaw_rad": 0.041300263,
-      "scale": 1.210038,
-      "text": null
-    },
-    {
-      "id": 2913,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 231.37418,
-      "y": -195.44225,
-      "z": 0.9582521,
-      "yaw_rad": 0.017748637,
-      "scale": 1.4814768,
-      "text": null
-    },
-    {
-      "id": 2914,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 210.8606,
-      "y": -222.34178,
-      "z": 0.99135804,
-      "yaw_rad": 4.17543,
-      "scale": 1.237366,
-      "text": null
-    },
-    {
-      "id": 2915,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 313.94,
-      "y": -121.24649,
-      "z": 1.2221513,
-      "yaw_rad": 4.8987966,
-      "scale": 1.1337975,
-      "text": null
-    },
-    {
-      "id": 2916,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 323.92313,
-      "y": -104.53609,
-      "z": 1.1742741,
-      "yaw_rad": 0.40968186,
-      "scale": 0.85139763,
-      "text": null
-    },
-    {
-      "id": 2917,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 237.68095,
-      "y": -197.26721,
-      "z": 0.95737857,
-      "yaw_rad": 0.49814492,
-      "scale": 0.9147194,
-      "text": null
-    },
-    {
-      "id": 2918,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 216.30106,
-      "y": -238.16835,
-      "z": 1.0038031,
-      "yaw_rad": 6.0625215,
-      "scale": 1.1708798,
-      "text": null
-    },
-    {
-      "id": 2919,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 204.84027,
-      "y": -236.53488,
-      "z": 1.0011966,
-      "yaw_rad": 1.6490864,
-      "scale": 1.1409748,
-      "text": null
-    },
-    {
-      "id": 2920,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 234.58316,
-      "y": -212.00711,
-      "z": 0.9808205,
-      "yaw_rad": 5.2131705,
-      "scale": 1.0584844,
-      "text": null
-    },
-    {
-      "id": 2921,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 333.5479,
-      "y": -104.9989,
-      "z": 1.1674201,
-      "yaw_rad": 1.3806787,
-      "scale": 0.9291029,
-      "text": null
-    },
-    {
-      "id": 2922,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 322.47617,
-      "y": -116.167595,
-      "z": 1.1876948,
-      "yaw_rad": 0.51004785,
-      "scale": 1.3927306,
-      "text": null
-    },
-    {
-      "id": 2923,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 321.12915,
-      "y": -131.85936,
-      "z": 1.2499573,
-      "yaw_rad": 3.9538622,
-      "scale": 1.3807817,
-      "text": null
-    },
-    {
-      "id": 2924,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 257.37476,
-      "y": -204.00748,
-      "z": 0.8926969,
-      "yaw_rad": 0.82140255,
-      "scale": 1.3121939,
-      "text": null
-    },
-    {
-      "id": 2925,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 216.00087,
-      "y": -246.07187,
-      "z": 1.0087687,
-      "yaw_rad": 0.9448835,
-      "scale": 1.3801255,
-      "text": null
-    },
-    {
-      "id": 2926,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 225.04652,
-      "y": -229.23625,
-      "z": 0.99813646,
-      "yaw_rad": 4.94236,
-      "scale": 1.4542298,
-      "text": null
-    },
-    {
-      "id": 2927,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 230.61392,
-      "y": -247.79495,
-      "z": 1.0115582,
-      "yaw_rad": 3.7081215,
-      "scale": 1.0534573,
-      "text": null
-    },
-    {
-      "id": 2928,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 257.30743,
-      "y": -220.55365,
-      "z": 0.9862123,
-      "yaw_rad": 5.7197866,
-      "scale": 1.0031289,
-      "text": null
-    },
-    {
-      "id": 2929,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 248.77463,
-      "y": -227.3402,
-      "z": 0.9959524,
-      "yaw_rad": 3.1009703,
-      "scale": 1.0010517,
-      "text": null
-    },
-    {
-      "id": 2930,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 350.83755,
-      "y": -126.23424,
-      "z": 1.1684327,
-      "yaw_rad": 4.815345,
-      "scale": 0.9092233,
-      "text": null
-    },
-    {
-      "id": 2931,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 356.27142,
-      "y": -120.49891,
-      "z": 1.1606361,
-      "yaw_rad": 5.171869,
-      "scale": 1.0047969,
-      "text": null
-    },
-    {
-      "id": 2932,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 346.61627,
-      "y": -135.73724,
-      "z": 1.1797066,
-      "yaw_rad": 3.4365892,
-      "scale": 1.3812399,
-      "text": null
-    },
-    {
-      "id": 2933,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 352.25183,
-      "y": -143.80267,
-      "z": 1.1795089,
-      "yaw_rad": 1.6658875,
-      "scale": 1.4370177,
-      "text": null
-    },
-    {
-      "id": 2934,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 341.2233,
-      "y": -154.7607,
-      "z": 1.2533989,
-      "yaw_rad": 1.0849708,
-      "scale": 1.1650963,
-      "text": null
-    },
-    {
-      "id": 2935,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 348.62326,
-      "y": -157.83315,
-      "z": 1.2289108,
-      "yaw_rad": 5.1859856,
-      "scale": 1.4424908,
-      "text": null
-    },
-    {
-      "id": 2936,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 364.8697,
-      "y": -140.66261,
-      "z": 1.164142,
-      "yaw_rad": 2.8359628,
-      "scale": 1.4685233,
-      "text": null
-    },
-    {
-      "id": 2937,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 254.18742,
-      "y": -284.14682,
-      "z": 1.0331644,
-      "yaw_rad": 6.103252,
-      "scale": 0.8524824,
-      "text": null
-    },
-    {
-      "id": 2938,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 266.8826,
-      "y": -259.03555,
-      "z": 1.0215298,
-      "yaw_rad": 0.54515713,
-      "scale": 1.2342043,
-      "text": null
-    },
-    {
-      "id": 2939,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 278.18234,
-      "y": -243.99753,
-      "z": 1.0093108,
-      "yaw_rad": 2.6809876,
-      "scale": 0.9708655,
-      "text": null
-    },
-    {
-      "id": 2940,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 291.61142,
-      "y": -233.0955,
-      "z": 0.9428462,
-      "yaw_rad": 5.5255175,
-      "scale": 0.94988054,
-      "text": null
-    },
-    {
-      "id": 2941,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 289.23123,
-      "y": -243.35681,
-      "z": 1.0071027,
-      "yaw_rad": 1.9451191,
-      "scale": 1.0548873,
-      "text": null
-    },
-    {
-      "id": 2942,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 369.29254,
-      "y": -156.60115,
-      "z": 1.1677824,
-      "yaw_rad": 5.0873094,
-      "scale": 1.3696193,
-      "text": null
-    },
-    {
-      "id": 2943,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 380.87488,
-      "y": -143.22226,
-      "z": 1.1524154,
-      "yaw_rad": 0.89185894,
-      "scale": 0.83361113,
-      "text": null
-    },
-    {
-      "id": 2944,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 369.7891,
-      "y": -168.64627,
-      "z": 1.1817995,
-      "yaw_rad": 0.08183803,
-      "scale": 1.0914602,
-      "text": null
-    },
-    {
-      "id": 2945,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 283.18445,
-      "y": -262.1932,
-      "z": 1.0245669,
-      "yaw_rad": 3.8349628,
-      "scale": 1.256604,
-      "text": null
-    },
-    {
-      "id": 2946,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 287.15756,
-      "y": -250.24965,
-      "z": 1.0146978,
-      "yaw_rad": 6.028279,
-      "scale": 0.9667711,
-      "text": null
-    },
-    {
-      "id": 2947,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 273.08447,
-      "y": -272.39093,
-      "z": 1.0300001,
-      "yaw_rad": 3.817344,
-      "scale": 0.9348339,
-      "text": null
-    },
-    {
-      "id": 2948,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 289.4318,
-      "y": -256.57474,
-      "z": 1.0201997,
-      "yaw_rad": 4.6284184,
-      "scale": 1.3901608,
-      "text": null
-    },
-    {
-      "id": 2949,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 302.75052,
-      "y": -239.54373,
-      "z": 0.9288436,
-      "yaw_rad": 4.5250397,
-      "scale": 1.308555,
-      "text": null
-    },
-    {
-      "id": 2950,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 381.28104,
-      "y": -165.53685,
-      "z": 1.1592147,
-      "yaw_rad": 2.380239,
-      "scale": 1.0188519,
-      "text": null
-    },
-    {
-      "id": 2951,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 396.02216,
-      "y": -157.54086,
-      "z": 1.1456463,
-      "yaw_rad": 6.059522,
-      "scale": 0.8641796,
-      "text": null
-    },
-    {
-      "id": 2952,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 396.35,
-      "y": -151.52954,
-      "z": 1.1445404,
-      "yaw_rad": 5.0575857,
-      "scale": 0.8521842,
-      "text": null
-    },
-    {
-      "id": 2953,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 283.00128,
-      "y": -276.4769,
-      "z": 1.0333557,
-      "yaw_rad": 4.0080733,
-      "scale": 1.0850797,
-      "text": null
-    },
-    {
-      "id": 2954,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 306.44427,
-      "y": -257.33575,
-      "z": 1.0199411,
-      "yaw_rad": 4.6329575,
-      "scale": 1.1919993,
-      "text": null
-    },
-    {
-      "id": 2955,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 274.3209,
-      "y": -289.3577,
-      "z": 1.0382061,
-      "yaw_rad": 0.5249188,
-      "scale": 1.3659012,
-      "text": null
-    },
-    {
-      "id": 2956,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 293.40677,
-      "y": -266.5998,
-      "z": 1.0280638,
-      "yaw_rad": 2.5520349,
-      "scale": 1.2471554,
-      "text": null
-    },
-    {
-      "id": 2957,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 413.34726,
-      "y": -170.2504,
-      "z": 1.1366806,
-      "yaw_rad": 1.0646602,
-      "scale": 1.1130044,
-      "text": null
-    },
-    {
-      "id": 2958,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 399.27994,
-      "y": -174.23196,
-      "z": 1.1457921,
-      "yaw_rad": 6.011067,
-      "scale": 1.3267419,
-      "text": null
-    },
-    {
-      "id": 2959,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 380.8228,
-      "y": -188.70721,
-      "z": 1.1827276,
-      "yaw_rad": 2.3559163,
-      "scale": 0.9230531,
-      "text": null
-    },
-    {
-      "id": 2960,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 388.96072,
-      "y": -190.53334,
-      "z": 1.1649321,
-      "yaw_rad": 2.9244697,
-      "scale": 1.3920295,
-      "text": null
-    },
-    {
-      "id": 2961,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 316.47534,
-      "y": -257.56006,
-      "z": 0.9884416,
-      "yaw_rad": 4.9746976,
-      "scale": 1.1680498,
-      "text": null
-    },
-    {
-      "id": 2962,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 292.2634,
-      "y": -278.97745,
-      "z": 1.0355062,
-      "yaw_rad": 3.4275765,
-      "scale": 1.1955807,
-      "text": null
-    },
-    {
-      "id": 2963,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 282.36765,
-      "y": -293.57062,
-      "z": 1.0409527,
-      "yaw_rad": 5.4976115,
-      "scale": 0.9287498,
-      "text": null
-    },
-    {
-      "id": 2964,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 402.20035,
-      "y": -208.10623,
-      "z": 1.1439195,
-      "yaw_rad": 3.64154,
-      "scale": 1.1828119,
-      "text": null
-    },
-    {
-      "id": 2965,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 414.4678,
-      "y": -190.96808,
-      "z": 1.1358911,
-      "yaw_rad": 0.46606803,
-      "scale": 0.8232686,
-      "text": null
-    },
-    {
-      "id": 2966,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 327.86102,
-      "y": -271.6125,
-      "z": 1.0101898,
-      "yaw_rad": 2.8794086,
-      "scale": 1.4171667,
-      "text": null
-    },
-    {
-      "id": 2967,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 435.1817,
-      "y": -198.44824,
-      "z": 1.1251129,
-      "yaw_rad": 3.0930889,
-      "scale": 1.1815783,
-      "text": null
-    },
-    {
-      "id": 2968,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 424.90298,
-      "y": -209.70404,
-      "z": 1.128094,
-      "yaw_rad": 1.3410505,
-      "scale": 1.1637559,
-      "text": null
-    },
-    {
-      "id": 2969,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 296.24387,
-      "y": -317.1723,
-      "z": 1.0510956,
-      "yaw_rad": 1.8287328,
-      "scale": 0.81196296,
-      "text": null
-    },
-    {
-      "id": 2970,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 305.25574,
-      "y": -307.79388,
-      "z": 1.0495752,
-      "yaw_rad": 0.2348852,
-      "scale": 1.1919694,
-      "text": null
-    },
-    {
-      "id": 2971,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 430.31094,
-      "y": -214.73956,
-      "z": 1.1245384,
-      "yaw_rad": 3.2283442,
-      "scale": 1.186019,
-      "text": null
-    },
-    {
-      "id": 2972,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 441.20166,
-      "y": -206.14886,
-      "z": 1.1217774,
-      "yaw_rad": 5.554596,
-      "scale": 0.95314217,
-      "text": null
-    },
-    {
-      "id": 2973,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 296.4774,
-      "y": -327.57104,
-      "z": 1.0539575,
-      "yaw_rad": 0.051570743,
-      "scale": 1.0938964,
-      "text": null
-    },
-    {
-      "id": 2974,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 418.50592,
-      "y": -223.99716,
-      "z": 1.1182593,
-      "yaw_rad": 3.6080701,
-      "scale": 1.4658577,
-      "text": null
-    },
-    {
-      "id": 2975,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 462.0767,
-      "y": -319.13348,
-      "z": 1.0932829,
-      "yaw_rad": 5.32263,
-      "scale": 1.4330463,
-      "text": null
-    },
-    {
-      "id": 2976,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 492.94113,
-      "y": -235.00047,
-      "z": 1.1091882,
-      "yaw_rad": 3.1215255,
-      "scale": 1.3517175,
-      "text": null
-    },
-    {
-      "id": 2977,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 437.1712,
-      "y": -279.7271,
-      "z": 1.0726498,
-      "yaw_rad": 0.96284413,
-      "scale": 1.4848342,
-      "text": null
-    },
-    {
-      "id": 2978,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 475.0514,
-      "y": -274.33463,
-      "z": 1.1019573,
-      "yaw_rad": 6.1241446,
-      "scale": 1.0994978,
-      "text": null
-    },
-    {
-      "id": 2979,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 480.15027,
-      "y": -283.9089,
-      "z": 1.1005496,
-      "yaw_rad": 0.7129472,
-      "scale": 1.2011855,
-      "text": null
-    },
-    {
-      "id": 2980,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 466.88135,
-      "y": -245.21754,
-      "z": 1.1083579,
-      "yaw_rad": 5.3328195,
-      "scale": 0.8159262,
-      "text": null
-    },
-    {
-      "id": 2981,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 455.92728,
-      "y": -296.91922,
-      "z": 1.0957639,
-      "yaw_rad": 3.6110938,
-      "scale": 1.0299119,
-      "text": null
-    },
-    {
-      "id": 2982,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 452.59668,
-      "y": -236.54247,
-      "z": 1.1121776,
-      "yaw_rad": 6.238367,
-      "scale": 0.9815406,
-      "text": null
-    },
-    {
-      "id": 2983,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 451.03293,
-      "y": -243.95836,
-      "z": 1.110418,
-      "yaw_rad": 2.9139082,
-      "scale": 1.4243864,
-      "text": null
-    },
-    {
-      "id": 2984,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 466.90353,
-      "y": -238.75208,
-      "z": 1.1098045,
-      "yaw_rad": 0.7349701,
-      "scale": 1.009345,
-      "text": null
-    },
-    {
-      "id": 2985,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 467.69568,
-      "y": -185.52371,
-      "z": 1.1188933,
-      "yaw_rad": 2.7557917,
-      "scale": 0.90924877,
-      "text": null
-    },
-    {
-      "id": 2986,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 457.81555,
-      "y": -183.39758,
-      "z": 1.1208569,
-      "yaw_rad": 4.537472,
-      "scale": 1.3921561,
-      "text": null
-    },
-    {
-      "id": 2987,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 418.10538,
-      "y": -215.63919,
-      "z": 1.1294581,
-      "yaw_rad": 3.58744,
-      "scale": 1.401647,
-      "text": null
-    },
-    {
-      "id": 2988,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 446.12918,
-      "y": -180.1745,
-      "z": 1.1238847,
-      "yaw_rad": 4.42238,
-      "scale": 1.2599646,
-      "text": null
-    },
-    {
-      "id": 2989,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 440.9596,
-      "y": -188.1301,
-      "z": 1.1243618,
-      "yaw_rad": 0.08366899,
-      "scale": 1.42226,
-      "text": null
-    },
-    {
-      "id": 2990,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 407.2206,
-      "y": -201.77786,
-      "z": 1.1412971,
-      "yaw_rad": 2.5262945,
-      "scale": 0.86929816,
-      "text": null
-    },
-    {
-      "id": 2991,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 413.34494,
-      "y": -203.33322,
-      "z": 1.1361877,
-      "yaw_rad": 2.936258,
-      "scale": 1.0706375,
-      "text": null
-    },
-    {
-      "id": 2992,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 418.85425,
-      "y": -197.04326,
-      "z": 1.1330149,
-      "yaw_rad": 1.7140996,
-      "scale": 1.106327,
-      "text": null
-    },
-    {
-      "id": 2993,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 308.35046,
-      "y": -287.4154,
-      "z": 1.0416499,
-      "yaw_rad": 6.039417,
-      "scale": 0.8683507,
-      "text": null
-    },
-    {
-      "id": 2994,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 413.85922,
-      "y": -183.28311,
-      "z": 1.1364455,
-      "yaw_rad": 1.2885623,
-      "scale": 1.0948467,
-      "text": null
-    },
-    {
-      "id": 2995,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 418.19263,
-      "y": -178.22806,
-      "z": 1.1342375,
-      "yaw_rad": 1.3239502,
-      "scale": 0.9798448,
-      "text": null
-    },
-    {
-      "id": 2996,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 313.91226,
-      "y": -268.1036,
-      "z": 1.0293773,
-      "yaw_rad": 3.0148427,
-      "scale": 1.4938467,
-      "text": null
-    },
-    {
-      "id": 2997,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 422.3907,
-      "y": -148.516,
-      "z": 1.1327336,
-      "yaw_rad": 3.142326,
-      "scale": 0.9243535,
-      "text": null
-    },
-    {
-      "id": 2998,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 434.8144,
-      "y": -149.13463,
-      "z": 1.1290199,
-      "yaw_rad": 4.9431,
-      "scale": 1.3012061,
-      "text": null
-    },
-    {
-      "id": 2999,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 408.2007,
-      "y": -164.15555,
-      "z": 1.1392156,
-      "yaw_rad": 0.35875753,
-      "scale": 1.2271847,
-      "text": null
-    },
-    {
-      "id": 3000,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 390.89252,
-      "y": -166.1406,
-      "z": 1.150668,
-      "yaw_rad": 5.9763947,
-      "scale": 1.2164826,
-      "text": null
-    },
-    {
-      "id": 3001,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 378.83487,
-      "y": -174.9161,
-      "z": 1.1696022,
-      "yaw_rad": 3.0292294,
-      "scale": 1.0342981,
-      "text": null
-    },
-    {
-      "id": 3002,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 404.6419,
-      "y": -139.02315,
-      "z": 1.138914,
-      "yaw_rad": 3.68693,
-      "scale": 0.9984404,
-      "text": null
-    },
-    {
-      "id": 3003,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 387.6175,
-      "y": -155.84647,
-      "z": 1.1510496,
-      "yaw_rad": 2.8566296,
-      "scale": 0.9319416,
-      "text": null
-    },
-    {
-      "id": 3004,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 378.25513,
-      "y": -154.25584,
-      "z": 1.1579459,
-      "yaw_rad": 1.4430299,
-      "scale": 1.0212119,
-      "text": null
-    },
-    {
-      "id": 3005,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 387.4213,
-      "y": -143.32172,
-      "z": 1.1483148,
-      "yaw_rad": 1.2633601,
-      "scale": 0.8338895,
-      "text": null
-    },
-    {
-      "id": 3006,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 296.65466,
-      "y": -246.4791,
-      "z": 1.0074905,
-      "yaw_rad": 3.8940587,
-      "scale": 1.3780973,
-      "text": null
-    },
-    {
-      "id": 3007,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 374.83017,
-      "y": -136.91791,
-      "z": 1.1547786,
-      "yaw_rad": 3.4104738,
-      "scale": 1.149004,
-      "text": null
-    },
-    {
-      "id": 3008,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 385.58,
-      "y": -127.90999,
-      "z": 1.1460705,
-      "yaw_rad": 6.0567718,
-      "scale": 0.9814615,
-      "text": null
-    },
-    {
-      "id": 3009,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 390.49835,
-      "y": -116.03676,
-      "z": 1.1417876,
-      "yaw_rad": 5.3238716,
-      "scale": 0.8770213,
-      "text": null
-    },
-    {
-      "id": 3010,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 377.6941,
-      "y": -131.151,
-      "z": 1.1510152,
-      "yaw_rad": 5.12913,
-      "scale": 1.2350097,
-      "text": null
-    },
-    {
-      "id": 3011,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 283.1389,
-      "y": -229.486,
-      "z": 0.9646904,
-      "yaw_rad": 0.2665108,
-      "scale": 1.2687615,
-      "text": null
-    },
-    {
-      "id": 3012,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 366.7181,
-      "y": -125.21322,
-      "z": 1.155809,
-      "yaw_rad": 2.6452813,
-      "scale": 1.3411677,
-      "text": null
-    },
-    {
-      "id": 3013,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 265.57666,
-      "y": -238.76352,
-      "z": 1.005484,
-      "yaw_rad": 2.0139034,
-      "scale": 1.0571384,
-      "text": null
-    },
-    {
-      "id": 3014,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 268.34448,
-      "y": -227.23799,
-      "z": 0.9920721,
-      "yaw_rad": 5.5449834,
-      "scale": 1.2637068,
-      "text": null
-    },
-    {
-      "id": 3015,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 270.90637,
-      "y": -234.62372,
-      "z": 1.0003159,
-      "yaw_rad": 3.8843439,
-      "scale": 1.0784154,
-      "text": null
-    },
-    {
-      "id": 3016,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 340.83246,
-      "y": -143.62091,
-      "z": 1.2064761,
-      "yaw_rad": 5.5153375,
-      "scale": 1.4854931,
-      "text": null
-    },
-    {
-      "id": 3017,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 356.33295,
-      "y": -135.84752,
-      "z": 1.1692536,
-      "yaw_rad": 1.5582103,
-      "scale": 1.1081425,
-      "text": null
-    },
-    {
-      "id": 3018,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 372.2527,
-      "y": -108.36264,
-      "z": 1.1476004,
-      "yaw_rad": 4.121662,
-      "scale": 1.420856,
-      "text": null
-    },
-    {
-      "id": 3019,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 263.4637,
-      "y": -219.94914,
-      "z": 0.9831119,
-      "yaw_rad": 1.3017981,
-      "scale": 0.96569157,
-      "text": null
-    },
-    {
-      "id": 3020,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 253.96698,
-      "y": -234.83536,
-      "z": 1.002512,
-      "yaw_rad": 2.7497876,
-      "scale": 1.1952035,
-      "text": null
-    },
-    {
-      "id": 3021,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 332.3794,
-      "y": -129.36394,
-      "z": 1.1908993,
-      "yaw_rad": 1.705622,
-      "scale": 0.8129592,
-      "text": null
-    },
-    {
-      "id": 3022,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 363.0052,
-      "y": -104.266624,
-      "z": 1.1505612,
-      "yaw_rad": 3.628718,
-      "scale": 0.8156809,
-      "text": null
-    },
-    {
-      "id": 3023,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 334.24588,
-      "y": -141.09244,
-      "z": 1.2269688,
-      "yaw_rad": 5.41712,
-      "scale": 0.8617232,
-      "text": null
-    },
-    {
-      "id": 3024,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 253.56845,
-      "y": -209.57022,
-      "z": 0.966991,
-      "yaw_rad": 3.6352046,
-      "scale": 0.89127904,
-      "text": null
-    },
-    {
-      "id": 3025,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 245.17664,
-      "y": -219.01512,
-      "z": 0.98729444,
-      "yaw_rad": 1.5359896,
-      "scale": 1.4249556,
-      "text": null
-    },
-    {
-      "id": 3026,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 344.48392,
-      "y": -98.9854,
-      "z": 1.1573281,
-      "yaw_rad": 1.0989549,
-      "scale": 0.80176926,
-      "text": null
-    },
-    {
-      "id": 3027,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 323.13257,
-      "y": -122.164085,
-      "z": 1.1944321,
-      "yaw_rad": 5.707383,
-      "scale": 0.95375454,
-      "text": null
-    },
-    {
-      "id": 3028,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 359.8247,
-      "y": -87.00065,
-      "z": 1.1468807,
-      "yaw_rad": 6.1994863,
-      "scale": 0.9338388,
-      "text": null
-    },
-    {
-      "id": 3029,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 245.98796,
-      "y": -205.57468,
-      "z": 0.9689052,
-      "yaw_rad": 4.4448466,
-      "scale": 1.2808409,
-      "text": null
-    },
-    {
-      "id": 3030,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 254.48596,
-      "y": -197.29184,
-      "z": 0.8310082,
-      "yaw_rad": 5.051416,
-      "scale": 1.1963557,
-      "text": null
-    },
-    {
-      "id": 3031,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 346.35303,
-      "y": -84.43879,
-      "z": 1.150641,
-      "yaw_rad": 2.8091946,
-      "scale": 1.0151052,
-      "text": null
-    },
-    {
-      "id": 3032,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 307.06277,
-      "y": -118.694855,
-      "z": 1.2415253,
-      "yaw_rad": 1.6720421,
-      "scale": 1.4076447,
-      "text": null
-    },
-    {
-      "id": 3033,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 316.1637,
-      "y": -112.92409,
-      "z": 1.190888,
-      "yaw_rad": 1.574532,
-      "scale": 1.3690853,
-      "text": null
-    },
-    {
-      "id": 3034,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 333.69067,
-      "y": -74.65219,
-      "z": 1.1516474,
-      "yaw_rad": 0.2429371,
-      "scale": 0.8170935,
-      "text": null
-    },
-    {
-      "id": 3035,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 317.5495,
-      "y": -86.87197,
-      "z": 1.164343,
-      "yaw_rad": 0.1014592,
-      "scale": 1.0175767,
-      "text": null
-    },
-    {
-      "id": 3036,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 304.35294,
-      "y": -88.688965,
-      "z": 1.173534,
-      "yaw_rad": 1.84605,
-      "scale": 1.3486223,
-      "text": null
-    },
-    {
-      "id": 3037,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 314.91965,
-      "y": -78.82434,
-      "z": 1.160596,
-      "yaw_rad": 3.247976,
-      "scale": 0.86619526,
-      "text": null
-    },
-    {
-      "id": 3038,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 327.24387,
-      "y": -58.30619,
-      "z": 1.148573,
-      "yaw_rad": 5.53986,
-      "scale": 1.0605052,
-      "text": null
-    },
-    {
-      "id": 3039,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 298.3969,
-      "y": -104.12947,
-      "z": 1.1983259,
-      "yaw_rad": 2.989641,
-      "scale": 1.3305832,
-      "text": null
-    },
-    {
-      "id": 3040,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 306.4225,
-      "y": -49.63169,
-      "z": 1.1509125,
-      "yaw_rad": 6.0767674,
-      "scale": 1.4395604,
-      "text": null
-    },
-    {
-      "id": 3041,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 281.2104,
-      "y": -91.27456,
-      "z": 1.1947877,
-      "yaw_rad": 1.6651721,
-      "scale": 1.3102856,
-      "text": null
-    },
-    {
-      "id": 3042,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 303.41833,
-      "y": -59.86303,
-      "z": 1.1548927,
-      "yaw_rad": 5.3915796,
-      "scale": 1.2172841,
-      "text": null
-    },
-    {
-      "id": 3043,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 213.50671,
-      "y": -182.02605,
-      "z": 0.9402594,
-      "yaw_rad": 4.9878078,
-      "scale": 1.4799098,
-      "text": null
-    },
-    {
-      "id": 3044,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 216.26224,
-      "y": -171.15979,
-      "z": 0.80809724,
-      "yaw_rad": 1.4341642,
-      "scale": 1.4136186,
-      "text": null
-    },
-    {
-      "id": 3045,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 281.10263,
-      "y": -84.32856,
-      "z": 1.1837758,
-      "yaw_rad": 3.747005,
-      "scale": 0.9049057,
-      "text": null
-    },
-    {
-      "id": 3046,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 267.87787,
-      "y": -85.41734,
-      "z": 1.1966232,
-      "yaw_rad": 0.5623871,
-      "scale": 1.3246807,
-      "text": null
-    },
-    {
-      "id": 3047,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 264.27606,
-      "y": -98.45068,
-      "z": 1.3207402,
-      "yaw_rad": 5.1761847,
-      "scale": 1.4773723,
-      "text": null
-    },
-    {
-      "id": 3048,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 295.829,
-      "y": -54.02426,
-      "z": 1.1548384,
-      "yaw_rad": 5.4451494,
-      "scale": 0.9052649,
-      "text": null
-    },
-    {
-      "id": 3049,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 202.70201,
-      "y": -174.42651,
-      "z": 0.92650074,
-      "yaw_rad": 5.548295,
-      "scale": 1.0137494,
-      "text": null
-    },
-    {
-      "id": 3050,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 281.67575,
-      "y": -49.594032,
-      "z": 1.1566082,
-      "yaw_rad": 2.1633186,
-      "scale": 1.0458993,
-      "text": null
-    },
-    {
-      "id": 3051,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 266.20532,
-      "y": -79.20489,
-      "z": 1.1885958,
-      "yaw_rad": 4.963812,
-      "scale": 1.2253687,
-      "text": null
-    },
-    {
-      "id": 3052,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 261.44107,
-      "y": -73.30028,
-      "z": 1.183106,
-      "yaw_rad": 5.911447,
-      "scale": 1.4866722,
-      "text": null
-    },
-    {
-      "id": 3053,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 276.10962,
-      "y": -55.462635,
-      "z": 1.1610899,
-      "yaw_rad": 3.4219074,
-      "scale": 0.9527736,
-      "text": null
-    },
-    {
-      "id": 3054,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 192.85013,
-      "y": -172.85468,
-      "z": 0.92582977,
-      "yaw_rad": 4.619114,
-      "scale": 1.4417181,
-      "text": null
-    },
-    {
-      "id": 3055,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 244.04068,
-      "y": -84.257904,
-      "z": 1.3040761,
-      "yaw_rad": 3.6307087,
-      "scale": 1.0572476,
-      "text": null
-    },
-    {
-      "id": 3056,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 272.06012,
-      "y": -49.194374,
-      "z": 1.1589712,
-      "yaw_rad": 5.8088684,
-      "scale": 0.88769746,
-      "text": null
-    },
-    {
-      "id": 3057,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 170.2175,
-      "y": -177.8689,
-      "z": 0.93744296,
-      "yaw_rad": 2.3418827,
-      "scale": 1.3206508,
-      "text": null
-    },
-    {
-      "id": 3058,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 181.83318,
-      "y": -169.8663,
-      "z": 0.9223526,
-      "yaw_rad": 0.914323,
-      "scale": 1.3260472,
-      "text": null
-    },
-    {
-      "id": 3059,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 235.95251,
-      "y": -67.39178,
-      "z": 1.1977456,
-      "yaw_rad": 5.6405783,
-      "scale": 1.3288283,
-      "text": null
-    },
-    {
-      "id": 3060,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 171.80371,
-      "y": -151.17253,
-      "z": 0.83990496,
-      "yaw_rad": 4.970435,
-      "scale": 0.95697564,
-      "text": null
-    },
-    {
-      "id": 3061,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 241.39182,
-      "y": -50.24682,
-      "z": 1.1711421,
-      "yaw_rad": 5.4762087,
-      "scale": 1.1597246,
-      "text": null
-    },
-    {
-      "id": 3062,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 244.88148,
-      "y": -32.568443,
-      "z": 1.1617926,
-      "yaw_rad": 3.9551566,
-      "scale": 0.9157363,
-      "text": null
-    },
-    {
-      "id": 3063,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 147.74611,
-      "y": -171.20038,
-      "z": 0.9272441,
-      "yaw_rad": 5.5987744,
-      "scale": 1.4428461,
-      "text": null
-    },
-    {
-      "id": 3064,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 165.25433,
-      "y": -160.34464,
-      "z": 0.9051835,
-      "yaw_rad": 4.4242897,
-      "scale": 0.92662513,
-      "text": null
-    },
-    {
-      "id": 3065,
+      "id": 3680,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 233.27219,
@@ -9482,20 +7783,9 @@
       "text": null
     },
     {
-      "id": 3066,
+      "id": 3681,
       "kind": "tree",
-      "asset": "conifer_m",
-      "x": 232.9911,
-      "y": -42.693142,
-      "z": 1.1703517,
-      "yaw_rad": 2.212217,
-      "scale": 1.2070326,
-      "text": null
-    },
-    {
-      "id": 3067,
-      "kind": "tree",
-      "asset": "conifer_m",
+      "asset": "broadleaf_l",
       "x": 221.30394,
       "y": -50.08773,
       "z": 1.1831253,
@@ -9504,62 +7794,7 @@
       "text": null
     },
     {
-      "id": 3068,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 136.4327,
-      "y": -141.12137,
-      "z": 0.86823815,
-      "yaw_rad": 6.2080574,
-      "scale": 1.408864,
-      "text": null
-    },
-    {
-      "id": 3069,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 140.3593,
-      "y": -153.49976,
-      "z": 0.89616436,
-      "yaw_rad": 2.7897625,
-      "scale": 1.4319415,
-      "text": null
-    },
-    {
-      "id": 3070,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 145.0887,
-      "y": -130.01035,
-      "z": 0.6888949,
-      "yaw_rad": 1.5025967,
-      "scale": 1.2345202,
-      "text": null
-    },
-    {
-      "id": 3071,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 203.65268,
-      "y": -29.769794,
-      "z": 1.1805742,
-      "yaw_rad": 0.9788292,
-      "scale": 1.1323209,
-      "text": null
-    },
-    {
-      "id": 3072,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 226.52667,
-      "y": 4.023796,
-      "z": 1.1750209,
-      "yaw_rad": 5.333438,
-      "scale": 1.3576162,
-      "text": null
-    },
-    {
-      "id": 3073,
+      "id": 3682,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 217.49048,
@@ -9570,7 +7805,7 @@
       "text": null
     },
     {
-      "id": 3074,
+      "id": 3683,
       "kind": "tree",
       "asset": "broadleaf_l",
       "x": 204.48422,
@@ -9581,73 +7816,18 @@
       "text": null
     },
     {
-      "id": 3075,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 210.83633,
-      "y": -8.627411,
-      "z": 1.177715,
-      "yaw_rad": 1.8517792,
-      "scale": 1.2880939,
-      "text": null
-    },
-    {
-      "id": 3076,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 214.50128,
-      "y": 8.607452,
-      "z": 1.1853458,
-      "yaw_rad": 3.367509,
-      "scale": 1.463348,
-      "text": null
-    },
-    {
-      "id": 3077,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 209.33466,
-      "y": -14.806244,
-      "z": 1.1765034,
-      "yaw_rad": 1.0166357,
-      "scale": 1.1387154,
-      "text": null
-    },
-    {
-      "id": 3078,
+      "id": 3684,
       "kind": "tree",
       "asset": "conifer_m",
-      "x": 146.2938,
-      "y": 154.7092,
-      "z": 1.3237789,
-      "yaw_rad": 2.8664694,
-      "scale": 1.4531353,
+      "x": 68.77371,
+      "y": 135.63898,
+      "z": 1.4770192,
+      "yaw_rad": 5.263715,
+      "scale": 0.91174203,
       "text": null
     },
     {
-      "id": 3079,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 90.98249,
-      "y": 182.41217,
-      "z": 1.3648793,
-      "yaw_rad": 5.652732,
-      "scale": 1.0159152,
-      "text": null
-    },
-    {
-      "id": 3080,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 94.10556,
-      "y": 171.20538,
-      "z": 1.3719091,
-      "yaw_rad": 5.9691067,
-      "scale": 0.9679458,
-      "text": null
-    },
-    {
-      "id": 3081,
+      "id": 3685,
       "kind": "tree",
       "asset": "conifer_m",
       "x": 53.69854,
@@ -9658,7 +7838,7 @@
       "text": null
     },
     {
-      "id": 3082,
+      "id": 3686,
       "kind": "tree",
       "asset": "poplar",
       "x": 55.603867,
@@ -9669,29 +7849,7 @@
       "text": null
     },
     {
-      "id": 3083,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": 79.80044,
-      "y": 196.64764,
-      "z": 1.3654165,
-      "yaw_rad": 1.0677121,
-      "scale": 0.99072856,
-      "text": null
-    },
-    {
-      "id": 3084,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 60.058495,
-      "y": 157.90752,
-      "z": 1.4365685,
-      "yaw_rad": 5.8275146,
-      "scale": 0.88788956,
-      "text": null
-    },
-    {
-      "id": 3085,
+      "id": 3687,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 40.743896,
@@ -9702,18 +7860,7 @@
       "text": null
     },
     {
-      "id": 3086,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 45.73855,
-      "y": 163.98166,
-      "z": 1.4489375,
-      "yaw_rad": 3.4541047,
-      "scale": 0.88082945,
-      "text": null
-    },
-    {
-      "id": 3087,
+      "id": 3688,
       "kind": "tree",
       "asset": "broadleaf_l",
       "x": 33.938107,
@@ -9724,62 +7871,7 @@
       "text": null
     },
     {
-      "id": 3088,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 51.217262,
-      "y": 180.30392,
-      "z": 1.4143872,
-      "yaw_rad": 2.747705,
-      "scale": 1.2244099,
-      "text": null
-    },
-    {
-      "id": 3089,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": 42.6664,
-      "y": 191.09155,
-      "z": 1.4123484,
-      "yaw_rad": 3.8927011,
-      "scale": 1.0315425,
-      "text": null
-    },
-    {
-      "id": 3090,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 48.700005,
-      "y": 202.30075,
-      "z": 1.3940104,
-      "yaw_rad": 2.6645086,
-      "scale": 1.2378414,
-      "text": null
-    },
-    {
-      "id": 3091,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 28.969086,
-      "y": 173.36958,
-      "z": 1.4599607,
-      "yaw_rad": 6.022297,
-      "scale": 1.321753,
-      "text": null
-    },
-    {
-      "id": 3092,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 35.717926,
-      "y": 188.4699,
-      "z": 1.4253109,
-      "yaw_rad": 2.7578275,
-      "scale": 1.332375,
-      "text": null
-    },
-    {
-      "id": 3093,
+      "id": 3689,
       "kind": "tree",
       "asset": "poplar",
       "x": 17.88002,
@@ -9790,18 +7882,7 @@
       "text": null
     },
     {
-      "id": 3094,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": 14.023104,
-      "y": 192.17795,
-      "z": 1.4521003,
-      "yaw_rad": 5.9779487,
-      "scale": 1.1203856,
-      "text": null
-    },
-    {
-      "id": 3095,
+      "id": 3690,
       "kind": "tree",
       "asset": "broadleaf_l",
       "x": 5.5786886,
@@ -9812,40 +7893,7 @@
       "text": null
     },
     {
-      "id": 3096,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 36.673405,
-      "y": 218.89218,
-      "z": 1.3944166,
-      "yaw_rad": 5.378531,
-      "scale": 1.3698978,
-      "text": null
-    },
-    {
-      "id": 3097,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 23.462421,
-      "y": 208.76678,
-      "z": 1.4184778,
-      "yaw_rad": 0.9645343,
-      "scale": 1.0861361,
-      "text": null
-    },
-    {
-      "id": 3098,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": 14.369795,
-      "y": 206.5639,
-      "z": 1.4327561,
-      "yaw_rad": 0.16231959,
-      "scale": 0.9987204,
-      "text": null
-    },
-    {
-      "id": 3099,
+      "id": 3691,
       "kind": "tree",
       "asset": "conifer_m",
       "x": -3.3828297,
@@ -9856,29 +7904,7 @@
       "text": null
     },
     {
-      "id": 3100,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -1.7858315,
-      "y": 194.00784,
-      "z": 1.4757428,
-      "yaw_rad": 1.5014597,
-      "scale": 1.2734426,
-      "text": null
-    },
-    {
-      "id": 3101,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -9.134239,
-      "y": 211.98914,
-      "z": 1.4603726,
-      "yaw_rad": 3.169349,
-      "scale": 0.8835776,
-      "text": null
-    },
-    {
-      "id": 3102,
+      "id": 3692,
       "kind": "tree",
       "asset": "poplar",
       "x": -23.530502,
@@ -9889,18 +7915,7 @@
       "text": null
     },
     {
-      "id": 3103,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -3.000618,
-      "y": 232.37192,
-      "z": 1.4303796,
-      "yaw_rad": 1.5478035,
-      "scale": 1.3851423,
-      "text": null
-    },
-    {
-      "id": 3104,
+      "id": 3693,
       "kind": "tree",
       "asset": "broadleaf_l",
       "x": -30.680273,
@@ -9911,40 +7926,7 @@
       "text": null
     },
     {
-      "id": 3105,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -4.077797,
-      "y": 242.42126,
-      "z": 1.4240767,
-      "yaw_rad": 1.7362057,
-      "scale": 1.487733,
-      "text": null
-    },
-    {
-      "id": 3106,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -18.752926,
-      "y": 218.22133,
-      "z": 1.4669117,
-      "yaw_rad": 0.1716186,
-      "scale": 0.81928396,
-      "text": null
-    },
-    {
-      "id": 3107,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -25.07198,
-      "y": 222.48288,
-      "z": 1.4714533,
-      "yaw_rad": 1.0470715,
-      "scale": 1.2032454,
-      "text": null
-    },
-    {
-      "id": 3108,
+      "id": 3694,
       "kind": "tree",
       "asset": "poplar",
       "x": -51.078976,
@@ -9955,29 +7937,7 @@
       "text": null
     },
     {
-      "id": 3109,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -33.94705,
-      "y": 224.99355,
-      "z": 1.4821422,
-      "yaw_rad": 3.4560342,
-      "scale": 0.8588987,
-      "text": null
-    },
-    {
-      "id": 3110,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -19.404667,
-      "y": 233.0318,
-      "z": 1.4513649,
-      "yaw_rad": 4.012618,
-      "scale": 1.3108882,
-      "text": null
-    },
-    {
-      "id": 3111,
+      "id": 3695,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": -43.447144,
@@ -9988,18 +7948,7 @@
       "text": null
     },
     {
-      "id": 3112,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -45.943123,
-      "y": 225.98479,
-      "z": 1.5006799,
-      "yaw_rad": 4.0445147,
-      "scale": 1.4919391,
-      "text": null
-    },
-    {
-      "id": 3113,
+      "id": 3696,
       "kind": "tree",
       "asset": "broadleaf_m",
       "x": -48.419304,
@@ -10010,18 +7959,7 @@
       "text": null
     },
     {
-      "id": 3114,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -33.027935,
-      "y": 244.53107,
-      "z": 1.4593836,
-      "yaw_rad": 3.7622068,
-      "scale": 0.8716706,
-      "text": null
-    },
-    {
-      "id": 3115,
+      "id": 3697,
       "kind": "tree",
       "asset": "poplar",
       "x": -54.687206,
@@ -10032,18 +7970,7 @@
       "text": null
     },
     {
-      "id": 3116,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -42.952374,
-      "y": 255.61832,
-      "z": 1.4633965,
-      "yaw_rad": 5.21972,
-      "scale": 1.2780032,
-      "text": null
-    },
-    {
-      "id": 3117,
+      "id": 3698,
       "kind": "tree",
       "asset": "broadleaf_m",
       "x": -63.372223,
@@ -10054,51 +7981,7 @@
       "text": null
     },
     {
-      "id": 3118,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -47.848866,
-      "y": 235.64401,
-      "z": 1.4907916,
-      "yaw_rad": 1.7894444,
-      "scale": 0.9849497,
-      "text": null
-    },
-    {
-      "id": 3119,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -55.264244,
-      "y": 243.25813,
-      "z": 1.4932684,
-      "yaw_rad": 2.0012124,
-      "scale": 1.0141764,
-      "text": null
-    },
-    {
-      "id": 3120,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -59.928116,
-      "y": 233.7883,
-      "z": 1.5137193,
-      "yaw_rad": 5.7203207,
-      "scale": 1.3735561,
-      "text": null
-    },
-    {
-      "id": 3121,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -77.5679,
-      "y": 243.60796,
-      "z": 1.5302851,
-      "yaw_rad": 3.896447,
-      "scale": 0.94457614,
-      "text": null
-    },
-    {
-      "id": 3122,
+      "id": 3699,
       "kind": "tree",
       "asset": "conifer_m",
       "x": -82.89433,
@@ -10109,18 +7992,7 @@
       "text": null
     },
     {
-      "id": 3123,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -92.11157,
-      "y": 248.68788,
-      "z": 1.5492731,
-      "yaw_rad": 5.476849,
-      "scale": 0.8048077,
-      "text": null
-    },
-    {
-      "id": 3124,
+      "id": 3700,
       "kind": "tree",
       "asset": "broadleaf_m",
       "x": -93.0569,
@@ -10131,7 +8003,7 @@
       "text": null
     },
     {
-      "id": 3125,
+      "id": 3701,
       "kind": "tree",
       "asset": "poplar",
       "x": -102.68697,
@@ -10142,7 +8014,7 @@
       "text": null
     },
     {
-      "id": 3126,
+      "id": 3702,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": -86.84543,
@@ -10153,7 +8025,7 @@
       "text": null
     },
     {
-      "id": 3127,
+      "id": 3703,
       "kind": "tree",
       "asset": "poplar",
       "x": -102.680695,
@@ -10164,7 +8036,7 @@
       "text": null
     },
     {
-      "id": 3128,
+      "id": 3704,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": -122.124435,
@@ -10175,7 +8047,7 @@
       "text": null
     },
     {
-      "id": 3129,
+      "id": 3705,
       "kind": "tree",
       "asset": "broadleaf_l",
       "x": -130.30862,
@@ -10186,29 +8058,7 @@
       "text": null
     },
     {
-      "id": 3130,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -116.78502,
-      "y": 270.12805,
-      "z": 1.5632901,
-      "yaw_rad": 2.4751563,
-      "scale": 0.89132077,
-      "text": null
-    },
-    {
-      "id": 3131,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -112.11174,
-      "y": 265.67825,
-      "z": 1.560685,
-      "yaw_rad": 4.1416683,
-      "scale": 1.1341565,
-      "text": null
-    },
-    {
-      "id": 3132,
+      "id": 3706,
       "kind": "tree",
       "asset": "broadleaf_m",
       "x": -137.65413,
@@ -10219,29 +8069,7 @@
       "text": null
     },
     {
-      "id": 3133,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -117.60472,
-      "y": 295.71777,
-      "z": 1.5369444,
-      "yaw_rad": 4.380997,
-      "scale": 0.9235052,
-      "text": null
-    },
-    {
-      "id": 3134,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -136.59637,
-      "y": 293.85852,
-      "z": 1.5681713,
-      "yaw_rad": 5.4958444,
-      "scale": 1.3962793,
-      "text": null
-    },
-    {
-      "id": 3135,
+      "id": 3707,
       "kind": "tree",
       "asset": "poplar",
       "x": -150.39703,
@@ -10252,51 +8080,7 @@
       "text": null
     },
     {
-      "id": 3136,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -144.32277,
-      "y": 295.7745,
-      "z": 1.578733,
-      "yaw_rad": 4.932003,
-      "scale": 1.3321266,
-      "text": null
-    },
-    {
-      "id": 3137,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -151.72029,
-      "y": 286.87384,
-      "z": 1.6024185,
-      "yaw_rad": 4.550588,
-      "scale": 1.1195136,
-      "text": null
-    },
-    {
-      "id": 3138,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -149.29562,
-      "y": 313.93268,
-      "z": 1.5688547,
-      "yaw_rad": 2.4105856,
-      "scale": 1.384499,
-      "text": null
-    },
-    {
-      "id": 3139,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -160.6784,
-      "y": 299.7856,
-      "z": 1.6008598,
-      "yaw_rad": 4.1992188,
-      "scale": 1.0689878,
-      "text": null
-    },
-    {
-      "id": 3140,
+      "id": 3708,
       "kind": "tree",
       "asset": "broadleaf_m",
       "x": -176.58145,
@@ -10307,18 +8091,7 @@
       "text": null
     },
     {
-      "id": 3141,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -162.99614,
-      "y": 307.5454,
-      "z": 1.596351,
-      "yaw_rad": 3.375818,
-      "scale": 1.2299123,
-      "text": null
-    },
-    {
-      "id": 3142,
+      "id": 3709,
       "kind": "tree",
       "asset": "broadleaf_l",
       "x": -180.12547,
@@ -10327,1459 +8100,7 @@
       "yaw_rad": 3.4536417,
       "scale": 1.008085,
       "text": null
-    },
-    {
-      "id": 3143,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -176.57051,
-      "y": 295.26932,
-      "z": 1.6355271,
-      "yaw_rad": 5.7783546,
-      "scale": 1.2282994,
-      "text": null
-    },
-    {
-      "id": 3144,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -184.29427,
-      "y": 298.13345,
-      "z": 1.6450241,
-      "yaw_rad": 3.4808807,
-      "scale": 1.266393,
-      "text": null
-    },
-    {
-      "id": 3145,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -184.50638,
-      "y": 287.9873,
-      "z": 1.6625993,
-      "yaw_rad": 0.8286702,
-      "scale": 0.945521,
-      "text": null
-    },
-    {
-      "id": 3146,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -183.11371,
-      "y": 305.0565,
-      "z": 1.6334162,
-      "yaw_rad": 2.5184422,
-      "scale": 1.4386873,
-      "text": null
-    },
-    {
-      "id": 3147,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -180.23839,
-      "y": 323.4175,
-      "z": 1.608515,
-      "yaw_rad": 0.6872856,
-      "scale": 1.255945,
-      "text": null
-    },
-    {
-      "id": 3148,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -197.24733,
-      "y": 293.0368,
-      "z": 1.6795169,
-      "yaw_rad": 1.817468,
-      "scale": 1.11514,
-      "text": null
-    },
-    {
-      "id": 3149,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -177.34808,
-      "y": 331.57208,
-      "z": 1.5976247,
-      "yaw_rad": 2.3527677,
-      "scale": 1.4482367,
-      "text": null
-    },
-    {
-      "id": 3150,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -181.93256,
-      "y": 339.72253,
-      "z": 1.5988806,
-      "yaw_rad": 6.1580877,
-      "scale": 1.3492085,
-      "text": null
-    },
-    {
-      "id": 3151,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -207.03871,
-      "y": 303.67798,
-      "z": 1.6808077,
-      "yaw_rad": 1.6574532,
-      "scale": 1.1435828,
-      "text": null
-    },
-    {
-      "id": 3152,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -179.39684,
-      "y": 345.5716,
-      "z": 1.591359,
-      "yaw_rad": 5.838291,
-      "scale": 1.3198016,
-      "text": null
-    },
-    {
-      "id": 3153,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -197.96979,
-      "y": 316.4895,
-      "z": 1.6458236,
-      "yaw_rad": 0.97686756,
-      "scale": 1.2406602,
-      "text": null
-    },
-    {
-      "id": 3154,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -204.58116,
-      "y": 318.7228,
-      "z": 1.6553919,
-      "yaw_rad": 4.2839746,
-      "scale": 1.2439672,
-      "text": null
-    },
-    {
-      "id": 3155,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -217.0959,
-      "y": 300.87634,
-      "z": 1.7111132,
-      "yaw_rad": 1.0944433,
-      "scale": 0.8984208,
-      "text": null
-    },
-    {
-      "id": 3156,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -200.20705,
-      "y": 350.50363,
-      "z": 1.6204339,
-      "yaw_rad": 4.4496193,
-      "scale": 1.3998493,
-      "text": null
-    },
-    {
-      "id": 3157,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -204.1518,
-      "y": 335.98007,
-      "z": 1.6374037,
-      "yaw_rad": 2.553183,
-      "scale": 0.8935104,
-      "text": null
-    },
-    {
-      "id": 3158,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -205.84274,
-      "y": 344.66626,
-      "z": 1.6336498,
-      "yaw_rad": 0.76562494,
-      "scale": 1.205012,
-      "text": null
-    },
-    {
-      "id": 3159,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -230.7597,
-      "y": 324.9894,
-      "z": 1.6992508,
-      "yaw_rad": 1.8044802,
-      "scale": 0.90938634,
-      "text": null
-    },
-    {
-      "id": 3160,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -237.06425,
-      "y": 312.31912,
-      "z": 1.7433188,
-      "yaw_rad": 0.6138826,
-      "scale": 0.9319,
-      "text": null
-    },
-    {
-      "id": 3161,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -216.55719,
-      "y": 337.14935,
-      "z": 1.658404,
-      "yaw_rad": 4.9633093,
-      "scale": 0.9763977,
-      "text": null
-    },
-    {
-      "id": 3162,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -212.29478,
-      "y": 348.0501,
-      "z": 1.6420487,
-      "yaw_rad": 3.7902179,
-      "scale": 1.2172457,
-      "text": null
-    },
-    {
-      "id": 3163,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -299.3179,
-      "y": 261.18878,
-      "z": 1.573954,
-      "yaw_rad": 4.7216573,
-      "scale": 0.9246686,
-      "text": null
-    },
-    {
-      "id": 3164,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -318.4246,
-      "y": 235.45428,
-      "z": 1.2407097,
-      "yaw_rad": 2.6190944,
-      "scale": 1.2212739,
-      "text": null
-    },
-    {
-      "id": 3165,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -217.35245,
-      "y": 363.86267,
-      "z": 1.6403059,
-      "yaw_rad": 0.30164745,
-      "scale": 0.8557351,
-      "text": null
-    },
-    {
-      "id": 3166,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -231.78644,
-      "y": 344.6174,
-      "z": 1.6803863,
-      "yaw_rad": 1.6730125,
-      "scale": 1.1918862,
-      "text": null
-    },
-    {
-      "id": 3167,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -223.00937,
-      "y": 345.95294,
-      "z": 1.6626884,
-      "yaw_rad": 0.94299,
-      "scale": 1.1936831,
-      "text": null
-    },
-    {
-      "id": 3168,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -321.88257,
-      "y": 257.91492,
-      "z": 1.4187703,
-      "yaw_rad": 3.0427854,
-      "scale": 0.9871429,
-      "text": null
-    },
-    {
-      "id": 3169,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -314.866,
-      "y": 252.69391,
-      "z": 1.4471287,
-      "yaw_rad": 3.6834183,
-      "scale": 1.0306059,
-      "text": null
-    },
-    {
-      "id": 3170,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -310.3155,
-      "y": 272.8729,
-      "z": 1.6032522,
-      "yaw_rad": 4.8760653,
-      "scale": 1.4975433,
-      "text": null
-    },
-    {
-      "id": 3171,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -241.1058,
-      "y": 337.28455,
-      "z": 1.7067194,
-      "yaw_rad": 5.640428,
-      "scale": 1.4796132,
-      "text": null
-    },
-    {
-      "id": 3172,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -223.8602,
-      "y": 363.37634,
-      "z": 1.6517463,
-      "yaw_rad": 4.457667,
-      "scale": 1.2117933,
-      "text": null
-    },
-    {
-      "id": 3173,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -253.63852,
-      "y": 332.60596,
-      "z": 1.7413104,
-      "yaw_rad": 3.9093397,
-      "scale": 1.0214756,
-      "text": null
-    },
-    {
-      "id": 3174,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -314.8048,
-      "y": 287.5889,
-      "z": 1.7168417,
-      "yaw_rad": 3.1284497,
-      "scale": 1.237045,
-      "text": null
-    },
-    {
-      "id": 3175,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -244.38287,
-      "y": 348.9198,
-      "z": 1.7016139,
-      "yaw_rad": 5.1656375,
-      "scale": 1.4056387,
-      "text": null
-    },
-    {
-      "id": 3176,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -234.35843,
-      "y": 353.61612,
-      "z": 1.6778576,
-      "yaw_rad": 3.6856956,
-      "scale": 1.0857179,
-      "text": null
-    },
-    {
-      "id": 3177,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -330.22595,
-      "y": 284.89774,
-      "z": 1.5198562,
-      "yaw_rad": 3.2596054,
-      "scale": 0.95795,
-      "text": null
-    },
-    {
-      "id": 3178,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -330.36447,
-      "y": 293.227,
-      "z": 1.5845135,
-      "yaw_rad": 1.7553751,
-      "scale": 0.8240268,
-      "text": null
-    },
-    {
-      "id": 3179,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -220.98407,
-      "y": 371.93906,
-      "z": 1.6414294,
-      "yaw_rad": 4.2524996,
-      "scale": 1.1812289,
-      "text": null
-    },
-    {
-      "id": 3180,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -227.48781,
-      "y": 374.11255,
-      "z": 1.6513662,
-      "yaw_rad": 4.813245,
-      "scale": 1.4183762,
-      "text": null
-    },
-    {
-      "id": 3181,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -273.43372,
-      "y": 360.4141,
-      "z": 1.7567725,
-      "yaw_rad": 0.21084185,
-      "scale": 1.2538798,
-      "text": null
-    },
-    {
-      "id": 3182,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -281.14127,
-      "y": 362.63654,
-      "z": 1.7790055,
-      "yaw_rad": 2.8143005,
-      "scale": 1.1309087,
-      "text": null
-    },
-    {
-      "id": 3183,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -247.59375,
-      "y": 375.09384,
-      "z": 1.687239,
-      "yaw_rad": 1.1078986,
-      "scale": 1.3297532,
-      "text": null
-    },
-    {
-      "id": 3184,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -339.2604,
-      "y": 320.11554,
-      "z": 1.7235533,
-      "yaw_rad": 1.9154414,
-      "scale": 1.2503641,
-      "text": null
-    },
-    {
-      "id": 3185,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -274.85495,
-      "y": 372.92984,
-      "z": 1.7469249,
-      "yaw_rad": 6.1998696,
-      "scale": 1.2711608,
-      "text": null
-    },
-    {
-      "id": 3186,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -282.60855,
-      "y": 373.92236,
-      "z": 1.764499,
-      "yaw_rad": 5.216109,
-      "scale": 1.1126505,
-      "text": null
-    },
-    {
-      "id": 3187,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -257.74347,
-      "y": 406.46622,
-      "z": 1.6837215,
-      "yaw_rad": 5.7880855,
-      "scale": 1.4644983,
-      "text": null
-    },
-    {
-      "id": 3188,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -267.4438,
-      "y": 389.96262,
-      "z": 1.7149738,
-      "yaw_rad": 0.84456694,
-      "scale": 0.93986356,
-      "text": null
-    },
-    {
-      "id": 3189,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -260.94812,
-      "y": 394.11536,
-      "z": 1.6989329,
-      "yaw_rad": 2.634314,
-      "scale": 1.0099425,
-      "text": null
-    },
-    {
-      "id": 3190,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -289.99048,
-      "y": 376.59506,
-      "z": 1.7830083,
-      "yaw_rad": 4.805863,
-      "scale": 1.0463107,
-      "text": null
-    },
-    {
-      "id": 3191,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -296.5182,
-      "y": 393.6354,
-      "z": 1.7750815,
-      "yaw_rad": 1.9795154,
-      "scale": 1.3782089,
-      "text": null
-    },
-    {
-      "id": 3192,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -299.88348,
-      "y": 383.498,
-      "z": 1.8097894,
-      "yaw_rad": 1.3049717,
-      "scale": 1.361001,
-      "text": null
-    },
-    {
-      "id": 3193,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -260.8476,
-      "y": 419.77682,
-      "z": 1.6793828,
-      "yaw_rad": 6.2100706,
-      "scale": 1.1172687,
-      "text": null
-    },
-    {
-      "id": 3194,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -277.85718,
-      "y": 417.37668,
-      "z": 1.7114782,
-      "yaw_rad": 3.8249865,
-      "scale": 1.2191831,
-      "text": null
-    },
-    {
-      "id": 3195,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -410.1983,
-      "y": 489.982,
-      "z": 1.7200596,
-      "yaw_rad": 6.2460747,
-      "scale": 0.8487301,
-      "text": null
-    },
-    {
-      "id": 3196,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -419.30142,
-      "y": 513.8972,
-      "z": 1.6759754,
-      "yaw_rad": 4.4234986,
-      "scale": 1.4034626,
-      "text": null
-    },
-    {
-      "id": 3197,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -457.36774,
-      "y": 498.32007,
-      "z": 1.661274,
-      "yaw_rad": 4.96746,
-      "scale": 0.8521771,
-      "text": null
-    },
-    {
-      "id": 3198,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -451.38165,
-      "y": 503.11786,
-      "z": 1.6628492,
-      "yaw_rad": 2.747398,
-      "scale": 0.979024,
-      "text": null
-    },
-    {
-      "id": 3199,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -501.13803,
-      "y": 391.99915,
-      "z": 1.6090993,
-      "yaw_rad": 4.5865293,
-      "scale": 0.91491336,
-      "text": null
-    },
-    {
-      "id": 3200,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -495.08545,
-      "y": 383.48102,
-      "z": 1.6099356,
-      "yaw_rad": 1.6632985,
-      "scale": 1.0896074,
-      "text": null
-    },
-    {
-      "id": 3201,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -466.8643,
-      "y": 338.01715,
-      "z": 1.5823958,
-      "yaw_rad": 1.132898,
-      "scale": 0.88949233,
-      "text": null
-    },
-    {
-      "id": 3202,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -460.85562,
-      "y": 338.48553,
-      "z": 1.5872,
-      "yaw_rad": 5.502934,
-      "scale": 1.2774397,
-      "text": null
-    },
-    {
-      "id": 3203,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -296.0267,
-      "y": 378.8045,
-      "z": 1.8050857,
-      "yaw_rad": 4.7744203,
-      "scale": 0.8740592,
-      "text": null
-    },
-    {
-      "id": 3204,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -445.39236,
-      "y": 332.1088,
-      "z": 1.5839884,
-      "yaw_rad": 2.535413,
-      "scale": 1.2361424,
-      "text": null
-    },
-    {
-      "id": 3205,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -421.12344,
-      "y": 335.2324,
-      "z": 1.5593548,
-      "yaw_rad": 4.7773848,
-      "scale": 1.0142301,
-      "text": null
-    },
-    {
-      "id": 3206,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -433.37048,
-      "y": 335.38358,
-      "z": 1.5936173,
-      "yaw_rad": 4.192685,
-      "scale": 0.92263544,
-      "text": null
-    },
-    {
-      "id": 3207,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -454.05444,
-      "y": 322.25473,
-      "z": 1.563332,
-      "yaw_rad": 3.209452,
-      "scale": 0.8524495,
-      "text": null
-    },
-    {
-      "id": 3208,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -448.2696,
-      "y": 317.11755,
-      "z": 1.5561546,
-      "yaw_rad": 2.7169943,
-      "scale": 1.1590717,
-      "text": null
-    },
-    {
-      "id": 3209,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -430.5958,
-      "y": 322.0096,
-      "z": 1.5667384,
-      "yaw_rad": 3.6931715,
-      "scale": 1.3754846,
-      "text": null
-    },
-    {
-      "id": 3210,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -475.56128,
-      "y": 313.4574,
-      "z": 1.5407321,
-      "yaw_rad": 2.723961,
-      "scale": 0.8406403,
-      "text": null
-    },
-    {
-      "id": 3211,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -460.82126,
-      "y": 306.89612,
-      "z": 1.5357583,
-      "yaw_rad": 4.068446,
-      "scale": 1.3280336,
-      "text": null
-    },
-    {
-      "id": 3212,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -437.93326,
-      "y": 307.60605,
-      "z": 1.5393549,
-      "yaw_rad": 3.5096533,
-      "scale": 1.4376466,
-      "text": null
-    },
-    {
-      "id": 3213,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -476.25446,
-      "y": 298.33548,
-      "z": 1.5182698,
-      "yaw_rad": 4.5468283,
-      "scale": 1.3408322,
-      "text": null
-    },
-    {
-      "id": 3214,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -417.49173,
-      "y": 318.81238,
-      "z": 1.5263752,
-      "yaw_rad": 0.10752584,
-      "scale": 1.0312417,
-      "text": null
-    },
-    {
-      "id": 3215,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -449.7522,
-      "y": 309.5152,
-      "z": 1.5423422,
-      "yaw_rad": 3.3032262,
-      "scale": 0.87867904,
-      "text": null
-    },
-    {
-      "id": 3216,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -423.46475,
-      "y": 298.8845,
-      "z": 1.5182713,
-      "yaw_rad": 4.0500817,
-      "scale": 1.1939752,
-      "text": null
-    },
-    {
-      "id": 3217,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -460.93463,
-      "y": 288.55035,
-      "z": 1.5060376,
-      "yaw_rad": 0.44847667,
-      "scale": 1.0156592,
-      "text": null
-    },
-    {
-      "id": 3218,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -467.18405,
-      "y": 286.81165,
-      "z": 1.5026703,
-      "yaw_rad": 5.34729,
-      "scale": 1.1649778,
-      "text": null
-    },
-    {
-      "id": 3219,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -439.00726,
-      "y": 295.26736,
-      "z": 1.516359,
-      "yaw_rad": 4.9034023,
-      "scale": 1.1330711,
-      "text": null
-    },
-    {
-      "id": 3220,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -412.06018,
-      "y": 307.96686,
-      "z": 1.48559,
-      "yaw_rad": 2.0920682,
-      "scale": 0.863551,
-      "text": null
-    },
-    {
-      "id": 3221,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -429.6809,
-      "y": 301.73846,
-      "z": 1.5262213,
-      "yaw_rad": 0.53238124,
-      "scale": 1.4249282,
-      "text": null
-    },
-    {
-      "id": 3222,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -438.41733,
-      "y": 281.26813,
-      "z": 1.4907761,
-      "yaw_rad": 3.6866937,
-      "scale": 0.9346646,
-      "text": null
-    },
-    {
-      "id": 3223,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -445.25323,
-      "y": 284.18332,
-      "z": 1.4975954,
-      "yaw_rad": 1.9226367,
-      "scale": 0.8402168,
-      "text": null
-    },
-    {
-      "id": 3224,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -456.17853,
-      "y": 276.98065,
-      "z": 1.4871306,
-      "yaw_rad": 1.2155379,
-      "scale": 1.3754454,
-      "text": null
-    },
-    {
-      "id": 3225,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -449.8954,
-      "y": 289.00113,
-      "z": 1.5066448,
-      "yaw_rad": 4.354135,
-      "scale": 0.9371291,
-      "text": null
-    },
-    {
-      "id": 3226,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -325.8266,
-      "y": 305.71356,
-      "z": 1.7688913,
-      "yaw_rad": 3.0056388,
-      "scale": 1.1403761,
-      "text": null
-    },
-    {
-      "id": 3227,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -410.66934,
-      "y": 281.99533,
-      "z": 1.4581053,
-      "yaw_rad": 5.5152116,
-      "scale": 1.227855,
-      "text": null
-    },
-    {
-      "id": 3228,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -426.47278,
-      "y": 274.6914,
-      "z": 1.4729099,
-      "yaw_rad": 3.4595785,
-      "scale": 1.2208723,
-      "text": null
-    },
-    {
-      "id": 3229,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -418.37753,
-      "y": 274.18082,
-      "z": 1.465726,
-      "yaw_rad": 0.43035728,
-      "scale": 1.4638792,
-      "text": null
-    },
-    {
-      "id": 3230,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -325.37357,
-      "y": 297.23837,
-      "z": 1.6937075,
-      "yaw_rad": 5.936352,
-      "scale": 1.4946206,
-      "text": null
-    },
-    {
-      "id": 3231,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -316.52277,
-      "y": 280.8249,
-      "z": 1.6249615,
-      "yaw_rad": 3.3207123,
-      "scale": 1.0278326,
-      "text": null
-    },
-    {
-      "id": 3232,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -438.74115,
-      "y": 242.75989,
-      "z": 1.4258608,
-      "yaw_rad": 5.587574,
-      "scale": 1.2869108,
-      "text": null
-    },
-    {
-      "id": 3233,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -440.7126,
-      "y": 251.88994,
-      "z": 1.4413601,
-      "yaw_rad": 0.356015,
-      "scale": 1.2930356,
-      "text": null
-    },
-    {
-      "id": 3234,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -398.90994,
-      "y": 254.8265,
-      "z": 1.3607602,
-      "yaw_rad": 0.62544435,
-      "scale": 0.9793522,
-      "text": null
-    },
-    {
-      "id": 3235,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -299.14188,
-      "y": 272.90854,
-      "z": 1.7152573,
-      "yaw_rad": 1.1786736,
-      "scale": 1.363044,
-      "text": null
-    },
-    {
-      "id": 3236,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -327.07385,
-      "y": 265.6431,
-      "z": 1.4130411,
-      "yaw_rad": 5.7310257,
-      "scale": 0.83587986,
-      "text": null
-    },
-    {
-      "id": 3237,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -451.77817,
-      "y": 236.28894,
-      "z": 1.4233791,
-      "yaw_rad": 5.4361434,
-      "scale": 0.9878583,
-      "text": null
-    },
-    {
-      "id": 3238,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -418.55145,
-      "y": 238.61696,
-      "z": 1.4016461,
-      "yaw_rad": 1.183064,
-      "scale": 1.1056261,
-      "text": null
-    },
-    {
-      "id": 3239,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -424.55807,
-      "y": 234.74709,
-      "z": 1.4021456,
-      "yaw_rad": 5.579167,
-      "scale": 1.4662681,
-      "text": null
-    },
-    {
-      "id": 3240,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -447.4127,
-      "y": 231.83516,
-      "z": 1.4148004,
-      "yaw_rad": 5.168862,
-      "scale": 1.4667406,
-      "text": null
-    },
-    {
-      "id": 3241,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -305.09125,
-      "y": 265.5446,
-      "z": 1.5736958,
-      "yaw_rad": 3.7224503,
-      "scale": 1.4243915,
-      "text": null
-    },
-    {
-      "id": 3242,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -433.61438,
-      "y": 225.6319,
-      "z": 1.396124,
-      "yaw_rad": 0.87367284,
-      "scale": 0.82151437,
-      "text": null
-    },
-    {
-      "id": 3243,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -442.45987,
-      "y": 211.69269,
-      "z": 1.3838221,
-      "yaw_rad": 4.4259987,
-      "scale": 1.0898795,
-      "text": null
-    },
-    {
-      "id": 3244,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -419.718,
-      "y": 223.65141,
-      "z": 1.3797251,
-      "yaw_rad": 6.042779,
-      "scale": 1.3997518,
-      "text": null
-    },
-    {
-      "id": 3245,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -317.26703,
-      "y": 242.37964,
-      "z": 1.333854,
-      "yaw_rad": 5.3832583,
-      "scale": 1.3092482,
-      "text": null
-    },
-    {
-      "id": 3246,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -369.177,
-      "y": 173.9619,
-      "z": 1.2378937,
-      "yaw_rad": 0.29145297,
-      "scale": 1.0106729,
-      "text": null
-    },
-    {
-      "id": 3247,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -402.19977,
-      "y": 140.12593,
-      "z": 1.2702483,
-      "yaw_rad": 1.6789192,
-      "scale": 1.3376194,
-      "text": null
-    },
-    {
-      "id": 3248,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -379.22632,
-      "y": 153.09134,
-      "z": 1.247644,
-      "yaw_rad": 0.075961635,
-      "scale": 1.4485877,
-      "text": null
-    },
-    {
-      "id": 3249,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -390.06006,
-      "y": 144.65984,
-      "z": 1.258264,
-      "yaw_rad": 1.6345581,
-      "scale": 1.1483136,
-      "text": null
-    },
-    {
-      "id": 3250,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -374.93018,
-      "y": 140.6389,
-      "z": 1.2340585,
-      "yaw_rad": 5.0334954,
-      "scale": 0.8511407,
-      "text": null
-    },
-    {
-      "id": 3251,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -381.82956,
-      "y": 118.72531,
-      "z": 1.2315279,
-      "yaw_rad": 5.6982846,
-      "scale": 1.0019866,
-      "text": null
-    },
-    {
-      "id": 3252,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -371.79752,
-      "y": 157.4435,
-      "z": 1.2373301,
-      "yaw_rad": 0.67930895,
-      "scale": 0.8346987,
-      "text": null
-    },
-    {
-      "id": 3253,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -357.98962,
-      "y": 167.98512,
-      "z": 1.197248,
-      "yaw_rad": 4.890519,
-      "scale": 1.0778486,
-      "text": null
-    },
-    {
-      "id": 3254,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -337.63388,
-      "y": 142.00653,
-      "z": 1.1657983,
-      "yaw_rad": 5.1365614,
-      "scale": 1.4583585,
-      "text": null
-    },
-    {
-      "id": 3255,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -356.3602,
-      "y": 114.182655,
-      "z": 1.1942053,
-      "yaw_rad": 5.2064962,
-      "scale": 1.213749,
-      "text": null
-    },
-    {
-      "id": 3256,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -364.95007,
-      "y": 103.0868,
-      "z": 1.2020016,
-      "yaw_rad": 3.840346,
-      "scale": 1.1039566,
-      "text": null
-    },
-    {
-      "id": 3257,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -349.52383,
-      "y": 95.85969,
-      "z": 1.1777916,
-      "yaw_rad": 2.556055,
-      "scale": 1.0876415,
-      "text": null
-    },
-    {
-      "id": 3258,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -325.22083,
-      "y": 90.044945,
-      "z": 1.1390122,
-      "yaw_rad": 4.844334,
-      "scale": 1.4862349,
-      "text": null
-    },
-    {
-      "id": 3259,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -303.89017,
-      "y": 69.35131,
-      "z": 1.1017783,
-      "yaw_rad": 0.65846837,
-      "scale": 1.3439466,
-      "text": null
-    },
-    {
-      "id": 3260,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -300.41754,
-      "y": 82.08065,
-      "z": 1.0953203,
-      "yaw_rad": 3.8994815,
-      "scale": 1.044182,
-      "text": null
-    },
-    {
-      "id": 3261,
-      "kind": "tree",
-      "asset": "conifer_m",
-      "x": -289.64694,
-      "y": 57.333763,
-      "z": 1.0775189,
-      "yaw_rad": 3.4628499,
-      "scale": 1.2470895,
-      "text": null
-    },
-    {
-      "id": 3262,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -261.55334,
-      "y": 48.673454,
-      "z": 1.0275792,
-      "yaw_rad": 0.5646225,
-      "scale": 1.3743945,
-      "text": null
-    },
-    {
-      "id": 3263,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -248.33693,
-      "y": 36.21669,
-      "z": 1.0062397,
-      "yaw_rad": 0.0071733077,
-      "scale": 1.1571467,
-      "text": null
-    },
-    {
-      "id": 3264,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -226.10423,
-      "y": 29.461067,
-      "z": 0.96443176,
-      "yaw_rad": 5.2960153,
-      "scale": 0.8506702,
-      "text": null
-    },
-    {
-      "id": 3265,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -195.76598,
-      "y": 16.137321,
-      "z": 0.9082579,
-      "yaw_rad": 0.75143003,
-      "scale": 1.1381321,
-      "text": null
-    },
-    {
-      "id": 3266,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -176.1554,
-      "y": -3.0836487,
-      "z": 0.8834889,
-      "yaw_rad": 2.2131197,
-      "scale": 1.4710182,
-      "text": null
-    },
-    {
-      "id": 3267,
-      "kind": "tree",
-      "asset": "broadleaf_m",
-      "x": -168.98071,
-      "y": 1.5803604,
-      "z": 0.86161685,
-      "yaw_rad": 5.6465964,
-      "scale": 1.1456863,
-      "text": null
-    },
-    {
-      "id": 3268,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -160.96115,
-      "y": -10.565613,
-      "z": 0.85845906,
-      "yaw_rad": 0.3377975,
-      "scale": 1.2927632,
-      "text": null
-    },
-    {
-      "id": 3269,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -146.84926,
-      "y": -16.381699,
-      "z": 0.8340002,
-      "yaw_rad": 2.5923734,
-      "scale": 1.4766754,
-      "text": null
-    },
-    {
-      "id": 3270,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -132.91327,
-      "y": -23.839153,
-      "z": 0.81343794,
-      "yaw_rad": 2.1757035,
-      "scale": 1.1999476,
-      "text": null
-    },
-    {
-      "id": 3271,
-      "kind": "tree",
-      "asset": "broadleaf_l",
-      "x": -97.09375,
-      "y": -49.06569,
-      "z": 0.782131,
-      "yaw_rad": 5.605702,
-      "scale": 0.8622618,
-      "text": null
-    },
-    {
-      "id": 3272,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -105.4326,
-      "y": -47.097527,
-      "z": 0.7951734,
-      "yaw_rad": 5.5147305,
-      "scale": 1.1896658,
-      "text": null
-    },
-    {
-      "id": 3273,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": -72.1532,
-      "y": -67.30791,
-      "z": 0.7770187,
-      "yaw_rad": 2.8481145,
-      "scale": 1.3217189,
-      "text": null
-    },
-    {
-      "id": 3274,
-      "kind": "tree",
-      "asset": "poplar",
-      "x": -57.149166,
-      "y": -74.89392,
-      "z": 0.7733607,
-      "yaw_rad": 1.4136285,
-      "scale": 1.4779336,
-      "text": null
     }
   ],
-  "next_id": 3275
+  "next_id": 3710
 }
