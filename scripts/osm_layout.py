@@ -58,6 +58,26 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Silverstone": [(-1.035, 52.063, -0.995, 52.083)],
     "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
     "Austin": [(-97.652, 30.122, -97.626, 30.145)],
+    # MoscowRaceway is deliberately NOT registered here (see below): a bbox
+    # whose fit fails would abort every `--all` run at this entry (build()
+    # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
+    # every stem sorted after it. Once the fit is fixed, add:
+    #   "MoscowRaceway": [(36.243, 55.987, 36.283, 56.005)],
+    # That bbox is already corrected from the task card's seed
+    # (36.070, 55.955, 36.105, 55.972), which is ~12 km off: the real
+    # circuit (per Wikipedia and OSM Nominatim, "Moscow Raceway"
+    # leisure=sports_centre + highway=raceway ways) sits at 55.996N 36.266E,
+    # near Shelud'kovo/Fedyukovo, Volokolamsky District. Even at the
+    # corrected location the fit still fails: OSM's "Moscow Raceway"
+    # raceway way (the only one in range) covers only ~72% of the
+    # centerline at ~4 m rmse, short of the 90% / 2.5 m gate (and short of
+    # the Le Mans exception's 3.0 m rmse too). The circuit has ~18
+    # published layout variants (FIM vs. GP10 differ by a back-straight
+    # chicane / turn 8), and the uncovered stretches are scattered across
+    # ~7 short spans rather than one contiguous chunk, which looks like OSM
+    # traced a different variant than this YAML's rather than a
+    # thin-coverage or public-road case. See docs/ADDITIONAL_TRACKS.md
+    # hand-back for the full investigation; no dossier was written.
     "LeMans": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
