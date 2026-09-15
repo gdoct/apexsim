@@ -64,6 +64,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Suzuka": [(136.525, 34.835, 136.555, 34.855)],
     "Nuerburgring": [(6.930, 50.325, 6.965, 50.345)],
     "Catalunya": [(2.246, 41.560, 2.275, 41.580)],
+    "Budapest": [(19.236, 47.572, 19.262, 47.588)],
     # MoscowRaceway is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
@@ -243,6 +244,40 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # depth 17.7 m, uncovered like its neighbours).
     "Catalunya": [
         dict(name="Tribuna F", from_m=719.5, to_m=816.9, side="left", depth_m=17.7, covered=False),
+    ],
+    # Hungaroring's own ticket map (hungaryticketsgp.com/en/map-of-grandstands,
+    # motorsporttickets.com's grandstand guide, grandprixgrandtours.com) names
+    # stands by colour; OSM only traces the single big covered "Super Gold"
+    # complex on the main straight (station ~2-271, source "osm" below) and
+    # mistags the "Silver 5" terrace as a plain building rather than a
+    # grandstand (it survives as an auto-extracted `structures` entry near
+    # station 3355 instead). Spans here are geometric estimates against this
+    # track's own centerline (turn order + the named-way boundary at station
+    # 600.6, which lines up with the main straight/T1 kink) rather than
+    # GPS-matched OSM outlines -- see the Budapest hand-back for the
+    # reasoning. Silver 2-4 and the rest of Gold 1-4 are not broken out
+    # separately: sources only place them qualitatively ("near the grid",
+    # "near the final corner") with no distinguishing span, and duplicating
+    # a station guess with no anchor felt worse than leaving them out.
+    "Budapest": [
+        # motorsporttickets.com: "Silver 1 is the closest to the grid" --
+        # the grid forms just past the OSM-traced Super Gold stand.
+        dict(name="Silver 1", from_m=280, to_m=380, side="left", depth_m=10),
+        # Turn 1 ("Piquet" corner, official 40th-anniversary corner names,
+        # formula1.com): a natural, uncovered bank right at the braking
+        # zone/exit, per the T1 Grandstand guides (oversteer48.com).
+        dict(name="T1 Stand", from_m=600, to_m=760, side="outside", depth_m=9),
+        # grandprixgrandtours.com / motorsporttickets.com: "Bronze 1 & 2
+        # grandstands are positioned overlooking turns 5 and 7", historically
+        # three (Bronze 1-3; two were later renamed Chicane 1/2). These are
+        # the hillside natural terraces through the infield esses.
+        dict(name="Bronze 1", from_m=1500, to_m=1700, side="outside", depth_m=9),
+        dict(name="Bronze 2", from_m=1994, to_m=2190, side="outside", depth_m=9),
+        dict(name="Bronze 3", from_m=2210, to_m=2400, side="outside", depth_m=9),
+        # The general-admission terraces through the Schumacher (T12) /
+        # Senna (T13) / Szisz (T14) finishing sequence, clear of the
+        # OSM-traced "Silver 5" structure around station 3355.
+        dict(name="T12-T14 Stand", from_m=3600, to_m=3950, side="outside", depth_m=8),
     ],
 }
 
@@ -574,10 +609,14 @@ def is_pit_way(t: dict) -> bool:
     # German compound built on it names the same thing; checking name:en
     # too catches a "Pit Lane" translation tag OSM carries on some ways
     # (Spielberg's does) even when the local-language name has neither.
+    # The Hungaroring's is "Bokszutca" (Hungarian, the same "box" root +
+    # "utca" = street): same gap, different language, so it needs its own
+    # substring -- "boxen" doesn't match the Hungarian spelling.
     return (
         t.get("raceway") in ("pitlane", "pit_lane")
         or "pit" in name
         or "boxen" in name
+        or "bokszutca" in name
         or "pit" in name_en
     )
 
@@ -1099,7 +1138,15 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         kind = None
         if t.get("attraction") == "big_wheel":
             kind = "big_wheel"
-        elif t.get("man_made") in ("communications_tower", "tower") and t.get("tower:type") != "lighting":
+        elif t.get("man_made") in ("communications_tower", "tower") and t.get("tower:type") not in (
+            "lighting",
+            "communication",
+            "radar",
+        ):
+            # A cell mast or a Rijkswaterstaat radar tower near the venue is
+            # not part of the circuit (Zandvoort's dunes carry both); the
+            # kit's "tower" is a control/observation tower like Monza's
+            # Torre Nord/Sud, which OSM tags with no tower:type at all.
             kind = "tower"
         elif t.get("tower:type") == "lighting" or t.get("highway") == "floodlight":
             kind = "floodlight"
