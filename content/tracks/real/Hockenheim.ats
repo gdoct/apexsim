@@ -1377,90 +1377,6 @@
     {
       "id": 346,
       "kind": "grandstand",
-      "asset": "bay_10m_large_roof",
-      "x": -147.97556,
-      "y": 267.47943,
-      "z": 1.2761852,
-      "yaw_rad": -1.4143343,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 35.35
-    },
-    {
-      "id": 347,
-      "kind": "grandstand",
-      "asset": "bay_10m_large_roof",
-      "x": -138.35378,
-      "y": 233.67027,
-      "z": 0.8633565,
-      "yaw_rad": -1.1731184,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 35.46
-    },
-    {
-      "id": 348,
-      "kind": "grandstand",
-      "asset": "bay_10m_large_roof",
-      "x": -124.619064,
-      "y": 200.97316,
-      "z": 0.77138436,
-      "yaw_rad": -1.1731181,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 35.46
-    },
-    {
-      "id": 349,
-      "kind": "grandstand",
-      "asset": "bay_10m_large_roof",
-      "x": -110.884346,
-      "y": 168.27605,
-      "z": 0.6845769,
-      "yaw_rad": -1.1731184,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 35.46
-    },
-    {
-      "id": 350,
-      "kind": "grandstand",
-      "asset": "bay_10m_large_roof",
-      "x": -97.14964,
-      "y": 135.57895,
-      "z": 0.66778266,
-      "yaw_rad": -1.1731184,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 35.46
-    },
-    {
-      "id": 351,
-      "kind": "grandstand",
-      "asset": "bay_10m_large_roof",
-      "x": -83.41493,
-      "y": 102.881836,
-      "z": 0.69061947,
-      "yaw_rad": -1.1731184,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 35.46
-    },
-    {
-      "id": 352,
-      "kind": "grandstand",
-      "asset": "bay_10m_large_roof",
-      "x": -77.74379,
-      "y": 72.426636,
-      "z": 0.90232074,
-      "yaw_rad": -1.655392,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 28.31
-    },
-    {
-      "id": 353,
-      "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": 1263.8177,
       "y": 523.57654,
@@ -1471,7 +1387,7 @@
       "length_m": 37.57
     },
     {
-      "id": 354,
+      "id": 347,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": 1298.9473,
@@ -1483,7 +1399,7 @@
       "length_m": 37.53
     },
     {
-      "id": 355,
+      "id": 348,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": 1333.9296,
@@ -1495,7 +1411,7 @@
       "length_m": 35.74
     },
     {
-      "id": 356,
+      "id": 349,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": 1356.2913,
@@ -1507,7 +1423,7 @@
       "length_m": 33.71
     },
     {
-      "id": 357,
+      "id": 350,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": 1348.5824,
@@ -1519,7 +1435,7 @@
       "length_m": 36.41
     },
     {
-      "id": 358,
+      "id": 351,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": 1319.7117,
@@ -1531,7 +1447,7 @@
       "length_m": 37.57
     },
     {
-      "id": 359,
+      "id": 352,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": 1287.1897,
@@ -1543,7 +1459,7 @@
       "length_m": 37.57
     },
     {
-      "id": 360,
+      "id": 353,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": 1255.0891,
@@ -1555,7 +1471,7 @@
       "length_m": 37.57
     },
     {
-      "id": 361,
+      "id": 354,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 597.5498,
@@ -1567,7 +1483,7 @@
       "length_m": 36.87
     },
     {
-      "id": 362,
+      "id": 355,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 609.6294,
@@ -1579,7 +1495,7 @@
       "length_m": 36.87
     },
     {
-      "id": 363,
+      "id": 356,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 621.709,
@@ -1591,7 +1507,7 @@
       "length_m": 36.87
     },
     {
-      "id": 364,
+      "id": 357,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 642.50726,
@@ -1603,7 +1519,7 @@
       "length_m": 31.24
     },
     {
-      "id": 366,
+      "id": 358,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 651.22644,
@@ -1615,7 +1531,7 @@
       "length_m": 36.87
     },
     {
-      "id": 367,
+      "id": 359,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 639.1479,
@@ -1627,7 +1543,7 @@
       "length_m": 36.87
     },
     {
-      "id": 368,
+      "id": 360,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 627.06934,
@@ -1639,7 +1555,7 @@
       "length_m": 36.87
     },
     {
-      "id": 369,
+      "id": 361,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 123.111145,
@@ -1651,7 +1567,7 @@
       "length_m": 38.81
     },
     {
-      "id": 370,
+      "id": 362,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 160.2479,
@@ -1663,7 +1579,7 @@
       "length_m": 38.12
     },
     {
-      "id": 7536,
+      "id": 363,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 193.08797,
@@ -1675,7 +1591,7 @@
       "length_m": 39.07
     },
     {
-      "id": 7537,
+      "id": 364,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 220.06433,
@@ -1687,7 +1603,7 @@
       "length_m": 39.12
     },
     {
-      "id": 7538,
+      "id": 366,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 245.2881,
@@ -1699,7 +1615,7 @@
       "length_m": 39.12
     },
     {
-      "id": 7539,
+      "id": 367,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 101.95709,
@@ -1711,7 +1627,7 @@
       "length_m": 25.36
     },
     {
-      "id": 7540,
+      "id": 368,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 132.31494,
@@ -1723,7 +1639,7 @@
       "length_m": 37.44
     },
     {
-      "id": 7541,
+      "id": 369,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 168.86784,
@@ -1735,7 +1651,7 @@
       "length_m": 37.45
     },
     {
-      "id": 7542,
+      "id": 370,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 70.61805,
@@ -1747,7 +1663,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7543,
+      "id": 7536,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 50.323437,
@@ -1759,7 +1675,7 @@
       "length_m": 39.91
     },
     {
-      "id": 7544,
+      "id": 7537,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 31.07956,
@@ -1771,7 +1687,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7545,
+      "id": 7538,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 12.097128,
@@ -1783,7 +1699,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7546,
+      "id": 7539,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": -6.885298,
@@ -1795,7 +1711,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7547,
+      "id": 7540,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": -13.059188,
@@ -1807,7 +1723,7 @@
       "length_m": 27.43
     },
     {
-      "id": 7548,
+      "id": 7541,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 1.1811366,
@@ -1819,7 +1735,7 @@
       "length_m": 34.78
     },
     {
-      "id": 7549,
+      "id": 7542,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 21.731571,
@@ -1831,7 +1747,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7550,
+      "id": 7543,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 40.98649,
@@ -1843,7 +1759,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7551,
+      "id": 7544,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 60.24141,
@@ -1855,7 +1771,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7552,
+      "id": 7545,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 79.49632,
@@ -1867,7 +1783,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7553,
+      "id": 7546,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 100.553696,
@@ -1879,7 +1795,7 @@
       "length_m": 39.77
     },
     {
-      "id": 7554,
+      "id": 7547,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 129.44452,
@@ -1891,7 +1807,7 @@
       "length_m": 39.42
     },
     {
-      "id": 7555,
+      "id": 7548,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 166.56633,
@@ -1903,7 +1819,7 @@
       "length_m": 39.47
     },
     {
-      "id": 7556,
+      "id": 7549,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 203.53162,
@@ -1915,7 +1831,7 @@
       "length_m": 39.42
     },
     {
-      "id": 7557,
+      "id": 7550,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 237.48953,
@@ -1927,7 +1843,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7558,
+      "id": 7551,
       "kind": "grandstand",
       "asset": "bay_10m_large_roof",
       "x": 270.7965,
@@ -1939,7 +1855,7 @@
       "length_m": 39.93
     },
     {
-      "id": 7559,
+      "id": 7552,
       "kind": "building",
       "asset": "media_centre",
       "x": -67.88508,
@@ -1950,7 +1866,7 @@
       "text": null
     },
     {
-      "id": 7560,
+      "id": 7553,
       "kind": "building",
       "asset": "media_centre",
       "x": -86.53254,
@@ -1961,7 +1877,7 @@
       "text": null
     },
     {
-      "id": 7561,
+      "id": 7554,
       "kind": "building",
       "asset": "hospitality_3f",
       "x": 23.630863,
@@ -1972,7 +1888,7 @@
       "text": null
     },
     {
-      "id": 7562,
+      "id": 7555,
       "kind": "building",
       "asset": "media_centre",
       "x": 1.7797499,
@@ -1983,7 +1899,7 @@
       "text": null
     },
     {
-      "id": 7563,
+      "id": 7556,
       "kind": "building",
       "asset": "clubhouse",
       "x": 84.564545,
@@ -1994,7 +1910,7 @@
       "text": null
     },
     {
-      "id": 7564,
+      "id": 7557,
       "kind": "building",
       "asset": "media_centre",
       "x": 993.20734,
@@ -2005,7 +1921,7 @@
       "text": null
     },
     {
-      "id": 7565,
+      "id": 7558,
       "kind": "building",
       "asset": "media_centre",
       "x": 1026.8597,
@@ -2016,7 +1932,7 @@
       "text": null
     },
     {
-      "id": 7566,
+      "id": 7559,
       "kind": "building",
       "asset": "media_centre",
       "x": 1060.5121,
@@ -2027,7 +1943,7 @@
       "text": null
     },
     {
-      "id": 7567,
+      "id": 7560,
       "kind": "building",
       "asset": "media_centre",
       "x": 1094.1646,
@@ -2038,7 +1954,7 @@
       "text": null
     },
     {
-      "id": 7568,
+      "id": 7561,
       "kind": "building",
       "asset": "media_centre",
       "x": 1127.8169,
@@ -2049,7 +1965,7 @@
       "text": null
     },
     {
-      "id": 7569,
+      "id": 7562,
       "kind": "building",
       "asset": "media_centre",
       "x": 1161.4692,
@@ -2060,7 +1976,7 @@
       "text": null
     },
     {
-      "id": 7570,
+      "id": 7563,
       "kind": "building",
       "asset": "media_centre",
       "x": 1195.1216,
@@ -2071,7 +1987,7 @@
       "text": null
     },
     {
-      "id": 7571,
+      "id": 7564,
       "kind": "building",
       "asset": "media_centre",
       "x": 1228.774,
@@ -2082,7 +1998,7 @@
       "text": null
     },
     {
-      "id": 7572,
+      "id": 7565,
       "kind": "building",
       "asset": "media_centre",
       "x": 1262.4264,
@@ -2093,7 +2009,7 @@
       "text": null
     },
     {
-      "id": 7573,
+      "id": 7566,
       "kind": "building",
       "asset": "media_centre",
       "x": 1296.0787,
@@ -2104,7 +2020,7 @@
       "text": null
     },
     {
-      "id": 7574,
+      "id": 7567,
       "kind": "building",
       "asset": "media_centre",
       "x": 500.03787,
@@ -2115,7 +2031,7 @@
       "text": null
     },
     {
-      "id": 7575,
+      "id": 7568,
       "kind": "building",
       "asset": "media_centre",
       "x": 354.82236,
@@ -2126,7 +2042,7 @@
       "text": null
     },
     {
-      "id": 7576,
+      "id": 7569,
       "kind": "building",
       "asset": "media_centre",
       "x": 328.72916,
@@ -2137,7 +2053,7 @@
       "text": null
     },
     {
-      "id": 7577,
+      "id": 7570,
       "kind": "building",
       "asset": "media_centre",
       "x": 351.60495,
@@ -2148,7 +2064,7 @@
       "text": null
     },
     {
-      "id": 7578,
+      "id": 7571,
       "kind": "building",
       "asset": "media_centre",
       "x": 325.51486,
@@ -2159,7 +2075,7 @@
       "text": null
     },
     {
-      "id": 7579,
+      "id": 7572,
       "kind": "building",
       "asset": "media_centre",
       "x": 225.65143,
@@ -2170,7 +2086,7 @@
       "text": null
     },
     {
-      "id": 7580,
+      "id": 7573,
       "kind": "building",
       "asset": "media_centre",
       "x": 188.57162,
@@ -2181,7 +2097,7 @@
       "text": null
     },
     {
-      "id": 7581,
+      "id": 7574,
       "kind": "building",
       "asset": "media_centre",
       "x": 151.49182,
@@ -2192,7 +2108,7 @@
       "text": null
     },
     {
-      "id": 7582,
+      "id": 7575,
       "kind": "building",
       "asset": "media_centre",
       "x": 114.41202,
@@ -2203,7 +2119,7 @@
       "text": null
     },
     {
-      "id": 7583,
+      "id": 7576,
       "kind": "building",
       "asset": "media_centre",
       "x": 77.332214,
@@ -2214,7 +2130,7 @@
       "text": null
     },
     {
-      "id": 7584,
+      "id": 7577,
       "kind": "building",
       "asset": "control_tower",
       "x": 39.22477,
@@ -2225,7 +2141,7 @@
       "text": null
     },
     {
-      "id": 7585,
+      "id": 7578,
       "kind": "building",
       "asset": "control_tower",
       "x": 51.547173,
@@ -2236,7 +2152,7 @@
       "text": null
     },
     {
-      "id": 7586,
+      "id": 7579,
       "kind": "building",
       "asset": "media_centre",
       "x": -2.3179274,
@@ -2247,7 +2163,7 @@
       "text": null
     },
     {
-      "id": 7587,
+      "id": 7580,
       "kind": "bridge",
       "asset": "truss_bridge",
       "x": 673.66943,
