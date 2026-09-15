@@ -2093,50 +2093,6 @@
     },
     {
       "id": 9417,
-      "kind": "building",
-      "asset": "media_centre",
-      "x": -215.33798,
-      "y": -171.25151,
-      "z": 1.3089101,
-      "yaw_rad": 0.1745,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 9418,
-      "kind": "building",
-      "asset": "media_centre",
-      "x": -175.35455,
-      "y": -164.20271,
-      "z": 1.2303388,
-      "yaw_rad": 0.1745,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 9419,
-      "kind": "building",
-      "asset": "media_centre",
-      "x": -135.37112,
-      "y": -157.15392,
-      "z": 1.2045503,
-      "yaw_rad": 0.1745,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 9420,
-      "kind": "building",
-      "asset": "media_centre",
-      "x": -95.3877,
-      "y": -150.10512,
-      "z": 1.1501402,
-      "yaw_rad": 0.1745,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 9421,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -301.79,
@@ -2147,7 +2103,7 @@
       "text": null
     },
     {
-      "id": 9422,
+      "id": 9418,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -592.95,
@@ -2158,7 +2114,7 @@
       "text": null
     },
     {
-      "id": 9423,
+      "id": 9419,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -31.47,
@@ -2169,7 +2125,7 @@
       "text": null
     },
     {
-      "id": 9424,
+      "id": 9420,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 552.82,
@@ -2180,7 +2136,7 @@
       "text": null
     },
     {
-      "id": 9425,
+      "id": 9421,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -292.62,
@@ -2191,7 +2147,7 @@
       "text": null
     },
     {
-      "id": 9426,
+      "id": 9422,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -163.85,
@@ -2202,7 +2158,7 @@
       "text": null
     },
     {
-      "id": 9427,
+      "id": 9423,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 351.82,
