@@ -698,6 +698,81 @@
    ]
   },
   {
+   "name": null,
+   "station_m": 1811.2,
+   "side": "left",
+   "offset_m": 259.4,
+   "length_m": 17.4,
+   "depth_m": 16.0,
+   "yaw_rad": 2.0643,
+   "centre": [
+    -832.28,
+    779.85
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -821.54,
+     774.25
+    ],
+    [
+     -829.76,
+     789.53
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1814.9,
+   "side": "left",
+   "offset_m": 259.3,
+   "length_m": 9.3,
+   "depth_m": 3.4,
+   "yaw_rad": 2.0475,
+   "centre": [
+    -825.03,
+    783.67
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -820.64,
+     779.68
+    ],
+    [
+     -823.7,
+     778.1
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1817.6,
+   "side": "left",
+   "offset_m": 249.2,
+   "length_m": 13.0,
+   "depth_m": 10.9,
+   "yaw_rad": 2.0541,
+   "centre": [
+    -820.19,
+    786.68
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -816.04,
+     794.34
+    ],
+    [
+     -810.0,
+     782.83
+    ]
+   ]
+  },
+  {
    "name": "Grandstand 31",
    "source": "seating map",
    "station_m": 1936.4,
@@ -1257,16 +1332,6 @@
   }
  ],
  "landmarks": [
-  {
-   "kind": "tower",
-   "name": null,
-   "station_m": 179.7,
-   "side": "right",
-   "centre": [
-    -26.55,
-    -175.47
-   ]
-  },
   {
    "kind": "tower",
    "name": "Tour de départ",

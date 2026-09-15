@@ -1212,6 +1212,15 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
 
     corners = []
     pit_ways: list[np.ndarray] = []
+    # A way can be both directly tagged highway=raceway (picked up by the
+    # loop below) and a role=pit_lane member of a type=circuit relation
+    # (Monza is both: its "Pit Lane" way carries the tag *and* belongs to
+    # relation 284565) -- track which way ids already went into pit_ways so
+    # the relation pass after this loop doesn't add the same geometry a
+    # second time. chain_ways() would otherwise treat two identical copies
+    # as sharing both endpoints and loop them into one chain at roughly
+    # double the real length.
+    pit_way_ids: set[int] = set()
     # Ways that are neither part of the fitted main loop (they run wide of
     # it) nor named/tagged as anything in particular -- a circuit whose pit
     # lane carries no "pit" name and no raceway=pitlane tag (nothing in the
@@ -1228,6 +1237,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if is_pit_way(t):
             if float(np.median(d)) < 80.0 and len(p) > 2:
                 pit_ways.append(p)
+                pit_way_ids.add(w["id"])
             continue
         name = osm_name(t)
         if not name or float(np.median(d)) > 12.0:
@@ -1263,7 +1273,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     # member is useful here -- the members' own names are ordinary street
     # names, not corner names, so nothing is added to `corners` for them.
     for way_id, role in relation_roles.items():
-        if role != "pit_lane":
+        if role != "pit_lane" or way_id in pit_way_ids:
             continue
         w = osm.ways_by_id.get(way_id)
         if w is None:
