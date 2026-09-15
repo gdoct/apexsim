@@ -63,6 +63,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Spielberg": [(14.752, 47.212, 14.780, 47.228)],
     "Suzuka": [(136.525, 34.835, 136.555, 34.855)],
     "Nuerburgring": [(6.930, 50.325, 6.965, 50.345)],
+    "Catalunya": [(2.246, 41.560, 2.275, 41.580)],
     # MoscowRaceway is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
@@ -230,6 +231,18 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # long, high-speed real-world character). Approximate; flagged in
         # the hand-back.
         dict(name="Turn 4 Grandstand", from_m=1550, to_m=1720, side="outside", depth_m=14, covered=False),
+    ],
+    # OSM has this one only as a plain `building=yes` named "Tribuna F", so
+    # extract() files it under structures (a building) rather than stands;
+    # it sits in the same run of grandstands as (osm-traced) Tribuna E and
+    # J/K along the straight after Turn 1, and the letter matches the
+    # circuit's own tribune list (entradasmontmelo.com/tribunas,76.html:
+    # A, B, C, E, F, G, H, J, K, L, M, N, T1, T10), so it is promoted here
+    # rather than left to render as a generic building. Span and depth are
+    # taken from that same OSM footprint (station 768.2, length 97.4 m,
+    # depth 17.7 m, uncovered like its neighbours).
+    "Catalunya": [
+        dict(name="Tribuna F", from_m=719.5, to_m=816.9, side="left", depth_m=17.7, covered=False),
     ],
 }
 
@@ -1036,6 +1049,12 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                 "front": round_pts(front),
             }
         )
+    # A MANUAL_STANDS entry promoting a named OSM building (tagged plain
+    # `building=yes`, so extract() filed it as a structure rather than a
+    # stand) replaces that structure instead of doubling it up as a
+    # building standing behind its own grandstand.
+    manual_stand_names = {spec["name"] for spec in MANUAL_STANDS.get(stem, [])}
+    structures = [s for s in structures if s.get("name") not in manual_stand_names]
     stands.sort(key=lambda e: e["station_m"])
     structures.sort(key=lambda e: e["station_m"])
 
