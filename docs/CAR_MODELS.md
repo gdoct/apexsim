@@ -83,8 +83,10 @@ catalog row as `Wheels`. The client (`FApexCarWheelSet`,
 `Race/ApexCarWheels.h`) hangs four copies off the body mesh component, sizes
 each from the wheel mesh's bounds to its axle's width and diameter, turns the
 right-hand pair half round so the face is outboard, steers the fronts by
-`steering × max_steering_angle_rad` and rolls all four by the telemetry
-speed over their radius (backwards in reverse gear), at most
+`steering × max_steering_angle_rad` and rolls all four by how far the drawn car moved along its nose each frame,
+over their radius (backwards when it backs up; nothing when it stands, bobs
+or slides sideways — the wire's speed is the length of the whole velocity
+and has no sign), at most
 `apexsim.car.WheelMaxDegPerFrame` (12°) a frame: true road speed is a
 motion-blurred disc, and a step near the spoke pitch strobes. `ApexSim.Wheels.*`
 tests pin the placement, the steering direction and the roll direction. A
