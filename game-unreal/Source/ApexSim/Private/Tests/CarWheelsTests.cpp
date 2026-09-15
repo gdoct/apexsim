@@ -125,6 +125,20 @@ bool FApexWheelsRollTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("held backwards too"), ApexWheels::DrawnSpinStepRad(-1.5f, 0.2f), -0.2f);
 	TestEqual(TEXT("no limit"), ApexWheels::DrawnSpinStepRad(1.5f, 0.0f), 1.5f);
 
+	// Distance rolled: along the car's nose only (actor frame, cm).
+	const FQuat Heading = FRotator(0.0f, 90.0f, 0.0f).Quaternion();	// nose on +Y
+	const FVector From(1000.0, 2000.0, 50.0);
+	TestEqual(TEXT("standing still rolls nothing"), ApexWheels::RolledDistanceM(From, From, Heading, 2000.0f), 0.0f);
+	TestEqual(TEXT("bobbing on the springs rolls nothing"),
+		ApexWheels::RolledDistanceM(From, From + FVector(0.0, 0.0, 3.0), Heading, 2000.0f), 0.0f);
+	TestEqual(TEXT("sliding sideways rolls nothing"),
+		ApexWheels::RolledDistanceM(From, From + FVector(40.0, 0.0, 0.0), Heading, 2000.0f), 0.0f, 0.0001f);
+	TestEqual(TEXT("driving forward"), ApexWheels::RolledDistanceM(From, From + FVector(0.0, 150.0, 0.0), Heading, 2000.0f), 1.5f, 0.0001f);
+	TestEqual(TEXT("backing up is negative"),
+		ApexWheels::RolledDistanceM(From, From - FVector(0.0, 50.0, 0.0), Heading, 2000.0f), -0.5f, 0.0001f);
+	TestEqual(TEXT("a teleport rolls nothing"),
+		ApexWheels::RolledDistanceM(From, From + FVector(0.0, 5000.0, 0.0), Heading, 2000.0f), 0.0f);
+
 	// Rolling forward, the top of every wheel moves ahead and the bottom
 	// back: that is what a wheel on the road does.
 	for (int32 i = 0; i < ApexWheels::NumWheels; ++i)

@@ -315,6 +315,7 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+	const FVector PreviousLocation = GetActorLocation();
 	SetActorLocationAndRotation(Pose.Location, Pose.Rotation);
 	// Nothing else sets a velocity on a puppet; the audio's doppler and
 	// anything asking the actor read this.
@@ -322,8 +323,12 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	SpeedMps = Pose.SpeedMps;
 	EngineRpm = Pose.EngineRpm;
 	Steering = Pose.Steering;
-	// Speed is a magnitude on the wire; reverse gear is the only way back.
-	Wheels.Update(Steering, Gear < 0 ? -SpeedMps : SpeedMps, DeltaSeconds,
+	// Rolled from how far the drawn car actually moved, not from the wire's
+	// speed: that is the length of the whole velocity, so a car standing on
+	// its springs or sliding sideways would turn its wheels, and it has no
+	// sign for reversing.
+	Wheels.Update(Steering,
+		ApexWheels::RolledDistanceM(PreviousLocation, Pose.Location, Pose.Rotation, TeleportDistanceCm),
 		FMath::DegreesToRadians(CVarWheelMaxDegPerFrame.GetValueOnGameThread()));
 
 	if (CVarInterpDebug.GetValueOnGameThread() != 0 && GEngine)

@@ -15,6 +15,17 @@ namespace ApexWheels
 		return RadiusM > KINDA_SMALL_NUMBER ? DistanceM / RadiusM : 0.0f;
 	}
 
+	float RolledDistanceM(const FVector& FromCm, const FVector& ToCm, const FQuat& Rotation, float TeleportCm)
+	{
+		const FVector Delta = ToCm - FromCm;
+		if (Delta.Size2D() > TeleportCm)
+		{
+			return 0.0f;
+		}
+		const FVector Forward = Rotation.GetForwardVector().GetSafeNormal2D();
+		return static_cast<float>(FVector::DotProduct(FVector(Delta.X, Delta.Y, 0.0), Forward) / 100.0);
+	}
+
 	float DrawnSpinStepRad(float StepRad, float MaxStepRad)
 	{
 		return MaxStepRad > 0.0f ? FMath::Clamp(StepRad, -MaxStepRad, MaxStepRad) : StepRad;
@@ -113,13 +124,12 @@ void FApexCarWheelSet::SetSpec(const FApexWheelSpec& InSpec)
 	Place();
 }
 
-void FApexCarWheelSet::Update(float SteeringInput, float SignedSpeedMps, float DeltaSeconds, float MaxStepRad)
+void FApexCarWheelSet::Update(float SteeringInput, float Distance, float MaxStepRad)
 {
 	if (!bHasWheels)
 	{
 		return;
 	}
-	const float Distance = SignedSpeedMps * FMath::Max(DeltaSeconds, 0.0f);
 	const float FrontStep = ApexWheels::DrawnSpinStepRad(ApexWheels::RollAngleRad(Distance, Spec.FrontRadiusM), MaxStepRad);
 	const float RearStep = ApexWheels::DrawnSpinStepRad(ApexWheels::RollAngleRad(Distance, Spec.RearRadiusM), MaxStepRad);
 	SpinRad[0] = FMath::Fmod(SpinRad[0] + FrontStep, UE_TWO_PI);

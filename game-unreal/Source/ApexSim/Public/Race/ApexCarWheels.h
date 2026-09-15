@@ -49,6 +49,14 @@ namespace ApexWheels
 	APEXSIM_API float RollAngleRad(float DistanceM, float RadiusM);
 
 	/**
+	 * How far a car rolled between two poses, metres: its movement along its
+	 * own nose, so negative when it backs up, and nothing for sliding
+	 * sideways, bobbing on its springs or standing still. A jump longer than
+	 * `TeleportCm` (a respawn) rolls nothing.
+	 */
+	APEXSIM_API float RolledDistanceM(const FVector& FromCm, const FVector& ToCm, const FQuat& Rotation, float TeleportCm);
+
+	/**
 	 * A frame's roll as drawn: `StepRad` held to `MaxStepRad` either way (no
 	 * limit when that is zero or less). A wheel at road speed turns tens of
 	 * times a second; drawn at that rate it is a motion-blurred smear, and a
@@ -89,11 +97,11 @@ struct APEXSIM_API FApexCarWheelSet
 	bool HasWheels() const { return bHasWheels; }
 
 	/**
-	 * Advances the roll by `SignedSpeedMps` (negative in reverse) over
-	 * `DeltaSeconds`, at most `MaxStepRad` per call (see DrawnSpinStepRad),
+	 * Rolls the wheels over `DistanceM` (negative backwards; see
+	 * RolledDistanceM), at most `MaxStepRad` per call (see DrawnSpinStepRad),
 	 * and steers the front pair.
 	 */
-	void Update(float SteeringInput, float SignedSpeedMps, float DeltaSeconds, float MaxStepRad = 0.0f);
+	void Update(float SteeringInput, float DistanceM, float MaxStepRad = 0.0f);
 
 	void SetVisible(bool bVisible);
 
