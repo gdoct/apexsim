@@ -1,0 +1,1945 @@
+{
+ "format": "apex-track-layout",
+ "version": 1,
+ "source_track": "Melbourne.yaml",
+ "track_name": "Albert Park Circuit",
+ "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
+ "osm_bbox": [
+  [
+   144.955,
+   -37.86,
+   144.985,
+   -37.838
+  ]
+ ],
+ "fit": {
+  "rmse_m": 2.86,
+  "raceway_matched": 0.095,
+  "centerline_covered": 0.795,
+  "centerline_covered_m": 3374
+ },
+ "corners": [],
+ "pit_lane": {
+  "side": "right",
+  "length_m": 368.8,
+  "nodes": [
+   [
+    8.99,
+    9.07
+   ],
+   [
+    1.8,
+    16.02
+   ],
+   [
+    -5.38,
+    22.98
+   ],
+   [
+    -12.56,
+    29.95
+   ],
+   [
+    -19.75,
+    36.91
+   ],
+   [
+    -26.93,
+    43.87
+   ],
+   [
+    -34.12,
+    50.83
+   ],
+   [
+    -41.3,
+    57.8
+   ],
+   [
+    -48.49,
+    64.76
+   ],
+   [
+    -55.67,
+    71.73
+   ],
+   [
+    -62.86,
+    78.69
+   ],
+   [
+    -70.05,
+    85.65
+   ],
+   [
+    -77.24,
+    92.62
+   ],
+   [
+    -84.43,
+    99.58
+   ],
+   [
+    -91.62,
+    106.54
+   ],
+   [
+    -98.81,
+    113.5
+   ],
+   [
+    -106.01,
+    120.45
+   ],
+   [
+    -113.21,
+    127.41
+   ],
+   [
+    -120.41,
+    134.36
+   ],
+   [
+    -127.61,
+    141.31
+   ],
+   [
+    -134.82,
+    148.25
+   ],
+   [
+    -142.04,
+    155.18
+   ],
+   [
+    -149.26,
+    162.12
+   ],
+   [
+    -156.46,
+    169.07
+   ],
+   [
+    -163.67,
+    176.01
+   ],
+   [
+    -170.88,
+    182.96
+   ],
+   [
+    -178.15,
+    189.83
+   ],
+   [
+    -185.44,
+    196.69
+   ],
+   [
+    -192.73,
+    203.55
+   ],
+   [
+    -200.03,
+    210.4
+   ],
+   [
+    -207.3,
+    217.27
+   ],
+   [
+    -214.58,
+    224.13
+   ],
+   [
+    -221.87,
+    230.99
+   ],
+   [
+    -229.14,
+    237.86
+   ],
+   [
+    -236.38,
+    244.73
+   ],
+   [
+    -243.48,
+    251.57
+   ],
+   [
+    -250.25,
+    258.32
+   ],
+   [
+    -254.47,
+    263.29
+   ],
+   [
+    -255.16,
+    265.87
+   ]
+  ],
+  "source": "authored"
+ },
+ "stands": [
+  {
+   "name": "Fangio",
+   "source": "seating map",
+   "station_m": 180.1,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 299.9,
+   "depth_m": 18.0,
+   "covered": false,
+   "yaw_rad": 2.3796,
+   "centre": [
+    -142.3,
+    111.51
+   ],
+   "front": [
+    [
+     -33.93,
+     7.78
+    ],
+    [
+     -41.16,
+     14.71
+    ],
+    [
+     -48.38,
+     21.63
+    ],
+    [
+     -55.6,
+     28.56
+    ],
+    [
+     -62.82,
+     35.49
+    ],
+    [
+     -70.04,
+     42.41
+    ],
+    [
+     -77.26,
+     49.34
+    ],
+    [
+     -84.48,
+     56.26
+    ],
+    [
+     -91.7,
+     63.18
+    ],
+    [
+     -98.92,
+     70.1
+    ],
+    [
+     -106.14,
+     77.02
+    ],
+    [
+     -113.37,
+     83.94
+    ],
+    [
+     -120.59,
+     90.86
+    ],
+    [
+     -127.82,
+     97.77
+    ],
+    [
+     -135.04,
+     104.68
+    ],
+    [
+     -142.27,
+     111.59
+    ],
+    [
+     -149.5,
+     118.49
+    ],
+    [
+     -156.74,
+     125.39
+    ],
+    [
+     -163.96,
+     132.3
+    ],
+    [
+     -171.17,
+     139.22
+    ],
+    [
+     -178.36,
+     146.16
+    ],
+    [
+     -185.56,
+     153.1
+    ],
+    [
+     -192.76,
+     160.03
+    ],
+    [
+     -200.01,
+     166.89
+    ],
+    [
+     -207.29,
+     173.74
+    ],
+    [
+     -214.57,
+     180.58
+    ],
+    [
+     -221.84,
+     187.42
+    ],
+    [
+     -229.11,
+     194.27
+    ],
+    [
+     -236.37,
+     201.12
+    ],
+    [
+     -243.64,
+     207.96
+    ],
+    [
+     -250.89,
+     214.82
+    ]
+   ]
+  },
+  {
+   "name": "Moss",
+   "source": "seating map",
+   "station_m": 324.7,
+   "side": "right",
+   "offset_m": 10.0,
+   "length_m": 115.9,
+   "depth_m": 14.0,
+   "covered": false,
+   "yaw_rad": 2.2941,
+   "centre": [
+    -223.15,
+    236.4
+   ],
+   "front": [
+    [
+     -176.77,
+     191.28
+    ],
+    [
+     -185.88,
+     199.85
+    ],
+    [
+     -193.18,
+     206.71
+    ],
+    [
+     -200.47,
+     213.57
+    ],
+    [
+     -207.75,
+     220.44
+    ],
+    [
+     -215.03,
+     227.3
+    ],
+    [
+     -222.32,
+     234.16
+    ],
+    [
+     -231.39,
+     242.76
+    ],
+    [
+     -238.57,
+     249.6
+    ],
+    [
+     -245.56,
+     256.43
+    ],
+    [
+     -251.29,
+     262.46
+    ],
+    [
+     -253.35,
+     264.91
+    ],
+    [
+     -253.01,
+     266.47
+    ],
+    [
+     -249.56,
+     273.72
+    ]
+   ]
+  },
+  {
+   "name": "Brabham",
+   "source": "seating map",
+   "station_m": 451.2,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 221.7,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 1.7809,
+   "centre": [
+    -275.92,
+    334.51
+   ],
+   "front": [
+    [
+     -261.84,
+     225.23
+    ],
+    [
+     -269.31,
+     232.53
+    ],
+    [
+     -277.57,
+     241.38
+    ],
+    [
+     -285.68,
+     255.44
+    ],
+    [
+     -284.66,
+     277.43
+    ],
+    [
+     -279.41,
+     289.33
+    ],
+    [
+     -275.73,
+     297.33
+    ],
+    [
+     -271.89,
+     305.93
+    ],
+    [
+     -269.14,
+     313.91
+    ],
+    [
+     -267.25,
+     322.2
+    ],
+    [
+     -265.91,
+     330.69
+    ],
+    [
+     -265.19,
+     339.33
+    ],
+    [
+     -265.31,
+     348.0
+    ],
+    [
+     -266.1,
+     356.59
+    ],
+    [
+     -267.38,
+     365.11
+    ],
+    [
+     -269.58,
+     373.43
+    ],
+    [
+     -272.57,
+     381.51
+    ],
+    [
+     -276.17,
+     389.26
+    ],
+    [
+     -280.15,
+     396.72
+    ],
+    [
+     -284.77,
+     403.62
+    ],
+    [
+     -290.13,
+     409.91
+    ],
+    [
+     -296.58,
+     416.17
+    ],
+    [
+     -303.93,
+     422.66
+    ]
+   ]
+  },
+  {
+   "name": "Jones",
+   "source": "seating map",
+   "station_m": 460.5,
+   "side": "right",
+   "offset_m": 10.0,
+   "length_m": 223.1,
+   "depth_m": 14.0,
+   "covered": false,
+   "yaw_rad": 1.783,
+   "centre": [
+    -246.3,
+    341.8
+   ],
+   "front": [
+    [
+     -238.57,
+     249.6
+    ],
+    [
+     -245.56,
+     256.43
+    ],
+    [
+     -251.29,
+     262.46
+    ],
+    [
+     -253.35,
+     264.91
+    ],
+    [
+     -252.54,
+     267.27
+    ],
+    [
+     -249.56,
+     273.72
+    ],
+    [
+     -244.84,
+     283.88
+    ],
+    [
+     -240.57,
+     293.53
+    ],
+    [
+     -236.81,
+     304.44
+    ],
+    [
+     -234.2,
+     315.65
+    ],
+    [
+     -232.42,
+     326.96
+    ],
+    [
+     -231.51,
+     338.31
+    ],
+    [
+     -231.66,
+     349.65
+    ],
+    [
+     -232.69,
+     360.93
+    ],
+    [
+     -234.43,
+     372.13
+    ],
+    [
+     -237.32,
+     383.14
+    ],
+    [
+     -241.23,
+     393.88
+    ],
+    [
+     -246.04,
+     404.34
+    ],
+    [
+     -251.56,
+     414.54
+    ],
+    [
+     -258.11,
+     424.23
+    ],
+    [
+     -265.72,
+     433.12
+    ],
+    [
+     -273.58,
+     440.79
+    ],
+    [
+     -281.23,
+     447.55
+    ]
+   ]
+  },
+  {
+   "name": "Hill",
+   "source": "seating map",
+   "station_m": 1103.8,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 142.8,
+   "depth_m": 14.0,
+   "covered": false,
+   "yaw_rad": 1.1702,
+   "centre": [
+    -613.84,
+    851.6
+   ],
+   "front": [
+    [
+     -614.61,
+     795.21
+    ],
+    [
+     -619.61,
+     804.11
+    ],
+    [
+     -624.73,
+     812.96
+    ],
+    [
+     -629.77,
+     821.94
+    ],
+    [
+     -635.45,
+     836.42
+    ],
+    [
+     -637.57,
+     848.69
+    ],
+    [
+     -633.12,
+     867.01
+    ],
+    [
+     -617.03,
+     881.51
+    ],
+    [
+     -603.0,
+     885.58
+    ],
+    [
+     -592.71,
+     887.42
+    ],
+    [
+     -584.01,
+     888.25
+    ],
+    [
+     -574.43,
+     890.09
+    ]
+   ]
+  },
+  {
+   "name": "Stewart",
+   "source": "seating map",
+   "station_m": 1661.9,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 124.3,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 0.4796,
+   "centre": [
+    -342.08,
+    1246.5
+   ],
+   "front": [
+    [
+     -395.83,
+     1215.15
+    ],
+    [
+     -387.57,
+     1221.24
+    ],
+    [
+     -379.07,
+     1227.11
+    ],
+    [
+     -370.35,
+     1232.8
+    ],
+    [
+     -361.45,
+     1238.34
+    ],
+    [
+     -352.31,
+     1243.62
+    ],
+    [
+     -342.88,
+     1248.57
+    ],
+    [
+     -333.36,
+     1253.2
+    ],
+    [
+     -323.81,
+     1257.48
+    ],
+    [
+     -314.2,
+     1261.22
+    ],
+    [
+     -304.73,
+     1264.89
+    ],
+    [
+     -295.39,
+     1268.61
+    ],
+    [
+     -286.07,
+     1272.24
+    ]
+   ]
+  },
+  {
+   "name": "Waite",
+   "source": "seating map",
+   "station_m": 1944.4,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 178.5,
+   "depth_m": 14.0,
+   "covered": false,
+   "yaw_rad": -0.2371,
+   "centre": [
+    -79.62,
+    1317.8
+   ],
+   "front": [
+    [
+     -163.59,
+     1331.12
+    ],
+    [
+     -155.66,
+     1336.7
+    ],
+    [
+     -146.19,
+     1343.48
+    ],
+    [
+     -132.49,
+     1349.39
+    ],
+    [
+     -110.08,
+     1344.17
+    ],
+    [
+     -100.96,
+     1336.02
+    ],
+    [
+     -94.35,
+     1330.28
+    ],
+    [
+     -87.94,
+     1324.9
+    ],
+    [
+     -80.96,
+     1319.72
+    ],
+    [
+     -73.39,
+     1315.12
+    ],
+    [
+     -65.0,
+     1310.6
+    ],
+    [
+     -55.68,
+     1305.45
+    ],
+    [
+     -47.22,
+     1300.56
+    ],
+    [
+     -40.17,
+     1297.25
+    ],
+    [
+     -32.94,
+     1295.29
+    ],
+    [
+     -24.82,
+     1293.94
+    ],
+    [
+     -15.78,
+     1293.31
+    ],
+    [
+     -5.98,
+     1293.04
+    ]
+   ]
+  },
+  {
+   "name": "Clark",
+   "source": "seating map",
+   "station_m": 2251.8,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 150.6,
+   "depth_m": 14.0,
+   "covered": false,
+   "yaw_rad": -1.0719,
+   "centre": [
+    184.84,
+    1178.3
+   ],
+   "front": [
+    [
+     142.15,
+     1239.45
+    ],
+    [
+     150.23,
+     1232.3
+    ],
+    [
+     157.86,
+     1224.67
+    ],
+    [
+     165.18,
+     1216.7
+    ],
+    [
+     172.07,
+     1208.33
+    ],
+    [
+     178.3,
+     1199.43
+    ],
+    [
+     184.05,
+     1190.17
+    ],
+    [
+     189.36,
+     1180.64
+    ],
+    [
+     194.35,
+     1170.9
+    ],
+    [
+     198.89,
+     1160.94
+    ],
+    [
+     202.76,
+     1150.67
+    ],
+    [
+     205.81,
+     1140.29
+    ],
+    [
+     208.35,
+     1130.02
+    ],
+    [
+     210.61,
+     1119.93
+    ],
+    [
+     212.68,
+     1110.03
+    ]
+   ]
+  },
+  {
+   "name": "Webber",
+   "source": "seating map",
+   "station_m": 3362.0,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 106.5,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -0.2809,
+   "centre": [
+    388.98,
+    244.29
+   ],
+   "front": [
+    [
+     344.84,
+     268.21
+    ],
+    [
+     352.12,
+     261.37
+    ],
+    [
+     359.64,
+     254.9
+    ],
+    [
+     367.28,
+     248.68
+    ],
+    [
+     374.74,
+     242.74
+    ],
+    [
+     380.96,
+     238.33
+    ],
+    [
+     386.34,
+     236.12
+    ],
+    [
+     392.83,
+     234.99
+    ],
+    [
+     400.35,
+     235.16
+    ],
+    [
+     409.13,
+     236.48
+    ],
+    [
+     419.33,
+     238.23
+    ],
+    [
+     429.64,
+     239.66
+    ],
+    [
+     439.58,
+     240.88
+    ]
+   ]
+  },
+  {
+   "name": "Lauda",
+   "source": "seating map",
+   "station_m": 3499.6,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 133.3,
+   "depth_m": 14.0,
+   "covered": false,
+   "yaw_rad": -0.3579,
+   "centre": [
+    521.17,
+    231.47
+   ],
+   "front": [
+    [
+     458.8,
+     243.58
+    ],
+    [
+     468.43,
+     245.25
+    ],
+    [
+     478.21,
+     247.04
+    ],
+    [
+     487.63,
+     248.87
+    ],
+    [
+     502.14,
+     250.29
+    ],
+    [
+     518.54,
+     245.1
+    ],
+    [
+     528.97,
+     236.79
+    ],
+    [
+     536.06,
+     230.57
+    ],
+    [
+     543.54,
+     224.4
+    ],
+    [
+     551.23,
+     218.16
+    ],
+    [
+     559.43,
+     212.5
+    ],
+    [
+     567.26,
+     206.4
+    ],
+    [
+     574.97,
+     200.14
+    ]
+   ]
+  },
+  {
+   "name": "Schumacher",
+   "source": "seating map",
+   "station_m": 3801.6,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 128.9,
+   "depth_m": 16.0,
+   "covered": false,
+   "yaw_rad": -1.0278,
+   "centre": [
+    750.48,
+    31.05
+   ],
+   "front": [
+    [
+     712.73,
+     83.04
+    ],
+    [
+     720.64,
+     75.63
+    ],
+    [
+     728.16,
+     67.36
+    ],
+    [
+     735.19,
+     59.01
+    ],
+    [
+     741.56,
+     50.4
+    ],
+    [
+     747.55,
+     41.64
+    ],
+    [
+     753.26,
+     32.78
+    ],
+    [
+     758.48,
+     23.69
+    ],
+    [
+     763.57,
+     14.29
+    ],
+    [
+     768.51,
+     4.26
+    ],
+    [
+     772.52,
+     -6.26
+    ],
+    [
+     775.64,
+     -16.29
+    ],
+    [
+     778.45,
+     -25.86
+    ]
+   ]
+  },
+  {
+   "name": "Prost",
+   "source": "seating map",
+   "station_m": 4826.1,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 111.9,
+   "depth_m": 16.0,
+   "covered": false,
+   "yaw_rad": -2.9762,
+   "centre": [
+    353.05,
+    -312.26
+   ],
+   "front": [
+    [
+     401.33,
+     -292.73
+    ],
+    [
+     393.58,
+     -301.25
+    ],
+    [
+     383.87,
+     -308.82
+    ],
+    [
+     372.42,
+     -314.74
+    ],
+    [
+     360.46,
+     -318.97
+    ],
+    [
+     348.14,
+     -321.03
+    ],
+    [
+     335.67,
+     -321.19
+    ],
+    [
+     323.33,
+     -319.07
+    ],
+    [
+     311.42,
+     -315.24
+    ],
+    [
+     300.32,
+     -309.59
+    ]
+   ]
+  },
+  {
+   "name": "Senna",
+   "source": "seating map",
+   "station_m": 4910.5,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 83.5,
+   "depth_m": 18.0,
+   "covered": false,
+   "yaw_rad": 2.4091,
+   "centre": [
+    267.89,
+    -281.82
+   ],
+   "front": [
+    [
+     300.32,
+     -309.59
+    ],
+    [
+     290.82,
+     -302.7
+    ],
+    [
+     282.39,
+     -295.91
+    ],
+    [
+     274.53,
+     -289.0
+    ],
+    [
+     267.0,
+     -281.94
+    ],
+    [
+     259.69,
+     -274.85
+    ],
+    [
+     252.54,
+     -267.81
+    ],
+    [
+     245.42,
+     -260.81
+    ],
+    [
+     238.3,
+     -253.81
+    ]
+   ]
+  }
+ ],
+ "structures": [
+  {
+   "name": "Pavilion",
+   "station_m": 16.1,
+   "side": "right",
+   "offset_m": 18.4,
+   "length_m": 36.9,
+   "depth_m": 32.2,
+   "yaw_rad": 2.3814,
+   "centre": [
+    8.14,
+    31.42
+   ],
+   "levels": 3,
+   "osm_building": "yes",
+   "area_m2": 1188
+  },
+  {
+   "name": null,
+   "station_m": 56.8,
+   "side": "left",
+   "offset_m": 55.5,
+   "length_m": 27.2,
+   "depth_m": 13.8,
+   "yaw_rad": 0.8052,
+   "centre": [
+    -91.77,
+    -13.55
+   ],
+   "levels": 0,
+   "osm_building": "pavilion",
+   "area_m2": 369
+  },
+  {
+   "name": "Beaurepaire Pavilion",
+   "station_m": 215.9,
+   "side": "right",
+   "offset_m": 108.9,
+   "length_m": 32.6,
+   "depth_m": 24.4,
+   "yaw_rad": 1.5761,
+   "centre": [
+    -67.65,
+    241.27
+   ],
+   "levels": 0,
+   "osm_building": "sports_centre",
+   "area_m2": 797
+  },
+  {
+   "name": "Middle Park Bowling Club",
+   "station_m": 352.7,
+   "side": "left",
+   "offset_m": 105.9,
+   "length_m": 46.5,
+   "depth_m": 18.4,
+   "yaw_rad": 0.7143,
+   "centre": [
+    -344.53,
+    152.07
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 769
+  },
+  {
+   "name": null,
+   "station_m": 368.9,
+   "side": "left",
+   "offset_m": 86.7,
+   "length_m": 41.0,
+   "depth_m": 10.9,
+   "yaw_rad": 2.2903,
+   "centre": [
+    -337.73,
+    197.58
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 386
+  },
+  {
+   "name": null,
+   "station_m": 536.9,
+   "side": "right",
+   "offset_m": 124.4,
+   "length_m": 47.8,
+   "depth_m": 32.7,
+   "yaw_rad": 2.6969,
+   "centre": [
+    -156.28,
+    502.18
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1210
+  },
+  {
+   "name": "Parks Victoria Albert Park Office and Depot",
+   "station_m": 615.8,
+   "side": "left",
+   "offset_m": 31.2,
+   "length_m": 42.7,
+   "depth_m": 24.9,
+   "yaw_rad": 2.2253,
+   "centre": [
+    -360.27,
+    432.21
+   ],
+   "levels": 0,
+   "osm_building": "office",
+   "area_m2": 972
+  },
+  {
+   "name": null,
+   "station_m": 835.7,
+   "side": "left",
+   "offset_m": 55.3,
+   "length_m": 73.3,
+   "depth_m": 33.5,
+   "yaw_rad": 0.4482,
+   "centre": [
+    -548.86,
+    568.52
+   ],
+   "levels": 2,
+   "osm_building": "yes",
+   "area_m2": 850
+  },
+  {
+   "name": null,
+   "station_m": 1077.2,
+   "side": "left",
+   "offset_m": 26.8,
+   "length_m": 312.4,
+   "depth_m": 141.1,
+   "yaw_rad": 1.9475,
+   "centre": [
+    -690.36,
+    786.98
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 31067
+  },
+  {
+   "name": null,
+   "station_m": 1100.5,
+   "side": "left",
+   "offset_m": 80.9,
+   "length_m": 74.2,
+   "depth_m": 72.3,
+   "yaw_rad": 1.4897,
+   "centre": [
+    -733.03,
+    915.04
+   ],
+   "levels": 0,
+   "osm_building": "roof",
+   "area_m2": 4675
+  },
+  {
+   "name": null,
+   "station_m": 1257.2,
+   "side": "right",
+   "offset_m": 30.4,
+   "length_m": 28.2,
+   "depth_m": 27.9,
+   "yaw_rad": 0.4357,
+   "centre": [
+    -439.26,
+    886.12
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 785
+  },
+  {
+   "name": null,
+   "station_m": 1331.1,
+   "side": "right",
+   "offset_m": 56.4,
+   "length_m": 96.6,
+   "depth_m": 27.3,
+   "yaw_rad": 2.7794,
+   "centre": [
+    -389.29,
+    987.39
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2053
+  },
+  {
+   "name": null,
+   "station_m": 1332.5,
+   "side": "left",
+   "offset_m": 47.8,
+   "length_m": 97.2,
+   "depth_m": 62.7,
+   "yaw_rad": 1.8963,
+   "centre": [
+    -571.31,
+    975.32
+   ],
+   "levels": 2,
+   "osm_building": "school",
+   "area_m2": 2764
+  },
+  {
+   "name": null,
+   "station_m": 1366.7,
+   "side": "left",
+   "offset_m": 51.3,
+   "length_m": 62.2,
+   "depth_m": 36.7,
+   "yaw_rad": 2.0977,
+   "centre": [
+    -562.7,
+    1010.09
+   ],
+   "levels": 2,
+   "osm_building": "military",
+   "area_m2": 1780
+  },
+  {
+   "name": null,
+   "station_m": 1404.6,
+   "side": "right",
+   "offset_m": 17.7,
+   "length_m": 99.4,
+   "depth_m": 46.3,
+   "yaw_rad": 1.9475,
+   "centre": [
+    -452.58,
+    1054.24
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2751
+  },
+  {
+   "name": "Lakeside Stadium",
+   "station_m": 1568.9,
+   "side": "right",
+   "offset_m": 14.5,
+   "length_m": 256.0,
+   "depth_m": 229.8,
+   "yaw_rad": 1.7701,
+   "centre": [
+    -344.03,
+    1092.31
+   ],
+   "levels": 0,
+   "osm_building": "stadium",
+   "area_m2": 42694
+  },
+  {
+   "name": null,
+   "station_m": 1632.5,
+   "side": "left",
+   "offset_m": 128.6,
+   "length_m": 28.8,
+   "depth_m": 13.8,
+   "yaw_rad": 1.9439,
+   "centre": [
+    -439.01,
+    1339.18
+   ],
+   "levels": 2,
+   "osm_building": "house",
+   "area_m2": 345
+  },
+  {
+   "name": "Albert Sailing Club",
+   "station_m": 1745.5,
+   "side": "right",
+   "offset_m": 116.9,
+   "length_m": 42.2,
+   "depth_m": 23.2,
+   "yaw_rad": 1.6831,
+   "centre": [
+    -208.7,
+    1139.84
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 956
+  },
+  {
+   "name": null,
+   "station_m": 3616.5,
+   "side": "left",
+   "offset_m": 48.0,
+   "length_m": 75.1,
+   "depth_m": 36.5,
+   "yaw_rad": 1.1383,
+   "centre": [
+    656.89,
+    213.55
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1455
+  },
+  {
+   "name": null,
+   "station_m": 3715.5,
+   "side": "left",
+   "offset_m": 138.3,
+   "length_m": 59.4,
+   "depth_m": 23.3,
+   "yaw_rad": 0.3171,
+   "centre": [
+    793.2,
+    208.16
+   ],
+   "levels": 2,
+   "osm_building": "yes",
+   "area_m2": 850
+  },
+  {
+   "name": null,
+   "station_m": 3777.7,
+   "side": "left",
+   "offset_m": 100.0,
+   "length_m": 46.9,
+   "depth_m": 27.6,
+   "yaw_rad": 0.3091,
+   "centre": [
+    832.33,
+    121.56
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1246
+  },
+  {
+   "name": null,
+   "station_m": 3797.6,
+   "side": "left",
+   "offset_m": 89.9,
+   "length_m": 52.6,
+   "depth_m": 20.1,
+   "yaw_rad": 0.325,
+   "centre": [
+    841.67,
+    92.44
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1025
+  },
+  {
+   "name": null,
+   "station_m": 3827.5,
+   "side": "left",
+   "offset_m": 81.5,
+   "length_m": 58.3,
+   "depth_m": 55.4,
+   "yaw_rad": 1.8631,
+   "centre": [
+    855.29,
+    48.37
+   ],
+   "levels": 9,
+   "osm_building": "yes",
+   "area_m2": 2556
+  },
+  {
+   "name": "Powerhouse Function Centre",
+   "station_m": 3832.2,
+   "side": "right",
+   "offset_m": 9.5,
+   "length_m": 76.9,
+   "depth_m": 34.8,
+   "yaw_rad": 1.9499,
+   "centre": [
+    724.03,
+    -15.44
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2422
+  },
+  {
+   "name": "Pullman Melbourne Albert Park",
+   "station_m": 3866.7,
+   "side": "left",
+   "offset_m": 81.1,
+   "length_m": 53.8,
+   "depth_m": 47.8,
+   "yaw_rad": 0.2996,
+   "centre": [
+    871.6,
+    -2.46
+   ],
+   "levels": 4,
+   "osm_building": "yes",
+   "area_m2": 2324
+  },
+  {
+   "name": null,
+   "station_m": 3936.1,
+   "side": "left",
+   "offset_m": 77.7,
+   "length_m": 45.4,
+   "depth_m": 17.3,
+   "yaw_rad": 0.295,
+   "centre": [
+    888.23,
+    -69.55
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 784
+  },
+  {
+   "name": null,
+   "station_m": 3977.8,
+   "side": "left",
+   "offset_m": 69.4,
+   "length_m": 74.8,
+   "depth_m": 31.8,
+   "yaw_rad": 0.299,
+   "centre": [
+    899.61,
+    -110.39
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2337
+  },
+  {
+   "name": null,
+   "station_m": 4006.1,
+   "side": "left",
+   "offset_m": 86.0,
+   "length_m": 50.9,
+   "depth_m": 22.1,
+   "yaw_rad": 0.3078,
+   "centre": [
+    908.94,
+    -138.18
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1057
+  },
+  {
+   "name": "Consulate General of the Republic of Indonesia",
+   "station_m": 4029.2,
+   "side": "left",
+   "offset_m": 98.2,
+   "length_m": 32.5,
+   "depth_m": 25.9,
+   "yaw_rad": 0.3263,
+   "centre": [
+    927.07,
+    -158.27
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 815
+  },
+  {
+   "name": null,
+   "station_m": 4056.4,
+   "side": "left",
+   "offset_m": 83.6,
+   "length_m": 55.3,
+   "depth_m": 19.6,
+   "yaw_rad": 0.3272,
+   "centre": [
+    930.68,
+    -187.68
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1063
+  },
+  {
+   "name": "Monarch",
+   "station_m": 4096.6,
+   "side": "left",
+   "offset_m": 72.8,
+   "length_m": 74.0,
+   "depth_m": 36.8,
+   "yaw_rad": 0.3011,
+   "centre": [
+    942.15,
+    -229.1
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2675
+  },
+  {
+   "name": null,
+   "station_m": 4126.7,
+   "side": "left",
+   "offset_m": 76.2,
+   "length_m": 57.8,
+   "depth_m": 11.6,
+   "yaw_rad": 0.3142,
+   "centre": [
+    943.63,
+    -260.37
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 650
+  },
+  {
+   "name": "Lakeside",
+   "station_m": 4147.3,
+   "side": "left",
+   "offset_m": 90.4,
+   "length_m": 60.9,
+   "depth_m": 24.1,
+   "yaw_rad": 0.3089,
+   "centre": [
+    954.02,
+    -280.01
+   ],
+   "levels": 12,
+   "osm_building": "apartments",
+   "area_m2": 1367
+  },
+  {
+   "name": null,
+   "station_m": 4147.5,
+   "side": "left",
+   "offset_m": 135.5,
+   "length_m": 40.4,
+   "depth_m": 11.0,
+   "yaw_rad": 0.6632,
+   "centre": [
+    978.58,
+    -392.44
+   ],
+   "levels": 14,
+   "osm_building": "yes",
+   "area_m2": 351
+  },
+  {
+   "name": null,
+   "station_m": 4163.9,
+   "side": "left",
+   "offset_m": 86.9,
+   "length_m": 66.4,
+   "depth_m": 34.2,
+   "yaw_rad": 0.3189,
+   "centre": [
+    968.57,
+    -307.13
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1315
+  },
+  {
+   "name": null,
+   "station_m": 4166.4,
+   "side": "left",
+   "offset_m": 117.1,
+   "length_m": 20.8,
+   "depth_m": 17.1,
+   "yaw_rad": 0.1531,
+   "centre": [
+    974.63,
+    -337.21
+   ],
+   "levels": 3,
+   "osm_building": "yes",
+   "area_m2": 356
+  },
+  {
+   "name": null,
+   "station_m": 4174.2,
+   "side": "left",
+   "offset_m": 93.4,
+   "length_m": 22.5,
+   "depth_m": 16.6,
+   "yaw_rad": 0.1624,
+   "centre": [
+    945.24,
+    -342.12
+   ],
+   "levels": 3,
+   "osm_building": "yes",
+   "area_m2": 295
+  },
+  {
+   "name": "David Mandie Pavillion",
+   "station_m": 4870.1,
+   "side": "left",
+   "offset_m": 110.7,
+   "length_m": 32.3,
+   "depth_m": 27.7,
+   "yaw_rad": 1.7054,
+   "centre": [
+    243.11,
+    -404.95
+   ],
+   "levels": 0,
+   "osm_building": "pavilion",
+   "area_m2": 630
+  },
+  {
+   "name": "South Melbourne Women's Football Club",
+   "station_m": 5108.1,
+   "side": "right",
+   "offset_m": 20.7,
+   "length_m": 36.3,
+   "depth_m": 32.0,
+   "yaw_rad": 2.3732,
+   "centre": [
+    164.15,
+    -104.62
+   ],
+   "levels": 2,
+   "osm_building": "yes",
+   "area_m2": 1161
+  },
+  {
+   "name": null,
+   "station_m": 5140.5,
+   "side": "right",
+   "offset_m": 20.7,
+   "length_m": 36.0,
+   "depth_m": 32.3,
+   "yaw_rad": 2.3757,
+   "centre": [
+    140.82,
+    -82.03
+   ],
+   "levels": 2,
+   "osm_building": "yes",
+   "area_m2": 1161
+  },
+  {
+   "name": "Middle Park Football Club",
+   "station_m": 5181.2,
+   "side": "right",
+   "offset_m": 20.7,
+   "length_m": 37.0,
+   "depth_m": 32.2,
+   "yaw_rad": 2.3863,
+   "centre": [
+    111.67,
+    -53.75
+   ],
+   "levels": 2,
+   "osm_building": "yes",
+   "area_m2": 1193
+  },
+  {
+   "name": "Albert Park Indoor Sports Centre",
+   "station_m": 5228.4,
+   "side": "right",
+   "offset_m": 20.3,
+   "length_m": 36.7,
+   "depth_m": 32.2,
+   "yaw_rad": 2.3865,
+   "centre": [
+    77.29,
+    -21.39
+   ],
+   "levels": 2,
+   "osm_building": "yes",
+   "area_m2": 1182
+  },
+  {
+   "name": null,
+   "station_m": 5257.7,
+   "side": "left",
+   "offset_m": 139.9,
+   "length_m": 31.4,
+   "depth_m": 16.7,
+   "yaw_rad": 2.4044,
+   "centre": [
+    -73.38,
+    -135.71
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 523
+  },
+  {
+   "name": "Albert Park Fitness",
+   "station_m": 5268.9,
+   "side": "right",
+   "offset_m": 20.2,
+   "length_m": 37.6,
+   "depth_m": 32.2,
+   "yaw_rad": 2.3851,
+   "centre": [
+    47.99,
+    6.64
+   ],
+   "levels": 2,
+   "osm_building": "yes",
+   "area_m2": 1212
+  }
+ ],
+ "crossings": [],
+ "landmarks": [],
+ "woods": []
+}
