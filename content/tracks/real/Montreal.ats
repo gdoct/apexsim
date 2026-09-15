@@ -1345,6 +1345,30 @@
     {
       "id": 341,
       "kind": "grandstand",
+      "asset": "bay_10m_large",
+      "x": -825.65,
+      "y": 781.89,
+      "z": 1.7465694,
+      "yaw_rad": 2.0643482,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 17.35
+    },
+    {
+      "id": 342,
+      "kind": "grandstand",
+      "asset": "bay_10m",
+      "x": -813.02,
+      "y": 788.585,
+      "z": 1.7592341,
+      "yaw_rad": -1.0875385,
+      "scale": 1.0,
+      "text": null,
+      "length_m": 13.0
+    },
+    {
+      "id": 343,
+      "kind": "grandstand",
       "asset": "bay_10m",
       "x": -527.46204,
       "y": 844.16235,
@@ -1355,7 +1379,7 @@
       "length_m": 35.02
     },
     {
-      "id": 342,
+      "id": 344,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -518.807,
@@ -1367,7 +1391,7 @@
       "length_m": 35.02
     },
     {
-      "id": 343,
+      "id": 345,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -539.62305,
@@ -1379,7 +1403,7 @@
       "length_m": 20.85
     },
     {
-      "id": 344,
+      "id": 346,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -534.32306,
@@ -1391,7 +1415,7 @@
       "length_m": 20.85
     },
     {
-      "id": 345,
+      "id": 347,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -523.7633,
@@ -1403,7 +1427,7 @@
       "length_m": 22.25
     },
     {
-      "id": 346,
+      "id": 348,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -504.57327,
@@ -1415,7 +1439,7 @@
       "length_m": 22.92
     },
     {
-      "id": 347,
+      "id": 349,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -479.5684,
@@ -1427,7 +1451,7 @@
       "length_m": 25.47
     },
     {
-      "id": 348,
+      "id": 350,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -457.02838,
@@ -1439,7 +1463,7 @@
       "length_m": 25.47
     },
     {
-      "id": 349,
+      "id": 351,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -440.62488,
@@ -1451,7 +1475,7 @@
       "length_m": 22.83
     },
     {
-      "id": 350,
+      "id": 352,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -429.9449,
@@ -1463,7 +1487,7 @@
       "length_m": 22.82
     },
     {
-      "id": 351,
+      "id": 353,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -422.64392,
@@ -1475,7 +1499,7 @@
       "length_m": 20.41
     },
     {
-      "id": 352,
+      "id": 354,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -416.94394,
@@ -1487,7 +1511,7 @@
       "length_m": 20.41
     },
     {
-      "id": 353,
+      "id": 355,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -435.72952,
@@ -1499,7 +1523,7 @@
       "length_m": 29.6
     },
     {
-      "id": 354,
+      "id": 356,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -428.5445,
@@ -1511,7 +1535,7 @@
       "length_m": 29.59
     },
     {
-      "id": 355,
+      "id": 357,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -394.3384,
@@ -1523,7 +1547,7 @@
       "length_m": 30.23
     },
     {
-      "id": 356,
+      "id": 358,
       "kind": "grandstand",
       "asset": "bay_10m",
       "x": -388.47342,
@@ -1535,7 +1559,7 @@
       "length_m": 30.23
     },
     {
-      "id": 357,
+      "id": 359,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": -24.339016,
@@ -1547,7 +1571,7 @@
       "length_m": 29.8
     },
     {
-      "id": 358,
+      "id": 360,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": -17.701897,
@@ -1559,7 +1583,7 @@
       "length_m": 29.8
     },
     {
-      "id": 359,
+      "id": 361,
       "kind": "grandstand",
       "asset": "bay_10m_large",
       "x": -11.137882,
@@ -1571,7 +1595,7 @@
       "length_m": 29.8
     },
     {
-      "id": 360,
+      "id": 362,
       "kind": "building",
       "asset": "media_centre",
       "x": -78.137955,
@@ -1582,7 +1606,7 @@
       "text": null
     },
     {
-      "id": 361,
+      "id": 363,
       "kind": "building",
       "asset": "media_centre",
       "x": -299.2942,
@@ -1593,7 +1617,7 @@
       "text": null
     },
     {
-      "id": 362,
+      "id": 364,
       "kind": "building",
       "asset": "clubhouse",
       "x": -399.6504,
@@ -1604,7 +1628,7 @@
       "text": null
     },
     {
-      "id": 363,
+      "id": 365,
       "kind": "building",
       "asset": "media_centre",
       "x": -389.72586,
@@ -1615,7 +1639,7 @@
       "text": null
     },
     {
-      "id": 364,
+      "id": 366,
       "kind": "building",
       "asset": "media_centre",
       "x": -325.88962,
@@ -1626,7 +1650,7 @@
       "text": null
     },
     {
-      "id": 365,
+      "id": 367,
       "kind": "building",
       "asset": "media_centre",
       "x": -335.15753,
@@ -1637,7 +1661,7 @@
       "text": null
     },
     {
-      "id": 366,
+      "id": 368,
       "kind": "building",
       "asset": "media_centre",
       "x": -344.4254,
@@ -1648,7 +1672,7 @@
       "text": null
     },
     {
-      "id": 367,
+      "id": 369,
       "kind": "building",
       "asset": "media_centre",
       "x": -353.6933,
@@ -1659,7 +1683,7 @@
       "text": null
     },
     {
-      "id": 368,
+      "id": 370,
       "kind": "building",
       "asset": "media_centre",
       "x": -362.9612,
@@ -1670,7 +1694,7 @@
       "text": null
     },
     {
-      "id": 369,
+      "id": 371,
       "kind": "building",
       "asset": "media_centre",
       "x": -334.29065,
@@ -1681,7 +1705,7 @@
       "text": null
     },
     {
-      "id": 370,
+      "id": 9203,
       "kind": "building",
       "asset": "media_centre",
       "x": -343.5783,
@@ -1692,7 +1716,7 @@
       "text": null
     },
     {
-      "id": 371,
+      "id": 9204,
       "kind": "building",
       "asset": "media_centre",
       "x": -352.86597,
@@ -1703,7 +1727,7 @@
       "text": null
     },
     {
-      "id": 9203,
+      "id": 9205,
       "kind": "building",
       "asset": "clubhouse",
       "x": -304.80862,
@@ -1714,7 +1738,7 @@
       "text": null
     },
     {
-      "id": 9204,
+      "id": 9206,
       "kind": "building",
       "asset": "media_centre",
       "x": -316.75168,
@@ -1725,7 +1749,7 @@
       "text": null
     },
     {
-      "id": 9205,
+      "id": 9207,
       "kind": "building",
       "asset": "media_centre",
       "x": -287.50012,
@@ -1736,7 +1760,7 @@
       "text": null
     },
     {
-      "id": 9206,
+      "id": 9208,
       "kind": "building",
       "asset": "media_centre",
       "x": -258.24857,
@@ -1747,7 +1771,7 @@
       "text": null
     },
     {
-      "id": 9207,
+      "id": 9209,
       "kind": "building",
       "asset": "media_centre",
       "x": -331.57587,
@@ -1758,7 +1782,7 @@
       "text": null
     },
     {
-      "id": 9208,
+      "id": 9210,
       "kind": "building",
       "asset": "media_centre",
       "x": -305.6575,
@@ -1769,7 +1793,7 @@
       "text": null
     },
     {
-      "id": 9209,
+      "id": 9211,
       "kind": "building",
       "asset": "media_centre",
       "x": -279.7391,
@@ -1780,7 +1804,7 @@
       "text": null
     },
     {
-      "id": 9210,
+      "id": 9212,
       "kind": "building",
       "asset": "media_centre",
       "x": -253.82074,
@@ -1791,7 +1815,7 @@
       "text": null
     },
     {
-      "id": 9211,
+      "id": 9213,
       "kind": "bridge",
       "asset": "tyre_bridge",
       "x": -540.74524,
@@ -1802,18 +1826,7 @@
       "text": null
     },
     {
-      "id": 9212,
-      "kind": "building",
-      "asset": "control_tower",
-      "x": -26.55,
-      "y": -175.47,
-      "z": 0.3445976,
-      "yaw_rad": -1.6782432,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 9213,
+      "id": 9214,
       "kind": "building",
       "asset": "control_tower",
       "x": 176.63,
@@ -1824,7 +1837,7 @@
       "text": null
     },
     {
-      "id": 9214,
+      "id": 9215,
       "kind": "building",
       "asset": "control_tower",
       "x": 311.95,
@@ -1835,7 +1848,7 @@
       "text": null
     },
     {
-      "id": 9215,
+      "id": 9216,
       "kind": "building",
       "asset": "control_tower",
       "x": -542.04,
@@ -1846,7 +1859,7 @@
       "text": null
     },
     {
-      "id": 9216,
+      "id": 10328,
       "kind": "building",
       "asset": "control_tower",
       "x": -237.25,
@@ -18632,5 +18645,5 @@
       "text": null
     }
   ],
-  "next_id": 10328
+  "next_id": 10329
 }
