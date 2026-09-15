@@ -2144,150 +2144,6 @@
     },
     {
       "id": 8084,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": -121.96346,
-      "y": -153.50525,
-      "z": 1.9815559,
-      "yaw_rad": 0.8910601,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 35.24
-    },
-    {
-      "id": 8085,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": -96.595146,
-      "y": -126.23599,
-      "z": 1.5424352,
-      "yaw_rad": 0.7592955,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8086,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": -68.01157,
-      "y": -99.106995,
-      "z": 1.1901263,
-      "yaw_rad": 0.7592957,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8087,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": -39.428005,
-      "y": -71.97799,
-      "z": 0.80267537,
-      "yaw_rad": 0.7592957,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8088,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": -10.844433,
-      "y": -44.84898,
-      "z": 0.4619869,
-      "yaw_rad": 0.7592958,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8089,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": 17.739143,
-      "y": -17.71997,
-      "z": 0.09198251,
-      "yaw_rad": 0.7592955,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8090,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": 46.32271,
-      "y": 9.409019,
-      "z": 0.29855683,
-      "yaw_rad": 0.7592956,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8091,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": 74.90629,
-      "y": 36.538033,
-      "z": 0.5600597,
-      "yaw_rad": 0.7592958,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8092,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": 103.48248,
-      "y": 61.591194,
-      "z": 0.8827401,
-      "yaw_rad": 0.67734486,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 36.66
-    },
-    {
-      "id": 8093,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": 131.9412,
-      "y": 86.76709,
-      "z": 1.158809,
-      "yaw_rad": 0.7679186,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8094,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": 160.28976,
-      "y": 114.141556,
-      "z": 1.3648437,
-      "yaw_rad": 0.7679186,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 39.41
-    },
-    {
-      "id": 8095,
-      "kind": "grandstand",
-      "asset": "bay_10m_large",
-      "x": 188.88202,
-      "y": 136.18939,
-      "z": 1.6840283,
-      "yaw_rad": 0.52548957,
-      "scale": 1.0,
-      "text": null,
-      "length_m": 33.33
-    },
-    {
-      "id": 8096,
       "kind": "building",
       "asset": "clubhouse",
       "x": -116.4387,
@@ -2298,7 +2154,7 @@
       "text": null
     },
     {
-      "id": 8097,
+      "id": 8085,
       "kind": "building",
       "asset": "media_centre",
       "x": -154.3141,
@@ -2309,7 +2165,7 @@
       "text": null
     },
     {
-      "id": 8098,
+      "id": 8086,
       "kind": "building",
       "asset": "media_centre",
       "x": -125.288734,
@@ -2320,7 +2176,7 @@
       "text": null
     },
     {
-      "id": 8099,
+      "id": 8087,
       "kind": "building",
       "asset": "clubhouse",
       "x": -234.03163,
@@ -2331,7 +2187,7 @@
       "text": null
     },
     {
-      "id": 8100,
+      "id": 8088,
       "kind": "building",
       "asset": "clubhouse",
       "x": -516.10626,
@@ -2342,7 +2198,7 @@
       "text": null
     },
     {
-      "id": 8101,
+      "id": 8089,
       "kind": "building",
       "asset": "media_centre",
       "x": -425.01428,
@@ -2353,7 +2209,7 @@
       "text": null
     },
     {
-      "id": 8102,
+      "id": 8090,
       "kind": "building",
       "asset": "media_centre",
       "x": -453.7574,
@@ -2364,7 +2220,7 @@
       "text": null
     },
     {
-      "id": 8103,
+      "id": 8091,
       "kind": "building",
       "asset": "clubhouse",
       "x": -773.0011,
@@ -2375,7 +2231,7 @@
       "text": null
     },
     {
-      "id": 8104,
+      "id": 8092,
       "kind": "building",
       "asset": "media_centre",
       "x": -622.848,
@@ -2386,7 +2242,7 @@
       "text": null
     },
     {
-      "id": 8105,
+      "id": 8093,
       "kind": "building",
       "asset": "clubhouse",
       "x": -540.85034,
@@ -2397,7 +2253,7 @@
       "text": null
     },
     {
-      "id": 8106,
+      "id": 8094,
       "kind": "building",
       "asset": "media_centre",
       "x": 415.87326,
@@ -2408,7 +2264,7 @@
       "text": null
     },
     {
-      "id": 8107,
+      "id": 8095,
       "kind": "building",
       "asset": "clubhouse",
       "x": 455.18277,
@@ -2419,7 +2275,7 @@
       "text": null
     },
     {
-      "id": 8108,
+      "id": 8096,
       "kind": "building",
       "asset": "media_centre",
       "x": 385.97345,
@@ -2430,7 +2286,7 @@
       "text": null
     },
     {
-      "id": 8109,
+      "id": 8097,
       "kind": "building",
       "asset": "media_centre",
       "x": 415.19965,
@@ -2441,7 +2297,7 @@
       "text": null
     },
     {
-      "id": 8110,
+      "id": 8098,
       "kind": "building",
       "asset": "media_centre",
       "x": 428.498,
@@ -2452,7 +2308,7 @@
       "text": null
     },
     {
-      "id": 8111,
+      "id": 8099,
       "kind": "building",
       "asset": "media_centre",
       "x": 457.7552,
@@ -2463,7 +2319,7 @@
       "text": null
     },
     {
-      "id": 8112,
+      "id": 8100,
       "kind": "building",
       "asset": "media_centre",
       "x": 369.66583,
@@ -2474,7 +2330,7 @@
       "text": null
     },
     {
-      "id": 8113,
+      "id": 8101,
       "kind": "building",
       "asset": "media_centre",
       "x": 301.47772,
@@ -2485,7 +2341,7 @@
       "text": null
     },
     {
-      "id": 8114,
+      "id": 8102,
       "kind": "building",
       "asset": "media_centre",
       "x": 330.41495,
@@ -2496,7 +2352,7 @@
       "text": null
     },
     {
-      "id": 8115,
+      "id": 8103,
       "kind": "building",
       "asset": "media_centre",
       "x": 359.35217,
@@ -2507,7 +2363,7 @@
       "text": null
     },
     {
-      "id": 8116,
+      "id": 8104,
       "kind": "building",
       "asset": "clubhouse",
       "x": 141.83665,
@@ -2518,7 +2374,7 @@
       "text": null
     },
     {
-      "id": 8117,
+      "id": 8105,
       "kind": "building",
       "asset": "media_centre",
       "x": 185.99908,
@@ -2529,7 +2385,7 @@
       "text": null
     },
     {
-      "id": 8118,
+      "id": 8106,
       "kind": "building",
       "asset": "media_centre",
       "x": 214.90211,
@@ -2540,7 +2396,7 @@
       "text": null
     },
     {
-      "id": 8119,
+      "id": 8107,
       "kind": "building",
       "asset": "media_centre",
       "x": 243.80515,
@@ -2551,7 +2407,7 @@
       "text": null
     },
     {
-      "id": 8120,
+      "id": 8108,
       "kind": "building",
       "asset": "media_centre",
       "x": 75.62912,
@@ -2562,7 +2418,7 @@
       "text": null
     },
     {
-      "id": 8121,
+      "id": 8109,
       "kind": "building",
       "asset": "media_centre",
       "x": 104.52646,
@@ -2573,7 +2429,7 @@
       "text": null
     },
     {
-      "id": 8122,
+      "id": 8110,
       "kind": "bridge",
       "asset": "tyre_bridge",
       "x": -430.7211,
@@ -2584,7 +2440,7 @@
       "text": null
     },
     {
-      "id": 8123,
+      "id": 8111,
       "kind": "bridge",
       "asset": "tyre_bridge",
       "x": 133.51787,
@@ -2595,7 +2451,7 @@
       "text": null
     },
     {
-      "id": 8124,
+      "id": 8112,
       "kind": "building",
       "asset": "control_tower",
       "x": -535.09,
@@ -8051,7 +7907,7 @@
       "text": "50"
     },
     {
-      "id": 8142,
+      "id": 9125,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 9.82257,
@@ -8062,7 +7918,7 @@
       "text": null
     },
     {
-      "id": 8143,
+      "id": 9126,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 6.923335,
@@ -8073,7 +7929,7 @@
       "text": null
     },
     {
-      "id": 8144,
+      "id": 9127,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 4.0071745,
@@ -8084,7 +7940,7 @@
       "text": null
     },
     {
-      "id": 8145,
+      "id": 9128,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 1.1091604,
@@ -8095,7 +7951,7 @@
       "text": null
     },
     {
-      "id": 8146,
+      "id": 9129,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -1.79459,
@@ -8106,7 +7962,7 @@
       "text": null
     },
     {
-      "id": 8147,
+      "id": 9130,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -4.7098083,
@@ -8117,7 +7973,7 @@
       "text": null
     },
     {
-      "id": 8148,
+      "id": 9131,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -7.6246624,
@@ -8128,7 +7984,7 @@
       "text": null
     },
     {
-      "id": 8149,
+      "id": 9132,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -10.538959,
@@ -8139,7 +7995,7 @@
       "text": null
     },
     {
-      "id": 8150,
+      "id": 9133,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -13.434895,
@@ -8150,7 +8006,7 @@
       "text": null
     },
     {
-      "id": 8151,
+      "id": 9134,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -16.336504,
@@ -8161,7 +8017,7 @@
       "text": null
     },
     {
-      "id": 8152,
+      "id": 9135,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -19.249811,
@@ -8172,7 +8028,7 @@
       "text": null
     },
     {
-      "id": 8153,
+      "id": 9136,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -22.162697,
@@ -8183,7 +8039,7 @@
       "text": null
     },
     {
-      "id": 8154,
+      "id": 9137,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -25.029613,
@@ -8194,7 +8050,7 @@
       "text": null
     },
     {
-      "id": 8155,
+      "id": 9138,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -27.904648,
@@ -8205,7 +8061,7 @@
       "text": null
     },
     {
-      "id": 8156,
+      "id": 9139,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -30.77539,
@@ -8216,7 +8072,7 @@
       "text": null
     },
     {
-      "id": 8157,
+      "id": 9140,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -33.638653,
@@ -8227,7 +8083,7 @@
       "text": null
     },
     {
-      "id": 8158,
+      "id": 9141,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -36.500725,
@@ -8238,7 +8094,7 @@
       "text": null
     },
     {
-      "id": 8159,
+      "id": 9142,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -39.36329,
@@ -8249,7 +8105,7 @@
       "text": null
     },
     {
-      "id": 8160,
+      "id": 9143,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -42.235893,
@@ -8260,7 +8116,7 @@
       "text": null
     },
     {
-      "id": 8161,
+      "id": 9144,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -45.104046,
@@ -8271,7 +8127,7 @@
       "text": null
     },
     {
-      "id": 8162,
+      "id": 9145,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -47.96405,
@@ -8282,7 +8138,7 @@
       "text": null
     },
     {
-      "id": 8163,
+      "id": 9146,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -50.824196,
@@ -8293,7 +8149,7 @@
       "text": null
     },
     {
-      "id": 8164,
+      "id": 9147,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -53.684155,
@@ -8304,7 +8160,7 @@
       "text": null
     },
     {
-      "id": 8165,
+      "id": 9148,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -56.55373,
@@ -8315,7 +8171,7 @@
       "text": null
     },
     {
-      "id": 8166,
+      "id": 9149,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -59.418594,
@@ -8326,7 +8182,7 @@
       "text": null
     },
     {
-      "id": 8167,
+      "id": 9150,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -62.276417,
@@ -8337,7 +8193,7 @@
       "text": null
     },
     {
-      "id": 8168,
+      "id": 9151,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -65.133705,
@@ -8348,7 +8204,7 @@
       "text": null
     },
     {
-      "id": 8169,
+      "id": 9152,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -67.99011,
@@ -8359,7 +8215,7 @@
       "text": null
     },
     {
-      "id": 8170,
+      "id": 9153,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -70.8569,
@@ -8370,7 +8226,7 @@
       "text": null
     },
     {
-      "id": 8171,
+      "id": 9154,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -73.71897,
@@ -8381,7 +8237,7 @@
       "text": null
     },
     {
-      "id": 8172,
+      "id": 9155,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -76.57369,
@@ -8392,7 +8248,7 @@
       "text": null
     },
     {
-      "id": 8173,
+      "id": 9156,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -79.426994,
@@ -8403,7 +8259,7 @@
       "text": null
     },
     {
-      "id": 8174,
+      "id": 9157,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -82.28089,
@@ -8414,7 +8270,7 @@
       "text": null
     },
     {
-      "id": 8175,
+      "id": 9158,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -85.14436,
@@ -8425,7 +8281,128 @@
       "text": null
     },
     {
-      "id": 8176,
+      "id": 9159,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -88.003,
+      "y": -107.494774,
+      "z": 1.2628033,
+      "yaw_rad": -2.3717406,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9160,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -90.8541,
+      "y": -110.2952,
+      "z": 1.3015319,
+      "yaw_rad": -2.3714886,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9161,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -93.70418,
+      "y": -113.09736,
+      "z": 1.3401425,
+      "yaw_rad": -2.3712692,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9162,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -96.55813,
+      "y": -115.90143,
+      "z": 1.379207,
+      "yaw_rad": -2.3713307,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9163,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -99.42586,
+      "y": -118.69769,
+      "z": 1.4183502,
+      "yaw_rad": -2.3716958,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9164,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -102.29361,
+      "y": -121.50012,
+      "z": 1.4568578,
+      "yaw_rad": -2.3723524,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9165,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -105.15958,
+      "y": -124.31101,
+      "z": 1.4956783,
+      "yaw_rad": -2.3733199,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9166,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -108.03309,
+      "y": -127.1217,
+      "z": 1.5348796,
+      "yaw_rad": -2.374642,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9167,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -110.9147,
+      "y": -129.93109,
+      "z": 1.5739846,
+      "yaw_rad": -2.3762946,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9168,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -113.81428,
+      "y": -132.72813,
+      "z": 1.6122876,
+      "yaw_rad": -2.37824,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9169,
+      "kind": "barrier",
+      "asset": "armco_generic",
+      "x": -116.71818,
+      "y": -135.52734,
+      "z": 1.6514405,
+      "yaw_rad": -2.3804932,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 9170,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -119.62592,
@@ -8436,7 +8413,7 @@
       "text": null
     },
     {
-      "id": 8177,
+      "id": 9171,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -122.54541,
@@ -8447,7 +8424,7 @@
       "text": null
     },
     {
-      "id": 8178,
+      "id": 9172,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -125.476616,
@@ -8458,7 +8435,7 @@
       "text": null
     },
     {
-      "id": 8179,
+      "id": 9173,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -128.47015,
@@ -8469,7 +8446,7 @@
       "text": null
     },
     {
-      "id": 8180,
+      "id": 9174,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -131.50388,
@@ -8480,7 +8457,7 @@
       "text": null
     },
     {
-      "id": 8181,
+      "id": 9175,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -134.59442,
@@ -8491,7 +8468,7 @@
       "text": null
     },
     {
-      "id": 8182,
+      "id": 9176,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -137.6998,
@@ -8502,7 +8479,7 @@
       "text": null
     },
     {
-      "id": 8183,
+      "id": 9177,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -140.81541,
@@ -8513,7 +8490,7 @@
       "text": null
     },
     {
-      "id": 8184,
+      "id": 9178,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -143.89145,
@@ -8524,7 +8501,7 @@
       "text": null
     },
     {
-      "id": 8185,
+      "id": 9179,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -147.00851,
@@ -8535,7 +8512,7 @@
       "text": null
     },
     {
-      "id": 8186,
+      "id": 9180,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -150.17778,
@@ -8546,7 +8523,7 @@
       "text": null
     },
     {
-      "id": 8187,
+      "id": 9181,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -153.24217,
@@ -8557,7 +8534,7 @@
       "text": null
     },
     {
-      "id": 8188,
+      "id": 9182,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -156.25366,
@@ -8568,7 +8545,7 @@
       "text": null
     },
     {
-      "id": 8189,
+      "id": 9183,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -159.33716,
@@ -8579,7 +8556,7 @@
       "text": null
     },
     {
-      "id": 8190,
+      "id": 9184,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -162.4128,
@@ -8590,7 +8567,7 @@
       "text": null
     },
     {
-      "id": 8191,
+      "id": 9185,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -165.47012,
@@ -8601,7 +8578,7 @@
       "text": null
     },
     {
-      "id": 8192,
+      "id": 9186,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -168.54468,
@@ -8612,7 +8589,7 @@
       "text": null
     },
     {
-      "id": 8193,
+      "id": 9187,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -171.63896,
@@ -8623,7 +8600,7 @@
       "text": null
     },
     {
-      "id": 8194,
+      "id": 9188,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -174.80142,
@@ -8634,7 +8611,7 @@
       "text": null
     },
     {
-      "id": 8195,
+      "id": 9189,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -177.95538,
@@ -8645,7 +8622,7 @@
       "text": null
     },
     {
-      "id": 8196,
+      "id": 9190,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -181.14188,
@@ -8656,7 +8633,7 @@
       "text": null
     },
     {
-      "id": 8197,
+      "id": 9191,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -184.3836,
@@ -8667,7 +8644,7 @@
       "text": null
     },
     {
-      "id": 8198,
+      "id": 9192,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -202.2759,
@@ -8678,7 +8655,7 @@
       "text": null
     },
     {
-      "id": 8199,
+      "id": 9193,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -187.63895,
@@ -8689,7 +8666,7 @@
       "text": null
     },
     {
-      "id": 8200,
+      "id": 9194,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -205.36769,
@@ -8700,7 +8677,7 @@
       "text": null
     },
     {
-      "id": 8201,
+      "id": 9195,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -190.90903,
@@ -8711,7 +8688,7 @@
       "text": null
     },
     {
-      "id": 8202,
+      "id": 9196,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -208.4915,
@@ -8722,7 +8699,7 @@
       "text": null
     },
     {
-      "id": 8203,
+      "id": 9197,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -194.19228,
@@ -8733,7 +8710,7 @@
       "text": null
     },
     {
-      "id": 8204,
+      "id": 9198,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -211.62053,
@@ -8744,7 +8721,7 @@
       "text": null
     },
     {
-      "id": 8205,
+      "id": 9199,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -197.4879,
@@ -8755,7 +8732,7 @@
       "text": null
     },
     {
-      "id": 8206,
+      "id": 9200,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -214.7527,
@@ -8766,7 +8743,7 @@
       "text": null
     },
     {
-      "id": 8207,
+      "id": 9201,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -200.79736,
@@ -8777,7 +8754,7 @@
       "text": null
     },
     {
-      "id": 8208,
+      "id": 9202,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -217.89896,
@@ -8788,7 +8765,7 @@
       "text": null
     },
     {
-      "id": 8209,
+      "id": 9203,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -204.11888,
@@ -8799,7 +8776,7 @@
       "text": null
     },
     {
-      "id": 8210,
+      "id": 9204,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -221.0605,
@@ -8810,7 +8787,7 @@
       "text": null
     },
     {
-      "id": 8211,
+      "id": 9205,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -207.45412,
@@ -8821,7 +8798,7 @@
       "text": null
     },
     {
-      "id": 8212,
+      "id": 9206,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -224.25201,
@@ -8832,7 +8809,7 @@
       "text": null
     },
     {
-      "id": 8213,
+      "id": 9207,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -217.53304,
@@ -8843,7 +8820,7 @@
       "text": null
     },
     {
-      "id": 8214,
+      "id": 9208,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -233.8589,
@@ -8854,7 +8831,7 @@
       "text": null
     },
     {
-      "id": 8215,
+      "id": 9209,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -376.7034,
@@ -8865,7 +8842,7 @@
       "text": null
     },
     {
-      "id": 8216,
+      "id": 9210,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -403.45972,
@@ -8876,7 +8853,7 @@
       "text": null
     },
     {
-      "id": 8217,
+      "id": 9211,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -377.3626,
@@ -8887,7 +8864,7 @@
       "text": null
     },
     {
-      "id": 8218,
+      "id": 9212,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -404.12622,
@@ -8898,7 +8875,7 @@
       "text": null
     },
     {
-      "id": 8219,
+      "id": 9213,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -378.03992,
@@ -8909,7 +8886,7 @@
       "text": null
     },
     {
-      "id": 8220,
+      "id": 9214,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -404.74896,
@@ -8920,7 +8897,7 @@
       "text": null
     },
     {
-      "id": 8221,
+      "id": 9215,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -378.7268,
@@ -8931,7 +8908,7 @@
       "text": null
     },
     {
-      "id": 8222,
+      "id": 9216,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -405.38226,
@@ -8942,7 +8919,7 @@
       "text": null
     },
     {
-      "id": 8223,
+      "id": 9217,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -379.42334,
@@ -8953,7 +8930,7 @@
       "text": null
     },
     {
-      "id": 8224,
+      "id": 9218,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -406.02505,
@@ -8964,7 +8941,7 @@
       "text": null
     },
     {
-      "id": 8225,
+      "id": 9219,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -380.1278,
@@ -8975,7 +8952,7 @@
       "text": null
     },
     {
-      "id": 8226,
+      "id": 9220,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -406.69446,
@@ -8986,7 +8963,7 @@
       "text": null
     },
     {
-      "id": 8227,
+      "id": 9221,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -380.8411,
@@ -8997,7 +8974,7 @@
       "text": null
     },
     {
-      "id": 8228,
+      "id": 9222,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -407.37677,
@@ -9008,7 +8985,7 @@
       "text": null
     },
     {
-      "id": 8229,
+      "id": 9223,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -381.56622,
@@ -9019,7 +8996,7 @@
       "text": null
     },
     {
-      "id": 8230,
+      "id": 9224,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -408.0482,
@@ -9030,7 +9007,7 @@
       "text": null
     },
     {
-      "id": 8231,
+      "id": 9225,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -382.30734,
@@ -9041,7 +9018,7 @@
       "text": null
     },
     {
-      "id": 8232,
+      "id": 9226,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -408.7612,
@@ -9052,7 +9029,7 @@
       "text": null
     },
     {
-      "id": 8233,
+      "id": 9227,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -383.0636,
@@ -9063,7 +9040,7 @@
       "text": null
     },
     {
-      "id": 8234,
+      "id": 9228,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -409.50885,
@@ -9074,7 +9051,7 @@
       "text": null
     },
     {
-      "id": 8235,
+      "id": 9229,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -383.82144,
@@ -9085,7 +9062,7 @@
       "text": null
     },
     {
-      "id": 8236,
+      "id": 9230,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -410.25623,
@@ -9096,7 +9073,7 @@
       "text": null
     },
     {
-      "id": 8237,
+      "id": 9231,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -384.5866,
@@ -9107,7 +9084,7 @@
       "text": null
     },
     {
-      "id": 8238,
+      "id": 9232,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -411.01086,
@@ -9118,7 +9095,7 @@
       "text": null
     },
     {
-      "id": 8239,
+      "id": 9233,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -385.37012,
@@ -9129,7 +9106,7 @@
       "text": null
     },
     {
-      "id": 8240,
+      "id": 9234,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -411.78464,
@@ -9140,7 +9117,7 @@
       "text": null
     },
     {
-      "id": 8241,
+      "id": 9235,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -386.16324,
@@ -9151,7 +9128,7 @@
       "text": null
     },
     {
-      "id": 8242,
+      "id": 9236,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -412.56815,
@@ -9162,7 +9139,7 @@
       "text": null
     },
     {
-      "id": 8243,
+      "id": 9237,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -386.96405,
@@ -9173,7 +9150,7 @@
       "text": null
     },
     {
-      "id": 8244,
+      "id": 9238,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -413.3593,
@@ -9184,7 +9161,7 @@
       "text": null
     },
     {
-      "id": 8245,
+      "id": 9239,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -387.76556,
@@ -9195,7 +9172,7 @@
       "text": null
     },
     {
-      "id": 8246,
+      "id": 9240,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -414.151,
@@ -9206,7 +9183,7 @@
       "text": null
     },
     {
-      "id": 8247,
+      "id": 9241,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -388.57303,
@@ -9217,7 +9194,7 @@
       "text": null
     },
     {
-      "id": 8248,
+      "id": 9242,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -414.94916,
@@ -9228,7 +9205,7 @@
       "text": null
     },
     {
-      "id": 8249,
+      "id": 9243,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -389.39633,
@@ -9239,7 +9216,7 @@
       "text": null
     },
     {
-      "id": 8250,
+      "id": 9244,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -415.76624,
@@ -9250,7 +9227,7 @@
       "text": null
     },
     {
-      "id": 8251,
+      "id": 9245,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -390.22543,
@@ -9261,7 +9238,7 @@
       "text": null
     },
     {
-      "id": 8252,
+      "id": 9246,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -416.58908,
@@ -9272,7 +9249,7 @@
       "text": null
     },
     {
-      "id": 8253,
+      "id": 9247,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -391.05957,
@@ -9283,7 +9260,7 @@
       "text": null
     },
     {
-      "id": 8254,
+      "id": 9248,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -417.41916,
@@ -9294,7 +9271,7 @@
       "text": null
     },
     {
-      "id": 8255,
+      "id": 9249,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -391.8905,
@@ -9305,7 +9282,7 @@
       "text": null
     },
     {
-      "id": 8256,
+      "id": 9250,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -418.245,
@@ -9316,7 +9293,7 @@
       "text": null
     },
     {
-      "id": 8257,
+      "id": 9251,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -392.72382,
@@ -9327,7 +9304,7 @@
       "text": null
     },
     {
-      "id": 8258,
+      "id": 9252,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -433.85956,
@@ -9338,7 +9315,7 @@
       "text": null
     },
     {
-      "id": 8259,
+      "id": 9253,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -455.79178,
@@ -9349,7 +9326,7 @@
       "text": null
     },
     {
-      "id": 8260,
+      "id": 9254,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -435.1694,
@@ -9360,7 +9337,7 @@
       "text": null
     },
     {
-      "id": 8261,
+      "id": 9255,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -457.0663,
@@ -9371,7 +9348,7 @@
       "text": null
     },
     {
-      "id": 8262,
+      "id": 9256,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -436.4749,
@@ -9382,7 +9359,7 @@
       "text": null
     },
     {
-      "id": 8263,
+      "id": 9257,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -458.33487,
@@ -9393,7 +9370,7 @@
       "text": null
     },
     {
-      "id": 8264,
+      "id": 9258,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -437.7708,
@@ -9404,7 +9381,7 @@
       "text": null
     },
     {
-      "id": 8265,
+      "id": 9259,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -459.61346,
@@ -9415,7 +9392,7 @@
       "text": null
     },
     {
-      "id": 8266,
+      "id": 9260,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -439.0656,
@@ -9426,7 +9403,7 @@
       "text": null
     },
     {
-      "id": 8267,
+      "id": 9261,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -460.88843,
@@ -9437,7 +9414,7 @@
       "text": null
     },
     {
-      "id": 8268,
+      "id": 9262,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -440.36832,
@@ -9448,7 +9425,7 @@
       "text": null
     },
     {
-      "id": 8269,
+      "id": 9263,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -462.14664,
@@ -9459,7 +9436,7 @@
       "text": null
     },
     {
-      "id": 8270,
+      "id": 9264,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -441.67136,
@@ -9470,7 +9447,7 @@
       "text": null
     },
     {
-      "id": 8271,
+      "id": 9265,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -463.4034,
@@ -9481,7 +9458,7 @@
       "text": null
     },
     {
-      "id": 8272,
+      "id": 9266,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -442.97772,
@@ -9492,7 +9469,7 @@
       "text": null
     },
     {
-      "id": 8273,
+      "id": 9267,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -464.66022,
@@ -9503,7 +9480,7 @@
       "text": null
     },
     {
-      "id": 8274,
+      "id": 9268,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -444.2785,
@@ -9514,7 +9491,7 @@
       "text": null
     },
     {
-      "id": 8275,
+      "id": 9269,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -465.93402,
@@ -9525,7 +9502,7 @@
       "text": null
     },
     {
-      "id": 8276,
+      "id": 9270,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -445.58316,
@@ -9536,7 +9513,7 @@
       "text": null
     },
     {
-      "id": 8277,
+      "id": 9271,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -467.20975,
@@ -9547,7 +9524,7 @@
       "text": null
     },
     {
-      "id": 8278,
+      "id": 9272,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -446.90015,
@@ -9558,7 +9535,7 @@
       "text": null
     },
     {
-      "id": 8279,
+      "id": 9273,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -468.47406,
@@ -9569,7 +9546,7 @@
       "text": null
     },
     {
-      "id": 8280,
+      "id": 9274,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -448.21976,
@@ -9580,7 +9557,7 @@
       "text": null
     },
     {
-      "id": 8281,
+      "id": 9275,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -469.74927,
@@ -9591,7 +9568,7 @@
       "text": null
     },
     {
-      "id": 8282,
+      "id": 9276,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -449.54132,
@@ -9602,7 +9579,7 @@
       "text": null
     },
     {
-      "id": 8283,
+      "id": 9277,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -471.0453,
@@ -9613,7 +9590,7 @@
       "text": null
     },
     {
-      "id": 8284,
+      "id": 9278,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -450.8624,
@@ -9624,7 +9601,7 @@
       "text": null
     },
     {
-      "id": 8285,
+      "id": 9279,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -472.34808,
@@ -9635,7 +9612,7 @@
       "text": null
     },
     {
-      "id": 8286,
+      "id": 9280,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -452.18942,
@@ -9646,7 +9623,7 @@
       "text": null
     },
     {
-      "id": 8287,
+      "id": 9281,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -473.6552,
@@ -9657,7 +9634,7 @@
       "text": null
     },
     {
-      "id": 8288,
+      "id": 9282,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -444.98837,
@@ -9668,7 +9645,7 @@
       "text": null
     },
     {
-      "id": 8289,
+      "id": 9283,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -456.48755,
@@ -9679,7 +9656,7 @@
       "text": null
     },
     {
-      "id": 8290,
+      "id": 9284,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -448.512,
@@ -9690,7 +9667,7 @@
       "text": null
     },
     {
-      "id": 8291,
+      "id": 9285,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -460.06998,
@@ -9701,7 +9678,7 @@
       "text": null
     },
     {
-      "id": 8292,
+      "id": 9286,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -452.03168,
@@ -9712,7 +9689,7 @@
       "text": null
     },
     {
-      "id": 8293,
+      "id": 9287,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -463.65253,
@@ -9723,7 +9700,7 @@
       "text": null
     },
     {
-      "id": 8294,
+      "id": 9288,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -455.5451,
@@ -9734,7 +9711,7 @@
       "text": null
     },
     {
-      "id": 8295,
+      "id": 9289,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -467.2335,
@@ -9745,7 +9722,7 @@
       "text": null
     },
     {
-      "id": 8296,
+      "id": 9290,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -459.0607,
@@ -9756,7 +9733,7 @@
       "text": null
     },
     {
-      "id": 8297,
+      "id": 9291,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -470.81415,
@@ -9767,7 +9744,7 @@
       "text": null
     },
     {
-      "id": 8298,
+      "id": 9292,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -462.57043,
@@ -9778,7 +9755,7 @@
       "text": null
     },
     {
-      "id": 8299,
+      "id": 9293,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -474.3927,
@@ -9789,7 +9766,7 @@
       "text": null
     },
     {
-      "id": 8300,
+      "id": 9294,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -466.07312,
@@ -9800,7 +9777,7 @@
       "text": null
     },
     {
-      "id": 8301,
+      "id": 9295,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -477.96603,
@@ -9811,7 +9788,7 @@
       "text": null
     },
     {
-      "id": 8302,
+      "id": 9296,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -469.56345,
@@ -9822,7 +9799,7 @@
       "text": null
     },
     {
-      "id": 8303,
+      "id": 9297,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -481.53412,
@@ -9833,7 +9810,7 @@
       "text": null
     },
     {
-      "id": 8304,
+      "id": 9298,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -473.04303,
@@ -9844,7 +9821,7 @@
       "text": null
     },
     {
-      "id": 8305,
+      "id": 9299,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -485.097,
@@ -9855,7 +9832,7 @@
       "text": null
     },
     {
-      "id": 8306,
+      "id": 9300,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -476.54645,
@@ -9866,7 +9843,7 @@
       "text": null
     },
     {
-      "id": 8307,
+      "id": 9301,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -488.67264,
@@ -9877,7 +9854,7 @@
       "text": null
     },
     {
-      "id": 8308,
+      "id": 9302,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -480.0607,
@@ -9888,7 +9865,7 @@
       "text": null
     },
     {
-      "id": 8309,
+      "id": 9303,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -492.2568,
@@ -9899,7 +9876,7 @@
       "text": null
     },
     {
-      "id": 8310,
+      "id": 9304,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -483.5651,
@@ -9910,7 +9887,7 @@
       "text": null
     },
     {
-      "id": 8311,
+      "id": 9305,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -495.83572,
@@ -9921,7 +9898,7 @@
       "text": null
     },
     {
-      "id": 8312,
+      "id": 9306,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -487.03558,
@@ -9932,7 +9909,7 @@
       "text": null
     },
     {
-      "id": 8313,
+      "id": 9307,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -499.394,
@@ -9943,7 +9920,7 @@
       "text": null
     },
     {
-      "id": 8314,
+      "id": 9308,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -490.48633,
@@ -9954,7 +9931,7 @@
       "text": null
     },
     {
-      "id": 8315,
+      "id": 9309,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -502.93948,
@@ -9965,7 +9942,7 @@
       "text": null
     },
     {
-      "id": 8316,
+      "id": 9310,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -493.88098,
@@ -9976,7 +9953,7 @@
       "text": null
     },
     {
-      "id": 8317,
+      "id": 9311,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -506.44943,
@@ -9987,7 +9964,7 @@
       "text": null
     },
     {
-      "id": 8318,
+      "id": 9312,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -497.2097,
@@ -9998,7 +9975,7 @@
       "text": null
     },
     {
-      "id": 8319,
+      "id": 9313,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -509.9166,
@@ -10009,7 +9986,7 @@
       "text": null
     },
     {
-      "id": 8320,
+      "id": 9314,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -500.52316,
@@ -10020,7 +9997,7 @@
       "text": null
     },
     {
-      "id": 8321,
+      "id": 9315,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -513.3754,
@@ -10031,7 +10008,7 @@
       "text": null
     },
     {
-      "id": 8322,
+      "id": 9316,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -503.85413,
@@ -10042,7 +10019,7 @@
       "text": null
     },
     {
-      "id": 8323,
+      "id": 9317,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -516.84393,
@@ -10053,7 +10030,7 @@
       "text": null
     },
     {
-      "id": 8324,
+      "id": 9318,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -507.18414,
@@ -10064,7 +10041,7 @@
       "text": null
     },
     {
-      "id": 8325,
+      "id": 9319,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -520.3095,
@@ -10075,7 +10052,7 @@
       "text": null
     },
     {
-      "id": 8326,
+      "id": 9320,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -510.5546,
@@ -10086,7 +10063,7 @@
       "text": null
     },
     {
-      "id": 8327,
+      "id": 9321,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -523.789,
@@ -10097,7 +10074,7 @@
       "text": null
     },
     {
-      "id": 8328,
+      "id": 9322,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -513.9169,
@@ -10108,7 +10085,7 @@
       "text": null
     },
     {
-      "id": 8329,
+      "id": 9323,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -527.25995,
@@ -10119,7 +10096,7 @@
       "text": null
     },
     {
-      "id": 8330,
+      "id": 9324,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -517.26385,
@@ -10130,7 +10107,7 @@
       "text": null
     },
     {
-      "id": 8331,
+      "id": 9325,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -530.7201,
@@ -10141,7 +10118,7 @@
       "text": null
     },
     {
-      "id": 8332,
+      "id": 9326,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -520.5795,
@@ -10152,7 +10129,7 @@
       "text": null
     },
     {
-      "id": 8333,
+      "id": 9327,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -534.17065,
@@ -10163,7 +10140,7 @@
       "text": null
     },
     {
-      "id": 8334,
+      "id": 9328,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -523.8787,
@@ -10174,7 +10151,7 @@
       "text": null
     },
     {
-      "id": 8335,
+      "id": 9329,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -537.6045,
@@ -10185,7 +10162,7 @@
       "text": null
     },
     {
-      "id": 8336,
+      "id": 9330,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -527.1601,
@@ -10196,7 +10173,7 @@
       "text": null
     },
     {
-      "id": 8337,
+      "id": 9331,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -541.05634,
@@ -10207,7 +10184,7 @@
       "text": null
     },
     {
-      "id": 8338,
+      "id": 9332,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -530.4295,
@@ -10218,7 +10195,7 @@
       "text": null
     },
     {
-      "id": 8339,
+      "id": 9333,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -544.49414,
@@ -10229,7 +10206,7 @@
       "text": null
     },
     {
-      "id": 8340,
+      "id": 9334,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -533.6805,
@@ -10240,7 +10217,7 @@
       "text": null
     },
     {
-      "id": 8341,
+      "id": 9335,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -547.89386,
@@ -10251,7 +10228,7 @@
       "text": null
     },
     {
-      "id": 8342,
+      "id": 9336,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -536.916,
@@ -10262,7 +10239,7 @@
       "text": null
     },
     {
-      "id": 8343,
+      "id": 9337,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -551.2604,
@@ -10273,7 +10250,7 @@
       "text": null
     },
     {
-      "id": 8344,
+      "id": 9338,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -540.1402,
@@ -10284,7 +10261,7 @@
       "text": null
     },
     {
-      "id": 8345,
+      "id": 9339,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -554.612,
@@ -10295,7 +10272,7 @@
       "text": null
     },
     {
-      "id": 8346,
+      "id": 9340,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -543.34894,
@@ -10306,7 +10283,7 @@
       "text": null
     },
     {
-      "id": 8347,
+      "id": 9341,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -557.9476,
@@ -10317,7 +10294,7 @@
       "text": null
     },
     {
-      "id": 8348,
+      "id": 9342,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -546.5456,
@@ -10328,7 +10305,7 @@
       "text": null
     },
     {
-      "id": 8349,
+      "id": 9343,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -561.2695,
@@ -10339,7 +10316,7 @@
       "text": null
     },
     {
-      "id": 8350,
+      "id": 9344,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -549.7297,
@@ -10350,7 +10327,7 @@
       "text": null
     },
     {
-      "id": 8351,
+      "id": 9345,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -564.57587,
@@ -10361,7 +10338,7 @@
       "text": null
     },
     {
-      "id": 8352,
+      "id": 9346,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -552.90344,
@@ -10372,7 +10349,7 @@
       "text": null
     },
     {
-      "id": 8353,
+      "id": 9347,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -567.8676,
@@ -10383,7 +10360,7 @@
       "text": null
     },
     {
-      "id": 8354,
+      "id": 9348,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -556.0663,
@@ -10394,7 +10371,7 @@
       "text": null
     },
     {
-      "id": 8355,
+      "id": 9349,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -571.14484,
@@ -10405,7 +10382,7 @@
       "text": null
     },
     {
-      "id": 8356,
+      "id": 9350,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -559.2131,
@@ -10416,7 +10393,7 @@
       "text": null
     },
     {
-      "id": 8357,
+      "id": 9351,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -574.4087,
@@ -10427,7 +10404,7 @@
       "text": null
     },
     {
-      "id": 8358,
+      "id": 9352,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -562.3473,
@@ -10438,7 +10415,7 @@
       "text": null
     },
     {
-      "id": 8359,
+      "id": 9353,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -577.65594,
@@ -10449,7 +10426,7 @@
       "text": null
     },
     {
-      "id": 8360,
+      "id": 9354,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -565.44855,
@@ -10460,7 +10437,7 @@
       "text": null
     },
     {
-      "id": 8361,
+      "id": 9355,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -580.8799,
@@ -10471,7 +10448,7 @@
       "text": null
     },
     {
-      "id": 8362,
+      "id": 9356,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -568.55,
@@ -10482,7 +10459,7 @@
       "text": null
     },
     {
-      "id": 8363,
+      "id": 9357,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -584.0942,
@@ -10493,7 +10470,7 @@
       "text": null
     },
     {
-      "id": 8364,
+      "id": 9358,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -571.64435,
@@ -10504,7 +10481,7 @@
       "text": null
     },
     {
-      "id": 8365,
+      "id": 9359,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -587.29626,
@@ -10515,7 +10492,7 @@
       "text": null
     },
     {
-      "id": 8366,
+      "id": 9360,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -574.7108,
@@ -10526,7 +10503,7 @@
       "text": null
     },
     {
-      "id": 8367,
+      "id": 9361,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -590.4789,
@@ -10537,7 +10514,7 @@
       "text": null
     },
     {
-      "id": 8368,
+      "id": 9362,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -577.7788,
@@ -10548,7 +10525,7 @@
       "text": null
     },
     {
-      "id": 8369,
+      "id": 9363,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -593.65485,
@@ -10559,7 +10536,7 @@
       "text": null
     },
     {
-      "id": 8370,
+      "id": 9364,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -580.87366,
@@ -10570,7 +10547,7 @@
       "text": null
     },
     {
-      "id": 8371,
+      "id": 9365,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -596.8385,
@@ -10581,7 +10558,7 @@
       "text": null
     },
     {
-      "id": 8372,
+      "id": 9366,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -583.9465,
@@ -10592,7 +10569,7 @@
       "text": null
     },
     {
-      "id": 8373,
+      "id": 9367,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -600.00275,
@@ -10603,7 +10580,7 @@
       "text": null
     },
     {
-      "id": 8374,
+      "id": 9368,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -587.0035,
@@ -10614,7 +10591,7 @@
       "text": null
     },
     {
-      "id": 8375,
+      "id": 9369,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -603.1545,
@@ -10625,7 +10602,7 @@
       "text": null
     },
     {
-      "id": 8376,
+      "id": 9370,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -590.05786,
@@ -10636,7 +10613,7 @@
       "text": null
     },
     {
-      "id": 8377,
+      "id": 9371,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -606.3057,
@@ -10647,7 +10624,7 @@
       "text": null
     },
     {
-      "id": 8378,
+      "id": 9372,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -593.09674,
@@ -10658,7 +10635,7 @@
       "text": null
     },
     {
-      "id": 8379,
+      "id": 9373,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -609.4466,
@@ -10669,7 +10646,7 @@
       "text": null
     },
     {
-      "id": 8380,
+      "id": 9374,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -596.1065,
@@ -10680,7 +10657,7 @@
       "text": null
     },
     {
-      "id": 8381,
+      "id": 9375,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -612.5674,
@@ -10691,7 +10668,7 @@
       "text": null
     },
     {
-      "id": 8382,
+      "id": 9376,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -599.08594,
@@ -10702,7 +10679,7 @@
       "text": null
     },
     {
-      "id": 8383,
+      "id": 9377,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -615.6658,
@@ -10713,7 +10690,7 @@
       "text": null
     },
     {
-      "id": 8384,
+      "id": 9378,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -602.04767,
@@ -10724,7 +10701,7 @@
       "text": null
     },
     {
-      "id": 8385,
+      "id": 9379,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -618.7511,
@@ -10735,7 +10712,7 @@
       "text": null
     },
     {
-      "id": 8386,
+      "id": 9380,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -604.989,
@@ -10746,7 +10723,7 @@
       "text": null
     },
     {
-      "id": 8387,
+      "id": 9381,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -621.82086,
@@ -10757,7 +10734,7 @@
       "text": null
     },
     {
-      "id": 8388,
+      "id": 9382,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -607.9089,
@@ -10768,7 +10745,7 @@
       "text": null
     },
     {
-      "id": 8389,
+      "id": 9383,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -624.87683,
@@ -10779,7 +10756,7 @@
       "text": null
     },
     {
-      "id": 8390,
+      "id": 9384,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -610.8085,
@@ -10790,7 +10767,7 @@
       "text": null
     },
     {
-      "id": 8391,
+      "id": 9385,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -627.91565,
@@ -10801,7 +10778,7 @@
       "text": null
     },
     {
-      "id": 8392,
+      "id": 9386,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -613.69006,
@@ -10812,7 +10789,7 @@
       "text": null
     },
     {
-      "id": 8393,
+      "id": 9387,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -630.9347,
@@ -10823,7 +10800,7 @@
       "text": null
     },
     {
-      "id": 8394,
+      "id": 9388,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -616.54974,
@@ -10834,7 +10811,7 @@
       "text": null
     },
     {
-      "id": 8395,
+      "id": 9389,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -633.9359,
@@ -10845,7 +10822,7 @@
       "text": null
     },
     {
-      "id": 8396,
+      "id": 9390,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -619.39813,
@@ -10856,7 +10833,7 @@
       "text": null
     },
     {
-      "id": 8397,
+      "id": 9391,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -636.90576,
@@ -10867,7 +10844,7 @@
       "text": null
     },
     {
-      "id": 8398,
+      "id": 9392,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -622.22235,
@@ -10878,7 +10855,7 @@
       "text": null
     },
     {
-      "id": 8399,
+      "id": 9393,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -639.8561,
@@ -10889,7 +10866,7 @@
       "text": null
     },
     {
-      "id": 8400,
+      "id": 9394,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -625.0218,
@@ -10900,7 +10877,7 @@
       "text": null
     },
     {
-      "id": 8401,
+      "id": 9395,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -642.7837,
@@ -10911,7 +10888,7 @@
       "text": null
     },
     {
-      "id": 8402,
+      "id": 9396,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -627.78784,
@@ -10922,7 +10899,7 @@
       "text": null
     },
     {
-      "id": 8403,
+      "id": 9397,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -645.6953,
@@ -10933,7 +10910,7 @@
       "text": null
     },
     {
-      "id": 8404,
+      "id": 9398,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -630.5265,
@@ -10944,7 +10921,7 @@
       "text": null
     },
     {
-      "id": 8405,
+      "id": 9399,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -648.58466,
@@ -10955,7 +10932,7 @@
       "text": null
     },
     {
-      "id": 8406,
+      "id": 9400,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -633.2449,
@@ -10966,7 +10943,7 @@
       "text": null
     },
     {
-      "id": 8407,
+      "id": 9401,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -651.4407,
@@ -10977,7 +10954,7 @@
       "text": null
     },
     {
-      "id": 8408,
+      "id": 9402,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -635.90497,
@@ -10988,7 +10965,7 @@
       "text": null
     },
     {
-      "id": 8409,
+      "id": 9403,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -654.2846,
@@ -10999,7 +10976,7 @@
       "text": null
     },
     {
-      "id": 8410,
+      "id": 9404,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -638.48987,
@@ -11010,7 +10987,7 @@
       "text": null
     },
     {
-      "id": 8411,
+      "id": 9405,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -657.12164,
@@ -11021,7 +10998,7 @@
       "text": null
     },
     {
-      "id": 8412,
+      "id": 9406,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -641.07086,
@@ -11032,7 +11009,7 @@
       "text": null
     },
     {
-      "id": 8413,
+      "id": 9407,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -659.9201,
@@ -11043,7 +11020,7 @@
       "text": null
     },
     {
-      "id": 8414,
+      "id": 9408,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -643.63367,
@@ -11054,7 +11031,7 @@
       "text": null
     },
     {
-      "id": 8415,
+      "id": 9409,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -662.68146,
@@ -11065,7 +11042,7 @@
       "text": null
     },
     {
-      "id": 8416,
+      "id": 9410,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -646.1752,
@@ -11076,7 +11053,7 @@
       "text": null
     },
     {
-      "id": 8417,
+      "id": 9411,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -665.4044,
@@ -11087,7 +11064,7 @@
       "text": null
     },
     {
-      "id": 8418,
+      "id": 9412,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -648.70386,
@@ -11098,7 +11075,7 @@
       "text": null
     },
     {
-      "id": 8419,
+      "id": 9413,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -668.09033,
@@ -11109,7 +11086,7 @@
       "text": null
     },
     {
-      "id": 8420,
+      "id": 9414,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -651.22284,
@@ -11120,7 +11097,7 @@
       "text": null
     },
     {
-      "id": 8421,
+      "id": 9415,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -670.7425,
@@ -11131,7 +11108,7 @@
       "text": null
     },
     {
-      "id": 8422,
+      "id": 9416,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -653.7449,
@@ -11142,7 +11119,7 @@
       "text": null
     },
     {
-      "id": 8423,
+      "id": 9417,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -673.3637,
@@ -11153,7 +11130,7 @@
       "text": null
     },
     {
-      "id": 8424,
+      "id": 9418,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -656.26575,
@@ -11164,7 +11141,7 @@
       "text": null
     },
     {
-      "id": 8425,
+      "id": 9419,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -675.961,
@@ -11175,7 +11152,7 @@
       "text": null
     },
     {
-      "id": 8426,
+      "id": 9420,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -658.77136,
@@ -11186,7 +11163,7 @@
       "text": null
     },
     {
-      "id": 8427,
+      "id": 9421,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -678.5422,
@@ -11197,7 +11174,7 @@
       "text": null
     },
     {
-      "id": 8428,
+      "id": 9422,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -661.3065,
@@ -11208,7 +11185,7 @@
       "text": null
     },
     {
-      "id": 8429,
+      "id": 9423,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -681.1031,
@@ -11219,7 +11196,7 @@
       "text": null
     },
     {
-      "id": 8430,
+      "id": 9424,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -663.89233,
@@ -11230,7 +11207,7 @@
       "text": null
     },
     {
-      "id": 8431,
+      "id": 9425,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -683.64386,
@@ -11241,7 +11218,7 @@
       "text": null
     },
     {
-      "id": 8432,
+      "id": 9426,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -666.4685,
@@ -11252,7 +11229,7 @@
       "text": null
     },
     {
-      "id": 8433,
+      "id": 9427,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -686.1782,
@@ -11263,7 +11240,7 @@
       "text": null
     },
     {
-      "id": 8434,
+      "id": 9428,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -669.0457,
@@ -11274,7 +11251,7 @@
       "text": null
     },
     {
-      "id": 8435,
+      "id": 9429,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -688.7177,
@@ -11285,7 +11262,7 @@
       "text": null
     },
     {
-      "id": 8436,
+      "id": 9430,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -671.6398,
@@ -11296,7 +11273,7 @@
       "text": null
     },
     {
-      "id": 8437,
+      "id": 9431,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -691.2668,
@@ -11307,7 +11284,7 @@
       "text": null
     },
     {
-      "id": 8438,
+      "id": 9432,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -674.21954,
@@ -11318,7 +11295,7 @@
       "text": null
     },
     {
-      "id": 8439,
+      "id": 9433,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -693.8272,
@@ -11329,7 +11306,7 @@
       "text": null
     },
     {
-      "id": 8440,
+      "id": 9434,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -676.78314,
@@ -11340,7 +11317,7 @@
       "text": null
     },
     {
-      "id": 8441,
+      "id": 9435,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -696.3943,
@@ -11351,7 +11328,7 @@
       "text": null
     },
     {
-      "id": 8442,
+      "id": 9436,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -679.30676,
@@ -11362,7 +11339,7 @@
       "text": null
     },
     {
-      "id": 8443,
+      "id": 9437,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -698.9633,
@@ -11373,7 +11350,7 @@
       "text": null
     },
     {
-      "id": 8444,
+      "id": 9438,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -681.8053,
@@ -11384,7 +11361,7 @@
       "text": null
     },
     {
-      "id": 8445,
+      "id": 9439,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -701.5283,
@@ -11395,7 +11372,7 @@
       "text": null
     },
     {
-      "id": 8446,
+      "id": 9440,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -684.29645,
@@ -11406,7 +11383,7 @@
       "text": null
     },
     {
-      "id": 8447,
+      "id": 9441,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -704.0835,
@@ -11417,7 +11394,7 @@
       "text": null
     },
     {
-      "id": 8448,
+      "id": 9442,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -686.7557,
@@ -11428,7 +11405,7 @@
       "text": null
     },
     {
-      "id": 8449,
+      "id": 9443,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -706.6274,
@@ -11439,7 +11416,7 @@
       "text": null
     },
     {
-      "id": 8450,
+      "id": 9444,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -689.1516,
@@ -11450,7 +11427,7 @@
       "text": null
     },
     {
-      "id": 8451,
+      "id": 9445,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -709.1428,
@@ -11461,7 +11438,7 @@
       "text": null
     },
     {
-      "id": 8452,
+      "id": 9446,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -691.4669,
@@ -11472,7 +11449,7 @@
       "text": null
     },
     {
-      "id": 8453,
+      "id": 9447,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -711.6214,
@@ -11483,7 +11460,7 @@
       "text": null
     },
     {
-      "id": 8454,
+      "id": 9448,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -693.74884,
@@ -11494,7 +11471,7 @@
       "text": null
     },
     {
-      "id": 8455,
+      "id": 9449,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -714.0698,
@@ -11505,7 +11482,7 @@
       "text": null
     },
     {
-      "id": 8456,
+      "id": 9450,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -695.97144,
@@ -11516,7 +11493,7 @@
       "text": null
     },
     {
-      "id": 8457,
+      "id": 9451,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -716.4504,
@@ -11527,7 +11504,7 @@
       "text": null
     },
     {
-      "id": 8458,
+      "id": 9452,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -698.16766,
@@ -11538,7 +11515,7 @@
       "text": null
     },
     {
-      "id": 8459,
+      "id": 9453,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -718.7889,
@@ -11549,7 +11526,7 @@
       "text": null
     },
     {
-      "id": 8460,
+      "id": 9454,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -700.34155,
@@ -11560,7 +11537,7 @@
       "text": null
     },
     {
-      "id": 8461,
+      "id": 9455,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -721.09033,
@@ -11571,7 +11548,7 @@
       "text": null
     },
     {
-      "id": 8462,
+      "id": 9456,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -702.55597,
@@ -11582,7 +11559,7 @@
       "text": null
     },
     {
-      "id": 8463,
+      "id": 9457,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -723.39624,
@@ -11593,7 +11570,7 @@
       "text": null
     },
     {
-      "id": 8464,
+      "id": 9458,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -704.7455,
@@ -11604,7 +11581,7 @@
       "text": null
     },
     {
-      "id": 8465,
+      "id": 9459,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -725.6711,
@@ -11615,7 +11592,7 @@
       "text": null
     },
     {
-      "id": 8466,
+      "id": 9460,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -770.9623,
@@ -11626,7 +11603,7 @@
       "text": null
     },
     {
-      "id": 8467,
+      "id": 9461,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -755.01025,
@@ -11637,7 +11614,7 @@
       "text": null
     },
     {
-      "id": 8468,
+      "id": 9462,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -768.0697,
@@ -11648,7 +11625,7 @@
       "text": null
     },
     {
-      "id": 8469,
+      "id": 9463,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -752.1061,
@@ -11659,7 +11636,7 @@
       "text": null
     },
     {
-      "id": 8470,
+      "id": 9464,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -765.1776,
@@ -11670,7 +11647,7 @@
       "text": null
     },
     {
-      "id": 8471,
+      "id": 9465,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -749.2066,
@@ -11681,7 +11658,7 @@
       "text": null
     },
     {
-      "id": 8472,
+      "id": 9466,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -762.28314,
@@ -11692,7 +11669,7 @@
       "text": null
     },
     {
-      "id": 8473,
+      "id": 9467,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -746.3108,
@@ -11703,7 +11680,7 @@
       "text": null
     },
     {
-      "id": 8474,
+      "id": 9468,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -759.38684,
@@ -11714,7 +11691,7 @@
       "text": null
     },
     {
-      "id": 8475,
+      "id": 9469,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -743.4168,
@@ -11725,7 +11702,7 @@
       "text": null
     },
     {
-      "id": 8476,
+      "id": 9470,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -756.48846,
@@ -11736,7 +11713,7 @@
       "text": null
     },
     {
-      "id": 8477,
+      "id": 9471,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -740.5234,
@@ -11747,7 +11724,7 @@
       "text": null
     },
     {
-      "id": 8478,
+      "id": 9472,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -753.5893,
@@ -11758,7 +11735,7 @@
       "text": null
     },
     {
-      "id": 8479,
+      "id": 9473,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -737.63025,
@@ -11769,7 +11746,7 @@
       "text": null
     },
     {
-      "id": 8480,
+      "id": 9474,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -750.68994,
@@ -11780,7 +11757,7 @@
       "text": null
     },
     {
-      "id": 8481,
+      "id": 9475,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -734.7364,
@@ -11791,7 +11768,7 @@
       "text": null
     },
     {
-      "id": 8482,
+      "id": 9476,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -747.7894,
@@ -11802,7 +11779,7 @@
       "text": null
     },
     {
-      "id": 8483,
+      "id": 9477,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -731.84106,
@@ -11813,7 +11790,7 @@
       "text": null
     },
     {
-      "id": 8484,
+      "id": 9478,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -744.8887,
@@ -11824,7 +11801,7 @@
       "text": null
     },
     {
-      "id": 8485,
+      "id": 9479,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -728.945,
@@ -11835,7 +11812,7 @@
       "text": null
     },
     {
-      "id": 8486,
+      "id": 9480,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -741.987,
@@ -11846,7 +11823,7 @@
       "text": null
     },
     {
-      "id": 8487,
+      "id": 9481,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -726.0475,
@@ -11857,7 +11834,7 @@
       "text": null
     },
     {
-      "id": 8488,
+      "id": 9482,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -739.0845,
@@ -11868,7 +11845,7 @@
       "text": null
     },
     {
-      "id": 8489,
+      "id": 9483,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -723.15027,
@@ -11879,7 +11856,7 @@
       "text": null
     },
     {
-      "id": 8490,
+      "id": 9484,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -736.1818,
@@ -11890,7 +11867,7 @@
       "text": null
     },
     {
-      "id": 8491,
+      "id": 9485,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -720.2517,
@@ -11901,7 +11878,7 @@
       "text": null
     },
     {
-      "id": 8492,
+      "id": 9486,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -733.27893,
@@ -11912,7 +11889,7 @@
       "text": null
     },
     {
-      "id": 8493,
+      "id": 9487,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -717.3534,
@@ -11923,7 +11900,7 @@
       "text": null
     },
     {
-      "id": 8494,
+      "id": 9488,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -730.37537,
@@ -11934,7 +11911,7 @@
       "text": null
     },
     {
-      "id": 8495,
+      "id": 9489,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -714.45294,
@@ -11945,7 +11922,7 @@
       "text": null
     },
     {
-      "id": 8496,
+      "id": 9490,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -727.4707,
@@ -11956,7 +11933,7 @@
       "text": null
     },
     {
-      "id": 8497,
+      "id": 9491,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -711.5519,
@@ -11967,7 +11944,7 @@
       "text": null
     },
     {
-      "id": 8498,
+      "id": 9492,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -724.5668,
@@ -11978,7 +11955,7 @@
       "text": null
     },
     {
-      "id": 8499,
+      "id": 9493,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -708.6512,
@@ -11989,7 +11966,7 @@
       "text": null
     },
     {
-      "id": 8500,
+      "id": 9494,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -721.66205,
@@ -12000,7 +11977,7 @@
       "text": null
     },
     {
-      "id": 8501,
+      "id": 9495,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -705.7505,
@@ -12011,7 +11988,7 @@
       "text": null
     },
     {
-      "id": 8502,
+      "id": 9496,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -718.75775,
@@ -12022,7 +11999,7 @@
       "text": null
     },
     {
-      "id": 8503,
+      "id": 9497,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -702.8485,
@@ -12033,7 +12010,7 @@
       "text": null
     },
     {
-      "id": 8504,
+      "id": 9498,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -715.8526,
@@ -12044,7 +12021,7 @@
       "text": null
     },
     {
-      "id": 8505,
+      "id": 9499,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -699.94617,
@@ -12055,7 +12032,7 @@
       "text": null
     },
     {
-      "id": 8506,
+      "id": 9500,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -712.94684,
@@ -12066,7 +12043,7 @@
       "text": null
     },
     {
-      "id": 8507,
+      "id": 9501,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -697.043,
@@ -12077,7 +12054,7 @@
       "text": null
     },
     {
-      "id": 8508,
+      "id": 9502,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -710.0419,
@@ -12088,7 +12065,7 @@
       "text": null
     },
     {
-      "id": 8509,
+      "id": 9503,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -694.1396,
@@ -12099,7 +12076,7 @@
       "text": null
     },
     {
-      "id": 8510,
+      "id": 9504,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -707.1359,
@@ -12110,7 +12087,7 @@
       "text": null
     },
     {
-      "id": 8511,
+      "id": 9505,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -691.23596,
@@ -12121,7 +12098,7 @@
       "text": null
     },
     {
-      "id": 8512,
+      "id": 9506,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -704.23083,
@@ -12132,7 +12109,7 @@
       "text": null
     },
     {
-      "id": 8513,
+      "id": 9507,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -688.33234,
@@ -12143,7 +12120,7 @@
       "text": null
     },
     {
-      "id": 8514,
+      "id": 9508,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -701.32465,
@@ -12154,7 +12131,7 @@
       "text": null
     },
     {
-      "id": 8515,
+      "id": 9509,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -685.42804,
@@ -12165,7 +12142,7 @@
       "text": null
     },
     {
-      "id": 8516,
+      "id": 9510,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -698.41815,
@@ -12176,7 +12153,7 @@
       "text": null
     },
     {
-      "id": 8517,
+      "id": 9511,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -682.5229,
@@ -12187,7 +12164,7 @@
       "text": null
     },
     {
-      "id": 8518,
+      "id": 9512,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -695.51294,
@@ -12198,7 +12175,7 @@
       "text": null
     },
     {
-      "id": 8519,
+      "id": 9513,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -679.6177,
@@ -12209,7 +12186,7 @@
       "text": null
     },
     {
-      "id": 8520,
+      "id": 9514,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -692.6071,
@@ -12220,7 +12197,7 @@
       "text": null
     },
     {
-      "id": 8521,
+      "id": 9515,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -676.7136,
@@ -12231,7 +12208,7 @@
       "text": null
     },
     {
-      "id": 8522,
+      "id": 9516,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -689.7023,
@@ -12242,7 +12219,7 @@
       "text": null
     },
     {
-      "id": 8523,
+      "id": 9517,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -673.8086,
@@ -12253,7 +12230,7 @@
       "text": null
     },
     {
-      "id": 8524,
+      "id": 9518,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -686.7965,
@@ -12264,7 +12241,7 @@
       "text": null
     },
     {
-      "id": 8525,
+      "id": 9519,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -670.9037,
@@ -12275,7 +12252,7 @@
       "text": null
     },
     {
-      "id": 8526,
+      "id": 9520,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -683.89056,
@@ -12286,7 +12263,7 @@
       "text": null
     },
     {
-      "id": 8527,
+      "id": 9521,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -667.9977,
@@ -12297,7 +12274,7 @@
       "text": null
     },
     {
-      "id": 8528,
+      "id": 9522,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -680.98596,
@@ -12308,7 +12285,7 @@
       "text": null
     },
     {
-      "id": 8529,
+      "id": 9523,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -665.0927,
@@ -12319,7 +12296,7 @@
       "text": null
     },
     {
-      "id": 8530,
+      "id": 9524,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -678.0813,
@@ -12330,7 +12307,7 @@
       "text": null
     },
     {
-      "id": 8531,
+      "id": 9525,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -662.1873,
@@ -12341,7 +12318,7 @@
       "text": null
     },
     {
-      "id": 8532,
+      "id": 9526,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -675.17664,
@@ -12352,7 +12329,7 @@
       "text": null
     },
     {
-      "id": 8533,
+      "id": 9527,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -659.28314,
@@ -12363,7 +12340,7 @@
       "text": null
     },
     {
-      "id": 8534,
+      "id": 9528,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -672.2724,
@@ -12374,7 +12351,7 @@
       "text": null
     },
     {
-      "id": 8535,
+      "id": 9529,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -656.3784,
@@ -12385,7 +12362,7 @@
       "text": null
     },
     {
-      "id": 8536,
+      "id": 9530,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -669.36804,
@@ -12396,7 +12373,7 @@
       "text": null
     },
     {
-      "id": 8537,
+      "id": 9531,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -653.47296,
@@ -12407,7 +12384,7 @@
       "text": null
     },
     {
-      "id": 8538,
+      "id": 9532,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -588.30493,
@@ -12418,7 +12395,7 @@
       "text": null
     },
     {
-      "id": 8539,
+      "id": 9533,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -586.89325,
@@ -12429,7 +12406,7 @@
       "text": null
     },
     {
-      "id": 8540,
+      "id": 9534,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -563.5566,
@@ -12440,7 +12417,7 @@
       "text": null
     },
     {
-      "id": 8541,
+      "id": 9535,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -585.42035,
@@ -12451,7 +12428,7 @@
       "text": null
     },
     {
-      "id": 8542,
+      "id": 9536,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -562.23645,
@@ -12462,7 +12439,7 @@
       "text": null
     },
     {
-      "id": 8543,
+      "id": 9537,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -584.0137,
@@ -12473,7 +12450,7 @@
       "text": null
     },
     {
-      "id": 8544,
+      "id": 9538,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -560.8891,
@@ -12484,7 +12461,7 @@
       "text": null
     },
     {
-      "id": 8545,
+      "id": 9539,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -582.6523,
@@ -12495,7 +12472,7 @@
       "text": null
     },
     {
-      "id": 8546,
+      "id": 9540,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -559.5243,
@@ -12506,7 +12483,7 @@
       "text": null
     },
     {
-      "id": 8547,
+      "id": 9541,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -581.29395,
@@ -12517,7 +12494,7 @@
       "text": null
     },
     {
-      "id": 8548,
+      "id": 9542,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -558.16156,
@@ -12528,7 +12505,7 @@
       "text": null
     },
     {
-      "id": 8549,
+      "id": 9543,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -579.9386,
@@ -12539,7 +12516,7 @@
       "text": null
     },
     {
-      "id": 8550,
+      "id": 9544,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -556.801,
@@ -12550,7 +12527,7 @@
       "text": null
     },
     {
-      "id": 8551,
+      "id": 9545,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -578.58563,
@@ -12561,7 +12538,7 @@
       "text": null
     },
     {
-      "id": 8552,
+      "id": 9546,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -555.4428,
@@ -12572,7 +12549,7 @@
       "text": null
     },
     {
-      "id": 8553,
+      "id": 9547,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -577.23615,
@@ -12583,7 +12560,7 @@
       "text": null
     },
     {
-      "id": 8554,
+      "id": 9548,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -554.08734,
@@ -12594,7 +12571,7 @@
       "text": null
     },
     {
-      "id": 8555,
+      "id": 9549,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -575.8881,
@@ -12605,7 +12582,7 @@
       "text": null
     },
     {
-      "id": 8556,
+      "id": 9550,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -552.7356,
@@ -12616,7 +12593,7 @@
       "text": null
     },
     {
-      "id": 8557,
+      "id": 9551,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -574.54297,
@@ -12627,7 +12604,7 @@
       "text": null
     },
     {
-      "id": 8558,
+      "id": 9552,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -551.3855,
@@ -12638,7 +12615,7 @@
       "text": null
     },
     {
-      "id": 8559,
+      "id": 9553,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -573.20044,
@@ -12649,7 +12626,7 @@
       "text": null
     },
     {
-      "id": 8560,
+      "id": 9554,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -550.03815,
@@ -12660,7 +12637,7 @@
       "text": null
     },
     {
-      "id": 8561,
+      "id": 9555,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -571.85986,
@@ -12671,7 +12648,7 @@
       "text": null
     },
     {
-      "id": 8562,
+      "id": 9556,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -548.69415,
@@ -12682,7 +12659,7 @@
       "text": null
     },
     {
-      "id": 8563,
+      "id": 9557,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -570.52124,
@@ -12693,7 +12670,7 @@
       "text": null
     },
     {
-      "id": 8564,
+      "id": 9558,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -547.35144,
@@ -12704,7 +12681,7 @@
       "text": null
     },
     {
-      "id": 8565,
+      "id": 9559,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -569.1849,
@@ -12715,7 +12692,7 @@
       "text": null
     },
     {
-      "id": 8566,
+      "id": 9560,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -546.0113,
@@ -12726,7 +12703,7 @@
       "text": null
     },
     {
-      "id": 8567,
+      "id": 9561,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -567.8509,
@@ -12737,7 +12714,7 @@
       "text": null
     },
     {
-      "id": 8568,
+      "id": 9562,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -544.6741,
@@ -12748,7 +12725,7 @@
       "text": null
     },
     {
-      "id": 8569,
+      "id": 9563,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -566.51904,
@@ -12759,7 +12736,7 @@
       "text": null
     },
     {
-      "id": 8570,
+      "id": 9564,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -543.3387,
@@ -12770,7 +12747,7 @@
       "text": null
     },
     {
-      "id": 8571,
+      "id": 9565,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -565.18884,
@@ -12781,7 +12758,7 @@
       "text": null
     },
     {
-      "id": 8572,
+      "id": 9566,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -542.0049,
@@ -12792,7 +12769,7 @@
       "text": null
     },
     {
-      "id": 8573,
+      "id": 9567,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -563.8602,
@@ -12803,7 +12780,7 @@
       "text": null
     },
     {
-      "id": 8574,
+      "id": 9568,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -540.67316,
@@ -12814,7 +12791,7 @@
       "text": null
     },
     {
-      "id": 8575,
+      "id": 9569,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -562.53326,
@@ -12825,7 +12802,7 @@
       "text": null
     },
     {
-      "id": 8576,
+      "id": 9570,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -539.3445,
@@ -12836,7 +12813,7 @@
       "text": null
     },
     {
-      "id": 8577,
+      "id": 9571,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -561.20825,
@@ -12847,7 +12824,7 @@
       "text": null
     },
     {
-      "id": 8578,
+      "id": 9572,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -538.0166,
@@ -12858,7 +12835,7 @@
       "text": null
     },
     {
-      "id": 8579,
+      "id": 9573,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -559.8852,
@@ -12869,7 +12846,7 @@
       "text": null
     },
     {
-      "id": 8580,
+      "id": 9574,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -536.6905,
@@ -12880,7 +12857,7 @@
       "text": null
     },
     {
-      "id": 8581,
+      "id": 9575,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -558.5631,
@@ -12891,7 +12868,7 @@
       "text": null
     },
     {
-      "id": 8582,
+      "id": 9576,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -535.36676,
@@ -12902,7 +12879,7 @@
       "text": null
     },
     {
-      "id": 8583,
+      "id": 9577,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -557.2424,
@@ -12913,7 +12890,7 @@
       "text": null
     },
     {
-      "id": 8584,
+      "id": 9578,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -534.04376,
@@ -12924,7 +12901,7 @@
       "text": null
     },
     {
-      "id": 8585,
+      "id": 9579,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -555.92285,
@@ -12935,7 +12912,7 @@
       "text": null
     },
     {
-      "id": 8586,
+      "id": 9580,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -532.72235,
@@ -12946,7 +12923,7 @@
       "text": null
     },
     {
-      "id": 8587,
+      "id": 9581,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -554.6049,
@@ -12957,7 +12934,7 @@
       "text": null
     },
     {
-      "id": 8588,
+      "id": 9582,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -531.403,
@@ -12968,7 +12945,7 @@
       "text": null
     },
     {
-      "id": 8589,
+      "id": 9583,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -553.28845,
@@ -12979,7 +12956,7 @@
       "text": null
     },
     {
-      "id": 8590,
+      "id": 9584,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -530.0846,
@@ -12990,7 +12967,7 @@
       "text": null
     },
     {
-      "id": 8591,
+      "id": 9585,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -551.9724,
@@ -13001,7 +12978,7 @@
       "text": null
     },
     {
-      "id": 8592,
+      "id": 9586,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -528.7672,
@@ -13012,7 +12989,7 @@
       "text": null
     },
     {
-      "id": 8593,
+      "id": 9587,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -550.6575,
@@ -13023,7 +13000,7 @@
       "text": null
     },
     {
-      "id": 8594,
+      "id": 9588,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -527.452,
@@ -13034,7 +13011,7 @@
       "text": null
     },
     {
-      "id": 8595,
+      "id": 9589,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -549.34344,
@@ -13045,7 +13022,7 @@
       "text": null
     },
     {
-      "id": 8596,
+      "id": 9590,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -526.1368,
@@ -13056,7 +13033,7 @@
       "text": null
     },
     {
-      "id": 8597,
+      "id": 9591,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -548.0305,
@@ -13067,7 +13044,7 @@
       "text": null
     },
     {
-      "id": 8598,
+      "id": 9592,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -524.82275,
@@ -13078,7 +13055,7 @@
       "text": null
     },
     {
-      "id": 8599,
+      "id": 9593,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -546.71875,
@@ -13089,7 +13066,7 @@
       "text": null
     },
     {
-      "id": 8600,
+      "id": 9594,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -523.5095,
@@ -13100,7 +13077,7 @@
       "text": null
     },
     {
-      "id": 8601,
+      "id": 9595,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -545.407,
@@ -13111,7 +13088,7 @@
       "text": null
     },
     {
-      "id": 8602,
+      "id": 9596,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -522.1982,
@@ -13122,7 +13099,7 @@
       "text": null
     },
     {
-      "id": 8603,
+      "id": 9597,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -544.1202,
@@ -13133,7 +13110,7 @@
       "text": null
     },
     {
-      "id": 8604,
+      "id": 9598,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -520.89233,
@@ -13144,7 +13121,7 @@
       "text": null
     },
     {
-      "id": 8605,
+      "id": 9599,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -542.8474,
@@ -13155,7 +13132,7 @@
       "text": null
     },
     {
-      "id": 8606,
+      "id": 9600,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -519.58984,
@@ -13166,7 +13143,7 @@
       "text": null
     },
     {
-      "id": 8607,
+      "id": 9601,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -541.5611,
@@ -13177,7 +13154,7 @@
       "text": null
     },
     {
-      "id": 8608,
+      "id": 9602,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -518.28436,
@@ -13188,7 +13165,7 @@
       "text": null
     },
     {
-      "id": 8609,
+      "id": 9603,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -540.2667,
@@ -13199,7 +13176,7 @@
       "text": null
     },
     {
-      "id": 8610,
+      "id": 9604,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -516.97766,
@@ -13210,7 +13187,7 @@
       "text": null
     },
     {
-      "id": 8611,
+      "id": 9605,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -538.99396,
@@ -13221,7 +13198,7 @@
       "text": null
     },
     {
-      "id": 8612,
+      "id": 9606,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -515.6766,
@@ -13232,7 +13209,7 @@
       "text": null
     },
     {
-      "id": 8613,
+      "id": 9607,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -537.72217,
@@ -13243,7 +13220,7 @@
       "text": null
     },
     {
-      "id": 8614,
+      "id": 9608,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -514.37604,
@@ -13254,7 +13231,7 @@
       "text": null
     },
     {
-      "id": 8615,
+      "id": 9609,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -536.45044,
@@ -13265,7 +13242,7 @@
       "text": null
     },
     {
-      "id": 8616,
+      "id": 9610,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -513.0757,
@@ -13276,7 +13253,7 @@
       "text": null
     },
     {
-      "id": 8617,
+      "id": 9611,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -535.16473,
@@ -13287,7 +13264,7 @@
       "text": null
     },
     {
-      "id": 8618,
+      "id": 9612,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -511.77228,
@@ -13298,7 +13275,7 @@
       "text": null
     },
     {
-      "id": 8619,
+      "id": 9613,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -533.87067,
@@ -13309,7 +13286,7 @@
       "text": null
     },
     {
-      "id": 8620,
+      "id": 9614,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -510.4671,
@@ -13320,7 +13297,7 @@
       "text": null
     },
     {
-      "id": 8621,
+      "id": 9615,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -532.5981,
@@ -13331,7 +13308,7 @@
       "text": null
     },
     {
-      "id": 8622,
+      "id": 9616,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -509.16684,
@@ -13342,7 +13319,7 @@
       "text": null
     },
     {
-      "id": 8623,
+      "id": 9617,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -531.3258,
@@ -13353,7 +13330,7 @@
       "text": null
     },
     {
-      "id": 8624,
+      "id": 9618,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -507.8668,
@@ -13364,7 +13341,7 @@
       "text": null
     },
     {
-      "id": 8625,
+      "id": 9619,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -530.0532,
@@ -13375,7 +13352,7 @@
       "text": null
     },
     {
-      "id": 8626,
+      "id": 9620,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -506.56656,
@@ -13386,7 +13363,7 @@
       "text": null
     },
     {
-      "id": 8627,
+      "id": 9621,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -528.76587,
@@ -13397,7 +13374,7 @@
       "text": null
     },
     {
-      "id": 8628,
+      "id": 9622,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -505.26266,
@@ -13408,7 +13385,7 @@
       "text": null
     },
     {
-      "id": 8629,
+      "id": 9623,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -527.4699,
@@ -13419,7 +13396,7 @@
       "text": null
     },
     {
-      "id": 8630,
+      "id": 9624,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -503.95645,
@@ -13430,7 +13407,7 @@
       "text": null
     },
     {
-      "id": 8631,
+      "id": 9625,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -526.16754,
@@ -13441,7 +13418,7 @@
       "text": null
     },
     {
-      "id": 8632,
+      "id": 9626,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -502.63742,
@@ -13452,7 +13429,7 @@
       "text": null
     },
     {
-      "id": 8633,
+      "id": 9627,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -524.8542,
@@ -13463,7 +13440,7 @@
       "text": null
     },
     {
-      "id": 8634,
+      "id": 9628,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -501.31216,
@@ -13474,7 +13451,7 @@
       "text": null
     },
     {
-      "id": 8635,
+      "id": 9629,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -523.54126,
@@ -13485,7 +13462,7 @@
       "text": null
     },
     {
-      "id": 8636,
+      "id": 9630,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -499.9862,
@@ -13496,7 +13473,7 @@
       "text": null
     },
     {
-      "id": 8637,
+      "id": 9631,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -522.2275,
@@ -13507,7 +13484,7 @@
       "text": null
     },
     {
-      "id": 8638,
+      "id": 9632,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -498.6657,
@@ -13518,7 +13495,7 @@
       "text": null
     },
     {
-      "id": 8639,
+      "id": 9633,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -520.9135,
@@ -13529,7 +13506,7 @@
       "text": null
     },
     {
-      "id": 8640,
+      "id": 9634,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -497.3477,
@@ -13540,7 +13517,7 @@
       "text": null
     },
     {
-      "id": 8641,
+      "id": 9635,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -519.59863,
@@ -13551,7 +13528,7 @@
       "text": null
     },
     {
-      "id": 8642,
+      "id": 9636,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -496.01926,
@@ -13562,7 +13539,7 @@
       "text": null
     },
     {
-      "id": 8643,
+      "id": 9637,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -518.28235,
@@ -13573,7 +13550,7 @@
       "text": null
     },
     {
-      "id": 8644,
+      "id": 9638,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -494.69095,
@@ -13584,7 +13561,7 @@
       "text": null
     },
     {
-      "id": 8645,
+      "id": 9639,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -516.96625,
@@ -13595,7 +13572,7 @@
       "text": null
     },
     {
-      "id": 8646,
+      "id": 9640,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -493.36212,
@@ -13606,7 +13583,7 @@
       "text": null
     },
     {
-      "id": 8647,
+      "id": 9641,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -515.64923,
@@ -13617,7 +13594,7 @@
       "text": null
     },
     {
-      "id": 8648,
+      "id": 9642,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -492.03864,
@@ -13628,7 +13605,7 @@
       "text": null
     },
     {
-      "id": 8649,
+      "id": 9643,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -514.3321,
@@ -13639,7 +13616,7 @@
       "text": null
     },
     {
-      "id": 8650,
+      "id": 9644,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -490.71768,
@@ -13650,7 +13627,7 @@
       "text": null
     },
     {
-      "id": 8651,
+      "id": 9645,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -513.01404,
@@ -13661,7 +13638,7 @@
       "text": null
     },
     {
-      "id": 8652,
+      "id": 9646,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -489.3859,
@@ -13672,7 +13649,7 @@
       "text": null
     },
     {
-      "id": 8653,
+      "id": 9647,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -511.6942,
@@ -13683,7 +13660,7 @@
       "text": null
     },
     {
-      "id": 8654,
+      "id": 9648,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -488.05457,
@@ -13694,7 +13671,7 @@
       "text": null
     },
     {
-      "id": 8655,
+      "id": 9649,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -592.1442,
@@ -13705,7 +13682,7 @@
       "text": null
     },
     {
-      "id": 8656,
+      "id": 9650,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -573.34436,
@@ -13716,7 +13693,7 @@
       "text": null
     },
     {
-      "id": 8657,
+      "id": 9651,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -589.5127,
@@ -13727,7 +13704,7 @@
       "text": null
     },
     {
-      "id": 8658,
+      "id": 9652,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -570.71185,
@@ -13738,7 +13715,7 @@
       "text": null
     },
     {
-      "id": 8659,
+      "id": 9653,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -586.8776,
@@ -13749,7 +13726,7 @@
       "text": null
     },
     {
-      "id": 8660,
+      "id": 9654,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -568.0769,
@@ -13760,7 +13737,7 @@
       "text": null
     },
     {
-      "id": 8661,
+      "id": 9655,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -584.22955,
@@ -13771,7 +13748,7 @@
       "text": null
     },
     {
-      "id": 8662,
+      "id": 9656,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -565.4392,
@@ -13782,7 +13759,7 @@
       "text": null
     },
     {
-      "id": 8663,
+      "id": 9657,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -581.5811,
@@ -13793,7 +13770,7 @@
       "text": null
     },
     {
-      "id": 8664,
+      "id": 9658,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -562.80054,
@@ -13804,7 +13781,7 @@
       "text": null
     },
     {
-      "id": 8665,
+      "id": 9659,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -578.9325,
@@ -13815,7 +13792,7 @@
       "text": null
     },
     {
-      "id": 8666,
+      "id": 9660,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -560.1614,
@@ -13826,7 +13803,7 @@
       "text": null
     },
     {
-      "id": 8667,
+      "id": 9661,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -576.2864,
@@ -13837,7 +13814,7 @@
       "text": null
     },
     {
-      "id": 8668,
+      "id": 9662,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -557.52155,
@@ -13848,7 +13825,7 @@
       "text": null
     },
     {
-      "id": 8669,
+      "id": 9663,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -573.6418,
@@ -13859,7 +13836,7 @@
       "text": null
     },
     {
-      "id": 8670,
+      "id": 9664,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -554.8812,
@@ -13870,7 +13847,7 @@
       "text": null
     },
     {
-      "id": 8671,
+      "id": 9665,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -570.99243,
@@ -13881,7 +13858,7 @@
       "text": null
     },
     {
-      "id": 8672,
+      "id": 9666,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -552.2403,
@@ -13892,7 +13869,7 @@
       "text": null
     },
     {
-      "id": 8673,
+      "id": 9667,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -568.34283,
@@ -13903,7 +13880,7 @@
       "text": null
     },
     {
-      "id": 8674,
+      "id": 9668,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -549.5987,
@@ -13914,7 +13891,7 @@
       "text": null
     },
     {
-      "id": 8675,
+      "id": 9669,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -565.6932,
@@ -13925,7 +13902,7 @@
       "text": null
     },
     {
-      "id": 8676,
+      "id": 9670,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -546.957,
@@ -13936,7 +13913,7 @@
       "text": null
     },
     {
-      "id": 8677,
+      "id": 9671,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -563.0469,
@@ -13947,7 +13924,7 @@
       "text": null
     },
     {
-      "id": 8678,
+      "id": 9672,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -544.31506,
@@ -13958,7 +13935,7 @@
       "text": null
     },
     {
-      "id": 8679,
+      "id": 9673,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -560.4018,
@@ -13969,7 +13946,7 @@
       "text": null
     },
     {
-      "id": 8680,
+      "id": 9674,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -541.6732,
@@ -13980,7 +13957,7 @@
       "text": null
     },
     {
-      "id": 8681,
+      "id": 9675,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -557.75195,
@@ -13991,7 +13968,7 @@
       "text": null
     },
     {
-      "id": 8682,
+      "id": 9676,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -539.0307,
@@ -14002,7 +13979,7 @@
       "text": null
     },
     {
-      "id": 8683,
+      "id": 9677,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -555.10297,
@@ -14013,7 +13990,7 @@
       "text": null
     },
     {
-      "id": 8684,
+      "id": 9678,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -536.388,
@@ -14024,7 +14001,7 @@
       "text": null
     },
     {
-      "id": 8685,
+      "id": 9679,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -552.4539,
@@ -14035,7 +14012,7 @@
       "text": null
     },
     {
-      "id": 8686,
+      "id": 9680,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -533.74524,
@@ -14046,7 +14023,7 @@
       "text": null
     },
     {
-      "id": 8687,
+      "id": 9681,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -549.80817,
@@ -14057,7 +14034,7 @@
       "text": null
     },
     {
-      "id": 8688,
+      "id": 9682,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -531.10254,
@@ -14068,7 +14045,7 @@
       "text": null
     },
     {
-      "id": 8689,
+      "id": 9683,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -547.1646,
@@ -14079,7 +14056,7 @@
       "text": null
     },
     {
-      "id": 8690,
+      "id": 9684,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -528.4601,
@@ -14090,7 +14067,7 @@
       "text": null
     },
     {
-      "id": 8691,
+      "id": 9685,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -544.51666,
@@ -14101,7 +14078,7 @@
       "text": null
     },
     {
-      "id": 8692,
+      "id": 9686,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -525.8184,
@@ -14112,7 +14089,7 @@
       "text": null
     },
     {
-      "id": 8693,
+      "id": 9687,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -541.869,
@@ -14123,7 +14100,7 @@
       "text": null
     },
     {
-      "id": 8694,
+      "id": 9688,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -523.17584,
@@ -14134,7 +14111,7 @@
       "text": null
     },
     {
-      "id": 8695,
+      "id": 9689,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -539.2221,
@@ -14145,7 +14122,7 @@
       "text": null
     },
     {
-      "id": 8696,
+      "id": 9690,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -520.5332,
@@ -14156,7 +14133,7 @@
       "text": null
     },
     {
-      "id": 8697,
+      "id": 9691,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -536.5785,
@@ -14167,7 +14144,7 @@
       "text": null
     },
     {
-      "id": 8698,
+      "id": 9692,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -517.89154,
@@ -14178,7 +14155,7 @@
       "text": null
     },
     {
-      "id": 8699,
+      "id": 9693,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -533.9372,
@@ -14189,7 +14166,7 @@
       "text": null
     },
     {
-      "id": 8700,
+      "id": 9694,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -515.2503,
@@ -14200,7 +14177,7 @@
       "text": null
     },
     {
-      "id": 8701,
+      "id": 9695,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -531.29236,
@@ -14211,7 +14188,7 @@
       "text": null
     },
     {
-      "id": 8702,
+      "id": 9696,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -512.609,
@@ -14222,7 +14199,7 @@
       "text": null
     },
     {
-      "id": 8703,
+      "id": 9697,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -528.64795,
@@ -14233,7 +14210,7 @@
       "text": null
     },
     {
-      "id": 8704,
+      "id": 9698,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -509.9681,
@@ -14244,7 +14221,7 @@
       "text": null
     },
     {
-      "id": 8705,
+      "id": 9699,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -526.00446,
@@ -14255,7 +14232,7 @@
       "text": null
     },
     {
-      "id": 8706,
+      "id": 9700,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -507.3276,
@@ -14266,7 +14243,7 @@
       "text": null
     },
     {
-      "id": 8707,
+      "id": 9701,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -523.3648,
@@ -14277,7 +14254,7 @@
       "text": null
     },
     {
-      "id": 8708,
+      "id": 9702,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -504.68805,
@@ -14288,7 +14265,7 @@
       "text": null
     },
     {
-      "id": 8709,
+      "id": 9703,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -520.72754,
@@ -14299,7 +14276,7 @@
       "text": null
     },
     {
-      "id": 8710,
+      "id": 9704,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -502.04932,
@@ -14310,7 +14287,7 @@
       "text": null
     },
     {
-      "id": 8711,
+      "id": 9705,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -518.086,
@@ -14321,7 +14298,7 @@
       "text": null
     },
     {
-      "id": 8712,
+      "id": 9706,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -499.41068,
@@ -14332,7 +14309,7 @@
       "text": null
     },
     {
-      "id": 8713,
+      "id": 9707,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -515.45953,
@@ -14343,7 +14320,7 @@
       "text": null
     },
     {
-      "id": 8714,
+      "id": 9708,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -496.77182,
@@ -14354,7 +14331,7 @@
       "text": null
     },
     {
-      "id": 8715,
+      "id": 9709,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -512.8363,
@@ -14365,7 +14342,7 @@
       "text": null
     },
     {
-      "id": 8716,
+      "id": 9710,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -494.13354,
@@ -14376,7 +14353,7 @@
       "text": null
     },
     {
-      "id": 8717,
+      "id": 9711,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -510.21042,
@@ -14387,7 +14364,7 @@
       "text": null
     },
     {
-      "id": 8718,
+      "id": 9712,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -491.49695,
@@ -14398,7 +14375,7 @@
       "text": null
     },
     {
-      "id": 8719,
+      "id": 9713,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -507.58453,
@@ -14409,7 +14386,7 @@
       "text": null
     },
     {
-      "id": 8720,
+      "id": 9714,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -488.86124,
@@ -14420,7 +14397,7 @@
       "text": null
     },
     {
-      "id": 8721,
+      "id": 9715,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -504.9643,
@@ -14431,7 +14408,7 @@
       "text": null
     },
     {
-      "id": 8722,
+      "id": 9716,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -486.2253,
@@ -14442,7 +14419,7 @@
       "text": null
     },
     {
-      "id": 8723,
+      "id": 9717,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -502.3461,
@@ -14453,7 +14430,7 @@
       "text": null
     },
     {
-      "id": 8724,
+      "id": 9718,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -483.59106,
@@ -14464,7 +14441,7 @@
       "text": null
     },
     {
-      "id": 8725,
+      "id": 9719,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -499.72836,
@@ -14475,7 +14452,7 @@
       "text": null
     },
     {
-      "id": 8726,
+      "id": 9720,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -480.95752,
@@ -14486,7 +14463,7 @@
       "text": null
     },
     {
-      "id": 8727,
+      "id": 9721,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -497.10947,
@@ -14497,7 +14474,7 @@
       "text": null
     },
     {
-      "id": 8728,
+      "id": 9722,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -478.32593,
@@ -14508,7 +14485,7 @@
       "text": null
     },
     {
-      "id": 8729,
+      "id": 9723,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -494.49045,
@@ -14519,7 +14496,7 @@
       "text": null
     },
     {
-      "id": 8730,
+      "id": 9724,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -475.69583,
@@ -14530,7 +14507,7 @@
       "text": null
     },
     {
-      "id": 8731,
+      "id": 9725,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -491.87723,
@@ -14541,7 +14518,7 @@
       "text": null
     },
     {
-      "id": 8732,
+      "id": 9726,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -473.06494,
@@ -14552,7 +14529,7 @@
       "text": null
     },
     {
-      "id": 8733,
+      "id": 9727,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -489.26593,
@@ -14563,7 +14540,7 @@
       "text": null
     },
     {
-      "id": 8734,
+      "id": 9728,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -470.43683,
@@ -14574,7 +14551,7 @@
       "text": null
     },
     {
-      "id": 8735,
+      "id": 9729,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -486.65485,
@@ -14585,7 +14562,7 @@
       "text": null
     },
     {
-      "id": 8736,
+      "id": 9730,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -467.81006,
@@ -14596,7 +14573,7 @@
       "text": null
     },
     {
-      "id": 8737,
+      "id": 9731,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -484.04184,
@@ -14607,7 +14584,7 @@
       "text": null
     },
     {
-      "id": 8738,
+      "id": 9732,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -465.18503,
@@ -14618,7 +14595,7 @@
       "text": null
     },
     {
-      "id": 8739,
+      "id": 9733,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -481.42816,
@@ -14629,7 +14606,7 @@
       "text": null
     },
     {
-      "id": 8740,
+      "id": 9734,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -462.56174,
@@ -14640,7 +14617,7 @@
       "text": null
     },
     {
-      "id": 8741,
+      "id": 9735,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -478.81946,
@@ -14651,7 +14628,7 @@
       "text": null
     },
     {
-      "id": 8742,
+      "id": 9736,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -459.93912,
@@ -14662,7 +14639,7 @@
       "text": null
     },
     {
-      "id": 8743,
+      "id": 9737,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -476.21176,
@@ -14673,7 +14650,7 @@
       "text": null
     },
     {
-      "id": 8744,
+      "id": 9738,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -457.31766,
@@ -14684,7 +14661,7 @@
       "text": null
     },
     {
-      "id": 8745,
+      "id": 9739,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -473.6036,
@@ -14695,7 +14672,7 @@
       "text": null
     },
     {
-      "id": 8746,
+      "id": 9740,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -454.6963,
@@ -14706,7 +14683,7 @@
       "text": null
     },
     {
-      "id": 8747,
+      "id": 9741,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -470.99255,
@@ -14717,7 +14694,7 @@
       "text": null
     },
     {
-      "id": 8748,
+      "id": 9742,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -452.07733,
@@ -14728,7 +14705,7 @@
       "text": null
     },
     {
-      "id": 8749,
+      "id": 9743,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -468.38046,
@@ -14739,7 +14716,7 @@
       "text": null
     },
     {
-      "id": 8750,
+      "id": 9744,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -449.4593,
@@ -14750,7 +14727,7 @@
       "text": null
     },
     {
-      "id": 8751,
+      "id": 9745,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -465.77362,
@@ -14761,7 +14738,7 @@
       "text": null
     },
     {
-      "id": 8752,
+      "id": 9746,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -446.84106,
@@ -14772,7 +14749,7 @@
       "text": null
     },
     {
-      "id": 8753,
+      "id": 9747,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -463.16583,
@@ -14783,7 +14760,7 @@
       "text": null
     },
     {
-      "id": 8754,
+      "id": 9748,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -444.22348,
@@ -14794,7 +14771,7 @@
       "text": null
     },
     {
-      "id": 8755,
+      "id": 9749,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -460.559,
@@ -14805,7 +14782,7 @@
       "text": null
     },
     {
-      "id": 8756,
+      "id": 9750,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -441.60547,
@@ -14816,7 +14793,7 @@
       "text": null
     },
     {
-      "id": 8757,
+      "id": 9751,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -457.94775,
@@ -14827,7 +14804,7 @@
       "text": null
     },
     {
-      "id": 8758,
+      "id": 9752,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -438.98962,
@@ -14838,7 +14815,7 @@
       "text": null
     },
     {
-      "id": 8759,
+      "id": 9753,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -455.33496,
@@ -14849,7 +14826,7 @@
       "text": null
     },
     {
-      "id": 8760,
+      "id": 9754,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -436.374,
@@ -14860,7 +14837,7 @@
       "text": null
     },
     {
-      "id": 8761,
+      "id": 9755,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -452.72668,
@@ -14871,7 +14848,7 @@
       "text": null
     },
     {
-      "id": 8762,
+      "id": 9756,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -433.75745,
@@ -14882,7 +14859,7 @@
       "text": null
     },
     {
-      "id": 8763,
+      "id": 9757,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -450.11713,
@@ -14893,7 +14870,7 @@
       "text": null
     },
     {
-      "id": 8764,
+      "id": 9758,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -431.14008,
@@ -14904,7 +14881,7 @@
       "text": null
     },
     {
-      "id": 8765,
+      "id": 9759,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -284.2358,
@@ -14915,7 +14892,7 @@
       "text": null
     },
     {
-      "id": 8766,
+      "id": 9760,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -278.63583,
@@ -14926,7 +14903,7 @@
       "text": null
     },
     {
-      "id": 8767,
+      "id": 9761,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -280.34863,
@@ -14937,7 +14914,7 @@
       "text": null
     },
     {
-      "id": 8768,
+      "id": 9762,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -274.72974,
@@ -14948,7 +14925,7 @@
       "text": null
     },
     {
-      "id": 8769,
+      "id": 9763,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -276.46152,
@@ -14959,7 +14936,7 @@
       "text": null
     },
     {
-      "id": 8770,
+      "id": 9764,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -270.82492,
@@ -14970,7 +14947,7 @@
       "text": null
     },
     {
-      "id": 8771,
+      "id": 9765,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -272.5741,
@@ -14981,7 +14958,7 @@
       "text": null
     },
     {
-      "id": 8772,
+      "id": 9766,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -266.92194,
@@ -14992,7 +14969,7 @@
       "text": null
     },
     {
-      "id": 8773,
+      "id": 9767,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -268.6864,
@@ -15003,7 +14980,7 @@
       "text": null
     },
     {
-      "id": 8774,
+      "id": 9768,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -263.0198,
@@ -15014,7 +14991,7 @@
       "text": null
     },
     {
-      "id": 8775,
+      "id": 9769,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -264.79855,
@@ -15025,7 +15002,7 @@
       "text": null
     },
     {
-      "id": 8776,
+      "id": 9770,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -259.1188,
@@ -15036,7 +15013,7 @@
       "text": null
     },
     {
-      "id": 8777,
+      "id": 9771,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -260.91104,
@@ -15047,7 +15024,7 @@
       "text": null
     },
     {
-      "id": 8778,
+      "id": 9772,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -255.21927,
@@ -15058,7 +15035,7 @@
       "text": null
     },
     {
-      "id": 8779,
+      "id": 9773,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -257.02277,
@@ -15069,7 +15046,7 @@
       "text": null
     },
     {
-      "id": 8780,
+      "id": 9774,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -251.32086,
@@ -15080,7 +15057,7 @@
       "text": null
     },
     {
-      "id": 8781,
+      "id": 9775,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -253.13399,
@@ -15091,7 +15068,7 @@
       "text": null
     },
     {
-      "id": 8782,
+      "id": 9776,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -247.42368,
@@ -15102,7 +15079,7 @@
       "text": null
     },
     {
-      "id": 8783,
+      "id": 9777,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -249.24495,
@@ -15113,7 +15090,7 @@
       "text": null
     },
     {
-      "id": 8784,
+      "id": 9778,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -243.52713,
@@ -15124,7 +15101,7 @@
       "text": null
     },
     {
-      "id": 8785,
+      "id": 9779,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -245.35565,
@@ -15135,7 +15112,7 @@
       "text": null
     },
     {
-      "id": 8786,
+      "id": 9780,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -239.63185,
@@ -15146,7 +15123,7 @@
       "text": null
     },
     {
-      "id": 8787,
+      "id": 9781,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -241.46585,
@@ -15157,7 +15134,7 @@
       "text": null
     },
     {
-      "id": 8788,
+      "id": 9782,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -235.73773,
@@ -15168,7 +15145,7 @@
       "text": null
     },
     {
-      "id": 8789,
+      "id": 9783,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -237.57571,
@@ -15179,7 +15156,7 @@
       "text": null
     },
     {
-      "id": 8790,
+      "id": 9784,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -231.8444,
@@ -15190,7 +15167,7 @@
       "text": null
     },
     {
-      "id": 8791,
+      "id": 9785,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -233.68452,
@@ -15201,7 +15178,7 @@
       "text": null
     },
     {
-      "id": 8792,
+      "id": 9786,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -227.95212,
@@ -15212,7 +15189,7 @@
       "text": null
     },
     {
-      "id": 8793,
+      "id": 9787,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -229.7928,
@@ -15223,7 +15200,7 @@
       "text": null
     },
     {
-      "id": 8794,
+      "id": 9788,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -224.06036,
@@ -15234,7 +15211,7 @@
       "text": null
     },
     {
-      "id": 8795,
+      "id": 9789,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -225.90039,
@@ -15245,7 +15222,7 @@
       "text": null
     },
     {
-      "id": 8796,
+      "id": 9790,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -220.16911,
@@ -15256,7 +15233,7 @@
       "text": null
     },
     {
-      "id": 8797,
+      "id": 9791,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -222.0074,
@@ -15267,7 +15244,7 @@
       "text": null
     },
     {
-      "id": 8798,
+      "id": 9792,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -216.27902,
@@ -15278,7 +15255,7 @@
       "text": null
     },
     {
-      "id": 8799,
+      "id": 9793,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -218.11345,
@@ -15289,7 +15266,7 @@
       "text": null
     },
     {
-      "id": 8800,
+      "id": 9794,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -212.38873,
@@ -15300,7 +15277,7 @@
       "text": null
     },
     {
-      "id": 8801,
+      "id": 9795,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -214.21971,
@@ -15311,7 +15288,7 @@
       "text": null
     },
     {
-      "id": 8802,
+      "id": 9796,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -208.4981,
@@ -15322,7 +15299,7 @@
       "text": null
     },
     {
-      "id": 8803,
+      "id": 9797,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -210.32553,
@@ -15333,7 +15310,7 @@
       "text": null
     },
     {
-      "id": 8804,
+      "id": 9798,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -204.6073,
@@ -15344,7 +15321,7 @@
       "text": null
     },
     {
-      "id": 8805,
+      "id": 9799,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -206.43121,
@@ -15355,7 +15332,7 @@
       "text": null
     },
     {
-      "id": 8806,
+      "id": 9800,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -200.71642,
@@ -15366,7 +15343,7 @@
       "text": null
     },
     {
-      "id": 8807,
+      "id": 9801,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -202.53757,
@@ -15377,7 +15354,7 @@
       "text": null
     },
     {
-      "id": 8808,
+      "id": 9802,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -196.82538,
@@ -15388,7 +15365,7 @@
       "text": null
     },
     {
-      "id": 8809,
+      "id": 9803,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -198.64386,
@@ -15399,7 +15376,7 @@
       "text": null
     },
     {
-      "id": 8810,
+      "id": 9804,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -192.9344,
@@ -15410,7 +15387,7 @@
       "text": null
     },
     {
-      "id": 8811,
+      "id": 9805,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -194.74973,
@@ -15421,7 +15398,7 @@
       "text": null
     },
     {
-      "id": 8812,
+      "id": 9806,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -189.0435,
@@ -15432,7 +15409,7 @@
       "text": null
     },
     {
-      "id": 8813,
+      "id": 9807,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -190.85599,
@@ -15443,7 +15420,7 @@
       "text": null
     },
     {
-      "id": 8814,
+      "id": 9808,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -185.15196,
@@ -15454,7 +15431,7 @@
       "text": null
     },
     {
-      "id": 8815,
+      "id": 9809,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -186.96144,
@@ -15465,7 +15442,7 @@
       "text": null
     },
     {
-      "id": 8816,
+      "id": 9810,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -181.26006,
@@ -15476,7 +15453,7 @@
       "text": null
     },
     {
-      "id": 8817,
+      "id": 9811,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -183.06723,
@@ -15487,7 +15464,7 @@
       "text": null
     },
     {
-      "id": 8818,
+      "id": 9812,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -177.36807,
@@ -15498,7 +15475,7 @@
       "text": null
     },
     {
-      "id": 8819,
+      "id": 9813,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -179.17287,
@@ -15509,7 +15486,7 @@
       "text": null
     },
     {
-      "id": 8820,
+      "id": 9814,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -173.47595,
@@ -15520,7 +15497,7 @@
       "text": null
     },
     {
-      "id": 8821,
+      "id": 9815,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -175.27861,
@@ -15531,7 +15508,7 @@
       "text": null
     },
     {
-      "id": 8822,
+      "id": 9816,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -169.58386,
@@ -15542,7 +15519,7 @@
       "text": null
     },
     {
-      "id": 8823,
+      "id": 9817,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -171.38414,
@@ -15553,7 +15530,7 @@
       "text": null
     },
     {
-      "id": 8824,
+      "id": 9818,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -165.69138,
@@ -15564,7 +15541,7 @@
       "text": null
     },
     {
-      "id": 8825,
+      "id": 9819,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -167.48958,
@@ -15575,7 +15552,7 @@
       "text": null
     },
     {
-      "id": 8826,
+      "id": 9820,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -161.79881,
@@ -15586,7 +15563,7 @@
       "text": null
     },
     {
-      "id": 8827,
+      "id": 9821,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -163.59557,
@@ -15597,7 +15574,7 @@
       "text": null
     },
     {
-      "id": 8828,
+      "id": 9822,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -157.90628,
@@ -15608,7 +15585,7 @@
       "text": null
     },
     {
-      "id": 8829,
+      "id": 9823,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -159.70148,
@@ -15619,7 +15596,7 @@
       "text": null
     },
     {
-      "id": 8830,
+      "id": 9824,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -154.01378,
@@ -15630,7 +15607,7 @@
       "text": null
     },
     {
-      "id": 8831,
+      "id": 9825,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -155.80725,
@@ -15641,7 +15618,7 @@
       "text": null
     },
     {
-      "id": 8832,
+      "id": 9826,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -150.12085,
@@ -15652,7 +15629,7 @@
       "text": null
     },
     {
-      "id": 8833,
+      "id": 9827,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -151.91298,
@@ -15663,7 +15640,7 @@
       "text": null
     },
     {
-      "id": 8834,
+      "id": 9828,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -146.22797,
@@ -15674,7 +15651,7 @@
       "text": null
     },
     {
-      "id": 8835,
+      "id": 9829,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -148.01881,
@@ -15685,7 +15662,7 @@
       "text": null
     },
     {
-      "id": 8836,
+      "id": 9830,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -142.33478,
@@ -15696,7 +15673,7 @@
       "text": null
     },
     {
-      "id": 8837,
+      "id": 9831,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -144.12476,
@@ -15707,7 +15684,7 @@
       "text": null
     },
     {
-      "id": 8838,
+      "id": 9832,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -138.44196,
@@ -15718,7 +15695,7 @@
       "text": null
     },
     {
-      "id": 8839,
+      "id": 9833,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -140.23067,
@@ -15729,7 +15706,7 @@
       "text": null
     },
     {
-      "id": 8840,
+      "id": 9834,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -134.54884,
@@ -15740,7 +15717,7 @@
       "text": null
     },
     {
-      "id": 8841,
+      "id": 9835,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -136.33664,
@@ -15751,7 +15728,7 @@
       "text": null
     },
     {
-      "id": 8842,
+      "id": 9836,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -130.65587,
@@ -15762,7 +15739,7 @@
       "text": null
     },
     {
-      "id": 8843,
+      "id": 9837,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -132.44069,
@@ -15773,7 +15750,7 @@
       "text": null
     },
     {
-      "id": 8844,
+      "id": 9838,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -126.765594,
@@ -15784,7 +15761,7 @@
       "text": null
     },
     {
-      "id": 8845,
+      "id": 9839,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -128.54503,
@@ -15795,7 +15772,7 @@
       "text": null
     },
     {
-      "id": 8846,
+      "id": 9840,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -122.87401,
@@ -15806,7 +15783,7 @@
       "text": null
     },
     {
-      "id": 8847,
+      "id": 9841,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -124.64693,
@@ -15817,7 +15794,7 @@
       "text": null
     },
     {
-      "id": 8848,
+      "id": 9842,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -118.98586,
@@ -15828,7 +15805,7 @@
       "text": null
     },
     {
-      "id": 8849,
+      "id": 9843,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -120.74894,
@@ -15839,7 +15816,7 @@
       "text": null
     },
     {
-      "id": 8850,
+      "id": 9844,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -115.09731,
@@ -15850,7 +15827,7 @@
       "text": null
     },
     {
-      "id": 8851,
+      "id": 9845,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -116.851135,
@@ -15861,7 +15838,7 @@
       "text": null
     },
     {
-      "id": 8852,
+      "id": 9846,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -111.208755,
@@ -15872,7 +15849,7 @@
       "text": null
     },
     {
-      "id": 8853,
+      "id": 9847,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -112.95507,
@@ -15883,7 +15860,7 @@
       "text": null
     },
     {
-      "id": 8854,
+      "id": 9848,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -107.31794,
@@ -15894,7 +15871,7 @@
       "text": null
     },
     {
-      "id": 8855,
+      "id": 9849,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -109.060036,
@@ -15905,7 +15882,7 @@
       "text": null
     },
     {
-      "id": 8856,
+      "id": 9850,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -103.426605,
@@ -15916,7 +15893,7 @@
       "text": null
     },
     {
-      "id": 8857,
+      "id": 9851,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -105.16388,
@@ -15927,7 +15904,7 @@
       "text": null
     },
     {
-      "id": 8858,
+      "id": 9852,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -99.53809,
@@ -15938,7 +15915,7 @@
       "text": null
     },
     {
-      "id": 8859,
+      "id": 9853,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -101.271614,
@@ -15949,7 +15926,7 @@
       "text": null
     },
     {
-      "id": 8860,
+      "id": 9854,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -95.64383,
@@ -15960,7 +15937,7 @@
       "text": null
     },
     {
-      "id": 8861,
+      "id": 9855,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -97.37943,
@@ -15971,7 +15948,7 @@
       "text": null
     },
     {
-      "id": 8862,
+      "id": 9856,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -91.74942,
@@ -15982,7 +15959,7 @@
       "text": null
     },
     {
-      "id": 8863,
+      "id": 9857,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -93.486755,
@@ -15993,7 +15970,7 @@
       "text": null
     },
     {
-      "id": 8864,
+      "id": 9858,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -87.85516,
@@ -16004,7 +15981,7 @@
       "text": null
     },
     {
-      "id": 8865,
+      "id": 9859,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -89.59415,
@@ -16015,7 +15992,7 @@
       "text": null
     },
     {
-      "id": 8866,
+      "id": 9860,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -83.96072,
@@ -16026,7 +16003,7 @@
       "text": null
     },
     {
-      "id": 8867,
+      "id": 9861,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -85.701744,
@@ -16037,7 +16014,7 @@
       "text": null
     },
     {
-      "id": 8868,
+      "id": 9862,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -80.066185,
@@ -16048,7 +16025,7 @@
       "text": null
     },
     {
-      "id": 8869,
+      "id": 9863,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -81.809586,
@@ -16059,7 +16036,7 @@
       "text": null
     },
     {
-      "id": 8870,
+      "id": 9864,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -76.17158,
@@ -16070,7 +16047,7 @@
       "text": null
     },
     {
-      "id": 8871,
+      "id": 9865,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -77.91789,
@@ -16081,7 +16058,7 @@
       "text": null
     },
     {
-      "id": 8872,
+      "id": 9866,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -72.2765,
@@ -16092,7 +16069,7 @@
       "text": null
     },
     {
-      "id": 8873,
+      "id": 9867,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -74.025444,
@@ -16103,7 +16080,7 @@
       "text": null
     },
     {
-      "id": 8874,
+      "id": 9868,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -68.381836,
@@ -16114,7 +16091,7 @@
       "text": null
     },
     {
-      "id": 8875,
+      "id": 9869,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -70.13297,
@@ -16125,7 +16102,7 @@
       "text": null
     },
     {
-      "id": 8876,
+      "id": 9870,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -64.487076,
@@ -16136,7 +16113,7 @@
       "text": null
     },
     {
-      "id": 8877,
+      "id": 9871,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -66.240974,
@@ -16147,7 +16124,7 @@
       "text": null
     },
     {
-      "id": 8878,
+      "id": 9872,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -60.59197,
@@ -16158,7 +16135,7 @@
       "text": null
     },
     {
-      "id": 8879,
+      "id": 9873,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -62.348907,
@@ -16169,7 +16146,7 @@
       "text": null
     },
     {
-      "id": 8880,
+      "id": 9874,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -56.69714,
@@ -16180,7 +16157,7 @@
       "text": null
     },
     {
-      "id": 8881,
+      "id": 9875,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -58.456993,
@@ -16191,7 +16168,7 @@
       "text": null
     },
     {
-      "id": 8882,
+      "id": 9876,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -52.802147,
@@ -16202,7 +16179,7 @@
       "text": null
     },
     {
-      "id": 8883,
+      "id": 9877,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -54.564564,
@@ -16213,7 +16190,7 @@
       "text": null
     },
     {
-      "id": 8884,
+      "id": 9878,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -48.907234,
@@ -16224,7 +16201,7 @@
       "text": null
     },
     {
-      "id": 8885,
+      "id": 9879,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -50.671795,
@@ -16235,7 +16212,7 @@
       "text": null
     },
     {
-      "id": 8886,
+      "id": 9880,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -45.012646,
@@ -16246,7 +16223,7 @@
       "text": null
     },
     {
-      "id": 8887,
+      "id": 9881,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -46.779083,
@@ -16257,7 +16234,7 @@
       "text": null
     },
     {
-      "id": 8888,
+      "id": 9882,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -41.118294,
@@ -16268,7 +16245,7 @@
       "text": null
     },
     {
-      "id": 8889,
+      "id": 9883,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -42.886787,
@@ -16279,7 +16256,7 @@
       "text": null
     },
     {
-      "id": 8890,
+      "id": 9884,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -37.22384,
@@ -16290,7 +16267,7 @@
       "text": null
     },
     {
-      "id": 8891,
+      "id": 9885,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -38.994617,
@@ -16301,7 +16278,7 @@
       "text": null
     },
     {
-      "id": 8892,
+      "id": 9886,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -33.32935,
@@ -16312,7 +16289,7 @@
       "text": null
     },
     {
-      "id": 8893,
+      "id": 9887,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -35.101574,
@@ -16323,7 +16300,7 @@
       "text": null
     },
     {
-      "id": 8894,
+      "id": 9888,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -29.435524,
@@ -16334,7 +16311,7 @@
       "text": null
     },
     {
-      "id": 8895,
+      "id": 9889,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -31.208466,
@@ -16345,7 +16322,7 @@
       "text": null
     },
     {
-      "id": 8896,
+      "id": 9890,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -25.541822,
@@ -16356,7 +16333,7 @@
       "text": null
     },
     {
-      "id": 8897,
+      "id": 9891,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -27.315746,
@@ -16367,7 +16344,7 @@
       "text": null
     },
     {
-      "id": 8898,
+      "id": 9892,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -21.64805,
@@ -16378,7 +16355,7 @@
       "text": null
     },
     {
-      "id": 8899,
+      "id": 9893,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -23.423359,
@@ -16389,7 +16366,7 @@
       "text": null
     },
     {
-      "id": 8900,
+      "id": 9894,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -17.754349,
@@ -16400,7 +16377,7 @@
       "text": null
     },
     {
-      "id": 8901,
+      "id": 9895,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -19.530792,
@@ -16411,7 +16388,7 @@
       "text": null
     },
     {
-      "id": 8902,
+      "id": 9896,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -13.861019,
@@ -16422,7 +16399,7 @@
       "text": null
     },
     {
-      "id": 8903,
+      "id": 9897,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -15.637716,
@@ -16433,7 +16410,7 @@
       "text": null
     },
     {
-      "id": 8904,
+      "id": 9898,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -9.968106,
@@ -16444,7 +16421,7 @@
       "text": null
     },
     {
-      "id": 8905,
+      "id": 9899,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -11.744456,
@@ -16455,7 +16432,7 @@
       "text": null
     },
     {
-      "id": 8906,
+      "id": 9900,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -6.0755477,
@@ -16466,7 +16443,7 @@
       "text": null
     },
     {
-      "id": 8907,
+      "id": 9901,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -7.8506665,
@@ -16477,7 +16454,7 @@
       "text": null
     },
     {
-      "id": 8908,
+      "id": 9902,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -2.1817026,
@@ -16488,7 +16465,7 @@
       "text": null
     },
     {
-      "id": 8909,
+      "id": 9903,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -3.957089,
@@ -16499,7 +16476,7 @@
       "text": null
     },
     {
-      "id": 8910,
+      "id": 9904,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 1.7119037,
@@ -16510,7 +16487,7 @@
       "text": null
     },
     {
-      "id": 8911,
+      "id": 9905,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": -0.06355858,
@@ -16521,7 +16498,7 @@
       "text": null
     },
     {
-      "id": 8912,
+      "id": 9906,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 5.605257,
@@ -16532,7 +16509,7 @@
       "text": null
     },
     {
-      "id": 8913,
+      "id": 9907,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 3.8304892,
@@ -16543,7 +16520,7 @@
       "text": null
     },
     {
-      "id": 8914,
+      "id": 9908,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 9.498082,
@@ -16554,7 +16531,7 @@
       "text": null
     },
     {
-      "id": 8915,
+      "id": 9909,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 220.13084,
@@ -16565,7 +16542,7 @@
       "text": null
     },
     {
-      "id": 8916,
+      "id": 9910,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 292.6726,
@@ -16576,7 +16553,7 @@
       "text": null
     },
     {
-      "id": 8917,
+      "id": 9911,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 289.8274,
@@ -16587,7 +16564,7 @@
       "text": null
     },
     {
-      "id": 8918,
+      "id": 9912,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 286.9977,
@@ -16598,7 +16575,7 @@
       "text": null
     },
     {
-      "id": 8919,
+      "id": 9913,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 284.17004,
@@ -16609,7 +16586,7 @@
       "text": null
     },
     {
-      "id": 8920,
+      "id": 9914,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 281.3432,
@@ -16620,7 +16597,7 @@
       "text": null
     },
     {
-      "id": 8921,
+      "id": 9915,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 278.50735,
@@ -16631,7 +16608,7 @@
       "text": null
     },
     {
-      "id": 8922,
+      "id": 9916,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 275.66406,
@@ -16642,7 +16619,7 @@
       "text": null
     },
     {
-      "id": 8923,
+      "id": 9917,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 272.8348,
@@ -16653,7 +16630,7 @@
       "text": null
     },
     {
-      "id": 8924,
+      "id": 9918,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 270.00555,
@@ -16664,7 +16641,7 @@
       "text": null
     },
     {
-      "id": 8925,
+      "id": 9919,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 267.17557,
@@ -16675,7 +16652,7 @@
       "text": null
     },
     {
-      "id": 8926,
+      "id": 9920,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 264.33456,
@@ -16686,7 +16663,7 @@
       "text": null
     },
     {
-      "id": 8927,
+      "id": 9921,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 261.48492,
@@ -16697,7 +16674,7 @@
       "text": null
     },
     {
-      "id": 8928,
+      "id": 9922,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 258.64774,
@@ -16708,7 +16685,7 @@
       "text": null
     },
     {
-      "id": 8929,
+      "id": 9923,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 255.81004,
@@ -16719,7 +16696,7 @@
       "text": null
     },
     {
-      "id": 8930,
+      "id": 9924,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 252.96977,
@@ -16730,7 +16707,7 @@
       "text": null
     },
     {
-      "id": 8931,
+      "id": 9925,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 250.11957,
@@ -16741,7 +16718,7 @@
       "text": null
     },
     {
-      "id": 8932,
+      "id": 9926,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 247.26094,
@@ -16752,7 +16729,7 @@
       "text": null
     },
     {
-      "id": 8933,
+      "id": 9927,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 244.41565,
@@ -16763,7 +16740,7 @@
       "text": null
     },
     {
-      "id": 8934,
+      "id": 9928,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 241.57094,
@@ -16774,7 +16751,7 @@
       "text": null
     },
     {
-      "id": 8935,
+      "id": 9929,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 238.72388,
@@ -16785,7 +16762,7 @@
       "text": null
     },
     {
-      "id": 8936,
+      "id": 9930,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 235.86719,
@@ -16796,7 +16773,7 @@
       "text": null
     },
     {
-      "id": 8937,
+      "id": 9931,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 233.00226,
@@ -16807,7 +16784,7 @@
       "text": null
     },
     {
-      "id": 8938,
+      "id": 9932,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 230.151,
@@ -16818,7 +16795,7 @@
       "text": null
     },
     {
-      "id": 8939,
+      "id": 9933,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 227.3005,
@@ -16829,7 +16806,7 @@
       "text": null
     },
     {
-      "id": 8940,
+      "id": 9934,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 224.44833,
@@ -16840,7 +16817,7 @@
       "text": null
     },
     {
-      "id": 8941,
+      "id": 9935,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 221.58662,
@@ -16851,7 +16828,7 @@
       "text": null
     },
     {
-      "id": 8942,
+      "id": 9936,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 218.7172,
@@ -16862,7 +16839,7 @@
       "text": null
     },
     {
-      "id": 8943,
+      "id": 9937,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 215.86165,
@@ -16873,7 +16850,7 @@
       "text": null
     },
     {
-      "id": 8944,
+      "id": 9938,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 213.00679,
@@ -16884,7 +16861,7 @@
       "text": null
     },
     {
-      "id": 8945,
+      "id": 9939,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 210.1502,
@@ -16895,7 +16872,7 @@
       "text": null
     },
     {
-      "id": 8946,
+      "id": 9940,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 207.28407,
@@ -16906,7 +16883,7 @@
       "text": null
     },
     {
-      "id": 8947,
+      "id": 9941,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 204.41035,
@@ -16917,7 +16894,7 @@
       "text": null
     },
     {
-      "id": 8948,
+      "id": 9942,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 201.55083,
@@ -16928,7 +16905,7 @@
       "text": null
     },
     {
-      "id": 8949,
+      "id": 9943,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 198.69183,
@@ -16939,7 +16916,7 @@
       "text": null
     },
     {
-      "id": 8950,
+      "id": 9944,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 195.83228,
@@ -16950,7 +16927,7 @@
       "text": null
     },
     {
-      "id": 8951,
+      "id": 9945,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 192.96196,
@@ -16961,7 +16938,7 @@
       "text": null
     },
     {
-      "id": 8952,
+      "id": 9946,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 190.08463,
@@ -16972,7 +16949,7 @@
       "text": null
     },
     {
-      "id": 8953,
+      "id": 9947,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 187.22195,
@@ -16983,7 +16960,7 @@
       "text": null
     },
     {
-      "id": 8954,
+      "id": 9948,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 184.3179,
@@ -16994,7 +16971,7 @@
       "text": null
     },
     {
-      "id": 8955,
+      "id": 9949,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 181.33147,
@@ -17005,7 +16982,7 @@
       "text": null
     },
     {
-      "id": 8956,
+      "id": 9950,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 178.37955,
@@ -17016,7 +16993,7 @@
       "text": null
     },
     {
-      "id": 8957,
+      "id": 9951,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 175.4505,
@@ -17027,7 +17004,7 @@
       "text": null
     },
     {
-      "id": 8958,
+      "id": 9952,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 172.4664,
@@ -17038,7 +17015,7 @@
       "text": null
     },
     {
-      "id": 8959,
+      "id": 9953,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 169.47868,
@@ -17049,7 +17026,7 @@
       "text": null
     },
     {
-      "id": 8960,
+      "id": 9954,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 166.49059,
@@ -17060,7 +17037,7 @@
       "text": null
     },
     {
-      "id": 8961,
+      "id": 9955,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 163.53816,
@@ -17071,7 +17048,7 @@
       "text": null
     },
     {
-      "id": 8962,
+      "id": 9956,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 160.60796,
@@ -17082,7 +17059,7 @@
       "text": null
     },
     {
-      "id": 8963,
+      "id": 9957,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 157.6221,
@@ -17093,7 +17070,7 @@
       "text": null
     },
     {
-      "id": 8964,
+      "id": 9958,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 154.63261,
@@ -17104,7 +17081,7 @@
       "text": null
     },
     {
-      "id": 8965,
+      "id": 9959,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 151.64378,
@@ -17115,7 +17092,7 @@
       "text": null
     },
     {
-      "id": 8966,
+      "id": 9960,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 148.75461,
@@ -17126,7 +17103,7 @@
       "text": null
     },
     {
-      "id": 8967,
+      "id": 9961,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 145.86444,
@@ -17137,7 +17114,7 @@
       "text": null
     },
     {
-      "id": 8968,
+      "id": 9962,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 142.98091,
@@ -17148,7 +17125,7 @@
       "text": null
     },
     {
-      "id": 8969,
+      "id": 9963,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 140.09761,
@@ -17159,7 +17136,7 @@
       "text": null
     },
     {
-      "id": 8970,
+      "id": 9964,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 137.21442,
@@ -17170,7 +17147,7 @@
       "text": null
     },
     {
-      "id": 8971,
+      "id": 9965,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 134.32774,
@@ -17181,7 +17158,7 @@
       "text": null
     },
     {
-      "id": 8972,
+      "id": 9966,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 131.43907,
@@ -17192,7 +17169,7 @@
       "text": null
     },
     {
-      "id": 8973,
+      "id": 9967,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 128.55501,
@@ -17203,7 +17180,7 @@
       "text": null
     },
     {
-      "id": 8974,
+      "id": 9968,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 125.67173,
@@ -17214,7 +17191,7 @@
       "text": null
     },
     {
-      "id": 8975,
+      "id": 9969,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 122.7885,
@@ -17225,7 +17202,7 @@
       "text": null
     },
     {
-      "id": 8976,
+      "id": 9970,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 119.90179,
@@ -17236,7 +17213,7 @@
       "text": null
     },
     {
-      "id": 8977,
+      "id": 9971,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 117.013176,
@@ -17247,7 +17224,7 @@
       "text": null
     },
     {
-      "id": 8978,
+      "id": 9972,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 114.129845,
@@ -17258,7 +17235,7 @@
       "text": null
     },
     {
-      "id": 8979,
+      "id": 9973,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 111.24673,
@@ -17269,7 +17246,7 @@
       "text": null
     },
     {
-      "id": 8980,
+      "id": 9974,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 108.36286,
@@ -17280,7 +17257,7 @@
       "text": null
     },
     {
-      "id": 8981,
+      "id": 9975,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 105.47626,
@@ -17291,7 +17268,7 @@
       "text": null
     },
     {
-      "id": 8982,
+      "id": 9976,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 102.58777,
@@ -17302,7 +17279,7 @@
       "text": null
     },
     {
-      "id": 8983,
+      "id": 9977,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 99.70479,
@@ -17313,7 +17290,7 @@
       "text": null
     },
     {
-      "id": 8984,
+      "id": 9978,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 96.82187,
@@ -17324,7 +17301,7 @@
       "text": null
     },
     {
-      "id": 8985,
+      "id": 9979,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 93.93901,
@@ -17335,7 +17312,7 @@
       "text": null
     },
     {
-      "id": 8986,
+      "id": 9980,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 91.05229,
@@ -17346,7 +17323,7 @@
       "text": null
     },
     {
-      "id": 8987,
+      "id": 9981,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 88.16391,
@@ -17357,7 +17334,7 @@
       "text": null
     },
     {
-      "id": 8988,
+      "id": 9982,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 85.2813,
@@ -17368,7 +17345,7 @@
       "text": null
     },
     {
-      "id": 8989,
+      "id": 9983,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 82.39883,
@@ -17379,7 +17356,7 @@
       "text": null
     },
     {
-      "id": 8990,
+      "id": 9984,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 79.516426,
@@ -17390,7 +17367,7 @@
       "text": null
     },
     {
-      "id": 8991,
+      "id": 9985,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 76.63054,
@@ -17401,7 +17378,7 @@
       "text": null
     },
     {
-      "id": 8992,
+      "id": 9986,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 73.74298,
@@ -17412,7 +17389,7 @@
       "text": null
     },
     {
-      "id": 8993,
+      "id": 9987,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 70.86096,
@@ -17423,7 +17400,7 @@
       "text": null
     },
     {
-      "id": 8994,
+      "id": 9988,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 67.97836,
@@ -17434,7 +17411,7 @@
       "text": null
     },
     {
-      "id": 8995,
+      "id": 9989,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 65.096596,
@@ -17445,7 +17422,7 @@
       "text": null
     },
     {
-      "id": 8996,
+      "id": 9990,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 62.211296,
@@ -17456,7 +17433,7 @@
       "text": null
     },
     {
-      "id": 8997,
+      "id": 9991,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 59.324493,
@@ -17467,7 +17444,7 @@
       "text": null
     },
     {
-      "id": 8998,
+      "id": 9992,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 56.4432,
@@ -17478,7 +17455,7 @@
       "text": null
     },
     {
-      "id": 8999,
+      "id": 9993,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 53.562035,
@@ -17489,7 +17466,7 @@
       "text": null
     },
     {
-      "id": 9000,
+      "id": 9994,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 50.681046,
@@ -17500,7 +17477,7 @@
       "text": null
     },
     {
-      "id": 9001,
+      "id": 9995,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 47.796093,
@@ -17511,7 +17488,7 @@
       "text": null
     },
     {
-      "id": 9002,
+      "id": 9996,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 44.90991,
@@ -17522,7 +17499,7 @@
       "text": null
     },
     {
-      "id": 9003,
+      "id": 9997,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 42.029495,
@@ -17533,7 +17510,7 @@
       "text": null
     },
     {
-      "id": 9004,
+      "id": 9998,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 39.14925,
@@ -17544,7 +17521,7 @@
       "text": null
     },
     {
-      "id": 9005,
+      "id": 9999,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 36.26921,
@@ -17555,7 +17532,7 @@
       "text": null
     },
     {
-      "id": 9006,
+      "id": 10000,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 33.385597,
@@ -17566,7 +17543,7 @@
       "text": null
     },
     {
-      "id": 9007,
+      "id": 10001,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 30.500782,
@@ -17577,7 +17554,7 @@
       "text": null
     },
     {
-      "id": 9008,
+      "id": 10002,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 27.620707,
@@ -17588,7 +17565,7 @@
       "text": null
     },
     {
-      "id": 9009,
+      "id": 10003,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 24.741543,
@@ -17599,7 +17576,7 @@
       "text": null
     },
     {
-      "id": 9010,
+      "id": 10004,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 21.862635,
@@ -17610,7 +17587,7 @@
       "text": null
     },
     {
-      "id": 9011,
+      "id": 10005,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 18.980145,
@@ -17621,7 +17598,7 @@
       "text": null
     },
     {
-      "id": 9012,
+      "id": 10006,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 16.096619,
@@ -17632,7 +17609,7 @@
       "text": null
     },
     {
-      "id": 9013,
+      "id": 10007,
       "kind": "barrier",
       "asset": "armco_generic",
       "x": 13.218522,
@@ -18864,5 +18841,5 @@
       "text": null
     }
   ],
-  "next_id": 9125
+  "next_id": 10008
 }

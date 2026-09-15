@@ -2274,38 +2274,7 @@
    "kind": "footbridge"
   }
  ],
- "landmarks": [
-  {
-   "kind": "tower",
-   "name": null,
-   "station_m": 138.6,
-   "side": "right",
-   "centre": [
-    -191.69,
-    -195.96
-   ]
-  },
-  {
-   "kind": "tower",
-   "name": null,
-   "station_m": 819.1,
-   "side": "right",
-   "centre": [
-    675.11,
-    -201.3
-   ]
-  },
-  {
-   "kind": "tower",
-   "name": null,
-   "station_m": 4112.1,
-   "side": "right",
-   "centre": [
-    -96.18,
-    174.03
-   ]
-  }
- ],
+ "landmarks": [],
  "woods": [
   {
    "leaf": "mixed",

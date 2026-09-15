@@ -1481,28 +1481,7 @@
   }
  ],
  "crossings": [],
- "landmarks": [
-  {
-   "kind": "tower",
-   "name": null,
-   "station_m": 361.2,
-   "side": "left",
-   "centre": [
-    62.37,
-    382.4
-   ]
-  },
-  {
-   "kind": "tower",
-   "name": null,
-   "station_m": 2987.3,
-   "side": "right",
-   "centre": [
-    342.08,
-    -78.28
-   ]
-  }
- ],
+ "landmarks": [],
  "woods": [
   {
    "leaf": "mixed",

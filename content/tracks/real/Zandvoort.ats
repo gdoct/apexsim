@@ -2073,28 +2073,6 @@
       "text": null
     },
     {
-      "id": 4221,
-      "kind": "building",
-      "asset": "control_tower",
-      "x": 62.37,
-      "y": 382.4,
-      "z": 1.9380054,
-      "yaw_rad": 0.93689466,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 4222,
-      "kind": "building",
-      "asset": "control_tower",
-      "x": 342.08,
-      "y": -78.28,
-      "z": 6.8506002,
-      "yaw_rad": -2.8083484,
-      "scale": 1.0,
-      "text": null
-    },
-    {
       "id": 4596,
       "kind": "tire_wall",
       "asset": "tire_wall_generic",
