@@ -30,6 +30,70 @@
  * Lookups are case-insensitive so a hand-edited row cannot break the join.
  */
 
+/**
+ * Where a car's wheels go and which shared wheel model they use: the
+ * `[wheels]` table of car.toml (docs/CAR_MODELS.md), filled by
+ * ApexCarImport. The body meshes carry no wheels; the client draws four
+ * copies of `Mesh`, sized per axle, steers the front pair and spins all four.
+ *
+ * Metres, in the body mesh's frame: axles ahead (+) or behind (-) its
+ * origin, hubs one radius above its floor.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIM_API FApexWheelSpec
+{
+	GENERATED_BODY()
+
+	/** The class's shared wheel, e.g. /Game/Cars/Wheels/f1/SM_Wheel_f1. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float FrontAxleM = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float RearAxleM = 0.0f;
+
+	/** Hub centre to hub centre. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float FrontTrackM = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float RearTrackM = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float FrontRadiusM = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float RearRadiusM = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float FrontWidthM = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float RearWidthM = 0.0f;
+
+	/** Front wheel angle at full steering input: `[physics] max_steering_angle_rad`. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	float MaxSteerRad = 0.0f;
+
+	/** A mesh and a size for both axles: enough to draw. */
+	bool IsUsable() const
+	{
+		return !Mesh.IsNull() && FrontRadiusM > 0.0f && RearRadiusM > 0.0f && FrontWidthM > 0.0f && RearWidthM > 0.0f;
+	}
+
+	bool operator==(const FApexWheelSpec& Other) const
+	{
+		return Mesh == Other.Mesh && FrontAxleM == Other.FrontAxleM && RearAxleM == Other.RearAxleM
+			&& FrontTrackM == Other.FrontTrackM && RearTrackM == Other.RearTrackM
+			&& FrontRadiusM == Other.FrontRadiusM && RearRadiusM == Other.RearRadiusM
+			&& FrontWidthM == Other.FrontWidthM && RearWidthM == Other.RearWidthM
+			&& MaxSteerRad == Other.MaxSteerRad;
+	}
+	bool operator!=(const FApexWheelSpec& Other) const { return !(*this == Other); }
+};
+
 /** One row per car. RowName == the `id` from `content/cars/<folder>/car.toml`. */
 USTRUCT(BlueprintType)
 struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
@@ -74,6 +138,13 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	/** Soft so the menu does not pull four car meshes into memory at startup. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	/**
+	 * The wheels drawn on the (wheel-less) body. Derived from car.toml on
+	 * every import, like SourceCrc; not a hand-tuned field.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	FApexWheelSpec Wheels;
 
 	/** Per-car tweaks for framing the turntable preview. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Preview")

@@ -487,6 +487,7 @@ void UApexSessionCreateWidget::RefreshContent()
 		if (Stage && bHasRow && !Row.Mesh.IsNull() && Stage->GetPreviewRenderTarget())
 		{
 			Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
+			Stage->SetCarWheels(Row.Wheels);
 			Stage->SetCarMesh(Row.Mesh);
 			Stage->SetTurntableEnabled(false);
 			Stage->ResetTurntable();

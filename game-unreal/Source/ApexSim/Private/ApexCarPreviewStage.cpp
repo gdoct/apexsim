@@ -28,6 +28,13 @@ AApexCarPreviewStage::AApexCarPreviewStage()
 	// spinning in mid-air next to the ones the server is driving.
 	CarMesh->bVisibleInSceneCaptureOnly = true;
 
+	Wheels.CreateComponents(*this, CarMesh);
+	Wheels.ForEachComponent([](UStaticMeshComponent& Wheel)
+	{
+		Wheel.SetCastShadow(true);
+		Wheel.bVisibleInSceneCaptureOnly = true;
+	});
+
 	Capture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Capture"));
 	Capture->SetupAttachment(Root);
 	Capture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
@@ -127,6 +134,15 @@ void AApexCarPreviewStage::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToS
 	UE_LOG(LogApexSim, Verbose, TEXT("Preview mesh set to '%s' (requested '%s')"),
 		Loaded ? *Loaded->GetName() : TEXT("none"),
 		MeshToShow.IsNull() ? TEXT("null") : *MeshToShow.ToString());
+}
+
+void AApexCarPreviewStage::SetCarWheels(const FApexWheelSpec& Spec)
+{
+	if (Spec != Wheels.GetSpec() || Wheels.HasWheels() != Spec.IsUsable())
+	{
+		// Placed standing, pointing straight ahead: the turntable does the moving.
+		Wheels.SetSpec(Spec);
+	}
 }
 
 void AApexCarPreviewStage::ResetTurntable()

@@ -104,3 +104,18 @@ battery_max_charge_kw = 120.0
 motor_max_torque_nm = 200.0
 motor_max_power_kw = 120.0
 regen_max_power_kw = 120.0
+
+# Where the client draws the wheels, measured from the model (content/cars/
+# strip_wheels.py): visual only, the physics reads its own figures above.
+# Axles are metres ahead of (+) or behind (-) the model origin; the wheel
+# model is content/wheels/<model>.glb, sized to each axle's radius and width.
+[wheels]
+model = "f1"
+front_axle_m = 1.476
+rear_axle_m = -1.992
+front_track_m = 1.572
+rear_track_m = 1.519
+front_radius_m = 0.353
+rear_radius_m = 0.353
+front_width_m = 0.385
+rear_width_m = 0.415

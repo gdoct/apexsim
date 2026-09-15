@@ -37,10 +37,65 @@ bool FApexCarTomlTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("mass"), Car.MassKg, 930.0f);
 	TestEqual(TEXT("power in kW"), Car.MaxPowerKw, 405.0f);
 
+	TestFalse(TEXT("no [wheels] table"), Car.Wheels.IsPresent());
+	TestTrue(TEXT("no wheels, no spec"), !UApexCarImportCommandlet::MakeWheelSpec(Car, nullptr).IsUsable());
+
 	UApexCarImportCommandlet::FCarToml Bare;
 	TestFalse(TEXT("no id is an error"), UApexCarImportCommandlet::ParseCarToml(TEXT("name = \"x\""), Bare, Error));
 	TestEqual(TEXT("folder to segment"), UApexCarImportCommandlet::PackageSegment(TEXT("yotota-lmp2")),
 		FString(TEXT("yotota_lmp2")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarTomlWheelsTest, "ApexSim.Cars.TomlWheels",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FApexCarTomlWheelsTest::RunTest(const FString& Parameters)
+{
+	const FString Text = TEXT(
+		"id = \"a1b2\"\n"
+		"name = \"F1\"\n"
+		"[physics]\n"
+		"max_steering_angle_rad = 0.35\n"
+		"wheelbase_m = 3.6\n"
+		"[[engine.torque_curve]]\n"
+		"rpm = 5000.0\n"
+		"# a comment\n"
+		"[wheels]\n"
+		"model = \"f1\"   # content/wheels/f1.glb\n"
+		"front_axle_m = 1.560\n"
+		"rear_axle_m = -1.985\n"
+		"front_track_m = 1.627\n"
+		"rear_track_m = 1.501\n"
+		"front_radius_m = 0.328\n"
+		"rear_radius_m = 0.316\n"
+		"front_width_m = 0.333\n"
+		"rear_width_m = 0.410\n");
+	UApexCarImportCommandlet::FCarToml Car;
+	FString Error;
+	TestTrue(TEXT("parses"), UApexCarImportCommandlet::ParseCarToml(Text, Car, Error));
+	TestTrue(TEXT("has wheels"), Car.Wheels.IsPresent());
+	TestEqual(TEXT("model"), Car.Wheels.Model, FString(TEXT("f1")));
+	TestEqual(TEXT("front axle"), Car.Wheels.FrontAxleM, 1.56f);
+	TestEqual(TEXT("rear axle is behind"), Car.Wheels.RearAxleM, -1.985f);
+	TestEqual(TEXT("rear width"), Car.Wheels.RearWidthM, 0.41f);
+	TestEqual(TEXT("steering lock from [physics]"), Car.MaxSteerRad, 0.35f);
+
+	const FApexWheelSpec Spec = UApexCarImportCommandlet::MakeWheelSpec(
+		Car, TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(TEXT("/Game/Cars/Wheels/f1/SM_Wheel_f1.SM_Wheel_f1"))));
+	TestTrue(TEXT("spec is usable"), Spec.IsUsable());
+	TestEqual(TEXT("spec carries the lock"), Spec.MaxSteerRad, 0.35f);
+	TestEqual(TEXT("spec rear radius"), Spec.RearRadiusM, 0.316f);
+	TestEqual(TEXT("wheel package"), UApexCarImportCommandlet::WheelPackageName(TEXT("/Game/Cars"), TEXT("f1")),
+		FString(TEXT("/Game/Cars/Wheels/f1/SM_Wheel_f1")));
+
+	// Axles the wrong way round, or a zero radius, would draw nonsense.
+	UApexCarImportCommandlet::FCarToml Swapped;
+	TestFalse(TEXT("rear ahead of front is an error"), UApexCarImportCommandlet::ParseCarToml(
+		Text.Replace(TEXT("front_axle_m = 1.560"), TEXT("front_axle_m = -3.0")), Swapped, Error));
+	UApexCarImportCommandlet::FCarToml Flat;
+	TestFalse(TEXT("zero radius is an error"), UApexCarImportCommandlet::ParseCarToml(
+		Text.Replace(TEXT("front_radius_m = 0.328"), TEXT("front_radius_m = 0")), Flat, Error));
 	return true;
 }
 

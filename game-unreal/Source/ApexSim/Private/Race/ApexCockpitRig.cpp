@@ -253,6 +253,7 @@ void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 	{
 		Virtual.Capture->HideComponent(Body);
 	}
+	Car->ForEachWheelComponent([this](UStaticMeshComponent& Wheel) { Virtual.Capture->HideComponent(&Wheel); });
 
 	ObservedMaxRpm = 8000.0f;
 	bPlaced = false;

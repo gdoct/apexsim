@@ -618,11 +618,13 @@ void UApexCarSelectWidget::UpdatePreviewStage()
 	FApexCarCatalogRow Row;
 	if (!Flow->GetCarCatalogRow(SelectedCarId, Row))
 	{
+		Stage->SetCarWheels(FApexWheelSpec());
 		Stage->SetCarMesh(nullptr);
 		return;
 	}
 
 	Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
+	Stage->SetCarWheels(Row.Wheels);
 	Stage->SetCarMesh(Row.Mesh);
 }
 

@@ -224,22 +224,9 @@ def foil(b, m, x0, x1, chord, thick, camber, ly, lz, n=14, angle_deg=-8.0):
 
 p = Builder("parts"); bm = p.bm
 NOSE, TAIL = key_ys[0], key_ys[-1]
-# wheels
-for (y, R) in V["wheels"]:
-    w = 0.30 if y < 0 else 0.33
-    for sx in (-1, 1):
-        x = sx * 0.80; zc = R + 0.085
-        torus(p, tyre, (x, y, zc), R, 0.085, segs=40, rings_=14)
-        p.cylinder(tyre, (x - w / 2, y, zc), R + 0.01, w, segs=40, axis='X', caps=False)
-        p.cylinder(rim, (x - w / 2 + 0.03, y, zc), R - 0.01, w - 0.06, segs=32, axis='X', caps=False)
-        xo = x + sx * (w / 2 - 0.04); p.cylinder(rim, (xo - 0.01, y, zc), 0.09, 0.02, segs=16, axis='X')
-        for k in range(5):
-            a = 2 * math.pi * k / 5; c, s_ = math.cos(a), math.sin(a)
-            for da in (-0.12, 0.12):
-                c2, s2 = math.cos(a + da), math.sin(a + da)
-                p.bar(rim, (xo, y + 0.08 * c2, zc + 0.08 * s2), (xo - sx * 0.03, y + (R - 0.03) * c2, zc + (R - 0.03) * s2), 0.014, segs=6)
-        p.cylinder(disc, (x - 0.02 * sx - 0.012, y, zc), 0.17, 0.024, segs=32, axis='X')
-        p.box(caliper, (x - 0.045, y + 0.06, zc + 0.04), (x + 0.045, y + 0.19, zc + 0.16))
+# wheels: not part of the body. The client draws the shared class wheel
+# (content/wheels) at the [wheels] positions in car.toml, which are
+# where the tyres used to be built here (x = +-0.80, hub at the tyre radius).
 # cockpit (LHD: driver on +X), cage, dash
 def roof_z(y): return ctrl_at(y)[8][1]
 DX = 0.38

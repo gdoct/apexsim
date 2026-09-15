@@ -469,12 +469,15 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 		{
 			CarIdShown.Add(Entry.CarIndex, CarId);
 			TSoftObjectPtr<UStaticMesh> Mesh = DefaultCarMesh;
+			// The fallback mesh has its wheels modelled in: none drawn on it.
+			FApexWheelSpec Wheels;
 			FApexCarCatalogRow Row;
 			if (Flow && !CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, Row))
 			{
 				if (!Row.Mesh.IsNull())
 				{
 					Mesh = Row.Mesh;
+					Wheels = Row.Wheels;
 				}
 				Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
 			}
@@ -485,6 +488,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 				Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
 			}
 			Car->SetCarMesh(Mesh);
+			Car->SetWheels(Wheels);
 		}
 
 		Car->SetDisplayName(Entry.PlayerName);

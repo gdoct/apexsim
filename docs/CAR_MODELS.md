@@ -53,8 +53,51 @@ Every GLB carries these slot names; keep them when re-importing.
 | `car_display` | dash display | emissive green |
 | `car_logo` | door / flank wordmark | masked texture from `textures/` |
 
-Wheels are part of the single static mesh (no rotation yet); tyres are
-`car_tyre`, rims `car_rim`, calipers `car_caliper`.
+## Wheels
+
+The bodies carry no wheels. Each class has one shared wheel model,
+`content/wheels/<class>.glb` (`f1`, `gt3`, `lmp2`), built by
+`content/wheels/build_wheels.py`: hub at the origin, axle along X, the face
+(spokes, centre-lock nut) on +X, everything inside the tyre's width and
+radius. Slots `wheel_tyre`, `wheel_mark` (sidewall lettering — what makes
+the spin visible), `wheel_band`, `wheel_rim`, `wheel_nut`, `wheel_brake`.
+
+Each car.toml says where they go (visual only; the physics reads `[physics]`):
+
+```toml
+[wheels]
+model = "lmp2"          # content/wheels/lmp2.glb
+front_axle_m = 1.500    # ahead of the model origin (the nose is -Y in Blender)
+rear_axle_m = -1.500
+front_track_m = 1.560   # hub centre to hub centre
+rear_track_m = 1.560
+front_radius_m = 0.355  # hub height too: the tyre stands on z = 0
+rear_radius_m = 0.365
+front_width_m = 0.310
+rear_width_m = 0.360
+```
+
+`ApexCarImport` imports the wheel once as `/Game/Cars/Wheels/<model>/SM_Wheel_<model>`
+and puts the figures, with `[physics] max_steering_angle_rad`, on the
+catalog row as `Wheels`. The client (`FApexCarWheelSet`,
+`Race/ApexCarWheels.h`) hangs four copies off the body mesh component, sizes
+each from the wheel mesh's bounds to its axle's width and diameter, turns the
+right-hand pair half round so the face is outboard, steers the fronts by
+`steering × max_steering_angle_rad` and rolls all four by the telemetry
+speed over their radius (backwards in reverse gear), at most
+`apexsim.car.WheelMaxDegPerFrame` (12°) a frame: true road speed is a
+motion-blurred disc, and a step near the spoke pitch strobes. `ApexSim.Wheels.*`
+tests pin the placement, the steering direction and the roll direction. A
+row without wheels draws none, which is right for a body that still has its
+own.
+
+`content/cars/strip_wheels.py` (run in Blender) is how the wheels came off:
+`measure(glb)` finds the four tyres from the faces whose material names a
+tyre and prints the `[wheels]` figures; `strip(glb)` deletes every loose part
+lying wholly inside a wheel cylinder (tyre, rim, disc, caliper) and writes the
+GLB back, keeping the material names. The Red Horse has no tyre material, so
+its figures were measured by hand and passed in. The generators no longer
+build wheels.
 
 ## Catalog rows (`DT_CarCatalog`, hand-maintained)
 

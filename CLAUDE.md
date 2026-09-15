@@ -252,6 +252,13 @@ cars imported by hand before the commandlet existed keep their meshes.
 its local Y; the import logs a warning when it is not. `ApexSim.Cars.Toml`
 tests the TOML scan.
 
+The body GLBs have no wheels: the client draws four copies of the class's
+shared wheel (`content/wheels/<class>.glb` → `/Game/Cars/Wheels/<class>/SM_Wheel_<class>`)
+where the car.toml's `[wheels]` table puts them, steers the front pair and
+rolls all four from the telemetry (`Race/ApexCarWheels.h`, row field
+`Wheels`, refreshed on every import like the checksum; docs/CAR_MODELS.md).
+A GLB changed on disk needs `-force` to be re-imported.
+
 ### Content checksums (`content_crc.rs`, `ApexContentCrc.h`)
 The client races on a level baked from the track YAML and shows a mesh
 imported beside a `car.toml`, while the server simulates from those files
