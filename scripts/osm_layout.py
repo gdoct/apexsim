@@ -58,6 +58,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Silverstone": [(-1.035, 52.063, -0.995, 52.083)],
     "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
     "Austin": [(-97.652, 30.122, -97.626, 30.145)],
+    "Hockenheim": [(8.552, 49.318, 8.582, 49.338)],
     # MoscowRaceway is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
@@ -140,6 +141,18 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Turn 4 Grandstand", from_m=1050, to_m=1400, side="right", depth_m=18, covered=True),
         dict(name="Turn 9 Grandstand", from_m=2017, to_m=2154, side="right", depth_m=22, covered=False),
     ],
+    # OSM's grandstand outlines cover the Motodrom bowl and the pit
+    # straight but not the Mercedes-Tribüne, a 1,300-tonne permanent steel
+    # stand built in 2002 alongside the new Spitzkehre. It looks onto turn
+    # 8 (the hairpin's exit) and the acceleration zone into the Motodrom
+    # (https://stahlbau-queck.de/projekte/projekte-details/mercedes-tribuene-hockenheimring,
+    # https://www.thef1spectator.com/hockenheim-f1-travel-guide/where-to-watch/).
+    # Station span located from the hairpin's own heading reversal (the
+    # fit's coverage gap sits exactly there); on the outside of the
+    # right-hand hairpin, which the sources' photos agree with.
+    "Hockenheim": [
+        dict(name="Mercedes-Tribüne", from_m=2000, to_m=2250, side="outside", depth_m=20),
+    ],
 }
 
 # Landmarks that span the road and are not in OSM as bridges.
@@ -153,6 +166,14 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # would come out as a plain truss; this entry takes its place and wears
     # the kit's tyre brand, the real sponsor not being in the kit's signage.
     "LeMans": [dict(name="Tyre bridge", station_m=1043.0, kind="arch", brand="piretti")],
+    # A spectator footbridge crosses the Parabolika partway along its
+    # ~800 m length, joining the infield (accessible from the Motodrom
+    # side) to the outer paddock roads; OSM has no bridge=yes way on this
+    # stretch at all (checked directly against the extract), so this is
+    # authored from the circuit's own general layout rather than traced.
+    # Placed at the corner's midpoint, which is also roughly where the old
+    # forest-straight/Parabolika transition sits.
+    "Hockenheim": [dict(name="Parabolika footbridge", station_m=1400.0, kind="footbridge")],
 }
 
 # Point features OSM does not carry, but that are part of what the place
