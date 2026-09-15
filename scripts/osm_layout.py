@@ -61,6 +61,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Hockenheim": [(8.552, 49.318, 8.582, 49.338)],
     "BrandsHatch": [(0.250, 51.350, 0.275, 51.364)],
     "Spielberg": [(14.752, 47.212, 14.780, 47.228)],
+    "Suzuka": [(136.525, 34.835, 136.555, 34.855)],
     # MoscowRaceway is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
@@ -182,6 +183,19 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="R", from_m=592.5, to_m=782.2, side="outside", depth_m=14, covered=True),
         dict(name="G", from_m=1150.0, to_m=1368.1, side="outside", depth_m=10, covered=False),
         dict(name="T4", from_m=1368.1, to_m=1607.1, side="outside", depth_m=13, covered=False),
+    ],
+    # Suzuka: OSM tags most of the circuit's stands `grandstand=yes` (picked
+    # up generically, see is_stand()) and even names most of them with the
+    # circuit's own letters, so almost nothing here is needed. The one gap
+    # is Grandstand M at the Spoon Curve (https://www.japan.gp/en/
+    # map-of-the-grandstands-27: "M - around the Spoon Curve"), which OSM
+    # carries as a plain unnamed building (station ~3676, right, no
+    # grandstand tag) rather than a stand outline. Spoon Curve itself has no
+    # named OSM way either, so the span is placed from the circuit's own
+    # corner order: after the hairpin (`station_m` 2957.7 in `corners`) and
+    # before the west straight (4055.9), astride that unnamed building.
+    "Suzuka": [
+        dict(name="M", from_m=3600, to_m=3760, side="right", depth_m=16, covered=False),
     ],
 }
 
@@ -880,7 +894,11 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         p = xy(w)
         if p is None or len(p) < 4:
             continue
-        is_stand = t.get("building") == "grandstand" or t.get("leisure") == "grandstand"
+        is_stand = (
+            t.get("building") == "grandstand"
+            or t.get("leisure") == "grandstand"
+            or t.get("grandstand") == "yes"
+        )
         # A footbridge over the track is mapped as building=bridge; it is
         # a crossing, not a building to stand beside the road.
         is_building = "building" in t and not is_stand and t.get("building") != "bridge"
@@ -1004,7 +1022,10 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         )
     for w in osm.ways:
         t = w.get("tags") or {}
-        if t.get("attraction") != "big_wheel":
+        # A way can carry both attraction=big_wheel and grandstand=yes (a
+        # mapping slip at Suzuka: a stand beside the fairground wheel picked
+        # up the wheel's tag too); the stands loop above already claims it.
+        if t.get("attraction") != "big_wheel" or t.get("grandstand") == "yes":
             continue
         p = xy(w)
         if p is None:
