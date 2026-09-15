@@ -1,19 +1,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Catalog/ApexCatalogRows.h"
 #include "Commandlets/Commandlet.h"
 
 #include "ApexCarImportCommandlet.generated.h"
 
 class UDataTable;
 class UStaticMesh;
-struct FApexCarCatalogRow;
 
 /**
  * Brings the cars (`content/cars/<folder>/car.toml` + the GLB it names as
  * `model`) into the project: the mesh as `/Game/Cars/<folder>/SM_<folder>`
  * through Interchange, and a `DT_CarCatalog` row keyed by the car's `id`
  * so the car select, the turntable and the race can find it.
+ *
+ * The bodies carry no wheels. A car's `[wheels]` table names a shared wheel,
+ * `content/wheels/<model>.glb`, imported once per run that needs it as
+ * `/Game/Cars/Wheels/<model>/SM_Wheel_<model>`, and gives the axles; both
+ * go on the row as `Wheels`, which is derived and so kept in step with the
+ * TOML on every run, like the checksum.
  *
  * ```
  * UnrealEditor-Cmd.exe <uproject> -run=ApexCarImport -all
@@ -30,6 +36,7 @@ struct FApexCarCatalogRow;
  *   -force            re-import the mesh and rewrite the row's fields from the
  *                     TOML (the preview and cockpit tweaks are kept)
  *   -source=DIR       the cars (default: <project>/../content/cars)
+ *   -wheels=DIR       the shared wheels (default: <source>/../wheels)
  *   -dest=PATH        mesh root (default: /Game/Cars)
  *   -table=PATH       the catalog (default: /Game/Data/DT_CarCatalog)
  *   -dryrun           report without writing
@@ -51,7 +58,24 @@ public:
 
 	virtual int32 Main(const FString& Params) override;
 
-	/** What the commandlet reads from a car.toml: the top-level identity plus two physics figures. */
+	/** A car.toml's `[wheels]` table: where the client draws the wheels, metres. */
+	struct FWheelsToml
+	{
+		/** `content/wheels/<Model>.glb`; empty when the table is absent. */
+		FString Model;
+		float FrontAxleM = 0.0f;
+		float RearAxleM = 0.0f;
+		float FrontTrackM = 0.0f;
+		float RearTrackM = 0.0f;
+		float FrontRadiusM = 0.0f;
+		float RearRadiusM = 0.0f;
+		float FrontWidthM = 0.0f;
+		float RearWidthM = 0.0f;
+
+		bool IsPresent() const { return !Model.IsEmpty(); }
+	};
+
+	/** What the commandlet reads from a car.toml: the identity, a few physics figures and the wheels. */
 	struct FCarToml
 	{
 		FString Id;
@@ -63,6 +87,8 @@ public:
 		int32 ModelYear = 0;
 		float MassKg = 0.0f;
 		float MaxPowerKw = 0.0f;
+		float MaxSteerRad = 0.0f;
+		FWheelsToml Wheels;
 	};
 
 	/**
@@ -71,6 +97,10 @@ public:
 	 * car.toml's identity needs. Pure, for the tests.
 	 */
 	static bool ParseCarToml(const FString& Text, FCarToml& Out, FString& OutError);
+	/** `f1` -> `/Game/Cars/Wheels/f1/SM_Wheel_f1` under `DestRoot`, as a package name. */
+	static FString WheelPackageName(const FString& DestRoot, const FString& Model);
+	/** The row's wheel figures from the TOML, pointing at `Mesh`; an empty spec when the TOML has none. */
+	static FApexWheelSpec MakeWheelSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh);
 	/** `yotota-lmp2` -> `yotota_lmp2`: a folder name as a package name segment. */
 	static FString PackageSegment(const FString& Folder);
 
@@ -84,6 +114,7 @@ private:
 		bool bDryRun = false;
 		TArray<FString> Cars;
 		FString SourceDir;
+		FString WheelSourceDir;
 		FString DestRoot;
 		FString TablePath;
 	};
@@ -104,9 +135,22 @@ private:
 
 	/** The mesh for a car: the existing asset unless -force, else imported from the GLB. */
 	UStaticMesh* ResolveMesh(const FSource& Source, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError);
-	UStaticMesh* ImportGlb(const FString& GlbPath, const FString& DestRoot, const FString& Folder, FString& OutError);
+	/**
+	 * The shared wheel a car names: the existing asset unless -force (which
+	 * re-imports each wheel once per run), else imported. Null with no error
+	 * for a dry run.
+	 */
+	UStaticMesh* ResolveWheelMesh(const FString& Model, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError);
+	/** One GLB as one combined mesh, `PackageName` (e.g. /Game/Cars/x/SM_x), materials beside it. */
+	UStaticMesh* ImportGlb(const FString& GlbPath, const FString& PackageName, FString& OutError);
+	/** Adds every dirty package under `Folder` (a long package path) to `OutPackages`. */
+	static void CollectDirtyPackages(const FString& Folder, TSet<UPackage*>& OutPackages);
 	static bool SavePackages(const TSet<UPackage*>& Packages, FString& OutError);
 	static void ListRows(const UDataTable& Table, const TArray<FSource>& Sources, const FString& DestRoot);
 	/** Drop the rows named by folder or id and delete the mesh folders they point at. */
 	static int32 RemoveCars(UDataTable& Table, const TArray<FString>& Names, const FOptions& Options);
+
+	/** Wheels resolved this run, by model: each is imported at most once. */
+	UPROPERTY(Transient)
+	TMap<FString, TObjectPtr<UStaticMesh>> WheelMeshes;
 };

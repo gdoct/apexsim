@@ -48,6 +48,18 @@ namespace
 		TEXT("1: show each car's motion buffer (tick rate estimate, lag, extrapolation) on screen"),
 		ECVF_Default);
 
+	/**
+	 * Most a wheel is drawn turning in one frame, degrees. Real road speed
+	 * is 40 turns a second on an F1 car: drawn true, the motion blur smears
+	 * the wheel into a disc. 12 stays under half the F1 wheel's 30° spoke
+	 * pitch, so the spokes never appear to run backwards.
+	 */
+	TAutoConsoleVariable<float> CVarWheelMaxDegPerFrame(
+		TEXT("apexsim.car.WheelMaxDegPerFrame"),
+		12.0f,
+		TEXT("Most a car's wheel is drawn turning per frame, in degrees (0: true road speed, blurred)"),
+		ECVF_Default);
+
 	/** The material slot every car GLB gives its brake lights (docs/CAR_MODELS.md). */
 	const FName BrakeLightSlot(TEXT("car_brakelight"));
 
@@ -76,6 +88,9 @@ AApexRaceCarActor::AApexRaceCarActor()
 	// preview applies puts the nose on +X, which is what the server's heading
 	// means.
 	CarMesh->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+
+	// The wheels ride the body mesh, so they share its frame: nose +Y, left +X.
+	Wheels.CreateComponents(*this, CarMesh);
 
 	// Nothing places the car until the first telemetry frame; until then it
 	// would sit at the world origin, which on most circuits is in mid-air or
@@ -127,6 +142,32 @@ void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow
 	UpdateBrakeLights();
 }
 
+void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
+{
+	if (Spec == Wheels.GetSpec() && Wheels.HasWheels() == Spec.IsUsable())
+	{
+		return;
+	}
+	Wheels.SetSpec(Spec);
+	// The layout box includes the wheels.
+	bCockpitLayoutValid = false;
+}
+
+FBoxSphereBounds AApexRaceCarActor::BodyBounds() const
+{
+	const UStaticMesh* Mesh = CarMesh->GetStaticMesh();
+	if (!Mesh)
+	{
+		return FBoxSphereBounds(FVector::ZeroVector, FVector::ZeroVector, 0.0f);
+	}
+	FBox Box = Mesh->GetBounds().GetBox();
+	if (Wheels.HasWheels())
+	{
+		Box += ApexWheels::WheelsBox(Wheels.GetSpec());
+	}
+	return FBoxSphereBounds(Box);
+}
+
 void AApexRaceCarActor::UpdateBrakeLights()
 {
 	const bool bOn = Brake > BrakeLightThreshold;
@@ -141,7 +182,10 @@ void AApexRaceCarActor::UpdateBrakeLights()
 
 void AApexRaceCarActor::SetMeshVisible(bool bVisible)
 {
+	// Not propagated to children: the wheels are set explicitly so they go
+	// with the bodywork they belong to.
 	CarMesh->SetVisibility(bVisible);
+	Wheels.SetVisible(bVisible);
 }
 
 void AApexRaceCarActor::SetCockpitSpec(const FString& InCarClass, const FApexCockpitOverrides& InOverrides)
@@ -153,8 +197,9 @@ void AApexRaceCarActor::SetCockpitSpec(const FString& InCarClass, const FApexCoc
 
 FBox AApexRaceCarActor::GetBodyBox() const
 {
-	const UStaticMesh* Mesh = CarMesh->GetStaticMesh();
-	return Mesh ? ApexCockpit::ActorFrameBox(Mesh->GetBounds(), CarMesh->GetRelativeTransform()) : ApexCockpit::FallbackBox();
+	return CarMesh->GetStaticMesh()
+		? ApexCockpit::ActorFrameBox(BodyBounds(), CarMesh->GetRelativeTransform())
+		: ApexCockpit::FallbackBox();
 }
 
 void AApexRaceCarActor::SetEngineVolume(float Scale)
@@ -169,10 +214,8 @@ const FApexCockpitLayout& AApexRaceCarActor::GetCockpitLayout()
 {
 	if (!bCockpitLayoutValid)
 	{
-		const UStaticMesh* Mesh = CarMesh->GetStaticMesh();
-		const FBox Body = Mesh
-			? ApexCockpit::ActorFrameBox(Mesh->GetBounds(), CarMesh->GetRelativeTransform())
-			: ApexCockpit::FallbackBox();
+		// Wheels included: the layout was tuned on bodies that still had them.
+		const FBox Body = GetBodyBox();
 		const EApexCockpitStyle Style = ApexCockpit::ResolveStyle(CockpitOverrides.Style, CarClass, Body);
 		CockpitLayout = ApexCockpit::DeriveLayout(Body, Style, CockpitOverrides);
 		bCockpitLayoutValid = true;
@@ -279,6 +322,9 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	SpeedMps = Pose.SpeedMps;
 	EngineRpm = Pose.EngineRpm;
 	Steering = Pose.Steering;
+	// Speed is a magnitude on the wire; reverse gear is the only way back.
+	Wheels.Update(Steering, Gear < 0 ? -SpeedMps : SpeedMps, DeltaSeconds,
+		FMath::DegreesToRadians(CVarWheelMaxDegPerFrame.GetValueOnGameThread()));
 
 	if (CVarInterpDebug.GetValueOnGameThread() != 0 && GEngine)
 	{

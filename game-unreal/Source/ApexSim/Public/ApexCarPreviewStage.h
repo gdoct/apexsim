@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Race/ApexCarWheels.h"
 
 #include "ApexCarPreviewStage.generated.h"
 
@@ -34,6 +35,9 @@ public:
 	/** Swaps the displayed car. Passing an unset mesh hides the stage. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Preview")
 	void SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow);
+
+	/** The wheels to draw on the car (the catalog row's `Wheels`); an unusable spec draws none. */
+	void SetCarWheels(const FApexWheelSpec& Spec);
 
 	/** Applies the per-car framing tweaks from the catalog row. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Preview")
@@ -79,6 +83,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> CarMesh;
+
+	/** Four wheel components on CarMesh, in its frame. */
+	UPROPERTY()
+	FApexCarWheelSet Wheels;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USceneCaptureComponent2D> Capture;

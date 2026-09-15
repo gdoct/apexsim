@@ -192,20 +192,9 @@ def foil(b, m, x0, x1, chord, thick, camber, ly, lz, n=14, angle_deg=-8.0):
     f = b.bm.faces.new(list(reversed(B))); f.material_index = s
 
 p = Builder("yotota_parts"); bm = p.bm
-# wheels
-for (y, R, w) in ((-1.50, 0.27, 0.31), (1.50, 0.28, 0.36)):
-    for sx in (-1, 1):
-        x = sx * 0.78; zc = R + 0.085
-        torus(p, tyre, (x, y, zc), R, 0.085, segs=40, rings_=14)
-        p.cylinder(tyre, (x - w / 2, y, zc), R + 0.01, w, segs=40, axis='X', caps=False)
-        p.cylinder(rim, (x - w / 2 + 0.03, y, zc), R - 0.01, w - 0.06, segs=32, axis='X', caps=False)
-        xo = x + sx * (w / 2 - 0.04)
-        p.cylinder(rim, (xo - 0.01, y, zc), 0.09, 0.02, segs=16, axis='X')
-        for k in range(10):
-            a = 2 * math.pi * k / 10; c, s_ = math.cos(a), math.sin(a)
-            p.bar(rim, (xo, y + 0.08 * c, zc + 0.08 * s_), (xo - sx * 0.03, y + (R - 0.03) * c, zc + (R - 0.03) * s_), 0.016, segs=6)
-        p.cylinder(disc, (x - 0.02 * sx - 0.012, y, zc), 0.17, 0.024, segs=32, axis='X')
-        p.box(caliper, (x - 0.045, y + 0.06, zc + 0.04), (x + 0.045, y + 0.19, zc + 0.16))
+# wheels: not part of the body. The client draws the shared class wheel
+# (content/wheels) at the [wheels] positions in car.toml, which are
+# where the tyres used to be built here (x = +-0.78, hub at the tyre radius).
 # cockpit
 p.box(interior, (-0.62, -0.75, 0.10), (0.62, 0.95, 0.14))
 p.box(interior, (-0.62, -0.75, 0.14), (-0.55, 0.95, 0.60)); p.box(interior, (0.55, -0.75, 0.14), (0.62, 0.95, 0.60))

@@ -198,6 +198,12 @@ content/tracks/export/
 # the walls — written next to each track YAML by the same ats-export run
 content/tracks/real/*.ground.msgpack
 content/tracks/real/*.curbs.msgpack
+
+# Recorded session replays (large binary, generated at runtime)
+server/replays/
+
+# Scratch/working directory, not part of the project
+_claude_tmp/
 content/tracks/real/*.walls.msgpack
 # Raw OpenStreetMap extracts the layout dossiers are built from
 # (scripts/osm_layout.py). Tens of MB, refetchable, and the dossier that

@@ -116,3 +116,18 @@ battery_max_charge_kw = 0.0
 motor_max_torque_nm = 0.0
 motor_max_power_kw = 0.0
 regen_max_power_kw = 0.0
+
+# Where the client draws the wheels, measured from the model (content/cars/
+# strip_wheels.py): visual only, the physics reads its own figures above.
+# Axles are metres ahead of (+) or behind (-) the model origin; the wheel
+# model is content/wheels/<model>.glb, sized to each axle's radius and width.
+[wheels]
+model = "gt3"
+front_axle_m = 1.350
+rear_axle_m = -1.400
+front_track_m = 1.600
+rear_track_m = 1.600
+front_radius_m = 0.350
+rear_radius_m = 0.360
+front_width_m = 0.300
+rear_width_m = 0.330

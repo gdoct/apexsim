@@ -4,6 +4,7 @@
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
 #include "Race/ApexCarMotion.h"
+#include "Race/ApexCarWheels.h"
 #include "Race/ApexCockpitLayout.h"
 
 #include "ApexRaceCarActor.generated.h"
@@ -47,6 +48,13 @@ public:
 	void SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow);
 
 	/**
+	 * The wheels to draw on the body (the catalog row's `Wheels`); an
+	 * unusable spec draws none, which is what a body with its own baked-in
+	 * wheels wants.
+	 */
+	void SetWheels(const FApexWheelSpec& Spec);
+
+	/**
 	 * Show or hide just this car's bodywork.
 	 *
 	 * Used for the car the cockpit camera sits inside when the player would
@@ -56,6 +64,9 @@ public:
 	void SetMeshVisible(bool bVisible);
 
 	UStaticMeshComponent* GetMeshComponent() const { return CarMesh; }
+
+	/** Calls `Fn` for each wheel component, e.g. to hide them from a capture. */
+	void ForEachWheelComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const { Wheels.ForEachComponent(Fn); }
 
 	/**
 	 * What the catalog knows about this car's cockpit: its class, which
@@ -70,7 +81,7 @@ public:
 	 */
 	const FApexCockpitLayout& GetCockpitLayout();
 
-	/** The body's bounds in the car's frame (cm, +X nose, +Z up), for framing it from outside. */
+	/** The body's bounds, wheels included, in the car's frame (cm, +X nose, +Z up), for framing it from outside. */
 	FBox GetBodyBox() const;
 
 	/**
@@ -108,6 +119,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UAudioComponent> EngineAudio;
 
+	/** Four wheel components on CarMesh, steered and spun from the telemetry. */
+	UPROPERTY()
+	FApexCarWheelSet Wheels;
+
 	/**
 	 * Beyond this distance between two samples the actor teleports instead of
 	 * blending — a respawn or the first frame after joining should not slide
@@ -131,6 +146,9 @@ private:
 	/** The samples still to be shown; see ApexCarMotion.h. */
 	ApexMotion::FApexCarMotionBuffer Motion;
 	bool bHasTarget = false;
+
+	/** Body mesh bounds grown by the wheels, in the mesh's own frame. */
+	FBoxSphereBounds BodyBounds() const;
 
 	/** The buffer's knobs, read from the console variables each frame. */
 	ApexMotion::FSettings MotionSettings() const;

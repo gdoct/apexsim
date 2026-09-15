@@ -107,6 +107,24 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 		{
 			Out.MassKg = FCString::Atof(*Value);
 		}
+		else if (Table == TEXT("physics") && Key == TEXT("max_steering_angle_rad"))
+		{
+			Out.MaxSteerRad = FCString::Atof(*Value);
+		}
+		else if (Table == TEXT("wheels"))
+		{
+			FWheelsToml& W = Out.Wheels;
+			const float Number = FCString::Atof(*Value);
+			if (Key == TEXT("model")) { W.Model = Value; }
+			else if (Key == TEXT("front_axle_m")) { W.FrontAxleM = Number; }
+			else if (Key == TEXT("rear_axle_m")) { W.RearAxleM = Number; }
+			else if (Key == TEXT("front_track_m")) { W.FrontTrackM = Number; }
+			else if (Key == TEXT("rear_track_m")) { W.RearTrackM = Number; }
+			else if (Key == TEXT("front_radius_m")) { W.FrontRadiusM = Number; }
+			else if (Key == TEXT("rear_radius_m")) { W.RearRadiusM = Number; }
+			else if (Key == TEXT("front_width_m")) { W.FrontWidthM = Number; }
+			else if (Key == TEXT("rear_width_m")) { W.RearWidthM = Number; }
+		}
 		else if (Table == TEXT("engine") && Key == TEXT("max_power_w"))
 		{
 			Out.MaxPowerKw = FCString::Atof(*Value) / 1000.0f;
@@ -117,7 +135,42 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 		OutError = TEXT("car.toml has no id or name");
 		return false;
 	}
+	const FWheelsToml& W = Out.Wheels;
+	if (W.IsPresent()
+		&& (W.FrontRadiusM <= 0.0f || W.RearRadiusM <= 0.0f || W.FrontWidthM <= 0.0f || W.RearWidthM <= 0.0f
+			|| W.FrontTrackM <= 0.0f || W.RearTrackM <= 0.0f || W.FrontAxleM <= W.RearAxleM))
+	{
+		OutError = TEXT("[wheels] needs positive radii, widths and tracks, and the front axle ahead of the rear");
+		return false;
+	}
 	return true;
+}
+
+FString UApexCarImportCommandlet::WheelPackageName(const FString& DestRoot, const FString& Model)
+{
+	const FString Segment = PackageSegment(Model);
+	return FString::Printf(TEXT("%s/Wheels/%s/SM_Wheel_%s"), *DestRoot, *Segment, *Segment);
+}
+
+FApexWheelSpec UApexCarImportCommandlet::MakeWheelSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh)
+{
+	FApexWheelSpec Spec;
+	const FWheelsToml& W = Toml.Wheels;
+	if (!W.IsPresent())
+	{
+		return Spec;
+	}
+	Spec.Mesh = Mesh;
+	Spec.FrontAxleM = W.FrontAxleM;
+	Spec.RearAxleM = W.RearAxleM;
+	Spec.FrontTrackM = W.FrontTrackM;
+	Spec.RearTrackM = W.RearTrackM;
+	Spec.FrontRadiusM = W.FrontRadiusM;
+	Spec.RearRadiusM = W.RearRadiusM;
+	Spec.FrontWidthM = W.FrontWidthM;
+	Spec.RearWidthM = W.RearWidthM;
+	Spec.MaxSteerRad = Toml.MaxSteerRad;
+	return Spec;
 }
 
 FString UApexCarImportCommandlet::PackageSegment(const FString& Folder)
@@ -164,6 +217,9 @@ bool UApexCarImportCommandlet::ParseOptions(const FString& Params, FOptions& Out
 	Out.SourceDir = Values.Contains(TEXT("source"))
 		? FPaths::ConvertRelativePathToFull(Values[TEXT("source")])
 		: FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("../content/cars")));
+	Out.WheelSourceDir = Values.Contains(TEXT("wheels"))
+		? FPaths::ConvertRelativePathToFull(Values[TEXT("wheels")])
+		: FPaths::ConvertRelativePathToFull(FPaths::Combine(Out.SourceDir, TEXT("../wheels")));
 	Out.DestRoot = Values.Contains(TEXT("dest")) ? Values[TEXT("dest")] : TEXT("/Game/Cars");
 	Out.DestRoot.RemoveFromEnd(TEXT("/"));
 	Out.TablePath = Values.Contains(TEXT("table")) ? Values[TEXT("table")] : TEXT("/Game/Data/DT_CarCatalog");
@@ -242,12 +298,10 @@ bool UApexCarImportCommandlet::CollectSources(const FOptions& Options, TArray<FS
 	return true;
 }
 
-UStaticMesh* UApexCarImportCommandlet::ImportGlb(
-	const FString& GlbPath, const FString& DestRoot, const FString& Folder, FString& OutError)
+UStaticMesh* UApexCarImportCommandlet::ImportGlb(const FString& GlbPath, const FString& PackageName, FString& OutError)
 {
-	const FString Segment = PackageSegment(Folder);
-	const FString DestPath = DestRoot / Segment;
-	const FString Target = MeshPackageName(DestRoot, Folder);
+	const FString DestPath = FPackageName::GetLongPackagePath(PackageName);
+	const FString Target = PackageName;
 
 	// The engine's glTF assets pipeline, adjusted like the prop kit's: one
 	// combined mesh named for the folder, authored normals kept, no
@@ -287,7 +341,7 @@ UStaticMesh* UApexCarImportCommandlet::ImportGlb(
 	Params.bReplaceExisting = true;
 	Params.OverridePipelines.Add(FSoftObjectPath(Pipeline));
 	Params.OverridePipelines.Add(FSoftObjectPath(kGltfPipeline));
-	Params.DestinationName = TEXT("SM_") + Segment;
+	Params.DestinationName = FPackageName::GetShortName(PackageName);
 
 	// A fresh import, never a reimport (which keeps stale slots and makes
 	// no materials): the old package file goes first.
@@ -342,12 +396,8 @@ UStaticMesh* UApexCarImportCommandlet::ImportGlb(
 		OutError = FString::Printf(TEXT("%s built empty (%d triangles)"), *Mesh->GetName(), Triangles);
 		return nullptr;
 	}
-	// The race car actor turns the mesh -90° about Z, so a car is expected
-	// long along local Y; say so when it is not, since the turntable and
-	// the cockpit layout both read the bounds.
-	UE_LOG(LogApexTrackImport, Display, TEXT("    %s: %d tris, %.0f x %.0f x %.0f cm, %d material(s)%s"),
-		*Mesh->GetName(), Triangles, Size.X, Size.Y, Size.Z, Mesh->GetStaticMaterials().Num(),
-		Size.Y >= Size.X ? TEXT("") : TEXT(" — longer along X than Y: check the row's PreviewRotation"));
+	UE_LOG(LogApexTrackImport, Display, TEXT("    %s: %d tris, %.0f x %.0f x %.0f cm, %d material(s)"),
+		*Mesh->GetName(), Triangles, Size.X, Size.Y, Size.Z, Mesh->GetStaticMaterials().Num());
 	return Mesh;
 }
 
@@ -378,20 +428,73 @@ UStaticMesh* UApexCarImportCommandlet::ResolveMesh(
 	{
 		return nullptr;
 	}
-	UStaticMesh* Mesh = ImportGlb(GlbPath, Options.DestRoot, Source.Folder, OutError);
+	UStaticMesh* Mesh = ImportGlb(GlbPath, PackageName, OutError);
 	if (Mesh)
 	{
+		// The race car actor turns the mesh -90° about Z, so a car is expected
+		// long along local Y; say so when it is not, since the turntable and
+		// the cockpit layout both read the bounds.
+		const FVector Size = Mesh->GetBounds().BoxExtent;
+		if (Size.Y < Size.X)
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s is longer along X than Y: check the row's PreviewRotation"),
+				*Mesh->GetName());
+		}
 		// Everything the import made lives beside the mesh; save the folder.
 		OutPackages.Add(Mesh->GetOutermost());
-		for (TObjectIterator<UPackage> It; It; ++It)
-		{
-			if (It->GetName().StartsWith(Options.DestRoot / PackageSegment(Source.Folder) + TEXT("/")) && It->IsDirty())
-			{
-				OutPackages.Add(*It);
-			}
-		}
+		CollectDirtyPackages(Options.DestRoot / PackageSegment(Source.Folder), OutPackages);
 	}
 	return Mesh;
+}
+
+UStaticMesh* UApexCarImportCommandlet::ResolveWheelMesh(
+	const FString& Model, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError)
+{
+	if (const TObjectPtr<UStaticMesh>* Done = WheelMeshes.Find(Model))
+	{
+		return *Done;
+	}
+	const FString PackageName = WheelPackageName(Options.DestRoot, Model);
+	const FString ObjectPath = PackageName + TEXT(".") + FPackageName::GetShortName(PackageName);
+	UStaticMesh* Mesh = nullptr;
+	if (!Options.bForce && FPackageName::DoesPackageExist(PackageName))
+	{
+		Mesh = LoadObject<UStaticMesh>(nullptr, *ObjectPath);
+	}
+	if (!Mesh)
+	{
+		const FString GlbPath = Options.WheelSourceDir / Model + TEXT(".glb");
+		if (!IFileManager::Get().FileExists(*GlbPath))
+		{
+			OutError = FString::Printf(TEXT("wheel model %s is missing"), *GlbPath);
+			return nullptr;
+		}
+		UE_LOG(LogApexTrackImport, Display, TEXT("    importing %s <- %s"), *PackageName, *GlbPath);
+		if (Options.bDryRun)
+		{
+			return nullptr;
+		}
+		Mesh = ImportGlb(GlbPath, PackageName, OutError);
+		if (!Mesh)
+		{
+			return nullptr;
+		}
+		OutPackages.Add(Mesh->GetOutermost());
+		CollectDirtyPackages(FPackageName::GetLongPackagePath(PackageName), OutPackages);
+	}
+	WheelMeshes.Add(Model, Mesh);
+	return Mesh;
+}
+
+void UApexCarImportCommandlet::CollectDirtyPackages(const FString& Folder, TSet<UPackage*>& OutPackages)
+{
+	for (TObjectIterator<UPackage> It; It; ++It)
+	{
+		if (It->GetName().StartsWith(Folder + TEXT("/")) && It->IsDirty())
+		{
+			OutPackages.Add(*It);
+		}
+	}
 }
 
 bool UApexCarImportCommandlet::SavePackages(const TSet<UPackage*>& Packages, FString& OutError)
@@ -424,8 +527,9 @@ void UApexCarImportCommandlet::ListRows(const UDataTable& Table, const TArray<FS
 		const FApexCarCatalogRow* Row = reinterpret_cast<const FApexCarCatalogRow*>(Pair.Value);
 		const FSource* Source = Sources.FindByPredicate(
 			[&Pair](const FSource& S) { return S.Toml.Id.Equals(Pair.Key.ToString(), ESearchCase::IgnoreCase); });
-		UE_LOG(LogApexTrackImport, Display, TEXT("  %s  \"%s\"  folder=%s  mesh=%s%s"), *Pair.Key.ToString(),
+		UE_LOG(LogApexTrackImport, Display, TEXT("  %s  \"%s\"  folder=%s  mesh=%s  wheels=%s%s"), *Pair.Key.ToString(),
 			*Row->DisplayName, *Row->FolderName, Row->Mesh.IsNull() ? TEXT("(none)") : *Row->Mesh.ToString(),
+			Row->Wheels.IsUsable() ? *Row->Wheels.Mesh.ToString() : TEXT("(none)"),
 			Source ? TEXT("") : TEXT("  [no car.toml with this id]"));
 	}
 	for (const FSource& Source : Sources)
@@ -570,6 +674,29 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		UE_LOG(LogApexTrackImport, Display, TEXT("  %s (\"%s\", %s)%s"), *Source.Folder, *Source.Toml.Name,
 			*Source.Toml.Id, Existing ? TEXT("") : TEXT(": no row yet"));
 
+		// The wheels are derived like the checksum: follow the TOML on every
+		// run. A car without a [wheels] table gets none drawn (its body has
+		// its own); one whose wheel will not import is an error, since its
+		// body has none.
+		FApexWheelSpec Wheels;
+		if (Source.Toml.Wheels.IsPresent())
+		{
+			FString WheelError;
+			UStaticMesh* WheelMesh = ResolveWheelMesh(Source.Toml.Wheels.Model, Options, Touched, WheelError);
+			if (!WheelError.IsEmpty())
+			{
+				UE_LOG(LogApexTrackImport, Error, TEXT("    %s"), *WheelError);
+				++Failures;
+				continue;
+			}
+			Wheels = MakeWheelSpec(Source.Toml, TSoftObjectPtr<UStaticMesh>(WheelMesh));
+		}
+		else
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    no [wheels] table: the body draws its own"));
+		}
+		const bool bNeedsWheels = Existing && Existing->Wheels != Wheels;
+
 		// A row that already points at a mesh of its own is finished unless
 		// -force: the hand-imported cars keep theirs and nothing is imported
 		// twice under a second name.
@@ -581,12 +708,13 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		const bool bNeedsCrc = Existing && Existing->SourceCrc != Source.SourceCrc;
 		if (bRowMeshOk && !Options.bForce)
 		{
-			UE_LOG(LogApexTrackImport, Display, TEXT("    keeps %s%s"), *Existing->Mesh.ToString(),
-				bNeedsCrc ? TEXT(", updating checksum") : TEXT(""));
-			if (bNeedsCrc && !Options.bDryRun)
+			UE_LOG(LogApexTrackImport, Display, TEXT("    keeps %s%s%s"), *Existing->Mesh.ToString(),
+				bNeedsCrc ? TEXT(", updating checksum") : TEXT(""), bNeedsWheels ? TEXT(", updating wheels") : TEXT(""));
+			if ((bNeedsCrc || bNeedsWheels) && !Options.bDryRun)
 			{
 				FApexCarCatalogRow Row = *Existing;
 				Row.SourceCrc = Source.SourceCrc;
+				Row.Wheels = Wheels;
 				Table->AddRow(RowName, Row);
 				++RowsUpdated;
 				Touched.Add(Table->GetOutermost());
@@ -623,6 +751,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 			Row.FolderName = Source.Folder;
 		}
 		Row.SourceCrc = Source.SourceCrc;
+		Row.Wheels = Wheels;
 		const bool bMeshMissing = Row.Mesh.IsNull() || !FPackageName::DoesPackageExist(Row.Mesh.GetLongPackageName());
 		const bool bMeshForeign = !Row.FolderName.IsEmpty() && Row.FolderName != Source.Folder;
 		const bool bSetMesh = Mesh && (bFillFields || bMeshMissing || bMeshForeign);
@@ -636,7 +765,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 			Row.Mesh = Mesh;
 			Row.FolderName = Source.Folder;
 		}
-		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc)
+		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc && !bNeedsWheels)
 		{
 			continue;
 		}
