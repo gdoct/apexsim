@@ -63,6 +63,14 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
         (0.180, 47.958, 0.212, 47.966),
         (0.212, 47.958, 0.240, 47.966),
     ],
+    # Interlagos sits in dense urban Sao Paulo; the seed bbox alone exceeds
+    # the API's 50k-node ceiling, so it is split into quadrants.
+    "SaoPaulo": [
+        (-46.712, -23.712, -46.700, -23.703),
+        (-46.700, -23.712, -46.688, -23.703),
+        (-46.712, -23.703, -46.700, -23.695),
+        (-46.700, -23.703, -46.688, -23.695),
+    ],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -104,6 +112,25 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Eastside", from_m=3330, to_m=3800, side="left", depth_m=16),
         dict(name="Arena", from_m=3300, to_m=3760, side="right", depth_m=16),
         dict(name="Ben Pon", from_m=4030, to_m=4240, side="left", depth_m=20),
+    ],
+    # Interlagos letters its stands. OSM already traces the pit-straight
+    # ones (an unnamed stand at station ~76 m and another at ~4272 m -
+    # geometrically Grandstands B and A - plus "M" itself, named in OSM,
+    # at station ~189 m) so only the stands OSM has no outline for are
+    # added here, from the circuit's own tribune guide
+    # (https://f1saopaulo.com.br/en/stands/, https://www.brasilf1.com/en/map-of-the-grandstands-18):
+    # D overlooks the first two Senna S apexes, R sits over Curva do Sol
+    # and the start of the back straight, G is the bleacher stand at the
+    # back straight's braking zone into Descida do Lago, and the T4 stand
+    # is the newer grandstand built for the 2021 Descida do Lago
+    # reprofile. The task brief's placements for M (Bico de Pato) and R
+    # (Juncao) do not match these sources or OSM's own traced "M"; this
+    # table follows the verified sources instead.
+    "SaoPaulo": [
+        dict(name="D", from_m=290.9, to_m=500.0, side="outside", depth_m=14, covered=True),
+        dict(name="R", from_m=592.5, to_m=782.2, side="outside", depth_m=14, covered=True),
+        dict(name="G", from_m=1150.0, to_m=1368.1, side="outside", depth_m=10, covered=False),
+        dict(name="T4", from_m=1368.1, to_m=1607.1, side="outside", depth_m=13, covered=False),
     ],
 }
 
@@ -664,7 +691,12 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             continue
         clipped = run[span[0] : span[1] + 1]
         length = float(np.hypot(*np.diff(clipped, axis=0).T).sum())
-        if not 120.0 <= length <= 1200.0:
+        # Interlagos's is confirmed (press coverage of its pit-stop time
+        # loss) as the longest pit lane on the F1 calendar at roughly
+        # 1100-1400 m, well past the 1200 m ceiling tuned on the first six
+        # circuits; 1600 m still rejects a chain that grabbed unrelated
+        # roads while admitting a real long lane.
+        if not 120.0 <= length <= 1600.0:
             continue
         s_here, _ = track.locate(clipped)
         to_line = float(np.minimum(s_here, track.total - s_here).min())
