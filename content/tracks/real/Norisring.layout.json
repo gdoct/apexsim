@@ -1,0 +1,1241 @@
+{
+ "format": "apex-track-layout",
+ "version": 1,
+ "source_track": "Norisring.yaml",
+ "track_name": "Norisring",
+ "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
+ "osm_bbox": [
+  [
+   11.11,
+   49.428,
+   11.132,
+   49.44
+  ]
+ ],
+ "fit": {
+  "rmse_m": 2.42,
+  "raceway_matched": 0.961,
+  "centerline_covered": 0.928,
+  "centerline_covered_m": 1710
+ },
+ "corners": [],
+ "pit_lane": {
+  "side": "right",
+  "length_m": 424.9,
+  "nodes": [
+   [
+    -302.71,
+    175.7
+   ],
+   [
+    -298.74,
+    160.99
+   ],
+   [
+    -295.2,
+    158.09
+   ],
+   [
+    -287.45,
+    152.57
+   ],
+   [
+    -279.04,
+    147.6
+   ],
+   [
+    -270.62,
+    142.64
+   ],
+   [
+    -262.21,
+    137.67
+   ],
+   [
+    -253.79,
+    132.71
+   ],
+   [
+    -246.73,
+    128.61
+   ],
+   [
+    -239.67,
+    124.52
+   ],
+   [
+    -232.62,
+    120.42
+   ],
+   [
+    -225.56,
+    116.33
+   ],
+   [
+    -218.5,
+    112.23
+   ],
+   [
+    -211.44,
+    108.14
+   ],
+   [
+    -204.38,
+    104.04
+   ],
+   [
+    -197.32,
+    99.95
+   ],
+   [
+    -190.26,
+    95.85
+   ],
+   [
+    -183.2,
+    91.76
+   ],
+   [
+    -176.14,
+    87.66
+   ],
+   [
+    -169.09,
+    83.57
+   ],
+   [
+    -162.03,
+    79.47
+   ],
+   [
+    -154.03,
+    74.8
+   ],
+   [
+    -146.03,
+    70.13
+   ],
+   [
+    -138.83,
+    65.92
+   ],
+   [
+    -131.62,
+    61.72
+   ],
+   [
+    -124.42,
+    57.51
+   ],
+   [
+    -117.22,
+    53.3
+   ],
+   [
+    -110.02,
+    49.1
+   ],
+   [
+    -102.81,
+    44.89
+   ],
+   [
+    -95.61,
+    40.68
+   ],
+   [
+    -88.41,
+    36.48
+   ],
+   [
+    -81.2,
+    32.27
+   ],
+   [
+    -74.0,
+    28.06
+   ],
+   [
+    -66.8,
+    23.86
+   ],
+   [
+    -59.59,
+    19.65
+   ],
+   [
+    -52.39,
+    15.44
+   ],
+   [
+    -45.19,
+    11.23
+   ],
+   [
+    -37.98,
+    7.03
+   ],
+   [
+    -30.78,
+    2.82
+   ],
+   [
+    -23.58,
+    -1.39
+   ],
+   [
+    -16.37,
+    -5.59
+   ],
+   [
+    -9.17,
+    -9.8
+   ],
+   [
+    -1.97,
+    -14.01
+   ],
+   [
+    5.23,
+    -18.21
+   ],
+   [
+    13.66,
+    -23.09
+   ],
+   [
+    22.08,
+    -27.97
+   ],
+   [
+    30.5,
+    -32.85
+   ],
+   [
+    38.93,
+    -37.73
+   ],
+   [
+    46.68,
+    -42.1
+   ],
+   [
+    54.43,
+    -46.48
+   ]
+  ]
+ },
+ "stands": [
+  {
+   "name": null,
+   "station_m": 0.9,
+   "side": "right",
+   "offset_m": 191.3,
+   "length_m": 187.0,
+   "depth_m": 84.6,
+   "yaw_rad": 3.0415,
+   "centre": [
+    -137.06,
+    -221.48
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -67.45,
+     -222.64
+    ],
+    [
+     -78.3,
+     -216.48
+    ],
+    [
+     -75.34,
+     -211.23
+    ],
+    [
+     -64.48,
+     -217.38
+    ],
+    [
+     -55.1,
+     -200.68
+    ],
+    [
+     -65.95,
+     -194.52
+    ],
+    [
+     -62.31,
+     -188.08
+    ],
+    [
+     -81.04,
+     -177.63
+    ],
+    [
+     -103.73,
+     -217.76
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 48.6,
+   "side": "right",
+   "offset_m": 242.2,
+   "length_m": 12.5,
+   "depth_m": 6.0,
+   "yaw_rad": 2.3488,
+   "centre": [
+    -86.25,
+    -237.27
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -88.04,
+     -232.02
+    ],
+    [
+     -79.28,
+     -240.92
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 49.0,
+   "side": "right",
+   "offset_m": 192.3,
+   "length_m": 12.5,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6255,
+   "centre": [
+    -59.84,
+    -193.83
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -62.99,
+     -189.27
+    ],
+    [
+     -52.14,
+     -195.42
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 49.7,
+   "side": "right",
+   "offset_m": 217.5,
+   "length_m": 12.5,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6258,
+   "centre": [
+    -72.18,
+    -215.79
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -75.34,
+     -211.23
+    ],
+    [
+     -64.48,
+     -217.38
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1975.9,
+   "side": "right",
+   "offset_m": 24.8,
+   "length_m": 11.9,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6157,
+   "centre": [
+    -290.08,
+    139.14
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -284.8,
+     138.41
+    ],
+    [
+     -295.06,
+     144.35
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1976.3,
+   "side": "right",
+   "offset_m": 50.0,
+   "length_m": 11.8,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6164,
+   "centre": [
+    -302.73,
+    116.84
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -297.44,
+     116.56
+    ],
+    [
+     -307.66,
+     122.48
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1976.7,
+   "side": "right",
+   "offset_m": 75.2,
+   "length_m": 11.9,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6166,
+   "centre": [
+    -315.23,
+    95.06
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -309.91,
+     94.76
+    ],
+    [
+     -320.18,
+     100.73
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1977.1,
+   "side": "right",
+   "offset_m": 100.1,
+   "length_m": 12.1,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6167,
+   "centre": [
+    -327.59,
+    73.39
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -322.21,
+     73.06
+    ],
+    [
+     -332.64,
+     79.11
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1977.2,
+   "side": "right",
+   "offset_m": 125.0,
+   "length_m": 12.2,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6165,
+   "centre": [
+    -339.95,
+    51.72
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -334.52,
+     51.36
+    ],
+    [
+     -345.08,
+     57.49
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1977.5,
+   "side": "right",
+   "offset_m": 150.1,
+   "length_m": 12.4,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6166,
+   "centre": [
+    -352.37,
+    30.0
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -346.9,
+     29.62
+    ],
+    [
+     -357.58,
+     35.8
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1977.8,
+   "side": "right",
+   "offset_m": 19.6,
+   "length_m": 5.9,
+   "depth_m": 5.2,
+   "yaw_rad": 2.6177,
+   "centre": [
+    -286.2,
+    141.91
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -287.33,
+     145.89
+    ],
+    [
+     -283.05,
+     141.46
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1977.9,
+   "side": "right",
+   "offset_m": 175.1,
+   "length_m": 12.5,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6169,
+   "centre": [
+    -364.77,
+    8.3
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -359.25,
+     7.89
+    ],
+    [
+     -370.04,
+     14.14
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1978.0,
+   "side": "right",
+   "offset_m": 199.4,
+   "length_m": 12.5,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6151,
+   "centre": [
+    -377.0,
+    -12.8
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -371.48,
+     -13.22
+    ],
+    [
+     -382.26,
+     -6.95
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1978.2,
+   "side": "right",
+   "offset_m": 224.6,
+   "length_m": 12.5,
+   "depth_m": 6.0,
+   "yaw_rad": 2.6151,
+   "centre": [
+    -389.62,
+    -34.61
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -384.1,
+     -35.02
+    ],
+    [
+     -394.88,
+     -28.75
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1979.3,
+   "side": "right",
+   "offset_m": 21.3,
+   "length_m": 166.3,
+   "depth_m": 34.4,
+   "yaw_rad": 1.0483,
+   "centre": [
+    -325.06,
+    72.91
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -322.21,
+     73.06
+    ],
+    [
+     -332.64,
+     79.11
+    ],
+    [
+     -323.2,
+     95.49
+    ],
+    [
+     -312.92,
+     89.54
+    ],
+    [
+     -309.91,
+     94.76
+    ],
+    [
+     -320.18,
+     100.73
+    ],
+    [
+     -310.67,
+     117.25
+    ],
+    [
+     -300.45,
+     111.33
+    ],
+    [
+     -297.44,
+     116.56
+    ],
+    [
+     -307.66,
+     122.48
+    ],
+    [
+     -298.08,
+     139.13
+    ],
+    [
+     -287.82,
+     133.17
+    ],
+    [
+     -283.05,
+     141.46
+    ],
+    [
+     -263.54,
+     130.16
+    ],
+    [
+     -280.4,
+     100.88
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 1979.7,
+   "side": "right",
+   "offset_m": 249.0,
+   "length_m": 12.5,
+   "depth_m": 6.0,
+   "yaw_rad": 2.8925,
+   "centre": [
+    -400.96,
+    -57.66
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -395.53,
+     -56.55
+    ],
+    [
+     -407.62,
+     -53.47
+    ]
+   ]
+  },
+  {
+   "name": null,
+   "station_m": 2029.3,
+   "side": "right",
+   "offset_m": 198.1,
+   "length_m": 187.4,
+   "depth_m": 84.4,
+   "yaw_rad": 2.2001,
+   "centre": [
+    -359.81,
+    -93.27
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -397.91,
+     -33.98
+    ],
+    [
+     -387.12,
+     -40.25
+    ],
+    [
+     -384.1,
+     -35.02
+    ],
+    [
+     -394.88,
+     -28.75
+    ],
+    [
+     -385.29,
+     -12.18
+    ],
+    [
+     -374.5,
+     -18.45
+    ],
+    [
+     -370.8,
+     -12.03
+    ],
+    [
+     -352.33,
+     -22.93
+    ],
+    [
+     -375.33,
+     -62.89
+    ]
+   ]
+  },
+  {
+   "name": "Steintribüne",
+   "station_m": 2177.1,
+   "side": "left",
+   "offset_m": 29.1,
+   "length_m": 366.5,
+   "depth_m": 35.7,
+   "yaw_rad": 2.6192,
+   "centre": [
+    -74.98,
+    106.33
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -262.61,
+     187.83
+    ],
+    [
+     54.89,
+     5.01
+    ],
+    [
+     72.62,
+     35.98
+    ]
+   ]
+  }
+ ],
+ "structures": [
+  {
+   "name": null,
+   "station_m": 46.5,
+   "side": "right",
+   "offset_m": 15.5,
+   "length_m": 166.4,
+   "depth_m": 34.4,
+   "yaw_rad": 1.0574,
+   "centre": [
+    -11.93,
+    -106.83
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 5167
+  },
+  {
+   "name": "Turm 1",
+   "station_m": 543.1,
+   "side": "right",
+   "offset_m": 30.1,
+   "length_m": 28.0,
+   "depth_m": 18.4,
+   "yaw_rad": 0.9383,
+   "centre": [
+    418.53,
+    -214.29
+   ],
+   "levels": 16,
+   "osm_building": "apartments",
+   "area_m2": 498
+  },
+  {
+   "name": null,
+   "station_m": 582.0,
+   "side": "right",
+   "offset_m": 53.9,
+   "length_m": 32.3,
+   "depth_m": 13.1,
+   "yaw_rad": 0.9069,
+   "centre": [
+    412.1,
+    -164.2
+   ],
+   "levels": 3,
+   "osm_building": "apartments",
+   "area_m2": 423
+  },
+  {
+   "name": null,
+   "station_m": 793.7,
+   "side": "right",
+   "offset_m": 104.1,
+   "length_m": 155.2,
+   "depth_m": 7.0,
+   "yaw_rad": 2.5262,
+   "centre": [
+    271.15,
+    43.57
+   ],
+   "levels": 0,
+   "osm_building": "roof",
+   "area_m2": 987
+  },
+  {
+   "name": null,
+   "station_m": 1008.9,
+   "side": "right",
+   "offset_m": 105.7,
+   "length_m": 71.0,
+   "depth_m": 39.1,
+   "yaw_rad": 2.554,
+   "centre": [
+    223.42,
+    141.47
+   ],
+   "levels": 1,
+   "osm_building": "warehouse",
+   "area_m2": 2777
+  },
+  {
+   "name": null,
+   "station_m": 1024.5,
+   "side": "right",
+   "offset_m": 127.4,
+   "length_m": 89.0,
+   "depth_m": 70.7,
+   "yaw_rad": 1.1053,
+   "centre": [
+    199.86,
+    221.82
+   ],
+   "levels": 0,
+   "osm_building": "retail",
+   "area_m2": 5467
+  },
+  {
+   "name": null,
+   "station_m": 1112.0,
+   "side": "right",
+   "offset_m": 129.7,
+   "length_m": 101.0,
+   "depth_m": 20.6,
+   "yaw_rad": 1.1086,
+   "centre": [
+    121.96,
+    276.28
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1537
+  },
+  {
+   "name": null,
+   "station_m": 1153.4,
+   "side": "right",
+   "offset_m": 127.0,
+   "length_m": 31.5,
+   "depth_m": 12.5,
+   "yaw_rad": 2.6701,
+   "centre": [
+    59.08,
+    251.27
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 395
+  },
+  {
+   "name": null,
+   "station_m": 1188.5,
+   "side": "right",
+   "offset_m": 137.7,
+   "length_m": 33.5,
+   "depth_m": 8.3,
+   "yaw_rad": 2.6733,
+   "centre": [
+    32.65,
+    276.14
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 273
+  },
+  {
+   "name": "Lidl",
+   "station_m": 1259.2,
+   "side": "right",
+   "offset_m": 120.5,
+   "length_m": 64.8,
+   "depth_m": 33.3,
+   "yaw_rad": 2.3754,
+   "centre": [
+    -27.96,
+    311.47
+   ],
+   "levels": 1,
+   "osm_building": "retail",
+   "area_m2": 1676
+  },
+  {
+   "name": "Bahnhof Dutzendteich",
+   "station_m": 1543.8,
+   "side": "right",
+   "offset_m": 22.4,
+   "length_m": 81.1,
+   "depth_m": 18.1,
+   "yaw_rad": 2.5637,
+   "centre": [
+    -296.22,
+    377.68
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1173
+  },
+  {
+   "name": null,
+   "station_m": 1546.2,
+   "side": "right",
+   "offset_m": 128.2,
+   "length_m": 42.5,
+   "depth_m": 9.4,
+   "yaw_rad": 1.1041,
+   "centre": [
+    -204.4,
+    450.31
+   ],
+   "levels": 0,
+   "osm_building": "roof",
+   "area_m2": 400
+  },
+  {
+   "name": "Fränky Getränkemarkt",
+   "station_m": 1600.4,
+   "side": "right",
+   "offset_m": 130.1,
+   "length_m": 33.4,
+   "depth_m": 30.2,
+   "yaw_rad": 1.0965,
+   "centre": [
+    -239.73,
+    490.53
+   ],
+   "levels": 1,
+   "osm_building": "retail",
+   "area_m2": 937
+  },
+  {
+   "name": "OBI",
+   "station_m": 1607.1,
+   "side": "right",
+   "offset_m": 112.9,
+   "length_m": 168.9,
+   "depth_m": 71.0,
+   "yaw_rad": 2.5459,
+   "centre": [
+    -457.68,
+    654.88
+   ],
+   "levels": 2,
+   "osm_building": "retail",
+   "area_m2": 9041
+  },
+  {
+   "name": "Aldi Süd",
+   "station_m": 1640.6,
+   "side": "right",
+   "offset_m": 110.7,
+   "length_m": 56.8,
+   "depth_m": 39.8,
+   "yaw_rad": 0.9887,
+   "centre": [
+    -278.17,
+    525.51
+   ],
+   "levels": 1,
+   "osm_building": "retail",
+   "area_m2": 1745
+  },
+  {
+   "name": null,
+   "station_m": 1666.7,
+   "side": "right",
+   "offset_m": 81.8,
+   "length_m": 31.6,
+   "depth_m": 13.1,
+   "yaw_rad": 0.6371,
+   "centre": [
+    -501.93,
+    453.21
+   ],
+   "levels": 4,
+   "osm_building": "apartments",
+   "area_m2": 413
+  },
+  {
+   "name": null,
+   "station_m": 1670.8,
+   "side": "right",
+   "offset_m": 69.4,
+   "length_m": 24.0,
+   "depth_m": 19.6,
+   "yaw_rad": 2.2514,
+   "centre": [
+    -475.28,
+    475.92
+   ],
+   "levels": 4,
+   "osm_building": "apartments",
+   "area_m2": 356
+  },
+  {
+   "name": null,
+   "station_m": 1678.6,
+   "side": "right",
+   "offset_m": 90.0,
+   "length_m": 19.4,
+   "depth_m": 15.3,
+   "yaw_rad": 2.3971,
+   "centre": [
+    -505.79,
+    403.94
+   ],
+   "levels": 1,
+   "osm_building": "detached",
+   "area_m2": 275
+  },
+  {
+   "name": null,
+   "station_m": 1746.5,
+   "side": "right",
+   "offset_m": 116.7,
+   "length_m": 26.6,
+   "depth_m": 14.3,
+   "yaw_rad": 1.2366,
+   "centre": [
+    -513.93,
+    312.71
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 381
+  }
+ ],
+ "crossings": [],
+ "landmarks": [],
+ "woods": [
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     -69.7,
+     462.6
+    ],
+    [
+     -37.6,
+     551.0
+    ],
+    [
+     71.5,
+     518.9
+    ],
+    [
+     79.5,
+     558.4
+    ],
+    [
+     43.1,
+     541.2
+    ],
+    [
+     -9.0,
+     569.1
+    ],
+    [
+     -47.7,
+     573.4
+    ],
+    [
+     -333.4,
+     706.2
+    ],
+    [
+     -379.5,
+     746.9
+    ],
+    [
+     -413.6,
+     706.7
+    ],
+    [
+     -455.2,
+     734.2
+    ],
+    [
+     -463.1,
+     714.3
+    ],
+    [
+     -188.8,
+     531.3
+    ],
+    [
+     -69.7,
+     462.6
+    ]
+   ]
+  },
+  {
+   "leaf": "broadleaved",
+   "ring": [
+    [
+     252.6,
+     22.0
+    ],
+    [
+     244.7,
+     27.6
+    ],
+    [
+     192.9,
+     -50.3
+    ],
+    [
+     201.7,
+     -57.0
+    ],
+    [
+     189.3,
+     -78.6
+    ],
+    [
+     204.1,
+     -87.6
+    ],
+    [
+     229.0,
+     -33.8
+    ],
+    [
+     260.7,
+     -5.6
+    ],
+    [
+     245.5,
+     7.2
+    ],
+    [
+     252.6,
+     22.0
+    ]
+   ]
+  },
+  {
+   "leaf": "mixed",
+   "ring": [
+    [
+     -208.1,
+     268.1
+    ],
+    [
+     -167.1,
+     296.7
+    ],
+    [
+     73.7,
+     136.0
+    ],
+    [
+     65.6,
+     121.5
+    ],
+    [
+     107.7,
+     95.9
+    ],
+    [
+     102.6,
+     89.7
+    ],
+    [
+     -208.1,
+     268.1
+    ]
+   ]
+  }
+ ]
+}
