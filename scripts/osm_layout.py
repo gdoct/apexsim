@@ -57,6 +57,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Monza": [(9.275, 45.612, 9.300, 45.635)],
     "Silverstone": [(-1.035, 52.063, -0.995, 52.083)],
     "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
+    "Sakhir": [(50.495, 26.020, 50.525, 26.045)],
     "LeMans": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
@@ -136,6 +137,17 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
              altitude_m=150.0, broadside_to_m=0.0, brand="piretti"),
         # The fun fair inside the Esses, which runs all through the night.
         dict(kind="big_wheel", station_m=1010.0, side="right", offset_m=110.0),
+    ],
+    # The Sakhir Tower (ten storeys, behind the pits) is in OSM as a plain
+    # building=yes outline with no building:levels tag, so the automatic
+    # tower heuristic in dress.rs (building_asset) never picks it: its
+    # footprint is square but 37.7 m across, over the 30 m the heuristic
+    # requires, and it carries no storey count. Authored here instead, at
+    # the OSM outline's own station/side/offset so the dedup above drops
+    # the OSM building row and only the control-tower kit asset (a
+    # stand-in for the real tower, which the kit does not model) remains.
+    "Sakhir": [
+        dict(kind="tower", name="Sakhir Tower", station_m=582.3, side="right", offset_m=73.9),
     ],
 }
 
@@ -885,6 +897,26 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if len(ring) < 4 or ring_area(ring) < 400:
             continue
         woods.append({"leaf": leaf, "ring": round_pts(ring, 1)})
+
+    # An authored landmark and an OSM building can be the same real
+    # structure (Sakhir's control tower is mapped as building=yes, not as
+    # the man_made=tower node the automatic landmark scan looks for): keep
+    # the landmark, which says what the structure *is*, and drop the
+    # generic building row it would otherwise also become. Mirrors the
+    # crossings dedup above; only fires when a manual landmark actually
+    # lands within a building's footprint, so it is a no-op for every
+    # dossier without one.
+    if any(l.get("source") == "authored" for l in landmarks):
+        kept = []
+        for s in structures:
+            near = any(
+                l.get("source") == "authored" and math.hypot(*(np.array(s["centre"]) - np.array(l["centre"])))
+                < max(s["length_m"], s["depth_m"]) / 2 + 5.0
+                for l in landmarks
+            )
+            if not near:
+                kept.append(s)
+        structures = kept
 
     return {
         "format": LAYOUT_FORMAT,

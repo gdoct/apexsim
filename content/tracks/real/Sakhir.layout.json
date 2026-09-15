@@ -1,0 +1,2633 @@
+{
+ "format": "apex-track-layout",
+ "version": 1,
+ "source_track": "Sakhir.yaml",
+ "track_name": "Bahrain International Circuit",
+ "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
+ "osm_bbox": [
+  [
+   50.495,
+   26.02,
+   50.525,
+   26.045
+  ]
+ ],
+ "fit": {
+  "rmse_m": 2.27,
+  "raceway_matched": 0.515,
+  "centerline_covered": 0.982,
+  "centerline_covered_m": 4252
+ },
+ "corners": [
+  {
+   "name": "Grand Prix Circuit",
+   "station_m": 741.2,
+   "from_m": 4142.3,
+   "to_m": 1599.6
+  }
+ ],
+ "pit_lane": {
+  "side": "right",
+  "length_m": 776.7,
+  "nodes": [
+   [
+    -9.54,
+    -199.55
+   ],
+   [
+    -6.55,
+    -196.79
+   ],
+   [
+    -4.2,
+    -193.81
+   ],
+   [
+    -2.41,
+    -190.46
+   ],
+   [
+    -1.23,
+    -186.83
+   ],
+   [
+    -0.7,
+    -183.07
+   ],
+   [
+    0.02,
+    -174.02
+   ],
+   [
+    0.73,
+    -164.98
+   ],
+   [
+    1.45,
+    -155.93
+   ],
+   [
+    2.16,
+    -146.88
+   ],
+   [
+    2.88,
+    -137.83
+   ],
+   [
+    3.59,
+    -128.78
+   ],
+   [
+    4.31,
+    -119.73
+   ],
+   [
+    5.02,
+    -113.02
+   ],
+   [
+    6.15,
+    -104.71
+   ],
+   [
+    7.13,
+    -96.27
+   ],
+   [
+    8.61,
+    -86.72
+   ],
+   [
+    9.52,
+    -78.44
+   ],
+   [
+    10.37,
+    -68.65
+   ],
+   [
+    10.97,
+    -57.72
+   ],
+   [
+    11.57,
+    -46.79
+   ],
+   [
+    11.94,
+    -38.72
+   ],
+   [
+    12.31,
+    -30.65
+   ],
+   [
+    12.67,
+    -22.59
+   ],
+   [
+    13.04,
+    -14.52
+   ],
+   [
+    13.41,
+    -6.45
+   ],
+   [
+    13.78,
+    1.61
+   ],
+   [
+    14.15,
+    9.68
+   ],
+   [
+    14.52,
+    17.75
+   ],
+   [
+    14.89,
+    25.81
+   ],
+   [
+    15.25,
+    33.88
+   ],
+   [
+    15.62,
+    41.95
+   ],
+   [
+    15.99,
+    50.01
+   ],
+   [
+    16.36,
+    58.08
+   ],
+   [
+    16.73,
+    66.15
+   ],
+   [
+    17.1,
+    74.22
+   ],
+   [
+    17.46,
+    82.28
+   ],
+   [
+    17.83,
+    90.35
+   ],
+   [
+    18.2,
+    98.42
+   ],
+   [
+    18.57,
+    106.48
+   ],
+   [
+    18.94,
+    114.55
+   ],
+   [
+    19.31,
+    122.62
+   ],
+   [
+    19.68,
+    130.68
+   ],
+   [
+    20.04,
+    138.75
+   ],
+   [
+    20.41,
+    146.82
+   ],
+   [
+    20.78,
+    154.88
+   ],
+   [
+    21.15,
+    162.95
+   ],
+   [
+    21.52,
+    171.02
+   ],
+   [
+    21.89,
+    179.08
+   ],
+   [
+    22.25,
+    187.15
+   ],
+   [
+    22.62,
+    195.22
+   ],
+   [
+    22.99,
+    203.28
+   ],
+   [
+    23.36,
+    211.35
+   ],
+   [
+    23.73,
+    219.42
+   ],
+   [
+    24.1,
+    227.48
+   ],
+   [
+    24.47,
+    235.55
+   ],
+   [
+    24.83,
+    243.62
+   ],
+   [
+    25.2,
+    251.69
+   ],
+   [
+    25.57,
+    259.75
+   ],
+   [
+    25.94,
+    267.82
+   ],
+   [
+    26.31,
+    275.89
+   ],
+   [
+    26.68,
+    283.95
+   ],
+   [
+    27.04,
+    292.02
+   ],
+   [
+    27.41,
+    300.09
+   ],
+   [
+    27.78,
+    308.15
+   ],
+   [
+    28.15,
+    316.22
+   ],
+   [
+    28.52,
+    324.29
+   ],
+   [
+    28.89,
+    332.35
+   ],
+   [
+    29.26,
+    340.42
+   ],
+   [
+    29.62,
+    348.49
+   ],
+   [
+    29.99,
+    356.55
+   ],
+   [
+    30.36,
+    364.62
+   ],
+   [
+    30.73,
+    372.69
+   ],
+   [
+    31.1,
+    380.75
+   ],
+   [
+    31.47,
+    388.82
+   ],
+   [
+    31.83,
+    396.89
+   ],
+   [
+    32.2,
+    404.95
+   ],
+   [
+    32.57,
+    413.02
+   ],
+   [
+    32.94,
+    421.09
+   ],
+   [
+    33.31,
+    429.16
+   ],
+   [
+    33.68,
+    437.22
+   ],
+   [
+    33.4,
+    448.62
+   ],
+   [
+    32.87,
+    460.97
+   ],
+   [
+    32.45,
+    469.96
+   ],
+   [
+    32.04,
+    478.94
+   ],
+   [
+    31.44,
+    487.26
+   ],
+   [
+    30.84,
+    495.57
+   ],
+   [
+    30.24,
+    503.88
+   ],
+   [
+    29.65,
+    512.19
+   ],
+   [
+    29.05,
+    520.5
+   ],
+   [
+    28.45,
+    528.81
+   ],
+   [
+    27.82,
+    537.64
+   ],
+   [
+    27.19,
+    546.46
+   ],
+   [
+    26.56,
+    555.28
+   ],
+   [
+    25.93,
+    564.1
+   ],
+   [
+    25.29,
+    572.93
+   ]
+  ]
+ },
+ "stands": [
+  {
+   "name": null,
+   "station_m": 82.7,
+   "side": "right",
+   "offset_m": 26.7,
+   "length_m": 401.8,
+   "depth_m": 31.1,
+   "yaw_rad": 1.529,
+   "centre": [
+    43.55,
+    79.16
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     57.56,
+     372.98
+    ],
+    [
+     57.22,
+     364.82
+    ],
+    [
+     50.45,
+     365.11
+    ],
+    [
+     50.79,
+     373.35
+    ],
+    [
+     46.68,
+     373.55
+    ],
+    [
+     45.86,
+     356.24
+    ],
+    [
+     42.19,
+     356.41
+    ],
+    [
+     27.91,
+     55.37
+    ],
+    [
+     32.28,
+     55.16
+    ],
+    [
+     31.81,
+     45.36
+    ]
+   ]
+  },
+  {
+   "name": "Main Grandstand",
+   "station_m": 235.3,
+   "side": "left",
+   "offset_m": 17.5,
+   "length_m": 349.3,
+   "depth_m": 29.4,
+   "yaw_rad": 1.5292,
+   "centre": [
+    -20.78,
+    234.81
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     -17.75,
+     24.91
+    ],
+    [
+     -3.22,
+     373.94
+    ]
+   ]
+  },
+  {
+   "name": "First Turn Grandstand",
+   "station_m": 621.7,
+   "side": "left",
+   "offset_m": 26.3,
+   "length_m": 204.7,
+   "depth_m": 17.9,
+   "yaw_rad": 1.5279,
+   "centre": [
+    -10.36,
+    620.93
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     5.57,
+     743.21
+    ],
+    [
+     -3.22,
+     538.65
+    ]
+   ]
+  },
+  {
+   "name": "University Grandstand 1",
+   "station_m": 927.6,
+   "side": "left",
+   "offset_m": 50.7,
+   "length_m": 69.9,
+   "depth_m": 17.7,
+   "yaw_rad": 2.9863,
+   "centre": [
+    176.09,
+    766.34
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     202.63,
+     751.49
+    ],
+    [
+     203.26,
+     769.19
+    ]
+   ]
+  },
+  {
+   "name": "University Grandstand 2",
+   "station_m": 968.5,
+   "side": "left",
+   "offset_m": 49.7,
+   "length_m": 69.7,
+   "depth_m": 17.9,
+   "yaw_rad": 2.9946,
+   "centre": [
+    245.19,
+    764.12
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     217.42,
+     757.97
+    ],
+    [
+     284.96,
+     747.25
+    ]
+   ]
+  },
+  {
+   "name": "University Grandstand 3",
+   "station_m": 1056.9,
+   "side": "left",
+   "offset_m": 58.4,
+   "length_m": 69.6,
+   "depth_m": 17.7,
+   "yaw_rad": 2.9903,
+   "centre": [
+    339.96,
+    757.69
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     298.14,
+     753.49
+    ],
+    [
+     365.83,
+     743.17
+    ]
+   ]
+  },
+  {
+   "name": "Batelco",
+   "station_m": 3021.9,
+   "side": "right",
+   "offset_m": 48.0,
+   "length_m": 244.2,
+   "depth_m": 27.9,
+   "yaw_rad": 1.5281,
+   "centre": [
+    149.01,
+    274.89
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     152.97,
+     128.17
+    ],
+    [
+     164.2,
+     372.12
+    ]
+   ]
+  },
+  {
+   "name": "Victory Grandstand 1",
+   "station_m": 4731.1,
+   "side": "left",
+   "offset_m": 41.7,
+   "length_m": 67.4,
+   "depth_m": 16.9,
+   "yaw_rad": 0.5099,
+   "centre": [
+    222.01,
+    -420.67
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     242.25,
+     -401.6
+    ],
+    [
+     183.39,
+     -434.52
+    ]
+   ]
+  },
+  {
+   "name": "Victory Grandstand 2",
+   "station_m": 4906.4,
+   "side": "left",
+   "offset_m": 38.8,
+   "length_m": 69.8,
+   "depth_m": 17.1,
+   "yaw_rad": 0.4977,
+   "centre": [
+    67.48,
+    -502.12
+   ],
+   "source": "osm",
+   "covered": false,
+   "front": [
+    [
+     101.02,
+     -476.11
+    ],
+    [
+     39.68,
+     -509.44
+    ]
+   ]
+  }
+ ],
+ "structures": [
+  {
+   "name": null,
+   "station_m": 18.4,
+   "side": "right",
+   "offset_m": 67.5,
+   "length_m": 58.4,
+   "depth_m": 29.8,
+   "yaw_rad": 1.522,
+   "centre": [
+    78.82,
+    13.2
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1740
+  },
+  {
+   "name": null,
+   "station_m": 81.5,
+   "side": "right",
+   "offset_m": 83.6,
+   "length_m": 43.7,
+   "depth_m": 14.9,
+   "yaw_rad": 1.53,
+   "centre": [
+    92.26,
+    75.82
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 651
+  },
+  {
+   "name": null,
+   "station_m": 133.3,
+   "side": "right",
+   "offset_m": 83.6,
+   "length_m": 43.9,
+   "depth_m": 14.8,
+   "yaw_rad": 1.5307,
+   "centre": [
+    94.53,
+    127.53
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 648
+  },
+  {
+   "name": null,
+   "station_m": 185.3,
+   "side": "right",
+   "offset_m": 84.6,
+   "length_m": 44.6,
+   "depth_m": 14.7,
+   "yaw_rad": 1.5336,
+   "centre": [
+    97.93,
+    179.47
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 653
+  },
+  {
+   "name": null,
+   "station_m": 237.1,
+   "side": "right",
+   "offset_m": 84.5,
+   "length_m": 43.7,
+   "depth_m": 14.1,
+   "yaw_rad": 1.5325,
+   "centre": [
+    99.8,
+    231.2
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 615
+  },
+  {
+   "name": null,
+   "station_m": 288.9,
+   "side": "right",
+   "offset_m": 84.3,
+   "length_m": 44.0,
+   "depth_m": 14.3,
+   "yaw_rad": 1.5305,
+   "centre": [
+    102.1,
+    282.9
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 631
+  },
+  {
+   "name": null,
+   "station_m": 334.6,
+   "side": "right",
+   "offset_m": 84.5,
+   "length_m": 43.9,
+   "depth_m": 14.3,
+   "yaw_rad": 1.5165,
+   "centre": [
+    104.34,
+    328.54
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 628
+  },
+  {
+   "name": null,
+   "station_m": 408.9,
+   "side": "left",
+   "offset_m": 125.1,
+   "length_m": 51.5,
+   "depth_m": 45.9,
+   "yaw_rad": 3.1008,
+   "centre": [
+    -138.88,
+    414.04
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2364
+  },
+  {
+   "name": null,
+   "station_m": 455.2,
+   "side": "left",
+   "offset_m": 31.3,
+   "length_m": 30.4,
+   "depth_m": 19.9,
+   "yaw_rad": 3.0989,
+   "centre": [
+    -27.34,
+    455.27
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 508
+  },
+  {
+   "name": null,
+   "station_m": 498.2,
+   "side": "left",
+   "offset_m": 101.9,
+   "length_m": 56.5,
+   "depth_m": 17.0,
+   "yaw_rad": 1.5621,
+   "centre": [
+    -88.74,
+    501.05
+   ],
+   "levels": 0,
+   "osm_building": "roof",
+   "area_m2": 523
+  },
+  {
+   "name": null,
+   "station_m": 565.3,
+   "side": "left",
+   "offset_m": 91.8,
+   "length_m": 128.4,
+   "depth_m": 11.3,
+   "yaw_rad": 3.0926,
+   "centre": [
+    -144.6,
+    570.2
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1453
+  },
+  {
+   "name": null,
+   "station_m": 584.1,
+   "side": "left",
+   "offset_m": 91.6,
+   "length_m": 128.5,
+   "depth_m": 11.2,
+   "yaw_rad": 3.0916,
+   "centre": [
+    -143.71,
+    588.76
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1436
+  },
+  {
+   "name": null,
+   "station_m": 602.4,
+   "side": "left",
+   "offset_m": 91.2,
+   "length_m": 128.8,
+   "depth_m": 11.1,
+   "yaw_rad": 3.0931,
+   "centre": [
+    -142.76,
+    606.74
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1427
+  },
+  {
+   "name": null,
+   "station_m": 621.1,
+   "side": "left",
+   "offset_m": 91.1,
+   "length_m": 128.9,
+   "depth_m": 11.4,
+   "yaw_rad": 3.0952,
+   "centre": [
+    -141.91,
+    625.2
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1443
+  },
+  {
+   "name": null,
+   "station_m": 639.0,
+   "side": "left",
+   "offset_m": 91.6,
+   "length_m": 128.2,
+   "depth_m": 11.0,
+   "yaw_rad": 3.0925,
+   "centre": [
+    -115.88,
+    642.12
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1413
+  },
+  {
+   "name": null,
+   "station_m": 657.4,
+   "side": "left",
+   "offset_m": 91.6,
+   "length_m": 127.9,
+   "depth_m": 11.2,
+   "yaw_rad": 3.0905,
+   "centre": [
+    -140.58,
+    661.46
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1436
+  },
+  {
+   "name": null,
+   "station_m": 675.5,
+   "side": "left",
+   "offset_m": 91.4,
+   "length_m": 127.9,
+   "depth_m": 11.2,
+   "yaw_rad": 3.0924,
+   "centre": [
+    -139.71,
+    679.64
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1434
+  },
+  {
+   "name": null,
+   "station_m": 694.5,
+   "side": "left",
+   "offset_m": 91.3,
+   "length_m": 128.1,
+   "depth_m": 11.5,
+   "yaw_rad": 3.0925,
+   "centre": [
+    -139.07,
+    697.99
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1467
+  },
+  {
+   "name": null,
+   "station_m": 704.6,
+   "side": "left",
+   "offset_m": 96.5,
+   "length_m": 128.4,
+   "depth_m": 11.2,
+   "yaw_rad": 3.0948,
+   "centre": [
+    -135.81,
+    770.87
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1432
+  },
+  {
+   "name": null,
+   "station_m": 712.1,
+   "side": "left",
+   "offset_m": 90.8,
+   "length_m": 128.0,
+   "depth_m": 11.2,
+   "yaw_rad": 3.0936,
+   "centre": [
+    -138.19,
+    714.03
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1436
+  },
+  {
+   "name": null,
+   "station_m": 717.8,
+   "side": "left",
+   "offset_m": 97.3,
+   "length_m": 142.7,
+   "depth_m": 6.9,
+   "yaw_rad": 3.0964,
+   "centre": [
+    -137.17,
+    785.79
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 981
+  },
+  {
+   "name": null,
+   "station_m": 721.8,
+   "side": "left",
+   "offset_m": 90.9,
+   "length_m": 128.0,
+   "depth_m": 11.1,
+   "yaw_rad": 3.0956,
+   "centre": [
+    -137.32,
+    734.37
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1418
+  },
+  {
+   "name": null,
+   "station_m": 726.0,
+   "side": "left",
+   "offset_m": 92.4,
+   "length_m": 128.5,
+   "depth_m": 11.4,
+   "yaw_rad": 3.0943,
+   "centre": [
+    -136.62,
+    752.73
+   ],
+   "levels": 0,
+   "osm_building": "carport",
+   "area_m2": 1459
+  },
+  {
+   "name": null,
+   "station_m": 741.5,
+   "side": "left",
+   "offset_m": 102.3,
+   "length_m": 18.3,
+   "depth_m": 17.9,
+   "yaw_rad": 1.5371,
+   "centre": [
+    -39.99,
+    819.85
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 327
+  },
+  {
+   "name": null,
+   "station_m": 1346.8,
+   "side": "left",
+   "offset_m": 43.7,
+   "length_m": 43.6,
+   "depth_m": 11.2,
+   "yaw_rad": 3.0906,
+   "centre": [
+    621.12,
+    685.26
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 464
+  },
+  {
+   "name": null,
+   "station_m": 1358.9,
+   "side": "left",
+   "offset_m": 103.0,
+   "length_m": 126.5,
+   "depth_m": 62.6,
+   "yaw_rad": 2.0463,
+   "centre": [
+    655.79,
+    798.67
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2053
+  },
+  {
+   "name": null,
+   "station_m": 1368.3,
+   "side": "left",
+   "offset_m": 64.2,
+   "length_m": 79.4,
+   "depth_m": 51.2,
+   "yaw_rad": 3.026,
+   "centre": [
+    649.74,
+    719.08
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2203
+  },
+  {
+   "name": null,
+   "station_m": 1405.2,
+   "side": "left",
+   "offset_m": 39.0,
+   "length_m": 35.3,
+   "depth_m": 20.9,
+   "yaw_rad": 1.4202,
+   "centre": [
+    679.93,
+    681.52
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 738
+  },
+  {
+   "name": null,
+   "station_m": 1497.2,
+   "side": "left",
+   "offset_m": 100.8,
+   "length_m": 114.2,
+   "depth_m": 53.8,
+   "yaw_rad": 1.2656,
+   "centre": [
+    787.72,
+    751.11
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2407
+  },
+  {
+   "name": null,
+   "station_m": 3311.3,
+   "side": "right",
+   "offset_m": 54.3,
+   "length_m": 31.5,
+   "depth_m": 20.7,
+   "yaw_rad": 3.1012,
+   "centre": [
+    126.05,
+    -13.85
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 509
+  },
+  {
+   "name": null,
+   "station_m": 4681.2,
+   "side": "left",
+   "offset_m": 82.8,
+   "length_m": 96.3,
+   "depth_m": 27.1,
+   "yaw_rad": 0.7212,
+   "centre": [
+    289.95,
+    -441.01
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 2406
+  },
+  {
+   "name": null,
+   "station_m": 5328.9,
+   "side": "left",
+   "offset_m": 89.1,
+   "length_m": 38.4,
+   "depth_m": 32.2,
+   "yaw_rad": 3.1002,
+   "centre": [
+    -119.93,
+    -73.04
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1179
+  },
+  {
+   "name": null,
+   "station_m": 5333.0,
+   "side": "left",
+   "offset_m": 127.5,
+   "length_m": 41.7,
+   "depth_m": 24.7,
+   "yaw_rad": 1.5297,
+   "centre": [
+    -143.73,
+    -67.88
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 961
+  }
+ ],
+ "crossings": [],
+ "landmarks": [
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 0.4,
+   "side": "left",
+   "centre": [
+    -36.58,
+    0.43
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 397.9,
+   "side": "left",
+   "centre": [
+    -16.42,
+    397.45
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 416.8,
+   "side": "right",
+   "centre": [
+    50.59,
+    413.28
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 474.6,
+   "side": "left",
+   "centre": [
+    -7.76,
+    473.8
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 514.9,
+   "side": "right",
+   "centre": [
+    53.95,
+    511.38
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 535.4,
+   "side": "left",
+   "centre": [
+    1.94,
+    534.24
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 559.3,
+   "side": "right",
+   "centre": [
+    54.96,
+    555.82
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 579.3,
+   "side": "left",
+   "centre": [
+    -0.17,
+    578.19
+   ]
+  },
+  {
+   "kind": "tower",
+   "name": "Sakhir Tower",
+   "source": "authored",
+   "station_m": 582.3,
+   "side": "right",
+   "centre": [
+    105.6,
+    577.14
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 600.5,
+   "side": "right",
+   "centre": [
+    57.99,
+    597.04
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 626.5,
+   "side": "left",
+   "centre": [
+    -0.07,
+    625.26
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 672.5,
+   "side": "left",
+   "centre": [
+    2.56,
+    671.3
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 718.2,
+   "side": "left",
+   "centre": [
+    4.6,
+    717.43
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 739.3,
+   "side": "left",
+   "centre": [
+    18.44,
+    797.01
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 756.5,
+   "side": "left",
+   "centre": [
+    95.87,
+    780.14
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 804.4,
+   "side": "left",
+   "centre": [
+    127.05,
+    736.01
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 834.8,
+   "side": "right",
+   "centre": [
+    85.93,
+    630.14
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 859.4,
+   "side": "right",
+   "centre": [
+    147.98,
+    631.86
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 910.1,
+   "side": "right",
+   "centre": [
+    194.88,
+    653.38
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 918.6,
+   "side": "left",
+   "centre": [
+    179.18,
+    729.74
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 953.2,
+   "side": "right",
+   "centre": [
+    229.29,
+    670.34
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 969.1,
+   "side": "left",
+   "centre": [
+    242.76,
+    733.64
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 994.4,
+   "side": "right",
+   "centre": [
+    256.83,
+    656.16
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1019.8,
+   "side": "left",
+   "centre": [
+    296.84,
+    730.44
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1050.5,
+   "side": "right",
+   "centre": [
+    307.19,
+    625.27
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1064.1,
+   "side": "left",
+   "centre": [
+    341.32,
+    727.43
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1110.2,
+   "side": "left",
+   "centre": [
+    384.87,
+    710.25
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1158.6,
+   "side": "left",
+   "centre": [
+    431.42,
+    695.92
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1204.4,
+   "side": "left",
+   "centre": [
+    476.09,
+    685.76
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1251.4,
+   "side": "left",
+   "centre": [
+    521.92,
+    675.17
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1298.6,
+   "side": "left",
+   "centre": [
+    567.96,
+    664.8
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1346.2,
+   "side": "left",
+   "centre": [
+    614.32,
+    654.09
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1349.0,
+   "side": "left",
+   "centre": [
+    662.15,
+    881.77
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1385.5,
+   "side": "left",
+   "centre": [
+    698.76,
+    878.78
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1394.6,
+   "side": "left",
+   "centre": [
+    662.52,
+    648.28
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1439.6,
+   "side": "left",
+   "centre": [
+    706.43,
+    638.13
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1486.6,
+   "side": "left",
+   "centre": [
+    752.25,
+    627.54
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1521.6,
+   "side": "left",
+   "centre": [
+    795.65,
+    620.05
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1537.0,
+   "side": "left",
+   "centre": [
+    870.96,
+    607.58
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1571.8,
+   "side": "left",
+   "centre": [
+    864.82,
+    538.83
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1590.6,
+   "side": "left",
+   "centre": [
+    813.26,
+    496.76
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1643.9,
+   "side": "left",
+   "centre": [
+    772.08,
+    463.67
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1728.7,
+   "side": "left",
+   "centre": [
+    712.45,
+    407.48
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1760.9,
+   "side": "left",
+   "centre": [
+    735.85,
+    347.5
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1837.6,
+   "side": "left",
+   "centre": [
+    645.65,
+    346.91
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1860.5,
+   "side": "left",
+   "centre": [
+    763.23,
+    240.4
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1881.5,
+   "side": "left",
+   "centre": [
+    618.67,
+    294.89
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1937.2,
+   "side": "left",
+   "centre": [
+    529.28,
+    218.4
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 1941.5,
+   "side": "right",
+   "centre": [
+    538.97,
+    371.94
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2084.6,
+   "side": "left",
+   "centre": [
+    489.49,
+    204.13
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2143.6,
+   "side": "left",
+   "centre": [
+    438.19,
+    169.15
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2187.0,
+   "side": "left",
+   "centre": [
+    387.39,
+    153.88
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2233.9,
+   "side": "left",
+   "centre": [
+    347.38,
+    125.4
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2264.6,
+   "side": "left",
+   "centre": [
+    283.26,
+    77.48
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2314.0,
+   "side": "right",
+   "centre": [
+    283.46,
+    172.11
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2348.5,
+   "side": "right",
+   "centre": [
+    288.38,
+    205.89
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2391.5,
+   "side": "right",
+   "centre": [
+    303.33,
+    247.04
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2441.9,
+   "side": "right",
+   "centre": [
+    314.94,
+    296.16
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2484.6,
+   "side": "left",
+   "centre": [
+    253.97,
+    349.29
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2489.0,
+   "side": "right",
+   "centre": [
+    324.53,
+    342.42
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2530.3,
+   "side": "left",
+   "centre": [
+    258.55,
+    394.81
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2536.8,
+   "side": "right",
+   "centre": [
+    331.53,
+    389.7
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2571.7,
+   "side": "left",
+   "centre": [
+    264.65,
+    435.36
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2573.5,
+   "side": "right",
+   "centre": [
+    336.13,
+    426.34
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2621.0,
+   "side": "left",
+   "centre": [
+    268.41,
+    470.29
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2629.5,
+   "side": "right",
+   "centre": [
+    347.09,
+    494.44
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2680.3,
+   "side": "left",
+   "centre": [
+    265.08,
+    508.86
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2680.6,
+   "side": "right",
+   "centre": [
+    329.22,
+    575.97
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2724.9,
+   "side": "right",
+   "centre": [
+    205.52,
+    607.36
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2837.2,
+   "side": "right",
+   "centre": [
+    168.5,
+    463.81
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2888.7,
+   "side": "right",
+   "centre": [
+    167.12,
+    409.63
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 2990.1,
+   "side": "left",
+   "centre": [
+    248.61,
+    302.25
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3036.4,
+   "side": "left",
+   "centre": [
+    240.29,
+    256.27
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3082.9,
+   "side": "left",
+   "centre": [
+    238.41,
+    209.74
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3130.4,
+   "side": "left",
+   "centre": [
+    229.42,
+    162.7
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3178.1,
+   "side": "left",
+   "centre": [
+    223.64,
+    115.25
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3199.6,
+   "side": "right",
+   "centre": [
+    154.24,
+    96.63
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3225.5,
+   "side": "left",
+   "centre": [
+    224.71,
+    67.75
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3250.5,
+   "side": "right",
+   "centre": [
+    151.92,
+    45.77
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3272.4,
+   "side": "left",
+   "centre": [
+    228.17,
+    20.65
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3290.0,
+   "side": "right",
+   "centre": [
+    149.83,
+    6.4
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3319.3,
+   "side": "left",
+   "centre": [
+    226.21,
+    -26.32
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3336.2,
+   "side": "right",
+   "centre": [
+    147.87,
+    -39.73
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3366.9,
+   "side": "left",
+   "centre": [
+    223.91,
+    -73.8
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3394.4,
+   "side": "right",
+   "centre": [
+    144.89,
+    -97.99
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3444.6,
+   "side": "right",
+   "centre": [
+    140.87,
+    -190.27
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3463.4,
+   "side": "right",
+   "centre": [
+    172.91,
+    -241.85
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3474.5,
+   "side": "left",
+   "centre": [
+    226.94,
+    -133.82
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3536.9,
+   "side": "left",
+   "centre": [
+    275.08,
+    -139.16
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3620.1,
+   "side": "right",
+   "centre": [
+    389.72,
+    -158.59
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3627.3,
+   "side": "left",
+   "centre": [
+    332.4,
+    -101.22
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3671.8,
+   "side": "left",
+   "centre": [
+    350.69,
+    -69.53
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3719.1,
+   "side": "left",
+   "centre": [
+    372.93,
+    -28.62
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3768.1,
+   "side": "left",
+   "centre": [
+    392.3,
+    27.76
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3819.8,
+   "side": "left",
+   "centre": [
+    430.96,
+    78.78
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3874.1,
+   "side": "left",
+   "centre": [
+    503.21,
+    138.2
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3934.6,
+   "side": "left",
+   "centre": [
+    593.03,
+    107.09
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3983.3,
+   "side": "left",
+   "centre": [
+    678.42,
+    166.43
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 3995.1,
+   "side": "left",
+   "centre": [
+    645.96,
+    73.24
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4042.8,
+   "side": "left",
+   "centre": [
+    730.02,
+    111.93
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4048.1,
+   "side": "left",
+   "centre": [
+    692.17,
+    37.83
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4055.6,
+   "side": "left",
+   "centre": [
+    871.95,
+    186.7
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4064.5,
+   "side": "left",
+   "centre": [
+    854.21,
+    138.14
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4072.9,
+   "side": "left",
+   "centre": [
+    841.55,
+    103.5
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4093.5,
+   "side": "left",
+   "centre": [
+    826.92,
+    39.49
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4115.3,
+   "side": "left",
+   "centre": [
+    801.61,
+    -28.83
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4141.3,
+   "side": "left",
+   "centre": [
+    766.74,
+    -94.64
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4172.2,
+   "side": "left",
+   "centre": [
+    720.85,
+    -149.96
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4218.0,
+   "side": "left",
+   "centre": [
+    673.18,
+    -182.48
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4266.8,
+   "side": "left",
+   "centre": [
+    629.64,
+    -199.9
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4315.2,
+   "side": "left",
+   "centre": [
+    581.45,
+    -211.35
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4360.5,
+   "side": "left",
+   "centre": [
+    540.13,
+    -230.69
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4410.0,
+   "side": "left",
+   "centre": [
+    499.61,
+    -259.85
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4457.4,
+   "side": "left",
+   "centre": [
+    455.85,
+    -278.65
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4504.4,
+   "side": "left",
+   "centre": [
+    413.57,
+    -299.28
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4527.9,
+   "side": "right",
+   "centre": [
+    341.88,
+    -219.16
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4551.8,
+   "side": "left",
+   "centre": [
+    372.44,
+    -322.79
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4598.9,
+   "side": "left",
+   "centre": [
+    331.1,
+    -345.34
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4610.1,
+   "side": "right",
+   "centre": [
+    269.32,
+    -257.62
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4645.6,
+   "side": "left",
+   "centre": [
+    290.2,
+    -368.1
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4692.3,
+   "side": "left",
+   "centre": [
+    243.28,
+    -379.76
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4739.6,
+   "side": "left",
+   "centre": [
+    201.85,
+    -402.21
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4782.9,
+   "side": "left",
+   "centre": [
+    163.95,
+    -423.16
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4835.0,
+   "side": "left",
+   "centre": [
+    117.79,
+    -448.57
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4917.6,
+   "side": "left",
+   "centre": [
+    37.65,
+    -498.04
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4928.4,
+   "side": "left",
+   "centre": [
+    -20.83,
+    -527.01
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 4971.3,
+   "side": "left",
+   "centre": [
+    -85.68,
+    -467.74
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5001.0,
+   "side": "left",
+   "centre": [
+    -285.62,
+    -477.54
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5023.2,
+   "side": "left",
+   "centre": [
+    -296.98,
+    -397.36
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5031.5,
+   "side": "left",
+   "centre": [
+    -74.27,
+    -375.14
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5072.2,
+   "side": "left",
+   "centre": [
+    -59.67,
+    -333.31
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5077.3,
+   "side": "left",
+   "centre": [
+    -276.77,
+    -321.41
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5110.9,
+   "side": "left",
+   "centre": [
+    -281.49,
+    -289.1
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5121.4,
+   "side": "left",
+   "centre": [
+    -47.89,
+    -284.78
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5156.6,
+   "side": "left",
+   "centre": [
+    -238.81,
+    -243.97
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5158.3,
+   "side": "left",
+   "centre": [
+    -234.83,
+    -242.3
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5165.4,
+   "side": "right",
+   "centre": [
+    25.53,
+    -242.86
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5210.3,
+   "side": "right",
+   "centre": [
+    18.1,
+    -197.87
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5263.3,
+   "side": "left",
+   "centre": [
+    -43.57,
+    -142.26
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5310.2,
+   "side": "left",
+   "centre": [
+    -40.62,
+    -95.46
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5353.1,
+   "side": "right",
+   "centre": [
+    23.86,
+    -55.45
+   ]
+  },
+  {
+   "kind": "floodlight",
+   "name": null,
+   "station_m": 5353.2,
+   "side": "left",
+   "centre": [
+    -38.9,
+    -52.41
+   ]
+  }
+ ],
+ "woods": []
+}
