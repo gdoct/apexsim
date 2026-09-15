@@ -66,6 +66,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Catalunya": [(2.246, 41.560, 2.275, 41.580)],
     "Budapest": [(19.236, 47.572, 19.262, 47.588)],
     "Sakhir": [(50.495, 26.020, 50.525, 26.045)],
+    "Norisring": [(11.110, 49.428, 11.132, 49.440)],
     # MoscowRaceway is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
@@ -645,10 +646,12 @@ class Osm:
         self.nodes: dict[int, tuple[float, float]] = {}
         self.node_tags: dict[int, dict] = {}
         self.ways: list[dict] = []
+        self.relations: list[dict] = []
         # The tiles overlap at their seams, so the same way arrives more
         # than once; a duplicated way breaks chaining (a pit lane joined to
         # its own copy doubles back) and double-counts buildings.
         seen_ways: set[int] = set()
+        seen_relations: set[int] = set()
         for p in paths:
             for e in json.loads(p.read_text(encoding="utf-8"))["elements"]:
                 if e["type"] == "node":
@@ -660,16 +663,46 @@ class Osm:
                         continue
                     seen_ways.add(e["id"])
                     self.ways.append(e)
+                elif e["type"] == "relation":
+                    if e["id"] in seen_relations:
+                        continue
+                    seen_relations.add(e["id"])
+                    self.relations.append(e)
         lons = [n[0] for n in self.nodes.values()]
         lats = [n[1] for n in self.nodes.values()]
         self.lon0 = (min(lons) + max(lons)) / 2
         self.lat0 = (min(lats) + max(lats)) / 2
+        self.ways_by_id: dict[int, dict] = {w["id"]: w for w in self.ways}
 
     def way_xy(self, w) -> np.ndarray | None:
         pts = [self.nodes[n] for n in w["nodes"] if n in self.nodes]
         if len(pts) < 2:
             return None
         return np.array([enu(p[0], p[1], self.lon0, self.lat0) for p in pts])
+
+
+def relation_raceway_roles(osm: Osm) -> dict[int, str]:
+    """Way id -> its role in an OSM route relation tagged highway=raceway.
+
+    Every circuit so far tags each stretch of tarmac highway=raceway
+    directly. A street circuit run on public roads can instead model the
+    lap as a single `type=circuit` relation carrying the raceway tag, with
+    every member way tagged only as the ordinary street it is (Norisring:
+    Ben-Gurion-Ring and the Beuthener/Zeppelin/Karl-Steigelmann streets are
+    highway=secondary/unclassified/service, and it is relation 1889538,
+    "Norisring", that carries highway=raceway). Folding those members in is
+    what lets the fit and the pit-lane search see the lap at all; a
+    directly-tagged circuit is unaffected, since none of the others has
+    such a relation.
+    """
+    roles: dict[int, str] = {}
+    for r in osm.relations:
+        if (r.get("tags") or {}).get("highway") != "raceway":
+            continue
+        for m in r.get("members", []):
+            if m.get("type") == "way":
+                roles.setdefault(m["ref"], m.get("role") or "")
+    return roles
 
 
 def is_pit_way(t: dict) -> bool:
@@ -695,10 +728,14 @@ def is_pit_way(t: dict) -> bool:
 
 
 def raceway_cloud(osm: Osm) -> np.ndarray:
+    roles = relation_raceway_roles(osm)
     pts = []
     for w in osm.ways:
         t = w.get("tags") or {}
-        if t.get("highway") != "raceway":
+        role = roles.get(w["id"])
+        if t.get("highway") != "raceway" and role is None:
+            continue
+        if role == "pit_lane":
             continue
         if is_pit_way(t) or "kart" in (t.get("name") or "").lower():
             continue
@@ -957,6 +994,12 @@ def chain_ways(ways: list[np.ndarray], tol=3.0) -> list[np.ndarray]:
 def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     lo = track.pts.min(0) - 400.0
     hi = track.pts.max(0) + 400.0
+    # Members of a street circuit's route relation (Norisring's
+    # Beuthener Strasse et al): the lap's own tarmac, tagged only as an
+    # ordinary street, so anything below that would otherwise take a raised
+    # or bridged stretch of it for a structure crossing the road needs to
+    # know about it too.
+    relation_roles = relation_raceway_roles(osm)
 
     def xy(w):
         p = osm.way_xy(w)
@@ -1015,6 +1058,21 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     for c in corners:
         seen.setdefault(c["name"], c)
     corners = sorted(seen.values(), key=lambda c: c["station_m"])
+
+    # A street circuit modelled as a route relation (see
+    # relation_raceway_roles) carries no highway=raceway tag on its member
+    # ways, so the loop above never saw them; only its "pit_lane" role
+    # member is useful here -- the members' own names are ordinary street
+    # names, not corner names, so nothing is added to `corners` for them.
+    for way_id, role in relation_roles.items():
+        if role != "pit_lane":
+            continue
+        w = osm.ways_by_id.get(way_id)
+        if w is None:
+            continue
+        p = xy(w)
+        if p is not None and len(p) > 2:
+            pit_ways.append(p)
 
     def pit_lane_from(ways: list[np.ndarray]) -> dict | None:
         # A circuit has more than one lane tagged "pit" (Spa's support pit
@@ -1181,7 +1239,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         d, _ = track.grid.query(densify(p, 3.0, closed=False), max_rings=4)
         if d.min() > 6.0:
             continue
-        if t.get("highway") == "raceway":
+        if t.get("highway") == "raceway" or relation_roles.get(w["id"]) is not None:
             continue  # the road's own bridge, not something over it
         hit = densify(p, 3.0, closed=False)[int(d.argmin())][None, :]
         s, _ = track.locate(hit)
