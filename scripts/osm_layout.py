@@ -57,6 +57,35 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Monza": [(9.275, 45.612, 9.300, 45.635)],
     "Silverstone": [(-1.035, 52.063, -0.995, 52.083)],
     "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
+    "Austin": [(-97.652, 30.122, -97.626, 30.145)],
+    "Hockenheim": [(8.552, 49.318, 8.582, 49.338)],
+    "BrandsHatch": [(0.250, 51.350, 0.275, 51.364)],
+    "Spielberg": [(14.752, 47.212, 14.780, 47.228)],
+    "Suzuka": [(136.525, 34.835, 136.555, 34.855)],
+    "Nuerburgring": [(6.930, 50.325, 6.965, 50.345)],
+    "Catalunya": [(2.246, 41.560, 2.275, 41.580)],
+    "Budapest": [(19.236, 47.572, 19.262, 47.588)],
+    "Sakhir": [(50.495, 26.020, 50.525, 26.045)],
+    # MoscowRaceway is deliberately NOT registered here (see below): a bbox
+    # whose fit fails would abort every `--all` run at this entry (build()
+    # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
+    # every stem sorted after it. Once the fit is fixed, add:
+    #   "MoscowRaceway": [(36.243, 55.987, 36.283, 56.005)],
+    # That bbox is already corrected from the task card's seed
+    # (36.070, 55.955, 36.105, 55.972), which is ~12 km off: the real
+    # circuit (per Wikipedia and OSM Nominatim, "Moscow Raceway"
+    # leisure=sports_centre + highway=raceway ways) sits at 55.996N 36.266E,
+    # near Shelud'kovo/Fedyukovo, Volokolamsky District. Even at the
+    # corrected location the fit still fails: OSM's "Moscow Raceway"
+    # raceway way (the only one in range) covers only ~72% of the
+    # centerline at ~4 m rmse, short of the 90% / 2.5 m gate (and short of
+    # the Le Mans exception's 3.0 m rmse too). The circuit has ~18
+    # published layout variants (FIM vs. GP10 differ by a back-straight
+    # chicane / turn 8), and the uncovered stretches are scattered across
+    # ~7 short spans rather than one contiguous chunk, which looks like OSM
+    # traced a different variant than this YAML's rather than a
+    # thin-coverage or public-road case. See docs/ADDITIONAL_TRACKS.md
+    # hand-back for the full investigation; no dossier was written.
     "LeMans": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
@@ -64,6 +93,16 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
         (0.180, 47.958, 0.212, 47.966),
         (0.212, 47.958, 0.240, 47.966),
     ],
+    # Interlagos sits in dense urban Sao Paulo; the seed bbox alone exceeds
+    # the API's 50k-node ceiling, so it is split into quadrants.
+    "SaoPaulo": [
+        (-46.712, -23.712, -46.700, -23.703),
+        (-46.700, -23.712, -46.688, -23.703),
+        (-46.712, -23.703, -46.700, -23.695),
+        (-46.700, -23.703, -46.688, -23.695),
+    ],
+    "Shanghai": [(121.205, 31.328, 121.235, 31.352)],
+    "Sepang": [(101.725, 2.750, 101.752, 2.772)],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -106,6 +145,141 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Arena", from_m=3300, to_m=3760, side="right", depth_m=16),
         dict(name="Ben Pon", from_m=4030, to_m=4240, side="left", depth_m=20),
     ],
+    # COTA's own grandstand map (circuitoftheamericas.com/ticket/grandstands-
+    # and-reserved-seating-f1/) and third-party guides (oversteer48.com/cota-
+    # turn-4/, oversteer48.com/cota-turn-9/) both put these on the outside
+    # (right-hand side, as seen driving the lap) of the track; neither has an
+    # OSM building outline, unlike the Main Grandstand and the Turn 1/12/15/
+    # 19-20 stands, which OSM already traces. The Turn 4 grandstand runs the
+    # length of the T3-T4-T5 sequence and is partly covered (premium upper
+    # rows under a roof); the Turn 9 grandstand, between T9 and T10, is tall
+    # (37 rows) open bleachers with no roof.
+    "Austin": [
+        dict(name="Turn 4 Grandstand", from_m=1050, to_m=1400, side="right", depth_m=18, covered=True),
+        dict(name="Turn 9 Grandstand", from_m=2017, to_m=2154, side="right", depth_m=22, covered=False),
+    ],
+    # OSM's grandstand outlines cover the Motodrom bowl and the pit
+    # straight but not the Mercedes-Tribüne, a 1,300-tonne permanent steel
+    # stand built in 2002 alongside the new Spitzkehre. It looks onto turn
+    # 8 (the hairpin's exit) and the acceleration zone into the Motodrom
+    # (https://stahlbau-queck.de/projekte/projekte-details/mercedes-tribuene-hockenheimring,
+    # https://www.thef1spectator.com/hockenheim-f1-travel-guide/where-to-watch/).
+    # Station span located from the hairpin's own heading reversal (the
+    # fit's coverage gap sits exactly there); on the outside of the
+    # right-hand hairpin, which the sources' photos agree with.
+    "Hockenheim": [
+        dict(name="Mercedes-Tribüne", from_m=2000, to_m=2250, side="outside", depth_m=20),
+    ],
+    # Interlagos letters its stands. OSM already traces the pit-straight
+    # ones (an unnamed stand at station ~76 m and another at ~4272 m -
+    # geometrically Grandstands B and A - plus "M" itself, named in OSM,
+    # at station ~189 m) so only the stands OSM has no outline for are
+    # added here, from the circuit's own tribune guide
+    # (https://f1saopaulo.com.br/en/stands/, https://www.brasilf1.com/en/map-of-the-grandstands-18):
+    # D overlooks the first two Senna S apexes, R sits over Curva do Sol
+    # and the start of the back straight, G is the bleacher stand at the
+    # back straight's braking zone into Descida do Lago, and the T4 stand
+    # is the newer grandstand built for the 2021 Descida do Lago
+    # reprofile. The task brief's placements for M (Bico de Pato) and R
+    # (Juncao) do not match these sources or OSM's own traced "M"; this
+    # table follows the verified sources instead.
+    "SaoPaulo": [
+        dict(name="D", from_m=290.9, to_m=500.0, side="outside", depth_m=14, covered=True),
+        dict(name="R", from_m=592.5, to_m=782.2, side="outside", depth_m=14, covered=True),
+        dict(name="G", from_m=1150.0, to_m=1368.1, side="outside", depth_m=10, covered=False),
+        dict(name="T4", from_m=1368.1, to_m=1607.1, side="outside", depth_m=13, covered=False),
+    ],
+    # Suzuka: OSM tags most of the circuit's stands `grandstand=yes` (picked
+    # up generically, see is_stand()) and even names most of them with the
+    # circuit's own letters, so almost nothing here is needed. The one gap
+    # is Grandstand M at the Spoon Curve (https://www.japan.gp/en/
+    # map-of-the-grandstands-27: "M - around the Spoon Curve"), which OSM
+    # carries as a plain unnamed building (station ~3676, right, no
+    # grandstand tag) rather than a stand outline. Spoon Curve itself has no
+    # named OSM way either, so the span is placed from the circuit's own
+    # corner order: after the hairpin (`station_m` 2957.7 in `corners`) and
+    # before the west straight (4055.9), astride that unnamed building.
+    "Suzuka": [
+        dict(name="M", from_m=3600, to_m=3760, side="right", depth_m=16, covered=False),
+    ],
+    # Sepang's own OSM building=grandstand way for the Main Grandstand is
+    # dropped by front_edge_is_broken() (see its docstring): it traces the
+    # whole 1.3 km double-fronted complex as one polygon ("1.3 km long
+    # double frontage Main Grandstand... dominating two long straights",
+    # https://www.sepangcircuit.com/main-grandstand), between the pit
+    # straight and the back straight, which oriented_box() and
+    # front_edge() cannot turn into a sane single front. Authored here as
+    # its two real faces instead: the pit-straight face is on the
+    # circuit's right (the same side as the pit lane -- confirmed by this
+    # card's own risk note, which is only true if both stands are on the
+    # pit lane's side: "the double-sided main stand is inside 20 m of the
+    # pit lane on the pit-straight side and will be dropped there
+    # (correct)"), and the back-straight face carries the same name and
+    # side since it is physically the other side of one stand.
+    "Sepang": [
+        dict(name="Main Grandstand", from_m=20, to_m=560, side="right", depth_m=20, covered=True),
+        dict(name="Main Grandstand", from_m=4300, to_m=4950, side="right", depth_m=20, covered=True),
+        # K2 Hillstand: an open grass mound at the Turn 1/2 hairpin,
+        # opposite the K1 Grandstand OSM already gives us
+        # (sepangcircuit.com spectator guide: "K2 Hillstand... open-air
+        # grassy viewing area", the cheap uncovered option beside K1).
+        dict(name="K2 Hillstand", from_m=650, to_m=850, side="inside", depth_m=15, covered=False),
+        # Turn 4 grandstand. Sepang's own corner numbering is not in OSM
+        # (no named raceway sections at all here) and no published station
+        # exists to check it against, so this is placed from the YAML
+        # centerline's own curvature: the fourth significant apex after
+        # the line (632 m T1/T2, ~792 m, a shallow ~1030-1110 m kink, then
+        # this one at ~1607 m -- a single sustained corner, matching T4's
+        # long, high-speed real-world character). Approximate; flagged in
+        # the hand-back.
+        dict(name="Turn 4 Grandstand", from_m=1550, to_m=1720, side="outside", depth_m=14, covered=False),
+    ],
+    # OSM has this one only as a plain `building=yes` named "Tribuna F", so
+    # extract() files it under structures (a building) rather than stands;
+    # it sits in the same run of grandstands as (osm-traced) Tribuna E and
+    # J/K along the straight after Turn 1, and the letter matches the
+    # circuit's own tribune list (entradasmontmelo.com/tribunas,76.html:
+    # A, B, C, E, F, G, H, J, K, L, M, N, T1, T10), so it is promoted here
+    # rather than left to render as a generic building. Span and depth are
+    # taken from that same OSM footprint (station 768.2, length 97.4 m,
+    # depth 17.7 m, uncovered like its neighbours).
+    "Catalunya": [
+        dict(name="Tribuna F", from_m=719.5, to_m=816.9, side="left", depth_m=17.7, covered=False),
+    ],
+    # Hungaroring's own ticket map (hungaryticketsgp.com/en/map-of-grandstands,
+    # motorsporttickets.com's grandstand guide, grandprixgrandtours.com) names
+    # stands by colour; OSM only traces the single big covered "Super Gold"
+    # complex on the main straight (station ~2-271, source "osm" below) and
+    # mistags the "Silver 5" terrace as a plain building rather than a
+    # grandstand (it survives as an auto-extracted `structures` entry near
+    # station 3355 instead). Spans here are geometric estimates against this
+    # track's own centerline (turn order + the named-way boundary at station
+    # 600.6, which lines up with the main straight/T1 kink) rather than
+    # GPS-matched OSM outlines -- see the Budapest hand-back for the
+    # reasoning. Silver 2-4 and the rest of Gold 1-4 are not broken out
+    # separately: sources only place them qualitatively ("near the grid",
+    # "near the final corner") with no distinguishing span, and duplicating
+    # a station guess with no anchor felt worse than leaving them out.
+    "Budapest": [
+        # motorsporttickets.com: "Silver 1 is the closest to the grid" --
+        # the grid forms just past the OSM-traced Super Gold stand.
+        dict(name="Silver 1", from_m=280, to_m=380, side="left", depth_m=10),
+        # Turn 1 ("Piquet" corner, official 40th-anniversary corner names,
+        # formula1.com): a natural, uncovered bank right at the braking
+        # zone/exit, per the T1 Grandstand guides (oversteer48.com).
+        dict(name="T1 Stand", from_m=600, to_m=760, side="outside", depth_m=9),
+        # grandprixgrandtours.com / motorsporttickets.com: "Bronze 1 & 2
+        # grandstands are positioned overlooking turns 5 and 7", historically
+        # three (Bronze 1-3; two were later renamed Chicane 1/2). These are
+        # the hillside natural terraces through the infield esses.
+        dict(name="Bronze 1", from_m=1500, to_m=1700, side="outside", depth_m=9),
+        dict(name="Bronze 2", from_m=1994, to_m=2190, side="outside", depth_m=9),
+        dict(name="Bronze 3", from_m=2210, to_m=2400, side="outside", depth_m=9),
+        # The general-admission terraces through the Schumacher (T12) /
+        # Senna (T13) / Szisz (T14) finishing sequence, clear of the
+        # OSM-traced "Silver 5" structure around station 3355.
+        dict(name="T12-T14 Stand", from_m=3600, to_m=3950, side="outside", depth_m=8),
+    ],
 }
 
 # Landmarks that span the road and are not in OSM as bridges.
@@ -119,6 +293,35 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # would come out as a plain truss; this entry takes its place and wears
     # the kit's tyre brand, the real sponsor not being in the kit's signage.
     "LeMans": [dict(name="Tyre bridge", station_m=1043.0, kind="arch", brand="piretti")],
+    # A spectator footbridge crosses the Parabolika partway along its
+    # ~800 m length, joining the infield (accessible from the Motodrom
+    # side) to the outer paddock roads; OSM has no bridge=yes way on this
+    # stretch at all (checked directly against the extract), so this is
+    # authored from the circuit's own general layout rather than traced.
+    # Placed at the corner's midpoint, which is also roughly where the old
+    # forest-straight/Parabolika transition sits.
+    "Hockenheim": [dict(name="Parabolika footbridge", station_m=1400.0, kind="footbridge")],
+    # The spectator footbridge on the climb out of Niki Lauda Kurve (T1),
+    # carrying fans from the paddock/pit side over to the hillside Red Bull
+    # Tribune. Not in OSM (nothing bridge-tagged near the track in this
+    # bbox is within 350 m of the centerline -- checked directly against the
+    # cached extract), and no aerial source gives its exact position, so the
+    # station is placed by judgement partway up the climb, just before the
+    # Red Bull Tribune's OSM-traced footprint begins (station_m 646.7):
+    # authored per docs/ADDITIONAL_TRACKS.md 6.19, an approximation to flag
+    # in the hand-back rather than a sourced fact.
+    "Spielberg": [dict(name="T1 climb footbridge", station_m=600.0, kind="footbridge", brand="kronos")],
+    # The pit building's two cantilevered "wing" roofs (the Press Centre and
+    # the Sky Restaurant, ~38 m up) reach out over the front straight from
+    # the tower at the west and east ends of the paddock/grandstand-A
+    # complex OSM traces at stations 8-338 -- confirmed by web search
+    # (en.wikipedia.org: "wing-like viewing platforms crossing the circuit
+    # at either end"). The kit has no cantilever-wing asset, so these are
+    # laid as tyre-bridge stand-ins; the real shape is not represented.
+    "Shanghai": [
+        dict(name="Press Centre Wing", station_m=15.0, kind="arch", brand="piretti"),
+        dict(name="Sky Restaurant Wing", station_m=335.0, kind="arch", brand="piretti"),
+    ],
 }
 
 # Point features OSM does not carry, but that are part of what the place
@@ -136,6 +339,33 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
              altitude_m=150.0, broadside_to_m=0.0, brand="piretti"),
         # The fun fair inside the Esses, which runs all through the night.
         dict(kind="big_wheel", station_m=1010.0, side="right", offset_m=110.0),
+    ],
+    # Sepang was floodlit in 2018 (64 poles up to 43 m, evenly round the
+    # whole 5.543 km lap; installed for local FIA/FIM racing, not F1/MotoGP
+    # broadcast use -- https://www.thestar.com.my/sport/motorsport/2017/12/14/
+    # sepang-circuit-to-hold-night-events-with-installation-of-floodlights/).
+    # OSM has none of the poles mapped. A representative spread round the
+    # lap (outside of each corner, clear of the stands) stands in for the
+    # real 64; exact pole positions are not published.
+    "Sepang": [
+        dict(kind="floodlight", station_m=300.0, side="right", offset_m=40.0),
+        dict(kind="floodlight", station_m=650.0, side="right", offset_m=40.0),
+        dict(kind="floodlight", station_m=1650.0, side="left", offset_m=40.0),
+        dict(kind="floodlight", station_m=2600.0, side="left", offset_m=40.0),
+        dict(kind="floodlight", station_m=3900.0, side="right", offset_m=40.0),
+        dict(kind="floodlight", station_m=4600.0, side="right", offset_m=40.0),
+        dict(kind="floodlight", station_m=5200.0, side="right", offset_m=40.0),
+    ],
+    # The Sakhir Tower (ten storeys, behind the pits) is in OSM as a plain
+    # building=yes outline with no building:levels tag, so the automatic
+    # tower heuristic in dress.rs (building_asset) never picks it: its
+    # footprint is square but 37.7 m across, over the 30 m the heuristic
+    # requires, and it carries no storey count. Authored here instead, at
+    # the OSM outline's own station/side/offset so the dedup above drops
+    # the OSM building row and only the control-tower kit asset (a
+    # stand-in for the real tower, which the kit does not model) remains.
+    "Sakhir": [
+        dict(kind="tower", name="Sakhir Tower", station_m=582.3, side="right", offset_m=73.9),
     ],
 }
 
@@ -383,10 +613,24 @@ class Osm:
 
 def is_pit_way(t: dict) -> bool:
     name = (t.get("name") or "").lower()
-    # German circuits name the pit lane "Boxengasse" (Oschersleben,
-    # Hockenheim, the Nuerburgring, Spielberg): no "pit" substring at all,
-    # so the English-only check missed it entirely.
-    return t.get("raceway") in ("pitlane", "pit_lane") or "pit" in name or "boxengasse" in name
+    name_en = (t.get("name:en") or "").lower()
+    # German circuits name the pit lane "Boxengasse" (Oschersleben) or
+    # "Boxenstraße" (Spielberg; also Hockenheim, the Nürburgring):
+    # no "pit" substring at all, so the English-only check missed both.
+    # "boxen" (rather than the whole word) is the generic match, since any
+    # German compound built on it names the same thing; checking name:en
+    # too catches a "Pit Lane" translation tag OSM carries on some ways
+    # (Spielberg's does) even when the local-language name has neither.
+    # The Hungaroring's is "Bokszutca" (Hungarian, the same "box" root +
+    # "utca" = street): same gap, different language, so it needs its own
+    # substring -- "boxen" doesn't match the Hungarian spelling.
+    return (
+        t.get("raceway") in ("pitlane", "pit_lane")
+        or "pit" in name
+        or "boxen" in name
+        or "bokszutca" in name
+        or "pit" in name_en
+    )
 
 
 def raceway_cloud(osm: Osm) -> np.ndarray:
@@ -548,7 +792,66 @@ def front_edge(poly: np.ndarray, track: Track) -> np.ndarray:
     _, start, k = best
     if k < 2:
         return ring
-    return np.array([ring[(start + i) % n] for i in range(k)])
+    chain = np.array([ring[(start + i) % n] for i in range(k)])
+    # A huge or oddly-shaped building (Shanghai's Grandstand A, traced as
+    # one OSM way, runs the full pit straight and wraps round both faces
+    # of the complex) can still win the "nearer than the midpoint
+    # distance" test on both its near and far sides, so the longest near
+    # chain jumps from one side of the road to the other and back --
+    # laying bays along it would cut straight across the track. Keep only
+    # the longest run that stays on one side of the centerline; an
+    # ordinary stand's near edge never leaves its own side, so this is a
+    # no-op for it.
+    lat = track.locate(chain)[1]
+    signs = np.sign(lat)
+    nonzero = signs[signs != 0]
+    if len(nonzero) and len(set(nonzero)) > 1:
+        best_run = (0.0, 0, 0)
+        i = 0
+        m = len(signs)
+        while i < m:
+            j = i
+            while j + 1 < m and signs[j + 1] == signs[i]:
+                j += 1
+            run_len = (
+                float(np.hypot(*np.diff(chain[i : j + 1], axis=0).T).sum())
+                if j > i
+                else 0.0
+            )
+            if run_len > best_run[0]:
+                best_run = (run_len, i, j)
+            i = j + 1
+        _, i, j = best_run
+        if j > i:
+            chain = chain[i : j + 1]
+    return chain
+
+
+def front_edge_is_broken(front: np.ndarray) -> bool:
+    """A simple stand's front is a straight or gently curved edge traced
+    corner to corner, so a short-long-short run of segments (two end caps
+    either side of the long face) is the ordinary shape of a rectangular
+    building and not what this catches, however long the long face is
+    (Oschersleben's 360 m Zuschauertribuene, Silverstone's 208 m Becketts,
+    Monza's 220 m Tribuna Laterale Destra all look exactly like this).
+
+    What it does catch is a longer chain -- at least two short segments on
+    *each* side of the outlier, i.e. the trace keeps following a real
+    facted or curved edge after the jump rather than immediately closing
+    off a simple box -- where one segment is both long in absolute terms
+    and dwarfs its neighbours: `front_edge()` only ever walks vertices
+    that were genuinely adjacent in the outline, so following a real edge
+    keeps segment lengths within a similar order of magnitude of each
+    other. A lone outlier that much longer than the rest means two
+    disjoint near-clusters got stitched across open ground -- the outline
+    is really a complex spanning more than one feature (Sepang's Main
+    Grandstand, one OSM way for the whole double-fronted stand between two
+    straights 650 m apart) and cannot be read as one stand's face."""
+    if len(front) < 5:
+        return False
+    segs = np.sort(np.hypot(*np.diff(front, axis=0).T))[::-1]
+    biggest, second = float(segs[0]), float(segs[1])
+    return biggest > 150.0 and biggest > 4.0 * max(second, 1.0) and biggest > 0.5 * float(segs.sum())
 
 
 def ring_area(poly: np.ndarray) -> float:
@@ -607,6 +910,11 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
 
     corners = []
     pit_ways: list[np.ndarray] = []
+    # Ways that are neither part of the fitted main loop (they run wide of
+    # it) nor named/tagged as anything in particular -- a circuit whose pit
+    # lane carries no "pit" name and no raceway=pitlane tag (nothing in the
+    # Shanghai extract does) still has it in here, just unlabelled.
+    untagged_ways: list[np.ndarray] = []
     for w in osm.ways:
         t = w.get("tags") or {}
         if t.get("highway") != "raceway":
@@ -621,6 +929,12 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             continue
         name = t.get("name")
         if not name or float(np.median(d)) > 12.0:
+            if (
+                not name
+                and len(p) > 2
+                and 12.0 < float(np.median(d)) < 90.0
+            ):
+                untagged_ways.append(p)
             continue
         mid = p[len(p) // 2 : len(p) // 2 + 1]
         s0, _ = track.locate(p[:1])
@@ -641,39 +955,45 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         seen.setdefault(c["name"], c)
     corners = sorted(seen.values(), key=lambda c: c["station_m"])
 
-    pit = None
-    # A circuit has more than one lane tagged "pit" (Spa's support pit
-    # lane, the Bugatti lanes at Le Mans, the roads behind the garages),
-    # and chaining joins whatever shares an end. Clip every chain to the
-    # part that runs beside the track, keep the ones of a pit lane's
-    # length, and take whichever reaches the start/finish line.
-    candidates = []
-    for run in chain_ways(pit_ways):
-        run = densify(run, 8.0, closed=False)
-        d, _ = track.grid.query(run, max_rings=4)
-        near = d < 70.0
-        span = None
-        i = 0
-        while i < len(run):
-            if not near[i]:
-                i += 1
+    def pit_lane_from(ways: list[np.ndarray]) -> dict | None:
+        # A circuit has more than one lane tagged "pit" (Spa's support pit
+        # lane, the Bugatti lanes at Le Mans, the roads behind the garages),
+        # and chaining joins whatever shares an end. Clip every chain to the
+        # part that runs beside the track, keep the ones of a pit lane's
+        # length, and take whichever reaches the start/finish line.
+        candidates = []
+        for run in chain_ways(ways):
+            run = densify(run, 8.0, closed=False)
+            d, _ = track.grid.query(run, max_rings=4)
+            near = d < 70.0
+            span = None
+            i = 0
+            while i < len(run):
+                if not near[i]:
+                    i += 1
+                    continue
+                j = i
+                while j + 1 < len(run) and near[j + 1]:
+                    j += 1
+                if span is None or (j - i) > (span[1] - span[0]):
+                    span = (i, j)
+                i = j + 1
+            if span is None or span[1] - span[0] < 2:
                 continue
-            j = i
-            while j + 1 < len(run) and near[j + 1]:
-                j += 1
-            if span is None or (j - i) > (span[1] - span[0]):
-                span = (i, j)
-            i = j + 1
-        if span is None or span[1] - span[0] < 2:
-            continue
-        clipped = run[span[0] : span[1] + 1]
-        length = float(np.hypot(*np.diff(clipped, axis=0).T).sum())
-        if not 120.0 <= length <= 1200.0:
-            continue
-        s_here, _ = track.locate(clipped)
-        to_line = float(np.minimum(s_here, track.total - s_here).min())
-        candidates.append((to_line, length, clipped))
-    if candidates:
+            clipped = run[span[0] : span[1] + 1]
+            length = float(np.hypot(*np.diff(clipped, axis=0).T).sum())
+            # Interlagos's is confirmed (press coverage of its pit-stop time
+            # loss) as the longest pit lane on the F1 calendar at roughly
+            # 1100-1400 m, well past the 1200 m ceiling tuned on the first
+            # six circuits; 1600 m still rejects a chain that grabbed
+            # unrelated roads while admitting a real long lane.
+            if not 120.0 <= length <= 1600.0:
+                continue
+            s_here, _ = track.locate(clipped)
+            to_line = float(np.minimum(s_here, track.total - s_here).min())
+            candidates.append((to_line, length, clipped))
+        if not candidates:
+            return None
         # Of the lanes that reach the start/finish line, the circuit's own
         # is the long one: the others are a support paddock's or a link
         # road that happens to pass it.
@@ -690,11 +1010,23 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         ang = np.unwrap(s_best / track.total * 2 * math.pi)
         if float(np.median(np.diff(ang))) < 0:
             best = best[::-1]
-        pit = {
+        return {
             "side": side,
             "length_m": round(candidates[0][1], 1),
             "nodes": round_pts(densify(best, 12.0, closed=False)),
         }
+
+    pit = pit_lane_from(pit_ways)
+    if pit is None:
+        # Nothing was tagged as a pit lane at all. Fall back to any
+        # raceway way that runs wide of the main loop instead of on it
+        # (the untagged pool collected above): the same near/length/
+        # reaches-the-line filter above is strict enough (a contiguous
+        # 120-1600 m run that comes back within 60 m of the start/finish
+        # station) that an unrelated paddock spur will not pass it by
+        # accident, and every existing dossier already finds its pit lane
+        # from a tagged way, so this path never fires for them.
+        pit = pit_lane_from(untagged_ways)
 
     stands = []
     structures = []
@@ -703,7 +1035,11 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         p = xy(w)
         if p is None or len(p) < 4:
             continue
-        is_stand = t.get("building") == "grandstand" or t.get("leisure") == "grandstand"
+        is_stand = (
+            t.get("building") == "grandstand"
+            or t.get("leisure") == "grandstand"
+            or t.get("grandstand") == "yes"
+        )
         # A footbridge over the track is mapped as building=bridge; it is
         # a crossing, not a building to stand beside the road.
         is_building = "building" in t and not is_stand and t.get("building") != "bridge"
@@ -716,6 +1052,9 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if is_building and (near > STRUCTURE_RANGE_M or ring_area(p) < 250.0):
             continue
         centre, length, depth, yaw = oriented_box(p)
+        front = front_edge(p, track) if is_stand else None
+        if is_stand and front_edge_is_broken(front):
+            continue
         s, lat = track.locate(centre[None, :])
         entry = {
             "name": t.get("name"),
@@ -730,7 +1069,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if is_stand:
             entry["source"] = "osm"
             entry["covered"] = t.get("covered") == "yes" or "roof:shape" in t
-            entry["front"] = round_pts(simplify(front_edge(p, track), 2.0))
+            entry["front"] = round_pts(simplify(front, 2.0))
             stands.append(entry)
         else:
             entry["levels"] = int(t.get("building:levels", 0) or 0)
@@ -761,6 +1100,12 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                 "front": round_pts(front),
             }
         )
+    # A MANUAL_STANDS entry promoting a named OSM building (tagged plain
+    # `building=yes`, so extract() filed it as a structure rather than a
+    # stand) replaces that structure instead of doubling it up as a
+    # building standing behind its own grandstand.
+    manual_stand_names = {spec["name"] for spec in MANUAL_STANDS.get(stem, [])}
+    structures = [s for s in structures if s.get("name") not in manual_stand_names]
     stands.sort(key=lambda e: e["station_m"])
     structures.sort(key=lambda e: e["station_m"])
 
@@ -805,7 +1150,15 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         kind = None
         if t.get("attraction") == "big_wheel":
             kind = "big_wheel"
-        elif t.get("man_made") in ("communications_tower", "tower") and t.get("tower:type") != "lighting":
+        elif t.get("man_made") in ("communications_tower", "tower") and t.get("tower:type") not in (
+            "lighting",
+            "communication",
+            "radar",
+        ):
+            # A cell mast or a Rijkswaterstaat radar tower near the venue is
+            # not part of the circuit (Zandvoort's dunes carry both); the
+            # kit's "tower" is a control/observation tower like Monza's
+            # Torre Nord/Sud, which OSM tags with no tower:type at all.
             kind = "tower"
         elif t.get("tower:type") == "lighting" or t.get("highway") == "floodlight":
             kind = "floodlight"
@@ -827,7 +1180,10 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         )
     for w in osm.ways:
         t = w.get("tags") or {}
-        if t.get("attraction") != "big_wheel":
+        # A way can carry both attraction=big_wheel and grandstand=yes (a
+        # mapping slip at Suzuka: a stand beside the fairground wheel picked
+        # up the wheel's tag too); the stands loop above already claims it.
+        if t.get("attraction") != "big_wheel" or t.get("grandstand") == "yes":
             continue
         p = xy(w)
         if p is None:
@@ -871,10 +1227,22 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     woods = []
     for w in osm.ways:
         t = w.get("tags") or {}
-        if t.get("natural") != "wood" and t.get("landuse") not in ("forest",):
+        # A plantation (`landuse=orchard`) is tree cover a circuit can sit
+        # in exactly like a forest -- Sepang's oil-palm estate is mapped
+        # this way, never as `natural=wood` -- so it is generically
+        # treated as woods too. `leaf_type` is essentially never tagged on
+        # an orchard, so default to broadleaved rather than the `mixed`
+        # conifer/broadleaf set a real forest falls back to.
+        is_orchard = t.get("landuse") == "orchard"
+        if t.get("natural") != "wood" and t.get("landuse") not in ("forest",) and not is_orchard:
             continue
         leaf = t.get("leaf_type") or ""
-        leaf = leaf if leaf in ("broadleaved", "needleleaved", "mixed") else "mixed"
+        if leaf in ("broadleaved", "needleleaved", "mixed"):
+            pass
+        elif is_orchard:
+            leaf = "broadleaved"
+        else:
+            leaf = "mixed"
         p = xy(w)
         if p is None or len(p) < 4:
             continue
@@ -885,6 +1253,26 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if len(ring) < 4 or ring_area(ring) < 400:
             continue
         woods.append({"leaf": leaf, "ring": round_pts(ring, 1)})
+
+    # An authored landmark and an OSM building can be the same real
+    # structure (Sakhir's control tower is mapped as building=yes, not as
+    # the man_made=tower node the automatic landmark scan looks for): keep
+    # the landmark, which says what the structure *is*, and drop the
+    # generic building row it would otherwise also become. Mirrors the
+    # crossings dedup above; only fires when a manual landmark actually
+    # lands within a building's footprint, so it is a no-op for every
+    # dossier without one.
+    if any(l.get("source") == "authored" for l in landmarks):
+        kept = []
+        for s in structures:
+            near = any(
+                l.get("source") == "authored" and math.hypot(*(np.array(s["centre"]) - np.array(l["centre"])))
+                < max(s["length_m"], s["depth_m"]) / 2 + 5.0
+                for l in landmarks
+            )
+            if not near:
+                kept.append(s)
+        structures = kept
 
     return {
         "format": LAYOUT_FORMAT,
