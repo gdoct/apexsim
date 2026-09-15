@@ -163,11 +163,13 @@ private:
 
 	/**
 	 * The mesh's `car_brakelight` slot as a dynamic instance, its
-	 * `EmissiveStrength` switched by the brake input; null for a mesh
+	 * `EmissiveFactor` switched by the brake input; null for a mesh
 	 * without the slot.
 	 */
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> BrakeLightMaterial;
+	/** The slot's authored emissive colour, scaled up when the lights are on. */
+	FLinearColor BrakeLightColor = FLinearColor::Red;
 	bool bBrakeLightsOn = false;
 
 	/** Lights or darkens the brake lights from `Brake`, writing only on a change. */

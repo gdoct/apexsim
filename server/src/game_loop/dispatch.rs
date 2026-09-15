@@ -691,6 +691,7 @@ async fn handle_set_driver_aids(
     {
         car.auto_gearbox = auto_gearbox;
         car.auto_shift_hold_ticks = 0;
+        car.auto_reverse_ticks = 0;
         car.steering_assist = steering_assist;
         let on_off = |on: bool| if on { "on" } else { "off" };
         tracing::debug!(

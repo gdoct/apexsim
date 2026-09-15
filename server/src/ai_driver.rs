@@ -1083,11 +1083,10 @@ impl<'a> AiDriverController<'a> {
         // Gear count from car config (exclude reverse which is negative)
         let max_gear = ratios.iter().filter(|&&g| g > 0.0).count() as i8;
 
-        if current_gear == 0 {
+        // Neutral or reverse: the AI never drives backwards, and a player who
+        // finished in reverse hands the car to the cool-down driver in it.
+        if current_gear <= 0 {
             return 1;
-        }
-        if current_gear < 0 {
-            return current_gear;
         }
 
         let early = AI_NOVICE_SHIFT_FRAC + (1.0 - AI_NOVICE_SHIFT_FRAC) * skill_factor;

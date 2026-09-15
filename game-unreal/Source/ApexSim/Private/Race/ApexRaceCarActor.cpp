@@ -63,8 +63,12 @@ namespace
 	/** The material slot every car GLB gives its brake lights (docs/CAR_MODELS.md). */
 	const FName BrakeLightSlot(TEXT("car_brakelight"));
 
-	/** Parameter on the Interchange glTF parent that scales `EmissiveFactor`. */
-	const FName EmissiveStrengthParam(TEXT("EmissiveStrength"));
+	/**
+	 * The Interchange glTF parent's emissive colour. Its `EmissiveStrength`
+	 * parameter is imported but does not reach the shader (setting it to 1e5
+	 * changed nothing on screen), so the lights scale the colour itself.
+	 */
+	const FName EmissiveFactorParam(TEXT("EmissiveFactor"));
 
 	/**
 	 * Pedal travel that turns the lights on. A real brake-light switch is
@@ -137,6 +141,16 @@ void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow
 	{
 		BrakeLightMaterial = CarMesh->CreateDynamicMaterialInstance(BrakeSlot);
 	}
+	BrakeLightColor = FLinearColor::Red;
+	FLinearColor Authored;
+	if (BrakeLightMaterial
+		&& BrakeLightMaterial->GetVectorParameterValue(FHashedMaterialParameterInfo(EmissiveFactorParam), Authored)
+		&& Authored.GetMax() > UE_KINDA_SMALL_NUMBER)
+	{
+		// Normalised, so the cvar alone sets how bright the lights are.
+		BrakeLightColor = Authored / Authored.GetMax();
+		BrakeLightColor.A = 1.0f;
+	}
 	// Force the next update to write the parameter: the imported material ships lit.
 	bBrakeLightsOn = true;
 	UpdateBrakeLights();
@@ -170,14 +184,17 @@ FBoxSphereBounds AApexRaceCarActor::BodyBounds() const
 
 void AApexRaceCarActor::UpdateBrakeLights()
 {
-	const bool bOn = Brake > BrakeLightThreshold;
+	const bool bOn = Brake > BrakeLightThreshold
+		|| (GetWorld() && FMath::FloorToInt32(GetWorld()->GetRealTimeSeconds() / 6.0) % 2 == 1); // BRAKETEST
 	if (bOn == bBrakeLightsOn || !BrakeLightMaterial)
 	{
 		bBrakeLightsOn = bOn;
 		return;
 	}
 	bBrakeLightsOn = bOn;
-	BrakeLightMaterial->SetScalarParameterValue(EmissiveStrengthParam, bOn ? CVarBrakeLightNits.GetValueOnGameThread() : 0.0f);
+	UE_LOG(LogTemp, Warning, TEXT("BRAKETEST car %d on %d color %s"), CarIndex, bOn, *BrakeLightColor.ToString()); // BRAKETEST
+	BrakeLightMaterial->SetVectorParameterValue(EmissiveFactorParam,
+		bOn ? BrakeLightColor * CVarBrakeLightNits.GetValueOnGameThread() : FLinearColor::Black);
 }
 
 void AApexRaceCarActor::SetMeshVisible(bool bVisible)

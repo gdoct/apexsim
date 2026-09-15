@@ -101,7 +101,8 @@ impl ServerState {
             .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or_default();
-        (path.is_dir() && (name.eq_ignore_ascii_case("export") || name.eq_ignore_ascii_case("osm-cache")))
+        (path.is_dir()
+            && (name.eq_ignore_ascii_case("export") || name.eq_ignore_ascii_case("osm-cache")))
             || name.to_ascii_lowercase().ends_with(".uescene.json")
             || name.to_ascii_lowercase().ends_with(".layout.json")
     }
