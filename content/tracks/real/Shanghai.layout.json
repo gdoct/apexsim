@@ -370,20 +370,12 @@
    "covered": false,
    "front": [
     [
-     -338.05,
-     -33.02
-    ],
-    [
      -326.14,
      -88.28
     ],
     [
      -4.24,
      -18.85
-    ],
-    [
-     -16.2,
-     36.6
     ]
    ]
   },
@@ -1602,7 +1594,22 @@
    "area_m2": 693
   }
  ],
- "crossings": [],
+ "crossings": [
+  {
+   "name": "Press Centre Wing",
+   "station_m": 15.0,
+   "kind": "arch",
+   "brand": "piretti",
+   "source": "authored"
+  },
+  {
+   "name": "Sky Restaurant Wing",
+   "station_m": 335.0,
+   "kind": "arch",
+   "brand": "piretti",
+   "source": "authored"
+  }
+ ],
  "landmarks": [],
  "woods": []
 }

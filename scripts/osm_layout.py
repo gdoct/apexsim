@@ -120,6 +120,17 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # would come out as a plain truss; this entry takes its place and wears
     # the kit's tyre brand, the real sponsor not being in the kit's signage.
     "LeMans": [dict(name="Tyre bridge", station_m=1043.0, kind="arch", brand="piretti")],
+    # The pit building's two cantilevered "wing" roofs (the Press Centre and
+    # the Sky Restaurant, ~38 m up) reach out over the front straight from
+    # the tower at the west and east ends of the paddock/grandstand-A
+    # complex OSM traces at stations 8-338 -- confirmed by web search
+    # (en.wikipedia.org: "wing-like viewing platforms crossing the circuit
+    # at either end"). The kit has no cantilever-wing asset, so these are
+    # laid as tyre-bridge stand-ins; the real shape is not represented.
+    "Shanghai": [
+        dict(name="Press Centre Wing", station_m=15.0, kind="arch", brand="piretti"),
+        dict(name="Sky Restaurant Wing", station_m=335.0, kind="arch", brand="piretti"),
+    ],
 }
 
 # Point features OSM does not carry, but that are part of what the place
@@ -549,7 +560,39 @@ def front_edge(poly: np.ndarray, track: Track) -> np.ndarray:
     _, start, k = best
     if k < 2:
         return ring
-    return np.array([ring[(start + i) % n] for i in range(k)])
+    chain = np.array([ring[(start + i) % n] for i in range(k)])
+    # A huge or oddly-shaped building (Shanghai's Grandstand A, traced as
+    # one OSM way, runs the full pit straight and wraps round both faces
+    # of the complex) can still win the "nearer than the midpoint
+    # distance" test on both its near and far sides, so the longest near
+    # chain jumps from one side of the road to the other and back --
+    # laying bays along it would cut straight across the track. Keep only
+    # the longest run that stays on one side of the centerline; an
+    # ordinary stand's near edge never leaves its own side, so this is a
+    # no-op for it.
+    lat = track.locate(chain)[1]
+    signs = np.sign(lat)
+    nonzero = signs[signs != 0]
+    if len(nonzero) and len(set(nonzero)) > 1:
+        best_run = (0.0, 0, 0)
+        i = 0
+        m = len(signs)
+        while i < m:
+            j = i
+            while j + 1 < m and signs[j + 1] == signs[i]:
+                j += 1
+            run_len = (
+                float(np.hypot(*np.diff(chain[i : j + 1], axis=0).T).sum())
+                if j > i
+                else 0.0
+            )
+            if run_len > best_run[0]:
+                best_run = (run_len, i, j)
+            i = j + 1
+        _, i, j = best_run
+        if j > i:
+            chain = chain[i : j + 1]
+    return chain
 
 
 def ring_area(poly: np.ndarray) -> float:
