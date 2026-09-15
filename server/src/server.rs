@@ -91,14 +91,19 @@ impl ServerState {
     /// `content/tracks/export/` holds the baked `*.uescene.json` scenes the
     /// track editor produces for the Unreal client: multi-megabyte vertex
     /// buffers, not track definitions. They live under the tracks directory,
-    /// so the recursive scan has to skip them explicitly.
-    fn is_generated_track_export(path: &std::path::Path) -> bool {
+    /// so the recursive scan has to skip them explicitly. Real-world layout
+    /// dossiers (`<Stem>.layout.json`, see CLAUDE.md "Real-world layouts")
+    /// and their raw OSM extracts (`osm-cache/`) sit beside the track YAML
+    /// for the same reason and need the same treatment: neither is a track
+    /// config, so trying to parse either as one just logs a warning.
+    fn is_non_track_json(path: &std::path::Path) -> bool {
         let name = path
             .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or_default();
-        (path.is_dir() && name.eq_ignore_ascii_case("export"))
+        (path.is_dir() && (name.eq_ignore_ascii_case("export") || name.eq_ignore_ascii_case("osm-cache")))
             || name.to_ascii_lowercase().ends_with(".uescene.json")
+            || name.to_ascii_lowercase().ends_with(".layout.json")
     }
 
     fn load_tracks_recursive(
@@ -112,11 +117,11 @@ impl ServerState {
                     let path = entry.path();
                     if path.is_dir() {
                         // Recursively load tracks from subdirectories, except
-                        // the generated client scene exports.
-                        if !Self::is_generated_track_export(&path) {
+                        // generated scene exports and dossier/cache directories.
+                        if !Self::is_non_track_json(&path) {
                             Self::load_tracks_recursive(track_configs, &path, content_root);
                         }
-                    } else if path.is_file() && !Self::is_generated_track_export(&path) {
+                    } else if path.is_file() && !Self::is_non_track_json(&path) {
                         let ext = path.extension().and_then(|s| s.to_str());
                         if ext == Some("json") || ext == Some("yaml") || ext == Some("yml") {
                             match TrackLoader::load_from_file(&path) {
