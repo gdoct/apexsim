@@ -118,6 +118,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Shanghai": [(121.205, 31.328, 121.235, 31.352)],
     "Sepang": [(101.725, 2.750, 101.752, 2.772)],
     "Sochi": [(39.945, 43.398, 39.972, 43.415)],
+    "Melbourne": [(144.955, -37.860, 144.985, -37.838)],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -330,6 +331,57 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # lap back in behind the pit building.
         dict(name="T15 Grandstand", from_m=5040, to_m=5160, side="outside", depth_m=12),
     ],
+    # Albert Park is entirely temporary seating -- OSM maps none of it (the
+    # only `building=grandstand` ways in the bbox belong to Lakeside
+    # Stadium, the athletics venue the circuit runs past, not the GP; see
+    # the `structures`/hand-back note). Names, order and rough locations
+    # are from the Australian Grand Prix Corporation's own grandstand map
+    # (f1-australia.com/en/map-of-the-grandstands-22,
+    # grandprixgrandtours.com/australia-circuit-guide/), cross-checked
+    # against oversteer48.com's per-stand pages; spans are this dossier's
+    # own corner geometry (no OSM corner names exist to check against — see
+    # `corners: []` — so these are read off the fitted centerline's own
+    # curvature, not a published chainage). The task card's "Piquet" is
+    # this circuit's "Hill" stand since 2023 (grandprix.com.au confirms the
+    # rename; same stand, not duplicated) and its "Sadler" could not be
+    # found on any current or archived seating map or ticketing page
+    # checked here -- omitted rather than invented.
+    "Melbourne": [
+        # Fangio: main straight, grid/pit-stop/chequered-flag views, so it
+        # runs opposite the pit building (pits are the lake side / right;
+        # see MANUAL_PIT_LANE) for most of the straight before Turn 1.
+        dict(name="Fangio", from_m=30, to_m=330, side="left", depth_m=18, covered=False),
+        # Moss: "just past the pit building... the run into turn 1" --
+        # same (pit-straight) side as the pits, right up against Turn 1.
+        dict(name="Moss", from_m=260, to_m=395, side="right", depth_m=14, covered=False),
+        # Jones/Brabham: opposite faces of the Turn 1-2 chicane (the first
+        # right-left in this dossier's own geometry, station ~348-562).
+        dict(name="Jones", from_m=345, to_m=565, side="outside", depth_m=14, covered=False),
+        dict(name="Brabham", from_m=345, to_m=565, side="inside", depth_m=12, covered=False),
+        # Hill (the ex-Piquet stand, renamed 2023): Turn 3, outside.
+        dict(name="Hill", from_m=1050, to_m=1160, side="outside", depth_m=14, covered=False),
+        # Stewart: Turn 5 exit.
+        dict(name="Stewart", from_m=1600, to_m=1720, side="outside", depth_m=12, covered=False),
+        # Waite: the Turn 6-7 double corner (right into left-left here).
+        dict(name="Waite", from_m=1860, to_m=2030, side="outside", depth_m=14, covered=False),
+        # Clark: "beyond Turn 8", the long right sweeper after the Turn
+        # 6-7 complex in this dossier's geometry.
+        dict(name="Clark", from_m=2180, to_m=2320, side="outside", depth_m=14, covered=False),
+        # Webber: Turn 11, inside. In the old (this YAML's) 16-turn
+        # numbering this is the corner after the since-removed Turn 9-10
+        # chicane (station ~2530-2690 here) and the back straight.
+        dict(name="Webber", from_m=3300, to_m=3420, side="inside", depth_m=12, covered=False),
+        # Lauda: Turn 12, outside, right after Webber's corner.
+        dict(name="Lauda", from_m=3440, to_m=3560, side="outside", depth_m=14, covered=False),
+        # Schumacher: "final section of the lap", outside of the following
+        # double-right in this dossier's geometry.
+        dict(name="Schumacher", from_m=3740, to_m=3860, side="outside", depth_m=16, covered=False),
+        # Prost and Senna: "next to each other, exit of the last turn and
+        # start of the main straight" -- adjacent spans on the final
+        # corner (station ~4774-4899 here) leading onto the pit straight.
+        dict(name="Prost", from_m=4780, to_m=4870, side="outside", depth_m=16, covered=False),
+        dict(name="Senna", from_m=4870, to_m=4950, side="outside", depth_m=18, covered=False),
+    ],
 }
 
 # Landmarks that span the road and are not in OSM as bridges.
@@ -430,6 +482,70 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         dict(kind="tower", name="Olympic Cauldron", station_m=2001.7, side="left", offset_m=140.0),
     ],
 }
+
+# For a circuit whose pit lane leaves no separate polyline in OSM at all --
+# a public-road street circuit where the pits front directly onto the same
+# public road the lap itself uses (Albert Park's permanent pit building
+# fronts onto Aughtie Drive, which *is* the pit straight here) -- there is
+# nothing for `pit_lane_from`'s geometric search to find. Authored the same
+# way a `MANUAL_STANDS` front is: a station span, a side and a gap from the
+# road edge, laid along the centerline with `Track.edge_run`.
+MANUAL_PIT_LANE: dict[str, dict] = {
+    # The pit building (3/12 Aughtie Drive; Development Victoria's Albert
+    # Park Pit Building project) sits on the lake side of the main
+    # straight, i.e. the right as driven -- matching the task card and
+    # https://www.development.vic.gov.au/projects/albert-park. The span
+    # runs from the start/finish line to just short of the Turn 1/2
+    # chicane (this dossier's own corner geometry turns hard right at
+    # ~station 348), which is where the pit exit rejoins; published pit
+    # lane length figures cluster around 380 m (e.g. motorsport press
+    # coverage of the 2019 pit-lane widening), which this span reproduces.
+    # No OSM way represents the actual lane (cars pit on the same
+    # Aughtie Drive pavement the lap uses); this is an estimate, not a
+    # trace, and is noted as such in the dossier's own `source` field.
+    "Melbourne": dict(from_m=0.0, to_m=380.0, side="right", gap_m=8.0),
+}
+
+# Buildings OSM maps only as a tagless multipolygon relation (a ring of
+# `barrier=fence` ways with the real tags on the relation, not any member),
+# which extract()'s structures scan -- way-only, like the rest of this
+# script -- cannot see at all. Precomputed once against the fitted
+# centerline (the same one-off approach as the Sakhir Tower landmark
+# above) rather than adding relation parsing for a single building.
+MANUAL_STRUCTURES: dict[str, list[dict]] = {
+    # Lakeside Stadium (leisure=stadium relation 15400771, an athletics/
+    # soccer venue, not part of the Grand Prix) backs directly onto the
+    # circuit along the Albert Road Drive infield link -- the task card's
+    # "Lakeside Stadium (a building)" landmark. Box computed from the
+    # relation's own member-way outline (fence rings) through this
+    # dossier's fit transform: centre (-344.0, 1092.3), 256.0 x 229.8 m,
+    # yaw 1.7701 rad, 14.5 m off the road at station 1568.9, right.
+    "Melbourne": [
+        dict(
+            name="Lakeside Stadium",
+            station_m=1568.9,
+            side="right",
+            offset_m=14.5,
+            length_m=256.0,
+            depth_m=229.8,
+            yaw_rad=1.7701,
+            centre=[-344.03, 1092.31],
+            levels=0,
+            osm_building="stadium",
+            area_m2=42694,
+        ),
+    ],
+}
+
+# Circuits sharing their bbox with other lit sports venues, where an OSM
+# `tower:type=lighting` node is real but is not the circuit's own. See the
+# comment where this is used, in the landmark extraction loop.
+DAY_RACE_NO_FLOODLIGHTS = frozenset({"Melbourne"})
+
+# Circuits where every OSM `building=grandstand`/`leisure=grandstand` hit in
+# range is confirmed (by hand, against the circuit's own seating map) to
+# belong to a different, co-located venue rather than the circuit itself.
+NO_OSM_STANDS = frozenset({"Melbourne"})
 
 # How far from the road a feature still belongs to the circuit.
 STAND_RANGE_M = 260.0
@@ -727,6 +843,26 @@ def is_pit_way(t: dict) -> bool:
     )
 
 
+# A street circuit run on public roads only for one weekend a year (Albert
+# Park; Norisring and others share the risk) carries no `highway=raceway`
+# tag at all, and OSM has never mapped one under a circuit-name relation
+# either -- there is nothing raceway-specific left to select on. The classes
+# below are the ones an ordinary road lap is built from.
+STREET_CIRCUIT_HIGHWAYS = frozenset(
+    {
+        "primary",
+        "primary_link",
+        "secondary",
+        "secondary_link",
+        "tertiary",
+        "tertiary_link",
+        "trunk",
+        "trunk_link",
+        "unclassified",
+    }
+)
+
+
 def raceway_cloud(osm: Osm) -> np.ndarray:
     roles = relation_raceway_roles(osm)
     pts = []
@@ -742,8 +878,24 @@ def raceway_cloud(osm: Osm) -> np.ndarray:
         xy = osm.way_xy(w)
         if xy is not None:
             pts.append(densify(xy, 4.0, closed=False))
+    if pts:
+        return np.concatenate(pts)
+    # No raceway ways at all: fall back to the drivable public-road classes
+    # in the bbox and let the coarse FFT correlation plus trimmed ICP find
+    # the lap among the surrounding street grid -- the loop is still the
+    # strongest self-similar shape in the cloud, and `build()`'s
+    # coverage/rmse gate (including its partial-fit exception, exercised
+    # first by Le Mans) is what catches a case where that isn't true rather
+    # than this function guessing right.
+    for w in osm.ways:
+        t = w.get("tags") or {}
+        if t.get("highway") not in STREET_CIRCUIT_HIGHWAYS:
+            continue
+        xy = osm.way_xy(w)
+        if xy is not None:
+            pts.append(densify(xy, 4.0, closed=False))
     if not pts:
-        raise SystemExit("no raceway ways in the extract")
+        raise SystemExit("no raceway (or street-circuit road) ways in the extract")
     return np.concatenate(pts)
 
 
@@ -1146,6 +1298,21 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         # accident, and every existing dossier already finds its pit lane
         # from a tagged way, so this path never fires for them.
         pit = pit_lane_from(untagged_ways)
+    if pit is None and stem in MANUAL_PIT_LANE:
+        # A public-road street circuit's pit lane is the same pavement as
+        # the race line for the rest of the year -- there is no separate
+        # polyline in OSM for `pit_lane_from` to find (Melbourne: the pit
+        # building fronts directly onto Aughtie Drive). Author it the same
+        # way a MANUAL_STANDS front is authored, along the road edge.
+        spec = MANUAL_PIT_LANE[stem]
+        nodes = track.edge_run(spec["from_m"], spec["to_m"], spec["side"], spec.get("gap_m", 6.0))
+        length = float(np.hypot(*np.diff(nodes, axis=0).T).sum())
+        pit = {
+            "side": spec["side"],
+            "length_m": round(length, 1),
+            "nodes": round_pts(nodes),
+            "source": "authored",
+        }
 
     stands = []
     structures = []
@@ -1225,6 +1392,15 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     # building standing behind its own grandstand.
     manual_stand_names = {spec["name"] for spec in MANUAL_STANDS.get(stem, [])}
     structures = [s for s in structures if s.get("name") not in manual_stand_names]
+    structures.extend(MANUAL_STRUCTURES.get(stem, []))
+    if stem in NO_OSM_STANDS:
+        # Every `building=grandstand`/`leisure=grandstand` way within range
+        # here belongs to Lakeside Stadium (represented instead as the
+        # `MANUAL_STRUCTURES` building above) rather than the Grand Prix --
+        # the task's own seating-map research confirms OSM maps none of
+        # Albert Park's real (all-temporary) grandstands, so an "osm"
+        # source hit for this stem is always someone else's building.
+        stands = [s for s in stands if s.get("source") != "osm"]
     stands.sort(key=lambda e: e["station_m"])
     structures.sort(key=lambda e: e["station_m"])
 
@@ -1281,6 +1457,17 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             kind = "tower"
         elif t.get("tower:type") == "lighting" or t.get("highway") == "floodlight":
             kind = "floodlight"
+        if kind == "floodlight" and stem in DAY_RACE_NO_FLOODLIGHTS:
+            # `tower:type=lighting` alone does not say *whose* floodlight a
+            # pole is; a permanent circuit built for it (Sakhir: 141 of
+            # these, all real masts round the lap) is a different case from
+            # a public park that also hosts other lit sports grounds.
+            # Albert Park's own athletics stadium, cricket/AFL oval, tennis
+            # and bowls courts and golf driving range each have ordinary
+            # floodlights of their own within the bbox, and the Australian
+            # GP runs by day with none of its own -- so every such node here
+            # would be a false circuit landmark, not a missing one.
+            kind = None
         if not kind:
             continue
         p = to_track(np.array([enu(*osm.nodes[nid], osm.lon0, osm.lat0)]))
