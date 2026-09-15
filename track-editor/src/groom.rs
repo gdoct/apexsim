@@ -622,7 +622,6 @@ pub fn groom_props_with(
                 kept.push(prop);
             }
             _ => {
-                let (sample, lat, _) = nearest_cross_section(&path, prop.x, prop.y);
                 let radius = prop_radius_of(&prop);
                 let (mut x, mut y, mut yaw) = (prop.x, prop.y, prop.yaw_rad);
 
@@ -679,29 +678,49 @@ pub fn groom_props_with(
                     // and where the circuit folds that lands them on another
                     // one. Small furniture (cones, lights) may legitimately
                     // hug the road and is exempt.
-                    let needed = prop_lat_clearance(&sample, lat, radius);
-                    if lat.abs() < needed {
-                        let p = offset_point(&sample, needed.copysign(lat));
-                        (x, y) = (p.0, p.1);
-                    }
-
-                    // Pit-lane clearance: of the two sides of the lane, take
-                    // the one that also keeps the prop off the road — a prop
-                    // squeezed into the road/lane gap belongs behind the
-                    // lane, not between.
-                    if let Some(lane) = &lane {
-                        let (ls, llat, _) = nearest_cross_section(lane, x, y);
-                        let needed_l = ls.width_left_m + PROP_CLEARANCE_M + radius;
-                        if llat.abs() < needed_l {
-                            let candidate = |lat_l: f32| {
-                                let p = offset_point(&ls, lat_l);
-                                let (rs, rlat, _) = nearest_cross_section(&path, p.0, p.1);
-                                let clear = rlat.abs() - prop_lat_clearance(&rs, rlat, radius);
-                                (p, clear)
-                            };
-                            let (a, b) = (candidate(needed_l), candidate(-needed_l));
-                            let p = if a.1 >= b.1 { a.0 } else { b.0 };
+                    //
+                    // The road check and the pit-lane check each move the
+                    // point clear of *their own* line, but a point cleared
+                    // of the road can still land inside the lane's margin
+                    // (or the reverse) -- and where a prop starts far from
+                    // both (a floodlight mapped on the track itself), the
+                    // nearest road section after the first move is not the
+                    // one the original position was checked against, so
+                    // one pass of each undersells the true clearance
+                    // needed. Iterated to a fixed point for the same reason
+                    // the footprint push above is: so a mis-seated prop
+                    // (any distance out) settles in one groom, not a slow
+                    // walk across several runs.
+                    for _ in 0..4 {
+                        let (before_x, before_y) = (x, y);
+                        let (sample, lat, _) = nearest_cross_section(&path, x, y);
+                        let needed = prop_lat_clearance(&sample, lat, radius);
+                        if lat.abs() < needed {
+                            let p = offset_point(&sample, needed.copysign(lat));
                             (x, y) = (p.0, p.1);
+                        }
+
+                        // Pit-lane clearance: of the two sides of the lane, take
+                        // the one that also keeps the prop off the road — a prop
+                        // squeezed into the road/lane gap belongs behind the
+                        // lane, not between.
+                        if let Some(lane) = &lane {
+                            let (ls, llat, _) = nearest_cross_section(lane, x, y);
+                            let needed_l = ls.width_left_m + PROP_CLEARANCE_M + radius;
+                            if llat.abs() < needed_l {
+                                let candidate = |lat_l: f32| {
+                                    let p = offset_point(&ls, lat_l);
+                                    let (rs, rlat, _) = nearest_cross_section(&path, p.0, p.1);
+                                    let clear = rlat.abs() - prop_lat_clearance(&rs, rlat, radius);
+                                    (p, clear)
+                                };
+                                let (a, b) = (candidate(needed_l), candidate(-needed_l));
+                                let p = if a.1 >= b.1 { a.0 } else { b.0 };
+                                (x, y) = (p.0, p.1);
+                            }
+                        }
+                        if (x - before_x).hypot(y - before_y) <= MIN_MOVE_M {
+                            break;
                         }
                     }
                 }
