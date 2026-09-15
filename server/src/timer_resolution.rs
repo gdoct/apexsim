@@ -12,6 +12,12 @@
 //! server has to ask for itself. Requests are reference-counted by Windows,
 //! so several in-process servers (the integration tests) can each hold one.
 //!
+//! Windows 11 also ignores the request while the process's window is
+//! minimized or occluded, which is exactly where a server console sits while
+//! the game is in front: the loop dropped back to 64 Hz a few seconds after
+//! the window was hidden. The process opts out of that power throttling
+//! before asking.
+//!
 //! Elsewhere this is a no-op: Linux and macOS sleeps are already fine-grained.
 
 /// Holds the 1 ms timer resolution until dropped.
@@ -31,6 +37,63 @@ mod winmm {
     }
 }
 
+#[cfg(windows)]
+mod kernel32 {
+    use std::ffi::c_void;
+
+    pub const PROCESS_POWER_THROTTLING: i32 = 4;
+    pub const PROCESS_POWER_THROTTLING_CURRENT_VERSION: u32 = 1;
+    pub const PROCESS_POWER_THROTTLING_EXECUTION_SPEED: u32 = 0x1;
+    pub const PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION: u32 = 0x4;
+
+    #[repr(C)]
+    pub struct ProcessPowerThrottlingState {
+        pub version: u32,
+        pub control_mask: u32,
+        pub state_mask: u32,
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        pub fn GetCurrentProcess() -> *mut c_void;
+        pub fn SetProcessInformation(
+            process: *mut c_void,
+            class: i32,
+            info: *const c_void,
+            size: u32,
+        ) -> i32;
+    }
+}
+
+/// Keeps the timer request (and full execution speed) in force while the
+/// process's window is minimized or hidden behind the game.
+#[cfg(windows)]
+fn opt_out_of_power_throttling() {
+    use kernel32::*;
+    let state = ProcessPowerThrottlingState {
+        version: PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+        control_mask: PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
+            | PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
+        // A controlled bit left clear turns that throttling off.
+        state_mask: 0,
+    };
+    // SAFETY: the pointer and size describe `state`, which outlives the call.
+    let ok = unsafe {
+        SetProcessInformation(
+            GetCurrentProcess(),
+            PROCESS_POWER_THROTTLING,
+            &state as *const _ as *const _,
+            std::mem::size_of::<ProcessPowerThrottlingState>() as u32,
+        )
+    } != 0;
+    if !ok {
+        tracing::warn!(
+            "Could not opt out of Windows power throttling; the game loop may tick slower \
+             than configured while the server window is minimized or hidden"
+        );
+    }
+}
+
 /// The resolution asked for, in milliseconds.
 #[cfg(windows)]
 const PERIOD_MS: u32 = 1;
@@ -39,6 +102,7 @@ impl HighResolutionTimer {
     pub fn acquire() -> Self {
         #[cfg(windows)]
         {
+            opt_out_of_power_throttling();
             // SAFETY: plain winmm call with no pointers; paired in Drop.
             let active = unsafe { winmm::timeBeginPeriod(PERIOD_MS) } == winmm::TIMERR_NOERROR;
             if active {
