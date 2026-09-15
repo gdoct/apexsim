@@ -732,6 +732,10 @@ pub struct CarState {
     /// Ticks until the automatic box may shift again.
     #[serde(default)]
     pub auto_shift_hold_ticks: u16,
+    /// Ticks the automatic box has seen the car at a standstill with the
+    /// brake held; at `physics::AUTO_REVERSE_HOLD_S` it engages reverse.
+    #[serde(default)]
+    pub auto_reverse_ticks: u16,
     /// Speed-sensitive steering, set by `ClientMessage::SetDriverAids`: full
     /// steering input asks for the tightest turn the car can hold at its
     /// speed rather than the rack's full lock (`physics::assisted_steering`).
@@ -851,6 +855,7 @@ impl CarState {
             grid_position: grid_slot.position,
             auto_gearbox: false,
             auto_shift_hold_ticks: 0,
+            auto_reverse_ticks: 0,
             steering_assist: false,
 
             // 3D Position

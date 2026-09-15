@@ -121,7 +121,7 @@ impl GameSession {
                 self.tick_sandbox();
             }
             GameMode::Countdown => {
-                self.tick_countdown();
+                self.tick_countdown(inputs);
             }
             GameMode::DemoLap => {
                 self.tick_demolap(inputs);
@@ -157,7 +157,7 @@ impl GameSession {
     }
 
     /// Countdown mode: Players frozen in pit lane, countdown timer running
-    fn tick_countdown(&mut self) {
+    fn tick_countdown(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         if let Some(ref mut countdown) = self.session.countdown_ticks_remaining {
             if *countdown > 0 {
                 *countdown -= 1;
@@ -171,7 +171,19 @@ impl GameSession {
                 }
             }
         }
-        // Players are frozen, no physics updates
+        // Cars are held where they stand, no physics: the drivers can only
+        // pick a gear and rev their engines. The countdown may have just
+        // handed over to the next mode, which then owns this tick's cars.
+        if self.session.game_mode != GameMode::Countdown {
+            return;
+        }
+        let dt = self.dt();
+        for state in self.session.participants.values_mut() {
+            let input = inputs.get(&state.player_id).copied().unwrap_or_default();
+            if let Some(config) = self.car_configs.get(&state.car_config_id) {
+                physics::update_car_on_grid(state, config, &input, dt);
+            }
+        }
     }
 
     /// Demo lap mode: AI driver demonstrates the track
@@ -543,6 +555,12 @@ impl GameSession {
                 let tick = self.session.current_tick;
                 for state in self.session.participants.values_mut() {
                     physics::start_lap_on_green(state, &self.track_config, tick);
+                    // The grid waits in neutral; the automatic box takes
+                    // first with the green light, never before.
+                    if state.auto_gearbox && state.gear == 0 {
+                        state.gear = 1;
+                        state.auto_shift_hold_ticks = 0;
+                    }
                 }
             }
             GameMode::Qualification => {
@@ -642,6 +660,8 @@ impl GameSession {
                 continue;
             };
             let mut fresh = CarState::new(state.player_id, state.car_config_id, slot);
+            // A race starts in neutral, so a driver can rev on the grid.
+            fresh.gear = 0;
             fresh.auto_gearbox = state.auto_gearbox;
             fresh.steering_assist = self
                 .held_steering_assist
@@ -1455,6 +1475,73 @@ mod tests {
         game_session.add_player(b, car_id).unwrap();
         game_session.set_game_mode(GameMode::Race);
         (game_session, a, b)
+    }
+
+    #[test]
+    fn test_race_grid_waits_in_neutral_and_revs_until_the_green_light() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (auto, manual) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        game_session.add_player(auto, car_id).unwrap();
+        game_session.add_player(manual, car_id).unwrap();
+        game_session
+            .session
+            .participants
+            .get_mut(&auto)
+            .unwrap()
+            .auto_gearbox = true;
+        game_session.start_countdown_mode(2, GameMode::Race);
+        let config = game_session.car_configs[&car_id].clone();
+        let start = |s: &GameSession, id: &PlayerId| {
+            let car = &s.session.participants[id];
+            (car.pos_x, car.pos_y, car.gear)
+        };
+        assert_eq!(start(&game_session, &auto).2, 0);
+        assert_eq!(start(&game_session, &manual).2, 0);
+        let grid = (start(&game_session, &auto), start(&game_session, &manual));
+
+        // Flat out on the grid for a second: the engines rev, nothing moves,
+        // and the automatic box stays in neutral.
+        let full = PlayerInputData {
+            throttle: 1.0,
+            ..Default::default()
+        };
+        let inputs: HashMap<PlayerId, PlayerInputData> = [(auto, full), (manual, full)].into();
+        for _ in 0..240 {
+            game_session.tick(&inputs);
+        }
+        let car = &game_session.session.participants[&auto];
+        assert_eq!(game_session.session.game_mode, GameMode::Countdown);
+        assert_eq!(car.gear, 0);
+        assert!(
+            car.engine_rpm > config.redline_rpm * 0.8,
+            "revving on the grid, rpm={}",
+            car.engine_rpm
+        );
+        assert!((car.throttle_input - 1.0).abs() < 1e-6);
+        assert_eq!(
+            (start(&game_session, &auto), start(&game_session, &manual)),
+            grid
+        );
+
+        // The manual driver selects first on the grid, then waits.
+        let first = PlayerInputData {
+            gear: Some(1),
+            ..Default::default()
+        };
+        let inputs: HashMap<PlayerId, PlayerInputData> =
+            [(auto, PlayerInputData::default()), (manual, first)].into();
+        game_session.tick(&inputs);
+        assert_eq!(game_session.session.participants[&manual].gear, 1);
+        let coast: HashMap<PlayerId, PlayerInputData> = HashMap::new();
+        while game_session.session.game_mode == GameMode::Countdown {
+            game_session.tick(&coast);
+        }
+
+        // Green: the automatic box takes first by itself.
+        assert_eq!(game_session.session.game_mode, GameMode::Race);
+        assert_eq!(game_session.session.participants[&auto].gear, 1);
+        assert_eq!(game_session.session.participants[&manual].gear, 1);
     }
 
     #[test]

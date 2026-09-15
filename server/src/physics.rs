@@ -181,10 +181,17 @@ pub fn update_car_3d(
     } else {
         None
     };
-    let auto_input = PlayerInputData {
+    let mut auto_input = PlayerInputData {
         gear: input.gear.or(auto_gear),
         ..*input
     };
+    // In reverse the automatic box drives on the brake pedal and brakes on
+    // the throttle: the throttle always means forwards, the brake always
+    // means stop or back up. Keyed on the gear driving this tick, since a
+    // requested shift only lands at the end of it.
+    if state.auto_gearbox && state.gear < 0 {
+        std::mem::swap(&mut auto_input.throttle, &mut auto_input.brake);
+    }
     let input = &auto_input;
 
     // Keep fuel capacity in sync with config (for moddable cars)
@@ -229,7 +236,7 @@ pub fn update_car_3d(
     state.downforce_rear_n = downforce_rear;
 
     // 4. Calculate engine torque and RPM
-    let (engine_torque, engine_rpm) = calculate_engine_output(state, config, input);
+    let (engine_torque, engine_rpm) = calculate_engine_output(state, config, input, dt);
     state.engine_rpm = engine_rpm;
 
     // 4b. Hybrid system: electric motor assist + brake regeneration
@@ -610,8 +617,14 @@ pub fn update_car_3d(
     let fr_force_x = fr_forces.0 * steer_right.cos() - fr_forces.1 * steer_right.sin();
     let fr_force_y = fr_forces.0 * steer_right.sin() + fr_forces.1 * steer_right.cos();
 
-    // Total forces in vehicle frame
-    let total_force_x = fl_force_x + fr_force_x + rl_forces.0 + rr_forces.0 - drag_force;
+    // Total forces in vehicle frame. Drag opposes the motion, which is
+    // rearwards only while the car is going forwards.
+    let drag_force_x = if v_long < 0.0 {
+        -drag_force
+    } else {
+        drag_force
+    };
+    let total_force_x = fl_force_x + fr_force_x + rl_forces.0 + rr_forces.0 - drag_force_x;
     let total_force_y = fl_force_y + fr_force_y + rl_forces.1 + rr_forces.1;
 
     // Include gravity components on slopes
@@ -692,8 +705,15 @@ pub fn update_car_3d(
     // make the car pirouette. Blend from kinematic to dynamic with speed.
     const KINEMATIC_BLEND_SPEED_MPS: f32 = 8.0;
     if !is_airborne && state.speed_mps < KINEMATIC_BLEND_SPEED_MPS {
-        let kinematic_yaw_rate =
-            state.speed_mps / config.wheelbase_m.max(0.1) * steering_angle.tan();
+        // Signed with the direction of travel: backing up with the wheels
+        // turned left swings the nose right.
+        let reversing = state.vel_x * cos_yaw + state.vel_y * sin_yaw < 0.0;
+        let signed_speed = if reversing {
+            -state.speed_mps
+        } else {
+            state.speed_mps
+        };
+        let kinematic_yaw_rate = signed_speed / config.wheelbase_m.max(0.1) * steering_angle.tan();
         let blend = (state.speed_mps / KINEMATIC_BLEND_SPEED_MPS).clamp(0.0, 1.0);
         state.angular_vel_yaw = kinematic_yaw_rate * (1.0 - blend) + state.angular_vel_yaw * blend;
     }
@@ -775,9 +795,13 @@ pub fn update_car_3d(
     // cockpit wheel turns as far as the road wheels do.
     state.steering_input = steering;
 
-    // Apply gear and clutch inputs if provided
+    // Apply gear and clutch inputs if provided. The box refuses to change
+    // direction while the car is still rolling the other way.
     if let Some(gear) = input.gear {
-        state.gear = gear;
+        let v_long_now = state.vel_x * cos_yaw + state.vel_y * sin_yaw;
+        if gear_engages(state.gear, gear, v_long_now) {
+            state.gear = gear;
+        }
     }
     if let Some(clutch) = input.clutch {
         state.clutch_input = clutch;
@@ -823,11 +847,71 @@ fn calculate_aerodynamic_forces(state: &CarState, config: &CarConfig) -> (f32, f
     (drag, downforce_front.max(0.0), downforce_rear.max(0.0))
 }
 
+/// Time constant of a free-revving engine climbing toward the revs the
+/// throttle asks for (nothing but its own inertia to turn).
+const FREE_REV_RISE_S: f32 = 0.25;
+/// Time constant of a free-revving engine falling back toward idle.
+const FREE_REV_FALL_S: f32 = 0.5;
+/// How far the limiter's ignition cut drops the revs before they climb
+/// again, so a flat-out engine in neutral bounces off the limiter.
+const FREE_REV_LIMITER_DROP_RPM: f32 = 250.0;
+
+/// Engine rpm one tick on from `rpm` with nothing connected to the wheels
+/// (neutral): the throttle opening sets a target between idle and just past
+/// the limiter, which the revs chase with the engine's inertia and the
+/// limiter cuts.
+pub fn free_rev_rpm(rpm: f32, config: &CarConfig, throttle: f32, dt: f32) -> f32 {
+    let limiter = config
+        .engine
+        .rev_limiter_rpm
+        .max(config.redline_rpm)
+        .min(config.max_engine_rpm.max(config.idle_rpm));
+    let span = (limiter - config.idle_rpm).max(0.0);
+    // Aim past the limiter so full throttle reaches it rather than creeping
+    // up on it forever.
+    let target = config.idle_rpm + throttle.clamp(0.0, 1.0) * span * 1.1;
+    let rpm = rpm.max(config.idle_rpm);
+    let tau = if target > rpm {
+        FREE_REV_RISE_S
+    } else {
+        FREE_REV_FALL_S
+    };
+    let next = rpm + (target - rpm) * (1.0 - (-dt / tau).exp());
+    if next >= limiter {
+        (limiter - FREE_REV_LIMITER_DROP_RPM).max(config.idle_rpm)
+    } else {
+        next
+    }
+}
+
+/// A car held on the grid during the countdown: it cannot move, but the
+/// driver can pick a gear and blip the engine against the limiter. The
+/// automatic box does nothing here; it takes first when the lights go out.
+pub fn update_car_on_grid(
+    state: &mut CarState,
+    config: &CarConfig,
+    input: &PlayerInputData,
+    dt: f32,
+) {
+    if let Some(gear) = input.gear {
+        if gear_engages(state.gear, gear, 0.0) {
+            state.gear = gear;
+        }
+    }
+    // With the car held, the clutch is in whatever gear is selected.
+    state.engine_rpm = free_rev_rpm(state.engine_rpm, config, input.throttle, dt);
+    state.throttle_input = input.throttle;
+    state.brake_input = input.brake;
+    state.steering_input = input.steering;
+    state.auto_reverse_ticks = 0;
+}
+
 /// Calculate engine output torque and RPM
 fn calculate_engine_output(
     state: &CarState,
     config: &CarConfig,
     input: &PlayerInputData,
+    dt: f32,
 ) -> (f32, f32) {
     // Calculate wheel speed based on current velocity
     let wheel_rpm = if state.speed_mps > MIN_SPEED_THRESHOLD {
@@ -855,7 +939,7 @@ fn calculate_engine_output(
         const CLUTCH_SLIP_MAX_SPEED_MPS: f32 = 10.0;
         const CLUTCH_SLIP_MAX_GEAR: i8 = 2;
         if state.speed_mps < CLUTCH_SLIP_MAX_SPEED_MPS
-            && (1..=CLUTCH_SLIP_MAX_GEAR).contains(&state.gear)
+            && (state.gear < 0 || (1..=CLUTCH_SLIP_MAX_GEAR).contains(&state.gear))
             && input.throttle > 0.05
         {
             let launch_rpm =
@@ -865,7 +949,7 @@ fn calculate_engine_output(
             geared_rpm
         }
     } else {
-        config.idle_rpm + input.throttle * (config.redline_rpm - config.idle_rpm) * 0.3
+        free_rev_rpm(state.engine_rpm, config, input.throttle, dt)
     };
 
     let torque_at_rpm = engine_curve_torque_nm(config, engine_rpm);
@@ -1260,9 +1344,20 @@ fn solve_wheel_forces(
     // velocity plus the rotational contribution at this wheel's position.
     // The lateral term is what lets tires resist sideways sliding — without
     // it the car is on ice.
-    let wheel_vel_x = v_long.max(MIN_SPEED_THRESHOLD);
+    //
+    // The slip solution is worked in the direction of travel (`dir`), so a
+    // car backing up has the same grip as one going forwards. At a
+    // standstill the direction is the one the drive is pushing.
+    let dir = if v_long < -BRAKE_DEADZONE_SPEED_MPS
+        || (v_long <= BRAKE_DEADZONE_SPEED_MPS && drive_torque < 0.0)
+    {
+        -1.0
+    } else {
+        1.0
+    };
+    let wheel_vel_x = v_long.abs().max(MIN_SPEED_THRESHOLD);
     let wheel_vel_y = v_lat + yaw_rate * wheel_pos_x;
-    let free_rolling_omega = wheel_vel_x / wheel_radius;
+    let free_rolling_omega = dir * wheel_vel_x / wheel_radius;
 
     if wheel_load < 1.0 {
         return WheelForces {
@@ -1275,9 +1370,10 @@ fn solve_wheel_forces(
     let d = grip_coefficient * wheel_load;
 
     // Slip angle: angle between where the wheel points and where its
-    // contact patch actually travels.
+    // contact patch actually travels. Backing up, the steered wheel's
+    // heading enters with the opposite sign.
     let slip_angle = if wheel_vel_x > MIN_SPEED_THRESHOLD {
-        ((wheel_vel_y / wheel_vel_x).atan() - steer_angle).clamp(-0.5, 0.5)
+        ((wheel_vel_y / wheel_vel_x).atan() - dir * steer_angle).clamp(-0.5, 0.5)
     } else {
         0.0
     };
@@ -1292,16 +1388,15 @@ fn solve_wheel_forces(
         slip_angle / tire_config.optimal_slip_angle_rad,
     );
 
-    // Net longitudinal torque on the wheel. Brakes oppose the direction of
-    // motion and produce nothing in the deadzone around standstill.
-    let brake_dir = if v_long > BRAKE_DEADZONE_SPEED_MPS {
-        1.0
-    } else if v_long < -BRAKE_DEADZONE_SPEED_MPS {
-        -1.0
+    // Net longitudinal torque on the wheel, along the direction of travel
+    // (positive drives the car the way it is going, negative slows it).
+    // Brakes produce nothing in the deadzone around standstill.
+    let braking = if v_long.abs() > BRAKE_DEADZONE_SPEED_MPS {
+        brake_force
     } else {
         0.0
     };
-    let requested_force = (drive_torque - brake_force * wheel_radius * brake_dir) / wheel_radius;
+    let requested_force = (drive_torque * dir - braking * wheel_radius) / wheel_radius;
 
     let (fx, slip_ratio) = if requested_force.abs() <= d {
         // Stable region: the tire transmits exactly what is asked of it.
@@ -1346,6 +1441,8 @@ fn solve_wheel_forces(
     } else {
         (fx, fy)
     };
+    // Back from the direction of travel to the body frame.
+    let fx = fx * dir;
 
     // Wheel angular velocity consistent with the slip solution.
     let omega = free_rolling_omega * (1.0 + slip_ratio);
@@ -1422,16 +1519,65 @@ pub fn auto_upshift_rpm(config: &CarConfig, gear: i8) -> Option<f32> {
     Some(ceiling)
 }
 
+/// Speed below which the car counts as standing still: the automatic box
+/// may change direction, and a manual shift into or out of reverse engages.
+pub const DIRECTION_CHANGE_MAX_SPEED_MPS: f32 = 1.0;
+/// How long the brake must be held at a standstill before the automatic box
+/// selects reverse, so stopping at the end of a braking zone (or on the grid)
+/// does not start the car backing up.
+pub const AUTO_REVERSE_HOLD_S: f32 = 0.4;
+/// Pedal travel that counts as "held" for the automatic box's direction
+/// changes.
+const AUTO_DIRECTION_PEDAL: f32 = 0.3;
+
+/// Whether a shift from `from` to `to` engages with the car rolling at
+/// `v_long` (body frame, + forwards). Reverse only goes in once the car is
+/// no longer rolling forwards, and a forward gear once it is no longer
+/// rolling backwards; neutral always engages.
+pub fn gear_engages(from: i8, to: i8, v_long: f32) -> bool {
+    match (from.signum(), to.signum()) {
+        (_, -1) if from >= 0 => v_long < DIRECTION_CHANGE_MAX_SPEED_MPS,
+        (-1, 1) => v_long > -DIRECTION_CHANGE_MAX_SPEED_MPS,
+        _ => true,
+    }
+}
+
 /// Gear the automatic box wants this tick, or `None` to keep the current
-/// one. Reverse is never chosen automatically; neutral goes to first on
-/// throttle. Runs on the server because it needs the car's torque curve and
-/// gear ratios, which the client never learns from the wire protocol.
+/// one. Holding the brake at a standstill selects reverse; the throttle at a
+/// standstill in reverse or neutral selects first. Runs on the server
+/// because it needs the car's torque curve and gear ratios, which the client
+/// never learns from the wire protocol.
+///
+/// `input` is the driver's pedals as sent, not the swapped pair the car
+/// drives on in reverse.
 pub fn auto_gear_selection(
     state: &mut CarState,
     config: &CarConfig,
     input: &PlayerInputData,
     dt: f32,
 ) -> Option<i8> {
+    // Direction changes come first and ignore the shift hold: the hold
+    // paces a sequential box through its ratios, not a car at rest.
+    let standstill = state.speed_mps < DIRECTION_CHANGE_MAX_SPEED_MPS;
+    let braking_to_reverse = standstill
+        && state.gear >= 0
+        && input.brake >= AUTO_DIRECTION_PEDAL
+        && input.throttle < AUTO_DIRECTION_PEDAL;
+    if braking_to_reverse {
+        state.auto_reverse_ticks = state.auto_reverse_ticks.saturating_add(1);
+        if f32::from(state.auto_reverse_ticks) * dt >= AUTO_REVERSE_HOLD_S {
+            state.auto_reverse_ticks = 0;
+            state.auto_shift_hold_ticks = 0;
+            return Some(-1);
+        }
+    } else {
+        state.auto_reverse_ticks = 0;
+    }
+    if standstill && state.gear <= 0 && input.throttle >= AUTO_DIRECTION_PEDAL {
+        state.auto_shift_hold_ticks = 0;
+        return Some(1);
+    }
+
     if state.auto_shift_hold_ticks > 0 {
         state.auto_shift_hold_ticks -= 1;
         return None;
@@ -3050,9 +3196,13 @@ mod tests {
         };
         let dt = 1.0 / 240.0;
         let mut lowest = state.gear;
+        // Up to the moment it stops: held on, the brake then selects reverse.
         for _ in 0..(240 * 6) {
             update_car_3d(&mut state, &config, &input, &track, dt);
             lowest = lowest.min(state.gear);
+            if state.speed_mps < 0.5 {
+                break;
+            }
         }
         assert!(
             state.speed_mps < 2.0,
@@ -3064,6 +3214,175 @@ mod tests {
             "the box should have worked its way down to first"
         );
         assert_eq!(state.gear, 1);
+    }
+
+    fn forward_speed(state: &CarState) -> f32 {
+        state.vel_x * state.yaw_rad.cos() + state.vel_y * state.yaw_rad.sin()
+    }
+
+    #[test]
+    fn auto_gearbox_reverses_on_the_brake_at_a_standstill() {
+        let mut state = create_test_car_state();
+        state.auto_gearbox = true;
+        state.gear = 1;
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let dt = 1.0 / 240.0;
+        let brake = PlayerInputData {
+            brake: 1.0,
+            ..Default::default()
+        };
+
+        // A short press at rest (stopping on the grid) stays in first.
+        for _ in 0..(AUTO_REVERSE_HOLD_S * 0.5 / dt) as usize {
+            update_car_3d(&mut state, &config, &brake, &track, dt);
+        }
+        assert_eq!(state.gear, 1);
+        assert_eq!(state.speed_mps, 0.0);
+
+        // Held on, it engages reverse and the brake pedal drives backwards.
+        for _ in 0..(240 * 2) {
+            update_car_3d(&mut state, &config, &brake, &track, dt);
+        }
+        assert_eq!(state.gear, -1);
+        assert!(
+            forward_speed(&state) < -3.0,
+            "should be backing up, v_long={:.2}",
+            forward_speed(&state)
+        );
+
+        // The throttle now brakes the car to a stop, then takes it forwards.
+        let throttle = PlayerInputData {
+            throttle: 1.0,
+            ..Default::default()
+        };
+        let mut stopped_in_reverse = false;
+        for _ in 0..(240 * 3) {
+            update_car_3d(&mut state, &config, &throttle, &track, dt);
+            if state.gear == -1 && state.speed_mps < DIRECTION_CHANGE_MAX_SPEED_MPS {
+                stopped_in_reverse = true;
+            }
+        }
+        assert!(stopped_in_reverse, "the throttle should brake in reverse");
+        assert!(state.gear >= 1);
+        assert!(
+            forward_speed(&state) > 3.0,
+            "should be driving forwards again, v_long={:.2}",
+            forward_speed(&state)
+        );
+    }
+
+    #[test]
+    fn reverse_gear_backs_up_and_steers_the_right_way() {
+        let mut state = create_test_car_state();
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let dt = 1.0 / 240.0;
+        let input = PlayerInputData {
+            throttle: 0.6,
+            steering: 0.5,
+            gear: Some(-1),
+            ..Default::default()
+        };
+        // Manual box: the throttle drives, the shift lands at the end of the
+        // first tick.
+        for _ in 0..240 {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+        }
+        assert_eq!(state.gear, -1);
+        assert!(
+            forward_speed(&state) < -1.0,
+            "v_long={}",
+            forward_speed(&state)
+        );
+        // Backing up with the wheels turned left swings the nose right.
+        assert!(
+            state.angular_vel_yaw < 0.0,
+            "yaw rate {} should be clockwise",
+            state.angular_vel_yaw
+        );
+        assert!(state.yaw_rad < 0.0);
+    }
+
+    #[test]
+    fn a_car_rolling_backwards_is_slowed_by_drag_and_holds_its_line() {
+        let mut state = create_test_car_state();
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let dt = 1.0 / 240.0;
+        state.pos_x = 500.0;
+        state.gear = 0;
+        state.vel_x = -20.0;
+        state.speed_mps = 20.0;
+        // A small sideways drift that the tyres must take out.
+        state.vel_y = 0.5;
+        for _ in 0..240 {
+            update_car_3d(&mut state, &config, &PlayerInputData::default(), &track, dt);
+        }
+        assert!(
+            state.vel_x > -20.0 && state.vel_x < 0.0,
+            "drag should slow a reversing car, vel_x={}",
+            state.vel_x
+        );
+        assert!(state.vel_y.abs() < 0.5, "vel_y={}", state.vel_y);
+    }
+
+    #[test]
+    fn a_free_revving_engine_climbs_bounces_off_the_limiter_and_falls_back() {
+        let config = create_test_config();
+        let limiter = config.engine.rev_limiter_rpm.max(config.redline_rpm);
+        let dt = 1.0 / 240.0;
+        let mut rpm = config.idle_rpm;
+        let mut peak = rpm;
+        let mut cuts = 0;
+        for _ in 0..(240 * 2) {
+            let next = free_rev_rpm(rpm, &config, 1.0, dt);
+            if next < rpm {
+                cuts += 1;
+            }
+            rpm = next;
+            peak = peak.max(rpm);
+        }
+        assert!(peak < limiter, "never past the limiter, peak={peak}");
+        assert!(peak > limiter - FREE_REV_LIMITER_DROP_RPM);
+        assert!(cuts >= 5, "bouncing off the limiter, {cuts} cuts");
+
+        // Half throttle holds part way; letting go returns to idle.
+        let mut half = config.idle_rpm;
+        for _ in 0..(240 * 3) {
+            half = free_rev_rpm(half, &config, 0.5, dt);
+        }
+        assert!(half > config.idle_rpm + 1000.0 && half < limiter - 500.0);
+        for _ in 0..(240 * 4) {
+            half = free_rev_rpm(half, &config, 0.0, dt);
+        }
+        assert!(half < config.idle_rpm + 50.0, "back to idle, rpm={half}");
+    }
+
+    #[test]
+    fn reverse_only_engages_once_the_car_stops_rolling_forwards() {
+        assert!(!gear_engages(1, -1, 10.0));
+        assert!(!gear_engages(0, -1, 10.0));
+        assert!(gear_engages(1, 0, 10.0));
+        assert!(gear_engages(1, -1, 0.2));
+        assert!(!gear_engages(-1, 1, -5.0));
+        assert!(gear_engages(-1, 1, -0.2));
+        assert!(gear_engages(-1, 0, -5.0));
+        assert!(gear_engages(3, 2, 40.0));
+
+        let mut state = create_test_car_state();
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        state.pos_x = 500.0;
+        state.gear = 3;
+        state.vel_x = 30.0;
+        state.speed_mps = 30.0;
+        let input = PlayerInputData {
+            gear: Some(-1),
+            ..Default::default()
+        };
+        update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        assert_eq!(state.gear, 3, "reverse must not go in at 30 m/s");
     }
 
     /// A straight along +x with a point every metre, climbing `grade` and
