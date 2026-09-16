@@ -129,6 +129,7 @@ impl TestClient {
             ai_count: 0,
             lap_limit: 3,
             allowed_assists: Default::default(),
+            conditions: Default::default(),
         };
 
         self.send_tcp_message(&msg).await?;

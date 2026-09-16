@@ -1152,6 +1152,144 @@ impl AllowedAssists {
     }
 }
 
+/// The sky over a session, chosen by its host when the session is created
+/// and fixed for its life. The server owns the grip it costs
+/// (`SessionConditions::apply_to_track`); the client draws it.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
+pub enum Weather {
+    #[default]
+    Sunny = 0,
+    Cloudy = 1,
+    Overcast = 2,
+    LightRain = 3,
+    HeavyRain = 4,
+}
+
+impl Weather {
+    pub const ALL: [Weather; 5] = [
+        Weather::Sunny,
+        Weather::Cloudy,
+        Weather::Overcast,
+        Weather::LightRain,
+        Weather::HeavyRain,
+    ];
+
+    pub fn from_u8(value: u8) -> Option<Weather> {
+        Weather::ALL.get(value as usize).copied()
+    }
+
+    pub fn is_wet(self) -> bool {
+        matches!(self, Weather::LightRain | Weather::HeavyRain)
+    }
+
+    /// What the asphalt's grip is multiplied by. Dry weather leaves the
+    /// track as filed; a cold overcast track is a shade slower; rain takes
+    /// the field down to where a wet race sits, some 15% off a dry lap.
+    pub fn road_grip_factor(self) -> f32 {
+        match self {
+            Weather::Sunny | Weather::Cloudy => 1.0,
+            Weather::Overcast => 0.98,
+            Weather::LightRain => 0.86,
+            Weather::HeavyRain => 0.74,
+        }
+    }
+
+    /// Curbs are painted, and paint in the wet is close to ice: a further
+    /// cut on top of `road_grip_factor`.
+    pub fn curb_grip_factor(self) -> f32 {
+        match self {
+            Weather::LightRain => 0.85,
+            Weather::HeavyRain => 0.75,
+            _ => 1.0,
+        }
+    }
+
+    /// Wet grass and gravel, on top of `road_grip_factor`.
+    pub fn off_track_grip_factor(self) -> f32 {
+        match self {
+            Weather::LightRain => 0.85,
+            Weather::HeavyRain => 0.7,
+            _ => 1.0,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Weather::Sunny => "sunny",
+            Weather::Cloudy => "cloudy",
+            Weather::Overcast => "overcast",
+            Weather::LightRain => "light rain",
+            Weather::HeavyRain => "heavy rain",
+        }
+    }
+}
+
+/// Weather and the clock, per session. Carried inside `CreateSession`,
+/// echoed in `SessionJoined` and listed in every `SessionSummary`. Absent
+/// fields (a client or server from before the feature) mean a sunny early
+/// afternoon, which is what every session was until now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionConditions {
+    #[serde(default)]
+    pub weather: Weather,
+    /// Local time of day, minutes after midnight (0..=1439). Visual only:
+    /// the sim does not know night from day, the client's sun does.
+    #[serde(default = "SessionConditions::default_time_of_day")]
+    pub time_of_day_minutes: u16,
+}
+
+impl Default for SessionConditions {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl SessionConditions {
+    /// A sunny 13:00: what every session was before conditions existed.
+    pub const DEFAULT: SessionConditions = SessionConditions {
+        weather: Weather::Sunny,
+        time_of_day_minutes: 13 * 60,
+    };
+    pub const MINUTES_PER_DAY: u16 = 24 * 60;
+
+    fn default_time_of_day() -> u16 {
+        Self::DEFAULT.time_of_day_minutes
+    }
+
+    /// The same conditions with the clock wrapped onto one day.
+    pub fn clamp(self) -> Self {
+        Self {
+            weather: self.weather,
+            time_of_day_minutes: self.time_of_day_minutes % Self::MINUTES_PER_DAY,
+        }
+    }
+
+    /// Bakes the weather's grip into a session's own copy of the track:
+    /// every centerline sample's grip, the surface's base figure (which the
+    /// racing line and the AI's speed profile read) and the curb and
+    /// off-track grips. Physics, the AI and the racing line then follow
+    /// without a branch in the hot loop, and a dry session is the track to
+    /// the bit.
+    pub fn apply_to_track(&self, track: &mut TrackConfig) {
+        let road = self.weather.road_grip_factor();
+        if road == 1.0 && self.weather.curb_grip_factor() == 1.0 {
+            return;
+        }
+        for point in &mut track.centerline {
+            point.grip_modifier *= road;
+        }
+        track.track_surface.base_grip *= road;
+        track.track_surface.curb_grip *= road * self.weather.curb_grip_factor();
+        track.track_surface.off_track_grip *= road * self.weather.off_track_grip_factor();
+    }
+
+    pub fn is_night(&self) -> bool {
+        let hour = self.time_of_day_minutes / 60;
+        !(6..20).contains(&hour)
+    }
+}
+
 /// Game modes determine the behavior and rules during a session
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
@@ -1188,6 +1326,9 @@ pub struct RaceSession {
     /// What the host lets drivers use; see `AllowedAssists`.
     #[serde(default)]
     pub allowed_assists: AllowedAssists,
+    /// The weather and the clock; see `SessionConditions`.
+    #[serde(default)]
+    pub conditions: SessionConditions,
     pub state: SessionState,
     #[serde(default)]
     pub game_mode: GameMode,
@@ -1224,6 +1365,7 @@ impl RaceSession {
             host_player_id,
             session_kind,
             allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
             state: SessionState::Lobby,
             game_mode: GameMode::Lobby,
             participants: std::collections::BTreeMap::new(),
@@ -1342,5 +1484,105 @@ mod tests {
         assert_eq!(state.grid_position, 1);
         assert_eq!(state.speed_mps, 0.0);
         assert_eq!(state.current_lap, 0);
+    }
+
+    #[test]
+    fn dry_weather_leaves_the_track_untouched() {
+        let mut track = TrackConfig::default();
+        track.centerline.push(TrackPoint {
+            grip_modifier: 1.0,
+            ..Default::default()
+        });
+        track.track_surface.base_grip = 1.0;
+        track.track_surface.curb_grip = 0.9;
+        track.track_surface.off_track_grip = 0.4;
+        let before = track.clone();
+        for weather in [Weather::Sunny, Weather::Cloudy] {
+            let mut copy = before.clone();
+            SessionConditions {
+                weather,
+                ..SessionConditions::DEFAULT
+            }
+            .apply_to_track(&mut copy);
+            assert_eq!(copy.track_surface.base_grip, before.track_surface.base_grip);
+            assert_eq!(copy.track_surface.curb_grip, before.track_surface.curb_grip);
+            assert_eq!(
+                copy.centerline[0].grip_modifier,
+                before.centerline[0].grip_modifier
+            );
+        }
+    }
+
+    #[test]
+    fn rain_costs_grip_everywhere_and_the_curbs_most() {
+        let mut track = TrackConfig::default();
+        track.centerline.push(TrackPoint {
+            grip_modifier: 1.0,
+            ..Default::default()
+        });
+        track.track_surface.base_grip = 1.0;
+        track.track_surface.curb_grip = 0.9;
+        track.track_surface.off_track_grip = 0.4;
+
+        let mut last_road = f32::INFINITY;
+        for weather in Weather::ALL {
+            let mut wet = track.clone();
+            SessionConditions {
+                weather,
+                ..SessionConditions::DEFAULT
+            }
+            .apply_to_track(&mut wet);
+            let road = weather.road_grip_factor();
+            assert!(
+                road <= last_road,
+                "{:?} is no drier than the one before",
+                weather
+            );
+            last_road = road;
+            assert!((wet.track_surface.base_grip - road).abs() < 1e-6);
+            assert!((wet.centerline[0].grip_modifier - road).abs() < 1e-6);
+            // Relative to the road, curbs and grass only ever get worse.
+            assert!(wet.track_surface.curb_grip <= 0.9 * road + 1e-6);
+            assert!(wet.track_surface.off_track_grip <= 0.4 * road + 1e-6);
+        }
+        assert!(Weather::HeavyRain.road_grip_factor() < Weather::LightRain.road_grip_factor());
+        assert!(Weather::HeavyRain.curb_grip_factor() < 1.0);
+        assert!(!Weather::Overcast.is_wet() && Weather::LightRain.is_wet());
+    }
+
+    #[test]
+    fn conditions_clamp_wraps_the_clock_and_defaults_to_a_sunny_afternoon() {
+        assert_eq!(SessionConditions::default(), SessionConditions::DEFAULT);
+        assert_eq!(SessionConditions::DEFAULT.time_of_day_minutes, 13 * 60);
+        let wrapped = SessionConditions {
+            weather: Weather::Overcast,
+            time_of_day_minutes: 24 * 60 + 5,
+        }
+        .clamp();
+        assert_eq!(wrapped.time_of_day_minutes, 5);
+        assert_eq!(wrapped.weather, Weather::Overcast);
+        assert!(wrapped.is_night());
+        assert!(!SessionConditions::DEFAULT.is_night());
+        assert_eq!(Weather::from_u8(4), Some(Weather::HeavyRain));
+        assert_eq!(Weather::from_u8(5), None);
+    }
+
+    #[test]
+    fn conditions_absent_from_the_wire_decode_to_the_default() {
+        // An empty map is what a client from before the field sends inside
+        // a `CreateSession` that names `conditions` at all.
+        let empty =
+            rmp_serde::to_vec_named(&std::collections::BTreeMap::<String, u8>::new()).unwrap();
+        let decoded: SessionConditions = rmp_serde::from_slice(&empty).unwrap();
+        assert_eq!(decoded, SessionConditions::DEFAULT);
+
+        let full = rmp_serde::to_vec_named(&SessionConditions {
+            weather: Weather::LightRain,
+            time_of_day_minutes: 1290,
+        })
+        .unwrap();
+        let decoded: SessionConditions = rmp_serde::from_slice(&full).unwrap();
+        assert_eq!(decoded.weather, Weather::LightRain);
+        assert_eq!(decoded.time_of_day_minutes, 1290);
     }
 }

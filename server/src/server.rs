@@ -207,6 +207,7 @@ impl ServerState {
         ai_count: u8,
         lap_limit: u8,
         allowed_assists: AllowedAssists,
+        conditions: SessionConditions,
     ) -> Option<SessionId> {
         use crate::ai_driver::generate_default_ai_profiles;
 
@@ -214,7 +215,10 @@ impl ServerState {
             return None;
         }
 
-        let track = self.track_configs.get(&track_config_id)?.clone();
+        // The session's own copy of the track carries the weather's grip:
+        // one bake here, no branch in the tick.
+        let mut track = self.track_configs.get(&track_config_id)?.clone();
+        conditions.apply_to_track(&mut track);
         let mut session = RaceSession::new(
             host_player_id,
             track_config_id,
@@ -225,6 +229,7 @@ impl ServerState {
         );
         session.host_car_id = Some(host_car_id);
         session.allowed_assists = allowed_assists;
+        session.conditions = conditions;
         let session_id = session.id;
 
         // Create AI profiles if AI count is specified
@@ -393,6 +398,7 @@ mod tests {
             2,
             5,
             AllowedAssists::ALL,
+            SessionConditions::DEFAULT,
         );
 
         assert!(session_id.is_some());
@@ -420,6 +426,7 @@ mod tests {
                 0,
                 3,
                 AllowedAssists::ALL,
+                SessionConditions::DEFAULT,
             );
             assert!(result.is_some());
         }
@@ -434,6 +441,7 @@ mod tests {
             0,
             3,
             AllowedAssists::ALL,
+            SessionConditions::DEFAULT,
         );
         assert!(result.is_none());
     }

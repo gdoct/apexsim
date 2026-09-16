@@ -89,6 +89,7 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	CreateStartingMode = Profile->StartingMode;
 	CreateSessionKind = Profile->SessionKind;
 	CreateAllowedAssists = Profile->AllowedAssists;
+	CreateConditions = Profile->Conditions.Clamped();
 
 	// A profile written before demo lap was locked would otherwise start a mode
 	// the server turns into a dead end for the player who asked for it.
@@ -121,6 +122,7 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->StartingMode = CreateStartingMode;
 	Profile->SessionKind = CreateSessionKind;
 	Profile->AllowedAssists = CreateAllowedAssists;
+	Profile->Conditions = CreateConditions;
 
 	if (!UGameplayStatics::SaveGameToSlot(Profile, UApexProfileSave::SlotName, 0))
 	{

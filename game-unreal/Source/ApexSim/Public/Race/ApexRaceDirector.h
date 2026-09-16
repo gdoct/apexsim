@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
+#include "Race/ApexSkyModel.h"
 #include "Race/ApexTvDirector.h"
 
 #include "ApexRaceDirector.generated.h"
@@ -10,7 +11,9 @@
 class AApexCockpitRig;
 class AApexRaceCarActor;
 class AApexRacingLineActor;
+class AApexRainActor;
 class ADirectionalLight;
+class APostProcessVolume;
 class ASkyLight;
 class UApexMenuFlowSubsystem;
 class UApexNetSubsystem;
@@ -320,13 +323,29 @@ private:
 	void UpdateCameraFeel(float DeltaSeconds);
 
 	/**
-	 * Re-light the menu world for driving: aim its sun low and warm, and put
-	 * its sky light on real-time capture so ambient light actually matches
-	 * the atmosphere instead of a capture taken in the empty menu void.
+	 * Light the menu world for the session's sky (`ApexSky::Derive` over the
+	 * session's conditions): aim its sun, or the moon, and set the light's
+	 * strength and colour, the sky light's scale, the exposure clamp, the
+	 * grading, the rain and the cars' headlights. Put the sky light on
+	 * real-time capture so ambient light matches the atmosphere instead of a
+	 * capture taken in the empty menu void. What lives in the streamed track
+	 * level (fog, floodlights, the wet road) waits for
+	 * ApplyTrackLevelConditions.
 	 */
 	void ApplyRaceEnvironment();
-	/** Put the sun back the way the menu had it. */
+	/** Put the sun back the way the menu had it, and the rain and lights away. */
 	void RestoreMenuEnvironment();
+	/**
+	 * The part of the sky that lives in the track level, applied once the
+	 * level's actors are in the world: the fog's density and colour, the
+	 * road's wet sheen, spot lights on the floodlight masts and the glow of
+	 * their lamps.
+	 */
+	void ApplyTrackLevelConditions();
+	/** Forget the level's lights and fog, ahead of a new level. */
+	void ForgetTrackLevelConditions();
+	/** The sky the race is lit for. */
+	const ApexSky::FSkyState& GetSky() const { return Sky; }
 
 	/**
 	 * Content path of the level for the session's track, or empty if there
@@ -491,6 +510,21 @@ private:
 	float CurrentFovBoost = 0.0f;
 	/** This frame's cockpit micro-shake, composed onto the car rotation. */
 	FRotator CockpitShake = FRotator::ZeroRotator;
+
+	/** The session's sky as last applied; see ApexSkyModel.h. */
+	ApexSky::FSkyState Sky;
+	/** Unbound, above the track level's own: exposure and grading for the sky. */
+	UPROPERTY(Transient)
+	TObjectPtr<APostProcessVolume> SkyPostProcess;
+	UPROPERTY(Transient)
+	TObjectPtr<AApexRainActor> Rain;
+	/** Carries the spot lights placed on the level's floodlight masts. */
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> FloodlightRig;
+	/** Set once the streamed level's fog and lights have been set for this sky. */
+	bool bTrackConditionsApplied = false;
+	/** Spot lights on masts at most: a big circuit has more masts than the frame has budget. */
+	static constexpr int32 MaxFloodlights = 96;
 
 	/** Menu-world sun state, saved before the race re-aims it. */
 	TWeakObjectPtr<ADirectionalLight> MenuSun;

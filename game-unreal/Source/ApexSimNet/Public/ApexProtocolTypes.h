@@ -28,11 +28,12 @@
  * so their fields are PascalCase:
  *     AuthSuccessData { PlayerId, ServerVersion, ProtocolVersion, UdpToken, UdpPort }
  *     LobbyStateData  { PlayersInLobby, AvailableSessions, CarConfigs, TrackConfigs }
- *     SessionJoinedData { SessionId, YourGridPosition, SessionKind, AllowedAssists }
+ *     SessionJoinedData { SessionId, YourGridPosition, SessionKind, AllowedAssists, Conditions }
  *
  * AllowedAssists is a struct with NO rename_all, so its own keys are
  * snake_case ("abs", "racing_line") even under SessionJoinedData's PascalCase
- * "AllowedAssists" key — the TrackPoint situation again.
+ * "AllowedAssists" key — the TrackPoint situation again. SessionConditions
+ * ("weather", "time_of_day_minutes") is the same under "Conditions".
  *
  * And one exception breaks even that: TrackPoint (network.rs:318-322) has NO
  * rename_all, so its keys are lowercase "x"/"y" while nested inside a
@@ -218,6 +219,88 @@ struct APEXSIMNET_API FApexAllowedAssists
 	bool operator!=(const FApexAllowedAssists& Other) const { return !(*this == Other); }
 };
 
+/** Mirrors `Weather` (data.rs). Serialize_repr => a plain u8 on the wire. */
+UENUM(BlueprintType)
+enum class EApexWeather : uint8
+{
+	Sunny     = 0,
+	Cloudy    = 1,
+	Overcast  = 2,
+	LightRain = 3,
+	HeavyRain = 4,
+};
+
+/**
+ * Mirrors `SessionConditions` (data.rs): the weather and the clock over a
+ * session, chosen by its host on create, echoed in SessionJoined and listed in
+ * every SessionSummary. The server bakes the weather's grip into the session's
+ * track; the client only has to draw it. A sunny 13:00 from a server that
+ * predates the field.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexSessionConditions
+{
+	GENERATED_BODY()
+
+	static constexpr int32 MinutesPerDay = 24 * 60;
+	static constexpr int32 DefaultTimeOfDayMinutes = 13 * 60;
+	static constexpr int32 WeatherCount = 5;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	EApexWeather Weather = EApexWeather::Sunny;
+
+	/** Local time of day, minutes after midnight, 0..1439. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 TimeOfDayMinutes = DefaultTimeOfDayMinutes;
+
+	/** The clock wrapped onto one day, as the server does it. */
+	FApexSessionConditions Clamped() const
+	{
+		FApexSessionConditions Out = *this;
+		Out.TimeOfDayMinutes = ((TimeOfDayMinutes % MinutesPerDay) + MinutesPerDay) % MinutesPerDay;
+		return Out;
+	}
+
+	bool IsWet() const { return Weather == EApexWeather::LightRain || Weather == EApexWeather::HeavyRain; }
+	bool IsDefault() const { return Weather == EApexWeather::Sunny && TimeOfDayMinutes == DefaultTimeOfDayMinutes; }
+
+	/** Hours since midnight, fractional. */
+	float Hours() const { return static_cast<float>(Clamped().TimeOfDayMinutes) / 60.0f; }
+
+	/** "21:30". */
+	FString ClockText() const
+	{
+		const int32 Minutes = Clamped().TimeOfDayMinutes;
+		return FString::Printf(TEXT("%02d:%02d"), Minutes / 60, Minutes % 60);
+	}
+
+	/** "Light rain". */
+	static FString WeatherLabel(EApexWeather InWeather)
+	{
+		switch (InWeather)
+		{
+		case EApexWeather::Sunny:     return TEXT("Sunny");
+		case EApexWeather::Cloudy:    return TEXT("Cloudy");
+		case EApexWeather::Overcast:  return TEXT("Overcast");
+		case EApexWeather::LightRain: return TEXT("Light rain");
+		case EApexWeather::HeavyRain: return TEXT("Heavy rain");
+		default:                      return TEXT("Sunny");
+		}
+	}
+
+	/** "Light rain · 21:30". */
+	FString Describe() const
+	{
+		return FString::Printf(TEXT("%s · %s"), *WeatherLabel(Weather), *ClockText());
+	}
+
+	bool operator==(const FApexSessionConditions& Other) const
+	{
+		return Weather == Other.Weather && TimeOfDayMinutes == Other.TimeOfDayMinutes;
+	}
+	bool operator!=(const FApexSessionConditions& Other) const { return !(*this == Other); }
+};
+
 /** Mirrors `GameMode` (data.rs:906). Serialize_repr => a plain u8 on the wire. */
 UENUM(BlueprintType)
 enum class EApexGameMode : uint8
@@ -314,6 +397,10 @@ struct APEXSIMNET_API FApexSessionSummary
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	EApexSessionState State = EApexSessionState::Lobby;
+
+	/** The session's weather and clock; a sunny afternoon from an older server. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	FApexSessionConditions Conditions;
 
 	bool IsJoinable() const { return State == EApexSessionState::Lobby && PlayerCount < MaxPlayers; }
 };
@@ -771,6 +858,8 @@ struct APEXSIMNET_API FApexServerMessage
 	EApexSessionKind SessionKind = EApexSessionKind::Multiplayer;
 	/** SessionJoined::AllowedAssists; everything allowed from a server that predates the field. */
 	FApexAllowedAssists AllowedAssists;
+	/** SessionJoined::Conditions; a sunny afternoon from a server that predates the field. */
+	FApexSessionConditions Conditions;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

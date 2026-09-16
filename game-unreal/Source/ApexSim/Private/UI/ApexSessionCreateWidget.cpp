@@ -70,6 +70,25 @@ namespace
 		return FName(*FString::Printf(TEXT("__mode%d"), static_cast<int32>(Mode)));
 	}
 
+	/** Weather chips carry their EApexWeather in the action id. */
+	FName WeatherAction(EApexWeather Weather)
+	{
+		return FName(*FString::Printf(TEXT("__weather%d"), static_cast<int32>(Weather)));
+	}
+
+	/** What the clock reads as, for the slider's suffix. */
+	const TCHAR* DescribeDaylight(int32 Minutes)
+	{
+		const int32 Hour = Minutes / 60;
+		if (Hour < 5 || Hour >= 22)  { return TEXT("NIGHT"); }
+		if (Hour < 7)                { return TEXT("DAWN"); }
+		if (Hour < 10)               { return TEXT("MORNING"); }
+		if (Hour < 16)               { return TEXT("DAY"); }
+		if (Hour < 19)               { return TEXT("AFTERNOON"); }
+		if (Hour < 21)               { return TEXT("DUSK"); }
+		return TEXT("EVENING");
+	}
+
 	constexpr float SettingsWidth = 720.0f;
 }
 
@@ -213,6 +232,12 @@ bool UApexSessionCreateWidget::HandleNavigation(EUINavigation Direction, UWidget
 		return (AssistAt > 0 && ApexNav::Focus(AssistButtons[AssistAt - 1])) || FocusContent(true);
 	}
 
+	const int32 WeatherAt = ApexNav::IndexOf(WeatherButtons, Source);
+	if (WeatherAt != INDEX_NONE && Direction == EUINavigation::Left)
+	{
+		return (WeatherAt > 0 && ApexNav::Focus(WeatherButtons[WeatherAt - 1])) || FocusContent(true);
+	}
+
 	return false;
 }
 
@@ -308,7 +333,7 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	UHorizontalBox* KindRow = WidgetTree->ConstructWidget<UHorizontalBox>();
 	ApexUI::AddH(KindRow, KindMultiplayerButton, FMargin(), VAlign_Fill, 1.0f);
 	ApexUI::AddH(KindRow, KindSingleButton, FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
-	ApexUI::AddV(Column, KindRow, FMargin(0.0f, 0.0f, 0.0f, 26.0f));
+	ApexUI::AddV(Column, KindRow, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
 
 	// --- Starting mode --------------------------------------------------------
 	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Starting mode")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
@@ -347,7 +372,7 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 			Spec.Variant = Option.bAvailable ? EApexButtonVariant::Panel : EApexButtonVariant::Locked;
 			Spec.Badge = Option.bAvailable ? FString() : TEXT("Locked");
 			Spec.LabelSize = 18.0f;
-			Spec.Height = 74.0f;
+			Spec.Height = 66.0f;
 			Spec.ActionId = ModeAction(Option.Mode);
 
 			UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
@@ -359,7 +384,7 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 		}
 		ApexUI::AddV(ModeStack, Row, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 	}
-	ApexUI::AddV(Column, ModeStack, FMargin(0.0f, 0.0f, 0.0f, 26.0f));
+	ApexUI::AddV(Column, ModeStack, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
 
 	// --- Allowed assists ------------------------------------------------------
 	// Which aids the drivers may run. The server forces a disallowed aid off for
@@ -390,7 +415,49 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 		AssistButtons.Add(Button);
 		ApexUI::AddH(AssistRow, Button, FMargin(Index == 0 ? 0.0f : 8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 	}
-	ApexUI::AddV(Column, AssistRow, FMargin(0.0f, 0.0f, 0.0f, 26.0f));
+	ApexUI::AddV(Column, AssistRow, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
+
+	// --- Conditions -----------------------------------------------------------
+	// The sky the session races under. Weather is a rule like the assists:
+	// the server takes the rain's grip off the track for everyone; the clock
+	// only moves the sun, but a night race is a night race for the field.
+	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Weather")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+
+	WeatherButtons.Reset();
+	UHorizontalBox* WeatherRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+	for (int32 Index = 0; Index < FApexSessionConditions::WeatherCount; ++Index)
+	{
+		const EApexWeather Weather = static_cast<EApexWeather>(Index);
+		FApexButtonSpec Spec;
+		Spec.Label = FApexSessionConditions::WeatherLabel(Weather);
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.bCentreLabel = true;
+		Spec.LabelSize = 14.0f;
+		Spec.Height = 44.0f;
+		Spec.ActionId = WeatherAction(Weather);
+
+		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Button->Setup(Spec);
+		Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
+		WeatherButtons.Add(Button);
+		ApexUI::AddH(WeatherRow, Button, FMargin(Index == 0 ? 0.0f : 8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	}
+	ApexUI::AddV(Column, WeatherRow, FMargin(0.0f, 0.0f, 0.0f, 16.0f));
+
+	UTextBlock* ClockValue = nullptr;
+	UTextBlock* ClockSuffix = nullptr;
+	USlider* ClockSlider = nullptr;
+	UProgressBar* ClockFill = nullptr;
+	ApexUI::AddV(
+		Column,
+		ApexUI::MakeSliderRow(*WidgetTree, TEXT("Time of day"), ClockValue, ClockSuffix, ClockSlider, ClockFill),
+		FMargin(0.0f, 0.0f, 0.0f, 20.0f));
+	TimeOfDayValue = ClockValue;
+	TimeOfDaySuffix = ClockSuffix;
+	TimeOfDaySlider = ClockSlider;
+	TimeOfDayFill = ClockFill;
+	TimeOfDaySlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleTimeOfDayChanged);
+	TimeOfDaySlider->SetStepSize(1.0f / TimeOfDaySteps);
 
 	// --- Grid and length ------------------------------------------------------
 	UTextBlock* PlayersValue = nullptr;
@@ -400,7 +467,7 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	ApexUI::AddV(
 		Column,
 		ApexUI::MakeSliderRow(*WidgetTree, TEXT("Max players"), PlayersValue, PlayersSuffix, PlayersSlider, PlayersFill),
-		FMargin(0.0f, 0.0f, 0.0f, 20.0f));
+		FMargin(0.0f, 0.0f, 0.0f, 16.0f));
 	MaxPlayersValue = PlayersValue;
 	MaxPlayersSuffix = PlayersSuffix;
 	MaxPlayersSlider = PlayersSlider;
@@ -425,7 +492,7 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	AiCountSlider->SetStepSize(1.0f / (MaxPlayersCeiling - 1));
 
 	GridSummaryText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 80), ApexUI::Palette::TextMuted);
-	ApexUI::AddV(Column, GridSummaryText, FMargin(0.0f, 8.0f, 0.0f, 20.0f));
+	ApexUI::AddV(Column, GridSummaryText, FMargin(0.0f, 6.0f, 0.0f, 16.0f));
 
 	UTextBlock* LapValue = nullptr;
 	UTextBlock* LapSuffix = nullptr;
@@ -707,6 +774,23 @@ void UApexSessionCreateWidget::RefreshSettings()
 		}
 	}
 
+	for (int32 Index = 0; Index < WeatherButtons.Num(); ++Index)
+	{
+		if (WeatherButtons[Index])
+		{
+			WeatherButtons[Index]->SetSelected(static_cast<int32>(Flow->CreateConditions.Weather) == Index);
+		}
+	}
+
+	{
+		const int32 Minutes = Flow->CreateConditions.Clamped().TimeOfDayMinutes;
+		const float Fraction = static_cast<float>(Minutes) / FApexSessionConditions::MinutesPerDay;
+		if (TimeOfDaySlider) { TimeOfDaySlider->SetValue(Fraction); }
+		if (TimeOfDayFill)   { TimeOfDayFill->SetPercent(Fraction); }
+		if (TimeOfDayValue)  { TimeOfDayValue->SetText(FText::FromString(Flow->CreateConditions.ClockText())); }
+		if (TimeOfDaySuffix) { TimeOfDaySuffix->SetText(FText::FromString(DescribeDaylight(Minutes))); }
+	}
+
 	// Sliders are normalised 0..1; the labels carry the real numbers.
 	if (MaxPlayersSlider)
 	{
@@ -857,6 +941,22 @@ void UApexSessionCreateWidget::HandleLapsChanged(float Value)
 	RefreshSettings();
 }
 
+void UApexSessionCreateWidget::HandleTimeOfDayChanged(float Value)
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow)
+	{
+		return;
+	}
+
+	// Snapped to the quarter hour; the last step wraps onto midnight rather
+	// than reading 24:00.
+	const int32 Step = FMath::Clamp(FMath::RoundToInt(Value * TimeOfDaySteps), 0, TimeOfDaySteps);
+	Flow->CreateConditions.TimeOfDayMinutes = (Step * TimeOfDayStepMinutes) % FApexSessionConditions::MinutesPerDay;
+	Flow->SaveProfile();
+	RefreshSettings();
+}
+
 void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 {
 	UApexMenuFlowSubsystem* Flow = GetFlow();
@@ -927,10 +1027,10 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Flow->bAutoStartOnJoin = false;
 		Flow->SaveProfile();
 
-		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI, %d laps, kind %d, %d assists locked"),
+		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI, %d laps, kind %d, %d assists locked, %s"),
 			*Flow->GetPendingTrackId(), Flow->CreateMaxPlayers, Flow->CreateAiCount,
 			Flow->CreateLapLimit, static_cast<int32>(Flow->CreateSessionKind),
-			Flow->CreateAllowedAssists.CountLocked());
+			Flow->CreateAllowedAssists.CountLocked(), *Flow->CreateConditions.Describe());
 
 		Net->CreateSession(
 			Flow->GetPendingTrackId(),
@@ -938,8 +1038,20 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->CreateAiCount,
 			Flow->CreateLapLimit,
 			Flow->CreateSessionKind,
-			Flow->CreateAllowedAssists);
+			Flow->CreateAllowedAssists,
+			Flow->CreateConditions);
 		return;
+	}
+
+	for (int32 Index = 0; Index < FApexSessionConditions::WeatherCount; ++Index)
+	{
+		if (Id == WeatherAction(static_cast<EApexWeather>(Index)))
+		{
+			Flow->CreateConditions.Weather = static_cast<EApexWeather>(Index);
+			Flow->SaveProfile();
+			RefreshSettings();
+			return;
+		}
 	}
 
 	for (int32 Index = 0; Index < static_cast<int32>(EApexAssistChip::Count); ++Index)

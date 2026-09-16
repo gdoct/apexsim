@@ -87,6 +87,7 @@ impl DemoLapTestClient {
             ai_count: 0,
             lap_limit,
             allowed_assists: Default::default(),
+            conditions: Default::default(),
         };
 
         self.send_message(&msg).await?;

@@ -104,6 +104,14 @@ public:
 	FApexAllowedAssists CreateAllowedAssists;
 
 	/**
+	 * The weather and time of day the session runs under. The server bakes
+	 * the weather's grip into the session's track and echoes both to whoever
+	 * joins; the race director lights the circuit from them.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	FApexSessionConditions CreateConditions;
+
+	/**
 	 * The mode a session is counted into once it starts.
 	 *
 	 * Not part of CreateSession — the server always creates a session in Lobby —

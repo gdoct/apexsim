@@ -10,6 +10,7 @@
 #include "ApexRaceCarActor.generated.h"
 
 class UApexEngineSoundWave;
+class USpotLightComponent;
 class UAudioComponent;
 class UMaterialInstanceDynamic;
 class UStaticMesh;
@@ -62,6 +63,14 @@ public:
 	 * flag because the rest of the field must stay visible.
 	 */
 	void SetMeshVisible(bool bVisible);
+
+	/**
+	 * Headlights on or off: two spot lights at the nose, made the first time
+	 * they are asked for, and the tail lights glowing dimly between brakings.
+	 * The race director sets them from the session's sky (night, or rain).
+	 */
+	void SetHeadlights(bool bOn);
+	bool HasHeadlights() const { return bHeadlightsOn; }
 
 	UStaticMeshComponent* GetMeshComponent() const { return CarMesh; }
 
@@ -174,6 +183,17 @@ private:
 
 	/** Lights or darkens the brake lights from `Brake`, writing only on a change. */
 	void UpdateBrakeLights();
+
+	/** Seats the headlights at the nose of the current mesh. */
+	void PlaceHeadlights();
+
+	UPROPERTY(Transient)
+	TObjectPtr<USpotLightComponent> HeadlightLeft;
+	UPROPERTY(Transient)
+	TObjectPtr<USpotLightComponent> HeadlightRight;
+	bool bHeadlightsOn = false;
+	/** What the tail lights show: 0 dark, 1 running lights, 2 braking. */
+	int32 TailLightState = -1;
 
 	/**
 	 * The rev range seen so far for this car. Neither idle nor redline is

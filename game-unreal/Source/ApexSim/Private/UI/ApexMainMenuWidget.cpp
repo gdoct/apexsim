@@ -667,9 +667,9 @@ void UApexMainMenuWidget::StartRememberedSession()
 	Flow->bAutoStartOnJoin = true;
 	Flow->AutoStartMode = Flow->CreateStartingMode;
 
-	UE_LOG(LogApexSim, Log, TEXT("Main menu start: track '%s', %d AI, %d laps, mode %d"),
+	UE_LOG(LogApexSim, Log, TEXT("Main menu start: track '%s', %d AI, %d laps, mode %d, %s"),
 		*Flow->GetPendingTrackId(), Flow->CreateAiCount, Flow->CreateLapLimit,
-		static_cast<int32>(Flow->CreateStartingMode));
+		static_cast<int32>(Flow->CreateStartingMode), *Flow->CreateConditions.Describe());
 
 	Net->CreateSession(
 		Flow->GetPendingTrackId(),
@@ -677,7 +677,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->CreateAiCount,
 		Flow->CreateLapLimit,
 		Flow->CreateSessionKind,
-		Flow->CreateAllowedAssists);
+		Flow->CreateAllowedAssists,
+		Flow->CreateConditions);
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

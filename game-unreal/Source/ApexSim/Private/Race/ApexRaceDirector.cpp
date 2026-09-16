@@ -7,8 +7,14 @@
 #include "ApexSim.h"
 #include "Camera/CameraComponent.h"
 #include "Components/DirectionalLightComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Engine/DirectionalLight.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Engine/Level.h"
+#include "Engine/PostProcessVolume.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Engine/SkyLight.h"
@@ -27,6 +33,7 @@
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Race/ApexRacingLineActor.h"
+#include "Race/ApexRainActor.h"
 #include "Race/ApexShotCamera.h"
 
 AApexRaceDirector::AApexRaceDirector()
@@ -378,6 +385,7 @@ void AApexRaceDirector::EnsureRacingLine()
 		{
 			RacingLine->SetLine(Net->GetRacingLine());
 		}
+		RacingLine->SetWet(Sky.bWetRoad);
 		ApplyRacingLineSetting();
 	}
 }
@@ -453,6 +461,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 				continue;
 			}
 			Car->SetCarIndex(Entry.CarIndex);
+			Car->SetHeadlights(bRaceViewActive && Sky.bHeadlights);
 			Cars.Add(Entry.CarIndex, Car);
 			CarIdShown.Remove(Entry.CarIndex);
 			VerifyLocalCarContent();
@@ -777,6 +786,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	}
 
 	SnapRacingLineToTrack();
+	ApplyTrackLevelConditions();
 	UpdateCameraFeel(DeltaSeconds);
 	if (bTvView)
 	{
@@ -900,12 +910,22 @@ void AApexRaceDirector::ApplyRaceEnvironment()
 		return;
 	}
 
+	// The session's sky. A demo, and a server from before conditions, is a
+	// sunny early afternoon: what every race was until now.
+	const UApexNetSubsystem* Net = GetNet();
+	const FApexSessionConditions Conditions = Net ? Net->GetSessionConditions() : FApexSessionConditions();
+	Sky = ApexSky::Derive(Conditions);
+	UE_LOG(LogApexSim, Log, TEXT("Race sky: %s, sun %.1f deg at %.0f deg, %s %.0f lux, exposure %.1f..%.1f EV, rain %.2f, headlights %d, floodlights %d"),
+		*Conditions.Describe(), Sky.Sun.ElevationDeg, Sky.Sun.AzimuthDeg, Sky.bMoon ? TEXT("moon") : TEXT("sun"),
+		Sky.LightIntensity, Sky.ExposureMinEv, Sky.ExposureMaxEv, Sky.RainIntensity, Sky.bHeadlights, Sky.bFloodlights);
+
 	// The menu world's sun points wherever the menu looked good, at the
 	// engine's default 10 lux — which is why race scenes used to render as
 	// low-contrast pastel: sun and ambient were the same order of magnitude,
 	// and auto-exposure normalized whatever the albedo said. For driving it
-	// becomes an actual sun: tens of thousands of lux, low and warm, and
-	// movable because nothing in a streamed track level has baked lighting.
+	// becomes an actual sun: tens of thousands of lux where the clock puts
+	// it, or the moon after dark, and movable because nothing in a streamed
+	// track level has baked lighting.
 	for (TActorIterator<ADirectionalLight> It(World); It; ++It)
 	{
 		ADirectionalLight* Sun = *It;
@@ -919,16 +939,19 @@ void AApexRaceDirector::ApplyRaceEnvironment()
 			bMenuSunSaved = true;
 		}
 		SunComponent->SetMobility(EComponentMobility::Movable);
-		Sun->SetActorRotation(FRotator(-26.0f, 41.0f, 0.0f));
-		SunComponent->SetLightColor(FLinearColor(1.0f, 0.93f, 0.84f));
-		SunComponent->SetIntensity(50000.0f);
+		Sun->SetActorRotation(Sky.LightRotation);
+		SunComponent->SetLightColor(Sky.LightColor);
+		SunComponent->SetIntensity(Sky.LightIntensity);
+		SunComponent->SetCastShadows(Sky.bCastShadows);
 		if (UDirectionalLightComponent* Directional =
 				Cast<UDirectionalLightComponent>(SunComponent))
 		{
 			// The atmosphere (and through it the real-time sky light) has to
 			// be driven by this sun, or the ground gets daylight while the
-			// sky keeps its 10-lux dusk.
-			Directional->bAtmosphereSunLight = true;
+			// sky keeps its 10-lux dusk. The moon is not a sun: with it the
+			// atmosphere goes dark, which is the night.
+			Directional->bAtmosphereSunLight = Sky.bAtmosphereLight;
+			Directional->LightSourceAngle = Sky.LightSourceAngleDeg;
 			Directional->MarkRenderStateDirty();
 		}
 		break;
@@ -936,14 +959,69 @@ void AApexRaceDirector::ApplyRaceEnvironment()
 
 	// The sky light's one static capture was taken in the menu void; put it
 	// on real-time capture so ambient and reflections follow the actual sky
-	// over the actual circuit.
+	// over the actual circuit. Under cloud the sky is the lamp, so its
+	// capture is scaled up to what an overcast day actually delivers.
 	for (TActorIterator<ASkyLight> It(World); It; ++It)
 	{
 		USkyLightComponent* SkyComponent = (*It)->GetLightComponent();
 		SkyComponent->SetMobility(EComponentMobility::Movable);
 		SkyComponent->SetRealTimeCaptureEnabled(true);
+		SkyComponent->SetIntensity(Sky.SkyLightIntensity);
 		break;
 	}
+
+	// Exposure and grading, over the track level's own volume: its daylight
+	// clamp (10..15 EV) would render a night race black.
+	if (!SkyPostProcess)
+	{
+		FActorSpawnParameters Params;
+		Params.Name = MakeUniqueObjectName(World, APostProcessVolume::StaticClass(), FName(TEXT("ApexSkyPostProcess")));
+		SkyPostProcess = World->SpawnActor<APostProcessVolume>(FVector::ZeroVector, FRotator::ZeroRotator, Params);
+	}
+	if (SkyPostProcess)
+	{
+		SkyPostProcess->bUnbound = true;
+		SkyPostProcess->Priority = 10.0f;
+		SkyPostProcess->bEnabled = true;
+		FPostProcessSettings& Settings = SkyPostProcess->Settings;
+		Settings.bOverride_AutoExposureMinBrightness = true;
+		Settings.AutoExposureMinBrightness = Sky.ExposureMinEv;
+		Settings.bOverride_AutoExposureMaxBrightness = true;
+		Settings.AutoExposureMaxBrightness = Sky.ExposureMaxEv;
+		Settings.bOverride_AutoExposureBias = true;
+		Settings.AutoExposureBias = Sky.ExposureBias;
+		Settings.bOverride_ColorSaturation = true;
+		Settings.ColorSaturation = FVector4(Sky.Saturation, Sky.Saturation, Sky.Saturation, 1.0f);
+		Settings.bOverride_ColorContrast = true;
+		Settings.ColorContrast = FVector4(Sky.Contrast, Sky.Contrast, Sky.Contrast, 1.0f);
+		// Wet air blooms the lights; a night's few lights bloom most.
+		Settings.bOverride_BloomIntensity = true;
+		Settings.BloomIntensity = Sky.RainIntensity > 0.0f ? 0.55f : (Sky.bMoon ? 0.45f : 0.3f);
+	}
+
+	if (Sky.RainIntensity > 0.0f && !Rain)
+	{
+		Rain = World->SpawnActor<AApexRainActor>(AApexRainActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+	}
+	if (Rain)
+	{
+		Rain->SetIntensity(Sky.RainIntensity);
+	}
+	if (RacingLine)
+	{
+		RacingLine->SetWet(Sky.bWetRoad);
+	}
+
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->SetHeadlights(Sky.bHeadlights);
+		}
+	}
+
+	// The fog and the masts come with the level, once it is visible.
+	ForgetTrackLevelConditions();
 }
 
 void AApexRaceDirector::RestoreMenuEnvironment()
@@ -953,9 +1031,203 @@ void AApexRaceDirector::RestoreMenuEnvironment()
 		Sun->SetActorRotation(MenuSunRotation);
 		Sun->GetLightComponent()->SetLightColor(MenuSunColor);
 		Sun->GetLightComponent()->SetIntensity(MenuSunIntensity);
+		Sun->GetLightComponent()->SetCastShadows(true);
+		if (UDirectionalLightComponent* Directional = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
+		{
+			Directional->bAtmosphereSunLight = true;
+			Directional->LightSourceAngle = 0.5357f;
+			Directional->MarkRenderStateDirty();
+		}
 	}
 	// The sky light stays on real-time capture: it is simply correct, in the
 	// menu as much as in the race.
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<ASkyLight> It(World); It; ++It)
+		{
+			(*It)->GetLightComponent()->SetIntensity(1.0f);
+			break;
+		}
+	}
+	if (SkyPostProcess)
+	{
+		SkyPostProcess->bEnabled = false;
+	}
+	if (Rain)
+	{
+		Rain->SetIntensity(0.0f);
+	}
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->SetHeadlights(false);
+		}
+	}
+	Sky = ApexSky::FSkyState();
+	ForgetTrackLevelConditions();
+}
+
+void AApexRaceDirector::ForgetTrackLevelConditions()
+{
+	bTrackConditionsApplied = false;
+	if (FloodlightRig)
+	{
+		FloodlightRig->Destroy();
+		FloodlightRig = nullptr;
+	}
+}
+
+void AApexRaceDirector::ApplyTrackLevelConditions()
+{
+	// A streamed level reports loaded before its actors are in the world;
+	// they arrive when it becomes visible, so only from then on.
+	if (bTrackConditionsApplied || !bRaceViewActive || !IsTrackLevelLoaded() || !TrackLevel->IsLevelVisible())
+	{
+		return;
+	}
+	ULevel* Level = TrackLevel->GetLoadedLevel();
+	if (!Level)
+	{
+		return;
+	}
+	bTrackConditionsApplied = true;
+
+	static const FName RoughnessParam(TEXT("Roughness"));
+	static const FName RoughnessNoiseParam(TEXT("RoughnessNoise"));
+	static const FName EmissiveStrengthParam(TEXT("EmissiveStrength"));
+	static const FName LampTag(TEXT("ApexEmissive_floodlight_lamp"));
+
+	int32 WetSlots = 0;
+	int32 Masts = 0;
+	int32 Lamps = 0;
+	UWorld* World = GetWorld();
+
+	for (AActor* Actor : Level->Actors)
+	{
+		if (!Actor)
+		{
+			continue;
+		}
+
+		// The level's fog: the bake's thin haze, or the weather's.
+		if (AExponentialHeightFog* FogActor = Cast<AExponentialHeightFog>(Actor))
+		{
+			UExponentialHeightFogComponent* Fog = FogActor->GetComponent();
+			Fog->SetFogDensity(Sky.FogDensity);
+			Fog->SetFogHeightFalloff(Sky.FogHeightFalloff);
+			Fog->SetStartDistance(Sky.FogStartDistanceCm);
+			Fog->SetFogInscatteringColor(Sky.FogColor);
+			continue;
+		}
+
+		TArray<UStaticMeshComponent*> Meshes;
+		Actor->GetComponents<UStaticMeshComponent>(Meshes);
+		for (UStaticMeshComponent* Mesh : Meshes)
+		{
+			// Wet road: the tarmac's sheen comes up on every material of the
+			// bake's road family: the road and pit lane, and the rubbered
+			// wear bands the racing line runs on (`wear_core`, `wear_edge`).
+			if (Sky.bWetRoad)
+			{
+				const int32 Slots = Mesh->GetNumMaterials();
+				for (int32 Slot = 0; Slot < Slots; ++Slot)
+				{
+					const UMaterialInterface* Material = Mesh->GetMaterial(Slot);
+					if (!Material)
+					{
+						continue;
+					}
+					const FString Name = Material->GetName();
+					if (Name.StartsWith(TEXT("MI_road")) || Name.StartsWith(TEXT("MI_pit_lane"))
+						|| Name.StartsWith(TEXT("MI_wear_")))
+					{
+						if (UMaterialInstanceDynamic* Wet = Mesh->CreateDynamicMaterialInstance(Slot))
+						{
+							Wet->SetScalarParameterValue(RoughnessParam, Sky.RoadRoughness);
+							Wet->SetScalarParameterValue(RoughnessNoiseParam, 0.08f);
+							++WetSlots;
+						}
+					}
+				}
+			}
+
+			// The floodlight lamps glow after dark.
+			if (Sky.LampGlow > 0.0f && Mesh->ComponentHasTag(LampTag))
+			{
+				const int32 Slots = Mesh->GetNumMaterials();
+				for (int32 Slot = 0; Slot < Slots; ++Slot)
+				{
+					const UMaterialInterface* Material = Mesh->GetMaterial(Slot);
+					if (Material && Material->GetName().Contains(TEXT("glow_floodlight_lamp")))
+					{
+						if (UMaterialInstanceDynamic* Glow = Mesh->CreateDynamicMaterialInstance(Slot))
+						{
+							Glow->SetScalarParameterValue(EmissiveStrengthParam, Sky.LampGlow);
+							++Lamps;
+						}
+					}
+				}
+			}
+
+			// And the masts light the track: one spot per instance, from the
+			// head of the mast down onto the road side (local +Y after the
+			// builder's face-road flip).
+			UInstancedStaticMeshComponent* Instanced = Cast<UInstancedStaticMeshComponent>(Mesh);
+			if (!Sky.bFloodlights || !Instanced || !Instanced->GetStaticMesh())
+			{
+				continue;
+			}
+			const FString MeshName = Instanced->GetStaticMesh()->GetName();
+			const bool bMast = MeshName.Contains(TEXT("floodlight_tower"));
+			const bool bPost = MeshName.Contains(TEXT("lamp_post"));
+			if (!bMast && !bPost)
+			{
+				continue;
+			}
+			if (!FloodlightRig && World)
+			{
+				FloodlightRig = World->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+				if (FloodlightRig)
+				{
+					USceneComponent* RigRoot = NewObject<USceneComponent>(FloodlightRig, TEXT("Root"));
+					FloodlightRig->SetRootComponent(RigRoot);
+					RigRoot->RegisterComponent();
+				}
+			}
+			if (!FloodlightRig)
+			{
+				continue;
+			}
+			const int32 Count = Instanced->GetInstanceCount();
+			for (int32 Index = 0; Index < Count && Masts < MaxFloodlights; ++Index)
+			{
+				FTransform Instance;
+				if (!Instanced->GetInstanceTransform(Index, Instance, /*bWorldSpace*/ true))
+				{
+					continue;
+				}
+				const FVector Head = Instance.TransformPosition(bMast ? FVector(0.0f, 230.0f, 2800.0f) : FVector(0.0f, 110.0f, 750.0f));
+				const FRotator Aim = (Instance.GetRotation() * FRotator(bMast ? -52.0f : -70.0f, 90.0f, 0.0f).Quaternion()).Rotator();
+				USpotLightComponent* Lamp = NewObject<USpotLightComponent>(FloodlightRig);
+				Lamp->SetMobility(EComponentMobility::Movable);
+				Lamp->SetIntensityUnits(ELightUnits::Lumens);
+				Lamp->SetIntensity(bMast ? 220000.0f : 12000.0f);
+				Lamp->SetLightColor(FLinearColor(1.0f, 0.95f, 0.82f));
+				Lamp->SetAttenuationRadius(bMast ? 16000.0f : 3500.0f);
+				Lamp->SetInnerConeAngle(bMast ? 30.0f : 40.0f);
+				Lamp->SetOuterConeAngle(bMast ? 52.0f : 60.0f);
+				Lamp->SetCastShadows(false);
+				Lamp->SetupAttachment(FloodlightRig->GetRootComponent());
+				Lamp->SetWorldLocationAndRotation(Head, Aim);
+				Lamp->RegisterComponent();
+				++Masts;
+			}
+		}
+	}
+
+	UE_LOG(LogApexSim, Log, TEXT("Track level conditions applied: fog %.4f, %d wet road slots, %d floodlights, %d lamp faces"),
+		Sky.FogDensity, WetSlots, Masts, Lamps);
 }
 
 void AApexRaceDirector::PollDrivingInput()
@@ -1469,6 +1741,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	TrackLevel->SetShouldBeLoaded(false);
 	TrackLevel = nullptr;
 	ForgetStartLights();
+	ForgetTrackLevelConditions();
 	VerifiedTrackId.Reset();
 }
 

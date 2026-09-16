@@ -99,6 +99,7 @@ async fn test_demo_session_is_a_private_ai_race_watched_by_its_creator() {
         lap_limit: 3,
         session_kind: SessionKind::Demo,
         allowed_assists: Default::default(),
+        conditions: Default::default(),
     })
     .await;
 
