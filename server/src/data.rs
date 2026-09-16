@@ -285,6 +285,46 @@ pub struct TireConfig {
     pub optimal_temperature_c: f32,    // Optimal tire temp for best grip
     pub temperature_grip_falloff: f32, // Grip reduction per degree from optimal
     pub wear_rate: f32,                // Wear rate multiplier
+    /// Running pressure per axle and the pressure the tyre grips best at.
+    /// Off the optimum the contact patch shrinks (or crowns) and the axle
+    /// loses grip quadratically (`pressure_grip_factor`); the garage setup
+    /// moves the running pressures, which is how it shifts the balance.
+    #[serde(default = "default_tyre_pressure_kpa")]
+    pub pressure_front_kpa: f32,
+    #[serde(default = "default_tyre_pressure_kpa")]
+    pub pressure_rear_kpa: f32,
+    #[serde(default = "default_tyre_pressure_kpa")]
+    pub optimal_pressure_kpa: f32,
+}
+
+fn default_tyre_pressure_kpa() -> f32 {
+    180.0
+}
+
+/// Grip lost per unit of (pressure error / optimum) squared: 25 kPa off a
+/// 180 kPa optimum (five clicks) costs the axle 4%.
+pub const TYRE_PRESSURE_GRIP_LOSS: f32 = 2.07;
+
+impl TireConfig {
+    /// Grip multiplier for an axle at `pressure_kpa`: exactly 1.0 at the
+    /// optimum (so a stock car is bit-identical to before the field), less
+    /// either side, never below 0.5.
+    pub fn pressure_grip_factor(&self, pressure_kpa: f32) -> f32 {
+        let optimum = self.optimal_pressure_kpa.max(1.0);
+        let error = (pressure_kpa - optimum) / optimum;
+        if error == 0.0 {
+            return 1.0;
+        }
+        (1.0 - TYRE_PRESSURE_GRIP_LOSS * error * error).max(0.5)
+    }
+
+    pub fn front_grip_factor(&self) -> f32 {
+        self.pressure_grip_factor(self.pressure_front_kpa)
+    }
+
+    pub fn rear_grip_factor(&self) -> f32 {
+        self.pressure_grip_factor(self.pressure_rear_kpa)
+    }
 }
 
 impl Default for TireConfig {
@@ -297,6 +337,9 @@ impl Default for TireConfig {
             optimal_temperature_c: 90.0,
             temperature_grip_falloff: 0.005,
             wear_rate: 1.0,
+            pressure_front_kpa: 180.0,
+            pressure_rear_kpa: 180.0,
+            optimal_pressure_kpa: 180.0,
         }
     }
 }

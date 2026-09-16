@@ -24,6 +24,8 @@ enum class EApexSettingsGroup : uint8
 	/** The wheel: its devices, its forces and its own bindings. */
 	Wheel,
 	Audio,
+	/** The garage: the car setup the server simulates this player with. */
+	CarSetup,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSettingsChanged, EApexSettingsGroup, Group);
@@ -216,6 +218,12 @@ public:
 
 	/** Fires when a device is plugged in or pulled out, after the bindings are rebuilt. */
 	FSimpleMulticastDelegate OnInputDevicesChanged;
+
+	// --- Car setup ------------------------------------------------------------
+
+	/** Moves one knob (ApexCarSetup::EKnob) to a click count, pinned to its range. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetCarSetupClick(int32 Knob, int32 Clicks);
 
 	// --- Audio ----------------------------------------------------------------
 

@@ -252,7 +252,7 @@ void UApexRootWidget::NativeConstruct()
 	// Both are otherwise only reachable with a keypress, which an unattended run
 	// cannot make — and the overlays are exactly what a screenshot pass wants to
 	// look at. -ApexSettingsTab picks the page (see EApexSettingsTab: 0 gameplay,
-	// 1 assists, 2 graphics, 3 camera, 4 controls, 5 wheel, 6 audio).
+	// 1 assists, 2 graphics, 3 camera, 4 controls, 5 wheel, 6 audio, 7 car setup).
 	float OverlayDelay = 0.0f;
 	const bool bOpenSettings = FParse::Value(FCommandLine::Get(), TEXT("ApexOpenSettings="), OverlayDelay);
 	const bool bOpenPause = !bOpenSettings && FParse::Value(FCommandLine::Get(), TEXT("ApexOpenPause="), OverlayDelay);
@@ -273,7 +273,7 @@ void UApexRootWidget::NativeConstruct()
 				if (bOpenSettings && SettingsOverlay)
 				{
 					SettingsOverlay->Open(static_cast<EApexSettingsTab>(
-						FMath::Clamp(TabIndex, 0, static_cast<int32>(EApexSettingsTab::Audio))));
+						FMath::Clamp(TabIndex, 0, static_cast<int32>(EApexSettingsTab::CarSetup))));
 				}
 			}),
 			OverlayDelay,
@@ -948,11 +948,29 @@ void UApexRootWidget::SendDriverAids()
 		static_cast<EApexTractionControl>(Values->TractionControl));
 }
 
+void UApexRootWidget::SendCarSetup()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const UApexSettingsSubsystem* Settings = GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+	if (!Net || !Net->IsInSession() || !Settings || !Settings->Get())
+	{
+		return;
+	}
+	// Clamped again by the server; sent whole so a knob put back to stock is
+	// stock there too.
+	Net->SetCarSetup(Settings->Get()->CarSetup);
+}
+
 void UApexRootWidget::HandleSettingsChangedForDriverAids(EApexSettingsGroup Group)
 {
 	if (Group == EApexSettingsGroup::Assists)
 	{
 		SendDriverAids();
+	}
+	else if (Group == EApexSettingsGroup::CarSetup)
+	{
+		SendCarSetup();
 	}
 }
 
@@ -969,6 +987,7 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 	BackStack.Reset();
 	ActivateScreen(EApexScreen::SessionLobby);
 	SendDriverAids();
+	SendCarSetup();
 
 	if (UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr)
 	{

@@ -1036,6 +1036,23 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
+	TArray<uint8> EncodeSetCarSetup(const FApexCarSetup& Setup)
+	{
+		FApexCarSetup Clamped = Setup;
+		Clamped.Clamp();
+
+		FMsgPackWriter Writer(256);
+		BeginDataVariant(Writer, "SetCarSetup", FApexCarSetup::KnobCount);
+		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
+		{
+			Writer.WriteString(ApexCarSetup::Knob(Index).Key);
+			// Signed: a negative click is a negative fixint on the wire, which
+			// is what serde's i8 expects; WriteUInt would send -2 as a huge u64.
+			Writer.WriteInt(Clamped.GetClick(Index));
+		}
+		return MoveTemp(Writer.GetBuffer());
+	}
+
 	TArray<uint8> EncodeUdpHandshake(const FString& UdpToken)
 	{
 		FMsgPackWriter Writer(64);

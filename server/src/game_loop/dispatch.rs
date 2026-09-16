@@ -4,6 +4,7 @@
 //! two would otherwise overlap; sends only ever take a transport read lock).
 
 use super::{broadcast, lifecycle, GameLoopCtx};
+use crate::car_setup::CarSetup;
 use crate::data::*;
 use crate::game_session::GameSession;
 use crate::lobby::{LobbyPlayerState, LobbySessionInfo, SessionVisibility};
@@ -108,6 +109,9 @@ pub(crate) async fn handle_message(
                 },
             )
             .await;
+        }
+        ClientMessage::SetCarSetup(setup) => {
+            handle_set_car_setup(ctx, connection_id, setup).await;
         }
         ClientMessage::StartCountdown {
             countdown_seconds,
@@ -713,6 +717,27 @@ async fn handle_set_driver_aids(ctx: &GameLoopCtx, connection_id: ConnectionId, 
             on_off(applied.steering_assist),
             applied.abs,
             applied.traction_control
+        );
+    }
+}
+
+async fn handle_set_car_setup(ctx: &GameLoopCtx, connection_id: ConnectionId, setup: CarSetup) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    if let Some(applied) = game_session.set_car_setup(&conn_info.player_id, setup) {
+        tracing::debug!(
+            "Player {} car setup {:?}{}",
+            conn_info.player_id,
+            applied.clicks(),
+            if applied == setup { "" } else { " (clamped)" }
         );
     }
 }

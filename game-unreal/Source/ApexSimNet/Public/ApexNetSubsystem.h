@@ -238,6 +238,14 @@ public:
 	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
 
 	/**
+	 * The garage setup for this player's car, as clicks per knob. The server
+	 * clamps it and simulates the car with it from the next tick; sent on
+	 * joining a session and whenever a knob moves, like the aids.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void SetCarSetup(const FApexCarSetup& Setup);
+
+	/**
 	 * The aids the current session's host allows, from its SessionJoined.
 	 * Everything is allowed outside a session, in a demo, and on a server
 	 * that predates the field. The server enforces it; this is for the UI.

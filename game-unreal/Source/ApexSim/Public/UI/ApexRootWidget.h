@@ -180,6 +180,9 @@ private:
 	/** Tell the server which aids to run for this player (gearbox, steering, ABS, traction control). */
 	void SendDriverAids();
 
+	/** Tell the server the garage setup to simulate this player's car with. */
+	void SendCarSetup();
+
 	UFUNCTION()
 	void HandleSessionLeft();
 
