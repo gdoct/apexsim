@@ -655,7 +655,7 @@ processor's focus recovery; do not add per-widget Move cues.
 
 Volume lives on the settings overlay's Audio tab: master volume drives the
 audio device's transient primary volume (`ApplyAudio`), menu-sound volume is
-read at play time. `-ApexSettingsTab=4` opens that tab headlessly.
+read at play time. `-ApexSettingsTab=6` opens that tab headlessly.
 `ApexSim.UI.SoundCues*` automation tests check every cue is short, finite,
 click-free and the same length at 44.1k and 48k.
 
@@ -678,6 +678,44 @@ sweep. Each gear above first also trims the note down a little (`GearTrim`,
 about two semitones across a six-speed) so a shift is audible in the instant
 before the revs fall. `ApexSim.Audio.*` automation tests cover the monotonic
 sweep, the per-gear trim, and that pitch still rises past a stale maximum.
+
+### Driving assists (`SetDriverAids`, `AllowedAssists`, the Assists settings tab)
+
+Every assist runs on the server, because only it has the tyres: ABS,
+traction control, the automatic gearbox and speed-sensitive steering are
+`CarState` fields the physics reads every tick, and the racing line is built
+there and sent on join. The client's settings overlay has an **Assists** tab
+(`EApexSettingsTab::Assists`, group `EApexSettingsGroup::Assists`; the tab
+order is gameplay, assists, graphics, camera, controls, wheel, audio, so
+`-ApexSettingsTab=1` opens it) holding ABS, traction control OFF/LOW/HIGH,
+gearbox, steering and the racing line. `UApexRootWidget::SendDriverAids`
+sends `SetDriverAids { auto_gearbox, steering_assist, abs, traction_control }`
+on join and on any change of the group; ABS and traction control are
+`Option`s on the server (`CarState::abs`, `CarState::traction_control`) so an
+AI, or a client from before the fields, drives the car as its `car.toml`
+describes it. Traction control LOW holds a spinning wheel at peak slip as
+before; HIGH caps drive at what the friction circle has left beside the
+lateral force, less a margin (`TC_HIGH_LATERAL_MARGIN`), so full throttle on
+a corner exit keeps the cornering grip instead of pushing the rear wide.
+
+A session's host decides which assists its drivers may use: the create
+screen's "Allowed assists" chips go out as `CreateSession.allowed_assists`
+(`AllowedAssists { abs, traction_control, auto_gearbox, steering_assist,
+racing_line }`, every field defaulting to true so an old client's session
+allows everything), the session keeps them on `RaceSession::allowed_assists`
+and echoes them in `SessionJoined.AllowedAssists`. The server enforces the
+rule (`AllowedAssists::clamp`): a forbidden aid is pinned off when a car is
+seated and on every `SetDriverAids`, whatever the client asked, and a
+session that forbids the racing line sends none. On the client the Assists
+tab dims a locked row, disables its pills and shows an "Off in this session"
+badge (`UApexNetSubsystem::GetAllowedAssists`, `RefreshAssistLocks`); the
+player's own choice is kept for the next session; `-ApexAutoRace
+-ApexLockAssists=abs,tc,gearbox,steering,line` creates the auto-race session
+with those forbidden, for a screenshot run of the locked tab
+(`-ApexOpenSettings=N -ApexSettingsTab=1`). Golden bytes for all three
+messages come from `network.rs` `test_assists_wire_format`
+(`cargo test assists_wire_format -- --nocapture` prints them) and are pinned
+in `ApexGoldenBlobs.h`.
 
 ### Force feedback (`server/src/feedback.rs`, `Input/ApexForceFeedback.h`)
 

@@ -680,7 +680,9 @@ void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Flow->AutoStartMode = EApexGameMode::DemoLap;
 
 		UE_LOG(LogApexSim, Log, TEXT("Demo lap requested on track '%s'"), *SelectedTrackId);
-		Net->CreateSession(SelectedTrackId, Flow->CreateMaxPlayers, 0, Flow->CreateLapLimit, EApexSessionKind::Practice);
+		Net->CreateSession(
+			SelectedTrackId, Flow->CreateMaxPlayers, 0, Flow->CreateLapLimit, EApexSessionKind::Practice,
+			Flow->CreateAllowedAssists);
 		return;
 	}
 

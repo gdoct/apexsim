@@ -55,6 +55,10 @@ public:
 	UPROPERTY()
 	EApexSessionKind SessionKind = EApexSessionKind::Multiplayer;
 
+	/** Which driving aids a session this player creates allows. */
+	UPROPERTY()
+	FApexAllowedAssists AllowedAssists;
+
 	/** Track UUID -> best lap in seconds. Populated by the results screen. */
 	UPROPERTY()
 	TMap<FString, float> BestLapSeconds;

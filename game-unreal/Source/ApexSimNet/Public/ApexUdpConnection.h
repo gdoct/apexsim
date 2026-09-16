@@ -63,7 +63,13 @@ private:
 	static constexpr float InputSendHz = 60.0f;
 	static constexpr int32 HandshakeRetryMs = 250;
 	static constexpr int32 PollIntervalMs = 4;
-	static constexpr int32 MaxDatagramBytes = 2048;
+	/**
+	 * The largest UDP payload there is. Telemetry grows with the field (about
+	 * 160 bytes a car) and with its values, since MessagePack widens an int
+	 * as it grows: a 13-car frame crossed an old 2048-byte buffer two seconds
+	 * after the green light, and every frame after it was dropped.
+	 */
+	static constexpr int32 MaxDatagramBytes = 65536;
 
 	bool CreateSocket(FString& OutError);
 	void SendHandshake();
@@ -84,6 +90,9 @@ private:
 	FThreadSafeBool bStopRequested{false};
 	FThreadSafeBool bHandshakeComplete{false};
 	FThreadSafeCounter ReceivedDatagrams;
+	/** Worker thread only: the first failed receive or undecodable datagram is a warning, the rest are verbose. */
+	bool bLoggedReceiveFailure = false;
+	bool bLoggedDecodeFailure = false;
 	/** Latest server tick seen, echoed back so the server can measure latency. */
 	FThreadSafeCounter LastServerTick;
 

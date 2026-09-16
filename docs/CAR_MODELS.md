@@ -48,7 +48,7 @@ Every GLB carries these slot names; keep them when re-importing.
 | `car_glass` | windscreen, side and rear glass | translucent (glTF `BLEND`, alpha 0.5) |
 | `car_headlight` | lamps | emissive warm white |
 | `car_taillight` | running lights | emissive red (on with the headlights) |
-| `car_brakelight` | brake lights: a full-width LED strip along the rear wing's trailing edge (endplate to endplate), the lower strip in each tail cluster, and a wrap-around corner element | emissive red — `AApexRaceCarActor` switches `EmissiveStrength` on a dynamic instance of the slot: 0 when off, `apexsim.car.BrakeLightNits` (3000) once the car's telemetry brake passes 2% (the mesh ships lit so the material imports as emissive) |
+| `car_brakelight` | brake lights: a full-width LED strip along the rear wing's trailing edge (endplate to endplate), the lower strip in each tail cluster, and a wrap-around corner element | emissive red — `AApexRaceCarActor` switches `EmissiveFactor` on a dynamic instance of the slot: black when off, the authored colour times `apexsim.car.BrakeLightNits` (3000) once the car's telemetry brake passes 2% (the mesh ships lit so the material imports as emissive; the glTF parent ignores `EmissiveStrength` at runtime) |
 | `car_rainlight` | FIA rain light, centre of the tail (vertical bar on the LMP2s) | emissive red — on in rain / low visibility, else off |
 | `car_display` | dash display | emissive green |
 | `car_logo` | door / flank wordmark | masked texture from `textures/` |

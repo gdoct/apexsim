@@ -179,6 +179,14 @@ void UApexHudWidget::SetRaceActive(bool bActive)
 			ReferenceSplits[Index] = 0.0f;
 		}
 
+		// The outline is only fetched while the map is empty, and the HUD lives
+		// on from one race to the next: without this, a second race on another
+		// circuit kept drawing the first one's shape under the blips.
+		if (Minimap)
+		{
+			Minimap->SetCenterline(TArray<FVector2D>());
+		}
+
 		RefreshHeader();
 	}
 }
@@ -1153,7 +1161,8 @@ void UApexHudWidget::RefreshMinimap()
 	if (!Minimap->HasCenterline())
 	{
 		// The outline arrives with the lobby state, which is broadcast every two
-		// seconds and only carries points when the codec is parsing them.
+		// seconds and only carries points when the codec is parsing them. The map
+		// is emptied by SetRaceActive, so this also picks up a track change.
 		const UApexMenuFlowSubsystem* Flow = GetFlow();
 		FApexTrackConfigSummary Track;
 		if (Flow && Net->FindTrackById(Flow->GetPendingTrackId(), Track) && Track.Centerline.Num() > 1)

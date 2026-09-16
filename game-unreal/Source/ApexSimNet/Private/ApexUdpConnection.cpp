@@ -160,6 +160,14 @@ void FApexUdpConnection::ReceiveAvailable()
 		int32 BytesRead = 0;
 		if (!Socket->RecvFrom(ReceiveBuffer.GetData(), ReceiveBuffer.Num(), BytesRead, *From) || BytesRead <= 0)
 		{
+			if (PendingBytes > 0 && !bLoggedReceiveFailure)
+			{
+				// A datagram larger than the buffer is discarded by the OS, and a
+				// stream of them looks like the server went quiet.
+				bLoggedReceiveFailure = true;
+				UE_LOG(LogApexSimNet, Warning, TEXT("UDP receive failed with %u byte(s) pending (buffer %d)"),
+					PendingBytes, ReceiveBuffer.Num());
+			}
 			return;
 		}
 
@@ -170,8 +178,18 @@ void FApexUdpConnection::ReceiveAvailable()
 		if (!ApexProtocol::DecodeUdpMessage(
 				TArrayView<const uint8>(ReceiveBuffer.GetData(), BytesRead), Message, Error))
 		{
-			// A bad datagram is not fatal — UDP is allowed to deliver rubbish.
-			UE_LOG(LogApexSimNet, Verbose, TEXT("Dropped a %d byte datagram: %s"), BytesRead, *Error);
+			// A bad datagram is not fatal — UDP is allowed to deliver rubbish —
+			// but the first one is worth seeing: a steady stream of them freezes
+			// every car without another word in the log.
+			if (!bLoggedDecodeFailure)
+			{
+				bLoggedDecodeFailure = true;
+				UE_LOG(LogApexSimNet, Warning, TEXT("Dropped an undecodable %d byte datagram: %s"), BytesRead, *Error);
+			}
+			else
+			{
+				UE_LOG(LogApexSimNet, Verbose, TEXT("Dropped a %d byte datagram: %s"), BytesRead, *Error);
+			}
 			continue;
 		}
 

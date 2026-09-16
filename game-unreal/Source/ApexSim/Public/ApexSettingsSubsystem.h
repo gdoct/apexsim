@@ -16,6 +16,8 @@ UENUM(BlueprintType)
 enum class EApexSettingsGroup : uint8
 {
 	Gameplay,
+	/** The driving aids the server runs for this car, and the racing line. */
+	Assists,
 	Graphics,
 	Camera,
 	Controls,
@@ -259,6 +261,8 @@ private:
 	void ApplyGraphics();
 	void ApplyCamera();
 	void ApplyGameplay();
+	/** The aids reach the server through the root widget; this applies what is local (the line). */
+	void ApplyAssists();
 	void ApplyControls();
 	void ApplyAudio();
 

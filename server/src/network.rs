@@ -67,6 +67,9 @@ pub enum ClientMessage {
         lap_limit: u8,
         #[serde(default)]
         session_kind: SessionKind,
+        /// Which aids drivers may use here; every one when absent.
+        #[serde(default)]
+        allowed_assists: AllowedAssists,
     },
     JoinSession {
         #[serde(
@@ -96,6 +99,12 @@ pub enum ClientMessage {
         /// the car can hold at its speed (`physics::assisted_steering`).
         #[serde(default)]
         steering_assist: bool,
+        /// ABS on or off; absent (an older client) keeps the car's own.
+        #[serde(default)]
+        abs: Option<bool>,
+        /// Traction control level; absent keeps the car's own.
+        #[serde(default)]
+        traction_control: Option<TractionControl>,
     },
     StartCountdown {
         countdown_seconds: u16,
@@ -173,6 +182,10 @@ pub struct SessionJoinedData {
     /// (a demo session is never in one).
     #[serde(default)]
     pub session_kind: SessionKind,
+    /// The aids the host allows here, so the client can lock the rest in its
+    /// settings; every one from a server that predates the field.
+    #[serde(default)]
+    pub allowed_assists: AllowedAssists,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -679,20 +692,34 @@ mod tests {
             ClientMessage::SetDriverAids {
                 auto_gearbox,
                 steering_assist,
-            } => assert!(auto_gearbox && !steering_assist),
+                abs,
+                traction_control,
+            } => {
+                assert!(auto_gearbox && !steering_assist);
+                assert_eq!(abs, None, "an old client leaves the car's own ABS");
+                assert_eq!(traction_control, None);
+            }
             _ => panic!("Wrong message type"),
         }
 
         let both = ClientMessage::SetDriverAids {
             auto_gearbox: false,
             steering_assist: true,
+            abs: Some(false),
+            traction_control: Some(TractionControl::High),
         };
         let bytes = rmp_serde::to_vec_named(&both).unwrap();
         match rmp_serde::from_slice(&bytes).unwrap() {
             ClientMessage::SetDriverAids {
                 auto_gearbox,
                 steering_assist,
-            } => assert!(!auto_gearbox && steering_assist),
+                abs,
+                traction_control,
+            } => {
+                assert!(!auto_gearbox && steering_assist);
+                assert_eq!(abs, Some(false));
+                assert_eq!(traction_control, Some(TractionControl::High));
+            }
             _ => panic!("Wrong message type"),
         }
     }
@@ -969,4 +996,196 @@ mod tests {
         assert_eq!(telemetry.throttle, 0.9);
         assert_eq!(telemetry.current_lap, 2);
     }
+
+    #[test]
+    fn test_create_session_without_allowed_assists_allows_everything() {
+        #[derive(Serialize)]
+        struct Envelope<T: Serialize> {
+            r#type: String,
+            data: T,
+        }
+        // A client from before the rule sends no allowed_assists.
+        #[derive(Serialize)]
+        struct OldCreate {
+            track_config_id: String,
+            max_players: u8,
+            ai_count: u8,
+            lap_limit: u8,
+        }
+        let legacy = rmp_serde::to_vec_named(&Envelope {
+            r#type: "CreateSession".to_string(),
+            data: OldCreate {
+                track_config_id: Uuid::nil().to_string(),
+                max_players: 4,
+                ai_count: 0,
+                lap_limit: 2,
+            },
+        })
+        .unwrap();
+        match rmp_serde::from_slice::<ClientMessage>(&legacy).unwrap() {
+            ClientMessage::CreateSession {
+                allowed_assists, ..
+            } => assert_eq!(allowed_assists, AllowedAssists::ALL),
+            _ => panic!("Wrong message type"),
+        }
+
+        // And a partial map allows what it does not mention.
+        #[derive(Serialize)]
+        struct SomeAssists {
+            abs: bool,
+        }
+        #[derive(Serialize)]
+        struct PartialCreate {
+            track_config_id: String,
+            max_players: u8,
+            ai_count: u8,
+            lap_limit: u8,
+            allowed_assists: SomeAssists,
+        }
+        let partial = rmp_serde::to_vec_named(&Envelope {
+            r#type: "CreateSession".to_string(),
+            data: PartialCreate {
+                track_config_id: Uuid::nil().to_string(),
+                max_players: 4,
+                ai_count: 0,
+                lap_limit: 2,
+                allowed_assists: SomeAssists { abs: false },
+            },
+        })
+        .unwrap();
+        match rmp_serde::from_slice::<ClientMessage>(&partial).unwrap() {
+            ClientMessage::CreateSession {
+                allowed_assists, ..
+            } => assert_eq!(
+                allowed_assists,
+                AllowedAssists {
+                    abs: false,
+                    ..AllowedAssists::ALL
+                }
+            ),
+            _ => panic!("Wrong message type"),
+        }
+
+        // An old SessionJoined has no allowed assists either.
+        #[derive(Serialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct OldJoined {
+            session_id: String,
+            your_grid_position: u8,
+        }
+        let joined = rmp_serde::to_vec_named(&OldJoined {
+            session_id: Uuid::nil().to_string(),
+            your_grid_position: 1,
+        })
+        .unwrap();
+        let decoded: SessionJoinedData = rmp_serde::from_slice(&joined).unwrap();
+        assert_eq!(decoded.allowed_assists, AllowedAssists::ALL);
+    }
+
+    /// The exact bytes the Unreal client's codec must produce and parse for
+    /// the assists messages: the same arrays are its golden blobs
+    /// `ApexGolden::C_CreateSession`, `C_SetDriverAids` and
+    /// `S_SessionJoinedAssists` (ProtocolCodecTests.cpp). Change both
+    /// together; `cargo test assists_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_assists_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists {
+                abs: true,
+                traction_control: false,
+                auto_gearbox: true,
+                steering_assist: false,
+                racing_line: true,
+            },
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!("C_CreateSession: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession {
+                allowed_assists, ..
+            } => assert!(!allowed_assists.traction_control && allowed_assists.abs),
+            _ => panic!("Wrong message type"),
+        }
+
+        let aids = ClientMessage::SetDriverAids {
+            auto_gearbox: true,
+            steering_assist: true,
+            abs: Some(false),
+            traction_control: Some(TractionControl::High),
+        };
+        let aids_bytes = rmp_serde::to_vec_named(&aids).unwrap();
+        println!("C_SetDriverAids: {}", hex(&aids_bytes));
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists {
+                abs: false,
+                traction_control: true,
+                auto_gearbox: false,
+                steering_assist: true,
+                racing_line: false,
+            },
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
+
+        assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION);
+        assert_eq!(aids_bytes, GOLDEN_C_SET_DRIVER_AIDS);
+        assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_ASSISTS);
+    }
+
+    const GOLDEN_C_CREATE_SESSION: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x65,
+        0x73, 0x73, 0x69, 0x6F, 0x6E, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x86, 0xAF, 0x74, 0x72, 0x61,
+        0x63, 0x6B, 0x5F, 0x63, 0x6F, 0x6E, 0x66, 0x69, 0x67, 0x5F, 0x69, 0x64, 0xD9, 0x24, 0x61,
+        0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x2D, 0x62, 0x62, 0x62, 0x62, 0x2D, 0x63, 0x63,
+        0x63, 0x63, 0x2D, 0x64, 0x64, 0x64, 0x64, 0x2D, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65,
+        0x65, 0x65, 0x65, 0x65, 0x65, 0xAB, 0x6D, 0x61, 0x78, 0x5F, 0x70, 0x6C, 0x61, 0x79, 0x65,
+        0x72, 0x73, 0x08, 0xA8, 0x61, 0x69, 0x5F, 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x03, 0xA9, 0x6C,
+        0x61, 0x70, 0x5F, 0x6C, 0x69, 0x6D, 0x69, 0x74, 0x05, 0xAC, 0x73, 0x65, 0x73, 0x73, 0x69,
+        0x6F, 0x6E, 0x5F, 0x6B, 0x69, 0x6E, 0x64, 0x00, 0xAF, 0x61, 0x6C, 0x6C, 0x6F, 0x77, 0x65,
+        0x64, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73, 0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3,
+        0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72,
+        0x6F, 0x6C, 0xC2, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72, 0x62, 0x6F,
+        0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73,
+        0x69, 0x73, 0x74, 0xC2, 0xAB, 0x72, 0x61, 0x63, 0x69, 0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E,
+        0x65, 0xC3,
+    ];
+    const GOLDEN_C_SET_DRIVER_AIDS: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x74, 0x44, 0x72, 0x69, 0x76, 0x65,
+        0x72, 0x41, 0x69, 0x64, 0x73, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x84, 0xAC, 0x61, 0x75, 0x74,
+        0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65,
+        0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xA3, 0x61, 0x62,
+        0x73, 0xC2, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E,
+        0x74, 0x72, 0x6F, 0x6C, 0x02,
+    ];
+    const GOLDEN_S_SESSION_JOINED_ASSISTS: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4A,
+        0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x84, 0xA9, 0x53, 0x65, 0x73,
+        0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
+        0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66, 0x2D, 0x30, 0x31, 0x32,
+        0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0xB0,
+        0x59, 0x6F, 0x75, 0x72, 0x47, 0x72, 0x69, 0x64, 0x50, 0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F,
+        0x6E, 0x03, 0xAB, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4B, 0x69, 0x6E, 0x64, 0x01,
+        0xAE, 0x41, 0x6C, 0x6C, 0x6F, 0x77, 0x65, 0x64, 0x41, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73,
+        0x85, 0xA3, 0x61, 0x62, 0x73, 0xC2, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E,
+        0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72, 0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F,
+        0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC2, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69,
+        0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69,
+        0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC2,
+    ];
 }

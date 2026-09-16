@@ -206,6 +206,7 @@ impl ServerState {
         max_players: u8,
         ai_count: u8,
         lap_limit: u8,
+        allowed_assists: AllowedAssists,
     ) -> Option<SessionId> {
         use crate::ai_driver::generate_default_ai_profiles;
 
@@ -223,6 +224,7 @@ impl ServerState {
             lap_limit,
         );
         session.host_car_id = Some(host_car_id);
+        session.allowed_assists = allowed_assists;
         let session_id = session.id;
 
         // Create AI profiles if AI count is specified
@@ -382,8 +384,16 @@ mod tests {
         let track_id = state.track_configs.values().next().unwrap().id;
         let car_id = state.car_configs.values().next().unwrap().id;
 
-        let session_id =
-            state.create_session(host_id, car_id, track_id, SessionKind::Practice, 8, 2, 5);
+        let session_id = state.create_session(
+            host_id,
+            car_id,
+            track_id,
+            SessionKind::Practice,
+            8,
+            2,
+            5,
+            AllowedAssists::ALL,
+        );
 
         assert!(session_id.is_some());
         assert_eq!(state.sessions.len(), 1);
@@ -401,14 +411,30 @@ mod tests {
 
         // Create max sessions
         for _ in 0..2 {
-            let result =
-                state.create_session(host_id, car_id, track_id, SessionKind::Sandbox, 8, 0, 3);
+            let result = state.create_session(
+                host_id,
+                car_id,
+                track_id,
+                SessionKind::Sandbox,
+                8,
+                0,
+                3,
+                AllowedAssists::ALL,
+            );
             assert!(result.is_some());
         }
 
         // Try to create one more
-        let result =
-            state.create_session(host_id, car_id, track_id, SessionKind::Multiplayer, 8, 0, 3);
+        let result = state.create_session(
+            host_id,
+            car_id,
+            track_id,
+            SessionKind::Multiplayer,
+            8,
+            0,
+            3,
+            AllowedAssists::ALL,
+        );
         assert!(result.is_none());
     }
 }

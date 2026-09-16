@@ -676,7 +676,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->CreateMaxPlayers,
 		Flow->CreateAiCount,
 		Flow->CreateLapLimit,
-		Flow->CreateSessionKind);
+		Flow->CreateSessionKind,
+		Flow->CreateAllowedAssists);
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

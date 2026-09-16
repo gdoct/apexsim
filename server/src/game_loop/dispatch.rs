@@ -62,6 +62,7 @@ pub(crate) async fn handle_message(
             ai_count,
             lap_limit,
             session_kind,
+            allowed_assists,
         } => {
             handle_create_session(
                 ctx,
@@ -71,6 +72,7 @@ pub(crate) async fn handle_message(
                 max_players,
                 ai_count,
                 lap_limit,
+                allowed_assists,
             )
             .await;
         }
@@ -92,8 +94,20 @@ pub(crate) async fn handle_message(
         ClientMessage::SetDriverAids {
             auto_gearbox,
             steering_assist,
+            abs,
+            traction_control,
         } => {
-            handle_set_driver_aids(ctx, connection_id, auto_gearbox, steering_assist).await;
+            handle_set_driver_aids(
+                ctx,
+                connection_id,
+                DriverAids {
+                    auto_gearbox,
+                    steering_assist,
+                    abs,
+                    traction_control,
+                },
+            )
+            .await;
         }
         ClientMessage::StartCountdown {
             countdown_seconds,
@@ -186,6 +200,7 @@ async fn handle_create_session(
     max_players: u8,
     ai_count: u8,
     lap_limit: u8,
+    allowed_assists: AllowedAssists,
 ) {
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
@@ -230,6 +245,7 @@ async fn handle_create_session(
         max_players,
         ai_count,
         lap_limit,
+        allowed_assists,
     ) else {
         warn!(
             "Failed to create session for player {}: track_id={}",
@@ -325,6 +341,7 @@ async fn handle_create_session(
 
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         let racing_line = racing_line_message(game_session, session_id, car_id);
+        let allowed_assists = game_session.session.allowed_assists;
         drop(state_write);
         let _ = ctx
             .send(
@@ -333,6 +350,7 @@ async fn handle_create_session(
                     session_id,
                     your_grid_position: grid_pos,
                     session_kind,
+                    allowed_assists,
                 }),
             )
             .await;
@@ -408,6 +426,7 @@ async fn start_demo_session(
                 session_id,
                 your_grid_position: 0, // 0 indicates spectator
                 session_kind: SessionKind::Demo,
+                allowed_assists: AllowedAssists::ALL,
             }),
         )
         .await;
@@ -469,6 +488,7 @@ async fn handle_join_session(
             conn_info.player_name, session_id, grid_pos
         );
         let racing_line = racing_line_message(game_session, session_id, car_id);
+        let allowed_assists = game_session.session.allowed_assists;
         drop(state_write);
         let _ = ctx
             .send(
@@ -477,6 +497,7 @@ async fn handle_join_session(
                     session_id,
                     your_grid_position: grid_pos,
                     session_kind: game_session_kind,
+                    allowed_assists,
                 }),
             )
             .await;
@@ -495,14 +516,17 @@ async fn handle_join_session(
 }
 
 /// The racing line for `car_id` on the session's track, for the client's
-/// racing-line overlay; `None` when the car is unknown or the track has no
-/// usable line. Built under the state lock, which costs well under a
-/// millisecond for a full circuit.
+/// racing-line overlay; `None` when the session does not allow the aid, the
+/// car is unknown or the track has no usable line. Built under the state
+/// lock, which costs well under a millisecond for a full circuit.
 fn racing_line_message(
     game_session: &GameSession,
     session_id: SessionId,
     car_id: CarConfigId,
 ) -> Option<ServerMessage> {
+    if !game_session.session.allowed_assists.racing_line {
+        return None;
+    }
     let car = game_session.car_configs.get(&car_id)?;
     let profile = racing_line::build(&game_session.track_config, car)?;
     Some(ServerMessage::RacingLine(RacingLineData::from_profile(
@@ -540,18 +564,18 @@ async fn handle_join_as_spectator(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
-    let (joined, session_kind) = {
+    let (joined, session_kind, allowed_assists) = {
         let state_read = ctx.state.read().await;
-        let session_kind = state_read
+        let (session_kind, allowed_assists) = state_read
             .sessions
             .get(&session_id)
-            .map(|s| s.session.session_kind)
+            .map(|s| (s.session.session_kind, s.session.allowed_assists))
             .unwrap_or_default();
         let joined = state_read
             .lobby
             .join_as_spectator(conn_info.player_id, session_id)
             .await;
-        (joined, session_kind)
+        (joined, session_kind, allowed_assists)
     };
 
     if joined {
@@ -566,6 +590,7 @@ async fn handle_join_as_spectator(
                     session_id,
                     your_grid_position: 0, // 0 indicates spectator
                     session_kind,
+                    allowed_assists,
                 }),
             )
             .await;
@@ -668,12 +693,7 @@ async fn handle_start_session(ctx: &GameLoopCtx, connection_id: ConnectionId) {
     }
 }
 
-async fn handle_set_driver_aids(
-    ctx: &GameLoopCtx,
-    connection_id: ConnectionId,
-    auto_gearbox: bool,
-    steering_assist: bool,
-) {
+async fn handle_set_driver_aids(ctx: &GameLoopCtx, connection_id: ConnectionId, aids: DriverAids) {
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
@@ -684,21 +704,15 @@ async fn handle_set_driver_aids(
     let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
         return;
     };
-    if let Some(car) = game_session
-        .session
-        .participants
-        .get_mut(&conn_info.player_id)
-    {
-        car.auto_gearbox = auto_gearbox;
-        car.auto_shift_hold_ticks = 0;
-        car.auto_reverse_ticks = 0;
-        car.steering_assist = steering_assist;
+    if let Some(applied) = game_session.set_driver_aids(&conn_info.player_id, aids) {
         let on_off = |on: bool| if on { "on" } else { "off" };
         tracing::debug!(
-            "Player {} auto gearbox {}, steering assist {}",
+            "Player {} auto gearbox {}, steering assist {}, abs {:?}, traction control {:?}",
             conn_info.player_id,
-            on_off(auto_gearbox),
-            on_off(steering_assist)
+            on_off(applied.auto_gearbox),
+            on_off(applied.steering_assist),
+            applied.abs,
+            applied.traction_control
         );
     }
 }

@@ -35,6 +35,35 @@ namespace
 	const FName ActionKindMultiplayer(TEXT("__kindmulti"));
 	const FName ActionKindSingle(TEXT("__kindsingle"));
 
+	/** The allowed-assist toggles, in the order they are laid out. */
+	enum class EApexAssistChip : int32
+	{
+		Abs,
+		TractionControl,
+		AutoGearbox,
+		SteeringAssist,
+		RacingLine,
+		Count,
+	};
+
+	FName AssistAction(EApexAssistChip Chip)
+	{
+		return FName(*FString::Printf(TEXT("__assist%d"), static_cast<int32>(Chip)));
+	}
+
+	/** The flag a chip toggles on the flow's allowed set. */
+	bool& AssistFlag(FApexAllowedAssists& Assists, EApexAssistChip Chip)
+	{
+		switch (Chip)
+		{
+		case EApexAssistChip::Abs:             return Assists.bAbs;
+		case EApexAssistChip::TractionControl: return Assists.bTractionControl;
+		case EApexAssistChip::AutoGearbox:     return Assists.bAutoGearbox;
+		case EApexAssistChip::SteeringAssist:  return Assists.bSteeringAssist;
+		default:                               return Assists.bRacingLine;
+		}
+	}
+
 	/** Mode buttons carry their EApexGameMode in the action id. */
 	FName ModeAction(EApexGameMode Mode)
 	{
@@ -99,6 +128,85 @@ bool UApexSessionCreateWidget::HandleAccept()
 		HandleButtonActivated(CreateButtonWidget);
 		return true;
 	}
+	return false;
+}
+
+bool UApexSessionCreateWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
+{
+	const bool bFromContent = Source && (Source == ChangeTrackLink || Source == ChangeCarLink);
+
+	auto FocusContent = [this](bool bCarFirst)
+	{
+		return bCarFirst
+			? (ApexNav::Focus(ChangeCarLink) || ApexNav::Focus(ChangeTrackLink))
+			: (ApexNav::Focus(ChangeTrackLink) || ApexNav::Focus(ChangeCarLink));
+	};
+
+	// The settings column as rows of two: the session kind, then the mode tiles.
+	TArray<UApexButtonWidget*, TInlineAllocator<6>> Grid;
+	Grid.Add(KindMultiplayerButton);
+	Grid.Add(KindSingleButton);
+	for (UApexButtonWidget* Button : ModeButtons)
+	{
+		Grid.Add(Button);
+	}
+
+	auto FocusRow = [&Grid](int32 Row)
+	{
+		const int32 First = Row * 2;
+		return (Grid.IsValidIndex(First) && ApexNav::Focus(Grid[First]))
+			|| (Grid.IsValidIndex(First + 1) && ApexNav::Focus(Grid[First + 1]));
+	};
+
+	if (ApexNav::IsSequential(Direction))
+	{
+		if (bFromContent)
+		{
+			FocusRow(0);
+		}
+		else
+		{
+			FocusContent(false);
+		}
+		return true;
+	}
+
+	if (bFromContent)
+	{
+		const bool bOnCar = Source == ChangeCarLink;
+		switch (Direction)
+		{
+		case EUINavigation::Right:
+			// Level with the kind row for the track, the lower mode row for the car.
+			return bOnCar ? (FocusRow(2) || FocusRow(0)) : FocusRow(0);
+
+		case EUINavigation::Down:
+			if (!bOnCar)
+			{
+				return ApexNav::Focus(ChangeCarLink);
+			}
+			return ApexNav::Focus(CreateButtonWidget);
+
+		case EUINavigation::Up:
+			return bOnCar && ApexNav::Focus(ChangeTrackLink);
+
+		default:
+			return true;
+		}
+	}
+
+	const int32 GridAt = Grid.IndexOfByKey(Cast<UApexButtonWidget>(Source));
+	if (GridAt != INDEX_NONE && Direction == EUINavigation::Left)
+	{
+		// A right-hand tile steps to its neighbour when that can take focus
+		// (the locked demo lap cannot); the left edge crosses to the content.
+		if (GridAt % 2 == 1 && ApexNav::Focus(Grid[GridAt - 1]))
+		{
+			return true;
+		}
+		return FocusContent(GridAt / 2 >= 2);
+	}
+
 	return false;
 }
 
@@ -246,6 +354,37 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 		ApexUI::AddV(ModeStack, Row, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 	}
 	ApexUI::AddV(Column, ModeStack, FMargin(0.0f, 0.0f, 0.0f, 26.0f));
+
+	// --- Allowed assists ------------------------------------------------------
+	// Which aids the drivers may run. The server forces a disallowed aid off for
+	// everyone in the session, so a chip here is a rule, not a suggestion; the
+	// Assists settings page shows the lock to whoever joins.
+	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Allowed assists")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+
+	static const TCHAR* AssistLabels[] = {
+		TEXT("ABS"), TEXT("Traction ctrl"), TEXT("Auto gears"), TEXT("Steering aid"), TEXT("Racing line"),
+	};
+	static_assert(UE_ARRAY_COUNT(AssistLabels) == static_cast<int32>(EApexAssistChip::Count), "one label per chip");
+
+	AssistButtons.Reset();
+	UHorizontalBox* AssistRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+	for (int32 Index = 0; Index < static_cast<int32>(EApexAssistChip::Count); ++Index)
+	{
+		FApexButtonSpec Spec;
+		Spec.Label = AssistLabels[Index];
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.bCentreLabel = true;
+		Spec.LabelSize = 14.0f;
+		Spec.Height = 44.0f;
+		Spec.ActionId = AssistAction(static_cast<EApexAssistChip>(Index));
+
+		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Button->Setup(Spec);
+		Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
+		AssistButtons.Add(Button);
+		ApexUI::AddH(AssistRow, Button, FMargin(Index == 0 ? 0.0f : 8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	}
+	ApexUI::AddV(Column, AssistRow, FMargin(0.0f, 0.0f, 0.0f, 26.0f));
 
 	// --- Grid and length ------------------------------------------------------
 	UTextBlock* PlayersValue = nullptr;
@@ -553,6 +692,15 @@ void UApexSessionCreateWidget::RefreshSettings()
 		}
 	}
 
+	for (int32 Index = 0; Index < AssistButtons.Num(); ++Index)
+	{
+		if (AssistButtons[Index])
+		{
+			AssistButtons[Index]->SetSelected(
+				AssistFlag(Flow->CreateAllowedAssists, static_cast<EApexAssistChip>(Index)));
+		}
+	}
+
 	// Sliders are normalised 0..1; the labels carry the real numbers.
 	if (MaxPlayersSlider)
 	{
@@ -773,17 +921,31 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Flow->bAutoStartOnJoin = false;
 		Flow->SaveProfile();
 
-		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI, %d laps, kind %d"),
+		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI, %d laps, kind %d, %d assists locked"),
 			*Flow->GetPendingTrackId(), Flow->CreateMaxPlayers, Flow->CreateAiCount,
-			Flow->CreateLapLimit, static_cast<int32>(Flow->CreateSessionKind));
+			Flow->CreateLapLimit, static_cast<int32>(Flow->CreateSessionKind),
+			Flow->CreateAllowedAssists.CountLocked());
 
 		Net->CreateSession(
 			Flow->GetPendingTrackId(),
 			Flow->CreateMaxPlayers,
 			Flow->CreateAiCount,
 			Flow->CreateLapLimit,
-			Flow->CreateSessionKind);
+			Flow->CreateSessionKind,
+			Flow->CreateAllowedAssists);
 		return;
+	}
+
+	for (int32 Index = 0; Index < static_cast<int32>(EApexAssistChip::Count); ++Index)
+	{
+		if (Id == AssistAction(static_cast<EApexAssistChip>(Index)))
+		{
+			bool& Flag = AssistFlag(Flow->CreateAllowedAssists, static_cast<EApexAssistChip>(Index));
+			Flag = !Flag;
+			Flow->SaveProfile();
+			RefreshSettings();
+			return;
+		}
 	}
 
 	// Otherwise a starting-mode tile.

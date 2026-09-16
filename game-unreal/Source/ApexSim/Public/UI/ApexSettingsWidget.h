@@ -21,11 +21,13 @@ class UWidgetSwitcher;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnSettingsClosed);
 
-/** The settings overlay's six pages. */
+/** The settings overlay's seven pages. */
 UENUM(BlueprintType)
 enum class EApexSettingsTab : uint8
 {
 	Gameplay,
+	/** The driving aids: what the server runs for this car, and the racing line. */
+	Assists,
 	Graphics,
 	Camera,
 	Controls,
@@ -125,6 +127,7 @@ private:
 	UWidget* BuildRail();
 	UWidget* BuildFooter();
 	UWidget* BuildGameplayPage();
+	UWidget* BuildAssistsPage();
 	UWidget* BuildGraphicsPage();
 	UWidget* BuildCameraPage();
 	UWidget* BuildControlsPage();
@@ -160,7 +163,22 @@ private:
 		const FString& Description,
 		UWidget* Control,
 		const FString& PendingNote = FString(),
-		float Height = 0.0f);
+		float Height = 0.0f,
+		UWidget* TitleBadge = nullptr);
+
+	/**
+	 * The badge an assists row shows while the session's host has locked that
+	 * aid: collapsed until RefreshAssistLocks says otherwise. Registered under
+	 * the row's segment id.
+	 */
+	UWidget* MakeAssistLockBadge(FName ControlId);
+
+	/**
+	 * Dims and disables every assists row the current session forbids, and
+	 * shows its badge. The server enforces the rule; this keeps the page from
+	 * looking like a control that quietly does nothing.
+	 */
+	void RefreshAssistLocks();
 
 	/** A segmented control registered under an id the single handler knows. */
 	UApexSegmentedWidget* MakeSegment(FName ControlId, const TArray<FString>& Options, int32 Selected, float Width = 118.0f);
@@ -219,6 +237,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FooterStatusText;
 
 	UPROPERTY(Transient) TMap<FName, TObjectPtr<UApexSegmentedWidget>> Segments;
+	/** Lock badges on the assists page, by the row's segment id. */
+	UPROPERTY(Transient) TMap<FName, TObjectPtr<UWidget>> AssistLocks;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> AiSkillSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> AiSkillFill;

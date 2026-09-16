@@ -177,7 +177,7 @@ private:
 	UFUNCTION()
 	void HandleSettingsChangedForDriverAids(EApexSettingsGroup Group);
 
-	/** Tell the server which aids to run for this player (auto gearbox). */
+	/** Tell the server which aids to run for this player (gearbox, steering, ABS, traction control). */
 	void SendDriverAids();
 
 	UFUNCTION()

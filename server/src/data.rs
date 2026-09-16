@@ -743,6 +743,15 @@ pub struct CarState {
     /// Never set for AI drivers.
     #[serde(default)]
     pub steering_assist: bool,
+    /// ABS for this driver, set by `ClientMessage::SetDriverAids`; `None`
+    /// (AI drivers, older clients) leaves the car's own `abs_enabled`.
+    #[serde(default)]
+    pub abs: Option<bool>,
+    /// Traction control level for this driver, set by
+    /// `ClientMessage::SetDriverAids`; `None` uses the car's own
+    /// `traction_control_enabled` (as `Low`).
+    #[serde(default)]
+    pub traction_control: Option<TractionControl>,
 
     // 3D Position
     pub pos_x: f32,
@@ -848,6 +857,26 @@ pub struct CarState {
 }
 
 impl CarState {
+    /// The aids this car runs, as a `DriverAids`.
+    pub fn driver_aids(&self) -> DriverAids {
+        DriverAids {
+            auto_gearbox: self.auto_gearbox,
+            steering_assist: self.steering_assist,
+            abs: self.abs,
+            traction_control: self.traction_control,
+        }
+    }
+
+    /// Set the aids; the automatic box starts its timers afresh.
+    pub fn set_driver_aids(&mut self, aids: DriverAids) {
+        self.auto_gearbox = aids.auto_gearbox;
+        self.auto_shift_hold_ticks = 0;
+        self.auto_reverse_ticks = 0;
+        self.steering_assist = aids.steering_assist;
+        self.abs = aids.abs;
+        self.traction_control = aids.traction_control;
+    }
+
     pub fn new(player_id: PlayerId, car_config_id: CarConfigId, grid_slot: &GridSlot) -> Self {
         Self {
             player_id,
@@ -857,6 +886,8 @@ impl CarState {
             auto_shift_hold_ticks: 0,
             auto_reverse_ticks: 0,
             steering_assist: false,
+            abs: None,
+            traction_control: None,
 
             // 3D Position
             pos_x: grid_slot.x,
@@ -978,6 +1009,106 @@ pub enum SessionKind {
     Demo = 3,
 }
 
+/// How hard the traction control intervenes, chosen per player
+/// (`ClientMessage::SetDriverAids`). Encoded as a small integer like
+/// `GameMode`, so the Unreal codec writes it the same way.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
+pub enum TractionControl {
+    /// Excess drive torque spins the wheels into the grip falloff.
+    Off = 0,
+    /// Cuts drive only when the driven wheel would spin: the tyre is held at
+    /// its peak slip and gives its peak force, but the throttle can still
+    /// take the whole friction circle and push the rear wide in a corner.
+    #[default]
+    Low = 1,
+    /// Cuts drive as soon as the tyre's combined grip runs out, leaving a
+    /// margin for the lateral force: full throttle out of a corner is
+    /// trimmed to what the rear can carry while it is still cornering.
+    High = 2,
+}
+
+/// The aids a `SetDriverAids` asks for. The session's `AllowedAssists`
+/// are applied on top (`AllowedAssists::clamp`), so a player can ask for
+/// whatever their settings say and the server keeps what the host allowed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DriverAids {
+    pub auto_gearbox: bool,
+    pub steering_assist: bool,
+    /// `None` keeps the car's own `abs_enabled`.
+    pub abs: Option<bool>,
+    /// `None` keeps the car's own `traction_control_enabled` (as `Low`).
+    pub traction_control: Option<TractionControl>,
+}
+
+/// Which driving aids a session's host lets its drivers use, fixed when the
+/// session is created. A disallowed aid is forced off for every human in the
+/// session whatever their settings say: the server is the only place the
+/// aids run, so this is where the rule holds. Absent fields (an older
+/// client) allow the aid, so a session from before the rule is unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AllowedAssists {
+    #[serde(default = "default_true")]
+    pub abs: bool,
+    #[serde(default = "default_true")]
+    pub traction_control: bool,
+    #[serde(default = "default_true")]
+    pub auto_gearbox: bool,
+    #[serde(default = "default_true")]
+    pub steering_assist: bool,
+    /// Whether the server sends the `RacingLine` on join at all; without it
+    /// the client has nothing to draw.
+    #[serde(default = "default_true")]
+    pub racing_line: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for AllowedAssists {
+    fn default() -> Self {
+        Self::ALL
+    }
+}
+
+impl AllowedAssists {
+    /// Every aid allowed: what a session from an older client gets.
+    pub const ALL: AllowedAssists = AllowedAssists {
+        abs: true,
+        traction_control: true,
+        auto_gearbox: true,
+        steering_assist: true,
+        racing_line: true,
+    };
+
+    /// Nothing allowed but the driver.
+    pub const NONE: AllowedAssists = AllowedAssists {
+        abs: false,
+        traction_control: false,
+        auto_gearbox: false,
+        steering_assist: false,
+        racing_line: false,
+    };
+
+    /// The aids a driver may actually run here: what they asked for, less
+    /// whatever the session forbids. A forbidden ABS or traction control is
+    /// pinned to `Some(off)` rather than left `None`, or the car's own file
+    /// would switch it back on.
+    pub fn clamp(&self, asked: DriverAids) -> DriverAids {
+        DriverAids {
+            auto_gearbox: asked.auto_gearbox && self.auto_gearbox,
+            steering_assist: asked.steering_assist && self.steering_assist,
+            abs: if self.abs { asked.abs } else { Some(false) },
+            traction_control: if self.traction_control {
+                asked.traction_control
+            } else {
+                Some(TractionControl::Off)
+            },
+        }
+    }
+}
+
 /// Game modes determine the behavior and rules during a session
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
@@ -1011,6 +1142,9 @@ pub struct RaceSession {
     pub host_car_id: Option<CarConfigId>,
     #[serde(default)]
     pub session_kind: SessionKind,
+    /// What the host lets drivers use; see `AllowedAssists`.
+    #[serde(default)]
+    pub allowed_assists: AllowedAssists,
     pub state: SessionState,
     #[serde(default)]
     pub game_mode: GameMode,
@@ -1046,6 +1180,7 @@ impl RaceSession {
             track_config_id,
             host_player_id,
             session_kind,
+            allowed_assists: AllowedAssists::ALL,
             state: SessionState::Lobby,
             game_mode: GameMode::Lobby,
             participants: std::collections::BTreeMap::new(),

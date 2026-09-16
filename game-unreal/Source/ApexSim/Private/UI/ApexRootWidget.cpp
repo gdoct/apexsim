@@ -252,7 +252,7 @@ void UApexRootWidget::NativeConstruct()
 	// Both are otherwise only reachable with a keypress, which an unattended run
 	// cannot make — and the overlays are exactly what a screenshot pass wants to
 	// look at. -ApexSettingsTab picks the page (see EApexSettingsTab: 0 gameplay,
-	// 1 graphics, 2 camera, 3 controls, 4 wheel, 5 audio).
+	// 1 assists, 2 graphics, 3 camera, 4 controls, 5 wheel, 6 audio).
 	float OverlayDelay = 0.0f;
 	const bool bOpenSettings = FParse::Value(FCommandLine::Get(), TEXT("ApexOpenSettings="), OverlayDelay);
 	const bool bOpenPause = !bOpenSettings && FParse::Value(FCommandLine::Get(), TEXT("ApexOpenPause="), OverlayDelay);
@@ -874,9 +874,33 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: creating '%s' on '%s' with %d AI over %d lap(s)"),
 		*Car.Name, *Track.Name, AutoRaceAiCount, AutoRaceLaps);
 
+	// -ApexLockAssists=abs,tc,gearbox,steering,line forbids those assists in
+	// the session, the way the create screen's chips would, so a screenshot
+	// run can look at the Assists tab with its locks on.
+	FApexAllowedAssists Allowed;
+	FString LockList;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexLockAssists="), LockList, /*bShouldStopOnSeparator*/ false))
+	{
+		TArray<FString> Locks;
+		LockList.ParseIntoArray(Locks, TEXT(","));
+		for (const FString& Lock : Locks)
+		{
+			const FString Key = Lock.TrimStartAndEnd().ToLower();
+			if (Key == TEXT("abs"))           { Allowed.bAbs = false; }
+			else if (Key == TEXT("tc"))       { Allowed.bTractionControl = false; }
+			else if (Key == TEXT("gearbox"))  { Allowed.bAutoGearbox = false; }
+			else if (Key == TEXT("steering")) { Allowed.bSteeringAssist = false; }
+			else if (Key == TEXT("line"))     { Allowed.bRacingLine = false; }
+			else
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("-ApexLockAssists: unknown assist '%s' (abs, tc, gearbox, steering, line)"), *Lock);
+			}
+		}
+	}
+
 	// SelectCar before CreateSession, same order the UI uses.
 	Net->SelectCar(Car.Id);
-	Net->CreateSession(Track.Id, 8, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice);
+	Net->CreateSession(Track.Id, 8, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed);
 }
 
 void UApexRootWidget::HandleUdpReady()
@@ -914,12 +938,19 @@ void UApexRootWidget::SendDriverAids()
 	{
 		return;
 	}
-	Net->SetDriverAids(Settings->Get()->bAutoGearbox, Settings->Get()->bSteeringAssist);
+	// The player's own choice goes as is; the server applies the session's
+	// allowed set on top, so a locked aid is off whatever is sent here.
+	const UApexSettingsSave* Values = Settings->Get();
+	Net->SetDriverAids(
+		Values->bAutoGearbox,
+		Values->bSteeringAssist,
+		Values->bAbs,
+		static_cast<EApexTractionControl>(Values->TractionControl));
 }
 
 void UApexRootWidget::HandleSettingsChangedForDriverAids(EApexSettingsGroup Group)
 {
-	if (Group == EApexSettingsGroup::Gameplay)
+	if (Group == EApexSettingsGroup::Assists)
 	{
 		SendDriverAids();
 	}

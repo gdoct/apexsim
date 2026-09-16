@@ -208,10 +208,11 @@ void UApexNetSubsystem::CreateSession(
 	int32 MaxPlayers,
 	int32 AiCount,
 	int32 LapLimit,
-	EApexSessionKind SessionKind)
+	EApexSessionKind SessionKind,
+	const FApexAllowedAssists& AllowedAssists)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d"),
-		*TrackConfigId, MaxPlayers, AiCount, LapLimit);
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d locked_assists=%d"),
+		*TrackConfigId, MaxPlayers, AiCount, LapLimit, AllowedAssists.CountLocked());
 	// The server holds one session per player: the menu's demo goes first.
 	LeaveDemoSession();
 	bSessionRequestPending = true;
@@ -221,7 +222,8 @@ void UApexNetSubsystem::CreateSession(
 		static_cast<uint8>(FMath::Clamp(MaxPlayers, 1, 255)),
 		static_cast<uint8>(FMath::Clamp(AiCount, 0, 255)),
 		static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)),
-		SessionKind));
+		SessionKind,
+		AllowedAssists));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -252,8 +254,10 @@ void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 Ai
 	bDemoRequested = true;
 	DemoSessionState = EApexSessionState::Lobby;
 	const uint8 Field = static_cast<uint8>(FMath::Clamp(AiCount, 1, 255));
+	// Nobody drives in a demo, so the allowed set is moot; everything is allowed.
 	SendPayload(ApexProtocol::EncodeCreateSession(
-		TrackConfigId, Field, Field, static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)), EApexSessionKind::Demo));
+		TrackConfigId, Field, Field, static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)), EApexSessionKind::Demo,
+		FApexAllowedAssists()));
 }
 
 void UApexNetSubsystem::LeaveDemoSession()
@@ -319,11 +323,12 @@ void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
 		static_cast<uint16>(FMath::Clamp(Seconds, 0, 65535)), NextMode));
 }
 
-void UApexNetSubsystem::SetDriverAids(bool bAutoGearbox, bool bSteeringAssist)
+void UApexNetSubsystem::SetDriverAids(
+	bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d"),
-		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0);
-	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist));
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d abs=%d traction_control=%d"),
+		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0, bAbs ? 1 : 0, static_cast<int32>(TractionControl));
+	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl));
 }
 
 bool UApexNetSubsystem::FindCarById(const FString& CarId, FApexCarConfigSummary& OutCar) const
@@ -657,8 +662,9 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		// different track or car.
 		ClearRacingLine();
 		CurrentSessionId = Message.SessionId;
-		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d"),
-			*CurrentSessionId, Message.GridPosition);
+		CurrentAllowedAssists = Message.AllowedAssists;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d"),
+			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked());
 		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
 
 		// The cached lobby state predates this session, so anything resolving the
@@ -684,6 +690,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			break;
 		}
 		CurrentSessionId.Reset();
+		CurrentAllowedAssists = FApexAllowedAssists();
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
 		LatestDriverFeedback = FApexDriverFeedback();
