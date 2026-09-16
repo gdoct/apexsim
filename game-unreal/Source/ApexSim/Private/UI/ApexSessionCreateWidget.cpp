@@ -207,6 +207,12 @@ bool UApexSessionCreateWidget::HandleNavigation(EUINavigation Direction, UWidget
 		return FocusContent(GridAt / 2 >= 2);
 	}
 
+	const int32 AssistAt = ApexNav::IndexOf(AssistButtons, Source);
+	if (AssistAt != INDEX_NONE && Direction == EUINavigation::Left)
+	{
+		return (AssistAt > 0 && ApexNav::Focus(AssistButtons[AssistAt - 1])) || FocusContent(true);
+	}
+
 	return false;
 }
 

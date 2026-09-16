@@ -10,6 +10,7 @@ class UComboBoxString;
 class UEditableTextBox;
 class UHorizontalBox;
 class UHorizontalBoxSlot;
+class UOverlay;
 class UProgressBar;
 class USizeBox;
 class USlider;
@@ -64,6 +65,13 @@ namespace ApexUI
 		/** Connected, ready, sessions that are live. */
 		inline const FLinearColor Live         = FLinearColor::FromSRGBColor(FColor(0x3F, 0xC4, 0x6B));
 		inline const FLinearColor Error        = FLinearColor::FromSRGBColor(FColor(0xE0, 0x5A, 0x4E));
+
+		/**
+		 * The ring around whatever a keyboard or pad would act on. White, not
+		 * the accent: the accent already means "selected", and a focused tile
+		 * that is also the selected one has to show both at once.
+		 */
+		inline const FLinearColor Focus        = FLinearColor::White;
 	}
 
 	namespace Font
@@ -87,6 +95,10 @@ namespace ApexUI
 		inline constexpr float RailWidth       = 460.0f;
 		/** Height of a rail item / list row. */
 		inline constexpr float RowHeight       = 62.0f;
+		/** Stroke of the focus ring; thick enough to find from a sofa. */
+		inline constexpr float FocusRingWidth  = 3.0f;
+		/** How far inside the focus ring a selected outline is drawn when both show. */
+		inline constexpr float FocusRingInset  = 6.0f;
 	}
 
 	// --- Primitives -----------------------------------------------------------
@@ -109,6 +121,22 @@ namespace ApexUI
 		float CornerRadius = 0.0f);
 
 	UBorder* MakePanel(UWidgetTree& Tree, UWidget* Content, const FMargin& Padding, const FSlateBrush& Brush);
+
+	/**
+	 * Adds a hidden focus ring on top of Host's other children and returns it;
+	 * show it while the owner has keyboard focus. Padding moves the ring in
+	 * from the host's edges, negative to draw it outside them (for controls
+	 * with no box of their own, like inline links and slider tracks). It never
+	 * takes part in layout or hit testing, so showing it moves nothing.
+	 */
+	UBorder* AddFocusRing(UWidgetTree& Tree, UOverlay& Host, const FMargin& Padding = FMargin());
+
+	/**
+	 * Wraps Content in a frame that draws the focus ring while anything inside
+	 * it has focus. For composite controls whose focusable part is a Slate
+	 * widget with no focus look of its own: a slider.
+	 */
+	UWidget* MakeFocusFrame(UWidgetTree& Tree, UWidget* Content, const FMargin& RingPadding = FMargin());
 
 	/** Wraps Content in a size box. Pass a negative extent to leave that axis free. */
 	USizeBox* MakeSized(UWidgetTree& Tree, UWidget* Content, float Width, float Height);

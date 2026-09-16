@@ -39,7 +39,7 @@ public:
 	// --- Navigation ---------------------------------------------------------
 	//
 	// The grid walks by row and column; Up out of the top row reaches the
-	// header's chips, Right off the last column the detail panel's button.
+	// header's chips. Focus describes a track, activating its card uses it.
 	// The search box is a plain text field: arrows edit, Enter drops back to
 	// the grid, and Back leaves it before it leaves the screen.
 
@@ -93,7 +93,6 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> EmptyText;
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> DetailBox;
-	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> UseButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DemoButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;
 

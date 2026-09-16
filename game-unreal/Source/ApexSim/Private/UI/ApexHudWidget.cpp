@@ -516,10 +516,10 @@ UWidget* UApexHudWidget::BuildPedalPanel()
 	auto AddPedal = [this, Bars](const TCHAR* Caption, const FLinearColor& Fill, UProgressBar*& OutBar)
 	{
 		OutBar = WidgetTree->ConstructWidget<UProgressBar>();
-		FProgressBarStyle Style = OutBar->WidgetStyle;
+		FProgressBarStyle Style = OutBar->GetWidgetStyle();
 		Style.SetBackgroundImage(MakeBrush(Palette::Surface));
 		Style.SetFillImage(MakeBrush(Fill));
-		OutBar->WidgetStyle = Style;
+		OutBar->SetWidgetStyle(Style);
 		// Fills from the bottom, like a pedal travelling.
 		OutBar->SetBarFillType(EProgressBarFillType::BottomToTop);
 		OutBar->SetPercent(0.0f);

@@ -26,7 +26,6 @@
 namespace
 {
 	const FName ActionTrackSelectBack(TEXT("__back"));
-	const FName ActionUse(TEXT("__use"));
 	const FName ActionDemo(TEXT("__demo"));
 
 	/** Filter key for "tracks I have a lap time on". Not a catalog category. */
@@ -178,19 +177,6 @@ UWidget* UApexTrackSelectWidget::BuildDetailPanel()
 	DetailBox = WidgetTree->ConstructWidget<UVerticalBox>();
 	ApexUI::AddV(Column, DetailBox, FMargin(), HAlign_Fill, 1.0f);
 
-	FApexButtonSpec UseSpec;
-	UseSpec.Label = TEXT("Use this track");
-	UseSpec.KeyCap = TEXT("Enter");
-	UseSpec.Variant = EApexButtonVariant::Primary;
-	UseSpec.LabelSize = 22.0f;
-	UseSpec.Height = 62.0f;
-	UseSpec.ActionId = ActionUse;
-
-	UseButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
-	UseButton->Setup(UseSpec);
-	UseButton->OnActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleButtonActivated);
-	ApexUI::AddV(Column, UseButton, FMargin(0.0f, 12.0f, 0.0f, 8.0f));
-
 	// Locked, not missing: the server's DemoLap mode removes human players from
 	// the session's participants (game_session.rs:409-425), so whoever asks for
 	// a demo lap becomes a spectator, stops receiving telemetry, and is left
@@ -207,7 +193,7 @@ UWidget* UApexTrackSelectWidget::BuildDetailPanel()
 	DemoButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	DemoButton->Setup(DemoSpec);
 	DemoButton->OnActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleButtonActivated);
-	ApexUI::AddV(Column, DemoButton);
+	ApexUI::AddV(Column, DemoButton, FMargin(0.0f, 12.0f, 0.0f, 0.0f));
 
 	return ApexUI::MakePanel(*WidgetTree, Column, FMargin(26.0f, 20.0f, 26.0f, 26.0f), ApexUI::MakeBrush(FLinearColor::Transparent));
 }
@@ -498,12 +484,10 @@ void UApexTrackSelectWidget::RefreshDetail()
 			ApexUI::Font::Body(14.0f),
 			ApexUI::Palette::TextMuted));
 
-		if (UseButton)  { UseButton->SetIsEnabled(false); }
 		if (DemoButton) { DemoButton->SetIsEnabled(false); }
 		return;
 	}
 
-	if (UseButton)  { UseButton->SetIsEnabled(true); }
 	if (DemoButton) { DemoButton->SetIsEnabled(true); }
 
 	FApexTrackCatalogRow Row;
@@ -601,9 +585,22 @@ void UApexTrackSelectWidget::HandleLobbyStateUpdated(const FApexLobbyState& Lobb
 
 void UApexTrackSelectWidget::HandleCardActivated(UApexContentCardWidget* Card)
 {
-	if (Card)
+	// Moving through the grid describes a track; activating a card is the
+	// choice. A separate confirm button meant a second trip across the panel
+	// with a pad, for no decision the card had not already made.
+	if (!Card)
 	{
-		SelectTrack(Card->GetCardId());
+		return;
+	}
+	SelectTrack(Card->GetCardId());
+
+	if (UApexMenuFlowSubsystem* Flow = GetFlow())
+	{
+		Flow->SetPendingTrack(SelectedTrackId);
+	}
+	if (UApexRootWidget* Root = GetRoot())
+	{
+		Root->ReplaceScreen(Root->ScreenAfterTrackSelect);
 	}
 }
 
@@ -638,24 +635,6 @@ void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Id == ActionTrackSelectBack)
 	{
 		GoBack();
-		return;
-	}
-
-	if (Id == ActionUse)
-	{
-		if (SelectedTrackId.IsEmpty())
-		{
-			ShowToast(TEXT("Pick a track first"), true);
-			return;
-		}
-		if (UApexMenuFlowSubsystem* Flow = GetFlow())
-		{
-			Flow->SetPendingTrack(SelectedTrackId);
-		}
-		if (UApexRootWidget* Root = GetRoot())
-		{
-			Root->ReplaceScreen(Root->ScreenAfterTrackSelect);
-		}
 		return;
 	}
 
@@ -756,13 +735,13 @@ bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* 
 			return true;
 
 		case EUINavigation::Right:
-			// Off the last column — or the ragged end of the last row — is the
-			// detail panel.
+			// The detail panel beside the grid holds nothing to press (the demo
+			// lap is locked), so the last column is the edge.
 			if (Column + 1 < GridColumns && CardAt + 1 < VisibleCards.Num())
 			{
-				return FocusCard(CardAt + 1);
+				FocusCard(CardAt + 1);
 			}
-			return ApexNav::Focus(UseButton);
+			return true;
 
 		case EUINavigation::Up:
 			return CardAt >= GridColumns ? FocusCard(CardAt - GridColumns) : FocusChip();
@@ -780,7 +759,7 @@ bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* 
 			return true;
 
 		case EUINavigation::Next:
-			return ApexNav::Focus(UseButton);
+			return ApexNav::Focus(HeaderBackButton);
 
 		case EUINavigation::Previous:
 			return FocusChip();
@@ -805,25 +784,10 @@ bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* 
 			return true;
 		case EUINavigation::Down:
 		case EUINavigation::Next:
-			return FocusCard(FocusedCardIndex) || ApexNav::Focus(UseButton);
+			FocusCard(FocusedCardIndex);
+			return true;
 		case EUINavigation::Previous:
 			return ApexNav::Focus(SearchField);
-		default:
-			return true;
-		}
-	}
-
-	if (Source == UseButton)
-	{
-		switch (Direction)
-		{
-		case EUINavigation::Left:
-		case EUINavigation::Previous:
-			return FocusCard(FocusedCardIndex);
-		case EUINavigation::Up:
-			return FocusChip();
-		case EUINavigation::Next:
-			return ApexNav::Focus(HeaderBackButton);
 		default:
 			return true;
 		}

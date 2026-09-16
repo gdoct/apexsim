@@ -54,6 +54,17 @@ bool FApexUdpConnection::PopTelemetry(FApexTelemetryFrame& OutFrame)
 	return TelemetryQueue.Dequeue(OutFrame);
 }
 
+int32 FApexUdpConnection::DiscardQueuedTelemetry()
+{
+	int32 Discarded = 0;
+	FApexTelemetryFrame Frame;
+	while (TelemetryQueue.Dequeue(Frame))
+	{
+		++Discarded;
+	}
+	return Discarded;
+}
+
 bool FApexUdpConnection::PopDriverFeedback(FApexDriverFeedback& OutFeedback)
 {
 	return DriverFeedbackQueue.Dequeue(OutFeedback);

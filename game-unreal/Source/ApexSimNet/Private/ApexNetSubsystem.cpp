@@ -386,6 +386,27 @@ bool UApexNetSubsystem::FindSessionById(const FString& SessionId, FApexSessionSu
 	return false;
 }
 
+void UApexNetSubsystem::DiscardTelemetryOfPreviousSession()
+{
+	// Telemetry carries no session id. Every frame queued before this join was
+	// sent for the session just left (the server stops broadcasting it before
+	// it answers the leave over the same TCP stream), and after a hitch the
+	// queue can hold seconds of them. FrameFitsRoster cannot tell them apart
+	// when the old session had fewer cars than the new one: the demo's ten
+	// cars fit a fourteen-car roster, and its Countdown state was applied to
+	// a session still sitting in Lobby, which put the race view over the
+	// lobby screen with nothing counting down.
+	if (!UdpConnection)
+	{
+		return;
+	}
+	const int32 Discarded = UdpConnection->DiscardQueuedTelemetry();
+	if (Discarded > 0)
+	{
+		UE_LOG(LogApexSimNet, Log, TEXT("Dropped %d queued telemetry frame(s) from before the join"), Discarded);
+	}
+}
+
 bool UApexNetSubsystem::FrameFitsRoster(const FApexTelemetryFrame& Frame) const
 {
 	if (CachedRoster.Entries.IsEmpty())
@@ -530,11 +551,11 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 			}
 			if (!FrameFitsRoster(Frame))
 			{
-				// A frame of the session just left, still in the UDP queue
-				// when the new session's roster arrived over TCP: its car
-				// indices point past the new roster. Applying it would take
-				// the other session's state (Racing) for this one and skip
-				// the countdown.
+				// A frame of another session, whose car indices point past
+				// this roster. Applying it would take the other session's
+				// state (Racing) for this one and skip the countdown. Frames
+				// queued before the join are dropped at SessionJoined; this
+				// catches one that slipped in behind it.
 				UE_LOG(LogApexSimNet, Verbose, TEXT("Telemetry frame with %d car(s) ignored: roster has %d"),
 					Frame.Cars.Num(), CachedRoster.Entries.Num());
 				continue;
@@ -659,6 +680,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentSessionId = Message.SessionId;
 			CachedRoster = FApexSessionRoster();
 			ClearRacingLine();
+			DiscardTelemetryOfPreviousSession();
 			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined (demo) SessionId=%s"), *CurrentSessionId);
 			OnDemoSessionChanged.Broadcast(true);
 			break;
@@ -669,6 +691,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		ClearRacingLine();
 		CurrentSessionId = Message.SessionId;
 		CurrentAllowedAssists = Message.AllowedAssists;
+		DiscardTelemetryOfPreviousSession();
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d"),
 			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked());
 		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);

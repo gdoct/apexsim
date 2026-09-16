@@ -15,17 +15,20 @@ width_m = 1.9
 max_engine_force_n = 9000.0
 max_brake_force_n = 22000.0
 drag_coefficient = 0.53
-# Prototype slicks on a high-downforce chassis.
-grip_coefficient = 1.35
+# Prototype slicks on a high-downforce chassis. Set with the other LMP2s so
+# the racing line's ideal lap of Silverstone lands a few seconds off a real
+# LMP2 pole (about 1:38); the sim's profile keeps a margin below the limit.
+grip_coefficient = 1.52
 max_steering_angle_rad = 0.42
 wheelbase_m = 3.0
 
-# Aerodynamics. Cd*A ≈ 0.88 m2, Cl*A ≈ -3.6 m2: roughly a tonne of downforce
-# at 250 km/h, 40% on the nose, which is what makes the car feel planted in
-# the fast stuff and draggy on the straights compared with the GT3.
+# Aerodynamics. Drag and downforce both scale with the reference area, so
+# what counts is Cd*A (~0.9 m2) and Cl*A (~5 m2): well over a tonne of
+# downforce at 250 km/h, 40% on the nose, which is what makes the car feel
+# planted in the fast stuff and draggy on the straights compared with the GT3.
 frontal_area_m2 = 1.7
-lift_coefficient_front = -0.9
-lift_coefficient_rear = -1.3
+lift_coefficient_front = -1.35
+lift_coefficient_rear = -1.95
 
 # Spec-series 4.2 L V8, restricted to ~405 kW; same class, a few kg and a few
 # aero points apart from the Yotota so the four LMP2s race close but not identical.

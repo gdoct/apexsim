@@ -358,6 +358,19 @@ private:
 	 * the last five seconds, all out when the session goes racing.
 	 */
 	void UpdateStartLights(const FApexTelemetryFrame& Frame);
+	/**
+	 * Beep the race start and the player's laps: a tick for each of the last
+	 * five countdown seconds (with the lights), a higher tone on green, and a
+	 * double pip each time the local car crosses the line into a new lap.
+	 * Silent in the demo behind the menu.
+	 */
+	void UpdateRaceBleeps(const FApexTelemetryFrame& Frame, EApexSessionState PreviousState);
+	/** Whole countdown seconds left at the last tick; -1 when not counting down. */
+	int32 BleepCountdownSecond = -1;
+	/** The local car's lap at the last frame and whose it was; -1 until seen. */
+	int32 BleepLap = -1;
+	int32 BleepCarIndex = -1;
+
 	/** Find the gantry in the streamed level and take over its lens materials. */
 	void FindStartLights();
 	void ForgetStartLights();

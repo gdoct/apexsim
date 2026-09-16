@@ -3,6 +3,8 @@
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -27,7 +29,15 @@ void UApexContentCardWidget::NativeOnInitialized()
 		FMargin(),
 		ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
 
-	WidgetTree->RootWidget = Frame;
+	UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>();
+	UOverlaySlot* FrameSlot = Layers->AddChildToOverlay(Frame);
+	FrameSlot->SetHorizontalAlignment(HAlign_Fill);
+	FrameSlot->SetVerticalAlignment(VAlign_Fill);
+	SelectedRing = ApexUI::AddFocusRing(*WidgetTree, *Layers, FMargin(ApexUI::Metrics::FocusRingInset));
+	SelectedRing->SetBrush(ApexUI::MakeBrush(FLinearColor::Transparent, ApexUI::Palette::Accent, 2.0f));
+	FocusRing = ApexUI::AddFocusRing(*WidgetTree, *Layers);
+
+	WidgetTree->RootWidget = Layers;
 	ApplyState();
 }
 
@@ -84,13 +94,25 @@ void UApexContentCardWidget::ApplyState()
 		return;
 	}
 
-	// Selection owns the outline, focus and hover own the fill. That way a card
-	// stays visibly "the one being described" while the keyboard moves over it.
-	const FLinearColor Outline = bSelected ? ApexUI::Palette::Accent
-		: (bFocused ? ApexUI::Palette::TextMuted : ApexUI::Palette::Border);
+	// Selection owns the accent outline, focus the white ring, hover the fill.
+	// With the ring on the edge the selected outline steps inside it, so a card
+	// can read as both "where the pad is" and "the one chosen".
+	const bool bShowFocusRing = bFocused && !bFocusFromPointer;
+	const bool bEdgeSelected = bSelected && !bShowFocusRing;
+	const FLinearColor Outline = bEdgeSelected ? ApexUI::Palette::Accent : ApexUI::Palette::Border;
 	const FLinearColor Fill = (bHovered || bFocused) ? ApexUI::Palette::SurfaceHover : ApexUI::Palette::Surface;
 
-	Frame->SetBrush(ApexUI::MakeBrush(Fill, Outline, bSelected ? 2.0f : 1.0f));
+	Frame->SetBrush(ApexUI::MakeBrush(Fill, Outline, bEdgeSelected ? 2.0f : 1.0f));
+
+	if (FocusRing)
+	{
+		FocusRing->SetVisibility(bShowFocusRing ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
+	if (SelectedRing)
+	{
+		SelectedRing->SetVisibility(
+			bShowFocusRing && bSelected ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
 }
 
 FReply UApexContentCardWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -100,7 +122,9 @@ FReply UApexContentCardWidget::NativeOnMouseButtonDown(const FGeometry& InGeomet
 		return FReply::Unhandled();
 	}
 
+	bFocusFromPointer = true;
 	SetKeyboardFocus();
+	ApplyState();
 	ApexUiAudio::Play(this, EApexUiSound::Accept);
 	OnActivated.Broadcast(this);
 	return FReply::Handled();
@@ -124,6 +148,7 @@ void UApexContentCardWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocus
 {
 	Super::NativeOnAddedToFocusPath(InFocusEvent);
 	bFocused = true;
+	bFocusFromPointer = bFocusFromPointer || InFocusEvent.GetCause() == EFocusCause::Mouse;
 	ApplyState();
 }
 
@@ -131,11 +156,18 @@ void UApexContentCardWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InF
 {
 	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
 	bFocused = false;
+	bFocusFromPointer = false;
 	ApplyState();
 }
 
 FReply UApexContentCardWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
+	if (bFocusFromPointer)
+	{
+		bFocusFromPointer = false;
+		ApplyState();
+	}
+
 	if (ApexNav::IsAccept(InKeyEvent))
 	{
 		ApexUiAudio::Play(this, EApexUiSound::Accept);

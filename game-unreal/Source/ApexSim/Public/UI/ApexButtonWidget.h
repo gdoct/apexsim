@@ -8,6 +8,7 @@
 
 class UBorder;
 class UHorizontalBox;
+class UOverlay;
 class USizeBox;
 class UTextBlock;
 class UWidget;
@@ -164,6 +165,18 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UBorder> Background;
 
+	/** Holds the background with the two rings drawn over it. */
+	UPROPERTY(Transient)
+	TObjectPtr<UOverlay> Layers;
+
+	/** White ring shown while the keyboard or pad is on this button. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> FocusRing;
+
+	/** The selected outline, moved inside the focus ring while both show. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> SelectedRing;
+
 	/** The 3px accent stripe down the left edge, shown only when focused. */
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> AccentBar;
@@ -183,4 +196,10 @@ private:
 	bool bHovered = false;
 	bool bFocused = false;
 	bool bSelected = false;
+	/**
+	 * Focus that came from a click hides the ring until a key is pressed: the
+	 * pointer already shows where the player is, and a ring following every
+	 * click reads as a stuck selection.
+	 */
+	bool bFocusFromPointer = false;
 };

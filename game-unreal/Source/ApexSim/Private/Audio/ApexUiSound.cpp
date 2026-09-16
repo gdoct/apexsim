@@ -67,6 +67,19 @@ namespace ApexUiSynth
 		case EApexUiSound::Error:
 			return { { 440.0f, 0.09f, 0.4f }, { 329.6f, 0.17f, 0.4f } };
 
+		// The race cues play over an engine, so they sit in the band above the
+		// exhaust note and are louder than the menu's. The ticks and the go are
+		// the classic timing-beacon pair: the same beep, then an octave up and
+		// held; the line crossing is a quick double pip in between.
+		case EApexUiSound::CountdownTick:
+			return { { 880.0f, 0.14f, 0.5f } };
+
+		case EApexUiSound::CountdownGo:
+			return { { 1760.0f, 0.4f, 0.5f } };
+
+		case EApexUiSound::LapLine:
+			return { { 1318.5f, 0.07f, 0.45f }, { 0.0f, 0.04f, 0.0f }, { 1318.5f, 0.1f, 0.45f } };
+
 		default:
 			return {};
 		}
