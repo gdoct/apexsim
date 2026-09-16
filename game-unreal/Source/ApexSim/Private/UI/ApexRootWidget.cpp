@@ -898,9 +898,46 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 		}
 	}
 
+	// -ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain and
+	// -ApexTimeOfDay=HH:MM put a screenshot run under any sky.
+	FApexSessionConditions Conditions;
+	FString WeatherName;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexWeather="), WeatherName))
+	{
+		const FString Key = WeatherName.TrimStartAndEnd().ToLower().Replace(TEXT("_"), TEXT("")).Replace(TEXT(" "), TEXT(""));
+		if (Key == TEXT("sunny"))          { Conditions.Weather = EApexWeather::Sunny; }
+		else if (Key == TEXT("cloudy"))    { Conditions.Weather = EApexWeather::Cloudy; }
+		else if (Key == TEXT("overcast"))  { Conditions.Weather = EApexWeather::Overcast; }
+		else if (Key == TEXT("lightrain") || Key == TEXT("rain")) { Conditions.Weather = EApexWeather::LightRain; }
+		else if (Key == TEXT("heavyrain")) { Conditions.Weather = EApexWeather::HeavyRain; }
+		else
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("-ApexWeather: unknown weather '%s' (sunny, cloudy, overcast, lightrain, heavyrain)"), *WeatherName);
+		}
+	}
+	FString Clock;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexTimeOfDay="), Clock))
+	{
+		FString HourText, MinuteText;
+		if (!Clock.Split(TEXT(":"), &HourText, &MinuteText))
+		{
+			HourText = Clock;
+			MinuteText = TEXT("0");
+		}
+		if (HourText.IsNumeric() && MinuteText.IsNumeric())
+		{
+			Conditions.TimeOfDayMinutes = FCString::Atoi(*HourText) * 60 + FCString::Atoi(*MinuteText);
+			Conditions = Conditions.Clamped();
+		}
+		else
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("-ApexTimeOfDay: expected HH:MM, got '%s'"), *Clock);
+		}
+	}
+
 	// SelectCar before CreateSession, same order the UI uses.
 	Net->SelectCar(Car.Id);
-	Net->CreateSession(Track.Id, 8, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed);
+	Net->CreateSession(Track.Id, 8, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions);
 }
 
 void UApexRootWidget::HandleUdpReady()

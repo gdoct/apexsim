@@ -71,6 +71,48 @@ namespace
 		return true;
 	}
 
+	/** `SessionConditions` — snake_case keys even under a PascalCase parent (no rename_all). */
+	bool ParseSessionConditions(FMsgPackReader& Reader, FApexSessionConditions& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("weather"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.Weather = Raw < static_cast<uint64>(FApexSessionConditions::WeatherCount)
+					? static_cast<EApexWeather>(Raw)
+					: EApexWeather::Sunny;
+			}
+			else if (Key == TEXT("time_of_day_minutes"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.TimeOfDayMinutes = static_cast<int32>(Raw);
+			}
+			else
+			{
+				bOk = Reader.SkipValue();
+			}
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out = Out.Clamped();
+		return true;
+	}
+
 	bool ParseSessionSummary(FMsgPackReader& Reader, FApexSessionSummary& Out)
 	{
 		int32 FieldCount = 0;
@@ -96,6 +138,7 @@ namespace
 			else if (Key == TEXT("PlayerCount")){ bOk = Reader.ReadUInt64(Raw); Out.PlayerCount = static_cast<int32>(Raw); }
 			else if (Key == TEXT("MaxPlayers")) { bOk = Reader.ReadUInt64(Raw); Out.MaxPlayers = static_cast<int32>(Raw); }
 			else if (Key == TEXT("State"))      { bOk = Reader.ReadUInt64(Raw); Out.State = static_cast<EApexSessionState>(Raw); }
+			else if (Key == TEXT("Conditions")) { bOk = ParseSessionConditions(Reader, Out.Conditions); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -408,6 +451,7 @@ namespace
 			else if (Key == TEXT("YourGridPosition"))  { bOk = Reader.ReadUInt64(Raw); Out.GridPosition = static_cast<int32>(Raw); }
 			else if (Key == TEXT("SessionKind"))       { bOk = Reader.ReadUInt64(Raw); Out.SessionKind = static_cast<EApexSessionKind>(Raw); }
 			else if (Key == TEXT("AllowedAssists"))    { bOk = ParseAllowedAssists(Reader, Out.AllowedAssists); }
+			else if (Key == TEXT("Conditions"))        { bOk = ParseSessionConditions(Reader, Out.Conditions); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -951,16 +995,28 @@ namespace ApexProtocol
 		Writer.WriteBool(Assists.bRacingLine);
 	}
 
+	/** `SessionConditions` (data.rs): no rename_all, so snake_case keys wherever it nests. */
+	void WriteSessionConditions(FMsgPackWriter& Writer, const FApexSessionConditions& Conditions)
+	{
+		const FApexSessionConditions Clamped = Conditions.Clamped();
+		Writer.WriteMapHeader(2);
+		Writer.WriteString("weather");
+		Writer.WriteUInt(static_cast<uint8>(Clamped.Weather));
+		Writer.WriteString("time_of_day_minutes");
+		Writer.WriteUInt(static_cast<uint16>(Clamped.TimeOfDayMinutes));
+	}
+
 	TArray<uint8> EncodeCreateSession(
 		const FString& TrackConfigId,
 		uint8 MaxPlayers,
 		uint8 AiCount,
 		uint8 LapLimit,
 		EApexSessionKind SessionKind,
-		const FApexAllowedAssists& AllowedAssists)
+		const FApexAllowedAssists& AllowedAssists,
+		const FApexSessionConditions& Conditions)
 	{
-		FMsgPackWriter Writer(256);
-		BeginDataVariant(Writer, "CreateSession", 6);
+		FMsgPackWriter Writer(320);
+		BeginDataVariant(Writer, "CreateSession", 7);
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -973,6 +1029,8 @@ namespace ApexProtocol
 		Writer.WriteUInt(static_cast<uint8>(SessionKind));
 		Writer.WriteString("allowed_assists");
 		WriteAllowedAssists(Writer, AllowedAssists);
+		Writer.WriteString("conditions");
+		WriteSessionConditions(Writer, Conditions);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

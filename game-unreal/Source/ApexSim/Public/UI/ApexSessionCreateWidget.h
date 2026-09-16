@@ -65,6 +65,7 @@ private:
 	UFUNCTION() void HandleMaxPlayersChanged(float Value);
 	UFUNCTION() void HandleAiCountChanged(float Value);
 	UFUNCTION() void HandleLapsChanged(float Value);
+	UFUNCTION() void HandleTimeOfDayChanged(float Value);
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> TrackSummaryBox;
@@ -78,6 +79,8 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ModeButtons;
 	/** One toggle per driving aid the session may allow, in EApexAssistChip order. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AssistButtons;
+	/** One radio chip per EApexWeather, in enum order. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeatherButtons;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> MaxPlayersSlider;
 	UPROPERTY(Transient) TObjectPtr<USlider> AiCountSlider;
@@ -92,6 +95,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> AiCountSuffix;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapsSuffix;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GridSummaryText;
+	UPROPERTY(Transient) TObjectPtr<USlider> TimeOfDaySlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> TimeOfDayFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeOfDayValue;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeOfDaySuffix;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusLine;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> CreateButtonWidget;
@@ -99,4 +106,7 @@ private:
 	/** Server caps: 20 on the grid, so 19 AI at most alongside one human. */
 	static constexpr int32 MaxPlayersCeiling = 20;
 	static constexpr int32 LapsCeiling = 50;
+	/** The clock moves in quarter hours: one keypress, one step, 96 to the day. */
+	static constexpr int32 TimeOfDayStepMinutes = 15;
+	static constexpr int32 TimeOfDaySteps = 24 * 60 / TimeOfDayStepMinutes;
 };

@@ -185,6 +185,7 @@ async fn start_free_practice(client: &mut ProtocolTestClient) {
             lap_limit: 2,
             session_kind: apexsim_server::data::SessionKind::Practice,
             allowed_assists: Default::default(),
+            conditions: Default::default(),
         })
         .await;
     client
@@ -297,6 +298,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
             lap_limit: 2,
             session_kind: apexsim_server::data::SessionKind::Practice,
             allowed_assists: Default::default(),
+            conditions: Default::default(),
         })
         .await;
     client

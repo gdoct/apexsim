@@ -723,6 +723,61 @@ messages come from `network.rs` `test_assists_wire_format`
 (`cargo test assists_wire_format -- --nocapture` prints them) and are pinned
 in `ApexGoldenBlobs.h`.
 
+### Weather and time of day (`SessionConditions`, `Race/ApexSkyModel.h`)
+
+A session's host picks its sky on the create screen: a **Weather** chip row
+(sunny, cloudy, overcast, light rain, heavy rain) and a **Time of day**
+slider in quarter hours. Both go out inside `CreateSession.conditions`
+(`SessionConditions { weather, time_of_day_minutes }`, defaulting to a
+sunny 13:00 so an old client's session is unchanged), are kept on
+`RaceSession::conditions`, echoed in `SessionJoined.Conditions` and listed
+in every `SessionSummary` (the browser row shows "Light rain · 21:30").
+The clock wraps onto one day on the way in (`SessionConditions::clamp`).
+
+The **server owns the grip**: `create_session` bakes the weather into the
+session's own copy of the track (`SessionConditions::apply_to_track`):
+every centerline sample's `grip_modifier`, the surface's `base_grip` (which
+the racing line and the AI's speed profile read) and the curb and off-track
+grips, so physics, the AI and the racing line all follow with no branch in
+the tick and a dry session is the track to the bit. Light rain is 0.86 of
+the road's grip and heavy rain 0.74; painted curbs lose a further 15–25%
+and grass 15–30% (`Weather::*_grip_factor`). Time of day is visual only.
+Golden bytes come from the same `test_assists_wire_format`;
+`tests/session_conditions_test.rs` checks the echo, the listing and the
+bake end to end.
+
+On the client `FApexSessionConditions` lives beside the assists in the net
+module (`Describe`, `ClockText`, `WeatherLabel`), the flow keeps
+`CreateConditions` (persisted on the profile), and `UApexNetSubsystem::
+GetSessionConditions` holds the joined session's sky, demo included. The
+race director turns it into light with `ApexSky::Derive` (pure maths,
+`ApexSim.Sky.*` tests): the sun's elevation and azimuth for that hour on a
+late-May day at 50° N with solar noon at 13:00, its lux from the airmass
+and the cloud, its colour warming toward the horizon and greying under
+cloud, the sky light scaled up under overcast, shadows off and the source
+widened when the disc is gone, and after dark the directional light
+becomes a one-lux blue moon that no longer drives the atmosphere. A
+director-owned unbound post-process volume (priority 10, over the track
+level's daylight clamp) carries the exposure floor and ceiling for the
+hour, the wet desaturation and the bloom. What lives in the streamed level
+is applied once its actors are in the world (`ApplyTrackLevelConditions`,
+polled like the start lights): the bake's fog gets the weather's density,
+start and colour (dark at night); in rain the road family's slots (`MI_road*`, `MI_pit_lane*` and the
+`MI_wear_*` bands the racing line runs on) get dynamic instances with
+`Roughness` 0.3 for the wet sheen, and the racing-line dots go glossy and
+dark with them (`AApexRacingLineActor::SetWet`); after
+dark every `floodlight_tower` / `lamp_post` instance gets a shadowless spot
+light at its head (at most 96) and the `ApexEmissive_floodlight_lamp`
+faces glow. Rain is `AApexRainActor`: up to 1500 slivers of the engine cube
+in a box that travels with the active camera, falling in world space,
+wrapped back in when they leave, each stretched along its apparent
+velocity so they streak at speed (no particle assets exist in the
+project). Cars get two lumen-rated spot headlights at the nose and dim
+running tail lights (`AApexRaceCarActor::SetHeadlights`,
+`apexsim.car.HeadlightLumens`) whenever the sun is under 6° or it rains.
+`-ApexWeather=heavyrain -ApexTimeOfDay=22:15` put an `-ApexAutoRace`
+screenshot run under that sky.
+
 ### Car setup (`server/src/car_setup.rs`, `SetCarSetup`, the Car setup settings tab)
 
 The garage: tyres, engine, transmission, torque and suspension, per driver.

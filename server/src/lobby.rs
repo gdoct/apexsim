@@ -32,6 +32,7 @@ pub struct LobbySessionInfo {
     pub track_file: String,
     pub track_config_id: TrackConfigId,
     pub session_kind: SessionKind,
+    pub conditions: SessionConditions,
     pub max_players: u8,
     pub current_player_count: u8,
     pub spectator_count: u8,
@@ -308,6 +309,7 @@ impl LobbyManager {
                 player_count: s.current_player_count,
                 max_players: s.max_players,
                 state: s.state,
+                conditions: s.conditions,
             })
             .collect()
     }
@@ -415,6 +417,7 @@ mod tests {
             track_file: "tracks/TestTrack.yaml".to_string(),
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
+            conditions: SessionConditions::DEFAULT,
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -458,6 +461,7 @@ mod tests {
             track_file: "tracks/TestTrack.yaml".to_string(),
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
+            conditions: SessionConditions::DEFAULT,
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -504,6 +508,7 @@ mod tests {
             track_file: "tracks/TestTrack.yaml".to_string(),
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
+            conditions: SessionConditions::DEFAULT,
             max_players: 8,
             current_player_count: 2,
             spectator_count: 0,

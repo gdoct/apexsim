@@ -2,6 +2,7 @@
 
 #include "Audio/ApexEngineSoundWave.h"
 #include "Components/AudioComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "HAL/IConsoleManager.h"
@@ -76,6 +77,13 @@ namespace
 	 * on/off at the first bit of pedal, not dimmed by how hard it is pressed.
 	 */
 	constexpr float BrakeLightThreshold = 0.02f;
+	/** Share of the brake glow the tail lights hold while the headlights are on. */
+	constexpr float RunningLightShare = 0.12f;
+
+	TAutoConsoleVariable<float> CVarHeadlightLumens(
+		TEXT("apexsim.car.HeadlightLumens"),
+		2500.0f,
+		TEXT("Luminous flux of each headlight, lumens."));
 }
 
 AApexRaceCarActor::AApexRaceCarActor()
@@ -154,7 +162,9 @@ void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow
 	}
 	// Force the next update to write the parameter: the imported material ships lit.
 	bBrakeLightsOn = true;
+	TailLightState = -1;
 	UpdateBrakeLights();
+	PlaceHeadlights();
 }
 
 void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
@@ -186,14 +196,77 @@ FBoxSphereBounds AApexRaceCarActor::BodyBounds() const
 void AApexRaceCarActor::UpdateBrakeLights()
 {
 	const bool bOn = Brake > BrakeLightThreshold;
-	if (bOn == bBrakeLightsOn || !BrakeLightMaterial)
+	bBrakeLightsOn = bOn;
+	const int32 Wanted = bOn ? 2 : (bHeadlightsOn ? 1 : 0);
+	if (Wanted == TailLightState || !BrakeLightMaterial)
 	{
-		bBrakeLightsOn = bOn;
 		return;
 	}
-	bBrakeLightsOn = bOn;
-	BrakeLightMaterial->SetVectorParameterValue(EmissiveFactorParam,
-		bOn ? BrakeLightColor * CVarBrakeLightNits.GetValueOnGameThread() : FLinearColor::Black);
+	TailLightState = Wanted;
+	const float Nits = CVarBrakeLightNits.GetValueOnGameThread();
+	const FLinearColor Glow = Wanted == 2 ? BrakeLightColor * Nits
+		: Wanted == 1 ? BrakeLightColor * (Nits * RunningLightShare)
+		: FLinearColor::Black;
+	BrakeLightMaterial->SetVectorParameterValue(EmissiveFactorParam, Glow);
+}
+
+void AApexRaceCarActor::SetHeadlights(bool bOn)
+{
+	if (bOn == bHeadlightsOn && (!bOn || HeadlightLeft))
+	{
+		return;
+	}
+	bHeadlightsOn = bOn;
+	if (bOn && !HeadlightLeft)
+	{
+		auto MakeLamp = [this](const TCHAR* Name) {
+			USpotLightComponent* Lamp = NewObject<USpotLightComponent>(this, Name);
+			Lamp->SetMobility(EComponentMobility::Movable);
+			Lamp->SetIntensityUnits(ELightUnits::Lumens);
+			Lamp->SetIntensity(CVarHeadlightLumens.GetValueOnGameThread());
+			Lamp->SetLightColor(FLinearColor(1.0f, 0.96f, 0.88f));
+			Lamp->SetAttenuationRadius(9000.0f);
+			Lamp->SetInnerConeAngle(16.0f);
+			Lamp->SetOuterConeAngle(34.0f);
+			// Twenty cars, forty lamps: shadows would be the whole frame budget.
+			Lamp->SetCastShadows(false);
+			Lamp->bAffectsWorld = true;
+			Lamp->SetupAttachment(Root);
+			Lamp->RegisterComponent();
+			return Lamp;
+		};
+		HeadlightLeft = MakeLamp(TEXT("HeadlightLeft"));
+		HeadlightRight = MakeLamp(TEXT("HeadlightRight"));
+		PlaceHeadlights();
+	}
+	if (HeadlightLeft)  { HeadlightLeft->SetVisibility(bOn); }
+	if (HeadlightRight) { HeadlightRight->SetVisibility(bOn); }
+	// The tail lights follow: dim running lights with the headlights on.
+	TailLightState = -1;
+	UpdateBrakeLights();
+}
+
+void AApexRaceCarActor::PlaceHeadlights()
+{
+	if (!HeadlightLeft || !HeadlightRight)
+	{
+		return;
+	}
+	// The body box is in the car's frame: nose +X, left +Y, up +Z. Lamps sit
+	// just inside the nose, out at the corners, a little under half height,
+	// and aim a touch down onto the road.
+	const FBox Box = GetBodyBox();
+	const FVector Size = Box.GetSize();
+	if (Size.X < 1.0f)
+	{
+		return;
+	}
+	const float X = Box.Max.X - Size.X * 0.04f;
+	const float Y = Size.Y * 0.36f;
+	const float Z = Box.Min.Z + Size.Z * 0.42f;
+	const FRotator Aim(-3.0f, 0.0f, 0.0f);
+	HeadlightLeft->SetRelativeLocationAndRotation(FVector(X, Y, Z), Aim);
+	HeadlightRight->SetRelativeLocationAndRotation(FVector(X, -Y, Z), Aim);
 }
 
 void AApexRaceCarActor::SetMeshVisible(bool bVisible)

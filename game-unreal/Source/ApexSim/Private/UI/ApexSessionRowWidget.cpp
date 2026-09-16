@@ -65,7 +65,8 @@ void UApexSessionRowWidget::SetSession(const FApexSessionSummary& Summary, bool 
 	if (KindAndStateText)
 	{
 		KindAndStateText->SetText(FText::FromString(FString::Printf(
-			TEXT("%s   |   %s"), *DescribeKind(Summary.SessionKind), *DescribeState(Summary.State))));
+			TEXT("%s   |   %s   |   %s"), *DescribeKind(Summary.SessionKind), *DescribeState(Summary.State),
+			*Summary.Conditions.Describe())));
 		KindAndStateText->SetColorAndOpacity(ColorForState(Summary.State));
 	}
 

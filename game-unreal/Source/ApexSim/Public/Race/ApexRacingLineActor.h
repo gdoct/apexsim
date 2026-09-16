@@ -47,6 +47,14 @@ public:
 	/** Which colours are drawn: none, only the braking zones, or all of it. */
 	void SetMode(EApexRacingLine InMode);
 
+	/**
+	 * Paint on a wet road: the dots take the road's sheen (the engine shape
+	 * material's `Roughness`) and darken as wet paint does, so they do not
+	 * sit on the rain as matte stickers. Set by the race director with the
+	 * rest of the session's sky.
+	 */
+	void SetWet(bool bInWet);
+
 	bool HasLine() const { return Line.IsValid(); }
 	bool IsOnGround() const { return bOnGround; }
 
@@ -82,4 +90,9 @@ private:
 	FApexRacingLineData Line;
 	EApexRacingLine Mode = EApexRacingLine::Off;
 	bool bOnGround = false;
+	bool bWet = false;
+
+	/** Roughness of the dots dry, and on a wet road. */
+	static constexpr float DryRoughness = 0.7f;
+	static constexpr float WetRoughness = 0.25f;
 };

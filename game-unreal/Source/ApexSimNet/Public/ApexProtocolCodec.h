@@ -32,7 +32,8 @@ namespace ApexProtocol
 		uint8 AiCount,
 		uint8 LapLimit,
 		EApexSessionKind SessionKind,
-		const FApexAllowedAssists& AllowedAssists);
+		const FApexAllowedAssists& AllowedAssists,
+		const FApexSessionConditions& Conditions);
 	APEXSIMNET_API TArray<uint8> EncodeJoinSession(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeJoinAsSpectator(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeLeaveSession();

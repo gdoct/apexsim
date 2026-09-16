@@ -209,10 +209,11 @@ void UApexNetSubsystem::CreateSession(
 	int32 AiCount,
 	int32 LapLimit,
 	EApexSessionKind SessionKind,
-	const FApexAllowedAssists& AllowedAssists)
+	const FApexAllowedAssists& AllowedAssists,
+	const FApexSessionConditions& Conditions)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d locked_assists=%d"),
-		*TrackConfigId, MaxPlayers, AiCount, LapLimit, AllowedAssists.CountLocked());
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d locked_assists=%d conditions=%s"),
+		*TrackConfigId, MaxPlayers, AiCount, LapLimit, AllowedAssists.CountLocked(), *Conditions.Describe());
 	// The server holds one session per player: the menu's demo goes first.
 	LeaveDemoSession();
 	bSessionRequestPending = true;
@@ -223,7 +224,8 @@ void UApexNetSubsystem::CreateSession(
 		static_cast<uint8>(FMath::Clamp(AiCount, 0, 255)),
 		static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)),
 		SessionKind,
-		AllowedAssists));
+		AllowedAssists,
+		Conditions));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -254,10 +256,11 @@ void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 Ai
 	bDemoRequested = true;
 	DemoSessionState = EApexSessionState::Lobby;
 	const uint8 Field = static_cast<uint8>(FMath::Clamp(AiCount, 1, 255));
-	// Nobody drives in a demo, so the allowed set is moot; everything is allowed.
+	// Nobody drives in a demo, so the allowed set is moot; everything is
+	// allowed. The sky is the default: the menu is designed over daylight.
 	SendPayload(ApexProtocol::EncodeCreateSession(
 		TrackConfigId, Field, Field, static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)), EApexSessionKind::Demo,
-		FApexAllowedAssists()));
+		FApexAllowedAssists(), FApexSessionConditions()));
 }
 
 void UApexNetSubsystem::LeaveDemoSession()
@@ -678,6 +681,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			bInDemoSession = true;
 			DemoSessionState = EApexSessionState::Lobby;
 			CurrentSessionId = Message.SessionId;
+			CurrentConditions = Message.Conditions;
 			CachedRoster = FApexSessionRoster();
 			ClearRacingLine();
 			DiscardTelemetryOfPreviousSession();
@@ -691,9 +695,10 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		ClearRacingLine();
 		CurrentSessionId = Message.SessionId;
 		CurrentAllowedAssists = Message.AllowedAssists;
+		CurrentConditions = Message.Conditions;
 		DiscardTelemetryOfPreviousSession();
-		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d"),
-			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked());
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s"),
+			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe());
 		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
 
 		// The cached lobby state predates this session, so anything resolving the
@@ -720,6 +725,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		}
 		CurrentSessionId.Reset();
 		CurrentAllowedAssists = FApexAllowedAssists();
+		CurrentConditions = FApexSessionConditions();
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
 		LatestDriverFeedback = FApexDriverFeedback();

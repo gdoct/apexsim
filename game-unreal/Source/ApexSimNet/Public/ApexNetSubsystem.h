@@ -164,7 +164,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void SelectCar(const FString& CarConfigId);
 
-	/** AllowedAssists: which driving aids the session lets its drivers use (every one by default). */
+	/**
+	 * AllowedAssists: which driving aids the session lets its drivers use
+	 * (every one by default). Conditions: its weather and clock.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void CreateSession(
 		const FString& TrackConfigId,
@@ -172,7 +175,8 @@ public:
 		int32 AiCount,
 		int32 LapLimit,
 		EApexSessionKind SessionKind,
-		const FApexAllowedAssists& AllowedAssists);
+		const FApexAllowedAssists& AllowedAssists,
+		const FApexSessionConditions& Conditions);
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -252,6 +256,13 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FApexAllowedAssists& GetAllowedAssists() const { return CurrentAllowedAssists; }
+
+	/**
+	 * The weather and clock of the session this client is in (the demo
+	 * included), from its SessionJoined; a sunny afternoon outside one.
+	 */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	const FApexSessionConditions& GetSessionConditions() const { return CurrentConditions; }
 
 	// --- State ----------------------------------------------------------------
 
@@ -409,6 +420,8 @@ private:
 	FString CurrentSessionId;
 	/** From the session's SessionJoined; reset on SessionLeft. */
 	FApexAllowedAssists CurrentAllowedAssists;
+	/** From the session's SessionJoined, demo or not; reset when it is left. */
+	FApexSessionConditions CurrentConditions;
 
 	// --- Demo session -----------------------------------------------------------
 

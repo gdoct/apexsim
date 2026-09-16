@@ -59,6 +59,10 @@ public:
 	UPROPERTY()
 	FApexAllowedAssists AllowedAssists;
 
+	/** The weather and clock a session this player creates runs under. */
+	UPROPERTY()
+	FApexSessionConditions Conditions;
+
 	/** Track UUID -> best lap in seconds. Populated by the results screen. */
 	UPROPERTY()
 	TMap<FString, float> BestLapSeconds;

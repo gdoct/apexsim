@@ -88,8 +88,11 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	FApexAllowedAssists CreateAssists;
 	CreateAssists.bTractionControl = false;
 	CreateAssists.bSteeringAssist = false;
+	FApexSessionConditions CreateConditions;
+	CreateConditions.Weather = EApexWeather::LightRain;
+	CreateConditions.TimeOfDayMinutes = 21 * 60 + 30;
 	CheckBytes(TEXT("CreateSession"),
-		ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, CreateAssists),
+		ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, CreateAssists, CreateConditions),
 		ApexGolden::C_CreateSession);
 
 	CheckBytes(TEXT("JoinSession"),
@@ -249,6 +252,19 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("AllowedAssists.steering_assist"), Message.AllowedAssists.bSteeringAssist);
 			TestFalse(TEXT("AllowedAssists.racing_line"), Message.AllowedAssists.bRacingLine);
 			TestEqual(TEXT("AllowedAssists.CountLocked"), Message.AllowedAssists.CountLocked(), 3);
+			TestEqual(TEXT("Conditions.weather"), Message.Conditions.Weather, EApexWeather::HeavyRain);
+			TestEqual(TEXT("Conditions.time_of_day_minutes"), Message.Conditions.TimeOfDayMinutes, 6 * 60 + 15);
+			TestEqual(TEXT("Conditions.Describe"), Message.Conditions.Describe(), FString(TEXT("Heavy rain · 06:15")));
+		}
+	}
+
+	{
+		// A message from a server without the field is a sunny afternoon.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined without conditions"), ApexGolden::S_SessionJoined, Message))
+		{
+			TestTrue(TEXT("Conditions default"), Message.Conditions.IsDefault());
+			TestEqual(TEXT("Conditions default clock"), Message.Conditions.ClockText(), FString(TEXT("13:00")));
 		}
 	}
 

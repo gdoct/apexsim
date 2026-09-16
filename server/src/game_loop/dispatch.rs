@@ -64,6 +64,7 @@ pub(crate) async fn handle_message(
             lap_limit,
             session_kind,
             allowed_assists,
+            conditions,
         } => {
             handle_create_session(
                 ctx,
@@ -74,6 +75,7 @@ pub(crate) async fn handle_message(
                 ai_count,
                 lap_limit,
                 allowed_assists,
+                conditions,
             )
             .await;
         }
@@ -205,7 +207,9 @@ async fn handle_create_session(
     ai_count: u8,
     lap_limit: u8,
     allowed_assists: AllowedAssists,
+    conditions: SessionConditions,
 ) {
+    let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
@@ -250,6 +254,7 @@ async fn handle_create_session(
         ai_count,
         lap_limit,
         allowed_assists,
+        conditions,
     ) else {
         warn!(
             "Failed to create session for player {}: track_id={}",
@@ -295,6 +300,7 @@ async fn handle_create_session(
         track_name,
         track_file,
         session_kind,
+        conditions,
         track_config_id,
         max_players,
         current_player_count: 0, // join_session will increment this
@@ -346,6 +352,7 @@ async fn handle_create_session(
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         let racing_line = racing_line_message(game_session, session_id, car_id);
         let allowed_assists = game_session.session.allowed_assists;
+        let conditions = game_session.session.conditions;
         drop(state_write);
         let _ = ctx
             .send(
@@ -355,6 +362,7 @@ async fn handle_create_session(
                     your_grid_position: grid_pos,
                     session_kind,
                     allowed_assists,
+                    conditions,
                 }),
             )
             .await;
@@ -389,6 +397,11 @@ async fn start_demo_session(
     connection_id: ConnectionId,
     session_id: SessionId,
 ) {
+    let conditions = state_write
+        .sessions
+        .get(&session_id)
+        .map(|s| s.session.conditions)
+        .unwrap_or_default();
     let joined = state_write
         .lobby
         .join_as_spectator(conn_info.player_id, session_id)
@@ -431,6 +444,7 @@ async fn start_demo_session(
                 your_grid_position: 0, // 0 indicates spectator
                 session_kind: SessionKind::Demo,
                 allowed_assists: AllowedAssists::ALL,
+                conditions,
             }),
         )
         .await;
@@ -493,6 +507,7 @@ async fn handle_join_session(
         );
         let racing_line = racing_line_message(game_session, session_id, car_id);
         let allowed_assists = game_session.session.allowed_assists;
+        let conditions = game_session.session.conditions;
         drop(state_write);
         let _ = ctx
             .send(
@@ -502,6 +517,7 @@ async fn handle_join_session(
                     your_grid_position: grid_pos,
                     session_kind: game_session_kind,
                     allowed_assists,
+                    conditions,
                 }),
             )
             .await;
@@ -568,18 +584,24 @@ async fn handle_join_as_spectator(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
-    let (joined, session_kind, allowed_assists) = {
+    let (joined, session_kind, allowed_assists, conditions) = {
         let state_read = ctx.state.read().await;
-        let (session_kind, allowed_assists) = state_read
+        let (session_kind, allowed_assists, conditions) = state_read
             .sessions
             .get(&session_id)
-            .map(|s| (s.session.session_kind, s.session.allowed_assists))
+            .map(|s| {
+                (
+                    s.session.session_kind,
+                    s.session.allowed_assists,
+                    s.session.conditions,
+                )
+            })
             .unwrap_or_default();
         let joined = state_read
             .lobby
             .join_as_spectator(conn_info.player_id, session_id)
             .await;
-        (joined, session_kind, allowed_assists)
+        (joined, session_kind, allowed_assists, conditions)
     };
 
     if joined {
@@ -595,6 +617,7 @@ async fn handle_join_as_spectator(
                     your_grid_position: 0, // 0 indicates spectator
                     session_kind,
                     allowed_assists,
+                    conditions,
                 }),
             )
             .await;

@@ -661,7 +661,7 @@ void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		UE_LOG(LogApexSim, Log, TEXT("Demo lap requested on track '%s'"), *SelectedTrackId);
 		Net->CreateSession(
 			SelectedTrackId, Flow->CreateMaxPlayers, 0, Flow->CreateLapLimit, EApexSessionKind::Practice,
-			Flow->CreateAllowedAssists);
+			Flow->CreateAllowedAssists, Flow->CreateConditions);
 		return;
 	}
 

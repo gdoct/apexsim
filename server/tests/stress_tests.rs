@@ -495,6 +495,7 @@ impl TestClientMinimal {
             ai_count: 0,
             lap_limit: 3,
             allowed_assists: Default::default(),
+            conditions: Default::default(),
         };
         self.send_message(&msg).await?;
 
@@ -834,6 +835,7 @@ async fn run_multi_client_test(
         ai_count: 0,
         lap_limit: 3,
         allowed_assists: Default::default(),
+        conditions: Default::default(),
     };
     clients[0].send_message(&create_msg).await?;
 

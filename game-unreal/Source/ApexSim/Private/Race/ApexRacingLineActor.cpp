@@ -137,8 +137,25 @@ void AApexRacingLineActor::Paint(UInstancedStaticMeshComponent* Dots, const FLin
 	}
 	if (UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(ShapeMaterial, this))
 	{
-		Mid->SetVectorParameterValue(TEXT("Color"), Color);
+		// Wet paint is darker and glossy, like the road around it.
+		Mid->SetVectorParameterValue(TEXT("Color"), bWet ? Color * 0.6f : Color);
+		Mid->SetScalarParameterValue(TEXT("Roughness"), bWet ? WetRoughness : DryRoughness);
 		Dots->SetMaterial(0, Mid);
+	}
+}
+
+void AApexRacingLineActor::SetWet(bool bInWet)
+{
+	if (bInWet == bWet)
+	{
+		return;
+	}
+	bWet = bInWet;
+	if (HasActorBegunPlay())
+	{
+		Paint(ThrottleDots, ThrottleColor);
+		Paint(PartialDots, PartialColor);
+		Paint(BrakeDots, BrakeColor);
 	}
 }
 
