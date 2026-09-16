@@ -30,6 +30,12 @@ namespace
 		TEXT("Laps in each demo race before the next one starts."),
 		ECVF_Default);
 
+	TAutoConsoleVariable<int32> CVarDemoRandomSky(
+		TEXT("apexsim.demo.RandomSky"),
+		1,
+		TEXT("1 gives each demo race a random weather and time of day; 0 races under the default sunny 13:00."),
+		ECVF_Default);
+
 	TAutoConsoleVariable<float> CVarDemoMaxMinutes(
 		TEXT("apexsim.demo.MaxMinutes"),
 		12.0f,
@@ -144,6 +150,57 @@ bool UApexDemoModeSubsystem::IsDemoDisabled()
 	return bCommandLineOff || CVarDemoEnabled.GetValueOnGameThread() == 0;
 }
 
+FApexSessionConditions UApexDemoModeSubsystem::RollConditions(FRandomStream& Random)
+{
+	FApexSessionConditions Conditions;
+
+	struct FWeatherWeight
+	{
+		EApexWeather Weather;
+		int32 Weight;
+	};
+	static constexpr FWeatherWeight Weathers[] = {
+		{ EApexWeather::Sunny, 38 },
+		{ EApexWeather::Cloudy, 30 },
+		{ EApexWeather::Overcast, 22 },
+		{ EApexWeather::LightRain, 6 },
+		{ EApexWeather::HeavyRain, 4 },
+	};
+	int32 Roll = Random.RandRange(0, 99);
+	for (const FWeatherWeight& Entry : Weathers)
+	{
+		Conditions.Weather = Entry.Weather;
+		if (Roll < Entry.Weight)
+		{
+			break;
+		}
+		Roll -= Entry.Weight;
+	}
+
+	// [first, last] quarter hour, counted from midnight.
+	auto QuarterIn = [&Random](int32 FirstQuarter, int32 LastQuarter)
+	{
+		return Random.RandRange(FirstQuarter, LastQuarter) * 15;
+	};
+	const int32 ClockRoll = Random.RandRange(0, 99);
+	if (ClockRoll < 70)
+	{
+		Conditions.TimeOfDayMinutes = QuarterIn(8 * 4, 18 * 4 - 1);
+	}
+	else if (ClockRoll < 90)
+	{
+		// Low sun: dawn (8 quarters) or dusk (12), each quarter as likely.
+		const int32 Quarter = Random.RandRange(0, 19);
+		Conditions.TimeOfDayMinutes = Quarter < 8 ? (6 * 4 + Quarter) * 15 : (18 * 4 + Quarter - 8) * 15;
+	}
+	else
+	{
+		// 21:00 through 05:45, across midnight.
+		Conditions.TimeOfDayMinutes = QuarterIn(21 * 4, 30 * 4 - 1);
+	}
+	return Conditions.Clamped();
+}
+
 bool UApexDemoModeSubsystem::ChooseTrack(const UApexNetSubsystem& Net)
 {
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
@@ -233,8 +290,14 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 			{
 				Net->SelectCar(Flow->GetPendingCarId());
 			}
-			UE_LOG(LogApexSim, Log, TEXT("Demo mode: starting an AI race on %s"), *TrackStem);
-			Net->CreateDemoSession(TrackId, CVarDemoAiCount.GetValueOnGameThread(), CVarDemoLaps.GetValueOnGameThread());
+			FApexSessionConditions Conditions;
+			if (CVarDemoRandomSky.GetValueOnGameThread() != 0)
+			{
+				FRandomStream Random(static_cast<int32>(FPlatformTime::Cycles()));
+				Conditions = RollConditions(Random);
+			}
+			UE_LOG(LogApexSim, Log, TEXT("Demo mode: starting an AI race on %s, %s"), *TrackStem, *Conditions.Describe());
+			Net->CreateDemoSession(TrackId, CVarDemoAiCount.GetValueOnGameThread(), CVarDemoLaps.GetValueOnGameThread(), Conditions);
 			// Until the answer: a request that fails backs off further each time.
 			Cooldown = FMath::Min(5.0f * FMath::Pow(2.0f, static_cast<float>(Failures)), 120.0f);
 			++Failures;

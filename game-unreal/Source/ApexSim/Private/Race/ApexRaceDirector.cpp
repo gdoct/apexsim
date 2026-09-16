@@ -910,8 +910,8 @@ void AApexRaceDirector::ApplyRaceEnvironment()
 		return;
 	}
 
-	// The session's sky. A demo, and a server from before conditions, is a
-	// sunny early afternoon: what every race was until now.
+	// The session's sky, the demo's included (it rolls its own). A server
+	// from before conditions is a sunny early afternoon.
 	const UApexNetSubsystem* Net = GetNet();
 	const FApexSessionConditions Conditions = Net ? Net->GetSessionConditions() : FApexSessionConditions();
 	Sky = ApexSky::Derive(Conditions);

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
+#include "ApexProtocolTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "ApexDemoModeSubsystem.generated.h"
@@ -24,6 +25,10 @@ class UApexNetSubsystem;
  * The player never has to get it out of the way: creating or joining a
  * session leaves the demo first (UApexNetSubsystem does that), and nothing
  * here asks for another until the player is out of their session again.
+ *
+ * Every demo race asks for a sky of its own (`RollConditions`): mostly dry
+ * daylight, sometimes rain, dusk or night. `apexsim.demo.RandomSky 0` keeps
+ * the default sunny 13:00.
  *
  * `apexsim.demo.Enabled 0` or `-ApexNoDemo` turns it off; `-ApexAutoRace`
  * runs never start one.
@@ -49,6 +54,15 @@ public:
 	 * the server turned down). The startup splash waits only while this holds.
 	 */
 	bool IsDemoExpected() const;
+
+	/**
+	 * A sky for one demo race, in quarter hours like the create screen. Weighted
+	 * so the menu is mostly over dry daylight: weather sunny 38, cloudy 30,
+	 * overcast 22, light rain 6, heavy rain 4 (out of 100: rain one race in
+	 * ten); the clock 08:00-17:45 70%, dawn (06:00-07:45) or dusk
+	 * (18:00-20:45) 20%, night 10%.
+	 */
+	static FApexSessionConditions RollConditions(FRandomStream& Random);
 
 	/** The track the demo is on (or being started on), by id. */
 	const FString& GetDemoTrackId() const { return TrackId; }

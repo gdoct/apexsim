@@ -14,29 +14,29 @@ Priorities:
 - reverse gear
 - car setup (tyres, engine, transmission, torque, suspension): a Car setup tab, applied on the server per driver
 | Controller focus lost in game and menus / can't navigate to sections | bug | Pad-only players can't play at all. Earlier fix: `FApexMenuInputProcessor` focus recovery. Check which screens and sections still trap focus. |
+| minimap drifting issue | bug | The minimap marker drifts away from the actual car position. |
+| Improve car grip | tuning | Do this before tyre wear and tyre types, which both build on the base grip model. |
+| Car sim settings (assists) | feature | ABS, traction control, auto or manual gears, and racing line in one place per player. Players expect assists before setups. |
+| Manual gearbox with sequential paddles / keys (new) | feature | Shifting exists. Make "manual" a setting so the auto gearbox never overrides the driver. |
+| Start/finish bleep | feature | Cheap. Also covers the countdown beeps. |
 
 ## P0: playable end to end
 
 | Item | Type | Notes |
 |---|---|---|
 
-| Grass slowdown too high | bug | `off_track_speed_penalty` (0.15) in `data.rs` stacks on top of grass grip. One off leaves you crawling back. |
 | Reset / recover to track (new) | feature | Walls now stop cars, so a car can end up stuck against a barrier with no way out. Needs a "return to track" or "back to pits" key with a short time cost. |
 | Wheel/pedals tested on real hardware (new) | task | The DirectInput path and wheel force feedback have never run on a real wheel. It's a sim racer, so this is the main input device. |
-| minimap drifting issue | bug | The minimap marker drifts away from the actual car position. |
+
 
 ## P1: core racing experience
 
 | Item | Type | Notes |
 |---|---|---|
-| Improve car grip | tuning | Do this before tyre wear and tyre types, which both build on the base grip model. |
 | Track limits and lap invalidation in the HUD (new) | feature | Server already invalidates shortcut laps. Show "lap invalid", and add corner-cut detection that uses the curb band. |
 | Sector timing | feature | The HUD has sector bars, but it splits the lap into thirds on the client. Move to server-side sector lines (per track), with best and delta per sector. |
 | Score board | feature | Live standings with gaps and best laps, plus the end-of-race results screen. |
 | Personal bests / lap records saved (new) | feature | Right now nothing survives a session. Store best lap per car and track. This is the basis for leaderboards and time trial. |
-| Car sim settings (assists) | feature | ABS, traction control, auto or manual gears, and racing line in one place per player. Players expect assists before setups. |
-| Manual gearbox with sequential paddles / keys (new) | feature | Shifting exists. Make "manual" a setting so the auto gearbox never overrides the driver. |
-| Start/finish bleep | feature | Cheap. Also covers the countdown beeps. |
 | Better HUD layout options | feature | Basic toggles, position and scale. |
 | Yas marina has green over the track|bug|A green texture overlays the normal track surface.|
 | COTA first corner is off | bug | Track data or centerline problem. Players see it on the first lap. |

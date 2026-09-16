@@ -506,11 +506,20 @@ pub struct TrackMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackSurface {
-    pub base_grip: f32,               // Base grip multiplier (1.0 = normal asphalt)
-    pub curb_grip: f32,               // Grip on curbs
-    pub off_track_grip: f32,          // Grip off track (grass/gravel)
-    pub off_track_speed_penalty: f32, // Speed reduction factor off track
+    pub base_grip: f32,      // Base grip multiplier (1.0 = normal asphalt)
+    pub curb_grip: f32,      // Grip on curbs
+    pub off_track_grip: f32, // Grip off track (grass/gravel)
+    /// Rolling drag off track, m/s², opposing the car's motion. A fixed
+    /// deceleration rather than a fraction of speed per second: grass is
+    /// already slow through its grip, and a proportional drag fought the
+    /// throttle so hard that a car could not get back above a crawl.
+    pub off_track_drag_mps2: f32,
 }
+
+/// Rolling drag on grass: about 0.06 g, a car tyre's rolling resistance on
+/// turf. Kept well under what grass grip can put down (about 2 m/s² for a
+/// rear-driven car), or the car still cannot pull away.
+pub const OFF_TRACK_DRAG_MPS2: f32 = 0.6;
 
 impl Default for TrackSurface {
     fn default() -> Self {
@@ -518,7 +527,7 @@ impl Default for TrackSurface {
             base_grip: 1.0,
             curb_grip: 0.85,
             off_track_grip: 0.4,
-            off_track_speed_penalty: 0.15,
+            off_track_drag_mps2: OFF_TRACK_DRAG_MPS2,
         }
     }
 }
