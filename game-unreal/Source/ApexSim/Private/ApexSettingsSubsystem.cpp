@@ -179,6 +179,9 @@ void UApexSettingsSubsystem::ApplyGroup(EApexSettingsGroup Group)
 	// bindings go through the same mapping context as everything else.
 	case EApexSettingsGroup::Wheel:    ApplyControls(); break;
 	case EApexSettingsGroup::Audio:    ApplyAudio();    break;
+	// Nothing local: the setup exists only on the server, which the root
+	// widget forwards it to (UApexRootWidget::SendCarSetup).
+	case EApexSettingsGroup::CarSetup: break;
 	}
 }
 
@@ -716,6 +719,21 @@ void UApexSettingsSubsystem::SetWheelInvertForce(bool bInvert)
 	Changed(EApexSettingsGroup::Wheel);
 }
 
+// --- Car setup --------------------------------------------------------------
+
+void UApexSettingsSubsystem::SetCarSetupClick(int32 Knob, int32 Clicks)
+{
+	if (!Settings) { return; }
+	// A slot from before the field, or a short one, is brought to size here
+	// rather than at every read.
+	if (Settings->CarSetup.Clicks.Num() != FApexCarSetup::KnobCount)
+	{
+		Settings->CarSetup.Clamp();
+	}
+	if (!Settings->CarSetup.SetClick(Knob, Clicks)) { return; }
+	Changed(EApexSettingsGroup::CarSetup);
+}
+
 int32 UApexSettingsSubsystem::GetWheelDeviceSlot() const
 {
 	return Settings ? ApexInput::FindForceFeedbackDevice(Settings->Bindings) : INDEX_NONE;
@@ -863,6 +881,10 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 	case EApexSettingsGroup::Audio:
 		Settings->MasterVolume = Defaults->MasterVolume;
 		Settings->UiVolume = Defaults->UiVolume;
+		break;
+
+	case EApexSettingsGroup::CarSetup:
+		Settings->CarSetup = FApexCarSetup();
 		break;
 	}
 

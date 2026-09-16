@@ -108,6 +108,65 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeSetDriverAids(true, true, false, EApexTractionControl::High),
 		ApexGolden::C_SetDriverAids);
 
+	{
+		FApexCarSetup Setup;
+		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4 };
+		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
+		{
+			Setup.Clicks[Index] = Clicks[Index];
+		}
+		CheckBytes(TEXT("SetCarSetup"), ApexProtocol::EncodeSetCarSetup(Setup), ApexGolden::C_SetCarSetup);
+	}
+
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// The setup's clicks: ranges, one-sided knobs, and the read-out.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCarSetupClicksTest,
+	"ApexSim.Net.CarSetup.Clicks",
+	ApexTestFlags)
+
+bool FApexCarSetupClicksTest::RunTest(const FString& Parameters)
+{
+	FApexCarSetup Setup;
+	TestTrue(TEXT("a new setup is stock"), Setup.IsStock());
+	TestEqual(TEXT("a new setup has every knob"), Setup.Clicks.Num(), FApexCarSetup::KnobCount);
+
+	TestTrue(TEXT("a click within range moves the knob"), Setup.SetClick(ApexCarSetup::SpringFront, 2));
+	TestFalse(TEXT("the same value again is no change"), Setup.SetClick(ApexCarSetup::SpringFront, 2));
+	TestEqual(TEXT("one knob changed"), Setup.CountChanged(), 1);
+
+	Setup.SetClick(ApexCarSetup::SpringRear, 40);
+	TestEqual(TEXT("a wild click is pinned to the top of the range"), Setup.GetClick(ApexCarSetup::SpringRear), 5);
+	Setup.SetClick(ApexCarSetup::RevLimiter, 3);
+	TestEqual(TEXT("the rev limiter cannot be raised"), Setup.GetClick(ApexCarSetup::RevLimiter), 0);
+	Setup.SetClick(ApexCarSetup::TorqueMap, -9);
+	TestEqual(TEXT("the torque map bottoms out at five clicks"), Setup.GetClick(ApexCarSetup::TorqueMap), -5);
+
+	// A slot from an older build may hold too few knobs; Clamp fills it in.
+	FApexCarSetup Short;
+	Short.Clicks.SetNum(3);
+	Short.Clicks[0] = 99;
+	Short.Clamp();
+	TestEqual(TEXT("clamp restores the knob count"), Short.Clicks.Num(), FApexCarSetup::KnobCount);
+	TestEqual(TEXT("clamp pins the values"), Short.GetClick(0), 5);
+	TestEqual(TEXT("clamp zeroes the missing knobs"), Short.GetClick(FApexCarSetup::KnobCount - 1), 0);
+
+	TestEqual(TEXT("stock reads as 0"), ApexCarSetup::Describe(ApexCarSetup::SpringFront, 0), FString(TEXT("0")));
+	TestEqual(TEXT("clicks carry their effect"),
+		ApexCarSetup::Describe(ApexCarSetup::SpringFront, 2), FString(TEXT("+2  (+8%)")));
+	TestEqual(TEXT("the limiter reads in rpm"),
+		ApexCarSetup::Describe(ApexCarSetup::RevLimiter, -3), FString(TEXT("-3  (-300 rpm)")));
+	TestEqual(TEXT("pressures read in kPa"),
+		ApexCarSetup::Describe(ApexCarSetup::TyrePressureRear, -1), FString(TEXT("-1  (-5 kPa)")));
+
+	// The wire key table must line up with the enum it is indexed by.
+	TestEqual(TEXT("first key"), FString(ApexCarSetup::Knob(ApexCarSetup::TyrePressureFront).Key), FString(TEXT("tyre_pressure_front")));
+	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::AntiRollRear).Key), FString(TEXT("anti_roll_rear")));
 	return true;
 }
 

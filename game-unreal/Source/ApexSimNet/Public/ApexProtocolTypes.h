@@ -83,6 +83,93 @@ enum class EApexTractionControl : uint8
 };
 
 /**
+ * Mirrors `CarSetup` (car_setup.rs): the garage setup as *clicks* per knob,
+ * one signed integer each, so neither the wire nor the client needs the
+ * car's base figures — the server turns "+2" into newtons per metre against
+ * the car.toml it loaded. Every knob has a fixed click range and a fixed
+ * effect per click (ApexCarSetup::Knob); the server clamps whatever it is
+ * sent, and all-zero is the car as filed. Encoded inline on SetCarSetup, so
+ * the keys are snake_case; negative clicks are msgpack negative fixints.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexCarSetup
+{
+	GENERATED_BODY()
+
+	static constexpr int32 KnobCount = 14;
+
+	/** Clicks per knob, in ApexCarSetup::EKnob order. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Setup")
+	TArray<int32> Clicks;
+
+	FApexCarSetup()
+	{
+		Clicks.Init(0, KnobCount);
+	}
+
+	int32 GetClick(int32 Knob) const
+	{
+		return Clicks.IsValidIndex(Knob) ? Clicks[Knob] : 0;
+	}
+
+	/** Pins the value into the knob's range; returns whether anything changed. */
+	bool SetClick(int32 Knob, int32 Value);
+
+	/** Every knob pinned into range, as the server will do to it anyway. */
+	void Clamp();
+
+	/** True when every knob is at the file's value. */
+	bool IsStock() const;
+
+	/** How many knobs are away from the file's value. */
+	int32 CountChanged() const;
+
+	bool operator==(const FApexCarSetup& Other) const { return Clicks == Other.Clicks; }
+	bool operator!=(const FApexCarSetup& Other) const { return !(*this == Other); }
+};
+
+namespace ApexCarSetup
+{
+	/** One knob of the setup: its wire key, click range and what a click does. */
+	struct FKnob
+	{
+		/** The serde field name on the wire. */
+		const ANSICHAR* Key;
+		int32 Min;
+		int32 Max;
+		/** The size of one click for the read-out: "+2  (+8%)". */
+		float PerClick;
+		/** Unit of PerClick: "%", " kPa", " rpm". */
+		const TCHAR* Unit;
+	};
+
+	/** The knobs in wire order — the same order as the server's `KNOBS`. */
+	APEXSIMNET_API const FKnob& Knob(int32 Index);
+
+	/** The read-out for a knob at a click count, e.g. "+2  (+8%)" or "0". */
+	APEXSIMNET_API FString Describe(int32 Index, int32 Clicks);
+
+	enum EKnob : int32
+	{
+		TyrePressureFront = 0,
+		TyrePressureRear,
+		RevLimiter,
+		EngineBraking,
+		FinalDrive,
+		GearSpread,
+		TorqueMap,
+		BrakeBias,
+		SpringFront,
+		SpringRear,
+		DamperFront,
+		DamperRear,
+		AntiRollFront,
+		AntiRollRear,
+	};
+	static_assert(AntiRollRear + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
+}
+
+/**
  * Mirrors `AllowedAssists` (data.rs): which driving aids a session's host lets
  * its drivers use, fixed when the session is created. Sent inside
  * CreateSession and echoed in SessionJoined; the server forces a disallowed

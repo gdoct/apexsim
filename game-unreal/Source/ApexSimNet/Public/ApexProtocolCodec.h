@@ -43,6 +43,8 @@ namespace ApexProtocol
 	/** ABS and traction control are the driver's own; the session's allowed set is applied by the server. */
 	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(
 		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
+	/** Every knob is sent, clamped here as the server will clamp it again. */
+	APEXSIMNET_API TArray<uint8> EncodeSetCarSetup(const FApexCarSetup& Setup);
 
 	// --- Client -> server over UDP -------------------------------------------
 	// Sent as bare datagrams: no length prefix, unlike the TCP stream. The

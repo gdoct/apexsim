@@ -331,6 +331,12 @@ void UApexNetSubsystem::SetDriverAids(
 	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl));
 }
 
+void UApexNetSubsystem::SetCarSetup(const FApexCarSetup& Setup)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetCarSetup %d knob(s) off stock"), Setup.CountChanged());
+	SendPayload(ApexProtocol::EncodeSetCarSetup(Setup));
+}
+
 bool UApexNetSubsystem::FindCarById(const FString& CarId, FApexCarConfigSummary& OutCar) const
 {
 	for (const FApexCarConfigSummary& Car : CachedLobbyState.CarConfigs)

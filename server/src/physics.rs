@@ -493,6 +493,10 @@ pub fn update_car_3d(
 
     // 10. Calculate tire forces using Pacejka-inspired model
     let effective_grip = config.tire_config.grip_coefficient * track_ctx.grip_modifier;
+    // Tyre pressure per axle (the garage setup): exactly 1.0 at the
+    // optimum, so a stock car is unchanged to the bit.
+    let effective_grip_front = effective_grip * config.tire_config.front_grip_factor();
+    let effective_grip_rear = effective_grip * config.tire_config.rear_grip_factor();
 
     // Solve per-wheel tire forces (quasi-static torque balance with
     // wheelspin / lockup / ABS behavior and friction-ellipse coupling)
@@ -528,7 +532,7 @@ pub fn update_car_3d(
             brake_front / 2.0,
             config.wheel_radius_m,
             state.weight_front_left_n,
-            effective_grip,
+            effective_grip_front,
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -543,7 +547,7 @@ pub fn update_car_3d(
             brake_front / 2.0,
             config.wheel_radius_m,
             state.weight_front_right_n,
-            effective_grip,
+            effective_grip_front,
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -558,7 +562,7 @@ pub fn update_car_3d(
             brake_rear / 2.0,
             config.wheel_radius_m,
             state.weight_rear_left_n,
-            effective_grip,
+            effective_grip_rear,
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -573,7 +577,7 @@ pub fn update_car_3d(
             brake_rear / 2.0,
             config.wheel_radius_m,
             state.weight_rear_right_n,
-            effective_grip,
+            effective_grip_rear,
             &config.tire_config,
             abs_enabled,
             traction_control,

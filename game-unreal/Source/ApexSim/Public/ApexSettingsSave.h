@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "ApexProtocolTypes.h"
 #include "InputCoreTypes.h"
 
 #include "ApexSettingsSave.generated.h"
@@ -312,4 +313,14 @@ public:
 	/** Empty until something is rebound — an absent slot uses its default key. */
 	UPROPERTY()
 	TArray<FApexKeyBinding> Bindings;
+
+	// --- Car setup ------------------------------------------------------------
+
+	/**
+	 * The garage setup, as clicks per knob (ApexCarSetup::EKnob), sent to the
+	 * server as SetCarSetup on join and on every change. One setup for every
+	 * car for now: the clicks are relative to whichever car.toml is driven.
+	 */
+	UPROPERTY()
+	FApexCarSetup CarSetup;
 };

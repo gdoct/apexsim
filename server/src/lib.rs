@@ -1,5 +1,6 @@
 pub mod ai_driver;
 pub mod car_loader;
+pub mod car_setup;
 pub mod config;
 pub mod content_crc;
 pub mod curbs;

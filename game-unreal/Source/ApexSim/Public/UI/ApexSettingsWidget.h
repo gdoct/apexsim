@@ -9,6 +9,7 @@
 
 class UApexButtonWidget;
 class UApexSegmentedWidget;
+class UApexStepperWidget;
 class UBorder;
 class UComboBoxString;
 class UHorizontalBox;
@@ -21,7 +22,7 @@ class UWidgetSwitcher;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnSettingsClosed);
 
-/** The settings overlay's seven pages. */
+/** The settings overlay's eight pages. */
 UENUM(BlueprintType)
 enum class EApexSettingsTab : uint8
 {
@@ -34,6 +35,8 @@ enum class EApexSettingsTab : uint8
 	/** Wheels and pedals: the devices, their forces and their own bindings. */
 	Wheel,
 	Audio,
+	/** The garage: tyres, engine, transmission, torque and suspension, in clicks off the car's file. */
+	CarSetup,
 };
 
 /**
@@ -92,6 +95,7 @@ protected:
 	UFUNCTION() void HandleFooterActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleBindingActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleSegmentChosen(UApexSegmentedWidget* Control, int32 Index);
+	UFUNCTION() void HandleStepperChanged(UApexStepperWidget* Control, int32 Value);
 
 	UFUNCTION() void HandleAiSkillChanged(float Value);
 	UFUNCTION() void HandleMotionBlurChanged(float Value);
@@ -133,7 +137,13 @@ private:
 	UWidget* BuildControlsPage();
 	UWidget* BuildWheelPage();
 	UWidget* BuildAudioPage();
+	UWidget* BuildCarSetupPage();
 	UWidget* BuildBindingsGrid();
+
+	/** One setup row: a knob's stepper, registered by its ApexCarSetup::EKnob index. */
+	UWidget* MakeSetupRow(UVerticalBox* Column, int32 Knob, const TCHAR* Label, const TCHAR* Description, bool bFirst);
+	/** Pushes every stepper to the stored setup and refreshes the header's count. */
+	void RefreshCarSetup();
 
 	/** The wheel column's slots, with a live meter beside each axis. */
 	UWidget* BuildWheelBindings();
@@ -237,6 +247,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FooterStatusText;
 
 	UPROPERTY(Transient) TMap<FName, TObjectPtr<UApexSegmentedWidget>> Segments;
+	/** The car setup page's steppers, by knob index. */
+	UPROPERTY(Transient) TMap<int32, TObjectPtr<UApexStepperWidget>> SetupSteppers;
 	/** Lock badges on the assists page, by the row's segment id. */
 	UPROPERTY(Transient) TMap<FName, TObjectPtr<UWidget>> AssistLocks;
 

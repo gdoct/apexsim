@@ -1,4 +1,5 @@
 use crate::ai_driver::{AiDriverController, AiDriverProfile, TrafficCar};
+use crate::car_setup::CarSetup;
 use crate::data::*;
 use crate::network::*;
 use crate::physics;
@@ -42,6 +43,26 @@ pub struct GameSession {
     /// car on the cool-down lap (the AI steers the rack directly) and given
     /// back when the grid is lined up again. Looked up by key only.
     held_steering_assist: HashMap<PlayerId, bool>,
+    /// The car a driver with a garage setup is simulated with: their
+    /// `CarSetup` baked into a copy of the shared config, remade on every
+    /// `SetCarSetup` and dropped when the setup is stock or the player
+    /// leaves. Looked up by key only, never iterated.
+    tuned_configs: HashMap<PlayerId, CarConfig>,
+    /// What each driver asked for, clamped.
+    car_setups: HashMap<PlayerId, CarSetup>,
+}
+
+/// The config a car is simulated with: the driver's tuned copy when they
+/// have one, else the shared config for the car. A free function so the
+/// tick loops can hold `participants` mutably alongside it.
+fn simulated_config<'a>(
+    car_configs: &'a HashMap<CarConfigId, CarConfig>,
+    tuned_configs: &'a HashMap<PlayerId, CarConfig>,
+    state: &CarState,
+) -> Option<&'a CarConfig> {
+    tuned_configs
+        .get(&state.player_id)
+        .or_else(|| car_configs.get(&state.car_config_id))
 }
 
 impl GameSession {
@@ -60,6 +81,8 @@ impl GameSession {
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
             held_steering_assist: HashMap::new(),
+            tuned_configs: HashMap::new(),
+            car_setups: HashMap::new(),
         }
     }
 
@@ -89,6 +112,8 @@ impl GameSession {
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
             held_steering_assist: HashMap::new(),
+            tuned_configs: HashMap::new(),
+            car_setups: HashMap::new(),
         }
     }
 
@@ -180,7 +205,7 @@ impl GameSession {
         let dt = self.dt();
         for state in self.session.participants.values_mut() {
             let input = inputs.get(&state.player_id).copied().unwrap_or_default();
-            if let Some(config) = self.car_configs.get(&state.car_config_id) {
+            if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
                 physics::update_car_on_grid(state, config, &input, dt);
             }
         }
@@ -209,7 +234,9 @@ impl GameSession {
             for state in states.iter_mut() {
                 let input = inputs.get(&state.player_id).copied().unwrap_or_default();
 
-                if let Some(config) = self.car_configs.get(&state.car_config_id) {
+                if let Some(config) =
+                    simulated_config(&self.car_configs, &self.tuned_configs, state)
+                {
                     physics::update_car_3d(state, config, &input, &self.track_config, dt);
                     physics::update_track_progress_3d(
                         state,
@@ -351,7 +378,7 @@ impl GameSession {
             let input = inputs.get(&state.player_id).copied().unwrap_or_default();
 
             // Get car config
-            if let Some(config) = self.car_configs.get(&state.car_config_id) {
+            if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
                 // Update 3D physics with track context
                 physics::update_car_3d(state, config, &input, &self.track_config, dt);
 
@@ -408,7 +435,7 @@ impl GameSession {
                 .unwrap_or_default();
 
             // Get car config
-            if let Some(config) = self.car_configs.get(&state.car_config_id) {
+            if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
                 // Update 3D physics with track context
                 physics::update_car_3d(state, config, &input, &self.track_config, dt);
 
@@ -655,11 +682,42 @@ impl GameSession {
         Some(applied)
     }
 
+    /// Apply a driver's garage setup: every knob clamped into range, the
+    /// result baked into the car they are simulated with from now on. A
+    /// stock setup drops the tuned copy. `None` when the player has no car
+    /// here. The setup takes effect at once, on the grid or mid-lap.
+    pub fn set_car_setup(&mut self, player_id: &PlayerId, asked: CarSetup) -> Option<CarSetup> {
+        let applied = asked.clamp();
+        let car = self.session.participants.get(player_id)?;
+        let base = self.car_configs.get(&car.car_config_id)?;
+        if applied.is_stock() {
+            self.tuned_configs.remove(player_id);
+            self.car_setups.remove(player_id);
+        } else {
+            self.tuned_configs.insert(*player_id, applied.apply(base));
+            self.car_setups.insert(*player_id, applied);
+        }
+        Some(applied)
+    }
+
+    /// The clamped setup a driver last sent; stock when they never did.
+    pub fn car_setup(&self, player_id: &PlayerId) -> CarSetup {
+        self.car_setups.get(player_id).copied().unwrap_or_default()
+    }
+
+    /// The config a driver's car is simulated with (their setup applied).
+    pub fn simulated_config_for(&self, player_id: &PlayerId) -> Option<&CarConfig> {
+        let state = self.session.participants.get(player_id)?;
+        simulated_config(&self.car_configs, &self.tuned_configs, state)
+    }
+
     /// Remove a player from the session
     pub fn remove_player(&mut self, player_id: &PlayerId) {
         if self.session.participants.remove(player_id).is_some() {
             self.roster_dirty = true;
         }
+        self.tuned_configs.remove(player_id);
+        self.car_setups.remove(player_id);
     }
 
     /// Put every car back on its grid slot with a clean race state (laps,
@@ -1122,6 +1180,98 @@ mod tests {
         assert_eq!(
             game_session.session.countdown_ticks_remaining.unwrap(),
             initial_countdown - 1
+        );
+    }
+
+    #[test]
+    fn test_car_setup_tunes_only_that_driver() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let tuned_driver = Uuid::new_v4();
+        let stock_driver = Uuid::new_v4();
+        game_session.add_player(tuned_driver, car_id);
+        game_session.add_player(stock_driver, car_id);
+        let base_spring = game_session.car_configs[&car_id]
+            .suspension
+            .spring_rate_front_n_per_m;
+
+        // Out of range on purpose: the applied setup is the clamped one.
+        let asked = CarSetup {
+            spring_front: 9,
+            rev_limiter: 2,
+            ..Default::default()
+        };
+        let applied = game_session.set_car_setup(&tuned_driver, asked).unwrap();
+        assert_eq!(applied.spring_front, 5);
+        assert_eq!(applied.rev_limiter, 0);
+        assert_eq!(game_session.car_setup(&tuned_driver), applied);
+
+        let tuned = game_session.simulated_config_for(&tuned_driver).unwrap();
+        assert!((tuned.suspension.spring_rate_front_n_per_m - base_spring * 1.2).abs() < 1e-2);
+        let stock = game_session.simulated_config_for(&stock_driver).unwrap();
+        assert_eq!(stock.suspension.spring_rate_front_n_per_m, base_spring);
+        assert_eq!(
+            game_session.car_configs[&car_id]
+                .suspension
+                .spring_rate_front_n_per_m,
+            base_spring
+        );
+
+        // A stock setup drops the tuned copy; so does leaving.
+        game_session.set_car_setup(&tuned_driver, CarSetup::default());
+        assert!(game_session.tuned_configs.is_empty());
+        assert!(game_session.car_setup(&tuned_driver).is_stock());
+        game_session.set_car_setup(&tuned_driver, applied);
+        game_session.remove_player(&tuned_driver);
+        assert!(game_session.tuned_configs.is_empty());
+
+        // Nobody's car: nothing applied.
+        assert!(game_session
+            .set_car_setup(&Uuid::new_v4(), applied)
+            .is_none());
+    }
+
+    #[test]
+    fn test_car_setup_changes_the_simulated_car() {
+        // Two identical drivers, one with a shorter final drive: after a
+        // second at full throttle from the grid the tuned car has pulled a
+        // different speed, so the tick loop really reads the tuned copy.
+        let mut a = create_test_session();
+        let car_id = a.car_configs.values().next().unwrap().id;
+        let driver = Uuid::new_v4();
+        a.add_player(driver, car_id);
+        let mut b = create_test_session();
+        b.add_player(driver, car_id);
+        b.set_car_setup(
+            &driver,
+            CarSetup {
+                torque_map: -5,
+                ..Default::default()
+            },
+        );
+        for session in [&mut a, &mut b] {
+            session.set_game_mode(GameMode::FreePractice);
+        }
+        let mut inputs = HashMap::new();
+        inputs.insert(
+            driver,
+            PlayerInputData {
+                throttle: 1.0,
+                gear: Some(1),
+                ..Default::default()
+            },
+        );
+        for _ in 0..240 {
+            a.tick(&inputs);
+            b.tick(&inputs);
+        }
+        let speed = |s: &GameSession| s.session.participants[&driver].speed_mps;
+        assert!(speed(&a) > 1.0, "the stock car moved: {}", speed(&a));
+        assert!(
+            speed(&b) < speed(&a),
+            "80% torque should be slower: tuned {} vs stock {}",
+            speed(&b),
+            speed(&a)
         );
     }
 

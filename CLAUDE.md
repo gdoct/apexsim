@@ -686,8 +686,8 @@ traction control, the automatic gearbox and speed-sensitive steering are
 `CarState` fields the physics reads every tick, and the racing line is built
 there and sent on join. The client's settings overlay has an **Assists** tab
 (`EApexSettingsTab::Assists`, group `EApexSettingsGroup::Assists`; the tab
-order is gameplay, assists, graphics, camera, controls, wheel, audio, so
-`-ApexSettingsTab=1` opens it) holding ABS, traction control OFF/LOW/HIGH,
+order is gameplay, assists, graphics, camera, controls, wheel, audio, car
+setup, so `-ApexSettingsTab=1` opens it) holding ABS, traction control OFF/LOW/HIGH,
 gearbox, steering and the racing line. `UApexRootWidget::SendDriverAids`
 sends `SetDriverAids { auto_gearbox, steering_assist, abs, traction_control }`
 on join and on any change of the group; ABS and traction control are
@@ -716,6 +716,53 @@ with those forbidden, for a screenshot run of the locked tab
 messages come from `network.rs` `test_assists_wire_format`
 (`cargo test assists_wire_format -- --nocapture` prints them) and are pinned
 in `ApexGoldenBlobs.h`.
+
+### Car setup (`server/src/car_setup.rs`, `SetCarSetup`, the Car setup settings tab)
+
+The garage: tyres, engine, transmission, torque and suspension, per driver.
+A setup is **clicks** off the car's own `car.toml`, one `i8` per knob
+(`CarSetup`, 14 knobs in `KNOBS` order), so neither the wire nor the client
+needs the car's base figures; the client shows "+2  (+8%)" and the server
+turns that into newtons per metre against the file it loaded. Every knob
+has a fixed click range (±5; the rev limiter and torque map only go down)
+and a fixed effect per click (`*_PER_CLICK`): tyre pressure 5 kPa per axle,
+rev limiter −100 rpm (redline comes down with it, so the auto gearbox
+follows), engine braking ±15%, final drive ±2%, gear spread ±2% on top gear
+blended down the ladder with first untouched, torque map −4% on the whole
+curve, brake bias ±1% front, springs ±4%, dampers ±5% (bump and rebound
+together), anti-roll bars ±8%. Only knobs the sim reads are offered: there
+is no differential model and rolling resistance is never consumed.
+
+Tyre pressure is the one physics addition: `TireConfig` carries
+`pressure_front_kpa` / `pressure_rear_kpa` / `optimal_pressure_kpa` (180
+by default, not yet in any car.toml) and `pressure_grip_factor` costs an
+axle grip quadratically off the optimum (4% at five clicks), exactly 1.0 at
+it, so a stock car is bit-identical to before (`update_car_3d` passes
+`effective_grip_front` / `_rear` to the wheel solver). Raising one end's
+pressure loosens that end, which is what makes the knob a balance tool.
+
+The client sends `SetCarSetup { tyre_pressure_front, … }` on join and on any
+change of the group (`UApexRootWidget::SendCarSetup`, like the aids). The
+server clamps (`CarSetup::clamp`) and bakes the result into a tuned copy of
+the `CarConfig` (`CarSetup::apply`) kept on `GameSession::tuned_configs` per
+player; the tick loops look the car up through `simulated_config`, tuned
+first, shared otherwise, so the hot loop pays one map lookup and nothing
+else. A stock setup drops the copy; leaving the session drops it. The setup
+applies at once, on the grid or mid-lap. AI cars and the collision passes
+(dimensions only) use the shared config. Golden bytes come from
+`network.rs` `test_car_setup_wire_format` (`cargo test car_setup_wire_format
+-- --nocapture`) and are pinned as `ApexGolden::C_SetCarSetup`.
+
+On the client the setup lives on `UApexSettingsSave::CarSetup`
+(`FApexCarSetup`, `TArray<int32> Clicks`, one setup shared by every car),
+edited on the settings overlay's **Car setup** tab
+(`EApexSettingsTab::CarSetup`, appended after Audio so
+`-ApexSettingsTab=7` opens it) as a two-column page of `UApexStepperWidget`
+rows: a − / + pill pair around a read-out from `ApexCarSetup::Describe`. The
+knob table (`ApexCarSetup::Knob`: wire key, range, per-click size and unit)
+lives in the net module beside the encoder and mirrors the server's
+constants; `ApexSim.Net.CarSetup.Clicks` pins the ranges and read-outs, the
+golden encode test the bytes. Reset on that tab returns every knob to stock.
 
 ### Force feedback (`server/src/feedback.rs`, `Input/ApexForceFeedback.h`)
 

@@ -26,6 +26,7 @@
 #include "Input/ApexInputConfig.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexSegmentedWidget.h"
+#include "UI/ApexStepperWidget.h"
 #include "UI/ApexUIStyle.h"
 
 using namespace ApexUI;
@@ -39,7 +40,8 @@ static_assert(
 		&& static_cast<int32>(EApexSettingsTab::Camera) == static_cast<int32>(EApexSettingsGroup::Camera)
 		&& static_cast<int32>(EApexSettingsTab::Controls) == static_cast<int32>(EApexSettingsGroup::Controls)
 		&& static_cast<int32>(EApexSettingsTab::Wheel) == static_cast<int32>(EApexSettingsGroup::Wheel)
-		&& static_cast<int32>(EApexSettingsTab::Audio) == static_cast<int32>(EApexSettingsGroup::Audio),
+		&& static_cast<int32>(EApexSettingsTab::Audio) == static_cast<int32>(EApexSettingsGroup::Audio)
+		&& static_cast<int32>(EApexSettingsTab::CarSetup) == static_cast<int32>(EApexSettingsGroup::CarSetup),
 	"EApexSettingsTab and EApexSettingsGroup must stay aligned");
 
 namespace
@@ -64,8 +66,9 @@ namespace
 	const FName ActionTabControls = TEXT("Tab.Controls");
 	const FName ActionTabWheel    = TEXT("Tab.Wheel");
 	const FName ActionTabAudio    = TEXT("Tab.Audio");
+	const FName ActionTabCarSetup = TEXT("Tab.CarSetup");
 	/** For wrapping the page cycle; the last tab is the count minus one. */
-	constexpr int32 TabCount = static_cast<int32>(EApexSettingsTab::Audio) + 1;
+	constexpr int32 TabCount = static_cast<int32>(EApexSettingsTab::CarSetup) + 1;
 	const FName ActionSettingsBack        = TEXT("Back");
 	const FName ActionReset       = TEXT("Reset");
 
@@ -229,6 +232,7 @@ void UApexSettingsWidget::BuildOverlay()
 	PageHost->AddChild(BuildControlsPage());
 	PageHost->AddChild(BuildWheelPage());
 	PageHost->AddChild(BuildAudioPage());
+	PageHost->AddChild(BuildCarSetupPage());
 
 	// The page area is darker than the card it sits in, so that the rows — which
 	// are Surface — read as cards rather than dissolving into the panel.
@@ -337,6 +341,7 @@ UWidget* UApexSettingsWidget::BuildRail()
 	AddTab(TEXT("Controls"), ActionTabControls);
 	AddTab(TEXT("Wheel"), ActionTabWheel);
 	AddTab(TEXT("Audio"), ActionTabAudio);
+	AddTab(TEXT("Car setup"), ActionTabCarSetup);
 
 	AddV(Stack, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
 
@@ -634,6 +639,112 @@ void UApexSettingsWidget::RefreshAssistLocks()
 			}
 		}
 	}
+}
+
+// --- Car setup --------------------------------------------------------------
+//
+// Every knob is a click count either side of the car's own file, sent to the
+// server as SetCarSetup (UApexRootWidget::SendCarSetup forwards the group on
+// join and on any change) and baked there into the car this player is
+// simulated with. The read-out shows what a click is worth; the car's base
+// figures are not on the wire, so the page never shows an absolute.
+
+UWidget* UApexSettingsWidget::MakeSetupRow(
+	UVerticalBox* Column, int32 Knob, const TCHAR* Label, const TCHAR* Description, bool bFirst)
+{
+	UApexStepperWidget* Stepper = WidgetTree->ConstructWidget<UApexStepperWidget>();
+	Stepper->Index = Knob;
+	Stepper->ControlId = FName(ApexCarSetup::Knob(Knob).Key);
+	Stepper->Formatter = [Knob](int32 Value) { return ApexCarSetup::Describe(Knob, Value); };
+	const ApexCarSetup::FKnob& Spec = ApexCarSetup::Knob(Knob);
+	Stepper->Setup(Spec.Min, Spec.Max, 0, 118.0f);
+	Stepper->OnChanged.AddDynamic(this, &UApexSettingsWidget::HandleStepperChanged);
+	SetupSteppers.Add(Knob, Stepper);
+
+	UWidget* Row = MakeRow(Label, Description, Stepper, FString(), WheelRowHeight);
+	AddV(Column, Row, FMargin(0.0f, bFirst ? 0.0f : 2.0f, 0.0f, 0.0f));
+	return Row;
+}
+
+UWidget* UApexSettingsWidget::BuildCarSetupPage()
+{
+	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	UHorizontalBox* Grid = WidgetTree->ConstructWidget<UHorizontalBox>();
+	UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>();
+	UVerticalBox* Right = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	const FMargin SectionGap(0.0f, 22.0f, 0.0f, 12.0f);
+	const FMargin FirstSection(0.0f, 0.0f, 0.0f, 12.0f);
+
+	// Left column: the powertrain end of the car, top to bottom.
+	AddV(Left, MakeSectionLabel(TEXT("Tyres")), FirstSection);
+	MakeSetupRow(Left, ApexCarSetup::TyrePressureFront, TEXT("Front pressure"),
+		TEXT("Away from optimum the front loses grip."), true);
+	MakeSetupRow(Left, ApexCarSetup::TyrePressureRear, TEXT("Rear pressure"),
+		TEXT("Away from optimum the rear loses grip."), false);
+
+	AddV(Left, MakeSectionLabel(TEXT("Engine")), SectionGap);
+	MakeSetupRow(Left, ApexCarSetup::RevLimiter, TEXT("Rev limiter"),
+		TEXT("Lowers the cut and the redline. Down only."), true);
+	MakeSetupRow(Left, ApexCarSetup::EngineBraking, TEXT("Engine braking"),
+		TEXT("Drag off throttle. More settles the entry."), false);
+
+	AddV(Left, MakeSectionLabel(TEXT("Transmission")), SectionGap);
+	MakeSetupRow(Left, ApexCarSetup::FinalDrive, TEXT("Final drive"),
+		TEXT("Shorter (+) pulls harder, tops out sooner."), true);
+	MakeSetupRow(Left, ApexCarSetup::GearSpread, TEXT("Gear spread"),
+		TEXT("Scales top gear; first stays. Closer (+)."), false);
+
+	AddV(Left, MakeSectionLabel(TEXT("Torque")), SectionGap);
+	MakeSetupRow(Left, ApexCarSetup::TorqueMap, TEXT("Torque map"),
+		TEXT("Trims the whole curve. Down only."), true);
+	MakeSetupRow(Left, ApexCarSetup::BrakeBias, TEXT("Brake bias"),
+		TEXT("Front share. Rearward turns in on the brakes."), false);
+
+	// Right column: the chassis.
+	AddV(Right, MakeSectionLabel(TEXT("Suspension")), FirstSection);
+	MakeSetupRow(Right, ApexCarSetup::SpringFront, TEXT("Front springs"),
+		TEXT("Stiffer resists dive and roll; less curb grip."), true);
+	MakeSetupRow(Right, ApexCarSetup::SpringRear, TEXT("Rear springs"),
+		TEXT("Stiffer resists squat; softer puts power down."), false);
+	MakeSetupRow(Right, ApexCarSetup::DamperFront, TEXT("Front dampers"),
+		TEXT("Bump and rebound together. Firmer is flatter."), false);
+	MakeSetupRow(Right, ApexCarSetup::DamperRear, TEXT("Rear dampers"),
+		TEXT("Bump and rebound together, at the rear."), false);
+	MakeSetupRow(Right, ApexCarSetup::AntiRollFront, TEXT("Front anti-roll bar"),
+		TEXT("Stiffer: more understeer, sharper turn-in."), false);
+	MakeSetupRow(Right, ApexCarSetup::AntiRollRear, TEXT("Rear anti-roll bar"),
+		TEXT("Stiffer: more oversteer, a livelier rear."), false);
+
+	AddH(Grid, Left, FMargin(), VAlign_Top, 1.0f);
+	AddH(Grid, Right, FMargin(24.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
+	AddV(Page, Grid);
+
+	AddV(Page, MakeText(*WidgetTree,
+		TEXT("Each click is a fixed step off the car's own file, so one setup carries across cars. The server applies it at once, on the grid or mid-lap; Reset returns every knob to stock."),
+		Font::Body(12.0f), Palette::TextMuted), FMargin(4.0f, 18.0f, 0.0f, 0.0f));
+
+	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
+	return Page;
+}
+
+void UApexSettingsWidget::RefreshCarSetup()
+{
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const UApexSettingsSave* Values = Settings ? Settings->Get() : nullptr;
+	if (!Values)
+	{
+		return;
+	}
+	for (const TPair<int32, TObjectPtr<UApexStepperWidget>>& Entry : SetupSteppers)
+	{
+		if (Entry.Value)
+		{
+			Entry.Value->SetValue(Values->CarSetup.GetClick(Entry.Key));
+		}
+	}
+	RefreshHeaderContext();
 }
 
 // --- Graphics ---------------------------------------------------------------
@@ -1473,6 +1584,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegSteering, Values->bSteeringAssist ? 1 : 0);
 	SetSegment(SegRacingLine, static_cast<int32>(Values->RacingLine));
 	RefreshAssistLocks();
+	RefreshCarSetup();
 	SetSegment(SegUnits, static_cast<int32>(Values->Units));
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
 	SetSegment(SegPreset, static_cast<int32>(Values->Preset));
@@ -1679,6 +1791,17 @@ void UApexSettingsWidget::RefreshHeaderContext()
 	case EApexSettingsTab::Audio:
 		Context = TEXT("Applies immediately · saved on close");
 		break;
+
+	case EApexSettingsTab::CarSetup:
+	{
+		const UApexSettingsSubsystem* Settings = GetSettings();
+		const int32 Changed = Settings && Settings->Get() ? Settings->Get()->CarSetup.CountChanged() : 0;
+		Context = Changed == 0
+			? TEXT("Stock setup · applies at once · saved on close")
+			: Changed == 1 ? TEXT("1 knob off stock · applies at once · saved on close")
+			               : FString::Printf(TEXT("%d knobs off stock · applies at once · saved on close"), Changed);
+		break;
+	}
 	}
 
 	HeaderContextText->SetText(FText::FromString(Context.ToUpper()));
@@ -1727,6 +1850,7 @@ void UApexSettingsWidget::HandleRailActivated(UApexButtonWidget* Button)
 	else if (Action == ActionTabControls) { ShowTab(EApexSettingsTab::Controls); }
 	else if (Action == ActionTabWheel)    { ShowTab(EApexSettingsTab::Wheel); }
 	else if (Action == ActionTabAudio)    { ShowTab(EApexSettingsTab::Audio); }
+	else if (Action == ActionTabCarSetup) { ShowTab(EApexSettingsTab::CarSetup); }
 }
 
 void UApexSettingsWidget::HandleFooterActivated(UApexButtonWidget* Button)
@@ -1795,6 +1919,19 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 		return;
 	}
 
+	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandleStepperChanged(UApexStepperWidget* Control, int32 Value)
+{
+	UApexSettingsSubsystem* Settings = GetSettings();
+	if (bRefreshing || !Control || !Settings)
+	{
+		return;
+	}
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	Settings->SetCarSetupClick(Control->Index, Value);
+	RefreshHeaderContext();
 	RefreshFooter();
 }
 

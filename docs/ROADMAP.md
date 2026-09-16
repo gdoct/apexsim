@@ -12,6 +12,7 @@ Priorities:
 ## Done: Items from this list that were resolved
 - brake light
 - reverse gear
+- car setup (tyres, engine, transmission, torque, suspension): a Car setup tab, applied on the server per driver
 | Controller focus lost in game and menus / can't navigate to sections | bug | Pad-only players can't play at all. Earlier fix: `FApexMenuInputProcessor` focus recovery. Check which screens and sections still trap focus. |
 
 ## P0: playable end to end
@@ -51,7 +52,7 @@ Priorities:
 | Tyre sounds | feature | Server already sends slip per wheel in `DriverFeedback`. |
 | Kerb sounds | feature | Server already sends the surface under each wheel in `DriverFeedback`. |
 | Flags: yellow, blue, chequered (new) | feature | There is no flag state on the wire yet. Needs server-side incident and lapping detection, plus the HUD and trackside panels (`ApexEmissive_*` tags already exist). |
-| Car setup (new) | feature | Wing, gearing, brake bias, tyre pressures. Comes after sim settings. |
+| Car setup: wings, per-car setups (new) | feature | The Car setup tab has tyres, engine, transmission, torque and suspension as clicks off the file. Still missing: aero (the sim has no wing model), a setup saved per car rather than one for all, and absolute read-outs (the base figures are not on the wire). |
 | Replay viewer (new) | feature | Server already writes replays (`replay.rs`). The TV director could play them back. |
 | Time trial with ghost car (new) | feature | Builds on personal bests. Low network cost, high replay value. |
 | Better HUD controls | feature | Delta bar, relative box, fuel/tyre widgets as those systems land. |
