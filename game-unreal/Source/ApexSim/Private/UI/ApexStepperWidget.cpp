@@ -10,10 +10,10 @@
 namespace
 {
 	/** The same pill as a segmented control's, so the two line up in a column. */
-	constexpr float PillHeight = 38.0f;
-	constexpr float PillWidth = 44.0f;
-	constexpr float PillLabelSize = 15.0f;
-	constexpr float PillGap = 4.0f;
+	constexpr float StepperPillHeight = 38.0f;
+	constexpr float StepperPillWidth = 44.0f;
+	constexpr float StepperPillLabelSize = 15.0f;
+	constexpr float StepperPillGap = 4.0f;
 
 	const FName ActionMinus = TEXT("Minus");
 	const FName ActionPlus = TEXT("Plus");
@@ -61,8 +61,8 @@ void UApexStepperWidget::Setup(int32 InMin, int32 InMax, int32 InValue, float Re
 		Spec.Label = Label;
 		Spec.Variant = EApexButtonVariant::Ghost;
 		Spec.bCentreLabel = true;
-		Spec.Height = PillHeight;
-		Spec.LabelSize = PillLabelSize;
+		Spec.Height = StepperPillHeight;
+		Spec.LabelSize = StepperPillLabelSize;
 		Spec.ActionId = ActionId;
 		Pill->Setup(Spec);
 		Pill->OnActivated.AddDynamic(this, &UApexStepperWidget::HandlePillActivated);
@@ -70,14 +70,14 @@ void UApexStepperWidget::Setup(int32 InMin, int32 InMax, int32 InValue, float Re
 	};
 
 	MinusPill = MakePill(TEXT("−"), ActionMinus);
-	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, MinusPill, PillWidth, PillHeight));
+	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, MinusPill, StepperPillWidth, StepperPillHeight));
 
 	Readout = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(13.0f, 40), ApexUI::Palette::TextPrimary);
 	Readout->SetJustification(ETextJustify::Center);
-	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Readout, TextWidth, -1.0f), FMargin(PillGap, 0.0f), VAlign_Center);
+	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Readout, TextWidth, -1.0f), FMargin(StepperPillGap, 0.0f), VAlign_Center);
 
 	PlusPill = MakePill(TEXT("+"), ActionPlus);
-	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, PlusPill, PillWidth, PillHeight));
+	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, PlusPill, StepperPillWidth, StepperPillHeight));
 
 	ApplyValue();
 }

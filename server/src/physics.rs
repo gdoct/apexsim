@@ -228,6 +228,7 @@ pub fn update_car_3d(
     let total_weight = config.mass_kg * GRAVITY;
     let (static_front_weight, static_rear_weight) =
         calculate_static_weight_distribution(config, total_weight);
+    let (front_axle_x, rear_axle_x) = axle_positions(config);
 
     // 3. Calculate aerodynamic forces
     let (drag_force, downforce_front, downforce_rear) = calculate_aerodynamic_forces(state, config);
@@ -338,7 +339,7 @@ pub fn update_car_3d(
 
     // Body frame: +y is LEFT, so the left wheels sit at +track/2.
     let mut wheel_front_left = sample_wheel_state(
-        config.wheelbase_m / 2.0,
+        front_axle_x,
         config.track_width_front_m / 2.0,
         config.suspension.spring_rate_front_n_per_m,
         config.suspension.damper_compression_front,
@@ -346,7 +347,7 @@ pub fn update_car_3d(
         prev_fl_compression,
     );
     let mut wheel_front_right = sample_wheel_state(
-        config.wheelbase_m / 2.0,
+        front_axle_x,
         -config.track_width_front_m / 2.0,
         config.suspension.spring_rate_front_n_per_m,
         config.suspension.damper_compression_front,
@@ -354,7 +355,7 @@ pub fn update_car_3d(
         prev_fr_compression,
     );
     let mut wheel_rear_left = sample_wheel_state(
-        -config.wheelbase_m / 2.0,
+        rear_axle_x,
         config.track_width_rear_m / 2.0,
         config.suspension.spring_rate_rear_n_per_m,
         config.suspension.damper_compression_rear,
@@ -362,7 +363,7 @@ pub fn update_car_3d(
         prev_rl_compression,
     );
     let mut wheel_rear_right = sample_wheel_state(
-        -config.wheelbase_m / 2.0,
+        rear_axle_x,
         -config.track_width_rear_m / 2.0,
         config.suspension.spring_rate_rear_n_per_m,
         config.suspension.damper_compression_rear,
@@ -470,8 +471,8 @@ pub fn update_car_3d(
     // 9. Calculate steering angle, through the speed-sensitive aid when the
     // driver has it on.
     let steering = if state.steering_assist {
-        let front_axle_travel_rad = (v_lat + state.angular_vel_yaw * config.wheelbase_m / 2.0)
-            .atan2(v_long.max(MIN_SPEED_THRESHOLD));
+        let front_axle_travel_rad =
+            (v_lat + state.angular_vel_yaw * front_axle_x).atan2(v_long.max(MIN_SPEED_THRESHOLD));
         assisted_steering(
             config,
             input.steering,
@@ -527,7 +528,7 @@ pub fn update_car_3d(
             v_lat,
             state.angular_vel_yaw,
             steer_left,
-            config.wheelbase_m / 2.0,
+            front_axle_x,
             drive_torque_front / 2.0,
             brake_front / 2.0,
             config.wheel_radius_m,
@@ -542,7 +543,7 @@ pub fn update_car_3d(
             v_lat,
             state.angular_vel_yaw,
             steer_right,
-            config.wheelbase_m / 2.0,
+            front_axle_x,
             drive_torque_front / 2.0,
             brake_front / 2.0,
             config.wheel_radius_m,
@@ -557,7 +558,7 @@ pub fn update_car_3d(
             v_lat,
             state.angular_vel_yaw,
             0.0,
-            -config.wheelbase_m / 2.0,
+            rear_axle_x,
             drive_torque_rear / 2.0,
             brake_rear / 2.0,
             config.wheel_radius_m,
@@ -572,7 +573,7 @@ pub fn update_car_3d(
             v_lat,
             state.angular_vel_yaw,
             0.0,
-            -config.wheelbase_m / 2.0,
+            rear_axle_x,
             drive_torque_rear / 2.0,
             brake_rear / 2.0,
             config.wheel_radius_m,
@@ -656,8 +657,8 @@ pub fn update_car_3d(
 
     // 12. Calculate yaw moment: front tires ahead of CoG, rear tires behind,
     // plus lateral offsets of left/right wheels.
-    let yaw_moment = (fl_force_y + fr_force_y) * (config.wheelbase_m / 2.0)
-        - (rl_forces.1 + rr_forces.1) * (config.wheelbase_m / 2.0)
+    let yaw_moment = (fl_force_y + fr_force_y) * front_axle_x
+        + (rl_forces.1 + rr_forces.1) * rear_axle_x
         + (fr_force_x - fl_force_x) * (config.track_width_front_m / 2.0)
         + (rr_forces.0 - rl_forces.0) * (config.track_width_rear_m / 2.0);
 
@@ -837,6 +838,20 @@ pub fn update_car_3d(
 
     // 21. Update fuel consumption
     update_fuel_consumption(state, config, input, dt);
+}
+
+/// Where the axles sit along the body relative to the centre of gravity
+/// (+x forward): the front axle `(1 - w_f)·L` ahead of it and the rear
+/// `w_f·L` behind, from the static weight split `w_f`. These are the lever
+/// arms of the tyre forces about the CoG. With both axles at `L/2` the
+/// steady-state yaw balance demanded equal lateral force from each axle,
+/// so the lighter axle (the rear, on every car with a forward weight bias)
+/// hit its limit first and every car oversteered at the limit; with the
+/// arms in the right place the axles reach their limits together, and the
+/// balance is set by aero and suspension as it should be.
+fn axle_positions(config: &CarConfig) -> (f32, f32) {
+    let w_f = config.weight_distribution_front.clamp(0.05, 0.95);
+    (config.wheelbase_m * (1.0 - w_f), -config.wheelbase_m * w_f)
 }
 
 /// Calculate static weight distribution based on CoG position
@@ -1177,6 +1192,13 @@ pub fn grip_limit_lock_rad(config: &CarConfig, speed_mps: f32, downforce_n: f32)
     config.wheelbase_m * grip_accel / (speed_mps * speed_mps).max(1e-3)
 }
 
+/// Lock the steering aid allows past the kinematic turn angle, as a share of
+/// the tyre's peak slip angle. The front tyres only make their peak force at
+/// that slip, so with no allowance a stick at the stop held the car short of
+/// its grip once the axles were balanced (`axle_positions`). Half the peak
+/// is inside the flat top of the curve, where extra lock is force, not scrub.
+const STEERING_AID_SLIP_ALLOWANCE: f32 = 0.5;
+
 /// The speed-sensitive steering aid: the driver's input (-1..1, + = left)
 /// turned into the share of the rack's lock the front wheels get.
 ///
@@ -1200,7 +1222,10 @@ pub fn assisted_steering(
 ) -> f32 {
     let full_lock = config.max_steering_angle_rad.max(1e-3);
     let toward_travel = (input.signum() * front_axle_travel_rad).max(0.0);
-    let lock = (grip_limit_lock_rad(config, speed_mps, downforce_n) + toward_travel).min(full_lock);
+    let slip_allowance = STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad;
+    let lock =
+        (grip_limit_lock_rad(config, speed_mps, downforce_n) + slip_allowance + toward_travel)
+            .min(full_lock);
     (input.clamp(-1.0, 1.0) * lock / full_lock).clamp(-1.0, 1.0)
 }
 
@@ -3961,7 +3986,7 @@ mod tests {
         }
         let v_long = state.vel_x * state.yaw_rad.cos() + state.vel_y * state.yaw_rad.sin();
         let v_lat = -state.vel_x * state.yaw_rad.sin() + state.vel_y * state.yaw_rad.cos();
-        let rear = (v_lat - state.angular_vel_yaw * config.wheelbase_m / 2.0).atan2(v_long);
+        let rear = (v_lat + state.angular_vel_yaw * axle_positions(&config).1).atan2(v_long);
         (
             rear,
             state.g_forces.lateral_g,
@@ -4016,7 +4041,8 @@ mod tests {
             update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
             state.steering_input * config.max_steering_angle_rad
         };
-        let grip_lock = grip_limit_lock_rad(&config, 50.0, 0.0);
+        let grip_lock = grip_limit_lock_rad(&config, 50.0, 0.0)
+            + STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad;
         let countersteer = slide(-1.0);
         assert!(
             countersteer < -0.15 && countersteer > -(0.15 + grip_lock + 0.01),

@@ -426,6 +426,8 @@ private:
 	int32 DemoLeavesInFlight = 0;
 	/** Whether every car in a telemetry frame is in the current roster (a stale frame of another session is not). */
 	bool FrameFitsRoster(const FApexTelemetryFrame& Frame) const;
+	/** Empties the UDP telemetry queue on a join: what is queued predates the session. */
+	void DiscardTelemetryOfPreviousSession();
 	EApexSessionState DemoSessionState = EApexSessionState::Lobby;
 	bool bSessionRequestPending = false;
 	double SessionRequestSentSeconds = 0.0;

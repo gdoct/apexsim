@@ -5,6 +5,8 @@
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -51,7 +53,16 @@ void UApexButtonWidget::NativeOnInitialized()
 	// Nothing inside a button may spill over its neighbour, however long a label
 	// or badge turns out to be.
 	Background->SetClipping(EWidgetClipping::ClipToBounds);
-	SizeBox = ApexUI::MakeSized(*WidgetTree, Background, -1.0f, ApexUI::Metrics::RowHeight);
+
+	Layers = WidgetTree->ConstructWidget<UOverlay>();
+	UOverlaySlot* BackgroundSlot = Layers->AddChildToOverlay(Background);
+	BackgroundSlot->SetHorizontalAlignment(HAlign_Fill);
+	BackgroundSlot->SetVerticalAlignment(VAlign_Fill);
+	SelectedRing = ApexUI::AddFocusRing(*WidgetTree, *Layers, FMargin(ApexUI::Metrics::FocusRingInset));
+	SelectedRing->SetBrush(ApexUI::MakeBrush(FLinearColor::Transparent, ApexUI::Palette::Accent, 2.0f));
+	FocusRing = ApexUI::AddFocusRing(*WidgetTree, *Layers);
+
+	SizeBox = ApexUI::MakeSized(*WidgetTree, Layers, -1.0f, ApexUI::Metrics::RowHeight);
 
 	WidgetTree->RootWidget = SizeBox;
 
@@ -152,6 +163,17 @@ void UApexButtonWidget::Setup(const FApexButtonSpec& InSpec)
 
 	ApexUI::AddH(ContentRow, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(SidePadding, 0.0f, 0.0f, 0.0f));
 
+	if (FocusRing)
+	{
+		// A link has no box of its own, so its ring stands a little clear of
+		// the text instead of cutting through the first letter.
+		const bool bBare = Spec.Variant == EApexButtonVariant::Bare;
+		if (UOverlaySlot* RingSlot = Cast<UOverlaySlot>(FocusRing->Slot))
+		{
+			RingSlot->SetPadding(bBare ? FMargin(-10.0f, -2.0f) : FMargin());
+		}
+	}
+
 	if (SizeBox)
 	{
 		float DefaultHeight = ApexUI::Metrics::RowHeight;
@@ -209,6 +231,7 @@ void UApexButtonWidget::ApplyState()
 	}
 
 	const bool bHighlighted = (bHovered || bFocused) && IsInteractive();
+	const bool bShowFocusRing = bFocused && !bFocusFromPointer && IsInteractive();
 
 	FLinearColor Fill = ApexUI::Palette::Surface;
 	FLinearColor Outline = ApexUI::Palette::Border;
@@ -228,7 +251,7 @@ void UApexButtonWidget::ApplyState()
 		break;
 
 	case EApexButtonVariant::Ghost:
-		Fill = bHighlighted ? ApexUI::Palette::Surface : FLinearColor::Transparent;
+		Fill = bHighlighted ? ApexUI::Palette::SurfaceHover : FLinearColor::Transparent;
 		break;
 
 	case EApexButtonVariant::Locked:
@@ -253,13 +276,25 @@ void UApexButtonWidget::ApplyState()
 		LabelColour = bHighlighted ? Lighten(Spec.LabelColour, 0.25f) : Spec.LabelColour;
 	}
 
-	if (bSelected)
+	// Selected is the accent outline on the edge. With the focus ring on that
+	// edge too, the outline steps inside it, so both states read at once.
+	if (bSelected && !bShowFocusRing)
 	{
 		Outline = ApexUI::Palette::Accent;
 		OutlineWidth = 2.0f;
 	}
 
 	Background->SetBrush(ApexUI::MakeBrush(Fill, Outline, OutlineWidth));
+
+	if (FocusRing)
+	{
+		FocusRing->SetVisibility(bShowFocusRing ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
+	if (SelectedRing)
+	{
+		SelectedRing->SetVisibility(
+			bShowFocusRing && bSelected ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
 
 	const bool bIsPrimary = Spec.Variant == EApexButtonVariant::Primary;
 	const float LabelSize = Spec.LabelSize > 0.0f ? Spec.LabelSize : (bIsPrimary ? 26.0f : 20.0f);
@@ -310,7 +345,9 @@ FReply UApexButtonWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 	}
 
 	// Take focus on click so the keyboard carries on from where the mouse left.
+	bFocusFromPointer = true;
 	SetKeyboardFocus();
+	ApplyState();
 	Activate();
 	return FReply::Handled();
 }
@@ -333,6 +370,7 @@ void UApexButtonWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent
 {
 	Super::NativeOnAddedToFocusPath(InFocusEvent);
 	bFocused = true;
+	bFocusFromPointer = bFocusFromPointer || InFocusEvent.GetCause() == EFocusCause::Mouse;
 	ApplyState();
 }
 
@@ -340,11 +378,19 @@ void UApexButtonWidget::NativeOnRemovedFromFocusPath(const FFocusEvent& InFocusE
 {
 	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
 	bFocused = false;
+	bFocusFromPointer = false;
 	ApplyState();
 }
 
 FReply UApexButtonWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
+	if (bFocusFromPointer)
+	{
+		// The player has switched to keys or a pad: show where they are.
+		bFocusFromPointer = false;
+		ApplyState();
+	}
+
 	// Enter, Space, gamepad A — whatever the platform calls "accept".
 	if (IsInteractive() && ApexNav::IsAccept(InKeyEvent))
 	{

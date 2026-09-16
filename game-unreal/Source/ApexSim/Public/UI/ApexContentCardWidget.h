@@ -104,6 +104,14 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UBorder> Frame;
 
+	/** White ring while the keyboard or pad is on the card; see UApexButtonWidget. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> FocusRing;
+
+	/** The selected outline, moved inside the focus ring while both show. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> SelectedRing;
+
 	/** Rebuilt on Setup: the art changes size and kind between specs. */
 	UPROPERTY(Transient)
 	TObjectPtr<UVerticalBox> Body;
@@ -120,4 +128,6 @@ private:
 	bool bHovered = false;
 	bool bFocused = false;
 	bool bSelected = false;
+	/** Focus from a click shows no ring until a key is pressed. */
+	bool bFocusFromPointer = false;
 };

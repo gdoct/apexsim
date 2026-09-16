@@ -546,10 +546,13 @@ not in a session: unlisted, unjoinable, spectated by its creator, counted
 straight into a race, no replay written, removed when the spectator leaves.
 `SessionJoined` carries `SessionKind`, and `UApexNetSubsystem` keeps a demo out
 of every session delegate (`OnDemoSessionChanged` instead; `IsInSession()` is
-false) and leaves it by itself before any create or join. A telemetry frame
-is only applied when every car index fits the current roster: a demo frame
-still in the UDP queue when the player's session is joined would otherwise
-stamp the demo's `Racing` state on the new session and skip its countdown. The race director's
+false) and leaves it by itself before any create or join. `SessionJoined` drops every
+telemetry frame already in the UDP queue (after a hitch it holds seconds of
+the session just left; telemetry carries no session id), and a frame is only
+applied when every car index fits the current roster: a stale demo frame
+would otherwise stamp the demo's `Countdown`/`Racing` state on a session still
+in Lobby, putting the race view over the lobby screen with nothing counting
+down. The race director's
 demo view streams the track (the player's pending track when it has a level),
 and the root widget fades page backgrounds by `GetDemoBackdropOpacity()` under a
 left-heavy scrim. Car select and session create return false from
@@ -645,7 +648,10 @@ throttled per cue; widgets call `ApexUiAudio::Play(this, EApexUiSound::X)`.
 Where the cues come from: a button's `FApexButtonSpec::Sound` (Accept by
 default, Back on Back buttons), `UApexNavigableWidget` when a `HandleBack`
 consumes the press, the root's `ShowToast`, and the settings sliders and
-dropdowns (Adjust). Move is not raised by any widget: the root widget listens
+dropdowns (Adjust). The race cues (`CountdownTick`, `CountdownGo`, `LapLine`)
+come from `AApexRaceDirector::UpdateRaceBleeps` on telemetry: a tick for each
+of the last five countdown seconds (with the start lights), a higher tone on
+green, and a double pip when the local car completes a lap; the demo is silent. Move is not raised by any widget: the root widget listens
 to `FSlateApplication::OnFocusChanging` and plays it for focus moved by the
 player, which is a change with cause `Navigation` or one made inside an
 `ApexNav::FNavigationScope` (the scope is what separates a host's
@@ -900,6 +906,7 @@ Environment overrides use the `APEXSIM_` prefix, e.g. `APEXSIM_NETWORK_TCP_PORT=
 ## Testing Notes
 
 - `proptest` property tests live in `tests/physics_property_tests.rs` (physics invariants, serialization roundtrips)
+- `tests/grip_probe_test.rs` (ignored) is the grip-tuning harness: skidpad lateral-g sweep, a follower driving Silverstone's first corner at the racing line's speed, and every car's ideal-lap time from its racing-line profile (`PROBE_MU_SCALE` / `PROBE_CLA_SCALE` / `PROBE_CLASS` sweep grip and downforce without editing TOMLs). Class grip levels are set so those lap times land a few seconds off real poles
 - Integration tests simulate real client connections with `TestClient` structs against an in-process server
 - Enable debug logging: `RUST_LOG=debug cargo test ...`
 - CI (`.github/workflows/ci.yml`) runs fmt-check, clippy (`-D warnings` — keep the tree warning-free), build, and tests for the server plus a dotnet build/test for the client; Dependabot auto-merge builds and tests before merging

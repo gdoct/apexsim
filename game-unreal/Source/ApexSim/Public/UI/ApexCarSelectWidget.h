@@ -41,10 +41,9 @@ public:
 
 	// --- Navigation ---------------------------------------------------------
 	//
-	// Three regions: the class chips across the header, the car list down the
-	// left, and the drive button on the right. Up out of the list reaches the
-	// chips, Right out of it the drive button; Tab and the shoulders go list ->
-	// drive -> chips.
+	// Two regions: the class chips across the header and the car list down the
+	// left. Up out of the list reaches the chips. Focus on a row describes the
+	// car on the right; activating the row drives it.
 
 	virtual void FocusDefault() override;
 	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
@@ -92,7 +91,6 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> EyebrowText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> NameText;
-	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DriveButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PowerValue;

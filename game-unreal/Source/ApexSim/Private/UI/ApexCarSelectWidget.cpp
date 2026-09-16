@@ -27,7 +27,6 @@
 namespace
 {
 	const FName ActionCarSelectBack(TEXT("__back"));
-	const FName ActionDrive(TEXT("__drive"));
 	const FName ActionSetup(TEXT("__setup"));
 
 	constexpr float ListWidth = 420.0f;
@@ -226,19 +225,6 @@ UWidget* UApexCarSelectWidget::BuildStage()
 	UApexButtonWidget* SetupButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	SetupButton->Setup(SetupSpec);
 	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, SetupButton, 200.0f, -1.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f));
-
-	FApexButtonSpec DriveSpec;
-	DriveSpec.Label = TEXT("Drive this car");
-	DriveSpec.KeyCap = TEXT("Enter");
-	DriveSpec.Variant = EApexButtonVariant::Primary;
-	DriveSpec.LabelSize = 21.0f;
-	DriveSpec.Height = 56.0f;
-	DriveSpec.ActionId = ActionDrive;
-
-	DriveButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
-	DriveButton->Setup(DriveSpec);
-	DriveButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
-	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, DriveButton, 300.0f, -1.0f), FMargin(12.0f, 0.0f, 0.0f, 0.0f));
 
 	ApexUI::AddV(Column, ActionRow, FMargin(0.0f, 22.0f, 0.0f, 0.0f));
 
@@ -639,9 +625,28 @@ void UApexCarSelectWidget::HandleLobbyStateUpdated(const FApexLobbyState& LobbyS
 
 void UApexCarSelectWidget::HandleRowActivated(UApexButtonWidget* Row)
 {
-	if (Row)
+	// Moving through the list describes a car; activating a row is the choice,
+	// as on the track screen. A separate confirm button meant a second trip
+	// across the page with a pad.
+	if (!Row)
 	{
-		SelectCar(Row->GetActionId().ToString());
+		return;
+	}
+	SelectCar(Row->GetActionId().ToString());
+
+	if (UApexMenuFlowSubsystem* Flow = GetFlow())
+	{
+		Flow->SetPendingCar(SelectedCarId);
+	}
+	// The server tracks the selection too, and rejects it if the player is in
+	// a session that has already started.
+	if (UApexNetSubsystem* Net = GetNet())
+	{
+		Net->SelectCar(SelectedCarId);
+	}
+	if (UApexRootWidget* Root = GetRoot())
+	{
+		Root->ReplaceScreen(Root->ScreenAfterCarSelect);
 	}
 }
 
@@ -657,31 +662,6 @@ void UApexCarSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Id == ActionCarSelectBack)
 	{
 		GoBack();
-		return;
-	}
-
-	if (Id == ActionDrive)
-	{
-		if (SelectedCarId.IsEmpty())
-		{
-			ShowToast(TEXT("Pick a car first"), true);
-			return;
-		}
-
-		if (UApexMenuFlowSubsystem* Flow = GetFlow())
-		{
-			Flow->SetPendingCar(SelectedCarId);
-		}
-		// The server tracks the selection too, and rejects it if the player is in
-		// a session that has already started.
-		if (UApexNetSubsystem* Net = GetNet())
-		{
-			Net->SelectCar(SelectedCarId);
-		}
-		if (UApexRootWidget* Root = GetRoot())
-		{
-			Root->ReplaceScreen(Root->ScreenAfterCarSelect);
-		}
 		return;
 	}
 
@@ -751,9 +731,8 @@ bool UApexCarSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* So
 		case EUINavigation::Down:
 			FocusRow(RowAt + 1);
 			return true;
-		case EUINavigation::Right:
 		case EUINavigation::Next:
-			return ApexNav::Focus(DriveButton);
+			return ApexNav::Focus(HeaderBackButton);
 		case EUINavigation::Previous:
 			return FocusChip();
 		default:
@@ -776,24 +755,10 @@ bool UApexCarSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* So
 			return true;
 		case EUINavigation::Down:
 		case EUINavigation::Next:
-			return FocusRow(FocusedRowIndex) || ApexNav::Focus(DriveButton);
+			FocusRow(FocusedRowIndex);
+			return true;
 		case EUINavigation::Previous:
 			return ApexNav::Focus(HeaderBackButton);
-		default:
-			return true;
-		}
-	}
-
-	if (Source == DriveButton)
-	{
-		switch (Direction)
-		{
-		case EUINavigation::Left:
-		case EUINavigation::Previous:
-			return FocusRow(FocusedRowIndex);
-		case EUINavigation::Up:
-		case EUINavigation::Next:
-			return FocusChip();
 		default:
 			return true;
 		}

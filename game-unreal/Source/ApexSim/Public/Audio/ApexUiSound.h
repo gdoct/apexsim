@@ -26,6 +26,12 @@ enum class EApexUiSound : uint8
 	Notice,
 	/** A toast with bad news. */
 	Error,
+	/** One second of the race start countdown went by. */
+	CountdownTick,
+	/** The countdown ended: lights out, go. */
+	CountdownGo,
+	/** The player's car crossed the start/finish line and began a new lap. */
+	LapLine,
 
 	Count UMETA(Hidden),
 };

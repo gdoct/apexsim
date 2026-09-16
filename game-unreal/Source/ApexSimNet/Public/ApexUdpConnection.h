@@ -46,6 +46,13 @@ public:
 	/** Pops one decoded telemetry frame. Returns false when the queue is empty. */
 	bool PopTelemetry(FApexTelemetryFrame& OutFrame);
 
+	/**
+	 * Throws away every telemetry frame queued so far and returns how many.
+	 * Called when a session is joined: a frame that arrived before the join
+	 * belongs to the session just left.
+	 */
+	int32 DiscardQueuedTelemetry();
+
 	/** Pops one decoded force-feedback message. Returns false when the queue is empty. */
 	bool PopDriverFeedback(FApexDriverFeedback& OutFeedback);
 

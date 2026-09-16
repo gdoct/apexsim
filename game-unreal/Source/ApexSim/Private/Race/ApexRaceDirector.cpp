@@ -22,6 +22,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/StaticMeshComponent.h"
+#include "Audio/ApexUiAudioSubsystem.h"
 #include "Race/ApexCockpitRig.h"
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
@@ -534,6 +535,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 			ApexRace::MpsToKph(First.SpeedMps));
 	}
 
+	const EApexSessionState PreviousState = LatestFrameState;
 	LatestFrameState = Frame.SessionState;
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
@@ -548,6 +550,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	}
 
 	UpdateStartLights(Frame);
+	UpdateRaceBleeps(Frame, PreviousState);
 	if (Rig)
 	{
 		Rig->SetCountdownMs(Frame.SessionState == EApexSessionState::Countdown ? Frame.CountdownMs : -1);
@@ -631,6 +634,65 @@ void AApexRaceDirector::UpdateStartLights(const FApexTelemetryFrame& Frame)
 		{
 			Mid->SetScalarParameterValue(EmissiveParam, Index < Lit ? StartLightOnEmissive : 0.0f);
 		}
+	}
+}
+
+void AApexRaceDirector::UpdateRaceBleeps(const FApexTelemetryFrame& Frame, EApexSessionState PreviousState)
+{
+	if (bDemoView)
+	{
+		return;
+	}
+
+	// The countdown: one tick per light, so only the last five seconds of a
+	// longer count beep, and the frame that leaves the countdown for a race
+	// is the go. A frame joined mid-count ticks for the second it lands in.
+	if (Frame.SessionState == EApexSessionState::Countdown && Frame.CountdownMs >= 0)
+	{
+		const int32 WholeSecondsLeft = Frame.CountdownMs / 1000;
+		if (WholeSecondsLeft != BleepCountdownSecond && WholeSecondsLeft < 5)
+		{
+			ApexUiAudio::Play(this, EApexUiSound::CountdownTick);
+		}
+		BleepCountdownSecond = WholeSecondsLeft;
+	}
+	else
+	{
+		if (PreviousState == EApexSessionState::Countdown && Frame.SessionState == EApexSessionState::Racing)
+		{
+			ApexUiAudio::Play(this, EApexUiSound::CountdownGo);
+		}
+		BleepCountdownSecond = -1;
+	}
+
+	// The line: the server bumps a car's lap as it crosses. Lap 0 -> 1 is a
+	// grid car rolling over the line just after the go, which already beeped,
+	// so only a completed lap counts.
+	const UApexNetSubsystem* Net = GetNet();
+	const int32 LocalIndex = Net ? Net->GetLocalCarIndex() : -1;
+	if (LocalIndex != BleepCarIndex)
+	{
+		BleepCarIndex = LocalIndex;
+		BleepLap = -1;
+	}
+	if (LocalIndex < 0)
+	{
+		return;
+	}
+	for (const FApexCarTelemetry& Car : Frame.Cars)
+	{
+		if (Car.CarIndex != LocalIndex)
+		{
+			continue;
+		}
+		// The last car's line crossing can be the frame that finishes the session.
+		const bool bRaceRunning = Frame.SessionState == EApexSessionState::Racing || PreviousState == EApexSessionState::Racing;
+		if (BleepLap >= 1 && Car.CurrentLap > BleepLap && bRaceRunning)
+		{
+			ApexUiAudio::Play(this, EApexUiSound::LapLine);
+		}
+		BleepLap = Car.CurrentLap;
+		break;
 	}
 }
 
@@ -1175,6 +1237,9 @@ void AApexRaceDirector::BeginRaceView()
 	Tv.Reset(static_cast<int32>(FPlatformTime::Cycles()));
 	CarProgress.Reset();
 	CarMotion.Reset();
+	BleepCountdownSecond = -1;
+	BleepLap = -1;
+	BleepCarIndex = -1;
 
 	LoadTrackLevel();
 	ApplyRaceEnvironment();
@@ -1575,6 +1640,9 @@ void AApexRaceDirector::BeginDemoView(const FString& TrackStem, const TArray<FVe
 	LatestFrameState = EApexSessionState::Lobby;
 	CarProgress.Reset();
 	CarMotion.Reset();
+	BleepCountdownSecond = -1;
+	BleepLap = -1;
+	BleepCarIndex = -1;
 	Tv.Reset(static_cast<int32>(FPlatformTime::Cycles()));
 	Tv.SetPath(Centerline);
 
@@ -1617,6 +1685,9 @@ void AApexRaceDirector::EndDemoView()
 	DestroyAllCars();
 	CarProgress.Reset();
 	CarMotion.Reset();
+	BleepCountdownSecond = -1;
+	BleepLap = -1;
+	BleepCarIndex = -1;
 	UnloadTrackLevel();
 	if (bDemoWorldVisible)
 	{

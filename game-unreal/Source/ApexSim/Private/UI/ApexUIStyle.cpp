@@ -18,6 +18,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Styling/CoreStyle.h"
+#include "UI/ApexFocusFrameWidget.h"
 
 namespace ApexUI
 {
@@ -78,6 +79,26 @@ namespace ApexUI
 		}
 
 		return Brush;
+	}
+
+	UBorder* AddFocusRing(UWidgetTree& Tree, UOverlay& Host, const FMargin& Padding)
+	{
+		UBorder* Ring = MakePanel(
+			Tree, nullptr, FMargin(), MakeBrush(FLinearColor::Transparent, Palette::Focus, Metrics::FocusRingWidth));
+		Ring->SetVisibility(ESlateVisibility::Hidden);
+
+		UOverlaySlot* RingSlot = Host.AddChildToOverlay(Ring);
+		RingSlot->SetHorizontalAlignment(HAlign_Fill);
+		RingSlot->SetVerticalAlignment(VAlign_Fill);
+		RingSlot->SetPadding(Padding);
+		return Ring;
+	}
+
+	UWidget* MakeFocusFrame(UWidgetTree& Tree, UWidget* Content, const FMargin& RingPadding)
+	{
+		UApexFocusFrameWidget* Frame = Tree.ConstructWidget<UApexFocusFrameWidget>();
+		Frame->SetFramedContent(Content, RingPadding);
+		return Frame;
 	}
 
 	UBorder* MakePanel(UWidgetTree& Tree, UWidget* Content, const FMargin& Padding, const FSlateBrush& Brush)
@@ -202,10 +223,10 @@ namespace ApexUI
 		AddV(Box, OutValue, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 
 		OutBar = Tree.ConstructWidget<UProgressBar>();
-		FProgressBarStyle BarStyle = OutBar->WidgetStyle;
+		FProgressBarStyle BarStyle = OutBar->GetWidgetStyle();
 		BarStyle.SetBackgroundImage(MakeBrush(Palette::Border));
 		BarStyle.SetFillImage(MakeBrush(Palette::Accent));
-		OutBar->WidgetStyle = BarStyle;
+		OutBar->SetWidgetStyle(BarStyle);
 		OutBar->SetPercent(0.0f);
 		AddV(Box, MakeSized(Tree, OutBar, -1.0f, 3.0f), FMargin(0.0f, 12.0f, 0.0f, 0.0f));
 
@@ -236,7 +257,7 @@ namespace ApexUI
 	{
 		UEditableTextBox* Box = Tree.ConstructWidget<UEditableTextBox>();
 
-		FEditableTextBoxStyle Style = Box->WidgetStyle;
+		FEditableTextBoxStyle Style = Box->GetWidgetStyle();
 		const FSlateBrush Idle = MakeBrush(Palette::Surface, Palette::Border, 1.0f);
 		const FSlateBrush Active = MakeBrush(Palette::SurfaceHover, Palette::Accent, 1.0f);
 		Style.SetBackgroundImageNormal(Idle);
@@ -247,7 +268,7 @@ namespace ApexUI
 		Style.SetFont(Font::Mono(11.0f));
 		Style.SetForegroundColor(FSlateColor(Palette::TextPrimary));
 
-		Box->WidgetStyle = Style;
+		Box->SetWidgetStyle(Style);
 		Box->SetHintText(FText::FromString(Hint.ToUpper()));
 		return Box;
 	}
@@ -271,13 +292,13 @@ namespace ApexUI
 		AddH(Head, OutSuffix, FMargin(8.0f, 0.0f, 0.0f, 0.0f));
 
 		OutFill = Tree.ConstructWidget<UProgressBar>();
-		FProgressBarStyle FillStyle = OutFill->WidgetStyle;
+		FProgressBarStyle FillStyle = OutFill->GetWidgetStyle();
 		FillStyle.SetBackgroundImage(MakeBrush(Palette::Border));
 		FillStyle.SetFillImage(MakeBrush(Palette::Accent));
-		OutFill->WidgetStyle = FillStyle;
+		OutFill->SetWidgetStyle(FillStyle);
 
 		OutSlider = Tree.ConstructWidget<USlider>();
-		FSliderStyle SliderStyle = OutSlider->WidgetStyle;
+		FSliderStyle SliderStyle = OutSlider->GetWidgetStyle();
 		SliderStyle.SetNormalBarImage(MakeBrush(FLinearColor::Transparent));
 		SliderStyle.SetHoveredBarImage(MakeBrush(FLinearColor::Transparent));
 		SliderStyle.SetDisabledBarImage(MakeBrush(FLinearColor::Transparent));
@@ -288,7 +309,7 @@ namespace ApexUI
 		SliderStyle.SetHoveredThumbImage(Thumb);
 		SliderStyle.SetDisabledThumbImage(Thumb);
 		SliderStyle.SetBarThickness(6.0f);
-		OutSlider->WidgetStyle = SliderStyle;
+		OutSlider->SetWidgetStyle(SliderStyle);
 		ConfigureSliderInput(*OutSlider);
 
 		UOverlay* Track = Tree.ConstructWidget<UOverlay>();
@@ -302,14 +323,16 @@ namespace ApexUI
 		UVerticalBox* Box = Tree.ConstructWidget<UVerticalBox>();
 		AddV(Box, Head);
 		AddV(Box, MakeSized(Tree, Track, -1.0f, 22.0f), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-		return Box;
+		// The slider is the focusable part, but the ring goes round the whole
+		// row so the label says what is being changed.
+		return MakeFocusFrame(Tree, Box, FMargin(-14.0f, -10.0f));
 	}
 
 	UComboBoxString* MakeDropdown(UWidgetTree& Tree, const TArray<FString>& Options, int32 SelectedIndex)
 	{
 		UComboBoxString* Box = Tree.ConstructWidget<UComboBoxString>();
 
-		FComboBoxStyle ComboStyle = Box->WidgetStyle;
+		FComboBoxStyle ComboStyle = Box->GetWidgetStyle();
 		FComboButtonStyle ButtonStyle = ComboStyle.ComboButtonStyle;
 		FButtonStyle Inner = ButtonStyle.ButtonStyle;
 		Inner.SetNormal(MakeBrush(Palette::Surface, Palette::Border, 1.0f));
@@ -323,9 +346,9 @@ namespace ApexUI
 		ButtonStyle.SetMenuBorderBrush(MakeBrush(Palette::Surface, Palette::Border, 1.0f));
 		ButtonStyle.SetMenuBorderPadding(FMargin(1.0f));
 		ComboStyle.SetComboButtonStyle(ButtonStyle);
-		Box->WidgetStyle = ComboStyle;
+		Box->SetWidgetStyle(ComboStyle);
 
-		FTableRowStyle RowStyle = Box->ItemStyle;
+		FTableRowStyle RowStyle = Box->GetItemStyle();
 		RowStyle.SetEvenRowBackgroundBrush(MakeBrush(Palette::Surface));
 		RowStyle.SetOddRowBackgroundBrush(MakeBrush(Palette::Surface));
 		RowStyle.SetEvenRowBackgroundHoveredBrush(MakeBrush(Palette::SurfaceHover));
@@ -335,7 +358,7 @@ namespace ApexUI
 		RowStyle.SetSelectorFocusedBrush(MakeBrush(Palette::Accent));
 		RowStyle.SetTextColor(FSlateColor(Palette::TextPrimary));
 		RowStyle.SetSelectedTextColor(FSlateColor(Palette::OnAccent));
-		Box->ItemStyle = RowStyle;
+		Box->SetItemStyle(RowStyle);
 
 		// Font and ForegroundColor are construction-time properties with no public
 		// setter — InitFont is protected — so they are assigned directly. The
@@ -367,13 +390,13 @@ namespace ApexUI
 	UWidget* MakeSliderTrack(UWidgetTree& Tree, USlider*& OutSlider, UProgressBar*& OutFill, float Height)
 	{
 		OutFill = Tree.ConstructWidget<UProgressBar>();
-		FProgressBarStyle FillStyle = OutFill->WidgetStyle;
+		FProgressBarStyle FillStyle = OutFill->GetWidgetStyle();
 		FillStyle.SetBackgroundImage(MakeBrush(Palette::Border));
 		FillStyle.SetFillImage(MakeBrush(Palette::Accent));
-		OutFill->WidgetStyle = FillStyle;
+		OutFill->SetWidgetStyle(FillStyle);
 
 		OutSlider = Tree.ConstructWidget<USlider>();
-		FSliderStyle SliderStyle = OutSlider->WidgetStyle;
+		FSliderStyle SliderStyle = OutSlider->GetWidgetStyle();
 		// Same trick as MakeSliderRow: Slate draws a bar and a thumb but nothing
 		// between them, so the fill is a progress bar behind a transparent slider.
 		SliderStyle.SetNormalBarImage(MakeBrush(FLinearColor::Transparent));
@@ -386,7 +409,7 @@ namespace ApexUI
 		SliderStyle.SetHoveredThumbImage(Thumb);
 		SliderStyle.SetDisabledThumbImage(Thumb);
 		SliderStyle.SetBarThickness(4.0f);
-		OutSlider->WidgetStyle = SliderStyle;
+		OutSlider->SetWidgetStyle(SliderStyle);
 		ConfigureSliderInput(*OutSlider);
 
 		UOverlay* Track = Tree.ConstructWidget<UOverlay>();
@@ -397,7 +420,7 @@ namespace ApexUI
 		SliderSlot->SetHorizontalAlignment(HAlign_Fill);
 		SliderSlot->SetVerticalAlignment(VAlign_Center);
 
-		return MakeSized(Tree, Track, -1.0f, Height);
+		return MakeFocusFrame(Tree, MakeSized(Tree, Track, -1.0f, Height), FMargin(-10.0f, -4.0f));
 	}
 
 	UBorder* MakeModalCard(UWidgetTree& Tree, UWidget* Content, const FMargin& Padding)
