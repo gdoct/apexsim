@@ -173,7 +173,7 @@ all shipped in `Server/` by `build_release.ps1`:
   one sample per metre of centerline station (`curbs.rs`). The curbs are
   authored in the `.ats` and reach the server only as this number: physics
   counts a car within the band as on the track, with `curb_grip` and no
-  off-track speed penalty. Without it the road edge is the track limit and
+  off-track drag. Without it the road edge is the track limit and
   a driver using the curbs is slowed as if on grass.
 - `<Stem>.walls.msgpack` — the barriers as the sim needs them
   (`walls.rs`): every armco, tire wall, fence and pit wall as a line
@@ -558,7 +558,11 @@ and the root widget fades page backgrounds by `GetDemoBackdropOpacity()` under a
 left-heavy scrim. Car select and session create return false from
 `WantsLiveBackdrop` because the turntable shares the world, so the demo world is
 hidden behind them. It restarts on a finished race, a track change or after
-`apexsim.demo.MaxMinutes`. `-ApexNoDemo`/`apexsim.demo.Enabled 0` turn it off;
+`apexsim.demo.MaxMinutes`. Each demo race rolls its own sky
+(`UApexDemoModeSubsystem::RollConditions`: weighted toward dry daylight, with
+rain, dusk and night in the mix) and sends it as the create's `conditions`, so
+the server bakes the wet grip for the AI like any session;
+`apexsim.demo.RandomSky 0` keeps the default sunny 13:00. `-ApexNoDemo`/`apexsim.demo.Enabled 0` turn it off;
 `-ApexAutoRace` never starts one.
 
 `ApexTv::FDirector` is the TV director, pure logic with ground and visibility

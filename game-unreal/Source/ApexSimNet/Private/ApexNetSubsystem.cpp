@@ -246,7 +246,8 @@ void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
 	SendPayload(ApexProtocol::EncodeJoinAsSpectator(SessionId));
 }
 
-void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit)
+void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit,
+	const FApexSessionConditions& Conditions)
 {
 	if (bInDemoSession || bDemoRequested || !CurrentSessionId.IsEmpty() || !IsAuthenticated())
 	{
@@ -257,10 +258,10 @@ void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 Ai
 	DemoSessionState = EApexSessionState::Lobby;
 	const uint8 Field = static_cast<uint8>(FMath::Clamp(AiCount, 1, 255));
 	// Nobody drives in a demo, so the allowed set is moot; everything is
-	// allowed. The sky is the default: the menu is designed over daylight.
+	// allowed.
 	SendPayload(ApexProtocol::EncodeCreateSession(
 		TrackConfigId, Field, Field, static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)), EApexSessionKind::Demo,
-		FApexAllowedAssists(), FApexSessionConditions()));
+		FApexAllowedAssists(), Conditions));
 }
 
 void UApexNetSubsystem::LeaveDemoSession()

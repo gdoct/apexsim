@@ -687,14 +687,17 @@ pub fn update_car_3d(
     state.vel_x += accel_world_x * dt;
     state.vel_y += accel_world_y * dt;
 
-    // Apply off-track penalty. Only above a recovery threshold: the penalty
-    // exists to make shortcuts slow, not to trap a car that went off in a
-    // low-speed crawl it can never accelerate out of.
-    const OFF_TRACK_RECOVERY_SPEED_MPS: f32 = 8.0;
-    if !is_airborne && !track_ctx.is_on_track && state.speed_mps > OFF_TRACK_RECOVERY_SPEED_MPS {
-        let penalty = 1.0 - track.track_surface.off_track_speed_penalty * dt;
-        state.vel_x *= penalty;
-        state.vel_y *= penalty;
+    // Off-track rolling drag: a fixed deceleration against the planar
+    // velocity, never enough to reverse it. The grass grip already makes a
+    // shortcut slow; this only adds the soft ground's resistance, so a car
+    // that went off can drive back at a sensible speed.
+    if !is_airborne && !track_ctx.is_on_track {
+        let planar = (state.vel_x.powi(2) + state.vel_y.powi(2)).sqrt();
+        if planar > 0.0 {
+            let scale = (1.0 - track.track_surface.off_track_drag_mps2 * dt / planar).max(0.0);
+            state.vel_x *= scale;
+            state.vel_y *= scale;
+        }
     }
 
     state.speed_mps = (state.vel_x.powi(2) + state.vel_y.powi(2) + state.vel_z.powi(2)).sqrt();
@@ -2978,8 +2981,46 @@ mod tests {
             "a lap over the curb should coast like the asphalt: {on_curb} vs {on_asphalt}"
         );
         assert!(
-            on_grass < on_curb - 1.0,
+            on_grass < on_curb - 0.2,
             "grass should still cost speed: {on_grass} vs {on_curb}"
+        );
+    }
+
+    /// A car that went off must be able to drive back at a useful speed:
+    /// the drag used to be a fraction of speed per second (0.8/s on loaded
+    /// tracks), which held a car on full throttle near 8 m/s.
+    #[test]
+    fn test_car_accelerates_on_grass() {
+        let config = create_test_config();
+        let input = PlayerInputData {
+            throttle: 1.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+        };
+        let dt = 1.0 / 240.0;
+        let mut track = straight_track_with_right_curb(1.5);
+        // What `track_loader` gives every real circuit.
+        track.track_surface.off_track_grip = 0.6;
+
+        let mut state = create_test_car_state();
+        state.pos_x = 100.0;
+        state.pos_y = -14.0;
+        state.vel_x = 5.0;
+        state.speed_mps = 5.0;
+        state.gear = 1;
+        state.auto_gearbox = true;
+        for _ in 0..(240 * 5) {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+            // Hold the car on the grass line; only the speed matters here.
+            state.pos_y = -14.0;
+        }
+        assert!(!state.is_on_track);
+        assert!(
+            state.speed_mps > 14.0,
+            "five seconds of full throttle on grass should be well past a crawl: {}",
+            state.speed_mps
         );
     }
 

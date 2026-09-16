@@ -181,8 +181,10 @@ public:
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
 	 * Answered with OnDemoSessionChanged, never with the session delegates.
+	 * The sky is the caller's; the joined demo echoes it in GetSessionConditions.
 	 */
-	void CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit);
+	void CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit,
+		const FApexSessionConditions& Conditions = FApexSessionConditions());
 
 	/** Leave the demo session, or withdraw a request for one. Nothing if there is neither. */
 	void LeaveDemoSession();

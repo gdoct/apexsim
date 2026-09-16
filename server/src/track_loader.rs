@@ -236,7 +236,7 @@ impl TrackLoader {
                 base_grip: 1.0,
                 curb_grip: 0.85,
                 off_track_grip: 0.6,
-                off_track_speed_penalty: 0.8,
+                off_track_drag_mps2: crate::data::OFF_TRACK_DRAG_MPS2,
             },
             pit_lane: None,
             raceline,
