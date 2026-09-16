@@ -218,3 +218,4 @@ artifacts/
 game-unreal/Content/
 
 Claude outputs/*
+server/target*/

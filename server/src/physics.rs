@@ -501,6 +501,17 @@ pub fn update_car_3d(
     let mut rl = WheelForces::default();
     let mut rr = WheelForces::default();
 
+    // The driver's own aids win over the car's; an AI or an old client has
+    // neither set and drives the car as its file describes it.
+    let abs_enabled = state.abs.unwrap_or(config.abs_enabled);
+    let traction_control = state
+        .traction_control
+        .unwrap_or(if config.traction_control_enabled {
+            TractionControl::Low
+        } else {
+            TractionControl::Off
+        });
+
     if is_airborne {
         state.weight_front_left_n = 0.0;
         state.weight_front_right_n = 0.0;
@@ -519,8 +530,8 @@ pub fn update_car_3d(
             state.weight_front_left_n,
             effective_grip,
             &config.tire_config,
-            config.abs_enabled,
-            config.traction_control_enabled,
+            abs_enabled,
+            traction_control,
         );
         fr = solve_wheel_forces(
             v_long,
@@ -534,8 +545,8 @@ pub fn update_car_3d(
             state.weight_front_right_n,
             effective_grip,
             &config.tire_config,
-            config.abs_enabled,
-            config.traction_control_enabled,
+            abs_enabled,
+            traction_control,
         );
         rl = solve_wheel_forces(
             v_long,
@@ -549,8 +560,8 @@ pub fn update_car_3d(
             state.weight_rear_left_n,
             effective_grip,
             &config.tire_config,
-            config.abs_enabled,
-            config.traction_control_enabled,
+            abs_enabled,
+            traction_control,
         );
         rr = solve_wheel_forces(
             v_long,
@@ -564,8 +575,8 @@ pub fn update_car_3d(
             state.weight_rear_right_n,
             effective_grip,
             &config.tire_config,
-            config.abs_enabled,
-            config.traction_control_enabled,
+            abs_enabled,
+            traction_control,
         );
     }
 
@@ -1229,6 +1240,9 @@ const PACEJKA_C_LAT: f32 = 1.3;
 /// Absolute slip-ratio ceiling for wheelspin (deep in the magic formula's
 /// falloff region). Reached when drive torque exceeds traction ~3x.
 const WHEELSPIN_MAX_SLIP_RATIO: f32 = 0.35;
+/// High traction control caps drive at this share of the longitudinal grip
+/// left beside the lateral force, so a corner exit keeps a little in hand.
+const TC_HIGH_LATERAL_MARGIN: f32 = 0.9;
 
 /// Body-frame speed below which brakes produce no tire force (the low-speed
 /// stop snap handles the final halt) and the launch model applies.
@@ -1338,7 +1352,7 @@ fn solve_wheel_forces(
     grip_coefficient: f32,
     tire_config: &TireConfig,
     abs_enabled: bool,
-    tc_enabled: bool,
+    traction_control: TractionControl,
 ) -> WheelForces {
     // Wheel contact-patch velocity in the body frame: the body's own
     // velocity plus the rotational contribution at this wheel's position.
@@ -1398,7 +1412,27 @@ fn solve_wheel_forces(
     };
     let requested_force = (drive_torque * dir - braking * wheel_radius) / wheel_radius;
 
-    let (fx, slip_ratio) = if requested_force.abs() <= d {
+    // High traction control leaves the tyre a lateral budget: drive is capped
+    // at what the friction circle has left beside the cornering force, less a
+    // margin, so the ellipse below never has to scale the lateral force down.
+    let tc_limit = match traction_control {
+        TractionControl::High => {
+            ((d * d - fy * fy).max(0.0).sqrt() * TC_HIGH_LATERAL_MARGIN).min(d)
+        }
+        TractionControl::Low | TractionControl::Off => d,
+    };
+    let tc_enabled = traction_control != TractionControl::Off;
+
+    let (fx, slip_ratio) = if tc_enabled && requested_force > tc_limit {
+        // Traction control cuts drive torque to what the tyre can carry: at
+        // Low the wheel is held at peak slip and delivers peak force, at High
+        // it stays short of the peak with the lateral share kept.
+        let normalized = pacejka_inverse(d, PACEJKA_C_LONG, tc_limit);
+        (
+            tc_limit,
+            (normalized * tire_config.optimal_slip_ratio).clamp(-1.0, 1.0),
+        )
+    } else if requested_force.abs() <= d {
         // Stable region: the tire transmits exactly what is asked of it.
         let normalized = pacejka_inverse(d, PACEJKA_C_LONG, requested_force);
         (
@@ -1416,10 +1450,6 @@ fn solve_wheel_forces(
             let normalized = -1.0 / tire_config.optimal_slip_ratio;
             (pacejka(d, PACEJKA_C_LONG, normalized), -1.0)
         }
-    } else if tc_enabled {
-        // Traction control cuts drive torque to the traction limit: the
-        // wheel is held at peak slip and delivers peak force.
-        (d, tire_config.optimal_slip_ratio)
     } else {
         // Drive torque exceeds traction: wheelspin. The spin depth grades
         // with the torque oversupply — a slight excess hovers just past the
@@ -1454,7 +1484,7 @@ fn solve_wheel_forces(
         slip_angle,
         omega,
         abs_active: abs_enabled && requested_force < -d,
-        tc_active: tc_enabled && requested_force > d,
+        tc_active: tc_enabled && requested_force > tc_limit,
     }
 }
 
@@ -4144,10 +4174,34 @@ mod tests {
         // otherwise be available laterally.
         let tire = TireConfig::default();
         let braking = solve_wheel_forces(
-            30.0, 2.0, 0.0, 0.0, 1.35, 0.0, 6000.0, 0.33, 3000.0, 1.0, &tire, true, true,
+            30.0,
+            2.0,
+            0.0,
+            0.0,
+            1.35,
+            0.0,
+            6000.0,
+            0.33,
+            3000.0,
+            1.0,
+            &tire,
+            true,
+            TractionControl::Low,
         );
         let coasting = solve_wheel_forces(
-            30.0, 2.0, 0.0, 0.0, 1.35, 0.0, 0.0, 0.33, 3000.0, 1.0, &tire, true, true,
+            30.0,
+            2.0,
+            0.0,
+            0.0,
+            1.35,
+            0.0,
+            0.0,
+            0.33,
+            3000.0,
+            1.0,
+            &tire,
+            true,
+            TractionControl::Low,
         );
         assert!(
             braking.fy.abs() < coasting.fy.abs() * 0.8,
@@ -4163,7 +4217,19 @@ mod tests {
         let tire = TireConfig::default();
         // 5000 Nm on one wheel with 3000 N load: way past traction
         let spinning = solve_wheel_forces(
-            5.0, 0.0, 0.0, 0.0, -1.35, 5000.0, 0.0, 0.33, 3000.0, 1.0, &tire, true, false,
+            5.0,
+            0.0,
+            0.0,
+            0.0,
+            -1.35,
+            5000.0,
+            0.0,
+            0.33,
+            3000.0,
+            1.0,
+            &tire,
+            true,
+            TractionControl::Off,
         );
         assert!(
             spinning.slip_ratio > 0.3,
@@ -4475,7 +4541,7 @@ mod tests {
             1.0,
             &tire_config,
             true,
-            true,
+            TractionControl::Low,
         );
         assert!(
             (driving.fx - 300.0 / 0.33).abs() < 1.0,
@@ -4502,7 +4568,7 @@ mod tests {
             1.0,
             &tire_config,
             true,
-            true,
+            TractionControl::Low,
         );
         assert!(
             cornering.fx.abs() < 1.0,
@@ -4947,5 +5013,116 @@ mod tests {
         update_car_2d(&mut state, &config, &input, 1.0 / 240.0);
 
         assert!(state.speed_mps > 0.0, "Legacy API should work");
+    }
+
+    /// Low traction control holds the wheel at its peak; the friction
+    /// ellipse then takes the lateral force down to fit. High leaves the
+    /// lateral force alone and trims the drive instead.
+    #[test]
+    fn high_traction_control_keeps_the_lateral_force_low_spends_it() {
+        let tire = TireConfig::default();
+        let load = 3000.0;
+        let run = |tc: TractionControl, drive_torque: f32| {
+            solve_wheel_forces(
+                20.0,
+                2.0,
+                0.0,
+                0.0,
+                -1.35,
+                drive_torque,
+                0.0,
+                0.33,
+                load,
+                1.0,
+                &tire,
+                true,
+                tc,
+            )
+        };
+        let coasting = run(TractionControl::Off, 0.0);
+        let low = run(TractionControl::Low, 5000.0);
+        let high = run(TractionControl::High, 5000.0);
+        let d = load;
+
+        assert!(low.tc_active && high.tc_active);
+        assert!(
+            (low.fy.abs() - coasting.fy.abs()) < -0.1 * d,
+            "low TC takes the whole circle and the ellipse scales the lateral force: {} vs coasting {}",
+            low.fy,
+            coasting.fy
+        );
+        assert!(
+            (high.fy - coasting.fy).abs() < 1.0,
+            "high TC keeps the cornering force: {} vs coasting {}",
+            high.fy,
+            coasting.fy
+        );
+        assert!(
+            high.fx > 0.0 && high.fx < low.fx,
+            "and spends the rest on drive"
+        );
+        let usage = ((high.fx / d).powi(2) + (high.fy / d).powi(2)).sqrt();
+        assert!(usage < 1.0, "with a margin left: usage {usage}");
+
+        // Off, the same torque spins the wheel into the falloff.
+        let off = run(TractionControl::Off, 5000.0);
+        assert!(!off.tc_active);
+        assert!(off.slip_ratio > tire.optimal_slip_ratio * 1.2);
+    }
+
+    /// The driver's aids override the car's file: ABS off for this player
+    /// locks the wheels on a car whose file has it on, and traction control
+    /// from the player wins the same way. An unset aid is the file's.
+    #[test]
+    fn a_drivers_aids_override_the_cars_file() {
+        let track = create_straight_test_track();
+        let config = create_test_config();
+        assert!(config.abs_enabled && config.traction_control_enabled);
+
+        let brake = |abs: Option<bool>| {
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.vel_x = 40.0;
+            state.speed_mps = 40.0;
+            state.gear = 4;
+            state.abs = abs;
+            let input = PlayerInputData {
+                brake: 1.0,
+                ..Default::default()
+            };
+            for _ in 0..24 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            }
+            state.feedback.take(0)
+        };
+        assert!(brake(None).abs_active, "unset: the file's ABS");
+        assert!(brake(Some(true)).abs_active);
+        let locked = brake(Some(false));
+        assert!(!locked.abs_active);
+        assert!(
+            locked.slip_ratio.iter().any(|s| *s < -1.5),
+            "ABS off for this driver locks a wheel: {:?}",
+            locked.slip_ratio
+        );
+
+        let launch = |tc: Option<TractionControl>| {
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.vel_x = 5.0;
+            state.speed_mps = 5.0;
+            state.gear = 1;
+            state.traction_control = tc;
+            let input = PlayerInputData {
+                throttle: 1.0,
+                ..Default::default()
+            };
+            for _ in 0..24 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            }
+            state.feedback.take(0)
+        };
+        assert!(launch(None).tc_active, "unset: the file's traction control");
+        assert!(launch(Some(TractionControl::High)).tc_active);
+        assert!(!launch(Some(TractionControl::Off)).tc_active);
     }
 }

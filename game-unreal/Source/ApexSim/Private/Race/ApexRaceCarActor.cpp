@@ -13,9 +13,10 @@
 namespace
 {
 	/**
-	 * Emissive strength of a lit brake light. The race is exposed for a 50 klux
-	 * sun, where the GLB's own strength of 1 is invisible; the start lights
-	 * read at 4000. A knob so it can be tuned against a screenshot.
+	 * Emissive brightness of a lit brake light, as a multiple of the slot's
+	 * authored colour. The race is exposed for a 50 klux sun, where the GLB's
+	 * own emission is invisible; the start lights read at 4000. A knob so it
+	 * can be tuned against a screenshot.
 	 */
 	TAutoConsoleVariable<float> CVarBrakeLightNits(
 		TEXT("apexsim.car.BrakeLightNits"),
@@ -184,15 +185,13 @@ FBoxSphereBounds AApexRaceCarActor::BodyBounds() const
 
 void AApexRaceCarActor::UpdateBrakeLights()
 {
-	const bool bOn = Brake > BrakeLightThreshold
-		|| (GetWorld() && FMath::FloorToInt32(GetWorld()->GetRealTimeSeconds() / 6.0) % 2 == 1); // BRAKETEST
+	const bool bOn = Brake > BrakeLightThreshold;
 	if (bOn == bBrakeLightsOn || !BrakeLightMaterial)
 	{
 		bBrakeLightsOn = bOn;
 		return;
 	}
 	bBrakeLightsOn = bOn;
-	UE_LOG(LogTemp, Warning, TEXT("BRAKETEST car %d on %d color %s"), CarIndex, bOn, *BrakeLightColor.ToString()); // BRAKETEST
 	BrakeLightMaterial->SetVectorParameterValue(EmissiveFactorParam,
 		bOn ? BrakeLightColor * CVarBrakeLightNits.GetValueOnGameThread() : FLinearColor::Black);
 }

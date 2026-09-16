@@ -85,8 +85,11 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeSelectCar(CarId),
 		ApexGolden::C_SelectCar);
 
+	FApexAllowedAssists CreateAssists;
+	CreateAssists.bTractionControl = false;
+	CreateAssists.bSteeringAssist = false;
 	CheckBytes(TEXT("CreateSession"),
-		ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer),
+		ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, CreateAssists),
 		ApexGolden::C_CreateSession);
 
 	CheckBytes(TEXT("JoinSession"),
@@ -102,7 +105,7 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexGolden::C_StartCountdown);
 
 	CheckBytes(TEXT("SetDriverAids"),
-		ApexProtocol::EncodeSetDriverAids(true, true),
+		ApexProtocol::EncodeSetDriverAids(true, true, false, EApexTractionControl::High),
 		ApexGolden::C_SetDriverAids);
 
 	return true;
@@ -165,6 +168,28 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("SessionJoined type"), Message.Type, EApexServerMessageType::SessionJoined);
 			TestEqual(TEXT("SessionJoined.SessionId"), Message.SessionId, SessId);
 			TestEqual(TEXT("SessionJoined.YourGridPosition"), Message.GridPosition, 3);
+			TestTrue(TEXT("SessionJoined from an older server allows every assist"),
+				Message.AllowedAssists.AllowsEverything());
+		}
+	}
+
+	{
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with assists"), ApexGolden::S_SessionJoinedAssists, Message))
+		{
+			TestEqual(TEXT("SessionJoinedAssists type"), Message.Type, EApexServerMessageType::SessionJoined);
+			TestEqual(TEXT("SessionJoinedAssists.SessionId"), Message.SessionId, SessId);
+			TestEqual(TEXT("SessionJoinedAssists.YourGridPosition"), Message.GridPosition, 3);
+			TestEqual(TEXT("SessionJoinedAssists.SessionKind"), Message.SessionKind, EApexSessionKind::Practice);
+			// The snake_case keys under the PascalCase parent: get one wrong and
+			// the field silently keeps its default (true), which is why each is
+			// pinned, and the false ones in particular.
+			TestFalse(TEXT("AllowedAssists.abs"), Message.AllowedAssists.bAbs);
+			TestTrue(TEXT("AllowedAssists.traction_control"), Message.AllowedAssists.bTractionControl);
+			TestFalse(TEXT("AllowedAssists.auto_gearbox"), Message.AllowedAssists.bAutoGearbox);
+			TestTrue(TEXT("AllowedAssists.steering_assist"), Message.AllowedAssists.bSteeringAssist);
+			TestFalse(TEXT("AllowedAssists.racing_line"), Message.AllowedAssists.bRacingLine);
+			TestEqual(TEXT("AllowedAssists.CountLocked"), Message.AllowedAssists.CountLocked(), 3);
 		}
 	}
 

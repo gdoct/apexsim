@@ -31,7 +31,8 @@ namespace ApexProtocol
 		uint8 MaxPlayers,
 		uint8 AiCount,
 		uint8 LapLimit,
-		EApexSessionKind SessionKind);
+		EApexSessionKind SessionKind,
+		const FApexAllowedAssists& AllowedAssists);
 	APEXSIMNET_API TArray<uint8> EncodeJoinSession(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeJoinAsSpectator(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeLeaveSession();
@@ -39,7 +40,9 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeDisconnect();
 	APEXSIMNET_API TArray<uint8> EncodeSetGameMode(EApexGameMode Mode);
 	APEXSIMNET_API TArray<uint8> EncodeStartCountdown(uint16 CountdownSeconds, EApexGameMode NextMode);
-	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(bool bAutoGearbox, bool bSteeringAssist);
+	/** ABS and traction control are the driver's own; the session's allowed set is applied by the server. */
+	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(
+		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
 
 	// --- Client -> server over UDP -------------------------------------------
 	// Sent as bare datagrams: no length prefix, unlike the TCP stream. The

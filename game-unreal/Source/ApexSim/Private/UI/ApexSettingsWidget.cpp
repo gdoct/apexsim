@@ -1,6 +1,7 @@
 #include "UI/ApexSettingsWidget.h"
 
 #include "ApexDirectInputTypes.h"
+#include "ApexNetSubsystem.h"
 #include "ApexPlayerController.h"
 #include "ApexSettingsSave.h"
 #include "ApexSim.h"
@@ -33,6 +34,7 @@ using namespace ApexUI;
 // enums have to stay in step.
 static_assert(
 	static_cast<int32>(EApexSettingsTab::Gameplay) == static_cast<int32>(EApexSettingsGroup::Gameplay)
+		&& static_cast<int32>(EApexSettingsTab::Assists) == static_cast<int32>(EApexSettingsGroup::Assists)
 		&& static_cast<int32>(EApexSettingsTab::Graphics) == static_cast<int32>(EApexSettingsGroup::Graphics)
 		&& static_cast<int32>(EApexSettingsTab::Camera) == static_cast<int32>(EApexSettingsGroup::Camera)
 		&& static_cast<int32>(EApexSettingsTab::Controls) == static_cast<int32>(EApexSettingsGroup::Controls)
@@ -56,6 +58,7 @@ namespace
 
 	// Rail and footer actions.
 	const FName ActionTabGameplay = TEXT("Tab.Gameplay");
+	const FName ActionTabAssists  = TEXT("Tab.Assists");
 	const FName ActionTabGraphics = TEXT("Tab.Graphics");
 	const FName ActionTabCamera   = TEXT("Tab.Camera");
 	const FName ActionTabControls = TEXT("Tab.Controls");
@@ -220,6 +223,7 @@ void UApexSettingsWidget::BuildOverlay()
 
 	PageHost = WidgetTree->ConstructWidget<UWidgetSwitcher>();
 	PageHost->AddChild(BuildGameplayPage());
+	PageHost->AddChild(BuildAssistsPage());
 	PageHost->AddChild(BuildGraphicsPage());
 	PageHost->AddChild(BuildCameraPage());
 	PageHost->AddChild(BuildControlsPage());
@@ -327,6 +331,7 @@ UWidget* UApexSettingsWidget::BuildRail()
 	};
 
 	AddTab(TEXT("Gameplay"), ActionTabGameplay);
+	AddTab(TEXT("Assists"), ActionTabAssists);
 	AddTab(TEXT("Graphics"), ActionTabGraphics);
 	AddTab(TEXT("Camera"), ActionTabCamera);
 	AddTab(TEXT("Controls"), ActionTabControls);
@@ -384,7 +389,8 @@ UWidget* UApexSettingsWidget::MakeSectionLabel(const FString& Text)
 }
 
 UWidget* UApexSettingsWidget::MakeRow(
-	const FString& Label, const FString& Description, UWidget* Control, const FString& PendingNote, float Height)
+	const FString& Label, const FString& Description, UWidget* Control, const FString& PendingNote, float Height,
+	UWidget* TitleBadge)
 {
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 	const bool bPending = !PendingNote.IsEmpty();
@@ -402,6 +408,10 @@ UWidget* UApexSettingsWidget::MakeRow(
 			MakePanel(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Not yet wired"), Palette::Accent),
 				FMargin(8.0f, 3.0f), MakeBrush(FLinearColor::Transparent, Palette::Accent, 1.0f, 2.0f)),
 			FMargin(12.0f, 0.0f, 0.0f, 0.0f));
+	}
+	if (TitleBadge)
+	{
+		AddH(TitleRow, TitleBadge, FMargin(12.0f, 0.0f, 0.0f, 0.0f));
 	}
 	AddV(Text, TitleRow);
 
@@ -477,45 +487,8 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 {
 	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
 
-	AddV(Page, MakeSectionLabel(TEXT("Driving aids")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
-
-	// Traction control and ABS are stored and saved but nothing consumes them:
-	// the aids are server-side physics and the protocol has no field for them.
-	static const FString AidNote = TEXT("Saved, but the server has no field for it yet.");
-
-	AddV(Page, MakeRow(
-		TEXT("Traction control"),
-		TEXT("Cuts torque when the rear axle slips."),
-		MakeSegment(SegTraction, { TEXT("OFF"), TEXT("LOW"), TEXT("HIGH") }, 1),
-		AidNote));
-
-	AddV(Page, MakeRow(
-		TEXT("ABS"),
-		TEXT("Releases brake pressure at lock-up."),
-		MakeSegment(SegAbs, { TEXT("OFF"), TEXT("ON") }, 1, 178.0f),
-		AidNote), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
-
-	AddV(Page, MakeRow(
-		TEXT("Gearbox"),
-		TEXT("Automatic shifting by the server, from the car's torque curve."),
-		MakeSegment(SegGearbox, { TEXT("MANUAL"), TEXT("AUTO") }, 1, 178.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
-
-	// Also server-side: the lock worth having depends on the car's grip,
-	// downforce and wheelbase, none of which the protocol sends.
-	AddV(Page, MakeRow(
-		TEXT("Steering"),
-		TEXT("Less lock as speed rises, so the stick can't overdrive the tyres."),
-		MakeSegment(SegSteering, { TEXT("FULL LOCK"), TEXT("SPEED SENSITIVE") }, 1, 178.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
-
-	// The server works the line out for the car being driven, so the braking
-	// points are that car's; see AApexRacingLineActor.
-	AddV(Page, MakeRow(
-		TEXT("Racing line"),
-		TEXT("Dots on the road: green flat out, amber at the limit, red braking."),
-		MakeSegment(SegRacingLine, { TEXT("OFF"), TEXT("BRAKING ONLY"), TEXT("FULL") }, 0)),
-		FMargin(0.0f, 2.0f, 0.0f, 0.0f));
-
-	AddV(Page, MakeSectionLabel(TEXT("Session")), FMargin(0.0f, 26.0f, 0.0f, 14.0f));
+	// The driving aids have a page of their own (BuildAssistsPage).
+	AddV(Page, MakeSectionLabel(TEXT("Session")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
 
 	// AI skill: the track fills the control cell, with the percentage after it.
 	{
@@ -557,6 +530,110 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 
 	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
 	return Page;
+}
+
+// --- Assists ----------------------------------------------------------------
+
+UWidget* UApexSettingsWidget::BuildAssistsPage()
+{
+	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	// Every aid here runs on the server: UApexRootWidget::SendDriverAids
+	// forwards the group on join and on any change. The session's host picks
+	// which are allowed when creating it, and the server forces the rest off,
+	// so each row carries a lock badge for that case (RefreshAssistLocks).
+	AddV(Page, MakeSectionLabel(TEXT("Driving aids")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+
+	AddV(Page, MakeRow(
+		TEXT("ABS"),
+		TEXT("Releases brake pressure at lock-up, so a stamped pedal still steers."),
+		MakeSegment(SegAbs, { TEXT("OFF"), TEXT("ON") }, 1, 178.0f),
+		FString(), 0.0f, MakeAssistLockBadge(SegAbs)));
+
+	AddV(Page, MakeRow(
+		TEXT("Traction control"),
+		TEXT("LOW stops the driven wheels spinning; HIGH also keeps grip in hand for cornering."),
+		MakeSegment(SegTraction, { TEXT("OFF"), TEXT("LOW"), TEXT("HIGH") }, 1),
+		FString(), 0.0f, MakeAssistLockBadge(SegTraction)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	AddV(Page, MakeRow(
+		TEXT("Gearbox"),
+		TEXT("Automatic shifting by the server, from the car's torque curve."),
+		MakeSegment(SegGearbox, { TEXT("MANUAL"), TEXT("AUTO") }, 1, 178.0f),
+		FString(), 0.0f, MakeAssistLockBadge(SegGearbox)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	// Also server-side: the lock worth having depends on the car's grip,
+	// downforce and wheelbase, none of which the protocol sends.
+	AddV(Page, MakeRow(
+		TEXT("Steering"),
+		TEXT("Less lock as speed rises, so the stick can't overdrive the tyres."),
+		MakeSegment(SegSteering, { TEXT("FULL LOCK"), TEXT("SPEED SENSITIVE") }, 1, 178.0f),
+		FString(), 0.0f, MakeAssistLockBadge(SegSteering)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	AddV(Page, MakeSectionLabel(TEXT("Guides")), FMargin(0.0f, 26.0f, 0.0f, 14.0f));
+
+	// The server works the line out for the car being driven, so the braking
+	// points are that car's; see AApexRacingLineActor. A session that forbids
+	// it sends no line at all.
+	AddV(Page, MakeRow(
+		TEXT("Racing line"),
+		TEXT("Dots on the road: green flat out, amber at the limit, red braking."),
+		MakeSegment(SegRacingLine, { TEXT("OFF"), TEXT("BRAKING ONLY"), TEXT("FULL") }, 0),
+		FString(), 0.0f, MakeAssistLockBadge(SegRacingLine)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	AddV(Page, MakeText(*WidgetTree,
+		TEXT("The session's host chooses which assists are allowed. A locked assist is off for everyone in that session; your choice is kept for the next one."),
+		Font::Body(12.0f), Palette::TextMuted), FMargin(4.0f, 18.0f, 0.0f, 0.0f));
+
+	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
+	return Page;
+}
+
+UWidget* UApexSettingsWidget::MakeAssistLockBadge(FName ControlId)
+{
+	// The same shape as the "Not yet wired" badge, in the muted colour: this
+	// is a rule of the session, not a gap in the game.
+	UBorder* Badge = MakePanel(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Off in this session"), Palette::TextMuted),
+		FMargin(8.0f, 3.0f), MakeBrush(FLinearColor::Transparent, Palette::TextMuted, 1.0f, 2.0f));
+	Badge->SetVisibility(ESlateVisibility::Collapsed);
+	AssistLocks.Add(ControlId, Badge);
+	return Badge;
+}
+
+void UApexSettingsWidget::RefreshAssistLocks()
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	// Outside a session nothing is locked: the page edits the preference that
+	// the next session will get.
+	const FApexAllowedAssists Allowed = Net && Net->IsInSession() ? Net->GetAllowedAssists() : FApexAllowedAssists();
+
+	const TPair<FName, bool> Rows[] = {
+		{ SegAbs,        Allowed.bAbs },
+		{ SegTraction,   Allowed.bTractionControl },
+		{ SegGearbox,    Allowed.bAutoGearbox },
+		{ SegSteering,   Allowed.bSteeringAssist },
+		{ SegRacingLine, Allowed.bRacingLine },
+	};
+	for (const TPair<FName, bool>& Row : Rows)
+	{
+		if (const TObjectPtr<UWidget>* Badge = AssistLocks.Find(Row.Key))
+		{
+			if (*Badge)
+			{
+				(*Badge)->SetVisibility(Row.Value ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+			}
+		}
+		if (const TObjectPtr<UApexSegmentedWidget>* Segment = Segments.Find(Row.Key))
+		{
+			// The pills keep showing the stored choice, dimmed: it is what the
+			// player will get back in a session that allows the aid.
+			if (*Segment)
+			{
+				(*Segment)->SetIsEnabled(Row.Value);
+			}
+		}
+	}
 }
 
 // --- Graphics ---------------------------------------------------------------
@@ -1395,6 +1472,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegGearbox, Values->bAutoGearbox ? 1 : 0);
 	SetSegment(SegSteering, Values->bSteeringAssist ? 1 : 0);
 	SetSegment(SegRacingLine, static_cast<int32>(Values->RacingLine));
+	RefreshAssistLocks();
 	SetSegment(SegUnits, static_cast<int32>(Values->Units));
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
 	SetSegment(SegPreset, static_cast<int32>(Values->Preset));
@@ -1558,6 +1636,18 @@ void UApexSettingsWidget::RefreshHeaderContext()
 		Context = TEXT("Applies immediately · saved on close");
 		break;
 
+	case EApexSettingsTab::Assists:
+	{
+		const UGameInstance* GameInstance = GetGameInstance();
+		const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+		const int32 Locked = Net && Net->IsInSession() ? Net->GetAllowedAssists().CountLocked() : 0;
+		Context = Locked == 0
+			? TEXT("Applies immediately · saved on close")
+			: Locked == 1 ? TEXT("1 assist locked by the host · saved on close")
+			              : FString::Printf(TEXT("%d assists locked by the host · saved on close"), Locked);
+		break;
+	}
+
 	case EApexSettingsTab::Graphics:
 		if (const UWorld* World = GetWorld())
 		{
@@ -1631,6 +1721,7 @@ void UApexSettingsWidget::HandleRailActivated(UApexButtonWidget* Button)
 
 	const FName Action = Button->GetActionId();
 	if (Action == ActionTabGameplay)      { ShowTab(EApexSettingsTab::Gameplay); }
+	else if (Action == ActionTabAssists)  { ShowTab(EApexSettingsTab::Assists); }
 	else if (Action == ActionTabGraphics) { ShowTab(EApexSettingsTab::Graphics); }
 	else if (Action == ActionTabCamera)   { ShowTab(EApexSettingsTab::Camera); }
 	else if (Action == ActionTabControls) { ShowTab(EApexSettingsTab::Controls); }

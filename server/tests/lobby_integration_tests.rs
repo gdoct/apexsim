@@ -87,6 +87,7 @@ impl LobbyTestClient {
             session_kind,
             ai_count: 0,
             lap_limit: 3,
+            allowed_assists: Default::default(),
         };
 
         self.send_message(&msg).await?;

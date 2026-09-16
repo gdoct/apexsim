@@ -97,6 +97,13 @@ public:
 	EApexSessionKind CreateSessionKind = EApexSessionKind::Multiplayer;
 
 	/**
+	 * Which driving aids the session allows its drivers. The server forces a
+	 * disallowed aid off for everyone in the session, whatever their settings.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	FApexAllowedAssists CreateAllowedAssists;
+
+	/**
 	 * The mode a session is counted into once it starts.
 	 *
 	 * Not part of CreateSession — the server always creates a session in Lobby —

@@ -171,6 +171,7 @@ void UApexSettingsSubsystem::ApplyGroup(EApexSettingsGroup Group)
 	switch (Group)
 	{
 	case EApexSettingsGroup::Gameplay: ApplyGameplay(); break;
+	case EApexSettingsGroup::Assists:  ApplyAssists();  break;
 	case EApexSettingsGroup::Graphics: ApplyGraphics(); break;
 	case EApexSettingsGroup::Camera:   ApplyCamera();   break;
 	case EApexSettingsGroup::Controls: ApplyControls(); break;
@@ -183,40 +184,50 @@ void UApexSettingsSubsystem::ApplyGroup(EApexSettingsGroup Group)
 
 // --- Gameplay ---------------------------------------------------------------
 
+// --- Assists ----------------------------------------------------------------
+//
+// Every one of these is a server-side aid (UApexRootWidget::SendDriverAids
+// forwards the group) except the racing line, which the server builds and the
+// client draws. The session's allowed set is applied by the server, so a
+// locked aid is still stored here — it comes back when the player is in a
+// session that allows it.
+
 void UApexSettingsSubsystem::SetTractionControl(EApexAssistLevel Level)
 {
 	if (!Settings || Settings->TractionControl == Level) { return; }
 	Settings->TractionControl = Level;
-	Changed(EApexSettingsGroup::Gameplay);
+	Changed(EApexSettingsGroup::Assists);
 }
 
 void UApexSettingsSubsystem::SetAbs(bool bEnabled)
 {
 	if (!Settings || Settings->bAbs == bEnabled) { return; }
 	Settings->bAbs = bEnabled;
-	Changed(EApexSettingsGroup::Gameplay);
+	Changed(EApexSettingsGroup::Assists);
 }
 
 void UApexSettingsSubsystem::SetAutoGearbox(bool bAuto)
 {
 	if (!Settings || Settings->bAutoGearbox == bAuto) { return; }
 	Settings->bAutoGearbox = bAuto;
-	Changed(EApexSettingsGroup::Gameplay);
+	Changed(EApexSettingsGroup::Assists);
 }
 
 void UApexSettingsSubsystem::SetSteeringAssist(bool bAssist)
 {
 	if (!Settings || Settings->bSteeringAssist == bAssist) { return; }
 	Settings->bSteeringAssist = bAssist;
-	Changed(EApexSettingsGroup::Gameplay);
+	Changed(EApexSettingsGroup::Assists);
 }
 
 void UApexSettingsSubsystem::SetRacingLine(EApexRacingLine Line)
 {
 	if (!Settings || Settings->RacingLine == Line) { return; }
 	Settings->RacingLine = Line;
-	Changed(EApexSettingsGroup::Gameplay);
+	Changed(EApexSettingsGroup::Assists);
 }
+
+// --- Gameplay ---------------------------------------------------------------
 
 void UApexSettingsSubsystem::SetAiSkill(float Skill01)
 {
@@ -253,6 +264,14 @@ void UApexSettingsSubsystem::ApplyGameplay()
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("apexsim.net.ParseCenterline")))
 	{
 		CVar->Set(Settings->HudDetail == EApexHudDetail::All ? 1 : 0, ECVF_SetByGameSetting);
+	}
+}
+
+void UApexSettingsSubsystem::ApplyAssists()
+{
+	if (!Settings)
+	{
+		return;
 	}
 
 	// The racing line only exists while racing; the director reads the
@@ -783,14 +802,17 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 	switch (Group)
 	{
 	case EApexSettingsGroup::Gameplay:
+		Settings->AiSkill = Defaults->AiSkill;
+		Settings->Units = Defaults->Units;
+		Settings->HudDetail = Defaults->HudDetail;
+		break;
+
+	case EApexSettingsGroup::Assists:
 		Settings->TractionControl = Defaults->TractionControl;
 		Settings->bAbs = Defaults->bAbs;
 		Settings->bAutoGearbox = Defaults->bAutoGearbox;
 		Settings->bSteeringAssist = Defaults->bSteeringAssist;
 		Settings->RacingLine = Defaults->RacingLine;
-		Settings->AiSkill = Defaults->AiSkill;
-		Settings->Units = Defaults->Units;
-		Settings->HudDetail = Defaults->HudDetail;
 		break;
 
 	case EApexSettingsGroup::Graphics:

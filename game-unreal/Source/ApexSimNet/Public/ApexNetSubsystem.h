@@ -164,13 +164,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void SelectCar(const FString& CarConfigId);
 
+	/** AllowedAssists: which driving aids the session lets its drivers use (every one by default). */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void CreateSession(
 		const FString& TrackConfigId,
-		int32 MaxPlayers = 8,
-		int32 AiCount = 0,
-		int32 LapLimit = 5,
-		EApexSessionKind SessionKind = EApexSessionKind::Multiplayer);
+		int32 MaxPlayers,
+		int32 AiCount,
+		int32 LapLimit,
+		EApexSessionKind SessionKind,
+		const FApexAllowedAssists& AllowedAssists);
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -233,7 +235,15 @@ public:
 	 * joining a session and whenever they change.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
-	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist);
+	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
+
+	/**
+	 * The aids the current session's host allows, from its SessionJoined.
+	 * Everything is allowed outside a session, in a demo, and on a server
+	 * that predates the field. The server enforces it; this is for the UI.
+	 */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	const FApexAllowedAssists& GetAllowedAssists() const { return CurrentAllowedAssists; }
 
 	// --- State ----------------------------------------------------------------
 
@@ -389,6 +399,8 @@ private:
 	int32 ReconnectAttempt = 0;
 	float TimeUntilReconnect = 0.0f;
 	FString CurrentSessionId;
+	/** From the session's SessionJoined; reset on SessionLeft. */
+	FApexAllowedAssists CurrentAllowedAssists;
 
 	// --- Demo session -----------------------------------------------------------
 

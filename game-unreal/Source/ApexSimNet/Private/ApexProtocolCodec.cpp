@@ -357,6 +357,36 @@ namespace
 		return true;
 	}
 
+	/** `AllowedAssists` — snake_case keys even under a PascalCase parent (no rename_all). */
+	bool ParseAllowedAssists(FMsgPackReader& Reader, FApexAllowedAssists& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("abs"))                   { bOk = Reader.ReadBool(Out.bAbs); }
+			else if (Key == TEXT("traction_control")) { bOk = Reader.ReadBool(Out.bTractionControl); }
+			else if (Key == TEXT("auto_gearbox"))     { bOk = Reader.ReadBool(Out.bAutoGearbox); }
+			else if (Key == TEXT("steering_assist"))  { bOk = Reader.ReadBool(Out.bSteeringAssist); }
+			else if (Key == TEXT("racing_line"))      { bOk = Reader.ReadBool(Out.bRacingLine); }
+			else                                      { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** `SessionJoinedData` — PascalCase keys. */
 	bool ParseSessionJoined(FMsgPackReader& Reader, FApexServerMessage& Out)
 	{
@@ -377,6 +407,7 @@ namespace
 			if (Key == TEXT("SessionId"))              { bOk = Reader.ReadString(Out.SessionId); }
 			else if (Key == TEXT("YourGridPosition"))  { bOk = Reader.ReadUInt64(Raw); Out.GridPosition = static_cast<int32>(Raw); }
 			else if (Key == TEXT("SessionKind"))       { bOk = Reader.ReadUInt64(Raw); Out.SessionKind = static_cast<EApexSessionKind>(Raw); }
+			else if (Key == TEXT("AllowedAssists"))    { bOk = ParseAllowedAssists(Reader, Out.AllowedAssists); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -904,15 +935,32 @@ namespace ApexProtocol
 		return EncodeUnitVariant("RequestLobbyState");
 	}
 
+	/** `AllowedAssists` (data.rs): no rename_all, so snake_case keys wherever it nests. */
+	void WriteAllowedAssists(FMsgPackWriter& Writer, const FApexAllowedAssists& Assists)
+	{
+		Writer.WriteMapHeader(5);
+		Writer.WriteString("abs");
+		Writer.WriteBool(Assists.bAbs);
+		Writer.WriteString("traction_control");
+		Writer.WriteBool(Assists.bTractionControl);
+		Writer.WriteString("auto_gearbox");
+		Writer.WriteBool(Assists.bAutoGearbox);
+		Writer.WriteString("steering_assist");
+		Writer.WriteBool(Assists.bSteeringAssist);
+		Writer.WriteString("racing_line");
+		Writer.WriteBool(Assists.bRacingLine);
+	}
+
 	TArray<uint8> EncodeCreateSession(
 		const FString& TrackConfigId,
 		uint8 MaxPlayers,
 		uint8 AiCount,
 		uint8 LapLimit,
-		EApexSessionKind SessionKind)
+		EApexSessionKind SessionKind,
+		const FApexAllowedAssists& AllowedAssists)
 	{
-		FMsgPackWriter Writer(128);
-		BeginDataVariant(Writer, "CreateSession", 5);
+		FMsgPackWriter Writer(256);
+		BeginDataVariant(Writer, "CreateSession", 6);
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -923,6 +971,8 @@ namespace ApexProtocol
 		Writer.WriteUInt(LapLimit);
 		Writer.WriteString("session_kind");
 		Writer.WriteUInt(static_cast<uint8>(SessionKind));
+		Writer.WriteString("allowed_assists");
+		WriteAllowedAssists(Writer, AllowedAssists);
 		return MoveTemp(Writer.GetBuffer());
 	}
 
@@ -968,14 +1018,21 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
-	TArray<uint8> EncodeSetDriverAids(bool bAutoGearbox, bool bSteeringAssist)
+	TArray<uint8> EncodeSetDriverAids(
+		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl)
 	{
-		FMsgPackWriter Writer(64);
-		BeginDataVariant(Writer, "SetDriverAids", 2);
+		FMsgPackWriter Writer(96);
+		BeginDataVariant(Writer, "SetDriverAids", 4);
 		Writer.WriteString("auto_gearbox");
 		Writer.WriteBool(bAutoGearbox);
 		Writer.WriteString("steering_assist");
 		Writer.WriteBool(bSteeringAssist);
+		// Both are Option<> on the server: a value is always sent, so the
+		// player's choice — not the car file's — is what runs.
+		Writer.WriteString("abs");
+		Writer.WriteBool(bAbs);
+		Writer.WriteString("traction_control");
+		Writer.WriteUInt(static_cast<uint8>(TractionControl));
 		return MoveTemp(Writer.GetBuffer());
 	}
 

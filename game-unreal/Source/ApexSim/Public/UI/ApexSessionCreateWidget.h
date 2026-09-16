@@ -36,6 +36,13 @@ public:
 	virtual void FocusDefault() override;
 	/** Enter on a slider — anywhere no control took it — creates, as the footer's key cap promises. */
 	virtual bool HandleAccept() override;
+	/**
+	 * Crosses between the content column and the settings column. The links
+	 * sit mid-panel, level with nothing on the right, so Slate's geometric
+	 * search never found them from a pad; the sliders keep Left and Right for
+	 * their value, so the shoulders (and Tab) switch columns from anywhere.
+	 */
+	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -69,6 +76,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> KindMultiplayerButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> KindSingleButton;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ModeButtons;
+	/** One toggle per driving aid the session may allow, in EApexAssistChip order. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AssistButtons;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> MaxPlayersSlider;
 	UPROPERTY(Transient) TObjectPtr<USlider> AiCountSlider;

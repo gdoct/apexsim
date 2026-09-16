@@ -28,7 +28,11 @@
  * so their fields are PascalCase:
  *     AuthSuccessData { PlayerId, ServerVersion, ProtocolVersion, UdpToken, UdpPort }
  *     LobbyStateData  { PlayersInLobby, AvailableSessions, CarConfigs, TrackConfigs }
- *     SessionJoinedData { SessionId, YourGridPosition, SessionKind }
+ *     SessionJoinedData { SessionId, YourGridPosition, SessionKind, AllowedAssists }
+ *
+ * AllowedAssists is a struct with NO rename_all, so its own keys are
+ * snake_case ("abs", "racing_line") even under SessionJoinedData's PascalCase
+ * "AllowedAssists" key — the TrackPoint situation again.
  *
  * And one exception breaks even that: TrackPoint (network.rs:318-322) has NO
  * rename_all, so its keys are lowercase "x"/"y" while nested inside a
@@ -65,6 +69,66 @@ enum class EApexSessionKind : uint8
 	 * it out of every session delegate (see IsInDemoSession).
 	 */
 	Demo        = 3,
+};
+
+/** Mirrors `TractionControl` (data.rs). Serialize_repr => a plain u8 on the wire. */
+UENUM(BlueprintType)
+enum class EApexTractionControl : uint8
+{
+	Off  = 0,
+	/** Cuts drive only when a driven wheel would spin. */
+	Low  = 1,
+	/** Cuts drive as soon as the tyre's combined grip runs out, keeping a margin for cornering. */
+	High = 2,
+};
+
+/**
+ * Mirrors `AllowedAssists` (data.rs): which driving aids a session's host lets
+ * its drivers use, fixed when the session is created. Sent inside
+ * CreateSession and echoed in SessionJoined; the server forces a disallowed
+ * aid off for every driver, so the client only has to show the lock. Every
+ * field is true from a server that predates it.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexAllowedAssists
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bAbs = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bTractionControl = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bAutoGearbox = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bSteeringAssist = true;
+
+	/** The server sends no RacingLine at all when this is off. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bRacingLine = true;
+
+	bool AllowsEverything() const
+	{
+		return bAbs && bTractionControl && bAutoGearbox && bSteeringAssist && bRacingLine;
+	}
+
+	/** How many of the five are locked. */
+	int32 CountLocked() const
+	{
+		return (bAbs ? 0 : 1) + (bTractionControl ? 0 : 1) + (bAutoGearbox ? 0 : 1)
+			+ (bSteeringAssist ? 0 : 1) + (bRacingLine ? 0 : 1);
+	}
+
+	bool operator==(const FApexAllowedAssists& Other) const
+	{
+		return bAbs == Other.bAbs && bTractionControl == Other.bTractionControl
+			&& bAutoGearbox == Other.bAutoGearbox && bSteeringAssist == Other.bSteeringAssist
+			&& bRacingLine == Other.bRacingLine;
+	}
+	bool operator!=(const FApexAllowedAssists& Other) const { return !(*this == Other); }
 };
 
 /** Mirrors `GameMode` (data.rs:906). Serialize_repr => a plain u8 on the wire. */
@@ -618,6 +682,8 @@ struct APEXSIMNET_API FApexServerMessage
 	int32 GridPosition = 0;
 	/** SessionJoined::SessionKind; Multiplayer from a server that predates the field. */
 	EApexSessionKind SessionKind = EApexSessionKind::Multiplayer;
+	/** SessionJoined::AllowedAssists; everything allowed from a server that predates the field. */
+	FApexAllowedAssists AllowedAssists;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

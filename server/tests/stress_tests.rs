@@ -494,6 +494,7 @@ impl TestClientMinimal {
             session_kind: SessionKind::Practice,
             ai_count: 0,
             lap_limit: 3,
+            allowed_assists: Default::default(),
         };
         self.send_message(&msg).await?;
 
@@ -832,6 +833,7 @@ async fn run_multi_client_test(
         session_kind: SessionKind::Practice,
         ai_count: 0,
         lap_limit: 3,
+        allowed_assists: Default::default(),
     };
     clients[0].send_message(&create_msg).await?;
 

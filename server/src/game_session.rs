@@ -630,6 +630,9 @@ impl GameSession {
             .find(|s| s.position == grid_position)
         {
             let mut car_state = CarState::new(player_id, car_config_id, grid_slot);
+            // A client that never sends SetDriverAids would otherwise run the
+            // car's own ABS and traction control in a session that forbids them.
+            car_state.set_driver_aids(self.session.allowed_assists.clamp(car_state.driver_aids()));
             physics::seed_track_progress(&mut car_state, &self.track_config);
             self.session.participants.insert(player_id, car_state);
             self.roster_dirty = true;
@@ -637,6 +640,19 @@ impl GameSession {
         } else {
             None
         }
+    }
+
+    /// Set a driver's aids to what they asked for, less what the session
+    /// forbids; returns what was applied, or `None` for a player not here.
+    pub fn set_driver_aids(
+        &mut self,
+        player_id: &PlayerId,
+        asked: DriverAids,
+    ) -> Option<DriverAids> {
+        let applied = self.session.allowed_assists.clamp(asked);
+        let car = self.session.participants.get_mut(player_id)?;
+        car.set_driver_aids(applied);
+        Some(applied)
     }
 
     /// Remove a player from the session
@@ -663,6 +679,8 @@ impl GameSession {
             // A race starts in neutral, so a driver can rev on the grid.
             fresh.gear = 0;
             fresh.auto_gearbox = state.auto_gearbox;
+            fresh.abs = state.abs;
+            fresh.traction_control = state.traction_control;
             fresh.steering_assist = self
                 .held_steering_assist
                 .remove(&state.player_id)
@@ -2070,5 +2088,71 @@ mod tests {
             car_state.car_config_id, car2.id,
             "Demo driver should use the host's selected car"
         );
+    }
+
+    /// A session that forbids an aid pins it off for every driver, whatever
+    /// they ask for and whatever the car's own file says; one that allows
+    /// them passes the request through.
+    #[test]
+    fn a_session_forbidding_aids_pins_them_off() {
+        let everything = DriverAids {
+            auto_gearbox: true,
+            steering_assist: true,
+            abs: Some(true),
+            traction_control: Some(TractionControl::High),
+        };
+
+        let mut strict = create_test_session();
+        strict.session.allowed_assists = AllowedAssists::NONE;
+        let player = Uuid::new_v4();
+        let car_id = strict.car_configs.values().next().unwrap().id;
+        strict.add_player(player, car_id).unwrap();
+        let seated = strict.session.participants[&player].driver_aids();
+        assert_eq!(
+            seated.abs,
+            Some(false),
+            "a client that never sends its aids must not get the car's ABS"
+        );
+        assert_eq!(seated.traction_control, Some(TractionControl::Off));
+
+        let applied = strict.set_driver_aids(&player, everything).unwrap();
+        assert_eq!(
+            applied,
+            DriverAids {
+                auto_gearbox: false,
+                steering_assist: false,
+                abs: Some(false),
+                traction_control: Some(TractionControl::Off),
+            }
+        );
+        assert_eq!(strict.session.participants[&player].driver_aids(), applied);
+
+        strict.line_up_on_grid();
+        assert_eq!(
+            strict.session.participants[&player].driver_aids(),
+            applied,
+            "lining up again keeps the clamped aids"
+        );
+
+        let mut open = create_test_session();
+        open.add_player(player, car_id).unwrap();
+        let seated = open.session.participants[&player].driver_aids();
+        assert_eq!(
+            seated.abs, None,
+            "allowed: the car's own until the client says"
+        );
+        assert_eq!(open.set_driver_aids(&player, everything), Some(everything));
+
+        let mut no_tc = create_test_session();
+        no_tc.session.allowed_assists = AllowedAssists {
+            traction_control: false,
+            ..AllowedAssists::ALL
+        };
+        no_tc.add_player(player, car_id).unwrap();
+        let applied = no_tc.set_driver_aids(&player, everything).unwrap();
+        assert_eq!(applied.traction_control, Some(TractionControl::Off));
+        assert_eq!(applied.abs, Some(true));
+        assert!(applied.auto_gearbox && applied.steering_assist);
+        assert_eq!(no_tc.set_driver_aids(&Uuid::new_v4(), everything), None);
     }
 }
