@@ -20,6 +20,10 @@ pub struct ServerState {
     pub players: HashMap<PlayerId, Player>,
     pub lobby: LobbyManager,
     pub replay: ReplayManager,
+    /// Lap records across sessions (`crate::records`). Behind an `Arc` so
+    /// the game loop can write a record after dropping the state lock: the
+    /// store does its own locking and its own disk IO.
+    pub records: Arc<crate::records::RecordStore>,
 }
 
 impl ServerState {
@@ -57,6 +61,12 @@ impl ServerState {
             }
         }
 
+        let records = if config.records.enabled {
+            crate::records::RecordStore::open(&config.records.dir)
+        } else {
+            crate::records::RecordStore::in_memory()
+        };
+
         Self {
             config,
             car_configs,
@@ -65,6 +75,7 @@ impl ServerState {
             players: HashMap::new(),
             lobby: LobbyManager::new(),
             replay: ReplayManager::new(std::path::PathBuf::from("./replays")),
+            records: Arc::new(records),
         }
     }
 

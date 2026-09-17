@@ -25,6 +25,7 @@
 #include "Race/ApexRaceDirector.h"
 #include "UI/ApexCarSelectWidget.h"
 #include "UI/ApexConnectDialogWidget.h"
+#include "UI/ApexHotlapWidget.h"
 #include "UI/ApexHudWidget.h"
 #include "UI/ApexMainMenuWidget.h"
 #include "UI/ApexMenuInputProcessor.h"
@@ -141,6 +142,8 @@ void UApexRootWidget::BuildShell()
 	ToastPanel = WidgetTree->ConstructWidget<UApexToastWidget>();
 
 	Hud = WidgetTree->ConstructWidget<UApexHudWidget>();
+	HotlapPanel = WidgetTree->ConstructWidget<UApexHotlapWidget>();
+	HotlapPanel->OnAction.AddDynamic(this, &UApexRootWidget::HandleHotlapAction);
 	PauseMenu = WidgetTree->ConstructWidget<UApexPauseMenuWidget>();
 	PauseMenu->OnAction.AddDynamic(this, &UApexRootWidget::HandlePauseAction);
 	SettingsOverlay = WidgetTree->ConstructWidget<UApexSettingsWidget>();
@@ -167,6 +170,10 @@ void UApexRootWidget::BuildShell()
 	UOverlaySlot* HudSlot = Frame->AddChildToOverlay(Hud);
 	HudSlot->SetHorizontalAlignment(HAlign_Fill);
 	HudSlot->SetVerticalAlignment(VAlign_Fill);
+
+	UOverlaySlot* HotlapSlot = Frame->AddChildToOverlay(HotlapPanel);
+	HotlapSlot->SetHorizontalAlignment(HAlign_Fill);
+	HotlapSlot->SetVerticalAlignment(VAlign_Fill);
 
 	UOverlaySlot* PauseSlot = Frame->AddChildToOverlay(PauseMenu);
 	PauseSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -205,6 +212,8 @@ void UApexRootWidget::NativeConstruct()
 		Net->OnLobbyStateUpdated.AddDynamic(this, &UApexRootWidget::HandleLobbyStateForAutoRace);
 		Net->OnSessionStateChanged.AddDynamic(this, &UApexRootWidget::HandleSessionStateChanged);
 		Net->OnTelemetry.AddDynamic(this, &UApexRootWidget::HandleTelemetryForFinish);
+		Net->OnTelemetry.AddDynamic(this, &UApexRootWidget::HandleTelemetryForHotlap);
+		Net->OnLapRecord.AddDynamic(this, &UApexRootWidget::HandleLapRecordForGhost);
 	}
 	if (UApexSettingsSubsystem* Settings = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr)
 	{
@@ -248,6 +257,38 @@ void UApexRootWidget::NativeConstruct()
 		}
 	}
 
+	// -ApexCameraCycleAfter=N[,N] presses C N seconds in: with a matching
+	// -ApexScreenshotAfter list, one unattended run walks the whole camera
+	// ladder (cockpit, roof, close, near, far) and grabs each of them.
+	FString CameraCycleDelays;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexCameraCycleAfter="), CameraCycleDelays, /*bShouldStopOnSeparator*/ false)
+		&& GetWorld())
+	{
+		TArray<FString> Delays;
+		CameraCycleDelays.ParseIntoArray(Delays, TEXT(","));
+		for (const FString& Delay : Delays)
+		{
+			const float Seconds = FCString::Atof(*Delay);
+			if (Seconds <= 0.0f)
+			{
+				continue;
+			}
+			FTimerHandle Handle;
+			GetWorld()->GetTimerManager().SetTimer(
+				Handle,
+				FTimerDelegate::CreateWeakLambda(this, [this, Seconds]()
+				{
+					if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+					{
+						UE_LOG(LogApexSim, Log, TEXT("-ApexCameraCycleAfter: stepping the camera (%.0f s)"), Seconds);
+						Director->CycleView();
+					}
+				}),
+				Seconds,
+				false);
+		}
+	}
+
 	// -ApexOpenPause=N / -ApexOpenSettings=N open a race overlay N seconds in.
 	// Both are otherwise only reachable with a keypress, which an unattended run
 	// cannot make — and the overlays are exactly what a screenshot pass wants to
@@ -273,7 +314,7 @@ void UApexRootWidget::NativeConstruct()
 				if (bOpenSettings && SettingsOverlay)
 				{
 					SettingsOverlay->Open(static_cast<EApexSettingsTab>(
-						FMath::Clamp(TabIndex, 0, static_cast<int32>(EApexSettingsTab::CarSetup))));
+						FMath::Clamp(TabIndex, 0, static_cast<int32>(EApexSettingsTab::Audio))));
 				}
 			}),
 			OverlayDelay,
@@ -295,9 +336,79 @@ void UApexRootWidget::NativeConstruct()
 	int32 ModeValue = -1;
 	if (FParse::Value(FCommandLine::Get(), TEXT("ApexMode="), ModeValue)
 		&& ModeValue >= 0
-		&& ModeValue <= static_cast<int32>(EApexGameMode::Race))
+		&& ModeValue <= static_cast<int32>(EApexGameMode::Hotlap))
 	{
 		AutoRaceMode = static_cast<EApexGameMode>(ModeValue);
+	}
+
+	// -ApexHotlapOutAfter=N / -ApexHotlapGarageAfter=N / -ApexHotlapReplayAfter=N
+	// press the garage card's buttons N seconds in, for a screenshot run of a
+	// hotlap (-ApexMode=8) that nobody is at the keyboard for. Each may be a
+	// comma list.
+	if (GetWorld())
+	{
+		struct FHotlapSwitch
+		{
+			const TCHAR* Name;
+			EApexHotlapAction Action;
+		};
+		static const FHotlapSwitch Switches[] = {
+			{ TEXT("ApexHotlapOutAfter="), EApexHotlapAction::GoOut },
+			{ TEXT("ApexHotlapReplayAfter="), EApexHotlapAction::ReplayBestLap },
+		};
+		for (const FHotlapSwitch& Switch : Switches)
+		{
+			FString Delays;
+			if (!FParse::Value(FCommandLine::Get(), Switch.Name, Delays, /*bShouldStopOnSeparator*/ false))
+			{
+				continue;
+			}
+			TArray<FString> Parts;
+			Delays.ParseIntoArray(Parts, TEXT(","));
+			for (const FString& Part : Parts)
+			{
+				const float Seconds = FCString::Atof(*Part);
+				if (Seconds <= 0.0f)
+				{
+					continue;
+				}
+				const EApexHotlapAction Action = Switch.Action;
+				FTimerHandle Handle;
+				GetWorld()->GetTimerManager().SetTimer(
+					Handle,
+					FTimerDelegate::CreateWeakLambda(this, [this, Action, Seconds]()
+					{
+						UE_LOG(LogApexSim, Log, TEXT("-ApexHotlap*After: garage action %d (%.0f s)"),
+							static_cast<int32>(Action), Seconds);
+						HandleHotlapAction(Action);
+					}),
+					Seconds,
+					false);
+			}
+		}
+		FString GarageDelays;
+		if (FParse::Value(FCommandLine::Get(), TEXT("ApexHotlapGarageAfter="), GarageDelays, false))
+		{
+			TArray<FString> Parts;
+			GarageDelays.ParseIntoArray(Parts, TEXT(","));
+			for (const FString& Part : Parts)
+			{
+				const float Seconds = FCString::Atof(*Part);
+				if (Seconds <= 0.0f)
+				{
+					continue;
+				}
+				FTimerHandle Handle;
+				GetWorld()->GetTimerManager().SetTimer(
+					Handle,
+					FTimerDelegate::CreateWeakLambda(this, [this]()
+					{
+						HandlePauseAction(EApexPauseAction::ReturnToGarage);
+					}),
+					Seconds,
+					false);
+			}
+		}
 	}
 
 	if (bAutoRaceRequested)
@@ -451,6 +562,21 @@ void UApexRootWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	UpdateBackdrop(InDeltaTime);
+
+	// The replay ends itself when the lap is over; the garage card comes back.
+	if (HotlapPanel && HotlapPanel->GetView() == EApexHotlapView::Replay)
+	{
+		AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+		if (Director && Director->IsGhostReplayActive())
+		{
+			HotlapPanel->SetReplayTime(Director->GetGhostReplayTimeMs(), Director->GetGhostLapTimeMs());
+		}
+		else
+		{
+			HotlapPanel->SetView(bGarageOpen ? EApexHotlapView::Garage : EApexHotlapView::Track);
+			RequestFocusDefault();
+		}
+	}
 }
 
 UTexture2D* UApexRootWidget::MakeScrimTexture()
@@ -567,7 +693,7 @@ void UApexRootWidget::HandleFocusChanging(
 
 bool UApexRootWidget::IsRaceOverlayOpen() const
 {
-	return (PauseMenu && PauseMenu->IsOpen()) || (SettingsOverlay && SettingsOverlay->IsOpen());
+	return (PauseMenu && PauseMenu->IsOpen()) || (SettingsOverlay && SettingsOverlay->IsOpen()) || bGarageOpen;
 }
 
 bool UApexRootWidget::IsSettingsOpen() const
@@ -593,6 +719,11 @@ void UApexRootWidget::FocusDefault()
 		PauseMenu->FocusDefault();
 		return;
 	}
+	if (bGarageOpen && HotlapPanel && HotlapPanel->GetView() == EApexHotlapView::Garage)
+	{
+		HotlapPanel->FocusDefault();
+		return;
+	}
 	if (bRaceViewActive)
 	{
 		// Driving: the viewport has focus on purpose, so the car gets the keys.
@@ -615,6 +746,18 @@ void UApexRootWidget::RequestFocusDefault()
 
 void UApexRootWidget::SetPaused(bool bPaused)
 {
+	// The pause key during a replay stops the replay, as its strip promises.
+	if (bPaused && !bPauseMenuOpen)
+	{
+		if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+		{
+			if (Director->IsGhostReplayActive())
+			{
+				Director->EndGhostReplay();
+				return;
+			}
+		}
+	}
 	if (bPauseMenuOpen == bPaused || !PauseMenu)
 	{
 		return;
@@ -635,13 +778,139 @@ void UApexRootWidget::SetPaused(bool bPaused)
 	if (AApexPlayerController* PlayerController =
 			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
-		PlayerController->SetDriveInputEnabled(!bPaused && bRaceViewActive);
+		PlayerController->SetDriveInputEnabled(!bPaused && bRaceViewActive && !bGarageOpen);
 	}
 
 	// The input-mode switch above hands focus to the viewport when its deferred
 	// operations run, which is after Open() focused the first row. A tick later
 	// the menu takes it back for good; on resume there is nothing to focus.
 	RequestFocusDefault();
+}
+
+void UApexRootWidget::SetGarageOpen(bool bOpen)
+{
+	if (bGarageOpen == bOpen)
+	{
+		return;
+	}
+	bGarageOpen = bOpen;
+	if (HotlapPanel && bHotlapSession)
+	{
+		HotlapPanel->SetView(bOpen ? EApexHotlapView::Garage : EApexHotlapView::Track);
+	}
+	if (Hud)
+	{
+		Hud->SetShown(!bOpen);
+	}
+	if (AApexPlayerController* PlayerController =
+			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+	{
+		PlayerController->SetDriveInputEnabled(!bOpen && bRaceViewActive && !bPauseMenuOpen);
+	}
+	if (bOpen)
+	{
+		ApexUiAudio::Play(this, EApexUiSound::Notice);
+	}
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::HandleHotlapAction(EApexHotlapAction Action)
+{
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	UApexSettingsSubsystem* Settings = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+	switch (Action)
+	{
+	case EApexHotlapAction::GoOut:
+		// The telemetry's garage flag flips the view once the server has moved the car.
+		if (Net)
+		{
+			Net->HotlapRelocate(EApexHotlapDestination::Track);
+		}
+		break;
+
+	case EApexHotlapAction::ReplayBestLap:
+		if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+		{
+			if (Director->BeginGhostReplay())
+			{
+				if (HotlapPanel)
+				{
+					HotlapPanel->SetView(EApexHotlapView::Replay);
+				}
+			}
+			else
+			{
+				ShowToast(TEXT("No record lap to replay yet"), false);
+			}
+		}
+		break;
+
+	case EApexHotlapAction::ToggleGhost:
+		if (Settings && Settings->Get())
+		{
+			Settings->SetGhostCar(!Settings->Get()->bGhostCar);
+		}
+		break;
+
+	case EApexHotlapAction::ResetSetup:
+		if (Settings)
+		{
+			Settings->ResetToDefaults(EApexSettingsGroup::CarSetup);
+		}
+		break;
+	}
+}
+
+void UApexRootWidget::HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame)
+{
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net || !bRaceViewActive || Net->IsInDemoSession() || !Net->IsInSession())
+	{
+		return;
+	}
+	const bool bHotlap = Frame.GameMode == EApexGameMode::Hotlap;
+	if (bHotlap != bHotlapSession)
+	{
+		bHotlapSession = bHotlap;
+		if (HotlapPanel)
+		{
+			HotlapPanel->SetActive(bHotlap);
+		}
+		if (bHotlap && Net)
+		{
+			// The stored record lap's trace, for the ghost and the replay.
+			const_cast<UApexNetSubsystem*>(Net)->RequestGhost();
+		}
+		if (!bHotlap)
+		{
+			SetGarageOpen(false);
+		}
+	}
+	if (!bHotlap)
+	{
+		return;
+	}
+	const int32 LocalIndex = Net->GetLocalCarIndex();
+	const FApexCarTelemetry* Local = Frame.Cars.FindByPredicate(
+		[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; });
+	if (!Local)
+	{
+		return;
+	}
+	if (HotlapPanel)
+	{
+		HotlapPanel->SetLiveLap(Local->CurrentLap, Local->CurrentLapTimeMs, Local->bLapInvalid, Local->BestLapTimeMs);
+	}
+	SetGarageOpen(Local->bInGarage);
+}
+
+void UApexRootWidget::HandleLapRecordForGhost(const FApexLapRecord& Record)
+{
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (Net && bHotlapSession && Record.bIsNew && Record.bHasGhost)
+	{
+		Net->RequestGhost();
+	}
 }
 
 void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
@@ -658,6 +927,14 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 		if (SettingsOverlay)
 		{
 			SettingsOverlay->Open();
+		}
+		break;
+
+	case EApexPauseAction::ReturnToGarage:
+		SetPaused(false);
+		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		{
+			Net->HotlapRelocate(EApexHotlapDestination::Garage);
 		}
 		break;
 
@@ -1080,6 +1357,7 @@ bool UApexRootWidget::IsDrivingMode(EApexGameMode Mode)
 	case EApexGameMode::Qualification:
 	case EApexGameMode::Race:
 	case EApexGameMode::Replay:
+	case EApexGameMode::Hotlap:
 		return true;
 	default:
 		return false;
@@ -1253,6 +1531,12 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 			SettingsOverlay->Close();
 		}
 		SetPaused(false);
+		SetGarageOpen(false);
+		bHotlapSession = false;
+		if (HotlapPanel)
+		{
+			HotlapPanel->SetActive(false);
+		}
 		RequestFocusDefault();
 	}
 

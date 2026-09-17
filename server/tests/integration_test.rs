@@ -812,6 +812,73 @@ async fn test_joining_player_receives_racing_line() {
     }
 }
 
+/// Joining a session brings the timing sheet with it: where the sector lines
+/// are, and the record the driver is up against (empty on a fresh server).
+#[tokio::test]
+async fn test_joining_player_receives_track_sectors_and_record() {
+    let result = timeout(TEST_TIMEOUT, async {
+        let server = common::start_test_server().await;
+        let mut client = TestClient::connect("TimingPlayer", server.tcp_addr).await?;
+        let (_, lobby_state) = client.authenticate().await?;
+        let ServerMessage::LobbyState(lobby) = lobby_state else {
+            return Err("Expected lobby state after authentication".into());
+        };
+        let car = lobby.car_configs.first().ok_or("no cars")?;
+        let track = lobby
+            .track_configs
+            .iter()
+            .find(|t| t.centerline.len() > 10)
+            .ok_or("no tracks")?;
+        let (car_id, track_id) = (car.id, track.id);
+        client.select_car(car_id).await?;
+        let session_id = client
+            .create_session(track_id, 1, SessionKind::Practice)
+            .await?;
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut sectors = None;
+        let mut record = None;
+        while (sectors.is_none() || record.is_none()) && Instant::now() < deadline {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            match timeout(remaining, client.receive_tcp_message()).await?? {
+                ServerMessage::TrackSectors(data) => sectors = Some(data),
+                ServerMessage::LapRecord(data) => record = Some(data),
+                ServerMessage::Error { code, message } => {
+                    return Err(format!("Server error {}: {}", code, message).into());
+                }
+                _ => continue,
+            }
+        }
+
+        let sectors = sectors.ok_or("no TrackSectors after joining")?;
+        assert_eq!(sectors.session_id, session_id);
+        assert!(sectors.track_length_m > 100.0);
+        assert_eq!(sectors.boundaries_m.len(), 2, "three sectors");
+        assert!(sectors.boundaries_m[0] > 0.0);
+        assert!(sectors.boundaries_m[0] < sectors.boundaries_m[1]);
+        assert!(sectors.boundaries_m[1] < sectors.track_length_m);
+
+        let record = record.ok_or("no LapRecord after joining")?;
+        assert_eq!(record.player_name, "TimingPlayer");
+        assert_eq!(record.track_id, track_id);
+        assert_eq!(record.car_config_id, car_id);
+        assert!(
+            !record.is_new,
+            "joining reports the stored record, not a new one"
+        );
+
+        server.shutdown().await;
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => panic!("Test failed: {}", e),
+        Err(_) => panic!("Test timed out - server may not be responding"),
+    }
+}
+
 #[tokio::test]
 async fn test_sandbox_session_workflow() {
     println!("=== Sandbox Session Workflow Test ===");
@@ -889,6 +956,8 @@ async fn test_sandbox_session_workflow() {
                 }
                 ServerMessage::SessionRoster(_)
                 | ServerMessage::RacingLine(_)
+                | ServerMessage::TrackSectors(_)
+                | ServerMessage::LapRecord(_)
                 | ServerMessage::LobbyState(_)
                 | ServerMessage::HeartbeatAck { .. } => continue,
                 _ => {

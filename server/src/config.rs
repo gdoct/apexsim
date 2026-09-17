@@ -13,6 +13,28 @@ pub struct ServerConfig {
     pub ai: AiSettings,
     #[serde(default)]
     pub auth: AuthSettings,
+    #[serde(default)]
+    pub records: RecordsSettings,
+}
+
+/// Lap records: the best legal lap each driver has set on a track in a car,
+/// kept across sessions (`crate::records`). Off means nothing is written and
+/// nothing is read; the server still times and broadcasts every lap.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordsSettings {
+    pub enabled: bool,
+    /// Folder for `lap_records.json` and the `ghosts/` traces beside it,
+    /// relative to the working directory.
+    pub dir: String,
+}
+
+impl Default for RecordsSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            dir: "./records".to_string(),
+        }
+    }
 }
 
 /// How `Authenticate` tokens are validated.
@@ -155,6 +177,7 @@ impl Default for ServerConfig {
             },
             ai: AiSettings::default(),
             auth: AuthSettings::default(),
+            records: RecordsSettings::default(),
         }
     }
 }

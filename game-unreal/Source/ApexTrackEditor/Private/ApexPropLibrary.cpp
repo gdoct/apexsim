@@ -91,8 +91,22 @@ namespace ApexProps
 		return Info && Info->bNanite;
 	}
 
+	bool FacesUpCourse(const FString& Kind, const FString& Asset)
+	{
+		// A distance board and a marshal light panel are read by a driver
+		// coming down the road, not by the crowd across it.
+		return Kind == TEXT("board")
+			&& (Asset == TEXT("braking_marker") || Asset == TEXT("light_panel"));
+	}
+
 	bool FacesRoad(const FString& Kind, const FString& Asset)
 	{
+		if (FacesUpCourse(Kind, Asset))
+		{
+			// Turned up the course instead; flipping it by side as well
+			// would point it at the run-off.
+			return false;
+		}
 		if (Kind == TEXT("attraction"))
 		{
 			// A screen, a stage and a tent's open front look at the road; a

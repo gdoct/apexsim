@@ -14,6 +14,11 @@ pub struct TrackFileFormat {
     pub nodes: Vec<TrackNode>,
     #[serde(default)]
     pub checkpoints: Vec<Checkpoint>,
+    /// Node indices of the sector boundaries past the start line, in order.
+    /// Two of them (three sectors); anything else is ignored and the lap is
+    /// split into even thirds instead.
+    #[serde(default)]
+    pub sectors: Vec<usize>,
     #[serde(default)]
     pub spawn_points: Vec<SpawnPoint>,
     #[serde(default)]
@@ -224,6 +229,29 @@ impl TrackLoader {
         checkpoints.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         checkpoints.dedup();
 
+        // Sector boundaries resolve the same way: a node index in the file
+        // becomes a station along the interpolated centerline.
+        let track_length = centerline_points
+            .last()
+            .map(|p| p.distance_from_start_m)
+            .unwrap_or(0.0);
+        let sector_stations: Vec<f32> = track_file
+            .sectors
+            .iter()
+            .filter_map(|idx| {
+                let node = track_file.nodes.get(*idx)?;
+                centerline_points
+                    .iter()
+                    .min_by(|a, b| {
+                        let da = (a.x - node.x).powi(2) + (a.y - node.y).powi(2);
+                        let db = (b.x - node.x).powi(2) + (b.y - node.y).powi(2);
+                        da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .map(|p| p.distance_from_start_m)
+            })
+            .collect();
+        let sectors = crate::laps::sectors_from_stations(sector_stations, track_length);
+
         let mut config = TrackConfig {
             id: track_id,
             name: track_file.name,
@@ -242,6 +270,7 @@ impl TrackLoader {
             raceline,
             raceline_distances: Vec::new(),
             checkpoints,
+            sectors,
             metadata,
             procedural_world,
             ground,

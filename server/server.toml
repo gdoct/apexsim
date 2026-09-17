@@ -28,3 +28,9 @@ console_enabled = true
 # mode = "token" and list shared secrets in `tokens`.
 mode = "dev"
 tokens = []
+
+[records]
+# Best legal lap per driver, track and car, kept across restarts in
+# `dir`/lap_records.json with each record lap's ghost trace beside it.
+enabled = true
+dir = "./records"

@@ -46,6 +46,10 @@ namespace ApexProtocol
 		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
 	/** Every knob is sent, clamped here as the server will clamp it again. */
 	APEXSIMNET_API TArray<uint8> EncodeSetCarSetup(const FApexCarSetup& Setup);
+	/** A hotlap driver asks to be put in the garage or out on the run-up. */
+	APEXSIMNET_API TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination);
+	/** Asks for the trace of the driver's record lap here, answered with GhostLap. */
+	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
 
 	// --- Client -> server over UDP -------------------------------------------
 	// Sent as bare datagrams: no length prefix, unlike the TCP stream. The

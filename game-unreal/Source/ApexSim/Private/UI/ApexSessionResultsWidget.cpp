@@ -383,7 +383,8 @@ void UApexSessionResultsWidget::RefreshTable()
 void UApexSessionResultsWidget::RefreshSidePanel()
 {
 	UApexSessionRecorder* Recorder = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSessionRecorder>() : nullptr;
-	if (!Recorder || !SummaryBox || !LapChartBox)
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Recorder || !Net || !SummaryBox || !LapChartBox)
 	{
 		return;
 	}
@@ -424,6 +425,60 @@ void UApexSessionResultsWidget::RefreshSidePanel()
 				ApexUI::Font::Mono(10.0f, 100),
 				ApexUI::Palette::Live),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+	}
+
+	// --- The splits that best lap was made of --------------------------------
+	//
+	// Timed by the server (`crate::laps`) and carried in `LapTiming`; the
+	// client only lays them out.
+	if (Local->BestLapSplitsSeconds.Num() > 0)
+	{
+		UHorizontalBox* Splits = WidgetTree->ConstructWidget<UHorizontalBox>();
+		for (int32 Index = 0; Index < Local->BestLapSplitsSeconds.Num(); ++Index)
+		{
+			const float Split = Local->BestLapSplitsSeconds[Index];
+			ApexUI::AddH(
+				Splits,
+				ApexUI::MakeText(
+					*WidgetTree,
+					FString::Printf(TEXT("S%d %s"), Index + 1,
+						Split > 0.0f ? *FString::Printf(TEXT("%.3f"), Split) : TEXT("--.---")),
+					ApexUI::Font::Mono(11.0f),
+					ApexUI::Palette::TextSecondary),
+				FMargin(Index == 0 ? 0.0f : 16.0f, 0.0f, 0.0f, 0.0f));
+		}
+		ApexUI::AddV(SummaryBox, Splits, FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+	}
+
+	// --- The records this lap was measured against ---------------------------
+	//
+	// Kept by the server across sessions and restarts, so this is the driver's
+	// best here ever, not their best today.
+	const FApexLapRecord& Record = Net->GetLapRecord();
+	if (Record.LapTimeMs > 0)
+	{
+		ApexUI::AddV(
+			SummaryBox,
+			ApexUI::MakeText(
+				*WidgetTree,
+				FString::Printf(TEXT("PERSONAL RECORD %s"),
+					*UApexMenuFlowSubsystem::FormatLapTime(Record.LapTimeMs / 1000.0f)),
+				ApexUI::Font::Mono(10.0f, 100),
+				ApexUI::Palette::TextMuted),
+			FMargin(0.0f, 12.0f, 0.0f, 0.0f));
+	}
+	if (Record.TrackRecordMs > 0 && !Record.TrackRecordHolder.Equals(Record.PlayerName))
+	{
+		ApexUI::AddV(
+			SummaryBox,
+			ApexUI::MakeText(
+				*WidgetTree,
+				FString::Printf(TEXT("TRACK RECORD %s · %s"),
+					*UApexMenuFlowSubsystem::FormatLapTime(Record.TrackRecordMs / 1000.0f),
+					*Record.TrackRecordHolder.ToUpper()),
+				ApexUI::Font::Mono(10.0f, 100),
+				ApexUI::Palette::TextMuted),
+			FMargin(0.0f, 4.0f, 0.0f, 0.0f));
 	}
 
 	// --- Four numbers ---------------------------------------------------------

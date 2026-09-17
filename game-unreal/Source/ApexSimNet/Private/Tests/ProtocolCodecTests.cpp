@@ -121,6 +121,11 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		CheckBytes(TEXT("SetCarSetup"), ApexProtocol::EncodeSetCarSetup(Setup), ApexGolden::C_SetCarSetup);
 	}
 
+	CheckBytes(TEXT("HotlapRelocate"),
+		ApexProtocol::EncodeHotlapRelocate(EApexHotlapDestination::Track),
+		ApexGolden::C_HotlapRelocate);
+	CheckBytes(TEXT("RequestGhost"), ApexProtocol::EncodeRequestGhost(), ApexGolden::C_RequestGhost);
+
 	return true;
 }
 
@@ -573,6 +578,244 @@ bool FApexProtocolRacingLineDecodeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("phase 0 is throttle"), Line.Phases[0], EApexLinePhase::Throttle);
 		TestEqual(TEXT("phase 1 is brake"), Line.Phases[1], EApexLinePhase::Brake);
 	}
+	return true;
+}
+
+
+// -----------------------------------------------------------------------------
+// Lap timing: the sector lines, the splits and the records.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolLapTimingDecodeTest,
+	"ApexSim.Net.Protocol.LapTimingDecode",
+	ApexTestFlags)
+
+bool FApexProtocolLapTimingDecodeTest::RunTest(const FString& Parameters)
+{
+	FString Error;
+
+	FApexServerMessage SectorsMessage;
+	if (TestTrue(TEXT("TrackSectors decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_TrackSectors, SectorsMessage, Error)))
+	{
+		TestEqual(TEXT("TrackSectors type"), SectorsMessage.Type, EApexServerMessageType::TrackSectors);
+		const FApexTrackSectors& Sectors = SectorsMessage.TrackSectors;
+		TestEqual(TEXT("session id"), Sectors.SessionId, SessId);
+		TestEqual(TEXT("track length"), Sectors.TrackLengthM, 5793.0f);
+		TestTrue(TEXT("sectors are usable"), Sectors.IsValid());
+		if (TestEqual(TEXT("two boundaries"), Sectors.BoundariesM.Num(), 2))
+		{
+			TestEqual(TEXT("boundary 1"), Sectors.BoundariesM[0], 1931.0f);
+			TestEqual(TEXT("boundary 2"), Sectors.BoundariesM[1], 3862.0f);
+		}
+		TestEqual(TEXT("three sectors"), Sectors.SectorCount(), 3);
+		// Sector 1 starts at the line, and the boundary itself belongs to the
+		// sector it opens.
+		TestEqual(TEXT("at the line"), Sectors.SectorAt(0.0f), 0);
+		TestEqual(TEXT("just before the first line"), Sectors.SectorAt(1930.0f), 0);
+		TestEqual(TEXT("on the first line"), Sectors.SectorAt(1931.0f), 1);
+		TestEqual(TEXT("past the second"), Sectors.SectorAt(5000.0f), 2);
+	}
+
+	FApexServerMessage TimingMessage;
+	if (TestTrue(TEXT("LapTiming decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_LapTiming, TimingMessage, Error)))
+	{
+		TestEqual(TEXT("LapTiming type"), TimingMessage.Type, EApexServerMessageType::LapTiming);
+		const FApexLapTiming& Timing = TimingMessage.LapTiming;
+		TestEqual(TEXT("car index"), Timing.CarIndex, 2);
+		TestEqual(TEXT("lap"), Timing.Lap, 4);
+		TestEqual(TEXT("sector"), Timing.Sector, 2);
+		TestEqual(TEXT("sector time"), Timing.SectorTimeMs, 27431);
+		TestEqual(TEXT("lap time"), Timing.LapTimeMs, 82615);
+		TestTrue(TEXT("closes the lap"), Timing.bIsLapEnd);
+		TestTrue(TEXT("legal"), Timing.bValid);
+		// Flags 0b1001: the driver's best lap and the session's best sector.
+		TestTrue(TEXT("personal best lap"), Timing.bPersonalBestLap);
+		TestFalse(TEXT("not the session's best lap"), Timing.bSessionBestLap);
+		TestFalse(TEXT("not a personal best sector"), Timing.bPersonalBestSector);
+		TestTrue(TEXT("session best sector"), Timing.bSessionBestSector);
+	}
+
+	FApexServerMessage RecordMessage;
+	if (TestTrue(TEXT("LapRecord decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_LapRecord, RecordMessage, Error)))
+	{
+		TestEqual(TEXT("LapRecord type"), RecordMessage.Type, EApexServerMessageType::LapRecord);
+		const FApexLapRecord& Record = RecordMessage.LapRecord;
+		TestEqual(TEXT("player"), Record.PlayerName, FString(TEXT("Ayrton")));
+		TestEqual(TEXT("track id"), Record.TrackId, TrackId);
+		TestEqual(TEXT("car id"), Record.CarConfigId, CarId);
+		TestEqual(TEXT("lap time"), Record.LapTimeMs, 82615);
+		TestTrue(TEXT("new record"), Record.bIsNew);
+		TestTrue(TEXT("has a ghost"), Record.bHasGhost);
+		TestEqual(TEXT("track record"), Record.TrackRecordMs, 81900);
+		TestEqual(TEXT("track record holder"), Record.TrackRecordHolder, FString(TEXT("Alain")));
+		if (TestEqual(TEXT("three splits"), Record.SplitsMs.Num(), 3))
+		{
+			int32 Total = 0;
+			for (int32 Split : Record.SplitsMs)
+			{
+				Total += Split;
+			}
+			TestEqual(TEXT("splits add up to the lap"), Total, Record.LapTimeMs);
+		}
+	}
+
+	return true;
+}
+
+/**
+ * The timing board is the client's whole memory of a session's laps, so the
+ * bests it files have to survive the order the messages arrive in.
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexTimingBoardTest,
+	"ApexSim.Net.Protocol.TimingBoard",
+	ApexTestFlags)
+
+bool FApexTimingBoardTest::RunTest(const FString& Parameters)
+{
+	FApexTimingBoard Board;
+	Board.Reset(3);
+
+	auto Cross = [](int32 Car, int32 Lap, int32 Sector, int32 SectorMs, int32 LapMs, bool bValid)
+	{
+		FApexLapTiming Timing;
+		Timing.CarIndex = Car;
+		Timing.Lap = Lap;
+		Timing.Sector = Sector;
+		Timing.SectorTimeMs = SectorMs;
+		Timing.LapTimeMs = LapMs;
+		Timing.bIsLapEnd = LapMs > 0;
+		Timing.bValid = bValid;
+		return Timing;
+	};
+
+	// Car 0 sets a clean 1:22.615 — its first lap, so every part of it is a
+	// personal best, and with nobody else out, the session's too.
+	for (int32 Sector = 0; Sector < 3; ++Sector)
+	{
+		const int32 Splits[3] = { 27100, 28084, 27431 };
+		FApexLapTiming Timing = Cross(0, 1, Sector, Splits[Sector], Sector == 2 ? 82615 : 0, true);
+		Timing.bPersonalBestSector = true;
+		Timing.bSessionBestSector = true;
+		Timing.bPersonalBestLap = Sector == 2;
+		Timing.bSessionBestLap = Sector == 2;
+		Board.Apply(Timing);
+	}
+
+	const FApexCarTiming* Car = Board.Find(0);
+	if (!TestNotNull(TEXT("car 0 is on the board"), Car))
+	{
+		return false;
+	}
+	TestEqual(TEXT("best lap"), Car->BestLapMs, 82615);
+	TestEqual(TEXT("last lap"), Car->LastLapMs, 82615);
+	TestTrue(TEXT("last lap counted"), Car->bLastLapValid);
+	TestEqual(TEXT("session best lap"), Board.SessionBestLapMs, 82615);
+	TestEqual(TEXT("session best holder"), Board.SessionBestLapCarIndex, 0);
+	TestEqual(TEXT("optimal lap is the three bests"), Car->OptimalLapMs(), 82615);
+	TestEqual(TEXT("the lap in progress is empty again"), Car->CurrentSplitsMs[0], 0);
+
+	// A struck lap: the server sends no best flags, so nothing on the board
+	// moves however quick the time was.
+	Board.Apply(Cross(0, 2, 0, 20000, 0, false));
+	Board.Apply(Cross(0, 2, 1, 20000, 0, false));
+	Board.Apply(Cross(0, 2, 2, 20000, 60000, false));
+	Car = Board.Find(0);
+	TestEqual(TEXT("best lap unchanged by a struck lap"), Car->BestLapMs, 82615);
+	TestEqual(TEXT("last lap is still recorded"), Car->LastLapMs, 60000);
+	TestFalse(TEXT("last lap did not count"), Car->bLastLapValid);
+	TestEqual(TEXT("best sector unchanged"), Car->BestSplitsMs[0], 27100);
+
+	// A second car takes a sector but not the lap.
+	FApexLapTiming Purple = Cross(1, 1, 0, 26500, 0, true);
+	Purple.bPersonalBestSector = true;
+	Purple.bSessionBestSector = true;
+	Board.Apply(Purple);
+	TestEqual(TEXT("session best sector 1"), Board.SessionBestSplitsMs[0], 26500);
+	TestEqual(TEXT("session best lap still car 0"), Board.SessionBestLapCarIndex, 0);
+
+	// And a board that never heard the sector count still files a crossing.
+	FApexTimingBoard Fresh;
+	Fresh.Apply(Cross(3, 1, 1, 30000, 0, true));
+	TestEqual(TEXT("sector count grows to fit"), Fresh.SectorCount, 2);
+	TestNotNull(TEXT("car filed"), Fresh.Find(3));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// The ghost lap: struct-of-arrays on the wire, one sample per moment here,
+// and a pose blended between samples for a puppet car.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolGhostLapTest,
+	"ApexSim.Net.Protocol.GhostLap",
+	ApexTestFlags)
+
+bool FApexProtocolGhostLapTest::RunTest(const FString& Parameters)
+{
+	FString Error;
+	FApexServerMessage Message;
+	if (!TestTrue(FString::Printf(TEXT("GhostLap decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_GhostLap, Message, Error)))
+	{
+		return false;
+	}
+	TestEqual(TEXT("GhostLap type"), Message.Type, EApexServerMessageType::GhostLap);
+	const FApexGhostLap& Lap = Message.GhostLap;
+	TestEqual(TEXT("track id"), Lap.TrackId, TrackId);
+	TestEqual(TEXT("car id"), Lap.CarConfigId, CarId);
+	TestEqual(TEXT("lap time"), Lap.LapTimeMs, 82615);
+	TestEqual(TEXT("sample rate"), Lap.SampleHz, 20.0f);
+	TestTrue(TEXT("a lap with two samples is playable"), Lap.IsValid());
+	if (!TestEqual(TEXT("two samples"), Lap.Samples.Num(), 2))
+	{
+		return false;
+	}
+	TestEqual(TEXT("t0"), Lap.Samples[0].TimeMs, 0);
+	TestEqual(TEXT("t1"), Lap.Samples[1].TimeMs, 50);
+	TestEqual(TEXT("position 0"), Lap.Samples[0].Position, FVector(1.5, -2.0, 0.25));
+	TestEqual(TEXT("position 1"), Lap.Samples[1].Position, FVector(4.5, -2.5, 0.25));
+	TestEqual(TEXT("roll 0"), Lap.Samples[0].RollRad, -0.125f);
+	TestEqual(TEXT("speed 1"), Lap.Samples[1].SpeedMps, 61.0f);
+	TestEqual(TEXT("steering 1"), Lap.Samples[1].Steering, -0.2f);
+	TestEqual(TEXT("gear 0"), Lap.Samples[0].Gear, 4);
+	TestEqual(TEXT("a negative gear is signed on the wire"), Lap.Samples[1].Gear, -1);
+	TestEqual(TEXT("rpm 1"), Lap.Samples[1].EngineRpm, 9100.0f);
+
+	// Halfway between the samples: position and speed blend, the gear steps.
+	FApexGhostSample Mid;
+	TestTrue(TEXT("mid-lap sample is inside the lap"), Lap.SampleAt(25.0f, Mid));
+	TestEqual(TEXT("blended position"), Mid.Position, FVector(3.0, -2.25, 0.25));
+	TestEqual(TEXT("blended speed"), Mid.SpeedMps, 60.5f);
+	TestEqual(TEXT("blended roll"), Mid.RollRad, -0.0625f);
+	TestEqual(TEXT("gear steps at the second sample"), Mid.Gear, -1);
+	FApexGhostSample Before;
+	TestTrue(TEXT("before the line is the first sample"), Lap.SampleAt(-10.0f, Before));
+	TestEqual(TEXT("first sample"), Before.Position, Lap.Samples[0].Position);
+	FApexGhostSample After;
+	TestFalse(TEXT("past the last sample the lap is over"), Lap.SampleAt(1000.0f, After));
+	TestEqual(TEXT("held at the last sample"), After.Position, Lap.Samples[1].Position);
+
+	// The yaw blends the short way round the seam.
+	FApexGhostLap Seam;
+	Seam.LapTimeMs = 100;
+	FApexGhostSample A;
+	A.TimeMs = 0;
+	A.YawRad = 3.0f;
+	FApexGhostSample B;
+	B.TimeMs = 100;
+	B.YawRad = -3.0f;
+	Seam.Samples = { A, B };
+	FApexGhostSample AtSeam;
+	Seam.SampleAt(50.0f, AtSeam);
+	TestTrue(TEXT("yaw crosses the seam, not the long way"), FMath::Abs(FMath::Abs(AtSeam.YawRad) - PI) < 0.01f);
+
+	TestFalse(TEXT("an empty reply is not a lap"), FApexGhostLap().IsValid());
 	return true;
 }
 

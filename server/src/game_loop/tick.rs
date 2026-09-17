@@ -27,6 +27,27 @@ pub(crate) struct SessionTelemetry {
     pub driver_feedback: Vec<(PlayerId, Bytes)>,
 }
 
+/// One car's timing-line crossing, ready to broadcast, with the record
+/// submission it earned (a legal personal best set by a human driver).
+pub(crate) struct LapTimingOut {
+    pub session_id: SessionId,
+    pub player_recipients: Vec<PlayerId>,
+    pub msg: ServerMessage,
+    /// Present only for a lap a human driver may have set a record with.
+    pub record: Option<RecordSubmission>,
+}
+
+/// A lap offered to the record store, once the state lock is released.
+pub(crate) struct RecordSubmission {
+    pub player_id: PlayerId,
+    pub player_name: String,
+    pub track_id: TrackConfigId,
+    pub car_config_id: CarConfigId,
+    pub lap_time_ms: u32,
+    pub splits_ms: [u32; crate::laps::SECTOR_COUNT],
+    pub ghost: Option<crate::records::GhostLap>,
+}
+
 /// A `SessionRoster` message to deliver reliably over TCP.
 pub(crate) struct SessionRosterOut {
     pub session_id: SessionId,
@@ -38,6 +59,7 @@ pub(crate) struct SessionRosterOut {
 pub(crate) struct TickOutput {
     pub telemetry: Vec<SessionTelemetry>,
     pub rosters: Vec<SessionRosterOut>,
+    pub lap_timing: Vec<LapTimingOut>,
 }
 
 /// Advance all sessions one tick and return the payloads to broadcast.
@@ -55,20 +77,15 @@ pub(crate) async fn tick_sessions(
     // lobby (a disjoint field) is queried for player names.
     let state = &mut *state_write;
 
-    // Player names for rosters and replay metadata, fetched only when some
-    // session actually needs a roster broadcast this tick.
-    let player_names: HashMap<PlayerId, String> =
-        if state.sessions.values().any(|gs| gs.roster_is_dirty()) {
-            state
-                .lobby
-                .get_lobby_players()
-                .await
-                .into_iter()
-                .map(|p| (p.id, p.name))
-                .collect()
-        } else {
-            HashMap::new()
-        };
+    // Player names for rosters, replay metadata and lap records, fetched
+    // from the lobby the first time a session needs them this tick. On
+    // demand and *after* each session has ticked: a lap event is raised
+    // inside the tick and drained right after it, so a fetch decided before
+    // the tick never saw one, and every record went to the store under an
+    // empty name — which it refuses.
+    let mut player_names: Option<HashMap<PlayerId, String>> = None;
+    let empty_names: HashMap<PlayerId, String> = HashMap::new();
+    let lobby = &state.lobby;
 
     // Collect replay operations to execute after iteration
     let mut replay_starts = Vec::new();
@@ -80,6 +97,7 @@ pub(crate) async fn tick_sessions(
 
     let mut telemetry_out = Vec::new();
     let mut rosters_out = Vec::new();
+    let mut lap_timing_out: Vec<LapTimingOut> = Vec::new();
 
     // Tick each session
     for (session_id, game_session) in state.sessions.iter_mut() {
@@ -145,12 +163,26 @@ pub(crate) async fn tick_sessions(
         }
         let new_state = game_session.session.state;
 
+        let replay_starting = !is_demo_session
+            && prev_state != SessionState::Racing
+            && new_state == SessionState::Racing;
+        if player_names.is_none()
+            && (replay_starting || game_session.roster_is_dirty() || game_session.has_lap_events())
+        {
+            player_names = Some(
+                lobby
+                    .get_lobby_players()
+                    .await
+                    .into_iter()
+                    .map(|p| (p.id, p.name))
+                    .collect(),
+            );
+        }
+        let player_names = player_names.as_ref().unwrap_or(&empty_names);
+
         // Collect replay recording operations. A demo is a menu backdrop, and
         // every client idling in the menu would otherwise write a replay.
-        if !is_demo_session
-            && prev_state != SessionState::Racing
-            && new_state == SessionState::Racing
-        {
+        if replay_starting {
             let participants: Vec<_> = game_session
                 .session
                 .participants
@@ -185,8 +217,71 @@ pub(crate) async fn tick_sessions(
             .filter(|pid| !game_session.session.ai_player_ids.contains(pid))
             .cloned()
             .collect();
+        // Timing lines crossed this tick. Reliable, and never for a demo:
+        // its AI field is menu scenery and nobody is watching the splits.
+        if game_session.has_lap_events() {
+            let track_id = game_session.track_config.id;
+            let events = game_session.take_lap_events();
+            if !is_demo_session {
+                for out in events {
+                    let Some(car_index) = game_session.car_index_of(&out.player_id) else {
+                        continue;
+                    };
+                    let is_ai = game_session.session.ai_player_ids.contains(&out.player_id);
+                    let mut flags = 0u8;
+                    if out.event.personal_best_lap {
+                        flags |= crate::network::LapTimingData::FLAG_PERSONAL_BEST_LAP;
+                    }
+                    if out.session_best_lap {
+                        flags |= crate::network::LapTimingData::FLAG_SESSION_BEST_LAP;
+                    }
+                    if out.event.personal_best_sector {
+                        flags |= crate::network::LapTimingData::FLAG_PERSONAL_BEST_SECTOR;
+                    }
+                    if out.session_best_sector {
+                        flags |= crate::network::LapTimingData::FLAG_SESSION_BEST_SECTOR;
+                    }
+                    let lap_time_ms = out.event.lap_time_ms.unwrap_or(0);
+                    let record = match (out.event.lap_time_ms, is_ai) {
+                        (Some(lap_time_ms), false) if out.event.valid => game_session
+                            .session
+                            .participants
+                            .get(&out.player_id)
+                            .map(|state| RecordSubmission {
+                                player_id: out.player_id,
+                                player_name: player_names
+                                    .get(&out.player_id)
+                                    .cloned()
+                                    .unwrap_or_default(),
+                                track_id,
+                                car_config_id: state.car_config_id,
+                                lap_time_ms,
+                                splits_ms: out.event.splits_ms,
+                                ghost: out.ghost,
+                            }),
+                        _ => None,
+                    };
+                    lap_timing_out.push(LapTimingOut {
+                        session_id: *session_id,
+                        player_recipients: player_recipients.clone(),
+                        msg: ServerMessage::LapTiming(crate::network::LapTimingData {
+                            car_index,
+                            lap: out.event.lap,
+                            sector: out.event.sector,
+                            sector_time_ms: out.event.sector_time_ms,
+                            lap_time_ms,
+                            is_lap_end: out.event.lap_time_ms.is_some(),
+                            valid: out.event.valid,
+                            flags,
+                        }),
+                        record,
+                    });
+                }
+            }
+        }
+
         if game_session.take_roster_dirty() {
-            let roster = game_session.build_roster(&player_names);
+            let roster = game_session.build_roster(player_names);
             rosters_out.push(SessionRosterOut {
                 session_id: *session_id,
                 player_recipients: player_recipients.clone(),
@@ -348,6 +443,7 @@ pub(crate) async fn tick_sessions(
     TickOutput {
         telemetry: telemetry_out,
         rosters: rosters_out,
+        lap_timing: lap_timing_out,
     }
 }
 

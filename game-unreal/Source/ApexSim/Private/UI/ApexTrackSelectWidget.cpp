@@ -177,14 +177,13 @@ UWidget* UApexTrackSelectWidget::BuildDetailPanel()
 	DetailBox = WidgetTree->ConstructWidget<UVerticalBox>();
 	ApexUI::AddV(Column, DetailBox, FMargin(), HAlign_Fill, 1.0f);
 
-	// Locked, not missing: the server's DemoLap mode removes human players from
-	// the session's participants (game_session.rs:409-425), so whoever asks for
-	// a demo lap becomes a spectator, stops receiving telemetry, and is left
-	// watching a countdown that never ends. Re-enable when that is fixed.
+	// Straight into a hotlap on the selected circuit: a single-player session
+	// counted straight into the garage. (This used to offer the server's demo
+	// lap, locked, because that mode drops the human player to a spectator.)
 	FApexButtonSpec DemoSpec;
-	DemoSpec.Label = TEXT("Preview demo lap");
-	DemoSpec.Badge = TEXT("Locked");
-	DemoSpec.Variant = EApexButtonVariant::Locked;
+	DemoSpec.Label = TEXT("Hotlap this track");
+	DemoSpec.Badge = TEXT("Garage, then flying laps");
+	DemoSpec.Variant = EApexButtonVariant::Panel;
 	DemoSpec.bCentreLabel = false;
 	DemoSpec.LabelSize = 18.0f;
 	DemoSpec.Height = 52.0f;
@@ -652,15 +651,15 @@ void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			return;
 		}
 
-		// A demo lap is an ordinary session the server drives itself, so this is
-		// the same create-then-count-in path the main menu's start button uses.
+		// The same create-then-count-in path the main menu's start button uses,
+		// with the hotlap as the mode.
 		Flow->SetPendingTrack(SelectedTrackId);
 		Flow->bAutoStartOnJoin = true;
-		Flow->AutoStartMode = EApexGameMode::DemoLap;
+		Flow->AutoStartMode = EApexGameMode::Hotlap;
 
-		UE_LOG(LogApexSim, Log, TEXT("Demo lap requested on track '%s'"), *SelectedTrackId);
+		UE_LOG(LogApexSim, Log, TEXT("Hotlap requested on track '%s'"), *SelectedTrackId);
 		Net->CreateSession(
-			SelectedTrackId, Flow->CreateMaxPlayers, 0, Flow->CreateLapLimit, EApexSessionKind::Practice,
+			SelectedTrackId, Flow->CreateMaxPlayers, 0, 0, EApexSessionKind::Practice,
 			Flow->CreateAllowedAssists, Flow->CreateConditions);
 		return;
 	}

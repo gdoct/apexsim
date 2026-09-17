@@ -13,6 +13,11 @@ Priorities:
 - brake light
 - reverse gear
 - car setup (tyres, engine, transmission, torque, suspension): a Car setup tab, applied on the server per driver
+- track limits and lap invalidation: all four wheels off strikes the lap, shown in the HUD
+- sector timing: server-side sector lines per track, with splits, bests and deltas
+- score board: live standings with gaps, the session's fastest lap, and the results screen
+- personal bests / lap records saved: kept on the server per driver, track and car, with the lap's trace for a ghost
+- hotlap mode (replaces the demo-lap tile): garage with the car setup, run-up spawn before the line, lap-by-lap timing sheet, ghost car and a replay of the record lap with cycling cameras; multiplayer-capable
 | Controller focus lost in game and menus / can't navigate to sections | bug | Pad-only players can't play at all. Earlier fix: `FApexMenuInputProcessor` focus recovery. Check which screens and sections still trap focus. |
 | minimap drifting issue | bug | The minimap marker drifts away from the actual car position. |
 | Improve car grip | tuning | Do this before tyre wear and tyre types, which both build on the base grip model. |
@@ -33,10 +38,6 @@ Priorities:
 
 | Item | Type | Notes |
 |---|---|---|
-| Track limits and lap invalidation in the HUD (new) | feature | Server already invalidates shortcut laps. Show "lap invalid", and add corner-cut detection that uses the curb band. |
-| Sector timing | feature | The HUD has sector bars, but it splits the lap into thirds on the client. Move to server-side sector lines (per track), with best and delta per sector. |
-| Score board | feature | Live standings with gaps and best laps, plus the end-of-race results screen. |
-| Personal bests / lap records saved (new) | feature | Right now nothing survives a session. Store best lap per car and track. This is the basis for leaderboards and time trial. |
 | Better HUD layout options | feature | Basic toggles, position and scale. |
 | Yas marina has green over the track|bug|A green texture overlays the normal track surface.|
 | COTA first corner is off | bug | Track data or centerline problem. Players see it on the first lap. |
@@ -54,7 +55,7 @@ Priorities:
 | Flags: yellow, blue, chequered (new) | feature | There is no flag state on the wire yet. Needs server-side incident and lapping detection, plus the HUD and trackside panels (`ApexEmissive_*` tags already exist). |
 | Car setup: wings, per-car setups (new) | feature | The Car setup tab has tyres, engine, transmission, torque and suspension as clicks off the file. Still missing: aero (the sim has no wing model), a setup saved per car rather than one for all, and absolute read-outs (the base figures are not on the wire). |
 | Replay viewer (new) | feature | Server already writes replays (`replay.rs`). The TV director could play them back. |
-| Time trial with ghost car (new) | feature | Builds on personal bests. Low network cost, high replay value. |
+| Hotlap polish (new) | feature | The ghost is opaque and tinted (no translucent material at runtime); the replay's trackside camera is placed geometrically, not from the TV director's centerline cameras; there is no leaderboard across drivers in a multiplayer hotlap yet. |
 | Better HUD controls | feature | Delta bar, relative box, fuel/tyre widgets as those systems land. |
 | Black background after session selection | bug | Should show the selected track in panoramic camera mode. |
 | Collision penalties / race start ghosting (new) | feature | Stops a first-corner pileup from ruining online races. |

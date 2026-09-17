@@ -199,6 +199,7 @@ pub(crate) async fn run_game_loop(
         // player mapping for compact telemetry) go out reliably over TCP.
         let output = tick::tick_sessions(&ctx, &player_inputs, tick_count).await;
         broadcast::broadcast_rosters(&ctx, output.rosters).await;
+        broadcast::deliver_lap_timing(&ctx, output.lap_timing).await;
         broadcast::broadcast_telemetry(&ctx, output.telemetry, tick_count).await;
 
         // Cleanup timed-out finished sessions and refresh gauges.

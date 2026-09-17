@@ -202,6 +202,9 @@ content/tracks/real/*.curbs.msgpack
 # Recorded session replays (large binary, generated at runtime)
 server/replays/
 
+# Lap records and their ghost traces (written at runtime)
+server/records/
+
 # Scratch/working directory, not part of the project
 _claude_tmp/
 content/tracks/real/*.walls.msgpack

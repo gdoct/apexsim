@@ -17,6 +17,8 @@ enum class EApexPauseAction : uint8
 {
 	Resume,
 	OpenSettings,
+	/** Hotlap only: the car back into its garage. */
+	ReturnToGarage,
 	LeaveSession,
 	QuitGame,
 };
@@ -94,6 +96,10 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UApexButtonWidget>> Rows;
+
+	/** Shown only in a hotlap with the car out on the track. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> GarageRow;
 
 	bool bOpen = false;
 };

@@ -5,7 +5,6 @@
 #include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
 #include "Blueprint/UserWidget.h"
-#include "Containers/StaticArray.h"
 
 #include "ApexHudWidget.generated.h"
 
@@ -26,10 +25,16 @@ class UWidget;
 /**
  * The race HUD.
  *
- * Everything on it is derived, because the protocol carries no HUD: telemetry
- * gives each car a lap number, a fraction of a lap, a lap time and a speed, and
- * position, gaps, the delta and the standings all fall out of those. Nothing
- * here asks the server for anything it does not already broadcast.
+ * Most of it is derived, because the protocol carries no HUD: telemetry gives
+ * each car a lap number, a fraction of a lap, a lap time and a speed, and
+ * position, gaps, the delta and the standings all fall out of those.
+ *
+ * Lap timing is the exception. Sector splits, whether a lap counts and the
+ * session's bests are the server's (`crate::laps`), because it alone sees
+ * every tick: a client timing splits off 60 Hz snapshots would be tens of
+ * milliseconds out, and track limits need the four wheels the wire never
+ * carries. They arrive as `LapTiming` messages and are read back here from
+ * `UApexNetSubsystem::GetTimingBoard`.
  *
  * Built in C++ like the rest of the shell and rebuilt only when the detail
  * level changes; the per-frame path just sets text on widgets that already
@@ -51,6 +56,13 @@ public:
 	/** Shows or hides the whole HUD, and starts or stops its per-frame work. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void SetRaceActive(bool bActive);
+
+	/**
+	 * Hide the HUD without ending the race for it (the hotlap garage card
+	 * covers the view and the car is standing still); shown again with the
+	 * detail setting honoured.
+	 */
+	void SetShown(bool bShown);
 
 protected:
 	UFUNCTION()
@@ -119,8 +131,8 @@ private:
 	/** Reference-lap time at a fraction of the lap, or -1 with no reference. */
 	float ReferenceTimeAt(float Progress) const;
 
-	/** Length of one sector, from the cumulative splits. Zero if unfinished. */
-	static float SectorDuration(const TStaticArray<float, 3>& Splits, int32 Index);
+	/** The local car's sector strip and the lap-invalid banner. */
+	void RefreshSectors();
 
 	FString FormatSpeed(float Mps) const;
 	static FString FormatGap(float Seconds, bool bSigned = true);
@@ -156,6 +168,14 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> DeltaValue;
 	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> SectorBars;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> SectorTimes;
+
+	/** "LAP INVALID", shown only while the lap in progress is struck. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapInvalidText;
+
+	/** The session's fastest lap, under the standings. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FastestLapName;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FastestLapTime;
 
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> ThrottleBar;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> BrakeBar;
@@ -186,18 +206,17 @@ private:
 	TArray<TPair<float, float>> ReferenceLap;
 
 	/**
-	 * Cumulative sector splits — the elapsed lap time as each third went past —
-	 * for the lap in progress and for the reference lap. Zero means unfinished.
+	 * The lap the delta is measured against: the quickest legal lap this HUD
+	 * has watched, in seconds. The splits themselves come from the server
+	 * (`UApexNetSubsystem::GetTimingBoard`), which is the only clock that sees
+	 * every tick.
 	 */
-	TStaticArray<float, 3> SectorSplits;
-	TStaticArray<float, 3> ReferenceSplits;
+	float ReferenceLapSeconds = 0.0f;
 
 	/** The mode the header was last written for, so it is rebuilt when it moves. */
 	EApexGameMode HeaderGameMode = EApexGameMode::Lobby;
 
 	int32 LastSeenLap = 0;
-	float LastLapSeconds = 0.0f;
-	float BestLapSeconds = 0.0f;
 
 	/** Highest RPM seen this session — the protocol never states a redline. */
 	float ObservedMaxRpm = 8000.0f;
@@ -205,4 +224,5 @@ private:
 	/** What the tree was last built for, so a settings change rebuilds once. */
 	EApexHudDetail BuiltDetail = EApexHudDetail::All;
 	bool bRaceActive = false;
+	bool bShownWanted = true;
 };

@@ -3,7 +3,7 @@
 //! recipients are resolved under a state READ lock which is released before
 //! the transport READ lock is taken for sending.
 
-use super::tick::{SessionRosterOut, SessionTelemetry};
+use super::tick::{LapTimingOut, SessionRosterOut, SessionTelemetry};
 use super::GameLoopCtx;
 use crate::data::{ConnectionId, PlayerId, SessionId};
 use crate::network::{
@@ -127,6 +127,66 @@ pub(crate) async fn broadcast_rosters(ctx: &GameLoopCtx, rosters: Vec<SessionRos
                     );
                 }
             }
+        }
+    }
+}
+
+/// Deliver this tick's timing lines: the split itself to everyone in the
+/// session, and — when a human driver's legal lap may be a record — the lap
+/// to the record store, with a `LapRecord` back to them if it stood.
+///
+/// The store writes files, so it is called from a blocking task and only
+/// ever with the state lock released.
+pub(crate) async fn deliver_lap_timing(ctx: &GameLoopCtx, events: Vec<LapTimingOut>) {
+    for out in events {
+        let (players, spectators) =
+            resolve_recipients(ctx, out.session_id, &out.player_recipients).await;
+        {
+            let transport_read = ctx.transport.read().await;
+            for player_id in players.into_iter().chain(spectators) {
+                if let Some(conn_id) = transport_read.get_player_connection(player_id).await {
+                    if let Err(e) = transport_read.send_tcp(conn_id, out.msg.clone()).await {
+                        debug!("Failed to send lap timing to player {}: {:?}", player_id, e);
+                    }
+                }
+            }
+        }
+
+        let Some(submission) = out.record else {
+            continue;
+        };
+        if submission.player_name.is_empty() {
+            continue;
+        }
+        let store = ctx.state.read().await.records.clone();
+        let player_name = submission.player_name.clone();
+        let player_id = submission.player_id;
+        let (track_id, car_id) = (submission.track_id, submission.car_config_id);
+        let stood = tokio::task::spawn_blocking(move || {
+            let record = store.submit(
+                &submission.player_name,
+                submission.track_id,
+                submission.car_config_id,
+                submission.lap_time_ms,
+                submission.splits_ms,
+                submission.ghost,
+            )?;
+            Some(super::dispatch::lap_record_message(
+                &store,
+                &player_name,
+                track_id,
+                car_id,
+                Some(record),
+            ))
+        })
+        .await;
+        let Ok(Some(msg)) = stood else { continue };
+        debug!(
+            "{} set a lap record: {} ms",
+            msg.player_name, msg.lap_time_ms
+        );
+        if let Some(conn_id) = ctx.player_connection(player_id).await {
+            let _ = ctx.send(conn_id, ServerMessage::LapRecord(msg)).await;
         }
     }
 }

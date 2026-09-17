@@ -75,6 +75,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetRacingLine(EApexRacingLine Line);
 
+	/** The hotlap ghost car on or off (Gameplay group). */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetGhostCar(bool bOn);
+
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetAiSkill(float Skill01);
 
@@ -124,6 +128,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetStartInCockpit(bool bCockpit);
+
+	/** Remembers the chase distance the player last stepped to with C. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetChaseLevel(int32 Level);
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetSeatForward(float Cm);

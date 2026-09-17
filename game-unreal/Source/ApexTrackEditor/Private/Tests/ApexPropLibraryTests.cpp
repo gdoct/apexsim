@@ -70,6 +70,21 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("a camera tower has no front"), ApexProps::FacesRoad(TEXT("attraction"), TEXT("camera_tower")));
 	TestTrue(TEXT("buildings have a front"), ApexProps::FacesRoad(TEXT("building"), TEXT("control_tower")));
 	TestFalse(TEXT("parked cars are left as placed"), ApexProps::FacesRoad(TEXT("vehicle"), TEXT("car_b")));
+
+	// Distance boards and light panels are read from the car, so they are
+	// turned up the course rather than across it (and never flipped by side).
+	TestTrue(TEXT("a braking marker looks up the course"),
+		ApexProps::FacesUpCourse(TEXT("board"), TEXT("braking_marker")));
+	TestFalse(TEXT("and so is not turned at the road"),
+		ApexProps::FacesRoad(TEXT("board"), TEXT("braking_marker")));
+	TestTrue(TEXT("a light panel looks up the course"),
+		ApexProps::FacesUpCourse(TEXT("board"), TEXT("light_panel")));
+	TestFalse(TEXT("a hoarding faces the road"),
+		ApexProps::FacesUpCourse(TEXT("board"), TEXT("hoarding_3m")));
+	TestTrue(TEXT("a hoarding is turned at the road"),
+		ApexProps::FacesRoad(TEXT("board"), TEXT("hoarding_3m")));
+	TestFalse(TEXT("a marshal post is not a board"),
+		ApexProps::FacesUpCourse(TEXT("sign"), TEXT("braking_marker")));
 	TestEqual(TEXT("sky default"), ApexProps::DefaultAssetFor(TEXT("sky")), FString(TEXT("blimp")));
 	TestEqual(TEXT("barrier default"), ApexProps::DefaultAssetFor(TEXT("barrier")), FString(TEXT("armco_4m")));
 	TestEqual(TEXT("sign default"), ApexProps::DefaultAssetFor(TEXT("sign")), FString(TEXT("marshal_post")));
