@@ -1,9 +1,11 @@
 use crate::ai_driver::{AiDriverController, AiDriverProfile, TrafficCar};
 use crate::car_setup::CarSetup;
 use crate::data::*;
+use crate::laps::{LapEvent, SECTOR_COUNT};
 use crate::network::*;
 use crate::physics;
 use crate::racing_line::{self, RacingLineProfile};
+use crate::records::{GhostLap, GhostSample, GHOST_SAMPLE_HZ};
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -21,6 +23,16 @@ pub const FINISH_GRACE_MIN_SECONDS: u32 = 60;
 /// Skill of the server driver that takes a human's car round on the
 /// cool-down lap after they finish: unhurried, off the racing pace.
 const COOLDOWN_SKILL: u8 = 75;
+
+/// How far before the line a hotlap car is put out, so the first flying lap
+/// starts at speed. Shortened on a track too small for it.
+pub const HOTLAP_RUNUP_M: f32 = 300.0;
+/// Cars going out together are queued this far apart on the run-up.
+pub const HOTLAP_SPACING_M: f32 = 30.0;
+/// A run-up slot is taken while a car on the track is this close to it.
+const HOTLAP_SLOT_CLEARANCE_M: f32 = 20.0;
+/// How many slots back the queue reaches before cars double up.
+const HOTLAP_SLOT_TRIES: usize = 16;
 
 pub struct GameSession {
     pub session: RaceSession,
@@ -50,6 +62,123 @@ pub struct GameSession {
     tuned_configs: HashMap<PlayerId, CarConfig>,
     /// What each driver asked for, clamped.
     car_setups: HashMap<PlayerId, CarSetup>,
+    /// Timing lines crossed since the game loop last drained them.
+    lap_events: Vec<SessionLapEvent>,
+    /// The lap each car is driving, sampled for a ghost. Human drivers only:
+    /// a record is a driver's own, and the AI never sets one.
+    lap_traces: HashMap<PlayerId, Vec<GhostSample>>,
+    /// The fastest legal lap anyone has set in this session, and the fastest
+    /// each sector has been driven — the purple times on a timing screen.
+    session_best_lap_ms: Option<u32>,
+    session_best_splits_ms: [Option<u32>; SECTOR_COUNT],
+}
+
+/// A timing line crossed by one car, with what it meant for the session.
+#[derive(Debug, Clone)]
+pub struct SessionLapEvent {
+    pub player_id: PlayerId,
+    pub event: LapEvent,
+    /// The fastest anyone has gone in this session.
+    pub session_best_lap: bool,
+    pub session_best_sector: bool,
+    /// The lap's trace, taken when a human driver set a personal best on a
+    /// legal lap. The store decides whether it beats their record.
+    pub ghost: Option<GhostLap>,
+}
+
+/// Longest ghost trace held for one car: five minutes at [`GHOST_SAMPLE_HZ`].
+/// A car parked on the road must not grow a buffer without end.
+const MAX_GHOST_SAMPLES: usize = (GHOST_SAMPLE_HZ as usize) * 300;
+
+/// Take one car's timing-line crossing: update the session bests, take the
+/// ghost trace when the lap earned one, and queue the event for the loop.
+///
+/// A free function, not a method: the tick loops hold `participants`
+/// mutably, and this touches only the disjoint fields beside it.
+#[allow(clippy::too_many_arguments)]
+fn note_lap_event(
+    out: &mut Vec<SessionLapEvent>,
+    traces: &mut HashMap<PlayerId, Vec<GhostSample>>,
+    best_lap_ms: &mut Option<u32>,
+    best_splits_ms: &mut [Option<u32>; SECTOR_COUNT],
+    player_id: PlayerId,
+    is_ai: bool,
+    event: LapEvent,
+) {
+    let sector = (event.sector as usize).min(SECTOR_COUNT - 1);
+    let session_best_sector =
+        event.valid && best_splits_ms[sector].is_none_or(|best| event.sector_time_ms < best);
+    if session_best_sector {
+        best_splits_ms[sector] = Some(event.sector_time_ms);
+    }
+
+    let mut session_best_lap = false;
+    let mut ghost = None;
+    if let Some(lap_time_ms) = event.lap_time_ms {
+        session_best_lap = event.valid && best_lap_ms.is_none_or(|best| lap_time_ms < best);
+        if session_best_lap {
+            *best_lap_ms = Some(lap_time_ms);
+        }
+        // The lap is over either way: the trace of it goes with the event or
+        // is thrown away, so the next lap records from empty.
+        let samples = traces.remove(&player_id).unwrap_or_default();
+        if !is_ai && event.valid && event.personal_best_lap && !samples.is_empty() {
+            ghost = Some(GhostLap {
+                lap_time_ms,
+                sample_hz: GHOST_SAMPLE_HZ,
+                samples,
+            });
+        }
+    }
+
+    out.push(SessionLapEvent {
+        player_id,
+        event,
+        session_best_lap,
+        session_best_sector,
+        ghost,
+    });
+}
+
+/// Append this tick's pose to a human driver's ghost trace, at
+/// [`GHOST_SAMPLE_HZ`]. Called before the progress update, so the sample's
+/// time is measured against the lap the car is still on.
+fn sample_ghost_trace(
+    traces: &mut HashMap<PlayerId, Vec<GhostSample>>,
+    state: &CarState,
+    is_ai: bool,
+    current_tick: u32,
+    tick_rate_hz: u16,
+) {
+    if is_ai || state.current_lap == 0 {
+        return;
+    }
+    let divisor = ((tick_rate_hz as f32 / GHOST_SAMPLE_HZ).round() as u32).max(1);
+    if !current_tick.is_multiple_of(divisor) {
+        return;
+    }
+    let trace = traces.entry(state.player_id).or_default();
+    if trace.len() >= MAX_GHOST_SAMPLES {
+        return;
+    }
+    trace.push(GhostSample {
+        t_ms: crate::laps::ticks_to_ms(
+            current_tick.saturating_sub(state.lap_start_tick),
+            tick_rate_hz,
+        ),
+        x: state.pos_x,
+        y: state.pos_y,
+        z: state.pos_z,
+        yaw_rad: state.yaw_rad,
+        pitch_rad: state.pitch_rad,
+        roll_rad: state.roll_rad,
+        speed_mps: state.speed_mps,
+        steering: state.steering_input,
+        throttle: state.throttle_input,
+        brake: state.brake_input,
+        gear: state.gear,
+        engine_rpm: state.engine_rpm,
+    });
 }
 
 /// The config a car is simulated with: the driver's tuned copy when they
@@ -83,6 +212,10 @@ impl GameSession {
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             car_setups: HashMap::new(),
+            lap_events: Vec::new(),
+            lap_traces: HashMap::new(),
+            session_best_lap_ms: None,
+            session_best_splits_ms: [None; SECTOR_COUNT],
         }
     }
 
@@ -114,6 +247,10 @@ impl GameSession {
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             car_setups: HashMap::new(),
+            lap_events: Vec::new(),
+            lap_traces: HashMap::new(),
+            session_best_lap_ms: None,
+            session_best_splits_ms: [None; SECTOR_COUNT],
         }
     }
 
@@ -164,6 +301,9 @@ impl GameSession {
                 // Qualification is practice-with-timing for now: free driving
                 // with lap timing, no finish-position logic.
                 self.tick_free_practice(inputs);
+            }
+            GameMode::Hotlap => {
+                self.tick_hotlap(inputs);
             }
         }
     }
@@ -230,6 +370,9 @@ impl GameSession {
             }
 
             // Update physics for all cars (player + AI)
+            let ai_ids: std::collections::HashSet<PlayerId> =
+                self.session.ai_player_ids.iter().copied().collect();
+            let current_tick = self.session.current_tick;
             let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
             for state in states.iter_mut() {
                 let input = inputs.get(&state.player_id).copied().unwrap_or_default();
@@ -238,12 +381,30 @@ impl GameSession {
                     simulated_config(&self.car_configs, &self.tuned_configs, state)
                 {
                     physics::update_car_3d(state, config, &input, &self.track_config, dt);
-                    physics::update_track_progress_3d(
+                    let is_ai = ai_ids.contains(&state.player_id);
+                    sample_ghost_trace(
+                        &mut self.lap_traces,
                         state,
-                        &self.track_config,
-                        self.session.current_tick,
+                        is_ai,
+                        current_tick,
                         self.tick_rate_hz,
                     );
+                    if let Some(event) = physics::update_track_progress_3d(
+                        state,
+                        &self.track_config,
+                        current_tick,
+                        self.tick_rate_hz,
+                    ) {
+                        note_lap_event(
+                            &mut self.lap_events,
+                            &mut self.lap_traces,
+                            &mut self.session_best_lap_ms,
+                            &mut self.session_best_splits_ms,
+                            state.player_id,
+                            is_ai,
+                            event,
+                        );
+                    }
                 }
             }
 
@@ -371,6 +532,9 @@ impl GameSession {
         let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // Update each car
+        let ai_ids: std::collections::HashSet<PlayerId> =
+            self.session.ai_player_ids.iter().copied().collect();
+        let current_tick = self.session.current_tick;
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
 
         for state in states.iter_mut() {
@@ -382,19 +546,94 @@ impl GameSession {
                 // Update 3D physics with track context
                 physics::update_car_3d(state, config, &input, &self.track_config, dt);
 
-                // Update track progress
-                physics::update_track_progress_3d(
+                let is_ai = ai_ids.contains(&state.player_id);
+                sample_ghost_trace(
+                    &mut self.lap_traces,
                     state,
-                    &self.track_config,
-                    self.session.current_tick,
+                    is_ai,
+                    current_tick,
                     self.tick_rate_hz,
                 );
+
+                // Update track progress; a timing line crossed here becomes
+                // a split on every driver's screen.
+                if let Some(event) = physics::update_track_progress_3d(
+                    state,
+                    &self.track_config,
+                    current_tick,
+                    self.tick_rate_hz,
+                ) {
+                    note_lap_event(
+                        &mut self.lap_events,
+                        &mut self.lap_traces,
+                        &mut self.session_best_lap_ms,
+                        &mut self.session_best_splits_ms,
+                        state.player_id,
+                        is_ai,
+                        event,
+                    );
+                }
             }
         }
 
         // Check collisions in place (BTreeMap iteration order makes the
         // order-dependent solver deterministic; no clone/rebuild needed)
         let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
+        physics::check_collisions_refs(&mut state_refs, &self.car_configs);
+        physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
+    }
+
+    /// Hotlap mode: free practice for the cars on the track, while the cars
+    /// in the garage stand still — not simulated, not collided with, so a
+    /// driver tuning in the garage is out of everyone's way.
+    fn tick_hotlap(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        let dt = self.dt();
+        let ai_ids: std::collections::HashSet<PlayerId> =
+            self.session.ai_player_ids.iter().copied().collect();
+        let current_tick = self.session.current_tick;
+
+        for state in self.session.participants.values_mut() {
+            if state.in_garage {
+                continue;
+            }
+            let input = inputs.get(&state.player_id).copied().unwrap_or_default();
+            if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
+                physics::update_car_3d(state, config, &input, &self.track_config, dt);
+                let is_ai = ai_ids.contains(&state.player_id);
+                sample_ghost_trace(
+                    &mut self.lap_traces,
+                    state,
+                    is_ai,
+                    current_tick,
+                    self.tick_rate_hz,
+                );
+                if let Some(event) = physics::update_track_progress_3d(
+                    state,
+                    &self.track_config,
+                    current_tick,
+                    self.tick_rate_hz,
+                ) {
+                    note_lap_event(
+                        &mut self.lap_events,
+                        &mut self.lap_traces,
+                        &mut self.session_best_lap_ms,
+                        &mut self.session_best_splits_ms,
+                        state.player_id,
+                        is_ai,
+                        event,
+                    );
+                }
+            }
+        }
+
+        // Only the cars on the track take part in the collision passes; the
+        // order is still the BTreeMap's, so the solver stays deterministic.
+        let mut state_refs: Vec<&mut CarState> = self
+            .session
+            .participants
+            .values_mut()
+            .filter(|s| !s.in_garage)
+            .collect();
         physics::check_collisions_refs(&mut state_refs, &self.car_configs);
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
     }
@@ -424,6 +663,9 @@ impl GameSession {
             .collect();
 
         // Update each car
+        let ai_ids: std::collections::HashSet<PlayerId> =
+            self.session.ai_player_ids.iter().copied().collect();
+        let current_tick = self.session.current_tick;
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
 
         for state in states.iter_mut() {
@@ -439,13 +681,33 @@ impl GameSession {
                 // Update 3D physics with track context
                 physics::update_car_3d(state, config, &input, &self.track_config, dt);
 
-                // Update track progress
-                physics::update_track_progress_3d(
+                let is_ai = ai_ids.contains(&state.player_id);
+                sample_ghost_trace(
+                    &mut self.lap_traces,
                     state,
-                    &self.track_config,
-                    self.session.current_tick,
+                    is_ai,
+                    current_tick,
                     self.tick_rate_hz,
                 );
+
+                // Update track progress; a timing line crossed here becomes
+                // a split on every driver's screen.
+                if let Some(event) = physics::update_track_progress_3d(
+                    state,
+                    &self.track_config,
+                    current_tick,
+                    self.tick_rate_hz,
+                ) {
+                    note_lap_event(
+                        &mut self.lap_events,
+                        &mut self.lap_traces,
+                        &mut self.session_best_lap_ms,
+                        &mut self.session_best_splits_ms,
+                        state.player_id,
+                        is_ai,
+                        event,
+                    );
+                }
             }
         }
 
@@ -595,10 +857,127 @@ impl GameSession {
                 self.session.state = SessionState::Racing;
                 self.session.demo_lap_progress = None;
             }
+            GameMode::Hotlap => {
+                // Every driver starts in the garage, with the setup screen;
+                // the AI (if any) is left where it stands and drives on.
+                self.session.state = SessionState::Racing;
+                self.session.demo_lap_progress = None;
+                self.finish_deadline_tick = None;
+                let humans: Vec<PlayerId> = self
+                    .session
+                    .participants
+                    .keys()
+                    .filter(|id| !self.session.ai_player_ids.contains(id))
+                    .copied()
+                    .collect();
+                for player_id in humans {
+                    let _ = self.hotlap_relocate(&player_id, HotlapDestination::Garage);
+                }
+            }
             _ => {
                 self.session.demo_lap_progress = None;
             }
         }
+    }
+
+    /// Move a hotlap driver's car: into the garage (parked on its grid slot,
+    /// frozen, out of the collision passes) or out onto the run-up before
+    /// the line, on the first free slot of a queue spaced [`HOTLAP_SPACING_M`]
+    /// apart, so several drivers can go out together. The car comes back
+    /// fresh — no damage, no half-driven lap — but keeps its aids and its
+    /// bests. The lap starts, timed, as the car crosses the line.
+    pub fn hotlap_relocate(
+        &mut self,
+        player_id: &PlayerId,
+        destination: HotlapDestination,
+    ) -> Result<(), &'static str> {
+        if self.session.game_mode != GameMode::Hotlap {
+            return Err("Not a hotlap session");
+        }
+        let Some(state) = self.session.participants.get(player_id) else {
+            return Err("No car in this session");
+        };
+        let pose = match destination {
+            HotlapDestination::Garage => {
+                let slot = self
+                    .track_config
+                    .start_positions
+                    .iter()
+                    .find(|s| s.position == state.grid_position)
+                    .or_else(|| self.track_config.start_positions.first())
+                    .ok_or("Track has no grid")?;
+                (slot.x, slot.y, slot.z, slot.yaw_rad)
+            }
+            HotlapDestination::Track => self
+                .hotlap_runup_pose(player_id)
+                .ok_or("Track has no centerline")?,
+        };
+        let in_garage = destination == HotlapDestination::Garage;
+        let state = self
+            .session
+            .participants
+            .get_mut(player_id)
+            .ok_or("No car in this session")?;
+        let slot = GridSlot {
+            position: state.grid_position,
+            x: pose.0,
+            y: pose.1,
+            z: pose.2,
+            yaw_rad: pose.3,
+        };
+        let mut fresh = CarState::new(state.player_id, state.car_config_id, &slot);
+        fresh.auto_gearbox = state.auto_gearbox;
+        fresh.abs = state.abs;
+        fresh.traction_control = state.traction_control;
+        fresh.steering_assist = state.steering_assist;
+        // The timing sheet survives the trip: the panel and the delta are
+        // measured against what the driver did before going in.
+        fresh.best_lap_time_ms = state.best_lap_time_ms;
+        fresh.last_lap_time_ms = state.last_lap_time_ms;
+        fresh.laps.last_invalid = state.laps.last_invalid;
+        fresh.laps.last_splits_ms = state.laps.last_splits_ms;
+        fresh.laps.best_lap_ms = state.laps.best_lap_ms;
+        fresh.laps.best_lap_splits_ms = state.laps.best_lap_splits_ms;
+        fresh.laps.best_splits_ms = state.laps.best_splits_ms;
+        fresh.in_garage = in_garage;
+        // Parked cars wait in neutral; a car put on the run-up is in first.
+        fresh.gear = if in_garage { 0 } else { 1 };
+        physics::seed_track_progress(&mut fresh, &self.track_config);
+        *state = fresh;
+        // The lap the car was on is abandoned with it.
+        self.lap_traces.remove(player_id);
+        Ok(())
+    }
+
+    /// Where the next car going out is put: on the centerline
+    /// [`HOTLAP_RUNUP_M`] before the line, or the first slot behind it not
+    /// already taken by a car on the track. `None` without a centerline.
+    fn hotlap_runup_pose(&self, going_out: &PlayerId) -> Option<(f32, f32, f32, f32)> {
+        let track = &self.track_config;
+        let length = crate::laps::track_length_m(track);
+        if track.centerline.len() < 2 || length <= 0.0 {
+            return None;
+        }
+        let runup = HOTLAP_RUNUP_M.min(length * 0.2);
+        let spacing = HOTLAP_SPACING_M.min(runup * 0.5);
+        let mut fallback = None;
+        for k in 0..HOTLAP_SLOT_TRIES {
+            let station = length - runup - k as f32 * spacing;
+            if station < length * 0.5 {
+                break;
+            }
+            let pose = physics::pose_at_station(&track.centerline, station);
+            fallback.get_or_insert(pose);
+            let taken = self.session.participants.values().any(|other| {
+                !other.in_garage
+                    && other.player_id != *going_out
+                    && (other.pos_x - pose.0).hypot(other.pos_y - pose.1) < HOTLAP_SLOT_CLEARANCE_M
+            });
+            if !taken {
+                return Some(pose);
+            }
+        }
+        fallback
     }
 
     /// Start countdown mode with custom duration. The stored `next_mode` is
@@ -718,12 +1097,55 @@ impl GameSession {
         }
         self.tuned_configs.remove(player_id);
         self.car_setups.remove(player_id);
+        self.lap_traces.remove(player_id);
+    }
+
+    /// The car index this player's telemetry carries, matching the roster.
+    pub fn car_index_of(&self, player_id: &PlayerId) -> Option<u8> {
+        self.session
+            .participants
+            .keys()
+            .position(|id| id == player_id)
+            .map(|idx| idx as u8)
+    }
+
+    /// Whether any car crossed a timing line this tick. The game loop drains
+    /// the events once a tick, broadcasts them and measures the laps against
+    /// the stored records; nothing in the sim reads them.
+    pub fn has_lap_events(&self) -> bool {
+        !self.lap_events.is_empty()
+    }
+
+    /// Timing lines crossed since the last call, drained.
+    pub fn take_lap_events(&mut self) -> Vec<SessionLapEvent> {
+        std::mem::take(&mut self.lap_events)
+    }
+
+    /// Where this session's sector lines are, for the joining client.
+    pub fn sector_boundaries_m(&self) -> Vec<f32> {
+        crate::laps::sector_boundaries_m(&self.track_config)
+    }
+
+    /// Lap length in metres.
+    pub fn track_length_m(&self) -> f32 {
+        crate::laps::track_length_m(&self.track_config)
+    }
+
+    /// The fastest legal lap set in this session so far.
+    pub fn session_best_lap_ms(&self) -> Option<u32> {
+        self.session_best_lap_ms
     }
 
     /// Put every car back on its grid slot with a clean race state (laps,
     /// times, finish position, damage), keeping the driver's aids.
     pub fn line_up_on_grid(&mut self) {
         self.finish_deadline_tick = None;
+        // A fresh race, a fresh timing sheet: the session's bests and every
+        // half-recorded ghost lap belong to the race that just ended.
+        self.session_best_lap_ms = None;
+        self.session_best_splits_ms = [None; SECTOR_COUNT];
+        self.lap_traces.clear();
+        self.lap_events.clear();
         for state in self.session.participants.values_mut() {
             let Some(slot) = self
                 .track_config
@@ -750,8 +1172,9 @@ impl GameSession {
     }
 
     /// Input for a finished human's car: a gentle server driver on the line,
-    /// seeded from the player's id so the sim stays deterministic.
-    fn cooldown_input(&self, player_id: &PlayerId) -> PlayerInputData {
+    /// seeded from the player's id so the sim stays deterministic. Public so
+    /// tests can drive a human's car round without a controller.
+    pub fn cooldown_input(&self, player_id: &PlayerId) -> PlayerInputData {
         let Some(state) = self.session.participants.get(player_id) else {
             return PlayerInputData::default();
         };

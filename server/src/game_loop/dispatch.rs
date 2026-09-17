@@ -8,7 +8,10 @@ use crate::car_setup::CarSetup;
 use crate::data::*;
 use crate::game_session::GameSession;
 use crate::lobby::{LobbyPlayerState, LobbySessionInfo, SessionVisibility};
-use crate::network::{ClientMessage, RacingLineData, ServerMessage, SessionJoinedData};
+use crate::network::{
+    ClientMessage, GhostLapData, LapRecordData, RacingLineData, ServerMessage, SessionJoinedData,
+    TrackSectorsData,
+};
 use crate::racing_line;
 use crate::transport::{ConnectionInfo, TransportEvent};
 use std::collections::HashMap;
@@ -120,6 +123,12 @@ pub(crate) async fn handle_message(
             next_mode,
         } => {
             handle_start_countdown(ctx, connection_id, countdown_seconds, next_mode).await;
+        }
+        ClientMessage::HotlapRelocate { destination } => {
+            handle_hotlap_relocate(ctx, connection_id, destination).await;
+        }
+        ClientMessage::RequestGhost => {
+            handle_request_ghost(ctx, connection_id).await;
         }
         ClientMessage::Disconnect => {
             handle_disconnect(ctx, connection_id).await;
@@ -341,6 +350,9 @@ async fn handle_create_session(
     }
 
     // Add host to the actual game session
+    // The record store is cloned out first: the session below borrows
+    // `state_write` mutably for the rest of the join.
+    let records = state_write.records.clone();
     let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
         warn!("Session {} not found in sessions map", session_id);
         drop(state_write);
@@ -351,6 +363,13 @@ async fn handle_create_session(
 
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         let racing_line = racing_line_message(game_session, session_id, car_id);
+        let timing = timing_messages(
+            game_session,
+            session_id,
+            car_id,
+            &conn_info.player_name,
+            &records,
+        );
         let allowed_assists = game_session.session.allowed_assists;
         let conditions = game_session.session.conditions;
         drop(state_write);
@@ -367,6 +386,9 @@ async fn handle_create_session(
             )
             .await;
         if let Some(msg) = racing_line {
+            let _ = ctx.send(connection_id, msg).await;
+        }
+        for msg in timing {
             let _ = ctx.send(connection_id, msg).await;
         }
         // Track that player is in a session
@@ -482,6 +504,9 @@ async fn handle_join_session(
     }
 
     // Add player to the actual game session
+    // The record store is cloned out first: the session below borrows
+    // `state_write` mutably for the rest of the join.
+    let records = state_write.records.clone();
     let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
         return;
     };
@@ -506,6 +531,13 @@ async fn handle_join_session(
             conn_info.player_name, session_id, grid_pos
         );
         let racing_line = racing_line_message(game_session, session_id, car_id);
+        let timing = timing_messages(
+            game_session,
+            session_id,
+            car_id,
+            &conn_info.player_name,
+            &records,
+        );
         let allowed_assists = game_session.session.allowed_assists;
         let conditions = game_session.session.conditions;
         drop(state_write);
@@ -522,6 +554,9 @@ async fn handle_join_session(
             )
             .await;
         if let Some(msg) = racing_line {
+            let _ = ctx.send(connection_id, msg).await;
+        }
+        for msg in timing {
             let _ = ctx.send(connection_id, msg).await;
         }
         // Track that player is in a session
@@ -552,6 +587,60 @@ fn racing_line_message(
     Some(ServerMessage::RacingLine(RacingLineData::from_profile(
         session_id, &profile,
     )))
+}
+
+/// What the joining driver needs to read a lap: where the sector lines are,
+/// and the record they are driving against (their own best here in this car,
+/// and the fastest anyone has gone). Sent once, with the racing line.
+fn timing_messages(
+    game_session: &GameSession,
+    session_id: SessionId,
+    car_id: CarConfigId,
+    player_name: &str,
+    records: &crate::records::RecordStore,
+) -> Vec<ServerMessage> {
+    let track_id = game_session.track_config.id;
+    let mut out = vec![ServerMessage::TrackSectors(TrackSectorsData {
+        session_id,
+        track_length_m: game_session.track_length_m(),
+        boundaries_m: game_session.sector_boundaries_m(),
+    })];
+    out.push(ServerMessage::LapRecord(lap_record_message(
+        records,
+        player_name,
+        track_id,
+        car_id,
+        None,
+    )));
+    out
+}
+
+/// The `LapRecord` for one driver: `record` is a lap just set (the message
+/// then announces a new record), or `None` to report the stored one.
+pub(crate) fn lap_record_message(
+    records: &crate::records::RecordStore,
+    player_name: &str,
+    track_id: crate::data::TrackConfigId,
+    car_id: CarConfigId,
+    record: Option<crate::records::LapRecord>,
+) -> LapRecordData {
+    let is_new = record.is_some();
+    let best = record.or_else(|| records.best(player_name, track_id, car_id));
+    let track_best = records.track_best(track_id, car_id);
+    LapRecordData {
+        player_name: player_name.to_string(),
+        track_id,
+        car_config_id: car_id,
+        lap_time_ms: best.as_ref().map(|r| r.lap_time_ms).unwrap_or(0),
+        splits_ms: best
+            .as_ref()
+            .map(|r| r.splits_ms.to_vec())
+            .unwrap_or_default(),
+        is_new,
+        track_record_ms: track_best.as_ref().map(|r| r.lap_time_ms).unwrap_or(0),
+        track_record_holder: track_best.map(|r| r.player).unwrap_or_default(),
+        has_ghost: best.map(|r| r.ghost_file.is_some()).unwrap_or(false),
+    }
 }
 
 /// Undo a lobby join that could not be completed in the game session; removes
@@ -894,6 +983,78 @@ async fn handle_start_countdown(
             }
         }
     }
+}
+
+/// A hotlap driver going into the garage or out onto the track. Any
+/// participant may ask; the answer is in their next telemetry frame
+/// (`lap_flags` bit 2), an `Error` when the session is not a hotlap.
+async fn handle_hotlap_relocate(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    destination: HotlapDestination,
+) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let result = {
+        let mut state_write = ctx.state.write().await;
+        match state_write.sessions.get_mut(&session_id) {
+            Some(game_session) => game_session.hotlap_relocate(&conn_info.player_id, destination),
+            None => Err("Session not found"),
+        }
+    };
+    match result {
+        Ok(()) => debug!(
+            "Player {} relocated to {:?}",
+            conn_info.player_name, destination
+        ),
+        Err(reason) => ctx.send_error(connection_id, 400, reason).await,
+    }
+}
+
+/// The trace of the driver's record lap on this session's track in their
+/// car, read from the record store off the loop, and an empty `GhostLap`
+/// when there is none. Only a participant with a car gets one.
+async fn handle_request_ghost(ctx: &GameLoopCtx, connection_id: ConnectionId) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let (track_id, car_id, store) = {
+        let state_read = ctx.state.read().await;
+        let Some(game_session) = state_read.sessions.get(&session_id) else {
+            return;
+        };
+        let Some(car) = game_session.session.participants.get(&conn_info.player_id) else {
+            return;
+        };
+        (
+            game_session.track_config.id,
+            car.car_config_id,
+            state_read.records.clone(),
+        )
+    };
+    let player_name = conn_info.player_name.clone();
+    let data = tokio::task::spawn_blocking(move || {
+        store
+            .best(&player_name, track_id, car_id)
+            .and_then(|record| store.ghost(&record))
+            .map(|lap| GhostLapData::from_lap(track_id, car_id, &lap))
+            .unwrap_or_else(|| GhostLapData::empty(track_id, car_id))
+    })
+    .await
+    .unwrap_or_else(|_| GhostLapData::empty(track_id, car_id));
+    debug!(
+        "Ghost lap for {}: {} samples",
+        conn_info.player_name,
+        data.sample_count()
+    );
+    let _ = ctx.send(connection_id, ServerMessage::GhostLap(data)).await;
 }
 
 /// Protocol-level disconnect (explicit `Disconnect` message from a client).

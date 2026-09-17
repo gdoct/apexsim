@@ -324,7 +324,11 @@ Frames: glTF (x, y, z) lands in Unreal as (x, z, y), so a prop modelled in
 Blender with the road on **-Y** arrives with the road on local **+Y** — the
 same side the generated recipes use, and no extra yaw is applied to
 authored assets. The exporter's yaw is the road heading; the builder flips
-face-road kinds 180° by `RoadSideOf` as before.
+face-road kinds 180° by `RoadSideOf` as before. The two boards a driver
+reads on the way in — `board/braking_marker` and `board/light_panel` — are
+the exception (`ApexProps::FacesUpCourse`): their authored +Y front is
+yawed +90° to look back up the course at the cars instead of across it at
+the crowd, and they are never flipped by side.
 
 The track builder (`ApexTrackAssetBuilder::ResolveProp`, data in
 `ApexPropLibrary`) resolves every prop as `SM_<asset>` → the kind's default
@@ -434,7 +438,7 @@ Driving uses Enhanced Input, with actions and the mapping context built in
 C++ (`Input/ApexInputConfig.h`) rather than as `.uasset`s, so bindings are
 readable in a diff. `AApexPlayerController` owns them and adds the mapping
 context only while a race is running. Defaults: WASD to drive, Q/E to shift,
-C to swap cockpit/chase, `,`/`.` to look aside, B to look behind, Escape to
+C to step through the cameras, `,`/`.` to look aside, B to look behind, Escape to
 leave.
 
 Three traps worth remembering: the menu shell runs in `FInputModeUIOnly`, where
@@ -496,6 +500,70 @@ first (`ApexRace::RanksAhead`); cars still racing get a toast when P1 takes
 the flag, and 2.5 s after the local car finishes the root widget swaps the race
 view for a provisional `SessionResults` that re-sorts until the session ends.
 
+### Lap timing: sectors, track limits and records (`laps.rs`, `records.rs`)
+
+The stopwatch is the server's. The lap *counter* stays in
+`physics::update_track_progress_3d` (it hangs off the anti-shortcut
+checkpoints), but everything a timing screen shows lives in `laps.rs`, which
+that function now returns a `LapEvent` from.
+
+**Sectors** are three per lap, split at stations along the centerline: the
+track file's own `sectors` (node indices, resolved at load like the
+checkpoints) when it names two, otherwise even thirds. A crossing is timed at
+the full tick rate and sent as a reliable `ServerMessage::LapTiming`
+(`car_index`, lap, sector, sector time, the lap time when it closes the lap,
+validity, and flags for personal/session best lap and sector). The boundaries
+themselves go out once with the racing line as `TrackSectors`, so the client
+can place a car in a sector from the station telemetry already carries. The
+final split is what the other two leave of the lap, so the three always add up
+to the clock the driver saw.
+
+**Track limits** strike a lap when all four wheels are off the track — past
+the curb band, since `curbs.rs` already calls the curbs track — for
+`laps::TRACK_LIMITS_SECONDS` (0.2 s; one tick of it at 240 Hz is a wheel
+skimming a kerb edge). Physics sets `CarState::wheels_off_track` from the same
+per-wheel surfaces the force feedback uses. A struck lap is still timed and
+still counts as a lap; it just cannot become a best, and reaching the line
+without every checkpoint (a cut course) strikes it too. Telemetry carries the
+verdict as a `lap_flags` byte appended **after** `is_colliding` in
+`CompactCarState` — positional encoding, so a field added at the end is one an
+older client skips rather than one that shifts everything after it — along
+with `last_lap_time_ms` and `best_lap_time_ms`, which the client no longer has
+to infer from watching the lap counter roll over. Note the AI is sloppy enough
+at Monza that most of its laps are struck; `best_lap_time_ms` is `None` for
+those cars, which is why `race_flow_test` measures plausibility on the last
+lap rather than the best.
+
+**Records** (`records.rs`, `[records]` in server.toml) are the best legal lap
+each driver has ever set on a track in a car, kept in `records/lap_records.json`
+across restarts and keyed by the driver's *name* — the player id is minted per
+connection, so a UUID key would forget every record on reconnect. AI never
+sets one. The driver is told theirs on joining and again whenever they beat it
+(`LapRecord`, which also carries the track record and who holds it). A corrupt
+records file is logged and treated as empty; `submit` writes from a blocking
+task in the broadcast phase, never under the state lock.
+
+**The ghost.** Each new personal best carries a trace of the lap that set it —
+the car's pose at `records::GHOST_SAMPLE_HZ` (20 Hz), line to line, in
+`records/ghosts/*.msgpack`, replacing the record's own previous trace.
+`GameSession` samples it per human driver and hands it over with the lap
+event. `LapRecord.HasGhost` says one exists; the hotlap mode fetches it with
+`RequestGhost` and drives a ghost car from it (see Hotlap, below).
+
+On the client `FApexTimingBoard` (ApexSimNet) is the tally: every car's splits,
+bests and the session bests, fed one `LapTiming` at a time and read back
+through `UApexNetSubsystem::GetTimingBoard`. The HUD paints the sector strip
+from it (purple session best, green personal best, amber slower, grey still
+running), shows "LAP INVALID" while the lap is struck, puts the session's
+fastest lap under the standings, and measures its delta against the quickest
+*legal* lap it has watched. The results screen adds the best lap's splits and
+the personal and track records. Golden bytes come from `network.rs`
+`test_lap_timing_wire_format` and `test_telemetry_compact_wire_format`
+(`cargo test lap_timing_wire_format -- --nocapture`) and are pinned as
+`ApexGolden::S_TrackSectors` / `S_LapTiming` / `S_LapRecord` and
+`ApexUdpGolden::S_TelemetryCompactLapFlags`; `tests/lap_timing_test.rs` drives
+the whole thing round Monza.
+
 ### Cockpit view (`Race/ApexCockpitRig`, `Race/ApexCockpitLayout`)
 The first-person view is the default (settings: Camera tab, "Start in"). The
 car meshes are exteriors, so the cockpit is built at runtime by
@@ -520,6 +588,38 @@ estimates) and look-to-apex are in `UApexSettingsSave`'s camera block, applied
 live through `AApexRaceDirector::ApplyCameraSettings`. A virtual mirror strip
 at the top of the HUD reuses a fourth capture. `-ApexView=cockpit|chase` picks
 the view for a screenshot run regardless of the setting.
+
+### Chase cameras (`Race/ApexChaseView.h`)
+
+C no longer flips between two views: it steps down a ladder of chase
+distances and then back to the cockpit. The rungs are `ApexChase::Views()`,
+closest first — `roof` (a boom 0.6 m back, lifted 1.4 m, near enough to the
+driver's eyeline to place the car by), `close` (3 m), `near` (5.6 m) and
+`far`, which is the 9 m boom the one chase camera used to be, so an existing
+profile and `-ApexView=chase` are unchanged. Each rung carries its arm
+length, how far the boom's origin is lifted off the car, the boom pitch, a
+field-of-view delta on top of the chase FOV (a close camera wants a wider
+lens) and the spring arm's lag speeds: the roof cam is all but welded on,
+because a lagging camera that close swings the roofline about the frame.
+Each close rung also clamps how far the lag may stretch it
+(`CameraLagMaxDistance`): the spring arm's steady-state lag is speed over lag
+speed, nine metres at 320 km/h, which without the clamp puts every rung at
+the far one's distance down a straight.
+`AApexRaceDirector::ApplyChaseView` pushes a rung onto the boom and
+`UpdateLook` takes the pitch from it; `CycleView` is what C calls.
+
+The chosen rung lives on `UApexSettingsSave::ChaseViewLevel` and has a
+"Chase distance" row on the Camera settings tab. The row only stores it —
+the director adopts it with the rest of the camera group, so picking a
+distance while sitting in the cockpit does not throw the player out of the
+cockpit — while C writes back through `UApexSettingsSubsystem::SetChaseLevel`,
+so the distance survives the race. The ghost replay borrows the far rung and
+puts the player's back afterwards. `apexsim.cam.Chase [0-3|roof|close|near|
+far|cockpit]` picks one from the console (no argument steps), `-ApexView=roof`
+opens a race on one, and `-ApexCameraCycleAfter=N[,N]` presses C N seconds
+into an unattended run, so one run with a matching `-ApexScreenshotAfter`
+list walks the whole ladder. `ApexSim.Camera.Chase*` tests pin the ordering
+and the cycle.
 
 ### Screenshot camera (`Race/ApexShotCamera.h`)
 A third camera on the race director, `ShotCamera`, parks anywhere on the
@@ -782,7 +882,7 @@ running tail lights (`AApexRaceCarActor::SetHeadlights`,
 `-ApexWeather=heavyrain -ApexTimeOfDay=22:15` put an `-ApexAutoRace`
 screenshot run under that sky.
 
-### Car setup (`server/src/car_setup.rs`, `SetCarSetup`, the Car setup settings tab)
+### Car setup (`server/src/car_setup.rs`, `SetCarSetup`, the hotlap garage)
 
 The garage: tyres, engine, transmission, torque and suspension, per driver.
 A setup is **clicks** off the car's own `car.toml`, one `i8` per knob
@@ -820,14 +920,87 @@ applies at once, on the grid or mid-lap. AI cars and the collision passes
 
 On the client the setup lives on `UApexSettingsSave::CarSetup`
 (`FApexCarSetup`, `TArray<int32> Clicks`, one setup shared by every car),
-edited on the settings overlay's **Car setup** tab
-(`EApexSettingsTab::CarSetup`, appended after Audio so
-`-ApexSettingsTab=7` opens it) as a two-column page of `UApexStepperWidget`
-rows: a − / + pill pair around a read-out from `ApexCarSetup::Describe`. The
-knob table (`ApexCarSetup::Knob`: wire key, range, per-click size and unit)
+edited in the **hotlap garage** (`UApexHotlapWidget`, below; it used to be
+a settings tab, `-ApexSettingsTab` now stops at 6, Audio) as two columns of
+`UApexStepperWidget` rows: a − / + pill pair around a read-out from
+`ApexCarSetup::Describe`. The steppers write through
+`UApexSettingsSubsystem::SetCarSetupClick`, so the group's change still
+reaches the server through `SendCarSetup`, and the setup is sent on joining
+any session, so a car tuned in the garage races with that setup. The knob
+table (`ApexCarSetup::Knob`: wire key, range, per-click size and unit)
 lives in the net module beside the encoder and mirrors the server's
 constants; `ApexSim.Net.CarSetup.Clicks` pins the ranges and read-outs, the
-golden encode test the bytes. Reset on that tab returns every knob to stock.
+golden encode test the bytes. The garage's Reset returns every knob to stock.
+
+### Hotlap (`GameMode::Hotlap`, `HotlapRelocate`, `GhostLap`, `UApexHotlapWidget`, `AApexGhostCarActor`)
+
+Time attack, with the create screen's tile where "Demo lap" used to be (that
+mode is still on the server and still drops its human players to spectators;
+the menu no longer offers it). A hotlap session is any session counted into
+`GameMode::Hotlap` — the client sends `SetGameMode` outright when asked to
+`StartCountdown` into it, since there is no grid to count down from — and it
+can be multiplayer: several drivers hotlap on one track, each with their own
+garage.
+
+**Two sides of the wall.** Every human starts *in the garage*: the car is
+parked on its grid slot with `CarState::in_garage`, not ticked and left out
+of both collision passes, and telemetry says so in `lap_flags` bit 2
+(`LAP_FLAG_IN_GARAGE`, appended semantics: an old client reads it as a clean
+lap). `ClientMessage::HotlapRelocate { destination }` moves the car:
+`Track` puts it on the centerline `HOTLAP_RUNUP_M` (300 m) before the line,
+in first, so the first flying lap starts timed as it crosses; a second car
+going out is queued `HOTLAP_SPACING_M` behind the first slot still occupied
+(`hotlap_runup_pose`, `physics::pose_at_station`). `Garage` parks it again,
+repaired, with its bests kept (`hotlap_relocate`). Any participant may send
+it; outside a hotlap it is refused with `Error 400`. The AI, if any, is
+left driving. `tests/hotlap_test.rs` covers all of it, over the wire too.
+
+**The client** (`UApexRootWidget::HandleTelemetryForHotlap`) reads the
+local car's `bInGarage` and opens or closes the garage: `UApexHotlapWidget`
+is the layer between the HUD and the pause menu, showing the garage card
+(GO OUT, REPLAY BEST LAP, GHOST CAR, RESET SETUP and the fourteen setup
+rows), the lap-by-lap timing sheet (every `LapTiming` lap end for the local
+car, with the delta to the best legal lap and struck laps greyed; it
+survives trips to the garage and clears when a hotlap begins) and the replay
+strip. While the card is up the HUD is hidden, driving input is off and the
+card owns the keys like the pause menu (`IsGarageOpen`, honoured by
+`FApexMenuInputProcessor`); on the track the pause menu gains BACK TO
+GARAGE. Other drivers' garaged cars are hidden by the race director.
+
+**The ghost.** `ClientMessage::RequestGhost` asks for the driver's record
+lap on this track in this car and is answered with
+`ServerMessage::GhostLap` (`GhostLapData`: struct-of-arrays, `t_ms`, a
+six-float `pose` per sample, speed, steering, gear, rpm; empty when there is
+no record; read from the store off the loop). The client asks on entering a
+hotlap and again on every `LapRecord` that is new and has a trace.
+`AApexGhostCarActor` is a race car actor (catalog mesh, wheels, cockpit)
+whose pose comes from a clock read against the lap (`FApexGhostLap::SampleAt`,
+yaw the short way round the seam, gear stepped), tinted cold and glowing
+because the imported glTF materials cannot go translucent at runtime, muted,
+and hidden while it overlaps the player's car. In a hotlap the race director
+runs its clock from the local car's lap time (eased, snapped on a new lap),
+so the ghost is where the record lap was at this point of *this* lap; the
+garage's GHOST CAR toggle is `UApexSettingsSave::bGhostCar`.
+
+**Replay.** REPLAY BEST LAP (`AApexRaceDirector::BeginGhostReplay`) drives
+the ghost round its lap in real time from the line, with the camera cutting
+chase → trackside → onboard → trackside (`CutReplayShot`; a trackside shot
+stands ahead of the car, off to the side, and cuts once the car is past),
+the followed car being the ghost for the duration; the pause key stops it
+and the lap's end ends it. Golden bytes: `cargo test hotlap_wire_format --
+--nocapture` → `ApexGolden::C_HotlapRelocate` / `C_RequestGhost` /
+`S_GhostLap`, and `ApexUdpGolden::S_TelemetryCompactGarage` (the lap-flags
+blob with bit 2 set); `ApexSim.Net.Protocol.GhostLap` and
+`ApexSim.Net.Udp.LapFields` decode them.
+
+Checking it without a keyboard: `-ApexAutoRace -ApexMode=8 -ApexAiCount=0`
+counts into a hotlap, `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`
+and `-ApexHotlapReplayAfter=N` press the garage's buttons N seconds in
+(comma lists), and `apexsim.hotlap.Out|Garage|Replay|Stop` do the same from
+the console. A ghost needs a record: `cargo test --release --test
+hotlap_test generate_ghost_fixture -- --ignored` writes an AI lap round Monza
+in the LMP2 into `APEXSIM_GHOST_DIR` (the server's `[records] dir`) under
+`APEXSIM_GHOST_PLAYER` (default `Player`).
 
 ### Force feedback (`server/src/feedback.rs`, `Input/ApexForceFeedback.h`)
 

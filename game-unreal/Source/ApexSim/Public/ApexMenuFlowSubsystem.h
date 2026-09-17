@@ -93,6 +93,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
 	int32 CreateLapLimit = 5;
 
+	/**
+	 * What a created session actually gets. A hotlap has no field and no
+	 * distance: whatever the sliders hold, it is made with no AI and no lap
+	 * limit, and the sliders keep their values for the next race.
+	 */
+	int32 EffectiveAiCount() const { return CreateStartingMode == EApexGameMode::Hotlap ? 0 : CreateAiCount; }
+	int32 EffectiveLapLimit() const { return CreateStartingMode == EApexGameMode::Hotlap ? 0 : CreateLapLimit; }
+
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
 	EApexSessionKind CreateSessionKind = EApexSessionKind::Multiplayer;
 

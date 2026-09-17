@@ -46,11 +46,27 @@ namespace
 	/** Clearance under the race-state strip, which is about 80 px tall. */
 	constexpr float VirtualMirrorTop = HudEdgeGutter + 96.0f;
 
-	/** A lap is split into three by track position; the protocol has no sectors. */
+	/**
+	 * Bars in the sector strip. The server splits a lap into three
+	 * (`laps::SECTOR_COUNT`); the strip is built for that many and the board
+	 * says how many actually arrived.
+	 */
 	constexpr int32 SectorCount = 3;
 
-	/** Purple in every sim: a time nobody has beaten. */
-	const FLinearColor PersonalBestColour = FLinearColor::FromSRGBColor(FColor(0xB0, 0x7C, 0xE8));
+	/** Purple in every sim: a time nobody in the session has beaten. */
+	const FLinearColor SessionBestColour = FLinearColor::FromSRGBColor(FColor(0xB0, 0x7C, 0xE8));
+
+	/** A driver's own best, green — the colour a timing screen uses for it. */
+	const FLinearColor PersonalBestColour = Palette::Live;
+
+	/** A sector the driver has been quicker through before. */
+	const FLinearColor SlowerColour = Palette::Accent;
+
+	/** Milliseconds as "27.431", the way a split is read. */
+	FString FormatSplit(int32 Ms)
+	{
+		return Ms > 0 ? FString::Printf(TEXT("%.3f"), Ms / 1000.0f) : TEXT("--.---");
+	}
 
 	/** A car's colour on the map. Distinct enough at four pixels across. */
 	FLinearColor BlipColour(int32 CarIndex, bool bIsLocal)
@@ -87,12 +103,6 @@ UApexHudWidget::UApexHudWidget(const FObjectInitializer& ObjectInitializer)
 	// away and sits on top of every menu screen from launch. HitTestInvisible is
 	// what it switches to once racing — clicks have to reach the race view.
 	SetVisibility(ESlateVisibility::Collapsed);
-
-	for (int32 Index = 0; Index < SectorCount; ++Index)
-	{
-		SectorSplits[Index] = 0.0f;
-		ReferenceSplits[Index] = 0.0f;
-	}
 }
 
 // --- Subsystems -------------------------------------------------------------
@@ -158,7 +168,7 @@ void UApexHudWidget::SetRaceActive(bool bActive)
 	const UApexSettingsSubsystem* Settings = GetSettings();
 	const EApexHudDetail Detail = Settings && Settings->Get() ? Settings->Get()->HudDetail : EApexHudDetail::All;
 
-	SetVisibility(bActive && Detail != EApexHudDetail::Hidden
+	SetVisibility(bActive && bShownWanted && Detail != EApexHudDetail::Hidden
 		? ESlateVisibility::HitTestInvisible
 		: ESlateVisibility::Collapsed);
 
@@ -169,15 +179,9 @@ void UApexHudWidget::SetRaceActive(bool bActive)
 		LapSamples.Reset();
 		ReferenceLap.Reset();
 		LastSeenLap = 0;
-		LastLapSeconds = 0.0f;
-		BestLapSeconds = 0.0f;
+		ReferenceLapSeconds = 0.0f;
 		ObservedMaxRpm = 8000.0f;
 		HeaderGameMode = EApexGameMode::Lobby;
-		for (int32 Index = 0; Index < SectorCount; ++Index)
-		{
-			SectorSplits[Index] = 0.0f;
-			ReferenceSplits[Index] = 0.0f;
-		}
 
 		// The outline is only fetched while the map is empty, and the HUD lives
 		// on from one race to the next: without this, a second race on another
@@ -234,6 +238,20 @@ void UApexHudWidget::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	}
 }
 
+void UApexHudWidget::SetShown(bool bShown)
+{
+	if (bShownWanted == bShown)
+	{
+		return;
+	}
+	bShownWanted = bShown;
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const EApexHudDetail Detail = Settings && Settings->Get() ? Settings->Get()->HudDetail : EApexHudDetail::All;
+	SetVisibility(bRaceActive && bShownWanted && Detail != EApexHudDetail::Hidden
+		? ESlateVisibility::HitTestInvisible
+		: ESlateVisibility::Collapsed);
+}
+
 void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
@@ -247,6 +265,7 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	RefreshStandings();
 	RefreshCarState();
 	RefreshDelta();
+	RefreshSectors();
 	RefreshMinimap();
 	RefreshVirtualMirror();
 }
@@ -260,12 +279,17 @@ void UApexHudWidget::BuildHud()
 	const bool bFull = BuiltDetail == EApexHudDetail::All;
 
 	// Every cached pointer is about to dangle.
+	StandingSlots.Reset();
 	StandingRows.Reset();
 	StandingPlace.Reset();
 	StandingName.Reset();
 	StandingTime.Reset();
 	SectorBars.Reset();
+	SectorTimes.Reset();
 	RpmSegments.Reset();
+	LapInvalidText = nullptr;
+	FastestLapName = nullptr;
+	FastestLapTime = nullptr;
 	Minimap = nullptr;
 	ThrottleBar = nullptr;
 	BrakeBar = nullptr;
@@ -480,6 +504,15 @@ UWidget* UApexHudWidget::BuildStandingsPanel()
 		StandingTime.Add(Time);
 	}
 
+	// The session's fastest lap, the way a timing screen carries it: who, and
+	// what. Purple, because nobody in the session has beaten it.
+	UHorizontalBox* Fastest = WidgetTree->ConstructWidget<UHorizontalBox>();
+	FastestLapName = MakeText(*WidgetTree, TEXT("FASTEST —"), Font::Body(12.0f), Palette::TextMuted);
+	AddH(Fastest, FastestLapName);
+	FastestLapTime = MakeText(*WidgetTree, TEXT("--:--.---"), Font::Mono(12.0f), SessionBestColour);
+	AddH(Fastest, FastestLapTime, FMargin(10.0f, 0.0f, 0.0f, 0.0f));
+	AddV(Stack, Fastest, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+
 	return MakeSized(*WidgetTree, Stack, StandingsWidth, -1.0f);
 }
 
@@ -487,15 +520,27 @@ UWidget* UApexHudWidget::BuildDeltaPanel()
 {
 	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
 
-	// Sector strip: three bars, one per third of the lap.
+	// Sector strip: one bar and one split per sector, coloured by the server's
+	// own verdict on the time (purple session best, green personal best).
 	UHorizontalBox* Sectors = WidgetTree->ConstructWidget<UHorizontalBox>();
 	for (int32 Index = 0; Index < SectorCount; ++Index)
 	{
+		UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
 		UBorder* Bar = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(Palette::Border));
-		AddH(Sectors, MakeSized(*WidgetTree, Bar, 62.0f, 5.0f), FMargin(Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f, 0.0f));
+		AddV(Column, MakeSized(*WidgetTree, Bar, 62.0f, 5.0f));
+		UTextBlock* Split = MakeText(*WidgetTree, TEXT("--.---"), Font::Mono(12.0f), Palette::TextMuted);
+		AddV(Column, Split, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+		AddH(Sectors, Column, FMargin(Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f, 0.0f));
 		SectorBars.Add(Bar);
+		SectorTimes.Add(Split);
 	}
-	AddV(Stack, Sectors, FMargin(0.0f, 0.0f, 0.0f, 12.0f), HAlign_Left);
+	AddV(Stack, Sectors, FMargin(0.0f, 0.0f, 0.0f, 10.0f), HAlign_Left);
+
+	// The lap was struck for leaving the track. Hidden while it is clean, so
+	// the panel does not carry an empty row around all race.
+	LapInvalidText = MakeText(*WidgetTree, TEXT("LAP INVALID"), Font::Body(14.0f, true), Palette::Error);
+	LapInvalidText->SetVisibility(ESlateVisibility::Collapsed);
+	AddV(Stack, LapInvalidText, FMargin(0.0f, 0.0f, 0.0f, 8.0f), HAlign_Left);
 
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 	AddH(Row, MakeLabel(*WidgetTree, TEXT("Delta")));
@@ -724,26 +769,22 @@ void UApexHudWidget::UpdateDeltaReference(const FApexCarTelemetry& Local)
 
 	if (Local.CurrentLap != LastSeenLap)
 	{
-		// The lap counter moved on. The last sample of the lap that just ended is
-		// its time — the protocol never states a lap time, only the running one.
-		if (LastSeenLap > 0 && LapSamples.Num() > 1)
+		// The lap counter moved on, and the lap it left behind is on the wire
+		// as `LastLapTimeMs`. A lap that left the track is no reference:
+		// chasing a delta against a lap that cut a chicane would ask the
+		// driver to cut it too.
+		const float Completed = Local.LastLapTimeMs / 1000.0f;
+		if (LastSeenLap > 0 && LapSamples.Num() > 1 && Completed > 0.0f && !Local.bLastLapInvalid)
 		{
-			LastLapSeconds = LapSamples.Last().Value;
-
-			if (LastLapSeconds > 0.0f && (BestLapSeconds <= 0.0f || LastLapSeconds < BestLapSeconds))
+			if (ReferenceLapSeconds <= 0.0f || Completed < ReferenceLapSeconds)
 			{
-				BestLapSeconds = LastLapSeconds;
+				ReferenceLapSeconds = Completed;
 				ReferenceLap = LapSamples;
-				ReferenceSplits = SectorSplits;
 			}
 		}
 
 		LastSeenLap = Local.CurrentLap;
 		LapSamples.Reset();
-		for (int32 Index = 0; Index < SectorCount; ++Index)
-		{
-			SectorSplits[Index] = 0.0f;
-		}
 	}
 
 	// Samples must stay monotonic in progress for the lookup to work; a frame
@@ -753,26 +794,6 @@ void UApexHudWidget::UpdateDeltaReference(const FApexCarTelemetry& Local)
 		LapSamples.Emplace(Progress, LapSeconds);
 	}
 
-	// Splits are cumulative — the elapsed lap time when the sector boundary went
-	// past — and each is written once, the first frame past its boundary.
-	for (int32 Index = 0; Index < SectorCount; ++Index)
-	{
-		const float SectorEnd = static_cast<float>(Index + 1) / SectorCount;
-		if (Progress >= SectorEnd && SectorSplits[Index] <= 0.0f)
-		{
-			SectorSplits[Index] = LapSeconds;
-		}
-	}
-}
-
-float UApexHudWidget::SectorDuration(const TStaticArray<float, 3>& Splits, int32 Index)
-{
-	if (Index < 0 || Index >= SectorCount || Splits[Index] <= 0.0f)
-	{
-		return 0.0f;
-	}
-	const float Previous = Index == 0 ? 0.0f : Splits[Index - 1];
-	return Splits[Index] - Previous;
 }
 
 float UApexHudWidget::ReferenceTimeAt(float Progress) const
@@ -889,7 +910,8 @@ void UApexHudWidget::RefreshRaceState()
 
 	const FApexCarTelemetry* Local = FindLocalCar();
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	const int32 LapLimit = Flow ? Flow->CreateLapLimit : 0;
+	// A hotlap has no distance: laps are counted, never counted down.
+	const int32 LapLimit = Flow && HeaderGameMode != EApexGameMode::Hotlap ? Flow->CreateLapLimit : 0;
 
 	// The counter keeps stepping on the cool-down lap after the flag.
 	LapText->SetText(FText::FromString(Local ? FString::FromInt(ApexRace::DisplayLap(Local->CurrentLap, LapLimit)) : TEXT("-")));
@@ -961,6 +983,8 @@ void UApexHudWidget::RefreshStandings()
 		return;
 	}
 
+	const UApexNetSubsystem* Net = GetNet();
+
 	TArray<FStanding> Order;
 	ComputeStandings(Order);
 
@@ -1011,7 +1035,8 @@ void UApexHudWidget::RefreshStandings()
 		}
 		else if (Place == 0)
 		{
-			Right = bLocal && BestLapSeconds > 0.0f ? FormatTime(BestLapSeconds) : TEXT("LEADER");
+			const FApexCarTiming* Timing = Net ? Net->GetTimingBoard().Find(Entry.CarIndex) : nullptr;
+			Right = Timing && Timing->BestLapMs > 0 ? FormatTime(Timing->BestLapMs / 1000.0f) : TEXT("LEADER");
 		}
 		else if (TrackLength > 0.0f)
 		{
@@ -1024,6 +1049,21 @@ void UApexHudWidget::RefreshStandings()
 		}
 		StandingTime[Row]->SetText(FText::FromString(Right));
 		StandingTime[Row]->SetColorAndOpacity(FSlateColor(bLocal ? Palette::OnAccent : Palette::TextSecondary));
+	}
+
+	// The session's fastest lap. The server names it — only a lap inside track
+	// limits can hold it — so the row stays empty until somebody sets one.
+	if (FastestLapName && FastestLapTime && Net)
+	{
+		const FApexTimingBoard& Board = Net->GetTimingBoard();
+		const FStanding* Holder = Order.FindByPredicate(
+			[&Board](const FStanding& Entry) { return Entry.CarIndex == Board.SessionBestLapCarIndex; });
+		const FString Who = Holder
+			? (Holder->bIsLocal ? FString(TEXT("YOU")) : Holder->Name.ToUpper())
+			: FString(TEXT("—"));
+		FastestLapName->SetText(FText::FromString(FString::Printf(TEXT("FASTEST %s"), *Who)));
+		FastestLapTime->SetText(FText::FromString(
+			Board.SessionBestLapMs > 0 ? FormatTime(Board.SessionBestLapMs / 1000.0f) : TEXT("--:--.---")));
 	}
 }
 
@@ -1076,18 +1116,22 @@ void UApexHudWidget::RefreshCarState()
 		BrakeBar->SetPercent(FMath::Clamp(Local->Brake, 0.0f, 1.0f));
 	}
 
+	// Both times are the server's: it starts and stops the clock on the tick
+	// the car crosses the line, and it decides whether the lap counted.
 	if (LastLapText)
 	{
-		LastLapText->SetText(FText::FromString(FormatTime(LastLapSeconds)));
+		LastLapText->SetText(FText::FromString(FormatTime(Local->LastLapTimeMs / 1000.0f)));
+		LastLapText->SetColorAndOpacity(FSlateColor(
+			Local->LastLapTimeMs > 0 && Local->bLastLapInvalid ? Palette::Error : Palette::TextPrimary));
 	}
 	if (BestLapText)
 	{
-		BestLapText->SetText(FText::FromString(FormatTime(BestLapSeconds)));
+		BestLapText->SetText(FText::FromString(FormatTime(Local->BestLapTimeMs / 1000.0f)));
 	}
 	if (LapsLeftText)
 	{
 		const UApexMenuFlowSubsystem* Flow = GetFlow();
-		const int32 LapLimit = Flow ? Flow->CreateLapLimit : 0;
+		const int32 LapLimit = Flow && HeaderGameMode != EApexGameMode::Hotlap ? Flow->CreateLapLimit : 0;
 		LapsLeftText->SetText(FText::FromString(
 			LapLimit > 0
 				? FString::FromInt(Local->FinishPosition > 0 ? 0 : FMath::Max(0, LapLimit - FMath::Max(0, Local->CurrentLap - 1)))
@@ -1125,28 +1169,77 @@ void UApexHudWidget::RefreshDelta()
 		DeltaValue->SetColorAndOpacity(FSlateColor(Delta <= 0.0f ? Palette::Live : Palette::Error));
 	}
 
-	for (int32 Index = 0; Index < SectorBars.Num(); ++Index)
-	{
-		const float Mine = SectorDuration(SectorSplits, Index);
-		const float ReferenceSector = SectorDuration(ReferenceSplits, Index);
+}
 
-		// Grey until the sector is done; purple when nothing has beaten it, and
-		// green or red against the reference lap once there is one.
-		FLinearColor Colour = Palette::Border;
-		if (Mine > 0.0f)
-		{
-			Colour = ReferenceSector <= 0.0f || Mine < ReferenceSector
-				? PersonalBestColour
-				: (Mine > ReferenceSector ? Palette::Error : Palette::Live);
-		}
-		SectorBars[Index]->SetBrush(MakeBrush(Colour));
+/**
+ * The sector strip and the lap-invalid banner.
+ *
+ * Every number here was timed by the server and arrived as a `LapTiming`
+ * message; the client only decides what colour it is. Purple is the session's
+ * best, green the driver's own, amber a sector they have done quicker before,
+ * and grey a sector still being driven.
+ */
+void UApexHudWidget::RefreshSectors()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const FApexCarTelemetry* Local = FindLocalCar();
+	if (!Net)
+	{
+		return;
 	}
 
-	if (SectorCaption && Local)
+	const FApexTimingBoard& Board = Net->GetTimingBoard();
+	const FApexCarTiming* Timing = Local ? Board.Find(Local->CarIndex) : nullptr;
+
+	// The lap in progress, or — in the moments after the line, before the
+	// first sector of the new lap is done — the lap that just ended, so the
+	// driver gets to read their final split.
+	const bool bShowLastLap = Timing
+		&& !Timing->CurrentSplitsMs.ContainsByPredicate([](int32 Split) { return Split > 0; });
+	const TArray<int32>* Splits = Timing
+		? (bShowLastLap ? &Timing->LastSplitsMs : &Timing->CurrentSplitsMs)
+		: nullptr;
+
+	for (int32 Index = 0; Index < SectorBars.Num(); ++Index)
 	{
-		const int32 Sector = FMath::Clamp(
-			FMath::FloorToInt(FMath::Min(Fraction, 0.999f) * SectorCount) + 1, 1, SectorCount);
-		SectorCaption->SetText(FText::FromString(FString::Printf(TEXT("SECTOR %d"), Sector)));
+		const int32 Mine = Splits && Splits->IsValidIndex(Index) ? (*Splits)[Index] : 0;
+		const int32 MyBest = Timing && Timing->BestSplitsMs.IsValidIndex(Index)
+			? Timing->BestSplitsMs[Index]
+			: 0;
+		const int32 SessionBest = Board.SessionBestSplitsMs.IsValidIndex(Index)
+			? Board.SessionBestSplitsMs[Index]
+			: 0;
+
+		FLinearColor Colour = Palette::Border;
+		if (Mine > 0)
+		{
+			Colour = (SessionBest > 0 && Mine <= SessionBest)
+				? SessionBestColour
+				: ((MyBest <= 0 || Mine <= MyBest) ? PersonalBestColour : SlowerColour);
+		}
+		SectorBars[Index]->SetBrush(MakeBrush(Colour));
+		if (SectorTimes.IsValidIndex(Index))
+		{
+			SectorTimes[Index]->SetText(FText::FromString(FormatSplit(Mine)));
+			SectorTimes[Index]->SetColorAndOpacity(
+				FSlateColor(Mine > 0 ? Colour : Palette::TextMuted));
+		}
+	}
+
+	if (LapInvalidText)
+	{
+		LapInvalidText->SetVisibility(Local && Local->bLapInvalid
+			? ESlateVisibility::HitTestInvisible
+			: ESlateVisibility::Collapsed);
+	}
+
+	if (SectorCaption)
+	{
+		// The sector lines are the server's, so the caption reads the station
+		// against them rather than splitting the lap into thirds by eye.
+		const FApexTrackSectors& Sectors = Net->GetTrackSectors();
+		const int32 Sector = (Local && Sectors.IsValid()) ? Sectors.SectorAt(Local->TrackProgress) : 0;
+		SectorCaption->SetText(FText::FromString(FString::Printf(TEXT("SECTOR %d"), Sector + 1)));
 	}
 }
 

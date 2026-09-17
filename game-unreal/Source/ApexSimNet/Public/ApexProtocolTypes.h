@@ -313,6 +313,23 @@ enum class EApexGameMode : uint8
 	Replay        = 5,
 	Qualification = 6,
 	Race          = 7,
+	/**
+	 * Time attack: every driver starts in the garage (tuning, not simulated),
+	 * goes out onto a run-up before the line for flying laps and can come
+	 * back in at any time (HotlapRelocate). Cars in the garage are neither
+	 * ticked nor collided with, so several drivers can hotlap side by side.
+	 */
+	Hotlap        = 8,
+};
+
+/** Mirrors `HotlapDestination` (data.rs): where a hotlap driver asks to be put. */
+UENUM(BlueprintType)
+enum class EApexHotlapDestination : uint8
+{
+	/** Back to the garage: parked, frozen, out of everyone's way. */
+	Garage = 0,
+	/** Onto the track, on the run-up before the start line. */
+	Track  = 1,
 };
 
 /** Client-side connection lifecycle. Not a protocol type. */
@@ -598,6 +615,377 @@ struct APEXSIMNET_API FApexRacingLineData
 };
 
 /**
+ * `TrackSectorsData` (network.rs) — where the session's sector lines are.
+ *
+ * Sent once, with the racing line. Sector 1 always begins at the start line,
+ * so `BoundariesM` holds the other two; a car's sector is read straight off
+ * the station telemetry already carries.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexTrackSectors
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString SessionId;
+
+	/** Lap length, metres. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float TrackLengthM = 0.0f;
+
+	/** Station of each boundary past the line, ascending, metres. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<float> BoundariesM;
+
+	bool IsValid() const { return TrackLengthM > 1.0f && BoundariesM.Num() > 0; }
+
+	/** Which sector (0-based) a car standing at `StationM` is driving. */
+	int32 SectorAt(float StationM) const
+	{
+		int32 Sector = 0;
+		for (int32 Index = 0; Index < BoundariesM.Num(); ++Index)
+		{
+			if (StationM >= BoundariesM[Index])
+			{
+				Sector = Index + 1;
+			}
+		}
+		return Sector;
+	}
+
+	/** Sectors in a lap: one more than the boundaries past the line. */
+	int32 SectorCount() const { return BoundariesM.Num() + 1; }
+};
+
+/**
+ * `LapTimingData` (network.rs) — one car crossed a timing line.
+ *
+ * Timed on the server at the full tick rate; a client timing splits off 60 Hz
+ * telemetry snapshots would be tens of milliseconds out.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexLapTiming
+{
+	GENERATED_BODY()
+
+	/** Index into the current session roster. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 CarIndex = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Lap = 0;
+
+	/** The sector just completed, 0-based. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Sector = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 SectorTimeMs = 0;
+
+	/** The lap time when this sector closed the lap, 0 otherwise. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 LapTimeMs = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bIsLapEnd = false;
+
+	/** The lap was inside track limits. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bValid = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bPersonalBestLap = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bSessionBestLap = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bPersonalBestSector = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bSessionBestSector = false;
+};
+
+/**
+ * `LapRecordData` (network.rs) — the driver's stored best on this track in
+ * this car, sent on joining and again whenever they beat it.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexLapRecord
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString PlayerName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString TrackId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString CarConfigId;
+
+	/** Their best legal lap ever here in this car; 0 when they have none. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 LapTimeMs = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<int32> SplitsMs;
+
+	/** This message announces a record just beaten. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bIsNew = false;
+
+	/** The fastest lap anyone has set here in this car; 0 when unknown. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 TrackRecordMs = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString TrackRecordHolder;
+
+	/** The record lap has a stored trace, so a ghost can be driven from it. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bHasGhost = false;
+};
+
+/** One moment of a recorded lap, in the server frame (metres, radians). */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexGhostSample
+{
+	GENERATED_BODY()
+
+	/** Milliseconds since the lap started. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 TimeMs = 0;
+
+	/** Server frame: metres, +X along the track, +Y left. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float YawRad = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float PitchRad = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float RollRad = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float SpeedMps = 0.0f;
+
+	/** -1..1, positive to the left, as the server holds it. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float Steering = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Gear = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float EngineRpm = 0.0f;
+};
+
+/**
+ * `GhostLapData` (network.rs) — the trace of the driver's record lap on the
+ * session's track in their car, asked for with RequestGhost. The wire
+ * carries it as struct-of-arrays; here it is one sample per moment, which
+ * is what a puppet car reads.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexGhostLap
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString TrackId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString CarConfigId;
+
+	/** The lap the trace was recorded on; 0 when there is none. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 LapTimeMs = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float SampleHz = 20.0f;
+
+	/** Ascending in TimeMs, from the line to the line. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<FApexGhostSample> Samples;
+
+	bool IsValid() const { return LapTimeMs > 0 && Samples.Num() >= 2; }
+
+	/**
+	 * The lap's pose at `TimeMs`, blended between the samples either side
+	 * (the yaw the short way round). Before the first sample it is the
+	 * first; past the last it is the last, and the call returns false so a
+	 * ghost that has finished its lap can be hidden.
+	 */
+	bool SampleAt(float TimeMs, FApexGhostSample& Out) const;
+};
+
+/**
+ * One car's timing sheet, built from the `LapTiming` messages it has sent.
+ *
+ * The server is the stopwatch; this is only the tally, so the HUD and the
+ * standings can read a car's sectors without recomputing anything.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexCarTiming
+{
+	GENERATED_BODY()
+
+	/** Splits of the lap in progress; 0 where the sector is not done yet. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<int32> CurrentSplitsMs;
+
+	/** Splits of the last completed lap. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<int32> LastSplitsMs;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 LastLapMs = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bLastLapValid = false;
+
+	/** Best legal lap this session, 0 when the car has none. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 BestLapMs = 0;
+
+	/** The splits that best lap was made of. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<int32> BestLapSplitsMs;
+
+	/** Best time in each sector this session, whatever lap it came from. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<int32> BestSplitsMs;
+
+	/** The sector the car was last seen to complete, -1 before the first. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 LastSector = -1;
+
+	/**
+	 * The three best sectors added up — the lap the driver has already shown
+	 * they can do. 0 until every sector has a time.
+	 */
+	int32 OptimalLapMs() const
+	{
+		int32 Total = 0;
+		for (int32 Split : BestSplitsMs)
+		{
+			if (Split <= 0)
+			{
+				return 0;
+			}
+			Total += Split;
+		}
+		return BestSplitsMs.Num() > 0 ? Total : 0;
+	}
+};
+
+/**
+ * Every car's timing sheet for the session, plus the session bests.
+ *
+ * Fed one `LapTiming` message at a time; nothing here is derived from
+ * telemetry, so a dropped frame costs nothing.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexTimingBoard
+{
+	GENERATED_BODY()
+
+	/** By car index, as the roster numbers them. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TMap<int32, FApexCarTiming> Cars;
+
+	/** The fastest legal lap anyone has set, and who set it. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 SessionBestLapMs = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 SessionBestLapCarIndex = -1;
+
+	/** The fastest each sector has been driven by anyone. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<int32> SessionBestSplitsMs;
+
+	/** How many sectors a lap has here; 0 until the track sectors arrive. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 SectorCount = 0;
+
+	const FApexCarTiming* Find(int32 CarIndex) const { return Cars.Find(CarIndex); }
+
+	void Reset(int32 InSectorCount = 0)
+	{
+		Cars.Reset();
+		SessionBestLapMs = 0;
+		SessionBestLapCarIndex = -1;
+		SectorCount = InSectorCount;
+		SessionBestSplitsMs.Init(0, FMath::Max(0, InSectorCount));
+	}
+
+	/** Take one crossing. Safe to call before the sector count is known. */
+	void Apply(const FApexLapTiming& Timing)
+	{
+		if (Timing.Sector < 0)
+		{
+			return;
+		}
+		if (SectorCount <= Timing.Sector)
+		{
+			SectorCount = Timing.Sector + 1;
+		}
+		auto Fit = [this](TArray<int32>& Splits)
+		{
+			if (Splits.Num() < SectorCount)
+			{
+				Splits.SetNumZeroed(SectorCount);
+			}
+		};
+		Fit(SessionBestSplitsMs);
+
+		FApexCarTiming& Car = Cars.FindOrAdd(Timing.CarIndex);
+		Fit(Car.CurrentSplitsMs);
+		Fit(Car.LastSplitsMs);
+		Fit(Car.BestSplitsMs);
+		Fit(Car.BestLapSplitsMs);
+
+		Car.CurrentSplitsMs[Timing.Sector] = Timing.SectorTimeMs;
+		Car.LastSector = Timing.Sector;
+
+		// A sector best is only a best when the lap it is on is legal, which
+		// is the server's call: it sets the flag, the client only files it.
+		if (Timing.bPersonalBestSector)
+		{
+			Car.BestSplitsMs[Timing.Sector] = Timing.SectorTimeMs;
+		}
+		if (Timing.bSessionBestSector)
+		{
+			SessionBestSplitsMs[Timing.Sector] = Timing.SectorTimeMs;
+		}
+
+		if (!Timing.bIsLapEnd)
+		{
+			return;
+		}
+		Car.LastSplitsMs = Car.CurrentSplitsMs;
+		Car.LastLapMs = Timing.LapTimeMs;
+		Car.bLastLapValid = Timing.bValid;
+		if (Timing.bPersonalBestLap)
+		{
+			Car.BestLapMs = Timing.LapTimeMs;
+			Car.BestLapSplitsMs = Car.CurrentSplitsMs;
+		}
+		if (Timing.bSessionBestLap)
+		{
+			SessionBestLapMs = Timing.LapTimeMs;
+			SessionBestLapCarIndex = Timing.CarIndex;
+		}
+		Car.CurrentSplitsMs.Init(0, SectorCount);
+	}
+};
+
+/**
  * One car from `CompactCarState` (network.rs:388).
  *
  * Only the fields the client actually uses are kept; the rest are still read
@@ -663,11 +1051,34 @@ struct APEXSIMNET_API FApexCarTelemetry
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	int32 CurrentLapTimeMs = 0;
 
+	/** The car's last completed lap, 0 when it has not finished one. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 LastLapTimeMs = 0;
+
+	/** Its best lap *inside track limits* this session, 0 when it has none. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 BestLapTimeMs = 0;
+
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bIsOnTrack = true;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bIsColliding = false;
+
+	/** The lap in progress has been struck for leaving the track. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bLapInvalid = false;
+
+	/** The lap this car just completed was struck. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bLastLapInvalid = false;
+
+	/**
+	 * The car is parked in the garage of a hotlap session: not simulated,
+	 * not to be drawn on the track. `lap_flags` bit 2.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bInGarage = false;
 };
 
 /** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */
@@ -820,6 +1231,10 @@ enum class EApexServerMessageType : uint8
 	PlayerDisconnected,
 	SessionRoster,
 	RacingLine,
+	TrackSectors,
+	LapTiming,
+	LapRecord,
+	GhostLap,
 	UdpHandshakeAck,
 	TelemetryCompact,
 	DriverFeedback,
@@ -843,6 +1258,10 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexLobbyState LobbyState;
 	FApexSessionRoster Roster;
 	FApexRacingLineData RacingLine;
+	FApexTrackSectors TrackSectors;
+	FApexLapTiming LapTiming;
+	FApexLapRecord LapRecord;
+	FApexGhostLap GhostLap;
 	FApexTelemetryFrame Telemetry;
 	FApexDriverFeedback DriverFeedback;
 

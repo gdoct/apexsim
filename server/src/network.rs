@@ -120,6 +120,17 @@ pub enum ClientMessage {
         countdown_seconds: u16,
         next_mode: GameMode,
     },
+    /// A hotlap driver asks to be moved: into the garage or out onto the
+    /// run-up before the line. Any participant may send it; refused with an
+    /// `Error` outside `GameMode::Hotlap`. Which side of the wall the car is
+    /// on comes back in telemetry (`lap_flags` bit 2).
+    HotlapRelocate {
+        destination: HotlapDestination,
+    },
+    /// Asks for the trace of the driver's record lap on the session's track
+    /// in their car, for a ghost car or a replay. Answered with `GhostLap`,
+    /// empty when no record lap is stored.
+    RequestGhost,
     Disconnect,
 
     // UDP - Binds the sender's UDP address to the TCP connection that was
@@ -250,6 +261,25 @@ pub enum ServerMessage {
     // racing-line overlay. Sent once, right after `SessionJoined`.
     RacingLine(RacingLineData),
 
+    // TCP - Where the session's sector lines are, so the client can tell
+    // which sector a car is in from the station telemetry already carries.
+    // Sent once, with the racing line.
+    TrackSectors(TrackSectorsData),
+
+    // TCP - One car crossed a timing line: a sector split, or the lap. Sent
+    // to every human in the session as it happens. Reliable on purpose — a
+    // dropped split leaves a hole in the driver's lap that nothing refills.
+    LapTiming(LapTimingData),
+
+    // TCP - The joining driver's stored best for this track and car, and
+    // every time they beat it. `record` is absent when they have none yet.
+    LapRecord(LapRecordData),
+
+    // TCP - The trace of the driver's record lap, on request (`RequestGhost`):
+    // the pose at `records::GHOST_SAMPLE_HZ` from the line to the line, for
+    // the client to drive a ghost car through.
+    GhostLap(GhostLapData),
+
     // Full (named-encoding) telemetry. Used internally for replays; the wire
     // uses `TelemetryCompact` since protocol v2.
     Telemetry(Telemetry),
@@ -277,6 +307,12 @@ impl ServerMessage {
             ServerMessage::GameModeChanged { .. } => MessagePriority::Critical,
             ServerMessage::SessionRoster(_) => MessagePriority::Critical,
             ServerMessage::RacingLine(_) => MessagePriority::Critical,
+            ServerMessage::TrackSectors(_) => MessagePriority::Critical,
+            ServerMessage::LapTiming(_) => MessagePriority::Critical,
+            ServerMessage::LapRecord(_) => MessagePriority::Critical,
+            // Asked for once; a reply that never came leaves the driver
+            // with no ghost at all.
+            ServerMessage::GhostLap(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -437,6 +473,10 @@ pub struct CarStateTelemetry {
     pub current_lap_time_ms: u32,
     pub last_lap_time_ms: Option<u32>,
     pub best_lap_time_ms: Option<u32>,
+    /// Track limits (`crate::laps::LapTiming::flags`): bit 0 the lap in
+    /// progress is struck, bit 1 the last completed lap was.
+    #[serde(default)]
+    pub lap_flags: u8,
     // Status
     pub is_on_track: bool,
     pub is_colliding: bool,
@@ -484,6 +524,10 @@ pub struct CompactCarState {
     pub best_lap_time_ms: Option<u32>,
     pub is_on_track: bool,
     pub is_colliding: bool,
+    /// Track limits, as on `CarStateTelemetry`. Appended last: the encoding
+    /// is positional, so a field added at the end is one an older client
+    /// skips rather than one that shifts everything after it.
+    pub lap_flags: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -520,9 +564,25 @@ impl CompactCarState {
             best_lap_time_ms: state.best_lap_time_ms,
             is_on_track: state.is_on_track,
             is_colliding: state.is_colliding,
+            lap_flags: lap_flags_of(state),
         }
     }
 }
+
+/// The `lap_flags` byte of a car's telemetry: the track-limit bits from
+/// `LapTiming::flags`, plus [`LAP_FLAG_IN_GARAGE`] for a hotlap car parked
+/// in its garage.
+pub fn lap_flags_of(state: &CarState) -> u8 {
+    let mut flags = state.laps.flags();
+    if state.in_garage {
+        flags |= LAP_FLAG_IN_GARAGE;
+    }
+    flags
+}
+
+/// `lap_flags` bit 2: the car is in the garage of a hotlap session — not
+/// simulated, not to be drawn on the track.
+pub const LAP_FLAG_IN_GARAGE: u8 = 4;
 
 // --- Session roster (car index → player identity) ---
 
@@ -598,6 +658,167 @@ impl RacingLineData {
     }
 }
 
+// --- Lap timing ---
+
+/// Where the sector lines are on this session's track: station in metres
+/// from the start line, ascending, one short of the sector count (sector 1
+/// always begins at the line).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TrackSectorsData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub session_id: SessionId,
+    /// Lap length in metres, so the client can work in fractions of a lap.
+    pub track_length_m: f32,
+    pub boundaries_m: Vec<f32>,
+}
+
+/// A car crossed a timing line.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct LapTimingData {
+    /// Index into the current `SessionRoster`.
+    pub car_index: u8,
+    /// The lap the sector belongs to.
+    pub lap: u16,
+    /// Sector just completed, 0-based.
+    pub sector: u8,
+    pub sector_time_ms: u32,
+    /// The lap time when this sector closed the lap, 0 otherwise.
+    pub lap_time_ms: u32,
+    /// Set when `lap_time_ms` is a completed lap.
+    pub is_lap_end: bool,
+    /// The lap was inside track limits.
+    pub valid: bool,
+    /// Bit 0 the driver's best lap this session, bit 1 the session's best
+    /// lap by anyone, bit 2 the driver's best of this sector, bit 3 the
+    /// session's best of it. What the HUD paints green and purple.
+    pub flags: u8,
+}
+
+impl LapTimingData {
+    pub const FLAG_PERSONAL_BEST_LAP: u8 = 1;
+    pub const FLAG_SESSION_BEST_LAP: u8 = 2;
+    pub const FLAG_PERSONAL_BEST_SECTOR: u8 = 4;
+    pub const FLAG_SESSION_BEST_SECTOR: u8 = 8;
+}
+
+/// The driver's stored record for the session's track and car.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct LapRecordData {
+    /// The driver the record belongs to.
+    pub player_name: String,
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub track_id: TrackConfigId,
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub car_config_id: CarConfigId,
+    /// The driver's best legal lap ever on this track in this car; 0 when
+    /// they have none yet.
+    pub lap_time_ms: u32,
+    pub splits_ms: Vec<u32>,
+    /// Set when this message announces a record just beaten rather than the
+    /// one the driver arrived with.
+    pub is_new: bool,
+    /// The fastest lap anyone has set here in this car, 0 when unknown.
+    pub track_record_ms: u32,
+    pub track_record_holder: String,
+    /// A trace of the record lap is stored, so a ghost can be driven from it.
+    pub has_ghost: bool,
+}
+
+/// The trace of a record lap, for a ghost car (`ClientMessage::RequestGhost`).
+/// The samples are struct-of-arrays: one lap is thousands of them, and a
+/// named field per value would be most of the message.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct GhostLapData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub track_id: TrackConfigId,
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub car_config_id: CarConfigId,
+    /// The lap the trace was recorded on; 0 when there is none, and then
+    /// every array below is empty.
+    pub lap_time_ms: u32,
+    pub sample_hz: f32,
+    /// Milliseconds since the lap started, one per sample.
+    pub t_ms: Vec<u32>,
+    /// Six per sample: x, y, z, yaw, pitch, roll (metres, radians, the
+    /// server frame).
+    pub pose: Vec<f32>,
+    pub speed_mps: Vec<f32>,
+    pub steering: Vec<f32>,
+    pub gear: Vec<i8>,
+    pub engine_rpm: Vec<f32>,
+}
+
+impl GhostLapData {
+    /// A reply that says there is no recorded lap.
+    pub fn empty(track_id: TrackConfigId, car_config_id: CarConfigId) -> Self {
+        Self {
+            track_id,
+            car_config_id,
+            lap_time_ms: 0,
+            sample_hz: crate::records::GHOST_SAMPLE_HZ,
+            t_ms: Vec::new(),
+            pose: Vec::new(),
+            speed_mps: Vec::new(),
+            steering: Vec::new(),
+            gear: Vec::new(),
+            engine_rpm: Vec::new(),
+        }
+    }
+
+    pub fn from_lap(
+        track_id: TrackConfigId,
+        car_config_id: CarConfigId,
+        lap: &crate::records::GhostLap,
+    ) -> Self {
+        let n = lap.samples.len();
+        let mut out = Self {
+            track_id,
+            car_config_id,
+            lap_time_ms: lap.lap_time_ms,
+            sample_hz: lap.sample_hz,
+            t_ms: Vec::with_capacity(n),
+            pose: Vec::with_capacity(n * 6),
+            speed_mps: Vec::with_capacity(n),
+            steering: Vec::with_capacity(n),
+            gear: Vec::with_capacity(n),
+            engine_rpm: Vec::with_capacity(n),
+        };
+        for s in &lap.samples {
+            out.t_ms.push(s.t_ms);
+            out.pose
+                .extend_from_slice(&[s.x, s.y, s.z, s.yaw_rad, s.pitch_rad, s.roll_rad]);
+            out.speed_mps.push(s.speed_mps);
+            out.steering.push(s.steering);
+            out.gear.push(s.gear);
+            out.engine_rpm.push(s.engine_rpm);
+        }
+        out
+    }
+
+    pub fn sample_count(&self) -> usize {
+        self.t_ms.len()
+    }
+}
+
 impl From<&CarState> for CarStateTelemetry {
     fn from(state: &CarState) -> Self {
         Self {
@@ -621,6 +842,7 @@ impl From<&CarState> for CarStateTelemetry {
             current_lap_time_ms: state.current_lap_time_ms,
             last_lap_time_ms: state.last_lap_time_ms,
             best_lap_time_ms: state.best_lap_time_ms,
+            lap_flags: lap_flags_of(state),
             is_on_track: state.is_on_track,
             is_colliding: state.is_colliding,
         }
@@ -989,6 +1211,77 @@ mod tests {
         }
     }
 
+    /// The positional shape of `CompactCarState`, pinned because the Unreal
+    /// client reads it by position: one field inserted rather than appended
+    /// and every value after it lands in the wrong place. The bytes are the
+    /// client's `ApexUdpGolden::S_TelemetryCompactLapFlags`; print them with
+    /// `cargo test telemetry_compact_wire_format -- --nocapture`.
+    #[test]
+    fn test_telemetry_compact_wire_format() {
+        let mut state = CarState::new(
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            &GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        state.pos_x = 100.5;
+        state.pos_y = -20.25;
+        state.pos_z = 0.5;
+        state.yaw_rad = 1.5;
+        state.roll_rad = -0.25;
+        state.speed_mps = 42.0;
+        state.throttle_input = 1.0;
+        state.steering_input = -0.5;
+        state.gear = 4;
+        state.engine_rpm = 11_000.0;
+        state.current_lap = 3;
+        state.track_progress = 0.75;
+        state.current_lap_time_ms = 91_234;
+        state.last_lap_time_ms = Some(82_615);
+        state.best_lap_time_ms = Some(82_615);
+        state.is_on_track = true;
+        state.is_colliding = false;
+        state.laps.invalid = true;
+
+        let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
+            server_tick: 123_456,
+            session_state: SessionState::Racing,
+            game_mode: GameMode::Race,
+            countdown_ms: None,
+            car_states: vec![CompactCarState::from_car_state(&state, 0)],
+        });
+        let bytes = rmp_serde::to_vec(&msg).unwrap();
+        println!(
+            "S_TelemetryCompactLapFlags: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+
+        // The car is a 23-field array: 0xDC 0x00 0x17 is the array-16 header.
+        assert!(
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x17]),
+            "CompactCarState must stay 23 fields; the client reads them by position"
+        );
+
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::TelemetryCompact(frame) => {
+                let car = &frame.car_states[0];
+                assert_eq!(car.lap_flags, 1, "the lap in progress is struck");
+                assert_eq!(car.last_lap_time_ms, Some(82_615));
+                assert_eq!(car.gear, 4);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
     #[test]
     fn test_telemetry_conversion() {
         let player_id = Uuid::new_v4();
@@ -1106,6 +1399,112 @@ mod tests {
     /// `ApexGolden::C_CreateSession`, `C_SetDriverAids` and
     /// `S_SessionJoinedAssists` (ProtocolCodecTests.cpp). Change both
     /// together; `cargo test assists_wire_format -- --nocapture` prints them.
+    /// Golden bytes for the lap-timing messages, the way the assists and the
+    /// car setup are pinned: run
+    /// `cargo test lap_timing_wire_format -- --nocapture` and paste the
+    /// output into the client's `ApexGoldenBlobs.h`.
+    #[test]
+    fn test_lap_timing_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let session_id = Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap();
+        let track_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
+        let car_id = Uuid::parse_str("11111111-2222-3333-4444-555555555555").unwrap();
+
+        let sectors = ServerMessage::TrackSectors(TrackSectorsData {
+            session_id,
+            track_length_m: 5793.0,
+            boundaries_m: vec![1931.0, 3862.0],
+        });
+        let sector_bytes = rmp_serde::to_vec_named(&sectors).unwrap();
+        println!("S_TrackSectors: {}", hex(&sector_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&sector_bytes).unwrap() {
+            ServerMessage::TrackSectors(data) => {
+                assert_eq!(data.boundaries_m, vec![1931.0, 3862.0]);
+                assert_eq!(data.track_length_m, 5793.0);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        let timing = ServerMessage::LapTiming(LapTimingData {
+            car_index: 2,
+            lap: 4,
+            sector: 2,
+            sector_time_ms: 27_431,
+            lap_time_ms: 82_615,
+            is_lap_end: true,
+            valid: true,
+            flags: LapTimingData::FLAG_PERSONAL_BEST_LAP | LapTimingData::FLAG_SESSION_BEST_SECTOR,
+        });
+        let timing_bytes = rmp_serde::to_vec_named(&timing).unwrap();
+        println!("S_LapTiming: {}", hex(&timing_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&timing_bytes).unwrap() {
+            ServerMessage::LapTiming(data) => {
+                assert!(data.is_lap_end && data.valid);
+                assert_eq!(data.lap_time_ms, 82_615);
+                assert_eq!(data.flags & LapTimingData::FLAG_PERSONAL_BEST_LAP, 1);
+                assert_eq!(data.flags & LapTimingData::FLAG_SESSION_BEST_LAP, 0);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        let record = ServerMessage::LapRecord(LapRecordData {
+            player_name: "Ayrton".to_string(),
+            track_id,
+            car_config_id: car_id,
+            lap_time_ms: 82_615,
+            splits_ms: vec![27_100, 28_084, 27_431],
+            is_new: true,
+            track_record_ms: 81_900,
+            track_record_holder: "Alain".to_string(),
+            has_ghost: true,
+        });
+        let record_bytes = rmp_serde::to_vec_named(&record).unwrap();
+        println!("S_LapRecord: {}", hex(&record_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&record_bytes).unwrap() {
+            ServerMessage::LapRecord(data) => {
+                assert!(data.is_new && data.has_ghost);
+                assert_eq!(data.splits_ms.iter().sum::<u32>(), 82_615);
+                assert_eq!(data.track_record_holder, "Alain");
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_telemetry_carries_lap_flags() {
+        let mut state = CarState::new(
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            &GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        state.laps.invalid = true;
+        state.laps.last_invalid = false;
+        let compact = CompactCarState::from_car_state(&state, 3);
+        assert_eq!(compact.lap_flags, 1, "bit 0 is the lap in progress");
+        let full = CarStateTelemetry::from(&state);
+        assert_eq!(full.lap_flags, 1);
+
+        state.laps.invalid = false;
+        state.laps.last_invalid = true;
+        assert_eq!(
+            CompactCarState::from_car_state(&state, 3).lap_flags,
+            2,
+            "bit 1 is the lap just completed"
+        );
+    }
+
     #[test]
     fn test_assists_wire_format() {
         fn hex(bytes: &[u8]) -> String {
@@ -1179,6 +1578,112 @@ mod tests {
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION);
         assert_eq!(aids_bytes, GOLDEN_C_SET_DRIVER_AIDS);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_ASSISTS);
+    }
+
+    /// The bytes of the hotlap messages, pinned on the client as
+    /// `ApexGolden::C_HotlapRelocate`, `C_RequestGhost` and `S_GhostLap`;
+    /// `cargo test hotlap_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_hotlap_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let relocate = ClientMessage::HotlapRelocate {
+            destination: HotlapDestination::Track,
+        };
+        let relocate_bytes = rmp_serde::to_vec_named(&relocate).unwrap();
+        println!("C_HotlapRelocate: {}", hex(&relocate_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&relocate_bytes).unwrap() {
+            ClientMessage::HotlapRelocate { destination } => {
+                assert_eq!(destination, HotlapDestination::Track)
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        let request_bytes = rmp_serde::to_vec_named(&ClientMessage::RequestGhost).unwrap();
+        println!("C_RequestGhost: {}", hex(&request_bytes));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&request_bytes).unwrap(),
+            ClientMessage::RequestGhost
+        ));
+
+        let lap = crate::records::GhostLap {
+            lap_time_ms: 82_615,
+            sample_hz: 20.0,
+            samples: vec![
+                crate::records::GhostSample {
+                    t_ms: 0,
+                    x: 1.5,
+                    y: -2.0,
+                    z: 0.25,
+                    yaw_rad: 0.5,
+                    pitch_rad: 0.0,
+                    roll_rad: -0.125,
+                    speed_mps: 60.0,
+                    steering: 0.1,
+                    throttle: 1.0,
+                    brake: 0.0,
+                    gear: 4,
+                    engine_rpm: 9000.0,
+                },
+                crate::records::GhostSample {
+                    t_ms: 50,
+                    x: 4.5,
+                    y: -2.5,
+                    z: 0.25,
+                    yaw_rad: 0.5,
+                    pitch_rad: 0.0,
+                    roll_rad: 0.0,
+                    speed_mps: 61.0,
+                    steering: -0.2,
+                    throttle: 1.0,
+                    brake: 0.0,
+                    gear: -1,
+                    engine_rpm: 9100.0,
+                },
+            ],
+        };
+        let ghost = ServerMessage::GhostLap(GhostLapData::from_lap(
+            Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            Uuid::parse_str("11111111-2222-3333-4444-555555555555").unwrap(),
+            &lap,
+        ));
+        let ghost_bytes = rmp_serde::to_vec_named(&ghost).unwrap();
+        println!("S_GhostLap: {}", hex(&ghost_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&ghost_bytes).unwrap() {
+            ServerMessage::GhostLap(data) => {
+                assert_eq!(data.sample_count(), 2);
+                assert_eq!(data.lap_time_ms, 82_615);
+                assert_eq!(data.pose.len(), 12);
+                assert_eq!(data.pose[6], 4.5);
+                assert_eq!(data.t_ms, vec![0, 50]);
+                assert_eq!(data.gear, vec![4, -1]);
+                assert_eq!(data.steering, vec![0.1, -0.2]);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        // A ghost is big: a five-minute lap must still fit the frame limit.
+        let long = crate::records::GhostLap {
+            lap_time_ms: 300_000,
+            sample_hz: 20.0,
+            samples: vec![lap.samples[0]; 20 * 300],
+        };
+        let long_bytes = rmp_serde::to_vec_named(&ServerMessage::GhostLap(GhostLapData::from_lap(
+            Uuid::nil(),
+            Uuid::nil(),
+            &long,
+        )))
+        .unwrap();
+        assert!(
+            long_bytes.len() < 1_000_000,
+            "a five-minute ghost is {} bytes",
+            long_bytes.len()
+        );
     }
 
     /// The bytes of a `SetCarSetup` with every knob named, the client's

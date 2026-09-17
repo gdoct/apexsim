@@ -602,6 +602,211 @@ namespace
 		return true;
 	}
 
+	/** `TrackSectorsData` — PascalCase keys. */
+	bool ParseTrackSectors(FMsgPackReader& Reader, FApexTrackSectors& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("SessionId"))         { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("TrackLengthM")) { bOk = Reader.ReadFloat(Out.TrackLengthM); }
+			else if (Key == TEXT("BoundariesM"))  { bOk = ParseFloatArray(Reader, Out.BoundariesM); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * `LapTimingData` — PascalCase keys. `Flags` is a bit field, unpacked
+	 * here into the four booleans the HUD paints with.
+	 */
+	bool ParseLapTiming(FMsgPackReader& Reader, FApexLapTiming& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("CarIndex"))           { bOk = Reader.ReadUInt64(Raw); Out.CarIndex = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Lap"))           { bOk = Reader.ReadUInt64(Raw); Out.Lap = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Sector"))        { bOk = Reader.ReadUInt64(Raw); Out.Sector = static_cast<int32>(Raw); }
+			else if (Key == TEXT("SectorTimeMs"))  { bOk = Reader.ReadUInt64(Raw); Out.SectorTimeMs = static_cast<int32>(Raw); }
+			else if (Key == TEXT("LapTimeMs"))     { bOk = Reader.ReadUInt64(Raw); Out.LapTimeMs = static_cast<int32>(Raw); }
+			else if (Key == TEXT("IsLapEnd"))      { bOk = Reader.ReadBool(Out.bIsLapEnd); }
+			else if (Key == TEXT("Valid"))         { bOk = Reader.ReadBool(Out.bValid); }
+			else if (Key == TEXT("Flags"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.bPersonalBestLap = (Raw & 1) != 0;
+				Out.bSessionBestLap = (Raw & 2) != 0;
+				Out.bPersonalBestSector = (Raw & 4) != 0;
+				Out.bSessionBestSector = (Raw & 8) != 0;
+			}
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * `GhostLapData` — PascalCase keys, struct-of-arrays on the wire, zipped
+	 * into one sample per moment here. Arrays of unequal length are cut to
+	 * the shortest, so a truncated message still yields a playable lap.
+	 */
+	bool ParseGhostLap(FMsgPackReader& Reader, FApexGhostLap& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		TArray<float> Pose;
+		TArray<float> Speed;
+		TArray<float> Steering;
+		TArray<float> Rpm;
+		TArray<int32> TimeMs;
+		TArray<int32> Gear;
+		auto ReadIntArray = [&Reader](TArray<int32>& Values, bool bSigned)
+		{
+			int32 Count = 0;
+			if (!Reader.ReadArrayHeader(Count))
+			{
+				return false;
+			}
+			Values.SetNumUninitialized(Count);
+			for (int32 i = 0; i < Count; ++i)
+			{
+				if (bSigned)
+				{
+					int64 Raw = 0;
+					if (!Reader.ReadInt64(Raw)) { return false; }
+					Values[i] = static_cast<int32>(Raw);
+				}
+				else
+				{
+					uint64 Raw = 0;
+					if (!Reader.ReadUInt64(Raw)) { return false; }
+					Values[i] = static_cast<int32>(Raw);
+				}
+			}
+			return true;
+		};
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("TrackId"))          { bOk = Reader.ReadString(Out.TrackId); }
+			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.CarConfigId); }
+			else if (Key == TEXT("LapTimeMs"))   { bOk = Reader.ReadUInt64(Raw); Out.LapTimeMs = static_cast<int32>(Raw); }
+			else if (Key == TEXT("SampleHz"))    { bOk = Reader.ReadFloat(Out.SampleHz); }
+			else if (Key == TEXT("TMs"))         { bOk = ReadIntArray(TimeMs, false); }
+			else if (Key == TEXT("Pose"))        { bOk = ParseFloatArray(Reader, Pose); }
+			else if (Key == TEXT("SpeedMps"))    { bOk = ParseFloatArray(Reader, Speed); }
+			else if (Key == TEXT("Steering"))    { bOk = ParseFloatArray(Reader, Steering); }
+			else if (Key == TEXT("Gear"))        { bOk = ReadIntArray(Gear, true); }
+			else if (Key == TEXT("EngineRpm"))   { bOk = ParseFloatArray(Reader, Rpm); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+
+		int32 Count = FMath::Min(TimeMs.Num(), Pose.Num() / 6);
+		Count = FMath::Min(Count, Speed.Num());
+		Out.Samples.Reset(Count);
+		for (int32 i = 0; i < Count; ++i)
+		{
+			FApexGhostSample& S = Out.Samples.AddDefaulted_GetRef();
+			S.TimeMs = TimeMs[i];
+			S.Position = FVector(Pose[i * 6], Pose[i * 6 + 1], Pose[i * 6 + 2]);
+			S.YawRad = Pose[i * 6 + 3];
+			S.PitchRad = Pose[i * 6 + 4];
+			S.RollRad = Pose[i * 6 + 5];
+			S.SpeedMps = Speed[i];
+			S.Steering = Steering.IsValidIndex(i) ? Steering[i] : 0.0f;
+			S.Gear = Gear.IsValidIndex(i) ? Gear[i] : 0;
+			S.EngineRpm = Rpm.IsValidIndex(i) ? Rpm[i] : 0.0f;
+		}
+		return true;
+	}
+
+	/** `LapRecordData` — PascalCase keys. */
+	bool ParseLapRecord(FMsgPackReader& Reader, FApexLapRecord& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("PlayerName"))              { bOk = Reader.ReadString(Out.PlayerName); }
+			else if (Key == TEXT("TrackId"))            { bOk = Reader.ReadString(Out.TrackId); }
+			else if (Key == TEXT("CarConfigId"))        { bOk = Reader.ReadString(Out.CarConfigId); }
+			else if (Key == TEXT("LapTimeMs"))          { bOk = Reader.ReadUInt64(Raw); Out.LapTimeMs = static_cast<int32>(Raw); }
+			else if (Key == TEXT("IsNew"))              { bOk = Reader.ReadBool(Out.bIsNew); }
+			else if (Key == TEXT("TrackRecordMs"))      { bOk = Reader.ReadUInt64(Raw); Out.TrackRecordMs = static_cast<int32>(Raw); }
+			else if (Key == TEXT("TrackRecordHolder"))  { bOk = Reader.ReadString(Out.TrackRecordHolder); }
+			else if (Key == TEXT("HasGhost"))           { bOk = Reader.ReadBool(Out.bHasGhost); }
+			else if (Key == TEXT("SplitsMs"))
+			{
+				int32 Count = 0;
+				bOk = Reader.ReadArrayHeader(Count);
+				Out.SplitsMs.Reset(Count);
+				for (int32 p = 0; p < Count && bOk; ++p)
+				{
+					bOk = Reader.ReadUInt64(Raw);
+					Out.SplitsMs.Add(static_cast<int32>(Raw));
+				}
+			}
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** `PlayerDisconnectedData` — PascalCase keys. */
 	bool ParsePlayerDisconnected(FMsgPackReader& Reader, FApexServerMessage& Out)
 	{
@@ -635,15 +840,9 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 22;
+	constexpr int32 CompactCarFieldCount = 23;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
-
-	/** Reads an `Option<T>` that the client does not need, as a plain skip. */
-	bool SkipOptional(FMsgPackReader& Reader)
-	{
-		return Reader.TryReadNil() ? true : Reader.SkipValue();
-	}
 
 	bool ParseCompactCarState(FMsgPackReader& Reader, FApexCarTelemetry& Out)
 	{
@@ -701,10 +900,45 @@ namespace
 			return Reader.ReadUInt64(Raw) ? (Out.FinishPosition = static_cast<int32>(Raw), true) : false;
 		});
 		bOk &= Next([&] { return Reader.ReadUInt64(Raw) ? (Out.CurrentLapTimeMs = static_cast<int32>(Raw), true) : false; });
-		bOk &= Next([&] { return SkipOptional(Reader); });   // last_lap_time_ms
-		bOk &= Next([&] { return SkipOptional(Reader); });   // best_lap_time_ms
+		bOk &= Next([&]
+		{
+			Out.LastLapTimeMs = 0;
+			if (Reader.TryReadNil())
+			{
+				return true;
+			}
+			return Reader.ReadUInt64(Raw) ? (Out.LastLapTimeMs = static_cast<int32>(Raw), true) : false;
+		});
+		bOk &= Next([&]
+		{
+			Out.BestLapTimeMs = 0;
+			if (Reader.TryReadNil())
+			{
+				return true;
+			}
+			return Reader.ReadUInt64(Raw) ? (Out.BestLapTimeMs = static_cast<int32>(Raw), true) : false;
+		});
 		bOk &= Next([&] { return Reader.ReadBool(Out.bIsOnTrack); });
 		bOk &= Next([&] { return Reader.ReadBool(Out.bIsColliding); });
+		// Track limits, appended after `is_colliding`: a server that predates
+		// the field simply sends one value fewer and every lap reads as clean.
+		Out.bLapInvalid = false;
+		Out.bLastLapInvalid = false;
+		Out.bInGarage = false;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.bLapInvalid = (Raw & 1) != 0;
+				Out.bLastLapInvalid = (Raw & 2) != 0;
+				Out.bInGarage = (Raw & 4) != 0;
+				return true;
+			});
+		}
 
 		if (!bOk)
 		{
@@ -878,6 +1112,10 @@ namespace
 		if (Variant == TEXT("PlayerDisconnected")) { return EApexServerMessageType::PlayerDisconnected; }
 		if (Variant == TEXT("SessionRoster"))      { return EApexServerMessageType::SessionRoster; }
 		if (Variant == TEXT("RacingLine"))         { return EApexServerMessageType::RacingLine; }
+		if (Variant == TEXT("TrackSectors"))       { return EApexServerMessageType::TrackSectors; }
+		if (Variant == TEXT("LapTiming"))          { return EApexServerMessageType::LapTiming; }
+		if (Variant == TEXT("LapRecord"))          { return EApexServerMessageType::LapRecord; }
+		if (Variant == TEXT("GhostLap"))           { return EApexServerMessageType::GhostLap; }
 		if (Variant == TEXT("UdpHandshakeAck"))    { return EApexServerMessageType::UdpHandshakeAck; }
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 		if (Variant == TEXT("DriverFeedback"))     { return EApexServerMessageType::DriverFeedback; }
@@ -913,6 +1151,18 @@ namespace
 
 		case EApexServerMessageType::RacingLine:
 			return ParseRacingLine(Reader, Out.RacingLine);
+
+		case EApexServerMessageType::TrackSectors:
+			return ParseTrackSectors(Reader, Out.TrackSectors);
+
+		case EApexServerMessageType::LapTiming:
+			return ParseLapTiming(Reader, Out.LapTiming);
+
+		case EApexServerMessageType::LapRecord:
+			return ParseLapRecord(Reader, Out.LapRecord);
+
+		case EApexServerMessageType::GhostLap:
+			return ParseGhostLap(Reader, Out.GhostLap);
 
 		case EApexServerMessageType::TelemetryCompact:
 		case EApexServerMessageType::DriverFeedback:
@@ -1110,6 +1360,17 @@ namespace ApexProtocol
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}
+
+	TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination)
+	{
+		FMsgPackWriter Writer(48);
+		BeginDataVariant(Writer, "HotlapRelocate", 1);
+		Writer.WriteString("destination");
+		Writer.WriteUInt(static_cast<uint8>(Destination));
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeRequestGhost() { return EncodeUnitVariant("RequestGhost"); }
 
 	TArray<uint8> EncodeUdpHandshake(const FString& UdpToken)
 	{

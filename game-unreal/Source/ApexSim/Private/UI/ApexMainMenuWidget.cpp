@@ -516,11 +516,13 @@ void UApexMainMenuWidget::RefreshHero()
 
 	if (SessionValueText)
 	{
-		SessionValueText->SetText(FText::FromString(FString::Printf(
-			TEXT("%s · %d laps · %d AI"),
-			*UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode),
-			Flow->CreateLapLimit,
-			Flow->CreateAiCount)));
+		SessionValueText->SetText(FText::FromString(Flow->CreateStartingMode == EApexGameMode::Hotlap
+			? UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode)
+			: FString::Printf(
+				TEXT("%s · %d laps · %d AI"),
+				*UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode),
+				Flow->CreateLapLimit,
+				Flow->CreateAiCount)));
 	}
 
 	if (StartButton)
@@ -668,14 +670,14 @@ void UApexMainMenuWidget::StartRememberedSession()
 	Flow->AutoStartMode = Flow->CreateStartingMode;
 
 	UE_LOG(LogApexSim, Log, TEXT("Main menu start: track '%s', %d AI, %d laps, mode %d, %s"),
-		*Flow->GetPendingTrackId(), Flow->CreateAiCount, Flow->CreateLapLimit,
+		*Flow->GetPendingTrackId(), Flow->EffectiveAiCount(), Flow->EffectiveLapLimit(),
 		static_cast<int32>(Flow->CreateStartingMode), *Flow->CreateConditions.Describe());
 
 	Net->CreateSession(
 		Flow->GetPendingTrackId(),
 		Flow->CreateMaxPlayers,
-		Flow->CreateAiCount,
-		Flow->CreateLapLimit,
+		Flow->EffectiveAiCount(),
+		Flow->EffectiveLapLimit(),
 		Flow->CreateSessionKind,
 		Flow->CreateAllowedAssists,
 		Flow->CreateConditions);

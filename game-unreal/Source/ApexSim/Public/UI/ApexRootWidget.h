@@ -12,6 +12,7 @@ class FWeakWidgetPath;
 class FWidgetPath;
 class SWidget;
 struct FFocusEvent;
+class UApexHotlapWidget;
 class UApexHudWidget;
 class UApexPauseMenuWidget;
 class UApexScreenWidget;
@@ -22,6 +23,7 @@ class UImage;
 class UTexture2D;
 class UWidgetSwitcher;
 enum class EApexPauseAction : uint8;
+enum class EApexHotlapAction : uint8;
 
 /**
  * The shell's frame: background, screen switcher, toast.
@@ -92,6 +94,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsPaused() const { return bPauseMenuOpen; }
 
+	/** True while the hotlap garage card is up and owns the keys. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
+	bool IsGarageOpen() const { return bGarageOpen; }
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsSettingsOpen() const;
 
@@ -146,6 +152,10 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexPauseMenuWidget> PauseMenu;
+
+	/** The hotlap layer: garage card, timing sheet, replay strip. Between the HUD and the pause menu. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
+	TObjectPtr<UApexHotlapWidget> HotlapPanel;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexSettingsWidget> SettingsOverlay;
@@ -214,6 +224,24 @@ private:
 	void HandlePauseAction(EApexPauseAction Action);
 
 	UFUNCTION()
+	void HandleHotlapAction(EApexHotlapAction Action);
+
+	/** The local car's telemetry decides which side of the garage wall the hotlap view is on. */
+	UFUNCTION()
+	void HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame);
+
+	/** A new record with a trace: fetch it, so the ghost drives the lap just set. */
+	UFUNCTION()
+	void HandleLapRecordForGhost(const FApexLapRecord& Record);
+
+	/**
+	 * The garage card up or down. Up, the HUD hides, driving input stops (the
+	 * car is frozen anyway) and the card takes the keys, as the pause menu
+	 * does; down, the timing sheet stays beside the HUD.
+	 */
+	void SetGarageOpen(bool bOpen);
+
+	UFUNCTION()
 	void HandleSettingsClosed();
 
 	/** True for any mode in which the server is simulating and sending telemetry. */
@@ -238,6 +266,9 @@ private:
 
 	bool bRaceViewActive = false;
 	bool bPauseMenuOpen = false;
+	bool bGarageOpen = false;
+	/** The session's mode is Hotlap; the hotlap layer is live. */
+	bool bHotlapSession = false;
 	/** The winner's flag has been announced for this race. */
 	bool bWinnerAnnounced = false;
 	/** The local car has taken the flag in this race. */

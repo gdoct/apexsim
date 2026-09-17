@@ -301,4 +301,74 @@ bool FApexUdpRobustnessTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+
+/**
+ * The lap fields at the end of `CompactCarState`.
+ *
+ * They are appended, not inserted, so both shapes have to decode: the current
+ * 23-field car with its times and its track-limit flags, and the 22-field car
+ * an older server sends, which reads as a clean lap with no times.
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexUdpLapFieldsTest,
+	"ApexSim.Net.Udp.LapFields",
+	ApexUdpTestFlags)
+
+bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
+{
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("23-field telemetry decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactLapFlags, Message, Error))
+			&& TestEqual(TEXT("one car"), Message.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Message.Telemetry.Cars[0];
+			// Position first: a one-field slip anywhere would land here.
+			TestEqual(TEXT("pos X"), Car.Position.X, 100.5);
+			TestEqual(TEXT("gear"), Car.Gear, 4);
+			TestEqual(TEXT("lap"), Car.CurrentLap, 3);
+			TestEqual(TEXT("current lap time"), Car.CurrentLapTimeMs, 91234);
+			TestEqual(TEXT("last lap"), Car.LastLapTimeMs, 82615);
+			TestEqual(TEXT("best lap"), Car.BestLapTimeMs, 82615);
+			TestTrue(TEXT("on track"), Car.bIsOnTrack);
+			TestFalse(TEXT("not colliding"), Car.bIsColliding);
+			TestTrue(TEXT("lap in progress is struck"), Car.bLapInvalid);
+			TestFalse(TEXT("the completed lap stood"), Car.bLastLapInvalid);
+			TestFalse(TEXT("not in a garage"), Car.bInGarage);
+		}
+	}
+
+	{
+		// lap_flags bit 2: a hotlap car parked in its garage.
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("garage telemetry decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactGarage, Message, Error))
+			&& TestEqual(TEXT("one car"), Message.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Message.Telemetry.Cars[0];
+			TestTrue(TEXT("in the garage"), Car.bInGarage);
+			TestTrue(TEXT("the other bits still read"), Car.bLapInvalid);
+		}
+	}
+
+	{
+		// The blob from before the lap fields: 22 fields, no flags.
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("22-field telemetry still decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompact, Message, Error))
+			&& TestEqual(TEXT("two cars"), Message.Telemetry.Cars.Num(), 2))
+		{
+			const FApexCarTelemetry& Car = Message.Telemetry.Cars[0];
+			TestEqual(TEXT("pos X survives the shorter car"), Car.Position.X, 100.5);
+			TestFalse(TEXT("an old server never strikes a lap"), Car.bLapInvalid);
+			TestFalse(TEXT("nor the one before it"), Car.bLastLapInvalid);
+		}
+	}
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

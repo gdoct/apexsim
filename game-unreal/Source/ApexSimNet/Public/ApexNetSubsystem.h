@@ -26,6 +26,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnDisconnected, const FString&,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionRosterUpdated, const FApexSessionRoster&, Roster);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnRacingLineUpdated, const FApexRacingLineData&, Line);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnTelemetry, const FApexTelemetryFrame&, Frame);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnLapTiming, const FApexLapTiming&, Timing);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnLapRecord, const FApexLapRecord&, Record);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnGhostLap, const FApexGhostLap&, Lap);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnDemoSessionChanged, bool /*bJoined*/);
@@ -103,6 +106,27 @@ public:
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
 	FApexOnRacingLineUpdated OnRacingLineUpdated;
+
+	/**
+	 * One car crossed a timing line: a sector split, or the lap. Reliable,
+	 * and timed on the server — the HUD paints it rather than measuring it.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnLapTiming OnLapTiming;
+
+	/**
+	 * The local driver's stored record for this track and car: once on
+	 * joining, and again each time they beat it (`bIsNew`).
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnLapRecord OnLapRecord;
+
+	/**
+	 * The trace of the local driver's record lap, answering RequestGhost:
+	 * empty (not IsValid) when they have none stored.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnGhostLap OnGhostLap;
 
 	/** Fires once the UDP handshake is acknowledged and telemetry can flow. */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
@@ -252,6 +276,19 @@ public:
 	void SetCarSetup(const FApexCarSetup& Setup);
 
 	/**
+	 * In a hotlap session: into the garage, or out onto the run-up before
+	 * the line. Which side the car is on comes back in its telemetry
+	 * (FApexCarTelemetry::bInGarage); the server answers anything else with
+	 * an Error.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void HotlapRelocate(EApexHotlapDestination Destination);
+
+	/** Ask for the record lap's trace; OnGhostLap answers, empty when there is none. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void RequestGhost();
+
+	/**
 	 * The aids the current session's host allows, from its SessionJoined.
 	 * Everything is allowed outside a session, in a demo, and on a server
 	 * that predates the field. The server enforces it; this is for the UI.
@@ -326,6 +363,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexRacingLineData& GetRacingLine() const { return CachedRacingLine; }
 
+	/** Where this session's sector lines are; not IsValid until they arrive. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	const FApexTrackSectors& GetTrackSectors() const { return CachedSectors; }
+
+	/** Every car's splits and bests for this session, kept from `LapTiming`. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	const FApexTimingBoard& GetTimingBoard() const { return TimingBoard; }
+
+	/** The local driver's stored record here; LapTimeMs is 0 when they have none. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	const FApexLapRecord& GetLapRecord() const { return CachedLapRecord; }
+
+	/** The record lap's trace as last received; not IsValid until one arrives. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	const FApexGhostLap& GetGhostLap() const { return CachedGhostLap; }
+
 	/** The most recent telemetry frame, for anything that polls rather than binds. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexTelemetryFrame& GetLatestTelemetry() const { return LatestTelemetry; }
@@ -389,6 +442,21 @@ private:
 
 	/** Forget the racing line, telling listeners if there was one. */
 	void ClearRacingLine();
+
+	UPROPERTY()
+	FApexTrackSectors CachedSectors;
+
+	UPROPERTY()
+	FApexTimingBoard TimingBoard;
+
+	UPROPERTY()
+	FApexLapRecord CachedLapRecord;
+
+	UPROPERTY()
+	FApexGhostLap CachedGhostLap;
+
+	/** Forget the session's timing sheet: a new session times from scratch. */
+	void ClearLapTiming();
 
 	UPROPERTY()
 	FApexTelemetryFrame LatestTelemetry;

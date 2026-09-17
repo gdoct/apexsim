@@ -322,6 +322,13 @@ void UApexNetSubsystem::SetGameMode(EApexGameMode Mode)
 
 void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
 {
+	// A hotlap has no grid to count down from: everyone starts in the garage
+	// and goes out when they are ready, so the mode is set outright.
+	if (NextMode == EApexGameMode::Hotlap)
+	{
+		SetGameMode(NextMode);
+		return;
+	}
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> StartCountdown %d"), Seconds);
 	SendPayload(ApexProtocol::EncodeStartCountdown(
 		static_cast<uint16>(FMath::Clamp(Seconds, 0, 65535)), NextMode));
@@ -333,6 +340,19 @@ void UApexNetSubsystem::SetDriverAids(
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d abs=%d traction_control=%d"),
 		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0, bAbs ? 1 : 0, static_cast<int32>(TractionControl));
 	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl));
+}
+
+void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> HotlapRelocate %s"),
+		Destination == EApexHotlapDestination::Garage ? TEXT("garage") : TEXT("track"));
+	SendPayload(ApexProtocol::EncodeHotlapRelocate(Destination));
+}
+
+void UApexNetSubsystem::RequestGhost()
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> RequestGhost"));
+	SendPayload(ApexProtocol::EncodeRequestGhost());
 }
 
 void UApexNetSubsystem::SetCarSetup(const FApexCarSetup& Setup)
@@ -365,6 +385,14 @@ bool UApexNetSubsystem::FindTrackById(const FString& TrackId, FApexTrackConfigSu
 		}
 	}
 	return false;
+}
+
+void UApexNetSubsystem::ClearLapTiming()
+{
+	CachedSectors = FApexTrackSectors();
+	CachedLapRecord = FApexLapRecord();
+	CachedGhostLap = FApexGhostLap();
+	TimingBoard.Reset();
 }
 
 void UApexNetSubsystem::ClearRacingLine()
@@ -685,6 +713,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentConditions = Message.Conditions;
 			CachedRoster = FApexSessionRoster();
 			ClearRacingLine();
+			ClearLapTiming();
 			DiscardTelemetryOfPreviousSession();
 			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined (demo) SessionId=%s"), *CurrentSessionId);
 			OnDemoSessionChanged.Broadcast(true);
@@ -694,6 +723,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		// The new session's line follows this message; the old one is for a
 		// different track or car.
 		ClearRacingLine();
+		ClearLapTiming();
 		CurrentSessionId = Message.SessionId;
 		CurrentAllowedAssists = Message.AllowedAssists;
 		CurrentConditions = Message.Conditions;
@@ -729,6 +759,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentConditions = FApexSessionConditions();
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
+		ClearLapTiming();
 		LatestDriverFeedback = FApexDriverFeedback();
 		DriverFeedbackTime = 0.0;
 		// Telemetry stops when the session ends, so nothing would ever drive
@@ -799,6 +830,39 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- RacingLine %d point(s) every %.2f m for session %s"),
 			CachedRacingLine.Points.Num(), CachedRacingLine.SpacingM, *CachedRacingLine.SessionId);
 		OnRacingLineUpdated.Broadcast(CachedRacingLine);
+		break;
+
+	case EApexServerMessageType::TrackSectors:
+		CachedSectors = Message.TrackSectors;
+		TimingBoard.Reset(CachedSectors.SectorCount());
+		UE_LOG(LogApexSimNet, Log, TEXT("<- TrackSectors %d sector(s) over %.0f m"),
+			CachedSectors.SectorCount(), CachedSectors.TrackLengthM);
+		break;
+
+	case EApexServerMessageType::LapTiming:
+		TimingBoard.Apply(Message.LapTiming);
+		UE_LOG(LogApexSimNet, Verbose, TEXT("<- LapTiming car %d lap %d sector %d %d ms%s%s"),
+			Message.LapTiming.CarIndex, Message.LapTiming.Lap, Message.LapTiming.Sector + 1,
+			Message.LapTiming.SectorTimeMs,
+			Message.LapTiming.bIsLapEnd ? TEXT(" (lap end)") : TEXT(""),
+			Message.LapTiming.bValid ? TEXT("") : TEXT(" INVALID"));
+		OnLapTiming.Broadcast(Message.LapTiming);
+		break;
+
+	case EApexServerMessageType::LapRecord:
+		CachedLapRecord = Message.LapRecord;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- LapRecord %s: %d ms%s (track record %d ms by %s)"),
+			*CachedLapRecord.PlayerName, CachedLapRecord.LapTimeMs,
+			CachedLapRecord.bIsNew ? TEXT(" NEW") : TEXT(""),
+			CachedLapRecord.TrackRecordMs, *CachedLapRecord.TrackRecordHolder);
+		OnLapRecord.Broadcast(CachedLapRecord);
+		break;
+
+	case EApexServerMessageType::GhostLap:
+		CachedGhostLap = Message.GhostLap;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- GhostLap %d sample(s), %d ms"),
+			CachedGhostLap.Samples.Num(), CachedGhostLap.LapTimeMs);
+		OnGhostLap.Broadcast(CachedGhostLap);
 		break;
 
 	default:

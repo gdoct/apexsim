@@ -346,14 +346,14 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 		bool bAvailable;
 	};
 
-	// Replay and Qualification are left out because nothing drives them yet.
-	// Demo lap is present but locked: the server drops human players from the
-	// session when it starts one (game_session.rs:409-425), which leaves the
-	// client a spectator with no telemetry and a countdown that never ends.
+	// Replay and Qualification are left out because nothing drives them yet,
+	// and Demo lap because the server turns it into a dead end for whoever
+	// asks (it drops the human players to spectators); the hotlap took its
+	// tile. A locked tile would still be skipped by HandleNavigation.
 	static const FModeOption Options[] = {
 		{ EApexGameMode::FreePractice, TEXT("Free practice"), TEXT("Drive freely, no limits"),        true },
 		{ EApexGameMode::Sandbox,      TEXT("Sandbox"),       TEXT("Free camera, cars frozen"),       true },
-		{ EApexGameMode::DemoLap,      TEXT("Demo lap"),      TEXT("Drops you to spectator"),          false },
+		{ EApexGameMode::Hotlap,       TEXT("Hotlap"),        TEXT("Garage, then flying laps"),       true },
 		{ EApexGameMode::Race,         TEXT("Race"),          TEXT("Countdown, then racing"),         true },
 	};
 
@@ -481,9 +481,8 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	UTextBlock* AiSuffix = nullptr;
 	USlider* AiSlider = nullptr;
 	UProgressBar* AiFill = nullptr;
-	ApexUI::AddV(
-		Column,
-		ApexUI::MakeSliderRow(*WidgetTree, TEXT("AI drivers"), AiValue, AiSuffix, AiSlider, AiFill));
+	AiCountRow = ApexUI::MakeSliderRow(*WidgetTree, TEXT("AI drivers"), AiValue, AiSuffix, AiSlider, AiFill);
+	ApexUI::AddV(Column, AiCountRow);
 	AiCountValue = AiValue;
 	AiCountSuffix = AiSuffix;
 	AiCountSlider = AiSlider;
@@ -498,9 +497,8 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	UTextBlock* LapSuffix = nullptr;
 	USlider* LapSlider = nullptr;
 	UProgressBar* LapFill = nullptr;
-	ApexUI::AddV(
-		Column,
-		ApexUI::MakeSliderRow(*WidgetTree, TEXT("Laps"), LapValue, LapSuffix, LapSlider, LapFill));
+	LapsRow = ApexUI::MakeSliderRow(*WidgetTree, TEXT("Laps"), LapValue, LapSuffix, LapSlider, LapFill);
+	ApexUI::AddV(Column, LapsRow);
 	LapsValue = LapValue;
 	LapsSuffix = LapSuffix;
 	LapsSlider = LapSlider;
@@ -833,13 +831,21 @@ void UApexSessionCreateWidget::RefreshSettings()
 		}
 	}
 
+	// A hotlap has no AI field and no distance: the two rows go away rather
+	// than sit there looking like they apply, and the grid line says what
+	// the session is.
+	const bool bHotlap = Flow->CreateStartingMode == EApexGameMode::Hotlap;
+	if (AiCountRow) { AiCountRow->SetVisibility(bHotlap ? ESlateVisibility::Collapsed : ESlateVisibility::Visible); }
+	if (LapsRow)    { LapsRow->SetVisibility(bHotlap ? ESlateVisibility::Collapsed : ESlateVisibility::Visible); }
+
 	if (GridSummaryText)
 	{
 		const int32 Slots = Flow->CreateMaxPlayers;
-		const int32 Ai = FMath::Min(Flow->CreateAiCount, FMath::Max(0, Slots - 1));
+		const int32 Ai = FMath::Min(Flow->EffectiveAiCount(), FMath::Max(0, Slots - 1));
 		const int32 Open = FMath::Max(0, Slots - 1 - Ai);
-		GridSummaryText->SetText(FText::FromString(FString::Printf(
-			TEXT("GRID: %d SLOTS · 1 HUMAN + %d AI · %d OPEN"), Slots, Ai, Open)));
+		GridSummaryText->SetText(FText::FromString(bHotlap
+			? FString::Printf(TEXT("GRID: %d SLOTS · EVERY DRIVER HOTLAPS FROM THEIR OWN GARAGE, NO AI, NO LAP LIMIT"), Slots)
+			: FString::Printf(TEXT("GRID: %d SLOTS · 1 HUMAN + %d AI · %d OPEN"), Slots, Ai, Open)));
 	}
 }
 
@@ -1028,15 +1034,15 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Flow->SaveProfile();
 
 		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI, %d laps, kind %d, %d assists locked, %s"),
-			*Flow->GetPendingTrackId(), Flow->CreateMaxPlayers, Flow->CreateAiCount,
-			Flow->CreateLapLimit, static_cast<int32>(Flow->CreateSessionKind),
+			*Flow->GetPendingTrackId(), Flow->CreateMaxPlayers, Flow->EffectiveAiCount(),
+			Flow->EffectiveLapLimit(), static_cast<int32>(Flow->CreateSessionKind),
 			Flow->CreateAllowedAssists.CountLocked(), *Flow->CreateConditions.Describe());
 
 		Net->CreateSession(
 			Flow->GetPendingTrackId(),
 			Flow->CreateMaxPlayers,
-			Flow->CreateAiCount,
-			Flow->CreateLapLimit,
+			Flow->EffectiveAiCount(),
+			Flow->EffectiveLapLimit(),
 			Flow->CreateSessionKind,
 			Flow->CreateAllowedAssists,
 			Flow->CreateConditions);
@@ -1067,7 +1073,7 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 
 	// Otherwise a starting-mode tile.
-	for (int32 Mode = 0; Mode <= static_cast<int32>(EApexGameMode::Race); ++Mode)
+	for (int32 Mode = 0; Mode <= static_cast<int32>(EApexGameMode::Hotlap); ++Mode)
 	{
 		if (Id == ModeAction(static_cast<EApexGameMode>(Mode)))
 		{

@@ -35,8 +35,6 @@ void UApexSessionRecorder::BeginRecording()
 {
 	Results.Reset();
 	LastLapNumber.Reset();
-	LastLapTimeMs.Reset();
-	LapWasClean.Reset();
 	PersonalBestDelta = 0.0f;
 	bRecording = true;
 
@@ -44,7 +42,7 @@ void UApexSessionRecorder::BeginRecording()
 	if (Flow)
 	{
 		TrackId = Flow->GetPendingTrackId();
-		LapLimit = Flow->CreateLapLimit;
+		LapLimit = Flow->EffectiveLapLimit();
 		RecordedMode = Flow->CreateStartingMode;
 
 		FApexTrackCatalogRow Row;
@@ -237,36 +235,35 @@ void UApexSessionRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 				ApexRace::RaceDistanceM(Car.CurrentLap, Car.TrackProgress, TrackLengthM));
 		}
 
-		bool& bClean = LapWasClean.FindOrAdd(Car.CarIndex, true);
-		if (!Car.bIsOnTrack)
-		{
-			bClean = false;
-		}
-
+		// The server times the laps and judges track limits, so the completed
+		// lap and the best come straight off the wire; the client only has to
+		// notice the counter move to know a lap is new.
 		const int32* PreviousLap = LastLapNumber.Find(Car.CarIndex);
-		if (PreviousLap && Car.CurrentLap > *PreviousLap)
+		if (PreviousLap && Car.CurrentLap > *PreviousLap && Car.LastLapTimeMs > 0)
 		{
-			// The lap counter has moved on, so the time carried in the previous
-			// frame is the completed lap. CurrentLapTimeMs has already reset here.
-			const int32* CompletedMs = LastLapTimeMs.Find(Car.CarIndex);
-			if (CompletedMs && *CompletedMs > 0)
+			Result.LapTimes.Add(Car.LastLapTimeMs / 1000.0f);
+			if (!Car.bLastLapInvalid)
 			{
-				const float Seconds = *CompletedMs / 1000.0f;
-				Result.LapTimes.Add(Seconds);
-				if (Result.BestLapSeconds <= 0.0f || Seconds < Result.BestLapSeconds)
+				++Result.ValidLaps;
+			}
+		}
+		if (Car.BestLapTimeMs > 0)
+		{
+			Result.BestLapSeconds = Car.BestLapTimeMs / 1000.0f;
+			if (Net)
+			{
+				if (const FApexCarTiming* Timing = Net->GetTimingBoard().Find(Car.CarIndex))
 				{
-					Result.BestLapSeconds = Seconds;
-				}
-				if (bClean)
-				{
-					++Result.ValidLaps;
+					Result.BestLapSplitsSeconds.Reset(Timing->BestLapSplitsMs.Num());
+					for (int32 SplitMs : Timing->BestLapSplitsMs)
+					{
+						Result.BestLapSplitsSeconds.Add(SplitMs / 1000.0f);
+					}
 				}
 			}
-			bClean = true;
 		}
 
 		LastLapNumber.Add(Car.CarIndex, Car.CurrentLap);
-		LastLapTimeMs.Add(Car.CarIndex, Car.CurrentLapTimeMs);
 	}
 
 	// Kept in order as it goes: a driver who has finished watches the results

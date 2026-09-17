@@ -444,6 +444,12 @@ pub struct TrackConfig {
     /// when empty, physics falls back to virtual checkpoints at 25/50/75%.
     #[serde(skip)]
     pub checkpoints: Vec<f32>,
+    /// Sector boundary distances along the centerline (m from start), one
+    /// short of [`crate::laps::SECTOR_COUNT`] and ascending. Runtime-only,
+    /// resolved at load time from the track file's `sectors` node indices;
+    /// when empty the lap is split into even thirds.
+    #[serde(skip)]
+    pub sectors: Vec<f32>,
     /// Track metadata
     #[serde(default)]
     pub metadata: TrackMetadata,
@@ -626,6 +632,7 @@ impl Default for TrackConfig {
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
             checkpoints: Vec::new(),
+            sectors: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
             ground: None,
@@ -859,6 +866,23 @@ pub struct CarState {
     #[serde(skip)]
     pub next_checkpoint: u8,
 
+    /// Sectors, splits and track-limit state for the lap in progress
+    /// (`crate::laps`). Runtime-only; never serialized.
+    #[serde(skip)]
+    pub laps: crate::laps::LapTiming,
+
+    /// All four wheels were off the track on the last physics tick — what
+    /// `crate::laps::note_track_limits` counts. Runtime-only.
+    #[serde(skip)]
+    pub wheels_off_track: bool,
+
+    /// The car is parked in the garage of a hotlap session: not simulated,
+    /// not collided with, hidden by the client, waiting for its driver to
+    /// finish tuning and go out (`GameSession::hotlap_relocate`). Telemetry
+    /// carries it as bit 2 of `lap_flags`.
+    #[serde(default)]
+    pub in_garage: bool,
+
     // Surface state
     pub current_surface: SurfaceType,
     pub is_on_track: bool,
@@ -983,6 +1007,9 @@ impl CarState {
             is_colliding: false,
             nearest_centerline_idx: None,
             next_checkpoint: 0,
+            laps: crate::laps::LapTiming::default(),
+            wheels_off_track: false,
+            in_garage: false,
             collision_normal_x: 0.0,
             collision_normal_y: 0.0,
             collision_normal_z: 0.0,
@@ -1320,6 +1347,23 @@ pub enum GameMode {
     Qualification = 6,
     /// Race mode (to be implemented)
     Race = 7,
+    /// Time attack: every driver starts in the garage (tuning, nothing
+    /// simulated), goes out onto a run-up before the line for flying laps,
+    /// and can come back in at any time (`ClientMessage::HotlapRelocate`).
+    /// Cars in the garage are neither ticked nor collided with, so several
+    /// drivers can hotlap side by side on one track.
+    Hotlap = 8,
+}
+
+/// Where a hotlap driver asks to be put.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
+pub enum HotlapDestination {
+    /// Back to the garage: parked, frozen, out of everyone's way.
+    #[default]
+    Garage = 0,
+    /// Onto the track, on the run-up before the start line.
+    Track = 1,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

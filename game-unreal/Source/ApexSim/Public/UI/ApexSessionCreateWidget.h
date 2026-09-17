@@ -95,6 +95,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> AiCountSuffix;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapsSuffix;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GridSummaryText;
+	/** Collapsed while the starting mode is Hotlap. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> AiCountRow;
+	UPROPERTY(Transient) TObjectPtr<UWidget> LapsRow;
 	UPROPERTY(Transient) TObjectPtr<USlider> TimeOfDaySlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> TimeOfDayFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeOfDayValue;

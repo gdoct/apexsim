@@ -149,6 +149,10 @@ public:
 	UPROPERTY()
 	EApexRacingLine RacingLine = EApexRacingLine::Off;
 
+	/** In a hotlap, the record lap's ghost car drives alongside. Toggled from the garage. */
+	UPROPERTY()
+	bool bGhostCar = true;
+
 	/** 0..1. Applied to AI cars when a session is created. */
 	UPROPERTY()
 	float AiSkill = 0.74f;
@@ -201,9 +205,17 @@ public:
 	UPROPERTY()
 	float FieldOfView = 96.0f;
 
-	/** Which camera a race starts in. C swaps at any time. */
+	/** Which camera a race starts in. C steps through them at any time. */
 	UPROPERTY()
 	bool bStartInCockpit = true;
+
+	/**
+	 * Which rung of the chase ladder the chase camera sits on: an index into
+	 * `ApexChase::Views()`, closest first. 3 is the farthest, which is where
+	 * the one chase camera used to be, so an existing profile is unchanged.
+	 */
+	UPROPERTY()
+	int32 ChaseViewLevel = 3;
 
 	/** Seat slide from the car's own driving position, cm, positive forward. */
 	UPROPERTY()

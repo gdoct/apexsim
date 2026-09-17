@@ -41,6 +41,16 @@ namespace ApexProps
 	 * front, a ferris wheel does not.
 	 */
 	APEXTRACKEDITOR_API bool FacesRoad(const FString& Kind, const FString& Asset);
+	/**
+	 * Whether a resolved prop is turned to look back up the course instead
+	 * of across it: a braking marker and a marshal light panel are read by
+	 * a driver on the way in, so their authored front (+Y, like every other
+	 * board) has to point against the direction of travel rather than at the
+	 * road. The builder yaws them +90 degrees and never flips them by side.
+	 */
+	APEXTRACKEDITOR_API bool FacesUpCourse(const FString& Kind, const FString& Asset);
+	/** Degrees added to a prop's yaw so its front looks back up the course. */
+	inline constexpr float UpCourseYawDeg = 90.0f;
 	/** Empty when the kind has no default. */
 	APEXTRACKEDITOR_API FString DefaultAssetFor(const FString& Kind);
 	/** Every kind the kit knows, for the importer's folder walk. */

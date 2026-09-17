@@ -67,6 +67,8 @@ private:
 		TObjectPtr<UStaticMesh> Mesh;
 		bool bAuthored = false;
 		bool bFaceRoad = false;
+		/** Yawed to look back up the course instead (a distance board). */
+		bool bFaceUpCourse = false;
 		bool bInstanced = false;
 	};
 	FResolvedProp ResolveProp(const FApexTrackProp& Prop);

@@ -107,7 +107,7 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 			return true;
 		}
 
-		if (!Root->IsPaused())
+		if (!Root->IsPaused() && !Root->IsGarageOpen())
 		{
 			// Driving: the keys belong to the car.
 			KeepFocusOnGame(SlateApp, InKeyEvent.GetUserIndex());

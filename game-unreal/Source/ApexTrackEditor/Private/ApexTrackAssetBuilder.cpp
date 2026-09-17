@@ -1504,6 +1504,7 @@ FApexTrackAssetBuilder::FResolvedProp FApexTrackAssetBuilder::ResolveProp(const 
 	{
 		Resolved.bAuthored = true;
 		Resolved.bFaceRoad = ApexProps::FacesRoad(Resolved.Kind, Resolved.Asset);
+		Resolved.bFaceUpCourse = ApexProps::FacesUpCourse(Resolved.Kind, Resolved.Asset);
 		Resolved.bInstanced = ApexProps::IsInstancedKind(Resolved.Kind);
 		return Resolved;
 	}
@@ -2206,7 +2207,15 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 		const FResolvedProp Resolved = ResolveProp(Prop);
 
 		float YawDeg = Prop.YawDeg;
-		if (Resolved.bFaceRoad && RoadSideOf(Scene, Prop) < 0.0f)
+		if (Resolved.bFaceUpCourse)
+		{
+			// The export gives every prop the road's heading and the kit
+			// authors a board's face on local +Y, which points a distance
+			// board across the road at the crowd; turn it back up the
+			// course, at the cars, from either side.
+			YawDeg += ApexProps::UpCourseYawDeg;
+		}
+		else if (Resolved.bFaceRoad && RoadSideOf(Scene, Prop) < 0.0f)
 		{
 			YawDeg += 180.0f;
 		}

@@ -39,6 +39,7 @@ namespace
 	const EApexGameMode StartableModes[] = {
 		EApexGameMode::FreePractice,
 		EApexGameMode::Race,
+		EApexGameMode::Hotlap,
 		EApexGameMode::Sandbox,
 	};
 
@@ -330,10 +331,12 @@ void UApexSessionLobbyWidget::RefreshHeader()
 
 	if (FormatText)
 	{
-		FormatText->SetText(FText::FromString(FString::Printf(
-			TEXT("%s · %d LAPS"),
-			*UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode).ToUpper(),
-			Flow->CreateLapLimit)));
+		FormatText->SetText(FText::FromString(Flow->EffectiveLapLimit() > 0
+			? FString::Printf(
+				TEXT("%s · %d LAPS"),
+				*UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode).ToUpper(),
+				Flow->CreateLapLimit)
+			: UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode).ToUpper()));
 	}
 
 	if (SlotsText)

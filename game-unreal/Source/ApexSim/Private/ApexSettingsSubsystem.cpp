@@ -230,6 +230,13 @@ void UApexSettingsSubsystem::SetRacingLine(EApexRacingLine Line)
 	Changed(EApexSettingsGroup::Assists);
 }
 
+void UApexSettingsSubsystem::SetGhostCar(bool bOn)
+{
+	if (!Settings || Settings->bGhostCar == bOn) { return; }
+	Settings->bGhostCar = bOn;
+	Changed(EApexSettingsGroup::Gameplay);
+}
+
 // --- Gameplay ---------------------------------------------------------------
 
 void UApexSettingsSubsystem::SetAiSkill(float Skill01)
@@ -455,6 +462,15 @@ void UApexSettingsSubsystem::SetStartInCockpit(bool bCockpit)
 {
 	if (!Settings || Settings->bStartInCockpit == bCockpit) { return; }
 	Settings->bStartInCockpit = bCockpit;
+	Changed(EApexSettingsGroup::Camera);
+}
+
+void UApexSettingsSubsystem::SetChaseLevel(int32 Level)
+{
+	// The race director owns the ladder and clamps before it gets here; this
+	// only keeps the value, so a change never re-enters the camera code.
+	if (!Settings || Settings->ChaseViewLevel == Level) { return; }
+	Settings->ChaseViewLevel = Level;
 	Changed(EApexSettingsGroup::Camera);
 }
 
@@ -823,6 +839,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->AiSkill = Defaults->AiSkill;
 		Settings->Units = Defaults->Units;
 		Settings->HudDetail = Defaults->HudDetail;
+		Settings->bGhostCar = Defaults->bGhostCar;
 		break;
 
 	case EApexSettingsGroup::Assists:
@@ -848,6 +865,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 	case EApexSettingsGroup::Camera:
 		Settings->FieldOfView = Defaults->FieldOfView;
 		Settings->bStartInCockpit = Defaults->bStartInCockpit;
+		Settings->ChaseViewLevel = Defaults->ChaseViewLevel;
 		Settings->SeatForwardCm = Defaults->SeatForwardCm;
 		Settings->SeatHeightCm = Defaults->SeatHeightCm;
 		Settings->ViewPitchDeg = Defaults->ViewPitchDeg;

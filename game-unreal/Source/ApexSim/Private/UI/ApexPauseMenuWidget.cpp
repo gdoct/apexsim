@@ -27,6 +27,7 @@ namespace
 	const FName ActionResume   = TEXT("Resume");
 	const FName ActionSettings = TEXT("Settings");
 	const FName ActionPauseLeave    = TEXT("Leave");
+	const FName ActionGarage   = TEXT("Garage");
 	const FName ActionQuit     = TEXT("Quit");
 }
 
@@ -58,6 +59,10 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	// so a second Escape and a click do the same thing.
 	AddRow(Actions, TEXT("Close menu"), FString(), ActionResume, /*bPrimary*/ true, TEXT("ESC"));
 	AddRow(Actions, TEXT("SETTINGS"), TEXT("Gameplay · Graphics · Controls"), ActionSettings, false);
+	// A hotlap's way back in: the car is parked, repaired and out of the way,
+	// with the setup card up. Collapsed in every other mode and in the garage.
+	GarageRow = AddRow(Actions, TEXT("BACK TO GARAGE"), TEXT("Tune, replay, go again"), ActionGarage, false);
+	GarageRow->SetVisibility(ESlateVisibility::Collapsed);
 
 	// The two exits are separated from the rest and carry a consequence label.
 	// Leaving the session and quitting are never adjacent to Resume.
@@ -174,6 +179,7 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	TArray<FString> Parts;
 
 	const int32 LocalIndex = Net->GetLocalCarIndex();
+	bool bOnTrackInHotlap = false;
 	if (const FApexCarTelemetry* Local = Net->GetLatestTelemetry().Cars.FindByPredicate(
 			[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; }))
 	{
@@ -181,6 +187,11 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 		Parts.Add(LapLimit > 0
 			? FString::Printf(TEXT("Lap %d / %d"), ApexRace::DisplayLap(Local->CurrentLap, LapLimit), LapLimit)
 			: FString::Printf(TEXT("Lap %d"), FMath::Max(1, Local->CurrentLap)));
+		bOnTrackInHotlap = Net->GetGameMode() == EApexGameMode::Hotlap && !Local->bInGarage;
+	}
+	if (GarageRow)
+	{
+		GarageRow->SetVisibility(bOnTrackInHotlap ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
 	FApexSessionSummary Session;
@@ -232,6 +243,10 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		OnAction.Broadcast(EApexPauseAction::OpenSettings);
 	}
+	else if (Action == ActionGarage)
+	{
+		OnAction.Broadcast(EApexPauseAction::ReturnToGarage);
+	}
 	else if (Action == ActionPauseLeave)
 	{
 		OnAction.Broadcast(EApexPauseAction::LeaveSession);
@@ -271,16 +286,30 @@ bool UApexPauseMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* So
 	}
 
 	const int32 Current = ApexNav::IndexOf(Rows, Source);
+	// A collapsed row (the garage row outside a hotlap) is skipped over.
+	auto Step = [this](int32 From, int32 Delta)
+	{
+		int32 Index = From;
+		for (int32 Tries = 0; Tries < Rows.Num(); ++Tries)
+		{
+			Index = (Index + Delta + Rows.Num()) % Rows.Num();
+			if (Rows[Index] && Rows[Index]->GetVisibility() != ESlateVisibility::Collapsed)
+			{
+				return Index;
+			}
+		}
+		return From;
+	};
 	switch (Direction)
 	{
 	case EUINavigation::Up:
 	case EUINavigation::Previous:
-		ApexNav::Focus(Rows[Current == INDEX_NONE ? 0 : (Current + Rows.Num() - 1) % Rows.Num()]);
+		ApexNav::Focus(Rows[Current == INDEX_NONE ? 0 : Step(Current, -1)]);
 		return true;
 
 	case EUINavigation::Down:
 	case EUINavigation::Next:
-		ApexNav::Focus(Rows[Current == INDEX_NONE ? 0 : (Current + 1) % Rows.Num()]);
+		ApexNav::Focus(Rows[Current == INDEX_NONE ? 0 : Step(Current, 1)]);
 		return true;
 
 	default:

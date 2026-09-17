@@ -154,6 +154,16 @@ private:
 
 	/** The samples still to be shown; see ApexCarMotion.h. */
 	ApexMotion::FApexCarMotionBuffer Motion;
+
+protected:
+	/**
+	 * What the dials, the cockpit rig and the brake lights read, for a
+	 * puppet that is not fed by telemetry (the ghost drives itself from a
+	 * recorded lap).
+	 */
+	void SetPuppetState(float InSpeedMps, float InEngineRpm, int32 InGear, float InSteering, float InThrottle, float InBrake);
+
+private:
 	bool bHasTarget = false;
 
 	/** Body mesh bounds grown by the wheels, in the mesh's own frame. */

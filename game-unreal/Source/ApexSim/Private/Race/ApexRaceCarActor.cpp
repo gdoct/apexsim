@@ -269,6 +269,18 @@ void AApexRaceCarActor::PlaceHeadlights()
 	HeadlightRight->SetRelativeLocationAndRotation(FVector(X, -Y, Z), Aim);
 }
 
+void AApexRaceCarActor::SetPuppetState(
+	float InSpeedMps, float InEngineRpm, int32 InGear, float InSteering, float InThrottle, float InBrake)
+{
+	SpeedMps = InSpeedMps;
+	EngineRpm = InEngineRpm;
+	Gear = InGear;
+	Steering = InSteering;
+	Throttle = InThrottle;
+	Brake = InBrake;
+	UpdateBrakeLights();
+}
+
 void AApexRaceCarActor::SetMeshVisible(bool bVisible)
 {
 	// Not propagated to children: the wheels are set explicitly so they go

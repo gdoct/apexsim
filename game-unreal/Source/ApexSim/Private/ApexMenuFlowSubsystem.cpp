@@ -225,6 +225,7 @@ FString UApexMenuFlowSubsystem::GetGameModeName(EApexGameMode Mode)
 	case EApexGameMode::Replay:        return TEXT("Replay");
 	case EApexGameMode::Qualification: return TEXT("Qualifying");
 	case EApexGameMode::Race:          return TEXT("Race");
+	case EApexGameMode::Hotlap:        return TEXT("Hotlap");
 	default:                           return TEXT("Unknown");
 	}
 }

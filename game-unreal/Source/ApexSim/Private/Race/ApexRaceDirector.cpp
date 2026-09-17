@@ -30,6 +30,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Race/ApexCockpitRig.h"
+#include "Race/ApexGhostCarActor.h"
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Race/ApexRacingLineActor.h"
@@ -52,14 +53,20 @@ AApexRaceDirector::AApexRaceDirector()
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(Root);
-	CameraBoom->TargetArmLength = 900.0f;
-	CameraBoom->SetRelativeRotation(FRotator(-12.0f, 0.0f, 0.0f));
+	// Length, height, pitch and lag all come from the chase ladder's current
+	// rung (ApplyChaseView); these are the far rung's, so a boom that is never
+	// applied behaves as the one chase camera used to.
+	CameraBoom->TargetArmLength = ApexChase::Get(ChaseLevel).ArmLengthCm;
+	CameraBoom->SetRelativeRotation(FRotator(ApexChase::Get(ChaseLevel).PitchDeg, 0.0f, 0.0f));
 	// The boom lags behind the car rather than being welded to it, which reads
-	// as a chase camera instead of a rigid mount.
+	// as a chase camera instead of a rigid mount. The closer rungs barely lag:
+	// from the roof the camera is part of the car, and a lagging one there
+	// swings the roofline about.
 	CameraBoom->bEnableCameraLag = true;
 	CameraBoom->bEnableCameraRotationLag = true;
-	CameraBoom->CameraLagSpeed = 6.0f;
-	CameraBoom->CameraRotationLagSpeed = 5.0f;
+	CameraBoom->CameraLagSpeed = ApexChase::Get(ChaseLevel).LagSpeed;
+	CameraBoom->CameraRotationLagSpeed = ApexChase::Get(ChaseLevel).RotationLagSpeed;
+	CameraBoom->CameraLagMaxDistance = ApexChase::Get(ChaseLevel).LagMaxDistanceCm;
 	CameraBoom->bDoCollisionTest = false;
 
 	ChaseCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ChaseCamera"));
@@ -149,6 +156,53 @@ namespace
 			Director->SetShotCameraPose(Pose.LocationCm, Pose.Rotation);
 		}
 	}
+
+	/** apexsim.hotlap.Out / .Garage / .Replay / .Stop: the garage card's buttons from the console. */
+	void RunHotlapCommand(UWorld* World, const TCHAR* What)
+	{
+		AApexRaceDirector* Director = FindDirectorForCommand(World);
+		UApexNetSubsystem* Net = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+		if (!Director || !Net)
+		{
+			return;
+		}
+		if (FCString::Stricmp(What, TEXT("Out")) == 0)
+		{
+			Net->HotlapRelocate(EApexHotlapDestination::Track);
+		}
+		else if (FCString::Stricmp(What, TEXT("Garage")) == 0)
+		{
+			Net->HotlapRelocate(EApexHotlapDestination::Garage);
+		}
+		else if (FCString::Stricmp(What, TEXT("Replay")) == 0)
+		{
+			if (!Director->BeginGhostReplay())
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("apexsim.hotlap.Replay: no record lap to replay"));
+			}
+		}
+		else if (FCString::Stricmp(What, TEXT("Stop")) == 0)
+		{
+			Director->EndGhostReplay();
+		}
+	}
+
+	FAutoConsoleCommandWithWorld HotlapOutCommand(
+		TEXT("apexsim.hotlap.Out"),
+		TEXT("Hotlap: out of the garage onto the run-up before the line."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World) { RunHotlapCommand(World, TEXT("Out")); }));
+	FAutoConsoleCommandWithWorld HotlapGarageCommand(
+		TEXT("apexsim.hotlap.Garage"),
+		TEXT("Hotlap: back into the garage."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World) { RunHotlapCommand(World, TEXT("Garage")); }));
+	FAutoConsoleCommandWithWorld HotlapReplayCommand(
+		TEXT("apexsim.hotlap.Replay"),
+		TEXT("Hotlap: replay the record lap with the ghost and the replay cameras."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World) { RunHotlapCommand(World, TEXT("Replay")); }));
+	FAutoConsoleCommandWithWorld HotlapStopCommand(
+		TEXT("apexsim.hotlap.Stop"),
+		TEXT("Hotlap: stop the replay."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World) { RunHotlapCommand(World, TEXT("Stop")); }));
 
 	FAutoConsoleCommandWithWorldAndArgs ShotGotoCommand(
 		TEXT("apexsim.cam.Goto"),
@@ -255,6 +309,43 @@ namespace
 		return Mesh && Mesh->GetStaticMesh() && Mesh->GetStaticMesh()->GetName().StartsWith(TEXT("SM_Prop_"));
 	}
 
+	FAutoConsoleCommandWithWorldAndArgs ChaseViewCommand(
+		TEXT("apexsim.cam.Chase"),
+		TEXT("Driving camera: a chase rung by index (0 closest) or name (roof, close, near, far), or \"cockpit\". No argument steps to the next, as C does."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+			{
+				AApexRaceDirector* Director = FindDirectorForCommand(World);
+				if (!Director)
+				{
+					return;
+				}
+				if (Args.Num() == 0)
+				{
+					Director->CycleView();
+					return;
+				}
+				int32 Level = ApexChase::CockpitLevel;
+				if (!ApexChase::FindByName(Args[0], Level))
+				{
+					if (!Args[0].IsNumeric())
+					{
+						UE_LOG(LogApexSim, Warning,
+							TEXT("Usage: apexsim.cam.Chase [0-%d | roof | close | near | far | cockpit]"),
+							ApexChase::Num() - 1);
+						return;
+					}
+					Level = FCString::Atoi(*Args[0]);
+				}
+				if (Level == ApexChase::CockpitLevel)
+				{
+					Director->SetCockpitView(true);
+				}
+				else
+				{
+					Director->SetChaseLevel(Level);
+				}
+			}));
+
 	FAutoConsoleCommandWithWorldAndArgs ShotFovCommand(
 		TEXT("apexsim.cam.Fov"),
 		TEXT("Horizontal field of view of the shot camera, degrees."),
@@ -318,6 +409,7 @@ void AApexRaceDirector::BeginPlay()
 		Net->OnSessionLeft.AddDynamic(this, &AApexRaceDirector::HandleSessionLeft);
 		Net->OnLobbyStateUpdated.AddDynamic(this, &AApexRaceDirector::HandleLobbyStateUpdated);
 		Net->OnRacingLineUpdated.AddDynamic(this, &AApexRaceDirector::HandleRacingLineUpdated);
+		Net->OnGhostLap.AddDynamic(this, &AApexRaceDirector::HandleGhostLap);
 	}
 }
 
@@ -478,27 +570,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 		if (!Shown || !Shown->Equals(CarId, ESearchCase::IgnoreCase))
 		{
 			CarIdShown.Add(Entry.CarIndex, CarId);
-			TSoftObjectPtr<UStaticMesh> Mesh = DefaultCarMesh;
-			// The fallback mesh has its wheels modelled in: none drawn on it.
-			FApexWheelSpec Wheels;
-			FApexCarCatalogRow Row;
-			if (Flow && !CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, Row))
-			{
-				if (!Row.Mesh.IsNull())
-				{
-					Mesh = Row.Mesh;
-					Wheels = Row.Wheels;
-				}
-				Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
-			}
-			else
-			{
-				UE_LOG(LogApexSim, Warning, TEXT("Race roster: no catalog row for car %s (car %d), drawing the fallback"),
-					*CarId, Entry.CarIndex);
-				Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
-			}
-			Car->SetCarMesh(Mesh);
-			Car->SetWheels(Wheels);
+			ApplyCatalogMesh(Car, CarId);
 		}
 
 		Car->SetDisplayName(Entry.PlayerName);
@@ -531,6 +603,36 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 	UE_LOG(LogApexSim, Log, TEXT("Race roster: %d car(s) spawned"), Cars.Num());
 }
 
+void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId)
+{
+	if (!Car)
+	{
+		return;
+	}
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	TSoftObjectPtr<UStaticMesh> Mesh = DefaultCarMesh;
+	// The fallback mesh has its wheels modelled in: none drawn on it.
+	FApexWheelSpec Wheels;
+	FApexCarCatalogRow Row;
+	if (Flow && !CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, Row))
+	{
+		if (!Row.Mesh.IsNull())
+		{
+			Mesh = Row.Mesh;
+			Wheels = Row.Wheels;
+		}
+		Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
+	}
+	else
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Race roster: no catalog row for car %s (car %d), drawing the fallback"),
+			*CarId, Car->GetCarIndex());
+		Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
+	}
+	Car->SetCarMesh(Mesh);
+	Car->SetWheels(Wheels);
+}
+
 void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 {
 	if (!bLoggedFirstTelemetry && Frame.Cars.Num() > 0)
@@ -546,11 +648,26 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 
 	const EApexSessionState PreviousState = LatestFrameState;
 	LatestFrameState = Frame.SessionState;
+	const UApexNetSubsystem* Net = GetNet();
+	const int32 LocalIndex = Net ? Net->GetLocalCarIndex() : -1;
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
 		if (AApexRaceCarActor* Actor = FindCar(Car.CarIndex))
 		{
 			Actor->ApplyTelemetry(Car, Frame.ServerTick);
+			// Someone else's car parked in its hotlap garage is out of the
+			// way on the server and not drawn here; the player's own stays,
+			// it is what the garage view looks at.
+			if (Car.CarIndex != LocalIndex)
+			{
+				Actor->SetActorHiddenInGame(Car.bInGarage);
+			}
+		}
+		if (Car.CarIndex == LocalIndex)
+		{
+			bLocalInGarage = Car.bInGarage;
+			LocalLap = Car.CurrentLap;
+			LocalLapTimeMs = Car.CurrentLapTimeMs;
 		}
 		FCarProgress& Progress = CarProgress.FindOrAdd(Car.CarIndex);
 		Progress.Lap = Car.CurrentLap;
@@ -710,8 +827,13 @@ void AApexRaceDirector::UpdateCameraTarget()
 	const UApexNetSubsystem* Net = GetNet();
 	const int32 LocalIndex = Net ? Net->GetLocalCarIndex() : -1;
 
-	// The broadcast camera decides who is on screen; the driving cameras ride the player's car.
+	// The broadcast camera decides who is on screen; the driving cameras ride
+	// the player's car — or the ghost, while its lap is being replayed.
 	AApexRaceCarActor* Target = bTvView ? FindCar(Tv.GetTargetCarIndex()) : FindCar(LocalIndex);
+	if (bGhostReplay && Ghost)
+	{
+		Target = Ghost;
+	}
 	if (!Target && bTvView)
 	{
 		Target = FindCar(LocalIndex);
@@ -801,8 +923,271 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	UpdateHeadMotion(DeltaSeconds);
 	UpdateLook(DeltaSeconds);
 	UpdateCockpitCamera();
+	if (bGhostReplay)
+	{
+		UpdateGhostReplay(DeltaSeconds);
+	}
+	else
+	{
+		UpdateGhost(DeltaSeconds);
+	}
 	PollViewInput();
 	PollDrivingInput();
+}
+
+// --- Ghost and replay --------------------------------------------------------------
+
+void AApexRaceDirector::HandleGhostLap(const FApexGhostLap& Lap)
+{
+	if (Ghost)
+	{
+		Ghost->SetLap(Lap);
+		bGhostClockValid = false;
+	}
+	EnsureGhost();
+}
+
+void AApexRaceDirector::EnsureGhost()
+{
+	UWorld* World = GetWorld();
+	const UApexNetSubsystem* Net = GetNet();
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!World || !Net || !bRaceViewActive || bDemoView || !Net->GetGhostLap().IsValid())
+	{
+		DestroyGhost();
+		return;
+	}
+	if (Ghost)
+	{
+		return;
+	}
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Ghost = World->SpawnActor<AApexGhostCarActor>(
+		AApexGhostCarActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, Params);
+	if (!Ghost)
+	{
+		return;
+	}
+	Ghost->SetCarIndex(-1);
+	Ghost->SetDisplayName(TEXT("Ghost"));
+	// The record was set in the car the player is in: the ghost is that car.
+	ApplyCatalogMesh(Ghost, Flow ? Flow->GetPendingCarId() : FString());
+	Ghost->ApplyGhostLook();
+	Ghost->SetLap(Net->GetGhostLap());
+	bGhostClockValid = false;
+	bGhostOverlapHidden = false;
+#if WITH_EDITOR
+	Ghost->SetActorLabel(TEXT("GhostCar"));
+#endif
+	UE_LOG(LogApexSim, Log, TEXT("Ghost car spawned for a %d ms lap"), Ghost->GetLapTimeMs());
+}
+
+void AApexRaceDirector::DestroyGhost()
+{
+	if (bGhostReplay)
+	{
+		EndGhostReplay();
+	}
+	if (Ghost)
+	{
+		Ghost->Destroy();
+		Ghost = nullptr;
+	}
+	bGhostClockValid = false;
+}
+
+void AApexRaceDirector::UpdateGhost(float DeltaSeconds)
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Ghost)
+	{
+		EnsureGhost();
+		if (!Ghost)
+		{
+			return;
+		}
+	}
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	const bool bWanted = Net && Net->GetGameMode() == EApexGameMode::Hotlap
+		&& (!Values || Values->bGhostCar)
+		&& !bLocalInGarage && LocalLap > 0;
+	if (!bWanted)
+	{
+		Ghost->SetClockMs(-1.0f);
+		bGhostClockValid = false;
+		return;
+	}
+
+	// The lap time arrives in 60 Hz lumps; the ghost's clock runs on its own
+	// and is trimmed toward it, snapping only on a new lap or a long stall.
+	const float TargetMs = static_cast<float>(LocalLapTimeMs);
+	if (!bGhostClockValid || FMath::Abs(TargetMs - GhostClockMs) > 500.0f)
+	{
+		GhostClockMs = TargetMs;
+		bGhostClockValid = true;
+	}
+	else
+	{
+		GhostClockMs += DeltaSeconds * 1000.0f;
+		GhostClockMs += (TargetMs - GhostClockMs) * FMath::Min(1.0f, DeltaSeconds * 4.0f);
+	}
+	Ghost->SetClockMs(GhostClockMs);
+
+	// Never inside the player's own car: hidden close up, back once clear.
+	const AApexRaceCarActor* Local = FindCar(Net->GetLocalCarIndex());
+	if (Local && Ghost->IsGhostShown())
+	{
+		const float Distance = static_cast<float>(FVector::Dist(Local->GetActorLocation(), Ghost->GetActorLocation()));
+		if (bGhostOverlapHidden ? Distance > GhostShowDistanceCm : Distance < GhostHideDistanceCm)
+		{
+			bGhostOverlapHidden = !bGhostOverlapHidden;
+		}
+	}
+	else if (Local)
+	{
+		FApexGhostSample Sample;
+		if (Ghost->GetCurrentSample(Sample))
+		{
+			const float Distance = static_cast<float>(
+				FVector::Dist(Local->GetActorLocation(), ApexRace::ServerToUnrealPosition(Sample.Position)));
+			bGhostOverlapHidden = Distance < GhostShowDistanceCm;
+		}
+	}
+	Ghost->SetGhostVisible(!bGhostOverlapHidden);
+}
+
+int32 AApexRaceDirector::GetGhostLapTimeMs() const
+{
+	return Ghost ? Ghost->GetLapTimeMs() : 0;
+}
+
+bool AApexRaceDirector::BeginGhostReplay()
+{
+	EnsureGhost();
+	if (!Ghost || !Ghost->HasLap() || !bRaceViewActive)
+	{
+		return false;
+	}
+	if (bGhostReplay)
+	{
+		return true;
+	}
+	bGhostReplay = true;
+	ReplayClockMs = -ReplayLeadInSeconds * 1000.0f;
+	ReplayShot = -1;
+	ReplayShotSeconds = 0.0f;
+	bReplayCockpitWas = bCockpitView;
+	// The replay's chase shot is a camera on the car, not the player's own
+	// distance: a roof cam would show none of the lap.
+	ReplayChaseLevelWas = ChaseLevel;
+	ChaseLevel = ApexChase::DefaultLevel();
+	bGhostOverlapHidden = false;
+	Ghost->SetGhostVisible(true);
+	Ghost->SetClockMs(0.0f);
+	// The camera moves onto the ghost; the boom's lag swings it there.
+	UpdateCameraTarget();
+	CutReplayShot();
+	UE_LOG(LogApexSim, Log, TEXT("Ghost replay: %d ms lap"), Ghost->GetLapTimeMs());
+	return true;
+}
+
+void AApexRaceDirector::EndGhostReplay()
+{
+	if (!bGhostReplay)
+	{
+		return;
+	}
+	bGhostReplay = false;
+	bShotCameraPose = false;
+	bCockpitView = bReplayCockpitWas;
+	ChaseLevel = ReplayChaseLevelWas;
+	ShotCamera->SetFieldOfView(ReplayShotCameraRestFov);
+	if (Ghost)
+	{
+		Ghost->SetClockMs(-1.0f);
+		Ghost->SetMeshVisible(true);
+	}
+	bGhostClockValid = false;
+	UpdateCameraTarget();
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Ghost replay ended"));
+}
+
+void AApexRaceDirector::CutReplayShot()
+{
+	// Chase, trackside, onboard, trackside, and round again: the two
+	// trackside shots stand at different corners because the ghost has
+	// moved on between them.
+	ReplayShot = (ReplayShot + 1) % 4;
+	ReplayShotSeconds = 0.0f;
+	const bool bTrackside = ReplayShot == 1 || ReplayShot == 3;
+	bShotCameraPose = bTrackside;
+	bCockpitView = ReplayShot == 2;
+	if (bTrackside && Ghost)
+	{
+		// Well ahead of the car, off to one side and a little up, on a long
+		// lens, looking back at it: the ghost drives toward the camera for a
+		// few seconds and past it. Aimed here as well as every frame, so the
+		// cut never shows a frame of the old aim.
+		const FVector Forward = Ghost->GetActorForwardVector();
+		const FVector Right = Ghost->GetActorRightVector();
+		ReplayCameraLocation = Ghost->GetActorLocation() + Forward * ReplayTracksideAheadCm + Right * 1200.0f + FVector(0.0f, 0.0f, 320.0f);
+		ShotCamera->SetWorldLocationAndRotation(ReplayCameraLocation, (Ghost->GetActorLocation() - ReplayCameraLocation).Rotation());
+		ShotCamera->SetFieldOfView(ReplayTracksideFov);
+	}
+	else
+	{
+		ShotCamera->SetFieldOfView(ReplayShotCameraRestFov);
+	}
+	ApplyCameraMode();
+	// The onboard shot sits where the driver does; the ghost's shell is
+	// drawn around the camera otherwise, tint and all.
+	if (Ghost)
+	{
+		Ghost->SetMeshVisible(!bCockpitView);
+	}
+	UE_LOG(LogApexSim, Verbose, TEXT("Replay shot %d (%s) at %.1f s: ghost (%.0f, %.0f, %.0f) camera (%.0f, %.0f, %.0f)"),
+		ReplayShot, bTrackside ? TEXT("trackside") : (bCockpitView ? TEXT("onboard") : TEXT("chase")), ReplayClockMs / 1000.0f,
+		Ghost ? Ghost->GetActorLocation().X : 0.0, Ghost ? Ghost->GetActorLocation().Y : 0.0, Ghost ? Ghost->GetActorLocation().Z : 0.0,
+		bTrackside ? ReplayCameraLocation.X : 0.0, bTrackside ? ReplayCameraLocation.Y : 0.0, bTrackside ? ReplayCameraLocation.Z : 0.0);
+}
+
+void AApexRaceDirector::UpdateGhostReplay(float DeltaSeconds)
+{
+	if (!Ghost || !Ghost->HasLap())
+	{
+		EndGhostReplay();
+		return;
+	}
+	ReplayClockMs += DeltaSeconds * 1000.0f;
+	if (ReplayClockMs > Ghost->GetLapTimeMs() + 1000.0f)
+	{
+		EndGhostReplay();
+		return;
+	}
+	// The lead-in holds the ghost at the line.
+	Ghost->SetGhostVisible(true);
+	Ghost->SetClockMs(FMath::Max(0.0f, ReplayClockMs));
+
+	ReplayShotSeconds += DeltaSeconds;
+	const bool bTrackside = ReplayShot == 1 || ReplayShot == 3;
+	if (bTrackside)
+	{
+		const FVector ToGhost = Ghost->GetActorLocation() - ReplayCameraLocation;
+		ShotCamera->SetWorldRotation(ToGhost.Rotation());
+		// Cut once the car has gone well past the lens, or if it never comes
+		// (a trackside shot placed off the road into a bend).
+		const bool bPassed = FVector::DotProduct(ToGhost, Ghost->GetActorForwardVector()) > 4000.0f;
+		if ((bPassed && ReplayShotSeconds > 3.0f) || ReplayShotSeconds > 10.0f)
+		{
+			CutReplayShot();
+		}
+	}
+	else if (ReplayShotSeconds > 6.0f)
+	{
+		CutReplayShot();
+	}
 }
 
 void AApexRaceDirector::UpdateHeadMotion(float DeltaSeconds)
@@ -867,8 +1252,9 @@ void AApexRaceDirector::UpdateLook(float DeltaSeconds)
 	LookYawDeg = FMath::FInterpTo(LookYawDeg, Target, DeltaSeconds, 10.0f);
 
 	// The chase camera turns with the head too, on its boom, which keeps
-	// the rotation lag and levelled pitch it already has.
-	CameraBoom->SetRelativeRotation(FRotator(-12.0f, LookYawDeg, 0.0f));
+	// the rotation lag and levelled pitch it already has. The pitch is the
+	// rung's: the closer the camera, the less it looks down at the car.
+	CameraBoom->SetRelativeRotation(FRotator(ApexChase::Get(ChaseLevel).PitchDeg, LookYawDeg, 0.0f));
 }
 
 void AApexRaceDirector::UpdateCameraFeel(float DeltaSeconds)
@@ -886,7 +1272,8 @@ void AApexRaceDirector::UpdateCameraFeel(float DeltaSeconds)
 		FMath::FInterpTo(CurrentFovBoost, SpeedFovBoostDeg * Intensity, DeltaSeconds, 3.0f);
 	CockpitCamera->SetFieldOfView(
 		FMath::Clamp(BaseCockpitFov + 0.6f * CurrentFovBoost, 50.0f, 130.0f));
-	ChaseCamera->SetFieldOfView(FMath::Clamp(BaseChaseFov + CurrentFovBoost, 50.0f, 130.0f));
+	ChaseCamera->SetFieldOfView(
+		FMath::Clamp(BaseChaseFov + ApexChase::Get(ChaseLevel).FovDeltaDeg + CurrentFovBoost, 50.0f, 130.0f));
 
 	// Micro-shake from layered perlin noise, tuned to read as airflow and
 	// road texture: fractions of a degree in the cockpit, a few centimeters
@@ -1272,7 +1659,50 @@ void AApexRaceDirector::SetCockpitView(bool bCockpit)
 	}
 	bCockpitView = bCockpit;
 	ApplyCameraMode();
-	UE_LOG(LogApexSim, Log, TEXT("Camera: %s"), bCockpitView ? TEXT("cockpit") : TEXT("chase"));
+	UE_LOG(LogApexSim, Log, TEXT("Camera: %s"), *DescribeView());
+}
+
+void AApexRaceDirector::SetChaseLevel(int32 Level)
+{
+	const int32 Clamped = FMath::Clamp(Level, 0, ApexChase::Num() - 1);
+	if (ChaseLevel == Clamped && !bCockpitView)
+	{
+		return;
+	}
+	ChaseLevel = Clamped;
+	bCockpitView = false;
+	// Remembered for the next race, like the view a race opens in.
+	if (UApexSettingsSubsystem* SettingsSubsystem = GetSettings())
+	{
+		SettingsSubsystem->SetChaseLevel(ChaseLevel);
+	}
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Camera: %s"), *DescribeView());
+}
+
+void AApexRaceDirector::CycleView()
+{
+	const int32 Next = ApexChase::NextLevel(bCockpitView ? ApexChase::CockpitLevel : ChaseLevel);
+	if (Next == ApexChase::CockpitLevel)
+	{
+		SetCockpitView(true);
+	}
+	else
+	{
+		SetChaseLevel(Next);
+	}
+}
+
+FString AApexRaceDirector::DescribeView() const
+{
+	if (bTvView)
+	{
+		return TEXT("broadcast");
+	}
+	return bCockpitView
+		? FString(TEXT("cockpit"))
+		: FString::Printf(TEXT("chase %s (%.1f m)"), ApexChase::Get(ChaseLevel).Name,
+			ApexChase::Get(ChaseLevel).ArmLengthCm / 100.0f);
 }
 
 void AApexRaceDirector::SetFieldOfView(float Degrees)
@@ -1285,7 +1715,7 @@ void AApexRaceDirector::SetFieldOfView(float Degrees)
 	// the settings screen.
 	BaseChaseFov = FMath::Clamp(BaseCockpitFov - 15.0f, 50.0f, 120.0f);
 	CockpitCamera->SetFieldOfView(BaseCockpitFov);
-	ChaseCamera->SetFieldOfView(BaseChaseFov);
+	ChaseCamera->SetFieldOfView(BaseChaseFov + ApexChase::Get(ChaseLevel).FovDeltaDeg);
 }
 
 void AApexRaceDirector::SetShotCameraPose(const FVector& LocationCm, const FRotator& Rotation)
@@ -1308,7 +1738,7 @@ void AApexRaceDirector::ReleaseShotCamera()
 	}
 	bShotCameraPose = false;
 	ApplyCameraMode();
-	UE_LOG(LogApexSim, Log, TEXT("Shot camera released: %s view"), bCockpitView ? TEXT("cockpit") : TEXT("chase"));
+	UE_LOG(LogApexSim, Log, TEXT("Shot camera released: %s view"), *DescribeView());
 }
 
 void AApexRaceDirector::SetShotCameraFov(float Degrees)
@@ -1345,6 +1775,24 @@ void AApexRaceDirector::ApplyShotCameraCommandLine()
 	}
 }
 
+void AApexRaceDirector::ApplyChaseView()
+{
+	const ApexChase::FView& View = ApexChase::Get(ChaseLevel);
+	CameraBoom->TargetArmLength = View.ArmLengthCm;
+	// World space, added to the boom's origin: a plain lift off the car,
+	// unturned by the boom's pitch, so the roof cam sits over the roof rather
+	// than being swung backwards by it.
+	CameraBoom->TargetOffset = FVector(0.0f, 0.0f, View.HeightCm);
+	CameraBoom->CameraLagSpeed = View.LagSpeed;
+	CameraBoom->CameraRotationLagSpeed = View.RotationLagSpeed;
+	CameraBoom->CameraLagMaxDistance = View.LagMaxDistanceCm;
+	// UpdateLook owns the yaw; this keeps the pitch right on the frame the
+	// rung changes, before the next look update.
+	CameraBoom->SetRelativeRotation(FRotator(View.PitchDeg, CameraBoom->GetRelativeRotation().Yaw, 0.0f));
+	ChaseCamera->SetFieldOfView(
+		FMath::Clamp(BaseChaseFov + View.FovDeltaDeg + CurrentFovBoost, 50.0f, 130.0f));
+}
+
 void AApexRaceDirector::ApplyCameraMode()
 {
 	// A shot pose outranks both driving cameras, and everything that re-applies
@@ -1354,6 +1802,7 @@ void AApexRaceDirector::ApplyCameraMode()
 	ChaseCamera->SetActive(!bCockpitView && !bTvView && !bShotCameraPose);
 	TvCamera->SetActive(bTvView && !bShotCameraPose);
 	ShotCamera->SetActive(bShotCameraPose);
+	ApplyChaseView();
 
 	// From the driver's seat the car's own bodywork is what frames the view —
 	// unless the mesh has no interior to speak of, in which case the player
@@ -1407,6 +1856,14 @@ void AApexRaceDirector::ApplyCameraSettings()
 		return;
 	}
 	SetFieldOfView(Values->FieldOfView);
+	// The chase distance is a camera setting like any other, so a change made
+	// in the overlay reaches the boom here. The view itself is not touched:
+	// picking a distance from the cockpit leaves the player in the cockpit.
+	// A rung named on the command line owns the race and is not overwritten.
+	if (!bChaseLevelFromCommandLine)
+	{
+		ChaseLevel = FMath::Clamp(Values->ChaseViewLevel, 0, ApexChase::Num() - 1);
+	}
 	if (Rig)
 	{
 		// The seat moved: the screens turn to face the new eye.
@@ -1482,7 +1939,7 @@ void AApexRaceDirector::PollViewInput()
 		Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
 	if (PlayerController && PlayerController->ConsumeCameraToggle())
 	{
-		SetCockpitView(!bCockpitView);
+		CycleView();
 	}
 }
 
@@ -1521,12 +1978,22 @@ void AApexRaceDirector::BeginRaceView()
 	if (const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr)
 	{
 		bCockpitView = Values->bStartInCockpit;
+		ChaseLevel = FMath::Clamp(Values->ChaseViewLevel, 0, ApexChase::Num() - 1);
 	}
 	FString RequestedView;
 	if (FParse::Value(FCommandLine::Get(), TEXT("ApexView="), RequestedView))
 	{
 		bCockpitView = !RequestedView.Equals(TEXT("chase"), ESearchCase::IgnoreCase);
 		bTvView = RequestedView.Equals(TEXT("tv"), ESearchCase::IgnoreCase);
+		// A rung can also be named outright (-ApexView=roof|close|near|far),
+		// for a screenshot run of one distance.
+		int32 Named = ApexChase::CockpitLevel;
+		if (ApexChase::FindByName(RequestedView, Named) && Named >= 0)
+		{
+			bCockpitView = false;
+			ChaseLevel = Named;
+			bChaseLevelFromCommandLine = true;
+		}
 	}
 	// Whether or not it opens on it, a race can be switched to the broadcast
 	// camera, which wants the circuit's centerline for its trackside positions.
@@ -1570,8 +2037,8 @@ void AApexRaceDirector::BeginRaceView()
 	}
 
 	UE_LOG(LogApexSim, Log,
-		TEXT("Race view active with %d car(s) in the %s view. Drive with WASD, C swaps cockpit/chase"),
-		Cars.Num(), bCockpitView ? TEXT("cockpit") : TEXT("chase"));
+		TEXT("Race view active with %d car(s) in the %s view. Drive with WASD, C steps through the cameras"),
+		Cars.Num(), *DescribeView());
 }
 
 void AApexRaceDirector::EndRaceView()
@@ -1583,6 +2050,9 @@ void AApexRaceDirector::EndRaceView()
 	}
 	bRaceViewActive = false;
 	bTvView = false;
+	DestroyGhost();
+	bLocalInGarage = false;
+	LocalLap = 0;
 	// A shot is for one race; the next one re-reads the command line.
 	bShotCameraPose = false;
 	ApplyCameraMode();
@@ -1779,7 +2249,7 @@ void AApexRaceDirector::SetTvView(bool bTv)
 		UpdateCameraTarget();
 	}
 	ApplyCameraMode();
-	UE_LOG(LogApexSim, Log, TEXT("Camera: %s"), bTvView ? TEXT("broadcast") : bCockpitView ? TEXT("cockpit") : TEXT("chase"));
+	UE_LOG(LogApexSim, Log, TEXT("Camera: %s"), *DescribeView());
 }
 
 void AApexRaceDirector::UpdateTvCamera(float DeltaSeconds)

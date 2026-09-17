@@ -626,6 +626,15 @@ pub fn update_car_3d(
         tc_active: wheels.iter().any(|w| w.tc_active),
     });
 
+    // Track limits are judged on the same per-wheel surfaces the force
+    // feedback uses: all four past the curb band is off the track. A car in
+    // the air is not counted — it left from somewhere, and that tick already
+    // counted.
+    state.wheels_off_track = !is_airborne
+        && wheel_states
+            .iter()
+            .all(|w| w.surface == ContactSurface::Off);
+
     // 11. Sum all forces
     // Rotate front tire forces by steering angle
     let fl_force_x = fl_forces.0 * steer_left.cos() - fl_forces.1 * steer_left.sin();
@@ -1698,6 +1707,28 @@ pub fn auto_gear_selection(
 /// of the window at typical centerline point spacing.
 const CENTERLINE_SEARCH_WINDOW: usize = 32;
 
+/// The pose on the centerline at `station_m` from the line: (x, y, z, yaw),
+/// interpolated between the two samples either side, the yaw along the
+/// segment. A station past the end lands on the last point, one before the
+/// start on the first. Used to put a car down at a chosen distance along
+/// the lap (the hotlap run-up); at least two points are expected.
+pub fn pose_at_station(centerline: &[TrackPoint], station_m: f32) -> (f32, f32, f32, f32) {
+    let last = centerline.len() - 1;
+    let idx = centerline
+        .partition_point(|p| p.distance_from_start_m < station_m)
+        .clamp(1, last);
+    let (a, b) = (&centerline[idx - 1], &centerline[idx]);
+    let span = (b.distance_from_start_m - a.distance_from_start_m).max(1e-3);
+    let t = ((station_m - a.distance_from_start_m) / span).clamp(0.0, 1.0);
+    let yaw = (b.y - a.y).atan2(b.x - a.x);
+    (
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t,
+        a.z + (b.z - a.z) * t,
+        yaw,
+    )
+}
+
 /// Find the index of the centerline point nearest to (x, y).
 ///
 /// With a `hint` (the previous tick's index) only a small window around it
@@ -2539,6 +2570,11 @@ pub fn seed_track_progress(state: &mut CarState, track: &TrackConfig) {
     };
     state.nearest_centerline_idx = Some(idx as u32);
     state.track_progress = track.centerline[idx].distance_from_start_m;
+    // The stopwatch starts again with the car: splits and any strike against
+    // the lap in progress belong to the race that just ended. Session bests
+    // are kept, like `best_lap_time_ms`.
+    state.laps.start_lap(0);
+    state.wheels_off_track = false;
 }
 
 /// Update track progress and detect lap completion.
@@ -2548,14 +2584,18 @@ pub fn seed_track_progress(state: &mut CarState, track: &TrackConfig) {
 /// wrap. This rejects driving backwards across the line and shortcut/teleport
 /// exploits. Tracks without explicit checkpoints get virtual ones at
 /// 25/50/75% of the lap.
+///
+/// Returns the timing line the car crossed on this tick, if any: a sector
+/// boundary or the lap itself (`crate::laps`). At most one per tick — the
+/// boundaries are hundreds of metres apart and a tick is a few centimetres.
 pub fn update_track_progress_3d(
     state: &mut CarState,
     track: &TrackConfig,
     current_tick: u32,
     tick_rate_hz: u16,
-) {
+) -> Option<crate::laps::LapEvent> {
     if track.centerline.is_empty() {
-        return;
+        return None;
     }
 
     let track_length = track
@@ -2566,11 +2606,8 @@ pub fn update_track_progress_3d(
 
     // Find nearest centerline point (windowed, seeded by the cached index)
     let hint = state.nearest_centerline_idx.map(|i| i as usize);
-    let Some(nearest_idx) =
-        find_nearest_centerline_idx(&track.centerline, state.pos_x, state.pos_y, hint)
-    else {
-        return;
-    };
+    let nearest_idx =
+        find_nearest_centerline_idx(&track.centerline, state.pos_x, state.pos_y, hint)?;
     state.nearest_centerline_idx = Some(nearest_idx as u32);
 
     let old_progress = state.track_progress;
@@ -2592,6 +2629,29 @@ pub fn update_track_progress_3d(
     if state.current_lap > 0 {
         let ticks_elapsed = current_tick.saturating_sub(state.lap_start_tick);
         state.current_lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / tick_rate_hz as f32) as u32;
+        crate::laps::note_track_limits(state, tick_rate_hz);
+    }
+
+    let mut lap_event = None;
+
+    // Sector boundaries. Only a step to the next sector counts: the wrap back
+    // to sector 1 over the line is the lap's business, below, and a car
+    // rejoining several sectors along never gets the splits it did not drive.
+    if state.current_lap > 0 && track_length > 0.0 {
+        let forward = (state.track_progress - old_progress).rem_euclid(track_length);
+        let new_sector = crate::laps::sector_of(track, state.track_progress);
+        if forward > 0.0
+            && forward <= MAX_CHECKPOINT_ADVANCE_PER_TICK_M
+            && new_sector == state.laps.sector + 1
+            && (new_sector as usize) < crate::laps::SECTOR_COUNT
+        {
+            lap_event = Some(crate::laps::close_sector(
+                state,
+                new_sector,
+                current_tick,
+                tick_rate_hz,
+            ));
+        }
     }
 
     // Advance checkpoints passed by this tick's forward movement.
@@ -2630,13 +2690,26 @@ pub fn update_track_progress_3d(
             let lap_time_ms = ((ticks_elapsed as f32 * 1000.0) / tick_rate_hz as f32) as u32;
             state.last_lap_time_ms = Some(lap_time_ms);
 
-            if state.best_lap_time_ms.is_none() || lap_time_ms < state.best_lap_time_ms.unwrap() {
+            // The lap closes the final sector. The time is always kept, but
+            // only a lap inside track limits can become a best.
+            let completed = state.current_lap;
+            let event =
+                crate::laps::close_lap(state, completed, lap_time_ms, current_tick, tick_rate_hz);
+            if event.valid
+                && (state.best_lap_time_ms.is_none()
+                    || lap_time_ms < state.best_lap_time_ms.unwrap())
+            {
                 state.best_lap_time_ms = Some(lap_time_ms);
             }
+            lap_event = Some(event);
 
             state.current_lap += 1;
             state.lap_start_tick = current_tick; // Reset lap timer
             state.current_lap_time_ms = 0;
+        } else {
+            // The car reached the line without passing every checkpoint: it
+            // cut the course, so the lap it is on is struck.
+            state.laps.invalid = true;
         }
         // Counted or not, the car is back at the start of a lap: it must hit
         // every checkpoint again before the next wrap can count.
@@ -2655,6 +2728,9 @@ pub fn update_track_progress_3d(
         state.lap_start_tick = current_tick;
         state.current_lap_time_ms = 0;
         state.next_checkpoint = checkpoints_before(track, track_length, state.track_progress);
+        state
+            .laps
+            .start_lap_at(current_tick, track, state.track_progress);
     }
 
     // A car that starts past the line (placed there, not on a grid behind
@@ -2670,7 +2746,12 @@ pub fn update_track_progress_3d(
         state.current_lap = 1;
         state.lap_start_tick = current_tick; // Start timing first lap
         state.current_lap_time_ms = 0;
+        state
+            .laps
+            .start_lap_at(current_tick, track, state.track_progress);
     }
+
+    lap_event
 }
 
 /// How many checkpoints lie at or before `station_m` on the lap: the value
@@ -2702,6 +2783,9 @@ pub fn start_lap_on_green(state: &mut CarState, track: &TrackConfig, current_tic
     state.lap_start_tick = current_tick;
     state.current_lap_time_ms = 0;
     state.next_checkpoint = checkpoints_before(track, track_length, state.track_progress);
+    state
+        .laps
+        .start_lap_at(current_tick, track, state.track_progress);
     true
 }
 
@@ -4735,6 +4819,7 @@ mod tests {
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
             checkpoints: Vec::new(),
+            sectors: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
             ground: None,
@@ -4818,6 +4903,7 @@ mod tests {
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
             checkpoints: Vec::new(),
+            sectors: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: Some(crate::procgen::ProceduralWorldData {
                 environment_type: "test".to_string(),
@@ -4901,6 +4987,7 @@ mod tests {
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
             checkpoints: Vec::new(),
+            sectors: Vec::new(),
             metadata: TrackMetadata::default(),
             procedural_world: None,
             ground: None,

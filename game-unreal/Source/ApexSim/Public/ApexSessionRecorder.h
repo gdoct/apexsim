@@ -37,7 +37,11 @@ struct FApexCarResult
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
 	float TopSpeedMps = 0.0f;
 
-	/** Laps during which the car never left the track surface. */
+	/** The splits that best lap was made of, seconds; empty until it is set. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
+	TArray<float> BestLapSplitsSeconds;
+
+	/** Laps the car completed inside track limits, as the server judged them. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
 	int32 ValidLaps = 0;
 
@@ -136,10 +140,8 @@ private:
 	UPROPERTY(Transient)
 	TArray<FApexCarResult> Results;
 
-	/** Per car: the values seen in the previous frame, to spot a lap rolling over. */
+	/** Per car: the lap number seen last frame, to spot the counter rolling over. */
 	TMap<int32, int32> LastLapNumber;
-	TMap<int32, int32> LastLapTimeMs;
-	TMap<int32, bool> LapWasClean;
 
 	FString TrackId;
 	float TrackLengthM = 0.0f;

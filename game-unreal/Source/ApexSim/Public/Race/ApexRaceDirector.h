@@ -3,12 +3,14 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
+#include "Race/ApexChaseView.h"
 #include "Race/ApexSkyModel.h"
 #include "Race/ApexTvDirector.h"
 
 #include "ApexRaceDirector.generated.h"
 
 class AApexCockpitRig;
+class AApexGhostCarActor;
 class AApexRaceCarActor;
 class AApexRacingLineActor;
 class AApexRainActor;
@@ -69,6 +71,21 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	bool IsCockpitView() const { return bCockpitView; }
+
+	/**
+	 * Which rung of the chase ladder the chase camera sits on (ApexChase).
+	 * Setting one leaves the cockpit if that is where the view was, so a
+	 * console command or a setting can pick a distance outright.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
+	void SetChaseLevel(int32 Level);
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	int32 GetChaseLevel() const { return ChaseLevel; }
+
+	/** What C does: cockpit, then each chase distance in turn, then back. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
+	void CycleView();
 
 	/**
 	 * The broadcast camera (ApexTvDirector) instead of the driving cameras:
@@ -168,6 +185,23 @@ public:
 	/** The car the camera is following, or null outside a race. */
 	AApexRaceCarActor* GetFollowedCar() const { return FollowedCar; }
 
+	// --- Ghost and replay (hotlap) ---------------------------------------------------
+
+	/**
+	 * Play the local driver's record lap back: the ghost drives it from the
+	 * line in real time while the camera cuts between a chase shot, a
+	 * trackside camera and the onboard view, and the view returns to the
+	 * player's car when the lap is over (or on EndGhostReplay). False when
+	 * there is no record lap to play.
+	 */
+	bool BeginGhostReplay();
+	void EndGhostReplay();
+	bool IsGhostReplayActive() const { return bGhostReplay; }
+	/** Milliseconds into the replayed lap; negative during the lead-in at the line. */
+	float GetGhostReplayTimeMs() const { return ReplayClockMs; }
+	/** The lap being replayed, ms; 0 when none. */
+	int32 GetGhostLapTimeMs() const;
+
 	/** Speed of the car the camera is following, in km/h. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	float GetFollowedSpeedKph() const;
@@ -246,6 +280,25 @@ private:
 
 	/** Creates or destroys car actors so they match the roster. */
 	void SyncCarsToRoster(const FApexSessionRoster& Roster);
+	/** Gives a car the catalog's mesh, wheels and cockpit for `CarId`, or the fallback. */
+	void ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId);
+
+	UFUNCTION()
+	void HandleGhostLap(const FApexGhostLap& Lap);
+
+	/** Spawn the ghost for the lap the net subsystem holds, or tear it down. */
+	void EnsureGhost();
+	void DestroyGhost();
+	/**
+	 * Drive the ghost round with the local car's lap clock in a hotlap:
+	 * shown from the line on, hidden in the garage, on the run-up and while
+	 * it overlaps the player's car.
+	 */
+	void UpdateGhost(float DeltaSeconds);
+	/** Advance the replay's clock and cut its cameras. */
+	void UpdateGhostReplay(float DeltaSeconds);
+	/** Put the replay's camera on its next shot. */
+	void CutReplayShot();
 	AApexRaceCarActor* FindCar(int32 CarIndex) const;
 	void DestroyAllCars();
 	/** Points the camera boom at whichever car the local player is driving. */
@@ -288,6 +341,12 @@ private:
 
 	/** Point the active camera and hide the car when sitting inside it. */
 	void ApplyCameraMode();
+
+	/** Put the boom where the current rung of the chase ladder says. */
+	void ApplyChaseView();
+
+	/** "cockpit", "chase close (3.0 m)", "broadcast": for the log. */
+	FString DescribeView() const;
 
 	/** Ride the followed car's orientation, as far as the horizon lock lets it. */
 	void UpdateCockpitCamera();
@@ -425,6 +484,38 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AApexRaceCarActor> FollowedCar;
 
+	/** The record lap's puppet; exists only in a hotlap with a lap to drive. */
+	UPROPERTY(Transient)
+	TObjectPtr<AApexGhostCarActor> Ghost;
+	/** The ghost's lap clock, eased toward the local car's lap time. */
+	float GhostClockMs = -1.0f;
+	bool bGhostClockValid = false;
+	/** What the local car's telemetry last said, for the ghost and the replay. */
+	bool bLocalInGarage = false;
+	int32 LocalLap = 0;
+	int32 LocalLapTimeMs = 0;
+	/** The ghost is hidden this close to the player's car and shown again past the larger distance, cm. */
+	static constexpr float GhostHideDistanceCm = 300.0f;
+	static constexpr float GhostShowDistanceCm = 500.0f;
+	bool bGhostOverlapHidden = false;
+
+	bool bGhostReplay = false;
+	float ReplayClockMs = 0.0f;
+	/** The shot on screen and how long it has run; see CutReplayShot. */
+	int32 ReplayShot = -1;
+	float ReplayShotSeconds = 0.0f;
+	FVector ReplayCameraLocation = FVector::ZeroVector;
+	bool bReplayCockpitWas = true;
+	/** The rung the player was on before a replay took the chase camera. */
+	int32 ReplayChaseLevelWas = ApexChase::DefaultLevel();
+	/** Seconds the ghost waits at the line before a replay rolls. */
+	static constexpr float ReplayLeadInSeconds = 1.5f;
+	/** The trackside camera stands this far up the road from the car, on this lens. */
+	static constexpr float ReplayTracksideAheadCm = 16000.0f;
+	static constexpr float ReplayTracksideFov = 38.0f;
+	/** The shot camera's lens outside a trackside shot (its default). */
+	static constexpr float ReplayShotCameraRestFov = 70.0f;
+
 	/** Wheel, display and mirrors inside the followed car. Exists only while racing. */
 	UPROPERTY(Transient)
 	TObjectPtr<AApexCockpitRig> Rig;
@@ -483,6 +574,14 @@ private:
 	bool bShotCameraPose = false;
 	/** The settings pick the view a race opens in; C swaps at any time. */
 	bool bCockpitView = true;
+	/**
+	 * The chase camera's distance, an index into `ApexChase::Views()`. Kept
+	 * while the view is in the cockpit, so C comes back to the distance the
+	 * player last chose rather than to the far end of the ladder.
+	 */
+	int32 ChaseLevel = ApexChase::DefaultLevel();
+	/** -ApexView= named a rung: the settings do not get to move it. */
+	bool bChaseLevelFromCommandLine = false;
 
 	// --- Head -------------------------------------------------------------------
 
