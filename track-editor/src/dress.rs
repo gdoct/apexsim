@@ -527,6 +527,7 @@ fn lay_landmark(
         "stage" => (PropKind::Attraction, "fanzone_stage"),
         "camera_tower" => (PropKind::Attraction, "camera_tower"),
         "tower" => (PropKind::Building, "control_tower"),
+        "statue" => (PropKind::Misc, "bull_statue"),
         "floodlight" => (PropKind::Light, "floodlight_tower"),
         "blimp" => (PropKind::Sky, "blimp"),
         "balloon" => (PropKind::Sky, "balloon"),

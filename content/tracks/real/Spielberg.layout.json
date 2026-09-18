@@ -1054,7 +1054,19 @@
    "source": "authored"
   }
  ],
- "landmarks": [],
+ "landmarks": [
+  {
+   "kind": "statue",
+   "name": "Red Bull Statue",
+   "source": "authored",
+   "station_m": 3149.7,
+   "side": "left",
+   "centre": [
+    -452.6,
+    317.93
+   ]
+  }
+ ],
  "woods": [
   {
    "leaf": "mixed",

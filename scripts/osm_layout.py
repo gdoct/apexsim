@@ -107,6 +107,17 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
         (0.215, 47.940, 0.240, 47.960),
         (0.180, 47.958, 0.212, 47.966),
         (0.212, 47.958, 0.240, 47.966),
+        # Station 4746-8906 m of the YAML centerline (the back half of the
+        # Ligne Droite des Hunaudieres/Mulsanne straight, through the
+        # Mulsanne and Indianapolis corners) falls entirely outside the
+        # five tiles above -- confirmed by projecting every centerline
+        # sample through the fit's own enu() and checking bbox membership,
+        # not by eye. That is why that whole stretch comes out barren: no
+        # OSM data was ever fetched there, not even the real roadside
+        # forest (well documented in circuit photography as tree-lined for
+        # most of the straight's length). This tile closes the gap with a
+        # margin past WOOD_RANGE_M/STRUCTURE_RANGE_M on every side.
+        (0.148, 47.905, 0.188, 47.940),
     ],
     # Interlagos sits in dense urban Sao Paulo; the seed bbox alone exceeds
     # the API's 50k-node ceiling, so it is split into quadrants.
@@ -520,6 +531,18 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     "Montreal": [
         dict(kind="tower", station_m=2350.0, side="left", offset_m=150.0),
     ],
+    # The rusted-steel bull statue in the fan zone beside the Mitte/Centre
+    # Grandstand -- "The massive steel Red Bull statue is in the Yellow
+    # Zone next to the Mitte / Centre Grandstand" (oversteer48.com's Red
+    # Bull Ring general-admission guide). Not in OSM at all (no node/way
+    # near the track tags it), and the kit had no statue asset until this
+    # entry, so it is placed at the "Tribuene Mitte" stand's own station
+    # (3149.7 m, left) just beyond its outer edge (the stand's
+    # offset_m 47 + depth_m 43.5 = 90.5 m), in the plaza next to it rather
+    # than on top of it.
+    "Spielberg": [
+        dict(kind="statue", name="Red Bull Statue", station_m=3149.7, side="left", offset_m=90.0),
+    ],
 }
 
 # For a circuit whose pit lane leaves no separate polyline in OSM at all --
@@ -573,6 +596,34 @@ MANUAL_STRUCTURES: dict[str, list[dict]] = {
             osm_building="stadium",
             area_m2=42694,
         ),
+    ],
+}
+
+# A patch of real woodland OSM cannot supply -- either because the bbox
+# never reached it (see the BBOXES comment for the stem) or, generically,
+# because a public-road circuit's verges are not tagged as forest even
+# where they plainly are. `side` follows the same "left"/"right"/"outside"/
+# "inside" convention MANUAL_STANDS uses; the belt runs from `near_m`
+# (default 15 m, inside dress.rs's own TREE_BELT_NEAR_M=22 so the whole
+# planting band lands inside the ring) out to `near_m + depth_m` (default
+# 95 m, past TREE_BELT_FAR_M=90) beyond the road edge, following the road's
+# own curve over the span -- built with Track.edge_run, the same helper
+# MANUAL_STANDS' front rows use.
+MANUAL_WOODS: dict[str, list[dict]] = {
+    # The real Ligne Droite des Hunaudieres (Mulsanne straight) is
+    # tree-lined for most of its length (widely documented in circuit
+    # photography and coverage; pine forest is specifically noted right
+    # around the Auberge de Mulsanne, near this straight's second chicane
+    # and corner). Station 4746-8906 m is exactly the stretch the BBOXES
+    # gap above leaves with no OSM data at all -- the same span
+    # MANUAL_STANDS already carries "Tribune Mulsanne" (7500-7660) and
+    # "Tribune Indianapolis" (8950-9090) for, for the identical reason.
+    # Pine (needleleaved) on both sides, matching the real straight.
+    "LeMans": [
+        dict(from_m=4700, to_m=8950, side="left", leaf="needleleaved",
+             near_m=15, depth_m=95),
+        dict(from_m=4700, to_m=8950, side="right", leaf="needleleaved",
+             near_m=15, depth_m=95),
     ],
 }
 
@@ -1615,6 +1666,17 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if len(ring) < 4 or ring_area(ring) < 400:
             continue
         woods.append({"leaf": leaf, "ring": round_pts(ring, 1)})
+
+    for spec in MANUAL_WOODS.get(stem, []):
+        side = spec["side"]
+        if side in ("outside", "inside"):
+            side = track.turn_side(spec["from_m"], spec["to_m"], side)
+        near = float(spec.get("near_m", 15.0))
+        far = near + float(spec.get("depth_m", 95.0))
+        near_run = track.edge_run(spec["from_m"], spec["to_m"], side, near)
+        far_run = track.edge_run(spec["from_m"], spec["to_m"], side, far)
+        ring = np.vstack([near_run, far_run[::-1]])
+        woods.append({"leaf": spec.get("leaf", "mixed"), "ring": round_pts(ring, 1)})
 
     # An authored landmark and an OSM building can be the same real
     # structure (Sakhir's control tower is mapped as building=yes, not as
