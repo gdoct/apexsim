@@ -65,7 +65,6 @@ Priorities:
 cd 
 | Item | Type | Notes |
 |---|---|---|
-| Red Bull Ring misses Red Bull statue | bug | The model already exists. Add it to `MANUAL_LANDMARKS` in `osm_layout.py` and re-dress. |
 | Weather and time of day (new) | feature | |
 | Leaderboards online (new) | feature | Needs personal bests and server persistence. |
 | Driver rating / safety rating (new) | feature | |

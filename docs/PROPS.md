@@ -217,6 +217,7 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 | misc | `photographer_stand` | 2 × 2 × 2.5 m | — **done** | P4 |
 | misc | `scrub_clump` | 0.68 × 0.6 m, 0.29 m tall | low dry-scrub mound, two tones (`misc_scrub_a/b`); filed under `misc` rather than a dedicated kind — no `.ats`/groomer/importer change needed to place it — **done** | P1 |
 | misc | `rock_cluster` | 0.92 × 0.7 m, 0.45 m tall | angular rock chunks, two tones (`misc_rock_a/b`); same `misc`-kind placement as `scrub_clump` — for Sakhir/Yas desert ground cover — **done** | P1 |
+| misc | `bull_statue` | 3.2 × 1.8 m, 2.5 m tall | the Red Bull Ring's trackside bull statue, on a plinth; centred on its own footprint like `control_tower`/`ferris_wheel` rather than road-facing, since it is placed as a `statue`-kind landmark by station/side/offset, not scattered — **done** | P4 |
 | cone | `cone` | | exists | — |
 
 ### 6. Sky

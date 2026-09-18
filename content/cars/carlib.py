@@ -43,11 +43,14 @@ CARS_ROOT = r"D:\apexsim\content\cars"
 
 
 # --------------------------------------------------------------- materials
-def mat(name, color, metallic=0.0, roughness=0.5, coat=0.0, alpha=1.0, emission=None):
+def mat(name, color, metallic=0.0, roughness=0.5, coat=0.0, coat_roughness=None,
+        alpha=1.0, emission=None):
     m = material(name, color, metallic, roughness, emission)
     b = m.node_tree.nodes["Principled BSDF"]
     if coat:
         b.inputs["Coat Weight"].default_value = coat
+    if coat_roughness is not None:
+        b.inputs["Coat Roughness"].default_value = coat_roughness
     if alpha < 1.0:
         b.inputs["Alpha"].default_value = alpha
         try:
@@ -71,8 +74,8 @@ def car_materials(paint_rgb, accent_rgb, caliper_rgb, logo_path=None, seat_rgb=(
     """The slot set every car GLB carries; names are what the client drives
     (docs/CAR_MODELS.md - do not rename)."""
     m = Mats(
-        paint=mat("car_paint", paint_rgb, 0.10, 0.25, coat=1.0),
-        accent=mat("car_accent", accent_rgb, 0.05, 0.30, coat=1.0),
+        paint=mat("car_paint", paint_rgb, 0.20, 0.035, coat=1.0, coat_roughness=0.01),
+        accent=mat("car_accent", accent_rgb, 0.15, 0.045, coat=1.0, coat_roughness=0.01),
         carbon=mat("car_carbon", (0.045, 0.045, 0.055), 0.30, 0.32, coat=0.6),
         glass=mat("car_glass", (0.02, 0.03, 0.04), 0.0, 0.05, alpha=0.5),
         liner=mat("car_liner", (0.028, 0.028, 0.030), 0.0, 0.92),
@@ -143,6 +146,56 @@ def fender_bump(keys, axles, amount=0.085, width=0.62, j0=2.2, j1=4.3, fade=0.8)
             new.append((x, z))
         out.append((y, new))
     return out
+
+
+def insert_stations(keys, ys, key_samp=12):
+    """Add interpolated stations at `ys` to a key list.
+
+    The hand-authored keys are 40-60 cm apart, which is fine along the flank
+    and hopeless at the ends: a nose or a tail lofted from two keys is one big
+    blend with nothing to shape. Extra stations there give the bumper face,
+    the corner and the leading edge of the bonnet each their own section."""
+    tmp = Loft(keys, samp=2, ny=4, key_samp=key_samp)
+    out = list(keys)
+    for y in ys:
+        if any(abs(y - k[0]) < 1e-6 for k in out):
+            continue
+        out.append((y, tmp.ctrl_at(y)))
+    return sorted(out, key=lambda k: k[0])
+
+
+def remap_station(keys, y, x_scale=1.0, z_lo=None, z_hi=None, j_from=0):
+    """Reshape the station at `y`: scale its half-widths and stretch its
+    heights so the section runs from `z_lo` to `z_hi` (either may be None to
+    keep that end). `j_from` limits the height remap to control indices from
+    there up, so the floor and sill can be left alone."""
+    out = []
+    for (ky, pts) in keys:
+        if abs(ky - y) > 1e-6:
+            out.append((ky, pts))
+            continue
+        zs = [z for (_, z) in pts[j_from:]]
+        lo, hi = min(zs), max(zs)
+        nlo = lo if z_lo is None else z_lo
+        nhi = hi if z_hi is None else z_hi
+        new = []
+        for j, (x, z) in enumerate(pts):
+            if j >= j_from and hi > lo:
+                z = nlo + (z - lo) / (hi - lo) * (nhi - nlo)
+            new.append((x * x_scale, z))
+        out.append((ky, new))
+    return out
+
+
+def tip_station(keys, y_from, y_new, x_scale=0.80, z_shrink=0.75):
+    """Add a station at `y_new` that is the section at `y_from` pulled in
+    towards its middle - a rounded end instead of a flat cap the full size of
+    the bumper."""
+    src = next(pts for (ky, pts) in keys if abs(ky - y_from) < 1e-6)
+    zs = [z for (_, z) in src]
+    zc = (min(zs) + max(zs)) / 2.0
+    new = [(x * x_scale, zc + (z - zc) * z_shrink) for (x, z) in src]
+    return sorted(keys + [(y_new, new)], key=lambda k: k[0])
 
 
 # -------------------------------------------------------------------- loft
