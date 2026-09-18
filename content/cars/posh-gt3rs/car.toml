@@ -125,11 +125,11 @@ regen_max_power_kw = 0.0
 # model is content/wheels/<model>.glb, sized to each axle's radius and width.
 [wheels]
 model = "gt3"
-front_axle_m = 1.350
-rear_axle_m = -1.400
-front_track_m = 1.600
-rear_track_m = 1.600
-front_radius_m = 0.350
-rear_radius_m = 0.360
+front_axle_m = 1.375
+rear_axle_m = -1.375
+front_track_m = 1.700
+rear_track_m = 1.700
+front_radius_m = 0.345
+rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
