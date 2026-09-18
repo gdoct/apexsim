@@ -322,6 +322,14 @@ public:
 	UPROPERTY()
 	float UiVolume = 0.8f;
 
+	/** 0..1. Every car's engine (AApexRaceCarActor::SetMixVolumes), on top of the master volume. */
+	UPROPERTY()
+	float EngineVolume = 1.0f;
+
+	/** 0..1. The driven car's tyres, kerbs, road and wind. */
+	UPROPERTY()
+	float RoadVolume = 0.8f;
+
 	/** Empty until something is rebound — an absent slot uses its default key. */
 	UPROPERTY()
 	TArray<FApexKeyBinding> Bindings;

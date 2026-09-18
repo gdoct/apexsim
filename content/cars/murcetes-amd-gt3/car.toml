@@ -76,6 +76,20 @@ torque_nm = 629.3
 rpm = 7500.0
 torque_nm = 553.2
 
+# What the client's engine synthesiser is built from (docs/CAR_MODELS.md, "Engine
+# sound"): the server ignores this table.
+# 6.3 L crossplane V8 on side pipes: the uneven firing into each bank is the burble,
+# and it pops on every lift.
+[sound]
+cylinders = 8
+crossplane = true   # a crossplane V8's uneven banks; false fires the banks alternately
+turbo = false
+exhaust_length_m = 1.9   # primary pipe: where the exhaust resonates
+muffling = 0.45           # 0 open pipes .. 1 road muffler
+pops = 0.9               # overrun pops and shift cracks, 0..1
+gear_whine = 0.3         # straight-cut gearbox, 0..1
+intake_roar = 0.6        # induction noise under throttle, 0..1
+
 [transmission]
 # One of: Manual, DCT, Sequential, Automatic, CVT
 transmission_type = "Sequential"

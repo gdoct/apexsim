@@ -1,21 +1,79 @@
 #include "Audio/ApexEngineSoundWave.h"
 
 #include "AudioDefines.h"
+#include "Catalog/ApexCatalogRows.h"
 #include "Sound/SoundGenerator.h"
 #include "Sound/SoundGroups.h"
+
+namespace ApexEngineAudio
+{
+	ApexEngineSynth::FEngineSpec MakeSpec(const FApexEngineSoundSpec& Row, const FString& CarClass)
+	{
+		using namespace ApexEngineSynth;
+		const bool bFormula = CarClass.Equals(TEXT("F1"), ESearchCase::IgnoreCase);
+		const bool bPrototype = CarClass.StartsWith(TEXT("LMP"), ESearchCase::IgnoreCase);
+
+		FEngineSpec Spec;
+		if (Row.Cylinders > 0)
+		{
+			Spec.Cylinders = Row.Cylinders;
+			Spec.BankMask = BankMask(Row.Cylinders, Row.bCrossplane);
+			Spec.bTurbo = Row.bTurbo;
+			Spec.ExhaustLengthM = Row.ExhaustLengthM;
+			Spec.Muffling = Row.Muffling;
+			Spec.Pops = Row.Pops;
+			Spec.GearWhine = Row.GearWhine;
+			Spec.IntakeRoar = Row.IntakeRoar;
+		}
+		else if (bFormula)
+		{
+			Spec.Cylinders = 6;
+			Spec.BankMask = BankMask(6, false);
+			Spec.bTurbo = true;
+			Spec.ExhaustLengthM = 0.6f;
+			Spec.Muffling = 0.05f;
+			Spec.Pops = 0.15f;
+			Spec.GearWhine = 0.4f;
+			Spec.IntakeRoar = 0.4f;
+		}
+		else if (bPrototype)
+		{
+			Spec.BankMask = BankMask(8, false);
+			Spec.ExhaustLengthM = 0.95f;
+			Spec.Muffling = 0.15f;
+			Spec.GearWhine = 0.45f;
+		}
+		// Anything else keeps FEngineSpec's own defaults: a crossplane race V8.
+
+		if (Row.RedlineRpm > Row.IdleRpm && Row.IdleRpm > 0.0f)
+		{
+			Spec.IdleRpm = Row.IdleRpm;
+			Spec.RedlineRpm = Row.RedlineRpm;
+		}
+		else if (bFormula)
+		{
+			Spec.IdleRpm = 4500.0f;
+			Spec.RedlineRpm = 15000.0f;
+		}
+		// A limiter below the redline would stutter through the top of every gear.
+		Spec.LimiterRpm = Row.LimiterRpm >= Spec.RedlineRpm ? Row.LimiterRpm : Spec.RedlineRpm * 1.015f;
+		return Spec;
+	}
+}
 
 namespace
 {
 	/** Nominal rate for the asset's metadata; the generator renders at the device's real one. */
 	constexpr int32 EngineNominalSampleRate = 48000;
 
-	/** Continuously renders the engine tone from the live RPM/gear/throttle the wave last set. */
+	/** Continuously renders the engine from the live RPM/gear/throttle the wave last set. */
 	class FApexEngineSoundGenerator : public ISoundGenerator
 	{
 	public:
 		FApexEngineSoundGenerator(TSharedRef<FApexEngineLiveState, ESPMode::ThreadSafe> InLive,
 			float InSampleRate, int32 InNumChannels)
 			: Live(MoveTemp(InLive))
+			, State(MakeUnique<ApexEngineSynth::FState>())
 			, SampleRate(InSampleRate > 0.0f ? InSampleRate : static_cast<float>(EngineNominalSampleRate))
 			, NumChannels(FMath::Max(1, InNumChannels))
 		{
@@ -26,14 +84,22 @@ namespace
 			const int32 NumFrames = NumSamples / NumChannels;
 			Mono.SetNumUninitialized(NumFrames);
 
-			// Read fresh every buffer: ObservedMaxRpm keeps growing for as long as
-			// the car plays, and a copy taken once at construction would freeze it.
-			const ApexEngineSynth::FParams Params{
-				Live->IdleRpm.load(std::memory_order_relaxed), Live->MaxRpm.load(std::memory_order_relaxed)
-			};
-			ApexEngineSynth::Render(State, Params, Live->Rpm.load(std::memory_order_relaxed),
-				Live->Throttle.load(std::memory_order_relaxed), Live->Gear.load(std::memory_order_relaxed),
-				SampleRate, Mono.GetData(), NumFrames);
+			// The engine changes a handful of times in a car's life (the roster
+			// arriving, a car swap), so the lock is all but never contended; the
+			// serial keeps even the uncontended lock off the usual buffer.
+			const uint32 Serial = Live->SpecSerial.load(std::memory_order_acquire);
+			if (Serial != SeenSpecSerial)
+			{
+				FScopeLock Lock(&Live->SpecLock);
+				Spec = Live->Spec;
+				SeenSpecSerial = Serial;
+			}
+
+			ApexEngineSynth::FInputs Inputs;
+			Inputs.Rpm = Live->Rpm.load(std::memory_order_relaxed);
+			Inputs.Throttle = Live->Throttle.load(std::memory_order_relaxed);
+			Inputs.Gear = Live->Gear.load(std::memory_order_relaxed);
+			ApexEngineSynth::Render(*State, Spec, Inputs, SampleRate, Mono.GetData(), NumFrames);
 
 			int32 Written = 0;
 			for (int32 Frame = 0; Frame < NumFrames; ++Frame)
@@ -56,7 +122,10 @@ namespace
 
 	private:
 		TSharedRef<FApexEngineLiveState, ESPMode::ThreadSafe> Live;
-		ApexEngineSynth::FState State;
+		/** On the heap: the two exhaust pipes make it 16 KB, too much to carry by value. */
+		TUniquePtr<ApexEngineSynth::FState> State;
+		ApexEngineSynth::FEngineSpec Spec;
+		uint32 SeenSpecSerial = 0;
 		float SampleRate;
 		int32 NumChannels;
 		TArray<float> Mono;
@@ -77,10 +146,13 @@ UApexEngineSoundWave::UApexEngineSoundWave(const FObjectInitializer& ObjectIniti
 	Duration = INDEFINITELY_LOOPING_DURATION;
 }
 
-void UApexEngineSoundWave::SetRpmRange(float IdleRpm, float MaxRpm)
+void UApexEngineSoundWave::SetSpec(const ApexEngineSynth::FEngineSpec& Spec)
 {
-	Live->IdleRpm.store(IdleRpm, std::memory_order_relaxed);
-	Live->MaxRpm.store(FMath::Max(MaxRpm, IdleRpm + 1.0f), std::memory_order_relaxed);
+	{
+		FScopeLock Lock(&Live->SpecLock);
+		Live->Spec = Spec;
+	}
+	Live->SpecSerial.fetch_add(1, std::memory_order_release);
 }
 
 void UApexEngineSoundWave::SetLive(float Rpm, float Throttle, int32 Gear)
@@ -92,6 +164,6 @@ void UApexEngineSoundWave::SetLive(float Rpm, float Throttle, int32 Gear)
 
 ISoundGeneratorPtr UApexEngineSoundWave::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
-	// Called on the audio thread; everything it needs is read from Live through atomics.
+	// Called on the audio thread; everything it needs is read from Live.
 	return MakeShared<FApexEngineSoundGenerator, ESPMode::ThreadSafe>(Live, InParams.SampleRate, InParams.NumChannels);
 }

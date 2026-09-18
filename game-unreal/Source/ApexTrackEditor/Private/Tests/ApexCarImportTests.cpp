@@ -99,4 +99,52 @@ bool FApexCarTomlWheelsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarTomlSoundTest, "ApexSim.Cars.TomlSound",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FApexCarTomlSoundTest::RunTest(const FString& Parameters)
+{
+	const FString Text = TEXT(
+		"id = \"a1b2\"\n"
+		"name = \"V8\"\n"
+		"[engine]\n"
+		"idle_rpm = 850.0\n"
+		"redline_rpm = 7500.0\n"
+		"rev_limiter_rpm = 7650.0\n"
+		"[[engine.torque_curve]]\n"
+		"rpm = 833.3   # not the idle\n"
+		"[sound]\n"
+		"cylinders = 8\n"
+		"crossplane = true\n"
+		"turbo = false\n"
+		"exhaust_length_m = 1.9\n"
+		"muffling = 0.45\n"
+		"pops = 0.9\n"
+		"gear_whine = 0.3\n"
+		"intake_roar = 0.6\n");
+	UApexCarImportCommandlet::FCarToml Car;
+	FString Error;
+	TestTrue(TEXT("parses"), UApexCarImportCommandlet::ParseCarToml(Text, Car, Error));
+	TestEqual(TEXT("cylinders"), Car.Sound.Cylinders, 8);
+	TestTrue(TEXT("crossplane"), Car.Sound.bCrossplane);
+	TestFalse(TEXT("no turbo"), Car.Sound.bTurbo);
+	TestEqual(TEXT("idle from [engine]"), Car.Sound.IdleRpm, 850.0f);
+	TestEqual(TEXT("redline from [engine]"), Car.Sound.RedlineRpm, 7500.0f);
+	TestEqual(TEXT("limiter from [engine]"), Car.Sound.LimiterRpm, 7650.0f);
+	TestEqual(TEXT("exhaust"), Car.Sound.ExhaustLengthM, 1.9f);
+	TestEqual(TEXT("pops"), Car.Sound.Pops, 0.9f);
+
+	// A car without the table still carries its rev range: the class picks the rest.
+	UApexCarImportCommandlet::FCarToml Plain;
+	TestTrue(TEXT("parses without [sound]"), UApexCarImportCommandlet::ParseCarToml(
+		TEXT("id = \"a\"\nname = \"b\"\n[engine]\nidle_rpm = 900\nredline_rpm = 9000\n"), Plain, Error));
+	TestEqual(TEXT("no cylinders means no table"), Plain.Sound.Cylinders, 0);
+	TestEqual(TEXT("redline kept"), Plain.Sound.RedlineRpm, 9000.0f);
+
+	UApexCarImportCommandlet::FCarToml Bad;
+	TestFalse(TEXT("a share past 1 is an error"), UApexCarImportCommandlet::ParseCarToml(
+		TEXT("id = \"a\"\nname = \"b\"\n[sound]\ncylinders = 6\nexhaust_length_m = 1.0\npops = 3\n"), Bad, Error));
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

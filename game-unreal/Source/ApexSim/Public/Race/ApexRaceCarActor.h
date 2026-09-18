@@ -10,6 +10,8 @@
 #include "ApexRaceCarActor.generated.h"
 
 class UApexEngineSoundWave;
+class UApexRoadSoundWave;
+namespace ApexRoadSynth { struct FInputs; }
 class USpotLightComponent;
 class UAudioComponent;
 class UMaterialInstanceDynamic;
@@ -94,10 +96,38 @@ public:
 	FBox GetBodyBox() const;
 
 	/**
-	 * Scale on the engine note, 1 as designed. The menu's demo race turns it
-	 * down so the cars sit under the shell's own sounds.
+	 * Which engine this car has (the catalog row's `EngineSound`, with the
+	 * class filling in for a row from before the field): cylinders, crank,
+	 * exhaust and rev range, which is everything the synthesiser is built from.
+	 */
+	void SetEngineSound(const FApexEngineSoundSpec& Spec, const FString& InCarClass);
+
+	/**
+	 * Scale on everything this car plays, 1 as designed. The menu's demo race
+	 * turns it down so the cars sit under the shell's own sounds.
 	 */
 	void SetEngineVolume(float Scale);
+
+	/** The player's Audio settings: engine and tyres/road, 0..1 each, on top of SetEngineVolume. */
+	void SetMixVolumes(float Engine, float Road);
+
+	/**
+	 * Tyres, kerbs, road and wind for the car the player is driving: the
+	 * levels for this frame and any hit that arrived with it (m/s, zero for
+	 * none). Only the local car is ever fed — the signals come from the
+	 * server's DriverFeedback, which no other car has.
+	 */
+	void UpdateRoadSound(const ApexRoadSynth::FInputs& Levels, float BumpMps, float ImpactMps);
+
+	/** No feedback any more (garage, pause, race over): the road falls silent. */
+	void StopRoadSound();
+
+	/**
+	 * The listener is inside this car's closed cabin: the engine is heard
+	 * through the bulkhead, with its top end taken off. An open cockpit, and
+	 * any camera outside, hears it as it is.
+	 */
+	void SetHeardFromCabin(bool bInside);
 
 	void SetDisplayName(const FString& InName) { DisplayName = InName; }
 	const FString& GetDisplayName() const { return DisplayName; }
@@ -127,6 +157,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UAudioComponent> EngineAudio;
+
+	/** Tyres, kerbs, road and wind; silent on every car but the one being driven. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UAudioComponent> RoadAudio;
 
 	/** Four wheel components on CarMesh, steered and spun from the telemetry. */
 	UPROPERTY()
@@ -180,6 +214,16 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UApexEngineSoundWave> EngineSound;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UApexRoadSoundWave> RoadSound;
+
+	/** SetEngineVolume's scale and the settings' two, multiplied onto the components. */
+	float VolumeScale = 1.0f;
+	float EngineMix = 1.0f;
+	float RoadMix = 1.0f;
+	bool bHeardFromCabin = false;
+	void ApplyVolumes();
+
 	/**
 	 * The mesh's `car_brakelight` slot as a dynamic instance, its
 	 * `EmissiveFactor` switched by the brake input; null for a mesh
@@ -204,13 +248,4 @@ private:
 	bool bHeadlightsOn = false;
 	/** What the tail lights show: 0 dark, 1 running lights, 2 braking. */
 	int32 TailLightState = -1;
-
-	/**
-	 * The rev range seen so far for this car. Neither idle nor redline is
-	 * broadcast, so the engine note's timbre rides what has been observed:
-	 * lowest reading for idle, highest for the redline (see ApexHudWidget).
-	 */
-	float ObservedIdleRpm = 800.0f;
-	float ObservedMaxRpm = 8000.0f;
-	bool bHasEngineRange = false;
 };

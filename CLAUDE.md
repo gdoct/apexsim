@@ -769,25 +769,82 @@ read at play time. `-ApexSettingsTab=6` opens that tab headlessly.
 `ApexSim.UI.SoundCues*` automation tests check every cue is short, finite,
 click-free and the same length at 44.1k and 48k.
 
-### Car sound (`Audio/ApexEngineSound.h`, `ApexEngineSoundWave.h`)
+### Car sound (`Audio/ApexEngineSound.h`, `Audio/ApexRoadSound.h`)
 
-Engines are synthesised too, per car: `AApexRaceCarActor` owns a
-`UApexEngineSoundWave` on an attenuated audio component, feeds it RPM,
-throttle and gear from every telemetry frame, and its generator renders
-continuously on the audio thread from a lock-free `FApexEngineLiveState`.
+Nothing is recorded: the engine is **simulated** and the sound is what its
+exhaust would hear. `ApexEngineSynth::Render` turns a crank at the
+telemetry's RPM; each cylinder's firing angle puts a blow-down pulse (sized
+by throttle, steepened by load, roughened by combustion noise, its length a
+fixed share of the cycle) into one of two exhaust **banks**, each a
+quarter-wave pipe (a delay line reflected inverted, with the muffler's loss
+in the loop). So the note is the firing rate, `rpm/60 x cylinders/2`,
+proportional to RPM with nothing to saturate, and the character comes from
+geometry: a crossplane V8 fires its banks L R L L R R L R, which puts power
+on the crank's own frequency and its odd halves under the note (the
+burble: ~12 dB under the firing note, and 600x what a flat-plane has
+there), while everything else alternates banks. The two pipes are heard
+unequally (`SecondBankLevel`/`SecondBankLength`) because two identical
+pipes half a period apart sum back to an even pulse train and no crank
+could be told from another. On top: overrun pops (a lift above a third of
+the rev range opens a ~1 s budget in which firings randomly become
+oversized pulses with a low-passed noise burst; a flat-out upshift cracks
+once), the limiter's spark-cut stutter, induction roar, a gearbox whine at
+a per-gear tooth-mesh frequency (`WhineHz`: it steps *up* on an upshift at
+the same revs, replacing the old `GearTrim` hack), and a turbo's whistle
+and blow-off. Two traps found by measuring rather than listening: a pulse
+attack of 0.25 ms is a 640 Hz low-pass on the whole engine (it is two
+samples now), and a first-difference "rasp" applied after the turbulence
+noise is just hiss (it is taken from the pulse alone).
 
-The note is **proportional to RPM** (`ApexEngineSynth::NoteHz` — Rpm/60 times a
-firing order), not a lerp across the rev range. That matters because neither
-idle nor redline is on the wire: a lerp needs a guessed maximum, and any guess
-too low pins the pitch part way up a gear while the revs keep climbing — the
-F1 idles at 4500 and revs to 15,500, so an 8000rpm guess flattened the top half
-of every gear to one note. The observed range (grown from the lowest and
-highest readings seen: `ObservedIdleRpm`/`ObservedMaxRpm`) now only drives
-timbre and loudness, where a stale value costs brightness rather than the
-sweep. Each gear above first also trims the note down a little (`GearTrim`,
-about two semitones across a six-speed) so a shift is audible in the instant
-before the revs fall. `ApexSim.Audio.*` automation tests cover the monotonic
-sweep, the per-gear trim, and that pitch still rises past a stale maximum.
+An engine is described by the `[sound]` table in its `car.toml`
+(`cylinders`, `crossplane`, `turbo`, `exhaust_length_m`, `muffling`, `pops`,
+`gear_whine`, `intake_roar`; the server ignores it), which `ApexCarImport`
+puts on the catalog row as `FApexEngineSoundSpec EngineSound` with
+`[engine]`'s idle, redline and limiter: derived like `Wheels`, refreshed on
+every run. That row is also how the client finally knows the rev range,
+which is not on the wire. `ApexEngineAudio::MakeSpec` fills in a class
+default (F1 turbo V6, LMP flat-plane V8, else crossplane V8) for a row from
+before the field. `docs/CAR_MODELS.md` has the table key by key.
+
+`AApexRaceCarActor` owns a `UApexEngineSoundWave` on an attenuated audio
+component and feeds it the motion buffer's **blended** RPM every render
+frame (the raw 60 Hz samples are a zipper on a synthesised crank) with the
+newest throttle and gear; the generator renders on the audio thread from a
+lock-free `FApexEngineLiveState`, picking up a changed engine spec by
+serial under a lock that is all but never contended. The 16 KB synth state
+(two pipes) lives on the heap. From the cockpit of a closed car the engine
+is low-passed at 3.2 kHz (`SetHeardFromCabin`, from
+`AApexRaceDirector::UpdateCarAudio`); open cockpits and outside cameras
+hear it as it is.
+
+**Tyres, kerbs, road and wind** (`ApexRoadSynth`, `UApexRoadSoundWave`) play
+for the local car only, because they come from the server's
+`DriverFeedback`: the race director reduces it with `ApexFfb::MakeSignals`,
+the very signals the pad and wheel get, and feeds the car's unspatialised
+`RoadAudio`. Squeal is noise through a narrow resonance per axle (front a
+third above the rear, so understeer and oversteer differ by ear; rising
+with sliding speed; none at a crawl, none on grass, hiss instead in the
+wet), lockup lower and harsher, wheelspin climbing with slip; a kerb is a
+rib every 0.9 m (the force feedback's spacing) thudding through a 95 Hz
+resonance, so its pitch is the car's speed; off-track is rumble and stones;
+a suspension hit over the FFB's 0.3 m/s threshold is a thud and contact a
+crunch, handed to the audio thread by atomic exchange so each plays once;
+rolling and wind grow with speed. It stops in the garage, during a ghost
+replay and when feedback is over 0.5 s stale.
+
+The Audio settings tab has "Engines" and "Tyres and road" sliders
+(`UApexSettingsSave::EngineVolume`/`RoadVolume` ->
+`AApexRaceDirector::ApplyAudioSettings` -> `SetMixVolumes`, multiplied with
+the demo's `SetEngineVolume` scale). `apexsim.audio.RenderCars [dir]`
+renders every catalog car through a scripted drive, and the road voices, to
+`Saved/Audio/*.wav`: the way to judge or tune a `[sound]` table.
+`ApexSim.Audio.Engine*` / `ApexSim.Audio.Road*` tests pin the physics (power
+on the firing note at 44.1k and 48k, half-orders on a crossplane only, GT3
+under 2 kHz vs the F1 above, pops, limiter stutter, squeal notes, the kerb's
+rib rate, hit thresholds); `ApexSim.Cars.TomlSound` the TOML scan. Both
+synths build standalone against a ten-line `CoreMinimal.h` shim (only
+`FMath` is used), which is how they were tuned: MSVC + a WAV writer +
+numpy spectra, no editor build per iteration.
 
 ### Driving assists (`SetDriverAids`, `AllowedAssists`, the Assists settings tab)
 

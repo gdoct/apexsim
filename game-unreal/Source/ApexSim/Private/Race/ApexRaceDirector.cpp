@@ -28,7 +28,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/StaticMeshComponent.h"
+#include "Audio/ApexRoadSound.h"
 #include "Audio/ApexUiAudioSubsystem.h"
+#include "Input/ApexForceFeedback.h"
 #include "Race/ApexCockpitRig.h"
 #include "Race/ApexGhostCarActor.h"
 #include "Race/ApexRaceCarActor.h"
@@ -554,6 +556,10 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 			}
 			Car->SetCarIndex(Entry.CarIndex);
 			Car->SetHeadlights(bRaceViewActive && Sky.bHeadlights);
+			if (const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr)
+			{
+				Car->SetMixVolumes(Values->EngineVolume, Values->RoadVolume);
+			}
 			Cars.Add(Entry.CarIndex, Car);
 			CarIdShown.Remove(Entry.CarIndex);
 			VerifyLocalCarContent();
@@ -622,12 +628,14 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 			Wheels = Row.Wheels;
 		}
 		Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
+		Car->SetEngineSound(Row.EngineSound, Row.CarClass);
 	}
 	else
 	{
 		UE_LOG(LogApexSim, Warning, TEXT("Race roster: no catalog row for car %s (car %d), drawing the fallback"),
 			*CarId, Car->GetCarIndex());
 		Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
+		Car->SetEngineSound(FApexEngineSoundSpec(), FString());
 	}
 	Car->SetCarMesh(Mesh);
 	Car->SetWheels(Wheels);
@@ -923,6 +931,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	UpdateHeadMotion(DeltaSeconds);
 	UpdateLook(DeltaSeconds);
 	UpdateCockpitCamera();
+	UpdateCarAudio();
 	if (bGhostReplay)
 	{
 		UpdateGhostReplay(DeltaSeconds);
@@ -2470,6 +2479,70 @@ void AApexRaceDirector::SetDemoWorldVisible(bool bVisible)
 	ApplyDemoWorldVisibility();
 	// The gantry's actors leave the world with the level and come back new.
 	ForgetStartLights();
+}
+
+void AApexRaceDirector::ApplyAudioSettings()
+{
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	if (!Values)
+	{
+		return;
+	}
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		if (AApexRaceCarActor* Car = Pair.Value.Get())
+		{
+			Car->SetMixVolumes(Values->EngineVolume, Values->RoadVolume);
+		}
+	}
+}
+
+void AApexRaceDirector::UpdateCarAudio()
+{
+	// From the driver's seat of a closed car the engine comes through the
+	// bulkhead; every other car, and every other camera, hears it outright.
+	const bool bInCabin = bCockpitView && !bTvView && !bShotCameraPose && !bGhostReplay;
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		if (AApexRaceCarActor* Car = Pair.Value.Get())
+		{
+			Car->SetHeardFromCabin(bInCabin && Car == FollowedCar);
+		}
+	}
+
+	const UApexNetSubsystem* Net = GetNet();
+	AApexRaceCarActor* Local = Net ? FindCar(Net->GetLocalCarIndex()) : nullptr;
+	if (!Local)
+	{
+		return;
+	}
+	// Tracked even while silent, or the first frame back would replay old hits.
+	const uint32 Serial = Net->GetDriverFeedbackSerial();
+	const bool bNewMessage = Serial != LastRoadFeedbackSerial;
+	LastRoadFeedbackSerial = Serial;
+
+	// The server only sends feedback for a car that is being simulated, so a
+	// stale message means a garage, a finished session or a dead connection.
+	constexpr double StaleSeconds = 0.5;
+	if (bLocalInGarage || bGhostReplay || FPlatformTime::Seconds() - Net->GetDriverFeedbackTime() > StaleSeconds)
+	{
+		Local->StopRoadSound();
+		return;
+	}
+
+	const ApexFfb::FSignals Signals = ApexFfb::MakeSignals(
+		Net->GetDriverFeedback(), Local->GetSpeedMps(), Local->GetGear(), bNewMessage);
+	ApexRoadSynth::FInputs Levels;
+	Levels.SpeedMps = Signals.SpeedMps;
+	Levels.FrontSlide = Signals.FrontSlide;
+	Levels.RearSlide = Signals.RearSlide;
+	Levels.Lockup = Signals.Lockup;
+	Levels.Wheelspin = Signals.Wheelspin;
+	Levels.CurbLeft = Signals.CurbLeft;
+	Levels.CurbRight = Signals.CurbRight;
+	Levels.OffTrack = Signals.OffTrack;
+	Levels.bWet = Sky.bWetRoad;
+	Local->UpdateRoadSound(Levels, Signals.BumpMps, Signals.ImpactMps);
 }
 
 void AApexRaceDirector::ApplyDemoWorldVisibility()

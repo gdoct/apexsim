@@ -18,10 +18,13 @@
  *    the revs fell by. Nothing saturates part way up a gear.
  *  - Which bank each firing goes into is what separates a crossplane V8 from
  *    a flatplane one at the same RPM: a crossplane's banks get an uneven
- *    90-180-270-180 pattern, so each pipe rings at *half* the crank
- *    frequency and its harmonics — the low burble — while a flatplane, a V6,
- *    a V10 or a flat-six alternate banks evenly and each pipe carries a clean
- *    multiple of the crank speed, which is the scream.
+ *    90-180-270-180 pattern, so each pipe carries a rhythm that repeats
+ *    every two revs — half-orders of the crank under the firing note, the
+ *    low burble — while a flatplane, a V6, a V10 or a flat-six alternate
+ *    banks evenly and each pipe carries a clean multiple of the crank speed,
+ *    which is the scream. The two pipes are heard unequally (one is nearer),
+ *    or the banks would sum back to an even pulse train and no crank could
+ *    be told from another.
  *  - Load (throttle) sets the pulse size and the combustion noise; a closed
  *    throttle at speed is the overrun, where unburnt fuel lighting in the
  *    pipe is a pop — a random oversized pulse and a burst of noise — for a
@@ -37,7 +40,8 @@
  * one buffer at a time, with the crank angle, the pipes and the smoothed
  * inputs carried in FState between calls. Everything here is plain maths
  * over plain structs: no engine calls beyond FMath, so the same code can be
- * rendered offline (ApexSim.Audio.EngineWav writes sweeps to Saved/Audio).
+ * rendered offline (`apexsim.audio.RenderCars` writes every catalog car's
+ * drive to Saved/Audio as a WAV; see ApexAudioPreview.cpp).
  */
 namespace ApexEngineSynth
 {
@@ -120,6 +124,10 @@ namespace ApexEngineSynth
 		float Pipe[PipeCapacity] = {};
 		int32 Write = 0;
 		float LoopLowpass = 0.0f;
+		/** Gas-flow hiss, band-limited, riding the pulse on open pipes. */
+		float Hiss = 0.0f;
+		/** The previous sample's pulse: the rasp is its first difference. */
+		float LastBody = 0.0f;
 	};
 
 	/** Running state between render calls. Default-constructed is silent and unprimed. */

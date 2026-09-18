@@ -94,6 +94,68 @@ struct APEXSIM_API FApexWheelSpec
 	bool operator!=(const FApexWheelSpec& Other) const { return !(*this == Other); }
 };
 
+/**
+ * The engine as the client's synthesiser hears it: a car.toml's `[sound]`
+ * table plus the rev range from its `[engine]`. See ApexEngineSound.h for what
+ * each figure does to the note, and ApexEngineAudio::MakeSpec for the defaults
+ * a car without the table gets from its class.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIM_API FApexEngineSoundSpec
+{
+	GENERATED_BODY()
+
+	/** Four-stroke cylinders. 0 = no `[sound]` table: the class decides. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	int32 Cylinders = 0;
+
+	/** A crossplane V8: uneven firing into each bank, the burble. Ignored for anything but eight cylinders. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	bool bCrossplane = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	bool bTurbo = false;
+
+	/** `[engine]` idle_rpm, redline_rpm and rev_limiter_rpm: neither end of the range is on the wire. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	float IdleRpm = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	float RedlineRpm = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	float LimiterRpm = 0.0f;
+
+	/** Primary pipe length, metres. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	float ExhaustLengthM = 0.0f;
+
+	/** 0 open pipes .. 1 a road muffler. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	float Muffling = 0.0f;
+
+	/** Overrun pops and shift cracks, 0..1. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	float Pops = 0.0f;
+
+	/** Straight-cut gearbox whine, 0..1. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	float GearWhine = 0.0f;
+
+	/** Induction roar, 0..1. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	float IntakeRoar = 0.0f;
+
+	bool operator==(const FApexEngineSoundSpec& Other) const
+	{
+		return Cylinders == Other.Cylinders && bCrossplane == Other.bCrossplane && bTurbo == Other.bTurbo
+			&& IdleRpm == Other.IdleRpm && RedlineRpm == Other.RedlineRpm && LimiterRpm == Other.LimiterRpm
+			&& ExhaustLengthM == Other.ExhaustLengthM && Muffling == Other.Muffling && Pops == Other.Pops
+			&& GearWhine == Other.GearWhine && IntakeRoar == Other.IntakeRoar;
+	}
+	bool operator!=(const FApexEngineSoundSpec& Other) const { return !(*this == Other); }
+};
+
 /** One row per car. RowName == the `id` from `content/cars/<folder>/car.toml`. */
 USTRUCT(BlueprintType)
 struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
@@ -145,6 +207,10 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	FApexWheelSpec Wheels;
+
+	/** What the engine sounds like. Derived from car.toml on every import, like the wheels. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	FApexEngineSoundSpec EngineSound;
 
 	/** Per-car tweaks for framing the turntable preview. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Preview")
