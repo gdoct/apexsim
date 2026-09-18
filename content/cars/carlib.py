@@ -43,11 +43,14 @@ CARS_ROOT = r"D:\apexsim\content\cars"
 
 
 # --------------------------------------------------------------- materials
-def mat(name, color, metallic=0.0, roughness=0.5, coat=0.0, alpha=1.0, emission=None):
+def mat(name, color, metallic=0.0, roughness=0.5, coat=0.0, coat_roughness=None,
+        alpha=1.0, emission=None):
     m = material(name, color, metallic, roughness, emission)
     b = m.node_tree.nodes["Principled BSDF"]
     if coat:
         b.inputs["Coat Weight"].default_value = coat
+    if coat_roughness is not None:
+        b.inputs["Coat Roughness"].default_value = coat_roughness
     if alpha < 1.0:
         b.inputs["Alpha"].default_value = alpha
         try:
@@ -71,8 +74,8 @@ def car_materials(paint_rgb, accent_rgb, caliper_rgb, logo_path=None, seat_rgb=(
     """The slot set every car GLB carries; names are what the client drives
     (docs/CAR_MODELS.md - do not rename)."""
     m = Mats(
-        paint=mat("car_paint", paint_rgb, 0.10, 0.25, coat=1.0),
-        accent=mat("car_accent", accent_rgb, 0.05, 0.30, coat=1.0),
+        paint=mat("car_paint", paint_rgb, 0.20, 0.035, coat=1.0, coat_roughness=0.01),
+        accent=mat("car_accent", accent_rgb, 0.15, 0.045, coat=1.0, coat_roughness=0.01),
         carbon=mat("car_carbon", (0.045, 0.045, 0.055), 0.30, 0.32, coat=0.6),
         glass=mat("car_glass", (0.02, 0.03, 0.04), 0.0, 0.05, alpha=0.5),
         liner=mat("car_liner", (0.028, 0.028, 0.030), 0.0, 0.92),

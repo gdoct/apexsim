@@ -639,9 +639,15 @@ map and satellite imagery**, not copied as-is.
   stand, the T9–T10 (Rindt/Red Bull Mobile) stands, the "Steiermark"
   stands; the circuit map names them. The T3 approach is a natural
   hillside; only author a stand where there is seating.
-- Landmarks: the **Bull statue** over the Schlossgold pond has no kit
-  asset; skip and note it. The T1 climb has a bridge over the track, a
-  footbridge `crossing`.
+- Landmarks: the **Bull statue** is not by the Schlossgold pond as first
+  guessed -- it is the rusted-steel bull in the fan zone beside the
+  Mitte/Centre Grandstand (oversteer48.com's general-admission guide:
+  "the massive steel Red Bull statue is in the Yellow Zone next to the
+  Mitte / Centre Grandstand"). Not in OSM, so authored in
+  `MANUAL_LANDMARKS["Spielberg"]` at the Tribuene Mitte stand's own
+  station (3149.7 m, left), just beyond its outer edge. The kit now has
+  a `statue` landmark kind / `misc/bull_statue` asset for it. The T1
+  climb has a bridge over the track, a footbridge `crossing`.
 - Woods: spruce on the hillsides; `forest`, `needleleaved`.
 - Risk: the two hairpins are on steep slopes; screenshot the T1 climb from
   below to confirm the stand seats on the slope, not in the air.
