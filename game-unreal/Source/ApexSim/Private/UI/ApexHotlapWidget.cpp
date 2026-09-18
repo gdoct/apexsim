@@ -33,7 +33,7 @@ namespace
 	const FName ActionGoOut  = TEXT("Hotlap.GoOut");
 	const FName ActionReplay = TEXT("Hotlap.Replay");
 	const FName ActionGhost  = TEXT("Hotlap.Ghost");
-	const FName ActionReset  = TEXT("Hotlap.Reset");
+	const FName ActionResetSetup  = TEXT("Hotlap.Reset");
 
 	/** "1:32.104", or dashes for no time. */
 	FString FormatMs(int32 Ms)
@@ -206,7 +206,7 @@ UWidget* UApexHotlapWidget::BuildGarageCard()
 	ReplayButton = MakeCardButton(Actions, TEXT("REPLAY LAP"), TEXT("No lap yet"), ActionReplay, false);
 	GhostButton = MakeCardButton(Actions, TEXT("GHOST CAR"), TEXT("On"), ActionGhost, false);
 	AddV(Actions, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 12.0f));
-	ResetButton = MakeCardButton(Actions, TEXT("RESET SETUP"), TEXT("Every knob to stock"), ActionReset, false);
+	ResetButton = MakeCardButton(Actions, TEXT("RESET SETUP"), TEXT("Every knob to stock"), ActionResetSetup, false);
 	UTextBlock* Note = MakeText(*WidgetTree,
 		TEXT("Out on the track the car spawns on the run-up before the line, so the first lap is a flying one. Each setup click is a fixed step off the car's own file; the server applies a change at once, so the next run drives it."),
 		Font::Body(12.0f), Palette::TextMuted);
@@ -577,7 +577,7 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		OnAction.Broadcast(EApexHotlapAction::ToggleGhost);
 	}
-	else if (Id == ActionReset)
+	else if (Id == ActionResetSetup)
 	{
 		OnAction.Broadcast(EApexHotlapAction::ResetSetup);
 	}

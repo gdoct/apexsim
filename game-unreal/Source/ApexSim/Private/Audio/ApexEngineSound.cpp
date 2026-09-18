@@ -132,8 +132,15 @@ namespace ApexEngineSynth
 		 */
 		constexpr float PulseSteepening = 1.4f;
 
-		/** Gas rushing out of the pipe hisses in step with the pulses; open pipes let it out. */
-		constexpr float FlowNoise = 0.55f;
+		/**
+		 * Gas rushing out of the pipe hisses in step with the pulses; open pipes
+		 * let it out. A little: noise riding every pulse is a broadband floor
+		 * under the whole engine, and at the level this started at (a fifth of
+		 * the pulse, plus as much combustion roughness again) an open-piped car
+		 * had static behind its note.
+		 */
+		constexpr float FlowNoise = 0.2f;
+		constexpr float CombustionRoughness = 0.4f;
 
 		/** Brings a full-throttle engine near the top of the range the soft clip leaves clean. */
 		constexpr float OutputGain = 0.42f;
@@ -434,7 +441,7 @@ namespace ApexEngineSynth
 				const float Noise = NextNoise(State.NoiseState);
 				Bank.Roughness += (Noise - Bank.Roughness) * RoughnessAlpha;
 				Bank.Hiss += (Noise - Bank.Hiss) * HissAlpha;
-				const float Turbulence = Bank.Roughness * 0.9f + Bank.Hiss * FlowNoise * Openness;
+				const float Turbulence = Bank.Roughness * CombustionRoughness + Bank.Hiss * FlowNoise * Openness;
 				// The edge is taken from the pulse alone, before the turbulence
 				// rides it: differencing the noise as well is only hiss.
 				const float Body = Bank.Envelope * (1.0f + PulseSteepening * Load * Bank.Envelope);
@@ -472,7 +479,7 @@ namespace ApexEngineSynth
 				+ (Breathing * 0.5f + State.IntakeNoise * 0.6f) * IntakeDrive * 0.05f;
 			State.IntakeY2 = State.IntakeY1;
 			State.IntakeY1 = Intake;
-			Sample += Intake + IntakeHiss * IntakeDrive * 0.01f;
+			Sample += Intake + State.IntakeNoise * IntakeDrive * 0.012f;
 
 			// --- Gearbox ---------------------------------------------------------
 			State.SmoothedWhineHz += (TargetWhineHz - State.SmoothedWhineHz) * WhineAlpha;

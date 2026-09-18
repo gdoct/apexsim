@@ -2538,10 +2538,20 @@ void AApexRaceDirector::UpdateCarAudio()
 		Net->GetDriverFeedback(), Local->GetSpeedMps(), Local->GetGear(), bNewMessage);
 	ApexRoadSynth::FInputs Levels;
 	Levels.SpeedMps = Signals.SpeedMps;
-	Levels.FrontSlide = Signals.FrontSlide;
-	Levels.RearSlide = Signals.RearSlide;
-	Levels.Lockup = Signals.Lockup;
-	Levels.Wheelspin = Signals.Wheelspin;
+	// Kerbs, grass and hits are the force feedback's signals as they are. The
+	// tyres are not: the pad's scrub starts before the grip peak, as a hint,
+	// and a howl that early is a car screeching round every bend.
+	using W = FApexDriverFeedback;
+	const FApexWheelFeedback* Wheels = Net->GetDriverFeedback().Wheels;
+	Levels.FrontSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Wheels[W::FrontLeft].SlipAngle),
+		ApexRoadSynth::SquealFromSlipAngle(Wheels[W::FrontRight].SlipAngle));
+	Levels.RearSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Wheels[W::RearLeft].SlipAngle),
+		ApexRoadSynth::SquealFromSlipAngle(Wheels[W::RearRight].SlipAngle));
+	for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+	{
+		Levels.Lockup = FMath::Max(Levels.Lockup, ApexRoadSynth::LockupFromSlipRatio(Wheels[Wheel].SlipRatio));
+		Levels.Wheelspin = FMath::Max(Levels.Wheelspin, ApexRoadSynth::WheelspinFromSlipRatio(Wheels[Wheel].SlipRatio));
+	}
 	Levels.CurbLeft = Signals.CurbLeft;
 	Levels.CurbRight = Signals.CurbRight;
 	Levels.OffTrack = Signals.OffTrack;

@@ -17,7 +17,7 @@ namespace
 	/** The Interchange glTF parent's colour and emissive inputs. */
 	const FName BaseColorFactorParam(TEXT("BaseColorFactor"));
 	const FName BaseColorParam(TEXT("BaseColor"));
-	const FName EmissiveFactorParam(TEXT("EmissiveFactor"));
+	const FName GhostEmissiveFactorParam(TEXT("EmissiveFactor"));
 
 	/** A cold, slightly luminous car: unmistakably not a competitor. */
 	const FLinearColor GhostTint(0.55f, 0.85f, 1.0f, 1.0f);
@@ -34,7 +34,7 @@ namespace
 				// parameter is silently ignored.
 				Mid->SetVectorParameterValue(BaseColorFactorParam, GhostTint);
 				Mid->SetVectorParameterValue(BaseColorParam, GhostTint);
-				Mid->SetVectorParameterValue(EmissiveFactorParam, GhostGlow);
+				Mid->SetVectorParameterValue(GhostEmissiveFactorParam, GhostGlow);
 			}
 		}
 	}

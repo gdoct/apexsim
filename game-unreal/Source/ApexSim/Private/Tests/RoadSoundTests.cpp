@@ -103,6 +103,38 @@ bool FApexRoadSquealTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("understeer is at the front's note"), RoadBandPower(Front, FrontHz) > RoadBandPower(Front, RearHz) * 5.0);
 	TestTrue(TEXT("oversteer is at the rear's note"), RoadBandPower(Rear, RearHz) > RoadBandPower(Rear, FrontHz) * 5.0);
 
+	// The sound's own thresholds, in multiples of the tyre's peak slip. A car
+	// at its peak slip angle is being driven well, corner after corner, and
+	// must be silent: driven from the force feedback's 0.9 onset this
+	// screeched at every turn of the wheel.
+	TestEqual(TEXT("no howl short of the peak"), ApexRoadSynth::SquealFromSlipAngle(0.9f), 0.0f);
+	TestEqual(TEXT("none at the peak"), ApexRoadSynth::SquealFromSlipAngle(1.0f), 0.0f);
+	TestEqual(TEXT("none a little past it"), ApexRoadSynth::SquealFromSlipAngle(-1.2f), 0.0f);
+	TestTrue(TEXT("a slide howls"), ApexRoadSynth::SquealFromSlipAngle(1.8f) > 0.3f);
+	TestEqual(TEXT("and twice and a half the peak is all of it"), ApexRoadSynth::SquealFromSlipAngle(-2.5f), 1.0f);
+	TestEqual(TEXT("ABS holding a wheel at its peak is not a lockup"), ApexRoadSynth::LockupFromSlipRatio(-1.0f), 0.0f);
+	TestEqual(TEXT("nor is traction control wheelspin"), ApexRoadSynth::WheelspinFromSlipRatio(1.0f), 0.0f);
+	TestEqual(TEXT("braking is not wheelspin"), ApexRoadSynth::WheelspinFromSlipRatio(-6.0f), 0.0f);
+	TestTrue(TEXT("a locked wheel is"), ApexRoadSynth::LockupFromSlipRatio(-6.0f) == 1.0f);
+
+	// One telemetry frame of "sliding" is not a slide. (The feedback keeps the
+	// peak slip between messages, so a single tick over a bump looks like this.)
+	{
+		ApexRoadSynth::FState State;
+		ApexRoadSynth::FInputs Steady = Cruise(40.0f);
+		State.Smoothed = Steady;
+		ApexRoadSynth::FInputs Spike = Steady;
+		Spike.FrontSlide = 1.0f;
+		TArray<float> Frames;
+		Frames.SetNumZeroed(800 * 12);
+		for (int32 Frame = 0; Frame < 12; ++Frame)
+		{
+			ApexRoadSynth::Render(State, Frame == 2 ? Spike : Steady, RoadTestSampleRate, Frames.GetData() + Frame * 800, 800);
+		}
+		TestTrue(*FString::Printf(TEXT("a one-frame spike does not chirp (%.3f against a slide's %.3f)"), RoadPeak(Frames), RoadPeak(Front)),
+			RoadPeak(Frames) < RoadPeak(Front) * 0.2f);
+	}
+
 	// Half way past the peak is a warning, not yet a howl.
 	ApexRoadSynth::FInputs Edge = Cruise(40.0f);
 	Edge.FrontSlide = 0.5f;
