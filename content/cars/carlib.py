@@ -145,6 +145,56 @@ def fender_bump(keys, axles, amount=0.085, width=0.62, j0=2.2, j1=4.3, fade=0.8)
     return out
 
 
+def insert_stations(keys, ys, key_samp=12):
+    """Add interpolated stations at `ys` to a key list.
+
+    The hand-authored keys are 40-60 cm apart, which is fine along the flank
+    and hopeless at the ends: a nose or a tail lofted from two keys is one big
+    blend with nothing to shape. Extra stations there give the bumper face,
+    the corner and the leading edge of the bonnet each their own section."""
+    tmp = Loft(keys, samp=2, ny=4, key_samp=key_samp)
+    out = list(keys)
+    for y in ys:
+        if any(abs(y - k[0]) < 1e-6 for k in out):
+            continue
+        out.append((y, tmp.ctrl_at(y)))
+    return sorted(out, key=lambda k: k[0])
+
+
+def remap_station(keys, y, x_scale=1.0, z_lo=None, z_hi=None, j_from=0):
+    """Reshape the station at `y`: scale its half-widths and stretch its
+    heights so the section runs from `z_lo` to `z_hi` (either may be None to
+    keep that end). `j_from` limits the height remap to control indices from
+    there up, so the floor and sill can be left alone."""
+    out = []
+    for (ky, pts) in keys:
+        if abs(ky - y) > 1e-6:
+            out.append((ky, pts))
+            continue
+        zs = [z for (_, z) in pts[j_from:]]
+        lo, hi = min(zs), max(zs)
+        nlo = lo if z_lo is None else z_lo
+        nhi = hi if z_hi is None else z_hi
+        new = []
+        for j, (x, z) in enumerate(pts):
+            if j >= j_from and hi > lo:
+                z = nlo + (z - lo) / (hi - lo) * (nhi - nlo)
+            new.append((x * x_scale, z))
+        out.append((ky, new))
+    return out
+
+
+def tip_station(keys, y_from, y_new, x_scale=0.80, z_shrink=0.75):
+    """Add a station at `y_new` that is the section at `y_from` pulled in
+    towards its middle - a rounded end instead of a flat cap the full size of
+    the bumper."""
+    src = next(pts for (ky, pts) in keys if abs(ky - y_from) < 1e-6)
+    zs = [z for (_, z) in src]
+    zc = (min(zs) + max(zs)) / 2.0
+    new = [(x * x_scale, zc + (z - zc) * z_shrink) for (x, z) in src]
+    return sorted(keys + [(y_new, new)], key=lambda k: k[0])
+
+
 # -------------------------------------------------------------------- loft
 class Loft:
     """A body shell lofted through cross-section keys, with feature lines.
