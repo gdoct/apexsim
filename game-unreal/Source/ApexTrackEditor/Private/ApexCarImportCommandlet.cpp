@@ -125,9 +125,28 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 			else if (Key == TEXT("front_width_m")) { W.FrontWidthM = Number; }
 			else if (Key == TEXT("rear_width_m")) { W.RearWidthM = Number; }
 		}
-		else if (Table == TEXT("engine") && Key == TEXT("max_power_w"))
+		else if (Table == TEXT("engine"))
 		{
-			Out.MaxPowerKw = FCString::Atof(*Value) / 1000.0f;
+			// `[[engine.torque_curve]]` has an `rpm` of its own; it is another table.
+			const float Number = FCString::Atof(*Value);
+			if (Key == TEXT("max_power_w")) { Out.MaxPowerKw = Number / 1000.0f; }
+			else if (Key == TEXT("idle_rpm")) { Out.Sound.IdleRpm = Number; }
+			else if (Key == TEXT("redline_rpm")) { Out.Sound.RedlineRpm = Number; }
+			else if (Key == TEXT("rev_limiter_rpm")) { Out.Sound.LimiterRpm = Number; }
+		}
+		else if (Table == TEXT("sound"))
+		{
+			FApexEngineSoundSpec& S = Out.Sound;
+			const float Number = FCString::Atof(*Value);
+			const bool bTrue = Value.Equals(TEXT("true"), ESearchCase::IgnoreCase);
+			if (Key == TEXT("cylinders")) { S.Cylinders = FCString::Atoi(*Value); }
+			else if (Key == TEXT("crossplane")) { S.bCrossplane = bTrue; }
+			else if (Key == TEXT("turbo")) { S.bTurbo = bTrue; }
+			else if (Key == TEXT("exhaust_length_m")) { S.ExhaustLengthM = Number; }
+			else if (Key == TEXT("muffling")) { S.Muffling = Number; }
+			else if (Key == TEXT("pops")) { S.Pops = Number; }
+			else if (Key == TEXT("gear_whine")) { S.GearWhine = Number; }
+			else if (Key == TEXT("intake_roar")) { S.IntakeRoar = Number; }
 		}
 	}
 	if (Out.Id.IsEmpty() || Out.Name.IsEmpty())
@@ -141,6 +160,15 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 			|| W.FrontTrackM <= 0.0f || W.RearTrackM <= 0.0f || W.FrontAxleM <= W.RearAxleM))
 	{
 		OutError = TEXT("[wheels] needs positive radii, widths and tracks, and the front axle ahead of the rear");
+		return false;
+	}
+	const FApexEngineSoundSpec& S = Out.Sound;
+	auto IsShare = [](float Value) { return Value >= 0.0f && Value <= 1.0f; };
+	if (S.Cylinders != 0
+		&& (S.Cylinders < 1 || S.Cylinders > 16 || S.ExhaustLengthM < 0.2f || S.ExhaustLengthM > 2.8f
+			|| !IsShare(S.Muffling) || !IsShare(S.Pops) || !IsShare(S.GearWhine) || !IsShare(S.IntakeRoar)))
+	{
+		OutError = TEXT("[sound] needs 1-16 cylinders, an exhaust_length_m of 0.2-2.8 and muffling, pops, gear_whine and intake_roar within 0-1");
 		return false;
 	}
 	return true;
@@ -696,6 +724,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 			UE_LOG(LogApexTrackImport, Display, TEXT("    no [wheels] table: the body draws its own"));
 		}
 		const bool bNeedsWheels = Existing && Existing->Wheels != Wheels;
+		const bool bNeedsSound = Existing && Existing->EngineSound != Source.Toml.Sound;
 
 		// A row that already points at a mesh of its own is finished unless
 		// -force: the hand-imported cars keep theirs and nothing is imported
@@ -708,13 +737,15 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		const bool bNeedsCrc = Existing && Existing->SourceCrc != Source.SourceCrc;
 		if (bRowMeshOk && !Options.bForce)
 		{
-			UE_LOG(LogApexTrackImport, Display, TEXT("    keeps %s%s%s"), *Existing->Mesh.ToString(),
-				bNeedsCrc ? TEXT(", updating checksum") : TEXT(""), bNeedsWheels ? TEXT(", updating wheels") : TEXT(""));
-			if ((bNeedsCrc || bNeedsWheels) && !Options.bDryRun)
+			UE_LOG(LogApexTrackImport, Display, TEXT("    keeps %s%s%s%s"), *Existing->Mesh.ToString(),
+				bNeedsCrc ? TEXT(", updating checksum") : TEXT(""), bNeedsWheels ? TEXT(", updating wheels") : TEXT(""),
+				bNeedsSound ? TEXT(", updating engine sound") : TEXT(""));
+			if ((bNeedsCrc || bNeedsWheels || bNeedsSound) && !Options.bDryRun)
 			{
 				FApexCarCatalogRow Row = *Existing;
 				Row.SourceCrc = Source.SourceCrc;
 				Row.Wheels = Wheels;
+				Row.EngineSound = Source.Toml.Sound;
 				Table->AddRow(RowName, Row);
 				++RowsUpdated;
 				Touched.Add(Table->GetOutermost());
@@ -752,6 +783,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		}
 		Row.SourceCrc = Source.SourceCrc;
 		Row.Wheels = Wheels;
+		Row.EngineSound = Source.Toml.Sound;
 		const bool bMeshMissing = Row.Mesh.IsNull() || !FPackageName::DoesPackageExist(Row.Mesh.GetLongPackageName());
 		const bool bMeshForeign = !Row.FolderName.IsEmpty() && Row.FolderName != Source.Folder;
 		const bool bSetMesh = Mesh && (bFillFields || bMeshMissing || bMeshForeign);
@@ -765,7 +797,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 			Row.Mesh = Mesh;
 			Row.FolderName = Source.Folder;
 		}
-		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc && !bNeedsWheels)
+		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc && !bNeedsWheels && !bNeedsSound)
 		{
 			continue;
 		}

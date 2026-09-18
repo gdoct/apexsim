@@ -805,6 +805,22 @@ void UApexSettingsSubsystem::SetUiVolume(float Value01)
 	Changed(EApexSettingsGroup::Audio);
 }
 
+void UApexSettingsSubsystem::SetEngineVolume(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->EngineVolume, Clamped)) { return; }
+	Settings->EngineVolume = Clamped;
+	Changed(EApexSettingsGroup::Audio);
+}
+
+void UApexSettingsSubsystem::SetRoadVolume(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->RoadVolume, Clamped)) { return; }
+	Settings->RoadVolume = Clamped;
+	Changed(EApexSettingsGroup::Audio);
+}
+
 void UApexSettingsSubsystem::ApplyAudio()
 {
 	if (!Settings || !GEngine)
@@ -819,6 +835,13 @@ void UApexSettingsSubsystem::ApplyAudio()
 	if (FAudioDevice* Device = GEngine->GetMainAudioDeviceRaw())
 	{
 		Device->SetTransientPrimaryVolume(Settings->MasterVolume);
+	}
+
+	// The cars only exist while racing; the director reads the block again
+	// for every car it spawns.
+	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+	{
+		Director->ApplyAudioSettings();
 	}
 }
 
@@ -899,6 +922,8 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 	case EApexSettingsGroup::Audio:
 		Settings->MasterVolume = Defaults->MasterVolume;
 		Settings->UiVolume = Defaults->UiVolume;
+		Settings->EngineVolume = Defaults->EngineVolume;
+		Settings->RoadVolume = Defaults->RoadVolume;
 		break;
 
 	case EApexSettingsGroup::CarSetup:

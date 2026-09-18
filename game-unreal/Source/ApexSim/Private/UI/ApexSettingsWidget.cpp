@@ -1270,6 +1270,22 @@ UWidget* UApexSettingsWidget::BuildAudioPage()
 		TEXT("The ticks and chimes as you move through the menus. Moving this plays one."),
 		UiCell), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
+	AddV(Page, MakeSectionLabel(TEXT("In the car")), FMargin(0.0f, 26.0f, 0.0f, 14.0f));
+
+	UWidget* EngineCell = MakeVolumeCell(EngineVolumeSlider, EngineVolumeFill, EngineVolumeValue);
+	EngineVolumeSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleEngineVolumeChanged);
+	AddV(Page, MakeRow(
+		TEXT("Engines"),
+		TEXT("Your engine and everybody else's: exhaust, induction, gearbox whine, the pops on the overrun."),
+		EngineCell));
+
+	UWidget* RoadCell = MakeVolumeCell(RoadVolumeSlider, RoadVolumeFill, RoadVolumeValue);
+	RoadVolumeSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleRoadVolumeChanged);
+	AddV(Page, MakeRow(
+		TEXT("Tyres and road"),
+		TEXT("Tyre squeal, kerbs, grass and gravel, bumps, contact and the wind. Turn it up to hear the grip go."),
+		RoadCell), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
 	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
 	return Page;
 }
@@ -1535,6 +1551,10 @@ void UApexSettingsWidget::RefreshFromSettings()
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->MasterVolume * 100.0f)));
 	SetSlider(UiVolumeSlider, UiVolumeFill, UiVolumeValue, Values->UiVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->UiVolume * 100.0f)));
+	SetSlider(EngineVolumeSlider, EngineVolumeFill, EngineVolumeValue, Values->EngineVolume, 0.0f, 1.0f,
+		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->EngineVolume * 100.0f)));
+	SetSlider(RoadVolumeSlider, RoadVolumeFill, RoadVolumeValue, Values->RoadVolume, 0.0f, 1.0f,
+		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->RoadVolume * 100.0f)));
 
 	if (DisplayModeBox)
 	{
@@ -1971,6 +1991,24 @@ void UApexSettingsWidget::HandleUiVolumeChanged(float Value)
 	if (UiVolumeValue) { UiVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetUiVolume(Value); }
 	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandleEngineVolumeChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (EngineVolumeFill) { EngineVolumeFill->SetPercent(Value); }
+	if (EngineVolumeValue) { EngineVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetEngineVolume(Value); }
+	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandleRoadVolumeChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (RoadVolumeFill) { RoadVolumeFill->SetPercent(Value); }
+	if (RoadVolumeValue) { RoadVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetRoadVolume(Value); }
 	RefreshFooter();
 }
 

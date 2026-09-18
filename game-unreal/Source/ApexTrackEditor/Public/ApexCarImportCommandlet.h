@@ -19,7 +19,9 @@ class UStaticMesh;
  * `content/wheels/<model>.glb`, imported once per run that needs it as
  * `/Game/Cars/Wheels/<model>/SM_Wheel_<model>`, and gives the axles; both
  * go on the row as `Wheels`, which is derived and so kept in step with the
- * TOML on every run, like the checksum.
+ * TOML on every run, like the checksum. So is `EngineSound`: the `[sound]`
+ * table (cylinders, crank, exhaust, pops...) and the `[engine]` rev range the
+ * client's engine synthesiser is built from (Audio/ApexEngineSound.h).
  *
  * ```
  * UnrealEditor-Cmd.exe <uproject> -run=ApexCarImport -all
@@ -89,6 +91,12 @@ public:
 		float MaxPowerKw = 0.0f;
 		float MaxSteerRad = 0.0f;
 		FWheelsToml Wheels;
+		/**
+		 * The `[sound]` table and the `[engine]` rev range, already in the
+		 * row's shape: derived like the wheels, so it follows the TOML on
+		 * every run. `Cylinders == 0` when the car has no `[sound]` table.
+		 */
+		FApexEngineSoundSpec Sound;
 	};
 
 	/**

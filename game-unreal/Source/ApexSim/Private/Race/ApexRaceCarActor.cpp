@@ -1,6 +1,7 @@
 #include "Race/ApexRaceCarActor.h"
 
 #include "Audio/ApexEngineSoundWave.h"
+#include "Audio/ApexRoadSoundWave.h"
 #include "Components/AudioComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -80,6 +81,9 @@ namespace
 	/** Share of the brake glow the tail lights hold while the headlights are on. */
 	constexpr float RunningLightShare = 0.12f;
 
+	/** What a closed cabin's bulkhead lets through of the engine behind (or ahead of) it. */
+	constexpr float CabinLowPassHz = 3200.0f;
+
 	TAutoConsoleVariable<float> CVarHeadlightLumens(
 		TEXT("apexsim.car.HeadlightLumens"),
 		2500.0f,
@@ -122,6 +126,14 @@ AApexRaceCarActor::AApexRaceCarActor()
 	EngineAudio->AttenuationOverrides.AttenuationShape = EAttenuationShape::Sphere;
 	EngineAudio->AttenuationOverrides.AttenuationShapeExtents = FVector(1500.0f, 0.0f, 0.0f);
 	EngineAudio->AttenuationOverrides.FalloffDistance = 4000.0f;
+
+	// Only ever played for the car being driven, whose driver sits in it: no
+	// attenuation and no panning, which at a listener a metre from the source
+	// would swing from ear to ear with every look to the side.
+	RoadAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("RoadAudio"));
+	RoadAudio->SetupAttachment(Root);
+	RoadAudio->bAutoActivate = false;
+	RoadAudio->bAllowSpatialization = false;
 }
 
 void AApexRaceCarActor::BeginPlay()
@@ -132,6 +144,8 @@ void AApexRaceCarActor::BeginPlay()
 	// rather than in the constructor so it is never part of the CDO.
 	EngineSound = NewObject<UApexEngineSoundWave>(this);
 	EngineAudio->SetSound(EngineSound);
+	RoadSound = NewObject<UApexRoadSoundWave>(this);
+	RoadAudio->SetSound(RoadSound);
 }
 
 void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow)
@@ -303,12 +317,75 @@ FBox AApexRaceCarActor::GetBodyBox() const
 		: ApexCockpit::FallbackBox();
 }
 
+void AApexRaceCarActor::SetEngineSound(const FApexEngineSoundSpec& Spec, const FString& InCarClass)
+{
+	if (EngineSound)
+	{
+		EngineSound->SetSpec(ApexEngineAudio::MakeSpec(Spec, InCarClass));
+	}
+}
+
 void AApexRaceCarActor::SetEngineVolume(float Scale)
+{
+	VolumeScale = FMath::Max(Scale, 0.0f);
+	ApplyVolumes();
+}
+
+void AApexRaceCarActor::SetMixVolumes(float Engine, float Road)
+{
+	EngineMix = FMath::Clamp(Engine, 0.0f, 1.0f);
+	RoadMix = FMath::Clamp(Road, 0.0f, 1.0f);
+	ApplyVolumes();
+}
+
+void AApexRaceCarActor::ApplyVolumes()
 {
 	if (EngineAudio)
 	{
-		EngineAudio->SetVolumeMultiplier(FMath::Max(Scale, 0.0f));
+		EngineAudio->SetVolumeMultiplier(VolumeScale * EngineMix);
 	}
+	if (RoadAudio)
+	{
+		RoadAudio->SetVolumeMultiplier(VolumeScale * RoadMix);
+	}
+}
+
+void AApexRaceCarActor::UpdateRoadSound(const ApexRoadSynth::FInputs& Levels, float BumpMps, float ImpactMps)
+{
+	if (!RoadSound || !RoadAudio)
+	{
+		return;
+	}
+	RoadSound->SetLive(Levels);
+	if (BumpMps > 0.0f || ImpactMps > 0.0f)
+	{
+		RoadSound->Hit(BumpMps, ImpactMps);
+	}
+	if (!RoadAudio->IsPlaying())
+	{
+		RoadAudio->Play();
+	}
+}
+
+void AApexRaceCarActor::StopRoadSound()
+{
+	if (RoadAudio && RoadAudio->IsPlaying())
+	{
+		RoadAudio->Stop();
+	}
+}
+
+void AApexRaceCarActor::SetHeardFromCabin(bool bInside)
+{
+	// An open cockpit has no bulkhead between the driver and the engine.
+	const bool bMuffled = bInside && !GetCockpitLayout().bOpenWheel;
+	if (!EngineAudio || bMuffled == bHeardFromCabin)
+	{
+		return;
+	}
+	bHeardFromCabin = bMuffled;
+	EngineAudio->SetLowPassFilterEnabled(bMuffled);
+	EngineAudio->SetLowPassFilterFrequency(bMuffled ? CabinLowPassHz : MAX_FILTER_FREQUENCY);
 }
 
 const FApexCockpitLayout& AApexRaceCarActor::GetCockpitLayout()
@@ -370,29 +447,6 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	}
 	bHasTarget = true;
 
-	// Neither end of the rev range is broadcast, so both grow to fit what has
-	// actually been seen — same trick as the HUD's RPM strip, but from both
-	// ends: idle is 900rpm in the GT3 and 4500 in the F1, and assuming the
-	// lower left the F1 sounding a quarter opened up while stood on the grid.
-	// The car's first frame is the grid, so the first reading *is* idle.
-	if (bHasEngineRange)
-	{
-		ObservedIdleRpm = FMath::Min(ObservedIdleRpm, Car.EngineRpm);
-		ObservedMaxRpm = FMath::Max(ObservedMaxRpm, Car.EngineRpm);
-	}
-	else
-	{
-		ObservedIdleRpm = Car.EngineRpm;
-		ObservedMaxRpm = Car.EngineRpm;
-		bHasEngineRange = true;
-	}
-	if (EngineSound)
-	{
-		// The synth smooths its own inputs, and the note should follow the
-		// revs as soon as they are known rather than two frames later.
-		EngineSound->SetRpmRange(ObservedIdleRpm, ObservedMaxRpm);
-		EngineSound->SetLive(Car.EngineRpm, Throttle, Gear);
-	}
 	if (Motion.Num() < 2)
 	{
 		// Until the buffer can blend, the dials show the sample itself.
@@ -424,6 +478,14 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	SpeedMps = Pose.SpeedMps;
 	EngineRpm = Pose.EngineRpm;
 	Steering = Pose.Steering;
+	if (EngineSound)
+	{
+		// The blended revs, every render frame: the telemetry's own 60Hz steps
+		// are a zipper on a synthesised crank, and this is the same reading the
+		// dials show. Throttle and gear are the newest sample's — a lift or a
+		// shift should be heard at once, not blended into.
+		EngineSound->SetLive(EngineRpm, Throttle, Gear);
+	}
 	// Rolled from how far the drawn car actually moved, not from the wire's
 	// speed: that is the length of the whole velocity, so a car standing on
 	// its springs or sliding sideways would turn its wheels, and it has no

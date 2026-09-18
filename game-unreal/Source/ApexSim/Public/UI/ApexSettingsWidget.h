@@ -112,6 +112,8 @@ protected:
 	UFUNCTION() void HandleWheelTestActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleMasterVolumeChanged(float Value);
 	UFUNCTION() void HandleUiVolumeChanged(float Value);
+	UFUNCTION() void HandleEngineVolumeChanged(float Value);
+	UFUNCTION() void HandleRoadVolumeChanged(float Value);
 
 	UFUNCTION() void HandleDisplayModeChanged(FString Item, ESelectInfo::Type SelectType);
 	UFUNCTION() void HandleResolutionChanged(FString Item, ESelectInfo::Type SelectType);
@@ -296,6 +298,14 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> UiVolumeSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> UiVolumeFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> UiVolumeValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> EngineVolumeSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> EngineVolumeFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> EngineVolumeValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> RoadVolumeSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> RoadVolumeFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> RoadVolumeValue;
 
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> DisplayModeBox;
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> ResolutionBox;

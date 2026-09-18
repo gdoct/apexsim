@@ -70,6 +70,19 @@ torque_nm = 505.0
 rpm = 8200.0
 torque_nm = 450.0
 
+# What the client's engine synthesiser is built from (docs/CAR_MODELS.md, "Engine
+# sound"): the server ignores this table.
+# Spec 4.2 L flat-plane V8 on short open pipes.
+[sound]
+cylinders = 8
+crossplane = false   # a crossplane V8's uneven banks; false fires the banks alternately
+turbo = false
+exhaust_length_m = 1.0   # primary pipe: where the exhaust resonates
+muffling = 0.18           # 0 open pipes .. 1 road muffler
+pops = 0.55               # overrun pops and shift cracks, 0..1
+gear_whine = 0.45         # straight-cut gearbox, 0..1
+intake_roar = 0.6        # induction noise under throttle, 0..1
+
 [transmission]
 transmission_type = "Sequential"
 final_drive_ratio = 3.5

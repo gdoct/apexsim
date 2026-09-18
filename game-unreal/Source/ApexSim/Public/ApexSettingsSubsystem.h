@@ -242,6 +242,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetUiVolume(float Value01);
 
+	/** Every car's engine; the race director puts it on the cars. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetEngineVolume(float Value01);
+
+	/** The driven car's tyres, kerbs, road and wind. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetRoadVolume(float Value01);
+
 	/**
 	 * Applies the shaped steering curve — deadzone, then sensitivity — to a raw
 	 * axis reading. Called on the input the controller collects, so a wheel and

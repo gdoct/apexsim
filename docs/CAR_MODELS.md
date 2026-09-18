@@ -167,6 +167,66 @@ GLB back, keeping the material names. The Red Horse has no tyre material, so
 its figures were measured by hand and passed in. The generators no longer
 build wheels.
 
+## Engine sound
+
+There are no engine recordings: the client simulates the engine and listens
+to its exhaust (`Audio/ApexEngineSound.h`). A crank turns at the telemetry's
+RPM; each cylinder's blow-down is a pressure pulse, sized by the throttle,
+into one of two exhaust banks; each bank is a resonant pipe. What a car
+sounds like is therefore a description of its engine, the `[sound]` table in
+its `car.toml` — which the server ignores and `ApexCarImport` copies onto the
+catalog row as `EngineSound`, together with `[engine]`'s `idle_rpm`,
+`redline_rpm` and `rev_limiter_rpm` (none of which is on the wire). It is
+derived like the wheels: every import run brings the row back in step, `-force`
+or not.
+
+```toml
+[sound]
+cylinders = 8
+crossplane = true        # a crossplane V8's uneven banks; false fires the banks alternately
+turbo = false
+exhaust_length_m = 1.9   # primary pipe: where the exhaust resonates
+muffling = 0.45          # 0 open pipes .. 1 road muffler
+pops = 0.9               # overrun pops and shift cracks, 0..1
+gear_whine = 0.3         # straight-cut gearbox, 0..1
+intake_roar = 0.6        # induction noise under throttle, 0..1
+```
+
+| key | what it does to the sound |
+| --- | --- |
+| `cylinders` | The note *is* the firing rate, `rpm/60 × cylinders/2`: a V8 at 7500 is 500 Hz, the F1's V6 at 15,000 is 750 Hz, a V10 at 8500 is 708 Hz. |
+| `crossplane` | Eight cylinders only. A crossplane's banks fire L R L L R R L R, so each pipe gets a 90-180-270-180° rhythm that repeats every two revs: power on the crank's own frequency and its odd halves, under the firing note. That is the V8 burble, and it is the whole difference between the Murcetes and the LMP2s' flat-plane eights at the same revs. |
+| `exhaust_length_m` | The pipe is a quarter-wave resonator (modes at `c/4L`, `3c/4L`, …): long pipes boom, short ones bark. 0.2–2.8. |
+| `muffling` | Loss in the pipe and a low-pass on what leaves it, 900 Hz (1.0) to 12 kHz (0.0), and how much of each pulse's steep front gets out as rasp. The scream of the F1 is `muffling = 0.05` as much as it is 15,000 rpm. |
+| `pops` | On a lift above a third of the rev range, unburnt charge lights in the pipe for about a second: oversized pulses with a burst of noise. Also how likely a flat-out upshift is to crack. The limiter's stutter pops regardless. |
+| `gear_whine` | A tone at the engaged pair's tooth-mesh frequency — it steps *up* on an upshift at the same revs. |
+| `intake_roar` | Throttle-gated induction noise through an airbox resonance, pulsing with the firing. |
+| `turbo` | A whistle that spools with load (lagging it), and a blow-off hiss on a lift. |
+
+A car without the table gets its class's usual engine
+(`ApexEngineAudio::MakeSpec`: F1 a turbo V6 to 15,000, LMP a flat-plane V8,
+anything else a crossplane V8), so a new car makes a sound before anybody
+tunes it.
+
+Tuning is by ear, and a race is a poor place for it. `apexsim.audio.RenderCars`
+(console, editor or game; optional output directory) drives every catalog
+car through the same scripted run — idle, two blips, flat out through the
+gears, the limiter, a lift and the overrun down the box, a part-throttle
+cruise — and writes `Saved/Audio/<folder>.wav`, plus `road.wav` with each tyre
+and road voice in turn. Edit the TOML, `ApexCarImport -car=<folder>`, render,
+listen. Unattended:
+
+```bash
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject \
+    -ExecCmds="apexsim.audio.RenderCars,quit" -nullrhi -nosound -unattended
+```
+
+`ApexSim.Audio.Engine*` automation tests pin the physics rather than the
+taste: the power is on the firing note at either device rate, a crossplane
+has the half-orders and a flat-plane does not, the GT3 keeps its power under
+2 kHz where the F1 has a third of it above, pops stand out of the overrun,
+the limiter stutters, a dead engine is silent.
+
 ## Catalog rows (`DT_CarCatalog`, hand-maintained)
 
 | car | id |

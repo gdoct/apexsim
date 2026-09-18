@@ -156,6 +156,14 @@ public:
 	void ApplyCameraSettings();
 
 	/**
+	 * Re-read the audio block of the settings onto every car: the engine and
+	 * the tyres/road volumes. Called by the settings subsystem on a change and
+	 * whenever a car is spawned.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
+	void ApplyAudioSettings();
+
+	/**
 	 * Show or hide the racing line as the Gameplay settings ask. Called by the
 	 * settings subsystem on every change and by BeginRaceView;
 	 * `-ApexRacingLine=off|braking|full` overrides it for a screenshot run.
@@ -549,6 +557,15 @@ private:
 	float DemoReadyFor = 0.0f;
 	/** The demo's cars sit under the menu's own sounds. */
 	static constexpr float DemoEngineVolume = 0.35f;
+
+	/**
+	 * Tyres, kerbs, road and wind for the local car, from the server's
+	 * DriverFeedback reduced to the force feedback's signals (ApexFfb), and
+	 * which car hears its engine from inside a closed cabin. Every frame.
+	 */
+	void UpdateCarAudio();
+	/** The feedback message last turned into sound: its hits play once. */
+	uint32 LastRoadFeedbackSerial = 0;
 
 	/** The newest frame's state; the net subsystem keeps a demo's state out of its own. */
 	EApexSessionState LatestFrameState = EApexSessionState::Lobby;
