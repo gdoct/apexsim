@@ -138,6 +138,9 @@ pub const KIT: &[KitAsset] = kit![
     Misc "photographer_stand" 2.0 x 2.0 x 2.5,
     Misc "rock_cluster" 0.9 x 0.7 x 0.5,
     Misc "scrub_clump" 0.7 x 0.6 x 0.3,
+    // The Red Bull Ring's trackside bull statue -- centred on its own
+    // footprint like the tower/ferris_wheel landmarks, not road-facing.
+    Misc "bull_statue" 3.2 x 1.8 x 2.5,
     // Sky: origin at the hull centre, sized round it.
     Sky "blimp" 60.0 x 19.5 x 19.7,
     Sky "balloon" 16.0 x 16.0 x 22.1,

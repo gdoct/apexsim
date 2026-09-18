@@ -168,6 +168,24 @@ L.recess(SIDE_Y[1] + 0.26, SIDE_Y[1] + 0.74, 5.80, 8.00, depth=0.030, rim=0.026)
 # The tunnel between each front fender and the cockpit, deepened.
 L.recess(AX_F + 0.30, -0.35 + CS, 4.70, 5.90, depth=0.030, rim=0.12)
 
+# Lamp geometry, computed here (pre-build) so the pockets that follow can
+# use it too - a lamp cut into an untouched curve is a box glued onto paint;
+# cut into a shallow recessed panel, the same box reads as a housing.
+LAMP_X = {"round": (0.16, 0.58), "tri": (0.14, 0.62), "bar": (0.14, 0.62)}[V["lights"]]
+LAMP_Z = (0.350, 0.350 + {"round": 0.125, "tri": 0.120, "bar": 0.100}[V["lights"]])
+LAMP_Y = carlib.surface_station(L, LAMP_X[1], 0.40, NOSE, margin=0.075)
+TAILL_Y = carlib.surface_station(L, 0.74, 0.55, TAIL, margin=0.03)
+TAILL_TOP = min(L.roof_z(TAILL_Y) - 0.085, 0.63)
+RAIN_Y = carlib.surface_station(L, 0.10, 0.44, TAIL, margin=0.05)
+
+# Headlamp pocket: a shallow recessed panel so the cluster sits in a dent
+# instead of a box glued onto the raw curve, and the per-cup surface-station
+# drift has slack to land inside rather than tearing the skin at the edge.
+L.recess(NOSE + 0.02, LAMP_Y + 0.34, 1.55, 4.60, depth=0.028, rim=0.15)
+# Tail-lamp pocket and rain-light pocket, same idea at the back.
+L.recess(TAILL_Y - 0.30, TAIL - 0.02, 2.65, 4.30, depth=0.022, rim=0.11)
+L.recess(RAIN_Y - 0.18, TAIL - 0.02, 3.40, 4.80, depth=0.018, rim=0.055)
+
 
 def face_mat(ym, kk, right):
     jc = kk / SAMP
@@ -194,31 +212,24 @@ save("arches")
 
 # --------------------------------------------------------------- apertures
 # Lamps, radiator mouths and the rain light are cut, so the cutter's surface
-# lines the opening and the lens sits in a hole rather than on the paint.
-# A prototype carries its lamps low and inboard on the nose, above the
-# radiator mouths. Asking for a wide cluster pushes the station back until the
-# body is wide enough - which is out on the fender crown, where no lamp lives.
-LAMP_X = {"round": (0.16, 0.58), "tri": (0.14, 0.62), "bar": (0.14, 0.62)}[V["lights"]]
-LAMP_Y = carlib.surface_station(L, LAMP_X[1], 0.40, NOSE, margin=0.035)
-LAMP_Z = (0.350, 0.350 + {"round": 0.125, "tri": 0.120, "bar": 0.100}[V["lights"]])
+# lines the opening and the lens sits in a hole rather than on the paint - now
+# inside the recessed pockets above, with extra margin so a curved cut edge
+# stays inside the pocket wall instead of exposing a seam against the paint.
 RAD_Y = carlib.surface_station(L, 0.56, 0.21, NOSE, margin=0.045)
-TAILL_Y = carlib.surface_station(L, 0.74, 0.55, TAIL, margin=0.03)
-TAILL_TOP = min(L.roof_z(TAILL_Y) - 0.085, 0.63)
-RAIN_Y = carlib.surface_station(L, 0.10, 0.44, TAIL, margin=0.05)
 for sx in (-1, 1):
     x0, x1 = sorted((sx * LAMP_X[0], sx * LAMP_X[1]))
     # forward of the nose tip, so the box cuts through at every x across a
     # curved front, not just at the widest point
-    carlib.aperture(body, M, (x0, NOSE - 0.06, LAMP_Z[0]), (x1, LAMP_Y + 0.16, LAMP_Z[1]))
+    carlib.aperture(body, M, (x0, NOSE - 0.06, LAMP_Z[0]), (x1, LAMP_Y + 0.135, LAMP_Z[1]))
     t0, t1 = sorted((sx * 0.30, sx * 0.76))
-    carlib.aperture(body, M, (t0, TAILL_Y - 0.16, TAILL_TOP - 0.115),
-                    (t1, TAILL_Y + 0.02, TAILL_TOP))
+    carlib.aperture(body, M, (t0, TAILL_Y - 0.20, TAILL_TOP - 0.125),
+                    (t1, TAILL_Y + 0.04, TAILL_TOP + 0.008))
 # the two radiator mouths either side of the nose centreline
 for sx in (-1, 1):
     r0, r1 = sorted((sx * 0.16, sx * 0.56))
     carlib.aperture(body, M, (r0, RAD_Y - 0.03, 0.125), (r1, RAD_Y + 0.26, 0.290), mat=M.mesh)
-# FIA rain light: a vertical bar on the centreline
-carlib.aperture(body, M, (-0.055, RAIN_Y - 0.12, 0.345), (0.055, RAIN_Y + 0.03, 0.575))
+# FIA rain light: a vertical bar on the centreline, inside its own pocket
+carlib.aperture(body, M, (-0.065, RAIN_Y - 0.14, 0.340), (0.065, RAIN_Y + 0.05, 0.580))
 carlib.sharpen(body, 34.0)
 save("apertures")
 
@@ -287,8 +298,8 @@ for sx in (-1, 1):
     style = {"round": "round", "tri": "round", "bar": "bar"}[V["lights"]]
     n = {"round": 2, "tri": 3, "bar": 1}[V["lights"]]
     carlib.lamp_cluster(p, M, x0 + 0.010, x1 - 0.010, LAMP_Z[0] + 0.010, LAMP_Z[1] - 0.010,
-                        LAMP_Y + 0.015, depth=0.13, style=style, count=n, dir_y=1.0,
-                        housing=False, loft=L)
+                        LAMP_Y + 0.015, depth=0.10, style=style, count=n, dir_y=1.0,
+                        housing=True, loft=L)
     t0, t1 = sorted((sx * 0.30, sx * 0.76))
     carlib.lamp_cluster(p, M, t0 + 0.008, t1 - 0.008, TAILL_TOP - 0.050, TAILL_TOP - 0.012,
                         TAILL_Y - 0.010, depth=0.10, style="bar", dir_y=-1.0,
@@ -345,9 +356,9 @@ MIR_Z = L.point(MIR_Y, 5.10).z + 0.035
 for sx in (-1, 1):
     carlib.mirror(p, M, L.x_at(MIR_Y, MIR_Z) + 0.105, MIR_Y, MIR_Z, sx=sx,
                   style=V["mirror"], head=(0.068, 0.125, 0.050))
-for x in (-0.085, 0.085):
-    p.cylinder(M.metal, (x, TAIL - 0.12, 0.315), 0.048, 0.14, segs=16, axis='Y')
-    p.cylinder(M.lamp_h, (x, TAIL - 0.13, 0.315), 0.058, 0.05, segs=16, axis='Y')
+for x in (-0.095, 0.095):
+    p.cylinder(M.lamp_h, (x, TAIL - 0.15, 0.315), 0.062, 0.075, segs=20, axis='Y')
+    p.cylinder(M.metal, (x, TAIL - 0.16, 0.315), 0.050, 0.20, segs=20, axis='Y')
 p.bar(M.carbon, (0.18, SIDE_Y[1] - 0.10, L.roof_z(SIDE_Y[1] - 0.10) - 0.01),
       (0.18, SIDE_Y[1] - 0.10, L.roof_z(SIDE_Y[1] - 0.10) + 0.18), 0.006)
 for yy in (NOSE + 0.14, TAIL - 0.12):
