@@ -81,9 +81,6 @@ namespace
 	/** Share of the brake glow the tail lights hold while the headlights are on. */
 	constexpr float RunningLightShare = 0.12f;
 
-	/** What a closed cabin's bulkhead lets through of the engine behind (or ahead of) it. */
-	constexpr float CabinLowPassHz = 3200.0f;
-
 	TAutoConsoleVariable<float> CVarHeadlightLumens(
 		TEXT("apexsim.car.HeadlightLumens"),
 		2500.0f,
@@ -118,14 +115,31 @@ AApexRaceCarActor::AApexRaceCarActor()
 	EngineAudio->SetupAttachment(Root);
 	EngineAudio->bAutoActivate = false;
 	// No SoundAttenuation asset exists for this, so the falloff is set directly
-	// on the component: audible up close, fading out well before the next car
-	// on a straight would be in earshot.
+	// on the component. Somebody else's car: full level only alongside (4 m),
+	// then falling steadily in dB to nothing at 150 m, and losing its top end
+	// to the air on the way, so a car up the road is a dull drone and the one
+	// being passed is a roar. (It used to be at full level within 15 m and
+	// silent at 55: a whole grid of engines as loud as the player's own.)
+	FSoundAttenuationSettings& Falloff = EngineAudio->AttenuationOverrides;
 	EngineAudio->bOverrideAttenuation = true;
-	EngineAudio->AttenuationOverrides.bAttenuate = true;
-	EngineAudio->AttenuationOverrides.bSpatialize = true;
-	EngineAudio->AttenuationOverrides.AttenuationShape = EAttenuationShape::Sphere;
-	EngineAudio->AttenuationOverrides.AttenuationShapeExtents = FVector(1500.0f, 0.0f, 0.0f);
-	EngineAudio->AttenuationOverrides.FalloffDistance = 4000.0f;
+	Falloff.bAttenuate = true;
+	Falloff.bSpatialize = true;
+	Falloff.AttenuationShape = EAttenuationShape::Sphere;
+	Falloff.AttenuationShapeExtents = FVector(400.0f, 0.0f, 0.0f);
+	Falloff.FalloffDistance = 15000.0f;
+	Falloff.DistanceAlgorithm = EAttenuationDistanceModel::NaturalSound;
+	Falloff.dBAttenuationAtMax = -50.0f;
+	Falloff.bAttenuateWithLPF = true;
+	Falloff.LPFRadiusMin = 1000.0f;
+	Falloff.LPFRadiusMax = 12000.0f;
+	Falloff.LPFFrequencyAtMin = 20000.0f;
+	Falloff.LPFFrequencyAtMax = 1500.0f;
+
+	// The player's own car is not a point in the world: see SetListenerSeat.
+	OwnEngineAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("OwnEngineAudio"));
+	OwnEngineAudio->SetupAttachment(Root);
+	OwnEngineAudio->bAutoActivate = false;
+	OwnEngineAudio->bAllowSpatialization = false;
 
 	// Only ever played for the car being driven, whose driver sits in it: no
 	// attenuation and no panning, which at a listener a metre from the source
@@ -144,6 +158,8 @@ void AApexRaceCarActor::BeginPlay()
 	// rather than in the constructor so it is never part of the CDO.
 	EngineSound = NewObject<UApexEngineSoundWave>(this);
 	EngineAudio->SetSound(EngineSound);
+	OwnEngineSound = UApexEngineSoundWave::MakeOwnCar(this);
+	OwnEngineAudio->SetSound(OwnEngineSound);
 	RoadSound = NewObject<UApexRoadSoundWave>(this);
 	RoadAudio->SetSound(RoadSound);
 }
@@ -319,9 +335,13 @@ FBox AApexRaceCarActor::GetBodyBox() const
 
 void AApexRaceCarActor::SetEngineSound(const FApexEngineSoundSpec& Spec, const FString& InCarClass)
 {
-	if (EngineSound)
+	const ApexEngineSynth::FEngineSpec Engine = ApexEngineAudio::MakeSpec(Spec, InCarClass);
+	for (UApexEngineSoundWave* Wave : {EngineSound.Get(), OwnEngineSound.Get()})
 	{
-		EngineSound->SetSpec(ApexEngineAudio::MakeSpec(Spec, InCarClass));
+		if (Wave)
+		{
+			Wave->SetSpec(Engine);
+		}
 	}
 }
 
@@ -331,9 +351,10 @@ void AApexRaceCarActor::SetEngineVolume(float Scale)
 	ApplyVolumes();
 }
 
-void AApexRaceCarActor::SetMixVolumes(float Engine, float Road)
+void AApexRaceCarActor::SetMixVolumes(float Engine, float OtherCars, float Road)
 {
 	EngineMix = FMath::Clamp(Engine, 0.0f, 1.0f);
+	OtherCarsMix = FMath::Clamp(OtherCars, 0.0f, 1.0f);
 	RoadMix = FMath::Clamp(Road, 0.0f, 1.0f);
 	ApplyVolumes();
 }
@@ -342,7 +363,11 @@ void AApexRaceCarActor::ApplyVolumes()
 {
 	if (EngineAudio)
 	{
-		EngineAudio->SetVolumeMultiplier(VolumeScale * EngineMix);
+		EngineAudio->SetVolumeMultiplier(VolumeScale * EngineMix * OtherCarsMix);
+	}
+	if (OwnEngineAudio)
+	{
+		OwnEngineAudio->SetVolumeMultiplier(VolumeScale * EngineMix);
 	}
 	if (RoadAudio)
 	{
@@ -375,17 +400,42 @@ void AApexRaceCarActor::StopRoadSound()
 	}
 }
 
-void AApexRaceCarActor::SetHeardFromCabin(bool bInside)
+void AApexRaceCarActor::SetListenerSeat(ApexSpace::ESeat Seat)
 {
 	// An open cockpit has no bulkhead between the driver and the engine.
-	const bool bMuffled = bInside && !GetCockpitLayout().bOpenWheel;
-	if (!EngineAudio || bMuffled == bHeardFromCabin)
+	if (Seat == ApexSpace::ESeat::Cabin && GetCockpitLayout().bOpenWheel)
+	{
+		Seat = ApexSpace::ESeat::OpenCockpit;
+	}
+	if (Seat == ListenerSeat)
 	{
 		return;
 	}
-	bHeardFromCabin = bMuffled;
-	EngineAudio->SetLowPassFilterEnabled(bMuffled);
-	EngineAudio->SetLowPassFilterFrequency(bMuffled ? CabinLowPassHz : MAX_FILTER_FREQUENCY);
+	ListenerSeat = Seat;
+	if (OwnEngineSound)
+	{
+		OwnEngineSound->SetSeat(Seat);
+	}
+	RefreshEnginePlayback();
+}
+
+void AApexRaceCarActor::RefreshEnginePlayback()
+{
+	if (!bHasTarget || !EngineAudio || !OwnEngineAudio)
+	{
+		return;
+	}
+	const bool bOwn = ListenerSeat != ApexSpace::ESeat::None;
+	UAudioComponent* Wanted = bOwn ? OwnEngineAudio.Get() : EngineAudio.Get();
+	UAudioComponent* Other = bOwn ? EngineAudio.Get() : OwnEngineAudio.Get();
+	if (Other->IsPlaying())
+	{
+		Other->Stop();
+	}
+	if (!Wanted->IsPlaying())
+	{
+		Wanted->Play();
+	}
 }
 
 const FApexCockpitLayout& AApexRaceCarActor::GetCockpitLayout()
@@ -440,12 +490,9 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	if (!bHasTarget)
 	{
 		SetActorHiddenInGame(false);
-		if (EngineAudio)
-		{
-			EngineAudio->Play();
-		}
+		bHasTarget = true;
+		RefreshEnginePlayback();
 	}
-	bHasTarget = true;
 
 	if (Motion.Num() < 2)
 	{
@@ -478,13 +525,14 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	SpeedMps = Pose.SpeedMps;
 	EngineRpm = Pose.EngineRpm;
 	Steering = Pose.Steering;
-	if (EngineSound)
+	if (EngineSound && OwnEngineSound)
 	{
 		// The blended revs, every render frame: the telemetry's own 60Hz steps
 		// are a zipper on a synthesised crank, and this is the same reading the
 		// dials show. Throttle and gear are the newest sample's — a lift or a
 		// shift should be heard at once, not blended into.
 		EngineSound->SetLive(EngineRpm, Throttle, Gear);
+		OwnEngineSound->SetLive(EngineRpm, Throttle, Gear);
 	}
 	// Rolled from how far the drawn car actually moved, not from the wire's
 	// speed: that is the length of the whole velocity, so a car standing on

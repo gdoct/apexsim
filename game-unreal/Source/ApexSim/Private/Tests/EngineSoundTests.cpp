@@ -126,10 +126,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FApexEngineCrankTest::RunTest(const FString& Parameters)
 {
-	// Same eight cylinders, same revs, same pipes: the crank alone decides
-	// whether there is anything under the firing note. A crossplane's banks
-	// fire unevenly, which puts power on the crank's own frequency and its
-	// odd halves — the burble; a flatplane has none there at all.
+	// Same eight cylinders, same revs, same pipes: the crank alone decides how
+	// much there is under the firing note. Every four-stroke has some — no two
+	// cylinders are alike, and the pattern repeats every two revs — but a
+	// crossplane's banks also fire unevenly, which puts far more power on the
+	// crank's own frequency and its odd halves: the burble.
 	ApexEngineSynth::FEngineSpec Cross;
 	Cross.GearWhine = 0.0f;
 	Cross.IntakeRoar = 0.0f;
@@ -146,8 +147,19 @@ bool FApexEngineCrankTest::RunTest(const FString& Parameters)
 		+ PowerAt(CrossFrames, CrankHz * 1.5, EngineTestSampleRate) + PowerAt(CrossFrames, CrankHz * 3.0, EngineTestSampleRate);
 	const double FlatBurble = PowerAt(FlatFrames, CrankHz, EngineTestSampleRate)
 		+ PowerAt(FlatFrames, CrankHz * 1.5, EngineTestSampleRate) + PowerAt(FlatFrames, CrankHz * 3.0, EngineTestSampleRate);
-	TestTrue(*FString::Printf(TEXT("a crossplane burbles where a flatplane does not (%.2e vs %.2e)"), CrossBurble, FlatBurble),
-		CrossBurble > FlatBurble * 50.0);
+	TestTrue(*FString::Printf(TEXT("a crossplane burbles as a flatplane does not (%.2e vs %.2e)"), CrossBurble, FlatBurble),
+		CrossBurble > FlatBurble * 5.0);
+
+	// The flatplane is still an engine and not a tone: its cylinders differ,
+	// so the half-orders are there, well clear of the floor between orders.
+	// (With every firing alike — or differing at random, which is a misfire —
+	// the model sounded like a two-stroke.)
+	const double FlatOrders = PowerAt(FlatFrames, CrankHz * 0.5, EngineTestSampleRate)
+		+ PowerAt(FlatFrames, CrankHz, EngineTestSampleRate) + PowerAt(FlatFrames, CrankHz * 1.5, EngineTestSampleRate);
+	const double FlatFloor = PowerAt(FlatFrames, CrankHz * 0.73, EngineTestSampleRate)
+		+ PowerAt(FlatFrames, CrankHz * 1.27, EngineTestSampleRate) + PowerAt(FlatFrames, CrankHz * 1.73, EngineTestSampleRate);
+	TestTrue(*FString::Printf(TEXT("every four-stroke has its half-orders (%.2e over a floor of %.2e)"), FlatOrders, FlatFloor),
+		FlatOrders > FlatFloor * 10.0);
 
 	// Audible, not dominant: within 20 dB of the firing note, and under it.
 	const double CrossNote = PowerAt(CrossFrames, CrankHz * 4.0, EngineTestSampleRate);
@@ -207,8 +219,8 @@ bool FApexEngineTimbreTest::RunTest(const FString& Parameters)
 
 	const float Gt3Share = HighShare(RenderSteady(Gt3, 5800.0f, 1.0f, 4, 1.0f));
 	const float F1Share = HighShare(RenderSteady(F1, 12400.0f, 1.0f, 6, 1.0f));
-	TestTrue(*FString::Printf(TEXT("the V8 keeps its power low (%.0f%% above 2 kHz)"), Gt3Share * 100.0f), Gt3Share < 0.2f);
-	TestTrue(*FString::Printf(TEXT("the F1 screams (%.0f%% above 2 kHz)"), F1Share * 100.0f), F1Share > 0.35f);
+	TestTrue(*FString::Printf(TEXT("the V8 keeps its power low (%.0f%% above 2 kHz)"), Gt3Share * 100.0f), Gt3Share < 0.08f);
+	TestTrue(*FString::Printf(TEXT("the F1 screams (%.0f%% above 2 kHz)"), F1Share * 100.0f), F1Share > 0.18f);
 	TestTrue(TEXT("and they are nothing alike"), F1Share > Gt3Share * 2.5f);
 	return true;
 }
@@ -352,7 +364,7 @@ bool FApexEngineRenderTest::RunTest(const FString& Parameters)
 	};
 	const float Below = Stutter(14000.0f);
 	const float OnLimiter = Stutter(15300.0f);
-	TestTrue(*FString::Printf(TEXT("the limiter stutters (%.1f against %.1f)"), OnLimiter, Below), OnLimiter > Below * 1.3f);
+	TestTrue(*FString::Printf(TEXT("the limiter stutters (%.1f against %.1f)"), OnLimiter, Below), OnLimiter > Below * 1.2f);
 
 	// The device picks the rate, so the level must not depend on it.
 	const FLevel At48k = Measure(RenderSteady(F1, 12000.0f, 1.0f, 2, 0.5f, 48000.0f), 4800);

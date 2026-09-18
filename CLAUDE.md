@@ -773,11 +773,22 @@ click-free and the same length at 44.1k and 48k.
 
 Nothing is recorded: the engine is **simulated** and the sound is what its
 exhaust would hear. `ApexEngineSynth::Render` turns a crank at the
-telemetry's RPM; each cylinder's firing angle puts a blow-down pulse (sized
-by throttle, steepened by load, roughened by combustion noise, its length a
-fixed share of the cycle) into one of two exhaust **banks**, each a
-quarter-wave pipe (a delay line reflected inverted, with the muffler's loss
-in the loop). So the note is the firing rate, `rpm/60 x cylinders/2`,
+telemetry's RPM; each cylinder's firing angle puts an exhaust stroke into one
+of two exhaust **banks**: a steep, short **blow-down** (the upper harmonics;
+a first-difference "rasp" on it survives only open pipes, `Openness^8`) and
+the piston's long, eased-in **swell** (nearly all the weight), both a fixed
+share of the cycle, sized by throttle. Each bank is a weakly reflecting
+quarter-wave header (a delay line reflected inverted); the banks meet in a
+collector and go through the **silencer** (two poles, 400 Hz to 8 kHz by
+`muffling`), a half-wave **tailpipe** resonance and the outlet's low-end
+boom. The first version had only the blow-down, a ringing header and
+*random* firing-to-firing variation at idle, and the user heard it at once:
+"like a two-stroke", which is literally what those three are (a port
+snapping open onto an expansion chamber, four-stroking at idle). What makes
+it a four-stroke is that each cylinder differs from its neighbours the
+*same way every cycle* (`CylinderTrait`: fixed gain and timing per
+cylinder), a pattern that repeats every two revs and so puts power on the
+crank's half-orders under the note, on every engine, flat-plane included. So the note is the firing rate, `rpm/60 x cylinders/2`,
 proportional to RPM with nothing to saturate, and the character comes from
 geometry: a crossplane V8 fires its banks L R L L R R L R, which puts power
 on the crank's own frequency and its odd halves under the note (the
@@ -811,11 +822,27 @@ component and feeds it the motion buffer's **blended** RPM every render
 frame (the raw 60 Hz samples are a zipper on a synthesised crank) with the
 newest throttle and gear; the generator renders on the audio thread from a
 lock-free `FApexEngineLiveState`, picking up a changed engine spec by
-serial under a lock that is all but never contended. The 16 KB synth state
-(two pipes) lives on the heap. From the cockpit of a closed car the engine
-is low-passed at 3.2 kHz (`SetHeardFromCabin`, from
-`AApexRaceDirector::UpdateCarAudio`); open cockpits and outside cameras
-hear it as it is.
+serial under a lock that is all but never contended. The 20 KB synth state
+(the exhaust's delay lines) lives on the heap.
+
+**The mix.** Somebody else's car is a mono point in the world: full level
+only within 4 m, then `NaturalSound` falloff to -50 dB at 150 m with an
+air-absorption low-pass (20 kHz at 10 m to 1.5 kHz at 120 m), times the
+"Other cars" setting (`OtherCarsVolume`, 0.5). It used to be full level
+within 15 m, i.e. the whole grid as loud as the player. The **player's own
+car** (the director's `FollowedCar`, unless TV view, shot camera or ghost
+replay) plays a second, *stereo, unspatialised* engine instead
+(`UApexEngineSoundWave::MakeOwnCar`, `OwnEngineAudio`;
+`AApexRaceCarActor::SetListenerSeat`), the same synth run through
+`ApexSpace` (`Audio/ApexListenerSpace.h`): a low shelf for weight, a
+3.5 kHz bulkhead low-pass in a closed cabin, and a Freeverb-shaped stereo
+reverb sized per seat (cabin 0.35 s, open cockpit 0.5 s, chase/trackside
+1.1 s). The reverb send is high-passed at 250 Hz: fed the low orders, the
+combs became room modes and cancelled a 70 Hz firing note against the
+direct sound, eating the whole shelf (a test caught it). The seat is set
+every frame from `AApexRaceDirector::UpdateCarAudio`; `ApexSim.Audio.Space*`
+tests cover the shelf, the bulkhead, the ring times at both device rates
+and that the tail is stereo.
 
 **Tyres, kerbs, road and wind** (`ApexRoadSynth`, `UApexRoadSoundWave`) play
 for the local car only, because they come from the server's
@@ -837,7 +864,8 @@ The Audio settings tab has "Engines" and "Tyres and road" sliders
 `AApexRaceDirector::ApplyAudioSettings` -> `SetMixVolumes`, multiplied with
 the demo's `SetEngineVolume` scale). `apexsim.audio.RenderCars [dir]`
 renders every catalog car through a scripted drive, and the road voices, to
-`Saved/Audio/*.wav`: the way to judge or tune a `[sound]` table.
+`Saved/Audio/*.wav` (`<folder>.wav` as the world hears it, `<folder>_own.wav`
+in stereo from the driver's seat): the way to judge or tune a `[sound]` table.
 `ApexSim.Audio.Engine*` / `ApexSim.Audio.Road*` tests pin the physics (power
 on the firing note at 44.1k and 48k, half-orders on a crossplane only, GT3
 under 2 kHz vs the F1 above, pops, limiter stutter, squeal notes, the kerb's

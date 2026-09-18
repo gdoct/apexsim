@@ -246,6 +246,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetEngineVolume(float Value01);
 
+	/** Everybody else's engine against the player's own. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetOtherCarsVolume(float Value01);
+
 	/** The driven car's tyres, kerbs, road and wind. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetRoadVolume(float Value01);

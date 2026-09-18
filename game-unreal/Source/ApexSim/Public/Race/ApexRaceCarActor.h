@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
+#include "Audio/ApexListenerSpace.h"
 #include "Race/ApexCarMotion.h"
 #include "Race/ApexCarWheels.h"
 #include "Race/ApexCockpitLayout.h"
@@ -108,8 +109,12 @@ public:
 	 */
 	void SetEngineVolume(float Scale);
 
-	/** The player's Audio settings: engine and tyres/road, 0..1 each, on top of SetEngineVolume. */
-	void SetMixVolumes(float Engine, float Road);
+	/**
+	 * The player's Audio settings, 0..1 each, on top of SetEngineVolume: every
+	 * engine, this engine again when it is somebody else's car, and the
+	 * tyres/road.
+	 */
+	void SetMixVolumes(float Engine, float OtherCars, float Road);
 
 	/**
 	 * Tyres, kerbs, road and wind for the car the player is driving: the
@@ -123,11 +128,15 @@ public:
 	void StopRoadSound();
 
 	/**
-	 * The listener is inside this car's closed cabin: the engine is heard
-	 * through the bulkhead, with its top end taken off. An open cockpit, and
-	 * any camera outside, hears it as it is.
+	 * Where the player hears this car from. `None` for everybody else's: a
+	 * mono point in the world, attenuated and dulled by distance, at the
+	 * "other cars" volume. The player's own car plays a second, stereo engine
+	 * instead, unspatialised and run through ApexSpace: the cabin's weight,
+	 * bulkhead and short reverb from a closed cockpit (`Cabin` becomes
+	 * `OpenCockpit` by itself for an open car), the trackside's from a chase
+	 * camera.
 	 */
-	void SetHeardFromCabin(bool bInside);
+	void SetListenerSeat(ApexSpace::ESeat Seat);
 
 	void SetDisplayName(const FString& InName) { DisplayName = InName; }
 	const FString& GetDisplayName() const { return DisplayName; }
@@ -157,6 +166,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UAudioComponent> EngineAudio;
+
+	/** The stereo engine the player's own car plays in place of EngineAudio; see SetListenerSeat. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UAudioComponent> OwnEngineAudio;
 
 	/** Tyres, kerbs, road and wind; silent on every car but the one being driven. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -215,14 +228,20 @@ private:
 	TObjectPtr<UApexEngineSoundWave> EngineSound;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UApexEngineSoundWave> OwnEngineSound;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UApexRoadSoundWave> RoadSound;
 
 	/** SetEngineVolume's scale and the settings' two, multiplied onto the components. */
 	float VolumeScale = 1.0f;
 	float EngineMix = 1.0f;
+	float OtherCarsMix = 1.0f;
 	float RoadMix = 1.0f;
-	bool bHeardFromCabin = false;
+	ApexSpace::ESeat ListenerSeat = ApexSpace::ESeat::None;
 	void ApplyVolumes();
+	/** Plays whichever of the two engines the seat calls for, once the car has a place in the world. */
+	void RefreshEnginePlayback();
 
 	/**
 	 * The mesh's `car_brakelight` slot as a dynamic instance, its

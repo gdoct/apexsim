@@ -558,7 +558,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 			Car->SetHeadlights(bRaceViewActive && Sky.bHeadlights);
 			if (const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr)
 			{
-				Car->SetMixVolumes(Values->EngineVolume, Values->RoadVolume);
+				Car->SetMixVolumes(Values->EngineVolume, Values->OtherCarsVolume, Values->RoadVolume);
 			}
 			Cars.Add(Entry.CarIndex, Car);
 			CarIdShown.Remove(Entry.CarIndex);
@@ -2492,21 +2492,25 @@ void AApexRaceDirector::ApplyAudioSettings()
 	{
 		if (AApexRaceCarActor* Car = Pair.Value.Get())
 		{
-			Car->SetMixVolumes(Values->EngineVolume, Values->RoadVolume);
+			Car->SetMixVolumes(Values->EngineVolume, Values->OtherCarsVolume, Values->RoadVolume);
 		}
 	}
 }
 
 void AApexRaceDirector::UpdateCarAudio()
 {
-	// From the driver's seat of a closed car the engine comes through the
-	// bulkhead; every other car, and every other camera, hears it outright.
-	const bool bInCabin = bCockpitView && !bTvView && !bShotCameraPose && !bGhostReplay;
+	// The car the player is in, or behind, is heard from its seat; a parked
+	// shot camera, the TV director and a ghost replay are spectators, to whom
+	// every car is a point in the world.
+	const bool bSpectating = bTvView || bShotCameraPose || bGhostReplay;
+	const ApexSpace::ESeat OwnSeat = bSpectating ? ApexSpace::ESeat::None
+		: bCockpitView                          ? ApexSpace::ESeat::Cabin
+												: ApexSpace::ESeat::Chase;
 	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
 	{
 		if (AApexRaceCarActor* Car = Pair.Value.Get())
 		{
-			Car->SetHeardFromCabin(bInCabin && Car == FollowedCar);
+			Car->SetListenerSeat(Car == FollowedCar ? OwnSeat : ApexSpace::ESeat::None);
 		}
 	}
 

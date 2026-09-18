@@ -1,5 +1,6 @@
 #include "Audio/ApexEngineSound.h"
 #include "Audio/ApexEngineSoundWave.h"
+#include "Audio/ApexListenerSpace.h"
 #include "Audio/ApexRoadSound.h"
 #include "ApexSim.h"
 #include "Catalog/ApexCatalogRows.h"
@@ -12,8 +13,12 @@
  * `apexsim.audio.RenderCars [dir]` — every car in the catalog driven through
  * the same scripted run (idle, two blips, up through the gears flat out, the
  * limiter, a lift and the overrun down through the box, a part-throttle
- * cruise) and written as `<folder>.wav`, plus `road.wav` with each tyre and
- * road voice in turn. Into Saved/Audio unless told otherwise.
+ * cruise) and written twice: `<folder>.wav` is the engine as it leaves the
+ * tailpipe, mono, which is what goes into the world for everybody else to
+ * hear, and `<folder>_own.wav` is what its driver hears, in stereo, from the
+ * seat (ApexSpace: a closed cabin, or an open cockpit for an F1). Plus
+ * `road.wav` with each tyre and road voice in turn. Into Saved/Audio unless
+ * told otherwise.
  *
  * The synthesisers are judged by ear, and a race is a poor place to do it: one
  * car, whatever revs the corner allows, under the wind and everybody else's
@@ -27,8 +32,10 @@ namespace
 	constexpr int32 PreviewBlock = PreviewSampleRate / 120;
 	constexpr float PreviewStep = 1.0f / 120.0f;
 
-	bool SaveWav(const FString& Path, const TArray<float>& Frames)
+	/** `Samples` interleaved when there is more than one channel. */
+	bool SaveWav(const FString& Path, const TArray<float>& Samples, uint16 Channels = 1)
 	{
+		const TArray<float>& Frames = Samples;
 		const uint32 DataBytes = static_cast<uint32>(Frames.Num()) * 2u;
 		TArray<uint8> Bytes;
 		Bytes.Reserve(44 + DataBytes);
@@ -36,7 +43,8 @@ namespace
 		auto U32 = [&Bytes](uint32 Value) { Bytes.Append(reinterpret_cast<const uint8*>(&Value), 4); };
 		auto U16 = [&Bytes](uint16 Value) { Bytes.Append(reinterpret_cast<const uint8*>(&Value), 2); };
 		Tag("RIFF"); U32(36u + DataBytes); Tag("WAVE");
-		Tag("fmt "); U32(16); U16(1); U16(1); U32(PreviewSampleRate); U32(PreviewSampleRate * 2); U16(2); U16(16);
+		Tag("fmt "); U32(16); U16(1); U16(Channels); U32(PreviewSampleRate); U32(PreviewSampleRate * 2 * Channels);
+		U16(static_cast<uint16>(2 * Channels)); U16(16);
 		Tag("data"); U32(DataBytes);
 		for (const float Sample : Frames)
 		{
@@ -97,6 +105,20 @@ namespace
 		Phase(1.5f, [&](float Dt) { Fall(0.4f, Dt); return true; });
 		Phase(2.0f, [&](float) { Inputs.Throttle = 0.35f; Inputs.Rpm = Spec.IdleRpm + Range * 0.45f; return true; });
 		return Frames;
+	}
+
+	/** A mono render as its driver hears it: interleaved stereo. */
+	TArray<float> HeardFrom(ApexSpace::ESeat Seat, const TArray<float>& Mono)
+	{
+		const TUniquePtr<ApexSpace::FState> State = MakeUnique<ApexSpace::FState>();
+		const ApexSpace::FParams Params = ApexSpace::ForSeat(Seat);
+		TArray<float> Stereo;
+		Stereo.SetNumZeroed(Mono.Num() * 2);
+		for (int32 At = 0; At + PreviewBlock <= Mono.Num(); At += PreviewBlock)
+		{
+			ApexSpace::Process(*State, Params, PreviewSampleRate, Mono.GetData() + At, Stereo.GetData() + At * 2, PreviewBlock);
+		}
+		return Stereo;
 	}
 
 	/** Each road voice for a second and a half, in the order the comment in the log gives. */
@@ -160,7 +182,10 @@ namespace
 			const FString Name = Row->FolderName.IsEmpty() ? Pair.Key.ToString() : Row->FolderName;
 			const FString Path = FPaths::Combine(Dir, Name + TEXT(".wav"));
 			const TArray<float> Frames = RenderDrive(Spec, Gears);
-			const bool bSaved = SaveWav(Path, Frames);
+			const bool bFormula = Row->CarClass.Equals(TEXT("F1"), ESearchCase::IgnoreCase);
+			const TArray<float> Own = HeardFrom(bFormula ? ApexSpace::ESeat::OpenCockpit : ApexSpace::ESeat::Cabin, Frames);
+			const bool bSaved = SaveWav(Path, Frames)
+				&& SaveWav(FPaths::Combine(Dir, Name + TEXT("_own.wav")), Own, 2);
 			UE_LOG(LogApexSim, Display, TEXT("%s: %d cyl%s%s, %.0f-%.0f rpm, pipe %.2f m, muffling %.2f, pops %.2f%s -> %s (%.1f s)%s"),
 				*Row->DisplayName, Spec.Cylinders, (Spec.BankMask & 0xFFu) == 0xB2u ? TEXT(" crossplane") : TEXT(""),
 				Spec.bTurbo ? TEXT(" turbo") : TEXT(""), Spec.IdleRpm, Spec.RedlineRpm, Spec.ExhaustLengthM, Spec.Muffling,

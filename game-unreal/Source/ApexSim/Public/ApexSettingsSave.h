@@ -326,6 +326,14 @@ public:
 	UPROPERTY()
 	float EngineVolume = 1.0f;
 
+	/**
+	 * 0..1. Everybody else's engine against the player's own, on top of
+	 * EngineVolume. Half by default: the distance falloff already keeps a car
+	 * up the road quiet, this is for the one alongside.
+	 */
+	UPROPERTY()
+	float OtherCarsVolume = 0.5f;
+
 	/** 0..1. The driven car's tyres, kerbs, road and wind. */
 	UPROPERTY()
 	float RoadVolume = 0.8f;
