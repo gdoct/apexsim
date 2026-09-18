@@ -813,6 +813,14 @@ void UApexSettingsSubsystem::SetEngineVolume(float Value01)
 	Changed(EApexSettingsGroup::Audio);
 }
 
+void UApexSettingsSubsystem::SetOtherCarsVolume(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->OtherCarsVolume, Clamped)) { return; }
+	Settings->OtherCarsVolume = Clamped;
+	Changed(EApexSettingsGroup::Audio);
+}
+
 void UApexSettingsSubsystem::SetRoadVolume(float Value01)
 {
 	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
@@ -923,6 +931,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->MasterVolume = Defaults->MasterVolume;
 		Settings->UiVolume = Defaults->UiVolume;
 		Settings->EngineVolume = Defaults->EngineVolume;
+		Settings->OtherCarsVolume = Defaults->OtherCarsVolume;
 		Settings->RoadVolume = Defaults->RoadVolume;
 		break;
 

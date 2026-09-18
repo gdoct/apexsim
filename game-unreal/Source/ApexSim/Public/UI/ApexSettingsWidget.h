@@ -114,6 +114,7 @@ protected:
 	UFUNCTION() void HandleUiVolumeChanged(float Value);
 	UFUNCTION() void HandleEngineVolumeChanged(float Value);
 	UFUNCTION() void HandleRoadVolumeChanged(float Value);
+	UFUNCTION() void HandleOtherCarsVolumeChanged(float Value);
 
 	UFUNCTION() void HandleDisplayModeChanged(FString Item, ESelectInfo::Type SelectType);
 	UFUNCTION() void HandleResolutionChanged(FString Item, ESelectInfo::Type SelectType);
@@ -302,6 +303,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> EngineVolumeSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> EngineVolumeFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> EngineVolumeValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> OtherCarsVolumeSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> OtherCarsVolumeFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> OtherCarsVolumeValue;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> RoadVolumeSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> RoadVolumeFill;

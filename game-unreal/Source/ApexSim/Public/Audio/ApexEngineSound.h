@@ -47,6 +47,7 @@ namespace ApexEngineSynth
 {
 	/** The pipes are sized for the longest exhaust at the highest device rate (3 m at 96 kHz). */
 	constexpr int32 PipeCapacity = 2048;
+	constexpr int32 TailCapacity = 1024;
 
 	/**
 	 * An engine as the exhaust hears it: the `[sound]` table in car.toml,
@@ -113,8 +114,11 @@ namespace ApexEngineSynth
 	/** One exhaust bank: its blow-down envelope and the pipe it feeds. */
 	struct FBankState
 	{
-		/** Exhaust pressure from the pulses so far, decaying between firings. */
+		/** The blow-downs so far: steep, short, decaying between firings. */
 		float Envelope = 0.0f;
+		/** The pistons' pushes: the same charges again, eased in and long. */
+		float Swell = 0.0f;
+		float SwellPending = 0.0f;
 		/** Pending pulse energy, let into the envelope over a few samples so a firing is not a click. */
 		float Pending = 0.0f;
 		/** Combustion roughness, low-passed so it rides the pulse rather than hissing. */
@@ -167,8 +171,14 @@ namespace ApexEngineSynth
 		/** Seconds into the limiter's cut/fire cycle. */
 		float LimiterClock = 0.0f;
 
-		/** Output stage: the muffler's low-pass and a DC blocker (a one-sided pulse train has a mean). */
+		/** After the collector: the silencer's two poles, the tailpipe, and the outlet's low end. */
 		float MufflerLowpass = 0.0f;
+		float MufflerLowpass2 = 0.0f;
+		float Tail[TailCapacity] = {};
+		int32 TailWrite = 0;
+		float TailLowpass = 0.0f;
+		float BoomLowpass = 0.0f;
+		/** A DC blocker: a one-sided pulse train has a mean. */
 		float DcX1 = 0.0f;
 		float DcY1 = 0.0f;
 	};

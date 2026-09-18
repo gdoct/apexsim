@@ -74,6 +74,7 @@ namespace
 			float InSampleRate, int32 InNumChannels)
 			: Live(MoveTemp(InLive))
 			, State(MakeUnique<ApexEngineSynth::FState>())
+			, Space(InNumChannels >= 2 ? MakeUnique<ApexSpace::FState>() : nullptr)
 			, SampleRate(InSampleRate > 0.0f ? InSampleRate : static_cast<float>(EngineNominalSampleRate))
 			, NumChannels(FMath::Max(1, InNumChannels))
 		{
@@ -102,11 +103,21 @@ namespace
 			ApexEngineSynth::Render(*State, Spec, Inputs, SampleRate, Mono.GetData(), NumFrames);
 
 			int32 Written = 0;
-			for (int32 Frame = 0; Frame < NumFrames; ++Frame)
+			if (Space && NumChannels == 2)
 			{
-				for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+				// The player's own car: the same engine, heard from its seat.
+				const ApexSpace::ESeat Seat = static_cast<ApexSpace::ESeat>(Live->Seat.load(std::memory_order_relaxed));
+				ApexSpace::Process(*Space, ApexSpace::ForSeat(Seat), SampleRate, Mono.GetData(), OutAudio, NumFrames);
+				Written = NumFrames * 2;
+			}
+			else
+			{
+				for (int32 Frame = 0; Frame < NumFrames; ++Frame)
 				{
-					OutAudio[Written++] = Mono[Frame];
+					for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+					{
+						OutAudio[Written++] = Mono[Frame];
+					}
 				}
 			}
 			// The mixer expects every sample it asked for to be written.
@@ -122,8 +133,10 @@ namespace
 
 	private:
 		TSharedRef<FApexEngineLiveState, ESPMode::ThreadSafe> Live;
-		/** On the heap: the two exhaust pipes make it 16 KB, too much to carry by value. */
+		/** On the heap: the exhaust's delay lines make it 20 KB, too much to carry by value. */
 		TUniquePtr<ApexEngineSynth::FState> State;
+		/** The own-car wave's cabin or trackside; null for the mono wave every other car plays. */
+		TUniquePtr<ApexSpace::FState> Space;
 		ApexEngineSynth::FEngineSpec Spec;
 		uint32 SeenSpecSerial = 0;
 		float SampleRate;
@@ -144,6 +157,19 @@ UApexEngineSoundWave::UApexEngineSoundWave(const FObjectInitializer& ObjectIniti
 	SetSampleRate(EngineNominalSampleRate);
 	SoundGroup = SOUNDGROUP_Effects;
 	Duration = INDEFINITELY_LOOPING_DURATION;
+}
+
+UApexEngineSoundWave* UApexEngineSoundWave::MakeOwnCar(UObject* Outer)
+{
+	UApexEngineSoundWave* Wave = NewObject<UApexEngineSoundWave>(Outer);
+	// Before it is ever played: the mixer sizes the source from this.
+	Wave->NumChannels = 2;
+	return Wave;
+}
+
+void UApexEngineSoundWave::SetSeat(ApexSpace::ESeat Seat)
+{
+	Live->Seat.store(static_cast<uint8>(Seat), std::memory_order_relaxed);
 }
 
 void UApexEngineSoundWave::SetSpec(const ApexEngineSynth::FEngineSpec& Spec)

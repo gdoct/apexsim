@@ -1279,6 +1279,13 @@ UWidget* UApexSettingsWidget::BuildAudioPage()
 		TEXT("Your engine and everybody else's: exhaust, induction, gearbox whine, the pops on the overrun."),
 		EngineCell));
 
+	UWidget* OthersCell = MakeVolumeCell(OtherCarsVolumeSlider, OtherCarsVolumeFill, OtherCarsVolumeValue);
+	OtherCarsVolumeSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleOtherCarsVolumeChanged);
+	AddV(Page, MakeRow(
+		TEXT("Other cars"),
+		TEXT("Everybody else's engine against your own. They fade with distance either way; this is the car alongside."),
+		OthersCell), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
 	UWidget* RoadCell = MakeVolumeCell(RoadVolumeSlider, RoadVolumeFill, RoadVolumeValue);
 	RoadVolumeSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleRoadVolumeChanged);
 	AddV(Page, MakeRow(
@@ -1553,6 +1560,8 @@ void UApexSettingsWidget::RefreshFromSettings()
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->UiVolume * 100.0f)));
 	SetSlider(EngineVolumeSlider, EngineVolumeFill, EngineVolumeValue, Values->EngineVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->EngineVolume * 100.0f)));
+	SetSlider(OtherCarsVolumeSlider, OtherCarsVolumeFill, OtherCarsVolumeValue, Values->OtherCarsVolume, 0.0f, 1.0f,
+		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->OtherCarsVolume * 100.0f)));
 	SetSlider(RoadVolumeSlider, RoadVolumeFill, RoadVolumeValue, Values->RoadVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->RoadVolume * 100.0f)));
 
@@ -2000,6 +2009,15 @@ void UApexSettingsWidget::HandleEngineVolumeChanged(float Value)
 	if (EngineVolumeFill) { EngineVolumeFill->SetPercent(Value); }
 	if (EngineVolumeValue) { EngineVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetEngineVolume(Value); }
+	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandleOtherCarsVolumeChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (OtherCarsVolumeFill) { OtherCarsVolumeFill->SetPercent(Value); }
+	if (OtherCarsVolumeValue) { OtherCarsVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetOtherCarsVolume(Value); }
 	RefreshFooter();
 }
 

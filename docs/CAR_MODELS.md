@@ -196,8 +196,8 @@ intake_roar = 0.6        # induction noise under throttle, 0..1
 | --- | --- |
 | `cylinders` | The note *is* the firing rate, `rpm/60 × cylinders/2`: a V8 at 7500 is 500 Hz, the F1's V6 at 15,000 is 750 Hz, a V10 at 8500 is 708 Hz. |
 | `crossplane` | Eight cylinders only. A crossplane's banks fire L R L L R R L R, so each pipe gets a 90-180-270-180° rhythm that repeats every two revs: power on the crank's own frequency and its odd halves, under the firing note. That is the V8 burble, and it is the whole difference between the Murcetes and the LMP2s' flat-plane eights at the same revs. |
-| `exhaust_length_m` | The pipe is a quarter-wave resonator (modes at `c/4L`, `3c/4L`, …): long pipes boom, short ones bark. 0.2–2.8. |
-| `muffling` | Loss in the pipe and a low-pass on what leaves it, 900 Hz (1.0) to 12 kHz (0.0), and how much of each pulse's steep front gets out as rasp. The scream of the F1 is `muffling = 0.05` as much as it is 15,000 rpm. |
+| `exhaust_length_m` | The headers are quarter-wave resonators (modes at `c/4L`, `3c/4L`, …) and the tailpipe, 0.45 of this, a half-wave one: long pipes boom, short ones bark. 0.2–2.8. |
+| `muffling` | The silencer: a two-pole low-pass on what leaves the collector, 400 Hz (1.0) to 8 kHz (0.0); how much of each blow-down's steep front gets out as rasp (next to none below ~0.2); how much of the firing is blow-down rather than swell; and the outlet's low-end boom. The scream of the F1 is `muffling = 0.05` as much as it is 15,000 rpm. |
 | `pops` | On a lift above a third of the rev range, unburnt charge lights in the pipe for about a second: oversized pulses with a burst of noise. Also how likely a flat-out upshift is to crack. The limiter's stutter pops regardless. |
 | `gear_whine` | A tone at the engaged pair's tooth-mesh frequency — it steps *up* on an upshift at the same revs. |
 | `intake_roar` | Throttle-gated induction noise through an airbox resonance, pulsing with the firing. |
@@ -212,8 +212,10 @@ Tuning is by ear, and a race is a poor place for it. `apexsim.audio.RenderCars`
 (console, editor or game; optional output directory) drives every catalog
 car through the same scripted run — idle, two blips, flat out through the
 gears, the limiter, a lift and the overrun down the box, a part-throttle
-cruise — and writes `Saved/Audio/<folder>.wav`, plus `road.wav` with each tyre
-and road voice in turn. Edit the TOML, `ApexCarImport -car=<folder>`, render,
+cruise — and writes `Saved/Audio/<folder>.wav` (the engine as it leaves the
+tailpipe, mono: what everybody else hears) and `<folder>_own.wav` (what its
+driver hears, stereo, from the cabin or open cockpit), plus `road.wav` with
+each tyre and road voice in turn. Edit the TOML, `ApexCarImport -car=<folder>`, render,
 listen. Unattended:
 
 ```bash
