@@ -846,12 +846,23 @@ and that the tail is stereo.
 
 **Tyres, kerbs, road and wind** (`ApexRoadSynth`, `UApexRoadSoundWave`) play
 for the local car only, because they come from the server's
-`DriverFeedback`: the race director reduces it with `ApexFfb::MakeSignals`,
-the very signals the pad and wheel get, and feeds the car's unspatialised
-`RoadAudio`. Squeal is noise through a narrow resonance per axle (front a
-third above the rear, so understeer and oversteer differ by ear; rising
-with sliding speed; none at a crawl, none on grass, hiss instead in the
-wet), lockup lower and harsher, wheelspin climbing with slip; a kerb is a
+`DriverFeedback`: the race director reduces it with `ApexFfb::MakeSignals`
+(kerbs, grass, hits: the very signals the pad and wheel get) and feeds the
+car's unspatialised `RoadAudio`. The **tyres have their own thresholds**,
+from the raw per-wheel slip (`ApexRoadSynth::SquealFromSlipAngle` and
+friends): silent up to and at the grip peak, because a car cornering well
+sits *at* its peak slip angle all day; the howl starts at 1.25x and is full
+at 2.4x, lockup and wheelspin from 1.6x the peak slip ratio (ABS/TC hold
+1.0). The FFB's scrub starts at 0.9 as a hint, and driven from that the
+car screeched at every turn of the wheel. Slide levels also rise over
+0.14 s, since the feedback is peak-held between messages and one tick
+over a bump would otherwise chirp. A howl is a **tone** (fundamental ~600
+rear / ~760 Hz front plus three falling harmonics, pitch wandering 3%,
+level fluttering at ~35 Hz; a locked wheel flutters deeper) over a band of
+low-mid scrub; none at a crawl, none on grass, mostly scrub in the wet.
+It was first noise through a narrow resonance, which is a wavering whistle
+over hiss: the user called it "shortwave radio" and it was mistaken for
+the wind. No voice here is white noise gated by a level; a kerb is a
 rib every 0.9 m (the force feedback's spacing) thudding through a 95 Hz
 resonance, so its pitch is the car's speed; off-track is rumble and stones;
 a suspension hit over the FFB's 0.3 m/s threshold is a thud and contact a
