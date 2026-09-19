@@ -215,7 +215,7 @@ class Builder:
         return self.quad_uv(mat, [(x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1)],
                             [(0, 0), (repeats, 0), (repeats, 1), (0, 1)])
 
-    def finish(self, planar_uv=True, uv_scale=1.0, recalc=True):
+    def finish(self, planar_uv=True, uv_scale=1.0, recalc=True, sharp_angle=math.radians(35)):
         bm, keep = self.bm, self.keep
         bmesh.ops.remove_doubles(bm, verts=[v for v in bm.verts if not any(f in keep for f in v.link_faces)], dist=1e-5)
         if recalc:
@@ -230,6 +230,18 @@ class Builder:
                     p = l.vert.co
                     uv = (p.y, p.z) if ax == 0 else (p.x, p.z) if ax == 1 else (p.x, p.y)
                     l[self.uv].uv = (uv[0] * uv_scale, uv[1] * uv_scale)
+        # smooth shading with edges over `sharp_angle` marked sharp (honoured by
+        # the mesh normals in 4.1+, and by the glTF exporter) -- no operator, so
+        # this works from a timer/MCP context as well as the console
+        for e in bm.edges:
+            if len(e.link_faces) == 2:
+                try:
+                    if e.calc_face_angle() > sharp_angle:
+                        e.smooth = False
+                except ValueError:
+                    pass
+            else:
+                e.smooth = False
         me = bpy.data.meshes.new(self.name)
         bm.to_mesh(me)
         bm.free()
@@ -238,12 +250,25 @@ class Builder:
         ob = bpy.data.objects.new(self.name, me)
         bpy.context.scene.collection.objects.link(ob)
         me.shade_smooth()
-        with bpy.context.temp_override(object=ob, selected_editable_objects=[ob]):
-            try:
-                bpy.ops.object.shade_auto_smooth(angle=math.radians(35))
-            except Exception:
-                pass
         return ob
+
+
+def _ui_override(ob=None):
+    """A context override with a window/3D view and an active object, so
+    operators work from a timer (the MCP server) as well as the console."""
+    wm = bpy.context.window_manager
+    kw = {}
+    for win in wm.windows:
+        for area in win.screen.areas:
+            if area.type == 'VIEW_3D':
+                kw = {"window": win, "screen": win.screen, "area": area,
+                      "region": next((r for r in area.regions if r.type == 'WINDOW'), None)}
+                break
+        if kw:
+            break
+    if ob is not None:
+        kw.update(active_object=ob, object=ob, selected_objects=[ob], selected_editable_objects=[ob])
+    return bpy.context.temp_override(**kw)
 
 
 def export_one(kind, asset):
@@ -257,9 +282,10 @@ def export_one(kind, asset):
         o.select_set(o is ob)
     bpy.context.view_layer.objects.active = ob
     glb = os.path.join(d, asset + ".glb")
-    bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_apply=True,
-                              export_yup=True, export_texcoords=True, export_normals=True,
-                              export_materials='EXPORT', export_cameras=False, export_lights=False)
+    with _ui_override(ob):
+        bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_apply=True,
+                                  export_yup=True, export_texcoords=True, export_normals=True,
+                                  export_materials='EXPORT', export_cameras=False, export_lights=False)
     ob.location = loc
     return glb, os.path.getsize(glb)
 
@@ -325,3 +351,122 @@ def preview(path, look_from=(6, -7, 3), look_at=(0, 0, 0.6), res=(1280, 720), fo
     sc.render.image_settings.file_format = 'PNG'
     bpy.ops.render.render(write_still=True)
     return path
+
+
+# ----------------------------------------------------------------- v2 helpers
+def _builder_loft(self, mat, sections, closed=True, cap_ends=True, flip=False):
+    """Skin consecutive rings of 3D points (all the same length) into quads.
+    `sections` is a list of point lists; caps use an n-gon on each end."""
+    s = self.slot(mat)
+    rings = [[self.bm.verts.new(Vector(p)) for p in sec] for sec in sections]
+    n = len(sections[0])
+    for a, b in zip(rings, rings[1:]):
+        for i in range(n if closed else n - 1):
+            j = (i + 1) % n
+            q = (a[i], b[i], b[j], a[j]) if not flip else (a[i], a[j], b[j], b[i])
+            f = self.bm.faces.new(q)
+            f.material_index = s
+    if cap_ends and closed:
+        try:
+            f = self.bm.faces.new(list(reversed(rings[0])) if not flip else rings[0]); f.material_index = s
+            f = self.bm.faces.new(rings[-1] if not flip else list(reversed(rings[-1]))); f.material_index = s
+        except ValueError:
+            pass
+    return rings
+
+
+def _builder_ico(self, mat, center, radius, subdiv=1, scale=(1, 1, 1), jitter=0.0, seed=0):
+    """Low-poly icosphere blob (subdiv 1 = 80 tris), optionally jittered."""
+    import random as _r
+    s = self.slot(mat)
+    tmp = bmesh.new()
+    bmesh.ops.create_icosphere(tmp, subdivisions=subdiv, radius=1.0)
+    rng = _r.Random(seed)
+    vm = {}
+    for v in tmp.verts:
+        k = 1.0 + (rng.uniform(-jitter, jitter) if jitter else 0.0)
+        p = Vector((v.co.x * scale[0], v.co.y * scale[1], v.co.z * scale[2])) * radius * k
+        vm[v.index] = self.bm.verts.new(Vector(center) + p)
+    for f in tmp.faces:
+        nf = self.bm.faces.new([vm[v.index] for v in f.verts])
+        nf.material_index = s
+    tmp.free()
+
+
+def _builder_cone(self, mat, center, r0, r1, height, segs=10, cap=True):
+    """Frustum from radius r0 at the base to r1 at the top."""
+    a = [(center[0] + math.cos(2 * math.pi * i / segs) * r0, center[1] + math.sin(2 * math.pi * i / segs) * r0, center[2]) for i in range(segs)]
+    b = [(center[0] + math.cos(2 * math.pi * i / segs) * r1, center[1] + math.sin(2 * math.pi * i / segs) * r1, center[2] + height) for i in range(segs)]
+    return self.loft(mat, [a, b], closed=True, cap_ends=cap)
+
+
+def _builder_card(self, mat, center, w, h, yaw=0.0, tilt=0.0, uv=(0, 0, 1, 1)):
+    """Vertical textured quad centred at the bottom-middle of `center`, facing
+    +Y before `yaw`; `tilt` leans it back. Two-sided is left to the material."""
+    cy, sy = math.cos(yaw), math.sin(yaw)
+    ct, st = math.cos(tilt), math.sin(tilt)
+    pts = []
+    for (u, v) in ((-0.5, 0), (0.5, 0), (0.5, 1), (-0.5, 1)):
+        x, y, z = u * w, -v * h * st, v * h * ct
+        pts.append((center[0] + x * cy - y * sy, center[1] + x * sy + y * cy, center[2] + z))
+    u0, v0, u1, v1 = uv
+    return self.quad_uv(mat, pts, [(u0, v0), (u1, v0), (u1, v1), (u0, v1)])
+
+
+Builder.loft = _builder_loft
+Builder.ico = _builder_ico
+Builder.cone = _builder_cone
+Builder.card = _builder_card
+
+
+def text_mesh(name, text, size=1.0, extrude=0.3, font=None, bold=True):
+    """Render `text` with Blender's text object into a bmesh-able mesh (XZ
+    plane, standing up, reading along +X, extruded along Y). Returns a mesh
+    datablock; the caller merges it into a Builder with `merge_mesh`."""
+    cu = bpy.data.curves.new(name + "_txt", 'FONT')
+    cu.body = text
+    cu.size = size
+    cu.extrude = extrude / 2
+    cu.align_x = 'CENTER'
+    cu.fill_mode = 'BOTH'
+    if font:
+        cu.font = font
+    ob = bpy.data.objects.new(name + "_txt", cu)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.rotation_euler = (math.radians(90), 0, 0)  # XY text -> XZ, extrusion along -Y/+Y
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    me.transform(ob.matrix_world)
+    bpy.data.objects.remove(ob)
+    bpy.data.curves.remove(cu)
+    return me
+
+
+def merge_mesh(builder, mat, me, offset=(0, 0, 0)):
+    """Append the faces of mesh `me` (triangulated) into a Builder under `mat`."""
+    s = builder.slot(mat)
+    tmp = bmesh.new()
+    tmp.from_mesh(me)
+    bmesh.ops.triangulate(tmp, faces=tmp.faces[:])
+    vm = {v.index: builder.bm.verts.new(v.co + Vector(offset)) for v in tmp.verts}
+    for f in tmp.faces:
+        try:
+            nf = builder.bm.faces.new([vm[v.index] for v in f.verts])
+            nf.material_index = s
+        except ValueError:
+            pass
+    tmp.free()
+    bpy.data.meshes.remove(me)
+
+
+def export_all(kind, names):
+    return {n: export_one(kind, n) for n in names}
+
+
+def _builder_translate(self, dx=0.0, dy=0.0, dz=0.0):
+    d = Vector((dx, dy, dz))
+    for v in self.bm.verts:
+        v.co += d
+
+
+Builder.translate = _builder_translate
