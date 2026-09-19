@@ -212,6 +212,16 @@ content/tracks/real/*.walls.msgpack
 # (scripts/osm_layout.py). Tens of MB, refetchable, and the dossier that
 # comes out of them is what is checked in.
 content/tracks/osm-cache/
+# Raw Copernicus GLO-30 DEM tiles the terrain sidecars are built from
+# (scripts/dem_fetch.py). ~30 MB per 1-degree tile, refetchable from the
+# public AWS bucket, and the sidecar that comes out of them is the artefact
+# that matters.
+content/tracks/dem-cache/
+# The elevation sidecar itself (content/tracks/real/*.dem.msgpack) is NOT
+# ignored, unlike the ground/curbs/walls sidecars beside it. Those are
+# derived from files in the repo and any build can regenerate them; this
+# one needs a few hundred megabytes off the network, so it is checked in
+# and the download is a one-off for whoever refreshes it.
 # Build outputs: the packaged client (scripts/build_game_standalone.ps1)
 # and the release packages and zips (scripts/build_release.ps1)
 artifacts/
@@ -222,3 +232,9 @@ game-unreal/Content/
 
 Claude outputs/*
 server/target*/
+artifacts/
+artifacts/*
+# Baked tiling ground textures (python scripts/bake_ground_textures.py).
+# Deterministic from seeds, ~20 MB of noise that compresses badly, and what
+# the client uses is the /Game/Ground import made from them.
+content/textures/ground/

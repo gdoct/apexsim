@@ -632,32 +632,30 @@ impl SplineInterpolator {
             let points_per_segment = ((chord_len / TARGET_POINT_SPACING_M).ceil() as usize)
                 .clamp(MIN_POINTS_PER_SEGMENT, MAX_POINTS_PER_SEGMENT);
 
+            // The road's *shape* is interpolated across the segment rather
+            // than held at its start node, so the track limits follow the
+            // same smooth edge the client draws. Holding it made width and
+            // banking a staircase with one tread per node. The surface kind
+            // and its grip are material properties and stay steps.
+            let (wl_a, wr_a) = Self::node_half_widths(p1, default_width);
+            let (wl_b, wr_b) = Self::node_half_widths(p2, default_width);
+            let banking_a = p1.banking.unwrap_or(0.0);
+            let banking_b = p2.banking.unwrap_or(0.0);
+            let friction = p1.friction.unwrap_or(1.0);
+            let surface_type = Self::parse_surface_type(p1.surface_type.as_deref());
+
             for j in 0..points_per_segment {
                 let t = j as f32 / points_per_segment as f32;
                 let point = Self::catmull_rom_point(p0, p1, p2, p3, t);
-
-                let (width_left, width_right) =
-                    if let (Some(wl), Some(wr)) = (p1.width_left, p1.width_right) {
-                        (wl, wr)
-                    } else if let Some(w) = p1.width {
-                        (w / 2.0, w / 2.0)
-                    } else {
-                        (default_width / 2.0, default_width / 2.0)
-                    };
-
-                let banking = p1.banking.unwrap_or(0.0);
-                let friction = p1.friction.unwrap_or(1.0);
-
-                let surface_type = Self::parse_surface_type(p1.surface_type.as_deref());
 
                 track_points.push(TrackPoint {
                     x: point.0,
                     y: point.1,
                     z: point.2,
                     distance_from_start_m: 0.0,
-                    width_left_m: width_left,
-                    width_right_m: width_right,
-                    banking_rad: banking,
+                    width_left_m: wl_a + (wl_b - wl_a) * t,
+                    width_right_m: wr_a + (wr_b - wr_a) * t,
+                    banking_rad: banking_a + (banking_b - banking_a) * t,
                     camber_rad: 0.0,
                     slope_rad: 0.0,
                     heading_rad: 0.0,
@@ -670,6 +668,18 @@ impl SplineInterpolator {
         Self::compute_derived_properties(&mut track_points, closed_loop);
 
         Ok(track_points)
+    }
+
+    /// A node's half-widths, falling back through `width` to the track's
+    /// default the same way the file format does.
+    fn node_half_widths(node: &TrackNode, default_width: f32) -> (f32, f32) {
+        if let (Some(wl), Some(wr)) = (node.width_left, node.width_right) {
+            (wl, wr)
+        } else if let Some(w) = node.width {
+            (w / 2.0, w / 2.0)
+        } else {
+            (default_width / 2.0, default_width / 2.0)
+        }
     }
 
     fn catmull_rom_point(

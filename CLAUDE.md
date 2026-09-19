@@ -97,8 +97,14 @@ A circuit's real furniture now comes from a **layout dossier** checked in
 beside its YAML, `content/tracks/real/<Stem>.layout.json`: named corners, the
 pit lane's real polyline and side, the grandstands with their names, sizes and
 road-facing outlines, the buildings, what crosses over the road, landmarks,
-and the outlines of the real woodland with its leaf type. It is built from
-OpenStreetMap (ODbL; the attribution travels in the file) by
+and the outlines of the real woodland with its leaf type, plus the
+*surroundings* layers added 2026-09-19: `barriers` (every `barrier=tyres`,
+`wall`, `guard_rail` and `fence` run near the road), `roads`, `waterways`,
+`areas` (car parks, camp sites, meadow, farmland, villages, scrub, water)
+and `poi` (the statue, chapels, pylons, food, gates). Anything tagged
+within 250 m that no rule claimed is counted in `unclassified`, so the next
+circuit's gaps show up in the dossier rather than in a screenshot. It is
+built from OpenStreetMap (ODbL; the attribution travels in the file) by
 
 ```bash
 python scripts/osm_layout.py --all            # or: Monza Spa [--offline]
@@ -125,7 +131,44 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
 It owns every prop of the kinds it lays (grandstand, building, attraction,
 bridge, light, vehicle, sky) plus the pit lane, deleting and re-laying them
 each run — so it also clears the old scatter — while barriers, tire walls,
-distance boards and trees stay `groom`'s. A stand is laid as 40 m runs along
+distance boards and trees stay `groom`'s. It also owns, *by asset rather
+than by kind* (`dress::dressed_prop`, `surroundings::OWNED`), the furniture
+it lays from the new layers: cars and lamp posts in every mapped car park,
+tents and campers on the camp sites, houses and barns across the villages
+and farmyards, chapels and pylons from `poi`, a marshal post at every named
+corner and every 400 m besides, a `corner_sign` carrying each corner's real
+name, and — only for a circuit whose dossier has no lighting masts of its
+own — a ring of `floodlight_tower`s so a night session is not lit by
+headlights alone. Ownership is by asset because these share kinds with
+hand-placed props: a `sign` is also a distance board and a `misc` is also a
+bollard.
+
+Barriers are now **decided**, not inherited (`track-editor/src/barriers.rs`,
+laid by `groom::lay_all_barriers`). One pass walks every 4 m cell on both
+sides, so coverage is complete by construction — the old pass only put a
+wall at a corner where the 2026-09 enrichment had happened to leave a prop
+within 40 m — and `barriers::decide` chooses the kind from the dossier's
+mapped barriers first and the geometry second: which side is the *outside*
+of the bend, how tight it is, and how much run-off there is. That yields
+about 55% armco, 25% Tecpro and 15% tyres at the Red Bull Ring, with
+`armco_4m_fence` wherever there are people behind it, `concrete_4m_rail`
+where a mapped wall stands hard against the road (a street circuit), and
+`armco_end` / `tecpro_corner` / `tires_corner` / `concrete_end` closing
+every run. A corner's barrier stands at least 14 m past the road edge and
+a straight's at least 7 m (`CORNER_BARRIER_MIN_M`, `STRAIGHT_BARRIER_MIN_M`),
+further where run-off is authored; and every piece — module and end cap
+alike, not just its cell's centre — must pass `placeable`: clear of the pit
+lane, clear of *every* section of the course where it folds back on itself,
+not at an underpass, not inside another prop.
+
+Three traps are pinned by tests. Ownership is by asset, so the groomer must
+recognise every asset it can lay or it doubles them on the next run. A
+rule without the outside-of-bend signal puts Tecpro on both sides of every
+bend, which gave eight Tecpro modules for each of armco. And distance is
+not a detail: the old passes barely laid anything at a corner, so nobody
+noticed that `wall_offset` falls back to a 6 m verge; laying the line at
+every corner at that distance took the AI survey from 2 100 to 7 500
+car-seconds off the road, most of it pinned against a rail. A stand is laid as 40 m runs along
 its real front, each carrying its own `length_m`, so the Unreal side builds
 bays that follow the outline; the family comes from the real depth and roof.
 The pit lane is written with `authored: true`, which is what stops grooming
@@ -140,22 +183,137 @@ the wood's leaf type — which is what leaves Zandvoort's dunes bare, Spa's
 Ardennes in spruce and the Parco di Monza in broadleaf. Both passes recycle
 their own element ids, so re-running either writes a byte-identical file.
 
-Le Mans, Zandvoort, Spa, Monza and Silverstone have dossiers; a track without
-one is groomed exactly as before.
+Twenty-two of the twenty-six circuits have dossiers; a track without one is
+groomed exactly as before.
+
+### Real elevation (`<Stem>.dem.msgpack`, `dem_fetch.py`)
+
+The ground used to be an inverse-distance average of the road's own
+heights: a smooth blanket that decays to the mean track elevation, with no
+hill or valley the road did not itself imply, ending 800 m out in fog and
+then in a bare atmosphere gradient. `scripts/dem_fetch.py` fixes that from
+the Copernicus GLO-30 elevation model (AWS open bucket, no credentials),
+georeferenced onto the track frame by the *same* fit the dossier uses
+(`osm_layout.fit_track`):
+
+```bash
+python scripts/dem_fetch.py --all         # or: Spielberg [--offline] [--dry-run]
+```
+
+It writes `content/tracks/real/<Stem>.dem.msgpack`: an `inner` grid at 10 m
+over the circuit and a kilometre around it, and an `outer` grid at 90 m out
+to eight kilometres, both in the server frame (the model is offset so it
+agrees with the YAML's own z at the start/finish line). Unlike the other
+sidecars this one is **checked in**, because regenerating it needs a few
+hundred megabytes off the network; the raw tiles under
+`content/tracks/dem-cache/` are gitignored.
+
+`terrain.rs` reads it (`TerrainHeightfield::from_paths_with_dem`) and
+crossfades: within 40 m of a road the surveyed centerline wins, because a
+30 m surface model reads the tree canopy and knows nothing of cuttings and
+embankments, and past 220 m the model wins, because it is the only thing
+that knows there is a hill there. The road-ceiling carve, the verge hold
+and the 6–35 m blend are unchanged on top, so a car still follows the
+rendered verge. `ue_export` then bakes the `outer` grid as a separate
+`horizon` mesh — real geometry, not a painted backdrop, so the sun lights
+it, it takes the weather's fog and it goes dark at dusk — with a hole cut
+where the detailed ground already covers the land. At the Red Bull Ring
+that is 71k triangles for 17 km of Murtal rising to 957 m, against a
+previously flat horizon. A track with no sidecar bakes exactly as before.
+
+GLO-30 is a *surface* model and it is not square-posted: it keeps 1 arcsec
+of latitude but decimates longitude by band, so a tile north of 50° is 2400
+posts wide rather than 3600. Assuming square posts reads the ground
+kilometres east of where it is.
+
+### Smoothing a traced centerline (`ats-smooth`)
+
+Every real circuit's YAML is a GPS trace resampled to 5 m nodes, and over a
+5 m chord that trace's noise *is* curvature: Remus at the Red Bull Ring came
+out at an 8 m radius on a 10.6 m road. The exporter's loft cannot draw that,
+so it clamped offsets to `0.85/κ`, broke strips with under half a metre of
+room and dropped inverted facets — corners shipped with holes in them.
+
+```bash
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- --all
+                        # --report | --dry-run | --tolerance M | --tight-tol M | --min-radius M
+```
+
+`track_smooth.rs` filters the node positions with a Savitzky-Golay
+quadratic applied by twicing, and separately re-walks each corner the trace
+pinched: the turn at a node over the arc through it *is* the curvature, so
+capping the turn and spilling the excess to its neighbours is a floor on
+the radius that leaves the corner's total turn untouched. Each window is
+pinned at both ends, so the change stays inside the corner. Two filters
+were tried and rejected first and the module docstring says why: plain
+Laplacian smoothing shrinks whatever it is run on, and Taubin has a gain
+above one below its passband — both quietly rescale a surveyed circuit,
+which the tests now catch. Across the calendar this takes the worst
+curvature jump from 0.03–0.09 per metre to about 0.01 and leaves every
+raceline inside the road edge. The raceline is carried by the displacement
+of the road node beneath it rather than filtered on its own: filtered
+independently it drifted two metres off the middle of the re-walked Ford
+chicanes at Le Mans, and `ai_field_makes_the_first_lap_at_le_mans` caught
+one car in four leaving the road. The pass also rewrites the stored
+`metadata.length_m`, which the curb sidecar test checks against.
+
+**Refresh order.** Everything downstream is derived from the centerline,
+so a change to it has to flow through in this order, and running a step
+out of order produces data that is internally inconsistent:
+
+```bash
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- --all   # centerline
+python scripts/osm_layout.py --all --offline                                  # dossiers (fit to the centerline)
+python scripts/dem_fetch.py --all --offline                                   # elevation (same fit, same datum)
+./scripts/build_track_levels.ps1                                              # dress, export, import
+```
+
+The dossier and the elevation sidecar are both fitted to the centerline,
+and a hand-authored pit lane is laid along it (`edge_run`), so either one
+built against an earlier centerline describes a road that has moved.
+`build_track_levels.ps1` runs only the last line; the first three are data
+refreshes, run when the source data changes.
+
+A hand-authored `MANUAL_PIT_LANE` now wins over OSM outright. It used to be
+a fallback reached only when no OSM way qualified, and rebuilt from the
+current Albert Park extract the untagged-way fallback matched a 711 m
+"pit lane" running across the race track; the bake then stood pit walls in
+the middle of the road and the AI spent a quarter of every race against
+them. Likewise `tourism=artwork` only becomes a `statue` landmark where
+`MANUAL_LANDMARKS` declares one: the kit's one statue mesh is a bull, and
+every sculpture near every circuit would otherwise have become one.
+
+**Checking a change.** `cargo test` in `track-editor` runs both the unit
+tests and the integration tests under `tests/`, which groom and bake every
+real circuit — run the whole thing, not `--lib`. Anything that moves
+barriers, walls, the centerline or the ground should also go through the
+server's AI survey against a baseline, because the AI is sensitive to all
+of it and the per-circuit assertions only cover Le Mans and Spa:
+
+```bash
+cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
+```
 
 ### Track pipeline into Unreal
 Circuits reach the Unreal client in two generated steps; both outputs are
 regenerated wholesale and neither should be hand-edited.
 
 ```bash
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
+                                                         # -> content/tracks/real/*.ats
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
                                                          # -> content/tracks/export/*.uescene.json (gitignored)
 "$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject \
     -run=ApexTrackImport -all                            # -> game-unreal/Content/Tracks/<Track>/L_<Track>.umap
 ```
 
-`scripts/build_track_levels.ps1` runs both steps (optionally building the
-`ApexSimEditor` target first) and finds the engine install from the
+`scripts/build_track_levels.ps1` runs all three steps (optionally building
+the `ApexSimEditor` target first). The dressing stage is new and is there
+because the dossier-to-scene step used to be manual and silent: the Red
+Bull Ring's bull statue went into the dossier, nobody re-ran `ats-dress`,
+and the level was baked from the previous scene. Dressing is idempotent, so
+running it every time costs seconds and removes the failure mode
+(`-SkipDress` if you are editing a scene by hand). and finds the engine install from the
 `.uproject`'s `EngineAssociation`; `-Track A,B` narrows it to a few circuits,
 `-DryRun` reports without writing assets. Note that `ats-export` resolves
 `content/tracks/{real,export}` relative to the working directory, so it must be
@@ -228,6 +386,55 @@ python scripts/build_track_catalog.py          # -> content/tracks/export/{track
 The sync is additive unless `-force`; existing rows keep their values. Every
 track YAML needs a fixed `track_id` — without one the server mints a new UUID
 per start and no catalog row can ever match it.
+
+### Ground textures (`content/textures/ground`, `ApexGroundTexImport`)
+The track surfaces sample baked tiling maps rather than the engine's 64-texel
+noise tile. Seven sets (asphalt, grass, gravel, sand, concrete, astroturf,
+kerb), each a 1024^2 colour, normal and roughness map tileable over 2 m:
+
+```bash
+python scripts/bake_ground_textures.py              # -> content/textures/ground/*.png (gitignored)
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexGroundTexImport                        # -> /Game/Ground/T_ground_<set>_{col,nrm,rough}
+```
+
+then re-bake the levels (`scripts/build_track_levels.ps1`). The generators
+are numpy in `content/props/_tools/apex_tex.py` beside the prop kit's (its
+`bpy` import is optional so the baker runs under plain Python). Colour maps
+are normalised to a per-channel mean of 0.5 and the material doubles them,
+so the exporter's per-key colour still decides a surface's hue — a map with
+its own hue would tint twice. `apex_tex.GROUND_TILE_M` and
+`ApexGround::TextureTileM` must agree. The importer fixes each map's class
+by suffix (sRGB colour, BC5 normal, grayscale roughness), because a material
+instance can only swap a texture for one of the sampler type the parent was
+compiled with.
+
+`M_ApexTrackBase` is generated per track in one of two shapes, chosen at
+bake time: with `/Game/Ground` imported, each map is sampled at the
+instance's tiling and at 0.371 of it, mixed by a 20 m world-space noise so
+the repeat does not show, pushed to the coarse sample and a flat normal by
+200 m so the far field does not shimmer; without it, the old noise-tile
+grain (a fresh clone, until the two commands above are run). Which set each
+family and `surface_<kind>` key samples is `ApexGround::LookFor`
+(`ApexGroundMaterials.h`, `ApexSim.Track.Ground.*` tests).
+
+Seams: a run-off band is its own mesh beside the road, so grass met
+asphalt as a line between two flat colours. The builder now writes a ramp
+into each band's red vertex channel — 0 at the road-facing edge, 1 by
+2.5 m in (`ApexGround::EdgeFactors`) — and the material frays it with its
+macro noise toward a dusty tone. One-sided on purpose: fringing the outer
+edge too drew a dust ring round the circuit where the band meets the
+terrain. The road-facing edge is found against the centerline, because the
+exporter merges both sides' bands into one mesh per section and orders each
+profile right to left, so `v` starts at the inner edge on the left and the
+outer edge on the right. It is a fringe, not a blend: the surfaces still
+meet where they met, and a true blend would need the bands and the ground
+to share a mesh in the exporter. The import logs the fringe's share of band
+vertices (about 8% at Spielberg); zero or everything means the edge test
+broke.
+
+The terrain grid (`ue_export.rs`, `Bake::ground`) is 2 m within 60 m of a
+centerline, 6 m to 200 m and 12 m beyond; the near radius has to clear the
+verge blend (`BLEND_END_M` past the road edge) or the resolutions crack.
 
 ### Cars (`content/cars`, `ApexCarImport`)
 A car is `content/cars/<folder>/car.toml` plus the GLB its `model` names.

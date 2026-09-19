@@ -1,9 +1,11 @@
 #include "ApexTrackAssetBuilder.h"
 
+#include "ApexGroundMaterials.h"
 #include "ApexPropLibrary.h"
 #include "ApexTrackEditorModule.h"
 #include "ApexTrackSceneData.h"
 #include "Race/ApexPropActors.h"
+#include "Algo/Count.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
@@ -35,12 +37,14 @@
 #include "Materials/MaterialExpressionNoise.h"
 #include "Materials/MaterialExpressionNormalize.h"
 #include "Materials/MaterialExpressionPerInstanceCustomData.h"
+#include "Materials/MaterialExpressionPixelDepth.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionUtils.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionVertexColor.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
@@ -81,12 +85,69 @@ namespace
 	}
 
 	/**
-	 * Tiling grayscale noise the track materials use as surface grain. An
-	 * engine asset, so every project has it; swap in a real asphalt/grass
-	 * texture per instance through the `DetailTexture` parameter later.
+	 * Tiling grayscale noise, the surface grain of last resort. An engine
+	 * asset, so every project has it; used only when the baked ground set
+	 * below has not been imported, which is the state of a fresh clone.
 	 */
 	const TCHAR* kDetailTexture =
 		TEXT("/Engine/EngineMaterials/Good64x64TilingNoiseHighFreq.Good64x64TilingNoiseHighFreq");
+
+	/** The three baked maps of one ground set, once loaded. */
+	struct FGroundMapSet
+	{
+		UTexture* Albedo = nullptr;
+		UTexture* Normal = nullptr;
+		UTexture* Roughness = nullptr;
+
+		bool IsComplete() const
+		{
+			return Albedo != nullptr && Normal != nullptr && Roughness != nullptr;
+		}
+	};
+
+	/**
+	 * A baked ground set from `/Game/Ground`, or an empty one when it has
+	 * not been imported (`-run=ApexGroundTexImport`). The package is tested
+	 * before it is loaded: a missing one is the normal case here, not a
+	 * failure, and `LoadObject` would fill the log with errors about it.
+	 */
+	FGroundMapSet LoadGroundSet(const FString& Set)
+	{
+		auto Load = [](const FString& PackageName) -> UTexture* {
+			if (!FPackageName::DoesPackageExist(PackageName))
+			{
+				return nullptr;
+			}
+			FString Left;
+			FString Right;
+			const FString ObjectName = PackageName.Split(TEXT("/"), &Left, &Right,
+										   ESearchCase::CaseSensitive, ESearchDir::FromEnd)
+				? Right
+				: PackageName;
+			return LoadObject<UTexture>(nullptr, *(PackageName + TEXT(".") + ObjectName));
+		};
+		FGroundMapSet Maps;
+		Maps.Albedo = Load(ApexGround::TexturePath(Set, TEXT("col")));
+		Maps.Normal = Load(ApexGround::TexturePath(Set, TEXT("nrm")));
+		Maps.Roughness = Load(ApexGround::TexturePath(Set, TEXT("rough")));
+		return Maps;
+	}
+
+	/**
+	 * What a surface band fades toward at its edges: the dust and rubber a
+	 * few hundred laps leave where the grass meets the road, not a lighter
+	 * shade of the grass. Blended 70 % of the way from the band's own
+	 * colour, so a gravel trap frays sandy and astroturf frays grey.
+	 */
+	const FLinearColor kEdgeDustColor(0.055f, 0.050f, 0.043f);
+
+	/**
+	 * How far the macro noise is allowed to move the fringe boundary. One
+	 * exactly: the graph subtracts half before adding the recentred noise,
+	 * so at this value the interior of a band is provably untouched and
+	 * anything larger would start dirtying the middle of the grass.
+	 */
+	constexpr float kEdgeNoise = 1.0f;
 
 	/**
 	 * Rough blockout size per prop kind, in centimeters.
@@ -785,10 +846,19 @@ namespace
 		TArrayView<const uint32> Indices;
 	};
 
-	/** Fill a mesh description from flat buffers, one polygon group per slot. */
+	/**
+	 * Fill a mesh description from flat buffers, one polygon group per slot.
+	 *
+	 * `EdgeFactors`, when given, is one value per source vertex and goes
+	 * into the red vertex channel: the seam fringe ramp for a surface band
+	 * (see `ApexGround::EdgeFactors`). Everything else is left at the
+	 * attribute's own default of white, which the material reads as "all
+	 * interior" and so leaves alone.
+	 */
 	void FillMeshDescription(FMeshDescription& MeshDescription,
 		const TArray<FVector3f>& SourcePositions, const TArray<FVector3f>& SourceNormals,
-		const TArray<FVector2f>& SourceUVs, TArrayView<const FMeshSlot> Slots)
+		const TArray<FVector2f>& SourceUVs, TArrayView<const FMeshSlot> Slots,
+		TArrayView<const float> EdgeFactors = {})
 	{
 		FStaticMeshAttributes Attributes(MeshDescription);
 		Attributes.Register();
@@ -796,6 +866,8 @@ namespace
 		TVertexAttributesRef<FVector3f> Positions = Attributes.GetVertexPositions();
 		TVertexInstanceAttributesRef<FVector3f> Normals = Attributes.GetVertexInstanceNormals();
 		TVertexInstanceAttributesRef<FVector2f> UVs = Attributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesRef<FVector4f> Colors = Attributes.GetVertexInstanceColors();
+		const bool bHasEdgeFactors = EdgeFactors.Num() == SourcePositions.Num();
 
 		int32 IndexCount = 0;
 		for (const FMeshSlot& Slot : Slots)
@@ -836,6 +908,11 @@ namespace
 						MeshDescription.CreateVertexInstance(VertexIDs[Index]);
 					Normals[InstanceID] = SourceNormals[Index];
 					UVs.Set(InstanceID, 0, SourceUVs[Index]);
+					if (bHasEdgeFactors)
+					{
+						Colors[InstanceID] =
+							FVector4f(EdgeFactors[Index], 1.0f, 1.0f, 1.0f);
+					}
 					Corners[Corner] = InstanceID;
 				}
 				MeshDescription.CreatePolygon(PolygonGroup, Corners);
@@ -1027,18 +1104,275 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 	Tinted->A.Expression = Albedo;
 	Tinted->B.Expression = TintFactor;
 
-	// Fine surface grain, in mesh UV space. Track strips carry metres in
-	// their UVs (u along the station, v across; ground tiles use world x/y),
-	// so `DetailTiling` is repeats per metre: 2 gives a 50 cm cell. Two
-	// samples at coprime scales hide the 64-texel repeat, and a finite
-	// difference of the first is turned into a bump so the grain catches
-	// light rather than just tinting it. All off (0) by default; the family
-	// branches below switch it on.
-	UMaterialExpression* FinalAlbedo = Tinted;
+	/** Output 1 of a texture sample or a vertex colour is its red channel. */
+	constexpr int32 kRedOutput = 1;
+
+	// The seam fringe.
+	//
+	// A run-off band is its own mesh at its own height beside the road, so
+	// grass meets asphalt as a geometric line between two flat colours —
+	// the single most "painted on" thing about a circuit after the surfaces
+	// themselves. Nothing in the material knows where that line is, so the
+	// builder measures each vertex's distance from the band's edge
+	// (`ApexGround::EdgeFactors`) and puts the ramp in the red vertex
+	// channel: 0 at the edge, 1 a couple of metres in. Here it is broken
+	// with the macro noise and the outer stretch taken toward dust, so the
+	// boundary wanders and frays instead of ruling a line.
+	//
+	// It is a fringe, not a real blend: the two surfaces still meet where
+	// they met. Blending properly would mean the bands and the ground
+	// sharing a mesh, which is the exporter's business, not this one's.
+	//
+	// The ×2 −0.5 is what keeps the interior clean. At a vertex colour of 1
+	// the mask is saturate(−0.5 + noise × EdgeNoise), and the recentred
+	// noise never exceeds +0.5, so for any EdgeNoise up to 1 the middle of
+	// the band is untouched. Meshes that carry no colours read as white,
+	// which is that same interior case, so this costs them nothing.
+	UMaterialExpressionVertexColor* VertexColor = AddExpr<UMaterialExpressionVertexColor>(Parent);
+	UMaterialExpressionScalarParameter* EdgeBlendParam =
+		AddExpr<UMaterialExpressionScalarParameter>(Parent);
+	EdgeBlendParam->ParameterName = TEXT("EdgeBlend");
+	EdgeBlendParam->DefaultValue = 0.0f;
+	UMaterialExpressionScalarParameter* EdgeNoiseParam =
+		AddExpr<UMaterialExpressionScalarParameter>(Parent);
+	EdgeNoiseParam->ParameterName = TEXT("EdgeNoise");
+	EdgeNoiseParam->DefaultValue = 0.0f;
+	UMaterialExpressionVectorParameter* EdgeColorParam =
+		AddExpr<UMaterialExpressionVectorParameter>(Parent);
+	EdgeColorParam->ParameterName = TEXT("EdgeColor");
+	EdgeColorParam->DefaultValue = kEdgeDustColor;
+
+	UMaterialExpressionSubtract* FromEdge = AddExpr<UMaterialExpressionSubtract>(Parent);
+	FromEdge->ConstA = 1.0f;
+	FromEdge->B.Expression = VertexColor;
+	FromEdge->B.OutputIndex = kRedOutput;
+	UMaterialExpressionMultiply* EdgeRamp = AddExpr<UMaterialExpressionMultiply>(Parent);
+	EdgeRamp->A.Expression = FromEdge;
+	EdgeRamp->ConstB = 2.0f;
+	UMaterialExpressionSubtract* EdgeBias = AddExpr<UMaterialExpressionSubtract>(Parent);
+	EdgeBias->A.Expression = EdgeRamp;
+	EdgeBias->ConstB = 0.5f;
+	UMaterialExpressionMultiply* EdgeWobble = AddExpr<UMaterialExpressionMultiply>(Parent);
+	EdgeWobble->A.Expression = NoiseCentered;
+	EdgeWobble->B.Expression = EdgeNoiseParam;
+	UMaterialExpressionAdd* EdgeRagged = AddExpr<UMaterialExpressionAdd>(Parent);
+	EdgeRagged->A.Expression = EdgeBias;
+	EdgeRagged->B.Expression = EdgeWobble;
+	UMaterialExpressionClamp* EdgeMask = AddExpr<UMaterialExpressionClamp>(Parent);
+	EdgeMask->Input.Expression = EdgeRagged;
+	EdgeMask->MinDefault = 0.0f;
+	EdgeMask->MaxDefault = 1.0f;
+	UMaterialExpressionMultiply* Fringe = AddExpr<UMaterialExpressionMultiply>(Parent);
+	Fringe->A.Expression = EdgeMask;
+	Fringe->B.Expression = EdgeBlendParam;
+	UMaterialExpressionLinearInterpolate* Edged =
+		AddExpr<UMaterialExpressionLinearInterpolate>(Parent);
+	Edged->A.Expression = Tinted;
+	Edged->B.Expression = EdgeColorParam;
+	Edged->Alpha.Expression = Fringe;
+
+	// The surface itself. Track strips carry metres in their UVs (u along
+	// the station, v across; ground tiles use world x/y), so every tiling
+	// parameter below is repeats per metre.
+	//
+	// Two graphs, chosen once per track at bake time rather than branched at
+	// runtime, because this material is generated per track anyway and a
+	// texture sample multiplied by zero still costs a texture sample:
+	//
+	//  - the baked ground set from `/Game/Ground`, when it has been imported
+	//    (`-run=ApexGroundTexImport` after `scripts/bake_ground_textures.py`);
+	//  - otherwise the engine's 64-texel noise tile as plain grain, which is
+	//    all this material had before the set existed and is what a fresh
+	//    clone still gets.
+	UMaterialExpression* FinalAlbedo = Edged;
 	UMaterialExpression* FinalRoughness = RoughSum;
 	UMaterialExpression* FinalNormal = nullptr;
-	if (UTexture* DetailTexture = LoadObject<UTexture>(nullptr, kDetailTexture))
+	// Asphalt is the parent's default set. Every instance overrides the
+	// three maps with its own, so which set supplies the defaults only
+	// matters for a material that asks for none.
+	const FGroundMapSet DefaultGround = LoadGroundSet(TEXT("asphalt"));
+	const bool bGroundTextures = DefaultGround.IsComplete();
+	if (bGroundTextures)
 	{
+		// Every map is sampled twice — at the instance's own tiling and at a
+		// deliberately non-integer multiple of it — and mixed by a
+		// world-space noise. One scale alone shows its repeat by the third
+		// row of quads; two mixed at twenty metres do not, for one extra
+		// sample per map. The same mix is then pushed all the way to the
+		// coarse sample with distance, so the far field is low-frequency
+		// texture rather than a metre of grain per pixel, which is what
+		// shimmers, and the normal is flattened over the same range because
+		// a tangent-space normal at a grazing angle is pure aliasing.
+		UMaterialExpressionScalarParameter* TilingParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		TilingParam->ParameterName = TEXT("TextureTiling");
+		TilingParam->DefaultValue = 1.0f / ApexGround::TextureTileM;
+		// Off by default, all three: the prop stand-ins and anything else
+		// that shares this parent without asking for a surface would
+		// otherwise come out in asphalt grain and asphalt bumps. Only an
+		// instance with a ground look turns them on.
+		UMaterialExpressionScalarParameter* TextureAmountParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		TextureAmountParam->ParameterName = TEXT("TextureAmount");
+		TextureAmountParam->DefaultValue = 0.0f;
+		UMaterialExpressionScalarParameter* NormalStrengthParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		NormalStrengthParam->ParameterName = TEXT("NormalStrength");
+		NormalStrengthParam->DefaultValue = 0.0f;
+		UMaterialExpressionScalarParameter* RoughMapParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		RoughMapParam->ParameterName = TEXT("RoughnessMapAmount");
+		RoughMapParam->DefaultValue = 0.0f;
+		// Cycles per centimetre of world space, as `NoiseScale`: 0.0005 is
+		// a twenty-metre patch, large enough that the eye reads it as the
+		// ground varying rather than as the texture changing scale.
+		UMaterialExpressionScalarParameter* MacroScaleParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		MacroScaleParam->ParameterName = TEXT("MacroBlendScale");
+		MacroScaleParam->DefaultValue = 0.0005f;
+		// Centimetres of pixel depth: fully coarse by 200 m out.
+		UMaterialExpressionScalarParameter* FarStartParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		FarStartParam->ParameterName = TEXT("FarFadeStart");
+		FarStartParam->DefaultValue = 4000.0f;
+		UMaterialExpressionScalarParameter* FarRangeParam =
+			AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		FarRangeParam->ParameterName = TEXT("FarFadeRange");
+		FarRangeParam->DefaultValue = 16000.0f;
+
+		UMaterialExpressionMultiply* NearUV = AddExpr<UMaterialExpressionMultiply>(Parent);
+		NearUV->A.Expression = TexCoord;
+		NearUV->B.Expression = TilingParam;
+		UMaterialExpressionMultiply* CoarseUV = AddExpr<UMaterialExpressionMultiply>(Parent);
+		CoarseUV->A.Expression = NearUV;
+		// Nothing near a ratio of small integers, or the two scales line up
+		// again every few tiles and the repeat comes straight back.
+		CoarseUV->ConstB = 0.371f;
+
+		UMaterialExpressionMultiply* MacroPos = AddExpr<UMaterialExpressionMultiply>(Parent);
+		MacroPos->A.Expression = WorldPos;
+		MacroPos->B.Expression = MacroScaleParam;
+		UMaterialExpressionNoise* MacroNoise = AddExpr<UMaterialExpressionNoise>(Parent);
+		MacroNoise->Position.Expression = MacroPos;
+		MacroNoise->Scale = 1.0f;
+		MacroNoise->Levels = 2;
+		MacroNoise->OutputMin = 0.0f;
+		MacroNoise->OutputMax = 1.0f;
+
+		UMaterialExpressionPixelDepth* Depth = AddExpr<UMaterialExpressionPixelDepth>(Parent);
+		UMaterialExpressionSubtract* PastStart = AddExpr<UMaterialExpressionSubtract>(Parent);
+		PastStart->A.Expression = Depth;
+		PastStart->B.Expression = FarStartParam;
+		UMaterialExpressionDivide* FarRaw = AddExpr<UMaterialExpressionDivide>(Parent);
+		FarRaw->A.Expression = PastStart;
+		FarRaw->B.Expression = FarRangeParam;
+		UMaterialExpressionClamp* Far = AddExpr<UMaterialExpressionClamp>(Parent);
+		Far->Input.Expression = FarRaw;
+		Far->MinDefault = 0.0f;
+		Far->MaxDefault = 1.0f;
+		UMaterialExpressionLinearInterpolate* Mix =
+			AddExpr<UMaterialExpressionLinearInterpolate>(Parent);
+		Mix->A.Expression = MacroNoise;
+		Mix->ConstB = 1.0f;
+		Mix->Alpha.Expression = Far;
+
+		// The sampler type is baked into the node, not the override, so an
+		// instance may only swap a map for one of the same class. That is
+		// what the importer's fixed per-suffix settings are for: every
+		// `_col` is sRGB colour, every `_nrm` a normal map and every
+		// `_rough` grayscale, on every set.
+		auto SampleMap = [&](const TCHAR* Name, UTexture* Texture, UMaterialExpression* Coords) {
+			UMaterialExpressionTextureSampleParameter2D* Sample =
+				AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+			Sample->ParameterName = Name;
+			Sample->Texture = Texture;
+			Sample->SamplerType = MaterialExpressionUtils::GetSamplerTypeForTexture(Texture);
+			Sample->Coordinates.Expression = Coords;
+			return Sample;
+		};
+		auto BlendMap = [&](const TCHAR* Name, UTexture* Texture, int32 Output) {
+			UMaterialExpressionLinearInterpolate* Blend =
+				AddExpr<UMaterialExpressionLinearInterpolate>(Parent);
+			Blend->A.Expression = SampleMap(Name, Texture, NearUV);
+			Blend->A.OutputIndex = Output;
+			Blend->B.Expression = SampleMap(Name, Texture, CoarseUV);
+			Blend->B.OutputIndex = Output;
+			Blend->Alpha.Expression = Mix;
+			return Blend;
+		};
+		UMaterialExpressionLinearInterpolate* AlbedoMap =
+			BlendMap(TEXT("AlbedoMap"), DefaultGround.Albedo, 0);
+		UMaterialExpressionLinearInterpolate* NormalMap =
+			BlendMap(TEXT("NormalMap"), DefaultGround.Normal, 0);
+		UMaterialExpressionLinearInterpolate* RoughMap =
+			BlendMap(TEXT("RoughnessMap"), DefaultGround.Roughness, kRedOutput);
+
+		// The maps are baked to a per-channel mean of 0.5 so the exporter's
+		// own per-key colour still decides what a surface is — a red kerb
+		// from a yellow one, this circuit's asphalt from its pit lane (see
+		// the note in apex_tex.py) — and doubling brings the level back.
+		UMaterialExpressionMultiply* MapDoubled = AddExpr<UMaterialExpressionMultiply>(Parent);
+		MapDoubled->A.Expression = AlbedoMap;
+		MapDoubled->ConstB = 2.0f;
+		UMaterialExpressionLinearInterpolate* MapGain =
+			AddExpr<UMaterialExpressionLinearInterpolate>(Parent);
+		MapGain->ConstA = 1.0f;
+		MapGain->B.Expression = MapDoubled;
+		MapGain->Alpha.Expression = TextureAmountParam;
+		UMaterialExpressionMultiply* TexturedAlbedo = AddExpr<UMaterialExpressionMultiply>(Parent);
+		TexturedAlbedo->A.Expression = Edged;
+		TexturedAlbedo->B.Expression = MapGain;
+		FinalAlbedo = TexturedAlbedo;
+
+		UMaterialExpressionAdd* RoughCentered = AddExpr<UMaterialExpressionAdd>(Parent);
+		RoughCentered->A.Expression = RoughMap;
+		RoughCentered->ConstB = -0.5f;
+		UMaterialExpressionMultiply* RoughSwing = AddExpr<UMaterialExpressionMultiply>(Parent);
+		RoughSwing->A.Expression = RoughCentered;
+		RoughSwing->B.Expression = RoughMapParam;
+		UMaterialExpressionAdd* TexturedRoughness = AddExpr<UMaterialExpressionAdd>(Parent);
+		TexturedRoughness->A.Expression = RoughSum;
+		TexturedRoughness->B.Expression = RoughSwing;
+		FinalRoughness = TexturedRoughness;
+
+		UMaterialExpressionSubtract* NearFactor = AddExpr<UMaterialExpressionSubtract>(Parent);
+		NearFactor->ConstA = 1.0f;
+		NearFactor->B.Expression = Far;
+		UMaterialExpressionMultiply* SlopeScale = AddExpr<UMaterialExpressionMultiply>(Parent);
+		SlopeScale->A.Expression = NormalStrengthParam;
+		SlopeScale->B.Expression = NearFactor;
+		UMaterialExpressionComponentMask* SlopeXY =
+			AddExpr<UMaterialExpressionComponentMask>(Parent);
+		SlopeXY->Input.Expression = NormalMap;
+		SlopeXY->R = 1;
+		SlopeXY->G = 1;
+		SlopeXY->B = 0;
+		SlopeXY->A = 0;
+		UMaterialExpressionComponentMask* SlopeZ =
+			AddExpr<UMaterialExpressionComponentMask>(Parent);
+		SlopeZ->Input.Expression = NormalMap;
+		SlopeZ->R = 0;
+		SlopeZ->G = 0;
+		SlopeZ->B = 1;
+		SlopeZ->A = 0;
+		UMaterialExpressionMultiply* ScaledXY = AddExpr<UMaterialExpressionMultiply>(Parent);
+		ScaledXY->A.Expression = SlopeXY;
+		ScaledXY->B.Expression = SlopeScale;
+		UMaterialExpressionAppendVector* NormalXYZ =
+			AddExpr<UMaterialExpressionAppendVector>(Parent);
+		NormalXYZ->A.Expression = ScaledXY;
+		NormalXYZ->B.Expression = SlopeZ;
+		UMaterialExpressionNormalize* NormalOut = AddExpr<UMaterialExpressionNormalize>(Parent);
+		NormalOut->VectorInput.Expression = NormalXYZ;
+		FinalNormal = NormalOut;
+	}
+	else if (UTexture* DetailTexture = LoadObject<UTexture>(nullptr, kDetailTexture))
+	{
+		// The fallback: two samples of the noise tile at coprime scales to
+		// hide its 64-texel repeat, and a finite difference of the first
+		// turned into a bump so the grain catches light rather than just
+		// tinting it. All off (0) by default; the family branches below
+		// switch it on.
 		UMaterialExpressionScalarParameter* DetailTilingParam =
 			AddExpr<UMaterialExpressionScalarParameter>(Parent);
 		DetailTilingParam->ParameterName = TEXT("DetailTiling");
@@ -1081,9 +1415,6 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 			Shifted->B.Expression = Delta;
 			return Shifted;
 		};
-		// Output 1 of a texture sample is its red channel.
-		constexpr int32 kRed = 1;
-
 		UMaterialExpressionTextureSampleParameter2D* Fine = SampleDetail(DetailUV);
 		UMaterialExpressionMultiply* CoarseUV = AddExpr<UMaterialExpressionMultiply>(Parent);
 		CoarseUV->A.Expression = DetailUV;
@@ -1091,9 +1422,9 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		UMaterialExpressionTextureSampleParameter2D* Coarse = SampleDetail(CoarseUV);
 		UMaterialExpressionAdd* DetailSum = AddExpr<UMaterialExpressionAdd>(Parent);
 		DetailSum->A.Expression = Fine;
-		DetailSum->A.OutputIndex = kRed;
+		DetailSum->A.OutputIndex = kRedOutput;
 		DetailSum->B.Expression = Coarse;
-		DetailSum->B.OutputIndex = kRed;
+		DetailSum->B.OutputIndex = kRedOutput;
 		// Average of the two, recentred to ±0.5 like the macro noise.
 		UMaterialExpressionMultiply* DetailMean = AddExpr<UMaterialExpressionMultiply>(Parent);
 		DetailMean->A.Expression = DetailSum;
@@ -1109,7 +1440,7 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		DetailBrightness->A.Expression = DetailMottle;
 		DetailBrightness->ConstB = 1.0f;
 		UMaterialExpressionMultiply* DetailedAlbedo = AddExpr<UMaterialExpressionMultiply>(Parent);
-		DetailedAlbedo->A.Expression = Tinted;
+		DetailedAlbedo->A.Expression = Edged;
 		DetailedAlbedo->B.Expression = DetailBrightness;
 		FinalAlbedo = DetailedAlbedo;
 
@@ -1129,14 +1460,14 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		UMaterialExpressionTextureSampleParameter2D* FineV = SampleDetail(OffsetUV(0.0f, Texel));
 		UMaterialExpressionSubtract* SlopeU = AddExpr<UMaterialExpressionSubtract>(Parent);
 		SlopeU->A.Expression = Fine;
-		SlopeU->A.OutputIndex = kRed;
+		SlopeU->A.OutputIndex = kRedOutput;
 		SlopeU->B.Expression = FineU;
-		SlopeU->B.OutputIndex = kRed;
+		SlopeU->B.OutputIndex = kRedOutput;
 		UMaterialExpressionSubtract* SlopeV = AddExpr<UMaterialExpressionSubtract>(Parent);
 		SlopeV->A.Expression = Fine;
-		SlopeV->A.OutputIndex = kRed;
+		SlopeV->A.OutputIndex = kRedOutput;
 		SlopeV->B.Expression = FineV;
-		SlopeV->B.OutputIndex = kRed;
+		SlopeV->B.OutputIndex = kRedOutput;
 		UMaterialExpressionMultiply* BumpU = AddExpr<UMaterialExpressionMultiply>(Parent);
 		BumpU->A.Expression = SlopeU;
 		BumpU->B.Expression = DetailNormalParam;
@@ -1158,7 +1489,8 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 	else
 	{
 		UE_LOG(LogApexTrackImport, Warning,
-			TEXT("    %s is missing — track materials have no surface grain"), kDetailTexture);
+			TEXT("    no ground textures and %s is missing — surfaces have no grain at all"),
+			kDetailTexture);
 	}
 
 	UMaterialExpressionClamp* RoughOut = AddExpr<UMaterialExpressionClamp>(Parent);
@@ -1211,6 +1543,19 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 						 UMaterialInstanceConstant* Instance, const TCHAR* Name, FLinearColor Value) {
 		Instance->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(Name), Value);
 	};
+	auto SetTexture = [](UMaterialInstanceConstant* Instance, const TCHAR* Name, UTexture* Value) {
+		Instance->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(Name), Value);
+	};
+	// One load per set, not one per key: a circuit has fifteen materials
+	// and seven sets, and half of them are asphalt.
+	TMap<FString, FGroundMapSet> GroundSets;
+	auto GroundSetFor = [&GroundSets](const FString& Set) -> const FGroundMapSet& {
+		if (FGroundMapSet* Existing = GroundSets.Find(Set))
+		{
+			return *Existing;
+		}
+		return GroundSets.Add(Set, LoadGroundSet(Set));
+	};
 
 	for (const FApexTrackMaterial& Source : Scene.Materials)
 	{
@@ -1229,7 +1574,15 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		// Every key in a family gets the family's treatment, whatever it is
 		// called (`wear_core`, `chequer_*` and the like are just more road
 		// and marking): only the base colour comes from the export.
+		//
+		// The noise grain is the fallback graph's, so with the ground set
+		// imported the parent has no `Detail*` parameters and these calls
+		// would leave overrides matching nothing behind.
 		auto SetDetail = [&](float Tiling, float Amount, float Roughness, float Normal) {
+			if (bGroundTextures)
+			{
+				return;
+			}
 			SetScalar(Instance, TEXT("DetailTiling"), Tiling);
 			SetScalar(Instance, TEXT("DetailAmount"), Amount);
 			SetScalar(Instance, TEXT("DetailRoughness"), Roughness);
@@ -1298,6 +1651,39 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 			SetScalar(Instance, TEXT("NoiseAmount"), 0.08f);
 			SetDetail(2.0f, 0.25f, 0.15f, 0.2f);
 		}
+
+		// Which baked set this family samples, and how hard.
+		const ApexGround::FSurfaceLook Look =
+			ApexGround::LookFor(Source.Family, Source.Key);
+		if (bGroundTextures && Look.Set[0] != TEXT('\0'))
+		{
+			const FGroundMapSet& Set = GroundSetFor(Look.Set);
+			if (Set.IsComplete())
+			{
+				SetTexture(Instance, TEXT("AlbedoMap"), Set.Albedo);
+				SetTexture(Instance, TEXT("NormalMap"), Set.Normal);
+				SetTexture(Instance, TEXT("RoughnessMap"), Set.Roughness);
+				SetScalar(Instance, TEXT("TextureAmount"), 1.0f);
+				SetScalar(Instance, TEXT("TextureTiling"), 1.0f / Look.TileM);
+				SetScalar(Instance, TEXT("NormalStrength"), Look.NormalStrength);
+				SetScalar(Instance, TEXT("RoughnessMapAmount"), Look.RoughnessMapAmount);
+			}
+			else
+			{
+				UE_LOG(LogApexTrackImport, Warning,
+					TEXT("    the %s ground set is missing; %s keeps the parent's asphalt"),
+					Look.Set, *Source.Key);
+			}
+		}
+		// The fringe works either way: its ramp is in the vertex colours and
+		// its parameters are outside the branch above.
+		if (Look.EdgeBlend > 0.0f)
+		{
+			SetScalar(Instance, TEXT("EdgeBlend"), Look.EdgeBlend);
+			SetScalar(Instance, TEXT("EdgeNoise"), kEdgeNoise);
+			SetVector(Instance, TEXT("EdgeColor"), FMath::Lerp(Base, kEdgeDustColor, 0.7f));
+		}
+
 		Base.A = 1.0f;
 		SetVector(Instance, TEXT("BaseColor"), Base);
 		FinishInstance(Instance, Source.Key);
@@ -1505,7 +1891,10 @@ FApexTrackAssetBuilder::FResolvedProp FApexTrackAssetBuilder::ResolveProp(const 
 		Resolved.bAuthored = true;
 		Resolved.bFaceRoad = ApexProps::FacesRoad(Resolved.Kind, Resolved.Asset);
 		Resolved.bFaceUpCourse = ApexProps::FacesUpCourse(Resolved.Kind, Resolved.Asset);
-		Resolved.bInstanced = ApexProps::IsInstancedKind(Resolved.Kind);
+		// A board with a text face gets its own actor so the text component
+		// can hang off it; instances cannot carry one.
+		Resolved.bInstanced = ApexProps::IsInstancedKind(Resolved.Kind)
+			&& !(ApexProps::HasTextFace(Resolved.Kind, Resolved.Asset) && !Resolved.Text.IsEmpty());
 		return Resolved;
 	}
 
@@ -1732,12 +2121,48 @@ UStaticMesh* FApexTrackAssetBuilder::CreateStaticMesh(const FString& Name,
 
 bool FApexTrackAssetBuilder::BuildMeshes(const FApexTrackScene& Scene, FString& OutError)
 {
+	// The centerline in the meshes' own frame (UE centimetres), for telling
+	// a band's road-facing edge from its outer one. Which way `Across`
+	// points does not matter as long as it is the same everywhere. Sorted
+	// by station because the lookup is a binary search, and the exporter's
+	// order is a convention rather than something the reader checks.
+	TArray<ApexGround::FCenterSample> Center;
+	Center.Reserve(Scene.Centerline.Num());
+	for (const FApexTrackCenterlinePoint& Point : Scene.Centerline)
+	{
+		const float Yaw = FMath::DegreesToRadians(Point.YawDeg);
+		ApexGround::FCenterSample& Sample = Center.AddDefaulted_GetRef();
+		Sample.StationM = Point.StationCm / 100.0f;
+		Sample.Location = FVector2f(Point.Location.X, Point.Location.Y);
+		Sample.Across = FVector2f(-FMath::Sin(Yaw), FMath::Cos(Yaw));
+	}
+	Center.Sort([](const ApexGround::FCenterSample& A, const ApexGround::FCenterSample& B) {
+		return A.StationM < B.StationM;
+	});
+	const float LapM = Scene.bClosedLoop ? Scene.LengthCm / 100.0f : 0.0f;
+
+	// How much of the bands ended up as fringe, for the log. A figure of
+	// zero or of everything means the inner-edge test has gone wrong (a
+	// centerline in another frame, say), which nothing else would show
+	// short of a screenshot.
+	int32 BandVertices = 0;
+	int32 FringeVertices = 0;
 	for (const FApexTrackMesh& Source : Scene.Meshes)
 	{
 		FMeshDescription MeshDescription;
 		const FMeshSlot Slot{Source.MaterialKey, Source.Indices};
-		FillMeshDescription(
-			MeshDescription, Source.Positions, Source.Normals, Source.UVs, MakeArrayView(&Slot, 1));
+		// A run-off band gets the seam fringe ramp in its vertex colours.
+		// Only a band: the terrain is a grid whose UVs are world metres, so
+		// the "how far across the strip is this" reading would be nonsense.
+		TArray<float> EdgeFactors;
+		if (ApexGround::IsSurfaceBand(Source.MaterialKey))
+		{
+			EdgeFactors = ApexGround::EdgeFactors(Source.UVs, Source.Positions, Center, LapM);
+			BandVertices += EdgeFactors.Num();
+			FringeVertices += Algo::CountIf(EdgeFactors, [](float F) { return F < 1.0f; });
+		}
+		FillMeshDescription(MeshDescription, Source.Positions, Source.Normals, Source.UVs,
+			MakeArrayView(&Slot, 1), EdgeFactors);
 		UStaticMesh* Mesh = CreateStaticMesh(Source.Name, MeshDescription, {Source.MaterialKey},
 			/*bSimpleCollision*/ false, OutError);
 		if (!Mesh)
@@ -1748,6 +2173,12 @@ bool FApexTrackAssetBuilder::BuildMeshes(const FApexTrackScene& Scene, FString& 
 	}
 
 	UE_LOG(LogApexTrackImport, Display, TEXT("    generated %d static mesh(es)"), Meshes.Num());
+	if (BandVertices > 0)
+	{
+		UE_LOG(LogApexTrackImport, Display,
+			TEXT("    seam fringe on %d of %d run-off band vertices (%.0f%%)"), FringeVertices,
+			BandVertices, 100.0 * FringeVertices / BandVertices);
+	}
 	return BuildPropMeshes(Scene, OutError) && ValidateMeshes(OutError);
 }
 
@@ -2183,6 +2614,27 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 		}
 	};
 
+	// The corner name on a `corner_sign`: one text component just off the
+	// board face, which the kit authors on local +Y between 1.8 and 2.6 m
+	// (the importer already turns the board at the road). Long names shrink
+	// to stay inside the 2.4 m board.
+	auto AddBoardText = [&](AStaticMeshActor* Actor, const FString& Text) {
+		UTextRenderComponent* Label = NewObject<UTextRenderComponent>(Actor, TEXT("BoardText"), RF_Transactional);
+		Label->CreationMethod = EComponentCreationMethod::Instance;
+		Label->SetMobility(EComponentMobility::Movable);
+		Label->SetupAttachment(Actor->GetStaticMeshComponent());
+		Label->SetRelativeLocation(FVector(0.0, 3.5, 220.0));
+		Label->SetRelativeRotation(FRotator(0.0, 90.0, 0.0));
+		Label->SetText(FText::FromString(Text));
+		Label->SetHorizontalAlignment(EHTA_Center);
+		Label->SetVerticalAlignment(EVRTA_TextCenter);
+		const float Fit = 200.0f / FMath::Max(1, Text.Len()) / 0.62f;   // ~0.62 em advance per glyph
+		Label->SetWorldSize(FMath::Clamp(Fit, 14.0f, 44.0f));
+		Label->SetTextRenderColor(FColor(20, 20, 24));
+		Actor->AddInstanceComponent(Label);
+		Label->RegisterComponent();
+	};
+
 	auto SpawnMeshActor = [&](int32 Index, const FString& Label, const FVector& Location,
 							  const FRotator& Rotation) -> AStaticMeshActor* {
 		SpawnParams.Name = MakeUniqueObjectName(World->PersistentLevel,
@@ -2300,6 +2752,10 @@ bool FApexTrackAssetBuilder::BuildLevel(const FApexTrackScene& Scene, FString& O
 				Component->SetStaticMesh(Resolved.Mesh);
 				Actor->SetActorScale3D(Scale);
 				ApplyAuthoredSlots(Component, Resolved.Mesh, Resolved.Text);
+				if (ApexProps::HasTextFace(Resolved.Kind, Resolved.Asset) && !Resolved.Text.IsEmpty())
+				{
+					AddBoardText(Actor, Resolved.Text);
+				}
 				++PropActors;
 			}
 			continue;

@@ -240,6 +240,11 @@ namespace ApexProps
 			|| Name == TEXT("balloon_envelope");
 	}
 
+	bool HasTextFace(const FString& Kind, const FString& Asset)
+	{
+		return Kind == TEXT("board") && Asset == TEXT("corner_sign");
+	}
+
 	bool IsMarkerSlot(FName SlotName)
 	{
 		return NameIs(SlotName, TEXT("board_marker"));
@@ -255,7 +260,8 @@ namespace ApexProps
 	bool IsMaskedSlot(FName SlotName)
 	{
 		const FString Name = SlotName.ToString();
-		return Name == TEXT("fence_mesh") || Name.StartsWith(TEXT("tree_foliage")) || Name == TEXT("crowd_cards");
+		return Name == TEXT("fence_mesh") || Name.StartsWith(TEXT("tree_foliage")) || Name == TEXT("crowd_cards")
+			|| Name.StartsWith(TEXT("tree_card_")) || Name.StartsWith(TEXT("scatter_"));
 	}
 
 	float BridgeSpanScale(float SpanM)

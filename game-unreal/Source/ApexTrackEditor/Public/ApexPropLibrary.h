@@ -77,6 +77,8 @@ namespace ApexProps
 
 	/** Material slots whose surface is the brand a prop's `text` names. */
 	APEXTRACKEDITOR_API bool IsBrandSlot(FName SlotName);
+	/** The asset carries a blank `board_text` face that the prop's `text` is rendered on (a named-corner board). */
+	APEXTRACKEDITOR_API bool HasTextFace(const FString& Kind, const FString& Asset);
 	/** The braking marker's number panel; `text` is 50/100/150/200. */
 	APEXTRACKEDITOR_API bool IsMarkerSlot(FName SlotName);
 	/** The flag pole's cloth; `text` is a country code (`nl`, `de`, … `chequer`). */

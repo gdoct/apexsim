@@ -27,6 +27,9 @@ pub enum WallKind {
     Tires = 1,
     /// Concrete, a building, a stand, a bridge parapet: hard.
     Concrete = 2,
+    /// A sausage kerb: the car rides over it and takes a jolt, it is
+    /// never pushed out (see `physics::resolve_wall_contacts`).
+    Kerb = 3,
 }
 
 impl WallKind {
@@ -35,6 +38,7 @@ impl WallKind {
             0 => Some(WallKind::Armco),
             1 => Some(WallKind::Tires),
             2 => Some(WallKind::Concrete),
+            3 => Some(WallKind::Kerb),
             _ => None,
         }
     }
@@ -45,6 +49,7 @@ impl WallKind {
             WallKind::Armco => 0.25,
             WallKind::Tires => 0.08,
             WallKind::Concrete => 0.3,
+            WallKind::Kerb => 0.0,
         }
     }
 
@@ -54,6 +59,7 @@ impl WallKind {
             WallKind::Armco => 0.5,
             WallKind::Tires => 0.8,
             WallKind::Concrete => 0.6,
+            WallKind::Kerb => 0.9,
         }
     }
 }

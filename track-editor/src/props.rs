@@ -55,16 +55,26 @@ pub const KIT: &[KitAsset] = kit![
     Barrier "concrete_4m" 4.0 x 0.6 x 1.0,
     Barrier "concrete_4m_rail" 4.0 x 0.6 x 1.55,
     Barrier "tecpro_2m" 2.0 x 1.0 x 1.15,
+    // Sausage kerb: a `kerb` wall for the sim (jolts, never stops a car).
+    Barrier "sausage_kerb_2m" 2.0 x 0.5 x 0.1,
+    // Corner caps tile onto a run at x = -1 like `tires_corner`.
+    Barrier "tecpro_corner" 1.4 x 1.4 x 1.15,
+    Barrier "concrete_end" 2.0 x 0.6 x 1.0,
     TireWall "tires_4m" 4.0 x 1.3 x 0.8,
     TireWall "tires_corner" 1.7 x 1.7 x 0.8,
     Board "hoarding_3m" 3.0 x 0.3 x 2.0,
     Board "hoarding_6m" 6.0 x 0.3 x 2.0,
     Board "braking_marker" 0.75 x 0.2 x 1.9,
     Board "light_panel" 1.0 x 0.3 x 2.1,
+    // Named-corner board; the name is the prop's `text` on `board_text`.
+    Board "corner_sign" 2.4 x 0.1 x 2.6,
     Sign "marshal_post" 3.2 x 2.4 x 4.8,
     Sign "pit_speed_limit" 0.9 x 0.3 x 2.8,
     Sign "pit_exit_light" 0.6 x 0.4 x 4.2,
     Sign "flag_pole" 1.8 x 0.5 x 8.1,
+    // Standing letters on the slope above T1 (Spielberg); rebuilt per
+    // circuit from `text`, centred on its footprint.
+    Sign "hillside_letters" 47.0 x 0.8 x 4.7,
     Fence "mesh_4m" 4.0 x 0.1 x 2.5,
     Fence "mesh_4m_hoarding" 4.0 x 0.1 x 2.5,
     Fence "wood_4m" 4.0 x 0.1 x 1.2,
@@ -92,6 +102,14 @@ pub const KIT: &[KitAsset] = kit![
     // Skyline: city backdrop for street circuits, set well back.
     Building "skyline_lowrise" 26.2 x 18.2 x 40.8,
     Building "skyline_crane" 34.5 x 16.1 x 76.3,
+    // Pit-roof podium: floored at 9.95 m so it sits on a `garage_6m`.
+    Building "podium" 12.0 x 4.5 x 14.0,
+    // Styrian village kit for the residential/farmyard polygons.
+    Building "village_house_a" 13.2 x 9.5 x 8.3,
+    Building "village_house_b" 10.8 x 8.6 x 8.5,
+    Building "village_house_c" 15.2 x 12.6 x 6.9,
+    Building "barn" 19.6 x 10.6 x 8.2,
+    Building "chapel" 8.5 x 22.5 x 23.5,
     Building "skyline_slab_a" 24.1 x 16.1 x 96.2,
     Building "skyline_pyramid" 20.1 x 20.1 x 112.0,
     Building "skyline_podium" 40.2 x 30.2 x 121.2,
@@ -114,6 +132,8 @@ pub const KIT: &[KitAsset] = kit![
     Attraction "ferris_wheel" 62.8 x 16.0 x 69.5,
     Attraction "portaloo_row" 5.4 x 1.2 x 2.4,
     Attraction "fanzone_stage" 12.7 x 8.0 x 8.5,
+    Attraction "food_stall_6m" 6.2 x 3.0 x 3.9,
+    Attraction "ticket_gate" 7.0 x 1.8 x 4.6,
     // Landscape
     Tree "broadleaf_m" 8.0 x 7.2 x 10.0,
     Tree "broadleaf_s" 5.0 x 4.5 x 6.0,
@@ -124,6 +144,16 @@ pub const KIT: &[KitAsset] = kit![
     Tree "bush_cluster" 4.0 x 3.6 x 3.0,
     Tree "palm_oil" 4.4 x 4.4 x 8.4,
     Tree "palm_ornamental" 3.8 x 4.8 x 13.2,
+    // Near-LOD card trees for the first 60 m (masked `tree_card_*` slots).
+    Tree "broadleaf_m_near" 9.6 x 9.0 x 9.7,
+    Tree "conifer_m_near" 4.3 x 4.7 x 12.1,
+    // Ground scatter for the grass band by the road.
+    Tree "grass_clump" 1.0 x 0.9 x 0.6,
+    Tree "wildflower_clump" 1.0 x 0.9 x 0.6,
+    // A 40 x 40 m patch of wood as one flat-shaded cluster, planted per
+    // forest polygon out to 8 km; centred on its footprint.
+    Tree "forest_impostor" 43.0 x 43.0 x 17.5,
+    Tree "forest_impostor_conifer" 43.0 x 43.0 x 17.5,
     Vehicle "car_a" 3.9 x 1.7 x 1.4,
     Vehicle "car_b" 4.7 x 1.7 x 1.4,
     Vehicle "car_c" 4.5 x 1.7 x 1.8,
@@ -132,6 +162,10 @@ pub const KIT: &[KitAsset] = kit![
     Vehicle "tractor" 4.6 x 2.3 x 2.9,
     Vehicle "race_truck" 8.6 x 2.6 x 4.0,
     Vehicle "motorhome" 10.0 x 4.6 x 3.5,
+    Vehicle "camper_van" 6.0 x 2.2 x 3.1,
+    Vehicle "coach" 12.0 x 2.6 x 4.0,
+    Vehicle "safety_car" 4.8 x 1.9 x 1.6,
+    Vehicle "medical_car" 4.8 x 1.9 x 1.6,
     Misc "bollard" 0.2 x 0.2 x 0.9,
     Misc "kerb_marker" 0.1 x 0.1 x 0.7,
     Misc "generator" 2.2 x 1.2 x 1.9,
@@ -141,6 +175,10 @@ pub const KIT: &[KitAsset] = kit![
     // The Red Bull Ring's trackside bull statue -- centred on its own
     // footprint like the tower/ferris_wheel landmarks, not road-facing.
     Misc "bull_statue" 3.2 x 1.8 x 2.5,
+    Misc "tyre_stack" 1.9 x 1.2 x 0.8,
+    Misc "gate_4m" 4.3 x 0.15 x 1.5,
+    // Lattice pylon, centred; the line runs along local X.
+    Misc "power_pylon" 8.0 x 14.0 x 38.0,
     // Sky: origin at the hull centre, sized round it.
     Sky "blimp" 60.0 x 19.5 x 19.7,
     Sky "balloon" 16.0 x 16.0 x 22.1,

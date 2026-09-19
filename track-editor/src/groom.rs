@@ -42,6 +42,8 @@ use std::collections::BTreeMap;
 use std::f32::consts::TAU;
 
 use crate::ats::{AtsScene, Prop, PropKind, Side, SurfaceKind};
+use crate::barriers;
+use crate::dem::DemFile;
 use crate::layout::{Layout, Wood};
 use crate::props;
 use crate::terrain::{self, TerrainHeightfield};
@@ -71,12 +73,8 @@ const CORNER_KAPPA: f32 = 1.0 / 250.0;
 const CORNER_WINDOW_M: f32 = 60.0;
 
 /// Corner walls are re-laid as continuous runs: anchors on one side within
-/// this gap along the course fuse into one chain…
-const WALL_GROUP_GAP_M: f32 = 45.0;
 /// …of one kit module per cell. The tire-wall module (`tires_4m`) is 4 m
 /// long at scale 1, so 4 m cells give a continuous run, as the armco's
-/// do; the old 12 m cells at scale 2.2 left a 3 m gap between blocks.
-const WALL_SEGMENT_M: f32 = 4.0;
 const WALL_SCALE: f32 = 1.0;
 
 /// Free clearance between a prop's footprint and the road edge or the pit
@@ -148,12 +146,45 @@ const MIXED: [&str; 5] = [
     "bush_cluster",
 ];
 
+/// The near-view versions of the two commonest species: real foliage
+/// cards rather than the solid blobs, for the band a driver actually
+/// looks into. A 97-triangle conifer standing beside a 200 000-triangle
+/// car is most of why the trackside read as a decade too old, and the
+/// blobs are kept only for the belt behind, where they are all that makes
+/// a belt affordable.
+const NEAR_TREES: [(&str, &str); 2] = [
+    ("broadleaf_m", "broadleaf_m_near"),
+    ("conifer_m", "conifer_m_near"),
+];
+
+/// Ground cover along the verge: three crossed masked cards each, six
+/// triangles, which is the cheapest thing in the kit and the one that
+/// stops the grass reading as a flat green plane.
+const SCATTER: [&str; 2] = ["grass_clump", "wildflower_clump"];
+
 /// Every asset the tree pass may plant, so it recognises its own work.
 fn is_tree_pass_asset(asset: &str) -> bool {
     asset == TREE_ASSET
         || BROADLEAF.contains(&asset)
         || NEEDLELEAF.contains(&asset)
         || MIXED.contains(&asset)
+        || NEAR_TREES.iter().any(|(_, near)| *near == asset)
+        || SCATTER.contains(&asset)
+}
+
+/// Ground cover, as opposed to a tree. Both are `tree` kind — the
+/// importer instances them the same way — but a grass tuft has none of a
+/// tree's spacing rules: clumps are meant to sit on top of each other.
+pub fn is_ground_cover(asset: &str) -> bool {
+    SCATTER.contains(&asset)
+}
+
+/// The near-view version of a species, where the kit has one.
+fn near_variant(asset: &str) -> &str {
+    NEAR_TREES
+        .iter()
+        .find(|(base, _)| *base == asset)
+        .map_or(asset, |(_, near)| *near)
 }
 
 /// The species for a tree, from the wood it stands in and its own hash.
@@ -170,6 +201,16 @@ const TREE_CELL_M: f32 = 12.0;
 /// Depth range of the belt, measured beyond the road edge.
 const TREE_BELT_NEAR_M: f32 = 22.0;
 const TREE_BELT_FAR_M: f32 = 90.0;
+/// Trees closer than this to the road are planted as the near set. It is
+/// roughly the distance at which a card-foliage tree stops paying for
+/// itself; past it the blobs read the same and cost a twentieth as much.
+const TREE_NEAR_VIEW_M: f32 = 60.0;
+/// Ground cover is scattered from the verge out to here.
+const SCATTER_NEAR_M: f32 = 3.0;
+const SCATTER_FAR_M: f32 = 40.0;
+/// Clumps per station cell per side. They are six triangles each, so this
+/// is a few thousand per circuit and still nothing next to one car.
+const SCATTER_PER_CELL: u32 = 7;
 const TREE_SCALE_MIN: f32 = 0.8;
 const TREE_SCALE_MAX: f32 = 1.5;
 /// Share of belt cells left empty so the belts have gaps.
@@ -194,8 +235,6 @@ pub const BARRIER_ASSET: &str = "armco_generic";
 /// cube, `PlaceholderPropSize`) is 4 m long at scale 1, so cells of 4 m
 /// give a continuous rail.
 const BARRIER_CELL_M: f32 = 4.0;
-/// Barriers stand this far beyond the road edge.
-const BARRIER_OFFSET_M: f32 = 7.0;
 /// A cell is skipped when a tire wall, building, grandstand or the pit
 /// lane is within this distance of the barrier's spot.
 const BARRIER_CLEAR_M: f32 = 6.0;
@@ -467,7 +506,29 @@ fn owned_by_tree_pass(prop: &Prop) -> bool {
 }
 
 fn owned_by_barrier_pass(prop: &Prop) -> bool {
-    prop.kind == PropKind::Barrier && prop.asset == BARRIER_ASSET
+    // `BARRIER_ASSET` is the legacy key the scenes carried before the
+    // pass decided anything; it is still recognised so an old scene is
+    // adopted rather than doubled.
+    prop.kind == PropKind::Barrier
+        && (prop.asset == BARRIER_ASSET || barriers::is_barrier_asset(&prop.asset))
+}
+
+/// The ground props are seated on: the same field the exporter bakes,
+/// pit lane included, over the elevation model when there is one. Built
+/// the way `ue_export::bake_all_with_dem` builds it, which is the point —
+/// a prop is only in the right place if it is seated on the ground that
+/// is drawn under it.
+pub fn seating_terrain(
+    path: &CenterlinePath,
+    scene: &AtsScene,
+    dem: Option<&DemFile>,
+) -> Option<TerrainHeightfield> {
+    let lane = scene
+        .pit_lane
+        .as_ref()
+        .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
+    let extra: Vec<&CenterlinePath> = lane.iter().collect();
+    TerrainHeightfield::from_paths_with_dem(path, &extra, dem)
 }
 
 /// Groom the whole scene: the pit lane is rebuilt first (entry, pit road,
@@ -487,10 +548,28 @@ pub fn groom_scene_with(
     scene: &mut AtsScene,
     layout: Option<&Layout>,
 ) -> Option<GroomReport> {
+    groom_scene_with_dem(track, scene, layout, None)
+}
+
+/// [`groom_scene_with`] over the real land.
+///
+/// Every stage that seats a prop has to seat it on the ground the client
+/// will draw, or the two disagree wherever they differ. Once the exporter
+/// drew the elevation model and grooming still used the centerline
+/// blanket, everything more than a few tens of metres from the road —
+/// the villages, the car parks, the woodland on the slopes — would have
+/// been placed at the blanket's height and rendered floating over, or
+/// buried in, the real hillside.
+pub fn groom_scene_with_dem(
+    track: &TrackFile,
+    scene: &mut AtsScene,
+    layout: Option<&Layout>,
+    dem: Option<&DemFile>,
+) -> Option<GroomReport> {
     let path = CenterlinePath::from_track(track)?;
     // The circuit's own pit lane is a fact, not a shape to regenerate.
     if scene.pit_lane.as_ref().is_some_and(|pit| pit.authored) {
-        let mut report = groom_props_with(track, scene, layout)?;
+        let mut report = groom_props_with_dem(track, scene, layout, dem)?;
         report.pit_rebuilt = false;
         return Some(report);
     }
@@ -503,7 +582,7 @@ pub fn groom_scene_with(
         None => false,
     };
 
-    let mut report = groom_props_with(track, scene, layout)?;
+    let mut report = groom_props_with_dem(track, scene, layout, dem)?;
     report.pit_rebuilt = pit_rebuilt;
     Some(report)
 }
@@ -524,8 +603,18 @@ pub fn groom_props_with(
     scene: &mut AtsScene,
     layout: Option<&Layout>,
 ) -> Option<GroomReport> {
+    groom_props_with_dem(track, scene, layout, None)
+}
+
+/// [`groom_props_with`] over the real land; see [`groom_scene_with_dem`].
+pub fn groom_props_with_dem(
+    track: &TrackFile,
+    scene: &mut AtsScene,
+    layout: Option<&Layout>,
+    dem: Option<&DemFile>,
+) -> Option<GroomReport> {
     let path = CenterlinePath::from_track(track)?;
-    let terrain = TerrainHeightfield::from_path(&path)?;
+    let terrain = seating_terrain(&path, scene, dem)?;
     let dressed = layout.is_some();
 
     let mut report = GroomReport {
@@ -545,7 +634,6 @@ pub fn groom_props_with(
     let mut original_boards: Vec<Prop> = Vec::new();
     let mut original_barriers: Vec<Prop> = Vec::new();
     let mut original_trees: Vec<Prop> = Vec::new();
-    let mut anchors: Vec<WallAnchor> = Vec::new();
     for mut prop in std::mem::take(&mut scene.props) {
         // Generated furniture is owned by its pass: set aside, re-laid
         // below, and adopted back unchanged when the layout still matches.
@@ -567,7 +655,6 @@ pub fn groom_props_with(
                 // Walls are not groomed one by one: sparse dashes at a
                 // uniform offset read as a phantom second circuit. They are
                 // collected here and re-laid as continuous runs below.
-                anchors.push(wall_anchor_of(&path, &surfaces, &prop));
                 original_walls.push(prop);
             }
             // The exporter lays the pit complex from the pit lane's box
@@ -609,7 +696,9 @@ pub fn groom_props_with(
                 }
                 kept.push(prop);
             }
-            _ if dressed && crate::dress::dressed_kind(prop.kind) => {
+            _ if (dressed && crate::dress::dressed_prop(&prop))
+                || crate::dress::always_dress_owned(&prop) =>
+            {
                 // The dossier put this stand, building or landmark where
                 // the real one is. Seat it on the ground and leave it
                 // alone: a push would trade a fact for a guess.
@@ -745,8 +834,10 @@ pub fn groom_props_with(
         }
     }
 
-    let (new_walls, dropped) = lay_wall_runs(&path, &terrain, &surfaces, anchors);
-    report.removed = dropped;
+    // One pass decides the whole barrier line: see `lay_all_barriers`.
+    let (new_walls, new_rails) =
+        lay_all_barriers(&path, &terrain, &surfaces, lane.as_ref(), layout, &kept);
+    report.removed = 0;
     report.walls = new_walls.len();
     let mut props = kept;
     props.extend(adopt(
@@ -766,12 +857,11 @@ pub fn groom_props_with(
         &mut report.boards_rebuilt,
     ));
 
-    let barriers = lay_straight_barriers(&path, &terrain, lane.as_ref(), &props);
-    report.barriers = barriers.len();
+    report.barriers = new_rails.len();
     props.extend(adopt(
         scene,
         original_barriers,
-        barriers,
+        new_rails,
         &mut report.barriers_rebuilt,
     ));
 
@@ -779,7 +869,7 @@ pub fn groom_props_with(
     // segment is in its final place.
     report.pushed += snap_boards_to_barriers(&path, &terrain, &mut props);
 
-    let trees = lay_tree_belts(
+    let mut trees = lay_tree_belts(
         &path,
         &terrain,
         &surfaces,
@@ -788,6 +878,13 @@ pub fn groom_props_with(
         tree_density(track),
         layout.map(|l| l.woods.as_slice()).unwrap_or(&[]),
     );
+    trees.extend(lay_ground_cover(
+        &path,
+        &terrain,
+        &surfaces,
+        lane.as_ref(),
+        tree_density(track),
+    ));
     report.trees = trees.len();
     props.extend(adopt(
         scene,
@@ -817,7 +914,15 @@ fn snap_boards_to_barriers(
         .map(|p| (p.x, p.y))
         .collect();
     let mut moved = 0;
-    for board in props.iter_mut().filter(|p| p.kind == PropKind::Board) {
+    // A board the dressing pass laid — a corner's name — stays where that
+    // pass put it. Snapped like a hoarding it lands on the nearest barrier
+    // module, and where two barrier kinds meet the nearest module is a
+    // different one each time the line is re-laid, so the board walked a
+    // tenth of a metre back and forth on every groom.
+    for board in props
+        .iter_mut()
+        .filter(|p| p.kind == PropKind::Board && !crate::dress::always_dress_owned(p))
+    {
         let Some((rx, ry)) = rails
             .iter()
             .copied()
@@ -870,164 +975,6 @@ fn adopt(
     }
 }
 
-/// One kept wall's place along the course, before runs are laid.
-struct WallAnchor {
-    station_m: f32,
-    left: bool,
-    asset: String,
-}
-
-/// Course sections within this reach of a wall are tried when recovering
-/// the cell that laid it.
-const WALL_RECOGNISE_RANGE_M: f32 = 40.0;
-
-/// The cell an existing wall belongs to. A wall this pass laid stands
-/// exactly where its cell puts it, so the cell is recovered by trying every
-/// course section within reach and keeping the one whose cell reproduces
-/// the wall's position. The nearest section alone is not enough: where
-/// the circuit folds, a wall 24 m out at a hairpin can lie nearer the
-/// other leg, and re-grooming would bounce it between two cells forever.
-/// Anything else (the enrichment's scattered walls) anchors to the nearest
-/// section.
-fn wall_anchor_of(
-    path: &CenterlinePath,
-    surfaces: &[crate::ats::Surface],
-    prop: &Prop,
-) -> WallAnchor {
-    let total = path.total_length_m();
-    let normalise = |station: f32| {
-        if path.is_closed() {
-            station.rem_euclid(total)
-        } else {
-            station
-        }
-    };
-    let mut best: Option<(f32, bool, f32)> = None;
-    for s in path.samples() {
-        if (s.pos.0 - prop.x).hypot(s.pos.1 - prop.y) > WALL_RECOGNISE_RANGE_M {
-            continue;
-        }
-        let (sin_h, cos_h) = s.heading_rad.sin_cos();
-        let (dx, dy) = (prop.x - s.pos.0, prop.y - s.pos.1);
-        let lat = -sin_h * dx + cos_h * dy;
-        let station = normalise(s.station_m + cos_h * dx + sin_h * dy);
-        let idx = (station / WALL_SEGMENT_M).floor() as i64;
-        let (_, _, pos) = wall_pose(path, surfaces, lat >= 0.0, idx);
-        let miss = (pos.0 - prop.x).hypot(pos.1 - prop.y);
-        if miss < MIN_MOVE_M && best.is_none_or(|(m, _, _)| miss < m) {
-            best = Some((miss, lat >= 0.0, station));
-        }
-    }
-    let (station_m, left) = match best {
-        Some((_, left, station)) => (station, left),
-        None => {
-            let (s, lat, along) = nearest_cross_section(path, prop.x, prop.y);
-            (normalise(s.station_m + along), lat >= 0.0)
-        }
-    };
-    WallAnchor {
-        station_m,
-        left,
-        asset: prop.asset.clone(),
-    }
-}
-
-/// Where cell `idx`'s wall segment stands on one side: the cross-section
-/// at the cell centre, the signed lateral offset (runoff edge or verge)
-/// and the resulting position.
-fn wall_pose(
-    path: &CenterlinePath,
-    surfaces: &[crate::ats::Surface],
-    left: bool,
-    idx: i64,
-) -> (PathSample, f32, (f32, f32, f32)) {
-    let side = if left { Side::Left } else { Side::Right };
-    let sample = path.sample_at((idx as f32 + 0.5) * WALL_SEGMENT_M);
-    let beyond_edge = wall_offset(path, surfaces, &sample, side);
-    let target_lat = signed(side, side_half_width(&sample, side) + beyond_edge);
-    let pos = offset_point(&sample, target_lat);
-    (sample, target_lat, pos)
-}
-
-/// Re-lay walls as continuous runs on a fixed station grid.
-///
-/// Every anchor claims the [`WALL_SEGMENT_M`] cell its station falls in; a
-/// cell survives iff *its center* is near a corner — a pure function of the
-/// cell index, which is what makes re-grooming stable: the segments this
-/// lays claim exactly the same cells when they come back as anchors. Gaps
-/// up to [`WALL_GROUP_GAP_M`] between surviving cells on one side are
-/// filled, and one segment is laid per cell, seated at the runoff edge.
-///
-/// Returns the segments and how many anchors were dropped on straights.
-fn lay_wall_runs(
-    path: &CenterlinePath,
-    terrain: &TerrainHeightfield,
-    surfaces: &[crate::ats::Surface],
-    mut anchors: Vec<WallAnchor>,
-) -> (Vec<Prop>, usize) {
-    let cell_center = |idx: i64| (idx as f32 + 0.5) * WALL_SEGMENT_M;
-
-    // Earliest anchor wins the cell's asset key, deterministically.
-    anchors.sort_by(|a, b| {
-        a.left
-            .cmp(&b.left)
-            .then(a.station_m.total_cmp(&b.station_m))
-    });
-    let mut cells: BTreeMap<(bool, i64), String> = BTreeMap::new();
-    let mut anchor_cells: Vec<(bool, i64)> = Vec::new();
-    for anchor in anchors {
-        let idx = (anchor.station_m / WALL_SEGMENT_M).floor() as i64;
-        anchor_cells.push((anchor.left, idx));
-        if near_corner(path, cell_center(idx)) {
-            cells.entry((anchor.left, idx)).or_insert(anchor.asset);
-        }
-    }
-
-    // Fill the gaps inside each side's runs so the wall reads as one
-    // barrier, not a dashed ring.
-    let keys: Vec<(bool, i64)> = cells.keys().copied().collect();
-    for pair in keys.windows(2) {
-        let ((left_a, a), (left_b, b)) = (pair[0], pair[1]);
-        if left_a == left_b
-            && ((b - a) as f32) * WALL_SEGMENT_M <= WALL_GROUP_GAP_M + WALL_SEGMENT_M
-        {
-            let asset = cells[&(left_a, a)].clone();
-            for idx in a + 1..b {
-                cells.entry((left_a, idx)).or_insert_with(|| asset.clone());
-            }
-        }
-    }
-
-    // Straight-wall drops are judged against the final set: an anchor whose
-    // cell came back via gap filling was not removed, or a groomed scene
-    // would report removals forever.
-    let dropped = anchor_cells
-        .iter()
-        .filter(|cell| !cells.contains_key(cell))
-        .count();
-
-    let walls = cells
-        .into_iter()
-        .map(|((left, idx), asset)| {
-            let (sample, target_lat, pos) = wall_pose(path, surfaces, left, idx);
-            let z = seat_z(terrain, &sample, target_lat, pos.0, pos.1);
-            Prop {
-                id: 0, // assigned by the caller
-                kind: PropKind::TireWall,
-                asset,
-                x: pos.0,
-                y: pos.1,
-                z,
-                yaw_rad: sample.heading_rad,
-                scale: WALL_SCALE,
-                text: None,
-                length_m: None,
-            }
-        })
-        .collect();
-    (walls, dropped)
-}
-
 /// Whether freshly laid props already match the existing ones, ids aside.
 fn props_match(old: &[Prop], new: &[Prop]) -> bool {
     if old.len() != new.len() {
@@ -1047,16 +994,6 @@ fn props_match(old: &[Prop], new: &[Prop]) -> bool {
             && a.kind == b.kind
             && a.asset == b.asset
             && a.text == b.text
-    })
-}
-
-/// True when the course bends meaningfully somewhere within
-/// [`CORNER_WINDOW_M`] of the station.
-fn near_corner(path: &CenterlinePath, station_m: f32) -> bool {
-    let steps = (2.0 * CORNER_WINDOW_M / 10.0) as i32;
-    (0..=steps).any(|i| {
-        let s = station_m - CORNER_WINDOW_M + i as f32 * 10.0;
-        curvature_at(path, s).abs() >= CORNER_KAPPA
     })
 }
 
@@ -1322,87 +1259,370 @@ impl LaneSpan {
     }
 }
 
-/// Line the straights with armco: one [`BARRIER_CELL_M`] segment per cell
-/// and side, [`BARRIER_OFFSET_M`] beyond the road edge, wherever the cell
-/// centre is not near a corner (the tire-wall pass covers those) and no
-/// tire wall, building, grandstand or the pit lane comes within
-/// [`BARRIER_CLEAR_M`]. The pit side of the pit straight, tapers included,
-/// gets none.
-fn lay_straight_barriers(
+// ---- The barrier line -----------------------------------------------------
+
+/// Closest a corner's barrier stands to the road edge. Below the Tecpro
+/// decision's `SHORT_RUNOFF_M` on purpose, so a tight corner with nothing
+/// authored still reads as short of room and gets an absorbing barrier.
+const CORNER_BARRIER_MIN_M: f32 = 14.0;
+/// Closest a straight's rail stands to the road edge: where the old armco
+/// pass put it, which the AI was always comfortable beside.
+const STRAIGHT_BARRIER_MIN_M: f32 = 7.0;
+
+/// Lay the whole barrier line, deciding what each 4 m cell gets.
+///
+/// This replaced two passes that between them never made a decision. One
+/// hard-coded `armco_generic` along the straights; the other re-laid
+/// corner walls by copying whichever asset the old procedural enrichment
+/// had left within 40 m, which meant a corner with no legacy prop near it
+/// got no barrier at all and every corner that did got the same tyre
+/// wall. Walking every cell instead makes the coverage complete by
+/// construction, and [`crate::barriers::decide`] gives each cell a kind
+/// on the evidence: the circuit's own mapped barriers where the dossier
+/// has them, and the shape of the road and its run-off everywhere else.
+///
+/// Returns the run split by prop kind, because the two are adopted
+/// separately: tyres and Tecpro are laid as [`PropKind::TireWall`] (the
+/// exporter bakes either as an absorbing wall) and everything else as
+/// [`PropKind::Barrier`].
+#[allow(clippy::too_many_arguments)]
+fn lay_all_barriers(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
+    surfaces: &[crate::ats::Surface],
     lane: Option<&CenterlinePath>,
+    layout: Option<&Layout>,
     others: &[Prop],
-) -> Vec<Prop> {
+) -> (Vec<Prop>, Vec<Prop>) {
     let lane_span = lane.map(|l| LaneSpan::of(path, l));
     let cells = (path.total_length_m() / BARRIER_CELL_M).floor() as i64;
-    let mut barriers = Vec::new();
+    let mapped: Vec<(&crate::layout::Line, barriers::MappedKind)> = layout
+        .map(|l| {
+            l.barriers
+                .iter()
+                .filter_map(|line| {
+                    barriers::MappedKind::from_dossier(&line.kind).map(|kind| (line, kind))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Whether a barrier piece may stand at a point. Every piece is tested,
+    // not just the cell it belongs to: a Tecpro block sits up to a metre
+    // and a half from its cell's centre and an end cap three metres past
+    // it, and at Albert Park's pit entry exactly those pieces — caps that
+    // closed a run *because* the next cell was the pit lane's — stood in
+    // the mouth of the lane where cars run wide at the last corner.
+    let placeable = |x: f32, y: f32, road_z: f32| -> bool {
+        if lane.is_some_and(|lane| lane_edge_gap(lane, x, y) < BARRIER_CLEAR_M) {
+            return false;
+        }
+        // Clear of every part of the course, not only the one it was laid
+        // for: see below.
+        let (near_sample, near_lat, _) = nearest_cross_section(path, x, y);
+        if near_lat.abs() - half_width_on(&near_sample, near_lat) < STRAIGHT_BARRIER_MIN_M - 1.0 {
+            return false;
+        }
+        let at_underpass = terrain.wall_relation(x, y).is_some_and(|(past_wall, lower_z)| {
+            (road_z - lower_z).abs() <= terrain::OVERHEAD_M || past_wall < BARRIER_CLEAR_M
+        });
+        !at_underpass && !barrier_blocked(others, x, y)
+    };
+
+    // Decide every cell first, then lay the modules, so a run knows where
+    // it begins and ends and can be capped.
+    let mut decided: BTreeMap<(bool, i64), (barriers::BarrierKind, PathSample, f32)> =
+        BTreeMap::new();
     for idx in 0..cells {
         let center = (idx as f32 + 0.5) * BARRIER_CELL_M;
-        if near_corner(path, center) {
-            continue;
-        }
         let sample = path.sample_at(center);
         for side in Side::ALL {
             if lane_span
                 .as_ref()
                 .is_some_and(|span| span.covers(path, side, center))
             {
+                // The pit side of the pit straight: the bake generates the
+                // pit wall from the lane itself.
                 continue;
             }
-            let lat = signed(side, side_half_width(&sample, side) + BARRIER_OFFSET_M);
+            // Where the barrier stands. Past the authored run-off as ever,
+            // but never closer to the road than a car can reasonably get.
+            //
+            // The old passes laid a wall at a corner only where the 2026-09
+            // enrichment had left a prop, so most corners had nothing to
+            // hit and nobody noticed that `wall_offset` falls back to the
+            // verge — 6 m — wherever a scene authors no run-off. Laying the
+            // line at every corner made that distance real: the AI runs
+            // wide on the outside and cuts the apex on the inside, and at
+            // 6 m it found a barrier both ways. The all-circuit AI survey
+            // went from 2 100 to 7 500 car-seconds off the road, and at
+            // Zandvoort from twenty seconds to twenty minutes, most of it
+            // pinned against a rail. Real circuits give a corner run-off
+            // on both sides; so does this.
+            let radius = tightest_radius(path, center);
+            let authored = wall_offset(path, surfaces, &sample, side);
+            let offset = if radius < barriers::STRAIGHT_RADIUS_M {
+                authored.max(CORNER_BARRIER_MIN_M)
+            } else {
+                authored.max(STRAIGHT_BARRIER_MIN_M)
+            };
+            let lat = signed(side, side_half_width(&sample, side) + offset);
             let pos = offset_point(&sample, lat);
-            if lane.is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < BARRIER_CLEAR_M) {
+            // Where the circuit folds back near itself, a barrier laid out
+            // from one section can land on another. The old passes never
+            // met this because they barely laid anything at a corner; once
+            // every cell had a barrier, pushed out to leave run-off, street
+            // circuits grew rails across the neighbouring stretch of road.
+            // `placeable` makes the same test the tree belts always have.
+            if !placeable(pos.0, pos.1, sample.pos.2) {
                 continue;
             }
-            // At an underpass the lower road has its walls instead, and the
-            // upper road's armco would stand in the slot beneath it.
-            let at_underpass =
-                terrain
-                    .wall_relation(pos.0, pos.1)
-                    .is_some_and(|(past_wall, lower_z)| {
-                        (sample.pos.2 - lower_z).abs() <= terrain::OVERHEAD_M
-                            || past_wall < BARRIER_CLEAR_M
-                    });
-            if at_underpass {
-                continue;
-            }
-            let blocked = others.iter().any(|p| {
-                let clear = match p.kind {
-                    // A grandstand stands *behind* the barrier that
-                    // separates it from the road — that is what the
-                    // barrier is for — so only armco that would land
-                    // inside the seating is dropped.
-                    PropKind::Grandstand => 0.5,
-                    PropKind::TireWall
-                    | PropKind::Building
-                    | PropKind::Pit
-                    | PropKind::Attraction => BARRIER_CLEAR_M,
-                    // A board stands on the barrier line by design, and a
-                    // bridge's footings are off the verge either side.
-                    PropKind::Board | PropKind::Bridge => return false,
-                    _ => BOARD_PROP_CLEAR_M,
-                };
-                footprint_gap(p, pos.0, pos.1) < clear
-            });
-            if blocked {
-                continue;
-            }
-            barriers.push(Prop {
-                id: 0,
-                kind: PropKind::Barrier,
-                asset: BARRIER_ASSET.to_string(),
-                x: pos.0,
-                y: pos.1,
-                z: seat_z(terrain, &sample, lat, pos.0, pos.1),
-                yaw_rad: sample.heading_rad,
-                scale: 1.0,
-                text: None,
-                length_m: None,
-            });
+
+            // Positive curvature is a left-hand bend, so the outside of
+            // it is the right-hand side and the other way about.
+            let bend = signed_curvature(path, center);
+            let outside_of_bend = match side {
+                Side::Left => bend < 0.0,
+                Side::Right => bend > 0.0,
+            };
+            let cell = barriers::Cell {
+                corner_radius_m: radius,
+                runoff_m: offset,
+                spectators_m: spectator_gap(others, pos.0, pos.1),
+                mapped: nearest_mapped(&mapped, pos.0, pos.1),
+                beside_pit_lane: false,
+                outside_of_bend,
+            };
+            decided.insert(
+                (side == Side::Left, idx),
+                (barriers::decide(&cell), sample, lat),
+            );
         }
     }
-    barriers
+
+    let mut walls = Vec::new();
+    let mut rails = Vec::new();
+    for (&(left, idx), &(kind, _, lat)) in &decided {
+        let previous = decided.get(&(left, idx - 1)).map(|d| d.0);
+        let next = decided.get(&(left, idx + 1)).map(|d| d.0);
+        let (prop_kind, asset) = kind.asset();
+        let center = (idx as f32 + 0.5) * BARRIER_CELL_M;
+
+        // A module shorter than the cell is repeated to fill it, so a
+        // Tecpro run is continuous rather than a dashed line of blocks.
+        let per_cell = (BARRIER_CELL_M / kind.module_m()).round().max(1.0) as i32;
+        for step in 0..per_cell {
+            let along = center - BARRIER_CELL_M * 0.5 + kind.module_m() * (step as f32 + 0.5);
+            let at = path.sample_at(along);
+            let here = offset_point(&at, lat);
+            if !placeable(here.0, here.1, at.pos.2) {
+                continue;
+            }
+            let prop = Prop {
+                id: 0,
+                kind: prop_kind,
+                asset: asset.to_string(),
+                x: here.0,
+                y: here.1,
+                z: seat_z(terrain, &at, lat, here.0, here.1),
+                yaw_rad: at.heading_rad,
+                scale: WALL_SCALE,
+                text: None,
+                length_m: None,
+            };
+            match prop_kind {
+                PropKind::TireWall => walls.push(prop),
+                _ => rails.push(prop),
+            }
+        }
+
+        // Close the ends of the run. A run ends where the neighbouring
+        // cell is missing (the pit lane, an underpass, a building) or
+        // where the kind changes, because two kinds butted together need
+        // the terminal that belongs to each.
+        if let Some((cap_kind, cap_asset)) = kind.end_cap() {
+            for (neighbour, direction) in [(previous, -1.0f32), (next, 1.0f32)] {
+                if neighbour == Some(kind) {
+                    continue;
+                }
+                let along = center + direction * (BARRIER_CELL_M * 0.5 + 1.0);
+                let at = path.sample_at(along);
+                let here = offset_point(&at, lat);
+                if !placeable(here.0, here.1, at.pos.2) {
+                    continue;
+                }
+                let prop = Prop {
+                    id: 0,
+                    kind: cap_kind,
+                    asset: cap_asset.to_string(),
+                    x: here.0,
+                    y: here.1,
+                    z: seat_z(terrain, &at, lat, here.0, here.1),
+                    yaw_rad: at.heading_rad,
+                    scale: WALL_SCALE,
+                    text: None,
+                    length_m: None,
+                };
+                match cap_kind {
+                    PropKind::TireWall => walls.push(prop),
+                    _ => rails.push(prop),
+                }
+            }
+        }
+    }
+    (walls, rails)
+}
+
+/// Something already standing where a barrier would go.
+fn barrier_blocked(others: &[Prop], x: f32, y: f32) -> bool {
+    others.iter().any(|p| {
+        let clear = match p.kind {
+            // A grandstand stands *behind* the barrier that separates it
+            // from the road — that is what the barrier is for — so only a
+            // rail that would land inside the seating is dropped.
+            PropKind::Grandstand => 0.5,
+            PropKind::Building | PropKind::Pit | PropKind::Attraction => BARRIER_CLEAR_M,
+            // A board stands on the barrier line by design, and a
+            // bridge's footings are off the verge either side.
+            PropKind::Board | PropKind::Bridge => return false,
+            _ => BOARD_PROP_CLEAR_M,
+        };
+        footprint_gap(p, x, y) < clear
+    })
+}
+
+/// How close the nearest thing with people in or around it is.
+fn spectator_gap(others: &[Prop], x: f32, y: f32) -> f32 {
+    others
+        .iter()
+        .filter(|p| {
+            matches!(
+                p.kind,
+                PropKind::Grandstand | PropKind::Building | PropKind::Attraction
+            )
+        })
+        .map(|p| footprint_gap(p, x, y))
+        .fold(f32::MAX, f32::min)
+}
+
+/// The nearest mapped barrier run to a point, and what the map calls it.
+fn nearest_mapped(
+    mapped: &[(&crate::layout::Line, barriers::MappedKind)],
+    x: f32,
+    y: f32,
+) -> Option<(f32, barriers::MappedKind)> {
+    mapped
+        .iter()
+        .map(|(line, kind)| (line.distance_to(x, y), *kind))
+        .min_by(|a, b| a.0.total_cmp(&b.0))
+}
+
+/// Which way the course bends around a station, averaged over the corner
+/// window so that one noisy sample cannot flip a whole run of cells from
+/// one side of the road to the other. Positive is a left-hand bend.
+fn signed_curvature(path: &CenterlinePath, station_m: f32) -> f32 {
+    let steps = (2.0 * CORNER_WINDOW_M / 10.0) as i32;
+    let sum: f32 = (0..=steps)
+        .map(|i| {
+            let s = station_m - CORNER_WINDOW_M + i as f32 * 10.0;
+            curvature_at(path, s)
+        })
+        .sum();
+    sum / (steps + 1) as f32
+}
+
+/// The tightest radius the course reaches within [`CORNER_WINDOW_M`] of a
+/// station: how hard the corner here is, in the terms the barrier
+/// decision is stated in. `f32::MAX` on a straight.
+fn tightest_radius(path: &CenterlinePath, station_m: f32) -> f32 {
+    let steps = (2.0 * CORNER_WINDOW_M / 10.0) as i32;
+    (0..=steps)
+        .map(|i| {
+            let s = station_m - CORNER_WINDOW_M + i as f32 * 10.0;
+            let k = curvature_at(path, s).abs();
+            if k < 1e-6 {
+                f32::MAX
+            } else {
+                1.0 / k
+            }
+        })
+        .fold(f32::MAX, f32::min)
+}
+
+/// Grass and wildflower clumps along the verge.
+///
+/// The ground a driver spends the lap looking at was a flat colour with a
+/// noise pattern over it and nothing standing on it at all — no scatter,
+/// no foliage, nothing. These are three crossed masked cards each, six
+/// triangles, laid from the verge out to 40 m on the same deterministic
+/// hash the belts use. They are planted on grass only: a clump on the
+/// gravel or the asphalt run-off would be worse than none.
+fn lay_ground_cover(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    surfaces: &[crate::ats::Surface],
+    lane: Option<&CenterlinePath>,
+    density: f32,
+) -> Vec<Prop> {
+    if density <= 0.0 {
+        return Vec::new();
+    }
+    let cells = (path.total_length_m() / TREE_CELL_M).floor() as i64;
+    let mut out = Vec::new();
+    for idx in 0..cells {
+        for side in Side::ALL {
+            let side_key = match side {
+                Side::Left => 0u64,
+                Side::Right => 1,
+            };
+            let count = ((SCATTER_PER_CELL as f32) * density).round() as u32;
+            for k in 0..count {
+                let seed = [idx as u64, side_key, k as u64, 7];
+                let station = idx as f32 * TREE_CELL_M + hash01(&seed, 1) * TREE_CELL_M;
+                let sample = path.sample_at(station);
+                let beyond = SCATTER_NEAR_M + hash01(&seed, 2) * (SCATTER_FAR_M - SCATTER_NEAR_M);
+
+                // Prepared run-off is asphalt, gravel or astroturf; grass
+                // is what is left, and grass is what this is for.
+                let on_runoff = surfaces
+                    .iter()
+                    .filter(|s| s.side == side && is_prepared_runoff(s.kind))
+                    .filter_map(|s| {
+                        span_progress(path, s.start_m, s.end_m, station)
+                            .map(|t| s.inner_m + s.width_at(t))
+                    })
+                    .any(|outer| beyond < outer);
+                if on_runoff {
+                    continue;
+                }
+
+                let lat = signed(side, side_half_width(&sample, side) + beyond);
+                let pos = offset_point(&sample, lat);
+                let (ns, nlat, _) = nearest_cross_section(path, pos.0, pos.1);
+                if nlat.abs() < half_width_on(&ns, nlat) + SCATTER_NEAR_M - 0.5 {
+                    continue;
+                }
+                if lane.is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < SCATTER_NEAR_M) {
+                    continue;
+                }
+                let asset =
+                    SCATTER[(hash01(&seed, 5) * SCATTER.len() as f32) as usize % SCATTER.len()];
+                out.push(Prop {
+                    id: 0,
+                    kind: PropKind::Tree,
+                    asset: asset.to_string(),
+                    x: pos.0,
+                    y: pos.1,
+                    z: seat_z(terrain, &ns, nlat, pos.0, pos.1),
+                    yaw_rad: hash01(&seed, 3) * TAU,
+                    scale: 0.8 + hash01(&seed, 4) * 0.7,
+                    text: None,
+                    length_m: None,
+                });
+            }
+        }
+    }
+    out
 }
 
 // ---- Trees ----------------------------------------------------------------
@@ -1538,10 +1758,18 @@ fn lay_tree_belts(
                 };
 
                 planted.entry((gx, gy)).or_default().push((pos.0, pos.1));
+                // Within the near band the species is the detailed one;
+                // behind it, the blob.
+                let species = tree_asset(leaf, hash01(&tree, 5));
+                let asset = if beyond <= TREE_NEAR_VIEW_M {
+                    near_variant(species)
+                } else {
+                    species
+                };
                 trees.push(Prop {
                     id: 0,
                     kind: PropKind::Tree,
-                    asset: tree_asset(leaf, hash01(&tree, 5)).to_string(),
+                    asset: asset.to_string(),
                     x: pos.0,
                     y: pos.1,
                     z: seat_z(terrain, &ns, nlat, pos.0, pos.1),
@@ -1788,24 +2016,29 @@ mod tests {
     }
 
     #[test]
-    fn walls_on_straights_are_removed() {
+    fn no_absorbing_barrier_down_a_straight() {
+        // The straights get a rail, not a tyre wall: absorbing barriers
+        // belong where a car can arrive at one, and the old enrichment
+        // ringed whole circuits with them.
         let track = track();
-        // Mid-straight, 40 m out: exactly the ring clutter the enrichment
-        // left everywhere.
         let mut scene = scene_with(&track, vec![prop(PropKind::TireWall, 350.0, 40.0, 0.0)]);
-        let report = groom_props(&track, &mut scene).unwrap();
-        assert_eq!(report.removed, 1);
-        assert!(
-            of_kind(&scene, PropKind::TireWall).is_empty(),
-            "straight wall survived"
-        );
+        groom_props(&track, &mut scene).unwrap();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        for wall in of_kind(&scene, PropKind::TireWall) {
+            let (sample, _, _) = nearest_cross_section(&path, wall.x, wall.y);
+            let radius = tightest_radius(&path, sample.station_m);
+            assert!(
+                radius < barriers::STRAIGHT_RADIUS_M,
+                "absorbing barrier at station {} where the radius is {radius} m",
+                sample.station_m
+            );
+        }
     }
 
     #[test]
-    fn stranded_corner_wall_is_pulled_to_the_runoff_edge() {
+    fn the_barrier_line_follows_the_runoff_edge() {
         let track = track();
-        // Far outside the east corner.
-        let mut scene = scene_with(&track, vec![prop(PropKind::TireWall, 900.0, 100.0, 0.0)]);
+        let mut scene = scene_with(&track, vec![]);
         let gravel_id = scene.alloc_id();
         scene.surfaces.push(Surface {
             id: gravel_id,
@@ -1819,38 +2052,200 @@ mod tests {
         });
 
         let report = groom_props(&track, &mut scene).unwrap();
-        assert!(report.walls_rebuilt);
-        assert!(report.walls >= 1);
-        assert_eq!(report.removed, 0);
+        assert!(report.walls_rebuilt || report.barriers_rebuilt);
 
         // Half width 6 + gravel (1 + 14) + gap 1 = 22 m right of the
-        // course (the outside of a counter-clockwise lap), parallel to it.
+        // course, parallel to it.
         let path = CenterlinePath::from_track(&track).unwrap();
-        let wall = &scene.props[0];
-        assert_eq!(wall.kind, PropKind::TireWall);
-        let (sample, lat, _) = nearest_cross_section(&path, wall.x, wall.y);
-        assert!((lat + 22.0).abs() < 2.5, "wall sits at lateral {lat} m");
+        let mut checked = 0;
+        for barrier in scene
+            .props
+            .iter()
+            .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+        {
+            let (sample, lat, _) = nearest_cross_section(&path, barrier.x, barrier.y);
+            if lat > 0.0 {
+                continue; // the gravel is on the right
+            }
+            assert!((lat + 22.0).abs() < 2.5, "barrier sits at lateral {lat} m");
+            assert!(
+                yaw_distance(barrier.yaw_rad, sample.heading_rad) < 0.3,
+                "yaw {} vs course {}",
+                barrier.yaw_rad,
+                sample.heading_rad
+            );
+            checked += 1;
+        }
+        assert!(checked > 10, "only {checked} barriers on the gravel side");
+    }
+
+    #[test]
+    fn without_runoff_the_barrier_line_keeps_its_distance() {
+        // With nothing authored beside the road, a straight's rail stands
+        // where the old armco did and a corner's barrier leaves the run-off
+        // a car needs: closer than that, the AI found a barrier every time
+        // it ran wide or cut an apex.
+        let track = track();
+        let mut scene = scene_with(&track, vec![]);
+        groom_props(&track, &mut scene).unwrap();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let mut checked = 0;
+        for barrier in scene
+            .props
+            .iter()
+            .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+        {
+            let (sample, lat, _) = nearest_cross_section(&path, barrier.x, barrier.y);
+            let beyond = lat.abs() - half_width_on(&sample, lat);
+            // Nothing anywhere closer than a straight's rail.
+            assert!(
+                beyond >= STRAIGHT_BARRIER_MIN_M - 2.5,
+                "barrier {beyond:.1} m past the edge at station {:.0}",
+                sample.station_m
+            );
+            // And well inside a corner, the corner's run-off. The decision
+            // is taken per 4 m cell, so a module at the exact point where a
+            // straight turns into a corner belongs to whichever cell laid
+            // it; only a barrier with corner on both sides of it is judged
+            // by the corner's rule.
+            let corner_here = |s: f32| tightest_radius(&path, s) < barriers::STRAIGHT_RADIUS_M;
+            let deep_in_corner = corner_here(sample.station_m - 2.0 * BARRIER_CELL_M)
+                && corner_here(sample.station_m + 2.0 * BARRIER_CELL_M);
+            if deep_in_corner {
+                assert!(
+                    beyond >= CORNER_BARRIER_MIN_M - 2.5,
+                    "corner barrier only {beyond:.1} m past the edge at station {:.0}",
+                    sample.station_m
+                );
+            }
+            checked += 1;
+        }
+        assert!(checked > 50, "only {checked} barriers laid");
+    }
+
+    #[test]
+    fn the_barrier_line_covers_the_lap_on_both_sides() {
+        // The defect this replaced: a corner only got a wall when the old
+        // enrichment happened to have left a prop within 40 m of it, so
+        // coverage was wherever the scatter had been, not wherever a car
+        // can leave the road.
+        let track = track();
+        let mut scene = scene_with(&track, vec![]);
+        groom_props(&track, &mut scene).unwrap();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let total = path.total_length_m();
+
+        let mut covered_left = vec![false; (total / BARRIER_CELL_M) as usize + 1];
+        let mut covered_right = covered_left.clone();
+        for barrier in scene
+            .props
+            .iter()
+            .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+        {
+            let (sample, lat, _) = nearest_cross_section(&path, barrier.x, barrier.y);
+            let cell = (sample.station_m / BARRIER_CELL_M) as usize;
+            let side = if lat > 0.0 {
+                &mut covered_left
+            } else {
+                &mut covered_right
+            };
+            if let Some(slot) = side.get_mut(cell) {
+                *slot = true;
+            }
+        }
+        let left = covered_left.iter().filter(|c| **c).count();
+        let right = covered_right.iter().filter(|c| **c).count();
+        let cells = covered_left.len();
+        // The pit lane takes the left of the bottom straight, so the left
+        // is guarded less than the right; both must still be most of the
+        // lap rather than a scatter.
         assert!(
-            yaw_distance(wall.yaw_rad, sample.heading_rad) < 0.25,
-            "yaw {} vs course {}",
-            wall.yaw_rad,
-            sample.heading_rad
+            right * 10 >= cells * 9,
+            "only {right}/{cells} cells guarded on the right"
+        );
+        assert!(
+            left * 10 >= cells * 9,
+            "only {left}/{cells} cells guarded on the left"
         );
     }
 
     #[test]
-    fn corner_wall_without_runoff_lands_on_the_verge() {
+    fn every_barrier_asset_is_one_the_kit_has() {
         let track = track();
-        let mut scene = scene_with(&track, vec![prop(PropKind::TireWall, 900.0, 100.0, 5.0)]);
+        let mut scene = scene_with(&track, vec![]);
         groom_props(&track, &mut scene).unwrap();
+        let known: Vec<&str> = [
+            barriers::BarrierKind::Armco,
+            barriers::BarrierKind::ArmcoFence,
+            barriers::BarrierKind::Tecpro,
+            barriers::BarrierKind::Tyres,
+            barriers::BarrierKind::Concrete,
+        ]
+        .iter()
+        .flat_map(|k| {
+            let (_, asset) = k.asset();
+            let (_, cap) = k.end_cap().unwrap();
+            [asset, cap]
+        })
+        .collect();
+        for barrier in scene
+            .props
+            .iter()
+            .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+        {
+            assert!(
+                known.contains(&barrier.asset.as_str()),
+                "unknown barrier asset {}",
+                barrier.asset
+            );
+            assert!(
+                crate::props::KIT.iter().any(|a| a.asset == barrier.asset),
+                "{} is not in the prop kit",
+                barrier.asset
+            );
+        }
+    }
+
+    #[test]
+    fn a_mapped_tyre_wall_is_laid_where_the_map_puts_it() {
+        // The dossier's own barrier lines win over the geometry rule.
+        let track = track();
         let path = CenterlinePath::from_track(&track).unwrap();
-        let wall = &scene.props[0];
-        assert_eq!(wall.kind, PropKind::TireWall);
-        let (_, lat, _) = nearest_cross_section(&path, wall.x, wall.y);
-        assert!(
-            (lat + 6.0 + VERGE_OFFSET_M).abs() < 2.5,
-            "wall at lateral {lat} m"
-        );
+        let mut layout = crate::layout::Layout {
+            source_track: "Groom.yaml".to_string(),
+            ..Default::default()
+        };
+        // A run down the middle of the bottom straight's right verge,
+        // where the geometry alone would have chosen a plain rail.
+        let line: Vec<[f32; 2]> = (0..20)
+            .map(|i| {
+                let station = 300.0 + i as f32 * 5.0;
+                let sample = path.sample_at(station);
+                let lat = -(side_half_width(&sample, Side::Right) + VERGE_OFFSET_M);
+                let p = offset_point(&sample, lat);
+                [p.0, p.1]
+            })
+            .collect();
+        layout.barriers.push(crate::layout::Line {
+            kind: "tyres".to_string(),
+            name: None,
+            line,
+            closed: false,
+            bridge: false,
+            tunnel: false,
+        });
+
+        let mut scene = scene_with(&track, vec![]);
+        groom_scene_with(&track, &mut scene, Some(&layout)).unwrap();
+        let mut found = 0;
+        for wall in of_kind(&scene, PropKind::TireWall) {
+            let (sample, lat, _) = nearest_cross_section(&path, wall.x, wall.y);
+            if lat < 0.0 && (300.0..=400.0).contains(&sample.station_m) {
+                assert_eq!(wall.asset, "tires_4m");
+                found += 1;
+            }
+        }
+        assert!(found > 5, "only {found} mapped tyre modules laid");
     }
 
     #[test]
@@ -1860,7 +2255,6 @@ mod tests {
         let mut scene = scene_with(&track, vec![prop(PropKind::Building, 350.0, 60.0, 10.0)]);
         let report = groom_props(&track, &mut scene).unwrap();
         assert_eq!(report.removed, 0);
-        assert_eq!(report.walls, 0);
         assert_eq!(report.reseated, 1);
 
         let building = &scene.props[0];
@@ -1988,48 +2382,6 @@ mod tests {
     }
 
     #[test]
-    fn armco_lines_the_straights_but_not_the_pit_side_or_corners() {
-        let track = track();
-        let mut scene = scene_with(&track, vec![]);
-        groom_scene(&track, &mut scene).unwrap();
-        let path = CenterlinePath::from_track(&track).unwrap();
-        let pit = scene.pit_lane.clone().expect("pit lane generated");
-        let lane = CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0).unwrap();
-
-        let barriers = of_kind(&scene, PropKind::Barrier);
-        assert!(barriers.len() > 100, "only {} barriers", barriers.len());
-        let (mut left, mut right) = (0, 0);
-        for b in &barriers {
-            assert_eq!(b.asset, BARRIER_ASSET);
-            assert_eq!(b.scale, 1.0);
-            let (sample, lat, _) = nearest_cross_section(&path, b.x, b.y);
-            assert!(
-                (lat.abs() - half_width_on(&sample, lat) - BARRIER_OFFSET_M).abs() < 0.5,
-                "barrier at lateral {lat}"
-            );
-            assert!(yaw_distance(b.yaw_rad, sample.heading_rad) < 0.05);
-            assert!(
-                !near_corner(&path, sample.station_m),
-                "barrier in a corner at station {}",
-                sample.station_m
-            );
-            let gap = lane_edge_gap(&lane, b.x, b.y);
-            assert!(
-                gap >= BARRIER_CLEAR_M - 0.1,
-                "barrier {gap} m from the pit lane"
-            );
-            if lat > 0.0 {
-                left += 1
-            } else {
-                right += 1
-            }
-        }
-        // The pit lane takes the interior (left) side of the bottom
-        // straight, so the left is guarded less than the right.
-        assert!(left < right, "left {left}, right {right}");
-    }
-
-    #[test]
     fn tree_belts_keep_their_distance() {
         let track = track();
         let mut scene = scene_with(&track, vec![prop(PropKind::Grandstand, 350.0, 60.0, 0.0)]);
@@ -2038,7 +2390,12 @@ mod tests {
         let stand = scene.props[0].clone();
         assert_eq!(stand.kind, PropKind::Grandstand);
 
-        let trees = of_kind(&scene, PropKind::Tree);
+        // Ground cover is `tree` kind too, and is meant to sit close
+        // together, so the spacing rule below is about trees only.
+        let trees: Vec<&Prop> = of_kind(&scene, PropKind::Tree)
+            .into_iter()
+            .filter(|t| !is_ground_cover(&t.asset))
+            .collect();
         assert!(trees.len() > 200, "only {} trees", trees.len());
         for (i, t) in trees.iter().enumerate() {
             assert!(

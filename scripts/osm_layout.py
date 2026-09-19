@@ -639,6 +639,18 @@ NO_OSM_STANDS = frozenset({"Melbourne"})
 
 # How far from the road a feature still belongs to the circuit.
 STAND_RANGE_M = 260.0
+# How far a hand-placed landmark may be from the real one the scan found
+# before the two are taken for the same thing (§MANUAL_LANDMARKS).
+MANUAL_LANDMARK_YIELD_M = 120.0
+# The surroundings layers (§`extract_surroundings`). Barriers are circuit
+# furniture and only count close in -- a fence 200 m out is a farm's.
+BARRIER_RANGE_M = 70.0
+ROAD_RANGE_M = 400.0
+AREA_RANGE_M = 400.0
+POI_RANGE_M = 300.0
+# Everything tagged within this of the road is counted in the dossier's
+# `unclassified` census, whether a rule claims it or not.
+CENSUS_RANGE_M = 250.0
 STRUCTURE_RANGE_M = 140.0
 WOOD_RANGE_M = 260.0
 
@@ -1240,6 +1252,299 @@ def chain_ways(ways: list[np.ndarray], tol=3.0) -> list[np.ndarray]:
     return runs
 
 
+# Set by `extract` so the surroundings pass can place a node with the same
+# fit transform the rest of the dossier uses.
+_TO_TRACK = None
+
+
+def to_track_node(osm, nid: int):
+    if _TO_TRACK is None or nid not in osm.nodes:
+        return None
+    return _TO_TRACK(np.array([enu(*osm.nodes[nid], osm.lon0, osm.lat0)]))[0]
+
+
+# ----------------------------------------------------- surroundings layers
+
+# What a circuit is set in, beyond the stands and the pit building: the
+# barriers that line it, the service roads and lanes around it, the fields,
+# car parks and camp sites it sits among, and the handful of point features
+# worth standing a mesh up for. All of it is in the extract already and was
+# thrown away until now, which is why every circuit's surroundings were
+# invented rather than observed.
+
+# `barrier=*` values that are circuit protection or a real fence line.
+BARRIER_KINDS = {
+    "guard_rail": "guard_rail",
+    "tyres": "tyres",
+    "wall": "wall",
+    "block": "wall",
+    "jersey_barrier": "wall",
+    "retaining_wall": "wall",
+    "fence": "fence",
+    "hedge": "hedge",
+}
+
+# `highway=*` values kept as roads, mapped to the class the dresser lays.
+ROAD_KINDS = {
+    "motorway": "major",
+    "motorway_link": "major",
+    "trunk": "major",
+    "primary": "major",
+    "secondary": "major",
+    "tertiary": "minor",
+    "unclassified": "minor",
+    "residential": "minor",
+    "living_street": "minor",
+    "service": "service",
+    "track": "track",
+    "footway": "path",
+    "path": "path",
+    "steps": "path",
+    "cycleway": "path",
+    "pedestrian": "path",
+}
+
+# Area layers: (tag key, tag value) -> the kind the dresser dresses.
+AREA_KINDS = {
+    ("amenity", "parking"): "parking",
+    ("tourism", "camp_site"): "camp_site",
+    ("tourism", "caravan_site"): "camp_site",
+    ("landuse", "grass"): "grass",
+    ("landuse", "village_green"): "grass",
+    ("landuse", "meadow"): "meadow",
+    ("landuse", "farmland"): "farmland",
+    ("landuse", "farmyard"): "farmyard",
+    ("landuse", "residential"): "residential",
+    ("landuse", "industrial"): "industrial",
+    ("landuse", "cemetery"): "cemetery",
+    ("natural", "scrub"): "scrub",
+    ("natural", "heath"): "scrub",
+    ("natural", "grassland"): "meadow",
+    ("natural", "water"): "water",
+    ("natural", "shingle"): "shingle",
+    ("natural", "sand"): "sand",
+    ("natural", "bare_rock"): "rock",
+    ("leisure", "park"): "grass",
+    ("leisure", "golf_course"): "grass",
+    ("leisure", "pitch"): "pitch",
+}
+
+# `waterway=*` values kept as a line on the ground. A stream is drawn and
+# planted like a road is, which is why the two share a shape.
+WATER_KINDS = {
+    "river": "river",
+    "stream": "stream",
+    "ditch": "ditch",
+    "drain": "ditch",
+    "canal": "river",
+}
+
+# Point features worth a prop, by the tag that identifies them. A camp
+# site or a car park is usually a polygon (`AREA_KINDS`), but the Red Bull
+# Ring's five named camps are nodes, so both are looked for here as well
+# and the dresser clusters around the point when it has no outline.
+POI_KINDS = {
+    ("tourism", "camp_site"): "camp_site",
+    ("tourism", "caravan_site"): "camp_site",
+    ("amenity", "restaurant"): "food",
+    ("amenity", "fast_food"): "food",
+    ("amenity", "cafe"): "food",
+    ("amenity", "bar"): "food",
+    ("amenity", "biergarten"): "food",
+    ("amenity", "place_of_worship"): "chapel",
+    ("amenity", "fuel"): "fuel",
+    ("amenity", "toilets"): "toilets",
+    ("tourism", "information"): "info",
+    ("tourism", "artwork"): "artwork",
+    ("power", "tower"): "pylon",
+    ("barrier", "gate"): "gate",
+    ("barrier", "lift_gate"): "gate",
+    ("highway", "street_lamp"): "lamp",
+}
+
+# Tags the rest of the pipeline consumes outside this pass -- the course
+# itself, the stands, the structures and the woods -- so a way carrying one
+# is not reported as dropped.
+CENSUS_CLAIMED_ELSEWHERE = {
+    ("highway", "raceway"),
+    ("building", "grandstand"),
+    ("leisure", "grandstand"),
+    ("natural", "wood"),
+    ("landuse", "forest"),
+    ("landuse", "orchard"),
+}
+
+
+def _ring_or_line(p, tol: float):
+    """Simplify a way and say whether it closed on itself. An OSM area is a
+    closed way: its first and last node are the same one."""
+    closed = len(p) > 3 and float(np.hypot(*(p[0] - p[-1]))) < 0.5
+    return simplify(p, tol), closed
+
+
+def _poi_entry(track: Track, kind: str, t: dict, centre) -> dict:
+    s, lat = track.locate(centre[None, :])
+    entry = {
+        "kind": kind,
+        "station_m": round(float(s[0]), 1),
+        "side": "left" if lat[0] > 0 else "right",
+        "centre": round_pts(centre[None, :])[0],
+    }
+    name = osm_name(t)
+    if name:
+        entry["name"] = name
+    return entry
+
+
+def _first_match(t: dict, table: dict):
+    for (key, value), out in table.items():
+        if t.get(key) == value:
+            return out
+    return None
+
+
+def extract_surroundings(stem: str, track: Track, osm: Osm, xy) -> dict:
+    """The barrier, road, area and point-of-interest layers, plus a census
+    of everything tagged near the road that no rule claims.
+
+    `xy` is `extract`'s own way-to-track-frame helper, so a way outside the
+    circuit's bounding box costs nothing here either. Nothing in here is
+    allowed to fail a dossier: a layer that comes out empty means the
+    mapping has none of it, which the census then says out loud."""
+    barriers: list[dict] = []
+    roads: list[dict] = []
+    waterways: list[dict] = []
+    areas: list[dict] = []
+    poi: list[dict] = []
+    census: dict[str, int] = {}
+
+    def near(p) -> float:
+        d, _ = track.grid.query(p, max_rings=30)
+        return float(d.min())
+
+    for w in osm.ways:
+        t = w.get("tags") or {}
+        if not t:
+            continue
+        p = xy(w)
+        if p is None:
+            continue
+        d = near(p)
+        claimed = "building" in t or any(
+            t.get(k) == v for k, v in CENSUS_CLAIMED_ELSEWHERE
+        )
+
+        barrier = BARRIER_KINDS.get(t.get("barrier", ""))
+        if barrier is not None and d < BARRIER_RANGE_M:
+            line, closed = _ring_or_line(p, 1.0)
+            if len(line) >= 2:
+                entry = {"kind": barrier, "line": round_pts(line, 1)}
+                if closed:
+                    entry["closed"] = True
+                barriers.append(entry)
+                claimed = True
+
+        # The lap itself and the pit lane are the course, not scenery.
+        road = ROAD_KINDS.get(t.get("highway", ""))
+        if road is not None and d < ROAD_RANGE_M:
+            line, _ = _ring_or_line(p, 3.0)
+            if len(line) >= 2:
+                entry = {"kind": road, "line": round_pts(line, 1)}
+                name = osm_name(t)
+                if name:
+                    entry["name"] = name
+                if t.get("bridge"):
+                    entry["bridge"] = True
+                if t.get("tunnel"):
+                    entry["tunnel"] = True
+                roads.append(entry)
+                claimed = True
+
+        water = WATER_KINDS.get(t.get("waterway", ""))
+        if water is not None and d < ROAD_RANGE_M:
+            line, _ = _ring_or_line(p, 3.0)
+            if len(line) >= 2:
+                entry = {"kind": water, "line": round_pts(line, 1)}
+                name = osm_name(t)
+                if name:
+                    entry["name"] = name
+                if t.get("tunnel") or t.get("culvert"):
+                    entry["tunnel"] = True
+                waterways.append(entry)
+                claimed = True
+
+        area_kind = _first_match(t, AREA_KINDS)
+        # Woodland has its own layer already (`woods`), with the leaf type.
+        if t.get("natural") == "wood" or t.get("landuse") in ("forest", "orchard"):
+            area_kind = None
+        if area_kind is not None and d < AREA_RANGE_M:
+            ring, closed = _ring_or_line(p, 4.0)
+            if closed and len(ring) >= 4 and ring_area(ring) >= 200.0:
+                entry = {"kind": area_kind, "ring": round_pts(ring, 1)}
+                name = osm_name(t)
+                if name:
+                    entry["name"] = name
+                areas.append(entry)
+                claimed = True
+
+        # A point feature mapped as a small building or enclosure rather
+        # than as a node -- a chapel usually is one -- takes its centre.
+        poi_kind = _first_match(t, POI_KINDS)
+        if poi_kind is not None and area_kind is not None:
+            # Mapped as a polygon: the area layer already has its outline,
+            # which is strictly better than a point.
+            poi_kind = None
+        if poi_kind is not None and d < POI_RANGE_M:
+            poi.append(_poi_entry(track, poi_kind, t, p.mean(0)))
+            claimed = True
+
+        # Whatever no rule above wanted, so the next circuit's gaps show
+        # up in the dossier instead of in a screenshot.
+        if not claimed and d < CENSUS_RANGE_M:
+            for key in ("barrier", "highway", "landuse", "natural", "leisure",
+                        "amenity", "tourism", "waterway", "man_made", "power"):
+                if key in t:
+                    label = f"{key}={t[key]}"
+                    census[label] = census.get(label, 0) + 1
+                    break
+
+    for nid, t in osm.node_tags.items():
+        poi_kind = _first_match(t, POI_KINDS)
+        if poi_kind is None:
+            continue
+        c = to_track_node(osm, nid)
+        if c is None or near(c[None, :]) > POI_RANGE_M:
+            continue
+        poi.append(_poi_entry(track, poi_kind, t, c))
+
+    barriers.sort(key=lambda e: (e["kind"], e["line"][0]))
+    roads.sort(key=lambda e: (e["kind"], e["line"][0]))
+    waterways.sort(key=lambda e: (e["kind"], e["line"][0]))
+    areas.sort(key=lambda e: (e["kind"], e["ring"][0]))
+    poi.sort(key=lambda e: (e["station_m"], e["kind"]))
+    return {
+        "barriers": barriers,
+        "roads": roads,
+        "waterways": waterways,
+        "areas": areas,
+        "poi": poi,
+        "unclassified": dict(sorted(census.items(), key=lambda kv: (-kv[1], kv[0]))),
+    }
+
+
+def manual_pit_lane(track: Track, spec: dict) -> dict:
+    """A pit lane authored along the road edge, for a circuit whose pit lane
+    OSM gets wrong or leaves out (see MANUAL_PIT_LANE)."""
+    nodes = track.edge_run(spec["from_m"], spec["to_m"], spec["side"], spec.get("gap_m", 6.0))
+    length = float(np.hypot(*np.diff(nodes, axis=0).T).sum())
+    return {
+        "side": spec["side"],
+        "length_m": round(length, 1),
+        "nodes": round_pts(nodes),
+        "source": "authored",
+    }
+
+
 def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     lo = track.pts.min(0) - 400.0
     hi = track.pts.max(0) + 400.0
@@ -1260,6 +1565,9 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if (p.max(0) < lo).any() or (p.min(0) > hi).any():
             return None
         return p
+
+    global _TO_TRACK
+    _TO_TRACK = to_track
 
     corners = []
     pit_ways: list[np.ndarray] = []
@@ -1394,7 +1702,20 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             "nodes": round_pts(densify(best, 12.0, closed=False)),
         }
 
-    pit = pit_lane_from(pit_ways)
+    # A hand-authored pit lane wins outright. It exists precisely because a
+    # human looked at a circuit and found OSM's version wrong or absent, so
+    # letting an automatic match override it throws that judgement away.
+    # This is not hypothetical: rebuilt from the current Albert Park
+    # extract, the untagged-way fallback below matches a 711 m "pit lane"
+    # that runs straight across the race track, where the real one is a
+    # 370 m run along the start straight -- and the pit walls the bake
+    # generates along it stood in the middle of the road, where the AI
+    # spent a quarter of every race stuck against them.
+    pit = None
+    if stem in MANUAL_PIT_LANE:
+        pit = manual_pit_lane(track, MANUAL_PIT_LANE[stem])
+    if pit is None:
+        pit = pit_lane_from(pit_ways)
     if pit is None:
         # Nothing was tagged as a pit lane at all. Fall back to any
         # raceway way that runs wide of the main loop instead of on it
@@ -1405,21 +1726,6 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         # accident, and every existing dossier already finds its pit lane
         # from a tagged way, so this path never fires for them.
         pit = pit_lane_from(untagged_ways)
-    if pit is None and stem in MANUAL_PIT_LANE:
-        # A public-road street circuit's pit lane is the same pavement as
-        # the race line for the rest of the year -- there is no separate
-        # polyline in OSM for `pit_lane_from` to find (Melbourne: the pit
-        # building fronts directly onto Aughtie Drive). Author it the same
-        # way a MANUAL_STANDS front is authored, along the road edge.
-        spec = MANUAL_PIT_LANE[stem]
-        nodes = track.edge_run(spec["from_m"], spec["to_m"], spec["side"], spec.get("gap_m", 6.0))
-        length = float(np.hypot(*np.diff(nodes, axis=0).T).sum())
-        pit = {
-            "side": spec["side"],
-            "length_m": round(length, 1),
-            "nodes": round_pts(nodes),
-            "source": "authored",
-        }
 
     stands = []
     structures = []
@@ -1564,6 +1870,22 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             kind = "tower"
         elif t.get("tower:type") == "lighting" or t.get("highway") == "floodlight":
             kind = "floodlight"
+        elif (
+            t.get("tourism") == "artwork"
+            and t.get("artwork_type") in ("sculpture", "statue", "installation")
+            and any(spec["kind"] == "statue" for spec in MANUAL_LANDMARKS.get(stem, []))
+        ):
+            # A circuit's own monument is mapped as artwork, not as anything
+            # the scans above look for: the Red Bull Ring's bull ("Der Bulle
+            # vom Spielberg", node 5443064309) is the case this exists for.
+            #
+            # It only fires where MANUAL_LANDMARKS declares a statue. The kit
+            # has one statue mesh, and it is a bull; taking every sculpture
+            # near every circuit at face value put eight bulls round Montreal
+            # and seven round Interlagos. So the manual entry says *that*
+            # the circuit has its monument, the survey says exactly *where*,
+            # and the yield rule below lets the survey win.
+            kind = "statue"
         if kind == "floodlight" and stem in DAY_RACE_NO_FLOODLIGHTS:
             # `tower:type=lighting` alone does not say *whose* floodlight a
             # pole is; a permanent circuit built for it (Sakhir: 141 of
@@ -1617,6 +1939,18 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         )
     for spec in MANUAL_LANDMARKS.get(stem, []):
         p = track.offset_point(spec["station_m"], spec["side"], spec.get("offset_m", 40.0))
+        # A hand-placed landmark is an estimate standing in for a fact.
+        # Once the automatic scan finds the same thing -- same kind, within
+        # MANUAL_LANDMARK_YIELD_M -- the survey wins and the estimate is
+        # dropped, so the entry can stay in the table for circuits and OSM
+        # versions that still need it.
+        if any(
+            l["kind"] == spec["kind"]
+            and l.get("source") != "authored"
+            and math.hypot(*(np.array(l["centre"]) - p)) < MANUAL_LANDMARK_YIELD_M
+            for l in landmarks
+        ):
+            continue
         entry = {
             "kind": spec["kind"],
             "name": spec.get("name"),
@@ -1713,11 +2047,25 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         "crossings": crossings,
         "landmarks": landmarks,
         "woods": woods,
+        **extract_surroundings(stem, track, osm, xy),
     }
 
 
-def build(stem: str, offline: bool) -> dict:
-    print(f"== {stem}")
+# ----------------------------------------------------------- georeferencing
+
+
+def fit_track(stem: str, offline: bool) -> tuple[Track, Osm, np.ndarray, np.ndarray, dict]:
+    """Georeference one circuit onto its own YAML frame.
+
+    Returns `(track, osm, a, t, report)`, where a point in the OSM extract's
+    ENU frame lands in the track frame at `p @ a.T + t`.  The whole alignment
+    lives here -- the coarse FFT search, the trimmed ICP, and the gate that
+    refuses a fit which does not explain the centerline -- because anything
+    else that puts real-world data into a track's frame (the DEM, via
+    `scripts/dem_fetch.py`) has to use the *same* alignment the dossier was
+    built from: two independent fits agreeing to within a metre would still
+    leave the hills a metre off the grandstands standing on them.
+    """
     paths = fetch(stem, offline)
     track = Track(stem)
     osm = Osm(paths)
@@ -1755,6 +2103,12 @@ def build(stem: str, offline: bool) -> dict:
             f"centerline at {report['rmse_m']} m rmse - refusing to write a "
             "dossier from it"
         )
+    return track, osm, a, t, report
+
+
+def build(stem: str, offline: bool) -> dict:
+    print(f"== {stem}")
+    track, osm, a, t, report = fit_track(stem, offline)
     to_track = lambda p: np.asarray(p, dtype=float).reshape(-1, 2) @ a.T + t
     layout = extract(stem, track, osm, to_track, report)
     print(
@@ -1764,6 +2118,15 @@ def build(stem: str, offline: bool) -> dict:
         f"{len(layout['woods'])} woods, pit lane "
         + (layout["pit_lane"]["side"] if layout["pit_lane"] else "MISSING")
     )
+    print(
+        f"   surroundings: {len(layout['barriers'])} barrier run(s), "
+        f"{len(layout['roads'])} road(s), {len(layout['waterways'])} waterway(s), "
+        f"{len(layout['areas'])} area(s), {len(layout['poi'])} point(s) of interest"
+    )
+    dropped = layout["unclassified"]
+    if dropped:
+        top = ", ".join(f"{k} x{v}" for k, v in list(dropped.items())[:6])
+        print(f"   unclaimed near the road: {sum(dropped.values())} ({top})")
     return layout
 
 
