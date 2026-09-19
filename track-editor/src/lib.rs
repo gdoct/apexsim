@@ -1,6 +1,8 @@
 pub mod ats;
 pub mod ats_io;
+pub mod barriers;
 pub mod coords;
+pub mod dem;
 pub mod dress;
 pub mod groom;
 pub mod layout;
@@ -15,5 +17,6 @@ pub mod track_data;
 pub mod track_io;
 pub mod track_mesh;
 pub mod track_path;
+pub mod track_smooth;
 pub mod ue_export;
 pub mod ue_export_io;

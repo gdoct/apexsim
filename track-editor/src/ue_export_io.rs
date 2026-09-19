@@ -34,6 +34,8 @@ pub enum UeExportError {
     Project(String),
     #[error("track {0} has no usable centerline")]
     Degenerate(String),
+    #[error("elevation sidecar: {0}")]
+    Dem(#[from] crate::dem::DemError),
 }
 
 /// `Monza.yaml` -> `<dir>/Monza.uescene.json`.
@@ -88,7 +90,15 @@ pub fn export_track(track_path: &Path, dir: &Path) -> Result<Exported, UeExportE
         )
     });
 
-    let baked = ue_export::bake_all(&opened.track, &scene)
+    // The elevation sidecar is what gives the circuit its real ground and
+    // its skyline. A track without one is baked exactly as before, and an
+    // unreadable one is reported rather than silently ignored: a horizon
+    // that quietly stops appearing is the kind of regression nobody
+    // notices until a screenshot.
+    let dem_path = crate::dem::dem_path_for(track_path);
+    let dem = crate::dem::load_dem(&dem_path).map_err(UeExportError::Dem)?;
+
+    let baked = ue_export::bake_all_with_dem(&opened.track, &scene, dem.as_ref())
         .ok_or_else(|| UeExportError::Degenerate(opened.track.name.clone()))?;
     let scene_path = export_path_for(dir, track_path);
     write_scene(&scene_path, &baked.scene)?;

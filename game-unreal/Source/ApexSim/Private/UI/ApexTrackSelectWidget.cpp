@@ -232,14 +232,38 @@ void UApexTrackSelectWidget::RebuildCards(bool bForce)
 	TrackCards.Reset();
 	CardGrid->ClearChildren();
 
+	// The server lists tracks in whatever order it loaded them; show them by the
+	// name on the card.
+	struct FNamedTrack
+	{
+		const FApexTrackConfigSummary* Track;
+		FApexTrackCatalogRow Row;
+		bool bHasRow;
+		FString Title;
+	};
+	TArray<FNamedTrack> Sorted;
+	Sorted.Reserve(Tracks.Num());
 	for (const FApexTrackConfigSummary& Track : Tracks)
 	{
-		FApexTrackCatalogRow Row;
-		const bool bHasRow = Flow && Flow->GetTrackCatalogRow(Track.Id, Row);
+		FNamedTrack& Entry = Sorted.AddDefaulted_GetRef();
+		Entry.Track = &Track;
+		Entry.bHasRow = Flow && Flow->GetTrackCatalogRow(Track.Id, Entry.Row);
+		Entry.Title = Entry.bHasRow && !Entry.Row.DisplayName.IsEmpty() ? Entry.Row.DisplayName : Track.Name;
+	}
+	Sorted.StableSort([](const FNamedTrack& A, const FNamedTrack& B)
+	{
+		return A.Title.Compare(B.Title, ESearchCase::IgnoreCase) < 0;
+	});
+
+	for (const FNamedTrack& Entry : Sorted)
+	{
+		const FApexTrackConfigSummary& Track = *Entry.Track;
+		const FApexTrackCatalogRow& Row = Entry.Row;
+		const bool bHasRow = Entry.bHasRow;
 
 		FApexCardSpec Spec;
 		Spec.Id = Track.Id;
-		Spec.Title = bHasRow && !Row.DisplayName.IsEmpty() ? Row.DisplayName : Track.Name;
+		Spec.Title = Entry.Title;
 		Spec.PreviewHeight = CardPreviewHeight;
 		Spec.PlaceholderCaption = TEXT("No preview");
 

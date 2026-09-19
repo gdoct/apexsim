@@ -24,7 +24,7 @@ use crate::ats::Side;
 pub const LAYOUT_FORMAT: &str = "apex-track-layout";
 pub const LAYOUT_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Layout {
     pub format: String,
     pub version: u32,
@@ -53,6 +53,141 @@ pub struct Layout {
     /// keeps the dunes at Zandvoort bare and the Ardennes at Spa dense.
     #[serde(default)]
     pub woods: Vec<Wood>,
+    /// The real barrier lines: armco, walls and tyre stacks as OSM has
+    /// them. The barrier pass lays its runs along these where a circuit
+    /// has them and falls back to the runoff edge where it does not.
+    #[serde(default)]
+    pub barriers: Vec<Line>,
+    /// Service roads, access tracks, lanes and footpaths around the
+    /// circuit. `kind` is one of `major`, `minor`, `service`, `track`,
+    /// `path`.
+    #[serde(default)]
+    pub roads: Vec<Line>,
+    /// Streams and rivers. `kind` is `river`, `stream` or `ditch`.
+    #[serde(default)]
+    pub waterways: Vec<Line>,
+    /// Ground cover and enclosures: car parks, camp sites, meadow,
+    /// farmland, villages, scrub, water. What the land around the circuit
+    /// actually is, rather than the single grass band it used to be.
+    #[serde(default)]
+    pub areas: Vec<Area>,
+    /// Point features worth a prop: the statue, chapels, pylons, gates,
+    /// food stalls, camp sites mapped as a node.
+    #[serde(default)]
+    pub poi: Vec<Poi>,
+    /// Tag census of everything within range of the road that no rule
+    /// claimed, so the next circuit's gaps are visible in the dossier
+    /// instead of in a screenshot. Data for humans; nothing reads it.
+    #[serde(default)]
+    pub unclassified: std::collections::BTreeMap<String, u32>,
+}
+
+/// A line feature on the ground: a barrier run, a road, a stream. What it
+/// is comes from `kind`, whose vocabulary is per layer (see [`Layout`]).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Line {
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    pub line: Vec<[f32; 2]>,
+    /// The way closed on itself: an enclosure rather than a run.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub closed: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bridge: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub tunnel: bool,
+}
+
+impl Line {
+    /// Distance from a point to the nearest segment of the line.
+    pub fn distance_to(&self, x: f32, y: f32) -> f32 {
+        let mut best = f32::MAX;
+        for pair in self.line.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+            let len2 = dx * dx + dy * dy;
+            let t = if len2 > 1e-6 {
+                (((x - a[0]) * dx + (y - a[1]) * dy) / len2).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let (px, py) = (a[0] + t * dx, a[1] + t * dy);
+            best = best.min((x - px).hypot(y - py));
+        }
+        best
+    }
+
+    /// Total length of the run.
+    pub fn length_m(&self) -> f32 {
+        self.line
+            .windows(2)
+            .map(|p| (p[1][0] - p[0][0]).hypot(p[1][1] - p[0][1]))
+            .sum()
+    }
+}
+
+/// A patch of ground with a kind: a car park, a meadow, a village.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Area {
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    pub ring: Vec<[f32; 2]>,
+}
+
+impl Area {
+    /// Even-odd point-in-ring test.
+    pub fn contains(&self, x: f32, y: f32) -> bool {
+        ring_contains(&self.ring, x, y)
+    }
+
+    /// Centroid of the ring's vertices.
+    pub fn centre(&self) -> (f32, f32) {
+        let n = self.ring.len().max(1) as f32;
+        let sx: f32 = self.ring.iter().map(|p| p[0]).sum();
+        let sy: f32 = self.ring.iter().map(|p| p[1]).sum();
+        (sx / n, sy / n)
+    }
+
+    /// Shoelace area, always positive.
+    pub fn area_m2(&self) -> f32 {
+        let mut acc = 0.0;
+        let mut j = self.ring.len().saturating_sub(1);
+        for i in 0..self.ring.len() {
+            acc += (self.ring[j][0] + self.ring[i][0]) * (self.ring[j][1] - self.ring[i][1]);
+            j = i;
+        }
+        (acc / 2.0).abs()
+    }
+}
+
+/// A point feature: the statue, a chapel, a pylon, a camp site.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Poi {
+    pub kind: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    pub station_m: f32,
+    pub side: Side,
+    pub centre: [f32; 2],
+}
+
+/// Even-odd point-in-ring test, shared by [`Wood`] and [`Area`].
+fn ring_contains(ring: &[[f32; 2]], x: f32, y: f32) -> bool {
+    let mut inside = false;
+    let mut j = ring.len().saturating_sub(1);
+    for i in 0..ring.len() {
+        let (xi, yi) = (ring[i][0], ring[i][1]);
+        let (xj, yj) = (ring[j][0], ring[j][1]);
+        if (yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
 }
 
 /// A patch of real woodland, and what grows in it.
@@ -69,18 +204,7 @@ pub struct Wood {
 impl Wood {
     /// Even-odd point-in-ring test.
     pub fn contains(&self, x: f32, y: f32) -> bool {
-        let ring = &self.ring;
-        let mut inside = false;
-        let mut j = ring.len().saturating_sub(1);
-        for i in 0..ring.len() {
-            let (xi, yi) = (ring[i][0], ring[i][1]);
-            let (xj, yj) = (ring[j][0], ring[j][1]);
-            if (yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi {
-                inside = !inside;
-            }
-            j = i;
-        }
-        inside
+        ring_contains(&self.ring, x, y)
     }
 }
 

@@ -10,8 +10,16 @@
            ApexTrackEditor module matches the current C++ source
         2. (optional, -ImportProps) UnrealEditor-Cmd -run=ApexPropImport -all
                                                  -> game-unreal/Content/Props/...
-        3. cargo run --bin ats-export -- --all   -> content/tracks/export/*.uescene.json
-        4. UnrealEditor-Cmd -run=ApexTrackImport -> game-unreal/Content/Tracks/...
+        3. cargo run --bin ats-dress -- --all    -> content/tracks/real/*.ats
+        4. cargo run --bin ats-export -- --all   -> content/tracks/export/*.uescene.json
+        5. UnrealEditor-Cmd -run=ApexTrackImport -> game-unreal/Content/Tracks/...
+
+    Stage 3 is what keeps a circuit's scenery in step with its layout
+    dossier. It used to be run by hand, which is exactly how the Red Bull
+    Ring shipped for a day without its bull statue: the landmark went into
+    Spielberg.layout.json, nobody re-dressed the scene, and the bake read
+    the old one. Dressing is idempotent, so running it every time costs a
+    few seconds and removes the failure mode.
 
     Both generated stages are regenerated wholesale; nothing under
     content/tracks/export or Content/Tracks should be hand-edited.
@@ -49,6 +57,10 @@
     exports without building assets. The bake still runs, since the import has
     nothing to read otherwise.
 
+.PARAMETER SkipDress
+    Leave the .ats scenes alone. Only for working on a scene by hand; the
+    next dress run overwrites what the pass owns either way.
+
 .PARAMETER SkipExport
     Import the exports already sitting in content/tracks/export.
 
@@ -64,7 +76,7 @@
 
 .EXAMPLE
     ./scripts/build_track_levels.ps1 -Track Monza,Spa -Build
-    Rebuild the editor target, then rebake and reimport two circuits.
+    Rebuild the editor target, then redress, rebake and reimport two circuits.
 #>
 [CmdletBinding()]
 param(
@@ -74,6 +86,7 @@ param(
     [switch]$ImportProps,
     [switch]$Release,
     [switch]$DryRun,
+    [switch]$SkipDress,
     [switch]$SkipExport,
     [switch]$SkipImport,
     [string[]]$ExtraEditorArgs
@@ -182,6 +195,27 @@ if ($ImportProps) {
     if ($ExtraEditorArgs) { $propArgs += $ExtraEditorArgs }
     Invoke-Tool -Exe (Join-Path $engine 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe') `
         -Arguments $propArgs -What 'ApexPropImport'
+}
+
+if ($SkipDress) {
+    Write-Step 'Skipping the dressing pass; using the scenes as they are'
+}
+else {
+    if ($Track) {
+        Write-Step "Dressing $($trackFiles.Count) track(s) from their layout dossiers"
+    }
+    else {
+        Write-Step "Dressing every track in $TrackDir that has a layout dossier"
+    }
+
+    $dressArgs = @('run', '--quiet', '--manifest-path',
+        (Join-Path $RepoRoot 'track-editor\Cargo.toml'), '--bin', 'ats-dress')
+    if ($Release) { $dressArgs += '--release' }
+    $dressArgs += '--'
+    if ($DryRun) { $dressArgs += '--dry-run' }
+    if ($trackFiles.Count -gt 0) { $dressArgs += $trackFiles } else { $dressArgs += '--all' }
+
+    Invoke-Tool -Exe 'cargo' -Arguments $dressArgs -What 'ats-dress'
 }
 
 if ($SkipExport) {

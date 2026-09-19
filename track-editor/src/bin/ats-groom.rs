@@ -94,7 +94,15 @@ fn main() -> ExitCode {
                 continue;
             }
         };
-        let Some(report) = groom::groom_scene_with(&opened.track, &mut scene, layout.as_ref())
+        // Seat on the real land when the track has an elevation model, so
+        // what grooming places matches the ground the exporter draws.
+        let dem = track_editor::dem::load_dem(track_editor::dem::dem_path_for(track_path))
+            .unwrap_or_else(|e| {
+                eprintln!("{}: elevation sidecar unusable ({e})", track_path.display());
+                None
+            });
+        let Some(report) =
+            groom::groom_scene_with_dem(&opened.track, &mut scene, layout.as_ref(), dem.as_ref())
         else {
             eprintln!("{name}: degenerate centerline, skipping");
             failures += 1;

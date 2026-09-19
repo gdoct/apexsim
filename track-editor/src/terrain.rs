@@ -40,6 +40,7 @@
 //! Building the field is deterministic: fixed iteration order, no wall
 //! clock, plain `f32` arithmetic — repeated bakes stay byte-identical.
 
+use crate::dem::{DemFile, DemGrid};
 use serde::{Deserialize, Serialize};
 
 use crate::track_path::{offset_point, CenterlinePath};
@@ -52,6 +53,14 @@ const CELL_M: f32 = 12.0;
 // Wide enough that, with height fog over it, the mesh edge sits in haze
 // instead of cutting a visible line against the sky from driver height.
 const MARGIN_M: f32 = 800.0;
+
+/// Where the ground stops being the road's own surveyed height and starts
+/// being the elevation model, and where it has finished becoming it.
+/// Inside the first figure the trace wins outright, which keeps a circuit
+/// in a cutting or on an embankment shaped the way it really is; past the
+/// second the model wins outright, which is what puts the hills back.
+const DEM_BLEND_START_M: f32 = 40.0;
+const DEM_BLEND_END_M: f32 = 220.0;
 /// Spacing between centerline samples used as height sources.
 const SOURCE_SPACING_M: f32 = 15.0;
 /// Softening added to the squared distance in the IDW weight, m². Keeps the
@@ -254,6 +263,12 @@ pub struct TerrainHeightfield {
     /// max_x, max_y)`.
     road_bounds: (f32, f32, f32, f32),
     underpasses: Vec<Underpass>,
+    /// The elevation model's far grid, for queries past this field's own
+    /// edge. Without it anything beyond the 800 m margin read the border
+    /// height, so a prop seated two kilometres out — the woodland on the
+    /// slopes — came out on a flat plain at road level while the horizon
+    /// mesh drew the real hill a few hundred metres above it.
+    far: Option<DemGrid>,
 }
 
 impl TerrainHeightfield {
@@ -266,6 +281,23 @@ impl TerrainHeightfield {
     /// [`Self::from_path`] with further road-like paths — the pit lane —
     /// that the ground hugs exactly like the track.
     pub fn from_paths(path: &CenterlinePath, extra: &[&CenterlinePath]) -> Option<Self> {
+        Self::from_paths_with_dem(path, extra, None)
+    }
+
+    /// [`Self::from_paths`] over the real land.
+    ///
+    /// With an elevation model the ground is the land, and the
+    /// centerline's own heights are used only to carve the road into it.
+    /// Without one it is the inverse-distance blanket it always was: a
+    /// smooth surface that decays to the mean track height, with no hill
+    /// or valley that the road does not itself imply. That fallback is
+    /// what every circuit looked like, and it is why the Red Bull Ring
+    /// sat in a green pancake instead of the Murtal.
+    pub fn from_paths_with_dem(
+        path: &CenterlinePath,
+        extra: &[&CenterlinePath],
+        dem: Option<&DemFile>,
+    ) -> Option<Self> {
         let samples = path.samples();
         if samples.is_empty() {
             return None;
@@ -327,17 +359,52 @@ impl TerrainHeightfield {
                 let mut num = 0.0f32;
                 let mut den = 0.0f32;
                 let mut ceiling = f32::INFINITY;
+                let mut nearest2 = f32::MAX;
                 for s in &sources {
                     let d2 = (x - s.x).powi(2) + (y - s.y).powi(2);
                     let w = 1.0 / (d2 + IDW_SOFTENING_M2);
                     num += s.z * w;
                     den += w;
+                    nearest2 = nearest2.min(d2);
                     let allowance = (d2.sqrt() - s.reach_m).max(0.0) * RISE_SLOPE;
                     ceiling = ceiling.min(s.ceiling_z + allowance);
                 }
-                // The IDW average is the shape of the land; the ceiling is
-                // the guarantee that no road is ever buried by it.
-                heights.push((num / den).min(ceiling));
+                let blanket = num / den;
+                let height = match dem {
+                    // Close to the road the surveyed centerline is the
+                    // better of the two: a 30 m elevation model reads the
+                    // tree canopy over a tree-lined circuit and knows
+                    // nothing of cuttings and embankments, while the
+                    // trace is the road itself. Further out the model is
+                    // the only thing that knows there is a hill there at
+                    // all, so the two are crossfaded over the same band.
+                    Some(dem) => {
+                        let t = ((nearest2.sqrt() - DEM_BLEND_START_M)
+                            / (DEM_BLEND_END_M - DEM_BLEND_START_M))
+                            .clamp(0.0, 1.0);
+                        let eased = t * t * (3.0 - 2.0 * t);
+                        let land = blanket + (dem.height_at(x, y) - blanket) * eased;
+                        // The ceiling fades out across the same band.
+                        //
+                        // It exists so that no road is ever buried, and it
+                        // does that by letting the ground rise away from a
+                        // road at no more than `RISE_SLOPE`, 15 %. Over the
+                        // blanket that never bit. Over real land it clipped
+                        // every hill steeper than that: the Red Bull Ring's
+                        // slopes rise 25 %, and the first export with the
+                        // elevation model peaked at 196 m where the land
+                        // reaches 408 m — the ceiling had quietly flattened
+                        // the mountains this change was for. Near the road
+                        // the ceiling still holds absolutely; a kilometre
+                        // out there is no road for it to protect.
+                        let clamped = land.min(ceiling);
+                        clamped + (land - clamped) * eased
+                    }
+                    // The land is the shape of the ground; the ceiling is
+                    // the guarantee that no road is ever buried by it.
+                    None => blanket.min(ceiling),
+                };
+                heights.push(height);
             }
         }
 
@@ -372,6 +439,7 @@ impl TerrainHeightfield {
             search_radius_m: BLEND_END_M + max_half + 1.0,
             road_bounds,
             underpasses: Vec::new(),
+            far: dem.map(|d| d.outer.clone()),
         };
         field.underpasses = field.find_underpasses();
         Some(field)
@@ -381,6 +449,15 @@ impl TerrainHeightfield {
     /// no verge: bilinear between grid vertices, clamped to the grid at its
     /// borders. Most callers want [`Self::ground_height_at`].
     pub fn height_at(&self, x: f32, y: f32) -> f32 {
+        if let Some(far) = &self.far {
+            let (max_x, max_y) = (
+                self.origin.0 + (self.cols - 1) as f32 * self.cell_m,
+                self.origin.1 + (self.rows - 1) as f32 * self.cell_m,
+            );
+            if x < self.origin.0 || y < self.origin.1 || x > max_x || y > max_y {
+                return far.height_at(x, y);
+            }
+        }
         let fx = ((x - self.origin.0) / self.cell_m).clamp(0.0, (self.cols - 1) as f32);
         let fy = ((y - self.origin.1) / self.cell_m).clamp(0.0, (self.rows - 1) as f32);
         let c0 = fx.floor() as usize;

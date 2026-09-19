@@ -60,6 +60,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::ats::{AtsScene, Curb, Dressing, Marking, MarkingKind, Prop, PropKind, Side, Surface};
+use crate::dem::DemFile;
 use crate::props;
 use crate::terrain::{self, GroundHeightfield, TerrainHeightfield, Underpass};
 use crate::track_data::TrackFile;
@@ -113,6 +114,11 @@ const STRUCTURE_KEY: &str = "structure_concrete";
 const STRUCTURE_COLOR: [f32; 4] = [0.62, 0.61, 0.58, 1.0];
 /// Suzuka's crossover wears a yellow sponsor board; so do most.
 const FASCIA_KEY: &str = "structure_fascia";
+
+/// Material key for the distant land. Its own key rather than the
+/// ground's, so the client can give the skyline a coarser, lower-contrast
+/// treatment than the grass a driver is looking at.
+const HORIZON_KEY: &str = "horizon";
 const FASCIA_COLOR: [f32; 4] = [0.95, 0.76, 0.05, 1.0];
 
 /// Height of a curb's outer lip above the track surface, meters.
@@ -423,6 +429,8 @@ pub const WALL_KIND_ARMCO: u8 = 0;
 pub const WALL_KIND_TIRES: u8 = 1;
 /// Concrete, a building, a stand, a parapet: hard.
 pub const WALL_KIND_CONCRETE: u8 = 2;
+/// A sausage kerb: driven over, jolts the car, never stops it.
+pub const WALL_KIND_KERB: u8 = 3;
 
 /// Two thin walls whose ends are this close along the run are joined, so
 /// a run of 4 m armco modules or tire-wall blocks laid a little apart
@@ -583,6 +591,7 @@ fn wall_footprint(
 fn barrier_material(kind: PropKind, asset: &str) -> u8 {
     match kind {
         PropKind::TireWall => WALL_KIND_TIRES,
+        PropKind::Barrier if asset.starts_with("sausage_kerb") => WALL_KIND_KERB,
         PropKind::Barrier if asset.starts_with("tecpro") => WALL_KIND_TIRES,
         PropKind::Barrier if asset.starts_with("concrete") => WALL_KIND_CONCRETE,
         _ => WALL_KIND_ARMCO,
@@ -730,7 +739,10 @@ fn join_wall_runs(walls: &mut [WallSegment]) {
             };
             let mut best: Option<(f32, (f32, f32))> = None;
             for j in 0..walls.len() {
+                // A kerb is not a barrier: it never seals a gap in a run.
                 if j == i
+                    || walls[i].kind == WALL_KIND_KERB
+                    || walls[j].kind == WALL_KIND_KERB
                     || (dirs[i].0 * dirs[j].0 + dirs[i].1 * dirs[j].1).abs() < WALL_JOIN_ALIGN_COS
                 {
                     continue;
@@ -864,15 +876,27 @@ pub fn bake(track: &TrackFile, scene: &AtsScene) -> Option<UeScene> {
 
 /// [`bake`], plus the sidecars for the server.
 pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
+    bake_all_with_dem(track, scene, None)
+}
+
+/// [`bake_all`] over the real land.
+///
+/// With a track's elevation sidecar the ground is the land the circuit is
+/// actually built on and the skyline is the real one; without it the
+/// ground is the centerline blanket it always was and there is no
+/// skyline at all.
+pub fn bake_all_with_dem(
+    track: &TrackFile,
+    scene: &AtsScene,
+    dem: Option<&DemFile>,
+) -> Option<Baked> {
     let path = CenterlinePath::from_track(track)?;
     let lane = scene
         .pit_lane
         .as_ref()
         .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
-    let terrain = match &lane {
-        Some(lane) => TerrainHeightfield::from_paths(&path, &[lane]),
-        None => TerrainHeightfield::from_path(&path),
-    };
+    let extra: Vec<&CenterlinePath> = lane.iter().collect();
+    let terrain = TerrainHeightfield::from_paths_with_dem(&path, &extra, dem);
 
     let mut bake = Bake {
         ground: terrain.as_ref(),
@@ -893,6 +917,12 @@ pub fn bake_all(track: &TrackFile, scene: &AtsScene) -> Option<Baked> {
     // the viewport uses, so the export reads the way the editor looked.
     if let Some(field) = &terrain {
         bake.ground(field);
+        // The skyline goes in before anything that stands on the ground,
+        // and only when the circuit has an elevation model to draw it
+        // from; without one there is nothing out there to draw.
+        if let Some(dem) = dem {
+            bake.horizon(field, dem);
+        }
         for underpass in field.underpasses() {
             bake.underpass(field, underpass);
         }
@@ -2027,18 +2057,29 @@ impl Bake<'_> {
     /// The world ground: the terrain heightfield as meshes, tiled so Unreal
     /// can cull them, seated on [`TerrainHeightfield::ground_height_at`].
     /// Cells within reach of a road are subdivided so the verge profile is
-    /// actually followed there; further out the coarse field is exact.
+    /// actually followed there, and again less finely out to a couple of
+    /// hundred metres; further out the coarse field is exact.
     fn ground(&mut self, field: &TerrainHeightfield) {
         /// Coarse cells per tile side.
         const TILE_CELLS: usize = 32;
-        /// Subdivisions per coarse cell beside the road: 12 m -> 4 m.
-        const SUB: usize = 3;
-        /// A coarse cell with any corner this close to a road centerline
-        /// is subdivided. Past it the ground is the coarse field itself
-        /// (the verge blend ends at `BLEND_END_M` + half width), so a
-        /// subdivided cell's boundary vertices lie on the coarse edge and
-        /// the two resolutions meet without cracks.
-        const FINE_RADIUS_M: f32 = 52.0;
+        /// Fine cells per coarse cell side: 12 m -> 2 m.
+        const SUB: usize = 6;
+        /// Fine cells per quad beside the road (2 m) and in the ring past
+        /// it (6 m). Both must divide `SUB`, or a cell would not fill.
+        const NEAR_STEP: usize = 1;
+        const MID_STEP: usize = 3;
+        /// A coarse cell is drawn at `NEAR_STEP` when any corner is this
+        /// close to a road centerline, at `MID_STEP` out to `MID_RADIUS_M`,
+        /// and whole beyond. Past the near radius the ground is the coarse
+        /// field itself (the verge blend ends at `BLEND_END_M` + half
+        /// width), so a subdivided cell's boundary vertices lie on the
+        /// coarse edge and resolutions meet without cracks. The near radius
+        /// is what has to clear the blend; the middle ring exists because
+        /// 12 m quads a hundred metres out are visibly faceted against the
+        /// horizon, while 2 m quads out there would be most of the
+        /// circuit's triangles for nothing.
+        const FINE_RADIUS_M: f32 = 60.0;
+        const MID_RADIUS_M: f32 = 200.0;
 
         let key = "ground";
         self.register(key, "surface", terrain::GROUND_COLOR);
@@ -2051,17 +2092,32 @@ impl Bake<'_> {
         let fine_m = coarse_m / SUB as f32;
         let (origin_x, origin_y, _) = field.vertex(0, 0);
 
-        let near: Vec<bool> = (0..rows * cols)
+        // Band per coarse vertex: 0 beside the road, 1 in the middle ring,
+        // 2 out in the coarse field.
+        let band: Vec<u8> = (0..rows * cols)
             .map(|i| {
                 let (x, y, _) = field.vertex(i % cols, i / cols);
-                field.road_distance_at(x, y, FINE_RADIUS_M).is_some()
+                if field.road_distance_at(x, y, FINE_RADIUS_M).is_some() {
+                    0
+                } else if field.road_distance_at(x, y, MID_RADIUS_M).is_some() {
+                    1
+                } else {
+                    2
+                }
             })
             .collect();
-        let subdivided = |c: usize, r: usize| {
-            near[r * cols + c]
-                || near[r * cols + c + 1]
-                || near[(r + 1) * cols + c]
-                || near[(r + 1) * cols + c + 1]
+        // A cell is drawn at its nearest corner's band, so the finer side
+        // always wins wherever two bands meet.
+        let cell_step = |c: usize, r: usize| {
+            let nearest = band[r * cols + c]
+                .min(band[r * cols + c + 1])
+                .min(band[(r + 1) * cols + c])
+                .min(band[(r + 1) * cols + c + 1]);
+            match nearest {
+                0 => NEAR_STEP,
+                1 => MID_STEP,
+                _ => SUB,
+            }
         };
 
         let mut tile = 0i32;
@@ -2129,19 +2185,134 @@ impl Bake<'_> {
 
                 for r in r0..r1 {
                     for c in c0..c1 {
-                        if subdivided(c, r) {
-                            for l in 0..SUB {
-                                for k in 0..SUB {
-                                    quad(c * SUB + k, r * SUB + l, 1, &mut chunk);
-                                }
+                        let step = cell_step(c, r);
+                        let per_side = SUB / step;
+                        for l in 0..per_side {
+                            for k in 0..per_side {
+                                quad(c * SUB + k * step, r * SUB + l * step, step, &mut chunk);
                             }
-                        } else {
-                            quad(c * SUB, r * SUB, SUB, &mut chunk);
                         }
                     }
                 }
                 self.chunks.push(chunk);
                 tile += 1;
+                c0 = c1;
+            }
+            r0 = r1;
+        }
+    }
+
+    /// The skyline: the land from where the ground mesh stops out to the
+    /// far hills, drawn from the elevation model's coarse grid.
+    ///
+    /// The ground mesh reaches 800 m past the circuit and then simply
+    /// ends, which is why every track faded into height fog and then into
+    /// a bare atmosphere gradient. That reads as a green pancake however
+    /// good the road looks. This is the rest of the view: 90 m posts out
+    /// to eight kilometres, which at the Red Bull Ring is the wooded
+    /// slopes of the Murtal rising four hundred metres within a kilometre
+    /// and the Seetaler Alpen behind them.
+    ///
+    /// It is geometry rather than a painted backdrop on purpose. The sun
+    /// lights it, it takes the weather's fog, it goes dark at dusk with
+    /// everything else, and the TV director can point a long lens at it.
+    /// The cost is one material and about thirty thousand triangles for a
+    /// 16 km square, which is less than the circuit's own kerbs.
+    ///
+    /// The near field is cut out of it: where the detailed ground mesh
+    /// already covers the land, the horizon has a hole so the two do not
+    /// fight for the same depth. The seam sits in the fog by construction,
+    /// because it is where the old mesh used to end.
+    fn horizon(&mut self, field: &TerrainHeightfield, dem: &DemFile) {
+        /// Coarse cells per tile side: the far field is culled in big
+        /// pieces because it is all visible at once or not at all.
+        const TILE_CELLS: usize = 24;
+        /// How far past the ground mesh's own edge the hole reaches. One
+        /// coarse cell of overlap, so the two meshes abut under the fog
+        /// rather than leaving a gap of sky at the join.
+        const OVERLAP_M: f32 = 90.0;
+
+        let key = HORIZON_KEY;
+        self.register(key, "surface", terrain::GROUND_COLOR);
+
+        let grid = &dem.outer;
+        if grid.cols < 2 || grid.rows < 2 {
+            return;
+        }
+        // The hole: the ground mesh's own extent, less an overlap.
+        let (near_min_x, near_min_y, _) = field.vertex(0, 0);
+        let (near_max_x, near_max_y, _) = field.vertex(field.cols() - 1, field.rows() - 1);
+        let hole = (
+            near_min_x + OVERLAP_M,
+            near_min_y + OVERLAP_M,
+            near_max_x - OVERLAP_M,
+            near_max_y - OVERLAP_M,
+        );
+        let inside_hole = |x: f32, y: f32| x > hole.0 && x < hole.2 && y > hole.1 && y < hole.3;
+
+        let cell = grid.cell_m;
+        let mut tile = 0i32;
+        let mut r0 = 0usize;
+        while r0 + 1 < grid.rows {
+            let r1 = (r0 + TILE_CELLS).min(grid.rows - 1);
+            let mut c0 = 0usize;
+            while c0 + 1 < grid.cols {
+                let c1 = (c0 + TILE_CELLS).min(grid.cols - 1);
+                let mut chunk = Chunk {
+                    section: tile,
+                    material_key: key.to_string(),
+                    positions: Vec::new(),
+                    normals: Vec::new(),
+                    uvs: Vec::new(),
+                    indices: Vec::new(),
+                };
+                let mut vertices: BTreeMap<(usize, usize), u32> = BTreeMap::new();
+                let mut vertex = |c: usize, r: usize, chunk: &mut Chunk| -> u32 {
+                    *vertices.entry((c, r)).or_insert_with(|| {
+                        let x = grid.origin_x + c as f32 * cell;
+                        let y = grid.origin_y + r as f32 * cell;
+                        let z = grid.height_at(x, y);
+                        push_position(&mut chunk.positions, (x, y, z));
+                        // A normal from the neighbouring posts: at this
+                        // scale the slope is the whole of the shading.
+                        let dzdx = (grid.height_at(x + cell, y) - grid.height_at(x - cell, y))
+                            / (2.0 * cell);
+                        let dzdy = (grid.height_at(x, y + cell) - grid.height_at(x, y - cell))
+                            / (2.0 * cell);
+                        let len = (dzdx * dzdx + dzdy * dzdy + 1.0).sqrt();
+                        push_normal(&mut chunk.normals, (-dzdx / len, -dzdy / len, 1.0 / len));
+                        chunk.uvs.push(round(x, 3));
+                        chunk.uvs.push(round(y, 3));
+                        (chunk.positions.len() / 3 - 1) as u32
+                    })
+                };
+
+                for r in r0..r1 {
+                    for c in c0..c1 {
+                        let x0 = grid.origin_x + c as f32 * cell;
+                        let y0 = grid.origin_y + r as f32 * cell;
+                        // A quad wholly inside the hole is the detailed
+                        // ground's job; one straddling the edge is drawn,
+                        // so the two overlap rather than leave a gap.
+                        if inside_hole(x0, y0)
+                            && inside_hole(x0 + cell, y0)
+                            && inside_hole(x0, y0 + cell)
+                            && inside_hole(x0 + cell, y0 + cell)
+                        {
+                            continue;
+                        }
+                        let v00 = vertex(c, r, &mut chunk);
+                        let v10 = vertex(c + 1, r, &mut chunk);
+                        let v01 = vertex(c, r + 1, &mut chunk);
+                        let v11 = vertex(c + 1, r + 1, &mut chunk);
+                        chunk.indices.extend_from_slice(&[v00, v10, v01]);
+                        chunk.indices.extend_from_slice(&[v10, v11, v01]);
+                    }
+                }
+                if !chunk.indices.is_empty() {
+                    self.chunks.push(chunk);
+                    tile += 1;
+                }
                 c0 = c1;
             }
             r0 = r1;

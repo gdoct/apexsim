@@ -110,7 +110,18 @@ fn main() -> ExitCode {
             failures += 1;
             continue;
         };
-        let Some(report) = dress::dress_scene(&opened.track, &mut scene, &layout) else {
+        // The elevation model plants the woodland on the slopes; a track
+        // without one is dressed exactly as before.
+        let dem = match track_editor::dem::load_dem(track_editor::dem::dem_path_for(track_path)) {
+            Ok(dem) => dem,
+            Err(e) => {
+                eprintln!("{name}: elevation sidecar unusable ({e}); dressing without it");
+                None
+            }
+        };
+        let Some(report) =
+            dress::dress_scene_with_dem(&opened.track, &mut scene, &layout, dem.as_ref())
+        else {
             eprintln!("{name}: degenerate centerline, skipping");
             failures += 1;
             continue;
@@ -118,7 +129,12 @@ fn main() -> ExitCode {
         let groomed = if no_groom {
             None
         } else {
-            match groom::groom_scene_with(&opened.track, &mut scene, Some(&layout)) {
+            match groom::groom_scene_with_dem(
+                &opened.track,
+                &mut scene,
+                Some(&layout),
+                dem.as_ref(),
+            ) {
                 Some(g) => Some(g),
                 None => {
                     eprintln!("{name}: grooming failed, skipping");
@@ -130,12 +146,13 @@ fn main() -> ExitCode {
 
         println!(
             "{name}: {} stand(s) as {} prop(s), {} building(s), {} bridge(s), {} landmark(s), \
-             pit lane {} ({} old prop(s) replaced){}",
+             {} surrounding(s), pit lane {} ({} old prop(s) replaced){}",
             report.stands,
             report.stand_props,
             report.buildings,
             report.bridges,
             report.landmarks,
+            report.surroundings,
             if report.pit_lane {
                 layout
                     .pit_lane

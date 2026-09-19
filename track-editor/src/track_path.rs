@@ -34,6 +34,11 @@ pub struct CenterlinePath {
     closed: bool,
 }
 
+/// Linear blend, `t` in 0..1.
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
+}
+
 const TARGET_POINT_SPACING_M: f32 = 2.0;
 const MIN_POINTS_PER_SEGMENT: usize = 2;
 const MAX_POINTS_PER_SEGMENT: usize = 30;
@@ -66,8 +71,18 @@ impl CenterlinePath {
                 .clamp(MIN_POINTS_PER_SEGMENT, MAX_POINTS_PER_SEGMENT);
 
             let node = &nodes[i];
-            let (width_left_m, width_right_m) = node.resolved_half_widths(track.default_width);
-            let banking_rad = node.banking.unwrap_or(0.0);
+            // The road's *shape* is interpolated across the segment, not
+            // held at its start node. Holding it made width and banking a
+            // staircase with one tread per node — 5 m at every circuit
+            // traced from GPS, and steps of up to 2.4 m at Austin — which
+            // the road edge, the white line, the kerb origin and the grass
+            // band all inherited as a visible notch. The surface *kind* is
+            // a material boundary and stays a step.
+            let next = &nodes[(i + 1) % nodes.len()];
+            let (w_left_a, w_right_a) = node.resolved_half_widths(track.default_width);
+            let (w_left_b, w_right_b) = next.resolved_half_widths(track.default_width);
+            let banking_a = node.banking.unwrap_or(0.0);
+            let banking_b = next.banking.unwrap_or(0.0);
             let color = surface_color(node.surface_type.as_deref());
 
             for j in 0..points_per_segment {
@@ -76,9 +91,9 @@ impl CenterlinePath {
                     station_m: 0.0, // filled in below
                     pos: catmull_rom(p0, p1, p2, p3, t),
                     heading_rad: 0.0, // filled in below
-                    width_left_m,
-                    width_right_m,
-                    banking_rad,
+                    width_left_m: lerp(w_left_a, w_left_b, t),
+                    width_right_m: lerp(w_right_a, w_right_b, t),
+                    banking_rad: lerp(banking_a, banking_b, t),
                     surface_color: color,
                 });
             }

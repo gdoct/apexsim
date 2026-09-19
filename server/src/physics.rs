@@ -11,7 +11,7 @@
 
 use crate::data::*;
 use crate::feedback::{ContactSurface, FeedbackTick};
-use crate::walls::Walls;
+use crate::walls::{WallKind, Walls};
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::Once;
@@ -2397,6 +2397,10 @@ const WALL_HALF_THICKNESS_M: f32 = 0.05;
 /// Fraction of the tangential speed lost per second while the flank grinds
 /// along a wall.
 const WALL_SCRAPE_RATE_PER_SEC: f32 = 0.4;
+/// Fraction of speed a car loses per second while riding a sausage kerb.
+const KERB_SCRUB_RATE_PER_SEC: f32 = 0.6;
+/// Closing speed reported to the feedback while on a kerb, so it rumbles.
+const KERB_JOLT_MPS: f32 = 1.5;
 /// Cap on the yaw-rate change one wall contact may apply.
 const WALL_MAX_YAW_KICK_RAD_S: f32 = 4.0;
 
@@ -2467,6 +2471,19 @@ pub fn resolve_wall_contacts(
             continue;
         };
 
+        let kind = wall.kind();
+        if kind == WallKind::Kerb {
+            // A sausage kerb is driven over, not into: no push-out, no
+            // bounce, just a scrub of speed and a rumble for the wheel.
+            let keep = (-KERB_SCRUB_RATE_PER_SEC * dt).exp();
+            state.vel_x *= keep;
+            state.vel_y *= keep;
+            state.feedback.record_impact(KERB_JOLT_MPS);
+            state.speed_mps =
+                (state.vel_x.powi(2) + state.vel_y.powi(2) + state.vel_z.powi(2)).sqrt();
+            continue;
+        }
+
         // Normal from the wall into the car.
         let (nx, ny) = (-overlap.normal_x, -overlap.normal_y);
         state.pos_x += nx * overlap.penetration;
@@ -2479,7 +2496,6 @@ pub fn resolve_wall_contacts(
         let vn = state.vel_x * nx + state.vel_y * ny;
         let (tx, ty) = (-ny, nx);
         let vt = state.vel_x * tx + state.vel_y * ty;
-        let kind = wall.kind();
         if vn < 0.0 {
             let closing = -vn;
             let dvn = (1.0 + kind.restitution()) * closing;

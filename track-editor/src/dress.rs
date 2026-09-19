@@ -20,6 +20,7 @@
 //! writes byte-identical output.
 
 use crate::ats::{AtsScene, PitLane, Prop, PropKind, Side};
+use crate::dem::DemFile;
 use crate::layout::{Crossing, Landmark, Layout, Stand, Structure};
 use crate::props;
 use crate::terrain::TerrainHeightfield;
@@ -76,6 +77,9 @@ pub struct DressReport {
     pub buildings: usize,
     pub bridges: usize,
     pub landmarks: usize,
+    /// Car parks, camps, the village, marshal posts, corner boards and
+    /// any floodlights this pass had to add.
+    pub surroundings: usize,
     pub pit_lane: bool,
     /// Dossier entries that could not be placed, with the reason.
     pub skipped: Vec<String>,
@@ -83,7 +87,7 @@ pub struct DressReport {
 
 impl DressReport {
     pub fn placed(&self) -> usize {
-        self.stand_props + self.buildings + self.bridges + self.landmarks
+        self.stand_props + self.buildings + self.bridges + self.landmarks + self.surroundings
     }
 }
 
@@ -103,14 +107,62 @@ pub fn dressed_kind(kind: PropKind) -> bool {
     )
 }
 
+/// The `misc` assets [`lay_landmark`] can produce. `misc` as a kind is not
+/// owned by this pass — bollards, kerb markers and generators are placed
+/// by hand — but a landmark laid from the dossier is, or every re-dress
+/// would stack another statue on the same spot and grooming would treat
+/// the surveyed position as a guess it may push.
+const LANDMARK_MISC_ASSETS: [&str; 1] = ["bull_statue"];
+
+/// True for a prop this pass owns: every prop of a [`dressed_kind`], plus
+/// the `misc` landmarks. Use this, not `dressed_kind`, when there is a
+/// prop in hand.
+/// Props that belong to the dressing pass whatever the circumstances:
+/// everything it lays from the surroundings layers, and the landmarks.
+///
+/// [`dressed_prop`] is the wider test, and part of it — every
+/// `grandstand` or `building` — is only true of a scene that was actually
+/// dressed, because an undressed scene's buildings were placed by hand
+/// and grooming may legitimately push them. These assets are different:
+/// nothing but the dressing pass ever lays a `village_house_a` or a
+/// `forest_impostor`, so they are the pass's own even when a scene is
+/// groomed without its dossier. Treating them as ordinary furniture there
+/// pushed two of them back and forth across a folded section at Austin on
+/// every groom, which `grooming_every_real_track_twice_changes_nothing`
+/// caught.
+pub fn always_dress_owned(prop: &Prop) -> bool {
+    surroundings::owns(prop)
+        || (prop.kind == PropKind::Misc && LANDMARK_MISC_ASSETS.contains(&prop.asset.as_str()))
+}
+
+pub fn dressed_prop(prop: &Prop) -> bool {
+    dressed_kind(prop.kind)
+        || (prop.kind == PropKind::Misc && LANDMARK_MISC_ASSETS.contains(&prop.asset.as_str()))
+        || surroundings::owns(prop)
+}
+
 /// Apply `layout` to `scene`. Returns `None` for a degenerate centerline.
 pub fn dress_scene(
     track: &TrackFile,
     scene: &mut AtsScene,
     layout: &Layout,
 ) -> Option<DressReport> {
+    dress_scene_with_dem(track, scene, layout, None)
+}
+
+/// [`dress_scene`] with the track's elevation model, which is what the
+/// far-field woodland is planted from. Without one the slopes stay bare,
+/// exactly as before.
+pub fn dress_scene_with_dem(
+    track: &TrackFile,
+    scene: &mut AtsScene,
+    layout: &Layout,
+    dem: Option<&DemFile>,
+) -> Option<DressReport> {
     let path = CenterlinePath::from_track(track)?;
-    let terrain = TerrainHeightfield::from_path(&path)?;
+    // Seated on the ground the exporter will draw: see
+    // `groom::seating_terrain`, which is shared so the two cannot drift.
+    let terrain = crate::groom::seating_terrain(&path, scene, dem)?;
     let before = scene.props.len();
     // The ids of the props this pass replaces come back to it, lowest
     // first, so re-dressing an unchanged circuit rewrites the same file
@@ -118,12 +170,12 @@ pub fn dress_scene(
     let mut recycled: Vec<u64> = scene
         .props
         .iter()
-        .filter(|p| dressed_kind(p.kind))
+        .filter(|p| dressed_prop(p))
         .map(|p| p.id)
         .collect();
     recycled.sort_unstable();
     recycled.reverse();
-    scene.props.retain(|p| !dressed_kind(p.kind));
+    scene.props.retain(|p| !dressed_prop(p));
     let mut report = DressReport {
         removed: before - scene.props.len(),
         ..Default::default()
@@ -179,6 +231,21 @@ pub fn dress_scene(
             laid.push(prop);
         }
     }
+
+    // Anything the circuit has of its own is respected: a venue with its
+    // own lighting masts in the dossier does not get a generated set.
+    let has_lighting = layout.landmarks.iter().any(|l| l.kind == "floodlight");
+    let bare = track
+        .metadata
+        .as_ref()
+        .and_then(|m| m.environment_type.as_deref())
+        .is_some_and(|env| {
+            let env = env.trim();
+            env.eq_ignore_ascii_case("desert") || env.eq_ignore_ascii_case("dune")
+        });
+    let extras = surroundings::lay(&path, &terrain, layout, dem, !has_lighting, bare);
+    report.surroundings = extras.len();
+    laid.extend(extras);
 
     for mut prop in laid {
         prop.id = recycled.pop().unwrap_or_else(|| {
@@ -612,6 +679,622 @@ pub fn dressed_footprint_radius_m(prop: &Prop) -> f32 {
         .unwrap_or(3.0)
 }
 
+// ---- The surroundings -----------------------------------------------------
+
+/// Everything beside the circuit that is not a stand, a building, a bridge
+/// or a landmark: the car parks and the cars in them, the camp sites, the
+/// village, the marshal posts, the floodlights, the fan zone.
+///
+/// The kit has had all of this for months and no rule ever placed any of
+/// it. A circuit came out as a road, a ring of barriers, some stands and a
+/// belt of trees, which is why the Red Bull Ring reads as "really basic
+/// around the track": there was nothing there because nothing put anything
+/// there. What changed is that the dossier now carries the layers to place
+/// it from — `areas`, `poi`, `roads` and `corners` — rather than the
+/// scatter the old procedural enrichment invented.
+///
+/// Everything here is placed from a fact in the dossier and is laid on a
+/// deterministic grid or a hash of its own position, never a random
+/// number, so a second run writes a byte-identical file.
+mod surroundings {
+    use std::f32::consts::{PI, TAU};
+
+    use crate::track_path::curvature_at;
+
+    use super::*;
+
+    /// A camp site's tents and vans, per 100 m of its perimeter.
+    const CAMP_PITCHES_PER_100M: f32 = 6.0;
+    /// Cars fill a car park at one per this much area.
+    const CAR_PARK_AREA_PER_CAR_M2: f32 = 90.0;
+    /// No car park gets more than this, however big it is: a field with
+    /// two thousand instanced hatchbacks in it costs more than it adds.
+    const MAX_CARS_PER_PARK: usize = 120;
+    /// Lamp posts around a car park's edge.
+    const LAMP_SPACING_M: f32 = 30.0;
+    /// A marshal post stands at every named corner, and on a straight
+    /// this far apart.
+    const MARSHAL_SPACING_M: f32 = 400.0;
+    /// How far past the barrier line the marshals stand.
+    const MARSHAL_BEYOND_BARRIER_M: f32 = 4.0;
+    /// Floodlight masts along a circuit with none of its own, when a
+    /// session after dark would otherwise be lit by headlights alone.
+    const FLOODLIGHT_SPACING_M: f32 = 220.0;
+    const FLOODLIGHT_BEYOND_BARRIER_M: f32 = 12.0;
+    /// Forest impostors are planted on this grid across the far field.
+    /// One stands in for a 40 m patch of wood, so the spacing is its own
+    /// size and the hills come out continuously wooded rather than dotted.
+    const IMPOSTOR_SPACING_M: f32 = 43.0;
+    /// The band they cover: from beyond the detailed tree belts out to
+    /// the edge of the near elevation grid. Nearer than this the real
+    /// trees are planted, further than this nothing is visible anyway.
+    const IMPOSTOR_NEAR_M: f32 = 260.0;
+    const IMPOSTOR_FAR_M: f32 = 2_600.0;
+    /// Ground steeper than this is a wooded slope in every circuit this
+    /// applies to. It is a guess where the mapped woodland runs out —
+    /// stated as one — because no bbox in the project reaches far enough
+    /// to have surveyed the hills, and a bare 400 m slope a kilometre
+    /// from the road looks far more wrong than a wooded one.
+    const IMPOSTOR_MIN_SLOPE: f32 = 0.16;
+    /// Nothing is planted on the flat valley floor around the circuit:
+    /// that is farmland, and the areas layer already describes it.
+    const IMPOSTOR_MIN_RISE_M: f32 = 25.0;
+
+    /// A village house needs this much room from its neighbours.
+    const HOUSE_SPACING_M: f32 = 26.0;
+    /// Scenery is laid no closer than this to the road: the barrier line
+    /// is already out there, and a car park or a house inside it would be
+    /// on the run-off.
+    const ROAD_CLEAR_M: f32 = 18.0;
+    /// Trackside furniture — a marshal post, a corner board — belongs
+    /// just behind the barrier and is held to this instead. Holding it to
+    /// the scenery clearance is what silently dropped every one of them
+    /// the first time this pass ran.
+    const TRACKSIDE_CLEAR_M: f32 = 5.0;
+    /// A village is a hamlet, not a town. Filling each mapped residential
+    /// polygon on a 26 m grid put 345 houses around the Red Bull Ring,
+    /// which has perhaps fifty within two kilometres, so each area gets a
+    /// share of its own size and no more.
+    const MAX_HOUSES_PER_AREA: usize = 14;
+    const HOUSE_AREA_PER_BUILDING_M2: f32 = 2_400.0;
+
+    /// The assets this pass owns. It deletes and re-lays them on every
+    /// run, so it has to recognise its own output; and because it shares
+    /// kinds with hand-placed props (a `sign` is also a distance board, a
+    /// `misc` is also a bollard) ownership is by asset, not by kind.
+    pub const OWNED: [&str; 21] = [
+        "car_a",
+        "car_b",
+        "car_c",
+        "camper_van",
+        "coach",
+        "motorhome",
+        "tent_6m",
+        "food_stall_6m",
+        "ticket_gate",
+        "marshal_post",
+        "corner_sign",
+        "power_pylon",
+        "lamp_post",
+        "floodlight_tower",
+        "forest_impostor",
+        "forest_impostor_conifer",
+        // The village is `building` kind, which the pass owns wholesale in
+        // a dressed scene anyway; listing it here is what makes it owned
+        // when a scene is groomed *without* its dossier too.
+        "village_house_a",
+        "village_house_b",
+        "village_house_c",
+        "barn",
+        "chapel",
+    ];
+
+    /// Village buildings are `building` kind, which the dressing pass
+    /// already owns wholesale, so they need no entry in [`OWNED`].
+    const VILLAGE_HOUSES: [&str; 4] = [
+        "village_house_a",
+        "village_house_b",
+        "village_house_c",
+        "barn",
+    ];
+
+    pub fn owns(prop: &Prop) -> bool {
+        OWNED.contains(&prop.asset.as_str())
+    }
+
+    /// A deterministic value in 0..1 from a position, so a scatter is the
+    /// same on every run without a random number generator anywhere near
+    /// the pass.
+    fn roll(x: f32, y: f32, salt: u32) -> f32 {
+        let mut h = (x * 100.0) as i32 as u32;
+        h = h.wrapping_mul(2_654_435_761) ^ ((y * 100.0) as i32 as u32);
+        h = h.wrapping_mul(2_246_822_519) ^ salt.wrapping_mul(0x9E37_79B9);
+        h ^= h >> 15;
+        h = h.wrapping_mul(0x85EB_CA6B);
+        h ^= h >> 13;
+        (h % 10_000) as f32 / 10_000.0
+    }
+
+    struct Ctx<'a> {
+        path: &'a CenterlinePath,
+        terrain: &'a TerrainHeightfield,
+        layout: &'a Layout,
+        /// A desert or dune circuit: nothing grows on the slopes.
+        bare: bool,
+    }
+
+    impl Ctx<'_> {
+        /// Seat a prop on the ground at a point, facing the road, unless
+        /// it is too close to the course to be scenery.
+        fn place(
+            &self,
+            kind: PropKind,
+            asset: &str,
+            x: f32,
+            y: f32,
+            yaw: Option<f32>,
+        ) -> Option<Prop> {
+            self.place_clear(kind, asset, x, y, yaw, ROAD_CLEAR_M)
+        }
+
+        /// The same, for something that belongs closer to the road.
+        fn place_clear(
+            &self,
+            kind: PropKind,
+            asset: &str,
+            x: f32,
+            y: f32,
+            yaw: Option<f32>,
+            clear_m: f32,
+        ) -> Option<Prop> {
+            let (sample, lat) = nearest_cross_section(self.path, x, y);
+            if lat.abs() < side_half_width(&sample, side_of(lat)) + clear_m {
+                return None;
+            }
+            Some(Prop {
+                id: 0,
+                kind,
+                asset: asset.to_string(),
+                x: round2(x),
+                y: round2(y),
+                z: round2(seat_z(self.terrain, &sample, lat, x, y)),
+                yaw_rad: round2(yaw.unwrap_or(sample.heading_rad)),
+                scale: 1.0,
+                text: None,
+                length_m: None,
+            })
+        }
+    }
+
+    fn side_of(lat: f32) -> Side {
+        if lat >= 0.0 {
+            Side::Left
+        } else {
+            Side::Right
+        }
+    }
+
+    /// Lay the lot. `night_lighting` adds floodlight masts to a circuit
+    /// that has none of its own.
+    pub fn lay(
+        path: &CenterlinePath,
+        terrain: &TerrainHeightfield,
+        layout: &Layout,
+        dem: Option<&DemFile>,
+        night_lighting: bool,
+        bare: bool,
+    ) -> Vec<Prop> {
+        let ctx = Ctx {
+            path,
+            terrain,
+            layout,
+            bare,
+        };
+        let mut out = Vec::new();
+        car_parks(&ctx, &mut out);
+        camp_sites(&ctx, &mut out);
+        village(&ctx, &mut out);
+        points_of_interest(&ctx, &mut out);
+        forests(&ctx, dem, &mut out);
+        marshal_posts(&ctx, &mut out);
+        corner_signs(&ctx, &mut out);
+        if night_lighting {
+            floodlights(&ctx, &mut out);
+        }
+        out
+    }
+
+    /// Cars and lamp posts in every mapped car park.
+    fn car_parks(ctx: &Ctx, out: &mut Vec<Prop>) {
+        for area in ctx.layout.areas.iter().filter(|a| a.kind == "parking") {
+            let cars =
+                ((area.area_m2() / CAR_PARK_AREA_PER_CAR_M2) as usize).min(MAX_CARS_PER_PARK);
+            if cars == 0 {
+                continue;
+            }
+            // A car park is filled on its own grid rather than at random
+            // points, so the rows read as rows.
+            let (cx, cy) = area.centre();
+            let span = area.area_m2().sqrt();
+            let step = (span / (cars as f32).sqrt().max(1.0)).max(3.0);
+            let per_row = (span / step).max(1.0) as usize;
+            let mut placed = 0;
+            for i in 0..cars * 3 {
+                if placed >= cars {
+                    break;
+                }
+                let (row, col) = (i / per_row.max(1), i % per_row.max(1));
+                let x = cx - span * 0.5 + col as f32 * step;
+                let y = cy - span * 0.5 + row as f32 * step;
+                if !area.contains(x, y) {
+                    continue;
+                }
+                let asset = match (roll(x, y, 11) * 3.0) as u32 {
+                    0 => "car_a",
+                    1 => "car_b",
+                    _ => "car_c",
+                };
+                // Parked in rows facing across the park, not at the road.
+                let yaw = if roll(x, y, 12) < 0.5 { 0.0 } else { PI };
+                if let Some(prop) = ctx.place(PropKind::Vehicle, asset, x, y, Some(yaw)) {
+                    out.push(prop);
+                    placed += 1;
+                }
+            }
+            lamps_around(ctx, area, out);
+        }
+    }
+
+    /// Lamp posts along a car park's edge, at a fixed spacing so the
+    /// lighting reads as laid out rather than scattered.
+    fn lamps_around(ctx: &Ctx, area: &crate::layout::Area, out: &mut Vec<Prop>) {
+        let ring = &area.ring;
+        let mut carried = 0.0f32;
+        for pair in ring.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            let length = (b[0] - a[0]).hypot(b[1] - a[1]);
+            let mut along = LAMP_SPACING_M - carried;
+            while along < length {
+                let t = along / length;
+                let (x, y) = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
+                if let Some(prop) = ctx.place(PropKind::Light, "lamp_post", x, y, None) {
+                    out.push(prop);
+                }
+                along += LAMP_SPACING_M;
+            }
+            carried = (carried + length) % LAMP_SPACING_M;
+        }
+    }
+
+    /// Tents, campers and a coach at every mapped camp site, and a cluster
+    /// around one mapped only as a point.
+    fn camp_sites(ctx: &Ctx, out: &mut Vec<Prop>) {
+        for area in ctx.layout.areas.iter().filter(|a| a.kind == "camp_site") {
+            let perimeter: f32 = area
+                .ring
+                .windows(2)
+                .map(|p| (p[1][0] - p[0][0]).hypot(p[1][1] - p[0][1]))
+                .sum();
+            let pitches = ((perimeter / 100.0) * CAMP_PITCHES_PER_100M) as usize;
+            let (cx, cy) = area.centre();
+            let span = area.area_m2().sqrt().max(20.0);
+            let mut placed = 0;
+            for i in 0..pitches * 4 {
+                if placed >= pitches {
+                    break;
+                }
+                let t = i as f32 * 0.618_034; // a low-discrepancy walk
+                let x = cx + (t.fract() - 0.5) * span;
+                let y = cy + ((t * 1.618).fract() - 0.5) * span;
+                if !area.contains(x, y) {
+                    continue;
+                }
+                let asset = match (roll(x, y, 21) * 4.0) as u32 {
+                    0 | 1 => "tent_6m",
+                    2 => "camper_van",
+                    _ => "motorhome",
+                };
+                if let Some(prop) = ctx.place(PropKind::Attraction, "tent_6m", x, y, None) {
+                    let kind = if asset == "tent_6m" {
+                        PropKind::Attraction
+                    } else {
+                        PropKind::Vehicle
+                    };
+                    out.push(Prop {
+                        kind,
+                        asset: asset.to_string(),
+                        ..prop
+                    });
+                    placed += 1;
+                }
+            }
+        }
+
+        // A camp mapped only as a node gets a small cluster around it.
+        for poi in ctx.layout.poi.iter().filter(|p| p.kind == "camp_site") {
+            for i in 0..8 {
+                let angle = i as f32 / 8.0 * TAU;
+                let radius = 18.0 + (i % 3) as f32 * 9.0;
+                let x = poi.centre[0] + radius * angle.cos();
+                let y = poi.centre[1] + radius * angle.sin();
+                let asset = if i % 3 == 0 { "camper_van" } else { "tent_6m" };
+                let kind = if i % 3 == 0 {
+                    PropKind::Vehicle
+                } else {
+                    PropKind::Attraction
+                };
+                if let Some(prop) = ctx.place(kind, asset, x, y, None) {
+                    out.push(prop);
+                }
+            }
+        }
+    }
+
+    /// Houses and barns across the villages and farmyards the circuit sits
+    /// among. The Red Bull Ring has two hamlets and several farms inside
+    /// two kilometres, and the horizon looked like a golf course without
+    /// them.
+    fn village(ctx: &Ctx, out: &mut Vec<Prop>) {
+        for area in ctx
+            .layout
+            .areas
+            .iter()
+            .filter(|a| matches!(a.kind.as_str(), "residential" | "farmyard"))
+        {
+            let (cx, cy) = area.centre();
+            let span = area.area_m2().sqrt().max(30.0);
+            let steps = ((span / HOUSE_SPACING_M) as i32).clamp(1, 8);
+            let budget = ((area.area_m2() / HOUSE_AREA_PER_BUILDING_M2) as usize)
+                .clamp(1, MAX_HOUSES_PER_AREA);
+            let mut placed = 0;
+            for row in -steps..=steps {
+                for col in -steps..=steps {
+                    if placed >= budget {
+                        break;
+                    }
+                    let x = cx + col as f32 * HOUSE_SPACING_M;
+                    let y = cy + row as f32 * HOUSE_SPACING_M;
+                    if !area.contains(x, y) {
+                        continue;
+                    }
+                    let r = roll(x, y, 31);
+                    // A farmyard is a barn and a house or two; a village
+                    // is houses.
+                    let asset = if area.kind == "farmyard" && r < 0.45 {
+                        "barn"
+                    } else {
+                        VILLAGE_HOUSES[(r * 3.0) as usize % 3]
+                    };
+                    // Houses face the lane, not the circuit: a yaw from
+                    // their own position reads as a village rather than a
+                    // grandstand row.
+                    let yaw = roll(x, y, 32) * TAU;
+                    if let Some(prop) = ctx.place(PropKind::Building, asset, x, y, Some(yaw)) {
+                        out.push(prop);
+                        placed += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Woodland on the slopes, as one flat-shaded cluster per 40 m patch.
+    ///
+    /// The detailed belts reach 90 m from the road and stop, and past
+    /// that every circuit had bare ground to the horizon. Planting real
+    /// trees out there is not affordable — a thousand-triangle impostor
+    /// covers what four hundred of them would — and the mapped woodland
+    /// does not reach that far either, because the OSM extracts are a
+    /// couple of kilometres across.
+    ///
+    /// So this reads the land instead: where the elevation model says the
+    /// ground rises and slopes, it is a wooded slope, which at the Red
+    /// Bull Ring, Spa, the Nürburgring and Zandvoort's dunes is right for
+    /// three of the four. Zandvoort is the exception and is handled the
+    /// way it already was, by the track's `environment_type`: a desert or
+    /// dune circuit plants none.
+    fn forests(ctx: &Ctx, dem: Option<&DemFile>, out: &mut Vec<Prop>) {
+        let Some(dem) = dem else {
+            return;
+        };
+        if ctx.bare {
+            return;
+        }
+        let total = ctx.path.total_length_m();
+        // A grid over the whole far field, walked from the circuit's own
+        // bounding box so the result does not depend on where the origin
+        // happens to be.
+        let samples = ctx.path.samples();
+        let (mut min_x, mut min_y) = (f32::MAX, f32::MAX);
+        let (mut max_x, mut max_y) = (f32::MIN, f32::MIN);
+        for sample in samples {
+            min_x = min_x.min(sample.pos.0);
+            min_y = min_y.min(sample.pos.1);
+            max_x = max_x.max(sample.pos.0);
+            max_y = max_y.max(sample.pos.1);
+        }
+        let _ = total;
+        let step = IMPOSTOR_SPACING_M;
+        let mut y = min_y - IMPOSTOR_FAR_M;
+        while y <= max_y + IMPOSTOR_FAR_M {
+            let mut x = min_x - IMPOSTOR_FAR_M;
+            while x <= max_x + IMPOSTOR_FAR_M {
+                // Jittered off the lattice so the wood does not read as a
+                // plantation, deterministically.
+                let jx = x + (roll(x, y, 41) - 0.5) * step * 0.6;
+                let jy = y + (roll(x, y, 42) - 0.5) * step * 0.6;
+                x += step;
+
+                let (sample, lat) = nearest_cross_section(ctx.path, jx, jy);
+                let from_road = lat.abs() - side_half_width(&sample, side_of(lat));
+                if !(IMPOSTOR_NEAR_M..=IMPOSTOR_FAR_M).contains(&from_road) {
+                    continue;
+                }
+                let z = dem.height_at(jx, jy);
+                if z - sample.pos.2 < IMPOSTOR_MIN_RISE_M {
+                    continue;
+                }
+                let reach = step;
+                let dzdx =
+                    (dem.height_at(jx + reach, jy) - dem.height_at(jx - reach, jy)) / (2.0 * reach);
+                let dzdy =
+                    (dem.height_at(jx, jy + reach) - dem.height_at(jx, jy - reach)) / (2.0 * reach);
+                if dzdx.hypot(dzdy) < IMPOSTOR_MIN_SLOPE {
+                    continue;
+                }
+                // Spruce on the steeper, higher ground and mixed below,
+                // which is how a real tree line goes.
+                let asset = if dzdx.hypot(dzdy) > IMPOSTOR_MIN_SLOPE * 2.0 {
+                    "forest_impostor_conifer"
+                } else {
+                    "forest_impostor"
+                };
+                out.push(Prop {
+                    id: 0,
+                    kind: PropKind::Tree,
+                    asset: asset.to_string(),
+                    x: round2(jx),
+                    y: round2(jy),
+                    z: round2(z),
+                    yaw_rad: round2(roll(jx, jy, 43) * TAU),
+                    scale: round2(0.85 + roll(jx, jy, 44) * 0.5),
+                    text: None,
+                    length_m: None,
+                });
+            }
+            y += step;
+        }
+    }
+
+    /// The point features: chapels, pylons, food stalls, gates.
+    fn points_of_interest(ctx: &Ctx, out: &mut Vec<Prop>) {
+        for poi in &ctx.layout.poi {
+            let (kind, asset) = match poi.kind.as_str() {
+                "chapel" => (PropKind::Building, "chapel"),
+                "pylon" => (PropKind::Misc, "power_pylon"),
+                "food" => (PropKind::Attraction, "food_stall_6m"),
+                // `tourism=information` is a map board or a noticeboard,
+                // not an entrance; the kit's ticket gate would be a lie.
+                _ => continue,
+            };
+            if let Some(prop) = ctx.place(kind, asset, poi.centre[0], poi.centre[1], None) {
+                out.push(prop);
+            }
+        }
+    }
+
+    /// A marshal post at every named corner and along the straights.
+    fn marshal_posts(ctx: &Ctx, out: &mut Vec<Prop>) {
+        let total = ctx.path.total_length_m();
+        let mut stations: Vec<f32> = ctx.layout.corners.iter().map(|c| c.station_m).collect();
+        let mut station = 0.0;
+        while station < total {
+            if !stations
+                .iter()
+                .any(|s| (s - station).abs() < MARSHAL_SPACING_M * 0.5)
+            {
+                stations.push(station);
+            }
+            station += MARSHAL_SPACING_M;
+        }
+        stations.sort_by(f32::total_cmp);
+        for station in stations {
+            let sample = ctx.path.sample_at(station);
+            // Outside of the bend, which is where a marshal post stands.
+            let side = if curvature_at(ctx.path, station) < 0.0 {
+                Side::Left
+            } else {
+                Side::Right
+            };
+            let lat = signed_lat(&sample, side, MARSHAL_BEYOND_BARRIER_M + 8.0);
+            let point = offset_point(&sample, lat);
+            if let Some(prop) = ctx.place_clear(
+                PropKind::Sign,
+                "marshal_post",
+                point.0,
+                point.1,
+                Some(sample.heading_rad),
+                TRACKSIDE_CLEAR_M,
+            ) {
+                out.push(prop);
+            }
+        }
+    }
+
+    /// The board carrying a corner's name, at its entry. The dossier has
+    /// the real names — Niki Lauda Kurve, Remus, Schlossgold — and until
+    /// now nothing showed them anywhere.
+    fn corner_signs(ctx: &Ctx, out: &mut Vec<Prop>) {
+        for corner in &ctx.layout.corners {
+            let station = if corner.from_m > 0.0 {
+                corner.from_m
+            } else {
+                corner.station_m
+            };
+            let sample = ctx.path.sample_at(station);
+            let side = if curvature_at(ctx.path, corner.station_m) < 0.0 {
+                Side::Left
+            } else {
+                Side::Right
+            };
+            let lat = signed_lat(&sample, side, 10.0);
+            let point = offset_point(&sample, lat);
+            if let Some(mut prop) = ctx.place_clear(
+                PropKind::Board,
+                "corner_sign",
+                point.0,
+                point.1,
+                Some(sample.heading_rad),
+                TRACKSIDE_CLEAR_M,
+            ) {
+                prop.text = Some(corner.name.clone());
+                out.push(prop);
+            }
+        }
+    }
+
+    /// Masts for a circuit that has none of its own.
+    ///
+    /// The Red Bull Ring is not floodlit and OpenStreetMap rightly maps no
+    /// lighting masts there, so a session set after dark was lit by a one
+    /// lux moon and the car's own headlights and nothing else. A circuit
+    /// that cannot be driven at night is worse than one that is lit more
+    /// generously than the real place, so this puts masts round a circuit
+    /// with none — behind the barrier, at the corners first.
+    fn floodlights(ctx: &Ctx, out: &mut Vec<Prop>) {
+        let total = ctx.path.total_length_m();
+        let mut station = 0.0;
+        while station < total {
+            let sample = ctx.path.sample_at(station);
+            let side = if curvature_at(ctx.path, station) < 0.0 {
+                Side::Left
+            } else {
+                Side::Right
+            };
+            let lat = signed_lat(&sample, side, FLOODLIGHT_BEYOND_BARRIER_M + 10.0);
+            let point = offset_point(&sample, lat);
+            if let Some(prop) = ctx.place(
+                PropKind::Light,
+                "floodlight_tower",
+                point.0,
+                point.1,
+                Some(sample.heading_rad),
+            ) {
+                out.push(prop);
+            }
+            station += FLOODLIGHT_SPACING_M;
+        }
+    }
+
+    fn signed_lat(sample: &PathSample, side: Side, beyond_edge: f32) -> f32 {
+        let lat = side_half_width(sample, side) + beyond_edge;
+        match side {
+            Side::Left => lat,
+            Side::Right => -lat,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -665,6 +1348,16 @@ mod tests {
         }
     }
 
+    /// Aliases so a test that binds a local called `scene` or `layout`
+    /// can still build another one.
+    fn make_scene(track: &TrackFile) -> AtsScene {
+        scene(track)
+    }
+
+    fn make_layout() -> Layout {
+        layout()
+    }
+
     fn layout() -> Layout {
         Layout {
             format: crate::layout::LAYOUT_FORMAT.to_string(),
@@ -679,6 +1372,7 @@ mod tests {
             crossings: vec![],
             landmarks: vec![],
             woods: vec![],
+            ..Default::default()
         }
     }
 
@@ -974,6 +1668,204 @@ mod tests {
     }
 
     #[test]
+    fn a_car_park_is_filled_and_lit() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        // A 100 m square car park well clear of the road.
+        layout.areas.push(crate::layout::Area {
+            kind: "parking".to_string(),
+            name: Some("P1".to_string()),
+            ring: vec![
+                [200.0, -120.0],
+                [300.0, -120.0],
+                [300.0, -220.0],
+                [200.0, -220.0],
+                [200.0, -120.0],
+            ],
+        });
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let cars = scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Vehicle)
+            .count();
+        let lamps = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "lamp_post")
+            .count();
+        assert!(cars > 20, "only {cars} cars in a 10 000 m2 car park");
+        assert!(lamps >= 4, "only {lamps} lamps around the car park");
+        for prop in scene.props.iter().filter(|p| p.kind == PropKind::Vehicle) {
+            assert!(
+                (200.0..=300.0).contains(&prop.x) && (-220.0..=-120.0).contains(&prop.y),
+                "a car parked outside the car park at {},{}",
+                prop.x,
+                prop.y
+            );
+        }
+    }
+
+    #[test]
+    fn every_named_corner_gets_a_board_and_a_marshal() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        for (name, station) in [("Turn One", 120.0), ("The Sweeper", 480.0)] {
+            layout.corners.push(crate::layout::Corner {
+                name: name.to_string(),
+                station_m: station,
+                from_m: station - 20.0,
+                to_m: station + 20.0,
+            });
+        }
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let boards: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "corner_sign")
+            .collect();
+        assert_eq!(boards.len(), 2, "corner boards: {boards:?}");
+        let mut names: Vec<&str> = boards
+            .iter()
+            .map(|b| b.text.as_deref().unwrap_or(""))
+            .collect();
+        names.sort_unstable();
+        assert_eq!(names, ["The Sweeper", "Turn One"]);
+        assert!(
+            scene.props.iter().any(|p| p.asset == "marshal_post"),
+            "no marshal posts"
+        );
+    }
+
+    #[test]
+    fn a_circuit_with_no_lighting_of_its_own_is_given_some() {
+        // The Red Bull Ring is not floodlit and OSM maps no masts there,
+        // so a night session was lit by headlights and a one lux moon.
+        let track = track();
+        let mut scene = scene(&track);
+        let layout = layout();
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let masts = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "floodlight_tower")
+            .count();
+        assert!(masts >= 2, "only {masts} floodlight masts");
+
+        // A circuit that has its own keeps exactly those and gets no
+        // generated set on top.
+        let mut lit_scene = make_scene(&track);
+        let mut lit = make_layout();
+        lit.landmarks.push(Landmark {
+            kind: "floodlight".to_string(),
+            name: None,
+            station_m: 100.0,
+            side: Side::Left,
+            centre: [100.0, 40.0],
+            brand: None,
+            yaw_rad: None,
+            altitude_m: None,
+        });
+        dress_scene(&track, &mut lit_scene, &lit).unwrap();
+        let masts = lit_scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "floodlight_tower")
+            .count();
+        assert_eq!(masts, 1, "a lit circuit was given extra masts");
+    }
+
+    #[test]
+    fn nothing_in_the_surroundings_lands_on_the_road() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        // A car park drawn straight across the course, which is the kind
+        // of thing an OSM polygon does near a street circuit.
+        layout.areas.push(crate::layout::Area {
+            kind: "parking".to_string(),
+            name: None,
+            ring: vec![
+                [0.0, -60.0],
+                [200.0, -60.0],
+                [200.0, 60.0],
+                [0.0, 60.0],
+                [0.0, -60.0],
+            ],
+        });
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        for prop in &scene.props {
+            if !surroundings::owns(prop) {
+                continue;
+            }
+            let (sample, lat) = nearest_cross_section(&path, prop.x, prop.y);
+            let edge = side_half_width(&sample, if lat >= 0.0 { Side::Left } else { Side::Right });
+            assert!(
+                lat.abs() > edge,
+                "{} sits on the road at lateral {lat}",
+                prop.asset
+            );
+        }
+    }
+
+    #[test]
+    fn a_statue_landmark_is_laid_once_and_owned() {
+        let track = track();
+        let mut scene = scene(&track);
+        // A hand-placed misc prop the pass must leave alone.
+        scene.props.push(Prop {
+            id: 4242,
+            kind: PropKind::Misc,
+            asset: "bollard".to_string(),
+            x: 50.0,
+            y: -30.0,
+            z: 0.0,
+            yaw_rad: 0.0,
+            scale: 1.0,
+            text: None,
+            length_m: None,
+        });
+        let mut layout = layout();
+        layout.landmarks.push(Landmark {
+            kind: "statue".to_string(),
+            name: Some("Red Bull Statue".to_string()),
+            station_m: 400.0,
+            side: Side::Right,
+            centre: [400.0, -90.0],
+            brand: None,
+            yaw_rad: None,
+            altitude_m: None,
+        });
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let statues: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "bull_statue")
+            .collect();
+        assert_eq!(statues.len(), 1, "re-dressing stacked another statue");
+        assert_eq!(statues[0].kind, PropKind::Misc);
+        assert!(dressed_prop(statues[0]));
+        let bollards = scene.props.iter().filter(|p| p.asset == "bollard").count();
+        assert_eq!(bollards, 1, "the hand-placed misc prop was swept");
+        let placed = (statues[0].x, statues[0].y, statues[0].yaw_rad);
+        crate::groom::groom_scene_with(&track, &mut scene, Some(&layout)).unwrap();
+        let after = scene
+            .props
+            .iter()
+            .find(|p| p.asset == "bull_statue")
+            .unwrap();
+        assert_eq!(
+            placed,
+            (after.x, after.y, after.yaw_rad),
+            "grooming pushed the statue"
+        );
+    }
+
+    #[test]
     fn a_dressed_stand_is_never_pushed_by_grooming() {
         let track = track();
         let mut scene = scene(&track);
@@ -1019,10 +1911,12 @@ mod tests {
         });
         dress_scene(&track, &mut scene, &layout).unwrap();
         crate::groom::groom_scene_with(&track, &mut scene, Some(&layout)).unwrap();
+        // Ground cover follows the verge, not the woodland, so the wood
+        // rule is about trees only.
         let trees: Vec<&Prop> = scene
             .props
             .iter()
-            .filter(|p| p.kind == PropKind::Tree)
+            .filter(|p| p.kind == PropKind::Tree && !crate::groom::is_ground_cover(&p.asset))
             .collect();
         assert!(!trees.is_empty(), "no trees planted in the wood");
         for t in &trees {
@@ -1033,7 +1927,7 @@ mod tests {
                 t.y
             );
             assert!(
-                ["conifer_m", "conifer_l", "poplar"].contains(&t.asset.as_str()),
+                ["conifer_m", "conifer_l", "poplar", "conifer_m_near"].contains(&t.asset.as_str()),
                 "{} is not a conifer",
                 t.asset
             );

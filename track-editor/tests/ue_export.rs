@@ -1315,3 +1315,67 @@ fn real_tracks_bake_plausible_curb_bands() {
         );
     }
 }
+
+/// The ground is tessellated by distance from the road: 2 m cells beside
+/// it, 6 m in the ring past that, 12 m out in the coarse field. Terrain
+/// made of 12 m facets is half of why a circuit reads as blocky, and the
+/// cost of the fine band is bounded only by how narrow it is, so both ends
+/// of that trade are worth pinning.
+#[test]
+fn ground_tessellation_is_finest_beside_the_road() {
+    let baked = bake_test_scene();
+
+    // Distance from a point to the test track's square centerline, metres.
+    let corners = [(0.0f64, 0.0f64), (200.0, 0.0), (200.0, 200.0), (0.0, 200.0)];
+    let to_centerline = |x: f64, y: f64| {
+        (0..4)
+            .map(|i| {
+                let (ax, ay) = corners[i];
+                let (bx, by) = corners[(i + 1) % 4];
+                let (dx, dy) = (bx - ax, by - ay);
+                let t = (((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)).clamp(0.0, 1.0);
+                ((x - ax - t * dx).powi(2) + (y - ay - t * dy).powi(2)).sqrt()
+            })
+            .fold(f64::MAX, f64::min)
+    };
+
+    let mut near_cells = 0;
+    let mut ring_cells = 0;
+    for mesh in baked.meshes.iter().filter(|m| m.material_key == "ground") {
+        for tri in mesh.indices.chunks_exact(3) {
+            let p: Vec<[f64; 3]> = tri.iter().map(|&i| vertex(mesh, i)).collect();
+            // Positions are UE centimetres with Y mirrored; the grid is
+            // axis aligned either way, and a quad's two straight edges are
+            // shorter than its diagonal, so the shortest edge is the cell.
+            let plan = |a: &[f64; 3], b: &[f64; 3]| {
+                (((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt()) / 100.0
+            };
+            let cell = plan(&p[0], &p[1])
+                .min(plan(&p[1], &p[2]))
+                .min(plan(&p[2], &p[0]));
+            let cx = (p[0][0] + p[1][0] + p[2][0]) / 300.0;
+            let cy = -(p[0][1] + p[1][1] + p[2][1]) / 300.0;
+            let distance = to_centerline(cx, cy);
+
+            assert!(
+                cell <= 12.1,
+                "a {cell:.1} m ground cell at {distance:.0} m from the road"
+            );
+            if distance < 40.0 {
+                assert!(
+                    (cell - 2.0).abs() < 0.1,
+                    "{cell:.2} m cell {distance:.0} m from the road, expected 2 m"
+                );
+                near_cells += 1;
+            } else if distance > 100.0 {
+                assert!(
+                    cell > 5.9,
+                    "{cell:.2} m cell {distance:.0} m from the road, expected 6 m or coarser"
+                );
+                ring_cells += 1;
+            }
+        }
+    }
+    assert!(near_cells > 0, "no ground beside the road");
+    assert!(ring_cells > 0, "no ground out in the ring");
+}

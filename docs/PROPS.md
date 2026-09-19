@@ -49,6 +49,13 @@ vocabulary for both.
   variants are a parameter change. Brand and marker textures are generated
   by `content/props/_tools/gen_brands.py` into `board/brands/*.png` and
   `board/markers/*.png` (3:1 and 3:4).
+  Batch scripts live beside their kind (`barrier/build_barriers2.py`,
+  `tree/build_near_trees.py`) or under `_batches/` when they span kinds
+  (`build_batch_e_kit.py`, `build_batch_f_terrain.py`); each takes `ASSET`
+  (`"all"` or one key) and exports on run. `_tools/apex_tex.py` bakes
+  tileable PBR maps and masked card textures with numpy. The builders work
+  from the MCP server as well as the console (no operators that need a
+  window; sharp edges are marked in bmesh rather than by `shade_auto_smooth`).
 
 ## Fictional brands
 
@@ -97,16 +104,21 @@ the look more than anything else.
 | barrier | `concrete_4m` | 4 m, 1.0 m tall | precast wall, slanted faces — **done** | P1 |
 | barrier | `concrete_4m_rail` | 4 m, 1.55 m | with top rail — **done** | P2 |
 | barrier | `tecpro_2m` | 2 m, 1.15 m | red + white block pair — **done** | P2 |
+| barrier | `sausage_kerb_2m` | 2 × 0.5 m, 0.1 m | yellow FIA sausage kerb (`kerb_yellow`); baked as a `kerb` wall (kind 3): the sim scrubs speed and rumbles the wheel, never pushes the car out — **done** | P1 |
+| barrier | `tecpro_corner` | 1.4 m quarter annulus | 90° cap, tiles onto a `tecpro_2m` run at x = -1 and turns it away from the road (same convention as `tires_corner`) — **done** | P1 |
+| barrier | `concrete_end` | 2 m | ramped terminal, full height at x = -1 down to 0.15 m; tiles onto `concrete_4m` — **done** | P1 |
 | tire_wall | `tires_4m` | 4 m, 4 tyres tall, 2 rows | default; conveyor-belt strip in front — **done** | P1 |
 | tire_wall | `tires_corner` | 2 m quarter arc | curved cap, tiles onto `tires_4m` at x = -1 — **done** | P2 |
 | board | `hoarding_3m` | 3 × 1 m | default; brand from `text` — **done** | P1 |
 | board | `hoarding_6m` | 6 × 1 m | brand from `text`, logo twice — **done** | P1 |
 | board | `braking_marker` | 0.75 × 1 m on a 1.9 m post | `text` = 50/100/150/200 — **done** | P1 |
 | board | `light_panel` | 1 × 0.6 m on a 2 m post | LED face is the `led_panel` slot (drive emissive for flags) — **done** | P2 |
+| board | `corner_sign` | 2.4 × 0.8 m board, 2.6 m | named-corner board on two posts; the corner name is the prop's `text`, rendered on the white `board_text` face (importer: text render like `sign`) — **done** | P1 |
 | sign | `marshal_post` | 2.4 × 2.4 m hut on a plinth, 3.1 m | flag pole, number board (`text` later) — **done** | P2 |
 | sign | `pit_speed_limit` | 2.8 m | round sign on a post; number from `text` later — **done** | P2 |
 | sign | `pit_exit_light` | 4.2 m | red/green lamps (`pit_light_red` / `pit_light_green` slots) — **done** | P2 |
 | sign | `flag_pole` | 8 m, 1.5 × 1 m flag | `flag_cloth` slot; `text` = country code → `sign/flags/<cc>.png` (nl de at fr it be ie es jp ch fin chequer) — **done** | P3 |
+| sign | `hillside_letters` | 47 × 0.8 m, 4.7 m | free-standing letters on steel feet (`letters_white`), centred pivot; the letters are geometry, so the GLB carries one string — rebuild with `TEXT = "..."` in `_batches/build_batch_e_kit.py` for another circuit (default "RED BULL RING") — **done** | P2 |
 | fence | `mesh_4m` | 4 × 2.5 m | default; chain-link masked texture — **done** | P2 |
 | fence | `mesh_4m_hoarding` | 4 × 2.5 m | 0.8 m brand strip at the bottom — **done** | P2 |
 | fence | `wood_4m` | 4 × 1.2 m | post-and-rail — **done** | P3 |
@@ -144,8 +156,13 @@ so the span is across Y.
 | building | `control_tower` | 12 × 12 m cab on an 8 × 8 core, 29 m | glass cab, brand board on the track face, antenna — **done** | P3 |
 | building | `clubhouse` | 24 × 14 m, 11.5 m | brick, pitched roof, timber balcony over the front, flag pole — **done** | P3 |
 | building | `observation_tower` | 8 × 8 m footprint tapering to 2 × 2 m, 60.5 m | 4-leg steel lattice on a concrete lift core, glazed pod + spire; centred on its footprint like `control_tower` (not road-facing); generic enough to cover Austin's 77 m tower or the Sakhir Tower via `Prop.Scale` — **done** | P4 |
+| building | `podium` | 12 × 4.5 m, floor at 9.95 m, 14 m | pit-roof podium: three steps, rail, 12 × 4 m backdrop with the brand (`board_brand`) tiled; placed at ground on the road-facing edge over a `garage_6m`, four slim columns hide inside the garage — **done** | P2 |
 | vehicle | `race_truck` | 8.6 m | transporter, brand on both trailer sides (`board_brand`) — **done** | P3 |
 | vehicle | `motorhome` | 10 m | with awning — **done** | P4 |
+| vehicle | `camper_van` | 6 m, 3.1 m | high-roof camper with rolled awning and roof box (`vehicle_paint_a`) for the camp sites — **done** | P2 |
+| vehicle | `coach` | 12 m, 4 m | tour bus, glass band, luggage doors (`vehicle_paint_b`) for the bus park — **done** | P2 |
+| vehicle | `safety_car` | 4.8 m | silver estate with orange light bar (`safety_lightbar`, emissive) and lettering — **done** | P2 |
+| vehicle | `medical_car` | 4.8 m | same body in orange (`vehicle_paint_medical`) — **done** | P2 |
 
 The exporter emits one `pit`/`garage_6m` per pit box (positions from the
 existing box layout), a `pit_wall_6m` run along the road side, and one
@@ -177,6 +194,8 @@ existing box layout), a `pit_wall_6m` run along the road side, and one
 | attraction | `tent_6m` | 6 × 6 m, 5.2 m | open front on -Y, `tent_colour` slot — **done** | P3 |
 | attraction | `portaloo_row` | 5.4 m | 5 units — **done** | P4 |
 | attraction | `fanzone_stage` | 12 × 8 m, 8.5 m | truss roof, `led_screen` back wall, brand strip — **done** | P4 |
+| attraction | `food_stall_6m` | 6 × 3 m, 3.9 m | trailer concession, serving hatch and striped awning to the road (awning reaches 1.6 m in front of the pivot), brand fascia (`board_brand`) — **done** | P1 |
+| attraction | `ticket_gate` | 7 × 1.8 m, 4.6 m | four tripod turnstiles between galvanised rails under a WELCOME arch with brand boards on the columns; one per fan-map entrance — **done** | P2 |
 
 A stand of length L is `bay_*` repeated L/10 times plus two `end_cap`s. The
 importer does the repetition from one `grandstand` prop with a `length_m`
@@ -207,6 +226,10 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 | tree | `broadleaf_s/m/l_autumn`, `poplar_autumn`, `bush_cluster_autumn` | as the base asset | autumn colour set (`tree_autumn_a/b/c`); pick by the track's season — **done** | P3 |
 | tree | `palm_ornamental` | 13.15 m | tall avenue date palm, ringed tapering trunk, drooping 2-segment fronds on `tree_foliage_a/b/c` (same shared slots as the broadleaf trees) — for Sakhir and Yas Marina landscaping — **done** | P1 |
 | tree | `palm_oil` | 8.35 m | shorter, denser plantation palm, fuller radiating crown — for the oil-palm plantations around Sepang — **done** | P1 |
+| tree | `forest_impostor` / `_conifer` | 43 × 43 m, 17.5 m | one flat-shaded cluster (46 blob/cone trees on a dark floor skirt, ~1 K tris) standing in for a 40 m patch of wood; mixed 60 % spruce, or all spruce; planted per forest polygon out to 8 km, centred — **done** | P1 |
+| tree | `broadleaf_m_near` | 10 m | near-LOD (first 60 m) version of `broadleaf_m`: textured trunk + branches, ~250 bent leaf cards (2.2 K tris) on the alpha-MASKED two-sided `tree_card_broadleaf` slot — **done** | P2 |
+| tree | `conifer_m_near` | 12 m | spruce: trunk + drooping frond cards on `tree_card_conifer` (1.2 K tris) — **done** | P2 |
+| tree | `grass_clump` / `wildflower_clump` | 1 × 0.7 m | three crossed masked cards (`scatter_grass` / `scatter_flower`, 6 tris), sunk 0.1 m; scatter for the grass band within 40 m of the road — **done** | P2 |
 | vehicle | `car_a` / `car_b` / `car_c` | 4–4.7 m | hatch / saloon / SUV, `vehicle_paint_*` slot for colour — **done** | P3 |
 | vehicle | `fire_truck` | 5.5 m | — **done** | P3 |
 | vehicle | `ambulance` | 6 m | — **done** | P3 |
@@ -218,6 +241,9 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 | misc | `scrub_clump` | 0.68 × 0.6 m, 0.29 m tall | low dry-scrub mound, two tones (`misc_scrub_a/b`); filed under `misc` rather than a dedicated kind — no `.ats`/groomer/importer change needed to place it — **done** | P1 |
 | misc | `rock_cluster` | 0.92 × 0.7 m, 0.45 m tall | angular rock chunks, two tones (`misc_rock_a/b`); same `misc`-kind placement as `scrub_clump` — for Sakhir/Yas desert ground cover — **done** | P1 |
 | misc | `bull_statue` | 3.2 × 1.8 m, 2.5 m tall | the Red Bull Ring's trackside bull statue, on a plinth; centred on its own footprint like `control_tower`/`ferris_wheel` rather than road-facing, since it is placed as a `statue`-kind landmark by station/side/offset, not scattered — **done** | P4 |
+| misc | `tyre_stack` | 1.9 × 1.2 m, 0.8 m | three loose stacks + one leaning tyre (`tire_rubber`, `tire_rubber_worn`) for marshal posts and pit entry — **done** | P2 |
+| misc | `gate_4m` | 4.3 m, 1.5 m | steel field gate on two galvanised posts (`gate_steel`, `armco_galv`) for OSM `barrier=gate` — **done** | P2 |
+| misc | `power_pylon` | 8 × 14 m footprint, 38 m | tapered 4-leg lattice suspension tower, two crossarm levels with hanging insulators; centred, line along local X — **done** | P1 |
 | cone | `cone` | | exists | — |
 
 ### 6. Sky
@@ -252,6 +278,22 @@ window grid geometry, since these are only ever seen at a distance.
 | building | `skyline_lowrise` | 26 × 18 m, 40.8 m | mid-rise infill block, concrete with bronze strip windows, roof tank + AC unit — **done** | P2 |
 | building | `skyline_crane` | 20 × 16 m building (crane jib reaches to x = -20), 76.3 m | unfinished concrete-frame building topped with a working tower crane (`skyline_crane_yellow`) — **done** | P3 |
 
+### 8. Village and farmyard (Spielberg)
+
+Styrian gabled houses for the residential and farmyard polygons inside the
+2 km ring, plus the chapel. `building` kind, pivot on the road-facing edge,
+rendered walls (`house_render`, `house_render_b`), timber gables and
+balconies (`house_timber`, `house_timber_dark`), tile or dark roofs
+(`house_roof_tile`, `house_roof_dark`), `house_stone` chimneys.
+
+| kind | asset | size | notes | prio |
+| --- | --- | --- | --- | --- |
+| building | `village_house_a` | 12 × 9 m, 8.3 m | 1.5-storey farmhouse, ridge along the road, timber balcony under the eaves — **done** | P1 |
+| building | `village_house_b` | 10 × 8 m, 8.5 m | gable to the street, dark roof — **done** | P1 |
+| building | `village_house_c` | 14 × 12 m, 6.9 m | L-shaped: main wing along the road plus a lower stable wing behind, yard wall — **done** | P1 |
+| building | `barn` | 18 × 10 m, 8.2 m | timber barn on a stone plinth, double doors to the road — **done** | P1 |
+| building | `chapel` | 8 × 22 m, 23.5 m | 5 m tower on the road end with clock and louvres, pointed spire, nave with apse — **done** | P1 |
+
 ## Unreal import notes
 
 - Every asset in the tables above is authored (**done**); the recipe fallback
@@ -272,21 +314,23 @@ window grid geometry, since these are only ever seen at a distance.
   (blue rim ring and leg strips) and `ferris_lights_hub`. A slow hue cycle on
   `ferris_lights_rim` is cheap and looks right.
 - Chain-link goes sub-pixel at distance; mip bias or a fade helps.
-
-## Build order
-
-1. Track edge P1: `armco_4m`, `armco_4m_fence`, `tires_4m`, `hoarding_3m/6m`,
-   `braking_marker`.
-2. `blimp`.
-3. `start_gantry`, `truss_bridge`, `tyre_bridge`.
-4. Grandstand kit (`bay_10m`, `bay_10m_roof`, `end_cap`) + `ferris_wheel`.
-5. Pit kit (`garage_6m`, `garage_end`, `pit_wall_6m`) + exporter changes for
-   per-box placement.
-6. Trees.
-7. Everything P3/P4 as tracks need it.
-
-## Code touch points
-
+- **Masked card slots** `tree_card_*` and `scatter_*` (near-LOD trees, grass) are
+  alpha MASK + two-sided like `fence_mesh`; `ApexPropLibrary::IsMaskedSlot`
+  covers them.
+- **Text slots.** `corner_sign` carries the corner name on its blank
+  `board_text` face; the importer (`ApexProps::HasTextFace`) spawns it as its
+  own actor rather than an instance and hangs a text component just off the
+  face at 2.2 m, sized to fit the 2.4 m board. `hillside_letters` is geometry.
+- **Baked textures.** The whole track-edge, tyre-wall, grandstand (every bay,
+  cap and `_crowd` variant), pit and statue kit carries albedo + roughness +
+  normal maps (512², tileable, from `_tools/apex_tex.py`, saved under
+  `content/props/_textures/`) on its existing slots; `_tools/retexture_kit.py`
+  re-imports each GLB, swaps the slots listed in `apex_tex.KIT_SLOTS` and
+  re-exports, so geometry and slot names are unchanged (it restores a slot
+  name the importer suffixed). New builders take their materials from
+  `apex_tex.kit_material`, which returns the baked material for a slot in
+  `KIT_SLOTS` and a flat one otherwise, so a slot looks the same on every
+  asset; add a slot there to bake it everywhere.
 - `track-editor/src/ats.rs` — new `PropKind` variants.
 - `track-editor/src/groom.rs` — behaviour per new kind (board snapping,
   bridge exemption, pit alignment, sky not seated).
