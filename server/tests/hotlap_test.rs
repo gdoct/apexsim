@@ -276,6 +276,7 @@ async fn relocate_is_refused_in_practice_and_a_new_driver_has_no_ghost() {
 
         host.send(&ClientMessage::SelectCar {
             car_config_id: car_id,
+            livery: 0,
         })
         .await?;
         sleep(Duration::from_millis(50)).await;

@@ -483,6 +483,7 @@ namespace
 			else if (Key == TEXT("PlayerName")) { bOk = Reader.ReadString(Out.PlayerName); }
 			else if (Key == TEXT("IsAi"))       { bOk = Reader.ReadBool(Out.bIsAi); }
 			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.CarConfigId); }
+			else if (Key == TEXT("Livery"))     { bOk = Reader.ReadUInt64(Raw); Out.Livery = static_cast<int32>(Raw); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -1226,12 +1227,14 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
-	TArray<uint8> EncodeSelectCar(const FString& CarConfigId)
+	TArray<uint8> EncodeSelectCar(const FString& CarConfigId, int32 Livery)
 	{
-		FMsgPackWriter Writer(96);
-		BeginDataVariant(Writer, "SelectCar", 1);
+		FMsgPackWriter Writer(104);
+		BeginDataVariant(Writer, "SelectCar", 2);
 		Writer.WriteString("car_config_id");
 		Writer.WriteString(CarConfigId);
+		Writer.WriteString("livery");
+		Writer.WriteUInt(static_cast<uint64>(FMath::Clamp(Livery, 0, 255)));
 		return MoveTemp(Writer.GetBuffer());
 	}
 

@@ -31,6 +31,14 @@ struct CarToml {
     hybrid: Option<HybridToml>,
     #[serde(default)]
     suspension: Option<SuspensionToml>,
+    /// `[[livery]]` tables: only the names matter here (the client paints).
+    #[serde(default)]
+    livery: Vec<LiveryToml>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LiveryToml {
+    name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -461,6 +469,7 @@ impl CarLoader {
             model: car_toml.model,
             class: car_toml.class,
             content_crc: crate::content_crc::content_crc(content.as_bytes()),
+            livery_names: car_toml.livery.into_iter().map(|l| l.name).collect(),
 
             // Physical dimensions
             mass_kg: car_toml.physics.mass_kg,

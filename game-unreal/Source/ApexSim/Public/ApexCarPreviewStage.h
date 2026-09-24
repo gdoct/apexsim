@@ -39,6 +39,9 @@ public:
 	/** The wheels to draw on the car (the catalog row's `Wheels`); an unusable spec draws none. */
 	void SetCarWheels(const FApexWheelSpec& Spec);
 
+	/** Paints the shown car (ApexCarLivery.h); null is the model as authored. After SetCarMesh. */
+	void SetCarLivery(const struct FApexCarLivery* Livery);
+
 	/** Applies the per-car framing tweaks from the catalog row. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Preview")
 	void SetPreviewTransform(FVector Offset, FRotator Rotation, float Scale);
@@ -127,6 +130,9 @@ private:
 	void FrameCurrentMesh();
 
 	bool bSpin = true;
+
+	/** A livery's instances are on the shown body. */
+	bool bLiveryApplied = false;
 	FVector PreviewOffset = FVector::ZeroVector;
 	FRotator PreviewRotation = FRotator::ZeroRotator;
 	float PreviewScale = 1.0f;

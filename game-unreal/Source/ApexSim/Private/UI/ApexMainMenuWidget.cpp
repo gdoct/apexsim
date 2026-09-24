@@ -2,7 +2,9 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
+#include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
@@ -17,6 +19,7 @@
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
+#include "UI/ApexSettingsWidget.h"
 #include "UI/ApexUIStyle.h"
 
 namespace
@@ -31,6 +34,7 @@ namespace
 		const FName Garage(TEXT("Garage"));
 		const FName Tracks(TEXT("Tracks"));
 		const FName Connect(TEXT("Connect"));
+		const FName Settings(TEXT("Settings"));
 	}
 
 	/**
@@ -184,6 +188,7 @@ void UApexMainMenuWidget::BuildLayout()
 			{ TEXT("Tab"), TEXT("Switch column") },
 		},
 		{
+			{ TEXT("Start"), TEXT("Settings") },
 			{ TEXT("Esc"), TEXT("Quit") },
 		}));
 
@@ -316,6 +321,7 @@ UWidget* UApexMainMenuWidget::BuildRail()
 	Spec.Label = TEXT("Garage");          Spec.ActionId = Action::Garage;  AddColumnButton(Rail, Spec, true);
 	Spec.Label = TEXT("Tracks");          Spec.ActionId = Action::Tracks;  AddColumnButton(Rail, Spec, true);
 	Spec.Label = TEXT("Connect to server");Spec.ActionId = Action::Connect; AddColumnButton(Rail, Spec, true);
+	Spec.Label = TEXT("Settings");        Spec.ActionId = Action::Settings; AddColumnButton(Rail, Spec, true);
 
 	ApexUI::AddV(Rail, ApexUI::MakeLabel(*WidgetTree, TEXT("In development")), FMargin(0.0f, 30.0f, 0.0f, 14.0f));
 
@@ -634,6 +640,20 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		ShowScreen(EApexScreen::ConnectDialog);
 	}
+	else if (Id == Action::Settings)
+	{
+		OpenSettings();
+	}
+}
+
+void UApexMainMenuWidget::OpenSettings()
+{
+	// On the controls page: key and pad bindings are what a player comes here
+	// for before a first race, and the wheel page is one shoulder press on.
+	if (UApexRootWidget* Root = GetRoot())
+	{
+		Root->OpenSettings(EApexSettingsTab::Controls);
+	}
 }
 
 void UApexMainMenuWidget::StartRememberedSession()
@@ -722,6 +742,19 @@ void UApexMainMenuWidget::HandlePendingTrackChanged(const FString& TrackId)
 
 FReply UApexMainMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
+	// A pad's Start, or whatever opens the pause menu on a wheel, opens
+	// settings, as it opens the pause menu in a race; inside the overlay the
+	// same button closes it again. Never Escape: here that quits.
+	const FKey Key = InKeyEvent.GetKey();
+	const UApexSettingsSubsystem* Settings =
+		GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+	if (Key == EKeys::Gamepad_Special_Right || (Key != EKeys::Escape && Settings && Settings->IsPauseKey(Key)))
+	{
+		ApexUiAudio::Play(this, EApexUiSound::Accept);
+		OpenSettings();
+		return FReply::Handled();
+	}
+
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
 		// The footer promises Escape quits here. Elsewhere Back means "back",

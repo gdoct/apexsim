@@ -289,7 +289,8 @@ private:
 	/** Creates or destroys car actors so they match the roster. */
 	void SyncCarsToRoster(const FApexSessionRoster& Roster);
 	/** Gives a car the catalog's mesh, wheels and cockpit for `CarId`, or the fallback. */
-	void ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId);
+	/** The car's mesh, wheels, cockpit and sound from its catalog row, in `Livery` (0: as authored). */
+	void ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId, int32 Livery = 0);
 
 	UFUNCTION()
 	void HandleGhostLap(const FApexGhostLap& Lap);

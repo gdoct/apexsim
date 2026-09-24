@@ -66,6 +66,10 @@ private:
 
 	/** Points the shared turntable at the selected car's mesh. */
 	void UpdatePreviewStage();
+	/** Steps the selected car's livery (wrapping through "Works" and its `Liveries`). */
+	void CycleLivery(int32 Step);
+	/** The livery button's label and badge, hidden for a car without liveries. */
+	void RefreshLiveryButton();
 
 	/** Focus has to wait a tick after the tree changes; see the main menu. */
 	void RequestRowFocus();
@@ -92,6 +96,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> EyebrowText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> NameText;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> LiveryButton;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PowerValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeightValue;
@@ -107,6 +112,8 @@ private:
 
 	TArray<FString> BuiltCarIds;
 	FString SelectedCarId;
+	/** 0: the car as authored; N: the catalog row's `Liveries[N - 1]`. */
+	int32 SelectedLivery = 0;
 	FString ActiveFilter;
 	int32 FocusedRowIndex = 0;
 };

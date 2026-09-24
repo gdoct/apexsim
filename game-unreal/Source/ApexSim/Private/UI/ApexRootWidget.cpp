@@ -289,11 +289,13 @@ void UApexRootWidget::NativeConstruct()
 		}
 	}
 
-	// -ApexOpenPause=N / -ApexOpenSettings=N open a race overlay N seconds in.
+	// -ApexOpenPause=N / -ApexOpenSettings=N open an overlay N seconds in.
 	// Both are otherwise only reachable with a keypress, which an unattended run
 	// cannot make — and the overlays are exactly what a screenshot pass wants to
-	// look at. -ApexSettingsTab picks the page (see EApexSettingsTab: 0 gameplay,
-	// 1 assists, 2 graphics, 3 camera, 4 controls, 5 wheel, 6 audio, 7 car setup).
+	// look at. Settings opens over the pause menu in a race and over the
+	// current screen otherwise. -ApexSettingsTab picks the page (see
+	// EApexSettingsTab: 0 gameplay, 1 assists, 2 graphics, 3 camera,
+	// 4 controls, 5 wheel, 6 audio).
 	float OverlayDelay = 0.0f;
 	const bool bOpenSettings = FParse::Value(FCommandLine::Get(), TEXT("ApexOpenSettings="), OverlayDelay);
 	const bool bOpenPause = !bOpenSettings && FParse::Value(FCommandLine::Get(), TEXT("ApexOpenPause="), OverlayDelay);
@@ -306,14 +308,17 @@ void UApexRootWidget::NativeConstruct()
 		FTimerHandle Handle;
 		GetWorld()->GetTimerManager().SetTimer(
 			Handle,
-			FTimerDelegate::CreateWeakLambda(this, [this, bOpenSettings, TabIndex]()
+			FTimerDelegate::CreateWeakLambda(this, [this, bOpenSettings, bOpenPause, TabIndex]()
 			{
 				UE_LOG(LogApexSim, Log, TEXT("Opening the %s overlay on request from the command line"),
 					bOpenSettings ? TEXT("settings") : TEXT("pause"));
-				SetPaused(true);
-				if (bOpenSettings && SettingsOverlay)
+				if (bOpenPause || bRaceViewActive)
 				{
-					SettingsOverlay->Open(static_cast<EApexSettingsTab>(
+					SetPaused(true);
+				}
+				if (bOpenSettings)
+				{
+					OpenSettings(static_cast<EApexSettingsTab>(
 						FMath::Clamp(TabIndex, 0, static_cast<int32>(EApexSettingsTab::Audio))));
 				}
 			}),
@@ -701,6 +706,11 @@ bool UApexRootWidget::IsSettingsOpen() const
 	return SettingsOverlay && SettingsOverlay->IsOpen();
 }
 
+bool UApexRootWidget::IsSettingsListening() const
+{
+	return SettingsOverlay && SettingsOverlay->IsOpen() && SettingsOverlay->IsListening();
+}
+
 bool UApexRootWidget::IsScreenActive(const UApexScreenWidget* Screen) const
 {
 	return Screen && !bRaceViewActive && GetScreenWidget(CurrentScreen) == Screen;
@@ -924,10 +934,7 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 	case EApexPauseAction::OpenSettings:
 		// The pause menu stays open underneath: settings is a step forward from
 		// it, and closing settings has to land back on the menu it came from.
-		if (SettingsOverlay)
-		{
-			SettingsOverlay->Open();
-		}
+		OpenSettings(EApexSettingsTab::Gameplay);
 		break;
 
 	case EApexPauseAction::ReturnToGarage:
@@ -958,6 +965,14 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 		UKismetSystemLibrary::QuitGame(this, UGameplayStatics::GetPlayerController(this, 0),
 			EQuitPreference::Quit, /*bIgnorePlatformRestrictions*/ false);
 		break;
+	}
+}
+
+void UApexRootWidget::OpenSettings(EApexSettingsTab Tab)
+{
+	if (SettingsOverlay && !SettingsOverlay->IsOpen())
+	{
+		SettingsOverlay->Open(Tab);
 	}
 }
 

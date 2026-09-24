@@ -7,6 +7,8 @@
 #include "ApexSimInputModule.h"
 #include "AudioDevice.h"
 #include "Engine/Engine.h"
+#include "Framework/Application/NavigationConfig.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/IConsoleManager.h"
 #include "Input/ApexInputConfig.h"
@@ -50,6 +52,8 @@ void UApexSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// The audio device exists by now, and the first menu cue plays before any
 	// overlay could have applied the volume.
 	ApplyAudio();
+	// The menu is driven before any player controller asks for the bindings.
+	ApplyMenuNavigation();
 
 	// A wheel plugged in mid-session has to reach the mapping context: its
 	// bindings name device slots, and the steering default is whichever
@@ -71,6 +75,7 @@ void UApexSettingsSubsystem::Deinitialize()
 		DevicesChangedHandle.Reset();
 	}
 
+	ClearMenuNavigation();
 	Save();
 	Super::Deinitialize();
 }
@@ -662,6 +667,12 @@ TArray<const ApexInput::FSlotDef*> UApexSettingsSubsystem::FindConflicts(
 		{
 			continue;
 		}
+		// Menu keys act only in the menus and the rest only while driving: a
+		// hat on both "look left" and "menu left" is the point, not a clash.
+		if (ApexInput::IsMenuAction(Def.ActionId) != ApexInput::IsMenuAction(ExceptAction))
+		{
+			continue;
+		}
 		if (GetBoundKey(Def.ActionId, Def.Slot) == Key)
 		{
 			Conflicts.Add(&Def);
@@ -810,6 +821,29 @@ void UApexSettingsSubsystem::ApplyControls()
 			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
 		PlayerController->RebuildBindings();
+	}
+	ApplyMenuNavigation();
+}
+
+void UApexSettingsSubsystem::ClearMenuNavigation()
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		ApexInput::ApplyMenuNavigation(FSlateApplication::Get().GetNavigationConfig().Get(), {}, MenuNavigationKeys);
+	}
+	MenuNavigationKeys.Reset();
+}
+
+void UApexSettingsSubsystem::ApplyMenuNavigation()
+{
+	if (!Settings || !FSlateApplication::IsInitialized())
+	{
+		return;
+	}
+	ApexInput::ApplyMenuNavigation(FSlateApplication::Get().GetNavigationConfig().Get(), Settings->Bindings, MenuNavigationKeys);
+	if (MenuNavigationKeys.Num() > 0)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Menu navigation: %d wheel key(s) registered"), MenuNavigationKeys.Num());
 	}
 }
 

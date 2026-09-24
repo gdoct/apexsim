@@ -55,6 +55,10 @@ pub enum ClientMessage {
             deserialize_with = "deserialize_uuid_from_string"
         )]
         car_config_id: CarConfigId,
+        /// Which of the car's liveries: 0 the car as authored, 1.. its
+        /// `[[livery]]` tables. Older clients leave it out.
+        #[serde(default)]
+        livery: u8,
     },
     RequestLobbyState,
     CreateSession {
@@ -604,6 +608,10 @@ pub struct RosterEntry {
         deserialize_with = "deserialize_uuid_from_string"
     )]
     pub car_config_id: CarConfigId,
+    /// The livery it wears: 0 the car as authored, 1.. its `[[livery]]`
+    /// tables. Always within the car's own list.
+    #[serde(default)]
+    pub livery: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

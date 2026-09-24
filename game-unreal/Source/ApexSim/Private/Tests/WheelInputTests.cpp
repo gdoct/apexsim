@@ -2,6 +2,7 @@
 #include "ApexSettingsSave.h"
 #include "ApexTestCommon.h"
 #include "EnhancedActionKeyMapping.h"
+#include "Framework/Application/NavigationConfig.h"
 #include "Input/ApexInputConfig.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
@@ -21,6 +22,12 @@ namespace
 	FKey WheelButton(int32 Device, int32 Button)
 	{
 		return MakeKey({ Device, EControlKind::Button, Button });
+	}
+
+	/** A hat direction: 0 up, 1 right, 2 down, 3 left, as the device names them. */
+	FKey WheelHat(int32 Device, int32 Hat, int32 Direction)
+	{
+		return MakeKey({ Device, EControlKind::Hat, Hat * HatDirections + Direction });
 	}
 
 	/** Which devices the rules should believe are plugged in. */
@@ -232,6 +239,88 @@ bool FApexWheelMappingTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("1080 at 480"), WheelSteeringScale(1080.0f, 480.0f), 2.25f);
 	TestTrue(TEXT("absurd values stay finite"), FMath::IsFinite(WheelSteeringScale(0.0f, 0.0f))
 		&& WheelSteeringScale(0.0f, 0.0f) >= 1.0f);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexWheelMenuNavigationTest,
+	"ApexSim.Input.Wheel.MenuNavigation",
+	ApexTestFlags)
+
+bool FApexWheelMenuNavigationTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexInput;
+
+	// A wheel's thumb stick drives the menus by becoming Slate navigation
+	// rules, beside the D-pad's: the config is what every widget asks,
+	// Slate's own sliders and dropdowns included.
+	FNavigationConfig Config;
+	const int32 EngineRules = Config.KeyEventRules.Num();
+	const int32 EngineActions = Config.KeyActionRules.Num();
+
+	auto Direction = [&Config](const FKey& Key)
+	{
+		return Config.GetNavigationDirectionFromKey(FKeyEvent(Key, FModifierKeysState(), 0, false, 0, 0));
+	};
+	auto Action = [&Config](const FKey& Key)
+	{
+		return Config.GetNavigationActionFromKey(FKeyEvent(Key, FModifierKeysState(), 0, false, 0, 0));
+	};
+
+	TArray<FApexKeyBinding> Bindings;
+	Bindings.Emplace(Actions::MenuUp, Slot::Wheel, WheelHat(0, 0, 0));
+	Bindings.Emplace(Actions::MenuRight, Slot::Wheel, WheelHat(0, 0, 1));
+	Bindings.Emplace(Actions::MenuDown, Slot::Wheel, WheelHat(0, 0, 2));
+	Bindings.Emplace(Actions::MenuLeft, Slot::Wheel, WheelHat(0, 0, 3));
+	Bindings.Emplace(Actions::MenuAccept, Slot::Wheel, WheelButton(0, 1));
+	Bindings.Emplace(Actions::MenuBack, Slot::Wheel, WheelButton(0, 2));
+	// The same hat also looks about while driving: not a menu rule.
+	Bindings.Emplace(Actions::LookBack, Slot::Wheel, WheelButton(0, 9));
+	// A second wheelbase remembered but not plugged in still navigates.
+	Bindings.Emplace(Actions::MenuUp, Slot::Wheel, WheelHat(1, 0, 0));
+	// Two menu slots on one key: the first one wins, the second is skipped.
+	Bindings.Emplace(Actions::MenuDown, Slot::Wheel, WheelButton(0, 1));
+	// A pad key in a menu slot (not a wheel slot) is never a rule.
+	Bindings.Emplace(Actions::MenuUp, Slot::Gamepad, EKeys::Gamepad_FaceButton_Top);
+
+	TArray<FKey> Added;
+	ApplyMenuNavigation(Config, Bindings, Added);
+
+	TestTrue(TEXT("hat up is up"), Direction(WheelHat(0, 0, 0)) == EUINavigation::Up);
+	TestTrue(TEXT("hat right is right"), Direction(WheelHat(0, 0, 1)) == EUINavigation::Right);
+	TestTrue(TEXT("hat down is down"), Direction(WheelHat(0, 0, 2)) == EUINavigation::Down);
+	TestTrue(TEXT("hat left is left"), Direction(WheelHat(0, 0, 3)) == EUINavigation::Left);
+	TestTrue(TEXT("the other base's hat too"), Direction(WheelHat(1, 0, 0)) == EUINavigation::Up);
+	TestTrue(TEXT("OK accepts"), Action(WheelButton(0, 1)) == EUINavigationAction::Accept);
+	TestTrue(TEXT("Back backs out"), Action(WheelButton(0, 2)) == EUINavigationAction::Back);
+	TestTrue(TEXT("a key on two menu slots keeps the first"), Direction(WheelButton(0, 1)) == EUINavigation::Invalid);
+	TestTrue(TEXT("a driving binding is not navigation"), Direction(WheelButton(0, 9)) == EUINavigation::Invalid);
+	TestFalse(TEXT("a pad key in a menu slot is ignored"), Added.Contains(EKeys::Gamepad_FaceButton_Top));
+	TestTrue(TEXT("the D-pad is untouched"), Direction(EKeys::Gamepad_DPad_Up) == EUINavigation::Up);
+	TestEqual(TEXT("seven keys added"), Added.Num(), 7);
+
+	// Rebinding: the old set comes out, the new one goes in.
+	TArray<FApexKeyBinding> Rebound;
+	Rebound.Emplace(Actions::MenuUp, Slot::Wheel, WheelButton(0, 5));
+	ApplyMenuNavigation(Config, Rebound, Added);
+	TestTrue(TEXT("the old hat no longer navigates"), Direction(WheelHat(0, 0, 0)) == EUINavigation::Invalid);
+	TestTrue(TEXT("nor does the old OK accept"), Action(WheelButton(0, 1)) == EUINavigationAction::Invalid);
+	TestTrue(TEXT("the new key does"), Direction(WheelButton(0, 5)) == EUINavigation::Up);
+
+	// A player cannot take over one of Slate's keys, even by binding it.
+	TArray<FApexKeyBinding> Hostile;
+	Hostile.Emplace(Actions::MenuBack, Slot::Wheel, EKeys::Enter);
+	ApplyMenuNavigation(Config, Hostile, Added);
+	TestTrue(TEXT("Enter still accepts"), Action(EKeys::Enter) == EUINavigationAction::Accept);
+
+	// And clearing leaves the config as the engine made it.
+	ApplyMenuNavigation(Config, {}, Added);
+	TestEqual(TEXT("no rules left behind"), Config.KeyEventRules.Num(), EngineRules);
+	TestEqual(TEXT("no actions left behind"), Config.KeyActionRules.Num(), EngineActions);
+	TestTrue(TEXT("Enter survived the clear"), Action(EKeys::Enter) == EUINavigationAction::Accept);
+	TestTrue(TEXT("menu slots are menu actions"), IsMenuAction(Actions::MenuAccept) && !IsMenuAction(Actions::Look));
 	return true;
 }
 

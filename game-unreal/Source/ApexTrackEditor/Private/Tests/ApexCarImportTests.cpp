@@ -147,4 +147,56 @@ bool FApexCarTomlSoundTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarTomlLiveryTest, "ApexSim.Cars.TomlLivery",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FApexCarTomlLiveryTest::RunTest(const FString& Parameters)
+{
+	const FString Text = TEXT(
+		"id = \"a1b2\"\n"
+		"name = \"Hypercar\"\n"
+		"[[livery]]\n"
+		"name = \"Blu\"   # a comment\n"
+		"paint = [0.02, 0.10, 0.45]\n"
+		"accent = [0.9, 0.9, 0.9]\n"
+		"metallic = 0.6\n"
+		"logo = \"textures/blu_logo.png\"\n"
+		"[[livery]]\n"
+		"name = \"Plain\"\n"
+		"paint = [1, 1, 1]\n"
+		"[wheels]\n"
+		"model = \"gt3\"\n"
+		"front_axle_m = 1.4\n"
+		"rear_axle_m = -1.4\n"
+		"front_track_m = 1.6\n"
+		"rear_track_m = 1.6\n"
+		"front_radius_m = 0.35\n"
+		"rear_radius_m = 0.35\n"
+		"front_width_m = 0.3\n"
+		"rear_width_m = 0.3\n");
+	UApexCarImportCommandlet::FCarToml Car;
+	FString Error;
+	TestTrue(TEXT("parses"), UApexCarImportCommandlet::ParseCarToml(Text, Car, Error));
+	if (!TestEqual(TEXT("two liveries"), Car.Liveries.Num(), 2))
+	{
+		return false;
+	}
+	TestEqual(TEXT("name"), Car.Liveries[0].Name, FString(TEXT("Blu")));
+	TestEqual(TEXT("paint"), Car.Liveries[0].Paint, FLinearColor(0.02f, 0.10f, 0.45f, 1.0f));
+	TestEqual(TEXT("accent"), Car.Liveries[0].Accent, FLinearColor(0.9f, 0.9f, 0.9f, 1.0f));
+	TestEqual(TEXT("metallic"), Car.Liveries[0].Metallic, 0.6f);
+	TestEqual(TEXT("logo"), Car.Liveries[0].Logo, FString(TEXT("textures/blu_logo.png")));
+	TestTrue(TEXT("no accent keeps the model's"), Car.Liveries[1].Accent.A == 0.0f);
+	TestEqual(TEXT("no metallic keeps the model's"), Car.Liveries[1].Metallic, -1.0f);
+	TestTrue(TEXT("a later table is not a livery's"), Car.Wheels.IsPresent());
+	TestEqual(TEXT("logo package"),
+		UApexCarImportCommandlet::LiveryLogoPackageName(TEXT("/Game/Cars"), TEXT("bugotti-chiffon-hypercar"), TEXT("textures/blu-logo.png")),
+		FString(TEXT("/Game/Cars/bugotti_chiffon_hypercar/Liveries/T_blu_logo")));
+
+	UApexCarImportCommandlet::FCarToml NoPaint;
+	TestFalse(TEXT("a livery without paint is an error"), UApexCarImportCommandlet::ParseCarToml(
+		TEXT("id = \"a\"\nname = \"b\"\n[[livery]]\nname = \"c\"\n"), NoPaint, Error));
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

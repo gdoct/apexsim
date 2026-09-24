@@ -62,6 +62,9 @@ pub struct GameSession {
     tuned_configs: HashMap<PlayerId, CarConfig>,
     /// What each driver asked for, clamped.
     car_setups: HashMap<PlayerId, CarSetup>,
+    /// The livery each human driver picked (`SelectCar`); AI drivers are
+    /// dealt one in `build_roster`. Looked up by key only.
+    liveries: HashMap<PlayerId, u8>,
     /// Timing lines crossed since the game loop last drained them.
     lap_events: Vec<SessionLapEvent>,
     /// The lap each car is driving, sampled for a ghost. Human drivers only:
@@ -211,6 +214,7 @@ impl GameSession {
             finish_deadline_tick: None,
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
+            liveries: HashMap::new(),
             car_setups: HashMap::new(),
             lap_events: Vec::new(),
             lap_traces: HashMap::new(),
@@ -246,6 +250,7 @@ impl GameSession {
             finish_deadline_tick: None,
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
+            liveries: HashMap::new(),
             car_setups: HashMap::new(),
             lap_events: Vec::new(),
             lap_traces: HashMap::new(),
@@ -1098,6 +1103,7 @@ impl GameSession {
         self.tuned_configs.remove(player_id);
         self.car_setups.remove(player_id);
         self.lap_traces.remove(player_id);
+        self.liveries.remove(player_id);
     }
 
     /// The car index this player's telemetry carries, matching the roster.
@@ -1298,6 +1304,15 @@ impl GameSession {
         }
     }
 
+    /// The livery a driver wears, as they picked it. Clamped to the car's
+    /// own list when the roster is built, so a stale pick is harmless.
+    pub fn set_livery(&mut self, player_id: PlayerId, livery: u8) {
+        let old = self.liveries.insert(player_id, livery).unwrap_or(0);
+        if old != livery {
+            self.roster_dirty = true;
+        }
+    }
+
     /// Whether session membership changed since the last roster broadcast.
     pub fn roster_is_dirty(&self) -> bool {
         self.roster_dirty
@@ -1313,12 +1328,20 @@ impl GameSession {
     /// player names are looked up in `names` (lobby data); AI names come from
     /// their profiles.
     pub fn build_roster(&self, names: &HashMap<PlayerId, String>) -> SessionRosterData {
+        // AI drivers are dealt liveries in grid order, each model's cars
+        // taking the next one of its list, so a field of the same car is not
+        // a row of clones.
+        let mut dealt: HashMap<CarConfigId, u8> = HashMap::new();
         let entries = self
             .session
             .participants
             .iter()
             .enumerate()
             .map(|(idx, (player_id, state))| {
+                let livery_count = self
+                    .car_configs
+                    .get(&state.car_config_id)
+                    .map_or(0, |c| c.livery_names.len().min(u8::MAX as usize - 1) as u8);
                 let is_ai = self.ai_profiles.contains_key(player_id);
                 let player_name = self
                     .ai_profiles
@@ -1326,12 +1349,22 @@ impl GameSession {
                     .map(|p| p.name.clone())
                     .or_else(|| names.get(player_id).cloned())
                     .unwrap_or_else(|| format!("Player-{}", &player_id.to_string()[..8]));
+                let livery = if is_ai {
+                    let next = dealt.entry(state.car_config_id).or_insert(0);
+                    let pick = *next % (livery_count + 1);
+                    *next = next.wrapping_add(1);
+                    pick
+                } else {
+                    let asked = self.liveries.get(player_id).copied().unwrap_or(0);
+                    if asked <= livery_count { asked } else { 0 }
+                };
                 RosterEntry {
                     car_index: idx as u8,
                     player_id: *player_id,
                     player_name,
                     is_ai,
                     car_config_id: state.car_config_id,
+                    livery,
                 }
             })
             .collect();
@@ -1748,6 +1781,48 @@ mod tests {
         for ai_id in &game_session.session.ai_player_ids {
             assert!(game_session.is_ai_player(ai_id));
         }
+    }
+
+    #[test]
+    fn roster_carries_picked_liveries_and_deals_the_ai_theirs() {
+        use crate::ai_driver::generate_default_ai_profiles;
+
+        let track = TrackConfig::default();
+        let car = CarConfig {
+            livery_names: vec!["Blue".to_string(), "Gold".to_string()],
+            ..CarConfig::default()
+        };
+        let car_id = car.id;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car);
+        let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 4, 3);
+        let mut game_session =
+            GameSession::with_ai_profiles(session, track, car_configs, generate_default_ai_profiles(4));
+        game_session.spawn_ai_drivers();
+        let (picked, stale, stock) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+        for p in [picked, stale, stock] {
+            game_session.add_player(p, car_id);
+        }
+        game_session.set_livery(picked, 2);
+        game_session.set_livery(stale, 7);
+
+        let roster = game_session.build_roster(&HashMap::new());
+        let livery_of = |id: PlayerId| roster.entries.iter().find(|e| e.player_id == id).unwrap().livery;
+        assert_eq!(livery_of(picked), 2, "a pick inside the car's list is kept");
+        assert_eq!(livery_of(stale), 0, "a pick past the end falls back to the car as authored");
+        assert_eq!(livery_of(stock), 0);
+        let mut ai: Vec<u8> = roster.entries.iter().filter(|e| e.is_ai).map(|e| e.livery).collect();
+        ai.sort();
+        assert_eq!(ai, vec![0, 0, 1, 2], "four AI in one model wear its three liveries in turn");
+
+        game_session.remove_player(&picked);
+        game_session.add_player(picked, car_id);
+        let roster = game_session.build_roster(&HashMap::new());
+        assert_eq!(
+            roster.entries.iter().find(|e| e.player_id == picked).unwrap().livery,
+            0,
+            "leaving the session forgets the pick"
+        );
     }
 
     // --- Game Mode Tests ---

@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Engine.h"
+#include "Race/ApexCarLivery.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Sound/SoundAttenuation.h"
 
@@ -170,6 +171,7 @@ void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow
 	// Overrides are per slot index, and the new body's slots need not line up
 	// with the old one's.
 	CarMesh->EmptyOverrideMaterials();
+	bLiveryApplied = false;
 	CarMesh->SetStaticMesh(Loaded);
 	// A different body is a different seat.
 	bCockpitLayoutValid = false;
@@ -195,6 +197,17 @@ void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow
 	TailLightState = -1;
 	UpdateBrakeLights();
 	PlaceHeadlights();
+}
+
+void AApexRaceCarActor::SetLivery(const FApexCarLivery* Livery)
+{
+	// Livery 0 on a fresh body has nothing to undo; the ghost relies on that,
+	// since it puts its own materials on after the mesh.
+	if (Livery || bLiveryApplied)
+	{
+		ApexLivery::Apply(CarMesh, Livery);
+	}
+	bLiveryApplied = Livery != nullptr;
 }
 
 void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)

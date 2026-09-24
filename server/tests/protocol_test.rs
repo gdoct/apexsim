@@ -175,6 +175,7 @@ async fn start_free_practice(client: &mut ProtocolTestClient) {
     client
         .send(&ClientMessage::SelectCar {
             car_config_id: car_id,
+            livery: 0,
         })
         .await;
     client
@@ -275,6 +276,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
     client
         .send(&ClientMessage::SelectCar {
             car_config_id: car_id,
+            livery: 0,
         })
         .await;
 

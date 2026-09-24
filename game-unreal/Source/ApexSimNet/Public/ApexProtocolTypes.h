@@ -555,6 +555,13 @@ struct APEXSIMNET_API FApexRosterEntry
 	/** The car this entry drives (the catalog's key); empty from an older server. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	FString CarConfigId;
+
+	/**
+	 * The livery it wears: 0 the car as authored, 1.. the catalog row's
+	 * `Liveries` (the car.toml's `[[livery]]` tables). 0 from an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Livery = 0;
 };
 
 /** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */

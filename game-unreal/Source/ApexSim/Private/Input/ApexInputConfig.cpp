@@ -1,5 +1,6 @@
 #include "Input/ApexInputConfig.h"
 
+#include "Algo/Find.h"
 #include "ApexDirectInputTypes.h"
 #include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
@@ -7,6 +8,7 @@
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedPlayerInput.h"
 #include "Engine/GameInstance.h"
+#include "Framework/Application/NavigationConfig.h"
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
@@ -56,8 +58,70 @@ namespace ApexInput
 			{ Actions::Look,         Slot::WheelHigh,  TEXT("Look right"),  FKey(), false, EColumn::Wheel },
 			{ Actions::LookBack,     Slot::Wheel,      TEXT("Look behind"), FKey(), false, EColumn::Wheel },
 			{ Actions::PauseMenu,    Slot::Wheel,      TEXT("Pause menu"),  FKey(), false, EColumn::Wheel },
+			{ Actions::MenuUp,       Slot::Wheel,      TEXT("Menu up"),     FKey(), false, EColumn::Wheel },
+			{ Actions::MenuDown,     Slot::Wheel,      TEXT("Menu down"),   FKey(), false, EColumn::Wheel },
+			{ Actions::MenuLeft,     Slot::Wheel,      TEXT("Menu left"),   FKey(), false, EColumn::Wheel },
+			{ Actions::MenuRight,    Slot::Wheel,      TEXT("Menu right"),  FKey(), false, EColumn::Wheel },
+			{ Actions::MenuAccept,   Slot::Wheel,      TEXT("Menu OK"),     FKey(), false, EColumn::Wheel },
+			{ Actions::MenuBack,     Slot::Wheel,      TEXT("Menu back"),   FKey(), false, EColumn::Wheel },
 		};
 		return Table;
+	}
+
+	bool IsMenuAction(FName ActionId)
+	{
+		return ActionId == Actions::MenuUp || ActionId == Actions::MenuDown
+			|| ActionId == Actions::MenuLeft || ActionId == Actions::MenuRight
+			|| ActionId == Actions::MenuAccept || ActionId == Actions::MenuBack;
+	}
+
+	void ApplyMenuNavigation(
+		FNavigationConfig& Config, const TArray<FApexKeyBinding>& Bindings, TArray<FKey>& InOutAdded)
+	{
+		for (const FKey& Key : InOutAdded)
+		{
+			Config.KeyEventRules.Remove(Key);
+			Config.KeyActionRules.Remove(Key);
+		}
+		InOutAdded.Reset();
+
+		struct FRule
+		{
+			FName ActionId;
+			EUINavigation Direction;
+			EUINavigationAction Action;
+		};
+		static const FRule Rules[] = {
+			{ Actions::MenuUp,     EUINavigation::Up,      EUINavigationAction::Invalid },
+			{ Actions::MenuDown,   EUINavigation::Down,    EUINavigationAction::Invalid },
+			{ Actions::MenuLeft,   EUINavigation::Left,    EUINavigationAction::Invalid },
+			{ Actions::MenuRight,  EUINavigation::Right,   EUINavigationAction::Invalid },
+			{ Actions::MenuAccept, EUINavigation::Invalid, EUINavigationAction::Accept },
+			{ Actions::MenuBack,   EUINavigation::Invalid, EUINavigationAction::Back },
+		};
+
+		for (const FApexKeyBinding& Binding : Bindings)
+		{
+			if (!IsWheelSlot(Binding.Slot) || !Binding.Key.IsValid())
+			{
+				continue;
+			}
+			const FRule* Rule = Algo::FindBy(Rules, Binding.ActionId, &FRule::ActionId);
+			// Also skips a key bound to two menu slots: the first one wins.
+			if (!Rule || Config.KeyEventRules.Contains(Binding.Key) || Config.KeyActionRules.Contains(Binding.Key))
+			{
+				continue;
+			}
+			if (Rule->Direction != EUINavigation::Invalid)
+			{
+				Config.KeyEventRules.Add(Binding.Key, Rule->Direction);
+			}
+			else
+			{
+				Config.KeyActionRules.Add(Binding.Key, Rule->Action);
+			}
+			InOutAdded.Add(Binding.Key);
+		}
 	}
 
 	const FSlotDef* FindSlot(FName ActionId, int32 Slot)

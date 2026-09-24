@@ -34,6 +34,12 @@ pub struct CarConfig {
     /// whether their imported car matches.
     #[serde(default)]
     pub content_crc: u32,
+    /// Names of the car's extra liveries, the `[[livery]]` tables of its
+    /// `car.toml` in order. Livery 0 is the model as authored; 1..=len are
+    /// these. The server only relays which one a driver picked; the colours
+    /// and logos live on the client's catalog row.
+    #[serde(default)]
+    pub livery_names: Vec<String>,
 
     // Physical dimensions
     pub mass_kg: f32,
@@ -352,6 +358,7 @@ impl Default for CarConfig {
             model: "default.glb".to_string(),
             class: String::new(),
             content_crc: 0,
+            livery_names: Vec::new(),
 
             // Physical dimensions
             mass_kg: 1200.0,

@@ -1,5 +1,6 @@
 #include "UI/ApexMenuInputProcessor.h"
 
+#include "ApexDirectInputTypes.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "Audio/ApexUiAudioSubsystem.h"
@@ -14,6 +15,10 @@ namespace
 {
 	/** Stick deflection that counts as "the player is using the pad". */
 	constexpr float AnalogIntentThreshold = 0.5f;
+
+	/** A held wheel direction: XInput's own D-pad timings, so both feel alike. */
+	constexpr float RepeatInitialDelay = 0.2f;
+	constexpr float RepeatInterval = 0.1f;
 }
 
 FApexMenuInputProcessor::FApexMenuInputProcessor(UApexRootWidget* InOwner)
@@ -85,6 +90,19 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 	{
 		SetGamepadActive(*Root, true);
 	}
+	// Not a press that completes a rebind: the capture ends with this very
+	// event, and holding on would then walk focus off the chip just bound.
+	if (!InKeyEvent.IsRepeat())
+	{
+		if (Root->IsSettingsListening())
+		{
+			HeldDirection.Reset();
+		}
+		else
+		{
+			TrackHeldDirection(SlateApp, InKeyEvent);
+		}
+	}
 
 	// While settings is up every key may be a rebind in progress; nothing here
 	// is allowed to get in front of that.
@@ -125,6 +143,62 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 	}
 
 	return false;
+}
+
+bool FApexMenuInputProcessor::HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
+{
+	if (HeldDirection.IsSet() && HeldDirection->GetKey() == InKeyEvent.GetKey())
+	{
+		HeldDirection.Reset();
+	}
+	return false;
+}
+
+void FApexMenuInputProcessor::TrackHeldDirection(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
+{
+	// Only DirectInput keys: the pad and the keyboard repeat on their own.
+	if (ApexDirectInput::IsDirectInputKey(InKeyEvent.GetKey())
+		&& SlateApp.GetNavigationDirectionFromKey(InKeyEvent) != EUINavigation::Invalid)
+	{
+		HeldDirection = InKeyEvent;
+		RepeatCountdown = RepeatInitialDelay;
+	}
+	else
+	{
+		// Another press takes over, as a keyboard's repeat does.
+		HeldDirection.Reset();
+	}
+}
+
+void FApexMenuInputProcessor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
+{
+	if (!HeldDirection.IsSet())
+	{
+		return;
+	}
+
+	// Menus only, and never into a rebind: the capture takes the first press
+	// and the next event it sees must be the player's.
+	const UApexRootWidget* Root = Owner.Get();
+	if (!Root || IsDriving(*Root) || Root->IsSettingsListening())
+	{
+		HeldDirection.Reset();
+		return;
+	}
+
+	RepeatCountdown -= DeltaTime;
+	if (RepeatCountdown > 0.0f)
+	{
+		return;
+	}
+	RepeatCountdown += RepeatInterval;
+	// After a hitch, one step rather than a burst.
+	RepeatCountdown = FMath::Max(RepeatCountdown, 0.0f);
+
+	const FKeyEvent& Held = HeldDirection.GetValue();
+	const FKeyEvent Repeat(Held.GetKey(), SlateApp.GetModifierKeys(), Held.GetInputDeviceId(),
+		/*bIsRepeat*/ true, 0, 0, Held.GetUserIndex());
+	SlateApp.ProcessKeyDownEvent(Repeat);
 }
 
 bool FApexMenuInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent)

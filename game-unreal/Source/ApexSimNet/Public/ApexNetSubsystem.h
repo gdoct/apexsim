@@ -185,8 +185,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	bool RequestLobbyState();
 
+	/** Sends the car with the livery picked by `SetPendingLivery`. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void SelectCar(const FString& CarConfigId);
+
+	/**
+	 * The livery every later `SelectCar` carries: 0 the car as authored, 1..
+	 * its catalog row's `Liveries`. The garage sets it; the server clamps a
+	 * pick the car does not have back to 0.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void SetPendingLivery(int32 Livery) { PendingLivery = FMath::Clamp(Livery, 0, 255); }
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	int32 GetPendingLivery() const { return PendingLivery; }
 
 	/**
 	 * AllowedAssists: which driving aids the session lets its drivers use
@@ -407,6 +419,8 @@ public:
 	EApexGameMode GetGameMode() const { return CurrentGameMode; }
 
 private:
+	int32 PendingLivery = 0;
+
 	/** Server heartbeat timeout is 5000 ms; 2 s leaves generous margin. */
 	static constexpr float HeartbeatIntervalSeconds = 2.0f;
 	static constexpr float LobbyStateDebounceSeconds = 1.0f;

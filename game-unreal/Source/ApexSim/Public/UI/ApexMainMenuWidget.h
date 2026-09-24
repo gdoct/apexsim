@@ -39,7 +39,7 @@ public:
 
 	virtual void FocusDefault() override;
 	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
-	/** Bottom of the flow: Back does nothing here. Escape quits, see NativeOnKeyDown. */
+	/** Bottom of the flow: Back does nothing here. Escape quits and Start opens settings, see NativeOnKeyDown. */
 	virtual bool HandleBack() override { return true; }
 
 protected:
@@ -82,6 +82,9 @@ private:
 
 	/** Starts a session with the remembered setup, or sends the user to pick a track. */
 	void StartRememberedSession();
+
+	/** The settings overlay, over this screen, on the controls page. */
+	void OpenSettings();
 
 	// --- Widgets --------------------------------------------------------------
 
