@@ -298,8 +298,23 @@ void AApexPlayerController::TickWheelFeedback(const ApexFfb::FSignals& Signals, 
 	Tuning.RoadEffects = Values->WheelRoadEffects;
 	Tuning.Damping = Values->WheelDamping;
 	Tuning.bInvert = Values->bWheelInvertForce;
+	// A lock shorter than the base's rotation gets a stop at its ends; one as
+	// long has the base's own.
+	const float Scale = Settings->GetWheelSteeringScale();
+	const float Rotation = FMath::Clamp(Values->WheelRotationDeg, ApexInput::WheelRotationMinDeg, ApexInput::WheelRotationMaxDeg);
+	Tuning.SteeringLockDeg = Scale > 1.001f ? Rotation / Scale : 0.0f;
 
-	FApexWheelEffects Effects = ApexFfb::MixWheel(Signals, WheelState, DeltaSeconds, Tuning);
+	// Where the rim is, for centring it and for the stop: the device's own
+	// reading, which the server never sees.
+	ApexFfb::FSignals WheelSignals = Signals;
+	float Axis = 0.0f;
+	if (ApexInput::ReadWheelSteering(Values->Bindings, Axis))
+	{
+		WheelSignals.bHasRim = true;
+		WheelSignals.RimDegrees = Axis * 0.5f * Rotation;
+	}
+
+	FApexWheelEffects Effects = ApexFfb::MixWheel(WheelSignals, WheelState, DeltaSeconds, Tuning);
 
 	if (WheelTestSeconds > 0.0f)
 	{

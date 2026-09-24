@@ -1,0 +1,134 @@
+id = "b840e586-11e6-494b-8a0c-2bbac31c2239"
+name = "Panini Zomba HR"
+version = "1.0.0"
+model = "panini_zomba.glb"
+brand = "Panini"
+model_year = 2026
+class = "Hypercar"
+model_type = "Zomba HR"
+manufacturer_country = "Italy"
+
+[physics]
+mass_kg = 1035.0
+length_m = 5.0
+width_m = 2.0
+max_engine_force_n = 10000.0
+max_brake_force_n = 24000.0
+drag_coefficient = 0.55
+# LMH slicks, wider than an LMP2's; with the heavier car and the capped aero
+# the ideal Silverstone lap sits a couple of seconds under the LMP2s.
+grip_coefficient = 1.54
+max_steering_angle_rad = 0.40
+wheelbase_m = 3.1
+
+# Aerodynamics. LMH rules cap the aero efficiency (L/D about 4), so a
+# hypercar carries less downforce than an LMP2 on a bigger, heavier car and
+# makes it up with power: Cd*A ~1.05 m2, Cl*A ~5 m2, 41% on the nose.
+frontal_area_m2 = 1.9
+lift_coefficient_front = -1.08
+lift_coefficient_rear = -1.55
+
+# Naturally aspirated 6.0 L V12 from the old Zomba road cars, capped at
+# ~445 kW, plus a small front-mounted motor: the lightest-sounding car on the grid.
+
+[engine]
+max_power_w = 445000.0
+max_torque_nm = 560.0
+idle_rpm = 1400.0
+redline_rpm = 9000.0
+max_rpm = 9300.0
+rev_limiter_rpm = 9200.0
+
+inertia_kg_m2 = 0.17
+friction_torque_nm = 22.0
+engine_brake_torque_nm = 120.0
+idle_control_gain = 0.15
+
+[[engine.torque_curve]]
+rpm = 1400.0
+torque_nm = 330.0
+
+[[engine.torque_curve]]
+rpm = 3500.0
+torque_nm = 470.0
+
+[[engine.torque_curve]]
+rpm = 5500.0
+torque_nm = 540.0
+
+[[engine.torque_curve]]
+rpm = 7000.0
+torque_nm = 560.0
+
+[[engine.torque_curve]]
+rpm = 8200.0
+torque_nm = 545.0
+
+[[engine.torque_curve]]
+rpm = 9000.0
+torque_nm = 495.0
+
+# What the client's engine synthesiser is built from (docs/CAR_MODELS.md,
+# "Engine sound"): the server ignores this table.
+# 6.0 L 60-degree V12 through equal-length headers into the quad tail cluster.
+[sound]
+cylinders = 12
+crossplane = false
+turbo = false
+exhaust_length_m = 0.95
+muffling = 0.10
+pops = 0.55
+gear_whine = 0.40
+intake_roar = 0.80
+
+[transmission]
+transmission_type = "Sequential"
+final_drive_ratio = 3.40
+shift_time_s = 0.05
+efficiency = 0.95
+
+# 7 forward gears on the sim's 0.33 m rolling radius: ~120 km/h in
+# first at the redline, ~360 in top; the car drags itself to ~330-340.
+[transmission.ratio_curve]
+gears = 7
+first = 2.75
+top = 0.90
+shape = "progressive"
+
+[drivetrain]
+layout = "AWD"
+
+[differential]
+differential_type = "ClutchLSD"
+preload_nm = 90.0
+lock_power = 0.45
+lock_coast = 0.30
+
+[fuel]
+capacity_liters = 90.0
+idle_consumption_lps = 0.00006
+load_consumption_scale = 0.0034
+
+# The LMH energy recovery system: a front-axle motor, deployed on throttle
+# and recharged under braking. The sim adds its torque at the crank.
+[hybrid]
+enabled = true
+battery_capacity_kwh = 1.0
+battery_max_discharge_kw = 90.0
+battery_max_charge_kw = 200.0
+motor_max_torque_nm = 180.0
+motor_max_power_kw = 90.0
+regen_max_power_kw = 200.0
+
+# Where the client draws the wheels (content/cars/build_hypercar.py builds
+# the body to this stance): visual only, the physics reads its own figures.
+[wheels]
+model = "hypercar"
+front_axle_m = 1.550
+rear_axle_m = -1.550
+front_track_m = 1.620
+rear_track_m = 1.620
+front_radius_m = 0.360
+rear_radius_m = 0.360
+front_width_m = 0.320
+rear_width_m = 0.345

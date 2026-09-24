@@ -57,6 +57,14 @@ const MIN_BUILDING_AREA_M2: f32 = 250.0;
 /// box round an L-shaped or diagonal building can reach onto a road the
 /// building itself keeps clear of.
 const BUILDING_ROAD_CLEAR_M: f32 = 3.0;
+/// Probes per side of a building unit's footprint grid (9 x 9 points, about
+/// 5 m apart on the largest block: no road fits between them).
+const FOOTPRINT_PROBES: usize = 8;
+/// How far a building row is stepped back from its mapped spot looking
+/// for room for its whole footprint before it is left out.
+const BUILDING_MAX_PUSH_M: f32 = 25.0;
+/// Least room between the road edge and any part of a stand bay.
+const STAND_ROAD_CLEAR_M: f32 = 3.0;
 /// A building with a footprint at least this square and this many levels
 /// is a tower.
 const TOWER_LEVELS: u32 = 4;
@@ -348,6 +356,7 @@ fn lay_stand(
         return Vec::new();
     }
     let asset = stand_family(stand);
+    let bay_depth = props::resolve(PropKind::Grandstand, asset).map_or(10.0, |a| a.depth_m);
     let runs = (total / STAND_RUN_M).ceil().max(1.0);
     let run_len = total / runs;
     let mut out = Vec::new();
@@ -366,6 +375,14 @@ fn lay_stand(
             continue;
         }
         let yaw = (b.1 - a.1).atan2(b.0 - a.0);
+        // The front is the real one, but the kit bay is as deep as it is:
+        // a front traced a few metres off the asphalt put the back rows of
+        // a deep bay — or the front of one on the far side of a bend —
+        // over the road. Step the run back until the whole bay is clear.
+        let Some((x, y)) = clear_footprint(path, x, y, yaw, len, bay_depth, STAND_ROAD_CLEAR_M)
+        else {
+            continue;
+        };
         let (sample, lat) = nearest_cross_section(path, x, y);
         out.push(Prop {
             id: 0,
@@ -383,6 +400,72 @@ fn lay_stand(
     }
     let _ = walked;
     out
+}
+
+/// Smallest distance from the road edge — any section of the course —
+/// over a footprint whose front runs `length` along `yaw` through
+/// `(x, y)` and which reaches `depth` back, away from the road (the way
+/// the Unreal builder turns a face-road prop: away from the centerline
+/// point nearest its pivot). Negative is on the asphalt.
+fn footprint_road_gap(
+    path: &CenterlinePath,
+    x: f32,
+    y: f32,
+    yaw: f32,
+    length: f32,
+    depth: f32,
+) -> (f32, (f32, f32)) {
+    let (sin, cos) = yaw.sin_cos();
+    let (near, _) = nearest_cross_section(path, x, y);
+    let side = -sin * (near.pos.0 - x) + cos * (near.pos.1 - y);
+    let away = if side >= 0.0 {
+        (sin, -cos)
+    } else {
+        (-sin, cos)
+    };
+    let mut worst = f32::MAX;
+    for a in 0..=FOOTPRINT_PROBES {
+        let along = (a as f32 / FOOTPRINT_PROBES as f32 - 0.5) * length;
+        for b in 0..=FOOTPRINT_PROBES {
+            let back = b as f32 / FOOTPRINT_PROBES as f32 * depth;
+            let px = x + cos * along + away.0 * back;
+            let py = y + sin * along + away.1 * back;
+            let (sample, lat) = nearest_cross_section(path, px, py);
+            let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+            worst = worst.min(lat.abs() - side_half_width(&sample, side));
+        }
+    }
+    (worst, away)
+}
+
+/// Where a footprint can stand at least `clear` metres from every part of
+/// the road: its own spot when it already does, else stepped straight back
+/// from the road in 1 m steps, up to [`BUILDING_MAX_PUSH_M`]. `None` when
+/// there is no such spot (the far side of the step is road too).
+fn clear_footprint(
+    path: &CenterlinePath,
+    x: f32,
+    y: f32,
+    yaw: f32,
+    length: f32,
+    depth: f32,
+    clear: f32,
+) -> Option<(f32, f32)> {
+    let (mut x, mut y) = (x, y);
+    let (_, away) = footprint_road_gap(path, x, y, yaw, length, depth);
+    let mut pushed = 0.0f32;
+    loop {
+        let (gap, _) = footprint_road_gap(path, x, y, yaw, length, depth);
+        if gap >= clear - 0.05 {
+            return Some((x, y));
+        }
+        pushed += 1.0;
+        if pushed > BUILDING_MAX_PUSH_M {
+            return None;
+        }
+        x += away.0;
+        y += away.1;
+    }
 }
 
 /// The stand's road-facing outline: the dossier's `front` where it has
@@ -473,8 +556,21 @@ fn lay_structure(
     let (sin, cos) = structure.yaw_rad.sin_cos();
     // The pivot is the face toward the road: the kit's footprint runs from
     // the pivot away from it.
-    let (_, centre_lat) = nearest_cross_section(path, structure.centre[0], structure.centre[1]);
-    let toward_road = if centre_lat >= 0.0 { -1.0 } else { 1.0 };
+    let (centre_sample, centre_lat) =
+        nearest_cross_section(path, structure.centre[0], structure.centre[1]);
+    // Toward the road is whichever of the block's two sides faces the
+    // nearest centerline point. Deciding it from the road's left/right
+    // alone is only right while the block's yaw runs with the course; a
+    // block mapped with the opposite yaw came out facing away.
+    let to_road = (
+        centre_sample.pos.0 - structure.centre[0],
+        centre_sample.pos.1 - structure.centre[1],
+    );
+    let toward_road = if -sin * to_road.0 + cos * to_road.1 >= 0.0 {
+        1.0
+    } else {
+        -1.0
+    };
     let normal = (-sin * toward_road, cos * toward_road);
     let mut front_x = structure.centre[0] + normal.0 * structure.depth_m / 2.0;
     let mut front_y = structure.centre[1] + normal.1 * structure.depth_m / 2.0;
@@ -516,6 +612,49 @@ fn lay_structure(
     }
     if shortfall((front_x, front_y))? > 0.5 {
         return Err("cannot be laid clear of the road".to_string());
+    }
+    // The fronts are clear; now the whole of every unit. The kit block
+    // reaches `depth` back from its front and half its length either side,
+    // and behind it there may be another section of the course: a building
+    // in the infield of a hairpin, or one wedged between two legs that run
+    // side by side, had its front checked against the near road only and
+    // was laid with its back on the far one (Zandvoort's Hunserug).
+    let kit_depth = props::resolve(PropKind::Building, asset).map_or(unit_m * 0.6, |a| a.depth_m);
+    let away = (-normal.0, -normal.1);
+    let footprint_gap = |front: (f32, f32)| -> f32 {
+        let mut worst = f32::MAX;
+        for i in 0..units {
+            let (ux, uy) = unit_at(front, i);
+            for a in 0..=FOOTPRINT_PROBES {
+                let along = (a as f32 / FOOTPRINT_PROBES as f32 - 0.5) * unit_m;
+                for b in 0..=FOOTPRINT_PROBES {
+                    let back = b as f32 / FOOTPRINT_PROBES as f32 * kit_depth;
+                    let x = ux + cos * along + away.0 * back;
+                    let y = uy + sin * along + away.1 * back;
+                    let (sample, lat) = nearest_cross_section(path, x, y);
+                    let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+                    worst = worst.min(lat.abs() - side_half_width(&sample, side));
+                }
+            }
+        }
+        worst
+    };
+    let mut pushed = 0.0f32;
+    loop {
+        let gap = footprint_gap((front_x, front_y));
+        if gap >= BUILDING_ROAD_CLEAR_M - 0.05 {
+            break;
+        }
+        // Stepping back from the near road can only help when the far
+        // side has room; walk until it does, or give up.
+        pushed += 1.0;
+        if pushed > BUILDING_MAX_PUSH_M {
+            return Err(format!(
+                "no room for its footprint between the road sections ({gap:.1} m to the asphalt)"
+            ));
+        }
+        front_x += away.0;
+        front_y += away.1;
     }
 
     let mut out = Vec::new();
@@ -1424,6 +1563,92 @@ mod tests {
             assert!(
                 *lat <= -(6.0 + BUILDING_ROAD_CLEAR_M) + 0.1,
                 "a building front at lateral {lat} m: {lats:?}"
+            );
+        }
+    }
+
+    /// Two legs of the course 28 m apart (centre to centre), joined by
+    /// hairpins: 16 m of grass between the road edges.
+    fn hairpin_track() -> TrackFile {
+        const R: f32 = 14.0;
+        let mut nodes = Vec::new();
+        for i in 0..=40 {
+            nodes.push(node(i as f32 * 10.0, 0.0));
+        }
+        for deg in (-80..=80).step_by(10) {
+            let (sin, cos) = (deg as f32).to_radians().sin_cos();
+            nodes.push(node(400.0 + R * cos, R + R * sin));
+        }
+        for i in (0..=40).rev() {
+            nodes.push(node(i as f32 * 10.0, 2.0 * R));
+        }
+        for deg in (100..=260).step_by(10) {
+            let (sin, cos) = (deg as f32).to_radians().sin_cos();
+            nodes.push(node(R * cos, R + R * sin));
+        }
+        TrackFile {
+            name: "Hairpin".to_string(),
+            nodes,
+            ..track()
+        }
+    }
+
+    /// Zandvoort's Hunserug: a building between two legs of the course
+    /// had its front checked against the near road only, and the kit block
+    /// behind that front reached across the far one. A block with no room
+    /// for its whole footprint is left out rather than laid on the road.
+    #[test]
+    fn a_building_with_road_behind_it_is_not_laid_across_that_road() {
+        let track = hairpin_track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout
+            .structures
+            .push(structure([200.0, 14.0], 60.0, 10.0, 0.0));
+        let report = dress_scene(&track, &mut scene, &layout).unwrap();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        for p in scene.props.iter().filter(|p| p.kind == PropKind::Building) {
+            let kit = props::resolve(p.kind, &p.asset).unwrap();
+            let (gap, _) =
+                footprint_road_gap(&path, p.x, p.y, p.yaw_rad, kit.length_m, kit.depth_m);
+            assert!(gap > 0.0, "{} laid {gap:.1} m onto the road", p.asset);
+        }
+        assert!(
+            report.skipped.iter().any(|s| s.contains("no room")),
+            "{:?}",
+            report.skipped
+        );
+    }
+
+    /// A stand's bays are as deep as the kit makes them, whatever its
+    /// traced front: a front 2 m off the asphalt on the outside of the
+    /// straight is stepped back until no bay reaches the road.
+    #[test]
+    fn a_stand_traced_against_the_road_is_stepped_back_off_it() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout.stands.push(stand(
+            "Kerbside",
+            vec![[200.0, -8.0], [320.0, -8.0]],
+            20.0,
+            true,
+        ));
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let stands: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Grandstand)
+            .collect();
+        assert!(!stands.is_empty());
+        for p in stands {
+            let kit = props::resolve(p.kind, &p.asset).unwrap();
+            let (gap, _) =
+                footprint_road_gap(&path, p.x, p.y, p.yaw_rad, p.length_m.unwrap(), kit.depth_m);
+            assert!(
+                gap >= STAND_ROAD_CLEAR_M - 0.1,
+                "a bay {gap:.1} m from the road"
             );
         }
     }

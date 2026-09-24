@@ -11,7 +11,8 @@ namespace ApexEngineAudio
 	{
 		using namespace ApexEngineSynth;
 		const bool bFormula = CarClass.Equals(TEXT("F1"), ESearchCase::IgnoreCase);
-		const bool bPrototype = CarClass.StartsWith(TEXT("LMP"), ESearchCase::IgnoreCase);
+		const bool bPrototype = CarClass.StartsWith(TEXT("LMP"), ESearchCase::IgnoreCase)
+			|| CarClass.Equals(TEXT("Hypercar"), ESearchCase::IgnoreCase);
 
 		FEngineSpec Spec;
 		if (Row.Cylinders > 0)

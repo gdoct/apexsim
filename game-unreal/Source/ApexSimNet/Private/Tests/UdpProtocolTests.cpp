@@ -187,6 +187,19 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("ABS active"), Feedback.bAbsActive);
 			TestFalse(TEXT("TC idle"), Feedback.bTcActive);
 			TestEqual(TEXT("impact"), Feedback.ImpactMps, 4.5f);
+			TestEqual(TEXT("steering kick"), Feedback.SteerKick, -1.5f);
+		}
+
+		// A server from before the kick sends nine fields: still a message,
+		// with no kick in it.
+		TArray<uint8> NineFields(ApexUdpGolden::S_DriverFeedback, UE_ARRAY_COUNT(ApexUdpGolden::S_DriverFeedback) - 5);
+		NineFields[16] = 0x99;
+		FApexServerMessage Older;
+		if (TestTrue(FString::Printf(TEXT("nine-field DriverFeedback decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(NineFields, Older, Error)))
+		{
+			TestEqual(TEXT("older impact"), Older.DriverFeedback.ImpactMps, 4.5f);
+			TestEqual(TEXT("no kick from an older server"), Older.DriverFeedback.SteerKick, 0.0f);
 		}
 	}
 
@@ -210,6 +223,7 @@ bool FApexDriverFeedbackAbsorbTest::RunTest(const FString& Parameters)
 	First.Wheels[1].Surface = EApexContactSurface::Curb;
 	First.Wheels[2].SuspensionMps = -3.0f;
 	First.ImpactMps = 6.0f;
+	First.SteerKick = 0.4f;
 
 	FApexDriverFeedback Second;
 	Second.ServerTick = 104;
@@ -217,6 +231,7 @@ bool FApexDriverFeedbackAbsorbTest::RunTest(const FString& Parameters)
 	Second.Wheels[2].SuspensionMps = 1.0f;
 	Second.Wheels[0].SlipAngle = -1.5f;
 	Second.bAbsActive = true;
+	Second.SteerKick = -0.9f;
 
 	First.Absorb(Second);
 	TestEqual(TEXT("newest tick"), First.ServerTick, static_cast<int64>(104));
@@ -227,6 +242,7 @@ bool FApexDriverFeedbackAbsorbTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("later slide taken"), First.Wheels[0].SlipAngle, -1.5f);
 	TestTrue(TEXT("ABS from the second"), First.bAbsActive);
 	TestEqual(TEXT("impact kept"), First.ImpactMps, 6.0f);
+	TestEqual(TEXT("hardest kick kept, with its sign"), First.SteerKick, -0.9f);
 	return true;
 }
 

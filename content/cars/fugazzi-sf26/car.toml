@@ -1,0 +1,133 @@
+id = "41222d7b-5216-4011-ac68-4bc75ad26b35"
+name = "Fugazzi SF-26"
+version = "1.0.0"
+model = "fugazzi_sf26.glb"
+brand = "Fugazzi"
+model_year = 2026
+class = "F1"
+model_type = "SF-26"
+manufacturer_country = "Italy"
+
+[physics]
+mass_kg = 780.0
+length_m = 5.6
+width_m = 1.9
+max_engine_force_n = 24000.0
+max_brake_force_n = 21000.0
+drag_coefficient = 0.66
+grip_coefficient = 1.80
+max_steering_angle_rad = 0.34
+wheelbase_m = 3.4
+
+# Aerodynamics, 2026 rules: smaller and lighter than the ground-effect cars
+# of 2022-25 with less downforce and less drag - Cd*A ~1.45 m2, Cl*A ~4.3 m2,
+# 42% on the nose. Built by content/cars/build_f1.py.
+frontal_area_m2 = 2.2
+lift_coefficient_front = -0.81
+lift_coefficient_rear = -1.13
+
+# The Scuderia's 2026 car: the stiffest rear end in the pit lane and
+# the V6 with the most top end.
+
+# 2026 power unit: the 1.6 L V6 down to ~400 kW, the electric half up to
+# 300 kW from a small store, so a lap is energy-managed: the battery is empty
+# after ~13 s of full deployment and refills under braking.
+[engine]
+max_power_w = 400000.0
+max_torque_nm = 352.0
+idle_rpm = 4500.0
+redline_rpm = 15000.0
+max_rpm = 15500.0
+rev_limiter_rpm = 15200.0
+
+inertia_kg_m2 = 0.10
+friction_torque_nm = 28.0
+engine_brake_torque_nm = 110.0
+idle_control_gain = 0.10
+
+[[engine.torque_curve]]
+rpm = 5000.0
+torque_nm = 250.0
+
+[[engine.torque_curve]]
+rpm = 8000.0
+torque_nm = 320.0
+
+[[engine.torque_curve]]
+rpm = 10500.0
+torque_nm = 352.0
+
+[[engine.torque_curve]]
+rpm = 12000.0
+torque_nm = 332.0
+
+[[engine.torque_curve]]
+rpm = 13500.0
+torque_nm = 292.0
+
+[[engine.torque_curve]]
+rpm = 15000.0
+torque_nm = 246.0
+
+# What the client's engine synthesiser is built from (docs/CAR_MODELS.md,
+# "Engine sound"): the server ignores this table.
+# 1.6 L turbo V6 to 15,000 through one short, open tailpipe.
+[sound]
+cylinders = 6
+crossplane = false
+turbo = true
+exhaust_length_m = 0.55
+muffling = 0.05
+pops = 0.2
+gear_whine = 0.4
+intake_roar = 0.45
+
+[transmission]
+transmission_type = "Sequential"
+final_drive_ratio = 3.15
+shift_time_s = 0.04
+efficiency = 0.96
+
+# 8 forward gears on the sim's 0.33 m rolling radius: 120 km/h in first and
+# ~345 in eighth at 15,000; the car drags itself to ~330 with the battery full.
+[transmission.ratio_curve]
+gears = 8
+first = 4.94
+top = 1.72
+shape = "progressive"
+
+[drivetrain]
+layout = "RWD"
+
+[differential]
+differential_type = "ClutchLSD"
+preload_nm = 40.0
+lock_power = 0.25
+lock_coast = 0.15
+
+[fuel]
+capacity_liters = 100.0
+idle_consumption_lps = 0.00008
+load_consumption_scale = 0.0035
+
+[hybrid]
+enabled = true
+battery_capacity_kwh = 1.1
+battery_max_discharge_kw = 300.0
+battery_max_charge_kw = 250.0
+motor_max_torque_nm = 300.0
+motor_max_power_kw = 300.0
+regen_max_power_kw = 250.0
+
+# Where the client draws the wheels (build_f1.py builds the car to this
+# stance): visual only, the physics reads its own figures above.
+[wheels]
+model = "f1"
+front_axle_m = 1.650
+rear_axle_m = -1.750
+front_track_m = 1.580
+rear_track_m = 1.520
+front_radius_m = 0.360
+rear_radius_m = 0.360
+front_width_m = 0.305
+rear_width_m = 0.375

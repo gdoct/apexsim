@@ -79,6 +79,22 @@ namespace ApexFfb
 
 		/** Closing speed of a contact with another car since the last message, m/s; 0 on frames without one. */
 		float ImpactMps = 0.0f;
+
+		/**
+		 * The jolt a hit put through the steering column since the last
+		 * message, in SteerTorque's units and SCREEN sign; 0 on frames without
+		 * one. A wheel plays it as a decaying push on top of the torque.
+		 */
+		float SteerKick = 0.0f;
+
+		/**
+		 * Where the wheel's rim is, degrees from centre in SCREEN sign
+		 * (positive right); only meaningful with bHasRim, which is false when
+		 * the car is not steered by a wheel. Filled by the caller, not by
+		 * MakeSignals: it is the device's reading, not the server's.
+		 */
+		bool bHasRim = false;
+		float RimDegrees = 0.0f;
 	};
 
 	/**
@@ -133,6 +149,13 @@ namespace ApexFfb
 		float Damping = 0.25f;
 		/** The base turns the other way to what DirectInput's sign says. */
 		bool bInvert = false;
+
+		/**
+		 * Degrees of rim, lock to lock, for the car's full steering lock; past
+		 * half of it either way the rim meets a soft stop. 0 when the steering
+		 * lock is the base's whole rotation, whose own end stops do the job.
+		 */
+		float SteeringLockDeg = 0.0f;
 	};
 
 	/** The smoothed torque and the decaying hits, carried from frame to frame. */
@@ -152,6 +175,9 @@ namespace ApexFfb
 		float Impact = 0.0f;
 		float ShiftKick = 0.0f;
 
+		/** Decaying signed push from a hit, in torque units, added to the torque. */
+		float SteerKick = 0.0f;
+
 		/** Off-track roughness, resampled at a fixed rate like the pad's. */
 		float NoiseClock = 0.0f;
 		float NoiseLevel = 0.0f;
@@ -159,7 +185,33 @@ namespace ApexFfb
 
 		/** INDEX_NONE until a car has been seen. */
 		int32 LastGear = INDEX_NONE;
+
+		/** The rim's speed, degrees per second (smoothed), from its last reading. */
+		float RimRate = 0.0f;
+		float LastRim = 0.0f;
+		bool bHaveRim = false;
+
+		/**
+		 * Re-centring: seconds of it left (0 when not), how much of it is being
+		 * played (eased in and out, so it never snaps on or off) and how long
+		 * the rim has sat at the centre.
+		 */
+		float CentreSeconds = 0.0f;
+		float CentreGain = 0.0f;
+		float CentredFor = 0.0f;
+
+		/** A car was being driven last frame: one arriving is what starts the centring. */
+		bool bWasActive = false;
 	};
+
+	/**
+	 * Brings the rim back to the middle before the car moves: pushed toward
+	 * the centre and damped by its own speed, then let go once it has settled
+	 * there, the car is rolling or three seconds have passed. MixWheel starts
+	 * it by itself whenever a car arrives standing still (a session starting,
+	 * leaving the hotlap garage); this is for anything else that wants it.
+	 */
+	APEXSIM_API void RequestCentre(FWheelState& State);
 
 	/**
 	 * One frame of forces for a wheelbase.

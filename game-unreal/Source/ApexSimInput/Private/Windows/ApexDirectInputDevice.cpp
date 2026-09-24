@@ -33,8 +33,36 @@ namespace
 	/** A game that has not updated forces for this long is hitching or gone: let the wheel go. */
 	constexpr double EffectsWatchdogSeconds = 0.3;
 
-	/** Frames of failed reads and reacquires before a device is taken for unplugged. */
-	constexpr int32 LostPollLimit = 30;
+	/**
+	 * How long a device may fail every read before it is taken for unplugged
+	 * and reopened. In seconds, not frames: at a few hundred frames a second a
+	 * frame count tore a wheel down and rebuilt it over a hiccup of a tenth of
+	 * a second, and rebuilding is the heaviest thing asked of a driver.
+	 */
+	constexpr double LostPollSeconds = 2.0;
+
+	/** A device that stopped answering is asked to take us back at most this often. */
+	constexpr double ReacquireIntervalSeconds = 0.5;
+
+	/**
+	 * Fastest the constant force is sent. The torque arrives from the server at
+	 * 60 Hz and is smoothed here, so this loses nothing; what it prevents is one
+	 * USB report per rendered frame, which at an uncapped frame rate is several
+	 * hundred a second on top of everything else the driver is doing.
+	 */
+	constexpr double ConstantMinIntervalSeconds = 1.0 / 250.0;
+
+	/** The vibration, damper and spring are textures and settings: 30 updates a second is plenty. */
+	constexpr double SlowEffectMinIntervalSeconds = 1.0 / 30.0;
+
+	/** Constant-force steps smaller than this (of 10000) wait for the slow rate. */
+	constexpr LONG ConstantDeadband = 8;
+
+	/** After a failed or lost effect update, wait this long before sending again. */
+	constexpr double EffectBackoffSeconds = 0.5;
+
+	/** Failed update rounds in a row after which forces are given up and the wheel handed back. */
+	constexpr int32 MaxEffectFailures = 20;
 
 	/** How often to try for exclusive access again while another program holds the wheel. */
 	constexpr double ForceRetrySeconds = 3.0;
@@ -144,12 +172,24 @@ struct FApexDirectInputDevice::FJoystick
 	IDirectInputDevice8W* Device = nullptr;
 	FDeviceInfo Info;
 	FGuid Instance;
+	/**
+	 * The device's HID path, for the log. One base can be two DirectInput
+	 * devices (Fanatec's driver shows a ClubSport V2.5 as two game controller
+	 * collections, COL01 and COL02, both able to play forces), and the path is
+	 * what tells them apart.
+	 */
+	FString Path;
 
 	/** Held exclusively, which force feedback needs. Taken only once forces are asked for. */
 	bool bExclusive = false;
 	/** When that was last tried, so a wheel another program holds is not hammered. */
 	double LastForceAttempt = 0.0;
-	int32 FailedPolls = 0;
+	/** When the current run of failed reads began; 0 while reads succeed. */
+	double FailingSince = 0.0;
+	/** Set once a failing device has been reported and its controls released. */
+	bool bReportedLost = false;
+	/** No reacquire before this, so a device that has gone away is not asked every frame. */
+	double NextReacquireAt = 0.0;
 	/** A reading has arrived since the device was opened; the first one is its rest position. */
 	bool bHaveReading = false;
 
@@ -175,8 +215,20 @@ struct FApexDirectInputDevice::FJoystick
 	DWORD PlayingVibrationPeriod = 0;
 	LONG PlayingDamper = 0;
 	LONG PlayingSpring = 0;
+	/** When each was last sent, for the rate limits above. */
+	double ConstantSentAt = 0.0;
+	double VibrationSentAt = 0.0;
+	double DamperSentAt = 0.0;
+	double SpringSentAt = 0.0;
 	/** False after an acquire was lost: the device dropped its effects, so everything is sent again. */
 	bool bEffectsKnown = false;
+	/** No effect updates before this: set after a failure, so a device in trouble is not hammered. */
+	double EffectsHoldUntil = 0.0;
+	/** Failed update rounds in a row, and whether the first of a run has been logged. */
+	int32 EffectFailures = 0;
+	bool bLoggedEffectFailure = false;
+	/** The driver cannot change a playing effect in place; updates restart it instead. Logged once. */
+	bool bLoggedRestartUpdates = false;
 };
 
 FApexDirectInputDevice::FApexDirectInputDevice(
@@ -316,7 +368,7 @@ void FApexDirectInputDevice::Rescan()
 		{
 			return ToGuid(Instance.guidInstance) == Joystick.Instance;
 		});
-		if (!bAttached || Joystick.FailedPolls >= LostPollLimit)
+		if (!bAttached || Joystick.bReportedLost)
 		{
 			UE_LOG(LogApexInput, Log, TEXT("DirectInput: device %d \"%s\" %s"),
 				Joystick.Info.Slot + 1, *Joystick.Info.Name, bAttached ? TEXT("stopped answering; reopening") : TEXT("removed"));
@@ -371,10 +423,10 @@ void FApexDirectInputDevice::Rescan()
 
 		const FDeviceInfo& Info = Joystick->Info;
 		UE_LOG(LogApexInput, Log,
-			TEXT("DirectInput: device %d \"%s\" (%s, %04x:%04x): %d axes, %d buttons, %d hats, %s"),
+			TEXT("DirectInput: device %d \"%s\" (%s, %04x:%04x): %d axes, %d buttons, %d hats, %s; %s"),
 			Slot + 1, *Info.Name, KindName(Info.Kind), Info.VendorId, Info.ProductId,
 			FMath::CountBits(Info.AxisMask), Info.NumButtons, Info.NumHats,
-			Info.bCanPlayForces ? TEXT("can play forces") : TEXT("input only"));
+			Info.bCanPlayForces ? TEXT("can play forces") : TEXT("input only"), *Joystick->Path);
 
 		Joysticks.Add(MoveTemp(Joystick));
 		bChanged = true;
@@ -407,6 +459,17 @@ TUniquePtr<FApexDirectInputDevice::FJoystick> FApexDirectInputDevice::Open(const
 	Joystick->Device = Device;
 	Joystick->Instance = ToGuid(Instance.guidInstance);
 	Joystick->Info.Name = Name;
+
+	{
+		DIPROPGUIDANDPATH GuidAndPath = {};
+		GuidAndPath.diph.dwSize = sizeof(DIPROPGUIDANDPATH);
+		GuidAndPath.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+		GuidAndPath.diph.dwHow = DIPH_DEVICE;
+		if (SUCCEEDED(Device->GetProperty(DIPROP_GUIDANDPATH, &GuidAndPath.diph)))
+		{
+			Joystick->Path = GuidAndPath.wszPath;
+		}
+	}
 
 	if (IsXInputDevice(Device))
 	{
@@ -545,8 +608,16 @@ bool FApexDirectInputDevice::AcquireForForces(FJoystick& Joystick)
 	HRESULT Result = Joystick.Device->SetCooperativeLevel(Window, DISCL_EXCLUSIVE | DISCL_BACKGROUND);
 	if (SUCCEEDED(Result))
 	{
+		// Find out whether the wheel is ours before touching anything on it:
+		// the centring and gain are the device's, and setting them while
+		// another program is playing forces changes its wheel under it.
+		Result = Joystick.Device->Acquire();
+	}
+	if (SUCCEEDED(Result))
+	{
 		// Both properties can only be set while the device is not acquired. The
 		// driver's own centring spring would fight the car's torque.
+		Joystick.Device->Unacquire();
 		DIPROPDWORD AutoCenter = MakeDwordProperty(DIPROPAUTOCENTER_OFF);
 		Joystick.Device->SetProperty(DIPROP_AUTOCENTER, &AutoCenter.diph);
 		DIPROPDWORD Gain = MakeDwordProperty(DI_FFNOMINALMAX);
@@ -587,6 +658,7 @@ void FApexDirectInputDevice::ReleaseForces(FJoystick& Joystick)
 			SafeRelease(*Effect);
 		}
 	}
+	const bool bWasExclusive = Joystick.bExclusive;
 	Joystick.bEffectsKnown = false;
 	Joystick.bExclusive = false;
 	Joystick.Info.bForcesReady = false;
@@ -594,11 +666,15 @@ void FApexDirectInputDevice::ReleaseForces(FJoystick& Joystick)
 	if (Joystick.Device)
 	{
 		// Back to shared, with the wheel's own centring handed back, so
-		// whatever wants it next can have it.
+		// whatever wants it next can have it. Only if it was ours: after a
+		// refused acquire the wheel belongs to whoever refused us.
 		const HWND Window = static_cast<HWND>(HelperWindow);
 		Joystick.Device->Unacquire();
-		DIPROPDWORD AutoCenter = MakeDwordProperty(DIPROPAUTOCENTER_ON);
-		Joystick.Device->SetProperty(DIPROP_AUTOCENTER, &AutoCenter.diph);
+		if (bWasExclusive)
+		{
+			DIPROPDWORD AutoCenter = MakeDwordProperty(DIPROPAUTOCENTER_ON);
+			Joystick.Device->SetProperty(DIPROP_AUTOCENTER, &AutoCenter.diph);
+		}
 		Joystick.Device->SetCooperativeLevel(Window, DISCL_NONEXCLUSIVE | DISCL_BACKGROUND);
 		Joystick.Device->Acquire();
 	}
@@ -663,10 +739,17 @@ void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelE
 		return;
 	}
 
+	const double Now = FPlatformTime::Seconds();
+	if (Now < Joystick.EffectsHoldUntil)
+	{
+		return;
+	}
+
 	const bool bResendAll = !Joystick.bEffectsKnown;
 	bool bLost = false;
+	bool bFailed = false;
 
-	auto Send = [&bLost, bResendAll](IDirectInputEffect* Effect, void* Parameters, DWORD Size)
+	auto Send = [&Joystick, &bLost, &bFailed, bResendAll](IDirectInputEffect* Effect, void* Parameters, DWORD Size, const TCHAR* What)
 	{
 		DIEFFECT Change = {};
 		Change.dwSize = sizeof(DIEFFECT);
@@ -680,29 +763,60 @@ void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelE
 		HRESULT Result = Effect->SetParameters(&Change, Flags);
 		if (Result == DIERR_EFFECTPLAYING)
 		{
+			if (!Joystick.bLoggedRestartUpdates)
+			{
+				UE_LOG(LogApexInput, Log, TEXT("DirectInput: \"%s\" cannot update a playing %s; restarting it instead"),
+					*Joystick.Info.Name, What);
+				Joystick.bLoggedRestartUpdates = true;
+			}
 			Result = Effect->SetParameters(&Change, DIEP_TYPESPECIFICPARAMS);
 		}
+		if (SUCCEEDED(Result))
+		{
+			return true;
+		}
+
 		if (Result == DIERR_NOTEXCLUSIVEACQUIRED || Result == DIERR_NOTACQUIRED || Result == DIERR_INPUTLOST)
 		{
 			bLost = true;
 		}
-		return SUCCEEDED(Result);
+		else
+		{
+			bFailed = true;
+		}
+		if (!Joystick.bLoggedEffectFailure)
+		{
+			UE_LOG(LogApexInput, Warning, TEXT("DirectInput: \"%s\" refused a %s update: %s (0x%08x)"),
+				*Joystick.Info.Name, What, DescribeResult(Result), static_cast<uint32>(Result));
+			Joystick.bLoggedEffectFailure = true;
+		}
+		return false;
 	};
 
 	if (IDirectInputEffect* Effect = Joystick.ConstantEffect)
 	{
 		const LONG Magnitude = ToMagnitude(Effects.Constant);
-		if (bResendAll || Magnitude != Joystick.PlayingConstant)
+		const double SinceSent = Now - Joystick.ConstantSentAt;
+		// Letting go is never held back. A real change goes at the constant
+		// force's own rate, a step inside the deadband at the slow one, so the
+		// rim still settles on the exact value.
+		const bool bLettingGo = Magnitude == 0 && Joystick.PlayingConstant != 0;
+		const LONG Step = FMath::Abs(Magnitude - Joystick.PlayingConstant);
+		const bool bDue = (Step > ConstantDeadband && SinceSent >= ConstantMinIntervalSeconds)
+			|| (Step > 0 && SinceSent >= SlowEffectMinIntervalSeconds);
+		if (bResendAll || bLettingGo || bDue)
 		{
 			DICONSTANTFORCE Parameters = { Magnitude };
-			if (Send(Effect, &Parameters, sizeof(Parameters)))
+			if (Send(Effect, &Parameters, sizeof(Parameters), TEXT("constant force")))
 			{
 				Joystick.PlayingConstant = Magnitude;
+				Joystick.ConstantSentAt = Now;
 			}
 		}
 	}
 
-	if (IDirectInputEffect* Effect = Joystick.VibrationEffect)
+	IDirectInputEffect* Vibration = Joystick.VibrationEffect;
+	if (Vibration && !bLost)
 	{
 		const DWORD Magnitude = ToUnsignedMagnitude(Effects.VibrationAmplitude);
 		// A silent vibration keeps its old period: changing it would cost a
@@ -711,40 +825,70 @@ void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelE
 			? static_cast<DWORD>(1.0e6f / FMath::Clamp(Effects.VibrationHz, 1.0f, 500.0f))
 			: Joystick.PlayingVibrationPeriod;
 		// Small steps are not worth a USB report; the period only matters
-		// once it has moved by a few percent.
-		const bool bMagnitudeMoved = FMath::Abs(static_cast<int32>(Magnitude) - static_cast<int32>(Joystick.PlayingVibrationMagnitude)) > 100
-			|| (Magnitude == 0) != (Joystick.PlayingVibrationMagnitude == 0);
+		// once it has moved by a few percent. Starting and stopping are never
+		// held back, so a kerb strike is not late.
+		const bool bEdge = (Magnitude == 0) != (Joystick.PlayingVibrationMagnitude == 0);
+		const bool bMagnitudeMoved = FMath::Abs(static_cast<int32>(Magnitude) - static_cast<int32>(Joystick.PlayingVibrationMagnitude)) > 100;
 		const bool bPeriodMoved = FMath::Abs(static_cast<int32>(Period) - static_cast<int32>(Joystick.PlayingVibrationPeriod))
 			> static_cast<int32>(Joystick.PlayingVibrationPeriod / 32);
-		if (bResendAll || bMagnitudeMoved || bPeriodMoved)
+		const bool bDue = Now - Joystick.VibrationSentAt >= SlowEffectMinIntervalSeconds;
+		if (bResendAll || bEdge || (bDue && (bMagnitudeMoved || bPeriodMoved)))
 		{
 			DIPERIODIC Parameters = { Magnitude, 0, 0, Period };
-			if (Send(Effect, &Parameters, sizeof(Parameters)))
+			if (Send(Vibration, &Parameters, sizeof(Parameters), TEXT("sine")))
 			{
 				Joystick.PlayingVibrationMagnitude = Magnitude;
 				Joystick.PlayingVibrationPeriod = Period;
+				Joystick.VibrationSentAt = Now;
 			}
 		}
 	}
 
-	auto SendCondition = [&Send, bResendAll](IDirectInputEffect* Effect, float Coefficient01, LONG& Playing)
+	auto SendCondition = [&Send, &bLost, bResendAll, Now](
+		IDirectInputEffect* Effect, float Coefficient01, LONG& Playing, double& SentAt, const TCHAR* What)
 	{
 		const LONG Coefficient = ToMagnitude(FMath::Clamp(Coefficient01, 0.0f, 1.0f));
-		if (Effect && (bResendAll || FMath::Abs(Coefficient - Playing) > 100))
+		const bool bDue = Now - SentAt >= SlowEffectMinIntervalSeconds;
+		const bool bEdge = (Coefficient == 0) != (Playing == 0);
+		if (Effect && !bLost && (bResendAll || bEdge || (bDue && FMath::Abs(Coefficient - Playing) > 100)))
 		{
 			DICONDITION Parameters = { 0, Coefficient, Coefficient, DI_FFNOMINALMAX, DI_FFNOMINALMAX, 0 };
-			if (Send(Effect, &Parameters, sizeof(Parameters)))
+			if (Send(Effect, &Parameters, sizeof(Parameters), What))
 			{
 				Playing = Coefficient;
+				SentAt = Now;
 			}
 		}
 	};
-	SendCondition(Joystick.DamperEffect, Effects.Damper, Joystick.PlayingDamper);
-	SendCondition(Joystick.SpringEffect, Effects.Spring, Joystick.PlayingSpring);
+	SendCondition(Joystick.DamperEffect, Effects.Damper, Joystick.PlayingDamper, Joystick.DamperSentAt, TEXT("damper"));
+	SendCondition(Joystick.SpringEffect, Effects.Spring, Joystick.PlayingSpring, Joystick.SpringSentAt, TEXT("spring"));
 
-	// Lost mid-way: the next successful poll reacquires, and everything is
-	// sent again from scratch.
-	Joystick.bEffectsKnown = !bLost;
+	if (!bLost && !bFailed)
+	{
+		Joystick.bEffectsKnown = true;
+		Joystick.EffectFailures = 0;
+		Joystick.bLoggedEffectFailure = false;
+		return;
+	}
+
+	// Something refused. Back off rather than repeat it next frame: a driver
+	// in trouble is made worse by being asked the same thing a few hundred
+	// times a second. Lost means the device dropped its effects, so the next
+	// attempt sends everything again.
+	Joystick.EffectsHoldUntil = Now + EffectBackoffSeconds;
+	if (bLost)
+	{
+		Joystick.bEffectsKnown = false;
+	}
+	if (++Joystick.EffectFailures >= MaxEffectFailures)
+	{
+		UE_LOG(LogApexInput, Warning, TEXT("DirectInput: \"%s\" keeps refusing forces; handing it back and trying again later"),
+			*Joystick.Info.Name);
+		ReleaseForces(Joystick);
+		Joystick.LastForceAttempt = Now;
+		Joystick.EffectFailures = 0;
+		PublishDevices();
+	}
 }
 
 void FApexDirectInputDevice::SetWheelEffects(int32 Slot, const FApexWheelEffects& Effects)
@@ -794,6 +938,7 @@ void FApexDirectInputDevice::SendControllerEvents()
 	const FInputDeviceId InputDevice = Mapper.GetDefaultInputDevice();
 
 	bool bLostOne = false;
+	const double Now = FPlatformTime::Seconds();
 
 	for (TUniquePtr<FJoystick>& JoystickPtr : Joysticks)
 	{
@@ -803,10 +948,11 @@ void FApexDirectInputDevice::SendControllerEvents()
 
 		DIJOYSTATE2 State;
 		HRESULT Result = Device->Poll();
-		if (FAILED(Result))
+		if (FAILED(Result) && Now >= Joystick.NextReacquireAt)
 		{
-			// Lost or never acquired: try again, and a device coming back has
-			// forgotten its effects.
+			// Lost or never acquired: try again, now and then rather than every
+			// frame, and a device coming back has forgotten its effects.
+			Joystick.NextReacquireAt = Now + ReacquireIntervalSeconds;
 			Result = Device->Acquire();
 			if (SUCCEEDED(Result))
 			{
@@ -820,16 +966,27 @@ void FApexDirectInputDevice::SendControllerEvents()
 		}
 		if (FAILED(Result))
 		{
-			if (++Joystick.FailedPolls == LostPollLimit)
+			if (Joystick.FailingSince == 0.0)
+			{
+				Joystick.FailingSince = Now;
+			}
+			else if (!Joystick.bReportedLost && Now - Joystick.FailingSince >= LostPollSeconds)
 			{
 				UE_LOG(LogApexInput, Log, TEXT("DirectInput: device %d \"%s\" is not answering (%s)"),
 					Slot + 1, *Joystick.Info.Name, DescribeResult(Result));
 				ReleaseControls(Joystick);
+				Joystick.bReportedLost = true;
 				bLostOne = true;
 			}
 			continue;
 		}
-		Joystick.FailedPolls = 0;
+		if (Joystick.FailingSince != 0.0)
+		{
+			UE_LOG(LogApexInput, Log, TEXT("DirectInput: device %d \"%s\" answering again after %.2f s"),
+				Slot + 1, *Joystick.Info.Name, Now - Joystick.FailingSince);
+		}
+		Joystick.FailingSince = 0.0;
+		Joystick.bReportedLost = false;
 
 		for (int32 Axis = 0; Axis < MaxAxes; ++Axis)
 		{
@@ -1040,6 +1197,7 @@ void FApexDirectInputDevice::DumpToLog() const
 		UE_LOG(LogApexInput, Display, TEXT("  %d \"%s\" %s %04x:%04x instance %s"),
 			Info.Slot + 1, *Info.Name, KindName(Info.Kind), Info.VendorId, Info.ProductId,
 			*Joystick->Instance.ToString(EGuidFormats::DigitsWithHyphensInBraces));
+		UE_LOG(LogApexInput, Display, TEXT("     path %s"), *Joystick->Path);
 		UE_LOG(LogApexInput, Display, TEXT("     axes:%s  buttons %d%s  hats %d  %s%s"),
 			*Axes, Info.NumButtons, *Pressed, Info.NumHats,
 			Joystick->bExclusive ? TEXT("exclusive") : TEXT("shared"),

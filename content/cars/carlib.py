@@ -70,29 +70,43 @@ class Mats(dict):
             raise AttributeError(k)
 
 
-def car_materials(paint_rgb, accent_rgb, caliper_rgb, logo_path=None, seat_rgb=(0.10, 0.10, 0.12)):
+def car_materials(paint_rgb, accent_rgb, caliper_rgb, logo_path=None, seat_rgb=(0.10, 0.10, 0.12),
+                  paint_metallic=0.80, paint_rough=0.22, accent_metallic=0.55, accent_rough=0.28):
     """The slot set every car GLB carries; names are what the client drives
-    (docs/CAR_MODELS.md - do not rename)."""
+    (docs/CAR_MODELS.md - do not rename).
+
+    Paint is a metallic base under a clearcoat (glTF KHR_materials_clearcoat):
+    `paint_metallic` ~0.8 and a roughness ~0.2 is what makes the flank pick
+    up the sky and the trackside lights instead of reading as flat plastic.
+    The first generation used metallic 0.2 / roughness 0.035, which is a
+    glossy plastic, not a metallic paint."""
     m = Mats(
-        paint=mat("car_paint", paint_rgb, 0.20, 0.035, coat=1.0, coat_roughness=0.01),
-        accent=mat("car_accent", accent_rgb, 0.15, 0.045, coat=1.0, coat_roughness=0.01),
-        carbon=mat("car_carbon", (0.045, 0.045, 0.055), 0.30, 0.32, coat=0.6),
+        paint=mat("car_paint", paint_rgb, paint_metallic, paint_rough, coat=1.0, coat_roughness=0.03),
+        accent=mat("car_accent", accent_rgb, accent_metallic, accent_rough, coat=1.0, coat_roughness=0.03),
+        carbon=mat("car_carbon", (0.030, 0.030, 0.036), 0.35, 0.30, coat=0.8, coat_roughness=0.05),
         glass=mat("car_glass", (0.02, 0.03, 0.04), 0.0, 0.05, alpha=0.5),
         liner=mat("car_liner", (0.028, 0.028, 0.030), 0.0, 0.92),
-        interior=mat("car_interior", (0.11, 0.11, 0.12), 0.10, 0.80),
+        interior=mat("car_interior", (0.075, 0.075, 0.080), 0.10, 0.85),
+        alcantara=mat("car_alcantara", (0.045, 0.045, 0.050), 0.0, 0.97),
+        trim=mat("car_trim", (0.016, 0.016, 0.018), 0.15, 0.50),
         seat=mat("car_seat", seat_rgb, 0.0, 0.85),
+        harness=mat("car_harness", (0.70, 0.05, 0.05), 0.0, 0.92),
         alc=mat("car_wheel_rim", (0.055, 0.055, 0.058), 0.0, 0.70),
         metal=mat("car_metal", (0.58, 0.58, 0.60), 1.0, 0.35),
-        cage=mat("car_cage", (0.74, 0.74, 0.77), 0.90, 0.40),
+        cage=mat("car_cage", (0.60, 0.60, 0.63), 0.85, 0.42),
         rim=mat("car_rim", (0.12, 0.12, 0.13), 1.0, 0.35),
         brake_disc=mat("car_brake", (0.34, 0.32, 0.30), 1.0, 0.60),
         caliper=mat("car_caliper", caliper_rgb, 0.20, 0.40),
         lamp=mat("car_headlight", (0.95, 0.95, 0.90), 0.0, 0.08, emission=(1.0, 0.98, 0.90)),
         lamp_h=mat("car_lamp_housing", (0.018, 0.018, 0.020), 0.60, 0.30),
+        chrome=mat("car_chrome", (0.90, 0.90, 0.92), 1.0, 0.12),
+        lens_tint=mat("car_lens_tint", (0.05, 0.05, 0.06), 0.0, 0.04, alpha=0.22),
         tail=mat("car_taillight", (0.50, 0.03, 0.02), 0.0, 0.15, emission=(1.0, 0.08, 0.04)),
         brake=mat("car_brakelight", (0.60, 0.02, 0.02), 0.0, 0.15, emission=(1.0, 0.02, 0.0)),
         rain=mat("car_rainlight", (0.60, 0.02, 0.02), 0.0, 0.15, emission=(1.0, 0.02, 0.0)),
         display=mat("car_display", (0.02, 0.02, 0.03), 0.0, 0.20, emission=(0.10, 0.40, 0.20)),
+        switch=mat("car_switch", (0.30, 0.18, 0.02), 0.0, 0.40, emission=(1.0, 0.55, 0.10)),
+        decal=mat("car_decal", (0.93, 0.93, 0.92), 0.10, 0.30, coat=1.0, coat_roughness=0.03),
         towhook=mat("car_towhook", (0.88, 0.10, 0.05), 0.30, 0.50),
         rubber=mat("car_rubber", (0.03, 0.03, 0.03), 0.0, 0.90),
         mesh=mat("car_mesh", (0.035, 0.035, 0.040), 0.40, 0.55),
@@ -133,16 +147,18 @@ def fender_bump(keys, axles, amount=0.085, width=0.62, j0=2.2, j1=4.3, fade=0.8)
     upper surface swap places, and anything that samples the skin there (the
     arch liner, a decal, a vent) tears. Every GT3 and prototype has the
     fender crown clearly above the arch lip; this puts it there."""
+    amounts = amount if isinstance(amount, (tuple, list)) else [amount] * len(axles)
+    widths = width if isinstance(width, (tuple, list)) else [width] * len(axles)
     out = []
     for (y, pts) in keys:
         f = 0.0
-        for ax in axles:
-            f = max(f, math.exp(-((y - ax) / width) ** 2))
+        for ax, am, wd in zip(axles, amounts, widths):
+            f = max(f, am * math.exp(-((y - ax) / wd) ** 2))
         new = []
         for j, (x, z) in enumerate(pts):
-            if amount and j0 <= j <= j1:
+            if f and j0 <= j <= j1:
                 g = min(_smoothstep((j - j0) / fade), _smoothstep((j1 - j) / fade))
-                z = z + amount * f * g
+                z = z + f * g
             new.append((x, z))
         out.append((y, new))
     return out
@@ -292,9 +308,17 @@ class Loft:
         if n.length < 1e-9:
             return Vector((1, 0, 0))
         n.normalize()
-        p = self.point(y, j)
-        mid = Vector((0.0, p.y, (self.half(y)[0][1] + self.half(y)[-1][1]) / 2))
-        if n.dot(p - mid) < 0:
+        # Outward is decided by the section's winding, not by "away from the
+        # middle": the half-section runs floor centre -> out -> up -> in to the
+        # roof centre, so in the (x, z) plane the outward normal of a tangent
+        # (dx, dz) is (dz, -dx). The old test (dot with the vector from the
+        # section's centre) flipped on any surface that faces up-and-inward -
+        # the bonnet valley between the fender crowns, exactly where the lamp
+        # pockets and louvres go - and pushed those recesses out as bumps and
+        # pointed the projectors into the wheel well.
+        t = b - a
+        n2 = Vector((t.z, 0.0, -t.x))
+        if n2.length > 1e-9 and n.dot(n2) < 0:
             n = -n
         return n
 
@@ -935,6 +959,137 @@ def led_strip(b, mats, x0, x1, y, z, h=0.028, t=0.012, glow=None, dir_y=1.0):
           (x1 - 0.004, y - 0.001 * dir_y, z + h / 2 - 0.002))
 
 
+# --------------------------------------------------------------- lamp kit
+# The first two generations drew a lamp as an emissive box (or a tube poking
+# out of the nose). A real lamp is a black cavity with things in it: a chrome
+# bezel, a dark bowl, a lit ring and a lit core in each projector, a thin
+# light guide for the daytime signature, and a clear lens flush with the
+# skin over the lot. From ten metres it is the chrome, the guide and the
+# depth that read; from the pit wall it is the lens reflection. Emissive
+# slots are unchanged (car_headlight / car_taillight / car_brakelight /
+# car_rainlight), so the client's switching still works.
+
+def projector(b, mats, centre, axis, r, depth=0.055, segs=18, glow=None, chrome=True):
+    """One LED projector module, front face at `centre`, `axis` pointing out of
+    the car. Seen from outside: chrome annulus, dark rim, lit ring, dark
+    centre cap, lit core - the concentric look of a real projector."""
+    glow = glow or mats.lamp
+    c, a = Vector(centre), Vector(axis).normalized()
+    if chrome:
+        b.bar(mats.chrome, c - a * 0.010, c - a * 0.004, r, segs)
+    b.bar(mats.lamp_h, c - a * depth, c, r * 0.86, segs)
+    b.bar(glow, c - a * 0.002, c + a * 0.003, r * 0.70, segs)
+    b.bar(mats.lamp_h, c + a * 0.002, c + a * 0.005, r * 0.52, segs)
+    b.bar(glow, c + a * 0.004, c + a * 0.007, r * 0.34, segs)
+
+
+def light_guide(b, mat, loft, pts, sx=1, lift=-0.040, r=0.006, segs=8, per=6):
+    """A lit tube laid along the skin: `pts` is a list of (y, j) waypoints,
+    each leg sampled `per` times on the loft, displaced `lift` along the
+    normal (negative = into a pocket). The DRL / tail signature."""
+    P = []
+    for (a, c) in zip(pts, pts[1:]):
+        for k in range(per + 1):
+            if P and k == 0:
+                continue
+            t = k / per
+            y = a[0] + (c[0] - a[0]) * t
+            j = a[1] + (c[1] - a[1]) * t
+            q = loft.point(y, j) + loft.normal(y, j) * lift
+            P.append(Vector((sx * q.x, q.y, q.z)))
+    for a, c in zip(P, P[1:]):
+        b.bar(mat, a, c, r, segs)
+    return P
+
+
+def guide_xyz(b, mat, pts, r=0.006, segs=8):
+    """A lit tube through explicit points (flat tail panels, LMP2 pods)."""
+    P = [Vector(p) for p in pts]
+    for a, c in zip(P, P[1:]):
+        b.bar(mat, a, c, r, segs)
+
+
+def pocket_bezel(b, mat, loft, y0, y1, j0, j1, sx=1, w_y=0.012, w_j=0.10, lift=-0.002, nu=6, nv=3):
+    """A trim frame round a lamp pocket: four conformed strips on its rim."""
+    conform_decal(b, mat, loft, y0, y0 + w_y, j0, j1, sx=sx, lift=lift, nu=2, nv=nv * 2)
+    conform_decal(b, mat, loft, y1 - w_y, y1, j0, j1, sx=sx, lift=lift, nu=2, nv=nv * 2)
+    conform_decal(b, mat, loft, y0, y1, j0, j0 + w_j, sx=sx, lift=lift, nu=nu, nv=2)
+    conform_decal(b, mat, loft, y0, y1, j1 - w_j, j1, sx=sx, lift=lift, nu=nu, nv=2)
+
+
+def pocket_floor(b, mat, loft, y0, y1, j0, j1, sx=1, depth=0.050, nu=8, nv=5):
+    """The black bottom of a lamp pocket (the recess itself is painted loft)."""
+    conform_decal(b, mat, loft, y0, y1, j0, j1, sx=sx, lift=-depth + 0.003, nu=nu, nv=nv)
+
+
+def front_lens(b, mat, loft, x0, x1, z0, z1, start, lift=-0.002, nu=8, nv=5, margin=0.0):
+    """A clear lens flush with the nose (or tail) over a box aperture: each
+    grid vertex is dropped onto the skin at its own (x, z) by walking the
+    stations from `start`, so the lens follows the curve of the nose across
+    the hole instead of standing off it as a flat plate."""
+    s = b.slot(mat)
+    bm = b.bm
+    sign = 1.0 if start < (loft.nose + loft.tail) / 2 else -1.0
+    grid = []
+    for iu in range(nu + 1):
+        x = x0 + (x1 - x0) * iu / nu
+        row = []
+        for iv in range(nv + 1):
+            z = z0 + (z1 - z0) * iv / nv
+            y = surface_station(loft, abs(x), z, start, step=0.01, margin=margin)
+            row.append(bm.verts.new((x, y + sign * lift, z)))
+        grid.append(row)
+    for iu in range(nu):
+        for iv in range(nv):
+            f = bm.faces.new((grid[iu][iv], grid[iu + 1][iv], grid[iu + 1][iv + 1], grid[iu][iv + 1]))
+            f.material_index = s
+            f.normal_update()
+            if (f.normal.y > 0) != (sign < 0):
+                f.normal_flip()
+            for l in f.loops:
+                l[b.uv].uv = (l.vert.co.x, l.vert.co.z)
+            b.keep.add(f)
+
+
+def led_grid(b, mats, x0, x1, z0, z1, y, dir_y=-1.0, cols=3, rows=4, glow=None, pitch_gap=0.35):
+    """An LED matrix behind a lens - the FIA rain light and the brake blocks:
+    a dark plate with a grid of small emissive dies, clear cover in front."""
+    glow = glow or mats.rain
+    b.box(mats.lamp_h, (x0, min(y, y + 0.012 * dir_y), z0), (x1, max(y, y + 0.012 * dir_y), z1))
+    px = (x1 - x0) / cols
+    pz = (z1 - z0) / rows
+    for c in range(cols):
+        for r in range(rows):
+            cx = x0 + px * (c + 0.5)
+            cz = z0 + pz * (r + 0.5)
+            hx, hz = px * (1 - pitch_gap) / 2, pz * (1 - pitch_gap) / 2
+            b.box(glow, (cx - hx, min(y, y - 0.003 * dir_y), cz - hz),
+                  (cx + hx, max(y, y - 0.003 * dir_y), cz + hz))
+    b.box(mats.glass, (x0 - 0.003, min(y - 0.006 * dir_y, y - 0.010 * dir_y), z0 - 0.003),
+          (x1 + 0.003, max(y - 0.006 * dir_y, y - 0.010 * dir_y), z1 + 0.003))
+
+
+def tail_bar(b, mats, x0, x1, y, z, h=0.055, glow=None, dir_y=-1.0, brake_x=None, segs=10):
+    """A full-width tail light bar on a flat tail panel: a black cavity let
+    into the panel (back wall 8 mm behind the face, a lip top and bottom),
+    a lit light-guide tube in it, brake blocks where `brake_x` says (pairs
+    of x), all under a smoked lens. Nothing lit sits inside a solid box:
+    the first cut of this had the tube buried in its own housing."""
+    glow = glow or mats.tail
+    yb0, yb1 = sorted((y + 0.008 * dir_y, y + 0.030 * dir_y))          # cavity
+    b.box(mats.lamp_h, (x0, yb0, z - h / 2), (x1, yb1, z + h / 2))
+    yl0, yl1 = sorted((y - 0.004 * dir_y, y + 0.010 * dir_y))          # lips
+    b.box(mats.trim, (x0, yl0, z + h / 2 - 0.006), (x1, yl1, z + h / 2))
+    b.box(mats.trim, (x0, yl0, z - h / 2), (x1, yl1, z - h / 2 + 0.006))
+    yt = y + 0.003 * dir_y
+    guide_xyz(b, glow, [(x0 + 0.02, yt, z + h * 0.18), (x1 - 0.02, yt, z + h * 0.18)], r=0.009, segs=segs)
+    for (bx0, bx1) in (brake_x or ()):
+        yk0, yk1 = sorted((y + 0.001 * dir_y, y + 0.009 * dir_y))
+        b.box(mats.brake, (bx0, yk0, z - h * 0.42), (bx1, yk1, z - h * 0.05))
+    yg0, yg1 = sorted((y - 0.007 * dir_y, y - 0.011 * dir_y))
+    b.box(mats.lens_tint, (x0 + 0.002, yg0, z - h / 2 + 0.006), (x1 - 0.002, yg1, z + h / 2 - 0.006))
+
+
 # ------------------------------------------------------------------- vents
 def louvre_bank(b, mat, x, y0, y1, z0, z1, count=5, blade_t=0.006, rake_deg=22.0,
                 depth=0.030, sx=1):
@@ -1020,12 +1175,12 @@ def conform_decal(b, mat, loft, y0, y1, j0, j1, sx=1, lift=0.004, nu=10, nv=5, f
 
 
 # ----------------------------------------------------------------- cockpit
-def cockpit_points(loft, wing_z, liner_z=-0.057, tail_pad=0.12, nose_pad=0.14):
+def cockpit_points(loft, wing_z, liner_z=-0.057, tail_pad=0.12, nose_pad=0.14, top_z=None):
     """Where the client will put the driver's eye, wheel and mirror.
 
     Mirrors `ApexCockpit::DeriveLayout` (closed style, docs/CAR_MODELS.md) so
     the interior can be built around the same points instead of by eye."""
-    lo_z, hi_z = liner_z, wing_z + 0.22
+    lo_z, hi_z = liner_z, (wing_z + 0.22 if top_z is None else top_z)
     y0, y1 = loft.nose - nose_pad, loft.tail + tail_pad
     eye_z = lo_z + 0.70 * (hi_z - lo_z)
     eye_y = (y0 + y1) / 2 + 0.05 * (y1 - y0)
@@ -1056,6 +1211,252 @@ def steering_wheel(b, mats, centre, r=0.160, rim_r=0.019, segs=28, flat_bottom=T
               (cx + r * 0.92 * math.cos(a), cy + 0.004, cz + r * 0.92 * math.sin(a)), 0.016, segs=6)
     b.cylinder(mats.alc, (cx, cy - 0.010, cz), 0.052, 0.036, segs=18, axis='Y')
     b.box(mats.display, (cx - 0.055, cy - 0.013, cz - 0.026), (cx + 0.055, cy - 0.011, cz + 0.026))
+
+
+# ------------------------------------------------------- key reshaping
+def lower_roof(keys, factor=0.94, j_from=6, pivot_j=5):
+    """Pull the greenhouse down towards the belt line: every control point from
+    `j_from` up keeps `factor` of its height above the belt (`pivot_j`).
+    A lower, longer-looking cabin over the same hips is most of what reads
+    as 'sleek' on a GT car; the sills and fenders are left alone."""
+    out = []
+    for (y, pts) in keys:
+        zb = pts[pivot_j][1]
+        new = [(x, zb + (z - zb) * factor if j >= j_from else z) for j, (x, z) in enumerate(pts)]
+        out.append((y, new))
+    return out
+
+
+def shift_upper(keys, dy, j_from=6, y_from=None, y_to=None, key_samp=12):
+    """Slide the greenhouse along the car: control points from `j_from` up
+    take their (x, z) from the station `dy` further back (positive = the
+    cabin moves forward), blended in over `y_from`..`y_to` so the nose keeps
+    its own shape.
+
+    The client seats the driver 5% behind the middle of the car, whatever
+    the silhouette. A long-bonnet GT drawn with the screen top over that
+    point gives the driver a letterbox: his eyes are in the sunstrip. The
+    cabin has to be far enough forward that the screen top is ~0.6 m ahead
+    of the eye - which is also where a real front-engined GT3 has it."""
+    tmp = Loft(keys, samp=2, ny=4, key_samp=key_samp)
+    y_from = tmp.nose if y_from is None else y_from
+    y_to = y_from if y_to is None else y_to
+    out = []
+    for (y, pts) in keys:
+        w = 1.0 if y >= y_to else (0.0 if y <= y_from else _smoothstep((y - y_from) / max(y_to - y_from, 1e-6)))
+        src = tmp.ctrl_at(min(max(y + dy * w, tmp.nose), tmp.tail))
+        new = []
+        for j, (x, z) in enumerate(pts):
+            if j >= j_from and w > 0.0:
+                sx_, sz_ = src[j]
+                x, z = x + (sx_ - x) * w, z + (sz_ - z) * w
+            new.append((x, z))
+        out.append((y, new))
+    return out
+
+
+def drop_bonnet(keys, a_cowl, a_nose, y_cowl, y_nose, fade=0.25, j_full=6, partial=((4, 0.55), (5, 0.95))):
+    """Lower the bonnet so the driver can see the road.
+
+    The client's eye is 70% of the mesh box up, and on a front-engined car
+    with a flat, high bonnet that puts the cowl within a few centimetres of
+    the sightline: the road only appears forty metres out. This drops the
+    upper surface (control points from `j_full`) by `a_cowl` at the screen
+    base, growing to `a_nose` at `y_nose`, fading out over `fade` behind the
+    cowl; the shoulder and belt (`partial`) come down a fraction so the
+    section stays a section. The fender crowns are left where they are, so
+    the bonnet sits in a shallow valley between them - which is what a
+    front-engined GT3 bonnet looks like anyway."""
+    part = dict(partial)
+    out = []
+    for (y, pts) in keys:
+        if y >= y_cowl + fade:
+            out.append((y, pts))
+            continue
+        if y > y_cowl:
+            a = a_cowl * (1.0 - _smoothstep((y - y_cowl) / fade))
+        else:
+            t = min(max((y_cowl - y) / max(y_cowl - y_nose, 1e-6), 0.0), 1.0)
+            a = a_cowl + (a_nose - a_cowl) * t
+        new = []
+        for j, (x, z) in enumerate(pts):
+            if j >= j_full:
+                z -= a
+            elif j in part:
+                z -= a * part[j]
+            new.append((x, z))
+        out.append((y, new))
+    return out
+
+
+def tumblehome(keys, amount=0.03, j_from=6):
+    """Lean the glass in: pull the control points above the belt inboard by
+    `amount` at the roof shoulder, fading to nothing at the belt, so the
+    belt line stands out as a ledge under the side glass."""
+    out = []
+    for (y, pts) in keys:
+        n = len(pts)
+        new = []
+        for j, (x, z) in enumerate(pts):
+            if j >= j_from and j < n - 1:
+                t = (j - j_from + 1) / (n - 1 - j_from + 1)
+                x = max(x - amount * (1.0 - abs(2 * t - 1)) * 1.2, 0.0)
+            new.append((x, z))
+        out.append((y, new))
+    return out
+
+
+# ------------------------------------------------------- top-surface decals
+def top_patch(b, mat, loft, y0, y1, x0, x1, lift=0.004, nu=10, nv=6):
+    """A flat patch (number plate, roof panel) laid on the upper surface: each
+    vertex sits `lift` above `z_at`, so it follows the bonnet's crown."""
+    s = b.slot(mat)
+    bm = b.bm
+    grid = []
+    for iu in range(nu + 1):
+        y = y0 + (y1 - y0) * iu / nu
+        row = []
+        for iv in range(nv + 1):
+            x = x0 + (x1 - x0) * iv / nv
+            row.append(bm.verts.new((x, y, loft.z_at(y, abs(x)) + lift)))
+        grid.append(row)
+    for iu in range(nu):
+        for iv in range(nv):
+            f = bm.faces.new((grid[iu][iv], grid[iu + 1][iv], grid[iu + 1][iv + 1], grid[iu][iv + 1]))
+            f.material_index = s
+            f.normal_update()
+            if f.normal.z < 0:
+                f.normal_flip()
+            for l in f.loops:
+                l[b.uv].uv = (l.vert.co.x, l.vert.co.y)
+            b.keep.add(f)
+
+
+def top_text(b, mat, loft, text, x, y, size=0.30, thick=0.006, lift=0.005, face="front",
+             squash=0.85):
+    """Race numbers lying on the bonnet or the deck, conformed to the skin.
+
+    `face="front"` reads from ahead of the car (glyph tops towards the tail),
+    `"rear"` from behind. Every vertex is dropped onto `z_at`, so the number
+    bends over the bonnet's crown instead of sinking into it at the edges."""
+    from mathutils import Matrix
+    me = apex.text_mesh("num", text, size=size, extrude=thick)
+    # text_mesh gives XZ, reading +X, glyph up +Z; lay flat with glyph up +Y
+    me.transform(Matrix.Rotation(-math.pi / 2, 4, 'X'))
+    if face == "rear":
+        me.transform(Matrix.Rotation(math.pi, 4, 'Z'))
+    me.transform(Matrix.Diagonal((1.0, squash, 1.0, 1.0)))
+    # centre in plan
+    xs = [v.co.x for v in me.vertices]
+    ys = [v.co.y for v in me.vertices]
+    cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    for v in me.vertices:
+        px, py, pz = v.co.x - cx + x, v.co.y - cy + y, v.co.z
+        v.co = (px, py, loft.z_at(py, abs(px)) + lift + pz + thick / 2)
+    apex.merge_mesh(b, mat, me)
+
+
+# ------------------------------------------------------------ interior kit
+def bucket_seat(b, mats, x, y0, z0, width=0.50, depth=0.52, back_h=0.62, rake_deg=22.0):
+    """A racing bucket: base cushion, raked back with side bolsters and
+    shoulder wings, harness slots, and a pair of shoulder straps + lap belt.
+    `x` is the seat centreline, `y0` its front edge, `z0` the floor."""
+    hw = width / 2
+    # base cushion, slightly raked up at the front
+    b.box(mats.seat, (x - hw, y0, z0), (x + hw, y0 + depth, z0 + 0.13))
+    b.box(mats.seat, (x - hw + 0.02, y0, z0 + 0.13), (x + hw - 0.02, y0 + 0.16, z0 + 0.17))
+    for sx in (-1, 1):                          # thigh bolsters
+        xo, xi = x + sx * hw, x + sx * (hw - 0.055)
+        b.box(mats.seat, (min(xo, xi), y0, z0 + 0.13), (max(xo, xi), y0 + depth, z0 + 0.24))
+    # back rest: a raked slab, then bolsters and wings as plates beside it
+    r = math.radians(rake_deg)
+    yb = y0 + depth - 0.12
+    prof = [(yb, z0 + 0.13), (yb + 0.13, z0 + 0.13),
+            (yb + 0.13 + back_h * math.sin(r), z0 + 0.13 + back_h * math.cos(r)),
+            (yb + back_h * math.sin(r), z0 + 0.13 + back_h * math.cos(r))]
+    plate(b, mats.seat, prof, x, width - 0.06, chamfer=0.010)
+    for sx in (-1, 1):
+        bol = [(yb - 0.02, z0 + 0.13), (yb + 0.16, z0 + 0.13),
+               (yb + 0.16 + back_h * 0.55 * math.sin(r), z0 + 0.13 + back_h * 0.55 * math.cos(r)),
+               (yb - 0.10 + back_h * 0.55 * math.sin(r), z0 + 0.13 + back_h * 0.55 * math.cos(r))]
+        plate(b, mats.seat, bol, x + sx * (hw - 0.025), 0.05, chamfer=0.008)
+        wing = [(yb + 0.02 + back_h * 0.62 * math.sin(r), z0 + 0.13 + back_h * 0.62 * math.cos(r)),
+                (yb + 0.15 + back_h * 0.62 * math.sin(r), z0 + 0.13 + back_h * 0.62 * math.cos(r)),
+                (yb + 0.15 + back_h * 1.0 * math.sin(r), z0 + 0.13 + back_h * 1.0 * math.cos(r)),
+                (yb + 0.02 + back_h * 0.95 * math.sin(r), z0 + 0.13 + back_h * 0.95 * math.cos(r))]
+        plate(b, mats.seat, wing, x + sx * (hw - 0.07), 0.045, chamfer=0.008)
+    # harness: two shoulder straps down the back into the lap, a lap belt
+    top_y = yb + 0.02 + back_h * 0.80 * math.sin(r)
+    top_z = z0 + 0.13 + back_h * 0.80 * math.cos(r)
+    for sx in (-1, 1):
+        sxo = x + sx * 0.11
+        b.bar(mats.harness, (sxo, top_y - 0.012, top_z), (sxo, y0 + 0.18, z0 + 0.20), 0.024, segs=4)
+        b.box(mats.harness, (sxo - 0.035, top_y - 0.04, top_z - 0.03), (sxo + 0.035, top_y - 0.005, top_z + 0.03))
+    b.box(mats.harness, (x - hw + 0.03, y0 + 0.16, z0 + 0.18), (x + hw - 0.03, y0 + 0.21, z0 + 0.23))
+    b.box(mats.metal, (x - 0.05, y0 + 0.15, z0 + 0.17), (x + 0.05, y0 + 0.22, z0 + 0.24))   # buckle
+
+
+def switch_panel(b, mats, x0, x1, y0, y1, z, rows=2, cols=4, rotary=True, tilt=0.0):
+    """A carbon plate with backlit push buttons and a rotary, on the tunnel or dash."""
+    b.box(mats.carbon, (x0, y0, z - 0.012), (x1, y1, z))
+    pw = (x1 - x0) / (cols + 1)
+    ph = (y1 - y0) / (rows + 1)
+    for r in range(rows):
+        for c in range(cols):
+            cx = x0 + pw * (c + 1)
+            cy = y0 + ph * (r + 1)
+            b.box(mats.trim, (cx - 0.014, cy - 0.011, z), (cx + 0.014, cy + 0.011, z + 0.008))
+            b.box(mats.switch, (cx - 0.010, cy - 0.007, z + 0.008), (cx + 0.010, cy + 0.007, z + 0.010))
+    if rotary:
+        b.cylinder(mats.alc, ((x0 + x1) / 2, y1 - 0.045, z), 0.022, 0.024, segs=14, axis='Z')
+
+
+def door_card(b, mats, sx, x_in, y0, y1, z0, z1, pull=True):
+    """The inside of a door: a padded panel a few centimetres inboard of the
+    skin, a window-sill ledge along its top, a pull strap and a grab handle."""
+    b.box(mats.interior, (min(sx * x_in, sx * (x_in + 0.02)), y0, z0),
+          (max(sx * x_in, sx * (x_in + 0.02)), y1, z1))
+    b.box(mats.alcantara, (min(sx * (x_in - 0.012), sx * x_in), y0 + 0.05, z0 + 0.20),
+          (max(sx * (x_in - 0.012), sx * x_in), y1 - 0.05, z1 - 0.06))
+    b.box(mats.trim, (min(sx * (x_in - 0.03), sx * (x_in + 0.02)), y0, z1 - 0.02),
+          (max(sx * (x_in - 0.03), sx * (x_in + 0.02)), y1, z1 + 0.01))          # sill ledge
+    if pull:
+        ym = (y0 + y1) / 2
+        b.bar(mats.harness, (sx * (x_in - 0.02), ym - 0.10, z0 + 0.36), (sx * (x_in - 0.02), ym + 0.10, z0 + 0.36),
+              0.012, segs=4)
+        b.bar(mats.alc, (sx * (x_in - 0.045), ym + 0.20, z1 - 0.12), (sx * (x_in - 0.045), ym + 0.42, z1 - 0.12),
+              0.014, segs=8)
+
+
+def inner_skin(b, mat, loft, y0, y1, x_hw, drop=0.030, nu=10, nv=6, sx_range=(-1, 1)):
+    """A headliner: a sheet hung `drop` under the roof between +-x_hw."""
+    s = b.slot(mat)
+    bm = b.bm
+    grid = []
+    for iu in range(nu + 1):
+        y = y0 + (y1 - y0) * iu / nu
+        row = []
+        for iv in range(nv + 1):
+            x = -x_hw + 2 * x_hw * iv / nv
+            row.append(bm.verts.new((x, y, loft.z_at(y, abs(x)) - drop)))
+        grid.append(row)
+    for iu in range(nu):
+        for iv in range(nv):
+            f = bm.faces.new((grid[iu][iv], grid[iu][iv + 1], grid[iu + 1][iv + 1], grid[iu + 1][iv]))
+            f.material_index = s
+            f.normal_update()
+            if f.normal.z > 0:
+                f.normal_flip()
+            for l in f.loops:
+                l[b.uv].uv = (l.vert.co.x, l.vert.co.y)
+            b.keep.add(f)
+
+
+def extinguisher(b, mats, x, y, z, r=0.055, length=0.36):
+    b.cylinder(mats.towhook, (x, y, z), r, length, segs=14, axis='Y')
+    b.cylinder(mats.metal, (x, y - 0.03, z), r * 0.5, 0.03, segs=10, axis='Y')
+    for yy in (y + 0.08, y + length - 0.08):
+        b.box(mats.trim, (x - r - 0.01, yy - 0.012, z - r - 0.02), (x + r + 0.01, yy + 0.012, z + r + 0.005))
 
 
 # ------------------------------------------------------------- join, export
@@ -1137,6 +1538,46 @@ def join_and_export(objs, stem, car_dir, export=True, hide=True):
     if export:
         glb = export_glb(car, os.path.join(car_dir, stem + ".glb"))
     return car, glb
+
+
+def sightline(ob, transparent=("car_glass",), step_deg=0.5, max_deg=25.0, open_wheel=False):
+    """How far ahead the driver can see the road from the eye the client will
+    derive from this mesh: casts rays forward from the eye, steepening until
+    one clears the bodywork (glass is looked through), and reports the angle
+    and the distance where that ray meets the ground.
+
+    A GT3 driver sees the road from 8-10 m out. Forty is a letterbox."""
+    from mathutils.bvhtree import BVHTree
+    me = ob.data
+    lo = [min(v.co[i] for v in me.vertices) for i in range(3)]
+    hi = [max(v.co[i] for v in me.vertices) for i in range(3)]
+    if open_wheel:
+        # ApexCockpit::DeriveLayout, OpenWheel: on the centreline, 8% of the
+        # length behind centre, 82% of the height up
+        eye = Vector((0.0, (lo[1] + hi[1]) / 2 + 0.08 * (hi[1] - lo[1]),
+                      lo[2] + 0.82 * (hi[2] - lo[2])))
+    else:
+        eye = Vector((0.18 * (hi[0] - lo[0]), (lo[1] + hi[1]) / 2 + 0.05 * (hi[1] - lo[1]),
+                      lo[2] + 0.70 * (hi[2] - lo[2])))
+    skip = {i for i, m in enumerate(me.materials) if m and m.name.split(".")[0] in transparent}
+    polys = [list(pg.vertices) for pg in me.polygons if pg.material_index not in skip]
+    bvh = BVHTree.FromPolygons([v.co for v in me.vertices], polys)
+    out = dict(eye=[round(c, 3) for c in eye], clear_to_deg=None, road_from_m=None, blocked_by=None)
+    a = 0.0
+    while a <= max_deg:
+        r = math.radians(a)
+        d = Vector((0.0, -math.cos(r), -math.sin(r)))
+        hit = bvh.ray_cast(eye, d, 20.0)
+        if hit[0] is not None:
+            out["blocked_by"] = [round(c, 3) for c in hit[0]]
+            break
+        out["clear_to_deg"] = a
+        out["road_from_m"] = round(eye.z / math.tan(r), 1) if a > 0 else None
+        a += step_deg
+    # headroom and how far below the eye the cowl sits, for the record
+    up = bvh.ray_cast(eye, Vector((0, 0, 1)), 2.0)
+    out["headroom_m"] = round((up[0] - eye).length, 3) if up[0] is not None else None
+    return out
 
 
 def mesh_stats(ob):

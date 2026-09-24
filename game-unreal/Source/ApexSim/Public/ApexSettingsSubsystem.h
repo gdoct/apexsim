@@ -218,11 +218,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetWheelInvertForce(bool bInvert);
 
+	/** The base's rotation lock to lock, as its own driver has it; clamped to what the Wheel page offers. */
+	void SetWheelRotation(float Degrees);
+
+	/** Degrees of rim, lock to lock, for the car's full steering lock. */
+	void SetWheelSteeringLock(float Degrees);
+
+	/** The wheel's axis to the steering: rotation over lock (ApexInput::WheelSteeringScale). */
+	float GetWheelSteeringScale() const;
+
 	/**
 	 * The DirectInput device the forces go to — the one the steering is bound
 	 * to — or INDEX_NONE when there is no wheel that can play them.
 	 */
 	int32 GetWheelDeviceSlot() const;
+
+	/**
+	 * Whether the steering is bound to an attached wheel rather than a pad or
+	 * the keyboard. The speed-sensitive steering aid is for sticks and keys:
+	 * on a wheel it gears the rim down several times over at speed, which is
+	 * what made the forces feel dead and a slide impossible to catch.
+	 */
+	bool IsSteeringOnWheel() const;
 
 	/** Fires when a device is plugged in or pulled out, after the bindings are rebuilt. */
 	FSimpleMulticastDelegate OnInputDevicesChanged;

@@ -73,6 +73,7 @@ pub struct FeedbackAccumulator {
     abs_active: bool,
     tc_active: bool,
     impact_mps: f32,
+    steer_kick: f32,
 }
 
 impl Default for FeedbackAccumulator {
@@ -87,6 +88,7 @@ impl Default for FeedbackAccumulator {
             abs_active: false,
             tc_active: false,
             impact_mps: 0.0,
+            steer_kick: 0.0,
         }
     }
 }
@@ -136,6 +138,13 @@ impl FeedbackAccumulator {
         self.impact_mps = self.impact_mps.max(finite_or_zero(closing_mps));
     }
 
+    /// A jolt through the steering column from a hit, in the torque's own
+    /// units and sign (see [`DriverFeedback::steer_kick`]). The hardest of an
+    /// interval is kept, with its sign.
+    pub fn record_steer_kick(&mut self, kick: f32) {
+        self.steer_kick = peak(self.steer_kick, finite_or_zero(kick));
+    }
+
     /// Everything since the last call, as the message for the driver. Starts
     /// the next interval empty.
     pub fn take(&mut self, server_tick: u32) -> DriverFeedback {
@@ -149,6 +158,7 @@ impl FeedbackAccumulator {
             abs_active: self.abs_active,
             tc_active: self.tc_active,
             impact_mps: self.impact_mps,
+            steer_kick: self.steer_kick,
         };
         *self = Self::default();
         message
@@ -189,6 +199,12 @@ pub struct DriverFeedback {
     /// Largest closing speed of any contact with another car over the
     /// interval, m/s; 0 when there was none.
     pub impact_mps: f32,
+    /// The hardest jolt a hit put through the steering column over the
+    /// interval, in `steer_torque`'s units and sign; 0 when there was none.
+    /// A contact lasts a tick, so it would be lost among the torque samples:
+    /// it comes separately and the client plays it as a decaying kick on top
+    /// of the torque. Appended last, so an older client skips it.
+    pub steer_kick: f32,
 }
 
 #[cfg(test)]
@@ -239,6 +255,9 @@ mod tests {
         acc.record_tick(&b);
         acc.record_impact(4.0);
         acc.record_impact(1.0);
+        acc.record_steer_kick(0.4);
+        acc.record_steer_kick(-1.2);
+        acc.record_steer_kick(0.8);
 
         let msg = acc.take(99);
         assert_eq!(msg.server_tick, 99);
@@ -251,6 +270,7 @@ mod tests {
         );
         assert!(msg.abs_active && !msg.tc_active);
         assert_eq!(msg.impact_mps, 4.0);
+        assert_eq!(msg.steer_kick, -1.2, "the hardest kick wins, sign kept");
     }
 
     #[test]
@@ -260,12 +280,14 @@ mod tests {
         a.slip_angle[3] = 2.0;
         acc.record_tick(&a);
         acc.record_impact(3.0);
+        acc.record_steer_kick(1.0);
         acc.take(1);
 
         let msg = acc.take(2);
         assert!(msg.steer_torque.is_empty());
         assert_eq!(msg.slip_angle, [0.0; 4]);
         assert_eq!(msg.impact_mps, 0.0);
+        assert_eq!(msg.steer_kick, 0.0);
     }
 
     #[test]

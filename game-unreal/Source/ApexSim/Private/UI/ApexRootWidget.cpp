@@ -1255,9 +1255,16 @@ void UApexRootWidget::SendDriverAids()
 	// The player's own choice goes as is; the server applies the session's
 	// allowed set on top, so a locked aid is off whatever is sent here.
 	const UApexSettingsSave* Values = Settings->Get();
+	// The steering aid scales the lock down to what the tyres can hold at
+	// this speed: a stick at its stop is a sensible turn. On a wheel it gears
+	// the rim down several times over, so the self-aligning torque has to
+	// move the rim that much further before the tyres feel it, and a slide
+	// cannot be caught. A wheel drives the rack directly; the setting is kept
+	// for when the player goes back to a pad.
+	bAidsSentForWheel = Settings->IsSteeringOnWheel();
 	Net->SetDriverAids(
 		Values->bAutoGearbox,
-		Values->bSteeringAssist,
+		Values->bSteeringAssist && !bAidsSentForWheel,
 		Values->bAbs,
 		static_cast<EApexTractionControl>(Values->TractionControl));
 }
@@ -1281,6 +1288,17 @@ void UApexRootWidget::HandleSettingsChangedForDriverAids(EApexSettingsGroup Grou
 	if (Group == EApexSettingsGroup::Assists)
 	{
 		SendDriverAids();
+	}
+	else if (Group == EApexSettingsGroup::Controls || Group == EApexSettingsGroup::Wheel)
+	{
+		// A rebind, or a wheel plugged in or pulled out, can move the steering
+		// between a wheel and a pad; only that changes what the aids are.
+		const UApexSettingsSubsystem* Settings =
+			GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+		if (Settings && Settings->IsSteeringOnWheel() != bAidsSentForWheel)
+		{
+			SendDriverAids();
+		}
 	}
 	else if (Group == EApexSettingsGroup::CarSetup)
 	{

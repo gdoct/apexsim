@@ -144,7 +144,9 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # https://grandprixguides.com/circuit/netherlands): the Arena and
     # Hairpin stands are on the infield side, Eastside faces Arena-In
     # across the track, Ben Pon looks at the exit of the banked final
-    # corner from the start of the straight.
+    # corner from the start of the straight.  Nothing is laid round
+    # Tarzan (turn 1): its run-off and gravel reach 35 m from the road on
+    # the outside, and a stand laid at the usual gap sat in the trap.
     # Spa's own grandstand map (https://www.spa-francorchamps.be/) puts
     # seats at Les Combes, Bruxelles, Pouhon and the Bus Stop that OSM has
     # no outline for; each sits on the outside of its bend.
@@ -166,8 +168,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     ],
     "Zandvoort": [
         dict(name="Pit Grandstand", from_m=70, to_m=230, side="left", depth_m=18),
-        dict(name="Tarzan", from_m=330, to_m=500, side="left", depth_m=26, covered=False),
-        dict(name="Tarzan-In", from_m=380, to_m=470, side="right", depth_m=12),
         dict(name="Hairpin", from_m=3150, to_m=3330, side="right", depth_m=14),
         dict(name="Eastside", from_m=3330, to_m=3800, side="left", depth_m=16),
         dict(name="Arena", from_m=3300, to_m=3760, side="right", depth_m=16),

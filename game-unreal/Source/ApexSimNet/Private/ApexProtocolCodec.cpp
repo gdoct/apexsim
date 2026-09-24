@@ -1005,7 +1005,10 @@ namespace
 		return true;
 	}
 
-	/** Number of fields in `DriverFeedback` (server/src/feedback.rs). */
+	/**
+	 * Fields every `DriverFeedback` (server/src/feedback.rs) has. Later fields
+	 * are appended and read only when present: `steer_kick` is the tenth.
+	 */
 	constexpr int32 DriverFeedbackFieldCount = 9;
 
 	/** More steering samples than any sane tick/telemetry ratio sends; the server caps at 32. */
@@ -1087,7 +1090,15 @@ namespace
 		if (!Reader.ReadBool(Out.bTcActive)) { return false; }
 		if (!Reader.ReadFloat(Out.ImpactMps)) { return false; }
 
-		for (int32 Extra = DriverFeedbackFieldCount; Extra < FieldCount; ++Extra)
+		int32 Read = DriverFeedbackFieldCount;
+		Out.SteerKick = 0.0f;
+		if (FieldCount > Read)
+		{
+			if (!Reader.ReadFloat(Out.SteerKick)) { return false; }
+			++Read;
+		}
+
+		for (int32 Extra = Read; Extra < FieldCount; ++Extra)
 		{
 			if (!Reader.SkipValue())
 			{

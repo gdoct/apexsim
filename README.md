@@ -29,7 +29,7 @@ This project is in active development. The simulation and the networking underne
 
 **Content**
 * 26 circuits with exact measured centerline, per-side track width, banking, surface type and **elevation** (Spa spans ~90 m of it)
-* 10 cars with physics definitions and 3D models, from GT3 and LMP2 to a current F1 car
+* 17 cars with physics definitions and 3D models: GT3, LMP2, Hypercar and F1
 * An authored trackside prop kit — grandstands, pit garages, barriers, bridges, trees, attractions — with summer/autumn and crowd variants; Le Mans, Monza, Silverstone, Spa and Zandvoort are dressed from real layout dossiers built from OpenStreetMap (named stands, the real pit lane and side, landmarks, the actual woodland)
 * Both shared verbatim between the server, the track editor and the client
 
