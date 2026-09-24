@@ -131,3 +131,27 @@ front_radius_m = 0.360
 rear_radius_m = 0.360
 front_width_m = 0.305
 rear_width_m = 0.375
+
+# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
+# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.
+
+[[livery]]
+name = "Orbital Heritage"
+paint = [0.230, 0.520, 0.780]
+accent = [0.950, 0.300, 0.020]
+metallic = 0.25
+logo = "textures/livery_heritage.png"
+
+[[livery]]
+name = "Helix Gunmetal"
+paint = [0.090, 0.100, 0.110]
+accent = [0.420, 0.820, 0.020]
+metallic = 0.90
+logo = "textures/livery_gunmetal.png"
+
+[[livery]]
+name = "Veloce Tricolore"
+paint = [0.860, 0.860, 0.850]
+accent = [0.620, 0.020, 0.030]
+metallic = 0.20
+logo = "textures/livery_tricolore.png"

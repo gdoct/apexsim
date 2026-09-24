@@ -146,3 +146,27 @@ front_radius_m = 0.345
 rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
+
+# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
+# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.
+
+[[livery]]
+name = "Orbital Heritage"
+paint = [0.230, 0.520, 0.780]
+accent = [0.950, 0.300, 0.020]
+metallic = 0.25
+logo = "textures/livery_heritage.png"
+
+[[livery]]
+name = "Flamingo Pink"
+paint = [0.880, 0.160, 0.400]
+accent = [0.010, 0.020, 0.075]
+metallic = 0.30
+logo = "textures/livery_flamingo.png"
+
+[[livery]]
+name = "Kraken Volt"
+paint = [0.800, 0.720, 0.000]
+accent = [0.012, 0.012, 0.014]
+metallic = 0.20
+logo = "textures/livery_volt.png"
