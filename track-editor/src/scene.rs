@@ -17,12 +17,12 @@ use bevy_egui::EguiStartupSet;
 
 use crate::ats::{Prop, PropKind};
 use crate::coords;
+use crate::preview_mesh;
 use crate::props;
 use crate::state::{
     DragActive, OpenScene, OpenTrack, SelectedElement, Selection, StatusLine, UndoStack,
 };
 use crate::terrain::TerrainHeightfield;
-use crate::track_mesh;
 use crate::track_path::CenterlinePath;
 
 /// The sampled centerline of the open track, shared by mesh builders and
@@ -245,7 +245,7 @@ fn rebuild_track_visual(
 
     // World ground, under everything: the terrain field the surface bands
     // blend into, so nothing floats over a void.
-    if let Some(mesh) = terrain.0.as_ref().and_then(track_mesh::build_ground_mesh) {
+    if let Some(mesh) = terrain.0.as_ref().and_then(preview_mesh::build_ground_mesh) {
         commands.spawn((
             Mesh3d(meshes.add(mesh)),
             MeshMaterial3d(materials.add(StandardMaterial {
@@ -258,7 +258,7 @@ fn rebuild_track_visual(
         ));
     }
 
-    if let Some(mesh) = track_mesh::build_track_ribbon(path) {
+    if let Some(mesh) = preview_mesh::build_track_ribbon(path) {
         commands
             .spawn((
                 Mesh3d(meshes.add(mesh)),
@@ -347,13 +347,13 @@ fn rebuild_scene_elements(
     };
 
     // Ground first: surfaces sit under everything else, in kind order (see
-    // `track_mesh::surface_lift`), so the grass band goes down before the
+    // `strip_layout::surface_lift`), so the grass band goes down before the
     // gravel traps and runoff laid on top of it.
     let mut surfaces: Vec<&crate::ats::Surface> = scene.surfaces.iter().collect();
     surfaces.sort_by_key(|s| s.kind.layer());
     for surface in surfaces {
         let is_selected = selected == Some(SelectedElement::Surface(surface.id));
-        for mesh in track_mesh::build_surface_meshes(path, surface, terrain.0.as_ref()) {
+        for mesh in preview_mesh::build_surface_meshes(path, surface, terrain.0.as_ref()) {
             commands
                 .spawn((
                     Mesh3d(meshes.add(mesh)),
@@ -367,7 +367,7 @@ fn rebuild_scene_elements(
     }
 
     for curb in &scene.curbs {
-        if let Some(mesh) = track_mesh::build_curb_mesh(path, curb) {
+        if let Some(mesh) = preview_mesh::build_curb_mesh(path, curb) {
             let is_selected = selected == Some(SelectedElement::Curb(curb.id));
             commands
                 .spawn((
@@ -382,7 +382,7 @@ fn rebuild_scene_elements(
     }
 
     for marking in &scene.markings {
-        if let Some(mesh) = track_mesh::build_marking_mesh(path, marking) {
+        if let Some(mesh) = preview_mesh::build_marking_mesh(path, marking) {
             let is_selected = selected == Some(SelectedElement::Marking(marking.id));
             commands
                 .spawn((
@@ -399,7 +399,7 @@ fn rebuild_scene_elements(
     if let Some(pit) = &scene.pit_lane {
         let is_selected = selected == Some(SelectedElement::PitLane);
         if let Some(pit_path) = CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0) {
-            if let Some(mesh) = track_mesh::build_strip_mesh(
+            if let Some(mesh) = preview_mesh::build_strip_mesh(
                 &pit_path,
                 0.0,
                 pit_path.total_length_m(),

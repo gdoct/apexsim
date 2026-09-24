@@ -50,9 +50,11 @@ Determinism rules for saved output: no wall clock, no unseeded randomness, no un
 | Level | Coverage |
 | --- | --- |
 | Unit | `.ats` serde round-trips, validation (duplicate ids, bad ranges), v1 → v2 load/migrate, station math (wrap, interpolation), strip meshes finite/non-empty, surface taper + layer order |
-| Integration | every real track opens; default scene creation, save/reload equality, byte-identical repeated saves; saving a scene never touches the YAML (`tests/ats_scene.rs`) |
-| Compatibility | the editor's logical-track model still reads every real YAML the server loads (`tests/compat.rs`) |
-| Unreal export | winding against Unreal's front-face convention on every triangle of every real circuit, raised curb profiles, banking-following normals, grid resolution matching the server's, in-range indices, deterministic repeat bakes, exporting touches neither YAML nor `.ats` (`tests/ue_export.rs`) |
+| Integration | every real track opens; default scene creation, save/reload equality, byte-identical repeated saves; saving a scene never touches the YAML (`core/tests/ats_scene.rs`) |
+| Compatibility | the editor's logical-track model still reads every real YAML the server loads (`core/tests/compat.rs`) |
+| Unreal export | winding against Unreal's front-face convention on every triangle of every real circuit, raised curb profiles, banking-following normals, grid resolution matching the server's, in-range indices, deterministic repeat bakes, exporting touches neither YAML nor `.ats` (`core/tests/ue_export.rs`) |
+
+The two tests that bake every real circuit (`every_real_track_bakes`, `real_tracks_bake_plausible_curb_bands`) take about twenty minutes, so they are `#[ignore]`d and a plain `cargo test` skips them. Run them with `cargo test -p track-core --test ue_export -- --ignored` before shipping a change to the bake.
 
 Non-negotiable constraints:
 
@@ -64,7 +66,7 @@ Non-negotiable constraints:
 
 The `.ats` cannot be handed to Unreal as-is: every track-anchored element is a *station span* against a centerline that lives in the read-only YAML, and Unreal has no YAML parser. So the editor bakes both files into one self-contained artifact.
 
-**`<Track>.uescene.json`** (format `apex-ue-scene`, v1) is written by `src/ue_export.rs` and consumed by the Unreal `ApexTrackImport` commandlet. It is a *generated* file: it lands in `content/tracks/export/` (gitignored — 26 circuits bake to ~120 MB of vertex data), never beside the source content.
+**`<Track>.uescene.json`** (format `apex-ue-scene`, v1) is written by `core/src/ue_export.rs` and consumed by the Unreal `ApexTrackImport` commandlet. It is a *generated* file: it lands in `content/tracks/export/` (gitignored — 26 circuits bake to ~120 MB of vertex data), never beside the source content.
 
 | Field | Contents |
 | --- | --- |
@@ -84,7 +86,7 @@ The parent material can only vary a base color per key, so paint is geometry wit
 
 ### Terrain and the verge
 
-Tracks carry no terrain of their own — only the centerline has heights — so `src/terrain.rs` derives one: centerline samples spread their height onto a coarse 12 m grid by inverse-distance weighting, capped by a road ceiling (0.4 m under the low edge over an 8 m apron, rising 0.15 m/m) so a hill can never bury a road. On top of that sits one answer to "how high is the ground here", `TerrainHeightfield::ground_height_at(x, y)`: within 6 m of any road edge (the track *and* the pit lane) it is the **verge**, the road edge less 0.08 m; from there it smoothsteps into the terrain field by 35 m out; where two roads run close each keeps its verge and the ground may not climb through either. Everything that touches the ground samples that one function — the ground mesh, the authored surface bands, curb outer faces, the painted curb strip, prop seating — so nothing steps against anything else, whether or not a `.ats` band was authored there.
+Tracks carry no terrain of their own — only the centerline has heights — so `core/src/terrain.rs` derives one: centerline samples spread their height onto a coarse 12 m grid by inverse-distance weighting, capped by a road ceiling (0.4 m under the low edge over an 8 m apron, rising 0.15 m/m) so a hill can never bury a road. On top of that sits one answer to "how high is the ground here", `TerrainHeightfield::ground_height_at(x, y)`: within 6 m of any road edge (the track *and* the pit lane) it is the **verge**, the road edge less 0.08 m; from there it smoothsteps into the terrain field by 35 m out; where two roads run close each keeps its verge and the ground may not climb through either. Everything that touches the ground samples that one function — the ground mesh, the authored surface bands, curb outer faces, the painted curb strip, prop seating — so nothing steps against anything else, whether or not a `.ats` band was authored there.
 
 - **Ground bands** (`surfaces` in the `.ats`) therefore lie on the ground with a small per-kind lift (grass lowest, astroturf highest, all under the road edge). They are subdivided laterally on a schedule (2 m columns for the first 12 m, 4 m to 40 m, then 10 m — preview and bake alike) so the verge profile is actually sampled across their width; a band left as one quad would just span a plane over whatever lies between its borders.
 - The **ground mesh** is the field itself (with an 800 m margin past the track's bounding box), refined to 4 m facets within ~50 m of a road and seated on the same function; the coarse and fine regions meet without cracks because past the blend the ground *is* the coarse field.
@@ -101,21 +103,29 @@ Output is already in Unreal's frame, so the commandlet converts nothing:
 
 ### What the bake is not
 
-These are not the viewport's preview strips. `track_mesh.rs` hardcodes an up-normal and draws curbs flat, which is fine for a preview and wrong for a lit level; the export derives normals from the banked surface frame and gives curbs a raised profile with a real outer face.
+These are not the viewport's preview strips. `preview_mesh.rs` hardcodes an up-normal and draws curbs flat, which is fine for a preview and wrong for a lit level; the export derives normals from the banked surface frame and gives curbs a raised profile with a real outer face.
 
 The bake also has to cope with source centerlines whose corners are tighter than the elements wrapped around them — Austin has 8 m radius apexes on a 15 m wide track. A station-anchored element measures straight out from the centerline, so past a radius of `1/κ` its offset curve folds through itself and the strip inverts. Three defences, in order: borders are clamped short of the centre of curvature; an element lying wholly inside the limit with no room to spare is dropped and the strip broken rather than compressed into a knot; and any facet that still folds, twists, or degenerates into a sub-degree sliver is discarded. Whatever survives is wound to agree with its own surface normal, so an inside-out triangle cannot reach the level.
 
 ## 6. Source layout
 
-- `/track-editor` — this crate.
-- `src/ats.rs`, `src/ats_io.rs` — `.ats` model + IO.
-- `src/ue_export.rs`, `src/ue_export_io.rs` — the Unreal bake (§5); `src/bin/ats-export.rs` is its CLI.
-- `src/groom.rs` — deterministic scene clean-up: walls/barriers deleted on straights and re-laid as continuous corner runs (one 4 m module per station cell, gaps ≤ 45 m fused, seated at the runoff edge); every other prop pushed clear of the road and the pit lane by its footprint radius (pit-side buildings align to the lane), then seated on the terrain; and the pit lane regenerated first via `src/pit.rs` (entry taper off the road edge inside the start/finish straight, parallel pit road, exit taper back on; width/boxes/speed limit/side preserved). `src/bin/ats-groom.rs` is its CLI (`ats-groom --all`, idempotent, run from the repo root).
-- `src/mcp.rs` also exposes `set_view` (aim the viewport camera at a station or point) and `screenshot` (capture the viewport to a PNG) so an agent can inspect tracks visually over MCP.
-- `src/track_data.rs`, `src/track_io.rs` — read-only logical track model + loader (kept serde-compatible with the server; `save_track_file` exists only for the compat test suite).
-- `src/track_path.rs` — station/arc-length sampling of the centerline.
-- `src/terrain.rs` — derived terrain heightfield (§5 “Terrain”).
-- `src/track_mesh.rs` — preview strip meshes (track ribbon, curbs, markings, pit lane, ground).
-- `src/scene.rs` — viewport, selection, dragging.
-- `src/main.rs` — egui panels.
-- `src/mcp.rs` — MCP server.
+`/track-editor` is a two-crate workspace. The pipeline builds without Bevy, so
+the `ats-*` tools and the tests never compile the renderer; only the editor
+viewport does.
+
+- `core/` — **`track-core`**: the `.ats` format, the pipeline and the `ats-*` tools. No Bevy.
+  - `src/ats.rs`, `src/ats_io.rs` — `.ats` model + IO.
+  - `src/ue_export.rs`, `src/ue_export_io.rs` — the Unreal bake (§5); `src/bin/ats-export.rs` is its CLI.
+  - `src/groom.rs` — deterministic scene clean-up: walls/barriers deleted on straights and re-laid as continuous corner runs (one 4 m module per station cell, gaps ≤ 45 m fused, seated at the runoff edge); every other prop pushed clear of the road and the pit lane by its footprint radius (pit-side buildings align to the lane), then seated on the terrain; and the pit lane regenerated first via `src/pit.rs` (entry taper off the road edge inside the start/finish straight, parallel pit road, exit taper back on; width/boxes/speed limit/side preserved). `src/bin/ats-groom.rs` is its CLI (`ats-groom --all`, idempotent, run from the repo root).
+  - `src/track_data.rs`, `src/track_io.rs` — read-only logical track model + loader (kept serde-compatible with the server; `save_track_file` exists only for the compat test suite).
+  - `src/track_path.rs` — station/arc-length sampling of the centerline.
+  - `src/terrain.rs` — derived terrain heightfield (§5 “Terrain”).
+  - `src/strip_layout.rs` — how strips sit on the ground (lifts, band columns, band height, surface colours), shared by the bake and the preview.
+  - `tests/` — the integration tests (§4).
+- `src/` — **`track-editor`**: the Bevy viewport, on top of `track-core` (whose modules `lib.rs` re-exports).
+  - `src/preview_mesh.rs` — preview strip meshes (track ribbon, curbs, markings, pit lane, ground).
+  - `src/scene.rs` — viewport, selection, dragging.
+  - `src/main.rs` — egui panels.
+  - `src/mcp.rs` — MCP server; also exposes `set_view` (aim the viewport camera at a station or point) and `screenshot` (capture the viewport to a PNG) so an agent can inspect tracks visually over MCP.
+
+From `/track-editor`, `cargo run` opens the editor and `cargo run --bin ats-dress` (or any `ats-*`) builds `track-core` alone.

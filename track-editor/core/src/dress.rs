@@ -23,9 +23,9 @@ use crate::ats::{AtsScene, PitLane, Prop, PropKind, Side};
 use crate::dem::DemFile;
 use crate::layout::{Crossing, Landmark, Layout, Stand, Structure};
 use crate::props;
+use crate::strip_layout::surface_height;
 use crate::terrain::TerrainHeightfield;
 use crate::track_data::TrackFile;
-use crate::track_mesh::surface_height;
 use crate::track_path::{offset_point, CenterlinePath, PathSample};
 
 /// Bay pitch of the stand families, matching `ApexProps::BayPitchM`. A

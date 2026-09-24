@@ -331,10 +331,10 @@ balconies (`house_timber`, `house_timber_dark`), tile or dark roofs
   `apex_tex.kit_material`, which returns the baked material for a slot in
   `KIT_SLOTS` and a flat one otherwise, so a slot looks the same on every
   asset; add a slot there to bake it everywhere.
-- `track-editor/src/ats.rs` — new `PropKind` variants.
-- `track-editor/src/groom.rs` — behaviour per new kind (board snapping,
+- `track-editor/core/src/ats.rs` — new `PropKind` variants.
+- `track-editor/core/src/groom.rs` — behaviour per new kind (board snapping,
   bridge exemption, pit alignment, sky not seated).
-- `track-editor/src/ue_export.rs` — pit garages/walls emitted per box;
+- `track-editor/core/src/ue_export.rs` — pit garages/walls emitted per box;
   `length_m` on grandstands; `span_m` on bridges.
 - `game-unreal/Source/ApexTrackEditor/Private/ApexTrackAssetBuilder.cpp` —
   asset lookup by `/Game/Props/<kind>/SM_<asset>` before the recipe fallback;

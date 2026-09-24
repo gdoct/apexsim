@@ -5,7 +5,7 @@
 //! curvature. The Red Bull Ring's Remus comes out at an 8 m radius on a
 //! 10.6 m wide road; the road loft there has no room to draw an inside
 //! edge at all, so the exporter clamps, breaks and drops facets, and the
-//! corner ships with holes in it. [`track_editor::track_smooth`] explains
+//! corner ships with holes in it. [`track_core::track_smooth`] explains
 //! what the filter does and why it is this one.
 //!
 //! ```text
@@ -22,12 +22,12 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use track_editor::track_data::TrackFile;
-use track_editor::track_smooth::{
+use track_core::track_data::TrackFile;
+use track_core::track_smooth::{
     self, node_stations, tight_nodes, SmoothConfig, SmoothReport, DEFAULT_ITERATIONS,
     DEFAULT_TOLERANCE_M, DEFAULT_WINDOW,
 };
-use track_editor::{track_io, ue_export_io};
+use track_core::{track_io, ue_export_io};
 
 const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 

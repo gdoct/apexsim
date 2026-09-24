@@ -10,9 +10,9 @@
 //! self-contained `.uescene.json` per track. The commandlet stays a dumb
 //! asset writer: buffers in, `UStaticMesh` out.
 //!
-//! These are *not* the editor's preview meshes. [`crate::track_mesh`] builds
-//! flat strips with a hardcoded up-normal, which is fine for a viewport and
-//! wrong for a lit level: here normals follow the banked surface frame and
+//! These are *not* the editor's preview meshes. The editor's `preview_mesh`
+//! builds flat strips with a hardcoded up-normal, which is fine for a
+//! viewport and wrong for a lit level: here normals follow the banked surface frame and
 //! curbs get a raised profile with a real outer face.
 //!
 //! # The ground
@@ -62,11 +62,11 @@ use serde::{Deserialize, Serialize};
 use crate::ats::{AtsScene, Curb, Dressing, Marking, MarkingKind, Prop, PropKind, Side, Surface};
 use crate::dem::DemFile;
 use crate::props;
-use crate::terrain::{self, GroundHeightfield, TerrainHeightfield, Underpass};
-use crate::track_data::TrackFile;
-use crate::track_mesh::{
+use crate::strip_layout::{
     surface_kind_color, surface_lateral_fractions, surface_lift, CURB_LIFT_M, MARKING_LIFT_M,
 };
+use crate::terrain::{self, GroundHeightfield, TerrainHeightfield, Underpass};
+use crate::track_data::TrackFile;
 use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
 
 pub const UE_SCENE_FORMAT: &str = "apex-ue-scene";

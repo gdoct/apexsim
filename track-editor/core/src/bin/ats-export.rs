@@ -15,7 +15,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use track_editor::ue_export_io::{self, DEFAULT_EXPORT_DIR};
+use track_core::ue_export_io::{self, DEFAULT_EXPORT_DIR};
 
 const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 

@@ -9,16 +9,16 @@
 
 use std::path::Path;
 
-use track_editor::ats::{AtsScene, Curb, Side, Surface, SurfaceKind};
-use track_editor::ats_io;
-use track_editor::terrain::{
+use track_core::ats::{AtsScene, Curb, Side, Surface, SurfaceKind};
+use track_core::ats_io;
+use track_core::terrain::{
     TerrainHeightfield, Underpass, DECK_DEPTH_M, DECK_OVERHANG_M, UNDERPASS_WALL_GAP_M,
     VERGE_DROP_M,
 };
-use track_editor::track_data::{TrackFile, TrackNode};
-use track_editor::track_io;
-use track_editor::track_path::CenterlinePath;
-use track_editor::ue_export::{self, UeMesh};
+use track_core::track_data::{TrackFile, TrackNode};
+use track_core::track_io;
+use track_core::track_path::CenterlinePath;
+use track_core::ue_export::{self, UeMesh};
 
 const HALF_WIDTH_M: f32 = 6.0;
 const HIGH_M: f32 = 12.0;
@@ -367,7 +367,7 @@ fn the_walls_sidecar_carries_the_abutments_and_the_parapets() {
 
 #[test]
 fn suzuka_has_its_crossover() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/real");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/real");
     let track = track_io::load_track_file(dir.join("Suzuka.yaml")).unwrap();
     let scene = ats_io::load_ats(dir.join("Suzuka.ats")).unwrap();
     let path = CenterlinePath::from_track(&track).unwrap();
@@ -394,8 +394,8 @@ fn suzuka_has_its_crossover() {
 /// walls there, and the upper road's armco would stand in the slot below.
 #[test]
 fn groomed_armco_stays_out_of_the_underpass() {
-    use track_editor::ats::PropKind;
-    use track_editor::groom;
+    use track_core::ats::PropKind;
+    use track_core::groom;
 
     let track = figure_eight();
     let mut scene = AtsScene::new_for_track(&track, "FigureEight.yaml");

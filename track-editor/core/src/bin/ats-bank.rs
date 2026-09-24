@@ -1,5 +1,5 @@
 //! Put each circuit's banking on the corner it belongs to, leaning the
-//! right way. [`track_editor::track_bank`] explains what was wrong with the
+//! right way. [`track_core::track_bank`] explains what was wrong with the
 //! banking the enrichment script laid and how this re-derives it.
 //!
 //! ```text
@@ -14,8 +14,8 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use track_editor::track_bank::{self, BankReport};
-use track_editor::{track_io, ue_export_io};
+use track_core::track_bank::{self, BankReport};
+use track_core::{track_io, ue_export_io};
 
 const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 

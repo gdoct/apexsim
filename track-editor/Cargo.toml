@@ -2,24 +2,27 @@
 name = "track-editor"
 version = "0.1.0"
 edition = "2021"
+default-run = "track-editor"
+
+# The editor viewport (Bevy). Everything else - the .ats format, grooming,
+# dressing, the Unreal bake and the ats-* tools - is track-core in core/, which
+# builds without Bevy. Both are default members, so from here
+# `cargo run` opens the editor and `cargo run --bin ats-dress` builds only
+# track-core.
+[workspace]
+members = ["core"]
+default-members = [".", "core"]
 
 [dependencies]
+track-core = { path = "core" }
 bevy = { version = "0.19", features = ["x11", "picking"] }
 bevy_egui = "0.41"
 serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9"
 serde_json = "1"
-rmp-serde = "1"
-uuid = { version = "1", features = ["v4", "serde"] }
 rfd = "0.17"
-thiserror = "1"
 rmcp = { version = "3.1.3", features = ["server", "transport-streamable-http-server"] }
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "net"] }
 axum = "0.8.9"
-
-[dev-dependencies]
-apexsim-server = { path = "../server" }
-tempfile = "3"
 
 [profile.dev]
 opt-level = 1
