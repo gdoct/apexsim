@@ -24,6 +24,7 @@ class UTexture2D;
 class UWidgetSwitcher;
 enum class EApexPauseAction : uint8;
 enum class EApexHotlapAction : uint8;
+enum class EApexSettingsTab : uint8;
 
 /**
  * The shell's frame: background, screen switcher, toast.
@@ -101,6 +102,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsSettingsOpen() const;
 
+	/** True while the settings overlay is capturing a key for a binding. */
+	bool IsSettingsListening() const;
+
 	/** True while any race-side overlay owns input. */
 	bool IsRaceOverlayOpen() const;
 
@@ -113,6 +117,13 @@ public:
 	 * running — the server is authoritative and has no pause.
 	 */
 	void SetPaused(bool bPaused);
+
+	/**
+	 * Opens the settings overlay on a page. From the pause menu it is a step
+	 * forward and closes back onto it; from a menu screen it closes back onto
+	 * that screen.
+	 */
+	void OpenSettings(EApexSettingsTab Tab);
 
 	/** The screen the car picker should return to once a car is confirmed. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")

@@ -480,6 +480,7 @@ impl TestClientMinimal {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let msg = ClientMessage::SelectCar {
             car_config_id: car_id,
+            livery: 0,
         };
         self.send_message(&msg).await
     }

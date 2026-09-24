@@ -57,6 +57,10 @@ struct LobbyState {
 
     /// Spectators in sessions (player_id -> session_id)
     spectators: HashMap<PlayerId, SessionId>,
+
+    /// The livery each player picked with their car (`SelectCar`); absent
+    /// means the car as authored.
+    liveries: HashMap<PlayerId, u8>,
 }
 
 /// Manages the lobby state and player matchmaking
@@ -120,6 +124,21 @@ impl LobbyManager {
         if let Some(player) = self.state.write().await.players.get_mut(&player_id) {
             player.selected_car = Some(car_config_id);
         }
+    }
+
+    /// Record the livery a player picked with their car.
+    pub async fn set_player_livery(&self, player_id: PlayerId, livery: u8) {
+        let mut state = self.state.write().await;
+        if livery == 0 {
+            state.liveries.remove(&player_id);
+        } else {
+            state.liveries.insert(player_id, livery);
+        }
+    }
+
+    /// The livery a player picked, 0 when none.
+    pub async fn get_player_livery(&self, player_id: PlayerId) -> u8 {
+        self.state.read().await.liveries.get(&player_id).copied().unwrap_or(0)
     }
 
     /// Get a player's selected car

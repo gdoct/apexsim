@@ -6,6 +6,7 @@
 #include "Catalog/ApexContentCrc.h"
 #include "Engine/DataTable.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "HAL/FileManager.h"
 #include "InterchangeGenericAssetsPipeline.h"
 #include "InterchangeGenericAssetsPipelineSharedSettings.h"
@@ -56,6 +57,27 @@ namespace
 		}
 		return Value;
 	}
+
+	/** `[0.1, 0.2, 0.3]` -> an opaque linear colour; false unless it is three numbers. */
+	bool TomlColour(const FString& Value, FLinearColor& Out)
+	{
+		FString Inner = Value;
+		Inner.TrimStartAndEndInline();
+		if (!Inner.StartsWith(TEXT("[")) || !Inner.EndsWith(TEXT("]")))
+		{
+			return false;
+		}
+		Inner.MidInline(1, Inner.Len() - 2);
+		TArray<FString> Parts;
+		Inner.ParseIntoArray(Parts, TEXT(","), true);
+		if (Parts.Num() != 3)
+		{
+			return false;
+		}
+		Out = FLinearColor(FCString::Atof(*Parts[0].TrimStartAndEnd()), FCString::Atof(*Parts[1].TrimStartAndEnd()),
+			FCString::Atof(*Parts[2].TrimStartAndEnd()), 1.0f);
+		return true;
+	}
 }	 // namespace
 
 UApexCarImportCommandlet::UApexCarImportCommandlet()
@@ -77,6 +99,10 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 		if (Line.IsEmpty() || Line.StartsWith(TEXT("#")))
 		{
 			continue;
+		}
+		if (Line.StartsWith(TEXT("[[livery]]")))
+		{
+			Out.Liveries.AddDefaulted();
 		}
 		if (Line.StartsWith(TEXT("[")))
 		{
@@ -134,6 +160,15 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 			else if (Key == TEXT("redline_rpm")) { Out.Sound.RedlineRpm = Number; }
 			else if (Key == TEXT("rev_limiter_rpm")) { Out.Sound.LimiterRpm = Number; }
 		}
+		else if (Table == TEXT("livery") && Out.Liveries.Num() > 0)
+		{
+			FLiveryToml& L = Out.Liveries.Last();
+			if (Key == TEXT("name")) { L.Name = Value; }
+			else if (Key == TEXT("paint")) { TomlColour(Value, L.Paint); }
+			else if (Key == TEXT("accent")) { TomlColour(Value, L.Accent); }
+			else if (Key == TEXT("metallic")) { L.Metallic = FCString::Atof(*Value); }
+			else if (Key == TEXT("logo")) { L.Logo = Value; }
+		}
 		else if (Table == TEXT("sound"))
 		{
 			FApexEngineSoundSpec& S = Out.Sound;
@@ -160,6 +195,19 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 			|| W.FrontTrackM <= 0.0f || W.RearTrackM <= 0.0f || W.FrontAxleM <= W.RearAxleM))
 	{
 		OutError = TEXT("[wheels] needs positive radii, widths and tracks, and the front axle ahead of the rear");
+		return false;
+	}
+	for (const FLiveryToml& L : Out.Liveries)
+	{
+		if (L.Name.IsEmpty() || L.Paint.A <= 0.0f)
+		{
+			OutError = TEXT("every [[livery]] needs a name and a paint = [r, g, b]");
+			return false;
+		}
+	}
+	if (Out.Liveries.Num() > 254)
+	{
+		OutError = TEXT("at most 254 [[livery]] tables: the wire carries the pick in a byte");
 		return false;
 	}
 	const FApexEngineSoundSpec& S = Out.Sound;
@@ -199,6 +247,12 @@ FApexWheelSpec UApexCarImportCommandlet::MakeWheelSpec(const FCarToml& Toml, con
 	Spec.RearWidthM = W.RearWidthM;
 	Spec.MaxSteerRad = Toml.MaxSteerRad;
 	return Spec;
+}
+
+FString UApexCarImportCommandlet::LiveryLogoPackageName(const FString& DestRoot, const FString& Folder, const FString& Logo)
+{
+	return FString::Printf(TEXT("%s/%s/Liveries/T_%s"), *DestRoot, *PackageSegment(Folder),
+		*PackageSegment(FPaths::GetBaseFilename(Logo)));
 }
 
 FString UApexCarImportCommandlet::PackageSegment(const FString& Folder)
@@ -514,6 +568,81 @@ UStaticMesh* UApexCarImportCommandlet::ResolveWheelMesh(
 	return Mesh;
 }
 
+UTexture2D* UApexCarImportCommandlet::ImportTexture(const FString& PngPath, const FString& PackageName, FString& OutError)
+{
+	const FString File = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
+	if (IFileManager::Get().FileExists(*File))
+	{
+		IFileManager::Get().Delete(*File, false, true);
+		IAssetRegistry::Get()->ScanModifiedAssetFiles({File});
+	}
+	FImportAssetParameters Params;
+	Params.bIsAutomated = true;
+	Params.bReplaceExisting = true;
+	Params.DestinationName = FPackageName::GetShortName(PackageName);
+
+	UInterchangeManager& Manager = UInterchangeManager::GetInterchangeManager();
+	UE::Interchange::FScopedSourceData ScopedSourceData(PngPath);
+	TArray<UObject*> Imported;
+	if (!Manager.ImportAsset(FPackageName::GetLongPackagePath(PackageName), ScopedSourceData.GetSourceData(), Params, Imported))
+	{
+		OutError = FString::Printf(TEXT("Interchange failed on %s"), *PngPath);
+		return nullptr;
+	}
+	for (UObject* Object : Imported)
+	{
+		if (UTexture2D* Texture = Cast<UTexture2D>(Object))
+		{
+			return Texture;
+		}
+	}
+	OutError = FString::Printf(TEXT("%s produced no texture"), *PngPath);
+	return nullptr;
+}
+
+bool UApexCarImportCommandlet::ResolveLiveries(const FSource& Source, const FOptions& Options,
+	TSet<UPackage*>& OutPackages, TArray<FApexCarLivery>& OutLiveries, FString& OutError)
+{
+	OutLiveries.Reset();
+	for (const FLiveryToml& L : Source.Toml.Liveries)
+	{
+		FApexCarLivery Livery;
+		Livery.Name = L.Name;
+		Livery.Paint = L.Paint;
+		Livery.Accent = L.Accent;
+		Livery.PaintMetallic = L.Metallic;
+		if (!L.Logo.IsEmpty())
+		{
+			const FString PngPath = FPaths::GetPath(Source.TomlPath) / L.Logo;
+			if (!IFileManager::Get().FileExists(*PngPath))
+			{
+				OutError = FString::Printf(TEXT("livery \"%s\": logo %s is missing"), *L.Name, *PngPath);
+				return false;
+			}
+			const FString PackageName = LiveryLogoPackageName(Options.DestRoot, Source.Folder, L.Logo);
+			const FString ObjectPath = PackageName + TEXT(".") + FPackageName::GetShortName(PackageName);
+			UTexture2D* Texture = nullptr;
+			if (!Options.bForce && FPackageName::DoesPackageExist(PackageName))
+			{
+				Texture = LoadObject<UTexture2D>(nullptr, *ObjectPath);
+			}
+			if (!Texture && !Options.bDryRun)
+			{
+				UE_LOG(LogApexTrackImport, Display, TEXT("    importing %s <- %s"), *PackageName, *PngPath);
+				Texture = ImportTexture(PngPath, PackageName, OutError);
+				if (!Texture)
+				{
+					return false;
+				}
+				OutPackages.Add(Texture->GetOutermost());
+			}
+			Livery.Logo = Texture ? TSoftObjectPtr<UTexture2D>(Texture) : TSoftObjectPtr<UTexture2D>(FSoftObjectPath(ObjectPath));
+		}
+		OutLiveries.Add(MoveTemp(Livery));
+	}
+	return true;
+}
+
 void UApexCarImportCommandlet::CollectDirtyPackages(const FString& Folder, TSet<UPackage*>& OutPackages)
 {
 	for (TObjectIterator<UPackage> It; It; ++It)
@@ -723,8 +852,24 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		{
 			UE_LOG(LogApexTrackImport, Display, TEXT("    no [wheels] table: the body draws its own"));
 		}
+		// Liveries are derived too; their logos are imported once per folder.
+		TArray<FApexCarLivery> Liveries;
+		{
+			FString LiveryError;
+			if (!ResolveLiveries(Source, Options, Touched, Liveries, LiveryError))
+			{
+				UE_LOG(LogApexTrackImport, Error, TEXT("    %s"), *LiveryError);
+				++Failures;
+				continue;
+			}
+			if (Liveries.Num() > 0)
+			{
+				UE_LOG(LogApexTrackImport, Display, TEXT("    %d livery/liveries"), Liveries.Num());
+			}
+		}
 		const bool bNeedsWheels = Existing && Existing->Wheels != Wheels;
 		const bool bNeedsSound = Existing && Existing->EngineSound != Source.Toml.Sound;
+		const bool bNeedsLiveries = Existing && Existing->Liveries != Liveries;
 
 		// A row that already points at a mesh of its own is finished unless
 		// -force: the hand-imported cars keep theirs and nothing is imported
@@ -737,15 +882,17 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		const bool bNeedsCrc = Existing && Existing->SourceCrc != Source.SourceCrc;
 		if (bRowMeshOk && !Options.bForce)
 		{
-			UE_LOG(LogApexTrackImport, Display, TEXT("    keeps %s%s%s%s"), *Existing->Mesh.ToString(),
+			UE_LOG(LogApexTrackImport, Display, TEXT("    keeps %s%s%s%s%s"), *Existing->Mesh.ToString(),
 				bNeedsCrc ? TEXT(", updating checksum") : TEXT(""), bNeedsWheels ? TEXT(", updating wheels") : TEXT(""),
-				bNeedsSound ? TEXT(", updating engine sound") : TEXT(""));
-			if ((bNeedsCrc || bNeedsWheels || bNeedsSound) && !Options.bDryRun)
+				bNeedsSound ? TEXT(", updating engine sound") : TEXT(""),
+				bNeedsLiveries ? TEXT(", updating liveries") : TEXT(""));
+			if ((bNeedsCrc || bNeedsWheels || bNeedsSound || bNeedsLiveries) && !Options.bDryRun)
 			{
 				FApexCarCatalogRow Row = *Existing;
 				Row.SourceCrc = Source.SourceCrc;
 				Row.Wheels = Wheels;
 				Row.EngineSound = Source.Toml.Sound;
+				Row.Liveries = Liveries;
 				Table->AddRow(RowName, Row);
 				++RowsUpdated;
 				Touched.Add(Table->GetOutermost());
@@ -784,6 +931,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		Row.SourceCrc = Source.SourceCrc;
 		Row.Wheels = Wheels;
 		Row.EngineSound = Source.Toml.Sound;
+		Row.Liveries = Liveries;
 		const bool bMeshMissing = Row.Mesh.IsNull() || !FPackageName::DoesPackageExist(Row.Mesh.GetLongPackageName());
 		const bool bMeshForeign = !Row.FolderName.IsEmpty() && Row.FolderName != Source.Folder;
 		const bool bSetMesh = Mesh && (bFillFields || bMeshMissing || bMeshForeign);
@@ -797,7 +945,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 			Row.Mesh = Mesh;
 			Row.FolderName = Source.Folder;
 		}
-		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc && !bNeedsWheels && !bNeedsSound)
+		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc && !bNeedsWheels && !bNeedsSound && !bNeedsLiveries)
 		{
 			continue;
 		}

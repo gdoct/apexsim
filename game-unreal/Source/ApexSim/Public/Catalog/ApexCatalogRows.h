@@ -156,6 +156,43 @@ struct APEXSIM_API FApexEngineSoundSpec
 	bool operator!=(const FApexEngineSoundSpec& Other) const { return !(*this == Other); }
 };
 
+/**
+ * One of a car's extra paint schemes: a `[[livery]]` table in its car.toml.
+ * The mesh stays the same; the client repaints the `car_paint` and
+ * `car_accent` slots and swaps the `car_logo` texture (ApexCarLivery.h).
+ */
+USTRUCT(BlueprintType)
+struct APEXSIM_API FApexCarLivery
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
+	FString Name;
+
+	/** Body colour, linear (the glTF `BaseColorFactor` of `car_paint`). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
+	FLinearColor Paint = FLinearColor::White;
+
+	/** The accent areas' colour, linear (`car_accent`); zero alpha keeps the model's. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
+	FLinearColor Accent = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	/** The paint's metallic factor; negative keeps the model's. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
+	float PaintMetallic = -1.0f;
+
+	/** The wordmark on the flanks (`car_logo`); unset keeps the model's. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
+	TSoftObjectPtr<UTexture2D> Logo;
+
+	bool operator==(const FApexCarLivery& Other) const
+	{
+		return Name == Other.Name && Paint == Other.Paint && Accent == Other.Accent
+			&& PaintMetallic == Other.PaintMetallic && Logo == Other.Logo;
+	}
+	bool operator!=(const FApexCarLivery& Other) const { return !(*this == Other); }
+};
+
 /** One row per car. RowName == the `id` from `content/cars/<folder>/car.toml`. */
 USTRUCT(BlueprintType)
 struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
@@ -211,6 +248,14 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	/** What the engine sounds like. Derived from car.toml on every import, like the wheels. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	FApexEngineSoundSpec EngineSound;
+
+	/**
+	 * The car's extra liveries, the car.toml's `[[livery]]` tables in order:
+	 * livery N on the wire is `Liveries[N - 1]`, livery 0 the model as
+	 * authored. Derived on every import, like the wheels.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	TArray<FApexCarLivery> Liveries;
 
 	/** Per-car tweaks for framing the turntable preview. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Preview")

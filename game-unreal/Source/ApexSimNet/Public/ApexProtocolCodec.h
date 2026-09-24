@@ -24,7 +24,8 @@ namespace ApexProtocol
 
 	APEXSIMNET_API TArray<uint8> EncodeAuthenticate(const FString& Token, const FString& PlayerName);
 	APEXSIMNET_API TArray<uint8> EncodeHeartbeat(uint32 ClientTick);
-	APEXSIMNET_API TArray<uint8> EncodeSelectCar(const FString& CarConfigId);
+	/** `Livery`: 0 the car as authored, 1.. the car's `[[livery]]` tables. */
+	APEXSIMNET_API TArray<uint8> EncodeSelectCar(const FString& CarConfigId, int32 Livery = 0);
 	APEXSIMNET_API TArray<uint8> EncodeRequestLobbyState();
 	APEXSIMNET_API TArray<uint8> EncodeCreateSession(
 		const FString& TrackConfigId,

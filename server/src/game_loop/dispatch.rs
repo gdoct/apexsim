@@ -52,8 +52,11 @@ pub(crate) async fn handle_message(
         ClientMessage::Authenticate { player_name, .. } => {
             handle_authenticate(ctx, connection_id, player_name).await;
         }
-        ClientMessage::SelectCar { car_config_id } => {
-            handle_select_car(ctx, connection_id, car_config_id).await;
+        ClientMessage::SelectCar {
+            car_config_id,
+            livery,
+        } => {
+            handle_select_car(ctx, connection_id, car_config_id, livery).await;
         }
         ClientMessage::RequestLobbyState => {
             if let Err(e) = broadcast::send_lobby_state(ctx, connection_id).await {
@@ -186,16 +189,21 @@ async fn handle_select_car(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,
     car_config_id: CarConfigId,
+    livery: u8,
 ) {
     if let Some(conn_info) = ctx.connection(connection_id).await {
         debug!(
-            "SelectCar: player_id={}, car_config_id={}",
-            conn_info.player_id, car_config_id
+            "SelectCar: player_id={}, car_config_id={}, livery={}",
+            conn_info.player_id, car_config_id, livery
         );
         let state_read = ctx.state.read().await;
         state_read
             .lobby
             .set_player_car(conn_info.player_id, car_config_id)
+            .await;
+        state_read
+            .lobby
+            .set_player_livery(conn_info.player_id, livery)
             .await;
         debug!("SelectCar: Car set successfully");
     } else {
@@ -352,6 +360,7 @@ async fn handle_create_session(
     // Add host to the actual game session
     // The record store is cloned out first: the session below borrows
     // `state_write` mutably for the rest of the join.
+    let livery = state_write.lobby.get_player_livery(conn_info.player_id).await;
     let records = state_write.records.clone();
     let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
         warn!("Session {} not found in sessions map", session_id);
@@ -362,6 +371,7 @@ async fn handle_create_session(
     };
 
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
+        game_session.set_livery(conn_info.player_id, livery);
         let racing_line = racing_line_message(game_session, session_id, car_id);
         let timing = timing_messages(
             game_session,
@@ -486,6 +496,7 @@ async fn handle_join_session(
 
     // Get player's selected car
     let selected_car = state_write.lobby.get_player_car(conn_info.player_id).await;
+    let livery = state_write.lobby.get_player_livery(conn_info.player_id).await;
 
     let joined = state_write
         .lobby
@@ -526,6 +537,7 @@ async fn handle_join_session(
 
     let game_session_kind = game_session.session.session_kind;
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
+        game_session.set_livery(conn_info.player_id, livery);
         debug!(
             "Player {} joined session {} at grid position {}",
             conn_info.player_name, session_id, grid_pos

@@ -26,14 +26,20 @@ class UApexRootWidget;
  *
  * It also notices which device the player is using: the cursor is hidden
  * while a gamepad is driving the menu and comes back when the mouse moves.
+ *
+ * And it repeats a held wheel direction. A wheel's hat or thumb stick bound
+ * to menu navigation (the Menu* slots) reaches Slate as a DirectInput key,
+ * which, unlike XInput's D-pad, is never sent again while held; without this
+ * a long list would take one push per row.
  */
 class FApexMenuInputProcessor : public IInputProcessor
 {
 public:
 	explicit FApexMenuInputProcessor(UApexRootWidget* InOwner);
 
-	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override {}
+	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override;
 	virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
+	virtual bool HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
 	virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
 	virtual bool HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
@@ -52,6 +58,14 @@ private:
 	/** Hides the cursor while a pad drives the menu, shows it again for the mouse. */
 	void SetGamepadActive(UApexRootWidget& Root, bool bActive);
 
+	/** Starts repeating a DirectInput key that navigates, or stops for anything else. */
+	void TrackHeldDirection(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent);
+
 	TWeakObjectPtr<UApexRootWidget> Owner;
 	bool bGamepadActive = false;
+
+	/** The wheel direction being held, as it first arrived; unset when none is. */
+	TOptional<FKeyEvent> HeldDirection;
+	/** Seconds until HeldDirection is sent again. */
+	float RepeatCountdown = 0.0f;
 };

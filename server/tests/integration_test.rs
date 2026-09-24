@@ -89,6 +89,7 @@ impl TestClient {
         println!("DEBUG: Sending SelectCar with car_id={}", car_id);
         let msg = ClientMessage::SelectCar {
             car_config_id: car_id,
+            livery: 0,
         };
         self.send_tcp_message(&msg).await?;
         // Give server time to process the car selection

@@ -311,6 +311,19 @@ private:
 	void ApplyControls();
 	void ApplyAudio();
 
+	/**
+	 * Registers the wheel's Menu* bindings with Slate's navigation config
+	 * (ApexInput::ApplyMenuNavigation), so every widget that navigates by the
+	 * config - ours, and Slate's sliders and dropdowns - takes them.
+	 */
+	void ApplyMenuNavigation();
+
+	/** Undoes ApplyMenuNavigation: drops the rules it added. */
+	void ClearMenuNavigation();
+
+	/** The keys ApplyMenuNavigation added to the config, to take back out. */
+	TArray<FKey> MenuNavigationKeys;
+
 	/** A device arrived or left: the bindings are rebuilt around what is here now. */
 	void HandleInputDevicesChanged();
 

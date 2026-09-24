@@ -27,6 +27,7 @@
 #include "GenericPlatform/GenericApplication.h"
 #include "Input/ApexInputConfig.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexRootWidget.h"
 #include "UI/ApexSegmentedWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -52,7 +53,30 @@ namespace
 	/** The bindings grid is the tallest column on any page; its rows are cut down to fit. */
 	constexpr float BindingRowHeight = 58.0f;
 	/** The wheel page's rows sit above devices and three sliders, so they are shorter still. */
-	constexpr float WheelRowHeight = 52.0f;
+	constexpr float WheelRowHeight = 46.0f;
+	/**
+	 * The wheel bindings' two blocks, driving and menu, as fill weights. The
+	 * header row splits by the same weights so the MENU caption sits over its
+	 * column; inside the driving block the axes' column (meters) is the wider.
+	 */
+	constexpr float WheelDrivingWeight = 2.3f;
+	constexpr float WheelMenuWeight = 0.75f;
+	constexpr float WheelAxesWeight = 1.3f;
+	constexpr float WheelColumnGap = 14.0f;
+
+	/**
+	 * A fill slot with a weight. ApexUI::AddH only switches a slot to Fill
+	 * (every fill weighs 1), so the wheel grid's uneven split is set here.
+	 */
+	void AddWeighted(UHorizontalBox* Box, UWidget* Child, const FMargin& Padding, EVerticalAlignment VAlign, float Weight)
+	{
+		if (UHorizontalBoxSlot* Slot = ApexUI::AddH(Box, Child, Padding, VAlign, Weight))
+		{
+			FSlateChildSize Size(ESlateSizeRule::Fill);
+			Size.Value = Weight;
+			Slot->SetSize(Size);
+		}
+	}
 	/** Dropdowns and the sliders beside them share a width so the grid lines up. */
 	constexpr float DropdownWidth = 250.0f;
 	/** Wider, because the AI-skill row has a whole page column to itself. */
@@ -395,6 +419,7 @@ UWidget* UApexSettingsWidget::BuildFooter()
 	BackToRace->Setup(RaceSpec);
 	BackToRace->OnActivated.AddDynamic(this, &UApexSettingsWidget::HandleFooterActivated);
 	AddH(Row, MakeSized(*WidgetTree, BackToRace, 200.0f, 56.0f));
+	FooterBackButton = BackToRace;
 
 	UBorder* Bar = MakePanel(*WidgetTree, Row, FMargin(38.0f, 0.0f), MakeBrush(Palette::Surface));
 	Bar->SetVerticalAlignment(VAlign_Center);
@@ -1064,11 +1089,15 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 		AddV(Page, Row, FMargin(0.0f, 20.0f, 0.0f, 0.0f));
 	}
 
-	UHorizontalBox* BindingsHead = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(BindingsHead, MakeSectionLabel(TEXT("Wheel bindings")));
-	AddH(BindingsHead, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
-	AddH(BindingsHead, MakeLabel(*WidgetTree,
+	UHorizontalBox* DrivingHead = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddH(DrivingHead, MakeSectionLabel(TEXT("Wheel bindings")));
+	AddH(DrivingHead, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+	AddH(DrivingHead, MakeLabel(*WidgetTree,
 		TEXT("Click a slot, then move that control  ·  kept per device")));
+
+	UHorizontalBox* BindingsHead = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddWeighted(BindingsHead, DrivingHead, FMargin(0.0f, 0.0f, WheelColumnGap, 0.0f), VAlign_Center, WheelDrivingWeight);
+	AddWeighted(BindingsHead, MakeSectionLabel(TEXT("Menu")), FMargin(), VAlign_Center, WheelMenuWeight);
 	AddV(Page, BindingsHead, FMargin(0.0f, 20.0f, 0.0f, 10.0f));
 
 	AddV(Page, BuildWheelBindings());
@@ -1081,7 +1110,9 @@ UWidget* UApexSettingsWidget::BuildWheelBindings()
 {
 	// The axes come first and carry a meter each: a binding that reads
 	// backwards, or not at all, is the whole of what goes wrong with a wheel,
-	// and a bar says so at a glance. Ten slots, split evenly down two columns.
+	// and a bar says so at a glance. The driving slots split down two columns;
+	// the menu's six have a narrow third one of their own, under the MENU
+	// caption, which is why their rows can be called just "Up" and "OK".
 	struct FWheelRowSpec
 	{
 		const TCHAR* Label;
@@ -1089,28 +1120,37 @@ UWidget* UApexSettingsWidget::BuildWheelBindings()
 		int32 Slot;
 		/** Meters are only on the three that decide whether the car is drivable. */
 		bool bMeter;
+		/** 0 and 1 are the driving block's columns, 2 the menu's. */
+		int32 Column;
 	};
 	static const TArray<FWheelRowSpec> RowSpecs = {
-		{ TEXT("Steering"),    ApexInput::Actions::Steer,        ApexInput::Slot::Wheel,     true  },
-		{ TEXT("Throttle"),    ApexInput::Actions::Throttle,     ApexInput::Slot::Wheel,     true  },
-		{ TEXT("Brake"),       ApexInput::Actions::Brake,        ApexInput::Slot::Wheel,     true  },
-		{ TEXT("Shift up"),    ApexInput::Actions::GearUp,       ApexInput::Slot::Wheel,     false },
-		{ TEXT("Shift down"),  ApexInput::Actions::GearDown,     ApexInput::Slot::Wheel,     false },
-		{ TEXT("Camera"),      ApexInput::Actions::ToggleCamera, ApexInput::Slot::Wheel,     false },
-		{ TEXT("Look left"),   ApexInput::Actions::Look,         ApexInput::Slot::WheelLow,  false },
-		{ TEXT("Look right"),  ApexInput::Actions::Look,         ApexInput::Slot::WheelHigh, false },
-		{ TEXT("Look behind"), ApexInput::Actions::LookBack,     ApexInput::Slot::Wheel,     false },
-		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,    ApexInput::Slot::Wheel,     false },
+		{ TEXT("Steering"),    ApexInput::Actions::Steer,        ApexInput::Slot::Wheel,     true,  0 },
+		{ TEXT("Throttle"),    ApexInput::Actions::Throttle,     ApexInput::Slot::Wheel,     true,  0 },
+		{ TEXT("Brake"),       ApexInput::Actions::Brake,        ApexInput::Slot::Wheel,     true,  0 },
+		{ TEXT("Shift up"),    ApexInput::Actions::GearUp,       ApexInput::Slot::Wheel,     false, 0 },
+		{ TEXT("Shift down"),  ApexInput::Actions::GearDown,     ApexInput::Slot::Wheel,     false, 0 },
+		{ TEXT("Camera"),      ApexInput::Actions::ToggleCamera, ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("Look left"),   ApexInput::Actions::Look,         ApexInput::Slot::WheelLow,  false, 1 },
+		{ TEXT("Look right"),  ApexInput::Actions::Look,         ApexInput::Slot::WheelHigh, false, 1 },
+		{ TEXT("Look behind"), ApexInput::Actions::LookBack,     ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,    ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("Up"),          ApexInput::Actions::MenuUp,       ApexInput::Slot::Wheel,     false, 2 },
+		{ TEXT("Down"),        ApexInput::Actions::MenuDown,     ApexInput::Slot::Wheel,     false, 2 },
+		{ TEXT("Left"),        ApexInput::Actions::MenuLeft,     ApexInput::Slot::Wheel,     false, 2 },
+		{ TEXT("Right"),       ApexInput::Actions::MenuRight,    ApexInput::Slot::Wheel,     false, 2 },
+		{ TEXT("OK"),          ApexInput::Actions::MenuAccept,   ApexInput::Slot::Wheel,     false, 2 },
+		{ TEXT("Back"),        ApexInput::Actions::MenuBack,     ApexInput::Slot::Wheel,     false, 2 },
 	};
 
-	UHorizontalBox* Grid = WidgetTree->ConstructWidget<UHorizontalBox>();
-	UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>();
-	UVerticalBox* Right = WidgetTree->ConstructWidget<UVerticalBox>();
+	UVerticalBox* Columns[3] = {
+		WidgetTree->ConstructWidget<UVerticalBox>(),
+		WidgetTree->ConstructWidget<UVerticalBox>(),
+		WidgetTree->ConstructWidget<UVerticalBox>(),
+	};
 
 	WheelMeterBars.Reset();
 	WheelMeterValues.Reset();
 
-	const int32 Split = FMath::DivideAndRoundUp(RowSpecs.Num(), 2);
 	for (int32 Index = 0; Index < RowSpecs.Num(); ++Index)
 	{
 		const FWheelRowSpec& RowSpec = RowSpecs[Index];
@@ -1124,7 +1164,7 @@ UWidget* UApexSettingsWidget::BuildWheelBindings()
 			BarStyle.SetFillImage(MakeBrush(Palette::Accent));
 			Bar->SetWidgetStyle(BarStyle);
 			Bar->SetPercent(0.0f);
-			AddH(Cell, MakeSized(*WidgetTree, Bar, 86.0f, 6.0f), FMargin(0.0f, 0.0f, 12.0f, 0.0f), VAlign_Center);
+			AddH(Cell, MakeSized(*WidgetTree, Bar, 76.0f, 6.0f), FMargin(0.0f, 0.0f, 12.0f, 0.0f), VAlign_Center);
 
 			UTextBlock* Value = MakeText(*WidgetTree, TEXT("—"), Font::Mono(12.0f, 40), Palette::TextMuted);
 			AddH(Cell, MakeSized(*WidgetTree, Value, 46.0f, -1.0f), FMargin(0.0f, 0.0f, 10.0f, 0.0f), VAlign_Center);
@@ -1135,13 +1175,19 @@ UWidget* UApexSettingsWidget::BuildWheelBindings()
 
 		AddH(Cell, MakeSized(*WidgetTree, MakeBindingChip(RowSpec.ActionId, RowSpec.Slot), 116.0f, 36.0f));
 
-		UVerticalBox* Column = Index < Split ? Left : Right;
+		UVerticalBox* Column = Columns[RowSpec.Column];
 		AddV(Column, MakeRow(RowSpec.Label, FString(), Cell, FString(), WheelRowHeight),
 			FMargin(0.0f, Column->GetChildrenCount() == 0 ? 0.0f : 2.0f, 0.0f, 0.0f));
 	}
 
-	AddH(Grid, Left, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
-	AddH(Grid, Right, FMargin(), VAlign_Top, 1.0f);
+	// Nested the way the header is, so the menu column lines up under its caption.
+	UHorizontalBox* Driving = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddWeighted(Driving, Columns[0], FMargin(0.0f, 0.0f, WheelColumnGap, 0.0f), VAlign_Top, WheelAxesWeight);
+	AddWeighted(Driving, Columns[1], FMargin(), VAlign_Top, 1.0f);
+
+	UHorizontalBox* Grid = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddWeighted(Grid, Driving, FMargin(0.0f, 0.0f, WheelColumnGap, 0.0f), VAlign_Top, WheelDrivingWeight);
+	AddWeighted(Grid, Columns[2], FMargin(), VAlign_Top, WheelMenuWeight);
 	return Grid;
 }
 
@@ -1426,6 +1472,13 @@ void UApexSettingsWidget::Open(EApexSettingsTab Tab)
 {
 	bOpen = true;
 	SetVisibility(ESlateVisibility::Visible);
+
+	// Opened from the main menu there is no race to go back to.
+	if (FooterBackButton)
+	{
+		const UApexRootWidget* Root = GetTypedOuter<UApexRootWidget>();
+		FooterBackButton->SetLabel(Root && Root->IsRaceViewActive() ? TEXT("Back to race") : TEXT("Done"));
+	}
 
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
@@ -2205,6 +2258,11 @@ void UApexSettingsWidget::BeginListening(FName ActionId, int32 ListenSlot)
 			// Which way it is moved is the answer to which way round it runs.
 			Prompt = FString::Printf(TEXT("Turn the wheel RIGHT for %s"), Label);
 		}
+		else if (ActionId == ApexInput::Actions::MenuUp || ActionId == ApexInput::Actions::MenuDown
+			|| ActionId == ApexInput::Actions::MenuLeft || ActionId == ApexInput::Actions::MenuRight)
+		{
+			Prompt = FString::Printf(TEXT("Push the wheel's joystick or hat for %s"), Label);
+		}
 		else if (ActionId == ApexInput::Actions::Throttle || ActionId == ApexInput::Actions::Brake)
 		{
 			Prompt = FString::Printf(TEXT("Press the %s pedal all the way down"), *FString(Label).ToLower());
@@ -2294,7 +2352,9 @@ FReply UApexSettingsWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 	// The pause key closes the whole stack's top layer, the same as it does on
 	// the pause menu underneath. Escape and B arrive through HandleBack; Tab
 	// and the shoulders through HandleNavigation.
-	if (Key == EKeys::Gamepad_Special_Right)
+	// A wheel's own pause button counts too; Escape is left to HandleBack.
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	if (Key == EKeys::Gamepad_Special_Right || (Key != EKeys::Escape && Settings && Settings->IsPauseKey(Key)))
 	{
 		ApexUiAudio::Play(this, EApexUiSound::Back);
 		Close();

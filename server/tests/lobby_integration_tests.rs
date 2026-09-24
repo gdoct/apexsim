@@ -69,6 +69,7 @@ impl LobbyTestClient {
     async fn select_car(&mut self, car_id: CarConfigId) -> Result<(), Box<dyn std::error::Error>> {
         let msg = ClientMessage::SelectCar {
             car_config_id: car_id,
+            livery: 0,
         };
         self.send_message(&msg).await?;
         sleep(Duration::from_millis(100)).await;

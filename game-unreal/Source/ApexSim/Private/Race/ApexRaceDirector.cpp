@@ -31,6 +31,7 @@
 #include "Audio/ApexRoadSound.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Input/ApexForceFeedback.h"
+#include "Race/ApexCarLivery.h"
 #include "Race/ApexCockpitRig.h"
 #include "Race/ApexGhostCarActor.h"
 #include "Race/ApexRaceCarActor.h"
@@ -572,11 +573,14 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 		{
 			CarId = Flow->GetPendingCarId();
 		}
+		// Keyed by car and livery: a driver who rejoins in another paint
+		// scheme gets repainted, not left in the old one.
+		const FString ShownKey = FString::Printf(TEXT("%s#%d"), *CarId, Entry.Livery);
 		const FString* Shown = CarIdShown.Find(Entry.CarIndex);
-		if (!Shown || !Shown->Equals(CarId, ESearchCase::IgnoreCase))
+		if (!Shown || !Shown->Equals(ShownKey, ESearchCase::IgnoreCase))
 		{
-			CarIdShown.Add(Entry.CarIndex, CarId);
-			ApplyCatalogMesh(Car, CarId);
+			CarIdShown.Add(Entry.CarIndex, ShownKey);
+			ApplyCatalogMesh(Car, CarId, Entry.Livery);
 		}
 
 		Car->SetDisplayName(Entry.PlayerName);
@@ -609,7 +613,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 	UE_LOG(LogApexSim, Log, TEXT("Race roster: %d car(s) spawned"), Cars.Num());
 }
 
-void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId)
+void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId, int32 Livery)
 {
 	if (!Car)
 	{
@@ -639,6 +643,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 	}
 	Car->SetCarMesh(Mesh);
 	Car->SetWheels(Wheels);
+	Car->SetLivery(Mesh == Row.Mesh ? ApexLivery::Find(Row, Livery) : nullptr);
 }
 
 void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)

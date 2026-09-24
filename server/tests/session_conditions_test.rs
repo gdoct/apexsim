@@ -97,6 +97,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
 
         host.send(&ClientMessage::SelectCar {
             car_config_id: car_id,
+            livery: 0,
         })
         .await?;
         sleep(Duration::from_millis(50)).await;
@@ -140,6 +141,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
         guest
             .send(&ClientMessage::SelectCar {
                 car_config_id: car_id,
+                livery: 0,
             })
             .await?;
         sleep(Duration::from_millis(50)).await;
@@ -192,6 +194,7 @@ async fn a_session_created_without_conditions_is_a_sunny_afternoon() {
         let track_id = lobby.track_configs.first().ok_or("no tracks")?.id;
         host.send(&ClientMessage::SelectCar {
             car_config_id: car_id,
+            livery: 0,
         })
         .await?;
         sleep(Duration::from_millis(50)).await;

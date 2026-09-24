@@ -18,6 +18,7 @@ class UAudioComponent;
 class UMaterialInstanceDynamic;
 class UStaticMesh;
 class UStaticMeshComponent;
+struct FApexCarLivery;
 
 /**
  * One car in the world, driven entirely by server telemetry.
@@ -50,6 +51,12 @@ public:
 
 	/** Swaps the displayed mesh. Safe to call with an unset pointer. */
 	void SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow);
+
+	/**
+	 * Repaints the body (ApexCarLivery.h); null is the model as authored.
+	 * After SetCarMesh, which drops any livery the old body wore.
+	 */
+	void SetLivery(const struct FApexCarLivery* Livery);
 
 	/**
 	 * The wheels to draw on the body (the catalog row's `Wheels`); an
@@ -250,6 +257,9 @@ private:
 	 */
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> BrakeLightMaterial;
+
+	/** A livery's instances are on the paint, accent and logo slots. */
+	bool bLiveryApplied = false;
 	/** The slot's authored emissive colour, scaled up when the lights are on. */
 	FLinearColor BrakeLightColor = FLinearColor::Red;
 	bool bBrakeLightsOn = false;

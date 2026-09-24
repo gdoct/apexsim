@@ -1,6 +1,7 @@
 #include "ApexCarPreviewStage.h"
 
 #include "ApexSim.h"
+#include "Race/ApexCarLivery.h"
 #include "Components/RectLightComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/StaticMeshComponent.h"
@@ -127,6 +128,9 @@ void AApexCarPreviewStage::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToS
 		return;
 	}
 
+	// Overrides are per slot index: the last car's livery must not land on this one's slots.
+	CarMesh->EmptyOverrideMaterials();
+	bLiveryApplied = false;
 	CarMesh->SetStaticMesh(Loaded);
 	Turntable->SetRelativeRotation(FRotator::ZeroRotator);
 	FrameCurrentMesh();
@@ -143,6 +147,15 @@ void AApexCarPreviewStage::SetCarWheels(const FApexWheelSpec& Spec)
 		// Placed standing, pointing straight ahead: the turntable does the moving.
 		Wheels.SetSpec(Spec);
 	}
+}
+
+void AApexCarPreviewStage::SetCarLivery(const FApexCarLivery* Livery)
+{
+	if (Livery || bLiveryApplied)
+	{
+		ApexLivery::Apply(CarMesh, Livery);
+	}
+	bLiveryApplied = Livery != nullptr;
 }
 
 void AApexCarPreviewStage::ResetTurntable()

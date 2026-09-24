@@ -19,6 +19,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "TimerManager.h"
+#include "Race/ApexCarLivery.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
@@ -28,6 +29,7 @@ namespace
 {
 	const FName ActionCarSelectBack(TEXT("__back"));
 	const FName ActionSetup(TEXT("__setup"));
+	const FName ActionLivery(TEXT("__livery"));
 
 	constexpr float ListWidth = 420.0f;
 	/** Watts per kilowatt-hour of marketing: kW to the horsepower everyone quotes. */
@@ -212,6 +214,20 @@ UWidget* UApexCarSelectWidget::BuildStage()
 
 	UHorizontalBox* ActionRow = WidgetTree->ConstructWidget<UHorizontalBox>();
 	ApexUI::AddH(ActionRow, NameStack, FMargin(), VAlign_Center, 1.0f);
+
+	// The paint scheme: click (or Left / Right in the list) steps through them.
+	FApexButtonSpec LiverySpec;
+	LiverySpec.Label = TEXT("Livery");
+	LiverySpec.KeyCap = TEXT("◀ ▶");
+	LiverySpec.Variant = EApexButtonVariant::Ghost;
+	LiverySpec.LabelSize = 17.0f;
+	LiverySpec.Height = 56.0f;
+	LiverySpec.ActionId = ActionLivery;
+
+	LiveryButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	LiveryButton->Setup(LiverySpec);
+	LiveryButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, LiveryButton, 300.0f, -1.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f));
 
 	// No setup system exists yet, so the button says so rather than doing nothing.
 	FApexButtonSpec SetupSpec;
@@ -482,6 +498,18 @@ void UApexCarSelectWidget::ApplyFilter()
 
 void UApexCarSelectWidget::SelectCar(const FString& CarId)
 {
+	if (!SelectedCarId.Equals(CarId, ESearchCase::IgnoreCase))
+	{
+		// Another car starts in its works livery, unless it is the car the
+		// player already drives, which comes back in the livery they picked.
+		SelectedLivery = 0;
+		const UApexMenuFlowSubsystem* Flow = GetFlow();
+		const UApexNetSubsystem* Net = GetNet();
+		if (Flow && Net && Flow->HasPendingCar() && Flow->GetPendingCarId().Equals(CarId, ESearchCase::IgnoreCase))
+		{
+			SelectedLivery = Net->GetPendingLivery();
+		}
+	}
 	SelectedCarId = CarId;
 
 	for (int32 Index = 0; Index < VisibleRows.Num(); ++Index)
@@ -590,6 +618,8 @@ void UApexCarSelectWidget::RefreshDetail()
 	if (PowerBar)  { PowerBar->SetPercent(MaxHp > 0.0f ? Hp / MaxHp : 0.0f); }
 	if (WeightBar) { WeightBar->SetPercent(MaxMass > 0.0f ? Mass / MaxMass : 0.0f); }
 	if (RatioBar)  { RatioBar->SetPercent(MaxRatio > 0.0f ? Ratio / MaxRatio : 0.0f); }
+
+	RefreshLiveryButton();
 }
 
 void UApexCarSelectWidget::UpdatePreviewStage()
@@ -612,6 +642,43 @@ void UApexCarSelectWidget::UpdatePreviewStage()
 	Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
 	Stage->SetCarWheels(Row.Wheels);
 	Stage->SetCarMesh(Row.Mesh);
+	Stage->SetCarLivery(ApexLivery::Find(Row, SelectedLivery));
+}
+
+void UApexCarSelectWidget::CycleLivery(int32 Step)
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	FApexCarCatalogRow Row;
+	if (!Flow || !Flow->GetCarCatalogRow(SelectedCarId, Row) || Row.Liveries.Num() == 0)
+	{
+		return;
+	}
+	const int32 Count = Row.Liveries.Num() + 1;
+	SelectedLivery = ((SelectedLivery + Step) % Count + Count) % Count;
+	RefreshLiveryButton();
+	UpdatePreviewStage();
+}
+
+void UApexCarSelectWidget::RefreshLiveryButton()
+{
+	if (!LiveryButton)
+	{
+		return;
+	}
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	FApexCarCatalogRow Row;
+	const bool bHasRow = Flow && Flow->GetCarCatalogRow(SelectedCarId, Row);
+	if (!bHasRow || Row.Liveries.Num() == 0)
+	{
+		SelectedLivery = 0;
+		LiveryButton->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+	SelectedLivery = FMath::Clamp(SelectedLivery, 0, Row.Liveries.Num());
+	LiveryButton->SetVisibility(ESlateVisibility::Visible);
+	LiveryButton->SetLabel(ApexLivery::DisplayName(Row, SelectedLivery));
+	LiveryButton->SetBadge(FString::Printf(TEXT("%d / %d"), SelectedLivery + 1, Row.Liveries.Num() + 1),
+		ApexUI::Palette::TextMuted);
 }
 
 // ---------------------------------------------------------------------------
@@ -642,6 +709,7 @@ void UApexCarSelectWidget::HandleRowActivated(UApexButtonWidget* Row)
 	// a session that has already started.
 	if (UApexNetSubsystem* Net = GetNet())
 	{
+		Net->SetPendingLivery(SelectedLivery);
 		Net->SelectCar(SelectedCarId);
 	}
 	if (UApexRootWidget* Root = GetRoot())
@@ -662,6 +730,11 @@ void UApexCarSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Id == ActionCarSelectBack)
 	{
 		GoBack();
+		return;
+	}
+	if (Id == ActionLivery)
+	{
+		CycleLivery(+1);
 		return;
 	}
 
@@ -735,6 +808,12 @@ bool UApexCarSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* So
 			return ApexNav::Focus(HeaderBackButton);
 		case EUINavigation::Previous:
 			return FocusChip();
+		case EUINavigation::Left:
+			CycleLivery(-1);
+			return true;
+		case EUINavigation::Right:
+			CycleLivery(+1);
+			return true;
 		default:
 			return true;
 		}

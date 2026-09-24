@@ -38,7 +38,8 @@ enum class EApexSettingsTab : uint8
 };
 
 /**
- * The settings overlay, reachable from the pause menu.
+ * The settings overlay, reachable from the pause menu and from the main menu
+ * (its rail, or a pad's Start button).
  *
  * It holds no state: every control reads its value from UApexSettingsSubsystem
  * on open and writes straight back through it, which is what makes "applies
@@ -84,6 +85,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsOpen() const { return bOpen; }
+
+	/** True while a rebind is waiting for its key: every event is the capture's. */
+	bool IsListening() const { return bListening; }
 
 protected:
 	// Every control needs its own handler: UMG's value-changed delegates are
@@ -241,6 +245,8 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> RailButtons;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderContextText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FooterStatusText;
+	/** The footer's primary button: "Back to race" over a race, "Done" over the menu. */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> FooterBackButton;
 
 	UPROPERTY(Transient) TMap<FName, TObjectPtr<UApexSegmentedWidget>> Segments;
 	/** Lock badges on the assists page, by the row's segment id. */

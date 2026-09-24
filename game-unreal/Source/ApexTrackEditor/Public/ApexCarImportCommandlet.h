@@ -77,6 +77,17 @@ public:
 		bool IsPresent() const { return !Model.IsEmpty(); }
 	};
 
+	/** A `[[livery]]` table: colours are linear RGB, `logo` a PNG relative to the car folder. */
+	struct FLiveryToml
+	{
+		FString Name;
+		FLinearColor Paint = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		/** Zero alpha when the table names no accent: the model's is kept. */
+		FLinearColor Accent = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		float Metallic = -1.0f;
+		FString Logo;
+	};
+
 	/** What the commandlet reads from a car.toml: the identity, a few physics figures and the wheels. */
 	struct FCarToml
 	{
@@ -97,6 +108,8 @@ public:
 		 * every run. `Cylinders == 0` when the car has no `[sound]` table.
 		 */
 		FApexEngineSoundSpec Sound;
+		/** The `[[livery]]` tables, in order. */
+		TArray<FLiveryToml> Liveries;
 	};
 
 	/**
@@ -109,6 +122,8 @@ public:
 	static FString WheelPackageName(const FString& DestRoot, const FString& Model);
 	/** The row's wheel figures from the TOML, pointing at `Mesh`; an empty spec when the TOML has none. */
 	static FApexWheelSpec MakeWheelSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh);
+	/** `textures/blue_logo.png` -> `/Game/Cars/<folder>/Liveries/T_blue_logo`, as a package name. */
+	static FString LiveryLogoPackageName(const FString& DestRoot, const FString& Folder, const FString& Logo);
 	/** `yotota-lmp2` -> `yotota_lmp2`: a folder name as a package name segment. */
 	static FString PackageSegment(const FString& Folder);
 
@@ -149,6 +164,10 @@ private:
 	 * for a dry run.
 	 */
 	UStaticMesh* ResolveWheelMesh(const FString& Model, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError);
+	/** The row's liveries from the TOML, importing each logo PNG once (again under -force). */
+	bool ResolveLiveries(const FSource& Source, const FOptions& Options, TSet<UPackage*>& OutPackages,
+		TArray<FApexCarLivery>& OutLiveries, FString& OutError);
+	static class UTexture2D* ImportTexture(const FString& PngPath, const FString& PackageName, FString& OutError);
 	/** One GLB as one combined mesh, `PackageName` (e.g. /Game/Cars/x/SM_x), materials beside it. */
 	UStaticMesh* ImportGlb(const FString& GlbPath, const FString& PackageName, FString& OutError);
 	/** Adds every dirty package under `Folder` (a long package path) to `OutPackages`. */

@@ -199,8 +199,8 @@ bool UApexNetSubsystem::RequestLobbyState()
 
 void UApexNetSubsystem::SelectCar(const FString& CarConfigId)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SelectCar %s"), *CarConfigId);
-	SendPayload(ApexProtocol::EncodeSelectCar(CarConfigId));
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SelectCar %s livery %d"), *CarConfigId, PendingLivery);
+	SendPayload(ApexProtocol::EncodeSelectCar(CarConfigId, PendingLivery));
 }
 
 void UApexNetSubsystem::CreateSession(

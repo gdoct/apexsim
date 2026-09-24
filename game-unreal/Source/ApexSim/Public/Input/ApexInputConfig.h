@@ -7,6 +7,7 @@
 
 #include "ApexInputConfig.generated.h"
 
+class FNavigationConfig;
 class UInputAction;
 class UInputMappingContext;
 struct FApexKeyBinding;
@@ -44,7 +45,39 @@ namespace ApexInput
 		 * it is rebindable and appears in the controls screen with the rest.
 		 */
 		inline const FName PauseMenu    = TEXT("PauseMenu");
+
+		/**
+		 * Menu navigation from a wheel's hat, thumb stick or buttons. Not
+		 * Enhanced Input actions either: whatever is bound here becomes a
+		 * Slate navigation rule (UApexSettingsSubsystem::ApplyMenuNavigation),
+		 * so it moves focus exactly as the D-pad does and accepts and backs out
+		 * as A and B do, sliders and dropdowns included. Wheel column only - a
+		 * pad and a keyboard have theirs built in.
+		 */
+		inline const FName MenuUp       = TEXT("MenuUp");
+		inline const FName MenuDown     = TEXT("MenuDown");
+		inline const FName MenuLeft     = TEXT("MenuLeft");
+		inline const FName MenuRight    = TEXT("MenuRight");
+		inline const FName MenuAccept   = TEXT("MenuAccept");
+		inline const FName MenuBack     = TEXT("MenuBack");
 	}
+
+	/**
+	 * True for the Menu* actions. They only act in the menus and the rest only
+	 * while driving, so one key on both is not a conflict.
+	 */
+	APEXSIM_API bool IsMenuAction(FName ActionId);
+
+	/**
+	 * Makes the Menu* wheel bindings Slate navigation rules: directions beside
+	 * the D-pad's, OK and Back beside A and B. Every remembered device's keys,
+	 * not only the attached one's, as with the pause key. InOutAdded holds the
+	 * keys a previous call added; they are taken out first and the new set
+	 * put back in it. A key the config already has a rule for is left alone -
+	 * Slate's own rules are never overwritten.
+	 */
+	APEXSIM_API void ApplyMenuNavigation(
+		FNavigationConfig& Config, const TArray<FApexKeyBinding>& Bindings, TArray<FKey>& InOutAdded);
 
 	/** Which screen a slot is edited on, which is also which device it is for. */
 	enum class EColumn : uint8

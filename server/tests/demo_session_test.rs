@@ -165,6 +165,7 @@ async fn test_demo_session_is_a_private_ai_race_watched_by_its_creator() {
     other
         .send(&ClientMessage::SelectCar {
             car_config_id: lobby.car_configs.first().expect("a car").id,
+            livery: 0,
         })
         .await;
     other.send(&ClientMessage::JoinSession { session_id }).await;
