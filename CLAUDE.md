@@ -516,6 +516,12 @@ rolls all four from the telemetry (`Race/ApexCarWheels.h`, row field
 `Wheels`, refreshed on every import like the checksum; docs/CAR_MODELS.md).
 A GLB changed on disk needs `-force` to be re-imported.
 
+Liveries: a car.toml's `[[livery]]` tables (written by `content/cars/liveries.py`) become the row's
+`Liveries` (logos imported to `/Game/Cars/<folder>/Liveries/`). The pick travels as `SelectCar.livery`
+-> `RosterEntry.Livery` (0 = the model as authored; AI dealt in turn per model), and
+`ApexLivery::Apply` (`Race/ApexCarLivery.h`) repaints `car_paint`/`car_accent`/`car_logo` on the race
+car and the garage turntable. docs/CAR_MODELS.md, Liveries.
+
 ### Content checksums (`content_crc.rs`, `ApexContentCrc.h`)
 The client races on a level baked from the track YAML and shows a mesh
 imported beside a `car.toml`, while the server simulates from those files

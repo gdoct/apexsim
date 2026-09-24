@@ -32,6 +32,10 @@ try:
     RES
 except NameError:
     RES = (1600, 900)
+try:
+    LIVERY          # 0: the model as authored; N: the car.toml's N-th [[livery]]
+except NameError:
+    LIVERY = 0
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -177,6 +181,30 @@ def add_wheels(cfg):
 OPEN_WHEEL = False   # set per car from its class: F1 cars get the open-wheel eye
 
 
+def apply_livery(objs, car_dir, livery):
+    """What the client does with a [[livery]] (ApexCarLivery.cpp): the paint
+    and accent base colours, the paint's metallic, the logo image."""
+    for o in objs:
+        if o.type != 'MESH':
+            continue
+        for m in o.data.materials:
+            if not m or not m.use_nodes:
+                continue
+            base = m.name.split(".")[0]
+            bsdf = next((n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+            if base == "car_paint" and bsdf:
+                bsdf.inputs["Base Color"].default_value = (*livery["paint"], 1.0)
+                if livery.get("metallic", -1) >= 0:
+                    bsdf.inputs["Metallic"].default_value = livery["metallic"]
+            elif base == "car_accent" and bsdf and "accent" in livery:
+                bsdf.inputs["Base Color"].default_value = (*livery["accent"], 1.0)
+            elif base == "car_logo" and livery.get("logo"):
+                img = bpy.data.images.load(os.path.join(car_dir, livery["logo"]), check_existing=True)
+                for n in m.node_tree.nodes:
+                    if n.type == 'TEX_IMAGE':
+                        n.image = img
+
+
 def eye_from_box(lo, hi):
     """The driver's eye the client derives from the mesh box: 70% of the
     height, 5% of the length behind centre, 18% of the width to the left
@@ -258,12 +286,14 @@ for folder in CARS:
         if view.startswith("lamps"):
             dusk()
         body = import_glb(glb)
+        if LIVERY and len(cfg.get("livery", [])) >= LIVERY:
+            apply_livery(body, car_dir, cfg["livery"][LIVERY - 1])
         wheels = add_wheels(cfg)
         # the client derives the eye from the body mesh's own box (no wheels)
         lo, hi = bounds(body) if view in ("cockpit", "mirror") else bounds(body + wheels)
         frame(view, lo, hi)
         os.makedirs(OUT, exist_ok=True)
-        path = os.path.join(OUT, "%s_%s.png" % (folder, view))
+        path = os.path.join(OUT, "%s_%s%s.png" % (folder, view, "_L%d" % LIVERY if LIVERY else ""))
         bpy.context.scene.render.filepath = path
         bpy.ops.render.render(write_still=True)
         print("rendered", path)

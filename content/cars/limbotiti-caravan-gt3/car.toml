@@ -146,3 +146,27 @@ front_radius_m = 0.345
 rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
+
+# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
+# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.
+
+[[livery]]
+name = "Aurum Black"
+paint = [0.010, 0.010, 0.012]
+accent = [0.720, 0.500, 0.120]
+metallic = 0.55
+logo = "textures/livery_blackgold.png"
+
+[[livery]]
+name = "Tide Sunset"
+paint = [0.000, 0.300, 0.320]
+accent = [0.950, 0.400, 0.020]
+metallic = 0.50
+logo = "textures/livery_tide.png"
+
+[[livery]]
+name = "Polaris Arctic"
+paint = [0.740, 0.770, 0.810]
+accent = [0.030, 0.300, 0.620]
+metallic = 0.75
+logo = "textures/livery_arctic.png"

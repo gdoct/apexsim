@@ -147,3 +147,27 @@ front_radius_m = 0.345
 rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
+
+# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
+# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.
+
+[[livery]]
+name = "Magma Lava"
+paint = [0.800, 0.100, 0.008]
+accent = [0.030, 0.030, 0.034]
+metallic = 0.40
+logo = "textures/livery_lava.png"
+
+[[livery]]
+name = "Crown Royal"
+paint = [0.015, 0.070, 0.420]
+accent = [0.880, 0.660, 0.020]
+metallic = 0.65
+logo = "textures/livery_royal.png"
+
+[[livery]]
+name = "Nebula Midnight"
+paint = [0.070, 0.020, 0.170]
+accent = [0.000, 0.580, 0.680]
+metallic = 0.85
+logo = "textures/livery_midnight.png"

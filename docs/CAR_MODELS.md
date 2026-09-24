@@ -220,6 +220,42 @@ Every GLB carries these slot names; keep them when re-importing.
 | `car_display` | dash display | emissive green |
 | `car_logo` | door / flank wordmark | masked texture from `textures/` |
 
+## Liveries
+
+Every generated car has its works livery (the GLB as built) plus three more,
+the `[[livery]]` tables at the end of its car.toml:
+
+```toml
+[[livery]]
+name = "Greenline Forest"
+paint = [0.008, 0.090, 0.035]     # linear RGB, like the build scripts' colours
+accent = [0.780, 0.680, 0.420]    # optional: without it the model's accent stays
+metallic = 0.60                   # optional: the paint's metallic
+logo = "textures/livery_forest.png"   # optional: replaces the car_logo wordmark
+```
+
+A livery is a repaint of the same mesh, so it is exactly what the material
+slots allow: `car_paint` and `car_accent` take the colours (which faces are
+accent is the build script's `livery` / `two_tone` / sill-stripe choice and
+stays the same), `car_logo` takes the texture. `content/cars/liveries.py`
+owns those tables - twelve sponsor schemes dealt three to a car - and draws
+the logos; it rewrites everything below its marker line, so edit the schemes
+there and rerun it (`python content/cars/liveries.py [folder ...]`, Pillow).
+
+Down the pipe: the server reads only the names (`CarConfig::livery_names`);
+`SelectCar` carries a `livery` byte, the session keeps each driver's pick and
+`RosterEntry.Livery` tells every client what each car wears - clamped to the
+car's list, and AI cars dealt the liveries of their model in turn so a field
+of one car is not a row of clones. `ApexCarImport` copies the tables onto the
+catalog row as `Liveries` and imports each logo to
+`/Game/Cars/<folder>/Liveries/T_<name>` (derived on every run, like the
+wheels). `ApexLivery::Apply` puts dynamic instances on the three slots
+(`BaseColorFactor`, `MetallicFactor`, `BaseColorTexture` of the Interchange
+glTF parents); the race director applies the roster's pick, the garage
+turntable the one being browsed. In the garage, Left / Right on a car (or the
+livery button) steps through them; choosing the car sends the pick.
+`preview_cars.py` renders a livery with `LIVERY = n`.
+
 ## Lamps
 
 A lamp is a black cavity with things in it, not an emissive box. The kit in
