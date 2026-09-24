@@ -20,9 +20,9 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use track_editor::track_data::TrackFile;
-use track_editor::track_path::CenterlinePath;
-use track_editor::{ats_io, groom, layout, project, ue_export_io};
+use track_core::track_data::TrackFile;
+use track_core::track_path::CenterlinePath;
+use track_core::{ats_io, groom, layout, project, ue_export_io};
 
 const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 
@@ -96,7 +96,7 @@ fn main() -> ExitCode {
         };
         // Seat on the real land when the track has an elevation model, so
         // what grooming places matches the ground the exporter draws.
-        let dem = track_editor::dem::load_dem(track_editor::dem::dem_path_for(track_path))
+        let dem = track_core::dem::load_dem(track_core::dem::dem_path_for(track_path))
             .unwrap_or_else(|e| {
                 eprintln!("{}: elevation sidecar unusable ({e})", track_path.display());
                 None

@@ -18,7 +18,7 @@ changes.
 ## Where things stand
 
 - Props reach Unreal as `props[]` in `<Track>.uescene.json` (written by
-  `track-editor/src/ue_export.rs::bake_props`): `kind`, `asset`, `location`
+  `track-editor/core/src/ue_export.rs::bake_props`): `kind`, `asset`, `location`
   (UE cm), `yaw_deg` (UE, already negated from the server's CCW radians),
   `scale`, `text`. Parsed by `ApexTrackSceneReader.cpp` into
   `FApexTrackProp` (`ApexTrackSceneData.h`).
@@ -39,7 +39,7 @@ changes.
   `armco_generic`, and `sign` props `board_200m` / `board_100m` / `board_50m`
   with `text` "200"/"100"/"50". Existing `.ats` files must keep working, so
   these get aliases (stage 2) rather than a data migration.
-- `PropKind` (`track-editor/src/ats.rs`) is `tree, sign, barrier,
+- `PropKind` (`track-editor/core/src/ats.rs`) is `tree, sign, barrier,
   tire_wall, building, grandstand, light, cone, misc`. `groom.rs` keys its
   behaviour (re-laying barriers, pushing props clear, seating on terrain) on
   the kind.

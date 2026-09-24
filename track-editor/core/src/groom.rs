@@ -46,9 +46,9 @@ use crate::barriers;
 use crate::dem::DemFile;
 use crate::layout::{Layout, Wood};
 use crate::props;
+use crate::strip_layout::surface_height;
 use crate::terrain::{self, TerrainHeightfield};
 use crate::track_data::TrackFile;
-use crate::track_mesh::surface_height;
 use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
 
 /// Gap between the runoff's outer border and the wall placed behind it.
@@ -1323,9 +1323,11 @@ fn lay_all_barriers(
         if near_lat.abs() - half_width_on(&near_sample, near_lat) < STRAIGHT_BARRIER_MIN_M - 1.0 {
             return false;
         }
-        let at_underpass = terrain.wall_relation(x, y).is_some_and(|(past_wall, lower_z)| {
-            (road_z - lower_z).abs() <= terrain::OVERHEAD_M || past_wall < BARRIER_CLEAR_M
-        });
+        let at_underpass = terrain
+            .wall_relation(x, y)
+            .is_some_and(|(past_wall, lower_z)| {
+                (road_z - lower_z).abs() <= terrain::OVERHEAD_M || past_wall < BARRIER_CLEAR_M
+            });
         !at_underpass && !barrier_blocked(others, x, y)
     };
 

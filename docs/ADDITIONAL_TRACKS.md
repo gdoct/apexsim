@@ -9,8 +9,8 @@ same to the other 17. Each track is one self-contained task; the per-track
 cards in §6 are meant to be handed to one agent each.
 
 Read `CLAUDE.md` §"Real-world layouts" and §"Track pipeline into Unreal"
-first. The module docs in `scripts/osm_layout.py`, `track-editor/src/dress.rs`
-and `track-editor/src/bin/ats-dress.rs` are the authoritative description of
+first. The module docs in `scripts/osm_layout.py`, `track-editor/core/src/dress.rs`
+and `track-editor/core/src/bin/ats-dress.rs` are the authoritative description of
 what the tools do; this document only says what to do with them.
 
 ## 1. Definition of done (per track)
@@ -253,7 +253,10 @@ must be empty after the second run. Same for `ats-groom`.
 ### 4.2 Tests
 
 `cargo test` in `track-editor` (dress, groom, export, underpass, catalogue).
-Nothing per-track is expected to be added, but a script rule change (§3.5)
+The two whole-calendar bake tests are `#[ignore]`d (about twenty minutes);
+`ats-export` on the new circuit already bakes it, so they are only needed
+for a change to the bake itself (`cargo test -p track-core --test ue_export
+-- --ignored`). Nothing per-track is expected to be added, but a script rule change (§3.5)
 needs a test beside the existing ones.
 
 ### 4.3 Wall sanity scan
@@ -671,7 +674,7 @@ map and satellite imagery**, not copied as-is.
   the centerline, so a stand near the crossover can attach to the wrong
   leg (`station_m` off by ~3 km, `side` flipped). Check every stand near
   the crossover by hand. The underpass export must still bake (see
-  `track-editor/tests/underpass.rs`); run `cargo test` and the wall scan.
+  `track-editor/core/tests/underpass.rs`); run `cargo test` and the wall scan.
 
 ### 6.21 Yas Marina — `YasMarina.yaml` (5.55 km; verify it is the 2021 layout)
 

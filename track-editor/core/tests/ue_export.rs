@@ -8,19 +8,19 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use track_editor::ats::{
+use track_core::ats::{
     AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface, SurfaceKind,
 };
-use track_editor::project;
-use track_editor::track_data::{TrackFile, TrackNode};
-use track_editor::ue_export::{
+use track_core::project;
+use track_core::track_data::{TrackFile, TrackNode};
+use track_core::ue_export::{
     self, UeMesh, UeScene, WallSegment, CURB_BANDS_VERSION, CURB_BAND_STEP_M, UE_SCENE_FORMAT,
     UE_SCENE_VERSION, WALLS_VERSION, WALL_KIND_ARMCO, WALL_KIND_CONCRETE, WALL_KIND_TIRES,
 };
-use track_editor::ue_export_io;
+use track_core::ue_export_io;
 
 fn real_tracks_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/real")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/real")
 }
 
 fn node(x: f32, y: f32, z: f32, banking: f32) -> TrackNode {
@@ -403,7 +403,7 @@ fn scene_header_and_gameplay_anchors_are_populated() {
 /// `_autumn` and `_crowd` meshes itself.
 #[test]
 fn dressing_is_exported_without_renaming_the_props() {
-    use track_editor::ats::{Dressing, Season};
+    use track_core::ats::{Dressing, Season};
     let track = test_track();
     let mut scene = test_scene(&track);
     scene.dressing = Dressing {
@@ -411,9 +411,9 @@ fn dressing_is_exported_without_renaming_the_props() {
         spectators: false,
     };
     let id = scene.alloc_id();
-    scene.props.push(track_editor::ats::Prop {
+    scene.props.push(track_core::ats::Prop {
         id,
-        kind: track_editor::ats::PropKind::Tree,
+        kind: track_core::ats::PropKind::Tree,
         asset: "broadleaf_m".to_string(),
         x: 60.0,
         y: 30.0,
@@ -680,12 +680,12 @@ fn stands_and_bridges_carry_their_layout_hints() {
 fn authored_spawn_points_replace_the_fallback_grid() {
     let mut track = test_track();
     track.spawn_points = vec![
-        track_editor::track_data::SpawnPoint {
+        track_core::track_data::SpawnPoint {
             position: 0,
             offset_x: 2.0,
             offset_y: -3.0,
         },
-        track_editor::track_data::SpawnPoint {
+        track_core::track_data::SpawnPoint {
             position: 10,
             offset_x: 0.0,
             offset_y: 0.0,
@@ -828,8 +828,8 @@ fn monza_grid_boxes_end_56_m_before_the_line() {
 /// road edge less the verge drop for 6 m, then eases into the terrain.
 #[test]
 fn spa_ground_hugs_the_road_edge_at_the_line() {
-    use track_editor::terrain::{TerrainHeightfield, BLEND_END_M, VERGE_DROP_M};
-    use track_editor::track_path::{offset_point, CenterlinePath};
+    use track_core::terrain::{TerrainHeightfield, BLEND_END_M, VERGE_DROP_M};
+    use track_core::track_path::{offset_point, CenterlinePath};
 
     let track_path = real_tracks_dir().join("Spa.yaml");
     let opened = project::open_project(&track_path).unwrap();
@@ -1176,6 +1176,7 @@ fn walls_sidecar_roundtrips_through_msgpack() {
 
 /// The real payload: every shipped circuit has to bake without a hand-hold.
 #[test]
+#[ignore = "bakes every real circuit, minutes of work; run with -- --include-ignored"]
 fn every_real_track_bakes() {
     let dir = real_tracks_dir();
     let tracks = ue_export_io::track_files_in(&dir).expect("content/tracks/real must be readable");
@@ -1274,6 +1275,7 @@ fn curb_sidecar_covers_each_curb_span() {
 /// within the widths the editor allows, since the server trusts them as
 /// track limits without re-checking against the `.ats`.
 #[test]
+#[ignore = "bakes every real circuit, minutes of work; run with -- --include-ignored"]
 fn real_tracks_bake_plausible_curb_bands() {
     for track_path in ue_export_io::track_files_in(&real_tracks_dir()).unwrap() {
         let opened = project::open_project(&track_path).unwrap();

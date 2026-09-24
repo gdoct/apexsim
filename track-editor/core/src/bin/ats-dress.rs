@@ -5,8 +5,8 @@
 //! `scripts/osm_layout.py` from OpenStreetMap) says what the place really
 //! looks like: which side the pit lane runs and where, what the stands are
 //! called and where they stand, the buildings, the bridges over the road,
-//! the fairground wheel, the woods. [`track_editor::dress`] lays those,
-//! and [`track_editor::groom`] then fills in barriers, boards and tree
+//! the fairground wheel, the woods. [`track_core::dress`] lays those,
+//! and [`track_core::groom`] then fills in barriers, boards and tree
 //! belts around them — with the belts confined to the real woodland.
 //!
 //! ```text
@@ -22,7 +22,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use track_editor::{ats_io, dress, groom, layout, project, ue_export_io};
+use track_core::{ats_io, dress, groom, layout, project, ue_export_io};
 
 const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 
@@ -112,7 +112,7 @@ fn main() -> ExitCode {
         };
         // The elevation model plants the woodland on the slopes; a track
         // without one is dressed exactly as before.
-        let dem = match track_editor::dem::load_dem(track_editor::dem::dem_path_for(track_path)) {
+        let dem = match track_core::dem::load_dem(track_core::dem::dem_path_for(track_path)) {
             Ok(dem) => dem,
             Err(e) => {
                 eprintln!("{name}: elevation sidecar unusable ({e}); dressing without it");

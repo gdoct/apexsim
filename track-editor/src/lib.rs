@@ -1,23 +1,14 @@
-pub mod ats;
-pub mod ats_io;
-pub mod barriers;
+//! The editor viewport: Bevy scene, preview meshes, UI state and the MCP
+//! endpoint. The pipeline lives in `track_core`; its modules are re-exported
+//! here so editor code can keep naming them `crate::ats` and friends.
+
+pub use track_core::{
+    ats, ats_io, barriers, dem, dress, groom, layout, pit, project, props, strip_layout, terrain,
+    track_bank, track_data, track_io, track_path, track_smooth, ue_export, ue_export_io,
+};
+
 pub mod coords;
-pub mod dem;
-pub mod dress;
-pub mod groom;
-pub mod layout;
 pub mod mcp;
-pub mod pit;
-pub mod project;
-pub mod props;
+pub mod preview_mesh;
 pub mod scene;
 pub mod state;
-pub mod terrain;
-pub mod track_bank;
-pub mod track_data;
-pub mod track_io;
-pub mod track_mesh;
-pub mod track_path;
-pub mod track_smooth;
-pub mod ue_export;
-pub mod ue_export_io;

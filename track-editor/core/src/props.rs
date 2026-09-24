@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn keys_are_unique_and_kit_files_exist() {
         let mut seen = std::collections::HashSet::new();
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/props");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/props");
         for entry in KIT {
             assert!(
                 seen.insert((entry.kind.label(), entry.asset)),
@@ -300,7 +300,7 @@ mod tests {
         // A GLB added to content/props without a KIT row is invisible to the
         // inspector's dropdown and gets no footprint. Variants the importer
         // picks by itself (dressing, bend radius, stand ends) are exempt.
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/props");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/props");
         let Ok(kinds) = std::fs::read_dir(&root) else {
             return;
         };

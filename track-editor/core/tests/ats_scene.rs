@@ -6,18 +6,15 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use track_editor::ats::AtsScene;
-use track_editor::ats_io;
-use track_editor::track_io;
-use track_editor::track_path::CenterlinePath;
+use track_core::ats::AtsScene;
+use track_core::ats_io;
+use track_core::track_io;
+use track_core::track_path::CenterlinePath;
 
 /// Real tracks live at `<repo_root>/content/tracks/real/*.yaml`; this crate
-/// lives at `<repo_root>/track-editor`.
+/// lives at `<repo_root>/track-editor/core`.
 fn content_tracks_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("track-editor has a parent directory")
-        .join("content/tracks/real")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/real")
 }
 
 fn real_track_paths() -> Vec<PathBuf> {

@@ -6,14 +6,14 @@
 
 use std::path::{Path, PathBuf};
 
-use track_editor::ats::PropKind;
-use track_editor::groom::{groom_scene, stand_road_clearance_m};
-use track_editor::project::open_project;
-use track_editor::track_path::CenterlinePath;
-use track_editor::ue_export_io::track_files_in;
+use track_core::ats::PropKind;
+use track_core::groom::{groom_scene, stand_road_clearance_m};
+use track_core::project::open_project;
+use track_core::track_path::CenterlinePath;
+use track_core::ue_export_io::track_files_in;
 
 fn real_track_paths() -> Vec<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/real");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/real");
     let mut found = track_files_in(&dir).expect("content/tracks/real is readable");
     found.sort();
     assert!(!found.is_empty(), "no tracks under {}", dir.display());

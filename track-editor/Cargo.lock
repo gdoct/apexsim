@@ -6506,23 +6506,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "track-editor"
+name = "track-core"
 version = "0.1.0"
 dependencies = [
  "apexsim-server",
- "axum",
- "bevy",
- "bevy_egui",
- "rfd",
- "rmcp",
  "rmp-serde",
  "serde",
  "serde_json",
  "serde_yaml",
  "tempfile",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "track-editor"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "bevy",
+ "bevy_egui",
+ "rfd",
+ "rmcp",
+ "serde",
+ "serde_json",
  "tokio",
- "uuid",
+ "track-core",
 ]
 
 [[package]]

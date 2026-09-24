@@ -42,7 +42,15 @@ Open in Godot 4.5+ Mono editor, click Build, then F5 to run.
 cd track-editor
 cargo run                                    # Run track editor
 cargo run --bin ats-export -- --all          # Bake every track for Unreal
+cargo test                                   # Both crates; skips the whole-calendar bakes
+cargo test -p track-core                     # Pipeline only, no Bevy build
+cargo test -- --include-ignored              # Also bake every real circuit (~20 min)
 ```
+`track-editor/` is a workspace of two crates: `track-core` (`core/`: the
+`.ats` format, groom/dress/smooth/bank/terrain, the Unreal bake, every
+`ats-*` tool and the integration tests) and `track-editor` (`src/`: the Bevy
+viewport and MCP server on top of it). The pipeline has no Bevy dependency,
+so an `ats-*` tool or `cargo test -p track-core` never compiles the renderer.
 
 ### Play from the editor build
 `scripts/play_editor.ps1` runs the game through `UnrealEditor.exe -game` on
@@ -143,7 +151,7 @@ headlights alone. Ownership is by asset because these share kinds with
 hand-placed props: a `sign` is also a distance board and a `misc` is also a
 bollard.
 
-Barriers are now **decided**, not inherited (`track-editor/src/barriers.rs`,
+Barriers are now **decided**, not inherited (`track-editor/core/src/barriers.rs`,
 laid by `groom::lay_all_barriers`). One pass walks every 4 m cell on both
 sides, so coverage is complete by construction — the old pass only put a
 wall at a corner where the 2026-09 enrichment had happened to leave a prop
@@ -313,8 +321,12 @@ them. Likewise `tourism=artwork` only becomes a `statue` landmark where
 every sculpture near every circuit would otherwise have become one.
 
 **Checking a change.** `cargo test` in `track-editor` runs both the unit
-tests and the integration tests under `tests/`, which groom and bake every
-real circuit — run the whole thing, not `--lib`. Anything that moves
+tests and the integration tests under `core/tests/`, which groom every real
+circuit — run the whole thing, not `--lib`. The two tests that bake every
+circuit (`every_real_track_bakes`, `real_tracks_bake_plausible_curb_bands`)
+take about twenty minutes and are `#[ignore]`d; run them with
+`cargo test -p track-core --test ue_export -- --ignored` before shipping a
+change to the bake. Anything that moves
 barriers, walls, the centerline or the ground should also go through the
 server's AI survey against a baseline, because the AI is sensitive to all
 of it and the per-circuit assertions only cover Le Mans and Spa:
@@ -663,7 +675,7 @@ New `PropKind`s `board, fence, pit, bridge, vehicle, attraction, sky` exist
 in `ats.rs`; the groomer snaps a `board` onto the nearest barrier run, lays a
 `fence` 1.5 m behind the wall line, seats a `bridge` at road height without
 pushing it, leaves `pit` and `sky` alone and pushes `vehicle`/`attraction` by
-their footprint. The editor's copy of the kit is `track-editor/src/props.rs`
+their footprint. The editor's copy of the kit is `track-editor/core/src/props.rs`
 (`props::KIT`: kind, key and authored footprint per asset, default first,
 plus `resolve` for the legacy keys): the inspector offers the kind's keys
 in a dropdown (a free-text `key` row stays for anything else), a new prop
