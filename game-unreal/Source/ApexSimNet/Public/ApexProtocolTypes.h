@@ -1181,6 +1181,25 @@ struct APEXSIMNET_API FApexDriverFeedback
 	float SteerKick = 0.0f;
 
 	/**
+	 * The steering input the newest SteerTorque sample was worked out at,
+	 * -1..1, SERVER sign (positive left). With SteerStiffness it lets a wheel
+	 * correct that sample for where the rim is now.
+	 */
+	float SteerInput = 0.0f;
+
+	/**
+	 * How the torque changes per unit of steering input around SteerInput,
+	 * in SteerTorque's units. The same in either sign convention (both the
+	 * torque and the input flip). Negative while the fronts grip, positive
+	 * past the aligning crest; 0 from a server that predates the field, which
+	 * turns the correction off.
+	 */
+	float SteerStiffness = 0.0f;
+
+	/** Front axle load over its static share at the newest sample: above 1 under braking and with downforce. */
+	float FrontLoad = 1.0f;
+
+	/**
 	 * Folds the next message in, as if the server had sent one message for
 	 * both intervals: samples appended, peaks kept, the roughest surface.
 	 * Used when several arrive between two game frames, so a kerb strike in
@@ -1204,6 +1223,10 @@ struct APEXSIMNET_API FApexDriverFeedback
 		bTcActive |= Next.bTcActive;
 		ImpactMps = FMath::Max(ImpactMps, Next.ImpactMps);
 		SteerKick = Peak(SteerKick, Next.SteerKick);
+		// These belong with the newest torque sample.
+		SteerInput = Next.SteerInput;
+		SteerStiffness = Next.SteerStiffness;
+		FrontLoad = Next.FrontLoad;
 	}
 };
 

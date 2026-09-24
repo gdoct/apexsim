@@ -1356,7 +1356,11 @@ impl GameSession {
                     pick
                 } else {
                     let asked = self.liveries.get(player_id).copied().unwrap_or(0);
-                    if asked <= livery_count { asked } else { 0 }
+                    if asked <= livery_count {
+                        asked
+                    } else {
+                        0
+                    }
                 };
                 RosterEntry {
                     car_index: idx as u8,
@@ -1796,8 +1800,12 @@ mod tests {
         let mut car_configs = HashMap::new();
         car_configs.insert(car.id, car);
         let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 4, 3);
-        let mut game_session =
-            GameSession::with_ai_profiles(session, track, car_configs, generate_default_ai_profiles(4));
+        let mut game_session = GameSession::with_ai_profiles(
+            session,
+            track,
+            car_configs,
+            generate_default_ai_profiles(4),
+        );
         game_session.spawn_ai_drivers();
         let (picked, stale, stock) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
         for p in [picked, stale, stock] {
@@ -1807,19 +1815,44 @@ mod tests {
         game_session.set_livery(stale, 7);
 
         let roster = game_session.build_roster(&HashMap::new());
-        let livery_of = |id: PlayerId| roster.entries.iter().find(|e| e.player_id == id).unwrap().livery;
+        let livery_of = |id: PlayerId| {
+            roster
+                .entries
+                .iter()
+                .find(|e| e.player_id == id)
+                .unwrap()
+                .livery
+        };
         assert_eq!(livery_of(picked), 2, "a pick inside the car's list is kept");
-        assert_eq!(livery_of(stale), 0, "a pick past the end falls back to the car as authored");
+        assert_eq!(
+            livery_of(stale),
+            0,
+            "a pick past the end falls back to the car as authored"
+        );
         assert_eq!(livery_of(stock), 0);
-        let mut ai: Vec<u8> = roster.entries.iter().filter(|e| e.is_ai).map(|e| e.livery).collect();
+        let mut ai: Vec<u8> = roster
+            .entries
+            .iter()
+            .filter(|e| e.is_ai)
+            .map(|e| e.livery)
+            .collect();
         ai.sort();
-        assert_eq!(ai, vec![0, 0, 1, 2], "four AI in one model wear its three liveries in turn");
+        assert_eq!(
+            ai,
+            vec![0, 0, 1, 2],
+            "four AI in one model wear its three liveries in turn"
+        );
 
         game_session.remove_player(&picked);
         game_session.add_player(picked, car_id);
         let roster = game_session.build_roster(&HashMap::new());
         assert_eq!(
-            roster.entries.iter().find(|e| e.player_id == picked).unwrap().livery,
+            roster
+                .entries
+                .iter()
+                .find(|e| e.player_id == picked)
+                .unwrap()
+                .livery,
             0,
             "leaving the session forgets the pick"
         );

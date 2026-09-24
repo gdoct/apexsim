@@ -1091,11 +1091,19 @@ namespace
 		if (!Reader.ReadBool(Out.bTcActive)) { return false; }
 		if (!Reader.ReadFloat(Out.ImpactMps)) { return false; }
 
+		// Appended fields, each optional: an older server stops short.
 		int32 Read = DriverFeedbackFieldCount;
 		Out.SteerKick = 0.0f;
-		if (FieldCount > Read)
+		Out.SteerInput = 0.0f;
+		Out.SteerStiffness = 0.0f;
+		Out.FrontLoad = 1.0f;
+		for (float* Field : { &Out.SteerKick, &Out.SteerInput, &Out.SteerStiffness, &Out.FrontLoad })
 		{
-			if (!Reader.ReadFloat(Out.SteerKick)) { return false; }
+			if (FieldCount <= Read)
+			{
+				break;
+			}
+			if (!Reader.ReadFloat(*Field)) { return false; }
 			++Read;
 		}
 

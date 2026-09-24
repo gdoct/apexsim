@@ -1390,9 +1390,48 @@ from that tyre's own forces and load:
 - **jacking**: the axle's weight centres a steered wheel, which is what a
   crawl or a hairpin feels.
 
-A hit adds `steer_kick` (appended last, so an older client skips it):
+A hit adds `steer_kick` (appended, so an older client skips it):
 `physics::impact_steer_kick` from the velocity change a car-car or wall
 contact gave the front axle, yanking the rim toward the side that was hit.
+
+**The torque is a round trip late**, so on its own it is a spring that
+answers late: let go of the rim in a corner and it held still for a few
+hundredths, then jumped, and a delayed spring rings. Three fields appended
+after `steer_kick` fix that: `steer_input` (the input the newest sample was
+worked out at), `steer_stiffness` (`physics::steering_column_stiffness`, the
+torque's slope per unit of input there: each front tyre's lateral force
+re-solved on the magic formula at the Ackermann angles either side, under the
+same share of the friction ellipse, times the aid's own slope when the aid is
+on) and `front_load` (front axle load over static). The client adds
+`slope x (input now - steer_input)` to the torque (`ApexFfb::MixWheel`,
+`FWheelState::Correction`), so the rim answers its own movement at once and
+only the car's motion arrives late. Only a slope that pushes back is carried
+(past the aligning crest a local positive slope feeds itself), capped at 0.15
+of input and faded in from 3 to 12 m/s (at a crawl the car turns with its
+wheels, so the slope is a spring that is gone a moment later). On the Zomba
+at 50 m/s the slope is -21 per unit straight ahead and doubles to about -37
+under hard braking with the front at 2.4x static: that is what braking feels
+like through the rim. `ApexSim.Input.ForceFeedback.WheelLetGo` lets go of a
+rim in a corner against a 40 ms, 60 Hz server: home inside 0.3 s and settled,
+where the torque alone still swings. `column_stiffness_predicts_the_torque_after_the_rim_moves`
+checks the slope against the torque one tick after a real step.
+
+**Road texture.** The physics road is smooth, so nothing came up the column
+on asphalt. The wheel now plays a road laid along the lap
+(`RoadTug`: value noise at 0.45, 1.6 and 6 m wavelengths, left front minus
+right, octaves that would pass faster than half the frame rate dropped),
+read at the telemetry's `TrackProgress` run on by speed between samples, so a
+bump is in the same place every lap. It rides on the constant force after the
+soft limit (so a saturated corner still has a road under it), scaled by Road
+effects, speed (full at 40 m/s), `front_load^0.7` (braking passes more of the
+road up) and 3x off track. **Braking grain**: the fronts' braking slip from
+half to all of their peak (`FrontBrakeSlip`) is a 62 Hz grain on the
+vibration channel, under the ABS pulse train.
+
+`UApexPlayerController` logs a `Wheel forces over 15 s driving:` line (torque
+in, constant force out, how often at the base's limit, the correction, the
+road, the vibration, the settings) so a report of "it feels weak" can be read
+against what the base was actually asked for.
 `cargo test --release --test grip_probe_test steering_feel_probe -- --ignored
 --nocapture` (`PROBE_CAR=`) prints torque against lateral g and front slip
 while a car winds on lock: the harness to tune the constants against.
@@ -1410,16 +1449,26 @@ vibration" slider (`UApexSettingsSave::Vibration`, 0.5 = as designed), which
 pulses the pad while dragged.
 
 `ApexFfb::MixWheel` drives a wheelbase: the torque *is* the feel (the rim
-going light is the front tyres letting go), 1.1x the base's peak at the
-reference (a 1 g corner is about two thirds of the base, a hard one near its
-limit; at 0.6-0.7 the user found the rim heavier to turn but never pushing
-back) and soft-limited past 0.8 so a car loaded past its reference
-still feels stronger rather than clipping, and smoothed with a 12 ms pole
+going light is the front tyres letting go), 0.6x the base's peak at the
+reference at Force 50% and soft-limited past 0.8 so a car loaded past its
+reference still feels stronger rather than clipping. (It was raised to 1.1
+while no force reached the motor at all — see the traps below — and at 1.1
+with that fixed 25% was undrivable on an 8 Nm base.) A **stiffness limit**
+(`MaxRimStiffnessPerDeg`, 0.025 of the base per rim degree, from
+`FWheelTuning::RimDegreesPerInput`) scales the whole torque down where the
+tyres' slope would make the rim stiffer than the delayed loop can hold: a
+hypercar at 50 m/s (slope -21) at Force 50% is 0.05 per degree, and let go
+on a ClubSport V2.5 it rang at +-16 degrees for good whatever the damper;
+at 0.025 it settles, braking at twice the slope included. Corners keep
+their weight (near the grip limit the slope is small). While driving the
+damper never drops under 0.3 of the force (`MinDriveDamper`): a belt rim has
+almost no friction and overshot the centre 8.6 degrees at 0.05, 4.5 at 0.3.
+The torque is and smoothed with a 12 ms pole
 because the samples arrive in 60 Hz lumps and a direct drive base feels that
 as grain. A hit's `SteerKick` is added unsmoothed and decays over 70 ms, and
 sliding fronts put a quiet 55 Hz scrub on the vibration channel. On top of it one vibration channel
 carries whichever of curbs, grass, ABS, lockup or a hit is loudest, plus a
-damper that is heaviest at a standstill (only 15% of the setting at speed:
+damper that is heaviest at a standstill (35% of the setting at speed, never under the floor above:
 a damper reads as a heavy wheel, not as cornering) and a centring spring used only in
 the menus. Its settings are the Wheel tab's Force / Road effects / Damping /
 Direction (`UApexSettingsSave::WheelForce` and friends).
@@ -1519,6 +1568,21 @@ V2.5 as HID collections COL01 (108 buttons) and COL02 (63 buttons, 4 hats),
 both claiming forces; forces go to whichever the steering is bound to, which
 should be COL01. Each device's HID path is in the log and in
 `apexsim.input.Devices`.
+
+**Two traps found on the user's ClubSport V2.5, both invisible from the
+code.** (1) DirectInput gives a force's direction as where it comes *from*:
+a positive constant force on the steering axis pushes the rim toward
+negative X (left). The device layer sent the mixer's "positive = right"
+unflipped, so every car's self-centring pushed the rim *away* from centre
+and a straight line had to be balanced by hand; `ApplyEffects` now sends
+`-Constant`, and the Wheel page's Direction toggle is for a driver that
+breaks the convention. (2) After a Fanatec driver-package update the base's
+firmware must be updated in the Fanatec App's firmware manager: until then
+every DirectInput call succeeds and the motor plays nothing, while the
+Fanatec app's own FFB test works. Rule out both on the hardware before
+tuning the mixer: a standalone DirectInput probe that plays a constant force
+and reads the rim (the first `GetDeviceState` after `Acquire` reads 0, so
+settle before measuring) answers in seconds.
 
 There is no wheel support for an H-pattern shifter (the wire protocol's gear
 field is filled from a shift delta, not an absolute gear).

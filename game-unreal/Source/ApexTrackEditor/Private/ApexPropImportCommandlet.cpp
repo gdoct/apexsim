@@ -47,6 +47,15 @@ namespace
 	 * carries the Nanite and instanced-mesh usage flags, made once per parent
 	 * under `ParentsFolder` and reused across runs. Parameter overrides live
 	 * on the instance by name, so they survive the swap.
+	 *
+	 * The instance's parent is not the material itself but one of the
+	 * library's instances of it (`MI_Default_Mask_DS` and the like), and
+	 * that middle link is where a glTF `alphaMode` and `doubleSided` live, as
+	 * base property overrides. Skipping over it without carrying them across
+	 * drew every foliage card opaque: black squares where the texture is
+	 * transparent. So the chain's blend mode, sidedness and clip value, and
+	 * any parameter a middle link set that the instance does not, are copied
+	 * onto the instance first.
 	 */
 	bool ReparentOntoFlaggedCopy(UMaterialInstanceConstant* Instance, const FString& ParentsFolder,
 		TSet<UPackage*>& OutPackages, FString& OutError)
@@ -87,7 +96,54 @@ namespace
 			UE_LOG(LogApexTrackImport, Display, TEXT("    parent %s copied to %s with usage flags"),
 				*Parent->GetPathName(), *CopyPackage);
 		}
+		const EBlendMode BlendMode = Instance->GetBlendMode();
+		const bool bTwoSided = Instance->IsTwoSided();
+		const float ClipValue = Instance->GetOpacityMaskClipValue();
+		for (UMaterialInstance* Link = Cast<UMaterialInstance>(Instance->Parent); Link;
+			 Link = Cast<UMaterialInstance>(Link->Parent))
+		{
+			for (const FScalarParameterValue& Value : Link->ScalarParameterValues)
+			{
+				if (!Instance->ScalarParameterValues.ContainsByPredicate(
+						[&](const FScalarParameterValue& Own) { return Own.ParameterInfo == Value.ParameterInfo; }))
+				{
+					Instance->SetScalarParameterValueEditorOnly(Value.ParameterInfo, Value.ParameterValue);
+				}
+			}
+			for (const FVectorParameterValue& Value : Link->VectorParameterValues)
+			{
+				if (!Instance->VectorParameterValues.ContainsByPredicate(
+						[&](const FVectorParameterValue& Own) { return Own.ParameterInfo == Value.ParameterInfo; }))
+				{
+					Instance->SetVectorParameterValueEditorOnly(Value.ParameterInfo, Value.ParameterValue);
+				}
+			}
+			for (const FTextureParameterValue& Value : Link->TextureParameterValues)
+			{
+				if (!Instance->TextureParameterValues.ContainsByPredicate(
+						[&](const FTextureParameterValue& Own) { return Own.ParameterInfo == Value.ParameterInfo; }))
+				{
+					Instance->SetTextureParameterValueEditorOnly(Value.ParameterInfo, Value.ParameterValue);
+				}
+			}
+		}
 		Instance->SetParentEditorOnly(Copy);
+		FMaterialInstanceBasePropertyOverrides& Overrides = Instance->BasePropertyOverrides;
+		if (BlendMode != Copy->GetBlendMode())
+		{
+			Overrides.bOverride_BlendMode = true;
+			Overrides.BlendMode = BlendMode;
+		}
+		if (bTwoSided != Copy->IsTwoSided())
+		{
+			Overrides.bOverride_TwoSided = true;
+			Overrides.TwoSided = bTwoSided;
+		}
+		if (ClipValue != Copy->GetOpacityMaskClipValue())
+		{
+			Overrides.bOverride_OpacityMaskClipValue = true;
+			Overrides.OpacityMaskClipValue = ClipValue;
+		}
 		Instance->PostEditChange();
 		return true;
 	}
@@ -702,10 +758,6 @@ bool UApexPropImportCommandlet::SettleMaterials(const FString& MaterialsFolder, 
 
 	for (UMaterialInterface* Material : Kept)
 	{
-		if (ApexProps::IsMaskedSlot(FName(*Material->GetName())))
-		{
-			EnforceMasked(Material);
-		}
 		// The kit is drawn through instanced components and Nanite meshes;
 		// a material without the matching usage flag is swapped for the
 		// default material in a cooked build, silently.
@@ -721,6 +773,11 @@ bool UApexPropImportCommandlet::SettleMaterials(const FString& MaterialsFolder, 
 			{
 				return false;
 			}
+		}
+		// After the re-parent, which is what once lost the mask.
+		if (ApexProps::IsMaskedSlot(FName(*Material->GetName())))
+		{
+			EnforceMasked(Material);
 		}
 		OutPackages.Add(Material->GetOutermost());
 	}

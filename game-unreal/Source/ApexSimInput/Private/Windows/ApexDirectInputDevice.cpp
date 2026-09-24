@@ -795,7 +795,13 @@ void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelE
 
 	if (IDirectInputEffect* Effect = Joystick.ConstantEffect)
 	{
-		const LONG Magnitude = ToMagnitude(Effects.Constant);
+		// DirectInput gives a force's direction as where it comes FROM: a
+		// positive magnitude on the steering axis pushes the rim toward
+		// negative X, to the left. Measured on a ClubSport V2.5 (+12% turned
+		// the rim 16 degrees left); sent unflipped, every car's self-centring
+		// pushed the rim away from centre and a straight line had to be
+		// balanced by hand.
+		const LONG Magnitude = ToMagnitude(-Effects.Constant);
 		const double SinceSent = Now - Joystick.ConstantSentAt;
 		// Letting go is never held back. A real change goes at the constant
 		// force's own rate, a step inside the deadband at the slow one, so the
