@@ -610,7 +610,10 @@ pub fn update_car_3d(
     ];
     state.feedback.record_tick(&FeedbackTick {
         steer_torque: steering_column_torque(
-            [(fl.fy, fl.slip_angle), (fr.fy, fr.slip_angle)],
+            [
+                FrontTyre::of(&fl, state.weight_front_left_n, steer_left),
+                FrontTyre::of(&fr, state.weight_front_right_n, steer_right),
+            ],
             config,
             static_front_weight,
         ),
@@ -658,10 +661,19 @@ pub fn update_car_3d(
     } else {
         config.mass_kg * GRAVITY * track_ctx.slope_rad.sin()
     };
-    let banking_force = if is_airborne {
-        0.0
+    // Banking: the share of gravity along a cambered road pulls the car
+    // down the slope, toward the low edge. Positive banking lifts the left
+    // edge (the convention the road mesh and `surface_elevation` share), so
+    // the pull points at the road's right, (sin h, -cos h) in the world.
+    // It used to be added to the car's lateral axis as +m g sin(bank) —
+    // pushing up the bank — which made every banked right-hander shed the
+    // car outward; and it ignored which way the car pointed.
+    let (banking_force_x, banking_force_y) = if is_airborne {
+        (0.0, 0.0)
     } else {
-        config.mass_kg * GRAVITY * track_ctx.banking_rad.sin()
+        let pull = config.mass_kg * GRAVITY * track_ctx.banking_rad.sin();
+        let rel = state.yaw_rad - track_ctx.heading_rad;
+        (-pull * rel.sin(), -pull * rel.cos())
     };
 
     // 12. Calculate yaw moment: front tires ahead of CoG, rear tires behind,
@@ -672,8 +684,8 @@ pub fn update_car_3d(
         + (rr_forces.0 - rl_forces.0) * (config.track_width_rear_m / 2.0);
 
     // 13. Calculate accelerations
-    let accel_x = (total_force_x - slope_force) / config.mass_kg;
-    let accel_y = (total_force_y + banking_force) / config.mass_kg;
+    let accel_x = (total_force_x - slope_force + banking_force_x) / config.mass_kg;
+    let accel_y = (total_force_y + banking_force_y) / config.mass_kg;
 
     // Yaw moment of inertia (simplified as rectangular body)
     let yaw_inertia = config.mass_kg * (config.length_m.powi(2) + config.width_m.powi(2)) / 12.0;
@@ -1319,50 +1331,118 @@ struct WheelForces {
 /// Where the zero-slip pneumatic trail has shrunk to nothing, in multiples of
 /// the tyre's peak slip angle. As the rear of the contact patch starts to
 /// slide, its centre of pressure walks forward toward the steering axis. The
-/// aligning torque therefore peaks before the lateral force does and falls
-/// away past it, which is how a driver feels the fronts letting go.
-const PNEUMATIC_TRAIL_ZERO_AT_SLIP: f32 = 2.0;
+/// aligning torque therefore peaks at about half the peak slip, well before
+/// the lateral force does, and falls away through the limit: the wheel going
+/// light is how a driver feels the fronts letting go. At 2.0 the fall was
+/// 14% by the peak and nobody could feel it; at 1.4 it is about a third.
+const PNEUMATIC_TRAIL_ZERO_AT_SLIP: f32 = 1.4;
+
+/// How far past zero the pneumatic trail goes once the whole patch slides, as
+/// a share of its zero-slip length. A real tyre's centre of pressure ends up
+/// just ahead of the contact centre, so a washed-out front is lighter than
+/// the caster alone would make it.
+const PNEUMATIC_TRAIL_FLOOR: f32 = -0.1;
 
 /// Caster (mechanical) trail as a share of the zero-slip pneumatic trail.
 /// It never shrinks, so a sliding front still pulls the wheel toward where
-/// the car is going.
-const MECHANICAL_TRAIL_SHARE: f32 = 0.5;
+/// the car is going, which is what winds the rim into a countersteer.
+const MECHANICAL_TRAIL_SHARE: f32 = 0.35;
 
-/// Torque the two front tyres put into the steering column, from each tyre's
-/// lateral force (wheel frame) and slip angle: `-Fy · (pneumatic + caster
-/// trail)` per tyre. Positive turns the wheel left, the steering sign, so in
-/// a corner it is always against the lock: the self-centring a driver
-/// steers against.
+/// Scrub radius as a share of the zero-slip pneumatic trail: how far outboard
+/// of the kingpin axis the contact patch sits. A longitudinal force on one
+/// front tyre turns the wheel toward that side, so a tyre braking harder than
+/// its partner (loaded on the outside of a corner, or on a different surface)
+/// tugs the rim. Equal forces cancel.
+const SCRUB_RADIUS_SHARE: f32 = 0.25;
+
+/// Kingpin-inclination jacking arm, in zero-slip-trail units: steering lifts
+/// the front of the car, so the axle's weight pulls the wheels back to the
+/// centre. Small at racing lock; it is what centres the wheel at a crawl,
+/// where the tyres have no slip to align with, and it grows with the load
+/// braking puts on the front.
+const JACKING_ARM_SHARE: f32 = 0.6;
+
+/// Longest the contact patch grows over its static length, however much load
+/// is on the tyre.
+const MAX_CONTACT_PATCH_GROWTH: f32 = 2.0;
+
+/// One front tyre as the steering column sees it.
+#[derive(Clone, Copy, Debug, Default)]
+struct FrontTyre {
+    /// Lateral force, wheel frame, + = left.
+    fy: f32,
+    /// Longitudinal force, wheel frame, + = driving.
+    fx: f32,
+    slip_angle: f32,
+    load_n: f32,
+    steer_rad: f32,
+}
+
+impl FrontTyre {
+    fn of(forces: &WheelForces, load_n: f32, steer_rad: f32) -> Self {
+        Self {
+            fy: forces.fy,
+            fx: forces.fx,
+            slip_angle: forces.slip_angle,
+            load_n,
+            steer_rad,
+        }
+    }
+}
+
+/// Torque the two front tyres put into the steering column, `[left, right]`.
+/// Positive turns the wheel left, the steering sign, so in a corner the
+/// aligning part is against the lock: the self-centring a driver steers
+/// against. Per tyre it is
+///
+/// - **aligning**: `-Fy · (pneumatic + caster trail)`. The pneumatic trail
+///   is the contact patch's length, which grows with the square root of the
+///   tyre's load, times a shape that shrinks with slip (see
+///   [`PNEUMATIC_TRAIL_ZERO_AT_SLIP`]). The load is the tyre's own, so the
+///   outside front loaded in a corner, the fronts loaded under braking and
+///   the downforce at speed all make the rim heavier, and a front unloaded
+///   over a crest or under power makes it light;
+/// - **scrub**: `-side · scrub · Fx`, the pull toward a tyre braking harder
+///   than its partner;
+/// - **jacking**: `-load · arm · sin(steer)`, the axle's weight centring
+///   the wheel.
 ///
 /// 1.0 is the car's reference: the front axle cornering at its static grip
 /// limit on zero-slip trail. Downforce and load transfer take it past 1. The
 /// value is not clamped, because a device with more headroom can use it.
 ///
-/// Shape, for an evenly loaded axle at slip `n` times the tyre's peak
-/// (C_LAT = 1.3): 0.55 at n = 0.2, 0.78 at 0.5, 0.67 at the peak, 0.49 at
-/// 1.5 and about 0.32 from 2 on. The wheel goes light as the fronts wash
-/// out, with a little left from the caster.
+/// Shape of the aligning part, for an evenly and statically loaded axle at
+/// slip `n` times the tyre's peak (C_LAT = 1.3): 0.53 at n = 0.2, a crest of
+/// 0.69 around 0.45, 0.47 at the peak, 0.21 at 1.5 and about 0.18 from 2 on.
 fn steering_column_torque(
-    front: [(f32, f32); 2],
+    front: [FrontTyre; 2],
     config: &CarConfig,
     static_front_load_n: f32,
 ) -> f32 {
-    let peak_slip = config.tire_config.optimal_slip_angle_rad.max(1e-4);
-    let moment: f32 = front
-        .iter()
-        .map(|&(fy, slip_angle)| {
-            let n = (slip_angle / peak_slip).abs();
-            let pneumatic = (1.0 - n / PNEUMATIC_TRAIL_ZERO_AT_SLIP).max(0.0);
-            -fy * (pneumatic + MECHANICAL_TRAIL_SHARE)
-        })
-        .sum();
     let reference =
         config.tire_config.grip_coefficient * static_front_load_n * (1.0 + MECHANICAL_TRAIL_SHARE);
-    if reference > 1.0 {
-        moment / reference
-    } else {
-        0.0
+    if reference <= 1.0 {
+        return 0.0;
     }
+    let peak_slip = config.tire_config.optimal_slip_angle_rad.max(1e-4);
+    let static_tyre_load = (static_front_load_n / 2.0).max(1.0);
+    let moment: f32 = front
+        .iter()
+        .zip([1.0f32, -1.0])
+        .map(|(tyre, side)| {
+            let n = (tyre.slip_angle / peak_slip).abs();
+            let patch = (tyre.load_n.max(0.0) / static_tyre_load)
+                .sqrt()
+                .min(MAX_CONTACT_PATCH_GROWTH);
+            let pneumatic =
+                patch * (1.0 - n / PNEUMATIC_TRAIL_ZERO_AT_SLIP).max(PNEUMATIC_TRAIL_FLOOR);
+            let aligning = -tyre.fy * (pneumatic + MECHANICAL_TRAIL_SHARE);
+            let scrub = -side * SCRUB_RADIUS_SHARE * tyre.fx;
+            let jacking = -tyre.load_n.max(0.0) * JACKING_ARM_SHARE * tyre.steer_rad.sin();
+            aligning + scrub + jacking
+        })
+        .sum();
+    moment / reference
 }
 
 /// Solve one wheel's tire forces from the applied torques using a
@@ -2233,10 +2313,16 @@ pub fn check_collisions_refs(
                         let impulse = -(1.0 + restitution) * rel_vel_normal;
                         let impulse = impulse / (1.0 / cfg_i.mass_kg + 1.0 / cfg_j.mass_kg);
 
-                        states[i].vel_x -= impulse * nx / cfg_i.mass_kg;
-                        states[i].vel_y -= impulse * ny / cfg_i.mass_kg;
-                        states[j].vel_x += impulse * nx / cfg_j.mass_kg;
-                        states[j].vel_y += impulse * ny / cfg_j.mass_kg;
+                        let dv_i = (-impulse * nx / cfg_i.mass_kg, -impulse * ny / cfg_i.mass_kg);
+                        let dv_j = (impulse * nx / cfg_j.mass_kg, impulse * ny / cfg_j.mass_kg);
+                        states[i].vel_x += dv_i.0;
+                        states[i].vel_y += dv_i.1;
+                        states[j].vel_x += dv_j.0;
+                        states[j].vel_y += dv_j.1;
+                        let kick_i = impact_steer_kick(states[i], cfg_i, dv_i, 0.0, None);
+                        let kick_j = impact_steer_kick(states[j], cfg_j, dv_j, 0.0, None);
+                        states[i].feedback.record_steer_kick(kick_i);
+                        states[j].feedback.record_steer_kick(kick_j);
                     }
 
                     // Recalculate speeds
@@ -2403,6 +2489,49 @@ const KERB_SCRUB_RATE_PER_SEC: f32 = 0.6;
 const KERB_JOLT_MPS: f32 = 1.5;
 /// Cap on the yaw-rate change one wall contact may apply.
 const WALL_MAX_YAW_KICK_RAD_S: f32 = 4.0;
+/// Steering-column kick, in reference torques, per m/s the front axle is
+/// shoved sideways (or a front corner stopped) by a hit. A 5 m/s side swipe
+/// is well past anything the tyres can put into the rim.
+const STEER_KICK_PER_MPS: f32 = 0.35;
+/// A front corner stopped short kicks this much per m/s against a sideways
+/// shove: the scrub radius is a shorter lever than the trail.
+const STEER_KICK_CORNER_SHARE: f32 = 0.5;
+/// Largest kick one hit reports; the client soft-limits it anyway.
+const MAX_STEER_KICK: f32 = 3.0;
+
+/// The jolt a hit puts through the steering column, from the velocity change
+/// it gave the car (`dv`, world frame, m/s), the yaw-rate change and, when
+/// known, where it landed (`contact`, world offset from the car's centre).
+/// Positive turns the wheel left, as the steering torque does.
+///
+/// Either way the rim is yanked toward the side that was hit. A front tyre
+/// shoved sideways at its contact patch, which trails the steering axis,
+/// turns the wheel toward the push's source, as the aligning torque would;
+/// and a front corner stopped short turns it toward that corner, as a tyre
+/// braking alone does through the scrub radius.
+fn impact_steer_kick(
+    state: &CarState,
+    config: &CarConfig,
+    dv: (f32, f32),
+    dyaw: f32,
+    contact: Option<(f32, f32)>,
+) -> f32 {
+    let (sin_yaw, cos_yaw) = state.yaw_rad.sin_cos();
+    let (front_axle_x, _) = axle_positions(config);
+    let dv_long = dv.0 * cos_yaw + dv.1 * sin_yaw;
+    let dv_lat = -dv.0 * sin_yaw + dv.1 * cos_yaw + dyaw * front_axle_x;
+    let mut kick = -dv_lat;
+    if let Some((cx, cy)) = contact {
+        let ahead = cx * cos_yaw + cy * sin_yaw;
+        let left = -cx * sin_yaw + cy * cos_yaw;
+        if ahead > 0.0 {
+            // Only a rearward jolt stops a corner; a push from behind is
+            // taken by the body, not the wheels.
+            kick += left.signum() * (-dv_long).max(0.0) * STEER_KICK_CORNER_SHARE;
+        }
+    }
+    (kick * STEER_KICK_PER_MPS).clamp(-MAX_STEER_KICK, MAX_STEER_KICK)
+}
 
 /// Stop every car at the track's walls (`TrackConfig::walls`, the baked
 /// barriers). Runs after the car-car pass, so the contact flags it sets
@@ -2514,6 +2643,8 @@ pub fn resolve_wall_contacts(
             state.angular_vel_yaw += kick;
 
             state.feedback.record_impact(closing);
+            let steer_kick = impact_steer_kick(state, config, (jx, jy), kick, Some((rx, ry)));
+            state.feedback.record_steer_kick(steer_kick);
             let impact_speed = closing.min(50.0);
             if impact_speed > 1.0 {
                 let damage_amount = (impact_speed / 50.0) * 5.0;
@@ -3678,6 +3809,32 @@ mod tests {
     }
 
     #[test]
+    fn banking_pulls_the_car_toward_the_low_edge() {
+        // Positive banking lifts the left edge, so a car coasting down a
+        // banked straight drifts right, toward the low side; driven the
+        // other way it drifts toward the same edge, now on its left.
+        let track = graded_straight(0.0, 0.2);
+        let config = create_test_config();
+        for (yaw, heading_sign) in [(0.0f32, 1.0f32), (std::f32::consts::PI, -1.0)] {
+            let mut state = create_test_car_state();
+            state.pos_x = 1500.0;
+            state.yaw_rad = yaw;
+            state.vel_x = 30.0 * heading_sign;
+            state.speed_mps = 30.0;
+            let input = PlayerInputData::default();
+            let start_y = state.pos_y;
+            for _ in 0..240 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            }
+            assert!(
+                state.pos_y < start_y - 0.05,
+                "car heading {yaw:.2} moved {:.3} m across a bank lifting the left edge",
+                state.pos_y - start_y
+            );
+        }
+    }
+
+    #[test]
     fn banked_road_does_not_load_the_lower_wheels() {
         // The body sits parallel to a banked road, so its suspension is
         // evenly compressed and left and right carry the same load. With
@@ -3769,32 +3926,147 @@ mod tests {
         );
     }
 
+    /// A front axle at `n` times the peak slip angle in a left turn, both
+    /// tyres at `load_ratio` times their static load.
+    fn front_axle_at(config: &CarConfig, n: f32, load_ratio: f32) -> [FrontTyre; 2] {
+        let static_front = config.mass_kg * GRAVITY * config.weight_distribution_front;
+        let load = static_front / 2.0 * load_ratio;
+        let d = config.tire_config.grip_coefficient * load;
+        let peak = config.tire_config.optimal_slip_angle_rad;
+        // A left turn: the tyres run a negative slip angle and push left.
+        let tyre = FrontTyre {
+            fy: -pacejka(d, PACEJKA_C_LAT, -n),
+            fx: 0.0,
+            slip_angle: -n * peak,
+            load_n: load,
+            steer_rad: 0.0,
+        };
+        [tyre, tyre]
+    }
+
+    fn column_torque(config: &CarConfig, front: [FrontTyre; 2]) -> f32 {
+        let static_front = config.mass_kg * GRAVITY * config.weight_distribution_front;
+        steering_column_torque(front, config, static_front)
+    }
+
     #[test]
     fn steering_goes_light_as_the_front_tyres_pass_their_peak() {
         let config = create_test_config();
-        let static_front = config.mass_kg * GRAVITY * config.weight_distribution_front;
-        let d = config.tire_config.grip_coefficient * static_front / 2.0;
-        let peak = config.tire_config.optimal_slip_angle_rad;
-        // A left turn: the tyres run a negative slip angle and push left.
-        let torque_at = |n: f32| {
-            let slip = -n * peak;
-            let fy = -pacejka(d, PACEJKA_C_LAT, -n);
-            steering_column_torque([(fy, slip), (fy, slip)], &config, static_front)
-        };
+        let torque_at = |n: f32| column_torque(&config, front_axle_at(&config, n, 1.0));
         let weight = |n: f32| -torque_at(n);
 
         assert!(torque_at(0.5) < 0.0, "the torque is against the lock");
-        assert!((weight(0.5) - 0.78).abs() < 0.02, "{}", weight(0.5));
-        assert!((weight(1.0) - 0.67).abs() < 0.02, "{}", weight(1.0));
-        assert!((weight(2.0) - 0.32).abs() < 0.02, "{}", weight(2.0));
-        assert!(weight(0.2) < weight(0.5), "it builds with cornering force");
+        assert!((weight(0.2) - 0.53).abs() < 0.02, "{}", weight(0.2));
+        assert!((weight(0.45) - 0.69).abs() < 0.02, "{}", weight(0.45));
+        assert!((weight(1.0) - 0.47).abs() < 0.02, "{}", weight(1.0));
+        assert!((weight(1.5) - 0.21).abs() < 0.02, "{}", weight(1.5));
+        assert!(weight(0.2) < weight(0.45), "it builds with cornering force");
         assert!(
-            weight(1.5) < 0.7 * weight(0.5),
-            "and falls away past the peak: {} vs {}",
-            weight(1.5),
-            weight(0.5)
+            weight(1.0) < 0.75 * weight(0.45),
+            "and is plainly lighter by the grip peak: {} vs {}",
+            weight(1.0),
+            weight(0.45)
         );
-        assert!(weight(3.0) > 0.2, "the caster trail keeps some centring");
+        assert!(
+            weight(1.5) < 0.35 * weight(0.45),
+            "a washed-out front is light: {}",
+            weight(1.5)
+        );
+        assert!(weight(3.0) > 0.1, "the caster trail keeps some centring");
+    }
+
+    #[test]
+    fn a_loaded_front_axle_makes_the_steering_heavier() {
+        let config = create_test_config();
+        let weight = |load: f32| -column_torque(&config, front_axle_at(&config, 0.4, load));
+        // Braking or downforce: more load, a longer contact patch and more
+        // force for the same slip.
+        assert!(
+            weight(1.4) > 1.5 * weight(1.0),
+            "{} vs {}",
+            weight(1.4),
+            weight(1.0)
+        );
+        // Under power or over a crest the front goes light.
+        assert!(
+            weight(0.6) < 0.6 * weight(1.0),
+            "{} vs {}",
+            weight(0.6),
+            weight(1.0)
+        );
+
+        // The outside tyre carries the torque in a corner: the same total
+        // load split 1.6 : 0.4 steers heavier than an even split.
+        let mut split = front_axle_at(&config, 0.4, 1.0);
+        for (tyre, ratio) in split.iter_mut().zip([0.4f32, 1.6]) {
+            let even = front_axle_at(&config, 0.4, ratio)[0];
+            *tyre = even;
+        }
+        assert!(-column_torque(&config, split) > weight(1.0));
+    }
+
+    #[test]
+    fn a_front_tyre_braking_alone_pulls_the_wheel_toward_it() {
+        let config = create_test_config();
+        let mut front = front_axle_at(&config, 0.0, 1.0);
+        front[0].fx = -3000.0; // the left front brakes
+        assert!(column_torque(&config, front) > 0.05, "pulls left");
+        front[0].fx = 0.0;
+        front[1].fx = -3000.0;
+        assert!(column_torque(&config, front) < -0.05, "pulls right");
+        front[0].fx = -3000.0;
+        assert!(
+            column_torque(&config, front).abs() < 1e-4,
+            "even braking cancels"
+        );
+    }
+
+    #[test]
+    fn the_axle_weight_centres_a_steered_wheel_at_a_standstill() {
+        let config = create_test_config();
+        let mut front = front_axle_at(&config, 0.0, 1.0);
+        for tyre in front.iter_mut() {
+            tyre.steer_rad = 0.3;
+        }
+        let parked = column_torque(&config, front);
+        assert!(parked < -0.05, "steered left, pulled back right: {parked}");
+        for tyre in front.iter_mut() {
+            tyre.load_n *= 1.5;
+        }
+        assert!(
+            column_torque(&config, front) < 1.4 * parked,
+            "heavier with load"
+        );
+    }
+
+    #[test]
+    fn a_hit_yanks_the_steering_toward_the_side_that_was_struck() {
+        let config = create_test_config();
+        let state = create_test_car_state(); // heading +X, left is +Y
+                                             // Struck from the right: shoved left.
+        let from_right = impact_steer_kick(&state, &config, (0.0, 4.0), 0.0, None);
+        assert!(
+            from_right < -0.5,
+            "turns right, toward the hit: {from_right}"
+        );
+        let from_left = impact_steer_kick(&state, &config, (0.0, -4.0), 0.0, None);
+        assert!((from_left + from_right).abs() < 1e-5);
+
+        // The left front corner stopped by a wall ahead.
+        let half_l = config.length_m / 2.0;
+        let half_w = config.width_m / 2.0;
+        let corner = impact_steer_kick(&state, &config, (-6.0, 0.0), 0.0, Some((half_l, half_w)));
+        assert!(
+            corner > 0.5,
+            "turns left, toward the stopped corner: {corner}"
+        );
+        // The same jolt at the back is the body's, not the wheels'.
+        let rear = impact_steer_kick(&state, &config, (-6.0, 0.0), 0.0, Some((-half_l, half_w)));
+        assert_eq!(rear, 0.0);
+        assert!(
+            impact_steer_kick(&state, &config, (0.0, 1000.0), 0.0, None) >= -MAX_STEER_KICK,
+            "capped"
+        );
     }
 
     /// Which wheels touch the curb is judged per wheel and reported on the

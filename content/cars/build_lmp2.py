@@ -43,28 +43,35 @@ TYRE_F, TYRE_R = 0.355, 0.365
 TRACK = 1.580
 HUB_X = TRACK / 2.0
 ARCH_GAP = 0.022
-SAMP = 5
+SAMP = 6
 AX_F, AX_R = -1.500, 1.500        # wheelbase 3.0 m, as [physics] says
 CAN_LO, CAN_HI = 5.75, 7.45       # control indices where the canopy glass runs
+TRIM_J = 0.28                     # satin-black surround under the glass, from the valley crease up
+TRIM_Y = 0.045                    # and either side of every glass edge (pillars, cowl)
+SUN_J = 0.45                      # tinted strip where the screen meets the roof panel
 
 VARIANTS = {
     "yotota": dict(folder="yotota-lmp2", stem="yotota_lmp2", logo="yotota_logo.png",
-                   paint=(0.93, 0.93, 0.92), accent=(0.85, 0.05, 0.05), caliper=(0.85, 0.10, 0.05),
+                   paint=(0.90, 0.90, 0.88), accent=(0.80, 0.04, 0.04), caliper=(0.85, 0.10, 0.05),
+                   paint_metallic=0.45, number="7", bonnet_drop=(0.02, 0.05), drl="T", tail="double",
                    nose_w=1.00, fender=1.00, roof=1.00, canopy_shift=0.00, tail_h=1.00,
                    side_w=1.00, wing_z=0.00, fin=True, lights="tri", mirror="pod",
                    scoop=(0.30, 0.62, 0.16), seat=(0.10, 0.10, 0.32)),
     "posh": dict(folder="posh-lmp2", stem="posh_lmp2", logo="posh_logo.png",
-                 paint=(0.75, 0.76, 0.78), accent=(0.05, 0.05, 0.05), caliper=(0.95, 0.75, 0.05),
+                 paint=(0.50, 0.51, 0.54), accent=(0.04, 0.04, 0.045), caliper=(0.95, 0.75, 0.05),
+                 paint_metallic=0.90, number="22", bonnet_drop=(0.02, 0.05), drl="points", tail="bar",
                  nose_w=1.06, fender=1.03, roof=0.97, canopy_shift=-0.10, tail_h=0.94,
                  side_w=1.00, wing_z=-0.04, fin=True, lights="round", mirror="pod",
                  scoop=(0.34, 0.56, 0.15), seat=(0.10, 0.10, 0.12)),
     "fugazzi": dict(folder="fugazzi-lmp2", stem="fugazzi_lmp2", logo="fugazzi_logo.png",
-                    paint=(0.80, 0.03, 0.03), accent=(0.95, 0.80, 0.05), caliper=(0.95, 0.80, 0.05),
+                    paint=(0.62, 0.02, 0.03), accent=(0.95, 0.78, 0.05), caliper=(0.95, 0.80, 0.05),
+                    paint_metallic=0.65, number="51", bonnet_drop=(0.02, 0.05), drl="blade", tail="rings",
                     nose_w=0.90, fender=1.05, roof=1.00, canopy_shift=0.12, tail_h=1.04,
                     side_w=0.99, wing_z=0.02, fin=True, lights="tri", mirror="stalk",
                     scoop=(0.26, 0.68, 0.17), seat=(0.16, 0.05, 0.05)),
     "jeanetti": dict(folder="jeanetti-lmp2", stem="jeanetti_lmp2", logo="jeanetti_logo.png",
-                     paint=(0.04, 0.28, 0.14), accent=(0.95, 0.85, 0.20), caliper=(0.20, 0.20, 0.22),
+                     paint=(0.02, 0.20, 0.10), accent=(0.95, 0.82, 0.18), caliper=(0.20, 0.20, 0.22),
+                     paint_metallic=0.60, number="38", bonnet_drop=(0.02, 0.05), drl="claws", tail="claws",
                      nose_w=1.00, fender=0.98, roof=1.03, canopy_shift=0.05, tail_h=1.00,
                      side_w=1.02, wing_z=0.05, fin=False, lights="bar", mirror="pod",
                      scoop=(0.32, 0.52, 0.18), seat=(0.08, 0.10, 0.06)),
@@ -100,6 +107,16 @@ def apply_variant(keys, v):
                 z = 0.055 + (z - 0.055) * v["fender"]
             if j >= 6 and -0.7 < y < 1.1:
                 z = 0.60 + (z - 0.60) * v["roof"]
+            # The canopy is a broader, taller bubble than the first keys drew:
+            # the client seats the driver 18% of the car's width off centre,
+            # which on a 0.45 m half-width canopy is inside the side glass,
+            # and 70% of the box up, which was 6 cm under the roof.
+            if j == 6 and -1.2 < y < 1.6:
+                x *= 1.16
+            if j == 7 and -1.2 < y < 1.6:
+                x *= 1.14
+            if j >= 7 and -0.9 < y < 1.3:
+                z += 0.045 * (1.0 if -0.6 <= y <= 1.0 else 0.5)
             if j in (1, 2) and -1.9 < y < 2.0:
                 x *= v["side_w"]
             if y > 1.7:
@@ -120,6 +137,7 @@ CS = V["canopy_shift"]
 SCREEN_Y = (-0.98 + CS, -0.30 + CS)
 SIDE_Y = (-0.30 + CS, 0.58 + CS)
 CANOPY_Y = (SCREEN_Y[0], SIDE_Y[1])
+NOSE_KEY = KEYS[1][0]
 
 
 def save(tag):
@@ -131,12 +149,18 @@ def save(tag):
 carlib.reset_scene()
 M = carlib.car_materials(V["paint"], V["accent"], V["caliper"],
                          logo_path=os.path.join(CAR_DIR, "textures", V["logo"]),
-                         seat_rgb=V["seat"])
+                         seat_rgb=V["seat"], paint_metallic=V.get("paint_metallic", 0.8),
+                         paint_rough=0.22)
 
 # ---------------------------------------------------------------- body loft
 VK = carlib.fender_bump(apply_variant(KEYS, V), (AX_F, AX_R),
                         amount=0.022, width=0.55, j0=2.4, j1=4.0)
-L = carlib.Loft(VK, samp=SAMP, ny=84, hard=(2, 3, 5))
+if V.get("bonnet_drop"):
+    # the nose deck between the fender crowns, a shade lower: the eye sits
+    # 70% of the box up and every centimetre of cowl costs road (see sightline)
+    VK = carlib.drop_bonnet(VK, V["bonnet_drop"][0], V["bonnet_drop"][1], SCREEN_Y[0], NOSE_KEY,
+                            fade=0.20, j_full=7, partial=((6, 0.5),))
+L = carlib.Loft(VK, samp=SAMP, ny=110, hard=(2, 3, 5))
 NOSE, TAIL = L.nose, L.tail
 
 ARCH_SPAN = [(AX_F - TYRE_F - ARCH_GAP, AX_F + TYRE_F + ARCH_GAP),
@@ -188,17 +212,27 @@ L.recess(RAIN_Y - 0.18, TAIL - 0.02, 3.40, 4.80, depth=0.018, rim=0.055)
 
 
 def face_mat(ym, kk, right):
+    """Paint, glass, or the satin-black surround. A prototype canopy is a
+    bubble in a black frame: a trim band above the valley crease, the
+    pillars either side of every glass edge, and a tinted strip where the
+    screen runs into the roof panel."""
     jc = kk / SAMP
-    if jc < CAN_LO:
+    is_screen = SCREEN_Y[0] < ym < SCREEN_Y[1]
+    is_side = SIDE_Y[0] <= ym < SIDE_Y[1]
+    if jc < CAN_LO - TRIM_J:
         return M.paint
-    if SCREEN_Y[0] < ym < SCREEN_Y[1]:
-        return M.glass                      # windscreen: up to the roof
-    if SIDE_Y[0] <= ym < SIDE_Y[1] and jc < CAN_HI:
-        return M.glass                      # side glass, roof stays painted
+    if jc < CAN_LO:
+        return M.trim if (is_screen or is_side) else M.paint
+    if is_screen:
+        return M.trim if jc > CAN_HI + SUN_J else M.glass
+    if is_side and jc < CAN_HI:
+        return M.glass
+    if jc < CAN_HI + 0.4 and any(abs(ym - e) < TRIM_Y for e in (SCREEN_Y[0], SIDE_Y[1])):
+        return M.trim
     return M.paint
 
 
-body = L.build("body", face_mat, [M.paint, M.glass], subsurf=0)
+body = L.build("body", face_mat, [M.paint, M.glass, M.trim], subsurf=0)
 save("body")
 
 # -------------------------------------------------------------- wheel arches
@@ -235,7 +269,9 @@ save("apertures")
 
 # -------------------------------------------------------------------- parts
 p = Builder("parts")
-CK = carlib.cockpit_points(L, 1.05 + V["wing_z"], liner_z=0.038)
+WZ = 1.05 + V["wing_z"]
+TOP_Z = WZ + 0.255                          # the endplates: the tallest thing on the car
+CK = carlib.cockpit_points(L, WZ, liner_z=0.036, top_z=TOP_Z)
 EYE, DASH_Z = CK["eye"], CK["dash_z"]
 DX = EYE.x
 SILL_X = L.x_at(0.0, 0.18)
@@ -268,10 +304,9 @@ for sx in (-1, 1):
 DIF_Y0, DIF_Y1 = AX_R + 0.20, TAIL - 0.02
 DIF_HW = min(L.x_at(y, 0.17) for y in (DIF_Y0, (DIF_Y0 + DIF_Y1) / 2, DIF_Y1 - 0.05)) - 0.045
 carlib.diffuser(p, M.carbon, DIF_Y0, DIF_Y1, DIF_HW, 0.055, 0.245,
-                thick=0.014, strakes=(-0.64, -0.22, 0.22, 0.64), strake_h=0.185)
+                thick=0.014, strakes=(-0.72, -0.44, -0.16, 0.16, 0.44, 0.72), strake_h=0.20)
 
 # ---- rear wing: two elements, endplates, swan necks, gurney, brake LED
-WZ = 1.05 + V["wing_z"]
 WY, WHW = 1.90, 0.925
 te_y, te_z = carlib.foil(p, M.carbon, -WHW, WHW, 0.360, 0.100, 0.055, WY, WZ, angle_deg=-9.0)
 f2_y, f2_z = carlib.foil(p, M.carbon, -WHW, WHW, 0.145, 0.095, 0.050,
@@ -292,28 +327,109 @@ if V["fin"]:
            (AX_R + 0.10, L.roof_z(AX_R + 0.10) - 0.02)]
     carlib.plate(p, M.carbon, fin, 0.0, 0.018, chamfer=0.006)
 
-# ---- lights in their apertures
+# ---- lights. The headlamp aperture is a lined hole in the nose; inside it
+# a black back wall, projector modules set back from the skin (each at its
+# own station, the nose being curved), an L-shaped DRL guide along the
+# outboard and lower edges, and a clear lens flush with the skin over the
+# hole. The tail aperture gets a back wall, an L light guide, a brake matrix
+# and a smoked lens; the rain light is an LED matrix.
 for sx in (-1, 1):
     x0, x1 = sorted((sx * LAMP_X[0], sx * LAMP_X[1]))
-    style = {"round": "round", "tri": "round", "bar": "bar"}[V["lights"]]
-    n = {"round": 2, "tri": 3, "bar": 1}[V["lights"]]
-    carlib.lamp_cluster(p, M, x0 + 0.010, x1 - 0.010, LAMP_Z[0] + 0.010, LAMP_Z[1] - 0.010,
-                        LAMP_Y + 0.015, depth=0.10, style=style, count=n, dir_y=1.0,
-                        housing=True, loft=L)
+    n = {"T": 3, "points": 2, "blade": 3, "claws": 2}[V["drl"]]
+    cz = (LAMP_Z[0] + LAMP_Z[1]) / 2
+    r = min((x1 - x0) / (2.3 * n), (LAMP_Z[1] - LAMP_Z[0]) * 0.36)
+    p.box(M.lamp_h, (x0, LAMP_Y + 0.115, LAMP_Z[0]), (x1, LAMP_Y + 0.135, LAMP_Z[1]))
+    for k in range(n):
+        cx = x0 + 0.03 + r + ((x1 - x0) - 0.06 - 2 * r) * (k / (n - 1) if n > 1 else 0.5)
+        cy = carlib.surface_station(L, abs(cx) + r, cz, NOSE, margin=0.010) + 0.030
+        carlib.projector(p, M, (cx, cy, cz), (0.0, -1.0, 0.0), r, depth=0.080)
+        # a black mask plate round each module, just behind its face, so the
+        # hole shows a bezel and a lit face rather than the side of a can
+        p.box(M.lamp_h, (cx - r - 0.035, cy + 0.004, LAMP_Z[0] - 0.002), (cx + r + 0.035, cy + 0.014, LAMP_Z[1] + 0.002))
+    # DRL signature, one per maker, a hand inside the skin
+    xo = x1 - 0.022 if sx > 0 else x0 + 0.022
+    xi = x0 + 0.022 if sx > 0 else x1 - 0.022
+    zlo, zhi = LAMP_Z[0] + 0.016, LAMP_Z[1] - 0.016
+
+    def skin(x, z, back=0.018):
+        return carlib.surface_station(L, abs(x), z, NOSE, margin=0.005) + back
+
+    if V["drl"] == "T":
+        # Yotota: a vertical blade at the outboard edge, a short bar off its middle
+        carlib.guide_xyz(p, M.lamp, [(xo, skin(xo, zhi), zhi), (xo, skin(xo, zlo), zlo)], r=0.0055, segs=8)
+        xm = xo - sx * 0.16
+        carlib.guide_xyz(p, M.lamp, [(xo, skin(xo, cz), cz), (xm, skin(xm, cz), cz)], r=0.0045, segs=8)
+    elif V["drl"] == "points":
+        # Posh: four DRL points round the projectors, the marque's face
+        for (dx, dz) in ((0.06, 0.038), (0.06, -0.038), (-0.06, 0.038), (-0.06, -0.038)):
+            for k in range(n):
+                cx = x0 + 0.03 + r + ((x1 - x0) - 0.06 - 2 * r) * (k / (n - 1) if n > 1 else 0.5)
+                px = cx + sx * dx * (r / 0.043)
+                carlib.projector(p, M, (px, skin(px, cz + dz, 0.024), cz + dz), (0.0, -1.0, 0.0), 0.009,
+                                 depth=0.016, chrome=False)
+    elif V["drl"] == "blade":
+        # Fugazzi: one thin horizontal blade along the top of the aperture
+        carlib.guide_xyz(p, M.lamp, [(xi, skin(xi, zhi), zhi), (xo, skin(xo, zhi), zhi)], r=0.0050, segs=8)
+    else:
+        # Jeanetti: three vertical claws at the outboard end
+        for k in range(3):
+            cx = xo - sx * 0.032 * k
+            carlib.guide_xyz(p, M.lamp, [(cx, skin(cx, zhi), zhi), (cx, skin(cx, zlo + 0.012 * k), zlo + 0.012 * k)],
+                             r=0.0045, segs=8)
+    carlib.front_lens(p, M.glass, L, x0 - 0.004, x1 + 0.004, LAMP_Z[0] - 0.004, LAMP_Z[1] + 0.004,
+                      NOSE, lift=-0.0025, nu=8, nv=4)
+    # tail
     t0, t1 = sorted((sx * 0.30, sx * 0.76))
-    carlib.lamp_cluster(p, M, t0 + 0.008, t1 - 0.008, TAILL_TOP - 0.050, TAILL_TOP - 0.012,
-                        TAILL_Y - 0.010, depth=0.10, style="bar", dir_y=-1.0,
-                        glow=M.tail, housing=False)
-    carlib.lamp_cluster(p, M, t0 + 0.008, t1 - 0.008, TAILL_TOP - 0.105, TAILL_TOP - 0.062,
-                        TAILL_Y - 0.010, depth=0.10, style="bar", dir_y=-1.0,
-                        glow=M.brake, housing=False)
+    zt0, zt1 = TAILL_TOP - 0.125, TAILL_TOP + 0.008
+    p.box(M.lamp_h, (t0, TAILL_Y - 0.20, zt0), (t1, TAILL_Y - 0.18, zt1))
+    xo = t1 - 0.025 if sx > 0 else t0 + 0.025
+    xi = t0 + 0.025 if sx > 0 else t1 - 0.025
+    ty = TAILL_Y - 0.05
+    if V["tail"] == "double":
+        # Yotota: two horizontal stripes the width of the lamp, brake row under them
+        for zz in (zt1 - 0.020, zt1 - 0.052):
+            carlib.guide_xyz(p, M.tail, [(xi, ty, zz), (xo, ty, zz)], r=0.0060, segs=8)
+        bb0, bb1 = sorted((xi, xo))
+        carlib.led_grid(p, M, bb0, bb1, zt0 + 0.014, zt0 + 0.046, TAILL_Y - 0.062, dir_y=-1.0,
+                        cols=8, rows=1, glow=M.brake)
+    elif V["tail"] == "bar":
+        # Posh: one stripe that runs on across the tail panel to the other lamp
+        carlib.guide_xyz(p, M.tail, [(xi, ty, zt1 - 0.022), (xo, ty, zt1 - 0.022)], r=0.0070, segs=8)
+        bb0, bb1 = sorted((xi, xo - sx * 0.10))
+        carlib.led_grid(p, M, bb0, bb1, zt0 + 0.016, zt1 - 0.050, TAILL_Y - 0.062, dir_y=-1.0,
+                        cols=6, rows=2, glow=M.brake)
+    elif V["tail"] == "rings":
+        # Fugazzi: twin round light-guide rings, brake strip along the bottom
+        rr = (zt1 - zt0) * 0.36
+        for cx in (xi + sx * (rr + 0.02), xo - sx * (rr + 0.02)):
+            ring = [(cx + rr * math.cos(a), ty, (zt0 + zt1) / 2 + 0.012 + rr * math.sin(a))
+                    for a in (2 * math.pi * k / 24 for k in range(25))]
+            carlib.guide_xyz(p, M.tail, ring, r=0.0060, segs=8)
+            carlib.projector(p, M, (cx, ty + 0.002, (zt0 + zt1) / 2 + 0.012), (0.0, 1.0, 0.0), rr * 0.55,
+                             depth=0.04, glow=M.tail, chrome=False)
+        bb0, bb1 = sorted((xi, xo))
+        carlib.led_grid(p, M, bb0, bb1, zt0 + 0.010, zt0 + 0.030, TAILL_Y - 0.062, dir_y=-1.0,
+                        cols=10, rows=1, glow=M.brake)
+    else:
+        # Jeanetti: three vertical claws at the outboard end, brake block inboard
+        for k in range(3):
+            cx = xo - sx * 0.055 * k
+            carlib.guide_xyz(p, M.tail, [(cx, ty, zt1 - 0.018 - 0.010 * k), (cx, ty, zt0 + 0.018)], r=0.0065, segs=8)
+        bb0, bb1 = sorted((xi, xo - sx * 0.16))
+        carlib.led_grid(p, M, bb0, bb1, zt0 + 0.018, zt1 - 0.030, TAILL_Y - 0.062, dir_y=-1.0,
+                        cols=4, rows=3, glow=M.brake)
+    p.box(M.lens_tint, (t0 + 0.002, TAILL_Y - 0.008, zt0 + 0.002), (t1 - 0.002, TAILL_Y - 0.003, zt1 - 0.002))
     # radiator mouth: mesh backing and a raised surround
     r0, r1 = sorted((sx * 0.16, sx * 0.56))
     carlib.grille(p, M, r0 + 0.010, r1 - 0.010, RAD_Y + 0.010, 0.140, 0.275,
                   bars=4, depth=0.22, backing=True)
     carlib.duct_lip(p, M.carbon, r0, r1, RAD_Y - 0.010, 0.140, 0.275, out=0.018)
-carlib.lamp_cluster(p, M, -0.050, 0.050, 0.355, 0.565, RAIN_Y - 0.008, depth=0.10,
-                    style="bar", dir_y=-1.0, glow=M.rain, housing=False)
+carlib.led_grid(p, M, -0.048, 0.048, 0.365, 0.555, RAIN_Y - 0.020, dir_y=-1.0,
+                cols=2, rows=6, glow=M.rain)
+if V["tail"] == "bar":
+    zb = TAILL_TOP + 0.008 - 0.022
+    yb = max(carlib.surface_station(L, x, zb, TAIL, margin=0.0) for x in (0.0, 0.15, 0.30)) + 0.004
+    carlib.tail_bar(p, M, -0.30, 0.30, yb, zb, h=0.036, glow=M.tail, dir_y=-1.0)
 
 # ---- blades in the vents cut into the loft
 for ax in (AX_F, AX_R):
@@ -363,33 +479,93 @@ p.bar(M.carbon, (0.18, SIDE_Y[1] - 0.10, L.roof_z(SIDE_Y[1] - 0.10) - 0.01),
       (0.18, SIDE_Y[1] - 0.10, L.roof_z(SIDE_Y[1] - 0.10) + 0.18), 0.006)
 for yy in (NOSE + 0.14, TAIL - 0.12):
     p.torus(M.towhook, (0.26, yy, 0.215), 0.052, 0.013, segs=16, rings=8)
-wy = SCREEN_Y[0] + 0.05
-p.bar(M.carbon, (DX - 0.40, wy, L.z_at(wy, 0.34) + 0.013),
-      (DX + 0.26, wy + 0.04, L.z_at(wy + 0.04, 0.34) + 0.013), 0.012, segs=8)
+wy = SCREEN_Y[0] - 0.02
+p.bar(M.trim, (DX - 0.40, wy, L.z_at(wy, 0.34) + 0.010),
+      (DX + 0.24, wy + 0.03, L.z_at(wy + 0.03, 0.34) + 0.010), 0.009, segs=8)
+
+# ---- daytime-running blades under each headlamp cluster
+for sx in (-1, 1):
+    x0, x1 = sorted((sx * LAMP_X[0], sx * LAMP_X[1]))
+    dy = carlib.surface_station(L, max(abs(x0), abs(x1)), LAMP_Z[0] - 0.03, NOSE, margin=0.02)
+    carlib.led_strip(p, M, x0 + 0.02, x1 - 0.02, dy + 0.006, LAMP_Z[0] - 0.030, h=0.016,
+                     t=0.012, glow=M.lamp, dir_y=1.0)
+
+# ---- small hardware: clam pins, door latch, filler, roof camera pod
+for (x, yy) in ((-0.50, NOSE + 0.58), (0.50, NOSE + 0.58), (-0.82, NOSE + 0.70), (0.82, NOSE + 0.70)):
+    pz = L.z_at(yy, abs(x))
+    p.cylinder(M.metal, (x, yy, pz - 0.004), 0.015, 0.010, segs=12, axis='Z')
+    p.cylinder(M.trim, (x, yy, pz + 0.006), 0.007, 0.006, segs=8, axis='Z')
+for sx in (-1, 1):
+    ly = SIDE_Y[1] - 0.14
+    lz = L.point(ly, 2.6).z
+    lx = L.x_at(ly, lz)
+    p.box(M.trim, (min(sx * (lx - 0.008), sx * (lx + 0.003)), ly - 0.05, lz - 0.014),
+          (max(sx * (lx - 0.008), sx * (lx + 0.003)), ly + 0.05, lz + 0.014))
+fy = AX_R - 0.55
+fz = L.z_at(fy, 0.62)
+p.cylinder(M.metal, (0.62, fy, fz - 0.008), 0.042, 0.014, segs=16, axis='Z')
+p.cylinder(M.trim, (0.62, fy, fz + 0.006), 0.033, 0.004, segs=16, axis='Z')
+cy = SIDE_Y[1] - 0.02
+cz = L.z_at(cy, 0.22)
+p.box(M.trim, (0.22 - 0.04, cy - 0.05, cz - 0.01), (0.22 + 0.04, cy + 0.05, cz + 0.03))
+p.cylinder(M.glass, (0.22, cy + 0.05, cz + 0.016), 0.010, 0.006, segs=10, axis='Y')
+
+# ---- race number on the nose, on a white plate that follows the deck
+NUM = V.get("number", "1")
+carlib.top_patch(p, M.decal, L, NOSE + 0.30, NOSE + 0.66, -0.20, 0.20, lift=0.004, nu=8, nv=6)
+carlib.top_text(p, M.trim, L, NUM, 0.0, NOSE + 0.48, size=0.26, thick=0.006, lift=0.005,
+                face="front", squash=0.80)
 
 # ---- cockpit, built to the points the client derives (docs/CAR_MODELS.md)
-p.box(M.interior, (-0.62, -0.78, 0.095), (0.62, 0.96, 0.135))
+# No mesh steering wheel: the client's cockpit rig draws its own at the
+# derived wheel point. The cabin is a prototype tub - narrow, the driver on
+# the centreline-ish, a bulkhead behind him - built to the same points the
+# GT3 cabin is, so the cockpit view reads the same in both classes.
+DASH_Z = min(EYE.z - 0.22, L.roof_z(SCREEN_Y[0]) - 0.03)
+DASH_Y0, DASH_Y1 = SCREEN_Y[0] - 0.02, CK["wheel"].y - 0.28
+XIN = min(L.x_at(y, DASH_Z) for y in (DASH_Y0, -0.3, 0.0, 0.3, SIDE_Y[1])) - 0.050
+HOOP_Y = SIDE_Y[1] - 0.06
+BULK_Y = HOOP_Y + 0.03
+BELT_Z = L.point(0.0, CAN_LO).z
+p.box(M.interior, (-XIN, DASH_Y0, 0.095), (XIN, BULK_Y, 0.135))                  # floor
+p.box(M.alcantara, (-XIN + 0.02, -0.72, 0.135), (XIN - 0.02, 0.08, 0.140))       # footwell mat
+p.box(M.interior, (-0.14, DASH_Y0, 0.135), (0.14, BULK_Y, 0.30))                  # tunnel
+p.box(M.trim, (-0.16, DASH_Y0, 0.30), (0.16, BULK_Y, 0.315))
+carlib.switch_panel(p, M, -0.13, 0.13, CK["wheel"].y - 0.18, CK["wheel"].y + 0.20, 0.325,
+                    rows=3, cols=3, rotary=True)
+p.box(M.interior, (-XIN, BULK_Y, 0.135), (XIN, BULK_Y + 0.03, BELT_Z - 0.06))     # bulkhead
+p.box(M.trim, (-XIN, BULK_Y - 0.01, BELT_Z - 0.06), (XIN, BULK_Y + 0.04, BELT_Z - 0.03))
+p.box(M.interior, (-XIN, DASH_Y0, 0.54), (XIN, DASH_Y1, DASH_Z - 0.06))           # dash
+p.box(M.alcantara, (-XIN, DASH_Y0, DASH_Z - 0.06), (XIN, DASH_Y1, DASH_Z))
+p.bar(M.alcantara, (-XIN, DASH_Y1, DASH_Z - 0.016), (XIN, DASH_Y1, DASH_Z - 0.016), 0.016, segs=10)
+hood = [(DASH_Y1 - 0.28, DASH_Z), (DASH_Y1 + 0.02, DASH_Z), (DASH_Y1 + 0.02, DASH_Z + 0.040),
+        (DASH_Y1 - 0.22, DASH_Z + 0.040)]
+carlib.plate(p, M.alcantara, hood, DX, 0.32, chamfer=0.010)
+p.box(M.trim, (-0.09, DASH_Y1 - 0.06, DASH_Z), (0.09, DASH_Y1 - 0.01, DASH_Z + 0.040))
+p.box(M.display, (-0.075, DASH_Y1 - 0.012, DASH_Z + 0.008), (0.075, DASH_Y1 - 0.008, DASH_Z + 0.035))
+carlib.switch_panel(p, M, DX - 0.40, DX - 0.19, DASH_Y1 - 0.11, DASH_Y1 - 0.02, DASH_Z + 0.001,
+                    rows=1, cols=3, rotary=False)
 for sx in (-1, 1):
-    p.box(M.interior, (sx * 0.585 - 0.035, -0.78, 0.135), (sx * 0.585 + 0.035, 0.96, 0.58))
-p.box(M.seat, (DX - 0.245, 0.12, 0.135), (DX + 0.245, 0.60, 0.285))
-p.box(M.seat, (DX - 0.265, 0.48, 0.285), (DX + 0.265, 0.645, 0.885))
-for sx in (-1, 1):
-    p.box(M.seat, (DX + sx * 0.275 - 0.04, 0.10, 0.285), (DX + sx * 0.275 + 0.04, 0.60, 0.425))
-p.box(M.interior, (-0.56, -0.78, 0.545), (0.56, CK["wheel"].y - 0.12, DASH_Z))
-p.box(M.display, (DX - 0.125, CK["wheel"].y - 0.125, DASH_Z - 0.165),
-      (DX + 0.125, CK["wheel"].y - 0.115, DASH_Z - 0.045))
-p.bar(M.metal, (DX, CK["wheel"].y - 0.16, CK["wheel"].z - 0.05),
-      (DX, CK["wheel"].y, CK["wheel"].z), 0.021, segs=10)
-carlib.steering_wheel(p, M, (DX, CK["wheel"].y, CK["wheel"].z), r=0.150, rim_r=0.019)
+    carlib.door_card(p, M, sx, XIN, SIDE_Y[0] + 0.02, SIDE_Y[1] - 0.02, 0.18, BELT_Z - 0.035,
+                     pull=True)
+    p.box(M.interior, (min(sx * XIN, sx * (XIN + 0.02)), DASH_Y0, 0.135),
+          (max(sx * XIN, sx * (XIN + 0.02)), SIDE_Y[0] + 0.02, 0.54))
+    p.box(M.interior, (min(sx * XIN, sx * (XIN + 0.02)), SIDE_Y[1] - 0.02, 0.135),
+          (max(sx * XIN, sx * (XIN + 0.02)), BULK_Y + 0.03, BELT_Z - 0.06))
+carlib.bucket_seat(p, M, DX, 0.10, 0.135, width=0.48, depth=0.52, back_h=0.62, rake_deg=24.0)
 for x in (DX - 0.19, DX - 0.07, DX + 0.05):
     p.box(M.metal, (x - 0.030, -0.76, 0.145), (x + 0.030, -0.70, 0.275))
-# roll structure inside the canopy
-HOOP_Y = SIDE_Y[1] - 0.06
+p.box(M.metal, (DX + 0.13, -0.78, 0.145), (DX + 0.20, -0.68, 0.26))
+carlib.extinguisher(p, M, -0.40, -0.40, 0.20, r=0.048, length=0.32)
+carlib.inner_skin(p, M.alcantara, L, SCREEN_Y[1] + 0.03, SIDE_Y[1] - 0.03, 0.40,
+                  drop=0.030, nu=10, nv=6)
+# roll structure inside the canopy: the A-pillar bar runs down the edge of
+# the screen from the canopy's shoulder, not across the driver's face
 for sx in (-1, 1):
     top = (sx * 0.40, HOOP_Y, L.z_at(HOOP_Y, 0.46) - 0.050)
     p.bar(M.cage, (sx * 0.56, HOOP_Y, 0.20), (sx * 0.56, HOOP_Y, top[2] - 0.12), 0.022, segs=8)
     p.bar(M.cage, (sx * 0.56, HOOP_Y, top[2] - 0.12), top, 0.022, segs=8)
-    scr = (sx * 0.36, SCREEN_Y[1], L.z_at(SCREEN_Y[1], 0.42) - 0.045)
+    scr = (sx * 0.50, SCREEN_Y[1], L.point(SCREEN_Y[1], CAN_LO + 0.25).z - 0.030)
     p.bar(M.cage, top, scr, 0.019, segs=8)
     foot = (sx * (L.x_at(wy, 0.58) - 0.075), wy + 0.02, L.z_at(wy + 0.02, 0.60) - 0.040)
     p.bar(M.cage, scr, foot, 0.018, segs=8)
@@ -416,5 +592,6 @@ car, glb = carlib.join_and_export([body] + parts_objs, V["stem"], CAR_DIR,
                                   export=os.environ.get("APEX_EXPORT", "1") == "1")
 save("joined")
 print("stats:", carlib.mesh_stats(car))
+print("sightline:", carlib.sightline(car))
 if glb:
     print("GLB:", glb, os.path.getsize(glb))

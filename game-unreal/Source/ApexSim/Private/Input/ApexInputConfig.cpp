@@ -265,7 +265,7 @@ namespace ApexInput
 			: FKey();
 	}
 
-	int32 FindForceFeedbackDevice(const TArray<FApexKeyBinding>& Bindings)
+	int32 FindSteeringDevice(const TArray<FApexKeyBinding>& Bindings)
 	{
 		const FApexSimInputModule* Input = FApexSimInputModule::Get();
 		if (!Input)
@@ -279,10 +279,48 @@ namespace ApexInput
 
 		const ApexDirectInput::FControl Control = ApexDirectInput::ParseKey(Key);
 		const ApexDirectInput::FDeviceInfo* Device = Control.IsValid() ? Input->FindDevice(Control.Slot) : nullptr;
+		return Device ? Device->Slot : INDEX_NONE;
+	}
+
+	int32 FindForceFeedbackDevice(const TArray<FApexKeyBinding>& Bindings)
+	{
+		const FApexSimInputModule* Input = FApexSimInputModule::Get();
+		const int32 DeviceSlot = FindSteeringDevice(Bindings);
+		const ApexDirectInput::FDeviceInfo* Device =
+			Input && DeviceSlot != INDEX_NONE ? Input->FindDevice(DeviceSlot) : nullptr;
 		// What it *can* do, not what it is doing: the device layer only takes a
 		// wheel exclusively once this has named it, so asking the other way
 		// round would mean no wheel ever played anything.
 		return Device && Device->bCanPlayForces ? Device->Slot : INDEX_NONE;
+	}
+
+	float WheelSteeringScale(float RotationDeg, float SteeringLockDeg)
+	{
+		const float Rotation = FMath::Clamp(RotationDeg, WheelRotationMinDeg, WheelRotationMaxDeg);
+		const float Lock = FMath::Clamp(SteeringLockDeg, SteeringLockMinDeg, Rotation);
+		return Rotation / Lock;
+	}
+
+	bool ReadWheelSteering(const TArray<FApexKeyBinding>& Bindings, float& OutAxis)
+	{
+		const FApexSimInputModule* Input = FApexSimInputModule::Get();
+		if (!Input)
+		{
+			return false;
+		}
+
+		auto IsAttached = [Input](int32 DeviceSlot) { return Input->IsAttached(DeviceSlot); };
+		const FApexKeyBinding* Steering = FindBinding(Bindings, Actions::Steer, Slot::Wheel, IsAttached);
+		const FKey Key = Steering ? Steering->Key : GetWheelDefaultKey(Actions::Steer, Slot::Wheel);
+
+		const ApexDirectInput::FControl Control = ApexDirectInput::ParseKey(Key);
+		if (!Control.IsValid() || Control.Kind != ApexDirectInput::EControlKind::Axis || !Input->IsAttached(Control.Slot))
+		{
+			return false;
+		}
+		const float Value = Input->GetControlValue(Control);
+		OutAxis = Steering && Steering->bInvert ? -Value : Value;
+		return true;
 	}
 }
 
@@ -292,6 +330,17 @@ FInputActionValue UApexInputModifierPedal::ModifyRaw_Implementation(
 	const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime)
 {
 	return FInputActionValue(FMath::Clamp(0.5f * (CurrentValue.Get<float>() + 1.0f), 0.0f, 1.0f));
+}
+
+FInputActionValue UApexInputModifierWheelSteering::ModifyRaw_Implementation(
+	const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime)
+{
+	const APlayerController* PlayerController = PlayerInput ? Cast<APlayerController>(PlayerInput->GetOuter()) : nullptr;
+	const UGameInstance* GameInstance = PlayerController ? PlayerController->GetGameInstance() : nullptr;
+	const UApexSettingsSubsystem* Settings = GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+
+	const float Scale = Settings ? Settings->GetWheelSteeringScale() : 1.0f;
+	return FInputActionValue(FMath::Clamp(CurrentValue.Get<float>() * Scale, -1.0f, 1.0f));
 }
 
 FInputActionValue UApexInputModifierPadSteering::ModifyRaw_Implementation(
@@ -373,6 +422,12 @@ void UApexInputConfig::MapSlot(const ApexInput::FSlotDef& Def, UInputAction* Act
 	if (Def.ActionId == ApexInput::Actions::Steer && !bDirectInputAxis)
 	{
 		Mapping.Modifiers.Add(NewObject<UApexInputModifierPadSteering>(DriveContext));
+	}
+	if (Def.ActionId == ApexInput::Actions::Steer && bDirectInputAxis && ApexInput::IsWheelSlot(Def.Slot))
+	{
+		// After the negate: the scale is symmetric, but the clamp has to see
+		// the value the right way round.
+		Mapping.Modifiers.Add(NewObject<UApexInputModifierWheelSteering>(DriveContext));
 	}
 }
 

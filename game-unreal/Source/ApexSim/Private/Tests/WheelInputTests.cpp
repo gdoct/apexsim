@@ -185,6 +185,7 @@ bool FApexWheelMappingTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("and with no deadzone or curve of the pad's"),
 			HasModifier<UApexInputModifierPadSteering>(*Steering));
 		TestFalse(TEXT("nor inverted"), HasModifier<UInputModifierNegate>(*Steering));
+		TestTrue(TEXT("but geared to the steering lock"), HasModifier<UApexInputModifierWheelSteering>(*Steering));
 	}
 	else
 	{
@@ -205,6 +206,7 @@ bool FApexWheelMappingTest::RunTest(const FString& Parameters)
 	if (const FEnhancedActionKeyMapping* Stick = FindMapping(*Config, EKeys::Gamepad_LeftX))
 	{
 		TestTrue(TEXT("the stick is shaped"), HasModifier<UApexInputModifierPadSteering>(*Stick));
+		TestFalse(TEXT("and not geared like a wheel"), HasModifier<UApexInputModifierWheelSteering>(*Stick));
 	}
 	else
 	{
@@ -221,6 +223,15 @@ bool FApexWheelMappingTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("a pedal at rest is nothing"), Fold(-1.0f), 0.0f);
 	TestEqual(TEXT("half pressed"), Fold(0.0f), 0.5f);
 	TestEqual(TEXT("all the way down"), Fold(1.0f), 1.0f);
+
+	// The steering lock: full lock at that many degrees of rim, whatever the
+	// base's rotation, and never a lock that cannot be reached.
+	TestEqual(TEXT("a 900 degree base at a 450 degree lock doubles the steering"), WheelSteeringScale(900.0f, 450.0f), 2.0f);
+	TestEqual(TEXT("a lock as long as the rotation is the rim as it is"), WheelSteeringScale(900.0f, 900.0f), 1.0f);
+	TestEqual(TEXT("a lock longer than the rotation is the rotation"), WheelSteeringScale(540.0f, 900.0f), 1.0f);
+	TestEqual(TEXT("1080 at 480"), WheelSteeringScale(1080.0f, 480.0f), 2.25f);
+	TestTrue(TEXT("absurd values stay finite"), FMath::IsFinite(WheelSteeringScale(0.0f, 0.0f))
+		&& WheelSteeringScale(0.0f, 0.0f) >= 1.0f);
 	return true;
 }
 

@@ -334,7 +334,7 @@ bool FApexFfbWheelTorqueTest::RunTest(const FString& Parameters)
 	Loaded.SteerTorque = 1.0f;
 	const float AtTheLimit = SettledWheel(Loaded, Designed).Constant;
 	TestTrue(FString::Printf(TEXT("the grip limit is most of the base's force (%.2f)"), AtTheLimit),
-		AtTheLimit > 0.5f && AtTheLimit < 0.7f);
+		AtTheLimit > 0.85f && AtTheLimit < 0.97f);
 
 	Loaded.SteerTorque = -1.0f;
 	TestTrue(TEXT("the other way round pushes the other way"),
@@ -384,6 +384,33 @@ bool FApexFfbWheelTorqueTest::RunTest(const FString& Parameters)
 			FMath::Abs(Idle.Constant) < 0.02f);
 		TestTrue(TEXT("and the rim is centred in the menus"), Idle.Spring > 0.0f);
 	}
+
+	// A hit yanks the rim its way on top of the torque, at once, and lets go
+	// within a tenth of a second or so.
+	{
+		ApexFfb::FSignals Cornering = Cruising(30.0f);
+		Cornering.SteerTorque = 0.5f;
+		ApexFfb::FWheelState State;
+		for (int32 Frame = 0; Frame < 120; ++Frame)
+		{
+			ApexFfb::MixWheel(Cornering, State, FeedbackTestDt, Designed);
+		}
+		const float Before = ApexFfb::MixWheel(Cornering, State, FeedbackTestDt, Designed).Constant;
+
+		ApexFfb::FSignals Hit = Cornering;
+		Hit.SteerKick = -1.5f;
+		const float Yanked = ApexFfb::MixWheel(Hit, State, FeedbackTestDt, Designed).Constant;
+		TestTrue(FString::Printf(TEXT("the kick overrides the torque on its frame (%.2f from %.2f)"), Yanked, Before),
+			Yanked < -0.3f && Before > 0.2f);
+
+		float After = Yanked;
+		for (int32 Frame = 0; Frame < 72; ++Frame)	// 0.3 s
+		{
+			After = ApexFfb::MixWheel(Cornering, State, FeedbackTestDt, Designed).Constant;
+		}
+		TestTrue(FString::Printf(TEXT("and is gone again (%.2f vs %.2f)"), After, Before),
+			FMath::IsNearlyEqual(After, Before, 0.05f));
+	}
 	return true;
 }
 
@@ -419,6 +446,19 @@ bool FApexFfbWheelRoadTest::RunTest(const FString& Parameters)
 		ApexFfb::FSignals Grass = Cruising(30.0f);
 		Grass.OffTrack = 1.0f;
 		TestTrue(TEXT("grass shakes the wheel"), PeakWheelVibration(Grass, Designed).VibrationAmplitude > 0.2f);
+	}
+
+	// Fronts sliding: a fine grain under the torque, quieter than a curb.
+	{
+		ApexFfb::FSignals Understeer = Cruising(30.0f);
+		Understeer.FrontSlide = 1.0f;
+		const FApexWheelEffects Scrub = PeakWheelVibration(Understeer, Designed);
+		TestTrue(FString::Printf(TEXT("a sliding front is felt (%.2f)"), Scrub.VibrationAmplitude),
+			Scrub.VibrationAmplitude > 0.05f);
+		ApexFfb::FSignals Curbing = Cruising(30.0f);
+		Curbing.CurbLeft = 1.0f;
+		TestTrue(TEXT("but under a curb"),
+			Scrub.VibrationAmplitude < PeakWheelVibration(Curbing, Designed).VibrationAmplitude);
 	}
 
 	// ABS through the column, as a real car's pedal and rack both do.
@@ -457,6 +497,7 @@ bool FApexFfbWheelRoadTest::RunTest(const FString& Parameters)
 		Everything.CurbLeft = Everything.CurbRight = Everything.OffTrack = 1.0f;
 		Everything.BumpMps = 10.0f;
 		Everything.ImpactMps = 50.0f;
+		Everything.SteerKick = -3.0f;
 
 		for (float Setting = 0.0f; Setting <= 1.0f; Setting += 0.25f)
 		{
@@ -489,6 +530,153 @@ bool FApexFfbWheelRoadTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("more road effects, more vibration"),
 			PeakWheelVibration(Everything, Loud).VibrationAmplitude > PeakWheelVibration(Everything, Quiet).VibrationAmplitude);
 	}
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+namespace
+{
+	/**
+	 * A rim on a base, crudely: the force turns it (positive to the right),
+	 * its own friction slows it. Enough to see whether the centring brings a
+	 * rim home without swinging it past.
+	 */
+	struct FTestRim
+	{
+		float Degrees = 0.0f;
+		float Rate = 0.0f;
+
+		void Step(float Constant, float Dt)
+		{
+			Rate += (2500.0f * Constant - 6.0f * Rate) * Dt;
+			Degrees += Rate * Dt;
+		}
+	};
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelCentreTest,
+	"ApexSim.Input.ForceFeedback.WheelCentre",
+	ApexTestFlags)
+
+bool FApexFfbWheelCentreTest::RunTest(const FString& Parameters)
+{
+	const ApexFfb::FWheelTuning Designed;
+
+	// A session starting with the rim left a quarter turn to the right: it is
+	// brought home, not past, and let go of once it is there.
+	{
+		ApexFfb::FWheelState State;
+		FTestRim Rim;
+		Rim.Degrees = 90.0f;
+
+		// In the menu first, then the car arrives on the grid.
+		ApexFfb::FSignals Menu;
+		Menu.bHasRim = true;
+		Menu.RimDegrees = Rim.Degrees;
+		ApexFfb::MixWheel(Menu, State, FeedbackTestDt, Designed);
+
+		float Furthest = 0.0f;
+		float Constant = 0.0f;
+		for (float T = 0.0f; T < 3.5f; T += FeedbackTestDt)
+		{
+			ApexFfb::FSignals Grid = Cruising(0.0f);
+			Grid.bHasRim = true;
+			Grid.RimDegrees = Rim.Degrees;
+			Constant = ApexFfb::MixWheel(Grid, State, FeedbackTestDt, Designed).Constant;
+			Rim.Step(Constant, FeedbackTestDt);
+			if (T > 0.1f)
+			{
+				Furthest = FMath::Min(Furthest, Rim.Degrees);
+			}
+		}
+		TestTrue(FString::Printf(TEXT("the rim is centred (%.1f deg)"), Rim.Degrees), FMath::Abs(Rim.Degrees) < 3.0f);
+		TestTrue(FString::Printf(TEXT("without swinging far past (%.1f deg)"), Furthest), Furthest > -10.0f);
+		TestTrue(FString::Printf(TEXT("and then let go (%.3f)"), Constant), FMath::Abs(Constant) < 0.02f);
+	}
+
+	// Back from a pause mid-lap: the driver's hands are not overruled.
+	{
+		ApexFfb::FWheelState State;
+		ApexFfb::FSignals Paused;
+		Paused.bHasRim = true;
+		Paused.RimDegrees = 60.0f;
+		ApexFfb::MixWheel(Paused, State, FeedbackTestDt, Designed);
+
+		ApexFfb::FSignals Racing = Cruising(40.0f);
+		Racing.bHasRim = true;
+		Racing.RimDegrees = 60.0f;
+		FApexWheelEffects Out;
+		for (int32 Frame = 0; Frame < 60; ++Frame)
+		{
+			Out = ApexFfb::MixWheel(Racing, State, FeedbackTestDt, Designed);
+		}
+		TestTrue(FString::Printf(TEXT("no centring at speed (%.3f)"), Out.Constant), FMath::Abs(Out.Constant) < 0.01f);
+	}
+
+	// Rolling away ends it: the car's torque is what the rim should feel.
+	{
+		ApexFfb::FWheelState State;
+		ApexFfb::MixWheel(ApexFfb::FSignals(), State, FeedbackTestDt, Designed);
+		ApexFfb::FSignals Grid = Cruising(0.0f);
+		Grid.bHasRim = true;
+		Grid.RimDegrees = 45.0f;
+		const float Held = ApexFfb::MixWheel(Grid, State, FeedbackTestDt, Designed).Constant;
+		ApexFfb::FSignals Off = Grid;
+		Off.SpeedMps = 10.0f;
+		float Let = Held;
+		for (int32 Frame = 0; Frame < 120; ++Frame)
+		{
+			Let = ApexFfb::MixWheel(Off, State, FeedbackTestDt, Designed).Constant;
+		}
+		TestTrue(FString::Printf(TEXT("pushed home on the grid (%.3f)"), Held), Held < 0.0f);
+		TestTrue(FString::Printf(TEXT("let go once rolling (%.3f)"), Let), FMath::Abs(Let) < 0.01f);
+	}
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelSoftLockTest,
+	"ApexSim.Input.ForceFeedback.WheelSoftLock",
+	ApexTestFlags)
+
+bool FApexFfbWheelSoftLockTest::RunTest(const FString& Parameters)
+{
+	ApexFfb::FWheelTuning Tuning;
+	Tuning.SteeringLockDeg = 480.0f;
+
+	auto ForceAt = [&Tuning](float RimDegrees)
+	{
+		ApexFfb::FWheelState State;
+		State.bWasActive = true;	// already driving: no centring
+		ApexFfb::FSignals Signals = Cruising(30.0f);
+		Signals.bHasRim = true;
+		Signals.RimDegrees = RimDegrees;
+		FApexWheelEffects Out;
+		for (int32 Frame = 0; Frame < 10; ++Frame)
+		{
+			Out = ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Tuning);
+		}
+		return Out;
+	};
+
+	TestTrue(TEXT("inside the lock the rim is free"), FMath::Abs(ForceAt(230.0f).Constant) < 0.01f);
+	const FApexWheelEffects Right = ForceAt(252.0f);
+	TestTrue(FString::Printf(TEXT("past it to the right, pushed back left (%.2f)"), Right.Constant), Right.Constant < -0.6f);
+	TestTrue(TEXT("and damped against bouncing"), Right.Damper >= 0.45f);
+	TestTrue(TEXT("the same to the left"), ForceAt(-252.0f).Constant > 0.6f);
+	TestTrue(TEXT("it builds over a few degrees rather than snapping"),
+		FMath::Abs(ForceAt(242.0f).Constant) < FMath::Abs(Right.Constant));
+
+	Tuning.bInvert = true;
+	TestTrue(TEXT("an inverted base is pushed its own way"), ForceAt(252.0f).Constant > 0.6f);
+
+	Tuning.bInvert = false;
+	Tuning.SteeringLockDeg = 0.0f;
+	TestTrue(TEXT("no stop when the lock is the base's whole rotation"), FMath::Abs(ForceAt(400.0f).Constant) < 0.01f);
 	return true;
 }
 

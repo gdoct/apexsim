@@ -728,6 +728,27 @@ void UApexSettingsSubsystem::SetWheelDamping(float Value01)
 	Changed(EApexSettingsGroup::Wheel);
 }
 
+void UApexSettingsSubsystem::SetWheelRotation(float Degrees)
+{
+	const float Clamped = FMath::Clamp(Degrees, ApexInput::WheelRotationMinDeg, ApexInput::WheelRotationMaxDeg);
+	if (!Settings || FMath::IsNearlyEqual(Settings->WheelRotationDeg, Clamped)) { return; }
+	Settings->WheelRotationDeg = Clamped;
+	Changed(EApexSettingsGroup::Wheel);
+}
+
+void UApexSettingsSubsystem::SetWheelSteeringLock(float Degrees)
+{
+	const float Clamped = FMath::Clamp(Degrees, ApexInput::SteeringLockMinDeg, ApexInput::SteeringLockMaxDeg);
+	if (!Settings || FMath::IsNearlyEqual(Settings->WheelSteeringLockDeg, Clamped)) { return; }
+	Settings->WheelSteeringLockDeg = Clamped;
+	Changed(EApexSettingsGroup::Wheel);
+}
+
+float UApexSettingsSubsystem::GetWheelSteeringScale() const
+{
+	return Settings ? ApexInput::WheelSteeringScale(Settings->WheelRotationDeg, Settings->WheelSteeringLockDeg) : 1.0f;
+}
+
 void UApexSettingsSubsystem::SetWheelInvertForce(bool bInvert)
 {
 	if (!Settings || Settings->bWheelInvertForce == bInvert) { return; }
@@ -753,6 +774,11 @@ void UApexSettingsSubsystem::SetCarSetupClick(int32 Knob, int32 Clicks)
 int32 UApexSettingsSubsystem::GetWheelDeviceSlot() const
 {
 	return Settings ? ApexInput::FindForceFeedbackDevice(Settings->Bindings) : INDEX_NONE;
+}
+
+bool UApexSettingsSubsystem::IsSteeringOnWheel() const
+{
+	return Settings && ApexInput::FindSteeringDevice(Settings->Bindings) != INDEX_NONE;
 }
 
 float UApexSettingsSubsystem::ShapeSteering(float RawAxis) const
@@ -924,6 +950,8 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->WheelRoadEffects = Defaults->WheelRoadEffects;
 		Settings->WheelDamping = Defaults->WheelDamping;
 		Settings->bWheelInvertForce = Defaults->bWheelInvertForce;
+		Settings->WheelRotationDeg = Defaults->WheelRotationDeg;
+		Settings->WheelSteeringLockDeg = Defaults->WheelSteeringLockDeg;
 		ApexInput::ResetColumn(Settings->Bindings, ApexInput::EColumn::Wheel);
 		break;
 

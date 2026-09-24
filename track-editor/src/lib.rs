@@ -13,6 +13,7 @@ pub mod props;
 pub mod scene;
 pub mod state;
 pub mod terrain;
+pub mod track_bank;
 pub mod track_data;
 pub mod track_io;
 pub mod track_mesh;

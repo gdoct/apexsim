@@ -109,6 +109,8 @@ protected:
 	UFUNCTION() void HandleWheelForceChanged(float Value);
 	UFUNCTION() void HandleWheelRoadChanged(float Value);
 	UFUNCTION() void HandleWheelDampingChanged(float Value);
+	UFUNCTION() void HandleWheelRotationChanged(float Value);
+	UFUNCTION() void HandleWheelSteeringLockChanged(float Value);
 	UFUNCTION() void HandleWheelTestActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleMasterVolumeChanged(float Value);
 	UFUNCTION() void HandleUiVolumeChanged(float Value);
@@ -330,6 +332,14 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> WheelDampingSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> WheelDampingFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelDampingValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> WheelRotationSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> WheelRotationFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelRotationValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> WheelSteeringLockSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> WheelSteeringLockFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelSteeringLockValue;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> DeviceCountText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GamepadStateText;

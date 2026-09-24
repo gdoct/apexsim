@@ -257,12 +257,41 @@ chicanes at Le Mans, and `ai_field_makes_the_first_lap_at_le_mans` caught
 one car in four leaving the road. The pass also rewrites the stored
 `metadata.length_m`, which the curb sidecar test checks against.
 
+### Banking (`ats-bank`)
+
+Positive `banking` lifts the road's **left** edge — the road mesh
+(`track_path::offset_point`), the server's `surface_elevation` and, since
+2026-09-23, the physics' gravity pull all agree — so a right-hander is banked
+positive and a left-hander negative. The real circuits' banking came from
+`enrich_all_tracks.py`, which laid every banked corner as a positive window
+a tenth of a lap wide at a guessed lap fraction: Zandvoort's
+Hugenholtzbocht (a left-hander) leaned out of the corner and the Arie
+Luyendijkbocht's 18° started on the main straight after the corner.
+`track_bank.rs` keeps each span's angle and re-lays it over the bend it
+belongs to (the one it overlaps with the most turning, else the nearest
+within 250 m), signed by the bend's hand, holding over the bend's core
+(curvature ≥ 35% of its peak) with 30 m ramps; banking with no bend near it
+is dropped.
+
+```bash
+cargo run --manifest-path track-editor/Cargo.toml --release --bin ats-bank -- content/tracks/real/Zandvoort.yaml
+                                            # or --all [--dry-run]
+```
+
+Only Zandvoort has been re-laid so far; `--all --dry-run` lists what the
+other circuits would get (Austin T1/T19, IMS, Suzuka and others are
+inverted the same way). The physics used to add `+m g sin(bank)` on the
+car's lateral axis — pushing it *up* the bank — and now pulls toward the
+low edge, resolved against the car's heading
+(`banking_pulls_the_car_toward_the_low_edge`).
+
 **Refresh order.** Everything downstream is derived from the centerline,
 so a change to it has to flow through in this order, and running a step
 out of order produces data that is internally inconsistent:
 
 ```bash
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- --all   # centerline
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-bank -- --all     # banking onto its bends
 python scripts/osm_layout.py --all --offline                                  # dossiers (fit to the centerline)
 python scripts/dem_fetch.py --all --offline                                   # elevation (same fit, same datum)
 ./scripts/build_track_levels.ps1                                              # dress, export, import
@@ -431,6 +460,27 @@ meet where they met, and a true blend would need the bands and the ground
 to share a mesh in the exporter. The import logs the fringe's share of band
 vertices (about 8% at Spielberg); zero or everything means the edge test
 broke.
+
+A ground band (the 130 m grass apron, run-off, gravel) stops halfway
+between its own road edge and any *other* road — another leg of the
+course or the pit lane (`ue_export::band_reach`). Past 40 m the apron's
+columns are 10 m apart, and where another section ran within reach one
+quad spanned it verge to verge, a plane the road's crown, camber and
+banking poked through: "terrain over the track" at Zandvoort (1 450 m² of
+grass above the asphalt, up to 1.3 m, before; none after). The reach is
+worked out per cross-section and then limited to change by at most 0.5 m
+per metre of course (`band_reach_profile`), because the columns are
+fractions of the width and a width that jumps strings quads diagonally
+across the very road it was capped for. Within 200 m of an underpass the
+band keeps its full width: the slot and deck logic is built on the old
+columns.
+
+Stands and buildings are laid by their whole kit footprint, not their
+front: `dress::clear_footprint` / the building row check probe the bay or
+block from its front back to its full depth against every section of the
+course and step it back (≤ 25 m) or leave it out. A building between two
+legs (Zandvoort's Hunserug, one each at Melbourne and Silverstone) had its
+back on the far road.
 
 The terrain grid (`ue_export.rs`, `Bake::ground`) is 2 m within 60 m of a
 centerline, 6 m to 200 m and 12 m beyond; the near radius has to clear the
@@ -1309,17 +1359,37 @@ in the LMP2 into `APEXSIM_GHOST_DIR` (the server's `[records] dir`) under
 
 The server works out what the driver should feel, because only it has the
 tyre forces. Every tick `update_car_3d` records a `FeedbackTick` into
-`CarState::feedback`: the steering-column torque (each front tyre's `-Fy`
-times a pneumatic trail that shrinks to zero at twice the peak slip angle,
-plus a fixed caster share, so the wheel goes light as the fronts let go;
-1.0 = the front axle at its static grip limit, positive turns the wheel
-left), slip per wheel as a multiple of the tyre's peak, the surface under
-each wheel (road/curb/off, from the same `contact_surface` that sets the
-track limits), suspension speed, ABS/TC activity, and contact closing speed.
-On each telemetry tick the game loop drains it into a `DriverFeedback` for
-the car's human driver: positional encoding, UDP only (no TCP fallback: a late
-force is worse than none), every torque sample kept and the transients
-peak-held. Golden bytes live in `network.rs` and `ApexUdpGolden::S_DriverFeedback`.
+`CarState::feedback`: the steering-column torque, slip per wheel as a
+multiple of the tyre's peak, the surface under each wheel (road/curb/off,
+from the same `contact_surface` that sets the track limits), suspension
+speed, ABS/TC activity, and contact closing speed. On each telemetry tick the
+game loop drains it into a `DriverFeedback` for the car's human driver:
+positional encoding, UDP only (no TCP fallback: a late force is worse than
+none), every torque sample kept and the transients peak-held. Golden bytes
+live in `network.rs` and `ApexUdpGolden::S_DriverFeedback`.
+
+The torque (`physics::steering_column_torque`; 1.0 = the front axle at its
+static grip limit, positive turns the wheel left) is summed per front tyre
+from that tyre's own forces and load:
+
+- **aligning**: `-Fy x (pneumatic + caster trail)`. The pneumatic trail is
+  the contact patch, growing with the square root of the tyre's load, times
+  a shape that is zero at 1.4x the peak slip angle and slightly negative
+  past it; caster is 0.35 of it and never shrinks. So the rim crests at
+  about half the peak slip and is a third lighter by the grip peak (the
+  understeer cue; it used to fall only 14%, which nobody could feel), and
+  the loaded outside tyre, braking and downforce make it heavier.
+- **scrub**: a front tyre braking harder than its partner tugs the rim
+  toward it; equal forces cancel.
+- **jacking**: the axle's weight centres a steered wheel, which is what a
+  crawl or a hairpin feels.
+
+A hit adds `steer_kick` (appended last, so an older client skips it):
+`physics::impact_steer_kick` from the velocity change a car-car or wall
+contact gave the front axle, yanking the rim toward the side that was hit.
+`cargo test --release --test grip_probe_test steering_feel_probe -- --ignored
+--nocapture` (`PROBE_CAR=`) prints torque against lateral g and front slip
+while a car winds on lock: the harness to tune the constants against.
 
 On the client `UApexNetSubsystem` merges everything that arrived since its
 last tick (`FApexDriverFeedback::Absorb`) and `ApexFfb::MakeSignals` turns it
@@ -1334,12 +1404,17 @@ vibration" slider (`UApexSettingsSave::Vibration`, 0.5 = as designed), which
 pulses the pad while dragged.
 
 `ApexFfb::MixWheel` drives a wheelbase: the torque *is* the feel (the rim
-going light is the front tyres letting go), soft-limited past 0.75 so a car
-loaded past its reference still feels stronger rather than clipping, and
-smoothed with a 12 ms pole because the samples arrive in 60 Hz lumps and a
-direct drive base feels that as grain. On top of it one vibration channel
+going light is the front tyres letting go), 1.1x the base's peak at the
+reference (a 1 g corner is about two thirds of the base, a hard one near its
+limit; at 0.6-0.7 the user found the rim heavier to turn but never pushing
+back) and soft-limited past 0.8 so a car loaded past its reference
+still feels stronger rather than clipping, and smoothed with a 12 ms pole
+because the samples arrive in 60 Hz lumps and a direct drive base feels that
+as grain. A hit's `SteerKick` is added unsmoothed and decays over 70 ms, and
+sliding fronts put a quiet 55 Hz scrub on the vibration channel. On top of it one vibration channel
 carries whichever of curbs, grass, ABS, lockup or a hit is loudest, plus a
-damper that is heaviest at a standstill and a centring spring used only in
+damper that is heaviest at a standstill (only 15% of the setting at speed:
+a damper reads as a heavy wheel, not as cornering) and a centring spring used only in
 the menus. Its settings are the Wheel tab's Force / Road effects / Damping /
 Direction (`UApexSettingsSave::WheelForce` and friends).
 
@@ -1384,7 +1459,18 @@ Three things about how it reads devices:
 Force feedback is taken **late and given back**: devices are opened shared,
 and only the wheel the steering is bound to is taken exclusively, the first
 frame a race asks for forces (`AcquireForForces`). That is what lets an open
-editor and a launched game share a wheelbase. Effects are a constant force, a
+editor and a launched game share a wheelbase. The centring and gain
+properties are only touched once exclusive access has been granted (a
+refused attempt used to switch another program's wheel's centring off and
+on every 3 s).
+
+The driver is treated as fragile, because a Fanatec driver hung twice
+(reboot needed) while every effect was sent every rendered frame: the
+constant force goes at most 250 times a second, the sine, damper and spring
+30 (starting and stopping never wait), a refused update is logged once and
+backs off 0.5 s, twenty refused rounds hand the wheel back, a lost device is
+asked to reacquire twice a second rather than every frame, and it is torn
+down and reopened only after 2 s of failed reads rather than 30 frames. Effects are a constant force, a
 sine, a damper and a spring, updated only when they change; a watchdog drops
 every force if the game stops updating them for 0.3 s, so a hitch or a crash
 never leaves a wheel pulling. Which way a positive force turns a rim is not
@@ -1406,9 +1492,30 @@ live readings; `apexsim.input.Rescan` enumerates again. `ApexSim.Input.*`
 automation tests cover the slot registry, the key names, the readings, the
 binding rules and both mixers.
 
+**Steering lock.** The Wheel page's "Wheel rotation" (what the base's own
+driver is set to, default 900°: DirectInput reports only where the rim is
+between its ends) and "Steering lock" (rim degrees lock to lock for the car's
+full lock, default 480°) make a gain, `ApexInput::WheelSteeringScale`
+(rotation / lock, never under 1), applied by `UApexInputModifierWheelSteering`
+on the wheel's steering mapping. Before it a 1080° base needed 540° of rim for
+full lock. Past half the lock either way `MixWheel` puts a soft stop on the
+rim (0.9 of the base over 6°, with a damper), from the rim angle the player
+controller reads off the device (`ApexInput::ReadWheelSteering`,
+`FSignals::RimDegrees`). The same reading **centres the rim** when a car
+arrives standing still (a session starting, leaving the hotlap garage): a
+position loop on the constant force, damped by the rim's speed, let go once
+it has settled, the car rolls or 3 s pass (`ApexFfb::RequestCentre`).
+DirectInput's own spring is useless for that: its force is a share of the
+base's whole travel, a few percent for a rim a quarter turn off.
+
+One base can be two DirectInput devices: Fanatec's driver shows a ClubSport
+V2.5 as HID collections COL01 (108 buttons) and COL02 (63 buttons, 4 hats),
+both claiming forces; forces go to whichever the steering is bound to, which
+should be COL01. Each device's HID path is in the log and in
+`apexsim.input.Devices`.
+
 There is no wheel support for an H-pattern shifter (the wire protocol's gear
-field is filled from a shift delta, not an absolute gear) and no soft lock or
-rotation setting; a wheelbase's own driver sets its rotation.
+field is filled from a shift delta, not an absolute gear).
 
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)

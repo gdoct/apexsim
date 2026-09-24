@@ -933,6 +933,28 @@ impl TerrainHeightfield {
         Some((hit.station, hit.lat, half))
     }
 
+    /// The nearest point of any road — the track is road `0`, the pit lane
+    /// and any other extra path follow — within `radius`:
+    /// `(road, station, signed lateral, half-width on that side)`.
+    pub fn nearest_road_point(&self, x: f32, y: f32, radius: f32) -> Option<(u32, f32, f32, f32)> {
+        let hit = self
+            .index
+            .gather(&self.roads, x, y, radius)
+            .into_iter()
+            .min_by(|a, b| {
+                a.dist
+                    .total_cmp(&b.dist)
+                    .then((a.road, a.segment).cmp(&(b.road, b.segment)))
+            })?;
+        let sample = self.roads[hit.road as usize].path.sample_at(hit.station);
+        let half = if hit.lat >= 0.0 {
+            sample.width_left_m
+        } else {
+            sample.width_right_m
+        };
+        Some((hit.road, hit.station, hit.lat, half))
+    }
+
     /// Upward ground normal at a point, from central differences of
     /// [`Self::ground_height_at`] over `h` meters.
     pub fn ground_normal_at(&self, x: f32, y: f32, h: f32) -> (f32, f32, f32) {

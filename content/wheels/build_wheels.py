@@ -31,6 +31,11 @@ CLASSES = {
     "lmp2": dict(R=0.355, W=0.330, RR=0.235, spokes=10, spoke_w=0.020, twin=False,
                  rim=(0.03, 0.03, 0.035), rim_metal=0.6, nut=(0.95, 0.75, 0.05),
                  band=(0.95, 0.95, 0.95), marks=(0.92, 0.92, 0.92)),
+    # LMH: one 18" size all round, a fine multi-spoke forged wheel in satin
+    # graphite with a polished lip, which is most of what reads as "hypercar".
+    "hypercar": dict(R=0.360, W=0.340, RR=0.238, spokes=14, spoke_w=0.013, twin=False,
+                     rim=(0.10, 0.10, 0.11), rim_metal=0.9, nut=(0.80, 0.80, 0.82),
+                     band=(0.95, 0.80, 0.05), marks=(0.92, 0.92, 0.92)),
 }
 
 SEGS = 64
@@ -189,4 +194,5 @@ def export_all(classes=None):
 
 
 if __name__ == "__main__" or True:
-    print(export_all())
+    # set WHEEL_CLASSES = ["hypercar"] before exec() to rebuild only some
+    print(export_all(globals().get("WHEEL_CLASSES")))

@@ -1091,6 +1091,142 @@ fn seat_on_ground(
     (ground, seat)
 }
 
+/// [`band_reach`] at every cross-section a band's strip will have (the
+/// same stations `extrude` walks), then limited so it never grows faster
+/// than [`BAND_REACH_SLOPE`] per metre of course, either way. A band's
+/// columns are fractions of its width, so a width that jumped from one
+/// cross-section to the next strung quads diagonally across whatever lay
+/// between — the road the cap was there to keep clear of. Taking the
+/// lower envelope only ever narrows the band.
+fn band_reach_profile(
+    field: &TerrainHeightfield,
+    path: &CenterlinePath,
+    surface: &Surface,
+) -> Option<Vec<f32>> {
+    let (start, end) = resolve_span(path, surface.start_m, surface.end_m)?;
+    let span = end - start;
+    let steps = ((span / SURFACE_STEP_M).ceil() as usize).max(1);
+    let step_len = span / steps as f32;
+    let mut reach: Vec<f32> = (0..=steps)
+        .map(|i| {
+            let progress = i as f32 / steps as f32;
+            let sample = path.sample_at(start + span * progress);
+            let (edge, outward) = match surface.side {
+                Side::Left => (sample.width_left_m, 1.0),
+                Side::Right => (-sample.width_right_m, -1.0),
+            };
+            band_reach(
+                field,
+                &sample,
+                edge,
+                outward,
+                surface.inner_m,
+                surface.width_at(progress),
+            )
+        })
+        .collect();
+    let grow = BAND_REACH_SLOPE * step_len;
+    // A full lap wraps: two sweeps each way carry a narrow spot across
+    // start/finish.
+    let lap = path.is_closed() && (span - path.total_length_m()).abs() < 1.0;
+    for _ in 0..if lap { 2 } else { 1 } {
+        for i in 1..=steps {
+            reach[i] = reach[i].min(reach[i - 1] + grow);
+        }
+        if lap {
+            reach[0] = reach[0].min(reach[steps] + grow);
+        }
+        for i in (0..steps).rev() {
+            reach[i] = reach[i].min(reach[i + 1] + grow);
+        }
+        if lap {
+            reach[steps] = reach[steps].min(reach[0] + grow);
+        }
+    }
+    Some(reach)
+}
+
+/// How fast a band's width may change along the course, metres of width
+/// per metre of course: see [`band_reach_profile`].
+const BAND_REACH_SLOPE: f32 = 0.5;
+
+/// How far a ground band laid beside `sample` may reach before it would
+/// cover another section of the course, metres of band width (at most
+/// `width`).
+///
+/// A grass apron is 130 m wide and drawn with columns 10 m apart past the
+/// first 40 m. Where another leg of the circuit runs within that — the
+/// far side of a hairpin, a straight alongside — a single quad spanned
+/// the other road from verge to verge, a plane at verge height that the
+/// road's own crown, camber or banking rose through and dipped under: the
+/// "terrain over the track" seen from the car. The band now stops at the
+/// line halfway between its own road edge and the other road's, so the two
+/// sections' bands meet there instead of stacking. The pit lane counts as
+/// another road: a run-off band laid across its merge covered it.
+fn band_reach(
+    field: &TerrainHeightfield,
+    sample: &PathSample,
+    edge: f32,
+    outward: f32,
+    inner: f32,
+    width: f32,
+) -> f32 {
+    /// Probe spacing across the band.
+    const PROBE_M: f32 = 2.0;
+    /// How far a probe looks for another section.
+    const SEARCH_M: f32 = 160.0;
+    /// Around a crossover the underpass owns the ground — the slot, the
+    /// embankment, the deck and the bands dropped over them — and it is
+    /// built on the band's columns where they always were: squeezed, a
+    /// quad hung over the lower road (Suzuka). Bands this close to one
+    /// keep their full width.
+    const UNDERPASS_KEEP_M: f32 = 200.0;
+    if field
+        .underpasses()
+        .iter()
+        .any(|u| (sample.pos.0 - u.at.0).hypot(sample.pos.1 - u.at.1) < UNDERPASS_KEEP_M)
+    {
+        return width;
+    }
+    let mut reached = 0.0f32;
+    let mut d = 0.0f32;
+    while d <= width {
+        let beyond = inner + d;
+        let lat = edge + outward * beyond;
+        let (x, y, _) = offset_point(sample, lat);
+        if let Some((road, station, other_lat, other_half)) =
+            field.nearest_road_point(x, y, SEARCH_M)
+        {
+            // Its own cross-section stays nearest out to the fold of a
+            // bend; anything else is another stretch of the course, or the
+            // pit lane.
+            let other =
+                road != 0 || station_gap_m(field, station, sample.station_m) > 5.0 + 0.5 * beyond;
+            if other {
+                let to_other_edge = other_lat.abs() - other_half;
+                if to_other_edge <= beyond {
+                    return reached.min(width);
+                }
+            }
+        }
+        reached = d;
+        d += PROBE_M;
+    }
+    width
+}
+
+/// Distance between two stations along the track, the short way round on
+/// a closed course.
+fn station_gap_m(field: &TerrainHeightfield, a: f32, b: f32) -> f32 {
+    let path = field.road_path(0);
+    let d = (a - b).abs();
+    if path.is_closed() {
+        d.min(path.total_length_m() - d)
+    } else {
+        d
+    }
+}
+
 /// One drawable cross-section, in track space.
 struct CrossSection {
     points: Vec<(f32, f32, f32)>,
@@ -2033,6 +2169,10 @@ impl Bake<'_> {
         // the strip (`strip` requires it), so it comes from the band's
         // widest cross-section.
         let fractions = surface_lateral_fractions(surface);
+        let reach = self
+            .ground
+            .and_then(|field| band_reach_profile(field, path, surface));
+        let steps = reach.as_ref().map_or(1, |r| r.len().max(2) - 1);
         self.strip(
             path,
             surface.start_m,
@@ -2044,7 +2184,11 @@ impl Bake<'_> {
                     Side::Left => (sample.width_left_m, 1.0),
                     Side::Right => (-sample.width_right_m, -1.0),
                 };
-                let width = spec.width_at(progress);
+                let mut width = spec.width_at(progress);
+                if let Some(reach) = &reach {
+                    let i = ((progress * steps as f32).round() as usize).min(steps);
+                    width = width.min(reach[i]).max(0.01);
+                }
                 for f in &fractions {
                     let lat_m = edge + outward * (inner + width * f);
                     out.push(ProfilePoint::grounded(lat_m, lift));

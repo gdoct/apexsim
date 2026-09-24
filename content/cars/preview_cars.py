@@ -106,6 +106,18 @@ def studio():
     bpy.context.object.name = "ground"
 
 
+def dusk():
+    """Night-ish lighting for the lamp views: the emissives carry the shot."""
+    for o in bpy.context.scene.objects:
+        if o.type == 'LIGHT':
+            o.data.energy *= 0.06
+    w = bpy.context.scene.world
+    if w and w.node_tree:
+        for n in w.node_tree.nodes:
+            if n.type == 'BACKGROUND':
+                n.inputs["Strength"].default_value = 0.05
+
+
 def import_glb(path):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=path)
@@ -113,11 +125,17 @@ def import_glb(path):
 
 
 def bounds(objs):
+    """World-space box from the vertices themselves. `bound_box` on a freshly
+    imported object is not reliable until the depsgraph has run, and an eye
+    derived from a stale box sat 10 cm low."""
     lo = Vector((1e9, 1e9, 1e9))
     hi = Vector((-1e9, -1e9, -1e9))
     for o in objs:
-        for c in o.bound_box:
-            p = o.matrix_world @ Vector(c)
+        if o.type != 'MESH':
+            continue
+        mw = o.matrix_world
+        for v in o.data.vertices:
+            p = mw @ v.co
             lo = Vector((min(lo[i], p[i]) for i in range(3)))
             hi = Vector((max(hi[i], p[i]) for i in range(3)))
     return lo, hi
@@ -156,11 +174,17 @@ def add_wheels(cfg):
     return out
 
 
+OPEN_WHEEL = False   # set per car from its class: F1 cars get the open-wheel eye
+
+
 def eye_from_box(lo, hi):
     """The driver's eye the client derives from the mesh box: 70% of the
     height, 5% of the length behind centre, 18% of the width to the left
-    (ApexCockpit::DeriveLayout, closed style - docs/CAR_MODELS.md)."""
+    (ApexCockpit::DeriveLayout, closed style - docs/CAR_MODELS.md). An
+    open-wheeler's is on the centreline, 8% behind centre, 82% up."""
     c = (lo + hi) / 2.0
+    if OPEN_WHEEL:
+        return Vector((0.0, c.y + 0.08 * (hi.y - lo.y), lo.z + 0.82 * (hi.z - lo.z)))
     return Vector((0.18 * (hi.x - lo.x),
                    c.y + 0.05 * (hi.y - lo.y),
                    lo.z + 0.70 * (hi.z - lo.z)))
@@ -197,6 +221,15 @@ def frame(view, lo, hi):
         e = eye_from_box(lo, hi)
         cam.location = Vector((0.0, e.y - 0.45, e.z + 0.12))
         _aim(cam, Vector((0.0, hi.y + 6.0, e.z - 0.10)))
+    elif view == "lamps_front":
+        # dusk, close and low on the nose corner: the lamps and what is in them
+        cam_d.lens = 70
+        cam.location = (c.x + 3.1, lo.y - 2.5, lo.z + 0.95)
+        _aim(cam, Vector((c.x + 0.55, lo.y + 0.35, lo.z + 0.60)))
+    elif view == "lamps_rear":
+        cam_d.lens = 70
+        cam.location = (c.x - 2.6, hi.y + 3.0, lo.z + 1.05)
+        _aim(cam, Vector((c.x - 0.25, hi.y - 0.3, lo.z + 0.72)))
     elif view == "rear":
         cam_d.lens = 65
         cam.location = (c.x - 4.2, hi.y + 5.4, c.z + 1.9)
@@ -217,13 +250,17 @@ for folder in CARS:
     car_dir = os.path.join(ROOT, "cars", folder)
     with open(os.path.join(car_dir, "car.toml"), "rb") as f:
         cfg = tomllib.load(f)
+    OPEN_WHEEL = cfg.get("class", "").strip().upper() in ("F1", "FORMULA", "OPEN", "INDY")
     glb = os.path.join(car_dir, cfg["model"])
     for view in VIEWS:
         wipe()
         studio()
+        if view.startswith("lamps"):
+            dusk()
         body = import_glb(glb)
         wheels = add_wheels(cfg)
-        lo, hi = bounds(body + wheels)
+        # the client derives the eye from the body mesh's own box (no wheels)
+        lo, hi = bounds(body) if view in ("cockpit", "mirror") else bounds(body + wheels)
         frame(view, lo, hi)
         os.makedirs(OUT, exist_ok=True)
         path = os.path.join(OUT, "%s_%s.png" % (folder, view))

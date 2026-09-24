@@ -1167,6 +1167,13 @@ struct APEXSIMNET_API FApexDriverFeedback
 	float ImpactMps = 0.0f;
 
 	/**
+	 * The hardest jolt a hit put through the steering column in the interval,
+	 * in SteerTorque's units and SERVER sign (positive turns the wheel left);
+	 * 0 when none, and from a server that predates the field.
+	 */
+	float SteerKick = 0.0f;
+
+	/**
 	 * Folds the next message in, as if the server had sent one message for
 	 * both intervals: samples appended, peaks kept, the roughest surface.
 	 * Used when several arrive between two game frames, so a kerb strike in
@@ -1189,6 +1196,7 @@ struct APEXSIMNET_API FApexDriverFeedback
 		bAbsActive |= Next.bAbsActive;
 		bTcActive |= Next.bTcActive;
 		ImpactMps = FMath::Max(ImpactMps, Next.ImpactMps);
+		SteerKick = Peak(SteerKick, Next.SteerKick);
 	}
 };
 

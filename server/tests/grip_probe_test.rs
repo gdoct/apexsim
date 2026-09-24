@@ -329,3 +329,46 @@ fn silverstone_profile_lap_times() {
         );
     }
 }
+
+/// What the steering column carries as a car winds on lock at a held speed:
+/// the rim torque the wheel mixer turns into force, against lateral g and
+/// the front and rear slip as multiples of the peak. The tuning harness for
+/// the force feedback (`PROBE_CAR`).
+#[test]
+#[ignore]
+fn steering_feel_probe() {
+    let car_name = std::env::var("PROBE_CAR").unwrap_or("murcetes-amd-gt3".into());
+    let config = car(&car_name);
+    let track = skidpad();
+    println!(
+        "{} max lock {:.2} rad",
+        config.name, config.max_steering_angle_rad
+    );
+    for speed in [15.0f32, 30.0, 50.0] {
+        let mut state = fresh(&config, 0.0, 0.0, 0.0, speed, 3);
+        state.steering_assist = false;
+        let mut next_print = 0.0f32;
+        for tick in 0..(240 * 10) {
+            let steer = (tick as f32 / (240.0 * 10.0)) * 0.6;
+            let input = PlayerInputData {
+                throttle: ((speed - state.speed_mps) * 0.5 + 0.2).clamp(0.0, 1.0),
+                steering: steer,
+                ..Default::default()
+            };
+            update_car_3d(&mut state, &config, &input, &track, DT);
+            let fb = state.feedback.take(0);
+            if steer >= next_print {
+                next_print += 0.03;
+                let front = fb.slip_angle[0].abs().max(fb.slip_angle[1].abs());
+                let rear = fb.slip_angle[2].abs().max(fb.slip_angle[3].abs());
+                println!(
+                    "v={:>4.1} steer {:.2}  lat {:>5.2} g  front n {:>4.2}  rear n {:>4.2}  torque {:>6.3}  loads FL {:>5.0} FR {:>5.0}",
+                    state.speed_mps, steer, state.g_forces.lateral_g, front, rear,
+                    fb.steer_torque.last().copied().unwrap_or(0.0),
+                    state.weight_front_left_n, state.weight_front_right_n
+                );
+            }
+        }
+        println!();
+    }
+}

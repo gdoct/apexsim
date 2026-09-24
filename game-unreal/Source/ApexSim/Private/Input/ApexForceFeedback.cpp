@@ -64,13 +64,18 @@ namespace
 
 	/**
 	 * Torque at the strength the effects were designed at (0.5), as a share of
-	 * the base's peak: a car at the front axle's static grip limit. The rest is
-	 * headroom, because downforce takes the torque past 1 on a fast corner.
+	 * the base's peak, for a car at the front axle's static grip limit; the
+	 * soft limit below keeps what is past it. A hard corner crests at about
+	 * 0.9 of the reference and an ordinary 1 g one at about 0.6, so this puts
+	 * the one near the base's limit and the other at two thirds of it, which
+	 * is where other sims sit and where a driver has to hold the rim. At 0.6,
+	 * then 0.7, the same corner asked a base for under half its force: the
+	 * rim was heavier to turn and never pushed back.
 	 */
-	constexpr float WheelTorqueReference = 0.6f;
+	constexpr float WheelTorqueReference = 1.1f;
 
 	/** Where the torque stops being linear and starts being compressed. */
-	constexpr float WheelSoftKnee = 0.75f;
+	constexpr float WheelSoftKnee = 0.8f;
 
 	/** One pole over the 60 Hz message steps; long enough to smooth, short enough not to lag. */
 	constexpr float WheelTorqueSmoothingSeconds = 0.012f;
@@ -78,6 +83,60 @@ namespace
 	/** Hits die away a little more slowly on a rim than on a motor. */
 	constexpr float WheelBumpDecaySeconds = 0.09f;
 	constexpr float WheelImpactDecaySeconds = 0.25f;
+
+	/**
+	 * A hit's yank on the rim: sharp, and gone before the driver has had to
+	 * fight it for long. Long enough that a 60 Hz message is felt as one push
+	 * rather than a click.
+	 */
+	constexpr float WheelSteerKickDecaySeconds = 0.07f;
+
+	/**
+	 * Fronts sliding scrub across the road, which comes up the column as a fine
+	 * grain under the rim going light. Quiet on purpose: the torque falling
+	 * away is the message, this only says it is the tyres doing it.
+	 */
+	constexpr float WheelScrubAmplitude = 0.14f;
+	constexpr float WheelScrubHz = 55.0f;
+
+	// --- Centring and the steering lock's stop ---------------------------------
+
+	/**
+	 * Only a car standing still is centred when it arrives: a pause menu
+	 * closed mid-lap must not pull the rim out of the driver's hands.
+	 */
+	constexpr float CentreStartMaxSpeedMps = 2.0f;
+	/** Rolling away ends it; the car's own torque takes over. */
+	constexpr float CentreEndSpeedMps = 3.0f;
+	constexpr float CentreMaxSeconds = 3.0f;
+	/**
+	 * The push toward the middle: full strength this far off centre, never
+	 * more than the cap. A position loop rather than DirectInput's spring,
+	 * whose force is a share of the base's whole travel: at 30% it put 6% of
+	 * the base behind a rim a quarter turn off centre, which a direct drive's
+	 * own friction holds still.
+	 */
+	constexpr float CentreFullDeg = 30.0f;
+	constexpr float CentreMaxForce = 0.35f;
+	/** Braking by the rim's speed, per degree a second, so it arrives without swinging past. */
+	constexpr float CentreRateDamping = 1.0f / 360.0f;
+	/** Centred: within this and this slow, for this long. */
+	constexpr float CentreDoneDeg = 2.0f;
+	constexpr float CentreDoneRateDegPerS = 30.0f;
+	constexpr float CentreSettleSeconds = 0.25f;
+	constexpr float CentreEaseSeconds = 0.08f;
+
+	/** The rim's speed is a difference of readings; this takes the USB jitter out of it. */
+	constexpr float RimRateSmoothingSeconds = 0.03f;
+
+	/**
+	 * Past the steering lock the rim meets a stop that builds to this over
+	 * these degrees, with a damper so it does not bounce off it: a wall, but
+	 * not one that snaps a wrist.
+	 */
+	constexpr float SoftLockForce = 0.9f;
+	constexpr float SoftLockRampDeg = 6.0f;
+	constexpr float SoftLockDamper = 0.5f;
 
 	/** Damping is heaviest at a standstill and mostly gone by here. */
 	constexpr float WheelDamperFullSpeedMps = 18.0f;
@@ -182,6 +241,7 @@ namespace ApexFfb
 		if (bNewMessage)
 		{
 			Signals.ImpactMps = Feedback.ImpactMps;
+			Signals.SteerKick = -Feedback.SteerKick;
 		}
 		return Signals;
 	}
@@ -292,14 +352,72 @@ namespace ApexFfb
 		return Out;
 	}
 
+	void RequestCentre(FWheelState& State)
+	{
+		State.CentreSeconds = CentreMaxSeconds;
+		State.CentredFor = 0.0f;
+	}
+
 	FApexWheelEffects MixWheel(
 		const FSignals& Signals, FWheelState& State, float DeltaSeconds, const FWheelTuning& Tuning)
 	{
 		const float Dt = FMath::Clamp(DeltaSeconds, 0.0f, 0.1f);
 
+		// The rim's own speed, for damping the centring.
+		if (Signals.bHasRim)
+		{
+			if (State.bHaveRim && Dt > 0.0f)
+			{
+				const float Raw = (Signals.RimDegrees - State.LastRim) / Dt;
+				State.RimRate = FMath::Lerp(State.RimRate, Raw, 1.0f - FMath::Exp(-Dt / RimRateSmoothingSeconds));
+			}
+			State.LastRim = Signals.RimDegrees;
+			State.bHaveRim = true;
+		}
+		else
+		{
+			State.bHaveRim = false;
+			State.RimRate = 0.0f;
+		}
+
+		// A car arriving standing still: the start of a session, the garage.
+		if (Signals.bActive && !State.bWasActive && Signals.SpeedMps < CentreStartMaxSpeedMps)
+		{
+			RequestCentre(State);
+		}
+		State.bWasActive = Signals.bActive;
+
+		if (State.CentreSeconds > 0.0f)
+		{
+			State.CentreSeconds -= Dt;
+			if (!Signals.bHasRim || Signals.SpeedMps > CentreEndSpeedMps)
+			{
+				State.CentreSeconds = 0.0f;
+			}
+			else if (FMath::Abs(Signals.RimDegrees) < CentreDoneDeg && FMath::Abs(State.RimRate) < CentreDoneRateDegPerS)
+			{
+				State.CentredFor += Dt;
+				if (State.CentredFor >= CentreSettleSeconds)
+				{
+					State.CentreSeconds = 0.0f;
+				}
+			}
+			else
+			{
+				State.CentredFor = 0.0f;
+			}
+		}
+		State.CentreGain = FMath::Lerp(State.CentreGain, State.CentreSeconds > 0.0f ? 1.0f : 0.0f,
+			1.0f - FMath::Exp(-Dt / CentreEaseSeconds));
+
 		State.Bump *= FMath::Exp(-Dt / WheelBumpDecaySeconds);
 		State.Impact *= FMath::Exp(-Dt / WheelImpactDecaySeconds);
 		State.ShiftKick *= FMath::Exp(-Dt / ShiftDecaySeconds);
+		State.SteerKick *= FMath::Exp(-Dt / WheelSteerKickDecaySeconds);
+		if (Signals.bActive && FMath::Abs(Signals.SteerKick) > FMath::Abs(State.SteerKick))
+		{
+			State.SteerKick = Signals.SteerKick;
+		}
 
 		// The torque, smoothed towards where the car says it should be. With no
 		// car it runs down to nothing rather than being dropped, which would be
@@ -308,7 +426,32 @@ namespace ApexFfb
 		State.Torque = FMath::Lerp(State.Torque, Target, 1.0f - FMath::Exp(-Dt / WheelTorqueSmoothingSeconds));
 
 		FApexWheelEffects Out;
-		const float Force = SoftLimit(State.Torque * 2.0f * FMath::Clamp(Tuning.Force, 0.0f, 1.0f) * WheelTorqueReference);
+		// The centring and the stop are not the car's: they follow the Force
+		// slider only as far as switching off with it.
+		const float Strength = FMath::Clamp(2.0f * Tuning.Force, 0.0f, 1.0f);
+
+		float Centring = 0.0f;
+		if (Signals.bHasRim && State.CentreGain > 1e-3f)
+		{
+			Centring = State.CentreGain * Strength * CentreMaxForce
+				* FMath::Clamp(-Signals.RimDegrees / CentreFullDeg - State.RimRate * CentreRateDamping, -1.0f, 1.0f);
+		}
+
+		float Stop = 0.0f;
+		bool bPastLock = false;
+		if (Signals.bActive && Signals.bHasRim && Tuning.SteeringLockDeg > 0.0f)
+		{
+			const float Over = FMath::Abs(Signals.RimDegrees) - 0.5f * Tuning.SteeringLockDeg;
+			if (Over > 0.0f)
+			{
+				bPastLock = true;
+				Stop = -FMath::Sign(Signals.RimDegrees) * Strength * SoftLockForce * FMath::Clamp(Over / SoftLockRampDeg, 0.0f, 1.0f);
+			}
+		}
+
+		// A hit is not smoothed: its edge is what makes it a hit.
+		const float Torque = SoftLimit((State.Torque + State.SteerKick) * 2.0f * FMath::Clamp(Tuning.Force, 0.0f, 1.0f) * WheelTorqueReference);
+		const float Force = FMath::Clamp(Torque + Centring + Stop, -1.0f, 1.0f);
 		Out.Constant = Tuning.bInvert ? -Force : Force;
 
 		if (Signals.bActive)
@@ -387,6 +530,7 @@ namespace ApexFfb
 			// A locked or spinning tyre judders faster than the road does.
 			Louder(0.3f * Signals.Lockup, 45.0f);
 			Louder(0.2f * Signals.Wheelspin, 32.0f);
+			Louder(WheelScrubAmplitude * Signals.FrontSlide * Ramp(Speed, 0.0f, SlideFullSpeedMps), WheelScrubHz);
 		}
 
 		Louder(State.Bump, 14.0f);
@@ -397,9 +541,16 @@ namespace ApexFfb
 		Out.VibrationHz = Texture.Hz;
 
 		// Heavy at a standstill, where a real car's steering is heavy and where
-		// a wheel with nothing to push against would otherwise spin freely.
+		// a wheel with nothing to push against would otherwise spin freely. At
+		// speed only a trace, to keep a direct drive base from oscillating on
+		// the torque's network delay: a damper resists the rim's speed whatever
+		// the tyres are doing, so it reads as a heavy wheel, not as cornering.
 		const float Parked = 1.0f - Ramp(Signals.SpeedMps, 0.0f, WheelDamperFullSpeedMps);
-		Out.Damper = FMath::Clamp(Tuning.Damping, 0.0f, 1.0f) * (0.35f + 0.65f * Parked);
+		Out.Damper = FMath::Clamp(Tuning.Damping, 0.0f, 1.0f) * (0.15f + 0.85f * Parked);
+		if (bPastLock)
+		{
+			Out.Damper = FMath::Max(Out.Damper, Strength * SoftLockDamper);
+		}
 
 		// Only in the menus, and only if forces are on at all: a rim that
 		// flops to one side while the player picks a car feels broken.

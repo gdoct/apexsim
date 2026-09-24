@@ -1,0 +1,135 @@
+id = "b87b42c9-9157-483c-bac8-1b5061454834"
+name = "Bugotti Chiffon"
+version = "1.0.0"
+model = "bugotti_chiffon.glb"
+brand = "Bugotti"
+model_year = 2026
+class = "Hypercar"
+model_type = "Chiffon"
+manufacturer_country = "France"
+
+[physics]
+mass_kg = 1045.0
+length_m = 5.0
+width_m = 2.0
+max_engine_force_n = 10000.0
+max_brake_force_n = 24000.0
+drag_coefficient = 0.56
+# LMH slicks, wider than an LMP2's; with the heavier car and the capped aero
+# the ideal Silverstone lap sits a couple of seconds under the LMP2s.
+grip_coefficient = 1.54
+max_steering_angle_rad = 0.40
+wheelbase_m = 3.1
+
+# Aerodynamics. LMH rules cap the aero efficiency (L/D about 4), so a
+# hypercar carries less downforce than an LMP2 on a bigger, heavier car and
+# makes it up with power: Cd*A ~1.05 m2, Cl*A ~5 m2, 41% on the nose.
+frontal_area_m2 = 1.9
+lift_coefficient_front = -1.1
+lift_coefficient_rear = -1.57
+
+# 8.0 L quad-turbo W16, strangled by the balance of performance to ~430 kW
+# and still the most torque in the pit lane; revs short, pulls from nothing.
+
+[engine]
+max_power_w = 430000.0
+max_torque_nm = 850.0
+idle_rpm = 1000.0
+redline_rpm = 6900.0
+max_rpm = 7200.0
+rev_limiter_rpm = 7100.0
+
+inertia_kg_m2 = 0.24
+friction_torque_nm = 30.0
+engine_brake_torque_nm = 150.0
+idle_control_gain = 0.15
+
+[[engine.torque_curve]]
+rpm = 1000.0
+torque_nm = 420.0
+
+[[engine.torque_curve]]
+rpm = 2000.0
+torque_nm = 720.0
+
+[[engine.torque_curve]]
+rpm = 3000.0
+torque_nm = 850.0
+
+[[engine.torque_curve]]
+rpm = 5500.0
+torque_nm = 850.0
+
+[[engine.torque_curve]]
+rpm = 6400.0
+torque_nm = 720.0
+
+[[engine.torque_curve]]
+rpm = 6900.0
+torque_nm = 620.0
+
+# What the client's engine synthesiser is built from (docs/CAR_MODELS.md,
+# "Engine sound"): the server ignores this table.
+# 8.0 L W16, four turbos, a long exhaust with a heavy silencer: a deep
+# whoosh more than a scream.
+[sound]
+cylinders = 16
+crossplane = false
+turbo = true
+exhaust_length_m = 1.60
+muffling = 0.40
+pops = 0.35
+gear_whine = 0.35
+intake_roar = 0.55
+
+[transmission]
+transmission_type = "Sequential"
+final_drive_ratio = 3.00
+shift_time_s = 0.05
+efficiency = 0.95
+
+# 7 forward gears on the sim's 0.33 m rolling radius: ~120 km/h in
+# first at the redline, ~360 in top; the car drags itself to ~330-340.
+[transmission.ratio_curve]
+gears = 7
+first = 2.45
+top = 0.80
+shape = "progressive"
+
+[drivetrain]
+layout = "AWD"
+
+[differential]
+differential_type = "ClutchLSD"
+preload_nm = 90.0
+lock_power = 0.45
+lock_coast = 0.30
+
+[fuel]
+capacity_liters = 90.0
+idle_consumption_lps = 0.00006
+load_consumption_scale = 0.0034
+
+# The LMH energy recovery system: a front-axle motor, deployed on throttle
+# and recharged under braking. The sim adds its torque at the crank.
+[hybrid]
+enabled = true
+battery_capacity_kwh = 1.1
+battery_max_discharge_kw = 100.0
+battery_max_charge_kw = 200.0
+motor_max_torque_nm = 200.0
+motor_max_power_kw = 100.0
+regen_max_power_kw = 200.0
+
+# Where the client draws the wheels (content/cars/build_hypercar.py builds
+# the body to this stance): visual only, the physics reads its own figures.
+[wheels]
+model = "hypercar"
+front_axle_m = 1.550
+rear_axle_m = -1.550
+front_track_m = 1.620
+rear_track_m = 1.620
+front_radius_m = 0.360
+rear_radius_m = 0.360
+front_width_m = 0.320
+rear_width_m = 0.345

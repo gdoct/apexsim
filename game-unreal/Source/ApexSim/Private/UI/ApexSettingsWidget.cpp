@@ -109,6 +109,23 @@ namespace
 	constexpr float SeatHeightRange = 15.0f;
 	constexpr float ViewPitchRange = 10.0f;
 
+	// Wheel steering slider steps, in degrees.
+	constexpr float WheelRotationStepDeg = 30.0f;
+	constexpr float SteeringLockStepDeg = 20.0f;
+
+	/** A 0..1 slider position as degrees on a range, snapped to its step. */
+	float SliderDegrees(float Alpha, float Min, float Max, float Step)
+	{
+		return FMath::Clamp(Min + FMath::RoundToFloat(Alpha * (Max - Min) / Step) * Step, Min, Max);
+	}
+
+	/** The steering lock as the player thinks of it: lock to lock, and how far each way. */
+	FString SteeringLockText(float LockDeg, float RotationDeg)
+	{
+		const float Effective = FMath::Min(LockDeg, RotationDeg);
+		return FString::Printf(TEXT("%d° (±%d°)"), FMath::RoundToInt(Effective), FMath::RoundToInt(Effective / 2.0f));
+	}
+
 	FString SignedCm(float Cm)
 	{
 		const int32 Whole = FMath::RoundToInt(Cm);
@@ -569,7 +586,7 @@ UWidget* UApexSettingsWidget::BuildAssistsPage()
 	// downforce and wheelbase, none of which the protocol sends.
 	AddV(Page, MakeRow(
 		TEXT("Steering"),
-		TEXT("Less lock as speed rises, so the stick can't overdrive the tyres."),
+		TEXT("Less lock as speed rises, so the stick can't overdrive the tyres. Pad and keyboard only: a wheel always steers directly."),
 		MakeSegment(SegSteering, { TEXT("FULL LOCK"), TEXT("SPEED SENSITIVE") }, 1, 178.0f),
 		FString(), 0.0f, MakeAssistLockBadge(SegSteering)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
@@ -958,39 +975,41 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 
 	AddV(Page, MakeSectionLabel(TEXT("Force feedback")), FMargin(0.0f, 24.0f, 0.0f, 12.0f));
 
+	// A row of labelled sliders, each with its value at the top right and a
+	// line of explanation under it.
+	auto AddSliderCell = [this](UHorizontalBox* Sliders, const TCHAR* Label, const TCHAR* Note,
+		TObjectPtr<USlider>& OutSlider, TObjectPtr<UProgressBar>& OutFill, TObjectPtr<UTextBlock>& OutValue, bool bFirst)
+	{
+		USlider* Slider = nullptr;
+		UProgressBar* Fill = nullptr;
+
+		UVerticalBox* Cell = WidgetTree->ConstructWidget<UVerticalBox>();
+
+		UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Head, MakeLabel(*WidgetTree, Label));
+		AddH(Head, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+		UTextBlock* Value = MakeText(*WidgetTree, FString(), Font::Mono(13.0f, 40), Palette::TextPrimary);
+		AddH(Head, Value);
+		AddV(Cell, Head);
+
+		AddV(Cell, MakeSliderTrack(*WidgetTree, Slider, Fill), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+		AddV(Cell, MakeText(*WidgetTree, Note, Font::Body(12.0f), Palette::TextMuted), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+
+		AddH(Sliders, Cell, FMargin(bFirst ? 0.0f : 26.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
+
+		OutSlider = Slider;
+		OutFill = Fill;
+		OutValue = Value;
+	};
+
 	{
 		UHorizontalBox* Sliders = WidgetTree->ConstructWidget<UHorizontalBox>();
 
-		auto AddSliderCell = [this, Sliders](const TCHAR* Label, const TCHAR* Note,
-			TObjectPtr<USlider>& OutSlider, TObjectPtr<UProgressBar>& OutFill, TObjectPtr<UTextBlock>& OutValue, bool bFirst)
-		{
-			USlider* Slider = nullptr;
-			UProgressBar* Fill = nullptr;
-
-			UVerticalBox* Cell = WidgetTree->ConstructWidget<UVerticalBox>();
-
-			UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
-			AddH(Head, MakeLabel(*WidgetTree, Label));
-			AddH(Head, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
-			UTextBlock* Value = MakeText(*WidgetTree, FString(), Font::Mono(13.0f, 40), Palette::TextPrimary);
-			AddH(Head, Value);
-			AddV(Cell, Head);
-
-			AddV(Cell, MakeSliderTrack(*WidgetTree, Slider, Fill), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-			AddV(Cell, MakeText(*WidgetTree, Note, Font::Body(12.0f), Palette::TextMuted), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-
-			AddH(Sliders, Cell, FMargin(bFirst ? 0.0f : 26.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
-
-			OutSlider = Slider;
-			OutFill = Fill;
-			OutValue = Value;
-		};
-
-		AddSliderCell(TEXT("Force"), TEXT("The steering torque the car is actually making."),
+		AddSliderCell(Sliders, TEXT("Force"), TEXT("The steering torque the car is actually making."),
 			WheelForceSlider, WheelForceFill, WheelForceValue, true);
-		AddSliderCell(TEXT("Road effects"), TEXT("Curbs, grass, ABS and impacts on top of it."),
+		AddSliderCell(Sliders, TEXT("Road effects"), TEXT("Curbs, grass, ABS and impacts on top of it."),
 			WheelRoadSlider, WheelRoadFill, WheelRoadValue, false);
-		AddSliderCell(TEXT("Damping"), TEXT("Weight in the rim. A little steadies a wheel on a network."),
+		AddSliderCell(Sliders, TEXT("Damping"), TEXT("Weight in the rim. Steadies it on a network."),
 			WheelDampingSlider, WheelDampingFill, WheelDampingValue, false);
 
 		WheelForceSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelForceChanged);
@@ -1000,11 +1019,30 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 		AddV(Page, Sliders);
 	}
 
-	// Direction, with the test that answers it. DirectInput does not say which
-	// way a positive force turns a rim, so the player is asked rather than told.
+	// Steering and direction share a row: how far the rim turns for the car's
+	// full lock (the base's rotation has to be said, because DirectInput only
+	// reports where the rim is between its two ends), and which way a positive
+	// force turns it, with the test that answers that. DirectInput does not say
+	// which way, so the player is asked rather than told. One row, because the
+	// bindings below have to fit on the page without scrolling.
 	{
-		UHorizontalBox* Cell = WidgetTree->ConstructWidget<UHorizontalBox>();
-		AddH(Cell, MakeSegment(SegWheelDirection, { TEXT("NORMAL"), TEXT("INVERTED") }, 0));
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+
+		AddSliderCell(Row, TEXT("Wheel rotation"), TEXT("Lock to lock, as set in the wheel's driver."),
+			WheelRotationSlider, WheelRotationFill, WheelRotationValue, true);
+		AddSliderCell(Row, TEXT("Steering lock"), TEXT("Rim turn for full lock. GT3 about 480°."),
+			WheelSteeringLockSlider, WheelSteeringLockFill, WheelSteeringLockValue, false);
+
+		WheelRotationSlider->SetStepSize(WheelRotationStepDeg / (ApexInput::WheelRotationMaxDeg - ApexInput::WheelRotationMinDeg));
+		WheelSteeringLockSlider->SetStepSize(SteeringLockStepDeg / (ApexInput::SteeringLockMaxDeg - ApexInput::SteeringLockMinDeg));
+		WheelRotationSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelRotationChanged);
+		WheelSteeringLockSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelSteeringLockChanged);
+
+		UVerticalBox* Direction = WidgetTree->ConstructWidget<UVerticalBox>();
+		AddV(Direction, MakeLabel(*WidgetTree, TEXT("Direction")));
+
+		UHorizontalBox* Controls = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Controls, MakeSegment(SegWheelDirection, { TEXT("NORMAL"), TEXT("INVERTED") }, 0));
 
 		UApexButtonWidget* Test = WidgetTree->ConstructWidget<UApexButtonWidget>();
 		FApexButtonSpec TestSpec;
@@ -1016,12 +1054,14 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 		TestSpec.ActionId = ActionWheelTest;
 		Test->Setup(TestSpec);
 		Test->OnActivated.AddDynamic(this, &UApexSettingsWidget::HandleWheelTestActivated);
-		AddH(Cell, MakeSized(*WidgetTree, Test, 104.0f, 38.0f), FMargin(12.0f, 0.0f, 0.0f, 0.0f));
+		AddH(Controls, MakeSized(*WidgetTree, Test, 70.0f, 38.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f));
+		AddV(Direction, Controls, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 
-		AddV(Page, MakeRow(
-			TEXT("Direction"),
-			TEXT("Test pushes the wheel to the right. If it went left, invert it."),
-			Cell), FMargin(0.0f, 18.0f, 0.0f, 0.0f));
+		AddV(Direction, MakeText(*WidgetTree, TEXT("Test pushes right. Went left? Invert."), Font::Body(12.0f), Palette::TextMuted),
+			FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+		AddH(Row, Direction, FMargin(26.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
+
+		AddV(Page, Row, FMargin(0.0f, 20.0f, 0.0f, 0.0f));
 	}
 
 	UHorizontalBox* BindingsHead = WidgetTree->ConstructWidget<UHorizontalBox>();
@@ -1554,6 +1594,12 @@ void UApexSettingsWidget::RefreshFromSettings()
 		Percent(Values->WheelRoadEffects));
 	SetSlider(WheelDampingSlider, WheelDampingFill, WheelDampingValue, Values->WheelDamping, 0.0f, 1.0f,
 		Percent(Values->WheelDamping));
+	SetSlider(WheelRotationSlider, WheelRotationFill, WheelRotationValue, Values->WheelRotationDeg,
+		ApexInput::WheelRotationMinDeg, ApexInput::WheelRotationMaxDeg,
+		FString::Printf(TEXT("%d°"), FMath::RoundToInt(Values->WheelRotationDeg)));
+	SetSlider(WheelSteeringLockSlider, WheelSteeringLockFill, WheelSteeringLockValue, Values->WheelSteeringLockDeg,
+		ApexInput::SteeringLockMinDeg, ApexInput::SteeringLockMaxDeg,
+		SteeringLockText(Values->WheelSteeringLockDeg, Values->WheelRotationDeg));
 	SetSlider(MasterVolumeSlider, MasterVolumeFill, MasterVolumeValue, Values->MasterVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->MasterVolume * 100.0f)));
 	SetSlider(UiVolumeSlider, UiVolumeFill, UiVolumeValue, Values->UiVolume, 0.0f, 1.0f,
@@ -1972,6 +2018,30 @@ void UApexSettingsWidget::HandleWheelDampingChanged(float Value)
 	if (bRefreshing) { return; }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetWheelDamping(Value); }
 	ReflectSlider(WheelDampingFill, WheelDampingValue, Value, Percent(Value));
+}
+
+void UApexSettingsWidget::HandleWheelRotationChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Degrees = SliderDegrees(Value, ApexInput::WheelRotationMinDeg, ApexInput::WheelRotationMaxDeg, WheelRotationStepDeg);
+	UApexSettingsSubsystem* Settings = GetSettings();
+	if (Settings) { Settings->SetWheelRotation(Degrees); }
+	ReflectSlider(WheelRotationFill, WheelRotationValue, Value, FString::Printf(TEXT("%d°"), FMath::RoundToInt(Degrees)));
+	// The lock cannot be longer than the rotation, so its read-out follows.
+	if (Settings && Settings->Get() && WheelSteeringLockValue)
+	{
+		WheelSteeringLockValue->SetText(FText::FromString(SteeringLockText(Settings->Get()->WheelSteeringLockDeg, Degrees)));
+	}
+}
+
+void UApexSettingsWidget::HandleWheelSteeringLockChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Degrees = SliderDegrees(Value, ApexInput::SteeringLockMinDeg, ApexInput::SteeringLockMaxDeg, SteeringLockStepDeg);
+	UApexSettingsSubsystem* Settings = GetSettings();
+	if (Settings) { Settings->SetWheelSteeringLock(Degrees); }
+	const float Rotation = Settings && Settings->Get() ? Settings->Get()->WheelRotationDeg : ApexInput::WheelRotationMaxDeg;
+	ReflectSlider(WheelSteeringLockFill, WheelSteeringLockValue, Value, SteeringLockText(Degrees, Rotation));
 }
 
 void UApexSettingsWidget::HandleWheelTestActivated(UApexButtonWidget* Button)

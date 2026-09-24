@@ -190,6 +190,9 @@ private:
 	/** Tell the server which aids to run for this player (gearbox, steering, ABS, traction control). */
 	void SendDriverAids();
 
+	/** Whether the steering was on a wheel when the aids were last sent, so a rebind or a plug-in re-sends them. */
+	bool bAidsSentForWheel = false;
+
 	/** Tell the server the garage setup to simulate this player's car with. */
 	void SendCarSetup();
 

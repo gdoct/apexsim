@@ -312,6 +312,24 @@ public:
 	UPROPERTY()
 	bool bWheelInvertForce = false;
 
+	/**
+	 * Degrees the wheelbase turns lock to lock, as set in its own driver
+	 * (Fanatec's SEN, Logitech's operating range). DirectInput reports only
+	 * where the rim is between its two ends, not how far apart they are, so
+	 * the player says; it is what turns the steering lock below into a scale.
+	 */
+	UPROPERTY()
+	float WheelRotationDeg = 900.0f;
+
+	/**
+	 * Degrees of rim, lock to lock, that turn the car's front wheels to full
+	 * lock. Shorter than the base's rotation gears the steering up, as a race
+	 * car's rack is, and past it the rim meets a soft stop. Before this a
+	 * 1080-degree base needed 540 degrees of rim for full lock.
+	 */
+	UPROPERTY()
+	float WheelSteeringLockDeg = 480.0f;
+
 	// --- Audio ----------------------------------------------------------------
 
 	/** 0..1. Scales everything the game plays, through the audio device's primary volume. */

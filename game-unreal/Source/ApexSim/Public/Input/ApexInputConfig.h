@@ -145,10 +145,38 @@ namespace ApexInput
 	APEXSIM_API FKey GetWheelDefaultKey(FName ActionId, int32 Slot);
 
 	/**
+	 * The DirectInput device slot the steering is bound to, when it is
+	 * attached, whether or not it can play forces; INDEX_NONE when the car is
+	 * steered by a pad or the keyboard.
+	 */
+	APEXSIM_API int32 FindSteeringDevice(const TArray<FApexKeyBinding>& Bindings);
+
+	/**
 	 * The DirectInput device slot that should play the forces: the one the
 	 * steering is bound to, when it is attached and can play them.
 	 */
 	APEXSIM_API int32 FindForceFeedbackDevice(const TArray<FApexKeyBinding>& Bindings);
+
+	/** What the Wheel page offers for the base's rotation and the steering lock, in degrees lock to lock. */
+	constexpr float WheelRotationMinDeg = 180.0f;
+	constexpr float WheelRotationMaxDeg = 2520.0f;
+	constexpr float SteeringLockMinDeg = 180.0f;
+	constexpr float SteeringLockMaxDeg = 1080.0f;
+
+	/**
+	 * The gain from the wheel's axis (-1..1 over the base's whole rotation) to
+	 * the steering (-1..1 = full lock): the rotation over the lock. Never under
+	 * 1: a lock longer than the rotation is taken as the rotation, so the full
+	 * lock stays reachable.
+	 */
+	APEXSIM_API float WheelSteeringScale(float RotationDeg, float SteeringLockDeg);
+
+	/**
+	 * Where the rim of the wheel the steering is bound to is, -1..1 over the
+	 * base's rotation, in screen sign (positive right) with the binding's
+	 * invert applied. False when the car is not steered by a wheel.
+	 */
+	APEXSIM_API bool ReadWheelSteering(const TArray<FApexKeyBinding>& Bindings, float& OutAxis);
 }
 
 /**
@@ -182,6 +210,22 @@ protected:
  */
 UCLASS(NotBlueprintable, HideDropdown)
 class APEXSIM_API UApexInputModifierPadSteering : public UInputModifier
+{
+	GENERATED_BODY()
+
+protected:
+	virtual FInputActionValue ModifyRaw_Implementation(
+		const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;
+};
+
+/**
+ * A wheel's steering: the rim's position over the base's rotation, scaled to
+ * the steering lock (UApexSettingsSave::WheelSteeringLockDeg), so full lock
+ * comes at that many degrees of rim whatever the base is set to. Read live,
+ * like the pad's curve, so a changed lock is felt without a rebuild.
+ */
+UCLASS(NotBlueprintable, HideDropdown)
+class APEXSIM_API UApexInputModifierWheelSteering : public UInputModifier
 {
 	GENERATED_BODY()
 
