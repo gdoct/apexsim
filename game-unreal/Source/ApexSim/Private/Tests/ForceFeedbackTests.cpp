@@ -333,8 +333,8 @@ bool FApexFfbWheelTorqueTest::RunTest(const FString& Parameters)
 	ApexFfb::FSignals Loaded = Cruising(45.0f);
 	Loaded.SteerTorque = 1.0f;
 	const float AtTheLimit = SettledWheel(Loaded, Designed).Constant;
-	TestTrue(FString::Printf(TEXT("the grip limit is most of the base's force (%.2f)"), AtTheLimit),
-		AtTheLimit > 0.85f && AtTheLimit < 0.97f);
+	TestTrue(FString::Printf(TEXT("the grip limit is well within the base's force (%.2f)"), AtTheLimit),
+		AtTheLimit > 0.5f && AtTheLimit < 0.7f);
 
 	Loaded.SteerTorque = -1.0f;
 	TestTrue(TEXT("the other way round pushes the other way"),
@@ -677,6 +677,312 @@ bool FApexFfbWheelSoftLockTest::RunTest(const FString& Parameters)
 	Tuning.bInvert = false;
 	Tuning.SteeringLockDeg = 0.0f;
 	TestTrue(TEXT("no stop when the lock is the base's whole rotation"), FMath::Abs(ForceAt(400.0f).Constant) < 0.01f);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+namespace
+{
+	/** Rim degrees for full lock, one way: a 900-degree base with a 480-degree lock. */
+	constexpr float TestRimDegPerInput = 240.0f;
+
+	/**
+	 * A driver lets go of the rim in a steady corner. The server is a car
+	 * whose column torque is `Slope` times the steering input it last heard,
+	 * reported at 60 Hz and 40 ms late, the way a real connection delivers
+	 * it; `bSendSlope` is whether it also sends that slope. Returns the rim's
+	 * angle every test frame for two seconds.
+	 */
+	TArray<float> LetGoInACorner(float Slope, bool bSendSlope, float StartDegrees)
+	{
+		ApexFfb::FWheelTuning Designed;
+		Designed.RimDegreesPerInput = TestRimDegPerInput;
+		constexpr int32 DelayFrames = 10;	 // 42 ms at 240 Hz
+		constexpr int32 MessageFrames = 4;	 // 60 Hz
+
+		FTestRim Rim;
+		Rim.Degrees = StartDegrees;
+		TArray<float> Sent;	   // what the client has sent, one per frame
+		for (int32 i = 0; i < DelayFrames + MessageFrames; ++i)
+		{
+			Sent.Add(StartDegrees / TestRimDegPerInput);
+		}
+
+		ApexFfb::FWheelState State;
+		State.bWasActive = true;	// driving already: no grid centring
+		ApexFfb::FSignals Signals = Cruising(30.0f);
+		Signals.bHasLocalSteer = true;
+
+		TArray<float> Trace;
+		for (int32 Frame = 0; Frame < 480; ++Frame)
+		{
+			const float Local = Rim.Degrees / TestRimDegPerInput;
+			Sent.Add(Local);
+			if (Frame % MessageFrames == 0)
+			{
+				const float Heard = Sent[Sent.Num() - 1 - DelayFrames];
+				Signals.ServerSteer = Heard;
+				Signals.SteerTorque = Slope * Heard;
+				Signals.SteerStiffness = bSendSlope ? Slope : 0.0f;
+			}
+			Signals.LocalSteer = Local;
+			if (Frame == 0)
+			{
+				// Settle the smoothing on the corner being held.
+				for (int32 Hold = 0; Hold < 120; ++Hold)
+				{
+					ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Designed);
+				}
+			}
+			Rim.Step(ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Designed).Constant, FeedbackTestDt);
+			Trace.Add(Rim.Degrees);
+		}
+		return Trace;
+	}
+
+	float LargestAfter(const TArray<float>& Trace, float Seconds)
+	{
+		float Largest = 0.0f;
+		for (int32 Frame = FMath::RoundToInt(Seconds / FeedbackTestDt); Frame < Trace.Num(); ++Frame)
+		{
+			Largest = FMath::Max(Largest, FMath::Abs(Trace[Frame]));
+		}
+		return Largest;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelLetGoTest,
+	"ApexSim.Input.ForceFeedback.WheelLetGo",
+	ApexTestFlags)
+
+bool FApexFfbWheelLetGoTest::RunTest(const FString& Parameters)
+{
+	// A gripping car at 30 m/s: -8 torque per unit of input, so 30 degrees of
+	// rim to the right is a torque of 1 pushing it back left.
+	constexpr float Slope = -8.0f;
+	const TArray<float> WithSlope = LetGoInACorner(Slope, true, 30.0f);
+	const TArray<float> Delayed = LetGoInACorner(Slope, false, 30.0f);
+
+	int32 HomeFrame = INDEX_NONE;
+	float Overshoot = 0.0f;
+	for (int32 Frame = 0; Frame < WithSlope.Num(); ++Frame)
+	{
+		if (HomeFrame == INDEX_NONE && FMath::Abs(WithSlope[Frame]) < 3.0f)
+		{
+			HomeFrame = Frame;
+		}
+		Overshoot = FMath::Min(Overshoot, WithSlope[Frame]);
+	}
+	TestTrue(FString::Printf(TEXT("let go, the rim swings back toward the middle (home at %.2f s)"),
+				 HomeFrame * FeedbackTestDt),
+		HomeFrame != INDEX_NONE && HomeFrame * FeedbackTestDt < 0.3f);
+	TestTrue(FString::Printf(TEXT("without flying far past it (%.1f deg)"), Overshoot), Overshoot > -20.0f);
+	TestTrue(FString::Printf(TEXT("and settles there (%.1f deg after 1.5 s)"), LargestAfter(WithSlope, 1.5f)),
+		LargestAfter(WithSlope, 1.5f) < 4.0f);
+
+	// The same torque a round trip late and nothing else is a spring that
+	// answers late, and it keeps the rim swinging.
+	TestTrue(FString::Printf(TEXT("a late torque alone rings on (%.1f deg vs %.1f deg after 1.5 s)"),
+				 LargestAfter(Delayed, 1.5f), LargestAfter(WithSlope, 1.5f)),
+		LargestAfter(Delayed, 1.5f) > 2.0f * LargestAfter(WithSlope, 1.5f));
+
+	// A hypercar at 50 m/s, and the same braking hard (the Zomba's slopes):
+	// stiffer than the loop can hold without the stiffness limit.
+	for (const float Steep : { -21.0f, -37.0f })
+	{
+		const TArray<float> Fast = LetGoInACorner(Steep, true, 30.0f);
+		TestTrue(FString::Printf(TEXT("a slope of %.0f settles too (%.1f deg after 1.5 s)"), Steep, LargestAfter(Fast, 1.5f)),
+			LargestAfter(Fast, 1.5f) < 4.0f);
+	}
+
+	// The limit: however steep the slope, the rim is never stiffer than the
+	// loop can hold, and a gentle slope is left alone.
+	{
+		auto PerDegree = [](float Slope)
+		{
+			ApexFfb::FWheelTuning Tuning;
+			Tuning.RimDegreesPerInput = TestRimDegPerInput;
+			auto ForceAt = [&](float Rim)
+			{
+				ApexFfb::FWheelState State;
+				State.bWasActive = true;
+				ApexFfb::FSignals Signals = Cruising(40.0f);
+				Signals.SteerStiffness = Slope;
+				Signals.bHasLocalSteer = true;
+				Signals.LocalSteer = Rim / TestRimDegPerInput;
+				FApexWheelEffects Out;
+				for (int32 Frame = 0; Frame < 60; ++Frame)
+				{
+					Out = ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Tuning);
+				}
+				return Out.Constant;
+			};
+			return FMath::Abs(ForceAt(2.0f) - ForceAt(0.0f)) / 2.0f;
+		};
+		TestTrue(FString::Printf(TEXT("a steep slope is held to the limit (%.4f per degree)"), PerDegree(-37.0f)),
+			PerDegree(-37.0f) < 0.026f && PerDegree(-37.0f) > 0.02f);
+		TestTrue(FString::Printf(TEXT("a gentle one is untouched (%.4f per degree)"), PerDegree(-5.0f)),
+			FMath::IsNearlyEqual(PerDegree(-5.0f), 5.0f * 0.6f / TestRimDegPerInput, 0.001f));
+	}
+
+	// Past the aligning crest the slope pulls on the way the rim is going;
+	// carried locally that would feed itself, so it is left to the server.
+	{
+		ApexFfb::FWheelState State;
+		State.bWasActive = true;
+		ApexFfb::FSignals Sliding = Cruising(30.0f);
+		Sliding.SteerStiffness = 4.0f;
+		Sliding.bHasLocalSteer = true;
+		Sliding.LocalSteer = 0.1f;
+		FApexWheelEffects Out;
+		for (int32 Frame = 0; Frame < 60; ++Frame)
+		{
+			Out = ApexFfb::MixWheel(Sliding, State, FeedbackTestDt, ApexFfb::FWheelTuning());
+		}
+		TestTrue(FString::Printf(TEXT("a slope that pulls is not carried (%.3f)"), Out.Constant), FMath::Abs(Out.Constant) < 0.01f);
+	}
+
+	// At a crawl the car turns with its wheels, so there is no spring to carry.
+	{
+		ApexFfb::FWheelState State;
+		State.bWasActive = true;
+		ApexFfb::FSignals Crawl = Cruising(2.0f);
+		Crawl.SteerStiffness = -10.0f;
+		Crawl.bHasLocalSteer = true;
+		Crawl.LocalSteer = 0.1f;
+		FApexWheelEffects Out;
+		for (int32 Frame = 0; Frame < 60; ++Frame)
+		{
+			Out = ApexFfb::MixWheel(Crawl, State, FeedbackTestDt, ApexFfb::FWheelTuning());
+		}
+		TestTrue(FString::Printf(TEXT("none at a crawl (%.3f)"), Out.Constant), FMath::Abs(Out.Constant) < 0.01f);
+	}
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+namespace
+{
+	/**
+	 * The constant force over two seconds down a straight at `SpeedMps`,
+	 * from `StartM` round the lap, with no torque from the car: the road
+	 * alone.
+	 */
+	TArray<float> RoadOnly(float SpeedMps, float StartM, float FrontLoad, float RoadEffects)
+	{
+		ApexFfb::FWheelTuning Tuning;
+		Tuning.RoadEffects = RoadEffects;
+		ApexFfb::FWheelState State;
+		State.bWasActive = true;
+		ApexFfb::FSignals Signals = Cruising(SpeedMps);
+		Signals.bHasStation = true;
+		Signals.FrontLoad = FrontLoad;
+		TArray<float> Trace;
+		for (int32 Frame = 0; Frame < 480; ++Frame)
+		{
+			// Telemetry's station, in 60 Hz steps as it arrives.
+			Signals.StationM = StartM + SpeedMps * (Frame / 4) * 4 * FeedbackTestDt;
+			Trace.Add(ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Tuning).Constant);
+		}
+		return Trace;
+	}
+
+	float ForceRms(const TArray<float>& Trace)
+	{
+		double Sum = 0.0;
+		for (float Value : Trace)
+		{
+			Sum += Value * Value;
+		}
+		return Trace.Num() > 0 ? static_cast<float>(FMath::Sqrt(Sum / Trace.Num())) : 0.0f;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelRoadTextureTest,
+	"ApexSim.Input.ForceFeedback.WheelRoadTexture",
+	ApexTestFlags)
+
+bool FApexFfbWheelRoadTextureTest::RunTest(const FString& Parameters)
+{
+	const TArray<float> Straight = RoadOnly(40.0f, 1000.0f, 1.0f, 0.5f);
+	float Peak = 0.0f;
+	for (float Value : Straight)
+	{
+		Peak = FMath::Max(Peak, FMath::Abs(Value));
+	}
+	TestTrue(FString::Printf(TEXT("a straight road is felt (rms %.3f)"), ForceRms(Straight)), ForceRms(Straight) > 0.008f);
+	TestTrue(FString::Printf(TEXT("as texture, not a fight (peak %.3f)"), Peak), Peak < 0.15f);
+
+	TestTrue(TEXT("the same stretch of road feels the same every lap"), RoadOnly(40.0f, 1000.0f, 1.0f, 0.5f) == Straight);
+	TestTrue(TEXT("and another stretch differently"), RoadOnly(40.0f, 2500.0f, 1.0f, 0.5f) != Straight);
+
+	const float Braking = ForceRms(RoadOnly(40.0f, 1000.0f, 2.0f, 0.5f));
+	TestTrue(FString::Printf(TEXT("a front loaded by braking passes more of it up (%.3f vs %.3f)"), Braking, ForceRms(Straight)),
+		Braking > 1.4f * ForceRms(Straight));
+
+	TestTrue(TEXT("more road effects, more road"), ForceRms(RoadOnly(40.0f, 1000.0f, 1.0f, 1.0f)) > 1.5f * ForceRms(Straight));
+	TestEqual(TEXT("none with road effects off"), ForceRms(RoadOnly(40.0f, 1000.0f, 1.0f, 0.0f)), 0.0f);
+	TestTrue(TEXT("little at walking pace"), ForceRms(RoadOnly(2.0f, 1000.0f, 1.0f, 0.5f)) < 0.2f * ForceRms(Straight));
+
+	// Crossing the line the station starts again from nothing; the texture
+	// follows it rather than chasing it backwards round the lap.
+	{
+		ApexFfb::FWheelState State;
+		State.bWasActive = true;
+		ApexFfb::FSignals Signals = Cruising(40.0f);
+		Signals.bHasStation = true;
+		Signals.StationM = 4300.0f;
+		ApexFfb::MixWheel(Signals, State, FeedbackTestDt, ApexFfb::FWheelTuning());
+		Signals.StationM = 2.0f;
+		ApexFfb::MixWheel(Signals, State, FeedbackTestDt, ApexFfb::FWheelTuning());
+		TestTrue(FString::Printf(TEXT("a new lap reads the road from the line (%.1f m)"), State.RoadStation),
+			State.RoadStation >= 2.0f && State.RoadStation < 3.0f);
+	}
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelBrakingTest,
+	"ApexSim.Input.ForceFeedback.WheelBraking",
+	ApexTestFlags)
+
+bool FApexFfbWheelBrakingTest::RunTest(const FString& Parameters)
+{
+	// From the wire: the fronts' braking slip against their peak.
+	{
+		FApexDriverFeedback Feedback;
+		Feedback.SteerTorque.Add(0.0f);
+		Feedback.SteerInput = 0.1f;
+		Feedback.SteerStiffness = -12.0f;
+		Feedback.FrontLoad = 1.8f;
+		Feedback.Wheels[FApexDriverFeedback::FrontLeft].SlipRatio = -0.4f;
+		Feedback.Wheels[FApexDriverFeedback::FrontRight].SlipRatio = -1.0f;
+		const ApexFfb::FSignals Signals = ApexFfb::MakeSignals(Feedback, 40.0f, 5, true);
+		TestEqual(TEXT("the input comes over in screen sign"), Signals.ServerSteer, -0.1f);
+		TestEqual(TEXT("the slope as it is"), Signals.SteerStiffness, -12.0f);
+		TestEqual(TEXT("the front load"), Signals.FrontLoad, 1.8f);
+		TestEqual(TEXT("one front at its peak braking slip"), Signals.FrontBrakeSlip, 1.0f);
+
+		Feedback.Wheels[FApexDriverFeedback::FrontRight].SlipRatio = -0.4f;
+		TestEqual(TEXT("fronts with plenty in hand say nothing"), ApexFfb::MakeSignals(Feedback, 40.0f, 5, true).FrontBrakeSlip, 0.0f);
+	}
+
+	const ApexFfb::FWheelTuning Designed;
+	ApexFfb::FSignals Braking = Cruising(40.0f);
+	Braking.FrontBrakeSlip = 1.0f;
+	const FApexWheelEffects Grain = PeakWheelVibration(Braking, Designed);
+	TestTrue(FString::Printf(TEXT("fronts at their braking limit are felt (%.2f at %.0f Hz)"), Grain.VibrationAmplitude, Grain.VibrationHz),
+		Grain.VibrationAmplitude > 0.15f && Grain.VibrationHz > 40.0f);
+
+	Braking.bAbs = true;
+	const FApexWheelEffects Abs = PeakWheelVibration(Braking, Designed);
+	TestTrue(FString::Printf(TEXT("and ABS catching them takes over (%.0f Hz)"), Abs.VibrationHz), Abs.VibrationHz < 20.0f);
 	return true;
 }
 

@@ -608,15 +608,54 @@ pub fn update_car_3d(
         &wheel_rear_left,
         &wheel_rear_right,
     ];
+    let front_tyres = [
+        FrontTyre::of(
+            &fl,
+            state.weight_front_left_n,
+            steer_left,
+            effective_grip_front,
+            &config.tire_config,
+        ),
+        FrontTyre::of(
+            &fr,
+            state.weight_front_right_n,
+            steer_right,
+            effective_grip_front,
+            &config.tire_config,
+        ),
+    ];
+    // What one more unit of the driver's input turns the wheels by: full
+    // lock, or the aid's slope where the driver is (nothing where it is
+    // holding the wheels at the grip limit).
+    let aid_gain = if state.steering_assist {
+        let front_axle_travel_rad =
+            (v_lat + state.angular_vel_yaw * front_axle_x).atan2(v_long.max(MIN_SPEED_THRESHOLD));
+        let aided = |input: f32| {
+            assisted_steering(
+                config,
+                input,
+                state.speed_mps,
+                downforce_front + downforce_rear,
+                front_axle_travel_rad,
+            )
+        };
+        let probe = STIFFNESS_PROBE_INPUT;
+        (aided(input.steering + probe) - aided(input.steering - probe)) / (2.0 * probe)
+    } else {
+        1.0
+    };
     state.feedback.record_tick(&FeedbackTick {
-        steer_torque: steering_column_torque(
-            [
-                FrontTyre::of(&fl, state.weight_front_left_n, steer_left),
-                FrontTyre::of(&fr, state.weight_front_right_n, steer_right),
-            ],
+        steer_torque: steering_column_torque(front_tyres, config, static_front_weight),
+        steer_input: input.steering,
+        steer_stiffness: steering_column_stiffness(
+            front_tyres,
             config,
             static_front_weight,
+            steering_angle,
+            config.max_steering_angle_rad * aid_gain,
         ),
+        front_load: (state.weight_front_left_n + state.weight_front_right_n)
+            / static_front_weight.max(1.0),
         slip_ratio: wheels.map(per_slip_ratio),
         slip_angle: wheels.map(per_slip_angle),
         surface: if is_airborne {
@@ -1376,18 +1415,106 @@ struct FrontTyre {
     slip_angle: f32,
     load_n: f32,
     steer_rad: f32,
+    /// Radius of the tyre's friction circle, N (`d` in the magic formula).
+    grip_n: f32,
+    /// How much of the magic formula's lateral force the friction ellipse
+    /// left the tyre (1 unless braking or drive took some of it), so the
+    /// force can be solved again at a slightly different slip angle.
+    lateral_scale: f32,
 }
 
 impl FrontTyre {
-    fn of(forces: &WheelForces, load_n: f32, steer_rad: f32) -> Self {
+    fn of(
+        forces: &WheelForces,
+        load_n: f32,
+        steer_rad: f32,
+        grip_coefficient: f32,
+        tire: &TireConfig,
+    ) -> Self {
+        let grip_n = grip_coefficient * load_n.max(0.0);
+        let unscaled = -pacejka(
+            grip_n,
+            PACEJKA_C_LAT,
+            forces.slip_angle / tire.optimal_slip_angle_rad.max(1e-4),
+        );
+        let lateral_scale = if unscaled.abs() > 1e-3 * grip_n.max(1.0) {
+            (forces.fy / unscaled).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
         Self {
             fy: forces.fy,
             fx: forces.fx,
             slip_angle: forces.slip_angle,
             load_n,
             steer_rad,
+            grip_n,
+            lateral_scale,
         }
     }
+
+    /// The same tyre with its wheel turned `delta_rad` further left: the slip
+    /// angle falls by as much, and the lateral force follows the magic
+    /// formula under the same share of the friction ellipse.
+    fn steered_by(self, delta_rad: f32, tire: &TireConfig) -> Self {
+        let slip_angle = (self.slip_angle - delta_rad).clamp(-0.5, 0.5);
+        let fy = -pacejka(
+            self.grip_n,
+            PACEJKA_C_LAT,
+            slip_angle / tire.optimal_slip_angle_rad.max(1e-4),
+        ) * self.lateral_scale;
+        Self {
+            fy,
+            slip_angle,
+            steer_rad: self.steer_rad + delta_rad,
+            ..self
+        }
+    }
+}
+
+/// Steering input the column stiffness is measured over, either side of the
+/// driver's own: a hundredth of full lock, a couple of degrees of rim.
+const STIFFNESS_PROBE_INPUT: f32 = 0.01;
+
+/// How the column torque changes with the steering input, per unit of input
+/// (full lock is 1), around where the driver is holding it, in the torque's
+/// units and sign. Negative while the tyres are gripping: turn the wheel
+/// further left and the rim pushes harder to the right. It falls to nothing
+/// at the aligning torque's crest and turns positive past it, where the
+/// fronts are letting go.
+///
+/// The torque reaches the driver a network round trip after the rim moved,
+/// which on its own is a spring that answers late: let go of the wheel in a
+/// corner and it holds where it was for a few hundredths of a second, then
+/// jumps. With this slope a wheel can work out the torque at the rim's
+/// position *now* from the newest sample, and only what the slope does not
+/// explain (the car's own motion) arrives late.
+///
+/// `steering_angle` is the centre angle the wheels are at; each wheel is
+/// moved to where the Ackermann geometry puts it for the nudged angle, since
+/// the inner wheel turns further than the outer.
+fn steering_column_stiffness(
+    front: [FrontTyre; 2],
+    config: &CarConfig,
+    static_front_load_n: f32,
+    steering_angle: f32,
+    rad_per_input: f32,
+) -> f32 {
+    let delta = STIFFNESS_PROBE_INPUT * rad_per_input;
+    let at = |angle: f32| {
+        let (left, right) =
+            calculate_ackermann_steering(angle, config.wheelbase_m, config.track_width_front_m);
+        let [fl, fr] = front;
+        steering_column_torque(
+            [
+                fl.steered_by(left - fl.steer_rad, &config.tire_config),
+                fr.steered_by(right - fr.steer_rad, &config.tire_config),
+            ],
+            config,
+            static_front_load_n,
+        )
+    };
+    (at(steering_angle + delta) - at(steering_angle - delta)) / (2.0 * STIFFNESS_PROBE_INPUT)
 }
 
 /// Torque the two front tyres put into the steering column, `[left, right]`.
@@ -3906,6 +4033,88 @@ mod tests {
         state.feedback.take(0)
     }
 
+    /// The column stiffness is what lets a wheel answer its own movement
+    /// without a round trip: one tick after the rim moves the car has not
+    /// yet turned, so the torque's change is the tyres' slip changing with
+    /// the steering, which is what the slope predicts.
+    #[test]
+    fn column_stiffness_predicts_the_torque_after_the_rim_moves() {
+        let config = create_test_config();
+        let track = open_asphalt();
+        for (steer, speed) in [
+            (0.03f32, 30.0f32),
+            (0.08, 30.0),
+            (0.05, 15.0),
+            (-0.04, 45.0),
+        ] {
+            let mut state = create_test_car_state();
+            state.vel_x = speed;
+            state.speed_mps = speed;
+            state.gear = 3;
+            let drive = |state: &mut CarState, steering: f32| {
+                state.feedback.take(0);
+                let input = PlayerInputData {
+                    throttle: ((speed - state.speed_mps) * 0.5 + 0.2).clamp(0.0, 1.0),
+                    steering,
+                    ..Default::default()
+                };
+                update_car_3d(state, &config, &input, &track, 1.0 / 240.0);
+                state.feedback.take(0)
+            };
+            for _ in 0..360 {
+                drive(&mut state, steer);
+            }
+            let settled = drive(&mut state, steer);
+            assert_eq!(settled.steer_input, steer);
+            // Against the same car driven on unchanged for the tick, so only
+            // the rim's movement differs.
+            let mut control = state.clone();
+            let held = drive(&mut control, steer).steer_torque[0];
+            // A couple of degrees of rim: a slope is a slope only so far,
+            // and at the aligning crest (0.08 here) the torque curves.
+            let step = 0.01 * steer.signum();
+            let moved = drive(&mut state, steer + step);
+            let predicted = held + settled.steer_stiffness * step;
+            let actual = moved.steer_torque[0];
+            let change = actual - held;
+            assert!(
+                settled.steer_stiffness < 0.0,
+                "gripping, turning further in pushes back harder: stiffness {} at {steer}",
+                settled.steer_stiffness
+            );
+            assert!(
+                (predicted - actual).abs() < 0.25 * change.abs() + 0.01,
+                "steer {steer} at {speed} m/s: predicted {predicted}, got {actual} (from {held})"
+            );
+        }
+    }
+
+    #[test]
+    fn column_stiffness_falls_through_the_aligning_crest() {
+        let config = create_test_config();
+        let static_front = config.mass_kg * GRAVITY * config.weight_distribution_front;
+        let stiffness = |n: f32| {
+            steering_column_stiffness(
+                front_axle_at(&config, n, 1.0),
+                &config,
+                static_front,
+                0.0,
+                config.max_steering_angle_rad,
+            )
+        };
+        // A left turn: steering further left adds torque to the right.
+        assert!(stiffness(0.1) < 0.0, "{}", stiffness(0.1));
+        assert!(
+            stiffness(0.2) < 0.5 * stiffness(0.05),
+            "it softens toward the crest"
+        );
+        assert!(
+            stiffness(1.0) > 0.0,
+            "past the crest more lock is lighter: {}",
+            stiffness(1.0)
+        );
+    }
+
     #[test]
     fn steering_torque_centres_the_wheel_and_is_quiet_straight_ahead() {
         let straight = feedback_after_steering(0.0, 30.0, 0.5);
@@ -3940,6 +4149,8 @@ mod tests {
             slip_angle: -n * peak,
             load_n: load,
             steer_rad: 0.0,
+            grip_n: d,
+            lateral_scale: 1.0,
         };
         [tyre, tyre]
     }

@@ -65,20 +65,105 @@ namespace
 	/**
 	 * Torque at the strength the effects were designed at (0.5), as a share of
 	 * the base's peak, for a car at the front axle's static grip limit; the
-	 * soft limit below keeps what is past it. A hard corner crests at about
-	 * 0.9 of the reference and an ordinary 1 g one at about 0.6, so this puts
-	 * the one near the base's limit and the other at two thirds of it, which
-	 * is where other sims sit and where a driver has to hold the rim. At 0.6,
-	 * then 0.7, the same corner asked a base for under half its force: the
-	 * rim was heavier to turn and never pushed back.
+	 * soft limit below keeps what is past it. An ordinary 1 g corner is about
+	 * 0.6 of the reference and a downforce car's fast corner 1.5 to 2.4, so a
+	 * corner asks the base for a third to most of its force and a fast one
+	 * leaves the soft limit room to show the fronts letting go.
+	 *
+	 * It was raised to 1.1 on reports that the rim "never pushed back", which
+	 * turned out to be no force reaching the motor at all (base firmware
+	 * behind its driver) and then every force mirrored (DirectInput's sign).
+	 * At 1.1 with both fixed, 25% was too heavy to drive with on an 8 Nm base
+	 * and a hypercar sat at the base's limit a third of the lap.
 	 */
-	constexpr float WheelTorqueReference = 1.1f;
+	constexpr float WheelTorqueReference = 0.6f;
+
+	/**
+	 * Stiffest the rim may be, as a share of the base's force per rim degree.
+	 * The torque reaches the rim through the server's round trip and the
+	 * driver's own delay, and past a stiffness that delay makes the rim ring
+	 * around the centre by itself — damping does not stop it, only a softer
+	 * spring does. Measured on a ClubSport V2.5, let go of 30 degrees off
+	 * centre against a 60 Hz server 40 ms late: 0.05 per degree (a hypercar
+	 * at 50 m/s at Force 50%) rang at +-16 degrees for good, 0.025 settled
+	 * within 5 degrees of overshoot, braking at twice the slope included.
+	 */
+	constexpr float MaxRimStiffnessPerDeg = 0.025f;
+
+	/** The damper while driving never drops under this share of the force (see MixWheel). */
+	constexpr float MinDriveDamper = 0.3f;
 
 	/** Where the torque stops being linear and starts being compressed. */
 	constexpr float WheelSoftKnee = 0.8f;
 
 	/** One pole over the 60 Hz message steps; long enough to smooth, short enough not to lag. */
 	constexpr float WheelTorqueSmoothingSeconds = 0.012f;
+
+	// --- The rim's own movement ------------------------------------------------
+
+	/**
+	 * Furthest the rim's movement since the server's sample is carried by the
+	 * slope, in steering input (full lock is 1). A slope is a slope only so
+	 * far, and a jump in the input (a pad, a rebind) must not become a jump
+	 * in the force.
+	 */
+	constexpr float MaxCorrectionInput = 0.15f;
+
+	/**
+	 * The correction fades in over these speeds. At a crawl the car turns
+	 * with the wheels almost at once, so the tyres' slope over one round trip
+	 * is a spring that is not there a moment later.
+	 */
+	constexpr float CorrectionFromMps = 3.0f;
+	constexpr float CorrectionFullMps = 12.0f;
+
+	// --- The road ------------------------------------------------------------
+
+	/**
+	 * Peak of the road's texture on the rim, as a share of the base, at the
+	 * Road effects setting the effects were designed at (0.5), on a statically
+	 * loaded front at speed. At full road effects its peaks are a fifth of the
+	 * base and twice that on a front loaded by braking: texture on a belt
+	 * base, detail on a direct drive. Half this was measured at 0.02 rms at
+	 * full road effects, which is below what a belt's own friction lets
+	 * through.
+	 */
+	constexpr float RoadTextureForce = 0.08f;
+
+	/** The texture builds with speed, full by here. */
+	constexpr float RoadTextureFullMps = 40.0f;
+
+	/** Load passes the road up the column less than in proportion. */
+	constexpr float RoadLoadExponent = 0.7f;
+
+	/**
+	 * The road's surface, per side, as wavelengths along the lap and their
+	 * weights: seams and grain, patches and ripples, and the long undulation
+	 * that tugs the rim over a whole corner. The shortest fall away at speed
+	 * rather than alias against the frame rate.
+	 */
+	struct FRoadOctave
+	{
+		float WavelengthM;
+		float Weight;
+	};
+	constexpr FRoadOctave RoadOctaves[] = { { 0.45f, 0.35f }, { 1.6f, 0.5f }, { 6.0f, 0.4f } };
+
+	/** Grass and gravel are this much rougher than asphalt. */
+	constexpr float OffTrackRoughness = 3.0f;
+
+	/** A station this far from where the texture is being read is a new lap or a reset: jump to it. */
+	constexpr float RoadStationSnapM = 20.0f;
+	/** Otherwise each telemetry sample pulls it this much of the way. */
+	constexpr float RoadStationPull = 0.25f;
+
+	/**
+	 * The fronts working under braking, felt as a fine grain before they lock:
+	 * from half their peak slip ratio to it. Under ABS it sits at full, beneath
+	 * the pulse train.
+	 */
+	constexpr float BrakeGrainAmplitude = 0.22f;
+	constexpr float BrakeGrainHz = 62.0f;
 
 	/** Hits die away a little more slowly on a rim than on a motor. */
 	constexpr float WheelBumpDecaySeconds = 0.09f;
@@ -199,6 +284,54 @@ namespace
 		Seed ^= Seed << 5;
 		return static_cast<float>(Seed & 0xFFFFFF) / static_cast<float>(0x1000000);
 	}
+
+	/** A lattice point's height, -1..1, the same for the same point and seed on every run. */
+	float LatticeHeight(int64 Point, uint32 Seed)
+	{
+		uint32 Hash = static_cast<uint32>(Point) * 0x9E3779B1u ^ static_cast<uint32>(Point >> 32) * 0x85EBCA77u ^ Seed;
+		Hash ^= Hash >> 16;
+		Hash *= 0x7FEB352Du;
+		Hash ^= Hash >> 15;
+		Hash *= 0x846CA68Bu;
+		Hash ^= Hash >> 16;
+		return static_cast<float>(Hash & 0xFFFFFF) / static_cast<float>(0x800000) - 1.0f;
+	}
+
+	/** Smooth 1-D value noise, -1..1, one lattice point per unit of `X`. */
+	float ValueNoise(double X, uint32 Seed)
+	{
+		const double Cell = FMath::FloorToDouble(X);
+		const float Frac = static_cast<float>(X - Cell);
+		const int64 Point = static_cast<int64>(Cell);
+		const float Ease = Frac * Frac * (3.0f - 2.0f * Frac);
+		return FMath::Lerp(LatticeHeight(Point, Seed), LatticeHeight(Point + 1, Seed), Ease);
+	}
+
+	/**
+	 * The road under the two front tyres at `StationM`, as the torque it puts
+	 * on the rim: -1..1 or so, positive to the right. A bump under one wheel
+	 * and not the other is what tugs a rim, so it is the two sides'
+	 * difference. Octaves that would pass faster than half the frame rate are
+	 * left out rather than aliased.
+	 */
+	float RoadTug(double StationM, float SpeedMps, float DeltaSeconds)
+	{
+		const float Nyquist = 0.5f / FMath::Max(DeltaSeconds, 1e-4f);
+		float Tug = 0.0f;
+		uint32 Seed = 0x51ED270Bu;
+		for (const FRoadOctave& Octave : RoadOctaves)
+		{
+			const float Hz = SpeedMps / Octave.WavelengthM;
+			const float Audible = 1.0f - Ramp(Hz, 0.5f * Nyquist, 0.9f * Nyquist);
+			if (Audible > 0.0f)
+			{
+				const double X = StationM / Octave.WavelengthM;
+				Tug += Octave.Weight * Audible * 0.5f * (ValueNoise(X, Seed) - ValueNoise(X, Seed ^ 0xA5A5A5A5u));
+			}
+			Seed = Seed * 747796405u + 2891336453u;
+		}
+		return Tug;
+	}
 }
 
 namespace ApexFfb
@@ -214,6 +347,11 @@ namespace ApexFfb
 		Signals.Gear = Gear;
 		// The wire has the server's steering sign, positive to the left.
 		Signals.SteerTorque = Feedback.SteerTorque.Num() > 0 ? -Feedback.SteerTorque.Last() : 0.0f;
+		Signals.ServerSteer = -Feedback.SteerInput;
+		Signals.SteerStiffness = Feedback.SteerStiffness;
+		Signals.FrontLoad = FMath::Max(0.0f, Feedback.FrontLoad);
+		Signals.FrontBrakeSlip = FMath::Max(
+			Ramp(-Wheels[W::FrontLeft].SlipRatio, 0.5f, 1.0f), Ramp(-Wheels[W::FrontRight].SlipRatio, 0.5f, 1.0f));
 
 		Signals.FrontSlide = FMath::Max(Slide(Wheels[W::FrontLeft].SlipAngle), Slide(Wheels[W::FrontRight].SlipAngle));
 		Signals.RearSlide = FMath::Max(Slide(Wheels[W::RearLeft].SlipAngle), Slide(Wheels[W::RearRight].SlipAngle));
@@ -381,7 +519,8 @@ namespace ApexFfb
 		}
 
 		// A car arriving standing still: the start of a session, the garage.
-		if (Signals.bActive && !State.bWasActive && Signals.SpeedMps < CentreStartMaxSpeedMps)
+		const bool bArriving = Signals.bActive && !State.bWasActive;
+		if (bArriving && Signals.SpeedMps < CentreStartMaxSpeedMps)
 		{
 			RequestCentre(State);
 		}
@@ -423,7 +562,65 @@ namespace ApexFfb
 		// car it runs down to nothing rather than being dropped, which would be
 		// a wheel let go of mid-corner.
 		const float Target = Signals.bActive ? Signals.SteerTorque : 0.0f;
-		State.Torque = FMath::Lerp(State.Torque, Target, 1.0f - FMath::Exp(-Dt / WheelTorqueSmoothingSeconds));
+		const float Smoothing = 1.0f - FMath::Exp(-Dt / WheelTorqueSmoothingSeconds);
+		State.Torque = FMath::Lerp(State.Torque, Target, Smoothing);
+		if (bArriving)
+		{
+			State.ServerSteer = Signals.ServerSteer;
+			State.Stiffness = Signals.SteerStiffness;
+		}
+		else if (Signals.bActive)
+		{
+			State.ServerSteer = FMath::Lerp(State.ServerSteer, Signals.ServerSteer, Smoothing);
+			State.Stiffness = FMath::Lerp(State.Stiffness, Signals.SteerStiffness, Smoothing);
+		}
+		else
+		{
+			State.Stiffness = FMath::Lerp(State.Stiffness, 0.0f, Smoothing);
+		}
+
+		// The torque at the rim's position now: the server's sample, plus its
+		// slope times how far the input has moved since the sample was taken.
+		// Only a slope that pushes back is carried: past the aligning crest the
+		// slope pulls the rim on the way it is going, which the car answers by
+		// sliding further, and without the car in the loop that is a force
+		// that feeds itself. The server's own samples still show the rim going
+		// light, a round trip later.
+		State.Correction = 0.0f;
+		if (Signals.bActive && Signals.bHasLocalSteer)
+		{
+			const float Moved = FMath::Clamp(Signals.LocalSteer - State.ServerSteer, -MaxCorrectionInput, MaxCorrectionInput);
+			State.Correction = FMath::Min(State.Stiffness, 0.0f) * Moved
+				* Ramp(Signals.SpeedMps, CorrectionFromMps, CorrectionFullMps);
+		}
+
+		// The road under the fronts, read where the car is on the lap; with no
+		// place on the lap there is no road to read.
+		State.Road = 0.0f;
+		if (Signals.bActive && Signals.bHasStation)
+		{
+			if (!State.bHaveStation || FMath::Abs(Signals.StationM - State.RoadStation) > RoadStationSnapM)
+			{
+				State.RoadStation = Signals.StationM;
+			}
+			else if (Signals.StationM != State.LastStationSample)
+			{
+				State.RoadStation += RoadStationPull * (Signals.StationM - State.RoadStation);
+			}
+			State.LastStationSample = Signals.StationM;
+			State.bHaveStation = true;
+			State.RoadStation += Signals.SpeedMps * Dt;
+
+			const float Load = FMath::Pow(FMath::Clamp(Signals.FrontLoad, 0.0f, 3.0f), RoadLoadExponent);
+			const float Rough = 1.0f + (OffTrackRoughness - 1.0f) * Signals.OffTrack;
+			State.Road = RoadTextureForce * 2.0f * FMath::Clamp(Tuning.RoadEffects, 0.0f, 1.0f)
+				* Ramp(Signals.SpeedMps, 0.0f, RoadTextureFullMps) * Load * Rough
+				* RoadTug(State.RoadStation, Signals.SpeedMps, Dt);
+		}
+		else
+		{
+			State.bHaveStation = false;
+		}
 
 		FApexWheelEffects Out;
 		// The centring and the stop are not the car's: they follow the Force
@@ -450,8 +647,25 @@ namespace ApexFfb
 		}
 
 		// A hit is not smoothed: its edge is what makes it a hit.
-		const float Torque = SoftLimit((State.Torque + State.SteerKick) * 2.0f * FMath::Clamp(Tuning.Force, 0.0f, 1.0f) * WheelTorqueReference);
-		const float Force = FMath::Clamp(Torque + Centring + Stop, -1.0f, 1.0f);
+		// The stiffness limit: where the tyres' slope would make the rim
+		// stiffer than the loop can hold, the whole torque comes down with it.
+		// Only a steep slope is touched (a fast straight, heavy braking); near
+		// the grip limit the slope is small and a corner keeps its weight.
+		const float Gain = 2.0f * FMath::Clamp(Tuning.Force, 0.0f, 1.0f) * WheelTorqueReference;
+		float Limit = 1.0f;
+		if (Tuning.RimDegreesPerInput > 0.0f)
+		{
+			const float PerDegree = Gain * FMath::Max(-State.Stiffness, 0.0f) / Tuning.RimDegreesPerInput;
+			if (PerDegree > MaxRimStiffnessPerDeg)
+			{
+				Limit = MaxRimStiffnessPerDeg / PerDegree;
+			}
+		}
+		State.StiffnessLimit = Limit;
+		const float Torque = SoftLimit((State.Torque + State.Correction + State.SteerKick) * Gain * Limit);
+		// The road rides on top of the soft limit, so a corner that has the
+		// torque near the base's peak still has a road under it.
+		const float Force = FMath::Clamp(Torque + State.Road + Centring + Stop, -1.0f, 1.0f);
 		Out.Constant = Tuning.bInvert ? -Force : Force;
 
 		if (Signals.bActive)
@@ -527,6 +741,9 @@ namespace ApexFfb
 			{
 				Louder(0.2f, TractionPulseHz);
 			}
+			// The fronts working toward their limit under braking: the grain a
+			// driver brakes by, before anything locks.
+			Louder(BrakeGrainAmplitude * Signals.FrontBrakeSlip * Road, BrakeGrainHz);
 			// A locked or spinning tyre judders faster than the road does.
 			Louder(0.3f * Signals.Lockup, 45.0f);
 			Louder(0.2f * Signals.Wheelspin, 32.0f);
@@ -542,11 +759,18 @@ namespace ApexFfb
 
 		// Heavy at a standstill, where a real car's steering is heavy and where
 		// a wheel with nothing to push against would otherwise spin freely. At
-		// speed only a trace, to keep a direct drive base from oscillating on
-		// the torque's network delay: a damper resists the rim's speed whatever
-		// the tyres are doing, so it reads as a heavy wheel, not as cornering.
+		// speed a third of it, which keeps the rim from swinging on the
+		// torque's network delay without reading as a heavy wheel.
 		const float Parked = 1.0f - Ramp(Signals.SpeedMps, 0.0f, WheelDamperFullSpeedMps);
-		Out.Damper = FMath::Clamp(Tuning.Damping, 0.0f, 1.0f) * (0.15f + 0.85f * Parked);
+		Out.Damper = FMath::Clamp(Tuning.Damping, 0.0f, 1.0f) * (0.35f + 0.65f * Parked);
+		// While driving, never less than a share of the force: the rim of a
+		// belt base has almost no friction of its own, and this is what stops
+		// it overshooting the centre (measured: 8.6 degrees at 0.05, 4.5 at
+		// 0.3, let go at 50 m/s).
+		if (Signals.bActive)
+		{
+			Out.Damper = FMath::Max(Out.Damper, MinDriveDamper * Strength);
+		}
 		if (bPastLock)
 		{
 			Out.Damper = FMath::Max(Out.Damper, Strength * SoftLockDamper);

@@ -360,7 +360,10 @@ async fn handle_create_session(
     // Add host to the actual game session
     // The record store is cloned out first: the session below borrows
     // `state_write` mutably for the rest of the join.
-    let livery = state_write.lobby.get_player_livery(conn_info.player_id).await;
+    let livery = state_write
+        .lobby
+        .get_player_livery(conn_info.player_id)
+        .await;
     let records = state_write.records.clone();
     let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
         warn!("Session {} not found in sessions map", session_id);
@@ -496,7 +499,10 @@ async fn handle_join_session(
 
     // Get player's selected car
     let selected_car = state_write.lobby.get_player_car(conn_info.player_id).await;
-    let livery = state_write.lobby.get_player_livery(conn_info.player_id).await;
+    let livery = state_write
+        .lobby
+        .get_player_livery(conn_info.player_id)
+        .await;
 
     let joined = state_write
         .lobby

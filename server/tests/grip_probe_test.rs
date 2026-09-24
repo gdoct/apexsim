@@ -344,7 +344,7 @@ fn steering_feel_probe() {
         "{} max lock {:.2} rad",
         config.name, config.max_steering_angle_rad
     );
-    for speed in [15.0f32, 30.0, 50.0] {
+    for speed in [3.0f32, 15.0, 30.0, 50.0] {
         let mut state = fresh(&config, 0.0, 0.0, 0.0, speed, 3);
         state.steering_assist = false;
         let mut next_print = 0.0f32;
@@ -362,13 +362,40 @@ fn steering_feel_probe() {
                 let front = fb.slip_angle[0].abs().max(fb.slip_angle[1].abs());
                 let rear = fb.slip_angle[2].abs().max(fb.slip_angle[3].abs());
                 println!(
-                    "v={:>4.1} steer {:.2}  lat {:>5.2} g  front n {:>4.2}  rear n {:>4.2}  torque {:>6.3}  loads FL {:>5.0} FR {:>5.0}",
+                    "v={:>4.1} steer {:.2}  lat {:>5.2} g  front n {:>4.2}  rear n {:>4.2}  torque {:>6.3}  slope {:>7.2}  front load {:>4.2}",
                     state.speed_mps, steer, state.g_forces.lateral_g, front, rear,
                     fb.steer_torque.last().copied().unwrap_or(0.0),
-                    state.weight_front_left_n, state.weight_front_right_n
+                    fb.steer_stiffness, fb.front_load
                 );
             }
         }
         println!();
+    }
+
+    // Straight-line braking from 60 m/s: the load the fronts take on, and
+    // what that does to the slope a driver feels when moving the rim.
+    let mut state = fresh(&config, 0.0, 0.0, 0.0, 60.0, 5);
+    state.steering_assist = false;
+    let mut next_print = 60.0f32;
+    for _ in 0..(240 * 6) {
+        let input = PlayerInputData {
+            brake: 1.0,
+            steering: 0.01,
+            ..Default::default()
+        };
+        update_car_3d(&mut state, &config, &input, &track, DT);
+        let fb = state.feedback.take(0);
+        if state.speed_mps <= next_print {
+            next_print -= 5.0;
+            println!(
+                "brake v={:>4.1}  long {:>5.2} g  front ratio {:>5.2}  torque {:>6.3}  slope {:>7.2}  front load {:>4.2}  abs {}",
+                state.speed_mps, state.g_forces.longitudinal_g, fb.slip_ratio[0],
+                fb.steer_torque.last().copied().unwrap_or(0.0),
+                fb.steer_stiffness, fb.front_load, fb.abs_active
+            );
+        }
+        if state.speed_mps < 5.0 {
+            break;
+        }
     }
 }

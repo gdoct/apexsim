@@ -46,6 +46,15 @@ pub struct FeedbackTick {
     /// Steering-column torque as a fraction of the car's reference (see
     /// `physics::steering_column_torque`). Positive turns the wheel left.
     pub steer_torque: f32,
+    /// The driver's steering input the torque was worked out at, -1..1,
+    /// positive left.
+    pub steer_input: f32,
+    /// How the torque changes per unit of steering input around it (see
+    /// `physics::steering_column_stiffness`).
+    pub steer_stiffness: f32,
+    /// Load on the front axle over its static share of the car's weight:
+    /// above 1 under braking and with downforce, below it under power.
+    pub front_load: f32,
     /// Longitudinal slip as a multiple of the tyre's peak slip ratio; negative
     /// under braking. Beyond ±1 the tyre is past its grip.
     pub slip_ratio: [f32; 4],
@@ -74,6 +83,9 @@ pub struct FeedbackAccumulator {
     tc_active: bool,
     impact_mps: f32,
     steer_kick: f32,
+    steer_input: f32,
+    steer_stiffness: f32,
+    front_load: f32,
 }
 
 impl Default for FeedbackAccumulator {
@@ -89,6 +101,9 @@ impl Default for FeedbackAccumulator {
             tc_active: false,
             impact_mps: 0.0,
             steer_kick: 0.0,
+            steer_input: 0.0,
+            steer_stiffness: 0.0,
+            front_load: 1.0,
         }
     }
 }
@@ -118,6 +133,11 @@ impl FeedbackAccumulator {
         }
         self.steer_torque[self.steer_len] = finite_or_zero(tick.steer_torque);
         self.steer_len += 1;
+        // These go with the newest torque sample, which is what the client
+        // corrects from.
+        self.steer_input = finite_or_zero(tick.steer_input);
+        self.steer_stiffness = finite_or_zero(tick.steer_stiffness);
+        self.front_load = finite_or_zero(tick.front_load).max(0.0);
 
         for wheel in 0..4 {
             let clamp = |v: f32| finite_or_zero(v).clamp(-MAX_NORMALIZED_SLIP, MAX_NORMALIZED_SLIP);
@@ -159,6 +179,9 @@ impl FeedbackAccumulator {
             tc_active: self.tc_active,
             impact_mps: self.impact_mps,
             steer_kick: self.steer_kick,
+            steer_input: self.steer_input,
+            steer_stiffness: self.steer_stiffness,
+            front_load: self.front_load,
         };
         *self = Self::default();
         message
@@ -203,8 +226,25 @@ pub struct DriverFeedback {
     /// interval, in `steer_torque`'s units and sign; 0 when there was none.
     /// A contact lasts a tick, so it would be lost among the torque samples:
     /// it comes separately and the client plays it as a decaying kick on top
-    /// of the torque. Appended last, so an older client skips it.
+    /// of the torque. Appended after the fields above, so an older client
+    /// skips it.
     pub steer_kick: f32,
+    /// The steering input the newest torque sample was worked out at, -1..1,
+    /// positive left (the input the server applied, not the rim's angle
+    /// now). Appended.
+    pub steer_input: f32,
+    /// How the torque changes per unit of steering input around
+    /// `steer_input`, in `steer_torque`'s units and sign: negative while the
+    /// fronts grip (turn further left, the rim pushes harder right), about
+    /// zero at the aligning torque's crest, positive past it. A wheel adds
+    /// `steer_stiffness * (input now - steer_input)` to the newest torque,
+    /// so the rim answers its own movement without waiting a round trip for
+    /// the server. Appended.
+    pub steer_stiffness: f32,
+    /// Front axle load over its static share, at the newest sample: above 1
+    /// under braking and with downforce. A wheel scales the road's texture by
+    /// it, as a loaded tyre passes more of the road up the column. Appended.
+    pub front_load: f32,
 }
 
 #[cfg(test)]

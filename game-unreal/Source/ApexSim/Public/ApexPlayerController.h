@@ -37,6 +37,26 @@ struct APEXSIM_API FApexDriveInput
 };
 
 /**
+ * What the wheel was asked for while driving, summed over a window and
+ * logged when it closes: the one record of how hard the base was driven
+ * that a test session leaves behind, which "it feels weak" can be read
+ * against.
+ */
+struct FApexWheelForceStats
+{
+	double Seconds = 0.0;
+	double SumTorque = 0.0;
+	double SumConstant = 0.0;
+	double SumCorrection = 0.0;
+	double SumRoad = 0.0;
+	double SumLimit = 0.0;
+	double SumVibration = 0.0;
+	double SaturatedSeconds = 0.0;
+	float PeakConstant = 0.0f;
+	float PeakTorque = 0.0f;
+};
+
+/**
  * Owns the driving controls.
  *
  * The menu shell has no pawn, so the controller is where input lives. It
@@ -169,4 +189,7 @@ private:
 	float FeedbackPreviewSeconds = 0.0f;
 	/** Counts down while the Wheel page's test force is pushing. */
 	float WheelTestSeconds = 0.0f;
+
+	FApexWheelForceStats WheelStats;
+	void AccumulateWheelStats(const ApexFfb::FSignals& Signals, const FApexWheelEffects& Effects, float DeltaSeconds);
 };

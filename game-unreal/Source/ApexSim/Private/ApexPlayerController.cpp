@@ -36,6 +36,11 @@ namespace
 	constexpr float kWheelTestSeconds = 0.7f;
 	constexpr float kWheelTestForce = 0.35f;
 
+	/** Driving seconds summed into each line of the wheel's force log. */
+	constexpr double kWheelStatsWindowSeconds = 15.0;
+	/** A constant force this near the base's peak is at its limit. */
+	constexpr float kWheelSaturated = 0.95f;
+
 	TAutoConsoleVariable<bool> CVarFeedbackDebug(
 		TEXT("apexsim.ffb.Debug"),
 		false,
@@ -258,17 +263,28 @@ ApexFfb::FSignals AApexPlayerController::ReadDrivingSignals()
 		// Speed and gear are telemetry's; the feedback carries only what it adds.
 		float SpeedMps = 0.0f;
 		int32 Gear = 0;
+		const FApexCarTelemetry* Local = nullptr;
 		const int32 CarIndex = Net->GetLocalCarIndex();
 		for (const FApexCarTelemetry& Car : Net->GetLatestTelemetry().Cars)
 		{
 			if (Car.CarIndex == CarIndex)
 			{
+				Local = &Car;
 				SpeedMps = Car.SpeedMps;
 				Gear = Car.Gear;
 				break;
 			}
 		}
 		Signals = ApexFfb::MakeSignals(Net->GetDriverFeedback(), SpeedMps, Gear, bNewMessage);
+		// What is being sent this frame, which the server's torque is a round
+		// trip behind (ApexRaceDirector sends the server -Steer).
+		Signals.bHasLocalSteer = true;
+		Signals.LocalSteer = DriveInput.Steer;
+		if (Local)
+		{
+			Signals.bHasStation = true;
+			Signals.StationM = Local->TrackProgress;
+		}
 	}
 	return Signals;
 }
@@ -303,6 +319,7 @@ void AApexPlayerController::TickWheelFeedback(const ApexFfb::FSignals& Signals, 
 	const float Scale = Settings->GetWheelSteeringScale();
 	const float Rotation = FMath::Clamp(Values->WheelRotationDeg, ApexInput::WheelRotationMinDeg, ApexInput::WheelRotationMaxDeg);
 	Tuning.SteeringLockDeg = Scale > 1.001f ? Rotation / Scale : 0.0f;
+	Tuning.RimDegreesPerInput = 0.5f * Rotation / FMath::Max(Scale, 1.0f);
 
 	// Where the rim is, for centring it and for the stop: the device's own
 	// reading, which the server never sees.
@@ -329,6 +346,44 @@ void AApexPlayerController::TickWheelFeedback(const ApexFfb::FSignals& Signals, 
 
 	LastWheelEffects = Effects;
 	Input->SetWheelEffects(Slot, Effects);
+	AccumulateWheelStats(WheelSignals, Effects, DeltaSeconds);
+}
+
+void AApexPlayerController::AccumulateWheelStats(
+	const ApexFfb::FSignals& Signals, const FApexWheelEffects& Effects, float DeltaSeconds)
+{
+	if (!Signals.bActive || Signals.SpeedMps < 5.0f || DeltaSeconds <= 0.0f)
+	{
+		return;
+	}
+	FApexWheelForceStats& S = WheelStats;
+	const double Dt = DeltaSeconds;
+	S.Seconds += Dt;
+	S.SumTorque += FMath::Abs(Signals.SteerTorque) * Dt;
+	S.SumConstant += FMath::Abs(Effects.Constant) * Dt;
+	S.SumCorrection += FMath::Abs(WheelState.Correction) * Dt;
+	S.SumRoad += FMath::Abs(WheelState.Road) * Dt;
+	S.SumLimit += WheelState.StiffnessLimit * Dt;
+	S.SumVibration += Effects.VibrationAmplitude * Dt;
+	S.SaturatedSeconds += FMath::Abs(Effects.Constant) >= kWheelSaturated ? Dt : 0.0;
+	S.PeakConstant = FMath::Max(S.PeakConstant, FMath::Abs(Effects.Constant));
+	S.PeakTorque = FMath::Max(S.PeakTorque, FMath::Abs(Signals.SteerTorque));
+
+	if (S.Seconds >= kWheelStatsWindowSeconds)
+	{
+		const UApexSettingsSubsystem* Settings = GetSettings();
+		const UApexSettingsSave* Values = Settings ? Settings->Get() : nullptr;
+		UE_LOG(LogApexSim, Log,
+			TEXT("Wheel forces over %.0f s driving: torque |mean| %.2f peak %.2f -> constant |mean| %.2f peak %.2f, ")
+			TEXT("at the base's limit %.0f%% of the time; rim correction |mean| %.3f, stiffness limit mean %.2f, road |mean| %.3f, vibration mean %.2f ")
+			TEXT("(force %.2f, road %.2f, damping %.2f, invert %d)"),
+			S.Seconds, S.SumTorque / S.Seconds, S.PeakTorque, S.SumConstant / S.Seconds, S.PeakConstant,
+			100.0 * S.SaturatedSeconds / S.Seconds, S.SumCorrection / S.Seconds, S.SumLimit / S.Seconds, S.SumRoad / S.Seconds,
+			S.SumVibration / S.Seconds,
+			Values ? Values->WheelForce : -1.0f, Values ? Values->WheelRoadEffects : -1.0f,
+			Values ? Values->WheelDamping : -1.0f, Values && Values->bWheelInvertForce ? 1 : 0);
+		S = FApexWheelForceStats();
+	}
 }
 
 ApexFfb::FRumble AApexPlayerController::TickDrivingFeedback(const ApexFfb::FSignals& Signals, float DeltaSeconds)
@@ -354,14 +409,17 @@ ApexFfb::FRumble AApexPlayerController::TickDrivingFeedback(const ApexFfb::FSign
 			FString::Printf(TEXT("FFB %s  gain %.2f  low %.2f  high %.2f\n")
 				TEXT("  speed %.1f  torque %+.2f  front %.2f  rear %.2f  lock %.2f  spin %.2f  abs %d  tc %d\n")
 				TEXT("  curb L %.1f R %.1f  off %.2f  bump %.2f  impact %.1f\n")
-				TEXT("  wheel %s  force %+.2f  vibration %.2f @ %.0f Hz  damper %.2f  spring %.2f"),
+				TEXT("  wheel %s  force %+.2f  vibration %.2f @ %.0f Hz  damper %.2f  spring %.2f\n")
+				TEXT("  rim correction %+.3f (slope %+.1f, input %+.3f vs server %+.3f)  road %+.3f  front load %.2f  brake slip %.2f  station %.0f"),
 				Signals.bActive ? TEXT("live") : TEXT("idle"), Gain, Rumble.Low, Rumble.High,
 				Signals.SpeedMps, Signals.SteerTorque, Signals.FrontSlide, Signals.RearSlide,
 				Signals.Lockup, Signals.Wheelspin, Signals.bAbs ? 1 : 0, Signals.bTractionControl ? 1 : 0,
 				Signals.CurbLeft, Signals.CurbRight, Signals.OffTrack, Signals.BumpMps, Signals.ImpactMps,
 				WheelSlot == INDEX_NONE ? TEXT("none") : *FString::Printf(TEXT("device %d"), WheelSlot + 1),
 				LastWheelEffects.Constant, LastWheelEffects.VibrationAmplitude, LastWheelEffects.VibrationHz,
-				LastWheelEffects.Damper, LastWheelEffects.Spring));
+				LastWheelEffects.Damper, LastWheelEffects.Spring,
+				WheelState.Correction, WheelState.Stiffness, Signals.LocalSteer, WheelState.ServerSteer, WheelState.Road,
+				Signals.FrontLoad, Signals.FrontBrakeSlip, WheelState.RoadStation));
 	}
 
 	return Rumble;

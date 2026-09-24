@@ -138,7 +138,13 @@ impl LobbyManager {
 
     /// The livery a player picked, 0 when none.
     pub async fn get_player_livery(&self, player_id: PlayerId) -> u8 {
-        self.state.read().await.liveries.get(&player_id).copied().unwrap_or(0)
+        self.state
+            .read()
+            .await
+            .liveries
+            .get(&player_id)
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Get a player's selected car

@@ -49,6 +49,44 @@ namespace ApexFfb
 		 */
 		float SteerTorque = 0.0f;
 
+		/**
+		 * How SteerTorque changes per unit of steering input (full lock is 1)
+		 * around ServerSteer: negative while the fronts grip, positive past the
+		 * aligning crest, 0 from a server that does not send it. The same in
+		 * either sign convention, since the torque and the input both flip.
+		 */
+		float SteerStiffness = 0.0f;
+
+		/** The steering input SteerTorque was worked out at, SCREEN sign (positive right). */
+		float ServerSteer = 0.0f;
+
+		/**
+		 * The steering input being sent to the server now, SCREEN sign; only
+		 * meaningful with bHasLocalSteer. Filled by the caller, like the rim:
+		 * the torque is a round trip old, and the difference between this and
+		 * ServerSteer is how far the rim has moved since.
+		 */
+		bool bHasLocalSteer = false;
+		float LocalSteer = 0.0f;
+
+		/** Front axle load over its static share: 1 cruising, about 2 under hard braking in a downforce car. */
+		float FrontLoad = 1.0f;
+
+		/**
+		 * The front tyres' braking slip on its way to their peak: 0 below half
+		 * the peak slip ratio, 1 at it, which is where ABS holds a wheel.
+		 */
+		float FrontBrakeSlip = 0.0f;
+
+		/**
+		 * Where the car is round the lap, metres of centerline from the line;
+		 * only meaningful with bHasStation. Filled by the caller from
+		 * telemetry. The road's texture is laid along it, so a bump is in the
+		 * same place every lap.
+		 */
+		bool bHasStation = false;
+		float StationM = 0.0f;
+
 		/** The front tyres past their grip (understeer): 0 gripping, 1 well past the peak. */
 		float FrontSlide = 0.0f;
 
@@ -156,6 +194,14 @@ namespace ApexFfb
 		 * lock is the base's whole rotation, whose own end stops do the job.
 		 */
 		float SteeringLockDeg = 0.0f;
+
+		/**
+		 * Rim degrees for one unit of steering input (full lock one way): half
+		 * the base's rotation over the steering-lock gain. What turns the
+		 * torque's slope per unit of input into a stiffness per rim degree for
+		 * the stiffness limit; 0 leaves the limit off.
+		 */
+		float RimDegreesPerInput = 0.0f;
 	};
 
 	/** The smoothed torque and the decaying hits, carried from frame to frame. */
@@ -169,6 +215,32 @@ namespace ApexFfb
 		 * drive base, where the same steps are invisible to a rumble motor.
 		 */
 		float Torque = 0.0f;
+
+		/**
+		 * The steering input the torque was worked out at and the torque's
+		 * slope around it, smoothed with the torque so the three step together.
+		 */
+		float ServerSteer = 0.0f;
+		float Stiffness = 0.0f;
+
+		/**
+		 * What the rim's movement since the server's sample adds to the torque
+		 * (see MixWheel), and the road texture; kept for the debug readout.
+		 */
+		float Correction = 0.0f;
+		float Road = 0.0f;
+
+		/** The stiffness limit's scale on the torque, 1 when it is not acting; for the debug readout and the log. */
+		float StiffnessLimit = 1.0f;
+
+		/**
+		 * Where the road texture is being read, metres round the lap: run on
+		 * by the car's speed every frame and pulled toward the telemetry's
+		 * station as it arrives, so it is smooth between the 60 Hz samples.
+		 */
+		float RoadStation = 0.0f;
+		float LastStationSample = 0.0f;
+		bool bHaveStation = false;
 
 		/** Decaying hits: a landing, a collision, a gear change. */
 		float Bump = 0.0f;
@@ -216,7 +288,14 @@ namespace ApexFfb
 	/**
 	 * One frame of forces for a wheelbase.
 	 *
-	 * The torque is the signal; everything else is texture. A device plays one
+	 * The torque is the signal; everything else is texture. The server's
+	 * torque is a network round trip old, so it is corrected for where the
+	 * rim is now by its slope (SteerStiffness): the rim answers its own
+	 * movement at once, and a rim let go of in a corner swings back to where
+	 * the tyres want it rather than holding still for a few hundredths and
+	 * then jumping. The road's texture rides on the constant force, laid
+	 * along the lap and heavier with load on the front axle, so a loaded
+	 * front under braking passes more of the road up the column. A device plays one
 	 * vibration at a time, so the loudest of the road's voices — curb ribs,
 	 * grass, an ABS pulse train, a hit — takes the channel, which is also how
 	 * it feels in a car: the loudest thing is what comes through the rim.

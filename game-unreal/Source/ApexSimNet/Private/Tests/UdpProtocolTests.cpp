@@ -188,11 +188,27 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("TC idle"), Feedback.bTcActive);
 			TestEqual(TEXT("impact"), Feedback.ImpactMps, 4.5f);
 			TestEqual(TEXT("steering kick"), Feedback.SteerKick, -1.5f);
+			TestEqual(TEXT("steering input"), Feedback.SteerInput, 0.25f);
+			TestEqual(TEXT("column stiffness"), Feedback.SteerStiffness, -4.0f);
+			TestEqual(TEXT("front load"), Feedback.FrontLoad, 1.5f);
+		}
+
+		// A server from before the stiffness sends ten fields: the kick, and
+		// no prediction (a flat slope, a statically loaded front).
+		TArray<uint8> TenFields(ApexUdpGolden::S_DriverFeedback, UE_ARRAY_COUNT(ApexUdpGolden::S_DriverFeedback) - 15);
+		TenFields[16] = 0x9A;
+		FApexServerMessage Ten;
+		if (TestTrue(FString::Printf(TEXT("ten-field DriverFeedback decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(TenFields, Ten, Error)))
+		{
+			TestEqual(TEXT("ten-field kick"), Ten.DriverFeedback.SteerKick, -1.5f);
+			TestEqual(TEXT("no slope from an older server"), Ten.DriverFeedback.SteerStiffness, 0.0f);
+			TestEqual(TEXT("static front load from an older server"), Ten.DriverFeedback.FrontLoad, 1.0f);
 		}
 
 		// A server from before the kick sends nine fields: still a message,
 		// with no kick in it.
-		TArray<uint8> NineFields(ApexUdpGolden::S_DriverFeedback, UE_ARRAY_COUNT(ApexUdpGolden::S_DriverFeedback) - 5);
+		TArray<uint8> NineFields(ApexUdpGolden::S_DriverFeedback, UE_ARRAY_COUNT(ApexUdpGolden::S_DriverFeedback) - 20);
 		NineFields[16] = 0x99;
 		FApexServerMessage Older;
 		if (TestTrue(FString::Printf(TEXT("nine-field DriverFeedback decodes (%s)"), *Error),
