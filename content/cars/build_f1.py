@@ -34,9 +34,9 @@ import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
 # ------------------------------------------------------------------ loading
-_ROOT = r"D:\apexsim"
-for _n, _p in (("apex", os.path.join(_ROOT, r"content\props\_tools\apex_props.py")),
-               ("carlib", os.path.join(_ROOT, r"content\cars\carlib.py"))):
+_ROOT = os.environ.get("APEXSIM_ROOT", r"D:\apexsim")
+for _n, _p in (("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py")),
+               ("carlib", os.path.join(_ROOT, "content", "cars", "carlib.py"))):
     _s = importlib.util.spec_from_file_location(_n, _p)
     _m = importlib.util.module_from_spec(_s)
     sys.modules[_n] = _m

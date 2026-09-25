@@ -258,6 +258,14 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> BrakeLightMaterial;
 
+	/**
+	 * The mesh's `car_taillight` slot as a dynamic instance: the running
+	 * lights, lit all session (brighter by day, the running share by night).
+	 */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> TailLightMaterial;
+	FLinearColor TailLightColor = FLinearColor::Red;
+
 	/** A livery's instances are on the paint, accent and logo slots. */
 	bool bLiveryApplied = false;
 	/** The slot's authored emissive colour, scaled up when the lights are on. */

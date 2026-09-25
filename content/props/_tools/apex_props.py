@@ -17,7 +17,7 @@ Conventions (see docs/PROPS.md):
 import bpy, bmesh, math, os
 from mathutils import Vector
 
-PROPS_ROOT = r"D:\apexsim\content\props"
+PROPS_ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"D:\apexsim"), "content", "props")
 
 
 def reset_scene():

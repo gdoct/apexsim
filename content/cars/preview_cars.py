@@ -17,7 +17,7 @@ only; nothing beside the PNGs is written.
 import bpy, math, os, sys
 from mathutils import Vector
 
-ROOT = r"D:\apexsim\content"
+ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"D:\apexsim"), "content")
 OUT = os.path.join(ROOT, "props", "_preview", "cars")
 try:
     CARS
