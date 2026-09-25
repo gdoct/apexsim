@@ -3316,7 +3316,7 @@
       "asset": "lamp_post",
       "x": 197.05,
       "y": -234.92,
-      "z": -13.570354,
+      "z": -13.57,
       "yaw_rad": 0.1,
       "scale": 1.0,
       "text": null
@@ -3613,7 +3613,7 @@
       "asset": "marshal_post",
       "x": 18.34,
       "y": 4.49,
-      "z": -0.9785427,
+      "z": -0.98,
       "yaw_rad": -1.31,
       "scale": 1.0,
       "text": null
@@ -3811,7 +3811,7 @@
       "asset": "corner_sign",
       "x": 439.38,
       "y": -180.79,
-      "z": -17.341965,
+      "z": -17.34,
       "yaw_rad": 1.28,
       "scale": 1.0,
       "text": "Reta Oposta"
@@ -3965,7 +3965,7 @@
       "asset": "floodlight_tower",
       "x": 171.24,
       "y": -254.76,
-      "z": -12.493016,
+      "z": -12.49,
       "yaw_rad": 0.57,
       "scale": 1.0,
       "text": null

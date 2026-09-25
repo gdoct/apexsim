@@ -78,6 +78,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         inner_m: 1.5,
         width_m: 8.0,
         end_width_m: Some(20.0),
+        paint: None,
     });
     scene.surfaces.push(Surface {
         id: id(),
@@ -89,6 +90,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         inner_m: 0.0,
         width_m: 60.0,
         end_width_m: None,
+        paint: None,
     });
     scene.curbs.push(Curb {
         id: id(),
@@ -1382,6 +1384,47 @@ fn ground_tessellation_is_finest_beside_the_road() {
     }
     assert!(near_cells > 0, "no ground beside the road");
     assert!(ring_cells > 0, "no ground out in the ring");
+}
+
+/// A painted tarmac run-off is striped in its style's two colours, a
+/// stripe per `RUNOFF_STRIPE_M` across the band; bare tarmac and grass are
+/// never painted, and an unknown style is left bare.
+#[test]
+fn painted_runoff_is_striped_in_two_colours() {
+    let track = test_track();
+    let mut scene = AtsScene::new_for_track(&track, "Test.yaml");
+    let band = |id: u64, kind: SurfaceKind, paint: Option<&str>| Surface {
+        id,
+        kind,
+        side: Side::Left,
+        start_m: 20.0,
+        end_m: 120.0,
+        inner_m: 1.0,
+        width_m: 6.0,
+        end_width_m: None,
+        paint: paint.map(str::to_string),
+    };
+    scene.surfaces = vec![
+        band(1, SurfaceKind::AsphaltRunoff, Some("red_yellow")),
+        band(2, SurfaceKind::Grass, Some("red_yellow")),
+        band(3, SurfaceKind::AsphaltRunoff, Some("tartan")),
+    ];
+    let baked = ue_export::bake(&track, &scene).expect("bakes");
+    let stripes: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("marking_runoff_"))
+        .collect();
+    assert!(!stripes.is_empty(), "no stripes painted");
+    let colours: std::collections::BTreeSet<&str> =
+        stripes.iter().map(|m| m.material_key.as_str()).collect();
+    assert_eq!(colours.len(), 2, "two colours: {colours:?}");
+    let paints: Vec<&_> = baked
+        .materials
+        .iter()
+        .filter(|m| m.key.starts_with("marking_runoff_"))
+        .collect();
+    assert!(paints.iter().all(|m| m.family == "marking"));
 }
 
 /// A DRS zone in the track file becomes two painted lines across the road

@@ -235,6 +235,12 @@ pub struct Surface {
     /// areas are usually wedges, so the width is interpolated along the span.
     #[serde(default)]
     pub end_width_m: Option<f32>,
+    /// Paint on a tarmac run-off: stripes parallel to the road in the
+    /// style's two colours (`red_yellow` at Spa, `blue_white` at Yas
+    /// Marina, `blue_red`, `red_white`, `green_white`). `None` is bare
+    /// tarmac. Only an `asphalt_runoff` or `concrete` band is painted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paint: Option<String>,
 }
 
 impl Surface {

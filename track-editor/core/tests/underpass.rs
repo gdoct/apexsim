@@ -101,6 +101,7 @@ fn scene_with_dressing(track: &TrackFile, u: &Underpass) -> AtsScene {
                 inner_m: 1.5,
                 width_m: 40.0,
                 end_width_m: None,
+                paint: None,
             });
             id += 1;
         }

@@ -2603,6 +2603,7 @@ mod tests {
             inner_m: 1.0,
             width_m: 14.0,
             end_width_m: None,
+            paint: None,
         });
 
         let report = groom_props(&track, &mut scene).unwrap();

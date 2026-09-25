@@ -22004,7 +22004,7 @@
       "asset": "marshal_post",
       "x": 12.69,
       "y": 19.42,
-      "z": -0.5529846,
+      "z": -0.55,
       "yaw_rad": -0.65,
       "scale": 1.0,
       "text": null
@@ -22422,7 +22422,7 @@
       "asset": "corner_sign",
       "x": 253.72,
       "y": -165.56,
-      "z": 12.816961,
+      "z": 12.82,
       "yaw_rad": -0.65,
       "scale": 1.0,
       "text": "COTA Short Track"

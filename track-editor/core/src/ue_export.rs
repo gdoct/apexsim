@@ -145,6 +145,10 @@ const DRS_LINE_COLOR: [f32; 4] = [0.9, 0.9, 0.88, 1.0];
 const DRS_LINE_WIDTH_M: f32 = 0.4;
 /// A DRS board stands this far past the road edge.
 const DRS_BOARD_OFF_EDGE_M: f32 = 3.5;
+/// Painted run-off: the width of each stripe across the band, and the
+/// paint's lift over the tarmac it is on.
+const RUNOFF_STRIPE_M: f32 = 1.5;
+const RUNOFF_PAINT_LIFT_M: f32 = 0.012;
 /// Start/finish chequer and grid boxes sit a hair over the edge lines.
 const GRID_PAINT_LIFT_M: f32 = MARKING_LIFT_M + 0.005;
 /// Pit-lane lines ride on the lifted lane deck.
@@ -2230,6 +2234,16 @@ impl Bake<'_> {
             .ground
             .and_then(|field| band_reach_profile(field, path, surface));
         let steps = reach.as_ref().map_or(1, |r| r.len().max(2) - 1);
+        let reach_for_paint = reach.clone();
+        let spec_for_paint = spec.clone();
+        let width_at = std::rc::Rc::new(move |progress: f32| -> f32 {
+            let mut width = spec_for_paint.width_at(progress);
+            if let Some(reach) = &reach_for_paint {
+                let i = ((progress * steps as f32).round() as usize).min(steps);
+                width = width.min(reach[i]).max(0.01);
+            }
+            width
+        });
         self.strip(
             path,
             surface.start_m,
@@ -2253,6 +2267,54 @@ impl Bake<'_> {
             },
             |_, _, p| p.2,
         );
+
+        // Painted run-off: stripes parallel to the road across the band,
+        // each its own marking strip a hair above the tarmac, like the
+        // painted strip beside a curb.
+        let painted = matches!(
+            surface.kind,
+            crate::ats::SurfaceKind::AsphaltRunoff | crate::ats::SurfaceKind::Concrete
+        );
+        if let (true, Some(style)) = (painted, surface.paint.as_deref()) {
+            let Some(colours) = runoff_paint_colours(style) else {
+                return;
+            };
+            let widest = surface
+                .width_m
+                .max(surface.end_width_m.unwrap_or(surface.width_m));
+            let stripes = (widest / RUNOFF_STRIPE_M).ceil().max(1.0) as usize;
+            for k in 0..stripes {
+                let colour = colours[k % 2];
+                let stripe_key = format!("marking_runoff_{}", color_hex(colour));
+                self.register(&stripe_key, "marking", colour);
+                let width_at = std::rc::Rc::clone(&width_at);
+                self.strip(
+                    path,
+                    surface.start_m,
+                    surface.end_m,
+                    SURFACE_STEP_M,
+                    &stripe_key,
+                    move |sample, progress, out| {
+                        let (edge, outward) = match side {
+                            Side::Left => (sample.width_left_m, 1.0),
+                            Side::Right => (-sample.width_right_m, -1.0),
+                        };
+                        let width = width_at(progress);
+                        let from = (k as f32 * RUNOFF_STRIPE_M).min(width);
+                        let to = ((k + 1) as f32 * RUNOFF_STRIPE_M).min(width);
+                        out.push(ProfilePoint::grounded(
+                            edge + outward * (inner + from),
+                            lift + RUNOFF_PAINT_LIFT_M,
+                        ));
+                        out.push(ProfilePoint::grounded(
+                            edge + outward * (inner + to),
+                            lift + RUNOFF_PAINT_LIFT_M,
+                        ));
+                    },
+                    |_, _, p| p.2,
+                );
+            }
+        }
     }
 
     /// The world ground: the terrain heightfield as meshes, tiled so Unreal
@@ -3116,6 +3178,24 @@ fn bake_prop(p: &Prop, path: &CenterlinePath) -> UeProp {
         radius_m,
         span_m,
     }
+}
+
+/// The two colours of a painted run-off style, or `None` for a style the
+/// bake does not know (which is then left bare).
+pub fn runoff_paint_colours(style: &str) -> Option<[[f32; 4]; 2]> {
+    const RED: [f32; 4] = [0.72, 0.08, 0.06, 1.0];
+    const YELLOW: [f32; 4] = [0.9, 0.72, 0.05, 1.0];
+    const WHITE: [f32; 4] = [0.85, 0.85, 0.82, 1.0];
+    const BLUE: [f32; 4] = [0.05, 0.25, 0.7, 1.0];
+    const GREEN: [f32; 4] = [0.1, 0.5, 0.18, 1.0];
+    Some(match style {
+        "red_yellow" => [RED, YELLOW],
+        "red_white" => [RED, WHITE],
+        "blue_red" => [BLUE, RED],
+        "blue_white" => [BLUE, WHITE],
+        "green_white" => [GREEN, WHITE],
+        _ => return None,
+    })
 }
 
 /// DRS detection and activation lines across the road (`marking` family:

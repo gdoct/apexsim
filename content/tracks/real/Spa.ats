@@ -52,7 +52,8 @@
       "end_m": 482.77,
       "inner_m": 3.1,
       "width_m": 5.25,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 386,
@@ -132,7 +133,8 @@
       "end_m": 1129.22,
       "inner_m": 3.1,
       "width_m": 18.0,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 394,
@@ -172,7 +174,8 @@
       "end_m": 1290.74,
       "inner_m": 3.1,
       "width_m": 18.0,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 398,
@@ -212,7 +215,8 @@
       "end_m": 1372.39,
       "inner_m": 3.1,
       "width_m": 18.0,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 402,
@@ -252,7 +256,8 @@
       "end_m": 2515.21,
       "inner_m": 3.1,
       "width_m": 11.29,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 406,
@@ -292,7 +297,8 @@
       "end_m": 2596.87,
       "inner_m": 3.1,
       "width_m": 13.79,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 410,
@@ -332,7 +338,8 @@
       "end_m": 2753.4,
       "inner_m": 3.1,
       "width_m": 13.9,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 414,
@@ -372,7 +379,8 @@
       "end_m": 3218.02,
       "inner_m": 3.1,
       "width_m": 10.74,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 418,
@@ -412,7 +420,8 @@
       "end_m": 3404.57,
       "inner_m": 3.1,
       "width_m": 14.18,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 422,
@@ -452,7 +461,8 @@
       "end_m": 3959.33,
       "inner_m": 3.1,
       "width_m": 18.0,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 426,
@@ -492,7 +502,8 @@
       "end_m": 4210.77,
       "inner_m": 3.1,
       "width_m": 18.0,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 430,
@@ -532,7 +543,8 @@
       "end_m": 4652.16,
       "inner_m": 3.1,
       "width_m": 17.51,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 434,
@@ -572,7 +584,8 @@
       "end_m": 4788.69,
       "inner_m": 3.1,
       "width_m": 17.84,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 438,
@@ -612,7 +625,8 @@
       "end_m": 5056.8,
       "inner_m": 3.1,
       "width_m": 12.82,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 442,
@@ -652,7 +666,8 @@
       "end_m": 5298.33,
       "inner_m": 3.1,
       "width_m": 18.0,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 446,
@@ -732,7 +747,8 @@
       "end_m": 6306.21,
       "inner_m": 3.1,
       "width_m": 18.0,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 454,
@@ -772,7 +788,8 @@
       "end_m": 6829.16,
       "inner_m": 3.1,
       "width_m": 5.25,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 458,
@@ -812,7 +829,8 @@
       "end_m": 6890.69,
       "inner_m": 3.1,
       "width_m": 5.33,
-      "end_width_m": null
+      "end_width_m": null,
+      "paint": "red_yellow"
     },
     {
       "id": 462,
@@ -35017,7 +35035,7 @@
       "asset": "floodlight_tower",
       "x": 117.69,
       "y": -130.41,
-      "z": -3.3354905,
+      "z": -3.34,
       "yaw_rad": 1.94,
       "scale": 1.0,
       "text": null
