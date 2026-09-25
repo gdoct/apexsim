@@ -39,6 +39,18 @@ pub const VANGRAIL_ASSETS: [&str; 4] = [
 pub const VANGRAIL_TRIPLE_RADIUS_M: f32 = 400.0;
 
 impl Rail {
+    /// The barrier the style lays for what the decision chose. The
+    /// Nordschleife has almost no energy-absorbing blocks: where a modern
+    /// circuit's short run-off would get Tecpro it has guard rail, with
+    /// tyre stacks kept for the tightest corners.
+    pub fn barrier(self, kind: crate::barriers::BarrierKind) -> crate::barriers::BarrierKind {
+        use crate::barriers::BarrierKind;
+        match (self, kind) {
+            (Rail::Vangrail, BarrierKind::Tecpro) => BarrierKind::Armco,
+            (_, kind) => kind,
+        }
+    }
+
     /// The asset the barrier pass lays for a kit key, on a stretch whose
     /// tightest radius is `radius_m`. Non-rail keys pass through.
     pub fn asset(self, kit_asset: &'static str, radius_m: f32) -> &'static str {
@@ -92,6 +104,15 @@ pub struct CircuitStyle {
     pub hoardings: bool,
     pub trees: TreeBelt,
     pub signs: RoadSigns,
+    /// A ring of floodlight towers when the dossier maps no lighting of
+    /// its own (`dress`), so a night session is not lit by headlights
+    /// alone. The Nordschleife has none: its 24 hours run in the dark.
+    pub floodlights: bool,
+    /// A pit lane at all. The Nordschleife's own lap has none: the lane
+    /// OSM maps at T13 merges into the road across the start area, and
+    /// the walls the bake stands along it stood on the racing line (the
+    /// endurance races pit in the GP paddock).
+    pub pit_lane: bool,
 }
 
 impl CircuitStyle {
@@ -109,6 +130,8 @@ impl CircuitStyle {
             empty_share: 0.10,
         },
         signs: RoadSigns::BrakingBoards,
+        floodlights: true,
+        pit_lane: true,
     };
 
     /// The Nordschleife: guard rail close to a narrow road, forest right
@@ -126,6 +149,8 @@ impl CircuitStyle {
             empty_share: 0.0,
         },
         signs: RoadSigns::German,
+        floodlights: false,
+        pit_lane: false,
     };
 
     /// The style of the circuit a scene decorates, by its source track's
