@@ -417,6 +417,55 @@ def plaster(seed=53, rgb=(0.92, 0.9, 0.84), stains=0.2):
     return concrete(seed, rgb=rgb, stains=stains, form_lines=False)
 
 
+def _voronoi_edges(seed, cells, size=SIZE):
+    """Tileable distance to the nearest Voronoi cell border (in texels
+    of a unit tile), for `cells` random sites: small along the seams."""
+    rng = np.random.default_rng(seed)
+    sites = rng.random((cells, 2))
+    X, Y = grid(size)
+    d1 = np.full((size, size), 9.0)
+    d2 = np.full((size, size), 9.0)
+    for sx, sy in sites:
+        dx = np.abs(X - sx); dx = np.minimum(dx, 1 - dx)
+        dy = np.abs(Y - sy); dy = np.minimum(dy, 1 - dy)
+        d = np.sqrt(dx * dx + dy * dy)
+        d2 = np.where(d < d1, d1, np.minimum(d2, d))
+        d1 = np.minimum(d1, d)
+    return d2 - d1
+
+
+def corten(seed=57, rgb=(0.36, 0.15, 0.07), cells=14):
+    """Weathering steel welded from polygonal plates: a rust skin with
+    orange blooms and dark streaks, and dark gaps along the plate seams,
+    which is how the Spielberg bull's open lattice reads from the stands."""
+    edge = _voronoi_edges(seed, cells)
+    gap = np.clip(1.0 - edge / 0.012, 0, 1)                 # ~6 cm seams at a 2 m tile
+    bloom = fbm(seed + 1, scales=(4, 12, 32), weights=(0.5, 0.3, 0.2))
+    streak = fbm(seed + 2, scales=(2, 6), weights=(0.6, 0.4))
+    pits = fbm(seed + 3, scales=(64, 128), weights=(0.5, 0.5))
+    color = _col(rgb) * (0.8 + 0.45 * bloom[..., None]) * (0.92 + 0.12 * pits[..., None])
+    color = color * (1 - 0.25 * np.clip((streak - 0.55) * 3, 0, 1)[..., None])
+    color = color * (1 - gap[..., None]) + _col((0.05, 0.03, 0.02)) * gap[..., None]
+    rough = np.clip(0.72 + 0.2 * pits - 0.1 * bloom + 0.1 * gap, 0.55, 0.98)
+    height = 0.55 + 0.08 * (pits - 0.5) - 0.5 * gap
+    return np.clip(color, 0, 1), rough, np.clip(height, 0, 1), 1.6
+
+
+def cast_alu(seed=59, rgb=(0.56, 0.56, 0.55)):
+    """Lost-foam cast aluminium segments: grey, a seam every half tile,
+    and copper-brown tarnish rising from the feet (the arch at Spielberg)."""
+    X, Y = grid()
+    grain = fbm(seed, scales=(24, 64, 128), weights=(0.4, 0.35, 0.25))
+    seam = (np.abs(((Y * 2.0) % 1.0) - 0.5) < 0.005).astype(float)
+    tarnish = np.clip((fbm(seed + 1, scales=(2, 5, 12), weights=(0.5, 0.3, 0.2)) - 0.45) * 2.2, 0, 1)
+    color = _col(rgb) * (0.9 + 0.18 * grain[..., None])
+    color = color * (1 - 0.6 * tarnish[..., None]) + _col((0.45, 0.28, 0.17)) * 0.6 * tarnish[..., None]
+    color = color * (1 - 0.35 * seam[..., None])
+    rough = np.clip(0.4 + 0.2 * grain + 0.15 * tarnish, 0.3, 0.8)
+    height = 0.5 + 0.05 * (grain - 0.5) - 0.3 * seam
+    return np.clip(color, 0, 1), rough, np.clip(height, 0, 1), 1.0
+
+
 # ----------------------------------------------------- the kit's baked slots
 # slot -> (generator, tile_m, metallic). Shared by retexture_kit.py and the
 # batch builders (via kit_material), so a slot looks the same on every asset.
@@ -459,6 +508,8 @@ KIT_SLOTS = {
     "house_roof_dark": (lambda: roof_tiles(seed=49, rgb=(0.25, 0.24, 0.23)), 1.0, 0.0),
     "house_stone": (lambda: concrete(seed=50, rgb=(0.62, 0.6, 0.55), stains=0.3), 1.0, 0.0),
     "statue_plinth": (lambda: concrete(seed=51, rgb=(0.5, 0.5, 0.5), stains=0.2), 1.0, 0.0),
+    "statue_corten": (lambda: corten(seed=57), 2.0, 0.3),
+    "statue_arch": (lambda: cast_alu(seed=59), 2.0, 0.8),
     "tent_white": (lambda: cladding(seed=52, rgb=(0.92, 0.92, 0.9), panel=(2.0, 1.0)), 1.0, 0.0),
     "letters_white": (lambda: cladding(seed=54, rgb=(0.95, 0.95, 0.93), panel=(3.0, 3.0)), 1.0, 0.0),
     "forest_floor": (lambda: concrete(seed=55, rgb=(0.12, 0.14, 0.07), stains=0.4, form_lines=False), 4.0, 0.0),
