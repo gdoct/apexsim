@@ -473,7 +473,19 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
 
 # Point features OSM does not carry, but that are part of what the place
 # looks like on a race weekend.
+# Centroid of OSM's `historic=castle` outline of Burg Nürburg (lon, lat).
+NUERBURG_CASTLE = (6.9516, 50.3432)
+
 MANUAL_LANDMARKS: dict[str, list[dict]] = {
+    # Burg Nürburg, the castle ruin on its basalt cone in Nürburg, inside
+    # the loop between the GP circuit and the Hatzenbach: the landmark every
+    # view across the Nordschleife has on its skyline. Anchored on OSM's
+    # `historic=castle` way (its centroid), not on a station, because it
+    # stands half a kilometre from the road. `yaw_rad` turns the gate
+    # toward the village.
+    "Nordschleife": [
+        dict(kind="castle", name="Burg Nürburg", at=NUERBURG_CASTLE, yaw_rad=0.6),
+    ],
     # The airship over the pits is as much a part of the 24 Hours as the
     # fairground at the Esses (which OSM does have, as a big wheel).
     "LeMans": [
@@ -1993,7 +2005,16 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             }
         )
     for spec in MANUAL_LANDMARKS.get(stem, []):
-        p = track.offset_point(spec["station_m"], spec["side"], spec.get("offset_m", 40.0))
+        if "at" in spec:
+            # Anchored on the map rather than beside the road: a castle on
+            # its hill half a kilometre away is where it is, not "40 m to
+            # the left of station N".
+            p = to_track(np.array([enu(*spec["at"], osm.lon0, osm.lat0)]))[0]
+            s_at, lat_at = track.locate(p[None, :])
+            spec = {**spec, "station_m": round(float(s_at[0]), 1),
+                    "side": "left" if lat_at[0] > 0 else "right"}
+        else:
+            p = track.offset_point(spec["station_m"], spec["side"], spec.get("offset_m", 40.0))
         # A hand-placed landmark is an estimate standing in for a fact.
         # Once the automatic scan finds the same thing -- same kind, within
         # MANUAL_LANDMARK_YIELD_M -- the survey wins and the estimate is
@@ -2018,6 +2039,8 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             entry["brand"] = spec["brand"]
         if "altitude_m" in spec:
             entry["altitude_m"] = spec["altitude_m"]
+        if "yaw_rad" in spec:
+            entry["yaw_rad"] = spec["yaw_rad"]
         if "broadside_to_m" in spec:
             # Long axis across the line of sight from that station.
             eye = track.offset_point(spec["broadside_to_m"], "left", -track.half_width(spec["broadside_to_m"], "left"))

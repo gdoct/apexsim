@@ -94,7 +94,8 @@ pub const ALL: [BarrierKind; 5] = [
 /// owns these: it deletes and re-lays them on every run, so the groomer
 /// has to recognise its own output to adopt it back unchanged.
 pub fn is_barrier_asset(asset: &str) -> bool {
-    ALL.iter().any(|kind| {
+    crate::circuit_style::VANGRAIL_ASSETS.contains(&asset)
+        || ALL.iter().any(|kind| {
         let (_, module) = kind.asset();
         let cap = kind.end_cap().map(|(_, cap)| cap);
         module == asset || cap == Some(asset)
