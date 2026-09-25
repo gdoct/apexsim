@@ -8,10 +8,10 @@
 namespace ApexReplayTest
 {
 	/** One car's positional array, as `apexsim-replay cut` writes it. */
-	FString CarArray(float X, float Y, float Yaw, float Speed, int32 Gear, int32 Lap, float Station)
+	FString CarArray(float PosX, float PosY, float Heading, float Mps, int32 GearNo, int32 LapNo, float StationM)
 	{
 		return FString::Printf(TEXT("[%g,%g,0.5,%g,0,0,%g,1,0,0.1,%d,9000,%d,%g,1,0]"),
-			X, Y, Yaw, Speed, Gear, Lap, Station);
+			PosX, PosY, Heading, Mps, GearNo, LapNo, StationM);
 	}
 
 	/**
@@ -107,7 +107,13 @@ bool FApexReplayClipSampleTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("station blends across the line (%f)"), Car.TrackProgress),
 		Car.TrackProgress > 999.0f || Car.TrackProgress < 8.0f);
 	TestEqual(TEXT("gear is the earlier frame's"), Car.Gear, 4);
-	TestEqual(TEXT("lap is the earlier frame's"), Car.CurrentLap, 1);
+	TestEqual(TEXT("past the line, the lap is the new one"), Car.CurrentLap, 2);
+
+	// 999 m to 8 m crosses the line a ninth of the way: a twentieth is short of it.
+	Clip.SampleAt(FrameSeconds * 1.05, Frame);
+	TestTrue(FString::Printf(TEXT("short of the line (%f)"), Frame.Cars[0].TrackProgress), Frame.Cars[0].TrackProgress > 999.0f);
+	TestEqual(TEXT("so still lap 1"), Frame.Cars[0].CurrentLap, 1);
+	TestFalse(TEXT("a car with a row is drawn"), Frame.Cars[0].bInGarage);
 
 	// Past the end holds the last frame.
 	Clip.SampleAt(10.0, Frame);

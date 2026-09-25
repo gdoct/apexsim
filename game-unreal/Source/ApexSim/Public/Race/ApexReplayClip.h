@@ -45,7 +45,9 @@ public:
 	 * The field at `Seconds` after the first frame: positions and the
 	 * continuous values blended between the frames either side (angles the
 	 * short way round, the lap station across the line), the discrete ones
-	 * (gear, lap, state) from the earlier frame. Clamped to the clip.
+	 * (gear, state) from the earlier frame, the lap from whichever side of the
+	 * line the blended station is on. Clamped to the clip. A car the clip
+	 * has no row for in a frame comes back with `bInGarage` set: not drawn.
 	 */
 	void SampleAt(double Seconds, FApexTelemetryFrame& OutFrame) const;
 
@@ -74,6 +76,8 @@ public:
 	int32 NearestCarTo(const FVector& ServerMetres, double Seconds) const;
 
 private:
+	/** Every value zero: the car was not in that frame. */
+	static bool IsEmptyRow(const float* Row);
 	/** Frame index at or before `Seconds`, and how far to the next (0..1). */
 	void Locate(double Seconds, int32& OutIndex, double& OutAlpha) const;
 	const float* CarValues(int32 Frame, int32 Car) const

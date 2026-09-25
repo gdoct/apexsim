@@ -5,13 +5,18 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
-namespace
+// Named, not anonymous: a unity build would otherwise leak `X`, `Speed`,
+// `Gear`... into every file after this one, where they shadow locals.
+namespace ApexReplayField
 {
-	enum EField : int32
+	enum : int32
 	{
 		X, Y, Z, Yaw, Pitch, Roll, Speed, Throttle, Brake, Steering, Gear, Rpm, Lap, Station, OnTrack, Finish
 	};
+}
 
+namespace ApexReplayClipMath
+{
 	float LerpAngle(float A, float B, double Alpha)
 	{
 		return A + FMath::FindDeltaAngleRadians(A, B) * static_cast<float>(Alpha);
@@ -71,9 +76,9 @@ bool FApexReplayClip::LoadFromString(const FString& Json, FString& OutError)
 	{
 		TrackLengthM = static_cast<float>(Number);
 	}
-	if (Root->TryGetNumberField(TEXT("tick_rate"), Number) && Number > 0.0)
+	if (Root->TryGetNumberField(TEXT("tick_rate"), Number))
 	{
-		TickRate = static_cast<int32>(Number);
+		TickRate = FMath::Max(1, FMath::RoundToInt32(Number));
 	}
 	if (Root->TryGetNumberField(TEXT("weather"), Number))
 	{
@@ -238,6 +243,9 @@ void FApexReplayClip::SampleAt(double Seconds, FApexTelemetryFrame& OutFrame) co
 		? FMath::RoundToInt(FMath::Lerp(static_cast<double>(CountdownMs[Index]), static_cast<double>(FMath::Max(CountdownMs[Next], 0)), Alpha))
 		: -1;
 	OutFrame.Cars.Reserve(Cars.Num());
+	using namespace ApexReplayField;
+	using ApexReplayClipMath::LerpAngle;
+	using ApexReplayClipMath::LerpStation;
 	for (int32 Car = 0; Car < Cars.Num(); ++Car)
 	{
 		const float* A = CarValues(Index, Car);
@@ -262,8 +270,16 @@ void FApexReplayClip::SampleAt(double Seconds, FApexTelemetryFrame& OutFrame) co
 		Out.EngineRpm = Lerp(Rpm);
 		Out.CurrentLap = FMath::RoundToInt(A[Lap]);
 		Out.TrackProgress = LerpStation(A[Station], B[Station], T, TrackLengthM);
+		// Blended across the line, the lap is already the next one's: the
+		// station and the lap must agree, or the car reads a lap behind.
+		if (TrackLengthM > 0.0f && B[Station] < A[Station] - TrackLengthM * 0.5f && Out.TrackProgress < A[Station])
+		{
+			Out.CurrentLap = FMath::RoundToInt(B[Lap]);
+		}
 		Out.bIsOnTrack = A[OnTrack] > 0.5f;
 		Out.FinishPosition = FMath::RoundToInt(A[Finish]);
+		// The tool writes a row of zeros for a car missing from a frame.
+		Out.bInGarage = IsEmptyRow(A);
 	}
 }
 
@@ -284,6 +300,18 @@ FApexSessionRoster FApexReplayClip::MakeRoster() const
 	return Roster;
 }
 
+bool FApexReplayClip::IsEmptyRow(const float* Row)
+{
+	for (int32 Field = 0; Field < FieldsPerCar; ++Field)
+	{
+		if (Row[Field] != 0.0f)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 int32 FApexReplayClip::LeaderAt(double Seconds) const
 {
 	FApexTelemetryFrame Frame;
@@ -292,6 +320,10 @@ int32 FApexReplayClip::LeaderAt(double Seconds) const
 	double BestDistance = -TNumericLimits<double>::Max();
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
+		if (Car.bInGarage)
+		{
+			continue;
+		}
 		// A finished car is behind everyone still racing for the camera.
 		const double Distance = Car.FinishPosition > 0
 			? -1.0e9 - Car.FinishPosition
@@ -313,6 +345,10 @@ int32 FApexReplayClip::NearestCarTo(const FVector& ServerMetres, double Seconds)
 	double BestDistance = TNumericLimits<double>::Max();
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
+		if (Car.bInGarage)
+		{
+			continue;
+		}
 		const double Distance = FVector::DistSquared(Car.Position, ServerMetres);
 		if (Distance < BestDistance)
 		{
