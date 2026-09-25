@@ -271,7 +271,7 @@ Every GLB carries these slot names; keep them when re-importing.
 
 ## Liveries
 
-Every generated car has its works livery (the GLB as built) plus three more,
+Every generated car has its works livery (the GLB as built) plus six more,
 the `[[livery]]` tables at the end of its car.toml:
 
 ```toml
@@ -287,8 +287,9 @@ A livery is a repaint of the same mesh, so it is exactly what the material
 slots allow: `car_paint` and `car_accent` take the colours (which faces are
 accent is the build script's `livery` / `two_tone` / sill-stripe choice and
 stays the same), `car_logo` takes the texture. `content/cars/liveries.py`
-owns those tables - twelve sponsor schemes dealt three to a car - and draws
-the logos; it rewrites everything below its marker line, so edit the schemes
+owns those tables - twenty-four sponsor schemes dealt six to a car, new ones
+appended so a saved pick keeps its index - and draws the logos (Poppins and
+Lora Regular; `APEX_FONTS` points it at them, see the script's header); it rewrites everything below its marker line, so edit the schemes
 there and rerun it (`python content/cars/liveries.py [folder ...]`, Pillow).
 
 Down the pipe: the server reads only the names (`CarConfig::livery_names`);

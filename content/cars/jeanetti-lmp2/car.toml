@@ -136,7 +136,7 @@ front_width_m = 0.310
 rear_width_m = 0.360
 
 # --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
-# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.
+# Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]
 name = "Flamingo Pink"
@@ -158,3 +158,24 @@ paint = [0.860, 0.860, 0.850]
 accent = [0.620, 0.020, 0.030]
 metallic = 0.20
 logo = "textures/livery_tricolore.png"
+
+[[livery]]
+name = "Mirage Sand"
+paint = [0.520, 0.380, 0.190]
+accent = [0.060, 0.035, 0.020]
+metallic = 0.45
+logo = "textures/livery_desert.png"
+
+[[livery]]
+name = "Abyss Deep Blue"
+paint = [0.000, 0.035, 0.100]
+accent = [0.000, 0.420, 0.850]
+metallic = 0.80
+logo = "textures/livery_abyss.png"
+
+[[livery]]
+name = "Ember Violet"
+paint = [0.220, 0.025, 0.420]
+accent = [0.950, 0.500, 0.015]
+metallic = 0.70
+logo = "textures/livery_ember.png"
