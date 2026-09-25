@@ -466,6 +466,9 @@ pub struct GroomReport {
     /// Belt trees after grooming, and whether re-laid.
     pub trees: usize,
     pub trees_rebuilt: bool,
+    /// Advertising hoardings on the barriers, and whether re-laid.
+    pub hoardings: usize,
+    pub hoardings_rebuilt: bool,
     /// Prop count before grooming.
     pub total: usize,
     /// The pit lane was regenerated with a different shape.
@@ -485,6 +488,7 @@ impl GroomReport {
             || self.boards_rebuilt
             || self.barriers_rebuilt
             || self.trees_rebuilt
+            || self.hoardings_rebuilt
             || self.pit_rebuilt
     }
 }
@@ -533,6 +537,13 @@ fn owned_by_board_pass(prop: &Prop) -> bool {
 
 fn owned_by_tree_pass(prop: &Prop) -> bool {
     prop.kind == PropKind::Tree && is_tree_pass_asset(&prop.asset)
+}
+
+/// The advertising hoardings the barrier pass hangs behind its rails.
+pub const HOARDING_ASSETS: [&str; 2] = ["hoarding_3m", "hoarding_6m"];
+
+fn owned_by_hoarding_pass(prop: &Prop) -> bool {
+    prop.kind == PropKind::Board && HOARDING_ASSETS.contains(&prop.asset.as_str())
 }
 
 fn owned_by_barrier_pass(prop: &Prop) -> bool {
@@ -664,11 +675,16 @@ pub fn groom_props_with_dem(
     let mut original_boards: Vec<Prop> = Vec::new();
     let mut original_barriers: Vec<Prop> = Vec::new();
     let mut original_trees: Vec<Prop> = Vec::new();
+    let mut original_hoardings: Vec<Prop> = Vec::new();
     for mut prop in std::mem::take(&mut scene.props) {
         // Generated furniture is owned by its pass: set aside, re-laid
         // below, and adopted back unchanged when the layout still matches.
         if owned_by_board_pass(&prop) {
             original_boards.push(prop);
+            continue;
+        }
+        if owned_by_hoarding_pass(&prop) {
+            original_hoardings.push(prop);
             continue;
         }
         if owned_by_barrier_pass(&prop) {
@@ -910,6 +926,16 @@ pub fn groom_props_with_dem(
     // segment is in its final place.
     report.pushed += snap_boards_to_barriers(&path, &terrain, &mut props);
 
+    // So do the hoardings: hung on the rails, brand by brand.
+    let hoardings = lay_hoardings(&path, &terrain, &corners, &props);
+    report.hoardings = hoardings.len();
+    props.extend(adopt(
+        scene,
+        original_hoardings,
+        hoardings,
+        &mut report.hoardings_rebuilt,
+    ));
+
     let mut trees = lay_tree_belts(
         &path,
         &terrain,
@@ -960,10 +986,11 @@ fn snap_boards_to_barriers(
     // module, and where two barrier kinds meet the nearest module is a
     // different one each time the line is re-laid, so the board walked a
     // tenth of a metre back and forth on every groom.
-    for board in props
-        .iter_mut()
-        .filter(|p| p.kind == PropKind::Board && !crate::dress::always_dress_owned(p))
-    {
+    for board in props.iter_mut().filter(|p| {
+        p.kind == PropKind::Board
+            && !crate::dress::always_dress_owned(p)
+            && !owned_by_hoarding_pass(p)
+    }) {
         let Some((rx, ry)) = rails
             .iter()
             .copied()
@@ -991,6 +1018,126 @@ fn snap_boards_to_barriers(
         }
     }
     moved
+}
+
+// ---- Hoardings ------------------------------------------------------------
+
+/// A hoarding hangs this far behind the rail it is on.
+const HOARDING_BEHIND_RAIL_M: f32 = 0.4;
+/// The braking zone a hoarding run covers before a corner's entry, and
+/// how far past the entry it carries on round the outside.
+const HOARDING_BRAKING_M: f32 = 160.0;
+const HOARDING_PAST_ENTRY_M: f32 = 30.0;
+/// Both sides of the pit straight carry hoardings: this far before the
+/// line and this far after it.
+const HOARDING_BEFORE_LINE_M: f32 = 250.0;
+const HOARDING_AFTER_LINE_M: f32 = 150.0;
+/// One sponsor takes a stretch this long before the next.
+const HOARDING_BRAND_RUN_M: f32 = 36.0;
+/// A rail with a grandstand this close behind it carries hoardings.
+const HOARDING_STAND_RANGE_M: f32 = 20.0;
+
+/// The advertising on the barriers: `board/hoarding_3m` hung behind every
+/// rail module wherever a circuit actually sells the space — the whole of
+/// the pit straight, the braking zone into every corner and round its
+/// outside, and every rail with a grandstand behind it — with one brand per
+/// [`HOARDING_BRAND_RUN_M`] stretch so the boards read as sponsor runs
+/// rather than a lottery.
+///
+/// The kit has carried `hoarding_3m` and `hoarding_6m` and eight brands
+/// since the board kind existed, and no pass ever laid one: every circuit
+/// raced past bare armco. Hung on the laid rails rather than laid from
+/// the road, so a hoarding is exactly where the rail is — it shares the
+/// rail's station and offset and sits [`HOARDING_BEHIND_RAIL_M`] behind
+/// its face — and never on a Tecpro block or a tyre wall, which absorb a
+/// car and carry no boards.
+fn lay_hoardings(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    corners: &[BrakingCorner],
+    props: &[Prop],
+) -> Vec<Prop> {
+    let total = path.total_length_m();
+    let closed = path.is_closed();
+    let along = |from: f32, to: f32, station: f32| -> bool {
+        let d = station - from;
+        let d = if closed { d.rem_euclid(total) } else { d };
+        (0.0..=to - from).contains(&d)
+    };
+    let sold = |station: f32, side: Side, fence: bool| -> bool {
+        if fence {
+            return true;
+        }
+        if along(
+            total - HOARDING_BEFORE_LINE_M,
+            total + HOARDING_AFTER_LINE_M,
+            station,
+        ) {
+            return true;
+        }
+        corners.iter().any(|c| {
+            c.outside() == side
+                && along(
+                    c.entry_m() - HOARDING_BRAKING_M,
+                    c.entry_m() + HOARDING_PAST_ENTRY_M,
+                    station,
+                )
+        })
+    };
+
+    // A fence means people behind it, but a campsite or a farm track's
+    // worth of people is not a crowd; the space in front of a grandstand
+    // is what sells.
+    let stands: Vec<Slab> = props
+        .iter()
+        .filter(|p| p.kind == PropKind::Grandstand)
+        .map(|p| Slab::of(path, p))
+        .collect();
+    let mut out = Vec::new();
+    for rail in props.iter().filter(|p| p.kind == PropKind::Barrier) {
+        if !matches!(
+            rail.asset.as_str(),
+            "armco_4m" | "armco_4m_fence" | "concrete_4m_rail"
+        ) {
+            continue;
+        }
+        let fence = stands
+            .iter()
+            .any(|s| s.gap(rail.x, rail.y) <= HOARDING_STAND_RANGE_M);
+        let Some((station, lat, _)) = terrain.nearest_track_point(rail.x, rail.y, NEAR_LEG_M)
+        else {
+            continue;
+        };
+        let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+        if !sold(station, side, fence) {
+            continue;
+        }
+        // Behind the rail: along the rail's own normal, away from the road.
+        let (sin, cos) = rail.yaw_rad.sin_cos();
+        let away = signed(side, 1.0);
+        let behind = HOARDING_BEHIND_RAIL_M + 0.15;
+        let (x, y) = (rail.x - sin * away * behind, rail.y + cos * away * behind);
+        let sample = path.sample_at(station);
+        let seat_lat = lat + away * behind;
+        let stretch = (station / HOARDING_BRAND_RUN_M).floor() as u64;
+        let pick = hash01(&[stretch, matches!(side, Side::Left) as u64], 0x4041);
+        let brand = crate::dress::KIT_BRANDS[(pick * crate::dress::KIT_BRANDS.len() as f32)
+            as usize
+            % crate::dress::KIT_BRANDS.len()];
+        out.push(Prop {
+            id: 0,
+            kind: PropKind::Board,
+            asset: "hoarding_3m".to_string(),
+            x,
+            y,
+            z: seat_z(terrain, &sample, seat_lat, x, y),
+            yaw_rad: rail.yaw_rad,
+            scale: 1.0,
+            text: Some(brand.to_string()),
+            length_m: None,
+        });
+    }
+    out
 }
 
 /// Keep `original` (ids and all) when `fresh` reproduces it within the
@@ -2738,6 +2885,68 @@ mod tests {
                 "no barrier between the road and the stand at {station} m"
             );
         }
+    }
+
+    /// The kit had hoardings and brands for months and nothing laid one.
+    /// They hang behind the rails of the pit straight and the braking
+    /// zones, carry a brand the kit has, and the pass owns them: a second
+    /// groom adopts them back unchanged.
+    #[test]
+    fn hoardings_hang_behind_the_rails_with_a_brand() {
+        let track = track();
+        let mut scene = scene_with(&track, vec![]);
+        groom_scene(&track, &mut scene).unwrap();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let hoardings: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Board && p.asset == "hoarding_3m")
+            .collect();
+        assert!(hoardings.len() > 40, "only {} hoardings", hoardings.len());
+        let rails: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Barrier && p.asset.starts_with("armco_4m"))
+            .collect();
+        let total = path.total_length_m();
+        let mut on_pit_straight = 0;
+        for h in &hoardings {
+            let brand = h.text.as_deref().expect("a hoarding carries a brand");
+            assert!(
+                crate::dress::KIT_BRANDS.contains(&brand),
+                "unknown brand {brand}"
+            );
+            let nearest = rails
+                .iter()
+                .map(|r| (r.x - h.x).hypot(r.y - h.y))
+                .fold(f32::MAX, f32::min);
+            assert!(
+                (0.3..=1.0).contains(&nearest),
+                "hoarding {nearest} m from the nearest rail"
+            );
+            let (sample, _, along) = nearest_cross_section(&path, h.x, h.y);
+            let station = sample.station_m + along;
+            if station > total - HOARDING_BEFORE_LINE_M || station < HOARDING_AFTER_LINE_M {
+                on_pit_straight += 1;
+            }
+        }
+        assert!(
+            on_pit_straight > 20,
+            "{on_pit_straight} on the pit straight"
+        );
+        // Not everywhere: a rail down the back straight, away from any
+        // corner, stand or the line, stays bare.
+        assert!(
+            hoardings.len() * 2 < rails.len(),
+            "{} hoardings on {} rails",
+            hoardings.len(),
+            rails.len()
+        );
+
+        let before = scene.props.clone();
+        let second = groom_scene(&track, &mut scene).unwrap();
+        assert!(!second.hoardings_rebuilt, "{second:?}");
+        assert_eq!(scene.props, before);
     }
 
     #[test]

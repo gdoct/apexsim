@@ -730,7 +730,7 @@ fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Option<Prop> {
 /// The brands the kit has artwork for (`content/props/board/brands`).
 /// Signage in the kit is fictionalised, so a dossier naming a real
 /// sponsor gets nothing rather than a texture that does not exist.
-const KIT_BRANDS: [&str; 8] = [
+pub(crate) const KIT_BRANDS: [&str; 8] = [
     "apexsim",
     "brix",
     "hexon",
