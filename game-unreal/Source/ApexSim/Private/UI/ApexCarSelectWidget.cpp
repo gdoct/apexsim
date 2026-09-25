@@ -635,12 +635,14 @@ void UApexCarSelectWidget::UpdatePreviewStage()
 	if (!Flow->GetCarCatalogRow(SelectedCarId, Row))
 	{
 		Stage->SetCarWheels(FApexWheelSpec());
+		Stage->SetCarDrsFlap(FApexDrsFlapSpec());
 		Stage->SetCarMesh(nullptr);
 		return;
 	}
 
 	Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
 	Stage->SetCarWheels(Row.Wheels);
+	Stage->SetCarDrsFlap(Row.DrsFlap);
 	Stage->SetCarMesh(Row.Mesh);
 	Stage->SetCarLivery(ApexLivery::Find(Row, SelectedLivery));
 }

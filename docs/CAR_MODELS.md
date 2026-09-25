@@ -269,6 +269,33 @@ Every GLB carries these slot names; keep them when re-importing.
 | `car_display` | dash display | emissive green |
 | `car_logo` | door / flank wordmark | masked texture from `textures/` |
 
+## DRS flap (F1)
+
+The F1 bodies are exported without the rear wing's upper flap: `build_f1.py`
+builds it as its own object and writes `<stem>_drs.glb` beside the car, its
+origin on the hinge (the flap's trailing edge at the tips, the axis across
+the car), and a `[drs_flap]` table in car.toml above the liveries' marker,
+replaced on every build:
+
+```toml
+[drs_flap]
+model = "fugazzi_sf26_drs.glb"
+hinge_forward_m = -2.5298     # the wheels' convention: ahead of the body origin
+hinge_up_m = 0.8226           # above its floor
+open_deg = 25.0               # leading edge up, opening the slot over the main plane
+```
+
+`ApexCarImport` imports the GLB to `/Game/Cars/<folder>/Drs/SM_<folder>_drs`
+(its own folder, so its materials do not land on the body's) and puts the
+figures on the row as `DrsFlap` (`FApexDrsFlapSpec`), derived on every run
+like the wheels. `FApexCarDrsFlap` (`Race/ApexCarDrsFlap.h`) hangs it on the
+body mesh: the race car swings it open over `ApexDrs::SwingSeconds` (0.18 s)
+whenever the telemetry's `bDrsOpen` is set and shut when it clears; the
+turntable shows it shut; liveries repaint it with the body and the ghost
+tints it. `ApexSim.Drs.FlapTransform` and `ApexSim.Cars.TomlDrsFlap` pin the
+maths and the TOML. A car without the table draws its whole wing in the
+body, as before. `preview_cars.py` draws the flap too (`DRS_OPEN = 1` opens it).
+
 ## Liveries
 
 Every generated car has its works livery (the GLB as built) plus six more,

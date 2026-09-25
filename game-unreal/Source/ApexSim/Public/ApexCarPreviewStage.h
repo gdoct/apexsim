@@ -39,6 +39,9 @@ public:
 	/** The wheels to draw on the car (the catalog row's `Wheels`); an unusable spec draws none. */
 	void SetCarWheels(const FApexWheelSpec& Spec);
 
+	/** The car's DRS flap (the catalog row's `DrsFlap`), shown shut; an unusable spec draws none. */
+	void SetCarDrsFlap(const FApexDrsFlapSpec& Spec);
+
 	/** Paints the shown car (ApexCarLivery.h); null is the model as authored. After SetCarMesh. */
 	void SetCarLivery(const struct FApexCarLivery* Livery);
 
@@ -90,6 +93,10 @@ protected:
 	/** Four wheel components on CarMesh, in its frame. */
 	UPROPERTY()
 	FApexCarWheelSet Wheels;
+
+	/** The DRS flap on CarMesh, always shut on the turntable. */
+	UPROPERTY()
+	FApexCarDrsFlap DrsFlap;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USceneCaptureComponent2D> Capture;

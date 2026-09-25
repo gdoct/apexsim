@@ -151,6 +151,15 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 			else if (Key == TEXT("front_width_m")) { W.FrontWidthM = Number; }
 			else if (Key == TEXT("rear_width_m")) { W.RearWidthM = Number; }
 		}
+		else if (Table == TEXT("drs_flap"))
+		{
+			FDrsFlapToml& D = Out.DrsFlap;
+			const float Number = FCString::Atof(*Value);
+			if (Key == TEXT("model")) { D.Model = Value; }
+			else if (Key == TEXT("hinge_forward_m")) { D.HingeForwardM = Number; }
+			else if (Key == TEXT("hinge_up_m")) { D.HingeUpM = Number; }
+			else if (Key == TEXT("open_deg")) { D.OpenDeg = Number; }
+		}
 		else if (Table == TEXT("engine"))
 		{
 			// `[[engine.torque_curve]]` has an `rpm` of its own; it is another table.
@@ -197,6 +206,12 @@ bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, 
 		OutError = TEXT("[wheels] needs positive radii, widths and tracks, and the front axle ahead of the rear");
 		return false;
 	}
+	const FDrsFlapToml& D = Out.DrsFlap;
+	if (D.IsPresent() && (D.HingeUpM <= 0.0f || D.OpenDeg <= 0.0f || D.OpenDeg > 60.0f))
+	{
+		OutError = TEXT("[drs_flap] needs a hinge above the floor and an open_deg of 0-60");
+		return false;
+	}
 	for (const FLiveryToml& L : Out.Liveries)
 	{
 		if (L.Name.IsEmpty() || L.Paint.A <= 0.0f)
@@ -226,6 +241,26 @@ FString UApexCarImportCommandlet::WheelPackageName(const FString& DestRoot, cons
 {
 	const FString Segment = PackageSegment(Model);
 	return FString::Printf(TEXT("%s/Wheels/%s/SM_Wheel_%s"), *DestRoot, *Segment, *Segment);
+}
+
+FString UApexCarImportCommandlet::DrsFlapPackageName(const FString& DestRoot, const FString& Folder)
+{
+	const FString Segment = PackageSegment(Folder);
+	return FString::Printf(TEXT("%s/%s/Drs/SM_%s_drs"), *DestRoot, *Segment, *Segment);
+}
+
+FApexDrsFlapSpec UApexCarImportCommandlet::MakeDrsFlapSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh)
+{
+	FApexDrsFlapSpec Spec;
+	if (!Toml.DrsFlap.IsPresent())
+	{
+		return Spec;
+	}
+	Spec.Mesh = Mesh;
+	Spec.HingeForwardM = Toml.DrsFlap.HingeForwardM;
+	Spec.HingeUpM = Toml.DrsFlap.HingeUpM;
+	Spec.OpenDeg = Toml.DrsFlap.OpenDeg;
+	return Spec;
 }
 
 FApexWheelSpec UApexCarImportCommandlet::MakeWheelSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh)
@@ -568,6 +603,38 @@ UStaticMesh* UApexCarImportCommandlet::ResolveWheelMesh(
 	return Mesh;
 }
 
+UStaticMesh* UApexCarImportCommandlet::ResolveDrsFlapMesh(
+	const FSource& Source, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError)
+{
+	const FString PackageName = DrsFlapPackageName(Options.DestRoot, Source.Folder);
+	const FString ObjectPath = PackageName + TEXT(".") + FPackageName::GetShortName(PackageName);
+	if (!Options.bForce && FPackageName::DoesPackageExist(PackageName))
+	{
+		if (UStaticMesh* Existing = LoadObject<UStaticMesh>(nullptr, *ObjectPath))
+		{
+			return Existing;
+		}
+	}
+	const FString GlbPath = FPaths::GetPath(Source.TomlPath) / Source.Toml.DrsFlap.Model;
+	if (!IFileManager::Get().FileExists(*GlbPath))
+	{
+		OutError = FString::Printf(TEXT("DRS flap %s is missing"), *GlbPath);
+		return nullptr;
+	}
+	UE_LOG(LogApexTrackImport, Display, TEXT("    importing %s <- %s"), *PackageName, *GlbPath);
+	if (Options.bDryRun)
+	{
+		return nullptr;
+	}
+	UStaticMesh* Mesh = ImportGlb(GlbPath, PackageName, OutError);
+	if (Mesh)
+	{
+		OutPackages.Add(Mesh->GetOutermost());
+		CollectDirtyPackages(FPackageName::GetLongPackagePath(PackageName), OutPackages);
+	}
+	return Mesh;
+}
+
 UTexture2D* UApexCarImportCommandlet::ImportTexture(const FString& PngPath, const FString& PackageName, FString& OutError)
 {
 	const FString File = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
@@ -852,6 +919,21 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		{
 			UE_LOG(LogApexTrackImport, Display, TEXT("    no [wheels] table: the body draws its own"));
 		}
+		// So is the DRS flap: an F1 body is exported without its upper flap,
+		// so a flap that will not import is an error like a missing wheel.
+		FApexDrsFlapSpec DrsFlap;
+		if (Source.Toml.DrsFlap.IsPresent())
+		{
+			FString FlapError;
+			UStaticMesh* FlapMesh = ResolveDrsFlapMesh(Source, Options, Touched, FlapError);
+			if (!FlapError.IsEmpty())
+			{
+				UE_LOG(LogApexTrackImport, Error, TEXT("    %s"), *FlapError);
+				++Failures;
+				continue;
+			}
+			DrsFlap = MakeDrsFlapSpec(Source.Toml, TSoftObjectPtr<UStaticMesh>(FlapMesh));
+		}
 		// Liveries are derived too; their logos are imported once per folder.
 		TArray<FApexCarLivery> Liveries;
 		{
@@ -870,6 +952,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		const bool bNeedsWheels = Existing && Existing->Wheels != Wheels;
 		const bool bNeedsSound = Existing && Existing->EngineSound != Source.Toml.Sound;
 		const bool bNeedsLiveries = Existing && Existing->Liveries != Liveries;
+		const bool bNeedsDrs = Existing && Existing->DrsFlap != DrsFlap;
 
 		// A row that already points at a mesh of its own is finished unless
 		// -force: the hand-imported cars keep theirs and nothing is imported
@@ -886,11 +969,16 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 				bNeedsCrc ? TEXT(", updating checksum") : TEXT(""), bNeedsWheels ? TEXT(", updating wheels") : TEXT(""),
 				bNeedsSound ? TEXT(", updating engine sound") : TEXT(""),
 				bNeedsLiveries ? TEXT(", updating liveries") : TEXT(""));
-			if ((bNeedsCrc || bNeedsWheels || bNeedsSound || bNeedsLiveries) && !Options.bDryRun)
+			if (bNeedsDrs)
+			{
+				UE_LOG(LogApexTrackImport, Display, TEXT("    updating DRS flap"));
+			}
+			if ((bNeedsCrc || bNeedsWheels || bNeedsSound || bNeedsLiveries || bNeedsDrs) && !Options.bDryRun)
 			{
 				FApexCarCatalogRow Row = *Existing;
 				Row.SourceCrc = Source.SourceCrc;
 				Row.Wheels = Wheels;
+				Row.DrsFlap = DrsFlap;
 				Row.EngineSound = Source.Toml.Sound;
 				Row.Liveries = Liveries;
 				Table->AddRow(RowName, Row);
@@ -930,6 +1018,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		}
 		Row.SourceCrc = Source.SourceCrc;
 		Row.Wheels = Wheels;
+		Row.DrsFlap = DrsFlap;
 		Row.EngineSound = Source.Toml.Sound;
 		Row.Liveries = Liveries;
 		const bool bMeshMissing = Row.Mesh.IsNull() || !FPackageName::DoesPackageExist(Row.Mesh.GetLongPackageName());
@@ -945,7 +1034,8 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 			Row.Mesh = Mesh;
 			Row.FolderName = Source.Folder;
 		}
-		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc && !bNeedsWheels && !bNeedsSound && !bNeedsLiveries)
+		if (Existing && !bFillFields && !bSetMesh && !bNeedsCrc && !bNeedsWheels && !bNeedsSound && !bNeedsLiveries
+			&& !bNeedsDrs)
 		{
 			continue;
 		}
