@@ -26,9 +26,9 @@ import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
 # ------------------------------------------------------------------ loading
-_ROOT = r"D:\apexsim"
-for _n, _p in (("apex", os.path.join(_ROOT, r"content\props\_tools\apex_props.py")),
-               ("carlib", os.path.join(_ROOT, r"content\cars\carlib.py"))):
+_ROOT = os.environ.get("APEXSIM_ROOT", r"D:\apexsim")
+for _n, _p in (("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py")),
+               ("carlib", os.path.join(_ROOT, "content", "cars", "carlib.py"))):
     _s = importlib.util.spec_from_file_location(_n, _p)
     _m = importlib.util.module_from_spec(_s)
     sys.modules[_n] = _m
@@ -55,11 +55,28 @@ VARIANTS = {
         rear_number_y=(1.30, 1.62), cam_x=0.0, bonnet_drop=(0.075, 0.13),
         axles=(-1.375, 1.375),
         glass_y=(-0.92, 0.92), screen_y=(-0.95, -0.40), rear_glass_y=(0.50, 0.94),
-        wing="pylon", wing_z=1.19, wing_y=1.86, wing_hw=0.86, ducktail=True,
+        wing="swan", wing_z=1.19, wing_y=1.86, wing_hw=0.86, ducktail=True,
+        # an arched plane on swan necks over the ducktail, endplates that
+        # sweep up to a tall trailing corner, the brake strip along the edge
+        wing_plan=("arch", 0.030), wing_chord=0.345, wing_aoa=-9.0, endplate="swoop", wing_led="trail",
         ends=dict(nose_top=0.545, nose_w=0.90, tail_top=0.905, tail_bot=0.30, tail_w=0.94),
         lights="round", grille=False, exhaust="centre", mirror="pod",
+        lamp_x=(0.52, 0.82), lamp_h=0.125, face="tri", tail="bar",
         shutlines=[(-1.82, "upper"), (-0.94, "side"), (0.58, "side"), (1.24, "upper"), (1.84, "upper")],
-        vents=["fender", "naca_front"], scoop=None,
+        vents=["naca_front"], scoop=None,
+        # a rear-engined coupe breathes ahead of the rear wheel: one big
+        # quarter intake whose leading edge sweeps back as it climbs, louvres
+        # let into the top of the front fenders, and a waist line that dips
+        # over the door and lifts onto the hips
+        side=[
+            ("recess", dict(y0=(0.58, 0.80), y1=(0.955, 0.975), j0=2.2, j1=3.55,
+                            depth=0.055, rim=0.030, bow=-0.02, blades=3)),
+            ("recess", dict(y0=(-1.28, -1.20), y1=(-0.99, -0.95), j0=3.35, j1=4.15,
+                            depth=0.030, rim=0.016, blades=5, blade_r=0.005)),
+            ("swage", dict(y0=-0.98, y1=0.62, j_a=3.55, j_mid=3.30, j_b=3.62, depth=0.007,
+                           width=0.30, fade=0.30)),
+        ],
+        logo_j=(2.05, 3.05), logo_y=(-0.62, 0.46),
         keys=[
             (-2.25, [(0, .195), (.55, .195), (.72, .31), (.79, .50), (.66, .60), (.46, .655), (.30, .68), (.14, .695), (0, .70)]),
             (-1.90, [(0, .095), (.86, .095), (.955, .35), (.985, .625), (.845, .735), (.60, .755), (.40, .74), (.18, .74), (0, .74)]),
@@ -80,11 +97,28 @@ VARIANTS = {
         rear_number_y=None, cam_x=-0.28, bonnet_drop=(0.035, 0.09),
         axles=(-1.375, 1.375),
         glass_y=(-0.98, 0.50), screen_y=(-1.00, -0.46), rear_glass_y=(0.30, 0.74),
-        wing="swan", wing_z=1.14, wing_y=1.80, wing_hw=0.88, ducktail=False,
+        wing="pylon", wing_z=1.14, wing_y=1.80, wing_hw=0.88, ducktail=False,
+        # a short, steep plane swept to a V, faceted endplates carrying the
+        # brake lights as two upright bars, on narrow pylons
+        wing_plan=("swept", 0.10), wing_chord=0.30, wing_aoa=-12.0, endplate="facet", wing_led="endplate",
+        pylon_x=0.40,
         ends=dict(nose_top=0.47, nose_w=0.92, tail_top=0.80, tail_bot=0.30, tail_w=0.95),
         lights="ybar", grille=False, exhaust="hexquad", mirror="stalk",
+        lamp_x=(0.46, 0.86), lamp_h=0.085, face="arrow", tail="y",
         shutlines=[(-1.84, "upper"), (-0.94, "side"), (0.56, "side"), (0.86, "upper"), (1.84, "upper")],
-        vents=["fender", "side_intake", "deck_louvres"], scoop=(0.0, 0.26, 0.13),
+        vents=["deck_louvres"], scoop=(0.0, 0.26, 0.13),
+        # the wedge: a hexagonal intake behind the door raked hard back, a
+        # knife slot behind the front wheel leaning the other way, and a
+        # crease that climbs from the front arch into the intake's top corner
+        side=[
+            ("recess", dict(y0=(0.40, 0.80), y1=(0.98, 1.005), j0=1.95, j1=3.65,
+                            depth=0.065, rim=0.050, bow=-0.04, blades=3, blade_r=0.008)),
+            ("recess", dict(y0=(-0.95, -0.84), y1=(-0.85, -0.76), j0=2.25, j1=3.40,
+                            depth=0.040, rim=0.018, blades=2, blade_r=0.005)),
+            ("swage", dict(y0=-0.98, y1=0.74, j_a=3.00, j_b=3.62, depth=0.013,
+                           width=0.34, fade=0.20)),
+        ],
+        logo_j=(2.00, 2.90), logo_y=(-0.66, 0.26),
         keys=[
             (-2.25, [(0, .155), (.70, .155), (.855, .255), (.915, .415), (.755, .485), (.52, .515), (.31, .535), (.14, .545), (0, .55)]),
             (-1.85, [(0, .095), (.905, .095), (.975, .315), (1.00, .555), (.845, .665), (.63, .685), (.43, .66), (.20, .65), (0, .65)]),
@@ -105,12 +139,29 @@ VARIANTS = {
         rear_number_y=(0.86, 1.18), cam_x=0.0,
         axles=(-1.375, 1.375),
         glass_y=(-0.84, 0.62), screen_y=(-0.86, -0.26), rear_glass_y=(0.38, 0.62),
-        cabin_shift=0.38, logo_y=(-0.74, 0.40), fender_vent=(0.28, 0.54), bonnet_drop=(0.14, 0.25),
+        cabin_shift=0.38, logo_y=(-0.60, 0.44), bonnet_drop=(0.14, 0.25),
         wing="pylon", wing_z=1.16, wing_y=1.90, wing_hw=0.86, ducktail=False,
+        # a broad spoon-shaped plane on wide-set pylons, rounded endplates,
+        # the brake strip only across the middle third
+        wing_plan=("spoon", 0.045), wing_chord=0.38, wing_aoa=-7.0, endplate="round", wing_led="centre",
+        pylon_x=0.66,
         ends=dict(nose_top=0.54, nose_w=0.88, tail_top=0.92, tail_bot=0.32, tail_w=0.93),
         lights="slant", grille=True, exhaust="side", mirror="pod",
+        lamp_x=(0.50, 0.84), lamp_h=0.115, face="shield", tail="wrap",
         shutlines=[(-1.86, "upper"), (-0.90, "upper"), (-0.82, "side"), (0.44, "side"), (1.30, "upper"), (1.92, "upper")],
-        vents=["fender", "bonnet_louvres"], scoop=None,
+        vents=["bonnet_louvres"], scoop=None,
+        # the long-bonnet GT: three gills behind the front wheel raked back
+        # like a shark's, a brake exit ahead of the rear wheel leaning the
+        # other way, and a shoulder line that runs back and up onto the hips
+        side=[("recess", dict(y0=(-0.955 + 0.075 * k, -0.875 + 0.075 * k),
+                              y1=(-0.915 + 0.075 * k, -0.835 + 0.075 * k), j0=2.30, j1=3.45,
+                              depth=0.034, rim=0.012)) for k in range(3)] + [
+            ("recess", dict(y0=(0.66, 0.54), y1=(0.92, 0.84), j0=2.10, j1=3.25,
+                            depth=0.045, rim=0.022, blades=3, blade_r=0.006)),
+            ("swage", dict(y0=-0.75, y1=1.00, j_a=3.55, j_b=3.92, depth=0.008,
+                           width=0.30, fade=0.30)),
+        ],
+        logo_j=(2.05, 3.05),
         keys=[
             (-2.35, [(0, .215), (.60, .215), (.775, .335), (.835, .535), (.685, .625), (.47, .675), (.28, .70), (.12, .715), (0, .72)]),
             (-1.95, [(0, .095), (.885, .095), (.975, .355), (1.00, .635), (.855, .765), (.63, .835), (.42, .855), (.18, .875), (0, .89)]),
@@ -198,11 +249,23 @@ for (y, kind) in V["shutlines"]:
     else:
         print("skipped side shutline inside an arch at y =", y)
 
-FV0, FV1 = V.get("fender_vent", (0.44, 0.72))
-if "fender" in V["vents"]:
-    L.recess(AX_F + FV0, AX_F + FV1, 2.15, 3.30, depth=0.042, rim=0.022)
-if "side_intake" in V["vents"]:
-    L.recess(0.70, 1.06, 1.95, 3.35, depth=0.055, rim=0.026)
+# The flank's own features: vents that lean and taper, and character lines
+# that run along the car, from the variant's `side` list. They are what
+# tells one car from another in profile - the first cut put the same
+# upright box vent at the same station on every GT3.
+SIDE_BLADES = []
+SIDE_FLOORS = []
+for (kind, kw) in V["side"]:
+    kw = dict(kw)
+    blades, blade_r = kw.pop("blades", 0), kw.pop("blade_r", 0.007)
+    if kind == "swage":
+        L.swage(**kw)
+        continue
+    L.recess(**kw)
+    if L.last_feature["swept"] and kw["depth"] > 0.022:
+        SIDE_FLOORS.append(L.last_feature)
+    if blades:
+        SIDE_BLADES.append((L.last_feature, blades, blade_r))
 if "bonnet_louvres" in V["vents"]:
     L.recess(NOSE + 0.95, NOSE + 1.45, 5.40, 8.00, depth=0.032, rim=0.030)
 if "naca_front" in V["vents"]:
@@ -210,20 +273,20 @@ if "naca_front" in V["vents"]:
 if "deck_louvres" in V["vents"]:
     L.recess(V["rear_glass_y"][1] + 0.04, V["rear_glass_y"][1] + 0.50, 5.60, 8.00,
              depth=0.030, rim=0.026)
-# brake-cooling exit ahead of each rear arch
-L.recess(AX_R - 0.80, AX_R - 0.50, 2.10, 3.20, depth=0.040, rim=0.022)
 # headlamp pockets: a recess that wraps the nose corner between the bumper
 # shoulder (j3) and the bonnet edge, so the lamp is set into the corner
 # rather than punched through it as a box
 # (the headlamps are cut into the corner as apertures below, not recessed:
 # the corner's upper surface faces up and inward, so a pocket there was a
 # shelf whose lamps were seen edge-on from the road)
-LAMP_X = (0.50, 0.84)
-LAMP_Z = (E["nose_top"] - 0.145, E["nose_top"] - 0.030)
+LAMP_X = V["lamp_x"]
+LAMP_Z = (E["nose_top"] - 0.030 - V["lamp_h"], E["nose_top"] - 0.030)
 # tail lamp bands wrap the rear corner the same way
-TLAMP_J = (3.0, 3.75)
-TLAMP_Y0, TLAMP_Y1 = TAILP_Y - 0.20, TAILP_Y - 0.02
-L.recess(TLAMP_Y0, TLAMP_Y1, TLAMP_J[0], TLAMP_J[1], depth=0.030, rim=0.014)
+# (only the wrap-around tail has one; the bar and the Y sit on the tail panel)
+TLAMP_J = (2.95, 3.85)
+TLAMP_Y0, TLAMP_Y1 = TAILP_Y - 0.26, TAILP_Y - 0.02
+if V["tail"] == "wrap":
+    L.recess(TLAMP_Y0, TLAMP_Y1, TLAMP_J[0], TLAMP_J[1], depth=0.030, rim=0.014)
 
 
 def face_mat(ym, kk, right):
@@ -239,6 +302,10 @@ def face_mat(ym, kk, right):
     is_rear = r0 < ym < r1
     is_side = g0 < ym < g1
     if jc < BELT - TRIM_J:
+        # the floor of a deep vent is the dark duct behind it, not paint:
+        # painted, a 6 cm intake read as a dent
+        if L._offset(ym, kk, right, skip_swept=True) > 0.022:
+            return M.mesh
         return M.paint
     if jc < BELT:
         return M.trim if (is_screen or is_rear or is_side) else M.paint
@@ -253,7 +320,7 @@ def face_mat(ym, kk, right):
     return M.paint
 
 
-body = L.build("body", face_mat, [M.paint, M.glass, M.trim], subsurf=0)
+body = L.build("body", face_mat, [M.paint, M.glass, M.trim, M.mesh], subsurf=0)
 save("body")
 
 # -------------------------------------------------------------- wheel arches
@@ -271,17 +338,48 @@ save("arches")
 # Lamps, grille and exhaust exits are cut, not drawn on: the cutter's surface
 # becomes the walls of the opening, so the aperture comes out lined and the
 # lens sits in a hole instead of floating on the paint.
-# bumper: one wide mouth across the nose with a brake duct outboard of each
-# end, and the tail's lower valance where the exhausts and diffuser exit
-MOUTH_HW = 0.50 if V["grille"] else 0.44
-MOUTH_Z = (E["nose_top"] - 0.36, E["nose_top"] - 0.16)
-carlib.aperture(body, M, (-MOUTH_HW, NOSE - 0.05, MOUTH_Z[0]),
-                (MOUTH_HW, BUMPER_Y + 0.22, MOUTH_Z[1]), mat=M.mesh)
-for sx in (-1, 1):
-    d0, d1 = sorted((sx * (MOUTH_HW + 0.09), sx * (MOUTH_HW + 0.26)))
-    dy = carlib.surface_station(L, MOUTH_HW + 0.26, MOUTH_Z[0] + 0.05, NOSE, margin=0.02)
-    carlib.aperture(body, M, (d0, NOSE - 0.05, MOUTH_Z[0] + 0.01),
-                    (d1, dy + 0.16, MOUTH_Z[1] - 0.03), mat=M.mesh)
+# The face. Each car has its own set of shaped openings - outlines in the
+# (x, z) plane of the nose, right-hand ones mirrored - cut through the
+# bumper back to where the skin is behind every corner of the outline, then
+# backed with mesh and barred in the car's own pattern. The first cut gave
+# all three the same letterbox with a brake duct either side.
+NT = E["nose_top"]
+FACES = {
+    # rear-engined coupe: a narrow centre mouth under the number and two big
+    # corner intakes under the round lamps, horizontal slats in all three
+    "tri": [
+        dict(poly=[(-0.25, NT - 0.335), (0.25, NT - 0.335), (0.29, NT - 0.175), (-0.29, NT - 0.175)],
+             r=0.035, bars=[(0.0, 0.034)]),
+        dict(poly=[(0.37, NT - 0.335), (0.70, NT - 0.335), (0.76, NT - 0.215), (0.41, NT - 0.170)],
+             r=0.030, bars=[(0.0, 0.030)], mirror=True),
+    ],
+    # the wedge: one wide hexagonal mouth with a blade down its middle and
+    # an arrowhead intake at each corner, all in a diamond mesh
+    "arrow": [
+        dict(poly=[(-0.50, NT - 0.290), (0.50, NT - 0.290), (0.62, NT - 0.225), (0.54, NT - 0.170),
+                   (-0.54, NT - 0.170), (-0.62, NT - 0.225)],
+             r=0.012, bars=[(35.0, 0.040), (-35.0, 0.040)], blade=True),
+        dict(poly=[(0.68, NT - 0.290), (0.87, NT - 0.290), (0.87, NT - 0.200), (0.72, NT - 0.155)],
+             r=0.012, bars=[(35.0, 0.036), (-35.0, 0.036)], mirror=True),
+    ],
+    # the long-bonnet GT: a tall shield grille of vertical chrome bars that
+    # widens towards the ground, flanked by upright brake intakes
+    "shield": [
+        dict(poly=[(-0.40, NT - 0.300), (0.40, NT - 0.300), (0.33, NT - 0.065), (-0.33, NT - 0.065)],
+             r=0.055, bars=[(90.0, 0.034)], bar_mat="chrome", rim=True),
+        dict(poly=[(0.47, NT - 0.300), (0.66, NT - 0.300), (0.63, NT - 0.175), (0.47, NT - 0.160)],
+             r=0.022, bars=[(0.0, 0.032)], mirror=True),
+    ],
+}
+FACE = []
+for spec in FACES[V["face"]]:
+    polys = [carlib.rounded(spec["poly"], spec["r"])]
+    if spec.get("mirror"):
+        polys.append(carlib.flip_x(polys[0]))
+    for poly in polys:
+        yb = carlib.poly_depth(L, poly, NOSE, margin=0.035)
+        carlib.aperture_poly(body, M, poly, NOSE - 0.06, yb + 0.03, mat=M.mesh)
+        FACE.append((spec, poly, yb))
 # headlamps: a box through the nose corner, deep enough to open on the flank
 # too, so the lamp wraps the corner as a GT3's does
 LAMP_ZC = (LAMP_Z[0] + LAMP_Z[1]) / 2
@@ -291,8 +389,20 @@ for sx in (-1, 1):
     carlib.aperture(body, M, (x0, NOSE - 0.06, LAMP_Z[0]), (x1, LAMP_YB, LAMP_Z[1]))
 VAL_Z = (E["tail_bot"] + 0.02, E["tail_bot"] + 0.19)
 VAL_HW = L.x_at(TAILP_Y, VAL_Z[1]) - 0.11
-carlib.aperture(body, M, (-VAL_HW, TAILP_Y - 0.22, VAL_Z[0]),
-                (VAL_HW, TAIL + 0.05, VAL_Z[1]), mat=M.mesh)
+# the rear valance, where the exhausts and the diffuser exit: a plain slot
+# on the coupe, a hexagon on the wedge, a trapezoid on the GT
+if V["tail"] == "y":
+    hw = VAL_HW - 0.08
+    VAL_POLY = [(-hw, VAL_Z[0]), (hw, VAL_Z[0]), (hw + 0.08, (VAL_Z[0] + VAL_Z[1]) / 2 + 0.01),
+                (hw, VAL_Z[1] + 0.02), (-hw, VAL_Z[1] + 0.02),
+                (-hw - 0.08, (VAL_Z[0] + VAL_Z[1]) / 2 + 0.01)]
+elif V["tail"] == "wrap":
+    VAL_POLY = carlib.rounded([(-VAL_HW - 0.03, VAL_Z[0]), (VAL_HW + 0.03, VAL_Z[0]),
+                               (VAL_HW - 0.07, VAL_Z[1]), (-VAL_HW + 0.07, VAL_Z[1])], 0.03)
+else:
+    VAL_POLY = carlib.rounded([(-VAL_HW, VAL_Z[0]), (VAL_HW, VAL_Z[0]),
+                               (VAL_HW, VAL_Z[1]), (-VAL_HW, VAL_Z[1])], 0.025)
+carlib.aperture_poly(body, M, VAL_POLY, TAILP_Y - 0.22, TAIL + 0.05, mat=M.mesh)
 # rain light, centre of the tail panel
 RAIN_Z = (VAL_Z[1] + 0.05, VAL_Z[1] + 0.15)
 carlib.aperture(body, M, (-0.12, TAILP_Y - 0.10, RAIN_Z[0]), (0.12, TAIL + 0.05, RAIN_Z[1]))
@@ -349,26 +459,58 @@ DIF_HW = min(L.x_at(y, 0.19) for y in
 carlib.diffuser(p, M.carbon, DIF_Y0, DIF_Y1, DIF_HW, 0.070, VAL_Z[0] + 0.02,
                 thick=0.014, strakes=(-0.70, -0.42, -0.14, 0.14, 0.42, 0.70), strake_h=0.190)
 
-# ---- rear wing: element, gurney, endplates, mounts, brake LED
+# ---- rear wing: each car's own plane, endplates, mounts and brake light.
+# Every endplate stays inside the envelope of the first one - its top,
+# WZ + 0.150, is the top of the mesh box the client derives the eye from.
 WZ, WY, WHW = V["wing_z"], V["wing_y"], V["wing_hw"]
-te_y, te_z = carlib.foil(p, M.carbon, -WHW, WHW, 0.345, 0.105, 0.055, WY, WZ, angle_deg=-9.0)
-carlib.gurney(p, M.carbon, -WHW, WHW, te_y, te_z, h=0.024, t=0.005, angle_deg=-9.0)
-carlib.led_strip(p, M, -WHW + 0.02, WHW - 0.02, te_y - 0.055, te_z, h=0.030, t=0.014,
-                 glow=M.brake, dir_y=1.0)
+AOA = V["wing_aoa"]
+(te_y, te_z), TE = carlib.wing(p, M.carbon, WHW, V["wing_chord"], 0.105, 0.055, WY, WZ, angle_deg=AOA,
+                               plan=V["wing_plan"][0], amount=V["wing_plan"][1])
+for (xa, xb, y, z) in carlib.spans(TE, -WHW, WHW, 12):
+    carlib.gurney(p, M.carbon, xa, xb, y, z, h=0.024, t=0.005, angle_deg=AOA)
+
+
+def wing_dz(x):
+    """How far the plane is above (+) or below its tips at x."""
+    return TE(x)[1] - te_z
+
+
+if V["wing_led"] in ("trail", "centre"):
+    lx = WHW - 0.02 if V["wing_led"] == "trail" else WHW * 0.34
+    for (xa, xb, y, z) in carlib.spans(TE, -lx, lx, 12 if V["wing_led"] == "trail" else 4):
+        carlib.led_strip(p, M, xa, xb, y - 0.055, z, h=0.030, t=0.014, glow=M.brake, dir_y=1.0)
+EPS = {
+    "swoop": [(WY - 0.05, WZ - 0.065), (WY + 0.30, WZ - 0.105), (WY + 0.405, WZ - 0.030),
+              (WY + 0.405, WZ + 0.150), (WY + 0.25, WZ + 0.140), (WY + 0.06, WZ + 0.060),
+              (WY - 0.07, WZ + 0.010)],
+    "facet": [(WY - 0.08, WZ - 0.020), (WY + 0.04, WZ - 0.105), (WY + 0.36, WZ - 0.105),
+              (WY + 0.405, WZ + 0.060), (WY + 0.30, WZ + 0.150), (WY + 0.05, WZ + 0.150)],
+    "round": [(WY - 0.06, WZ - 0.060), (WY + 0.10, WZ - 0.105), (WY + 0.38, WZ - 0.085),
+              (WY + 0.405, WZ + 0.030), (WY + 0.36, WZ + 0.120), (WY + 0.16, WZ + 0.150),
+              (WY - 0.02, WZ + 0.105), (WY - 0.08, WZ + 0.030)],
+}
+EP = EPS[V["endplate"]]
 for sx in (-1, 1):
-    ep = [(WY - 0.06, WZ - 0.060), (WY + 0.10, WZ - 0.105), (WY + 0.38, WZ - 0.085),
-          (WY + 0.405, WZ + 0.030), (WY + 0.36, WZ + 0.120), (WY + 0.16, WZ + 0.150),
-          (WY - 0.02, WZ + 0.105), (WY - 0.08, WZ + 0.030)]
-    carlib.plate(p, M.carbon, ep, sx * (WHW + 0.012), 0.014, chamfer=0.005)
+    carlib.plate(p, M.carbon, EP, sx * (WHW + 0.012), 0.014, chamfer=0.005)
+    if V["wing_led"] == "endplate":
+        # two upright brake bars on the endplate's outer face, near its back
+        for dy in (0.30, 0.345):
+            p.box(M.lamp_h, (min(sx * (WHW + 0.019), sx * (WHW + 0.027)), WY + dy, WZ - 0.060),
+                  (max(sx * (WHW + 0.019), sx * (WHW + 0.027)), WY + dy + 0.022, WZ + 0.080))
+            p.box(M.brake, (min(sx * (WHW + 0.025), sx * (WHW + 0.029)), WY + dy + 0.004, WZ - 0.052),
+                  (max(sx * (WHW + 0.025), sx * (WHW + 0.029)), WY + dy + 0.018, WZ + 0.072))
 if V["wing"] == "pylon":
+    px = V.get("pylon_x", 0.54)
     for sx in (-1, 1):
-        py = [(WY + 0.01, WZ - 0.34), (WY + 0.26, WZ - 0.32), (WY + 0.22, WZ + 0.02),
-              (WY + 0.02, WZ + 0.02)]
-        carlib.plate(p, M.carbon, py, sx * 0.54, 0.028, chamfer=0.008)
+        dz = wing_dz(px)
+        py = [(WY + 0.01, WZ - 0.34), (WY + 0.26, WZ - 0.32), (WY + 0.22, WZ + 0.02 + dz),
+              (WY + 0.02, WZ + 0.02 + dz)]
+        carlib.plate(p, M.carbon, py, sx * px, 0.028, chamfer=0.008)
 else:
     for sx in (-1, 1):
+        dz = wing_dz(0.46)
         carlib.swan_neck(p, M.carbon, sx * 0.46, (0, WY - 0.30, WZ - 0.26),
-                         (0, WY + 0.10, WZ + 0.02), r=0.022)
+                         (0, WY + 0.10, WZ + 0.02 + dz), r=0.022)
 if V["ducktail"]:
     d0, d1 = TAILP_Y - 0.34, TAILP_Y - 0.03
     dt = [(d0, L.roof_z(d0) - 0.012), (d1, L.roof_z(d1) + 0.030), (d1, L.roof_z(d1) + 0.062),
@@ -424,64 +566,121 @@ for sx in (-1, 1):
     carlib.front_lens(p, M.glass, L, x0 - 0.004, x1 + 0.004, z0 - 0.004, z1 + 0.004, NOSE,
                       lift=-0.0025, nu=10, nv=4, margin=0.0)
 
-    # tail corner pocket: black floor, a pair of light guides wrapping the
-    # corner, a smoked lens; the brake block sits on the tail panel below
-    carlib.pocket_floor(p, M.lamp_h, L, TLAMP_Y0 + 0.006, TLAMP_Y1 - 0.006,
-                        TLAMP_J[0] + 0.06, TLAMP_J[1] - 0.06, sx=sx, depth=0.030)
-    carlib.pocket_bezel(p, M.trim, L, TLAMP_Y0 - 0.004, TLAMP_Y1 + 0.004,
-                        TLAMP_J[0] - 0.04, TLAMP_J[1] + 0.04, sx=sx, w_y=0.010, w_j=0.08)
-    TJM = (TLAMP_J[0] + TLAMP_J[1]) / 2
-    for dj in (0.16, -0.16):
-        carlib.light_guide(p, M.tail, L, [(TLAMP_Y0 + 0.016, TJM + dj), (TLAMP_Y1 - 0.016, TJM + dj)],
-                           sx=sx, lift=-0.030 + 0.010, r=0.0055, per=6)
-    carlib.conform_decal(p, M.lens_tint, L, TLAMP_Y0 + 0.010, TLAMP_Y1 - 0.010,
-                         TLAMP_J[0] + 0.09, TLAMP_J[1] - 0.09, sx=sx, lift=-0.0025, nu=6, nv=3)
-    bz = E["tail_top"] - 0.20
-    bx = L.x_at(TAILP_Y, bz) - 0.05
-    b0, b1 = sorted((sx * (bx - 0.22), sx * (bx - 0.02)))
-    carlib.led_grid(p, M, b0, b1, bz - 0.032, bz + 0.004, TAIL - 0.004, dir_y=-1.0,
-                    cols=5, rows=2, glow=M.brake)
-if V["lights"] in ("round", "slant"):
-    # full-width light bar across the tail panel, the running light
-    bz = E["tail_top"] - 0.20
-    bx = L.x_at(TAILP_Y, bz + 0.06) - 0.06
-    # the tip station is pulled in behind the panel face, so the bar sits a
-    # few millimetres proud of the tip - as a real light bar does
-    carlib.tail_bar(p, M, -bx, bx, TAIL + 0.004, bz + 0.065, h=0.046, glow=M.tail, dir_y=-1.0)
+
+# ---- tail lights. Three signatures, all lit in the running-light slot
+# (car_taillight, which the client keeps on all session) with the brake
+# elements in their own slot:
+#   bar  - a full-width bar across the tail panel with a four-point brake
+#          cluster under each end (the coupe)
+#   y    - a lit Y at each corner standing on a black hexagonal plate, a
+#          brake triangle in the fork (the wedge)
+#   wrap - a pocket wrapping each rear corner with three guides, a slim
+#          blade lamp on the panel running up to meet it (the GT)
+def mirrored(poly, sx):
+    """A right-hand (x, z) outline placed on side `sx`, wound the same way."""
+    out = [(sx * x, z) for (x, z) in poly]
+    return out if sx > 0 else list(reversed(out))
+
+
+def tail_skin(poly):
+    """The most forward station at which the tail's skin passes any point of
+    `poly`: a lamp plate that reaches back to it sits on the rounded tail
+    corner as well as on the flat panel, instead of hiding behind it."""
+    return min(carlib.surface_station(L, abs(x), z, TAIL, step=0.004, margin=0.0) for (x, z) in poly)
+
+
+LAMP_OUT = TAIL + 0.012            # face of the lamp plates, just proud of the panel
+
+
+TL = V["tail"]
+if TL == "bar":
+    bz = E["tail_top"] - 0.135
+    bx = L.x_at(TAILP_Y, bz) - 0.06
+    carlib.tail_bar(p, M, -bx, bx, TAIL + 0.004, bz, h=0.070, glow=M.tail, dir_y=-1.0,
+                    guide_r=0.014)
+    for sx in (-1, 1):
+        b0, b1 = sorted((sx * (bx - 0.20), sx * (bx - 0.04)))
+        grid = [(b0, bz - 0.125), (b1, bz - 0.125), (b1, bz - 0.050), (b0, bz - 0.050)]
+        carlib.poly_fill(p, M.lamp_h, grid, tail_skin(grid) - 0.004, LAMP_OUT - 0.012)
+        carlib.led_grid(p, M, b0, b1, bz - 0.125, bz - 0.050, LAMP_OUT, dir_y=-1.0,
+                        cols=2, rows=2, glow=M.brake, pitch_gap=0.25)
+elif TL == "y":
+    dz = E["tail_top"] - 0.80
+    yt = LAMP_OUT + 0.012
+    for sx in (-1, 1):
+        plate_xz = mirrored([(x, z + dz) for (x, z) in
+                             [(0.27, 0.690), (0.33, 0.735), (0.66, 0.730), (0.69, 0.680),
+                              (0.55, 0.565), (0.45, 0.555)]], sx)
+        carlib.poly_fill(p, M.lamp_h, plate_xz, tail_skin(plate_xz) - 0.004, LAMP_OUT)
+        hub = (sx * 0.475, yt, 0.640 + dz)
+        for end in ((sx * 0.505, yt, 0.580 + dz), (sx * 0.330, yt, 0.705 + dz), (sx * 0.640, yt, 0.700 + dz)):
+            carlib.guide_xyz(p, M.tail, [hub, end], r=0.012, segs=10)
+        fork = [(0.40, 0.700 + dz), (0.476, 0.658 + dz), (0.56, 0.698 + dz)]
+        carlib.poly_fill(p, M.brake, mirrored(fork, sx), LAMP_OUT, LAMP_OUT + 0.005)
 else:
     for sx in (-1, 1):
-        bz = E["tail_top"] - 0.20
-        bx = L.x_at(TAILP_Y, bz) - 0.05
-        b0, b1 = sorted((sx * 0.30, sx * (bx - 0.02)))
-        carlib.tail_bar(p, M, b0, b1, TAIL + 0.004, bz + 0.065, h=0.040, glow=M.tail, dir_y=-1.0)
+        # corner pocket: black floor, three guides wrapping the corner, a
+        # smoked lens flush with the skin
+        carlib.pocket_floor(p, M.lamp_h, L, TLAMP_Y0 + 0.006, TLAMP_Y1 - 0.006,
+                            TLAMP_J[0] + 0.06, TLAMP_J[1] - 0.06, sx=sx, depth=0.030)
+        carlib.pocket_bezel(p, M.trim, L, TLAMP_Y0 - 0.004, TLAMP_Y1 + 0.004,
+                            TLAMP_J[0] - 0.04, TLAMP_J[1] + 0.04, sx=sx, w_y=0.010, w_j=0.08)
+        TJM = (TLAMP_J[0] + TLAMP_J[1]) / 2
+        for dj in (0.22, 0.0, -0.22):
+            carlib.light_guide(p, M.tail, L, [(TLAMP_Y0 + 0.016, TJM + dj), (TLAMP_Y1 - 0.016, TJM + dj)],
+                               sx=sx, lift=-0.020, r=0.008, per=6)
+        carlib.conform_decal(p, M.lens_tint, L, TLAMP_Y0 + 0.010, TLAMP_Y1 - 0.010,
+                             TLAMP_J[0] + 0.09, TLAMP_J[1] - 0.09, sx=sx, lift=-0.0025, nu=6, nv=3)
+        # the blade across the panel, climbing outboard to the pocket
+        bz = E["tail_top"] - 0.165
+        bxo = L.x_at(TAILP_Y, bz + 0.03) - 0.07
+        blade = [(0.24, bz - 0.005), (bxo, bz + 0.022), (bxo + 0.01, bz + 0.058), (0.24, bz + 0.030)]
+        blade = mirrored(blade, sx)
+        carlib.poly_fill(p, M.lamp_h, blade, tail_skin(blade) - 0.004, LAMP_OUT)
+        carlib.guide_xyz(p, M.tail, [(sx * 0.26, LAMP_OUT + 0.009, bz + 0.013),
+                                     (sx * (bxo - 0.01), LAMP_OUT + 0.009, bz + 0.040)], r=0.010, segs=10)
+        b0, b1 = sorted((sx * (bxo - 0.20), sx * (bxo - 0.02)))
+        grid = [(b0, bz - 0.070), (b1, bz - 0.070), (b1, bz - 0.030), (b0, bz - 0.030)]
+        carlib.poly_fill(p, M.lamp_h, grid, tail_skin(grid) - 0.004, LAMP_OUT - 0.012)
+        carlib.led_grid(p, M, b0, b1, bz - 0.070, bz - 0.030, LAMP_OUT, dir_y=-1.0,
+                        cols=6, rows=1, glow=M.brake)
 # FIA rain light: an LED matrix behind a clear lens in its aperture
 carlib.led_grid(p, M, -0.10, 0.10, RAIN_Z[0] + 0.012, RAIN_Z[1] - 0.012, TAIL - 0.016, dir_y=-1.0,
                 cols=6, rows=3, glow=M.rain)
-# bumper mouth: mesh backing, bars and a raised surround
-carlib.grille(p, M, -MOUTH_HW + 0.012, MOUTH_HW - 0.012, BUMPER_Y + 0.02,
-              MOUTH_Z[0] + 0.012, MOUTH_Z[1] - 0.012, bars=3, depth=0.24, backing=True)
-carlib.duct_lip(p, M.carbon, -MOUTH_HW, MOUTH_HW, BUMPER_Y - 0.008, MOUTH_Z[0], MOUTH_Z[1],
-                out=0.018)
-for sx in (-1, 1):
-    d0, d1 = sorted((sx * (MOUTH_HW + 0.09), sx * (MOUTH_HW + 0.26)))
-    p.box(M.mesh, (d0 + 0.01, BUMPER_Y + 0.13, MOUTH_Z[0] + 0.02),
-          (d1 - 0.01, BUMPER_Y + 0.15, MOUTH_Z[1] - 0.04))
-# rear valance: mesh, exhausts inside it
-p.box(M.mesh, (-VAL_HW + 0.01, TAILP_Y - 0.16, VAL_Z[0] + 0.01),
-      (VAL_HW - 0.01, TAILP_Y - 0.14, VAL_Z[1] - 0.01))
+# the face's openings: mesh backing where the cut ends, the car's bars in
+# front of it, a chrome surround on the shield grille, the wedge's blade
+for (spec, poly, yb) in FACE:
+    carlib.poly_fill(p, M.mesh, poly, yb, yb + 0.012)
+    bar_mat = M.chrome if spec.get("bar_mat") == "chrome" else M.carbon
+    for (ang, pitch) in spec["bars"]:
+        carlib.poly_bars(p, bar_mat, poly, yb - 0.030, angle_deg=ang, pitch=pitch,
+                         t=0.009 if ang == 90.0 else 0.007, depth=0.028)
+    if spec.get("rim"):
+        ys = min(carlib.surface_station(L, abs(x), z, NOSE, step=0.01, margin=0.0) for (x, z) in poly)
+        carlib.poly_rim(p, M.chrome, poly, ys - 0.012, w=0.016, depth=0.030)
+    if spec.get("blade"):
+        zs = [z for (_, z) in poly]
+        z0, z1 = min(zs) + 0.004, max(zs) - 0.004
+        yf = carlib.surface_station(L, 0.02, z0, NOSE, step=0.004, margin=0.0) + 0.006
+        carlib.plate(p, M.carbon, [(yf, z0), (yb, z0), (yb, z1), (yf + 0.03, z1)], 0.0, 0.016,
+                     chamfer=0.004)
+# rear valance: mesh backing, the car's bars, exhausts inside it
+carlib.poly_fill(p, M.mesh, VAL_POLY, TAILP_Y - 0.16, TAILP_Y - 0.14)
+if V["tail"] == "y":
+    for ang in (35.0, -35.0):
+        carlib.poly_bars(p, M.carbon, VAL_POLY, TAILP_Y - 0.14, angle_deg=ang, pitch=0.05,
+                         depth=0.03, dir_y=-1.0)
+elif V["tail"] == "wrap":
+    carlib.poly_bars(p, M.carbon, VAL_POLY, TAILP_Y - 0.14, angle_deg=90.0, pitch=0.09,
+                     t=0.012, depth=0.05, dir_y=-1.0)
 
-# ---- blades in the vents cut into the loft
-if "fender" in V["vents"]:
+# ---- blades in the vents cut into the loft, leaning with each vent
+for (f, n, r) in SIDE_BLADES:
     for sx in (-1, 1):
-        yv0, yv1 = AX_F + FV0 + 0.02, AX_F + FV1 - 0.02
-        zv0, zv1 = L.point(yv0, 2.2).z, L.point(yv0, 3.3).z
-        carlib.louvre_bank(p, M.carbon, L.x_at((yv0 + yv1) / 2, (zv0 + zv1) / 2) - 0.012,
-                           yv0, yv1, zv0 + 0.02, zv1 - 0.02, count=4, rake_deg=24, sx=sx)
-if "side_intake" in V["vents"]:
+        carlib.swept_blades(p, M.carbon, L, f, count=n, sx=sx, r=r)
+for f in SIDE_FLOORS:
     for sx in (-1, 1):
-        zv0, zv1 = L.point(0.88, 2.0).z, L.point(0.88, 3.3).z
-        carlib.louvre_bank(p, M.carbon, L.x_at(0.88, (zv0 + zv1) / 2) - 0.018,
-                           0.73, 1.03, zv0 + 0.03, zv1 - 0.03, count=3, rake_deg=18, sx=sx)
+        carlib.swept_floor(p, M.mesh, L, f, sx=sx)
 if "bonnet_louvres" in V["vents"] or "deck_louvres" in V["vents"]:
     y0 = NOSE + 0.98 if "bonnet_louvres" in V["vents"] else V["rear_glass_y"][1] + 0.07
     for k in range(4):
@@ -655,8 +854,9 @@ p.bar(M.cage, (-0.70, HOOP_Y, 0.58), (0.70, HOOP_Y, 0.58), 0.019, segs=8)
 
 # ---- wordmark, laid on the flank rather than floated off it
 LG0, LG1 = V.get("logo_y", (-0.52, 0.62))
-carlib.conform_decal(p, M.logo, L, LG0, LG1, 2.05, 3.05, sx=1, lift=0.005, nu=14, nv=6)
-carlib.conform_decal(p, M.logo, L, LG0, LG1, 2.05, 3.05, sx=-1, lift=0.005, nu=14, nv=6,
+LJ0, LJ1 = V.get("logo_j", (2.05, 3.05))
+carlib.conform_decal(p, M.logo, L, LG0, LG1, LJ0, LJ1, sx=1, lift=0.005, nu=14, nv=6)
+carlib.conform_decal(p, M.logo, L, LG0, LG1, LJ0, LJ1, sx=-1, lift=0.005, nu=14, nv=6,
                      flip_u=True)
 
 parts = carlib.bevel(p.finish(planar_uv=True, recalc=False), width=0.0045, segments=2,

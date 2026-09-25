@@ -28,6 +28,20 @@ namespace
 		ECVF_Default);
 
 	/**
+	 * Emissive brightness of the running (tail) lights in daylight. A race car
+	 * runs its tail lights all session; left at the GLB's own emission the
+	 * `car_taillight` slot was invisible under the 50 klux exposure and only
+	 * the brake lights ever showed. Dimmer than a brake light so braking still
+	 * reads; with the headlights on the tails drop to the running-light share
+	 * of the brake glow, since the night exposure lifts them by itself.
+	 */
+	TAutoConsoleVariable<float> CVarTailLightNits(
+		TEXT("apexsim.car.TailLightNits"),
+		700.0f,
+		TEXT("Brightness of a car's tail (running) lights in daylight, as an emissive multiplier"),
+		ECVF_Default);
+
+	/**
 	 * How far behind the newest telemetry frame a car is drawn, in frames.
 	 * Two frames (33 ms at 60Hz) rides out the usual lumping of arrivals;
 	 * lower is closer to live but runs off the end of the data more often.
@@ -66,6 +80,8 @@ namespace
 
 	/** The material slot every car GLB gives its brake lights (docs/CAR_MODELS.md). */
 	const FName BrakeLightSlot(TEXT("car_brakelight"));
+	/** ... and its running lights (always on while racing). */
+	const FName TailLightSlot(TEXT("car_taillight"));
 
 	/**
 	 * The Interchange glTF parent's emissive colour. Its `EmissiveStrength`
@@ -106,6 +122,7 @@ AApexRaceCarActor::AApexRaceCarActor()
 
 	// The wheels ride the body mesh, so they share its frame: nose +Y, left +X.
 	Wheels.CreateComponents(*this, CarMesh);
+	DrsFlap.CreateComponent(*this, CarMesh);
 
 	// Nothing places the car until the first telemetry frame; until then it
 	// would sit at the world origin, which on most circuits is in mid-air or
@@ -176,22 +193,24 @@ void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow
 	// A different body is a different seat.
 	bCockpitLayoutValid = false;
 
-	BrakeLightMaterial = nullptr;
-	const int32 BrakeSlot = Loaded ? CarMesh->GetMaterialIndex(BrakeLightSlot) : INDEX_NONE;
-	if (BrakeSlot != INDEX_NONE)
+	// Normalised authored colour, so the cvars alone set how bright the lights are.
+	auto LightSlot = [this, Loaded](FName Slot, FLinearColor& OutColor) -> UMaterialInstanceDynamic*
 	{
-		BrakeLightMaterial = CarMesh->CreateDynamicMaterialInstance(BrakeSlot);
-	}
-	BrakeLightColor = FLinearColor::Red;
-	FLinearColor Authored;
-	if (BrakeLightMaterial
-		&& BrakeLightMaterial->GetVectorParameterValue(FHashedMaterialParameterInfo(EmissiveFactorParam), Authored)
-		&& Authored.GetMax() > UE_KINDA_SMALL_NUMBER)
-	{
-		// Normalised, so the cvar alone sets how bright the lights are.
-		BrakeLightColor = Authored / Authored.GetMax();
-		BrakeLightColor.A = 1.0f;
-	}
+		OutColor = FLinearColor::Red;
+		const int32 Index = Loaded ? CarMesh->GetMaterialIndex(Slot) : INDEX_NONE;
+		UMaterialInstanceDynamic* Instance = Index != INDEX_NONE ? CarMesh->CreateDynamicMaterialInstance(Index) : nullptr;
+		FLinearColor Authored;
+		if (Instance
+			&& Instance->GetVectorParameterValue(FHashedMaterialParameterInfo(EmissiveFactorParam), Authored)
+			&& Authored.GetMax() > UE_KINDA_SMALL_NUMBER)
+		{
+			OutColor = Authored / Authored.GetMax();
+			OutColor.A = 1.0f;
+		}
+		return Instance;
+	};
+	BrakeLightMaterial = LightSlot(BrakeLightSlot, BrakeLightColor);
+	TailLightMaterial = LightSlot(TailLightSlot, TailLightColor);
 	// Force the next update to write the parameter: the imported material ships lit.
 	bBrakeLightsOn = true;
 	TailLightState = -1;
@@ -206,8 +225,23 @@ void AApexRaceCarActor::SetLivery(const FApexCarLivery* Livery)
 	if (Livery || bLiveryApplied)
 	{
 		ApexLivery::Apply(CarMesh, Livery);
+		// The flap is painted like the wing it was cut from.
+		if (UStaticMeshComponent* Flap = GetDrsFlapComponent())
+		{
+			ApexLivery::Apply(Flap, Livery);
+		}
 	}
 	bLiveryApplied = Livery != nullptr;
+}
+
+void AApexRaceCarActor::SetDrsFlap(const FApexDrsFlapSpec& Spec)
+{
+	if (Spec == DrsFlap.GetSpec() && DrsFlap.HasFlap() == Spec.IsUsable())
+	{
+		return;
+	}
+	DrsFlap.SetSpec(Spec);
+	bDrsOpen = false;
 }
 
 void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
@@ -241,16 +275,25 @@ void AApexRaceCarActor::UpdateBrakeLights()
 	const bool bOn = Brake > BrakeLightThreshold;
 	bBrakeLightsOn = bOn;
 	const int32 Wanted = bOn ? 2 : (bHeadlightsOn ? 1 : 0);
-	if (Wanted == TailLightState || !BrakeLightMaterial)
+	if (Wanted == TailLightState || (!BrakeLightMaterial && !TailLightMaterial))
 	{
 		return;
 	}
 	TailLightState = Wanted;
 	const float Nits = CVarBrakeLightNits.GetValueOnGameThread();
-	const FLinearColor Glow = Wanted == 2 ? BrakeLightColor * Nits
-		: Wanted == 1 ? BrakeLightColor * (Nits * RunningLightShare)
-		: FLinearColor::Black;
-	BrakeLightMaterial->SetVectorParameterValue(EmissiveFactorParam, Glow);
+	const float Running = bHeadlightsOn ? Nits * RunningLightShare : CVarTailLightNits.GetValueOnGameThread();
+	if (BrakeLightMaterial)
+	{
+		const FLinearColor Glow = Wanted == 2 ? BrakeLightColor * Nits
+			: Wanted == 1 ? BrakeLightColor * (Nits * RunningLightShare)
+			: FLinearColor::Black;
+		BrakeLightMaterial->SetVectorParameterValue(EmissiveFactorParam, Glow);
+	}
+	if (TailLightMaterial)
+	{
+		// Running lights stay on whatever the pedal does; only the level changes with the sky.
+		TailLightMaterial->SetVectorParameterValue(EmissiveFactorParam, TailLightColor * Running);
+	}
 }
 
 void AApexRaceCarActor::SetHeadlights(bool bOn)
@@ -330,6 +373,7 @@ void AApexRaceCarActor::SetMeshVisible(bool bVisible)
 	// with the bodywork they belong to.
 	CarMesh->SetVisibility(bVisible);
 	Wheels.SetVisible(bVisible);
+	DrsFlap.SetVisible(bVisible);
 }
 
 void AApexRaceCarActor::SetCockpitSpec(const FString& InCarClass, const FApexCockpitOverrides& InOverrides)
@@ -482,6 +526,7 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	Throttle = Car.Throttle;
 	Brake = Car.Brake;
 	UpdateBrakeLights();
+	bDrsOpen = Car.bDrsOpen;
 	CurrentLap = Car.CurrentLap;
 	CurrentLapTimeMs = Car.CurrentLapTimeMs;
 
@@ -554,6 +599,9 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	Wheels.Update(Steering,
 		ApexWheels::RolledDistanceM(PreviousLocation, Pose.Location, Pose.Rotation, TeleportDistanceCm),
 		FMath::DegreesToRadians(CVarWheelMaxDegPerFrame.GetValueOnGameThread()));
+	// Swung, not snapped: the telemetry flips the flag in one frame, a real
+	// actuator takes a fifth of a second.
+	DrsFlap.Update(bDrsOpen, DeltaSeconds);
 
 	if (CVarInterpDebug.GetValueOnGameThread() != 0 && GEngine)
 	{

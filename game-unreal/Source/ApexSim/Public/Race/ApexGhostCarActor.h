@@ -51,7 +51,7 @@ public:
 	void SetGhostVisible(bool bVisible);
 	bool IsGhostShown() const { return bShown; }
 
-	/** Tints every material on the body and wheels; call after SetCarMesh / SetWheels. */
+	/** Tints every material on the body, wheels and DRS flap; call after SetCarMesh / SetWheels / SetDrsFlap. */
 	void ApplyGhostLook();
 
 	/** The pose the lap has at the clock, in the server frame; false when off the lap. */

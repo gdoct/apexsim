@@ -134,7 +134,7 @@ front_width_m = 0.320
 rear_width_m = 0.345
 
 # --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
-# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.
+# Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]
 name = "Aurum Black"
@@ -156,3 +156,24 @@ paint = [0.070, 0.020, 0.170]
 accent = [0.000, 0.580, 0.680]
 metallic = 0.85
 logo = "textures/livery_midnight.png"
+
+[[livery]]
+name = "Vortex Cobalt"
+paint = [0.010, 0.160, 0.600]
+accent = [0.880, 0.880, 0.860]
+metallic = 0.70
+logo = "textures/livery_cobalt.png"
+
+[[livery]]
+name = "Glacier Mint"
+paint = [0.280, 0.720, 0.580]
+accent = [0.010, 0.030, 0.080]
+metallic = 0.35
+logo = "textures/livery_glacier.png"
+
+[[livery]]
+name = "Pulse Neon"
+paint = [0.012, 0.012, 0.020]
+accent = [0.900, 0.060, 0.550]
+metallic = 0.30
+logo = "textures/livery_neon.png"

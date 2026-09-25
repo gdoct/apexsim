@@ -17,7 +17,7 @@ only; nothing beside the PNGs is written.
 import bpy, math, os, sys
 from mathutils import Vector
 
-ROOT = r"D:\apexsim\content"
+ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"D:\apexsim"), "content")
 OUT = os.path.join(ROOT, "props", "_preview", "cars")
 try:
     CARS
@@ -36,6 +36,10 @@ try:
     LIVERY          # 0: the model as authored; N: the car.toml's N-th [[livery]]
 except NameError:
     LIVERY = 0
+try:
+    DRS_OPEN        # 0..1: how far an F1 car's DRS flap is drawn open
+except NameError:
+    DRS_OPEN = 0.0
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -178,6 +182,24 @@ def add_wheels(cfg):
     return out
 
 
+def add_drs_flap(cfg, car_dir):
+    """The DRS flap from car.toml's [drs_flap] (the body is exported without
+    it): at its hinge, turned DRS_OPEN of the way open, leading edge up -
+    what AApexRaceCarActor does (ApexCarDrsFlap.h)."""
+    d = cfg.get("drs_flap")
+    if not d:
+        return []
+    objs = import_glb(os.path.join(car_dir, d["model"]))
+    for o in objs:
+        if o.parent:
+            continue
+        # car.toml is in the wheels' convention: forward is Blender -y
+        o.location = (0.0, -float(d["hinge_forward_m"]), float(d["hinge_up_m"]))
+        o.rotation_mode = 'XYZ'
+        o.rotation_euler = (-math.radians(float(d["open_deg"])) * DRS_OPEN, 0.0, 0.0)
+    return objs
+
+
 OPEN_WHEEL = False   # set per car from its class: F1 cars get the open-wheel eye
 
 
@@ -285,7 +307,7 @@ for folder in CARS:
         studio()
         if view.startswith("lamps"):
             dusk()
-        body = import_glb(glb)
+        body = import_glb(glb) + add_drs_flap(cfg, car_dir)
         if LIVERY and len(cfg.get("livery", [])) >= LIVERY:
             apply_livery(body, car_dir, cfg["livery"][LIVERY - 1])
         wheels = add_wheels(cfg)

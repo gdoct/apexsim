@@ -132,8 +132,15 @@ rear_radius_m = 0.360
 front_width_m = 0.305
 rear_width_m = 0.375
 
+[drs_flap]
+# the rear wing's upper element, cut out of the body so the client can open it
+model = "ashton_amr26_drs.glb"
+hinge_forward_m = -2.5298
+hinge_up_m = 0.8226
+open_deg = 25.0
+
 # --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
-# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.
+# Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]
 name = "Magma Lava"
@@ -155,3 +162,24 @@ paint = [0.015, 0.070, 0.420]
 accent = [0.880, 0.660, 0.020]
 metallic = 0.65
 logo = "textures/livery_royal.png"
+
+[[livery]]
+name = "Pulse Neon"
+paint = [0.012, 0.012, 0.020]
+accent = [0.900, 0.060, 0.550]
+metallic = 0.30
+logo = "textures/livery_neon.png"
+
+[[livery]]
+name = "Zest Citrus"
+paint = [0.950, 0.400, 0.015]
+accent = [0.015, 0.120, 0.400]
+metallic = 0.25
+logo = "textures/livery_citrus.png"
+
+[[livery]]
+name = "Sakura Pearl"
+paint = [0.800, 0.780, 0.800]
+accent = [0.850, 0.200, 0.420]
+metallic = 0.60
+logo = "textures/livery_sakura.png"

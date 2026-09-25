@@ -77,6 +77,18 @@ public:
 		bool IsPresent() const { return !Model.IsEmpty(); }
 	};
 
+	/** The `[drs_flap]` table: the flap GLB beside the car.toml, its hinge and its travel. */
+	struct FDrsFlapToml
+	{
+		/** Relative to the car folder; empty when the table is absent. */
+		FString Model;
+		float HingeForwardM = 0.0f;
+		float HingeUpM = 0.0f;
+		float OpenDeg = 0.0f;
+
+		bool IsPresent() const { return !Model.IsEmpty(); }
+	};
+
 	/** A `[[livery]]` table: colours are linear RGB, `logo` a PNG relative to the car folder. */
 	struct FLiveryToml
 	{
@@ -102,6 +114,7 @@ public:
 		float MaxPowerKw = 0.0f;
 		float MaxSteerRad = 0.0f;
 		FWheelsToml Wheels;
+		FDrsFlapToml DrsFlap;
 		/**
 		 * The `[sound]` table and the `[engine]` rev range, already in the
 		 * row's shape: derived like the wheels, so it follows the TOML on
@@ -122,6 +135,10 @@ public:
 	static FString WheelPackageName(const FString& DestRoot, const FString& Model);
 	/** The row's wheel figures from the TOML, pointing at `Mesh`; an empty spec when the TOML has none. */
 	static FApexWheelSpec MakeWheelSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh);
+	/** `fugazzi-sf26` -> `/Game/Cars/fugazzi_sf26/Drs/SM_fugazzi_sf26_drs`, as a package name. */
+	static FString DrsFlapPackageName(const FString& DestRoot, const FString& Folder);
+	/** The row's DRS flap from the TOML, pointing at `Mesh`; an empty spec when the TOML has none. */
+	static FApexDrsFlapSpec MakeDrsFlapSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh);
 	/** `textures/blue_logo.png` -> `/Game/Cars/<folder>/Liveries/T_blue_logo`, as a package name. */
 	static FString LiveryLogoPackageName(const FString& DestRoot, const FString& Folder, const FString& Logo);
 	/** `yotota-lmp2` -> `yotota_lmp2`: a folder name as a package name segment. */
@@ -164,6 +181,12 @@ private:
 	 * for a dry run.
 	 */
 	UStaticMesh* ResolveWheelMesh(const FString& Model, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError);
+	/**
+	 * A car's DRS flap mesh: the existing asset unless -force, else imported
+	 * from the GLB its `[drs_flap]` names, into its own folder so its
+	 * materials do not land on the body's. Null with no error for a dry run.
+	 */
+	UStaticMesh* ResolveDrsFlapMesh(const FSource& Source, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError);
 	/** The row's liveries from the TOML, importing each logo PNG once (again under -force). */
 	bool ResolveLiveries(const FSource& Source, const FOptions& Options, TSet<UPackage*>& OutPackages,
 		TArray<FApexCarLivery>& OutLiveries, FString& OutError);
