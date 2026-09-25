@@ -682,6 +682,8 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		if (AApexRaceCarActor* Actor = FindCar(Car.CarIndex))
 		{
 			Actor->ApplyTelemetry(Car, Frame.ServerTick);
+			// The lights are the server's: the driver's switch, or the sky.
+			Actor->SetHeadlights(bRaceViewActive && (Car.bHeadlights || Car.bHeadlightFlash), Car.bHeadlightFlash);
 			// Someone else's car parked in its hotlap garage is out of the
 			// way on the server and not drawn here; the player's own stays,
 			// it is what the garage view looks at.
@@ -693,6 +695,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		if (Car.CarIndex == LocalIndex)
 		{
 			bLocalInGarage = Car.bInGarage;
+			bLocalHeadlights = Car.bHeadlights;
 			LocalLap = Car.CurrentLap;
 			LocalLapTimeMs = Car.CurrentLapTimeMs;
 		}
@@ -1703,6 +1706,17 @@ void AApexRaceDirector::PollDrivingInput()
 	// The DRS button as held; whether the flap opens is the server's call.
 	Input.bDrs = Drive.bDrs;
 
+	// The headlight switch: untouched, the server lights the car for the sky;
+	// the first press flips what it shows, and the switch is ours from then.
+	if (PlayerController->ConsumeHeadlightToggles() % 2 != 0)
+	{
+		const bool bOn = HeadlightSwitch < 0 ? bLocalHeadlights : HeadlightSwitch > 0;
+		HeadlightSwitch = bOn ? 0 : 1;
+		UE_LOG(LogApexSim, Log, TEXT("Headlights switched %s"), HeadlightSwitch > 0 ? TEXT("on") : TEXT("off"));
+	}
+	Input.Headlights = HeadlightSwitch;
+	Input.bFlash = PlayerController->IsFlashingLights();
+
 	Net->SetPlayerInput(Input);
 }
 
@@ -2025,6 +2039,8 @@ void AApexRaceDirector::BeginRaceView()
 	BleepCountdownSecond = -1;
 	BleepLap = -1;
 	BleepCarIndex = -1;
+	HeadlightSwitch = -1;
+	bLocalHeadlights = false;
 
 	LoadTrackLevel();
 	ApplyRaceEnvironment();

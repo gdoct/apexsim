@@ -39,6 +39,8 @@ fn bench_physics_step(c: &mut Criterion) {
         gear: None,
         clutch: None,
         drs: false,
+        headlights: None,
+        flash: false,
     };
     let dt = 1.0 / 240.0;
 

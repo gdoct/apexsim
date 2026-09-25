@@ -928,6 +928,8 @@ namespace
 		Out.bInGarage = false;
 		Out.bDrsAllowed = false;
 		Out.bDrsOpen = false;
+		Out.bHeadlights = false;
+		Out.bHeadlightFlash = false;
 		if (Index < Known)
 		{
 			bOk &= Next([&]
@@ -941,6 +943,8 @@ namespace
 				Out.bInGarage = (Raw & 4) != 0;
 				Out.bDrsAllowed = (Raw & 8) != 0;
 				Out.bDrsOpen = (Raw & 16) != 0;
+				Out.bHeadlights = (Raw & 32) != 0;
+				Out.bHeadlightFlash = (Raw & 64) != 0;
 				return true;
 			});
 		}
@@ -1409,8 +1413,8 @@ namespace ApexProtocol
 
 	TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input)
 	{
-		FMsgPackWriter Writer(112);
-		BeginDataVariant(Writer, "PlayerInput", 7);
+		FMsgPackWriter Writer(136);
+		BeginDataVariant(Writer, "PlayerInput", 9);
 		Writer.WriteString("server_tick_ack");
 		Writer.WriteUInt(ServerTickAck);
 		Writer.WriteString("throttle");
@@ -1436,6 +1440,20 @@ namespace ApexProtocol
 		// message as before (`cargo test player_input_drs_wire_format`).
 		Writer.WriteString("drs");
 		Writer.WriteBool(Input.bDrs);
+		// The headlight switch (nil: the sky decides) and the flash button,
+		// after drs for the same reason (`cargo test
+		// player_input_headlights_wire_format`).
+		Writer.WriteString("headlights");
+		if (Input.Headlights < 0)
+		{
+			Writer.WriteNil();
+		}
+		else
+		{
+			Writer.WriteBool(Input.Headlights > 0);
+		}
+		Writer.WriteString("flash");
+		Writer.WriteBool(Input.bFlash);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

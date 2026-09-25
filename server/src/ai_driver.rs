@@ -416,6 +416,8 @@ impl<'a> AiDriverController<'a> {
                 gear: Some(state.gear),
                 clutch: Some(state.clutch_input),
                 drs: state.drs_allowed,
+                headlights: None,
+                flash: false,
             };
         }
 
@@ -433,6 +435,8 @@ impl<'a> AiDriverController<'a> {
             gear: Some(gear),
             clutch: Some(1.0),
             drs: state.drs_allowed,
+            headlights: None,
+            flash: false,
         }
     }
 
