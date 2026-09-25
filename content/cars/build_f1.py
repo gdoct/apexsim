@@ -68,7 +68,7 @@ VARIANTS = {
                     # short, wide nose; pods that wash steeply down to the
                     # floor; swept wing endplates; no fin
                     nose_len=-0.14, nose_w=1.20, undercut=0.05, pod_slope=0.10,
-                    fw="swept", rw="swept", beam=1, fin=False,
+                    fw="swept", rw="swept", beam=1, fin=False, rw_plan=("spoon", 0.035),
                     livery=[(-0.95, 1.40, 3.95, 4.25),            # white band along the pod shoulder
                             (-3.1, -2.45, 0.0, 9.0)]),            # white nose tip
     "murcetes": dict(folder="murcetes-amd-w17", stem="murcetes_w17", logo="murcetes_f1_logo.png",
@@ -78,7 +78,7 @@ VARIANTS = {
                      # needle nose; slim pods cut deep underneath; a shark
                      # fin to the wing; square endplates, double beam wing
                      nose_len=0.08, nose_w=0.78, undercut=0.10, pod_slope=0.02,
-                     fw="classic", rw="square", beam=2, fin=True,
+                     fw="classic", rw="square", beam=2, fin=True, rw_plan=("straight", 0.0),
                      livery=[(-1.3, 2.5, 0.0, 3.25),              # black below the flank crease
                              (-3.1, -2.3, 0.0, 9.0)]),
     "mclarsen": dict(folder="mclarsen-mcl40", stem="mclarsen_mcl40", logo="mclarsen_logo.png",
@@ -88,7 +88,7 @@ VARIANTS = {
                      # the spoon: a broad flat nose over a low two-element
                      # wing; high pod shoulders ramping back; curled endplates
                      nose_len=0.0, nose_w=1.35, undercut=0.07, pod_slope=-0.03,
-                     fw="low", rw="curl", beam=1, fin=False,
+                     fw="low", rw="curl", beam=1, fin=False, rw_plan=("arch", 0.025),
                      livery=[(-1.3, 2.5, 0.0, 2.9),               # dark lower half
                              (0.45, 2.4, 6.6, 9.0),               # dark spine on the engine cover
                              (-2.2, -1.2, 6.8, 9.0)]),            # and down the nose
@@ -99,7 +99,7 @@ VARIANTS = {
                    # long pointed nose; pods that fall away early; tall swept
                    # front endplates, curled rear ones, a fin
                    nose_len=0.05, nose_w=0.92, undercut=0.03, pod_slope=0.06,
-                   fw="swept", rw="curl", beam=2, fin=True,
+                   fw="swept", rw="curl", beam=2, fin=True, rw_plan=("swept", 0.07),
                    livery=[(-0.85, 1.60, 4.55, 4.85),             # lime pinstripe along the pod shoulder
                            (-3.1, -2.55, 0.0, 9.0)]),             # lime nose tip
 }
@@ -296,9 +296,15 @@ for sx in (-1, 1):
 
 # ---- rear wing: main plane and flap between simple endplates, one pylon
 # from the gearbox, beam wing low down, rain light on the crash structure
-carlib.foil(p, C, -RW_HW, RW_HW, 0.25, 0.038, 0.024, RW_Y[0], RW_Z, angle_deg=-6.0)
-carlib.foil(p, M.paint, -RW_HW, RW_HW, 0.14, 0.026, 0.016, RW_Y[0] + 0.24, RW_Z + 0.085, angle_deg=-22.0)
-carlib.gurney(p, C, -RW_HW, RW_HW, RW_Y[1] - 0.02, RW_Z + 0.135, h=0.014, t=0.004, angle_deg=-22.0)
+# main plane and flap in the car's own plan (tips fixed, so the endplates
+# meet them whatever the middle does)
+RW_PLAN, RW_AMT = V["rw_plan"]
+_, RW_TE = carlib.wing(p, C, RW_HW, 0.25, 0.038, 0.024, RW_Y[0], RW_Z, angle_deg=-6.0,
+                       plan=RW_PLAN, amount=RW_AMT)
+_, RW_TE2 = carlib.wing(p, M.paint, RW_HW, 0.14, 0.026, 0.016, RW_Y[0] + 0.24, RW_Z + 0.085,
+                        angle_deg=-22.0, plan=RW_PLAN, amount=RW_AMT)
+for (xa, xb, y, z) in carlib.spans(RW_TE2, -RW_HW, RW_HW, 10):
+    carlib.gurney(p, C, xa, xb, y - 0.01, z, h=0.014, t=0.004, angle_deg=-22.0)
 RW_EP = {
     "square": [(RW_Y[0] - 0.06, 0.60), (RW_Y[1], 0.64), (RW_Y[1] + 0.005, RW_Z + 0.16),
                (RW_Y[0] + 0.10, RW_Z + 0.17), (RW_Y[0] - 0.08, RW_Z + 0.06)],
@@ -317,14 +323,16 @@ for sx in (-1, 1):
         # the tip rolls inboard over the flap
         p.box(M.paint, (min(sx * (RW_HW - 0.05), sx * (RW_HW + 0.015)), RW_Y[0] + 0.04, RW_Z + 0.150),
               (max(sx * (RW_HW - 0.05), sx * (RW_HW + 0.015)), RW_Y[1] - 0.03, RW_Z + 0.163))
-pyl = [(1.98, L.roof_z(1.98) - 0.02), (2.10, L.roof_z(2.10) - 0.02), (2.36, RW_Z + 0.01), (2.24, RW_Z + 0.01)]
+rw_dz = RW_TE(0.0)[1] - RW_TE(RW_HW)[1]          # the plane's middle over its tips
+pyl = [(1.98, L.roof_z(1.98) - 0.02), (2.10, L.roof_z(2.10) - 0.02), (2.36, RW_Z + 0.01 + rw_dz),
+       (2.24, RW_Z + 0.01 + rw_dz)]
 carlib.plate(p, C, pyl, 0.0, 0.020, chamfer=0.006)
 carlib.foil(p, C, -0.42, 0.42, 0.20, 0.028, 0.016, 2.02, 0.300, angle_deg=-10.0)
 if V.get("beam", 1) == 2:
     carlib.foil(p, C, -0.40, 0.40, 0.12, 0.022, 0.014, 2.19, 0.355, angle_deg=-24.0)
 if V.get("fin"):
     # the shark fin: the engine cover's spine run up to the wing
-    fin = [(0.70, L.roof_z(0.70) - 0.01), (1.20, L.roof_z(1.20) + 0.14), (RW_Y[0] + 0.02, RW_Z + 0.02),
+    fin = [(0.70, L.roof_z(0.70) - 0.01), (1.20, L.roof_z(1.20) + 0.14), (RW_Y[0] + 0.02, RW_Z + 0.02 + rw_dz),
            (RW_Y[0] + 0.02, RW_Z - 0.10), (1.80, L.roof_z(1.80) - 0.01)]
     carlib.plate(p, M.paint, fin, 0.0, 0.012, chamfer=0.004)
 carlib.led_grid(p, M, -0.036, 0.036, 0.205, 0.315, TAIL + 0.004, dir_y=1.0,

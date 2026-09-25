@@ -1100,6 +1100,73 @@ def foil(b, mat, x0, x1, chord, thick, camber, ly, lz, n=16, angle_deg=-8.0, tip
     return te_y, te_z
 
 
+def wing(b, mat, hw, chord, thick, camber, ly, lz, angle_deg=-8.0, plan="straight", amount=0.0,
+         n=16, spans=16):
+    """A wing element from -hw to +hw whose plan is not a straight bar:
+
+    * `straight` - the plain element `foil()` draws;
+    * `spoon` - the middle dips `amount` below the tips (the low-drag trim);
+    * `arch` - the middle rises `amount` above the tips;
+    * `swept` - the middle runs `amount` ahead of the tips, a shallow V.
+
+    The tips stay at (ly, lz) in every plan, so endplates made for a
+    straight wing still meet it. Returns the trailing edge (y, z) at the
+    tips, like `foil()`, and a function giving the trailing edge at any x."""
+    s = b.slot(mat)
+    bm = b.bm
+    a = math.radians(angle_deg)
+
+    def yt(t):
+        return 5 * thick * (0.2969 * math.sqrt(max(t, 0.0)) - 0.126 * t
+                            - 0.3516 * t ** 2 + 0.2843 * t ** 3 - 0.1015 * t ** 4)
+
+    def yc(t):
+        return camber * (2 * t - t * t)
+
+    pts = [(t * chord, (yc(t) + yt(t)) * chord) for t in (i / n for i in range(n + 1))]
+    pts += [(t * chord, (yc(t) - yt(t)) * chord) for t in ((n - i) / n for i in range(n + 1))]
+
+    def offset(x):
+        w = 1.0 - (x / hw) ** 2                       # 1 in the middle, 0 at the tips
+        if plan == "spoon":
+            return 0.0, -amount * w
+        if plan == "arch":
+            return 0.0, amount * w
+        if plan == "swept":
+            return -amount * w, 0.0
+        return 0.0, 0.0
+
+    rings = []
+    for i in range(spans + 1):
+        x = -hw + 2 * hw * i / spans
+        dy, dz = offset(x)
+        rings.append([bm.verts.new((x, ly + dy + py * math.cos(a) - pz * math.sin(a),
+                                    lz + dz + py * math.sin(a) + pz * math.cos(a))) for (py, pz) in pts])
+    m = len(pts)
+    for A, B in zip(rings, rings[1:]):
+        for k in range(m):
+            j = (k + 1) % m
+            f = bm.faces.new((A[k], B[k], B[j], A[j]))
+            f.material_index = s
+    f = bm.faces.new(list(reversed(rings[0]))); f.material_index = s
+    f = bm.faces.new(rings[-1]); f.material_index = s
+
+    def trailing(x):
+        dy, dz = offset(x)
+        return ly + dy + chord * math.cos(a), lz + dz + chord * math.sin(a)
+    return trailing(hw), trailing
+
+
+def spans(trailing, x0, x1, segs=8):
+    """(xa, xb, y, z) pieces from x0 to x1 along a `wing()`'s trailing edge,
+    for the gurney and brake strip on a wing that is not straight."""
+    for i in range(segs):
+        xa = x0 + (x1 - x0) * i / segs
+        xb = x0 + (x1 - x0) * (i + 1) / segs
+        y, z = trailing((xa + xb) / 2)
+        yield xa, xb, y, z
+
+
 def gurney(b, mat, x0, x1, y, z, h=0.022, t=0.005, angle_deg=-8.0):
     """The lip along a wing's trailing edge."""
     a = math.radians(angle_deg) + math.pi / 2
