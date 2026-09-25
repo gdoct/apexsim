@@ -23,9 +23,11 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 MARKER = "# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---"
 
-# Fonts: the first file found wins. Drop TTFs into content/cars/_fonts to pin
-# the look; otherwise Windows' and Linux's usual faces stand in.
-FONT_DIRS = [os.path.join(HERE, "_fonts"), r"C:\Windows\Fonts", "/usr/share/fonts/truetype/google-fonts",
+# Fonts: the first file found wins. Drop TTFs into content/cars/_fonts (or
+# point APEX_FONTS at a folder) to pin the look; otherwise Windows' and
+# Linux's usual faces stand in. The shipped logos are Poppins (Bold, Bold
+# Italic, Medium, Light) and Lora Regular saved as Lora-Variable.ttf.
+FONT_DIRS = [os.environ.get("APEX_FONTS", ""), os.path.join(HERE, "_fonts"), r"C:\Windows\Fonts", "/usr/share/fonts/truetype/google-fonts",
              "/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/truetype/liberation2"]
 FONTS = {
     "bold": ["Poppins-Bold.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"],
@@ -85,24 +87,62 @@ SCHEMES = {
     "royal": dict(name="Crown Royal", paint=(0.015, 0.07, 0.42), accent=(0.88, 0.66, 0.02), metallic=0.65,
                   logo=dict(word="CROWN", sub="AIRWAYS", fg=(20, 40, 120), sub_fg=(20, 40, 120),
                             face="serif", plate=(245, 200, 40), track=12)),
+    # the second dozen
+    "sakura": dict(name="Sakura Pearl", paint=(0.80, 0.78, 0.80), accent=(0.85, 0.20, 0.42), metallic=0.60,
+                   logo=dict(word="SAKURA", sub="MOBILE", fg=(225, 60, 120), sub_fg=(60, 60, 70),
+                             face="light", plate=None, track=34)),
+    "cobalt": dict(name="Vortex Cobalt", paint=(0.010, 0.16, 0.60), accent=(0.88, 0.88, 0.86), metallic=0.70,
+                   logo=dict(word="VORTEX", sub="SIM  HARDWARE", fg=(252, 252, 250), sub_fg=(252, 252, 250),
+                             face="bolditalic", plate=(215, 30, 45))),
+    "desert": dict(name="Mirage Sand", paint=(0.52, 0.38, 0.19), accent=(0.060, 0.035, 0.020), metallic=0.45,
+                   logo=dict(word="MIRAGE", sub="SWISS  WATCHES", fg=(45, 28, 15), sub_fg=(45, 28, 15),
+                             face="serif", plate=None, track=24)),
+    "neon": dict(name="Pulse Neon", paint=(0.012, 0.012, 0.020), accent=(0.90, 0.06, 0.55), metallic=0.30,
+                 logo=dict(word="PULSE", sub="STREAMING", fg=(255, 40, 170), sub_fg=(40, 230, 255),
+                           face="bolditalic", plate=None, track=10)),
+    "citrus": dict(name="Zest Citrus", paint=(0.95, 0.40, 0.015), accent=(0.015, 0.12, 0.40), metallic=0.25,
+                   logo=dict(word="ZEST", sub="JUICE  CO.", fg=(255, 150, 20), sub_fg=(255, 150, 20),
+                             face="bold", plate=(20, 55, 125))),
+    "titan": dict(name="Titan Silver", paint=(0.58, 0.60, 0.64), accent=(0.70, 0.015, 0.02), metallic=0.95,
+                  logo=dict(word="TITAN", sub="INDUSTRIAL", fg=(200, 20, 25), sub_fg=(40, 42, 46),
+                            face="medium", plate=None, track=40)),
+    "glacier": dict(name="Glacier Mint", paint=(0.28, 0.72, 0.58), accent=(0.010, 0.030, 0.080), metallic=0.35,
+                    logo=dict(word="GLACIER", sub="MINERAL  WATER", fg=(12, 30, 70), sub_fg=(12, 30, 70),
+                              face="bold", plate=None)),
+    "ember": dict(name="Ember Violet", paint=(0.22, 0.025, 0.42), accent=(0.95, 0.50, 0.015), metallic=0.70,
+                  logo=dict(word="EMBER", sub="GAMING", fg=(255, 140, 20), sub_fg=(235, 225, 255),
+                            face="bolditalic", plate=None, track=14)),
+    "riviera": dict(name="Riviera Classic", paint=(0.85, 0.85, 0.84), accent=(0.015, 0.08, 0.32), metallic=0.15,
+                    logo=dict(word="RIVIERA", sub="APERITIVO", fg=(15, 35, 100), sub_fg=(200, 25, 35),
+                              face="serif", plate=None, track=18)),
+    "forge": dict(name="Forge Copper", paint=(0.50, 0.17, 0.06), accent=(0.015, 0.015, 0.016), metallic=0.90,
+                  logo=dict(word="FORGE", sub="POWER  TOOLS", fg=(245, 160, 100), sub_fg=(245, 160, 100),
+                            face="bold", plate=(18, 18, 20))),
+    "abyss": dict(name="Abyss Deep Blue", paint=(0.000, 0.035, 0.10), accent=(0.00, 0.42, 0.85), metallic=0.80,
+                  logo=dict(word="ABYSS", sub="MARINE  ENGINES", fg=(40, 160, 255), sub_fg=(210, 225, 240),
+                            face="light", plate=None, track=36)),
+    "voltaic": dict(name="Voltaic Lime", paint=(0.42, 0.78, 0.015), accent=(0.012, 0.012, 0.014), metallic=0.25,
+                    logo=dict(word="VOLTAIC", sub="EV  CHARGING", fg=(170, 245, 20), sub_fg=(170, 245, 20),
+                              face="bolditalic", plate=(14, 14, 16))),
 }
 
-# Three per car, none a near copy of the car's own colours.
+# Six per car, none a near copy of the car's own colours. New ones go on the
+# end: a livery is picked by index, so reordering would repaint saved picks.
 CARS = {
-    "posh-gt3rs": ["heritage", "flamingo", "volt"],
-    "limbotiti-caravan-gt3": ["blackgold", "tide", "arctic"],
-    "murcetes-amd-gt3": ["lava", "royal", "midnight"],
-    "yotota-lmp2": ["royal", "blackgold", "tide"],
-    "posh-lmp2": ["heritage", "lava", "forest"],
-    "fugazzi-lmp2": ["arctic", "blackgold", "volt"],
-    "jeanetti-lmp2": ["flamingo", "gunmetal", "tricolore"],
-    "panini-zomba-hypercar": ["tricolore", "lava", "gunmetal"],
-    "fugazzi-994p-hypercar": ["blackgold", "arctic", "midnight"],
-    "bugotti-chiffon-hypercar": ["forest", "blackgold", "flamingo"],
-    "fugazzi-sf26": ["arctic", "blackgold", "royal"],
-    "murcetes-amd-w17": ["midnight", "volt", "tide"],
-    "mclarsen-mcl40": ["heritage", "gunmetal", "tricolore"],
-    "ashton-marvin-amr26": ["lava", "flamingo", "royal"],
+    "posh-gt3rs": ["heritage", "flamingo", "volt", "titan", "ember", "citrus"],
+    "limbotiti-caravan-gt3": ["blackgold", "tide", "arctic", "cobalt", "neon", "riviera"],
+    "murcetes-amd-gt3": ["lava", "royal", "midnight", "citrus", "desert", "voltaic"],
+    "yotota-lmp2": ["royal", "blackgold", "tide", "abyss", "voltaic", "ember"],
+    "posh-lmp2": ["heritage", "lava", "forest", "sakura", "cobalt", "neon"],
+    "fugazzi-lmp2": ["arctic", "blackgold", "volt", "glacier", "forge", "riviera"],
+    "jeanetti-lmp2": ["flamingo", "gunmetal", "tricolore", "desert", "abyss", "ember"],
+    "panini-zomba-hypercar": ["tricolore", "lava", "gunmetal", "sakura", "citrus", "titan"],
+    "fugazzi-994p-hypercar": ["blackgold", "arctic", "midnight", "cobalt", "glacier", "neon"],
+    "bugotti-chiffon-hypercar": ["forest", "blackgold", "flamingo", "forge", "riviera", "voltaic"],
+    "fugazzi-sf26": ["arctic", "blackgold", "royal", "abyss", "sakura", "voltaic"],
+    "murcetes-amd-w17": ["midnight", "volt", "tide", "ember", "forge", "glacier"],
+    "mclarsen-mcl40": ["heritage", "gunmetal", "tricolore", "cobalt", "titan", "desert"],
+    "ashton-marvin-amr26": ["lava", "flamingo", "royal", "neon", "citrus", "sakura"],
 }
 
 
@@ -152,7 +192,7 @@ def write_car(folder):
         text = text[:text.index(MARKER)]
     text = text.rstrip("\n") + "\n\n"
     os.makedirs(os.path.join(car_dir, "textures"), exist_ok=True)
-    blocks = [MARKER, "# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.", ""]
+    blocks = [MARKER, "# Livery 0 is the model as authored; these are 1..%d on the wire." % len(CARS[folder]), ""]
     for key in CARS[folder]:
         s = SCHEMES[key]
         logo = "textures/livery_%s.png" % key

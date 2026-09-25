@@ -35,6 +35,9 @@ AApexCarPreviewStage::AApexCarPreviewStage()
 		Wheel.SetCastShadow(true);
 		Wheel.bVisibleInSceneCaptureOnly = true;
 	});
+	DrsFlap.CreateComponent(*this, CarMesh);
+	DrsFlap.GetComponent()->SetCastShadow(true);
+	DrsFlap.GetComponent()->bVisibleInSceneCaptureOnly = true;
 
 	Capture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Capture"));
 	Capture->SetupAttachment(Root);
@@ -149,11 +152,23 @@ void AApexCarPreviewStage::SetCarWheels(const FApexWheelSpec& Spec)
 	}
 }
 
+void AApexCarPreviewStage::SetCarDrsFlap(const FApexDrsFlapSpec& Spec)
+{
+	if (Spec != DrsFlap.GetSpec() || DrsFlap.HasFlap() != Spec.IsUsable())
+	{
+		DrsFlap.SetSpec(Spec);
+	}
+}
+
 void AApexCarPreviewStage::SetCarLivery(const FApexCarLivery* Livery)
 {
 	if (Livery || bLiveryApplied)
 	{
 		ApexLivery::Apply(CarMesh, Livery);
+		if (DrsFlap.HasFlap())
+		{
+			ApexLivery::Apply(DrsFlap.GetComponent(), Livery);
+		}
 	}
 	bLiveryApplied = Livery != nullptr;
 }

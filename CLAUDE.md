@@ -373,7 +373,10 @@ drag inside the zones. The bake paints a line across the road at each
 detection and activation station with a `corner_sign` board on each side
 (`DRS DETECTION` / `DRS`). On the client: the `Drs` input action (Left
 Shift, gamepad X, a wheel slot), `FApexCarTelemetry::bDrsAllowed/bDrsOpen`,
-and a badge on the HUD rev counter (dark / lit / green when open). Golden
+and a badge on the HUD rev counter (dark / lit / green when open). The F1
+cars' upper rear-wing flap is its own mesh (`[drs_flap]` in car.toml,
+`FApexDrsFlapSpec` on the catalog row) and swings open on the car while
+`bDrsOpen` is set (docs/CAR_MODELS.md, DRS flap). Golden
 bytes: `cargo test player_input_drs_wire_format -- --nocapture`.
 
 ### Run-off (`Surface::paint`, `RoadContact::Runoff`)

@@ -16,8 +16,54 @@ resets the scene, builds body → wheel arches → apertures → parts → joine
 `car.toml`. Set `APEX_EXPORT=0` in the environment to skip the export while
 iterating on shape.
 
+They also run headless, outside Blender, on the `bpy` module
+(`pip install bpy`, Python 3.11): set `APEXSIM_ROOT` to the checkout (the
+scripts, `carlib.CARS_ROOT`, `apex_props.PROPS_ROOT` and `preview_cars.py`
+fall back to `D:\apexsim` without it), define `VARIANT` and `exec` the
+script. `preview_cars.py` renders the same way with Cycles where Eevee has
+no GPU/EGL.
+
 The scripts hold only shape and livery data; everything mechanical lives in
 `content/cars/carlib.py`, so a fix lands on every generated car at once.
+
+### Character: one class, different cars
+
+The first generations of each class were one car with different lamps and
+mirrors: every GT3 had the same letterbox mouth, the same upright box vent at
+the same station, the same valance and tail bar, and every prototype the same
+twin radiator boxes, side intake and brake exit. Each variant now carries
+its own design in data, on a shared kit:
+
+* **the face** (`FACES` / `face`): shaped openings in the nose as `(x, z)`
+  outlines (right-hand ones mirrored), cut back to where the skin is behind
+  every corner (`poly_depth`), backed with mesh and barred in the car's own
+  pattern (slats, vertical chrome bars, a diamond mesh from two crossed
+  sets), with a chrome rim or a centre blade/strut where the design has one;
+* **the flank** (`side` / `SIDES`): swept recesses whose edges lean, taper
+  and bow, blades that lean with them, a dark floor that follows their
+  edges, and character lines (`swage`) running along the car;
+* **the hull** (prototypes): nose height, valley depth, canopy width, rear
+  fender sweep and fullness per variant, on the class's shared keys;
+* **the tail** (GT3 `tail`): a full-width bar with four-point brakes, lit Ys
+  on black plates, or wrap-around corner lamps with a blade across the
+  panel; each GT3 valance is its own outline;
+* **the rear wing**: `carlib.wing()` lofts an element whose middle can dip
+  (`spoon`), rise (`arch`) or run ahead of the tips (`swept`) while the tips
+  stay put, so any endplate meets it; `spans()` walks its trailing edge for
+  the gurney and brake strip. Each car picks a plan, an endplate outline
+  (inside the class's first endplate envelope, whose top is the top of the
+  eye's box), a mount (swan necks close or wide, a single central neck,
+  pylons) and where its brake light goes (along the flap, across the middle,
+  or up the endplates);
+* **F1**: nose length and width, sidepod undercut and downwash, front wing
+  (`classic`, `swept`, `low`), rear wing plan and endplates (`square`,
+  `swept`, `curl`), beam wing and shark fin.
+
+Keep a new part inside the box the client measures (the F1's fixed kit box,
+and on the closed cars the box the eye is derived from): the Limbotiti's
+first mouth blade stuck 20 cm out of the nose and moved the driver's eye 11
+cm, and the Fugazzi hypercar's deeper valley dropped its mirrors onto the
+wider fender and took the eye outside the canopy (`MIR_Z` now compensates).
 
 **F1** (`build_f1.py`, class `F1`) is the open-wheeler, 2026 proportions:
 a 3.4 m wheelbase, a 1.8 m front wing, a 1.0 m rear wing. The loft is the
@@ -72,7 +118,10 @@ under the LMP2s.
 | `plate()`, `foil()`, `gurney()`, `swan_neck()`, `diffuser()`, `panel_xy()`, `floor_plan()` | aero parts with real thickness, and floor aero shaped in plan so it follows the bodywork above it |
 | `projector()`, `light_guide()` / `guide_xyz()`, `front_lens()`, `led_grid()`, `tail_bar()`, `pocket_floor()` / `pocket_bezel()` | the lamp kit (see Lamps) |
 | `lamp_cluster()`, `led_strip()`, `grille()`, `louvre_bank()`, `mirror()` | lit and vented detail set into the bodywork (`lamp_cluster`/`led_strip` are the old lamps; only the wing brake strip still uses `led_strip`) |
-| `conform_decal()` | a wordmark that follows the flank instead of standing a flat quad off a curved panel |
+| `conform_decal()` | a wordmark that follows the flank instead of standing a flat quad off a curved panel. It lies on the *unrecessed* loft, so keep it clear of vents: the LMP2 wordmark used to run over the side intake and hid it |
+| `Loft.recess(y0=(a, b), y1=(c, d), bow=...)`, `recess_edges()`, `swage()` | swept vents - each edge runs from one station at `j0` to another at `j1`, bent by `bow` - and lengthwise character lines (a groove, or a ridge with `bulge`). Swept features get dense stations but no transverse crease; a very steep lean wants a longer `rim` or its walls step between rings |
+| `swept_blades()`, `swept_floor()` | blades across a swept vent parallel to its edges, and its dark floor. A slot picked per loft face cannot follow a slanted edge (the faces run square to the car) and comes out as a staircase, so swept vents get this floor instead of `face_mat`'s duct colour (`_offset(..., skip_swept=True)`) |
+| `prism_xz()`, `aperture_poly()`, `rounded()`, `flip_x()`, `poly_depth()`, `poly_fill()`, `poly_bars()`, `poly_rim()` | shaped openings: cut an `(x, z)` outline, fill it (fan from the centroid, so keep it star-shaped), bar it at any angle clipped to the outline, rim it |
 | `surface_station()` | the first station where the skin is wide enough to carry a part. The nose station is the narrowest part of the car, so a corner part placed at `NOSE` hangs in mid-air |
 | `bevel()`, `sharpen()` | a small radius on every hard edge, and shading normals split by angle. `sharpen()` replaces `shade_auto_smooth`, whose geometry-nodes asset is missing on some installs |
 | `lower_roof()`, `tumblehome()`, `shift_upper()`, `drop_bonnet()` | key reshaping, applied before the loft: pull the greenhouse down towards the belt and lean it in; slide the cabin along the car (the Murcetes' is 0.38 m forward of its keys, see Cockpit); drop the bonnet between the fender crowns so the driver sees the road |
@@ -214,15 +263,42 @@ Every GLB carries these slot names; keep them when re-importing.
 | `car_glass` | windscreen, side and rear glass | translucent (glTF `BLEND`, alpha 0.5) |
 | `car_headlight` | lamp projector rings and cores, DRL guides | emissive warm white |
 | `car_chrome`, `car_lens_tint` | projector bezels; smoked tail lenses | chrome; dark, alpha 0.22 (glTF `BLEND`) |
-| `car_taillight` | running lights | emissive red (on with the headlights) |
+| `car_taillight` | running lights: the tail light guides and bars | emissive red — `AApexRaceCarActor` keeps a dynamic instance lit all session: the authored colour times `apexsim.car.TailLightNits` (700) by day, the brake glow's running share (0.12 × 3000) with the headlights on. Before that the slot was left at the GLB's own emission and never showed under the race exposure |
 | `car_brakelight` | brake lights: a full-width LED strip along the rear wing's trailing edge (endplate to endplate), the lower strip in each tail cluster, and a wrap-around corner element | emissive red — `AApexRaceCarActor` switches `EmissiveFactor` on a dynamic instance of the slot: black when off, the authored colour times `apexsim.car.BrakeLightNits` (3000) once the car's telemetry brake passes 2% (the mesh ships lit so the material imports as emissive; the glTF parent ignores `EmissiveStrength` at runtime) |
 | `car_rainlight` | FIA rain light, centre of the tail (vertical bar on the LMP2s) | emissive red — on in rain / low visibility, else off |
 | `car_display` | dash display | emissive green |
 | `car_logo` | door / flank wordmark | masked texture from `textures/` |
 
+## DRS flap (F1)
+
+The F1 bodies are exported without the rear wing's upper flap: `build_f1.py`
+builds it as its own object and writes `<stem>_drs.glb` beside the car, its
+origin on the hinge (the flap's trailing edge at the tips, the axis across
+the car), and a `[drs_flap]` table in car.toml above the liveries' marker,
+replaced on every build:
+
+```toml
+[drs_flap]
+model = "fugazzi_sf26_drs.glb"
+hinge_forward_m = -2.5298     # the wheels' convention: ahead of the body origin
+hinge_up_m = 0.8226           # above its floor
+open_deg = 25.0               # leading edge up, opening the slot over the main plane
+```
+
+`ApexCarImport` imports the GLB to `/Game/Cars/<folder>/Drs/SM_<folder>_drs`
+(its own folder, so its materials do not land on the body's) and puts the
+figures on the row as `DrsFlap` (`FApexDrsFlapSpec`), derived on every run
+like the wheels. `FApexCarDrsFlap` (`Race/ApexCarDrsFlap.h`) hangs it on the
+body mesh: the race car swings it open over `ApexDrs::SwingSeconds` (0.18 s)
+whenever the telemetry's `bDrsOpen` is set and shut when it clears; the
+turntable shows it shut; liveries repaint it with the body and the ghost
+tints it. `ApexSim.Drs.FlapTransform` and `ApexSim.Cars.TomlDrsFlap` pin the
+maths and the TOML. A car without the table draws its whole wing in the
+body, as before. `preview_cars.py` draws the flap too (`DRS_OPEN = 1` opens it).
+
 ## Liveries
 
-Every generated car has its works livery (the GLB as built) plus three more,
+Every generated car has its works livery (the GLB as built) plus six more,
 the `[[livery]]` tables at the end of its car.toml:
 
 ```toml
@@ -238,8 +314,9 @@ A livery is a repaint of the same mesh, so it is exactly what the material
 slots allow: `car_paint` and `car_accent` take the colours (which faces are
 accent is the build script's `livery` / `two_tone` / sill-stripe choice and
 stays the same), `car_logo` takes the texture. `content/cars/liveries.py`
-owns those tables - twelve sponsor schemes dealt three to a car - and draws
-the logos; it rewrites everything below its marker line, so edit the schemes
+owns those tables - twenty-four sponsor schemes dealt six to a car, new ones
+appended so a saved pick keeps its index - and draws the logos (Poppins and
+Lora Regular; `APEX_FONTS` points it at them, see the script's header); it rewrites everything below its marker line, so edit the schemes
 there and rerun it (`python content/cars/liveries.py [folder ...]`, Pillow).
 
 Down the pipe: the server reads only the names (`CarConfig::livery_names`);
@@ -286,12 +363,17 @@ pocket recessed into the corner's upper surface, which faces up and inward
 - a shelf whose lamps were seen edge-on from the road. Signatures: Posh one
 large projector with four DRL points; Limbotiti two projectors and a Y
 guide; Murcetes three in a row under a hockey-stick guide along the top.
-**GT3 tails**: the wrap-around corner pocket keeps a black floor, a trim
-bezel, two light guides and a smoked lens; a brake LED block sits on the
-panel below each; Posh and Murcetes get a full-width light bar (the tip
-station is pulled in behind the panel face, so the bar sits 4 mm proud of
-`TAIL`, as a real bar does); Limbotiti two short bars. Rain light: a 6×3
-matrix in its aperture.
+**GT3 tails** (`tail`): Posh a 7 cm full-width bar (the tip station is
+pulled in behind the panel face, so the bar sits 4 mm proud of `TAIL`, as a
+real bar does) with a four-point brake cluster under each end; Limbotiti a
+lit Y at each corner on a black hexagonal plate with a brake triangle in
+the fork; Murcetes the wrap-around corner pocket (black floor, trim bezel,
+three guides, smoked lens) with a slim blade lamp across the panel climbing
+to meet it and a brake row under it. Everything on the panel stands on a
+plate that reaches back to the skin (`tail_skin`) and faces out at
+`TAIL + 12 mm`: the tail is rounded, and parts placed at `TAIL - 4 mm`, as
+the brake blocks were, sit just inside it and never show. Rain light: a
+6×3 matrix in its aperture.
 
 **LMP2 headlamps** keep their lined box aperture; in it a back wall, two
 or three projectors each at its own station 3 cm in, a black mask plate

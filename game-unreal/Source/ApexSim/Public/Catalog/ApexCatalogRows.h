@@ -95,6 +95,46 @@ struct APEXSIM_API FApexWheelSpec
 };
 
 /**
+ * An F1 car's DRS flap: the rear wing's upper element, cut out of the body
+ * mesh into its own so the client can open it. The `[drs_flap]` table of
+ * car.toml (docs/CAR_MODELS.md), filled by ApexCarImport.
+ *
+ * The mesh's origin is the hinge, in the body mesh's frame otherwise; the
+ * hinge axis runs across the car (the frame's X). Metres, like the wheels:
+ * the hinge `HingeForwardM` ahead (+) of the body's origin and `HingeUpM`
+ * above its floor. Open, the flap turns `OpenDeg` about the hinge with its
+ * leading edge rising, which opens the slot under it.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIM_API FApexDrsFlapSpec
+{
+	GENERATED_BODY()
+
+	/** e.g. /Game/Cars/fugazzi_sf26/Drs/SM_fugazzi_sf26_drs. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DRS")
+	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DRS")
+	float HingeForwardM = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DRS")
+	float HingeUpM = 0.0f;
+
+	/** How far the flap turns open, degrees; positive lifts its leading edge. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DRS")
+	float OpenDeg = 0.0f;
+
+	bool IsUsable() const { return !Mesh.IsNull(); }
+
+	bool operator==(const FApexDrsFlapSpec& Other) const
+	{
+		return Mesh == Other.Mesh && HingeForwardM == Other.HingeForwardM && HingeUpM == Other.HingeUpM
+			&& OpenDeg == Other.OpenDeg;
+	}
+	bool operator!=(const FApexDrsFlapSpec& Other) const { return !(*this == Other); }
+};
+
+/**
  * The engine as the client's synthesiser hears it: a car.toml's `[sound]`
  * table plus the rev range from its `[engine]`. See ApexEngineSound.h for what
  * each figure does to the note, and ApexEngineAudio::MakeSpec for the defaults
@@ -244,6 +284,14 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	FApexWheelSpec Wheels;
+
+	/**
+	 * The DRS flap, drawn apart from the body so it can open (F1 cars only;
+	 * an unusable spec means the body carries its whole wing). Derived from
+	 * car.toml on every import, like the wheels.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	FApexDrsFlapSpec DrsFlap;
 
 	/** What the engine sounds like. Derived from car.toml on every import, like the wheels. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
