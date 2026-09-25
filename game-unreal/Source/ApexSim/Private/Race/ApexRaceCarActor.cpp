@@ -122,6 +122,7 @@ AApexRaceCarActor::AApexRaceCarActor()
 
 	// The wheels ride the body mesh, so they share its frame: nose +Y, left +X.
 	Wheels.CreateComponents(*this, CarMesh);
+	DrsFlap.CreateComponent(*this, CarMesh);
 
 	// Nothing places the car until the first telemetry frame; until then it
 	// would sit at the world origin, which on most circuits is in mid-air or
@@ -224,8 +225,23 @@ void AApexRaceCarActor::SetLivery(const FApexCarLivery* Livery)
 	if (Livery || bLiveryApplied)
 	{
 		ApexLivery::Apply(CarMesh, Livery);
+		// The flap is painted like the wing it was cut from.
+		if (UStaticMeshComponent* Flap = GetDrsFlapComponent())
+		{
+			ApexLivery::Apply(Flap, Livery);
+		}
 	}
 	bLiveryApplied = Livery != nullptr;
+}
+
+void AApexRaceCarActor::SetDrsFlap(const FApexDrsFlapSpec& Spec)
+{
+	if (Spec == DrsFlap.GetSpec() && DrsFlap.HasFlap() == Spec.IsUsable())
+	{
+		return;
+	}
+	DrsFlap.SetSpec(Spec);
+	bDrsOpen = false;
 }
 
 void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
@@ -357,6 +373,7 @@ void AApexRaceCarActor::SetMeshVisible(bool bVisible)
 	// with the bodywork they belong to.
 	CarMesh->SetVisibility(bVisible);
 	Wheels.SetVisible(bVisible);
+	DrsFlap.SetVisible(bVisible);
 }
 
 void AApexRaceCarActor::SetCockpitSpec(const FString& InCarClass, const FApexCockpitOverrides& InOverrides)
@@ -509,6 +526,7 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	Throttle = Car.Throttle;
 	Brake = Car.Brake;
 	UpdateBrakeLights();
+	bDrsOpen = Car.bDrsOpen;
 	CurrentLap = Car.CurrentLap;
 	CurrentLapTimeMs = Car.CurrentLapTimeMs;
 
@@ -581,6 +599,9 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	Wheels.Update(Steering,
 		ApexWheels::RolledDistanceM(PreviousLocation, Pose.Location, Pose.Rotation, TeleportDistanceCm),
 		FMath::DegreesToRadians(CVarWheelMaxDegPerFrame.GetValueOnGameThread()));
+	// Swung, not snapped: the telemetry flips the flag in one frame, a real
+	// actuator takes a fifth of a second.
+	DrsFlap.Update(bDrsOpen, DeltaSeconds);
 
 	if (CVarInterpDebug.GetValueOnGameThread() != 0 && GEngine)
 	{

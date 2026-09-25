@@ -199,4 +199,42 @@ bool FApexCarTomlLiveryTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarTomlDrsFlapTest, "ApexSim.Cars.TomlDrsFlap",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FApexCarTomlDrsFlapTest::RunTest(const FString& Parameters)
+{
+	const FString Text = TEXT(
+		"id = \"f1\"\n"
+		"name = \"SF-26\"\n"
+		"[drs_flap]\n"
+		"model = \"fugazzi_sf26_drs.glb\"\n"
+		"hinge_forward_m = -2.515\n"
+		"hinge_up_m = 0.842\n"
+		"open_deg = 24.0\n");
+	UApexCarImportCommandlet::FCarToml Car;
+	FString Error;
+	TestTrue(TEXT("parses"), UApexCarImportCommandlet::ParseCarToml(Text, Car, Error));
+	TestTrue(TEXT("flap present"), Car.DrsFlap.IsPresent());
+	TestEqual(TEXT("model"), Car.DrsFlap.Model, FString(TEXT("fugazzi_sf26_drs.glb")));
+	TestEqual(TEXT("hinge forward"), Car.DrsFlap.HingeForwardM, -2.515f);
+	TestEqual(TEXT("hinge up"), Car.DrsFlap.HingeUpM, 0.842f);
+	TestEqual(TEXT("open"), Car.DrsFlap.OpenDeg, 24.0f);
+	const FApexDrsFlapSpec Spec = UApexCarImportCommandlet::MakeDrsFlapSpec(Car, TSoftObjectPtr<UStaticMesh>());
+	TestEqual(TEXT("spec carries the travel"), Spec.OpenDeg, 24.0f);
+	TestEqual(TEXT("flap package"), UApexCarImportCommandlet::DrsFlapPackageName(TEXT("/Game/Cars"), TEXT("fugazzi-sf26")),
+		FString(TEXT("/Game/Cars/fugazzi_sf26/Drs/SM_fugazzi_sf26_drs")));
+
+	UApexCarImportCommandlet::FCarToml None;
+	TestTrue(TEXT("no table parses"), UApexCarImportCommandlet::ParseCarToml(TEXT("id = \"a\"\nname = \"b\"\n"), None, Error));
+	TestFalse(TEXT("no table, no flap"), None.DrsFlap.IsPresent());
+	TestFalse(TEXT("an empty spec is unusable"), UApexCarImportCommandlet::MakeDrsFlapSpec(None, TSoftObjectPtr<UStaticMesh>()).IsUsable());
+
+	UApexCarImportCommandlet::FCarToml Bad;
+	TestFalse(TEXT("a flap that does not open is an error"), UApexCarImportCommandlet::ParseCarToml(
+		TEXT("id = \"a\"\nname = \"b\"\n[drs_flap]\nmodel = \"x.glb\"\nhinge_up_m = 0.8\nopen_deg = 0\n"), Bad, Error));
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

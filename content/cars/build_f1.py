@@ -301,10 +301,18 @@ for sx in (-1, 1):
 RW_PLAN, RW_AMT = V["rw_plan"]
 _, RW_TE = carlib.wing(p, C, RW_HW, 0.25, 0.038, 0.024, RW_Y[0], RW_Z, angle_deg=-6.0,
                        plan=RW_PLAN, amount=RW_AMT)
-_, RW_TE2 = carlib.wing(p, M.paint, RW_HW, 0.14, 0.026, 0.016, RW_Y[0] + 0.24, RW_Z + 0.085,
+# The upper flap is the DRS flap: built as its own object and exported as
+# <stem>_drs.glb with its origin on the hinge, so the client can open it.
+# The hinge runs across the car along the flap's trailing edge at the tips;
+# opening lifts the leading edge DRS_OPEN_DEG, which is the slot a real
+# flap opens between itself and the main plane.
+DRS_OPEN_DEG = 25.0
+fl = Builder("drs_flap")
+_, RW_TE2 = carlib.wing(fl, M.paint, RW_HW, 0.14, 0.026, 0.016, RW_Y[0] + 0.24, RW_Z + 0.085,
                         angle_deg=-22.0, plan=RW_PLAN, amount=RW_AMT)
 for (xa, xb, y, z) in carlib.spans(RW_TE2, -RW_HW, RW_HW, 10):
-    carlib.gurney(p, C, xa, xb, y - 0.01, z, h=0.014, t=0.004, angle_deg=-22.0)
+    carlib.gurney(fl, C, xa, xb, y - 0.01, z, h=0.014, t=0.004, angle_deg=-22.0)
+DRS_HINGE = RW_TE2(RW_HW)                          # (y, z), Blender frame
 RW_EP = {
     "square": [(RW_Y[0] - 0.06, 0.60), (RW_Y[1], 0.64), (RW_Y[1] + 0.005, RW_Z + 0.16),
                (RW_Y[0] + 0.10, RW_Z + 0.17), (RW_Y[0] - 0.08, RW_Z + 0.06)],
@@ -429,11 +437,59 @@ carlib.conform_decal(p, M.logo, L, -0.05, 0.75, 2.35, 3.85, sx=-1, lift=0.004, n
 
 parts = carlib.bevel(p.finish(planar_uv=True, recalc=False), width=0.0025, segments=2,
                      angle_deg=38.0)
+flap = carlib.bevel(fl.finish(planar_uv=True, recalc=False), width=0.0025, segments=2, angle_deg=38.0)
+for v in flap.data.vertices:
+    v.co.y -= DRS_HINGE[0]
+    v.co.z -= DRS_HINGE[1]
+flap.name = V["stem"] + "_drs"
 save("parts")
+
+
+def write_drs_table(toml_path, stem, hinge_yz, open_deg):
+    """Put the flap's `[drs_flap]` table in car.toml (docs/CAR_MODELS.md): the
+    GLB, the hinge in the wheels' convention (forward of the body origin,
+    up from the floor, metres) and how far it opens. Replaced on every run,
+    kept above the liveries' marker, line endings as the file has them."""
+    with open(toml_path, encoding="utf-8", newline="") as f:
+        text = f.read()
+    nl = "\r\n" if "\r\n" in text else "\n"
+    lines = text.replace("\r\n", "\n").split("\n")
+    out, skip = [], False
+    for line in lines:
+        head = line.strip()
+        if head.startswith("["):
+            skip = head == "[drs_flap]"
+        elif head.startswith("# --- liveries:"):
+            skip = False
+        if not skip:
+            out.append(line)
+    block = ["[drs_flap]",
+             "# the rear wing's upper element, cut out of the body so the client can open it",
+             'model = "%s_drs.glb"' % stem,
+             "hinge_forward_m = %.4f" % -hinge_yz[0],
+             "hinge_up_m = %.4f" % hinge_yz[1],
+             "open_deg = %.1f" % open_deg, ""]
+    marker = next((i for i, l in enumerate(out) if l.startswith("# --- liveries:")), None)
+    if marker is None:
+        while out and not out[-1].strip():
+            out.pop()
+        out += [""] + block
+    else:
+        while marker > 0 and not out[marker - 1].strip():
+            out.pop(marker - 1)
+            marker -= 1
+        out[marker:marker] = [""] + block
+    with open(toml_path, "w", encoding="utf-8", newline="") as f:
+        f.write(nl.join(out))
 
 # ------------------------------------------------------------ join + export
 car, glb = carlib.join_and_export([body, parts], V["stem"], CAR_DIR,
                                   export=os.environ.get("APEX_EXPORT", "1") == "1")
+if glb:
+    carlib.export_glb(flap, os.path.join(CAR_DIR, V["stem"] + "_drs.glb"))
+    write_drs_table(os.path.join(CAR_DIR, "car.toml"), V["stem"], DRS_HINGE, DRS_OPEN_DEG)
+flap.hide_render = flap.hide_viewport = True
+print("drs flap: hinge y/z", [round(c, 4) for c in DRS_HINGE], "open", DRS_OPEN_DEG)
 save("joined")
 st = carlib.mesh_stats(car)
 print("stats:", st)

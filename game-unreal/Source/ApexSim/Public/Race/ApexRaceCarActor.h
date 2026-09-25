@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "Audio/ApexListenerSpace.h"
 #include "Race/ApexCarMotion.h"
+#include "Race/ApexCarDrsFlap.h"
 #include "Race/ApexCarWheels.h"
 #include "Race/ApexCockpitLayout.h"
 
@@ -64,6 +65,16 @@ public:
 	 * wheels wants.
 	 */
 	void SetWheels(const FApexWheelSpec& Spec);
+
+	/**
+	 * The DRS flap drawn apart from the body (the catalog row's `DrsFlap`;
+	 * F1 cars only). It opens when the telemetry says the car's DRS is open.
+	 * An unusable spec draws none: the body carries its whole wing.
+	 */
+	void SetDrsFlap(const FApexDrsFlapSpec& Spec);
+
+	/** The flap's component when the car has one, for tinting and capture flags. */
+	UStaticMeshComponent* GetDrsFlapComponent() const { return DrsFlap.HasFlap() ? DrsFlap.GetComponent() : nullptr; }
 
 	/**
 	 * Show or hide just this car's bodywork.
@@ -185,6 +196,13 @@ protected:
 	/** Four wheel components on CarMesh, steered and spun from the telemetry. */
 	UPROPERTY()
 	FApexCarWheelSet Wheels;
+
+	/** The DRS flap on CarMesh, opened from the telemetry. */
+	UPROPERTY()
+	FApexCarDrsFlap DrsFlap;
+
+	/** The newest telemetry's `bDrsOpen`: where the flap is swinging to. */
+	bool bDrsOpen = false;
 
 	/**
 	 * Beyond this distance between two samples the actor teleports instead of

@@ -132,6 +132,13 @@ rear_radius_m = 0.360
 front_width_m = 0.305
 rear_width_m = 0.375
 
+[drs_flap]
+# the rear wing's upper element, cut out of the body so the client can open it
+model = "fugazzi_sf26_drs.glb"
+hinge_forward_m = -2.5298
+hinge_up_m = 0.8226
+open_deg = 25.0
+
 # --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 

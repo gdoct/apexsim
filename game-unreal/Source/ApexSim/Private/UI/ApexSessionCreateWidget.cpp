@@ -698,6 +698,7 @@ void UApexSessionCreateWidget::RefreshContent()
 		{
 			Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
 			Stage->SetCarWheels(Row.Wheels);
+			Stage->SetCarDrsFlap(Row.DrsFlap);
 			Stage->SetCarMesh(Row.Mesh);
 			Stage->SetTurntableEnabled(false);
 			Stage->ResetTurntable();

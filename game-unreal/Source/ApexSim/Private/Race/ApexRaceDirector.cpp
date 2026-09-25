@@ -623,6 +623,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 	TSoftObjectPtr<UStaticMesh> Mesh = DefaultCarMesh;
 	// The fallback mesh has its wheels modelled in: none drawn on it.
 	FApexWheelSpec Wheels;
+	FApexDrsFlapSpec DrsFlap;
 	FApexCarCatalogRow Row;
 	if (Flow && !CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, Row))
 	{
@@ -630,6 +631,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		{
 			Mesh = Row.Mesh;
 			Wheels = Row.Wheels;
+			DrsFlap = Row.DrsFlap;
 		}
 		Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
 		Car->SetEngineSound(Row.EngineSound, Row.CarClass);
@@ -643,6 +645,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 	}
 	Car->SetCarMesh(Mesh);
 	Car->SetWheels(Wheels);
+	Car->SetDrsFlap(DrsFlap);
 	Car->SetLivery(Mesh == Row.Mesh ? ApexLivery::Find(Row, Livery) : nullptr);
 }
 
