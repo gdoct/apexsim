@@ -189,6 +189,21 @@ namespace ApexTv
 		/** Cut on the next tick. */
 		void RequestCut() { RequestCutFor(TEXT("asked")); }
 
+		/**
+		 * Keep every shot on one car (a replay clip filming a chosen car);
+		 * INDEX_NONE lets the director pick again. A locked car that is not
+		 * in the field is ignored until it is.
+		 */
+		void LockTarget(int32 CarIndex)
+		{
+			if (LockedCarIndex != CarIndex)
+			{
+				LockedCarIndex = CarIndex;
+				RequestCutFor(TEXT("target locked"));
+			}
+		}
+		int32 GetLockedTarget() const { return LockedCarIndex; }
+
 	private:
 		/** Where a shot's camera stands, decided at the cut. */
 		struct FShotSetup
@@ -227,6 +242,7 @@ namespace ApexTv
 		EShot ForcedShot = EShot::None;
 		FShotSetup Setup;
 		int32 TargetCarIndex = INDEX_NONE;
+		int32 LockedCarIndex = INDEX_NONE;
 		int32 ShotsOnTarget = 0;
 		float ShotAge = 0.0f;
 		float ShotLength = 0.0f;

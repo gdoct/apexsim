@@ -19,6 +19,20 @@ pub struct ReplayMetadata {
     pub duration_ticks: u32,
     pub tick_rate: u16,
     pub participants: Vec<ReplayParticipant>,
+    /// The sky the session ran under, so a playback can draw the same one.
+    /// A file from before the field is a sunny 13:00, which is what it was.
+    #[serde(default)]
+    pub conditions: SessionConditions,
+    /// The tick the lights went out, when the recording holds a race start.
+    #[serde(default)]
+    pub race_start_tick: Option<u32>,
+    /// The track file's stem (`Zandvoort` for `Zandvoort.yaml`): what the
+    /// client's level and catalog are named by when an id lookup fails.
+    #[serde(default)]
+    pub track_stem: Option<String>,
+    /// Lap length in metres, so a reader can wrap stations without the track.
+    #[serde(default)]
+    pub track_length_m: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +41,11 @@ pub struct ReplayParticipant {
     pub player_name: String,
     pub car_config_id: CarConfigId,
     pub finish_position: Option<u8>,
+    #[serde(default)]
+    pub is_ai: bool,
+    /// The livery worn, as the roster carries it (0 = as authored).
+    #[serde(default)]
+    pub livery: u8,
 }
 
 /// A single frame of replay data
@@ -42,6 +61,74 @@ pub struct ReplayHeader {
     pub version: u32,
     pub metadata: ReplayMetadata,
     pub frame_count: u32,
+}
+
+/// The file format: `[u32 le header length][header msgpack]` then, per
+/// frame, `[u32 le frame length][frame msgpack]`, both named-field
+/// MessagePack. Version 2 added the metadata's conditions, start tick and
+/// track stem, all optional on the way in, so a version 1 file still reads.
+pub const REPLAY_FORMAT_VERSION: u32 = 2;
+
+/// Write a replay file synchronously (the offline tools; the server's own
+/// recorder writes from the game loop through [`ReplayManager`]).
+pub fn write_replay_file(
+    path: &std::path::Path,
+    metadata: ReplayMetadata,
+    frames: &[ReplayFrame],
+) -> Result<(), std::io::Error> {
+    use std::io::Write;
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    let mut metadata = metadata;
+    metadata.duration_ticks = frames
+        .last()
+        .zip(frames.first())
+        .map(|(last, first)| last.tick.saturating_sub(first.tick))
+        .unwrap_or(0);
+    let header = ReplayHeader {
+        version: REPLAY_FORMAT_VERSION,
+        metadata,
+        frame_count: frames.len() as u32,
+    };
+    let mut writer = std::io::BufWriter::new(std::fs::File::create(path)?);
+    let header_bytes = rmp_serde::to_vec_named(&header)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    writer.write_all(&(header_bytes.len() as u32).to_le_bytes())?;
+    writer.write_all(&header_bytes)?;
+    for frame in frames {
+        let frame_bytes = rmp_serde::to_vec_named(frame)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        writer.write_all(&(frame_bytes.len() as u32).to_le_bytes())?;
+        writer.write_all(&frame_bytes)?;
+    }
+    writer.flush()
+}
+
+/// Read a whole replay file synchronously.
+pub fn read_replay_file(
+    path: &std::path::Path,
+) -> Result<(ReplayMetadata, Vec<ReplayFrame>), std::io::Error> {
+    use std::io::Read;
+    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    let mut len = [0u8; 4];
+    reader.read_exact(&mut len)?;
+    let mut header_bytes = vec![0u8; u32::from_le_bytes(len) as usize];
+    reader.read_exact(&mut header_bytes)?;
+    let header: ReplayHeader = rmp_serde::from_slice(&header_bytes)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let mut frames = Vec::with_capacity(header.frame_count as usize);
+    for _ in 0..header.frame_count {
+        reader.read_exact(&mut len)?;
+        let mut frame_bytes = vec![0u8; u32::from_le_bytes(len) as usize];
+        reader.read_exact(&mut frame_bytes)?;
+        let frame: ReplayFrame = rmp_serde::from_slice(&frame_bytes)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        frames.push(frame);
+    }
+    Ok((header.metadata, frames))
 }
 
 /// Manages replay recording and playback
@@ -92,11 +179,17 @@ impl ReplayManager {
         }
     }
 
-    /// Stop recording and save replay to disk
-    pub async fn stop_recording(&self, session_id: SessionId) -> Result<PathBuf, std::io::Error> {
+    /// Stop recording and save replay to disk. `race_start_tick` is the
+    /// tick the lights went out, when the session raced.
+    pub async fn stop_recording(
+        &self,
+        session_id: SessionId,
+        race_start_tick: Option<u32>,
+    ) -> Result<PathBuf, std::io::Error> {
         let recorder = self.active_recordings.write().await.remove(&session_id);
 
-        if let Some(recorder) = recorder {
+        if let Some(mut recorder) = recorder {
+            recorder.metadata.race_start_tick = race_start_tick;
             let replay_path = self.save_replay(recorder).await?;
             debug!(
                 "Saved replay for session {} to {:?}",
@@ -134,7 +227,7 @@ impl ReplayManager {
         metadata.duration_ticks = recorder.frames.len() as u32;
 
         let header = ReplayHeader {
-            version: 1,
+            version: REPLAY_FORMAT_VERSION,
             metadata,
             frame_count: recorder.frames.len() as u32,
         };
@@ -319,6 +412,11 @@ impl ReplayPlayer {
         self.frames.get(index)
     }
 
+    /// Every frame, in tick order.
+    pub fn frames(&self) -> &[ReplayFrame] {
+        &self.frames
+    }
+
     /// Check if replay has ended
     pub fn is_finished(&self) -> bool {
         self.current_frame >= self.frames.len()
@@ -346,6 +444,10 @@ mod tests {
             duration_ticks: 0,
             tick_rate: 240,
             participants: vec![],
+            conditions: SessionConditions::DEFAULT,
+            race_start_tick: None,
+            track_stem: None,
+            track_length_m: 0.0,
         };
 
         manager.start_recording(metadata).await;
@@ -364,7 +466,7 @@ mod tests {
         }
 
         // Stop and save
-        let replay_path = manager.stop_recording(session_id).await.unwrap();
+        let replay_path = manager.stop_recording(session_id, None).await.unwrap();
         assert!(replay_path.exists());
 
         // Load and verify
@@ -386,6 +488,10 @@ mod tests {
             duration_ticks: 0,
             tick_rate: 240,
             participants: vec![],
+            conditions: SessionConditions::DEFAULT,
+            race_start_tick: None,
+            track_stem: None,
+            track_length_m: 0.0,
         };
 
         manager.start_recording(metadata).await;
@@ -402,7 +508,7 @@ mod tests {
             manager.record_frame(session_id, tick, telemetry).await;
         }
 
-        let replay_path = manager.stop_recording(session_id).await.unwrap();
+        let replay_path = manager.stop_recording(session_id, None).await.unwrap();
         let mut player = manager.load_replay(replay_path).await.unwrap();
 
         // Playback

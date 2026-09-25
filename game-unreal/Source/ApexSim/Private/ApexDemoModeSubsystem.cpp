@@ -146,7 +146,9 @@ bool UApexDemoModeSubsystem::IsDemoDisabled()
 {
 	static const bool bCommandLineOff = FParse::Param(FCommandLine::Get(), TEXT("ApexNoDemo"))
 		// An unattended run is there to look at something else.
-		|| FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"));
+		|| FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"))
+		// A replay clip plays offline, with no server to race a demo on.
+		|| FCString::Strifind(FCommandLine::Get(), TEXT("-ApexReplay=")) != nullptr;
 	return bCommandLineOff || CVarDemoEnabled.GetValueOnGameThread() == 0;
 }
 

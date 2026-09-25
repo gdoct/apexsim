@@ -238,3 +238,6 @@ artifacts/*
 # Deterministic from seeds, ~20 MB of noise that compresses badly, and what
 # the client uses is the /Game/Ground import made from them.
 content/textures/ground/
+
+# Promo video pipeline (scripts/promo): race replays, clip cuts, frames, clips
+out/promo/
