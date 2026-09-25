@@ -22,6 +22,13 @@ pub struct CurbBands {
     pub step_m: f32,
     pub left_cm: Vec<u16>,
     pub right_cm: Vec<u16>,
+    /// Version 2: how far the prepared tarmac run-off reaches past each
+    /// road edge, centimetres, 0 where there is none. Empty in a version 1
+    /// file, which reads as no tarmac anywhere.
+    #[serde(default)]
+    pub runoff_left_cm: Vec<u16>,
+    #[serde(default)]
+    pub runoff_right_cm: Vec<u16>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -52,7 +59,7 @@ impl CurbBands {
     }
 
     pub fn validate(&self) -> Result<(), CurbLoadError> {
-        if self.version != 1 {
+        if !(1..=2).contains(&self.version) {
             return Err(CurbLoadError::Invalid(format!(
                 "unsupported version {}",
                 self.version
@@ -71,6 +78,17 @@ impl CurbBands {
                 "{} left samples against {} right",
                 self.left_cm.len(),
                 self.right_cm.len()
+            )));
+        }
+        let runoff_ok = (self.runoff_left_cm.is_empty() && self.runoff_right_cm.is_empty())
+            || (self.runoff_left_cm.len() == self.left_cm.len()
+                && self.runoff_right_cm.len() == self.right_cm.len());
+        if !runoff_ok {
+            return Err(CurbLoadError::Invalid(format!(
+                "{} / {} run-off samples against {} curb samples",
+                self.runoff_left_cm.len(),
+                self.runoff_right_cm.len(),
+                self.left_cm.len()
             )));
         }
         Ok(())
@@ -98,10 +116,26 @@ impl CurbBands {
         } else {
             &self.left_cm
         };
+        Self::read(band, self.step_m, station_m)
+    }
+
+    /// How far the tarmac run-off reaches past the road edge at
+    /// `station_m` on the side `lateral_offset` points to, metres; 0 where
+    /// the run-off is grass or gravel (or the sidecar predates the band).
+    pub fn runoff_at(&self, station_m: f32, lateral_offset: f32) -> f32 {
+        let band = if lateral_offset >= 0.0 {
+            &self.runoff_right_cm
+        } else {
+            &self.runoff_left_cm
+        };
+        Self::read(band, self.step_m, station_m)
+    }
+
+    fn read(band: &[u16], step_m: f32, station_m: f32) -> f32 {
         if band.is_empty() {
             return 0.0;
         }
-        let sample = (station_m / self.step_m).round();
+        let sample = (station_m / step_m).round();
         if !sample.is_finite() {
             return 0.0;
         }
@@ -116,11 +150,13 @@ mod tests {
 
     fn bands() -> CurbBands {
         CurbBands {
-            version: 1,
+            version: 2,
             step_m: 1.0,
             //         0    1    2    3
             left_cm: vec![0, 150, 150, 0],
             right_cm: vec![100, 0, 0, 0],
+            runoff_left_cm: vec![0, 800, 800, 0],
+            runoff_right_cm: vec![0, 0, 0, 0],
         }
     }
 
@@ -156,11 +192,28 @@ mod tests {
         b.right_cm.pop();
         assert!(b.validate().is_err());
         let mut b = bands();
-        b.version = 2;
+        b.version = 3;
         assert!(b.validate().is_err());
         let mut b = bands();
         b.step_m = 0.0;
         assert!(b.validate().is_err());
+        // Version 2's run-off bands: both empty (a version 1 file) or both
+        // the curb bands' length.
+        let mut b = bands();
+        b.runoff_left_cm.pop();
+        assert!(b.validate().is_err());
+        let mut b = bands();
+        b.runoff_left_cm.clear();
+        b.runoff_right_cm.clear();
+        assert!(b.validate().is_ok());
+        assert_eq!(b.runoff_at(1.0, -3.0), 0.0, "no run-off band reads as none");
+    }
+
+    #[test]
+    fn reads_the_runoff_reach_for_the_side_the_car_is_on() {
+        let b = bands();
+        assert_eq!(b.runoff_at(1.0, -3.0), 8.0, "tarmac 8 m out on the left");
+        assert_eq!(b.runoff_at(1.0, 3.0), 0.0, "none on the right");
     }
 
     #[test]
