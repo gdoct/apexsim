@@ -97,6 +97,7 @@ mod tests {
             default_width: 10.0,
             closed_loop: false,
             raceline: vec![],
+            drs_zones: Vec::new(),
             metadata: None,
         }
     }

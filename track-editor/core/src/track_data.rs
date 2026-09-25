@@ -29,8 +29,22 @@ pub struct TrackFile {
     pub closed_loop: bool,
     #[serde(default)]
     pub raceline: Vec<RacelinePoint>,
+    /// The DRS zones (`scripts/drs_zones.py`): stations along the
+    /// centerline. Kept through every tool that rewrites the YAML, and
+    /// what the bake paints the detection and activation lines from.
+    #[serde(default)]
+    pub drs_zones: Vec<DrsZone>,
     #[serde(default)]
     pub metadata: Option<TrackMetadata>,
+}
+
+/// One DRS zone: the gap is measured at `detection_m`, the flap may open
+/// from `start_m` and shuts at `end_m` (a zone may wrap the start line).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct DrsZone {
+    pub detection_m: f32,
+    pub start_m: f32,
+    pub end_m: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

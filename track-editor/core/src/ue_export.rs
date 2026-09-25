@@ -140,6 +140,11 @@ const PIT_LIFT_M: f32 = 0.02;
 const EDGE_LINE_WIDTH_M: f32 = 0.20;
 const LINE_WIDTH_M: f32 = 0.15;
 const LINE_COLOR: [f32; 4] = [0.85, 0.85, 0.82, 1.0];
+/// DRS detection and activation lines: painted across the road, white.
+const DRS_LINE_COLOR: [f32; 4] = [0.9, 0.9, 0.88, 1.0];
+const DRS_LINE_WIDTH_M: f32 = 0.4;
+/// A DRS board stands this far past the road edge.
+const DRS_BOARD_OFF_EDGE_M: f32 = 3.5;
 /// Start/finish chequer and grid boxes sit a hair over the edge lines.
 const GRID_PAINT_LIFT_M: f32 = MARKING_LIFT_M + 0.005;
 /// Pit-lane lines ride on the lifted lane deck.
@@ -937,6 +942,7 @@ pub fn bake_all_with_dem(
         bake.marking(&path, marking);
     }
     bake.grid_boxes(track, &path);
+    bake.drs_lines(track, &path);
     bake.wear(track, &path);
     let pit_lane = scene.pit_lane.as_ref().and_then(|pit| {
         let lane = lane.as_ref()?;
@@ -965,6 +971,7 @@ pub fn bake_all_with_dem(
         .map(|field| field.bake_ground_sidecar(terrain::GROUND_SIDECAR_CELL_M));
     let curbs = bake_curb_bands(&path, &scene.curbs);
     let props = bake_props(
+        track,
         scene,
         &path,
         lane.as_ref(),
@@ -3061,6 +3068,72 @@ fn bake_prop(p: &Prop, path: &CenterlinePath) -> UeProp {
     }
 }
 
+/// DRS detection and activation lines across the road (`marking` family:
+/// paint), one per zone in the track file.
+impl Bake<'_> {
+    fn drs_lines(&mut self, track: &TrackFile, path: &CenterlinePath) {
+        if track.drs_zones.is_empty() {
+            return;
+        }
+        let key = format!("marking_drs_line_{}", color_hex(DRS_LINE_COLOR));
+        self.register(&key, "marking", DRS_LINE_COLOR);
+        for zone in &track.drs_zones {
+            for station in [zone.detection_m, zone.start_m] {
+                let sample = path.sample_at(station);
+                self.paint(
+                    path,
+                    station - DRS_LINE_WIDTH_M / 2.0,
+                    station + DRS_LINE_WIDTH_M / 2.0,
+                    STEP_M,
+                    &key,
+                    sample.width_left_m,
+                    -sample.width_right_m,
+                    GRID_PAINT_LIFT_M,
+                );
+            }
+        }
+    }
+}
+
+/// The boards that mark the DRS zones: a `DRS` sign on both sides at each
+/// activation line and a `DRS DETECTION` sign at each detection line,
+/// [`DRS_BOARD_OFF_EDGE_M`] past the road edge, facing along the course
+/// like a corner sign (the Unreal builder turns the face to the road).
+fn bake_drs_boards(
+    track: &TrackFile,
+    path: &CenterlinePath,
+    terrain: Option<&TerrainHeightfield>,
+) -> Vec<UeProp> {
+    let mut out = Vec::new();
+    for zone in &track.drs_zones {
+        for (station, text) in [(zone.detection_m, "DRS DETECTION"), (zone.start_m, "DRS")] {
+            let sample = path.sample_at(station);
+            for sign in [1.0f32, -1.0] {
+                let half = if sign > 0.0 {
+                    sample.width_left_m
+                } else {
+                    sample.width_right_m
+                };
+                let lat = sign * (half + DRS_BOARD_OFF_EDGE_M);
+                let p = offset_point(&sample, lat);
+                let z = terrain.map_or(p.2, |field| field.ground_height_at(p.0, p.1));
+                out.push(UeProp {
+                    kind: "board".to_string(),
+                    asset: "corner_sign".to_string(),
+                    location: to_ue((p.0, p.1, z)),
+                    yaw_deg: round(-sample.heading_rad.to_degrees(), 3),
+                    scale: 1.0,
+                    text: Some(text.to_string()),
+                    length_m: None,
+                    radius_m: None,
+                    span_m: None,
+                });
+            }
+        }
+    }
+    out
+}
+
 /// The scene's props, plus the pit complex the pit lane implies.
 ///
 /// A `grandstand` carries its length and the signed bend radius at its
@@ -3070,6 +3143,7 @@ fn bake_prop(p: &Prop, path: &CenterlinePath) -> UeProp {
 /// layout ([`bake_pit_complex`]) and the pre-kit `building/pit_garage`
 /// stand-ins are dropped, since they stood in for exactly that.
 fn bake_props(
+    track: &TrackFile,
     scene: &AtsScene,
     path: &CenterlinePath,
     lane: Option<&CenterlinePath>,
@@ -3091,6 +3165,7 @@ fn bake_props(
         })
         .map(|p| bake_prop(p, path))
         .chain(pit)
+        .chain(bake_drs_boards(track, path, terrain))
         .collect()
 }
 
