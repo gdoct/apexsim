@@ -209,7 +209,7 @@ SIDES = {
     # brake slot leaning the other way, a crease running back into the intake
     "slash": [
         ("recess", dict(y0=(S1 + 0.08, S1 + 0.42), y1=(S1 + 0.46, S1 + 0.62), j0=1.75, j1=3.35,
-                        depth=0.075, rim=0.035, bow=-0.03, blades=3, blade_r=0.008)),
+                        depth=0.075, rim=0.055, bow=-0.03, blades=3, blade_r=0.008)),
         ("recess", dict(y0=(AX_F + 0.62, AX_F + 0.46), y1=(AX_F + 0.72, AX_F + 0.58), j0=1.95, j1=3.10,
                         depth=0.035, rim=0.018)),
         ("swage", dict(y0=AX_F + 0.50, y1=S1 + 0.40, j_a=3.15, j_b=3.35, j_mid=3.05, depth=0.010,
