@@ -96,10 +96,10 @@ pub const ALL: [BarrierKind; 5] = [
 pub fn is_barrier_asset(asset: &str) -> bool {
     crate::circuit_style::VANGRAIL_ASSETS.contains(&asset)
         || ALL.iter().any(|kind| {
-        let (_, module) = kind.asset();
-        let cap = kind.end_cap().map(|(_, cap)| cap);
-        module == asset || cap == Some(asset)
-    })
+            let (_, module) = kind.asset();
+            let cap = kind.end_cap().map(|(_, cap)| cap);
+            module == asset || cap == Some(asset)
+        })
 }
 
 /// What the decision knows about one cell.

@@ -316,7 +316,10 @@ fn lay_graffiti(
             reversed: g.reversed,
         };
         if !g.image.starts_with(GRAFFITI_SET) || decal.image_parts().is_none() {
-            skipped.push(format!("graffiti {label}: image {:?} is not graffiti/<name>", g.image));
+            skipped.push(format!(
+                "graffiti {label}: image {:?} is not graffiti/<name>",
+                g.image
+            ));
             continue;
         }
         if !(g.length_m > 0.0 && g.width_m > 0.0 && g.length_m < total) {
@@ -1774,15 +1777,16 @@ mod tests {
             reversed: false,
         });
         let mut layout = layout();
-        let entry = |image: &str, station_m: f32, lat_m: f32, width_m: f32| crate::layout::Graffiti {
-            image: image.to_string(),
-            station_m,
-            lat_m,
-            length_m: 16.0,
-            width_m,
-            reversed: false,
-            name: None,
-        };
+        let entry =
+            |image: &str, station_m: f32, lat_m: f32, width_m: f32| crate::layout::Graffiti {
+                image: image.to_string(),
+                station_m,
+                lat_m,
+                length_m: 16.0,
+                width_m,
+                reversed: false,
+                name: None,
+            };
         layout.graffiti = vec![
             entry("graffiti/vollgas", 100.0, 0.0, 7.0),
             // Wider than the 12 m road: trimmed to it.
@@ -1794,8 +1798,14 @@ mod tests {
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
         assert_eq!(report.graffiti, 2, "{:?}", report.skipped);
         assert_eq!(report.skipped.len(), 2, "{:?}", report.skipped);
-        let eifel = scene.decals.iter().find(|d| d.image == "graffiti/eifel").unwrap();
-        assert!(eifel.lat_m + eifel.width_m / 2.0 <= 6.0 && eifel.lat_m - eifel.width_m / 2.0 >= -6.0);
+        let eifel = scene
+            .decals
+            .iter()
+            .find(|d| d.image == "graffiti/eifel")
+            .unwrap();
+        assert!(
+            eifel.lat_m + eifel.width_m / 2.0 <= 6.0 && eifel.lat_m - eifel.width_m / 2.0 >= -6.0
+        );
         assert!(scene.decals.iter().any(|d| d.id == other));
         scene.validate().unwrap();
 

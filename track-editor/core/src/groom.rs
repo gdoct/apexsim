@@ -890,8 +890,15 @@ pub fn groom_props_with_dem(
     }
 
     // One pass decides the whole barrier line: see `lay_all_barriers`.
-    let (new_walls, new_rails) =
-        lay_all_barriers(&path, &terrain, &surfaces, lane.as_ref(), layout, &kept, &style);
+    let (new_walls, new_rails) = lay_all_barriers(
+        &path,
+        &terrain,
+        &surfaces,
+        lane.as_ref(),
+        layout,
+        &kept,
+        &style,
+    );
     report.removed = 0;
     report.walls = new_walls.len();
     let mut props = kept;
@@ -1491,65 +1498,68 @@ fn lay_german_signs(
         .map(|p| (p.x, p.y))
         .collect();
     let mut out: Vec<Prop> = Vec::new();
-    let place = |out: &mut Vec<Prop>, asset: &str, station: f32, side: Side, text: Option<String>| {
-        let station = station.rem_euclid(total);
-        let sample = path.sample_at(station);
-        let corner = tightest_radius(path, station) < barriers::STRAIGHT_RADIUS_M;
-        let past = if corner {
-            style.corner_barrier_min_m
-        } else {
-            style.straight_barrier_min_m
-        } + SIGN_PAST_BARRIER_M;
-        let mut lat = signed(side, side_half_width(&sample, side) + past);
-        let mut pos = offset_point(&sample, lat);
-        // Just behind the nearest rail on its side, where there is one.
-        if let Some((rx, ry)) = rails
-            .iter()
-            .copied()
-            .filter(|(rx, ry)| (rx - pos.0).hypot(ry - pos.1) <= BOARD_SNAP_RANGE_M)
-            .min_by(|a, b| {
-                (a.0 - pos.0)
-                    .hypot(a.1 - pos.1)
-                    .total_cmp(&(b.0 - pos.0).hypot(b.1 - pos.1))
-            })
-        {
-            let (_, rail_lat, _) = nearest_cross_section(path, rx, ry);
-            if rail_lat.signum() == lat.signum() {
-                lat = rail_lat + BOARD_BEHIND_BARRIER_M.copysign(rail_lat);
-                pos = offset_point(&sample, lat);
-            }
-        }
-        // Where the course folds back, a sign for one leg must not stand
-        // on the other.
-        let (ns, nlat, _) = nearest_cross_section(path, pos.0, pos.1);
-        if nlat.abs() < half_width_on(&ns, nlat) + 1.0 {
-            return;
-        }
-        if lane.is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < PROP_CLEARANCE_M + radius) {
-            return;
-        }
-        if slabs
-            .iter()
-            .any(|p| p.gap(pos.0, pos.1) < radius + BOARD_PROP_CLEAR_M)
-            || out
+    let place =
+        |out: &mut Vec<Prop>, asset: &str, station: f32, side: Side, text: Option<String>| {
+            let station = station.rem_euclid(total);
+            let sample = path.sample_at(station);
+            let corner = tightest_radius(path, station) < barriers::STRAIGHT_RADIUS_M;
+            let past = if corner {
+                style.corner_barrier_min_m
+            } else {
+                style.straight_barrier_min_m
+            } + SIGN_PAST_BARRIER_M;
+            let mut lat = signed(side, side_half_width(&sample, side) + past);
+            let mut pos = offset_point(&sample, lat);
+            // Just behind the nearest rail on its side, where there is one.
+            if let Some((rx, ry)) = rails
                 .iter()
-                .any(|p| (p.x - pos.0).hypot(p.y - pos.1) < 2.0 * radius + 0.5)
-        {
-            return;
-        }
-        out.push(Prop {
-            id: 0,
-            kind: PropKind::Board,
-            asset: asset.to_string(),
-            x: pos.0,
-            y: pos.1,
-            z: seat_z(terrain, &sample, lat, pos.0, pos.1),
-            yaw_rad: sample.heading_rad,
-            scale: 1.0,
-            text,
-            length_m: None,
-        });
-    };
+                .copied()
+                .filter(|(rx, ry)| (rx - pos.0).hypot(ry - pos.1) <= BOARD_SNAP_RANGE_M)
+                .min_by(|a, b| {
+                    (a.0 - pos.0)
+                        .hypot(a.1 - pos.1)
+                        .total_cmp(&(b.0 - pos.0).hypot(b.1 - pos.1))
+                })
+            {
+                let (_, rail_lat, _) = nearest_cross_section(path, rx, ry);
+                if rail_lat.signum() == lat.signum() {
+                    lat = rail_lat + BOARD_BEHIND_BARRIER_M.copysign(rail_lat);
+                    pos = offset_point(&sample, lat);
+                }
+            }
+            // Where the course folds back, a sign for one leg must not stand
+            // on the other.
+            let (ns, nlat, _) = nearest_cross_section(path, pos.0, pos.1);
+            if nlat.abs() < half_width_on(&ns, nlat) + 1.0 {
+                return;
+            }
+            if lane
+                .is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < PROP_CLEARANCE_M + radius)
+            {
+                return;
+            }
+            if slabs
+                .iter()
+                .any(|p| p.gap(pos.0, pos.1) < radius + BOARD_PROP_CLEAR_M)
+                || out
+                    .iter()
+                    .any(|p| (p.x - pos.0).hypot(p.y - pos.1) < 2.0 * radius + 0.5)
+            {
+                return;
+            }
+            out.push(Prop {
+                id: 0,
+                kind: PropKind::Board,
+                asset: asset.to_string(),
+                x: pos.0,
+                y: pos.1,
+                z: seat_z(terrain, &sample, lat, pos.0, pos.1),
+                yaw_rad: sample.heading_rad,
+                scale: 1.0,
+                text,
+                length_m: None,
+            });
+        };
 
     for run in corner_runs(path) {
         if run.peak_kappa < 1.0 / CHEVRON_RADIUS_M {
@@ -1584,10 +1594,22 @@ fn lay_german_signs(
             } else {
                 "de_curve_right"
             };
-            place(&mut out, asset, run.start_m - WARNING_BEFORE_M, Side::Right, None);
+            place(
+                &mut out,
+                asset,
+                run.start_m - WARNING_BEFORE_M,
+                Side::Right,
+                None,
+            );
         }
         if peak_radius < DANGER_RADIUS_M {
-            place(&mut out, "de_danger", run.start_m - DANGER_BEFORE_M, Side::Right, None);
+            place(
+                &mut out,
+                "de_danger",
+                run.start_m - DANGER_BEFORE_M,
+                Side::Right,
+                None,
+            );
         }
     }
     let km = (total / KM_STEP_M).floor() as usize;
@@ -2392,6 +2414,7 @@ fn tree_density(track: &TrackFile) -> f32 {
 /// circuit folds back on itself), the pit lane, an authored runoff patch,
 /// a building or grandstand, or any other prop — including trees planted
 /// before it, in cell order.
+#[allow(clippy::too_many_arguments)]
 fn lay_tree_belts(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
@@ -3460,7 +3483,9 @@ mod tests {
             let (sample, lat, _) = nearest_cross_section(&path, t.x, t.y);
             let beyond = lat.abs() - half_width_on(&sample, lat);
             assert!(
-                (CircuitStyle::DEFAULT.trees.near_m - 1.0..=CircuitStyle::DEFAULT.trees.far_m + 1.0).contains(&beyond),
+                (CircuitStyle::DEFAULT.trees.near_m - 1.0
+                    ..=CircuitStyle::DEFAULT.trees.far_m + 1.0)
+                    .contains(&beyond),
                 "tree {beyond} m beyond the edge"
             );
             assert!(
@@ -3553,7 +3578,10 @@ mod tests {
         assert!(nearest_rail < 10.0, "nearest rail {nearest_rail} m ({lat})");
 
         let boards = of_kind(&scene, PropKind::Board);
-        assert!(boards.iter().any(|p| p.asset.starts_with("chevron_")), "no chevrons");
+        assert!(
+            boards.iter().any(|p| p.asset.starts_with("chevron_")),
+            "no chevrons"
+        );
         let km: Vec<_> = boards.iter().filter(|p| p.asset == "km_marker").collect();
         assert_eq!(km.len(), (path.total_length_m() / 1000.0).floor() as usize);
         assert_eq!(km[0].text.as_deref(), Some("km1"));
@@ -3571,7 +3599,12 @@ mod tests {
         let mut plain = AtsScene::new_for_track(&track, "Groom.yaml");
         groom_scene(&track, &mut plain).unwrap();
         let trees = |s: &AtsScene| s.props.iter().filter(|p| p.kind == PropKind::Tree).count();
-        assert!(trees(&scene) > trees(&plain), "{} vs {}", trees(&scene), trees(&plain));
+        assert!(
+            trees(&scene) > trees(&plain),
+            "{} vs {}",
+            trees(&scene),
+            trees(&plain)
+        );
 
         let first = scene.clone();
         let second = groom_scene(&track, &mut scene).unwrap();

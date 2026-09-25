@@ -169,7 +169,10 @@ mod tests {
         assert_eq!(v.asset("tecpro_2m", 100.0), "tecpro_2m");
         assert_eq!(Rail::Armco.asset("armco_4m", 100.0), "armco_4m");
         for a in VANGRAIL_ASSETS {
-            assert!(crate::props::resolve(crate::ats::PropKind::Barrier, a).is_some(), "{a} not in the kit");
+            assert!(
+                crate::props::resolve(crate::ats::PropKind::Barrier, a).is_some(),
+                "{a} not in the kit"
+            );
         }
     }
 }
