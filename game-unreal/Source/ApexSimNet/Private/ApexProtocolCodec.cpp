@@ -926,6 +926,8 @@ namespace
 		Out.bLapInvalid = false;
 		Out.bLastLapInvalid = false;
 		Out.bInGarage = false;
+		Out.bDrsAllowed = false;
+		Out.bDrsOpen = false;
 		if (Index < Known)
 		{
 			bOk &= Next([&]
@@ -937,6 +939,8 @@ namespace
 				Out.bLapInvalid = (Raw & 1) != 0;
 				Out.bLastLapInvalid = (Raw & 2) != 0;
 				Out.bInGarage = (Raw & 4) != 0;
+				Out.bDrsAllowed = (Raw & 8) != 0;
+				Out.bDrsOpen = (Raw & 16) != 0;
 				return true;
 			});
 		}
@@ -1405,8 +1409,8 @@ namespace ApexProtocol
 
 	TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input)
 	{
-		FMsgPackWriter Writer(96);
-		BeginDataVariant(Writer, "PlayerInput", 6);
+		FMsgPackWriter Writer(112);
+		BeginDataVariant(Writer, "PlayerInput", 7);
 		Writer.WriteString("server_tick_ack");
 		Writer.WriteUInt(ServerTickAck);
 		Writer.WriteString("throttle");
@@ -1428,6 +1432,10 @@ namespace ApexProtocol
 		// treats None as "leave it alone".
 		Writer.WriteString("clutch");
 		Writer.WriteNil();
+		// The DRS button, last so a server from before the field reads the
+		// message as before (`cargo test player_input_drs_wire_format`).
+		Writer.WriteString("drs");
+		Writer.WriteBool(Input.bDrs);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

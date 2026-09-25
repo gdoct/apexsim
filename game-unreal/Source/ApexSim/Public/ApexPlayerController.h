@@ -34,6 +34,10 @@ struct APEXSIM_API FApexDriveInput
 	/** Held: look straight behind. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
 	bool bLookBack = false;
+
+	/** Held: the DRS button. Sent; the server decides whether the flap opens. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
+	bool bDrs = false;
 };
 
 /**
@@ -171,6 +175,8 @@ private:
 	void HandleLookReleased(const struct FInputActionValue& Value);
 	void HandleLookBack(const struct FInputActionValue& Value);
 	void HandleLookBackReleased(const struct FInputActionValue& Value);
+	void HandleDrs(const struct FInputActionValue& Value);
+	void HandleDrsReleased(const struct FInputActionValue& Value);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexInputConfig> InputConfig;
