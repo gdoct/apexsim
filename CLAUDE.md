@@ -848,8 +848,9 @@ Driving uses Enhanced Input, with actions and the mapping context built in
 C++ (`Input/ApexInputConfig.h`) rather than as `.uasset`s, so bindings are
 readable in a diff. `AApexPlayerController` owns them and adds the mapping
 context only while a race is running. Defaults: WASD to drive, Q/E to shift,
-C to step through the cameras, `,`/`.` to look aside, B to look behind, Escape to
-leave.
+C to step through the cameras, `,`/`.` to look aside, B to look behind, L to
+switch the headlights, H to flash them (D-pad up/down on a pad; both have a
+wheel slot), Escape to leave.
 
 Three traps worth remembering: the menu shell runs in `FInputModeUIOnly`, where
 the viewport discards game input entirely and no binding produces an event
@@ -1417,7 +1418,17 @@ wrapped back in when they leave, each stretched along its apparent
 velocity so they streak at speed (no particle assets exist in the
 project). Cars get two lumen-rated spot headlights at the nose and dim
 running tail lights (`AApexRaceCarActor::SetHeadlights`,
-`apexsim.car.HeadlightLumens`) whenever the sun is under 6° or it rains.
+`apexsim.car.HeadlightLumens`). Whether they are on is the server's
+(`headlights.rs`), because everyone sees them: `PlayerInput.headlights`
+is the driver's switch (nil until the first press of the Headlights key,
+which then flips what the car shows) and `PlayerInput.flash` the held flash
+button; an untouched switch, the AI and an old client get the sky's rule,
+sun under 6° or rain (`SessionConditions::headlights_needed`, the same sun
+as `ApexSky::SunAt`). Telemetry carries on/flash as `lap_flags` bits 5 and
+6 and the race director lights every car from them, a flash at full beam
+(held at least 0.2 s so a tap is seen). Golden bytes: `cargo test
+player_input_headlights_wire_format -- --nocapture` →
+`ApexUdpGolden::C_PlayerInput`.
 `-ApexWeather=heavyrain -ApexTimeOfDay=22:15` put an `-ApexAutoRace`
 screenshot run under that sky.
 

@@ -56,17 +56,36 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 	Input.Steering = -0.5f;
 	Input.Gear = 4;
 	Input.bDrs = false;
+	Input.Headlights = -1;
+	Input.bFlash = false;
 	CheckBytes(TEXT("PlayerInput"),
 		ApexProtocol::EncodePlayerInput(4242, Input),
 		ApexUdpGolden::C_PlayerInput);
 
-	// The DRS button held is the same message with its last value true
-	// (server: `cargo test player_input_drs_wire_format`).
+	// Every bool and the nil switch is one byte, so a held button or a set
+	// switch is the same message with that byte changed (server: `cargo test
+	// player_input_headlights_wire_format`). From the end: flash, then
+	// `a5 "flash"`, the switch, `aa "headlights"`, drs.
 	{
+		const int32 Len = (int32)UE_ARRAY_COUNT(ApexUdpGolden::C_PlayerInput);
+		const int32 FlashAt = Len - 1;
+		const int32 SwitchAt = FlashAt - 7;
+		const int32 DrsAt = SwitchAt - 12;
+		TestEqual(TEXT("the switch left to the sky is nil"), ApexUdpGolden::C_PlayerInput[SwitchAt], (uint8)0xC0);
+
 		Input.bDrs = true;
+		Input.Headlights = 0;
+		Input.bFlash = true;
 		const TArray<uint8> Held = ApexProtocol::EncodePlayerInput(4242, Input);
-		TestEqual(TEXT("PlayerInput with DRS held is the same length"), Held.Num(), (int32)UE_ARRAY_COUNT(ApexUdpGolden::C_PlayerInput));
-		TestEqual(TEXT("PlayerInput with DRS held ends in true"), Held.Last(), (uint8)0xC3);
+		if (TestEqual(TEXT("PlayerInput with every button set is the same length"), Held.Num(), Len))
+		{
+			TestEqual(TEXT("DRS held is true"), Held[DrsAt], (uint8)0xC3);
+			TestEqual(TEXT("headlights switched off is false"), Held[SwitchAt], (uint8)0xC2);
+			TestEqual(TEXT("flash held is true"), Held[FlashAt], (uint8)0xC3);
+		}
+		Input.Headlights = 1;
+		TestEqual(TEXT("headlights switched on is true"),
+			ApexProtocol::EncodePlayerInput(4242, Input)[SwitchAt], (uint8)0xC3);
 	}
 
 	return true;
@@ -392,6 +411,27 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			const FApexCarTelemetry& Car = Message.Telemetry.Cars[0];
 			TestTrue(TEXT("in the garage"), Car.bInGarage);
 			TestTrue(TEXT("the other bits still read"), Car.bLapInvalid);
+			TestFalse(TEXT("lights off"), Car.bHeadlights);
+			TestFalse(TEXT("not flashing"), Car.bHeadlightFlash);
+		}
+	}
+
+	{
+		// lap_flags bits 5 and 6: the headlights and the flash. The car is the
+		// frame's last value and the flags its last byte.
+		TArray<uint8> Lit(ApexUdpGolden::S_TelemetryCompactGarage, UE_ARRAY_COUNT(ApexUdpGolden::S_TelemetryCompactGarage));
+		Lit.Last() = 0x05 | 32 | 64;
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("lit telemetry decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(Lit, Message, Error))
+			&& TestEqual(TEXT("one car"), Message.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Message.Telemetry.Cars[0];
+			TestTrue(TEXT("headlights on"), Car.bHeadlights);
+			TestTrue(TEXT("flashing"), Car.bHeadlightFlash);
+			TestTrue(TEXT("the garage bit still reads"), Car.bInGarage);
+			TestFalse(TEXT("DRS untouched"), Car.bDrsAllowed || Car.bDrsOpen);
 		}
 	}
 

@@ -530,6 +530,8 @@ impl TestClientMinimal {
             gear: None,
             clutch: None,
             drs: None,
+            headlights: None,
+            flash: None,
         };
         self.send_message(&msg).await
     }

@@ -101,6 +101,8 @@ proptest! {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         for tick in 0..ticks {
@@ -219,6 +221,8 @@ proptest! {
                 gear: None,
                 clutch: None,
                 drs: None,
+                headlights: None,
+                flash: None,
             },
         ];
 

@@ -47,6 +47,10 @@ namespace ApexInput
 			{ Actions::LookBack,     1, TEXT("Look behind"),  EKeys::B,                        false, EColumn::Keyboard },
 			{ Actions::Drs,          0, TEXT("DRS"),          EKeys::Gamepad_FaceButton_Left,  false, EColumn::Gamepad  },
 			{ Actions::Drs,          1, TEXT("DRS"),          EKeys::LeftShift,                false, EColumn::Keyboard },
+			{ Actions::Headlights,   0, TEXT("Headlights"),   EKeys::Gamepad_DPad_Up,          false, EColumn::Gamepad  },
+			{ Actions::Headlights,   1, TEXT("Headlights"),   EKeys::L,                        false, EColumn::Keyboard },
+			{ Actions::FlashLights,  0, TEXT("Flash lights"), EKeys::Gamepad_DPad_Down,        false, EColumn::Gamepad  },
+			{ Actions::FlashLights,  1, TEXT("Flash lights"), EKeys::H,                        false, EColumn::Keyboard },
 			{ Actions::PauseMenu,    0, TEXT("Pause menu"),   EKeys::Gamepad_Special_Right,    false, EColumn::Gamepad  },
 			{ Actions::PauseMenu,    1, TEXT("Pause menu"),   EKeys::Escape,                   false, EColumn::Keyboard },
 
@@ -60,6 +64,8 @@ namespace ApexInput
 			{ Actions::Look,         Slot::WheelHigh,  TEXT("Look right"),  FKey(), false, EColumn::Wheel },
 			{ Actions::LookBack,     Slot::Wheel,      TEXT("Look behind"), FKey(), false, EColumn::Wheel },
 			{ Actions::Drs,          Slot::Wheel,      TEXT("DRS"),         FKey(), false, EColumn::Wheel },
+			{ Actions::Headlights,   Slot::Wheel,      TEXT("Headlights"),  FKey(), false, EColumn::Wheel },
+			{ Actions::FlashLights,  Slot::Wheel,      TEXT("Flash lights"), FKey(), false, EColumn::Wheel },
 			{ Actions::PauseMenu,    Slot::Wheel,      TEXT("Pause menu"),  FKey(), false, EColumn::Wheel },
 			{ Actions::MenuUp,       Slot::Wheel,      TEXT("Menu up"),     FKey(), false, EColumn::Wheel },
 			{ Actions::MenuDown,     Slot::Wheel,      TEXT("Menu down"),   FKey(), false, EColumn::Wheel },
@@ -447,6 +453,8 @@ UApexInputConfig* UApexInputConfig::Create(UObject* Outer)
 	Config->Look = MakeAction(Config, TEXT("IA_Look"), EInputActionValueType::Axis1D);
 	Config->LookBack = MakeAction(Config, TEXT("IA_LookBack"), EInputActionValueType::Boolean);
 	Config->Drs = MakeAction(Config, TEXT("IA_Drs"), EInputActionValueType::Boolean);
+	Config->Headlights = MakeAction(Config, TEXT("IA_Headlights"), EInputActionValueType::Boolean);
+	Config->FlashLights = MakeAction(Config, TEXT("IA_FlashLights"), EInputActionValueType::Boolean);
 
 	Config->DriveContext = NewObject<UInputMappingContext>(Config, TEXT("IMC_Drive"));
 	Config->ApplyBindings({});
@@ -465,6 +473,8 @@ UInputAction* UApexInputConfig::FindAction(FName ActionId) const
 	if (ActionId == ApexInput::Actions::Look)         { return Look; }
 	if (ActionId == ApexInput::Actions::LookBack)     { return LookBack; }
 	if (ActionId == ApexInput::Actions::Drs)          { return Drs; }
+	if (ActionId == ApexInput::Actions::Headlights)   { return Headlights; }
+	if (ActionId == ApexInput::Actions::FlashLights)  { return FlashLights; }
 	// PauseMenu is handled by the root widget, not by Enhanced Input.
 	return nullptr;
 }
