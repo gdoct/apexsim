@@ -61,7 +61,10 @@ VARIANTS = {
                    paint_metallic=0.85, number="9", bonnet_drop=(0.015, 0.035),
                    lights="round", drl="points", tail="rings", exhaust="quad", grille="twin",
                    nose_w=0.94, fender=1.02, roof=1.00, canopy_shift=0.04, tail_h=1.00, wing_z=0.02,
-                   mirror="stalk", scoop=(0.22, 0.60, 0.13), seat=(0.36, 0.17, 0.06), rain_z=(0.420, 0.550)),
+                   mirror="stalk", scoop=(0.22, 0.60, 0.13), seat=(0.36, 0.17, 0.06), rain_z=(0.420, 0.550),
+                   # upright and square: a raised nose, shallow valleys, a wide
+                   # canopy, fenders that stand like boxes over the wheels
+                   nose_z=0.060, valley=0.065, canopy_w=1.07, fender_r=1.00, face="twin", side="upright"),
     # Fugazzi 994P: rosso with a yellow sill, a single thin blade over a slit
     # headlamp, a thin double stripe at the back. The lowest and sharpest.
     "fugazzi": dict(folder="fugazzi-994p-hypercar", stem="fugazzi_994p", logo="fugazzi_hyper_logo.png",
@@ -69,7 +72,11 @@ VARIANTS = {
                     paint_metallic=0.60, number="50", bonnet_drop=(0.015, 0.035),
                     lights="slit", drl="blade", tail="double", exhaust="twin", grille="twin",
                     nose_w=0.88, fender=1.05, roof=0.96, canopy_shift=0.10, tail_h=0.96, wing_z=0.00,
-                    mirror="stalk", scoop=None, seat=(0.16, 0.04, 0.04)),
+                    mirror="stalk", scoop=None, seat=(0.16, 0.04, 0.04),
+                    # low and pointed: the nose drooped, the valleys cut deep
+                    # either side of a narrow canopy, rear fenders swept up
+                    nose_z=-0.030, valley=-0.055, canopy_w=0.95, fender_r=1.07, face="boomerang",
+                    side="slash"),
     # Bugotti Chiffon: two-tone French blue, the horseshoe grille, the C-line
     # round the side intake, a quad-lamp bar and one light bar across the tail.
     "bugotti": dict(folder="bugotti-chiffon-hypercar", stem="bugotti_chiffon", logo="bugotti_logo.png",
@@ -77,7 +84,11 @@ VARIANTS = {
                     paint_metallic=0.80, number="16", bonnet_drop=(0.015, 0.035),
                     lights="quad", drl="under", tail="fullbar", exhaust="twin", grille="horseshoe",
                     nose_w=1.00, fender=1.00, roof=1.02, canopy_shift=0.00, tail_h=1.02, wing_z=0.03,
-                    mirror="pod", scoop=None, seat=(0.04, 0.10, 0.30), cline=True, two_tone=True, rain_z=(0.285, 0.430)),
+                    mirror="pod", scoop=None, seat=(0.04, 0.10, 0.30), cline=True, two_tone=True, rain_z=(0.285, 0.430),
+                    # round and full: bulbous fenders, a filled-in valley, the
+                    # C-shaped intake the polished line wraps
+                    nose_z=0.010, valley=0.020, canopy_w=1.00, fender_r=0.98, fender_x=0.025,
+                    face="horseshoe", side="c"),
 }
 
 # Base hull. Right-half section control points (x, z).
@@ -110,6 +121,17 @@ def apply_variant(keys, v):
                 z = 0.60 + (z - 0.60) * v["roof"]
             if y > 1.7:
                 z *= v["tail_h"]
+            # the variant's own sculpture on top of the shared proportions
+            if y < -1.7 and j >= 2:
+                z += v.get("nose_z", 0.0) * min(1.0, (-1.7 - y) / 0.6)
+            if j in (4, 5) and -2.0 < y < 1.95:
+                z += v.get("valley", 0.0) * (1.0 if j == 5 else 0.5)
+            if j in (6, 7) and -0.7 < y < 1.1:
+                x *= v.get("canopy_w", 1.0)
+            if j in (3, 4) and abs(y - 1.55) < 0.45:
+                z = 0.050 + (z - 0.050) * v.get("fender_r", 1.0)
+            if j in (2, 3) and abs(abs(y) - 1.55) < 0.50:
+                x += v.get("fender_x", 0.0)
             new.append((x, z))
         yy = y + (v["canopy_shift"] if -0.7 <= y <= 1.0 else 0.0)
         out.append((yy, new))
@@ -168,11 +190,56 @@ for (y, kind) in ((NOSE + 0.70, "upper"), (AX_F + 0.44, "side"),
     elif not in_arch(y):
         L.groove(y, 1.4, 3.2, depth=0.008, width=0.012)
 
-# Louvres on top of the front fenders only; the rears stay clean.
-L.recess(AX_F - 0.16, AX_F + 0.16, 3.30, 4.25, depth=0.020, rim=0.065)
-# Side radiator intake behind the door, deep, and the brake exit behind the front arch.
-L.recess(SIDE_Y[1] + 0.12, SIDE_Y[1] + 0.52, 1.80, 3.20, depth=0.070, rim=0.035)
-L.recess(AX_F + 0.46, AX_F + 0.70, 1.95, 3.00, depth=0.035, rim=0.024)
+# The flank, per car (swept vents, character lines, see build_gt3.py): the
+# first cut gave all three the same upright box intake behind the door and
+# the same brake exit behind the front wheel.
+S1 = SIDE_Y[1]
+SIDES = {
+    # upright: a tall intake leaning slightly forward, a square brake exit,
+    # louvres on top of the front fenders
+    "upright": [
+        ("recess", dict(y0=(S1 + 0.14, S1 + 0.10), y1=(S1 + 0.52, S1 + 0.50), j0=1.80, j1=3.30,
+                        depth=0.070, rim=0.035, blades=4)),
+        ("recess", dict(y0=AX_F + 0.46, y1=AX_F + 0.70, j0=1.95, j1=3.00, depth=0.035, rim=0.024,
+                        blades=3, blade_r=0.006)),
+        ("recess", dict(y0=AX_F - 0.16, y1=AX_F + 0.16, j0=3.30, j1=4.25, depth=0.020, rim=0.065,
+                        louvres=True)),
+    ],
+    # slash: one long intake raked hard back from the sill to the hip, a thin
+    # brake slot leaning the other way, a crease running back into the intake
+    "slash": [
+        ("recess", dict(y0=(S1 + 0.08, S1 + 0.42), y1=(S1 + 0.46, S1 + 0.62), j0=1.75, j1=3.35,
+                        depth=0.075, rim=0.035, bow=-0.03, blades=3, blade_r=0.008)),
+        ("recess", dict(y0=(AX_F + 0.62, AX_F + 0.46), y1=(AX_F + 0.72, AX_F + 0.58), j0=1.95, j1=3.10,
+                        depth=0.035, rim=0.018)),
+        ("swage", dict(y0=AX_F + 0.50, y1=S1 + 0.40, j_a=3.15, j_b=3.35, j_mid=3.05, depth=0.010,
+                       width=0.30, fade=0.25)),
+    ],
+    # c: an intake whose edges bow forward at mid-height, the polished C-line
+    # following its leading edge; a small upright vent behind the front wheel
+    "c": [
+        ("recess", dict(y0=S1 + 0.12, y1=S1 + 0.50, j0=1.70, j1=3.40, depth=0.070, rim=0.035,
+                        bow=-0.09, blades=4, blade_r=0.006)),
+        ("recess", dict(y0=(AX_F + 0.46, AX_F + 0.50), y1=(AX_F + 0.60, AX_F + 0.64), j0=2.05, j1=2.95,
+                        depth=0.030, rim=0.016)),
+    ],
+}
+SIDE_BLADES, SIDE_FLOORS, LOUVRES = [], [], []
+for (kind, kw) in SIDES[V["side"]]:
+    kw = dict(kw)
+    blades, blade_r = kw.pop("blades", 0), kw.pop("blade_r", 0.007)
+    louvres = kw.pop("louvres", False)
+    if kind == "swage":
+        L.swage(**kw)
+        continue
+    L.recess(**kw)
+    f = L.last_feature
+    if louvres:
+        LOUVRES.append(f)
+    if f["swept"] and kw["depth"] > 0.022:
+        SIDE_FLOORS.append(f)
+    if blades:
+        SIDE_BLADES.append((f, blades, blade_r))
 # The valley between each front fender and the cockpit, carved deeper.
 L.recess(AX_F + 0.30, -0.35 + CS, 4.70, 5.90, depth=0.035, rim=0.14)
 
@@ -210,6 +277,8 @@ def face_mat(ym, kk, right):
     is_screen = SCREEN_Y[0] < ym < SCREEN_Y[1]
     is_side = SIDE_Y[0] <= ym < SIDE_Y[1]
     if jc < CAN_LO - TRIM_J:
+        if jc < 3.6 and L._offset(ym, kk, right, skip_swept=True) > 0.030:
+            return M.mesh
         return TOP if jc > TWO_TONE_J else M.paint
     if jc < CAN_LO:
         return M.trim if (is_screen or is_side) else TOP
@@ -222,7 +291,8 @@ def face_mat(ym, kk, right):
     return TOP
 
 
-body = L.build("body", face_mat, [M.paint, M.glass, M.trim] + ([M.accent] if V.get("two_tone") else []), subsurf=0)
+body = L.build("body", face_mat, [M.paint, M.glass, M.trim, M.mesh] + ([M.accent] if V.get("two_tone") else []),
+               subsurf=0)
 save("body")
 
 # -------------------------------------------------------------- wheel arches
@@ -235,9 +305,30 @@ carlib.sharpen(body, 34.0)
 save("arches")
 
 # --------------------------------------------------------------- apertures
-RAD_Z = (0.120, 0.235)
-RAD_X = (0.24, 0.58) if V["grille"] == "horseshoe" else (0.14, 0.56)
-RAD_Y = carlib.surface_station(L, RAD_X[1], (RAD_Z[0] + RAD_Z[1]) / 2, NOSE, margin=0.045)
+# The face: shaped radiator mouths under the lamps, per car (see build_gt3.py)
+FACES = {
+    # twin: two big rounded mouths, their outer ends lifting, slats across
+    "twin": [dict(poly=[(0.15, 0.115), (0.58, 0.115), (0.62, 0.245), (0.19, 0.235)], r=0.040,
+                  bars=[(0.0, 0.030)], mirror=True)],
+    # boomerang: one wide low mouth notched up either side of a centre
+    # strut, the ends swept up under the lamps
+    "boomerang": [dict(poly=[(-0.60, 0.110), (0.60, 0.110), (0.66, 0.215), (0.24, 0.225), (0.05, 0.180),
+                             (-0.05, 0.180), (-0.24, 0.225), (-0.66, 0.215)], r=0.018,
+                       bars=[(0.0, 0.026)], strut=True)],
+    # horseshoe: the centre shoe (below) and two parallelogram mouths
+    # leaning outboard, vertical bars
+    "horseshoe": [dict(poly=[(0.25, 0.115), (0.56, 0.115), (0.62, 0.240), (0.30, 0.240)], r=0.025,
+                       bars=[(90.0, 0.030)], mirror=True)],
+}
+FACE = []
+for spec in FACES[V["face"]]:
+    polys = [carlib.rounded(spec["poly"], spec["r"])]
+    if spec.get("mirror"):
+        polys.append(carlib.flip_x(polys[0]))
+    for poly in polys:
+        yb = carlib.poly_depth(L, poly, NOSE, margin=0.035)
+        carlib.aperture_poly(body, M, poly, NOSE - 0.06, yb + 0.03, mat=M.mesh)
+        FACE.append((spec, poly, yb))
 for sx in (-1, 1):
     x0, x1 = sorted((sx * LAMP_X[0], sx * LAMP_X[1]))
     carlib.aperture(body, M, (x0, NOSE - 0.06, LAMP_Z[0]), (x1, LAMP_Y + 0.13, LAMP_Z[1]))
@@ -245,8 +336,6 @@ for sx in (-1, 1):
         t0, t1 = sorted((sx * 0.34, sx * 0.80))
         carlib.aperture(body, M, (t0, TAILL_Y - 0.20, TAILL_TOP - TAILL_H),
                         (t1, TAILL_Y + 0.04, TAILL_TOP + 0.006))
-    r0, r1 = sorted((sx * RAD_X[0], sx * RAD_X[1]))
-    carlib.aperture(body, M, (r0, NOSE - 0.06, RAD_Z[0]), (r1, RAD_Y + 0.26, RAD_Z[1] + 0.01), mat=M.mesh)
 if V["grille"] == "horseshoe":
     HS_Y = carlib.surface_station(L, 0.13, 0.20, NOSE, margin=0.03)
     carlib.aperture(body, M, (-0.13, HS_Y - 0.08, 0.105), (0.13, HS_Y + 0.22, 0.285), mat=M.mesh)
@@ -344,11 +433,6 @@ for sx in (-1, 1):
     carlib.front_lens(p, M.glass, L, x0 - 0.004, x1 + 0.004, LAMP_Z[0] - 0.004, LAMP_Z[1] + 0.004,
                       NOSE, lift=-0.0025, nu=10, nv=3)
 
-    # radiator mouths: mesh backing and a raised lip
-    r0, r1 = sorted((sx * RAD_X[0], sx * RAD_X[1]))
-    carlib.grille(p, M, r0 + 0.010, r1 - 0.010, RAD_Y + 0.010, RAD_Z[0] + 0.012, RAD_Z[1] - 0.004,
-                  bars=3, depth=0.22, backing=True)
-    carlib.duct_lip(p, M.carbon, r0, r1, RAD_Y - 0.010, RAD_Z[0] + 0.012, RAD_Z[1] - 0.004, out=0.014)
 
     # ---- tail lamps in their own apertures
     if V["tail"] == "fullbar":
@@ -393,6 +477,19 @@ elif V["tail"] == "double":
 carlib.led_grid(p, M, -0.044, 0.044, RAIN_Z[0] + 0.015, RAIN_Z[1] - 0.015, RAIN_Y - 0.020, dir_y=-1.0,
                 cols=2, rows=6, glow=M.rain)
 
+# ---- the face's mouths: mesh backing, the car's bars, the boomerang's strut
+for (spec, poly, yb) in FACE:
+    carlib.poly_fill(p, M.mesh, poly, yb, yb + 0.012)
+    for (ang, pitch) in spec["bars"]:
+        carlib.poly_bars(p, M.carbon, poly, yb - 0.030, angle_deg=ang, pitch=pitch,
+                         t=0.008 if ang == 90.0 else 0.007, depth=0.028)
+    if spec.get("strut"):
+        zs = [z for (_, z) in poly]
+        z0, z1 = min(zs) + 0.004, 0.176
+        yf = carlib.surface_station(L, 0.02, z0, NOSE, step=0.004, margin=0.0) + 0.006
+        carlib.plate(p, M.carbon, [(yf, z0), (yb, z0), (yb, z1), (yf + 0.02, z1)], 0.0, 0.060,
+                     chamfer=0.008)
+
 # ---- horseshoe grille (Bugotti)
 if V["grille"] == "horseshoe":
     hy = HS_Y - 0.02
@@ -407,26 +504,33 @@ if V["grille"] == "horseshoe":
 
 # ---- C-line (Bugotti): a polished bar round the side intake
 if V.get("cline"):
-    y0, y1 = SIDE_Y[1] + 0.04, SIDE_Y[1] + 0.60
-    cpts = [(y0, 3.55), (y1 - 0.10, 3.50), (y1, 3.05), (y1, 2.20), (y1 - 0.10, 1.65), (y0, 1.60)]
+    # over the top of the intake, down its bowed leading edge, under it
+    f = next(ff for ff in SIDE_BLADES if ff[0]["kind"] == "recess")[0]
+    _, yz = L.recess_edges(f, f["j1"])
+    cpts = [(yz + 0.02, f["j1"] + 0.18)]
+    for k in range(9):
+        jc = f["j1"] + 0.15 - (f["j1"] - f["j0"] + 0.30) * k / 8
+        cpts.append((L.recess_edges(f, jc)[0] - 0.05, jc))
+    cpts.append((yz + 0.02, f["j0"] - 0.18))
     for sx in (-1, 1):
         carlib.light_guide(p, M.chrome, L, cpts, sx=sx, lift=0.006, r=0.010, segs=10, per=5)
 
-# ---- blades in the front fender vents, side intake and brake exit
-for sx in (-1, 1):
-    for k in range(5):
-        yv = AX_F - 0.14 + k * 0.058
-        zt = L.point(yv, 3.75).z
-        xv = L.point(yv, 3.75).x
-        p.box(M.carbon, (sx * (xv - 0.20), yv, zt - 0.026), (sx * (xv + 0.02), yv + 0.026, zt - 0.006))
-    iy0, iy1 = SIDE_Y[1] + 0.15, SIDE_Y[1] + 0.49
-    z0, z1 = L.point((iy0 + iy1) / 2, 1.85).z, L.point((iy0 + iy1) / 2, 3.15).z
-    carlib.louvre_bank(p, M.carbon, L.x_at((iy0 + iy1) / 2, (z0 + z1) / 2) - 0.030,
-                       iy0, iy1, z0 + 0.03, z1 - 0.03, count=4, rake_deg=18, sx=sx)
-    by0, by1 = AX_F + 0.48, AX_F + 0.68
-    bz0, bz1 = L.point(by0, 2.0).z, L.point(by0, 2.95).z
-    carlib.louvre_bank(p, M.carbon, L.x_at((by0 + by1) / 2, (bz0 + bz1) / 2) - 0.012,
-                       by0, by1, bz0 + 0.02, bz1 - 0.02, count=3, rake_deg=24, sx=sx)
+# ---- blades in the flank's vents, leaning with each vent; louvres across
+# the front fender tops where the car has them
+for (f, n, r) in SIDE_BLADES:
+    for sx in (-1, 1):
+        carlib.swept_blades(p, M.carbon, L, f, count=n, sx=sx, r=r)
+for f in SIDE_FLOORS:
+    for sx in (-1, 1):
+        carlib.swept_floor(p, M.mesh, L, f, sx=sx)
+for f in LOUVRES:
+    for sx in (-1, 1):
+        for k in range(5):
+            yv = f["y0"] + 0.02 + k * 0.058
+            zt = L.point(yv, 3.75).z
+            xv = L.point(yv, 3.75).x
+            p.box(M.carbon, (min(sx * (xv - 0.20), sx * (xv + 0.02)), yv, zt - 0.026),
+                  (max(sx * (xv - 0.20), sx * (xv + 0.02)), yv + 0.026, zt - 0.006))
 
 # ---- exhausts
 if V["exhaust"] == "quad":
@@ -452,7 +556,9 @@ if V["scoop"]:
     p.box(M.mesh, (-sc_x * 0.42, SC_Y - 0.262, sc_z + 0.020),
           (sc_x * 0.42, SC_Y - 0.242, sc_z + sc_h * 0.80))
 MIR_Y = SCREEN_Y[0] + 0.26
-MIR_Z = L.point(MIR_Y, 5.10).z + 0.035
+# a deeper valley would drop the mirror onto the wider fender and push it
+# out, widening the mesh box the client derives the driver's eye from
+MIR_Z = L.point(MIR_Y, 5.10).z + 0.035 - min(V.get("valley", 0.0), 0.0)
 for sx in (-1, 1):
     carlib.mirror(p, M, L.x_at(MIR_Y, MIR_Z) + 0.100, MIR_Y, MIR_Z, sx=sx,
                   style=V["mirror"], head=(0.064, 0.120, 0.046))
