@@ -86,6 +86,23 @@ namespace ApexProps
 	/** Flag textures, `T_flag_<code>` (object path) and their folder. */
 	APEXTRACKEDITOR_API FString FlagTextureObjectPath(const FString& Root, const FString& Code);
 	APEXTRACKEDITOR_API FString FlagsFolder(const FString& Root);
+
+	// ---- Road decals (`.ats` `decals`, the Nordschleife's graffiti) ----------
+
+	/** The kit folder whose PNG sets are road decals rather than GLBs. */
+	APEXTRACKEDITOR_API extern const TCHAR* const DecalKind;
+	/** The decal sets `ApexPropImport` brings in, `content/props/decal/<set>/*.png`. */
+	APEXTRACKEDITOR_API TArray<FString> DecalSets();
+	/** `/Game/Props/decal/<Set>`, e.g. `/Game/Props/decal/Graffiti`. */
+	APEXTRACKEDITOR_API FString DecalFolder(const FString& Root, const FString& Set);
+	/** `T_<set>_<name>` under `DecalFolder` (object path). */
+	APEXTRACKEDITOR_API FString DecalTextureObjectPath(const FString& Root, const FString& Set, const FString& Name);
+	/**
+	 * Split a bake material key `decal_<set>_<name>` (the set has no
+	 * underscore, `track_core::ats::Decal::image_parts`). False for any
+	 * other key.
+	 */
+	APEXTRACKEDITOR_API bool ParseDecalKey(const FString& Key, FString& OutSet, FString& OutName);
 	/** Lamps and screens the runtime may light up. */
 	APEXTRACKEDITOR_API bool IsEmissiveSlot(FName SlotName);
 	/** Masked foliage and fence mesh: must import Masked and two-sided. */

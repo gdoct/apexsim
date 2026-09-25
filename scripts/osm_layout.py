@@ -63,6 +63,11 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Spielberg": [(14.752, 47.212, 14.780, 47.228)],
     "Suzuka": [(136.525, 34.835, 136.555, 34.855)],
     "Nuerburgring": [(6.930, 50.325, 6.965, 50.345)],
+    # The whole Nordschleife and a few hundred metres round it. Not fetched
+    # from the OSM map API (its 50k-node ceiling would need a dozen tiles):
+    # the extract under content/tracks/osm-cache/Nordschleife.0.json was cut
+    # from the OSM planet file for this box, so run this with --offline.
+    "Nordschleife": [(6.895, 50.315, 7.025, 50.400)],
     "Catalunya": [(2.246, 41.560, 2.275, 41.580)],
     "Budapest": [(19.236, 47.572, 19.262, 47.588)],
     "Sakhir": [(50.495, 26.020, 50.525, 26.045)],
@@ -630,6 +635,56 @@ MANUAL_WOODS: dict[str, list[dict]] = {
 # Circuits sharing their bbox with other lit sports venues, where an OSM
 # `tower:type=lighting` node is real but is not the circuit's own. See the
 # comment where this is used, in the landmark extraction loop.
+# Road graffiti (the Nordschleife's): runs of pictures painted across the
+# tarmac, expanded by `manual_graffiti` into the dossier's `graffiti` list
+# and laid by `ats-dress` as `.ats` decals. Images are
+# `content/props/decal/graffiti/<name>.png` (content/props/_tools/gen_graffiti.py).
+# Stations are metres along the YAML centerline in race direction.
+MANUAL_GRAFFITI: dict[str, list[dict]] = {
+    # Where the Nordschleife's crowds stand and paint: the spectator
+    # places along the lap, each anchored on OSM's own locality node for
+    # the section. The heaviest is the Döttinger Höhe (the long straight
+    # the camps line during the 24 hours), Brünnchen and Pflanzgarten; the
+    # rest carry a handful each. Authored from the circuit's spectator
+    # guides; the pictures themselves are invented (gen_graffiti.py).
+    "Nordschleife": [
+        dict(name="Hatzenbach", at=(6.94162, 50.33820), before_m=150, after_m=150, every_m=55,
+             images=["vollgas", "ring_frei", "arrows_right"]),
+        dict(name="Flugplatz", at=(6.92595, 50.34659), before_m=250, after_m=80, every_m=45,
+             images=["flat_out", "lift_nein", "go_go_go", "heart"]),
+        dict(name="Schwedenkreuz", at=(6.92414, 50.35605), before_m=200, after_m=60, every_m=60,
+             images=["nix_bremsen", "kalle", "eifel"]),
+        dict(name="Adenauer Forst", at=(6.93087, 50.36629), before_m=120, after_m=120, every_m=50,
+             images=["team_wurst", "jens_mia", "bambini"]),
+        dict(name="Wehrseifen", at=(6.94347, 50.37622), before_m=150, after_m=50, every_m=50,
+             images=["moppel", "hallo_mama", "smiley"]),
+        dict(name="Breidscheid", at=(6.95041, 50.37638), before_m=120, after_m=120, every_m=60,
+             images=["danke_ring", "hup_holland"]),
+        dict(name="Bergwerk", at=(6.96053, 50.38072), before_m=150, after_m=150, every_m=50,
+             images=["gruene_hoelle", "schneller", "opa_heinz"]),
+        dict(name="Kesselchen", at=(6.97073, 50.37421), before_m=400, after_m=400, every_m=70,
+             images=["kein_limit", "vollgas", "tom_lea", "benni_79", "arrows_right", "ich_war_hier"]),
+        dict(name="Karussell", at=(6.98599, 50.37192), before_m=220, after_m=40, every_m=45,
+             images=["allez_allez", "late_apex", "heart", "chequer"]),
+        dict(name="Hohe Acht", at=(6.99525, 50.37667), before_m=100, after_m=150, every_m=50,
+             images=["eifel", "go_go_go", "kalle"]),
+        dict(name="Brünnchen", at=(7.00541, 50.36966), before_m=250, after_m=250, every_m=32,
+             images=["gruene_hoelle", "jens_mia", "hup_holland", "vierundzwanzig", "moppel",
+                     "smiley", "ring_frei", "danke_ring", "tom_lea", "flat_out"]),
+        dict(name="Pflanzgarten", at=(6.99911, 50.36532), before_m=250, after_m=250, every_m=36,
+             images=["lift_nein", "vollgas", "allez_allez", "team_wurst", "heart", "opa_heinz",
+                     "arrows_right", "bambini"]),
+        dict(name="Schwalbenschwanz", at=(6.98417, 50.35871), before_m=150, after_m=80, every_m=50,
+             images=["kein_limit", "hallo_mama", "chequer"]),
+        dict(name="Galgenkopf", at=(6.98589, 50.35540), before_m=80, after_m=150, every_m=55,
+             images=["late_apex", "go_go_go", "arrows_left"]),
+        dict(name="Döttinger Höhe", at=(6.98243, 50.35005), before_m=700, after_m=1300, every_m=45,
+             images=["vierundzwanzig", "gruene_hoelle", "vollgas", "hup_holland", "ich_war_hier",
+                     "benni_79", "kein_limit", "jens_mia", "schneller", "allez_allez", "chequer",
+                     "danke_ring", "ring_frei", "smiley", "flat_out", "eifel"]),
+    ],
+}
+
 DAY_RACE_NO_FLOODLIGHTS = frozenset({"Melbourne"})
 
 # Circuits where every OSM `building=grandstand`/`leisure=grandstand` hit in
@@ -2048,7 +2103,50 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         "landmarks": landmarks,
         "woods": woods,
         **extract_surroundings(stem, track, osm, xy),
+        **({"graffiti": g} if (g := manual_graffiti(stem, track, osm, to_track)) else {}),
     }
+
+
+def manual_graffiti(stem: str, track: Track, osm: Osm, to_track) -> list[dict]:
+    """Expand `MANUAL_GRAFFITI` into one entry per picture.
+
+    A run is anchored on the map, not on a station: `at` is a (lon, lat)
+    on the road (the section's own OSM locality node, say), projected onto
+    the centerline through the dossier's fit, so a run stays where it is
+    when the centerline is re-derived. It paints its images one after
+    another every `every_m` metres from `before_m` ahead of that point to
+    `after_m` past it, cycling through the list, alternating a little
+    either side of the middle of the road the way a crowd's pictures lie;
+    `lat_m` pins a run to one line instead. The dossier carries the
+    expanded list, so `ats-dress` has nothing to decide."""
+    out = []
+    for run in MANUAL_GRAFFITI.get(stem, []):
+        lon, lat_deg = run["at"]
+        anchor, _ = track.locate(to_track(np.array([enu(lon, lat_deg, osm.lon0, osm.lat0)])))
+        from_m = float(anchor[0]) - run.get("before_m", 0.0)
+        images = run["images"]
+        every = run.get("every_m", 40.0)
+        length = run.get("length_m", 16.0)
+        width = run.get("width_m", 6.5)
+        span = run.get("before_m", 0.0) + run.get("after_m", 200.0)
+        n = max(int(span // every), 1)
+        for i in range(n):
+            station = (from_m + i * every) % track.total
+            if "lat_m" in run:
+                lat = run["lat_m"]
+            else:
+                lat = (0.6, -0.8, 0.2, -0.3)[i % 4] * run.get("sway_m", 1.0)
+            out.append(
+                {
+                    "image": f"graffiti/{images[i % len(images)]}",
+                    "station_m": round(station, 1),
+                    "lat_m": round(lat, 2),
+                    "length_m": length,
+                    "width_m": width,
+                    "name": run["name"],
+                }
+            )
+    return out
 
 
 # ----------------------------------------------------------- georeferencing

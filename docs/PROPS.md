@@ -294,6 +294,41 @@ balconies (`house_timber`, `house_timber_dark`), tile or dark roofs
 | building | `barn` | 18 × 10 m, 8.2 m | timber barn on a stone plinth, double doors to the road — **done** | P1 |
 | building | `chapel` | 8 × 22 m, 23.5 m | 5 m tower on the road end with clock and louvres, pointed spire, nave with apse — **done** | P1 |
 
+### 9. Road decals (graffiti)
+
+Not meshes: pictures painted **on the road**, the Nordschleife's fan
+graffiti first. A decal is an `.ats` `decals` entry (station, length along
+the road, lateral centre and width, `image` = `"<set>/<name>"`); `ats-export`
+bakes it as a road-hugging grid (1 m columns, 0.5 m rows, lifted 5 cm, so it
+follows the crown, camber and grade like paint) under the material key
+`decal_<set>_<name>`, family `decal`, with UVs spanning the picture once. The
+importer draws it with `M_ApexDecal` (masked by the PNG's alpha, matte, the
+texture's colour dimmed to a sprayed coat). A decal whose texture is not
+imported is left out of the level with a warning, never drawn as a white
+slab.
+
+| set | source | Unreal texture |
+| --- | --- | --- |
+| `graffiti` | `content/props/decal/graffiti/<name>.png`, 1024 × 512 RGBA | `/Game/Props/decal/Graffiti/T_graffiti_<name>` |
+
+The pictures are drawn as a driver sees them: top = far end, left = left of
+the road. `ats-export` stretches them along the road (7 m across by 14-20 m
+along is typical), which is how fans paint for an eye a metre off the
+tarmac. `content/props/_tools/gen_graffiti.py` paints the shipped set (30
+invented slogans, names, hearts, arrows and flags; stroke letters, not a
+font, so the output is the same on every machine; `--sheet` writes a
+contact sheet to `_preview/`). Hand-made art is any PNG of that size in
+the folder: white or coloured paint, transparent elsewhere — painted in
+Blender's texture paint mode on a 2:1 plane, or in any image editor.
+
+```bash
+python content/props/_tools/gen_graffiti.py --sheet
+"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject -run=ApexPropImport -kind=decal
+```
+
+`-all` imports them too. `decal` is not a prop kind (there are no GLBs), so
+the groomer, `props::KIT` and the kind tables know nothing of it.
+
 ## Unreal import notes
 
 - Every asset in the tables above is authored (**done**); the recipe fallback

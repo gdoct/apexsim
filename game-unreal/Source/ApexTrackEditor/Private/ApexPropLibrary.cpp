@@ -196,6 +196,42 @@ namespace ApexProps
 		return FString::Printf(TEXT("%s/T_flag_%s.T_flag_%s"), *FlagsFolder(Root), *Code, *Code);
 	}
 
+	const TCHAR* const DecalKind = TEXT("decal");
+
+	TArray<FString> DecalSets()
+	{
+		return {TEXT("graffiti")};
+	}
+
+	FString DecalFolder(const FString& Root, const FString& Set)
+	{
+		// `Graffiti`, the way the other loose sets are named (`Brands`, `Flags`).
+		FString Folder = Set;
+		if (!Folder.IsEmpty())
+		{
+			Folder[0] = FChar::ToUpper(Folder[0]);
+		}
+		return Root / DecalKind / Folder;
+	}
+
+	FString DecalTextureObjectPath(const FString& Root, const FString& Set, const FString& Name)
+	{
+		const FString Asset = FString::Printf(TEXT("T_%s_%s"), *Set, *Name);
+		return FString::Printf(TEXT("%s/%s.%s"), *DecalFolder(Root, Set), *Asset, *Asset);
+	}
+
+	bool ParseDecalKey(const FString& Key, FString& OutSet, FString& OutName)
+	{
+		static const FString Prefix = TEXT("decal_");
+		if (!Key.StartsWith(Prefix, ESearchCase::CaseSensitive))
+		{
+			return false;
+		}
+		const FString Rest = Key.RightChop(Prefix.Len());
+		return Rest.Split(TEXT("_"), &OutSet, &OutName, ESearchCase::CaseSensitive, ESearchDir::FromStart)
+			&& !OutSet.IsEmpty() && !OutName.IsEmpty();
+	}
+
 	bool IsFlagSlot(FName SlotName)
 	{
 		return NameIs(SlotName, TEXT("flag_cloth"));
