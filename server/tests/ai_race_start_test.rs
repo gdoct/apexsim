@@ -218,7 +218,7 @@ fn survey_ai_races_on_every_circuit() {
             // `SURVEY_DBG=1`: where the contact was, so a car pinned against
             // a wall can be found on the map.
             let mut worst: Vec<_> = dbg.into_iter().collect();
-            worst.sort_by(|a, b| b.1.cmp(&a.1));
+            worst.sort_by_key(|w| std::cmp::Reverse(w.1));
             for ((bucket, grid), ticks) in worst.into_iter().take(4) {
                 println!(
                     "    car {grid}: {:.1} s of contact around station {} m",
