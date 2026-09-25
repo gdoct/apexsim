@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Race/ApexCarDrsFlap.h"
 #include "Race/ApexCarWheels.h"
 
 #include "ApexCarPreviewStage.generated.h"
