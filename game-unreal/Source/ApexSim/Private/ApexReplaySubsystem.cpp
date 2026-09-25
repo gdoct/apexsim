@@ -322,7 +322,7 @@ void UApexReplaySubsystem::Fail(const FString& Why)
 		FString Json;
 		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Json);
 		FJsonSerializer::Serialize(Root, Writer);
-		FFileHelper::SaveStringToFile(Json, *(RecordDir / TEXT("replay_done.json")));
+		FFileHelper::SaveStringToFile(Json, *(RecordDir / TEXT("replay_done.json")), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	}
 	if (bExitWhenDone && !RecordDir.IsEmpty())
 	{
@@ -398,7 +398,7 @@ void UApexReplaySubsystem::WriteManifest()
 	FString Json;
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Json);
 	FJsonSerializer::Serialize(Root, Writer);
-	FFileHelper::SaveStringToFile(Json, *(RecordDir / TEXT("replay_done.json")));
+	FFileHelper::SaveStringToFile(Json, *(RecordDir / TEXT("replay_done.json")), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 }
 
 void UApexReplaySubsystem::Tick(float DeltaTime)
