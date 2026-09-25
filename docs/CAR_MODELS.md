@@ -47,9 +47,17 @@ its own design in data, on a shared kit:
 * **the tail** (GT3 `tail`): a full-width bar with four-point brakes, lit Ys
   on black plates, or wrap-around corner lamps with a blade across the
   panel; each GT3 valance is its own outline;
+* **the rear wing**: `carlib.wing()` lofts an element whose middle can dip
+  (`spoon`), rise (`arch`) or run ahead of the tips (`swept`) while the tips
+  stay put, so any endplate meets it; `spans()` walks its trailing edge for
+  the gurney and brake strip. Each car picks a plan, an endplate outline
+  (inside the class's first endplate envelope, whose top is the top of the
+  eye's box), a mount (swan necks close or wide, a single central neck,
+  pylons) and where its brake light goes (along the flap, across the middle,
+  or up the endplates);
 * **F1**: nose length and width, sidepod undercut and downwash, front wing
-  (`classic`, `swept`, `low`), rear endplates (`square`, `swept`, `curl`),
-  beam wing and shark fin.
+  (`classic`, `swept`, `low`), rear wing plan and endplates (`square`,
+  `swept`, `curl`), beam wing and shark fin.
 
 Keep a new part inside the box the client measures (the F1's fixed kit box,
 and on the closed cars the box the eye is derived from): the Limbotiti's

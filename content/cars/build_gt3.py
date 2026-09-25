@@ -55,7 +55,10 @@ VARIANTS = {
         rear_number_y=(1.30, 1.62), cam_x=0.0, bonnet_drop=(0.075, 0.13),
         axles=(-1.375, 1.375),
         glass_y=(-0.92, 0.92), screen_y=(-0.95, -0.40), rear_glass_y=(0.50, 0.94),
-        wing="pylon", wing_z=1.19, wing_y=1.86, wing_hw=0.86, ducktail=True,
+        wing="swan", wing_z=1.19, wing_y=1.86, wing_hw=0.86, ducktail=True,
+        # an arched plane on swan necks over the ducktail, endplates that
+        # sweep up to a tall trailing corner, the brake strip along the edge
+        wing_plan=("arch", 0.030), wing_chord=0.345, wing_aoa=-9.0, endplate="swoop", wing_led="trail",
         ends=dict(nose_top=0.545, nose_w=0.90, tail_top=0.905, tail_bot=0.30, tail_w=0.94),
         lights="round", grille=False, exhaust="centre", mirror="pod",
         lamp_x=(0.52, 0.82), lamp_h=0.125, face="tri", tail="bar",
@@ -94,7 +97,11 @@ VARIANTS = {
         rear_number_y=None, cam_x=-0.28, bonnet_drop=(0.035, 0.09),
         axles=(-1.375, 1.375),
         glass_y=(-0.98, 0.50), screen_y=(-1.00, -0.46), rear_glass_y=(0.30, 0.74),
-        wing="swan", wing_z=1.14, wing_y=1.80, wing_hw=0.88, ducktail=False,
+        wing="pylon", wing_z=1.14, wing_y=1.80, wing_hw=0.88, ducktail=False,
+        # a short, steep plane swept to a V, faceted endplates carrying the
+        # brake lights as two upright bars, on narrow pylons
+        wing_plan=("swept", 0.10), wing_chord=0.30, wing_aoa=-12.0, endplate="facet", wing_led="endplate",
+        pylon_x=0.40,
         ends=dict(nose_top=0.47, nose_w=0.92, tail_top=0.80, tail_bot=0.30, tail_w=0.95),
         lights="ybar", grille=False, exhaust="hexquad", mirror="stalk",
         lamp_x=(0.46, 0.86), lamp_h=0.085, face="arrow", tail="y",
@@ -134,6 +141,10 @@ VARIANTS = {
         glass_y=(-0.84, 0.62), screen_y=(-0.86, -0.26), rear_glass_y=(0.38, 0.62),
         cabin_shift=0.38, logo_y=(-0.60, 0.44), bonnet_drop=(0.14, 0.25),
         wing="pylon", wing_z=1.16, wing_y=1.90, wing_hw=0.86, ducktail=False,
+        # a broad spoon-shaped plane on wide-set pylons, rounded endplates,
+        # the brake strip only across the middle third
+        wing_plan=("spoon", 0.045), wing_chord=0.38, wing_aoa=-7.0, endplate="round", wing_led="centre",
+        pylon_x=0.66,
         ends=dict(nose_top=0.54, nose_w=0.88, tail_top=0.92, tail_bot=0.32, tail_w=0.93),
         lights="slant", grille=True, exhaust="side", mirror="pod",
         lamp_x=(0.50, 0.84), lamp_h=0.115, face="shield", tail="wrap",
@@ -448,26 +459,58 @@ DIF_HW = min(L.x_at(y, 0.19) for y in
 carlib.diffuser(p, M.carbon, DIF_Y0, DIF_Y1, DIF_HW, 0.070, VAL_Z[0] + 0.02,
                 thick=0.014, strakes=(-0.70, -0.42, -0.14, 0.14, 0.42, 0.70), strake_h=0.190)
 
-# ---- rear wing: element, gurney, endplates, mounts, brake LED
+# ---- rear wing: each car's own plane, endplates, mounts and brake light.
+# Every endplate stays inside the envelope of the first one - its top,
+# WZ + 0.150, is the top of the mesh box the client derives the eye from.
 WZ, WY, WHW = V["wing_z"], V["wing_y"], V["wing_hw"]
-te_y, te_z = carlib.foil(p, M.carbon, -WHW, WHW, 0.345, 0.105, 0.055, WY, WZ, angle_deg=-9.0)
-carlib.gurney(p, M.carbon, -WHW, WHW, te_y, te_z, h=0.024, t=0.005, angle_deg=-9.0)
-carlib.led_strip(p, M, -WHW + 0.02, WHW - 0.02, te_y - 0.055, te_z, h=0.030, t=0.014,
-                 glow=M.brake, dir_y=1.0)
+AOA = V["wing_aoa"]
+(te_y, te_z), TE = carlib.wing(p, M.carbon, WHW, V["wing_chord"], 0.105, 0.055, WY, WZ, angle_deg=AOA,
+                               plan=V["wing_plan"][0], amount=V["wing_plan"][1])
+for (xa, xb, y, z) in carlib.spans(TE, -WHW, WHW, 12):
+    carlib.gurney(p, M.carbon, xa, xb, y, z, h=0.024, t=0.005, angle_deg=AOA)
+
+
+def wing_dz(x):
+    """How far the plane is above (+) or below its tips at x."""
+    return TE(x)[1] - te_z
+
+
+if V["wing_led"] in ("trail", "centre"):
+    lx = WHW - 0.02 if V["wing_led"] == "trail" else WHW * 0.34
+    for (xa, xb, y, z) in carlib.spans(TE, -lx, lx, 12 if V["wing_led"] == "trail" else 4):
+        carlib.led_strip(p, M, xa, xb, y - 0.055, z, h=0.030, t=0.014, glow=M.brake, dir_y=1.0)
+EPS = {
+    "swoop": [(WY - 0.05, WZ - 0.065), (WY + 0.30, WZ - 0.105), (WY + 0.405, WZ - 0.030),
+              (WY + 0.405, WZ + 0.150), (WY + 0.25, WZ + 0.140), (WY + 0.06, WZ + 0.060),
+              (WY - 0.07, WZ + 0.010)],
+    "facet": [(WY - 0.08, WZ - 0.020), (WY + 0.04, WZ - 0.105), (WY + 0.36, WZ - 0.105),
+              (WY + 0.405, WZ + 0.060), (WY + 0.30, WZ + 0.150), (WY + 0.05, WZ + 0.150)],
+    "round": [(WY - 0.06, WZ - 0.060), (WY + 0.10, WZ - 0.105), (WY + 0.38, WZ - 0.085),
+              (WY + 0.405, WZ + 0.030), (WY + 0.36, WZ + 0.120), (WY + 0.16, WZ + 0.150),
+              (WY - 0.02, WZ + 0.105), (WY - 0.08, WZ + 0.030)],
+}
+EP = EPS[V["endplate"]]
 for sx in (-1, 1):
-    ep = [(WY - 0.06, WZ - 0.060), (WY + 0.10, WZ - 0.105), (WY + 0.38, WZ - 0.085),
-          (WY + 0.405, WZ + 0.030), (WY + 0.36, WZ + 0.120), (WY + 0.16, WZ + 0.150),
-          (WY - 0.02, WZ + 0.105), (WY - 0.08, WZ + 0.030)]
-    carlib.plate(p, M.carbon, ep, sx * (WHW + 0.012), 0.014, chamfer=0.005)
+    carlib.plate(p, M.carbon, EP, sx * (WHW + 0.012), 0.014, chamfer=0.005)
+    if V["wing_led"] == "endplate":
+        # two upright brake bars on the endplate's outer face, near its back
+        for dy in (0.30, 0.345):
+            p.box(M.lamp_h, (min(sx * (WHW + 0.019), sx * (WHW + 0.027)), WY + dy, WZ - 0.060),
+                  (max(sx * (WHW + 0.019), sx * (WHW + 0.027)), WY + dy + 0.022, WZ + 0.080))
+            p.box(M.brake, (min(sx * (WHW + 0.025), sx * (WHW + 0.029)), WY + dy + 0.004, WZ - 0.052),
+                  (max(sx * (WHW + 0.025), sx * (WHW + 0.029)), WY + dy + 0.018, WZ + 0.072))
 if V["wing"] == "pylon":
+    px = V.get("pylon_x", 0.54)
     for sx in (-1, 1):
-        py = [(WY + 0.01, WZ - 0.34), (WY + 0.26, WZ - 0.32), (WY + 0.22, WZ + 0.02),
-              (WY + 0.02, WZ + 0.02)]
-        carlib.plate(p, M.carbon, py, sx * 0.54, 0.028, chamfer=0.008)
+        dz = wing_dz(px)
+        py = [(WY + 0.01, WZ - 0.34), (WY + 0.26, WZ - 0.32), (WY + 0.22, WZ + 0.02 + dz),
+              (WY + 0.02, WZ + 0.02 + dz)]
+        carlib.plate(p, M.carbon, py, sx * px, 0.028, chamfer=0.008)
 else:
     for sx in (-1, 1):
+        dz = wing_dz(0.46)
         carlib.swan_neck(p, M.carbon, sx * 0.46, (0, WY - 0.30, WZ - 0.26),
-                         (0, WY + 0.10, WZ + 0.02), r=0.022)
+                         (0, WY + 0.10, WZ + 0.02 + dz), r=0.022)
 if V["ducktail"]:
     d0, d1 = TAILP_Y - 0.34, TAILP_Y - 0.03
     dt = [(d0, L.roof_z(d0) - 0.012), (d1, L.roof_z(d1) + 0.030), (d1, L.roof_z(d1) + 0.062),

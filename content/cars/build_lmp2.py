@@ -58,7 +58,9 @@ VARIANTS = {
                    side_w=1.00, wing_z=0.00, fin=True, lights="tri", mirror="pod",
                    scoop=(0.30, 0.62, 0.16), seat=(0.10, 0.10, 0.32),
                    # the plain one: square twin mouths, an upright intake
-                   nose_z=0.0, valley=0.0, face="twin", side="upright"),
+                   nose_z=0.0, valley=0.0, face="twin", side="upright",
+                   # square endplates, a straight two-element wing on swan necks
+                   wing_plan=("straight", 0.0), endplate="square", mount="swan", wing_led="trail"),
     "posh": dict(folder="posh-lmp2", stem="posh_lmp2", logo="posh_logo.png",
                  paint=(0.50, 0.51, 0.54), accent=(0.04, 0.04, 0.045), caliper=(0.95, 0.75, 0.05),
                  paint_metallic=0.90, number="22", bonnet_drop=(0.02, 0.05), drl="points", tail="bar",
@@ -68,7 +70,10 @@ VARIANTS = {
                  # smooth: filled-in valleys, a centre mouth between corner
                  # intakes, an intake that sweeps back under a waist line
                  nose_z=0.020, valley=0.035, face="tri", side="sweep",
-                 lamp_x=(0.24, 0.56), lamp_h=0.130),
+                 lamp_x=(0.24, 0.56), lamp_h=0.130,
+                 # an arched plane, endplates swept up to a tall trailing
+                 # corner, swan necks set wide
+                 wing_plan=("arch", 0.035), endplate="swoop", mount="swan_wide", wing_led="trail"),
     "fugazzi": dict(folder="fugazzi-lmp2", stem="fugazzi_lmp2", logo="fugazzi_logo.png",
                     paint=(0.62, 0.02, 0.03), accent=(0.95, 0.78, 0.05), caliper=(0.95, 0.80, 0.05),
                     paint_metallic=0.65, number="51", bonnet_drop=(0.02, 0.05), drl="blade", tail="rings",
@@ -78,7 +83,10 @@ VARIANTS = {
                     # sharp: drooped nose, deep valleys, one boomerang mouth,
                     # the long raked slash of the marque's hypercar
                     nose_z=-0.025, valley=-0.045, face="boomerang", side="slash",
-                    lamp_x=(0.22, 0.66), lamp_h=0.070),
+                    lamp_x=(0.22, 0.66), lamp_h=0.070,
+                    # a spoon-shaped plane hung under two pylons, raked
+                    # endplates with the brake lights running up their backs
+                    wing_plan=("spoon", 0.050), endplate="raked", mount="pylon", wing_led="endplate"),
     "jeanetti": dict(folder="jeanetti-lmp2", stem="jeanetti_lmp2", logo="jeanetti_logo.png",
                      paint=(0.02, 0.20, 0.10), accent=(0.95, 0.82, 0.18), caliper=(0.20, 0.20, 0.22),
                      paint_metallic=0.60, number="38", bonnet_drop=(0.02, 0.05), drl="claws", tail="claws",
@@ -88,7 +96,10 @@ VARIANTS = {
                      # clawed: two tall mouths leaning in at the top, three
                      # gills behind the front wheel, an intake leaning forward
                      nose_z=0.012, valley=0.010, face="claw", side="gills",
-                     lamp_x=(0.30, 0.66), lamp_h=0.090),
+                     lamp_x=(0.30, 0.66), lamp_h=0.090,
+                     # a V-swept plane, louvred endplates, one central swan
+                     # neck behind the fin, brake light across the middle
+                     wing_plan=("swept", 0.12), endplate="louvred", mount="centre", wing_led="centre"),
 }
 
 # Base hull. Right-half section control points (x, z).
@@ -389,20 +400,69 @@ DIF_HW = min(L.x_at(y, 0.17) for y in (DIF_Y0, (DIF_Y0 + DIF_Y1) / 2, DIF_Y1 - 0
 carlib.diffuser(p, M.carbon, DIF_Y0, DIF_Y1, DIF_HW, 0.055, 0.245,
                 thick=0.014, strakes=(-0.72, -0.44, -0.16, 0.16, 0.44, 0.72), strake_h=0.20)
 
-# ---- rear wing: two elements, endplates, swan necks, gurney, brake LED
+# ---- rear wing: two elements in the car's own plan, its own endplates,
+# mounts and brake light. Every endplate keeps inside the first one's
+# envelope (its top, WZ + 0.255, is the top of the mesh box the eye comes
+# from; its back, WY + 0.515, the back of the car).
 WY, WHW = 1.90, 0.925
-te_y, te_z = carlib.foil(p, M.carbon, -WHW, WHW, 0.360, 0.100, 0.055, WY, WZ, angle_deg=-9.0)
-f2_y, f2_z = carlib.foil(p, M.carbon, -WHW, WHW, 0.145, 0.095, 0.050,
-                         WY + 0.315, WZ + 0.085, angle_deg=-24.0)
-carlib.gurney(p, M.carbon, -WHW, WHW, f2_y, f2_z, h=0.022, t=0.005, angle_deg=-24.0)
-carlib.led_strip(p, M, -WHW + 0.05, WHW - 0.05, f2_y - 0.038, f2_z, h=0.024, t=0.012,
-                 glow=M.brake, dir_y=1.0)
+PLAN, AMT = V["wing_plan"]
+(te_y, te_z), TE = carlib.wing(p, M.carbon, WHW, 0.360, 0.100, 0.055, WY, WZ, angle_deg=-9.0,
+                               plan=PLAN, amount=AMT)
+(f2_y, f2_z), TE2 = carlib.wing(p, M.carbon, WHW, 0.145, 0.095, 0.050, WY + 0.315, WZ + 0.085,
+                                angle_deg=-24.0, plan=PLAN, amount=AMT)
+for (xa, xb, y, z) in carlib.spans(TE2, -WHW, WHW, 12):
+    carlib.gurney(p, M.carbon, xa, xb, y, z, h=0.022, t=0.005, angle_deg=-24.0)
+if V["wing_led"] in ("trail", "centre"):
+    lx = WHW - 0.05 if V["wing_led"] == "trail" else 0.30
+    for (xa, xb, y, z) in carlib.spans(TE2, -lx, lx, 12 if V["wing_led"] == "trail" else 4):
+        carlib.led_strip(p, M, xa, xb, y - 0.038, z, h=0.024, t=0.012, glow=M.brake, dir_y=1.0)
+
+
+def wing_dz(x):
+    return TE(x)[1] - te_z
+
+
+EPS = {
+    "square": [(WY - 0.10, WZ - 0.185), (WY + 0.50, WZ - 0.135), (WY + 0.515, WZ + 0.225),
+               (WY + 0.12, WZ + 0.255), (WY - 0.10, WZ + 0.095)],
+    "swoop": [(WY - 0.08, WZ - 0.150), (WY + 0.42, WZ - 0.185), (WY + 0.515, WZ - 0.080),
+              (WY + 0.515, WZ + 0.255), (WY + 0.36, WZ + 0.240), (WY + 0.08, WZ + 0.110),
+              (WY - 0.10, WZ + 0.030)],
+    "raked": [(WY - 0.02, WZ - 0.185), (WY + 0.44, WZ - 0.185), (WY + 0.515, WZ + 0.060),
+              (WY + 0.46, WZ + 0.255), (WY + 0.14, WZ + 0.255), (WY - 0.10, WZ + 0.020)],
+    "louvred": [(WY - 0.10, WZ - 0.160), (WY + 0.48, WZ - 0.185), (WY + 0.515, WZ + 0.200),
+                (WY + 0.44, WZ + 0.255), (WY + 0.00, WZ + 0.255), (WY - 0.10, WZ + 0.140)],
+}
 for sx in (-1, 1):
-    ep = [(WY - 0.10, WZ - 0.185), (WY + 0.50, WZ - 0.135), (WY + 0.515, WZ + 0.225),
-          (WY + 0.12, WZ + 0.255), (WY - 0.10, WZ + 0.095)]
-    carlib.plate(p, M.carbon, ep, sx * (WHW + 0.013), 0.016, chamfer=0.006)
-    carlib.swan_neck(p, M.carbon, sx * 0.44, (0, WY - 0.34, WZ - 0.30),
-                     (0, WY + 0.09, WZ + 0.02), r=0.024)
+    carlib.plate(p, M.carbon, EPS[V["endplate"]], sx * (WHW + 0.013), 0.016, chamfer=0.006)
+    xo = WHW + 0.021
+    if V["endplate"] == "louvred":
+        # three slots down the endplate's rear half, dark with a carbon lip
+        for k in range(3):
+            zz = WZ - 0.12 + 0.07 * k
+            p.box(M.lamp_h, (min(sx * xo, sx * (xo + 0.004)), WY + 0.28, zz),
+                  (max(sx * xo, sx * (xo + 0.004)), WY + 0.44, zz + 0.022))
+    if V["wing_led"] == "endplate":
+        # a brake strip up the endplate's trailing edge
+        p.box(M.lamp_h, (min(sx * xo, sx * (xo + 0.008)), WY + 0.455, WZ - 0.12),
+              (max(sx * xo, sx * (xo + 0.008)), WY + 0.480, WZ + 0.08))
+        p.box(M.brake, (min(sx * (xo + 0.006), sx * (xo + 0.010)), WY + 0.459, WZ - 0.112),
+              (max(sx * (xo + 0.006), sx * (xo + 0.010)), WY + 0.476, WZ + 0.072))
+MOUNT = V["mount"]
+if MOUNT in ("swan", "swan_wide"):
+    mx = 0.44 if MOUNT == "swan" else 0.62
+    for sx in (-1, 1):
+        carlib.swan_neck(p, M.carbon, sx * mx, (0, WY - 0.34, WZ - 0.30),
+                         (0, WY + 0.09, WZ + 0.02 + wing_dz(mx)), r=0.024)
+elif MOUNT == "centre":
+    carlib.swan_neck(p, M.carbon, 0.0, (0, WY - 0.34, WZ - 0.30),
+                     (0, WY + 0.09, WZ + 0.02 + wing_dz(0.0)), r=0.030)
+else:
+    for sx in (-1, 1):
+        dz = wing_dz(0.34)
+        py = [(WY - 0.04, L.roof_z(WY - 0.04) - 0.02), (WY + 0.22, L.roof_z(WY + 0.22) - 0.02),
+              (WY + 0.26, WZ + dz - 0.02), (WY + 0.02, WZ + dz - 0.02)]
+        carlib.plate(p, M.carbon, py, sx * 0.34, 0.026, chamfer=0.008)
 if V["fin"]:
     fin = [(SIDE_Y[1] + 0.02, L.roof_z(SIDE_Y[1] + 0.02) - 0.01),
            (SIDE_Y[1] + 0.34, L.roof_z(SIDE_Y[1] + 0.34) + 0.125),

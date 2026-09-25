@@ -64,7 +64,9 @@ VARIANTS = {
                    mirror="stalk", scoop=(0.22, 0.60, 0.13), seat=(0.36, 0.17, 0.06), rain_z=(0.420, 0.550),
                    # upright and square: a raised nose, shallow valleys, a wide
                    # canopy, fenders that stand like boxes over the wheels
-                   nose_z=0.060, valley=0.065, canopy_w=1.07, fender_r=1.00, face="twin", side="upright"),
+                   nose_z=0.060, valley=0.065, canopy_w=1.07, fender_r=1.00, face="twin", side="upright",
+                   # a straight plane on square endplates, brake strip along the flap
+                   wing_plan=("straight", 0.0), endplate="square", wing_led="trail"),
     # Fugazzi 994P: rosso with a yellow sill, a single thin blade over a slit
     # headlamp, a thin double stripe at the back. The lowest and sharpest.
     "fugazzi": dict(folder="fugazzi-994p-hypercar", stem="fugazzi_994p", logo="fugazzi_hyper_logo.png",
@@ -76,7 +78,10 @@ VARIANTS = {
                     # low and pointed: the nose drooped, the valleys cut deep
                     # either side of a narrow canopy, rear fenders swept up
                     nose_z=-0.030, valley=-0.055, canopy_w=0.95, fender_r=1.07, face="boomerang",
-                    side="slash"),
+                    side="slash",
+                    # a spoon-shaped plane between endplates that rise to a
+                    # swept-back horn, the brake light up their trailing edges
+                    wing_plan=("spoon", 0.055), endplate="horn", wing_led="endplate"),
     # Bugotti Chiffon: two-tone French blue, the horseshoe grille, the C-line
     # round the side intake, a quad-lamp bar and one light bar across the tail.
     "bugotti": dict(folder="bugotti-chiffon-hypercar", stem="bugotti_chiffon", logo="bugotti_logo.png",
@@ -88,7 +93,10 @@ VARIANTS = {
                     # round and full: bulbous fenders, a filled-in valley, the
                     # C-shaped intake the polished line wraps
                     nose_z=0.010, valley=0.020, canopy_w=1.00, fender_r=0.98, fender_x=0.025,
-                    face="horseshoe", side="c"),
+                    face="horseshoe", side="c",
+                    # an arched plane, endplates with a rounded top rolling
+                    # over it, brake light across the middle
+                    wing_plan=("arch", 0.040), endplate="roll", wing_led="centre"),
 }
 
 # Base hull. Right-half section control points (x, z).
@@ -379,19 +387,43 @@ carlib.diffuser(p, M.carbon, DIF_Y0, DIF_Y1, DIF_HW, 0.055, 0.235,
 # ---- rear wing: one wide main plane and a flap, carried on tall endplates
 # that grow out of the rear fenders (no swan necks), a fin into its middle.
 WY, WHW = 2.04, 0.935
-te_y, te_z = carlib.foil(p, M.carbon, -WHW, WHW, 0.380, 0.090, 0.050, WY, WZ, angle_deg=-8.0)
-f2_y, f2_z = carlib.foil(p, M.carbon, -WHW, WHW, 0.140, 0.085, 0.045,
-                         WY + 0.325, WZ + 0.075, angle_deg=-22.0)
-carlib.gurney(p, M.carbon, -WHW, WHW, f2_y, f2_z, h=0.018, t=0.005, angle_deg=-22.0)
-carlib.led_strip(p, M, -WHW + 0.05, WHW - 0.05, f2_y - 0.036, f2_z, h=0.020, t=0.010,
-                 glow=M.brake, dir_y=1.0)
+PLAN, AMT = V["wing_plan"]
+(te_y, te_z), TE = carlib.wing(p, M.carbon, WHW, 0.380, 0.090, 0.050, WY, WZ, angle_deg=-8.0,
+                               plan=PLAN, amount=AMT)
+(f2_y, f2_z), TE2 = carlib.wing(p, M.carbon, WHW, 0.140, 0.085, 0.045, WY + 0.325, WZ + 0.075,
+                                angle_deg=-22.0, plan=PLAN, amount=AMT)
+for (xa, xb, y, z) in carlib.spans(TE2, -WHW, WHW, 12):
+    carlib.gurney(p, M.carbon, xa, xb, y, z, h=0.018, t=0.005, angle_deg=-22.0)
+if V["wing_led"] in ("trail", "centre"):
+    lx = WHW - 0.05 if V["wing_led"] == "trail" else 0.32
+    for (xa, xb, y, z) in carlib.spans(TE2, -lx, lx, 12 if V["wing_led"] == "trail" else 4):
+        carlib.led_strip(p, M, xa, xb, y - 0.036, z, h=0.020, t=0.010, glow=M.brake, dir_y=1.0)
 EP_Y0 = WY - 0.10
+# The endplates grow out of the rear fenders; above the fender each car has
+# its own outline. The top stays at WZ + 0.235 (the mesh box the eye is
+# derived from) and the back at WY + 0.53.
 for sx in (-1, 1):
     zb0 = L.z_at(EP_Y0, WHW - 0.05) - 0.015
     zb1 = L.z_at(min(WY + 0.40, TAIL - 0.03), WHW - 0.05) - 0.015
-    ep = [(EP_Y0, zb0), (WY + 0.40, zb1), (WY + 0.53, WZ - 0.02), (WY + 0.52, WZ + 0.215),
-          (WY + 0.14, WZ + 0.235), (WY - 0.08, WZ + 0.13)]
+    ep = {
+        "square": [(EP_Y0, zb0), (WY + 0.40, zb1), (WY + 0.53, WZ - 0.02), (WY + 0.52, WZ + 0.215),
+                   (WY + 0.14, WZ + 0.235), (WY - 0.08, WZ + 0.13)],
+        "horn": [(EP_Y0, zb0), (WY + 0.40, zb1), (WY + 0.46, WZ - 0.04), (WY + 0.53, WZ + 0.235),
+                 (WY + 0.40, WZ + 0.180), (WY + 0.10, WZ + 0.120), (WY - 0.10, WZ + 0.02)],
+        "roll": [(EP_Y0, zb0), (WY + 0.40, zb1), (WY + 0.53, WZ + 0.00), (WY + 0.50, WZ + 0.180),
+                 (WY + 0.38, WZ + 0.235), (WY + 0.06, WZ + 0.225), (WY - 0.08, WZ + 0.16)],
+    }[V["endplate"]]
     carlib.plate(p, M.carbon, ep, sx * (WHW + 0.012), 0.014, chamfer=0.005)
+    xo = WHW + 0.019
+    if V["endplate"] == "roll":
+        # the top rolls inboard over the flap
+        p.box(M.carbon, (min(sx * (WHW - 0.05), sx * (WHW + 0.012)), WY + 0.10, WZ + 0.205),
+              (max(sx * (WHW - 0.05), sx * (WHW + 0.012)), WY + 0.40, WZ + 0.219))
+    if V["wing_led"] == "endplate":
+        p.box(M.lamp_h, (min(sx * xo, sx * (xo + 0.008)), WY + 0.40, WZ - 0.02),
+              (max(sx * xo, sx * (xo + 0.008)), WY + 0.425, WZ + 0.16))
+        p.box(M.brake, (min(sx * (xo + 0.006), sx * (xo + 0.010)), WY + 0.404, WZ - 0.012),
+              (max(sx * (xo + 0.006), sx * (xo + 0.010)), WY + 0.421, WZ + 0.152))
 fin = [(SIDE_Y[1] - 0.02, L.roof_z(SIDE_Y[1] - 0.02) - 0.01),
        (SIDE_Y[1] + 0.40, L.roof_z(SIDE_Y[1] + 0.40) + 0.10),
        (WY + 0.16, WZ - 0.02), (WY + 0.16, WZ - 0.12),
