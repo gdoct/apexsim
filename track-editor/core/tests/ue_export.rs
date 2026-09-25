@@ -1447,7 +1447,11 @@ fn the_verge_meets_the_road_edge_on_every_real_circuit() {
         }
         worst.push((
             track_worst,
-            track_path.file_name().unwrap().to_string_lossy().into_owned(),
+            track_path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
             total,
             bad,
         ));

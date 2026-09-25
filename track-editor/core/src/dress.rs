@@ -281,12 +281,36 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     if road.nodes.len() < 3 {
         return None;
     }
+    // Each node takes the height of the road *edge* beside it — not the
+    // banked surface extrapolated out to the lane, which at Zandvoort put
+    // four nodes of the exit road 7 m up beside the Hugenholtz banking —
+    // and follows the leg of the course it runs along: the lane passes
+    // other legs closer than its own where a circuit folds behind its
+    // pits, so after the first node the nearest cross-section is looked
+    // for near where the lane's own progress says it should be.
+    let total = path.total_length_m();
+    let mut station: Option<f32> = None;
+    let mut prev: Option<[f32; 2]> = None;
     let nodes: Vec<[f32; 3]> = road
         .nodes
         .iter()
         .map(|n| {
-            let (sample, lat) = nearest_cross_section(path, n[0], n[1]);
-            let z = offset_point(&sample, lat).2;
+            let expect = match (station, prev) {
+                (Some(s), Some(p)) => Some(s + (n[0] - p[0]).hypot(n[1] - p[1])),
+                _ => None,
+            };
+            let (sample, lat) = match expect {
+                Some(at) => nearest_cross_section_near(path, n[0], n[1], at, PIT_LEG_WINDOW_M),
+                None => nearest_cross_section(path, n[0], n[1]),
+            };
+            let edge = lat.clamp(-sample.width_right_m, sample.width_left_m);
+            let z = offset_point(&sample, edge).2;
+            station = Some(if path.is_closed() {
+                sample.station_m
+            } else {
+                sample.station_m.min(total)
+            });
+            prev = Some([n[0], n[1]]);
             [n[0], n[1], z]
         })
         .collect();
@@ -800,6 +824,48 @@ fn nearest_cross_section(path: &CenterlinePath, x: f32, y: f32) -> (PathSample, 
         }
     }
     (best.1, best.2)
+}
+
+/// How far along the course from where the lane's progress says it is the
+/// nearest cross-section may be looked for, metres either way.
+const PIT_LEG_WINDOW_M: f32 = 80.0;
+
+/// [`nearest_cross_section`] restricted to the samples within `window`
+/// of station `around` (wrapping on a loop), so a lane running beside one
+/// leg of a folded circuit is not seated on another.
+fn nearest_cross_section_near(
+    path: &CenterlinePath,
+    x: f32,
+    y: f32,
+    around: f32,
+    window: f32,
+) -> (PathSample, f32) {
+    let total = path.total_length_m();
+    let gap = |s: f32| {
+        let d = (s - around).abs();
+        if path.is_closed() {
+            d.min(total - d)
+        } else {
+            d
+        }
+    };
+    let mut best: Option<(f32, PathSample, f32)> = None;
+    for sample in path.samples() {
+        if gap(sample.station_m) > window {
+            continue;
+        }
+        let dx = x - sample.pos.0;
+        let dy = y - sample.pos.1;
+        let d2 = dx * dx + dy * dy;
+        if best.is_none_or(|b| d2 < b.0) {
+            let (sin, cos) = sample.heading_rad.sin_cos();
+            best = Some((d2, *sample, -sin * dx + cos * dy));
+        }
+    }
+    match best {
+        Some((_, sample, lat)) => (sample, lat),
+        None => nearest_cross_section(path, x, y),
+    }
 }
 
 /// Planar distance from a point to the pit lane's centerline.

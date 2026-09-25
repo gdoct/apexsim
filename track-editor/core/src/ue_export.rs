@@ -513,7 +513,7 @@ fn wall_face(
 
 /// The deep kit meshes stand with their pivot on the road-facing edge and
 /// reach away from the road; these few are centred on it instead.
-fn footprint_is_centred(kind: PropKind, asset: &str) -> bool {
+pub(crate) fn footprint_is_centred(kind: PropKind, asset: &str) -> bool {
     matches!(
         (kind, asset),
         (PropKind::Building, "control_tower")
@@ -2991,6 +2991,11 @@ const LEGACY_PIT_GARAGE_ASSET: &str = "pit_garage";
 /// this far off the lane's edge (its team stand reaches 2.3 m back over
 /// the lane).
 const PIT_WALL_MAX_OFFSET_M: f32 = 1.0;
+/// Least apron between the lane's road-side edge and the track edge for a
+/// wall to stand in it outside the box span: the wall sits half way across
+/// (capped at [`PIT_WALL_MAX_OFFSET_M`] from the lane), so this keeps it two
+/// metres off the road.
+const PIT_TAPER_WALL_MIN_M: f32 = 3.0;
 /// How far from the lane the road is looked for when sizing the apron.
 const PIT_APRON_REACH_M: f32 = 80.0;
 
@@ -3241,6 +3246,32 @@ fn bake_pit_complex(
             wall_lat(s),
             face_left,
         ));
+        s += PIT_MODULE_M;
+    }
+    // The rest of the lane — the other parallel stretches, and the entry
+    // and exit as far as there is an apron between the two roads to
+    // stand a wall in. The walls used to stop at the box span's ends,
+    // which left the whole of a long pit entry (Hockenheim's, Shanghai's)
+    // open between the lane and the track.
+    let apron = |s: f32| -> Option<f32> {
+        let field = terrain?;
+        let sample = lane.sample_at(s);
+        let edge = offset_point(&sample, -side * half);
+        let (_, lat, road_half) = field.nearest_track_point(edge.0, edge.1, PIT_APRON_REACH_M)?;
+        Some(lat.abs() - road_half)
+    };
+    let mut s = PIT_MODULE_M / 2.0;
+    while s + PIT_MODULE_M / 2.0 <= total {
+        let walled = s > start && s < end;
+        if !walled && apron(s).is_some_and(|a| a >= PIT_TAPER_WALL_MIN_M) {
+            out.push(pit_module(
+                lane,
+                ("pit", "pit_wall_plain_6m"),
+                s,
+                wall_lat(s),
+                face_left,
+            ));
+        }
         s += PIT_MODULE_M;
     }
     out

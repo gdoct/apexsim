@@ -298,6 +298,33 @@ fn footprint_half_extents(prop: &Prop) -> Option<(f32, f32)> {
 /// Default stand length when the scene does not say (the importer's too).
 const STAND_DEFAULT_LENGTH_M: f32 = 30.0;
 
+/// Where a prop's footprint is centred. A stand or a building stands with
+/// its pivot on its road-facing front and its depth behind it — that is
+/// how `ats-dress` lays it, how the exporter writes its walls and how the
+/// Unreal builder turns it — so its slab is centred half its depth back,
+/// away from the nearest point of the course. The groomer modelled the
+/// slab centred on the pivot, and so cleared barriers out of a strip of
+/// ground *in front* of every stand and left the seating unguarded.
+fn footprint_centre_of(path: &CenterlinePath, prop: &Prop) -> (f32, f32) {
+    let front_pivot = matches!(prop.kind, PropKind::Grandstand | PropKind::Building)
+        && !crate::ue_export::footprint_is_centred(prop.kind, &prop.asset);
+    if !front_pivot {
+        return (prop.x, prop.y);
+    }
+    let Some((_, half_depth)) = footprint_half_extents(prop) else {
+        return (prop.x, prop.y);
+    };
+    let (sin_h, cos_h) = prop.yaw_rad.sin_cos();
+    let normal = (-sin_h, cos_h);
+    let (near, _, _) = nearest_cross_section(path, prop.x, prop.y);
+    let toward = (prop.x - near.pos.0) * normal.0 + (prop.y - near.pos.1) * normal.1;
+    let away = if toward >= 0.0 { 1.0 } else { -1.0 };
+    (
+        prop.x + away * normal.0 * half_depth,
+        prop.y + away * normal.1 * half_depth,
+    )
+}
+
 /// A prop's push-off radius: the circle round its authored footprint when
 /// the kit knows the asset, else the kind's stand-in radius.
 fn prop_radius_of(prop: &Prop) -> f32 {
@@ -356,7 +383,8 @@ pub fn stand_road_clearance_m(path: &CenterlinePath, prop: &Prop) -> Option<f32>
         return None;
     }
     let ext = footprint_half_extents(prop)?;
-    footprint_samples(prop.x, prop.y, prop.yaw_rad, ext)
+    let (cx, cy) = footprint_centre_of(path, prop);
+    footprint_samples(cx, cy, prop.yaw_rad, ext)
         .iter()
         .map(|&(sx, sy)| {
             let (s, lat, _) = nearest_cross_section(path, sx, sy);
@@ -370,6 +398,7 @@ pub fn stand_road_clearance_m(path: &CenterlinePath, prop: &Prop) -> Option<f32>
 /// is, otherwise pushed in 1 m steps along the outward normal of the road
 /// section its deepest probe is nearest to — away from that section —
 /// until it is. `None` when [`FOOTPRINT_MAX_PUSH_M`] is not enough.
+#[allow(clippy::too_many_arguments)]
 fn seat_footprint(
     path: &CenterlinePath,
     lane: Option<&CenterlinePath>,
@@ -378,12 +407,13 @@ fn seat_footprint(
     yaw: f32,
     ext: (f32, f32),
     road_clear_m: f32,
+    centre_shift: (f32, f32),
 ) -> Option<(f32, f32)> {
     let (mut x, mut y) = (x, y);
     for _ in 0..=(FOOTPRINT_MAX_PUSH_M as usize) {
         let mut worst: Option<(f32, PathSample)> = None;
         let mut lane_blocked = false;
-        for (sx, sy) in footprint_samples(x, y, yaw, ext) {
+        for (sx, sy) in footprint_samples(x + centre_shift.0, y + centre_shift.1, yaw, ext) {
             let (s, lat, _) = nearest_cross_section(path, sx, sy);
             let gap = lat.abs() - half_width_on(&s, lat) - road_clear_m;
             if gap < 0.0 && worst.is_none_or(|(g, _)| gap < g) {
@@ -738,6 +768,16 @@ pub fn groom_props_with_dem(
                             }
                             None => yaw,
                         };
+                        let centre_shift = {
+                            let probe = Prop {
+                                x,
+                                y,
+                                yaw_rad: yaw_now,
+                                ..prop.clone()
+                            };
+                            let (cx, cy) = footprint_centre_of(&path, &probe);
+                            (cx - x, cy - y)
+                        };
                         let Some((nx, ny)) = seat_footprint(
                             &path,
                             lane.as_ref(),
@@ -746,6 +786,7 @@ pub fn groom_props_with_dem(
                             yaw_now,
                             ext,
                             footprint_road_clear_m(prop.kind),
+                            centre_shift,
                         ) else {
                             break;
                         };
@@ -1167,6 +1208,7 @@ fn lay_distance_boards(
     others: &[Prop],
 ) -> Vec<Prop> {
     let radius = prop_radius(PropKind::Sign);
+    let slabs: Vec<Slab> = others.iter().map(|p| Slab::of(path, p)).collect();
     let mut boards = Vec::new();
     for corner in corners {
         let side = corner.outside();
@@ -1179,10 +1221,11 @@ fn lay_distance_boards(
             {
                 continue;
             }
-            if others
+            if slabs
                 .iter()
-                .chain(boards.iter())
-                .any(|p| footprint_gap(p, pos.0, pos.1) < radius + BOARD_PROP_CLEAR_M)
+                .map(|p| p.gap(pos.0, pos.1))
+                .chain(boards.iter().map(|p| footprint_gap(path, p, pos.0, pos.1)))
+                .any(|gap| gap < radius + BOARD_PROP_CLEAR_M)
             {
                 continue;
             }
@@ -1269,6 +1312,40 @@ const CORNER_BARRIER_MIN_M: f32 = 14.0;
 /// pass put it, which the AI was always comfortable beside.
 const STRAIGHT_BARRIER_MIN_M: f32 = 7.0;
 
+/// How fast the barrier line may move toward or away from the road, in
+/// metres of lateral per metre of course. A straight's 7 m rail funnels
+/// out to a corner's 14 m over 28 m rather than stepping, and the modules
+/// laid along the line stay end to end: the physics joins two ends only
+/// when they sit within a metre and 35° of each other, and a 0.25 grade
+/// meeting its mirror image at a kink turns the line through 28°.
+const BARRIER_GRADE: f32 = 0.25;
+/// The barrier line is sampled at this station step, metres.
+const BARRIER_LINE_STEP_M: f32 = 1.0;
+/// Closest the line in front of a grandstand comes to the road edge: a
+/// stand hard against the road gets a wall at the verge, not no wall.
+const STAND_FRONT_BARRIER_MIN_M: f32 = 2.0;
+/// Gap kept between a barrier and the front of the stand behind it.
+const STAND_FRONT_GAP_M: f32 = 1.5;
+/// How far out from the road edge a stand is looked for.
+const STAND_PROBE_MAX_M: f32 = 40.0;
+/// Where the pit lane runs beside the track the barrier goes behind the
+/// lane, this far past its far edge.
+const BEHIND_LANE_M: f32 = 2.0;
+/// A run this short is not worth a module.
+const MIN_RUN_M: f32 = 2.0;
+/// A barrier stands at least this far off the verge of any *other* leg of
+/// the course it comes near.
+const OTHER_LEG_CLEAR_M: f32 = 2.5;
+/// A cross-section this far along the course from the one a point was
+/// laid out from is another leg, not the same bend seen twice.
+const OTHER_LEG_STATION_M: f32 = 60.0;
+/// How far a barrier point looks for the nearest leg of the course.
+const NEAR_LEG_M: f32 = 60.0;
+/// Ground this much above the lower road beside an underpass is the
+/// embankment its abutment wall holds up; the wall stands there, not a
+/// barrier.
+const UNDERPASS_STEP_M: f32 = 1.5;
+
 /// Lay the whole barrier line, deciding what each 4 m cell gets.
 ///
 /// This replaced two passes that between them never made a decision. One
@@ -1281,11 +1358,32 @@ const STRAIGHT_BARRIER_MIN_M: f32 = 7.0;
 /// on the evidence: the circuit's own mapped barriers where the dossier
 /// has them, and the shape of the road and its run-off everywhere else.
 ///
+/// The line itself is laid as a **polyline**, not as one lateral per
+/// cell. The first version chose a lateral offset per 4 m cell and put a
+/// module at each cell's centre at that offset; wherever the offset
+/// changed — 7 m to 14 m sixty metres before every corner, 7 m to 24 m
+/// where authored run-off began — the neighbouring modules sat metres
+/// apart sideways, and on the outside of a tight bend modules spaced 4 m
+/// along the centerline stood 4·(R+L)/R apart on the line. Both are
+/// exactly the gaps a car finds, and the physics joins ends only within
+/// 4.5 m. So the offset is first smoothed along the lap
+/// ([`BARRIER_GRADE`]), then the line is sampled every metre and the
+/// modules are laid **end to end along it** by arc length, each yawed to
+/// the line. The ends meet whatever the road does.
+///
+/// A grandstand used to swallow the barrier in front of it: the stand's
+/// front stands 3 m from the road, the line 7–14 m out landed inside the
+/// seating and was dropped, and most stands at Melbourne and Zandvoort
+/// had nothing between them and the track. The line now funnels in to
+/// [`STAND_FRONT_GAP_M`] before a stand's front instead. And where the
+/// pit lane runs beside the track, the line goes behind the lane rather
+/// than leaving the whole stretch open: the bake's pit walls cover the
+/// box span, this covers the tapers and the far side.
+///
 /// Returns the run split by prop kind, because the two are adopted
 /// separately: tyres and Tecpro are laid as [`PropKind::TireWall`] (the
 /// exporter bakes either as an absorbing wall) and everything else as
 /// [`PropKind::Barrier`].
-#[allow(clippy::too_many_arguments)]
 fn lay_all_barriers(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
@@ -1295,7 +1393,9 @@ fn lay_all_barriers(
     others: &[Prop],
 ) -> (Vec<Prop>, Vec<Prop>) {
     let lane_span = lane.map(|l| LaneSpan::of(path, l));
-    let cells = (path.total_length_m() / BARRIER_CELL_M).floor() as i64;
+    let total = path.total_length_m();
+    let stations = (total / BARRIER_LINE_STEP_M).floor().max(1.0) as usize;
+    let closed = path.is_closed();
     let mapped: Vec<(&crate::layout::Line, barriers::MappedKind)> = layout
         .map(|l| {
             l.barriers
@@ -1308,166 +1408,350 @@ fn lay_all_barriers(
         .unwrap_or_default();
 
     // Whether a barrier piece may stand at a point. Every piece is tested,
-    // not just the cell it belongs to: a Tecpro block sits up to a metre
-    // and a half from its cell's centre and an end cap three metres past
-    // it, and at Albert Park's pit entry exactly those pieces — caps that
-    // closed a run *because* the next cell was the pit lane's — stood in
-    // the mouth of the lane where cars run wide at the last corner.
+    // not just the station it belongs to: a Tecpro block sits up to a
+    // metre from its station and an end cap a metre past the run, and at
+    // Albert Park's pit entry exactly those pieces — caps that closed a
+    // run *because* the next cell was the pit lane's — stood in the mouth
+    // of the lane where cars run wide at the last corner.
+    let slabs: Vec<Slab> = others.iter().map(|p| Slab::of(path, p)).collect();
+    let stands: Vec<Slab> = slabs
+        .iter()
+        .copied()
+        .filter(|p| p.kind == PropKind::Grandstand)
+        .collect();
     let placeable = |x: f32, y: f32, road_z: f32| -> bool {
-        if lane.is_some_and(|lane| lane_edge_gap(lane, x, y) < BARRIER_CLEAR_M) {
-            return false;
+        if let (Some(lane), Some(span)) = (lane, lane_span.as_ref()) {
+            let gap = lane_edge_gap(lane, x, y);
+            // Behind the lane — on its far side from the track — the line
+            // stands close to it by design; anywhere else it keeps clear
+            // of the entry and exit.
+            let (_, lane_lat, _) = nearest_cross_section(lane, x, y);
+            let behind = signed(span.side, lane_lat) > 0.0;
+            if gap < BARRIER_CLEAR_M && !(behind && gap >= BEHIND_LANE_M - 0.5) {
+                return false;
+            }
         }
         // Clear of every part of the course, not only the one it was laid
-        // for: see below.
-        let (near_sample, near_lat, _) = nearest_cross_section(path, x, y);
-        if near_lat.abs() - half_width_on(&near_sample, near_lat) < STRAIGHT_BARRIER_MIN_M - 1.0 {
+        // for: where the circuit folds back near itself, a barrier laid
+        // out from one section can land on another. The line is held to
+        // the middle of the strip between two legs (below), so here it
+        // only has to be off the other leg's verge.
+        if terrain
+            .nearest_track_point(x, y, NEAR_LEG_M)
+            .is_some_and(|(_, lat, half)| lat.abs() - half < OTHER_LEG_CLEAR_M)
+        {
             return false;
         }
+        // At an underpass the bake writes the abutment walls, but only
+        // where the ground actually steps up behind the wall line — near
+        // the crossing. The lower road used to get no barrier anywhere
+        // within the underpass's reach (250 m either way at Suzuka's
+        // crossover), which left the approach open on both sides.
         let at_underpass = terrain
             .wall_relation(x, y)
             .is_some_and(|(past_wall, lower_z)| {
-                (road_z - lower_z).abs() <= terrain::OVERHEAD_M || past_wall < BARRIER_CLEAR_M
+                if (road_z - lower_z).abs() <= terrain::OVERHEAD_M {
+                    let embanked = terrain.ground_height_at(x, y) - lower_z >= UNDERPASS_STEP_M;
+                    past_wall < 0.0 || (past_wall < BARRIER_CLEAR_M && embanked)
+                } else {
+                    past_wall < BARRIER_CLEAR_M
+                }
             });
-        !at_underpass && !barrier_blocked(others, x, y)
+        !at_underpass && !barrier_blocked(&slabs, x, y)
     };
 
-    // Decide every cell first, then lay the modules, so a run knows where
-    // it begins and ends and can be capped.
-    let mut decided: BTreeMap<(bool, i64), (barriers::BarrierKind, PathSample, f32)> =
-        BTreeMap::new();
-    for idx in 0..cells {
-        let center = (idx as f32 + 0.5) * BARRIER_CELL_M;
-        let sample = path.sample_at(center);
-        for side in Side::ALL {
-            if lane_span
-                .as_ref()
-                .is_some_and(|span| span.covers(path, side, center))
-            {
-                // The pit side of the pit straight: the bake generates the
-                // pit wall from the lane itself.
-                continue;
-            }
-            // Where the barrier stands. Past the authored run-off as ever,
-            // but never closer to the road than a car can reasonably get.
-            //
-            // The old passes laid a wall at a corner only where the 2026-09
-            // enrichment had left a prop, so most corners had nothing to
-            // hit and nobody noticed that `wall_offset` falls back to the
-            // verge — 6 m — wherever a scene authors no run-off. Laying the
-            // line at every corner made that distance real: the AI runs
-            // wide on the outside and cuts the apex on the inside, and at
-            // 6 m it found a barrier both ways. The all-circuit AI survey
-            // went from 2 100 to 7 500 car-seconds off the road, and at
-            // Zandvoort from twenty seconds to twenty minutes, most of it
-            // pinned against a rail. Real circuits give a corner run-off
-            // on both sides; so does this.
-            let radius = tightest_radius(path, center);
+    let mut walls = Vec::new();
+    let mut rails = Vec::new();
+
+    for side in Side::ALL {
+        // 1. What offset every station wants, before smoothing: past the
+        //    authored run-off as ever, but never closer to the road than a
+        //    car can reasonably get.
+        //
+        //    The old passes laid a wall at a corner only where the 2026-09
+        //    enrichment had left a prop, so most corners had nothing to
+        //    hit and nobody noticed that `wall_offset` falls back to the
+        //    verge — 6 m — wherever a scene authors no run-off. Laying the
+        //    line at every corner made that distance real: the AI runs
+        //    wide on the outside and cuts the apex on the inside, and at
+        //    6 m it found a barrier both ways. The all-circuit AI survey
+        //    went from 2 100 to 7 500 car-seconds off the road, and at
+        //    Zandvoort from twenty seconds to twenty minutes, most of it
+        //    pinned against a rail. Real circuits give a corner run-off
+        //    on both sides; so does this.
+        let mut want = vec![0.0f32; stations];
+        // An upper limit where a stand stands close: the line stops short
+        // of its front.
+        let mut limit = vec![f32::INFINITY; stations];
+        let mut samples: Vec<PathSample> = Vec::with_capacity(stations);
+        for (i, want_here) in want.iter_mut().enumerate() {
+            let station = i as f32 * BARRIER_LINE_STEP_M;
+            let sample = path.sample_at(station);
+            let half = side_half_width(&sample, side);
+            let radius = tightest_radius(path, station);
             let authored = wall_offset(path, surfaces, &sample, side);
-            let offset = if radius < barriers::STRAIGHT_RADIUS_M {
+            let mut offset = if radius < barriers::STRAIGHT_RADIUS_M {
                 authored.max(CORNER_BARRIER_MIN_M)
             } else {
                 authored.max(STRAIGHT_BARRIER_MIN_M)
             };
-            let lat = signed(side, side_half_width(&sample, side) + offset);
-            let pos = offset_point(&sample, lat);
-            // Where the circuit folds back near itself, a barrier laid out
-            // from one section can land on another. The old passes never
-            // met this because they barely laid anything at a corner; once
-            // every cell had a barrier, pushed out to leave run-off, street
-            // circuits grew rails across the neighbouring stretch of road.
-            // `placeable` makes the same test the tree belts always have.
-            if !placeable(pos.0, pos.1, sample.pos.2) {
-                continue;
+            // Beside the pit lane the line goes behind the lane.
+            if let (Some(lane), Some(span)) = (lane, lane_span.as_ref()) {
+                if span.covers(path, side, station) {
+                    let edge = offset_point(&sample, signed(side, half));
+                    let (lane_sample, _, _) = nearest_cross_section(lane, edge.0, edge.1);
+                    if let Some((_, lane_lat, _)) = terrain.nearest_track_point(
+                        lane_sample.pos.0,
+                        lane_sample.pos.1,
+                        NEAR_LEG_M,
+                    ) {
+                        let far = lane_lat.abs() + lane_sample.width_left_m + BEHIND_LANE_M;
+                        offset = offset.max(far - half);
+                    }
+                }
             }
-
-            // Positive curvature is a left-hand bend, so the outside of
-            // it is the right-hand side and the other way about.
-            let bend = signed_curvature(path, center);
-            let outside_of_bend = match side {
-                Side::Left => bend < 0.0,
-                Side::Right => bend > 0.0,
-            };
-            let cell = barriers::Cell {
-                corner_radius_m: radius,
-                runoff_m: offset,
-                spectators_m: spectator_gap(others, pos.0, pos.1),
-                mapped: nearest_mapped(&mapped, pos.0, pos.1),
-                beside_pit_lane: false,
-                outside_of_bend,
-            };
-            decided.insert(
-                (side == Side::Left, idx),
-                (barriers::decide(&cell), sample, lat),
-            );
-        }
-    }
-
-    let mut walls = Vec::new();
-    let mut rails = Vec::new();
-    for (&(left, idx), &(kind, _, lat)) in &decided {
-        let previous = decided.get(&(left, idx - 1)).map(|d| d.0);
-        let next = decided.get(&(left, idx + 1)).map(|d| d.0);
-        let (prop_kind, asset) = kind.asset();
-        let center = (idx as f32 + 0.5) * BARRIER_CELL_M;
-
-        // A module shorter than the cell is repeated to fill it, so a
-        // Tecpro run is continuous rather than a dashed line of blocks.
-        let per_cell = (BARRIER_CELL_M / kind.module_m()).round().max(1.0) as i32;
-        for step in 0..per_cell {
-            let along = center - BARRIER_CELL_M * 0.5 + kind.module_m() * (step as f32 + 0.5);
-            let at = path.sample_at(along);
-            let here = offset_point(&at, lat);
-            if !placeable(here.0, here.1, at.pos.2) {
-                continue;
+            // Where another leg of the course runs close, the strip
+            // between the two is shared: each line stops at the middle of
+            // it. The old rule dropped every cell whose point came within
+            // 6 m of the other leg, which at Zandvoort's Scheivlak opened
+            // 20 m of the outside with the other leg 36 m away.
+            {
+                let probe = offset_point(&sample, signed(side, half + offset));
+                if let Some((near_station, near_lat, near_half)) =
+                    terrain.nearest_track_point(probe.0, probe.1, NEAR_LEG_M)
+                {
+                    let apart = (near_station - station).abs();
+                    let apart = if closed {
+                        apart.min(total - apart)
+                    } else {
+                        apart
+                    };
+                    if apart > OTHER_LEG_STATION_M {
+                        let strip = offset + (near_lat.abs() - near_half);
+                        limit[i] = limit[i].min((strip / 2.0 - 0.5).max(STAND_FRONT_BARRIER_MIN_M));
+                    }
+                }
             }
-            let prop = Prop {
-                id: 0,
-                kind: prop_kind,
-                asset: asset.to_string(),
-                x: here.0,
-                y: here.1,
-                z: seat_z(terrain, &at, lat, here.0, here.1),
-                yaw_rad: at.heading_rad,
-                scale: WALL_SCALE,
-                text: None,
-                length_m: None,
+            // A stand in front of which the line would land: come in to
+            // its front instead. Probed inward from the wanted offset.
+            let blocked_by_stand = |off: f32| {
+                let p = offset_point(&sample, signed(side, half + off));
+                stands.iter().any(|s| s.gap(p.0, p.1) < STAND_FRONT_GAP_M)
             };
-            match prop_kind {
-                PropKind::TireWall => walls.push(prop),
-                _ => rails.push(prop),
+            // Probed outward, not from the wanted offset: the smoothing
+            // below can carry the line further out than this station
+            // wants, into a stand the wanted offset stood clear of.
+            let mut off = STAND_FRONT_BARRIER_MIN_M;
+            while off <= STAND_PROBE_MAX_M {
+                if blocked_by_stand(off) {
+                    limit[i] = (off - 0.5).max(STAND_FRONT_BARRIER_MIN_M);
+                    break;
+                }
+                off += 0.5;
             }
+            *want_here = offset;
+            samples.push(sample);
         }
 
-        // Close the ends of the run. A run ends where the neighbouring
-        // cell is missing (the pit lane, an underpass, a building) or
-        // where the kind changes, because two kinds butted together need
-        // the terminal that belongs to each.
-        if let Some((cap_kind, cap_asset)) = kind.end_cap() {
-            for (neighbour, direction) in [(previous, -1.0f32), (next, 1.0f32)] {
-                if neighbour == Some(kind) {
-                    continue;
+        // 2. Smooth: the line may only move at `BARRIER_GRADE`. Widening
+        //    ramps outward (a run-off's edge reaches back along the road
+        //    before it), the stand limit ramps inward.
+        let offset = smooth_offsets(&want, &limit, closed);
+
+        // 3. The line, and where it may stand.
+        let mut line: Vec<Option<(f32, f32, f32)>> = Vec::with_capacity(stations);
+        for (i, sample) in samples.iter().enumerate() {
+            let lat = signed(side, side_half_width(sample, side) + offset[i]);
+            let p = offset_point(sample, lat);
+            line.push(placeable(p.0, p.1, sample.pos.2).then_some(p));
+        }
+        // A point that runs backwards along the course (the line folded
+        // inside a bend tighter than its offset) is no place to stand.
+        for i in 0..stations {
+            let next = (i + 1) % stations;
+            if !closed && next == 0 {
+                break;
+            }
+            if let (Some(a), Some(b)) = (line[i], line[next]) {
+                let (sin_h, cos_h) = samples[i].heading_rad.sin_cos();
+                if (b.0 - a.0) * cos_h + (b.1 - a.1) * sin_h <= 0.0 {
+                    line[next] = None;
                 }
-                let along = center + direction * (BARRIER_CELL_M * 0.5 + 1.0);
-                let at = path.sample_at(along);
-                let here = offset_point(&at, lat);
-                if !placeable(here.0, here.1, at.pos.2) {
-                    continue;
-                }
+            }
+        }
+
+        // 4. What kind each 4 m cell gets.
+        let cells = (total / BARRIER_CELL_M).ceil() as usize;
+        let kinds: Vec<barriers::BarrierKind> = (0..cells)
+            .map(|cell| {
+                let center = ((cell as f32 + 0.5) * BARRIER_CELL_M).min(total - 0.01);
+                let i = ((center / BARRIER_LINE_STEP_M) as usize).min(stations - 1);
+                let sample = &samples[i];
+                let lat = signed(side, side_half_width(sample, side) + offset[i]);
+                let pos = offset_point(sample, lat);
+                // Positive curvature is a left-hand bend, so the outside
+                // of it is the right-hand side and the other way about.
+                let bend = signed_curvature(path, center);
+                let outside_of_bend = match side {
+                    Side::Left => bend < 0.0,
+                    Side::Right => bend > 0.0,
+                };
+                barriers::decide(&barriers::Cell {
+                    corner_radius_m: tightest_radius(path, center),
+                    runoff_m: offset[i],
+                    spectators_m: spectator_gap(&slabs, pos.0, pos.1),
+                    mapped: nearest_mapped(&mapped, pos.0, pos.1),
+                    beside_pit_lane: false,
+                    outside_of_bend,
+                })
+            })
+            .collect();
+        let kind_at = |station: f32| {
+            let cell = ((station.rem_euclid(total) / BARRIER_CELL_M) as usize).min(cells - 1);
+            kinds[cell]
+        };
+
+        // 5. Walk each run of the line and lay modules end to end.
+        let runs = line_runs(&line, closed);
+        for run in runs {
+            let ring = closed && run.len() == stations;
+            let mut pts: Vec<(usize, (f32, f32, f32))> = run
+                .iter()
+                .map(|&i| (i, line[i].expect("run indices are placeable")))
+                .collect();
+            if ring {
+                // The loop closes on itself: the last segment runs back
+                // to the first point.
+                pts.push(pts[0]);
+            }
+            if pts.len() < 2 {
+                continue;
+            }
+            // Cumulative arc length along the run.
+            let mut arc = Vec::with_capacity(pts.len());
+            let mut acc = 0.0f32;
+            arc.push(0.0);
+            for w in pts.windows(2) {
+                acc += planar_distance(w[0].1, w[1].1);
+                arc.push(acc);
+            }
+            let run_len = acc;
+            if run_len < MIN_RUN_M {
+                continue;
+            }
+            // Where along the run an arc length falls: station index and
+            // the interpolated point and course there.
+            let at_arc = |s: f32| -> (usize, (f32, f32, f32), f32) {
+                let s = s.clamp(0.0, run_len);
+                let j = match arc.binary_search_by(|a| a.total_cmp(&s)) {
+                    Ok(j) => j.min(pts.len() - 2),
+                    Err(j) => j.saturating_sub(1).min(pts.len() - 2),
+                };
+                let seg = (arc[j + 1] - arc[j]).max(1e-3);
+                let t = ((s - arc[j]) / seg).clamp(0.0, 1.0);
+                let (a, b) = (pts[j].1, pts[j + 1].1);
+                let p = (
+                    a.0 + (b.0 - a.0) * t,
+                    a.1 + (b.1 - a.1) * t,
+                    a.2 + (b.2 - a.2) * t,
+                );
+                let yaw = (b.1 - a.1).atan2(b.0 - a.0);
+                let idx = if t < 0.5 { pts[j].0 } else { pts[j + 1].0 };
+                (idx, p, yaw)
+            };
+            let lay = |walls: &mut Vec<Prop>,
+                       rails: &mut Vec<Prop>,
+                       prop_kind: PropKind,
+                       asset: &str,
+                       idx: usize,
+                       p: (f32, f32, f32),
+                       yaw: f32| {
+                let sample = &samples[idx];
+                let lat = signed(side, side_half_width(sample, side) + offset[idx]);
                 let prop = Prop {
                     id: 0,
-                    kind: cap_kind,
-                    asset: cap_asset.to_string(),
-                    x: here.0,
-                    y: here.1,
-                    z: seat_z(terrain, &at, lat, here.0, here.1),
-                    yaw_rad: at.heading_rad,
+                    kind: prop_kind,
+                    asset: asset.to_string(),
+                    x: p.0,
+                    y: p.1,
+                    z: seat_z(terrain, sample, lat, p.0, p.1),
+                    yaw_rad: yaw,
                     scale: WALL_SCALE,
                     text: None,
                     length_m: None,
                 };
-                match cap_kind {
+                match prop_kind {
                     PropKind::TireWall => walls.push(prop),
                     _ => rails.push(prop),
+                }
+            };
+
+            let mut s = 0.0f32;
+            let mut previous: Option<barriers::BarrierKind> = None;
+            loop {
+                let (idx, _, _) = at_arc(s);
+                let kind = kind_at(idx as f32 * BARRIER_LINE_STEP_M);
+                let module = kind.module_m();
+                let remaining = run_len - s;
+                if remaining < module * 0.5 {
+                    break;
+                }
+                // The last module of a run is laid flush with the run's
+                // end, overlapping its neighbour a little, so the run
+                // reaches all the way rather than stopping short.
+                let centre = if remaining < module {
+                    run_len - module / 2.0
+                } else {
+                    s + module / 2.0
+                };
+                let (idx, p, yaw) = at_arc(centre);
+                let (prop_kind, asset) = kind.asset();
+                if placeable(p.0, p.1, samples[idx].pos.2) {
+                    lay(&mut walls, &mut rails, prop_kind, asset, idx, p, yaw);
+                }
+                // Two kinds butting together each get the terminal that
+                // belongs to them.
+                if let Some(prev) = previous {
+                    if prev != kind {
+                        for (cap_of, at) in [(prev, s + 1.0), (kind, s - 1.0)] {
+                            if let Some((cap_kind, cap_asset)) = cap_of.end_cap() {
+                                let (idx, p, yaw) = at_arc(at);
+                                if placeable(p.0, p.1, samples[idx].pos.2) {
+                                    lay(&mut walls, &mut rails, cap_kind, cap_asset, idx, p, yaw);
+                                }
+                            }
+                        }
+                    }
+                }
+                previous = Some(kind);
+                s += module;
+            }
+
+            // Close the ends of an open run: a metre past each end, along
+            // the run's own direction.
+            if !ring {
+                let ends = [
+                    (
+                        0.0f32,
+                        -1.0f32,
+                        kind_at(pts[0].0 as f32 * BARRIER_LINE_STEP_M),
+                    ),
+                    (
+                        run_len,
+                        1.0,
+                        kind_at(pts[pts.len() - 1].0 as f32 * BARRIER_LINE_STEP_M),
+                    ),
+                ];
+                for (at, direction, kind) in ends {
+                    let Some((cap_kind, cap_asset)) = kind.end_cap() else {
+                        continue;
+                    };
+                    let (idx, p, yaw) = at_arc(at);
+                    let (sin_y, cos_y) = yaw.sin_cos();
+                    let cap = (p.0 + direction * cos_y, p.1 + direction * sin_y, p.2);
+                    if placeable(cap.0, cap.1, samples[idx].pos.2) {
+                        lay(&mut walls, &mut rails, cap_kind, cap_asset, idx, cap, yaw);
+                    }
                 }
             }
         }
@@ -1475,27 +1759,110 @@ fn lay_all_barriers(
     (walls, rails)
 }
 
+/// The barrier line's offset from the road edge at every station, from
+/// what each station wants and the most it may have, holding the change
+/// to [`BARRIER_GRADE`] per metre of course.
+///
+/// The wanted offsets are *dilated*: every station reaches at least what
+/// any other wants less the grade times the distance, so a run-off's
+/// outer edge is reached by a ramp starting before it. The limits are
+/// *eroded* the same way, so a stand's front is approached by a ramp
+/// too. The result is the smaller of the two, which changes no faster
+/// than either.
+fn smooth_offsets(want: &[f32], limit: &[f32], closed: bool) -> Vec<f32> {
+    let n = want.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    let grade = BARRIER_GRADE * BARRIER_LINE_STEP_M;
+    // Two sweeps each way (twice, so a closed loop settles across the seam).
+    let mut wide = want.to_vec();
+    let mut narrow = limit.to_vec();
+    let passes = if closed { 2 } else { 1 };
+    for _ in 0..passes {
+        for i in 1..n {
+            wide[i] = wide[i].max(wide[i - 1] - grade);
+            narrow[i] = narrow[i].min(narrow[i - 1] + grade);
+        }
+        if closed {
+            wide[0] = wide[0].max(wide[n - 1] - grade);
+            narrow[0] = narrow[0].min(narrow[n - 1] + grade);
+        }
+        for i in (0..n - 1).rev() {
+            wide[i] = wide[i].max(wide[i + 1] - grade);
+            narrow[i] = narrow[i].min(narrow[i + 1] + grade);
+        }
+        if closed {
+            wide[n - 1] = wide[n - 1].max(wide[0] - grade);
+            narrow[n - 1] = narrow[n - 1].min(narrow[0] + grade);
+        }
+    }
+    wide.iter()
+        .zip(&narrow)
+        .map(|(w, l)| w.min(*l).max(STAND_FRONT_BARRIER_MIN_M))
+        .collect()
+}
+
+/// Maximal runs of consecutive placeable stations, as index lists. On a
+/// closed loop a run may wrap through the seam; a loop with no gap at all
+/// is one run of every station.
+fn line_runs(line: &[Option<(f32, f32, f32)>], closed: bool) -> Vec<Vec<usize>> {
+    let n = line.len();
+    let mut runs: Vec<Vec<usize>> = Vec::new();
+    if n == 0 {
+        return runs;
+    }
+    // Start scanning just after a gap so no run is split by the seam.
+    let start = if closed {
+        (0..n)
+            .find(|&i| line[i].is_none())
+            .map_or(0, |i| (i + 1) % n)
+    } else {
+        0
+    };
+    let mut current: Vec<usize> = Vec::new();
+    for k in 0..n {
+        let i = (start + k) % n;
+        if line[i].is_some() {
+            current.push(i);
+        } else if !current.is_empty() {
+            runs.push(std::mem::take(&mut current));
+        }
+    }
+    if !current.is_empty() {
+        runs.push(current);
+    }
+    runs
+}
+
+fn planar_distance(a: (f32, f32, f32), b: (f32, f32, f32)) -> f32 {
+    (a.0 - b.0).hypot(a.1 - b.1)
+}
+
 /// Something already standing where a barrier would go.
-fn barrier_blocked(others: &[Prop], x: f32, y: f32) -> bool {
-    others.iter().any(|p| {
+fn barrier_blocked(slabs: &[Slab], x: f32, y: f32) -> bool {
+    slabs.iter().any(|p| {
         let clear = match p.kind {
             // A grandstand stands *behind* the barrier that separates it
             // from the road — that is what the barrier is for — so only a
             // rail that would land inside the seating is dropped.
             PropKind::Grandstand => 0.5,
             PropKind::Building | PropKind::Pit | PropKind::Attraction => BARRIER_CLEAR_M,
-            // A board stands on the barrier line by design, and a
-            // bridge's footings are off the verge either side.
-            PropKind::Board | PropKind::Bridge => return false,
-            _ => BOARD_PROP_CLEAR_M,
+            // Nothing else takes a module out of the line. A board stands
+            // on the barrier line by design, a bridge's footings are off
+            // the verge either side, and a lamp post, a marshal post or a
+            // clump of grass in the way is a small thing to have inside
+            // the rail — where every dropped module used to be a 4 m hole
+            // a car could leave the circuit through.
+            _ => return false,
         };
-        footprint_gap(p, x, y) < clear
+        p.gap(x, y) < clear
     })
 }
 
 /// How close the nearest thing with people in or around it is.
-fn spectator_gap(others: &[Prop], x: f32, y: f32) -> f32 {
-    others
+fn spectator_gap(slabs: &[Slab], x: f32, y: f32) -> f32 {
+    slabs
         .iter()
         .filter(|p| {
             matches!(
@@ -1503,7 +1870,7 @@ fn spectator_gap(others: &[Prop], x: f32, y: f32) -> f32 {
                 PropKind::Grandstand | PropKind::Building | PropKind::Attraction
             )
         })
-        .map(|p| footprint_gap(p, x, y))
+        .map(|p| p.gap(x, y))
         .fold(f32::MAX, f32::min)
 }
 
@@ -1664,6 +2031,7 @@ fn lay_tree_belts(
 ) -> Vec<Prop> {
     const GRID_M: f32 = TREE_PROP_CLEAR_M;
     let grid_key = |x: f32, y: f32| ((x / GRID_M).floor() as i64, (y / GRID_M).floor() as i64);
+    let slabs: Vec<Slab> = others.iter().map(|p| Slab::of(path, p)).collect();
 
     let cells = (path.total_length_m() / TREE_CELL_M).floor() as i64;
     let mut trees: Vec<Prop> = Vec::new();
@@ -1720,7 +2088,7 @@ fn lay_tree_belts(
                 if lane.is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < TREE_LANE_CLEAR_M) {
                     continue;
                 }
-                let blocked = others.iter().any(|p| {
+                let blocked = slabs.iter().any(|p| {
                     let clear = match p.kind {
                         PropKind::Building
                         | PropKind::Grandstand
@@ -1729,7 +2097,7 @@ fn lay_tree_belts(
                         PropKind::Sky => return false,
                         _ => TREE_PROP_CLEAR_M,
                     };
-                    footprint_gap(p, pos.0, pos.1) < clear
+                    p.gap(pos.0, pos.1) < clear
                 });
                 if blocked {
                     continue;
@@ -1815,26 +2183,62 @@ fn hash01(keys: &[u64], salt: u64) -> f32 {
     (h >> 40) as f32 / (1u64 << 24) as f32
 }
 
+/// A prop's footprint resolved once — centre, orientation, extents — for
+/// the passes that test thousands of points against it: resolving the
+/// front-pivot centre needs the nearest cross-section, which is a walk
+/// over every sample of the course.
+#[derive(Debug, Clone, Copy)]
+struct Slab {
+    kind: PropKind,
+    cx: f32,
+    cy: f32,
+    yaw: f32,
+    /// Half length along the yaw and half width across it; a disc when
+    /// `None`, of `radius`.
+    extents: Option<(f32, f32)>,
+    radius: f32,
+}
+
+impl Slab {
+    fn of(path: &CenterlinePath, prop: &Prop) -> Slab {
+        let (cx, cy) = footprint_centre_of(path, prop);
+        Slab {
+            kind: prop.kind,
+            cx,
+            cy,
+            yaw: prop.yaw_rad,
+            extents: footprint_half_extents(prop),
+            radius: prop_radius_of(prop),
+        }
+    }
+
+    /// Planar distance from a point to the footprint's edge (negative
+    /// inside).
+    fn gap(&self, x: f32, y: f32) -> f32 {
+        match self.extents {
+            Some((half_len, half_thick)) => {
+                let (sin_h, cos_h) = self.yaw.sin_cos();
+                let (dx, dy) = (x - self.cx, y - self.cy);
+                let along = (cos_h * dx + sin_h * dy).abs() - half_len;
+                let across = (-sin_h * dx + cos_h * dy).abs() - half_thick;
+                if along > 0.0 || across > 0.0 {
+                    along.max(0.0).hypot(across.max(0.0))
+                } else {
+                    along.max(across)
+                }
+            }
+            None => (x - self.cx).hypot(y - self.cy) - self.radius,
+        }
+    }
+}
+
 /// Planar distance from a point to the edge of a prop's footprint
 /// (negative inside). Stands, buildings, walls and barriers are oriented
 /// slabs ([`footprint_half_extents`]) — a 78 m grandstand or a 12 m wall
 /// segment is nothing like a disc — everything else a disc of
 /// [`prop_radius`].
-fn footprint_gap(prop: &Prop, x: f32, y: f32) -> f32 {
-    match footprint_half_extents(prop) {
-        Some((half_len, half_thick)) => {
-            let (sin_h, cos_h) = prop.yaw_rad.sin_cos();
-            let (dx, dy) = (x - prop.x, y - prop.y);
-            let along = (cos_h * dx + sin_h * dy).abs() - half_len;
-            let across = (-sin_h * dx + cos_h * dy).abs() - half_thick;
-            if along > 0.0 || across > 0.0 {
-                along.max(0.0).hypot(across.max(0.0))
-            } else {
-                along.max(across)
-            }
-        }
-        None => (x - prop.x).hypot(y - prop.y) - prop_radius_of(prop),
-    }
+fn footprint_gap(path: &CenterlinePath, prop: &Prop, x: f32, y: f32) -> f32 {
+    Slab::of(path, prop).gap(x, y)
 }
 
 /// Planar distance from a point to the pit lane's edge (negative inside
@@ -2171,6 +2575,201 @@ mod tests {
         );
     }
 
+    /// A barrier module as the line segment the sim will see, and whether
+    /// a ray from `from` along `dir` crosses it within `reach`.
+    fn module_segment(p: &Prop) -> ((f32, f32), (f32, f32)) {
+        let length = props::resolve(p.kind, &p.asset).map_or(4.0, |a| a.length_m) * p.scale;
+        let (sin, cos) = p.yaw_rad.sin_cos();
+        let (hx, hy) = (cos * length / 2.0, sin * length / 2.0);
+        ((p.x - hx, p.y - hy), (p.x + hx, p.y + hy))
+    }
+
+    fn ray_crosses(
+        from: (f32, f32),
+        dir: (f32, f32),
+        seg: ((f32, f32), (f32, f32)),
+        reach: f32,
+    ) -> bool {
+        let (a, b) = seg;
+        let (ex, ey) = (b.0 - a.0, b.1 - a.1);
+        let denom = dir.0 * ey - dir.1 * ex;
+        if denom.abs() < 1e-9 {
+            return false;
+        }
+        let (wx, wy) = (a.0 - from.0, a.1 - from.1);
+        let t = (wx * ey - wy * ex) / denom;
+        let u = (wx * dir.1 - wy * dir.0) / denom;
+        (0.0..=reach).contains(&t) && (0.0..=1.0).contains(&u)
+    }
+
+    /// Stations of the lap, per side, from which a ray straight out from
+    /// the road edge meets no barrier module within `reach`.
+    fn openings(scene: &AtsScene, path: &CenterlinePath, reach: f32) -> Vec<(f32, Side)> {
+        let segments: Vec<_> = scene
+            .props
+            .iter()
+            .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+            .map(module_segment)
+            .collect();
+        let mut out = Vec::new();
+        let mut station = 0.0f32;
+        while station < path.total_length_m() {
+            let sample = path.sample_at(station);
+            let (sin, cos) = sample.heading_rad.sin_cos();
+            for side in Side::ALL {
+                let sign = signed(side, 1.0);
+                let dir = (-sin * sign, cos * sign);
+                let edge = offset_point(&sample, signed(side, side_half_width(&sample, side)));
+                if !segments
+                    .iter()
+                    .any(|s| ray_crosses((edge.0, edge.1), dir, *s, reach))
+                {
+                    out.push((station, side));
+                }
+            }
+            station += 2.0;
+        }
+        out
+    }
+
+    /// The gaps that replaced the coverage problem: one lateral per 4 m
+    /// cell meant neighbouring modules sat metres apart sideways wherever
+    /// the offset stepped (7 m to 14 m before every corner), and on the
+    /// outside of a bend 4 m of centerline is more than 4 m of line. Laid
+    /// end to end along the smoothed line, the modules leave no way out:
+    /// every ray from the road edge meets one, on both sides, except
+    /// across the pit lane (its own wall is the bake's).
+    #[test]
+    fn the_barrier_line_has_no_openings() {
+        let track = track();
+        let mut scene = scene_with(&track, vec![]);
+        groom_scene(&track, &mut scene).unwrap();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let lane = scene
+            .pit_lane
+            .as_ref()
+            .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0))
+            .expect("the groomed stadium has a pit lane");
+        let open: Vec<_> = openings(&scene, &path, 45.0)
+            .into_iter()
+            .filter(|(station, side)| {
+                let sample = path.sample_at(*station);
+                let edge = offset_point(&sample, signed(*side, side_half_width(&sample, *side)));
+                lane_edge_gap(&lane, edge.0, edge.1) > 20.0
+            })
+            .collect();
+        assert!(open.is_empty(), "openings in the barrier line: {open:?}");
+
+        // And end to end: along each side, every module's end is within a
+        // metre of the next one's start, with a cap where a run ends.
+        for side in Side::ALL {
+            let mut modules: Vec<(f32, &Prop)> = scene
+                .props
+                .iter()
+                .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+                .filter(|p| !p.asset.ends_with("_end") && !p.asset.ends_with("_corner"))
+                .filter_map(|p| {
+                    let (sample, lat, along) = nearest_cross_section(&path, p.x, p.y);
+                    (signed(side, lat) > 0.0).then_some((sample.station_m + along, p))
+                })
+                .collect();
+            modules.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let mut loose = 0;
+            for w in modules.windows(2) {
+                let (_, a) = w[0];
+                let (_, b) = w[1];
+                let (_, a_end) = module_segment(a);
+                let (b_start, _) = module_segment(b);
+                let gap = (a_end.0 - b_start.0).hypot(a_end.1 - b_start.1);
+                let alt = (a.x - b.x).hypot(a.y - b.y);
+                // Either end to end, or overlapping (a flush last module).
+                if gap > 1.0 && alt > 1.0 && alt < 12.0 {
+                    loose += 1;
+                }
+            }
+            assert!(loose <= 2, "{loose} loose module joints on the {side:?}");
+        }
+    }
+
+    /// A stand hard against the road used to swallow the rail in front of
+    /// it: the line at 7-14 m landed inside the seating and was dropped,
+    /// so most of Melbourne's and Zandvoort's stands had nothing between
+    /// them and the track. The line funnels in to the stand's front now.
+    #[test]
+    fn a_grandstand_keeps_a_barrier_in_front_of_it() {
+        let track = track();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        // A stand along the top straight on the right, its front 4 m off
+        // the road edge (pivot on the front, depth behind it).
+        let sample = path.sample_at(200.0);
+        let front = offset_point(&sample, -(sample.width_right_m + 4.0));
+        let mut stand = prop(PropKind::Grandstand, front.0, front.1, 0.0);
+        stand.asset = "bay_10m_large".to_string();
+        stand.yaw_rad = sample.heading_rad;
+        stand.length_m = Some(40.0);
+        let mut scene = scene_with(&track, vec![stand]);
+        // Groomed against a (bare) dossier, so the stand counts as dressed
+        // — real stands are — and stays where it was put.
+        let layout = crate::layout::Layout::default();
+        groom_props_with(&track, &mut scene, Some(&layout)).unwrap();
+        let stand = scene.props[0].clone();
+        assert_eq!(stand.kind, PropKind::Grandstand);
+        assert!(
+            (stand.y - front.1).abs() < 0.1,
+            "the dressed stand was moved"
+        );
+
+        let segments: Vec<_> = scene
+            .props
+            .iter()
+            .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+            .map(module_segment)
+            .collect();
+        for station in [185.0f32, 200.0, 215.0] {
+            let sample = path.sample_at(station);
+            let (sin, cos) = sample.heading_rad.sin_cos();
+            let edge = offset_point(&sample, -sample.width_right_m);
+            // Straight out toward the stand: a rail within the 4 m apron.
+            let guarded = segments
+                .iter()
+                .any(|s| ray_crosses((edge.0, edge.1), (sin, -cos), *s, 4.0));
+            assert!(
+                guarded,
+                "no barrier between the road and the stand at {station} m"
+            );
+        }
+    }
+
+    #[test]
+    fn offsets_are_smoothed_at_the_grade() {
+        let mut want = vec![7.0f32; 400];
+        for w in want.iter_mut().skip(200).take(40) {
+            *w = 24.0;
+        }
+        let limit = vec![f32::INFINITY; 400];
+        let off = smooth_offsets(&want, &limit, true);
+        for w in off.windows(2) {
+            assert!((w[1] - w[0]).abs() <= BARRIER_GRADE * BARRIER_LINE_STEP_M + 1e-4);
+        }
+        assert!(
+            off.iter().zip(&want).all(|(o, w)| *o >= *w - 1e-4),
+            "never inside what was wanted"
+        );
+        assert_eq!(off[220], 24.0);
+        assert_eq!(off[0], 7.0);
+
+        // A limit is approached at the grade too, and wins.
+        let mut limit = vec![f32::INFINITY; 400];
+        for l in limit.iter_mut().skip(200).take(40) {
+            *l = 3.0;
+        }
+        let off = smooth_offsets(&want, &limit, true);
+        assert_eq!(off[220], 3.0);
+        for w in off.windows(2) {
+            assert!((w[1] - w[0]).abs() <= BARRIER_GRADE * BARRIER_LINE_STEP_M + 1e-4);
+        }
+    }
+
     #[test]
     fn every_barrier_asset_is_one_the_kit_has() {
         let track = track();
@@ -2312,7 +2911,8 @@ mod tests {
             "stand slid to x = {}",
             stand.x
         );
-        assert!(stand.y > 6.0 + 12.0 + STAND_ROAD_CLEAR_M - 1.0);
+        // The pivot is the stand's front; the depth is behind it.
+        assert!(stand.y > 6.0 + STAND_ROAD_CLEAR_M - 1.0);
         // And it is stable: the second pass leaves it alone.
         let second = groom_props(&track, &mut scene).unwrap();
         assert!(!second.changed(), "{second:?}");
@@ -2331,7 +2931,9 @@ mod tests {
         let b = &scene.props[0];
         assert_eq!(b.kind, PropKind::Building);
         let (ls, llat, _) = nearest_cross_section(&lane, b.x, b.y);
-        let needed = ls.width_left_m + PROP_CLEARANCE_M + prop_radius(PropKind::Building);
+        // The pivot is the building's front, and its block stands behind
+        // it, away from the lane.
+        let needed = ls.width_left_m + FOOTPRINT_LANE_CLEAR_M;
         assert!(
             llat.abs() >= needed - 0.1,
             "building at lane lateral {llat} m"
@@ -2413,9 +3015,9 @@ mod tests {
                 "tree {beyond} m beyond the edge"
             );
             assert!(
-                footprint_gap(&stand, t.x, t.y) >= TREE_STAND_CLEAR_M - 0.1,
+                footprint_gap(&path, &stand, t.x, t.y) >= TREE_STAND_CLEAR_M - 0.1,
                 "tree {} m from the grandstand",
-                footprint_gap(&stand, t.x, t.y)
+                footprint_gap(&path, &stand, t.x, t.y)
             );
             for other in &trees[i + 1..] {
                 assert!(
