@@ -26,7 +26,8 @@
 #include "Serialization/JsonWriter.h"
 #include "UnrealClient.h"
 
-namespace
+// Named, not anonymous: this module is unity-built.
+namespace ApexReplayArgs
 {
 	bool ParseClock(const FString& Text, int32& OutMinutes)
 	{
@@ -70,13 +71,19 @@ namespace
 
 	bool ParseDouble(const TCHAR* Key, double& InOut)
 	{
-		float Value = static_cast<float>(InOut);
-		if (ParseFloat(Key, Value))
+		FString Text;
+		if (FParse::Value(FCommandLine::Get(), Key, Text))
 		{
-			InOut = Value;
+			InOut = FCString::Atod(*Text);
 			return true;
 		}
 		return false;
+	}
+
+	/** Wall-clock seconds: loading and settling take real time, whatever the fixed step says. */
+	double Now()
+	{
+		return FPlatformTime::Seconds();
 	}
 }
 
@@ -117,6 +124,7 @@ void UApexReplaySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 	Phase = EPhase::WaitWorld;
 	PhaseSeconds = 0.0f;
+	PhaseStartedAt = FPlatformTime::Seconds();
 	UE_LOG(LogApexSim, Log, TEXT("Replay run: %s, %s camera, %s"), *ClipPath, ApexReplayCam::ModeName(Camera.Mode),
 		RecordDir.IsEmpty() ? TEXT("playing") : *FString::Printf(TEXT("recording %d fps to %s"), Fps, *RecordDir));
 }
@@ -135,6 +143,7 @@ TStatId UApexReplaySubsystem::GetStatId() const
 
 bool UApexReplaySubsystem::ParseCommandLine()
 {
+	using namespace ApexReplayArgs;
 	const TCHAR* Cmd = FCommandLine::Get();
 	FParse::Value(Cmd, TEXT("ApexReplay="), ClipPath);
 	ClipPath = FPaths::ConvertRelativePathToFull(ClipPath);
@@ -307,8 +316,12 @@ void UApexReplaySubsystem::Fail(const FString& Why)
 	Phase = EPhase::Done;
 	if (!RecordDir.IsEmpty())
 	{
-		const FString Json = FString::Printf(TEXT("{\"ok\": false, \"error\": \"%s\"}"),
-			*Why.ReplaceCharWithEscapedChar());
+		const TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
+		Root->SetBoolField(TEXT("ok"), false);
+		Root->SetStringField(TEXT("error"), Why);
+		FString Json;
+		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Json);
+		FJsonSerializer::Serialize(Root, Writer);
 		FFileHelper::SaveStringToFile(Json, *(RecordDir / TEXT("replay_done.json")));
 	}
 	if (bExitWhenDone && !RecordDir.IsEmpty())
@@ -365,7 +378,7 @@ void UApexReplaySubsystem::RequestFrame()
 {
 	const FString Path = RecordDir / FString::Printf(TEXT("frame_%06d.png"), FrameIndex);
 	// The viewport as drawn this frame, without the UI.
-	FScreenshotRequest::RequestScreenshot(Path, /*bShowUI*/ false, /*bAddFilenameSuffix*/ false);
+	FScreenshotRequest::RequestScreenshot(Path, /*bShowUI*/ bShowUi, /*bAddFilenameSuffix*/ false);
 	++FrameIndex;
 }
 
@@ -390,13 +403,16 @@ void UApexReplaySubsystem::WriteManifest()
 
 void UApexReplaySubsystem::Tick(float DeltaTime)
 {
-	PhaseSeconds += DeltaTime;
+	// Waiting, loading and settling are real time: under a fixed step a fast
+	// loading frame would otherwise count as a whole frame's worth.
+	PhaseSeconds = static_cast<float>(ApexReplayArgs::Now() - PhaseStartedAt);
 	++PhaseFrames;
 	auto Enter = [this](EPhase Next)
 	{
 		Phase = Next;
 		PhaseSeconds = 0.0f;
 		PhaseFrames = 0;
+		PhaseStartedAt = ApexReplayArgs::Now();
 	};
 
 	switch (Phase)

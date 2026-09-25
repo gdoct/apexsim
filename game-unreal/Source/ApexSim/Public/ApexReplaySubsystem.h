@@ -80,7 +80,9 @@ private:
 	AApexRaceDirector* GetDirector() const;
 
 	EPhase Phase = EPhase::Idle;
+	/** Wall-clock seconds in the phase, from PhaseStartedAt. */
 	float PhaseSeconds = 0.0f;
+	double PhaseStartedAt = 0.0;
 	int32 PhaseFrames = 0;
 
 	TSharedPtr<FApexReplayClip> Clip;
