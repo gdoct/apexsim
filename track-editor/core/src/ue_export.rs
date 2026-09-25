@@ -346,7 +346,7 @@ pub struct Baked {
 /// Station spacing of the curb sidecar, meters. Curbs run for tens of
 /// meters, so a metre of granularity at their ends costs nothing.
 pub const CURB_BAND_STEP_M: f32 = 1.0;
-pub const CURB_BANDS_VERSION: u32 = 1;
+pub const CURB_BANDS_VERSION: u32 = 2;
 
 /// The curbs as the *server* needs them (`<Track>.curbs.msgpack`, written
 /// with `rmp_serde::to_vec_named`): not geometry, just how far the curb
@@ -364,6 +364,15 @@ pub struct CurbBands {
     pub step_m: f32,
     pub left_cm: Vec<u16>,
     pub right_cm: Vec<u16>,
+    /// Version 2: how far the prepared *tarmac* run-off (`asphalt_runoff`,
+    /// `concrete` bands) reaches past each road edge, centimetres, 0 where
+    /// there is none. A car past the curb but within this is on tarmac —
+    /// off the track for the lap, but on a surface with grip and no
+    /// grass drag.
+    #[serde(default)]
+    pub runoff_left_cm: Vec<u16>,
+    #[serde(default)]
+    pub runoff_right_cm: Vec<u16>,
 }
 
 /// Flatten the scene's curb spans into the per-station bands the server
@@ -371,7 +380,11 @@ pub struct CurbBands {
 ///
 /// Overlapping curbs on a side keep the widest, and a curb shorter than a
 /// step still claims the sample nearest its middle rather than vanishing.
-fn bake_curb_bands(path: &CenterlinePath, curbs: &[Curb]) -> Option<CurbBands> {
+fn bake_curb_bands(
+    path: &CenterlinePath,
+    curbs: &[Curb],
+    surfaces: &[Surface],
+) -> Option<CurbBands> {
     let total = path.total_length_m();
     if !(total.is_finite() && total > 0.0) {
         return None;
@@ -415,8 +428,45 @@ fn bake_curb_bands(path: &CenterlinePath, curbs: &[Curb]) -> Option<CurbBands> {
         }
     }
 
+    // The tarmac run-off: the outer reach of every asphalt or concrete
+    // band, sampled at the same stations.
+    let mut runoff_left = vec![0u16; count];
+    let mut runoff_right = vec![0u16; count];
+    for surface in surfaces {
+        if !matches!(
+            surface.kind,
+            crate::ats::SurfaceKind::AsphaltRunoff | crate::ats::SurfaceKind::Concrete
+        ) {
+            continue;
+        }
+        let Some((start, end)) = resolve_span(path, surface.start_m, surface.end_m) else {
+            continue;
+        };
+        let band = match surface.side {
+            Side::Left => &mut runoff_left,
+            Side::Right => &mut runoff_right,
+        };
+        let first = (start / CURB_BAND_STEP_M).ceil() as i64;
+        let last = (end / CURB_BAND_STEP_M).floor() as i64;
+        if last < first {
+            continue;
+        }
+        for i in first..=last {
+            let station = i as f32 * CURB_BAND_STEP_M;
+            let t = ((station - start) / (end - start).max(1e-3)).clamp(0.0, 1.0);
+            let reach_cm = ((surface.inner_m + surface.width_at(t)).max(0.0) * 100.0).round();
+            if reach_cm < 1.0 {
+                continue;
+            }
+            let idx = i.rem_euclid(count as i64) as usize;
+            band[idx] = band[idx].max(reach_cm.min(u16::MAX as f32) as u16);
+        }
+    }
+
     Some(CurbBands {
         version: CURB_BANDS_VERSION,
+        runoff_left_cm: runoff_left,
+        runoff_right_cm: runoff_right,
         step_m: CURB_BAND_STEP_M,
         left_cm: left,
         right_cm: right,
@@ -969,7 +1019,7 @@ pub fn bake_all_with_dem(
     let ground = terrain
         .as_ref()
         .map(|field| field.bake_ground_sidecar(terrain::GROUND_SIDECAR_CELL_M));
-    let curbs = bake_curb_bands(&path, &scene.curbs);
+    let curbs = bake_curb_bands(&path, &scene.curbs, &scene.surfaces);
     let props = bake_props(
         track,
         scene,
