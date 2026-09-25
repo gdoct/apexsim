@@ -797,11 +797,12 @@ fn start_finish_anchor_sits_on_the_line() {
     assert!((sf.yaw_deg - baked.centerline[0].yaw_deg).abs() < 5.0);
 }
 
-/// Grid boxes are laid out in station space: slot 16 is row 8, 56 m before
-/// the line, so the outlines run from 58.5 m behind the line to the pole
-/// stub 3.5 m ahead of it — on a closed loop, wrapped past the lap length.
+/// Grid boxes are laid out in station space: slot 16 is row 8's staggered
+/// second car, 60 m before the line, so the outlines run from 62.5 m
+/// behind the line to the pole stub 3.5 m ahead of it — on a closed loop,
+/// wrapped past the lap length.
 #[test]
-fn monza_grid_boxes_end_56_m_before_the_line() {
+fn monza_grid_boxes_end_60_m_before_the_line() {
     let track_path = real_tracks_dir().join("Monza.yaml");
     let opened = project::open_project(&track_path).unwrap();
     let baked = ue_export::bake(&opened.track, &opened.scene.unwrap()).unwrap();
@@ -819,7 +820,7 @@ fn monza_grid_boxes_end_56_m_before_the_line() {
     let rear = us.iter().map(|&u| around(u)).fold(f32::MAX, f32::min);
     let front = us.iter().map(|&u| around(u)).fold(f32::MIN, f32::max);
     assert!(
-        (rear + 58.5).abs() < 0.6,
+        (rear + 62.5).abs() < 0.6,
         "rear of box 16 at {rear} m, lap {lap_m} m"
     );
     assert!(

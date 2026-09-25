@@ -145,6 +145,14 @@ const DRS_LINE_COLOR: [f32; 4] = [0.9, 0.9, 0.88, 1.0];
 const DRS_LINE_WIDTH_M: f32 = 0.4;
 /// A DRS board stands this far past the road edge.
 const DRS_BOARD_OFF_EDGE_M: f32 = 3.5;
+/// The pit lane's speed-limit lines across the lane, and the depth of a
+/// pit box's outline into the lane from the garage side.
+const PIT_LIMIT_LINE_M: f32 = 0.3;
+const PIT_BOX_DEPTH_M: f32 = 3.2;
+/// The pit exit blend line: how far it runs past the exit and how far in
+/// from the road edge.
+const PIT_EXIT_LINE_M: f32 = 120.0;
+const PIT_EXIT_LINE_IN_M: f32 = 2.2;
 /// Painted run-off: the width of each stripe across the band, and the
 /// paint's lift over the tarmac it is on.
 const RUNOFF_STRIPE_M: f32 = 1.5;
@@ -177,9 +185,14 @@ const WEAR_EDGE_COLOR: [f32; 4] = [0.17, 0.17, 0.18, 1.0];
 // Fallback starting grid, mirroring
 // `server/src/track_loader.rs::generate_start_positions` so the client puts
 // its `PlayerStart`s exactly where the server will put the cars.
+/// The fallback grid, matching the server's: rows of two 8 m apart, the
+/// second car of each row staggered half a row back, the columns 4 m
+/// apart. A full Formula 1 stagger (8 m per position) reaches 120 m back,
+/// which at Le Mans is into the Ford chicane.
 const GRID_SLOTS: u32 = 16;
 const GRID_SPACING_M: f32 = 8.0;
-const GRID_LATERAL_M: f32 = 3.0;
+const GRID_STAGGER_M: f32 = 4.0;
+const GRID_LATERAL_M: f32 = 4.0;
 
 // ---------------------------------------------------------------------------
 // Output model
@@ -1001,7 +1014,8 @@ pub fn bake_all_with_dem(
     let pit_lane = scene.pit_lane.as_ref().and_then(|pit| {
         let lane = lane.as_ref()?;
         bake.pit_lane(lane, pit.width_m);
-        bake.pit_markings(lane, pit.width_m, &lane_relation);
+        bake.pit_markings(lane, pit.width_m, pit.box_count, &lane_relation);
+        bake.pit_exit_line(&path, &lane_relation);
         Some(UePitLane {
             width_cm: round(pit.width_m * M_TO_CM, 1),
             box_count: pit.box_count,
@@ -2086,7 +2100,13 @@ impl Bake<'_> {
     /// Pit-lane paint: a solid line along the pit-box side, a dashed line
     /// along the road side where the lane runs parallel to the road, and
     /// solid lines on both edges of the entry and exit tapers.
-    fn pit_markings(&mut self, lane: &CenterlinePath, width_m: f32, relation: &LaneRelation) {
+    fn pit_markings(
+        &mut self,
+        lane: &CenterlinePath,
+        width_m: f32,
+        box_count: u32,
+        relation: &LaneRelation,
+    ) {
         let key = format!("marking_pit_line_{}", color_hex(LINE_COLOR));
         self.register(&key, "marking", LINE_COLOR);
         let half = width_m / 2.0;
@@ -2145,6 +2165,116 @@ impl Bake<'_> {
                 at += PIT_DASH_M + PIT_GAP_M;
             }
         }
+
+        // The speed limit: a line across the lane where it starts and where
+        // it ends — the ends of the longest parallel stretch, which is where
+        // the bake stands the garages and where a real limit line is.
+        let total = lane.total_length_m();
+        let (limit_start, limit_end) = relation
+            .spans
+            .iter()
+            .filter(|(_, _, parallel)| *parallel)
+            .map(|(s, e, _)| (*s, *e))
+            .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
+            .unwrap_or((0.0, total));
+        for at in [limit_start, limit_end] {
+            if at <= PIT_LIMIT_LINE_M || at >= total - PIT_LIMIT_LINE_M {
+                continue;
+            }
+            self.paint(
+                lane,
+                at - PIT_LIMIT_LINE_M / 2.0,
+                at + PIT_LIMIT_LINE_M / 2.0,
+                STEP_M,
+                &key,
+                half,
+                -half,
+                PIT_LINE_LIFT_M,
+            );
+        }
+
+        // The pit boxes: a working-lane outline in front of each garage,
+        // the same pitch and row the garages stand on (`bake_pit_complex`).
+        let span = limit_end - limit_start;
+        let boxes = (box_count as f32).min((span / PIT_MODULE_M).floor()) as u32;
+        if boxes > 0 {
+            let row = boxes as f32 * PIT_MODULE_M;
+            let row_start = (limit_start + limit_end) / 2.0 - row / 2.0;
+            let outer = box_edge;
+            let inner = box_edge - side * PIT_BOX_DEPTH_M;
+            for i in 0..boxes {
+                let s0 = row_start + i as f32 * PIT_MODULE_M;
+                let s1 = s0 + PIT_MODULE_M;
+                // The two sides of the box, across the lane.
+                for at in [s0, s1] {
+                    self.paint(
+                        lane,
+                        at - LINE_WIDTH_M / 2.0,
+                        at + LINE_WIDTH_M / 2.0,
+                        STEP_M,
+                        &key,
+                        outer,
+                        inner,
+                        PIT_LINE_LIFT_M,
+                    );
+                }
+                // Its lane-side edge.
+                self.paint(
+                    lane,
+                    s0,
+                    s1,
+                    STEP_M,
+                    &key,
+                    inner + side * LINE_WIDTH_M,
+                    inner,
+                    PIT_LINE_LIFT_M,
+                );
+            }
+        }
+    }
+
+    /// The pit exit blend line: from where the exit taper leaves the road
+    /// edge, a solid line along the road on the lane's side for
+    /// [`PIT_EXIT_LINE_M`], a car's width in, which a car leaving the pits
+    /// stays inside of until it ends.
+    fn pit_exit_line(&mut self, path: &CenterlinePath, relation: &LaneRelation) {
+        let Some((side, _, end)) = relation
+            .edge_gaps
+            .iter()
+            .max_by(|a, b| a.2.total_cmp(&b.2))
+            .copied()
+        else {
+            return;
+        };
+        let key = format!("marking_pit_exit_{}", color_hex(LINE_COLOR));
+        self.register(&key, "marking", LINE_COLOR);
+        let total = path.total_length_m();
+        let from = end;
+        let to = if path.is_closed() {
+            end + PIT_EXIT_LINE_M
+        } else {
+            (end + PIT_EXIT_LINE_M).min(total)
+        };
+        self.strip(
+            path,
+            from,
+            to,
+            STEP_M,
+            &key,
+            move |sample, _, out| {
+                let (edge, outward) = match side {
+                    Side::Left => (sample.width_left_m, 1.0),
+                    Side::Right => (-sample.width_right_m, -1.0),
+                };
+                let at = edge - outward * PIT_EXIT_LINE_IN_M;
+                out.push(ProfilePoint::lifted(at, MARKING_LIFT_M));
+                out.push(ProfilePoint::lifted(
+                    at - outward * EDGE_LINE_WIDTH_M,
+                    MARKING_LIFT_M,
+                ));
+            },
+            |_, _, p| p.2,
+        );
     }
 
     /// A curb: a ramp from the track edge up to a lip, then a vertical face
@@ -3076,7 +3206,10 @@ fn grid_slot_frames(track: &TrackFile, path: &CenterlinePath) -> Vec<(f32, f32)>
         .map(|i| {
             let row = (i / 2) as f32;
             let column = (i % 2) as f32;
-            (-row * GRID_SPACING_M, (column - 0.5) * GRID_LATERAL_M)
+            (
+                -(row * GRID_SPACING_M + column * GRID_STAGGER_M),
+                (column - 0.5) * GRID_LATERAL_M,
+            )
         })
         .collect()
 }
@@ -3518,7 +3651,7 @@ fn bake_grid(track: &TrackFile, path: &CenterlinePath) -> Vec<UeGridSlot> {
         .map(|i| {
             let row = (i / 2) as f32;
             let column = (i % 2) as f32;
-            let forward = -row * GRID_SPACING_M;
+            let forward = -(row * GRID_SPACING_M + column * GRID_STAGGER_M);
             let lateral = (column - 0.5) * GRID_LATERAL_M;
             UeGridSlot {
                 position: i + 1,
