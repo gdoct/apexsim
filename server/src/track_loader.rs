@@ -28,6 +28,10 @@ pub struct TrackFileFormat {
     /// Optional raceline (optimal racing line) for AI and visualization
     #[serde(default)]
     pub raceline: Vec<RacelinePoint>,
+    /// The DRS zones (`scripts/drs_zones.py` writes them), stations along
+    /// the centerline in metres.
+    #[serde(default)]
+    pub drs_zones: Vec<crate::data::DrsZone>,
     /// Track metadata
     #[serde(default)]
     pub metadata: Option<TrackMetadata>,
@@ -268,6 +272,14 @@ impl TrackLoader {
             },
             pit_lane: None,
             raceline,
+            drs_zones: track_file
+                .drs_zones
+                .iter()
+                .copied()
+                .filter(|z| {
+                    z.detection_m.is_finite() && z.start_m.is_finite() && z.end_m.is_finite()
+                })
+                .collect(),
             raceline_distances: Vec::new(),
             checkpoints,
             sectors,

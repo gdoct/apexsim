@@ -9711,6 +9711,10 @@ raceline:
 - x: 6.26
   y: -5.75
   z: 0.013
+drs_zones:
+- detection_m: 3847.3
+  start_m: 4019.3
+  end_m: 337.7
 metadata:
   country: Russia
   city: Volokolamsk

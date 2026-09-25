@@ -13023,6 +13023,13 @@ raceline:
 - x: 4.33
   y: 3.8
   z: 0.015
+drs_zones:
+- detection_m: 3117.0
+  start_m: 3964.4
+  end_m: 4764.0
+- detection_m: 5105.5
+  start_m: 5296.9
+  end_m: 497.5
 metadata:
   country: China
   city: Shanghai

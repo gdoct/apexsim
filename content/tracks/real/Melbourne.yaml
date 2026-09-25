@@ -12693,6 +12693,13 @@ raceline:
 - x: -0.34
   y: -7.83
   z: 0.006
+drs_zones:
+- detection_m: 4551.7
+  start_m: 596.9
+  end_m: 1076.9
+- detection_m: 4551.7
+  start_m: 4923.7
+  end_m: 352.7
 metadata:
   country: Australia
   city: Melbourne
