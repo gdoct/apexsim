@@ -415,6 +415,7 @@ impl<'a> AiDriverController<'a> {
                 steering,
                 gear: Some(state.gear),
                 clutch: Some(state.clutch_input),
+                drs: state.drs_allowed,
             };
         }
 
@@ -423,12 +424,15 @@ impl<'a> AiDriverController<'a> {
         let brake = self.limit_brake_to_grip(state, brake);
         let gear = self.calculate_gear(state, skill_factor);
 
+        // The flap opens whenever the rules allow it: the sim shuts it
+        // again the moment the brake goes on.
         PlayerInputData {
             throttle,
             brake,
             steering,
             gear: Some(gear),
             clutch: Some(1.0),
+            drs: state.drs_allowed,
         }
     }
 

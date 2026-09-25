@@ -5,6 +5,7 @@ pub mod config;
 pub mod content_crc;
 pub mod curbs;
 pub mod data;
+pub mod drs;
 pub mod feedback;
 pub mod game_loop;
 pub mod game_session;

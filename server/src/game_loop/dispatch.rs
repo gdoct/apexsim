@@ -142,6 +142,7 @@ pub(crate) async fn handle_message(
             steering,
             gear,
             clutch,
+            drs,
             ..
         } => {
             handle_player_input(
@@ -152,6 +153,7 @@ pub(crate) async fn handle_message(
                 steering,
                 gear,
                 clutch,
+                drs.unwrap_or(false),
                 player_inputs,
             )
             .await;
@@ -1093,6 +1095,7 @@ async fn handle_player_input(
     steering: f32,
     gear: Option<i8>,
     clutch: Option<f32>,
+    drs: bool,
     player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
 ) {
     // Sanitize before the values reach physics: drop NaN/Inf,
@@ -1117,6 +1120,7 @@ async fn handle_player_input(
             // 10 forward gears) are ignored rather than reaching physics.
             gear: gear.filter(|g| (-1..=10).contains(g)),
             clutch: clutch.map(|c| c.clamp(0.0, 1.0)),
+            drs,
         };
         player_inputs.insert(conn_info.player_id, input);
         ctx.metrics

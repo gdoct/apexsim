@@ -194,6 +194,10 @@ pub fn update_car_3d(
     }
     let input = &auto_input;
 
+    // The DRS flap: open while the driver holds the button where the rules
+    // allow it (`crate::drs`), shut the moment the brake goes on.
+    state.drs_open = state.drs_allowed && input.drs && input.brake < crate::drs::DRS_BRAKE_CLOSE;
+
     // Keep fuel capacity in sync with config (for moddable cars)
     state.fuel_capacity_liters = config.fuel.capacity_liters;
     state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
@@ -929,13 +933,20 @@ fn calculate_aerodynamic_forces(state: &CarState, config: &CarConfig) -> (f32, f
     let speed_squared = state.speed_mps.powi(2);
     let dynamic_pressure = 0.5 * AIR_DENSITY * speed_squared;
 
+    // The open DRS flap takes its share off the drag and the rear wing.
+    let (drag_scale, rear_scale) = match (state.drs_open, config.drs) {
+        (true, Some(drs)) => (1.0 - drs.drag_reduction, 1.0 - drs.rear_downforce_reduction),
+        _ => (1.0, 1.0),
+    };
+
     // Drag force
-    let drag = dynamic_pressure * config.drag_coefficient * config.frontal_area_m2;
+    let drag = dynamic_pressure * config.drag_coefficient * config.frontal_area_m2 * drag_scale;
 
     // Downforce (lift coefficients are negative for downforce)
     let downforce_front =
         -dynamic_pressure * config.lift_coefficient_front * config.frontal_area_m2;
-    let downforce_rear = -dynamic_pressure * config.lift_coefficient_rear * config.frontal_area_m2;
+    let downforce_rear =
+        -dynamic_pressure * config.lift_coefficient_rear * config.frontal_area_m2 * rear_scale;
 
     (drag, downforce_front.max(0.0), downforce_rear.max(0.0))
 }
@@ -3313,6 +3324,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
 
@@ -3356,6 +3368,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
         let mut track = straight_track_with_right_curb(1.5);
@@ -3393,6 +3406,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -3430,6 +3444,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -3461,6 +3476,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         // Measure the average decel between 55 and 25 m/s
@@ -3651,6 +3667,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
         let mut lowest = state.gear;
@@ -3913,6 +3930,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
         let mut worst: f32 = 0.0;
@@ -4698,6 +4716,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
         for _ in 0..480 {
@@ -4736,6 +4755,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4767,6 +4787,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4806,6 +4827,7 @@ mod tests {
                 steering: 0.0,
                 gear,
                 clutch: Some(1.0),
+                drs: false,
             };
             update_car_3d(&mut state, &config, &input, &track, dt);
             if state.speed_mps >= 27.8 {
@@ -4923,6 +4945,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         for _ in 0..240 {
             update_car_3d(&mut state, &config, &throttle_input, &track, dt);
@@ -4940,6 +4963,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         for _ in 0..120 {
             update_car_3d(&mut state, &config, &brake_input, &track, dt);
@@ -4966,6 +4990,7 @@ mod tests {
             steering: 0.5,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -5274,6 +5299,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         // Run several ticks
@@ -5317,6 +5343,7 @@ mod tests {
             pit_lane: None,
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
+            drs_zones: Vec::new(),
             checkpoints: Vec::new(),
             sectors: Vec::new(),
             metadata: TrackMetadata::default(),
@@ -5337,6 +5364,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -5401,6 +5429,7 @@ mod tests {
             pit_lane: None,
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
+            drs_zones: Vec::new(),
             checkpoints: Vec::new(),
             sectors: Vec::new(),
             metadata: TrackMetadata::default(),
@@ -5485,6 +5514,7 @@ mod tests {
             pit_lane: None,
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
+            drs_zones: Vec::new(),
             checkpoints: Vec::new(),
             sectors: Vec::new(),
             metadata: TrackMetadata::default(),
@@ -5510,6 +5540,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
@@ -5552,6 +5583,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         // A second to settle: on the first tick the suspension travel jumps
@@ -5597,6 +5629,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let initial_fuel = state.fuel_liters;
@@ -5664,6 +5697,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         // Test that legacy API still works

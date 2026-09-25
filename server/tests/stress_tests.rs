@@ -529,6 +529,7 @@ impl TestClientMinimal {
             steering,
             gear: None,
             clutch: None,
+            drs: None,
         };
         self.send_message(&msg).await
     }

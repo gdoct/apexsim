@@ -93,6 +93,12 @@ pub struct CarConfig {
     pub frontal_area_m2: f32,
     pub lift_coefficient_front: f32, // Negative = downforce
     pub lift_coefficient_rear: f32,
+    /// The drag reduction system, for a car that has one: what opening the
+    /// rear wing's flap takes off the drag and the rear downforce. `None`
+    /// for a car without a movable wing, which never opens one whatever
+    /// the track offers.
+    #[serde(default)]
+    pub drs: Option<DrsSpec>,
 
     // Steering
     pub max_steering_angle_rad: f32,
@@ -405,6 +411,7 @@ impl Default for CarConfig {
             frontal_area_m2: 2.2,
             lift_coefficient_front: -0.15, // Slight downforce
             lift_coefficient_rear: -0.20,
+            drs: None,
 
             // Steering
             max_steering_angle_rad: 0.52, // ~30 degrees
@@ -440,6 +447,10 @@ pub struct TrackConfig {
     /// Optional optimal racing line for AI and visualization
     #[serde(default)]
     pub raceline: Vec<RacelinePoint>,
+    /// The DRS zones, from the track file's `drs_zones`. Empty for a
+    /// circuit that has none.
+    #[serde(default)]
+    pub drs_zones: Vec<DrsZone>,
     /// Cumulative arc-length (m) of each raceline point, computed at load
     /// time. Runtime-only lookup data (parallel to `raceline`); never
     /// serialized. Rebuild with [`TrackConfig::rebuild_raceline_distances`].
@@ -482,6 +493,34 @@ pub struct TrackConfig {
     /// loaded from the sidecar.
     #[serde(skip)]
     pub walls: Option<crate::walls::Walls>,
+}
+
+/// What a car's DRS does when open: fractions of the drag and of the rear
+/// downforce that the open flap takes away.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct DrsSpec {
+    pub drag_reduction: f32,
+    pub rear_downforce_reduction: f32,
+}
+
+impl DrsSpec {
+    /// A modern F1 rear wing: about a tenth of the car's drag and a
+    /// quarter of the rear downforce.
+    pub const F1: DrsSpec = DrsSpec {
+        drag_reduction: 0.12,
+        rear_downforce_reduction: 0.25,
+    };
+}
+
+/// One DRS zone along the centerline, stations in metres from the start
+/// line: the gap to the car ahead is measured as a car crosses
+/// `detection_m`, the flap may open from `start_m` and must be shut by
+/// `end_m`. A zone may wrap through the start line.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct DrsZone {
+    pub detection_m: f32,
+    pub start_m: f32,
+    pub end_m: f32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -637,6 +676,7 @@ impl Default for TrackConfig {
             track_surface: TrackSurface::default(),
             pit_lane: None,
             raceline: Vec::new(),
+            drs_zones: Vec::new(),
             raceline_distances: Vec::new(),
             checkpoints: Vec::new(),
             sectors: Vec::new(),
@@ -890,6 +930,23 @@ pub struct CarState {
     #[serde(default)]
     pub in_garage: bool,
 
+    /// The drag reduction system (`crate::drs`). `drs_allowed`: the car is
+    /// in an activation zone it earned at the detection point, so the
+    /// driver may open the flap; `drs_open`: it is open this tick, and the
+    /// aero is reduced by the car's `DrsSpec`. Telemetry carries both as
+    /// bits 3 and 4 of `lap_flags`.
+    #[serde(default)]
+    pub drs_allowed: bool,
+    #[serde(default)]
+    pub drs_open: bool,
+    /// One bit per zone the car earned at its detection point, cleared as
+    /// the zone ends. Runtime-only.
+    #[serde(skip)]
+    pub drs_armed: u32,
+    /// Where the car was last tick, for spotting a detection line crossed.
+    #[serde(skip)]
+    pub drs_last_progress: f32,
+
     // Surface state
     pub current_surface: SurfaceType,
     pub is_on_track: bool,
@@ -1017,6 +1074,10 @@ impl CarState {
             laps: crate::laps::LapTiming::default(),
             wheels_off_track: false,
             in_garage: false,
+            drs_allowed: false,
+            drs_open: false,
+            drs_armed: 0,
+            drs_last_progress: 0.0,
             collision_normal_x: 0.0,
             collision_normal_y: 0.0,
             collision_normal_z: 0.0,
@@ -1451,6 +1512,9 @@ pub struct PlayerInputData {
     pub steering: f32,
     pub gear: Option<i8>,    // Desired gear (-1 = reverse, 0 = neutral, 1-6+)
     pub clutch: Option<f32>, // Clutch input (0.0-1.0)
+    /// The driver is holding the DRS button. Only opens the flap where
+    /// `CarState::drs_allowed` says it may.
+    pub drs: bool,
 }
 
 impl PlayerInputData {
@@ -1516,6 +1580,7 @@ mod tests {
             steering: 2.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         input.clamp();
