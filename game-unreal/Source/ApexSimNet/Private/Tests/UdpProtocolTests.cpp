@@ -55,9 +55,19 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 	Input.Brake = 0.0f;
 	Input.Steering = -0.5f;
 	Input.Gear = 4;
+	Input.bDrs = false;
 	CheckBytes(TEXT("PlayerInput"),
 		ApexProtocol::EncodePlayerInput(4242, Input),
 		ApexUdpGolden::C_PlayerInput);
+
+	// The DRS button held is the same message with its last value true
+	// (server: `cargo test player_input_drs_wire_format`).
+	{
+		Input.bDrs = true;
+		const TArray<uint8> Held = ApexProtocol::EncodePlayerInput(4242, Input);
+		TestEqual(TEXT("PlayerInput with DRS held is the same length"), Held.Num(), (int32)UE_ARRAY_COUNT(ApexUdpGolden::C_PlayerInput));
+		TestEqual(TEXT("PlayerInput with DRS held ends in true"), Held.Last(), (uint8)0xC3);
+	}
 
 	return true;
 }
