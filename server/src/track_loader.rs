@@ -558,15 +558,20 @@ impl TrackLoader {
                 return vec![];
             }
 
+            // Rows of two 8 m apart, the second car of each row staggered
+            // half a row back, the columns 4 m apart. The exporter's
+            // fallback grid (`ue_export::grid_slot_frames`) is the same
+            // layout, so the painted boxes are where the cars sit.
             let start_point = &centerline[0];
             let grid_spacing = 8.0;
-            let lateral_spacing = 3.0;
+            let stagger = 4.0;
+            let lateral_spacing = 4.0;
 
             (0..16)
                 .map(|i| {
                     let row = i / 2;
                     let column = i % 2;
-                    let offset_forward = -(row as f32) * grid_spacing;
+                    let offset_forward = -((row as f32) * grid_spacing + (column as f32) * stagger);
                     let offset_lateral = (column as f32 - 0.5) * lateral_spacing;
 
                     let cos_h = start_point.heading_rad.cos();
@@ -574,7 +579,7 @@ impl TrackLoader {
                     let x = start_point.x + offset_forward * cos_h - offset_lateral * sin_h;
                     let y = start_point.y + offset_forward * sin_h + offset_lateral * cos_h;
 
-                    // The back of the grid is 56 m down the road: seat every
+                    // The back of the grid is 60 m down the road: seat every
                     // slot on the asphalt under it, not on the start line's
                     // elevation, or the rear rows float (or sink) until the
                     // first physics tick snaps them.
@@ -940,7 +945,7 @@ nodes:
         assert!(points[0].heading_rad.abs() < 0.1);
     }
 
-    /// The grid stretches 56 m back down the road; every slot has to sit on
+    /// The grid stretches 60 m back down the road; every slot has to sit on
     /// the asphalt under it, not at the start line's elevation. Spa's start
     /// straight climbs about a metre over the grid, which used to leave the
     /// back rows hanging in the air until the first physics tick.
