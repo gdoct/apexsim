@@ -278,6 +278,11 @@ impl GameSession {
     /// Advance the session by one tick
     pub fn tick(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         self.session.current_tick += 1;
+        crate::headlights::update(
+            &mut self.session.participants,
+            inputs,
+            self.session.conditions,
+        );
 
         // Handle game mode specific logic
         match self.session.game_mode {
@@ -2136,6 +2141,8 @@ mod tests {
                 gear: None,
                 clutch: None,
                 drs: false,
+                headlights: None,
+                flash: false,
             },
         );
 

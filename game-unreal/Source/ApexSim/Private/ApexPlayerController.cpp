@@ -36,6 +36,9 @@ namespace
 	constexpr float kWheelTestSeconds = 0.7f;
 	constexpr float kWheelTestForce = 0.35f;
 
+	/** The shortest headlight flash: a tap still shows for this long. */
+	constexpr double kMinFlashSeconds = 0.2;
+
 	/** Driving seconds summed into each line of the wheel's force log. */
 	constexpr double kWheelStatsWindowSeconds = 15.0;
 	/** A constant force this near the base's peak is at its limit. */
@@ -148,6 +151,9 @@ void AApexPlayerController::SetupInputComponent()
 	Input->BindAction(InputConfig->LookBack, ETriggerEvent::Completed, this, &AApexPlayerController::HandleLookBackReleased);
 	Input->BindAction(InputConfig->Drs, ETriggerEvent::Started, this, &AApexPlayerController::HandleDrs);
 	Input->BindAction(InputConfig->Drs, ETriggerEvent::Completed, this, &AApexPlayerController::HandleDrsReleased);
+	Input->BindAction(InputConfig->Headlights, ETriggerEvent::Started, this, &AApexPlayerController::HandleHeadlights);
+	Input->BindAction(InputConfig->FlashLights, ETriggerEvent::Started, this, &AApexPlayerController::HandleFlashLights);
+	Input->BindAction(InputConfig->FlashLights, ETriggerEvent::Completed, this, &AApexPlayerController::HandleFlashLightsReleased);
 }
 
 void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
@@ -208,11 +214,13 @@ void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
 		DriveInput = FApexDriveInput();
 		PendingGearDelta = 0;
 		bPendingCameraToggle = false;
+		PendingHeadlightToggles = 0;
+		FlashPressedAt = -1.0e9;
 	}
 
 	bShowMouseCursor = true;
 	UE_LOG(LogApexSim, Log, TEXT("Driving controls %s"),
-		bEnabled ? TEXT("enabled (WASD, Q/E gears, C camera, ,/. look, B behind)") : TEXT("disabled"));
+		bEnabled ? TEXT("enabled (WASD, Q/E gears, C camera, ,/. look, B behind, L lights, H flash)") : TEXT("disabled"));
 }
 
 void AApexPlayerController::PreviewForceFeedback()
@@ -441,6 +449,18 @@ bool AApexPlayerController::ConsumeCameraToggle()
 	return bToggled;
 }
 
+int32 AApexPlayerController::ConsumeHeadlightToggles()
+{
+	const int32 Toggles = PendingHeadlightToggles;
+	PendingHeadlightToggles = 0;
+	return Toggles;
+}
+
+bool AApexPlayerController::IsFlashingLights() const
+{
+	return DriveInput.bFlashLights || FPlatformTime::Seconds() - FlashPressedAt < kMinFlashSeconds;
+}
+
 void AApexPlayerController::HandleThrottle(const FInputActionValue& Value)
 {
 	DriveInput.Throttle = FMath::Clamp(Value.Get<float>(), 0.0f, 1.0f);
@@ -518,4 +538,20 @@ void AApexPlayerController::HandleDrs(const FInputActionValue&)
 void AApexPlayerController::HandleDrsReleased(const FInputActionValue&)
 {
 	DriveInput.bDrs = false;
+}
+
+void AApexPlayerController::HandleHeadlights(const FInputActionValue&)
+{
+	++PendingHeadlightToggles;
+}
+
+void AApexPlayerController::HandleFlashLights(const FInputActionValue&)
+{
+	DriveInput.bFlashLights = true;
+	FlashPressedAt = FPlatformTime::Seconds();
+}
+
+void AApexPlayerController::HandleFlashLightsReleased(const FInputActionValue&)
+{
+	DriveInput.bFlashLights = false;
 }

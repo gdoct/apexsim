@@ -1094,6 +1094,17 @@ struct APEXSIMNET_API FApexCarTelemetry
 	/** The DRS flap is open. `lap_flags` bit 4. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bDrsOpen = false;
+
+	/**
+	 * The headlights are on: the driver's switch, or the session's sky when
+	 * the switch is untouched (server `headlights.rs`). `lap_flags` bit 5.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bHeadlights = false;
+
+	/** The driver is flashing the headlights. `lap_flags` bit 6. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bHeadlightFlash = false;
 };
 
 /** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */
@@ -1263,6 +1274,17 @@ struct APEXSIMNET_API FApexPlayerInput
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
 	bool bDrs = false;
+
+	/**
+	 * The headlight switch: -1 leaves the lights to the session's sky (sent
+	 * as nil; on at dusk, at night and in the rain), 0 off, 1 on.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	int32 Headlights = -1;
+
+	/** The flash button is held: full beam, whatever the switch says. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	bool bFlash = false;
 
 	bool HasGear() const { return Gear != -128; }
 };

@@ -939,6 +939,14 @@ pub struct CarState {
     pub drs_allowed: bool,
     #[serde(default)]
     pub drs_open: bool,
+
+    /// The headlights are on (`crate::headlights`), and the driver is
+    /// flashing them. Telemetry carries both as bits 5 and 6 of
+    /// `lap_flags`; the client lights the car from them.
+    #[serde(default)]
+    pub headlights: bool,
+    #[serde(default)]
+    pub headlight_flash: bool,
     /// One bit per zone the car earned at its detection point, cleared as
     /// the zone ends. Runtime-only.
     #[serde(skip)]
@@ -1076,6 +1084,8 @@ impl CarState {
             in_garage: false,
             drs_allowed: false,
             drs_open: false,
+            headlights: false,
+            headlight_flash: false,
             drs_armed: 0,
             drs_last_progress: 0.0,
             collision_normal_x: 0.0,
@@ -1388,6 +1398,29 @@ impl SessionConditions {
         track.track_surface.off_track_grip *= road * self.weather.off_track_grip_factor();
     }
 
+    /// The sun's elevation, degrees, at this session's clock: the client's
+    /// sky model (`ApexSky::SunAt`) to the letter — one late-May day at 50°
+    /// N, solar noon at 13:00 — so the server's idea of dusk is the one the
+    /// player sees.
+    pub fn sun_elevation_deg(&self) -> f32 {
+        const LATITUDE_DEG: f32 = 50.0;
+        const DECLINATION_DEG: f32 = 20.0;
+        const SOLAR_NOON_HOURS: f32 = 13.0;
+        let hours = (self.time_of_day_minutes % Self::MINUTES_PER_DAY) as f32 / 60.0;
+        let lat = LATITUDE_DEG.to_radians();
+        let dec = DECLINATION_DEG.to_radians();
+        let hour_angle = ((hours - SOLAR_NOON_HOURS) * 15.0).to_radians();
+        let sin_elev = lat.sin() * dec.sin() + lat.cos() * dec.cos() * hour_angle.cos();
+        sin_elev.clamp(-1.0, 1.0).asin().to_degrees()
+    }
+
+    /// Whether a car's lights are on when nobody has touched the switch:
+    /// as the sun goes (under 6°) and in the rain, the client's
+    /// `FSkyState::bHeadlights`.
+    pub fn headlights_needed(&self) -> bool {
+        self.sun_elevation_deg() < 6.0 || self.weather.is_wet()
+    }
+
     pub fn is_night(&self) -> bool {
         let hour = self.time_of_day_minutes / 60;
         !(6..20).contains(&hour)
@@ -1515,6 +1548,13 @@ pub struct PlayerInputData {
     /// The driver is holding the DRS button. Only opens the flap where
     /// `CarState::drs_allowed` says it may.
     pub drs: bool,
+    /// The headlight switch: `Some` is the driver's choice, `None` leaves
+    /// the lights to the conditions (`SessionConditions::headlights_needed`),
+    /// which is what the AI and a client from before the field get.
+    pub headlights: Option<bool>,
+    /// The flash button is held: the lights flick to full beam whatever the
+    /// switch says.
+    pub flash: bool,
 }
 
 impl PlayerInputData {
@@ -1581,6 +1621,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         input.clamp();

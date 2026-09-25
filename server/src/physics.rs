@@ -3445,6 +3445,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
         let dt = 1.0 / 240.0;
 
@@ -3489,6 +3491,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
         let dt = 1.0 / 240.0;
         let mut track = straight_track_with_right_curb(1.5);
@@ -3527,6 +3531,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -3565,6 +3571,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -3597,6 +3605,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         // Measure the average decel between 55 and 25 m/s
@@ -3788,6 +3798,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
         let dt = 1.0 / 240.0;
         let mut lowest = state.gear;
@@ -4051,6 +4063,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
         let dt = 1.0 / 240.0;
         let mut worst: f32 = 0.0;
@@ -4837,6 +4851,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
         let dt = 1.0 / 240.0;
         for _ in 0..480 {
@@ -4876,6 +4892,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4908,6 +4926,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4948,6 +4968,8 @@ mod tests {
                 gear,
                 clutch: Some(1.0),
                 drs: false,
+                headlights: None,
+                flash: false,
             };
             update_car_3d(&mut state, &config, &input, &track, dt);
             if state.speed_mps >= 27.8 {
@@ -5066,6 +5088,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
         for _ in 0..240 {
             update_car_3d(&mut state, &config, &throttle_input, &track, dt);
@@ -5084,6 +5108,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
         for _ in 0..120 {
             update_car_3d(&mut state, &config, &brake_input, &track, dt);
@@ -5111,6 +5137,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -5420,6 +5448,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         // Run several ticks
@@ -5485,6 +5515,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -5661,6 +5693,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
@@ -5704,6 +5738,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         // A second to settle: on the first tick the suspension travel jumps
@@ -5750,6 +5786,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         let initial_fuel = state.fuel_liters;
@@ -5818,6 +5856,8 @@ mod tests {
             gear: None,
             clutch: None,
             drs: false,
+            headlights: None,
+            flash: false,
         };
 
         // Test that legacy API still works
