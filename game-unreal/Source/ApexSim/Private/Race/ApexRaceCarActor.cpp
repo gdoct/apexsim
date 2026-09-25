@@ -561,11 +561,46 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	}
 }
 
+void AApexRaceCarActor::SetPlaybackPose(const FApexCarTelemetry& Car, float DeltaSeconds)
+{
+	CarIndex = Car.CarIndex;
+	CurrentLap = Car.CurrentLap;
+	CurrentLapTimeMs = Car.CurrentLapTimeMs;
+	bPlaybackPose = true;
+
+	const FVector Location = ApexRace::ServerToUnrealPosition(Car.Position);
+	const FQuat Rotation = ApexRace::ServerToUnrealRotation(Car.YawRad, Car.PitchRad, Car.RollRad).Quaternion();
+	const FVector PreviousLocation = GetActorLocation();
+	const bool bFirst = !bHasTarget;
+	SetActorLocationAndRotation(Location, Rotation);
+	const bool bJumped = bFirst || FVector::Dist(PreviousLocation, Location) > TeleportDistanceCm;
+	Root->ComponentVelocity = !bJumped && DeltaSeconds > 0.0f
+		? (Location - PreviousLocation) / DeltaSeconds
+		: Rotation.GetForwardVector() * Car.SpeedMps * ApexRace::MetresToCentimetres;
+
+	SetPuppetState(Car.SpeedMps, Car.EngineRpm, Car.Gear, Car.Steering, Car.Throttle, Car.Brake);
+	if (EngineSound && OwnEngineSound)
+	{
+		EngineSound->SetLive(EngineRpm, Throttle, Gear);
+		OwnEngineSound->SetLive(EngineRpm, Throttle, Gear);
+	}
+	Wheels.Update(Steering,
+		bJumped ? 0.0f : ApexWheels::RolledDistanceM(PreviousLocation, Location, Rotation, TeleportDistanceCm),
+		FMath::DegreesToRadians(CVarWheelMaxDegPerFrame.GetValueOnGameThread()));
+
+	if (bFirst)
+	{
+		SetActorHiddenInGame(false);
+		bHasTarget = true;
+		RefreshEnginePlayback();
+	}
+}
+
 void AApexRaceCarActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!bHasTarget)
+	if (!bHasTarget || bPlaybackPose)
 	{
 		return;
 	}

@@ -436,4 +436,46 @@ bool FApexTvIncidentTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexTvLockTargetTest, "ApexSim.Tv.LockTarget", ApexTestFlags)
+
+bool FApexTvLockTargetTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexTv;
+	using namespace ApexTvTest;
+
+	// A replay clip locks the broadcast camera on one car: every cut stays
+	// on it, whatever the battles elsewhere; unlocking frees the director.
+	FTvField Field;
+	FDirector Director;
+	Director.Reset(99);
+	Director.SetPath(Field.Ring.Centerline());
+	Director.LockTarget(4);
+	const FWorldQueries Flat;
+
+	constexpr double Dt = 1.0 / 30.0;
+	bool bAlwaysOnLocked = true;
+	int32 Cuts = 0;
+	for (int32 Frame = 0; Frame < static_cast<int32>(60.0 / Dt); ++Frame)
+	{
+		Field.Step(Dt, true);
+		ApexTv::FPose Pose;
+		if (!Director.Tick(Field.Cars, false, Dt, static_cast<float>(Frame * Dt), Flat, Pose))
+		{
+			AddError(TEXT("nothing to film"));
+			return false;
+		}
+		bAlwaysOnLocked &= Director.GetTargetCarIndex() == 4;
+		Cuts = Director.GetCutCount();
+	}
+	TestTrue(TEXT("every shot is on the locked car"), bAlwaysOnLocked);
+	TestTrue(TEXT("the director still cuts between shots"), Cuts > 2);
+
+	// A car that is not in the field does not blank the camera.
+	Director.LockTarget(42);
+	ApexTv::FPose Pose;
+	TestTrue(TEXT("a missing locked car still films someone"), Director.Tick(Field.Cars, false, Dt, 61.0f, Flat, Pose));
+	TestTrue(TEXT("on a car that exists"), Director.GetTargetCarIndex() >= 0 && Director.GetTargetCarIndex() < Field.Cars.Num());
+	return true;
+}
+
 #endif

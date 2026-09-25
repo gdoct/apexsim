@@ -1,0 +1,271 @@
+# ApexSim promo video: the shot list.
+#
+#   python scripts/promo/make_clips.py            # simulate, cut, render, encode every shot
+#   python scripts/promo/make_clips.py --preview 05_lemans_wheel   # tune one camera live
+#   python scripts/promo/stitch_video.py          # -> out/promo/ApexSim_promo.mp4
+#
+# docs/PROMO_VIDEO.md explains every key. In short:
+#
+# races:  each is ONE headless AI race (apexsim-replay simulate); several
+#         shots can be cut from the same race. `weather` changes the grip the
+#         race is simulated with; a shot's `time`/`weather` only changes the look.
+# shots:  a window of a race, a camera, a length.
+#   window:  {corner|station, before, after, min_cars, last_laps, pick, anchor}
+#            or "start" (the lights going out) or "finish" (the winner's flag)
+#            or {at_s: 123.4} (seconds into the recording).
+#   camera:  mode tv | fixed | pan | chase | cockpit
+#            eye/look: {corner|station, offset, lateral, side, height} or
+#                      {landmark: <dossier name or kind>, height}
+#            tv: shot (grid, trackside, helicopter, tracking, chase, onboard,
+#                nose, reverse) and follow (lead = the car leading through the
+#                window, leader = the race leader, nearest, or a car index).
+#   length:  seconds of race time. `slowmo: 0.5` renders at twice the frame
+#            rate and plays it at the normal one: twice as long on screen.
+# edit:   the order, transitions, captions, title and end cards, music.
+
+defaults:
+  fps: 60
+  resolution: 1920x1080
+  ai: 12
+  laps: 3
+  pad_s: 1.5          # race seconds cut either side of a shot (camera preroll)
+  preroll_s: 1.0      # rolled unrecorded before the shot starts
+  warmup_s: 3.0       # held on the first frame while the level settles
+  countdown_s: 7      # grid time before the lights go out (five lights need five)
+  seed: 1             # the grid; change it (or a race's own seed) for a different race
+
+races:
+  zandvoort:
+    track: Zandvoort
+    car: yotota-lmp2          # the field is the car's class, dealt round-robin
+    laps: 3
+    weather: sunny
+    time: "19:10"             # golden hour over the dunes
+  spa:
+    track: Spa
+    car: redhorse-rb20
+    laps: 2
+    weather: sunny
+    time: "15:30"
+  lemans:
+    track: LeMans
+    car: panini-zomba-hypercar
+    laps: 2
+    max_seconds: 520
+    weather: sunny
+    time: "20:40"
+  monza_rain:
+    track: Monza
+    car: posh-911gt3
+    laps: 2
+    weather: heavyrain
+    time: "17:30"
+  suzuka:
+    track: Suzuka
+    car: fugazzi-sf26
+    laps: 2
+    weather: cloudy
+    time: "14:00"
+  spielberg:
+    track: Spielberg
+    car: murcetes-amd-gt3
+    laps: 2
+    weather: sunny
+    time: "11:00"
+  sakhir:
+    track: Sakhir
+    car: mclarsen-mcl40
+    laps: 2
+    weather: sunny
+    time: "21:00"             # the night race, under the floodlights
+  brands:
+    track: BrandsHatch
+    car: limbotiti-caravan-gt3
+    laps: 3
+    weather: overcast
+    time: "16:00"
+
+shots:
+  - id: 01_zandvoort_start
+    race: zandvoort
+    window: start
+    start_offset_s: -4.0      # four lights on, then out
+    length: 9.0
+    caption: "Circuit Zandvoort"
+    camera: {mode: tv, shot: grid, follow: leader}
+
+  - id: 02_spa_eau_rouge
+    race: spa
+    window: {corner: "Eau Rouge", before: 120, after: 180, min_cars: 2, anchor: 0.35}
+    length: 3.5
+    slowmo: 0.5
+    caption: "Eau Rouge · Spa-Francorchamps"
+    camera:
+      mode: pan
+      eye:  {corner: "Eau Rouge", offset: -60, lateral: 14, side: outside, height: 1.8}
+      look: {corner: "Raidillon", offset: 60, lateral: 0, height: 6}
+      look_bias: 0.25
+      fov: 55
+      frame_width: 22
+      follow: nearest
+      pan_speed: 6
+
+  - id: 03_spa_onboard_raidillon
+    race: spa
+    window: {corner: "Eau Rouge", before: 250, after: 250, min_cars: 1, anchor: 0.45}
+    length: 5.0
+    camera: {mode: cockpit, follow: lead}
+
+  - id: 04_zandvoort_hugenholtz_heli
+    race: zandvoort
+    window: {corner: "Hugenholtz", before: 150, after: 120, min_cars: 4}
+    length: 5.5
+    caption: "Hugenholtzbocht · 19° banking"
+    camera: {mode: tv, shot: helicopter, follow: lead}
+
+  - id: 05_lemans_wheel
+    race: lemans
+    window: {corner: "Chicane Dunlop", before: 60, after: 320, min_cars: 3, anchor: 0.3}
+    length: 6.0
+    caption: "Le Mans · Dunlop"
+    camera:
+      mode: pan
+      eye:  {station: 1200, lateral: 18, side: left, height: 6}
+      look: {landmark: big_wheel, height: 18}
+      look_bias: 0.5
+      fov: 50
+      follow: nearest
+      pan_speed: 3
+
+  - id: 06_monza_rain_parabolica
+    race: monza_rain
+    window: {corner: "Alboreto", before: 250, after: 150, min_cars: 2}
+    length: 5.0
+    caption: "Monza · Curva Alboreto"
+    camera: {mode: tv, shot: chase, follow: lead}
+
+  - id: 07_suzuka_130r
+    race: suzuka
+    window: {corner: "130R", before: 200, after: 150, min_cars: 2}
+    length: 5.0
+    caption: "Suzuka · 130R"
+    camera: {mode: tv, shot: tracking, follow: lead}
+
+  - id: 08_spielberg_bull
+    race: spielberg
+    window: {corner: "Würth", before: 50, after: 250, min_cars: 3}
+    length: 5.0
+    caption: "Red Bull Ring"
+    camera:
+      mode: pan
+      eye:  {station: 3240, lateral: 16, side: right, height: 3}
+      look: {landmark: statue, height: 6}
+      look_bias: 0.35
+      fov: 55
+      follow: nearest
+      pan_speed: 4
+
+  - id: 09_sakhir_night
+    race: sakhir
+    window: {station: 400, before: 200, after: 150, min_cars: 3}
+    length: 5.0
+    caption: "Bahrain · under the lights"
+    camera: {mode: tv, shot: trackside, follow: lead}
+
+  - id: 10_brands_paddock
+    race: brands
+    window: {corner: "Paddock Hill", before: 150, after: 150, min_cars: 3}
+    length: 4.5
+    caption: "Brands Hatch · Paddock Hill"
+    camera:
+      mode: pan
+      eye:  {corner: "Paddock Hill", offset: 60, lateral: 20, side: outside, height: 4}
+      fov: 45
+      frame_width: 16
+      follow: nearest
+      pan_speed: 5
+
+  - id: 11_lemans_night
+    race: lemans
+    window: {corner: "Tertre Rouge", before: 100, after: 400, min_cars: 1}
+    length: 5.0
+    time: "23:40"             # same race, after dark: headlights and floodlights
+    caption: "24 hours"
+    camera: {mode: chase, chase: near, follow: lead}
+
+  - id: 12_suzuka_wheel_straight
+    race: suzuka
+    window: {station: 5500, before: 250, after: 150, min_cars: 3, last_laps: 1}
+    length: 4.0
+    camera:
+      mode: fixed
+      eye:  {station: 5620, lateral: 22, side: right, height: 9}
+      look: {landmark: big_wheel, height: 12}
+      fov: 60
+
+  - id: 13_zandvoort_luyendyk_final_lap
+    race: zandvoort
+    window: {corner: "Luyendyk", before: 300, after: 150, min_cars: 3, last_laps: 1, anchor: 0.45}
+    length: 6.0
+    caption: "Arie Luyendykbocht · 18° banking"
+    camera:
+      mode: pan
+      eye:  {corner: "Luyendyk", offset: 40, lateral: 28, side: outside, height: 8}
+      look: {corner: "Luyendyk", offset: -30, lateral: 0, height: 1}
+      look_bias: 0.2
+      fov: 50
+      frame_width: 20
+      follow: nearest
+      pan_speed: 4
+
+  - id: 14_zandvoort_finish
+    race: zandvoort
+    window: finish
+    start_offset_s: -3.5
+    length: 5.0
+    camera:
+      mode: pan
+      eye:  {station: 25, lateral: 16, side: left, height: 5}
+      fov: 45
+      frame_width: 14
+      follow: winner          # the car that takes the flag
+      pan_speed: 5
+
+edit:
+  output: out/promo/ApexSim_promo.mp4
+  resolution: 1920x1080
+  fps: 60
+  crossfade_s: 0.35           # default transition length
+  transition: fade            # any ffmpeg xfade transition: fade, fadeblack, fadewhite, smoothleft, wipeleft, circleopen...
+  grade: {contrast: 1.06, saturation: 1.12, vignette: true}
+  captions: true
+  font: null                  # a .ttf/.otf path; null picks Segoe UI / Arial / DejaVu Sans Bold
+  music: null                 # e.g. assets/music/track.mp3 (you supply it; faded in and out)
+  music_volume: 0.9
+  title:
+    text: null                # the splash art carries the logo; set a text for a plain card
+    subtitle: "240 Hz. Every corner. Every sky."
+    seconds: 3.0
+    background: docs/assets/splash.webp   # null for black
+    darken: 0.1
+    blur: false
+  end:
+    text: "APEXSIM"
+    subtitle: "Coming soon"
+    seconds: 3.5
+    background: null
+  sequence:                   # shots in play order; a string or {id, transition, crossfade_s}
+    - 01_zandvoort_start
+    - {id: 02_spa_eau_rouge, transition: fadewhite, crossfade_s: 0.25}
+    - 03_spa_onboard_raidillon
+    - 04_zandvoort_hugenholtz_heli
+    - {id: 05_lemans_wheel, transition: fadeblack, crossfade_s: 0.5}
+    - 11_lemans_night
+    - 06_monza_rain_parabolica
+    - 07_suzuka_130r
+    - 12_suzuka_wheel_straight
+    - 08_spielberg_bull
+    - {id: 09_sakhir_night, transition: fadeblack, crossfade_s: 0.4}
+    - 10_brands_paddock
+    - {id: 13_zandvoort_luyendyk_final_lap, transition: smoothleft}
+    - 14_zandvoort_finish

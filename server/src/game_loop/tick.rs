@@ -196,11 +196,18 @@ pub(crate) async fn tick_sessions(
                         .unwrap_or_else(|| format!("Player-{}", &pid.to_string()[..8])),
                     car_config_id: cs.car_config_id,
                     finish_position: None,
+                    is_ai: game_session.is_ai_player(pid),
+                    livery: 0,
                 })
                 .collect();
 
             let track_config_id = game_session.session.track_config_id;
-            let metadata = (*session_id, track_config_id, participants);
+            let metadata = (
+                *session_id,
+                track_config_id,
+                participants,
+                game_session.session.conditions,
+            );
             replay_starts.push(metadata);
         }
 
@@ -348,7 +355,7 @@ pub(crate) async fn tick_sessions(
             && prev_state == SessionState::Racing
             && new_state == SessionState::Finished
         {
-            replay_stops.push(*session_id);
+            replay_stops.push((*session_id, game_session.session.race_start_tick));
         }
 
         // Log state changes
@@ -378,14 +385,22 @@ pub(crate) async fn tick_sessions(
     }
 
     // Execute collected replay operations
-    for (session_id, track_config_id, participants) in replay_starts {
+    for (session_id, track_config_id, participants, conditions) in replay_starts {
         use crate::replay::ReplayMetadata;
 
-        let track_name = state
-            .track_configs
-            .get(&track_config_id)
+        let track = state.track_configs.get(&track_config_id);
+        let track_name = track
             .map(|t| t.name.clone())
             .unwrap_or_else(|| "Unknown Track".to_string());
+        let track_stem = track.and_then(|t| t.source_path.as_deref()).and_then(|p| {
+            std::path::Path::new(p)
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+        });
+        let track_length_m = track
+            .and_then(|t| t.centerline.last())
+            .map(|p| p.distance_from_start_m)
+            .unwrap_or(0.0);
 
         let metadata = ReplayMetadata {
             session_id,
@@ -398,6 +413,10 @@ pub(crate) async fn tick_sessions(
             duration_ticks: 0,
             tick_rate,
             participants,
+            conditions,
+            race_start_tick: None,
+            track_stem,
+            track_length_m,
         };
 
         state.replay.start_recording(metadata).await;
@@ -408,8 +427,12 @@ pub(crate) async fn tick_sessions(
         state.replay.record_frame(session_id, tick, telemetry).await;
     }
 
-    for session_id in replay_stops {
-        match state.replay.stop_recording(session_id).await {
+    for (session_id, race_start_tick) in replay_stops {
+        match state
+            .replay
+            .stop_recording(session_id, race_start_tick)
+            .await
+        {
             Ok(replay_path) => {
                 debug!(
                     "Replay saved for session {} to {:?}",
