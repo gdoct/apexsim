@@ -10443,6 +10443,16 @@ raceline:
 - x: 0.96
   y: 4.53
   z: 0.007
+drs_zones:
+- detection_m: 1111.2
+  start_m: 1530.8
+  end_m: 1990.5
+- detection_m: 2671.6
+  start_m: 2936.5
+  end_m: 3876.0
+- detection_m: 2671.6
+  start_m: 4033.1
+  end_m: 37.5
 metadata:
   country: Canada
   city: Montreal

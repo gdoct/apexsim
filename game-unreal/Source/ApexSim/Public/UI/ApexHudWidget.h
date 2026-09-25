@@ -183,6 +183,9 @@ private:
 	/** One border per RPM segment, lit left to right. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> RpmSegments;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RpmText;
+	/** The DRS light beside the rev counter's caption. */
+	UPROPERTY(Transient) TObjectPtr<UBorder> DrsBadge;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DrsText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GearText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SpeedText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SpeedUnitText;

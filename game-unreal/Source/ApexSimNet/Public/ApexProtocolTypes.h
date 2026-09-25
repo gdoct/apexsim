@@ -1086,6 +1086,14 @@ struct APEXSIMNET_API FApexCarTelemetry
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bInGarage = false;
+
+	/** The car may open its DRS flap where it is. `lap_flags` bit 3. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bDrsAllowed = false;
+
+	/** The DRS flap is open. `lap_flags` bit 4. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bDrsOpen = false;
 };
 
 /** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */
@@ -1248,6 +1256,13 @@ struct APEXSIMNET_API FApexPlayerInput
 	/** Negative leaves the gear alone (the protocol's `None`). */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
 	int32 Gear = -128;
+
+	/**
+	 * The DRS button is held. The server decides whether the flap opens
+	 * (only in a zone the car earned; `FApexCarTelemetry::bDrsAllowed`).
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	bool bDrs = false;
 
 	bool HasGear() const { return Gear != -128; }
 };

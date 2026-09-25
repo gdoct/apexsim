@@ -534,6 +534,7 @@ impl GameSession {
 
     /// Free practice mode: Players drive freely with lap timing
     fn tick_free_practice(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        self.update_drs();
         let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // Update each car
@@ -592,6 +593,7 @@ impl GameSession {
     /// in the garage stand still — not simulated, not collided with, so a
     /// driver tuning in the garage is out of everyone's way.
     fn tick_hotlap(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        self.update_drs();
         let dt = self.dt();
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
@@ -654,6 +656,7 @@ impl GameSession {
     /// as cars complete the race distance, session finished when all cars
     /// are classified.
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        self.update_drs();
         let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // A human who has finished is looking at the results and stops
@@ -1190,6 +1193,20 @@ impl GameSession {
         let mut profile = AiDriverProfile::new("Cool-down", COOLDOWN_SKILL);
         profile.id = *player_id;
         self.ai_input_for(&profile, state, car_config)
+    }
+
+    /// The DRS rule for this tick (`crate::drs`): which cars may open the
+    /// flap where they are now. Before the physics, so the input the AI
+    /// generated against last tick's `drs_allowed` and the human's button
+    /// both meet an up-to-date answer.
+    fn update_drs(&mut self) {
+        crate::drs::update(
+            &mut self.session.participants,
+            &self.car_configs,
+            &self.track_config,
+            self.session.game_mode,
+            self.session.conditions.weather,
+        );
     }
 
     /// Input from `profile` driving `state` among the rest of the field.
@@ -2118,6 +2135,7 @@ mod tests {
                 steering: 0.0,
                 gear: None,
                 clutch: None,
+                drs: false,
             },
         );
 

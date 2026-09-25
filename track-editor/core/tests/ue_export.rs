@@ -54,6 +54,7 @@ fn test_track() -> TrackFile {
         default_width: 12.0,
         closed_loop: true,
         raceline: vec![],
+        drs_zones: Vec::new(),
         metadata: None,
     }
 }
@@ -77,6 +78,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         inner_m: 1.5,
         width_m: 8.0,
         end_width_m: Some(20.0),
+        paint: None,
     });
     scene.surfaces.push(Surface {
         id: id(),
@@ -88,6 +90,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         inner_m: 0.0,
         width_m: 60.0,
         end_width_m: None,
+        paint: None,
     });
     scene.curbs.push(Curb {
         id: id(),
@@ -468,6 +471,7 @@ fn stadium_track() -> TrackFile {
         default_width: 12.0,
         closed_loop: true,
         raceline: vec![],
+        drs_zones: vec![],
         metadata: None,
     }
 }
@@ -793,11 +797,12 @@ fn start_finish_anchor_sits_on_the_line() {
     assert!((sf.yaw_deg - baked.centerline[0].yaw_deg).abs() < 5.0);
 }
 
-/// Grid boxes are laid out in station space: slot 16 is row 8, 56 m before
-/// the line, so the outlines run from 58.5 m behind the line to the pole
-/// stub 3.5 m ahead of it — on a closed loop, wrapped past the lap length.
+/// Grid boxes are laid out in station space: slot 16 is row 8's staggered
+/// second car, 60 m before the line, so the outlines run from 62.5 m
+/// behind the line to the pole stub 3.5 m ahead of it — on a closed loop,
+/// wrapped past the lap length.
 #[test]
-fn monza_grid_boxes_end_56_m_before_the_line() {
+fn monza_grid_boxes_end_60_m_before_the_line() {
     let track_path = real_tracks_dir().join("Monza.yaml");
     let opened = project::open_project(&track_path).unwrap();
     let baked = ue_export::bake(&opened.track, &opened.scene.unwrap()).unwrap();
@@ -815,7 +820,7 @@ fn monza_grid_boxes_end_56_m_before_the_line() {
     let rear = us.iter().map(|&u| around(u)).fold(f32::MAX, f32::min);
     let front = us.iter().map(|&u| around(u)).fold(f32::MIN, f32::max);
     assert!(
-        (rear + 58.5).abs() < 0.6,
+        (rear + 62.5).abs() < 0.6,
         "rear of box 16 at {rear} m, lap {lap_m} m"
     );
     assert!(
@@ -1380,4 +1385,180 @@ fn ground_tessellation_is_finest_beside_the_road() {
     }
     assert!(near_cells > 0, "no ground beside the road");
     assert!(ring_cells > 0, "no ground out in the ring");
+}
+
+/// A painted tarmac run-off is striped in its style's two colours, a
+/// stripe per `RUNOFF_STRIPE_M` across the band; bare tarmac and grass are
+/// never painted, and an unknown style is left bare.
+#[test]
+fn painted_runoff_is_striped_in_two_colours() {
+    let track = test_track();
+    let mut scene = AtsScene::new_for_track(&track, "Test.yaml");
+    let band = |id: u64, kind: SurfaceKind, paint: Option<&str>| Surface {
+        id,
+        kind,
+        side: Side::Left,
+        start_m: 20.0,
+        end_m: 120.0,
+        inner_m: 1.0,
+        width_m: 6.0,
+        end_width_m: None,
+        paint: paint.map(str::to_string),
+    };
+    scene.surfaces = vec![
+        band(1, SurfaceKind::AsphaltRunoff, Some("red_yellow")),
+        band(2, SurfaceKind::Grass, Some("red_yellow")),
+        band(3, SurfaceKind::AsphaltRunoff, Some("tartan")),
+    ];
+    let baked = ue_export::bake(&track, &scene).expect("bakes");
+    let stripes: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("marking_runoff_"))
+        .collect();
+    assert!(!stripes.is_empty(), "no stripes painted");
+    let colours: std::collections::BTreeSet<&str> =
+        stripes.iter().map(|m| m.material_key.as_str()).collect();
+    assert_eq!(colours.len(), 2, "two colours: {colours:?}");
+    let paints: Vec<&_> = baked
+        .materials
+        .iter()
+        .filter(|m| m.key.starts_with("marking_runoff_"))
+        .collect();
+    assert!(paints.iter().all(|m| m.family == "marking"));
+}
+
+/// A DRS zone in the track file becomes two painted lines across the road
+/// and a board on each side at each of them.
+#[test]
+fn drs_zones_are_painted_and_signed() {
+    let mut track = test_track();
+    track.drs_zones = vec![track_core::track_data::DrsZone {
+        detection_m: 50.0,
+        start_m: 120.0,
+        end_m: 190.0,
+    }];
+    let scene = AtsScene::new_for_track(&track, "Test.yaml");
+    let baked = ue_export::bake(&track, &scene).expect("bakes");
+    let lines: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("marking_drs_line"))
+        .collect();
+    assert!(!lines.is_empty(), "no DRS lines painted");
+    let boards: Vec<_> = baked
+        .props
+        .iter()
+        .filter(|p| p.kind == "board" && p.asset == "corner_sign")
+        .collect();
+    assert_eq!(
+        boards.len(),
+        4,
+        "a board each side at detection and activation"
+    );
+    assert_eq!(
+        boards
+            .iter()
+            .filter(|p| p.text.as_deref() == Some("DRS"))
+            .count(),
+        2
+    );
+    assert_eq!(
+        boards
+            .iter()
+            .filter(|p| p.text.as_deref() == Some("DRS DETECTION"))
+            .count(),
+        2
+    );
+    // Without zones, nothing.
+    let bare = ue_export::bake(&test_track(), &scene).expect("bakes");
+    assert!(!bare
+        .meshes
+        .iter()
+        .any(|m| m.material_key.starts_with("marking_drs_line")));
+}
+
+/// The ground right beside the road is that road's verge, all the way
+/// round, on both sides — including the high side of a banked corner with
+/// another road (Zandvoort's pit exit under the Hugenholtz banking) a few
+/// metres away. It used to be that road's ceiling instead, five metres
+/// down, and the band, the curb strip and the server's ground sidecar all
+/// read it. Cheap: only the terrain is built, no bake.
+#[test]
+fn the_verge_meets_the_road_edge_on_every_real_circuit() {
+    use track_core::terrain::{TerrainHeightfield, VERGE_DROP_M};
+    use track_core::track_path::{offset_point, CenterlinePath};
+
+    let dir = real_tracks_dir();
+    let tracks = ue_export_io::track_files_in(&dir).expect("content/tracks/real must be readable");
+    assert!(tracks.len() >= 20);
+    let mut worst: Vec<(f32, String, f32, i32)> = Vec::new();
+    for track_path in tracks {
+        let opened = project::open_project(&track_path)
+            .unwrap_or_else(|e| panic!("{}: {e}", track_path.display()));
+        let path = CenterlinePath::from_track(&opened.track).expect("centerline");
+        let lane = opened
+            .scene
+            .as_ref()
+            .and_then(|s| s.pit_lane.as_ref())
+            .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
+        let extra: Vec<&CenterlinePath> = lane.iter().collect();
+        let field = TerrainHeightfield::from_paths(&path, &extra).expect("terrain");
+        let total = path.total_length_m();
+        let mut station = 0.0f32;
+        let mut track_worst = 0.0f32;
+        let mut bad = 0;
+        while station < total {
+            let sample = path.sample_at(station);
+            for (lat, sign) in [(sample.width_left_m, 1.0f32), (-sample.width_right_m, -1.0)] {
+                let edge = offset_point(&sample, lat);
+                let beside = offset_point(&sample, lat + sign * 0.5);
+                let want = edge.2 - VERGE_DROP_M;
+                let got = field.ground_height_at(beside.0, beside.1);
+                let err = (got - want).abs();
+                // An underpass slot is legitimately far below the deck edge,
+                // and where the pit lane's tapers overlap the road the
+                // point is on the lane, not beside the road.
+                if field.wall_relation(beside.0, beside.1).is_some() {
+                    continue;
+                }
+                let on_a_road = field
+                    .nearest_road_point(beside.0, beside.1, 30.0)
+                    .is_some_and(|(_, _, lat, half)| lat.abs() <= half);
+                if on_a_road {
+                    continue;
+                }
+                track_worst = track_worst.max(err);
+                // What is left over that: the pit lane's flat entry taper
+                // starting on a banked stretch (Austin), under a metre.
+                if err > 0.8 {
+                    bad += 1;
+                    eprintln!(
+                        "  {} station {station:.0} side {sign}: ground {got:.2}, edge verge {want:.2}",
+                        track_path.display()
+                    );
+                }
+            }
+            station += 2.0;
+        }
+        worst.push((
+            track_worst,
+            track_path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
+            total,
+            bad,
+        ));
+    }
+    worst.sort_by(|a, b| b.0.total_cmp(&a.0));
+    for (err, name, _, bad) in &worst {
+        eprintln!("{name}: worst verge error {err:.2} m, {bad} samples over 0.8 m");
+    }
+    let offenders: Vec<_> = worst.iter().filter(|(_, _, _, bad)| *bad > 0).collect();
+    assert!(
+        offenders.is_empty(),
+        "the verge leaves the road edge: {offenders:?}"
+    );
 }

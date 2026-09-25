@@ -40,6 +40,11 @@ namespace ApexInput
 		/** Held: look straight behind. */
 		inline const FName LookBack     = TEXT("LookBack");
 		/**
+		 * Held: open the DRS flap. Sent to the server, which opens it only
+		 * in a zone the car earned (`FApexCarTelemetry::bDrsAllowed`).
+		 */
+		inline const FName Drs          = TEXT("Drs");
+		/**
 		 * Not an Enhanced Input action: the pause key has to work while the race
 		 * view owns input, so the root widget tests it directly. Listed here so
 		 * it is rebindable and appears in the controls screen with the rest.
@@ -351,4 +356,8 @@ public:
 	/** Digital, held. Local only. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> LookBack;
+
+	/** Digital, held. Goes to the server as `PlayerInput.drs`. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> Drs;
 };

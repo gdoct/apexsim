@@ -24531,6 +24531,7 @@ spawn_points: []
 default_width: 13.1
 closed_loop: true
 raceline: []
+drs_zones: []
 metadata:
   country: France
   city: Le Mans

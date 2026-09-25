@@ -119,6 +119,16 @@ def check_track(stem: str, z_tolerance: float, verbose: bool) -> list[dict]:
     return flagged
 
 
+def _node_value(track: Track, station: float, key: str) -> float:
+    """A per-node YAML value interpolated at a station."""
+    nodes = track.data["nodes"]
+    v = np.array([n.get(key) or 0.0 for n in nodes], dtype=float)
+    raw = np.array([[n["x"], n["y"]] for n in nodes])
+    seg = np.hypot(*np.diff(np.vstack([raw, raw[:1]]) if track.closed else raw, axis=0).T)
+    s_raw = np.concatenate([[0.0], np.cumsum(seg)])[: len(raw)]
+    return float(np.interp(station % track.total, s_raw, v, period=track.total))
+
+
 def _road_z(track: Track, station: float) -> float:
     """Ground z at a station, from the YAML nodes (same stations the width
     arrays are resampled onto)."""
@@ -157,12 +167,89 @@ def _near_pit_lane_taper(track: Track, flagged: list[dict], range_m: float = 60.
     return out
 
 
+# ---- Openings in the barrier line ------------------------------------------
+
+#: A ray from the road edge that reaches this far without meeting a wall is
+#: an opening a car can leave the circuit through.
+OPENING_REACH_M = 45.0
+#: Stations are probed at this spacing along each side.
+OPENING_STEP_M = 2.0
+
+
+def _ray_hits(origin: np.ndarray, direction: np.ndarray, segs: np.ndarray, reach: float) -> float:
+    """Distance along the ray to the first segment it crosses in plan, or
+    `inf`. `segs` is an (n, 4) array of x0, y0, x1, y1."""
+    d = direction
+    e = segs[:, 2:4] - segs[:, 0:2]
+    denom = d[0] * e[:, 1] - d[1] * e[:, 0]
+    ok = np.abs(denom) > 1e-9
+    w = segs[:, 0:2] - origin
+    t = np.where(ok, (w[:, 0] * e[:, 1] - w[:, 1] * e[:, 0]) / np.where(ok, denom, 1.0), np.inf)
+    u = np.where(ok, (w[:, 0] * d[1] - w[:, 1] * d[0]) / np.where(ok, denom, 1.0), -1.0)
+    hit = ok & (t >= 0.0) & (t <= reach) & (u >= 0.0) & (u <= 1.0)
+    return float(t[hit].min()) if hit.any() else float("inf")
+
+
+def check_openings(stem: str, verbose: bool, reach: float = OPENING_REACH_M) -> list[tuple[float, str]]:
+    """Probe every `OPENING_STEP_M` of the lap on both sides: a ray from
+    the road edge straight out that meets no wall within `reach` is an
+    opening. Returns the (station, side) of each, merged into runs in the
+    printout."""
+    track = Track(stem)
+    segments = load_walls(stem)
+    if not segments:
+        print(f"{stem}: no walls")
+        return []
+    segs = np.array([[s["x0"], s["y0"], s["x1"], s["y1"]] for s in segments])
+    heights = np.array([s["height_m"] for s in segments])
+    zs = np.array([s["z"] for s in segments])
+    openings: list[tuple[float, str]] = []
+    station = 0.0
+    while station < track.total:
+        i = track.index_at(station)
+        p = track.pts[i]
+        h = float(track.heading[i])
+        left = np.array([-np.sin(h), np.cos(h)])
+        road_z = _road_z(track, station)
+        bank = _node_value(track, station, "banking")
+        for side, sign, half in (("L", 1.0, float(track.width_left[i])), ("R", -1.0, float(track.width_right[i]))):
+            origin = p + sign * left * half
+            # Only walls a car at road height could meet count: the edge's
+            # own height, banking included (positive lifts the left edge).
+            edge_z = road_z + sign * half * np.sin(bank)
+            # A car off the road follows the ground, so a wall standing on
+            # a slope well below the edge (Spa's Kemmel hillside) still
+            # meets it. Only a wall on another level does not: a deck
+            # parapet above, or the slot floor under a bridge far below.
+            level = (zs - 3.0 <= edge_z) & (edge_z <= zs + heights + 15.0)
+            t = _ray_hits(origin, sign * left, segs[level], reach)
+            if not np.isfinite(t):
+                openings.append((round(station, 1), side))
+        station += OPENING_STEP_M
+
+    runs: list[list] = []
+    for st, side in openings:
+        if runs and runs[-1][2] == side and st - runs[-1][1] <= OPENING_STEP_M + 0.1:
+            runs[-1][1] = st
+        else:
+            runs.append([st, st, side])
+    total_m = sum(r[1] - r[0] + OPENING_STEP_M for r in runs)
+    print(f"{stem}: {len(openings)} open probe(s) in {len(runs)} run(s), {total_m:.0f} m of the lap edge open within {reach:.0f} m")
+    if verbose:
+        for a, b, side in runs:
+            print(f"    {side} {a:>7.1f}-{b:<7.1f} m ({b - a + OPENING_STEP_M:.0f} m)")
+    return openings
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("tracks", nargs="*", help="track stem(s), e.g. Oschersleben")
     ap.add_argument("--all", action="store_true", help="check every track with a walls.msgpack sidecar")
     ap.add_argument("--z-tolerance", type=float, default=Z_TOLERANCE_M, help=f"metres (default {Z_TOLERANCE_M})")
     ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument("--openings", action="store_true",
+                    help="instead: probe the lap for stretches with no wall within "
+                         f"{OPENING_REACH_M:.0f} m of the road edge")
     args = ap.parse_args()
 
     if args.all:
@@ -171,6 +258,13 @@ def main() -> None:
         stems = args.tracks
     if not stems:
         raise SystemExit("no tracks given; pass a stem or --all")
+
+    if args.openings:
+        total = 0
+        for stem in stems:
+            total += len(check_openings(stem, args.verbose))
+        print(f"\n{total} open probe(s) across {len(stems)} track(s)")
+        return
 
     total_flagged = 0
     for stem in stems:

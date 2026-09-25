@@ -287,6 +287,8 @@ void UApexHudWidget::BuildHud()
 	SectorBars.Reset();
 	SectorTimes.Reset();
 	RpmSegments.Reset();
+	DrsBadge = nullptr;
+	DrsText = nullptr;
 	LapInvalidText = nullptr;
 	FastestLapName = nullptr;
 	FastestLapTime = nullptr;
@@ -593,6 +595,11 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 	// Rev counter: a caption row, then the segment strip.
 	UHorizontalBox* RpmHeader = WidgetTree->ConstructWidget<UHorizontalBox>();
 	AddH(RpmHeader, MakeLabel(*WidgetTree, TEXT("Rpm")));
+	// The DRS light, as the steering wheel's: dark until the car is in a
+	// zone it may use, lit when it may, bright with the flap open.
+	DrsText = MakeText(*WidgetTree, TEXT("DRS"), Font::Body(12.0f, true), Palette::TextDisabled);
+	DrsBadge = MakePanel(*WidgetTree, DrsText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
+	AddH(RpmHeader, DrsBadge, FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	AddH(RpmHeader, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
 	RpmText = MakeText(*WidgetTree, TEXT("0"), Font::Mono(12.0f, 40), Palette::TextSecondary);
 	AddH(RpmHeader, RpmText);
@@ -1105,6 +1112,15 @@ void UApexHudWidget::RefreshCarState()
 	if (RpmText)
 	{
 		RpmText->SetText(FText::FromString(FString::FromInt(FMath::RoundToInt(Local->EngineRpm))));
+	}
+	if (DrsBadge && DrsText)
+	{
+		const FLinearColor Fill = Local->bDrsOpen ? Palette::Live
+			: Local->bDrsAllowed ? Palette::Surface : Palette::Border;
+		const FLinearColor Ink = Local->bDrsOpen ? Palette::OnAccent
+			: Local->bDrsAllowed ? Palette::Live : Palette::TextDisabled;
+		DrsBadge->SetBrush(MakeBrush(Fill));
+		DrsText->SetColorAndOpacity(FSlateColor(Ink));
 	}
 
 	if (ThrottleBar)

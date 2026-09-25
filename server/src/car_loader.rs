@@ -83,6 +83,33 @@ struct PhysicsToml {
     lift_coefficient_rear: Option<f32>,
     #[serde(default)]
     steering_ratio: Option<f32>,
+    /// DRS: the fractions the open flap takes off the drag and the rear
+    /// downforce. Absent, an F1 car gets `DrsSpec::F1` and any other class
+    /// no DRS at all; `drs_drag_reduction = 0` switches it off explicitly.
+    #[serde(default)]
+    drs_drag_reduction: Option<f32>,
+    #[serde(default)]
+    drs_rear_downforce_reduction: Option<f32>,
+}
+
+/// The car's DRS from its `[physics]` table, or the class default.
+fn drs_spec(class: &str, drag: Option<f32>, rear: Option<f32>) -> Option<crate::data::DrsSpec> {
+    let base = if class.eq_ignore_ascii_case("f1") {
+        Some(crate::data::DrsSpec::F1)
+    } else {
+        None
+    };
+    match (drag, rear) {
+        (None, None) => base,
+        (drag, rear) => {
+            let drag = drag.unwrap_or(base.map_or(0.0, |b| b.drag_reduction));
+            let rear = rear.unwrap_or(base.map_or(0.0, |b| b.rear_downforce_reduction));
+            (drag > 0.0).then_some(crate::data::DrsSpec {
+                drag_reduction: drag.clamp(0.0, 0.5),
+                rear_downforce_reduction: rear.clamp(0.0, 0.8),
+            })
+        }
+    }
 }
 
 /// Optional `[suspension]` section. Unset fields fall back to
@@ -463,6 +490,11 @@ impl CarLoader {
             (None, None) => vec![-3.5, 3.8, 2.4, 1.7, 1.3, 1.0, 0.8],
         };
 
+        let drs = drs_spec(
+            &car_toml.class,
+            car_toml.physics.drs_drag_reduction,
+            car_toml.physics.drs_rear_downforce_reduction,
+        );
         let config = CarConfig {
             id,
             name: car_toml.name,
@@ -570,6 +602,7 @@ impl CarLoader {
             frontal_area_m2: car_toml.physics.frontal_area_m2.unwrap_or(2.2),
             lift_coefficient_front: car_toml.physics.lift_coefficient_front.unwrap_or(-0.15),
             lift_coefficient_rear: car_toml.physics.lift_coefficient_rear.unwrap_or(-0.20),
+            drs,
 
             // Steering
             max_steering_angle_rad: car_toml.physics.max_steering_angle_rad,

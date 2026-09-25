@@ -227,6 +227,7 @@ impl TestClient {
             steering,
             gear: None,
             clutch: None,
+            drs: None,
         };
 
         // Send via TCP for now (UDP not fully implemented in server)

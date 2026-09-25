@@ -47,8 +47,12 @@ pub struct WheelState {
     pub suspension_velocity_mps: f32,
     pub spring_force_n: f32,
     pub damper_force_n: f32,
-    /// Road, curb or off track under this tyre (driver feedback only).
+    /// Road, curb or off track under this tyre (driver feedback only;
+    /// tarmac run-off reads as road there — it is smooth).
     pub surface: ContactSurface,
+    /// Past the curb band: off the track for the lap, whatever it is
+    /// made of. What the track limits count.
+    pub off_track: bool,
 }
 
 /// Complete intermediate physics state for a vehicle
@@ -194,6 +198,10 @@ pub fn update_car_3d(
     }
     let input = &auto_input;
 
+    // The DRS flap: open while the driver holds the button where the rules
+    // allow it (`crate::drs`), shut the moment the brake goes on.
+    state.drs_open = state.drs_allowed && input.drs && input.brake < crate::drs::DRS_BRAKE_CLOSE;
+
     // Keep fuel capacity in sync with config (for moddable cars)
     state.fuel_capacity_liters = config.fuel.capacity_liters;
     state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
@@ -304,7 +312,9 @@ pub fn update_car_3d(
         // nearest index is an excellent hint.
         let sample = query_track_surface(track, world_x, world_y, Some(track_ctx.nearest_point));
         let contact_z = sample.map_or(track_ctx.elevation, |s| s.elevation);
-        let surface = sample.map_or(ContactSurface::Road, |s| contact_surface(track, &s));
+        let contact = sample.map_or(RoadContact::Road, |s| road_contact(track, &s));
+        let surface = contact.feedback();
+        let off_track = contact.off_track();
 
         // Along-track and leftward components of the wheel's offset.
         let along = offset_x * cos_track + offset_y * sin_track;
@@ -333,6 +343,7 @@ pub fn update_car_3d(
             spring_force_n: spring_force,
             damper_force_n: damper_force,
             surface,
+            off_track,
             ..Default::default()
         }
     };
@@ -672,10 +683,7 @@ pub fn update_car_3d(
     // feedback uses: all four past the curb band is off the track. A car in
     // the air is not counted — it left from somewhere, and that tick already
     // counted.
-    state.wheels_off_track = !is_airborne
-        && wheel_states
-            .iter()
-            .all(|w| w.surface == ContactSurface::Off);
+    state.wheels_off_track = !is_airborne && wheel_states.iter().all(|w| w.off_track);
 
     // 11. Sum all forces
     // Rotate front tire forces by steering angle
@@ -929,13 +937,20 @@ fn calculate_aerodynamic_forces(state: &CarState, config: &CarConfig) -> (f32, f
     let speed_squared = state.speed_mps.powi(2);
     let dynamic_pressure = 0.5 * AIR_DENSITY * speed_squared;
 
+    // The open DRS flap takes its share off the drag and the rear wing.
+    let (drag_scale, rear_scale) = match (state.drs_open, config.drs) {
+        (true, Some(drs)) => (1.0 - drs.drag_reduction, 1.0 - drs.rear_downforce_reduction),
+        _ => (1.0, 1.0),
+    };
+
     // Drag force
-    let drag = dynamic_pressure * config.drag_coefficient * config.frontal_area_m2;
+    let drag = dynamic_pressure * config.drag_coefficient * config.frontal_area_m2 * drag_scale;
 
     // Downforce (lift coefficients are negative for downforce)
     let downforce_front =
         -dynamic_pressure * config.lift_coefficient_front * config.frontal_area_m2;
-    let downforce_rear = -dynamic_pressure * config.lift_coefficient_rear * config.frontal_area_m2;
+    let downforce_rear =
+        -dynamic_pressure * config.lift_coefficient_rear * config.frontal_area_m2 * rear_scale;
 
     (drag, downforce_front.max(0.0), downforce_rear.max(0.0))
 }
@@ -2212,7 +2227,38 @@ fn query_track_surface_centerline(
 /// The curbs reach a little past the road edge: a driver who puts two wheels
 /// on a curb is using the track, not cutting it, so the band counts as on it
 /// (with the curb's own grip, and without the off-track speed penalty).
-fn contact_surface(track: &TrackConfig, surface: &SurfaceQuerySample) -> ContactSurface {
+/// What is under a point of the car, as the sim distinguishes it: the
+/// road, the curb band (still track), the prepared tarmac run-off past it
+/// (off the track for the lap, but asphalt to drive on), or the grass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoadContact {
+    Road,
+    Curb,
+    Runoff,
+    Off,
+}
+
+impl RoadContact {
+    /// Off the track for the lap: past the curbs.
+    pub fn off_track(self) -> bool {
+        matches!(self, RoadContact::Runoff | RoadContact::Off)
+    }
+
+    /// What the driver feels: the tarmac run-off is as smooth as the road.
+    pub fn feedback(self) -> ContactSurface {
+        match self {
+            RoadContact::Road | RoadContact::Runoff => ContactSurface::Road,
+            RoadContact::Curb => ContactSurface::Curb,
+            RoadContact::Off => ContactSurface::Off,
+        }
+    }
+}
+
+/// Grip of the tarmac run-off relative to the road: swept less often, no
+/// rubber laid on it.
+pub const RUNOFF_GRIP_FACTOR: f32 = 0.95;
+
+fn road_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> RoadContact {
     let half_width = if surface.lateral_offset >= 0.0 {
         surface.width_right
     } else {
@@ -2220,19 +2266,24 @@ fn contact_surface(track: &TrackConfig, surface: &SurfaceQuerySample) -> Contact
     };
     let overhang = surface.lateral_offset.abs() - half_width;
     if overhang <= 0.0 {
-        return ContactSurface::Road;
+        return RoadContact::Road;
     }
     let station_m = track
         .centerline
         .get(surface.nearest_point)
         .map_or(0.0, |p| p.distance_from_start_m);
-    let curb_width = track.curbs.as_ref().map_or(0.0, |bands| {
-        bands.width_at(station_m, surface.lateral_offset)
+    let (curb_width, runoff_reach) = track.curbs.as_ref().map_or((0.0, 0.0), |bands| {
+        (
+            bands.width_at(station_m, surface.lateral_offset),
+            bands.runoff_at(station_m, surface.lateral_offset),
+        )
     });
     if overhang <= curb_width {
-        ContactSurface::Curb
+        RoadContact::Curb
+    } else if overhang <= runoff_reach {
+        RoadContact::Runoff
     } else {
-        ContactSurface::Off
+        RoadContact::Off
     }
 }
 
@@ -2243,18 +2294,22 @@ fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
         return TrackContext::default();
     };
 
-    let contact = contact_surface(track, &surface);
-    let on_curb = contact == ContactSurface::Curb;
-    let is_on_track = contact != ContactSurface::Off;
+    let contact = road_contact(track, &surface);
+    // On the track as the physics means it — a surface with grip and no
+    // grass drag. The tarmac run-off counts: it is asphalt. The lap's track
+    // limits are judged per wheel (`WheelState::off_track`), where the
+    // run-off is off.
+    let is_on_track = contact != RoadContact::Off;
 
     // Determine surface type and grip
-    let (surface_type, grip_modifier) = if on_curb {
-        (SurfaceType::Curb, track.track_surface.curb_grip)
-    } else if is_on_track {
-        (surface.surface_type, surface.grip_modifier)
-    } else {
-        // Off track
-        (SurfaceType::Grass, track.track_surface.off_track_grip)
+    let (surface_type, grip_modifier) = match contact {
+        RoadContact::Curb => (SurfaceType::Curb, track.track_surface.curb_grip),
+        RoadContact::Road => (surface.surface_type, surface.grip_modifier),
+        RoadContact::Runoff => (
+            SurfaceType::Asphalt,
+            surface.grip_modifier * RUNOFF_GRIP_FACTOR,
+        ),
+        RoadContact::Off => (SurfaceType::Grass, track.track_surface.off_track_grip),
     };
 
     TrackContext {
@@ -3211,7 +3266,22 @@ mod tests {
             step_m: 1.0,
             left_cm: vec![0; stations],
             right_cm: vec![(curb_m * 100.0) as u16; stations],
+            runoff_left_cm: Vec::new(),
+            runoff_right_cm: Vec::new(),
         });
+        track
+    }
+
+    /// The straight with a curb and, past it, `runoff_m` of tarmac along
+    /// its right edge.
+    fn straight_track_with_right_runoff(curb_m: f32, runoff_m: f32) -> TrackConfig {
+        let mut track = straight_track_with_right_curb(curb_m);
+        let stations = track.centerline.len() * 4;
+        if let Some(bands) = track.curbs.as_mut() {
+            bands.version = 2;
+            bands.runoff_left_cm = vec![0; stations];
+            bands.runoff_right_cm = vec![(runoff_m * 100.0) as u16; stations];
+        }
         track
     }
 
@@ -3291,6 +3361,67 @@ mod tests {
         assert_eq!(other_side.surface_type, SurfaceType::Grass);
     }
 
+    /// The tarmac run-off past the curb is asphalt to drive on — grip and
+    /// no grass drag — but off the track for the lap: a car with all four
+    /// wheels on it is struck like one on the grass.
+    #[test]
+    fn test_tarmac_runoff_is_asphalt_but_off_the_track() {
+        // 1.5 m of curb, then tarmac out to 8 m past the edge.
+        let track = straight_track_with_right_runoff(1.5, 8.0);
+
+        let runoff = context_at(&track, -15.0);
+        assert!(runoff.is_on_track, "5 m past the edge is tarmac run-off");
+        assert_eq!(runoff.surface_type, SurfaceType::Asphalt);
+        assert!(
+            (runoff.grip_modifier - RUNOFF_GRIP_FACTOR).abs() < 1e-4,
+            "run-off grip {}",
+            runoff.grip_modifier
+        );
+        let grass = context_at(&track, -19.0);
+        assert!(!grass.is_on_track, "9 m past the edge is grass");
+
+        // Track limits: a car wholly on the run-off is off the track.
+        let mut state = create_test_car_state();
+        state.pos_x = 100.0;
+        state.pos_y = -15.0;
+        state.vel_x = 30.0;
+        state.speed_mps = 30.0;
+        let config = CarConfig::default();
+        let input = PlayerInputData {
+            throttle: 0.5,
+            ..Default::default()
+        };
+        update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        assert!(
+            state.wheels_off_track,
+            "four wheels on the run-off is off the track"
+        );
+        assert!(state.is_on_track, "but the physics is on asphalt");
+        // And the run-off car coasts as a car on the road does: no grass
+        // drag on it.
+        let mut on_road = create_test_car_state();
+        on_road.pos_x = 100.0;
+        on_road.pos_y = -5.0;
+        on_road.vel_x = 30.0;
+        on_road.speed_mps = 30.0;
+        let mut coasting = create_test_car_state();
+        coasting.pos_x = 100.0;
+        coasting.pos_y = -15.0;
+        coasting.vel_x = 30.0;
+        coasting.speed_mps = 30.0;
+        let coast = PlayerInputData::default();
+        for _ in 0..240 {
+            update_car_3d(&mut on_road, &config, &coast, &track, 1.0 / 240.0);
+            update_car_3d(&mut coasting, &config, &coast, &track, 1.0 / 240.0);
+        }
+        assert!(
+            (coasting.vel_x - on_road.vel_x).abs() < 0.25,
+            "run-off {} vs road {} after a second",
+            coasting.vel_x,
+            on_road.vel_x
+        );
+    }
+
     /// Without the sidecar the road edge is the limit, exactly as it was
     /// before curbs were baked for the sim.
     #[test]
@@ -3313,6 +3444,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
 
@@ -3356,6 +3488,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
         let mut track = straight_track_with_right_curb(1.5);
@@ -3393,6 +3526,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -3430,6 +3564,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -3461,6 +3596,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         // Measure the average decel between 55 and 25 m/s
@@ -3651,6 +3787,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
         let mut lowest = state.gear;
@@ -3913,6 +4050,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
         let mut worst: f32 = 0.0;
@@ -4698,6 +4836,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         let dt = 1.0 / 240.0;
         for _ in 0..480 {
@@ -4736,6 +4875,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4767,6 +4907,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4806,6 +4947,7 @@ mod tests {
                 steering: 0.0,
                 gear,
                 clutch: Some(1.0),
+                drs: false,
             };
             update_car_3d(&mut state, &config, &input, &track, dt);
             if state.speed_mps >= 27.8 {
@@ -4923,6 +5065,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         for _ in 0..240 {
             update_car_3d(&mut state, &config, &throttle_input, &track, dt);
@@ -4940,6 +5083,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
         for _ in 0..120 {
             update_car_3d(&mut state, &config, &brake_input, &track, dt);
@@ -4966,6 +5110,7 @@ mod tests {
             steering: 0.5,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -5274,6 +5419,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         // Run several ticks
@@ -5317,6 +5463,7 @@ mod tests {
             pit_lane: None,
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
+            drs_zones: Vec::new(),
             checkpoints: Vec::new(),
             sectors: Vec::new(),
             metadata: TrackMetadata::default(),
@@ -5337,6 +5484,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -5401,6 +5549,7 @@ mod tests {
             pit_lane: None,
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
+            drs_zones: Vec::new(),
             checkpoints: Vec::new(),
             sectors: Vec::new(),
             metadata: TrackMetadata::default(),
@@ -5485,6 +5634,7 @@ mod tests {
             pit_lane: None,
             raceline: Vec::new(),
             raceline_distances: Vec::new(),
+            drs_zones: Vec::new(),
             checkpoints: Vec::new(),
             sectors: Vec::new(),
             metadata: TrackMetadata::default(),
@@ -5510,6 +5660,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
@@ -5552,6 +5703,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         // A second to settle: on the first tick the suspension travel jumps
@@ -5597,6 +5749,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         let initial_fuel = state.fuel_liters;
@@ -5664,6 +5817,7 @@ mod tests {
             steering: 0.0,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         // Test that legacy API still works

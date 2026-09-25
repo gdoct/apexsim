@@ -215,6 +215,31 @@ pub fn build(track: &TrackConfig, car: &CarConfig) -> Option<RacingLineProfile> 
 
     let corner: Vec<f32> = kappa.iter().map(|&k| envelope.corner_speed(k)).collect();
 
+    // Inside a DRS zone the car's drag is the flap-open drag: the line is
+    // stationed along the raceline, the zones along the centerline, and
+    // the two run the same lap, so the station is scaled between them.
+    let drag_scale: Vec<f32> = {
+        let center_total = crate::laps::track_length_m(track);
+        let line_total = spacing * n as f32;
+        match (car.drs, center_total > 0.0 && line_total > 0.0) {
+            (Some(drs), true) if !track.drs_zones.is_empty() => (0..n)
+                .map(|i| {
+                    let station = i as f32 * spacing * center_total / line_total;
+                    let open = track
+                        .drs_zones
+                        .iter()
+                        .any(|z| crate::drs::inside(station, z.start_m, z.end_m, center_total));
+                    if open {
+                        1.0 - drs.drag_reduction
+                    } else {
+                        1.0
+                    }
+                })
+                .collect(),
+            _ => vec![1.0; n],
+        }
+    };
+
     // Both passes start from the slowest corner, where the speed is set by
     // the corner alone, so one lap each is enough for a closed loop.
     let slowest = (0..n)
@@ -226,7 +251,8 @@ pub fn build(track: &TrackConfig, car: &CarConfig) -> Option<RacingLineProfile> 
         let i = (slowest + step) % n;
         let prev = (i + n - 1) % n;
         let v = forward[prev];
-        let a = envelope.acceleration(v, kappa[prev], grade[prev]);
+        let a = envelope.acceleration(v, kappa[prev], grade[prev])
+            + envelope.drag_k * v * v * (1.0 - drag_scale[prev]);
         let reachable = (v * v + 2.0 * a * spacing).max(0.0).sqrt();
         forward[i] = forward[i].min(reachable);
     }

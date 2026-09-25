@@ -97,6 +97,7 @@ mod tests {
             default_width: 10.0,
             closed_loop: false,
             raceline: vec![],
+            drs_zones: Vec::new(),
             metadata: None,
         }
     }
@@ -117,6 +118,7 @@ mod tests {
             inner_m: 1.5,
             width_m: 20.0,
             end_width_m: Some(35.0),
+            paint: None,
         });
         let id = scene.alloc_id();
         scene.curbs.push(Curb {

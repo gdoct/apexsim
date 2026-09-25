@@ -8838,6 +8838,10 @@ raceline:
 - x: 6.99
   y: -2.64
   z: 0.01
+drs_zones:
+- detection_m: 3234.6
+  start_m: 3444.1
+  end_m: 362.8
 metadata:
   country: Germany
   city: Oschersleben
