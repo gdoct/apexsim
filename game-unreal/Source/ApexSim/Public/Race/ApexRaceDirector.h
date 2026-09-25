@@ -4,12 +4,14 @@
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
 #include "Race/ApexChaseView.h"
+#include "Race/ApexReplayCamera.h"
 #include "Race/ApexSkyModel.h"
 #include "Race/ApexTvDirector.h"
 
 #include "ApexRaceDirector.generated.h"
 
 class AApexCockpitRig;
+class FApexReplayClip;
 class AApexGhostCarActor;
 class AApexRaceCarActor;
 class AApexRacingLineActor;
@@ -141,6 +143,36 @@ public:
 
 	/** Fade the backdrop out ahead of ending the demo; watch GetDemoBackdropOpacity reach 0. */
 	void FadeOutDemo() { bDemoFadeOut = true; }
+
+	// --- Replay clip (offline playback) ------------------------------------------------
+
+	/**
+	 * Play a race clip from disk (`-ApexReplay=`, UApexReplaySubsystem): no
+	 * server, no session. The clip's track streams in by its stem, the field
+	 * spawns from its roster, the sky is `Conditions`, and the cars are
+	 * placed straight from the clip at the director's own clock (game time,
+	 * so a fixed-timestep frame dump is exact) and filmed as `Camera` says.
+	 * The clock holds the first frame until PlayReplay.
+	 */
+	void BeginReplayView(TSharedPtr<const FApexReplayClip> Clip, const ApexReplayCam::FSettings& Camera,
+		const FApexSessionConditions& Conditions);
+	void EndReplayView();
+	bool IsReplayViewActive() const { return bReplayView; }
+
+	/**
+	 * Everything is in to film: the level streamed and visible with its sky
+	 * applied, and the cars placed. A clip whose track has no imported level
+	 * never gets here; the caller times out.
+	 */
+	bool IsReplayReady() const;
+	/** True when the clip's track has an imported level being streamed. */
+	bool HasReplayTrackLevel() const { return bReplayView && TrackLevel != nullptr; }
+
+	/** Start the clip's clock at `FromSeconds` (from its first frame). */
+	void PlayReplay(double FromSeconds);
+	bool IsReplayPlaying() const { return bReplayPlaying; }
+	/** Seconds from the clip's first frame that the cars are showing. */
+	double GetReplayTime() const { return ReplayTime; }
 
 	/** Horizontal field of view of both driving cameras, in degrees. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
@@ -329,6 +361,15 @@ private:
 
 	/** Film the field: feed the TV director this frame's cars and place the camera where it says. */
 	void UpdateTvCamera(float DeltaSeconds);
+
+	/** Advance the replay clock and place every car from the clip. */
+	void UpdateReplay(float DeltaSeconds);
+	/** Put the car poses of one (interpolated) clip frame on the actors. */
+	void ApplyReplayFrame(const FApexTelemetryFrame& Frame, float DeltaSeconds);
+	/** The tripod and pan cameras of a replay; the other modes use the race's own. */
+	void UpdateReplayCamera(float DeltaSeconds);
+	/** Who a replay camera follows now, by the clip's follow rule. */
+	int32 ResolveReplayFollow() const;
 
 	/** Ease the demo backdrop's opacity toward whether there is anything worth showing. */
 	void UpdateDemoOpacity(float DeltaSeconds);
@@ -550,6 +591,25 @@ private:
 	/** Cuts already written to the log (Verbose), so each is logged once. */
 	int32 LoggedTvCuts = 0;
 	bool bDemoView = false;
+
+	/** A clip from disk is playing (BeginReplayView); the net is ignored. */
+	bool bReplayView = false;
+	bool bReplayPlaying = false;
+	double ReplayTime = 0.0;
+	TSharedPtr<const FApexReplayClip> ReplayClip;
+	ApexReplayCam::FSettings ReplayCamera;
+	FApexSessionConditions ReplayConditions;
+	/** The car the replay's cameras follow; see ResolveReplayFollow. */
+	int32 ReplayFollowIndex = INDEX_NONE;
+	/** The pan camera's eased aim and lens. */
+	FQuat ReplayPanRotation = FQuat::Identity;
+	float ReplayPanFov = 50.0f;
+	bool bReplayPanValid = false;
+	/** The tripod has been checked against the level's ground (SeatReplayEye). */
+	bool bReplayEyeSeated = false;
+	/** Lift a buried tripod out of the rendered ground, once the level is visible. */
+	void SeatReplayEye();
+
 	bool bDemoWorldVisible = true;
 	bool bDemoFadeOut = false;
 	FString DemoTrackStem;

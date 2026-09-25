@@ -30,6 +30,8 @@ public class ApexSim : ModuleRules
 			"AudioExtensions",
 			// The startup splash hold, which UApexStartupSplashSubsystem ends.
 			"ApexSimBoot",
+			// Replay clips (`-ApexReplay=`) are JSON cut by `apexsim-replay`.
+			"Json",
 		});
 	}
 }

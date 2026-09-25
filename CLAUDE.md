@@ -1023,6 +1023,39 @@ Command line, applied when the race view begins and held for that race:
 -ApexCameraLookAt=... -ApexScreenshotAfter=12`. The conversions live in
 `ApexRaceCoordinate.h`; `ApexSim.Camera.*` tests cover the parsing and the frame.
 
+### Replay clips and the promo video (`replay_tools.rs`, `apexsim-replay`, `ApexReplaySubsystem`)
+
+A promotional clip is filmed from a race nobody drove. `apexsim-replay`
+(server bin) `simulate`s a headless AI race straight on `GameSession` (no
+network; `--seed` fixes the AI ids and so the grid, and a seeded race
+replays bit for bit) and writes it as an ordinary replay (`replay.rs`,
+format v2: the header now carries the conditions, the start tick, the
+track stem and the lap length; the live server's recorder fills them too).
+`find` ranks the moments the field runs through a stretch of the lap
+together (a dossier corner by name, or a station); `pose` works out a camera
+point beside the road (`--side outside|inside` of the bend, seated on the
+ground heightfield when there is one, `--look-landmark big_wheel`); `cut`
+writes a few seconds as a JSON clip (`replay_tools::ClipFile`: cars as
+16-number arrays in roster order, server frame).
+
+The client plays a clip with `-ApexReplay=<file>.clip.json`
+(`UApexReplaySubsystem`, created only for such a run): no server, no demo,
+no splash hold; `AApexRaceDirector::BeginReplayView` streams the level by
+the clip's stem, spawns the field from its roster, lights the clip's sky
+and places every car with `AApexRaceCarActor::SetPlaybackPose` from
+`FApexReplayClip::SampleAt` at the director's own clock: game time, not the
+motion buffer, whose arrival clock is the platform's and would drift under
+a fixed timestep. Cameras (`ApexReplayCam`): the TV director
+(`FDirector::LockTarget` keeps it on one car), a fixed or panning tripod
+(`-ApexCamera=`/`-ApexCameraLookAt=`, look bias toward a landmark, zoom to a
+frame width), chase or cockpit. `-ApexReplayRecord=<dir>` sets a fixed
+timestep (`-ApexReplayFps`) and writes every frame as a PNG through
+`FScreenshotRequest`, then quits. `scripts/promo/make_clips.py` drives all
+of it from `scripts/promo/shots.yml` and `stitch_video.py` cuts the clips
+into the video; `docs/PROMO_VIDEO.md` has the keys. Tests:
+`replay_tools::tests` (windows, cut, clip, poses, a seeded race on
+Zandvoort), `ApexSim.Replay.*`, `ApexSim.Tv.LockTarget`.
+
 ### Demo mode and the broadcast camera (`ApexDemoModeSubsystem`, `Race/ApexTvDirector.h`)
 
 The menu plays an AI race behind its screens. `UApexDemoModeSubsystem` asks the
