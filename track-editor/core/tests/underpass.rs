@@ -410,9 +410,11 @@ fn groomed_armco_stays_out_of_the_underpass() {
     let in_the_way: Vec<_> = barriers
         .iter()
         .filter(|p| {
-            // The lower road's own armco; the upper road's may stand on the
-            // embankment beside it, 12 m up.
-            let beside_lower = p.x.abs() < 40.0 && p.y.abs() < 20.0 && p.z < HIGH_M / 2.0;
+            // The lower road's own armco where the abutment walls stand
+            // (the embankment runs out about 12 m from the crossing, and
+            // past it the approach gets its rail back); the upper road's
+            // may stand on the embankment beside it, 12 m up.
+            let beside_lower = p.x.abs() < 12.0 && p.y.abs() < 20.0 && p.z < HIGH_M / 2.0;
             let over_slot = p.y.abs() < wall && p.x.abs() > HALF_WIDTH_M && p.x.abs() < 20.0;
             beside_lower || over_slot
         })
