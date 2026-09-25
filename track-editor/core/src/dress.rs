@@ -26,7 +26,7 @@ use crate::props;
 use crate::strip_layout::surface_height;
 use crate::terrain::TerrainHeightfield;
 use crate::track_data::TrackFile;
-use crate::track_path::{offset_point, CenterlinePath, PathSample};
+use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
 
 /// Bay pitch of the stand families, matching `ApexProps::BayPitchM`. A
 /// stand is laid as runs of at most [`STAND_RUN_M`] so one built round a
@@ -89,6 +89,8 @@ pub struct DressReport {
     /// any floodlights this pass had to add.
     pub surroundings: usize,
     pub pit_lane: bool,
+    /// Tarmac run-off bands given the circuit's painted stripes.
+    pub painted_runoff: usize,
     /// Dossier entries that could not be placed, with the reason.
     pub skipped: Vec<String>,
 }
@@ -193,6 +195,7 @@ pub fn dress_scene_with_dem(
         scene.pit_lane = Some(pit);
         report.pit_lane = true;
     }
+    report.painted_runoff = paint_runoff(&path, scene);
     let lane = scene
         .pit_lane
         .as_ref()
@@ -268,6 +271,64 @@ pub fn dress_scene_with_dem(
 
 fn name_of(name: &Option<String>) -> String {
     name.clone().unwrap_or_else(|| "(unnamed)".to_string())
+}
+
+// ---- Painted run-off ------------------------------------------------------
+
+/// The circuits whose tarmac run-off is painted in stripes, and the style
+/// (`ue_export::runoff_paint_colours`): Spa's red and yellow through Eau
+/// Rouge and Raidillon and on round the outside of its corners, Yas
+/// Marina's blue and white, Bahrain's blue and red. Keyed by the scene's
+/// source file stem.
+const RUNOFF_PAINT: [(&str, &str); 3] = [
+    ("Spa", "red_yellow"),
+    ("YasMarina", "blue_white"),
+    ("Sakhir", "blue_red"),
+];
+
+/// Tightest radius over a band's span under which it is a corner's run-off
+/// and gets the paint; a straight's stays bare.
+const PAINTED_RUNOFF_RADIUS_M: f32 = 180.0;
+
+/// Give every corner's tarmac run-off the circuit's stripes, and take them
+/// off a straight's. Returns how many bands carry paint.
+fn paint_runoff(path: &CenterlinePath, scene: &mut AtsScene) -> usize {
+    let stem = scene
+        .source_track
+        .rsplit_once('.')
+        .map_or(scene.source_track.as_str(), |(stem, _)| stem);
+    let style = RUNOFF_PAINT
+        .iter()
+        .find(|(track, _)| *track == stem)
+        .map(|(_, style)| *style);
+    let total = path.total_length_m();
+    let mut painted = 0;
+    for surface in &mut scene.surfaces {
+        let tarmac = matches!(
+            surface.kind,
+            crate::ats::SurfaceKind::AsphaltRunoff | crate::ats::SurfaceKind::Concrete
+        );
+        let mut paint = None;
+        if let (true, Some(style)) = (tarmac, style) {
+            let span = if surface.end_m >= surface.start_m {
+                surface.end_m - surface.start_m
+            } else {
+                surface.end_m + total - surface.start_m
+            };
+            let steps = (span / 10.0).ceil().max(1.0) as usize;
+            let tightest = (0..=steps)
+                .map(|i| curvature_at(path, surface.start_m + span * i as f32 / steps as f32).abs())
+                .fold(0.0f32, f32::max);
+            if tightest > 1.0 / PAINTED_RUNOFF_RADIUS_M {
+                paint = Some(style.to_string());
+            }
+        }
+        if paint.is_some() {
+            painted += 1;
+        }
+        surface.paint = paint;
+    }
+    painted
 }
 
 // ---- Pit lane -------------------------------------------------------------

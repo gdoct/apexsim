@@ -430,6 +430,7 @@ mod tests {
             inner_m: 1.5,
             width_m: 10.0,
             end_width_m: Some(40.0),
+            paint: None,
         };
         let meshes = build_surface_meshes(&path, &surface, None);
         assert!(!meshes.is_empty());

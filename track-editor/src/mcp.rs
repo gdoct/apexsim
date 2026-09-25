@@ -423,6 +423,7 @@ fn drain_mcp_commands(
                         inner_m: params.inner_m,
                         width_m: params.width_m,
                         end_width_m: params.end_width_m,
+                        paint: None,
                     });
                     Ok(id)
                 });

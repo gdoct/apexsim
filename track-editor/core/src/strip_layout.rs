@@ -273,6 +273,7 @@ mod tests {
             inner_m: 0.0,
             width_m: 130.0,
             end_width_m: None,
+            paint: None,
         };
         let f = surface_lateral_fractions(&surface);
         assert_eq!(f[0], 0.0);
