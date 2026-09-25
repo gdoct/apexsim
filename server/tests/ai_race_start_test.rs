@@ -184,10 +184,16 @@ fn survey_ai_races_on_every_circuit() {
         })
         .collect();
     tracks.sort();
+    // `SURVEY_TRACKS=Spa,Monza` narrows the run to a few circuits.
+    if let Ok(only) = std::env::var("SURVEY_TRACKS") {
+        let only: Vec<&str> = only.split(',').map(str::trim).collect();
+        tracks.retain(|t| only.contains(&t.as_str()));
+    }
     for track in tracks {
         for car in ["yotota-lmp2", "redhorse-rb20", "posh-911gt3"] {
             let mut race = ai_race(&track, car, DEMO_FIELD);
             let (mut contact, mut off, mut slide, mut at_3s) = (0u32, 0u32, 0u32, 0);
+            let mut dbg: HashMap<(i32, u8), u32> = HashMap::new();
             for t in 1..=(TICK_RATE as u32 * 180) {
                 tick(&mut race);
                 if t == TICK_RATE as u32 * 3 {
@@ -199,12 +205,27 @@ fn survey_ai_races_on_every_circuit() {
                         .count();
                 }
                 for c in race.session.participants.values() {
+                    if c.is_colliding && std::env::var("SURVEY_DBG").is_ok() {
+                        *dbg.entry(((c.track_progress / 20.0) as i32, c.grid_position))
+                            .or_insert(0u32) += 1;
+                    }
                     contact += c.is_colliding as u32;
                     off += !c.is_on_track as u32;
                     slide += (c.is_on_track && !c.is_colliding && body_slip(c).abs() > 0.10) as u32;
                 }
             }
             let secs = |ticks: u32| ticks as f32 / TICK_RATE as f32;
+            // `SURVEY_DBG=1`: where the contact was, so a car pinned against
+            // a wall can be found on the map.
+            let mut worst: Vec<_> = dbg.into_iter().collect();
+            worst.sort_by(|a, b| b.1.cmp(&a.1));
+            for ((bucket, grid), ticks) in worst.into_iter().take(4) {
+                println!(
+                    "    car {grid}: {:.1} s of contact around station {} m",
+                    secs(ticks),
+                    bucket * 20
+                );
+            }
             println!(
                 "{track:>14} {car:>14}: out of shape at 3 s {at_3s}, car-seconds of contact {:5.1}, off {:5.1}, sliding {:5.1}",
                 secs(contact),
