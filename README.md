@@ -1,9 +1,9 @@
-# ApexSim SimRacing Platform
+# [ApexSim SimRacing Platform](https://gdoct.github.io/apexsim/)
 
 ApexSim is a source-available simracing platform composed of a high-frequency authoritative server written in Rust and an Unreal Engine 5 client. The codebase is tuned for realistic vehicle physics, low-latency multiplayer, and mod-friendly content pipelines.
 
 ## New site: https://gdoct.github.io/apexsim/
-[![alt text](game-unreal/apexsim_splash.png)](https://gdoct.github.io/apexsim/)
+[![visit the new marketing site](game-unreal/apexsim_splash.png)](https://gdoct.github.io/apexsim/)
 
 ## Project Status
 
