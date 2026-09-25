@@ -268,6 +268,27 @@ where the detailed ground already covers the land. At the Red Bull Ring
 that is 71k triangles for 17 km of Murtal rising to 957 m, against a
 previously flat horizon. A track with no sidecar bakes exactly as before.
 
+The centerline's own `z` is a different matter: every real circuit's came
+from invented keyframes in `enrich_all_tracks.py`, and since the surveyed
+centerline wins near the road, the road, physics and AI drove that
+profile through the real valley. Spa had a crest where the Eau Rouge dip
+is (80 m out). `scripts/dem_elevation.py` re-derives it from the sidecar:
+the median of the model across the road at each node, a Whittaker fit
+along the lap (250 m half-power wavelength: ~700 m tightest vertical
+radius) reweighted so samples more than 1.5 m above it count as canopy,
+node 0 kept to the bit (the sidecar's datum), and the raceline carried by
+the road's change. `--report` ranks every circuit by its disagreement:
+
+```bash
+python scripts/dem_elevation.py --report          # read-only
+python scripts/dem_elevation.py Spa [--dry-run]   # rewrites node and raceline z only
+```
+
+Only Spa has been re-derived (2026-09-25); run it before `ats-smooth` in
+the refresh order below. On a wooded circuit the model reads trees along
+whole stretches, which no along-road filter can tell from a hill: look at
+the fit before trusting `--report` there (Monza's park).
+
 GLO-30 is a *surface* model and it is not square-posted: it keeps 1 arcsec
 of latitude but decimates longitude by band, so a tile north of 50° is 2400
 posts wide rather than 3600. Assuming square posts reads the ground
@@ -337,6 +358,7 @@ so a change to it has to flow through in this order, and running a step
 out of order produces data that is internally inconsistent:
 
 ```bash
+python scripts/dem_elevation.py <Stem>                                        # elevation (from the checked-in DEM)
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- --all   # centerline
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-bank -- --all     # banking onto its bends
 python scripts/drs_zones.py --all                                             # DRS zones onto the corners
