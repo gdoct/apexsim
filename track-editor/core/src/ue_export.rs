@@ -2906,7 +2906,7 @@ impl Bake<'_> {
             return;
         };
         let total = path.total_length_m();
-        if !(total > 0.0) || decal.length_m >= total {
+        if total.is_nan() || total <= 0.0 || decal.length_m >= total {
             return;
         }
         self.register(&key, "decal", [1.0, 1.0, 1.0, 1.0]);
@@ -2932,7 +2932,7 @@ impl Bake<'_> {
         // v = distance across from the left edge, both in metres.
         let start = decal.start_m.rem_euclid(total);
         for chunk in &mut self.chunks[first..] {
-            for uv in chunk.uvs.chunks_exact_mut(2) {
+            for uv in chunk.uvs.as_chunks_mut::<2>().0 {
                 let along = ((uv[0] - start).rem_euclid(total) / decal.length_m).clamp(0.0, 1.0);
                 let across = (uv[1] / decal.width_m).clamp(0.0, 1.0);
                 let (u, v) = if decal.reversed {

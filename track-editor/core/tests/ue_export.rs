@@ -9,7 +9,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use track_core::ats::{
-    AtsScene, Curb, Decal, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface, SurfaceKind,
+    AtsScene, Curb, Decal, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface,
+    SurfaceKind,
 };
 use track_core::project;
 use track_core::track_data::{TrackFile, TrackNode};
@@ -1601,8 +1602,14 @@ fn road_decals_bake_as_pictures_on_the_road() {
             v_hi = v_hi.max(uv[1]);
         }
     }
-    assert!(u_lo.abs() < 1e-3 && (u_hi - 1.0).abs() < 1e-3, "u {u_lo}..{u_hi}");
-    assert!(v_lo.abs() < 1e-3 && (v_hi - 1.0).abs() < 1e-3, "v {v_lo}..{v_hi}");
+    assert!(
+        u_lo.abs() < 1e-3 && (u_hi - 1.0).abs() < 1e-3,
+        "u {u_lo}..{u_hi}"
+    );
+    assert!(
+        v_lo.abs() < 1e-3 && (v_hi - 1.0).abs() < 1e-3,
+        "v {v_lo}..{v_hi}"
+    );
 
     // The far end (v = 0) is further along the course than the near end
     // (v = 1): on this track the first straight runs along +X, which is
@@ -1623,11 +1630,17 @@ fn road_decals_bake_as_pictures_on_the_road() {
         .map(|(_, p)| p[0])
         .collect();
     assert!(!far.is_empty() && !near.is_empty());
-    assert!(far.iter().sum::<f32>() / far.len() as f32 > near.iter().sum::<f32>() / near.len() as f32);
+    assert!(
+        far.iter().sum::<f32>() / far.len() as f32 > near.iter().sum::<f32>() / near.len() as f32
+    );
 
     // Paint, not a plank: the heights change along the slope.
     let heights: Vec<f32> = mesh.positions.chunks_exact(3).map(|p| p[2]).collect();
     let lo = heights.iter().copied().fold(f32::INFINITY, f32::min);
     let hi = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    assert!(hi - lo > 5.0, "decal spans only {:.1} cm vertically on a hill", hi - lo);
+    assert!(
+        hi - lo > 5.0,
+        "decal spans only {:.1} cm vertically on a hill",
+        hi - lo
+    );
 }
