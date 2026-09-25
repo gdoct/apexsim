@@ -146,6 +146,8 @@ void AApexPlayerController::SetupInputComponent()
 	Input->BindAction(InputConfig->Look, ETriggerEvent::Completed, this, &AApexPlayerController::HandleLookReleased);
 	Input->BindAction(InputConfig->LookBack, ETriggerEvent::Started, this, &AApexPlayerController::HandleLookBack);
 	Input->BindAction(InputConfig->LookBack, ETriggerEvent::Completed, this, &AApexPlayerController::HandleLookBackReleased);
+	Input->BindAction(InputConfig->Drs, ETriggerEvent::Started, this, &AApexPlayerController::HandleDrs);
+	Input->BindAction(InputConfig->Drs, ETriggerEvent::Completed, this, &AApexPlayerController::HandleDrsReleased);
 }
 
 void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
@@ -506,4 +508,14 @@ void AApexPlayerController::HandleLookBack(const FInputActionValue&)
 void AApexPlayerController::HandleLookBackReleased(const FInputActionValue&)
 {
 	DriveInput.bLookBack = false;
+}
+
+void AApexPlayerController::HandleDrs(const FInputActionValue&)
+{
+	DriveInput.bDrs = true;
+}
+
+void AApexPlayerController::HandleDrsReleased(const FInputActionValue&)
+{
+	DriveInput.bDrs = false;
 }

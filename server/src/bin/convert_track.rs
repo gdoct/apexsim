@@ -295,6 +295,7 @@ fn convert_to_track_format(
         default_width: avg_total_width,
         closed_loop: args.closed_loop,
         raceline,
+        drs_zones: Vec::new(),
         metadata: Some(metadata),
     }
 }

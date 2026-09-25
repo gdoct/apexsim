@@ -26,7 +26,7 @@ use crate::props;
 use crate::strip_layout::surface_height;
 use crate::terrain::TerrainHeightfield;
 use crate::track_data::TrackFile;
-use crate::track_path::{offset_point, CenterlinePath, PathSample};
+use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
 
 /// Bay pitch of the stand families, matching `ApexProps::BayPitchM`. A
 /// stand is laid as runs of at most [`STAND_RUN_M`] so one built round a
@@ -89,6 +89,8 @@ pub struct DressReport {
     /// any floodlights this pass had to add.
     pub surroundings: usize,
     pub pit_lane: bool,
+    /// Tarmac run-off bands given the circuit's painted stripes.
+    pub painted_runoff: usize,
     /// Dossier entries that could not be placed, with the reason.
     pub skipped: Vec<String>,
 }
@@ -193,6 +195,7 @@ pub fn dress_scene_with_dem(
         scene.pit_lane = Some(pit);
         report.pit_lane = true;
     }
+    report.painted_runoff = paint_runoff(&path, scene);
     let lane = scene
         .pit_lane
         .as_ref()
@@ -270,6 +273,64 @@ fn name_of(name: &Option<String>) -> String {
     name.clone().unwrap_or_else(|| "(unnamed)".to_string())
 }
 
+// ---- Painted run-off ------------------------------------------------------
+
+/// The circuits whose tarmac run-off is painted in stripes, and the style
+/// (`ue_export::runoff_paint_colours`): Spa's red and yellow through Eau
+/// Rouge and Raidillon and on round the outside of its corners, Yas
+/// Marina's blue and white, Bahrain's blue and red. Keyed by the scene's
+/// source file stem.
+const RUNOFF_PAINT: [(&str, &str); 3] = [
+    ("Spa", "red_yellow"),
+    ("YasMarina", "blue_white"),
+    ("Sakhir", "blue_red"),
+];
+
+/// Tightest radius over a band's span under which it is a corner's run-off
+/// and gets the paint; a straight's stays bare.
+const PAINTED_RUNOFF_RADIUS_M: f32 = 180.0;
+
+/// Give every corner's tarmac run-off the circuit's stripes, and take them
+/// off a straight's. Returns how many bands carry paint.
+fn paint_runoff(path: &CenterlinePath, scene: &mut AtsScene) -> usize {
+    let stem = scene
+        .source_track
+        .rsplit_once('.')
+        .map_or(scene.source_track.as_str(), |(stem, _)| stem);
+    let style = RUNOFF_PAINT
+        .iter()
+        .find(|(track, _)| *track == stem)
+        .map(|(_, style)| *style);
+    let total = path.total_length_m();
+    let mut painted = 0;
+    for surface in &mut scene.surfaces {
+        let tarmac = matches!(
+            surface.kind,
+            crate::ats::SurfaceKind::AsphaltRunoff | crate::ats::SurfaceKind::Concrete
+        );
+        let mut paint = None;
+        if let (true, Some(style)) = (tarmac, style) {
+            let span = if surface.end_m >= surface.start_m {
+                surface.end_m - surface.start_m
+            } else {
+                surface.end_m + total - surface.start_m
+            };
+            let steps = (span / 10.0).ceil().max(1.0) as usize;
+            let tightest = (0..=steps)
+                .map(|i| curvature_at(path, surface.start_m + span * i as f32 / steps as f32).abs())
+                .fold(0.0f32, f32::max);
+            if tightest > 1.0 / PAINTED_RUNOFF_RADIUS_M {
+                paint = Some(style.to_string());
+            }
+        }
+        if paint.is_some() {
+            painted += 1;
+        }
+        surface.paint = paint;
+    }
+    painted
+}
+
 // ---- Pit lane -------------------------------------------------------------
 
 /// The real pit lane: the dossier's polyline, seated on the road's own
@@ -281,12 +342,36 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     if road.nodes.len() < 3 {
         return None;
     }
+    // Each node takes the height of the road *edge* beside it — not the
+    // banked surface extrapolated out to the lane, which at Zandvoort put
+    // four nodes of the exit road 7 m up beside the Hugenholtz banking —
+    // and follows the leg of the course it runs along: the lane passes
+    // other legs closer than its own where a circuit folds behind its
+    // pits, so after the first node the nearest cross-section is looked
+    // for near where the lane's own progress says it should be.
+    let total = path.total_length_m();
+    let mut station: Option<f32> = None;
+    let mut prev: Option<[f32; 2]> = None;
     let nodes: Vec<[f32; 3]> = road
         .nodes
         .iter()
         .map(|n| {
-            let (sample, lat) = nearest_cross_section(path, n[0], n[1]);
-            let z = offset_point(&sample, lat).2;
+            let expect = match (station, prev) {
+                (Some(s), Some(p)) => Some(s + (n[0] - p[0]).hypot(n[1] - p[1])),
+                _ => None,
+            };
+            let (sample, lat) = match expect {
+                Some(at) => nearest_cross_section_near(path, n[0], n[1], at, PIT_LEG_WINDOW_M),
+                None => nearest_cross_section(path, n[0], n[1]),
+            };
+            let edge = lat.clamp(-sample.width_right_m, sample.width_left_m);
+            let z = offset_point(&sample, edge).2;
+            station = Some(if path.is_closed() {
+                sample.station_m
+            } else {
+                sample.station_m.min(total)
+            });
+            prev = Some([n[0], n[1]]);
             [n[0], n[1], z]
         })
         .collect();
@@ -706,7 +791,7 @@ fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Option<Prop> {
 /// The brands the kit has artwork for (`content/props/board/brands`).
 /// Signage in the kit is fictionalised, so a dossier naming a real
 /// sponsor gets nothing rather than a texture that does not exist.
-const KIT_BRANDS: [&str; 8] = [
+pub(crate) const KIT_BRANDS: [&str; 8] = [
     "apexsim",
     "brix",
     "hexon",
@@ -800,6 +885,48 @@ fn nearest_cross_section(path: &CenterlinePath, x: f32, y: f32) -> (PathSample, 
         }
     }
     (best.1, best.2)
+}
+
+/// How far along the course from where the lane's progress says it is the
+/// nearest cross-section may be looked for, metres either way.
+const PIT_LEG_WINDOW_M: f32 = 80.0;
+
+/// [`nearest_cross_section`] restricted to the samples within `window`
+/// of station `around` (wrapping on a loop), so a lane running beside one
+/// leg of a folded circuit is not seated on another.
+fn nearest_cross_section_near(
+    path: &CenterlinePath,
+    x: f32,
+    y: f32,
+    around: f32,
+    window: f32,
+) -> (PathSample, f32) {
+    let total = path.total_length_m();
+    let gap = |s: f32| {
+        let d = (s - around).abs();
+        if path.is_closed() {
+            d.min(total - d)
+        } else {
+            d
+        }
+    };
+    let mut best: Option<(f32, PathSample, f32)> = None;
+    for sample in path.samples() {
+        if gap(sample.station_m) > window {
+            continue;
+        }
+        let dx = x - sample.pos.0;
+        let dy = y - sample.pos.1;
+        let d2 = dx * dx + dy * dy;
+        if best.is_none_or(|b| d2 < b.0) {
+            let (sin, cos) = sample.heading_rad.sin_cos();
+            best = Some((d2, *sample, -sin * dx + cos * dy));
+        }
+    }
+    match best {
+        Some((_, sample, lat)) => (sample, lat),
+        None => nearest_cross_section(path, x, y),
+    }
 }
 
 /// Planar distance from a point to the pit lane's centerline.
@@ -1483,6 +1610,7 @@ mod tests {
             default_width: 12.0,
             closed_loop: true,
             raceline: vec![],
+            drs_zones: vec![],
             metadata: None,
         }
     }

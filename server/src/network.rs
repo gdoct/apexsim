@@ -157,6 +157,11 @@ pub enum ClientMessage {
         /// Clutch engagement (0.0 = disengaged, 1.0 = engaged).
         #[serde(default)]
         clutch: Option<f32>,
+        /// The DRS button is held. The server decides whether the flap
+        /// actually opens (`crate::drs`); a client from before the field
+        /// never opens it.
+        #[serde(default)]
+        drs: Option<bool>,
     },
 }
 
@@ -581,6 +586,12 @@ pub fn lap_flags_of(state: &CarState) -> u8 {
     if state.in_garage {
         flags |= LAP_FLAG_IN_GARAGE;
     }
+    if state.drs_allowed {
+        flags |= crate::drs::LAP_FLAG_DRS_ALLOWED;
+    }
+    if state.drs_open {
+        flags |= crate::drs::LAP_FLAG_DRS_OPEN;
+    }
     flags
 }
 
@@ -1004,6 +1015,7 @@ mod tests {
             steering: -0.5,
             gear: Some(3),
             clutch: Some(1.0),
+            drs: Some(true),
         };
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -1017,6 +1029,7 @@ mod tests {
                 steering,
                 gear,
                 clutch,
+                drs,
             } => {
                 assert_eq!(server_tick_ack, 100);
                 assert_eq!(throttle, 0.8);
@@ -1024,8 +1037,49 @@ mod tests {
                 assert_eq!(steering, -0.5);
                 assert_eq!(gear, Some(3));
                 assert_eq!(clutch, Some(1.0));
+                assert_eq!(drs, Some(true));
             }
             _ => panic!("Wrong message type"),
+        }
+    }
+
+    /// The bytes the client sends for a `PlayerInput` with the DRS button
+    /// held, for the C++ encoder to pin (`cargo test player_input_drs_wire_format
+    /// -- --nocapture`); and a message from before the field decodes with
+    /// the button up.
+    #[test]
+    fn test_player_input_drs_wire_format() {
+        let msg = ClientMessage::PlayerInput {
+            server_tick_ack: 7,
+            throttle: 1.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+            drs: Some(true),
+        };
+        let bytes = rmp_serde::to_vec_named(&msg).unwrap();
+        println!("C_PlayerInputDrs = {bytes:02x?}");
+        // The field is the last one in the map: `a3 "drs" c3`.
+        assert_eq!(&bytes[bytes.len() - 5..], &[0xa3, b'd', b'r', b's', 0xc3]);
+
+        // The same message without the field, as an older client sends it.
+        let old = rmp_serde::to_vec_named(&serde_json::json!({
+            "type": "PlayerInput",
+            "data": {
+                "server_tick_ack": 7,
+                "throttle": 1.0,
+                "brake": 0.0,
+                "steering": 0.0
+            }
+        }))
+        .unwrap();
+        match rmp_serde::from_slice::<ClientMessage>(&old).unwrap() {
+            ClientMessage::PlayerInput { drs, gear, .. } => {
+                assert_eq!(drs, None);
+                assert_eq!(gear, None);
+            }
+            _ => panic!("wrong message"),
         }
     }
 

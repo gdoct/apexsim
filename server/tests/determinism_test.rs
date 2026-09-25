@@ -60,6 +60,7 @@ fn scripted_input(tick: u32, player_index: u32) -> PlayerInputData {
         steering: 0.25 * (phase * 0.7).sin(),
         gear: None,
         clutch: None,
+        drs: false,
     }
 }
 

@@ -100,6 +100,7 @@ proptest! {
             steering,
             gear: None,
             clutch: None,
+            drs: false,
         };
 
         for tick in 0..ticks {
@@ -217,6 +218,7 @@ proptest! {
                 steering,
                 gear: None,
                 clutch: None,
+                drs: None,
             },
         ];
 

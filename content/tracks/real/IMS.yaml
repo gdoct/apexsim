@@ -9648,6 +9648,7 @@ raceline:
 - x: -6.827377
   y: 4.869111
   z: 0.014
+drs_zones: []
 metadata:
   country: United States
   city: Indianapolis

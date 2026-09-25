@@ -1662,6 +1662,9 @@ void AApexRaceDirector::PollDrivingInput()
 	// The automatic gearbox runs on the server (see SetDriverAids): it knows
 	// the car's redline and ratios, which the client never learns.
 
+	// The DRS button as held; whether the flap opens is the server's call.
+	Input.bDrs = Drive.bDrs;
+
 	Net->SetPlayerInput(Input);
 }
 

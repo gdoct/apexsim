@@ -13281,6 +13281,13 @@ raceline:
 - x: -3.2
   y: -1.3
   z: 0.007
+drs_zones:
+- detection_m: 1419.1
+  start_m: 1681.4
+  end_m: 2731.4
+- detection_m: 2990.7
+  start_m: 3160.7
+  end_m: 3755.0
 metadata:
   country: United Arab Emirates
   city: Abu Dhabi

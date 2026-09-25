@@ -755,6 +755,7 @@ fn apply_ui_action(
                 inner_m: 1.5,
                 width_m: 25.0,
                 end_width_m: None,
+                paint: None,
             });
             selection.0 = Some(SelectedElement::Surface(id));
             status.0 = format!("Added {} surface #{id}.", kind.label());

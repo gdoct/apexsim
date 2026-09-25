@@ -341,6 +341,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
         steering: 0.0,
         gear: Some(1),
         clutch: Some(1.0),
+        drs: None,
     })
     .expect("serialize input");
 
@@ -401,6 +402,7 @@ async fn test_driver_feedback_reaches_the_driver_over_udp() {
         steering: 0.15,
         gear: Some(1),
         clutch: Some(1.0),
+        drs: None,
     })
     .expect("serialize input");
 
