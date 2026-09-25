@@ -105,7 +105,7 @@ VARIANTS = {
         # crease that climbs from the front arch into the intake's top corner
         side=[
             ("recess", dict(y0=(0.40, 0.80), y1=(0.98, 1.005), j0=1.95, j1=3.65,
-                            depth=0.065, rim=0.030, bow=-0.04, blades=3, blade_r=0.008)),
+                            depth=0.065, rim=0.050, bow=-0.04, blades=3, blade_r=0.008)),
             ("recess", dict(y0=(-0.95, -0.84), y1=(-0.85, -0.76), j0=2.25, j1=3.40,
                             depth=0.040, rim=0.018, blades=2, blade_r=0.005)),
             ("swage", dict(y0=-0.98, y1=0.74, j_a=3.00, j_b=3.62, depth=0.013,
