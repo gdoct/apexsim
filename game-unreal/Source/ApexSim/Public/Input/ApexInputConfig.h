@@ -45,6 +45,14 @@ namespace ApexInput
 		 */
 		inline const FName Drs          = TEXT("Drs");
 		/**
+		 * Pressed: switch the headlights on or off. Sent to the server as
+		 * `PlayerInput.headlights`; until the first press the session's sky
+		 * decides (on at dusk, at night and in the rain).
+		 */
+		inline const FName Headlights   = TEXT("Headlights");
+		/** Held: flash the headlights. Sent as `PlayerInput.flash`. */
+		inline const FName FlashLights  = TEXT("FlashLights");
+		/**
 		 * Not an Enhanced Input action: the pause key has to work while the race
 		 * view owns input, so the root widget tests it directly. Listed here so
 		 * it is rebindable and appears in the controls screen with the rest.
@@ -360,4 +368,12 @@ public:
 	/** Digital, held. Goes to the server as `PlayerInput.drs`. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> Drs;
+
+	/** Digital, fires once per press. Toggles `PlayerInput.headlights`. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> Headlights;
+
+	/** Digital, held. Goes to the server as `PlayerInput.flash`. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FlashLights;
 };

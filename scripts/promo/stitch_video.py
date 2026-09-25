@@ -187,8 +187,10 @@ def filter_script_args(ffmpeg: str, graph: Path) -> list[str]:
     """ffmpeg 7 reads a graph from a file with `-/filter_complex`; older ones with `-filter_complex_script`."""
     try:
         banner = subprocess.run([ffmpeg, "-hide_banner", "-version"], capture_output=True, text=True).stdout
-        match = re.search(r"version\s+n?(\d+)", banner)
-        major = int(match.group(1)) if match else 7
+        match = re.search(r"version\s+n?(\d+)\.", banner)
+        # A git build says "version git-2020-03-03-60b1f85": 7.0 came out in 2024.
+        dated = re.search(r"version\s+git-(\d{4})-", banner)
+        major = int(match.group(1)) if match else (6 if dated and int(dated.group(1)) < 2024 else 7)
     except OSError:
         major = 7
     return ["-/filter_complex", str(graph)] if major >= 7 else ["-filter_complex_script", str(graph)]

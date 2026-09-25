@@ -10,6 +10,7 @@ pub mod feedback;
 pub mod game_loop;
 pub mod game_session;
 pub mod ground;
+pub mod headlights;
 pub mod health;
 pub mod laps;
 pub mod lobby;

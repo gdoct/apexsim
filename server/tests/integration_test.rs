@@ -18,6 +18,8 @@ struct TestClient {
     player_id: Option<PlayerId>,
     session_id: Option<SessionId>,
     tcp_stream: TcpStream,
+    /// Bytes read off the socket that do not make up a whole frame yet.
+    rx: Vec<u8>,
     name: String,
     telemetry_received: Arc<Mutex<Vec<(u32, usize)>>>, // (server_tick, car_count)
     heartbeat_tick: u32,
@@ -32,6 +34,7 @@ impl TestClient {
             player_id: None,
             session_id: None,
             tcp_stream,
+            rx: Vec::new(),
             name: name.to_string(),
             telemetry_received: Arc::new(Mutex::new(Vec::new())),
             heartbeat_tick: 0,
@@ -228,6 +231,8 @@ impl TestClient {
             gear: None,
             clutch: None,
             drs: None,
+            headlights: None,
+            flash: None,
         };
 
         // Send via TCP for now (UDP not fully implemented in server)
@@ -236,23 +241,74 @@ impl TestClient {
         Ok(())
     }
 
+    /// The next message if one is buffered or arrives within 10 ms. Bytes
+    /// are gathered in `rx` with `read_buf`, which is cancel-safe: a
+    /// `timeout` around `read_exact` can drop half a frame and desync the
+    /// stream.
+    async fn try_receive(&mut self) -> Result<Option<ServerMessage>, Box<dyn std::error::Error>> {
+        loop {
+            if let Some(msg) = self.take_frame()? {
+                return Ok(Some(msg));
+            }
+            match timeout(Duration::from_millis(10), self.fill()).await {
+                Ok(result) => result?,
+                Err(_) => return Ok(None),
+            }
+        }
+    }
+
+    /// Pops one whole `[length][MessagePack]` frame off `rx`, if there is one.
+    fn take_frame(&mut self) -> Result<Option<ServerMessage>, Box<dyn std::error::Error>> {
+        let Some(len_bytes) = self.rx.first_chunk::<4>() else {
+            return Ok(None);
+        };
+        let end = 4 + u32::from_be_bytes(*len_bytes) as usize;
+        if self.rx.len() < end {
+            return Ok(None);
+        }
+        let msg: ServerMessage = rmp_serde::from_slice(&self.rx[4..end])?;
+        self.rx.drain(..end);
+        Ok(Some(msg))
+    }
+
+    async fn fill(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.tcp_stream.read_buf(&mut self.rx).await? == 0 {
+            return Err("server closed the connection".into());
+        }
+        Ok(())
+    }
+
     async fn receive_telemetry(
         &mut self,
     ) -> Result<Option<(u32, usize)>, Box<dyn std::error::Error>> {
-        // Try to receive telemetry via TCP (non-blocking)
-        match timeout(Duration::from_millis(10), self.receive_tcp_message()).await {
-            Ok(Ok(ServerMessage::TelemetryCompact(telemetry))) => {
-                let tick = telemetry.server_tick;
-                let car_count = telemetry.car_states.len();
-                Ok(Some((tick, car_count)))
+        match self.try_receive().await? {
+            Some(ServerMessage::TelemetryCompact(telemetry)) => {
+                Ok(Some((telemetry.server_tick, telemetry.car_states.len())))
             }
-            Ok(Ok(_other_msg)) => {
-                // Some other message, not telemetry
-                Ok(None)
-            }
-            Ok(Err(e)) => Err(e),
-            Err(_) => Ok(None), // Timeout - no telemetry available
+            _ => Ok(None),
         }
+    }
+
+    /// Reads everything the server has sent so far, logging each telemetry
+    /// frame. Reading one frame per client per pass falls behind the 60 Hz
+    /// broadcast, and the server's backpressure then drops frames for
+    /// whichever client it deems slow, so the clients' tick ranges part.
+    async fn drain_telemetry(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        while let Some(msg) = self.try_receive().await? {
+            if let ServerMessage::TelemetryCompact(telemetry) = msg {
+                let mut log = self.telemetry_received.lock().await;
+                log.push((telemetry.server_tick, telemetry.car_states.len()));
+                if log.len() == 1 {
+                    println!(
+                        "First telemetry received on {}: tick={}, cars={}",
+                        self.name,
+                        telemetry.server_tick,
+                        telemetry.car_states.len()
+                    );
+                }
+            }
+        }
+        Ok(())
     }
 
     async fn send_tcp_message(
@@ -270,15 +326,12 @@ impl TestClient {
     }
 
     async fn receive_tcp_message(&mut self) -> Result<ServerMessage, Box<dyn std::error::Error>> {
-        let mut len_buf = [0u8; 4];
-        self.tcp_stream.read_exact(&mut len_buf).await?;
-        let len = u32::from_be_bytes(len_buf);
-
-        let mut buf = vec![0u8; len as usize];
-        self.tcp_stream.read_exact(&mut buf).await?;
-        let msg: ServerMessage = rmp_serde::from_slice(&buf)?;
-
-        Ok(msg)
+        loop {
+            if let Some(msg) = self.take_frame()? {
+                return Ok(msg);
+            }
+            self.fill().await?;
+        }
     }
 
     // Telemetry listener removed - we'll receive telemetry directly in test loop
@@ -410,50 +463,12 @@ async fn test_multiplayer_race_session() {
             client3.send_input(0.85, 0.0, -0.1, tick_counter).await?;
             client4.send_input(0.7, 0.0, 0.05, tick_counter).await?;
 
-            // Try to receive telemetry from each client
-            if let Some((tick, car_count)) = client1.receive_telemetry().await? {
-                let mut log = client1.telemetry_received.lock().await;
-                log.push((tick, car_count));
-                if log.len() == 1 {
-                    println!(
-                        "First telemetry received on Client 1: tick={}, cars={}",
-                        tick, car_count
-                    );
-                }
-            }
-            if let Some((tick, car_count)) = client2.receive_telemetry().await? {
-                let mut log = client2.telemetry_received.lock().await;
-                log.push((tick, car_count));
-                if log.len() == 1 {
-                    println!(
-                        "First telemetry received on Client 2: tick={}, cars={}",
-                        tick, car_count
-                    );
-                }
-            }
-            if let Some((tick, car_count)) = client3.receive_telemetry().await? {
-                let mut log = client3.telemetry_received.lock().await;
-                log.push((tick, car_count));
-                if log.len() == 1 {
-                    println!(
-                        "First telemetry received on Client 3: tick={}, cars={}",
-                        tick, car_count
-                    );
-                }
-            }
-            if let Some((tick, car_count)) = client4.receive_telemetry().await? {
-                let mut log = client4.telemetry_received.lock().await;
-                log.push((tick, car_count));
-                if log.len() == 1 {
-                    println!(
-                        "First telemetry received on Client 4: tick={}, cars={}",
-                        tick, car_count
-                    );
-                }
-            }
-
-            // Run at approximately 60Hz client update rate
-            sleep(Duration::from_millis(16)).await;
+            // Read everything each client has been sent; the 10 ms wait for
+            // the next frame on each paces the loop.
+            client1.drain_telemetry().await?;
+            client2.drain_telemetry().await?;
+            client3.drain_telemetry().await?;
+            client4.drain_telemetry().await?;
         }
 
         println!("Race simulation complete");
