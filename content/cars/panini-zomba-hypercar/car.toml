@@ -134,7 +134,7 @@ front_width_m = 0.320
 rear_width_m = 0.345
 
 # --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
-# Livery 0 is the model as authored; these are 1, 2, 3 on the wire.
+# Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]
 name = "Veloce Tricolore"
@@ -156,3 +156,24 @@ paint = [0.090, 0.100, 0.110]
 accent = [0.420, 0.820, 0.020]
 metallic = 0.90
 logo = "textures/livery_gunmetal.png"
+
+[[livery]]
+name = "Sakura Pearl"
+paint = [0.800, 0.780, 0.800]
+accent = [0.850, 0.200, 0.420]
+metallic = 0.60
+logo = "textures/livery_sakura.png"
+
+[[livery]]
+name = "Zest Citrus"
+paint = [0.950, 0.400, 0.015]
+accent = [0.015, 0.120, 0.400]
+metallic = 0.25
+logo = "textures/livery_citrus.png"
+
+[[livery]]
+name = "Titan Silver"
+paint = [0.580, 0.600, 0.640]
+accent = [0.700, 0.015, 0.020]
+metallic = 0.95
+logo = "textures/livery_titan.png"
