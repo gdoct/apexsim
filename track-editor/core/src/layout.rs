@@ -80,6 +80,31 @@ pub struct Layout {
     /// instead of in a screenshot. Data for humans; nothing reads it.
     #[serde(default)]
     pub unclassified: std::collections::BTreeMap<String, u32>,
+    /// Pictures the fans paint on the road (the Nordschleife's graffiti),
+    /// laid by `ats-dress` as `.ats` `decals`. OSM has none of this; the
+    /// entries come from `MANUAL_GRAFFITI` in `scripts/osm_layout.py`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub graffiti: Vec<Graffiti>,
+}
+
+/// One painted picture on the road, in station / lateral space.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Graffiti {
+    /// `graffiti/<name>`: `content/props/decal/graffiti/<name>.png`.
+    pub image: String,
+    /// Where the picture starts (the edge a driver reaches first).
+    pub station_m: f32,
+    /// Centre across the road, metres, positive left.
+    #[serde(default)]
+    pub lat_m: f32,
+    pub length_m: f32,
+    pub width_m: f32,
+    /// Painted for the other direction.
+    #[serde(default)]
+    pub reversed: bool,
+    /// The spot it is painted at ("Brünnchen"), for a reader of the dossier.
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 /// A line feature on the ground: a barrier run, a road, a stream. What it

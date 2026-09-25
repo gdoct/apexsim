@@ -19,7 +19,7 @@
 //! wall clock, no map-order dependence — so it is idempotent and a re-run
 //! writes byte-identical output.
 
-use crate::ats::{AtsScene, PitLane, Prop, PropKind, Side};
+use crate::ats::{AtsScene, Decal, PitLane, Prop, PropKind, Side};
 use crate::dem::DemFile;
 use crate::layout::{Crossing, Landmark, Layout, Stand, Structure};
 use crate::props;
@@ -91,6 +91,8 @@ pub struct DressReport {
     pub pit_lane: bool,
     /// Tarmac run-off bands given the circuit's painted stripes.
     pub painted_runoff: usize,
+    /// Road graffiti laid from the dossier as `.ats` decals.
+    pub graffiti: usize,
     /// Dossier entries that could not be placed, with the reason.
     pub skipped: Vec<String>,
 }
@@ -196,6 +198,7 @@ pub fn dress_scene_with_dem(
         report.pit_lane = true;
     }
     report.painted_runoff = paint_runoff(&path, scene);
+    report.graffiti = lay_graffiti(&path, scene, layout, &mut report.skipped);
     let lane = scene
         .pit_lane
         .as_ref()
@@ -271,6 +274,81 @@ pub fn dress_scene_with_dem(
 
 fn name_of(name: &Option<String>) -> String {
     name.clone().unwrap_or_else(|| "(unnamed)".to_string())
+}
+
+// ---- Road graffiti -----------------------------------------------------------
+
+/// The decal image set this pass owns: every `graffiti/*` decal in a
+/// dressed scene came from the dossier and is replaced on each run.
+const GRAFFITI_SET: &str = "graffiti/";
+
+/// Replace the scene's graffiti decals with the dossier's, reusing their
+/// ids lowest first (so a re-run writes the same file). Entries that do
+/// not fit on the road are reported and left out. Returns how many were
+/// laid.
+fn lay_graffiti(
+    path: &CenterlinePath,
+    scene: &mut AtsScene,
+    layout: &Layout,
+    skipped: &mut Vec<String>,
+) -> usize {
+    let mut recycled: Vec<u64> = scene
+        .decals
+        .iter()
+        .filter(|d| d.image.starts_with(GRAFFITI_SET))
+        .map(|d| d.id)
+        .collect();
+    recycled.sort_unstable();
+    recycled.reverse();
+    scene.decals.retain(|d| !d.image.starts_with(GRAFFITI_SET));
+
+    let total = path.total_length_m();
+    let mut laid = 0;
+    for g in &layout.graffiti {
+        let label = g.name.as_deref().unwrap_or(&g.image);
+        let mut decal = Decal {
+            id: 0,
+            image: g.image.clone(),
+            start_m: g.station_m.rem_euclid(total),
+            length_m: g.length_m,
+            lat_m: g.lat_m,
+            width_m: g.width_m,
+            reversed: g.reversed,
+        };
+        if !g.image.starts_with(GRAFFITI_SET) || decal.image_parts().is_none() {
+            skipped.push(format!("graffiti {label}: image {:?} is not graffiti/<name>", g.image));
+            continue;
+        }
+        if !(g.length_m > 0.0 && g.width_m > 0.0 && g.length_m < total) {
+            skipped.push(format!("graffiti {label}: no size"));
+            continue;
+        }
+        // Paint stays on the tarmac: the picture is trimmed to the road
+        // at its narrowest over the span, and dropped if nothing is left.
+        let steps = (g.length_m / 2.0).ceil().max(1.0) as usize;
+        let (mut left, mut right) = (f32::INFINITY, f32::INFINITY);
+        for i in 0..=steps {
+            let s = path.sample_at(decal.start_m + g.length_m * i as f32 / steps as f32);
+            left = left.min(s.width_left_m);
+            right = right.min(s.width_right_m);
+        }
+        let hi = (g.lat_m + g.width_m / 2.0).min(left - 0.2);
+        let lo = (g.lat_m - g.width_m / 2.0).max(-(right - 0.2));
+        if hi - lo < 1.0 {
+            skipped.push(format!("graffiti {label}: off the road"));
+            continue;
+        }
+        decal.lat_m = (hi + lo) / 2.0;
+        decal.width_m = hi - lo;
+        decal.id = recycled.pop().unwrap_or_else(|| {
+            let id = scene.next_id;
+            scene.next_id += 1;
+            id
+        });
+        scene.decals.push(decal);
+        laid += 1;
+    }
+    laid
 }
 
 // ---- Painted run-off ------------------------------------------------------
@@ -1676,6 +1754,55 @@ mod tests {
     /// A slightly skewed building right of the main straight whose
     /// bounding box reaches onto the asphalt (front at y = -2 on a 6 m
     /// half-width) is moved back until its front clears the road.
+    /// Graffiti comes from the dossier, is trimmed to the tarmac, and a
+    /// second dressing writes the same decals under the same ids; a decal
+    /// of another set is left alone.
+    #[test]
+    fn graffiti_is_laid_on_the_road_and_redressed_in_place() {
+        let track = track();
+        let mut scene = scene(&track);
+        let other = scene.alloc_id();
+        scene.decals.push(Decal {
+            id: other,
+            image: "logo/start".to_string(),
+            start_m: 5.0,
+            length_m: 4.0,
+            lat_m: 0.0,
+            width_m: 4.0,
+            reversed: false,
+        });
+        let mut layout = layout();
+        let entry = |image: &str, station_m: f32, lat_m: f32, width_m: f32| crate::layout::Graffiti {
+            image: image.to_string(),
+            station_m,
+            lat_m,
+            length_m: 16.0,
+            width_m,
+            reversed: false,
+            name: None,
+        };
+        layout.graffiti = vec![
+            entry("graffiti/vollgas", 100.0, 0.0, 7.0),
+            // Wider than the 12 m road: trimmed to it.
+            entry("graffiti/eifel", 300.0, 2.0, 20.0),
+            // Entirely on the verge: left out.
+            entry("graffiti/kalle", 400.0, 12.0, 3.0),
+            entry("not_graffiti/x", 500.0, 0.0, 4.0),
+        ];
+        let report = dress_scene(&track, &mut scene, &layout).unwrap();
+        assert_eq!(report.graffiti, 2, "{:?}", report.skipped);
+        assert_eq!(report.skipped.len(), 2, "{:?}", report.skipped);
+        let eifel = scene.decals.iter().find(|d| d.image == "graffiti/eifel").unwrap();
+        assert!(eifel.lat_m + eifel.width_m / 2.0 <= 6.0 && eifel.lat_m - eifel.width_m / 2.0 >= -6.0);
+        assert!(scene.decals.iter().any(|d| d.id == other));
+        scene.validate().unwrap();
+
+        let first = scene.clone();
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        assert_eq!(scene.decals, first.decals);
+        assert_eq!(scene.next_id, first.next_id);
+    }
+
     #[test]
     fn a_building_boxed_onto_the_road_is_laid_clear_of_it() {
         let track = track();
