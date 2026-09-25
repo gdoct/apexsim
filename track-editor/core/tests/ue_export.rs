@@ -54,6 +54,7 @@ fn test_track() -> TrackFile {
         default_width: 12.0,
         closed_loop: true,
         raceline: vec![],
+        drs_zones: Vec::new(),
         metadata: None,
     }
 }
@@ -468,6 +469,7 @@ fn stadium_track() -> TrackFile {
         default_width: 12.0,
         closed_loop: true,
         raceline: vec![],
+        drs_zones: vec![],
         metadata: None,
     }
 }
@@ -1380,6 +1382,56 @@ fn ground_tessellation_is_finest_beside_the_road() {
     }
     assert!(near_cells > 0, "no ground beside the road");
     assert!(ring_cells > 0, "no ground out in the ring");
+}
+
+/// A DRS zone in the track file becomes two painted lines across the road
+/// and a board on each side at each of them.
+#[test]
+fn drs_zones_are_painted_and_signed() {
+    let mut track = test_track();
+    track.drs_zones = vec![track_core::track_data::DrsZone {
+        detection_m: 50.0,
+        start_m: 120.0,
+        end_m: 190.0,
+    }];
+    let scene = AtsScene::new_for_track(&track, "Test.yaml");
+    let baked = ue_export::bake(&track, &scene).expect("bakes");
+    let lines: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("marking_drs_line"))
+        .collect();
+    assert!(!lines.is_empty(), "no DRS lines painted");
+    let boards: Vec<_> = baked
+        .props
+        .iter()
+        .filter(|p| p.kind == "board" && p.asset == "corner_sign")
+        .collect();
+    assert_eq!(
+        boards.len(),
+        4,
+        "a board each side at detection and activation"
+    );
+    assert_eq!(
+        boards
+            .iter()
+            .filter(|p| p.text.as_deref() == Some("DRS"))
+            .count(),
+        2
+    );
+    assert_eq!(
+        boards
+            .iter()
+            .filter(|p| p.text.as_deref() == Some("DRS DETECTION"))
+            .count(),
+        2
+    );
+    // Without zones, nothing.
+    let bare = ue_export::bake(&test_track(), &scene).expect("bakes");
+    assert!(!bare
+        .meshes
+        .iter()
+        .any(|m| m.material_key.starts_with("marking_drs_line")));
 }
 
 /// The ground right beside the road is that road's verge, all the way

@@ -1549,6 +1549,7 @@ mod tests {
             default_width: 12.0,
             closed_loop: true,
             raceline: vec![],
+            drs_zones: vec![],
             metadata: None,
         }
     }

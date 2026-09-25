@@ -1378,6 +1378,7 @@ mod tests {
             default_width: 10.0,
             closed_loop: true,
             raceline: vec![],
+            drs_zones: Vec::new(),
             metadata: None,
         }
     }
@@ -1445,6 +1446,7 @@ mod tests {
             default_width: 10.0,
             closed_loop: true,
             raceline: vec![],
+            drs_zones: Vec::new(),
             metadata: None,
         };
         let path = CenterlinePath::from_track(&track).unwrap();
@@ -1492,6 +1494,7 @@ mod tests {
             default_width: 10.0,
             closed_loop: true,
             raceline: vec![],
+            drs_zones: vec![],
             metadata: None,
         };
         let path = CenterlinePath::from_track(&track).unwrap();

@@ -60,6 +60,7 @@ fn figure_eight() -> TrackFile {
         default_width: 2.0 * HALF_WIDTH_M,
         closed_loop: true,
         raceline: vec![],
+        drs_zones: Vec::new(),
         metadata: None,
     }
 }
