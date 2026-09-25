@@ -342,6 +342,8 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
         gear: Some(1),
         clutch: Some(1.0),
         drs: None,
+        headlights: None,
+        flash: None,
     })
     .expect("serialize input");
 
@@ -403,6 +405,8 @@ async fn test_driver_feedback_reaches_the_driver_over_udp() {
         gear: Some(1),
         clutch: Some(1.0),
         drs: None,
+        headlights: None,
+        flash: None,
     })
     .expect("serialize input");
 

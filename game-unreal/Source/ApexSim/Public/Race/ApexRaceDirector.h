@@ -544,6 +544,14 @@ private:
 	bool bLocalInGarage = false;
 	int32 LocalLap = 0;
 	int32 LocalLapTimeMs = 0;
+	/** Whether the server says the local car's headlights are on. */
+	bool bLocalHeadlights = false;
+	/**
+	 * The player's headlight switch as sent (`FApexPlayerInput::Headlights`):
+	 * -1 until the first press, leaving the lights to the sky; the first press
+	 * flips whatever the server shows. Reset when a race view begins.
+	 */
+	int32 HeadlightSwitch = -1;
 	/** The ghost is hidden this close to the player's car and shown again past the larger distance, cm. */
 	static constexpr float GhostHideDistanceCm = 300.0f;
 	static constexpr float GhostShowDistanceCm = 500.0f;

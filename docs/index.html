@@ -40,6 +40,11 @@ section{padding:112px 0}
 .btn.primary{background:var(--red);border-color:var(--red)}
 .btn.primary:hover{background:var(--red2);border-color:var(--red2)}
 .btn svg{width:18px;height:18px}
+dialog.trailer{padding:0;border:1px solid var(--line2);background:#000;width:min(1200px,92vw);aspect-ratio:16/9;max-height:none;overflow:visible}
+dialog.trailer::backdrop{background:rgba(5,6,8,.86);backdrop-filter:blur(6px)}
+dialog.trailer iframe{display:block;width:100%;height:100%;border:0}
+dialog.trailer button{position:absolute;top:-44px;right:0;background:none;border:1px solid var(--line2);color:var(--fg);font:600 13px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;padding:10px 14px;cursor:pointer}
+dialog.trailer button:hover{border-color:var(--fg)}
 
 /* nav */
 nav.top{position:fixed;inset:0 0 auto 0;z-index:50;transition:background .25s,border-color .25s;border-bottom:1px solid transparent}
@@ -61,6 +66,8 @@ nav.top .gh svg{width:16px;height:16px}
 .hero picture,.hero>img{position:absolute;inset:0;z-index:-2}
 .hero>img{width:100%;height:100%;object-fit:cover;object-position:50% 38%;animation:drift 24s ease-out both}
 @keyframes drift{from{transform:scale(1.08)}to{transform:scale(1)}}
+.hero>video{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;object-position:50% 50%;opacity:0;transition:opacity 1.2s ease}
+.hero>video.on{opacity:1}
 .hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(11,13,16,.55) 0%,rgba(11,13,16,0) 16%,rgba(11,13,16,0) 50%,rgba(11,13,16,.78) 74%,var(--bg) 100%),linear-gradient(90deg,rgba(11,13,16,.55),rgba(11,13,16,0) 60%)}
 .hero .wrap{width:100%;display:grid;grid-template-columns:1.3fr 1fr;gap:48px;align-items:end}
 .hero h1{font-size:clamp(38px,4.8vw,68px)}
@@ -299,6 +306,7 @@ footer a{color:var(--mute)}
       <p class="lede">ApexSim runs a 240&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Seventeen cars, twenty-six real circuits, and no second physics model to argue with.</p>
       <div class="ctas">
         <a class="btn primary" href="#cars">See the grid</a>
+        <a class="btn" href="https://youtu.be/yiTEfozkK00" data-trailer="yiTEfozkK00"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Watch the trailer</a>
         <a class="btn" href="https://github.com/gdoct/apexsim">View on GitHub →</a>
       </div>
     </div>
@@ -641,6 +649,41 @@ setTimeout(()=>document.querySelectorAll(".reveal:not(.in)").forEach(el=>{const 
   }
   requestAnimationFrame(tick);
 })();
+</script>
+<script>
+// The hero plays a silent loop from the promo over the still, on screens wide
+// enough to show it and only when the viewer has not asked for less motion or data.
+(() => {
+  const hero = document.querySelector('.hero');
+  if (!hero || !matchMedia('(min-width:641px)').matches
+      || matchMedia('(prefers-reduced-motion:reduce)').matches
+      || (navigator.connection && navigator.connection.saveData)) return;
+  const v = document.createElement('video');
+  Object.assign(v, {muted: true, loop: true, playsInline: true, autoplay: true, preload: 'auto'});
+  v.setAttribute('aria-hidden', 'true');
+  for (const [src, type] of [['assets/hero-loop.webm', 'video/webm; codecs="av01.0.08M.08"'], ['assets/hero-loop.mp4', 'video/mp4']]) {
+    const s = document.createElement('source'); s.src = src; s.type = type; v.append(s);
+  }
+  v.addEventListener('playing', () => v.classList.add('on'), {once: true});
+  hero.querySelector(':scope>img').after(v);
+})();
+// The trailer opens over the page; YouTube's player is only loaded on the click.
+// Without script (or <dialog>) the button is a plain link to the video.
+document.querySelectorAll('[data-trailer]').forEach(a => a.addEventListener('click', e => {
+  if (!window.HTMLDialogElement) return;
+  e.preventDefault();
+  const d = document.createElement('dialog');
+  d.className = 'trailer';
+  d.innerHTML = `<button type="button">Close ✕</button><iframe title="ApexSim trailer" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen
+    src="https://www.youtube-nocookie.com/embed/${a.dataset.trailer}?autoplay=1&rel=0&modestbranding=1&playsinline=1"></iframe>`;
+  const hero = document.querySelector('.hero>video');
+  d.querySelector('button').onclick = () => d.close();
+  d.addEventListener('click', ev => { if (ev.target === d) d.close(); });
+  d.addEventListener('close', () => { d.remove(); hero && hero.play(); });
+  hero && hero.pause();
+  document.body.append(d);
+  d.showModal();
+}));
 </script>
 </body>
 </html>

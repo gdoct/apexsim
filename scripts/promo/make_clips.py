@@ -465,7 +465,10 @@ def render(plan: dict, game: list[str], out: Path, resolution: tuple[int, int], 
     if not done.exists():
         log(f"  {plan['id']}: no {done} - see the game log (Saved/Logs/ApexReplay_{plan['id']}.log)")
         return False
-    result = json.loads(done.read_text(encoding="utf-8"))
+    # A build from before the writer forced UTF-8 saves it as UTF-16 when the
+    # conditions text has a non-ASCII character ("Sunny · 15:30").
+    raw = done.read_bytes()
+    result = json.loads(raw.decode("utf-16" if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else "utf-8-sig"))
     if not result.get("ok"):
         log(f"  {plan['id']}: the game reported: {result.get('error')}")
         return False
