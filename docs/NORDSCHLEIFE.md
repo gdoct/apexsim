@@ -54,6 +54,33 @@ the standard pipeline (CLAUDE.md, "Refresh order").
    UnrealEditor-Cmd.exe game-unreal/ApexSim.uproject -run=ApexTrackCatalogSync
    ```
 
+## Where it stands (2026-09-25)
+
+- **Lap**: 20 763 m after smoothing (the official figure is 20 832 m),
+  4 154 nodes, 9 m road, tightest radius 22.8 m (the Karussell), 292 m of
+  relief, steepest grade 15%. The line is 75 m up the T13 straight from
+  OSM's "Start-Ziel T13" node, because the fallback grid is laid straight
+  back from the line for 64 m and the node sits right after the bend from
+  Hohenrain.
+- **Dossier**: fit rmse 0.75 m, centerline covered 100%; 43 named corners
+  (every section: Hatzenbach ... Karussell ... Döttinger Höhe), 33 woods,
+  123 barrier runs, 2 road bridges, Burg Nürburg, 135 graffiti.
+- **Scene**: about 9 500 vangrail modules, 1 200 tyre modules, 270 signs,
+  29 600 trees; re-dressing is byte-identical.
+- **Walls check**: 2 m of the lap edge open (`check_walls.py --openings`).
+- **AI survey** (`SURVEY_TRACKS=Nordschleife`, 10 cars, 180 s): LMP2 and
+  GT3 fields 1.7-1.8 car-seconds of contact, 10-13 off the road; the F1
+  field has one car that leaves the road at the Hatzenbogen and is pinned
+  against the rail for 82 s (the AI's recovery from a wall, as at
+  Oschersleben; the close rails make it likelier here).
+- **No pit lane**: the lane OSM maps at T13 merges into the road across
+  the start area and its walls stood on the racing line; the circuit's
+  style lays none (the endurance races pit in the GP paddock).
+- **Not done here**: the Unreal side (`ApexPropImport -kind=decal` and the
+  new kit meshes, `build_track_levels.ps1 -Track Nordschleife`, the catalog
+  sync) needs a Windows machine with the engine; none of the C++ changes
+  were compiled in this session.
+
 ## Road graffiti
 
 The fans' paint on the tarmac is a new scene layer, not a prop: `.ats`
