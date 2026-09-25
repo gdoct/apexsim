@@ -39,7 +39,7 @@ from mathutils import Vector
 import apex
 from apex import Builder, material, reset_scene   # noqa: F401  (re-exported)
 
-CARS_ROOT = r"D:\apexsim\content\cars"
+CARS_ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"D:\apexsim"), "content", "cars")
 
 
 # --------------------------------------------------------------- materials
@@ -392,20 +392,75 @@ class Loft:
             self._crease_y += [(y - width / 2.0, j0, j1), (y + width / 2.0, j0, j1)]
         return self
 
-    def recess(self, y0, y1, j0, j1, depth=0.030, rim=0.016, jfade=0.30, sx=0, crease=True):
+    def recess(self, y0, y1, j0, j1, depth=0.030, rim=0.016, jfade=0.30, sx=0, crease=True,
+               bow=0.0):
         """A duct, intake or vent: a panel of the flank pushed in along the
-        surface normal, with sloped walls `rim` long at each end."""
-        self._feat.append(dict(kind="recess", y0=y0, y1=y1, j0=j0, j1=j1,
-                               depth=depth, rim=rim, jfade=jfade, sx=sx))
-        if crease:
-            self._crease_y += [(y0, j0, j1), (y1, j0, j1)]
+        surface normal, with sloped walls `rim` long at each end.
+
+        `y0` / `y1` may each be a pair `(at_j0, at_j1)`: the edge then runs
+        from one station at the bottom of the vent to another at the top, so
+        a vent can lean back, lean forward or taper instead of every car's
+        cutting straight down the flank at the same station. `bow` bends both
+        edges by that much (metres, + towards the tail) at mid-height."""
+        swept = isinstance(y0, (tuple, list)) or isinstance(y1, (tuple, list)) or bow
+        y0p = tuple(y0) if isinstance(y0, (tuple, list)) else (y0, y0)
+        y1p = tuple(y1) if isinstance(y1, (tuple, list)) else (y1, y1)
+        self._feat.append(dict(kind="recess", y0=y0p[0], y1=y1p[0], y0p=y0p, y1p=y1p,
+                               j0=j0, j1=j1, depth=depth, rim=rim, jfade=jfade, sx=sx,
+                               bow=bow, swept=bool(swept)))
+        if crease and not swept:
+            self._crease_y += [(y0p[0], j0, j1), (y1p[0], j0, j1)]
         return self
 
-    def _depth_y(self, f, y):
+    @property
+    def last_feature(self):
+        return self._feat[-1]
+
+    def recess_edges(self, f, jc):
+        """The fore and aft edge of a (possibly swept) recess at index `jc`."""
+        t = min(max((jc - f["j0"]) / max(f["j1"] - f["j0"], 1e-6), 0.0), 1.0)
+        b = f.get("bow", 0.0) * 4.0 * t * (1.0 - t)
+        y0 = f["y0p"][0] + (f["y0p"][1] - f["y0p"][0]) * t + b
+        y1 = f["y1p"][0] + (f["y1p"][1] - f["y1p"][0]) * t + b
+        return y0, y1
+
+    def swage(self, y0, y1, j_a, j_b, depth=0.008, width=0.35, fade=0.25, sx=0, bulge=False,
+              j_mid=None):
+        """A character line running *along* the car: a V-groove (or, with
+        `bulge`, a raised ridge) whose control index climbs from `j_a` at
+        station `y0` to `j_b` at `y1` (through `j_mid` half way, if given),
+        `width` wide in control indices and faded in and out over `fade`
+        metres. This is what gives a flank its gesture - the line that rises
+        from behind the front wheel into the rear intake - where shut lines
+        and vents only ever cut across it."""
+        self._feat.append(dict(kind="swage", y0=y0, y1=y1, ja=j_a, jb=j_b, jm=j_mid,
+                               depth=-depth if bulge else depth, w=width / 2.0,
+                               fade=fade, sx=sx))
+        return self
+
+    def _swage_j(self, f, y):
+        t = (y - f["y0"]) / max(f["y1"] - f["y0"], 1e-6)
+        if f["jm"] is None:
+            return f["ja"] + (f["jb"] - f["ja"]) * t
+        # quadratic through the three indices
+        a, m, b = f["ja"], f["jm"], f["jb"]
+        return a * (1 - t) * (1 - 2 * t) + 4 * m * t * (1 - t) + b * t * (2 * t - 1)
+
+    def _depth_y(self, f, y, jc=None):
         if f["kind"] == "groove":
             d = abs(y - f["y"])
             return 0.0 if d >= f["w"] else f["depth"] * (1.0 - d / f["w"])
-        y0, y1, rim = f["y0"], f["y1"], f["rim"]
+        if f["kind"] == "swage":
+            if y <= f["y0"] or y >= f["y1"] or jc is None:
+                return 0.0
+            end = min(_smoothstep((y - f["y0"]) / f["fade"]), _smoothstep((f["y1"] - y) / f["fade"]))
+            d = abs(jc - self._swage_j(f, y)) / f["w"]
+            return 0.0 if d >= 1.0 else f["depth"] * end * (1.0 - d) ** 1.5
+        if f.get("swept") and jc is not None:
+            y0, y1 = self.recess_edges(f, jc)
+        else:
+            y0, y1 = f["y0"], f["y1"]
+        rim = f["rim"]
         if y <= y0 or y >= y1:
             return 0.0
         if y < y0 + rim:
@@ -414,7 +469,7 @@ class Loft:
             return f["depth"] * _smoothstep((y1 - y) / rim)
         return f["depth"]
 
-    def _offset(self, y, kk, right):
+    def _offset(self, y, kk, right, skip_swept=False):
         """Inward displacement at station `y`, half-ring index `kk`."""
         if not self._feat:
             return 0.0
@@ -423,7 +478,12 @@ class Loft:
         for f in self._feat:
             if f["sx"] and (f["sx"] > 0) != right:
                 continue
-            dz = self._depth_y(f, y)
+            if skip_swept and (f.get("swept") or f["kind"] == "swage"):
+                continue
+            dz = self._depth_y(f, y, jc)
+            if f["kind"] == "swage":
+                tot += dz
+                continue
             if dz <= 0.0:
                 continue
             fd = f["jfade"]
@@ -438,6 +498,18 @@ class Loft:
             if f["kind"] == "groove":
                 ys += [f["y"] - f["w"], f["y"] - f["w"] * 0.5, f["y"],
                        f["y"] + f["w"] * 0.5, f["y"] + f["w"]]
+            elif f["kind"] == "swage":
+                n = max(2, int((f["y1"] - f["y0"]) / 0.025))
+                ys += [f["y0"] + (f["y1"] - f["y0"]) * i / n for i in range(n + 1)]
+            elif f.get("swept"):
+                # the walls move from station to station up the vent, so the
+                # mesh needs stations closer than the rim everywhere they pass
+                e = [self.recess_edges(f, f["j0"] + (f["j1"] - f["j0"]) * i / 8.0) for i in range(9)]
+                lo = min(min(a, b) for a, b in e) - 0.004
+                hi = max(max(a, b) for a, b in e) + 0.004
+                step = max(min(f["rim"] * 0.5, 0.012), 0.005)
+                n = max(2, int((hi - lo) / step))
+                ys += [lo + (hi - lo) * i / n for i in range(n + 1)]
             else:
                 y0, y1, rim = f["y0"], f["y1"], f["rim"]
                 ys += [y0, y0 + rim * 0.5, y0 + rim, y1 - rim, y1 - rim * 0.5, y1]
@@ -710,6 +782,214 @@ def cut_solid(body, solid, keep=False):
 def aperture(body, mats, lo, hi, mat=None):
     """Cut a rectangular opening (lamp, grille, duct) with lined walls."""
     return cut_solid(body, box_solid(mat or mats.lamp_h, lo, hi))
+
+
+def prism_xz(mat, poly_xz, y0, y1, name="poly_cut"):
+    """A closed solid: the closed (x, z) polygon `poly_xz` swept along Y
+    from y0 to y1 - a cutter for a shaped opening in the nose or tail."""
+    b = Builder(name)
+    bm = b.bm
+    s = b.slot(mat)
+    A = [bm.verts.new((x, y0, z)) for (x, z) in poly_xz]
+    B = [bm.verts.new((x, y1, z)) for (x, z) in poly_xz]
+    n = len(poly_xz)
+    for i in range(n):
+        j = (i + 1) % n
+        f = bm.faces.new((A[i], A[j], B[j], B[i]))
+        f.material_index = s
+    for verts in (list(reversed(A)), B):
+        f = bm.faces.new(verts)
+        f.material_index = s
+    ob = b.finish(planar_uv=True)
+    return outward_normals(ob)
+
+
+def flip_x(poly):
+    """The mirror image of an (x, z) outline across the centreline, still
+    wound the same way round."""
+    return [(-x, z) for (x, z) in reversed(poly)]
+
+
+def rounded(poly, r=0.02, segs=3):
+    """Round every corner of a closed (x, z) polygon by `r`: an intake with
+    radiused corners reads as moulded, not as a hole punched with a box."""
+    out = []
+    n = len(poly)
+    for i in range(n):
+        p0, p1, p2 = Vector(poly[i - 1]), Vector(poly[i]), Vector(poly[(i + 1) % n])
+        a, c = (p0 - p1), (p2 - p1)
+        rr = min(r, a.length * 0.45, c.length * 0.45)
+        if rr < 1e-4:
+            out.append(tuple(p1))
+            continue
+        pa, pc = p1 + a.normalized() * rr, p1 + c.normalized() * rr
+        for k in range(segs + 1):
+            t = k / segs
+            q = pa * (1 - t) ** 2 + p1 * 2 * t * (1 - t) + pc * t * t
+            out.append((q.x, q.y))
+    return out
+
+
+def poly_depth(loft, poly_xz, start, margin=0.02):
+    """The station behind which every point of `poly_xz` is inside the skin,
+    searching from the nose (or tail) `start`: where a grille's backing can
+    stand without poking out of a curved bumper."""
+    ys = [surface_station(loft, abs(x), z, start, step=0.01, margin=0.0) for (x, z) in poly_xz]
+    sign = 1.0 if start < (loft.nose + loft.tail) / 2 else -1.0
+    return (max(ys) if sign > 0 else min(ys)) + sign * margin
+
+
+def aperture_poly(body, mats, poly_xz, y0, y1, mat=None):
+    """Cut a shaped opening (grille, intake, tail lamp) with lined walls."""
+    return cut_solid(body, prism_xz(mat or mats.lamp_h, poly_xz, min(y0, y1), max(y0, y1)))
+
+
+def poly_fill(b, mat, poly_xz, y0, y1):
+    """A solid slab of outline `poly_xz` between y0 and y1 (a grille backing,
+    a lit lamp face). Fan-triangulated, so keep the outline convex or star-
+    shaped about its centroid."""
+    s = b.slot(mat)
+    bm = b.bm
+    cx = sum(p[0] for p in poly_xz) / len(poly_xz)
+    cz = sum(p[1] for p in poly_xz) / len(poly_xz)
+    n = len(poly_xz)
+    for (yy, rev) in ((min(y0, y1), True), (max(y0, y1), False)):
+        c = bm.verts.new((cx, yy, cz))
+        ring = [bm.verts.new((x, yy, z)) for (x, z) in poly_xz]
+        for i in range(n):
+            q = (c, ring[i], ring[(i + 1) % n])
+            f = bm.faces.new(tuple(reversed(q)) if rev else q)
+            f.material_index = s
+    return b
+
+
+def _clip_line(poly, p, d):
+    """Parameter ranges where the line p + t d is inside the polygon."""
+    ts = []
+    n = len(poly)
+    for i in range(n):
+        a, c = Vector(poly[i]), Vector(poly[(i + 1) % n])
+        e = c - a
+        den = d.x * e.y - d.y * e.x
+        if abs(den) < 1e-12:
+            continue
+        w = a - p
+        t = (w.x * e.y - w.y * e.x) / den
+        u = (w.x * d.y - w.y * d.x) / den
+        if 0.0 <= u < 1.0:
+            ts.append(t)
+    ts.sort()
+    return [(ts[i], ts[i + 1]) for i in range(0, len(ts) - 1, 2)]
+
+
+def poly_bars(b, mat, poly_xz, y, angle_deg=0.0, pitch=0.04, t=0.007, depth=0.016, inset=0.006,
+              dir_y=1.0):
+    """Bars across a shaped opening at `angle_deg` from horizontal, `pitch`
+    apart, clipped to the outline: horizontal slats, the vertical chrome
+    bars of a big-grille GT, or - two sets crossed - a diamond mesh."""
+    import math as _m
+    a = _m.radians(angle_deg)
+    d = Vector((_m.cos(a), _m.sin(a)))
+    nrm = Vector((-d.y, d.x))
+    cx = sum(p[0] for p in poly_xz) / len(poly_xz)
+    cz = sum(p[1] for p in poly_xz) / len(poly_xz)
+    ctr = Vector((cx, cz))
+    offs = [(Vector(p) - ctr).dot(nrm) for p in poly_xz]
+    lo, hi = min(offs) + inset, max(offs) - inset
+    k = lo + (pitch * 0.5 + ((hi - lo) % pitch) * 0.5)
+    ya, yb = sorted((y, y + depth * dir_y))
+    while k < hi:
+        p0 = ctr + nrm * k
+        for (t0, t1) in _clip_line(poly_xz, p0, d):
+            if t1 - t0 < 0.012:
+                continue
+            q0, q1 = p0 + d * (t0 + inset), p0 + d * (t1 - inset)
+            # a bar is a thin slab: its long axis along d, thin across it
+            w = nrm * (t / 2)
+            quad = [q0 - w, q1 - w, q1 + w, q0 + w]
+            s = b.slot(mat)
+            A = [b.bm.verts.new((qq.x, ya, qq.y)) for qq in quad]
+            B = [b.bm.verts.new((qq.x, yb, qq.y)) for qq in quad]
+            for i in range(4):
+                j = (i + 1) % 4
+                f = b.bm.faces.new((A[i], A[j], B[j], B[i])); f.material_index = s
+            f = b.bm.faces.new(list(reversed(A))); f.material_index = s
+            f = b.bm.faces.new(B); f.material_index = s
+        k += pitch
+
+
+def poly_rim(b, mat, poly_xz, y, w=0.014, depth=0.018, dir_y=1.0, closed=True):
+    """A raised surround following a shaped opening's outline (a chrome or
+    carbon lip), as a chain of short slabs."""
+    n = len(poly_xz)
+    ya, yb = sorted((y, y + depth * dir_y))
+    s = b.slot(mat)
+    for i in range(n if closed else n - 1):
+        a, c = Vector(poly_xz[i]), Vector(poly_xz[(i + 1) % n])
+        e = c - a
+        if e.length < 1e-5:
+            continue
+        nn = Vector((-e.y, e.x)).normalized() * (w / 2)
+        quad = [a - nn, c - nn, c + nn, a + nn]
+        A = [b.bm.verts.new((q.x, ya, q.y)) for q in quad]
+        B = [b.bm.verts.new((q.x, yb, q.y)) for q in quad]
+        for k in range(4):
+            j = (k + 1) % 4
+            f = b.bm.faces.new((A[k], A[j], B[j], B[k])); f.material_index = s
+        f = b.bm.faces.new(list(reversed(A))); f.material_index = s
+        f = b.bm.faces.new(B); f.material_index = s
+
+
+def swept_floor(b, mat, loft, f, sx=1, nu=10, nv=8, lift=0.003):
+    """The dark floor of a swept recess, following its leaning edges. A
+    material picked per loft face cannot follow a slanted edge (the faces run
+    square to the car), so it came out as a staircase; this lies on the
+    recess floor itself, inside the walls."""
+    s = b.slot(mat)
+    bm = b.bm
+    fd = f["jfade"]
+    j0, j1 = f["j0"] + fd * 0.8, f["j1"] - fd * 0.8
+    grid = []
+    for iv in range(nv + 1):
+        jc = j0 + (j1 - j0) * iv / nv
+        y0, y1 = loft.recess_edges(f, jc)
+        y0, y1 = y0 + f["rim"], y1 - f["rim"]
+        row = []
+        for iu in range(nu + 1):
+            y = y0 + (y1 - y0) * iu / nu
+            q = loft.point(y, jc) - loft.normal(y, jc) * (f["depth"] - lift)
+            row.append(bm.verts.new((sx * q.x, q.y, q.z)))
+        grid.append(row)
+    for iv in range(nv):
+        for iu in range(nu):
+            quad = (grid[iv][iu], grid[iv][iu + 1], grid[iv + 1][iu + 1], grid[iv + 1][iu])
+            fc = bm.faces.new(quad)
+            fc.material_index = s
+            fc.normal_update()
+            if (fc.normal.x > 0) != (sx > 0):
+                fc.normal_flip()
+            b.keep.add(fc)
+
+
+def swept_blades(b, mat, loft, f, count=4, sx=1, r=0.007, sink=0.5, per=8):
+    """Blades across a swept recess (`loft.recess(...)`'s feature dict, as
+    returned by `last_feature`), each running from the vent's bottom edge to
+    its top parallel to its leading edge - so the gills lean with the vent
+    instead of standing as horizontal slats in a slanted hole."""
+    out = []
+    for k in range(count):
+        t = (k + 0.5) / count
+        pts = []
+        for i in range(per + 1):
+            jc = f["j0"] + 0.12 + (f["j1"] - f["j0"] - 0.24) * i / per
+            y0, y1 = loft.recess_edges(f, jc)
+            y = y0 + f["rim"] + (y1 - y0 - 2 * f["rim"]) * t
+            q = loft.point(y, jc) - loft.normal(y, jc) * (f["depth"] * sink)
+            pts.append(Vector((sx * q.x, q.y, q.z)))
+        for a, c in zip(pts, pts[1:]):
+            b.bar(mat, a, c, r, 6)
+        out.append(pts)
+    return out
 
 
 # -------------------------------------------------------------------- aero
@@ -1069,7 +1349,8 @@ def led_grid(b, mats, x0, x1, z0, z1, y, dir_y=-1.0, cols=3, rows=4, glow=None, 
           (x1 + 0.003, max(y - 0.006 * dir_y, y - 0.010 * dir_y), z1 + 0.003))
 
 
-def tail_bar(b, mats, x0, x1, y, z, h=0.055, glow=None, dir_y=-1.0, brake_x=None, segs=10):
+def tail_bar(b, mats, x0, x1, y, z, h=0.055, glow=None, dir_y=-1.0, brake_x=None, segs=10,
+             guide_r=0.009):
     """A full-width tail light bar on a flat tail panel: a black cavity let
     into the panel (back wall 8 mm behind the face, a lip top and bottom),
     a lit light-guide tube in it, brake blocks where `brake_x` says (pairs
@@ -1082,7 +1363,7 @@ def tail_bar(b, mats, x0, x1, y, z, h=0.055, glow=None, dir_y=-1.0, brake_x=None
     b.box(mats.trim, (x0, yl0, z + h / 2 - 0.006), (x1, yl1, z + h / 2))
     b.box(mats.trim, (x0, yl0, z - h / 2), (x1, yl1, z - h / 2 + 0.006))
     yt = y + 0.003 * dir_y
-    guide_xyz(b, glow, [(x0 + 0.02, yt, z + h * 0.18), (x1 - 0.02, yt, z + h * 0.18)], r=0.009, segs=segs)
+    guide_xyz(b, glow, [(x0 + 0.02, yt, z + h * 0.18), (x1 - 0.02, yt, z + h * 0.18)], r=guide_r, segs=segs)
     for (bx0, bx1) in (brake_x or ()):
         yk0, yk1 = sorted((y + 0.001 * dir_y, y + 0.009 * dir_y))
         b.box(mats.brake, (bx0, yk0, z - h * 0.42), (bx1, yk1, z - h * 0.05))
