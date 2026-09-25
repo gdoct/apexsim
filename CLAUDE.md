@@ -152,22 +152,61 @@ hand-placed props: a `sign` is also a distance board and a `misc` is also a
 bollard.
 
 Barriers are now **decided**, not inherited (`track-editor/core/src/barriers.rs`,
-laid by `groom::lay_all_barriers`). One pass walks every 4 m cell on both
-sides, so coverage is complete by construction — the old pass only put a
-wall at a corner where the 2026-09 enrichment had happened to leave a prop
-within 40 m — and `barriers::decide` chooses the kind from the dossier's
-mapped barriers first and the geometry second: which side is the *outside*
-of the bend, how tight it is, and how much run-off there is. That yields
-about 55% armco, 25% Tecpro and 15% tyres at the Red Bull Ring, with
-`armco_4m_fence` wherever there are people behind it, `concrete_4m_rail`
-where a mapped wall stands hard against the road (a street circuit), and
-`armco_end` / `tecpro_corner` / `tires_corner` / `concrete_end` closing
-every run. A corner's barrier stands at least 14 m past the road edge and
-a straight's at least 7 m (`CORNER_BARRIER_MIN_M`, `STRAIGHT_BARRIER_MIN_M`),
-further where run-off is authored; and every piece — module and end cap
-alike, not just its cell's centre — must pass `placeable`: clear of the pit
-lane, clear of *every* section of the course where it folds back on itself,
-not at an underpass, not inside another prop.
+laid by `groom::lay_all_barriers`). The kind is decided per 4 m cell —
+`barriers::decide` chooses from the dossier's mapped barriers first and
+the geometry second: which side is the *outside* of the bend, how tight it
+is, and how much run-off there is. That yields about 55% armco, 25% Tecpro
+and 15% tyres at the Red Bull Ring, with `armco_4m_fence` wherever there
+are people behind it, `concrete_4m_rail` where a mapped wall stands hard
+against the road (a street circuit), and `armco_end` / `tecpro_corner` /
+`tires_corner` / `concrete_end` closing every run. A corner's barrier
+stands at least 14 m past the road edge and a straight's at least 7 m
+(`CORNER_BARRIER_MIN_M`, `STRAIGHT_BARRIER_MIN_M`), further where run-off
+is authored.
+
+The **line** itself is a polyline, not one lateral per cell (2026-09-25).
+The first version put a module at each cell's centre at that cell's
+offset, and wherever the offset stepped — 7 m to 14 m sixty metres before
+every corner, 7 m to 24 m where run-off began — neighbouring modules stood
+metres apart sideways; on the outside of a tight bend 4 m of centerline
+was more than 4 m of line; a grandstand swallowed the rail in front of it
+(the groomer modelled a stand's slab centred on its pivot where every
+other stage puts the pivot on the *front*: `groom::footprint_centre_of`,
+`Slab`); the whole pit side of the pit straight was skipped; and any lamp
+post or clump of grass within half a metre took a module out — each a
+hole a car could leave the circuit through. Now the wanted offset is
+smoothed along the lap at `BARRIER_GRADE` (0.25 m/m, dilated outward,
+eroded toward a stand's front, held to the middle of the strip between
+two close legs), the line is sampled every metre, `placeable` drops
+points (clear of the pit lane except *behind* it, off any other leg's
+verge, not in an underpass slot, not inside a stand or building — small
+props no longer count), and the modules are laid **end to end along the
+line by arc length**, each yawed to it, with caps a metre past each run's
+ends and where two kinds meet. Behind the pit lane the line goes behind
+the lane; the bake walls the road side of the lane wherever there is an
+apron (`PIT_TAPER_WALL_MIN_M`), not only over the box span. The lower
+road at an underpass gets its rail back wherever the ground is not
+embanked (`UNDERPASS_STEP_M`). Measured by
+
+```bash
+python scripts/check_walls.py --openings --all      # -v lists the runs
+```
+
+which probes every 2 m of the lap for a ray from the road edge that meets
+no wall within 45 m: 5 300 open probes over the calendar before, 384
+after; Zandvoort 730 m of open edge to 2 m; stand runs with nothing in
+front of them 91 to 18. The AI survey's off-road time fell with it, but a
+continuous wall also *pins* a car the old holes let out: Oschersleben
+occasionally shows one F1 car spending most of the survey against the
+rail at 900 m (`SURVEY_TRACKS=Oschersleben SURVEY_DBG=1` finds it), and
+the AI's recovery from a wall is the next thing to look at, not the wall.
+
+The same pass hangs **hoardings** (`groom::lay_hoardings`): a
+`board/hoarding_3m` behind every plain rail module on the pit straight,
+through the braking zone into each corner and round its outside, and in
+front of every grandstand, one brand per 36 m stretch, never on Tecpro or
+tyres; about a quarter of the rail modules carry one. Owned by asset
+(`HOARDING_ASSETS`), like the barriers.
 
 Three traps are pinned by tests. Ownership is by asset, so the groomer must
 recognise every asset it can lay or it doubles them on the next run. A
@@ -300,10 +339,57 @@ out of order produces data that is internally inconsistent:
 ```bash
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- --all   # centerline
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-bank -- --all     # banking onto its bends
+python scripts/drs_zones.py --all                                             # DRS zones onto the corners
 python scripts/osm_layout.py --all --offline                                  # dossiers (fit to the centerline)
 python scripts/dem_fetch.py --all --offline                                   # elevation (same fit, same datum)
 ./scripts/build_track_levels.ps1                                              # dress, export, import
 ```
+
+### DRS (`drs_zones.py`, `server/src/drs.rs`)
+
+Each track YAML carries `drs_zones` (detection, activation and end
+stations), written by `scripts/drs_zones.py` from the FIA event notes of
+the circuit's last DRS season. The notes say "95 m before turn 7"; the
+script detects the corner runs from the centerline and each entry in its
+`ZONES` table names the turn by an approximate station, so a zone snaps
+onto the corner it belongs to and survives `ats-smooth`
+(`--report <Stem>` prints the detected corners to author against; the DTM
+circuits get one zone on the pit straight, Le Mans and IMS none). Both
+`TrackFile`s keep the key through every rewrite.
+
+The server runs the rule once per tick, before the physics
+(`GameSession::update_drs`): crossing a detection line arms the zone —
+in a race only within `DRS_GAP_S` (1 s) of a car ahead on the road, in
+practice and the hotlap always — the flap may open between activation and
+end, the brake shuts it (`DRS_BRAKE_CLOSE`), and nothing opens in the
+rain, on the first lap of a race or in the garage. An F1 car has
+`DrsSpec::F1` (12% of the drag and 25% of the rear downforce off) unless
+its `[physics]` table says `drs_drag_reduction` /
+`drs_rear_downforce_reduction`; any other class has none. `PlayerInput.drs`
+(optional; an old client never opens it) is the button, the AI asks
+whenever `CarState::drs_allowed`, telemetry carries allowed/open as
+`lap_flags` bits 3 and 4, and the racing line's profile uses the flap-open
+drag inside the zones. The bake paints a line across the road at each
+detection and activation station with a `corner_sign` board on each side
+(`DRS DETECTION` / `DRS`). On the client: the `Drs` input action (Left
+Shift, gamepad X, a wheel slot), `FApexCarTelemetry::bDrsAllowed/bDrsOpen`,
+and a badge on the HUD rev counter (dark / lit / green when open). Golden
+bytes: `cargo test player_input_drs_wire_format -- --nocapture`.
+
+### Run-off (`Surface::paint`, `RoadContact::Runoff`)
+
+The curb sidecar is version 2: beside the curb width it carries how far
+the `asphalt_runoff` / `concrete` bands reach past each edge
+(`CurbBands::runoff_at`), and physics classes a point past the curb but
+within it as `RoadContact::Runoff` — asphalt at `RUNOFF_GRIP_FACTOR` of
+the road's grip and none of the grass drag, but **off the track for the
+lap**: track limits are judged per wheel (`WheelState::off_track`), and
+the feedback surface reads the run-off as road, because it is smooth and
+the client's force feedback would otherwise rumble on it. A tarmac band
+may carry a paint style (`red_yellow`, `blue_white`, `blue_red`,
+`red_white`, `green_white`); the bake lays stripes parallel to the road
+across it, and `ats-dress` gives every corner's tarmac run-off the
+circuit's style from `dress::RUNOFF_PAINT` (Spa, Yas Marina, Bahrain).
 
 The dossier and the elevation sidecar are both fitted to the centerline,
 and a hand-authored pit lane is laid along it (`edge_run`), so either one
@@ -369,10 +455,12 @@ all shipped in `Server/` by `build_release.ps1`:
   asphalt follows the rendered verge and terrain instead of holding road
   height. Without it, off-track elevation falls back to the centerline.
 - `<Stem>.curbs.msgpack` — how far the curbs reach past each road edge,
-  one sample per metre of centerline station (`curbs.rs`). The curbs are
+  one sample per metre of centerline station (`curbs.rs`), and (version
+  2) how far the tarmac run-off reaches. The curbs are
   authored in the `.ats` and reach the server only as this number: physics
   counts a car within the band as on the track, with `curb_grip` and no
-  off-track drag. Without it the road edge is the track limit and
+  off-track drag; past it but on tarmac the car is off the track for the
+  lap yet still on asphalt. Without it the road edge is the track limit and
   a driver using the curbs is slowed as if on grass.
 - `<Stem>.walls.msgpack` — the barriers as the sim needs them
   (`walls.rs`): every armco, tire wall, fence and pit wall as a line
@@ -497,6 +585,23 @@ back on the far road.
 The terrain grid (`ue_export.rs`, `Bake::ground`) is 2 m within 60 m of a
 centerline, 6 m to 200 m and 12 m beyond; the near radius has to clear the
 verge blend (`BLEND_END_M` past the road edge) or the resolutions crack.
+
+Where two roads run close at different heights the **nearest road owns
+its verge** (`terrain.rs`, `DOMINANCE_M`). Zandvoort's pit exit runs a
+few metres from the high side of the Hugenholtz banking, five metres
+below it; both weighed the same inside their verges and the lower road's
+"never bury a road" ceiling capped the ground under the higher road's
+edge, so the grass band, the curb strip and the server's ground sidecar
+all read a verge five metres down and the banked road stood on a drop. A
+road's pull and its ceiling now fade out over 2 m past the nearest road's
+edge (a road in an underpass slot keeps its slot), and a point straight
+off the end of the pit lane polyline no longer counts as on it.
+`the_verge_meets_the_road_edge_on_every_real_circuit` walks every lap
+edge at 0.5 m out (worst left: Austin's flat pit entry on a banked
+stretch, under a metre). The dressed pit lane is seated on its *own*
+leg's road edge (`dress::nearest_cross_section_near`), not the banked
+surface of another leg extrapolated to it, which had four of Zandvoort's
+exit-road nodes 7 m in the air.
 
 ### Cars (`content/cars`, `ApexCarImport`)
 A car is `content/cars/<folder>/car.toml` plus the GLB its `model` names.
@@ -665,7 +770,12 @@ trace use to ignore bridge decks and garage roofs.
   out of the door onto the working lane), `garage_end` beyond each end, `pit_wall_6m` on the road
   side over the box span and `pit_wall_plain_6m` over the rest of the pit
   road, all facing the track — and drops the legacy `building/pit_garage`
-  stand-ins whenever it does. Nothing goes on the entry/exit tapers.
+  stand-ins whenever it does. The plain walls carry on along the rest of
+  the lane, tapers included, wherever there is an apron of
+  `PIT_TAPER_WALL_MIN_M` between the two roads; the paint adds a
+  speed-limit line across the lane at each end of the box span, a
+  working-lane outline per box and a blend line along the road for 120 m
+  past the exit.
 - **Runtime**: `sky` props spawn as `AApexSkyDriftActor` (drift along the
   heading ±150 m at 2 m/s, a slow yaw sway); the ferris wheel as
   `AApexRotorActor`, its rotor at the hub turning at 0.5 rpm about local Y
