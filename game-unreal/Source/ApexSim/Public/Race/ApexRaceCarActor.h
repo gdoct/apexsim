@@ -49,6 +49,16 @@ public:
 	 */
 	void ApplyTelemetry(const FApexCarTelemetry& Car, int64 ServerTick);
 
+	/**
+	 * Place the car outright at a sample a replay clip has already
+	 * interpolated for this frame, bypassing the motion buffer. The buffer
+	 * times arrivals with the platform clock, which a fixed-timestep frame
+	 * dump does not follow; a clip is played by game time instead. Once
+	 * called, Tick leaves the pose alone. `DeltaSeconds` is the frame's
+	 * step, for the velocity the audio and the cameras read.
+	 */
+	void SetPlaybackPose(const FApexCarTelemetry& Car, float DeltaSeconds);
+
 	/** Swaps the displayed mesh. Safe to call with an unset pointer. */
 	void SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow);
 
@@ -219,6 +229,8 @@ protected:
 
 private:
 	bool bHasTarget = false;
+	/** Posed by SetPlaybackPose: the motion buffer is not used. */
+	bool bPlaybackPose = false;
 
 	/** Body mesh bounds grown by the wheels, in the mesh's own frame. */
 	FBoxSphereBounds BodyBounds() const;

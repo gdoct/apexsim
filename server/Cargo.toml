@@ -43,3 +43,7 @@ codegen-units = 1
 [[bin]]
 name = "apexsim-server"
 path = "src/main.rs"
+
+[[bin]]
+name = "apexsim-replay"
+path = "src/bin/apexsim_replay.rs"

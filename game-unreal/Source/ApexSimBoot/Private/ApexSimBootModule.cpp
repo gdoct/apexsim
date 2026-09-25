@@ -525,7 +525,8 @@ namespace ApexStartupSplash
 		const TCHAR* const CommandLine = FCommandLine::Get();
 		if (FParse::Param(CommandLine, TEXT("nosplash")) || FParse::Param(CommandLine, TEXT("ApexNoSplashHold"))
 			// Nothing to wait for: these runs never play the menu's demo race.
-			|| FParse::Param(CommandLine, TEXT("ApexNoDemo")) || FParse::Param(CommandLine, TEXT("ApexAutoRace")))
+			|| FParse::Param(CommandLine, TEXT("ApexNoDemo")) || FParse::Param(CommandLine, TEXT("ApexAutoRace"))
+			|| FCString::Strifind(CommandLine, TEXT("-ApexReplay=")) != nullptr)
 		{
 			return;
 		}

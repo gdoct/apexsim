@@ -260,6 +260,7 @@ namespace ApexTv
 		ForcedShot = EShot::None;
 		Setup = FShotSetup();
 		TargetCarIndex = INDEX_NONE;
+		LockedCarIndex = INDEX_NONE;
 		ShotsOnTarget = 0;
 		ShotAge = 0.0f;
 		ShotLength = 0.0f;
@@ -443,7 +444,11 @@ namespace ApexTv
 		LastShotHeld = ShotAge;
 
 		int32 NewTarget = INDEX_NONE;
-		if (bCountdown)
+		if (LockedCarIndex != INDEX_NONE && FindCar(Cars, LockedCarIndex))
+		{
+			NewTarget = LockedCarIndex;
+		}
+		else if (bCountdown)
 		{
 			// The grid is about the pole-sitter.
 			NewTarget = RaceOrder(Cars)[0]->CarIndex;
