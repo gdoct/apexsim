@@ -401,6 +401,27 @@ cars' upper rear-wing flap is its own mesh (`[drs_flap]` in car.toml,
 `bDrsOpen` is set (docs/CAR_MODELS.md, DRS flap). Golden
 bytes: `cargo test player_input_drs_wire_format -- --nocapture`.
 
+### The Nordschleife, circuit styles and road decals (docs/NORDSCHLEIFE.md)
+
+The 20.8 km Nordschleife has no GPS trace, so its centerline is routed over
+OSM's raceway ways by `scripts/osm_centerline.py` (waypoints in `LAPS`, the
+start offset and the Karussell banking in the spec too); the OSM extract
+was cut from the planet file because the map API is unreachable from the
+cloud sessions. `scripts/seed_scene.py` starts a new circuit's `.ats`
+(start line, grass, curbs at every apex). Per-circuit grooming rules live
+in `track-editor/core/src/circuit_style.rs`, keyed by the track stem:
+the Nordschleife gets German guard rail (`vangrail_*`) 3 / 4.5 m off the
+road and no Tecpro, a denser forest from 8.5 m, German signs (chevrons,
+km boards, `de_*`) instead of braking boards and hoardings, no floodlight
+ring and no pit lane; every other circuit is `CircuitStyle::DEFAULT`, the
+old rules. Road graffiti is an `.ats` `decals` layer (`graffiti/<name>`
+PNGs from `content/props/_tools/gen_graffiti.py`), laid by `ats-dress`
+from the dossier's `graffiti` (`MANUAL_GRAFFITI`), baked road-hugging by
+`ats-export` (family `decal`) and drawn with a masked `M_ApexDecal`
+(`ApexPropImport -kind=decal` imports the textures). The kit pieces are
+built by `content/props/_batches/build_nordschleife_kit.py` (headless
+`bpy` works: run it with `python -I`).
+
 ### Run-off (`Surface::paint`, `RoadContact::Runoff`)
 
 The curb sidecar is version 2: beside the curb width it carries how far
