@@ -282,7 +282,10 @@ def write_yaml(stem: str, zones: list[dict]) -> bool:
         for z in zones
     ) if zones else "drs_zones: []\n"
     # Replace an existing block, else insert before `metadata:` (or append).
-    pattern = re.compile(r"^drs_zones:.*?(?=^\S)", re.S | re.M)
+    # The block ends at the next top-level *key*: its own `- detection_m`
+    # items also start in column 0, and stopping at those replaced only the
+    # header, so every re-run appended another copy of the zones.
+    pattern = re.compile(r"^drs_zones:.*?(?=^[A-Za-z_]|\Z)", re.S | re.M)
     if pattern.search(text):
         new = pattern.sub(lambda _m: block, text, count=1)
     elif re.search(r"^metadata:", text, re.M):
