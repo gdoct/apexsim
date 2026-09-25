@@ -67,6 +67,17 @@ LAPS: dict[str, dict] = {
         "name": "Nürburgring Nordschleife",
         "track_id": "7648a87e-a67d-43c2-b92a-84022cc3ca75",
         "start_finish": (6.95077, 50.33783),  # "Start-Ziel T13"
+        # OSM's T13 node projects onto the lap right where the road comes
+        # out of the 70-degree bend from Hohenrain, and the fallback grid
+        # is laid straight back from the line for 64 m: rows 8-16 stood in
+        # the barriers. 75 m up the T13 straight the whole grid is on it.
+        "start_offset_m": 75.0,
+        # (from, to, radians) in the final stations: the Karussell's
+        # concrete bowl (about 12 degrees across the road on average; the
+        # inside half is steeper) and the Mini-Karussell's lip. Both are
+        # left-handers, so negative (the right edge lifted); `ats-bank`
+        # re-lays them over their bends.
+        "banking": [(11905.0, 12105.0, -0.21), (16845.0, 16965.0, -0.12)],
         "waypoints": [
             (6.95077, 50.33783),  # Start-Ziel T13
             (6.94162, 50.33820),  # Hatzenbach
@@ -98,6 +109,7 @@ LAPS: dict[str, dict] = {
         # The Nordschleife is narrow: 8-9 m for most of the lap, wider on
         # the Döttinger Höhe. OSM `width` tags win where a way has one.
         "default_width_m": 9.0,
+        "min_osm_width_m": 7.0,
         "metadata": {
             "country": "Germany",
             "city": "Nürburg",
@@ -158,7 +170,11 @@ class RacewayGraph:
                     self.xy[n] = np.array(_wgs(*ext["nodes"][n], lon0, lat0))
             try:
                 width = float(str(t.get("width", "")).replace("m", "").strip())
-                self.way_width[wid] = width
+                # The Nordschleife's sections are tagged `width=5`, which
+                # is a lane, not the road; below the floor OSM's figure is
+                # not the carriageway and the default stands.
+                if width >= spec.get("min_osm_width_m", 0.0):
+                    self.way_width[wid] = width
             except ValueError:
                 pass
             oneway = t.get("oneway") in ("yes", "1")
@@ -285,6 +301,8 @@ def build(stem: str) -> dict:
     raw_way = np.roll(raw_way, -i0)
 
     pts, _ = resample(raw, STEP_M)
+    shift = int(round(spec.get("start_offset_m", 0.0) / STEP_M))
+    pts = np.roll(pts, -shift, axis=0)
     # The way under each resampled node, for its width.
     j = np.array([int(np.hypot(*(raw - q).T).argmin()) for q in pts])
     widths = np.array([g.way_width.get(int(raw_way[k]), spec["default_width_m"]) for k in j])
@@ -310,6 +328,7 @@ def build(stem: str) -> dict:
     return {
         "local": local,
         "half": half,
+        "banking": banking_of(spec, len(local)),
         "race": race,
         "length": length,
         "lonlat0": (lon0, lat0),
@@ -324,8 +343,16 @@ def build(stem: str) -> dict:
     }
 
 
+def banking_of(spec: dict, n: int) -> np.ndarray:
+    bank = np.zeros(n)
+    s = np.arange(n) * STEP_M
+    for lo, hi, rad in spec.get("banking", ()):
+        bank[(s >= lo) & (s <= hi)] = rad
+    return bank
+
+
 def write_yaml(stem: str, spec: dict, b: dict) -> Path:
-    r2 = lambda v: round(float(v), 2)
+    r2 = lambda v: round(float(v), 2) + 0.0  # no "-0.0"
     nodes = [
         {
             "x": r2(p[0]),
@@ -334,11 +361,11 @@ def write_yaml(stem: str, spec: dict, b: dict) -> Path:
             "width": None,
             "width_left": round(float(hw), 3),
             "width_right": round(float(hw), 3),
-            "banking": 0.0,
+            "banking": round(float(bank), 4) + 0.0,
             "friction": 1.0,
             "surface_type": "Asphalt",
         }
-        for p, hw in zip(b["local"], b["half"])
+        for p, hw, bank in zip(b["local"], b["half"], b["banking"])
     ]
     raceline = [{"x": r2(p[0]), "y": r2(p[1]), "z": 0.0} for p in b["race"]]
     data = {

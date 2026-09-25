@@ -193,7 +193,9 @@ pub fn dress_scene_with_dem(
         ..Default::default()
     };
 
-    if let Some(pit) = build_pit_lane(&path, layout) {
+    if !crate::circuit_style::CircuitStyle::for_scene(scene).pit_lane {
+        scene.pit_lane = None;
+    } else if let Some(pit) = build_pit_lane(&path, layout) {
         scene.pit_lane = Some(pit);
         report.pit_lane = true;
     }
@@ -257,7 +259,15 @@ pub fn dress_scene_with_dem(
             let env = env.trim();
             env.eq_ignore_ascii_case("desert") || env.eq_ignore_ascii_case("dune")
         });
-    let extras = surroundings::lay(&path, &terrain, layout, dem, !has_lighting, bare);
+    let style = crate::circuit_style::CircuitStyle::for_scene(scene);
+    let extras = surroundings::lay(
+        &path,
+        &terrain,
+        layout,
+        dem,
+        !has_lighting && style.floodlights,
+        bare,
+    );
     report.surroundings = extras.len();
     laid.extend(extras);
 

@@ -605,6 +605,13 @@ pub fn groom_scene_with_dem(
     dem: Option<&DemFile>,
 ) -> Option<GroomReport> {
     let path = CenterlinePath::from_track(track)?;
+    // A circuit without a pit lane gets none generated either.
+    if !CircuitStyle::for_scene(scene).pit_lane {
+        let rebuilt = scene.pit_lane.take().is_some();
+        let mut report = groom_props_with_dem(track, scene, layout, dem)?;
+        report.pit_rebuilt = rebuilt;
+        return Some(report);
+    }
     // The circuit's own pit lane is a fact, not a shape to regenerate.
     if scene.pit_lane.as_ref().is_some_and(|pit| pit.authored) {
         let mut report = groom_props_with_dem(track, scene, layout, dem)?;
@@ -1996,7 +2003,7 @@ fn lay_all_barriers(
             .collect();
         let kind_at = |station: f32| {
             let cell = ((station.rem_euclid(total) / BARRIER_CELL_M) as usize).min(cells - 1);
-            kinds[cell]
+            style.rail.barrier(kinds[cell])
         };
 
         // 5. Walk each run of the line and lay modules end to end.
@@ -3567,6 +3574,10 @@ mod tests {
         );
         assert!(rails.iter().any(|p| p.asset == "vangrail_4m"));
         assert!(rails.iter().any(|p| p.asset == "vangrail_4m_triple"));
+        assert!(
+            !rails.iter().any(|p| p.asset.starts_with("tecpro")),
+            "Tecpro in the vangrail style"
+        );
         // Close to the road: 6 m half width, the rail 3 m past the edge on
         // the straights.
         let path = CenterlinePath::from_track(&track).unwrap();
@@ -3605,6 +3616,8 @@ mod tests {
             trees(&scene),
             trees(&plain)
         );
+
+        assert!(scene.pit_lane.is_none(), "a pit lane was generated");
 
         let first = scene.clone();
         let second = groom_scene(&track, &mut scene).unwrap();

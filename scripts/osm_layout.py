@@ -473,8 +473,9 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
 
 # Point features OSM does not carry, but that are part of what the place
 # looks like on a race weekend.
-# Centroid of OSM's `historic=castle` outline of Burg Nürburg (lon, lat).
-NUERBURG_CASTLE = (6.9516, 50.3432)
+# Centroid of OSM's `historic=castle` outline of Burg Nürburg, way
+# 31010481 "Nürburg (Ruine)" (lon, lat).
+NUERBURG_CASTLE = (6.95352, 50.34674)
 
 MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # Burg Nürburg, the castle ruin on its basalt cone in Nürburg, inside
