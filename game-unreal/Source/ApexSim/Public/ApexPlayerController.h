@@ -38,6 +38,13 @@ struct APEXSIM_API FApexDriveInput
 	/** Held: the DRS button. Sent; the server decides whether the flap opens. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
 	bool bDrs = false;
+
+	/**
+	 * Held: the headlight flash button. Read `IsFlashingLights`, which
+	 * stretches a tap into a flash the other drivers can see.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
+	bool bFlashLights = false;
 };
 
 /**
@@ -102,6 +109,20 @@ public:
 
 	/** True on the frame the camera-toggle key went down. */
 	bool ConsumeCameraToggle();
+
+	/**
+	 * Presses of the headlight switch since the last call, and clears the
+	 * tally. Latched like the gears: a press and release between two sends
+	 * would otherwise be lost.
+	 */
+	int32 ConsumeHeadlightToggles();
+
+	/**
+	 * Whether the lights are being flashed: while the button is held, and for
+	 * at least a fifth of a second after it went down, so a tap shorter than
+	 * a telemetry frame still reaches everyone's screen.
+	 */
+	bool IsFlashingLights() const;
 
 	/**
 	 * Rebuild the mapping context from the saved bindings.
@@ -177,6 +198,9 @@ private:
 	void HandleLookBackReleased(const struct FInputActionValue& Value);
 	void HandleDrs(const struct FInputActionValue& Value);
 	void HandleDrsReleased(const struct FInputActionValue& Value);
+	void HandleHeadlights(const struct FInputActionValue& Value);
+	void HandleFlashLights(const struct FInputActionValue& Value);
+	void HandleFlashLightsReleased(const struct FInputActionValue& Value);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexInputConfig> InputConfig;
@@ -184,6 +208,9 @@ private:
 	FApexDriveInput DriveInput;
 	int32 PendingGearDelta = 0;
 	bool bPendingCameraToggle = false;
+	int32 PendingHeadlightToggles = 0;
+	/** `FPlatformTime::Seconds()` the flash button last went down. */
+	double FlashPressedAt = -1.0e9;
 	bool bDriveInputEnabled = false;
 
 	ApexFfb::FGamepadState FeedbackState;

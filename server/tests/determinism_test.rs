@@ -61,6 +61,8 @@ fn scripted_input(tick: u32, player_index: u32) -> PlayerInputData {
         gear: None,
         clutch: None,
         drs: false,
+        headlights: None,
+        flash: false,
     }
 }
 

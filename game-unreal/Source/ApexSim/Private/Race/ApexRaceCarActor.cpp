@@ -97,6 +97,8 @@ namespace
 	constexpr float BrakeLightThreshold = 0.02f;
 	/** Share of the brake glow the tail lights hold while the headlights are on. */
 	constexpr float RunningLightShare = 0.12f;
+	/** A headlight flash (full beam) against the dipped beam. */
+	constexpr float HeadlightFullBeamScale = 2.5f;
 
 	TAutoConsoleVariable<float> CVarHeadlightLumens(
 		TEXT("apexsim.car.HeadlightLumens"),
@@ -296,13 +298,16 @@ void AApexRaceCarActor::UpdateBrakeLights()
 	}
 }
 
-void AApexRaceCarActor::SetHeadlights(bool bOn)
+void AApexRaceCarActor::SetHeadlights(bool bOn, bool bFullBeam)
 {
-	if (bOn == bHeadlightsOn && (!bOn || HeadlightLeft))
+	bFullBeam = bOn && bFullBeam;
+	if (bOn == bHeadlightsOn && bFullBeam == bHeadlightsFullBeam && (!bOn || HeadlightLeft))
 	{
 		return;
 	}
+	const bool bSwitched = bOn != bHeadlightsOn;
 	bHeadlightsOn = bOn;
+	bHeadlightsFullBeam = bFullBeam;
 	if (bOn && !HeadlightLeft)
 	{
 		auto MakeLamp = [this](const TCHAR* Name) {
@@ -325,8 +330,22 @@ void AApexRaceCarActor::SetHeadlights(bool bOn)
 		HeadlightRight = MakeLamp(TEXT("HeadlightRight"));
 		PlaceHeadlights();
 	}
-	if (HeadlightLeft)  { HeadlightLeft->SetVisibility(bOn); }
-	if (HeadlightRight) { HeadlightRight->SetVisibility(bOn); }
+	// A flash is full beam: brighter, and reaching the car ahead's mirrors.
+	const float Lumens = CVarHeadlightLumens.GetValueOnGameThread() * (bFullBeam ? HeadlightFullBeamScale : 1.0f);
+	const float Reach = bFullBeam ? 18000.0f : 9000.0f;
+	for (USpotLightComponent* Lamp : { HeadlightLeft.Get(), HeadlightRight.Get() })
+	{
+		if (Lamp)
+		{
+			Lamp->SetVisibility(bOn);
+			Lamp->SetIntensity(Lumens);
+			Lamp->SetAttenuationRadius(Reach);
+		}
+	}
+	if (!bSwitched)
+	{
+		return;
+	}
 	// The tail lights follow: dim running lights with the headlights on.
 	TailLightState = -1;
 	UpdateBrakeLights();

@@ -98,9 +98,12 @@ public:
 	/**
 	 * Headlights on or off: two spot lights at the nose, made the first time
 	 * they are asked for, and the tail lights glowing dimly between brakings.
-	 * The race director sets them from the session's sky (night, or rain).
+	 * The race director sets them from telemetry (`lap_flags` bits 5 and 6:
+	 * the driver's switch or the sky, and the flash), and from the sky for a
+	 * replay clip. `bFullBeam` is a flash: brighter and further, and cheap to
+	 * repeat, since it is called with every frame.
 	 */
-	void SetHeadlights(bool bOn);
+	void SetHeadlights(bool bOn, bool bFullBeam = false);
 	bool HasHeadlights() const { return bHeadlightsOn; }
 
 	UStaticMeshComponent* GetMeshComponent() const { return CarMesh; }
@@ -313,6 +316,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<USpotLightComponent> HeadlightRight;
 	bool bHeadlightsOn = false;
+	bool bHeadlightsFullBeam = false;
 	/** What the tail lights show: 0 dark, 1 running lights, 2 braking. */
 	int32 TailLightState = -1;
 };

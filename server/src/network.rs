@@ -162,6 +162,13 @@ pub enum ClientMessage {
         /// never opens it.
         #[serde(default)]
         drs: Option<bool>,
+        /// The headlight switch. `None` (and a client from before the
+        /// field) leaves the lights to the session's conditions.
+        #[serde(default)]
+        headlights: Option<bool>,
+        /// The flash button is held.
+        #[serde(default)]
+        flash: Option<bool>,
     },
 }
 
@@ -592,6 +599,12 @@ pub fn lap_flags_of(state: &CarState) -> u8 {
     if state.drs_open {
         flags |= crate::drs::LAP_FLAG_DRS_OPEN;
     }
+    if state.headlights {
+        flags |= crate::headlights::LAP_FLAG_HEADLIGHTS;
+    }
+    if state.headlight_flash {
+        flags |= crate::headlights::LAP_FLAG_HEADLIGHT_FLASH;
+    }
     flags
 }
 
@@ -1016,6 +1029,8 @@ mod tests {
             gear: Some(3),
             clutch: Some(1.0),
             drs: Some(true),
+            headlights: Some(false),
+            flash: Some(true),
         };
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -1030,6 +1045,8 @@ mod tests {
                 gear,
                 clutch,
                 drs,
+                headlights,
+                flash,
             } => {
                 assert_eq!(server_tick_ack, 100);
                 assert_eq!(throttle, 0.8);
@@ -1038,6 +1055,8 @@ mod tests {
                 assert_eq!(gear, Some(3));
                 assert_eq!(clutch, Some(1.0));
                 assert_eq!(drs, Some(true));
+                assert_eq!(headlights, Some(false));
+                assert_eq!(flash, Some(true));
             }
             _ => panic!("Wrong message type"),
         }
@@ -1057,11 +1076,17 @@ mod tests {
             gear: None,
             clutch: None,
             drs: Some(true),
+            headlights: None,
+            flash: None,
         };
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!("C_PlayerInputDrs = {bytes:02x?}");
-        // The field is the last one in the map: `a3 "drs" c3`.
-        assert_eq!(&bytes[bytes.len() - 5..], &[0xa3, b'd', b'r', b's', 0xc3]);
+        // The field follows clutch: `a3 "drs" c3`, then the lights.
+        let at = bytes
+            .windows(5)
+            .position(|w| w == [0xa3, b'd', b'r', b's', 0xc3])
+            .expect("drs field");
+        assert_eq!(bytes[at - 1], 0xc0, "clutch: nil just before drs");
 
         // The same message without the field, as an older client sends it.
         let old = rmp_serde::to_vec_named(&serde_json::json!({
@@ -1075,12 +1100,61 @@ mod tests {
         }))
         .unwrap();
         match rmp_serde::from_slice::<ClientMessage>(&old).unwrap() {
-            ClientMessage::PlayerInput { drs, gear, .. } => {
+            ClientMessage::PlayerInput {
+                drs,
+                gear,
+                headlights,
+                flash,
+                ..
+            } => {
                 assert_eq!(drs, None);
                 assert_eq!(gear, None);
+                assert_eq!(headlights, None);
+                assert_eq!(flash, None);
             }
             _ => panic!("wrong message"),
         }
+    }
+
+    /// The headlight switch and the flash button, last in `PlayerInput`
+    /// after `drs`: this message is `ApexUdpGolden::C_PlayerInput` (`cargo
+    /// test player_input_headlights_wire_format -- --nocapture`). The switch
+    /// left to the conditions is nil, the flash a bool.
+    #[test]
+    fn test_player_input_headlights_wire_format() {
+        let mut msg = ClientMessage::PlayerInput {
+            server_tick_ack: 4242,
+            throttle: 1.0,
+            brake: 0.0,
+            steering: -0.5,
+            gear: Some(4),
+            clutch: None,
+            drs: Some(false),
+            headlights: None,
+            flash: Some(false),
+        };
+        let bytes = rmp_serde::to_vec_named(&msg).unwrap();
+        println!("C_PlayerInput = {bytes:02x?}");
+        let tail: &[u8] = &[
+            0xa3, b'd', b'r', b's', 0xc2, // drs: false
+            0xaa, b'h', b'e', b'a', b'd', b'l', b'i', b'g', b'h', b't', b's',
+            0xc0, // headlights: nil
+            0xa5, b'f', b'l', b'a', b's', b'h', 0xc2, // flash: false
+        ];
+        assert!(bytes.ends_with(tail), "{bytes:02x?}");
+        assert_eq!(bytes[23], 0x89, "nine fields in the data map");
+
+        if let ClientMessage::PlayerInput {
+            headlights, flash, ..
+        } = &mut msg
+        {
+            *headlights = Some(true);
+            *flash = Some(true);
+        }
+        let on = rmp_serde::to_vec_named(&msg).unwrap();
+        assert_eq!(on.len(), bytes.len(), "a bool is as long as nil");
+        assert_eq!(on[on.len() - 8], 0xc3, "headlights: true");
+        assert_eq!(on[on.len() - 1], 0xc3, "flash: true");
     }
 
     #[test]
