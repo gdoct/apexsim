@@ -1381,3 +1381,84 @@ fn ground_tessellation_is_finest_beside_the_road() {
     assert!(near_cells > 0, "no ground beside the road");
     assert!(ring_cells > 0, "no ground out in the ring");
 }
+
+/// The ground right beside the road is that road's verge, all the way
+/// round, on both sides — including the high side of a banked corner with
+/// another road (Zandvoort's pit exit under the Hugenholtz banking) a few
+/// metres away. It used to be that road's ceiling instead, five metres
+/// down, and the band, the curb strip and the server's ground sidecar all
+/// read it. Cheap: only the terrain is built, no bake.
+#[test]
+fn the_verge_meets_the_road_edge_on_every_real_circuit() {
+    use track_core::terrain::{TerrainHeightfield, VERGE_DROP_M};
+    use track_core::track_path::{offset_point, CenterlinePath};
+
+    let dir = real_tracks_dir();
+    let tracks = ue_export_io::track_files_in(&dir).expect("content/tracks/real must be readable");
+    assert!(tracks.len() >= 20);
+    let mut worst: Vec<(f32, String, f32, i32)> = Vec::new();
+    for track_path in tracks {
+        let opened = project::open_project(&track_path)
+            .unwrap_or_else(|e| panic!("{}: {e}", track_path.display()));
+        let path = CenterlinePath::from_track(&opened.track).expect("centerline");
+        let lane = opened
+            .scene
+            .as_ref()
+            .and_then(|s| s.pit_lane.as_ref())
+            .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
+        let extra: Vec<&CenterlinePath> = lane.iter().collect();
+        let field = TerrainHeightfield::from_paths(&path, &extra).expect("terrain");
+        let total = path.total_length_m();
+        let mut station = 0.0f32;
+        let mut track_worst = 0.0f32;
+        let mut bad = 0;
+        while station < total {
+            let sample = path.sample_at(station);
+            for (lat, sign) in [(sample.width_left_m, 1.0f32), (-sample.width_right_m, -1.0)] {
+                let edge = offset_point(&sample, lat);
+                let beside = offset_point(&sample, lat + sign * 0.5);
+                let want = edge.2 - VERGE_DROP_M;
+                let got = field.ground_height_at(beside.0, beside.1);
+                let err = (got - want).abs();
+                // An underpass slot is legitimately far below the deck edge,
+                // and where the pit lane's tapers overlap the road the
+                // point is on the lane, not beside the road.
+                if field.wall_relation(beside.0, beside.1).is_some() {
+                    continue;
+                }
+                let on_a_road = field
+                    .nearest_road_point(beside.0, beside.1, 30.0)
+                    .is_some_and(|(_, _, lat, half)| lat.abs() <= half);
+                if on_a_road {
+                    continue;
+                }
+                track_worst = track_worst.max(err);
+                // What is left over that: the pit lane's flat entry taper
+                // starting on a banked stretch (Austin), under a metre.
+                if err > 0.8 {
+                    bad += 1;
+                    eprintln!(
+                        "  {} station {station:.0} side {sign}: ground {got:.2}, edge verge {want:.2}",
+                        track_path.display()
+                    );
+                }
+            }
+            station += 2.0;
+        }
+        worst.push((
+            track_worst,
+            track_path.file_name().unwrap().to_string_lossy().into_owned(),
+            total,
+            bad,
+        ));
+    }
+    worst.sort_by(|a, b| b.0.total_cmp(&a.0));
+    for (err, name, _, bad) in &worst {
+        eprintln!("{name}: worst verge error {err:.2} m, {bad} samples over 0.8 m");
+    }
+    let offenders: Vec<_> = worst.iter().filter(|(_, _, _, bad)| *bad > 0).collect();
+    assert!(
+        offenders.is_empty(),
+        "the verge leaves the road edge: {offenders:?}"
+    );
+}

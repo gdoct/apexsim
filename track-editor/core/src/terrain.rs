@@ -102,6 +102,10 @@ const ROAD_DIVE_MAX_M: f32 = 2.0;
 /// m beyond the lower road's verge). It only ever binds between two roads;
 /// a lone road's blend never reaches it.
 const CEILING_RISE: f32 = 0.5;
+/// Past the nearest road's edge, how much further out a second road has
+/// to be before it has no say over the ground there, meters. Within it the
+/// second road's pull and its ceiling fade in.
+const DOMINANCE_M: f32 = 2.0;
 
 /// Least height between two roads crossing in plan for the crossing to be
 /// a bridge rather than two sections that merely meet, meters.
@@ -521,11 +525,9 @@ impl TerrainHeightfield {
             return probe;
         }
 
-        let mut num = terrain;
-        let mut den = 1.0f32;
-        let mut ceiling = f32::INFINITY;
+        let mut contributions: Vec<(Contribution, f32)> = Vec::with_capacity(candidates.len());
         for hit in &candidates {
-            let mut c = self.contribution(hit);
+            let mut c = self.contribution(hit, x, y);
             if let Some((k, relief)) = self.behind_wall(hit, c.beyond, wall_gap) {
                 // Behind an underpass wall the ground is the upper road's
                 // embankment: the lower road gives up its pull on it and
@@ -533,16 +535,62 @@ impl TerrainHeightfield {
                 c.weight *= 1.0 - k;
                 c.ceiling += k * relief;
             }
-            num += c.hug * c.weight;
-            den += c.weight;
-            ceiling = ceiling.min(c.ceiling);
             if let Some(s) = c.surface {
                 probe.surfaces[probe.surface_count] = s;
                 probe.surface_count += 1;
             }
+            // A road running through an underpass slot keeps its say over
+            // the slot floor whatever passes over it.
+            let in_slot = self.in_slot(hit);
+            contributions.push((c, if in_slot { f32::NEG_INFINITY } else { 0.0 }));
         }
-        probe.ground = (num / den).min(ceiling);
+
+        // The nearest road owns its verge. Where two roads run close at
+        // different heights — Zandvoort's pit exit under the high side of
+        // the Hugenholtz banking — both used to weigh the same inside
+        // their verges and the lower one's ceiling capped the ground under
+        // the higher one's edge, five metres below it. So a road's pull
+        // and its ceiling fade out over [`DOMINANCE_M`] of extra distance
+        // past the nearest road's edge; the two meet on a slope between
+        // them instead of one undercutting the other.
+        let nearest = contributions
+            .iter()
+            .map(|(c, _)| c.beyond)
+            .fold(f32::INFINITY, f32::min);
+        for (c, dominance) in contributions.iter_mut() {
+            if c.beyond < 0.0 || dominance.is_infinite() {
+                *dominance = 1.0;
+                continue;
+            }
+            let t = ((c.beyond - nearest) / DOMINANCE_M).clamp(0.0, 1.0);
+            *dominance = 1.0 - t * t * (3.0 - 2.0 * t);
+        }
+
+        let mut num = terrain;
+        let mut den = 1.0f32;
+        for (c, dominance) in &contributions {
+            num += c.hug * c.weight * dominance;
+            den += c.weight * dominance;
+        }
+        let verge = num / den;
+        let mut ceiling = f32::INFINITY;
+        for (c, dominance) in &contributions {
+            let relaxed = c.ceiling + (1.0 - dominance) * (verge - c.ceiling).max(0.0);
+            ceiling = ceiling.min(relaxed);
+        }
+        probe.ground = verge.min(ceiling);
         probe
+    }
+
+    /// Whether `hit` lies on the lower road inside an underpass's walls.
+    fn in_slot(&self, hit: &Hit) -> bool {
+        if self.underpasses.is_empty() {
+            return false;
+        }
+        let total = self.roads[hit.road as usize].path.total_length_m();
+        self.underpasses
+            .iter()
+            .any(|u| u.lower_road == hit.road && span_offset(u.wall_span_m, hit.station, total).is_some())
     }
 
     /// Whether `hit` is on the far side of an underpass wall from its road,
@@ -817,7 +865,7 @@ impl TerrainHeightfield {
     }
 
     /// Evaluate one nearby road's say over the ground at the query point.
-    fn contribution(&self, hit: &Hit) -> Contribution {
+    fn contribution(&self, hit: &Hit, x: f32, y: f32) -> Contribution {
         let road = &self.roads[hit.road as usize];
         let sample = road.path.sample_at(hit.station);
         let (half, edge_lat) = if hit.lat >= 0.0 {
@@ -825,7 +873,24 @@ impl TerrainHeightfield {
         } else {
             (sample.width_right_m, -sample.width_right_m)
         };
-        let beyond = hit.dist - half;
+        let mut beyond = hit.dist - half;
+        // Past either end of an open road (the pit lane) the foot is pinned
+        // at the end sample and `dist` is the distance to it, so a point
+        // straight off the end counted as *on* the lane and got the dive.
+        // The overshoot along the heading is how far beyond the road it is.
+        if !road.path.is_closed() {
+            let (sin_h, cos_h) = sample.heading_rad.sin_cos();
+            let along = (x - sample.pos.0) * cos_h + (y - sample.pos.1) * sin_h;
+            let total = road.path.total_length_m();
+            let overshoot = if hit.station <= 0.01 {
+                -along
+            } else if hit.station >= total - 0.01 {
+                along
+            } else {
+                0.0
+            };
+            beyond = beyond.max(overshoot);
+        }
         let edge_z = offset_point(&sample, edge_lat).2;
 
         if beyond < 0.0 {
@@ -1396,10 +1461,59 @@ mod tests {
                 "terrain {} at ({x}, 30) buries the high road",
                 f.height_at(x, 30.0)
             );
-            // The ground itself too, on both roads' account.
-            assert!(f.ground_height_at(x, 0.0) < -0.05);
-            assert!(f.ground_height_at(x, 30.0) < 24.95);
+            // The ground itself too, on both roads' account: under each
+            // road's own surface (the spline through four nodes bows, so
+            // the surface is asked for rather than assumed).
+            assert!(f.ground_height_at(x, 0.0) < f.surface_height_at(x, 0.0) - 0.05);
+            assert!(f.ground_height_at(x, 30.0) < f.surface_height_at(x, 30.0) - 0.05);
         }
+    }
+
+    /// Zandvoort's pit exit runs a few metres from the high side of the
+    /// Hugenholtz banking, five metres below it. The lower road's ceiling
+    /// used to cap the ground under the higher road's edge: the verge the
+    /// band and the sidecar read there was the pit lane's, and the high
+    /// edge stood over a five metre drop. The nearer road owns its verge.
+    #[test]
+    fn a_nearer_road_owns_its_verge_over_a_lower_neighbour() {
+        // Two straights 16 m apart centre to centre (6 m edge to edge), the
+        // second one 5 m higher.
+        let track = TrackFile {
+            name: "Neighbours".to_string(),
+            track_id: None,
+            nodes: (0..=10)
+                .map(|i| node(i as f32 * 50.0, 0.0, 0.0))
+                .chain((0..=10).map(|i| node(500.0 - i as f32 * 50.0, 400.0, 5.0)))
+                .collect(),
+            checkpoints: vec![],
+            spawn_points: vec![],
+            default_width: 10.0,
+            closed_loop: true,
+            raceline: vec![],
+            metadata: None,
+        };
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let lane: Vec<[f32; 3]> = vec![[0.0, 16.0, 5.0], [500.0, 16.0, 5.0]];
+        let lane = CenterlinePath::from_polyline_with(&lane, 5.0, false).unwrap();
+        let f = TerrainHeightfield::from_paths(&path, &[&lane]).unwrap();
+
+        // Half a metre past the high road's near edge (its edge is at
+        // y = 11) the ground is that road's verge…
+        let z = f.ground_height_at(250.0, 10.5);
+        assert!(
+            (z - (5.0 - VERGE_DROP_M)).abs() < 0.05,
+            "ground {z} under the high road's edge should be its verge"
+        );
+        // …and half a metre past the low road's edge (y = 5) it is the
+        // low road's, not a step up toward the high one.
+        let z = f.ground_height_at(250.0, 5.5);
+        assert!(
+            (z - (0.0 - VERGE_DROP_M)).abs() < 0.05,
+            "ground {z} beside the low road should be its verge"
+        );
+        // Neither road is buried.
+        assert!(f.ground_height_at(250.0, 0.0) < -0.05);
+        assert!(f.ground_height_at(250.0, 16.0) < 4.95);
     }
 
     #[test]
