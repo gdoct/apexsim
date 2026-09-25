@@ -294,7 +294,32 @@ balconies (`house_timber`, `house_timber_dark`), tile or dark roofs
 | building | `barn` | 18 × 10 m, 8.2 m | timber barn on a stone plinth, double doors to the road — **done** | P1 |
 | building | `chapel` | 8 × 22 m, 23.5 m | 5 m tower on the road end with clock and louvres, pointed spire, nave with apse — **done** | P1 |
 
-### 9. Road decals (graffiti)
+### 9. Nordschleife kit
+
+Built by `content/props/_batches/build_nordschleife_kit.py` (headless `bpy`
+or inside Blender; scene saved as `_batches/nordschleife_kit.blend`). Laid
+by the groomer only where the circuit's style asks for them
+(`track-editor/core/src/circuit_style.rs`, the Nordschleife): the barrier
+pass swaps its armco for the vangrail, the sign pass lays the German signs
+instead of braking boards, and `ats-dress` lays the castle from a
+`castle` landmark.
+
+| kind | asset | size | notes |
+| --- | --- | --- | --- |
+| barrier | `vangrail_4m` | 4 × 0.3 m, 1.25 m | German guard rail (Schutzplanke / *vangrail*): two A-profile W-beams with daylight between them, bolted to spacer blocks on C-posts every 2 m; slots `armco_galv`, `armco_post`, `armco_bolt` |
+| barrier | `vangrail_4m_triple` | 4 × 0.3 m, 1.6 m | three beams: the fast stretches (tightest radius ≥ 400 m) |
+| barrier | `vangrail_4m_fence` | 4 × 0.4 m, 3.55 m | double rail under a catch fence (`fence_post`, masked `fence_mesh`), where people stand |
+| barrier | `vangrail_end` | 2 × 0.5 m, 1.25 m | rounded end pieces curling away from the road at both ends |
+| board | `chevron_left` / `chevron_right` | 1.6 × 0.4 m face, 1.3 m | Zeichen 625: red chevrons on white, round the outside of a bend, pointing the way it turns |
+| board | `km_marker` | 0.6 × 0.8 m face, 1.8 m | the kilometre board; `text` `km<N>` picks `T_marker_km<N>` on the `board_marker` slot (`board/markers/km1..20.png`) |
+| board | `de_curve_left` / `de_curve_right` / `de_danger` | 0.9 m triangle on a 2.6 m post | Zeichen 103 / 105 / 101 |
+| board | `de_overtake_left` | 1.5 × 1.0 m | "Überholen nur links", the Touristenfahrten board |
+| building | `castle_ruin` | 70 × 56 m, 32 m | Burg Nürburg: round keep with battlements, inner ward, broken outer wall, gate tower, on a basalt knoll reaching 6 m below the pivot; centred on its footprint |
+
+The signs are `board` kind and read by an oncoming driver, so the importer
+turns them up the course like a braking marker (`ApexProps::FacesUpCourse`).
+
+### 10. Road decals (graffiti)
 
 Not meshes: pictures painted **on the road**, the Nordschleife's fan
 graffiti first. A decal is an `.ats` `decals` entry (station, length along

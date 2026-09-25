@@ -66,29 +66,52 @@ arrows, flags). Where they lie is dossier data: `MANUAL_GRAFFITI` in
 `scripts/osm_layout.py` gives runs of pictures (a section of road, the
 images, the spacing), the dossier carries the expanded list, and
 `ats-dress` owns every `graffiti/*` decal and re-lays them each run. See
-docs/PROPS.md §9 for the format and for adding hand-painted art (Blender
+docs/PROPS.md §10 for the format and for adding hand-painted art (Blender
 texture paint or any image editor, 2:1 RGBA).
+
+## The circuit's own style
+
+`track-editor/core/src/circuit_style.rs` gives the Nordschleife its own
+grooming rules (every other circuit keeps the old ones):
+
+- **Vangrail.** German guard rail instead of the kit's UK armco: the double
+  `vangrail_4m` in the corners, the three-high `vangrail_4m_triple` on the
+  fast stretches, `vangrail_4m_fence` where people stand behind it,
+  `vangrail_end` closing a run. It stands 3 m off the road on straights and
+  4.5 m in corners (7 m / 14 m elsewhere); authored run-off still pushes it
+  back.
+- **Forest.** The tree belt starts 8.5 m from the road (just behind the
+  rail) and runs to 110 m, 6-11 trees per 12 m cell a side with no
+  clearings, inside the OSM woods — against 22-90 m and 3-6 elsewhere.
+- **German signs** instead of braking boards and hoardings: red-white
+  chevron boards round the outside of every corner tighter than 160 m, a
+  kilometre board every kilometre, bend warnings before the corners under
+  90 m and a danger sign before the ones under 40 m, and the
+  "Überholen nur links" board every 3 km.
+- **Burg Nürburg** stands on its hill inside the loop (`MANUAL_LANDMARKS`,
+  anchored on its OSM position, laid as `building/castle_ruin`).
+
+Tight rails change what the AI hits: check the AI survey
+(`SURVEY_TRACKS=Nordschleife`) after touching the distances.
 
 ## Missing for a realistic Nordschleife
 
+Done since the first cut: the vangrail, the forest, the chevron and
+kilometre boards, the bend/danger/overtaking signs and the castle (above).
 What the kit and the pipeline do not have yet, roughly in order of how
 much it would show. Props are Blender assets in `content/props/<kind>/`
 (docs/PROPS.md conventions: pivot, axes, material slot names).
 
 | What | Why it matters | Suggested asset / work |
 | --- | --- | --- |
-| Double- and triple-height armco | The Nordschleife is lined almost end to end with stacked guard rail, often right at the road edge | `barrier/armco_4m_double`, `barrier/armco_4m_triple` (+ `_end` caps) |
-| Barriers closer to the road | The groomer keeps rails 7 m (straights) / 14 m (corners) off the edge for the AI's sake; here they are 1-4 m | a per-circuit barrier profile in `groom.rs`, validated with the AI survey |
 | Karussell concrete bowl | The inside of the Karussell is a steep concrete-slab gutter, not banked asphalt | a road profile feature (inside lane at ~30°) plus a `road_concrete` slab material; `surface_type: Concrete` on the YAML nodes is not read by the bake |
-| Kilometre boards | Yellow boards every kilometre, the Ring's own way to say where you are | `board/km_marker` (text = km) |
 | Numbered marshal posts | ~200 posts with their number on a board | `sign/marshal_post` exists; add a number face and let `dress` number them |
 | Track-over-road bridges | The lap crosses the B257 on a bridge at Breidscheid (Adenauer Brücke) and passes under road bridges elsewhere | `bridge/road_underpass` (abutments, parapets) laid from OSM `bridge=yes` raceway segments |
 | Rock cuttings | Ex-Mühle, Wehrseifen, Bergwerk run through cut rock faces | `misc/rock_face_8m` along the verge where the DEM slope is steep |
 | Hedges and earth banks at spectator spots | Brünnchen, Pflanzgarten, Hohe Acht are banks of people behind hedges and wooden fences | `fence/hedge_4m`, `fence/wood_4m` exist; the dossier needs the spectator areas (OSM `tourism=viewpoint` polygons) |
 | Camper and tent villages | The 24h weekend's camps line the Döttinger Höhe and Brünnchen | `vehicle/camper_van`, `attraction/tent_6m` exist; OSM `tourism=camp_site` areas feed `surroundings` |
-| Touristenfahrten signage | Speed-limit, "no stopping", overtake-left signs, the T13 toll gates | `sign/road_sign_*` family (German road signs, flat panels on posts); `attraction/ticket_gate` exists |
-| Yellow/black chevron boards | On the outside of the tight corners | `board/chevron_board` |
 | Bridge-to-gantry gantry | The timing gantry at the end of the Döttinger Höhe | `bridge/timing_gantry` exists; add it as a `MANUAL_CROSSINGS` entry |
-| Burg Nürburg and the Hohe Acht tower | The castle ruin on its hill inside the loop and the Kaiser-Wilhelm-Turm are the horizon's landmarks | `building/castle_ruin`, `building/stone_tower` + `MANUAL_LANDMARKS` |
+| More German signage | Speed limits, "no stopping", the T13 toll gates | more `board/de_*` signs; `attraction/ticket_gate` exists |
+| The Hohe Acht tower | The Kaiser-Wilhelm-Turm on the Hohe Acht is the other skyline landmark | `building/stone_tower` + `MANUAL_LANDMARKS` |
 | Graffiti on walls and armco | Tags on barrier faces and bridge abutments | a vertical decal (a textured quad on a barrier's face) — the road-decal material can be reused |
 | Skid marks and oil-cement patches | Dark rubber streaks into the braking zones, pale cement dust after an incident | more `decal` sets (`skid/*`, `cement/*`), same bake and material |

@@ -598,7 +598,7 @@ fn wall_face(
 pub(crate) fn footprint_is_centred(kind: PropKind, asset: &str) -> bool {
     matches!(
         (kind, asset),
-        (PropKind::Building, "control_tower")
+        (PropKind::Building, "control_tower" | "castle_ruin")
             | (
                 PropKind::Attraction,
                 "camera_tower" | "ferris_wheel" | "tent_6m"
