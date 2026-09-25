@@ -65,18 +65,30 @@ VARIANTS = {
                     paint=(0.56, 0.010, 0.015), accent=(0.93, 0.93, 0.92), paint_metallic=0.35,
                     number="16", nose_z=0.00, pod_w=1.00, pod_h=1.03, cover_h=1.00, coke=1.00,
                     inlet="tall", airbox="oval", tcam=(0.95, 0.80, 0.05),
+                    # short, wide nose; pods that wash steeply down to the
+                    # floor; swept wing endplates; no fin
+                    nose_len=-0.14, nose_w=1.20, undercut=0.05, pod_slope=0.10,
+                    fw="swept", rw="swept", beam=1, fin=False,
                     livery=[(-0.95, 1.40, 3.95, 4.25),            # white band along the pod shoulder
                             (-3.1, -2.45, 0.0, 9.0)]),            # white nose tip
     "murcetes": dict(folder="murcetes-amd-w17", stem="murcetes_w17", logo="murcetes_f1_logo.png",
                      paint=(0.60, 0.61, 0.64), accent=(0.015, 0.015, 0.018), paint_metallic=0.90,
                      number="63", nose_z=-0.03, pod_w=0.86, pod_h=0.94, cover_h=0.97, coke=0.92,
                      inlet="slot", airbox="tri", tcam=(0.02, 0.02, 0.02),
+                     # needle nose; slim pods cut deep underneath; a shark
+                     # fin to the wing; square endplates, double beam wing
+                     nose_len=0.08, nose_w=0.78, undercut=0.10, pod_slope=0.02,
+                     fw="classic", rw="square", beam=2, fin=True,
                      livery=[(-1.3, 2.5, 0.0, 3.25),              # black below the flank crease
                              (-3.1, -2.3, 0.0, 9.0)]),
     "mclarsen": dict(folder="mclarsen-mcl40", stem="mclarsen_mcl40", logo="mclarsen_logo.png",
                      paint=(0.95, 0.32, 0.015), accent=(0.012, 0.016, 0.035), paint_metallic=0.30,
                      number="4", nose_z=0.02, pod_w=1.04, pod_h=1.00, cover_h=1.00, coke=1.04,
                      inlet="wide", airbox="oval", tcam=(0.02, 0.02, 0.02),
+                     # the spoon: a broad flat nose over a low two-element
+                     # wing; high pod shoulders ramping back; curled endplates
+                     nose_len=0.0, nose_w=1.35, undercut=0.07, pod_slope=-0.03,
+                     fw="low", rw="curl", beam=1, fin=False,
                      livery=[(-1.3, 2.5, 0.0, 2.9),               # dark lower half
                              (0.45, 2.4, 6.6, 9.0),               # dark spine on the engine cover
                              (-2.2, -1.2, 6.8, 9.0)]),            # and down the nose
@@ -84,6 +96,10 @@ VARIANTS = {
                    paint=(0.005, 0.15, 0.10), accent=(0.62, 0.95, 0.08), paint_metallic=0.65,
                    number="14", nose_z=0.01, pod_w=0.95, pod_h=1.06, cover_h=1.03, coke=0.97,
                    inlet="high", airbox="tri", tcam=(0.62, 0.95, 0.08),
+                   # long pointed nose; pods that fall away early; tall swept
+                   # front endplates, curled rear ones, a fin
+                   nose_len=0.05, nose_w=0.92, undercut=0.03, pod_slope=0.06,
+                   fw="swept", rw="curl", beam=2, fin=True,
                    livery=[(-0.85, 1.60, 4.55, 4.85),             # lime pinstripe along the pod shoulder
                            (-3.1, -2.55, 0.0, 9.0)]),             # lime nose tip
 }
@@ -119,8 +135,17 @@ def apply_variant(keys, v):
         new = []
         nose = min(max((-1.60 - y) / 1.0, 0.0), 1.0)
         pod = -0.95 < y < 1.40
+        slope = min(max((y - 0.15) / 0.95, 0.0), 1.0) if -0.95 < y < 1.40 else 0.0
         for j, (x, z) in enumerate(pts):
             z += v["nose_z"] * nose
+            if y < -1.9:
+                x *= 1.0 + (v.get("nose_w", 1.0) - 1.0) * min(1.0, (-1.9 - y) / 0.5)
+            # the undercut: the floor edge and sill pulled in under the pod
+            if -0.85 < y < 1.20 and j in (1, 2):
+                x -= v.get("undercut", 0.0) * (1.0 if j == 1 else 0.6)
+            # downwash: the pod's top falls towards the floor as it runs back
+            if 3 <= j <= 5:
+                z -= v.get("pod_slope", 0.0) * slope * (0.030 + (z - 0.03)) / 0.45
             if pod and 1 <= j <= 5:
                 x *= v["pod_w"]
             if pod and 3 <= j <= 5:
@@ -132,6 +157,8 @@ def apply_variant(keys, v):
             if v["airbox"] == "tri" and y == 0.62 and j in (6, 7):
                 x *= 0.80                     # a narrow triangular intake
             new.append((x, z))
+        if y < -2.6:
+            y -= v.get("nose_len", 0.0)           # the tip, run out or pulled back
         out.append((y, new))
     return out
 
@@ -234,31 +261,72 @@ p.box(M.metal, (-0.15, -1.25, 0.004), (0.15, 1.40, FLOOR_Z[0]))
 # ---- front wing: main plane and two flaps between the endplates, on two
 # pylons under the nose
 fw_te = FW_Y[1]
+FW = V["fw"]
 carlib.foil(p, C, -FW_HW, FW_HW, 0.26, 0.030, 0.018, FW_Y[0], 0.085, angle_deg=-4.0)
 carlib.foil(p, M.paint, -FW_HW + 0.02, -0.16, 0.15, 0.022, 0.014, FW_Y[0] + 0.21, 0.125, angle_deg=-18.0)
 carlib.foil(p, M.paint, 0.16, FW_HW - 0.02, 0.15, 0.022, 0.014, FW_Y[0] + 0.21, 0.125, angle_deg=-18.0)
-carlib.foil(p, M.accent, -FW_HW + 0.02, -0.20, 0.12, 0.018, 0.012, FW_Y[0] + 0.33, 0.185, angle_deg=-30.0)
-carlib.foil(p, M.accent, 0.20, FW_HW - 0.02, 0.12, 0.018, 0.012, FW_Y[0] + 0.33, 0.185, angle_deg=-30.0)
+if FW != "low":
+    carlib.foil(p, M.accent, -FW_HW + 0.02, -0.20, 0.12, 0.018, 0.012, FW_Y[0] + 0.33, 0.185, angle_deg=-30.0)
+    carlib.foil(p, M.accent, 0.20, FW_HW - 0.02, 0.12, 0.018, 0.012, FW_Y[0] + 0.33, 0.185, angle_deg=-30.0)
+if FW == "swept":
+    # a third flap, short, curling up into the endplate
+    carlib.foil(p, M.paint, -FW_HW + 0.02, -0.46, 0.09, 0.016, 0.010, FW_Y[0] + 0.40, 0.245, angle_deg=-42.0)
+    carlib.foil(p, M.paint, 0.46, FW_HW - 0.02, 0.09, 0.016, 0.010, FW_Y[0] + 0.40, 0.245, angle_deg=-42.0)
+FW_EP = {
+    # classic: a plain upright plate
+    "classic": [(FW_Y[0] - 0.005, 0.045), (fw_te, 0.050), (fw_te, 0.290), (FW_Y[0] + 0.30, 0.300),
+                (FW_Y[0] + 0.02, 0.200)],
+    # swept: taller, its leading edge raked back and the top running on past the flaps
+    "swept": [(FW_Y[0] + 0.02, 0.045), (fw_te + 0.03, 0.050), (fw_te + 0.05, 0.330), (FW_Y[0] + 0.30, 0.345),
+              (FW_Y[0] + 0.15, 0.260), (FW_Y[0] + 0.06, 0.140)],
+    # low: a squat plate with a footplate, under a two-element wing
+    "low": [(FW_Y[0] - 0.005, 0.040), (fw_te + 0.02, 0.040), (fw_te + 0.02, 0.200), (FW_Y[0] + 0.24, 0.215),
+            (FW_Y[0] + 0.04, 0.130)],
+}[FW]
 for sx in (-1, 1):
-    ep = [(FW_Y[0] - 0.005, 0.045), (fw_te, 0.050), (fw_te, 0.290), (FW_Y[0] + 0.30, 0.300),
-          (FW_Y[0] + 0.02, 0.200)]
-    carlib.plate(p, C, ep, sx * (FW_HW + 0.006), 0.012, chamfer=0.004)
-    pz = L.floor_z(-2.62)
-    pyl = [(-2.86, 0.105), (-2.52, 0.105), (-2.45, pz + 0.01), (-2.72, pz + 0.01)]
-    carlib.plate(p, C, pyl, sx * 0.075, 0.012, chamfer=0.004)
+    carlib.plate(p, C, FW_EP, sx * (FW_HW + 0.006), 0.012, chamfer=0.004)
+    if FW == "low":
+        # (inside the endplate's own box: the client's layout box ends there)
+        p.box(C, (min(sx * (FW_HW - 0.10), sx * (FW_HW + 0.010)), FW_Y[0], 0.034),
+              (max(sx * (FW_HW - 0.10), sx * (FW_HW + 0.010)), fw_te + 0.02, 0.046))
+    # pylons from the wing up to the nose, wherever the nose now ends
+    pz = L.floor_z(NOSE + 0.14)
+    pyl = [(-2.86, 0.105), (-2.52, 0.105), (max(-2.45, NOSE + 0.30), pz + 0.01), (NOSE + 0.10, pz + 0.01)]
+    carlib.plate(p, C, pyl, sx * (0.075 * V.get("nose_w", 1.0) ** 0.5), 0.012, chamfer=0.004)
 
 # ---- rear wing: main plane and flap between simple endplates, one pylon
 # from the gearbox, beam wing low down, rain light on the crash structure
 carlib.foil(p, C, -RW_HW, RW_HW, 0.25, 0.038, 0.024, RW_Y[0], RW_Z, angle_deg=-6.0)
 carlib.foil(p, M.paint, -RW_HW, RW_HW, 0.14, 0.026, 0.016, RW_Y[0] + 0.24, RW_Z + 0.085, angle_deg=-22.0)
 carlib.gurney(p, C, -RW_HW, RW_HW, RW_Y[1] - 0.02, RW_Z + 0.135, h=0.014, t=0.004, angle_deg=-22.0)
+RW_EP = {
+    "square": [(RW_Y[0] - 0.06, 0.60), (RW_Y[1], 0.64), (RW_Y[1] + 0.005, RW_Z + 0.16),
+               (RW_Y[0] + 0.10, RW_Z + 0.17), (RW_Y[0] - 0.08, RW_Z + 0.06)],
+    # swept: the leading edge raked forward as it climbs, the tip cut back
+    "swept": [(RW_Y[0] + 0.02, 0.58), (RW_Y[1] + 0.005, 0.62), (RW_Y[1] - 0.04, RW_Z + 0.19),
+              (RW_Y[0] - 0.02, RW_Z + 0.20), (RW_Y[0] - 0.12, RW_Z + 0.08)],
+    # curl: a rounded top that rolls into the main plane
+    # (nothing reaches past RW_Y[1] + 5 mm: the client's box, and so the
+    # derived eye, ends there - see open_wheel_points)
+    "curl": [(RW_Y[0] - 0.04, 0.60), (RW_Y[1], 0.62), (RW_Y[1] + 0.005, RW_Z + 0.12),
+             (RW_Y[1] - 0.06, RW_Z + 0.17), (RW_Y[0] + 0.06, RW_Z + 0.16), (RW_Y[0] - 0.08, RW_Z + 0.10)],
+}[V["rw"]]
 for sx in (-1, 1):
-    ep = [(RW_Y[0] - 0.06, 0.60), (RW_Y[1], 0.64), (RW_Y[1] + 0.005, RW_Z + 0.16),
-          (RW_Y[0] + 0.10, RW_Z + 0.17), (RW_Y[0] - 0.08, RW_Z + 0.06)]
-    carlib.plate(p, M.paint, ep, sx * (RW_HW + 0.008), 0.014, chamfer=0.005)
+    carlib.plate(p, M.paint, RW_EP, sx * (RW_HW + 0.008), 0.014, chamfer=0.005)
+    if V["rw"] == "curl":
+        # the tip rolls inboard over the flap
+        p.box(M.paint, (min(sx * (RW_HW - 0.05), sx * (RW_HW + 0.015)), RW_Y[0] + 0.04, RW_Z + 0.150),
+              (max(sx * (RW_HW - 0.05), sx * (RW_HW + 0.015)), RW_Y[1] - 0.03, RW_Z + 0.163))
 pyl = [(1.98, L.roof_z(1.98) - 0.02), (2.10, L.roof_z(2.10) - 0.02), (2.36, RW_Z + 0.01), (2.24, RW_Z + 0.01)]
 carlib.plate(p, C, pyl, 0.0, 0.020, chamfer=0.006)
 carlib.foil(p, C, -0.42, 0.42, 0.20, 0.028, 0.016, 2.02, 0.300, angle_deg=-10.0)
+if V.get("beam", 1) == 2:
+    carlib.foil(p, C, -0.40, 0.40, 0.12, 0.022, 0.014, 2.19, 0.355, angle_deg=-24.0)
+if V.get("fin"):
+    # the shark fin: the engine cover's spine run up to the wing
+    fin = [(0.70, L.roof_z(0.70) - 0.01), (1.20, L.roof_z(1.20) + 0.14), (RW_Y[0] + 0.02, RW_Z + 0.02),
+           (RW_Y[0] + 0.02, RW_Z - 0.10), (1.80, L.roof_z(1.80) - 0.01)]
+    carlib.plate(p, M.paint, fin, 0.0, 0.012, chamfer=0.004)
 carlib.led_grid(p, M, -0.036, 0.036, 0.205, 0.315, TAIL + 0.004, dir_y=1.0,
                 cols=2, rows=5, glow=M.rain)
 for sx in (-1, 1):          # the endplate rain lights of the current rules
