@@ -588,9 +588,9 @@ impl TerrainHeightfield {
             return false;
         }
         let total = self.roads[hit.road as usize].path.total_length_m();
-        self.underpasses
-            .iter()
-            .any(|u| u.lower_road == hit.road && span_offset(u.wall_span_m, hit.station, total).is_some())
+        self.underpasses.iter().any(|u| {
+            u.lower_road == hit.road && span_offset(u.wall_span_m, hit.station, total).is_some()
+        })
     }
 
     /// Whether `hit` is on the far side of an underpass wall from its road,
@@ -889,7 +889,9 @@ impl TerrainHeightfield {
             } else {
                 0.0
             };
-            beyond = beyond.max(overshoot);
+            if overshoot > 0.0 {
+                beyond = beyond.max(overshoot);
+            }
         }
         let edge_z = offset_point(&sample, edge_lat).2;
 
