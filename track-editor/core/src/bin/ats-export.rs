@@ -1,5 +1,6 @@
-//! Batch-bake tracks into the `.uescene.json` the Unreal `ApexTrackImport`
-//! commandlet consumes, plus the `.ground.msgpack` heightfield and
+//! Batch-bake tracks into the `.uescene.json` manifest and `.uemesh` mesh
+//! blob the Unreal client builds each circuit from at runtime, plus the
+//! `.ground.msgpack` heightfield and
 //! `.curbs.msgpack` track limits and `.walls.msgpack` barriers the server
 //! reads from beside each YAML.
 //!
@@ -71,10 +72,16 @@ fn main() -> ExitCode {
             Ok(exported) => {
                 let size_kb = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0) / 1024;
                 println!(
-                    "{} -> {} ({} KB)",
+                    "{} -> {} ({} KB) + {} ({} KB)",
                     track.display(),
                     exported.scene_path.display(),
-                    size_kb(&exported.scene_path)
+                    size_kb(&exported.scene_path),
+                    exported
+                        .mesh_blob_path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy(),
+                    size_kb(&exported.mesh_blob_path)
                 );
                 for sidecar in exported
                     .ground_path
@@ -114,7 +121,7 @@ const USAGE: &str = "\
 usage: ats-export [--all] [--out DIR] [TRACK.yaml ...]
 
   --all, -a      export every *.yaml under content/tracks/real
-  --out, -o DIR  destination for the .uescene.json (default: content/tracks/export);
-                 the .ground.msgpack, .curbs.msgpack and .walls.msgpack sidecars always land
-                 beside the YAML
+  --out, -o DIR  destination for the .uescene.json manifest and the .uemesh mesh blob
+                 beside it (default: content/tracks/export); the .ground.msgpack,
+                 .curbs.msgpack and .walls.msgpack sidecars always land beside the YAML
 ";

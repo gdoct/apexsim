@@ -7,6 +7,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Race/ApexRaceCoordinate.h"
+#include "Track/ApexTrackSceneBuilder.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -56,28 +57,19 @@ namespace
 	constexpr double CylinderSizeCm = 100.0;
 
 	/**
-	 * Whether a trace hit is the road a dot belongs on: one of the track level's
-	 * own baked meshes. Props are generated as `SM_Prop_*` meshes or instanced
-	 * components (trees, walls), or authored kit actors tagged `ApexProp` (a
-	 * bridge deck over the road, a garage), and a dot on top of a tyre wall
-	 * is worse than one floating a few centimetres off the tarmac.
+	 * Whether a trace hit is the road a dot belongs on: one of the track's own
+	 * baked surfaces, which the builder tags `ApexTrackMesh`. Props are tagged
+	 * `ApexProp` or drawn by instanced components (trees, walls), and a dot on
+	 * top of a tyre wall or a bridge deck is worse than one floating a few
+	 * centimetres off the tarmac.
 	 */
-	bool IsRoadSurface(const FHitResult& Hit, const ULevel* Ground)
+	bool IsRoadSurface(const FHitResult& Hit)
 	{
-		static const FName PropTag(TEXT("ApexProp"));
 		const UPrimitiveComponent* Component = Hit.GetComponent();
 		const AActor* Actor = Hit.GetActor();
-		if (!Component || !Actor || Actor->GetLevel() != Ground || Component->IsA<UInstancedStaticMeshComponent>()
-			|| Actor->ActorHasTag(PropTag))
-		{
-			return false;
-		}
-		if (const UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(Component))
-		{
-			const UStaticMesh* Mesh = MeshComponent->GetStaticMesh();
-			return Mesh && !Mesh->GetName().StartsWith(TEXT("SM_Prop_"));
-		}
-		return false;
+		return Component && Actor && !Component->IsA<UInstancedStaticMeshComponent>()
+			&& !Actor->ActorHasTag(FApexTrackSceneBuilder::PropTag)
+			&& Actor->ActorHasTag(FApexTrackSceneBuilder::TrackMeshTag);
 	}
 }
 
@@ -163,16 +155,16 @@ void AApexRacingLineActor::SetLine(const FApexRacingLineData& InLine)
 {
 	Line = InLine;
 	bOnGround = false;
-	Rebuild(nullptr);
+	Rebuild(false);
 }
 
-void AApexRacingLineActor::SnapToGround(const ULevel* TrackLevel)
+void AApexRacingLineActor::SnapToGround()
 {
-	if (!TrackLevel || !HasLine())
+	if (!HasLine())
 	{
 		return;
 	}
-	Rebuild(TrackLevel);
+	Rebuild(true);
 	bOnGround = true;
 }
 
@@ -191,7 +183,7 @@ void AApexRacingLineActor::ApplyVisibility()
 	BrakeDots->SetVisibility(bAny);
 }
 
-void AApexRacingLineActor::Rebuild(const ULevel* Ground)
+void AApexRacingLineActor::Rebuild(bool bTrace)
 {
 	ThrottleDots->ClearInstances();
 	PartialDots->ClearInstances();
@@ -243,7 +235,7 @@ void AApexRacingLineActor::Rebuild(const ULevel* Ground)
 		FVector Location = FMath::Lerp(From, To, T);
 		FVector Normal = FVector::UpVector;
 
-		if (Ground)
+		if (bTrace)
 		{
 			Hits.Reset();
 			World->LineTraceMultiByObjectType(Hits, Location + FVector(0.0, 0.0, TraceUpCm),
@@ -251,7 +243,7 @@ void AApexRacingLineActor::Rebuild(const ULevel* Ground)
 			Hits.Sort([](const FHitResult& A, const FHitResult& B) { return A.Distance < B.Distance; });
 			for (const FHitResult& Hit : Hits)
 			{
-				if (IsRoadSurface(Hit, Ground))
+				if (IsRoadSurface(Hit))
 				{
 					Location = Hit.ImpactPoint;
 					Normal = Hit.ImpactNormal;
@@ -279,7 +271,7 @@ void AApexRacingLineActor::Rebuild(const ULevel* Ground)
 	PartialDots->AddInstances(Partial, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true);
 	BrakeDots->AddInstances(Brake, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true);
 
-	if (Ground)
+	if (bTrace)
 	{
 		UE_LOG(LogApexSim, Log, TEXT("Racing line: %d dot(s) (%d throttle, %d partial, %d brake), %d on the road"),
 			DotCount, Throttle.Num(), Partial.Num(), Brake.Num(), Grounded);

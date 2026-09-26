@@ -1,6 +1,6 @@
 #include "ApexGroundTexImportCommandlet.h"
 
-#include "ApexGroundMaterials.h"
+#include "Track/ApexGroundMaterials.h"
 #include "ApexTrackEditorModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Texture2D.h"

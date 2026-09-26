@@ -902,25 +902,427 @@ fn repeated_bakes_are_byte_identical() {
     assert_eq!(first, second, "bake is not deterministic");
 }
 
+fn assert_buffers_bit_identical(a: &UeScene, b: &UeScene) {
+    assert_eq!(a.meshes.len(), b.meshes.len());
+    let bits = |v: &[f32]| v.iter().map(|f| f.to_bits()).collect::<Vec<_>>();
+    for (x, y) in a.meshes.iter().zip(&b.meshes) {
+        assert_eq!(x.name, y.name);
+        assert_eq!(x.material_key, y.material_key);
+        assert_eq!(bits(&x.positions), bits(&y.positions), "{}", x.name);
+        assert_eq!(bits(&x.normals), bits(&y.normals), "{}", x.name);
+        assert_eq!(bits(&x.uvs), bits(&y.uvs), "{}", x.name);
+        assert_eq!(x.indices, y.indices, "{}", x.name);
+    }
+}
+
 #[test]
 fn export_roundtrips_through_disk() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("Test.uescene.json");
-    let baked = bake_test_scene();
+    let mut baked = bake_test_scene();
+    baked.source_crc = Some(0x1234_5678);
     ue_export_io::write_scene(&path, &baked).unwrap();
+    assert!(dir.path().join("Test.uemesh").exists(), "no mesh blob");
     let read_back = ue_export_io::read_scene(&path).unwrap();
     assert_eq!(baked, read_back);
+    assert_buffers_bit_identical(&baked, &read_back);
 }
 
 #[test]
 fn writing_an_export_twice_produces_the_same_bytes() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("Test.uescene.json");
+    let blob = ue_export_io::mesh_blob_path_for(&path);
     let baked = bake_test_scene();
     ue_export_io::write_scene(&path, &baked).unwrap();
-    let first = fs::read(&path).unwrap();
+    let first = (fs::read(&path).unwrap(), fs::read(&blob).unwrap());
     ue_export_io::write_scene(&path, &baked).unwrap();
-    assert_eq!(first, fs::read(&path).unwrap());
+    let second = (fs::read(&path).unwrap(), fs::read(&blob).unwrap());
+    assert!(first.0 == second.0, "the manifest changed between writes");
+    assert!(first.1 == second.1, "the mesh blob changed between writes");
+}
+
+#[test]
+fn the_mesh_blob_sits_beside_its_manifest() {
+    assert_eq!(
+        ue_export_io::mesh_blob_path_for(Path::new("content/tracks/export/Spa.uescene.json")),
+        Path::new("content/tracks/export/Spa.uemesh")
+    );
+    assert_eq!(
+        ue_export_io::mesh_blob_path_for(Path::new("out/Red.Bull.uescene.json")),
+        Path::new("out/Red.Bull.uemesh")
+    );
+    assert_eq!(
+        ue_export_io::mesh_blob_path_for(Path::new("out/Other.json")),
+        Path::new("out/Other.uemesh")
+    );
+}
+
+/// The manifest carries no vertex data, names its blob, and puts every
+/// scalar a catalog scanner reads before the first array, since the Unreal
+/// scanner reads only the head of the file.
+#[test]
+fn the_manifest_is_small_and_its_header_comes_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Test.uescene.json");
+    let mut baked = bake_test_scene();
+    baked.track_id = Some("test-circuit".to_string());
+    baked.source_crc = Some(0xCBF4_3926);
+    ue_export_io::write_scene(&path, &baked).unwrap();
+
+    let text = fs::read_to_string(&path).unwrap();
+    for buffer in ["\"positions\"", "\"normals\"", "\"uvs\"", "\"indices\""] {
+        assert!(!text.contains(buffer), "the manifest carries {buffer}");
+    }
+    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(json["version"], 2);
+    assert_eq!(json["mesh_blob"], "Test.uemesh");
+    assert_eq!(json["source_crc"], 0xCBF4_3926u32);
+    let headers = json["meshes"].as_array().unwrap();
+    assert_eq!(headers.len(), baked.meshes.len());
+    for (header, mesh) in headers.iter().zip(&baked.meshes) {
+        let keys: Vec<&str> = header
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(keys.len(), 4, "{keys:?}");
+        assert_eq!(header["name"], mesh.name.as_str());
+        assert_eq!(header["material_key"], mesh.material_key.as_str());
+        assert_eq!(header["vertex_count"], mesh.positions.len() / 3);
+        assert_eq!(header["index_count"], mesh.indices.len());
+    }
+
+    let at = |key: &str| {
+        text.find(&format!("\"{key}\":"))
+            .unwrap_or_else(|| panic!("no {key} in the manifest"))
+    };
+    let order = [
+        "format",
+        "version",
+        "track_id",
+        "track_name",
+        "source_track",
+        "source_crc",
+        "closed_loop",
+        "length_cm",
+        "metadata",
+        "dressing",
+        "mesh_blob",
+        "materials",
+        "meshes",
+        "props",
+        "grid",
+        "centerline",
+        "pit_lane",
+        "start_finish",
+    ];
+    for pair in order.windows(2) {
+        assert!(at(pair[0]) < at(pair[1]), "{} after {}", pair[0], pair[1]);
+    }
+    let first_array = text.find('[').unwrap();
+    for key in [
+        "track_id",
+        "track_name",
+        "source_crc",
+        "length_cm",
+        "metadata",
+    ] {
+        assert!(at(key) < first_array, "{key} is past the first array");
+    }
+}
+
+/// A scene with no checksum leaves the key out rather than writing null.
+#[test]
+fn a_scene_without_a_checksum_omits_source_crc() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Test.uescene.json");
+    let baked = bake_test_scene();
+    assert_eq!(baked.source_crc, None, "the bake has no file to hash");
+    ue_export_io::write_scene(&path, &baked).unwrap();
+    assert!(!fs::read_to_string(&path).unwrap().contains("source_crc"));
+    assert_eq!(ue_export_io::read_scene(&path).unwrap().source_crc, None);
+}
+
+/// Exports from before the split carry the buffers inline, and still load.
+#[test]
+fn a_version_1_export_still_reads() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Old.uescene.json");
+    fs::write(
+        &path,
+        r#"{"format":"apex-ue-scene","version":1,"track_id":null,"track_name":"Old",
+            "source_track":"Old.yaml","closed_loop":true,"length_cm":1000.0,
+            "metadata":{"country":"NL"},"dressing":{"season":"summer","spectators":true},
+            "materials":[{"key":"road","family":"road","base_color":[0.1,0.1,0.1,1.0]}],
+            "meshes":[{"name":"road_000","material_key":"road",
+                "positions":[0.0,0.0,0.0,100.0,0.0,0.0,0.0,100.0,0.0],
+                "normals":[0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0,1.0],
+                "uvs":[0.0,0.0,1.0,0.0,0.0,1.0],
+                "indices":[0,2,1]}],
+            "props":[],"grid":[],"centerline":[]}"#,
+    )
+    .unwrap();
+    let scene = ue_export_io::read_scene(&path).unwrap();
+    assert_eq!(scene.version, 1);
+    assert_eq!(scene.source_crc, None);
+    assert_eq!(scene.metadata.country.as_deref(), Some("NL"));
+    assert_eq!(scene.meshes.len(), 1);
+    assert_eq!(scene.meshes[0].positions[3], 100.0);
+    assert_eq!(scene.meshes[0].indices, vec![0, 2, 1]);
+    assert_eq!(scene.pit_lane, None);
+
+    // A whole baked scene in the old layout reads back as itself.
+    let mut baked = bake_test_scene();
+    baked.version = 1;
+    let old = dir.path().join("Baked.uescene.json");
+    fs::write(&old, serde_json::to_vec(&baked).unwrap()).unwrap();
+    let read_back = ue_export_io::read_scene(&old).unwrap();
+    assert_eq!(read_back, baked);
+    assert_buffers_bit_identical(&read_back, &baked);
+
+    // Rewriting it writes the current layout.
+    ue_export_io::write_scene(&old, &read_back).unwrap();
+    assert_eq!(
+        ue_export_io::read_scene(&old).unwrap().version,
+        UE_SCENE_VERSION
+    );
+}
+
+#[test]
+fn a_newer_manifest_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Future.uescene.json");
+    ue_export_io::write_scene(&path, &bake_test_scene()).unwrap();
+    let text = fs::read_to_string(&path)
+        .unwrap()
+        .replacen("\"version\":2", "\"version\":3", 1);
+    fs::write(&path, text).unwrap();
+    assert!(matches!(
+        ue_export_io::read_scene(&path),
+        Err(ue_export_io::UeExportError::UnsupportedVersion(3))
+    ));
+}
+
+/// A blob that does not hold what the manifest lists is an error, not a
+/// quietly different level.
+#[test]
+fn a_blob_that_disagrees_with_its_manifest_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Test.uescene.json");
+    let baked = bake_test_scene();
+    ue_export_io::write_scene(&path, &baked).unwrap();
+    let blob = ue_export_io::mesh_blob_path_for(&path);
+
+    let mut fewer = baked.meshes.clone();
+    fewer.pop();
+    fs::write(&blob, ue_export_io::encode_mesh_blob(&fewer).unwrap()).unwrap();
+    assert!(ue_export_io::read_scene(&path).is_err());
+
+    let mut renamed = baked.meshes.clone();
+    renamed[0].name.push('x');
+    fs::write(&blob, ue_export_io::encode_mesh_blob(&renamed).unwrap()).unwrap();
+    assert!(ue_export_io::read_scene(&path).is_err());
+
+    fs::remove_file(&blob).unwrap();
+    assert!(ue_export_io::read_scene(&path).is_err());
+}
+
+/// The one-triangle blob the Unreal reader's test mirrors. Its values are
+/// chosen not to compress, so the payload is stored raw (flag 0).
+fn golden_triangle() -> UeMesh {
+    UeMesh {
+        name: "tri".to_string(),
+        material_key: "road".to_string(),
+        positions: vec![
+            12.345, -67.891, 1.234, 456.789, -23.456, 7.891, 34.567, 289.123, 4.567,
+        ],
+        normals: vec![
+            0.0123, -0.0456, 0.9989, 0.0789, 0.5991, 0.7967, 0.5987, -0.0321, 0.8003,
+        ],
+        uvs: vec![0.123, 0.456, 4.567, 0.891, 0.345, 2.789],
+        indices: vec![0, 2, 1],
+    }
+}
+
+const GOLDEN_TRIANGLE_BLOB: &str = concat!(
+    "415045584d455348", // "APEXMESH"
+    "01000000",         // blob version 1
+    "01000000",         // one mesh
+    "03000000",         // name_len 3
+    "747269",           // "tri"
+    "04000000",         // key_len 4
+    "726f6164",         // "road"
+    "03000000",         // 3 vertices
+    "03000000",         // 3 indices
+    "00000000",         // flags: stored raw
+    "6c000000",         // 108 bytes = 32 * 3 + 4 * 3
+    // positions
+    "1f85454131c887c2b6f39d3ffe64e443e3a5bbc11283fc409c440a42be8f9043dd249240",
+    // normals
+    "f085493c11c73abde9b77f3f5396a13d9e5e193f88f44b3f6744193f4a7b03bd76e04c3f",
+    // uvs
+    "6de7fb3dd578e93edd2492409318643fd7a3b03efa7e3240",
+    // indices
+    "000000000200000001000000",
+);
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+#[test]
+fn the_mesh_blob_layout_is_pinned() {
+    let blob = ue_export_io::encode_mesh_blob(&[golden_triangle()]).unwrap();
+    println!(
+        "golden triangle blob ({} bytes): {}",
+        blob.len(),
+        hex(&blob)
+    );
+    assert_eq!(&blob[..8], b"APEXMESH");
+    assert_eq!(&blob[8..12], &1u32.to_le_bytes(), "blob version");
+    assert_eq!(&blob[12..16], &1u32.to_le_bytes(), "mesh count");
+    assert_eq!(&blob[16..20], &3u32.to_le_bytes(), "name_len");
+    // Flags sit after the name, the key and the two counts.
+    let flags_at = 16 + 4 + 3 + 4 + 4 + 8;
+    assert_eq!(
+        &blob[flags_at..flags_at + 4],
+        &0u32.to_le_bytes(),
+        "a tiny mesh that does not compress is stored raw"
+    );
+    assert_eq!(hex(&blob), GOLDEN_TRIANGLE_BLOB);
+    assert_eq!(blob.len(), 155);
+
+    let decoded = ue_export_io::decode_mesh_blob(&blob).unwrap();
+    assert_eq!(decoded, vec![golden_triangle()]);
+}
+
+#[test]
+fn a_mesh_that_compresses_is_stored_as_zlib() {
+    // A flat grid: repetitive, so zlib wins by a mile.
+    let n = 40u32;
+    let mut mesh = UeMesh {
+        name: "ground_000".to_string(),
+        material_key: "ground".to_string(),
+        positions: Vec::new(),
+        normals: Vec::new(),
+        uvs: Vec::new(),
+        indices: Vec::new(),
+    };
+    for j in 0..n {
+        for i in 0..n {
+            mesh.positions
+                .extend([i as f32 * 400.0, j as f32 * 400.0, 0.0]);
+            mesh.normals.extend([0.0, 0.0, 1.0]);
+            mesh.uvs.extend([i as f32 * 4.0, j as f32 * 4.0]);
+        }
+    }
+    for j in 0..n - 1 {
+        for i in 0..n - 1 {
+            let a = j * n + i;
+            mesh.indices
+                .extend([a, a + n, a + 1, a + 1, a + n, a + n + 1]);
+        }
+    }
+    let blob = ue_export_io::encode_mesh_blob(std::slice::from_ref(&mesh)).unwrap();
+    let flags_at = 16 + 4 + mesh.name.len() + 4 + mesh.material_key.len() + 8;
+    assert_eq!(&blob[flags_at..flags_at + 4], &1u32.to_le_bytes());
+    let stored = u32::from_le_bytes(blob[flags_at + 4..flags_at + 8].try_into().unwrap());
+    let raw = 32 * mesh.positions.len() / 3 + 4 * mesh.indices.len();
+    assert!((stored as usize) < raw, "{stored} >= {raw}");
+    assert_eq!(blob.len(), flags_at + 8 + stored as usize);
+    // An RFC 1950 zlib header, not raw deflate or gzip.
+    let payload = &blob[flags_at + 8..];
+    assert_eq!(payload[0] & 0x0f, 8, "CM = deflate");
+    assert_eq!(
+        (u16::from(payload[0]) << 8 | u16::from(payload[1])) % 31,
+        0,
+        "FCHECK"
+    );
+    assert_eq!(ue_export_io::decode_mesh_blob(&blob).unwrap(), vec![mesh]);
+}
+
+#[test]
+fn a_damaged_blob_is_refused() {
+    let good = ue_export_io::encode_mesh_blob(&[golden_triangle()]).unwrap();
+    assert!(ue_export_io::decode_mesh_blob(&good).is_ok());
+
+    let mut magic = good.clone();
+    magic[0] = b'X';
+    assert!(ue_export_io::decode_mesh_blob(&magic).is_err(), "bad magic");
+
+    let mut version = good.clone();
+    version[8] = 2;
+    assert!(
+        ue_export_io::decode_mesh_blob(&version).is_err(),
+        "version 2"
+    );
+
+    for cut in [4, 12, 20, good.len() - 1] {
+        assert!(
+            ue_export_io::decode_mesh_blob(&good[..cut]).is_err(),
+            "truncated at {cut}"
+        );
+    }
+
+    let mut trailing = good.clone();
+    trailing.push(0);
+    assert!(
+        ue_export_io::decode_mesh_blob(&trailing).is_err(),
+        "trailing"
+    );
+
+    let mut index = good.clone();
+    let last = index.len() - 4;
+    index[last] = 3; // indices [0, 2, 3] on three vertices
+    assert!(ue_export_io::decode_mesh_blob(&index).is_err(), "index");
+
+    let mut flags = good.clone();
+    flags[16 + 4 + 3 + 4 + 4 + 8] = 2;
+    assert!(ue_export_io::decode_mesh_blob(&flags).is_err(), "flags");
+
+    let mut count = good.clone();
+    count[12] = 2;
+    assert!(
+        ue_export_io::decode_mesh_blob(&count).is_err(),
+        "mesh count"
+    );
+
+    // A compressed payload whose stream is cut short.
+    let mut mesh = golden_triangle();
+    mesh.positions = vec![0.0; 3 * 64];
+    mesh.normals = vec![0.0; 3 * 64];
+    mesh.uvs = vec![0.0; 2 * 64];
+    let packed = ue_export_io::encode_mesh_blob(&[mesh]).unwrap();
+    let mut short = packed.clone();
+    short.truncate(packed.len() - 3);
+    let size_at = 16 + 4 + 3 + 4 + 4 + 8 + 4;
+    let stored = u32::from_le_bytes(short[size_at..size_at + 4].try_into().unwrap()) - 3;
+    short[size_at..size_at + 4].copy_from_slice(&stored.to_le_bytes());
+    assert!(
+        ue_export_io::decode_mesh_blob(&short).is_err(),
+        "cut stream"
+    );
+
+    // A mesh whose buffers disagree cannot be written.
+    let mut uneven = golden_triangle();
+    uneven.uvs.pop();
+    assert!(ue_export_io::encode_mesh_blob(&[uneven]).is_err());
+}
+
+#[test]
+fn source_crc_matches_zlib_and_ignores_carriage_returns() {
+    assert_eq!(ue_export_io::source_crc(b"123456789"), 0xCBF4_3926);
+    assert_eq!(ue_export_io::source_crc(b""), 0);
+    assert_eq!(
+        ue_export_io::source_crc(b"name: Mini\r\nclosed_loop: true\r\n"),
+        ue_export_io::source_crc(b"name: Mini\nclosed_loop: true\n")
+    );
+    assert_eq!(
+        ue_export_io::source_crc(b"1234\r56789\r"),
+        ue_export_io::source_crc(b"123456789")
+    );
 }
 
 /// Exporting must never touch the files it reads.
@@ -949,6 +1351,15 @@ fn exporting_leaves_the_source_track_and_scene_untouched() {
         "the walls sidecar sits beside the YAML"
     );
     assert!(exported.walls_path.exists());
+    assert_eq!(exported.scene_path, out.join("Mini.uescene.json"));
+    assert_eq!(exported.mesh_blob_path, out.join("Mini.uemesh"));
+    assert!(exported.mesh_blob_path.exists());
+    let written = ue_export_io::read_scene(&exported.scene_path).unwrap();
+    assert_eq!(
+        written.source_crc,
+        Some(ue_export_io::source_crc(&yaml_before)),
+        "the manifest carries the YAML's checksum"
+    );
     assert!(
         !dir.path().join("Mini.ats").exists(),
         "exporting must not create an .ats"
