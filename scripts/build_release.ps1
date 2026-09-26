@@ -9,8 +9,10 @@
         1. preflight  - the car and track data the build consumes must exist
         2. server     - cargo build --release -> apexsim-server.exe
         3. props      - ApexPropImport, the authored prop kit into /Game/Props
-        4. tracks     - scripts/build_track_levels.ps1 (bake + import levels)
-        5. catalog    - build_track_catalog.py + ApexTrackCatalogSync, so the
+        4. tracks     - scripts/build_track_levels.ps1: dress, export,
+                        previews and the shared track materials; every
+                        circuit ships as data the game builds at runtime
+                        (docs/RUNTIME_CONTENT_LOADING.md), not as a level
                         track picker has names, metadata and preview art
         5. client     - scripts/build_game_standalone.ps1 (BuildCookRun)
         6. assemble   - server binary, server.toml and the content the server
@@ -27,6 +29,9 @@
             LICENSE
             release.json        version, commit, configuration, contents
             Game/               the packaged client + settings.sample.yml
+            Game/Tracks/        every circuit as its export (.uescene.json
+                                + .uemesh) and preview (.png), built by the
+                                game when it is raced
             Server/             apexsim-server.exe + server.toml + content/
 
     Every stage can be skipped so a broken piece does not block the rest; a
@@ -65,10 +70,8 @@
     Reuse the prop kit already imported under game-unreal/Content/Props.
 
 .PARAMETER SkipTracks
-    Reuse the track levels already under game-unreal/Content/Tracks.
-
-.PARAMETER SkipCatalog
-    Reuse the DT_TrackCatalog rows and preview textures already imported.
+    Reuse the exports and previews already under content/tracks/export and
+    the track materials already baked.
 
 .PARAMETER SkipClient
     Reuse a packaged client instead of running BuildCookRun. Uses the build
@@ -86,7 +89,7 @@
     Full pipeline, Shipping client, ready-to-upload zip.
 
 .EXAMPLE
-    ./scripts/build_release.ps1 -SkipTracks -SkipCatalog -Configuration Development
+    ./scripts/build_release.ps1 -SkipTracks -Configuration Development
     Rebuild the server and client only, against the content already imported.
 #>
 [CmdletBinding()]
@@ -101,7 +104,6 @@ param(
     [switch]$SkipServer,
     [switch]$SkipProps,
     [switch]$SkipTracks,
-    [switch]$SkipCatalog,
     [switch]$SkipClient,
     [string]$ClientArtifactDirectory
 )
@@ -113,10 +115,10 @@ $RepoRoot     = Split-Path -Parent $PSScriptRoot
 $Uproject     = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 $CarsDir      = Join-Path $RepoRoot 'content\cars'
 $TrackDir     = Join-Path $RepoRoot 'content\tracks\real'
-$LevelDir     = Join-Path $RepoRoot 'game-unreal\Content\Tracks'
+$ExportDir    = Join-Path $RepoRoot 'content\tracks\export'
+$MaterialsDir = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
 $PropsSrcDir  = Join-Path $RepoRoot 'content\props'
 $PropsDir     = Join-Path $RepoRoot 'game-unreal\Content\Props'
-$CatalogAsset = Join-Path $RepoRoot 'game-unreal\Content\Data\DT_TrackCatalog.uasset'
 $ServerExe    = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
 if (-not $ClientArtifactDirectory) {
     $ClientArtifactDirectory = Join-Path $RepoRoot 'artifacts\ApexSim-Win64\Windows'
@@ -187,6 +189,38 @@ function Get-TrackFiles {
     return @(Get-ChildItem $TrackDir -Filter '*.yaml' -File)
 }
 
+# Tracks whose runtime export (manifest and mesh blob) is not on disk.
+function Get-MissingExports {
+    return @(Get-TrackFiles | ForEach-Object { $_.BaseName } | Where-Object {
+        -not (Test-Path (Join-Path $ExportDir "$_.uescene.json")) -or
+        -not (Test-Path (Join-Path $ExportDir "$_.uemesh"))
+    })
+}
+
+# The runtime tracks, as the game looks for them: manifest, blob and the
+# catalog preview beside each other in Game\Tracks.
+function Copy-RuntimeTracks {
+    param([string]$Destination)
+    if (Test-Path $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    $noPreview = [Collections.Generic.List[string]]::new()
+    foreach ($track in Get-TrackFiles) {
+        $stem = $track.BaseName
+        foreach ($file in @("$stem.uescene.json", "$stem.uemesh")) {
+            Copy-Item -LiteralPath (Join-Path $ExportDir $file) -Destination $Destination -Force
+        }
+        $preview = Join-Path $ExportDir "previews\$stem.png"
+        if (Test-Path -LiteralPath $preview) {
+            Copy-Item -LiteralPath $preview -Destination (Join-Path $Destination "$stem.png") -Force
+        } else {
+            $noPreview.Add($stem)
+        }
+    }
+    if ($noPreview.Count -gt 0) {
+        Write-Warning ("no preview for: {0} (run build_track_catalog.py; the picker shows placeholder art)" -f ($noPreview -join ', '))
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Preflight
 #
@@ -234,15 +268,13 @@ function Invoke-Preflight {
     if (-not $SkipTracks -and -not (Test-Command 'cargo')) {
         $problems.Add('cargo is not on PATH and the track bake needs it; install Rust or pass -SkipTracks')
     }
-    if (-not $SkipCatalog -and -not (Test-Command 'python')) {
-        $problems.Add('python is not on PATH and the track catalog needs it; install it or pass -SkipCatalog')
-    }
-    if ($SkipCatalog -and -not (Test-Path $CatalogAsset)) {
-        $problems.Add("-SkipCatalog, but DT_TrackCatalog has never been synced ($CatalogAsset)")
+    if (-not $SkipTracks -and -not (Test-Command 'python')) {
+        $problems.Add('python is not on PATH and the track previews need it; install it or pass -SkipTracks')
     }
 
-    # The levels reference the kit by path; a skipped import has to find it
-    # already there, or every barrier and stand ships as a generated box.
+    # The tracks find the kit by path when the game builds them; a skipped
+    # import has to find it already there, or every barrier and stand ships
+    # as a generated box.
     if ($SkipProps) {
         $imported = @(Get-ChildItem $PropsDir -Filter 'SM_*.uasset' -Recurse -File -ErrorAction SilentlyContinue)
         if ($imported.Count -eq 0) {
@@ -253,14 +285,15 @@ function Invoke-Preflight {
         $problems.Add("no prop kit at $PropsSrcDir; pass -SkipProps to build without it")
     }
 
-    # A packaged build with no track levels races in an empty world, so a
-    # skipped bake has to prove the levels are already there.
+    # A circuit with no export races in an empty world, so a skipped bake
+    # has to prove the exports and the materials are already there.
     if ($SkipTracks -and $tracks.Count -gt 0) {
-        $missing = @($tracks | ForEach-Object { $_.BaseName } | Where-Object {
-            -not (Test-Path (Join-Path $LevelDir "$_\L_$_.umap"))
-        })
+        $missing = @(Get-MissingExports)
         if ($missing.Count -gt 0) {
-            $problems.Add("-SkipTracks, but these tracks have no level under ${LevelDir}: $($missing -join ', ')")
+            $problems.Add("-SkipTracks, but these tracks have no export under ${ExportDir}: $($missing -join ', ')")
+        }
+        if (-not (Test-Path (Join-Path $MaterialsDir 'M_ApexTrackBase.uasset'))) {
+            $problems.Add("-SkipTracks, but the track materials were never baked ($MaterialsDir); run -run=ApexMaterialBake")
         }
     }
 
@@ -413,41 +446,26 @@ else {
 
 # --- tracks ----------------------------------------------------------------
 
+# Every circuit ships as data the game builds when it is raced: the export
+# (manifest + mesh blob) and its catalog preview, copied into Game\Tracks at
+# assembly. The only track content that is cooked is the parent materials
+# under /Game/Materials/Track, which the pipeline's last stage bakes.
 if ($SkipTracks) {
-    Write-Step 'Skipping the track bake; using the levels already imported'
+    Write-Step 'Skipping the track bake; using the exports already there'
 }
 else {
-    Write-Step 'Baking tracks and importing them as Unreal levels'
+    Write-Step 'Baking every circuit for the game to build at runtime'
     $trackArgs = @{ Release = $true }
     if ($BuildEditor) { $trackArgs.Build = $true }
     if ($EngineRoot)  { $trackArgs.EngineRoot = $EngineRoot }
     & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
-
-    $missing = @(Get-TrackFiles | ForEach-Object { $_.BaseName } | Where-Object {
-        -not (Test-Path (Join-Path $LevelDir "$_\L_$_.umap"))
-    })
-    if ($missing.Count -gt 0) {
-        throw ('the track import left these circuits without a level, so they ' +
-               "would race in an empty world: $($missing -join ', ')")
-    }
 }
-
-# --- track catalog ---------------------------------------------------------
-
-if ($SkipCatalog) {
-    Write-Step 'Skipping the catalog sync; using the rows already imported'
+$missing = @(Get-MissingExports)
+if ($missing.Count -gt 0) {
+    throw "these circuits have no export, so they would race in an empty world: $($missing -join ', ')"
 }
-else {
-    Write-Step 'Baking the track catalog and syncing it into DT_TrackCatalog'
-    Invoke-Tool -Exe 'python' -What 'build_track_catalog.py' `
-        -Arguments @((Join-Path $PSScriptRoot 'build_track_catalog.py'))
-
-    $engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
-        -Requires 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
-    Invoke-Tool -Exe (Join-Path $engine 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe') `
-        -What 'ApexTrackCatalogSync' `
-        -Arguments @($Uproject, '-run=ApexTrackCatalogSync', '-unattended',
-                     '-nopause', '-nosplash', '-stdout', '-utf8output')
+if (-not (Test-Path (Join-Path $MaterialsDir 'M_ApexTrackBase.uasset'))) {
+    throw "no track materials under $MaterialsDir; run -run=ApexMaterialBake (build_track_levels.ps1 does)"
 }
 
 # --- client ----------------------------------------------------------------
@@ -479,7 +497,8 @@ else {
     }
     New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null
 
-    $clientArgs = @{ Configuration = $Configuration; OutputDirectory = $ReleaseDir }
+    # The release copies the tracks itself, at assembly, with the checks it wants.
+    $clientArgs = @{ Configuration = $Configuration; OutputDirectory = $ReleaseDir; SkipTracks = $true }
     if ($EngineRoot) { $clientArgs.EngineRoot = $EngineRoot }
     & (Join-Path $PSScriptRoot 'build_game_standalone.ps1') @clientArgs
 
@@ -499,6 +518,9 @@ New-Item -ItemType Directory -Path $ServerDir -Force | Out-Null
 Copy-Item -LiteralPath $ServerExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'server.toml') -Destination $ServerDir -Force
 Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
+Copy-RuntimeTracks -Destination (Join-Path $GameDir 'Tracks')
+$runtimeTrackCount = @(Get-ChildItem (Join-Path $GameDir 'Tracks') -Filter '*.uescene.json' -File).Count
+Write-Detail "$runtimeTrackCount track(s) in $(Join-Path $GameDir 'Tracks')"
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination $ReleaseDir -Force
 
 # A sample rather than a live settings.yml: the client creates the real file on
@@ -537,7 +559,6 @@ Write-TextFile (Join-Path $GameDir 'settings.sample.yml') $sampleSettings
 
 $carCount   = @(Get-CarFiles).Count
 $trackCount = @(Get-TrackFiles).Count
-$levels     = @(Get-ChildItem $LevelDir -Filter 'L_*.umap' -Recurse -ErrorAction SilentlyContinue)
 
 # Launchers. Both cd into their own folder first: the server resolves
 # content/ and its TLS paths relative to the working directory.
@@ -582,6 +603,10 @@ WHAT IS IN HERE
 
     Game\              The ApexSim client. Run Game\ApexSim.exe to play
                        against a server someone else is hosting.
+    Game\Tracks\       Every circuit, as the data the game builds it from
+                       when it is raced. A new circuit is its .uescene.json,
+                       .uemesh and .png here,
+                       with the matching .yaml in Server\content\tracks\real.
     Game\settings.yml  Resolution, window mode and the server to connect to.
                        Written on the first run; edit it in any text editor.
                        Game\settings.sample.yml is the same file with the
@@ -625,12 +650,14 @@ MODDING
     Server\content\cars\<car>\car.toml holds each car's physics, and
     Server\content\tracks\real\*.yaml the circuit centrelines. The server
     validates both at startup and is the authority on them, so edits change
-    the simulation for everyone connected. Visuals stay as they were cooked
-    into the client.
+    the simulation for everyone connected. A circuit's scenery is
+    Game\Tracks\<Track>.uescene.json and .uemesh, which the game builds it
+    from when it is raced: a new circuit is those two files and a .png in
+    Game\Tracks, plus its .yaml here.
 
 CONTENTS
 
-    $trackCount track(s), $carCount car(s), $($levels.Count) baked circuit level(s).
+    $trackCount track(s) ($runtimeTrackCount built by the game from Game\Tracks), $carCount car(s).
 
 Licensed under the terms in LICENSE.
 "@
@@ -648,15 +675,15 @@ $manifest = [ordered]@{
     contents      = [ordered]@{
         cars         = $carCount
         tracks       = $trackCount
-        track_levels = $levels.Count
+        runtime_tracks = $runtimeTrackCount
         server       = (Split-Path -Leaf $ServerExe)
     }
 }
 Write-TextFile (Join-Path $ReleaseDir 'release.json') ($manifest | ConvertTo-Json -Depth 4)
 
 $size = (Get-ChildItem $ReleaseDir -Recurse -File | Measure-Object -Property Length -Sum).Sum
-Write-Detail ('{0} car(s), {1} track(s), {2} level(s), {3} on disk' -f `
-    $carCount, $trackCount, $levels.Count, (Format-Size $size))
+Write-Detail ('{0} car(s), {1} track(s), {2} on disk' -f `
+    $carCount, $trackCount, (Format-Size $size))
 
 # --- zip -------------------------------------------------------------------
 

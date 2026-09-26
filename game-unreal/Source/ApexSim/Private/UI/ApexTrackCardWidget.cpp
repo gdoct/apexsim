@@ -5,6 +5,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
+#include "Track/ApexTrackContentSubsystem.h"
 
 void UApexTrackCardWidget::NativeConstruct()
 {
@@ -57,9 +58,9 @@ void UApexTrackCardWidget::SetTrack(const FApexTrackConfigSummary& Summary, cons
 		// The preview can only be reached through the catalog: the wire gives
 		// us "Circuit of The Americas" while the file is Austin.png.
 		UTexture2D* Preview = nullptr;
-		if (bHasCatalogRow && !CatalogRow.PreviewImage.IsNull())
+		if (bHasCatalogRow)
 		{
-			Preview = CatalogRow.PreviewImage.LoadSynchronous();
+			Preview = UApexTrackContentSubsystem::PreviewOf(CatalogRow);
 		}
 		if (!Preview)
 		{

@@ -1,6 +1,6 @@
 #include "ApexPropImportCommandlet.h"
 
-#include "ApexPropLibrary.h"
+#include "Track/ApexPropLibrary.h"
 #include "ApexTrackEditorModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"

@@ -15,16 +15,19 @@
         3. Cars: every content/cars/<folder> whose SM_<folder> is missing
            (all of them when a class wheel mesh is missing)
         4. Ground textures: bake the PNGs, then ApexGroundTexImport
-        5. Props: ApexPropImport -all when any kit GLB has no mesh
-        6. Tracks: dress, export and import every circuit that lacks its
-           level or one of its server sidecars (ground/curbs/walls) - and
-           every circuit when stage 4 or 5 ran, since the bake picks the
-           ground material shape and resolves the props at import time
-        7. Track catalog: previews + ApexTrackCatalogSync when any track
-           was rebuilt or a preview texture is missing
+        5. Track materials: ApexMaterialBake when /Game/Materials/Track lacks
+           them or stage 4 ran (the base parent's surface graph depends on
+           the ground textures)
+        6. Props: ApexPropImport -all when any kit GLB has no mesh
+        7. Tracks: dress and export every circuit that lacks its export
+           (.uescene.json + .uemesh), its catalog preview or one of its
+           server sidecars (ground/curbs/walls). There are no track levels:
+           the game builds each circuit from its export when it is raced,
+           with whatever props and ground textures /Game holds then, so an
+           import in stage 4 or 6 needs no rebake.
 
     Close the editor first; the commandlets and the build need its assets and
-    binaries. A full fresh run takes a long while, most of it stage 6.
+    binaries. A full fresh run takes a while, most of it the Unreal stages.
 
 .PARAMETER Force
     Redo every stage, whatever is already there.
@@ -62,6 +65,8 @@ $CarsSrc     = Join-Path $RepoRoot 'content\cars'
 $WheelsSrc   = Join-Path $RepoRoot 'content\wheels'
 $PropsSrc    = Join-Path $RepoRoot 'content\props'
 $TrackDir    = Join-Path $RepoRoot 'content\tracks\real'
+$ExportDir   = Join-Path $RepoRoot 'content\tracks\export'
+$TrackMats   = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
 $GroundPngs  = Join-Path $RepoRoot 'content\textures\ground'
 $ServerExe   = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
 
@@ -166,14 +171,17 @@ $missingProps = @(Get-ChildItem $PropsSrc -Directory |
 $trackStems = @(Get-ChildItem $TrackDir -Filter '*.yaml' -File | ForEach-Object { $_.BaseName })
 $missingTracks = @($trackStems | Where-Object {
     $stem = $_
-    $noLevel = -not (Test-Path (Join-Path $GameContent "Tracks\$stem\L_$stem.umap"))
+    # The export the game builds the circuit from (one from before the mesh
+    # blob has no .uemesh), its preview, and the server's sidecars.
+    $noExport = -not (Test-Path (Join-Path $ExportDir "$stem.uemesh"))
+    $noPreview = -not (Test-Path (Join-Path $ExportDir "previews\$stem.png"))
     $noSidecar = @($Sidecars | Where-Object {
         -not (Test-Path (Join-Path $TrackDir "$stem.$_.msgpack"))
     }).Count -gt 0
-    $noLevel -or $noSidecar
+    $noExport -or $noPreview -or $noSidecar
 })
-$missingPreviews = @($trackStems | Where-Object {
-    -not (Test-Path (Join-Path $GameContent "UI\TrackPreviews\T_Track_$_.uasset"))
+$missingMaterials = @('M_ApexTrackBase', 'M_ApexEmissive', 'M_ApexBrand', 'M_ApexDecal' | Where-Object {
+    -not (Test-Path (Join-Path $TrackMats "$_.uasset"))
 })
 
 $splash = Join-Path $GameContent 'Splash\Splash.bmp'
@@ -182,9 +190,9 @@ Write-Detail ("cars:            " + $(if ($missingCars) { Format-List $missingCa
 Write-Detail ("wheels:          " + $(if ($missingWheels) { Format-List $missingWheels } else { 'ok' }))
 Write-Detail ("ground PNGs:     " + $(if ($missingPngs) { "$($missingPngs.Count) missing" } else { 'ok' }))
 Write-Detail ("ground textures: " + $(if ($missingGround) { "$($missingGround.Count) missing" } else { 'ok' }))
+Write-Detail ("track materials: " + $(if ($missingMaterials) { Format-List $missingMaterials } else { 'ok' }))
 Write-Detail ("props:           " + $(if ($missingProps) { Format-List $missingProps } else { 'ok' }))
 Write-Detail ("tracks:          " + $(if ($missingTracks) { Format-List $missingTracks } else { 'ok' }))
-Write-Detail ("track previews:  " + $(if ($missingPreviews) { Format-List $missingPreviews } else { 'ok' }))
 Write-Detail ("server:          " + $(if (Test-Path $ServerExe) { 'ok' } else { 'not built' }))
 if (-not (Test-Path $splash)) {
     Write-Warning "no startup splash at $splash (it is checked in; is the checkout complete?)"
@@ -198,14 +206,16 @@ $doServer  = $Force -or -not (Test-Path $ServerExe)
 $doCars    = $Force -or $missingCars.Count -gt 0 -or $missingWheels.Count -gt 0
 $doPngs    = $Force -or $missingPngs.Count -gt 0
 $doGround  = $Force -or $doPngs -or $missingGround.Count -gt 0
+$doMats    = $Force -or $doGround -or $missingMaterials.Count -gt 0
 $doProps   = $Force -or $missingProps.Count -gt 0
 # The bake picks the ground material's shape and the import resolves props by
 # what /Game holds, so either import invalidates every level.
-$allTracks = $Force -or $doGround -or $doProps
+# The game dresses each circuit with whatever /Game holds when it builds it,
+# so a prop or ground import leaves the exports as they are.
+$allTracks = $Force
 $tracks    = @(if ($allTracks) { $trackStems } else { $missingTracks })
 $doTracks  = $tracks.Count -gt 0
-$doCatalog = $Force -or $doTracks -or $missingPreviews.Count -gt 0
-$needUnreal = $doCars -or $doGround -or $doProps -or $doTracks -or $doCatalog
+$needUnreal = $doCars -or $doGround -or $doMats -or $doProps
 
 # A missing wheel is imported with a car that uses it; simplest is all cars.
 $carsToImport = @(if ($Force -or $missingWheels.Count -gt 0) { } else { $missingCars })
@@ -216,9 +226,9 @@ if ($doServer)  { $plan.Add('build the release server') }
 if ($doCars)    { $plan.Add($(if ($carsToImport) { "import cars: $(Format-List $carsToImport)" } else { 'import every car' })) }
 if ($doPngs)    { $plan.Add('bake the ground texture PNGs') }
 if ($doGround)  { $plan.Add('import the ground textures') }
+if ($doMats)    { $plan.Add('bake the track materials') }
 if ($doProps)   { $plan.Add('import the prop kit') }
-if ($doTracks)  { $plan.Add($(if ($allTracks) { 'dress, bake and import every track' } else { "dress, bake and import: $(Format-List $tracks)" })) }
-if ($doCatalog) { $plan.Add('build the track previews and sync DT_TrackCatalog') }
+if ($doTracks)  { $plan.Add($(if ($allTracks) { 'dress and bake every track, with previews' } else { "dress and bake, with previews: $(Format-List $tracks)" })) }
 
 if ($plan.Count -eq 0) {
     Write-Step 'Nothing is missing'
@@ -240,7 +250,7 @@ $problems = [Collections.Generic.List[string]]::new()
 if (($doServer -or $doTracks) -and -not (Test-Command 'cargo')) {
     $problems.Add('cargo is not on PATH (install Rust)')
 }
-if ($doPngs -or $doCatalog) {
+if ($doPngs -or $doTracks) {
     if (-not (Test-Command 'python')) {
         $problems.Add('python is not on PATH (install Python 3)')
     }
@@ -309,19 +319,27 @@ if ($doGround) {
         -What 'ApexGroundTexImport'
 }
 
-if ($doTracks -or $doProps) {
-    Write-Step 'Building the track levels'
-    $trackArgs = @{ EngineRoot = $engine; Release = $true }
-    if ($doProps) { $trackArgs.ImportProps = $true }
-    if (-not $allTracks) { $trackArgs.Track = $tracks }
-    & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
+if ($doMats) {
+    # Every track the game builds instantiates these; a -Force run redoes
+    # them, since a graph may have changed.
+    Write-Step 'Baking the track materials into /Game/Materials/Track'
+    $bakeArgs = @($Uproject, '-run=ApexMaterialBake') + $commandletArgs
+    if ($Force) { $bakeArgs += '-force' }
+    Invoke-Tool -Exe $editorCmd -Arguments $bakeArgs -What 'ApexMaterialBake'
 }
 
-if ($doCatalog) {
-    Write-Step 'Building the track catalog'
-    Invoke-Tool -Exe 'python' -Arguments @('scripts/build_track_catalog.py') -What 'build_track_catalog.py'
-    Invoke-Tool -Exe $editorCmd -Arguments (@($Uproject, '-run=ApexTrackCatalogSync') + $commandletArgs) `
-        -What 'ApexTrackCatalogSync'
+if ($doProps) {
+    Write-Step 'Importing the prop kit into /Game/Props'
+    Invoke-Tool -Exe $editorCmd -Arguments (@($Uproject, '-run=ApexPropImport', '-all') + $commandletArgs) `
+        -What 'ApexPropImport'
+}
+
+if ($doTracks) {
+    Write-Step 'Baking the tracks'
+    # The materials were seen to above; this is Rust and Python only.
+    $trackArgs = @{ Release = $true; SkipMaterials = $true }
+    if (-not $allTracks) { $trackArgs.Track = $tracks }
+    & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
 }
 
 $stopwatch.Stop()

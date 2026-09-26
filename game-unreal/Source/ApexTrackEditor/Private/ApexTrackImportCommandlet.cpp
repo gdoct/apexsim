@@ -2,8 +2,8 @@
 
 #include "ApexTrackAssetBuilder.h"
 #include "ApexTrackEditorModule.h"
-#include "ApexTrackSceneData.h"
-#include "ApexTrackSceneReader.h"
+#include "Track/ApexTrackSceneData.h"
+#include "Track/ApexTrackSceneReader.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 
@@ -12,9 +12,7 @@ namespace
 	/** Exports carry a compound extension, so `GetBaseFilename` is not enough. */
 	FString ExportStem(const FString& Path)
 	{
-		FString Stem = FPaths::GetCleanFilename(Path);
-		Stem.RemoveFromEnd(TEXT(".uescene.json"), ESearchCase::IgnoreCase);
-		return Stem;
+		return FApexTrackSceneReader::StemOf(Path);
 	}
 }	 // namespace
 

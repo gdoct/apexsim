@@ -23,7 +23,6 @@ class UApexMenuFlowSubsystem;
 class UApexNetSubsystem;
 class UApexSettingsSubsystem;
 class UCameraComponent;
-class ULevelStreamingDynamic;
 class UMaterialInstanceDynamic;
 class USpringArmComponent;
 class UTextureRenderTarget2D;
@@ -160,13 +159,13 @@ public:
 	bool IsReplayViewActive() const { return bReplayView; }
 
 	/**
-	 * Everything is in to film: the level streamed and visible with its sky
-	 * applied, and the cars placed. A clip whose track has no imported level
+	 * Everything is in to film: the track loaded and visible with its sky
+	 * applied, and the cars placed. A clip whose track has no export
 	 * never gets here; the caller times out.
 	 */
 	bool IsReplayReady() const;
-	/** True when the clip's track has an imported level being streamed. */
-	bool HasReplayTrackLevel() const { return bReplayView && TrackLevel != nullptr; }
+	/** True when the clip's track is being built or has been. */
+	bool HasReplayTrackLevel() const { return bReplayView && Track != nullptr; }
 
 	/** Start the clip's clock at `FromSeconds` (from its first frame). */
 	void PlayReplay(double FromSeconds);
@@ -249,9 +248,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	int32 GetSpawnedCarCount() const { return Cars.Num(); }
 
-	/** True once the session's track level has finished streaming in. */
+	/** True once the session's track has finished building from its export. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	bool IsTrackLevelLoaded() const;
+	/** Loaded and shown: its actors are in the world and collidable. */
+	bool IsTrackVisible() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -457,18 +458,21 @@ private:
 	const ApexSky::FSkyState& GetSky() const { return Sky; }
 
 	/**
-	 * Content path of the level for the session's track, or empty if there
-	 * is no session, no track, or no imported level for it.
+	 * Stem of the session's track, or empty if there is no session, no
+	 * track, or no export on disk to build it from
+	 * (`UApexTrackContentSubsystem`).
 	 *
 	 * Resolved by convention from the track file the server names —
-	 * `tracks/real/Monza.yaml` -> `/Game/Tracks/Monza/L_Monza` — which is
-	 * exactly how the importer names what it generates, so the two cannot
-	 * drift apart without the lookup failing loudly.
+	 * `tracks/real/Monza.yaml` -> `Monza` — which is exactly how the importer
+	 * and `ats-export` name what they generate, so the two cannot drift apart
+	 * without the lookup failing loudly.
 	 */
-	FString ResolveTrackLevelPath() const;
+	FString ResolveTrackStem() const;
 
 	void LoadTrackLevel();
 	void UnloadTrackLevel();
+	/** Give back a track whose build failed, so nothing waits on it. */
+	void DropFailedTrack();
 
 	/**
 	 * Checks the content about to be shown against the server's files: the
@@ -513,11 +517,13 @@ private:
 	/** Emissive strength of a lit lens. The race is exposed for a 50 klux sun. */
 	static constexpr float StartLightOnEmissive = 4000.0f;
 
+	/** The session's circuit, built from its export. */
 	UPROPERTY(Transient)
-	TObjectPtr<ULevelStreamingDynamic> TrackLevel;
+	TObjectPtr<class UApexTrackInstance> Track;
 
 	UApexNetSubsystem* GetNet() const;
 	UApexMenuFlowSubsystem* GetFlow() const;
+	class UApexTrackContentSubsystem* GetTrackContent() const;
 	UApexSettingsSubsystem* GetSettings() const;
 
 

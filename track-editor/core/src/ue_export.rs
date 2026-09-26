@@ -1,5 +1,5 @@
-//! Baking a track project into the JSON the Unreal `ApexTrackImport`
-//! commandlet turns into a level.
+//! Baking a track project into the export the Unreal client builds the
+//! circuit from at runtime (`UApexTrackInstance`).
 //!
 //! The `.ats` scene alone is not enough for Unreal: every track-anchored
 //! element (surface, curb, marking) is a *station span* measured along a
@@ -72,7 +72,9 @@ use crate::track_data::TrackFile;
 use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
 
 pub const UE_SCENE_FORMAT: &str = "apex-ue-scene";
-pub const UE_SCENE_VERSION: u32 = 1;
+/// 2: the vertex data moved out of the JSON into a `<Stem>.uemesh` blob
+/// beside it (`ue_export_io::write_scene`), and `source_crc` appeared.
+pub const UE_SCENE_VERSION: u32 = 2;
 
 /// Meters -> Unreal centimeters.
 const M_TO_CM: f32 = 100.0;
@@ -217,6 +219,13 @@ pub struct UeScene {
     pub track_name: String,
     /// File name of the logical YAML this was baked from.
     pub source_track: String,
+    /// CRC-32 of that YAML's bytes with every carriage return dropped: the
+    /// same checksum the server sends as `ContentCrc`
+    /// (`server/src/content_crc.rs`), so a client can tell whether the
+    /// level it holds was baked from the track the server is running.
+    /// Filled by `ue_export_io::export_track`; the bake itself has no file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_crc: Option<u32>,
     pub closed_loop: bool,
     pub length_cm: f32,
     pub metadata: UeMetadata,
@@ -276,8 +285,9 @@ pub struct UeMaterial {
     pub base_color: [f32; 4],
 }
 
-/// One bakeable static mesh. Buffers are flattened (`[x, y, z, x, y, z, …]`)
-/// because nesting them triples the JSON size for no gain.
+/// One bakeable static mesh. Buffers are flattened (`[x, y, z, x, y, z, …]`).
+/// On disk (version 2) they live in the `.uemesh` blob, not the JSON; the
+/// manifest lists only each mesh's name, key and counts.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UeMesh {
     /// `{material_key}_{section:03}`, unique within the scene.
@@ -1067,6 +1077,7 @@ pub fn bake_all_with_dem(
         track_id: track.track_id.clone(),
         track_name: track.name.clone(),
         source_track: scene.source_track.clone(),
+        source_crc: None,
         closed_loop: track.closed_loop,
         length_cm: round(path.total_length_m() * M_TO_CM, 1),
         metadata,

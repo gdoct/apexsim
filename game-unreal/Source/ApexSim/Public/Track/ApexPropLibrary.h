@@ -32,15 +32,15 @@ namespace ApexProps
 		const TCHAR* DefaultAsset;
 	};
 
-	APEXTRACKEDITOR_API const FKindInfo* FindKind(const FString& Kind);
-	APEXTRACKEDITOR_API bool IsInstancedKind(const FString& Kind);
-	APEXTRACKEDITOR_API bool IsNaniteKind(const FString& Kind);
+	APEXSIM_API const FKindInfo* FindKind(const FString& Kind);
+	APEXSIM_API bool IsInstancedKind(const FString& Kind);
+	APEXSIM_API bool IsNaniteKind(const FString& Kind);
 	/**
 	 * Whether a resolved prop is turned to face the road. Per kind, with the
 	 * odd asset that differs: a video screen is an `attraction` but has a
 	 * front, a ferris wheel does not.
 	 */
-	APEXTRACKEDITOR_API bool FacesRoad(const FString& Kind, const FString& Asset);
+	APEXSIM_API bool FacesRoad(const FString& Kind, const FString& Asset);
 	/**
 	 * Whether a resolved prop is turned to look back up the course instead
 	 * of across it: a braking marker and a marshal light panel are read by
@@ -48,13 +48,13 @@ namespace ApexProps
 	 * board) has to point against the direction of travel rather than at the
 	 * road. The builder yaws them +90 degrees and never flips them by side.
 	 */
-	APEXTRACKEDITOR_API bool FacesUpCourse(const FString& Kind, const FString& Asset);
+	APEXSIM_API bool FacesUpCourse(const FString& Kind, const FString& Asset);
 	/** Degrees added to a prop's yaw so its front looks back up the course. */
 	inline constexpr float UpCourseYawDeg = 90.0f;
 	/** Empty when the kind has no default. */
-	APEXTRACKEDITOR_API FString DefaultAssetFor(const FString& Kind);
+	APEXSIM_API FString DefaultAssetFor(const FString& Kind);
 	/** Every kind the kit knows, for the importer's folder walk. */
-	APEXTRACKEDITOR_API TArray<FString> AllKinds();
+	APEXSIM_API TArray<FString> AllKinds();
 
 	/**
 	 * Map the asset keys the pre-kit scenes carry onto authored assets, in
@@ -62,51 +62,51 @@ namespace ApexProps
 	 * in `Text` when the alias implies one and the prop has none. Returns
 	 * true when anything changed.
 	 */
-	APEXTRACKEDITOR_API bool ResolveAlias(FString& Kind, FString& Asset, FString& Text);
+	APEXSIM_API bool ResolveAlias(FString& Kind, FString& Asset, FString& Text);
 
 	/** `/Game/Props/<kind>/SM_<asset>` (package) and `.SM_<asset>` (object) paths. */
-	APEXTRACKEDITOR_API FString MeshPackageName(const FString& Root, const FString& Kind, const FString& Asset);
-	APEXTRACKEDITOR_API FString MeshObjectPath(const FString& Root, const FString& Kind, const FString& Asset);
+	APEXSIM_API FString MeshPackageName(const FString& Root, const FString& Kind, const FString& Asset);
+	APEXSIM_API FString MeshObjectPath(const FString& Root, const FString& Kind, const FString& Asset);
 	/** `/Game/Props/<kind>/Materials`, where a kind's materials and textures go. */
-	APEXTRACKEDITOR_API FString MaterialsFolder(const FString& Root, const FString& Kind);
+	APEXSIM_API FString MaterialsFolder(const FString& Root, const FString& Kind);
 	/** Brand and marker textures, `T_brand_<name>` and `T_marker_<n>` (object paths). */
-	APEXTRACKEDITOR_API FString BrandTextureObjectPath(const FString& Root, const FString& Brand);
-	APEXTRACKEDITOR_API FString MarkerTextureObjectPath(const FString& Root, const FString& Marker);
-	APEXTRACKEDITOR_API FString BrandsFolder(const FString& Root);
-	APEXTRACKEDITOR_API FString MarkersFolder(const FString& Root);
+	APEXSIM_API FString BrandTextureObjectPath(const FString& Root, const FString& Brand);
+	APEXSIM_API FString MarkerTextureObjectPath(const FString& Root, const FString& Marker);
+	APEXSIM_API FString BrandsFolder(const FString& Root);
+	APEXSIM_API FString MarkersFolder(const FString& Root);
 
 	/** Material slots whose surface is the brand a prop's `text` names. */
-	APEXTRACKEDITOR_API bool IsBrandSlot(FName SlotName);
+	APEXSIM_API bool IsBrandSlot(FName SlotName);
 	/** The asset carries a blank `board_text` face that the prop's `text` is rendered on (a named-corner board). */
-	APEXTRACKEDITOR_API bool HasTextFace(const FString& Kind, const FString& Asset);
+	APEXSIM_API bool HasTextFace(const FString& Kind, const FString& Asset);
 	/** The braking marker's number panel; `text` is 50/100/150/200. */
-	APEXTRACKEDITOR_API bool IsMarkerSlot(FName SlotName);
+	APEXSIM_API bool IsMarkerSlot(FName SlotName);
 	/** The flag pole's cloth; `text` is a country code (`nl`, `de`, … `chequer`). */
-	APEXTRACKEDITOR_API bool IsFlagSlot(FName SlotName);
+	APEXSIM_API bool IsFlagSlot(FName SlotName);
 	/** Flag textures, `T_flag_<code>` (object path) and their folder. */
-	APEXTRACKEDITOR_API FString FlagTextureObjectPath(const FString& Root, const FString& Code);
-	APEXTRACKEDITOR_API FString FlagsFolder(const FString& Root);
+	APEXSIM_API FString FlagTextureObjectPath(const FString& Root, const FString& Code);
+	APEXSIM_API FString FlagsFolder(const FString& Root);
 
 	// ---- Road decals (`.ats` `decals`, the Nordschleife's graffiti) ----------
 
 	/** The kit folder whose PNG sets are road decals rather than GLBs. */
-	APEXTRACKEDITOR_API extern const TCHAR* const DecalKind;
+	APEXSIM_API extern const TCHAR* const DecalKind;
 	/** The decal sets `ApexPropImport` brings in, `content/props/decal/<set>/*.png`. */
-	APEXTRACKEDITOR_API TArray<FString> DecalSets();
+	APEXSIM_API TArray<FString> DecalSets();
 	/** `/Game/Props/decal/<Set>`, e.g. `/Game/Props/decal/Graffiti`. */
-	APEXTRACKEDITOR_API FString DecalFolder(const FString& Root, const FString& Set);
+	APEXSIM_API FString DecalFolder(const FString& Root, const FString& Set);
 	/** `T_<set>_<name>` under `DecalFolder` (object path). */
-	APEXTRACKEDITOR_API FString DecalTextureObjectPath(const FString& Root, const FString& Set, const FString& Name);
+	APEXSIM_API FString DecalTextureObjectPath(const FString& Root, const FString& Set, const FString& Name);
 	/**
 	 * Split a bake material key `decal_<set>_<name>` (the set has no
 	 * underscore, `track_core::ats::Decal::image_parts`). False for any
 	 * other key.
 	 */
-	APEXTRACKEDITOR_API bool ParseDecalKey(const FString& Key, FString& OutSet, FString& OutName);
+	APEXSIM_API bool ParseDecalKey(const FString& Key, FString& OutSet, FString& OutName);
 	/** Lamps and screens the runtime may light up. */
-	APEXTRACKEDITOR_API bool IsEmissiveSlot(FName SlotName);
+	APEXSIM_API bool IsEmissiveSlot(FName SlotName);
 	/** Masked foliage and fence mesh: must import Masked and two-sided. */
-	APEXTRACKEDITOR_API bool IsMaskedSlot(FName SlotName);
+	APEXSIM_API bool IsMaskedSlot(FName SlotName);
 
 	// ---- Variants the scene's dressing picks --------------------------------
 
@@ -114,15 +114,15 @@ namespace ApexProps
 	 * `<asset>_crowd` for the stand assets that come with a seated crowd
 	 * (every `bay_10m*`, `scaffold_10m`, `banking_seats`); empty otherwise.
 	 */
-	APEXTRACKEDITOR_API FString CrowdVariant(const FString& Kind, const FString& Asset);
+	APEXSIM_API FString CrowdVariant(const FString& Kind, const FString& Asset);
 	/** `<asset>_autumn` for the trees with autumn foliage; empty for the rest. */
-	APEXTRACKEDITOR_API FString AutumnVariant(const FString& Kind, const FString& Asset);
+	APEXSIM_API FString AutumnVariant(const FString& Kind, const FString& Asset);
 	/**
 	 * Whether a grandstand asset is a bay family (`bay_10m`, `_roof`,
 	 * `_large`…): laid with end caps and turned into wedges round a bend.
 	 * The other stands (`scaffold_10m`, `banking_seats`) tile plain.
 	 */
-	APEXTRACKEDITOR_API bool IsBayFamily(const FString& Asset);
+	APEXSIM_API bool IsBayFamily(const FString& Asset);
 
 	/** The one asset imported as two meshes: the wheel and its `rotor` node. */
 	inline const TCHAR* const FerrisWheelKind = TEXT("attraction");
@@ -138,7 +138,7 @@ namespace ApexProps
 	inline constexpr float GantryLampRadius = 22.0f;
 	/** The road width a bridge is authored for; local Y scales by span / this. */
 	inline constexpr float BridgeAuthoredSpanM = 15.0f;
-	APEXTRACKEDITOR_API float BridgeSpanScale(float SpanM);
+	APEXSIM_API float BridgeSpanScale(float SpanM);
 
 	// ---- Grandstands ---------------------------------------------------------
 
@@ -170,6 +170,6 @@ namespace ApexProps
 	 * A non-bay stand (`scaffold_10m`, `banking_seats`) is the module
 	 * repeated at the same pitch, straight, with no caps.
 	 */
-	APEXTRACKEDITOR_API FStandLayout LayoutGrandstand(
+	APEXSIM_API FStandLayout LayoutGrandstand(
 		const FString& Asset, float LengthM, TOptional<float> RadiusM, bool* bWedge = nullptr);
 }	 // namespace ApexProps

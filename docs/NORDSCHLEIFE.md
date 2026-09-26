@@ -49,9 +49,7 @@ the standard pipeline (CLAUDE.md, "Refresh order").
    ```powershell
    python content/props/_tools/gen_graffiti.py            # already committed; re-run only to change the art
    UnrealEditor-Cmd.exe game-unreal/ApexSim.uproject -run=ApexPropImport -kind=decal
-   ./scripts/build_track_levels.ps1 -Track Nordschleife
-   python scripts/build_track_catalog.py
-   UnrealEditor-Cmd.exe game-unreal/ApexSim.uproject -run=ApexTrackCatalogSync
+   ./scripts/build_track_levels.ps1 -Track Nordschleife   # export + preview; the game builds it at runtime
    ```
 
 ## Where it stands (2026-09-25)
@@ -77,8 +75,8 @@ the standard pipeline (CLAUDE.md, "Refresh order").
   the start area and its walls stood on the racing line; the circuit's
   style lays none (the endurance races pit in the GP paddock).
 - **Not done here**: the Unreal side (`ApexPropImport -kind=decal` and the
-  new kit meshes, `build_track_levels.ps1 -Track Nordschleife`, the catalog
-  sync) needs a Windows machine with the engine; none of the C++ changes
+  new kit meshes, the track materials `build_track_levels.ps1 -Track
+  Nordschleife` bakes) needs a Windows machine with the engine; none of the C++ changes
   were compiled in this session.
 
 ## Road graffiti

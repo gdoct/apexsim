@@ -6,6 +6,7 @@
 #include "ApexSim.h"
 #include "Engine/DataTable.h"
 #include "Kismet/GameplayStatics.h"
+#include "Track/ApexTrackContentSubsystem.h"
 
 namespace
 {
@@ -20,6 +21,8 @@ void UApexMenuFlowSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// settings.yml is the authority on the server address, so it has to be read
 	// before LoadProfile() decides which one to connect to.
 	Collection.InitializeDependency<UApexBootSettingsSubsystem>();
+	// Tracks found on disk at runtime join the catalog through it.
+	Collection.InitializeDependency<UApexTrackContentSubsystem>();
 
 	// LoadObject rather than a constructor finder: the tables are authored in
 	// the editor after this C++ is first compiled, so they legitimately do not
@@ -261,18 +264,36 @@ const FApexCarCatalogRow* UApexMenuFlowSubsystem::FindCarRow(const FString& CarI
 
 const FApexTrackCatalogRow* UApexMenuFlowSubsystem::FindTrackRow(const FString& TrackId) const
 {
-	if (!TrackCatalog || TrackId.IsEmpty())
+	if (TrackId.IsEmpty())
 	{
 		return nullptr;
 	}
-	for (const TPair<FName, uint8*>& Pair : TrackCatalog->GetRowMap())
+	// The track's own export describes it: it is what the circuit on screen
+	// is built from, so its checksum is the one to compare with the server's.
+	// The table is a fallback for a track with no export on this machine.
+	if (const UApexTrackContentSubsystem* Content = GetTrackContent())
 	{
-		if (Pair.Key.ToString().Equals(TrackId, ESearchCase::IgnoreCase))
+		if (const FApexTrackCatalogRow* Runtime = Content->FindRuntimeRow(TrackId))
 		{
-			return reinterpret_cast<const FApexTrackCatalogRow*>(Pair.Value);
+			return Runtime;
+		}
+	}
+	if (TrackCatalog)
+	{
+		for (const TPair<FName, uint8*>& Pair : TrackCatalog->GetRowMap())
+		{
+			if (Pair.Key.ToString().Equals(TrackId, ESearchCase::IgnoreCase))
+			{
+				return reinterpret_cast<const FApexTrackCatalogRow*>(Pair.Value);
+			}
 		}
 	}
 	return nullptr;
+}
+
+UApexTrackContentSubsystem* UApexMenuFlowSubsystem::GetTrackContent() const
+{
+	return GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>() : nullptr;
 }
 
 bool UApexMenuFlowSubsystem::GetCarCatalogRow(const FString& CarId, FApexCarCatalogRow& OutRow) const
@@ -328,7 +349,7 @@ void UApexMenuFlowSubsystem::ReportUnmatchedCatalogIds(const FApexLobbyState& Lo
 	}
 	if (MissingTracks.Num() > 0)
 	{
-		UE_LOG(LogApexSim, Warning, TEXT("%d track(s) have no DT_TrackCatalog row and will show placeholder art: %s"),
+		UE_LOG(LogApexSim, Warning, TEXT("%d track(s) have no export on this machine and no DT_TrackCatalog row, and will show placeholder art: %s"),
 			MissingTracks.Num(), *FString::Join(MissingTracks, TEXT(", ")));
 	}
 	// A row that matched but was baked from another version of the file is
@@ -432,16 +453,27 @@ EApexContentMatch UApexMenuFlowSubsystem::VerifyCarContent(const FString& CarId,
 
 FString UApexMenuFlowSubsystem::FindTrackIdByStem(const FString& Stem) const
 {
-	if (!TrackCatalog || Stem.IsEmpty())
+	if (Stem.IsEmpty())
 	{
 		return FString();
 	}
-	for (const TPair<FName, uint8*>& Pair : TrackCatalog->GetRowMap())
+	if (const UApexTrackContentSubsystem* Content = GetTrackContent())
 	{
-		const FApexTrackCatalogRow* Row = reinterpret_cast<const FApexTrackCatalogRow*>(Pair.Value);
-		if (Row && Row->YamlBaseName.Equals(Stem, ESearchCase::IgnoreCase))
+		const FString Id = Content->FindRuntimeTrackIdByStem(Stem);
+		if (!Id.IsEmpty())
 		{
-			return Pair.Key.ToString();
+			return Id;
+		}
+	}
+	if (TrackCatalog)
+	{
+		for (const TPair<FName, uint8*>& Pair : TrackCatalog->GetRowMap())
+		{
+			const FApexTrackCatalogRow* Row = reinterpret_cast<const FApexTrackCatalogRow*>(Pair.Value);
+			if (Row && Row->YamlBaseName.Equals(Stem, ESearchCase::IgnoreCase))
+			{
+				return Pair.Key.ToString();
+			}
 		}
 	}
 	return FString();
