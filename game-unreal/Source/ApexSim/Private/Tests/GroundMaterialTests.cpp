@@ -1,18 +1,12 @@
-#include "ApexGroundMaterials.h"
-#include "Misc/AutomationTest.h"
+#include "Track/ApexGroundMaterials.h"
+#include "ApexTestCommon.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
-
-namespace
-{
-	constexpr EAutomationTestFlags ApexGroundTestFlags =
-		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter;
-}	 // namespace
 
 // -----------------------------------------------------------------------------
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FApexGroundLookTest, "ApexSim.Track.Ground.Looks", ApexGroundTestFlags)
+	FApexGroundLookTest, "ApexSim.Track.Ground.Looks", ApexTestFlags)
 
 bool FApexGroundLookTest::RunTest(const FString& Parameters)
 {
@@ -85,7 +79,7 @@ bool FApexGroundLookTest::RunTest(const FString& Parameters)
 // -----------------------------------------------------------------------------
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FApexGroundEdgeTest, "ApexSim.Track.Ground.EdgeFringe", ApexGroundTestFlags)
+	FApexGroundEdgeTest, "ApexSim.Track.Ground.EdgeFringe", ApexTestFlags)
 
 bool FApexGroundEdgeTest::RunTest(const FString& Parameters)
 {

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Bake the track catalog manifest and preview images for the Unreal client.
+Bake the track catalog previews (and manifest) for the Unreal client.
 
 Reads every track YAML under content/tracks/real, draws a top-down outline
-for each (reusing generate_track_previews.py) and writes a manifest the
-`ApexTrackCatalogSync` commandlet turns into `DT_TrackCatalog` rows and
-`T_Track_<Stem>` textures:
+for each (reusing generate_track_previews.py) and writes it as
+`previews/<Stem>.png` beside the exports. The game shows that PNG on the
+track's card: it builds every circuit from its export at runtime and reads
+the catalog row from the export too (UApexTrackContentSubsystem). The
+manifest is only for the optional `ApexTrackCatalogSync` commandlet, which
+turns it into `DT_TrackCatalog` rows, a fallback for tracks with no export:
 
     python scripts/build_track_catalog.py            # every track
     python scripts/build_track_catalog.py LeMans     # one or more stems

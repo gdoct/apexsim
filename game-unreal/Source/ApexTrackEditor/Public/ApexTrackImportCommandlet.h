@@ -8,7 +8,11 @@
 struct FApexTrackScene;
 
 /**
- * Turns baked `.uescene.json` track exports into levels.
+ * Turns baked track exports into levels, for looking at a circuit in the
+ * editor. The game never loads these: every circuit is built at runtime from
+ * its export (`UApexTrackContentSubsystem`), by the same scene builder this
+ * runs, and `/Game/Tracks` is never cooked. Opt in with
+ * `scripts/build_track_levels.ps1 -ImportLevels`.
  *
  * ```
  * ApexSimEditor-Cmd.exe <uproject> -run=ApexTrackImport -track=Monza

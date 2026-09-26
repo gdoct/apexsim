@@ -45,7 +45,8 @@ finished with any of them missing; say which ones are missing and why.
    `.ats` unchanged after the second run).
 9. `ats-export` regenerates the sidecars, the wall sanity scan (§4.3) passes,
    and `cargo test` in `track-editor` passes.
-10. The level bakes (`scripts/build_track_levels.ps1 -Track <Stem>`) and at
+10. The track bakes (`scripts/build_track_levels.ps1 -Track <Stem>`), the game
+    builds it at runtime, and at
     least two screenshots were taken and looked at: the pit straight from the
     grid, and the circuit's signature corner from the outside. Nothing stands
     on the road, the pit building is on the pit side, stands face the track.
@@ -145,7 +146,7 @@ next `ats-dress` run would throw the edit away.
 ```bash
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- content/tracks/real/<Stem>.yaml
 cd track-editor && cargo test && cd ..
-./scripts/build_track_levels.ps1 -Track <Stem>          # ats-export + ApexTrackImport for one circuit
+./scripts/build_track_levels.ps1 -Track <Stem>          # dress, export, preview for one circuit (built by the game at runtime)
 ```
 
 The export writes `<Stem>.ground.msgpack`, `<Stem>.curbs.msgpack` and
