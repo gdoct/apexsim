@@ -1,5 +1,6 @@
 #include "Race/ApexCarLivery.h"
 
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -12,8 +13,8 @@ namespace
 	const FName AccentSlot(TEXT("car_accent"));
 	const FName LogoSlot(TEXT("car_logo"));
 
-	// The Interchange glTF parents' parameters (MI_ClearCoat_Opaque_DS,
-	// MI_Default_Mask_DS), as the imported instances name them.
+	// The car parents' parameters (ApexCarMaterials.h), which keep the names
+	// Interchange's glTF parents gave them.
 	const FName BaseColorFactorParam(TEXT("BaseColorFactor"));
 	const FName MetallicFactorParam(TEXT("MetallicFactor"));
 	const FName BaseColorTextureParam(TEXT("BaseColorTexture"));
@@ -22,14 +23,13 @@ namespace
 	UMaterialInstanceDynamic* Instance(UStaticMeshComponent& Mesh, FName Slot)
 	{
 		const int32 Index = Mesh.GetMaterialIndex(Slot);
-		const UStaticMesh* Body = Mesh.GetStaticMesh();
-		if (Index == INDEX_NONE || !Body)
+		if (Index == INDEX_NONE)
 		{
 			return nullptr;
 		}
-		// From the mesh's own material, never from a previous livery's instance.
-		UMaterialInterface* Authored = Body->GetMaterial(Index);
-		return Authored ? Mesh.CreateDynamicMaterialInstance(Index, Authored) : nullptr;
+		// From the mesh's own material, never from a previous livery's
+		// instance, and never the runtime body's shared instance itself.
+		return ApexCarContent::OwnMaterialInstance(Mesh, Index, /*bFromMesh*/ true);
 	}
 
 	void Restore(UStaticMeshComponent& Mesh, FName Slot)
@@ -83,7 +83,7 @@ namespace ApexLivery
 			Colour.A = 1.0f;
 			Accent->SetVectorParameterValue(BaseColorFactorParam, Colour);
 		}
-		if (UTexture2D* Logo = Livery->Logo.IsNull() ? nullptr : Livery->Logo.LoadSynchronous())
+		if (UTexture2D* Logo = ApexCarContent::LoadLogo(*Livery))
 		{
 			if (UMaterialInstanceDynamic* LogoMid = Instance(*Mesh, LogoSlot))
 			{

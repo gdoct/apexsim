@@ -40,6 +40,8 @@ public class ApexSim : ModuleRules
 			// collision component's body setup.
 			"StaticMeshDescription",
 			"PhysicsCore",
+			// Runtime cars: the PNGs and JPEGs inside a car GLB, and the livery logos.
+			"ImageWrapper",
 		});
 	}
 }

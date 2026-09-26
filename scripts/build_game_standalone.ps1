@@ -12,6 +12,10 @@
    content/tracks/export (run scripts/build_track_levels.ps1 first) and their
    previews are copied into Tracks\ beside ApexSim.exe, where the game looks.
 
+   Neither are the cars: the game builds each from its car.toml and GLBs at
+   runtime. Every content/cars folder's car.toml, model, DRS flap and livery
+   logos are copied into Cars\, and the class wheels into Wheels\.
+
 .PARAMETER EngineRoot
    Unreal Engine install directory (the folder containing Engine/). Defaults
    to $env:UE, $env:UE_ROOT, the project's launcher registry entry, and then
@@ -28,6 +32,9 @@
 
 .PARAMETER SkipTracks
    Do not copy the track exports next to the executable.
+
+.PARAMETER SkipCars
+   Do not copy the cars and wheels next to the executable.
 
 .PARAMETER ExtraUatArgs
    Extra arguments appended to the BuildCookRun invocation.
@@ -46,6 +53,7 @@ param(
    [string]$OutputDirectory,
    [switch]$Clean,
    [switch]$SkipTracks,
+   [switch]$SkipCars,
    [string[]]$ExtraUatArgs
 )
 
@@ -54,6 +62,7 @@ $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 
 $Uproject = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 if (-not $OutputDirectory) {
@@ -136,6 +145,21 @@ if (-not $SkipTracks) {
    }
    else {
       Write-Host "    $($manifests.Count) track(s)" -ForegroundColor DarkGray
+   }
+}
+
+if (-not $SkipCars) {
+   # Where UApexCarContentSubsystem looks in a packaged build: Cars\ and
+   # Wheels\ next to ApexSim.exe.
+   Write-Host ''
+   Write-Host "==> Copying the cars to $(Join-Path $executable.DirectoryName 'Cars')" -ForegroundColor Cyan
+   $carCount = Copy-ApexRuntimeCars -CarsDir (Join-Path $RepoRoot 'content\cars') `
+      -WheelsDir (Join-Path $RepoRoot 'content\wheels') -Destination $executable.DirectoryName
+   if ($carCount -eq 0) {
+      Write-Warning 'no cars in content\cars; every car will be drawn as nothing'
+   }
+   else {
+      Write-Host "    $carCount car(s)" -ForegroundColor DarkGray
    }
 }
 

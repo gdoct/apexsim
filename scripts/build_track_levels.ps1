@@ -18,9 +18,9 @@
         4. cargo run --bin ats-export -- --all   -> content/tracks/export/<Track>.{uescene.json,uemesh}
                                                     (+ the server's sidecars beside each YAML)
         5. python scripts/build_track_catalog.py -> content/tracks/export/previews/<Track>.png
-        6. UnrealEditor-Cmd -run=ApexMaterialBake -> /Game/Materials/Track, the
-           parent materials every runtime track instantiates (only the
-           missing ones; cheap)
+        6. UnrealEditor-Cmd -run=ApexMaterialBake -> /Game/Materials/Track and
+           /Game/Materials/Car, the parent materials every runtime track and
+           car instantiates (only the missing ones; cheap)
         7. (optional, -ImportLevels) UnrealEditor-Cmd -run=ApexTrackImport
                                                  -> game-unreal/Content/Tracks/<Track>/L_<Track>
            A level to look at a circuit in the editor. The game never loads
@@ -274,7 +274,7 @@ if ($SkipMaterials) {
     Write-Step 'Skipping the track materials'
 }
 else {
-    Write-Step 'Baking the track materials into /Game/Materials/Track (the missing ones)'
+    Write-Step 'Baking the track and car materials into /Game/Materials (the missing ones)'
     $bakeArgs = @($Uproject, '-run=ApexMaterialBake',
         '-unattended', '-nopause', '-nosplash', '-stdout', '-utf8output')
     if ($ExtraEditorArgs) { $bakeArgs += $ExtraEditorArgs }

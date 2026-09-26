@@ -1,5 +1,6 @@
 #include "Race/ApexGhostCarActor.h"
 
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -14,7 +15,7 @@ namespace
 		TEXT("Most a ghost car's wheel is drawn turning per frame, in degrees"),
 		ECVF_Default);
 
-	/** The Interchange glTF parent's colour and emissive inputs. */
+	/** The car parents' colour and emissive inputs (ApexCarMaterials.h), as Interchange's glTF parents named them. */
 	const FName GhostBaseColorFactorParam(TEXT("BaseColorFactor"));
 	const FName GhostBaseColorParam(TEXT("BaseColor"));
 	const FName GhostEmissiveFactorParam(TEXT("EmissiveFactor"));
@@ -28,7 +29,9 @@ namespace
 		const int32 Slots = Component.GetNumMaterials();
 		for (int32 Slot = 0; Slot < Slots; ++Slot)
 		{
-			if (UMaterialInstanceDynamic* Mid = Component.CreateAndSetMaterialInstanceDynamic(Slot))
+			// The ghost's own instance, never the body's shared one: that
+			// would tint the real car the record was set in.
+			if (UMaterialInstanceDynamic* Mid = ApexCarContent::OwnMaterialInstance(Component, Slot))
 			{
 				// Whichever of the two names the parent exposes; an unknown
 				// parameter is silently ignored.

@@ -12,7 +12,8 @@ class UStaticMeshComponent;
  * Every generated car GLB carries the same slot names (docs/CAR_MODELS.md);
  * a livery sets `BaseColorFactor` on `car_paint` and `car_accent` (and
  * `MetallicFactor` on the paint), and `BaseColorTexture` on `car_logo`,
- * through dynamic instances of the Interchange glTF materials the import made.
+ * through dynamic instances of the body's slot materials (for a car built at
+ * runtime, instances of the car parents in ApexCarMaterials.h).
  * A body without one of those slots simply keeps what it has.
  */
 namespace ApexLivery

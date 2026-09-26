@@ -1,5 +1,6 @@
 #include "Race/ApexCarDrsFlap.h"
 
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
@@ -34,7 +35,7 @@ void FApexCarDrsFlap::CreateComponent(UObject& Owner, USceneComponent* Body)
 void FApexCarDrsFlap::SetSpec(const FApexDrsFlapSpec& InSpec)
 {
 	Spec = InSpec;
-	UStaticMesh* Loaded = Spec.IsUsable() ? Spec.Mesh.LoadSynchronous() : nullptr;
+	UStaticMesh* Loaded = Spec.IsUsable() ? ApexCarContent::LoadMesh(Spec.Mesh, Spec.RuntimeModel) : nullptr;
 	bHasFlap = Loaded != nullptr;
 	Open = 0.0f;
 	if (Component)

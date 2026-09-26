@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Cars/ApexCarToml.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Commandlets/Commandlet.h"
 
@@ -13,7 +14,12 @@ class UStaticMesh;
  * Brings the cars (`content/cars/<folder>/car.toml` + the GLB it names as
  * `model`) into the project: the mesh as `/Game/Cars/<folder>/SM_<folder>`
  * through Interchange, and a `DT_CarCatalog` row keyed by the car's `id`
- * so the car select, the turntable and the race can find it.
+ * so the editor can show it.
+ *
+ * The game does not use either: it builds every car from its folder at
+ * runtime (`UApexCarContentSubsystem`), and `/Game/Cars` is never cooked.
+ * The table's hand-tuned fields (turntable framing, cockpit points) are
+ * still read, for a car whose car.toml has no `[preview]` / `[cockpit]`.
  *
  * The bodies carry no wheels. A car's `[wheels]` table names a shared wheel,
  * `content/wheels/<model>.glb`, imported once per run that needs it as
@@ -47,8 +53,7 @@ class UStaticMesh;
  * car with no row gets one, and a row whose mesh is missing or belongs to
  * another car's folder is pointed at this car's mesh. Everything else on an
  * existing row — preview framing, cockpit points, hand-tuned fields — is
- * left alone. The four cars that were imported by hand before this
- * commandlet existed keep their meshes: their rows already point at them.
+ * left alone.
  */
 UCLASS()
 class APEXTRACKEDITOR_API UApexCarImportCommandlet : public UCommandlet
@@ -60,77 +65,18 @@ public:
 
 	virtual int32 Main(const FString& Params) override;
 
-	/** A car.toml's `[wheels]` table: where the client draws the wheels, metres. */
-	struct FWheelsToml
+	/** The car.toml's client side, read by the runtime's parser (Cars/ApexCarToml.h). */
+	using FWheelsToml = FApexCarWheelsToml;
+	using FDrsFlapToml = FApexCarDrsFlapToml;
+	using FLiveryToml = FApexCarLiveryToml;
+	using FCarToml = FApexCarToml;
+
+	/** `ApexCarToml::Parse`: the game reads car.toml with the same code. */
+	static bool ParseCarToml(const FString& Text, FCarToml& Out, FString& OutError)
 	{
-		/** `content/wheels/<Model>.glb`; empty when the table is absent. */
-		FString Model;
-		float FrontAxleM = 0.0f;
-		float RearAxleM = 0.0f;
-		float FrontTrackM = 0.0f;
-		float RearTrackM = 0.0f;
-		float FrontRadiusM = 0.0f;
-		float RearRadiusM = 0.0f;
-		float FrontWidthM = 0.0f;
-		float RearWidthM = 0.0f;
+		return ApexCarToml::Parse(Text, Out, OutError);
+	}
 
-		bool IsPresent() const { return !Model.IsEmpty(); }
-	};
-
-	/** The `[drs_flap]` table: the flap GLB beside the car.toml, its hinge and its travel. */
-	struct FDrsFlapToml
-	{
-		/** Relative to the car folder; empty when the table is absent. */
-		FString Model;
-		float HingeForwardM = 0.0f;
-		float HingeUpM = 0.0f;
-		float OpenDeg = 0.0f;
-
-		bool IsPresent() const { return !Model.IsEmpty(); }
-	};
-
-	/** A `[[livery]]` table: colours are linear RGB, `logo` a PNG relative to the car folder. */
-	struct FLiveryToml
-	{
-		FString Name;
-		FLinearColor Paint = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		/** Zero alpha when the table names no accent: the model's is kept. */
-		FLinearColor Accent = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		float Metallic = -1.0f;
-		FString Logo;
-	};
-
-	/** What the commandlet reads from a car.toml: the identity, a few physics figures and the wheels. */
-	struct FCarToml
-	{
-		FString Id;
-		FString Name;
-		FString Model;
-		FString Brand;
-		FString CarClass;
-		FString ManufacturerCountry;
-		int32 ModelYear = 0;
-		float MassKg = 0.0f;
-		float MaxPowerKw = 0.0f;
-		float MaxSteerRad = 0.0f;
-		FWheelsToml Wheels;
-		FDrsFlapToml DrsFlap;
-		/**
-		 * The `[sound]` table and the `[engine]` rev range, already in the
-		 * row's shape: derived like the wheels, so it follows the TOML on
-		 * every run. `Cylinders == 0` when the car has no `[sound]` table.
-		 */
-		FApexEngineSoundSpec Sound;
-		/** The `[[livery]]` tables, in order. */
-		TArray<FLiveryToml> Liveries;
-	};
-
-	/**
-	 * A minimal TOML scan — `key = value` lines under `[table]` headers,
-	 * strings, integers and floats, comments stripped — which is all a
-	 * car.toml's identity needs. Pure, for the tests.
-	 */
-	static bool ParseCarToml(const FString& Text, FCarToml& Out, FString& OutError);
 	/** `f1` -> `/Game/Cars/Wheels/f1/SM_Wheel_f1` under `DestRoot`, as a package name. */
 	static FString WheelPackageName(const FString& DestRoot, const FString& Model);
 	/** The row's wheel figures from the TOML, pointing at `Mesh`; an empty spec when the TOML has none. */
