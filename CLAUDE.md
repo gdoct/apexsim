@@ -85,15 +85,19 @@ safe on an existing checkout too. The stages, in order (run by hand if needed):
    (every car when a class wheel mesh is missing).
 4. `bake_ground_textures.py` (the PNGs are normally checked in) and
    `-run=ApexGroundTexImport` -> `/Game/Ground`.
-5. `-run=ApexPropImport -all` when any kit GLB has no mesh.
-6. `build_track_levels.ps1 -Release` for every circuit missing its level or a
+5. `-run=ApexMaterialBake` -> the four track parent materials under
+   `/Game/Materials/Track`, when one is missing or stage 4 ran (the base
+   parent's surface graph depends on the ground textures).
+6. `-run=ApexPropImport -all` when any kit GLB has no mesh.
+7. `build_track_levels.ps1 -Release` for every circuit missing its level, its
+   runtime export (`.uescene.json` + `.uemesh`) or a
    `{ground,curbs,walls}.msgpack` sidecar (which the server needs) - and for
-   every circuit when stage 4 or 5 ran, because the bake picks the ground
+   every circuit when stage 4 or 6 ran, because the bake picks the ground
    material and the import resolves the props from what `/Game` holds then.
-7. `build_track_catalog.py` + `-run=ApexTrackCatalogSync` when a track was
+8. `build_track_catalog.py` + `-run=ApexTrackCatalogSync` when a track was
    rebuilt or a `T_Track_<Stem>` preview is missing.
 
-Stage 6 is the long one on a fresh clone (all circuits). The data refreshes in
+Stage 7 is the long one on a fresh clone (all circuits). The data refreshes in
 the track sections below (`osm_layout.py`, `dem_fetch.py`, `dem_elevation.py`,
 `ats-smooth`, `ats-bank`, `drs_zones.py`) are **not** part of it: their outputs
 (dossiers, DEM sidecars, YAMLs, `.ats` scenes) are checked in.
@@ -139,7 +143,16 @@ can unzip and run:
 ```powershell
 ./scripts/build_release.ps1 -Zip                     # artifacts/release/ApexSim-<ver>-Win64[.zip]
 ./scripts/build_release.ps1 -SkipClient -SkipTracks  # reuse what is already built
+./scripts/build_release.ps1 -RuntimeTracks -Zip      # circuits as data in Game/Tracks, no level import
 ```
+
+With `-RuntimeTracks` the circuits ship as exports the game builds itself
+(see "Runtime tracks" below): the bake stops before the Unreal import,
+`ApexMaterialBake` runs so the cook carries the shared track materials, and
+`Game/Tracks/` gets each circuit's `.uescene.json`, `.uemesh` and preview
+`.png`. Levels already imported are cooked too and still preferred, so delete
+`game-unreal/Content/Tracks` first for a package whose circuits are all
+runtime-built.
 
 Layout: `Game/` (the packaged client, plus a `settings.sample.yml`), `Server/` (`apexsim-server.exe`,
 `server.toml` and only the content the server reads � `car.toml` per car and
@@ -538,7 +551,7 @@ regenerated wholesale and neither should be hand-edited.
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
                                                          # -> content/tracks/real/*.ats
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
-                                                         # -> content/tracks/export/*.uescene.json (gitignored)
+                                                         # -> content/tracks/export/*.{uescene.json,uemesh} (gitignored)
 "$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject \
     -run=ApexTrackImport -all                            # -> game-unreal/Content/Tracks/<Track>/L_<Track>.umap
 ```
@@ -607,10 +620,75 @@ bridge past the parapet falls into the slot.
 The exporter resolves `.ats` station spans against the YAML centerline and
 bakes triangles (Unreal can't read YAML); the `ApexTrackEditor` module's
 commandlet turns those buffers into static meshes, materials and a level per
-track. `AApexRaceDirector` streams `/Game/Tracks/<Stem>/L_<Stem>` as a level
-instance when a race starts, resolving `<Stem>` from the session's
-`TrackFile`. See `track-editor/TRACK_EDITOR.md` §5 for the format and the
-coordinate/winding conventions.
+track. The export is two files: `<Stem>.uescene.json`, a manifest of
+everything small (materials, props, grid, centerline, and a header per
+mesh; `version` 2, with the YAML's `source_crc`), and `<Stem>.uemesh`, a
+little-endian blob of every mesh's buffers, zlib per mesh (Spa: ~2 MB + 15
+MB). See `track-editor/TRACK_EDITOR.md` §5 for the format and the
+coordinate/winding conventions; the reader still takes a version 1 file.
+
+### Runtime tracks (`UApexTrackContentSubsystem`, `UApexTrackInstance`, docs/RUNTIME_CONTENT_LOADING.md)
+
+A circuit reaches the game either as a cooked level or as its export,
+built by the running game. Both go through **one** builder,
+`FApexTrackSceneBuilder` (`ApexSim/Track/`, runtime module): the editor's
+`ApexTrackImport` runs it with a factory that saves material instance
+constants and fully built meshes into packages and then saves the world as
+`L_<Stem>`; the game runs it with a factory that makes dynamic material
+instances and fast-built transient meshes straight into the menu world. The
+actors, tags and material parameters are the same, so the two cannot drift.
+The reader, `ApexPropLibrary` and `ApexGroundMaterials` moved into
+`ApexSim/Track/` with it.
+
+- **Materials** are shared cooked assets now, not generated per track:
+  `/Game/Materials/Track/{M_ApexTrackBase,M_ApexEmissive,M_ApexBrand,M_ApexDecal}`,
+  baked by `-run=ApexMaterialBake [-force]` (`ApexTrackMaterialGraphs`, the
+  graphs that used to be built per track). `ApexTrackImport` bakes the
+  missing ones first, and the base again when `/Game/Ground` has been
+  imported since. The start-light lenses use the emissive parent itself.
+- **Where tracks are found** (`UApexTrackContentSubsystem`, at startup;
+  `apexsim.track.Rescan`): `-ApexTracksDir=<dir>[+<dir>]`, then
+  `<Release>/Game/Tracks` in a package or the repo's `content/tracks/export`
+  in the editor. Each manifest's head (the first 64 KB: every field ahead of
+  `materials`) becomes a catalog row keyed by `track_id`, with `SourceCrc`
+  from the export and `RuntimePreview` from `<Stem>.png` (beside it or under
+  `previews/`). `UApexMenuFlowSubsystem::FindTrackRow` returns it when the
+  table has no row for the id, or when the track will be built at runtime;
+  previews are read through `UApexTrackContentSubsystem::PreviewOf`.
+- **Which one loads** (`apexsim.track.Source` / `-ApexTrackSource=`): `auto`
+  (default) the cooked level when there is one, else the export; `runtime`
+  the export first; `cooked` levels only. Demo mode, the director and the
+  catalog all ask `ResolveSource`, so the checksum compared with the
+  server's is the file on screen.
+- **Loading** (`UApexTrackInstance`, a tickable UObject the subsystem hands
+  out with `Acquire` and takes back with `Release`): a cooked track is the
+  streamed level instance as before. A runtime one reads the manifest and
+  blob and fills the mesh descriptions (with tangents) on a worker thread,
+  then builds materials, then meshes within `apexsim.track.BuildBudgetMs`
+  (20) per frame, then spawns the actors in one frame, and counts as loaded
+  once every surface's collision has cooked. The last runtime track
+  released is kept hidden and handed back when the same circuit is asked
+  for next (the demo, then the player's race on it; `apexsim.track.KeepLast
+  0` turns it off), with every material reset to how it was built.
+- **Collision**: a mesh built in a cooked game has no cooked collision and
+  cannot cook its own, so each runtime track surface carries a
+  `UApexTrackCollisionComponent` beside its mesh (ProcMesh-style: its own
+  body setup, the triangles through `IInterface_CollisionDataProvider`,
+  cooked async by Chaos). Only traces use it: the racing line's snap and
+  the cameras' ground and line-of-sight tests.
+- **Tags**: every track surface actor carries `ApexTrackMesh` (the racing
+  line's `IsRoadSurface` accepts it; a level baked before the tag is still
+  recognised by being the streamed level), every prop `ApexProp`, the
+  gantry `ApexStartLights` with lenses `ApexStartLight`. The director's
+  conditions pass walks `UApexTrackInstance::GetActors`, not a level.
+- **Not yet**: runtime meshes have no mesh distance fields, so software
+  Lumen and DF shadows see a runtime road and terrain less well than a
+  cooked one (risk 1 in the doc: A/B it before shipping circuits runtime
+  only). Cars are still cooked-only.
+
+`ApexSim.Track.Reader.*` tests pin the blob layout against the exporter's
+`the_mesh_blob_layout_is_pinned` (one golden 155-byte blob in both), the
+header read and the rejects.
 
 The track picker's names, metadata and preview art come from a local
 `DT_TrackCatalog` data table keyed by `track_id` (the wire protocol only
@@ -635,7 +713,9 @@ python scripts/bake_ground_textures.py              # -> content/textures/ground
 "$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexGroundTexImport                        # -> /Game/Ground/T_ground_<set>_{col,nrm,rough}
 ```
 
-then re-bake the levels (`scripts/build_track_levels.ps1`). The generators
+then re-bake the materials and levels (`-run=ApexMaterialBake`, then
+`scripts/build_track_levels.ps1`; the import re-bakes the base material by
+itself when it finds the ground sets newly imported). The generators
 are numpy in `content/props/_tools/apex_tex.py` beside the prop kit's (its
 `bpy` import is optional so the baker runs under plain Python). Colour maps
 are normalised to a per-channel mean of 0.5 and the material doubles them,
@@ -646,8 +726,8 @@ by suffix (sRGB colour, BC5 normal, grayscale roughness), because a material
 instance can only swap a texture for one of the sampler type the parent was
 compiled with.
 
-`M_ApexTrackBase` is generated per track in one of two shapes, chosen at
-bake time: with `/Game/Ground` imported, each map is sampled at the
+`M_ApexTrackBase` (shared, `/Game/Materials/Track`, `ApexMaterialBake`) is
+generated in one of two shapes, chosen at bake time: with `/Game/Ground` imported, each map is sampled at the
 instance's tiling and at 0.371 of it, mixed by a 20 m world-space noise so
 the repeat does not show, pushed to the coarse sample and a flat normal by
 200 m so the far field does not shimmer; without it, the old noise-tile
@@ -804,7 +884,7 @@ engine's glTF library parent (importing them as full materials trips an
 engine error on the library's `AlphaMode` input); that parent has neither
 the Nanite nor the instanced-mesh usage flag, which the editor sets on the
 fly but a cooked build does not, so each instance is re-parented onto a
-flagged copy under `/Game/Props/_Parents`. The per-track parents
+flagged copy under `/Game/Props/_Parents`. The track parents
 (`M_ApexTrackBase`, `M_ApexEmissive`, `M_ApexBrand`) carry the flags too.
 `build_release.ps1` has a props stage (`-SkipProps` still checks
 `/Game/Props` holds meshes).
@@ -840,7 +920,7 @@ trace use to ignore bridge decks and garage roofs.
 - **Text → material**: a `text` naming a brand (`piretti`, `rolux`, …)
   overrides the `board_brand` / `bridge_brand*` / `pit_team_board` /
   `tyre_bridge_brand` / `blimp_brand` / `balloon_envelope` slots with an
-  instance of the per-track `M_ApexBrand` showing `T_brand_<text>`; a
+  instance of the shared `M_ApexBrand` showing `T_brand_<text>`; a
   braking marker's `board_marker` slot takes `T_marker_<text>`; a flag
   pole's `flag_cloth` takes `T_flag_<text>` (`nl`, `de`, … `chequer`).
   Unknown text keeps the imported default and logs once per track.

@@ -2,6 +2,41 @@
 
 *2026-09-26. Follows `docs/AC_IMPORT_FEASIBILITY.md`. Repo at `1310b8b`, Unreal 5.8 client. Question: can the content pipeline emit files the packaged game loads at runtime, so that new tracks (from the AC survey route or anywhere else) and cars don't need an editor import and a repackage?*
 
+## Status: runtime tracks implemented (2026-09-26)
+
+Tracks load at runtime; cars do not yet (step 8). What was built, against
+the design below:
+
+| Step | Where | Notes |
+|---|---|---|
+| 1. Manifest + `.uemesh` | `track-core` `ue_export_io.rs`, `FApexTrackSceneReader` | Format version 2. The manifest carries `source_crc` and `mesh_blob`; every field the catalog needs sits ahead of `materials`, so the client reads only the first 64 KB of each at startup. Zandvoort: 1.2 MB + 7.4 MB (299 meshes, all zlib), 4 s export. Version 1 still reads. The blob layout is pinned on both sides by one golden 155-byte blob. |
+| 2. One builder | `ApexSim/Track/ApexTrackSceneBuilder` | Everything the old editor builder did, behind `IApexTrackAssetFactory`. `ApexTrackImport` is now a factory (saved MICs, full mesh builds, complex collision on the mesh) plus the level world and the package saves. `PrepareGeometry` is pure data and runs on a worker; meshes build in a time budget per frame. The 16 `APlayerStart`s are gone (nothing read them). Instances go into each HISM in one `AddInstances`. |
+| 3. Materials as assets | `ApexTrackEditor/ApexTrackMaterialGraphs`, `-run=ApexMaterialBake` | The four graphs, unchanged, saved once under `/Game/Materials/Track`. The runtime makes `UMaterialInstanceDynamic`s named `MI_<key>`, so the wet-road name match still works; a reused track has every parameter put back. |
+| 4. Runtime meshes | `FApexRuntimeTrackFactory` in `ApexTrackInstance.cpp` | `BuildFromMeshDescriptions` fast path, one vertex instance per source vertex, tangents computed from the UV gradient, bounds set from the vertices (the NaN-bounds trap). **Collision is not on the mesh**: its body setup belongs to an asset, so a cooked game will not cook it. `UApexTrackCollisionComponent` beside each surface owns its body setup and has Chaos cook the triangles async (the `UProceduralMeshComponent` pattern), and a track counts as loaded once every cook is done. |
+| 5. Loader | `UApexTrackInstance`, `UApexTrackContentSubsystem::Acquire/Release` | Replaces the director's `ULevelStreamingDynamic*`. Loaded / visible / actors / hide, for both kinds. `IsRoadSurface` takes the `ApexTrackMesh` tag (and still the streamed level, for levels baked before it). The last runtime track is kept hidden for the next load of the same circuit. |
+| 6. Catalog | `UApexTrackContentSubsystem::Rescan`, `UApexMenuFlowSubsystem::FindTrackRow` | Rows from the manifests' heads, previews from `<Stem>.png` via `FImageUtils::ImportFileAsTexture2D` into `FApexTrackCatalogRow::RuntimePreview` (transient); the four preview sites go through `PreviewOf`. Folders: `-ApexTracksDir=`, `<Release>/Game/Tracks`, or `content/tracks/export` in the editor. |
+| 7. Packaging | `DefaultGame.ini`, `build_release.ps1 -RuntimeTracks`, `initialize_content.ps1` | `/Game/Materials`, `/Game/Props`, `/Game/Ground`, `/Game/Cars/Wheels` always cooked. `-RuntimeTracks` bakes without importing, bakes the materials and copies the exports and previews into `Game/Tracks`. |
+
+**Which one loads.** `apexsim.track.Source` (or `-ApexTrackSource=`):
+`auto` (default) prefers a cooked level and falls back to the export, so the
+shipped circuits keep their distance fields until risk 1 is settled and a
+new circuit needs nothing but its export; `runtime` prefers the export (the
+way to A/B the two); `cooked` ignores exports. The catalog row follows the
+same choice, so the content checksum compared with the server's is always
+that of the file on screen.
+
+**Adding a circuit to a packaged game** is now: its YAML (with a
+`track_id`) in `Server/content/tracks/real` for the server, and its
+`<Stem>.uescene.json`, `<Stem>.uemesh` and `<Stem>.png` in `Game/Tracks`,
+from `ats-export` and `build_track_catalog.py`. No editor, no cook.
+
+**Still open.** Risk 1 (no mesh distance fields on runtime meshes, so
+software Lumen and DF shadows see less of a runtime road and terrain) has
+not been measured: A/B Zandvoort with `-ApexTrackSource=runtime` against the
+cooked level before shipping circuits runtime-only. Risk 3 (build time) is
+bounded by the frame budget but not yet measured on Spa. Cars (step 8) are
+untouched.
+
 ## Verdict
 
 Yes for tracks, and it is cheaper than it looks, because ApexSim tracks are already "data + kit": the level the commandlet bakes contains nothing but generated triangle meshes with parameterised materials, instances of cooked kit props, and a handful of identical-everywhere actors. The `.uescene.json` that `ats-export` writes is already a complete runtime-loadable description; what's missing is a runtime consumer for it instead of the editor-only one. Cars are a separate, smaller job that needs a GLB loader.

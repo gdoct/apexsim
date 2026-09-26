@@ -64,19 +64,49 @@ Non-negotiable constraints:
 
 ## 5. Unreal export
 
-The `.ats` cannot be handed to Unreal as-is: every track-anchored element is a *station span* against a centerline that lives in the read-only YAML, and Unreal has no YAML parser. So the editor bakes both files into one self-contained artifact.
+The `.ats` cannot be handed to Unreal as-is: every track-anchored element is a *station span* against a centerline that lives in the read-only YAML, and Unreal has no YAML parser. So the editor bakes both files into one self-contained export.
 
-**`<Track>.uescene.json`** (format `apex-ue-scene`, v1) is written by `core/src/ue_export.rs` and consumed by the Unreal `ApexTrackImport` commandlet. It is a *generated* file: it lands in `content/tracks/export/` (gitignored — 26 circuits bake to ~120 MB of vertex data), never beside the source content.
+**`<Track>.uescene.json`** + **`<Track>.uemesh`** (format `apex-ue-scene`, v2) are written by `core/src/ue_export.rs` / `core/src/ue_export_io.rs` and consumed by the Unreal `ApexTrackImport` commandlet (`ApexTrackSceneReader`). They are *generated* files: they land in `content/tracks/export/` (gitignored — Zandvoort alone is a 1.2 MB manifest and a 7.6 MB blob), never beside the source content.
+
+The export is two files. The `.uescene.json` is a small JSON manifest with everything but the vertex data; the `.uemesh` beside it is a binary blob with every mesh's buffers. Vertex data as JSON was 44 MB for Zandvoort and 78 MB for Spa, which a runtime reader would spend seconds and hundreds of MB of DOM parsing; the blob is read with a copy. The blob is written first and the manifest last, each temp-then-rename, so a reader that finds a manifest finds its blob. Version 1 (the buffers inline in `meshes`, no `mesh_blob`) is still read by `ue_export_io::read_scene`, so old exports load.
+
+The manifest is compact JSON whose top-level keys come in this order: `format`, `version`, `track_id`, `track_name`, `source_track`, `source_crc`, `closed_loop`, `length_cm`, `metadata`, `dressing`, `mesh_blob`, `materials`, `meshes`, `props`, `grid`, `centerline`, `pit_lane`, `start_finish`. The order is part of the format: the client's catalog scanner reads only the head of the file and stops at the first array, so every scalar and object it needs comes before `materials`.
 
 | Field | Contents |
 | --- | --- |
+| `version` | 2 |
+| `track_id`, `track_name`, `source_track` | The YAML's `track_id` (or null) and name, and the YAML's file name |
+| `source_crc` | CRC-32 (zlib/PNG; `"123456789"` → `0xCBF43926`) of the YAML's bytes with every carriage return dropped: the same checksum the server sends as `ContentCrc` (`server/src/content_crc.rs`, `scripts/build_track_catalog.py`). Written by `ats-export` and the editor's export; absent when the scene was not baked from a file |
+| `metadata`, `dressing` | Country, city, category, environment; season and spectators |
+| `mesh_blob` | The blob's file name only (`Spa.uemesh`), resolved against the manifest's own directory |
 | `materials` | Every material key the meshes reference, with a `family` (`road`, `curb`, `surface`, `marking`, `pit_lane`) and the base color the editor previewed. Sorted by key |
-| `meshes` | Baked triangle geometry, flattened buffers, named `{material_key}_{section:03}`. Includes the terrain ground tiles (key `ground`, family `surface`) |
+| `meshes` | One header per mesh, in blob order: `{"name", "material_key", "vertex_count", "index_count"}`, no buffers. Named `{material_key}_{section:03}`. Includes the terrain ground tiles (key `ground`, family `surface`) |
 | `props` | Prop transforms with asset keys |
 | `grid` | Starting grid, resolved exactly the way `server/src/track_loader.rs` resolves it |
 | `centerline` | The sampled centerline, for splines, minimaps and AI |
 | `pit_lane` | Width, box count, speed limit (its ribbon is in `meshes`) |
 | `start_finish` | Centre of the start/finish line on the road (from the `.ats` `start_finish` marking), direction of travel, road width — the start-light gantry's anchor |
+
+The blob, `<Track>.uemesh` (every integer a little-endian `u32`, every float a little-endian IEEE `f32`):
+
+```text
+bytes 0..8    magic, ASCII "APEXMESH"
+u32           blob version = 1
+u32           mesh_count
+mesh_count times, in the manifest's order:
+  u32         name_len, then name_len bytes of UTF-8 (no terminator)
+  u32         key_len, then key_len bytes of UTF-8 (the material_key)
+  u32         vertex_count (v)
+  u32         index_count (i)
+  u32         flags: bit 0 = the payload is a zlib stream (RFC 1950, with its
+              header; not raw deflate, not gzip). Other bits 0
+  u32         stored_size: payload bytes that follow
+  payload     stored_size bytes; inflated (or as stored, flag 0) exactly
+              32·v + 4·i bytes: f32 positions[3v], f32 normals[3v],
+              f32 uvs[2v], u32 indices[i]
+```
+
+Each mesh is compressed on its own at zlib's default level and stored raw when that is not smaller (a tiny mesh). The output is deterministic: the same scene writes the same bytes. `read_scene` checks the magic, the blob version (nothing past 1), that each payload inflates to exactly its counts' size, that every index is under `v`, that nothing follows the last mesh, and that the blob's names, keys and counts match the manifest's headers. `the_mesh_blob_layout_is_pinned` in `core/tests/ue_export.rs` pins a one-triangle blob byte for byte, for the Unreal reader's test to mirror.
 
 Bake with `cargo run --bin ats-export -- --all`, or **File → Export for Unreal…** for the track in the editor (which bakes unsaved edits too). The same run writes `content/tracks/real/<Track>.ground.msgpack` beside the YAML: the ground the client renders, sampled on a 4 m grid in the server's frame (`terrain::GroundHeightfield`, `rmp_serde::to_vec_named`; road surface inside the road, pit-lane deck inside the lane, the ground elsewhere; cm as `i16`), for the sim's off-track elevation. It is generated, and gitignored like the exports.
 

@@ -11,8 +11,15 @@
         2. (optional, -ImportProps) UnrealEditor-Cmd -run=ApexPropImport -all
                                                  -> game-unreal/Content/Props/...
         3. cargo run --bin ats-dress -- --all    -> content/tracks/real/*.ats
-        4. cargo run --bin ats-export -- --all   -> content/tracks/export/*.uescene.json
+        4. cargo run --bin ats-export -- --all   -> content/tracks/export/*.uescene.json + *.uemesh
         5. UnrealEditor-Cmd -run=ApexTrackImport -> game-unreal/Content/Tracks/...
+           (baking the shared track materials under /Game/Materials/Track
+           first when they are missing)
+
+    Stage 4's output is also what the game builds a track from at runtime
+    where there is no level (docs/RUNTIME_CONTENT_LOADING.md), so -SkipImport
+    alone is enough to make a changed circuit playable in the editor build
+    with -ApexTrackSource=runtime.
 
     Stage 3 is what keeps a circuit's scenery in step with its layout
     dossier. It used to be run by hand, which is exactly how the Red Bull

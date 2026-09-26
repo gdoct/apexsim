@@ -1,15 +1,12 @@
-#include "ApexPropLibrary.h"
-#include "Misc/AutomationTest.h"
+#include "Track/ApexPropLibrary.h"
+#include "ApexTestCommon.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 namespace
 {
-	constexpr EAutomationTestFlags ApexPropTestFlags =
-		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter;
-
 	/** A corner of a bay in the stand's frame: the bay's placement applied to a local point. */
-	FVector Corner(const FTransform& Bay, double LocalX)
+	FVector StandBayCorner(const FTransform& Bay, double LocalX)
 	{
 		return Bay.TransformPosition(FVector(LocalX, 0.0, 0.0));
 	}
@@ -17,7 +14,7 @@ namespace
 
 // -----------------------------------------------------------------------------
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropAliasTest, "ApexSim.Props.Aliases", ApexPropTestFlags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropAliasTest, "ApexSim.Props.Aliases", ApexTestFlags)
 
 bool FApexPropAliasTest::RunTest(const FString& Parameters)
 {
@@ -53,7 +50,7 @@ bool FApexPropAliasTest::RunTest(const FString& Parameters)
 
 // -----------------------------------------------------------------------------
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropKindsTest, "ApexSim.Props.Kinds", ApexPropTestFlags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropKindsTest, "ApexSim.Props.Kinds", ApexTestFlags)
 
 bool FApexPropKindsTest::RunTest(const FString& Parameters)
 {
@@ -140,7 +137,7 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 
 // -----------------------------------------------------------------------------
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropStraightStandTest, "ApexSim.Props.StraightStand", ApexPropTestFlags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropStraightStandTest, "ApexSim.Props.StraightStand", ApexTestFlags)
 
 bool FApexPropStraightStandTest::RunTest(const FString& Parameters)
 {
@@ -193,7 +190,7 @@ bool FApexPropStraightStandTest::RunTest(const FString& Parameters)
 
 // -----------------------------------------------------------------------------
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropWedgeStandTest, "ApexSim.Props.WedgeStand", ApexPropTestFlags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropWedgeStandTest, "ApexSim.Props.WedgeStand", ApexTestFlags)
 
 bool FApexPropWedgeStandTest::RunTest(const FString& Parameters)
 {
@@ -230,8 +227,8 @@ bool FApexPropWedgeStandTest::RunTest(const FString& Parameters)
 			const FQuat Step = Layout.Bays[i].GetRotation().Inverse() * Layout.Bays[i + 1].GetRotation();
 			TestTrue(What + TEXT(": neighbours turn by theta"),
 				FMath::IsNearlyEqual(FMath::Abs(Step.Rotator().Yaw), Case.ThetaDeg, 0.01f));
-			const FVector Right = Corner(Layout.Bays[i], 500.0);
-			const FVector Left = Corner(Layout.Bays[i + 1], -500.0);
+			const FVector Right = StandBayCorner(Layout.Bays[i], 500.0);
+			const FVector Left = StandBayCorner(Layout.Bays[i + 1], -500.0);
 			TestTrue(What + TEXT(": shared corner"), Right.Equals(Left, 0.5));
 		}
 		// Bays run along +X in order, whichever way they turn.
@@ -249,9 +246,9 @@ bool FApexPropWedgeStandTest::RunTest(const FString& Parameters)
 		if (Layout.Caps.Num() == 2)
 		{
 			TestTrue(What + TEXT(": left cap"),
-				Layout.Caps[0].GetLocation().Equals(Corner(Layout.Bays[0], -550.0), 0.01));
+				Layout.Caps[0].GetLocation().Equals(StandBayCorner(Layout.Bays[0], -550.0), 0.01));
 			TestTrue(What + TEXT(": right cap"),
-				Layout.Caps[1].GetLocation().Equals(Corner(Layout.Bays[3], 550.0), 0.01));
+				Layout.Caps[1].GetLocation().Equals(StandBayCorner(Layout.Bays[3], 550.0), 0.01));
 		}
 	}
 	return true;

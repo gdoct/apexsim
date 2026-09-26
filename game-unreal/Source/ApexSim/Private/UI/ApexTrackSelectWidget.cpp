@@ -15,6 +15,7 @@
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Components/VerticalBox.h"
+#include "Track/ApexTrackContentSubsystem.h"
 #include "Components/VerticalBoxSlot.h"
 #include "TimerManager.h"
 #include "UI/ApexButtonWidget.h"
@@ -273,7 +274,7 @@ void UApexTrackSelectWidget::RebuildCards(bool bForce)
 			if (!Row.Country.IsEmpty())  { MetaParts.Add(Row.Country); }
 			if (Row.LengthM > 0.0f)      { MetaParts.Add(FString::Printf(TEXT("%.2f km"), Row.LengthM / 1000.0f)); }
 			if (!Row.Category.IsEmpty()) { MetaParts.Add(Row.Category); }
-			Spec.Preview = Row.PreviewImage.LoadSynchronous();
+			Spec.Preview = UApexTrackContentSubsystem::PreviewOf(Row);
 		}
 		Spec.Meta = FString::Join(MetaParts, TEXT(" · "));
 
@@ -528,7 +529,7 @@ void UApexTrackSelectWidget::RefreshDetail()
 
 	ApexUI::AddV(DetailBox, ApexUI::MakePreview(
 		*WidgetTree,
-		bHasRow ? Row.PreviewImage.LoadSynchronous() : nullptr,
+		bHasRow ? UApexTrackContentSubsystem::PreviewOf(Row) : nullptr,
 		TEXT("No preview"),
 		-1.0f,
 		200.0f));

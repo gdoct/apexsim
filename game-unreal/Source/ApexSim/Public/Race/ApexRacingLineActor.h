@@ -38,11 +38,13 @@ public:
 	void SetLine(const FApexRacingLineData& InLine);
 
 	/**
-	 * Re-lay the dots on the road of `TrackLevel`, found by tracing down at each
-	 * one. Only the level's own track meshes count as ground: not props, and not
-	 * whatever the menu world has lying about near the origin.
+	 * Re-lay the dots on the track's road, found by tracing down at each one.
+	 * Only the track's own surfaces count as ground — the actors the builder
+	 * tags `ApexTrackMesh`, or for a level baked before that tag existed, the
+	 * static meshes of `LegacyLevel` — not props, and not whatever the menu
+	 * world has lying about near the origin.
 	 */
-	void SnapToGround(const ULevel* TrackLevel);
+	void SnapToGround(const ULevel* LegacyLevel);
 
 	/** Which colours are drawn: none, only the braking zones, or all of it. */
 	void SetMode(EApexRacingLine InMode);
@@ -65,8 +67,8 @@ private:
 	UInstancedStaticMeshComponent* MakeDots(const TCHAR* Name);
 	void Paint(UInstancedStaticMeshComponent* Dots, const FLinearColor& Color);
 
-	/** Lay every dot, tracing down onto `Ground` when it is given. */
-	void Rebuild(const ULevel* Ground);
+	/** Lay every dot, tracing down onto the track's road when `bTrace`. */
+	void Rebuild(bool bTrace, const ULevel* LegacyLevel);
 	void ApplyVisibility();
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")

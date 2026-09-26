@@ -20,6 +20,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Track/ApexTrackContentSubsystem.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
@@ -630,7 +631,7 @@ void UApexSessionCreateWidget::RefreshContent()
 		UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>();
 		ApexUI::AddH(
 			RowBox,
-			ApexUI::MakePreview(*WidgetTree, bHasRow ? Row.PreviewImage.LoadSynchronous() : nullptr, TEXT("No preview"), 200.0f, 116.0f),
+			ApexUI::MakePreview(*WidgetTree, bHasRow ? UApexTrackContentSubsystem::PreviewOf(Row) : nullptr, TEXT("No preview"), 200.0f, 116.0f),
 			FMargin(0.0f, 0.0f, 18.0f, 0.0f),
 			VAlign_Center);
 		ApexUI::AddH(RowBox, Text, FMargin(), VAlign_Center, 1.0f);

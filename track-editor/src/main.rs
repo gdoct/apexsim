@@ -267,8 +267,8 @@ fn save_scene(open_scene: &mut OpenScene, status: &mut StatusLine) {
     }
 }
 
-/// Bake the open track to the JSON the Unreal `ApexTrackImport` commandlet
-/// consumes.
+/// Bake the open track to the manifest and mesh blob the Unreal
+/// `ApexTrackImport` commandlet consumes.
 ///
 /// Bakes what is in the editor, not what is on disk, so an export reflects
 /// unsaved edits — you can look at a change in Unreal before committing to
@@ -283,20 +283,26 @@ fn export_for_unreal(open_track: &OpenTrack, open_scene: &OpenScene, status: &mu
         return;
     };
 
-    let Some(baked) = ue_export::bake(track, scene) else {
+    let Some(mut baked) = ue_export::bake(track, scene) else {
         status.0 = format!("{} has no usable centerline to bake.", track.name);
         return;
     };
+    // The editor never writes the YAML, so the file on disk is the track
+    // that was baked, unsaved scene edits or not.
+    baked.source_crc = std::fs::read(track_path)
+        .ok()
+        .map(|bytes| ue_export_io::source_crc(&bytes));
 
     let dir = std::path::Path::new(ue_export_io::DEFAULT_EXPORT_DIR);
     let out = ue_export_io::export_path_for(dir, track_path);
     match ue_export_io::write_scene(&out, &baked) {
         Ok(()) => {
             status.0 = format!(
-                "Exported {} mesh(es) and {} prop(s) to {}",
+                "Exported {} mesh(es) and {} prop(s) to {} and {}",
                 baked.meshes.len(),
                 baked.props.len(),
-                out.display()
+                out.display(),
+                ue_export_io::mesh_blob_path_for(&out).display()
             )
         }
         Err(e) => status.0 = format!("Export failed: {e}"),
