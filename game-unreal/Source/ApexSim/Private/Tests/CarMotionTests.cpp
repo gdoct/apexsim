@@ -10,14 +10,14 @@ namespace
 	constexpr double TickRate = 240.0;
 	/** The server's default telemetry divisor: a frame every 4 ticks. */
 	constexpr int64 Spacing = 4;
-	constexpr double FrameSeconds = Spacing / TickRate;
+	constexpr double MotionFrameSeconds = Spacing / TickRate;
 
 	/** A car driving +X at a steady speed, sampled at frame `n`. */
 	FSnapshot StraightAt(int64 Frame, double SpeedCmPerSec, double YawDeg = 0.0)
 	{
 		FSnapshot S;
 		S.Tick = Frame * Spacing;
-		S.Location = FVector(SpeedCmPerSec * Frame * FrameSeconds, 0.0, 0.0);
+		S.Location = FVector(SpeedCmPerSec * Frame * MotionFrameSeconds, 0.0, 0.0);
 		S.Rotation = FRotator(0.0, YawDeg, 0.0).Quaternion();
 		S.SpeedMps = static_cast<float>(SpeedCmPerSec / 100.0);
 		S.Steering = 0.0f;
@@ -79,7 +79,7 @@ bool FApexCarMotionSteadyTest::RunTest(const FString& Parameters)
 		{
 			Run.Buffer.Push(StraightAt(Frame, Speed), Run.Now, Run.Settings);
 			++Frame;
-			NextFrameAt += FrameSeconds;
+			NextFrameAt += MotionFrameSeconds;
 		}
 		Run.Render(RenderDt);
 	}
@@ -173,7 +173,7 @@ bool FApexCarMotionGapTest::RunTest(const FString& Parameters)
 				Run.Buffer.Push(StraightAt(Frame, Speed), Run.Now, Run.Settings);
 			}
 			++Frame;
-			NextFrameAt += FrameSeconds;
+			NextFrameAt += MotionFrameSeconds;
 		}
 		Run.Render(RenderDt);
 		if (i == 110)
@@ -214,15 +214,15 @@ bool FApexCarMotionStallTest::RunTest(const FString& Parameters)
 	int64 Frame = 0;
 	for (; Frame < 60; ++Frame)
 	{
-		Run.Buffer.Push(StraightAt(Frame, Speed), Frame * FrameSeconds, Run.Settings);
-		Run.Render(FrameSeconds);
+		Run.Buffer.Push(StraightAt(Frame, Speed), Frame * MotionFrameSeconds, Run.Settings);
+		Run.Render(MotionFrameSeconds);
 	}
 	const FVector LastLive = Run.Poses.Last().Location;
 
 	// Two seconds of silence: the car runs on for the limit and then holds.
 	for (int32 i = 0; i < 120; ++i)
 	{
-		Run.Render(FrameSeconds);
+		Run.Render(MotionFrameSeconds);
 	}
 	const FVector Held = Run.Poses.Last().Location;
 	const double RanOn = (Held - LastLive).X;
@@ -236,8 +236,8 @@ bool FApexCarMotionStallTest::RunTest(const FString& Parameters)
 	FPose Pose;
 	for (int32 i = 0; i < 4; ++i, ++Frame)
 	{
-		Run.Buffer.Push(StraightAt(Frame, Speed), Frame * FrameSeconds, Run.Settings);
-		Run.Buffer.Sample(FrameSeconds, Run.Settings, Pose);
+		Run.Buffer.Push(StraightAt(Frame, Speed), Frame * MotionFrameSeconds, Run.Settings);
+		Run.Buffer.Sample(MotionFrameSeconds, Run.Settings, Pose);
 	}
 	const FVector TruePos = StraightAt(Frame - 1, Speed).Location;
 	TestTrue(TEXT("re-seated on the live stream"), FVector::Dist(Pose.Location, TruePos) < Speed * 0.1);
@@ -266,14 +266,14 @@ bool FApexCarMotionTeleportTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("first sample restarts"), Run.Buffer.Push(At(0), 0.0, Run.Settings) == EPushResult::Restarted);
 	TestTrue(TEXT("sits on the only sample"), Run.Buffer.Sample(0.01, Run.Settings, Pose) && Pose.Location.IsZero());
 
-	TestTrue(TEXT("second sample adds"), Run.Buffer.Push(At(1), FrameSeconds, Run.Settings) == EPushResult::Added);
-	TestTrue(TEXT("older tick ignored"), Run.Buffer.Push(At(0), FrameSeconds, Run.Settings) == EPushResult::Ignored);
-	TestTrue(TEXT("same tick ignored"), Run.Buffer.Push(At(1), FrameSeconds, Run.Settings) == EPushResult::Ignored);
+	TestTrue(TEXT("second sample adds"), Run.Buffer.Push(At(1), MotionFrameSeconds, Run.Settings) == EPushResult::Added);
+	TestTrue(TEXT("older tick ignored"), Run.Buffer.Push(At(0), MotionFrameSeconds, Run.Settings) == EPushResult::Ignored);
+	TestTrue(TEXT("same tick ignored"), Run.Buffer.Push(At(1), MotionFrameSeconds, Run.Settings) == EPushResult::Ignored);
 
 	// A respawn across the map.
 	FSnapshot Far = At(2);
 	Far.Location = FVector(500000.0, 20000.0, 0.0);
-	TestTrue(TEXT("jump restarts"), Run.Buffer.Push(Far, 2 * FrameSeconds, Run.Settings) == EPushResult::Restarted);
+	TestTrue(TEXT("jump restarts"), Run.Buffer.Push(Far, 2 * MotionFrameSeconds, Run.Settings) == EPushResult::Restarted);
 	TestEqual(TEXT("holds only the new place"), Run.Buffer.Num(), 1);
 	Run.Buffer.Sample(0.01, Run.Settings, Pose);
 	TestTrue(TEXT("shown at the new place at once"), Pose.Location.Equals(Far.Location));
@@ -284,10 +284,10 @@ bool FApexCarMotionTeleportTest::RunTest(const FString& Parameters)
 	// is another clock.
 	FSnapshot Reordered = Far;
 	Reordered.Tick = Far.Tick - Spacing;
-	TestTrue(TEXT("a step back is a reordered packet"), Run.Buffer.Push(Reordered, 3 * FrameSeconds, Run.Settings) == EPushResult::Ignored);
+	TestTrue(TEXT("a step back is a reordered packet"), Run.Buffer.Push(Reordered, 3 * MotionFrameSeconds, Run.Settings) == EPushResult::Ignored);
 	FSnapshot Fresh = StraightAt(0, 0.0);
 	Fresh.Tick = Far.Tick - static_cast<int64>(TickRate * 2.0);
-	TestTrue(TEXT("tick far backwards restarts"), Run.Buffer.Push(Fresh, 3 * FrameSeconds, Run.Settings) == EPushResult::Restarted);
+	TestTrue(TEXT("tick far backwards restarts"), Run.Buffer.Push(Fresh, 3 * MotionFrameSeconds, Run.Settings) == EPushResult::Restarted);
 	TestEqual(TEXT("spacing forgotten with the clock"), Run.Buffer.GetFrameSpacingTicks(), static_cast<int64>(0));
 	return true;
 }
@@ -305,16 +305,16 @@ bool FApexCarMotionYawSeamTest::RunTest(const FString& Parameters)
 	// turn through the few degrees between them, not spin the long way.
 	const FSnapshot A = StraightAt(0, 1000.0, 176.0);
 	const FSnapshot B = StraightAt(1, 1000.0, -176.0);
-	const FPose Mid = Blend(A, B, 0.5, FrameSeconds);
+	const FPose Mid = Blend(A, B, 0.5, MotionFrameSeconds);
 	const double MidYaw = Mid.Rotation.Rotator().Yaw;
 	TestTrue(FString::Printf(TEXT("midpoint yaw on the seam (%.1f)"), MidYaw), FMath::Abs(FMath::Abs(MidYaw) - 180.0) < 0.5);
 	TestTrue(TEXT("turned only a few degrees"), FMath::RadiansToDegrees(A.Rotation.AngularDistance(Mid.Rotation)) < 5.0);
 
 	// Dead reckoning carries the turn on at the same rate.
-	const FPose Ahead = Extrapolate(A, B, FrameSeconds, FrameSeconds);
+	const FPose Ahead = Extrapolate(A, B, MotionFrameSeconds, MotionFrameSeconds);
 	TestTrue(TEXT("extrapolated another 8 degrees"),
 		FMath::IsNearlyEqual(FMath::RadiansToDegrees(B.Rotation.AngularDistance(Ahead.Rotation)), 8.0, 0.5));
-	TestTrue(TEXT("extrapolated the position"), FMath::IsNearlyEqual(Ahead.Location.X, B.Location.X + 1000.0 * FrameSeconds, 0.01));
+	TestTrue(TEXT("extrapolated the position"), FMath::IsNearlyEqual(Ahead.Location.X, B.Location.X + 1000.0 * MotionFrameSeconds, 0.01));
 	TestTrue(TEXT("flagged"), Ahead.bExtrapolated);
 	return true;
 }
