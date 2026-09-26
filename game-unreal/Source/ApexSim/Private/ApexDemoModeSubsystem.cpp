@@ -9,6 +9,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/PackageName.h"
 #include "Race/ApexRaceDirector.h"
+#include "Track/ApexTrackContentSubsystem.h"
 
 namespace
 {
@@ -206,6 +207,7 @@ FApexSessionConditions UApexDemoModeSubsystem::RollConditions(FRandomStream& Ran
 bool UApexDemoModeSubsystem::ChooseTrack(const UApexNetSubsystem& Net)
 {
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
 	if (!Flow)
 	{
 		return false;
@@ -224,8 +226,9 @@ bool UApexDemoModeSubsystem::ChooseTrack(const UApexNetSubsystem& Net)
 		{
 			continue;
 		}
-		// A track with no imported level would be cars racing through the void.
-		if (FPackageName::DoesPackageExist(FString::Printf(TEXT("/Game/Tracks/%s/L_%s"), *Row.YamlBaseName, *Row.YamlBaseName)))
+		// A track with neither a cooked level nor a runtime export would be
+		// cars racing through the void.
+		if (Content && Content->HasTrack(Row.YamlBaseName))
 		{
 			Candidates.Add({ &Track, Row.YamlBaseName });
 		}
@@ -235,7 +238,7 @@ bool UApexDemoModeSubsystem::ChooseTrack(const UApexNetSubsystem& Net)
 		if (!bWarnedNoTracks)
 		{
 			bWarnedNoTracks = true;
-			UE_LOG(LogApexSim, Warning, TEXT("Demo mode: no lobby track has a catalog row and an imported level; the menu stays on its plain background"));
+			UE_LOG(LogApexSim, Warning, TEXT("Demo mode: no lobby track has a catalog row and a cooked level or runtime export; the menu stays on its plain background"));
 		}
 		return false;
 	}
@@ -337,8 +340,9 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 	{
 		// The player picked another circuit; show that one, if it has a level.
 		FApexTrackCatalogRow Row;
-		if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) && !Row.YamlBaseName.IsEmpty()
-			&& FPackageName::DoesPackageExist(FString::Printf(TEXT("/Game/Tracks/%s/L_%s"), *Row.YamlBaseName, *Row.YamlBaseName)))
+		const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+		if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) && !Row.YamlBaseName.IsEmpty() && Content
+			&& Content->HasTrack(Row.YamlBaseName))
 		{
 			Restart(TEXT("the player chose another track"));
 		}

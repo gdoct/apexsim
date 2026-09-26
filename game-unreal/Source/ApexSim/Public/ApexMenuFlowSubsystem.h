@@ -222,7 +222,9 @@ private:
 	const FApexLobbyState* CachedLobbyState() const;
 
 	const FApexCarCatalogRow* FindCarRow(const FString& CarId) const;
+	/** The track export's row (UApexTrackContentSubsystem), else the table's. */
 	const FApexTrackCatalogRow* FindTrackRow(const FString& TrackId) const;
+	class UApexTrackContentSubsystem* GetTrackContent() const;
 
 	/** Reads the profile slot into the fields above; creates one if absent. */
 	void LoadProfile();

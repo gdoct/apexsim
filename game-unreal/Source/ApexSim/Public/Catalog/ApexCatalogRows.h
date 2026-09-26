@@ -380,6 +380,14 @@ struct APEXSIM_API FApexTrackCatalogRow : public FTableRowBase
 	/** Empty for tracks with no preview art (Le Mans); falls back to a placeholder. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
 	TSoftObjectPtr<UTexture2D> PreviewImage;
+
+	/**
+	 * The preview of a track found on disk at runtime (`<Stem>.png` beside
+	 * its export), loaded by `UApexTrackContentSubsystem`; never saved in the
+	 * table. Read either through `UApexTrackContentSubsystem::PreviewOf`.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
+	TObjectPtr<UTexture2D> RuntimePreview;
 };
 
 namespace ApexCatalog

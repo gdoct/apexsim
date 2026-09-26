@@ -78,20 +78,20 @@ namespace ApexGround
 	 * `surface_<SurfaceKind::label>` and the terrain itself is plain
 	 * `ground`.
 	 */
-	APEXTRACKEDITOR_API FSurfaceLook LookFor(const FString& Family, const FString& Key);
+	APEXSIM_API FSurfaceLook LookFor(const FString& Family, const FString& Key);
 
 	/** Every set the baker produces, for the importer and the log. */
-	APEXTRACKEDITOR_API TArray<FString> AllSets();
+	APEXSIM_API TArray<FString> AllSets();
 
 	/** `/Game/Ground/T_ground_asphalt_col` and friends. */
-	APEXTRACKEDITOR_API FString TexturePath(const FString& Set, const TCHAR* Map);
+	APEXSIM_API FString TexturePath(const FString& Set, const TCHAR* Map);
 
 	/**
 	 * Whether a material key belongs to a lateral band with two edges. The
 	 * terrain (`ground`) is a grid whose UVs are world metres, not a strip,
 	 * so the fringe maths would read garbage off it.
 	 */
-	APEXTRACKEDITOR_API bool IsSurfaceBand(const FString& Key);
+	APEXSIM_API bool IsSurfaceBand(const FString& Key);
 
 	/**
 	 * The fringe ramp for one vertex `FromInnerM` metres out from the
@@ -101,7 +101,7 @@ namespace ApexGround
 	 * grass like the band, and fringing it too drew a ring of dust sixty
 	 * metres out round the whole circuit.
 	 */
-	APEXTRACKEDITOR_API float EdgeFactor(float FromInnerM, float WidthM);
+	APEXSIM_API float EdgeFactor(float FromInnerM, float WidthM);
 
 	/** One centerline sample, in the same planar frame as the band mesh. */
 	struct FCenterSample
@@ -134,7 +134,7 @@ namespace ApexGround
 	 * share a bucket. `LapM` wraps the unwrapped stations a span through
 	 * start/finish carries; 0 for an open track.
 	 */
-	APEXTRACKEDITOR_API TArray<float> EdgeFactors(TArrayView<const FVector2f> UVs,
+	APEXSIM_API TArray<float> EdgeFactors(TArrayView<const FVector2f> UVs,
 		TArrayView<const FVector3f> Positions, TArrayView<const FCenterSample> Centerline,
 		float LapM);
 }	 // namespace ApexGround

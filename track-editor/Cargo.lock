@@ -6520,6 +6520,7 @@ name = "track-core"
 version = "0.1.0"
 dependencies = [
  "apexsim-server",
+ "flate2",
  "rmp-serde",
  "serde",
  "serde_json",

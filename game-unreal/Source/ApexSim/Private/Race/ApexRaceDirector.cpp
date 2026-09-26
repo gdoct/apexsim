@@ -16,7 +16,6 @@
 #include "Engine/Level.h"
 #include "Engine/PostProcessVolume.h"
 #include "Engine/GameInstance.h"
-#include "Engine/LevelStreamingDynamic.h"
 #include "Engine/SkyLight.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -40,6 +39,9 @@
 #include "Race/ApexRainActor.h"
 #include "Race/ApexReplayClip.h"
 #include "Race/ApexShotCamera.h"
+#include "Track/ApexTrackContentSubsystem.h"
+#include "Track/ApexTrackInstance.h"
+#include "Track/ApexTrackSceneReader.h"
 
 AApexRaceDirector::AApexRaceDirector()
 {
@@ -452,7 +454,7 @@ void AApexRaceDirector::HandleLobbyStateUpdated(const FApexLobbyState& LobbyStat
 	// A race that started before the lobby cache knew about its session resolves
 	// no track path in BeginRaceView; the next lobby snapshot is what makes the
 	// session — and its track file — findable, so try again here.
-	if (bRaceViewActive && !TrackLevel)
+	if (bRaceViewActive && !Track)
 	{
 		LoadTrackLevel();
 	}
@@ -502,12 +504,11 @@ void AApexRaceDirector::DestroyRacingLine()
 
 void AApexRaceDirector::SnapRacingLineToTrack()
 {
-	// Like the start lights: the level's actors, and their collision, only
+	// Like the start lights: the track's actors, and their collision, only
 	// exist once it is visible, not merely loaded.
-	if (RacingLine && RacingLine->HasLine() && !RacingLine->IsOnGround() && IsTrackLevelLoaded()
-		&& TrackLevel->IsLevelVisible())
+	if (RacingLine && RacingLine->HasLine() && !RacingLine->IsOnGround() && IsTrackVisible())
 	{
-		RacingLine->SnapToGround(TrackLevel->GetLoadedLevel());
+		RacingLine->SnapToGround();
 	}
 }
 
@@ -715,9 +716,8 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 
 void AApexRaceDirector::FindStartLights()
 {
-	// A streamed level reports loaded before its actors are in the world;
-	// they arrive when it becomes visible, so search only from then on.
-	if (bSearchedStartLights || !IsTrackLevelLoaded() || !TrackLevel->IsLevelVisible())
+	// The track's actors are in the world, and collidable, once it is visible.
+	if (bSearchedStartLights || !IsTrackVisible())
 	{
 		return;
 	}
@@ -728,6 +728,8 @@ void AApexRaceDirector::FindStartLights()
 	static const FName LensTag(TEXT("ApexStartLight"));
 	TArray<AActor*> Found;
 	UGameplayStatics::GetAllActorsWithTag(this, GantryTag, Found);
+	// Only the circuit on show: a runtime track kept for reuse waits hidden.
+	Found.RemoveAll([](const AActor* Actor) { return !Actor || Actor->IsHidden(); });
 	if (Found.Num() == 0)
 	{
 		UE_LOG(LogApexSim, Log, TEXT("Track level has no start-light gantry"));
@@ -945,6 +947,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 		SetActorRotation(FRotator(0.0f, FollowedCar->GetActorRotation().Yaw, 0.0f));
 	}
 
+	DropFailedTrack();
 	SnapRacingLineToTrack();
 	ApplyTrackLevelConditions();
 	UpdateCameraFeel(DeltaSeconds);
@@ -1522,17 +1525,13 @@ void AApexRaceDirector::ForgetTrackLevelConditions()
 
 void AApexRaceDirector::ApplyTrackLevelConditions()
 {
-	// A streamed level reports loaded before its actors are in the world;
-	// they arrive when it becomes visible, so only from then on.
-	if (bTrackConditionsApplied || !bRaceViewActive || !IsTrackLevelLoaded() || !TrackLevel->IsLevelVisible())
+	// Only once the track's actors are in the world and shown.
+	if (bTrackConditionsApplied || !bRaceViewActive || !IsTrackVisible())
 	{
 		return;
 	}
-	ULevel* Level = TrackLevel->GetLoadedLevel();
-	if (!Level)
-	{
-		return;
-	}
+	TArray<AActor*> TrackActors;
+	Track->GetActors(TrackActors);
 	bTrackConditionsApplied = true;
 
 	static const FName RoughnessParam(TEXT("Roughness"));
@@ -1545,7 +1544,7 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 	int32 Lamps = 0;
 	UWorld* World = GetWorld();
 
-	for (AActor* Actor : Level->Actors)
+	for (AActor* Actor : TrackActors)
 	{
 		if (!Actor)
 		{
@@ -2148,24 +2147,33 @@ void AApexRaceDirector::EndRaceView()
 
 bool AApexRaceDirector::IsTrackLevelLoaded() const
 {
-	return TrackLevel && TrackLevel->IsLevelLoaded();
+	return Track && Track->IsLoaded();
 }
 
-FString AApexRaceDirector::ResolveTrackLevelPath() const
+bool AApexRaceDirector::IsTrackVisible() const
 {
+	return Track && Track->IsVisible();
+}
+
+FString AApexRaceDirector::ResolveTrackStem() const
+{
+	const UApexTrackContentSubsystem* Content = GetTrackContent();
+	if (!Content)
+	{
+		return FString();
+	}
 	if (bDemoView || bReplayView)
 	{
 		// A demo session is unlisted, so there is no session summary to read
 		// the track file from; whoever started it named the track. A replay
 		// clip names its own.
-		const FString DemoPath = FString::Printf(TEXT("/Game/Tracks/%s/L_%s"), *DemoTrackStem, *DemoTrackStem);
-		const bool bExists = !DemoTrackStem.IsEmpty() && FPackageName::DoesPackageExist(DemoPath);
+		const bool bExists = !DemoTrackStem.IsEmpty() && Content->HasTrack(DemoTrackStem);
 		if (bReplayView && !bExists)
 		{
-			UE_LOG(LogApexSim, Error, TEXT("Replay: no imported level %s for track \"%s\"; bake and import it first"),
-				*DemoPath, *DemoTrackStem);
+			UE_LOG(LogApexSim, Error, TEXT("Replay: no export for track \"%s\" in %s; bake it with ats-export"),
+				*DemoTrackStem, *FString::Join(UApexTrackContentSubsystem::TrackDirectories(), TEXT(", ")));
 		}
-		return bExists ? DemoPath : FString();
+		return bExists ? DemoTrackStem : FString();
 	}
 
 	const UApexNetSubsystem* Net = GetNet();
@@ -2188,46 +2196,55 @@ FString AApexRaceDirector::ResolveTrackLevelPath() const
 		return FString();
 	}
 
-	const FString PackagePath = FString::Printf(TEXT("/Game/Tracks/%s/L_%s"), *Stem, *Stem);
-	if (!FPackageName::DoesPackageExist(PackagePath))
+	if (Content->FindRuntimeTrack(Stem) && !Content->HasTrack(Stem))
 	{
-		UE_LOG(LogApexSim, Warning,
-			TEXT("No imported level for track \"%s\" at %s — cars will race in an empty world. "
-				 "Bake it with `cargo run --bin ats-export -- --all` and import it with "
-				 "`ApexSimEditor-Cmd <uproject> -run=ApexTrackImport -all`"),
-			*Session.TrackName, *PackagePath);
+		UE_LOG(LogApexSim, Warning, TEXT("Track \"%s\" failed to build earlier (see LogApexTrack); racing in an empty world"),
+			*Session.TrackName);
 		return FString();
 	}
-	return PackagePath;
+	if (!Content->HasTrack(Stem))
+	{
+		UE_LOG(LogApexSim, Warning,
+			TEXT("No export for track \"%s\" — cars will race in an empty world. There is no %s%s in %s. "
+				 "Bake it with `cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- content/%s` "
+				 "from the repo root (scripts/build_track_levels.ps1 does it for every circuit)"),
+			*Session.TrackName, *Stem, FApexTrackSceneReader::SceneExtension(),
+			*FString::Join(UApexTrackContentSubsystem::TrackDirectories(), TEXT(", ")), *Session.TrackFile);
+		return FString();
+	}
+	return Stem;
+}
+
+UApexTrackContentSubsystem* AApexRaceDirector::GetTrackContent() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance ? GameInstance->GetSubsystem<UApexTrackContentSubsystem>() : nullptr;
 }
 
 void AApexRaceDirector::LoadTrackLevel()
 {
-	if (TrackLevel)
+	if (Track)
 	{
 		return;
 	}
 
-	const FString PackagePath = ResolveTrackLevelPath();
-	if (PackagePath.IsEmpty())
+	const FString Stem = ResolveTrackStem();
+	UApexTrackContentSubsystem* Content = GetTrackContent();
+	if (Stem.IsEmpty() || !Content)
 	{
 		return;
 	}
 
-	// A level instance, not a travel: the menu world owns this actor and the
+	// Into this world, not a travel: the menu world owns this actor and the
 	// entire UI, and travelling would destroy both mid-race.
-	bool bSuccess = false;
-	TrackLevel = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(this,
-		TSoftObjectPtr<UWorld>(FSoftObjectPath(PackagePath)), FVector::ZeroVector,
-		FRotator::ZeroRotator, bSuccess);
-	if (!bSuccess || !TrackLevel)
+	Track = Content->Acquire(GetWorld(), Stem);
+	if (!Track)
 	{
-		UE_LOG(LogApexSim, Warning, TEXT("Failed to stream track level %s"), *PackagePath);
-		TrackLevel = nullptr;
+		UE_LOG(LogApexSim, Warning, TEXT("Failed to load track %s"), *Stem);
 		return;
 	}
 
-	UE_LOG(LogApexSim, Log, TEXT("Streaming track level %s"), *PackagePath);
+	UE_LOG(LogApexSim, Log, TEXT("Loading track %s"), *Stem);
 	ForgetStartLights();
 	VerifyTrackContent();
 }
@@ -2279,17 +2296,33 @@ void AApexRaceDirector::VerifyLocalCarContent()
 	Flow->VerifyCarContent(CarId, true);
 }
 
+void AApexRaceDirector::DropFailedTrack()
+{
+	// A build that failed (an unreadable export, a mesh that would not build)
+	// is handed back, which marks the circuit broken for this run, so the
+	// lobby's next snapshot does not start the same failure again.
+	if (Track && Track->HasFailed())
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Track %s failed to build; the race goes on without it"), *Track->GetStem());
+		UnloadTrackLevel();
+	}
+}
+
 void AApexRaceDirector::UnloadTrackLevel()
 {
-	if (!TrackLevel)
+	if (!Track)
 	{
 		return;
 	}
-	// Clearing both flags is what actually retires a streamed instance;
-	// there is no single "unload now" call on ULevelStreaming.
-	TrackLevel->SetShouldBeVisible(false);
-	TrackLevel->SetShouldBeLoaded(false);
-	TrackLevel = nullptr;
+	if (UApexTrackContentSubsystem* Content = GetTrackContent())
+	{
+		Content->Release(Track);
+	}
+	else
+	{
+		Track->Unload();
+	}
+	Track = nullptr;
 	ForgetStartLights();
 	ForgetTrackLevelConditions();
 	VerifiedTrackId.Reset();
@@ -2538,9 +2571,9 @@ void AApexRaceDirector::SetDemoWorldVisible(bool bVisible)
 		DemoOpacity = 0.0f;
 	}
 	DemoReadyFor = 0.0f;
-	if (TrackLevel)
+	if (Track)
 	{
-		TrackLevel->SetShouldBeVisible(bVisible);
+		Track->SetVisible(bVisible);
 	}
 	if (bVisible)
 	{
@@ -2660,8 +2693,7 @@ bool AApexRaceDirector::IsDemoReady() const
 
 void AApexRaceDirector::UpdateDemoOpacity(float DeltaSeconds)
 {
-	const bool bReady = bDemoWorldVisible && !bDemoFadeOut && bHasTvPose && Cars.Num() > 0 && IsTrackLevelLoaded()
-		&& TrackLevel->IsLevelVisible();
+	const bool bReady = bDemoWorldVisible && !bDemoFadeOut && bHasTvPose && Cars.Num() > 0 && IsTrackVisible();
 	DemoReadyFor = bReady ? DemoReadyFor + DeltaSeconds : 0.0f;
 	// A moment's grace once everything is in: the sky capture and the first
 	// textures settle before anyone sees them.
@@ -2813,8 +2845,7 @@ void AApexRaceDirector::EndReplayView()
 
 bool AApexRaceDirector::IsReplayReady() const
 {
-	return bReplayView && Cars.Num() > 0 && IsTrackLevelLoaded() && TrackLevel->IsLevelVisible()
-		&& bTrackConditionsApplied;
+	return bReplayView && Cars.Num() > 0 && IsTrackVisible() && bTrackConditionsApplied;
 }
 
 void AApexRaceDirector::PlayReplay(double FromSeconds)
@@ -2938,7 +2969,7 @@ void AApexRaceDirector::ApplyReplayFrame(const FApexTelemetryFrame& Frame, float
 void AApexRaceDirector::SeatReplayEye()
 {
 	UWorld* World = GetWorld();
-	if (bReplayEyeSeated || !World || !ReplayCamera.bHasEye || !IsTrackLevelLoaded() || !TrackLevel->IsLevelVisible())
+	if (bReplayEyeSeated || !World || !ReplayCamera.bHasEye || !IsTrackVisible())
 	{
 		return;
 	}
