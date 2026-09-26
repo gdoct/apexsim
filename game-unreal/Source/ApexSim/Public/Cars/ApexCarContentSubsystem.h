@@ -164,10 +164,14 @@ namespace ApexCarContent
 	 * A runtime car's slots are already dynamic instances, shared by every
 	 * car drawn with that body, so the component helpers
 	 * (`CreateDynamicMaterialInstance`, `CreateAndSetMaterialInstanceDynamic`)
-	 * would hand back the shared one and repaint every such car at once.
-	 * This makes an instance of whatever the slot shows — or, with
-	 * `bFromMesh`, of the mesh's own material, dropping any earlier override —
-	 * unless the slot already shows one owned by `Component`.
+	 * would hand back the shared one and repaint every such car at once. Nor
+	 * can the shared one be a parent: the engine accepts only a material or a
+	 * material instance constant, and a dynamic instance under another draws
+	 * as the default material. So this makes an instance of the shared one's
+	 * cooked parent with its values copied (or, for a cooked body, of the
+	 * slot's material) — of whatever the slot shows, or with `bFromMesh` of
+	 * the mesh's own material, dropping any earlier override — unless the
+	 * slot already shows one owned by `Component`.
 	 */
 	APEXSIM_API UMaterialInstanceDynamic* OwnMaterialInstance(UStaticMeshComponent& Component, int32 Index, bool bFromMesh = false);
 }
