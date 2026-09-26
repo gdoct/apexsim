@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ApexSim is a source-available, proprietary simracing platform with a high-frequency authoritative Rust server (240Hz) and a Godot 4.5 C# client (the client is deprecated; server work does not need to keep it in sync). The server owns physics simulation and distributes telemetry while handling lobby/session management over TCP+TLS with MessagePack serialization. Protocol v2: after a token handshake binds the client's UDP address, telemetry (compact positional encoding, session-scoped car indices announced via a reliable `SessionRoster` message) and player input flow over UDP, with TCP fallback for un-handshaken clients.
+ApexSim is a source-available, proprietary simracing platform with a high-frequency authoritative Rust server (240Hz) and an Unreal Engine 5.8 client. The server owns physics simulation and distributes telemetry while handling lobby/session management over TCP+TLS with MessagePack serialization. Protocol v2: after a token handshake binds the client's UDP address, telemetry (compact positional encoding, session-scoped car indices announced via a reliable `SessionRoster` message) and player input flow over UDP, with TCP fallback for un-handshaken clients.
 
 ## Build Commands
 
@@ -29,13 +29,76 @@ cargo test --test integration_test test_name -- --nocapture  # Single integratio
 
 Integration tests spawn the server in-process on ephemeral ports via `apexsim_server::server::run_server` (see `tests/common/mod.rs`); no manually started server is required. `tests/determinism_test.rs` asserts bit-identical sim runs — keep the simulation free of HashMap-iteration-order dependence, wall-clock reads, and RNG.
 
-### Godot Client (C#)
-```bash
-cd game-godot
-dotnet build                   # Build C# project
-dotnet test                    # Run tests (in ApexSim.Tests/)
+### Unreal client (`game-unreal/`, UE 5.8, C++)
+The project is `game-unreal/ApexSim.uproject` (`EngineAssociation` 5.8) with
+the modules `ApexSim` (game), `ApexSimNet` (protocol), `ApexSimInput`
+(DirectInput wheels), `ApexSimBoot` (splash hold) and `ApexTrackEditor`
+(editor-only: the import commandlets). The scripts find the engine through
+`-EngineRoot`, `$env:UE` / `UE_ROOT` / `UE5_ROOT`, the registry entry for the
+`EngineAssociation`, then the launcher's default install folder
+(`scripts/lib/ApexEngine.ps1`). Every commandlet below needs the editor closed.
+
+```powershell
+$UE = "C:\Program Files\Epic Games\UE_5.8"          # or wherever the engine is
+# Editor target (what the commandlets and play_editor.ps1 run on)
+& "$UE\Engine\Build\BatchFiles\Build.bat" ApexSimEditor Win64 Development `
+    -Project="$PWD\game-unreal\ApexSim.uproject" -WaitMutex
+# Or generate the .sln (right-click the .uproject -> Generate Visual Studio
+# project files) and build ApexSimEditor / Development Editor from the IDE.
+
+./scripts/play_editor.ps1 -Build        # build, start a local server, play (no cook)
+./scripts/build_game_standalone.ps1     # cooked package -> artifacts/ApexSim-Win64
 ```
-Open in Godot 4.5+ Mono editor, click Build, then F5 to run.
+
+Automation tests (`ApexSim.*`) run headless on the editor build:
+
+```powershell
+& "$UE\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$PWD\game-unreal\ApexSim.uproject" `
+    -ExecCmds="Automation RunTests ApexSim; Quit" -unattended -nullrhi -nosplash -log
+```
+
+Adding a `.cpp`: check it with `-DisableAdaptiveUnity` (anonymous-namespace
+clashes only show once unity builds batch it with its neighbours).
+
+### Fresh checkout: building the client's content
+`game-unreal/Content/` is gitignored. Only the menu (`UI/`, `Maps/L_Menu`,
+`Blueprints/`), the two catalog tables in `Data/`, the splash (`Splash/`) and
+three legacy hand-imported cars are checked in; the tracks, props, ground
+textures and most car meshes are **generated** from `content/` by commandlets,
+so a fresh clone opens to a menu with no car meshes and races in an empty world
+until they have been run. One script does all of it, with Rust, Python 3
+(numpy, Pillow, PyYAML) and the engine installed and the editor closed:
+
+```powershell
+./scripts/initialize_content.ps1            # build only what is missing
+./scripts/initialize_content.ps1 -DryRun    # list what is missing and the plan
+./scripts/initialize_content.ps1 -Force     # redo every stage
+```
+
+It checks each output on disk and runs only the stages that lack one, so it is
+safe on an existing checkout too. The stages, in order (run by hand if needed):
+
+1. `Build.bat ApexSimEditor Win64 Development` - the commandlets live in it
+   (incremental; `-SkipBuild` skips it).
+2. `cargo build --release` in `server/`, if there is no server exe.
+3. `import_cars.ps1` - cars whose `/Game/Cars/<folder>/SM_<folder>` is missing
+   (every car when a class wheel mesh is missing).
+4. `bake_ground_textures.py` (the PNGs are normally checked in) and
+   `-run=ApexGroundTexImport` -> `/Game/Ground`.
+5. `-run=ApexPropImport -all` when any kit GLB has no mesh.
+6. `build_track_levels.ps1 -Release` for every circuit missing its level or a
+   `{ground,curbs,walls}.msgpack` sidecar (which the server needs) - and for
+   every circuit when stage 4 or 5 ran, because the bake picks the ground
+   material and the import resolves the props from what `/Game` holds then.
+7. `build_track_catalog.py` + `-run=ApexTrackCatalogSync` when a track was
+   rebuilt or a `T_Track_<Stem>` preview is missing.
+
+Stage 6 is the long one on a fresh clone (all circuits). The data refreshes in
+the track sections below (`osm_layout.py`, `dem_fetch.py`, `dem_elevation.py`,
+`ats-smooth`, `ats-bank`, `drs_zones.py`) are **not** part of it: their outputs
+(dossiers, DEM sidecars, YAMLs, `.ats` scenes) are checked in.
+`build_release.ps1` does not import cars or ground textures, so run this script
+first on a new machine.
 
 ### Track Editor (Rust + Bevy)
 ```bash
@@ -858,11 +921,10 @@ export hints, the pit complex and the groom behaviours.
   - `racing_line.rs` - the racing-line driving aid: a per-car speed profile along the raceline (throttle / partial / brake per point), sent to the joining player as `RacingLine`
   - `game_session.rs` — session/game-mode state machine, `lobby.rs` — matchmaking (single-lock), `metrics.rs`, `config.rs`, `car_loader.rs`, `track_loader.rs` (adaptive-density Catmull-Rom spline)
 
-### Godot Client (`game-godot/`)
-- C# scripts in `scripts/csharp/`
-- Custom MessagePack serializer matching Rust `rmp_serde` (named/`to_vec_named`) format — wire-format changes must be coordinated between server and client
-- Network protocol: `[4-byte big-endian length][MessagePack data]`
-- Thread-safe networking: background receive, main thread processing
+### Unreal client networking (`game-unreal/Source/ApexSimNet/`)
+- Hand-written MessagePack codec matching Rust `rmp_serde` (named/`to_vec_named`) format — wire-format changes must be coordinated between server and client, and are pinned by golden bytes (`ApexGoldenBlobs.h`, `ApexUdpGoldenBlobs.h`) printed by the server's `network.rs` tests
+- Network protocol: `[4-byte big-endian length][MessagePack data]` over TCP; telemetry/input over UDP after the handshake
+- `ApexTcpConnection` / `ApexUdpConnection` receive on background threads; `UApexNetSubsystem` processes the messages on the game thread
 
 ### Unreal client input (`game-unreal/Source/ApexSim/`)
 Driving uses Enhanced Input, with actions and the mapping context built in
@@ -1833,4 +1895,4 @@ Environment overrides use the `APEXSIM_` prefix, e.g. `APEXSIM_NETWORK_TCP_PORT=
 - `tests/grip_probe_test.rs` (ignored) is the grip-tuning harness: skidpad lateral-g sweep, a follower driving Silverstone's first corner at the racing line's speed, and every car's ideal-lap time from its racing-line profile (`PROBE_MU_SCALE` / `PROBE_CLA_SCALE` / `PROBE_CLASS` sweep grip and downforce without editing TOMLs). Class grip levels are set so those lap times land a few seconds off real poles
 - Integration tests simulate real client connections with `TestClient` structs against an in-process server
 - Enable debug logging: `RUST_LOG=debug cargo test ...`
-- CI (`.github/workflows/ci.yml`) runs fmt-check, clippy (`-D warnings` — keep the tree warning-free), build, and tests for the server plus a dotnet build/test for the client; Dependabot auto-merge builds and tests before merging
+- CI (`.github/workflows/ci.yml`) runs fmt-check, clippy (`-D warnings` — keep the tree warning-free), build, and tests for the server; Dependabot auto-merge builds and tests before merging
