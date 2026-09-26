@@ -1,4 +1,4 @@
-name: Hungaroring
+name: 'Hungoverring'
 track_id: bd044d8c-8d23-4f8b-b47d-066265bcf90a
 nodes:
 - x: -2.45
@@ -10493,7 +10493,7 @@ metadata:
   country: Hungary
   city: Budapest
   length_m: 4374.595
-  description: null
+  description: 'Modelled on the Grand Prix circuit at Mogyoród, near Budapest, Hungary.'
   year_built: 1986
   category: F1
   environment_type: country

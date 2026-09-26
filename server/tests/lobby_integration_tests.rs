@@ -1088,7 +1088,7 @@ async fn test_demo_mode_lap_timing() {
         let zandvoort_track = lobby_state
             .track_configs
             .iter()
-            .find(|t| t.name.to_lowercase().contains("zandvoort"))
+            .find(|t| t.name.to_lowercase().contains("zandervoort"))
             .ok_or("Zandvoort track not found in available tracks")?;
 
         let track_id = zandvoort_track.id;

@@ -1,4 +1,4 @@
-name: Suzuka Circuit
+name: 'Sudoku Circuit'
 track_id: f5e5b769-8b65-4137-91af-0e218a75a1e9
 nodes:
 - x: 3.1
@@ -13913,7 +13913,7 @@ metadata:
   country: Japan
   city: Suzuka
   length_m: 5800.43
-  description: null
+  description: 'Modelled on the figure-of-eight circuit at Suzuka, Mie, Japan.'
   year_built: 1962
   category: F1
   environment_type: plains

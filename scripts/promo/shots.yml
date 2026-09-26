@@ -91,7 +91,7 @@ shots:
     window: start
     start_offset_s: -4.0      # four lights on, then out
     length: 9.0
-    caption: "Circuit Zandvoort"
+    caption: "Zandervoort"
     camera: {mode: tv, shot: grid, follow: leader}
 
   - id: 02_spa_eau_rouge
@@ -99,7 +99,7 @@ shots:
     window: {corner: "Eau Rouge", before: 120, after: 180, min_cars: 2, anchor: 0.35}
     length: 3.5
     slowmo: 0.5
-    caption: "Eau Rouge · Spa-Francorchamps"
+    caption: "Eau Rouge · Spa-Frankenchamps"
     camera:
       mode: pan
       eye:  {corner: "Eau Rouge", offset: -60, lateral: 14, side: outside, height: 1.8}
@@ -127,7 +127,7 @@ shots:
     race: lemans
     window: {corner: "Chicane Dunlop", before: 60, after: 320, min_cars: 3, anchor: 0.3}
     length: 6.0
-    caption: "Le Mans · Dunlop"
+    caption: "Lemons · Dunlop"
     camera:
       mode: pan
       eye:  {station: 1200, lateral: 18, side: left, height: 6}
@@ -141,21 +141,21 @@ shots:
     race: monza_rain
     window: {corner: "Alboreto", before: 250, after: 150, min_cars: 2}
     length: 5.0
-    caption: "Monza · Curva Alboreto"
+    caption: "Monzarella · Curva Alboreto"
     camera: {mode: tv, shot: chase, follow: lead}
 
   - id: 07_suzuka_130r
     race: suzuka
     window: {corner: "130R", before: 200, after: 150, min_cars: 2}
     length: 5.0
-    caption: "Suzuka · 130R"
+    caption: "Sudoku · 130R"
     camera: {mode: tv, shot: tracking, follow: lead}
 
   - id: 08_spielberg_bull
     race: spielberg
     window: {corner: "Würth", before: 50, after: 250, min_cars: 3}
     length: 5.0
-    caption: "Red Bull Ring"
+    caption: "Red Pull Ring"
     camera:
       mode: pan
       eye:  {station: 3240, lateral: 16, side: right, height: 3}
@@ -169,14 +169,14 @@ shots:
     race: sakhir
     window: {station: 400, before: 200, after: 150, min_cars: 3}
     length: 5.0
-    caption: "Bahrain · under the lights"
+    caption: "Bahrainless · under the lights"
     camera: {mode: tv, shot: trackside, follow: lead}
 
   - id: 10_brands_paddock
     race: brands
     window: {corner: "Paddock Hill", before: 150, after: 150, min_cars: 3}
     length: 4.5
-    caption: "Brands Hatch · Paddock Hill"
+    caption: "Brands Scratch · Paddock Hill"
     camera:
       mode: pan
       eye:  {corner: "Paddock Hill", offset: 60, lateral: 20, side: outside, height: 4}

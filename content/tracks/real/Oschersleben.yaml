@@ -1,4 +1,4 @@
-name: Motorsport Arena Oschersleben
+name: 'Motorsport Arena Oskarsleben'
 track_id: 29559cf4-64a3-41f4-a379-528cc3e86e4b
 nodes:
 - x: 2.27
@@ -8846,7 +8846,7 @@ metadata:
   country: Germany
   city: Oschersleben
   length_m: 3692.011
-  description: null
+  description: 'Modelled on the circuit at Oschersleben, Saxony-Anhalt, Germany.'
   year_built: 1997
   category: DTM
   environment_type: plains

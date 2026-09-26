@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Monza.yaml",
-  "track_name": "Autodromo Nazionale di Monza",
+  "track_name": "Autodromo Monzarella",
   "surfaces": [
     {
       "id": 274,

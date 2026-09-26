@@ -92,6 +92,7 @@ bool UApexTrackCatalogSyncCommandlet::LoadManifest(const FString& Path, TArray<F
 		Entry.TrackId = (*Object)->GetStringField(TEXT("track_id"));
 		Entry.Stem = (*Object)->GetStringField(TEXT("stem"));
 		Entry.DisplayName = (*Object)->GetStringField(TEXT("display_name"));
+		(*Object)->TryGetStringField(TEXT("description"), Entry.Description);
 		Entry.Country = (*Object)->GetStringField(TEXT("country"));
 		Entry.City = (*Object)->GetStringField(TEXT("city"));
 		Entry.Category = (*Object)->GetStringField(TEXT("category"));
@@ -262,14 +263,21 @@ int32 UApexTrackCatalogSyncCommandlet::Main(const FString& Params)
 		// The checksum is derived, never hand-tuned, so it follows the YAML
 		// even on an additive run: it is what tells the client its bake is stale.
 		const bool bNeedsCrc = Existing && Existing->SourceCrc != Entry.SourceCrc;
-		if (!bNeedsRow && !bNeedsPreview && !bNeedsCrc)
+		// So is the name, which is a legal matter rather than a tuning one: the
+		// real circuits' names are trademarks, and a row left holding one would
+		// keep showing it after the YAML stopped. The description travels with it.
+		const bool bNeedsName = Existing
+			&& (!Existing->DisplayName.Equals(Entry.DisplayName, ESearchCase::CaseSensitive)
+				|| !Existing->Description.Equals(Entry.Description, ESearchCase::CaseSensitive));
+		if (!bNeedsRow && !bNeedsPreview && !bNeedsCrc && !bNeedsName)
 		{
 			continue;
 		}
 
 		UE_LOG(LogApexTrackImport, Display, TEXT("%s (%s): %s"), *Entry.Stem, *Entry.TrackId,
 			bNeedsRow ? (Existing ? TEXT("rewriting row") : TEXT("adding row"))
-			: bNeedsPreview ? TEXT("filling in preview") : TEXT("updating checksum"));
+			: bNeedsPreview ? TEXT("filling in preview")
+			: bNeedsName ? TEXT("updating name") : TEXT("updating checksum"));
 
 		FString PreviewError;
 		UTexture2D* Preview = ResolvePreview(Entry, Options, TouchedPackages, PreviewError);
@@ -291,9 +299,10 @@ int32 UApexTrackCatalogSyncCommandlet::Main(const FString& Params)
 		}
 
 		FApexTrackCatalogRow Row = bNeedsRow ? FApexTrackCatalogRow() : *Existing;
+		Row.DisplayName = Entry.DisplayName;
+		Row.Description = Entry.Description;
 		if (bNeedsRow)
 		{
-			Row.DisplayName = Entry.DisplayName;
 			Row.Country = Entry.Country;
 			Row.City = Entry.City;
 			Row.Category = Entry.Category;

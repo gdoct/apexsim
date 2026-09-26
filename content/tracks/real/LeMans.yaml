@@ -1,4 +1,4 @@
-name: Circuit de la Sarthe (Le Mans 24 Hours)
+name: 'Lemons – Circuit du Peuple'
 track_id: d685d53c-e2b6-4da1-937b-0e991a54c3b8
 nodes:
 - x: -0.0
@@ -24536,7 +24536,7 @@ metadata:
   country: France
   city: Le Mans
   length_m: 13618.381
-  description: Circuit de la Sarthe - home of the 24 Hours of Le Mans. Combines the permanent Circuit Bugatti sections with public roads including the famous Mulsanne (Hunaudieres) Straight. Regenerated from OpenStreetMap's 'Circuit des 24 Heures du Mans' route relation (Aug 2026), with SRTM30m elevation.
+  description: 'Modelled on the endurance circuit at Le Mans, France: a permanent circuit joined to closed public roads, including the long straight through Mulsanne.'
   year_built: 1923
   category: WEC
   environment_type: forest

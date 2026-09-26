@@ -1,5 +1,5 @@
 track_id: 7307d120-a931-4a21-ac80-0609fcf0e10b
-name: Indianapolis Motor Speedway
+name: 'Endianapolis Motor Speedway'
 nodes:
 - x: -0.029054
   y: -0.000499
@@ -9653,7 +9653,7 @@ metadata:
   country: United States
   city: Indianapolis
   length_m: 4022.287
-  description: null
+  description: 'Modelled on the 2.5-mile oval at Speedway, Indiana, USA.'
   year_built: 1909
   category: IndyCar
   environment_type: country

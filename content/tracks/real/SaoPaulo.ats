@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "SaoPaulo.yaml",
-  "track_name": "Autódromo José Carlos Pace",
+  "track_name": "Autódromo Interlaggos",
   "surfaces": [
     {
       "id": 334,

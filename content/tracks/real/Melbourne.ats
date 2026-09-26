@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Melbourne.yaml",
-  "track_name": "Albert Park Circuit",
+  "track_name": "Albert Parkour Circuit",
   "surfaces": [
     {
       "id": 347,

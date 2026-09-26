@@ -2,7 +2,7 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Suzuka.yaml",
- "track_name": "Suzuka Circuit",
+ "track_name": "Sudoku Circuit",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [

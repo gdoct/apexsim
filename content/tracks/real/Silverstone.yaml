@@ -1,4 +1,4 @@
-name: Silverstone Circuit
+name: 'Shiverstone Circuit'
 track_id: 751ab4f0-3266-4794-8df2-6dc2f6f54071
 nodes:
 - x: 3.44
@@ -14102,7 +14102,7 @@ metadata:
   country: United Kingdom
   city: Silverstone
   length_m: 5884.371
-  description: null
+  description: 'Modelled on the Grand Prix circuit on the old airfield at Silverstone, Northamptonshire, England.'
   year_built: 1948
   category: F1
   environment_type: country

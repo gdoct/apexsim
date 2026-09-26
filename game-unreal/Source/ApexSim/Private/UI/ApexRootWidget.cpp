@@ -1135,14 +1135,27 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	}
 	// -ApexTrack wins, then the player's remembered track, then the server's
 	// first. Le Mans sorts first and is 13 km, which makes for a long wait.
+	// It matches the YAML stem (`Spielberg`) exactly, else a substring of the
+	// lobby name: the names are parodies (`Red Pull Ring`) and the stems are
+	// what the docs and scripts say.
 	FApexTrackConfigSummary Track = LobbyState.TrackConfigs[0];
 	bool bTrackForced = false;
 	if (!AutoRaceTrack.IsEmpty())
 	{
-		if (const FApexTrackConfigSummary* Named = LobbyState.TrackConfigs.FindByPredicate(
+		const FApexTrackConfigSummary* Named = LobbyState.TrackConfigs.FindByPredicate(
+			[this, Flow](const FApexTrackConfigSummary& Candidate) {
+				FApexTrackCatalogRow Row;
+				return Flow && Flow->GetTrackCatalogRow(Candidate.Id, Row)
+					&& Row.YamlBaseName.Equals(AutoRaceTrack, ESearchCase::IgnoreCase);
+			});
+		if (!Named)
+		{
+			Named = LobbyState.TrackConfigs.FindByPredicate(
 				[this](const FApexTrackConfigSummary& Candidate) {
 					return Candidate.Name.Contains(AutoRaceTrack);
-				}))
+				});
+		}
+		if (Named)
 		{
 			Track = *Named;
 			bTrackForced = true;

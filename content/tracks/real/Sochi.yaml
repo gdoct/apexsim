@@ -1,4 +1,4 @@
-name: Sochi Autodrom
+name: 'Gnocchi Autodrom'
 track_id: 6c940a61-68bc-4f71-b9e0-6545f151f31c
 nodes:
 - x: -1.39
@@ -14012,7 +14012,7 @@ metadata:
   country: Russia
   city: Sochi
   length_m: 5833.441
-  description: null
+  description: 'Modelled on the street circuit at Sochi, on Russia''s Black Sea coast.'
   year_built: 2014
   category: F1
   environment_type: plains

@@ -1,4 +1,4 @@
-name: Brands Hatch
+name: 'Brands Scratch'
 track_id: 6db0b1fd-a33c-4e8f-9a54-4001c81e3b8b
 nodes:
 - x: -1.11
@@ -9374,7 +9374,7 @@ metadata:
   country: United Kingdom
   city: West Kingsdown
   length_m: 3904.267
-  description: null
+  description: 'Modelled on the circuit near West Kingsdown, Kent, England.'
   year_built: 1926
   category: DTM
   environment_type: country

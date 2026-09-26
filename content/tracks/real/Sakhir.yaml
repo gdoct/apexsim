@@ -1,4 +1,4 @@
-name: Bahrain International Circuit
+name: 'Bahrainless International Circuit'
 track_id: b3fefc14-d56f-4ece-b7bc-1b446e9f4ecd
 nodes:
 - x: -1.44
@@ -12974,7 +12974,7 @@ metadata:
   country: Bahrain
   city: Sakhir
   length_m: 5392.449
-  description: null
+  description: 'Modelled on the Grand Prix circuit in the desert at Sakhir, Bahrain.'
   year_built: 2004
   category: F1
   environment_type: desert

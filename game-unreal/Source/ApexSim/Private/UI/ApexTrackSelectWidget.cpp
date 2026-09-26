@@ -549,6 +549,15 @@ void UApexTrackSelectWidget::RefreshDetail()
 		ApexUI::MakeText(*WidgetTree, FString::Join(SubtitleParts, TEXT(" · ")), ApexUI::Font::Mono(10.0f, 120), ApexUI::Palette::TextMuted),
 		FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 
+	// What the parody name stands for, said by place ("Modelled on the circuit
+	// in the dunes at Zandvoort, Netherlands.").
+	if (bHasRow && !Row.Description.IsEmpty())
+	{
+		UTextBlock* Description = ApexUI::MakeText(*WidgetTree, Row.Description, ApexUI::Font::Body(13.0f), ApexUI::Palette::TextMuted);
+		Description->SetAutoWrapText(true);
+		ApexUI::AddV(DetailBox, Description, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	}
+
 	// Two rows of two: everything the client actually knows about a circuit.
 	UTextBlock* LengthValue = nullptr;
 	UTextBlock* BestValue = nullptr;

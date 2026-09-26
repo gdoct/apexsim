@@ -93,6 +93,7 @@ def main(argv):
             "track_id": track["id"],
             "stem": stem,
             "display_name": track["name"] or stem,
+            "description": meta.get("description") or "",
             "country": meta.get("country") or "",
             "city": meta.get("city") or "",
             "category": meta.get("category") or "",

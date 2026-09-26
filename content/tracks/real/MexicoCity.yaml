@@ -1,4 +1,4 @@
-name: Autódromo Hermanos Rodríguez
+name: 'Autódromo Hermanos Rodri-Queso'
 track_id: 6a1622b7-188f-488f-a99f-29644bf2d62a
 nodes:
 - x: -1.91
@@ -10304,7 +10304,7 @@ metadata:
   country: Mexico
   city: Mexico City
   length_m: 4278.918
-  description: null
+  description: 'Modelled on the Grand Prix circuit in Mexico City, Mexico.'
   year_built: 1962
   category: F1
   environment_type: plains

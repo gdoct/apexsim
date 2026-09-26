@@ -1,4 +1,4 @@
-name: Autodromo Nazionale di Monza
+name: 'Autodromo Monzarella'
 track_id: 57dabbef-70ed-477d-8469-d639cfc20390
 nodes:
 - x: -0.32
@@ -13904,7 +13904,7 @@ metadata:
   country: Italy
   city: Monza
   length_m: 5780.201
-  description: null
+  description: 'Modelled on the Grand Prix circuit in the royal park at Monza, Italy.'
   year_built: 1922
   category: F1
   environment_type: plains

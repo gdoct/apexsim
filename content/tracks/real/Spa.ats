@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Spa.yaml",
-  "track_name": "Circuit de Spa-Francorchamps",
+  "track_name": "Spa-Frankenchamps",
   "surfaces": [
     {
       "id": 381,

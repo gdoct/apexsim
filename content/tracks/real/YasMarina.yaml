@@ -1,4 +1,4 @@
-name: Yas Marina Circuit
+name: 'Yas Marinara Circuit'
 track_id: 5713b6e4-bfb1-4913-aa6b-ab2eb13009f0
 nodes:
 - x: 2.29
@@ -13292,7 +13292,7 @@ metadata:
   country: United Arab Emirates
   city: Abu Dhabi
   length_m: 5519.778
-  description: null
+  description: 'Modelled on the Grand Prix circuit on Yas Island, Abu Dhabi, UAE.'
   year_built: 2009
   category: F1
   environment_type: desert

@@ -330,8 +330,21 @@ struct APEXSIM_API FApexTrackCatalogRow : public FTableRowBase
 {
 	GENERATED_BODY()
 
+	/**
+	 * The name the game shows: a parody of the real circuit's (`Zandervoort`),
+	 * because the real names are the operators' trademarks. The YAML's `name`;
+	 * refreshed on every ApexTrackCatalogSync run.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
 	FString DisplayName;
+
+	/**
+	 * What the circuit is modelled on, by place rather than by trademark
+	 * ("Modelled on the circuit in the dunes at Zandvoort, Netherlands.").
+	 * The YAML's `metadata.description`; refreshed on every sync run.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
+	FString Description;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
 	FString Country;

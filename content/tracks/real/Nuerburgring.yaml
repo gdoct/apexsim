@@ -1,4 +1,4 @@
-name: Nürburgring
+name: 'Nürburgerring'
 track_id: 8e0672d1-8ca9-4305-952a-be5fef19cba0
 nodes:
 - x: 1.24
@@ -12320,7 +12320,7 @@ metadata:
   country: Germany
   city: Nürburg
   length_m: 5140.633
-  description: null
+  description: 'Modelled on the Grand Prix circuit at Nürburg, in Germany''s Eifel hills.'
   year_built: 1927
   category: DTM
   environment_type: forest
