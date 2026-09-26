@@ -60,6 +60,11 @@ pub const KIT: &[KitAsset] = kit![
     // Corner caps tile onto a run at x = -1 like `tires_corner`.
     Barrier "tecpro_corner" 1.4 x 1.4 x 1.15,
     Barrier "concrete_end" 2.0 x 0.6 x 1.0,
+    // German guard rail (the Nordschleife's): W-beams on spacer posts.
+    Barrier "vangrail_4m" 4.0 x 0.3 x 1.25,
+    Barrier "vangrail_4m_triple" 4.0 x 0.3 x 1.6,
+    Barrier "vangrail_4m_fence" 4.0 x 0.4 x 3.55,
+    Barrier "vangrail_end" 2.0 x 0.5 x 1.25,
     TireWall "tires_4m" 4.0 x 1.3 x 0.8,
     TireWall "tires_corner" 1.7 x 1.7 x 0.8,
     Board "hoarding_3m" 3.0 x 0.3 x 2.0,
@@ -68,6 +73,16 @@ pub const KIT: &[KitAsset] = kit![
     Board "light_panel" 1.0 x 0.3 x 2.1,
     // Named-corner board; the name is the prop's `text` on `board_text`.
     Board "corner_sign" 2.4 x 0.1 x 2.6,
+    // German roadside signs, read by a driver coming up the course (the
+    // importer turns them like a braking marker). `km_marker`'s number is
+    // its `text` on the marker slot (`km5` -> T_marker_km5).
+    Board "chevron_left" 1.6 x 0.1 x 1.3,
+    Board "chevron_right" 1.6 x 0.1 x 1.3,
+    Board "km_marker" 0.6 x 0.1 x 1.8,
+    Board "de_curve_left" 0.9 x 0.1 x 2.65,
+    Board "de_curve_right" 0.9 x 0.1 x 2.65,
+    Board "de_danger" 0.9 x 0.1 x 2.65,
+    Board "de_overtake_left" 1.5 x 0.1 x 2.4,
     Sign "marshal_post" 3.2 x 2.4 x 4.8,
     Sign "pit_speed_limit" 0.9 x 0.3 x 2.8,
     Sign "pit_exit_light" 0.6 x 0.4 x 4.2,
@@ -110,6 +125,8 @@ pub const KIT: &[KitAsset] = kit![
     Building "village_house_c" 15.2 x 12.6 x 6.9,
     Building "barn" 19.6 x 10.6 x 8.2,
     Building "chapel" 8.5 x 22.5 x 23.5,
+    // Burg Nürburg, a landmark centred on its footprint like the tower.
+    Building "castle_ruin" 70.0 x 56.0 x 32.0,
     Building "skyline_slab_a" 24.1 x 16.1 x 96.2,
     Building "skyline_pyramid" 20.1 x 20.1 x 112.0,
     Building "skyline_podium" 40.2 x 30.2 x 121.2,

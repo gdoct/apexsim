@@ -43,6 +43,7 @@ use std::f32::consts::TAU;
 
 use crate::ats::{AtsScene, Prop, PropKind, Side, SurfaceKind};
 use crate::barriers;
+use crate::circuit_style::{CircuitStyle, Rail, RoadSigns, TreeBelt};
 use crate::dem::DemFile;
 use crate::layout::{Layout, Wood};
 use crate::props;
@@ -198,9 +199,9 @@ fn tree_asset(leaf: Option<&str>, roll: f32) -> &'static str {
 }
 /// Station cell size of the tree belts.
 const TREE_CELL_M: f32 = 12.0;
-/// Depth range of the belt, measured beyond the road edge.
-const TREE_BELT_NEAR_M: f32 = 22.0;
-const TREE_BELT_FAR_M: f32 = 90.0;
+// The belt's depth range and density are the circuit's
+// (`circuit_style::TreeBelt`): 22-90 m, 3-6 trees a cell, a tenth of the
+// cells empty everywhere but the Nordschleife.
 /// Trees closer than this to the road are planted as the near set. It is
 /// roughly the distance at which a card-foliage tree stops paying for
 /// itself; past it the blobs read the same and cost a twentieth as much.
@@ -213,11 +214,6 @@ const SCATTER_FAR_M: f32 = 40.0;
 const SCATTER_PER_CELL: u32 = 7;
 const TREE_SCALE_MIN: f32 = 0.8;
 const TREE_SCALE_MAX: f32 = 1.5;
-/// Share of belt cells left empty so the belts have gaps.
-const TREE_EMPTY_CELL_SHARE: f32 = 0.10;
-/// Trees per non-empty cell, per side.
-const TREE_MIN_PER_CELL: u32 = 3;
-const TREE_MAX_PER_CELL: u32 = 6;
 /// No trees this close to a building's or grandstand's footprint.
 const TREE_STAND_CLEAR_M: f32 = 40.0;
 /// No tree this close to any other prop.
@@ -532,7 +528,8 @@ fn seat_z(terrain: &TerrainHeightfield, sample: &PathSample, lat: f32, x: f32, y
 }
 
 fn owned_by_board_pass(prop: &Prop) -> bool {
-    prop.kind == PropKind::Sign && BOARDS.iter().any(|(_, asset, _)| *asset == prop.asset)
+    (prop.kind == PropKind::Sign && BOARDS.iter().any(|(_, asset, _)| *asset == prop.asset))
+        || (prop.kind == PropKind::Board && GERMAN_SIGN_ASSETS.contains(&prop.asset.as_str()))
 }
 
 fn owned_by_tree_pass(prop: &Prop) -> bool {
@@ -608,6 +605,13 @@ pub fn groom_scene_with_dem(
     dem: Option<&DemFile>,
 ) -> Option<GroomReport> {
     let path = CenterlinePath::from_track(track)?;
+    // A circuit without a pit lane gets none generated either.
+    if !CircuitStyle::for_scene(scene).pit_lane {
+        let rebuilt = scene.pit_lane.take().is_some();
+        let mut report = groom_props_with_dem(track, scene, layout, dem)?;
+        report.pit_rebuilt = rebuilt;
+        return Some(report);
+    }
     // The circuit's own pit lane is a fact, not a shape to regenerate.
     if scene.pit_lane.as_ref().is_some_and(|pit| pit.authored) {
         let mut report = groom_props_with_dem(track, scene, layout, dem)?;
@@ -657,6 +661,7 @@ pub fn groom_props_with_dem(
     let path = CenterlinePath::from_track(track)?;
     let terrain = seating_terrain(&path, scene, dem)?;
     let dressed = layout.is_some();
+    let style = CircuitStyle::for_scene(scene);
 
     let mut report = GroomReport {
         total: scene.props.len(),
@@ -892,8 +897,15 @@ pub fn groom_props_with_dem(
     }
 
     // One pass decides the whole barrier line: see `lay_all_barriers`.
-    let (new_walls, new_rails) =
-        lay_all_barriers(&path, &terrain, &surfaces, lane.as_ref(), layout, &kept);
+    let (new_walls, new_rails) = lay_all_barriers(
+        &path,
+        &terrain,
+        &surfaces,
+        lane.as_ref(),
+        layout,
+        &kept,
+        &style,
+    );
     report.removed = 0;
     report.walls = new_walls.len();
     let mut props = kept;
@@ -905,14 +917,17 @@ pub fn groom_props_with_dem(
     ));
 
     let corners = braking_corners(&path);
-    let boards = lay_distance_boards(&path, &terrain, &corners, lane.as_ref(), &props);
-    report.boards = boards.len();
-    props.extend(adopt(
-        scene,
-        original_boards,
-        boards,
-        &mut report.boards_rebuilt,
-    ));
+    // German signs stand behind the rails, so they wait for them (below).
+    if style.signs == RoadSigns::BrakingBoards {
+        let boards = lay_distance_boards(&path, &terrain, &corners, lane.as_ref(), &props);
+        report.boards = boards.len();
+        props.extend(adopt(
+            scene,
+            std::mem::take(&mut original_boards),
+            boards,
+            &mut report.boards_rebuilt,
+        ));
+    }
 
     report.barriers = new_rails.len();
     props.extend(adopt(
@@ -922,12 +937,27 @@ pub fn groom_props_with_dem(
         &mut report.barriers_rebuilt,
     ));
 
+    if style.signs == RoadSigns::German {
+        let boards = lay_german_signs(&path, &terrain, lane.as_ref(), &props, &style);
+        report.boards = boards.len();
+        props.extend(adopt(
+            scene,
+            std::mem::take(&mut original_boards),
+            boards,
+            &mut report.boards_rebuilt,
+        ));
+    }
+
     // Boards go on the barriers, so they wait until every wall and armco
     // segment is in its final place.
     report.pushed += snap_boards_to_barriers(&path, &terrain, &mut props);
 
     // So do the hoardings: hung on the rails, brand by brand.
-    let hoardings = lay_hoardings(&path, &terrain, &corners, &props);
+    let hoardings = if style.hoardings {
+        lay_hoardings(&path, &terrain, &corners, &props)
+    } else {
+        Vec::new()
+    };
     report.hoardings = hoardings.len();
     props.extend(adopt(
         scene,
@@ -944,6 +974,7 @@ pub fn groom_props_with_dem(
         &props,
         tree_density(track),
         layout.map(|l| l.woods.as_slice()).unwrap_or(&[]),
+        &style.trees,
     );
     trees.extend(lay_ground_cover(
         &path,
@@ -990,6 +1021,8 @@ fn snap_boards_to_barriers(
         p.kind == PropKind::Board
             && !crate::dress::always_dress_owned(p)
             && !owned_by_hoarding_pass(p)
+            // The German signs are laid behind their rail already.
+            && !GERMAN_SIGN_ASSETS.contains(&p.asset.as_str())
     }) {
         let Some((rx, ry)) = rails
             .iter()
@@ -1097,7 +1130,12 @@ fn lay_hoardings(
     for rail in props.iter().filter(|p| p.kind == PropKind::Barrier) {
         if !matches!(
             rail.asset.as_str(),
-            "armco_4m" | "armco_4m_fence" | "concrete_4m_rail"
+            "armco_4m"
+                | "armco_4m_fence"
+                | "concrete_4m_rail"
+                | "vangrail_4m"
+                | "vangrail_4m_triple"
+                | "vangrail_4m_fence"
         ) {
             continue;
         }
@@ -1397,6 +1435,208 @@ fn lay_distance_boards(
     boards
 }
 
+// ---- German roadside signs (the Nordschleife) ------------------------------
+
+/// Every sign the German pass lays. It owns them by asset, like the
+/// distance boards it stands in for.
+pub const GERMAN_SIGN_ASSETS: [&str; 7] = [
+    "chevron_left",
+    "chevron_right",
+    "km_marker",
+    "de_curve_left",
+    "de_curve_right",
+    "de_danger",
+    "de_overtake_left",
+];
+/// A corner tighter than this (peak radius, metres) gets red-white
+/// chevron boards round its outside.
+const CHEVRON_RADIUS_M: f32 = 160.0;
+/// Chevrons go where the curvature is within this share of the corner's
+/// peak, one every [`CHEVRON_STEP_M`], at most [`CHEVRON_MAX`] a corner.
+const CHEVRON_CORE_SHARE: f32 = 0.6;
+const CHEVRON_STEP_M: f32 = 15.0;
+const CHEVRON_MAX: usize = 6;
+/// Bend warning (Zeichen 103/105) this far before a corner tighter than
+/// [`WARNING_RADIUS_M`]; the danger sign (Zeichen 101) before the
+/// tightest, further back so the two do not share a post.
+const WARNING_RADIUS_M: f32 = 90.0;
+const WARNING_BEFORE_M: f32 = 130.0;
+const DANGER_RADIUS_M: f32 = 40.0;
+const DANGER_BEFORE_M: f32 = 230.0;
+/// A kilometre board every kilometre, an "overtake on the left" board
+/// every few.
+const KM_STEP_M: f32 = 1000.0;
+const OVERTAKE_FIRST_M: f32 = 1500.0;
+const OVERTAKE_EVERY_M: f32 = 3000.0;
+/// How far past the barrier minimum a sign is first put; the board snap
+/// then stands it just behind the nearest rail.
+const SIGN_PAST_BARRIER_M: f32 = 0.8;
+
+/// The Nordschleife's roadside signs in place of braking boards:
+/// chevrons round the outside of every tight corner (pointing the way it
+/// turns), a bend warning and, before the tightest, a danger sign on the
+/// right; a kilometre board every kilometre and the Touristenfahrten
+/// overtaking board every three, also on the right. All of them face up
+/// the course (the importer turns these `board` signs to the oncoming
+/// driver) and stand behind the rail once `snap_boards_to_barriers` has
+/// run.
+fn lay_german_signs(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    lane: Option<&CenterlinePath>,
+    others: &[Prop],
+    style: &CircuitStyle,
+) -> Vec<Prop> {
+    let total = path.total_length_m();
+    let radius = prop_radius(PropKind::Board);
+    let slabs: Vec<Slab> = others
+        .iter()
+        .filter(|p| {
+            !matches!(
+                p.kind,
+                PropKind::Barrier | PropKind::TireWall | PropKind::Tree
+            )
+        })
+        .map(|p| Slab::of(path, p))
+        .collect();
+    let rails: Vec<(f32, f32)> = others
+        .iter()
+        .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+        .map(|p| (p.x, p.y))
+        .collect();
+    let mut out: Vec<Prop> = Vec::new();
+    let place =
+        |out: &mut Vec<Prop>, asset: &str, station: f32, side: Side, text: Option<String>| {
+            let station = station.rem_euclid(total);
+            let sample = path.sample_at(station);
+            let corner = tightest_radius(path, station) < barriers::STRAIGHT_RADIUS_M;
+            let past = if corner {
+                style.corner_barrier_min_m
+            } else {
+                style.straight_barrier_min_m
+            } + SIGN_PAST_BARRIER_M;
+            let mut lat = signed(side, side_half_width(&sample, side) + past);
+            let mut pos = offset_point(&sample, lat);
+            // Just behind the nearest rail on its side, where there is one.
+            if let Some((rx, ry)) = rails
+                .iter()
+                .copied()
+                .filter(|(rx, ry)| (rx - pos.0).hypot(ry - pos.1) <= BOARD_SNAP_RANGE_M)
+                .min_by(|a, b| {
+                    (a.0 - pos.0)
+                        .hypot(a.1 - pos.1)
+                        .total_cmp(&(b.0 - pos.0).hypot(b.1 - pos.1))
+                })
+            {
+                let (_, rail_lat, _) = nearest_cross_section(path, rx, ry);
+                if rail_lat.signum() == lat.signum() {
+                    lat = rail_lat + BOARD_BEHIND_BARRIER_M.copysign(rail_lat);
+                    pos = offset_point(&sample, lat);
+                }
+            }
+            // Where the course folds back, a sign for one leg must not stand
+            // on the other.
+            let (ns, nlat, _) = nearest_cross_section(path, pos.0, pos.1);
+            if nlat.abs() < half_width_on(&ns, nlat) + 1.0 {
+                return;
+            }
+            if lane
+                .is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < PROP_CLEARANCE_M + radius)
+            {
+                return;
+            }
+            if slabs
+                .iter()
+                .any(|p| p.gap(pos.0, pos.1) < radius + BOARD_PROP_CLEAR_M)
+                || out
+                    .iter()
+                    .any(|p| (p.x - pos.0).hypot(p.y - pos.1) < 2.0 * radius + 0.5)
+            {
+                return;
+            }
+            out.push(Prop {
+                id: 0,
+                kind: PropKind::Board,
+                asset: asset.to_string(),
+                x: pos.0,
+                y: pos.1,
+                z: seat_z(terrain, &sample, lat, pos.0, pos.1),
+                yaw_rad: sample.heading_rad,
+                scale: 1.0,
+                text,
+                length_m: None,
+            });
+        };
+
+    for run in corner_runs(path) {
+        if run.peak_kappa < 1.0 / CHEVRON_RADIUS_M {
+            continue;
+        }
+        // The core of the corner: where it turns hardest.
+        let steps = ((run.end_m - run.start_m) / 5.0).ceil().max(1.0) as usize;
+        let core: Vec<f32> = (0..=steps)
+            .map(|i| run.start_m + (run.end_m - run.start_m) * i as f32 / steps as f32)
+            .filter(|&s| curvature_at(path, s).abs() >= CHEVRON_CORE_SHARE * run.peak_kappa)
+            .collect();
+        if let (Some(&first), Some(&last)) = (core.first(), core.last()) {
+            let n = (((last - first) / CHEVRON_STEP_M).floor() as usize + 1).clamp(1, CHEVRON_MAX);
+            for i in 0..n {
+                let s = if n == 1 {
+                    (first + last) / 2.0
+                } else {
+                    first + (last - first) * i as f32 / (n - 1) as f32
+                };
+                let (asset, outside) = if curvature_at(path, s) > 0.0 {
+                    ("chevron_left", Side::Right)
+                } else {
+                    ("chevron_right", Side::Left)
+                };
+                place(&mut out, asset, s, outside, None);
+            }
+        }
+        let peak_radius = 1.0 / run.peak_kappa;
+        if peak_radius < WARNING_RADIUS_M {
+            let asset = if run.entry_kappa > 0.0 {
+                "de_curve_left"
+            } else {
+                "de_curve_right"
+            };
+            place(
+                &mut out,
+                asset,
+                run.start_m - WARNING_BEFORE_M,
+                Side::Right,
+                None,
+            );
+        }
+        if peak_radius < DANGER_RADIUS_M {
+            place(
+                &mut out,
+                "de_danger",
+                run.start_m - DANGER_BEFORE_M,
+                Side::Right,
+                None,
+            );
+        }
+    }
+    let km = (total / KM_STEP_M).floor() as usize;
+    for k in 1..=km {
+        place(
+            &mut out,
+            "km_marker",
+            k as f32 * KM_STEP_M,
+            Side::Right,
+            Some(format!("km{k}")),
+        );
+    }
+    let mut s = OVERTAKE_FIRST_M;
+    while s < total - OVERTAKE_FIRST_M / 2.0 {
+        place(&mut out, "de_overtake_left", s, Side::Right, None);
+        s += OVERTAKE_EVERY_M;
+    }
+    out
+}
+
 // ---- Armco on straights ---------------------------------------------------
 
 /// The station span of the pit lane along the course and which side it
@@ -1451,13 +1691,14 @@ impl LaneSpan {
 
 // ---- The barrier line -----------------------------------------------------
 
-/// Closest a corner's barrier stands to the road edge. Below the Tecpro
-/// decision's `SHORT_RUNOFF_M` on purpose, so a tight corner with nothing
-/// authored still reads as short of room and gets an absorbing barrier.
-const CORNER_BARRIER_MIN_M: f32 = 14.0;
-/// Closest a straight's rail stands to the road edge: where the old armco
-/// pass put it, which the AI was always comfortable beside.
-const STRAIGHT_BARRIER_MIN_M: f32 = 7.0;
+// Closest a corner's and a straight's barrier stand to the road edge are
+// the circuit's (`CircuitStyle::corner_barrier_min_m` /
+// `straight_barrier_min_m`): 14 m and 7 m by default. The corner figure is
+// below the Tecpro decision's `SHORT_RUNOFF_M` on purpose, so a tight
+// corner with nothing authored still reads as short of room and gets an
+// absorbing barrier; the straight one is where the old armco pass put it,
+// which the AI was always comfortable beside. The Nordschleife's rails
+// stand 3-4.5 m off its road, as they really do.
 
 /// How fast the barrier line may move toward or away from the road, in
 /// metres of lateral per metre of course. A straight's 7 m rail funnels
@@ -1538,6 +1779,7 @@ fn lay_all_barriers(
     lane: Option<&CenterlinePath>,
     layout: Option<&Layout>,
     others: &[Prop],
+    style: &CircuitStyle,
 ) -> (Vec<Prop>, Vec<Prop>) {
     let lane_span = lane.map(|l| LaneSpan::of(path, l));
     let total = path.total_length_m();
@@ -1636,11 +1878,17 @@ fn lay_all_barriers(
             let sample = path.sample_at(station);
             let half = side_half_width(&sample, side);
             let radius = tightest_radius(path, station);
-            let authored = wall_offset(path, surfaces, &sample, side);
+            let authored = wall_offset_or(
+                path,
+                surfaces,
+                &sample,
+                side,
+                VERGE_OFFSET_M.min(style.straight_barrier_min_m),
+            );
             let mut offset = if radius < barriers::STRAIGHT_RADIUS_M {
-                authored.max(CORNER_BARRIER_MIN_M)
+                authored.max(style.corner_barrier_min_m)
             } else {
-                authored.max(STRAIGHT_BARRIER_MIN_M)
+                authored.max(style.straight_barrier_min_m)
             };
             // Beside the pit lane the line goes behind the lane.
             if let (Some(lane), Some(span)) = (lane, lane_span.as_ref()) {
@@ -1755,7 +2003,7 @@ fn lay_all_barriers(
             .collect();
         let kind_at = |station: f32| {
             let cell = ((station.rem_euclid(total) / BARRIER_CELL_M) as usize).min(cells - 1);
-            kinds[cell]
+            style.rail.barrier(kinds[cell])
         };
 
         // 5. Walk each run of the line and lay modules end to end.
@@ -1809,11 +2057,17 @@ fn lay_all_barriers(
             let lay = |walls: &mut Vec<Prop>,
                        rails: &mut Vec<Prop>,
                        prop_kind: PropKind,
-                       asset: &str,
+                       asset: &'static str,
                        idx: usize,
                        p: (f32, f32, f32),
                        yaw: f32| {
                 let sample = &samples[idx];
+                // The circuit's own rail (German guard rail at the
+                // Nordschleife) in place of the kit's armco.
+                let asset = match style.rail {
+                    Rail::Armco => asset,
+                    rail => rail.asset(asset, tightest_radius(path, sample.station_m)),
+                };
                 let lat = signed(side, side_half_width(sample, side) + offset[idx]);
                 let prop = Prop {
                     id: 0,
@@ -2167,6 +2421,7 @@ fn tree_density(track: &TrackFile) -> f32 {
 /// circuit folds back on itself), the pit lane, an authored runoff patch,
 /// a building or grandstand, or any other prop — including trees planted
 /// before it, in cell order.
+#[allow(clippy::too_many_arguments)]
 fn lay_tree_belts(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
@@ -2175,6 +2430,7 @@ fn lay_tree_belts(
     others: &[Prop],
     density: f32,
     woods: &[Wood],
+    belt: &TreeBelt,
 ) -> Vec<Prop> {
     const GRID_M: f32 = TREE_PROP_CLEAR_M;
     let grid_key = |x: f32, y: f32| ((x / GRID_M).floor() as i64, (y / GRID_M).floor() as i64);
@@ -2192,12 +2448,12 @@ fn lay_tree_belts(
             };
             let cell = [idx as u64, side_key];
             let roll = hash01(&cell, 0);
-            if roll < TREE_EMPTY_CELL_SHARE {
+            if roll < belt.empty_share {
                 continue;
             }
-            let span = (TREE_MAX_PER_CELL - TREE_MIN_PER_CELL + 1) as f32;
-            let spread = (roll - TREE_EMPTY_CELL_SHARE) / (1.0 - TREE_EMPTY_CELL_SHARE);
-            let count = TREE_MIN_PER_CELL + ((spread * span) as u32).min(span as u32 - 1);
+            let span = (belt.max_per_cell - belt.min_per_cell + 1) as f32;
+            let spread = (roll - belt.empty_share) / (1.0 - belt.empty_share);
+            let count = belt.min_per_cell + ((spread * span) as u32).min(span as u32 - 1);
             let count =
                 ((count as f32 * density).round() as u32).max(if density > 0.0 { 1 } else { 0 });
 
@@ -2205,8 +2461,7 @@ fn lay_tree_belts(
                 let tree = [idx as u64, side_key, k as u64];
                 let station = idx as f32 * TREE_CELL_M + hash01(&tree, 1) * TREE_CELL_M;
                 let sample = path.sample_at(station);
-                let beyond =
-                    TREE_BELT_NEAR_M + hash01(&tree, 2) * (TREE_BELT_FAR_M - TREE_BELT_NEAR_M);
+                let beyond = belt.near_m + hash01(&tree, 2) * (belt.far_m - belt.near_m);
 
                 // Authored runoff on this side at this station: the belt
                 // starts beyond it.
@@ -2229,7 +2484,7 @@ fn lay_tree_belts(
                 // circuit folds, may not be the one that planted it — must
                 // still be a belt's distance away.
                 let (ns, nlat, _) = nearest_cross_section(path, pos.0, pos.1);
-                if nlat.abs() < half_width_on(&ns, nlat) + TREE_BELT_NEAR_M - 0.5 {
+                if nlat.abs() < half_width_on(&ns, nlat) + belt.near_m - 0.5 {
                     continue;
                 }
                 if lane.is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < TREE_LANE_CLEAR_M) {
@@ -2438,6 +2693,19 @@ fn wall_offset(
     sample: &PathSample,
     side: Side,
 ) -> f32 {
+    wall_offset_or(path, surfaces, sample, side, VERGE_OFFSET_M)
+}
+
+/// [`wall_offset`] with the verge a circuit wants where nothing is
+/// authored: the Nordschleife's rail stands on a narrow verge, not 6 m
+/// out.
+fn wall_offset_or(
+    path: &CenterlinePath,
+    surfaces: &[crate::ats::Surface],
+    sample: &PathSample,
+    side: Side,
+    verge_m: f32,
+) -> f32 {
     let runoff_outer = surfaces
         .iter()
         .filter(|s| s.side == side && is_prepared_runoff(s.kind))
@@ -2451,7 +2719,7 @@ fn wall_offset(
 
     match runoff_outer {
         Some(outer) => (outer + WALL_GAP_M).min(MAX_WALL_BEYOND_EDGE_M),
-        None => VERGE_OFFSET_M,
+        None => verge_m,
     }
 }
 
@@ -2654,7 +2922,7 @@ mod tests {
             let beyond = lat.abs() - half_width_on(&sample, lat);
             // Nothing anywhere closer than a straight's rail.
             assert!(
-                beyond >= STRAIGHT_BARRIER_MIN_M - 2.5,
+                beyond >= CircuitStyle::DEFAULT.straight_barrier_min_m - 2.5,
                 "barrier {beyond:.1} m past the edge at station {:.0}",
                 sample.station_m
             );
@@ -2668,7 +2936,7 @@ mod tests {
                 && corner_here(sample.station_m + 2.0 * BARRIER_CELL_M);
             if deep_in_corner {
                 assert!(
-                    beyond >= CORNER_BARRIER_MIN_M - 2.5,
+                    beyond >= CircuitStyle::DEFAULT.corner_barrier_min_m - 2.5,
                     "corner barrier only {beyond:.1} m past the edge at station {:.0}",
                     sample.station_m
                 );
@@ -3222,7 +3490,9 @@ mod tests {
             let (sample, lat, _) = nearest_cross_section(&path, t.x, t.y);
             let beyond = lat.abs() - half_width_on(&sample, lat);
             assert!(
-                (TREE_BELT_NEAR_M - 1.0..=TREE_BELT_FAR_M + 1.0).contains(&beyond),
+                (CircuitStyle::DEFAULT.trees.near_m - 1.0
+                    ..=CircuitStyle::DEFAULT.trees.far_m + 1.0)
+                    .contains(&beyond),
                 "tree {beyond} m beyond the edge"
             );
             assert!(
@@ -3283,6 +3553,76 @@ mod tests {
         assert!(!second.boards_rebuilt && !second.walls_rebuilt);
         assert_eq!(second.trees, first.trees);
         assert_eq!(second.barriers, first.barriers);
+        assert!(scene.validate().is_ok());
+    }
+
+    /// The Nordschleife's style: German guard rail close to the road,
+    /// chevrons round the hairpins and kilometre boards instead of braking
+    /// boards and hoardings, a denser forest nearer the road, and a
+    /// second groom that changes nothing.
+    #[test]
+    fn the_nordschleife_is_groomed_in_its_own_style() {
+        let track = track();
+        let mut scene = AtsScene::new_for_track(&track, "Nordschleife.yaml");
+        groom_scene(&track, &mut scene).unwrap();
+
+        let rails: Vec<&Prop> = of_kind(&scene, PropKind::Barrier);
+        assert!(!rails.is_empty());
+        assert!(
+            rails.iter().all(|p| !p.asset.starts_with("armco")),
+            "armco laid in the vangrail style"
+        );
+        assert!(rails.iter().any(|p| p.asset == "vangrail_4m"));
+        assert!(rails.iter().any(|p| p.asset == "vangrail_4m_triple"));
+        assert!(
+            !rails.iter().any(|p| p.asset.starts_with("tecpro")),
+            "Tecpro in the vangrail style"
+        );
+        // Close to the road: 6 m half width, the rail 3 m past the edge on
+        // the straights.
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let (_, lat, _) = nearest_cross_section(&path, 400.0, -9.0);
+        let nearest_rail = rails
+            .iter()
+            .map(|p| nearest_cross_section(&path, p.x, p.y).1.abs())
+            .fold(f32::MAX, f32::min);
+        assert!(nearest_rail < 10.0, "nearest rail {nearest_rail} m ({lat})");
+
+        let boards = of_kind(&scene, PropKind::Board);
+        assert!(
+            boards.iter().any(|p| p.asset.starts_with("chevron_")),
+            "no chevrons"
+        );
+        let km: Vec<_> = boards.iter().filter(|p| p.asset == "km_marker").collect();
+        assert_eq!(km.len(), (path.total_length_m() / 1000.0).floor() as usize);
+        assert_eq!(km[0].text.as_deref(), Some("km1"));
+        assert!(!boards.iter().any(|p| p.asset.starts_with("hoarding")));
+        assert!(of_kind(&scene, PropKind::Sign)
+            .iter()
+            .all(|p| !BOARDS.iter().any(|(_, a, _)| *a == p.asset)));
+        // Every chevron points the way its corner turns: this track turns
+        // left only, so every chevron is a left one, on the right.
+        assert!(boards
+            .iter()
+            .filter(|p| p.asset.starts_with("chevron_"))
+            .all(|p| p.asset == "chevron_left"));
+
+        let mut plain = AtsScene::new_for_track(&track, "Groom.yaml");
+        groom_scene(&track, &mut plain).unwrap();
+        let trees = |s: &AtsScene| s.props.iter().filter(|p| p.kind == PropKind::Tree).count();
+        assert!(
+            trees(&scene) > trees(&plain),
+            "{} vs {}",
+            trees(&scene),
+            trees(&plain)
+        );
+
+        assert!(scene.pit_lane.is_none(), "a pit lane was generated");
+
+        let first = scene.clone();
+        let second = groom_scene(&track, &mut scene).unwrap();
+        assert!(!second.changed(), "second pass changed: {second:?}");
+        assert_eq!(scene, first);
         assert!(scene.validate().is_ok());
     }
 

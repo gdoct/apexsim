@@ -94,9 +94,13 @@ namespace ApexProps
 	bool FacesUpCourse(const FString& Kind, const FString& Asset)
 	{
 		// A distance board and a marshal light panel are read by a driver
-		// coming down the road, not by the crowd across it.
+		// coming down the road, not by the crowd across it; so are the
+		// Nordschleife's German signs (chevrons, kilometre boards, the
+		// bend, danger and overtaking signs).
 		return Kind == TEXT("board")
-			&& (Asset == TEXT("braking_marker") || Asset == TEXT("light_panel"));
+			&& (Asset == TEXT("braking_marker") || Asset == TEXT("light_panel")
+				|| Asset.StartsWith(TEXT("chevron_")) || Asset == TEXT("km_marker")
+				|| Asset.StartsWith(TEXT("de_")));
 	}
 
 	bool FacesRoad(const FString& Kind, const FString& Asset)
@@ -194,6 +198,42 @@ namespace ApexProps
 	FString FlagTextureObjectPath(const FString& Root, const FString& Code)
 	{
 		return FString::Printf(TEXT("%s/T_flag_%s.T_flag_%s"), *FlagsFolder(Root), *Code, *Code);
+	}
+
+	const TCHAR* const DecalKind = TEXT("decal");
+
+	TArray<FString> DecalSets()
+	{
+		return {TEXT("graffiti")};
+	}
+
+	FString DecalFolder(const FString& Root, const FString& Set)
+	{
+		// `Graffiti`, the way the other loose sets are named (`Brands`, `Flags`).
+		FString Folder = Set;
+		if (!Folder.IsEmpty())
+		{
+			Folder[0] = FChar::ToUpper(Folder[0]);
+		}
+		return Root / DecalKind / Folder;
+	}
+
+	FString DecalTextureObjectPath(const FString& Root, const FString& Set, const FString& Name)
+	{
+		const FString Asset = FString::Printf(TEXT("T_%s_%s"), *Set, *Name);
+		return FString::Printf(TEXT("%s/%s.%s"), *DecalFolder(Root, Set), *Asset, *Asset);
+	}
+
+	bool ParseDecalKey(const FString& Key, FString& OutSet, FString& OutName)
+	{
+		static const FString Prefix = TEXT("decal_");
+		if (!Key.StartsWith(Prefix, ESearchCase::CaseSensitive))
+		{
+			return false;
+		}
+		const FString Rest = Key.RightChop(Prefix.Len());
+		return Rest.Split(TEXT("_"), &OutSet, &OutName, ESearchCase::CaseSensitive, ESearchDir::FromStart)
+			&& !OutSet.IsEmpty() && !OutName.IsEmpty();
 	}
 
 	bool IsFlagSlot(FName SlotName)

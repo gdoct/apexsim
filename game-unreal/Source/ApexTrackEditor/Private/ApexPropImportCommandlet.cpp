@@ -381,7 +381,7 @@ bool UApexPropImportCommandlet::ParseOptions(const FString& Params, FOptions& Ou
 	}
 	for (const FString& Kind : Out.Kinds)
 	{
-		if (!ApexProps::FindKind(Kind))
+		if (!ApexProps::FindKind(Kind) && Kind != ApexProps::DecalKind)
 		{
 			OutError = FString::Printf(TEXT("\"%s\" is not a prop kind (see docs/PROPS.md)"), *Kind);
 			return false;
@@ -451,7 +451,8 @@ bool UApexPropImportCommandlet::CollectSources(
 			return false;
 		}
 	}
-	if (OutSources.IsEmpty())
+	// `-kind=decal` alone imports PNGs and no GLB at all.
+	if (OutSources.IsEmpty() && !Options.Kinds.Contains(ApexProps::DecalKind))
 	{
 		OutError = FString::Printf(TEXT("%s holds no GLBs for the requested kinds"), *Options.SourceDir);
 		return false;
@@ -833,16 +834,30 @@ bool UApexPropImportCommandlet::ImportLooseTextures(
 		FString Dest;
 		const TCHAR* Prefix;
 	};
-	const FSet Sets[] = {
+	TArray<FSet> Sets = {
 		{TEXT("board"), TEXT("board/brands"), ApexProps::BrandsFolder(Options.DestRoot), TEXT("T_brand_")},
 		{TEXT("board"), TEXT("board/markers"), ApexProps::MarkersFolder(Options.DestRoot), TEXT("T_marker_")},
 		{TEXT("sign"), TEXT("sign/flags"), ApexProps::FlagsFolder(Options.DestRoot), TEXT("T_flag_")},
 	};
+	// Road decals: PNGs only, no GLB, so `decal` is not a kind folder and
+	// is only ever asked for by name (`-kind=decal`) or by `-all`.
+	TArray<FString> DecalFolders;
+	TArray<FString> DecalPrefixes;
+	for (const FString& Set : ApexProps::DecalSets())
+	{
+		DecalFolders.Add(FString(ApexProps::DecalKind) / Set);
+		DecalPrefixes.Add(FString::Printf(TEXT("T_%s_"), *Set));
+	}
+	for (int32 i = 0; i < DecalFolders.Num(); ++i)
+	{
+		Sets.Add({ApexProps::DecalKind, *DecalFolders[i],
+			ApexProps::DecalFolder(Options.DestRoot, ApexProps::DecalSets()[i]), *DecalPrefixes[i]});
+	}
 	bool bOk = true;
 	TSet<UPackage*> Packages;
 	for (const FSet& Set : Sets)
 	{
-		if (!Options.bAll && !WholeKinds.Contains(Set.Kind))
+		if (!Options.bAll && !WholeKinds.Contains(Set.Kind) && !Options.Kinds.Contains(Set.Kind))
 		{
 			continue;
 		}
@@ -959,7 +974,8 @@ int32 UApexPropImportCommandlet::Main(const FString& Params)
 		}
 	}
 
-	if (Options.bAll || WholeKinds.Contains(TEXT("board")) || WholeKinds.Contains(TEXT("sign")))
+	if (Options.bAll || WholeKinds.Contains(TEXT("board")) || WholeKinds.Contains(TEXT("sign"))
+		|| Options.Kinds.Contains(ApexProps::DecalKind))
 	{
 		ImportLooseTextures(Options, Stats, WholeKinds);
 	}

@@ -6,6 +6,7 @@
 pub mod ats;
 pub mod ats_io;
 pub mod barriers;
+pub mod circuit_style;
 pub mod dem;
 pub mod dress;
 pub mod groom;

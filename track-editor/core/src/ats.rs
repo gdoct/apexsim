@@ -50,6 +50,11 @@ pub struct AtsScene {
     pub pit_lane: Option<PitLane>,
     #[serde(default)]
     pub props: Vec<Prop>,
+    /// Pictures painted on the road itself: the Nordschleife's graffiti.
+    /// Baked as road-hugging quads under a textured, masked material, so a
+    /// decal follows the camber and the grade the way paint does.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub decals: Vec<Decal>,
     /// How the kit is dressed on import: season and spectators.
     #[serde(default, skip_serializing_if = "Dressing::is_default")]
     pub dressing: Dressing,
@@ -466,6 +471,56 @@ fn default_scale() -> f32 {
     1.0
 }
 
+/// A picture painted on the road surface, anchored in station/lateral space
+/// like a [`Marking`] but carrying an image instead of a flat colour.
+///
+/// The image is a PNG with alpha under `content/props/decal/<set>/<name>.png`
+/// (`image` is `"<set>/<name>"`), imported by `ApexPropImport` as
+/// `/Game/Props/decal/<Set>/T_<set>_<name>`. Its top edge lies at
+/// `start_m + length_m` and its left edge on the left of the road, so it
+/// reads the right way up for a driver doing the lap — which is how the
+/// fans paint it. `reversed` turns it round for the other direction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Decal {
+    pub id: u64,
+    /// `"<set>/<name>"`, e.g. `graffiti/gruene_hoelle`.
+    pub image: String,
+    /// Station of the edge a driver reaches first.
+    pub start_m: f32,
+    /// Extent along the road, metres. Graffiti is painted long, because a
+    /// driver sees the road foreshortened.
+    pub length_m: f32,
+    /// Centre of the picture across the road, metres, positive left.
+    pub lat_m: f32,
+    /// Extent across the road, metres.
+    pub width_m: f32,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub reversed: bool,
+}
+
+impl Decal {
+    /// `(set, name)` of [`Self::image`], or `None` when it is not
+    /// `set/name` of lower-case ASCII and digits (and underscores in the
+    /// name) — the key becomes an Unreal asset name, which tolerates
+    /// nothing else, and the importer splits it at the set's end.
+    pub fn image_parts(&self) -> Option<(&str, &str)> {
+        let (set, name) = self.image.split_once('/')?;
+        let ok = |s: &str, underscore: bool| {
+            !s.is_empty()
+                && s.bytes().all(|b| {
+                    b.is_ascii_lowercase() || b.is_ascii_digit() || (underscore && b == b'_')
+                })
+        };
+        (ok(set, false) && ok(name, true)).then_some((set, name))
+    }
+
+    /// The bake's material key: `decal_<set>_<name>`.
+    pub fn material_key(&self) -> Option<String> {
+        self.image_parts()
+            .map(|(set, name)| format!("decal_{set}_{name}"))
+    }
+}
+
 impl AtsScene {
     /// Length along the track of the seeded start/finish line, meters. The
     /// Unreal bake paints it as a chequer of [`Self::START_FINISH_CHECK_M`]
@@ -500,6 +555,7 @@ impl AtsScene {
             }],
             pit_lane: None,
             props: Vec::new(),
+            decals: Vec::new(),
             dressing: Dressing::default(),
             next_id: 2,
         }
@@ -544,15 +600,22 @@ impl AtsScene {
         self.props.iter_mut().find(|p| p.id == id)
     }
 
-    /// Remove whichever element (surface, curb, marking, or prop) carries
-    /// `id`. Returns `false` if no element has that id.
+    pub fn decal(&self, id: u64) -> Option<&Decal> {
+        self.decals.iter().find(|d| d.id == id)
+    }
+
+    /// Remove whichever element (surface, curb, marking, prop or decal)
+    /// carries `id`. Returns `false` if no element has that id.
     pub fn remove_element(&mut self, id: u64) -> bool {
-        let count = |s: &Self| s.surfaces.len() + s.curbs.len() + s.markings.len() + s.props.len();
+        let count = |s: &Self| {
+            s.surfaces.len() + s.curbs.len() + s.markings.len() + s.props.len() + s.decals.len()
+        };
         let before = count(self);
         self.surfaces.retain(|s| s.id != id);
         self.curbs.retain(|c| c.id != id);
         self.markings.retain(|m| m.id != id);
         self.props.retain(|p| p.id != id);
+        self.decals.retain(|d| d.id != id);
         count(self) != before
     }
 
@@ -578,6 +641,7 @@ impl AtsScene {
             .chain(self.curbs.iter().map(|c| c.id))
             .chain(self.markings.iter().map(|m| m.id))
             .chain(self.props.iter().map(|p| p.id))
+            .chain(self.decals.iter().map(|d| d.id))
             .collect();
         ids.sort_unstable();
         if ids.windows(2).any(|w| w[0] == w[1]) {
@@ -640,6 +704,24 @@ impl AtsScene {
             }
             if !(prop.x.is_finite() && prop.y.is_finite() && prop.z.is_finite()) {
                 return Err(format!("prop {}: non-finite position", prop.id));
+            }
+        }
+        for decal in &self.decals {
+            if decal.image_parts().is_none() {
+                return Err(format!(
+                    "decal {}: image {:?} is not set/name in lower-case ASCII",
+                    decal.id, decal.image
+                ));
+            }
+            if !(decal.start_m.is_finite() && decal.lat_m.is_finite()) {
+                return Err(format!("decal {}: non-finite position", decal.id));
+            }
+            if !(decal.length_m.is_finite()
+                && decal.length_m > 0.0
+                && decal.width_m.is_finite()
+                && decal.width_m > 0.0)
+            {
+                return Err(format!("decal {}: size must be positive", decal.id));
             }
         }
         if let Some(pit) = &self.pit_lane {

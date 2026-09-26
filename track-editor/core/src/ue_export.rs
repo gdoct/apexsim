@@ -59,7 +59,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ats::{AtsScene, Curb, Dressing, Marking, MarkingKind, Prop, PropKind, Side, Surface};
+use crate::ats::{
+    AtsScene, Curb, Decal, Dressing, Marking, MarkingKind, Prop, PropKind, Side, Surface,
+};
 use crate::dem::DemFile;
 use crate::props;
 use crate::strip_layout::{
@@ -159,6 +161,14 @@ const RUNOFF_STRIPE_M: f32 = 1.5;
 const RUNOFF_PAINT_LIFT_M: f32 = 0.012;
 /// Start/finish chequer and grid boxes sit a hair over the edge lines.
 const GRID_PAINT_LIFT_M: f32 = MARKING_LIFT_M + 0.005;
+/// Road decals (graffiti) are painted over everything else on the road,
+/// edge lines included.
+const DECAL_LIFT_M: f32 = GRID_PAINT_LIFT_M + 0.005;
+/// A decal is cut into columns this wide across the road and rows this
+/// long along it, so it follows the crown and the camber instead of
+/// bridging them as one flat quad.
+const DECAL_COLUMN_M: f32 = 1.0;
+const DECAL_ROW_M: f32 = 0.5;
 /// Pit-lane lines ride on the lifted lane deck.
 const PIT_LINE_LIFT_M: f32 = PIT_LIFT_M + MARKING_LIFT_M;
 const CHEQUER_CHECK_M: f32 = 0.5;
@@ -259,7 +269,7 @@ pub struct UeMetadata {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UeMaterial {
     pub key: String,
-    /// `road`, `curb`, `surface`, `marking` or `pit_lane` — lets the
+    /// `road`, `curb`, `surface`, `marking`, `decal` or `pit_lane` — lets the
     /// commandlet pick a parent material per family.
     pub family: String,
     /// Linear RGBA.
@@ -588,7 +598,7 @@ fn wall_face(
 pub(crate) fn footprint_is_centred(kind: PropKind, asset: &str) -> bool {
     matches!(
         (kind, asset),
-        (PropKind::Building, "control_tower")
+        (PropKind::Building, "control_tower" | "castle_ruin")
             | (
                 PropKind::Attraction,
                 "camera_tower" | "ferris_wheel" | "tent_6m"
@@ -1007,6 +1017,9 @@ pub fn bake_all_with_dem(
     }
     for marking in &scene.markings {
         bake.marking(&path, marking);
+    }
+    for decal in &scene.decals {
+        bake.decal(&path, decal);
     }
     bake.grid_boxes(track, &path);
     bake.drs_lines(track, &path);
@@ -2881,6 +2894,56 @@ impl Bake<'_> {
             lo,
             MARKING_LIFT_M,
         );
+    }
+
+    /// A picture on the road ([`Decal`]): a road-hugging grid under the
+    /// decal's own material key (family `decal`), with UVs normalised over
+    /// the picture — `u` 0 at its left edge to 1 at its right, `v` 0 at
+    /// the far end to 1 at the near one — so the texture's top reads
+    /// furthest down the road. A reversed decal is turned half round.
+    fn decal(&mut self, path: &CenterlinePath, decal: &Decal) {
+        let Some(key) = decal.material_key() else {
+            return;
+        };
+        let total = path.total_length_m();
+        if total.is_nan() || total <= 0.0 || decal.length_m >= total {
+            return;
+        }
+        self.register(&key, "decal", [1.0, 1.0, 1.0, 1.0]);
+        let left = decal.lat_m + decal.width_m / 2.0;
+        let right = decal.lat_m - decal.width_m / 2.0;
+        let columns = ((decal.width_m / DECAL_COLUMN_M).ceil() as usize).max(1);
+        let first = self.chunks.len();
+        self.strip(
+            path,
+            decal.start_m,
+            decal.start_m + decal.length_m,
+            DECAL_ROW_M,
+            &key,
+            move |_, _, out| {
+                for c in 0..=columns {
+                    let lat = left - (left - right) * c as f32 / columns as f32;
+                    out.push(ProfilePoint::lifted(lat, DECAL_LIFT_M));
+                }
+            },
+            |_, _, p| p.2,
+        );
+        // `strip` wrote u = station (unwrapped from the span's start) and
+        // v = distance across from the left edge, both in metres.
+        let start = decal.start_m.rem_euclid(total);
+        for chunk in &mut self.chunks[first..] {
+            for uv in chunk.uvs.as_chunks_mut::<2>().0 {
+                let along = ((uv[0] - start).rem_euclid(total) / decal.length_m).clamp(0.0, 1.0);
+                let across = (uv[1] / decal.width_m).clamp(0.0, 1.0);
+                let (u, v) = if decal.reversed {
+                    (1.0 - across, along)
+                } else {
+                    (across, 1.0 - along)
+                };
+                uv[0] = round(u, 4);
+                uv[1] = round(v, 4);
+            }
+        }
     }
 
     /// The start/finish line as a chequer: the marking's span along the

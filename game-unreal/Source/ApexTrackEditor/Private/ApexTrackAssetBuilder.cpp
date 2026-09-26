@@ -1557,8 +1557,25 @@ bool FApexTrackAssetBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		return GroundSets.Add(Set, LoadGroundSet(Set));
 	};
 
+	if (!BuildDecalMaterial(OutError))
+	{
+		return false;
+	}
 	for (const FApexTrackMaterial& Source : Scene.Materials)
 	{
+		// A road decal is a picture, not a colour on the shared parent.
+		if (Source.Family == TEXT("decal"))
+		{
+			if (UMaterialInterface* Decal = DecalMaterialFor(Source.Key, OutError))
+			{
+				Materials.Add(Source.Key, Decal);
+			}
+			else if (!OutError.IsEmpty())
+			{
+				return false;
+			}
+			continue;
+		}
 		UMaterialInstanceConstant* Instance = MakeInstance(Source.Key);
 		if (!Instance)
 		{
@@ -1835,6 +1852,106 @@ bool FApexTrackAssetBuilder::BuildBrandMaterial(FString& OutError)
 	TouchedPackages.Add(ParentPackage);
 	BrandParent = Parent;
 	return true;
+}
+
+bool FApexTrackAssetBuilder::BuildDecalMaterial(FString& OutError)
+{
+	// Paint on the road: the texture's colour at a paint's sheen, its alpha
+	// as the mask, so the asphalt shows through wherever nothing is painted
+	// (and through the gaps the texture leaves in a worn stroke).
+	UTexture* Placeholder = LoadObject<UTexture>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+	if (!Placeholder)
+	{
+		UE_LOG(LogApexTrackImport, Warning,
+			TEXT("    the engine's DefaultTexture is missing; road decals are left out"));
+		return true;
+	}
+
+	const FString ParentPackageName = TrackFolder / TEXT("M_ApexDecal");
+	UPackage* ParentPackage = MakePackage(ParentPackageName);
+	if (!ParentPackage)
+	{
+		OutError = FString::Printf(TEXT("could not create package %s"), *ParentPackageName);
+		return false;
+	}
+	UMaterial* Parent = NewObject<UMaterial>(
+		ParentPackage, *ObjectNameOf(ParentPackageName), RF_Public | RF_Standalone);
+
+	UMaterialExpressionTextureSampleParameter2D* Sample =
+		AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+	Sample->ParameterName = TEXT("DecalTexture");
+	Sample->Texture = Placeholder;
+	Sample->SamplerType = SAMPLERTYPE_Color;
+	// Road paint is a matte coat; the tint dims the texture's white to what
+	// a sprayed white reflects under the race's sun.
+	UMaterialExpressionVectorParameter* TintParam = AddExpr<UMaterialExpressionVectorParameter>(Parent);
+	TintParam->ParameterName = TEXT("Tint");
+	TintParam->DefaultValue = FLinearColor(0.72f, 0.72f, 0.70f, 1.0f);
+	UMaterialExpressionMultiply* Tinted = AddExpr<UMaterialExpressionMultiply>(Parent);
+	Tinted->A.Expression = Sample;
+	Tinted->B.Expression = TintParam;
+	UMaterialExpressionScalarParameter* RoughnessParam =
+		AddExpr<UMaterialExpressionScalarParameter>(Parent);
+	RoughnessParam->ParameterName = TEXT("Roughness");
+	RoughnessParam->DefaultValue = 0.6f;
+
+	UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
+	EditorOnly->BaseColor.Expression = Tinted;
+	EditorOnly->Roughness.Expression = RoughnessParam;
+	// Output 4 of a texture sample is its alpha.
+	EditorOnly->OpacityMask.Connect(4, Sample);
+	Parent->BlendMode = BLEND_Masked;
+	Parent->OpacityMaskClipValue = 0.4f;
+	Parent->PostEditChange();
+	FAssetRegistryModule::AssetCreated(Parent);
+	ParentPackage->MarkPackageDirty();
+	TouchedPackages.Add(ParentPackage);
+	DecalParent = Parent;
+	return true;
+}
+
+UMaterialInterface* FApexTrackAssetBuilder::DecalMaterialFor(const FString& Key, FString& OutError)
+{
+	FString Set;
+	FString Name;
+	if (!DecalParent || !ApexProps::ParseDecalKey(Key, Set, Name))
+	{
+		MissingDecals.Add(Key);
+		return nullptr;
+	}
+	const FString TexturePath = ApexProps::DecalTextureObjectPath(PropsRoot, Set, Name);
+	FString TexturePackage;
+	FString TextureObject;
+	TexturePath.Split(TEXT("."), &TexturePackage, &TextureObject, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+	UTexture* Texture = FPackageName::DoesPackageExist(TexturePackage)
+		? LoadObject<UTexture>(nullptr, *TexturePath)
+		: nullptr;
+	if (!Texture)
+	{
+		// Paint with no picture would be a white slab across the road:
+		// leave it out and say which import is missing.
+		UE_LOG(LogApexTrackImport, Warning,
+			TEXT("    %s is not imported (ApexPropImport -kind=decal); %s is left out"),
+			*TexturePath, *Key);
+		MissingDecals.Add(Key);
+		return nullptr;
+	}
+	const FString PackagePath = TrackFolder / (TEXT("MI_") + Key);
+	UPackage* Package = MakePackage(PackagePath);
+	if (!Package)
+	{
+		OutError = FString::Printf(TEXT("could not create package %s"), *PackagePath);
+		return nullptr;
+	}
+	UMaterialInstanceConstant* Instance = NewObject<UMaterialInstanceConstant>(
+		Package, *ObjectNameOf(PackagePath), RF_Public | RF_Standalone);
+	Instance->SetParentEditorOnly(DecalParent);
+	Instance->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("DecalTexture")), Texture);
+	Instance->PostEditChange();
+	FAssetRegistryModule::AssetCreated(Instance);
+	Package->MarkPackageDirty();
+	TouchedPackages.Add(Package);
+	return Instance;
 }
 
 UStaticMesh* FApexTrackAssetBuilder::FindAuthoredMesh(const FString& Kind, const FString& Asset)
@@ -2147,8 +2264,14 @@ bool FApexTrackAssetBuilder::BuildMeshes(const FApexTrackScene& Scene, FString& 
 	// short of a screenshot.
 	int32 BandVertices = 0;
 	int32 FringeVertices = 0;
+	int32 SkippedDecals = 0;
 	for (const FApexTrackMesh& Source : Scene.Meshes)
 	{
+		if (MissingDecals.Contains(Source.MaterialKey))
+		{
+			++SkippedDecals;
+			continue;
+		}
 		FMeshDescription MeshDescription;
 		const FMeshSlot Slot{Source.MaterialKey, Source.Indices};
 		// A run-off band gets the seam fringe ramp in its vertex colours.
@@ -2173,6 +2296,11 @@ bool FApexTrackAssetBuilder::BuildMeshes(const FApexTrackScene& Scene, FString& 
 	}
 
 	UE_LOG(LogApexTrackImport, Display, TEXT("    generated %d static mesh(es)"), Meshes.Num());
+	if (SkippedDecals > 0)
+	{
+		UE_LOG(LogApexTrackImport, Warning,
+			TEXT("    %d road decal mesh(es) left out: their textures are not imported"), SkippedDecals);
+	}
 	if (BandVertices > 0)
 	{
 		UE_LOG(LogApexTrackImport, Display,
