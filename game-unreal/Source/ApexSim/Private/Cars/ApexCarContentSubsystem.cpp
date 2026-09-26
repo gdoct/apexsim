@@ -806,12 +806,27 @@ UMaterialInstanceDynamic* ApexCarContent::OwnMaterialInstance(UStaticMeshCompone
 			return Existing;
 		}
 	}
-	UMaterialInterface* Parent = bFromMesh ? Mesh->GetMaterial(Index) : Current;
+	UMaterialInterface* Base = bFromMesh ? Mesh->GetMaterial(Index) : Current;
+	if (!Base)
+	{
+		return nullptr;
+	}
+	// A dynamic instance cannot parent another: the engine refuses it, and
+	// the child draws as the default material. A runtime body's slots are
+	// dynamic instances, so the car's own is made from the cooked parent
+	// underneath, carrying the model's own values (colour, texture,
+	// emission, clear coat) across.
+	UMaterialInstanceDynamic* Shared = Cast<UMaterialInstanceDynamic>(Base);
+	UMaterialInterface* Parent = Shared ? Shared->Parent.Get() : Base;
 	if (!Parent)
 	{
 		return nullptr;
 	}
 	UMaterialInstanceDynamic* Instance = UMaterialInstanceDynamic::Create(Parent, &Component);
+	if (Shared)
+	{
+		Instance->CopyParameterOverrides(Shared);
+	}
 	Component.SetMaterial(Index, Instance);
 	return Instance;
 }
