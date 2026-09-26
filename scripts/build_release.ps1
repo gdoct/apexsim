@@ -9,7 +9,8 @@
         1. preflight  - the car and track data the build consumes must exist
         2. server     - cargo build --release -> apexsim-server.exe
         3. props      - ApexPropImport, the authored prop kit into /Game/Props
-        4. tracks     - scripts/build_track_levels.ps1 (bake + import levels)
+        4. tracks     - scripts/build_track_levels.ps1 (bake + import levels);
+                        with -RuntimeTracks, bake only and ApexMaterialBake
         5. catalog    - build_track_catalog.py + ApexTrackCatalogSync, so the
                         track picker has names, metadata and preview art
         5. client     - scripts/build_game_standalone.ps1 (BuildCookRun)
@@ -27,6 +28,9 @@
             LICENSE
             release.json        version, commit, configuration, contents
             Game/               the packaged client + settings.sample.yml
+            Game/Tracks/        -RuntimeTracks only: every circuit as its
+                                export (.uescene.json + .uemesh + .png),
+                                built by the game when it is raced
             Server/             apexsim-server.exe + server.toml + content/
 
     Every stage can be skipped so a broken piece does not block the rest; a
@@ -65,7 +69,18 @@
     Reuse the prop kit already imported under game-unreal/Content/Props.
 
 .PARAMETER SkipTracks
-    Reuse the track levels already under game-unreal/Content/Tracks.
+    Reuse the track levels already under game-unreal/Content/Tracks (or, with
+    -RuntimeTracks, the exports already under content/tracks/export).
+
+.PARAMETER RuntimeTracks
+    Ship the circuits as data the game builds at runtime
+    (docs/RUNTIME_CONTENT_LOADING.md) instead of cooked levels: the bake stops
+    before the Unreal import, the shared track materials are baked with
+    ApexMaterialBake so the cook carries them, and every export is copied into
+    Game/Tracks. A circuit added later needs only its three files dropped in
+    there. Levels already imported under game-unreal/Content/Tracks are still
+    cooked and still preferred by the game (apexsim.track.Source auto); delete
+    that folder first for a package that is runtime tracks only.
 
 .PARAMETER SkipCatalog
     Reuse the DT_TrackCatalog rows and preview textures already imported.
@@ -101,6 +116,7 @@ param(
     [switch]$SkipServer,
     [switch]$SkipProps,
     [switch]$SkipTracks,
+    [switch]$RuntimeTracks,
     [switch]$SkipCatalog,
     [switch]$SkipClient,
     [string]$ClientArtifactDirectory
@@ -114,6 +130,8 @@ $Uproject     = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 $CarsDir      = Join-Path $RepoRoot 'content\cars'
 $TrackDir     = Join-Path $RepoRoot 'content\tracks\real'
 $LevelDir     = Join-Path $RepoRoot 'game-unreal\Content\Tracks'
+$ExportDir    = Join-Path $RepoRoot 'content\tracks\export'
+$MaterialsDir = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
 $PropsSrcDir  = Join-Path $RepoRoot 'content\props'
 $PropsDir     = Join-Path $RepoRoot 'game-unreal\Content\Props'
 $CatalogAsset = Join-Path $RepoRoot 'game-unreal\Content\Data\DT_TrackCatalog.uasset'
@@ -187,6 +205,38 @@ function Get-TrackFiles {
     return @(Get-ChildItem $TrackDir -Filter '*.yaml' -File)
 }
 
+# Tracks whose runtime export (manifest and mesh blob) is not on disk.
+function Get-MissingExports {
+    return @(Get-TrackFiles | ForEach-Object { $_.BaseName } | Where-Object {
+        -not (Test-Path (Join-Path $ExportDir "$_.uescene.json")) -or
+        -not (Test-Path (Join-Path $ExportDir "$_.uemesh"))
+    })
+}
+
+# The runtime tracks, as the game looks for them: manifest, blob and the
+# catalog preview beside each other in Game\Tracks.
+function Copy-RuntimeTracks {
+    param([string]$Destination)
+    if (Test-Path $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    $noPreview = [Collections.Generic.List[string]]::new()
+    foreach ($track in Get-TrackFiles) {
+        $stem = $track.BaseName
+        foreach ($file in @("$stem.uescene.json", "$stem.uemesh")) {
+            Copy-Item -LiteralPath (Join-Path $ExportDir $file) -Destination $Destination -Force
+        }
+        $preview = Join-Path $ExportDir "previews\$stem.png"
+        if (Test-Path -LiteralPath $preview) {
+            Copy-Item -LiteralPath $preview -Destination (Join-Path $Destination "$stem.png") -Force
+        } else {
+            $noPreview.Add($stem)
+        }
+    }
+    if ($noPreview.Count -gt 0) {
+        Write-Warning ("no preview for: {0} (run build_track_catalog.py; the picker shows placeholder art)" -f ($noPreview -join ', '))
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Preflight
 #
@@ -254,8 +304,17 @@ function Invoke-Preflight {
     }
 
     # A packaged build with no track levels races in an empty world, so a
-    # skipped bake has to prove the levels are already there.
-    if ($SkipTracks -and $tracks.Count -gt 0) {
+    # skipped bake has to prove the levels (or the exports) are already there.
+    if ($SkipTracks -and $RuntimeTracks -and $tracks.Count -gt 0) {
+        $missing = @(Get-MissingExports)
+        if ($missing.Count -gt 0) {
+            $problems.Add("-SkipTracks -RuntimeTracks, but these tracks have no export under ${ExportDir}: $($missing -join ', ')")
+        }
+        if (-not (Test-Path (Join-Path $MaterialsDir 'M_ApexTrackBase.uasset'))) {
+            $problems.Add("-SkipTracks -RuntimeTracks, but the track materials were never baked ($MaterialsDir); run -run=ApexMaterialBake")
+        }
+    }
+    elseif ($SkipTracks -and $tracks.Count -gt 0) {
         $missing = @($tracks | ForEach-Object { $_.BaseName } | Where-Object {
             -not (Test-Path (Join-Path $LevelDir "$_\L_$_.umap"))
         })
@@ -414,7 +473,40 @@ else {
 # --- tracks ----------------------------------------------------------------
 
 if ($SkipTracks) {
-    Write-Step 'Skipping the track bake; using the levels already imported'
+    Write-Step ('Skipping the track bake; using the {0} already there' -f ($(if ($RuntimeTracks) { 'exports' } else { 'levels' })))
+}
+elseif ($RuntimeTracks) {
+    Write-Step 'Baking tracks for the game to build at runtime'
+    $trackArgs = @{ Release = $true; SkipImport = $true }
+    if ($EngineRoot) { $trackArgs.EngineRoot = $EngineRoot }
+    & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
+
+    $missing = @(Get-MissingExports)
+    if ($missing.Count -gt 0) {
+        throw "the bake left these circuits without an export: $($missing -join ', ')"
+    }
+
+    # Nothing but a runtime track references the parent materials, and no
+    # level import ran to bake them, so bake them here for the cook.
+    Write-Step 'Baking the track materials into /Game/Materials/Track'
+    $engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
+        -Requires 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
+    if ($BuildEditor) {
+        Invoke-Tool -Exe (Join-Path $engine 'Engine\Build\BatchFiles\Build.bat') -What 'build' `
+            -Arguments @('ApexSimEditor', 'Win64', 'Development', "-Project=$Uproject", '-WaitMutex')
+    }
+    Invoke-Tool -Exe (Join-Path $engine 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe') `
+        -What 'ApexMaterialBake' `
+        -Arguments @($Uproject, '-run=ApexMaterialBake', '-unattended',
+                     '-nopause', '-nosplash', '-stdout', '-utf8output')
+    if (-not (Test-Path (Join-Path $MaterialsDir 'M_ApexTrackBase.uasset'))) {
+        throw "ApexMaterialBake left no M_ApexTrackBase under $MaterialsDir"
+    }
+    $cooked = @(Get-ChildItem $LevelDir -Filter 'L_*.umap' -Recurse -ErrorAction SilentlyContinue)
+    if ($cooked.Count -gt 0) {
+        Write-Warning (("{0} imported level(s) under {1} will be cooked too, and the game prefers them; " +
+                        'delete that folder for a package whose circuits are all built at runtime') -f $cooked.Count, $LevelDir)
+    }
 }
 else {
     Write-Step 'Baking tracks and importing them as Unreal levels'
@@ -499,6 +591,12 @@ New-Item -ItemType Directory -Path $ServerDir -Force | Out-Null
 Copy-Item -LiteralPath $ServerExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'server.toml') -Destination $ServerDir -Force
 Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
+$runtimeTrackCount = 0
+if ($RuntimeTracks) {
+    Copy-RuntimeTracks -Destination (Join-Path $GameDir 'Tracks')
+    $runtimeTrackCount = @(Get-ChildItem (Join-Path $GameDir 'Tracks') -Filter '*.uescene.json' -File).Count
+    Write-Detail "$runtimeTrackCount runtime track(s) in $(Join-Path $GameDir 'Tracks')"
+}
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination $ReleaseDir -Force
 
 # A sample rather than a live settings.yml: the client creates the real file on
@@ -582,6 +680,10 @@ WHAT IS IN HERE
 
     Game\              The ApexSim client. Run Game\ApexSim.exe to play
                        against a server someone else is hosting.
+    Game\Tracks\       Circuits the game builds when they are raced (present
+                       when the package ships its tracks as data). A new
+                       circuit is its .uescene.json, .uemesh and .png here,
+                       with the matching .yaml in Server\content\tracks\real.
     Game\settings.yml  Resolution, window mode and the server to connect to.
                        Written on the first run; edit it in any text editor.
                        Game\settings.sample.yml is the same file with the
@@ -630,7 +732,7 @@ MODDING
 
 CONTENTS
 
-    $trackCount track(s), $carCount car(s), $($levels.Count) baked circuit level(s).
+    $trackCount track(s), $carCount car(s), $($levels.Count) baked circuit level(s), $runtimeTrackCount runtime track(s).
 
 Licensed under the terms in LICENSE.
 "@
@@ -649,6 +751,7 @@ $manifest = [ordered]@{
         cars         = $carCount
         tracks       = $trackCount
         track_levels = $levels.Count
+        runtime_tracks = $runtimeTrackCount
         server       = (Split-Path -Leaf $ServerExe)
     }
 }

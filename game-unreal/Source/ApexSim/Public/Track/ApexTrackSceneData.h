@@ -11,7 +11,13 @@
  * here converts coordinates — if you find yourself negating a Y or flipping
  * an index order, the bug is on the Rust side.
  *
- * See `track-editor/TRACK_EDITOR.md` section 5 for the format.
+ * See `track-editor/TRACK_EDITOR.md` section 5 for the format. Version 2
+ * splits it in two: the JSON manifest keeps everything small and names a
+ * `<Stem>.uemesh` blob beside it that carries the vertex data, which the
+ * reader loads into `Meshes` as if it had been inline.
+ *
+ * Plain structs with no UObject in them, so a scene can be read and
+ * prepared off the game thread (`UApexTrackInstance` does).
  */
 
 /** One material key the meshes reference. */
@@ -106,11 +112,39 @@ struct FApexTrackDressing
 	}
 };
 
+/**
+ * What the catalog needs to know about an export without reading its
+ * geometry: the fields ahead of the first array in the manifest.
+ */
+struct FApexTrackSceneHeader
+{
+	int32 Version = 0;
+	FString TrackId;
+	FString TrackName;
+	FString SourceTrack;
+	/**
+	 * CRC-32 of the YAML the export was baked from, carriage returns
+	 * dropped (`ApexContent::Compute`); 0 when the export predates the field.
+	 */
+	int64 SourceCrc = 0;
+	bool bClosedLoop = false;
+	float LengthCm = 0.0f;
+
+	FString Country;
+	FString City;
+	FString Category;
+	FString EnvironmentType;
+	/** Version 2: the mesh blob's file name, beside the manifest. */
+	FString MeshBlob;
+};
+
 struct FApexTrackScene
 {
 	FString TrackId;
 	FString TrackName;
 	FString SourceTrack;
+	/** See `FApexTrackSceneHeader::SourceCrc`. */
+	int64 SourceCrc = 0;
 	bool bClosedLoop = false;
 	float LengthCm = 0.0f;
 
