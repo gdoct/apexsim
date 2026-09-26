@@ -213,10 +213,6 @@ bool FApexCarGlbRepoCarsTest::RunTest(const FString& Parameters)
 	}
 	for (const FString& File : Files)
 	{
-		if (File.Contains(TEXT(".orig.")))
-		{
-			continue;
-		}
 		FApexGlbModel Model;
 		FString Error;
 		const bool bRead = ApexGlb::ReadFile(File, Model, Error);

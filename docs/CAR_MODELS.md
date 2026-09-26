@@ -84,9 +84,8 @@ W17 (silver over black, narrow pods, low nose), McLarsen MCL40 (papaya over
 dark blue with a dark spine), Ashton Marvin AMR26 (green with a lime
 pinstripe). Physics: 2026 power unit - 400 kW of V6 plus a 300 kW motor on a
 1.1 kWh store - 780 kg, Cl*A ~4.3; the ideal Silverstone lap is
-1:32.4-1:32.5, between the two reference cars. The reference F1s
-(`2021-f1-fugazzi-sf21`, `redhorse-rb20`) are imported models and stay as
-they are.
+1:32.4-1:32.5, between the two imported F1s they were tuned against
+(since removed).
 
 **Hypercars** (`build_hypercar.py`, class `Hypercar`) are the LMH class: 5.0 m
 long, 2.0 m wide, a 3.1 m wheelbase, and a different hull from the LMP2s -

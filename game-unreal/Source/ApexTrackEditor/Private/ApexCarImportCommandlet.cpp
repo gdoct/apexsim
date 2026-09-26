@@ -734,8 +734,7 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		const bool bNeedsDrs = Existing && Existing->DrsFlap != DrsFlap;
 
 		// A row that already points at a mesh of its own is finished unless
-		// -force: the hand-imported cars keep theirs and nothing is imported
-		// twice under a second name.
+		// -force: nothing is imported twice under a second name.
 		const bool bRowMeshOk = Existing && !Existing->Mesh.IsNull()
 			&& (Existing->FolderName.IsEmpty() || Existing->FolderName == Source.Folder)
 			&& FPackageName::DoesPackageExist(Existing->Mesh.GetLongPackageName());

@@ -53,8 +53,7 @@ class UStaticMesh;
  * car with no row gets one, and a row whose mesh is missing or belongs to
  * another car's folder is pointed at this car's mesh. Everything else on an
  * existing row — preview framing, cockpit points, hand-tuned fields — is
- * left alone. The four cars that were imported by hand before this
- * commandlet existed keep their meshes: their rows already point at them.
+ * left alone.
  */
 UCLASS()
 class APEXTRACKEDITOR_API UApexCarImportCommandlet : public UCommandlet
