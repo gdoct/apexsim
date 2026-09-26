@@ -2,6 +2,7 @@
 
 #include "Audio/ApexEngineSoundWave.h"
 #include "Audio/ApexRoadSoundWave.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Components/AudioComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -184,9 +185,9 @@ void AApexRaceCarActor::BeginPlay()
 	RoadAudio->SetSound(RoadSound);
 }
 
-void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow)
+void AApexRaceCarActor::SetCarMesh(UStaticMesh* MeshToShow)
 {
-	UStaticMesh* Loaded = MeshToShow.IsNull() ? nullptr : MeshToShow.LoadSynchronous();
+	UStaticMesh* Loaded = MeshToShow;
 	// Overrides are per slot index, and the new body's slots need not line up
 	// with the old one's.
 	CarMesh->EmptyOverrideMaterials();
@@ -200,7 +201,8 @@ void AApexRaceCarActor::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow
 	{
 		OutColor = FLinearColor::Red;
 		const int32 Index = Loaded ? CarMesh->GetMaterialIndex(Slot) : INDEX_NONE;
-		UMaterialInstanceDynamic* Instance = Index != INDEX_NONE ? CarMesh->CreateDynamicMaterialInstance(Index) : nullptr;
+		// This car's own instance: a runtime body's slot is shared by every car wearing it.
+		UMaterialInstanceDynamic* Instance = Index != INDEX_NONE ? ApexCarContent::OwnMaterialInstance(*CarMesh, Index) : nullptr;
 		FLinearColor Authored;
 		if (Instance
 			&& Instance->GetVectorParameterValue(FHashedMaterialParameterInfo(EmissiveFactorParam), Authored)

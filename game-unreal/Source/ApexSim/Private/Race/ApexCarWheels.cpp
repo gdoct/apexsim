@@ -1,5 +1,6 @@
 #include "Race/ApexCarWheels.h"
 
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
@@ -108,7 +109,7 @@ void FApexCarWheelSet::CreateComponents(UObject& Owner, USceneComponent* Body)
 void FApexCarWheelSet::SetSpec(const FApexWheelSpec& InSpec)
 {
 	Spec = InSpec;
-	UStaticMesh* Loaded = Spec.IsUsable() ? Spec.Mesh.LoadSynchronous() : nullptr;
+	UStaticMesh* Loaded = Spec.IsUsable() ? ApexCarContent::LoadMesh(Spec.Mesh, Spec.RuntimeModel) : nullptr;
 	bHasWheels = Loaded != nullptr;
 	MeshBounds = Loaded ? Loaded->GetBounds() : FBoxSphereBounds(ForceInit);
 	SpinRad[0] = SpinRad[1] = 0.0f;

@@ -120,11 +120,11 @@ void AApexCarPreviewStage::Tick(float DeltaSeconds)
 	}
 }
 
-void AApexCarPreviewStage::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow)
+void AApexCarPreviewStage::SetCarMesh(UStaticMesh* MeshToShow)
 {
-	// Synchronous load: this fires from a click, the meshes are small, and a
-	// blank preview for a frame or two reads as a bug.
-	UStaticMesh* Loaded = MeshToShow.IsNull() ? nullptr : MeshToShow.LoadSynchronous();
+	// Loaded (or built from its GLB) by the caller, synchronously: this fires
+	// from a click, and a blank preview for a frame or two reads as a bug.
+	UStaticMesh* Loaded = MeshToShow;
 
 	if (CarMesh->GetStaticMesh() == Loaded)
 	{
@@ -138,9 +138,7 @@ void AApexCarPreviewStage::SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToS
 	Turntable->SetRelativeRotation(FRotator::ZeroRotator);
 	FrameCurrentMesh();
 
-	UE_LOG(LogApexSim, Verbose, TEXT("Preview mesh set to '%s' (requested '%s')"),
-		Loaded ? *Loaded->GetName() : TEXT("none"),
-		MeshToShow.IsNull() ? TEXT("null") : *MeshToShow.ToString());
+	UE_LOG(LogApexSim, Verbose, TEXT("Preview mesh set to '%s'"), Loaded ? *Loaded->GetName() : TEXT("none"));
 }
 
 void AApexCarPreviewStage::SetCarWheels(const FApexWheelSpec& Spec)

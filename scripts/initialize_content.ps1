@@ -3,28 +3,32 @@
     Build whatever generated content a checkout is missing, so the game runs.
 
 .DESCRIPTION
-    game-unreal/Content/ is gitignored: only the menu, the two catalog tables,
-    the splash and a few legacy cars are checked in. Everything else the
-    client races on is generated from content/ by commandlets, and the server
-    needs the track sidecars the bake writes. On a fresh clone this script
+    game-unreal/Content/ is gitignored: only the menu, the two catalog tables
+    and the splash are checked in. Everything else the
+    client races on is generated from content/ by commandlets or built by the
+    game at runtime, and the server needs the track sidecars the bake writes. On a fresh clone this script
     produces all of it; on an existing checkout it only redoes what is
     missing, so it is safe to run at any time.
 
         1. ApexSimEditor target (incremental; the commandlets live in it)
         2. The release server, if server/target/release has none
-        3. Cars: every content/cars/<folder> whose SM_<folder> is missing
-           (all of them when a class wheel mesh is missing)
-        4. Ground textures: bake the PNGs, then ApexGroundTexImport
-        5. Track materials: ApexMaterialBake when /Game/Materials/Track lacks
-           them or stage 4 ran (the base parent's surface graph depends on
-           the ground textures)
-        6. Props: ApexPropImport -all when any kit GLB has no mesh
-        7. Tracks: dress and export every circuit that lacks its export
+        3. Ground textures: bake the PNGs, then ApexGroundTexImport
+        4. Materials: ApexMaterialBake when /Game/Materials/Track or
+           /Game/Materials/Car lacks a parent, or stage 3 ran (the track base
+           parent's surface graph depends on the ground textures)
+        5. Props: ApexPropImport -all when any kit GLB has no mesh
+        6. Tracks: dress and export every circuit that lacks its export
            (.uescene.json + .uemesh), its catalog preview or one of its
            server sidecars (ground/curbs/walls). There are no track levels:
            the game builds each circuit from its export when it is raced,
            with whatever props and ground textures /Game holds then, so an
-           import in stage 4 or 6 needs no rebake.
+           import in stage 3 or 5 needs no rebake.
+
+    Cars need no stage: the game builds each from content/cars and
+    content/wheels when it is drawn (docs/RUNTIME_CONTENT_LOADING.md). The
+    script only checks that every file a car.toml names is there.
+    (scripts/import_cars.ps1 still imports them as assets, for looking at a
+    car in the editor; the game does not use those.)
 
     Close the editor first; the commandlets and the build need its assets and
     binaries. A full fresh run takes a while, most of it the Unreal stages.
@@ -67,6 +71,7 @@ $PropsSrc    = Join-Path $RepoRoot 'content\props'
 $TrackDir    = Join-Path $RepoRoot 'content\tracks\real'
 $ExportDir   = Join-Path $RepoRoot 'content\tracks\export'
 $TrackMats   = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
+$CarMats     = Join-Path $RepoRoot 'game-unreal\Content\Materials\Car'
 $GroundPngs  = Join-Path $RepoRoot 'content\textures\ground'
 $ServerExe   = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
 
@@ -76,6 +81,7 @@ $GroundMaps  = 'col', 'nrm', 'rough'
 $Sidecars    = 'ground', 'curbs', 'walls'
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 
 function Write-Step {
     param([string]$Message)
@@ -112,13 +118,6 @@ function Invoke-Tool {
     }
 }
 
-# A car folder's mesh, as ApexCarImport names it: hyphens become underscores.
-function Get-CarMeshPath {
-    param([string]$Folder)
-    $segment = $Folder -replace '-', '_'
-    return Join-Path $GameContent "Cars\$segment\SM_$segment.uasset"
-}
-
 function Format-List {
     param([string[]]$Items, [int]$Max = 8)
     if ($Items.Count -le $Max) { return $Items -join ', ' }
@@ -137,14 +136,8 @@ $stopwatch = [Diagnostics.Stopwatch]::StartNew()
 
 Write-Step 'Looking for missing content'
 
-$carFolders = @(Get-ChildItem $CarsSrc -Directory |
-    Where-Object { Test-Path (Join-Path $_.FullName 'car.toml') } |
-    ForEach-Object { $_.Name })
-$missingCars = @($carFolders | Where-Object { -not (Test-Path (Get-CarMeshPath $_)) })
-$missingWheels = @(Get-ChildItem $WheelsSrc -Filter '*.glb' -File -ErrorAction SilentlyContinue |
-    Where-Object {
-        -not (Test-Path (Join-Path $GameContent "Cars\Wheels\$($_.BaseName)\SM_Wheel_$($_.BaseName).uasset"))
-    } | ForEach-Object { $_.BaseName })
+# Cars are built by the game from their files; nothing to import, only to check.
+$carProblems = @(Test-ApexCars -CarsDir $CarsSrc -WheelsDir $WheelsSrc)
 
 $missingPngs = @()
 $missingGround = @()
@@ -180,17 +173,20 @@ $missingTracks = @($trackStems | Where-Object {
     }).Count -gt 0
     $noExport -or $noPreview -or $noSidecar
 })
-$missingMaterials = @('M_ApexTrackBase', 'M_ApexEmissive', 'M_ApexBrand', 'M_ApexDecal' | Where-Object {
-    -not (Test-Path (Join-Path $TrackMats "$_.uasset"))
-})
+$missingMaterials = @(
+    @('M_ApexTrackBase', 'M_ApexEmissive', 'M_ApexBrand', 'M_ApexDecal' | Where-Object {
+        -not (Test-Path (Join-Path $TrackMats "$_.uasset"))
+    }) +
+    @('M_ApexCarOpaque', 'M_ApexCarClearCoat', 'M_ApexCarMasked', 'M_ApexCarTranslucent' | Where-Object {
+        -not (Test-Path (Join-Path $CarMats "$_.uasset"))
+    }))
 
 $splash = Join-Path $GameContent 'Splash\Splash.bmp'
 
-Write-Detail ("cars:            " + $(if ($missingCars) { Format-List $missingCars } else { 'ok' }))
-Write-Detail ("wheels:          " + $(if ($missingWheels) { Format-List $missingWheels } else { 'ok' }))
+Write-Detail ("cars:            " + $(if ($carProblems) { Format-List $carProblems } else { 'ok (built by the game)' }))
 Write-Detail ("ground PNGs:     " + $(if ($missingPngs) { "$($missingPngs.Count) missing" } else { 'ok' }))
 Write-Detail ("ground textures: " + $(if ($missingGround) { "$($missingGround.Count) missing" } else { 'ok' }))
-Write-Detail ("track materials: " + $(if ($missingMaterials) { Format-List $missingMaterials } else { 'ok' }))
+Write-Detail ("materials:       " + $(if ($missingMaterials) { Format-List $missingMaterials } else { 'ok' }))
 Write-Detail ("props:           " + $(if ($missingProps) { Format-List $missingProps } else { 'ok' }))
 Write-Detail ("tracks:          " + $(if ($missingTracks) { Format-List $missingTracks } else { 'ok' }))
 Write-Detail ("server:          " + $(if (Test-Path $ServerExe) { 'ok' } else { 'not built' }))
@@ -203,7 +199,6 @@ if (-not (Test-Path $splash)) {
 # ---------------------------------------------------------------------------
 
 $doServer  = $Force -or -not (Test-Path $ServerExe)
-$doCars    = $Force -or $missingCars.Count -gt 0 -or $missingWheels.Count -gt 0
 $doPngs    = $Force -or $missingPngs.Count -gt 0
 $doGround  = $Force -or $doPngs -or $missingGround.Count -gt 0
 $doMats    = $Force -or $doGround -or $missingMaterials.Count -gt 0
@@ -215,18 +210,14 @@ $doProps   = $Force -or $missingProps.Count -gt 0
 $allTracks = $Force
 $tracks    = @(if ($allTracks) { $trackStems } else { $missingTracks })
 $doTracks  = $tracks.Count -gt 0
-$needUnreal = $doCars -or $doGround -or $doMats -or $doProps
-
-# A missing wheel is imported with a car that uses it; simplest is all cars.
-$carsToImport = @(if ($Force -or $missingWheels.Count -gt 0) { } else { $missingCars })
+$needUnreal = $doGround -or $doMats -or $doProps
 
 $plan = [Collections.Generic.List[string]]::new()
 if ($needUnreal -and -not $SkipBuild) { $plan.Add('build the ApexSimEditor target') }
 if ($doServer)  { $plan.Add('build the release server') }
-if ($doCars)    { $plan.Add($(if ($carsToImport) { "import cars: $(Format-List $carsToImport)" } else { 'import every car' })) }
 if ($doPngs)    { $plan.Add('bake the ground texture PNGs') }
 if ($doGround)  { $plan.Add('import the ground textures') }
-if ($doMats)    { $plan.Add('bake the track materials') }
+if ($doMats)    { $plan.Add('bake the track and car materials') }
 if ($doProps)   { $plan.Add('import the prop kit') }
 if ($doTracks)  { $plan.Add($(if ($allTracks) { 'dress and bake every track, with previews' } else { "dress and bake, with previews: $(Format-List $tracks)" })) }
 
@@ -301,13 +292,6 @@ if ($doServer) {
     }
 }
 
-if ($doCars) {
-    Write-Step 'Importing cars'
-    $carArgs = @{ EngineRoot = $engine }
-    if ($carsToImport) { $carArgs.Car = $carsToImport }
-    & (Join-Path $PSScriptRoot 'import_cars.ps1') @carArgs
-}
-
 if ($doPngs) {
     Write-Step 'Baking the ground texture PNGs'
     Invoke-Tool -Exe 'python' -Arguments @('scripts/bake_ground_textures.py') -What 'bake_ground_textures.py'
@@ -320,9 +304,9 @@ if ($doGround) {
 }
 
 if ($doMats) {
-    # Every track the game builds instantiates these; a -Force run redoes
-    # them, since a graph may have changed.
-    Write-Step 'Baking the track materials into /Game/Materials/Track'
+    # Every track and car the game builds instantiates these; a -Force run
+    # redoes them, since a graph may have changed.
+    Write-Step 'Baking the track and car materials into /Game/Materials'
     $bakeArgs = @($Uproject, '-run=ApexMaterialBake') + $commandletArgs
     if ($Force) { $bakeArgs += '-force' }
     Invoke-Tool -Exe $editorCmd -Arguments $bakeArgs -What 'ApexMaterialBake'

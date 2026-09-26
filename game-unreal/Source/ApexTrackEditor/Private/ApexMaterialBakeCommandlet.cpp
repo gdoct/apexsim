@@ -2,6 +2,7 @@
 
 #include "ApexTrackEditorModule.h"
 #include "ApexTrackMaterialGraphs.h"
+#include "Cars/ApexCarMaterials.h"
 
 UApexMaterialBakeCommandlet::UApexMaterialBakeCommandlet()
 {
@@ -18,8 +19,8 @@ int32 UApexMaterialBakeCommandlet::Main(const FString& Params)
 	ParseCommandLine(*Params, Tokens, Switches);
 	const bool bForce = Switches.Contains(TEXT("force"));
 
-	UE_LOG(LogApexTrackImport, Display, TEXT("Baking the track parent materials into %s%s"),
-		ApexTrackMaterials::Folder, bForce ? TEXT(" (all of them)") : TEXT(""));
+	UE_LOG(LogApexTrackImport, Display, TEXT("Baking the track and car parent materials into %s and %s%s"),
+		ApexTrackMaterials::Folder, ApexCarMaterials::Folder, bForce ? TEXT(" (all of them)") : TEXT(""));
 	FString Error;
 	if (!ApexTrackMaterialGraphs::Bake(bForce, Error))
 	{

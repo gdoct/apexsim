@@ -77,10 +77,17 @@ struct APEXSIM_API FApexWheelSpec
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
 	float MaxSteerRad = 0.0f;
 
+	/**
+	 * The wheel GLB a car found on disk draws (`<cars>/../wheels/<model>.glb`),
+	 * built by `UApexCarContentSubsystem`; wins over `Mesh`. Never saved.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Wheels")
+	FString RuntimeModel;
+
 	/** A mesh and a size for both axles: enough to draw. */
 	bool IsUsable() const
 	{
-		return !Mesh.IsNull() && FrontRadiusM > 0.0f && RearRadiusM > 0.0f && FrontWidthM > 0.0f && RearWidthM > 0.0f;
+		return (!Mesh.IsNull() || !RuntimeModel.IsEmpty()) && FrontRadiusM > 0.0f && RearRadiusM > 0.0f && FrontWidthM > 0.0f && RearWidthM > 0.0f;
 	}
 
 	bool operator==(const FApexWheelSpec& Other) const
@@ -89,7 +96,7 @@ struct APEXSIM_API FApexWheelSpec
 			&& FrontTrackM == Other.FrontTrackM && RearTrackM == Other.RearTrackM
 			&& FrontRadiusM == Other.FrontRadiusM && RearRadiusM == Other.RearRadiusM
 			&& FrontWidthM == Other.FrontWidthM && RearWidthM == Other.RearWidthM
-			&& MaxSteerRad == Other.MaxSteerRad;
+			&& MaxSteerRad == Other.MaxSteerRad && RuntimeModel == Other.RuntimeModel;
 	}
 	bool operator!=(const FApexWheelSpec& Other) const { return !(*this == Other); }
 };
@@ -124,12 +131,16 @@ struct APEXSIM_API FApexDrsFlapSpec
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DRS")
 	float OpenDeg = 0.0f;
 
-	bool IsUsable() const { return !Mesh.IsNull(); }
+	/** The flap GLB beside a car found on disk, built at runtime; wins over `Mesh`. Never saved. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "DRS")
+	FString RuntimeModel;
+
+	bool IsUsable() const { return !Mesh.IsNull() || !RuntimeModel.IsEmpty(); }
 
 	bool operator==(const FApexDrsFlapSpec& Other) const
 	{
 		return Mesh == Other.Mesh && HingeForwardM == Other.HingeForwardM && HingeUpM == Other.HingeUpM
-			&& OpenDeg == Other.OpenDeg;
+			&& OpenDeg == Other.OpenDeg && RuntimeModel == Other.RuntimeModel;
 	}
 	bool operator!=(const FApexDrsFlapSpec& Other) const { return !(*this == Other); }
 };
@@ -225,10 +236,14 @@ struct APEXSIM_API FApexCarLivery
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
 	TSoftObjectPtr<UTexture2D> Logo;
 
+	/** The logo PNG of a car found on disk, loaded at runtime; wins over `Logo`. Never saved. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
+	FString RuntimeLogo;
+
 	bool operator==(const FApexCarLivery& Other) const
 	{
 		return Name == Other.Name && Paint == Other.Paint && Accent == Other.Accent
-			&& PaintMetallic == Other.PaintMetallic && Logo == Other.Logo;
+			&& PaintMetallic == Other.PaintMetallic && Logo == Other.Logo && RuntimeLogo == Other.RuntimeLogo;
 	}
 	bool operator!=(const FApexCarLivery& Other) const { return !(*this == Other); }
 };
@@ -266,17 +281,30 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	FString FolderName;
 
 	/**
-	 * Checksum of the car.toml the row was imported from, as the server
-	 * computes it (ApexContentCrc.h / content_crc.rs). Refreshed on every
-	 * ApexCarImport run; compared with the server's `ContentCrc` when the car
-	 * is raced. 0 on a row imported before the field existed.
+	 * Checksum of the car.toml the row was read from, as the server computes
+	 * it (ApexContentCrc.h / content_crc.rs): by `UApexCarContentSubsystem`
+	 * for a car on disk, by every ApexCarImport run for a table row. Compared
+	 * with the server's `ContentCrc` when the car is raced. 0 on a table row
+	 * imported before the field existed.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	int64 SourceCrc = 0;
 
-	/** Soft so the menu does not pull four car meshes into memory at startup. */
+	/**
+	 * The cooked body, for a row from `DT_CarCatalog` (ApexCarImport). A car
+	 * found on disk has `RuntimeModel` instead. Read either through
+	 * `ApexCarContent::LoadBody`.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	/**
+	 * The body GLB of a car found on disk at runtime (`<cars>/<folder>/<model>`),
+	 * built on first use by `UApexCarContentSubsystem`; wins over `Mesh`.
+	 * Never saved in the table.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Car")
+	FString RuntimeModel;
 
 	/**
 	 * The wheels drawn on the (wheel-less) body. Derived from car.toml on

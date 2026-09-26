@@ -33,9 +33,9 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** Swaps the displayed car. Passing an unset mesh hides the stage. */
+	/** Swaps the displayed car (`ApexCarContent::LoadBody` loads or builds it). Null hides the stage. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Preview")
-	void SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow);
+	void SetCarMesh(UStaticMesh* MeshToShow);
 
 	/** The wheels to draw on the car (the catalog row's `Wheels`); an unusable spec draws none. */
 	void SetCarWheels(const FApexWheelSpec& Spec);

@@ -240,10 +240,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UApexProfileSave> Profile;
 
-	/** Assigned from the paths below in Initialize; null if the tables are missing. */
-	UPROPERTY(Transient)
-	TObjectPtr<UDataTable> CarCatalog;
-
+	/**
+	 * The track table, a fallback for a track with no export here; null when
+	 * missing. The cars' rows, table included, come from
+	 * `UApexCarContentSubsystem`.
+	 */
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> TrackCatalog;
 
