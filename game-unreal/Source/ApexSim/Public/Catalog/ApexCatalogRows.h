@@ -14,7 +14,7 @@
  * Two gaps in the wire protocol make these tables necessary:
  *
  *  - `CarConfigSummary.ModelPath` is built as `res://content/cars/{uuid}/{model}`
- *    (broadcast.rs:150), but the folders on disk are named `redhorse-rb20` and
+ *    (broadcast.rs:150), but the folders on disk are named `fugazzi-sf26` and
  *    the like — so the path never resolves. There is no way to reach a car's
  *    mesh from server data alone.
  *  - `TrackConfigSummary` carries only Id and Name. The name is
@@ -261,7 +261,7 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	float MaxPowerKw = 0.0f;
 
-	/** Content folder name, e.g. "redhorse-rb20". Useful for diagnostics. */
+	/** Content folder name, e.g. "fugazzi-sf26". Useful for diagnostics. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	FString FolderName;
 

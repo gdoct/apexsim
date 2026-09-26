@@ -162,7 +162,7 @@ fn ai_field_stays_composed_off_the_grid() {
     // The demo's default circuit and car (the reported screenshot), plus an
     // F1 field, which has the power to spin its rears on the way out.
     assert_clean_start("LeMans", "yotota-lmp2");
-    assert_clean_start("Spa", "redhorse-rb20");
+    assert_clean_start("Spa", "fugazzi-sf26");
 }
 
 /// Le Mans has a left-hander at 4.1 km where the road heads due west, across
@@ -217,7 +217,7 @@ fn survey_ai_races_on_every_circuit() {
         tracks.retain(|t| only.contains(&t.as_str()));
     }
     for track in tracks {
-        for car in ["yotota-lmp2", "redhorse-rb20", "posh-911gt3"] {
+        for car in ["yotota-lmp2", "fugazzi-sf26", "posh-gt3rs"] {
             let mut race = ai_race(&track, car, DEMO_FIELD);
             let (mut contact, mut off, mut slide, mut at_3s) = (0u32, 0u32, 0u32, 0);
             let mut dbg: HashMap<(i32, u8), u32> = HashMap::new();
