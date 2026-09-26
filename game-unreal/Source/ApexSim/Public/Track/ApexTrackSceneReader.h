@@ -41,7 +41,7 @@ public:
 	 * Decode a `.uemesh` blob into meshes, in blob order. Exposed for the
 	 * reader tests; `LoadFromFile` is the normal way in.
 	 */
-	static bool ParseMeshBlob(TConstArrayView<uint8> Bytes, TArray<FApexTrackMesh>& OutMeshes, FString& OutError);
+	static bool ParseMeshBlob(TConstArrayView<uint8> Blob, TArray<FApexTrackMesh>& OutMeshes, FString& OutError);
 
 	/** `<dir>/Monza.uescene.json` -> `Monza`. */
 	static FString StemOf(const FString& ScenePath);

@@ -6,9 +6,10 @@
 /**
  * The four parent materials every track instantiates, generated as graphs
  * and saved as assets under `/Game/Materials/Track` (`M_ApexTrackBase`,
- * `M_ApexEmissive`, `M_ApexBrand`, `M_ApexDecal`). Cooked, they are what a
- * runtime track's dynamic instances are made from; in the editor, what the
- * imported levels' instance constants are. Nothing is hand-authored: re-run
+ * `M_ApexEmissive`, `M_ApexBrand`, `M_ApexDecal`). Cooked, they are what the
+ * game's dynamic instances are made from when it builds a circuit from its
+ * export; the editor's inspection import (`ApexTrackImport`) makes instance
+ * constants of the same. Nothing is hand-authored: re-run
  * `-run=ApexMaterialBake -force` after changing a graph here.
  */
 namespace ApexTrackMaterialGraphs

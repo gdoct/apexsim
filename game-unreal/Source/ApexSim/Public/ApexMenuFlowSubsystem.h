@@ -222,7 +222,7 @@ private:
 	const FApexLobbyState* CachedLobbyState() const;
 
 	const FApexCarCatalogRow* FindCarRow(const FString& CarId) const;
-	/** The table's row, or the runtime track's (UApexTrackContentSubsystem::UseRuntimeRow). */
+	/** The track export's row (UApexTrackContentSubsystem), else the table's. */
 	const FApexTrackCatalogRow* FindTrackRow(const FString& TrackId) const;
 	class UApexTrackContentSubsystem* GetTrackContent() const;
 

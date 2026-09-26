@@ -1,5 +1,5 @@
 //! Batch-bake tracks into the `.uescene.json` manifest and `.uemesh` mesh
-//! blob the Unreal `ApexTrackImport` commandlet consumes, plus the
+//! blob the Unreal client builds each circuit from at runtime, plus the
 //! `.ground.msgpack` heightfield and
 //! `.curbs.msgpack` track limits and `.walls.msgpack` barriers the server
 //! reads from beside each YAML.

@@ -23,7 +23,6 @@ class UApexMenuFlowSubsystem;
 class UApexNetSubsystem;
 class UApexSettingsSubsystem;
 class UCameraComponent;
-class ULevelStreamingDynamic;
 class UMaterialInstanceDynamic;
 class USpringArmComponent;
 class UTextureRenderTarget2D;
@@ -161,12 +160,11 @@ public:
 
 	/**
 	 * Everything is in to film: the track loaded and visible with its sky
-	 * applied, and the cars placed. A clip whose track has neither an
-	 * imported level nor a runtime export never gets here; the caller times
-	 * out.
+	 * applied, and the cars placed. A clip whose track has no export
+	 * never gets here; the caller times out.
 	 */
 	bool IsReplayReady() const;
-	/** True when the clip's track is loading or loaded (a cooked level or a runtime build). */
+	/** True when the clip's track is being built or has been. */
 	bool HasReplayTrackLevel() const { return bReplayView && Track != nullptr; }
 
 	/** Start the clip's clock at `FromSeconds` (from its first frame). */
@@ -250,7 +248,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	int32 GetSpawnedCarCount() const { return Cars.Num(); }
 
-	/** True once the session's track has finished loading (streamed in, or built at runtime). */
+	/** True once the session's track has finished building from its export. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	bool IsTrackLevelLoaded() const;
 	/** Loaded and shown: its actors are in the world and collidable. */
@@ -461,8 +459,8 @@ private:
 
 	/**
 	 * Stem of the session's track, or empty if there is no session, no
-	 * track, or nothing to load for it (neither a cooked level nor a runtime
-	 * export; `UApexTrackContentSubsystem`).
+	 * track, or no export on disk to build it from
+	 * (`UApexTrackContentSubsystem`).
 	 *
 	 * Resolved by convention from the track file the server names —
 	 * `tracks/real/Monza.yaml` -> `Monza` — which is exactly how the importer
@@ -473,6 +471,8 @@ private:
 
 	void LoadTrackLevel();
 	void UnloadTrackLevel();
+	/** Give back a track whose build failed, so nothing waits on it. */
+	void DropFailedTrack();
 
 	/**
 	 * Checks the content about to be shown against the server's files: the
@@ -517,7 +517,7 @@ private:
 	/** Emissive strength of a lit lens. The race is exposed for a 50 klux sun. */
 	static constexpr float StartLightOnEmissive = 4000.0f;
 
-	/** The session's circuit: a streamed cooked level or a runtime-built track. */
+	/** The session's circuit, built from its export. */
 	UPROPERTY(Transient)
 	TObjectPtr<class UApexTrackInstance> Track;
 

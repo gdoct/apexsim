@@ -313,18 +313,24 @@ gets `DEFAULT` unless `for_stem` maps it to another. The Nordschleife's
 German guard rail 3 m off the road, dense forest, German signs and no pit
 lane are one entry there.
 
-**8. Dress, export and import** (Windows, editor closed):
+**8. Dress and export:**
 
 ```powershell
 ./scripts/build_track_levels.ps1 -Track Mugello
 ```
 
 This runs `ats-dress` (stands, buildings, pit lane, barriers, trees,
-boards, decals from the dossier), `ats-export` (the Unreal scene plus the
-server's `.ground` / `.curbs` / `.walls` sidecars) and `ApexTrackImport`
-(the level at `/Game/Tracks/Mugello/L_Mugello`). Add `-ImportProps` if you
-added new prop meshes. For road graffiti, also run
+boards, decals from the dossier), `ats-export` (`content/tracks/export/Mugello.uescene.json`
+and `Mugello.uemesh`, which the game builds the circuit from, plus the
+server's `.ground` / `.curbs` / `.walls` sidecars), `build_track_catalog.py`
+(the track picker's preview) and `ApexMaterialBake` (the shared track
+materials, only if they are missing; `-SkipMaterials` to leave the engine
+out of it). There is no level to import: the game builds the circuit from
+its export when it is raced. Add `-ImportProps` if you added new prop
+meshes. For road graffiti, also run
 `& $Cmd game-unreal/ApexSim.uproject -run=ApexPropImport -kind=decal`.
+To look at the result in the editor, `-ImportLevels` also imports it as a
+level under `/Game/Tracks` (editor only: the game never loads it).
 
 **9. Check it.**
 
@@ -356,33 +362,30 @@ dossier or terrain sidecar the track is dressed and grounded generically.
    beside it are all it needs. It is found on the next start and appears
    in the lobby. Without the sidecars it still runs, but with no barriers,
    curbs counted as grass and the ground held at road height off the track.
-2. **Client:** the level from step 8, plus the track picker's entry:
-
-   ```powershell
-   python scripts/build_track_catalog.py Mugello
-   & $Cmd game-unreal/ApexSim.uproject -run=ApexTrackCatalogSync
-   ```
-
-   This adds a `DT_TrackCatalog` row keyed by `track_id`, with the name,
-   metadata, a top-down preview and the checksum.
-3. **Play it:** `./scripts/play_editor.ps1`, or package the client again. The
-   packaged build cooks everything, so the new level is included. A release
+2. **Client:** the export from step 8 — `Mugello.uescene.json`,
+   `Mugello.uemesh` and the preview `previews/Mugello.png`. In the editor
+   build the game reads them straight from `content/tracks/export`; a
+   packaged game reads them from `Tracks\` beside `ApexSim.exe` (the preview
+   as `Mugello.png` there). The track picker's name, metadata, preview and
+   content checksum all come from the export, keyed by `track_id`.
+3. **Play it:** `./scripts/play_editor.ps1`, or drop the three files into a
+   packaged game's `Tracks\` folder — no repackage. A release
    (`./scripts/build_release.ps1`) copies the YAML and sidecars into
-   `Server/` and refuses to run if a circuit's level is missing.
+   `Server/` and the exports into `Game/Tracks`, and refuses to run if a
+   circuit has no export.
 
 ### Updating your track
 
 - **Scenery only** (props in the track editor, `MANUAL_*` tables, the
   circuit style): re-run the dossier if you touched `osm_layout.py`, then
   `./scripts/build_track_levels.ps1 -Track Mugello`. Restart the server to
-  pick up new walls and curbs.
+  pick up new walls and curbs, and the game (or `apexsim.track.Rescan` in its
+  console) to pick up the new export.
 - **The centerline** (widths, route, elevation, banking): everything is fitted
   to it, so run the whole of step 4 again in order, then step 8. A dossier or
   terrain built against the old line describes a road that has moved.
-- **Anything in the YAML** changes its checksum. Re-run
-  `build_track_catalog.py` and `ApexTrackCatalogSync` so the client's row
-  matches the server. The sync only adds rows unless given `-force`, but
-  always refreshes the checksum.
+- **Anything in the YAML** changes its checksum. Re-export (step 8) so the
+  client's export carries the new one and matches the server.
 - Keep the `track_id`. The catalog, lap records and ghost laps are keyed by
   it.
 - Anything that moves barriers, walls, the centerline or the ground should go

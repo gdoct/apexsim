@@ -31,12 +31,12 @@ namespace
 	/** Sequential little-endian reads over a byte view, failing past its end. */
 	struct FBlobCursor
 	{
-		TConstArrayView<uint8> Bytes;
+		TConstArrayView<uint8> Data;
 		int64 Offset = 0;
 
 		bool Remaining(int64 Count) const
 		{
-			return Count >= 0 && Offset + Count <= Bytes.Num();
+			return Count >= 0 && Offset + Count <= Data.Num();
 		}
 
 		bool ReadU32(uint32& Out)
@@ -45,7 +45,7 @@ namespace
 			{
 				return false;
 			}
-			const uint8* P = Bytes.GetData() + Offset;
+			const uint8* P = Data.GetData() + Offset;
 			Out = uint32(P[0]) | (uint32(P[1]) << 8) | (uint32(P[2]) << 16) | (uint32(P[3]) << 24);
 			Offset += 4;
 			return true;
@@ -59,7 +59,7 @@ namespace
 				return false;
 			}
 			const FUTF8ToTCHAR Converted(
-				reinterpret_cast<const ANSICHAR*>(Bytes.GetData() + Offset), static_cast<int32>(Length));
+				reinterpret_cast<const ANSICHAR*>(Data.GetData() + Offset), static_cast<int32>(Length));
 			Out = FString(Converted.Length(), Converted.Get());
 			Offset += Length;
 			return true;
@@ -237,10 +237,10 @@ FString FApexTrackSceneReader::StemOf(const FString& ScenePath)
 }
 
 bool FApexTrackSceneReader::ParseMeshBlob(
-	TConstArrayView<uint8> Bytes, TArray<FApexTrackMesh>& OutMeshes, FString& OutError)
+	TConstArrayView<uint8> Blob, TArray<FApexTrackMesh>& OutMeshes, FString& OutError)
 {
-	FBlobCursor Cursor{Bytes};
-	if (!Cursor.Remaining(sizeof(kBlobMagic)) || FMemory::Memcmp(Bytes.GetData(), kBlobMagic, sizeof(kBlobMagic)) != 0)
+	FBlobCursor Cursor{Blob};
+	if (!Cursor.Remaining(sizeof(kBlobMagic)) || FMemory::Memcmp(Blob.GetData(), kBlobMagic, sizeof(kBlobMagic)) != 0)
 	{
 		OutError = TEXT("not a mesh blob (no APEXMESH magic)");
 		return false;
@@ -288,7 +288,7 @@ bool FApexTrackSceneReader::ParseMeshBlob(
 			OutError = FString::Printf(TEXT("mesh %s is too large (%lld bytes)"), *Mesh.Name, RawSize);
 			return false;
 		}
-		const uint8* Stored = Bytes.GetData() + Cursor.Offset;
+		const uint8* Stored = Blob.GetData() + Cursor.Offset;
 		const uint8* Raw = Stored;
 		if (Flags & kBlobZlib)
 		{
@@ -313,9 +313,9 @@ bool FApexTrackSceneReader::ParseMeshBlob(
 		Cursor.Offset += StoredSize;
 		Meshes.Add(MoveTemp(Mesh));
 	}
-	if (Cursor.Offset != Bytes.Num())
+	if (Cursor.Offset != Blob.Num())
 	{
-		OutError = FString::Printf(TEXT("mesh blob has %lld bytes after its last mesh"), Bytes.Num() - Cursor.Offset);
+		OutError = FString::Printf(TEXT("mesh blob has %lld bytes after its last mesh"), Blob.Num() - Cursor.Offset);
 		return false;
 	}
 	OutMeshes = MoveTemp(Meshes);
@@ -334,14 +334,14 @@ bool FApexTrackSceneReader::LoadHeader(const FString& Path, FApexTrackSceneHeade
 		return false;
 	}
 	const int64 Size = FMath::Min(Handle->Size(), kHeaderBytes);
-	TArray<uint8> Bytes;
-	Bytes.SetNumUninitialized(static_cast<int32>(Size));
-	if (Size <= 0 || !Handle->Read(Bytes.GetData(), Size))
+	TArray<uint8> Head;
+	Head.SetNumUninitialized(static_cast<int32>(Size));
+	if (Size <= 0 || !Handle->Read(Head.GetData(), Size))
 	{
 		OutError = FString::Printf(TEXT("could not read %s"), *Path);
 		return false;
 	}
-	const FUTF8ToTCHAR Converted(reinterpret_cast<const ANSICHAR*>(Bytes.GetData()), Bytes.Num());
+	const FUTF8ToTCHAR Converted(reinterpret_cast<const ANSICHAR*>(Head.GetData()), Head.Num());
 	const FString Text(Converted.Length(), Converted.Get());
 
 	FApexTrackSceneHeader Header;
@@ -349,7 +349,9 @@ bool FApexTrackSceneReader::LoadHeader(const FString& Path, FApexTrackSceneHeade
 	const TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(Text);
 	EJsonNotation Notation;
 	int32 Depth = 0;
-	bool bInMetadata = false;
+	// The depth of the `metadata` object's own fields while inside it, else
+	// -1; an object nested in it (none today) is skipped, not mistaken for it.
+	int32 MetadataDepth = -1;
 	// A truncated tail makes ReadNext fail, which is the normal way out when
 	// the first array lies past the window.
 	while (Reader->ReadNext(Notation))
@@ -357,14 +359,20 @@ bool FApexTrackSceneReader::LoadHeader(const FString& Path, FApexTrackSceneHeade
 		const FString& Id = Reader->GetIdentifier();
 		if (Notation == EJsonNotation::ObjectStart)
 		{
-			bInMetadata = Depth == 1 && Id == TEXT("metadata");
+			if (Depth == 1 && Id == TEXT("metadata"))
+			{
+				MetadataDepth = 2;
+			}
 			++Depth;
 			continue;
 		}
 		if (Notation == EJsonNotation::ObjectEnd)
 		{
 			--Depth;
-			bInMetadata = false;
+			if (Depth < MetadataDepth)
+			{
+				MetadataDepth = -1;
+			}
 			if (Depth <= 0)
 			{
 				break;
@@ -379,7 +387,7 @@ bool FApexTrackSceneReader::LoadHeader(const FString& Path, FApexTrackSceneHeade
 			}
 			continue;
 		}
-		if (Depth == 2 && bInMetadata && Notation == EJsonNotation::String)
+		if (Depth == MetadataDepth && Notation == EJsonNotation::String)
 		{
 			const FString Value = Reader->GetValueAsString();
 			if (Id == TEXT("country"))
@@ -569,13 +577,13 @@ bool FApexTrackSceneReader::LoadFromFile(
 		// Version 2: the manifest lists the meshes, the blob beside it holds
 		// their buffers, in the same order.
 		const FString BlobPath = FPaths::Combine(FPaths::GetPath(Path), MeshBlob);
-		TArray<uint8> Bytes;
-		if (!FFileHelper::LoadFileToArray(Bytes, *BlobPath))
+		TArray<uint8> BlobBytes;
+		if (!FFileHelper::LoadFileToArray(BlobBytes, *BlobPath))
 		{
 			OutError = FString::Printf(TEXT("%s names mesh blob %s, which could not be read"), *Path, *BlobPath);
 			return false;
 		}
-		if (!ParseMeshBlob(Bytes, Scene.Meshes, OutError))
+		if (!ParseMeshBlob(BlobBytes, Scene.Meshes, OutError))
 		{
 			OutError = FString::Printf(TEXT("%s: %s"), *BlobPath, *OutError);
 			return false;
