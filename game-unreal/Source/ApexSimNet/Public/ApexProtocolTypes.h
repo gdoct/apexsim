@@ -437,7 +437,7 @@ struct APEXSIMNET_API FApexCarConfigSummary
 	/**
 	 * Informational only — DO NOT resolve this to a file. The server builds it
 	 * as `res://content/cars/{uuid}/{model}` (broadcast.rs:150) but the folders
-	 * on disk are named `redhorse-rb20` etc, so the path never exists. Meshes
+	 * on disk are named `fugazzi-sf26` etc, so the path never exists. Meshes
 	 * are resolved through DT_CarCatalog keyed by Id instead.
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")

@@ -954,8 +954,8 @@ max_travel_m = 0.10
     fn real_content_cars_still_load() {
         // Skip gracefully on CI checkouts without the content folder.
         let candidates = [
-            "../content/cars/posh-911gt3/car.toml",
-            "../content/cars/2021-f1-fugazzi-sf21/car.toml",
+            "../content/cars/posh-gt3rs/car.toml",
+            "../content/cars/fugazzi-sf26/car.toml",
         ];
         for candidate in candidates {
             let path = Path::new(candidate);

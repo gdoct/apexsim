@@ -7,7 +7,7 @@ namespace ApexWheelsTest
 {
 	using ApexWheels::EWheel;
 
-	/** The SF21's figures from its car.toml. */
+	/** An F1 car's wheel figures, as a car.toml gives them. */
 	FApexWheelSpec F1Spec()
 	{
 		FApexWheelSpec Spec;

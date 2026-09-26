@@ -62,9 +62,9 @@ clashes only show once unity builds batch it with its neighbours).
 
 ### Fresh checkout: building the client's content
 `game-unreal/Content/` is gitignored. Only the menu (`UI/`, `Maps/L_Menu`,
-`Blueprints/`), the two catalog tables in `Data/`, the splash (`Splash/`) and
-three legacy hand-imported cars are checked in; the tracks, props, ground
-textures and most car meshes are **generated** from `content/` by commandlets,
+`Blueprints/`), the two catalog tables in `Data/` and the splash (`Splash/`)
+are checked in; the tracks, props, ground textures and car meshes are
+**generated** from `content/` by commandlets,
 so a fresh clone opens to a menu with no car meshes and races in an empty world
 until they have been run. One script does all of it, with Rust, Python 3
 (numpy, Pillow, PyYAML) and the engine installed and the editor closed:
@@ -849,8 +849,7 @@ Nanite, materials beside it) to `/Game/Cars/<folder>/SM_<folder>` (hyphens
 become underscores), and the row gets name, brand, class, year, country,
 mass, power, folder and mesh from the TOML. Without `-force` the run is
 additive: existing rows keep their preview framing, cockpit points and
-hand-tuned fields, and only a missing or foreign mesh is replaced; the four
-cars imported by hand before the commandlet existed keep their meshes.
+hand-tuned fields, and only a missing or foreign mesh is replaced.
 `AApexRaceCarActor` turns the mesh −90° about Z, so a car must be long along
 its local Y; the import logs a warning when it is not. `ApexSim.Cars.Toml`
 tests the TOML scan.
