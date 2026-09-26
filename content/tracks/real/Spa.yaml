@@ -1,4 +1,4 @@
-name: Circuit de Spa-Francorchamps
+name: 'Spa-Frankenchamps'
 track_id: b8edab00-8392-4765-967e-3c060828f922
 nodes:
 - x: -0.22
@@ -16790,7 +16790,7 @@ metadata:
   country: Belgium
   city: Stavelot
   length_m: 6988.835
-  description: null
+  description: 'Modelled on the circuit in the Ardennes between Spa, Francorchamps and Stavelot, Belgium.'
   year_built: 1921
   category: F1
   environment_type: forest

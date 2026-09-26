@@ -1,4 +1,4 @@
-name: Moscow Raceway
+name: 'Moscow Mule Raceway'
 track_id: eb25347e-6f63-4b08-82b1-b494c09bf5bb
 nodes:
 - x: 0.9
@@ -9719,7 +9719,7 @@ metadata:
   country: Russia
   city: Volokolamsk
   length_m: 4051.793
-  description: null
+  description: 'Modelled on the circuit near Volokolamsk, west of Moscow, Russia.'
   year_built: 2012
   category: DTM
   environment_type: plains

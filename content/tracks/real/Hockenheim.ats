@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Hockenheim.yaml",
-  "track_name": "Hockenheimring",
+  "track_name": "Hockeyheimring",
   "surfaces": [
     {
       "id": 283,

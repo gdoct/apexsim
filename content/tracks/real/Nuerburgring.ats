@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Nuerburgring.yaml",
-  "track_name": "Nürburgring",
+  "track_name": "Nürburgerring",
   "surfaces": [
     {
       "id": 350,

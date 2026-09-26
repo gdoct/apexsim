@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Suzuka.yaml",
-  "track_name": "Suzuka Circuit",
+  "track_name": "Sudoku Circuit",
   "surfaces": [
     {
       "id": 401,

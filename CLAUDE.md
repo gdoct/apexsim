@@ -621,9 +621,20 @@ python scripts/build_track_catalog.py          # -> content/tracks/export/{track
 "$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexTrackCatalogSync                    # adds missing rows + imports T_Track_<Stem> textures
 ```
 
-The sync is additive unless `-force`; existing rows keep their values. Every
-track YAML needs a fixed `track_id` — without one the server mints a new UUID
-per start and no catalog row can ever match it.
+The sync is additive unless `-force`; existing rows keep their values,
+except the derived ones it refreshes every run: `SourceCrc`, `DisplayName`
+and `Description`. Every track YAML needs a fixed `track_id` — without one
+the server mints a new UUID per start and no catalog row can ever match it.
+
+**Track names are parodies.** The real circuit names are the operators'
+registered trademarks, so a YAML's `name` is a sound-alike that still says
+which circuit it is (`Zandervoort`, `Spa-Frankenchamps`, `Red Pull Ring`,
+`Lemons – Circuit du Peuple`) and `metadata.description` says what it is
+modelled on by place, never by the operator's name ("Modelled on the circuit
+in the dunes at Zandvoort, Netherlands."; shown under the title in the track
+picker, `FApexTrackCatalogRow::Description`). The full table is in
+`content/tracks/real/README.md`. Stems stay the place names, and
+`-ApexTrack=` takes the stem (else a substring of the lobby name).
 
 ### Ground textures (`content/textures/ground`, `ApexGroundTexImport`)
 The track surfaces sample baked tiling maps rather than the engine's 64-texel

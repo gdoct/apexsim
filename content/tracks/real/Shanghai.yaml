@@ -1,4 +1,4 @@
-name: Shanghai International Circuit
+name: 'Shanghaied International Circuit'
 track_id: 3fbd35a9-7cdd-4fab-81c6-0661f02f8499
 nodes:
 - x: 0.06
@@ -13034,7 +13034,7 @@ metadata:
   country: China
   city: Shanghai
   length_m: 5431.764
-  description: null
+  description: 'Modelled on the Grand Prix circuit at Jiading, Shanghai, China.'
   year_built: 2004
   category: F1
   environment_type: plains

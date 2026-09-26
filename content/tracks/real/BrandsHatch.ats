@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "BrandsHatch.yaml",
-  "track_name": "Brands Hatch",
+  "track_name": "Brands Scratch",
   "surfaces": [
     {
       "id": 283,

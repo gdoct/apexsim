@@ -1,4 +1,4 @@
-name: Autódromo José Carlos Pace
+name: 'Autódromo Interlaggos'
 track_id: c2687be4-e01f-406a-8d2c-73352fc75a3e
 nodes:
 - x: -0.52
@@ -10316,7 +10316,7 @@ metadata:
   country: Brazil
   city: São Paulo
   length_m: 4303.42
-  description: null
+  description: 'Modelled on the Grand Prix circuit at Interlagos, São Paulo, Brazil.'
   year_built: 1940
   category: F1
   environment_type: plains

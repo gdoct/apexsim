@@ -307,8 +307,9 @@ Attach the screenshots to the hand-back.
 - **Sidecars are generated and gitignored.** After pulling a dressed track
   the server needs a fresh `ats-export --all` and a restart, or nothing
   stops a car at the barriers.
-- **`-ApexTrack=` substring-matches the lobby track name**, which is the
-  YAML `name`, not the stem (`-ApexTrack=Hungaroring`, not `Budapest`).
+- **`-ApexTrack=` takes the stem** (`-ApexTrack=Budapest`, matched against
+  the catalog row's `YamlBaseName`), else a substring of the lobby name,
+  which is the YAML `name`: a parody (`Hungoverring`), never the real one.
 - **`Track.locate` is nearest-point.** Where two parts of the lap run close
   together (Suzuka's crossover, IMS's infield beside the oval, Sepang's two
   straights sharing one stand) a feature can attach to the wrong leg with

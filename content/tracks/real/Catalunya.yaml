@@ -1,4 +1,4 @@
-name: Circuit de Barcelona-Catalunya
+name: 'Circuit de Barcelunatic'
 track_id: 257c5b22-e000-4485-9b52-9f4548923eb4
 nodes:
 - x: -0.47
@@ -11141,7 +11141,7 @@ metadata:
   country: Spain
   city: Montmeló
   length_m: 4642.86
-  description: null
+  description: 'Modelled on the Grand Prix circuit at Montmeló, near Barcelona, Spain.'
   year_built: 1991
   category: F1
   environment_type: plains

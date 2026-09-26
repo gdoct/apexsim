@@ -1,4 +1,4 @@
-name: Sepang International Circuit
+name: 'Shebang International Circuit'
 track_id: 89360ba1-d1ea-4470-99d4-d1895ca9b877
 nodes:
 - x: 1.22
@@ -13253,7 +13253,7 @@ metadata:
   country: Malaysia
   city: Sepang
   length_m: 5532.574
-  description: null
+  description: 'Modelled on the Grand Prix circuit at Sepang, near Kuala Lumpur, Malaysia.'
   year_built: 1999
   category: F1
   environment_type: plains

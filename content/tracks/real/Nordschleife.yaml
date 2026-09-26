@@ -1,4 +1,4 @@
-name: Nürburgring Nordschleife
+name: 'Nürburger Mordschleife'
 track_id: 7648a87e-a67d-43c2-b92a-84022cc3ca75
 nodes:
 - x: 0.0
@@ -49859,7 +49859,7 @@ metadata:
   country: Germany
   city: Nürburg
   length_m: 20764.258
-  description: 'Nordschleife, 20.8 km: the Green Hell'
+  description: 'Modelled on the 20.8 km northern loop at Nürburg, through the forests of Germany''s Eifel hills.'
   year_built: 1927
   category: Endurance
   environment_type: forest

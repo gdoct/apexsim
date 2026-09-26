@@ -1,4 +1,4 @@
-name: Circuit Gilles Villeneuve
+name: 'Circuit Chilly Villeneuve'
 track_id: 66052af6-2caf-402f-a130-3e3b188674c4
 nodes:
 - x: 0.12
@@ -10457,7 +10457,7 @@ metadata:
   country: Canada
   city: Montreal
   length_m: 4345.907
-  description: null
+  description: 'Modelled on the island circuit on Île Notre-Dame, Montréal, Canada.'
   year_built: 1978
   category: F1
   environment_type: plains

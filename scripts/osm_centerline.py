@@ -64,7 +64,7 @@ LAPS: dict[str, dict] = {
     # `place=locality` nodes for each section, which OSM puts beside the
     # stretch they name, in race (clockwise) order.
     "Nordschleife": {
-        "name": "Nürburgring Nordschleife",
+        "name": "Nürburger Mordschleife",
         "track_id": "7648a87e-a67d-43c2-b92a-84022cc3ca75",
         "start_finish": (6.95077, 50.33783),  # "Start-Ziel T13"
         # OSM's T13 node projects onto the lap right where the road comes
@@ -113,7 +113,7 @@ LAPS: dict[str, dict] = {
         "metadata": {
             "country": "Germany",
             "city": "Nürburg",
-            "description": "Nordschleife, 20.8 km: the Green Hell",
+            "description": "Modelled on the 20.8 km northern loop at Nürburg, through the forests of Germany's Eifel hills.",
             "year_built": 1927,
             "category": "Endurance",
             "environment_type": "forest",

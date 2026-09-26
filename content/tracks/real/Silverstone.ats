@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Silverstone.yaml",
-  "track_name": "Silverstone Circuit",
+  "track_name": "Shiverstone Circuit",
   "surfaces": [
     {
       "id": 381,

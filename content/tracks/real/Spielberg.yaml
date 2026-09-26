@@ -1,4 +1,4 @@
-name: Red Bull Ring
+name: 'Red Pull Ring'
 track_id: 40573af3-d0d6-4d16-9a75-ea10797af70f
 nodes:
 - x: -1.21
@@ -10367,7 +10367,7 @@ metadata:
   country: Austria
   city: Spielberg
   length_m: 4308.184
-  description: null
+  description: 'Modelled on the circuit at Spielberg, Styria, Austria.'
   year_built: 1969
   category: F1
   environment_type: forest

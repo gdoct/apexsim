@@ -1,4 +1,4 @@
-name: Circuit Zandvoort
+name: 'Zandervoort'
 track_id: 261e1302-935c-4a5a-96c4-ed2418703b3e
 nodes:
 - x: -1.68
@@ -10340,7 +10340,7 @@ metadata:
   country: Netherlands
   city: Zandvoort
   length_m: 4313.488
-  description: null
+  description: 'Modelled on the circuit in the dunes at Zandvoort, Netherlands.'
   year_built: 1948
   category: DTM
   environment_type: plains

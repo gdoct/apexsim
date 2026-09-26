@@ -1,4 +1,4 @@
-name: Circuit of The Americas
+name: 'Circuit of the Armadillos'
 track_id: abb79ce2-cf93-418f-926f-0e8852568d6b
 nodes:
 - x: 0.96
@@ -13187,7 +13187,7 @@ metadata:
   country: United States
   city: Austin
   length_m: 5490.624
-  description: null
+  description: 'Modelled on the Grand Prix circuit outside Austin, Texas.'
   year_built: 2012
   category: F1
   environment_type: plains

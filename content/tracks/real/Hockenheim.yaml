@@ -1,4 +1,4 @@
-name: Hockenheimring
+name: 'Hockeyheimring'
 track_id: a24975c7-f967-4089-9bd9-a71d37e3f109
 nodes:
 - x: 0.69
@@ -10958,7 +10958,7 @@ metadata:
   country: Germany
   city: Hockenheim
   length_m: 4561.23
-  description: null
+  description: 'Modelled on the circuit at Hockenheim, Baden-Württemberg, Germany.'
   year_built: 1932
   category: F1
   environment_type: country

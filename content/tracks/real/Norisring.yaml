@@ -1,4 +1,4 @@
-name: Norisring
+name: 'Snorisring'
 track_id: 92f4416f-c318-4e0f-ad29-123ae1fce88e
 nodes:
 - x: -1.2
@@ -5513,7 +5513,7 @@ metadata:
   country: Germany
   city: Nuremberg
   length_m: 2279.002
-  description: null
+  description: 'Modelled on the street circuit at Nuremberg, Germany.'
   year_built: 1947
   category: DTM
   environment_type: plains

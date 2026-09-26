@@ -56,6 +56,8 @@ private:
 		FString TrackId;
 		FString Stem;
 		FString DisplayName;
+		/** `description` from the manifest; empty from a manifest written before the field. */
+		FString Description;
 		FString Country;
 		FString City;
 		FString Category;
