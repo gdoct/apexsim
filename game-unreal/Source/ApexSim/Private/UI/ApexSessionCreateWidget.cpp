@@ -1,6 +1,7 @@
 #include "UI/ApexSessionCreateWidget.h"
 
 #include "ApexCarPreviewStage.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Components/Image.h"
 #include "Components/ScaleBox.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -695,12 +696,12 @@ void UApexSessionCreateWidget::RefreshContent()
 		// turntable stopped under it.
 		UWidget* CarArt = nullptr;
 		AApexCarPreviewStage* Stage = IsActiveScreen() ? AApexCarPreviewStage::Find(this) : nullptr;
-		if (Stage && bHasRow && !Row.Mesh.IsNull() && Stage->GetPreviewRenderTarget())
+		if (Stage && bHasRow && ApexCarContent::HasBody(Row) && Stage->GetPreviewRenderTarget())
 		{
 			Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
 			Stage->SetCarWheels(Row.Wheels);
 			Stage->SetCarDrsFlap(Row.DrsFlap);
-			Stage->SetCarMesh(Row.Mesh);
+			Stage->SetCarMesh(ApexCarContent::LoadBody(Row));
 			Stage->SetTurntableEnabled(false);
 			Stage->ResetTurntable();
 

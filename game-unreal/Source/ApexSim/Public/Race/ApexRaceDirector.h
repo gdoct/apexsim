@@ -293,7 +293,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCameraComponent> TvCamera;
 
-	/** Fallback mesh for cars with no catalog row (AI drivers have no car id). */
+	/**
+	 * Fallback mesh for cars with no catalog row, or whose body will not
+	 * load. Cooked, so only the editor has it once `/Game/Cars` is not
+	 * cooked; past it, such a car is drawn as the player's own.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|Race")
 	TSoftObjectPtr<UStaticMesh> DefaultCarMesh;
 

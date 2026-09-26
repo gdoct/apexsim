@@ -18,7 +18,8 @@ namespace ApexTrackMaterialGraphs
 	 * Generate and save the parents that are missing — all of them with
 	 * `bForce` — and `M_ApexTrackBase` again whenever the ground textures
 	 * have been imported (or removed) since it was baked, since which of its
-	 * two surface graphs it carries depends on them.
+	 * two surface graphs it carries depends on them. The four car parents
+	 * (`ApexCarMaterials`, `/Game/Materials/Car`) are baked in the same pass.
 	 */
 	bool Bake(bool bForce, FString& OutError);
 

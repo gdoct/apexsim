@@ -1,10 +1,12 @@
 #include "ApexTrackMaterialGraphs.h"
 
 #include "ApexTrackEditorModule.h"
+#include "Cars/ApexCarMaterials.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Texture.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionAdd.h"
+#include "MaterialShared.h"
 #include "Materials/MaterialExpressionAppendVector.h"
 #include "Materials/MaterialExpressionClamp.h"
 #include "Materials/MaterialExpressionComponentMask.h"
@@ -734,6 +736,110 @@ namespace
 		Parent->PostEditChange();
 	}
 
+	/** What the car parents' `BaseColorTexture` shows until an instance sets one: white, so the factor alone decides. */
+	const TCHAR* kWhiteTexture = TEXT("/Engine/EngineResources/WhiteSquareTexture.WhiteSquareTexture");
+
+	/** Which of the four car parents a graph is. */
+	enum class ECarParent : uint8
+	{
+		Opaque,
+		ClearCoat,
+		Masked,
+		Translucent,
+	};
+
+	UMaterialExpressionComponentMask* CarMask(UMaterial* Material, UMaterialExpression* Input, bool R, bool G, bool B, bool A)
+	{
+		UMaterialExpressionComponentMask* Result = AddExpr<UMaterialExpressionComponentMask>(Material);
+		Result->Input.Expression = Input;
+		Result->R = R;
+		Result->G = G;
+		Result->B = B;
+		Result->A = A;
+		return Result;
+	}
+
+	UMaterialExpressionScalarParameter* CarScalar(UMaterial* Material, const TCHAR* Name, float Default)
+	{
+		UMaterialExpressionScalarParameter* Result = AddExpr<UMaterialExpressionScalarParameter>(Material);
+		Result->ParameterName = Name;
+		Result->DefaultValue = Default;
+		return Result;
+	}
+
+	/**
+	 * A car parent (`ApexCarMaterials`): glTF's metallic-roughness model
+	 * under the names Interchange's glTF parents gave it, which is what the
+	 * livery, ghost and brake-light code sets on the runtime instances.
+	 * Base colour is the factor times the texture; alpha is the same pair's
+	 * alpha. A masked parent clips at `AlphaCutoff` (a parameter, since a
+	 * dynamic instance cannot move the clip value): the mask is
+	 * `alpha - cutoff + 0.5` against a fixed clip of 0.5. Every one is
+	 * two-sided, as every car GLB's material is.
+	 */
+	void BuildCar(UMaterial* Parent, ECarParent Kind, UTexture* White)
+	{
+		UMaterialExpressionVectorParameter* Factor = AddExpr<UMaterialExpressionVectorParameter>(Parent);
+		Factor->ParameterName = ApexCarMaterials::BaseColorFactor;
+		Factor->DefaultValue = FLinearColor::White;
+		UMaterialExpressionTextureSampleParameter2D* Sample = AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+		Sample->ParameterName = ApexCarMaterials::BaseColorTexture;
+		Sample->Texture = White;
+		Sample->SamplerType = SAMPLERTYPE_Color;
+
+		UMaterialExpressionMultiply* BaseColor = AddExpr<UMaterialExpressionMultiply>(Parent);
+		BaseColor->A.Expression = CarMask(Parent, Factor, true, true, true, false);
+		// Output 0 of a texture sample is its RGB, output 4 its alpha.
+		BaseColor->B.Connect(0, Sample);
+		UMaterialExpressionMultiply* Alpha = AddExpr<UMaterialExpressionMultiply>(Parent);
+		Alpha->A.Expression = CarMask(Parent, Factor, false, false, false, true);
+		Alpha->B.Connect(4, Sample);
+
+		UMaterialExpressionVectorParameter* Emissive = AddExpr<UMaterialExpressionVectorParameter>(Parent);
+		Emissive->ParameterName = ApexCarMaterials::EmissiveFactor;
+		Emissive->DefaultValue = FLinearColor::Black;
+
+		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
+		EditorOnly->BaseColor.Expression = BaseColor;
+		EditorOnly->Metallic.Expression = CarScalar(Parent, ApexCarMaterials::MetallicFactor, 1.0f);
+		EditorOnly->Roughness.Expression = CarScalar(Parent, ApexCarMaterials::RoughnessFactor, 1.0f);
+		EditorOnly->EmissiveColor.Expression = CarMask(Parent, Emissive, true, true, true, false);
+		Parent->TwoSided = true;
+
+		switch (Kind)
+		{
+		case ECarParent::ClearCoat:
+			Parent->SetShadingModel(MSM_ClearCoat);
+			EditorOnly->ClearCoat.Expression = CarScalar(Parent, ApexCarMaterials::ClearCoatFactor, 1.0f);
+			EditorOnly->ClearCoatRoughness.Expression = CarScalar(Parent, ApexCarMaterials::ClearCoatRoughnessFactor, 0.03f);
+			break;
+		case ECarParent::Masked:
+		{
+			UMaterialExpressionSubtract* Below = AddExpr<UMaterialExpressionSubtract>(Parent);
+			Below->A.Expression = Alpha;
+			Below->B.Expression = CarScalar(Parent, ApexCarMaterials::AlphaCutoff, 0.5f);
+			UMaterialExpressionConstant* Half = AddExpr<UMaterialExpressionConstant>(Parent);
+			Half->R = 0.5f;
+			UMaterialExpressionAdd* Shifted = AddExpr<UMaterialExpressionAdd>(Parent);
+			Shifted->A.Expression = Below;
+			Shifted->B.Expression = Half;
+			EditorOnly->OpacityMask.Expression = Shifted;
+			Parent->BlendMode = BLEND_Masked;
+			Parent->OpacityMaskClipValue = 0.5f;
+			break;
+		}
+		case ECarParent::Translucent:
+			EditorOnly->Opacity.Expression = Alpha;
+			Parent->BlendMode = BLEND_Translucent;
+			// Glass wants its reflections lit per pixel, not the volume's blur.
+			Parent->TranslucencyLightingMode = TLM_SurfacePerPixelLighting;
+			break;
+		default:
+			break;
+		}
+		Parent->PostEditChange();
+	}
+
 	/**
 	 * A package ready to receive a freshly generated asset: an existing one
 	 * of the same name is renamed out of the way first, since re-baking is
@@ -758,17 +864,17 @@ namespace
 		return Package;
 	}
 
-	/** Generate one parent with `Build`, and save it. */
-	bool BakeOne(const TCHAR* Name, TFunctionRef<void(UMaterial*)> Build, FString& OutError)
+	/** Generate one parent with `Build` as `PackageName`, and save it. */
+	bool BakeAs(const FString& PackageName, TFunctionRef<void(UMaterial*)> Build, FString& OutError)
 	{
-		const FString PackageName = ApexTrackMaterials::PackageName(Name);
+		const FString Name = FPackageName::GetShortName(PackageName);
 		UPackage* Package = MakeMaterialPackage(PackageName);
 		if (!Package)
 		{
 			OutError = FString::Printf(TEXT("could not create package %s"), *PackageName);
 			return false;
 		}
-		UMaterial* Material = NewObject<UMaterial>(Package, Name, RF_Public | RF_Standalone);
+		UMaterial* Material = NewObject<UMaterial>(Package, *Name, RF_Public | RF_Standalone);
 		Build(Material);
 		FAssetRegistryModule::AssetCreated(Material);
 		Package->MarkPackageDirty();
@@ -785,6 +891,12 @@ namespace
 		}
 		UE_LOG(LogApexTrackImport, Display, TEXT("    baked %s"), *PackageName);
 		return true;
+	}
+
+	/** A track parent, under `/Game/Materials/Track`. */
+	bool BakeOne(const TCHAR* Name, TFunctionRef<void(UMaterial*)> Build, FString& OutError)
+	{
+		return BakeAs(ApexTrackMaterials::PackageName(Name), Build, OutError);
 	}
 
 	bool ParentExists(const TCHAR* Name)
@@ -866,6 +978,40 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 	{
 		UE_LOG(LogApexTrackImport, Display, TEXT("    the track parent materials under %s are up to date"),
 			ApexTrackMaterials::Folder);
+	}
+
+	// The cars' parents, under /Game/Materials/Car.
+	UTexture* White = LoadObject<UTexture>(nullptr, kWhiteTexture);
+	if (!White)
+	{
+		UE_LOG(LogApexTrackImport, Warning, TEXT("    the engine's WhiteSquareTexture is missing; the car parents sample the default texture until an instance sets one"));
+		White = Placeholder;
+	}
+	const TPair<const TCHAR*, ECarParent> CarParents[] = {
+		{ApexCarMaterials::OpaqueName, ECarParent::Opaque},
+		{ApexCarMaterials::ClearCoatName, ECarParent::ClearCoat},
+		{ApexCarMaterials::MaskedName, ECarParent::Masked},
+		{ApexCarMaterials::TranslucentName, ECarParent::Translucent},
+	};
+	int32 CarsBaked = 0;
+	for (const TPair<const TCHAR*, ECarParent>& Car : CarParents)
+	{
+		const FString PackageName = ApexCarMaterials::PackageName(Car.Key);
+		if (!bForce && FPackageName::DoesPackageExist(PackageName))
+		{
+			continue;
+		}
+		const ECarParent Kind = Car.Value;
+		if (!BakeAs(PackageName, [Kind, White](UMaterial* M) { BuildCar(M, Kind, White); }, OutError))
+		{
+			return false;
+		}
+		++CarsBaked;
+	}
+	if (CarsBaked == 0)
+	{
+		UE_LOG(LogApexTrackImport, Display, TEXT("    the car parent materials under %s are up to date"),
+			ApexCarMaterials::Folder);
 	}
 	return true;
 }

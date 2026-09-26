@@ -3,8 +3,8 @@
 #include "Audio/ApexListenerSpace.h"
 #include "Audio/ApexRoadSound.h"
 #include "ApexSim.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Catalog/ApexCatalogRows.h"
-#include "Engine/DataTable.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -168,18 +168,18 @@ namespace
 	void RenderCars(const TArray<FString>& Args)
 	{
 		const FString Dir = Args.Num() > 0 ? Args[0] : FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Audio"));
-		const UDataTable* Table = LoadObject<UDataTable>(nullptr, TEXT("/Game/Data/DT_CarCatalog.DT_CarCatalog"));
-		if (!Table || Table->GetRowStruct() != FApexCarCatalogRow::StaticStruct())
+		const UApexCarContentSubsystem* Content = UApexCarContentSubsystem::Get();
+		if (!Content)
 		{
-			UE_LOG(LogApexSim, Error, TEXT("apexsim.audio.RenderCars: no car catalog at /Game/Data/DT_CarCatalog"));
+			UE_LOG(LogApexSim, Error, TEXT("apexsim.audio.RenderCars: no car content subsystem"));
 			return;
 		}
-		for (const TPair<FName, uint8*>& Pair : Table->GetRowMap())
-		{
-			const FApexCarCatalogRow* Row = reinterpret_cast<const FApexCarCatalogRow*>(Pair.Value);
+		// Every car the game knows: the folders on disk, then any table-only row.
+		Content->ForEachRow([&Dir](const FString& CarId, const FApexCarCatalogRow& CarRow) {
+			const FApexCarCatalogRow* Row = &CarRow;
 			const ApexEngineSynth::FEngineSpec Spec = ApexEngineAudio::MakeSpec(Row->EngineSound, Row->CarClass);
 			const int32 Gears = Row->CarClass.Equals(TEXT("F1"), ESearchCase::IgnoreCase) ? 8 : 6;
-			const FString Name = Row->FolderName.IsEmpty() ? Pair.Key.ToString() : Row->FolderName;
+			const FString Name = Row->FolderName.IsEmpty() ? CarId : Row->FolderName;
 			const FString Path = FPaths::Combine(Dir, Name + TEXT(".wav"));
 			const TArray<float> Frames = RenderDrive(Spec, Gears);
 			const bool bFormula = Row->CarClass.Equals(TEXT("F1"), ESearchCase::IgnoreCase);
@@ -191,7 +191,7 @@ namespace
 				Spec.bTurbo ? TEXT(" turbo") : TEXT(""), Spec.IdleRpm, Spec.RedlineRpm, Spec.ExhaustLengthM, Spec.Muffling,
 				Spec.Pops, Row->EngineSound.Cylinders > 0 ? TEXT("") : TEXT(" [no [sound] on the row: class default]"), *Path,
 				static_cast<float>(Frames.Num()) / PreviewSampleRate, bSaved ? TEXT("") : TEXT(" FAILED TO WRITE"));
-		}
+		});
 
 		FString Order;
 		const TArray<float> Road = RenderRoadTour(Order);

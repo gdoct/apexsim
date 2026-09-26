@@ -32,6 +32,9 @@
             Game/Tracks/        every circuit as its export (.uescene.json
                                 + .uemesh) and preview (.png), built by the
                                 game when it is raced
+            Game/Cars/          every car as its car.toml, GLBs and livery
+                                logos, built by the game when it is drawn
+            Game/Wheels/        the class wheels the cars name
             Server/             apexsim-server.exe + server.toml + content/
 
     Every stage can be skipped so a broken piece does not block the rest; a
@@ -117,6 +120,8 @@ $CarsDir      = Join-Path $RepoRoot 'content\cars'
 $TrackDir     = Join-Path $RepoRoot 'content\tracks\real'
 $ExportDir    = Join-Path $RepoRoot 'content\tracks\export'
 $MaterialsDir = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
+$CarMaterialsDir = Join-Path $RepoRoot 'game-unreal\Content\Materials\Car'
+$WheelsDir    = Join-Path $RepoRoot 'content\wheels'
 $PropsSrcDir  = Join-Path $RepoRoot 'content\props'
 $PropsDir     = Join-Path $RepoRoot 'game-unreal\Content\Props'
 $ServerExe    = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
@@ -125,6 +130,7 @@ if (-not $ClientArtifactDirectory) {
 }
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 
 function Write-Step {
     param([string]$Message)
@@ -242,6 +248,13 @@ function Invoke-Preflight {
     if ($cars.Count -eq 0) {
         $problems.Add("no car data: expected at least one car.toml under $CarsDir")
     }
+    else {
+        # The game builds every car from these files; one it cannot find is a
+        # car drawn as nothing, or without its wheels.
+        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir)) {
+            $problems.Add("car data: $problem")
+        }
+    }
 
     $tracks = @(Get-TrackFiles)
     if ($tracks.Count -eq 0) {
@@ -295,6 +308,9 @@ function Invoke-Preflight {
         if (-not (Test-Path (Join-Path $MaterialsDir 'M_ApexTrackBase.uasset'))) {
             $problems.Add("-SkipTracks, but the track materials were never baked ($MaterialsDir); run -run=ApexMaterialBake")
         }
+        if (-not (Test-Path (Join-Path $CarMaterialsDir 'M_ApexCarOpaque.uasset'))) {
+            $problems.Add("-SkipTracks, but the car materials were never baked ($CarMaterialsDir); run -run=ApexMaterialBake")
+        }
     }
 
     if ($problems.Count -gt 0) {
@@ -325,7 +341,7 @@ function Get-GitCommit {
 }
 
 # Server content: only what the server actually reads at startup. The .glb car
-# models (~43 MB) are already cooked into the client, the .ats sidecars belong
+# models ship with the client (Game\Cars), the .ats sidecars belong
 # to the track editor, and content/tracks/export is intermediate bake output.
 # The <Track>.ground.msgpack heightfield, <Track>.curbs.msgpack bands and
 # <Track>.walls.msgpack barriers the bake writes next to each YAML are server
@@ -467,6 +483,10 @@ if ($missing.Count -gt 0) {
 if (-not (Test-Path (Join-Path $MaterialsDir 'M_ApexTrackBase.uasset'))) {
     throw "no track materials under $MaterialsDir; run -run=ApexMaterialBake (build_track_levels.ps1 does)"
 }
+# The same bake makes the cars' parents; without them every car draws in flat colours.
+if (-not (Test-Path (Join-Path $CarMaterialsDir 'M_ApexCarOpaque.uasset'))) {
+    throw "no car materials under $CarMaterialsDir; run -run=ApexMaterialBake (build_track_levels.ps1 does)"
+}
 
 # --- client ----------------------------------------------------------------
 
@@ -497,8 +517,8 @@ else {
     }
     New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null
 
-    # The release copies the tracks itself, at assembly, with the checks it wants.
-    $clientArgs = @{ Configuration = $Configuration; OutputDirectory = $ReleaseDir; SkipTracks = $true }
+    # The release copies the tracks and cars itself, at assembly, with the checks it wants.
+    $clientArgs = @{ Configuration = $Configuration; OutputDirectory = $ReleaseDir; SkipTracks = $true; SkipCars = $true }
     if ($EngineRoot) { $clientArgs.EngineRoot = $EngineRoot }
     & (Join-Path $PSScriptRoot 'build_game_standalone.ps1') @clientArgs
 
@@ -521,6 +541,8 @@ Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
 Copy-RuntimeTracks -Destination (Join-Path $GameDir 'Tracks')
 $runtimeTrackCount = @(Get-ChildItem (Join-Path $GameDir 'Tracks') -Filter '*.uescene.json' -File).Count
 Write-Detail "$runtimeTrackCount track(s) in $(Join-Path $GameDir 'Tracks')"
+$runtimeCarCount = Copy-ApexRuntimeCars -CarsDir $CarsDir -WheelsDir $WheelsDir -Destination $GameDir
+Write-Detail "$runtimeCarCount car(s) in $(Join-Path $GameDir 'Cars')"
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination $ReleaseDir -Force
 
 # A sample rather than a live settings.yml: the client creates the real file on
@@ -607,6 +629,10 @@ WHAT IS IN HERE
                        when it is raced. A new circuit is its .uescene.json,
                        .uemesh and .png here,
                        with the matching .yaml in Server\content\tracks\real.
+    Game\Cars\         Every car, as the car.toml and GLBs the game builds
+                       it from; Game\Wheels\ holds the class wheels. A new
+                       car is its folder here, with the same car.toml in
+                       Server\content\cars.
     Game\settings.yml  Resolution, window mode and the server to connect to.
                        Written on the first run; edit it in any text editor.
                        Game\settings.sample.yml is the same file with the
