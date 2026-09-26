@@ -9,6 +9,12 @@
     and existing cars are overwritten (-force), which is what you want after
     re-exporting from Blender. Close the editor first; it holds the assets.
 
+    The game does not need this: it builds every car from content/cars at
+    runtime (UApexCarContentSubsystem, docs/RUNTIME_CONTENT_LOADING.md), and
+    /Game/Cars is not cooked. The import is for looking at a car in the
+    editor, and fills DT_CarCatalog, whose hand-tuned turntable and cockpit
+    fields a runtime car still borrows when its car.toml has none.
+
 .PARAMETER Car
     Car folder names (e.g. limbotiti-caravan-gt3) to import instead of all.
 

@@ -6,6 +6,7 @@
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "Camera/CameraComponent.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -546,6 +547,20 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
 
+	// Every model the field needs is read on the thread pool at once; the
+	// cars below then only wait for their own and build it.
+	if (UApexCarContentSubsystem* CarContent = UApexCarContentSubsystem::Get(); CarContent && Flow)
+	{
+		for (const FApexRosterEntry& Entry : Roster.Entries)
+		{
+			const FString CarId = Entry.CarConfigId.IsEmpty() ? Flow->GetPendingCarId() : Entry.CarConfigId;
+			if (const FApexCarCatalogRow* Row = CarContent->FindRow(CarId))
+			{
+				CarContent->Prefetch(*Row);
+			}
+		}
+	}
+
 	TSet<int32> Wanted;
 	for (const FApexRosterEntry& Entry : Roster.Entries)
 	{
@@ -627,18 +642,26 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		return;
 	}
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	TSoftObjectPtr<UStaticMesh> Mesh = DefaultCarMesh;
+	UStaticMesh* Mesh = nullptr;
 	// The fallback mesh has its wheels modelled in: none drawn on it.
 	FApexWheelSpec Wheels;
 	FApexDrsFlapSpec DrsFlap;
 	FApexCarCatalogRow Row;
+	bool bRowBody = false;
 	if (Flow && !CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, Row))
 	{
-		if (!Row.Mesh.IsNull())
+		// Built from the car's GLB the first time any car shows it.
+		Mesh = ApexCarContent::LoadBody(Row);
+		if (Mesh)
 		{
-			Mesh = Row.Mesh;
+			bRowBody = true;
 			Wheels = Row.Wheels;
 			DrsFlap = Row.DrsFlap;
+		}
+		else
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("Race roster: car %s (%s) has no body that loads, drawing the fallback"),
+				*CarId, *Row.DisplayName);
 		}
 		Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
 		Car->SetEngineSound(Row.EngineSound, Row.CarClass);
@@ -650,10 +673,27 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
 		Car->SetEngineSound(FApexEngineSoundSpec(), FString());
 	}
+	if (!Mesh && !DefaultCarMesh.IsNull())
+	{
+		Mesh = DefaultCarMesh.LoadSynchronous();
+	}
+	// No cooked fallback in a packaged game (the cars are not cooked): an
+	// unknown car is drawn as the player's own rather than not at all.
+	FApexCarCatalogRow Own;
+	if (!Mesh && Flow && Flow->HasPendingCar() && !Flow->GetPendingCarId().Equals(CarId, ESearchCase::IgnoreCase)
+		&& Flow->GetCarCatalogRow(Flow->GetPendingCarId(), Own))
+	{
+		Mesh = ApexCarContent::LoadBody(Own);
+		if (Mesh)
+		{
+			Wheels = Own.Wheels;
+			DrsFlap = Own.DrsFlap;
+		}
+	}
 	Car->SetCarMesh(Mesh);
 	Car->SetWheels(Wheels);
 	Car->SetDrsFlap(DrsFlap);
-	Car->SetLivery(Mesh == Row.Mesh ? ApexLivery::Find(Row, Livery) : nullptr);
+	Car->SetLivery(bRowBody ? ApexLivery::Find(Row, Livery) : nullptr);
 }
 
 void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)

@@ -1,6 +1,7 @@
 #include "UI/ApexCarSelectWidget.h"
 
 #include "ApexCarPreviewStage.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexSim.h"
@@ -643,7 +644,7 @@ void UApexCarSelectWidget::UpdatePreviewStage()
 	Stage->SetPreviewTransform(Row.PreviewOffset, Row.PreviewRotation, Row.PreviewScale);
 	Stage->SetCarWheels(Row.Wheels);
 	Stage->SetCarDrsFlap(Row.DrsFlap);
-	Stage->SetCarMesh(Row.Mesh);
+	Stage->SetCarMesh(ApexCarContent::LoadBody(Row));
 	Stage->SetCarLivery(ApexLivery::Find(Row, SelectedLivery));
 }
 

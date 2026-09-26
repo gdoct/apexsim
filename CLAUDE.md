@@ -63,10 +63,11 @@ clashes only show once unity builds batch it with its neighbours).
 ### Fresh checkout: building the client's content
 `game-unreal/Content/` is gitignored. Only the menu (`UI/`, `Maps/L_Menu`,
 `Blueprints/`), the two catalog tables in `Data/`, the splash (`Splash/`) and
-three legacy hand-imported cars are checked in; the tracks, props, ground
-textures and most car meshes are **generated** from `content/` by commandlets,
-so a fresh clone opens to a menu with no car meshes and races in an empty world
-until they have been run. One script does all of it, with Rust, Python 3
+three legacy hand-imported cars are checked in; the props, ground textures and
+the track and car parent materials are **generated** from `content/` by
+commandlets, and the tracks by the Rust bake, so a fresh clone draws cars in
+flat colours and races in an empty world until they have been run. (The cars
+themselves need no step: the game builds them from `content/cars` at runtime.) One script does all of it, with Rust, Python 3
 (numpy, Pillow, PyYAML) and the engine installed and the editor closed:
 
 ```powershell
@@ -81,25 +82,27 @@ safe on an existing checkout too. The stages, in order (run by hand if needed):
 1. `Build.bat ApexSimEditor Win64 Development` - the commandlets live in it
    (incremental; `-SkipBuild` skips it).
 2. `cargo build --release` in `server/`, if there is no server exe.
-3. `import_cars.ps1` - cars whose `/Game/Cars/<folder>/SM_<folder>` is missing
-   (every car when a class wheel mesh is missing).
-4. `bake_ground_textures.py` (the PNGs are normally checked in) and
+3. `bake_ground_textures.py` (the PNGs are normally checked in) and
    `-run=ApexGroundTexImport` -> `/Game/Ground`.
-5. `-run=ApexMaterialBake` -> the four track parent materials under
-   `/Game/Materials/Track`, when one is missing or stage 4 ran (the base
+4. `-run=ApexMaterialBake` -> the four track parent materials under
+   `/Game/Materials/Track` and the four car parents under
+   `/Game/Materials/Car`, when one is missing or stage 3 ran (the track base
    parent's surface graph depends on the ground textures).
-6. `-run=ApexPropImport -all` when any kit GLB has no mesh.
-7. `build_track_levels.ps1 -Release -SkipMaterials` for every circuit missing
+5. `-run=ApexPropImport -all` when any kit GLB has no mesh.
+6. `build_track_levels.ps1 -Release -SkipMaterials` for every circuit missing
    its export (`.uescene.json` + `.uemesh`), its preview or a
    `{ground,curbs,walls}.msgpack` sidecar (which the server needs). No track
-   is rebaked because stage 4 or 6 ran: the game dresses each circuit with
+   is rebaked because stage 3 or 5 ran: the game dresses each circuit with
    what `/Game` holds when it builds it.
 
-Stage 7 is the long one on a fresh clone (all circuits), and needs no engine. The data refreshes in
+It also checks that every file each car.toml names (model, DRS flap, logos,
+class wheel) is on disk, and imports no car: see "Cars" below.
+
+Stage 6 is the long one on a fresh clone (all circuits), and needs no engine. The data refreshes in
 the track sections below (`osm_layout.py`, `dem_fetch.py`, `dem_elevation.py`,
 `ats-smooth`, `ats-bank`, `drs_zones.py`) are **not** part of it: their outputs
 (dossiers, DEM sidecars, YAMLs, `.ats` scenes) are checked in.
-`build_release.ps1` does not import cars or ground textures, so run this script
+`build_release.ps1` does not import ground textures, so run this script
 first on a new machine.
 
 ### Track Editor (Rust + Bevy)
@@ -150,9 +153,14 @@ below): `Game/Tracks/` holds each one's `.uescene.json`, `.uemesh` and
 preview `.png`, and the run aborts if a circuit has no export or the track
 materials were never baked. A new circuit can be added to an installed
 game by dropping those three files in `Game/Tracks` and its YAML (with the
-sidecars) in `Server/content/tracks/real`.
+sidecars) in `Server/content/tracks/real`. The cars ship the same way
+(see "Cars" below): `Game/Cars/<folder>/` holds each car.toml with the GLBs
+and logos it names and `Game/Wheels/` the class wheels; the run aborts if a
+car.toml names a file that is not there or the car materials were never
+baked. A new car is its folder in `Game/Cars` and its car.toml in
+`Server/content/cars/<folder>`.
 
-Layout: `Game/` (the packaged client, `Tracks/`, plus a `settings.sample.yml`), `Server/` (`apexsim-server.exe`,
+Layout: `Game/` (the packaged client, `Tracks/`, `Cars/`, `Wheels/`, plus a `settings.sample.yml`), `Server/` (`apexsim-server.exe`,
 `server.toml` and only the content the server reads � `car.toml` per car and
 the track YAML, not the `.glb` models or `.ats` sidecars), plus `Play.bat`,
 `Start-Server.bat`, `README.txt`, `LICENSE` and `release.json`.
@@ -691,7 +699,7 @@ levels and `/Game/Tracks` is in `DirectoriesToNeverCook`. The reader,
 - **Not yet**: runtime meshes have no mesh distance fields, so software
   Lumen and DF shadows see the road and terrain less well than the old
   cooked levels did (risk 1 in the doc); worth an A/B against an
-  `-ImportLevels` level in the editor. Cars are still cooked-only.
+  `-ImportLevels` level in the editor. Cars are runtime-built too (see "Cars").
 
 `ApexSim.Track.Reader.*` tests pin the blob layout against the exporter's
 `the_mesh_blob_layout_is_pinned` (one golden 155-byte blob in both), the
@@ -832,38 +840,57 @@ leg's road edge (`dress::nearest_cross_section_near`), not the banked
 surface of another leg extrapolated to it, which had four of Zandvoort's
 exit-road nodes 7 m in the air.
 
-### Cars (`content/cars`, `ApexCarImport`)
-A car is `content/cars/<folder>/car.toml` plus the GLB its `model` names.
-The client finds its mesh through `/Game/Data/DT_CarCatalog`, keyed by the
-TOML's `id` (the wire only carries id and name); a car with no row shows
-placeholder art and an empty turntable, and a row whose mesh belongs to
-another folder previews as that other car. `ApexCarImport` keeps both in
-step:
+### Cars (`content/cars`, `UApexCarContentSubsystem`, docs/RUNTIME_CONTENT_LOADING.md)
+A car is `content/cars/<folder>/car.toml` plus the GLB its `model` names, and,
+like a track, **the game builds it from those files**; nothing about a car is
+cooked (`/Game/Cars` is in `DirectoriesToNeverCook`). `UApexCarContentSubsystem`
+(an engine subsystem, `ApexSim/Cars/`) reads every car.toml on first use
+(`ApexCarToml::Parse`, the parser `ApexCarImport` used to own) into an
+`FApexCarCatalogRow` keyed by the TOML's `id` (the wire only carries id and
+name), and builds a GLB into a transient mesh the first time something draws
+it: `ApexGlb` (its own glTF reader: node tree, triangles, PNG/JPEG images with
+mips; glTF `(x, y, z)` m -> Unreal `(x, z, y)` cm, Interchange's frame, which
+also turns glTF's front face into Unreal's), the tracks' fast mesh build, and
+dynamic instances of four cooked parents under `/Game/Materials/Car`
+(`ApexMaterialBake`: opaque, clear coat, masked, translucent) with
+Interchange's parameter names (`BaseColorFactor`, `BaseColorTexture`,
+`MetallicFactor`, `RoughnessFactor`, `EmissiveFactor`), so the livery, ghost
+and brake-light code is unchanged. Folders: `-ApexCarsDir=`, then `Cars/`
+beside `ApexSim.exe` in a package (wheels in `Wheels/`), else the repo's
+`content/cars` (wheels in `content/wheels`). Edit a car, re-export, then
+`apexsim.car.Rescan` or restart. The race director `Prefetch`es the roster's
+GLBs on the thread pool before it dresses the cars.
+
+A row carries file paths (`RuntimeModel`, `Wheels.RuntimeModel`,
+`DrsFlap.RuntimeModel`, each livery's `RuntimeLogo`) beside the old soft
+pointers; everything that draws a car goes through `ApexCarContent::LoadBody`
+/ `LoadMesh` / `LoadLogo`, which take the file when there is one. A runtime
+body's slot instances are shared by every car wearing it, so a car's own
+instance (lights, livery, ghost tint) must come from
+`ApexCarContent::OwnMaterialInstance`, never `CreateDynamicMaterialInstance`
+(which returns the shared one and repaints every such car).
+
+`DT_CarCatalog` is now a fallback for a car with no folder on this machine,
+and the source of hand-tuned turntable framing and cockpit points for a car
+whose car.toml has no `[preview]` / `[cockpit]` table (docs/CAR_MODELS.md).
+`ApexCarImport` still imports a car as `/Game/Cars/<folder>/SM_<folder>` and
+refreshes its row, for looking at it in the editor:
 
 ```bash
 "$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject     -run=ApexCarImport -all          # or -car=yotota-lmp2 / -list / -remove=folder / -force / -dryrun
 ```
 
-Each GLB goes through Interchange (one combined mesh, no collision, no
-Nanite, materials beside it) to `/Game/Cars/<folder>/SM_<folder>` (hyphens
-become underscores), and the row gets name, brand, class, year, country,
-mass, power, folder and mesh from the TOML. Without `-force` the run is
-additive: existing rows keep their preview framing, cockpit points and
-hand-tuned fields, and only a missing or foreign mesh is replaced; the four
-cars imported by hand before the commandlet existed keep their meshes.
 `AApexRaceCarActor` turns the mesh −90° about Z, so a car must be long along
-its local Y; the import logs a warning when it is not. `ApexSim.Cars.Toml`
-tests the TOML scan.
+its local Y (`ApexSim.Cars.Glb.RepoCars` checks every GLB in the repo).
+`ApexSim.Cars.Toml*` and `ApexSim.Cars.Glb.*` test the TOML scan and the reader.
 
 The body GLBs have no wheels: the client draws four copies of the class's
-shared wheel (`content/wheels/<class>.glb` → `/Game/Cars/Wheels/<class>/SM_Wheel_<class>`)
-where the car.toml's `[wheels]` table puts them, steers the front pair and
-rolls all four from the telemetry (`Race/ApexCarWheels.h`, row field
-`Wheels`, refreshed on every import like the checksum; docs/CAR_MODELS.md).
-A GLB changed on disk needs `-force` to be re-imported.
+shared wheel (`content/wheels/<class>.glb`) where the car.toml's `[wheels]`
+table puts them, steers the front pair and rolls all four from the telemetry
+(`Race/ApexCarWheels.h`, row field `Wheels`; docs/CAR_MODELS.md).
 
 Liveries: a car.toml's `[[livery]]` tables (written by `content/cars/liveries.py`) become the row's
-`Liveries` (logos imported to `/Game/Cars/<folder>/Liveries/`). The pick travels as `SelectCar.livery`
+`Liveries` (logo PNGs loaded at runtime). The pick travels as `SelectCar.livery`
 -> `RosterEntry.Livery` (0 = the model as authored; AI dealt in turn per model), and
 `ApexLivery::Apply` (`Race/ApexCarLivery.h`) repaints `car_paint`/`car_accent`/`car_logo` on the race
 car and the garage turntable. docs/CAR_MODELS.md, Liveries.
@@ -880,8 +907,9 @@ return dropped (so `core.autocrlf` cannot split the two sides; check vector
 carries `TrackId` so a client can find the session's track without matching
 names. On the client `ats-export` writes the YAML's `source_crc` into the
 track's manifest, which becomes the catalog row's `SourceCrc`;
-`ApexCarImport` hashes the TOML bytes onto the car row (refreshed even on an
-additive run, because it is derived, never hand-tuned). When the race
+the car row's `SourceCrc` is hashed from the car.toml the game read the car
+from (`UApexCarContentSubsystem`; `ApexCarImport` does the same for a table
+row). When the race
 director loads a track, and when it spawns
 the local player's car, `UApexMenuFlowSubsystem::VerifyTrackContent` /
 `VerifyCarContent` compare row against server: a mismatch is a warning in the
@@ -1457,10 +1485,9 @@ noise is just hiss (it is taken from the pulse alone).
 
 An engine is described by the `[sound]` table in its `car.toml`
 (`cylinders`, `crossplane`, `turbo`, `exhaust_length_m`, `muffling`, `pops`,
-`gear_whine`, `intake_roar`; the server ignores it), which `ApexCarImport`
-puts on the catalog row as `FApexEngineSoundSpec EngineSound` with
-`[engine]`'s idle, redline and limiter: derived like `Wheels`, refreshed on
-every run. That row is also how the client finally knows the rev range,
+`gear_whine`, `intake_roar`; the server ignores it), which the game reads
+onto the catalog row as `FApexEngineSoundSpec EngineSound` with
+`[engine]`'s idle, redline and limiter. That row is also how the client finally knows the rev range,
 which is not on the wire. `ApexEngineAudio::MakeSpec` fills in a class
 default (F1 turbo V6, LMP flat-plane V8, else crossplane V8) for a row from
 before the field. `docs/CAR_MODELS.md` has the table key by key.

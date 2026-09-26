@@ -26,58 +26,6 @@ namespace
 	const TCHAR* kGltfAssetsPipeline =
 		TEXT("/Interchange/Pipelines/DefaultGLTFAssetsPipeline.DefaultGLTFAssetsPipeline");
 	const TCHAR* kGltfPipeline = TEXT("/Interchange/Pipelines/DefaultGLTFPipeline.DefaultGLTFPipeline");
-
-	/** A TOML value with its quotes and any trailing comment removed. */
-	FString TomlValue(const FString& Raw)
-	{
-		FString Value = Raw;
-		int32 Hash = INDEX_NONE;
-		// A '#' outside quotes starts a comment.
-		bool bInString = false;
-		for (int32 i = 0; i < Value.Len(); ++i)
-		{
-			if (Value[i] == TEXT('"'))
-			{
-				bInString = !bInString;
-			}
-			else if (Value[i] == TEXT('#') && !bInString)
-			{
-				Hash = i;
-				break;
-			}
-		}
-		if (Hash != INDEX_NONE)
-		{
-			Value.LeftInline(Hash);
-		}
-		Value.TrimStartAndEndInline();
-		if (Value.Len() >= 2 && Value[0] == TEXT('"') && Value[Value.Len() - 1] == TEXT('"'))
-		{
-			Value.MidInline(1, Value.Len() - 2);
-		}
-		return Value;
-	}
-
-	/** `[0.1, 0.2, 0.3]` -> an opaque linear colour; false unless it is three numbers. */
-	bool TomlColour(const FString& Value, FLinearColor& Out)
-	{
-		FString Inner = Value;
-		Inner.TrimStartAndEndInline();
-		if (!Inner.StartsWith(TEXT("[")) || !Inner.EndsWith(TEXT("]")))
-		{
-			return false;
-		}
-		Inner.MidInline(1, Inner.Len() - 2);
-		TArray<FString> Parts;
-		Inner.ParseIntoArray(Parts, TEXT(","), true);
-		if (Parts.Num() != 3)
-		{
-			return false;
-		}
-		Out = FLinearColor(FCString::Atof(*Parts[0].TrimStartAndEnd()), FCString::Atof(*Parts[1].TrimStartAndEnd()),
-			FCString::Atof(*Parts[2].TrimStartAndEnd()), 1.0f);
-		return true;
-	}
 }	 // namespace
 
 UApexCarImportCommandlet::UApexCarImportCommandlet()
@@ -86,155 +34,6 @@ UApexCarImportCommandlet::UApexCarImportCommandlet()
 	IsServer = false;
 	IsEditor = true;
 	LogToConsole = true;
-}
-
-bool UApexCarImportCommandlet::ParseCarToml(const FString& Text, FCarToml& Out, FString& OutError)
-{
-	TArray<FString> Lines;
-	Text.ParseIntoArrayLines(Lines);
-	FString Table;
-	for (FString Line : Lines)
-	{
-		Line.TrimStartAndEndInline();
-		if (Line.IsEmpty() || Line.StartsWith(TEXT("#")))
-		{
-			continue;
-		}
-		if (Line.StartsWith(TEXT("[[livery]]")))
-		{
-			Out.Liveries.AddDefaulted();
-		}
-		if (Line.StartsWith(TEXT("[")))
-		{
-			// `[physics]`, `[[engine.torque_curve]]`: everything after this
-			// belongs to that table until the next header.
-			Table = Line.Replace(TEXT("["), TEXT("")).Replace(TEXT("]"), TEXT("")).TrimStartAndEnd();
-			continue;
-		}
-		FString Key;
-		FString Raw;
-		if (!Line.Split(TEXT("="), &Key, &Raw))
-		{
-			continue;
-		}
-		Key.TrimStartAndEndInline();
-		const FString Value = TomlValue(Raw);
-		if (Table.IsEmpty())
-		{
-			if (Key == TEXT("id")) { Out.Id = Value; }
-			else if (Key == TEXT("name")) { Out.Name = Value; }
-			else if (Key == TEXT("model")) { Out.Model = Value; }
-			else if (Key == TEXT("brand")) { Out.Brand = Value; }
-			else if (Key == TEXT("class")) { Out.CarClass = Value; }
-			else if (Key == TEXT("manufacturer_country")) { Out.ManufacturerCountry = Value; }
-			else if (Key == TEXT("model_year")) { Out.ModelYear = FCString::Atoi(*Value); }
-		}
-		else if (Table == TEXT("physics") && Key == TEXT("mass_kg"))
-		{
-			Out.MassKg = FCString::Atof(*Value);
-		}
-		else if (Table == TEXT("physics") && Key == TEXT("max_steering_angle_rad"))
-		{
-			Out.MaxSteerRad = FCString::Atof(*Value);
-		}
-		else if (Table == TEXT("wheels"))
-		{
-			FWheelsToml& W = Out.Wheels;
-			const float Number = FCString::Atof(*Value);
-			if (Key == TEXT("model")) { W.Model = Value; }
-			else if (Key == TEXT("front_axle_m")) { W.FrontAxleM = Number; }
-			else if (Key == TEXT("rear_axle_m")) { W.RearAxleM = Number; }
-			else if (Key == TEXT("front_track_m")) { W.FrontTrackM = Number; }
-			else if (Key == TEXT("rear_track_m")) { W.RearTrackM = Number; }
-			else if (Key == TEXT("front_radius_m")) { W.FrontRadiusM = Number; }
-			else if (Key == TEXT("rear_radius_m")) { W.RearRadiusM = Number; }
-			else if (Key == TEXT("front_width_m")) { W.FrontWidthM = Number; }
-			else if (Key == TEXT("rear_width_m")) { W.RearWidthM = Number; }
-		}
-		else if (Table == TEXT("drs_flap"))
-		{
-			FDrsFlapToml& D = Out.DrsFlap;
-			const float Number = FCString::Atof(*Value);
-			if (Key == TEXT("model")) { D.Model = Value; }
-			else if (Key == TEXT("hinge_forward_m")) { D.HingeForwardM = Number; }
-			else if (Key == TEXT("hinge_up_m")) { D.HingeUpM = Number; }
-			else if (Key == TEXT("open_deg")) { D.OpenDeg = Number; }
-		}
-		else if (Table == TEXT("engine"))
-		{
-			// `[[engine.torque_curve]]` has an `rpm` of its own; it is another table.
-			const float Number = FCString::Atof(*Value);
-			if (Key == TEXT("max_power_w")) { Out.MaxPowerKw = Number / 1000.0f; }
-			else if (Key == TEXT("idle_rpm")) { Out.Sound.IdleRpm = Number; }
-			else if (Key == TEXT("redline_rpm")) { Out.Sound.RedlineRpm = Number; }
-			else if (Key == TEXT("rev_limiter_rpm")) { Out.Sound.LimiterRpm = Number; }
-		}
-		else if (Table == TEXT("livery") && Out.Liveries.Num() > 0)
-		{
-			FLiveryToml& L = Out.Liveries.Last();
-			if (Key == TEXT("name")) { L.Name = Value; }
-			else if (Key == TEXT("paint")) { TomlColour(Value, L.Paint); }
-			else if (Key == TEXT("accent")) { TomlColour(Value, L.Accent); }
-			else if (Key == TEXT("metallic")) { L.Metallic = FCString::Atof(*Value); }
-			else if (Key == TEXT("logo")) { L.Logo = Value; }
-		}
-		else if (Table == TEXT("sound"))
-		{
-			FApexEngineSoundSpec& S = Out.Sound;
-			const float Number = FCString::Atof(*Value);
-			const bool bTrue = Value.Equals(TEXT("true"), ESearchCase::IgnoreCase);
-			if (Key == TEXT("cylinders")) { S.Cylinders = FCString::Atoi(*Value); }
-			else if (Key == TEXT("crossplane")) { S.bCrossplane = bTrue; }
-			else if (Key == TEXT("turbo")) { S.bTurbo = bTrue; }
-			else if (Key == TEXT("exhaust_length_m")) { S.ExhaustLengthM = Number; }
-			else if (Key == TEXT("muffling")) { S.Muffling = Number; }
-			else if (Key == TEXT("pops")) { S.Pops = Number; }
-			else if (Key == TEXT("gear_whine")) { S.GearWhine = Number; }
-			else if (Key == TEXT("intake_roar")) { S.IntakeRoar = Number; }
-		}
-	}
-	if (Out.Id.IsEmpty() || Out.Name.IsEmpty())
-	{
-		OutError = TEXT("car.toml has no id or name");
-		return false;
-	}
-	const FWheelsToml& W = Out.Wheels;
-	if (W.IsPresent()
-		&& (W.FrontRadiusM <= 0.0f || W.RearRadiusM <= 0.0f || W.FrontWidthM <= 0.0f || W.RearWidthM <= 0.0f
-			|| W.FrontTrackM <= 0.0f || W.RearTrackM <= 0.0f || W.FrontAxleM <= W.RearAxleM))
-	{
-		OutError = TEXT("[wheels] needs positive radii, widths and tracks, and the front axle ahead of the rear");
-		return false;
-	}
-	const FDrsFlapToml& D = Out.DrsFlap;
-	if (D.IsPresent() && (D.HingeUpM <= 0.0f || D.OpenDeg <= 0.0f || D.OpenDeg > 60.0f))
-	{
-		OutError = TEXT("[drs_flap] needs a hinge above the floor and an open_deg of 0-60");
-		return false;
-	}
-	for (const FLiveryToml& L : Out.Liveries)
-	{
-		if (L.Name.IsEmpty() || L.Paint.A <= 0.0f)
-		{
-			OutError = TEXT("every [[livery]] needs a name and a paint = [r, g, b]");
-			return false;
-		}
-	}
-	if (Out.Liveries.Num() > 254)
-	{
-		OutError = TEXT("at most 254 [[livery]] tables: the wire carries the pick in a byte");
-		return false;
-	}
-	const FApexEngineSoundSpec& S = Out.Sound;
-	auto IsShare = [](float Value) { return Value >= 0.0f && Value <= 1.0f; };
-	if (S.Cylinders != 0
-		&& (S.Cylinders < 1 || S.Cylinders > 16 || S.ExhaustLengthM < 0.2f || S.ExhaustLengthM > 2.8f
-			|| !IsShare(S.Muffling) || !IsShare(S.Pops) || !IsShare(S.GearWhine) || !IsShare(S.IntakeRoar)))
-	{
-		OutError = TEXT("[sound] needs 1-16 cylinders, an exhaust_length_m of 0.2-2.8 and muffling, pops, gear_whine and intake_roar within 0-1");
-		return false;
-	}
-	return true;
 }
 
 FString UApexCarImportCommandlet::WheelPackageName(const FString& DestRoot, const FString& Model)
@@ -251,36 +50,21 @@ FString UApexCarImportCommandlet::DrsFlapPackageName(const FString& DestRoot, co
 
 FApexDrsFlapSpec UApexCarImportCommandlet::MakeDrsFlapSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh)
 {
-	FApexDrsFlapSpec Spec;
-	if (!Toml.DrsFlap.IsPresent())
+	FApexDrsFlapSpec Spec = ApexCarToml::MakeDrsFlapSpec(Toml);
+	if (Toml.DrsFlap.IsPresent())
 	{
-		return Spec;
+		Spec.Mesh = Mesh;
 	}
-	Spec.Mesh = Mesh;
-	Spec.HingeForwardM = Toml.DrsFlap.HingeForwardM;
-	Spec.HingeUpM = Toml.DrsFlap.HingeUpM;
-	Spec.OpenDeg = Toml.DrsFlap.OpenDeg;
 	return Spec;
 }
 
 FApexWheelSpec UApexCarImportCommandlet::MakeWheelSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh)
 {
-	FApexWheelSpec Spec;
-	const FWheelsToml& W = Toml.Wheels;
-	if (!W.IsPresent())
+	FApexWheelSpec Spec = ApexCarToml::MakeWheelSpec(Toml);
+	if (Toml.Wheels.IsPresent())
 	{
-		return Spec;
+		Spec.Mesh = Mesh;
 	}
-	Spec.Mesh = Mesh;
-	Spec.FrontAxleM = W.FrontAxleM;
-	Spec.RearAxleM = W.RearAxleM;
-	Spec.FrontTrackM = W.FrontTrackM;
-	Spec.RearTrackM = W.RearTrackM;
-	Spec.FrontRadiusM = W.FrontRadiusM;
-	Spec.RearRadiusM = W.RearRadiusM;
-	Spec.FrontWidthM = W.FrontWidthM;
-	Spec.RearWidthM = W.RearWidthM;
-	Spec.MaxSteerRad = Toml.MaxSteerRad;
 	return Spec;
 }
 
@@ -292,12 +76,7 @@ FString UApexCarImportCommandlet::LiveryLogoPackageName(const FString& DestRoot,
 
 FString UApexCarImportCommandlet::PackageSegment(const FString& Folder)
 {
-	FString Segment;
-	for (const TCHAR C : Folder)
-	{
-		Segment.AppendChar(FChar::IsAlnum(C) ? C : TEXT('_'));
-	}
-	return Segment;
+	return ApexCarToml::Segment(Folder);
 }
 
 FString UApexCarImportCommandlet::MeshPackageName(const FString& DestRoot, const FString& Folder)

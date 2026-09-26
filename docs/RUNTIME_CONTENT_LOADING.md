@@ -1,6 +1,6 @@
-# Runtime-loaded tracks (and, later, cars)
+# Runtime-loaded tracks and cars
 
-*Current state as of 2026-09-26 ([gdoct/apexsim#48](https://github.com/gdoct/apexsim/pull/48)). Started as a design investigation that followed `docs/AC_IMPORT_FEASIBILITY.md`; the investigation's findings are kept, condensed, at the end.*
+*Current state as of 2026-09-26: tracks since [gdoct/apexsim#48](https://github.com/gdoct/apexsim/pull/48), cars since the change that added "Cars" below. Started as a design investigation that followed `docs/AC_IMPORT_FEASIBILITY.md`; the investigation's findings are kept, condensed, at the end.*
 
 ## Where it stands
 
@@ -8,9 +8,10 @@
 |---|---|
 | Tracks | **Built at runtime, only.** The game builds every circuit from its export (`<Stem>.uescene.json` + `<Stem>.uemesh`) when it is raced. There are no cooked track levels: nothing under `/Game/Tracks` is loaded or cooked. |
 | Track pipeline | Unchanged up to the export: dossier (`osm_layout.py`, `dem_fetch.py`), `ats-dress`, `ats-export`, plus `build_track_catalog.py` for the preview. What used to follow it — `ApexTrackImport` into a level, `ApexTrackCatalogSync` into `DT_TrackCatalog`, and cooking the level — is out of the build. |
-| Cooked track content | The four parent materials under `/Game/Materials/Track` (`ApexMaterialBake`). Props, ground textures and wheels were already cooked assets and are found by path. |
-| Cars | Still cooked (`ApexCarImport`). The runtime design is below, not started. |
-| Verification | Rust side tested (unit, round trip, determinism, golden blob, whole-calendar export). **The Unreal code has not yet been compiled or run**; see "Open risks". |
+| Cooked track content | The four parent materials under `/Game/Materials/Track` (`ApexMaterialBake`). Props and ground textures were already cooked assets and are found by path. |
+| Cars | **Built at runtime, only.** The game reads each `car.toml` and builds the GLBs it names (body, class wheel, DRS flap) and the livery logo PNGs the first time something draws them. `/Game/Cars` is never cooked; `ApexCarImport` is an editor-inspection tool. See "Cars". |
+| Cooked car content | The four car parent materials under `/Game/Materials/Car` (`ApexMaterialBake`). |
+| Verification | Rust side tested (unit, round trip, determinism, golden blob, whole-calendar export). **The Unreal code — tracks and cars — has not yet been compiled or run**; see "Open risks". The car GLBs' frames were checked outside the engine (a Python replica of the reader's node walk: every body comes out long along Unreal Y, floor at z = 0). |
 
 The consequence the investigation predicted holds: the editor has dropped out of the track loop. Edit, `ats-export`, restart the game (or `apexsim.track.Rescan`). A packaged game takes a new circuit as three files dropped in its `Tracks/` folder.
 
@@ -135,7 +136,7 @@ Without `-force` it bakes only the missing ones. It also bakes the base again wh
 
 ## Packaging and scripts
 
-- `DefaultGame.ini`: `bCookAll` as before. `/Game/Materials`, `/Game/Props`, `/Game/Ground` and `/Game/Cars/Wheels` are always cooked; `/Game/Tracks` is in `DirectoriesToNeverCook`.
+- `DefaultGame.ini`: `bCookAll` as before. `/Game/Materials`, `/Game/Props` and `/Game/Ground` are always cooked; `/Game/Tracks` and `/Game/Cars` are in `DirectoriesToNeverCook`.
 - `build_game_standalone.ps1` copies every export and preview into `Tracks/` beside `ApexSim.exe` (`-SkipTracks` leaves them out).
 - `build_release.ps1` always ships the circuits in `Game/Tracks`. It aborts if a circuit has no export or the materials were never baked. The `-RuntimeTracks` switch and the catalog-sync stage are gone.
 - `initialize_content.ps1` has a material stage. It treats a missing `.uemesh`, preview or sidecar as a missing track. It no longer rebakes every circuit after a prop or ground-texture import, because the game dresses each track with what `/Game` holds when it builds it.
@@ -171,21 +172,98 @@ Without `-force` it bakes only the missing ones. It also bakes the base again wh
 5. **Collision cook** at runtime follows the ProcMesh pattern and is believed sound. It is unverified until the racing line snaps (`Racing line: … on the road` in the log).
 6. Content trust is unchanged: loose files are player-editable, and the content-checksum toast still covers "your track differs from the server's".
 
-## Cars (phase 2, not started)
+## Cars
 
-The client needs a GLB → `UStaticMesh` loader with named material slots, and PBR materials whose parameters the livery, ghost and brake-light code addresses. Those are Interchange's names — `BaseColorFactor`, `MetallicFactor`, `BaseColorTexture`, `EmissiveFactor` — used in `ApexCarLivery.cpp`, `ApexRaceCarActor.cpp` and `ApexGhostCarActor.cpp`. Two options:
+The same shape as the tracks, one level smaller: a car is its folder, and the game builds it from its files.
 
-- **(a) glTFRuntime** (MIT, UE5, maintained). It loads static meshes with materials and textures at runtime, but has its own parent materials and parameter names, so the call sites need a parameter-name indirection.
-- **(b) A minimal in-house GLB reader.** The car GLBs come from the project's own Blender scripts and use a known subset: one buffer, float attributes, u16/u32 indices, PNG textures, metallic-roughness, no skins or animations. That is about 600–800 lines on top of `BuildFromMeshDescriptions` (the same fast path the tracks use), `FImageUtils::ImportBufferAsTexture2D` and one authored `M_ApexCarPBR` parent with exactly the parameter names the game already uses.
+### What one car is on disk, and who reads it
 
-(b) fits the codebase and keeps a plugin's material conventions out of game code; (a) is faster to prototype.
+| File | Read by |
+|---|---|
+| `content/cars/<folder>/car.toml` | server (physics, `ContentCrc`); client (catalog row, wheels, flap, sound, liveries, optional `[preview]` / `[cockpit]`) |
+| `content/cars/<folder>/<model>.glb` (top-level `model`) | client: the body |
+| `content/cars/<folder>/<stem>_drs.glb` (`[drs_flap] model`) | client: the F1 flap |
+| `content/cars/<folder>/textures/*.png` (`[[livery]] logo`) | client: livery logos |
+| `content/wheels/<model>.glb` (`[wheels] model`) | client: the class wheel |
 
-- Wheels (`SM_Wheel_<model>`) and the DRS flap GLB use the same loader.
-- Catalog rows would come from `car.toml`, using `ApexCarImport`'s minimal TOML scanner, moved into the runtime module the way the track reader was.
-- Livery logos are PNGs, loaded as runtime textures.
-- Cockpit, headlights and wheel placement are all derived from the mesh bounds, so a runtime mesh with correct bounds needs nothing else. No sockets are used anywhere.
+Where the client looks (`UApexCarContentSubsystem::CarDirectories`), first folder to hold an id wins:
 
-Estimate: 2–3 weeks.
+1. `-ApexCarsDir=<dir>` (several joined with `+`);
+2. a packaged build: `Cars/` beside `ApexSim.exe` (`<Release>/Game/Cars`), wheels in `Wheels/` beside it;
+3. the editor build: the repo's `content/cars`, wheels in `content/wheels`.
+
+**Adding a car to an installed game:** its folder (car.toml, GLBs, logos) in `Game/Cars`, its wheel in `Game/Wheels` if the class is new, and the same car.toml in `Server/content/cars/<folder>`. No editor, no cook, no repackage.
+
+### The catalog
+
+`UApexCarContentSubsystem` is an engine subsystem: a car's meshes belong to no world (the demo's cars and the race's share them), and the wheel and flap code that loads them has no world to hand. It reads every car.toml the first time a row is asked for (so commandlets and the cooker never do) with `ApexCarToml::Parse`, the parser that used to be `ApexCarImport`'s, moved into the runtime module. Each becomes an `FApexCarCatalogRow`:
+
+- identity, class, mass, power, `FolderName`, `EngineSound`, as the commandlet filled them;
+- `SourceCrc` from the car.toml's bytes, so `VerifyCarContent` compares the file the car on screen was built from with the server's;
+- `RuntimeModel` (body GLB), `Wheels.RuntimeModel`, `DrsFlap.RuntimeModel`, and each livery's `RuntimeLogo`: file paths, transient, beside the old soft pointers;
+- `PreviewOffset` / `PreviewRotation` / `PreviewScale` and `Cockpit` from the car.toml's `[preview]` / `[cockpit]` tables, else from the `DT_CarCatalog` row with the same id (the hand-tuned values survive).
+
+`UApexMenuFlowSubsystem::FindCarRow` returns the subsystem's row; a car on disk wins over the table, and the table is a fallback for a car with no folder on this machine. `apexsim.audio.RenderCars` walks the same rows.
+
+Everything that draws a car resolves its assets through `ApexCarContent` (`Cars/ApexCarContentSubsystem.h`), which takes the runtime file when there is one and the cooked asset otherwise:
+
+| | Was | Now |
+|---|---|---|
+| body | `Row.Mesh.LoadSynchronous()` | `ApexCarContent::LoadBody(Row)`; `SetCarMesh` on the car actor and the turntable take a `UStaticMesh*` |
+| wheels, flap | `Spec.Mesh.LoadSynchronous()` | `ApexCarContent::LoadMesh(Spec.Mesh, Spec.RuntimeModel)` |
+| livery logo | `Livery.Logo.LoadSynchronous()` | `ApexCarContent::LoadLogo(Livery)` |
+| a car's own material instance | `CreateDynamicMaterialInstance` | `ApexCarContent::OwnMaterialInstance` (below) |
+
+### Building a car
+
+`UApexCarContentSubsystem::LoadModel(Path)`, on first use of a GLB, cached until `apexsim.car.Rescan`:
+
+1. **Read** (`ApexGlb::Parse`, pure, any thread): the GLB flattened to one mesh the way Interchange's "combine all" did — the default scene's node tree applied (`matrix` or TRS, a mirroring node rewound), one section per material, glTF `(x, y, z)` metres to Unreal `(x, z, y)` centimetres (Interchange's frame; that swap is also what makes glTF's counter-clockwise front Unreal's clockwise one, so the indices keep their order). The used images are decoded to BGRA8 with a box-filtered mip chain (power-of-two sizes only).
+2. **Textures**: `UTexture2D::CreateTransient` plus the mips, sRGB, never streamed.
+3. **Materials**: a `UMaterialInstanceDynamic` per slot, of the parent the glTF material wants — `M_ApexCarTranslucent` for `BLEND`, `M_ApexCarMasked` for `MASK`, `M_ApexCarClearCoat` for `KHR_materials_clearcoat`, `M_ApexCarOpaque` otherwise — with the factors, the base colour texture, the cutoff and the clear coat set. The slot name is the glTF material's name (`car_paint`, `car_brakelight`...), which is what the livery and the lights find.
+4. **Mesh**: an `FMeshDescription` (one vertex instance per vertex, tangents from the UVs), `BuildFromMeshDescriptions` on the fast path the tracks use, bounds from the vertices, no collision (the client never collides a car).
+
+The race director calls `Prefetch` for every roster car before it dresses the first, which reads the GLBs on the thread pool at once; `LoadModel` then only waits for its own and builds it. Elsewhere (a click in the garage) the load is synchronous, as the cooked `LoadSynchronous` was. A GLB that will not read or build is logged once and left out until a rescan; its car falls back to `DefaultCarMesh` (editor only) and then to the player's own car.
+
+**Shared instances.** A runtime body's slots are dynamic instances shared by every car drawn with it, and `CreateDynamicMaterialInstance` hands back a slot's existing dynamic instance rather than making one: one car's brake lights, livery or ghost tint would have lit, repainted or tinted every car of the model. The three call sites (`AApexRaceCarActor`'s lights, `ApexLivery::Apply`, `AApexGhostCarActor`) go through `ApexCarContent::OwnMaterialInstance`, which makes the component its own instance of whatever the slot shows (a dynamic instance of the shared one) unless it already has one.
+
+### The parent materials
+
+`-run=ApexMaterialBake` bakes four car parents under `/Game/Materials/Car` beside the track ones (`ApexTrackMaterialGraphs.cpp`, `BuildCar`; the missing ones, or all with `-force`). All two-sided. Parameters: `BaseColorFactor` × `BaseColorTexture` (white by default) for colour and alpha, `MetallicFactor`, `RoughnessFactor`, `EmissiveFactor`; `AlphaCutoff` on the masked one (the mask is `alpha − cutoff + 0.5` against a fixed clip of 0.5, since a dynamic instance cannot move the clip value); `ClearCoatFactor`, `ClearCoatRoughnessFactor` on the clear-coat one. `KHR_materials_emissive_strength` is not drawn, as it was not through Interchange; the lights scale `EmissiveFactor` themselves. Without the parents a car draws in flat colours on the engine's basic shape material and the log says so.
+
+### Packaging and scripts (cars)
+
+- `DefaultGame.ini`: `/Game/Cars` is in `DirectoriesToNeverCook` (the `/Game/Cars/Wheels` always-cook entry is gone). `/Game/Materials` carries the car parents.
+- `build_game_standalone.ps1` copies every car (car.toml, the GLBs and logos it names; not the `.blend` files) into `Cars\` and the class wheels into `Wheels\` beside `ApexSim.exe` (`-SkipCars` leaves them out). The helpers are `scripts/lib/ApexCars.ps1`.
+- `build_release.ps1` ships them in `Game/Cars` and `Game/Wheels`, and aborts before the long stages if a car.toml names a file that is not there, or after the track stage if the car parents were never baked.
+- `initialize_content.ps1` no longer imports cars (it checks their files), and bakes the car parents with the track ones.
+
+### Switches (cars)
+
+| | What it does |
+|---|---|
+| `-ApexCarsDir=<dir>[+<dir>]` | Extra car folders, searched first |
+| `apexsim.car.Rescan` | Read the car folders again and drop every built car; the next car drawn is rebuilt from its files |
+
+### Tests (cars)
+
+Unreal automation (not yet run):
+
+- `ApexSim.Cars.Glb.Triangle` — the frame (translation, axis swap, normal), index order, the material's factors and clear coat;
+- `ApexSim.Cars.Glb.Nodes` — a rotation, a column-major matrix, a mirroring node rewound;
+- `ApexSim.Cars.Glb.Rejects` — not glTF, a required extension, an index out of range, a truncated file;
+- `ApexSim.Cars.Glb.Mips` — the box filter and the power-of-two rule;
+- `ApexSim.Cars.Glb.RepoCars` — every car and wheel GLB in the repo reads, and every body is long along Unreal Y;
+- `ApexSim.Cars.TomlClientTables` — `[preview]` and `[cockpit]`;
+- `ApexSim.Cars.Toml*` (editor module) — the parser, now the runtime's, through the commandlet's names.
+
+### Open risks (cars)
+
+1. **Not compiled.** Build the editor target, run `-DisableAdaptiveUnity` once for the new files under `ApexSim/Cars/` and `Tests/CarContentTests.cpp`, bake the materials (`-run=ApexMaterialBake`), then run `ApexSim.Cars.*`.
+2. **Look against the Interchange import.** The parents are new graphs; Interchange's glTF parents did more (specular, sheen, clear-coat normal). A/B a car against its `ApexCarImport` mesh on the turntable: paint gloss, glass, the logo's mask edge.
+3. **The three hand-imported cars** (RB20, SF21, 911) are now built from their GLBs like the rest. Their GLBs come out in the same frame as the generated ones, but they were imported by hand with whatever options were used then; their rows' turntable framing is kept from the table. Check them in the garage.
+4. **Build time.** Reading is on the thread pool for a roster; building is not. The RB20 is a 20 MB GLB with six textures. Measure with the log lines `Car model <file>: read in … ms` and `… built in … ms`.
+5. **Level references.** `L_Menu` references `/Game/Cars/RB20/SM_RB20` (as the director's `DefaultCarMesh`); with `/Game/Cars` never cooked, a packaged game does not have it, which is expected (the fallback is then the player's own car), but the cook may warn about it.
 
 ## Background: the investigation
 

@@ -60,8 +60,11 @@ public:
 	 */
 	void SetPlaybackPose(const FApexCarTelemetry& Car, float DeltaSeconds);
 
-	/** Swaps the displayed mesh. Safe to call with an unset pointer. */
-	void SetCarMesh(const TSoftObjectPtr<UStaticMesh>& MeshToShow);
+	/**
+	 * Swaps the displayed mesh; null shows none. The caller loads it
+	 * (`ApexCarContent::LoadBody`): a car found on disk is built from its GLB.
+	 */
+	void SetCarMesh(UStaticMesh* MeshToShow);
 
 	/**
 	 * Repaints the body (ApexCarLivery.h); null is the model as authored.

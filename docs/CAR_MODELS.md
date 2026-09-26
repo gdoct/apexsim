@@ -250,9 +250,38 @@ glass, or the mirror shows only bodywork (the Limbotiti's deck drops to
 views, which sit at exactly those points; do not tune it by eye from outside. `FApexCarCatalogRow::Cockpit`
 overrides remain the escape hatch for a car that still needs a nudge.
 
+## How a car reaches the game
+
+Nothing about a car is cooked. The game reads each `content/cars/<folder>/car.toml`
+(a packaged game: `Game/Cars/<folder>`) and builds the GLBs it names the
+first time something draws them: its own glTF reader, the fast mesh build the
+tracks use, and dynamic instances of four cooked parents under
+`/Game/Materials/Car` (`ApexMaterialBake`) that keep the parameter names
+Interchange's glTF parents had. Edit a car, re-export the GLB, and run
+`apexsim.car.Rescan` (or restart the game); no editor import. The whole path
+is `docs/RUNTIME_CONTENT_LOADING.md`, "Cars". `ApexCarImport` still imports
+cars as assets under `/Game/Cars`, for looking at one in the editor; the game
+does not use them.
+
+The turntable framing and the cockpit points a person tuned on a
+`DT_CarCatalog` row still apply; a car.toml can carry its own instead:
+
+```toml
+[preview]
+offset_cm = [0.0, 0.0, 12.0]
+rotation_deg = [0.0, 90.0, 0.0]   # pitch, yaw, roll
+scale = 1.0
+
+[cockpit]
+style = "closed"                  # auto | open | closed
+eye_cm = [-35.0, 38.0, 108.0]     # the car's frame: +X nose, +Y right, +Z up
+wheel_cm = [10.0, 38.0, 90.0]
+# mirror_centre_cm, mirror_left_cm, mirror_right_cm
+```
+
 ## Material slots the client drives
 
-Every GLB carries these slot names; keep them when re-importing.
+Every GLB carries these slot names; keep them when re-exporting.
 
 | slot | meaning | default in the GLB |
 | --- | --- | --- |
@@ -264,7 +293,7 @@ Every GLB carries these slot names; keep them when re-importing.
 | `car_headlight` | lamp projector rings and cores, DRL guides | emissive warm white |
 | `car_chrome`, `car_lens_tint` | projector bezels; smoked tail lenses | chrome; dark, alpha 0.22 (glTF `BLEND`) |
 | `car_taillight` | running lights: the tail light guides and bars | emissive red — `AApexRaceCarActor` keeps a dynamic instance lit all session: the authored colour times `apexsim.car.TailLightNits` (700) by day, the brake glow's running share (0.12 × 3000) with the headlights on. Before that the slot was left at the GLB's own emission and never showed under the race exposure |
-| `car_brakelight` | brake lights: a full-width LED strip along the rear wing's trailing edge (endplate to endplate), the lower strip in each tail cluster, and a wrap-around corner element | emissive red — `AApexRaceCarActor` switches `EmissiveFactor` on a dynamic instance of the slot: black when off, the authored colour times `apexsim.car.BrakeLightNits` (3000) once the car's telemetry brake passes 2% (the mesh ships lit so the material imports as emissive; the glTF parent ignores `EmissiveStrength` at runtime) |
+| `car_brakelight` | brake lights: a full-width LED strip along the rear wing's trailing edge (endplate to endplate), the lower strip in each tail cluster, and a wrap-around corner element | emissive red — `AApexRaceCarActor` switches `EmissiveFactor` on a dynamic instance of the slot: black when off, the authored colour times `apexsim.car.BrakeLightNits` (3000) once the car's telemetry brake passes 2% (the car parents ignore `KHR_materials_emissive_strength`, as Interchange's did) |
 | `car_rainlight` | FIA rain light, centre of the tail (vertical bar on the LMP2s) | emissive red — on in rain / low visibility, else off |
 | `car_display` | dash display | emissive green |
 | `car_logo` | door / flank wordmark | masked texture from `textures/` |
@@ -285,10 +314,8 @@ hinge_up_m = 0.8226           # above its floor
 open_deg = 25.0               # leading edge up, opening the slot over the main plane
 ```
 
-`ApexCarImport` imports the GLB to `/Game/Cars/<folder>/Drs/SM_<folder>_drs`
-(its own folder, so its materials do not land on the body's) and puts the
-figures on the row as `DrsFlap` (`FApexDrsFlapSpec`), derived on every run
-like the wheels. `FApexCarDrsFlap` (`Race/ApexCarDrsFlap.h`) hangs it on the
+The game builds the flap from its GLB like the body (its own mesh and
+materials) and puts the figures on the row as `DrsFlap` (`FApexDrsFlapSpec`). `FApexCarDrsFlap` (`Race/ApexCarDrsFlap.h`) hangs it on the
 body mesh: the race car swings it open over `ApexDrs::SwingSeconds` (0.18 s)
 whenever the telemetry's `bDrsOpen` is set and shut when it clears; the
 turntable shows it shut; liveries repaint it with the body and the ghost
@@ -323,12 +350,11 @@ Down the pipe: the server reads only the names (`CarConfig::livery_names`);
 `SelectCar` carries a `livery` byte, the session keeps each driver's pick and
 `RosterEntry.Livery` tells every client what each car wears - clamped to the
 car's list, and AI cars dealt the liveries of their model in turn so a field
-of one car is not a row of clones. `ApexCarImport` copies the tables onto the
-catalog row as `Liveries` and imports each logo to
-`/Game/Cars/<folder>/Liveries/T_<name>` (derived on every run, like the
-wheels). `ApexLivery::Apply` puts dynamic instances on the three slots
-(`BaseColorFactor`, `MetallicFactor`, `BaseColorTexture` of the Interchange
-glTF parents); the race director applies the roster's pick, the garage
+of one car is not a row of clones. The game reads the tables onto the
+catalog row as `Liveries` and loads each logo PNG as a texture the first time
+it is shown. `ApexLivery::Apply` puts the car's own dynamic instances on the
+three slots (`BaseColorFactor`, `MetallicFactor`, `BaseColorTexture` of the
+car parents); the race director applies the roster's pick, the garage
 turntable the one being browsed. In the garage, Left / Right on a car (or the
 livery button) steps through them; choosing the car sends the pick.
 `preview_cars.py` renders a livery with `LIVERY = n`.
@@ -417,8 +443,8 @@ front_width_m = 0.310
 rear_width_m = 0.360
 ```
 
-`ApexCarImport` imports the wheel once as `/Game/Cars/Wheels/<model>/SM_Wheel_<model>`
-and puts the figures, with `[physics] max_steering_angle_rad`, on the
+The game builds the wheel once, from `content/wheels/<model>.glb`
+(`Game/Wheels` in a package), and puts the figures, with `[physics] max_steering_angle_rad`, on the
 catalog row as `Wheels`. The client (`FApexCarWheelSet`,
 `Race/ApexCarWheels.h`) hangs four copies off the body mesh component, sizes
 each from the wheel mesh's bounds to its axle's width and diameter, turns the
@@ -448,11 +474,9 @@ to its exhaust (`Audio/ApexEngineSound.h`). A crank turns at the telemetry's
 RPM; each cylinder's blow-down is a pressure pulse, sized by the throttle,
 into one of two exhaust banks; each bank is a resonant pipe. What a car
 sounds like is therefore a description of its engine, the `[sound]` table in
-its `car.toml` — which the server ignores and `ApexCarImport` copies onto the
+its `car.toml` — which the server ignores and the game reads onto the
 catalog row as `EngineSound`, together with `[engine]`'s `idle_rpm`,
-`redline_rpm` and `rev_limiter_rpm` (none of which is on the wire). It is
-derived like the wheels: every import run brings the row back in step, `-force`
-or not.
+`redline_rpm` and `rev_limiter_rpm` (none of which is on the wire).
 
 ```toml
 [sound]
@@ -489,7 +513,7 @@ gears, the limiter, a lift and the overrun down the box, a part-throttle
 cruise — and writes `Saved/Audio/<folder>.wav` (the engine as it leaves the
 tailpipe, mono: what everybody else hears) and `<folder>_own.wav` (what its
 driver hears, stereo, from the cabin or open cockpit), plus `road.wav` with
-each tyre and road voice in turn. Edit the TOML, `ApexCarImport -car=<folder>`, render,
+each tyre and road voice in turn. Edit the TOML, `apexsim.car.Rescan`, render,
 listen. Unattended:
 
 ```bash
@@ -503,7 +527,10 @@ has the half-orders and a flat-plane does not, the GT3 keeps its power under
 2 kHz where the F1 has a third of it above, pops stand out of the overrun,
 the limiter stutters, a dead engine is silent.
 
-## Catalog rows (`DT_CarCatalog`, hand-maintained)
+## Car ids
+
+Each car.toml's `id` is its catalog row's key (and its `DT_CarCatalog` row's,
+where it has one):
 
 | car | id |
 | --- | --- |
