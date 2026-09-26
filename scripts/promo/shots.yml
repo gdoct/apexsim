@@ -46,7 +46,7 @@ races:
     time: "19:10"             # golden hour over the dunes
   spa:
     track: Spa
-    car: redhorse-rb20
+    car: murcetes-amd-w17
     laps: 2
     weather: sunny
     time: "15:30"
@@ -59,7 +59,7 @@ races:
     time: "20:40"
   monza_rain:
     track: Monza
-    car: posh-911gt3
+    car: posh-gt3rs
     laps: 2
     weather: heavyrain
     time: "17:30"

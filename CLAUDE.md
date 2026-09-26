@@ -62,12 +62,13 @@ clashes only show once unity builds batch it with its neighbours).
 
 ### Fresh checkout: building the client's content
 `game-unreal/Content/` is gitignored. Only the menu (`UI/`, `Maps/L_Menu`,
-`Blueprints/`), the two catalog tables in `Data/`, the splash (`Splash/`) and
-three legacy hand-imported cars are checked in; the props, ground textures and
-the track and car parent materials are **generated** from `content/` by
-commandlets, and the tracks by the Rust bake, so a fresh clone draws cars in
-flat colours and races in an empty world until they have been run. (The cars
-themselves need no step: the game builds them from `content/cars` at runtime.) One script does all of it, with Rust, Python 3
+`Blueprints/`), the two catalog tables in `Data/` and the splash (`Splash/`)
+are checked in; the props, ground textures and the track and car parent
+materials are **generated** from `content/` by commandlets, and the tracks by
+the Rust bake, so a fresh clone draws cars in flat colours and races in an
+empty world until they have been run. (The cars themselves need no step: the
+game builds them from `content/cars` at runtime.) One script does all of it,
+with Rust, Python 3
 (numpy, Pillow, PyYAML) and the engine installed and the editor closed:
 
 ```powershell

@@ -3,8 +3,8 @@
     Build whatever generated content a checkout is missing, so the game runs.
 
 .DESCRIPTION
-    game-unreal/Content/ is gitignored: only the menu, the two catalog tables,
-    the splash and a few legacy cars are checked in. Everything else the
+    game-unreal/Content/ is gitignored: only the menu, the two catalog tables
+    and the splash are checked in. Everything else the
     client races on is generated from content/ by commandlets or built by the
     game at runtime, and the server needs the track sidecars the bake writes. On a fresh clone this script
     produces all of it; on an existing checkout it only redoes what is

@@ -11,7 +11,7 @@
 | Cooked track content | The four parent materials under `/Game/Materials/Track` (`ApexMaterialBake`). Props and ground textures were already cooked assets and are found by path. |
 | Cars | **Built at runtime, only.** The game reads each `car.toml` and builds the GLBs it names (body, class wheel, DRS flap) and the livery logo PNGs the first time something draws them. `/Game/Cars` is never cooked; `ApexCarImport` is an editor-inspection tool. See "Cars". |
 | Cooked car content | The four car parent materials under `/Game/Materials/Car` (`ApexMaterialBake`). |
-| Verification | Rust side tested (unit, round trip, determinism, golden blob, whole-calendar export). **The Unreal code — tracks and cars — has not yet been compiled or run**; see "Open risks". The car GLBs' frames were checked outside the engine (a Python replica of the reader's node walk: every body comes out long along Unreal Y, floor at z = 0). |
+| Verification | Rust side tested (unit, round trip, determinism, golden blob, whole-calendar export). **The Unreal code — tracks and cars — has not yet been compiled or run**; see "Open risks". The car GLBs' frames were checked outside the engine (a Python replica of the reader's node walk: the bodies come out long along Unreal Y, floor at z = 0). |
 
 The consequence the investigation predicted holds: the editor has dropped out of the track loop. Edit, `ats-export`, restart the game (or `apexsim.track.Rescan`). A packaged game takes a new circuit as three files dropped in its `Tracks/` folder.
 
@@ -261,9 +261,8 @@ Unreal automation (not yet run):
 
 1. **Not compiled.** Build the editor target, run `-DisableAdaptiveUnity` once for the new files under `ApexSim/Cars/` and `Tests/CarContentTests.cpp`, bake the materials (`-run=ApexMaterialBake`), then run `ApexSim.Cars.*`.
 2. **Look against the Interchange import.** The parents are new graphs; Interchange's glTF parents did more (specular, sheen, clear-coat normal). A/B a car against its `ApexCarImport` mesh on the turntable: paint gloss, glass, the logo's mask edge.
-3. **The three hand-imported cars** (RB20, SF21, 911) are now built from their GLBs like the rest. Their GLBs come out in the same frame as the generated ones, but they were imported by hand with whatever options were used then; their rows' turntable framing is kept from the table. Check them in the garage.
-4. **Build time.** Reading is on the thread pool for a roster; building is not. The RB20 is a 20 MB GLB with six textures. Measure with the log lines `Car model <file>: read in … ms` and `… built in … ms`.
-5. **Level references.** `L_Menu` references `/Game/Cars/RB20/SM_RB20` (as the director's `DefaultCarMesh`); with `/Game/Cars` never cooked, a packaged game does not have it, which is expected (the fallback is then the player's own car), but the cook may warn about it.
+3. **Build time.** Reading is on the thread pool for a roster; building is not. The bodies are 1–3 MB GLBs with one logo texture each. Measure with the log lines `Car model <file>: read in … ms` and `… built in … ms`.
+4. **A dangling reference.** `L_Menu` still sets the director's `DefaultCarMesh` to `/Game/Cars/RB20/SM_RB20`, which went with the legacy cars. The director skips a fallback whose package is gone (and a packaged game never has `/Game/Cars`), so an unknown car is drawn as the player's own; clear the field in `L_Menu` next time it is open in the editor.
 
 ## Background: the investigation
 

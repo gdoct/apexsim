@@ -673,7 +673,8 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
 		Car->SetEngineSound(FApexEngineSoundSpec(), FString());
 	}
-	if (!Mesh && !DefaultCarMesh.IsNull())
+	// Tested first: L_Menu's still names a car that has since been removed.
+	if (!Mesh && !DefaultCarMesh.IsNull() && FPackageName::DoesPackageExist(DefaultCarMesh.ToSoftObjectPath().GetLongPackageName()))
 	{
 		Mesh = DefaultCarMesh.LoadSynchronous();
 	}

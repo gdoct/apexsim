@@ -295,8 +295,9 @@ protected:
 
 	/**
 	 * Fallback mesh for cars with no catalog row, or whose body will not
-	 * load. Cooked, so only the editor has it once `/Game/Cars` is not
-	 * cooked; past it, such a car is drawn as the player's own.
+	 * load; skipped when its package is gone (L_Menu's names a car since
+	 * removed). `/Game/Cars` is not cooked, so a packaged game never has it;
+	 * past it, such a car is drawn as the player's own.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|Race")
 	TSoftObjectPtr<UStaticMesh> DefaultCarMesh;
