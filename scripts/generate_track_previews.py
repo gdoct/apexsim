@@ -26,10 +26,10 @@ def parse_track_file(filepath):
     _, ext = os.path.splitext(filepath)
 
     if ext in ['.yaml', '.yml']:
-        with open(filepath, 'r') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
     elif ext == '.json':
-        with open(filepath, 'r') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
     else:
         return None, None
