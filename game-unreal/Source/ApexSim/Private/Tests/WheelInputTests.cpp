@@ -11,7 +11,11 @@
 
 namespace
 {
-	using namespace ApexDirectInput;
+	// Not `using namespace`: in a unity blob it would drag MaxAxes & co into
+	// every later file's global scope, where they shadow Chaos's parameters.
+	using ApexDirectInput::EControlKind;
+	using ApexDirectInput::HatDirections;
+	using ApexDirectInput::MakeKey;
 
 	/** The steering axis of a device, as a wheel binding names it. */
 	FKey WheelAxis(int32 Device, int32 Axis = 0)
