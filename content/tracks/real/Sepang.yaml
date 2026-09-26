@@ -1,4 +1,5 @@
-name: 'Shebang International Circuit'
+name: Sepang International Circuit
+display_name: 'Shebang International Circuit'
 track_id: 89360ba1-d1ea-4470-99d4-d1895ca9b877
 nodes:
 - x: 1.22

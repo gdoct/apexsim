@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Silverstone.yaml",
- "track_name": "Shiverstone Circuit",
+ "track_name": "Silverstone Circuit",
+ "track_display_name": "Shiverstone Circuit",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,108 +22,126 @@
  "corners": [
   {
    "name": "Hamilton Straight",
+   "display_name": "Hamlet Straight",
    "station_m": 135.9,
    "from_m": 5810.8,
    "to_m": 365.7
   },
   {
    "name": "Abbey",
+   "display_name": "Abbey",
    "station_m": 426.0,
    "from_m": 365.7,
    "to_m": 520.1
   },
   {
    "name": "Farm Curve",
+   "display_name": "Farm Curve",
    "station_m": 635.4,
    "from_m": 589.3,
    "to_m": 687.9
   },
   {
    "name": "Village",
+   "display_name": "Village",
    "station_m": 895.3,
    "from_m": 867.4,
    "to_m": 937.5
   },
   {
    "name": "The Loop",
+   "display_name": "The Loop",
    "station_m": 1054.8,
    "from_m": 937.5,
    "to_m": 1179.0
   },
   {
    "name": "Aintree",
+   "display_name": "Aintree",
    "station_m": 1237.8,
    "from_m": 1179.0,
    "to_m": 1275.2
   },
   {
    "name": "Wellington Straight",
+   "display_name": "Wellington Straight",
    "station_m": 1567.6,
    "from_m": 1275.2,
    "to_m": 1898.3
   },
   {
    "name": "Brooklands",
+   "display_name": "Brooklands",
    "station_m": 1940.8,
    "from_m": 1898.3,
    "to_m": 1987.8
   },
   {
    "name": "Luffield",
+   "display_name": "Luffield",
    "station_m": 2205.7,
    "from_m": 2095.6,
    "to_m": 2327.4
   },
   {
    "name": "Woodcote",
+   "display_name": "Woodcote",
    "station_m": 2547.5,
    "from_m": 2433.7,
    "to_m": 2668.5
   },
   {
    "name": "Copse",
+   "display_name": "Copse",
    "station_m": 3103.8,
    "from_m": 3018.6,
    "to_m": 3193.7
   },
   {
    "name": "Maggotts",
+   "display_name": "Maggotts",
    "station_m": 3689.7,
    "from_m": 3561.5,
    "to_m": 3746.5
   },
   {
    "name": "Becketts",
+   "display_name": "Becketts",
    "station_m": 3875.6,
    "from_m": 3806.4,
    "to_m": 3961.8
   },
   {
    "name": "Chapel Curve",
+   "display_name": "Chapel Curve",
    "station_m": 4024.9,
    "from_m": 3961.8,
    "to_m": 4097.2
   },
   {
    "name": "Hangar Straight",
+   "display_name": "Hangar Straight",
    "station_m": 4826.4,
    "from_m": 4228.4,
    "to_m": 4959.0
   },
   {
    "name": "Stowe",
+   "display_name": "Stowe",
    "station_m": 5065.1,
    "from_m": 4959.0,
    "to_m": 5173.3
   },
   {
    "name": "Vale",
+   "display_name": "Vale",
    "station_m": 5281.1,
    "from_m": 5173.3,
    "to_m": 5505.0
   },
   {
    "name": "Club",
+   "display_name": "Club",
    "station_m": 5683.3,
    "from_m": 5568.2,
    "to_m": 5810.8

@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "BrandsHatch.yaml",
-  "track_name": "Brands Scratch",
+  "track_name": "Brands Hatch",
   "surfaces": [
     {
       "id": 283,
@@ -7324,7 +7324,7 @@
       "z": 4.78,
       "yaw_rad": 0.56,
       "scale": 1.0,
-      "text": "Brabham Straight"
+      "text": "Bramble Straight"
     },
     {
       "id": 16282,
@@ -7346,7 +7346,7 @@
       "z": 0.76,
       "yaw_rad": -1.55,
       "scale": 1.0,
-      "text": "Hailwoods Hill"
+      "text": "Hailstones Hill"
     },
     {
       "id": 16284,
@@ -7368,7 +7368,7 @@
       "z": -4.98,
       "yaw_rad": 1.79,
       "scale": 1.0,
-      "text": "Graham Hill Bend"
+      "text": "Grandma Hill Bend"
     },
     {
       "id": 16286,
@@ -7379,7 +7379,7 @@
       "z": -2.17,
       "yaw_rad": -3.01,
       "scale": 1.0,
-      "text": "Cooper Straight"
+      "text": "Scooper Straight"
     },
     {
       "id": 16287,
@@ -7390,7 +7390,7 @@
       "z": 4.7,
       "yaw_rad": -2.58,
       "scale": 1.0,
-      "text": "Surtees"
+      "text": "Sure-Tees"
     },
     {
       "id": 16288,
@@ -7434,7 +7434,7 @@
       "z": -1.82,
       "yaw_rad": -1.92,
       "scale": 1.0,
-      "text": "Derek Minter Straight"
+      "text": "Dead Winter Straight"
     },
     {
       "id": 16292,
@@ -7478,7 +7478,7 @@
       "z": 9.94,
       "yaw_rad": 2.15,
       "scale": 1.0,
-      "text": "Sheene Curve"
+      "text": "Sheen Curve"
     },
     {
       "id": 16296,
@@ -7489,7 +7489,7 @@
       "z": 11.67,
       "yaw_rad": 1.31,
       "scale": 1.0,
-      "text": "Stirlings Bend"
+      "text": "Sterling Bend"
     },
     {
       "id": 16297,
@@ -7511,7 +7511,7 @@
       "z": 12.24,
       "yaw_rad": 2.59,
       "scale": 1.0,
-      "text": "Clark Curve"
+      "text": "Clerk Curve"
     },
     {
       "id": 16299,
@@ -34282,7 +34282,7 @@
       "asset": "hoarding_3m",
       "x": 320.26352,
       "y": -112.06871,
-      "z": -0.000010412096,
+      "z": -1.0412096e-05,
       "yaw_rad": -1.8005823,
       "scale": 1.0,
       "text": "hexon"

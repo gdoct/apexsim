@@ -32,9 +32,13 @@ struct Args {
     #[arg(short = 'o', long)]
     output: PathBuf,
 
-    /// Track name
+    /// Track name (the real one; source data only)
     #[arg(short = 'n', long)]
     name: String,
+
+    /// The name the game shows instead (a parody of a trademarked real name)
+    #[arg(long)]
+    display_name: Option<String>,
 
     /// Country where the track is located
     #[arg(long)]
@@ -287,6 +291,7 @@ fn convert_to_track_format(
 
     TrackFileFormat {
         name: args.name.clone(),
+        display_name: args.display_name.clone(),
         track_id: Some(uuid::Uuid::new_v4().to_string()),
         nodes,
         checkpoints: Vec::new(), // Could be auto-generated based on track sectors

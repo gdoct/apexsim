@@ -1,4 +1,5 @@
-name: 'Spa-Frankenchamps'
+name: Circuit de Spa-Francorchamps
+display_name: 'Spa-Frankenchamps'
 track_id: b8edab00-8392-4765-967e-3c060828f922
 nodes:
 - x: -0.22

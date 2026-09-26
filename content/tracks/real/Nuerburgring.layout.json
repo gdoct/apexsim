@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Nuerburgring.yaml",
- "track_name": "Nürburgerring",
+ "track_name": "Nürburgring",
+ "track_display_name": "Nürburgerring",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,36 +22,42 @@
  "corners": [
   {
    "name": "Nürburgring Sprintstrecke",
+   "display_name": null,
    "station_m": 818.1,
    "from_m": 397.3,
    "to_m": 1200.2
   },
   {
    "name": "Anbindung zur Müllenbachschleife",
+   "display_name": null,
    "station_m": 1399.1,
    "from_m": 1324.8,
    "to_m": 1399.1
   },
   {
    "name": "Ford-Kurve",
+   "display_name": "Furt-Kurve",
    "station_m": 1626.9,
    "from_m": 1564.9,
    "to_m": 1693.2
   },
   {
    "name": "Michael-Schumacher-S",
+   "display_name": "Schuster-S",
    "station_m": 2694.2,
    "from_m": 2576.7,
    "to_m": 2818.4
   },
   {
    "name": "Anbindung zur Sprintstrecke",
+   "display_name": null,
    "station_m": 2974.7,
    "from_m": 2857.9,
    "to_m": 2974.7
   },
   {
    "name": "NGK-Schikane",
+   "display_name": "Zündkerzen-Schikane",
    "station_m": 4350.3,
    "from_m": 4277.2,
    "to_m": 4401.2

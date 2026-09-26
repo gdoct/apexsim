@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Oschersleben.yaml",
- "track_name": "Motorsport Arena Oskarsleben",
+ "track_name": "Motorsport Arena Oschersleben",
+ "track_display_name": "Motorsport Arena Oskarsleben",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,30 +22,35 @@
  "corners": [
   {
    "name": "Variante",
+   "display_name": "Variante",
    "station_m": 410.7,
    "from_m": 366.1,
    "to_m": 454.0
   },
   {
    "name": "Hotelkurve",
+   "display_name": "Hotelkurve",
    "station_m": 554.5,
    "from_m": 462.3,
    "to_m": 638.9
   },
   {
    "name": "Triple",
+   "display_name": "Triple",
    "station_m": 1471.4,
    "from_m": 1383.0,
    "to_m": 1507.6
   },
   {
    "name": "Schikane",
+   "display_name": "Schikane",
    "station_m": 2014.5,
    "from_m": 1971.7,
    "to_m": 2057.1
   },
   {
    "name": "Zeppelin-Kurve",
+   "display_name": "Zappelin-Kurve",
    "station_m": 3334.3,
    "from_m": 3288.3,
    "to_m": 3373.9

@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Austin.yaml",
-  "track_name": "Circuit of the Armadillos",
+  "track_name": "Circuit of The Americas",
   "surfaces": [
     {
       "id": 376,
@@ -22395,17 +22395,6 @@
       "text": "Turn 10"
     },
     {
-      "id": 24008,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": 924.58,
-      "y": 465.57,
-      "z": -6.84,
-      "yaw_rad": -2.99,
-      "scale": 1.0,
-      "text": "Short Course 2"
-    },
-    {
       "id": 24009,
       "kind": "board",
       "asset": "corner_sign",
@@ -22415,17 +22404,6 @@
       "yaw_rad": -3.03,
       "scale": 1.0,
       "text": "Turn 12"
-    },
-    {
-      "id": 24010,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": 253.72,
-      "y": -165.56,
-      "z": 12.82,
-      "yaw_rad": -0.65,
-      "scale": 1.0,
-      "text": "COTA Short Track"
     },
     {
       "id": 24011,

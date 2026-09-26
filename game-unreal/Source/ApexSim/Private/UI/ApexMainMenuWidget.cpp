@@ -481,7 +481,7 @@ void UApexMainMenuWidget::RefreshHero()
 			}
 			if (!TrackRow.Category.IsEmpty())
 			{
-				Parts.Add(TrackRow.Category.ToUpper());
+				Parts.Add(ApexCatalog::DisplayClass(TrackRow.Category).ToUpper());
 			}
 		}
 

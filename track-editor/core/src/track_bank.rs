@@ -390,6 +390,7 @@ mod tests {
             .collect();
         TrackFile {
             name: "stadium".into(),
+            display_name: None,
             track_id: None,
             nodes,
             checkpoints: vec![],

@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "LeMans.yaml",
-  "track_name": "Lemons – Circuit du Peuple",
+  "track_name": "Circuit de la Sarthe (Le Mans 24 Hours)",
   "surfaces": [
     {
       "id": 576,
@@ -59751,7 +59751,7 @@
       "z": 61.98,
       "yaw_rad": -0.02,
       "scale": 1.0,
-      "text": "Courbe Dunlop"
+      "text": "Courbe Dunflop"
     },
     {
       "id": 70034,
@@ -59762,7 +59762,7 @@
       "z": 76.6,
       "yaw_rad": -0.84,
       "scale": 1.0,
-      "text": "Chicane Dunlop"
+      "text": "Chicane Dunflop"
     },
     {
       "id": 70035,
@@ -59817,7 +59817,7 @@
       "z": 49.5,
       "yaw_rad": -2.89,
       "scale": 1.0,
-      "text": "Chicane Daytona"
+      "text": "Chicane Daytonic"
     },
     {
       "id": 70040,
@@ -59839,7 +59839,7 @@
       "z": 49.17,
       "yaw_rad": 0.39,
       "scale": 1.0,
-      "text": "Virage Porsche"
+      "text": "Virage Porridge"
     },
     {
       "id": 70042,
@@ -59872,7 +59872,7 @@
       "z": 44.97,
       "yaw_rad": -0.84,
       "scale": 1.0,
-      "text": "Virage Corvette"
+      "text": "Virage Serviette"
     },
     {
       "id": 70045,
@@ -59894,7 +59894,7 @@
       "z": 49.53,
       "yaw_rad": 0.3,
       "scale": 1.0,
-      "text": "Chicane Ford"
+      "text": "Chicane Fjord"
     },
     {
       "id": 70047,
@@ -145428,7 +145428,7 @@
       "x": -67.00403,
       "y": -13.529406,
       "z": 53.37361,
-      "yaw_rad": 0.000022095159,
+      "yaw_rad": 2.2095159e-05,
       "scale": 1.0,
       "text": null
     },
@@ -146264,7 +146264,7 @@
       "x": 216.31349,
       "y": -22.523722,
       "z": 61.517086,
-      "yaw_rad": -0.0000057407037,
+      "yaw_rad": -5.7407037e-06,
       "scale": 1.0,
       "text": null
     },
@@ -146495,7 +146495,7 @@
       "x": 300.3131,
       "y": -22.692461,
       "z": 61.86539,
-      "yaw_rad": -0.000032692307,
+      "yaw_rad": -3.2692307e-05,
       "scale": 1.0,
       "text": null
     },

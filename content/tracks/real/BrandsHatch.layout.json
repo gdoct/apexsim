@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "BrandsHatch.yaml",
- "track_name": "Brands Scratch",
+ "track_name": "Brands Hatch",
+ "track_display_name": "Brands Scratch",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,108 +22,126 @@
  "corners": [
   {
    "name": "Brabham Straight",
+   "display_name": "Bramble Straight",
    "station_m": 114.1,
    "from_m": 3709.3,
    "to_m": 217.3
   },
   {
    "name": "Paddock Hill",
+   "display_name": "Paddock Hill",
    "station_m": 278.3,
    "from_m": 217.3,
    "to_m": 420.9
   },
   {
    "name": "Hailwoods Hill",
+   "display_name": "Hailstones Hill",
    "station_m": 501.5,
    "from_m": 420.9,
    "to_m": 565.1
   },
   {
    "name": "Druids Bend",
+   "display_name": "Druids Bend",
    "station_m": 623.1,
    "from_m": 565.1,
    "to_m": 685.9
   },
   {
    "name": "Graham Hill Bend",
+   "display_name": "Grandma Hill Bend",
    "station_m": 848.8,
    "from_m": 783.2,
    "to_m": 892.8
   },
   {
    "name": "Cooper Straight",
+   "display_name": "Scooper Straight",
    "station_m": 1023.2,
    "from_m": 892.8,
    "to_m": 1166.6
   },
   {
    "name": "Surtees",
+   "display_name": "Sure-Tees",
    "station_m": 1217.5,
    "from_m": 1166.6,
    "to_m": 1243.8
   },
   {
    "name": "Pilgrims Drop",
+   "display_name": "Pilgrims Drop",
    "station_m": 1509.9,
    "from_m": 1323.9,
    "to_m": 1570.1
   },
   {
    "name": "Hawthorn Hill",
+   "display_name": "Hawthorn Hill",
    "station_m": 1844.0,
    "from_m": 1570.1,
    "to_m": 1954.4
   },
   {
    "name": "Hawthorns Bend",
+   "display_name": "Hawthorns Bend",
    "station_m": 2042.0,
    "from_m": 1954.4,
    "to_m": 2119.2
   },
   {
    "name": "Derek Minter Straight",
+   "display_name": "Dead Winter Straight",
    "station_m": 2238.0,
    "from_m": 2119.2,
    "to_m": 2330.2
   },
   {
    "name": "Westfield Bend",
+   "display_name": "Westfield Bend",
    "station_m": 2365.0,
    "from_m": 2330.2,
    "to_m": 2457.7
   },
   {
    "name": "Dingle Dell",
+   "display_name": "Dingle Dell",
    "station_m": 2487.0,
    "from_m": 2457.7,
    "to_m": 2569.6
   },
   {
    "name": "Dingle Dell Corner",
+   "display_name": "Dingle Dell Corner",
    "station_m": 2649.4,
    "from_m": 2569.6,
    "to_m": 2736.9
   },
   {
    "name": "Sheene Curve",
+   "display_name": "Sheen Curve",
    "station_m": 2766.5,
    "from_m": 2736.9,
    "to_m": 2844.8
   },
   {
    "name": "Stirlings Bend",
+   "display_name": "Sterling Bend",
    "station_m": 2999.5,
    "from_m": 2941.3,
    "to_m": 3036.5
   },
   {
    "name": "Clearways",
+   "display_name": "Clearways",
    "station_m": 3400.4,
    "from_m": 3311.9,
    "to_m": 3400.4
   },
   {
    "name": "Clark Curve",
+   "display_name": "Clerk Curve",
    "station_m": 3547.9,
    "from_m": 3416.4,
    "to_m": 3674.2

@@ -1366,6 +1366,7 @@ mod tests {
     fn hilly_loop() -> TrackFile {
         TrackFile {
             name: "Hill".to_string(),
+            display_name: None,
             track_id: None,
             nodes: vec![
                 node(0.0, 0.0, 0.0),
@@ -1434,6 +1435,7 @@ mod tests {
     fn terrain_never_buries_a_nearby_lower_road() {
         let track = TrackFile {
             name: "TwoLevels".to_string(),
+            display_name: None,
             track_id: None,
             nodes: vec![
                 node(0.0, 0.0, 0.0),
@@ -1484,6 +1486,7 @@ mod tests {
         // second one 5 m higher.
         let track = TrackFile {
             name: "Neighbours".to_string(),
+            display_name: None,
             track_id: None,
             nodes: (0..=10)
                 .map(|i| node(i as f32 * 50.0, 0.0, 0.0))

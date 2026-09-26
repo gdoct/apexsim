@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Austin.yaml",
- "track_name": "Circuit of the Armadillos",
+ "track_name": "Circuit of The Americas",
+ "track_display_name": "Circuit of the Armadillos",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,126 +22,147 @@
  "corners": [
   {
    "name": "Turn 1",
+   "display_name": "Turn 1",
    "station_m": 655.3,
    "from_m": 569.2,
    "to_m": 715.3
   },
   {
    "name": "Turn 2",
+   "display_name": "Turn 2",
    "station_m": 903.3,
    "from_m": 813.5,
    "to_m": 1006.6
   },
   {
    "name": "Turn 3",
+   "display_name": "Turn 3",
    "station_m": 1170.9,
    "from_m": 1006.6,
    "to_m": 1216.9
   },
   {
    "name": "Turn 4",
+   "display_name": "Turn 4",
    "station_m": 1260.2,
    "from_m": 1216.9,
    "to_m": 1302.7
   },
   {
    "name": "Turn 5",
+   "display_name": "Turn 5",
    "station_m": 1354.6,
    "from_m": 1302.7,
    "to_m": 1407.8
   },
   {
    "name": "Turn 6",
+   "display_name": "Turn 6",
    "station_m": 1531.4,
    "from_m": 1407.8,
    "to_m": 1665.5
   },
   {
    "name": "Turn 7",
+   "display_name": "Turn 7",
    "station_m": 1723.8,
    "from_m": 1665.5,
    "to_m": 1808.6
   },
   {
    "name": "Turn 8",
+   "display_name": "Turn 8",
    "station_m": 1890.8,
    "from_m": 1808.6,
    "to_m": 1955.1
   },
   {
    "name": "Turn 9",
+   "display_name": "Turn 9",
    "station_m": 1978.0,
    "from_m": 1955.1,
    "to_m": 2012.6
   },
   {
    "name": "Turn 10",
+   "display_name": "Turn 10",
    "station_m": 2176.9,
    "from_m": 2148.5,
    "to_m": 2203.9
   },
   {
    "name": "Short Course 2",
+   "display_name": null,
    "station_m": 3416.3,
    "from_m": 3398.9,
    "to_m": 1698.2
   },
   {
    "name": "Turn 12",
+   "display_name": "Turn 12",
    "station_m": 3778.0,
    "from_m": 3683.2,
    "to_m": 3807.7
   },
   {
    "name": "COTA Short Track",
+   "display_name": null,
    "station_m": 3916.4,
    "from_m": 303.8,
    "to_m": 303.8
   },
   {
    "name": "Turn 13",
+   "display_name": "Turn 13",
    "station_m": 4003.3,
    "from_m": 3962.5,
    "to_m": 4049.0
   },
   {
    "name": "Turn 14",
+   "display_name": "Turn 14",
    "station_m": 4091.0,
    "from_m": 4049.0,
    "to_m": 4129.4
   },
   {
    "name": "Turn 15",
+   "display_name": "Turn 15",
    "station_m": 4212.6,
    "from_m": 4129.4,
    "to_m": 4254.1
   },
   {
    "name": "Turn 16",
+   "display_name": "Turn 16",
    "station_m": 4286.0,
    "from_m": 4254.1,
    "to_m": 4332.5
   },
   {
    "name": "Turn 17",
+   "display_name": "Turn 17",
    "station_m": 4537.7,
    "from_m": 4449.8,
    "to_m": 4653.3
   },
   {
    "name": "Turn 18",
+   "display_name": "Turn 18",
    "station_m": 4747.9,
    "from_m": 4653.3,
    "to_m": 4840.9
   },
   {
    "name": "Turn 19",
+   "display_name": "Turn 19",
    "station_m": 5048.8,
    "from_m": 4996.9,
    "to_m": 5114.1
   },
   {
    "name": "Turn 20",
+   "display_name": "Turn 20",
    "station_m": 5336.5,
    "from_m": 5296.1,
    "to_m": 5375.8

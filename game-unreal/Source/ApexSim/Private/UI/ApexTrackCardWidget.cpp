@@ -47,7 +47,7 @@ void UApexTrackCardWidget::SetTrack(const FApexTrackConfigSummary& Summary, cons
 		{
 			if (!CatalogRow.Country.IsEmpty()) { Parts.Add(CatalogRow.Country); }
 			if (CatalogRow.LengthM > 0.0f)     { Parts.Add(FString::Printf(TEXT("%.2f km"), CatalogRow.LengthM / 1000.0f)); }
-			if (!CatalogRow.Category.IsEmpty()) { Parts.Add(CatalogRow.Category); }
+			if (!CatalogRow.Category.IsEmpty()) { Parts.Add(ApexCatalog::DisplayClass(CatalogRow.Category)); }
 		}
 		TrackInfoText->SetText(FText::FromString(Clamp(FString::Join(Parts, TEXT("  ·  ")))));
 	}

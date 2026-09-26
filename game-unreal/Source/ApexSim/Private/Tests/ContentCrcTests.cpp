@@ -1,4 +1,5 @@
 #include "ApexTestCommon.h"
+#include "Catalog/ApexCatalogRows.h"
 #include "Catalog/ApexContentCrc.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -62,6 +63,26 @@ bool FApexContentCompareTest::RunTest(const FString& Parameters)
 	const FString Message = ApexContent::DescribeMismatch(TEXT("Track"), TEXT("Monza"), 0xCBF43926, 0xDEADBEEF);
 	TestTrue(TEXT("message names the content"), Message.Contains(TEXT("Track \"Monza\"")));
 	TestTrue(TEXT("message carries both checksums"), Message.Contains(TEXT("CBF43926")) && Message.Contains(TEXT("DEADBEEF")));
+	return true;
+}
+
+// The series' own names are trademarks: the data keeps them, the screens
+// never show them.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexContentDisplayClassTest,
+	"ApexSim.Content.DisplayClass",
+	ApexTestFlags)
+
+bool FApexContentDisplayClassTest::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("F1"), ApexCatalog::DisplayClass(TEXT("F1")), FString(TEXT("Formula")));
+	TestEqual(TEXT("f1, any case"), ApexCatalog::DisplayClass(TEXT(" f1 ")), FString(TEXT("Formula")));
+	TestEqual(TEXT("WEC"), ApexCatalog::DisplayClass(TEXT("WEC")), FString(TEXT("Endurance")));
+	TestEqual(TEXT("Endurance is one chip with WEC"), ApexCatalog::DisplayClass(TEXT("Endurance")), FString(TEXT("Endurance")));
+	TestEqual(TEXT("DTM"), ApexCatalog::DisplayClass(TEXT("DTM")), FString(TEXT("GT3")));
+	TestEqual(TEXT("IndyCar"), ApexCatalog::DisplayClass(TEXT("IndyCar")), FString(TEXT("Independent")));
+	TestEqual(TEXT("anything else as it is"), ApexCatalog::DisplayClass(TEXT("Hypercar")), FString(TEXT("Hypercar")));
+	TestEqual(TEXT("empty stays empty"), ApexCatalog::DisplayClass(FString()), FString());
 	return true;
 }
 

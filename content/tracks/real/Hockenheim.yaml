@@ -1,4 +1,5 @@
-name: 'Hockeyheimring'
+name: Hockenheimring
+display_name: 'Hockeyheimring'
 track_id: a24975c7-f967-4089-9bd9-a71d37e3f109
 nodes:
 - x: 0.69

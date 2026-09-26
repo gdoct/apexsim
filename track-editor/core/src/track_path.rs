@@ -416,6 +416,7 @@ mod tests {
     fn square_loop() -> TrackFile {
         TrackFile {
             name: "Square".to_string(),
+            display_name: None,
             track_id: None,
             nodes: vec![
                 node(0.0, 0.0),

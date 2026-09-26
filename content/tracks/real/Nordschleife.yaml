@@ -1,4 +1,5 @@
-name: 'Nürburger Mordschleife'
+name: Nürburgring Nordschleife
+display_name: 'Nürburger Mordschleife'
 track_id: 7648a87e-a67d-43c2-b92a-84022cc3ca75
 nodes:
 - x: 0.0

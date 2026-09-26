@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Nordschleife.yaml",
- "track_name": "Nürburger Mordschleife",
+ "track_name": "Nürburgring Nordschleife",
+ "track_display_name": "Nürburger Mordschleife",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,258 +22,301 @@
  "corners": [
   {
    "name": "Sabine-Schmitz-Kurve",
+   "display_name": "Schnitzel-Kurve",
    "station_m": 164.8,
    "from_m": 102.9,
    "to_m": 217.3
   },
   {
    "name": "Hatzenbogen",
+   "display_name": "Hatzenbogen",
    "station_m": 493.1,
    "from_m": 217.3,
    "to_m": 684.7
   },
   {
    "name": "Hatzenbach",
+   "display_name": "Hatzenbach",
    "station_m": 1038.7,
    "from_m": 684.7,
    "to_m": 1277.9
   },
   {
    "name": "Hocheichen",
+   "display_name": "Hocheichen",
    "station_m": 1481.6,
    "from_m": 1277.9,
    "to_m": 1807.2
   },
   {
    "name": "Quiddelbacher Höhe",
+   "display_name": "Quiddelbacher Höhe",
    "station_m": 1945.8,
    "from_m": 1871.4,
    "to_m": 2207.5
   },
   {
    "name": "Flugplatz",
+   "display_name": "Flugplatz",
    "station_m": 2548.7,
    "from_m": 2207.5,
    "to_m": 2903.6
   },
   {
    "name": "Schwedenkreuz",
+   "display_name": "Schwedenkreuz",
    "station_m": 3408.3,
    "from_m": 2903.6,
    "to_m": 3660.0
   },
   {
    "name": "Aremberg",
+   "display_name": "Aremberg",
    "station_m": 3842.8,
    "from_m": 3660.0,
    "to_m": 4042.2
   },
   {
    "name": "Fuchsröhre",
+   "display_name": "Fuchsröhre",
    "station_m": 4536.4,
    "from_m": 4042.2,
    "to_m": 4904.3
   },
   {
    "name": "Adenauer Forst",
+   "display_name": "Adenauer Forst",
    "station_m": 5168.5,
    "from_m": 4904.3,
    "to_m": 5405.7
   },
   {
    "name": "Metzgesfeld",
+   "display_name": "Metzgesfeld",
    "station_m": 5903.4,
    "from_m": 5405.7,
    "to_m": 6114.8
   },
   {
    "name": "Kallenhard",
+   "display_name": "Kallenhard",
    "station_m": 6328.7,
    "from_m": 6114.8,
    "to_m": 6630.6
   },
   {
    "name": "Spiegelkurve",
+   "display_name": "Spiegelkurve",
    "station_m": 6745.2,
    "from_m": 6630.6,
    "to_m": 6816.5
   },
   {
    "name": "Dreifach-Rechts",
+   "display_name": "Dreifach-Rechts",
    "station_m": 6998.4,
    "from_m": 6816.5,
    "to_m": 7155.6
   },
   {
    "name": "Wehrseifen",
+   "display_name": "Wehrseifen",
    "station_m": 7388.7,
    "from_m": 7155.6,
    "to_m": 7552.5
   },
   {
    "name": "Breidscheid",
+   "display_name": "Breidscheid",
    "station_m": 7713.4,
    "from_m": 7552.5,
    "to_m": 7745.2
   },
   {
    "name": "Exmühle",
+   "display_name": "Exmühle",
    "station_m": 8149.3,
    "from_m": 8045.0,
    "to_m": 8443.7
   },
   {
    "name": "Lauda-Links",
+   "display_name": "Lauter-Links",
    "station_m": 8628.3,
    "from_m": 8443.7,
    "to_m": 8802.0
   },
   {
    "name": "Bergwerk",
+   "display_name": "Bergwerk",
    "station_m": 8929.5,
    "from_m": 8802.0,
    "to_m": 9206.1
   },
   {
    "name": "Senkenlinks",
+   "display_name": "Senkenlinks",
    "station_m": 9508.6,
    "from_m": 9206.1,
    "to_m": 9873.3
   },
   {
    "name": "Kesselchen",
+   "display_name": "Kesselchen",
    "station_m": 10452.9,
    "from_m": 9873.3,
    "to_m": 10657.7
   },
   {
    "name": "Mutkurve",
+   "display_name": "Mutkurve",
    "station_m": 10811.4,
    "from_m": 10657.7,
    "to_m": 11036.0
   },
   {
    "name": "Klostertal",
+   "display_name": "Klostertal",
    "station_m": 11220.7,
    "from_m": 11036.0,
    "to_m": 11384.7
   },
   {
    "name": "Steilstrecke",
+   "display_name": "Steilstrecke",
    "station_m": 11585.6,
    "from_m": 11384.7,
    "to_m": 11917.3
   },
   {
    "name": "Karussell",
+   "display_name": "Karussell",
    "station_m": 11998.2,
    "from_m": 11917.3,
    "to_m": 12069.8
   },
   {
    "name": "Hohe Acht",
+   "display_name": "Hohe Acht",
    "station_m": 12748.1,
    "from_m": 12069.8,
    "to_m": 13187.3
   },
   {
    "name": "Hedwigshöhe",
+   "display_name": "Hedwigshöhe",
    "station_m": 13301.8,
    "from_m": 13187.3,
    "to_m": 13343.2
   },
   {
    "name": "Wippermann",
+   "display_name": "Wippermann",
    "station_m": 13474.1,
    "from_m": 13343.2,
    "to_m": 13658.3
   },
   {
    "name": "Eschbach",
+   "display_name": "Eschbach",
    "station_m": 13905.4,
    "from_m": 13658.3,
    "to_m": 14081.0
   },
   {
    "name": "Brünnchen",
+   "display_name": "Brünnchen",
    "station_m": 14348.3,
    "from_m": 14081.0,
    "to_m": 14568.0
   },
   {
    "name": "Eiskurve",
+   "display_name": "Eiskurve",
    "station_m": 14673.1,
    "from_m": 14568.0,
    "to_m": 14753.2
   },
   {
    "name": "Pflanzgarten",
+   "display_name": "Pflanzgarten",
    "station_m": 15230.2,
    "from_m": 14753.2,
    "to_m": 15516.4
   },
   {
    "name": "Sprunghügel",
+   "display_name": "Sprunghügel",
    "station_m": 15636.2,
    "from_m": 15516.4,
    "to_m": 15780.1
   },
   {
    "name": "Stefan-Bellof-S",
+   "display_name": "Bello-S",
    "station_m": 15966.2,
    "from_m": 15780.1,
    "to_m": 16214.4
   },
   {
    "name": "Schwalbenschwanz",
+   "display_name": "Schwalbenschwanz",
    "station_m": 16572.1,
    "from_m": 16214.4,
    "to_m": 16704.8
   },
   {
    "name": "Mini-Karussell",
+   "display_name": "Mini-Karussell",
    "station_m": 16902.2,
    "from_m": 16704.8,
    "to_m": 17085.2
   },
   {
    "name": "Galgenkopf",
+   "display_name": "Galgenkopf",
    "station_m": 17461.8,
    "from_m": 17085.2,
    "to_m": 17774.4
   },
   {
    "name": "Nürburgring Nordschleife",
+   "display_name": null,
    "station_m": 17801.9,
    "from_m": 17774.4,
    "to_m": 17801.9
   },
   {
    "name": "Döttinger Höhe",
+   "display_name": "Döttinger Höhe",
    "station_m": 18345.2,
    "from_m": 17801.9,
    "to_m": 18547.4
   },
   {
    "name": "Antoniusbuche",
+   "display_name": "Antoniusbuche",
    "station_m": 19757.3,
    "from_m": 19038.2,
    "to_m": 19940.8
   },
   {
    "name": "Tiergarten",
+   "display_name": "Tiergarten",
    "station_m": 20157.4,
    "from_m": 19940.8,
    "to_m": 20230.6
   },
   {
    "name": "Hohenrain",
+   "display_name": "Hohenrain",
    "station_m": 20470.7,
    "from_m": 20230.6,
    "to_m": 20618.0
   },
   {
    "name": "T13",
+   "display_name": "T13",
    "station_m": 20688.1,
    "from_m": 20638.3,
    "to_m": 73.8

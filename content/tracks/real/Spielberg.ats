@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Spielberg.yaml",
-  "track_name": "Red Pull Ring",
+  "track_name": "Red Bull Ring",
   "surfaces": [
     {
       "id": 241,
@@ -74934,7 +74934,7 @@
       "z": 14.8,
       "yaw_rad": -2.9,
       "scale": 1.0,
-      "text": "Niki Lauda Kurve"
+      "text": "Knicki-Kurve"
     },
     {
       "id": 28084,
@@ -74945,7 +74945,7 @@
       "z": 29.84,
       "yaw_rad": 2.22,
       "scale": 1.0,
-      "text": "Remus"
+      "text": "Romulus"
     },
     {
       "id": 28085,
@@ -74956,7 +74956,7 @@
       "z": 14.68,
       "yaw_rad": -0.01,
       "scale": 1.0,
-      "text": "Schlossgold"
+      "text": "Schlosssilber"
     },
     {
       "id": 28086,
@@ -74967,7 +74967,7 @@
       "z": 5.91,
       "yaw_rad": 2.96,
       "scale": 1.0,
-      "text": "Rauch"
+      "text": "Qualm"
     },
     {
       "id": 28087,
@@ -74978,7 +74978,7 @@
       "z": 13.64,
       "yaw_rad": -1.02,
       "scale": 1.0,
-      "text": "Würth Kurve"
+      "text": "Wurst-Kurve"
     },
     {
       "id": 28088,
@@ -74989,7 +74989,7 @@
       "z": 16.5,
       "yaw_rad": -0.02,
       "scale": 1.0,
-      "text": "Rindt"
+      "text": "Rind"
     },
     {
       "id": 28089,
@@ -75000,7 +75000,7 @@
       "z": 10.19,
       "yaw_rad": -1.24,
       "scale": 1.0,
-      "text": "Red Bull Mobile"
+      "text": "Red Pull Mobile"
     },
     {
       "id": 28090,
@@ -100485,7 +100485,7 @@
       "x": -166.83237,
       "y": 301.96204,
       "z": 23.383913,
-      "yaw_rad": 0.000031125983,
+      "yaw_rad": 3.1125983e-05,
       "scale": 1.0,
       "text": null
     },

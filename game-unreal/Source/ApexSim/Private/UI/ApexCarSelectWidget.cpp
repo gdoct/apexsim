@@ -349,7 +349,7 @@ void UApexCarSelectWidget::RebuildList(bool bForce)
 		FApexButtonSpec Spec;
 		Spec.Label = bHasRow && !Row.DisplayName.IsEmpty() ? Row.DisplayName : Car.Name;
 		Spec.SubLabel = FString::Join(SpecParts, TEXT(" · "));
-		Spec.Badge = bHasRow ? Row.CarClass : FString();
+		Spec.Badge = bHasRow ? ApexCatalog::DisplayClass(Row.CarClass) : FString();
 		Spec.Variant = EApexButtonVariant::Panel;
 		Spec.LabelSize = 18.0f;
 		Spec.Height = 76.0f;
@@ -426,7 +426,7 @@ void UApexCarSelectWidget::RebuildFilterChips()
 			FApexCarCatalogRow Row;
 			if (Flow->GetCarCatalogRow(Id, Row) && !Row.CarClass.IsEmpty())
 			{
-				Classes.AddUnique(Row.CarClass);
+				Classes.AddUnique(ApexCatalog::DisplayClass(Row.CarClass));
 			}
 		}
 	}
@@ -481,7 +481,7 @@ void UApexCarSelectWidget::ApplyFilter()
 		{
 			FApexCarCatalogRow Row;
 			bMatches = Flow->GetCarCatalogRow(RowWidget->GetActionId().ToString(), Row)
-				&& Row.CarClass.Equals(ActiveFilter, ESearchCase::IgnoreCase);
+				&& ApexCatalog::DisplayClass(Row.CarClass).Equals(ActiveFilter, ESearchCase::IgnoreCase);
 		}
 
 		if (!bMatches)
@@ -562,7 +562,7 @@ void UApexCarSelectWidget::RefreshDetail()
 		TArray<FString> Parts;
 		if (bHasRow)
 		{
-			if (!Row.CarClass.IsEmpty())            { Parts.Add(Row.CarClass.ToUpper()); }
+			if (!Row.CarClass.IsEmpty())            { Parts.Add(ApexCatalog::DisplayClass(Row.CarClass).ToUpper()); }
 			if (!Row.Brand.IsEmpty())               { Parts.Add(Row.Brand.ToUpper()); }
 			if (!Row.ManufacturerCountry.IsEmpty()) { Parts.Add(Row.ManufacturerCountry.ToUpper()); }
 		}
@@ -612,7 +612,7 @@ void UApexCarSelectWidget::RefreshDetail()
 	}
 	if (ClassValue)
 	{
-		ClassValue->SetText(FText::FromString(bHasRow && !Row.CarClass.IsEmpty() ? Row.CarClass : TEXT("—")));
+		ClassValue->SetText(FText::FromString(bHasRow && !Row.CarClass.IsEmpty() ? ApexCatalog::DisplayClass(Row.CarClass) : TEXT("—")));
 	}
 
 	if (PowerBar)  { PowerBar->SetPercent(MaxHp > 0.0f ? Hp / MaxHp : 0.0f); }

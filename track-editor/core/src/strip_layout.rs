@@ -123,6 +123,7 @@ mod tests {
     fn loop_track() -> TrackFile {
         TrackFile {
             name: "Loop".to_string(),
+            display_name: None,
             track_id: None,
             nodes: vec![
                 node(0.0, 0.0),
@@ -210,6 +211,7 @@ mod tests {
         // Two long parallel legs 30 m apart, one 25 m above the other.
         let track = TrackFile {
             name: "TwoLevels".to_string(),
+            display_name: None,
             track_id: None,
             nodes: vec![
                 node(0.0, 0.0),

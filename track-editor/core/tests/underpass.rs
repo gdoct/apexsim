@@ -42,6 +42,7 @@ fn node(x: f32, y: f32, z: f32) -> TrackNode {
 fn figure_eight() -> TrackFile {
     TrackFile {
         name: "Figure Eight".to_string(),
+        display_name: None,
         track_id: Some("figure-eight".to_string()),
         nodes: vec![
             node(-100.0, 0.0, 0.0),

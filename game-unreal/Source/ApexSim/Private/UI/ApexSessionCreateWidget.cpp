@@ -598,7 +598,7 @@ void UApexSessionCreateWidget::RefreshContent()
 		{
 			if (!Row.Country.IsEmpty())  { Meta.Add(Row.Country.ToUpper()); }
 			if (Row.LengthM > 0.0f)      { Meta.Add(FString::Printf(TEXT("%.2f KM"), Row.LengthM / 1000.0f)); }
-			if (!Row.Category.IsEmpty()) { Meta.Add(Row.Category.ToUpper()); }
+			if (!Row.Category.IsEmpty()) { Meta.Add(ApexCatalog::DisplayClass(Row.Category).ToUpper()); }
 		}
 
 		UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>();
@@ -656,7 +656,7 @@ void UApexSessionCreateWidget::RefreshContent()
 		TArray<FString> Meta;
 		if (bHasRow)
 		{
-			if (!Row.CarClass.IsEmpty()) { Meta.Add(Row.CarClass.ToUpper()); }
+			if (!Row.CarClass.IsEmpty()) { Meta.Add(ApexCatalog::DisplayClass(Row.CarClass).ToUpper()); }
 			if (Row.MaxPowerKw > 0.0f)   { Meta.Add(FString::Printf(TEXT("%.0f HP"), Row.MaxPowerKw * 1.34102f)); }
 			if (Row.MassKg > 0.0f)       { Meta.Add(FString::Printf(TEXT("%.0f KG"), Row.MassKg)); }
 		}

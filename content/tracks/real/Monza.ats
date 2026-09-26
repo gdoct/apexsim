@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Monza.yaml",
-  "track_name": "Autodromo Monzarella",
+  "track_name": "Autodromo Nazionale di Monza",
   "surfaces": [
     {
       "id": 274,
@@ -15886,17 +15886,6 @@
       "text": "Curva del Serraglio"
     },
     {
-      "id": 29256,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": 665.98,
-      "y": 945.97,
-      "z": 2.87,
-      "yaw_rad": -2.42,
-      "scale": 1.0,
-      "text": "Autodromo nazionale di Monza - anello alta velocità"
-    },
-    {
       "id": 29257,
       "kind": "board",
       "asset": "corner_sign",
@@ -15916,7 +15905,7 @@
       "z": 2.65,
       "yaw_rad": -1.55,
       "scale": 1.0,
-      "text": "Variante Ascari"
+      "text": "Variante Calamari"
     },
     {
       "id": 29259,
@@ -15927,7 +15916,7 @@
       "z": 1.93,
       "yaw_rad": -1.7,
       "scale": 1.0,
-      "text": "Curva Alboreto"
+      "text": "Curva Alberello"
     },
     {
       "id": 57355,
@@ -69813,7 +69802,7 @@
       "asset": "grass_clump",
       "x": -3.3598504,
       "y": 62.820213,
-      "z": -0.000013544635,
+      "z": -1.3544635e-05,
       "yaw_rad": 5.7197633,
       "scale": 1.1320348,
       "text": null

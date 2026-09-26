@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Montreal.yaml",
- "track_name": "Circuit Chilly Villeneuve",
+ "track_name": "Circuit Gilles Villeneuve",
+ "track_display_name": "Circuit Chilly Villeneuve",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,6 +22,7 @@
  "corners": [
   {
    "name": "Circuit Gilles-Villeneuve",
+   "display_name": null,
    "station_m": 1330.4,
    "from_m": 3831.1,
    "to_m": 3831.1

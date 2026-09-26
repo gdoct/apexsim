@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Suzuka.yaml",
- "track_name": "Sudoku Circuit",
+ "track_name": "Suzuka Circuit",
+ "track_display_name": "Sudoku Circuit",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,78 +22,91 @@
  "corners": [
   {
    "name": "1コーナー",
+   "display_name": "Turn 1",
    "station_m": 701.7,
    "from_m": 617.8,
    "to_m": 762.6
   },
   {
    "name": "2コーナー",
+   "display_name": "Turn 2",
    "station_m": 851.8,
    "from_m": 792.5,
    "to_m": 914.6
   },
   {
    "name": "S字",
+   "display_name": "Esses",
    "station_m": 1115.9,
    "from_m": 1061.2,
    "to_m": 1149.0
   },
   {
    "name": "逆バンク",
+   "display_name": "Reverse Bank",
    "station_m": 1559.0,
    "from_m": 1478.2,
    "to_m": 1636.3
   },
   {
    "name": "NIPPO コーナー",
+   "display_name": "Hippo Corner",
    "station_m": 1757.9,
    "from_m": 1697.5,
    "to_m": 1824.4
   },
   {
    "name": "デグナー1",
+   "display_name": "Dagger 1",
    "station_m": 2296.5,
    "from_m": 2282.1,
    "to_m": 2302.4
   },
   {
    "name": "デグナー2",
+   "display_name": "Dagger 2",
    "station_m": 2458.2,
    "from_m": 2433.1,
    "to_m": 2474.0
   },
   {
    "name": "NISSINブレーキヘアピン",
+   "display_name": "Noodle Hairpin",
    "station_m": 2921.9,
    "from_m": 2888.2,
    "to_m": 2955.4
   },
   {
    "name": "西ストレート",
+   "display_name": "Back Straight",
    "station_m": 4307.9,
    "from_m": 4053.7,
    "to_m": 4903.8
   },
   {
    "name": "130R",
+   "display_name": "130R",
    "station_m": 5045.9,
    "from_m": 4940.3,
    "to_m": 5161.1
   },
   {
    "name": "日立オートモティブシステムズシケイン",
+   "display_name": "Hit-and-Miss Chicane",
    "station_m": 5387.6,
    "from_m": 5374.4,
    "to_m": 5397.1
   },
   {
    "name": "日立Astemoシケイン",
+   "display_name": null,
    "station_m": 5444.5,
    "from_m": 5427.9,
    "to_m": 5461.0
   },
   {
    "name": "メインストレート",
+   "display_name": "Main Straight",
    "station_m": 5730.2,
    "from_m": 5635.7,
    "to_m": 617.8

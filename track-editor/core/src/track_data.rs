@@ -15,7 +15,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrackFile {
+    /// The circuit's real name (source data; often a trademark).
     pub name: String,
+    /// The name the game shows; the server sends it in place of `name`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
     #[serde(default)]
     pub track_id: Option<String>,
     pub nodes: Vec<TrackNode>,

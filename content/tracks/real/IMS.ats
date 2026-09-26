@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "IMS.yaml",
-  "track_name": "Endianapolis Motor Speedway",
+  "track_name": "Indianapolis Motor Speedway",
   "surfaces": [
     {
       "id": 194,

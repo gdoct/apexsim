@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Sakhir.yaml",
- "track_name": "Bahrainless International Circuit",
+ "track_name": "Bahrain International Circuit",
+ "track_display_name": "Bahrainless International Circuit",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,6 +22,7 @@
  "corners": [
   {
    "name": "Grand Prix Circuit",
+   "display_name": null,
    "station_m": 739.2,
    "from_m": 4130.0,
    "to_m": 1593.3

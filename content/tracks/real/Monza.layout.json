@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Monza.yaml",
- "track_name": "Autodromo Monzarella",
+ "track_name": "Autodromo Nazionale di Monza",
+ "track_display_name": "Autodromo Monzarella",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,66 +22,77 @@
  "corners": [
   {
    "name": "Rettifilo di partenza",
+   "display_name": "Rettifilo di partenza",
    "station_m": 492.4,
    "from_m": 5778.0,
    "to_m": 921.7
   },
   {
    "name": "Variante del Rettifilo",
+   "display_name": "Variante del Rettifilo",
    "station_m": 954.4,
    "from_m": 921.7,
    "to_m": 988.0
   },
   {
    "name": "Curva Biassono",
+   "display_name": "Curva Biassono",
    "station_m": 1509.3,
    "from_m": 1278.2,
    "to_m": 1759.8
   },
   {
    "name": "Variante della Roggia",
+   "display_name": "Variante della Roggia",
    "station_m": 2151.1,
    "from_m": 2127.3,
    "to_m": 2194.2
   },
   {
    "name": "Lesmo 1",
+   "display_name": "Lesmo 1",
    "station_m": 2549.8,
    "from_m": 2482.8,
    "to_m": 2623.4
   },
   {
    "name": "Lesmo 2",
+   "display_name": "Lesmo 2",
    "station_m": 2876.0,
    "from_m": 2848.4,
    "to_m": 2894.9
   },
   {
    "name": "Curva del Serraglio",
+   "display_name": "Curva del Serraglio",
    "station_m": 3299.4,
    "from_m": 3233.1,
    "to_m": 3369.9
   },
   {
    "name": "Autodromo nazionale di Monza - anello alta velocità",
+   "display_name": null,
    "station_m": 3593.8,
    "from_m": 3593.4,
    "to_m": 3593.8
   },
   {
    "name": "Curva Vialone",
+   "display_name": "Curva Vialone",
    "station_m": 3944.7,
    "from_m": 3926.5,
    "to_m": 3965.1
   },
   {
    "name": "Variante Ascari",
+   "display_name": "Variante Calamari",
    "station_m": 4086.9,
    "from_m": 3996.8,
    "to_m": 4162.1
   },
   {
    "name": "Curva Alboreto",
+   "display_name": "Curva Alberello",
    "station_m": 5280.4,
    "from_m": 5104.6,
    "to_m": 5778.0

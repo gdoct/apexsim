@@ -247,6 +247,7 @@ mod tests {
         nodes.push(node(-100.0, 100.0, 5.0));
         TrackFile {
             name: "Pit".to_string(),
+            display_name: None,
             track_id: None,
             nodes,
             checkpoints: vec![],

@@ -43,6 +43,7 @@ fn node(x: f32, y: f32, z: f32, banking: f32) -> TrackNode {
 fn test_track() -> TrackFile {
     TrackFile {
         name: "Test Circuit".to_string(),
+        display_name: None,
         track_id: Some("test".to_string()),
         nodes: vec![
             node(0.0, 0.0, 0.0, 0.0),
@@ -475,6 +476,7 @@ fn stadium_track() -> TrackFile {
     }
     TrackFile {
         name: "Stadium".to_string(),
+        display_name: None,
         track_id: Some("stadium".to_string()),
         nodes,
         checkpoints: vec![],

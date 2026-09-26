@@ -92,7 +92,8 @@ def main(argv):
         entries.append({
             "track_id": track["id"],
             "stem": stem,
-            "display_name": track["name"] or stem,
+            # The parody, never `name`: the real names are trademarks.
+            "display_name": data.get("display_name") or track["name"] or stem,
             "description": meta.get("description") or "",
             "country": meta.get("country") or "",
             "city": meta.get("city") or "",
@@ -102,7 +103,7 @@ def main(argv):
             "preview_png": str(png),
             "source_crc": source_crc(yaml_path),
         })
-        print(f"  {stem}: {track['name']} ({len(track['points'])} points, {length_m:.0f} m)")
+        print(f"  {stem}: {data.get('display_name') or track['name']} ({len(track['points'])} points, {length_m:.0f} m)")
 
     if wanted and not entries:
         print(f"no track matched {sorted(wanted)} in {TRACK_DIR}", file=sys.stderr)

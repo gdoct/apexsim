@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "SaoPaulo.yaml",
- "track_name": "Autódromo Interlaggos",
+ "track_name": "Autódromo José Carlos Pace",
+ "track_display_name": "Autódromo Interlaggos",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -39,84 +40,98 @@
  "corners": [
   {
    "name": "S do Senna",
+   "display_name": "S do Sonho",
    "station_m": 307.7,
    "from_m": 291.7,
    "to_m": 327.0
   },
   {
    "name": "Curva do Sol",
+   "display_name": "Curva do Sol",
    "station_m": 685.4,
    "from_m": 592.2,
    "to_m": 781.1
   },
   {
    "name": "Reta Oposta",
+   "display_name": "Reta Oposta",
    "station_m": 986.7,
    "from_m": 781.1,
    "to_m": 1367.0
   },
   {
    "name": "Descida do Lago",
+   "display_name": "Descida do Lago",
    "station_m": 1420.0,
    "from_m": 1367.0,
    "to_m": 1515.0
   },
   {
    "name": "Ferradura",
+   "display_name": "Ferradura",
    "station_m": 2033.8,
    "from_m": 1977.5,
    "to_m": 2089.6
   },
   {
    "name": "Curva do Laranjinha",
+   "display_name": "Curva do Laranjinha",
    "station_m": 2156.1,
    "from_m": 2089.6,
    "to_m": 2215.6
   },
   {
    "name": "Esse",
+   "display_name": "Esse",
    "station_m": 2341.8,
    "from_m": 2279.2,
    "to_m": 2405.4
   },
   {
    "name": "Pinherinho",
+   "display_name": "Pinherinho",
    "station_m": 2481.3,
    "from_m": 2405.4,
    "to_m": 2570.7
   },
   {
    "name": "Bico de Pato",
+   "display_name": "Bico de Pato",
    "station_m": 2741.3,
    "from_m": 2570.7,
    "to_m": 2872.1
   },
   {
    "name": "Mergulho",
+   "display_name": "Mergulho",
    "station_m": 2988.8,
    "from_m": 2872.1,
    "to_m": 3095.8
   },
   {
    "name": "Junção",
+   "display_name": "Junção",
    "station_m": 3208.8,
    "from_m": 3135.3,
    "to_m": 3236.4
   },
   {
    "name": "Café",
+   "display_name": "Café",
    "station_m": 3392.1,
    "from_m": 3356.4,
    "to_m": 3430.1
   },
   {
    "name": "Subida dos Boxes",
+   "display_name": "Subida dos Boxes",
    "station_m": 3662.4,
    "from_m": 3588.3,
    "to_m": 3777.5
   },
   {
    "name": "Arquibancadas",
+   "display_name": "Arquibancadas",
    "station_m": 4038.9,
    "from_m": 3893.5,
    "to_m": 4155.0

@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Silverstone.yaml",
-  "track_name": "Shiverstone Circuit",
+  "track_name": "Silverstone Circuit",
   "surfaces": [
     {
       "id": 381,
@@ -27866,7 +27866,7 @@
       "z": -0.16,
       "yaw_rad": 0.94,
       "scale": 1.0,
-      "text": "Hamilton Straight"
+      "text": "Hamlet Straight"
     },
     {
       "id": 17233,
