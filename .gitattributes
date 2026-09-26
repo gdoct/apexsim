@@ -1,0 +1,9 @@
+# Generated track data is written with LF by the tools (ats-dress, ats-smooth,
+# osm_layout.py, ...) on every platform. Pinning it to LF in the working tree
+# too keeps a Windows checkout with core.autocrlf from listing every re-dressed
+# scene as modified when only its line endings differ. (The content checksum
+# drops carriage returns, so the server and client agree either way.)
+content/tracks/real/*.ats          text eol=lf
+content/tracks/real/*.yaml         text eol=lf
+content/tracks/real/*.layout.json  text eol=lf
+content/tracks/real/*.msgpack      binary
