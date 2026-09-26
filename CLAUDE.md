@@ -869,7 +869,10 @@ pointers; everything that draws a car goes through `ApexCarContent::LoadBody`
 body's slot instances are shared by every car wearing it, so a car's own
 instance (lights, livery, ghost tint) must come from
 `ApexCarContent::OwnMaterialInstance`, never `CreateDynamicMaterialInstance`
-(which returns the shared one and repaints every such car).
+(which returns the shared one and repaints every such car), and never a
+dynamic instance parented to the shared one (the engine refuses a dynamic
+instance as a parent and the child draws untextured): it is made from the
+shared one's cooked parent with its values copied.
 
 `DT_CarCatalog` is now a fallback for a car with no folder on this machine,
 and the source of hand-tuned turntable framing and cockpit points for a car
