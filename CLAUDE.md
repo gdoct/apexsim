@@ -1035,8 +1035,9 @@ track's raceline, or its centerline, with a quasi-steady-state speed profile
 from the car's grip, downforce, power and brakes) and sends it as
 `RacingLine` right after `SessionJoined`. `AApexRacingLineActor` draws it as
 dots on the road, one instanced mesh per colour (green flat out, amber at the
-grip limit or lifting, red braking), dropped onto the track level's own meshes
-by line traces once the level is visible. BRAKING ONLY draws just the red.
+grip limit or lifting, red braking), dropped onto the track's own road
+meshes (tag `ApexTrackMesh`) by line traces once the track is built and
+visible. BRAKING ONLY draws just the red.
 For screenshot runs `-ApexRacingLine=off|braking|full` overrides the setting
 and `-ApexCar=<name>` picks the auto-race car (otherwise the lobby's first).
 
@@ -1566,14 +1567,16 @@ and the cloud, its colour warming toward the horizon and greying under
 cloud, the sky light scaled up under overcast, shadows off and the source
 widened when the disc is gone, and after dark the directional light
 becomes a one-lux blue moon that no longer drives the atmosphere. A
-director-owned unbound post-process volume (priority 10, over the track
-level's daylight clamp) carries the exposure floor and ceiling for the
-hour, the wet desaturation and the bloom. What lives in the streamed level
-is applied once its actors are in the world (`ApplyTrackLevelConditions`,
-polled like the start lights): the bake's fog gets the weather's density,
-start and colour (dark at night); in rain the road family's slots (`MI_road*`, `MI_pit_lane*` and the
-`MI_wear_*` bands the racing line runs on) get dynamic instances with
-`Roughness` 0.3 for the wet sheen, and the racing-line dots go glossy and
+director-owned unbound post-process volume (priority 10, over the track's
+own daylight clamp) carries the exposure floor and ceiling for the hour,
+the wet desaturation and the bloom. What lives in the track is applied
+once it is built and visible (`ApplyTrackLevelConditions`, over
+`UApexTrackInstance::GetActors`, polled like the start lights): the
+track's fog gets the weather's density, start and colour (dark at night);
+in rain the road family's dynamic instances (`MI_road*`, `MI_pit_lane*`
+and the `MI_wear_*` bands the racing line runs on, shared by every mesh of
+the key and put back when the track is reused) get `Roughness` 0.3 for the
+wet sheen, and the racing-line dots go glossy and
 dark with them (`AApexRacingLineActor::SetWet`); after
 dark every `floodlight_tower` / `lamp_post` instance gets a shadowless spot
 light at its head (at most 96) and the `ApexEmissive_floodlight_lamp`
