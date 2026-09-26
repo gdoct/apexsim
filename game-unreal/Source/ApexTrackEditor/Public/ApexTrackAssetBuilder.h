@@ -51,6 +51,14 @@ private:
 	bool BuildEmissiveMaterial(FString& OutError);
 	/** `M_ApexBrand`: a textured surface for the brand and marker slots of authored props. */
 	bool BuildBrandMaterial(FString& OutError);
+	/** `M_ApexDecal`: the masked, textured paint the road decals (graffiti) are drawn with. */
+	bool BuildDecalMaterial(FString& OutError);
+	/**
+	 * An instance of `M_ApexDecal` showing the imported texture a decal key
+	 * (`decal_<set>_<name>`) names; null when that texture is not imported,
+	 * in which case the decal's meshes are left out of the level.
+	 */
+	UMaterialInterface* DecalMaterialFor(const FString& Key, FString& OutError);
 	/** The `StartLights` actor the race director drives during the countdown. */
 	void SpawnStartLights(const FApexTrackScene& Scene, class UWorld* World);
 
@@ -119,6 +127,9 @@ private:
 	TMap<FString, TObjectPtr<UStaticMesh>> AuthoredMeshes;
 	TObjectPtr<UMaterialInterface> EmissiveParent;
 	TObjectPtr<UMaterialInterface> BrandParent;
+	TObjectPtr<UMaterialInterface> DecalParent;
+	/** Decal keys whose texture is not imported: their meshes are skipped. */
+	TSet<FString> MissingDecals;
 	/** Key -> brand/marker/emissive slot override; a null entry means "tried, no texture". */
 	TMap<FString, TObjectPtr<UMaterialInterface>> SlotMaterials;
 	/** Texts with no brand or marker texture, logged once each. */

@@ -9,7 +9,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use track_core::ats::{
-    AtsScene, Curb, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface, SurfaceKind,
+    AtsScene, Curb, Decal, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface,
+    SurfaceKind,
 };
 use track_core::project;
 use track_core::track_data::{TrackFile, TrackNode};
@@ -117,6 +118,16 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         lat_from_m: 5.5,
         lat_to_m: 6.0,
         color: [1.0, 1.0, 1.0, 1.0],
+    });
+    scene.decals.push(Decal {
+        id: id(),
+        image: "graffiti/test_tag".to_string(),
+        // On the hill, so the picture has to follow the grade.
+        start_m: 150.0,
+        length_m: 12.0,
+        lat_m: 1.0,
+        width_m: 6.0,
+        reversed: false,
     });
     scene.props.push(Prop {
         id: id(),
@@ -1560,5 +1571,76 @@ fn the_verge_meets_the_road_edge_on_every_real_circuit() {
     assert!(
         offenders.is_empty(),
         "the verge leaves the road edge: {offenders:?}"
+    );
+}
+
+/// Graffiti is a picture, not a colour: its mesh carries UVs spanning the
+/// picture exactly once, top edge furthest down the road, and it lies on
+/// the road (not over or under it) on a slope.
+#[test]
+fn road_decals_bake_as_pictures_on_the_road() {
+    let baked = bake_test_scene();
+    let material = baked
+        .materials
+        .iter()
+        .find(|m| m.key == "decal_graffiti_test_tag")
+        .expect("the decal registers its own material key");
+    assert_eq!(material.family, "decal");
+    let meshes: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key == "decal_graffiti_test_tag")
+        .collect();
+    assert!(!meshes.is_empty(), "no decal mesh was baked");
+
+    let (mut u_lo, mut u_hi, mut v_lo, mut v_hi) = (f32::MAX, f32::MIN, f32::MAX, f32::MIN);
+    for mesh in &meshes {
+        for uv in mesh.uvs.chunks_exact(2) {
+            u_lo = u_lo.min(uv[0]);
+            u_hi = u_hi.max(uv[0]);
+            v_lo = v_lo.min(uv[1]);
+            v_hi = v_hi.max(uv[1]);
+        }
+    }
+    assert!(
+        u_lo.abs() < 1e-3 && (u_hi - 1.0).abs() < 1e-3,
+        "u {u_lo}..{u_hi}"
+    );
+    assert!(
+        v_lo.abs() < 1e-3 && (v_hi - 1.0).abs() < 1e-3,
+        "v {v_lo}..{v_hi}"
+    );
+
+    // The far end (v = 0) is further along the course than the near end
+    // (v = 1): on this track the first straight runs along +X, which is
+    // +X in Unreal too.
+    let mesh = meshes[0];
+    let far: Vec<f32> = mesh
+        .uvs
+        .chunks_exact(2)
+        .zip(mesh.positions.chunks_exact(3))
+        .filter(|(uv, _)| uv[1] < 0.01)
+        .map(|(_, p)| p[0])
+        .collect();
+    let near: Vec<f32> = mesh
+        .uvs
+        .chunks_exact(2)
+        .zip(mesh.positions.chunks_exact(3))
+        .filter(|(uv, _)| uv[1] > 0.99)
+        .map(|(_, p)| p[0])
+        .collect();
+    assert!(!far.is_empty() && !near.is_empty());
+    assert!(
+        far.iter().sum::<f32>() / far.len() as f32 > near.iter().sum::<f32>() / near.len() as f32
+    );
+
+    // Paint, not a plank: the heights change along the slope.
+    let heights: Vec<f32> = mesh.positions.chunks_exact(3).map(|p| p[2]).collect();
+    let lo = heights.iter().copied().fold(f32::INFINITY, f32::min);
+    let hi = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        hi - lo > 5.0,
+        "decal spans only {:.1} cm vertically on a hill",
+        hi - lo
     );
 }

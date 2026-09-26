@@ -146,13 +146,14 @@ fn main() -> ExitCode {
 
         println!(
             "{name}: {} stand(s) as {} prop(s), {} building(s), {} bridge(s), {} landmark(s), \
-             {} surrounding(s), pit lane {} ({} old prop(s) replaced){}",
+             {} surrounding(s), {} graffiti, pit lane {} ({} old prop(s) replaced){}",
             report.stands,
             report.stand_props,
             report.buildings,
             report.bridges,
             report.landmarks,
             report.surroundings,
+            report.graffiti,
             if report.pit_lane {
                 layout
                     .pit_lane

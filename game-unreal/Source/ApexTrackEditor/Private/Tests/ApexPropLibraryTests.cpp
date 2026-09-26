@@ -83,6 +83,12 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 		ApexProps::FacesUpCourse(TEXT("board"), TEXT("hoarding_3m")));
 	TestTrue(TEXT("a hoarding is turned at the road"),
 		ApexProps::FacesRoad(TEXT("board"), TEXT("hoarding_3m")));
+	TestTrue(TEXT("a chevron board looks up the course"),
+		ApexProps::FacesUpCourse(TEXT("board"), TEXT("chevron_left")));
+	TestTrue(TEXT("so does a kilometre board"),
+		ApexProps::FacesUpCourse(TEXT("board"), TEXT("km_marker")));
+	TestTrue(TEXT("and a German road sign"),
+		ApexProps::FacesUpCourse(TEXT("board"), TEXT("de_curve_right")));
 	TestFalse(TEXT("a marshal post is not a board"),
 		ApexProps::FacesUpCourse(TEXT("sign"), TEXT("braking_marker")));
 	TestEqual(TEXT("sky default"), ApexProps::DefaultAssetFor(TEXT("sky")), FString(TEXT("blimp")));

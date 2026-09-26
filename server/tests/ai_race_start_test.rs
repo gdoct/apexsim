@@ -35,11 +35,24 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     cars.insert(car.id, car);
 
     let mut profiles = generate_default_ai_profiles(ai_count);
-    for profile in &mut profiles {
+    // The drivers' ids decide the grid (participants is ordered by id) and
+    // seed the AI's noise, so random ids made every run a different race.
+    // The Le Mans lap failed on CI about one run in four: in those fields
+    // the last car on the grid came up alongside the third, on the outside,
+    // into the Dunlop curve at 650 m, was held there by the side margin and
+    // ran wide for 3-4 s. That is how the AI races side by side, not the
+    // yaw-seam bug the test is about. Fixed ids make each test one race,
+    // tick for tick; `AI_TEST_SEED=<n>` runs another field.
+    let seed: u64 = std::env::var("AI_TEST_SEED")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1);
+    for (i, profile) in profiles.iter_mut().enumerate() {
         profile.preferred_car_id = Some(car_id);
+        profile.id = seeded_id(seed, i as u64);
     }
     let session = RaceSession::new(
-        uuid::Uuid::new_v4(),
+        seeded_id(seed, u64::MAX),
         track.id,
         SessionKind::Demo,
         ai_count,
@@ -52,6 +65,20 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     assert_eq!(race.session.participants.len(), ai_count as usize);
     race.set_game_mode(GameMode::Race);
     race
+}
+
+/// A stable id for the `index`th driver of a seeded field (splitmix64, as
+/// `replay_tools` seeds its races).
+fn seeded_id(seed: u64, index: u64) -> uuid::Uuid {
+    let mut state = seed ^ index.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    let mut next = || {
+        state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    };
+    uuid::Uuid::from_u64_pair(next(), next())
 }
 
 /// One server tick, with the inputs made the way the game loop makes them.
