@@ -11,26 +11,12 @@
 class AActor;
 class FApexRuntimeTrackFactory;
 class FApexTrackSceneBuilder;
-class ULevel;
-class ULevelStreamingDynamic;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UStaticMesh;
 class UWorld;
 struct FApexMaterialParams;
 struct FApexTrackGeometry;
-
-/** Where a track's world comes from. */
-UENUM()
-enum class EApexTrackSource : uint8
-{
-	/** Nothing to load: no cooked level and no export on disk. */
-	None,
-	/** `/Game/Tracks/<Stem>/L_<Stem>`, imported in the editor and cooked. */
-	Cooked,
-	/** `<Stem>.uescene.json` + `.uemesh`, built in the running game. */
-	Runtime,
-};
 
 /** A runtime track the content scan found. */
 struct FApexRuntimeTrackFiles
@@ -44,16 +30,15 @@ struct FApexRuntimeTrackFiles
 };
 
 /**
- * One circuit in the game world, however it got there.
+ * One circuit in the game world, built from its export on disk.
  *
- * A cooked track is a streamed level instance, as before. A runtime track
- * is built by `FApexTrackSceneBuilder` from the export on disk: the files
- * are read and the mesh descriptions filled on a worker thread, then the
- * materials, meshes and actors are made on the game thread within a time
- * budget per frame (`apexsim.track.BuildBudgetMs`), and the track counts as
- * loaded once its collision has cooked. Either way the race director sees
- * the same thing: loaded, visible, and a list of actors with the tags the
- * builder gives them.
+ * There are no cooked track levels: every circuit is built here by
+ * `FApexTrackSceneBuilder` from its `<Stem>.uescene.json` + `<Stem>.uemesh`.
+ * The files are read and the mesh descriptions filled on a worker thread,
+ * then the materials, meshes and actors are made on the game thread within
+ * a time budget per frame (`apexsim.track.BuildBudgetMs`), and the track
+ * counts as loaded once its collision has cooked. The race director sees
+ * loaded, visible, and a list of actors with the tags the builder gives them.
  *
  * Owned by `UApexTrackContentSubsystem`, which hands them out and takes
  * them back (`Acquire` / `Release`).
@@ -67,14 +52,13 @@ public:
 	UApexTrackInstance();
 	virtual ~UApexTrackInstance() override;
 
-	/** Begin bringing `Stem` into `World` from `Source`. False when it cannot even start. */
-	bool Start(UWorld* InWorld, const FString& InStem, EApexTrackSource InSource, const FApexRuntimeTrackFiles* Files);
+	/** Begin building the track in `Files` into `World`. False when it cannot even start. */
+	bool Start(UWorld* InWorld, const FApexRuntimeTrackFiles& Files);
 
-	EApexTrackSource GetSource() const { return Source; }
 	const FString& GetStem() const { return Stem; }
 	UWorld* GetWorld() const override;
 
-	/** Everything is in the world: the level has streamed in, or the runtime build has finished. */
+	/** Everything is in the world: the build has finished and the collision has cooked. */
 	bool IsLoaded() const;
 	/** Loaded, shown and collidable: what the racing line and cameras wait for. */
 	bool IsVisible() const;
@@ -93,11 +77,8 @@ public:
 	 */
 	void ResetForReuse();
 
-	/** The track's actors: the streamed level's, or the ones built. */
+	/** The track's actors. */
 	void GetActors(TArray<AActor*>& OutActors) const;
-
-	/** The streamed level for a cooked track, else null. */
-	const ULevel* GetStreamedLevel() const;
 
 	// FTickableGameObject
 	virtual void Tick(float DeltaTime) override;
@@ -139,7 +120,6 @@ private:
 	void ApplyVisibility();
 	void ApplyMaterialParams(UMaterialInstanceDynamic* Material, const FApexMaterialParams& Params) const;
 
-	EApexTrackSource Source = EApexTrackSource::None;
 	FString Stem;
 	FString ScenePath;
 	TWeakObjectPtr<UWorld> World;
@@ -147,9 +127,6 @@ private:
 	bool bVisible = true;
 	double StartedAt = 0.0;
 	double ParseSeconds = 0.0;
-
-	UPROPERTY(Transient)
-	TObjectPtr<ULevelStreamingDynamic> Streamed;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> Actors;

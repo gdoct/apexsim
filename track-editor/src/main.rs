@@ -115,7 +115,7 @@ fn ui_root(
                 if ui
                     .add_enabled(can_export, egui::Button::new("Export for Unreal…"))
                     .on_hover_text(
-                        "Bake the saved scene to .uescene.json for the ApexTrackImport commandlet",
+                        "Bake the saved scene to the .uescene.json + .uemesh the game builds it from",
                     )
                     .clicked()
                 {
@@ -267,8 +267,8 @@ fn save_scene(open_scene: &mut OpenScene, status: &mut StatusLine) {
     }
 }
 
-/// Bake the open track to the manifest and mesh blob the Unreal
-/// `ApexTrackImport` commandlet consumes.
+/// Bake the open track to the manifest and mesh blob the Unreal client
+/// builds the circuit from at runtime.
 ///
 /// Bakes what is in the editor, not what is on disk, so an export reflects
 /// unsaved edits — you can look at a change in Unreal before committing to

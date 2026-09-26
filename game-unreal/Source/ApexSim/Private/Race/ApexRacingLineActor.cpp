@@ -58,36 +58,18 @@ namespace
 
 	/**
 	 * Whether a trace hit is the road a dot belongs on: one of the track's own
-	 * baked surfaces. The builder tags those actors `ApexTrackMesh`, cooked or
-	 * built at runtime; a level baked before the tag is recognised by being
-	 * the streamed track level. Props are generated as `SM_Prop_*` meshes or
-	 * instanced components (trees, walls), or authored kit actors tagged
-	 * `ApexProp` (a bridge deck over the road, a garage), and a dot on top of
-	 * a tyre wall is worse than one floating a few centimetres off the tarmac.
+	 * baked surfaces, which the builder tags `ApexTrackMesh`. Props are tagged
+	 * `ApexProp` or drawn by instanced components (trees, walls), and a dot on
+	 * top of a tyre wall or a bridge deck is worse than one floating a few
+	 * centimetres off the tarmac.
 	 */
-	bool IsRoadSurface(const FHitResult& Hit, const ULevel* LegacyLevel)
+	bool IsRoadSurface(const FHitResult& Hit)
 	{
 		const UPrimitiveComponent* Component = Hit.GetComponent();
 		const AActor* Actor = Hit.GetActor();
-		if (!Component || !Actor || Component->IsA<UInstancedStaticMeshComponent>()
-			|| Actor->ActorHasTag(FApexTrackSceneBuilder::PropTag))
-		{
-			return false;
-		}
-		if (Actor->ActorHasTag(FApexTrackSceneBuilder::TrackMeshTag))
-		{
-			return true;
-		}
-		if (!LegacyLevel || Actor->GetLevel() != LegacyLevel)
-		{
-			return false;
-		}
-		if (const UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(Component))
-		{
-			const UStaticMesh* Mesh = MeshComponent->GetStaticMesh();
-			return Mesh && !Mesh->GetName().StartsWith(TEXT("SM_Prop_"));
-		}
-		return false;
+		return Component && Actor && !Component->IsA<UInstancedStaticMeshComponent>()
+			&& !Actor->ActorHasTag(FApexTrackSceneBuilder::PropTag)
+			&& Actor->ActorHasTag(FApexTrackSceneBuilder::TrackMeshTag);
 	}
 }
 
@@ -173,16 +155,16 @@ void AApexRacingLineActor::SetLine(const FApexRacingLineData& InLine)
 {
 	Line = InLine;
 	bOnGround = false;
-	Rebuild(false, nullptr);
+	Rebuild(false);
 }
 
-void AApexRacingLineActor::SnapToGround(const ULevel* LegacyLevel)
+void AApexRacingLineActor::SnapToGround()
 {
 	if (!HasLine())
 	{
 		return;
 	}
-	Rebuild(true, LegacyLevel);
+	Rebuild(true);
 	bOnGround = true;
 }
 
@@ -201,7 +183,7 @@ void AApexRacingLineActor::ApplyVisibility()
 	BrakeDots->SetVisibility(bAny);
 }
 
-void AApexRacingLineActor::Rebuild(bool bTrace, const ULevel* LegacyLevel)
+void AApexRacingLineActor::Rebuild(bool bTrace)
 {
 	ThrottleDots->ClearInstances();
 	PartialDots->ClearInstances();
@@ -261,7 +243,7 @@ void AApexRacingLineActor::Rebuild(bool bTrace, const ULevel* LegacyLevel)
 			Hits.Sort([](const FHitResult& A, const FHitResult& B) { return A.Distance < B.Distance; });
 			for (const FHitResult& Hit : Hits)
 			{
-				if (IsRoadSurface(Hit, LegacyLevel))
+				if (IsRoadSurface(Hit))
 				{
 					Location = Hit.ImpactPoint;
 					Normal = Hit.ImpactNormal;

@@ -71,24 +71,21 @@ The client and server communicate using [MessagePack](https://msgpack.org/). All
 
 ### Track pipeline
 
-A circuit reaches the client in two generated steps. Both outputs are regenerated wholesale, and neither should be hand-edited:
+A circuit reaches the client as data: the track editor bakes it into an export, and the game builds the circuit from that export when it is raced. There are no cooked track levels, so a circuit needs no Unreal import and no repackage. The export is regenerated wholesale and should not be hand-edited:
 
 ```bash
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
-                                                         # -> content/tracks/export/*.uescene.json
-"$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject \
-    -run=ApexTrackImport -all                            # -> game-unreal/Content/Tracks/<Track>/L_<Track>.umap
+                                     # -> content/tracks/export/<Track>.uescene.json + <Track>.uemesh
 ```
 
-Or run both steps for every circuit at once, which also locates the engine
-install itself:
+Or run the whole pipeline for every circuit at once: dress the scenes, export them, draw the catalog previews and bake the shared track materials (the engine install is found by itself):
 
 ```powershell
 ./scripts/build_track_levels.ps1                 # all tracks
-./scripts/build_track_levels.ps1 -Track Monza,Spa -Build   # two tracks, editor target rebuilt first
+./scripts/build_track_levels.ps1 -Track Monza,Spa -SkipMaterials   # two tracks, Rust and Python only
 ```
 
-The exporter resolves the editor's `.ats` scene against the YAML centerline and bakes triangles, because Unreal cannot read YAML; the commandlet turns those buffers into static meshes, materials and one level per track. See [track-editor/TRACK_EDITOR.md](track-editor/TRACK_EDITOR.md) §5 for the format and the coordinate conventions.
+The exporter resolves the editor's `.ats` scene against the YAML centerline and bakes triangles, because Unreal cannot read YAML; the game reads the export (a small JSON manifest plus a binary mesh blob) at runtime and builds the meshes, materials, props and collision itself ([docs/RUNTIME_CONTENT_LOADING.md](docs/RUNTIME_CONTENT_LOADING.md)). See [track-editor/TRACK_EDITOR.md](track-editor/TRACK_EDITOR.md) §5 for the format and the coordinate conventions.
 
 ## Performance
 
@@ -122,7 +119,7 @@ apexsim/
 
 - [content/](content): Authoring-ready data. Cars are `cars/<name>/car.toml`; tracks are `tracks/real/*.yaml` (the logical circuit the server simulates) alongside `.ats` scene sidecars (the 3D dressing, read only by the editor and the Unreal importer).
 - [game-unreal/](game-unreal): Unreal Engine 5 client. Source lives in `Source/ApexSim`, `Source/ApexSimNet` and `Source/ApexTrackEditor`.
-- [scripts/](scripts): Build and content helpers — `build_track_levels.ps1` runs the whole track pipeline; the Python scripts generate track preview images and racing lines.
+- [scripts/](scripts): Build and content helpers — `build_track_levels.ps1` runs the whole track pipeline (dress, export, previews, materials); the Python scripts generate track preview images and racing lines.
 - [server/](server): Full Rust crate with source, configuration files and supporting docs for the backend runtime.
 - [track-editor/](track-editor): The circuit scene editor and the `ats-export` baker.
 
@@ -139,11 +136,11 @@ cargo run                 # uses server.toml
 
 The server listens on TCP 9000, UDP 9001 and HTTP 9002 (`/health`, `/ready`, `/metrics`). See [server/README.md](server/README.md) for configuration and TLS setup — TLS is fail-closed by default, with a development opt-out in `server.toml`.
 
-### 2. Build the track levels
+### 2. Bake the tracks
 
-The Unreal content directory is generated, not committed, so a fresh clone has
-no circuits to drive on — the race view would load an empty world. Bake and
-import all 26 of them once, before the first run:
+The circuits' exports are generated, not committed, so a fresh clone has no
+circuits to drive on — the race view would load an empty world. Bake all of
+them once, before the first run:
 
 ```powershell
 ./scripts/build_track_levels.ps1 -Build
@@ -151,11 +148,15 @@ import all 26 of them once, before the first run:
 
 That runs the whole [track pipeline](#track-pipeline): it compiles the
 `ApexSimEditor` target (`-Build`, needed the first time and after any C++
-change), bakes every circuit with `ats-export`, and imports the result into
-`game-unreal/Content/Tracks`. The engine install is located from the
-`.uproject`, or pass `-EngineRoot <path>`. Expect a few minutes for the full
-set; `-Track Monza,Spa` limits it to a couple of circuits, and re-running it
-after editing a track picks up the changes.
+change), dresses and bakes every circuit with `ats-dress` and `ats-export`
+into `content/tracks/export`, draws the catalog previews, and bakes the
+shared track materials under `/Game/Materials/Track`. The engine install is
+located from the `.uproject`, or pass `-EngineRoot <path>`. Expect a few
+minutes for the full set; `-Track Monza,Spa` limits it to a couple of
+circuits, and re-running it after editing a track picks up the changes: the
+game builds each circuit from its export when it is raced, so there is
+nothing to import. `./scripts/initialize_content.ps1` does this and every
+other generated-content step a fresh clone needs.
 
 ### 3. Run the client
 

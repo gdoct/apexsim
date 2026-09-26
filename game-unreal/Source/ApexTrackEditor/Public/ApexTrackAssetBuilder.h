@@ -8,11 +8,13 @@ class UPackage;
 class UWorld;
 
 /**
- * Turns a parsed track export into Unreal assets and a level: the cooked
- * way a circuit reaches the game.
+ * Turns a parsed track export into Unreal assets and a level, to look at a
+ * circuit in the editor (the game builds every track at runtime and never
+ * loads these levels).
  *
  * The level's contents come from `FApexTrackSceneBuilder`, the same code the
- * game runs to build a track at runtime; this class is the editor's asset
+ * game runs to build a track at runtime, so what the editor shows is what the
+ * game builds; this class is the editor's asset
  * factory for it (material instance constants and fully built meshes, each
  * saved in its own package) plus the level world it spawns into and saves.
  * The parent materials are shared assets under `/Game/Materials/Track`,

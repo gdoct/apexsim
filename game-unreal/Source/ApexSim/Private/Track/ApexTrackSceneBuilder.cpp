@@ -1879,7 +1879,10 @@ void FApexTrackSceneBuilder::SpawnActors(
 			Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
 		Component->SetStaticMesh(Mesh);
-		if (bCollisionComponents)
+		// Road paint lies on the road, which already answers the traces; a
+		// decal's own collision would only cost a cook.
+		const FApexTrackMaterial* Material = Scene.FindMaterial(Source.MaterialKey);
+		if (bCollisionComponents && !(Material && Material->Family == TEXT("decal")))
 		{
 			UApexTrackCollisionComponent* Collision =
 				NewObject<UApexTrackCollisionComponent>(Actor, TEXT("Collision"), RF_Transactional);

@@ -15,9 +15,10 @@
  * UnrealEditor-Cmd.exe <uproject> -run=ApexMaterialBake -force   # all four, again
  * ```
  *
- * `ApexTrackImport` runs the same step before it builds anything, so this is
- * only needed on its own for a build that ships runtime tracks and no
- * imported levels, or after changing a graph.
+ * These are the only track content that is cooked: every circuit is built at
+ * runtime from its export, out of instances of them.
+ * `scripts/build_track_levels.ps1` runs this (the missing ones only);
+ * `-force` after changing a graph.
  */
 UCLASS()
 class APEXTRACKEDITOR_API UApexMaterialBakeCommandlet : public UCommandlet

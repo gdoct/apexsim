@@ -3,8 +3,6 @@
 #include "Async/Async.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/ExponentialHeightFog.h"
-#include "Engine/Level.h"
-#include "Engine/LevelStreamingDynamic.h"
 #include "Engine/PostProcessVolume.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -15,7 +13,6 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshResources.h"
 #include "Track/ApexTrackCollisionComponent.h"
-#include "Track/ApexTrackContentSubsystem.h"
 #include "Track/ApexTrackSceneBuilder.h"
 #include "Track/ApexTrackSceneReader.h"
 #include "UObject/ConstructorHelpers.h"
@@ -73,10 +70,22 @@ public:
 		{
 			// The slot name matches the polygon group's, which is how the
 			// build maps sections onto slots.
-			Mesh->GetStaticMaterials().Add(FStaticMaterial(SlotMaterials.IsValidIndex(i) ? SlotMaterials[i] : nullptr, SlotNames[i]));
+			FStaticMaterial& Slot = Mesh->GetStaticMaterials().Add_GetRef(
+				FStaticMaterial(SlotMaterials.IsValidIndex(i) ? SlotMaterials[i] : nullptr, SlotNames[i]));
+			// The editor's build measures how much world a UV unit covers,
+			// which the texture streamer needs to pick mips; the fast build
+			// does not. Track UVs are metres (100 cm a unit) and the stand-ins'
+			// face UVs are about that too.
+			Slot.UVChannelData.bInitialized = true;
+			for (float& Density : Slot.UVChannelData.LocalUVDensities)
+			{
+				Density = 100.0f;
+			}
 		}
-		// No collision on the mesh itself: tell its body setup there is
-		// nothing to cook before the build makes one and tries.
+		// Nothing to cook on the mesh itself: a track surface's triangles are
+		// cooked by the collision component beside it, and a stand-in keeps
+		// the simple box the build adds, which needs no cooking. Say so before
+		// the build makes a body setup and tries.
 		Mesh->CreateBodySetup();
 		if (UBodySetup* BodySetup = Mesh->GetBodySetup())
 		{
@@ -85,7 +94,7 @@ public:
 
 		UStaticMesh::FBuildMeshDescriptionsParams BuildParams;
 		BuildParams.bFastBuild = true;
-		BuildParams.bBuildSimpleCollision = false;
+		BuildParams.bBuildSimpleCollision = !bTrackSurface;
 		BuildParams.bCommitMeshDescription = false;
 		BuildParams.bMarkPackageDirty = false;
 		if (!Mesh->BuildFromMeshDescriptions({&Description}, BuildParams))
@@ -100,6 +109,15 @@ public:
 		{
 			RenderData->Bounds = FBoxSphereBounds(Bounds);
 			Mesh->CalculateExtendedBounds();
+		}
+		if (!bTrackSurface)
+		{
+			// The box answers the cameras' complex traces too, as a cooked
+			// stand-in's does.
+			if (UBodySetup* BodySetup = Mesh->GetBodySetup())
+			{
+				BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+			}
 		}
 		Owner.Created.Add(Mesh);
 		return Mesh;
@@ -138,12 +156,10 @@ void UApexTrackInstance::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	Super::AddReferencedObjects(InThis, Collector);
 }
 
-bool UApexTrackInstance::Start(
-	UWorld* InWorld, const FString& InStem, EApexTrackSource InSource, const FApexRuntimeTrackFiles* Files)
+bool UApexTrackInstance::Start(UWorld* InWorld, const FApexRuntimeTrackFiles& Files)
 {
 	World = InWorld;
-	Stem = InStem;
-	Source = InSource;
+	Stem = Files.Stem;
 	StartedAt = FPlatformTime::Seconds();
 	bVisible = true;
 	if (!InWorld)
@@ -152,35 +168,10 @@ bool UApexTrackInstance::Start(
 		return false;
 	}
 
-	if (Source == EApexTrackSource::Cooked)
-	{
-		const FString PackagePath = UApexTrackContentSubsystem::CookedLevelPath(Stem);
-		// A level instance, not a travel: the menu world owns the race
-		// director and the entire UI, and travelling would destroy both.
-		bool bSuccess = false;
-		Streamed = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(InWorld,
-			TSoftObjectPtr<UWorld>(FSoftObjectPath(PackagePath)), FVector::ZeroVector, FRotator::ZeroRotator, bSuccess);
-		if (!bSuccess || !Streamed)
-		{
-			Streamed = nullptr;
-			Fail(FString::Printf(TEXT("failed to stream %s"), *PackagePath));
-			return false;
-		}
-		Phase = EPhase::Ready;
-		UE_LOG(LogApexTrack, Log, TEXT("Track %s: streaming the cooked level %s"), *Stem, *PackagePath);
-		return true;
-	}
-
-	if (Source != EApexTrackSource::Runtime || !Files)
-	{
-		Fail(TEXT("nothing to load"));
-		return false;
-	}
-
 	// Read and prepare off the game thread: the manifest and blob are tens
 	// of megabytes and the mesh descriptions a million triangles. The task
 	// owns everything it touches; the result is picked up in Tick.
-	ScenePath = Files->ScenePath;
+	ScenePath = Files.ScenePath;
 	Phase = EPhase::Parsing;
 	UE_LOG(LogApexTrack, Log, TEXT("Track %s: building from %s"), *Stem, *ScenePath);
 	const FString Path = ScenePath;
@@ -347,21 +338,11 @@ void UApexTrackInstance::Tick(float DeltaTime)
 
 bool UApexTrackInstance::IsLoaded() const
 {
-	if (Source == EApexTrackSource::Cooked)
-	{
-		return Streamed && Streamed->IsLevelLoaded();
-	}
 	return Phase == EPhase::Ready;
 }
 
 bool UApexTrackInstance::IsVisible() const
 {
-	if (Source == EApexTrackSource::Cooked)
-	{
-		// A streamed level reports loaded before its actors are in the world;
-		// they arrive when it becomes visible.
-		return IsLoaded() && Streamed->IsLevelVisible();
-	}
 	return Phase == EPhase::Ready && bVisible;
 }
 
@@ -373,11 +354,6 @@ bool UApexTrackInstance::HasFailed() const
 void UApexTrackInstance::SetVisible(bool bInVisible)
 {
 	bVisible = bInVisible;
-	if (Streamed)
-	{
-		Streamed->SetShouldBeVisible(bVisible);
-		return;
-	}
 	ApplyVisibility();
 }
 
@@ -394,6 +370,21 @@ void UApexTrackInstance::ApplyVisibility()
 		// screen whether or not it is "hidden", and so does the fog.
 		Actor->SetActorHiddenInGame(!bVisible);
 		Actor->SetActorEnableCollision(bVisible);
+		if (bVisible)
+		{
+			// A cook that finished while the track was hidden made no body
+			// (collision was off), and turning collision back on does not
+			// make one: ask for it.
+			TArray<UApexTrackCollisionComponent*> Collisions;
+			Actor->GetComponents<UApexTrackCollisionComponent>(Collisions);
+			for (UApexTrackCollisionComponent* Collision : Collisions)
+			{
+				if (Collision->IsCooked() && !Collision->IsPhysicsStateCreated())
+				{
+					Collision->RecreatePhysicsState();
+				}
+			}
+		}
 		if (APostProcessVolume* Volume = Cast<APostProcessVolume>(Actor))
 		{
 			Volume->bEnabled = bVisible;
@@ -407,14 +398,6 @@ void UApexTrackInstance::ApplyVisibility()
 
 void UApexTrackInstance::Unload()
 {
-	if (Streamed)
-	{
-		// Clearing both flags is what actually retires a streamed instance;
-		// there is no single "unload now" call on ULevelStreaming.
-		Streamed->SetShouldBeVisible(false);
-		Streamed->SetShouldBeLoaded(false);
-		Streamed = nullptr;
-	}
 	for (const TObjectPtr<AActor>& Actor : Actors)
 	{
 		if (IsValid(Actor))
@@ -432,7 +415,6 @@ void UApexTrackInstance::Unload()
 	Scene.Reset();
 	Geometry.Reset();
 	Phase = EPhase::Idle;
-	Source = EApexTrackSource::None;
 }
 
 void UApexTrackInstance::ApplyMaterialParams(UMaterialInstanceDynamic* Material, const FApexMaterialParams& Params) const
@@ -472,20 +454,6 @@ void UApexTrackInstance::ResetForReuse()
 void UApexTrackInstance::GetActors(TArray<AActor*>& OutActors) const
 {
 	OutActors.Reset();
-	if (Streamed)
-	{
-		if (const ULevel* Level = Streamed->GetLoadedLevel())
-		{
-			for (AActor* Actor : Level->Actors)
-			{
-				if (Actor)
-				{
-					OutActors.Add(Actor);
-				}
-			}
-		}
-		return;
-	}
 	for (const TObjectPtr<AActor>& Actor : Actors)
 	{
 		if (IsValid(Actor))
@@ -493,9 +461,4 @@ void UApexTrackInstance::GetActors(TArray<AActor*>& OutActors) const
 			OutActors.Add(Actor);
 		}
 	}
-}
-
-const ULevel* UApexTrackInstance::GetStreamedLevel() const
-{
-	return Streamed ? Streamed->GetLoadedLevel() : nullptr;
 }

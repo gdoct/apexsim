@@ -1,25 +1,30 @@
 <#
 .SYNOPSIS
-    Bake tracks with the track editor and import them into Unreal as levels.
+    Bake every circuit into the export the game builds it from at runtime.
 
 .DESCRIPTION
     Runs the whole track pipeline end to end, so every circuit under
-    content/tracks/real ends up as /Game/Tracks/<Track>/L_<Track>:
+    content/tracks/real ends up as an export in content/tracks/export - the
+    files the game builds the circuit from when it is raced. There are no
+    cooked track levels (docs/RUNTIME_CONTENT_LOADING.md): a changed circuit
+    is playable in the editor build as soon as this finishes (restart the
+    game, or `apexsim.track.Rescan`).
 
-        1. (optional) build the ApexSimEditor target, so the commandlet in the
-           ApexTrackEditor module matches the current C++ source
+        1. (optional, -Build) build the ApexSimEditor target, so the
+           commandlets in the ApexTrackEditor module match the C++ source
         2. (optional, -ImportProps) UnrealEditor-Cmd -run=ApexPropImport -all
                                                  -> game-unreal/Content/Props/...
         3. cargo run --bin ats-dress -- --all    -> content/tracks/real/*.ats
-        4. cargo run --bin ats-export -- --all   -> content/tracks/export/*.uescene.json + *.uemesh
-        5. UnrealEditor-Cmd -run=ApexTrackImport -> game-unreal/Content/Tracks/...
-           (baking the shared track materials under /Game/Materials/Track
-           first when they are missing)
-
-    Stage 4's output is also what the game builds a track from at runtime
-    where there is no level (docs/RUNTIME_CONTENT_LOADING.md), so -SkipImport
-    alone is enough to make a changed circuit playable in the editor build
-    with -ApexTrackSource=runtime.
+        4. cargo run --bin ats-export -- --all   -> content/tracks/export/<Track>.{uescene.json,uemesh}
+                                                    (+ the server's sidecars beside each YAML)
+        5. python scripts/build_track_catalog.py -> content/tracks/export/previews/<Track>.png
+        6. UnrealEditor-Cmd -run=ApexMaterialBake -> /Game/Materials/Track, the
+           parent materials every runtime track instantiates (only the
+           missing ones; cheap)
+        7. (optional, -ImportLevels) UnrealEditor-Cmd -run=ApexTrackImport
+                                                 -> game-unreal/Content/Tracks/<Track>/L_<Track>
+           A level to look at a circuit in the editor. The game never loads
+           it and it is never cooked.
 
     Stage 3 is what keeps a circuit's scenery in step with its layout
     dossier. It used to be run by hand, which is exactly how the Red Bull
@@ -45,45 +50,58 @@
     EngineAssociation, and then the default launcher install locations.
 
 .PARAMETER Build
-    Compile the ApexSimEditor target before importing. Needed after touching
-    C++ under game-unreal/Source; skip it for a content-only rebake.
+    Compile the ApexSimEditor target before the Unreal steps. Needed after
+    touching C++ under game-unreal/Source; skip it for a content-only rebake.
 
 .PARAMETER ImportProps
     Bring the authored prop kit (content/props/<kind>/*.glb, docs/PROPS.md)
     into /Game/Props first, with the ApexPropImport commandlet. Needed once,
-    and again whenever a GLB changes; the track import places whatever is
-    there and falls back to generated stand-ins for the rest.
+    and again whenever a GLB changes; a track is dressed with whatever is
+    there when the game builds it, with generated stand-ins for the rest, so
+    nothing needs rebaking after an import.
 
 .PARAMETER Release
     Build the exporter in release mode. Slower to compile, much faster to bake
     a full 26-track set.
 
 .PARAMETER DryRun
-    Report what each step would do without writing assets: prints the commands,
-    and passes -dryrun to the commandlet so it parses and summarises the
-    exports without building assets. The bake still runs, since the import has
-    nothing to read otherwise.
+    Report what each step would do without writing assets: prints the
+    commands, passes --dry-run to the dresser and -dryrun to the commandlets.
+    The bake still runs.
 
 .PARAMETER SkipDress
     Leave the .ats scenes alone. Only for working on a scene by hand; the
     next dress run overwrites what the pass owns either way.
 
 .PARAMETER SkipExport
-    Import the exports already sitting in content/tracks/export.
+    Keep the exports already sitting in content/tracks/export.
 
-.PARAMETER SkipImport
-    Bake the .uescene.json files and stop before Unreal.
+.PARAMETER SkipPreviews
+    Leave the catalog previews alone (they need Python with numpy, Pillow and
+    PyYAML).
+
+.PARAMETER SkipMaterials
+    Do not run ApexMaterialBake. With neither -ImportProps nor -ImportLevels
+    that makes this a pure Rust/Python run that needs no engine at all.
+
+.PARAMETER ImportLevels
+    Also import the exports as levels under game-unreal/Content/Tracks, to
+    open a circuit in the editor. Never needed to play.
 
 .PARAMETER ExtraEditorArgs
     Extra switches appended to the UnrealEditor-Cmd invocation.
 
 .EXAMPLE
     ./scripts/build_track_levels.ps1
-    Bake and import every track.
+    Dress and bake every track, with previews and materials.
 
 .EXAMPLE
-    ./scripts/build_track_levels.ps1 -Track Monza,Spa -Build
-    Rebuild the editor target, then redress, rebake and reimport two circuits.
+    ./scripts/build_track_levels.ps1 -Track Monza,Spa -SkipMaterials
+    Redress and rebake two circuits; no engine involved.
+
+.EXAMPLE
+    ./scripts/build_track_levels.ps1 -Track Spa -ImportLevels -Build
+    Rebuild the editor target, rebake Spa and import it as a level to inspect.
 #>
 [CmdletBinding()]
 param(
@@ -95,7 +113,9 @@ param(
     [switch]$DryRun,
     [switch]$SkipDress,
     [switch]$SkipExport,
-    [switch]$SkipImport,
+    [switch]$SkipPreviews,
+    [switch]$SkipMaterials,
+    [switch]$ImportLevels,
     [string[]]$ExtraEditorArgs
 )
 
@@ -174,17 +194,15 @@ if ($Track) {
     $trackFiles = @(Resolve-TrackFiles $Track)
 }
 
+$needEngine = $Build -or $ImportProps -or $ImportLevels -or -not $SkipMaterials
 $engine = $null
-if (-not $SkipImport) {
+if ($needEngine) {
     $engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
         -Requires 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
     Write-Host "Unreal Engine: $engine" -ForegroundColor DarkGray
 }
 
 if ($Build) {
-    if ($SkipImport) {
-        Write-Warning '-Build without an import step only compiles; nothing will be imported.'
-    }
     Write-Step 'Building the ApexSimEditor target'
     Invoke-Tool -Exe (Join-Path $engine 'Engine\Build\BatchFiles\Build.bat') `
         -Arguments @('ApexSimEditor', 'Win64', 'Development', "-Project=$Uproject", '-WaitMutex') `
@@ -192,9 +210,6 @@ if ($Build) {
 }
 
 if ($ImportProps) {
-    if ($SkipImport) {
-        throw '-ImportProps needs the Unreal import step; drop -SkipImport'
-    }
     Write-Step 'Importing the prop kit into /Game/Props'
     $propArgs = @($Uproject, '-run=ApexPropImport', '-all',
         '-unattended', '-nopause', '-nosplash', '-stdout', '-utf8output')
@@ -245,11 +260,35 @@ else {
     Invoke-Tool -Exe 'cargo' -Arguments $cargoArgs -What 'ats-export'
 }
 
-if ($SkipImport) {
-    Write-Step 'Skipping the Unreal import'
+if ($SkipPreviews) {
+    Write-Step 'Skipping the catalog previews'
 }
 else {
-    Write-Step "Importing exports into $LevelDir"
+    Write-Step 'Drawing the catalog previews'
+    $previewArgs = @((Join-Path $PSScriptRoot 'build_track_catalog.py'))
+    if ($Track) { $previewArgs += @($Track | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) }) }
+    Invoke-Tool -Exe 'python' -Arguments $previewArgs -What 'build_track_catalog.py'
+}
+
+if ($SkipMaterials) {
+    Write-Step 'Skipping the track materials'
+}
+else {
+    Write-Step 'Baking the track materials into /Game/Materials/Track (the missing ones)'
+    $bakeArgs = @($Uproject, '-run=ApexMaterialBake',
+        '-unattended', '-nopause', '-nosplash', '-stdout', '-utf8output')
+    if ($ExtraEditorArgs) { $bakeArgs += $ExtraEditorArgs }
+    if ($DryRun) {
+        Write-Host "    (dry run) UnrealEditor-Cmd $($bakeArgs -join ' ')" -ForegroundColor DarkGray
+    }
+    else {
+        Invoke-Tool -Exe (Join-Path $engine 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe') `
+            -Arguments $bakeArgs -What 'ApexMaterialBake'
+    }
+}
+
+if ($ImportLevels) {
+    Write-Step "Importing exports into $LevelDir (for the editor only)"
 
     $editorArgs = @($Uproject, '-run=ApexTrackImport')
     if ($Track) { $editorArgs += "-track=$($Track -join ',')" } else { $editorArgs += '-all' }
@@ -268,5 +307,7 @@ $levels = @(Get-ChildItem $LevelDir -Filter 'L_*.umap' -Recurse -ErrorAction Sil
 
 Write-Step 'Done'
 Write-Host ("    {0} export(s) in {1}" -f $exports.Count, $ExportDir)
-Write-Host ("    {0} level(s) in {1}" -f $levels.Count, $LevelDir)
+if ($levels.Count -gt 0) {
+    Write-Host ("    {0} editor-only level(s) in {1} (never loaded by the game)" -f $levels.Count, $LevelDir)
+}
 Write-Host ("    took {0:mm\:ss}" -f $stopwatch.Elapsed)

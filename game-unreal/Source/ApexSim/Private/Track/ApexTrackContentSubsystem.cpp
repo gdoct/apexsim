@@ -17,10 +17,6 @@
 
 namespace
 {
-	TAutoConsoleVariable<FString> CVarTrackSource(TEXT("apexsim.track.Source"), TEXT("auto"),
-		TEXT("Where circuits load from: auto (the cooked level when there is one, else the runtime export), "
-			 "runtime (the export when there is one), cooked (cooked levels only)."));
-
 	TAutoConsoleVariable<bool> CVarTrackKeepLast(TEXT("apexsim.track.KeepLast"), true,
 		TEXT("Keep the last runtime-built track, hidden, to hand back when the same circuit is loaded next."));
 
@@ -35,27 +31,6 @@ namespace
 		}));
 
 	const TCHAR* kRuntimeTrackTablePath = TEXT("/Game/Data/DT_TrackCatalog.DT_TrackCatalog");
-
-	enum class EPolicy
-	{
-		Auto,
-		Runtime,
-		Cooked,
-	};
-
-	EPolicy CurrentPolicy()
-	{
-		const FString Value = CVarTrackSource.GetValueOnGameThread();
-		if (Value.Equals(TEXT("runtime"), ESearchCase::IgnoreCase))
-		{
-			return EPolicy::Runtime;
-		}
-		if (Value.Equals(TEXT("cooked"), ESearchCase::IgnoreCase))
-		{
-			return EPolicy::Cooked;
-		}
-		return EPolicy::Auto;
-	}
 
 	/** The preview beside a manifest, or under `previews/` there; empty if neither exists. */
 	FString FindPreview(const FString& Dir, const FString& Stem)
@@ -95,24 +70,9 @@ TArray<FString> UApexTrackContentSubsystem::TrackDirectories()
 	return Dirs;
 }
 
-FString UApexTrackContentSubsystem::CookedLevelPath(const FString& Stem)
-{
-	return FString::Printf(TEXT("/Game/Tracks/%s/L_%s"), *Stem, *Stem);
-}
-
-bool UApexTrackContentSubsystem::HasCookedLevel(const FString& Stem)
-{
-	return !Stem.IsEmpty() && FPackageName::DoesPackageExist(CookedLevelPath(Stem));
-}
-
 void UApexTrackContentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	FString Source;
-	if (FParse::Value(FCommandLine::Get(), TEXT("-ApexTrackSource="), Source))
-	{
-		CVarTrackSource->Set(*Source, ECVF_SetByCommandline);
-	}
 	Rescan();
 }
 
@@ -132,12 +92,20 @@ void UApexTrackContentSubsystem::Deinitialize()
 
 void UApexTrackContentSubsystem::Rescan()
 {
+	// A kept track was built from the files as they were; a rescan is how a
+	// re-exported circuit is picked up, so it must not be handed back.
+	DropKept();
 	RuntimeTracks.Reset();
 	RuntimeRows.Reset();
+	BrokenStems.Reset();
 	Previews.Reset();
 
-	// Table previews for runtime tracks that ship without a PNG of their own.
-	const UDataTable* Table = LoadObject<UDataTable>(nullptr, kRuntimeTrackTablePath);
+	// Table previews for tracks that ship without a PNG of their own. Tested
+	// first: a fresh clone has no table, which is no reason for an error.
+	const FString TablePackage = FPackageName::ObjectPathToPackageName(FString(kRuntimeTrackTablePath));
+	const UDataTable* Table = FPackageName::DoesPackageExist(TablePackage)
+		? LoadObject<UDataTable>(nullptr, kRuntimeTrackTablePath)
+		: nullptr;
 
 	int32 Skipped = 0;
 	for (const FString& Dir : TrackDirectories())
@@ -228,9 +196,8 @@ void UApexTrackContentSubsystem::Rescan()
 		Stems.Add(Pair.Value.Stem);
 	}
 	Stems.Sort();
-	UE_LOG(LogApexSim, Log, TEXT("Runtime tracks: %d found (%s)%s; source policy %s"), Stems.Num(),
-		*FString::Join(Stems, TEXT(", ")), Skipped > 0 ? *FString::Printf(TEXT(", %d skipped"), Skipped) : TEXT(""),
-		*CVarTrackSource.GetValueOnGameThread());
+	UE_LOG(LogApexSim, Log, TEXT("Runtime tracks: %d found (%s)%s"), Stems.Num(),
+		*FString::Join(Stems, TEXT(", ")), Skipped > 0 ? *FString::Printf(TEXT(", %d skipped"), Skipped) : TEXT(""));
 }
 
 const FApexRuntimeTrackFiles* UApexTrackContentSubsystem::FindRuntimeTrack(const FString& Stem) const
@@ -238,38 +205,9 @@ const FApexRuntimeTrackFiles* UApexTrackContentSubsystem::FindRuntimeTrack(const
 	return RuntimeTracks.Find(Stem.ToLower());
 }
 
-EApexTrackSource UApexTrackContentSubsystem::ResolveSource(const FString& Stem) const
-{
-	if (Stem.IsEmpty())
-	{
-		return EApexTrackSource::None;
-	}
-	const bool bRuntime = FindRuntimeTrack(Stem) != nullptr;
-	const bool bCooked = HasCookedLevel(Stem);
-	switch (CurrentPolicy())
-	{
-	case EPolicy::Runtime:
-		return bRuntime ? EApexTrackSource::Runtime : (bCooked ? EApexTrackSource::Cooked : EApexTrackSource::None);
-	case EPolicy::Cooked:
-		return bCooked ? EApexTrackSource::Cooked : EApexTrackSource::None;
-	default:
-		return bCooked ? EApexTrackSource::Cooked : (bRuntime ? EApexTrackSource::Runtime : EApexTrackSource::None);
-	}
-}
-
 const FApexTrackCatalogRow* UApexTrackContentSubsystem::FindRuntimeRow(const FString& TrackId) const
 {
 	return TrackId.IsEmpty() ? nullptr : RuntimeRows.Find(TrackId.ToLower());
-}
-
-bool UApexTrackContentSubsystem::UseRuntimeRow(const FString& TrackId, bool bHasTableRow) const
-{
-	const FApexTrackCatalogRow* Row = FindRuntimeRow(TrackId);
-	if (!Row)
-	{
-		return false;
-	}
-	return !bHasTableRow || ResolveSource(Row->YamlBaseName) == EApexTrackSource::Runtime;
 }
 
 FString UApexTrackContentSubsystem::FindRuntimeTrackIdByStem(const FString& Stem) const
@@ -283,13 +221,12 @@ FString UApexTrackContentSubsystem::FindRuntimeTrackIdByStem(const FString& Stem
 
 UApexTrackInstance* UApexTrackContentSubsystem::Acquire(UWorld* World, const FString& Stem)
 {
-	const EApexTrackSource Source = ResolveSource(Stem);
-	if (!World || Source == EApexTrackSource::None)
+	const FApexRuntimeTrackFiles* Files = FindRuntimeTrack(Stem);
+	if (!World || !Files)
 	{
 		return nullptr;
 	}
-	if (Kept && Kept->GetWorld() == World && Kept->GetStem().Equals(Stem, ESearchCase::IgnoreCase)
-		&& Kept->GetSource() == Source && Kept->IsLoaded())
+	if (Kept && Kept->GetWorld() == World && Kept->GetStem().Equals(Stem, ESearchCase::IgnoreCase) && Kept->IsLoaded())
 	{
 		UApexTrackInstance* Reused = Kept;
 		Kept = nullptr;
@@ -302,7 +239,7 @@ UApexTrackInstance* UApexTrackContentSubsystem::Acquire(UWorld* World, const FSt
 	DropKept();
 
 	UApexTrackInstance* Instance = NewObject<UApexTrackInstance>(this);
-	if (!Instance->Start(World, Stem, Source, FindRuntimeTrack(Stem)))
+	if (!Instance->Start(World, *Files))
 	{
 		Instance->Unload();
 		return nullptr;
@@ -318,8 +255,11 @@ void UApexTrackContentSubsystem::Release(UApexTrackInstance* Instance)
 		return;
 	}
 	Live.Remove(Instance);
-	if (Instance->GetSource() == EApexTrackSource::Runtime && Instance->IsLoaded()
-		&& CVarTrackKeepLast.GetValueOnGameThread())
+	if (Instance->HasFailed())
+	{
+		BrokenStems.Add(Instance->GetStem().ToLower());
+	}
+	if (Instance->IsLoaded() && CVarTrackKeepLast.GetValueOnGameThread())
 	{
 		DropKept();
 		Instance->SetVisible(false);

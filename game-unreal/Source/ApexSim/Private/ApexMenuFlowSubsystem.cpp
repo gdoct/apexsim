@@ -268,27 +268,27 @@ const FApexTrackCatalogRow* UApexMenuFlowSubsystem::FindTrackRow(const FString& 
 	{
 		return nullptr;
 	}
-	const FApexTrackCatalogRow* TableRow = nullptr;
+	// The track's own export describes it: it is what the circuit on screen
+	// is built from, so its checksum is the one to compare with the server's.
+	// The table is a fallback for a track with no export on this machine.
+	if (const UApexTrackContentSubsystem* Content = GetTrackContent())
+	{
+		if (const FApexTrackCatalogRow* Runtime = Content->FindRuntimeRow(TrackId))
+		{
+			return Runtime;
+		}
+	}
 	if (TrackCatalog)
 	{
 		for (const TPair<FName, uint8*>& Pair : TrackCatalog->GetRowMap())
 		{
 			if (Pair.Key.ToString().Equals(TrackId, ESearchCase::IgnoreCase))
 			{
-				TableRow = reinterpret_cast<const FApexTrackCatalogRow*>(Pair.Value);
-				break;
+				return reinterpret_cast<const FApexTrackCatalogRow*>(Pair.Value);
 			}
 		}
 	}
-	// A track found on disk describes itself when it is the one that will be
-	// built, or when the table has never heard of it; either way the row's
-	// checksum is that of the file on screen.
-	const UApexTrackContentSubsystem* Content = GetTrackContent();
-	if (Content && Content->UseRuntimeRow(TrackId, TableRow != nullptr))
-	{
-		return Content->FindRuntimeRow(TrackId);
-	}
-	return TableRow;
+	return nullptr;
 }
 
 UApexTrackContentSubsystem* UApexMenuFlowSubsystem::GetTrackContent() const
@@ -349,7 +349,7 @@ void UApexMenuFlowSubsystem::ReportUnmatchedCatalogIds(const FApexLobbyState& Lo
 	}
 	if (MissingTracks.Num() > 0)
 	{
-		UE_LOG(LogApexSim, Warning, TEXT("%d track(s) have no DT_TrackCatalog row and no runtime export and will show placeholder art: %s"),
+		UE_LOG(LogApexSim, Warning, TEXT("%d track(s) have no export on this machine and no DT_TrackCatalog row, and will show placeholder art: %s"),
 			MissingTracks.Num(), *FString::Join(MissingTracks, TEXT(", ")));
 	}
 	// A row that matched but was baked from another version of the file is
@@ -457,6 +457,14 @@ FString UApexMenuFlowSubsystem::FindTrackIdByStem(const FString& Stem) const
 	{
 		return FString();
 	}
+	if (const UApexTrackContentSubsystem* Content = GetTrackContent())
+	{
+		const FString Id = Content->FindRuntimeTrackIdByStem(Stem);
+		if (!Id.IsEmpty())
+		{
+			return Id;
+		}
+	}
 	if (TrackCatalog)
 	{
 		for (const TPair<FName, uint8*>& Pair : TrackCatalog->GetRowMap())
@@ -468,6 +476,5 @@ FString UApexMenuFlowSubsystem::FindTrackIdByStem(const FString& Stem) const
 			}
 		}
 	}
-	const UApexTrackContentSubsystem* Content = GetTrackContent();
-	return Content ? Content->FindRuntimeTrackIdByStem(Stem) : FString();
+	return FString();
 }

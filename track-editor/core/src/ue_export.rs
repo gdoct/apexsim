@@ -1,5 +1,5 @@
-//! Baking a track project into the JSON the Unreal `ApexTrackImport`
-//! commandlet turns into a level.
+//! Baking a track project into the export the Unreal client builds the
+//! circuit from at runtime (`UApexTrackInstance`).
 //!
 //! The `.ats` scene alone is not enough for Unreal: every track-anchored
 //! element (surface, curb, marking) is a *station span* measured along a

@@ -16,7 +16,6 @@
 #include "Engine/Level.h"
 #include "Engine/PostProcessVolume.h"
 #include "Engine/GameInstance.h"
-#include "Engine/LevelStreamingDynamic.h"
 #include "Engine/SkyLight.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -509,7 +508,7 @@ void AApexRaceDirector::SnapRacingLineToTrack()
 	// exist once it is visible, not merely loaded.
 	if (RacingLine && RacingLine->HasLine() && !RacingLine->IsOnGround() && IsTrackVisible())
 	{
-		RacingLine->SnapToGround(Track->GetStreamedLevel());
+		RacingLine->SnapToGround();
 	}
 }
 
@@ -717,8 +716,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 
 void AApexRaceDirector::FindStartLights()
 {
-	// A streamed level reports loaded before its actors are in the world;
-	// they arrive when it becomes visible, so search only from then on.
+	// The track's actors are in the world, and collidable, once it is visible.
 	if (bSearchedStartLights || !IsTrackVisible())
 	{
 		return;
@@ -949,6 +947,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 		SetActorRotation(FRotator(0.0f, FollowedCar->GetActorRotation().Yaw, 0.0f));
 	}
 
+	DropFailedTrack();
 	SnapRacingLineToTrack();
 	ApplyTrackLevelConditions();
 	UpdateCameraFeel(DeltaSeconds);
@@ -1526,8 +1525,7 @@ void AApexRaceDirector::ForgetTrackLevelConditions()
 
 void AApexRaceDirector::ApplyTrackLevelConditions()
 {
-	// A streamed level reports loaded before its actors are in the world;
-	// they arrive when it becomes visible, so only from then on.
+	// Only once the track's actors are in the world and shown.
 	if (bTrackConditionsApplied || !bRaceViewActive || !IsTrackVisible())
 	{
 		return;
@@ -2172,10 +2170,8 @@ FString AApexRaceDirector::ResolveTrackStem() const
 		const bool bExists = !DemoTrackStem.IsEmpty() && Content->HasTrack(DemoTrackStem);
 		if (bReplayView && !bExists)
 		{
-			UE_LOG(LogApexSim, Error,
-				TEXT("Replay: nothing to load for track \"%s\": no cooked level %s and no runtime export in %s"),
-				*DemoTrackStem, *UApexTrackContentSubsystem::CookedLevelPath(DemoTrackStem),
-				*FString::Join(UApexTrackContentSubsystem::TrackDirectories(), TEXT(", ")));
+			UE_LOG(LogApexSim, Error, TEXT("Replay: no export for track \"%s\" in %s; bake it with ats-export"),
+				*DemoTrackStem, *FString::Join(UApexTrackContentSubsystem::TrackDirectories(), TEXT(", ")));
 		}
 		return bExists ? DemoTrackStem : FString();
 	}
@@ -2200,16 +2196,20 @@ FString AApexRaceDirector::ResolveTrackStem() const
 		return FString();
 	}
 
+	if (Content->FindRuntimeTrack(Stem) && !Content->HasTrack(Stem))
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Track \"%s\" failed to build earlier (see LogApexTrack); racing in an empty world"),
+			*Session.TrackName);
+		return FString();
+	}
 	if (!Content->HasTrack(Stem))
 	{
 		UE_LOG(LogApexSim, Warning,
-			TEXT("Nothing to load for track \"%s\" — cars will race in an empty world. There is no cooked level "
-				 "at %s and no runtime export %s%s in %s. Bake it with `cargo run --manifest-path "
-				 "track-editor/Cargo.toml --bin ats-export -- content/%s` from the repo root (runtime), and "
-				 "optionally import it with `ApexSimEditor-Cmd <uproject> -run=ApexTrackImport -track=%s` (cooked)"),
-			*Session.TrackName, *UApexTrackContentSubsystem::CookedLevelPath(Stem), *Stem,
-			FApexTrackSceneReader::SceneExtension(),
-			*FString::Join(UApexTrackContentSubsystem::TrackDirectories(), TEXT(", ")), *Session.TrackFile, *Stem);
+			TEXT("No export for track \"%s\" — cars will race in an empty world. There is no %s%s in %s. "
+				 "Bake it with `cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- content/%s` "
+				 "from the repo root (scripts/build_track_levels.ps1 does it for every circuit)"),
+			*Session.TrackName, *Stem, FApexTrackSceneReader::SceneExtension(),
+			*FString::Join(UApexTrackContentSubsystem::TrackDirectories(), TEXT(", ")), *Session.TrackFile);
 		return FString();
 	}
 	return Stem;
@@ -2244,8 +2244,7 @@ void AApexRaceDirector::LoadTrackLevel()
 		return;
 	}
 
-	UE_LOG(LogApexSim, Log, TEXT("Loading track %s (%s)"), *Stem,
-		Track->GetSource() == EApexTrackSource::Runtime ? TEXT("built at runtime") : TEXT("cooked level"));
+	UE_LOG(LogApexSim, Log, TEXT("Loading track %s"), *Stem);
 	ForgetStartLights();
 	VerifyTrackContent();
 }
@@ -2295,6 +2294,18 @@ void AApexRaceDirector::VerifyLocalCarContent()
 	}
 	VerifiedCarId = CarId;
 	Flow->VerifyCarContent(CarId, true);
+}
+
+void AApexRaceDirector::DropFailedTrack()
+{
+	// A build that failed (an unreadable export, a mesh that would not build)
+	// is handed back, which marks the circuit broken for this run, so the
+	// lobby's next snapshot does not start the same failure again.
+	if (Track && Track->HasFailed())
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Track %s failed to build; the race goes on without it"), *Track->GetStem());
+		UnloadTrackLevel();
+	}
 }
 
 void AApexRaceDirector::UnloadTrackLevel()
