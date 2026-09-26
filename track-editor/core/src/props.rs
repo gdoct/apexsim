@@ -189,9 +189,10 @@ pub const KIT: &[KitAsset] = kit![
     Misc "photographer_stand" 2.0 x 2.0 x 2.5,
     Misc "rock_cluster" 0.9 x 0.7 x 0.5,
     Misc "scrub_clump" 0.7 x 0.6 x 0.3,
-    // The Red Bull Ring's trackside bull statue -- centred on its own
-    // footprint like the tower/ferris_wheel landmarks, not road-facing.
-    Misc "bull_statue" 3.2 x 1.8 x 2.5,
+    // The Red Bull Ring's bull at its real size (14.6 m, 17.2 m with the
+    // arch) -- centred on its own footprint like the tower/ferris_wheel
+    // landmarks, not road-facing.
+    Misc "bull_statue" 22.0 x 11.5 x 17.2,
     Misc "tyre_stack" 1.9 x 1.2 x 0.8,
     Misc "gate_4m" 4.3 x 0.15 x 1.5,
     // Lattice pylon, centred; the line runs along local X.
