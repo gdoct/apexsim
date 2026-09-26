@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "LeMans.yaml",
- "track_name": "Lemons – Circuit du Peuple",
+ "track_name": "Circuit de la Sarthe (Le Mans 24 Hours)",
+ "track_display_name": "Lemons – Circuit du Peuple",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -51,96 +52,112 @@
  "corners": [
   {
    "name": "Courbe Dunlop",
+   "display_name": "Courbe Dunflop",
    "station_m": 586.8,
    "from_m": 309.9,
    "to_m": 696.2
   },
   {
    "name": "Chicane Dunlop",
+   "display_name": "Chicane Dunflop",
    "station_m": 890.1,
    "from_m": 827.8,
    "to_m": 919.0
   },
   {
    "name": "La Chapelle",
+   "display_name": "La Chapelle",
    "station_m": 1228.1,
    "from_m": 1183.1,
    "to_m": 1244.3
   },
   {
    "name": "Esses de la Forêt",
+   "display_name": "Esses de la Forêt",
    "station_m": 1533.1,
    "from_m": 1374.1,
    "to_m": 1698.6
   },
   {
    "name": "Tertre Rouge",
+   "display_name": "Tertre Rouge",
    "station_m": 1913.5,
    "from_m": 1698.6,
    "to_m": 2083.1
   },
   {
    "name": "Ligne Droite des Hunaudières",
+   "display_name": "Ligne Droite des Hunaudières",
    "station_m": 2091.5,
    "from_m": 2083.1,
    "to_m": 2099.9
   },
   {
    "name": "Chicane Daytona",
+   "display_name": "Chicane Daytonic",
    "station_m": 4051.0,
    "from_m": 4029.2,
    "to_m": 4069.8
   },
   {
    "name": "Virage d'Arnage",
+   "display_name": "Virage d'Arnage",
    "station_m": 10156.0,
    "from_m": 10141.4,
    "to_m": 10170.7
   },
   {
    "name": "Virage Porsche",
+   "display_name": "Virage Porridge",
    "station_m": 11561.1,
    "from_m": 11467.1,
    "to_m": 11629.6
   },
   {
    "name": "Virage du Pont",
+   "display_name": "Virage du Pont",
    "station_m": 11848.5,
    "from_m": 11722.4,
    "to_m": 12066.5
   },
   {
    "name": "Virage du Karting",
+   "display_name": "Virage du Karting",
    "station_m": 12209.1,
    "from_m": 12066.5,
    "to_m": 12341.9
   },
   {
    "name": "Virage Corvette",
+   "display_name": "Virage Serviette",
    "station_m": 12442.3,
    "from_m": 12341.9,
    "to_m": 12581.3
   },
   {
    "name": "Chicane Maison Blanche",
+   "display_name": "Chicane Maison Blanche",
    "station_m": 12761.2,
    "from_m": 12581.3,
    "to_m": 13189.5
   },
   {
    "name": "Chicane Ford",
+   "display_name": "Chicane Fjord",
    "station_m": 13279.7,
    "from_m": 13189.5,
    "to_m": 13321.8
   },
   {
    "name": "Chicane du Raccordement",
+   "display_name": "Chicane du Raccordement",
    "station_m": 13404.7,
    "from_m": 13321.8,
    "to_m": 13414.8
   },
   {
    "name": "Virage du Raccordement",
+   "display_name": "Virage du Raccordement",
    "station_m": 13432.9,
    "from_m": 13414.8,
    "to_m": 13443.0

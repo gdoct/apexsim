@@ -1,4 +1,5 @@
-name: 'Autodromo Monzarella'
+name: Autodromo Nazionale di Monza
+display_name: 'Autodromo Monzarella'
 track_id: 57dabbef-70ed-477d-8469-d639cfc20390
 nodes:
 - x: -0.32

@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Zandvoort.yaml",
- "track_name": "Zandervoort",
+ "track_name": "Circuit Zandvoort",
+ "track_display_name": "Zandervoort",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,66 +22,77 @@
  "corners": [
   {
    "name": "Tarzanbocht",
+   "display_name": "Tartanbocht",
    "station_m": 413.9,
    "from_m": 348.0,
    "to_m": 475.8
   },
   {
    "name": "CM.com Circuit Zandvoort",
+   "display_name": null,
    "station_m": 712.5,
    "from_m": 671.1,
    "to_m": 712.5
   },
   {
    "name": "Gerlachbocht",
+   "display_name": "Gelachbocht",
    "station_m": 735.4,
    "from_m": 712.5,
    "to_m": 768.2
   },
   {
    "name": "Hugenholtzbocht",
+   "display_name": "Hugenhoutbocht",
    "station_m": 916.0,
    "from_m": 820.9,
    "to_m": 996.8
   },
   {
    "name": "Hunserug",
+   "display_name": "Hunserug",
    "station_m": 1152.0,
    "from_m": 996.8,
    "to_m": 1269.9
   },
   {
    "name": "Rob Slotemakerbocht",
+   "display_name": "Slootmakerbocht",
    "station_m": 1425.7,
    "from_m": 1269.9,
    "to_m": 1587.0
   },
   {
    "name": "Scheivlak",
+   "display_name": "Scheivlak",
    "station_m": 1786.8,
    "from_m": 1654.5,
    "to_m": 1896.1
   },
   {
    "name": "Mastersbocht",
+   "display_name": "Mastersbocht",
    "station_m": 2139.6,
    "from_m": 2093.4,
    "to_m": 2227.0
   },
   {
    "name": "CM.com bocht",
+   "display_name": "Sms-bocht",
    "station_m": 2578.3,
    "from_m": 2428.5,
    "to_m": 2665.9
   },
   {
    "name": "Hans Ernst chicane",
+   "display_name": "Hansworst-chicane",
    "station_m": 3246.9,
    "from_m": 3166.8,
    "to_m": 3319.5
   },
   {
    "name": "Arie Luyendykbocht",
+   "display_name": "Luierdijkbocht",
    "station_m": 3850.1,
    "from_m": 3722.3,
    "to_m": 3990.0

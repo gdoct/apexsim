@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Hockenheim.yaml",
- "track_name": "Hockeyheimring",
+ "track_name": "Hockenheimring",
+ "track_display_name": "Hockeyheimring",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,48 +22,56 @@
  "corners": [
   {
    "name": "Ravenol-Kurve",
+   "display_name": "Ravioli-Kurve",
    "station_m": 269.7,
    "from_m": 221.4,
    "to_m": 403.4
   },
   {
    "name": "Bernie-Ecclestone-Kurve",
+   "display_name": "Birnie-Eggstone-Kurve",
    "station_m": 847.2,
    "from_m": 769.9,
    "to_m": 905.1
   },
   {
    "name": "Einfahrt Parabolika",
+   "display_name": "Einfahrt Parabolika",
    "station_m": 972.8,
    "from_m": 905.1,
    "to_m": 1045.8
   },
   {
    "name": "Hochgeschwindigkeits-(Parabolika-)Kurve",
+   "display_name": "Parabolika",
    "station_m": 1492.8,
    "from_m": 1045.8,
    "to_m": 1819.6
   },
   {
    "name": "Rallycross",
+   "display_name": null,
    "station_m": 3434.8,
    "from_m": 3436.6,
    "to_m": 3459.8
   },
   {
    "name": "Mobil 1 Kurve",
+   "display_name": "Möbel-1-Kurve",
    "station_m": 3450.4,
    "from_m": 3373.5,
    "to_m": 3528.2
   },
   {
    "name": "Sachs-Kurve",
+   "display_name": "Socken-Kurve",
    "station_m": 3792.7,
    "from_m": 3723.6,
    "to_m": 3851.2
   },
   {
    "name": "Südkurve",
+   "display_name": "Südkurve",
    "station_m": 4274.9,
    "from_m": 4180.6,
    "to_m": 4331.8

@@ -39,7 +39,7 @@ void UApexCarCardWidget::SetCar(const FApexCarConfigSummary& Summary, const FApe
 		TArray<FString> Parts;
 		if (bHasCatalogRow)
 		{
-			if (!CatalogRow.CarClass.IsEmpty()) { Parts.Add(CatalogRow.CarClass); }
+			if (!CatalogRow.CarClass.IsEmpty()) { Parts.Add(ApexCatalog::DisplayClass(CatalogRow.CarClass)); }
 			if (!CatalogRow.Brand.IsEmpty())    { Parts.Add(CatalogRow.Brand); }
 			if (CatalogRow.ModelYear > 0)       { Parts.Add(FString::FromInt(CatalogRow.ModelYear)); }
 		}

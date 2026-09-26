@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Melbourne.yaml",
-  "track_name": "Albert Parkour Circuit",
+  "track_name": "Albert Park Circuit",
   "surfaces": [
     {
       "id": 347,
@@ -40111,7 +40111,7 @@
       "asset": "armco_4m_fence",
       "x": 84.89294,
       "y": -65.607185,
-      "z": 0.0000106610105,
+      "z": 1.06610105e-05,
       "yaw_rad": 2.3733313,
       "scale": 1.0,
       "text": null

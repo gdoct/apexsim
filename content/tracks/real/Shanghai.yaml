@@ -1,4 +1,5 @@
-name: 'Shanghaied International Circuit'
+name: Shanghai International Circuit
+display_name: 'Shanghaied International Circuit'
 track_id: 3fbd35a9-7cdd-4fab-81c6-0661f02f8499
 nodes:
 - x: 0.06

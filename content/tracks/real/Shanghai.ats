@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Shanghai.yaml",
-  "track_name": "Shanghaied International Circuit",
+  "track_name": "Shanghai International Circuit",
   "surfaces": [
     {
       "id": 319,

@@ -1,4 +1,5 @@
-name: 'Bahrainless International Circuit'
+name: Bahrain International Circuit
+display_name: 'Bahrainless International Circuit'
 track_id: b3fefc14-d56f-4ece-b7bc-1b446e9f4ecd
 nodes:
 - x: -1.44

@@ -1,4 +1,5 @@
-name: 'Circuit de Barcelunatic'
+name: Circuit de Barcelona-Catalunya
+display_name: 'Circuit de Barcelunatic'
 track_id: 257c5b22-e000-4485-9b52-9f4548923eb4
 nodes:
 - x: -0.47

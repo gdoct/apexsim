@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Sochi.yaml",
- "track_name": "Gnocchi Autodrom",
+ "track_name": "Sochi Autodrom",
+ "track_display_name": "Gnocchi Autodrom",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,6 +22,7 @@
  "corners": [
   {
    "name": "Сириус Автодром",
+   "display_name": null,
    "station_m": 5560.1,
    "from_m": 4535.3,
    "to_m": 4535.3

@@ -381,3 +381,25 @@ struct APEXSIM_API FApexTrackCatalogRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
 	TSoftObjectPtr<UTexture2D> PreviewImage;
 };
+
+namespace ApexCatalog
+{
+	/**
+	 * What a car class (`FApexCarCatalogRow::CarClass`) or a track category
+	 * (`FApexTrackCatalogRow::Category`) is shown as. The data keeps the real
+	 * series' names, which the logic keys on (`F1` picks the cockpit style and
+	 * the engine sound) but which are trademarks, so every screen goes through
+	 * this: F1 is Formula, WEC Endurance, DTM GT3 and IndyCar Independent.
+	 * Anything else is shown as it is.
+	 */
+	inline FString DisplayClass(const FString& Raw)
+	{
+		const FString Key = Raw.TrimStartAndEnd();
+		auto Is = [&Key](const TCHAR* Name) { return Key.Equals(Name, ESearchCase::IgnoreCase); };
+		if (Is(TEXT("F1")))                            { return TEXT("Formula"); }
+		if (Is(TEXT("WEC")) || Is(TEXT("Endurance")))  { return TEXT("Endurance"); }
+		if (Is(TEXT("DTM")) || Is(TEXT("GT3")))        { return TEXT("GT3"); }
+		if (Is(TEXT("IndyCar")) || Is(TEXT("Indy")))   { return TEXT("Independent"); }
+		return Key;
+	}
+}

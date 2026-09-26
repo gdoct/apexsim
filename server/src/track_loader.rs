@@ -8,7 +8,13 @@ use tracing::{debug, info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackFileFormat {
+    /// The circuit's real name. Source data only: it is often the operator's
+    /// trademark, so nothing a player sees shows it (see `display_name`).
     pub name: String,
+    /// The name the game shows (a parody such as `Zandervoort`), sent as the
+    /// track's name on the wire. Falls back to `name` when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
     #[serde(default)]
     pub track_id: Option<String>,
     pub nodes: Vec<TrackNode>,
@@ -258,7 +264,11 @@ impl TrackLoader {
 
         let mut config = TrackConfig {
             id: track_id,
-            name: track_file.name,
+            name: track_file
+                .display_name
+                .clone()
+                .filter(|name| !name.trim().is_empty())
+                .unwrap_or_else(|| track_file.name.clone()),
             centerline: centerline_points,
             width_m: default_width,
             source_path: None,

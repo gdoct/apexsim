@@ -744,6 +744,7 @@ mod tests {
     fn test_track() -> TrackFile {
         TrackFile {
             name: "Test".to_string(),
+            display_name: None,
             track_id: None,
             nodes: vec![
                 TrackNode {

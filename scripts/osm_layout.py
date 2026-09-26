@@ -648,6 +648,148 @@ MANUAL_WOODS: dict[str, list[dict]] = {
 # Circuits sharing their bbox with other lit sports venues, where an OSM
 # `tower:type=lighting` node is real but is not the circuit's own. See the
 # comment where this is used, in the landmark extraction loop.
+# What each corner's trackside board says in the game (`display_name` in
+# the dossier's `corners`; `ats-dress` lays a `corner_sign` from it and
+# never from `name`). The real names stay in `name`, which the tools look
+# corners up by, but many are trademarks: sponsors (Würth Kurve, Mobil 1
+# Kurve, NGK-Schikane, the CM.com bocht, Hitachi's chicane at Suzuka) and
+# famous people whose names are registered marks (S do Senna,
+# Michael-Schumacher-S, Niki Lauda Kurve), so the game shows a sound-alike
+# instead. `None` means no board: a way OSM names after the circuit itself
+# (`Hungaroring`, `CM.com Circuit Zandvoort`), a connector or a rallycross
+# loop is not a corner. A name not listed here is a place or a description
+# (Eau Rouge, Paddock Hill, Karussell) and is shown as it is, so a refetch
+# that turns up a new corner needs a look at this table. Suzuka's are in
+# Japanese in OSM and the kit's boards only draw Latin text.
+CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
+    "Austin": {
+        "Short Course 2": None,
+        "COTA Short Track": None,
+    },
+    "BrandsHatch": {
+        "Brabham Straight": "Bramble Straight",
+        "Hailwoods Hill": "Hailstones Hill",
+        "Graham Hill Bend": "Grandma Hill Bend",
+        "Cooper Straight": "Scooper Straight",
+        "Surtees": "Sure-Tees",
+        "Derek Minter Straight": "Dead Winter Straight",
+        "Sheene Curve": "Sheen Curve",
+        "Stirlings Bend": "Sterling Bend",
+        "Clark Curve": "Clerk Curve",
+    },
+    "Budapest": {
+        "Hungaroring": None,
+    },
+    "Catalunya": {
+        "Circuit de Barcelona-Catalunya": None,
+        "Rallycross": None,
+        "AZ": None,
+    },
+    "Hockenheim": {
+        "Ravenol-Kurve": "Ravioli-Kurve",
+        "Bernie-Ecclestone-Kurve": "Birnie-Eggstone-Kurve",
+        "Hochgeschwindigkeits-(Parabolika-)Kurve": "Parabolika",
+        "Rallycross": None,
+        "Mobil 1 Kurve": "Möbel-1-Kurve",
+        "Sachs-Kurve": "Socken-Kurve",
+    },
+    "LeMans": {
+        "Courbe Dunlop": "Courbe Dunflop",
+        "Chicane Dunlop": "Chicane Dunflop",
+        "Chicane Daytona": "Chicane Daytonic",
+        "Virage Porsche": "Virage Porridge",
+        "Virage Corvette": "Virage Serviette",
+        "Chicane Ford": "Chicane Fjord",
+    },
+    "Montreal": {
+        "Circuit Gilles-Villeneuve": None,
+    },
+    "Monza": {
+        "Autodromo nazionale di Monza - anello alta velocità": None,
+        "Variante Ascari": "Variante Calamari",
+        "Curva Alboreto": "Curva Alberello",
+    },
+    "Nordschleife": {
+        "Sabine-Schmitz-Kurve": "Schnitzel-Kurve",
+        "Lauda-Links": "Lauter-Links",
+        "Stefan-Bellof-S": "Bello-S",
+        "Nürburgring Nordschleife": None,
+    },
+    "Nuerburgring": {
+        "Nürburgring Sprintstrecke": None,
+        "Anbindung zur Müllenbachschleife": None,
+        "Ford-Kurve": "Furt-Kurve",
+        "Michael-Schumacher-S": "Schuster-S",
+        "Anbindung zur Sprintstrecke": None,
+        "NGK-Schikane": "Zündkerzen-Schikane",
+    },
+    "Oschersleben": {
+        "Zeppelin-Kurve": "Zappelin-Kurve",
+    },
+    "Sakhir": {
+        "Grand Prix Circuit": None,
+    },
+    "SaoPaulo": {
+        "S do Senna": "S do Sonho",
+    },
+    "Silverstone": {
+        "Hamilton Straight": "Hamlet Straight",
+    },
+    "Sochi": {
+        "Сириус Автодром": None,
+    },
+    "Spa": {
+        "Courbe Paul Frère": "Courbe des Frites",
+    },
+    "Spielberg": {
+        "Niki Lauda Kurve": "Knicki-Kurve",
+        "Remus": "Romulus",
+        "Schlossgold": "Schlosssilber",
+        "Rauch": "Qualm",
+        "Würth Kurve": "Wurst-Kurve",
+        "Rindt": "Rind",
+        "Red Bull Mobile": "Red Pull Mobile",
+    },
+    "Suzuka": {
+        "1コーナー": "Turn 1",
+        "2コーナー": "Turn 2",
+        "S字": "Esses",
+        "逆バンク": "Reverse Bank",
+        "NIPPO コーナー": "Hippo Corner",
+        "デグナー1": "Dagger 1",
+        "デグナー2": "Dagger 2",
+        "NISSINブレーキヘアピン": "Noodle Hairpin",
+        "西ストレート": "Back Straight",
+        "日立オートモティブシステムズシケイン": "Hit-and-Miss Chicane",
+        # the same chicane's second half, under the sponsor's newer name
+        "日立Astemoシケイン": None,
+        "メインストレート": "Main Straight",
+    },
+    "Zandvoort": {
+        "Tarzanbocht": "Tartanbocht",
+        "CM.com Circuit Zandvoort": None,
+        "Gerlachbocht": "Gelachbocht",
+        "Hugenholtzbocht": "Hugenhoutbocht",
+        "Rob Slotemakerbocht": "Slootmakerbocht",
+        "CM.com bocht": "Sms-bocht",
+        "Hans Ernst chicane": "Hansworst-chicane",
+        "Arie Luyendykbocht": "Luierdijkbocht",
+    },
+}
+
+
+def with_display_names(stem: str, corners: list[dict]) -> list[dict]:
+    """Each corner with its `display_name` (see `CORNER_DISPLAY`), placed
+    right after `name` so the dossier reads real name, then shown name."""
+    table = CORNER_DISPLAY.get(stem, {})
+    out = []
+    for c in corners:
+        shown = table.get(c["name"], c["name"])
+        rest = {k: v for k, v in c.items() if k not in ("name", "display_name")}
+        out.append({"name": c["name"], "display_name": shown, **rest})
+    return out
+
+
 # Road graffiti (the Nordschleife's): runs of pictures painted across the
 # tarmac, expanded by `manual_graffiti` into the dossier's `graffiti` list
 # and laid by `ats-dress` as `.ats` decals. Images are
@@ -2116,10 +2258,11 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         "version": LAYOUT_VERSION,
         "source_track": f"{stem}.yaml",
         "track_name": track.data.get("name", stem),
+        "track_display_name": track.data.get("display_name"),
         "attribution": ATTRIBUTION,
         "osm_bbox": [list(b) for b in BBOXES[stem]],
         "fit": fit_report,
-        "corners": corners,
+        "corners": with_display_names(stem, corners),
         "pit_lane": pit,
         "stands": stands,
         "structures": structures,
@@ -2252,18 +2395,58 @@ def build(stem: str, offline: bool) -> dict:
     return layout
 
 
+def rename_dossiers(stems: list[str], dry_run: bool) -> int:
+    """`--names-only`: the display names are editorial, not geometry, so
+    changing one must not need the OSM extract (gitignored, and slow to
+    fetch). Everything but the names is left byte for byte."""
+    for stem in stems:
+        out = TRACK_DIR / f"{stem}.layout.json"
+        if not out.exists():
+            continue
+        layout = json.loads(out.read_text(encoding="utf-8"))
+        track = yaml.safe_load((TRACK_DIR / f"{stem}.yaml").read_text(encoding="utf-8"))
+        renamed = {}
+        for k, v in layout.items():
+            renamed[k] = v
+            if k == "track_name":
+                renamed["track_display_name"] = track.get("display_name")
+        renamed["corners"] = with_display_names(stem, layout.get("corners", []))
+        changed = [
+            f"{c['name']} -> {c['display_name']}"
+            for c in renamed["corners"]
+            if c["display_name"] != c["name"]
+        ]
+        unknown = set(CORNER_DISPLAY.get(stem, {})) - {c["name"] for c in renamed["corners"]}
+        print(f"{stem}: {len(renamed['corners'])} corners, {len(changed)} renamed or dropped")
+        for line in changed:
+            print(f"   {line}")
+        for name in sorted(unknown):
+            print(f"   (CORNER_DISPLAY names {name!r}, which the dossier does not have)")
+        if not dry_run:
+            out.write_text(json.dumps(renamed, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("tracks", nargs="*", help="track stems, e.g. Monza")
     ap.add_argument("--all", action="store_true", help="every circuit with a bbox")
     ap.add_argument("--offline", action="store_true", help="use the cache only")
     ap.add_argument("--dry-run", action="store_true", help="report without writing")
+    ap.add_argument(
+        "--names-only",
+        action="store_true",
+        help="re-apply the display names (CORNER_DISPLAY, the YAML's display_name) "
+        "to the existing dossiers without refetching",
+    )
     args = ap.parse_args()
 
     stems = sorted(BBOXES) if args.all else args.tracks
     if not stems:
         ap.print_help()
         return 1
+    if args.names_only:
+        return rename_dossiers(stems, args.dry_run)
     for stem in stems:
         if stem not in BBOXES:
             raise SystemExit(f"no bbox for {stem}; add one to BBOXES")

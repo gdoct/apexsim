@@ -272,7 +272,7 @@ void UApexTrackSelectWidget::RebuildCards(bool bForce)
 		{
 			if (!Row.Country.IsEmpty())  { MetaParts.Add(Row.Country); }
 			if (Row.LengthM > 0.0f)      { MetaParts.Add(FString::Printf(TEXT("%.2f km"), Row.LengthM / 1000.0f)); }
-			if (!Row.Category.IsEmpty()) { MetaParts.Add(Row.Category); }
+			if (!Row.Category.IsEmpty()) { MetaParts.Add(ApexCatalog::DisplayClass(Row.Category)); }
 			Spec.Preview = Row.PreviewImage.LoadSynchronous();
 		}
 		Spec.Meta = FString::Join(MetaParts, TEXT(" · "));
@@ -364,7 +364,8 @@ void UApexTrackSelectWidget::RebuildFilterChips()
 			FApexTrackCatalogRow Row;
 			if (Flow->GetTrackCatalogRow(Id, Row) && !Row.Category.IsEmpty())
 			{
-				Categories.AddUnique(Row.Category);
+				// Keyed by what the chip says: WEC and Endurance are one chip.
+				Categories.AddUnique(ApexCatalog::DisplayClass(Row.Category));
 			}
 		}
 	}
@@ -430,7 +431,7 @@ void UApexTrackSelectWidget::ApplyFilter()
 				FApexTrackCatalogRow Row;
 				bMatches = Flow
 					&& Flow->GetTrackCatalogRow(Card->GetCardId(), Row)
-					&& Row.Category.Equals(ActiveFilter, ESearchCase::IgnoreCase);
+					&& ApexCatalog::DisplayClass(Row.Category).Equals(ActiveFilter, ESearchCase::IgnoreCase);
 			}
 		}
 
@@ -542,7 +543,7 @@ void UApexTrackSelectWidget::RefreshDetail()
 	{
 		if (!Row.Country.IsEmpty())  { SubtitleParts.Add(Row.Country.ToUpper()); }
 		if (!Row.City.IsEmpty())     { SubtitleParts.Add(Row.City.ToUpper()); }
-		if (!Row.Category.IsEmpty()) { SubtitleParts.Add(Row.Category.ToUpper()); }
+		if (!Row.Category.IsEmpty()) { SubtitleParts.Add(ApexCatalog::DisplayClass(Row.Category).ToUpper()); }
 	}
 	ApexUI::AddV(
 		DetailBox,
@@ -576,7 +577,7 @@ void UApexTrackSelectWidget::RefreshDetail()
 
 	LengthValue->SetText(FText::FromString(
 		bHasRow && Row.LengthM > 0.0f ? FString::Printf(TEXT("%.2f km"), Row.LengthM / 1000.0f) : TEXT("—")));
-	CategoryValue->SetText(FText::FromString(bHasRow && !Row.Category.IsEmpty() ? Row.Category : TEXT("—")));
+	CategoryValue->SetText(FText::FromString(bHasRow && !Row.Category.IsEmpty() ? ApexCatalog::DisplayClass(Row.Category) : TEXT("—")));
 	EnvironmentValue->SetText(FText::FromString(bHasRow && !Row.EnvironmentType.IsEmpty() ? Row.EnvironmentType : TEXT("—")));
 
 	float BestSeconds = 0.0f;

@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Norisring.yaml",
-  "track_name": "Snorisring",
+  "track_name": "Norisring",
   "surfaces": [
     {
       "id": 169,
@@ -23221,7 +23221,7 @@
       "asset": "armco_4m_fence",
       "x": 17.490944,
       "y": -37.925583,
-      "z": 0.000029591014,
+      "z": 2.9591014e-05,
       "yaw_rad": -0.56964594,
       "scale": 1.0,
       "text": null
@@ -25795,7 +25795,7 @@
       "asset": "hoarding_3m",
       "x": 17.194311,
       "y": -38.388733,
-      "z": -0.0000010383252,
+      "z": -1.0383252e-06,
       "yaw_rad": -0.56964594,
       "scale": 1.0,
       "text": "rolux"

@@ -1,4 +1,5 @@
-name: 'Shiverstone Circuit'
+name: Silverstone Circuit
+display_name: 'Shiverstone Circuit'
 track_id: 751ab4f0-3266-4794-8df2-6dc2f6f54071
 nodes:
 - x: 3.44

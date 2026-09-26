@@ -22,6 +22,9 @@
 #   length:  seconds of race time. `slowmo: 0.5` renders at twice the frame
 #            rate and plays it at the normal one: twice as long on screen.
 # edit:   the order, transitions, captions, title and end cards, music.
+#         Captions are on screen: circuits and corners by their display names
+#         (the YAML's display_name, the dossier's corners[].display_name), never
+#         the real, trademarked ones. `corner:` windows look up the real name.
 
 defaults:
   fps: 60
@@ -120,14 +123,14 @@ shots:
     race: zandvoort
     window: {corner: "Hugenholtz", before: 150, after: 120, min_cars: 4}
     length: 5.5
-    caption: "Hugenholtzbocht · 19° banking"
+    caption: "Hugenhoutbocht · 19° banking"
     camera: {mode: tv, shot: helicopter, follow: lead}
 
   - id: 05_lemans_wheel
     race: lemans
     window: {corner: "Chicane Dunlop", before: 60, after: 320, min_cars: 3, anchor: 0.3}
     length: 6.0
-    caption: "Lemons · Dunlop"
+    caption: "Lemons · Dunflop"
     camera:
       mode: pan
       eye:  {station: 1200, lateral: 18, side: left, height: 6}
@@ -141,7 +144,7 @@ shots:
     race: monza_rain
     window: {corner: "Alboreto", before: 250, after: 150, min_cars: 2}
     length: 5.0
-    caption: "Monzarella · Curva Alboreto"
+    caption: "Monzarella · Curva Alberello"
     camera: {mode: tv, shot: chase, follow: lead}
 
   - id: 07_suzuka_130r
@@ -207,7 +210,7 @@ shots:
     race: zandvoort
     window: {corner: "Luyendyk", before: 300, after: 150, min_cars: 3, last_laps: 1, anchor: 0.45}
     length: 6.0
-    caption: "Arie Luyendykbocht · 18° banking"
+    caption: "Luierdijkbocht · 18° banking"
     camera:
       mode: pan
       eye:  {corner: "Luyendyk", offset: 40, lateral: 28, side: outside, height: 8}

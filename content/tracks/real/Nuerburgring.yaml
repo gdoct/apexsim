@@ -1,4 +1,5 @@
-name: 'Nürburgerring'
+name: Nürburgring
+display_name: 'Nürburgerring'
 track_id: 8e0672d1-8ca9-4305-952a-be5fef19cba0
 nodes:
 - x: 1.24

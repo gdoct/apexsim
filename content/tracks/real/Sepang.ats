@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Sepang.yaml",
-  "track_name": "Shebang International Circuit",
+  "track_name": "Sepang International Circuit",
   "surfaces": [
     {
       "id": 343,

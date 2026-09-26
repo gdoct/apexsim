@@ -1580,11 +1580,20 @@ mod surroundings {
         }
     }
 
-    /// The board carrying a corner's name, at its entry. The dossier has
-    /// the real names — Niki Lauda Kurve, Remus, Schlossgold — and until
-    /// now nothing showed them anywhere.
+    /// The board carrying a corner's name, at its entry: the dossier's
+    /// `display_name`, never the real `name`, which is as often a sponsor's
+    /// trademark (Remus, Schlossgold, Würth Kurve) as a place. A corner with
+    /// no display name gets no board.
     fn corner_signs(ctx: &Ctx, out: &mut Vec<Prop>) {
         for corner in &ctx.layout.corners {
+            let Some(label) = corner
+                .display_name
+                .as_deref()
+                .map(str::trim)
+                .filter(|label| !label.is_empty())
+            else {
+                continue;
+            };
             let station = if corner.from_m > 0.0 {
                 corner.from_m
             } else {
@@ -1606,7 +1615,7 @@ mod surroundings {
                 Some(sample.heading_rad),
                 TRACKSIDE_CLEAR_M,
             ) {
-                prop.text = Some(corner.name.clone());
+                prop.text = Some(label.to_string());
                 out.push(prop);
             }
         }
@@ -1696,6 +1705,7 @@ mod tests {
         }
         TrackFile {
             name: "Dress".to_string(),
+            display_name: None,
             track_id: None,
             nodes,
             checkpoints: vec![],
@@ -2214,9 +2224,16 @@ mod tests {
         let track = track();
         let mut scene = scene(&track);
         let mut layout = layout();
-        for (name, station) in [("Turn One", 120.0), ("The Sweeper", 480.0)] {
+        // The board shows the display name, never the real one, and a corner
+        // with none (a sponsor's, the circuit's own name) gets no board.
+        for (name, display, station) in [
+            ("Turn One", Some("First Bend"), 120.0),
+            ("Acme Oil Kurve", None, 300.0),
+            ("The Sweeper", Some("The Sweeper"), 480.0),
+        ] {
             layout.corners.push(crate::layout::Corner {
                 name: name.to_string(),
+                display_name: display.map(str::to_string),
                 station_m: station,
                 from_m: station - 20.0,
                 to_m: station + 20.0,
@@ -2234,7 +2251,7 @@ mod tests {
             .map(|b| b.text.as_deref().unwrap_or(""))
             .collect();
         names.sort_unstable();
-        assert_eq!(names, ["The Sweeper", "Turn One"]);
+        assert_eq!(names, ["First Bend", "The Sweeper"]);
         assert!(
             scene.props.iter().any(|p| p.asset == "marshal_post"),
             "no marshal posts"

@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Spielberg.yaml",
- "track_name": "Red Pull Ring",
+ "track_name": "Red Bull Ring",
+ "track_display_name": "Red Pull Ring",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,42 +22,49 @@
  "corners": [
   {
    "name": "Niki Lauda Kurve",
+   "display_name": "Knicki-Kurve",
    "station_m": 449.0,
    "from_m": 428.1,
    "to_m": 483.6
   },
   {
    "name": "Remus",
+   "display_name": "Romulus",
    "station_m": 1387.5,
    "from_m": 1364.4,
    "to_m": 1416.0
   },
   {
    "name": "Schlossgold",
+   "display_name": "Schlosssilber",
    "station_m": 2205.9,
    "from_m": 2158.3,
    "to_m": 2269.2
   },
   {
    "name": "Rauch",
+   "display_name": "Qualm",
    "station_m": 2720.9,
    "from_m": 2621.2,
    "to_m": 2812.5
   },
   {
    "name": "Würth Kurve",
+   "display_name": "Wurst-Kurve",
    "station_m": 3031.0,
    "from_m": 2954.6,
    "to_m": 3087.1
   },
   {
    "name": "Rindt",
+   "display_name": "Rind",
    "station_m": 3775.1,
    "from_m": 3730.4,
    "to_m": 3829.8
   },
   {
    "name": "Red Bull Mobile",
+   "display_name": "Red Pull Mobile",
    "station_m": 4001.6,
    "from_m": 3949.0,
    "to_m": 4120.5

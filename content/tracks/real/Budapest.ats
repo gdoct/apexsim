@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Budapest.yaml",
-  "track_name": "Hungoverring",
+  "track_name": "Hungaroring",
   "surfaces": [
     {
       "id": 355,
@@ -8929,17 +8929,6 @@
       "yaw_rad": -0.78,
       "scale": 1.0,
       "text": null
-    },
-    {
-      "id": 15944,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": 126.72,
-      "y": -127.73,
-      "z": -0.48,
-      "yaw_rad": 2.52,
-      "scale": 1.0,
-      "text": "Hungaroring"
     },
     {
       "id": 15945,

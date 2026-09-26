@@ -207,8 +207,9 @@ than by kind* (`dress::dressed_prop`, `surroundings::OWNED`), the furniture
 it lays from the new layers: cars and lamp posts in every mapped car park,
 tents and campers on the camp sites, houses and barns across the villages
 and farmyards, chapels and pylons from `poi`, a marshal post at every named
-corner and every 400 m besides, a `corner_sign` carrying each corner's real
-name, and — only for a circuit whose dossier has no lighting masts of its
+corner and every 400 m besides, a `corner_sign` carrying each corner's
+`display_name` (never its real `name`; see "No trademarks on screen"),
+and — only for a circuit whose dossier has no lighting masts of its
 own — a ring of `floodlight_tower`s so a night session is not lit by
 headlights alone. Ownership is by asset because these share kinds with
 hand-placed props: a `sign` is also a distance board and a `misc` is also a
@@ -626,15 +627,39 @@ except the derived ones it refreshes every run: `SourceCrc`, `DisplayName`
 and `Description`. Every track YAML needs a fixed `track_id` — without one
 the server mints a new UUID per start and no catalog row can ever match it.
 
-**Track names are parodies.** The real circuit names are the operators'
-registered trademarks, so a YAML's `name` is a sound-alike that still says
-which circuit it is (`Zandervoort`, `Spa-Frankenchamps`, `Red Pull Ring`,
-`Lemons – Circuit du Peuple`) and `metadata.description` says what it is
-modelled on by place, never by the operator's name ("Modelled on the circuit
-in the dunes at Zandvoort, Netherlands."; shown under the title in the track
-picker, `FApexTrackCatalogRow::Description`). The full table is in
-`content/tracks/real/README.md`. Stems stay the place names, and
-`-ApexTrack=` takes the stem (else a substring of the lobby name).
+### No trademarks on screen (`display_name`, `CORNER_DISPLAY`, `ApexCatalog::DisplayClass`)
+
+The real circuit, corner and series names are mostly registered
+trademarks (the operators', sponsors', famous drivers'), so the source data
+keeps them and the product never shows them. Rule: **a real name lives in
+`name`, what the player sees lives beside it.**
+
+- **Tracks.** A YAML's `name` is the real one (`Circuit Zandvoort`);
+  `display_name` is a sound-alike that still says which circuit it is
+  (`Zandervoort`, `Spa-Frankenchamps`, `Red Pull Ring`, `Lemons – Circuit du
+  Peuple`). The server sends `display_name` as the track's name
+  (`TrackFileFormat::display_name`, falling back to `name`), so the lobby,
+  sessions, replays and `DT_TrackCatalog` (`build_track_catalog.py`) all
+  carry the parody. `metadata.description` says what it is modelled on by
+  place ("Modelled on the circuit in the dunes at Zandvoort, Netherlands.";
+  shown in the track picker, `FApexTrackCatalogRow::Description`). Both
+  `TrackFile`s keep the key through rewrites. Stems stay the place names and
+  `-ApexTrack=` takes the stem. Table: `content/tracks/real/README.md`.
+- **Corners.** Each dossier corner has `name` (OSM's, what `apexsim-replay
+  find --corner` and `drs_zones.py` look up) and `display_name`, written by
+  `osm_layout.py` from `CORNER_DISPLAY`: a sound-alike for a sponsor or a
+  person (`Würth Kurve` -> `Wurst-Kurve`, `S do Senna` -> `S do Sonho`),
+  `null` for a way that is not a corner (the circuit's own name, a
+  connector), the real name for a place (Eau Rouge). `ats-dress` lays a
+  `corner_sign` only from `display_name`, so a corner without one gets no
+  board. `python scripts/osm_layout.py --all --names-only` re-applies the
+  table to the checked-in dossiers without the OSM cache; a refetch that
+  finds a new corner name needs a look at the table.
+- **Classes.** Car classes and track categories stay `F1` / `WEC` / `DTM` /
+  `IndyCar` in `car.toml` and the YAML (the logic keys on `F1`), and every
+  screen shows them through `ApexCatalog::DisplayClass`: Formula, Endurance,
+  GT3, Independent (`ApexSim.Content.DisplayClass`).
+- **Promo captions** (`scripts/promo/shots.yml`) use the display names too.
 
 ### Ground textures (`content/textures/ground`, `ApexGroundTexImport`)
 The track surfaces sample baked tiling maps rather than the engine's 64-texel

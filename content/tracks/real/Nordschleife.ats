@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Nordschleife.yaml",
-  "track_name": "Nürburger Mordschleife",
+  "track_name": "Nürburgring Nordschleife",
   "surfaces": [
     {
       "id": 2,
@@ -95296,7 +95296,7 @@
       "z": 2.28,
       "yaw_rad": -0.19,
       "scale": 1.0,
-      "text": "Sabine-Schmitz-Kurve"
+      "text": "Schnitzel-Kurve"
     },
     {
       "id": 8842,
@@ -95483,7 +95483,7 @@
       "z": -263.25,
       "yaw_rad": -2.17,
       "scale": 1.0,
-      "text": "Lauda-Links"
+      "text": "Lauter-Links"
     },
     {
       "id": 8859,
@@ -95659,7 +95659,7 @@
       "z": -85.55,
       "yaw_rad": 1.89,
       "scale": 1.0,
-      "text": "Stefan-Bellof-S"
+      "text": "Bello-S"
     },
     {
       "id": 8875,
@@ -95693,17 +95693,6 @@
       "yaw_rad": -2.75,
       "scale": 1.0,
       "text": "Galgenkopf"
-    },
-    {
-      "id": 8878,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -623.7,
-      "y": -2789.76,
-      "z": -68.39,
-      "yaw_rad": 1.28,
-      "scale": 1.0,
-      "text": "Nürburgring Nordschleife"
     },
     {
       "id": 8879,

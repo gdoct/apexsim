@@ -1,4 +1,5 @@
-name: 'Gnocchi Autodrom'
+name: Sochi Autodrom
+display_name: 'Gnocchi Autodrom'
 track_id: 6c940a61-68bc-4f71-b9e0-6545f151f31c
 nodes:
 - x: -1.39

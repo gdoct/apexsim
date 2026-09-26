@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Sakhir.yaml",
-  "track_name": "Bahrainless International Circuit",
+  "track_name": "Bahrain International Circuit",
   "surfaces": [
     {
       "id": 303,
@@ -15901,17 +15901,6 @@
       "yaw_rad": 1.53,
       "scale": 1.0,
       "text": null
-    },
-    {
-      "id": 16975,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": 720.66,
-      "y": -89.59,
-      "z": 1.48,
-      "yaw_rad": -1.96,
-      "scale": 1.0,
-      "text": "Grand Prix Circuit"
     },
     {
       "id": 37512,

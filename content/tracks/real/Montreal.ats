@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Montreal.yaml",
-  "track_name": "Circuit Chilly Villeneuve",
+  "track_name": "Circuit Gilles Villeneuve",
   "surfaces": [
     {
       "id": 282,
@@ -5739,17 +5739,6 @@
       "yaw_rad": -1.34,
       "scale": 1.0,
       "text": null
-    },
-    {
-      "id": 15174,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -65.0,
-      "y": 497.46,
-      "z": 0.38,
-      "yaw_rad": -1.35,
-      "scale": 1.0,
-      "text": "Circuit Gilles-Villeneuve"
     },
     {
       "id": 15175,
@@ -25381,7 +25370,7 @@
       "asset": "armco_4m_fence",
       "x": -33.24563,
       "y": 89.57676,
-      "z": -0.000063079766,
+      "z": -6.3079766e-05,
       "yaw_rad": -1.344612,
       "scale": 1.0,
       "text": null

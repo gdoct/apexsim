@@ -64,7 +64,8 @@ LAPS: dict[str, dict] = {
     # `place=locality` nodes for each section, which OSM puts beside the
     # stretch they name, in race (clockwise) order.
     "Nordschleife": {
-        "name": "Nürburger Mordschleife",
+        "name": "Nürburgring Nordschleife",
+        "display_name": "Nürburger Mordschleife",
         "track_id": "7648a87e-a67d-43c2-b92a-84022cc3ca75",
         "start_finish": (6.95077, 50.33783),  # "Start-Ziel T13"
         # OSM's T13 node projects onto the lap right where the road comes
@@ -370,6 +371,7 @@ def write_yaml(stem: str, spec: dict, b: dict) -> Path:
     raceline = [{"x": r2(p[0]), "y": r2(p[1]), "z": 0.0} for p in b["race"]]
     data = {
         "name": spec["name"],
+        "display_name": spec["display_name"],
         "track_id": spec["track_id"],
         "nodes": nodes,
         "checkpoints": [],

@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Oschersleben.yaml",
-  "track_name": "Motorsport Arena Oskarsleben",
+  "track_name": "Motorsport Arena Oschersleben",
   "surfaces": [
     {
       "id": 297,
@@ -4671,7 +4671,7 @@
       "z": -1.4,
       "yaw_rad": -1.42,
       "scale": 1.0,
-      "text": "Zeppelin-Kurve"
+      "text": "Zappelin-Kurve"
     },
     {
       "id": 10309,

@@ -2796,6 +2796,7 @@ mod tests {
         }
         TrackFile {
             name: "Groom".to_string(),
+            display_name: None,
             track_id: None,
             nodes,
             checkpoints: vec![],

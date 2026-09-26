@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Nuerburgring.yaml",
-  "track_name": "Nürburgerring",
+  "track_name": "Nürburgring",
   "surfaces": [
     {
       "id": 350,
@@ -37717,28 +37717,6 @@
       "text": null
     },
     {
-      "id": 19474,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -294.84,
-      "y": -226.44,
-      "z": 3.75,
-      "yaw_rad": 2.59,
-      "scale": 1.0,
-      "text": "Nürburgring Sprintstrecke"
-    },
-    {
-      "id": 19475,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -473.35,
-      "y": -491.21,
-      "z": 11.37,
-      "yaw_rad": -1.9,
-      "scale": 1.0,
-      "text": "Anbindung zur Müllenbachschleife"
-    },
-    {
       "id": 19476,
       "kind": "board",
       "asset": "corner_sign",
@@ -37747,7 +37725,7 @@
       "z": 9.95,
       "yaw_rad": -0.49,
       "scale": 1.0,
-      "text": "Ford-Kurve"
+      "text": "Furt-Kurve"
     },
     {
       "id": 19477,
@@ -37758,18 +37736,7 @@
       "z": 1.29,
       "yaw_rad": 0.78,
       "scale": 1.0,
-      "text": "Michael-Schumacher-S"
-    },
-    {
-      "id": 19478,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -559.56,
-      "y": -583.27,
-      "z": -1.73,
-      "yaw_rad": 1.22,
-      "scale": 1.0,
-      "text": "Anbindung zur Sprintstrecke"
+      "text": "Schuster-S"
     },
     {
       "id": 19479,
@@ -37780,7 +37747,7 @@
       "z": 5.24,
       "yaw_rad": 0.22,
       "scale": 1.0,
-      "text": "NGK-Schikane"
+      "text": "Zündkerzen-Schikane"
     },
     {
       "id": 19480,

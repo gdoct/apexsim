@@ -958,6 +958,7 @@ mod tests {
             .collect();
         TrackFile {
             name: "Ring".to_string(),
+            display_name: None,
             track_id: None,
             nodes,
             checkpoints: vec![],
@@ -1087,6 +1088,7 @@ mod tests {
             .collect();
         let mut track = TrackFile {
             name: "Straight".to_string(),
+            display_name: None,
             track_id: None,
             nodes,
             checkpoints: vec![],

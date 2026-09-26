@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Spa.yaml",
-  "track_name": "Spa-Frankenchamps",
+  "track_name": "Circuit de Spa-Francorchamps",
   "surfaces": [
     {
       "id": 381,
@@ -43222,7 +43222,7 @@
       "z": -48.23,
       "yaw_rad": 2.56,
       "scale": 1.0,
-      "text": "Courbe Paul Frère"
+      "text": "Courbe des Frites"
     },
     {
       "id": 84045,

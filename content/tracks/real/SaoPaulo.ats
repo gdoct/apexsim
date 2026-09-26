@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "SaoPaulo.yaml",
-  "track_name": "Autódromo Interlaggos",
+  "track_name": "Autódromo José Carlos Pace",
   "surfaces": [
     {
       "id": 334,
@@ -3792,7 +3792,7 @@
       "z": -8.22,
       "yaw_rad": -1.15,
       "scale": 1.0,
-      "text": "S do Senna"
+      "text": "S do Sonho"
     },
     {
       "id": 11761,

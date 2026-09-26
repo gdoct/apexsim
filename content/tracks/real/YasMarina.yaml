@@ -1,4 +1,5 @@
-name: 'Yas Marinara Circuit'
+name: Yas Marina Circuit
+display_name: 'Yas Marinara Circuit'
 track_id: 5713b6e4-bfb1-4913-aa6b-ab2eb13009f0
 nodes:
 - x: 2.29

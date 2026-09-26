@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Suzuka.yaml",
-  "track_name": "Sudoku Circuit",
+  "track_name": "Suzuka Circuit",
   "surfaces": [
     {
       "id": 401,
@@ -12617,7 +12617,7 @@
       "z": 8.22,
       "yaw_rad": -0.85,
       "scale": 1.0,
-      "text": "1コーナー"
+      "text": "Turn 1"
     },
     {
       "id": 20253,
@@ -12628,7 +12628,7 @@
       "z": 9.63,
       "yaw_rad": -2.03,
       "scale": 1.0,
-      "text": "2コーナー"
+      "text": "Turn 2"
     },
     {
       "id": 20254,
@@ -12639,7 +12639,7 @@
       "z": 11.75,
       "yaw_rad": 2.19,
       "scale": 1.0,
-      "text": "S字"
+      "text": "Esses"
     },
     {
       "id": 20255,
@@ -12650,7 +12650,7 @@
       "z": 14.36,
       "yaw_rad": 3.12,
       "scale": 1.0,
-      "text": "逆バンク"
+      "text": "Reverse Bank"
     },
     {
       "id": 20256,
@@ -12661,7 +12661,7 @@
       "z": 10.58,
       "yaw_rad": 1.26,
       "scale": 1.0,
-      "text": "NIPPO コーナー"
+      "text": "Hippo Corner"
     },
     {
       "id": 20257,
@@ -12672,7 +12672,7 @@
       "z": 2.03,
       "yaw_rad": -2.31,
       "scale": 1.0,
-      "text": "デグナー1"
+      "text": "Dagger 1"
     },
     {
       "id": 20258,
@@ -12683,7 +12683,7 @@
       "z": 0.28,
       "yaw_rad": -3.11,
       "scale": 1.0,
-      "text": "デグナー2"
+      "text": "Dagger 2"
     },
     {
       "id": 20259,
@@ -12694,7 +12694,7 @@
       "z": -4.91,
       "yaw_rad": 1.35,
       "scale": 1.0,
-      "text": "NISSINブレーキヘアピン"
+      "text": "Noodle Hairpin"
     },
     {
       "id": 20260,
@@ -12705,7 +12705,7 @@
       "z": 15.21,
       "yaw_rad": -0.91,
       "scale": 1.0,
-      "text": "西ストレート"
+      "text": "Back Straight"
     },
     {
       "id": 20261,
@@ -12727,18 +12727,7 @@
       "z": 5.73,
       "yaw_rad": 0.48,
       "scale": 1.0,
-      "text": "日立オートモティブシステムズシケイン"
-    },
-    {
-      "id": 20263,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -318.32,
-      "y": 62.89,
-      "z": 5.0,
-      "yaw_rad": -0.58,
-      "scale": 1.0,
-      "text": "日立Astemoシケイン"
+      "text": "Hit-and-Miss Chicane"
     },
     {
       "id": 20264,
@@ -12749,7 +12738,7 @@
       "z": 2.13,
       "yaw_rad": -0.42,
       "scale": 1.0,
-      "text": "メインストレート"
+      "text": "Main Straight"
     },
     {
       "id": 20265,

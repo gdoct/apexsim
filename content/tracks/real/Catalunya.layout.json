@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Catalunya.yaml",
- "track_name": "Circuit de Barcelunatic",
+ "track_name": "Circuit de Barcelona-Catalunya",
+ "track_display_name": "Circuit de Barcelunatic",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,18 +22,21 @@
  "corners": [
   {
    "name": "Circuit de Barcelona-Catalunya",
+   "display_name": null,
    "station_m": 1865.0,
    "from_m": 4028.2,
    "to_m": 4028.2
   },
   {
    "name": "Rallycross",
+   "display_name": null,
    "station_m": 3616.0,
    "from_m": 3528.2,
    "to_m": 3641.7
   },
   {
    "name": "AZ",
+   "display_name": null,
    "station_m": 4192.0,
    "from_m": 4178.3,
    "to_m": 4192.0

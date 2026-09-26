@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Catalunya.yaml",
-  "track_name": "Circuit de Barcelunatic",
+  "track_name": "Circuit de Barcelona-Catalunya",
   "surfaces": [
     {
       "id": 362,
@@ -22182,39 +22182,6 @@
       "yaw_rad": -2.08,
       "scale": 1.0,
       "text": null
-    },
-    {
-      "id": 17765,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -85.31,
-      "y": 421.96,
-      "z": -2.72,
-      "yaw_rad": -0.59,
-      "scale": 1.0,
-      "text": "Circuit de Barcelona-Catalunya"
-    },
-    {
-      "id": 17766,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -26.94,
-      "y": 254.83,
-      "z": -4.87,
-      "yaw_rad": 2.97,
-      "scale": 1.0,
-      "text": "Rallycross"
-    },
-    {
-      "id": 17767,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": 23.71,
-      "y": 377.44,
-      "z": -2.07,
-      "yaw_rad": 0.34,
-      "scale": 1.0,
-      "text": "AZ"
     },
     {
       "id": 17768,

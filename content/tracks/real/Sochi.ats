@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Sochi.yaml",
-  "track_name": "Gnocchi Autodrom",
+  "track_name": "Sochi Autodrom",
   "surfaces": [
     {
       "id": 379,
@@ -39518,17 +39518,6 @@
       "yaw_rad": 0.67,
       "scale": 1.0,
       "text": null
-    },
-    {
-      "id": 21104,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -643.9,
-      "y": -301.23,
-      "z": 1.25,
-      "yaw_rad": -0.14,
-      "scale": 1.0,
-      "text": "Сириус Автодром"
     },
     {
       "id": 50308,

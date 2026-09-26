@@ -2,7 +2,7 @@
   "format": "apex-track-scene",
   "version": 2,
   "source_track": "Zandvoort.yaml",
-  "track_name": "Zandervoort",
+  "track_name": "Circuit Zandvoort",
   "surfaces": [
     {
       "id": 314,
@@ -11655,18 +11655,7 @@
       "z": 0.8,
       "yaw_rad": 1.16,
       "scale": 1.0,
-      "text": "Tarzanbocht"
-    },
-    {
-      "id": 10721,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": 161.85,
-      "y": 103.59,
-      "z": 2.14,
-      "yaw_rad": -1.55,
-      "scale": 1.0,
-      "text": "CM.com Circuit Zandvoort"
+      "text": "Tartanbocht"
     },
     {
       "id": 10722,
@@ -11677,7 +11666,7 @@
       "z": 2.33,
       "yaw_rad": -1.77,
       "scale": 1.0,
-      "text": "Gerlachbocht"
+      "text": "Gelachbocht"
     },
     {
       "id": 10723,
@@ -11688,7 +11677,7 @@
       "z": 2.93,
       "yaw_rad": -2.83,
       "scale": 1.0,
-      "text": "Hugenholtzbocht"
+      "text": "Hugenhoutbocht"
     },
     {
       "id": 10724,
@@ -11710,7 +11699,7 @@
       "z": 8.89,
       "yaw_rad": -0.16,
       "scale": 1.0,
-      "text": "Rob Slotemakerbocht"
+      "text": "Slootmakerbocht"
     },
     {
       "id": 10726,
@@ -11743,7 +11732,7 @@
       "z": 6.29,
       "yaw_rad": 0.15,
       "scale": 1.0,
-      "text": "CM.com bocht"
+      "text": "Sms-bocht"
     },
     {
       "id": 10729,
@@ -11754,7 +11743,7 @@
       "z": 6.1,
       "yaw_rad": -2.86,
       "scale": 1.0,
-      "text": "Hans Ernst chicane"
+      "text": "Hansworst-chicane"
     },
     {
       "id": 10730,
@@ -11765,7 +11754,7 @@
       "z": 4.2,
       "yaw_rad": 3.12,
       "scale": 1.0,
-      "text": "Arie Luyendykbocht"
+      "text": "Luierdijkbocht"
     },
     {
       "id": 10731,

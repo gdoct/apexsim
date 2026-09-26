@@ -236,7 +236,17 @@ impl Wood {
 /// A named part of the course: "Tarzanbocht", "Eau Rouge", "Parabolica".
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Corner {
+    /// The corner's real name, as OpenStreetMap has it: what the tools
+    /// (`apexsim-replay find`, `drs_zones.py`) look corners up by.
     pub name: String,
+    /// What the corner's board says in the game. Real corner names are
+    /// often sponsors' or people's trademarks (Würth Kurve, S do Senna), so
+    /// `osm_layout.py` writes a substitute from its `CORNER_DISPLAY` table,
+    /// the real name where it is only a place, and `null` for a way that is
+    /// not a corner at all (the circuit's own name). No display name, no
+    /// board: a dossier from before the field lays none.
+    #[serde(default)]
+    pub display_name: Option<String>,
     pub station_m: f32,
     #[serde(default)]
     pub from_m: f32,

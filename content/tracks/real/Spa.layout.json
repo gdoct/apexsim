@@ -2,7 +2,8 @@
  "format": "apex-track-layout",
  "version": 1,
  "source_track": "Spa.yaml",
- "track_name": "Spa-Frankenchamps",
+ "track_name": "Circuit de Spa-Francorchamps",
+ "track_display_name": "Spa-Frankenchamps",
  "attribution": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
  "osm_bbox": [
   [
@@ -21,84 +22,98 @@
  "corners": [
   {
    "name": "La Source",
+   "display_name": "La Source",
    "station_m": 392.0,
    "from_m": 370.8,
    "to_m": 415.2
   },
   {
    "name": "Eau Rouge",
+   "display_name": "Eau Rouge",
    "station_m": 1056.6,
    "from_m": 1006.7,
    "to_m": 1099.6
   },
   {
    "name": "Raidillon",
+   "display_name": "Raidillon",
    "station_m": 1205.4,
    "from_m": 1099.6,
    "to_m": 1322.7
   },
   {
    "name": "Kemmel",
+   "display_name": "Kemmel",
    "station_m": 1599.8,
    "from_m": 1322.7,
    "to_m": 2375.5
   },
   {
    "name": "Les Combes",
+   "display_name": "Les Combes",
    "station_m": 2408.5,
    "from_m": 2375.5,
    "to_m": 2433.8
   },
   {
    "name": "Malmedy",
+   "display_name": "Malmedy",
    "station_m": 2659.7,
    "from_m": 2615.3,
    "to_m": 2700.8
   },
   {
    "name": "Bruxelles",
+   "display_name": "Bruxelles",
    "station_m": 3070.7,
    "from_m": 2976.7,
    "to_m": 3153.0
   },
   {
    "name": "Speaker's Corner",
+   "display_name": "Speaker's Corner",
    "station_m": 3317.9,
    "from_m": 3250.4,
    "to_m": 3506.0
   },
   {
    "name": "Double Gauche",
+   "display_name": "Double Gauche",
    "station_m": 3968.3,
    "from_m": 3763.9,
    "to_m": 4139.0
   },
   {
    "name": "Fagnes",
+   "display_name": "Fagnes",
    "station_m": 4565.1,
    "from_m": 4429.8,
    "to_m": 4725.6
   },
   {
    "name": "Campus",
+   "display_name": "Campus",
    "station_m": 4948.7,
    "from_m": 4904.8,
    "to_m": 5000.8
   },
   {
    "name": "Courbe Paul Frère",
+   "display_name": "Courbe des Frites",
    "station_m": 5174.3,
    "from_m": 5106.5,
    "to_m": 5300.9
   },
   {
    "name": "Blanchimont",
+   "display_name": "Blanchimont",
    "station_m": 6006.4,
    "from_m": 5702.5,
    "to_m": 6254.7
   },
   {
    "name": "Chicane",
+   "display_name": "Chicane",
    "station_m": 6747.4,
    "from_m": 6733.2,
    "to_m": 6767.4
