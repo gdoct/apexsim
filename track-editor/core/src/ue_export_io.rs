@@ -40,7 +40,12 @@ use crate::ue_export::{
 };
 
 /// Where exports go when no destination is given, relative to the repo root.
-pub const DEFAULT_EXPORT_DIR: &str = "content/tracks/export";
+pub const DEFAULT_EXPORT_DIR: &str = "build/tracks";
+
+/// The track folders a batch run (`--all`) walks, relative to the repo
+/// root: the circuits that ship with the game, then the player's own
+/// (gitignored; imported or hand-made). Either may be missing.
+pub const TRACK_DIRS: [&str; 2] = ["content/tracks/default", "content/tracks/custom"];
 
 #[derive(Debug, thiserror::Error)]
 pub enum UeExportError {
@@ -62,6 +67,15 @@ pub enum UeExportError {
     InvalidMesh { name: String, reason: String },
     #[error("mesh blob: {0}")]
     MeshBlob(String),
+    /// Two track folders hold a track of the same stem. Every export,
+    /// preview and `-ApexTrack=` switch is keyed by the stem, so the two
+    /// would overwrite each other's output.
+    #[error("track {stem:?} is in two folders: {first} and {second}; rename one")]
+    DuplicateStem {
+        stem: String,
+        first: PathBuf,
+        second: PathBuf,
+    },
 }
 
 /// `Monza.yaml` -> `<dir>/Monza.uescene.json`.
@@ -854,6 +868,34 @@ pub fn decode_mesh_blob(bytes: &[u8]) -> Result<Vec<UeMesh>, UeExportError> {
         )));
     }
     Ok(meshes)
+}
+
+/// Every track under [`TRACK_DIRS`] (relative to the working directory,
+/// which the tools expect to be the repo root): see [`track_files_in_dirs`].
+pub fn all_track_files() -> Result<Vec<PathBuf>, UeExportError> {
+    let dirs: Vec<&Path> = TRACK_DIRS.iter().map(Path::new).collect();
+    track_files_in_dirs(&dirs)
+}
+
+/// Every `*.yaml` in each of `dirs` that exists, folder by folder in the
+/// order given and sorted within each. A stem found in two folders is an
+/// error rather than a silent pick: both would bake to the same export.
+pub fn track_files_in_dirs(dirs: &[&Path]) -> Result<Vec<PathBuf>, UeExportError> {
+    let mut found: Vec<PathBuf> = Vec::new();
+    for dir in dirs.iter().filter(|d| d.is_dir()) {
+        for path in track_files_in(dir)? {
+            let stem = path.file_stem().unwrap_or_default();
+            if let Some(first) = found.iter().find(|p| p.file_stem() == Some(stem)) {
+                return Err(UeExportError::DuplicateStem {
+                    stem: stem.to_string_lossy().into_owned(),
+                    first: first.clone(),
+                    second: path,
+                });
+            }
+            found.push(path);
+        }
+    }
+    Ok(found)
 }
 
 /// Every `*.yaml` in `dir`, sorted, so a batch export is reproducible.

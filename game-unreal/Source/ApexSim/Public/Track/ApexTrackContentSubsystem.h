@@ -22,7 +22,7 @@ class UWorld;
  * The track folders, in order:
  *  - `-ApexTracksDir=<dir>` on the command line (several joined with `+`);
  *  - a packaged build: `Tracks/` beside `ApexSim.exe` (`<Release>/Game/Tracks`);
- *  - the editor: the repo's `content/tracks/export`.
+ *  - the editor: the repo's `build/tracks`.
  * A track's preview is `<Stem>.png` beside its manifest or under `previews/`.
  *
  * Each export's manifest head becomes a catalog row (`FindRuntimeRow`),

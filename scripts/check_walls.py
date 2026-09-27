@@ -37,16 +37,16 @@ import msgpack
 import numpy as np
 
 REPO = Path(__file__).resolve().parent.parent
-TRACK_DIR = REPO / "content" / "tracks" / "real"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from osm_layout import Track  # noqa: E402  (after sys.path tweak)
+from track_dirs import track_dir, track_glob  # noqa: E402
 
 Z_TOLERANCE_M = 2.0
 
 
 def load_walls(stem: str) -> list[dict]:
-    path = TRACK_DIR / f"{stem}.walls.msgpack"
+    path = track_dir(stem) / f"{stem}.walls.msgpack"
     if not path.exists():
         raise SystemExit(
             f"{stem}: no {path.name} -- run ats-export for this track first"
@@ -146,7 +146,7 @@ def _road_z(track: Track, station: float) -> float:
 
 
 def _near_pit_lane_taper(track: Track, flagged: list[dict], range_m: float = 60.0) -> list[bool]:
-    layout_path = TRACK_DIR / f"{track.stem}.layout.json"
+    layout_path = track_dir(track.stem) / f"{track.stem}.layout.json"
     if not layout_path.exists():
         return [False] * len(flagged)
     import json
@@ -253,7 +253,7 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.all:
-        stems = sorted(p.stem.rsplit(".walls", 1)[0] for p in TRACK_DIR.glob("*.walls.msgpack"))
+        stems = sorted(p.stem.rsplit(".walls", 1)[0] for p in track_glob("*.walls.msgpack"))
     else:
         stems = args.tracks
     if not stems:

@@ -9,22 +9,20 @@
 //! circuit `ats-dress` has already rebuilt.
 //!
 //! ```text
-//! ats-groom --all                          # every track under content/tracks/real
-//! ats-groom content/tracks/real/Monza.yaml # one track
+//! ats-groom --all                          # every track under content/tracks/{default,custom}
+//! ats-groom content/tracks/default/Monza.yaml # one track
 //! ats-groom --all --dry-run                # report without writing
 //! ats-groom --verbose Monza.yaml           # also list braking corners + board stations
 //! ```
 //!
 //! Idempotent: re-running over groomed scenes writes nothing.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use track_core::track_data::TrackFile;
 use track_core::track_path::CenterlinePath;
 use track_core::{ats_io, groom, layout, project, ue_export_io};
-
-const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -55,11 +53,10 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
     if all {
-        let dir = Path::new(DEFAULT_TRACK_DIR);
-        match ue_export_io::track_files_in(dir) {
+        match ue_export_io::all_track_files() {
             Ok(found) => tracks.extend(found),
             Err(e) => {
-                eprintln!("failed to list {}: {e}", dir.display());
+                eprintln!("failed to list the track folders: {e}");
                 return ExitCode::FAILURE;
             }
         }
@@ -200,7 +197,7 @@ fn print_corners(track: &TrackFile) {
 const USAGE: &str = "\
 usage: ats-groom [--all] [--dry-run] [--verbose] [TRACK.yaml ...]
 
-  --all, -a      groom every *.yaml under content/tracks/real
+  --all, -a      groom every *.yaml under content/tracks/{default,custom}
   --dry-run, -n  report what would change without writing .ats files
   --verbose, -v  also list braking corners and their board stations
 ";

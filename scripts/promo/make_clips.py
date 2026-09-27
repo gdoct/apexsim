@@ -45,7 +45,9 @@ except ImportError:  # pragma: no cover - a helpful message beats a traceback
     sys.exit("make_clips.py needs PyYAML: pip install pyyaml")
 
 REPO = Path(__file__).resolve().parents[2]
-TRACKS = REPO / "content" / "tracks" / "real"
+sys.path.insert(0, str(REPO / "scripts"))
+from track_dirs import track_dir  # noqa: E402
+
 UPROJECT = REPO / "game-unreal" / "ApexSim.uproject"
 EXE = ".exe" if platform.system() == "Windows" else ""
 
@@ -124,7 +126,7 @@ class Planner:
         self.race_info: dict[str, dict] = {}
 
     def track_yaml(self, race: dict) -> Path:
-        path = TRACKS / f"{race['track']}.yaml"
+        path = track_dir(race['track']) / f"{race['track']}.yaml"
         if not path.exists():
             fail(f"no track {path}")
         return path

@@ -16,7 +16,8 @@ use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
 fn monza() -> TrackConfig {
-    TrackLoader::load_from_file("../content/tracks/real/Monza.yaml").expect("failed to load Monza")
+    TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
+        .expect("failed to load Monza")
 }
 
 /// One AI on track, counted straight into a race.

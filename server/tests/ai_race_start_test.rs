@@ -37,7 +37,7 @@ fn road_contact() -> apexsim_server::config::RoadContactMode {
 
 fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     let track = TrackLoader::load_from_file_with(
-        repo(&format!("content/tracks/real/{track}.yaml")),
+        repo(&format!("content/tracks/default/{track}.yaml")),
         road_contact(),
     )
     .expect("track loads");
@@ -213,7 +213,7 @@ fn ai_field_makes_the_first_lap_at_le_mans() {
 #[test]
 #[ignore]
 fn survey_ai_races_on_every_circuit() {
-    let mut tracks: Vec<String> = std::fs::read_dir(repo("content/tracks/real"))
+    let mut tracks: Vec<String> = std::fs::read_dir(repo("content/tracks/default"))
         .expect("tracks")
         .filter_map(|entry| {
             let path = entry.ok()?.path();

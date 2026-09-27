@@ -2,7 +2,7 @@
 
 Five circuits (Spa, Monza, Le Mans, Zandvoort, Silverstone) were rebuilt from
 public data in September 2026: their scenery now comes from an OpenStreetMap
-**layout dossier** (`content/tracks/real/<Stem>.layout.json`) applied by
+**layout dossier** (`content/tracks/default/<Stem>.layout.json`) applied by
 `ats-dress`, instead of the old procedural enrichment pass that guessed
 everything beside the road. This document is the work order for doing the
 same to the other 17. Each track is one self-contained task; the per-track
@@ -37,7 +37,7 @@ finished with any of them missing; say which ones are missing and why.
    night race) are in `landmarks` with a kind `dress.rs` knows (§3.4).
 6. `woods` reflect the real woodland; a desert or street circuit has few or
    none, and that is correct. Do not invent trees.
-7. `ats-dress content/tracks/real/<Stem>.yaml` runs clean: the report lists
+7. `ats-dress content/tracks/default/<Stem>.yaml` runs clean: the report lists
    the placed counts and `--verbose` shows a `skipped` list you have read
    and can explain (a commentary box "too small to be seating" is fine; a
    named main grandstand skipped is not).
@@ -64,7 +64,7 @@ the working directory, so never run it from `track-editor/`.
 ```bash
 # 1. add the stem to BBOXES in scripts/osm_layout.py (seed values in §6)
 python scripts/osm_layout.py <Stem> --dry-run      # fetches, fits, reports; writes nothing
-python scripts/osm_layout.py <Stem>                # writes content/tracks/real/<Stem>.layout.json
+python scripts/osm_layout.py <Stem>                # writes content/tracks/default/<Stem>.layout.json
 python scripts/osm_layout.py <Stem> --offline      # re-run against the cached extract
 ```
 
@@ -82,7 +82,7 @@ centerline explains) and is low whenever the bbox holds other layouts (an
 oval, a Nordschleife, a support circuit). Low `raceway matched` is fine; low
 `centerline covered` is not.
 
-Raw extracts cache under `content/tracks/osm-cache/<Stem>.<tile>.json`
+Raw extracts cache under `.cache/osm/<Stem>.<tile>.json`
 (gitignored). The OSM map API refuses a bbox with more than 50k nodes; if the
 fetch fails, split the bbox into tiles as `LeMans` does. Overlapping tiles are
 fine; ways are deduplicated by id.
@@ -115,8 +115,8 @@ Open the JSON and check, in this order:
 ### 2.3 Dress and groom
 
 ```bash
-cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- content/tracks/real/<Stem>.yaml --verbose
-cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- content/tracks/real/<Stem>.yaml --dry-run   # preview only
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- content/tracks/default/<Stem>.yaml --verbose
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- content/tracks/default/<Stem>.yaml --dry-run   # preview only
 ```
 
 `ats-dress` deletes and re-lays every grandstand, building, attraction,
@@ -144,14 +144,14 @@ next `ats-dress` run would throw the edit away.
 ### 2.4 Export, bake, look
 
 ```bash
-cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- content/tracks/real/<Stem>.yaml
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- content/tracks/default/<Stem>.yaml
 cd track-editor && cargo test && cd ..
 ./scripts/build_track_levels.ps1 -Track <Stem>          # dress, export, preview for one circuit (built by the game at runtime)
 ```
 
 The export writes `<Stem>.ground.msgpack`, `<Stem>.curbs.msgpack` and
 `<Stem>.walls.msgpack` beside the YAML (gitignored; the server reads them at
-load) and `content/tracks/export/<Stem>.uescene.json`. Then take screenshots
+load) and `build/tracks/<Stem>.uescene.json`. Then take screenshots
 with a running server (build the server into a scratch `CARGO_TARGET_DIR` if
 the user's own server is running and locks the exe):
 
@@ -248,7 +248,7 @@ counts.
 
 ### 4.1 Idempotency
 
-`ats-dress <Stem>.yaml` twice; `git diff --stat content/tracks/real/<Stem>.ats`
+`ats-dress <Stem>.yaml` twice; `git diff --stat content/tracks/default/<Stem>.ats`
 must be empty after the second run. Same for `ats-groom`.
 
 ### 4.2 Tests

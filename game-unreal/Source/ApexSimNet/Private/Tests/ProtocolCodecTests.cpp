@@ -367,7 +367,7 @@ bool FApexProtocolLobbyStateDecodeTest::RunTest(const FString& Parameters)
 		const FApexSessionSummary& Session = Lobby.AvailableSessions[0];
 		TestEqual(TEXT("session Id"), Session.Id, SessId);
 		TestEqual(TEXT("session TrackName decodes UTF-8"), Session.TrackName, FString(TEXT("São Paulo")));
-		TestEqual(TEXT("session TrackFile"), Session.TrackFile, FString(TEXT("tracks/real/SaoPaulo.yaml")));
+		TestEqual(TEXT("session TrackFile"), Session.TrackFile, FString(TEXT("tracks/default/SaoPaulo.yaml")));
 		TestEqual(TEXT("session HostName"), Session.HostName, FString(TEXT("Player")));
 		// Both of these are u8 integers on the wire, never strings.
 		TestEqual(TEXT("session SessionKind"), Session.SessionKind, EApexSessionKind::Practice);

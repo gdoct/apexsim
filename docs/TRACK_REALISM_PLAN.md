@@ -17,13 +17,13 @@ it lives in the code, so the fixes in §3 can be checked against it.
 | 3 | Barriers not consistently tecpro | No barrier *type* is ever decided. Straights get `armco_generic` hard-coded; corner walls copy whatever asset the 2026-09 enrichment left as an anchor (`tire_wall_generic` everywhere). `tecpro_2m`, `concrete_4m*`, `armco_4m_fence`, `armco_end`, `tires_corner` are built and never emitted. Coverage at a corner depends on a legacy anchor being within 40 m. OSM has 53 `barrier=wall` and 27 `barrier=tyres` ways around the ring that are never read. | `groom.rs:192,982,1394`, `osm_layout.py` (no barrier extraction) |
 | 4 | Not using all props | `ats-dress` lays only what the dossier has: stands, structures, crossings, landmarks, pit lane. The dossier has no layer for parking, camp sites, service roads, fences, marshal posts, lights, vehicles, sky, fanzone, and OSM's 17 car parks, 5 camp sites, 157 service roads, 20 bridges, 36 streams near the ring are dropped at extraction. `skyline_*`, `vehicle/*`, `attraction/*`, `fence/*`, `sign/marshal_post`, `sign/flag_pole`, `misc/*` have no placement rule at all. | `osm_layout.py:1243 extract()`, `dress.rs:107 dress_scene` |
 | 5 | Dark at night | The only dynamic lights are spawned on `floodlight_tower` / `lamp_post` instances; Spielberg has none (the real ring is not floodlit) and the director has no fallback. Pit lane, garages, stands and the paddock have no lit windows or lamps. | `ApexRaceDirector.cpp:1572-1621`, `dress.rs:531` |
-| 6 | Malformed corners | The centerline is a raw 5 m GPS polyline with kinks: at Remus (station 1394) the sampled radius is 8 m on an 10.6 m wide road, and curvature jumps 0.07/m between adjacent samples (T1 and Remus). Catmull-Rom interpolates *through* the kinks, the inner road edge folds, and curbs/edge lines follow. No smoothing or minimum-radius pass exists. | `content/tracks/real/Spielberg.yaml`, `server/src/track_loader.rs`, `track-editor/core/src/track_path.rs` |
+| 6 | Malformed corners | The centerline is a raw 5 m GPS polyline with kinks: at Remus (station 1394) the sampled radius is 8 m on an 10.6 m wide road, and curvature jumps 0.07/m between adjacent samples (T1 and Remus). Catmull-Rom interpolates *through* the kinks, the inner road edge folds, and curbs/edge lines follow. No smoothing or minimum-radius pass exists. | `content/tracks/default/Spielberg.yaml`, `server/src/track_loader.rs`, `track-editor/core/src/track_path.rs` |
 | 7 | Basic surroundings | Ground is an inverse-distance blanket of the centerline's own heights: no hills, no valleys, no fields, no roads, no buildings beyond the 9 OSM structures; only 130 m grass bands, astroturf and asphalt run-off. No gravel, no meadow, no farmland. | `terrain.rs:326-342`, `Spielberg.ats` surfaces |
 | 8 | No mountains | The ground mesh stops 800 m from the road and there is no backdrop of any kind: the track sublevel holds only a height-fog actor, the sky is the bare `SkyAtmosphere` in `L_Menu`. The centerline's own relief is also about half the real one (35 m modelled vs ~65 m real), so even the near hills are flat. | `terrain.rs:54`, `L_Spielberg.umap`, `ApexSkyModel.h` |
 
 ### 1.1 The data we already have and do not use
 
-The cached OSM extract for the ring (`content/tracks/osm-cache/Spielberg.0.json`)
+The cached OSM extract for the ring (`.cache/osm/Spielberg.0.json`)
 holds, within 250 m of the road: 110 service roads, 70 grass and 11 meadow
 polygons, 53 walls and 27 tyre-barrier ways, 40 buildings, 21 streams, 15
 shingle beds, 10 scrub patches, 8 car parks, 8 forest polygons, 9 named
@@ -119,8 +119,8 @@ transform puts a DEM tile into the track frame for free.
 
 - New `scripts/dem_fetch.py <Stem>`: downloads the tiles covering the
   bbox inflated to **8 km** (the horizon a driver sees from a 700 m
-  valley floor), caches under `content/tracks/dem-cache/`, resamples to
-  the track frame and writes `content/tracks/real/<Stem>.dem.msgpack`
+  valley floor), caches under `.cache/dem/`, resamples to
+  the track frame and writes `content/tracks/default/<Stem>.dem.msgpack`
   (two grids: 10 m inner, 90 m outer ring to 8 km; f32 heights; the
   transform and source recorded).
 - `terrain.rs` takes the DEM as the height *source* instead of the IDW

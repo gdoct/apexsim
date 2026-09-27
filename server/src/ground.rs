@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn sidecar_path_uses_the_track_stem() {
-        let p = GroundHeightfield::sidecar_path(Path::new("content/tracks/real/Monza.yaml"));
+        let p = GroundHeightfield::sidecar_path(Path::new("content/tracks/default/Monza.yaml"));
         assert!(p.ends_with("Monza.ground.msgpack"));
     }
 

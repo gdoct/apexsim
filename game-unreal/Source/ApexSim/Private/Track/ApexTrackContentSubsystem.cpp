@@ -65,7 +65,7 @@ TArray<FString> UApexTrackContentSubsystem::TrackDirectories()
 	// `Tracks/` beside them. In the editor the exports never leave the repo.
 	const FString Default = FPlatformProperties::RequiresCookedData()
 		? FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("Tracks"))
-		: FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("content"), TEXT("tracks"), TEXT("export"));
+		: FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("build"), TEXT("tracks"));
 	Dirs.AddUnique(FPaths::ConvertRelativePathToFull(Default));
 	return Dirs;
 }

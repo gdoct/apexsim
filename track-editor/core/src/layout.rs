@@ -5,7 +5,7 @@
 //! the grandstands are called and where they stand, the pit building and
 //! the tower, the bridges over the road, the fairground wheel, and where
 //! the woods really are. It sits beside the track's YAML
-//! (`content/tracks/real/<Stem>.layout.json`), is written by
+//! (`content/tracks/default/<Stem>.layout.json`), is written by
 //! `scripts/osm_layout.py` from OpenStreetMap (public data, ODbL) and is
 //! read here by [`crate::dress`], which turns it into props.
 //!
@@ -363,7 +363,7 @@ pub enum LayoutError {
 }
 
 /// The dossier path belonging to a source track file:
-/// `content/tracks/real/Monza.yaml` -> `content/tracks/real/Monza.layout.json`.
+/// `content/tracks/default/Monza.yaml` -> `content/tracks/default/Monza.layout.json`.
 pub fn layout_path_for<P: AsRef<Path>>(track_path: P) -> PathBuf {
     let path = track_path.as_ref();
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();

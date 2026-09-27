@@ -5,7 +5,7 @@
 //! was room, the pit lane took whichever side of the road the old data
 //! guessed, and no circuit had its landmarks. This pass replaces all of
 //! that with what is really there, as recorded in
-//! `content/tracks/real/<Stem>.layout.json` (see [`crate::layout`]).
+//! `content/tracks/default/<Stem>.layout.json` (see [`crate::layout`]).
 //!
 //! What it owns — and therefore deletes and re-lays from scratch on every
 //! run — is every prop of the kinds it places: grandstands, buildings,

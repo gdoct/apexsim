@@ -19,7 +19,7 @@ Converts CSV track data from [racetrack-database](https://github.com/TUMFTM/race
 Converts all tracks in one command with full metadata.
 
 ### 4. Real-World Tracks
-**Location**: `content/tracks/real/`
+**Location**: `content/tracks/default/`
 
 25+ professional race tracks from F1, DTM, and IndyCar championships.
 
@@ -30,7 +30,7 @@ Converts all tracks in one command with full metadata.
 Edit `server/server.toml`:
 ```toml
 [track]
-track_file = "./content/tracks/real/Spa.yaml"
+track_file = "./content/tracks/default/Spa.yaml"
 ```
 
 Available tracks:
@@ -46,7 +46,7 @@ cd server
 ./target/release/convert_track \
   --tracks-csv /path/to/tracks/Monza.csv \
   --raceline-csv /path/to/racelines/Monza.csv \
-  --output ../content/tracks/real/monza.yaml \
+  --output ../content/tracks/default/monza.yaml \
   --name "Autodromo Nazionale di Monza" \
   --country "Italy" \
   --city "Monza" \
@@ -58,7 +58,7 @@ cd server
 
 ```bash
 cd server
-./convert_all_tracks.sh /path/to/racetrack-database ../content/tracks/real
+./convert_all_tracks.sh /path/to/racetrack-database ../content/tracks/default
 ```
 
 Output:
@@ -66,7 +66,7 @@ Output:
 Converting: Circuit de Spa-Francorchamps
   Track CSV: /path/to/tracks/Spa.csv
   Raceline CSV: /path/to/racelines/Spa.csv
-  Output: ../content/tracks/real/Spa.yaml
+  Output: ../content/tracks/default/Spa.yaml
   ✓ Success
 
 ...
@@ -90,10 +90,10 @@ Failed: 0
 - `docs/TRACK_CONVERTER.md` - **NEW** Complete converter documentation
 - `docs/TRACK_FILE_FORMAT.md` - Updated with new format features
 - `content/tracks/README.md` - Updated with real track info
-- `content/tracks/real/README.md` - **NEW** Real track catalog
+- `content/tracks/default/README.md` - **NEW** Real track catalog
 
 ### Track Data
-- `content/tracks/real/*.yaml` - **NEW** 25 converted real-world tracks
+- `content/tracks/default/*.yaml` - **NEW** 25 converted real-world tracks
 
 ### Examples
 - `server/examples/load_real_track.rs` - **NEW** Example loading real tracks
@@ -180,7 +180,7 @@ To use a real-world track:
 1. Edit `server/server.toml`:
    ```toml
    [track]
-   track_file = "./content/tracks/real/Spa.yaml"
+   track_file = "./content/tracks/default/Spa.yaml"
    ```
 
 2. Run the server:
@@ -219,4 +219,4 @@ Ensure CSV files match the expected format:
 For complete details, see:
 - [TRACK_CONVERTER.md](TRACK_CONVERTER.md) - Converter tool documentation
 - [TRACK_FILE_FORMAT.md](TRACK_FILE_FORMAT.md) - Track format specification
-- [content/tracks/real/README.md](../content/tracks/real/README.md) - Track catalog
+- [content/tracks/default/README.md](../content/tracks/default/README.md) - Track catalog

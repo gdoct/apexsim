@@ -20,7 +20,7 @@ use apexsim_server::physics;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
-const MONZA: &str = "../content/tracks/real/Monza.yaml";
+const MONZA: &str = "../content/tracks/default/Monza.yaml";
 
 fn load_monza() -> TrackConfig {
     TrackLoader::load_from_file(MONZA).expect("failed to load Monza track")

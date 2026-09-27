@@ -21,7 +21,7 @@ use track_core::ue_export::{
 use track_core::ue_export_io;
 
 fn real_tracks_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/real")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/default")
 }
 
 fn node(x: f32, y: f32, z: f32, banking: f32) -> TrackNode {
@@ -949,8 +949,8 @@ fn writing_an_export_twice_produces_the_same_bytes() {
 #[test]
 fn the_mesh_blob_sits_beside_its_manifest() {
     assert_eq!(
-        ue_export_io::mesh_blob_path_for(Path::new("content/tracks/export/Spa.uescene.json")),
-        Path::new("content/tracks/export/Spa.uemesh")
+        ue_export_io::mesh_blob_path_for(Path::new("build/tracks/Spa.uescene.json")),
+        Path::new("build/tracks/Spa.uemesh")
     );
     assert_eq!(
         ue_export_io::mesh_blob_path_for(Path::new("out/Red.Bull.uescene.json")),
@@ -1430,6 +1430,36 @@ fn external_sidecars_are_left_as_the_importer_wrote_them() {
     assert_eq!(fs::read(&road).unwrap(), b"imported road");
 }
 
+/// `--all` walks the shipped folder then the player's own, and refuses a
+/// stem found in both rather than baking one export over the other.
+#[test]
+fn batch_runs_walk_both_track_folders_and_refuse_a_shared_stem() {
+    let root = tempfile::tempdir().unwrap();
+    let default = root.path().join("default");
+    let custom = root.path().join("custom");
+    fs::create_dir_all(&default).unwrap();
+    fs::write(default.join("B.yaml"), "").unwrap();
+    fs::write(default.join("A.yaml"), "").unwrap();
+
+    // A missing custom folder is no error.
+    let found = ue_export_io::track_files_in_dirs(&[&default, &custom]).unwrap();
+    assert_eq!(found, vec![default.join("A.yaml"), default.join("B.yaml")]);
+
+    fs::create_dir_all(&custom).unwrap();
+    fs::write(custom.join("C.yaml"), "").unwrap();
+    let found = ue_export_io::track_files_in_dirs(&[&default, &custom]).unwrap();
+    assert_eq!(found.last(), Some(&custom.join("C.yaml")));
+
+    fs::write(custom.join("A.yaml"), "").unwrap();
+    match ue_export_io::track_files_in_dirs(&[&default, &custom]) {
+        Err(ue_export_io::UeExportError::DuplicateStem { stem, .. }) => assert_eq!(stem, "A"),
+        other => panic!(
+            "expected a duplicate stem, got {:?}",
+            other.map(|f| f.len())
+        ),
+    }
+}
+
 fn wall_prop(
     id: u64,
     kind: PropKind,
@@ -1670,7 +1700,8 @@ fn walls_sidecar_roundtrips_through_msgpack() {
 #[ignore = "bakes every real circuit, minutes of work; run with -- --include-ignored"]
 fn every_real_track_bakes() {
     let dir = real_tracks_dir();
-    let tracks = ue_export_io::track_files_in(&dir).expect("content/tracks/real must be readable");
+    let tracks =
+        ue_export_io::track_files_in(&dir).expect("content/tracks/default must be readable");
     assert!(
         tracks.len() >= 20,
         "expected the full track set, found {}",
@@ -1976,7 +2007,8 @@ fn the_verge_meets_the_road_edge_on_every_real_circuit() {
     use track_core::track_path::{offset_point, CenterlinePath};
 
     let dir = real_tracks_dir();
-    let tracks = ue_export_io::track_files_in(&dir).expect("content/tracks/real must be readable");
+    let tracks =
+        ue_export_io::track_files_in(&dir).expect("content/tracks/default must be readable");
     assert!(tracks.len() >= 20);
     let mut worst: Vec<(f32, String, f32, i32)> = Vec::new();
     for track_path in tracks {

@@ -5,10 +5,10 @@
 //! reads from beside each YAML.
 //!
 //! ```text
-//! ats-export --all                          # every track under content/tracks/real
-//! ats-export content/tracks/real/Monza.yaml # one track
+//! ats-export --all                          # every track under content/tracks/{default,custom}
+//! ats-export content/tracks/default/Monza.yaml # one track
 //! ats-export --all --out some/other/dir
-//! ats-export --keep-sidecars road,walls content/tracks/real/X.yaml
+//! ats-export --keep-sidecars road,walls content/tracks/default/X.yaml
 //! ```
 //!
 //! A track whose `.ats` lists `external_sidecars` (an imported circuit whose
@@ -23,8 +23,6 @@ use std::process::ExitCode;
 
 use track_core::ats::Sidecar;
 use track_core::ue_export_io::{self, ExportOptions, DEFAULT_EXPORT_DIR};
-
-const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -79,11 +77,10 @@ fn main() -> ExitCode {
     }
 
     if all {
-        let dir = Path::new(DEFAULT_TRACK_DIR);
-        match ue_export_io::track_files_in(dir) {
+        match ue_export_io::all_track_files() {
             Ok(found) => tracks.extend(found),
             Err(e) => {
-                eprintln!("failed to list {}: {e}", dir.display());
+                eprintln!("failed to list the track folders: {e}");
                 return ExitCode::FAILURE;
             }
         }
@@ -187,9 +184,9 @@ fn main() -> ExitCode {
 const USAGE: &str = "\
 usage: ats-export [--all] [--out DIR] [--flat-curbs] [--keep-sidecars LIST] [TRACK.yaml ...]
 
-  --all, -a      export every *.yaml under content/tracks/real
+  --all, -a      export every *.yaml under content/tracks/{default,custom}
   --out, -o DIR  destination for the .uescene.json manifest and the .uemesh mesh blob
-                 beside it (default: content/tracks/export); the .ground.msgpack,
+                 beside it (default: build/tracks); the .ground.msgpack,
                  .curbs.msgpack, .walls.msgpack and .road.msgpack sidecars always land
                  beside the YAML
   --flat-curbs   bake the curbs into the road mesh flat at the road edge's height

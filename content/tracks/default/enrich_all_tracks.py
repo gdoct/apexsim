@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Standalone track elevation enrichment script.
-Place this file in your tracks/real directory and run: python3 enrich_all_tracks.py
+Place this file in your tracks/default directory and run: python3 enrich_all_tracks.py
 """
 
 import yaml
@@ -511,7 +511,7 @@ def main():
     
     if not track_files:
         print(f"\n❌ No track files found in {script_dir}")
-        print("Place this script in your tracks/real directory!")
+        print("Place this script in your tracks/default directory!")
         sys.exit(1)
     
     print(f"Found {len(track_files)} track files\n")

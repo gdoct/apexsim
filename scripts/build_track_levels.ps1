@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Runs the whole track pipeline end to end, so every circuit under
-    content/tracks/real ends up as an export in content/tracks/export - the
+    content/tracks/default ends up as an export in build/tracks - the
     files the game builds the circuit from when it is raced. There are no
     cooked track levels (docs/RUNTIME_CONTENT_LOADING.md): a changed circuit
     is playable in the editor build as soon as this finishes (restart the
@@ -14,10 +14,10 @@
            commandlets in the ApexTrackEditor module match the C++ source
         2. (optional, -ImportProps) UnrealEditor-Cmd -run=ApexPropImport -all
                                                  -> game-unreal/Content/Props/...
-        3. cargo run --bin ats-dress -- --all    -> content/tracks/real/*.ats
-        4. cargo run --bin ats-export -- --all   -> content/tracks/export/<Track>.{uescene.json,uemesh}
+        3. cargo run --bin ats-dress -- --all    -> content/tracks/default/*.ats
+        4. cargo run --bin ats-export -- --all   -> build/tracks/<Track>.{uescene.json,uemesh}
                                                     (+ the server's sidecars beside each YAML)
-        5. python scripts/build_track_catalog.py -> content/tracks/export/previews/<Track>.png
+        5. python scripts/build_track_catalog.py -> build/tracks/previews/<Track>.png
         6. UnrealEditor-Cmd -run=ApexMaterialBake -> /Game/Materials/Track and
            /Game/Materials/Car, the parent materials every runtime track and
            car instantiates (only the missing ones; cheap)
@@ -34,7 +34,7 @@
     few seconds and removes the failure mode.
 
     Both generated stages are regenerated wholesale; nothing under
-    content/tracks/export or Content/Tracks should be hand-edited.
+    build/tracks or Content/Tracks should be hand-edited.
 
     The exporter resolves its input and output directories relative to the
     working directory, so this script always runs cargo from the repo root
@@ -74,7 +74,7 @@
     next dress run overwrites what the pass owns either way.
 
 .PARAMETER SkipExport
-    Keep the exports already sitting in content/tracks/export.
+    Keep the exports already sitting in build/tracks.
 
 .PARAMETER SkipPreviews
     Leave the catalog previews alone (they need Python with numpy, Pillow and
@@ -124,11 +124,11 @@ $ErrorActionPreference = 'Stop'
 
 $RepoRoot  = Split-Path -Parent $PSScriptRoot
 $Uproject  = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
-$TrackDir  = Join-Path $RepoRoot 'content\tracks\real'
-$ExportDir = Join-Path $RepoRoot 'content\tracks\export'
+$ExportDir = Join-Path $RepoRoot 'build\tracks'
 $LevelDir  = Join-Path $RepoRoot 'game-unreal\Content\Tracks'
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 
 function Write-Step {
     param([string]$Message)
@@ -171,11 +171,11 @@ function Resolve-TrackFiles {
     $files = @()
     foreach ($name in $Names) {
         $stem = [IO.Path]::GetFileNameWithoutExtension($name)
-        $path = Join-Path $TrackDir "$stem.yaml"
-        if (-not (Test-Path $path)) {
-            $available = (Get-ChildItem $TrackDir -Filter '*.yaml' |
+        $path = Find-ApexTrackFile -RepoRoot $RepoRoot -Stem $stem
+        if (-not $path) {
+            $available = (Get-ApexTrackFiles -RepoRoot $RepoRoot |
                 ForEach-Object { $_.BaseName }) -join ', '
-            throw "no track named `"$stem`" in $TrackDir. Available: $available"
+            throw "no track named `"$stem`" in content\tracks\default or content\tracks\custom. Available: $available"
         }
         $files += $path
     }
@@ -227,7 +227,7 @@ else {
         Write-Step "Dressing $($trackFiles.Count) track(s) from their layout dossiers"
     }
     else {
-        Write-Step "Dressing every track in $TrackDir that has a layout dossier"
+        Write-Step "Dressing every track (default and custom) that has a layout dossier"
     }
 
     $dressArgs = @('run', '--quiet', '--manifest-path',
@@ -248,7 +248,7 @@ else {
         Write-Step "Baking $($trackFiles.Count) track(s) to $ExportDir"
     }
     else {
-        Write-Step "Baking every track in $TrackDir to $ExportDir"
+        Write-Step "Baking every track (default and custom) to $ExportDir"
     }
 
     $cargoArgs = @('run', '--quiet', '--manifest-path',

@@ -154,7 +154,7 @@ below): `Game/Tracks/` holds each one's `.uescene.json`, `.uemesh` and
 preview `.png`, and the run aborts if a circuit has no export or the track
 materials were never baked. A new circuit can be added to an installed
 game by dropping those three files in `Game/Tracks` and its YAML (with the
-sidecars) in `Server/content/tracks/real`. The cars ship the same way
+sidecars) in `Server/content/tracks/default`. The cars ship the same way
 (see "Cars" below): `Game/Cars/<folder>/` holds each car.toml with the GLBs
 and logos it names and `Game/Wheels/` the class wheels; the run aborts if a
 car.toml names a file that is not there or the car materials were never
@@ -186,7 +186,7 @@ there was room, guessed which side the pit lane went, gave no circuit its
 landmarks and ringed every venue — dunes included — with the same tree belt.
 
 A circuit's real furniture now comes from a **layout dossier** checked in
-beside its YAML, `content/tracks/real/<Stem>.layout.json`: named corners, the
+beside its YAML, `content/tracks/default/<Stem>.layout.json`: named corners, the
 pit lane's real polyline and side, the grandstands with their names, sizes and
 road-facing outlines, the buildings, what crosses over the road, landmarks,
 and the outlines of the real woodland with its leaf type, plus the
@@ -211,13 +211,13 @@ public road in OSM rather than `highway=raceway`). Facts OSM lacks live in
 each circuit's published seating map, and survive a refetch; a manual stand is
 given as a station span and `outside`/`inside`, and the script lays its front
 along the centerline so it curves with the bend. Raw extracts are cached,
-gitignored, under `content/tracks/osm-cache/`.
+gitignored, under `.cache/osm/`.
 
 `ats-dress` turns a dossier into scenery and then grooms around it:
 
 ```bash
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
-                                            # or: content/tracks/real/Spa.yaml [--dry-run]
+                                            # or: content/tracks/default/Spa.yaml [--dry-run]
 ```
 
 It owns every prop of the kinds it lays (grandstand, building, attraction,
@@ -332,13 +332,13 @@ georeferenced onto the track frame by the *same* fit the dossier uses
 python scripts/dem_fetch.py --all         # or: Spielberg [--offline] [--dry-run]
 ```
 
-It writes `content/tracks/real/<Stem>.dem.msgpack`: an `inner` grid at 10 m
+It writes `content/tracks/default/<Stem>.dem.msgpack`: an `inner` grid at 10 m
 over the circuit and a kilometre around it, and an `outer` grid at 90 m out
 to eight kilometres, both in the server frame (the model is offset so it
 agrees with the YAML's own z at the start/finish line). Unlike the other
 sidecars this one is **checked in**, because regenerating it needs a few
 hundred megabytes off the network; the raw tiles under
-`content/tracks/dem-cache/` are gitignored.
+`.cache/dem/` are gitignored.
 
 `terrain.rs` reads it (`TerrainHeightfield::from_paths_with_dem`) and
 crossfades: within 40 m of a road the surveyed centerline wins, because a
@@ -427,7 +427,7 @@ within 250 m), signed by the bend's hand, holding over the bend's core
 is dropped.
 
 ```bash
-cargo run --manifest-path track-editor/Cargo.toml --release --bin ats-bank -- content/tracks/real/Zandvoort.yaml
+cargo run --manifest-path track-editor/Cargo.toml --release --bin ats-bank -- content/tracks/default/Zandvoort.yaml
                                             # or --all [--dry-run]
 ```
 
@@ -559,10 +559,10 @@ neither output should be hand-edited.
 
 ```bash
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
-                                                         # -> content/tracks/real/*.ats
+                                                         # -> content/tracks/default/*.ats
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
-                                                         # -> content/tracks/export/*.{uescene.json,uemesh} (gitignored)
-python scripts/build_track_catalog.py                   # -> content/tracks/export/previews/*.png
+                                                         # -> build/tracks/*.{uescene.json,uemesh} (gitignored)
+python scripts/build_track_catalog.py                   # -> build/tracks/previews/*.png
 ```
 
 `scripts/build_track_levels.ps1` runs all three, then bakes the shared track
@@ -577,11 +577,11 @@ running it every time costs seconds and removes the failure mode
 (`-SkipDress` if you are editing a scene by hand). and finds the engine install from the
 `.uproject`'s `EngineAssociation`; `-Track A,B` narrows it to a few circuits,
 `-DryRun` reports without writing assets. Note that `ats-export` resolves
-`content/tracks/{real,export}` relative to the working directory, so it must be
+`content/tracks/{default,custom,export}` relative to the working directory, so it must be
 run from the repo root — not from `track-editor/`.
 
 The exporter also writes four gitignored sidecars (like the exports) into
-`content/tracks/real/`, all loaded by the server from beside the YAML and
+`content/tracks/default/`, all loaded by the server from beside the YAML and
 all shipped in `Server/` by `build_release.ps1`. A track whose sidecars
 another tool wrote (an importer that measured the real road) lists them in
 its `.ats` as `"external_sidecars": ["road", "walls", ...]`, and every
@@ -701,7 +701,7 @@ levels and `/Game/Tracks` is in `DirectoriesToNeverCook`. The reader,
   `apexsim.track.Rescan`): `-ApexTracksDir=<dir>[+<dir>]`, then `Tracks/`
   beside `ApexSim.exe` in a package (`build_game_standalone.ps1` and
   `build_release.ps1` copy the exports there) or the repo's
-  `content/tracks/export` in the editor. Each manifest's head (the first
+  `build/tracks` in the editor. Each manifest's head (the first
   64 KB: every field ahead of `materials`) becomes the catalog row for its
   `track_id`, with `SourceCrc` from the export and `RuntimePreview` from
   `<Stem>.png` (beside it or under `previews/`).
@@ -770,7 +770,7 @@ keeps them and the product never shows them. Rule: **a real name lives in
   place ("Modelled on the circuit in the dunes at Zandvoort, Netherlands.";
   shown in the track picker, `FApexTrackCatalogRow::Description`). Both
   `TrackFile`s keep the key through rewrites. Stems stay the place names and
-  `-ApexTrack=` takes the stem. Table: `content/tracks/real/README.md`.
+  `-ApexTrack=` takes the stem. Table: `content/tracks/default/README.md`.
 - **Corners.** Each dossier corner has `name` (OSM's, what `apexsim-replay
   find --corner` and `drs_zones.py` look up) and `display_name`, written by
   `osm_layout.py` from `CORNER_DISPLAY`: a sound-alike for a sponsor or a
@@ -2052,7 +2052,9 @@ field is filled from a shift delta, not an absolute gear).
 
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)
-- `tracks/` - Track definitions (YAML/JSON) + procedural terrain caches (`.terrain.msgpack`)
+- `tracks/default/` - the shipped circuits: YAML, `.ats`, dossier, DEM and the generated sidecars side by side
+- `tracks/custom/` - the player's own tracks (imported or hand-made), same layout, gitignored but for its README and not shipped unless `build_release.ps1`/`build_game_standalone.ps1` get `-IncludeCustomTracks`. Every tool walks `default/` then `custom/` (`ue_export_io::TRACK_DIRS`, `scripts/track_dirs.py`, `scripts/lib/ApexTracks.ps1`); a stem must be unique across both (`ats-export --all` refuses a shared one, since exports are keyed by stem), and a custom track reusing a shipped `track_id` is skipped by the server with a warning
+- `build/tracks/` (outside `content/`, gitignored) - the client exports baked from both; `.cache/osm` and `.cache/dem` hold the raw OpenStreetMap and elevation downloads
 - Shared between server and clients
 
 ## Key Technical Details

@@ -3,7 +3,7 @@
 # too keeps a Windows checkout with core.autocrlf from listing every re-dressed
 # scene as modified when only its line endings differ. (The content checksum
 # drops carriage returns, so the server and client agree either way.)
-content/tracks/real/*.ats          text eol=lf
-content/tracks/real/*.yaml         text eol=lf
-content/tracks/real/*.layout.json  text eol=lf
-content/tracks/real/*.msgpack      binary
+content/tracks/default/*.ats          text eol=lf
+content/tracks/default/*.yaml         text eol=lf
+content/tracks/default/*.layout.json  text eol=lf
+content/tracks/default/*.msgpack      binary

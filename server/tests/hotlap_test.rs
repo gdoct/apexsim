@@ -22,7 +22,8 @@ use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
 fn monza() -> TrackConfig {
-    TrackLoader::load_from_file("../content/tracks/real/Monza.yaml").expect("failed to load Monza")
+    TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
+        .expect("failed to load Monza")
 }
 
 /// A session with `humans` human drivers seated, switched straight to Hotlap.

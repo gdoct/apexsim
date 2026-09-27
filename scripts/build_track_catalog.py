@@ -2,7 +2,7 @@
 """
 Bake the track catalog previews (and manifest) for the Unreal client.
 
-Reads every track YAML under content/tracks/real, draws a top-down outline
+Reads every track YAML under content/tracks/default, draws a top-down outline
 for each (reusing generate_track_previews.py) and writes it as
 `previews/<Stem>.png` beside the exports. The game shows that PNG on the
 track's card: it builds every circuit from its export at runtime and reads
@@ -15,8 +15,8 @@ turns it into `DT_TrackCatalog` rows, a fallback for tracks with no export:
 
 Outputs (both gitignored build products, regenerated wholesale):
 
-    content/tracks/export/previews/<Stem>.png
-    content/tracks/export/track_catalog.json
+    build/tracks/previews/<Stem>.png
+    build/tracks/track_catalog.json
 
 A track without a `track_id` is skipped with a warning: the catalog is keyed
 by that id, and without one the server mints a fresh UUID on every start, so
@@ -36,10 +36,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from generate_track_previews import generate_preview_image, parse_track_file  # noqa: E402
+from track_dirs import track_dir, track_glob  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TRACK_DIR = REPO_ROOT / "content" / "tracks" / "real"
-EXPORT_DIR = REPO_ROOT / "content" / "tracks" / "export"
+EXPORT_DIR = REPO_ROOT / "build" / "tracks"
 PREVIEW_DIR = EXPORT_DIR / "previews"
 MANIFEST = EXPORT_DIR / "track_catalog.json"
 
@@ -64,7 +64,7 @@ def main(argv):
 
     entries = []
     skipped = []
-    for yaml_path in sorted(TRACK_DIR.glob("*.yaml")):
+    for yaml_path in track_glob("*.yaml"):
         stem = yaml_path.stem
         if wanted and stem.lower() not in wanted:
             continue
@@ -109,7 +109,7 @@ def main(argv):
         print(f"  {stem}: {data.get('display_name') or track['name']} ({len(track['points'])} points, {length_m:.0f} m)")
 
     if wanted and not entries:
-        print(f"no track matched {sorted(wanted)} in {TRACK_DIR}", file=sys.stderr)
+        print(f"no track matched {sorted(wanted)} in content/tracks/default or custom", file=sys.stderr)
         return 1
 
     # A filtered run must not throw away the other tracks' manifest entries.

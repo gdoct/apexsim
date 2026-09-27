@@ -22,7 +22,7 @@ struct FApexTrackScene;
  * Options:
  *   -track=NAME    one track by export stem (repeatable, or comma-separated)
  *   -all           every export in the source directory
- *   -source=DIR    where the exports live (default: <project>/../content/tracks/export)
+ *   -source=DIR    where the exports live (default: <project>/../build/tracks)
  *   -dest=PATH     content root for generated assets (default: /Game/Tracks)
  *   -dryrun        parse and report, write nothing
  *

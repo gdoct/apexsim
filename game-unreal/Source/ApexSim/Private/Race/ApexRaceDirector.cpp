@@ -2229,7 +2229,7 @@ FString AApexRaceDirector::ResolveTrackStem() const
 		return FString();
 	}
 
-	// "tracks/real/Monza.yaml" -> "Monza", which is both the export stem and
+	// "tracks/default/Monza.yaml" -> "Monza", which is both the export stem and
 	// the folder the importer generated into.
 	const FString Stem = FPaths::GetBaseFilename(Session.TrackFile);
 	if (Stem.IsEmpty())

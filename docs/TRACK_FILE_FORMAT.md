@@ -69,17 +69,17 @@ See [TRACK_FILE_FORMAT.md](TRACK_FILE_FORMAT.md) for complete field descriptions
 
 ```bash
 # 25+ F1, DTM, and IndyCar tracks included!
-ls content/tracks/real/
+ls content/tracks/default/
 
 # Edit server.toml
 [track]
-track_file = "./content/tracks/real/Spa.yaml"
+track_file = "./content/tracks/default/Spa.yaml"
 ```
 
 ### Convert Your Own Tracks
 
 ```bash
-./server/convert_all_tracks.sh /path/to/racetrack-database ./content/tracks/real
+./server/convert_all_tracks.sh /path/to/racetrack-database ./content/tracks/default
 ```
 
 See [TRACK_CONVERTER.md](TRACK_CONVERTER.md) for details.

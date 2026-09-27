@@ -43,7 +43,7 @@ bool UApexTrackCatalogSyncCommandlet::ParseOptions(const FString& Params, FOptio
 		// Same layout assumption as ApexTrackImport: the Unreal project sits
 		// next to `content/`, and the manifest is gitignored build output.
 		Out.ManifestPath = FPaths::ConvertRelativePathToFull(
-			FPaths::Combine(FPaths::ProjectDir(), TEXT("../content/tracks/export/track_catalog.json")));
+			FPaths::Combine(FPaths::ProjectDir(), TEXT("../build/tracks/track_catalog.json")));
 	}
 
 	Out.TablePath = Values.Contains(TEXT("table")) ? Values[TEXT("table")] : TEXT("/Game/Data/DT_TrackCatalog");

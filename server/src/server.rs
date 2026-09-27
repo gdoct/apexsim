@@ -100,23 +100,17 @@ impl ServerState {
         Self::load_tracks_recursive(track_configs, tracks_dir, content_root, road_contact);
     }
 
-    /// `content/tracks/export/` holds the baked `*.uescene.json` scenes the
-    /// track editor produces for the Unreal client: multi-megabyte vertex
-    /// buffers, not track definitions. They live under the tracks directory,
-    /// so the recursive scan has to skip them explicitly. Real-world layout
-    /// dossiers (`<Stem>.layout.json`, see CLAUDE.md "Real-world layouts")
-    /// and their raw OSM extracts (`osm-cache/`) sit beside the track YAML
-    /// for the same reason and need the same treatment: neither is a track
-    /// config, so trying to parse either as one just logs a warning.
+    /// Real-world layout dossiers (`<Stem>.layout.json`, see CLAUDE.md
+    /// "Real-world layouts") sit beside the track YAML but are not track
+    /// configs, so trying to parse one as a track would only log a warning.
+    /// (The client exports and the download caches used to live under the
+    /// tracks directory too; they are in `build/tracks` and `.cache` now.)
     fn is_non_track_json(path: &std::path::Path) -> bool {
         let name = path
             .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or_default();
-        (path.is_dir()
-            && (name.eq_ignore_ascii_case("export") || name.eq_ignore_ascii_case("osm-cache")))
-            || name.to_ascii_lowercase().ends_with(".uescene.json")
-            || name.to_ascii_lowercase().ends_with(".layout.json")
+        name.to_ascii_lowercase().ends_with(".layout.json")
     }
 
     fn load_tracks_recursive(
@@ -127,11 +121,20 @@ impl ServerState {
     ) {
         match std::fs::read_dir(dir) {
             Ok(entries) => {
-                for entry in entries.filter_map(|e| e.ok()) {
-                    let path = entry.path();
+                // Sorted, so which of two tracks claiming one id is kept does
+                // not depend on the filesystem, and `custom/` last: the first
+                // one loaded wins, so a player's track can never replace a
+                // shipped one by reusing its id.
+                let mut paths: Vec<_> = entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+                paths.sort_by_key(|p| {
+                    let custom = p
+                        .file_name()
+                        .is_some_and(|n| n.eq_ignore_ascii_case("custom"));
+                    (custom, p.clone())
+                });
+                for path in paths {
                     if path.is_dir() {
-                        // Recursively load tracks from subdirectories, except
-                        // generated scene exports and dossier/cache directories.
+                        // Recursively load tracks from subdirectories.
                         if !Self::is_non_track_json(&path) {
                             Self::load_tracks_recursive(
                                 track_configs,
@@ -149,6 +152,15 @@ impl ServerState {
                                     let rel = path.strip_prefix(content_root).unwrap_or(&path);
                                     let rel_norm = rel.to_string_lossy().replace('\\', "/");
                                     track.source_path = Some(rel_norm);
+                                    if let Some(kept) = track_configs.get(&track.id) {
+                                        warn!(
+                                            "Track {:?} has the same track_id as {:?}; ignoring it \
+                                             (give a custom track its own track_id)",
+                                            track.source_path.as_deref().unwrap_or_default(),
+                                            kept.source_path.as_deref().unwrap_or_default()
+                                        );
+                                        continue;
+                                    }
                                     track_configs.insert(track.id, track);
                                 }
                                 Err(e) => {
@@ -396,6 +408,49 @@ mod tests {
         assert!(!state.car_configs.is_empty());
         assert!(!state.track_configs.is_empty());
         assert_eq!(state.sessions.len(), 0);
+    }
+
+    /// `content/tracks/custom` is read after `default` whatever the
+    /// filesystem's order, so a custom track reusing a shipped track's id is
+    /// the one left out; one with its own id loads beside it.
+    #[test]
+    fn custom_tracks_load_beside_the_default_ones_and_never_replace_them() {
+        let root = tempfile::tempdir().unwrap();
+        let tracks = root.path().join("tracks");
+        let write = |folder: &str, stem: &str, id: &str| {
+            let dir = tracks.join(folder);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join(format!("{stem}.yaml")),
+                format!(
+                    "name: {stem}\ntrack_id: {id}\nnodes:\n  - {{ x: 0.0, y: 0.0 }}\n  \
+                     - {{ x: 100.0, y: 0.0 }}\n  - {{ x: 100.0, y: 100.0 }}\n  \
+                     - {{ x: 0.0, y: 100.0 }}\ndefault_width: 10.0\nclosed_loop: true\n"
+                ),
+            )
+            .unwrap();
+        };
+        let shared = "6f1c2c4e-3b1f-4c8a-9d57-1a2b3c4d5e6f";
+        write("default", "Shipped", shared);
+        write("custom", "Clash", shared);
+        write("custom", "Mine", "0d9f8e7c-6b5a-4f3e-8d2c-1b0a9f8e7d6c");
+
+        let mut configs = HashMap::new();
+        ServerState::load_custom_tracks(
+            &mut configs,
+            tracks.to_str().unwrap(),
+            crate::config::RoadContactMode::Centerline,
+        );
+
+        let mut sources: Vec<String> = configs
+            .values()
+            .map(|t| t.source_path.clone().unwrap_or_default())
+            .collect();
+        sources.sort();
+        assert_eq!(
+            sources,
+            vec!["tracks/custom/Mine.yaml", "tracks/default/Shipped.yaml"]
+        );
     }
 
     #[test]

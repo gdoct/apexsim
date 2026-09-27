@@ -11,8 +11,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 TRACK_DIRS = [
-    "content/tracks/real",
-    "content/tracks/simple"
+    "content/tracks/default",
+    "content/tracks/custom"
 ]
 
 OUTPUT_DIR = "game-godot/assets/track_previews"
