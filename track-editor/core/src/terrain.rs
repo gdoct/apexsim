@@ -1375,6 +1375,7 @@ mod tests {
                 node(0.0, 300.0, 30.0),
             ],
             checkpoints: vec![],
+            sectors: vec![],
             spawn_points: vec![],
             default_width: 10.0,
             closed_loop: true,
@@ -1444,6 +1445,7 @@ mod tests {
                 node(0.0, 30.0, 25.0),
             ],
             checkpoints: vec![],
+            sectors: vec![],
             spawn_points: vec![],
             default_width: 10.0,
             closed_loop: true,
@@ -1493,6 +1495,7 @@ mod tests {
                 .chain((0..=10).map(|i| node(500.0 - i as f32 * 50.0, 400.0, 5.0)))
                 .collect(),
             checkpoints: vec![],
+            sectors: vec![],
             spawn_points: vec![],
             default_width: 10.0,
             closed_loop: true,

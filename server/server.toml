@@ -44,4 +44,4 @@ dir = "./records"
 #                  profile, two levels at a crossover); the centerline for a
 #                  track without the sidecar.
 # APEXSIM_PHYSICS_ROAD_CONTACT overrides it.
-road_contact = "centerline"
+road_contact = "mesh"

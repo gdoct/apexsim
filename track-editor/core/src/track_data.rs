@@ -25,6 +25,12 @@ pub struct TrackFile {
     pub nodes: Vec<TrackNode>,
     #[serde(default)]
     pub checkpoints: Vec<Checkpoint>,
+    /// Node indices of the sector boundaries past the start line (two of
+    /// them: three sectors), as the server reads them. Kept through every
+    /// tool that rewrites the YAML; none of them renumbers the nodes.
+    /// Omitted when empty, so a file without them is rewritten unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sectors: Vec<usize>,
     #[serde(default)]
     pub spawn_points: Vec<SpawnPoint>,
     #[serde(default)]

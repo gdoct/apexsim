@@ -52,6 +52,7 @@ fn test_track() -> TrackFile {
             node(0.0, 200.0, -3.0, 0.0),
         ],
         checkpoints: vec![],
+        sectors: vec![],
         spawn_points: vec![],
         default_width: 12.0,
         closed_loop: true,
@@ -480,6 +481,7 @@ fn stadium_track() -> TrackFile {
         track_id: Some("stadium".to_string()),
         nodes,
         checkpoints: vec![],
+        sectors: vec![],
         spawn_points: vec![],
         default_width: 12.0,
         closed_loop: true,
@@ -1366,6 +1368,66 @@ fn exporting_leaves_the_source_track_and_scene_untouched() {
         !dir.path().join("Mini.ats").exists(),
         "exporting must not create an .ats"
     );
+}
+
+/// A sidecar the track's `.ats` declares external (an importer measured
+/// it) survives every export, `--all` included; the ones it does not
+/// declare, and the client export, are still written. The command line
+/// can keep more on top.
+#[test]
+fn external_sidecars_are_left_as_the_importer_wrote_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let yaml = dir.path().join("Mini.yaml");
+    fs::write(
+        &yaml,
+        "name: Mini\nnodes:\n  - { x: 0.0, y: 0.0 }\n  - { x: 100.0, y: 0.0 }\n  - { x: 200.0, y: 40.0 }\ndefault_width: 10.0\nclosed_loop: false\n",
+    )
+    .unwrap();
+    let track = track_core::track_io::load_track_file(&yaml).unwrap();
+    let mut scene = AtsScene::new_for_track(&track, "Mini.yaml");
+    scene.external_sidecars = vec![
+        track_core::ats::Sidecar::Road,
+        track_core::ats::Sidecar::Walls,
+    ];
+    track_core::ats_io::save_ats(dir.path().join("Mini.ats"), &scene).unwrap();
+
+    let road = ue_export_io::road_sidecar_path_for(&yaml);
+    let walls = ue_export_io::walls_sidecar_path_for(&yaml);
+    fs::write(&road, b"imported road").unwrap();
+    let out = dir.path().join("export");
+
+    let exported = ue_export_io::export_track(&yaml, &out).unwrap();
+    assert_eq!(
+        exported.kept,
+        vec![
+            track_core::ats::Sidecar::Walls,
+            track_core::ats::Sidecar::Road
+        ]
+    );
+    assert_eq!(fs::read(&road).unwrap(), b"imported road");
+    assert!(
+        !walls.exists(),
+        "a kept sidecar the importer never wrote stays missing"
+    );
+    assert!(ue_export_io::curb_sidecar_path_for(&yaml).exists());
+    assert!(exported.scene_path.exists() && exported.mesh_blob_path.exists());
+
+    let options = ue_export_io::ExportOptions {
+        keep_sidecars: vec![track_core::ats::Sidecar::Curbs],
+        ..Default::default()
+    };
+    fs::write(
+        ue_export_io::curb_sidecar_path_for(&yaml),
+        b"imported curbs",
+    )
+    .unwrap();
+    let exported = ue_export_io::export_track_with_options(&yaml, &out, &options).unwrap();
+    assert_eq!(exported.kept.len(), 3);
+    assert_eq!(
+        fs::read(ue_export_io::curb_sidecar_path_for(&yaml)).unwrap(),
+        b"imported curbs"
+    );
+    assert_eq!(fs::read(&road).unwrap(), b"imported road");
 }
 
 fn wall_prop(

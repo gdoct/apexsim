@@ -425,6 +425,7 @@ mod tests {
                 node(0.0, 100.0),
             ],
             checkpoints: vec![],
+            sectors: vec![],
             spawn_points: vec![],
             default_width: 10.0,
             closed_loop: true,

@@ -1,6 +1,6 @@
 # Road mesh: wheel contact on triangles, beside the centerline
 
-*Design, 2026-09-27; built the same day (steps 1–4 below), the default still `centerline` (step 5). It prepares the Assetto Corsa import (`docs/AC_IMPORT_FEASIBILITY.md`, blocker 2), whose tracks are triangle-mesh physics, and it is useful on its own: the road the server drives on becomes the road the client draws.*
+*Design, 2026-09-27; built the same day (steps 1–4 below); `mesh` became the default on 2026-09-27 (step 5), after a spot check on a few circuits rather than the full-calendar survey. It prepares the Assetto Corsa import (`docs/AC_IMPORT_FEASIBILITY.md`, blocker 2), whose tracks are triangle-mesh physics, and it is useful on its own: the road the server drives on becomes the road the client draws.*
 
 ## Status
 
@@ -248,7 +248,7 @@ Each of these is a test, not a manual check:
 | 2 | Exporter: `road_physics` bake (no lifts, surface table, weld, hole report), the sidecar writer, `--flat-curbs`; round-trip, coverage and agreement tests | 3–4 days |
 | 3 | Server: `[physics] road_contact`, `TrackConfig.road_mesh`, the query dispatch, slope/banking from the normal, class and grip from the surface, fallback, seating; the physics tests under both backends; stub removed | 3–4 days |
 | 4 | Validation: determinism, bench, AI survey and grip probe against the centerline baseline, flat curbs then profiled; fix what they find; `build_release.ps1` and `initialize_content.ps1` treat a missing `.road.msgpack` like a missing sidecar | 2–4 days |
-| 5 | Default to `mesh` | — |
+| 5 | Default to `mesh` (done 2026-09-27) | — |
 | Later | Per-wheel grip; crown; bumps; AC importer writes the sidecar from `2.kn5` + `surfaces.ini` (then the AC road mesh can be the rendered road) | separately |
 
 Nothing on the client changes: it has no physics. The racing-line dots and the TV cameras already trace the rendered road, which the physics road now equals.

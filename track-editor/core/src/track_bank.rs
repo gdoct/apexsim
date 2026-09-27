@@ -394,6 +394,7 @@ mod tests {
             track_id: None,
             nodes,
             checkpoints: vec![],
+            sectors: vec![],
             spawn_points: vec![],
             default_width: 10.0,
             closed_loop: true,

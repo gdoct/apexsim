@@ -3,6 +3,7 @@
 
     python scripts/seed_scene.py Nordschleife            # writes content/tracks/real/Nordschleife.ats
     python scripts/seed_scene.py Nordschleife --force    # replace an existing scene's curbs and grass
+    python scripts/seed_scene.py Zandvoort --from survey.json   # curbs and bands measured elsewhere
 
 The shipped circuits' curbs, run-off and grass came from a one-off
 enrichment pass that is no longer in the repo; a circuit added since needs
@@ -20,6 +21,23 @@ Without `--force` an existing scene is left alone. With it, the scene's
 surfaces and curbs are replaced and everything else (props, pit lane,
 decals, markings, ids) is kept, so it can be re-run after a centerline
 change. `ats-dress` rewrites the file in its own formatting afterwards.
+
+`--from <file.json>` takes the curbs and bands from a survey instead of
+guessing them (an importer that measured the real kerbs, gravel traps and
+run-off, e.g. from an Assetto Corsa physics mesh), and implies `--force`:
+
+    {"curbs":    [{"side": "left", "start_m": 120.0, "end_m": 160.5,
+                   "width_m": 1.2, "style": "red_white"}, ...],
+     "surfaces": [{"kind": "gravel", "side": "right", "start_m": 300.0,
+                   "end_m": 380.0, "inner_m": 1.5, "width_m": 25.0,
+                   "end_width_m": 10.0, "paint": null}, ...]}
+
+Each entry is the `.ats` record without its `id` (ids are allocated
+here); `width_m` defaults to 1.0 and `style` to `red_white` on a curb,
+`inner_m` to 0 on a band. Either key may be left out, and the curbs or
+bands for it are then generated as without `--from`. The 130 m grass
+apron is always laid first and the authored bands after it, so they are
+drawn and driven over it (the bake layers bands in order).
 """
 
 from __future__ import annotations
@@ -38,6 +56,8 @@ CORNER_RADIUS_M = 220.0
 MIN_CORNER_M = 25.0
 SMOOTH_M = 20.0
 GRASS_WIDTH_M = 130.0
+SIDES = ("left", "right")
+SURFACE_KINDS = ("grass", "gravel", "asphalt_runoff", "concrete", "sand", "astroturf")
 
 
 def centerline(data: dict):
@@ -90,18 +110,75 @@ def corners(s, total, kappa):
     return sorted(out, key=lambda c: c[1])
 
 
+def authored(path: Path, total: float) -> dict:
+    """The `--from` file's curbs and surfaces, checked and without ids."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    unknown = set(data) - {"curbs", "surfaces"}
+    if unknown:
+        raise SystemExit(f"{path.name}: unknown keys {sorted(unknown)} (curbs, surfaces)")
+
+    def number(entry: dict, key: str, what: str) -> float:
+        value = entry.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise SystemExit(f"{path.name}: {what} needs a number {key!r}: {entry}")
+        return float(value)
+
+    def side(entry: dict, what: str) -> str:
+        if entry.get("side") not in SIDES:
+            raise SystemExit(f"{path.name}: {what} needs side left|right: {entry}")
+        return entry["side"]
+
+    out = {}
+    if "curbs" in data:
+        out["curbs"] = [
+            {
+                "side": side(c, "curb"),
+                "start_m": round(number(c, "start_m", "curb") % total, 2),
+                "end_m": round(number(c, "end_m", "curb") % total, 2),
+                "width_m": float(c.get("width_m", 1.0)),
+                "style": str(c.get("style", "red_white")),
+            }
+            for c in data["curbs"]
+        ]
+    if "surfaces" in data:
+        bands = []
+        for b in data["surfaces"]:
+            if b.get("kind") not in SURFACE_KINDS:
+                raise SystemExit(f"{path.name}: band kind must be one of {SURFACE_KINDS}: {b}")
+            width = number(b, "width_m", "band")
+            if width <= 0:
+                raise SystemExit(f"{path.name}: band needs a positive width_m: {b}")
+            band = {
+                "kind": b["kind"],
+                "side": side(b, "band"),
+                "start_m": round(number(b, "start_m", "band") % total, 2),
+                "end_m": round(number(b, "end_m", "band") % total, 2),
+                "inner_m": float(b.get("inner_m", 0.0)),
+                "width_m": width,
+                "end_width_m": None if b.get("end_width_m") is None else float(b["end_width_m"]),
+            }
+            if b.get("paint") is not None:
+                band["paint"] = str(b["paint"])
+            bands.append(band)
+        out["surfaces"] = bands
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("stem")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--from", dest="source", type=Path,
+                    help="JSON with measured curbs and/or surfaces to lay instead of guessing")
     args = ap.parse_args()
     yaml_path = TRACK_DIR / f"{args.stem}.yaml"
     ats_path = TRACK_DIR / f"{args.stem}.ats"
     data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
-    if ats_path.exists() and not args.force:
+    if ats_path.exists() and not (args.force or args.source):
         print(f"{ats_path.name} exists; --force to replace its curbs and grass")
         return 0
     s, total, kappa, wl, wr = centerline(data)
+    given = authored(args.source, total) if args.source else {}
 
     if ats_path.exists():
         scene = json.loads(ats_path.read_text(encoding="utf-8"))
@@ -144,30 +221,37 @@ def main() -> int:
             "width_m": GRASS_WIDTH_M,
             "end_width_m": None,
         }
-        for side in ("left", "right")
+        for side in SIDES
     ]
-    curbs = []
-    found = corners(s, total, kappa)
-    for entry, apex, exit_, sign, radius in found:
-        inside = "left" if sign > 0 else "right"
-        outside = "right" if sign > 0 else "left"
-        width = 1.2 if radius < 120.0 else 1.0
-        half = float(np.clip(((exit_ - entry) % total) * 0.35, 12.0, 45.0))
-        curbs.append((inside, apex - half, apex + half, width))
-        curbs.append((outside, apex + half * 0.4, (exit_ + 20.0), width))
-    scene["curbs"] = [
-        {
-            "id": alloc(),
-            "side": side,
-            "start_m": round(a % total, 2),
-            "end_m": round(b % total, 2),
-            "width_m": w,
-            "style": "red_white",
-        }
-        for side, a, b, w in curbs
-    ]
+    scene["surfaces"] += [{"id": alloc(), **band} for band in given.get("surfaces", [])]
+
+    if "curbs" in given:
+        scene["curbs"] = [{"id": alloc(), **curb} for curb in given["curbs"]]
+        origin = f"{len(scene['curbs'])} curbs from {args.source.name}"
+    else:
+        curbs = []
+        found = corners(s, total, kappa)
+        for entry, apex, exit_, sign, radius in found:
+            inside = "left" if sign > 0 else "right"
+            outside = "right" if sign > 0 else "left"
+            width = 1.2 if radius < 120.0 else 1.0
+            half = float(np.clip(((exit_ - entry) % total) * 0.35, 12.0, 45.0))
+            curbs.append((inside, apex - half, apex + half, width))
+            curbs.append((outside, apex + half * 0.4, (exit_ + 20.0), width))
+        scene["curbs"] = [
+            {
+                "id": alloc(),
+                "side": side,
+                "start_m": round(a % total, 2),
+                "end_m": round(b % total, 2),
+                "width_m": w,
+                "style": "red_white",
+            }
+            for side, a, b, w in curbs
+        ]
+        origin = f"{len(found)} corners, {len(curbs)} curbs"
     ats_path.write_text(json.dumps(scene, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"{ats_path.name}: {len(found)} corners, {len(curbs)} curbs, 2 grass bands")
+    print(f"{ats_path.name}: {origin}, {len(scene['surfaces'])} bands")
     return 0
 
 
