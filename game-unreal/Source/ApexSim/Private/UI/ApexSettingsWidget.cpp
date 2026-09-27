@@ -1133,6 +1133,9 @@ UWidget* UApexSettingsWidget::BuildWheelBindings()
 		{ TEXT("Look left"),   ApexInput::Actions::Look,         ApexInput::Slot::WheelLow,  false, 1 },
 		{ TEXT("Look right"),  ApexInput::Actions::Look,         ApexInput::Slot::WheelHigh, false, 1 },
 		{ TEXT("Look behind"), ApexInput::Actions::LookBack,     ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("DRS"),         ApexInput::Actions::Drs,          ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("Headlights"),  ApexInput::Actions::Headlights,   ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("Flash lights"), ApexInput::Actions::FlashLights, ApexInput::Slot::Wheel,     false, 1 },
 		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,    ApexInput::Slot::Wheel,     false, 1 },
 		{ TEXT("Up"),          ApexInput::Actions::MenuUp,       ApexInput::Slot::Wheel,     false, 2 },
 		{ TEXT("Down"),        ApexInput::Actions::MenuDown,     ApexInput::Slot::Wheel,     false, 2 },
@@ -1410,6 +1413,9 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		{ TEXT("Look left"),   ApexInput::Actions::Look,         -1,  2 },
 		{ TEXT("Look right"),  ApexInput::Actions::Look,         -1,  3 },
 		{ TEXT("Look behind"), ApexInput::Actions::LookBack,      0,  1 },
+		{ TEXT("DRS"),         ApexInput::Actions::Drs,           0,  1 },
+		{ TEXT("Headlights"),  ApexInput::Actions::Headlights,    0,  1 },
+		{ TEXT("Flash lights"), ApexInput::Actions::FlashLights,  0,  1 },
 		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,     0,  1 },
 	};
 
