@@ -1,5 +1,7 @@
 # Importing Assetto Corsa content into ApexSim — feasibility
 
+> **Tracks: decided 2026-09-27.** The track importer imports AC's geometry and physics mesh (the "mesh import" route below, with ApexSim's ground textures where the kit has them), not the survey alternative. See `docs/AC_TRACK_IMPORT.md`.
+
 *Research pass, 2026-09-26. Based on the `apexsim` repo at `1310b8b` and the AC install on pc-guido (`E:\SteamLibrary\steamapps\common\assettocorsa`: 194 cars, 74 tracks, all Kunos + mods, zero CSP-encrypted files).*
 
 ## Verdict
