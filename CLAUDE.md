@@ -582,7 +582,13 @@ run from the repo root — not from `track-editor/`.
 
 The exporter also writes four gitignored sidecars (like the exports) into
 `content/tracks/real/`, all loaded by the server from beside the YAML and
-all shipped in `Server/` by `build_release.ps1`:
+all shipped in `Server/` by `build_release.ps1`. A track whose sidecars
+another tool wrote (an importer that measured the real road) lists them in
+its `.ats` as `"external_sidecars": ["road", "walls", ...]`, and every
+export, `--all` included, leaves those alone (`ats-export --keep-sidecars
+LIST` does the same for one run). `scripts/seed_scene.py --from
+survey.json` likewise seeds an `.ats` with measured curbs and bands rather
+than guessed ones:
 
 - `<Stem>.ground.msgpack` — a 4 m heightfield of the ground the client
   renders, in the server frame (`ground.rs`), so a car that leaves the
@@ -2067,7 +2073,7 @@ Server config in `server.toml` (validated at startup; the server refuses to star
 - `[network]`: TCP/UDP/health bind addresses, TLS cert paths (`require_tls` fail-closed default), heartbeat settings
 - `[content]`: paths to car/track manifests
 - `[logging]`: level, `console_enabled`, optional `file_enabled`/`file_dir` (JSON-lines, daily rotation)
-- `[physics]`: `road_contact = "centerline"` (default) or `"mesh"` — whether a track with a baked `<Stem>.road.msgpack` drives on it (see the road mesh sidecar under "Track pipeline into Unreal", and docs/ROAD_MESH.md)
+- `[physics]`: `road_contact = "mesh"` (default) or `"centerline"` — whether a track with a baked `<Stem>.road.msgpack` drives on it (see the road mesh sidecar under "Track pipeline into Unreal", and docs/ROAD_MESH.md)
 - `[auth]`: `mode = "dev"` (accept all, development only) or `mode = "token"` with shared secrets in `tokens`
 - `[ai]`: AI driver defaults (optional)
 

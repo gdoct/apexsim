@@ -58,8 +58,51 @@ pub struct AtsScene {
     /// How the kit is dressed on import: season and spectators.
     #[serde(default, skip_serializing_if = "Dressing::is_default")]
     pub dressing: Dressing,
+    /// Server sidecars another tool writes for this track (an importer
+    /// that measured the real road, walls or ground), which `ats-export`
+    /// must leave as they are instead of baking its own over them. Empty
+    /// for every generated circuit: the export writes all four.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_sidecars: Vec<Sidecar>,
     /// Next element id to hand out. Monotonic, never reused.
     pub next_id: u64,
+}
+
+/// One of the server's sidecars beside a track's YAML
+/// (`ue_export_io::*_sidecar_path_for`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Sidecar {
+    /// `<Stem>.ground.msgpack`, the heightfield past the road.
+    Ground,
+    /// `<Stem>.curbs.msgpack`, curb and run-off widths per metre.
+    Curbs,
+    /// `<Stem>.walls.msgpack`, the barriers.
+    Walls,
+    /// `<Stem>.road.msgpack`, the road mesh.
+    Road,
+}
+
+impl Sidecar {
+    pub const ALL: [Sidecar; 4] = [
+        Sidecar::Ground,
+        Sidecar::Curbs,
+        Sidecar::Walls,
+        Sidecar::Road,
+    ];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Sidecar::Ground => "ground",
+            Sidecar::Curbs => "curbs",
+            Sidecar::Walls => "walls",
+            Sidecar::Road => "road",
+        }
+    }
+
+    pub fn from_key(key: &str) -> Option<Sidecar> {
+        Sidecar::ALL.into_iter().find(|s| s.key() == key)
+    }
 }
 
 /// Scene-wide choices the Unreal importer makes among the kit's variants
@@ -557,6 +600,7 @@ impl AtsScene {
             props: Vec::new(),
             decals: Vec::new(),
             dressing: Dressing::default(),
+            external_sidecars: Vec::new(),
             next_id: 2,
         }
     }
@@ -771,6 +815,7 @@ mod tests {
                 },
             ],
             checkpoints: vec![],
+            sectors: vec![],
             spawn_points: vec![],
             default_width: 10.0,
             closed_loop: false,

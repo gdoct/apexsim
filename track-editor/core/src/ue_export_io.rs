@@ -30,6 +30,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use serde::{Deserialize, Serialize};
 
+use crate::ats::Sidecar;
 use crate::project;
 use crate::road_mesh::RoadMeshFile;
 use crate::terrain::GroundHeightfield;
@@ -129,6 +130,16 @@ pub fn road_sidecar_path_for(track_path: &Path) -> PathBuf {
     track_path.with_extension("road.msgpack")
 }
 
+/// What an export writes beyond the bake itself.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ExportOptions {
+    pub bake: BakeOptions,
+    /// Sidecars to leave as they are on disk, on top of those the track's
+    /// own `.ats` declares in `external_sidecars` (`ats-export
+    /// --keep-sidecars`).
+    pub keep_sidecars: Vec<Sidecar>,
+}
+
 /// What one track's export wrote.
 pub struct Exported {
     /// The JSON manifest.
@@ -148,6 +159,11 @@ pub struct Exported {
     /// dropped for having no footprint (a curb's outer face, a sliver).
     pub road_triangles: usize,
     pub road_dropped: usize,
+    /// The sidecars left as another tool wrote them (the scene's
+    /// `external_sidecars` and the options' `keep_sidecars`), in
+    /// [`Sidecar::ALL`] order; their paths above are where they are, and
+    /// `road_triangles` / `road_dropped` describe the bake, not the file.
+    pub kept: Vec<Sidecar>,
 }
 
 /// Bake the track at `track_path` (plus its sibling `.ats`) into `dir`, and
@@ -167,6 +183,28 @@ pub fn export_track_with(
     dir: &Path,
     options: &BakeOptions,
 ) -> Result<Exported, UeExportError> {
+    export_track_with_options(
+        track_path,
+        dir,
+        &ExportOptions {
+            bake: *options,
+            ..ExportOptions::default()
+        },
+    )
+}
+
+/// [`export_track`] with the bake's knobs and the sidecars to keep.
+///
+/// A kept sidecar is not written, whatever the bake made; it is the
+/// importer's to write, and a missing one is only reported (the server
+/// falls back as for any track without it). The client export is always
+/// written: it is the track as drawn, and nothing else draws it.
+pub fn export_track_with_options(
+    track_path: &Path,
+    dir: &Path,
+    export: &ExportOptions,
+) -> Result<Exported, UeExportError> {
+    let options = &export.bake;
     let opened = project::open_project(track_path).map_err(UeExportError::Project)?;
     let scene = opened.scene.unwrap_or_else(|| {
         crate::ats::AtsScene::new_for_track(
@@ -174,6 +212,11 @@ pub fn export_track_with(
             &track_path.file_name().unwrap_or_default().to_string_lossy(),
         )
     });
+    let kept: Vec<Sidecar> = Sidecar::ALL
+        .into_iter()
+        .filter(|s| scene.external_sidecars.contains(s) || export.keep_sidecars.contains(s))
+        .collect();
+    let keeps = |s: Sidecar| kept.contains(&s);
 
     // The elevation sidecar is what gives the circuit its real ground and
     // its skyline. A track without one is baked exactly as before, and an
@@ -190,26 +233,38 @@ pub fn export_track_with(
     baked.road.source = format!("ats-export {crc:08x}");
     let scene_path = export_path_for(dir, track_path);
     write_scene(&scene_path, &baked.scene)?;
-    let ground_path = match &baked.ground {
-        Some(ground) => {
-            let path = ground_sidecar_path_for(track_path);
-            write_ground_sidecar(&path, ground)?;
-            Some(path)
+    let ground_path = if keeps(Sidecar::Ground) {
+        Some(ground_sidecar_path_for(track_path))
+    } else {
+        match &baked.ground {
+            Some(ground) => {
+                let path = ground_sidecar_path_for(track_path);
+                write_ground_sidecar(&path, ground)?;
+                Some(path)
+            }
+            None => None,
         }
-        None => None,
     };
-    let curb_path = match &baked.curbs {
-        Some(curbs) => {
-            let path = curb_sidecar_path_for(track_path);
-            write_curb_sidecar(&path, curbs)?;
-            Some(path)
+    let curb_path = if keeps(Sidecar::Curbs) {
+        Some(curb_sidecar_path_for(track_path))
+    } else {
+        match &baked.curbs {
+            Some(curbs) => {
+                let path = curb_sidecar_path_for(track_path);
+                write_curb_sidecar(&path, curbs)?;
+                Some(path)
+            }
+            None => None,
         }
-        None => None,
     };
     let walls_path = walls_sidecar_path_for(track_path);
-    write_walls_sidecar(&walls_path, &baked.walls)?;
+    if !keeps(Sidecar::Walls) {
+        write_walls_sidecar(&walls_path, &baked.walls)?;
+    }
     let road_path = road_sidecar_path_for(track_path);
-    write_road_sidecar(&road_path, &baked.road)?;
+    if !keeps(Sidecar::Road) {
+        write_road_sidecar(&road_path, &baked.road)?;
+    }
     Ok(Exported {
         mesh_blob_path: mesh_blob_path_for(&scene_path),
         scene_path,
@@ -219,6 +274,7 @@ pub fn export_track_with(
         road_path,
         road_triangles: baked.road.triangles.len(),
         road_dropped: baked.road_dropped.len(),
+        kept,
     })
 }
 

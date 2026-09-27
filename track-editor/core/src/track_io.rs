@@ -76,6 +76,12 @@ fn validate(track: &TrackFile) -> Result<(), TrackIoError> {
             )));
         }
     }
+    if let Some(&idx) = track.sectors.iter().find(|&&i| i >= track.nodes.len()) {
+        return Err(TrackIoError::Invalid(format!(
+            "sector index out of bounds: {idx}, nodes={}",
+            track.nodes.len()
+        )));
+    }
     Ok(())
 }
 
@@ -114,6 +120,7 @@ mod tests {
                 },
             ],
             checkpoints: vec![],
+            sectors: vec![],
             spawn_points: vec![],
             default_width: 10.0,
             closed_loop: false,
@@ -145,6 +152,32 @@ mod tests {
         let loaded = load_track_file(&path).unwrap();
 
         assert_eq!(track, loaded);
+    }
+
+    #[test]
+    fn sectors_survive_a_rewrite_and_stay_out_of_a_file_without_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("track.yaml");
+
+        let plain = minimal_track();
+        save_track_file(&path, &plain).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(!text.contains("sectors"), "no empty key written:\n{text}");
+
+        let mut timed = minimal_track();
+        timed.sectors = vec![0, 1];
+        save_track_file(&path, &timed).unwrap();
+        assert_eq!(load_track_file(&path).unwrap().sectors, vec![0, 1]);
+    }
+
+    #[test]
+    fn rejects_out_of_bounds_sector() {
+        let mut track = minimal_track();
+        track.sectors = vec![1, 7];
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("track.yaml");
+
+        assert!(save_track_file(&path, &track).is_err());
     }
 
     #[test]

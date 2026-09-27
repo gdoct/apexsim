@@ -94,6 +94,7 @@ mod tests {
                 },
             ],
             checkpoints: vec![],
+            sectors: vec![],
             spawn_points: vec![],
             default_width: 10.0,
             closed_loop: false,

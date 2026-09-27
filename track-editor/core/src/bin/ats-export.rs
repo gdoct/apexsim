@@ -8,7 +8,12 @@
 //! ats-export --all                          # every track under content/tracks/real
 //! ats-export content/tracks/real/Monza.yaml # one track
 //! ats-export --all --out some/other/dir
+//! ats-export --keep-sidecars road,walls content/tracks/real/X.yaml
 //! ```
+//!
+//! A track whose `.ats` lists `external_sidecars` (an imported circuit whose
+//! road, walls or ground were measured by its importer) keeps those files
+//! on every run, `--all` included.
 //!
 //! Kept as a separate binary from the editor GUI so exporting can run in CI
 //! and from a build script without opening a window.
@@ -16,8 +21,8 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use track_core::ue_export::BakeOptions;
-use track_core::ue_export_io::{self, DEFAULT_EXPORT_DIR};
+use track_core::ats::Sidecar;
+use track_core::ue_export_io::{self, ExportOptions, DEFAULT_EXPORT_DIR};
 
 const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 
@@ -26,13 +31,29 @@ fn main() -> ExitCode {
     let mut all = false;
     let mut out_dir: Option<PathBuf> = None;
     let mut tracks: Vec<PathBuf> = Vec::new();
-    let mut options = BakeOptions::default();
+    let mut options = ExportOptions::default();
     let mut iter = args.iter();
 
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--all" | "-a" => all = true,
-            "--flat-curbs" => options.flat_curbs = true,
+            "--flat-curbs" => options.bake.flat_curbs = true,
+            "--keep-sidecars" => {
+                let Some(list) = iter.next() else {
+                    eprintln!("--keep-sidecars needs a list (ground,curbs,walls,road or all)");
+                    return ExitCode::FAILURE;
+                };
+                for key in list.split(',').map(str::trim).filter(|k| !k.is_empty()) {
+                    if key == "all" {
+                        options.keep_sidecars.extend(Sidecar::ALL);
+                    } else if let Some(sidecar) = Sidecar::from_key(key) {
+                        options.keep_sidecars.push(sidecar);
+                    } else {
+                        eprintln!("unknown sidecar {key:?} (ground, curbs, walls, road, all)");
+                        return ExitCode::FAILURE;
+                    }
+                }
+            }
             "--out" | "-o" => match iter.next() {
                 Some(dir) => out_dir = Some(PathBuf::from(dir)),
                 None => {
@@ -71,7 +92,7 @@ fn main() -> ExitCode {
     let out_dir = out_dir.unwrap_or_else(|| PathBuf::from(DEFAULT_EXPORT_DIR));
     let mut failures = 0usize;
     for track in &tracks {
-        match ue_export_io::export_track_with(track, &out_dir, &options) {
+        match ue_export_io::export_track_with_options(track, &out_dir, &options) {
             Ok(exported) => {
                 let size_kb = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0) / 1024;
                 println!(
@@ -86,18 +107,41 @@ fn main() -> ExitCode {
                         .to_string_lossy(),
                     size_kb(&exported.mesh_blob_path)
                 );
-                for sidecar in exported
-                    .ground_path
-                    .iter()
-                    .chain(exported.curb_path.iter())
-                    .chain(std::iter::once(&exported.walls_path))
-                {
-                    println!(
-                        "{} -> {} ({} KB)",
-                        track.display(),
-                        sidecar.display(),
-                        size_kb(sidecar)
-                    );
+                let sidecars = [
+                    (Sidecar::Ground, exported.ground_path.as_ref()),
+                    (Sidecar::Curbs, exported.curb_path.as_ref()),
+                    (Sidecar::Walls, Some(&exported.walls_path)),
+                    (Sidecar::Road, Some(&exported.road_path)),
+                ];
+                for (sidecar, path) in sidecars {
+                    let Some(path) = path else { continue };
+                    if exported.kept.contains(&sidecar) {
+                        // The importer's file, reported as it is on disk.
+                        if path.exists() {
+                            println!(
+                                "{} -> {} ({} KB, kept: written by another tool)",
+                                track.display(),
+                                path.display(),
+                                size_kb(path)
+                            );
+                        } else {
+                            println!(
+                                "{} -> {} MISSING (kept for another tool, which has not written it; the server runs without it)",
+                                track.display(),
+                                path.display()
+                            );
+                        }
+                    } else if sidecar != Sidecar::Road {
+                        println!(
+                            "{} -> {} ({} KB)",
+                            track.display(),
+                            path.display(),
+                            size_kb(path)
+                        );
+                    }
+                }
+                if exported.kept.contains(&Sidecar::Road) {
+                    continue;
                 }
                 println!(
                     "{} -> {} ({} KB, {} triangles{}{})",
@@ -113,7 +157,7 @@ fn main() -> ExitCode {
                     } else {
                         String::new()
                     },
-                    if options.flat_curbs {
+                    if options.bake.flat_curbs {
                         ", flat curbs"
                     } else {
                         ""
@@ -141,7 +185,7 @@ fn main() -> ExitCode {
 }
 
 const USAGE: &str = "\
-usage: ats-export [--all] [--out DIR] [--flat-curbs] [TRACK.yaml ...]
+usage: ats-export [--all] [--out DIR] [--flat-curbs] [--keep-sidecars LIST] [TRACK.yaml ...]
 
   --all, -a      export every *.yaml under content/tracks/real
   --out, -o DIR  destination for the .uescene.json manifest and the .uemesh mesh blob
@@ -151,4 +195,9 @@ usage: ats-export [--all] [--out DIR] [--flat-curbs] [TRACK.yaml ...]
   --flat-curbs   bake the curbs into the road mesh flat at the road edge's height
                  (the rendered curbs keep their profile), to compare the mesh sim
                  against the centerline one without the curbs' shape in the way
+  --keep-sidecars LIST
+                 leave these sidecars as they are on disk instead of baking them
+                 (comma list of ground, curbs, walls, road, or all). A track's .ats
+                 can declare the same for itself in \"external_sidecars\", which
+                 every run honours
 ";

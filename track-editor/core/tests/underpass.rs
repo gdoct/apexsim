@@ -57,6 +57,7 @@ fn figure_eight() -> TrackFile {
             node(-300.0, 0.0, 0.0),
         ],
         checkpoints: vec![],
+        sectors: vec![],
         spawn_points: vec![],
         default_width: 2.0 * HALF_WIDTH_M,
         closed_loop: true,

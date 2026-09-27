@@ -45,14 +45,14 @@ impl std::str::FromStr for RoadContactMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhysicsSettings {
-    /// `"centerline"` (the default) or `"mesh"`.
+    /// `"mesh"` (the default) or `"centerline"`.
     pub road_contact: RoadContactMode,
 }
 
 impl Default for PhysicsSettings {
     fn default() -> Self {
         Self {
-            road_contact: RoadContactMode::Centerline,
+            road_contact: RoadContactMode::Mesh,
         }
     }
 }
@@ -472,16 +472,16 @@ mod tests {
     }
 
     #[test]
-    fn test_road_contact_parses_and_defaults_to_the_centerline() {
+    fn test_road_contact_parses_and_defaults_to_the_mesh() {
         let config = ServerConfig::default();
-        assert_eq!(config.physics.road_contact, RoadContactMode::Centerline);
+        assert_eq!(config.physics.road_contact, RoadContactMode::Mesh);
         let written = toml::to_string(&config).unwrap();
-        assert!(written.contains("road_contact = \"centerline\""));
+        assert!(written.contains("road_contact = \"mesh\""));
         let parsed: ServerConfig = toml::from_str(
-            &written.replace("road_contact = \"centerline\"", "road_contact = \"mesh\""),
+            &written.replace("road_contact = \"mesh\"", "road_contact = \"centerline\""),
         )
         .unwrap();
-        assert_eq!(parsed.physics.road_contact, RoadContactMode::Mesh);
+        assert_eq!(parsed.physics.road_contact, RoadContactMode::Centerline);
         assert_eq!("Mesh".parse::<RoadContactMode>(), Ok(RoadContactMode::Mesh));
         assert!("triangles".parse::<RoadContactMode>().is_err());
     }

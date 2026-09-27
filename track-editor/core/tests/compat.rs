@@ -65,6 +65,10 @@ fn assert_physically_identical(
         "checkpoints (resolved distances)"
     );
     assert_eq!(
+        original.sectors, roundtripped.sectors,
+        "sectors (resolved stations)"
+    );
+    assert_eq!(
         original.raceline.len(),
         roundtripped.raceline.len(),
         "raceline length"

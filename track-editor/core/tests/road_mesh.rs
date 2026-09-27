@@ -50,6 +50,7 @@ fn test_track() -> TrackFile {
             node(0.0, 200.0, -3.0, 0.0),
         ],
         checkpoints: vec![],
+        sectors: vec![],
         spawn_points: vec![],
         default_width: 12.0,
         closed_loop: true,
