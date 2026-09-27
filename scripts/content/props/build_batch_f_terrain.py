@@ -8,15 +8,15 @@ r"""Batch F - terrain and horizon (docs/PROPS.md step 3):
   misc/power_pylon              35 m lattice pylon
 
     ASSET = "all"
-    exec(open(r"E:\apexsim\content\props\_batches\build_batch_f_terrain.py").read())
+    exec(open(r"E:\apexsim\scripts\content\props\build_batch_f_terrain.py").read())
 """
 import bpy, math, os, importlib.util, sys, random
 from mathutils import Vector
 
-_ROOT = "E:\\apexsim"
-_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "content\\props\\_tools\\apex_props.py"))
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
+_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "scripts\\content\\props\\apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
-_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "content\\props\\_tools\\apex_tex.py"))
+_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "scripts\\content\\props\\apex_tex.py"))
 tex = importlib.util.module_from_spec(_t); sys.modules["apex_tex"] = tex; _t.loader.exec_module(tex)
 B, M = apex.Builder, tex.kit_material   # baked slot where the kit has one, flat otherwise
 

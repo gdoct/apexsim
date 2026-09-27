@@ -9,7 +9,7 @@
  * colours.
  *
  * The maps themselves come from `scripts/bake_ground_textures.py` (the
- * generators live beside the prop kit's, in `content/props/_tools/
+ * generators live beside the prop kit's, in `scripts/content/props/
  * apex_tex.py`) and are brought in by `-run=ApexGroundTexImport`. Until
  * that has been run the assets are simply absent and the builder falls back
  * to the procedural grain it used before, so nothing here is required for a

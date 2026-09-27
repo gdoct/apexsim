@@ -1,7 +1,7 @@
 r"""Barrier kit, batch 2: sausage kerb, tecpro corner cap, concrete end ramp.
 
     ASSET = "all"        # or one of ASSETS
-    exec(open(r"E:\apexsim\content\props\barrier\build_barriers2.py").read())
+    exec(open(r"E:\apexsim\scripts\content\props\build_barriers2.py").read())
 
 Frame per docs/PROPS.md: +X along the road, road on -Y, Z up, pivot on the
 ground at the footprint centre (thin modules).
@@ -9,10 +9,10 @@ ground at the footprint centre (thin modules).
 import bpy, math, os, importlib.util, sys
 from mathutils import Vector
 
-_ROOT = "E:\\apexsim"
-_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, r"content\props\_tools\apex_props.py"))
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
+_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, r"scripts\content\props\apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
-_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "content\\props\\_tools\\apex_tex.py"))
+_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "scripts\\content\\props\\apex_tex.py"))
 tex = importlib.util.module_from_spec(_t); sys.modules["apex_tex"] = tex; _t.loader.exec_module(tex)
 B, M = apex.Builder, tex.kit_material   # baked slot where the kit has one, flat otherwise
 

@@ -43,16 +43,18 @@ vocabulary for both.
   asset; if it comes in backwards the fix is one sign in the importer, not in
   the assets. `sky` props have their origin at the hull centre (their `z` is
   the altitude), everything else at ground level.
-- **Tooling**: `content/props/_tools/apex_props.py` — bmesh builders (box,
+- **Tooling**: `scripts/content/props/apex_props.py` — bmesh builders (box,
   cylinder, torus, profile sweep, textured quads), planar UVs, GLB export and
   a preview render. Every asset so far is generated from a script with it, so
   variants are a parameter change. Brand and marker textures are generated
-  by `content/props/_tools/gen_brands.py` into `board/brands/*.png` and
+  by `scripts/content/props/gen_brands.py` into `board/brands/*.png` and
   `board/markers/*.png` (3:1 and 3:4).
-  Batch scripts live beside their kind (`barrier/build_barriers2.py`,
-  `tree/build_near_trees.py`) or under `_batches/` when they span kinds
-  (`build_batch_e_kit.py`, `build_batch_f_terrain.py`); each takes `ASSET`
-  (`"all"` or one key) and exports on run. `_tools/apex_tex.py` bakes
+  The batch scripts sit beside it in `scripts/content/props/`
+  (`build_barriers2.py`, `build_near_trees.py`, `build_batch_e_kit.py`,
+  `build_batch_f_terrain.py`, ...), apart from the content they write: the
+  GLBs and the `.blend` sources stay under `content/props/<kind>/` (a scene
+  spanning kinds under `content/props/_batches/`). Each takes `ASSET`
+  (`"all"` or one key) and exports on run. `apex_tex.py` bakes
   tileable PBR maps and masked card textures with numpy. The builders work
   from the MCP server as well as the console (no operators that need a
   window; sharp edges are marked in bmesh rather than by `shade_auto_smooth`).
@@ -296,7 +298,7 @@ balconies (`house_timber`, `house_timber_dark`), tile or dark roofs
 
 ### 9. Nordschleife kit
 
-Built by `content/props/_batches/build_nordschleife_kit.py` (headless `bpy`
+Built by `scripts/content/props/build_nordschleife_kit.py` (headless `bpy`
 or inside Blender; scene saved as `_batches/nordschleife_kit.blend`). Laid
 by the groomer only where the circuit's style asks for them
 (`track-editor/core/src/circuit_style.rs`, the Nordschleife): the barrier
@@ -339,7 +341,7 @@ slab.
 The pictures are drawn as a driver sees them: top = far end, left = left of
 the road. `ats-export` stretches them along the road (7 m across by 14-20 m
 along is typical), which is how fans paint for an eye a metre off the
-tarmac. `content/props/_tools/gen_graffiti.py` paints the shipped set (30
+tarmac. `scripts/content/props/gen_graffiti.py` paints the shipped set (30
 invented slogans, names, hearts, arrows and flags; stroke letters, not a
 font, so the output is the same on every machine; `--sheet` writes a
 contact sheet to `_preview/`). Hand-made art is any PNG of that size in
@@ -347,7 +349,7 @@ the folder: white or coloured paint, transparent elsewhere — painted in
 Blender's texture paint mode on a 2:1 plane, or in any image editor.
 
 ```bash
-python content/props/_tools/gen_graffiti.py --sheet
+python scripts/content/props/gen_graffiti.py --sheet
 "$UE/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" game-unreal/ApexSim.uproject -run=ApexPropImport -kind=decal
 ```
 
@@ -383,8 +385,8 @@ the groomer, `props::KIT` and the kind tables know nothing of it.
   face at 2.2 m, sized to fit the 2.4 m board. `hillside_letters` is geometry.
 - **Baked textures.** The whole track-edge, tyre-wall, grandstand (every bay,
   cap and `_crowd` variant), pit and statue kit carries albedo + roughness +
-  normal maps (512², tileable, from `_tools/apex_tex.py`, saved under
-  `content/props/_textures/`) on its existing slots; `_tools/retexture_kit.py`
+  normal maps (512², tileable, from `scripts/content/props/apex_tex.py`, saved under
+  `content/props/_textures/`) on its existing slots; `scripts/content/props/retexture_kit.py`
   re-imports each GLB, swaps the slots listed in `apex_tex.KIT_SLOTS` and
   re-exports, so geometry and slot names are unchanged (it restores a slot
   name the importer suffixed). New builders take their materials from

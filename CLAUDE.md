@@ -500,11 +500,11 @@ road and no Tecpro, a denser forest from 8.5 m, German signs (chevrons,
 km boards, `de_*`) instead of braking boards and hoardings, no floodlight
 ring and no pit lane; every other circuit is `CircuitStyle::DEFAULT`, the
 old rules. Road graffiti is an `.ats` `decals` layer (`graffiti/<name>`
-PNGs from `content/props/_tools/gen_graffiti.py`), laid by `ats-dress`
+PNGs from `scripts/content/props/gen_graffiti.py`), laid by `ats-dress`
 from the dossier's `graffiti` (`MANUAL_GRAFFITI`), baked road-hugging by
 `ats-export` (family `decal`) and drawn with a masked `M_ApexDecal`
 (`ApexPropImport -kind=decal` imports the textures). The kit pieces are
-built by `content/props/_batches/build_nordschleife_kit.py` (headless
+built by `scripts/content/props/build_nordschleife_kit.py` (headless
 `bpy` works: run it with `python -I`).
 
 ### Run-off (`Surface::paint`, `RoadContact::Runoff`)
@@ -800,7 +800,7 @@ python scripts/bake_ground_textures.py              # -> content/textures/ground
 then re-bake the materials and levels (`-run=ApexMaterialBake`, then
 `scripts/build_track_levels.ps1`; the import re-bakes the base material by
 itself when it finds the ground sets newly imported). The generators
-are numpy in `content/props/_tools/apex_tex.py` beside the prop kit's (its
+are numpy in `scripts/content/props/apex_tex.py` beside the prop kit's (its
 `bpy` import is optional so the baker runs under plain Python). Colour maps
 are normalised to a per-channel mean of 0.5 and the material doubles them,
 so the exporter's per-key colour still decides a surface's hue — a map with
@@ -928,7 +928,7 @@ shared wheel (`content/wheels/<class>.glb`) where the car.toml's `[wheels]`
 table puts them, steers the front pair and rolls all four from the telemetry
 (`Race/ApexCarWheels.h`, row field `Wheels`; docs/CAR_MODELS.md).
 
-Liveries: a car.toml's `[[livery]]` tables (written by `content/cars/liveries.py`) become the row's
+Liveries: a car.toml's `[[livery]]` tables (written by `scripts/content/cars/liveries.py`) become the row's
 `Liveries` (logo PNGs loaded at runtime). The pick travels as `SelectCar.livery`
 -> `RosterEntry.Livery` (0 = the model as authored; AI dealt in turn per model), and
 `ApexLivery::Apply` (`Race/ApexCarLivery.h`) repaints `car_paint`/`car_accent`/`car_logo` on the race
@@ -2052,6 +2052,7 @@ field is filled from a shift delta, not an absolute gear).
 
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)
+- No generator scripts live in `content/`: the Blender builders and texture generators that write the cars, wheels and prop kit are in `scripts/content/{cars,props,wheels}` (libraries `carlib.py`, `apex_props.py`, `apex_tex.py` beside them). The Blender ones find the repo through `APEXSIM_ROOT` (default `E:pexsim`), since `exec(open(...).read())` gives them no `__file__`; the plain-Python ones (`liveries.py`, `gen_graffiti.py`, `gen_brands.py`) from their own path. Either way they write into `content/`
 - `tracks/default/` - the shipped circuits: YAML, `.ats`, dossier, DEM and the generated sidecars side by side
 - `tracks/custom/` - the player's own tracks (imported or hand-made), same layout, gitignored but for its README and not shipped unless `build_release.ps1`/`build_game_standalone.ps1` get `-IncludeCustomTracks`. Every tool walks `default/` then `custom/` (`ue_export_io::TRACK_DIRS`, `scripts/track_dirs.py`, `scripts/lib/ApexTracks.ps1`); a stem must be unique across both (`ats-export --all` refuses a shared one, since exports are keyed by stem), and a custom track reusing a shipped `track_id` is skipped by the server with a warning
 - `build/tracks/` (outside `content/`, gitignored) - the client exports baked from both; `.cache/osm` and `.cache/dem` hold the raw OpenStreetMap and elevation downloads

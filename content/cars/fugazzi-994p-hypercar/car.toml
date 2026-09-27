@@ -120,7 +120,7 @@ motor_max_torque_nm = 200.0
 motor_max_power_kw = 95.0
 regen_max_power_kw = 200.0
 
-# Where the client draws the wheels (content/cars/build_hypercar.py builds
+# Where the client draws the wheels (scripts/content/cars/build_hypercar.py builds
 # the body to this stance): visual only, the physics reads its own figures.
 [wheels]
 model = "hypercar"
@@ -133,7 +133,7 @@ rear_radius_m = 0.360
 front_width_m = 0.320
 rear_width_m = 0.345
 
-# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
+# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]

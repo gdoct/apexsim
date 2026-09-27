@@ -1,8 +1,8 @@
 """Extra liveries for the generated cars: writes each car's `[[livery]]`
 tables into its car.toml and draws the sponsor logos they use.
 
-    python content/cars/liveries.py            # every car below
-    python content/cars/liveries.py bugotti-chiffon-hypercar
+    python scripts/content/cars/liveries.py            # every car below
+    python scripts/content/cars/liveries.py bugotti-chiffon-hypercar
 
 Needs Pillow. Plain Python, not Blender: the logos are 2D.
 
@@ -20,8 +20,12 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-MARKER = "# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---"
+# scripts/content/cars/liveries.py -> the repo; the cars themselves live in content/cars.
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+HERE = os.path.join(REPO, "content", "cars")
+MARKER = "# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---"
+# The marker as written before the script moved out of content/cars.
+OLD_MARKERS = ["# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---"]
 
 # Fonts: the first file found wins. Drop TTFs into content/cars/_fonts (or
 # point APEX_FONTS at a folder) to pin the look; otherwise Windows' and
@@ -188,8 +192,10 @@ def write_car(folder):
         text = f.read()
     nl = "\r\n" if "\r\n" in text else "\n"
     text = text.replace("\r\n", "\n")
-    if MARKER in text:
-        text = text[:text.index(MARKER)]
+    for marker in [MARKER] + OLD_MARKERS:
+        if marker in text:
+            text = text[:text.index(marker)]
+            break
     text = text.rstrip("\n") + "\n\n"
     os.makedirs(os.path.join(car_dir, "textures"), exist_ok=True)
     blocks = [MARKER, "# Livery 0 is the model as authored; these are 1..%d on the wire." % len(CARS[folder]), ""]

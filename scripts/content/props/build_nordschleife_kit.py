@@ -3,11 +3,11 @@ r"""Nordschleife kit: German guard rail, German signs, Burg Nürburg.
 Run inside Blender (Text Editor or console):
 
     ASSET = "all"        # or one of ASSETS
-    exec(open(r"E:\apexsim\content\props\_batches\build_nordschleife_kit.py").read())
+    exec(open(r"E:\apexsim\scripts\content\props\build_nordschleife_kit.py").read())
 
 or headless with the `bpy` module (APEXSIM_ROOT = the repo):
 
-    APEXSIM_ROOT=/path/to/apexsim python -c "exec(open('content/props/_batches/build_nordschleife_kit.py').read())"
+    APEXSIM_ROOT=/path/to/apexsim python -c "exec(open('scripts/content/props/build_nordschleife_kit.py').read())"
 
 Writes content/props/<kind>/<asset>.glb for every asset below, the sign
 textures they carry to content/props/_textures/, the km board faces to
@@ -46,9 +46,9 @@ from mathutils import Vector
 
 _ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
 os.environ.setdefault("APEXSIM_ROOT", _ROOT)
-_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py"))
+_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "scripts", "content", "props", "apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
-_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "content", "props", "_tools", "apex_tex.py"))
+_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "scripts", "content", "props", "apex_tex.py"))
 tex = importlib.util.module_from_spec(_t); sys.modules["apex_tex"] = tex; _t.loader.exec_module(tex)
 B, M = apex.Builder, tex.kit_material
 

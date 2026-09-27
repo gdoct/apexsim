@@ -3,7 +3,7 @@
 Load inside Blender's Python console or an MCP session:
 
     import importlib.util, sys
-    spec = importlib.util.spec_from_file_location("apex", r"E:\\apexsim\\content\\props\\_tools\\apex_props.py")
+    spec = importlib.util.spec_from_file_location("apex", r"E:\\apexsim\\scripts\\content\\props\\apex_props.py")
     apex = importlib.util.module_from_spec(spec); sys.modules["apex"] = apex; spec.loader.exec_module(apex)
 
 Conventions (see docs/PROPS.md):

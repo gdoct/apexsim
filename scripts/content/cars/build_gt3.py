@@ -6,7 +6,7 @@
 Each GT3 has its own set of cross-section keys, so the silhouettes differ: a
 rounded rear-engined coupe with a fastback and wide hips, a low sharp wedge,
 and a long-bonnet GT. Everything below the shape data comes from
-content/cars/carlib.py, which is shared with build_lmp2.py.
+scripts/content/cars/carlib.py, which is shared with build_lmp2.py.
 
 Frame: nose on -Y, ground z=0, metres; left-hand drive (driver on +X).
 
@@ -27,8 +27,8 @@ from mathutils import Vector
 
 # ------------------------------------------------------------------ loading
 _ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
-for _n, _p in (("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py")),
-               ("carlib", os.path.join(_ROOT, "content", "cars", "carlib.py"))):
+for _n, _p in (("apex", os.path.join(_ROOT, "scripts", "content", "props", "apex_props.py")),
+               ("carlib", os.path.join(_ROOT, "scripts", "content", "cars", "carlib.py"))):
     _s = importlib.util.spec_from_file_location(_n, _p)
     _m = importlib.util.module_from_spec(_s)
     sys.modules[_n] = _m

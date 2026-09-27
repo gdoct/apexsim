@@ -497,7 +497,7 @@ def process_track(track_file, output_dir):
 
 def main():
     """Main batch processing function."""
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).resolve().parent.parent / "content" / "tracks" / "default"
     output_dir = script_dir / "enriched"
     output_dir.mkdir(exist_ok=True)
     

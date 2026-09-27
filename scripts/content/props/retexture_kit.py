@@ -3,7 +3,7 @@ each GLB, swap its flat material slots for baked albedo / roughness / normal
 versions (apex_tex), re-export to the same path. Geometry untouched.
 
     ASSETS = "all"    # or ["barrier/armco_4m", ...]
-    exec(open(r"E:\apexsim\content\props\_tools\retexture_kit.py").read())
+    exec(open(r"E:\apexsim\scripts\content\props\retexture_kit.py").read())
 
 Slots not listed in SLOTS keep their flat material (glass, LEDs, brand and
 crowd/fence masks stay the importer's business).
@@ -11,13 +11,13 @@ crowd/fence masks stay the importer's business).
 import bpy, os, importlib.util, sys
 from mathutils import Vector
 
-_ROOT = "E:\\apexsim"
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
 def _load(name, rel):
     s = importlib.util.spec_from_file_location(name, os.path.join(_ROOT, rel))
     m = importlib.util.module_from_spec(s); sys.modules[name] = m; s.loader.exec_module(m)
     return m
-apex = _load("apex", "content\\props\\_tools\\apex_props.py")
-tex = _load("apex_tex", "content\\props\\_tools\\apex_tex.py")
+apex = _load("apex", "scripts\\content\\props\\apex_props.py")
+tex = _load("apex_tex", "scripts\\content\\props\\apex_tex.py")
 
 KIT = [
     "barrier/armco_4m", "barrier/armco_4m_fence", "barrier/armco_end", "barrier/concrete_4m",

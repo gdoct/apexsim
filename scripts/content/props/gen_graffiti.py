@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Paint the road graffiti the Nordschleife is known for.
 
-    python content/props/_tools/gen_graffiti.py          # -> content/props/decal/graffiti/*.png
-    python content/props/_tools/gen_graffiti.py --sheet  # also a contact sheet in _preview/
+    python scripts/content/props/gen_graffiti.py          # -> content/props/decal/graffiti/*.png
+    python scripts/content/props/gen_graffiti.py --sheet  # also a contact sheet in _preview/
 
 Fans paint the Nordschleife's tarmac before every 24-hour race: names,
 slogans, hearts, arrows and flags, in spray paint straight onto the road.
@@ -39,7 +39,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[1]
+# scripts/content/props/gen_graffiti.py -> the repo; the kit lives in content/props.
+ROOT = Path(__file__).resolve().parents[3] / "content" / "props"
 OUT_DIR = ROOT / "decal" / "graffiti"
 PREVIEW_DIR = ROOT / "_preview"
 W, H = 1024, 512

@@ -150,8 +150,9 @@ foreach ($set in $GroundSets) {
     }
 }
 
-# The kit is content/props/<kind>/<asset>.glb; _tools and _batches hold the
-# generators, not assets.
+# The kit is content/props/<kind>/<asset>.glb; the _-prefixed folders hold
+# textures, previews and multi-kind .blend scenes, not assets (the generators
+# themselves are in scripts/content/props).
 $missingProps = @(Get-ChildItem $PropsSrc -Directory |
     Where-Object { -not $_.Name.StartsWith('_') } |
     ForEach-Object {

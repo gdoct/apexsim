@@ -47,7 +47,7 @@ the standard pipeline (CLAUDE.md, "Refresh order").
 7. **Unreal** (Windows, not done by the pipeline above):
 
    ```powershell
-   python content/props/_tools/gen_graffiti.py            # already committed; re-run only to change the art
+   python scripts/content/props/gen_graffiti.py            # already committed; re-run only to change the art
    UnrealEditor-Cmd.exe game-unreal/ApexSim.uproject -run=ApexPropImport -kind=decal
    ./scripts/build_track_levels.ps1 -Track Nordschleife   # export + preview; the game builds it at runtime
    ```
@@ -86,7 +86,7 @@ The fans' paint on the tarmac is a new scene layer, not a prop: `.ats`
 that follow the camber and the grade, drawn by the importer with a masked
 `M_ApexDecal`. The pictures are 1024 × 512 PNGs under
 `content/props/decal/graffiti/`, painted by
-`content/props/_tools/gen_graffiti.py` (30 invented slogans, names, hearts,
+`scripts/content/props/gen_graffiti.py` (30 invented slogans, names, hearts,
 arrows, flags). Where they lie is dossier data: `MANUAL_GRAFFITI` in
 `scripts/osm_layout.py` gives runs of pictures (a section of road, the
 images, the spacing), the dossier carries the expanded list, and
