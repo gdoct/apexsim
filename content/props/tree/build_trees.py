@@ -1,7 +1,7 @@
 """Build the trackside tree/foliage kit and export to content/props/tree/<asset>.glb.
 
     ASSET = "broadleaf_m"      # any key in ASSETS, or "all"
-    exec(open(r"D:\apexsim\content\props\tree\build_trees.py").read())
+    exec(open(r"E:\apexsim\content\props\tree\build_trees.py").read())
 
 v2: on top of the v1 shape work (blob-cluster broadleaf, tiered/drooping
 conifers, tapered/drooping palms) this adds the two things a shape pass alone
@@ -26,7 +26,7 @@ import bpy, bmesh, math, os, random, importlib.util, sys
 import numpy as np
 from mathutils import Vector, Matrix, noise as mnoise
 
-_ROOT = r"D:\apexsim"
+_ROOT = r"E:\apexsim"
 _s = importlib.util.spec_from_file_location(
     "apex", os.path.join(_ROOT, r"content\props\_tools\apex_props.py"))
 apex = importlib.util.module_from_spec(_s)

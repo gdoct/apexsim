@@ -14,12 +14,12 @@ r"""Batch E - kit rules for the real-layout dossiers (docs/PROPS.md step 2):
 
     ASSET = "all"          # or one key of BUILD
     TEXT = "RED BULL RING" # hillside_letters
-    exec(open(r"D:\apexsim\content\props\_batches\build_batch_e_kit.py").read())
+    exec(open(r"E:\apexsim\content\props\_batches\build_batch_e_kit.py").read())
 """
 import bpy, math, os, importlib.util, sys, random
 from mathutils import Vector
 
-_ROOT = "D:\\apexsim"
+_ROOT = "E:\\apexsim"
 _s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "content\\props\\_tools\\apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
 _t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "content\\props\\_tools\\apex_tex.py"))

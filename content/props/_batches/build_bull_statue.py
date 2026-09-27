@@ -23,7 +23,7 @@ BULL_HEIGHT_M high. Pivot on the ground at the middle of the bull. The bull
 charges along +X, which is the course heading at the landmark
 (`dress::lay_landmark`), so it is seen side-on from the road.
 
-    exec(open(r"D:\apexsim\content\props\_batches\build_bull_statue.py").read())
+    exec(open(r"E:\apexsim\content\props\_batches\build_bull_statue.py").read())
 
 or headless:
     blender -b --factory-startup -P content/props/_batches/build_bull_statue.py
@@ -31,7 +31,7 @@ or headless:
 import bpy, math, os, importlib.util, sys
 from mathutils import Vector, Matrix
 
-_ROOT = "D:\\apexsim"
+_ROOT = "E:\\apexsim"
 _s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "content\\props\\_tools\\apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
 _t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "content\\props\\_tools\\apex_tex.py"))

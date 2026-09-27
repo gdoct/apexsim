@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 
 use apexsim_server::ai_driver::AiDriverProfile;
+use apexsim_server::config::RoadContactMode;
 use apexsim_server::data::*;
 use apexsim_server::game_session::GameSession;
 use apexsim_server::track_loader::TrackLoader;
@@ -103,6 +104,36 @@ fn run_and_fingerprint(track: TrackConfig) -> Vec<u32> {
         }
     }
     fingerprint
+}
+
+/// The same, driving on Monza's road mesh: the triangle query must be as
+/// pure as the centerline one. Skipped (loudly) until the sidecar has
+/// been baked (`ats-export`), since it is generated, not checked in.
+#[test]
+fn test_simulation_is_bit_identical_across_runs_on_the_road_mesh() {
+    let load = || {
+        TrackLoader::load_from_file_with("../content/tracks/real/Monza.yaml", RoadContactMode::Mesh)
+            .expect("failed to load Monza")
+    };
+    let track_a = load();
+    if track_a.road_mesh.is_none() {
+        eprintln!("no Monza.road.msgpack: bake it with ats-export to run this test");
+        return;
+    }
+    let track_b = load();
+    assert!(track_b.road_mesh.is_some());
+
+    let run1 = run_and_fingerprint(track_a);
+    let run2 = run_and_fingerprint(track_b);
+
+    assert_eq!(run1.len(), run2.len(), "fingerprint lengths differ");
+    let first_divergence = run1.iter().zip(run2.iter()).position(|(a, b)| a != b);
+    assert!(
+        first_divergence.is_none(),
+        "mesh simulation diverged at fingerprint index {:?} of {}",
+        first_divergence,
+        run1.len()
+    );
 }
 
 #[test]

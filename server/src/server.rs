@@ -50,7 +50,7 @@ impl ServerState {
         // Load custom tracks from configured directory
         let tracks_dir = config.content.tracks_dir.clone();
         debug!("Loading tracks from {}...", tracks_dir);
-        Self::load_custom_tracks(&mut track_configs, &tracks_dir);
+        Self::load_custom_tracks(&mut track_configs, &tracks_dir, config.physics.road_contact);
 
         if track_configs.is_empty() {
             warn!("No tracks loaded! Server will not be able to create sessions.");
@@ -82,6 +82,7 @@ impl ServerState {
     fn load_custom_tracks(
         track_configs: &mut HashMap<TrackConfigId, TrackConfig>,
         tracks_dir_str: &str,
+        road_contact: crate::config::RoadContactMode,
     ) {
         let tracks_dir = std::path::Path::new(tracks_dir_str);
 
@@ -96,7 +97,7 @@ impl ServerState {
             return;
         }
 
-        Self::load_tracks_recursive(track_configs, tracks_dir, content_root);
+        Self::load_tracks_recursive(track_configs, tracks_dir, content_root, road_contact);
     }
 
     /// `content/tracks/export/` holds the baked `*.uescene.json` scenes the
@@ -122,6 +123,7 @@ impl ServerState {
         track_configs: &mut HashMap<TrackConfigId, TrackConfig>,
         dir: &std::path::Path,
         content_root: &std::path::Path,
+        road_contact: crate::config::RoadContactMode,
     ) {
         match std::fs::read_dir(dir) {
             Ok(entries) => {
@@ -131,12 +133,17 @@ impl ServerState {
                         // Recursively load tracks from subdirectories, except
                         // generated scene exports and dossier/cache directories.
                         if !Self::is_non_track_json(&path) {
-                            Self::load_tracks_recursive(track_configs, &path, content_root);
+                            Self::load_tracks_recursive(
+                                track_configs,
+                                &path,
+                                content_root,
+                                road_contact,
+                            );
                         }
                     } else if path.is_file() && !Self::is_non_track_json(&path) {
                         let ext = path.extension().and_then(|s| s.to_str());
                         if ext == Some("json") || ext == Some("yaml") || ext == Some("yml") {
-                            match TrackLoader::load_from_file(&path) {
+                            match TrackLoader::load_from_file_with(&path, road_contact) {
                                 Ok(mut track) => {
                                     // Compute relative path from content root, normalize to forward slashes
                                     let rel = path.strip_prefix(content_root).unwrap_or(&path);

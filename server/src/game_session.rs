@@ -979,7 +979,8 @@ impl GameSession {
             if station < length * 0.5 {
                 break;
             }
-            let pose = physics::pose_at_station(&track.centerline, station);
+            let mut pose = physics::pose_at_station(&track.centerline, station);
+            pose.2 = physics::seat_height(track, pose.0, pose.1, pose.2);
             fallback.get_or_insert(pose);
             let taken = self.session.participants.values().any(|other| {
                 !other.in_garage

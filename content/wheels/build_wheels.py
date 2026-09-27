@@ -2,7 +2,7 @@
 
 Run inside Blender:
 
-    exec(open(r"D:\\apexsim\\content\\wheels\\build_wheels.py").read())
+    exec(open(r"E:\\apexsim\\content\\wheels\\build_wheels.py").read())
 
 Each wheel is built in a scratch scene and exported without touching the
 open file. Frame: metres, hub centre at the origin, axle along X, the face
@@ -18,7 +18,7 @@ also what shows the wheel turning), `wheel_band` (compound ring),
 import bpy, bmesh, contextlib, io, math, os
 from mathutils import Matrix, Vector
 
-OUT_DIR = os.path.join(os.path.dirname(r"D:\apexsim\content\wheels\build_wheels.py"))
+OUT_DIR = os.path.join(os.path.dirname(r"E:\apexsim\content\wheels\build_wheels.py"))
 
 CLASSES = {
     # R: tyre radius, W: tyre width, RR: rim flange radius (18" rims).

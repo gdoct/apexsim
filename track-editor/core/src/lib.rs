@@ -14,6 +14,7 @@ pub mod layout;
 pub mod pit;
 pub mod project;
 pub mod props;
+pub mod road_mesh;
 pub mod strip_layout;
 pub mod terrain;
 pub mod track_bank;

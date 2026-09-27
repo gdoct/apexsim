@@ -16,11 +16,12 @@
 //! layout is `track-editor/TRACK_EDITOR.md` §5 and
 //! `ApexTrackSceneReader` on the Unreal side reads exactly it.
 //!
-//! The exceptions are the server's sidecars, `<Track>.ground.msgpack` and
-//! `<Track>.curbs.msgpack` and `<Track>.walls.msgpack`: the server reads them from beside the YAML
-//! (they are the sim's ground and track limits, not client content), so
-//! they are written there — and gitignored there, since they are generated
-//! all the same.
+//! The exceptions are the server's sidecars, `<Track>.ground.msgpack`,
+//! `<Track>.curbs.msgpack`, `<Track>.walls.msgpack` and
+//! `<Track>.road.msgpack`: the server reads them from beside the YAML
+//! (they are the sim's ground, track limits, barriers and road, not client
+//! content), so they are written there — and gitignored there, since they
+//! are generated all the same.
 
 use std::fs;
 use std::io::{Read, Write};
@@ -30,10 +31,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use serde::{Deserialize, Serialize};
 
 use crate::project;
+use crate::road_mesh::RoadMeshFile;
 use crate::terrain::GroundHeightfield;
 use crate::ue_export::{
-    self, CurbBands, UeCenterlinePoint, UeDressing, UeGridSlot, UeMaterial, UeMesh, UeMetadata,
-    UePitLane, UeProp, UeScene, UeStartFinish, Walls, UE_SCENE_VERSION,
+    self, BakeOptions, CurbBands, UeCenterlinePoint, UeDressing, UeGridSlot, UeMaterial, UeMesh,
+    UeMetadata, UePitLane, UeProp, UeScene, UeStartFinish, Walls, UE_SCENE_VERSION,
 };
 
 /// Where exports go when no destination is given, relative to the repo root.
@@ -122,6 +124,11 @@ pub fn walls_sidecar_path_for(track_path: &Path) -> PathBuf {
     track_path.with_extension("walls.msgpack")
 }
 
+/// `Monza.yaml` -> `<same dir>/Monza.road.msgpack`.
+pub fn road_sidecar_path_for(track_path: &Path) -> PathBuf {
+    track_path.with_extension("road.msgpack")
+}
+
 /// What one track's export wrote.
 pub struct Exported {
     /// The JSON manifest.
@@ -135,6 +142,12 @@ pub struct Exported {
     /// The walls, always written (a track with nothing to hit gets an
     /// empty file, which the server reads as such).
     pub walls_path: PathBuf,
+    /// The road mesh the server drives on, always written.
+    pub road_path: PathBuf,
+    /// How many triangles it holds, and how many facets the physics bake
+    /// dropped for having no footprint (a curb's outer face, a sliver).
+    pub road_triangles: usize,
+    pub road_dropped: usize,
 }
 
 /// Bake the track at `track_path` (plus its sibling `.ats`) into `dir`, and
@@ -145,6 +158,15 @@ pub struct Exported {
 /// having — it is the difference between "the circuit is drivable in Unreal"
 /// and "nothing loads".
 pub fn export_track(track_path: &Path, dir: &Path) -> Result<Exported, UeExportError> {
+    export_track_with(track_path, dir, &BakeOptions::default())
+}
+
+/// [`export_track`] with the bake's knobs.
+pub fn export_track_with(
+    track_path: &Path,
+    dir: &Path,
+    options: &BakeOptions,
+) -> Result<Exported, UeExportError> {
     let opened = project::open_project(track_path).map_err(UeExportError::Project)?;
     let scene = opened.scene.unwrap_or_else(|| {
         crate::ats::AtsScene::new_for_track(
@@ -161,9 +183,11 @@ pub fn export_track(track_path: &Path, dir: &Path) -> Result<Exported, UeExportE
     let dem_path = crate::dem::dem_path_for(track_path);
     let dem = crate::dem::load_dem(&dem_path).map_err(UeExportError::Dem)?;
 
-    let mut baked = ue_export::bake_all_with_dem(&opened.track, &scene, dem.as_ref())
+    let mut baked = ue_export::bake_all_with_options(&opened.track, &scene, dem.as_ref(), options)
         .ok_or_else(|| UeExportError::Degenerate(opened.track.name.clone()))?;
-    baked.scene.source_crc = Some(source_crc(&fs::read(track_path)?));
+    let crc = source_crc(&fs::read(track_path)?);
+    baked.scene.source_crc = Some(crc);
+    baked.road.source = format!("ats-export {crc:08x}");
     let scene_path = export_path_for(dir, track_path);
     write_scene(&scene_path, &baked.scene)?;
     let ground_path = match &baked.ground {
@@ -184,12 +208,17 @@ pub fn export_track(track_path: &Path, dir: &Path) -> Result<Exported, UeExportE
     };
     let walls_path = walls_sidecar_path_for(track_path);
     write_walls_sidecar(&walls_path, &baked.walls)?;
+    let road_path = road_sidecar_path_for(track_path);
+    write_road_sidecar(&road_path, &baked.road)?;
     Ok(Exported {
         mesh_blob_path: mesh_blob_path_for(&scene_path),
         scene_path,
         ground_path,
         curb_path,
         walls_path,
+        road_path,
+        road_triangles: baked.road.triangles.len(),
+        road_dropped: baked.road_dropped.len(),
     })
 }
 
@@ -219,6 +248,11 @@ pub fn write_curb_sidecar(path: &Path, curbs: &CurbBands) -> Result<(), UeExport
 /// The server's walls, written the same way.
 pub fn write_walls_sidecar(path: &Path, walls: &Walls) -> Result<(), UeExportError> {
     write_msgpack(path, &rmp_serde::to_vec_named(walls)?)
+}
+
+/// The server's road mesh, written the same way.
+pub fn write_road_sidecar(path: &Path, road: &RoadMeshFile) -> Result<(), UeExportError> {
+    write_msgpack(path, &rmp_serde::to_vec_named(road)?)
 }
 
 /// Write a scene as its two files: the mesh blob at

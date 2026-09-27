@@ -11,10 +11,10 @@
 
 use crate::data::*;
 use crate::feedback::{ContactSurface, FeedbackTick};
+use crate::road_mesh::RoadMesh;
 use crate::walls::{WallKind, Walls};
 use std::collections::HashMap;
 use std::f32::consts::PI;
-use std::sync::Once;
 use tracing::debug;
 /// Gravity constant (m/s²)
 const GRAVITY: f32 = 9.81;
@@ -90,7 +90,9 @@ pub struct TrackContext {
     pub width_right: f32,
 }
 
-/// Ground sample returned by the active surface query backend.
+/// Ground sample under a point: the centerline's frame (nearest point,
+/// lateral, heading, widths) with the height, slope, banking and, when the
+/// track has a road mesh, the surface class from the triangle under it.
 #[derive(Debug, Clone, Copy)]
 struct SurfaceQuerySample {
     nearest_point: usize,
@@ -103,66 +105,17 @@ struct SurfaceQuerySample {
     width_right: f32,
     surface_type: SurfaceType,
     grip_modifier: f32,
+    /// What the road mesh says is here; `None` on the centerline backend
+    /// and wherever the mesh has nothing under the point.
+    mesh: Option<MeshHit>,
 }
 
-/// Heightfield data carrier for surface queries.
-struct HeightfieldSurfaceData<'a> {
-    heightmap: &'a crate::procgen::TerrainHeightmap,
-}
-
-/// Interface for querying elevation from a heightfield source.
-trait HeightfieldSurfaceProvider {
-    fn elevation_at(&self, world_x: f32, world_y: f32) -> Option<f32>;
-}
-
-impl HeightfieldSurfaceProvider for HeightfieldSurfaceData<'_> {
-    fn elevation_at(&self, world_x: f32, world_y: f32) -> Option<f32> {
-        if self.heightmap.width < 2 || self.heightmap.height < 2 {
-            return None;
-        }
-
-        let grid_x = (world_x - self.heightmap.origin_x) / self.heightmap.cell_size_m;
-        let grid_y = (world_y - self.heightmap.origin_y) / self.heightmap.cell_size_m;
-
-        let max_x = (self.heightmap.width - 1) as f32;
-        let max_y = (self.heightmap.height - 1) as f32;
-
-        if grid_x < 0.0 || grid_y < 0.0 || grid_x >= max_x || grid_y >= max_y {
-            return None;
-        }
-
-        Some(self.heightmap.sample(world_x, world_y))
-    }
-}
-
-/// Active runtime surface query backend.
-///
-/// Current implementation uses centerline-nearest samples.
-/// This seam exists so we can switch to mesh/heightfield queries later
-/// without rewriting the core physics update flow.
+/// The road mesh's verdict on a point: its contact class and the
+/// surface's grip multiplier.
 #[derive(Debug, Clone, Copy)]
-enum SurfaceQueryBackend {
-    Centerline,
-    MeshHeightfield,
-}
-
-static MESH_BACKEND_STUB_LOG_ONCE: Once = Once::new();
-
-static SURFACE_QUERY_BACKEND: std::sync::OnceLock<SurfaceQueryBackend> = std::sync::OnceLock::new();
-
-fn active_surface_query_backend() -> SurfaceQueryBackend {
-    // Read the env var once; this runs on every surface query (several times
-    // per car per tick), so it must not hit the environment each call.
-    *SURFACE_QUERY_BACKEND.get_or_init(|| match std::env::var("APEXSIM_SURFACE_QUERY_BACKEND") {
-        Ok(value)
-            if value.eq_ignore_ascii_case("mesh")
-                || value.eq_ignore_ascii_case("heightfield")
-                || value.eq_ignore_ascii_case("mesh_heightfield") =>
-        {
-            SurfaceQueryBackend::MeshHeightfield
-        }
-        _ => SurfaceQueryBackend::Centerline,
-    })
+struct MeshHit {
+    contact: RoadContact,
+    friction: f32,
 }
 
 /// Update car physics for one simulation tick - main 3D physics function
@@ -308,18 +261,25 @@ pub fn update_car_3d(
         let world_x = state.pos_x + offset_x;
         let world_y = state.pos_y + offset_y;
 
-        // Wheels sit within a couple meters of the car: the car's own
-        // nearest index is an excellent hint.
-        let sample = query_track_surface(track, world_x, world_y, Some(track_ctx.nearest_point));
-        let contact_z = sample.map_or(track_ctx.elevation, |s| s.elevation);
-        let contact = sample.map_or(RoadContact::Road, |s| road_contact(track, &s));
-        let surface = contact.feedback();
-        let off_track = contact.off_track();
-
         // Along-track and leftward components of the wheel's offset.
         let along = offset_x * cos_track + offset_y * sin_track;
         let left = -offset_x * sin_track + offset_y * cos_track;
         let wheel_hub_z = hub_z + along * grade + left * cross_fall;
+
+        // Wheels sit within a couple meters of the car: the car's own
+        // nearest index is an excellent hint. The hub's height is what
+        // decides which level of the road mesh the wheel is on.
+        let sample = query_track_surface(
+            track,
+            world_x,
+            world_y,
+            Some(track_ctx.nearest_point),
+            wheel_hub_z,
+        );
+        let contact_z = sample.map_or(track_ctx.elevation, |s| s.elevation);
+        let contact = sample.map_or(RoadContact::Road, |s| road_contact(track, &s));
+        let surface = contact.feedback();
+        let off_track = contact.off_track();
 
         let wheel_extension = (wheel_hub_z - contact_z - config.wheel_radius_m).max(0.0);
         let compression =
@@ -1951,6 +1911,27 @@ pub fn pose_at_station(centerline: &[TrackPoint], station_m: f32) -> (f32, f32, 
     )
 }
 
+/// How far above the centerline's own height a car being put down looks
+/// for the road mesh: high enough to find a road that stands a little
+/// above the centerline formula, never the deck of a bridge over it.
+pub const SEAT_LOOKUP_M: f32 = 3.0;
+
+/// The height a car is put down at (the grid, the hotlap run-up, the
+/// garage): the road mesh under `(x, y)` when the track drives on one, so
+/// a slot on a bridge lands on the deck; `centerline_z` otherwise.
+pub fn seat_height(track: &TrackConfig, x: f32, y: f32, centerline_z: f32) -> f32 {
+    match track.road_mesh.as_deref() {
+        Some(mesh) => seat_height_on(mesh, x, y, centerline_z),
+        None => centerline_z,
+    }
+}
+
+/// [`seat_height`] on a given mesh.
+pub fn seat_height_on(mesh: &RoadMesh, x: f32, y: f32, centerline_z: f32) -> f32 {
+    mesh.contact_at(x, y, centerline_z + SEAT_LOOKUP_M)
+        .map_or(centerline_z, |hit| hit.z)
+}
+
 /// Find the index of the centerline point nearest to (x, y).
 ///
 /// With a `hint` (the previous tick's index) only a small window around it
@@ -2013,56 +1994,65 @@ pub fn find_nearest_centerline_idx(
 
 /// Query ground/surface properties at a world-space position. `hint` is the
 /// car's cached nearest-centerline index from the previous query, enabling a
-/// windowed (near-constant-time) search.
+/// windowed (near-constant-time) search; `z_ref` is the height of the point
+/// asking (a wheel's hub, the car's centre), which is what decides which
+/// of two stacked levels of the road mesh it is on.
+///
+/// The centerline is always sampled: it is the lap's spine, and the
+/// nearest point, lateral, heading and widths every reader keys on. With a
+/// road mesh (`TrackConfig::road_mesh`) the height and the surface class
+/// come from the triangle under the point instead, and on a road or
+/// pit-lane triangle so do the slope and banking everything downstream
+/// reads, from its normal. On a curb, run-off or ground triangle the
+/// centerline's slope and banking stand: a curb's lip is a 10° facet, and
+/// a car whose centre crosses one would otherwise be pulled sideways and
+/// rolled as if the road were banked that much. Where the mesh has nothing
+/// under the point (past its outermost band, a hole, the clamped inside of
+/// a hairpin) the centerline sample stands, exactly as without a mesh.
 fn query_track_surface(
     track: &TrackConfig,
     world_x: f32,
     world_y: f32,
     hint: Option<usize>,
+    z_ref: f32,
 ) -> Option<SurfaceQuerySample> {
-    match active_surface_query_backend() {
-        SurfaceQueryBackend::Centerline => {
-            query_track_surface_centerline(track, world_x, world_y, hint)
+    let sample = query_track_surface_centerline(track, world_x, world_y, hint)?;
+    let Some(mesh) = track.road_mesh.as_deref() else {
+        return Some(sample);
+    };
+    let Some(hit) = mesh.contact_at(world_x, world_y, z_ref) else {
+        return Some(sample);
+    };
+    let surface = mesh.surface(hit.surface);
+    let contact = RoadContact::from_surface(surface);
+    let (slope_rad, banking_rad) = match contact {
+        RoadContact::Road | RoadContact::PitLane => {
+            slope_and_banking(hit.normal, sample.heading_rad)
         }
-        SurfaceQueryBackend::MeshHeightfield => {
-            query_track_surface_mesh_heightfield_stub(track, world_x, world_y, hint)
-        }
-    }
+        _ => (sample.slope_rad, sample.banking_rad),
+    };
+    Some(SurfaceQuerySample {
+        elevation: hit.z,
+        slope_rad,
+        banking_rad,
+        mesh: Some(MeshHit {
+            contact,
+            friction: surface.friction,
+        }),
+        ..sample
+    })
 }
 
-fn track_heightfield_provider(track: &TrackConfig) -> Option<HeightfieldSurfaceData<'_>> {
-    let heightmap = track.procedural_world.as_ref()?.heightmap.as_ref()?;
-    Some(HeightfieldSurfaceData { heightmap })
-}
-
-/// Mesh/heightfield surface query backend stub.
-///
-/// This keeps the seam stable while mesh-backed terrain sampling is implemented.
-/// For now, it transparently falls back to centerline sampling.
-fn query_track_surface_mesh_heightfield_stub(
-    track: &TrackConfig,
-    world_x: f32,
-    world_y: f32,
-    hint: Option<usize>,
-) -> Option<SurfaceQuerySample> {
-    let centerline_sample = query_track_surface_centerline(track, world_x, world_y, hint)?;
-
-    if let Some(provider) = track_heightfield_provider(track) {
-        if let Some(elevation) = provider.elevation_at(world_x, world_y) {
-            return Some(SurfaceQuerySample {
-                elevation,
-                ..centerline_sample
-            });
-        }
-    }
-
-    MESH_BACKEND_STUB_LOG_ONCE.call_once(|| {
-        debug!(
-            "Mesh/heightfield backend has no usable heightfield sample; using centerline fallback"
-        );
-    });
-
-    Some(centerline_sample)
+/// A road mesh normal as the centerline's slope (uphill along `heading_rad`
+/// positive: `tan` of it is the grade) and banking (left edge up positive:
+/// `sin` of it is the cross fall, the shear the centerline formula and the
+/// track editor's ribbon both use).
+fn slope_and_banking(normal: [f32; 3], heading_rad: f32) -> (f32, f32) {
+    let (sin_h, cos_h) = heading_rad.sin_cos();
+    let nz = normal[2].max(1e-6);
+    let along = -(normal[0] * cos_h + normal[1] * sin_h) / nz;
+    let across = (normal[0] * sin_h - normal[1] * cos_h) / nz;
+    (along.atan(), across.clamp(-1.0, 1.0).asin())
 }
 
 /// Lateral distance past the road edge over which the surface blends from
@@ -2218,6 +2208,7 @@ fn query_track_surface_centerline(
         width_right: line.width_right_m,
         surface_type: line.surface_type,
         grip_modifier: line.grip_modifier,
+        mesh: None,
     })
 }
 
@@ -2236,20 +2227,41 @@ pub enum RoadContact {
     Curb,
     Runoff,
     Off,
+    /// The pit lane, which only a road mesh knows: asphalt with the road's
+    /// grip, off the track for the lap like the run-off.
+    PitLane,
 }
 
 impl RoadContact {
     /// Off the track for the lap: past the curbs.
     pub fn off_track(self) -> bool {
-        matches!(self, RoadContact::Runoff | RoadContact::Off)
+        matches!(
+            self,
+            RoadContact::Runoff | RoadContact::Off | RoadContact::PitLane
+        )
     }
 
     /// What the driver feels: the tarmac run-off is as smooth as the road.
     pub fn feedback(self) -> ContactSurface {
         match self {
-            RoadContact::Road | RoadContact::Runoff => ContactSurface::Road,
+            RoadContact::Road | RoadContact::Runoff | RoadContact::PitLane => ContactSurface::Road,
             RoadContact::Curb => ContactSurface::Curb,
             RoadContact::Off => ContactSurface::Off,
+        }
+    }
+
+    /// What a road mesh surface is to the sim. A road or curb surface an
+    /// importer marks outside the track limits drives as run-off: asphalt,
+    /// but off the track for the lap.
+    pub fn from_surface(surface: &crate::road_mesh::RoadSurface) -> Self {
+        use crate::road_mesh::{CONTACT_CURB, CONTACT_OFF, CONTACT_PIT_LANE, CONTACT_RUNOFF};
+        match surface.contact {
+            CONTACT_CURB if surface.valid_track => RoadContact::Curb,
+            CONTACT_CURB | CONTACT_RUNOFF => RoadContact::Runoff,
+            CONTACT_OFF => RoadContact::Off,
+            CONTACT_PIT_LANE => RoadContact::PitLane,
+            _ if surface.valid_track => RoadContact::Road,
+            _ => RoadContact::Runoff,
         }
     }
 }
@@ -2259,6 +2271,11 @@ impl RoadContact {
 pub const RUNOFF_GRIP_FACTOR: f32 = 0.95;
 
 fn road_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> RoadContact {
+    // The mesh knows what it is standing on; the curb bands are only for
+    // the centerline, and for wherever the mesh has nothing.
+    if let Some(hit) = surface.mesh {
+        return hit.contact;
+    }
     let half_width = if surface.lateral_offset >= 0.0 {
         surface.width_right
     } else {
@@ -2290,10 +2307,43 @@ fn road_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> RoadContac
 /// Get track context at the car's current position
 fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
     let hint = state.nearest_centerline_idx.map(|i| i as usize);
-    let Some(surface) = query_track_surface(track, state.pos_x, state.pos_y, hint) else {
+    let Some(surface) = query_track_surface(track, state.pos_x, state.pos_y, hint, state.pos_z)
+    else {
         return TrackContext::default();
     };
+    track_context_of(track, &surface)
+}
 
+/// What the sim sees under a point, for tests and tools that hold the
+/// road mesh against the centerline: the [`TrackContext`] a car there
+/// would get, the contact class, and whether the road mesh answered.
+#[derive(Debug, Clone)]
+pub struct SurfaceProbe {
+    pub context: TrackContext,
+    pub contact: RoadContact,
+    pub from_mesh: bool,
+}
+
+/// [`SurfaceProbe`] at `(x, y)`, asked from height `z_ref` (see
+/// `query_track_surface`); `hint` seeds the centerline search.
+pub fn probe_surface(
+    track: &TrackConfig,
+    x: f32,
+    y: f32,
+    z_ref: f32,
+    hint: Option<usize>,
+) -> Option<SurfaceProbe> {
+    let surface = query_track_surface(track, x, y, hint, z_ref)?;
+    Some(SurfaceProbe {
+        context: track_context_of(track, &surface),
+        contact: road_contact(track, &surface),
+        from_mesh: surface.mesh.is_some(),
+    })
+}
+
+/// The track context a surface sample gives a car standing on it.
+fn track_context_of(track: &TrackConfig, surface: &SurfaceQuerySample) -> TrackContext {
+    let surface = *surface;
     let contact = road_contact(track, &surface);
     // On the track as the physics means it — a surface with grip and no
     // grass drag. The tarmac run-off counts: it is asphalt. The lap's track
@@ -2301,7 +2351,9 @@ fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
     // run-off is off.
     let is_on_track = contact != RoadContact::Off;
 
-    // Determine surface type and grip
+    // Determine surface type and grip: the class's own figure for this
+    // track (weather-scaled at session creation), times the mesh surface's
+    // multiplier where there is one (1.0 on every generated mesh).
     let (surface_type, grip_modifier) = match contact {
         RoadContact::Curb => (SurfaceType::Curb, track.track_surface.curb_grip),
         RoadContact::Road => (surface.surface_type, surface.grip_modifier),
@@ -2309,8 +2361,10 @@ fn get_track_context(state: &CarState, track: &TrackConfig) -> TrackContext {
             SurfaceType::Asphalt,
             surface.grip_modifier * RUNOFF_GRIP_FACTOR,
         ),
+        RoadContact::PitLane => (SurfaceType::Asphalt, surface.grip_modifier),
         RoadContact::Off => (SurfaceType::Grass, track.track_surface.off_track_grip),
     };
+    let grip_modifier = grip_modifier * surface.mesh.map_or(1.0, |m| m.friction);
 
     TrackContext {
         nearest_point: surface.nearest_point,
@@ -3339,26 +3393,26 @@ mod tests {
     fn test_curb_counts_as_on_track() {
         // 10 m of asphalt each side of the centerline, then 1.5 m of curb
         // on the right.
-        let track = straight_track_with_right_curb(1.5);
+        on_both_backends(straight_track_with_right_curb(1.5), 20.0, |track| {
+            // Negative y is to the right of a car heading along +x.
+            let asphalt = context_at(track, -9.0);
+            assert!(asphalt.is_on_track);
+            assert_eq!(asphalt.surface_type, SurfaceType::Asphalt);
 
-        // Negative y is to the right of a car heading along +x.
-        let asphalt = context_at(&track, -9.0);
-        assert!(asphalt.is_on_track);
-        assert_eq!(asphalt.surface_type, SurfaceType::Asphalt);
+            let curb = context_at(track, -11.0);
+            assert!(curb.is_on_track, "1 m past the edge is still curb");
+            assert_eq!(curb.surface_type, SurfaceType::Curb);
+            assert_eq!(curb.grip_modifier, track.track_surface.curb_grip);
 
-        let curb = context_at(&track, -11.0);
-        assert!(curb.is_on_track, "1 m past the edge is still curb");
-        assert_eq!(curb.surface_type, SurfaceType::Curb);
-        assert_eq!(curb.grip_modifier, track.track_surface.curb_grip);
+            let past_the_curb = context_at(track, -12.0);
+            assert!(!past_the_curb.is_on_track, "2 m past the edge is grass");
+            assert_eq!(past_the_curb.surface_type, SurfaceType::Grass);
 
-        let past_the_curb = context_at(&track, -12.0);
-        assert!(!past_the_curb.is_on_track, "2 m past the edge is grass");
-        assert_eq!(past_the_curb.surface_type, SurfaceType::Grass);
-
-        // The curb is on the right edge only.
-        let other_side = context_at(&track, 11.0);
-        assert!(!other_side.is_on_track);
-        assert_eq!(other_side.surface_type, SurfaceType::Grass);
+            // The curb is on the right edge only.
+            let other_side = context_at(track, 11.0);
+            assert!(!other_side.is_on_track);
+            assert_eq!(other_side.surface_type, SurfaceType::Grass);
+        });
     }
 
     /// The tarmac run-off past the curb is asphalt to drive on — grip and
@@ -3367,59 +3421,59 @@ mod tests {
     #[test]
     fn test_tarmac_runoff_is_asphalt_but_off_the_track() {
         // 1.5 m of curb, then tarmac out to 8 m past the edge.
-        let track = straight_track_with_right_runoff(1.5, 8.0);
+        on_both_backends(straight_track_with_right_runoff(1.5, 8.0), 20.0, |track| {
+            let runoff = context_at(track, -15.0);
+            assert!(runoff.is_on_track, "5 m past the edge is tarmac run-off");
+            assert_eq!(runoff.surface_type, SurfaceType::Asphalt);
+            assert!(
+                (runoff.grip_modifier - RUNOFF_GRIP_FACTOR).abs() < 1e-4,
+                "run-off grip {}",
+                runoff.grip_modifier
+            );
+            let grass = context_at(track, -19.0);
+            assert!(!grass.is_on_track, "9 m past the edge is grass");
 
-        let runoff = context_at(&track, -15.0);
-        assert!(runoff.is_on_track, "5 m past the edge is tarmac run-off");
-        assert_eq!(runoff.surface_type, SurfaceType::Asphalt);
-        assert!(
-            (runoff.grip_modifier - RUNOFF_GRIP_FACTOR).abs() < 1e-4,
-            "run-off grip {}",
-            runoff.grip_modifier
-        );
-        let grass = context_at(&track, -19.0);
-        assert!(!grass.is_on_track, "9 m past the edge is grass");
-
-        // Track limits: a car wholly on the run-off is off the track.
-        let mut state = create_test_car_state();
-        state.pos_x = 100.0;
-        state.pos_y = -15.0;
-        state.vel_x = 30.0;
-        state.speed_mps = 30.0;
-        let config = CarConfig::default();
-        let input = PlayerInputData {
-            throttle: 0.5,
-            ..Default::default()
-        };
-        update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
-        assert!(
-            state.wheels_off_track,
-            "four wheels on the run-off is off the track"
-        );
-        assert!(state.is_on_track, "but the physics is on asphalt");
-        // And the run-off car coasts as a car on the road does: no grass
-        // drag on it.
-        let mut on_road = create_test_car_state();
-        on_road.pos_x = 100.0;
-        on_road.pos_y = -5.0;
-        on_road.vel_x = 30.0;
-        on_road.speed_mps = 30.0;
-        let mut coasting = create_test_car_state();
-        coasting.pos_x = 100.0;
-        coasting.pos_y = -15.0;
-        coasting.vel_x = 30.0;
-        coasting.speed_mps = 30.0;
-        let coast = PlayerInputData::default();
-        for _ in 0..240 {
-            update_car_3d(&mut on_road, &config, &coast, &track, 1.0 / 240.0);
-            update_car_3d(&mut coasting, &config, &coast, &track, 1.0 / 240.0);
-        }
-        assert!(
-            (coasting.vel_x - on_road.vel_x).abs() < 0.25,
-            "run-off {} vs road {} after a second",
-            coasting.vel_x,
-            on_road.vel_x
-        );
+            // Track limits: a car wholly on the run-off is off the track.
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.pos_y = -15.0;
+            state.vel_x = 30.0;
+            state.speed_mps = 30.0;
+            let config = CarConfig::default();
+            let input = PlayerInputData {
+                throttle: 0.5,
+                ..Default::default()
+            };
+            update_car_3d(&mut state, &config, &input, track, 1.0 / 240.0);
+            assert!(
+                state.wheels_off_track,
+                "four wheels on the run-off is off the track"
+            );
+            assert!(state.is_on_track, "but the physics is on asphalt");
+            // And the run-off car coasts as a car on the road does: no grass
+            // drag on it.
+            let mut on_road = create_test_car_state();
+            on_road.pos_x = 100.0;
+            on_road.pos_y = -5.0;
+            on_road.vel_x = 30.0;
+            on_road.speed_mps = 30.0;
+            let mut coasting = create_test_car_state();
+            coasting.pos_x = 100.0;
+            coasting.pos_y = -15.0;
+            coasting.vel_x = 30.0;
+            coasting.speed_mps = 30.0;
+            let coast = PlayerInputData::default();
+            for _ in 0..240 {
+                update_car_3d(&mut on_road, &config, &coast, track, 1.0 / 240.0);
+                update_car_3d(&mut coasting, &config, &coast, track, 1.0 / 240.0);
+            }
+            assert!(
+                (coasting.vel_x - on_road.vel_x).abs() < 0.25,
+                "run-off {} vs road {} after a second",
+                coasting.vel_x,
+                on_road.vel_x
+            );
+        });
     }
 
     /// Without the sidecar the road edge is the limit, exactly as it was
@@ -4092,25 +4146,26 @@ mod tests {
         // Positive banking lifts the left edge, so a car coasting down a
         // banked straight drifts right, toward the low side; driven the
         // other way it drifts toward the same edge, now on its left.
-        let track = graded_straight(0.0, 0.2);
-        let config = create_test_config();
-        for (yaw, heading_sign) in [(0.0f32, 1.0f32), (std::f32::consts::PI, -1.0)] {
-            let mut state = create_test_car_state();
-            state.pos_x = 1500.0;
-            state.yaw_rad = yaw;
-            state.vel_x = 30.0 * heading_sign;
-            state.speed_mps = 30.0;
-            let input = PlayerInputData::default();
-            let start_y = state.pos_y;
-            for _ in 0..240 {
-                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        on_both_backends(graded_straight(0.0, 0.2), 0.0, |track| {
+            let config = create_test_config();
+            for (yaw, heading_sign) in [(0.0f32, 1.0f32), (std::f32::consts::PI, -1.0)] {
+                let mut state = create_test_car_state();
+                state.pos_x = 1500.0;
+                state.yaw_rad = yaw;
+                state.vel_x = 30.0 * heading_sign;
+                state.speed_mps = 30.0;
+                let input = PlayerInputData::default();
+                let start_y = state.pos_y;
+                for _ in 0..240 {
+                    update_car_3d(&mut state, &config, &input, track, 1.0 / 240.0);
+                }
+                assert!(
+                    state.pos_y < start_y - 0.05,
+                    "car heading {yaw:.2} moved {:.3} m across a bank lifting the left edge",
+                    state.pos_y - start_y
+                );
             }
-            assert!(
-                state.pos_y < start_y - 0.05,
-                "car heading {yaw:.2} moved {:.3} m across a bank lifting the left edge",
-                state.pos_y - start_y
-            );
-        }
+        });
     }
 
     #[test]
@@ -4120,31 +4175,32 @@ mod tests {
         // every hub at the centre's height the lower wheels were held
         // compressed, the upper ones hung out, and a straight line on a
         // cambered road ran with kilonewtons more on one side.
-        let track = graded_straight(0.0, 0.06);
-        let config = create_test_config();
-        let mut state = create_test_car_state();
-        state.pos_x = 100.0;
-        let input = PlayerInputData::default();
-        update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
-        let s = &state.suspension;
-        assert!(
-            (s.front_left_travel_m - s.front_right_travel_m).abs() < 1e-3,
-            "front suspension {:.3} vs {:.3}",
-            s.front_left_travel_m,
-            s.front_right_travel_m
-        );
-        assert!(
-            (state.weight_front_left_n - state.weight_front_right_n).abs() < 50.0,
-            "front loads {:.0} vs {:.0}",
-            state.weight_front_left_n,
-            state.weight_front_right_n
-        );
-        assert!(
-            (state.weight_rear_left_n - state.weight_rear_right_n).abs() < 50.0,
-            "rear loads {:.0} vs {:.0}",
-            state.weight_rear_left_n,
-            state.weight_rear_right_n
-        );
+        on_both_backends(graded_straight(0.0, 0.06), 0.0, |track| {
+            let config = create_test_config();
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            let input = PlayerInputData::default();
+            update_car_3d(&mut state, &config, &input, track, 1.0 / 240.0);
+            let s = &state.suspension;
+            assert!(
+                (s.front_left_travel_m - s.front_right_travel_m).abs() < 1e-3,
+                "front suspension {:.3} vs {:.3}",
+                s.front_left_travel_m,
+                s.front_right_travel_m
+            );
+            assert!(
+                (state.weight_front_left_n - state.weight_front_right_n).abs() < 50.0,
+                "front loads {:.0} vs {:.0}",
+                state.weight_front_left_n,
+                state.weight_front_right_n
+            );
+            assert!(
+                (state.weight_rear_left_n - state.weight_rear_right_n).abs() < 50.0,
+                "rear loads {:.0} vs {:.0}",
+                state.weight_rear_left_n,
+                state.weight_rear_right_n
+            );
+        });
     }
 
     /// A straight far wider than any turn in these tests, so a car can
@@ -4438,30 +4494,31 @@ mod tests {
     fn feedback_reports_the_surface_under_each_wheel() {
         // Asphalt to 10 m right of the centerline, then 1.5 m of curb. The
         // wheels sit about 0.8 m either side of the car's centre.
-        let track = straight_track_with_right_curb(1.5);
-        let config = create_test_config();
-        let surfaces_at = |y: f32| {
-            let mut state = create_test_car_state();
-            state.pos_x = 100.0;
-            state.pos_y = y;
-            state.vel_x = 30.0;
-            state.speed_mps = 30.0;
-            state.gear = 3;
-            let input = PlayerInputData::default();
-            update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
-            state.feedback.take(0).surface
-        };
-        let (road, curb, off) = (
-            ContactSurface::Road as u8,
-            ContactSurface::Curb as u8,
-            ContactSurface::Off as u8,
-        );
+        on_both_backends(straight_track_with_right_curb(1.5), 20.0, |track| {
+            let config = create_test_config();
+            let surfaces_at = |y: f32| {
+                let mut state = create_test_car_state();
+                state.pos_x = 100.0;
+                state.pos_y = y;
+                state.vel_x = 30.0;
+                state.speed_mps = 30.0;
+                state.gear = 3;
+                let input = PlayerInputData::default();
+                update_car_3d(&mut state, &config, &input, track, 1.0 / 240.0);
+                state.feedback.take(0).surface
+            };
+            let (road, curb, off) = (
+                ContactSurface::Road as u8,
+                ContactSurface::Curb as u8,
+                ContactSurface::Off as u8,
+            );
 
-        // Negative y is right of a car heading +x: right wheels on the curb.
-        assert_eq!(surfaces_at(-10.2), [road, curb, road, curb]);
-        // Further out: left wheels on the curb, right wheels past it.
-        assert_eq!(surfaces_at(-11.2), [curb, off, curb, off]);
-        assert_eq!(surfaces_at(0.0), [road; 4]);
+            // Negative y is right of a car heading +x: right wheels on the curb.
+            assert_eq!(surfaces_at(-10.2), [road, curb, road, curb]);
+            // Further out: left wheels on the curb, right wheels past it.
+            assert_eq!(surfaces_at(-11.2), [curb, off, curb, off]);
+            assert_eq!(surfaces_at(0.0), [road; 4]);
+        });
     }
 
     #[test]
@@ -5501,6 +5558,7 @@ mod tests {
             ground: None,
             curbs: None,
             walls: None,
+            road_mesh: None,
         };
 
         state.pos_x = 0.0;
@@ -5548,78 +5606,253 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_mesh_backend_stub_overrides_elevation_from_heightfield() {
-        let mut heightmap = crate::procgen::TerrainHeightmap::new(2, 2, 1.0, 0.0, 0.0);
-        heightmap.set_height(0, 0, 5.0);
-        heightmap.set_height(1, 0, 5.0);
-        heightmap.set_height(0, 1, 5.0);
-        heightmap.set_height(1, 1, 5.0);
-
-        let track = TrackConfig {
-            id: Uuid::new_v4(),
-            name: "Heightfield Override Test".to_string(),
-            centerline: vec![TrackPoint {
-                x: 0.5,
-                y: 0.5,
-                z: 1.0,
-                distance_from_start_m: 0.0,
-                width_left_m: 20.0,
-                width_right_m: 20.0,
-                banking_rad: 0.1,
-                camber_rad: 0.0,
-                slope_rad: 0.05,
-                heading_rad: 0.2,
-                surface_type: SurfaceType::Asphalt,
-                grip_modifier: 1.0,
-            }],
-            width_m: 40.0,
-            source_path: None,
-            content_crc: 0,
-            start_positions: Vec::new(),
-            track_surface: TrackSurface::default(),
-            pit_lane: None,
-            raceline: Vec::new(),
-            raceline_distances: Vec::new(),
-            drs_zones: Vec::new(),
-            checkpoints: Vec::new(),
-            sectors: Vec::new(),
-            metadata: TrackMetadata::default(),
-            procedural_world: Some(crate::procgen::ProceduralWorldData {
-                environment_type: "test".to_string(),
-                seed: 1,
-                heightmap: Some(heightmap),
-                blend_width: 20.0,
-                object_density: 0.0,
-                decal_profile: "default".to_string(),
-                preset: crate::procgen::EnvironmentPreset::plains(),
-            }),
-            ground: None,
-            curbs: None,
-            walls: None,
+    /// The track's road, curb bands, tarmac run-off and `grass_m` of grass
+    /// past them, lofted into a road mesh from the centerline formula
+    /// itself (one quad per centerline segment and band), so the mesh
+    /// backend runs on the same synthetic tracks the centerline tests use
+    /// and the two can be held to the same answers.
+    fn mesh_from_centerline(track: &TrackConfig, grass_m: f32) -> RoadMesh {
+        use crate::road_mesh::*;
+        let surface = |key: &str, contact: u8, valid: bool| RoadSurface {
+            key: key.to_string(),
+            contact,
+            friction: 1.0,
+            valid_track: valid,
+            pit_lane: false,
         };
+        let mut file = RoadMeshFile {
+            version: ROAD_MESH_VERSION,
+            vertices: Vec::new(),
+            triangles: Vec::new(),
+            triangle_surface: Vec::new(),
+            surfaces: vec![
+                surface("road", CONTACT_ROAD, true),
+                surface("curb", CONTACT_CURB, true),
+                surface("runoff_asphalt", CONTACT_RUNOFF, false),
+                surface("off_grass", CONTACT_OFF, false),
+            ],
+            source: "mesh_from_centerline".to_string(),
+        };
+        // Right-positive laterals, like `surface_elevation`.
+        let corner = |p: &TrackPoint, lat: f32| {
+            let (sin_h, cos_h) = p.heading_rad.sin_cos();
+            let x = p.x + lat * sin_h;
+            let y = p.y - lat * cos_h;
+            [x, y, surface_elevation(track, p, lat, x, y)]
+        };
+        for pair in track.centerline.windows(2) {
+            let (a, b) = (&pair[0], &pair[1]);
+            let mut bands: Vec<(f32, f32, u16)> = vec![(-a.width_left_m, a.width_right_m, 0)];
+            for sign in [1.0f32, -1.0] {
+                let half = if sign > 0.0 {
+                    a.width_right_m
+                } else {
+                    a.width_left_m
+                };
+                let station = a.distance_from_start_m;
+                let (curb, runoff) = track.curbs.as_ref().map_or((0.0, 0.0), |c| {
+                    (c.width_at(station, sign), c.runoff_at(station, sign))
+                });
+                let mut reach = half;
+                if curb > 0.0 {
+                    bands.push((sign * reach, sign * (reach + curb), 1));
+                    reach += curb;
+                }
+                if half + runoff > reach {
+                    bands.push((sign * reach, sign * (half + runoff), 2));
+                    reach = half + runoff;
+                }
+                if grass_m > 0.0 {
+                    bands.push((sign * reach, sign * (reach + grass_m), 3));
+                }
+            }
+            for (l0, l1, s) in bands {
+                let base = file.vertices.len() as u32;
+                file.vertices
+                    .extend([corner(a, l0), corner(a, l1), corner(b, l1), corner(b, l0)]);
+                file.triangles.push([base, base + 1, base + 2]);
+                file.triangles.push([base, base + 2, base + 3]);
+                file.triangle_surface.extend([s, s]);
+            }
+        }
+        RoadMesh::from_file(file).expect("a mesh from the centerline is valid")
+    }
 
-        let centerline_sample = query_track_surface_centerline(&track, 0.5, 0.5, None)
-            .expect("centerline sample should exist");
-        let mesh_sample = query_track_surface_mesh_heightfield_stub(&track, 0.5, 0.5, None)
-            .expect("mesh stub sample should exist");
+    /// The track as it is, and the track driving on a mesh of itself.
+    fn on_both_backends(track: TrackConfig, grass_m: f32, body: impl Fn(&TrackConfig)) {
+        body(&track);
+        let mut meshed = track;
+        meshed.road_mesh = Some(std::sync::Arc::new(mesh_from_centerline(&meshed, grass_m)));
+        body(&meshed);
+    }
 
+    /// On a mesh of the centerline formula the mesh backend reads the same
+    /// height, slope and banking as the centerline backend, and says so
+    /// through the mesh field.
+    #[test]
+    fn mesh_backend_agrees_with_the_centerline_on_a_banked_grade() {
+        let track = graded_straight(0.03, 0.2);
+        let mut meshed = track.clone();
+        meshed.road_mesh = Some(std::sync::Arc::new(mesh_from_centerline(&track, 0.0)));
+        for (x, y) in [(100.0, 0.0), (1234.5, 3.0), (2000.25, -7.5)] {
+            let line = query_track_surface(&track, x, y, None, 0.0).unwrap();
+            // Asked from the road's own height, as a wheel would.
+            let mesh = query_track_surface(&meshed, x, y, None, line.elevation).unwrap();
+            assert!(line.mesh.is_none());
+            assert!(mesh.mesh.is_some(), "no triangle under ({x}, {y})");
+            assert!(
+                (line.elevation - mesh.elevation).abs() < 2e-3,
+                "({x}, {y}): centerline {} vs mesh {}",
+                line.elevation,
+                mesh.elevation
+            );
+            assert!(
+                (line.slope_rad - mesh.slope_rad).abs() < 1e-3,
+                "slope {} vs {}",
+                line.slope_rad,
+                mesh.slope_rad
+            );
+            assert!(
+                (line.banking_rad - mesh.banking_rad).abs() < 1e-3,
+                "banking {} vs {}",
+                line.banking_rad,
+                mesh.banking_rad
+            );
+            assert_eq!(line.nearest_point, mesh.nearest_point);
+            assert_eq!(line.heading_rad, mesh.heading_rad);
+        }
+    }
+
+    /// Where the mesh has nothing under the point — past its last band, a
+    /// hole — the centerline sample stands, exactly as without a mesh.
+    #[test]
+    fn mesh_backend_falls_back_to_the_centerline_off_the_mesh() {
+        let track = straight_track_with_right_curb(1.5);
+        let mut meshed = track.clone();
+        // No grass band: the mesh ends at the curb's outer edge.
+        meshed.road_mesh = Some(std::sync::Arc::new(mesh_from_centerline(&track, 0.0)));
+        let on = context_at(&meshed, -11.0);
+        assert_eq!(on.surface_type, SurfaceType::Curb);
+        let off = context_at(&meshed, -13.0);
+        let line = context_at(&track, -13.0);
+        assert_eq!(off.surface_type, SurfaceType::Grass);
+        assert!(!off.is_on_track);
+        assert_eq!(off.elevation, line.elevation);
+        assert_eq!(off.grip_modifier, line.grip_modifier);
+    }
+
+    /// Two levels of road: the wheel's own height picks the one it is on,
+    /// and a car being seated from the centerline lands on the upper one
+    /// where the centerline runs over the bridge.
+    #[test]
+    fn mesh_backend_picks_the_level_under_the_wheel() {
+        let mut track = create_straight_test_track();
+        for p in &mut track.centerline {
+            p.z = 12.0;
+        }
+        let deck = mesh_from_centerline(&track, 0.0);
+        // The same road 12 m lower, as a second level under it.
+        let mut lower = track.clone();
+        for p in &mut lower.centerline {
+            p.z = 0.0;
+        }
+        let mut file = crate::road_mesh::RoadMeshFile {
+            version: crate::road_mesh::ROAD_MESH_VERSION,
+            vertices: Vec::new(),
+            triangles: Vec::new(),
+            triangle_surface: Vec::new(),
+            surfaces: deck.surfaces().to_vec(),
+            source: "two levels".to_string(),
+        };
+        let lower_mesh = mesh_from_centerline(&lower, 0.0);
+        for level in [&deck, &lower_mesh] {
+            for t in 0..level.triangle_count() as u32 {
+                let base = file.vertices.len() as u32;
+                for v in level.triangle(t) {
+                    file.vertices.push(v);
+                }
+                file.triangles.push([base, base + 1, base + 2]);
+                file.triangle_surface.push(0);
+            }
+        }
+        let mesh = std::sync::Arc::new(crate::road_mesh::RoadMesh::from_file(file).unwrap());
+        track.road_mesh = Some(mesh.clone());
+
+        let mut state = create_test_car_state();
+        state.pos_x = 100.0;
+        state.pos_z = 12.0;
+        assert!((get_track_context(&state, &track).elevation - 12.0).abs() < 1e-3);
+        state.pos_z = 0.0;
+        assert!((get_track_context(&state, &track).elevation - 0.0).abs() < 1e-3);
+
+        // Seating looks a few metres up from the centerline's own height:
+        // the deck is where the centerline runs.
+        assert!((seat_height(&track, 100.0, 0.0, 12.0) - 12.0).abs() < 1e-3);
+        // From the lower road's height it finds the lower road, never the
+        // deck twelve metres up.
+        assert!((seat_height_on(&mesh, 100.0, 0.0, 0.0) - 0.0).abs() < 1e-3);
+    }
+
+    /// An imported mesh's surface table maps onto the sim's classes: a
+    /// pit lane is asphalt off the track, a curb outside the limits drives
+    /// as run-off, and a surface's friction scales the class's grip.
+    #[test]
+    fn mesh_surfaces_map_onto_contact_classes() {
+        use crate::road_mesh::*;
+        let surface = |contact: u8, valid: bool| RoadSurface {
+            key: String::new(),
+            contact,
+            friction: 1.0,
+            valid_track: valid,
+            pit_lane: contact == CONTACT_PIT_LANE,
+        };
         assert_eq!(
-            centerline_sample.elevation, 1.0,
-            "centerline sample should use centerline z"
+            RoadContact::from_surface(&surface(CONTACT_ROAD, true)),
+            RoadContact::Road
         );
-        assert!(
-            (mesh_sample.elevation - 5.0).abs() < 0.001,
-            "mesh stub should use heightfield elevation"
+        assert_eq!(
+            RoadContact::from_surface(&surface(CONTACT_ROAD, false)),
+            RoadContact::Runoff
         );
+        assert_eq!(
+            RoadContact::from_surface(&surface(CONTACT_CURB, true)),
+            RoadContact::Curb
+        );
+        assert_eq!(
+            RoadContact::from_surface(&surface(CONTACT_CURB, false)),
+            RoadContact::Runoff
+        );
+        assert_eq!(
+            RoadContact::from_surface(&surface(CONTACT_OFF, false)),
+            RoadContact::Off
+        );
+        let pit = RoadContact::from_surface(&surface(CONTACT_PIT_LANE, false));
+        assert_eq!(pit, RoadContact::PitLane);
+        assert!(pit.off_track());
+        assert_eq!(pit.feedback(), ContactSurface::Road);
 
-        assert_eq!(mesh_sample.nearest_point, centerline_sample.nearest_point);
-        assert!((mesh_sample.banking_rad - centerline_sample.banking_rad).abs() < 0.0001);
-        assert!((mesh_sample.slope_rad - centerline_sample.slope_rad).abs() < 0.0001);
-        assert!((mesh_sample.heading_rad - centerline_sample.heading_rad).abs() < 0.0001);
-        assert!((mesh_sample.lateral_offset - centerline_sample.lateral_offset).abs() < 0.0001);
-        assert_eq!(mesh_sample.surface_type, centerline_sample.surface_type);
-        assert!((mesh_sample.grip_modifier - centerline_sample.grip_modifier).abs() < 0.0001);
+        let track = create_straight_test_track();
+        let mut meshed = track.clone();
+        let mut file = {
+            let m = mesh_from_centerline(&track, 0.0);
+            RoadMeshFile {
+                version: ROAD_MESH_VERSION,
+                vertices: (0..m.triangle_count() as u32)
+                    .flat_map(|t| m.triangle(t))
+                    .collect(),
+                triangles: (0..m.triangle_count() as u32)
+                    .map(|t| [t * 3, t * 3 + 1, t * 3 + 2])
+                    .collect(),
+                triangle_surface: vec![0; m.triangle_count()],
+                surfaces: vec![surface(CONTACT_ROAD, true)],
+                source: String::new(),
+            }
+        };
+        file.surfaces[0].friction = 0.5;
+        meshed.road_mesh = Some(std::sync::Arc::new(RoadMesh::from_file(file).unwrap()));
+        let plain = context_at(&track, 0.0);
+        let scaled = context_at(&meshed, 0.0);
+        assert!((scaled.grip_modifier - plain.grip_modifier * 0.5).abs() < 1e-6);
     }
 
     /// Ground rising from `left_z` at y = +1 to `right_z` at y = -1: for a
@@ -5674,6 +5907,7 @@ mod tests {
             ground: None,
             curbs: None,
             walls: None,
+            road_mesh: None,
         }
     }
 

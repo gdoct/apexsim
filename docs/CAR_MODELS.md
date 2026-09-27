@@ -10,7 +10,7 @@ Fourteen cars are generated from four Blender scripts in `content/cars/`:
 | `build_hypercar.py` | `panini`, `fugazzi`, `bugotti` | `panini-zomba-hypercar/panini_zomba`, `fugazzi-994p-hypercar/fugazzi_994p`, `bugotti-chiffon-hypercar/bugotti_chiffon` |
 
 Run inside Blender with `VARIANT = "<name>"` set first, then
-`exec(open(r"D:\apexsim\content\cars\build_<class>.py").read())`. Each run
+`exec(open(r"E:\apexsim\content\cars\build_<class>.py").read())`. Each run
 resets the scene, builds body → wheel arches → apertures → parts → joined mesh
 (saving the `.blend` after every stage) and exports `<stem>.glb` beside
 `car.toml`. Set `APEX_EXPORT=0` in the environment to skip the export while
@@ -19,7 +19,7 @@ iterating on shape.
 They also run headless, outside Blender, on the `bpy` module
 (`pip install bpy`, Python 3.11): set `APEXSIM_ROOT` to the checkout (the
 scripts, `carlib.CARS_ROOT`, `apex_props.PROPS_ROOT` and `preview_cars.py`
-fall back to `D:\apexsim` without it), define `VARIANT` and `exec` the
+fall back to `E:\apexsim` without it), define `VARIANT` and `exec` the
 script. `preview_cars.py` renders the same way with Cycles where Eevee has
 no GPU/EGL.
 
@@ -154,7 +154,7 @@ into `content/props/_preview/cars/`:
 
 ```python
 CARS = ["posh-gt3rs"]; VIEWS = ["hero", "side", "front", "rear", "cockpit", "mirror"]
-exec(open(r"D:\apexsim\content\cars\preview_cars.py").read())
+exec(open(r"E:\apexsim\content\cars\preview_cars.py").read())
 ```
 
 It loads the exported GLB plus the class wheel and places the four wheels

@@ -2,7 +2,7 @@
 content/cars/<folder>/<stem>.glb.
 
     VARIANT = "panini"     # panini | fugazzi | bugotti
-    exec(open(r"D:\\apexsim\\content\\cars\\build_hypercar.py").read())
+    exec(open(r"E:\\apexsim\\content\\cars\\build_hypercar.py").read())
 
 Same pipeline as build_lmp2.py (shape data here, mechanics in carlib.py), a
 different hull. A hypercar is longer, wider and lower than an LMP2 and the
@@ -27,7 +27,7 @@ import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
 # ------------------------------------------------------------------ loading
-_ROOT = os.environ.get("APEXSIM_ROOT", r"D:\apexsim")
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
 for _n, _p in (("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py")),
                ("carlib", os.path.join(_ROOT, "content", "cars", "carlib.py"))):
     _s = importlib.util.spec_from_file_location(_n, _p)

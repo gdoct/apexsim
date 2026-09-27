@@ -5,12 +5,15 @@
 //! - `physics_step_monza`: one full car physics step on a real track
 //! - `track_progress_monza`: the nearest-centerline scan in isolation
 //! - `session_tick_8cars_monza`: a whole GameSession tick with AI drivers
+//! - `*_mesh`: the same two on Monza's road mesh (`docs/ROAD_MESH.md`),
+//!   when `Monza.road.msgpack` has been baked; skipped otherwise
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::collections::HashMap;
 use std::hint::black_box;
 
 use apexsim_server::ai_driver::AiDriverProfile;
+use apexsim_server::config::RoadContactMode;
 use apexsim_server::data::*;
 use apexsim_server::game_session::GameSession;
 use apexsim_server::physics;
@@ -23,13 +26,30 @@ fn load_monza() -> TrackConfig {
     TrackLoader::load_from_file(MONZA).expect("failed to load Monza track")
 }
 
+/// Monza driving on its road mesh, or `None` when the sidecar is not baked.
+fn load_monza_mesh() -> Option<TrackConfig> {
+    let track = TrackLoader::load_from_file_with(MONZA, RoadContactMode::Mesh)
+        .expect("failed to load Monza track");
+    if track.road_mesh.is_none() {
+        eprintln!("no Monza.road.msgpack: the *_mesh benches are skipped");
+        return None;
+    }
+    Some(track)
+}
+
 fn make_car_state(track: &TrackConfig, config: &CarConfig, grid_index: usize) -> CarState {
     let slot = &track.start_positions[grid_index % track.start_positions.len()];
     CarState::new(Uuid::new_v4(), config.id, slot)
 }
 
 fn bench_physics_step(c: &mut Criterion) {
-    let track = load_monza();
+    bench_physics_step_on(c, "physics_step_monza", load_monza());
+    if let Some(track) = load_monza_mesh() {
+        bench_physics_step_on(c, "physics_step_monza_mesh", track);
+    }
+}
+
+fn bench_physics_step_on(c: &mut Criterion, name: &str, track: TrackConfig) {
     let config = CarConfig::default();
     let mut state = make_car_state(&track, &config, 0);
     let input = PlayerInputData {
@@ -44,7 +64,7 @@ fn bench_physics_step(c: &mut Criterion) {
     };
     let dt = 1.0 / 240.0;
 
-    c.bench_function("physics_step_monza", |b| {
+    c.bench_function(name, |b| {
         b.iter(|| {
             physics::update_car_3d(
                 black_box(&mut state),
@@ -72,7 +92,13 @@ fn bench_track_progress(c: &mut Criterion) {
 }
 
 fn bench_session_tick(c: &mut Criterion) {
-    let track = load_monza();
+    bench_session_tick_on(c, "session_tick_8cars_monza", load_monza());
+    if let Some(track) = load_monza_mesh() {
+        bench_session_tick_on(c, "session_tick_8cars_monza_mesh", track);
+    }
+}
+
+fn bench_session_tick_on(c: &mut Criterion, name: &str, track: TrackConfig) {
     let car = CarConfig::default();
     let mut car_configs = HashMap::new();
     car_configs.insert(car.id, car.clone());
@@ -88,7 +114,7 @@ fn bench_session_tick(c: &mut Criterion) {
 
     let inputs: HashMap<PlayerId, PlayerInputData> = HashMap::new();
 
-    c.bench_function("session_tick_8cars_monza", |b| {
+    c.bench_function(name, |b| {
         b.iter(|| {
             game_session.tick(black_box(&inputs));
         })

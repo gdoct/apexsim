@@ -3,7 +3,7 @@ content/cars/yotota-lmp2/yotota_lmp2.glb.
 
 Run inside Blender (5.x) with the apex helper on the path:
 
-    exec(open(r"D:\\apexsim\\content\\cars\\yotota-lmp2\\build_yotota.py").read())
+    exec(open(r"E:\\apexsim\\content\\cars\\yotota-lmp2\\build_yotota.py").read())
 
 Frame: nose on -Y, ground at z=0, metres. That matches the other cars in
 content/cars (nose on glTF +Z after export), which the Unreal car actor yaws
@@ -16,8 +16,8 @@ export. The .blend is saved after each stage.
 import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
-CAR_DIR = r"D:\apexsim\content\cars\yotota-lmp2"
-TOOLS = r"D:\apexsim\content\props\_tools\apex_props.py"
+CAR_DIR = r"E:\apexsim\content\cars\yotota-lmp2"
+TOOLS = r"E:\apexsim\content\props\_tools\apex_props.py"
 spec = importlib.util.spec_from_file_location("apex", TOOLS)
 apex = importlib.util.module_from_spec(spec); sys.modules["apex"] = apex; spec.loader.exec_module(apex)
 from apex import Builder, material, reset_scene

@@ -493,6 +493,17 @@ pub struct TrackConfig {
     /// loaded from the sidecar.
     #[serde(skip)]
     pub walls: Option<crate::walls::Walls>,
+    /// Baked road mesh exported alongside the Unreal scene
+    /// (`<Track>.road.msgpack`): the rendered road, curbs, run-off bands
+    /// and pit lane as triangles, each with its surface. When present the
+    /// wheels take their height, normal and surface class from it instead
+    /// of the centerline formula (`physics::query_track_surface`). Loaded
+    /// only when the server's `[physics] road_contact` is `"mesh"`, so a
+    /// track without it, or a server that has not opted in, drives on the
+    /// centerline as before. Shared between a session's copies of the
+    /// track: it is read-only and can be tens of megabytes.
+    #[serde(skip)]
+    pub road_mesh: Option<std::sync::Arc<crate::road_mesh::RoadMesh>>,
 }
 
 /// What a car's DRS does when open: fractions of the drag and of the rear
@@ -685,6 +696,7 @@ impl Default for TrackConfig {
             ground: None,
             curbs: None,
             walls: None,
+            road_mesh: None,
         }
     }
 }

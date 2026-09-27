@@ -3,8 +3,8 @@
 Load from a build script:
 
     import importlib.util, sys, os
-    for _n, _p in (("apex", r"D:\\apexsim\\content\\props\\_tools\\apex_props.py"),
-                   ("carlib", r"D:\\apexsim\\content\\cars\\carlib.py")):
+    for _n, _p in (("apex", r"E:\\apexsim\\content\\props\\_tools\\apex_props.py"),
+                   ("carlib", r"E:\\apexsim\\content\\cars\\carlib.py")):
         _s = importlib.util.spec_from_file_location(_n, _p)
         _m = importlib.util.module_from_spec(_s); sys.modules[_n] = _m; _s.loader.exec_module(_m)
     import carlib
@@ -39,7 +39,7 @@ from mathutils import Vector
 import apex
 from apex import Builder, material, reset_scene   # noqa: F401  (re-exported)
 
-CARS_ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"D:\apexsim"), "content", "cars")
+CARS_ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content", "cars")
 
 
 # --------------------------------------------------------------- materials

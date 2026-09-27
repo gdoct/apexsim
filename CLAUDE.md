@@ -580,7 +580,7 @@ running it every time costs seconds and removes the failure mode
 `content/tracks/{real,export}` relative to the working directory, so it must be
 run from the repo root — not from `track-editor/`.
 
-The exporter also writes three gitignored sidecars (like the exports) into
+The exporter also writes four gitignored sidecars (like the exports) into
 `content/tracks/real/`, all loaded by the server from beside the YAML and
 all shipped in `Server/` by `build_release.ps1`:
 
@@ -615,6 +615,35 @@ all shipped in `Server/` by `build_release.ps1`:
   ground) and a car in the slot off the parapets. Without it nothing
   stops a car off the road: the client has no physics, cars are telemetry
   puppets, so barrier collision lives here and nowhere else.
+- `<Stem>.road.msgpack` — the road as triangles (`road_mesh.rs`,
+  docs/ROAD_MESH.md): the rendered road, curb, run-off and ground band
+  and pit-lane strips, welded and without their render lifts, each
+  triangle tagged with a surface (contact class, a grip multiplier that
+  is 1.0 on every generated mesh, inside the track limits or not). Read
+  only when `[physics] road_contact = "mesh"`; then each of the six
+  surface queries a tick (`physics::query_track_surface`, given the
+  querying point's height) takes its height, its normal (as slope and
+  banking) and its contact class from the highest triangle under the
+  point at or below `z_ref + STEP_UP_M`, so two levels of road work
+  (Suzuka's crossover) and the curbs are 5 cm high in physics as on
+  screen; wherever the mesh has nothing (past its outermost band, a
+  hole, the clamped inside of a hairpin) the centerline sample stands.
+  Everything keyed on a station or a centerline index — progress, laps,
+  sectors, checkpoints, the AI, the racing line, the grid — stays on the
+  centerline under either backend. The grid and the hotlap run-up are
+  seated on the mesh (`physics::seat_height`). The pit lane is a surface
+  of its own (`RoadContact::PitLane`: road grip, off the track for the
+  lap), which it never was on the centerline. `ats-export --flat-curbs`
+  bakes the curbs flat into the mesh for a like-for-like comparison.
+  Tests: `track-core/tests/road_mesh.rs` (coverage and agreement with
+  the rendered road on the test circuit;
+  `every_real_track_road_mesh_covers_the_road` is `#[ignore]`d with the
+  other whole-calendar bakes), `server/tests/road_mesh_test.rs` (the
+  mesh against the server's own centerline on Monza, skipped until the
+  sidecar is baked), the physics surface tests under both backends,
+  `determinism_test` on the mesh, and `physics_step_monza_mesh` /
+  `session_tick_8cars_monza_mesh` in the bench. `SURVEY_ROAD_CONTACT=mesh`
+  runs the AI survey on the meshes.
 
 Where the course passes over itself with at least 4 m to spare (Suzuka's
 crossover) the terrain finds an `Underpass` (`terrain.rs`): behind wall lines
@@ -2038,10 +2067,11 @@ Server config in `server.toml` (validated at startup; the server refuses to star
 - `[network]`: TCP/UDP/health bind addresses, TLS cert paths (`require_tls` fail-closed default), heartbeat settings
 - `[content]`: paths to car/track manifests
 - `[logging]`: level, `console_enabled`, optional `file_enabled`/`file_dir` (JSON-lines, daily rotation)
+- `[physics]`: `road_contact = "centerline"` (default) or `"mesh"` — whether a track with a baked `<Stem>.road.msgpack` drives on it (see the road mesh sidecar under "Track pipeline into Unreal", and docs/ROAD_MESH.md)
 - `[auth]`: `mode = "dev"` (accept all, development only) or `mode = "token"` with shared secrets in `tokens`
 - `[ai]`: AI driver defaults (optional)
 
-Environment overrides use the `APEXSIM_` prefix, e.g. `APEXSIM_NETWORK_TCP_PORT=9100`, `APEXSIM_NETWORK_TCP_BIND=0.0.0.0:9000`, `APEXSIM_SERVER_TICK_RATE_HZ=120` (see `ServerConfig::apply_env_overrides`).
+Environment overrides use the `APEXSIM_` prefix, e.g. `APEXSIM_NETWORK_TCP_PORT=9100`, `APEXSIM_NETWORK_TCP_BIND=0.0.0.0:9000`, `APEXSIM_SERVER_TICK_RATE_HZ=120`, `APEXSIM_PHYSICS_ROAD_CONTACT=mesh` (see `ServerConfig::apply_env_overrides`).
 
 ## Testing Notes
 

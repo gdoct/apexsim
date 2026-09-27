@@ -34,3 +34,14 @@ tokens = []
 # `dir`/lap_records.json with each record lap's ghost trace beside it.
 enabled = true
 dir = "./records"
+
+[physics]
+# How the sim finds the surface under a wheel (docs/ROAD_MESH.md):
+#   "centerline" - the nearest centerline point's height sheared by the
+#                  banking, with the curb bands for the track limits.
+#   "mesh"       - a track's baked <Track>.road.msgpack when it has one (the
+#                  road the client draws, as triangles: curbs with their
+#                  profile, two levels at a crossover); the centerline for a
+#                  track without the sidecar.
+# APEXSIM_PHYSICS_ROAD_CONTACT overrides it.
+road_contact = "centerline"
