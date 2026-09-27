@@ -75,7 +75,47 @@ Bench (`cargo bench`, Monza): `physics_step` 1.38 → 1.44 µs,
 `session_tick_8cars` 12.1 → 15.8 µs.
 
 Open: the survey on the remaining circuits and flat curbs before the
-default goes to `mesh`; per-wheel grip; crown and bumps; the AC importer.
+default goes to `mesh`; crown and bumps; the AC importer.
+
+## Per-wheel contact (2026-09-27)
+
+The four tyres now each stand on their own ground, under either backend
+(`physics::update_car_3d`, `WheelContact`, `fit_contact_plane`):
+
+- **Grip per tyre.** Each wheel's grip is the surface under its own
+  patch (`track_context_of` on that wheel's sample: the class's figure,
+  weather-scaled, times the mesh surface's `friction`), fed to that
+  wheel's `solve_wheel_forces` and to its `FrontTyre` for the steering
+  torque. Two wheels on the grass lose theirs while the other two keep
+  the road's; braking astride the edge pulls the nose toward the road
+  (`braking_with_two_wheels_on_the_grass_pulls_toward_the_road`).
+- **Off-track drag per tyre.** `off_track_drag_mps2` is shared by the
+  tyres on `RoadContact::Off` (a quarter each), not switched on by the
+  car's centre.
+- **Body pose from the four contacts.** The body is a rigid plane on four
+  springs: it settles on the weighted least-squares plane through the
+  contact heights (weights = corner spring rates), which is the
+  quasi-static equilibrium. On a grade or bank that is the road's own
+  plane and all four corners compress alike, as before; a bump or a curb
+  under one tyre becomes roll and pitch plus a twist that compresses that
+  corner and its diagonal
+  (`a_bump_under_one_wheel_twists_the_body_onto_its_diagonal`). Pitch and
+  roll are the plane's in the car's own frame (a car across a grade rolls,
+  `a_car_across_a_grade_rolls_rather_than_pitches`); the car's height
+  follows the plane, carried along by the tick's step, and the wheels
+  re-sample at the next tick, so a new bump reaches the body through the
+  suspension. The hubs a wheel asks the mesh from ride on the previous
+  tick's attitude.
+- **Gravity** is the plane's: `-g·∇z / (1 + |∇z|²)` in the body frame
+  (the horizontal share of the in-plane pull), replacing the separate
+  slope and banking terms. On a pure grade or bank it is
+  `g·sinθ·cosθ` where it used to be `g·sinθ`: 0.1% at 3%, 1% at 0.2 rad.
+  A wheel pair dropped onto the 8 cm verge now leans the car toward it.
+
+The centre sample still decides everything keyed on the centerline
+(progress, `is_on_track`, `current_surface`, telemetry). The
+split-height tests that assumed a body held level on a tilted road are
+replaced by a pad under one wheel.
 
 ## Summary
 
@@ -193,9 +233,9 @@ What changes in `update_car_3d` when the mesh is in use:
 | Contact class from `curbs.rs` widths by station and lateral (`road_contact`) | the triangle's `surface.contact`; `off_track` = `!surface.valid_track`. The curbs sidecar stays for the centerline backend and for the fallback. |
 | `grip_modifier` = the node's `friction` (× `RUNOFF_GRIP_FACTOR` on run-off) | the surface's `friction`, weather-scaled like the node's today (`SessionConditions::apply_to_track` scales the table too) |
 
-Unchanged on purpose in the first cut:
+Unchanged on purpose in the first cut (both since done; see "Per-wheel contact" above):
 
-- **Grip stays per car, not per wheel.** `effective_grip` is the car-centre surface's grip for all four tyres today. The mesh gives each wheel its own surface, and per-wheel grip is the right model, but it changes how every car behaves on every curb and verge; it goes in as its own step, after the survey has shown the mesh alone is neutral.
+- **Grip stays per car, not per wheel.** `effective_grip` was the car-centre surface's grip for all four tyres.
 - **Hub heights** still come from the centre plane; only the contact heights under each wheel change.
 - **Walls** stay `walls.msgpack`. The mesh is ground, not barriers.
 
@@ -249,7 +289,7 @@ Each of these is a test, not a manual check:
 | 3 | Server: `[physics] road_contact`, `TrackConfig.road_mesh`, the query dispatch, slope/banking from the normal, class and grip from the surface, fallback, seating; the physics tests under both backends; stub removed | 3–4 days |
 | 4 | Validation: determinism, bench, AI survey and grip probe against the centerline baseline, flat curbs then profiled; fix what they find; `build_release.ps1` and `initialize_content.ps1` treat a missing `.road.msgpack` like a missing sidecar | 2–4 days |
 | 5 | Default to `mesh` (done 2026-09-27) | — |
-| Later | Per-wheel grip; crown; bumps; AC importer writes the sidecar from `2.kn5` + `surfaces.ini` (then the AC road mesh can be the rendered road) | separately |
+| Later | Crown; bumps; AC importer writes the sidecar from `2.kn5` + `surfaces.ini` (then the AC road mesh can be the rendered road) | separately |
 
 Nothing on the client changes: it has no physics. The racing-line dots and the TV cameras already trace the rendered road, which the physics road now equals.
 

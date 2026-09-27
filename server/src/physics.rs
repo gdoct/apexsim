@@ -53,6 +53,95 @@ pub struct WheelState {
     /// Past the curb band: off the track for the lap, whatever it is
     /// made of. What the track limits count.
     pub off_track: bool,
+    /// Grip of the surface under this tyre, as a multiplier on the tyre's
+    /// own coefficient: the class's figure for the track (weather-scaled),
+    /// times the road mesh surface's friction where there is one.
+    pub grip_modifier: f32,
+    /// On the grass, gravel or sand (`RoadContact::Off`): this tyre adds
+    /// its share of the off-track rolling drag.
+    pub on_soft_ground: bool,
+}
+
+/// A tyre's contact with the ground before the suspension is solved: where
+/// it sits on the body, the height of the ground under it and what that
+/// ground is.
+#[derive(Debug, Clone, Copy)]
+struct WheelContact {
+    /// Body frame: +x forward of the CoG, +y left.
+    local_x: f32,
+    local_y: f32,
+    contact_z: f32,
+    contact: RoadContact,
+    grip_modifier: f32,
+}
+
+/// The plane the body settles on over its four contact patches, in the
+/// body frame: `z = z0 + a·x + b·y` with x forward and y left, so `a` is
+/// the tangent of the pitch (nose up positive) and `b` that of the ground's
+/// rise to the left (roll is `-atan(b)`).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+struct ContactPlane {
+    z0: f32,
+    a: f32,
+    b: f32,
+}
+
+impl ContactPlane {
+    fn z_at(&self, x: f32, y: f32) -> f32 {
+        self.z0 + self.a * x + self.b * y
+    }
+
+    /// The horizontal pull of gravity along the plane, per unit mass, in
+    /// the body frame: `-g·∇z / (1 + |∇z|²)`, the in-plane component of
+    /// gravity projected back onto the ground plane the car is integrated
+    /// in (`g·sinθ·cosθ` down the fall line).
+    fn gravity_pull(&self) -> (f32, f32) {
+        let k = -GRAVITY / (1.0 + self.a * self.a + self.b * self.b);
+        (k * self.a, k * self.b)
+    }
+}
+
+/// Where a rigid body on four springs settles over its contact patches:
+/// the plane through them that least-squares the spring deflections,
+/// weighted by each corner's rate. For four points on one plane (a grade,
+/// a bank, both) that is the plane itself and every corner is compressed
+/// alike; a single raised patch (a curb, a bump) is shared out as the
+/// chassis's roll and pitch plus a twist that loads that wheel and its
+/// diagonal. Degenerate layouts (all weight on one line) fall back to a
+/// level plane through the weighted mean height.
+fn fit_contact_plane(points: &[(f32, f32, f32, f32); 4]) -> ContactPlane {
+    let sw: f32 = points.iter().map(|p| p.3).sum();
+    if sw <= 0.0 {
+        let z = points.iter().map(|p| p.2).sum::<f32>() / 4.0;
+        return ContactPlane {
+            z0: z,
+            a: 0.0,
+            b: 0.0,
+        };
+    }
+    let mean =
+        |f: fn(&(f32, f32, f32, f32)) -> f32| points.iter().map(|p| p.3 * f(p)).sum::<f32>() / sw;
+    let (xc, yc, zc) = (mean(|p| p.0), mean(|p| p.1), mean(|p| p.2));
+    let (mut sxx, mut syy, mut sxy, mut sxz, mut syz) = (0.0f32, 0.0, 0.0, 0.0, 0.0);
+    for &(x, y, z, w) in points {
+        let (dx, dy, dz) = (x - xc, y - yc, z - zc);
+        sxx += w * dx * dx;
+        syy += w * dy * dy;
+        sxy += w * dx * dy;
+        sxz += w * dx * dz;
+        syz += w * dy * dz;
+    }
+    let det = sxx * syy - sxy * sxy;
+    let (a, b) = if det.abs() > 1e-9 * (sxx * syy).max(1e-12) {
+        ((sxz * syy - syz * sxy) / det, (syz * sxx - sxz * sxy) / det)
+    } else {
+        (0.0, 0.0)
+    };
+    ContactPlane {
+        z0: zc - a * xc - b * yc,
+        a,
+        b,
+    }
 }
 
 /// Complete intermediate physics state for a vehicle
@@ -168,23 +257,6 @@ pub fn update_car_3d(
     state.surface_grip_modifier = track_ctx.grip_modifier;
     state.lateral_offset_m = track_ctx.lateral_offset;
 
-    let lateral_query_limit =
-        track_ctx.width_left.max(track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
-    let can_query_surface = track_ctx.lateral_offset.abs() <= lateral_query_limit;
-    let mut is_airborne = if can_query_surface {
-        if state.pos_z <= track_ctx.elevation {
-            false
-        } else if state.is_airborne {
-            true
-        } else {
-            state.pos_z > track_ctx.elevation + AIRBORNE_HEIGHT_THRESHOLD_M
-                || state.vel_z > AIRBORNE_VERTICAL_SPEED_THRESHOLD_MPS
-        }
-    } else {
-        false
-    };
-    state.is_airborne = is_airborne;
-
     // 2. Calculate static weight distribution
     let total_weight = config.mass_kg * GRAVITY;
     let (static_front_weight, static_rear_weight) =
@@ -241,47 +313,98 @@ pub fn update_car_3d(
 
     let cos_yaw = state.yaw_rad.cos();
     let sin_yaw = state.yaw_rad.sin();
-    // The body sits parallel to the road under it (grounded pitch and roll
-    // follow the track's slope and banking), so each hub rides on that plane
-    // rather than all four at the centre's height. Without this a 3% grade
-    // parks one axle on its bump stop and the other at full droop, and on a
-    // banked road the lower wheels carry kilonewtons more than the upper ones
-    // on a dead-straight line.
-    let (cos_track, sin_track) = (track_ctx.heading_rad.cos(), track_ctx.heading_rad.sin());
-    let (grade, cross_fall) = (track_ctx.slope_rad.tan(), track_ctx.banking_rad.sin());
-    let sample_wheel_state = |local_x: f32,
-                              local_y: f32,
-                              spring_rate_n_per_m: f32,
-                              damper_compression: f32,
-                              damper_rebound: f32,
-                              previous_compression: f32|
-     -> WheelState {
-        let offset_x = local_x * cos_yaw - local_y * sin_yaw;
-        let offset_y = local_x * sin_yaw + local_y * cos_yaw;
-        let world_x = state.pos_x + offset_x;
-        let world_y = state.pos_y + offset_y;
 
-        // Along-track and leftward components of the wheel's offset.
-        let along = offset_x * cos_track + offset_y * sin_track;
-        let left = -offset_x * sin_track + offset_y * cos_track;
-        let wheel_hub_z = hub_z + along * grade + left * cross_fall;
-
+    // Per-wheel contact. Each tyre asks the ground under its own patch for
+    // its height and what it is standing on: the road mesh's triangle when
+    // the track drives on one, the centerline formula otherwise. The hub it
+    // asks from rides on the body's attitude from the previous tick, so a
+    // wheel on a bridge deck keeps finding the deck.
+    let (prev_pitch_slope, prev_roll_slope) = (state.pitch_rad.tan(), -state.roll_rad.tan());
+    let contact_under = |local_x: f32, local_y: f32| -> WheelContact {
+        let world_x = state.pos_x + local_x * cos_yaw - local_y * sin_yaw;
+        let world_y = state.pos_y + local_x * sin_yaw + local_y * cos_yaw;
+        let hub_ref = hub_z + local_x * prev_pitch_slope + local_y * prev_roll_slope;
         // Wheels sit within a couple meters of the car: the car's own
-        // nearest index is an excellent hint. The hub's height is what
-        // decides which level of the road mesh the wheel is on.
+        // nearest index is an excellent hint.
         let sample = query_track_surface(
             track,
             world_x,
             world_y,
             Some(track_ctx.nearest_point),
-            wheel_hub_z,
+            hub_ref,
         );
-        let contact_z = sample.map_or(track_ctx.elevation, |s| s.elevation);
-        let contact = sample.map_or(RoadContact::Road, |s| road_contact(track, &s));
-        let surface = contact.feedback();
-        let off_track = contact.off_track();
+        match sample {
+            Some(s) => {
+                let ctx = track_context_of(track, &s);
+                WheelContact {
+                    local_x,
+                    local_y,
+                    contact_z: s.elevation,
+                    contact: road_contact(track, &s),
+                    grip_modifier: ctx.grip_modifier,
+                }
+            }
+            None => WheelContact {
+                local_x,
+                local_y,
+                contact_z: track_ctx.elevation,
+                contact: RoadContact::Road,
+                grip_modifier: track_ctx.grip_modifier,
+            },
+        }
+    };
+    // Body frame: +y is LEFT, so the left wheels sit at +track/2.
+    let contacts = [
+        contact_under(front_axle_x, config.track_width_front_m / 2.0),
+        contact_under(front_axle_x, -config.track_width_front_m / 2.0),
+        contact_under(rear_axle_x, config.track_width_rear_m / 2.0),
+        contact_under(rear_axle_x, -config.track_width_rear_m / 2.0),
+    ];
 
-        let wheel_extension = (wheel_hub_z - contact_z - config.wheel_radius_m).max(0.0);
+    // The body settles on the plane its four springs agree on: through the
+    // contacts on a grade or a bank (every corner compressed alike, so a
+    // 3% grade does not park one axle on its bump stop nor a banked road
+    // load the lower wheels), twisted over a curb or a bump under one
+    // wheel, which then carries more of the load with its diagonal.
+    let spring_rates = [
+        config.suspension.spring_rate_front_n_per_m,
+        config.suspension.spring_rate_front_n_per_m,
+        config.suspension.spring_rate_rear_n_per_m,
+        config.suspension.spring_rate_rear_n_per_m,
+    ];
+    let plane = fit_contact_plane(&std::array::from_fn(|i| {
+        let c = &contacts[i];
+        (c.local_x, c.local_y, c.contact_z, spring_rates[i])
+    }));
+
+    // Airborne against the ground the body stands on.
+    let lateral_query_limit =
+        track_ctx.width_left.max(track_ctx.width_right) + SURFACE_QUERY_LATERAL_MARGIN_M;
+    let can_query_surface = track_ctx.lateral_offset.abs() <= lateral_query_limit;
+    let mut is_airborne = if can_query_surface {
+        if state.pos_z <= plane.z0 {
+            false
+        } else if state.is_airborne {
+            true
+        } else {
+            state.pos_z > plane.z0 + AIRBORNE_HEIGHT_THRESHOLD_M
+                || state.vel_z > AIRBORNE_VERTICAL_SPEED_THRESHOLD_MPS
+        }
+    } else {
+        false
+    };
+    state.is_airborne = is_airborne;
+
+    let sample_wheel_state = |contact: &WheelContact,
+                              spring_rate_n_per_m: f32,
+                              damper_compression: f32,
+                              damper_rebound: f32,
+                              previous_compression: f32|
+     -> WheelState {
+        // The hub on the body's plane, at the car's own height: the body
+        // standing above the plane (a landing, a crest) extends every wheel.
+        let wheel_hub_z = hub_z - plane.z0 + plane.z_at(contact.local_x, contact.local_y);
+        let wheel_extension = (wheel_hub_z - contact.contact_z - config.wheel_radius_m).max(0.0);
         let compression =
             (suspension_rest_length_m - wheel_extension).clamp(0.0, config.suspension.max_travel_m);
 
@@ -297,45 +420,42 @@ pub fn update_car_3d(
 
         WheelState {
             load_n: (spring_force + damper_force).max(0.0),
-            contact_z,
+            contact_z: contact.contact_z,
             suspension_compression: compression,
             suspension_velocity_mps: compression_velocity,
             spring_force_n: spring_force,
             damper_force_n: damper_force,
-            surface,
-            off_track,
+            surface: contact.contact.feedback(),
+            off_track: contact.contact.off_track(),
+            grip_modifier: contact.grip_modifier,
+            on_soft_ground: contact.contact == RoadContact::Off,
             ..Default::default()
         }
     };
 
-    // Body frame: +y is LEFT, so the left wheels sit at +track/2.
     let mut wheel_front_left = sample_wheel_state(
-        front_axle_x,
-        config.track_width_front_m / 2.0,
+        &contacts[0],
         config.suspension.spring_rate_front_n_per_m,
         config.suspension.damper_compression_front,
         config.suspension.damper_rebound_front,
         prev_fl_compression,
     );
     let mut wheel_front_right = sample_wheel_state(
-        front_axle_x,
-        -config.track_width_front_m / 2.0,
+        &contacts[1],
         config.suspension.spring_rate_front_n_per_m,
         config.suspension.damper_compression_front,
         config.suspension.damper_rebound_front,
         prev_fr_compression,
     );
     let mut wheel_rear_left = sample_wheel_state(
-        rear_axle_x,
-        config.track_width_rear_m / 2.0,
+        &contacts[2],
         config.suspension.spring_rate_rear_n_per_m,
         config.suspension.damper_compression_rear,
         config.suspension.damper_rebound_rear,
         prev_rl_compression,
     );
     let mut wheel_rear_right = sample_wheel_state(
-        rear_axle_x,
-        -config.track_width_rear_m / 2.0,
+        &contacts[3],
         config.suspension.spring_rate_rear_n_per_m,
         config.suspension.damper_compression_rear,
         config.suspension.damper_rebound_rear,
@@ -464,11 +584,18 @@ pub fn update_car_3d(
     );
 
     // 10. Calculate tire forces using Pacejka-inspired model
-    let effective_grip = config.tire_config.grip_coefficient * track_ctx.grip_modifier;
-    // Tyre pressure per axle (the garage setup): exactly 1.0 at the
-    // optimum, so a stock car is unchanged to the bit.
-    let effective_grip_front = effective_grip * config.tire_config.front_grip_factor();
-    let effective_grip_rear = effective_grip * config.tire_config.rear_grip_factor();
+    // Each tyre has the grip of the surface under its own patch: two wheels
+    // on the grass lose theirs while the other two keep the road's, and a
+    // wheel on the curb has the curb's. Tyre pressure per axle (the garage
+    // setup) is exactly 1.0 at the optimum, so a stock car is unchanged to
+    // the bit.
+    let tyre_grip = config.tire_config.grip_coefficient;
+    let front_factor = config.tire_config.front_grip_factor();
+    let rear_factor = config.tire_config.rear_grip_factor();
+    let grip_fl = tyre_grip * wheel_front_left.grip_modifier * front_factor;
+    let grip_fr = tyre_grip * wheel_front_right.grip_modifier * front_factor;
+    let grip_rl = tyre_grip * wheel_rear_left.grip_modifier * rear_factor;
+    let grip_rr = tyre_grip * wheel_rear_right.grip_modifier * rear_factor;
 
     // Solve per-wheel tire forces (quasi-static torque balance with
     // wheelspin / lockup / ABS behavior and friction-ellipse coupling)
@@ -504,7 +631,7 @@ pub fn update_car_3d(
             brake_front / 2.0,
             config.wheel_radius_m,
             state.weight_front_left_n,
-            effective_grip_front,
+            grip_fl,
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -519,7 +646,7 @@ pub fn update_car_3d(
             brake_front / 2.0,
             config.wheel_radius_m,
             state.weight_front_right_n,
-            effective_grip_front,
+            grip_fr,
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -534,7 +661,7 @@ pub fn update_car_3d(
             brake_rear / 2.0,
             config.wheel_radius_m,
             state.weight_rear_left_n,
-            effective_grip_rear,
+            grip_rl,
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -549,7 +676,7 @@ pub fn update_car_3d(
             brake_rear / 2.0,
             config.wheel_radius_m,
             state.weight_rear_right_n,
-            effective_grip_rear,
+            grip_rr,
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -584,14 +711,14 @@ pub fn update_car_3d(
             &fl,
             state.weight_front_left_n,
             steer_left,
-            effective_grip_front,
+            grip_fl,
             &config.tire_config,
         ),
         FrontTyre::of(
             &fr,
             state.weight_front_right_n,
             steer_right,
-            effective_grip_front,
+            grip_fr,
             &config.tire_config,
         ),
     ];
@@ -662,25 +789,17 @@ pub fn update_car_3d(
     let total_force_x = fl_force_x + fr_force_x + rl_forces.0 + rr_forces.0 - drag_force_x;
     let total_force_y = fl_force_y + fr_force_y + rl_forces.1 + rr_forces.1;
 
-    // Include gravity components on slopes
-    let slope_force = if is_airborne {
-        0.0
-    } else {
-        config.mass_kg * GRAVITY * track_ctx.slope_rad.sin()
-    };
-    // Banking: the share of gravity along a cambered road pulls the car
-    // down the slope, toward the low edge. Positive banking lifts the left
-    // edge (the convention the road mesh and `surface_elevation` share), so
-    // the pull points at the road's right, (sin h, -cos h) in the world.
-    // It used to be added to the car's lateral axis as +m g sin(bank) —
-    // pushing up the bank — which made every banked right-hander shed the
-    // car outward; and it ignored which way the car pointed.
-    let (banking_force_x, banking_force_y) = if is_airborne {
+    // Gravity along the ground the body stands on: the plane through the
+    // four contact patches, in the car's own frame, so it follows the car's
+    // heading on a grade or a bank (uphill slows it whichever way it
+    // points; positive banking lifts the left edge and pulls toward the
+    // right) and a car with two wheels dropped onto the verge leans toward
+    // it. In the air nothing pulls sideways.
+    let (gravity_pull_x, gravity_pull_y) = if is_airborne {
         (0.0, 0.0)
     } else {
-        let pull = config.mass_kg * GRAVITY * track_ctx.banking_rad.sin();
-        let rel = state.yaw_rad - track_ctx.heading_rad;
-        (-pull * rel.sin(), -pull * rel.cos())
+        let (gx, gy) = plane.gravity_pull();
+        (config.mass_kg * gx, config.mass_kg * gy)
     };
 
     // 12. Calculate yaw moment: front tires ahead of CoG, rear tires behind,
@@ -691,8 +810,8 @@ pub fn update_car_3d(
         + (rr_forces.0 - rl_forces.0) * (config.track_width_rear_m / 2.0);
 
     // 13. Calculate accelerations
-    let accel_x = (total_force_x - slope_force + banking_force_x) / config.mass_kg;
-    let accel_y = (total_force_y + banking_force_y) / config.mass_kg;
+    let accel_x = (total_force_x + gravity_pull_x) / config.mass_kg;
+    let accel_y = (total_force_y + gravity_pull_y) / config.mass_kg;
 
     // Yaw moment of inertia (simplified as rectangular body)
     let yaw_inertia = config.mass_kg * (config.length_m.powi(2) + config.width_m.powi(2)) / 12.0;
@@ -716,13 +835,18 @@ pub fn update_car_3d(
     state.vel_y += accel_world_y * dt;
 
     // Off-track rolling drag: a fixed deceleration against the planar
-    // velocity, never enough to reverse it. The grass grip already makes a
-    // shortcut slow; this only adds the soft ground's resistance, so a car
-    // that went off can drive back at a sensible speed.
-    if !is_airborne && !track_ctx.is_on_track {
+    // velocity, never enough to reverse it, shared by the tyres on the soft
+    // ground (all four: the whole drag; two dropped onto the grass: half).
+    // The grass grip already makes a shortcut slow; this only adds the soft
+    // ground's resistance, so a car that went off can drive back at a
+    // sensible speed.
+    let wheels_on_soft_ground = wheel_states.iter().filter(|w| w.on_soft_ground).count();
+    if !is_airborne && wheels_on_soft_ground > 0 {
         let planar = (state.vel_x.powi(2) + state.vel_y.powi(2)).sqrt();
         if planar > 0.0 {
-            let scale = (1.0 - track.track_surface.off_track_drag_mps2 * dt / planar).max(0.0);
+            let share = wheels_on_soft_ground as f32 / 4.0;
+            let decel = track.track_surface.off_track_drag_mps2 * share;
+            let scale = (1.0 - decel * dt / planar).max(0.0);
             state.vel_x *= scale;
             state.vel_y *= scale;
         }
@@ -766,8 +890,18 @@ pub fn update_car_3d(
     }
 
     // 17. Integrate position
-    state.pos_x += state.vel_x * dt;
-    state.pos_y += state.vel_y * dt;
+    let (step_x, step_y) = (state.vel_x * dt, state.vel_y * dt);
+    state.pos_x += step_x;
+    state.pos_y += step_y;
+    // The ground the body will stand on where it has moved to: the contact
+    // plane carried along by this tick's step (in the body frame it was
+    // fitted in). The wheels sample the ground afresh at the start of the
+    // next tick, so a bump the plane did not see yet reaches the body
+    // through the suspension, not as a jump of the whole car.
+    let ground_z = plane.z_at(
+        step_x * cos_yaw + step_y * sin_yaw,
+        -step_x * sin_yaw + step_y * cos_yaw,
+    );
 
     if is_airborne {
         state.vel_z -= GRAVITY * dt;
@@ -792,18 +926,18 @@ pub fn update_car_3d(
 
     if can_query_post_surface {
         if is_airborne {
-            if state.pos_z <= post_track_ctx.elevation {
-                state.pos_z = post_track_ctx.elevation;
+            if state.pos_z <= ground_z {
+                state.pos_z = ground_z;
                 state.vel_z = 0.0;
                 is_airborne = false;
             }
         } else {
-            let gap = state.pos_z - post_track_ctx.elevation;
+            let gap = state.pos_z - ground_z;
             if gap <= GROUND_FOLLOW_MAX_DROP_M {
                 // Stay glued to the surface: snap down as well as up, so
                 // cresting a hill doesn't flag the car airborne and bounce
                 // the wheel loads every tick.
-                state.pos_z = post_track_ctx.elevation;
+                state.pos_z = ground_z;
                 state.vel_z = 0.0;
             } else {
                 // The surface dropped away faster than suspension can
@@ -826,13 +960,15 @@ pub fn update_car_3d(
     state.yaw_rad += state.angular_vel_yaw * dt;
     state.yaw_rad = normalize_angle(state.yaw_rad);
 
-    // Match track pitch and roll while grounded
+    // Grounded, the body takes the attitude of its contact plane: pitch
+    // and roll in the car's own frame, so a car crossing a grade sideways
+    // rolls rather than pitches, and one with a wheel on a curb leans off it.
     if state.is_airborne {
         state.pitch_rad += state.angular_vel_pitch * dt;
         state.roll_rad += state.angular_vel_roll * dt;
     } else {
-        state.pitch_rad = post_track_ctx.slope_rad;
-        state.roll_rad = -post_track_ctx.banking_rad;
+        state.pitch_rad = plane.a.atan();
+        state.roll_rad = -plane.b.atan();
     }
 
     // 19. Store inputs
@@ -3518,9 +3654,13 @@ mod tests {
         };
 
         let curbed = straight_track_with_right_curb(1.5);
-        let on_curb = run(&curbed, -11.0);
+        // The right wheels on the curb (road edge 10 m, curb to 11.5 m, the
+        // car 1.6 m across): each tyre is judged on its own patch.
+        let on_curb = run(&curbed, -10.5);
         let on_asphalt = run(&curbed, -9.0);
-        let on_grass = run(&curbed, -12.0);
+        // All four wheels past the curb: the drag is shared per tyre now,
+        // and a car straddling the curb's outer edge pays only half of it.
+        let on_grass = run(&curbed, -14.0);
 
         assert!(
             (on_curb - on_asphalt).abs() < 0.5,
@@ -5855,154 +5995,232 @@ mod tests {
         assert!((scaled.grip_modifier - plain.grip_modifier * 0.5).abs() < 1e-6);
     }
 
-    /// Ground rising from `left_z` at y = +1 to `right_z` at y = -1: for a
-    /// car at the origin heading +x, its left side (+y) sits on `left_z`.
-    fn create_split_height_track(left_z: f32, right_z: f32) -> TrackConfig {
-        TrackConfig {
-            id: Uuid::new_v4(),
-            name: "Split Height Test".to_string(),
-            centerline: vec![
-                TrackPoint {
-                    x: 0.0,
-                    y: 1.0,
-                    z: left_z,
-                    distance_from_start_m: 0.0,
-                    width_left_m: 20.0,
-                    width_right_m: 20.0,
-                    banking_rad: 0.0,
-                    camber_rad: 0.0,
-                    slope_rad: 0.0,
-                    heading_rad: 0.0,
-                    surface_type: SurfaceType::Asphalt,
-                    grip_modifier: 1.0,
-                },
-                TrackPoint {
-                    x: 0.0,
-                    y: -1.0,
-                    z: right_z,
-                    distance_from_start_m: 1.0,
-                    width_left_m: 20.0,
-                    width_right_m: 20.0,
-                    banking_rad: 0.0,
-                    camber_rad: 0.0,
-                    slope_rad: 0.0,
-                    heading_rad: 0.0,
-                    surface_type: SurfaceType::Asphalt,
-                    grip_modifier: 1.0,
-                },
-            ],
-            width_m: 40.0,
-            source_path: None,
-            content_crc: 0,
-            start_positions: Vec::new(),
-            track_surface: TrackSurface::default(),
-            pit_lane: None,
-            raceline: Vec::new(),
-            raceline_distances: Vec::new(),
-            drs_zones: Vec::new(),
-            checkpoints: Vec::new(),
-            sectors: Vec::new(),
-            metadata: TrackMetadata::default(),
-            procedural_world: None,
-            ground: None,
-            curbs: None,
-            walls: None,
-            road_mesh: None,
+    /// The straight test track driving on a road mesh that is flat at z = 0
+    /// except for a square pad `height_m` high and 0.6 m across under the
+    /// point `(pad_x, pad_y)`: a bump under one wheel.
+    fn flat_road_with_pad(pad_x: f32, pad_y: f32, height_m: f32) -> TrackConfig {
+        use crate::road_mesh::*;
+        let mut track = create_straight_test_track();
+        let mut file = RoadMeshFile {
+            version: ROAD_MESH_VERSION,
+            vertices: Vec::new(),
+            triangles: Vec::new(),
+            triangle_surface: Vec::new(),
+            surfaces: vec![RoadSurface {
+                key: "road".to_string(),
+                contact: CONTACT_ROAD,
+                friction: 1.0,
+                valid_track: true,
+                pit_lane: false,
+            }],
+            source: "flat_road_with_pad".to_string(),
+        };
+        let mut quad = |x0: f32, y0: f32, x1: f32, y1: f32, z: f32| {
+            let base = file.vertices.len() as u32;
+            file.vertices
+                .extend([[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]]);
+            file.triangles.push([base, base + 1, base + 2]);
+            file.triangles.push([base, base + 2, base + 3]);
+            file.triangle_surface.extend([0, 0]);
+        };
+        quad(0.0, -10.0, 1996.0, 10.0, 0.0);
+        quad(pad_x - 0.3, pad_y - 0.3, pad_x + 0.3, pad_y + 0.3, height_m);
+        track.road_mesh = Some(std::sync::Arc::new(RoadMesh::from_file(file).unwrap()));
+        track
+    }
+
+    /// A car parked at x = 100 with a pad of `height_m` under its right
+    /// front tyre, after a second to settle.
+    fn settled_on_a_pad(config: &CarConfig, height_m: f32) -> CarState {
+        let (front_axle_x, _) = axle_positions(config);
+        let track = flat_road_with_pad(
+            100.0 + front_axle_x,
+            -config.track_width_front_m / 2.0,
+            height_m,
+        );
+        let mut state = create_test_car_state();
+        state.pos_x = 100.0;
+        let input = PlayerInputData::default();
+        for _ in 0..240 {
+            update_car_3d(&mut state, config, &input, &track, 1.0 / 240.0);
+        }
+        state
+    }
+
+    #[test]
+    fn contact_plane_fits_a_plane_exactly_and_twists_over_one_raised_patch() {
+        // Four patches on a plane: the plane back, whatever the weights.
+        let (a, b, z0) = (0.03f32, -0.05f32, 1.2f32);
+        let at = |x: f32, y: f32, w: f32| (x, y, z0 + a * x + b * y, w);
+        let plane = fit_contact_plane(&[
+            at(1.6, 0.8, 90_000.0),
+            at(1.6, -0.8, 90_000.0),
+            at(-1.2, 0.78, 110_000.0),
+            at(-1.2, -0.78, 110_000.0),
+        ]);
+        assert!((plane.z0 - z0).abs() < 1e-5, "{plane:?}");
+        assert!((plane.a - a).abs() < 1e-5, "{plane:?}");
+        assert!((plane.b - b).abs() < 1e-5, "{plane:?}");
+
+        // One patch 4 cm up on a symmetric layout with equal springs: the
+        // body rises a quarter of it, pitches and rolls toward it, and the
+        // residual is a twist of ±1 cm, the raised patch and its diagonal
+        // up, the other two down.
+        let pts = [
+            (1.5, 0.8, 0.0, 1.0),
+            (1.5, -0.8, 0.04, 1.0),
+            (-1.5, 0.8, 0.0, 1.0),
+            (-1.5, -0.8, 0.0, 1.0),
+        ];
+        let plane = fit_contact_plane(&pts);
+        assert!((plane.z0 - 0.01).abs() < 1e-6, "{plane:?}");
+        assert!(plane.a > 0.0 && plane.b < 0.0, "{plane:?}");
+        let residual = pts.map(|(x, y, z, _)| z - plane.z_at(x, y));
+        for (r, want) in residual.iter().zip([-0.01f32, 0.01, 0.01, -0.01]) {
+            assert!((r - want).abs() < 1e-6, "residual {residual:?}");
         }
     }
 
+    /// A bump under one tyre compresses that corner and its diagonal: the
+    /// body is a rigid plane on four springs, twisted over the bump. On
+    /// the old model (body on the road's plane at the centre) the other
+    /// three wheels never knew.
     #[test]
-    fn test_per_wheel_contact_creates_asymmetric_suspension_travel() {
-        let mut state = create_test_car_state();
-        state.pos_x = 0.0;
-        state.pos_y = 0.0;
-        state.pos_z = 0.05;
-
+    fn a_bump_under_one_wheel_twists_the_body_onto_its_diagonal() {
         let config = create_test_config();
-        let track = create_split_height_track(0.0, 0.2);
-        let input = PlayerInputData {
-            throttle: 0.0,
-            brake: 0.0,
-            steering: 0.0,
-            gear: None,
-            clutch: None,
-            drs: false,
-            headlights: None,
-            flash: false,
-        };
-
-        update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
-
+        let flat = settled_on_a_pad(&config, 0.0);
+        let bumped = settled_on_a_pad(&config, 0.03);
+        let (f, b) = (&flat.suspension, &bumped.suspension);
         assert!(
-            state.suspension.front_right_travel_m > state.suspension.front_left_travel_m,
-            "Right front should compress more on higher right-side contact"
+            b.front_right_travel_m > b.front_left_travel_m + 1e-3,
+            "front right {:.4} vs front left {:.4}",
+            b.front_right_travel_m,
+            b.front_left_travel_m
         );
         assert!(
-            state.suspension.rear_right_travel_m > state.suspension.rear_left_travel_m,
-            "Right rear should compress more on higher right-side contact"
+            b.rear_left_travel_m > b.rear_right_travel_m + 1e-3,
+            "the diagonal rear left {:.4} vs rear right {:.4}",
+            b.rear_left_travel_m,
+            b.rear_right_travel_m
         );
+        assert!(
+            (f.front_left_travel_m - f.front_right_travel_m).abs() < 1e-4,
+            "flat road, even front: {:.4} vs {:.4}",
+            f.front_left_travel_m,
+            f.front_right_travel_m
+        );
+        // The body rose off the flat road, and leans off the bump: nose up,
+        // right side up (roll positive = left side down).
+        assert!(
+            bumped.pos_z > 0.003 && bumped.pos_z < 0.015,
+            "z {}",
+            bumped.pos_z
+        );
+        assert!(bumped.pitch_rad > 0.0, "pitch {}", bumped.pitch_rad);
+        assert!(bumped.roll_rad > 0.0, "roll {}", bumped.roll_rad);
+        assert_eq!(flat.pitch_rad, 0.0);
+        assert_eq!(flat.roll_rad, 0.0);
     }
 
-    /// Ground higher under the car's right side compresses the right wheels
-    /// more. That side carries the extra spring load, and an anti-roll bar,
-    /// twisted by the difference, loads it further still. (Before the wheel
-    /// samplers were put on their real sides, the spring load went to the
-    /// wrong wheel and this test asserted the bar evened the axle out.)
+    /// The more compressed wheel of the bump's axle carries more load, and
+    /// an anti-roll bar, twisted by the difference, loads it further still
+    /// without adding load to the axle.
     #[test]
     fn test_anti_roll_bar_loads_the_more_compressed_wheel() {
-        let mut state_no_arb = create_test_car_state();
-        state_no_arb.pos_x = 0.0;
-        state_no_arb.pos_y = 0.0;
-        state_no_arb.pos_z = 0.05;
-
-        let mut state_with_arb = state_no_arb.clone();
-
         let mut config_no_arb = create_test_config();
         config_no_arb.suspension.anti_roll_bar_front = 0.0;
         config_no_arb.suspension.anti_roll_bar_rear = 0.0;
-
         let mut config_with_arb = config_no_arb.clone();
         config_with_arb.suspension.anti_roll_bar_front = 20000.0;
 
-        let track = create_split_height_track(0.0, 0.03);
-        let input = PlayerInputData {
-            throttle: 0.0,
-            brake: 0.0,
-            steering: 0.0,
-            gear: None,
-            clutch: None,
-            drs: false,
-            headlights: None,
-            flash: false,
-        };
+        let no_arb = settled_on_a_pad(&config_no_arb, 0.03);
+        let with_arb = settled_on_a_pad(&config_with_arb, 0.03);
 
-        // A second to settle: on the first tick the suspension travel jumps
-        // from nothing, and the damper spike swamps everything else.
-        let dt = 1.0 / 240.0;
-        for _ in 0..240 {
-            update_car_3d(&mut state_no_arb, &config_no_arb, &input, &track, dt);
-            update_car_3d(&mut state_with_arb, &config_with_arb, &input, &track, dt);
-        }
-
-        // Right minus left: positive when the higher (right) side is loaded.
-        let front_split_no_arb =
-            state_no_arb.weight_front_right_n - state_no_arb.weight_front_left_n;
-        let front_split_with_arb =
-            state_with_arb.weight_front_right_n - state_with_arb.weight_front_left_n;
-
+        // Right minus left: positive when the bumped (right) wheel is loaded.
+        let split_no_arb = no_arb.weight_front_right_n - no_arb.weight_front_left_n;
+        let split_with_arb = with_arb.weight_front_right_n - with_arb.weight_front_left_n;
         assert!(
-            front_split_no_arb > 0.0,
-            "the more compressed right front should carry more load: split {front_split_no_arb:.0} N"
+            split_no_arb > 0.0,
+            "the wheel on the bump should carry more load: split {split_no_arb:.0} N"
         );
         assert!(
-            front_split_with_arb > front_split_no_arb,
-            "the bar should load the compressed wheel further: {front_split_with_arb:.0} N with, \
-             {front_split_no_arb:.0} N without"
+            split_with_arb > split_no_arb,
+            "the bar should load the compressed wheel further: {split_with_arb:.0} N with, \
+             {split_no_arb:.0} N without"
         );
         let axle = |s: &CarState| s.weight_front_left_n + s.weight_front_right_n;
         assert!(
-            (axle(&state_with_arb) - axle(&state_no_arb)).abs() < 1.0,
+            (axle(&with_arb) - axle(&no_arb)).abs() < 1.0,
             "the bar moves load across the axle, it does not add any"
+        );
+    }
+
+    /// Driven across a grade rather than up it, the car rolls with the
+    /// ground and does not pitch: the attitude is the contact plane's in
+    /// the car's own frame, not the centerline's slope.
+    #[test]
+    fn a_car_across_a_grade_rolls_rather_than_pitches() {
+        let track = graded_straight(0.05, 0.0);
+        let config = create_test_config();
+        let mut state = create_test_car_state();
+        state.pos_x = 100.0;
+        state.pos_z = 5.0;
+        state.yaw_rad = std::f32::consts::FRAC_PI_2; // facing +y, left is -x
+        let input = PlayerInputData::default();
+        for _ in 0..10 {
+            update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        }
+        assert!(state.pitch_rad.abs() < 1e-3, "pitch {}", state.pitch_rad);
+        // The ground rises along +x, which is the car's right: right side
+        // up is positive roll.
+        assert!(
+            (state.roll_rad - 0.05f32.atan()).abs() < 1e-3,
+            "roll {}",
+            state.roll_rad
+        );
+    }
+
+    /// Each tyre has the grip of its own patch: braking hard with the right
+    /// wheels on the grass and the left ones on the road, the left side
+    /// brakes harder and the nose is pulled left, toward the grip.
+    #[test]
+    fn braking_with_two_wheels_on_the_grass_pulls_toward_the_road() {
+        let config = create_test_config();
+        let input = PlayerInputData {
+            brake: 1.0,
+            ..Default::default()
+        };
+        let run = |y: f32| {
+            let track = create_straight_test_track();
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.pos_y = y;
+            state.vel_x = 40.0;
+            state.speed_mps = 40.0;
+            state.gear = 4;
+            state.abs = Some(true);
+            for _ in 0..24 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            }
+            state
+        };
+        let on_road = run(0.0);
+        let straddling = run(-10.0); // road edge at -10: right wheels off
+        assert!(
+            on_road.angular_vel_yaw.abs() < 1e-3,
+            "on the road it brakes straight: yaw rate {}",
+            on_road.angular_vel_yaw
+        );
+        assert!(
+            straddling.angular_vel_yaw > 0.01,
+            "straddling the edge it should turn toward the road (left): yaw rate {}",
+            straddling.angular_vel_yaw
+        );
+        assert!(
+            straddling.speed_mps > on_road.speed_mps,
+            "half the tyres on the grass brake less: {} vs {}",
+            straddling.speed_mps,
+            on_road.speed_mps
         );
     }
 
