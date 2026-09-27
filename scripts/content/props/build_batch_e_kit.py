@@ -14,15 +14,15 @@ r"""Batch E - kit rules for the real-layout dossiers (docs/PROPS.md step 2):
 
     ASSET = "all"          # or one key of BUILD
     TEXT = "RED BULL RING" # hillside_letters
-    exec(open(r"E:\apexsim\content\props\_batches\build_batch_e_kit.py").read())
+    exec(open(r"E:\apexsim\scripts\content\props\build_batch_e_kit.py").read())
 """
 import bpy, math, os, importlib.util, sys, random
 from mathutils import Vector
 
-_ROOT = "E:\\apexsim"
-_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "content\\props\\_tools\\apex_props.py"))
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
+_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "scripts\\content\\props\\apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
-_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "content\\props\\_tools\\apex_tex.py"))
+_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "scripts\\content\\props\\apex_tex.py"))
 tex = importlib.util.module_from_spec(_t); sys.modules["apex_tex"] = tex; _t.loader.exec_module(tex)
 B, M = apex.Builder, tex.kit_material   # baked slot where the kit has one, flat otherwise
 PR = apex.PROPS_ROOT

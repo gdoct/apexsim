@@ -7,7 +7,7 @@ content/cars/<folder>/<stem>.glb.
 The four cars share one hull generator; each VARIANT is a set of small shape
 and livery parameters (nose width, fender peak, canopy height and position,
 tail height, wing height, fin, lights, paint, logo). Everything below the
-shape data comes from content/cars/carlib.py, shared with build_gt3.py.
+shape data comes from scripts/content/cars/carlib.py, shared with build_gt3.py.
 
 Frame: nose on -Y, tail on +Y, ground z = 0, metres, left-hand drive (driver
 on +X). Exported with glTF +Y up, so the nose lands on glTF +Z like the other
@@ -29,8 +29,8 @@ from mathutils import Vector
 
 # ------------------------------------------------------------------ loading
 _ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
-for _n, _p in (("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py")),
-               ("carlib", os.path.join(_ROOT, "content", "cars", "carlib.py"))):
+for _n, _p in (("apex", os.path.join(_ROOT, "scripts", "content", "props", "apex_props.py")),
+               ("carlib", os.path.join(_ROOT, "scripts", "content", "cars", "carlib.py"))):
     _s = importlib.util.spec_from_file_location(_n, _p)
     _m = importlib.util.module_from_spec(_s)
     sys.modules[_n] = _m

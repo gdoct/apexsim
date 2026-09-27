@@ -1,10 +1,10 @@
-"""Shared car-building toolkit for content/cars/build_*.py (Blender 5.x).
+"""Shared car-building toolkit for scripts/content/cars/build_*.py (Blender 5.x).
 
 Load from a build script:
 
     import importlib.util, sys, os
-    for _n, _p in (("apex", r"E:\\apexsim\\content\\props\\_tools\\apex_props.py"),
-                   ("carlib", r"E:\\apexsim\\content\\cars\\carlib.py")):
+    for _n, _p in (("apex", r"E:\\apexsim\\scripts\\content\\props\\apex_props.py"),
+                   ("carlib", r"E:\\apexsim\\scripts\\content\\cars\\carlib.py")):
         _s = importlib.util.spec_from_file_location(_n, _p)
         _m = importlib.util.module_from_spec(_s); sys.modules[_n] = _m; _s.loader.exec_module(_m)
     import carlib

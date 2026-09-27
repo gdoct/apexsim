@@ -794,7 +794,7 @@ def with_display_names(stem: str, corners: list[dict]) -> list[dict]:
 # Road graffiti (the Nordschleife's): runs of pictures painted across the
 # tarmac, expanded by `manual_graffiti` into the dossier's `graffiti` list
 # and laid by `ats-dress` as `.ats` decals. Images are
-# `content/props/decal/graffiti/<name>.png` (content/props/_tools/gen_graffiti.py).
+# `content/props/decal/graffiti/<name>.png` (scripts/content/props/gen_graffiti.py).
 # Stations are metres along the YAML centerline in race direction.
 MANUAL_GRAFFITI: dict[str, list[dict]] = {
     # Where the Nordschleife's crowds stand and paint: the spectator

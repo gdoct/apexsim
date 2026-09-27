@@ -21,7 +21,7 @@ wheelbase_m = 3.4
 
 # Aerodynamics, 2026 rules: smaller and lighter than the ground-effect cars
 # of 2022-25 with less downforce and less drag - Cd*A ~1.45 m2, Cl*A ~4.3 m2,
-# 42% on the nose. Built by content/cars/build_f1.py.
+# 42% on the nose. Built by scripts/content/cars/build_f1.py.
 frontal_area_m2 = 2.2
 lift_coefficient_front = -0.82
 lift_coefficient_rear = -1.14
@@ -139,7 +139,7 @@ hinge_forward_m = -2.5298
 hinge_up_m = 0.8226
 open_deg = 25.0
 
-# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
+# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]

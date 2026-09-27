@@ -3,7 +3,10 @@ braking-distance boards. Output: out/brands/<brand>.png, out/markers/<n>.png"""
 import os, math
 from PIL import Image, ImageDraw, ImageFont
 
-OUT = "/home/claude/props/out"
+# The board textures (content/props/board/{brands,markers}); the contact sheet
+# goes to content/props/_preview.
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+                   "content", "props", "board")
 FONT_B = "/usr/share/fonts/truetype/google-fonts/Poppins-Bold.ttf"
 FONT_I = "/usr/share/fonts/truetype/google-fonts/Poppins-BoldItalic.ttf"
 FONT_M = "/usr/share/fonts/truetype/google-fonts/Poppins-Medium.ttf"
@@ -81,5 +84,5 @@ for i, spec in enumerate(BRANDS):
 for i, n in enumerate((50, 100, 150, 200)):
     im = Image.open(f"{OUT}/markers/{n}.png").resize((192, 256))
     sheet.paste(im, (i * 200, 512))
-sheet.save(f"{OUT}/contact.png")
+sheet.save(os.path.join(OUT, "..", "_preview", "brands_contact.png"))
 print("ok")

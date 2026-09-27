@@ -16,8 +16,9 @@ export. The .blend is saved after each stage.
 import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
-CAR_DIR = r"E:\apexsim\content\cars\yotota-lmp2"
-TOOLS = r"E:\apexsim\content\props\_tools\apex_props.py"
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
+CAR_DIR = os.path.join(_ROOT, "content", "cars", "yotota-lmp2")
+TOOLS = os.path.join(_ROOT, "scripts", "content", "props", "apex_props.py")
 spec = importlib.util.spec_from_file_location("apex", TOOLS)
 apex = importlib.util.module_from_spec(spec); sys.modules["apex"] = apex; spec.loader.exec_module(apex)
 from apex import Builder, material, reset_scene

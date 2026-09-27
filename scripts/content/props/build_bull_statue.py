@@ -23,18 +23,18 @@ BULL_HEIGHT_M high. Pivot on the ground at the middle of the bull. The bull
 charges along +X, which is the course heading at the landmark
 (`dress::lay_landmark`), so it is seen side-on from the road.
 
-    exec(open(r"E:\apexsim\content\props\_batches\build_bull_statue.py").read())
+    exec(open(r"E:\apexsim\scripts\content\props\build_bull_statue.py").read())
 
 or headless:
-    blender -b --factory-startup -P content/props/_batches/build_bull_statue.py
+    blender -b --factory-startup -P scripts/content/props/build_bull_statue.py
 """
 import bpy, math, os, importlib.util, sys
 from mathutils import Vector, Matrix
 
-_ROOT = "E:\\apexsim"
-_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "content\\props\\_tools\\apex_props.py"))
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
+_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "scripts\\content\\props\\apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
-_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "content\\props\\_tools\\apex_tex.py"))
+_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "scripts\\content\\props\\apex_tex.py"))
 tex = importlib.util.module_from_spec(_t); sys.modules["apex_tex"] = tex; _t.loader.exec_module(tex)
 B, M = apex.Builder, tex.kit_material
 

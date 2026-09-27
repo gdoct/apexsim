@@ -24,7 +24,7 @@ script. `preview_cars.py` renders the same way with Cycles where Eevee has
 no GPU/EGL.
 
 The scripts hold only shape and livery data; everything mechanical lives in
-`content/cars/carlib.py`, so a fix lands on every generated car at once.
+`scripts/content/cars/carlib.py`, so a fix lands on every generated car at once.
 
 ### Character: one class, different cars
 
@@ -149,12 +149,12 @@ Two things to know about the loft:
 
 ### Previews
 
-`content/cars/preview_cars.py`, run inside Blender, renders a consistent sheet
+`scripts/content/cars/preview_cars.py`, run inside Blender, renders a consistent sheet
 into `content/props/_preview/cars/`:
 
 ```python
 CARS = ["posh-gt3rs"]; VIEWS = ["hero", "side", "front", "rear", "cockpit", "mirror"]
-exec(open(r"E:\apexsim\content\cars\preview_cars.py").read())
+exec(open(r"E:\apexsim\scripts\content\cars\preview_cars.py").read())
 ```
 
 It loads the exported GLB plus the class wheel and places the four wheels
@@ -339,11 +339,11 @@ logo = "textures/livery_forest.png"   # optional: replaces the car_logo wordmark
 A livery is a repaint of the same mesh, so it is exactly what the material
 slots allow: `car_paint` and `car_accent` take the colours (which faces are
 accent is the build script's `livery` / `two_tone` / sill-stripe choice and
-stays the same), `car_logo` takes the texture. `content/cars/liveries.py`
+stays the same), `car_logo` takes the texture. `scripts/content/cars/liveries.py`
 owns those tables - twenty-four sponsor schemes dealt six to a car, new ones
 appended so a saved pick keeps its index - and draws the logos (Poppins and
 Lora Regular; `APEX_FONTS` points it at them, see the script's header); it rewrites everything below its marker line, so edit the schemes
-there and rerun it (`python content/cars/liveries.py [folder ...]`, Pillow).
+there and rerun it (`python scripts/content/cars/liveries.py [folder ...]`, Pillow).
 
 Down the pipe: the server reads only the names (`CarConfig::livery_names`);
 `SelectCar` carries a `livery` byte, the session keeps each driver's pick and
@@ -421,7 +421,7 @@ lit parts carry the shot; use them to judge a lamp, not the hero view.
 
 The bodies carry no wheels. Each class has one shared wheel model,
 `content/wheels/<class>.glb` (`f1`, `gt3`, `lmp2`, `hypercar`), built by
-`content/wheels/build_wheels.py` (set `WHEEL_CLASSES = ["hypercar"]` first to
+`scripts/content/wheels/build_wheels.py` (set `WHEEL_CLASSES = ["hypercar"]` first to
 rebuild only some): hub at the origin, axle along X, the face
 (spokes, centre-lock nut) on +X, everything inside the tyre's width and
 radius. Slots `wheel_tyre`, `wheel_mark` (sidewall lettering — what makes
@@ -458,7 +458,7 @@ tests pin the placement, the steering direction and the roll direction. A
 row without wheels draws none, which is right for a body that still has its
 own.
 
-`content/cars/strip_wheels.py` (run in Blender) is how the wheels came off:
+`scripts/content/cars/strip_wheels.py` (run in Blender) is how the wheels came off:
 `measure(glb)` finds the four tyres from the faces whose material names a
 tyre and prints the `[wheels]` figures; `strip(glb)` deletes every loose part
 lying wholly inside a wheel cylinder (tyre, rim, disc, caliper) and writes the

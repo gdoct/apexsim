@@ -147,7 +147,7 @@ rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
 
-# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---
+# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]

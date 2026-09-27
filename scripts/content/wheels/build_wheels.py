@@ -18,7 +18,7 @@ also what shows the wheel turning), `wheel_band` (compound ring),
 import bpy, bmesh, contextlib, io, math, os
 from mathutils import Matrix, Vector
 
-OUT_DIR = os.path.join(os.path.dirname(r"E:\apexsim\content\wheels\build_wheels.py"))
+OUT_DIR = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content", "wheels")
 
 CLASSES = {
     # R: tyre radius, W: tyre width, RR: rim flange radius (18" rims).

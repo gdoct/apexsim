@@ -21,7 +21,7 @@ try:
 except ImportError:                                              # not in Blender
     bpy = None
 
-TEX_DIR = r"E:\apexsim\content\props\_textures"
+TEX_DIR = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content", "props", "_textures")
 os.makedirs(TEX_DIR, exist_ok=True)
 SIZE = 512
 

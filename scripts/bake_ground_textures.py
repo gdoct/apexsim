@@ -9,7 +9,7 @@ Bake the tiling ground textures the Unreal track materials sample.
 Writes content/textures/ground/<set>_{col,nrm,rough}.png, which
 `-run=ApexGroundTexImport` brings in as /Game/Ground/T_ground_<set>_*.
 
-The generators live in content/props/_tools/apex_tex.py beside the prop
+The generators live in scripts/content/props/apex_tex.py beside the prop
 kit's, because they are the same numpy — fbm noise, a height field and a
 normal taken from it — and a surface authored twice drifts. That module is
 normally imported inside Blender; the import of `bpy` is optional there so
@@ -34,7 +34,7 @@ import numpy as np
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "content" / "props" / "_tools"))
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "content" / "props"))
 
 import apex_tex  # noqa: E402
 

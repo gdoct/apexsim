@@ -80,7 +80,7 @@ Create the folder first, then run the script in Blender's Python console:
 
 ```python
 VARIANT = "mycar"
-exec(open(r"E:\apexsim\content\cars\build_hypercar.py").read())
+exec(open(r"E:\apexsim\scripts\content\cars\build_hypercar.py").read())
 ```
 
 or headless, with `APEXSIM_ROOT` set to your checkout and the same two lines
@@ -94,7 +94,7 @@ conventions the generators follow:
 - metres, ground at z = 0, **nose on -Y**, tail on +Y, driver on +X (left-hand
   drive). Exported with glTF +Y up.
 - **No wheels.** The client draws the class's shared wheel four times, where
-  `[wheels]` says. If your model has wheels, `content/cars/strip_wheels.py`
+  `[wheels]` says. If your model has wheels, `scripts/content/cars/strip_wheels.py`
   measures them (`measure(glb)`) and removes them (`strip(glb)`).
 - the **material slot names** the client drives: `car_paint`, `car_accent`,
   `car_logo`, `car_glass`, `car_headlight`, `car_taillight`,
@@ -137,7 +137,7 @@ The hypercars sit at 1:42.2-1:42.8, about two seconds under the LMP2s. If
 your car is far off its class, adjust `grip_coefficient`, the lift
 coefficients or power, not the class.
 
-**4. Preview it** (optional). Run `content/cars/preview_cars.py` in Blender
+**4. Preview it** (optional). Run `scripts/content/cars/preview_cars.py` in Blender
 with `CARS = ["mybrand-x1-hypercar"]` to render hero, side, front, rear and
 cockpit shots into `content/props/_preview/cars/`, with the wheels placed
 where `car.toml` puts them.
@@ -160,12 +160,12 @@ A livery is a repaint of the same mesh: `paint` and `accent` recolour the
 `car_paint` / `car_accent` slots and `logo` replaces the `car_logo` texture.
 Which panels count as accent is fixed by the body.
 
-`content/cars/liveries.py` owns everything below the marker line
-`# --- liveries: written by content/cars/liveries.py ...` and draws the logo
+`scripts/content/cars/liveries.py` owns everything below the marker line
+`# --- liveries: written by scripts/content/cars/liveries.py ...` and draws the logo
 PNGs. To add or change liveries, edit its schemes and rerun it for your car:
 
 ```powershell
-python content/cars/liveries.py mybrand-x1-hypercar
+python scripts/content/cars/liveries.py mybrand-x1-hypercar
 ```
 
 Anything written below the marker by hand is lost on the next run. Append
