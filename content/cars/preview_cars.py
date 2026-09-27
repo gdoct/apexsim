@@ -3,7 +3,7 @@
 Run inside Blender; set CARS (folder names) and optionally VIEWS first:
 
     CARS = ["posh-gt3rs"]
-    exec(open(r"D:\\apexsim\\content\\cars\\preview_cars.py").read())
+    exec(open(r"E:\\apexsim\\content\\cars\\preview_cars.py").read())
 
 Loads each car's GLB plus the shared class wheel from content/wheels, places
 the four wheels where car.toml's [wheels] table says (blender y = -axle_m,
@@ -17,7 +17,7 @@ only; nothing beside the PNGs is written.
 import bpy, math, os, sys
 from mathutils import Vector
 
-ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"D:\apexsim"), "content")
+ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content")
 OUT = os.path.join(ROOT, "props", "_preview", "cars")
 try:
     CARS

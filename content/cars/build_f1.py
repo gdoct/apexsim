@@ -2,7 +2,7 @@
 content/cars/<folder>/<stem>.glb.
 
     VARIANT = "fugazzi"    # fugazzi | murcetes | mclarsen | ashton
-    exec(open(r"D:\\apexsim\\content\\cars\\build_f1.py").read())
+    exec(open(r"E:\\apexsim\\content\\cars\\build_f1.py").read())
 
 Same pipeline as build_gt3.py / build_lmp2.py / build_hypercar.py - shape and
 livery data here, mechanics in carlib.py - for an open-wheeler. The loft is
@@ -34,7 +34,7 @@ import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
 # ------------------------------------------------------------------ loading
-_ROOT = os.environ.get("APEXSIM_ROOT", r"D:\apexsim")
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
 for _n, _p in (("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py")),
                ("carlib", os.path.join(_ROOT, "content", "cars", "carlib.py"))):
     _s = importlib.util.spec_from_file_location(_n, _p)

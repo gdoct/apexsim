@@ -22,6 +22,7 @@ pub mod racing_line;
 pub mod records;
 pub mod replay;
 pub mod replay_tools;
+pub mod road_mesh;
 pub mod server;
 pub mod timer_resolution;
 pub mod track_loader;

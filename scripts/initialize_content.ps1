@@ -78,7 +78,7 @@ $ServerExe   = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
 # Must match bake_ground_textures.py and ApexGroundTexImport.
 $GroundSets  = 'asphalt', 'grass', 'gravel', 'sand', 'concrete', 'astroturf', 'kerb'
 $GroundMaps  = 'col', 'nrm', 'rough'
-$Sidecars    = 'ground', 'curbs', 'walls'
+$Sidecars    = 'ground', 'curbs', 'walls', 'road'
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')

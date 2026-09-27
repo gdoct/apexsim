@@ -2,7 +2,7 @@
 content/cars/<folder>/<stem>.glb.
 
     VARIANT = "posh"       # yotota | posh | fugazzi | jeanetti
-    exec(open(r"D:\\apexsim\\content\\cars\\build_lmp2.py").read())
+    exec(open(r"E:\\apexsim\\content\\cars\\build_lmp2.py").read())
 
 The four cars share one hull generator; each VARIANT is a set of small shape
 and livery parameters (nose width, fender peak, canopy height and position,
@@ -28,7 +28,7 @@ import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
 # ------------------------------------------------------------------ loading
-_ROOT = os.environ.get("APEXSIM_ROOT", r"D:\apexsim")
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
 for _n, _p in (("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py")),
                ("carlib", os.path.join(_ROOT, "content", "cars", "carlib.py"))):
     _s = importlib.util.spec_from_file_location(_n, _p)

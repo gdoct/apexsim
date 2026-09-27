@@ -1,7 +1,7 @@
 //! Batch-bake tracks into the `.uescene.json` manifest and `.uemesh` mesh
 //! blob the Unreal client builds each circuit from at runtime, plus the
-//! `.ground.msgpack` heightfield and
-//! `.curbs.msgpack` track limits and `.walls.msgpack` barriers the server
+//! `.ground.msgpack` heightfield, `.curbs.msgpack` track limits,
+//! `.walls.msgpack` barriers and `.road.msgpack` road mesh the server
 //! reads from beside each YAML.
 //!
 //! ```text
@@ -16,6 +16,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use track_core::ue_export::BakeOptions;
 use track_core::ue_export_io::{self, DEFAULT_EXPORT_DIR};
 
 const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
@@ -25,11 +26,13 @@ fn main() -> ExitCode {
     let mut all = false;
     let mut out_dir: Option<PathBuf> = None;
     let mut tracks: Vec<PathBuf> = Vec::new();
+    let mut options = BakeOptions::default();
     let mut iter = args.iter();
 
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--all" | "-a" => all = true,
+            "--flat-curbs" => options.flat_curbs = true,
             "--out" | "-o" => match iter.next() {
                 Some(dir) => out_dir = Some(PathBuf::from(dir)),
                 None => {
@@ -68,7 +71,7 @@ fn main() -> ExitCode {
     let out_dir = out_dir.unwrap_or_else(|| PathBuf::from(DEFAULT_EXPORT_DIR));
     let mut failures = 0usize;
     for track in &tracks {
-        match ue_export_io::export_track(track, &out_dir) {
+        match ue_export_io::export_track_with(track, &out_dir, &options) {
             Ok(exported) => {
                 let size_kb = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0) / 1024;
                 println!(
@@ -96,6 +99,26 @@ fn main() -> ExitCode {
                         size_kb(sidecar)
                     );
                 }
+                println!(
+                    "{} -> {} ({} KB, {} triangles{}{})",
+                    track.display(),
+                    exported.road_path.display(),
+                    size_kb(&exported.road_path),
+                    exported.road_triangles,
+                    if exported.road_dropped > 0 {
+                        format!(
+                            ", {} facets without footprint dropped",
+                            exported.road_dropped
+                        )
+                    } else {
+                        String::new()
+                    },
+                    if options.flat_curbs {
+                        ", flat curbs"
+                    } else {
+                        ""
+                    }
+                );
             }
             Err(e) => {
                 eprintln!("{}: {e}", track.display());
@@ -118,10 +141,14 @@ fn main() -> ExitCode {
 }
 
 const USAGE: &str = "\
-usage: ats-export [--all] [--out DIR] [TRACK.yaml ...]
+usage: ats-export [--all] [--out DIR] [--flat-curbs] [TRACK.yaml ...]
 
   --all, -a      export every *.yaml under content/tracks/real
   --out, -o DIR  destination for the .uescene.json manifest and the .uemesh mesh blob
                  beside it (default: content/tracks/export); the .ground.msgpack,
-                 .curbs.msgpack and .walls.msgpack sidecars always land beside the YAML
+                 .curbs.msgpack, .walls.msgpack and .road.msgpack sidecars always land
+                 beside the YAML
+  --flat-curbs   bake the curbs into the road mesh flat at the road edge's height
+                 (the rendered curbs keep their profile), to compare the mesh sim
+                 against the centerline one without the curbs' shape in the way
 ";

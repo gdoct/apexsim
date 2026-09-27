@@ -343,12 +343,13 @@ function Get-GitCommit {
 # Server content: only what the server actually reads at startup. The .glb car
 # models ship with the client (Game\Cars), the .ats sidecars belong
 # to the track editor, and content/tracks/export is intermediate bake output.
-# The <Track>.ground.msgpack heightfield, <Track>.curbs.msgpack bands and
-# <Track>.walls.msgpack barriers the bake writes next to each YAML are server
-# input: without the first a car that leaves the asphalt stays at road height
-# instead of following the ground the client draws, without the second the
-# curbs count as off track, and without the third nothing stops a car at the
-# barriers.
+# The <Track>.ground.msgpack heightfield, <Track>.curbs.msgpack bands,
+# <Track>.walls.msgpack barriers and <Track>.road.msgpack road mesh the bake
+# writes next to each YAML are server input: without the first a car that
+# leaves the asphalt stays at road height instead of following the ground the
+# client draws, without the second the curbs count as off track, without the
+# third nothing stops a car at the barriers, and without the fourth a server
+# set to `road_contact = "mesh"` drives that circuit on the centerline.
 function Copy-ServerContent {
     param([string]$Destination)
 
@@ -364,6 +365,7 @@ function Copy-ServerContent {
     $missingGround = [Collections.Generic.List[string]]::new()
     $missingCurbs = [Collections.Generic.List[string]]::new()
     $missingWalls = [Collections.Generic.List[string]]::new()
+    $missingRoad = [Collections.Generic.List[string]]::new()
     foreach ($track in Get-TrackFiles) {
         Copy-Item -LiteralPath $track.FullName -Destination $tracksOut -Force
         $ground = Join-Path $track.DirectoryName ($track.BaseName + '.ground.msgpack')
@@ -384,6 +386,12 @@ function Copy-ServerContent {
         } else {
             $missingWalls.Add($track.BaseName)
         }
+        $road = Join-Path $track.DirectoryName ($track.BaseName + '.road.msgpack')
+        if (Test-Path -LiteralPath $road) {
+            Copy-Item -LiteralPath $road -Destination $tracksOut -Force
+        } else {
+            $missingRoad.Add($track.BaseName)
+        }
     }
     if ($missingGround.Count -gt 0) {
         Write-Warning ("no ground heightfield for: {0} (run the track bake; off-track cars will sit at road height)" -f ($missingGround -join ', '))
@@ -393,6 +401,9 @@ function Copy-ServerContent {
     }
     if ($missingWalls.Count -gt 0) {
         Write-Warning ("no walls for: {0} (run the track bake; cars will drive through the barriers)" -f ($missingWalls -join ', '))
+    }
+    if ($missingRoad.Count -gt 0) {
+        Write-Warning ("no road mesh for: {0} (run the track bake; a server on road_contact = mesh drives these on the centerline)" -f ($missingRoad -join ', '))
     }
 }
 

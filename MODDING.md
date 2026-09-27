@@ -80,7 +80,7 @@ Create the folder first, then run the script in Blender's Python console:
 
 ```python
 VARIANT = "mycar"
-exec(open(r"D:\apexsim\content\cars\build_hypercar.py").read())
+exec(open(r"E:\apexsim\content\cars\build_hypercar.py").read())
 ```
 
 or headless, with `APEXSIM_ROOT` set to your checkout and the same two lines

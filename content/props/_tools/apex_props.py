@@ -3,7 +3,7 @@
 Load inside Blender's Python console or an MCP session:
 
     import importlib.util, sys
-    spec = importlib.util.spec_from_file_location("apex", r"D:\\apexsim\\content\\props\\_tools\\apex_props.py")
+    spec = importlib.util.spec_from_file_location("apex", r"E:\\apexsim\\content\\props\\_tools\\apex_props.py")
     apex = importlib.util.module_from_spec(spec); sys.modules["apex"] = apex; spec.loader.exec_module(apex)
 
 Conventions (see docs/PROPS.md):
@@ -17,7 +17,7 @@ Conventions (see docs/PROPS.md):
 import bpy, bmesh, math, os
 from mathutils import Vector
 
-PROPS_ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"D:\apexsim"), "content", "props")
+PROPS_ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content", "props")
 
 
 def reset_scene():

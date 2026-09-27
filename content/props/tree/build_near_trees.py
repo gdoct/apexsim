@@ -10,12 +10,12 @@ Card slots `tree_card_broadleaf`, `tree_card_conifer`, `scatter_grass`,
 them like `fence_mesh`); the trunk reuses `tree_bark`.
 
     ASSET = "all"
-    exec(open(r"D:\apexsim\content\props\tree\build_near_trees.py").read())
+    exec(open(r"E:\apexsim\content\props\tree\build_near_trees.py").read())
 """
 import bpy, math, os, importlib.util, sys, random
 from mathutils import Vector
 
-_ROOT = "D:\\apexsim"
+_ROOT = "E:\\apexsim"
 def _load(name, rel):
     s = importlib.util.spec_from_file_location(name, os.path.join(_ROOT, rel))
     m = importlib.util.module_from_spec(s); sys.modules[name] = m; s.loader.exec_module(m)

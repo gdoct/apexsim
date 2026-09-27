@@ -3,7 +3,7 @@ r"""Nordschleife kit: German guard rail, German signs, Burg Nürburg.
 Run inside Blender (Text Editor or console):
 
     ASSET = "all"        # or one of ASSETS
-    exec(open(r"D:\apexsim\content\props\_batches\build_nordschleife_kit.py").read())
+    exec(open(r"E:\apexsim\content\props\_batches\build_nordschleife_kit.py").read())
 
 or headless with the `bpy` module (APEXSIM_ROOT = the repo):
 
@@ -44,7 +44,7 @@ their post).
 import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
-_ROOT = os.environ.get("APEXSIM_ROOT", r"D:\apexsim")
+_ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
 os.environ.setdefault("APEXSIM_ROOT", _ROOT)
 _s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "content", "props", "_tools", "apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)

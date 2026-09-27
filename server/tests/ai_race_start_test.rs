@@ -25,9 +25,22 @@ fn repo(path: &str) -> PathBuf {
 
 /// A race of `ai_count` AI drivers all in `car`, as a demo session sets it
 /// up, with the lights already out.
+/// `SURVEY_ROAD_CONTACT=mesh` runs the survey on each circuit's road mesh
+/// (`docs/ROAD_MESH.md`) instead of the centerline, so the two backends
+/// can be compared line by line.
+fn road_contact() -> apexsim_server::config::RoadContactMode {
+    std::env::var("SURVEY_ROAD_CONTACT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(apexsim_server::config::RoadContactMode::Centerline)
+}
+
 fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
-    let track = TrackLoader::load_from_file(repo(&format!("content/tracks/real/{track}.yaml")))
-        .expect("track loads");
+    let track = TrackLoader::load_from_file_with(
+        repo(&format!("content/tracks/real/{track}.yaml")),
+        road_contact(),
+    )
+    .expect("track loads");
     let car = CarLoader::load_from_file(&repo(&format!("content/cars/{car}/car.toml")))
         .expect("car loads");
     let car_id = car.id;

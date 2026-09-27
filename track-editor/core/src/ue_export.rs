@@ -64,6 +64,7 @@ use crate::ats::{
 };
 use crate::dem::DemFile;
 use crate::props;
+use crate::road_mesh::{DroppedFacet, RoadMeshBuilder, RoadMeshFile, RoadSurface};
 use crate::strip_layout::{
     surface_kind_color, surface_lateral_fractions, surface_lift, CURB_LIFT_M, MARKING_LIFT_M,
 };
@@ -386,6 +387,36 @@ pub struct Baked {
     pub ground: Option<GroundHeightfield>,
     pub curbs: Option<CurbBands>,
     pub walls: Walls,
+    /// The road as the server drives on it (`<Track>.road.msgpack`): the
+    /// rendered road, curb, band and pit-lane triangles without their
+    /// render lifts, each tagged with its surface.
+    pub road: RoadMeshFile,
+    /// Facets the physics bake could not keep (no footprint: a curb's
+    /// outer face, a sliver), with the station of each. A hole inside the
+    /// road's width is one a wheel falls through to the centerline.
+    pub road_dropped: Vec<DroppedFacet>,
+}
+
+/// Knobs on a bake that change what is written, not just how much.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BakeOptions {
+    /// Bake the curbs into the physics mesh flat at the road edge's height
+    /// instead of with their 5 cm profile, so the road mesh alone can be
+    /// compared against the centerline sim before the curbs get a shape.
+    /// The rendered curbs keep their profile either way.
+    pub flat_curbs: bool,
+}
+
+/// What a strip contributes to the physics mesh: its surface, whether
+/// every point is flattened onto the road-anchored height, and whether a
+/// facet lying wholly on the track's road is left out (the pit lane's
+/// tapers run over the road, which is already there and is what a wheel
+/// on it should read).
+#[derive(Debug, Clone, Copy)]
+struct PhysicsStrip {
+    surface: u16,
+    flatten: bool,
+    clip_to_road: bool,
 }
 
 /// Station spacing of the curb sidecar, meters. Curbs run for tens of
@@ -990,6 +1021,16 @@ pub fn bake_all_with_dem(
     scene: &AtsScene,
     dem: Option<&DemFile>,
 ) -> Option<Baked> {
+    bake_all_with_options(track, scene, dem, &BakeOptions::default())
+}
+
+/// [`bake_all_with_dem`] with the knobs in [`BakeOptions`].
+pub fn bake_all_with_options(
+    track: &TrackFile,
+    scene: &AtsScene,
+    dem: Option<&DemFile>,
+    options: &BakeOptions,
+) -> Option<Baked> {
     let path = CenterlinePath::from_track(track)?;
     let lane = scene
         .pit_lane
@@ -1002,6 +1043,8 @@ pub fn bake_all_with_dem(
         ground: terrain.as_ref(),
         chunks: Vec::new(),
         materials: BTreeMap::new(),
+        physics: RoadMeshBuilder::new("ats-export"),
+        flat_curbs: options.flat_curbs,
     };
 
     // The pit lane's relation to the road decides where the road's edge
@@ -1027,7 +1070,13 @@ pub fn bake_all_with_dem(
             bake.underpass(field, underpass);
         }
     }
-    for surface in &scene.surfaces {
+    // Bands in layer order, the way they are drawn (`surface_lift`): the
+    // tarmac run-off over the grass it is laid across. The rendered meshes
+    // are merged per material and do not care; the physics mesh does,
+    // since the server takes the later triangle where two coincide.
+    let mut surfaces: Vec<&Surface> = scene.surfaces.iter().collect();
+    surfaces.sort_by(|a, b| surface_lift(a.kind).total_cmp(&surface_lift(b.kind)));
+    for surface in surfaces {
         bake.surface(&path, surface);
     }
     for curb in &scene.curbs {
@@ -1079,6 +1128,14 @@ pub fn bake_all_with_dem(
         terrain.as_ref(),
     );
     let walls = bake_walls(&props, &path, terrain.as_ref());
+    let Bake {
+        chunks,
+        materials,
+        mut physics,
+        ..
+    } = bake;
+    let road_dropped = std::mem::take(&mut physics.dropped);
+    let road = physics.finish();
 
     let scene = UeScene {
         format: UE_SCENE_FORMAT.to_string(),
@@ -1092,8 +1149,8 @@ pub fn bake_all_with_dem(
         length_cm: round(path.total_length_m() * M_TO_CM, 1),
         metadata,
         dressing: scene.dressing.into(),
-        materials: bake.materials.into_values().collect(),
-        meshes: merge_chunks(bake.chunks),
+        materials: materials.into_values().collect(),
+        meshes: merge_chunks(chunks),
         props,
         grid: bake_grid(track, &path),
         centerline: bake_centerline(&path),
@@ -1105,6 +1162,8 @@ pub fn bake_all_with_dem(
         ground,
         curbs,
         walls,
+        road,
+        road_dropped,
     })
 }
 
@@ -1130,9 +1189,15 @@ enum Anchor {
 
 /// One point of a strip's cross-section: lateral offset from the centerline
 /// (positive = left) and height above its anchor, both meters.
+///
+/// The height is two numbers: `shape_m` is geometry (a curb's profile) and
+/// `lift_m` is the offset against z-fighting that keeps a strip drawn over
+/// the one under it. The rendered mesh gets both; the server's road mesh
+/// gets only the shape.
 #[derive(Clone, Copy, Debug)]
 struct ProfilePoint {
     lat_m: f32,
+    shape_m: f32,
     lift_m: f32,
     anchor: Anchor,
 }
@@ -1141,6 +1206,17 @@ impl ProfilePoint {
     fn lifted(lat_m: f32, lift_m: f32) -> Self {
         Self {
             lat_m,
+            shape_m: 0.0,
+            lift_m,
+            anchor: Anchor::Road,
+        }
+    }
+
+    /// Road-anchored, `shape_m` of real height under `lift_m` of lift.
+    fn shaped(lat_m: f32, shape_m: f32, lift_m: f32) -> Self {
+        Self {
+            lat_m,
+            shape_m,
             lift_m,
             anchor: Anchor::Road,
         }
@@ -1149,6 +1225,7 @@ impl ProfilePoint {
     fn grounded(lat_m: f32, lift_m: f32) -> Self {
         Self {
             lat_m,
+            shape_m: 0.0,
             lift_m,
             anchor: Anchor::Ground,
         }
@@ -1157,6 +1234,7 @@ impl ProfilePoint {
     fn terrain(lat_m: f32, lift_m: f32) -> Self {
         Self {
             lat_m,
+            shape_m: 0.0,
             lift_m,
             anchor: Anchor::Terrain,
         }
@@ -1339,6 +1417,9 @@ fn station_gap_m(field: &TerrainHeightfield, a: f32, b: f32) -> f32 {
 /// One drawable cross-section, in track space.
 struct CrossSection {
     points: Vec<(f32, f32, f32)>,
+    /// The same points for the physics mesh: no render lift, and on a
+    /// flattened strip every one at the road-anchored height.
+    phys: Vec<(f32, f32, f32)>,
     /// Per point, how it sits against an underpass.
     seats: Vec<Seat>,
     /// Lateral arc length at each point, for the `v` texture coordinate.
@@ -1368,6 +1449,10 @@ struct Bake<'a> {
     ground: Option<&'a TerrainHeightfield>,
     chunks: Vec<Chunk>,
     materials: BTreeMap<String, UeMaterial>,
+    /// The server's road mesh, fed by every strip that is a surface a
+    /// wheel can stand on ([`Bake::strip_physics`]).
+    physics: RoadMeshBuilder,
+    flat_curbs: bool,
 }
 
 impl Bake<'_> {
@@ -1424,6 +1509,38 @@ impl Bake<'_> {
             profile,
             height,
             true,
+            None,
+        );
+    }
+
+    /// [`Self::strip`] for a surface a wheel can stand on: the same
+    /// triangles also go into the server's road mesh, tagged `surface`,
+    /// without their render lift (and, flattened, all at the road-anchored
+    /// height).
+    #[allow(clippy::too_many_arguments)]
+    fn strip_physics<F>(
+        &mut self,
+        path: &CenterlinePath,
+        start_m: f32,
+        end_m: f32,
+        step_m: f32,
+        material_key: &str,
+        physics: PhysicsStrip,
+        profile: F,
+        height: impl Fn(&PathSample, f32, (f32, f32, f32)) -> f32,
+    ) where
+        F: FnMut(&PathSample, f32, &mut Vec<ProfilePoint>),
+    {
+        self.extrude(
+            path,
+            start_m,
+            end_m,
+            step_m,
+            material_key,
+            profile,
+            height,
+            true,
+            Some(physics),
         );
     }
 
@@ -1453,6 +1570,7 @@ impl Bake<'_> {
             profile,
             |_, _, p| p.2,
             false,
+            None,
         );
     }
 
@@ -1467,6 +1585,7 @@ impl Bake<'_> {
         mut profile: F,
         height: impl Fn(&PathSample, f32, (f32, f32, f32)) -> f32,
         normalize: bool,
+        physics: Option<PhysicsStrip>,
     ) where
         F: FnMut(&PathSample, f32, &mut Vec<ProfilePoint>),
     {
@@ -1515,27 +1634,41 @@ impl Bake<'_> {
             }
 
             let mut points = Vec::with_capacity(buf.len());
+            let mut phys = Vec::with_capacity(if physics.is_some() { buf.len() } else { 0 });
             let mut seats = Vec::with_capacity(buf.len());
             let mut v_coords = Vec::with_capacity(buf.len());
             let mut v_acc = 0.0f32;
             for (k, p) in buf.iter().enumerate() {
-                let mut pos = offset_point(&sample, p.lat_m);
+                let road_pos = offset_point(&sample, p.lat_m);
+                let mut pos = road_pos;
                 let mut seat = Seat::default();
-                pos.2 = match (p.anchor, self.ground) {
+                // The height before the point's own lift: what the physics
+                // mesh gets, since its lifts are only there against
+                // z-fighting.
+                let base_z = match (p.anchor, self.ground) {
                     (Anchor::Ground, Some(field)) => {
                         let (z, s) = seat_on_ground(field, &sample, pos);
                         seat = s;
-                        z + p.lift_m
+                        z
                     }
                     (Anchor::Terrain, Some(field)) => {
-                        let z = field.ground_height_at(pos.0, pos.1) + p.lift_m;
+                        let z = field.ground_height_at(pos.0, pos.1);
                         match field.deck_top_at(pos.0, pos.1) {
-                            Some(top) => z.min(top - terrain::DECK_DEPTH_M),
+                            Some(top) => z.min(top - terrain::DECK_DEPTH_M - p.lift_m),
                             None => z,
                         }
                     }
-                    _ => height(&sample, p.lat_m, pos) + p.lift_m,
+                    _ => height(&sample, p.lat_m, pos),
                 };
+                pos.2 = base_z + p.shape_m + p.lift_m;
+                if let Some(spec) = physics {
+                    let z = if spec.flatten {
+                        height(&sample, p.lat_m, road_pos)
+                    } else {
+                        base_z + p.shape_m
+                    };
+                    phys.push((pos.0, pos.1, z));
+                }
                 if k > 0 {
                     v_acc += distance(points[k - 1], pos);
                 }
@@ -1546,6 +1679,7 @@ impl Bake<'_> {
             let (sin_h, cos_h) = sample.heading_rad.sin_cos();
             sections.push(Some(CrossSection {
                 points,
+                phys,
                 seats,
                 vs: v_coords,
                 station,
@@ -1559,6 +1693,16 @@ impl Bake<'_> {
         let mut builder = Builder::default();
         let mut open_section: Option<i32> = None;
         let chunks = &mut self.chunks;
+        let road_mesh = &mut self.physics;
+        let ground = self.ground;
+        // Whether a point is on the track's own road (not the pit lane).
+        let on_the_road = |x: f32, y: f32| {
+            ground.is_some_and(|field| {
+                field
+                    .nearest_track_point(x, y, 30.0)
+                    .is_some_and(|(_, lat, half)| lat.abs() <= half)
+            })
+        };
         let mut flush = |builder: &mut Builder, open: &mut Option<i32>| {
             if let Some(section) = open.take() {
                 let chunk = std::mem::take(builder).finish(section, material_key);
@@ -1600,6 +1744,20 @@ impl Bake<'_> {
                     (b.points[k], b.vs[k], b.station),
                 ];
                 builder.emit_quad(quad, forward_a, forward_b, a.course);
+                // The physics mesh keeps what the render rejects — a fold
+                // on the inside of a hairpin, a sliver, a twist — because a
+                // missing facet there is a hole a wheel falls through,
+                // while an overlapping one is harmless to a query that
+                // takes the highest surface under the wheel.
+                if let Some(spec) = physics {
+                    let corners = [a.phys[k], a.phys[k + 1], b.phys[k + 1], b.phys[k]];
+                    let station = a.station.rem_euclid(path.total_length_m().max(1e-3));
+                    if spec.clip_to_road {
+                        clipped_quad(road_mesh, spec.surface, corners, station, &on_the_road);
+                    } else {
+                        road_mesh.quad(spec.surface, corners, station);
+                    }
+                }
             }
         }
         flush(&mut builder, &mut open_section);
@@ -1631,6 +1789,46 @@ impl Bake<'_> {
             },
             |_, _, p| p.2,
         );
+    }
+}
+
+/// Lateral width of the columns a clipped physics quad is cut into.
+const CLIP_COLUMN_M: f32 = 1.0;
+
+/// A physics quad of a strip laid over the track's road (the pit lane's
+/// tapers), cut into [`CLIP_COLUMN_M`] columns across, keeping only the
+/// columns with no corner on the road: the road is already there, and is
+/// what a wheel on it should read (the gap a dropped column leaves lies
+/// on the road). The columns' shared corners are the same interpolations
+/// on both sides, so they weld.
+fn clipped_quad(
+    road_mesh: &mut RoadMeshBuilder,
+    surface: u16,
+    corners: [(f32, f32, f32); 4],
+    station_m: f32,
+    on_the_road: &dyn Fn(f32, f32) -> bool,
+) {
+    let width = distance(corners[0], corners[1]).max(distance(corners[3], corners[2]));
+    let n = (width / CLIP_COLUMN_M).ceil().max(1.0) as usize;
+    let lerp = |p: (f32, f32, f32), q: (f32, f32, f32), t: f32| {
+        (
+            p.0 + (q.0 - p.0) * t,
+            p.1 + (q.1 - p.1) * t,
+            p.2 + (q.2 - p.2) * t,
+        )
+    };
+    for k in 0..n {
+        let (t0, t1) = (k as f32 / n as f32, (k + 1) as f32 / n as f32);
+        let sub = [
+            lerp(corners[0], corners[1], t0),
+            lerp(corners[0], corners[1], t1),
+            lerp(corners[3], corners[2], t1),
+            lerp(corners[3], corners[2], t0),
+        ];
+        if sub.iter().any(|c| on_the_road(c.0, c.1)) {
+            continue;
+        }
+        road_mesh.quad(surface, sub, station_m);
     }
 }
 
@@ -2040,12 +2238,18 @@ impl Bake<'_> {
     fn road(&mut self, path: &CenterlinePath) {
         let key = "road";
         self.register(key, "road", [0.24, 0.24, 0.26, 1.0]);
-        self.strip(
+        let surface = self.physics.surface(RoadSurface::road());
+        self.strip_physics(
             path,
             0.0,
             path.total_length_m(),
             STEP_M,
             key,
+            PhysicsStrip {
+                surface,
+                flatten: false,
+                clip_to_road: false,
+            },
             |sample, _, out| {
                 out.push(ProfilePoint::lifted(sample.width_left_m, 0.0));
                 out.push(ProfilePoint::lifted(-sample.width_right_m, 0.0));
@@ -2117,12 +2321,18 @@ impl Bake<'_> {
         let key = "pit_lane";
         self.register(key, "pit_lane", [0.32, 0.32, 0.34, 1.0]);
         let half = width_m / 2.0;
-        self.strip(
+        let surface = self.physics.surface(RoadSurface::pit_lane());
+        self.strip_physics(
             lane,
             0.0,
             lane.total_length_m(),
             STEP_M,
             key,
+            PhysicsStrip {
+                surface,
+                flatten: false,
+                clip_to_road: true,
+            },
             move |_, _, out| {
                 out.push(ProfilePoint::lifted(half, PIT_LIFT_M));
                 out.push(ProfilePoint::lifted(-half, PIT_LIFT_M));
@@ -2332,18 +2542,26 @@ impl Bake<'_> {
             Side::Left => (sample.width_left_m, 1.0f32),
             Side::Right => (-sample.width_right_m, -1.0f32),
         };
-        self.strip(
+        // The curb's 5 cm profile is the one thing the road mesh adds to
+        // the sim: flat in physics until now, and `flat_curbs` keeps it so.
+        let physics = PhysicsStrip {
+            surface: self.physics.surface(RoadSurface::curb()),
+            flatten: self.flat_curbs,
+            clip_to_road: false,
+        };
+        self.strip_physics(
             path,
             curb.start_m,
             curb.end_m,
             STEP_M,
             &key,
+            physics,
             move |sample, _, out| {
                 // Signed so the same arithmetic works on both sides:
                 // `outward` grows away from the centerline.
                 let (edge, outward) = edge_of(sample);
-                let at = |d: f32, lift: f32| {
-                    ProfilePoint::lifted(edge + outward * d, lift + CURB_LIFT_M)
+                let at = |d: f32, shape: f32| {
+                    ProfilePoint::shaped(edge + outward * d, shape, CURB_LIFT_M)
                 };
                 out.push(at(0.0, 0.0));
                 out.push(at(width * CURB_LIP_FRAC, CURB_HEIGHT_M * 0.6));
@@ -2408,12 +2626,18 @@ impl Bake<'_> {
             }
             width
         });
-        self.strip(
+        let physics = PhysicsStrip {
+            surface: self.physics.surface(physics_surface_of(surface.kind)),
+            flatten: false,
+            clip_to_road: false,
+        };
+        self.strip_physics(
             path,
             surface.start_m,
             surface.end_m,
             SURFACE_STEP_M,
             &key,
+            physics,
             move |sample, progress, out| {
                 let (edge, outward) = match side {
                     Side::Left => (sample.width_left_m, 1.0),
@@ -3399,6 +3623,17 @@ fn bake_prop(p: &Prop, path: &CenterlinePath) -> UeProp {
 
 /// The two colours of a painted run-off style, or `None` for a style the
 /// bake does not know (which is then left bare).
+/// What the sim makes of a surface band: the tarmac bands are run-off
+/// (asphalt, off the track for the lap), everything else is off.
+fn physics_surface_of(kind: crate::ats::SurfaceKind) -> RoadSurface {
+    use crate::ats::SurfaceKind;
+    match kind {
+        SurfaceKind::AsphaltRunoff => RoadSurface::runoff("asphalt"),
+        SurfaceKind::Concrete => RoadSurface::runoff("concrete"),
+        other => RoadSurface::off(other.label()),
+    }
+}
+
 pub fn runoff_paint_colours(style: &str) -> Option<[[f32; 4]; 2]> {
     const RED: [f32; 4] = [0.72, 0.08, 0.06, 1.0];
     const YELLOW: [f32; 4] = [0.9, 0.72, 0.05, 1.0];

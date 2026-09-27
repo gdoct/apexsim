@@ -2,9 +2,9 @@
 
 Run inside Blender (Blender 4.x/5.x), e.g. from its Python console:
 
-    exec(open(r"D:\\apexsim\\content\\cars\\strip_wheels.py").read())
-    print(measure(r"D:\\apexsim\\content\\cars\\posh-lmp2\\posh_lmp2.glb"))
-    strip(r"D:\\apexsim\\content\\cars\\posh-lmp2\\posh_lmp2.glb", dry_run=True)
+    exec(open(r"E:\\apexsim\\content\\cars\\strip_wheels.py").read())
+    print(measure(r"E:\\apexsim\\content\\cars\\posh-lmp2\\posh_lmp2.glb"))
+    strip(r"E:\\apexsim\\content\\cars\\posh-lmp2\\posh_lmp2.glb", dry_run=True)
 
 `measure` finds the four wheels from the faces whose material names a tyre
 and returns what the `[wheels]` table of car.toml wants (docs/CAR_MODELS.md).

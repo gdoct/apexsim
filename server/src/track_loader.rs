@@ -1,3 +1,4 @@
+use crate::config::RoadContactMode;
 use crate::data::{
     GridSlot, RacelinePoint, SurfaceType, TrackConfig, TrackMetadata, TrackPoint, TrackSurface,
 };
@@ -106,19 +107,33 @@ impl std::error::Error for TrackLoadError {}
 pub struct TrackLoader;
 
 impl TrackLoader {
+    /// Load a track with its ground, curb and wall sidecars, driving on the
+    /// centerline: the road mesh sidecar, if any, is left on disk. The
+    /// server itself goes through [`Self::load_from_file_with`] with its
+    /// `[physics] road_contact` setting.
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<TrackConfig, TrackLoadError> {
+        Self::load_from_file_with(path, RoadContactMode::Centerline)
+    }
+
+    /// [`Self::load_from_file`], loading the `<Track>.road.msgpack` sidecar
+    /// too when `road_contact` is [`RoadContactMode::Mesh`] (and it exists).
+    pub fn load_from_file_with<P: AsRef<Path>>(
+        path: P,
+        road_contact: RoadContactMode,
+    ) -> Result<TrackConfig, TrackLoadError> {
         let path_ref = path.as_ref();
         let content = fs::read_to_string(path_ref)?;
-        Self::load_from_string_with_path(&content, Some(path_ref))
+        Self::load_from_string_with_path(&content, Some(path_ref), road_contact)
     }
 
     pub fn load_from_string(content: &str) -> Result<TrackConfig, TrackLoadError> {
-        Self::load_from_string_with_path(content, None)
+        Self::load_from_string_with_path(content, None, RoadContactMode::Centerline)
     }
 
     fn load_from_string_with_path(
         content: &str,
         track_path: Option<&Path>,
+        road_contact: RoadContactMode,
     ) -> Result<TrackConfig, TrackLoadError> {
         let track_file: TrackFileFormat = if content.trim_start().starts_with('{') {
             serde_json::from_str(content)
@@ -129,7 +144,7 @@ impl TrackLoader {
         };
 
         Self::validate(&track_file)?;
-        let mut config = Self::build_track_config(track_file, track_path)?;
+        let mut config = Self::build_track_config(track_file, track_path, road_contact)?;
         config.content_crc = crate::content_crc::content_crc(content.as_bytes());
         Ok(config)
     }
@@ -166,6 +181,7 @@ impl TrackLoader {
     fn build_track_config(
         track_file: TrackFileFormat,
         track_path: Option<&Path>,
+        road_contact: RoadContactMode,
     ) -> Result<TrackConfig, TrackLoadError> {
         let default_width = if track_file.default_width > 0.0 {
             track_file.default_width
@@ -189,12 +205,23 @@ impl TrackLoader {
             track_path,
         );
 
-        let start_positions = Self::generate_start_positions(&track_file, &centerline_points);
-
         let ground =
             track_path.and_then(|path| Self::load_ground_heightfield(&track_file.name, path));
         let curbs = track_path.and_then(|path| Self::load_curb_bands(&track_file.name, path));
         let walls = track_path.and_then(|path| Self::load_walls(&track_file.name, path));
+        let road_mesh = track_path
+            .and_then(|path| Self::load_road_mesh(&track_file.name, path, road_contact))
+            .map(std::sync::Arc::new);
+
+        // The grid is seated on the road the cars will drive on: the mesh
+        // when there is one (a slot on a bridge lands on the deck), the
+        // centerline formula otherwise.
+        let mut start_positions = Self::generate_start_positions(&track_file, &centerline_points);
+        if let Some(mesh) = road_mesh.as_deref() {
+            for slot in &mut start_positions {
+                slot.z = crate::physics::seat_height_on(mesh, slot.x, slot.y, slot.z);
+            }
+        }
 
         // Use track_id from file if provided, otherwise generate new UUID
         let track_id = if let Some(track_id_str) = &track_file.track_id {
@@ -298,9 +325,68 @@ impl TrackLoader {
             ground,
             curbs,
             walls,
+            road_mesh,
         };
         config.rebuild_raceline_distances();
         Ok(config)
+    }
+
+    /// Load the baked road mesh the track editor writes next to the track
+    /// file, when the server drives on meshes and the track has one.
+    /// Missing is normal (the sidecar is generated, not authored), and so
+    /// is a server that has not opted in: either way the track drives on
+    /// the centerline.
+    fn load_road_mesh(
+        track_name: &str,
+        track_path: &Path,
+        road_contact: RoadContactMode,
+    ) -> Option<crate::road_mesh::RoadMesh> {
+        let sidecar = crate::road_mesh::RoadMesh::sidecar_path(track_path);
+        if road_contact == RoadContactMode::Centerline {
+            if sidecar.exists() {
+                info!(
+                    "Road mesh for {} present ({}) but physics.road_contact = \"centerline\"; driving on the centerline",
+                    track_name,
+                    sidecar.display()
+                );
+            }
+            return None;
+        }
+        if !sidecar.exists() {
+            info!(
+                "No road mesh for {} ({}); driving on the centerline",
+                track_name,
+                sidecar.display()
+            );
+            return None;
+        }
+        match crate::road_mesh::RoadMesh::load(&sidecar) {
+            Ok(mesh) => {
+                info!(
+                    "Loaded road mesh for {}: {} triangles, {} vertices, {} surfaces, from {}{}",
+                    track_name,
+                    mesh.triangle_count(),
+                    mesh.vertex_count(),
+                    mesh.surfaces().len(),
+                    mesh.source(),
+                    if mesh.dropped_count() > 0 {
+                        format!(" ({} without footprint dropped)", mesh.dropped_count())
+                    } else {
+                        String::new()
+                    }
+                );
+                Some(mesh)
+            }
+            Err(e) => {
+                warn!(
+                    "Ignoring road mesh {} for {}: {}; driving on the centerline",
+                    sidecar.display(),
+                    track_name,
+                    e
+                );
+                None
+            }
+        }
     }
 
     /// Load the baked ground heightfield the track editor writes next to the

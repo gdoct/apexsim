@@ -15,6 +15,46 @@ pub struct ServerConfig {
     pub auth: AuthSettings,
     #[serde(default)]
     pub records: RecordsSettings,
+    #[serde(default)]
+    pub physics: PhysicsSettings,
+}
+
+/// How the sim finds the surface under a wheel (`docs/ROAD_MESH.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RoadContactMode {
+    /// The nearest centerline point's height, sheared by the banking, with
+    /// the curb bands for the track limits: every track, as before.
+    Centerline,
+    /// A track's baked `<Track>.road.msgpack` when it has one — the road
+    /// the client draws, as triangles — and the centerline otherwise.
+    Mesh,
+}
+
+impl std::str::FromStr for RoadContactMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "centerline" => Ok(RoadContactMode::Centerline),
+            "mesh" => Ok(RoadContactMode::Mesh),
+            other => Err(format!("unknown road_contact {other:?} (centerline|mesh)")),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhysicsSettings {
+    /// `"centerline"` (the default) or `"mesh"`.
+    pub road_contact: RoadContactMode,
+}
+
+impl Default for PhysicsSettings {
+    fn default() -> Self {
+        Self {
+            road_contact: RoadContactMode::Centerline,
+        }
+    }
 }
 
 /// Lap records: the best legal lap each driver has set on a track in a car,
@@ -178,6 +218,7 @@ impl Default for ServerConfig {
             ai: AiSettings::default(),
             auth: AuthSettings::default(),
             records: RecordsSettings::default(),
+            physics: PhysicsSettings::default(),
         }
     }
 }
@@ -275,6 +316,10 @@ impl ServerConfig {
         env_string("APEXSIM_CONTENT_CARS_DIR", &mut self.content.cars_dir);
         env_string("APEXSIM_CONTENT_TRACKS_DIR", &mut self.content.tracks_dir);
         env_string("APEXSIM_LOGGING_LEVEL", &mut self.logging.level);
+        env_parse(
+            "APEXSIM_PHYSICS_ROAD_CONTACT",
+            &mut self.physics.road_contact,
+        );
     }
 
     /// Sanity-check the configuration. Returns all problems found.
@@ -424,6 +469,21 @@ mod tests {
         config.apply_env_overrides();
         std::env::remove_var("APEXSIM_NETWORK_TCP_PORT");
         assert!(config.network.tcp_bind.ends_with(":9555"));
+    }
+
+    #[test]
+    fn test_road_contact_parses_and_defaults_to_the_centerline() {
+        let config = ServerConfig::default();
+        assert_eq!(config.physics.road_contact, RoadContactMode::Centerline);
+        let written = toml::to_string(&config).unwrap();
+        assert!(written.contains("road_contact = \"centerline\""));
+        let parsed: ServerConfig = toml::from_str(
+            &written.replace("road_contact = \"centerline\"", "road_contact = \"mesh\""),
+        )
+        .unwrap();
+        assert_eq!(parsed.physics.road_contact, RoadContactMode::Mesh);
+        assert_eq!("Mesh".parse::<RoadContactMode>(), Ok(RoadContactMode::Mesh));
+        assert!("triangles".parse::<RoadContactMode>().is_err());
     }
 
     #[test]

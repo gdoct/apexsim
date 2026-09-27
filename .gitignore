@@ -194,10 +194,12 @@ certs/
 *.terrain.msgpack
 # Generated Unreal track exports (bake with: cargo run --bin ats-export -- --all)
 content/tracks/export/
-# Generated server sidecars — the ground heightfield, the curb bands and
-# the walls — written next to each track YAML by the same ats-export run
+# Generated server sidecars — the ground heightfield, the curb bands, the
+# walls and the road mesh — written next to each track YAML by the same
+# ats-export run
 content/tracks/real/*.ground.msgpack
 content/tracks/real/*.curbs.msgpack
+content/tracks/real/*.road.msgpack
 
 # Recorded session replays (large binary, generated at runtime)
 server/replays/
