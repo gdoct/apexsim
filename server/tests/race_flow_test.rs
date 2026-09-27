@@ -37,7 +37,7 @@ fn race_distance(state: &CarState, track_length: f32) -> f32 {
 /// back of the grid ahead of everyone who had already crossed the line.
 #[test]
 fn test_grid_order_holds_at_the_green_light_monza() {
-    let track = TrackLoader::load_from_file("../content/tracks/real/Monza.yaml")
+    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
         .expect("failed to load Monza");
     let track_length = track.centerline.last().unwrap().distance_from_start_m;
 
@@ -114,7 +114,7 @@ fn test_grid_order_holds_at_the_green_light_monza() {
 
 #[test]
 fn test_race_flow_countdown_to_finish_monza() {
-    let track = TrackLoader::load_from_file("../content/tracks/real/Monza.yaml")
+    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
         .expect("failed to load Monza");
 
     let car = CarConfig::default();

@@ -112,8 +112,11 @@ fn run_and_fingerprint(track: TrackConfig) -> Vec<u32> {
 #[test]
 fn test_simulation_is_bit_identical_across_runs_on_the_road_mesh() {
     let load = || {
-        TrackLoader::load_from_file_with("../content/tracks/real/Monza.yaml", RoadContactMode::Mesh)
-            .expect("failed to load Monza")
+        TrackLoader::load_from_file_with(
+            "../content/tracks/default/Monza.yaml",
+            RoadContactMode::Mesh,
+        )
+        .expect("failed to load Monza")
     };
     let track_a = load();
     if track_a.road_mesh.is_none() {
@@ -138,9 +141,9 @@ fn test_simulation_is_bit_identical_across_runs_on_the_road_mesh() {
 
 #[test]
 fn test_simulation_is_bit_identical_across_runs() {
-    let track_a = TrackLoader::load_from_file("../content/tracks/real/Monza.yaml")
+    let track_a = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
         .expect("failed to load Monza");
-    let track_b = TrackLoader::load_from_file("../content/tracks/real/Monza.yaml")
+    let track_b = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
         .expect("failed to load Monza");
 
     let run1 = run_and_fingerprint(track_a);

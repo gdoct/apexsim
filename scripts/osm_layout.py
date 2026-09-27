@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a circuit's real-world layout dossier from OpenStreetMap.
 
-The centerlines under ``content/tracks/real`` come from public GPS traces,
+The centerlines under ``content/tracks/default`` come from public GPS traces,
 so the road itself is where it should be -- but everything *beside* it
 (which side the pit lane runs, where the grandstands stand and what they
 are called, the pit building, the landmarks, where the trees actually are)
@@ -10,7 +10,7 @@ like a circuit but not like *the* circuit.
 
 This script fetches each circuit's surroundings from OpenStreetMap (public
 data, ODbL), georeferences them onto the track's own coordinate frame, and
-writes ``content/tracks/real/<Stem>.layout.json``: a small, readable,
+writes ``content/tracks/default/<Stem>.layout.json``: a small, readable,
 reviewable dossier of real-world facts.  Turning a dossier into props is
 ``ats-dress``'s job (Rust, deterministic, tested); nothing here writes a
 ``.ats``.
@@ -36,9 +36,10 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from track_dirs import track_dir, track_glob  # noqa: F401 (track_glob re-exported)
+
 REPO = Path(__file__).resolve().parent.parent
-TRACK_DIR = REPO / "content" / "tracks" / "real"
-CACHE_DIR = REPO / "content" / "tracks" / "osm-cache"
+CACHE_DIR = REPO / ".cache" / "osm"
 OSM_API = "https://api.openstreetmap.org/api/0.6/map.json"
 R_EARTH = 6378137.0
 ATTRIBUTION = (
@@ -65,7 +66,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Nuerburgring": [(6.930, 50.325, 6.965, 50.345)],
     # The whole Nordschleife and a few hundred metres round it. Not fetched
     # from the OSM map API (its 50k-node ceiling would need a dozen tiles):
-    # the extract under content/tracks/osm-cache/Nordschleife.0.json was cut
+    # the extract under .cache/osm/Nordschleife.0.json was cut
     # from the OSM planet file for this box, so run this with --offline.
     "Nordschleife": [(6.895, 50.315, 7.025, 50.400)],
     "Catalunya": [(2.246, 41.560, 2.275, 41.580)],
@@ -986,7 +987,7 @@ class Track:
     def __init__(self, stem: str):
         self.stem = stem
         self.data = yaml.safe_load(
-            (TRACK_DIR / f"{stem}.yaml").read_text(encoding="utf-8")
+            (track_dir(stem) / f"{stem}.yaml").read_text(encoding="utf-8")
         )
         nodes = self.data["nodes"]
         raw = np.array([[n["x"], n["y"]] for n in nodes])
@@ -2400,11 +2401,11 @@ def rename_dossiers(stems: list[str], dry_run: bool) -> int:
     changing one must not need the OSM extract (gitignored, and slow to
     fetch). Everything but the names is left byte for byte."""
     for stem in stems:
-        out = TRACK_DIR / f"{stem}.layout.json"
+        out = track_dir(stem) / f"{stem}.layout.json"
         if not out.exists():
             continue
         layout = json.loads(out.read_text(encoding="utf-8"))
-        track = yaml.safe_load((TRACK_DIR / f"{stem}.yaml").read_text(encoding="utf-8"))
+        track = yaml.safe_load((track_dir(stem) / f"{stem}.yaml").read_text(encoding="utf-8"))
         renamed = {}
         for k, v in layout.items():
             renamed[k] = v
@@ -2453,7 +2454,7 @@ def main() -> int:
         layout = build(stem, args.offline)
         if args.dry_run:
             continue
-        out = TRACK_DIR / f"{stem}.layout.json"
+        out = track_dir(stem) / f"{stem}.layout.json"
         out.write_text(json.dumps(layout, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"   wrote {out.relative_to(REPO)} ({out.stat().st_size // 1024} KiB)")
     return 0

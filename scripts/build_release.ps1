@@ -73,8 +73,13 @@
     Reuse the prop kit already imported under game-unreal/Content/Props.
 
 .PARAMETER SkipTracks
-    Reuse the exports and previews already under content/tracks/export and
+    Reuse the exports and previews already under build/tracks and
     the track materials already baked.
+
+.PARAMETER IncludeCustomTracks
+    Also ship the tracks in content\tracks\custom (server YAML and sidecars,
+    client export). Off by default: that folder is the player's own, and may
+    hold circuits converted from content that must not be redistributed.
 
 .PARAMETER SkipClient
     Reuse a packaged client instead of running BuildCookRun. Uses the build
@@ -107,6 +112,7 @@ param(
     [switch]$SkipServer,
     [switch]$SkipProps,
     [switch]$SkipTracks,
+    [switch]$IncludeCustomTracks,
     [switch]$SkipClient,
     [string]$ClientArtifactDirectory
 )
@@ -117,8 +123,7 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot     = Split-Path -Parent $PSScriptRoot
 $Uproject     = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 $CarsDir      = Join-Path $RepoRoot 'content\cars'
-$TrackDir     = Join-Path $RepoRoot 'content\tracks\real'
-$ExportDir    = Join-Path $RepoRoot 'content\tracks\export'
+$ExportDir    = Join-Path $RepoRoot 'build\tracks'
 $MaterialsDir = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
 $CarMaterialsDir = Join-Path $RepoRoot 'game-unreal\Content\Materials\Car'
 $WheelsDir    = Join-Path $RepoRoot 'content\wheels'
@@ -131,6 +136,7 @@ if (-not $ClientArtifactDirectory) {
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 
 function Write-Step {
     param([string]$Message)
@@ -190,9 +196,15 @@ function Get-CarFiles {
     return @(Get-ChildItem $CarsDir -Filter 'car.toml' -Recurse -File)
 }
 
+# The circuits this release ships: content\tracks\default, plus
+# content\tracks\custom with -IncludeCustomTracks.
 function Get-TrackFiles {
-    if (-not (Test-Path $TrackDir)) { return @() }
-    return @(Get-ChildItem $TrackDir -Filter '*.yaml' -File)
+    return @(Get-ApexTrackFiles -RepoRoot $RepoRoot -DefaultOnly:(-not $IncludeCustomTracks))
+}
+
+function Get-TrackFolderText {
+    if ($IncludeCustomTracks) { return 'content\tracks\default and content\tracks\custom' }
+    return 'content\tracks\default'
 }
 
 # Tracks whose runtime export (manifest and mesh blob) is not on disk.
@@ -258,7 +270,7 @@ function Invoke-Preflight {
 
     $tracks = @(Get-TrackFiles)
     if ($tracks.Count -eq 0) {
-        $problems.Add("no track data: expected at least one .yaml under $TrackDir")
+        $problems.Add("no track data: expected at least one .yaml under $(Get-TrackFolderText)")
     }
     else {
         # The catalog is keyed by track_id. Without one the server mints a
@@ -319,7 +331,7 @@ function Invoke-Preflight {
     }
 
     Write-Detail "$($cars.Count) car(s) in $CarsDir"
-    Write-Detail "$($tracks.Count) track(s) in $TrackDir"
+    Write-Detail "$($tracks.Count) track(s) in $(Get-TrackFolderText)"
 }
 
 function Get-ProjectVersion {
@@ -342,7 +354,7 @@ function Get-GitCommit {
 
 # Server content: only what the server actually reads at startup. The .glb car
 # models ship with the client (Game\Cars), the .ats sidecars belong
-# to the track editor, and content/tracks/export is intermediate bake output.
+# to the track editor, and build/tracks is intermediate bake output.
 # The <Track>.ground.msgpack heightfield, <Track>.curbs.msgpack bands,
 # <Track>.walls.msgpack barriers and <Track>.road.msgpack road mesh the bake
 # writes next to each YAML are server input: without the first a car that
@@ -360,13 +372,14 @@ function Copy-ServerContent {
         Copy-Item -LiteralPath $car.FullName -Destination (Join-Path $target 'car.toml') -Force
     }
 
-    $tracksOut = Join-Path $Destination 'tracks\real'
-    New-Item -ItemType Directory -Path $tracksOut -Force | Out-Null
     $missingGround = [Collections.Generic.List[string]]::new()
     $missingCurbs = [Collections.Generic.List[string]]::new()
     $missingWalls = [Collections.Generic.List[string]]::new()
     $missingRoad = [Collections.Generic.List[string]]::new()
     foreach ($track in Get-TrackFiles) {
+        # The same folder it came from (tracks\default or tracks\custom).
+        $tracksOut = Join-Path $Destination ('tracks\' + (Split-Path -Leaf $track.DirectoryName))
+        New-Item -ItemType Directory -Path $tracksOut -Force | Out-Null
         Copy-Item -LiteralPath $track.FullName -Destination $tracksOut -Force
         $ground = Join-Path $track.DirectoryName ($track.BaseName + '.ground.msgpack')
         if (Test-Path -LiteralPath $ground) {
@@ -639,7 +652,7 @@ WHAT IS IN HERE
     Game\Tracks\       Every circuit, as the data the game builds it from
                        when it is raced. A new circuit is its .uescene.json,
                        .uemesh and .png here,
-                       with the matching .yaml in Server\content\tracks\real.
+                       with the matching .yaml in Server\content\tracks\default.
     Game\Cars\         Every car, as the car.toml and GLBs the game builds
                        it from; Game\Wheels\ holds the class wheels. A new
                        car is its folder here, with the same car.toml in
@@ -685,7 +698,7 @@ HOSTING FOR OTHER PEOPLE
 MODDING
 
     Server\content\cars\<car>\car.toml holds each car's physics, and
-    Server\content\tracks\real\*.yaml the circuit centrelines. The server
+    Server\content\tracks\default\*.yaml the circuit centrelines. The server
     validates both at startup and is the authority on them, so edits change
     the simulation for everyone connected. A circuit's scenery is
     Game\Tracks\<Track>.uescene.json and .uemesh, which the game builds it

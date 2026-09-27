@@ -1,7 +1,7 @@
 //! Rebuild a circuit's scenery from its real-world layout dossier, then
 //! groom what is left around it.
 //!
-//! The dossier (`content/tracks/real/<Stem>.layout.json`, written by
+//! The dossier (`content/tracks/default/<Stem>.layout.json`, written by
 //! `scripts/osm_layout.py` from OpenStreetMap) says what the place really
 //! looks like: which side the pit lane runs and where, what the stands are
 //! called and where they stand, the buildings, the bridges over the road,
@@ -11,7 +11,7 @@
 //!
 //! ```text
 //! ats-dress --all                           # every track that has a dossier
-//! ats-dress content/tracks/real/Monza.yaml  # one circuit
+//! ats-dress content/tracks/default/Monza.yaml  # one circuit
 //! ats-dress --all --dry-run                 # report without writing
 //! ats-dress --no-groom Spa.yaml             # dress only
 //! ```
@@ -19,17 +19,15 @@
 //! Idempotent: both passes own what they lay, so a second run over a
 //! dressed scene writes nothing.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use track_core::{ats_io, dress, groom, layout, project, ue_export_io};
 
-const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
-
 const USAGE: &str = "\
 usage: ats-dress [--all] [--dry-run] [--no-groom] [--verbose] [track.yaml ...]
 
-  --all, -a       every track under content/tracks/real that has a dossier
+  --all, -a       every track under content/tracks/{default,custom} that has a dossier
   --dry-run, -n   report what would change without writing
   --no-groom      dress only; leave barriers, boards and trees alone
   --verbose, -v   list dossier entries that could not be placed";
@@ -60,14 +58,14 @@ fn main() -> ExitCode {
     }
 
     if all {
-        match ue_export_io::track_files_in(Path::new(DEFAULT_TRACK_DIR)) {
+        match ue_export_io::all_track_files() {
             Ok(found) => tracks.extend(
                 found
                     .into_iter()
                     .filter(|t| layout::layout_path_for(t).exists()),
             ),
             Err(e) => {
-                eprintln!("failed to list {DEFAULT_TRACK_DIR}: {e}");
+                eprintln!("failed to list the track folders: {e}");
                 return ExitCode::FAILURE;
             }
         }

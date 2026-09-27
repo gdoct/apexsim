@@ -378,7 +378,7 @@ pub struct SessionSummary {
     )]
     pub id: SessionId,
     pub track_name: String,
-    /// Track file relative to content folder (e.g. "tracks/real/Austin.yaml")
+    /// Track file relative to content folder (e.g. "tracks/default/Austin.yaml")
     pub track_file: String,
     /// The track config the session runs on, so a client can find its
     /// `TrackConfigSummary` (and catalog row) without matching names.
@@ -1225,7 +1225,7 @@ mod tests {
             available_sessions: vec![SessionSummary {
                 id: Uuid::nil(),
                 track_name: "Monza".into(),
-                track_file: "tracks/real/Monza.yaml".into(),
+                track_file: "tracks/default/Monza.yaml".into(),
                 track_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
                 host_name: "host".into(),
                 session_kind: SessionKind::Multiplayer,

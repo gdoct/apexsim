@@ -19,7 +19,7 @@ use track_core::ue_export::{self, BakeOptions, Baked};
 use track_core::ue_export_io;
 
 fn real_tracks_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/real")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/default")
 }
 
 fn node(x: f32, y: f32, z: f32, banking: f32) -> TrackNode {
@@ -398,7 +398,8 @@ fn the_road_sidecar_is_deterministic_and_roundtrips_through_disk() {
 #[ignore]
 fn every_real_track_road_mesh_covers_the_road() {
     let dir = real_tracks_dir();
-    let tracks = ue_export_io::track_files_in(&dir).expect("content/tracks/real must be readable");
+    let tracks =
+        ue_export_io::track_files_in(&dir).expect("content/tracks/default must be readable");
     assert!(tracks.len() >= 20);
     let mut report: Vec<(String, usize, usize, f32, usize)> = Vec::new();
     for track_path in tracks {

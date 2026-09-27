@@ -4,25 +4,23 @@
 //!
 //! ```text
 //! ats-bank --all                               # every real circuit
-//! ats-bank content/tracks/real/Zandvoort.yaml  # one
+//! ats-bank content/tracks/default/Zandvoort.yaml  # one
 //! ats-bank --all --dry-run                     # report, write nothing
 //! ```
 //!
 //! This rewrites the track YAML: re-run `ats-dress` and `ats-export`
 //! afterwards (the road, the verge and the ground are all baked from it).
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use track_core::track_bank::{self, BankReport};
 use track_core::{track_io, ue_export_io};
 
-const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
-
 const USAGE: &str = "\
 usage: ats-bank [--all] [--dry-run] [track.yaml ...]
 
-  --all, -a        every track under content/tracks/real
+  --all, -a        every track under content/tracks/{default,custom}
   --dry-run, -n    report what would change without writing";
 
 fn main() -> ExitCode {
@@ -45,10 +43,10 @@ fn main() -> ExitCode {
         }
     }
     if all {
-        match ue_export_io::track_files_in(Path::new(DEFAULT_TRACK_DIR)) {
+        match ue_export_io::all_track_files() {
             Ok(found) => tracks.extend(found),
             Err(e) => {
-                eprintln!("failed to list {DEFAULT_TRACK_DIR}: {e}");
+                eprintln!("failed to list the track folders: {e}");
                 return ExitCode::FAILURE;
             }
         }

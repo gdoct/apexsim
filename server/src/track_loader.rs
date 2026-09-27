@@ -1049,7 +1049,7 @@ nodes:
     fn grid_slots_sit_on_the_road_under_them() {
         let path = Path::new(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../content/tracks/real/Spa.yaml"
+            "/../content/tracks/default/Spa.yaml"
         ));
         if !path.exists() {
             eprintln!("skipping: {} not present", path.display());

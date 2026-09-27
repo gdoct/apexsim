@@ -520,7 +520,7 @@ mod tests {
 
     #[test]
     fn sidecar_sits_next_to_the_track_file() {
-        let p = RoadMesh::sidecar_path(Path::new("content/tracks/real/Monza.yaml"));
+        let p = RoadMesh::sidecar_path(Path::new("content/tracks/default/Monza.yaml"));
         assert!(p.ends_with("Monza.road.msgpack"));
     }
 

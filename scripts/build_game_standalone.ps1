@@ -9,7 +9,7 @@
 
    The circuits are not cooked: the game builds each one from its export at
    runtime (docs/RUNTIME_CONTENT_LOADING.md). After packaging, the exports in
-   content/tracks/export (run scripts/build_track_levels.ps1 first) and their
+   build/tracks (run scripts/build_track_levels.ps1 first) and their
    previews are copied into Tracks\ beside ApexSim.exe, where the game looks.
 
    Neither are the cars: the game builds each from its car.toml and GLBs at
@@ -33,6 +33,11 @@
 .PARAMETER SkipTracks
    Do not copy the track exports next to the executable.
 
+.PARAMETER IncludeCustomTracks
+   Also copy the exports of the tracks in content\tracks\custom. Off by
+   default: that folder is the player's own, and may hold circuits converted
+   from content that must not be redistributed.
+
 .PARAMETER SkipCars
    Do not copy the cars and wheels next to the executable.
 
@@ -53,6 +58,7 @@ param(
    [string]$OutputDirectory,
    [switch]$Clean,
    [switch]$SkipTracks,
+   [switch]$IncludeCustomTracks,
    [switch]$SkipCars,
    [string[]]$ExtraUatArgs
 )
@@ -63,6 +69,7 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 
 $Uproject = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 if (-not $OutputDirectory) {
@@ -119,13 +126,18 @@ if ($null -eq $executable) {
 if (-not $SkipTracks) {
    # Where UApexTrackContentSubsystem looks in a packaged build: Tracks\ next
    # to ApexSim.exe (and settings.yml).
-   $exportDir = Join-Path $RepoRoot 'content\tracks\export'
+   $exportDir = Join-Path $RepoRoot 'build\tracks'
    $tracksOut = Join-Path $executable.DirectoryName 'Tracks'
    Write-Host ''
    Write-Host "==> Copying the track exports to $tracksOut" -ForegroundColor Cyan
    if (Test-Path $tracksOut) { Remove-Item -LiteralPath $tracksOut -Recurse -Force }
    New-Item -ItemType Directory -Path $tracksOut -Force | Out-Null
-   $manifests = @(Get-ChildItem $exportDir -Filter '*.uescene.json' -File -ErrorAction SilentlyContinue)
+   # Only the exports of the circuits being shipped: build\tracks
+   # also holds the player's own (content\tracks\custom) once baked.
+   $shipped = @(Get-ApexTrackFiles -RepoRoot $RepoRoot -DefaultOnly:(-not $IncludeCustomTracks) |
+      ForEach-Object { $_.BaseName })
+   $manifests = @(Get-ChildItem $exportDir -Filter '*.uescene.json' -File -ErrorAction SilentlyContinue |
+      Where-Object { $shipped -contains ($_.Name -replace '\.uescene\.json$', '') })
    foreach ($manifest in $manifests) {
       $stem = $manifest.Name -replace '\.uescene\.json$', ''
       $blob = Join-Path $exportDir "$stem.uemesh"

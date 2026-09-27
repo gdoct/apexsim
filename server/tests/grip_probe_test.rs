@@ -244,8 +244,8 @@ fn run_first_corner(
 fn silverstone_first_corner() {
     let car_name = std::env::var("PROBE_CAR").unwrap_or("murcetes-amd-gt3".into());
     let config = car(&car_name);
-    let track =
-        TrackLoader::load_from_file(root().join("content/tracks/real/Silverstone.yaml")).unwrap();
+    let track = TrackLoader::load_from_file(root().join("content/tracks/default/Silverstone.yaml"))
+        .unwrap();
     let profile = racing_line::build(&track, &config).unwrap();
     println!(
         "{} on {}: profile km/h s=250..600:",
@@ -279,8 +279,8 @@ fn silverstone_first_corner() {
 #[test]
 #[ignore]
 fn silverstone_profile_lap_times() {
-    let track =
-        TrackLoader::load_from_file(root().join("content/tracks/real/Silverstone.yaml")).unwrap();
+    let track = TrackLoader::load_from_file(root().join("content/tracks/default/Silverstone.yaml"))
+        .unwrap();
     let dir = root().join("content/cars");
     let mut names: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()

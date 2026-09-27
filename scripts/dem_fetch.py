@@ -10,7 +10,7 @@ half the real one because the YAML's z came from a smoothed GPS altitude.
 
 This script takes the measurement instead: it downloads the Copernicus GLO-30
 tiles covering the circuit, puts them into the track's own coordinate frame
-and writes `content/tracks/real/<Stem>.dem.msgpack` -- two grids of heights,
+and writes `content/tracks/default/<Stem>.dem.msgpack` -- two grids of heights,
 a 10 m one over the circuit itself and a 90 m one out to 8 km, which is the
 horizon a driver sees from a valley floor.
 
@@ -57,9 +57,10 @@ from pathlib import Path
 
 import numpy as np
 
-from osm_layout import BBOXES, REPO, R_EARTH, TRACK_DIR, fit_track
+from osm_layout import BBOXES, REPO, R_EARTH, fit_track
+from track_dirs import track_dir, track_glob
 
-DEM_CACHE = REPO / "content" / "tracks" / "dem-cache"
+DEM_CACHE = REPO / ".cache" / "dem"
 # AWS's open Copernicus bucket: no credentials, no request signing, one COG
 # GeoTIFF per 1-degree tile.
 BUCKET = "https://copernicus-dem-30m.s3.amazonaws.com"
@@ -603,7 +604,7 @@ def main() -> int:
     args = ap.parse_args()
 
     stems = (
-        sorted(p.name.split(".")[0] for p in TRACK_DIR.glob("*.layout.json"))
+        [p.name.split(".")[0] for p in track_glob("*.layout.json")]
         if args.all
         else args.tracks
     )
@@ -616,7 +617,7 @@ def main() -> int:
         doc = build(stem, args.offline)
         if args.dry_run:
             continue
-        out = TRACK_DIR / f"{stem}.dem.msgpack"
+        out = track_dir(stem) / f"{stem}.dem.msgpack"
         out.write_bytes(pack(doc))
         print(f"   wrote {out.relative_to(REPO)} ({out.stat().st_size // 1024} KiB)")
     return 0

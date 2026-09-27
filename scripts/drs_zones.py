@@ -40,9 +40,9 @@ from pathlib import Path
 
 import numpy as np
 import yaml
+from track_dirs import track_dir, track_glob  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-TRACK_DIR = REPO / "content" / "tracks" / "real"
 
 #: Curvature above this, sustained, is a corner (radius 400 m).
 CORNER_KAPPA = 1.0 / 400.0
@@ -59,7 +59,7 @@ END_CLEAR_M = 60.0
 
 
 def load(stem: str) -> dict:
-    with open(TRACK_DIR / f"{stem}.yaml", encoding="utf-8") as f:
+    with open(track_dir(stem) / f"{stem}.yaml", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -275,7 +275,7 @@ def zones_for(stem: str, data: dict) -> list[dict]:
 
 
 def write_yaml(stem: str, zones: list[dict]) -> bool:
-    path = TRACK_DIR / f"{stem}.yaml"
+    path = track_dir(stem) / f"{stem}.yaml"
     text = path.read_text(encoding="utf-8")
     block = "drs_zones:\n" + "".join(
         f"- detection_m: {z['detection_m']}\n  start_m: {z['start_m']}\n  end_m: {z['end_m']}\n"
@@ -300,7 +300,7 @@ def write_yaml(stem: str, zones: list[dict]) -> bool:
 
 def report(stem: str, data: dict) -> None:
     corners = Corners(data)
-    layout = TRACK_DIR / f"{stem}.layout.json"
+    layout = track_dir(stem) / f"{stem}.layout.json"
     names = []
     if layout.exists():
         import json
@@ -322,7 +322,7 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--report", action="store_true", help="print the detected corners instead")
     args = ap.parse_args()
-    stems = sorted(p.stem for p in TRACK_DIR.glob("*.yaml")) if args.all else args.tracks
+    stems = [p.stem for p in track_glob("*.yaml")] if args.all else args.tracks
     if not stems:
         raise SystemExit("no tracks given; pass a stem or --all")
     written = 0

@@ -29,7 +29,7 @@ FString UApexTrackImportCommandlet::DefaultSourceDir()
 	// The repo layout puts the Unreal project next to `content/`, and the
 	// exports are gitignored build output rather than shipped content.
 	return FPaths::ConvertRelativePathToFull(
-		FPaths::Combine(FPaths::ProjectDir(), TEXT("../content/tracks/export")));
+		FPaths::Combine(FPaths::ProjectDir(), TEXT("../build/tracks")));
 }
 
 bool UApexTrackImportCommandlet::ParseOptions(

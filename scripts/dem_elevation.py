@@ -48,9 +48,9 @@ import re
 from pathlib import Path
 
 import numpy as np
+from track_dirs import track_dir, track_glob  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-TRACK_DIR = REPO / "content" / "tracks" / "real"
 
 # Half-power wavelength of the along-road fit. At Spa 250 m keeps the
 # bottom of Eau Rouge within a metre of the model and the Les Combes crest
@@ -77,7 +77,7 @@ LATERAL_MIN_M, LATERAL_MAX_M = 2.0, 6.0
 def read_dem(stem: str) -> dict | None:
     """The sidecar's `inner` grid as a dict with `h` (rows x cols), or None
     for a circuit without one. msgpack-python is only needed here."""
-    path = TRACK_DIR / f"{stem}.dem.msgpack"
+    path = track_dir(stem) / f"{stem}.dem.msgpack"
     if not path.exists():
         return None
     import msgpack
@@ -242,7 +242,7 @@ def profile(stem: str, wavelength_m: float, canopy_tol_m: float):
     g = read_dem(stem)
     if g is None:
         return None
-    t = TrackText(TRACK_DIR / f"{stem}.yaml")
+    t = TrackText(track_dir(stem) / f"{stem}.yaml")
     xy = np.column_stack([t.column("nodes", "x"), t.column("nodes", "y")])
     s, total = stations(xy, t.closed)
     z_yaml = t.column("nodes", "z")
@@ -287,9 +287,9 @@ def carry_raceline(t: TrackText, s: np.ndarray, total: float, dz: np.ndarray) ->
 
 def report(wavelength_m: float, canopy_tol_m: float):
     rows = []
-    for path in sorted(TRACK_DIR.glob("*.dem.msgpack")):
+    for path in track_glob("*.dem.msgpack"):
         stem = path.name.split(".")[0]
-        if not (TRACK_DIR / f"{stem}.yaml").exists():
+        if not (track_dir(stem) / f"{stem}.yaml").exists():
             continue
         _, s, _, z, _, fit = profile(stem, wavelength_m, canopy_tol_m)
         d = z - fit

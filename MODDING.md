@@ -215,7 +215,7 @@ deletes a car's assets and row.
 
 ## Tracks
 
-A track is a set of files under `content/tracks/real/` sharing a stem (for
+A track is a set of files under `content/tracks/default/` sharing a stem (for
 example `Nordschleife`):
 
 | file | what it is | made by |
@@ -259,7 +259,7 @@ between them is routed over the raceway graph. Add more where two layouts
 share tarmac, as at the Nordschleife's junctions with the GP circuit.
 
 **2. Fetch the OSM extract.** `python scripts/osm_layout.py Mugello` downloads
-the extract into `content/tracks/osm-cache/` (gitignored). No centerline
+the extract into `.cache/osm/` (gitignored). No centerline
 exists yet, so there is nothing to fit a dossier to, and it stops after
 the download. If the OSM API refuses the box (it caps at 50k nodes), cut the
 extract from a planet file instead, as was done for the Nordschleife.
@@ -268,7 +268,7 @@ extract from a planet file instead, as was done for the Nordschleife.
 
 ```powershell
 python scripts/osm_centerline.py Mugello --dry-run   # check the length and the route first
-python scripts/osm_centerline.py Mugello             # -> content/tracks/real/Mugello.yaml
+python scripts/osm_centerline.py Mugello             # -> content/tracks/default/Mugello.yaml
 ```
 
 This writes 5 m nodes in the game's frame (origin on the start line, +X
@@ -284,8 +284,8 @@ data that disagrees with itself:
 python scripts/osm_layout.py Mugello --offline        # dossier, fitted to the centerline
 python scripts/dem_fetch.py Mugello                   # terrain (same fit); a few hundred MB of tiles
 python scripts/dem_elevation.py Mugello               # the centerline's real z from the terrain
-cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- content/tracks/real/Mugello.yaml
-cargo run --manifest-path track-editor/Cargo.toml --release --bin ats-bank -- content/tracks/real/Mugello.yaml
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- content/tracks/default/Mugello.yaml
+cargo run --manifest-path track-editor/Cargo.toml --release --bin ats-bank -- content/tracks/default/Mugello.yaml
 python scripts/drs_zones.py Mugello                   # optional; needs a ZONES entry
 python scripts/osm_layout.py Mugello --offline        # refit the dossier to the smoothed line
 python scripts/dem_fetch.py Mugello --offline
@@ -320,7 +320,7 @@ lane are one entry there.
 ```
 
 This runs `ats-dress` (stands, buildings, pit lane, barriers, trees,
-boards, decals from the dossier), `ats-export` (`content/tracks/export/Mugello.uescene.json`
+boards, decals from the dossier), `ats-export` (`build/tracks/Mugello.uescene.json`
 and `Mugello.uemesh`, which the game builds the circuit from, plus the
 server's `.ground` / `.curbs` / `.walls` sidecars), `build_track_catalog.py`
 (the track picker's preview) and `ApexMaterialBake` (the shared track
@@ -364,7 +364,7 @@ dossier or terrain sidecar the track is dressed and grounded generically.
    curbs counted as grass and the ground held at road height off the track.
 2. **Client:** the export from step 8 — `Mugello.uescene.json`,
    `Mugello.uemesh` and the preview `previews/Mugello.png`. In the editor
-   build the game reads them straight from `content/tracks/export`; a
+   build the game reads them straight from `build/tracks`; a
    packaged game reads them from `Tracks\` beside `ApexSim.exe` (the preview
    as `Mugello.png` there). The track picker's name, metadata, preview and
    content checksum all come from the export, keyed by `track_id`.

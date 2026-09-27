@@ -68,8 +68,7 @@ $GameContent = Join-Path $RepoRoot 'game-unreal\Content'
 $CarsSrc     = Join-Path $RepoRoot 'content\cars'
 $WheelsSrc   = Join-Path $RepoRoot 'content\wheels'
 $PropsSrc    = Join-Path $RepoRoot 'content\props'
-$TrackDir    = Join-Path $RepoRoot 'content\tracks\real'
-$ExportDir   = Join-Path $RepoRoot 'content\tracks\export'
+$ExportDir   = Join-Path $RepoRoot 'build\tracks'
 $TrackMats   = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
 $CarMats     = Join-Path $RepoRoot 'game-unreal\Content\Materials\Car'
 $GroundPngs  = Join-Path $RepoRoot 'content\textures\ground'
@@ -82,6 +81,7 @@ $Sidecars    = 'ground', 'curbs', 'walls', 'road'
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 
 function Write-Step {
     param([string]$Message)
@@ -161,18 +161,21 @@ $missingProps = @(Get-ChildItem $PropsSrc -Directory |
         } | ForEach-Object { "$kind/$($_.BaseName)" }
     })
 
-$trackStems = @(Get-ChildItem $TrackDir -Filter '*.yaml' -File | ForEach-Object { $_.BaseName })
-$missingTracks = @($trackStems | Where-Object {
-    $stem = $_
+# The shipped circuits and the player's own (content\tracks\custom).
+$trackFiles = @(Get-ApexTrackFiles -RepoRoot $RepoRoot)
+$trackStems = @($trackFiles | ForEach-Object { $_.BaseName })
+$missingTracks = @($trackFiles | Where-Object {
+    $stem = $_.BaseName
+    $dir = $_.DirectoryName
     # The export the game builds the circuit from (one from before the mesh
     # blob has no .uemesh), its preview, and the server's sidecars.
     $noExport = -not (Test-Path (Join-Path $ExportDir "$stem.uemesh"))
     $noPreview = -not (Test-Path (Join-Path $ExportDir "previews\$stem.png"))
     $noSidecar = @($Sidecars | Where-Object {
-        -not (Test-Path (Join-Path $TrackDir "$stem.$_.msgpack"))
+        -not (Test-Path (Join-Path $dir "$stem.$_.msgpack"))
     }).Count -gt 0
     $noExport -or $noPreview -or $noSidecar
-})
+} | ForEach-Object { $_.BaseName })
 $missingMaterials = @(
     @('M_ApexTrackBase', 'M_ApexEmissive', 'M_ApexBrand', 'M_ApexDecal' | Where-Object {
         -not (Test-Path (Join-Path $TrackMats "$_.uasset"))

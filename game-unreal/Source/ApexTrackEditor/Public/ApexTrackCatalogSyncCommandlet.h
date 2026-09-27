@@ -20,7 +20,7 @@ class UTexture2D;
  *
  * Options:
  *   -manifest=PATH   the baked manifest
- *                    (default: <project>/../content/tracks/export/track_catalog.json)
+ *                    (default: <project>/../build/tracks/track_catalog.json)
  *   -table=PATH      the catalog data table (default: /Game/Data/DT_TrackCatalog)
  *   -previews=PATH   content folder for preview textures (default: /Game/UI/TrackPreviews)
  *   -force           rewrite every row from the YAML and re-import every texture

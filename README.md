@@ -75,7 +75,7 @@ A circuit reaches the client as data: the track editor bakes it into an export, 
 
 ```bash
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
-                                     # -> content/tracks/export/<Track>.uescene.json + <Track>.uemesh
+                                     # -> build/tracks/<Track>.uescene.json + <Track>.uemesh
 ```
 
 Or run the whole pipeline for every circuit at once: dress the scenes, export them, draw the catalog previews and bake the shared track materials (the engine install is found by itself):
@@ -117,7 +117,7 @@ apexsim/
 
 ### Directory Highlights
 
-- [content/](content): Authoring-ready data. Cars are `cars/<name>/car.toml`; tracks are `tracks/real/*.yaml` (the logical circuit the server simulates) alongside `.ats` scene sidecars (the 3D dressing, read only by the editor and the Unreal importer).
+- [content/](content): Authoring-ready data. Cars are `cars/<name>/car.toml`; tracks are `tracks/default/*.yaml` (the logical circuit the server simulates) alongside `.ats` scene sidecars (the 3D dressing, read only by the editor and the Unreal importer).
 - [game-unreal/](game-unreal): Unreal Engine 5 client. Source lives in `Source/ApexSim`, `Source/ApexSimNet` and `Source/ApexTrackEditor`.
 - [scripts/](scripts): Build and content helpers — `build_track_levels.ps1` runs the whole track pipeline (dress, export, previews, materials); the Python scripts generate track preview images and racing lines.
 - [server/](server): Full Rust crate with source, configuration files and supporting docs for the backend runtime.
@@ -149,7 +149,7 @@ them once, before the first run:
 That runs the whole [track pipeline](#track-pipeline): it compiles the
 `ApexSimEditor` target (`-Build`, needed the first time and after any C++
 change), dresses and bakes every circuit with `ats-dress` and `ats-export`
-into `content/tracks/export`, draws the catalog previews, and bakes the
+into `build/tracks`, draws the catalog previews, and bakes the
 shared track materials under `/Game/Materials/Track`. The engine install is
 located from the `.uproject`, or pass `-EngineRoot <path>`. Expect a few
 minutes for the full set; `-Track Monza,Spa` limits it to a couple of

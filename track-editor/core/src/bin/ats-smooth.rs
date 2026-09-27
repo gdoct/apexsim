@@ -10,16 +10,16 @@
 //!
 //! ```text
 //! ats-smooth --all                              # every real circuit
-//! ats-smooth content/tracks/real/Spielberg.yaml # one
+//! ats-smooth content/tracks/default/Spielberg.yaml # one
 //! ats-smooth --all --dry-run                    # report, write nothing
-//! ats-smooth --report content/tracks/real/*.yaml  # what is tight today
+//! ats-smooth --report content/tracks/default/*.yaml  # what is tight today
 //! ```
 //!
 //! This rewrites the track YAML, which every other stage reads: re-run
 //! `ats-dress` and `ats-export` afterwards, and expect the content
 //! checksum — and so every client's copy of the track — to change.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use track_core::track_data::TrackFile;
@@ -28,8 +28,6 @@ use track_core::track_smooth::{
     DEFAULT_TOLERANCE_M, DEFAULT_WINDOW,
 };
 use track_core::{track_io, ue_export_io};
-
-const DEFAULT_TRACK_DIR: &str = "content/tracks/real";
 
 /// A corner tighter than this has less room than the road is wide, which
 /// is where the exporter's loft starts deleting geometry. Reported before
@@ -40,7 +38,7 @@ const USAGE: &str = "\
 usage: ats-smooth [--all] [--dry-run] [--report] [--tolerance M] [--passes N]
                   [--window N] [track.yaml ...]
 
-  --all, -a        every track under content/tracks/real
+  --all, -a        every track under content/tracks/{default,custom}
   --dry-run, -n    report what would change without writing
   --report, -r     report the centerline as it is now and stop
   --tolerance M    how far a node may move from its traced position
@@ -95,10 +93,10 @@ fn main() -> ExitCode {
     }
 
     if all {
-        match ue_export_io::track_files_in(Path::new(DEFAULT_TRACK_DIR)) {
+        match ue_export_io::all_track_files() {
             Ok(found) => tracks.extend(found),
             Err(e) => {
-                eprintln!("failed to list {DEFAULT_TRACK_DIR}: {e}");
+                eprintln!("failed to list the track folders: {e}");
                 return ExitCode::FAILURE;
             }
         }

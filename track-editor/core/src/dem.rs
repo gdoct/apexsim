@@ -115,7 +115,7 @@ pub enum DemError {
     Version(u32),
 }
 
-/// `content/tracks/real/Monza.yaml` -> `content/tracks/real/Monza.dem.msgpack`.
+/// `content/tracks/default/Monza.yaml` -> `content/tracks/default/Monza.dem.msgpack`.
 pub fn dem_path_for<P: AsRef<Path>>(track_path: P) -> PathBuf {
     let path = track_path.as_ref();
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();

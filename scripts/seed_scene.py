@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Start a new circuit's `.ats` scene: the start line, the grass and the curbs.
 
-    python scripts/seed_scene.py Nordschleife            # writes content/tracks/real/Nordschleife.ats
+    python scripts/seed_scene.py Nordschleife            # writes content/tracks/default/Nordschleife.ats
     python scripts/seed_scene.py Nordschleife --force    # replace an existing scene's curbs and grass
     python scripts/seed_scene.py Zandvoort --from survey.json   # curbs and bands measured elsewhere
 
@@ -48,9 +48,9 @@ from pathlib import Path
 
 import numpy as np
 import yaml
+from track_dirs import track_dir, track_glob  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-TRACK_DIR = REPO / "content" / "tracks" / "real"
 
 CORNER_RADIUS_M = 220.0
 MIN_CORNER_M = 25.0
@@ -171,8 +171,8 @@ def main() -> int:
     ap.add_argument("--from", dest="source", type=Path,
                     help="JSON with measured curbs and/or surfaces to lay instead of guessing")
     args = ap.parse_args()
-    yaml_path = TRACK_DIR / f"{args.stem}.yaml"
-    ats_path = TRACK_DIR / f"{args.stem}.ats"
+    yaml_path = track_dir(args.stem) / f"{args.stem}.yaml"
+    ats_path = track_dir(args.stem) / f"{args.stem}.ats"
     data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
     if ats_path.exists() and not (args.force or args.source):
         print(f"{ats_path.name} exists; --force to replace its curbs and grass")

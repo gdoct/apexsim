@@ -2,11 +2,28 @@
 
 This directory contains track definitions for ApexSim racing simulator. Tracks are defined using a parametric centerline spline format with metadata.
 
+## Folders
+
+- [default/](default/) - the circuits that ship with the game (checked in).
+- [custom/](custom/) - your own tracks: imported or hand-made, gitignored,
+  and not shipped by `build_release.ps1` unless it is given
+  `-IncludeCustomTracks`. See [custom/README.md](custom/README.md).
+
+Nothing generated or downloaded lives here: the client exports `ats-export`
+bakes from both folders go to `build/tracks/`, and the raw OpenStreetMap and
+elevation downloads to `.cache/osm/` and `.cache/dem/` (all gitignored, at the
+repo root).
+
+The server reads every track under this folder. The tools (`ats-export
+--all`, `ats-dress --all`, the Python scripts, `build_track_levels.ps1`) walk
+`default/` and then `custom/`, and a track's stem must be unique across the
+two.
+
 ## Available Tracks
 
 ### Real-World Tracks (Converted)
 
-See [real/](real/) for **25+ professionally converted real-world race tracks** including:
+See [default/](default/) for **25+ professionally converted real-world race tracks** including:
 - ✅ **Formula 1** circuits (Spa, Monza, Silverstone, Suzuka, and more)
 - ✅ **DTM** circuits (Nürburgring, Brands Hatch, Zandvoort, etc.)
 - ✅ **IndyCar** circuits (Indianapolis Motor Speedway)
@@ -26,14 +43,14 @@ All real-world tracks include accurate centerlines, track widths, and optimized 
 Edit `server/server.toml`:
 ```toml
 [track]
-track_file = "./content/tracks/real/Spa.yaml"
+track_file = "./content/tracks/default/Spa.yaml"
 ```
 
 ### Convert More Tracks
 
 ```bash
 cd server
-./convert_all_tracks.sh /path/to/racetrack-database ./content/tracks/real
+./convert_all_tracks.sh /path/to/racetrack-database ./content/tracks/default
 ```
 
 See [../../docs/TRACK_CONVERTER.md](../../docs/TRACK_CONVERTER.md) for the track converter tool documentation.

@@ -433,7 +433,7 @@ pub struct TrackConfig {
     pub name: String,
     pub centerline: Vec<TrackPoint>,
     pub width_m: f32,
-    /// Path to the source track file, relative to the content folder (e.g. "tracks/real/Austin.yaml")
+    /// Path to the source track file, relative to the content folder (e.g. "tracks/default/Austin.yaml")
     #[serde(default)]
     pub source_path: Option<String>,
     /// Checksum of the track file this was loaded from (`content_crc`), 0

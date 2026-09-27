@@ -13,8 +13,8 @@ use track_core::track_path::CenterlinePath;
 use track_core::ue_export_io::track_files_in;
 
 fn real_track_paths() -> Vec<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/real");
-    let mut found = track_files_in(&dir).expect("content/tracks/real is readable");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/default");
+    let mut found = track_files_in(&dir).expect("content/tracks/default is readable");
     found.sort();
     assert!(!found.is_empty(), "no tracks under {}", dir.display());
     found

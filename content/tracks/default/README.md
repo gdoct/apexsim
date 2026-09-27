@@ -61,7 +61,7 @@ Edit your `server.toml`:
 
 ```toml
 [track]
-track_file = "./content/tracks/real/Spa.yaml"
+track_file = "./content/tracks/default/Spa.yaml"
 ```
 
 ### Quick Test
@@ -69,7 +69,7 @@ track_file = "./content/tracks/real/Spa.yaml"
 Try Spa-Frankenchamps:
 ```bash
 # Update server.toml
-track_file = "./content/tracks/real/Spa.yaml"
+track_file = "./content/tracks/default/Spa.yaml"
 
 # Run server
 cargo run --release
@@ -165,7 +165,7 @@ To reconvert tracks from the source database:
 
 ```bash
 cd ../server
-./convert_all_tracks.sh /path/to/racetrack-database ./content/tracks/real
+./convert_all_tracks.sh /path/to/racetrack-database ./content/tracks/default
 ```
 
 See [../../docs/TRACK_CONVERTER.md](../../docs/TRACK_CONVERTER.md) for details.

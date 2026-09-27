@@ -29,19 +29,19 @@ What one circuit is on disk, and who reads it:
 
 | File | Written by | Read by |
 |---|---|---|
-| `content/tracks/real/<Stem>.yaml` | hand / converters | server (simulation, `ContentCrc`); the exporter |
-| `content/tracks/real/<Stem>.{ground,curbs,walls}.msgpack` | `ats-export` | server only |
-| `content/tracks/export/<Stem>.uescene.json` | `ats-export` | client: catalog row (the head) and the build (all of it) |
-| `content/tracks/export/<Stem>.uemesh` | `ats-export` | client: the build |
-| `content/tracks/export/previews/<Stem>.png` | `build_track_catalog.py` | client: the track card |
+| `content/tracks/default/<Stem>.yaml` | hand / converters | server (simulation, `ContentCrc`); the exporter |
+| `content/tracks/default/<Stem>.{ground,curbs,walls}.msgpack` | `ats-export` | server only |
+| `build/tracks/<Stem>.uescene.json` | `ats-export` | client: catalog row (the head) and the build (all of it) |
+| `build/tracks/<Stem>.uemesh` | `ats-export` | client: the build |
+| `build/tracks/previews/<Stem>.png` | `build_track_catalog.py` | client: the track card |
 
 Where the client looks for exports (`UApexTrackContentSubsystem::TrackDirectories`), first match per stem wins:
 
 1. `-ApexTracksDir=<dir>` on the command line (several joined with `+`);
 2. a packaged build: `Tracks/` beside `ApexSim.exe` (`<Release>/Game/Tracks`), where the preview sits as `<Stem>.png`;
-3. the editor build: the repo's `content/tracks/export`, previews under `previews/`.
+3. the editor build: the repo's `build/tracks`, previews under `previews/`.
 
-**Adding a circuit to an installed game:** its YAML (with a `track_id`) and the three sidecars in `Server/content/tracks/real`; its `.uescene.json`, `.uemesh` and `.png` in `Game/Tracks`. No editor, no cook, no repackage.
+**Adding a circuit to an installed game:** its YAML (with a `track_id`) and the three sidecars in `Server/content/tracks/default`; its `.uescene.json`, `.uemesh` and `.png` in `Game/Tracks`. No editor, no cook, no repackage.
 
 ## The export
 

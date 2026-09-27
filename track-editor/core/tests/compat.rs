@@ -17,10 +17,10 @@ use apexsim_server::track_loader::TrackLoader;
 use track_core::track_data::TrackFile;
 use track_core::track_io;
 
-/// Real tracks live at `<repo_root>/content/tracks/real/*.yaml`; this crate
+/// Real tracks live at `<repo_root>/content/tracks/default/*.yaml`; this crate
 /// lives at `<repo_root>/track-editor/core`.
 fn content_tracks_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/real")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/default")
 }
 
 fn real_track_paths() -> Vec<PathBuf> {

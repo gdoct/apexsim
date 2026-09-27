@@ -7,7 +7,7 @@ set -e
 
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <racetrack-database-path> <output-directory>"
-    echo "Example: $0 ~/racetrack-database ./content/tracks/real"
+    echo "Example: $0 ~/racetrack-database ./content/tracks/default"
     exit 1
 fi
 

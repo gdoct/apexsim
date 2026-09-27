@@ -116,7 +116,7 @@ These key on a centerline index or a station, and keep doing so under either bac
 
 ## The sidecar: `<Stem>.road.msgpack`
 
-Same conventions as the other three: msgpack via `rmp_serde::to_vec_named`, optional, beside the YAML, written by `ats-export` (`ue_export_io.rs`, temp file then rename), read by the server at load (`track_loader.rs`), a bad file logged and ignored. Gitignored beside the others (`content/tracks/real/*.road.msgpack`), shipped in `Server/` by `build_release.ps1`.
+Same conventions as the other three: msgpack via `rmp_serde::to_vec_named`, optional, beside the YAML, written by `ats-export` (`ue_export_io.rs`, temp file then rename), read by the server at load (`track_loader.rs`), a bad file logged and ignored. Gitignored beside the others (`content/tracks/default/*.road.msgpack`), shipped in `Server/` by `build_release.ps1`.
 
 ```rust
 pub struct RoadMeshFile {

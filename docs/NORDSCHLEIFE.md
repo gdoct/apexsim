@@ -1,7 +1,7 @@
 # Nürburgring Nordschleife
 
 The 20.8 km Nordschleife on its own, from the T13 start/finish through the
-Hohenrain chicane, clockwise: `content/tracks/real/Nordschleife.*`, lobby
+Hohenrain chicane, clockwise: `content/tracks/default/Nordschleife.*`, lobby
 name "Nürburgring Nordschleife", `track_id`
 `7648a87e-a67d-43c2-b92a-84022cc3ca75`. The GP circuit stays
 `Nuerburgring`.
@@ -19,7 +19,7 @@ the standard pipeline (CLAUDE.md, "Refresh order").
    2026-09-21 ORC planet): every node inside `BBOXES["Nordschleife"]`, every
    way with a node inside, every relation with such a way or node as a
    member, written in the map API's JSON shape to
-   `content/tracks/osm-cache/Nordschleife.0.json` (gitignored like every
+   `.cache/osm/Nordschleife.0.json` (gitignored like every
    extract). `osm_layout.py` and `dem_fetch.py` then run with `--offline`.
 2. **The centerline.** `scripts/osm_centerline.py Nordschleife` routes the
    lap waypoint by waypoint over the raceway graph (the waypoints are OSM's

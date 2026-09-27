@@ -6,7 +6,7 @@ racetrack database). The Nordschleife has none, but OpenStreetMap maps it
 end to end as `highway=raceway`, surveyed to a metre or two - so its lap is
 routed over the OSM raceway graph instead:
 
-    python scripts/osm_centerline.py Nordschleife            # -> content/tracks/real/Nordschleife.yaml
+    python scripts/osm_centerline.py Nordschleife            # -> content/tracks/default/Nordschleife.yaml
     python scripts/osm_centerline.py Nordschleife --dry-run  # report only
     python scripts/osm_centerline.py Nordschleife --plot out.png
 
@@ -30,7 +30,7 @@ it from the DEM sidecar in the refresh order (CLAUDE.md), and the raceline
 follows the road's change there.
 
 The extract is the one `scripts/osm_layout.py` caches
-(`content/tracks/osm-cache/<Stem>.<i>.json`); run that with `--offline`
+(`.cache/osm/<Stem>.<i>.json`); run that with `--offline`
 after placing it, or let it fetch. Everything here is deterministic: same
 extract, same YAML, byte for byte.
 """
@@ -49,7 +49,8 @@ import numpy as np
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from osm_layout import BBOXES, CACHE_DIR, R_EARTH, TRACK_DIR, is_pit_way, osm_name  # noqa: E402
+from osm_layout import BBOXES, CACHE_DIR, REPO, R_EARTH, is_pit_way, osm_name  # noqa: E402
+from track_dirs import track_dir  # noqa: E402
 
 STEP_M = 5.0
 RACELINE_MARGIN_M = 1.2
@@ -382,7 +383,7 @@ def write_yaml(stem: str, spec: dict, b: dict) -> Path:
         "drs_zones": [],
         "metadata": {**spec["metadata"], "length_m": round(b["length"], 3)},
     }
-    out = TRACK_DIR / f"{stem}.yaml"
+    out = track_dir(stem) / f"{stem}.yaml"
     out.write_text(
         yaml.safe_dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False, width=1000),
         encoding="utf-8",
@@ -421,7 +422,7 @@ def main() -> int:
         plot(b, args.plot)
     if not args.dry_run:
         out = write_yaml(args.stem, LAPS[args.stem], b)
-        print(f"   wrote {out.relative_to(TRACK_DIR.parent.parent.parent)}")
+        print(f"   wrote {out.relative_to(REPO)}")
     return 0
 
 

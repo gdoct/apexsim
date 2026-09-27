@@ -2,12 +2,12 @@
 //! filming in them, and cut those into clips the client plays back.
 //!
 //! ```text
-//! apexsim-replay simulate --track content/tracks/real/Zandvoort.yaml --car yotota-lmp2 \
+//! apexsim-replay simulate --track content/tracks/default/Zandvoort.yaml --car yotota-lmp2 \
 //!     --ai 12 --laps 3 --weather sunny --time 18:30 --out out/zandvoort.bin
 //! apexsim-replay info out/zandvoort.bin
 //! apexsim-replay find out/zandvoort.bin --corner Hugenholtz --before 150 --after 120 --min-cars 3
 //! apexsim-replay cut out/zandvoort.bin --from-tick 24000 --to-tick 26400 --out out/clip.clip.json
-//! apexsim-replay pose --track content/tracks/real/Spa.yaml --corner "Eau Rouge" --offset -60 --lateral -25 --height 6
+//! apexsim-replay pose --track content/tracks/default/Spa.yaml --corner "Eau Rouge" --offset -60 --lateral -25 --height 6
 //! ```
 //!
 //! Every command that reports prints JSON on stdout, so a script can drive
@@ -79,7 +79,7 @@ enum Command {
     /// Find where the field runs through a stretch of the lap together.
     Find {
         replay: PathBuf,
-        /// Track YAML; defaults to content/tracks/real/<stem>.yaml.
+        /// Track YAML; defaults to content/tracks/default/<stem>.yaml.
         #[arg(long)]
         track: Option<PathBuf>,
         /// A corner named in the track's layout dossier (substring).
@@ -193,15 +193,19 @@ fn default_track(explicit: Option<PathBuf>, stem: Option<&str>) -> Result<PathBu
         return Ok(path);
     }
     let stem = stem.ok_or("the replay names no track; pass --track")?;
-    let path = PathBuf::from(format!("content/tracks/real/{stem}.yaml"));
-    if path.is_file() {
-        Ok(path)
-    } else {
-        Err(format!(
-            "{} not found (run from the repo root or pass --track)",
-            path.display()
-        ))
-    }
+    // The shipped circuits, then the player's own.
+    let candidates =
+        ["default", "custom"].map(|dir| PathBuf::from(format!("content/tracks/{dir}/{stem}.yaml")));
+    candidates
+        .iter()
+        .find(|path| path.is_file())
+        .cloned()
+        .ok_or_else(|| {
+            format!(
+                "{stem}.yaml not found in content/tracks/default or content/tracks/custom \
+                 (run from the repo root or pass --track)"
+            )
+        })
 }
 
 fn station_for(track: &Path, corner: Option<&str>, station: Option<f32>) -> Result<f32, String> {
