@@ -112,6 +112,17 @@ namespace ApexCockpit
 			Layout.MirrorCentre = Overrides.MirrorCentre;
 			Layout.bCentreMirror = true;
 		}
+		if (Overrides.WheelRakeDeg != 0.0f)
+		{
+			Layout.WheelRakeDeg = Overrides.WheelRakeDeg;
+		}
+		if (Overrides.WheelLockDeg > 0.0f)
+		{
+			Layout.WheelLockDeg = Overrides.WheelLockDeg;
+		}
+		Layout.bRigWheel = Overrides.bRigWheel;
+		Layout.bRigDash = Overrides.bRigDash;
+		Layout.SteeringWheelModel = Overrides.RuntimeSteeringWheel;
 
 		return Layout;
 	}

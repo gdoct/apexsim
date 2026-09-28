@@ -191,6 +191,8 @@ void AApexRaceCarActor::SetCarMesh(UStaticMesh* MeshToShow)
 	// Overrides are per slot index, and the new body's slots need not line up
 	// with the old one's.
 	CarMesh->EmptyOverrideMaterials();
+	// The wheels may outlive the body (the same wheel spec): a skin's rims go with the skin.
+	Wheels.ForEachComponent([](UStaticMeshComponent& Wheel) { ApexLivery::Apply(&Wheel, nullptr); });
 	bLiveryApplied = false;
 	CarMesh->SetStaticMesh(Loaded);
 	// A different body is a different seat.
@@ -234,6 +236,9 @@ void AApexRaceCarActor::SetLivery(const FApexCarLivery* Livery)
 		{
 			ApexLivery::Apply(Flap, Livery);
 		}
+		// A skin may retexture the rims; a colour livery finds no slot of its
+		// own on a wheel and leaves it alone.
+		Wheels.ForEachComponent([Livery](UStaticMeshComponent& Wheel) { ApexLivery::Apply(&Wheel, Livery); });
 	}
 	bLiveryApplied = Livery != nullptr;
 }

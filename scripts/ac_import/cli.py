@@ -512,6 +512,8 @@ def _rebuild_command(layout: ini.Layout, opts: Options, stem: str) -> str:
     parts = ["python", "scripts/ac_import.py", f'"{layout.track_dir}"']
     if layout.name:
         parts += ["--layout", layout.name]
+    elif opts.layout == ".":
+        parts += ["--layout", "."]
     if opts.stem:
         parts += ["--stem", stem]
     if opts.display_name:
@@ -594,7 +596,8 @@ def main(argv: list[str] | None = None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("track", nargs="?", help="an AC track folder (content/tracks/<name>)")
     ap.add_argument("--all", metavar="DIR", help="import every importable layout under an AC content/tracks folder")
-    ap.add_argument("--layout", help="which layout of a multi-layout track (default: every layout)")
+    ap.add_argument("--layout", help="which layout of a multi-layout track (default: every layout; "
+                                     "`.` is the folder's own models.ini layout)")
     ap.add_argument("--list", action="store_true", help="list the layouts and exit")
     ap.add_argument("--stem", help="output stem (default: folder + layout, e.g. RtSuzuka_Gp)")
     ap.add_argument("--display-name", help="the name the game shows (default: from ui_track.json)")
@@ -642,7 +645,9 @@ def main(argv: list[str] | None = None) -> int:
             failures += 1
             continue
         if opts.layout:
-            layouts = [lay for lay in layouts if lay.name == opts.layout]
+            # `.` is the folder's own layout (models.ini), beside named ones.
+            want = "" if opts.layout == "." else opts.layout
+            layouts = [lay for lay in layouts if lay.name == want]
             if not layouts:
                 print(f"{folder}: no layout {opts.layout!r} (see --list)", file=sys.stderr)
                 failures += 1

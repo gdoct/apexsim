@@ -180,10 +180,10 @@ The same shape as the tracks, one level smaller: a car is its folder, and the ga
 
 | File | Read by |
 |---|---|
-| `content/cars/<folder>/car.toml` | server (physics, `ContentCrc`); client (catalog row, wheels, flap, sound, liveries, optional `[preview]` / `[cockpit]`) |
-| `content/cars/<folder>/<model>.glb` (top-level `model`) | client: the body |
-| `content/cars/<folder>/<stem>_drs.glb` (`[drs_flap] model`) | client: the F1 flap |
-| `content/cars/<folder>/textures/*.png` (`[[livery]] logo`) | client: livery logos |
+| `content/cars/{default,custom}/<folder>/car.toml` | server (physics, `ContentCrc`); client (catalog row, wheels, flap, sound, liveries, optional `[preview]` / `[cockpit]`) |
+| `content/cars/{default,custom}/<folder>/<model>.glb` (top-level `model`) | client: the body |
+| `content/cars/{default,custom}/<folder>/<stem>_drs.glb` (`[drs_flap] model`) | client: the F1 flap |
+| `content/cars/{default,custom}/<folder>/textures/*.png` (`[[livery]] logo`) | client: livery logos |
 | `content/wheels/<model>.glb` (`[wheels] model`) | client: the class wheel |
 
 Where the client looks (`UApexCarContentSubsystem::CarDirectories`), first folder to hold an id wins:
@@ -192,7 +192,9 @@ Where the client looks (`UApexCarContentSubsystem::CarDirectories`), first folde
 2. a packaged build: `Cars/` beside `ApexSim.exe` (`<Release>/Game/Cars`), wheels in `Wheels/` beside it;
 3. the editor build: the repo's `content/cars`, wheels in `content/wheels`.
 
-**Adding a car to an installed game:** its folder (car.toml, GLBs, logos) in `Game/Cars`, its wheel in `Game/Wheels` if the class is new, and the same car.toml in `Server/content/cars/<folder>`. No editor, no cook, no repackage.
+Each folder is read as its `default/` subfolder (the shipped cars) then `custom/` (the player's own), or as it is when it has neither (`UApexCarContentSubsystem::CarFolders`); the wheels folder sits beside the cars folder. The server reads its `cars_dir` the same way (`car_loader::car_toml_paths`), so on both sides a custom car reusing a shipped id is the one left out.
+
+**Adding a car to an installed game:** its folder (car.toml, GLBs, logos) in `Game/Cars/custom`, its wheel in `Game/Wheels` if the class is new, and the same car.toml in `Server/content/cars/custom/<folder>`. No editor, no cook, no repackage.
 
 ### The catalog
 

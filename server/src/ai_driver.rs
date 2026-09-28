@@ -964,8 +964,8 @@ impl<'a> AiDriverController<'a> {
     fn grip_budget(&self, state: &CarState) -> GripBudget {
         let config = self.car_config;
         let downforce = state.downforce_front_n + state.downforce_rear_n;
-        let grip_g = config.tire_config.grip_coefficient
-            * (1.0 + downforce.max(0.0) / (config.mass_kg.max(1.0) * 9.81));
+        let load_ratio = 1.0 + downforce.max(0.0) / (config.mass_kg.max(1.0) * 9.81);
+        let grip_g = config.envelope_mu(load_ratio) * load_ratio;
         let used =
             (state.g_forces.lateral_g.abs() / (grip_g * env_f("AI_GM", 1.0)).max(0.1)).min(1.0);
 

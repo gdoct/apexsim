@@ -50,7 +50,7 @@ fn track_file(stem: &str) -> PathBuf {
 fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     let track =
         TrackLoader::load_from_file_with(track_file(track), road_contact()).expect("track loads");
-    let car = CarLoader::load_from_file(&repo(&format!("content/cars/{car}/car.toml")))
+    let car = CarLoader::load_from_file(&repo(&format!("content/cars/default/{car}/car.toml")))
         .expect("car loads");
     let car_id = car.id;
     let mut cars = HashMap::new();

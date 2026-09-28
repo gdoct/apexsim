@@ -2,7 +2,7 @@
 ground and (with `centerline.py`) curb sidecars.
 
 AC finds its physics surfaces by name, across every kn5 the layout lists:
-a mesh called `NNKEY...` (one or two digits, then a `surfaces.ini` KEY as a
+a mesh called `NNKEY...` (digits, then a `surfaces.ini` KEY as a
 prefix) is a physics surface, whether or not it is drawn; `NNWALL...` is a
 wall. Kunos keep them in a separate, non-renderable kn5; mods often draw
 them as well. This does the same.
@@ -22,7 +22,9 @@ from .sidecars import (CONTACT_CURB, CONTACT_OFF, CONTACT_PIT_LANE, CONTACT_ROAD
                        WALL_ARMCO, WALL_CONCRETE, WALL_TIRES)
 from .trigrid import TriangleIndex
 
-PHYSICS_NAME = re.compile(r"^\d{1,2}([A-Za-z].*)$")
+# Any number of digits: the Nordschleife numbers its last 2 km `100TRM-NRM`
+# to `111TRM-NRM`.
+PHYSICS_NAME = re.compile(r"^\d+([A-Za-z].*)$")
 
 #: The grip each contact class already carries on the server
 #: (`TrackSurface` defaults and `physics::RUNOFF_GRIP_FACTOR`); AC's friction
@@ -47,15 +49,18 @@ def surface_key_for(mesh_name: str, surfaces: dict[str, Surface]) -> tuple[str |
     rem = m.group(1).upper()
     if rem.startswith("WALL"):
         return "WALL", True
+    # Some tracks write the digit into the key itself (`KEY=1ASPHALT`), so
+    # a key may prefix the whole name as well as what follows the digits.
+    full = mesh_name.upper()
     best = None
     for key in surfaces:
-        if rem.startswith(key) and (best is None or len(key) > len(best)):
+        if (rem.startswith(key) or full.startswith(key)) and (best is None or len(key) > len(best)):
             best = key
     return best, False
 
 
 def contact_for(surface: Surface) -> int:
-    k = surface.key
+    k = surface.key.lstrip("0123456789")
     if surface.pit_lane or k.startswith("PIT"):
         return CONTACT_PIT_LANE
     if any(h in k for h in _CURB_HINTS):
@@ -177,6 +182,9 @@ def collect_physics(kn5s: list[Kn5File], surfaces: dict[str, Surface], frame: Fr
                                        ac_friction=s.friction)
                 used[key] = spec
             p = frame.ac_points(mesh.world_positions())
+            if not np.isfinite(p).all():
+                warnings.append(f"physics mesh {mesh.name!r} has non-finite vertices; left out")
+                continue
             t = mesh.triangles.astype(np.int64)
             # Drop degenerate corners (a repeated index) up front.
             keep = (t[:, 0] != t[:, 1]) & (t[:, 1] != t[:, 2]) & (t[:, 0] != t[:, 2])

@@ -12,8 +12,10 @@ class UStaticMeshComponent;
  *
  * Every frame below is the BODY MESH's (the component the wheels hang off):
  * centimetres, nose on +Y, left on +X, floor at Z = 0 — the car GLBs' frame
- * after import (docs/CAR_MODELS.md). The shared wheel mesh has its axle on X
- * and its face on +X, centred on the hub.
+ * after import (docs/CAR_MODELS.md). A wheel mesh (the class wheel, or a
+ * car's own, and the rear pair's own when the spec has one) has its axle on
+ * X and its face on +X, centred on the hub; it is scaled to the axle's
+ * radius and width, so its size only needs to be close.
  */
 namespace ApexWheels
 {
@@ -90,7 +92,7 @@ struct APEXSIM_API FApexCarWheelSet
 	/** Constructor-only: creates the components as default subobjects of `Owner`. */
 	void CreateComponents(UObject& Owner, USceneComponent* Body);
 
-	/** Loads the spec's mesh and places the wheels; an unusable spec hides them. */
+	/** Loads the spec's meshes (the rear pair's own, when it has one) and places the wheels; an unusable spec hides them. */
 	void SetSpec(const FApexWheelSpec& InSpec);
 
 	const FApexWheelSpec& GetSpec() const { return Spec; }
@@ -116,6 +118,8 @@ private:
 
 	FApexWheelSpec Spec;
 	FBoxSphereBounds MeshBounds{ForceInit};
+	/** The rear pair's model's bounds: the front's unless the spec has a rear model. */
+	FBoxSphereBounds RearMeshBounds{ForceInit};
 	bool bHasWheels = false;
 	bool bVisible = true;
 	float SteerRad = 0.0f;

@@ -20,9 +20,11 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-# scripts/content/cars/liveries.py -> the repo; the cars themselves live in content/cars.
+# scripts/content/cars/liveries.py -> the repo; the shipped cars live in
+# content/cars/default (the player's own, in custom/, are not this script's).
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-HERE = os.path.join(REPO, "content", "cars")
+CARS_DIR = os.path.join(REPO, "content", "cars")
+HERE = os.path.join(CARS_DIR, "default")
 MARKER = "# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---"
 # The marker as written before the script moved out of content/cars.
 OLD_MARKERS = ["# --- liveries: written by content/cars/liveries.py, edits below this line are lost ---"]
@@ -31,7 +33,7 @@ OLD_MARKERS = ["# --- liveries: written by content/cars/liveries.py, edits below
 # point APEX_FONTS at a folder) to pin the look; otherwise Windows' and
 # Linux's usual faces stand in. The shipped logos are Poppins (Bold, Bold
 # Italic, Medium, Light) and Lora Regular saved as Lora-Variable.ttf.
-FONT_DIRS = [os.environ.get("APEX_FONTS", ""), os.path.join(HERE, "_fonts"), r"C:\Windows\Fonts", "/usr/share/fonts/truetype/google-fonts",
+FONT_DIRS = [os.environ.get("APEX_FONTS", ""), os.path.join(CARS_DIR, "_fonts"), r"C:\Windows\Fonts", "/usr/share/fonts/truetype/google-fonts",
              "/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/truetype/liberation2"]
 FONTS = {
     "bold": ["Poppins-Bold.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"],

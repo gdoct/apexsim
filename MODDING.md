@@ -41,7 +41,8 @@ $Cmd = "$UE\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 
 ## Cars
 
-A car is a folder under `content/cars/<folder>/` holding a `car.toml` (the
+A car is a folder under `content/cars/custom/<folder>/` (the shipped cars are
+in `content/cars/default/`) holding a `car.toml` (the
 physics, engine, gearbox, sound, wheel placement and liveries) and the GLB
 body its `model` key names. Folder names are lower-case with hyphens
 (`bugotti-chiffon-hypercar`); the GLB stem uses underscores
@@ -53,7 +54,7 @@ There are two ways to get a body: add a variant to one of the class
 generators (how the three hypercars were made), or bring your own model.
 
 **1. The body, from a generator.** Each class has a Blender script in
-`content/cars/`: `build_gt3.py`, `build_lmp2.py`, `build_hypercar.py` and
+`scripts/content/cars/`: `build_gt3.py`, `build_lmp2.py`, `build_hypercar.py` and
 `build_f1.py`. A script is a table of `VARIANTS` on top of a shared hull and
 the part library in `carlib.py`. To add a car to a class, copy an existing
 entry in `VARIANTS` and change it:
@@ -103,7 +104,7 @@ conventions the generators follow:
   take liveries, brake lights or headlights.
 
 **2. The `car.toml`.** Start from a car of the same class. Copy
-`content/cars/bugotti-chiffon-hypercar/car.toml`, then:
+`content/cars/default/bugotti-chiffon-hypercar/car.toml` into your folder, then:
 
 - give it a **new `id`** (a fresh UUID, e.g. `python -c "import uuid; print(uuid.uuid4())"`).
   The id is how the client finds the car's mesh. Never reuse one.
@@ -116,6 +117,45 @@ conventions the generators follow:
   `[drivetrain]`, `[differential]`, `[fuel]` and optionally `[hybrid]` are what
   the server simulates. Values are range-checked at load, and a car that fails
   validation is logged and skipped.
+- Optional, for a car that needs more than one grip figure (an Assetto Corsa
+  import writes them; none of the shipped cars do, and every key's default
+  is how the sim behaved before it existed). `[tires]` and `[engine.turbo]`
+  refuse keys they do not know, so a typo fails the load:
+
+  ```toml
+  [tires]
+  optimal_pressure_kpa = 179.0     # 50-400, default 180; the garage's clicks move
+  pressure_front_kpa = 179.0       #   the running pressures (default: the optimum)
+  pressure_rear_kpa = 179.0
+  load_sensitivity = 0.85          # 0.3-1.2, default 1.0 (linear): mu x (Fz/Fz_ref)^(ls - 1)
+  # load_sensitivity_front / _rear  override the shared key per axle
+  reference_load_n = 3768.0        # 100-30000 N, default each axle's static wheel load
+  # reference_load_front_n / _rear_n override it per axle
+  longitudinal_grip_factor = 1.05  # 0.6-1.6, default 1.0: the friction ellipse's long axis
+  front_grip_scale = 1.0           # 0.5-1.5, default 1.0: per-axle compound on grip_coefficient
+  rear_grip_scale = 1.0
+
+  [drivetrain]
+  awd_front_share = 0.4            # 0-1, default 0.4: an AWD car's drive to the front axle
+
+  [differential]
+  simulated = true                 # default false: every other key here is ignored without it
+  # differential_type = "Open" | "ClutchLSD" | "Locked" (Viscous/Torsen act as ClutchLSD)
+  # preload_nm (0-5000), lock_power, lock_coast (0-1): the locking torque is
+  # preload + lock x axle torque, the most the gripping wheel may take over the other's
+
+  [engine.turbo]
+  boosted_share = 0.35             # 0-0.9: the part of the torque curve that is boost
+  lag_up_s = 0.25                  # 0-5 s, default 0.25: spool time constant
+  lag_down_s = 0.4                 # 0-5 s, default 0.4
+  ```
+
+  With load sensitivity below 1 the car at a standstill still grips as
+  `grip_coefficient` says (at the default reference), and loses grip per
+  newton as downforce and load transfer load the tyres; the racing line and
+  the AI plan with the coefficient at the load the car carries at 40 m/s.
+  The turbo only delays a tip-in: at a steady pedal the curve is delivered
+  as written, so write the curve at full boost.
 - `[wheels]` places the wheels on the body (visual only). It must agree with
   the arches: the generators build each class to the stance table in
   `docs/CAR_MODELS.md`.
@@ -174,7 +214,8 @@ changes what they drive. After changing liveries, re-import the car (below).
 
 ### Installing your car
 
-1. **Server:** nothing to register. `car.toml` under `content/cars/` is found
+1. **Server:** nothing to register. `car.toml` under `content/cars/` (`default/`
+   then `custom/`; a custom car reusing a shipped `id` is skipped) is found
    on the next server start. It shows up in the lobby's car list and, if its
    class matches, in AI fields.
 2. **Client:** import the mesh and create its catalog row:

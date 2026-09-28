@@ -3,7 +3,7 @@
 //! racing line's own speed.
 use std::path::Path;
 
-use apexsim_server::car_loader::CarLoader;
+use apexsim_server::car_loader::{car_toml_paths, CarLoader};
 use apexsim_server::data::*;
 use apexsim_server::physics::{seed_track_progress, update_car_3d, AIR_DENSITY};
 use apexsim_server::racing_line;
@@ -16,8 +16,13 @@ fn root() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
 }
 
+/// A car by folder name, shipped (`content/cars/default`) or the player's own (`custom`).
 fn car(name: &str) -> CarConfig {
-    CarLoader::load_from_file(&root().join("content/cars").join(name).join("car.toml")).unwrap()
+    let path = car_toml_paths(&root().join("content/cars"))
+        .into_iter()
+        .find(|p| p.parent().and_then(|d| d.file_name()) == Some(std::ffi::OsStr::new(name)))
+        .unwrap_or_else(|| panic!("no car folder {name} under content/cars"));
+    CarLoader::load_from_file(&path).unwrap()
 }
 
 fn skidpad() -> TrackConfig {
@@ -282,11 +287,10 @@ fn silverstone_profile_lap_times() {
     let track = TrackLoader::load_from_file(root().join("content/tracks/default/Silverstone.yaml"))
         .unwrap();
     let dir = root().join("content/cars");
-    let mut names: Vec<_> = std::fs::read_dir(&dir)
-        .unwrap()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().join("car.toml").exists())
-        .map(|e| e.file_name().to_string_lossy().to_string())
+    let mut names: Vec<_> = car_toml_paths(&dir)
+        .iter()
+        .filter_map(|p| p.parent()?.file_name())
+        .map(|n| n.to_string_lossy().to_string())
         .collect();
     names.sort();
     let mu_scale: f32 = std::env::var("PROBE_MU_SCALE")

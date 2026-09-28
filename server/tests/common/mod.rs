@@ -17,6 +17,10 @@ pub async fn start_test_server_with_tick_rate(tick_rate_hz: u16) -> ServerHandle
     config.network.udp_bind = "127.0.0.1:0".to_string();
     config.network.health_bind = "127.0.0.1:0".to_string();
     config.network.require_tls = false;
+    // A debug build parses the AC imports' sidecars (hundreds of megabytes
+    // under content/tracks/custom) too slowly to start inside the tests'
+    // timeouts; a release build loads them like the real server does.
+    config.content.skip_imported_tracks = cfg!(debug_assertions);
     run_server(config)
         .await
         .expect("failed to start in-process test server")

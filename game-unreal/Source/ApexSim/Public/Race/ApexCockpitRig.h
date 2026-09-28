@@ -36,6 +36,10 @@ struct FApexCockpitFeatures
  *
  * Everything here is built from engine primitives and widgets, because the
  * car meshes are exteriors — they give a cockpit position, not a cockpit.
+ * A car with a real interior (an imported one) may bring its own steering
+ * wheel, drawn and turned in place of the rim, and may switch the rim or the
+ * hub display off (FApexCockpitOverrides: `steering_wheel_model`,
+ * `rig_wheel`, `rig_dash`).
  * The rig is attached to the followed car so it rides the same smoothed
  * transform; where each part sits comes from the car's FApexCockpitLayout,
  * and the driver's eye (with the seat adjustments) is what the screens face.
@@ -92,6 +96,10 @@ private:
 	};
 
 	void BuildWheel();
+	/** Load the car's own steering wheel from the layout, or clear it. */
+	void DressWheel();
+	/** The rig's own rim: hub, grips and spokes. */
+	TArray<UStaticMeshComponent*, TInlineAllocator<5>> RimParts() const;
 	FMirror BuildMirror(const TCHAR* Name, const FIntPoint& BaseResolution, float FovDeg, bool bWithFace);
 
 	/** Position every part from the layout and turn the faces to the eye. */
@@ -131,6 +139,13 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UWidgetComponent> Dash;
+
+	/**
+	 * The car's own steering wheel, when its row has one: on the pivot,
+	 * turned from the car GLB's axes (nose +Y) into the pivot's (nose +X).
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> CarWheel;
 
 	// --- Mirrors ----------------------------------------------------------------
 

@@ -88,6 +88,11 @@ bool FApexCarTomlWheelsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("spec rear radius"), Spec.RearRadiusM, 0.316f);
 	TestEqual(TEXT("wheel package"), UApexCarImportCommandlet::WheelPackageName(TEXT("/Game/Cars"), TEXT("f1")),
 		FString(TEXT("/Game/Cars/Wheels/f1/SM_Wheel_f1")));
+	TestEqual(TEXT("a car's own wheel is imported under the car"),
+		UApexCarImportCommandlet::WheelPackageName(TEXT("/Game/Cars"), TEXT("wheels/rear-f1.glb"), TEXT("ks-ferrari")),
+		FString(TEXT("/Game/Cars/ks_ferrari/Wheels/SM_ks_ferrari_rear_f1")));
+	TestTrue(TEXT("no rear_model, no rear mesh"), !UApexCarImportCommandlet::MakeWheelSpec(Car,
+		TSoftObjectPtr<UStaticMesh>(), TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(TEXT("/Game/X.X")))).HasRearModel());
 
 	// Axles the wrong way round, or a zero radius, would draw nonsense.
 	UApexCarImportCommandlet::FCarToml Swapped;

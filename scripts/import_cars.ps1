@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Import the authored car models (content/cars/<folder>/car.toml + .glb) into Unreal.
+    Import the car models (content/cars/{default,custom}/<folder>/car.toml + .glb) into Unreal.
 
 .DESCRIPTION
     Runs UnrealEditor-Cmd -run=ApexCarImport, which builds
@@ -60,18 +60,17 @@ $Uproject = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 $CarDir   = Join-Path $RepoRoot 'content\cars'
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 
 if (-not (Test-Path $Uproject)) {
     throw "expected the Unreal project at $Uproject"
 }
 
 if ($Car) {
+    $available = @(Get-ApexCarTomls -CarsDir $CarDir | ForEach-Object { Split-Path -Leaf $_.DirectoryName })
     foreach ($name in $Car) {
-        if (-not (Test-Path (Join-Path $CarDir "$name\car.toml"))) {
-            $available = (Get-ChildItem $CarDir -Directory |
-                Where-Object { Test-Path (Join-Path $_.FullName 'car.toml') } |
-                ForEach-Object { $_.Name }) -join ', '
-            throw "no car folder `"$name`" with a car.toml in $CarDir. Available: $available"
+        if ($available -notcontains $name) {
+            throw "no car folder `"$name`" with a car.toml in $CarDir\default or \custom. Available: $($available -join ', ')"
         }
     }
 }

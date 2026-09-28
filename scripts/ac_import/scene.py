@@ -155,38 +155,116 @@ def _kit_key(kind: str) -> tuple[str, str, str | None]:
 
 
 def _hint_kit(names: str, shader: str) -> str | None:
-    text = names.upper()
+    # A terrazzo is a terrace, not terra.
+    text = names.upper().replace("TERRAZZ", "")
     if any(h in text for h in _GRAVEL_HINTS):
         return "gravel"
     if any(h in text for h in _SAND_HINTS):
         return "sand"
-    if shader.startswith("ksMultilayer") or any(h in text for h in _GRASS_HINTS):
+    # `ksMultilayer_objsp` is an object shader (railings, towers, stands)
+    # and `ksMultilayer_fresnel*` is Kunos' tarmac: only the plain
+    # multilayer family is terrain.
+    if shader.startswith("ksMultilayer") and "objsp" not in shader:
+        return "road" if "fresnel" in shader else "grass"
+    if any(h in text for h in _GRASS_HINTS):
         return "grass"
     return None
 
 
-def _under(mesh_positions: np.ndarray, world: PhysicsWorld) -> tuple[int | None, str | None]:
-    """The physics contact class most of a mesh's vertices stand on, and the
-    surface key, or `(None, None)`."""
-    n = mesh_positions.shape[0]
-    if n == 0 or world.index.count == 0:
-        return None, None
-    pick = np.linspace(0, n - 1, min(UNDER_SAMPLES, n)).astype(np.int64)
-    p = mesh_positions[pick]
+def _lies_flat(positions: np.ndarray, triangles: np.ndarray) -> bool:
+    """Whether most of a mesh's area faces up. Only such a mesh can be a
+    kit surface: a pit door whose material also paves the pit lane is not
+    pit lane."""
+    t = triangles.astype(np.int64)
+    n = np.cross(positions[t[:, 1]] - positions[t[:, 0]], positions[t[:, 2]] - positions[t[:, 0]])
+    area = np.linalg.norm(n, axis=1)
+    if area.sum() <= 0.0:
+        return False
+    return float(area[n[:, 2] > 0.5 * area].sum()) >= 0.6 * float(area.sum())
+
+
+@dataclass
+class UnderVotes:
+    """What physics lies under a mesh, sampled at its triangles' centres."""
+    samples: int = 0
+    close: int = 0
+    #: Close samples per contact class.
+    counts: np.ndarray = field(default_factory=lambda: np.zeros(5))
+    #: Close samples per physics surface index.
+    surfaces: dict[int, float] = field(default_factory=dict)
+
+
+def _under_votes(positions: np.ndarray, triangles: np.ndarray, world: PhysicsWorld) -> UnderVotes:
+    # Triangle centres, not vertices: a road ribbon's vertices all lie on
+    # the road's edges, where the physics beneath is road or grass by a
+    # coin toss, so a road chunk came out as grass.
+    votes = UnderVotes()
+    m = triangles.shape[0]
+    if m == 0 or world.index.count == 0:
+        return votes
+    pick = np.linspace(0, m - 1, min(UNDER_SAMPLES, m)).astype(np.int64)
+    p = positions[triangles[pick]].mean(axis=1)
     z, contact, surf = world.contacts_at(p[:, 0], p[:, 1], p[:, 2] + 0.5)
     close = np.isfinite(z) & (np.abs(z - p[:, 2]) < UNDER_TOLERANCE_M)
-    # Three quarters of the vertices, not half: a fence or a hoarding has
-    # its whole bottom row on the grass and is not grass.
-    if close.mean() < UNDER_MIN_SHARE:
+    votes.samples = int(len(pick))
+    votes.close = int(close.sum())
+    votes.counts = np.bincount(contact[close], minlength=5)[:5].astype(np.float64)
+    for s in surf[close].tolist():
+        votes.surfaces[int(s)] = votes.surfaces.get(int(s), 0.0) + 1.0
+    return votes
+
+
+def _decide(counts: np.ndarray, surfaces: dict[int, float],
+            world: PhysicsWorld) -> tuple[int | None, str | None]:
+    """The class holding 60% of the votes and its commonest surface key."""
+    total = float(counts.sum())
+    if total <= 0.0:
         return None, None
-    contacts = contact[close]
-    counts = np.bincount(contacts, minlength=5)
     best = int(np.argmax(counts))
-    if counts[best] < close.sum() * 0.6:
+    if counts[best] < total * 0.6:
         return None, None
-    surfs = surf[close][contacts == best]
-    key = world.surfaces[int(np.bincount(surfs).argmax())].key if surfs.size else None
+    of_class = {s: n for s, n in surfaces.items() if world.surfaces[s].contact == best}
+    key = world.surfaces[max(sorted(of_class), key=lambda s: of_class[s])].key if of_class else None
     return best, key
+
+
+def _verdict(votes: UnderVotes, world: PhysicsWorld) -> tuple[int | None, str | None]:
+    """A mesh's own verdict, or `(None, None)`. Three quarters must be on
+    physics, not half: a fence or a hoarding has its whole bottom row on
+    the grass and is not grass."""
+    if votes.samples == 0 or votes.close < votes.samples * UNDER_MIN_SHARE:
+        return None, None
+    return _decide(votes.counts, votes.surfaces, world)
+
+
+def _material_verdicts(entries: list[tuple[tuple[str, str], int, UnderVotes]],
+                       world: PhysicsWorld) -> dict[tuple[str, str], tuple[int, str | None]]:
+    """One verdict per AC material from those of its meshes that stand on
+    physics. A material is one look, so a road chunk whose own samples were
+    inconclusive (mostly off the physics mesh, say) is still road when the
+    material's other chunks are, rather than falling to a name guess."""
+    by_material: dict[tuple[str, str], list[tuple[int, UnderVotes]]] = {}
+    for ident, tris, votes in entries:
+        by_material.setdefault(ident, []).append((tris, votes))
+    out: dict[tuple[str, str], tuple[int, str | None]] = {}
+    for ident in sorted(by_material):
+        members = by_material[ident]
+        total = sum(t for t, _ in members)
+        resolved = [(t, v) for t, v in members if _verdict(v, world)[0] is not None]
+        if not resolved or sum(t for t, _ in resolved) < 0.25 * total:
+            continue
+        counts = np.zeros(5)
+        surfaces: dict[int, float] = {}
+        for t, v in resolved:
+            # Weighted by the mesh's size, so a sliver cannot outvote a lap.
+            w = t / max(v.close, 1)
+            counts += v.counts * w
+            for s, n in v.surfaces.items():
+                surfaces[s] = surfaces.get(s, 0.0) + n * w
+        best, key = _decide(counts, surfaces, world)
+        if best is not None:
+            out[ident] = (best, key)
+    return out
 
 
 def collect_scene(kn5s: list[Kn5File], world: PhysicsWorld, frame: Frame, textures_mode: str,
@@ -235,6 +313,7 @@ def collect_scene(kn5s: list[Kn5File], world: PhysicsWorld, frame: Frame, textur
             materials[key] = spec
         return materials[key]
 
+    drawn = []
     for kn in kn5s:
         for mesh in kn.meshes:
             if not mesh.renderable or not mesh.active:
@@ -254,44 +333,54 @@ def collect_scene(kn5s: list[Kn5File], world: PhysicsWorld, frame: Frame, textur
                 continue
             material = kn.materials[mesh.material]
             positions = frame.ac_points(mesh.world_positions())
-            normals = frame.ac_vectors(mesh.world_normals())
-            blend = _blend_for(material)
-            under, under_key = _under(positions, world)
-            kit: str | None = None
-            if textures_mode == "kit" and blend == "opaque":
-                if under in (CONTACT_ROAD,):
-                    kit = "road"
-                elif under == CONTACT_PIT_LANE:
-                    kit = "pit_lane"
-                elif under in (CONTACT_RUNOFF, CONTACT_OFF):
-                    kit = ground_set_for(under_key or "", under)
-                elif under is None:
-                    kit = _hint_kit(f"{mesh.name} {material.name} {material.texture('txDiffuse') or ''}",
-                                    material.shader)
-            if mesh.triangle_count > _PERF_TRAP_TRIS or material.shader == "ksGrass":
-                report.warnings.append(
-                    f"mesh {mesh.name!r} ({mesh.triangle_count} triangles, {material.shader}) is a performance trap")
-            if kit:
-                spec = kit_material(kit)
-                uvs = positions[:, :2].copy()
-                collision = True
-            else:
-                spec = scenery_material(kn, material)
-                uvs = mesh.vertices["uv"].astype(np.float64)
-                collision = under is not None and blend == "opaque"
-            spec.meshes += 1
-            spec.triangles += mesh.triangle_count
-            report.kept += 1
-            report.kept_triangles += mesh.triangle_count
-            if kit:
-                report.kit_triangles += mesh.triangle_count
-            else:
-                report.scenery_triangles += mesh.triangle_count
-            report.classes[f"{kn.path.name}:{mesh.name}"] = under if under is not None else -1
-            meshes.append(SceneMesh(key=spec.key, positions=positions, normals=normals, uvs=uvs,
-                                    triangles=mesh.triangles.astype(np.int64),
-                                    draw_distance_m=float(mesh.lod_out) if mesh.lod_out > 0 else None,
-                                    collision=collision, source=f"{kn.path.name}:{mesh.name}"))
+            if not np.isfinite(positions).all():
+                report.warnings.append(f"mesh {mesh.name!r} has non-finite vertices; left out")
+                continue
+            votes = _under_votes(positions, mesh.triangles.astype(np.int64), world)
+            drawn.append((kn, mesh, material, positions, votes))
+    by_material = _material_verdicts(
+        [((kn.path.name, material.name), mesh.triangle_count, votes)
+         for kn, mesh, material, _, votes in drawn if _blend_for(material) == "opaque"], world)
+
+    for kn, mesh, material, positions, votes in drawn:
+        normals = frame.ac_vectors(mesh.world_normals())
+        blend = _blend_for(material)
+        under, under_key = by_material.get((kn.path.name, material.name)) or _verdict(votes, world)
+        kit: str | None = None
+        if textures_mode == "kit" and blend == "opaque" and _lies_flat(positions, mesh.triangles):
+            if under in (CONTACT_ROAD,):
+                kit = "road"
+            elif under == CONTACT_PIT_LANE:
+                kit = "pit_lane"
+            elif under in (CONTACT_RUNOFF, CONTACT_OFF):
+                kit = ground_set_for(under_key or "", under)
+            elif under is None:
+                kit = _hint_kit(f"{mesh.name} {material.name} {material.texture('txDiffuse') or ''}",
+                                material.shader)
+        if mesh.triangle_count > _PERF_TRAP_TRIS or material.shader == "ksGrass":
+            report.warnings.append(
+                f"mesh {mesh.name!r} ({mesh.triangle_count} triangles, {material.shader}) is a performance trap")
+        if kit:
+            spec = kit_material(kit)
+            uvs = positions[:, :2].copy()
+            collision = True
+        else:
+            spec = scenery_material(kn, material)
+            uvs = mesh.vertices["uv"].astype(np.float64)
+            collision = _verdict(votes, world)[0] is not None and blend == "opaque"
+        spec.meshes += 1
+        spec.triangles += mesh.triangle_count
+        report.kept += 1
+        report.kept_triangles += mesh.triangle_count
+        if kit:
+            report.kit_triangles += mesh.triangle_count
+        else:
+            report.scenery_triangles += mesh.triangle_count
+        report.classes[f"{kn.path.name}:{mesh.name}"] = under if under is not None else -1
+        meshes.append(SceneMesh(key=spec.key, positions=positions, normals=normals, uvs=uvs,
+                                triangles=mesh.triangles.astype(np.int64),
+                                draw_distance_m=float(mesh.lod_out) if mesh.lod_out > 0 else None,
+                                collision=collision, source=f"{kn.path.name}:{mesh.name}"))
     return meshes, materials, needed
 
 

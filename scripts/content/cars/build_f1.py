@@ -1,5 +1,5 @@
 """Build one of the generated F1 cars in Blender and export it to
-content/cars/<folder>/<stem>.glb.
+content/cars/default/<folder>/<stem>.glb.
 
     VARIANT = "fugazzi"    # fugazzi | murcetes | mclarsen | ashton
     exec(open(r"E:\\apexsim\\content\\cars\\build_f1.py").read())

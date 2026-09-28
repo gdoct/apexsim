@@ -78,11 +78,28 @@ struct APEXSIM_API FApexWheelSpec
 	float MaxSteerRad = 0.0f;
 
 	/**
-	 * The wheel GLB a car found on disk draws (`<cars>/../wheels/<model>.glb`),
-	 * built by `UApexCarContentSubsystem`; wins over `Mesh`. Never saved.
+	 * The wheel GLB a car found on disk draws — the class wheel
+	 * (`<cars>/../wheels/<model>.glb`) or one in the car's own folder (a
+	 * `model` ending in `.glb` or holding a `/`; ApexCarToml::IsCarLocalWheel)
+	 * — built by `UApexCarContentSubsystem`; wins over `Mesh`. Never saved.
 	 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Wheels")
 	FString RuntimeModel;
+
+	/**
+	 * A different wheel for the rear pair (`[wheels] rear_model`: an F1 car's
+	 * rears are wider and taller, and a model scaled to fit would stretch the
+	 * front's rim). Unset, the rears draw `Mesh` like the fronts.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels")
+	TSoftObjectPtr<UStaticMesh> RearMesh;
+
+	/** The rear wheel GLB of a car found on disk; wins over `RearMesh`. Empty: the rears draw the front's. Never saved. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Wheels")
+	FString RearRuntimeModel;
+
+	/** Whether the rear pair has a model of its own. */
+	bool HasRearModel() const { return !RearMesh.IsNull() || !RearRuntimeModel.IsEmpty(); }
 
 	/** A mesh and a size for both axles: enough to draw. */
 	bool IsUsable() const
@@ -96,7 +113,8 @@ struct APEXSIM_API FApexWheelSpec
 			&& FrontTrackM == Other.FrontTrackM && RearTrackM == Other.RearTrackM
 			&& FrontRadiusM == Other.FrontRadiusM && RearRadiusM == Other.RearRadiusM
 			&& FrontWidthM == Other.FrontWidthM && RearWidthM == Other.RearWidthM
-			&& MaxSteerRad == Other.MaxSteerRad && RuntimeModel == Other.RuntimeModel;
+			&& MaxSteerRad == Other.MaxSteerRad && RuntimeModel == Other.RuntimeModel
+			&& RearMesh == Other.RearMesh && RearRuntimeModel == Other.RearRuntimeModel;
 	}
 	bool operator!=(const FApexWheelSpec& Other) const { return !(*this == Other); }
 };
@@ -208,9 +226,36 @@ struct APEXSIM_API FApexEngineSoundSpec
 };
 
 /**
+ * One slot's base colour texture swapped by a texture livery: a
+ * `textures = ["SLOT=file.png", ...]` entry of a `[[livery]]` table, resolved
+ * to a file on disk (ApexCarLivery.h).
+ */
+USTRUCT(BlueprintType)
+struct APEXSIM_API FApexLiveryTexture
+{
+	GENERATED_BODY()
+
+	/** The material slot, by its glTF material name (`EXT_RIM`, `wheel_rim`). */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
+	FName Slot;
+
+	/** The PNG or JPEG, a full path. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
+	FString RuntimeTexture;
+
+	bool operator==(const FApexLiveryTexture& Other) const
+	{
+		return Slot == Other.Slot && RuntimeTexture == Other.RuntimeTexture;
+	}
+	bool operator!=(const FApexLiveryTexture& Other) const { return !(*this == Other); }
+};
+
+/**
  * One of a car's extra paint schemes: a `[[livery]]` table in its car.toml.
  * The mesh stays the same; the client repaints the `car_paint` and
- * `car_accent` slots and swaps the `car_logo` texture (ApexCarLivery.h).
+ * `car_accent` slots and swaps the `car_logo` texture, and a texture livery
+ * (an imported car's skin) swaps the base colour texture of every
+ * `car_skin*` slot and of any slot it names (ApexCarLivery.h).
  */
 USTRUCT(BlueprintType)
 struct APEXSIM_API FApexCarLivery
@@ -220,7 +265,11 @@ struct APEXSIM_API FApexCarLivery
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
 	FString Name;
 
-	/** Body colour, linear (the glTF `BaseColorFactor` of `car_paint`). */
+	/**
+	 * Body colour, linear (the glTF `BaseColorFactor` of `car_paint`). Zero
+	 * alpha keeps the model's: a texture livery from car.toml need not name a
+	 * paint colour.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
 	FLinearColor Paint = FLinearColor::White;
 
@@ -240,15 +289,34 @@ struct APEXSIM_API FApexCarLivery
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
 	FString RuntimeLogo;
 
+	/**
+	 * The skin (`skin`, a PNG or JPEG in the car folder): the base colour
+	 * texture of every `car_skin*` slot. Empty keeps the model's. Never saved.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
+	FString RuntimeSkin;
+
+	/** Other slots' base colour textures (`textures`), in the table's order. Never saved. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
+	TArray<FApexLiveryTexture> RuntimeTextures;
+
+	/** A picture of the car in this livery (`preview`), for a menu that wants one; nothing draws it yet. Never saved. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
+	FString RuntimePreview;
+
+	bool HasPaint() const { return Paint.A > 0.0f; }
+
 	bool operator==(const FApexCarLivery& Other) const
 	{
 		return Name == Other.Name && Paint == Other.Paint && Accent == Other.Accent
-			&& PaintMetallic == Other.PaintMetallic && Logo == Other.Logo && RuntimeLogo == Other.RuntimeLogo;
+			&& PaintMetallic == Other.PaintMetallic && Logo == Other.Logo && RuntimeLogo == Other.RuntimeLogo
+			&& RuntimeSkin == Other.RuntimeSkin && RuntimeTextures == Other.RuntimeTextures
+			&& RuntimePreview == Other.RuntimePreview;
 	}
 	bool operator!=(const FApexCarLivery& Other) const { return !(*this == Other); }
 };
 
-/** One row per car. RowName == the `id` from `content/cars/<folder>/car.toml`. */
+/** One row per car. RowName == the `id` from `content/cars/{default,custom}/<folder>/car.toml`. */
 USTRUCT(BlueprintType)
 struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 {

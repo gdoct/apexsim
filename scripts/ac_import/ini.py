@@ -108,11 +108,17 @@ def find_layouts(track_dir: Path) -> list[Layout]:
         name = ini.stem[len("models_"):]
         if name:
             out.append(Layout(track_dir, name, ini))
+    if not out and (track_dir / f"{track_dir.name}.kn5").is_file():
+        # AC's older form: no models.ini, one kn5 named after the folder.
+        out.append(Layout(track_dir, "", single))
     return out
 
 
 def model_files(layout: Layout) -> list[str]:
-    """The kn5 file names a `models*.ini` lists, in order, unique."""
+    """The kn5 file names a `models*.ini` lists, in order, unique; the
+    folder's own `<folder>.kn5` for a track without one."""
+    if not layout.models_ini.is_file():
+        return [f"{layout.track_dir.name}.kn5"]
     sections = parse_ini(read_text(layout.models_ini))
     files: list[str] = []
     for name in sorted(sections, key=_model_order):

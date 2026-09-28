@@ -1,4 +1,4 @@
-"""Build one of the GT3 cars in Blender and export it to content/cars/<folder>/<stem>.glb.
+"""Build one of the GT3 cars in Blender and export it to content/cars/default/<folder>/<stem>.glb.
 
     VARIANT = "limbotiti"      # posh | limbotiti | murcetes
     exec(open(r"E:\\apexsim\\content\\cars\\build_gt3.py").read())

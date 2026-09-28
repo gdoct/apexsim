@@ -39,7 +39,8 @@ from mathutils import Vector
 import apex
 from apex import Builder, material, reset_scene   # noqa: F401  (re-exported)
 
-CARS_ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content", "cars")
+# The shipped cars; the player's own are in content/cars/custom.
+CARS_ROOT = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content", "cars", "default")
 
 
 # --------------------------------------------------------------- materials

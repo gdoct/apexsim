@@ -78,6 +78,78 @@ namespace
 		Out = FVector(V[0], V[1], V[2]);
 		return true;
 	}
+
+	/**
+	 * `["a", "b"]` -> two strings; false unless it is exactly an array of
+	 * quoted strings on the one line (the scan is line by line). Commas inside
+	 * the quotes are the string's.
+	 */
+	bool TomlStringArray(const FString& Value, TArray<FString>& Out)
+	{
+		Out.Reset();
+		FString Inner = Value;
+		Inner.TrimStartAndEndInline();
+		if (!Inner.StartsWith(TEXT("[")) || !Inner.EndsWith(TEXT("]")))
+		{
+			return false;
+		}
+		Inner.MidInline(1, Inner.Len() - 2);
+		bool bInString = false;
+		bool bNeedComma = false;
+		FString Current;
+		for (const TCHAR C : Inner)
+		{
+			if (bInString)
+			{
+				if (C == TEXT('"'))
+				{
+					bInString = false;
+					bNeedComma = true;
+					Out.Add(Current);
+					Current.Reset();
+				}
+				else
+				{
+					Current.AppendChar(C);
+				}
+			}
+			else if (C == TEXT('"'))
+			{
+				if (bNeedComma)
+				{
+					return false;
+				}
+				bInString = true;
+			}
+			else if (C == TEXT(','))
+			{
+				if (!bNeedComma)
+				{
+					return false;
+				}
+				bNeedComma = false;
+			}
+			else if (!FChar::IsWhitespace(C))
+			{
+				return false;
+			}
+		}
+		return !bInString;
+	}
+
+	/** `true` / `false`; false (and `bOk` cleared) for anything else. */
+	bool TomlBool(const FString& Value, bool& bOk)
+	{
+		if (Value.Equals(TEXT("true"), ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+		if (!Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
+		{
+			bOk = false;
+		}
+		return false;
+	}
 }	 // namespace
 
 FString ApexCarToml::Segment(const FString& Folder)
@@ -88,6 +160,11 @@ FString ApexCarToml::Segment(const FString& Folder)
 		Segment.AppendChar(FChar::IsAlnum(C) ? C : TEXT('_'));
 	}
 	return Segment;
+}
+
+bool ApexCarToml::IsCarLocalWheel(const FString& Model)
+{
+	return Model.EndsWith(TEXT(".glb"), ESearchCase::IgnoreCase) || Model.Contains(TEXT("/")) || Model.Contains(TEXT("\\"));
 }
 
 FApexWheelSpec ApexCarToml::MakeWheelSpec(const FApexCarToml& Toml)
@@ -128,6 +205,9 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 	TArray<FString> Lines;
 	Text.ParseIntoArrayLines(Lines);
 	FString Table;
+	// A value the scan cannot take (a switch that is neither true nor false),
+	// reported once the file is read.
+	FString ValueError;
 	for (FString Line : Lines)
 	{
 		Line.TrimStartAndEndInline();
@@ -185,6 +265,7 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			FApexCarWheelsToml& W = Out.Wheels;
 			const float Number = FCString::Atof(*Value);
 			if (Key == TEXT("model")) { W.Model = Value; }
+			else if (Key == TEXT("rear_model")) { W.RearModel = Value; }
 			else if (Key == TEXT("front_axle_m")) { W.FrontAxleM = Number; }
 			else if (Key == TEXT("rear_axle_m")) { W.RearAxleM = Number; }
 			else if (Key == TEXT("front_track_m")) { W.FrontTrackM = Number; }
@@ -220,6 +301,26 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			else if (Key == TEXT("accent")) { TomlColour(Value, L.Accent); }
 			else if (Key == TEXT("metallic")) { L.Metallic = FCString::Atof(*Value); }
 			else if (Key == TEXT("logo")) { L.Logo = Value; }
+			else if (Key == TEXT("skin")) { L.Skin = Value; }
+			else if (Key == TEXT("preview")) { L.Preview = Value; }
+			else if (Key == TEXT("textures"))
+			{
+				// `["EXT_RIM=skins/x/EXT_RIM.png", ...]`: slot, then the file.
+				TArray<FString> Entries;
+				L.Textures.Reset();
+				L.bBadTextures = !TomlStringArray(Value, Entries);
+				for (const FString& Entry : Entries)
+				{
+					FString Slot;
+					FString File;
+					if (!Entry.Split(TEXT("="), &Slot, &File) || Slot.TrimStartAndEnd().IsEmpty() || File.TrimStartAndEnd().IsEmpty())
+					{
+						L.bBadTextures = true;
+						continue;
+					}
+					L.Textures.Emplace(Slot.TrimStartAndEnd(), File.TrimStartAndEnd());
+				}
+			}
 		}
 		else if (Table == TEXT("sound"))
 		{
@@ -257,11 +358,29 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			else if (Key == TEXT("mirror_centre_cm")) { TomlVector(Value, C.MirrorCentre); }
 			else if (Key == TEXT("mirror_left_cm")) { TomlVector(Value, C.MirrorLeft); }
 			else if (Key == TEXT("mirror_right_cm")) { TomlVector(Value, C.MirrorRight); }
+			else if (Key == TEXT("wheel_rake_deg")) { C.WheelRakeDeg = FCString::Atof(*Value); }
+			else if (Key == TEXT("wheel_lock_deg")) { C.WheelLockDeg = FCString::Atof(*Value); }
+			else if (Key == TEXT("steering_wheel_model")) { Out.SteeringWheelModel = Value; }
+			else if (Key == TEXT("rig_wheel") || Key == TEXT("rig_dash"))
+			{
+				bool bOk = true;
+				const bool bOn = TomlBool(Value, bOk);
+				if (!bOk)
+				{
+					ValueError = FString::Printf(TEXT("[cockpit] %s must be true or false"), *Key);
+				}
+				(Key == TEXT("rig_wheel") ? C.bRigWheel : C.bRigDash) = bOn;
+			}
 		}
 	}
 	if (Out.Id.IsEmpty() || Out.Name.IsEmpty())
 	{
 		OutError = TEXT("car.toml has no id or name");
+		return false;
+	}
+	if (!ValueError.IsEmpty())
+	{
+		OutError = ValueError;
 		return false;
 	}
 	const FApexCarWheelsToml& W = Out.Wheels;
@@ -280,11 +399,22 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 	}
 	for (const FApexCarLiveryToml& L : Out.Liveries)
 	{
-		if (L.Name.IsEmpty() || L.Paint.A <= 0.0f)
+		// A texture livery may leave the paint as the model has it.
+		if (L.Name.IsEmpty() || (!L.HasPaint() && L.Skin.IsEmpty() && L.Textures.IsEmpty()))
 		{
-			OutError = TEXT("every [[livery]] needs a name and a paint = [r, g, b]");
+			OutError = TEXT("every [[livery]] needs a name and a paint = [r, g, b], a skin or textures");
 			return false;
 		}
+		if (L.bBadTextures)
+		{
+			OutError = FString::Printf(TEXT("[[livery]] %s: textures must be one line of [\"SLOT=file\", ...]"), *L.Name);
+			return false;
+		}
+	}
+	if (Out.Cockpit.WheelLockDeg < 0.0f || Out.Cockpit.WheelLockDeg > 1080.0f || FMath::Abs(Out.Cockpit.WheelRakeDeg) > 90.0f)
+	{
+		OutError = TEXT("[cockpit] wheel_lock_deg must be 0-1080 and wheel_rake_deg within +-90");
+		return false;
 	}
 	if (Out.Liveries.Num() > 254)
 	{

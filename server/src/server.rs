@@ -50,7 +50,12 @@ impl ServerState {
         // Load custom tracks from configured directory
         let tracks_dir = config.content.tracks_dir.clone();
         debug!("Loading tracks from {}...", tracks_dir);
-        Self::load_custom_tracks(&mut track_configs, &tracks_dir, config.physics.road_contact);
+        Self::load_custom_tracks(
+            &mut track_configs,
+            &tracks_dir,
+            config.physics.road_contact,
+            config.content.skip_imported_tracks,
+        );
 
         if track_configs.is_empty() {
             warn!("No tracks loaded! Server will not be able to create sessions.");
@@ -83,6 +88,7 @@ impl ServerState {
         track_configs: &mut HashMap<TrackConfigId, TrackConfig>,
         tracks_dir_str: &str,
         road_contact: crate::config::RoadContactMode,
+        skip_imported: bool,
     ) {
         let tracks_dir = std::path::Path::new(tracks_dir_str);
 
@@ -97,20 +103,38 @@ impl ServerState {
             return;
         }
 
-        Self::load_tracks_recursive(track_configs, tracks_dir, content_root, road_contact);
+        Self::load_tracks_recursive(
+            track_configs,
+            tracks_dir,
+            content_root,
+            road_contact,
+            skip_imported,
+        );
+    }
+
+    /// A track the AC importer wrote: its report sits beside the YAML.
+    fn is_imported_track(path: &std::path::Path) -> bool {
+        let (Some(dir), Some(stem)) = (path.parent(), path.file_stem()) else {
+            return false;
+        };
+        dir.join(format!("{}.import.json", stem.to_string_lossy()))
+            .is_file()
     }
 
     /// Real-world layout dossiers (`<Stem>.layout.json`, see CLAUDE.md
-    /// "Real-world layouts") sit beside the track YAML but are not track
-    /// configs, so trying to parse one as a track would only log a warning.
-    /// (The client exports and the download caches used to live under the
-    /// tracks directory too; they are in `build/tracks` and `.cache` now.)
+    /// "Real-world layouts") and the AC importer's report (`<Stem>.import.json`,
+    /// see "Assetto Corsa track import") sit beside the track YAML but are not
+    /// track configs, so trying to parse one as a track would only log a
+    /// warning. (The client exports and the download caches used to live
+    /// under the tracks directory too; they are in `build/tracks` and
+    /// `.cache` now.)
     fn is_non_track_json(path: &std::path::Path) -> bool {
         let name = path
             .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or_default();
-        name.to_ascii_lowercase().ends_with(".layout.json")
+        let name = name.to_ascii_lowercase();
+        name.ends_with(".layout.json") || name.ends_with(".import.json")
     }
 
     fn load_tracks_recursive(
@@ -118,6 +142,7 @@ impl ServerState {
         dir: &std::path::Path,
         content_root: &std::path::Path,
         road_contact: crate::config::RoadContactMode,
+        skip_imported: bool,
     ) {
         match std::fs::read_dir(dir) {
             Ok(entries) => {
@@ -141,10 +166,15 @@ impl ServerState {
                                 &path,
                                 content_root,
                                 road_contact,
+                                skip_imported,
                             );
                         }
                     } else if path.is_file() && !Self::is_non_track_json(&path) {
                         let ext = path.extension().and_then(|s| s.to_str());
+                        if skip_imported && Self::is_imported_track(&path) {
+                            debug!("Skipping imported track {:?}", path);
+                            continue;
+                        }
                         if ext == Some("json") || ext == Some("yaml") || ext == Some("yml") {
                             match TrackLoader::load_from_file_with(&path, road_contact) {
                                 Ok(mut track) => {
@@ -191,37 +221,30 @@ impl ServerState {
         Self::load_cars_recursive(car_configs, cars_dir);
     }
 
+    /// Every car under the folder (`crate::car_loader::car_toml_paths`:
+    /// `default/` then `custom/`, sorted), the first to claim an id kept, so
+    /// a player's car can never replace a shipped one by reusing its id.
     fn load_cars_recursive(
         car_configs: &mut HashMap<CarConfigId, CarConfig>,
         dir: &std::path::Path,
     ) {
-        match std::fs::read_dir(dir) {
-            Ok(entries) => {
-                for entry in entries.filter_map(|e| e.ok()) {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        // Recursively load cars from subdirectories
-                        Self::load_cars_recursive(car_configs, &path);
-                    } else if path.is_file() {
-                        let ext = path.extension().and_then(|s| s.to_str());
-                        if ext == Some("toml") {
-                            // Check if this is a car.toml file
-                            if path.file_name().and_then(|s| s.to_str()) == Some("car.toml") {
-                                match CarLoader::load_from_file(&path) {
-                                    Ok(car) => {
-                                        car_configs.insert(car.id, car);
-                                    }
-                                    Err(e) => {
-                                        warn!("Failed to load car from {:?}: {}", path, e);
-                                    }
-                                }
-                            }
-                        }
+        let mut sources: HashMap<CarConfigId, std::path::PathBuf> = HashMap::new();
+        for path in crate::car_loader::car_toml_paths(dir) {
+            match CarLoader::load_from_file(&path) {
+                Ok(car) => {
+                    if let Some(kept) = sources.get(&car.id) {
+                        warn!(
+                            "Car {:?} has the same id as {:?}; ignoring it                              (give a custom car its own id)",
+                            path, kept
+                        );
+                        continue;
                     }
+                    sources.insert(car.id, path);
+                    car_configs.insert(car.id, car);
                 }
-            }
-            Err(e) => {
-                warn!("Failed to read cars directory {:?}: {}", dir, e);
+                Err(e) => {
+                    warn!("Failed to load car from {:?}: {}", path, e);
+                }
             }
         }
     }
@@ -410,6 +433,16 @@ mod tests {
         assert_eq!(state.sessions.len(), 0);
     }
 
+    #[test]
+    fn dossiers_and_import_reports_are_not_tracks() {
+        let is = |name: &str| ServerState::is_non_track_json(std::path::Path::new(name));
+        assert!(is("custom/KsZandvoort.import.json"));
+        assert!(is("default/Spa.layout.json"));
+        assert!(is("default/Spa.Layout.JSON"));
+        assert!(!is("custom/Mine.json"));
+        assert!(!is("custom/Mine.yaml"));
+    }
+
     /// `content/tracks/custom` is read after `default` whatever the
     /// filesystem's order, so a custom track reusing a shipped track's id is
     /// the one left out; one with its own id loads beside it.
@@ -440,6 +473,7 @@ mod tests {
             &mut configs,
             tracks.to_str().unwrap(),
             crate::config::RoadContactMode::Centerline,
+            false,
         );
 
         let mut sources: Vec<String> = configs
@@ -451,6 +485,68 @@ mod tests {
             sources,
             vec!["tracks/custom/Mine.yaml", "tracks/default/Shipped.yaml"]
         );
+
+        // An imported track (its report beside the YAML) is left out when
+        // asked, as the debug-build test servers do; the rest still load.
+        std::fs::write(tracks.join("custom/Mine.import.json"), "{}").unwrap();
+        let mut configs = HashMap::new();
+        ServerState::load_custom_tracks(
+            &mut configs,
+            tracks.to_str().unwrap(),
+            crate::config::RoadContactMode::Centerline,
+            true,
+        );
+        let sources: Vec<String> = configs
+            .values()
+            .map(|t| t.source_path.clone().unwrap_or_default())
+            .collect();
+        assert_eq!(sources, vec!["tracks/default/Shipped.yaml"]);
+    }
+
+    /// The same rule for cars: `content/cars/custom` is read after `default`
+    /// (whatever the names sort to inside them), so a custom car reusing a
+    /// shipped id is the one left out, and one with its own id loads beside
+    /// it. A folder of cars with neither subfolder is still read as it is.
+    #[test]
+    fn custom_cars_load_beside_the_default_ones_and_never_replace_them() {
+        let write = |root: &std::path::Path, folder: &str, name: &str, id: &str| {
+            let dir = root.join(folder);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("car.toml"),
+                format!(
+                    "id = \"{id}\"\nname = \"{name}\"\nversion = \"1.0.0\"\nmodel = \"m.glb\"\n\n\
+                     [physics]\nmass_kg = 1000.0\nmax_engine_force_n = 5000.0\n\
+                     max_brake_force_n = 10000.0\ndrag_coefficient = 0.3\n\
+                     grip_coefficient = 1.0\nmax_steering_angle_rad = 0.5\nwheelbase_m = 2.6\n"
+                ),
+            )
+            .unwrap();
+        };
+        let names = |root: &std::path::Path| {
+            let mut configs = HashMap::new();
+            ServerState::load_custom_cars(&mut configs, root.to_str().unwrap());
+            let mut names: Vec<String> = configs.values().map(|c| c.name.clone()).collect();
+            names.sort();
+            names
+        };
+
+        let split = tempfile::tempdir().unwrap();
+        let shared = "6f1c2c4e-3b1f-4c8a-9d57-1a2b3c4d5e6f";
+        // `custom/aaa` sorts before `default/zzz`: the folder order decides, not the name.
+        write(split.path(), "default/zzz-shipped", "Shipped", shared);
+        write(split.path(), "custom/aaa-clash", "Clash", shared);
+        write(
+            split.path(),
+            "custom/mine",
+            "Mine",
+            "0d9f8e7c-6b5a-4f3e-8d2c-1b0a9f8e7d6c",
+        );
+        assert_eq!(names(split.path()), vec!["Mine", "Shipped"]);
+
+        let flat = tempfile::tempdir().unwrap();
+        write(flat.path(), "old", "Old", shared);
+        assert_eq!(names(flat.path()), vec!["Old"]);
     }
 
     #[test]

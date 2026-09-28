@@ -1,6 +1,8 @@
 # Generated car models
 
-Fourteen cars are generated from four Blender scripts in `content/cars/`:
+Fourteen cars are generated from four Blender scripts in `scripts/content/cars/`,
+into `content/cars/default/<folder>/` (`content/cars/custom/` is the player's
+own, never written by these scripts):
 
 | script | variants | folder / stem |
 | --- | --- | --- |
@@ -208,7 +210,9 @@ an assumed `wing_z + 0.22` put it 5 cm out.
 
 **No generated car carries a steering wheel.** The client's cockpit rig
 (`AApexCockpitRig`) draws its own wheel and display at the derived wheel
-point, so a mesh wheel is a second rim a few centimetres from the first.
+point, so a mesh wheel is a second rim a few centimetres from the first. (A
+car that brings its own wheel says so in `[cockpit]`; see "How a car
+reaches the game".)
 What the mesh does carry, all sized from those points (`build_gt3.py` and
 `build_lmp2.py`, cabin kit in `carlib.py`): a cowl and dash whose top is `EYE_Z - 0.22`, its
 face `WHEEL_Y - 0.28` (a forearm beyond the wheel - any closer or taller
@@ -251,8 +255,8 @@ overrides remain the escape hatch for a car that still needs a nudge.
 
 ## How a car reaches the game
 
-Nothing about a car is cooked. The game reads each `content/cars/<folder>/car.toml`
-(a packaged game: `Game/Cars/<folder>`) and builds the GLBs it names the
+Nothing about a car is cooked. The game reads each `content/cars/{default,custom}/<folder>/car.toml`
+(a packaged game: `Game/Cars/{default,custom}/<folder>`) and builds the GLBs it names the
 first time something draws them: its own glTF reader, the fast mesh build the
 tracks use, and dynamic instances of four cooked parents under
 `/Game/Materials/Car` (`ApexMaterialBake`) that keep the parameter names
@@ -276,7 +280,36 @@ style = "closed"                  # auto | open | closed
 eye_cm = [-35.0, 38.0, 108.0]     # the car's frame: +X nose, +Y right, +Z up
 wheel_cm = [10.0, 38.0, 90.0]
 # mirror_centre_cm, mirror_left_cm, mirror_right_cm
+wheel_rake_deg = 18.0             # optional: the rim's tilt, positive = top toward the driver
+wheel_lock_deg = 270.0            # optional: rim turn at full steering, one way
+steering_wheel_model = "steering_wheel.glb"   # optional: the car's own wheel, see below
+rig_wheel = false                 # optional (default true): hide the rig's rim
+rig_dash = false                  # optional (default true): hide the rig's hub display
 ```
+
+Every key is optional, and a zero `wheel_rake_deg` / `wheel_lock_deg` means
+"derive it from the style" as before (write `0.01` for a truly upright rim).
+The last three are for a car with a real interior, an imported one:
+
+- `steering_wheel_model` is a GLB beside the car.toml that the cockpit rig
+  (`AApexCockpitRig`) draws **in place of** its generated rim and turns with
+  the steering telemetry exactly as it turns the rim (same lock, same
+  easing). Author it in the car GLB's own axes with the wheel **straight
+  and upright**: hub at the origin, the rim in glTF XY (+Y up, +X the car's
+  left), the column along glTF **+Z, toward the nose**; in AC terms, the
+  `STEER_HR` dummy's local frame with its tilt taken out. The rig puts the
+  hub at `wheel_cm`, tips it by the rake (`wheel_rake_deg`, else the style's
+  12-22°) about the car's lateral axis and rolls it about the column; so
+  write the real column's tilt as `wheel_rake_deg` rather than baking it
+  into the mesh, or it is tilted twice. The rig's hub display stays on top
+  of it unless `rig_dash = false`.
+- `rig_wheel = false` hides the generated rim without supplying a model:
+  for a body with a static steering wheel of its own.
+- `rig_dash = false` hides the display the rig puts on the hub: for an
+  interior with a display of its own.
+
+The mirrors are unchanged by any of these. `ApexSim.Cars.TomlCockpitRig` and
+`ApexSim.Cockpit.CarWheel` pin the keys and the mount.
 
 ## Material slots the client drives
 
@@ -357,6 +390,44 @@ car parents); the race director applies the roster's pick, the garage
 turntable the one being browsed. In the garage, Left / Right on a car (or the
 livery button) steps through them; choosing the car sends the pick.
 `preview_cars.py` renders a livery with `LIVERY = n`.
+
+### Texture liveries (skins)
+
+An imported car (Assetto Corsa's skins) is repainted by texture, not by
+colour. A `[[livery]]` may name a skin instead of, or as well as, a paint:
+
+```toml
+[[livery]]
+name = "Gulf"
+skin = "skins/gulf/Skin_00.png"       # BaseColorTexture of every car_skin* slot
+textures = ["EXT_RIM=skins/gulf/EXT_RIM.png", "INT_Banner=skins/gulf/banner.jpg"]
+preview = "skins/gulf/preview.jpg"    # optional; carried on the row, nothing draws it yet
+```
+
+- `skin` replaces the base colour texture of every slot named `car_skin` or
+  `car_skin_<anything>` (`car_skin_1`, ...), on the body, the DRS flap and
+  the wheels.
+- `textures` replaces the base colour texture of any other slot by name:
+  `"SLOT=file"` strings, **one line** (the parser reads line by line), for
+  the parts a skin also repaints (rims, banners). A slot the body does not
+  have is ignored.
+- Paths are relative to the car folder; PNG or JPEG. Each file is loaded
+  once whatever number of cars wear it. A file that is not there is a
+  warning and leaves its slots as authored.
+- Only the texture changes: the slot keeps its authored factor, metallic,
+  roughness and clear coat. `paint`, `accent`, `metallic` and `logo` still
+  work beside a skin; with no `paint` the `car_paint` slot keeps the
+  model's colour. A table needs a `name` and one of `paint`, `skin` or
+  `textures`.
+- Livery 0 (the model as authored) puts every swapped slot back.
+  `ApexLivery::Apply` remembers the slots it textured on the component
+  (tags `ApexLiveryTextured:<slot>`), because a skin may name any slot.
+
+Rows: `FApexCarLivery::RuntimeSkin`, `RuntimeTextures` (`FApexLiveryTexture`:
+slot, file), `RuntimePreview`. `ApexCarImport` does not import skins (the
+game never uses its rows for a car on disk). `ApexSim.Cars.TomlTextureLivery`,
+`LiverySkinSlots` and `LiveryTextures` (a JPEG skin and a PNG slot texture
+applied to built bodies and taken off again) are the tests.
 
 ## Lamps
 
@@ -442,8 +513,25 @@ front_width_m = 0.310
 rear_width_m = 0.360
 ```
 
+`model` may instead name a wheel of the car's own, a GLB relative to its
+folder: any value that ends in `.glb` or holds a `/` is looked for there
+(`ApexCarToml::IsCarLocalWheel`), anything else is a class wheel in the
+shared folder. `rear_model` (same rule, optional) draws a different wheel
+on the rear pair, which an F1 car's wider, taller rears want: each model is
+scaled to its own axle's radius and width, so a front rim stretched over
+the rear axle is what it avoids. Both use the class wheel's frame (hub at
+the origin, axle along glTF X, face on +X) and slot names, and are shipped
+beside the car.toml by `build_game_standalone.ps1` / `build_release.ps1`
+(`Get-ApexCarFiles`, `Test-ApexCars` in `scripts/lib/ApexCars.ps1`).
+
+```toml
+[wheels]
+model = "wheels/front.glb"       # the car folder's
+rear_model = "wheels/rear.glb"   # optional; else the rears draw `model`
+```
+
 The game builds the wheel once, from `content/wheels/<model>.glb`
-(`Game/Wheels` in a package), and puts the figures, with `[physics] max_steering_angle_rad`, on the
+(`Game/Wheels` in a package) or the car's own file, and puts the figures, with `[physics] max_steering_angle_rad`, on the
 catalog row as `Wheels`. The client (`FApexCarWheelSet`,
 `Race/ApexCarWheels.h`) hangs four copies off the body mesh component, sizes
 each from the wheel mesh's bounds to its axle's width and diameter, turns the

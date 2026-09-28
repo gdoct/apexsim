@@ -81,25 +81,26 @@ pub type CarMap = HashMap<CarConfigId, CarConfig>;
 /// The `content/cars` folder each car came from, by id.
 pub type FolderMap = HashMap<CarConfigId, String>;
 
-/// Every `car.toml` under `cars_dir`, keyed by id, with the folder each came
-/// from so a script can name a car the way the client's catalog does.
+/// Every `car.toml` under `cars_dir` (`default/` then `custom/`, the first to
+/// claim an id kept, as the server loads them), keyed by id, with the folder
+/// each came from so a script can name a car the way the client's catalog does.
 pub fn load_car_folder(cars_dir: &Path) -> Result<(CarMap, FolderMap), String> {
     let mut cars = HashMap::new();
     let mut folders = HashMap::new();
-    let entries = std::fs::read_dir(cars_dir)
-        .map_err(|e| format!("cannot read {}: {e}", cars_dir.display()))?;
-    let mut paths: Vec<PathBuf> = entries
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| p.join("car.toml").is_file())
-        .collect();
-    paths.sort();
-    for dir in paths {
-        let toml = dir.join("car.toml");
+    if !cars_dir.is_dir() {
+        return Err(format!("cannot read {}", cars_dir.display()));
+    }
+    for toml in crate::car_loader::car_toml_paths(cars_dir) {
         match CarLoader::load_from_file(&toml) {
             Ok(car) => {
+                if cars.contains_key(&car.id) {
+                    eprintln!("skipping {}: its id is taken", toml.display());
+                    continue;
+                }
                 folders.insert(
                     car.id,
-                    dir.file_name()
+                    toml.parent()
+                        .and_then(|d| d.file_name())
                         .map(|s| s.to_string_lossy().into_owned())
                         .unwrap_or_default(),
                 );

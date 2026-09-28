@@ -751,7 +751,17 @@ namespace
 	UMaterialExpressionComponentMask* CarMask(UMaterial* Material, UMaterialExpression* Input, bool R, bool G, bool B, bool A)
 	{
 		UMaterialExpressionComponentMask* Result = AddExpr<UMaterialExpressionComponentMask>(Material);
-		Result->Input.Expression = Input;
+		// A vector parameter's first pin is RGB only: masking its alpha
+		// from there fails to compile (the translucent parent fell back to
+		// the engine's default material). Pin 5 is RGBA.
+		if (Cast<UMaterialExpressionVectorParameter>(Input))
+		{
+			Result->Input.Connect(5, Input);
+		}
+		else
+		{
+			Result->Input.Expression = Input;
+		}
 		Result->R = R;
 		Result->G = G;
 		Result->B = B;

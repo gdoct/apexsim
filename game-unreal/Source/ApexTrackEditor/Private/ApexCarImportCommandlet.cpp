@@ -2,6 +2,7 @@
 
 #include "ApexTrackEditorModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Catalog/ApexContentCrc.h"
 #include "Engine/DataTable.h"
@@ -36,8 +37,13 @@ UApexCarImportCommandlet::UApexCarImportCommandlet()
 	LogToConsole = true;
 }
 
-FString UApexCarImportCommandlet::WheelPackageName(const FString& DestRoot, const FString& Model)
+FString UApexCarImportCommandlet::WheelPackageName(const FString& DestRoot, const FString& Model, const FString& Folder)
 {
+	if (ApexCarToml::IsCarLocalWheel(Model))
+	{
+		const FString Car = PackageSegment(Folder);
+		return FString::Printf(TEXT("%s/%s/Wheels/SM_%s_%s"), *DestRoot, *Car, *Car, *PackageSegment(FPaths::GetBaseFilename(Model)));
+	}
 	const FString Segment = PackageSegment(Model);
 	return FString::Printf(TEXT("%s/Wheels/%s/SM_Wheel_%s"), *DestRoot, *Segment, *Segment);
 }
@@ -58,12 +64,17 @@ FApexDrsFlapSpec UApexCarImportCommandlet::MakeDrsFlapSpec(const FCarToml& Toml,
 	return Spec;
 }
 
-FApexWheelSpec UApexCarImportCommandlet::MakeWheelSpec(const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh)
+FApexWheelSpec UApexCarImportCommandlet::MakeWheelSpec(
+	const FCarToml& Toml, const TSoftObjectPtr<UStaticMesh>& Mesh, const TSoftObjectPtr<UStaticMesh>& RearMesh)
 {
 	FApexWheelSpec Spec = ApexCarToml::MakeWheelSpec(Toml);
 	if (Toml.Wheels.IsPresent())
 	{
 		Spec.Mesh = Mesh;
+		if (!Toml.Wheels.RearModel.IsEmpty())
+		{
+			Spec.RearMesh = RearMesh;
+		}
 	}
 	return Spec;
 }
@@ -142,16 +153,35 @@ bool UApexCarImportCommandlet::CollectSources(const FOptions& Options, TArray<FS
 		OutError = FString::Printf(TEXT("no cars at %s"), *Options.SourceDir);
 		return false;
 	}
+	// `default/` then `custom/`, as the game reads them; a folder name is
+	// unique across both, since the meshes are keyed by it.
+	TArray<FString> TomlPaths;
 	TArray<FString> Folders;
-	IFileManager::Get().FindFiles(Folders, *(Options.SourceDir / TEXT("*")), false, true);
-	Folders.Sort();
-	for (const FString& Folder : Folders)
+	for (const FString& Parent : UApexCarContentSubsystem::CarFolders(Options.SourceDir))
 	{
-		const FString TomlPath = Options.SourceDir / Folder / TEXT("car.toml");
-		if (!IFileManager::Get().FileExists(*TomlPath))
+		TArray<FString> Here;
+		IFileManager::Get().FindFiles(Here, *(Parent / TEXT("*")), false, true);
+		Here.Sort();
+		for (const FString& Folder : Here)
 		{
-			continue;
+			const FString TomlPath = Parent / Folder / TEXT("car.toml");
+			if (!IFileManager::Get().FileExists(*TomlPath))
+			{
+				continue;
+			}
+			if (Folders.Contains(Folder))
+			{
+				UE_LOG(LogApexTrackImport, Warning, TEXT("%s: a car folder %s was found first; skipped"), *TomlPath, *Folder);
+				continue;
+			}
+			Folders.Add(Folder);
+			TomlPaths.Add(TomlPath);
 		}
+	}
+	for (int32 Index = 0; Index < Folders.Num(); ++Index)
+	{
+		const FString& Folder = Folders[Index];
+		const FString& TomlPath = TomlPaths[Index];
 		if (!Options.bAll && !Options.bList && !Options.Cars.Contains(Folder))
 		{
 			continue;
@@ -344,13 +374,17 @@ UStaticMesh* UApexCarImportCommandlet::ResolveMesh(
 }
 
 UStaticMesh* UApexCarImportCommandlet::ResolveWheelMesh(
-	const FString& Model, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError)
+	const FSource& Source, const FString& Model, const FOptions& Options, TSet<UPackage*>& OutPackages, FString& OutError)
 {
-	if (const TObjectPtr<UStaticMesh>* Done = WheelMeshes.Find(Model))
+	// A car's own wheel is its file; a class wheel is shared by name.
+	const bool bCarLocal = ApexCarToml::IsCarLocalWheel(Model);
+	const FString GlbPath = bCarLocal ? FPaths::GetPath(Source.TomlPath) / Model : Options.WheelSourceDir / Model + TEXT(".glb");
+	const FString CacheKey = bCarLocal ? FPaths::ConvertRelativePathToFull(GlbPath) : Model;
+	if (const TObjectPtr<UStaticMesh>* Done = WheelMeshes.Find(CacheKey))
 	{
 		return *Done;
 	}
-	const FString PackageName = WheelPackageName(Options.DestRoot, Model);
+	const FString PackageName = WheelPackageName(Options.DestRoot, Model, Source.Folder);
 	const FString ObjectPath = PackageName + TEXT(".") + FPackageName::GetShortName(PackageName);
 	UStaticMesh* Mesh = nullptr;
 	if (!Options.bForce && FPackageName::DoesPackageExist(PackageName))
@@ -359,7 +393,6 @@ UStaticMesh* UApexCarImportCommandlet::ResolveWheelMesh(
 	}
 	if (!Mesh)
 	{
-		const FString GlbPath = Options.WheelSourceDir / Model + TEXT(".glb");
 		if (!IFileManager::Get().FileExists(*GlbPath))
 		{
 			OutError = FString::Printf(TEXT("wheel model %s is missing"), *GlbPath);
@@ -378,7 +411,7 @@ UStaticMesh* UApexCarImportCommandlet::ResolveWheelMesh(
 		OutPackages.Add(Mesh->GetOutermost());
 		CollectDirtyPackages(FPackageName::GetLongPackagePath(PackageName), OutPackages);
 	}
-	WheelMeshes.Add(Model, Mesh);
+	WheelMeshes.Add(CacheKey, Mesh);
 	return Mesh;
 }
 
@@ -685,14 +718,19 @@ int32 UApexCarImportCommandlet::Main(const FString& Params)
 		if (Source.Toml.Wheels.IsPresent())
 		{
 			FString WheelError;
-			UStaticMesh* WheelMesh = ResolveWheelMesh(Source.Toml.Wheels.Model, Options, Touched, WheelError);
+			UStaticMesh* WheelMesh = ResolveWheelMesh(Source, Source.Toml.Wheels.Model, Options, Touched, WheelError);
+			UStaticMesh* RearMesh = nullptr;
+			if (WheelError.IsEmpty() && !Source.Toml.Wheels.RearModel.IsEmpty())
+			{
+				RearMesh = ResolveWheelMesh(Source, Source.Toml.Wheels.RearModel, Options, Touched, WheelError);
+			}
 			if (!WheelError.IsEmpty())
 			{
 				UE_LOG(LogApexTrackImport, Error, TEXT("    %s"), *WheelError);
 				++Failures;
 				continue;
 			}
-			Wheels = MakeWheelSpec(Source.Toml, TSoftObjectPtr<UStaticMesh>(WheelMesh));
+			Wheels = MakeWheelSpec(Source.Toml, TSoftObjectPtr<UStaticMesh>(WheelMesh), TSoftObjectPtr<UStaticMesh>(RearMesh));
 		}
 		else
 		{
