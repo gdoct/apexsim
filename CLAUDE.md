@@ -768,7 +768,10 @@ How it reads AC (`scripts/ac_import/`: `kn5.py`, `ai.py`, `ini.py`,
   slot on the road mesh, road coverage every metre edge to edge, the AI
   line on the road, wall openings (reported, never failed), and the
   triangle / draw-call / texture budget. `server/tests/imported_track_test.rs`
-  loads every imported track through the loader with all four sidecars;
+  loads every imported track through the loader with all four sidecars
+  (`#[ignore]`d, since the imports are the player's own data: `cargo test
+  --release --test imported_track_test -- --ignored`; the debug-build test
+  servers skip imports via `[content] skip_imported_tracks`);
   the AI survey takes a custom stem (`SURVEY_TRACKS=KsZandvoort`).
 
 **The `imported` marker.** The importer's `.ats` carries `"imported": "ac"`
