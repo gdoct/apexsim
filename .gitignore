@@ -208,6 +208,9 @@ content/tracks/default/*.road.msgpack
 # derived from content that must not be redistributed. Only its README is.
 content/tracks/custom/*
 !content/tracks/custom/README.md
+# The player's own cars (content/cars/custom), for the same reason.
+content/cars/custom/*
+!content/cars/custom/README.md
 
 # Recorded session replays (large binary, generated at runtime)
 server/replays/
