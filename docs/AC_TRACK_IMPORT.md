@@ -55,7 +55,8 @@ What differs from the design below, on purpose:
   boundary halfway to the finish, since the server wants three sectors.
 - **Validation is the tool's own** (the grid on the mesh, coverage, the
   line on the road, wall openings, the budget), plus
-  `server/tests/imported_track_test.rs` through the real loader; the
+  `server/tests/imported_track_test.rs` through the real loader (opt-in:
+  `cargo test --release --test imported_track_test -- --ignored`); the
   server binary is not invoked by the tool.
 - Wall kinds come from the mesh and material names (tyres, concrete, else
   armco); AC carries no material for a wall.

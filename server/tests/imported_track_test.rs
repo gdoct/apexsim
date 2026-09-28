@@ -45,7 +45,11 @@ fn imported_tracks() -> Vec<PathBuf> {
     found
 }
 
+// Opt-in: the imports on a given machine are the player's own data, and a
+// bad one should not fail the suite. Run it after importing a track with
+// `cargo test --release --test imported_track_test -- --ignored`.
 #[test]
+#[ignore]
 fn every_imported_track_loads_with_its_sidecars() {
     let tracks = imported_tracks();
     if tracks.is_empty() {
