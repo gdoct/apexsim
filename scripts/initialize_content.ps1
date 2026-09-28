@@ -162,9 +162,18 @@ $missingProps = @(Get-ChildItem $PropsSrc -Directory |
         } | ForEach-Object { "$kind/$($_.BaseName)" }
     })
 
-# The shipped circuits and the player's own (content\tracks\custom).
-$trackFiles = @(Get-ApexTrackFiles -RepoRoot $RepoRoot)
+# The shipped circuits and the player's own (content\tracks\custom). A
+# track imported whole by scripts/ac_import.py is not baked here: its export
+# and sidecars are the importer's, and the only fix for a missing one is to
+# run the importer again (its report carries the exact command).
+$allTrackFiles = @(Get-ApexTrackFiles -RepoRoot $RepoRoot)
+$importedTracks = @($allTrackFiles | Where-Object { Test-ApexImportedTrack -TrackFile $_.FullName })
+$trackFiles = @($allTrackFiles | Where-Object { -not (Test-ApexImportedTrack -TrackFile $_.FullName) })
 $trackStems = @($trackFiles | ForEach-Object { $_.BaseName })
+$importedMissing = @($importedTracks | Where-Object {
+    -not (Test-Path (Join-Path $ExportDir "$($_.BaseName).uemesh")) -or
+    -not (Test-Path (Join-Path $_.DirectoryName "$($_.BaseName).road.msgpack"))
+})
 $missingTracks = @($trackFiles | Where-Object {
     $stem = $_.BaseName
     $dir = $_.DirectoryName
@@ -193,6 +202,18 @@ Write-Detail ("ground textures: " + $(if ($missingGround) { "$($missingGround.Co
 Write-Detail ("materials:       " + $(if ($missingMaterials) { Format-List $missingMaterials } else { 'ok' }))
 Write-Detail ("props:           " + $(if ($missingProps) { Format-List $missingProps } else { 'ok' }))
 Write-Detail ("tracks:          " + $(if ($missingTracks) { Format-List $missingTracks } else { 'ok' }))
+if ($importedTracks.Count -gt 0) {
+    Write-Detail ("imported tracks: " + $(if ($importedMissing) { "$($importedMissing.Count) of $($importedTracks.Count) missing their export or road mesh" } else { "ok ($($importedTracks.Count), the importer's)" }))
+    foreach ($missing in $importedMissing) {
+        $rebuild = Get-ApexImportedTrackRebuild -TrackFile $missing.FullName
+        if ($rebuild) {
+            Write-Warning "$($missing.BaseName) was imported but its export or road mesh is missing; rebuild it with: $rebuild"
+        }
+        else {
+            Write-Warning "$($missing.BaseName) was imported but its export or road mesh is missing; run scripts/ac_import.py on its AC folder again"
+        }
+    }
+}
 Write-Detail ("server:          " + $(if (Test-Path $ServerExe) { 'ok' } else { 'not built' }))
 if (-not (Test-Path $splash)) {
     Write-Warning "no startup splash at $splash (it is checked in; is the checkout complete?)"

@@ -80,6 +80,15 @@ namespace ApexGround
 	 */
 	APEXSIM_API FSurfaceLook LookFor(const FString& Family, const FString& Key);
 
+	/**
+	 * The look for a `surface` family key that names its ground set outright
+	 * (an imported circuit's `ac_grass`, version 3 `ground_set`): the set at
+	 * its authored scale, no seam fringe (the imported ground has no bands
+	 * with an inner edge to fringe), grass stretched as the terrain is.
+	 * An unknown set draws as grass.
+	 */
+	APEXSIM_API FSurfaceLook LookForSet(const FString& Set);
+
 	/** Every set the baker produces, for the importer and the log. */
 	APEXSIM_API TArray<FString> AllSets();
 

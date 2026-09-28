@@ -37,6 +37,7 @@ use crate::terrain::GroundHeightfield;
 use crate::ue_export::{
     self, BakeOptions, CurbBands, UeCenterlinePoint, UeDressing, UeGridSlot, UeMaterial, UeMesh,
     UeMetadata, UePitLane, UeProp, UeScene, UeStartFinish, Walls, UE_SCENE_VERSION,
+    UE_SCENE_VERSION_EXTENDED,
 };
 
 /// Where exports go when no destination is given, relative to the repo root.
@@ -67,6 +68,11 @@ pub enum UeExportError {
     InvalidMesh { name: String, reason: String },
     #[error("mesh blob: {0}")]
     MeshBlob(String),
+    /// The track's `.ats` says another tool wrote it whole (`imported`),
+    /// export included; baking it would put a generated circuit over the
+    /// imported one.
+    #[error("track {stem} was imported ({by}); its export and sidecars are the importer's, not baked (see docs/AC_TRACK_IMPORT.md)")]
+    Imported { stem: String, by: String },
     /// Two track folders hold a track of the same stem. Every export,
     /// preview and `-ApexTrack=` switch is keyed by the stem, so the two
     /// would overwrite each other's output.
@@ -219,6 +225,17 @@ pub fn export_track_with_options(
     export: &ExportOptions,
 ) -> Result<Exported, UeExportError> {
     let options = &export.bake;
+    if let Some(by) = crate::ats_io::imported_marker(track_path)
+        .map_err(|e| UeExportError::Project(e.to_string()))?
+    {
+        return Err(UeExportError::Imported {
+            stem: track_path
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            by,
+        });
+    }
     let opened = project::open_project(track_path).map_err(UeExportError::Project)?;
     let scene = opened.scene.unwrap_or_else(|| {
         crate::ats::AtsScene::new_for_track(
@@ -332,8 +349,20 @@ pub fn write_road_sidecar(path: &Path, road: &RoadMeshFile) -> Result<(), UeExpo
 /// manifest goes last because it is what readers look for. Compact JSON
 /// rather than pretty: the manifest is machine-read.
 ///
-/// The scene's own `version` is not what is written: the files are always
-/// the current layout, [`UE_SCENE_VERSION`].
+/// The scene's own `version` is not what is written: the files are the
+/// current layout, [`UE_SCENE_VERSION`], or [`UE_SCENE_VERSION_EXTENDED`]
+/// when a material or mesh uses one of the version 3 fields.
+pub fn scene_version(scene: &UeScene) -> u32 {
+    if scene.imported.is_some()
+        || scene.materials.iter().any(UeMaterial::needs_version_3)
+        || scene.meshes.iter().any(UeMesh::needs_version_3)
+    {
+        UE_SCENE_VERSION_EXTENDED
+    } else {
+        UE_SCENE_VERSION
+    }
+}
+
 pub fn write_scene(path: &Path, scene: &UeScene) -> Result<(), UeExportError> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
@@ -349,7 +378,7 @@ pub fn write_scene(path: &Path, scene: &UeScene) -> Result<(), UeExportError> {
     let blob = encode_mesh_blob(&scene.meshes)?;
     let manifest = ManifestOut {
         format: &scene.format,
-        version: UE_SCENE_VERSION,
+        version: scene_version(scene),
         track_id: &scene.track_id,
         track_name: &scene.track_name,
         track_display_name: &scene.track_display_name,
@@ -359,6 +388,7 @@ pub fn write_scene(path: &Path, scene: &UeScene) -> Result<(), UeExportError> {
         length_cm: scene.length_cm,
         metadata: &scene.metadata,
         dressing: &scene.dressing,
+        imported: &scene.imported,
         mesh_blob: &blob_name,
         materials: &scene.materials,
         meshes: scene.meshes.iter().map(MeshHeader::of).collect(),
@@ -391,7 +421,7 @@ pub fn read_scene(path: &Path) -> Result<UeScene, UeExportError> {
             .into_iter()
             .map(MeshEntryIn::into_inline)
             .collect::<Result<Vec<_>, _>>()?,
-        2 => {
+        2 | 3 => {
             let name = manifest.mesh_blob.as_deref().ok_or_else(|| {
                 UeExportError::MeshBlob(format!("{} names no mesh_blob", path.display()))
             })?;
@@ -402,9 +432,15 @@ pub fn read_scene(path: &Path) -> Result<UeScene, UeExportError> {
             }
             let blob_path = path.with_file_name(name);
             let blob = fs::read(&blob_path)?;
-            let meshes = decode_mesh_blob(&blob)
+            let mut meshes = decode_mesh_blob(&blob)
                 .map_err(|e| UeExportError::MeshBlob(format!("{}: {e}", blob_path.display())))?;
             check_against_manifest(&manifest.meshes, &meshes)?;
+            // The blob carries the buffers; the version 3 per-mesh fields
+            // ride in the manifest's headers.
+            for (header, mesh) in manifest.meshes.iter().zip(meshes.iter_mut()) {
+                mesh.draw_distance_m = header.draw_distance_m;
+                mesh.collision = header.collision;
+            }
             meshes
         }
         other => return Err(UeExportError::UnsupportedVersion(other)),
@@ -421,6 +457,7 @@ pub fn read_scene(path: &Path) -> Result<UeScene, UeExportError> {
         length_cm: manifest.length_cm,
         metadata: manifest.metadata,
         dressing: manifest.dressing,
+        imported: manifest.imported,
         materials: manifest.materials,
         meshes,
         props: manifest.props,
@@ -449,6 +486,8 @@ struct ManifestOut<'a> {
     length_cm: f32,
     metadata: &'a UeMetadata,
     dressing: &'a UeDressing,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    imported: &'a Option<String>,
     mesh_blob: &'a str,
     materials: &'a [UeMaterial],
     meshes: Vec<MeshHeader<'a>>,
@@ -466,6 +505,10 @@ struct MeshHeader<'a> {
     material_key: &'a str,
     vertex_count: u32,
     index_count: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    draw_distance_m: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    collision: Option<bool>,
 }
 
 impl<'a> MeshHeader<'a> {
@@ -475,6 +518,8 @@ impl<'a> MeshHeader<'a> {
             material_key: &mesh.material_key,
             vertex_count: (mesh.positions.len() / 3) as u32,
             index_count: mesh.indices.len() as u32,
+            draw_distance_m: mesh.draw_distance_m,
+            collision: mesh.collision,
         }
     }
 }
@@ -496,6 +541,8 @@ struct ManifestIn {
     length_cm: f32,
     metadata: UeMetadata,
     dressing: UeDressing,
+    #[serde(default)]
+    imported: Option<String>,
     #[serde(default)]
     mesh_blob: Option<String>,
     materials: Vec<UeMaterial>,
@@ -525,6 +572,10 @@ struct MeshEntryIn {
     uvs: Option<Vec<f32>>,
     #[serde(default)]
     indices: Option<Vec<u32>>,
+    #[serde(default)]
+    draw_distance_m: Option<f32>,
+    #[serde(default)]
+    collision: Option<bool>,
 }
 
 impl MeshEntryIn {
@@ -546,6 +597,8 @@ impl MeshEntryIn {
             normals,
             uvs,
             indices,
+            draw_distance_m: self.draw_distance_m,
+            collision: self.collision,
         };
         mesh_counts(&mesh)?;
         Ok(mesh)
@@ -859,6 +912,7 @@ pub fn decode_mesh_blob(bytes: &[u8]) -> Result<Vec<UeMesh>, UeExportError> {
             normals,
             uvs,
             indices,
+            ..UeMesh::default()
         });
     }
     if r.at != bytes.len() {

@@ -674,6 +674,134 @@ little-endian blob of every mesh's buffers, zlib per mesh (Spa: ~2 MB + 15
 MB). See `track-editor/TRACK_EDITOR.md` §5 for the format and the
 coordinate/winding conventions; the reader still takes a version 1 file.
 
+### Assetto Corsa track import (`scripts/ac_import.py`, docs/AC_TRACK_IMPORT.md)
+
+A track from the player's own AC install becomes a complete ApexSim track
+in one command: AC's geometry drawn by the client, AC's physics mesh driven
+on by the server. Local only; nothing AC-derived is bundled, and a
+CSP-encrypted kn5 is refused, never decrypted.
+
+```powershell
+python scripts/ac_import.py "E:\SteamLibrary\steamapps\common\assettocorsa\content\tracks\ks_zandvoort"
+python scripts/ac_import.py <folder> --list                 # the layouts
+python scripts/ac_import.py <folder> --layout layout_gp     # one of a multi-layout track
+python scripts/ac_import.py --all <ac>\content\tracks       # a whole collection, one line each
+#   --stem, --display-name, --textures kit|ac|flat, --max-texture N, --force, --dry-run
+python -m unittest discover -s scripts/ac_import/tests      # the importer's tests
+# then restart the server, and restart the game or run apexsim.track.Rescan
+```
+
+It writes the **server's** files into `content/tracks/custom/`
+(`<Stem>.yaml`, a minimal `<Stem>.ats`, the four sidecars, and
+`<Stem>.import.json`: every file read with its CRC, the material
+classification, the checks, the warnings and the exact command that
+rebuilds it) and the **client's** into `build/tracks/` (`<Stem>.uescene.json`
++ `<Stem>.uemesh` in export format version 3, `<Stem>.textures/*.dds`, and
+`previews/<Stem>.png` from AC's own preview). Re-running writes
+byte-identical files. The stem defaults to CamelCase of folder and layout
+(`KsRedBullRing_LayoutGp`), `track_id` is a UUID v5 of folder and layout, and
+a stem that exists under `default/` is refused.
+
+How it reads AC (`scripts/ac_import/`: `kn5.py`, `ai.py`, `ini.py`,
+`frame.py`, `trigrid.py`, `physics.py`, `centerline.py`, `scene.py`,
+`textures.py`, `export.py`, `sidecars.py`, `validate.py`, `cli.py`):
+
+- **Frame.** AC is Y-up; checked against `ui_track.json`'s `run` on every
+  Kunos circuit, a clockwise lap traces a positive signed area in AC's raw
+  `(x, z)`, so the conversion is the pure rotation `(X, Y, Z) = (x, -z, y)`,
+  no mirror, and the physics mesh's authored index order already faces up.
+  The origin is the midpoint of `AC_TIME_0_L/R`, seated on the physics road,
+  with +X along the AI line's direction there.
+- **The `.ai` files** carry an `i32 extra_count` between the points and the
+  18-float records (the "shifted by one float" of the feasibility study);
+  `side_left`/`side_right` are only a fallback.
+- **Physics** is every mesh named `NN<KEY>` across *all* the layout's kn5s,
+  as AC itself finds them (Kunos keep them in a non-renderable file, mods
+  often draw them): the longest `surfaces.ini` KEY the name starts with,
+  `WALL` walls. Contact classes from the key (`KERB/CURB` curb; `GRASS/
+  SAND/GRAVEL/...` off; `IS_PITLANE` pit lane; an invalid surface with
+  friction >= 0.85 run-off; else road) and `IS_VALID_TRACK` as the track
+  limits. AC's absolute friction becomes the server's multiplier:
+  `(f / road_f) / class_grip`, so a kerb at 0.96 on 0.98 asphalt ends up at
+  exactly that ratio after the server's own `curb_grip`. Walls are the steep
+  faces of the WALL meshes as segments (kind from the name: tyres, concrete,
+  else armco); the ground sidecar is the highest physics surface on a 4 m
+  grid, holes filled from their neighbours; the curbs sidecar is measured.
+- **Centerline.** The AI line, rolled to start at the start line and
+  resampled to 5 m nodes, then at every metre a cross-section across the
+  physics mesh: the run of road-class triangles around the line gives the
+  two edges, its middle is the node (the AI line is moved to the road's
+  centre), the kerb and run-off runs beyond the edges are the curb sidecar,
+  and z and banking come from the mesh. Sectors from `AC_TIME_1/2` (a
+  two-sector AC track gets a synthetic boundary halfway to the finish),
+  grid slots from `AC_START_n` as `spawn_points` with `position: 0` and
+  absolute offsets (node 0 is the origin, so the offsets are just the
+  slot's x, y), DRS from `drs_zones.ini` re-based from the AI start.
+- **Scene.** Every renderable kn5 mesh at `lodIn == 0` (lower LODs, `AC_*`
+  logic objects, crews, `GROOVE` overlays dropped), classified **per
+  mesh**: what physics lies under three quarters of its vertices decides
+  (on the road -> `road_ac`, family road, so the wet look applies; on
+  grass/sand/gravel -> `ac_<set>`, family surface with `ground_set`), else a
+  multi-layer terrain shader or a grass/sand/gravel name is kit terrain,
+  else an AC-textured `scenery_<material>` material on the **car parents**
+  (opaque / masked / translucent by the kn5's alpha flags and shader, two
+  sided, roughness from `ksSpecularEXP`). Alpha-tested or blended
+  materials are never kit (they are the paint and the tree cards lying on
+  a surface), and **kerbs keep AC's textures** on purpose: their stripes
+  are authored into the texture and the kit's would need an along-kerb UV
+  the kn5 lacks. Kit surfaces get world-metre planar UVs. Meshes merge by
+  (material, 250 m cell, draw-distance bucket, collision) into a few
+  hundred draw calls; `lodOut` becomes the mesh's draw distance; only
+  meshes standing on physics carry collision (what the racing line and
+  the cameras trace).
+- **Textures.** Only the diffuse maps of the scenery materials. Most Kunos
+  DDS ship without mips (196 of Zandvoort's 293), so a BC1/BC3 source with
+  a full chain is copied verbatim (top mips dropped over `--max-texture`),
+  everything else is decoded with Pillow, resized, box-mipped and
+  range-fit encoded to BC1 (opaque) or BC3 (alpha) in numpy. The client
+  streams the blocks straight into transient textures (`ApexDdsReader`).
+- **Checks** (in the report, and a failed one is exit code 1): every grid
+  slot on the road mesh, road coverage every metre edge to edge, the AI
+  line on the road, wall openings (reported, never failed), and the
+  triangle / draw-call / texture budget. `server/tests/imported_track_test.rs`
+  loads every imported track through the loader with all four sidecars;
+  the AI survey takes a custom stem (`SURVEY_TRACKS=KsZandvoort`).
+
+**The `imported` marker.** The importer's `.ats` carries `"imported": "ac"`
+(`AtsScene::imported`, `ats_io::imported_marker`), and everything that
+would rewrite a track's files leaves such a track alone: `ats-export` refuses
+it (`UeExportError::Imported`; `--all` walks past it), `ats-dress`,
+`ats-groom`, `ats-smooth` and `ats-bank` skip it, `build_track_levels.ps1
+-Track` drops it with the rebuild command, `initialize_content.ps1` never
+bakes it and reports one whose export or road mesh is missing with the
+command from its report (`Test-ApexImportedTrack`,
+`Get-ApexImportedTrackRebuild` in `scripts/lib/ApexTracks.ps1`;
+`track_dirs.imported_marker` in Python), and `build_track_catalog.py` keeps
+its preview. `build_game_standalone.ps1` / `build_release.ps1
+-IncludeCustomTracks` ship `<Stem>.textures/` beside the export.
+
+**Export format version 3** (`TRACK_EDITOR.md` section 5; the version 2
+reader stays and the Rust exporter still writes 2 unless a scene uses the
+new fields): a material may carry `ground_set`, or `texture` (a DDS
+relative to the manifest), `blend`, `two_sided`, `roughness`,
+`alpha_cutoff` (family `scenery`); a mesh header `draw_distance_m` and
+`collision: false`; the manifest an `imported` scalar ahead of the first
+array. On the client `FApexTrackSceneReader` (`kSupportedVersion` 3) parses
+the textures with the scene on the worker thread into
+`FApexTrackScene::Textures` (a bad one is logged and its material draws
+flat), `FApexTrackSceneBuilder` draws `scenery` on `/Game/Materials/Car`'s
+opaque / masked / translucent parents (`FApexTrackParents::Scenery*`; flat
+colours on the base when they are not baked), honours `ground_set`
+(`ApexGround::LookForSet`), sets `SetCullDistance` from the draw distance
+and skips the collision component where `bCollision` is false.
+`ApexSim.Track.Dds.Parse` and `ApexSim.Track.Reader.Version3` pin it; the
+Rust side `a_version_3_manifest_carries_the_imported_extensions` and
+`an_imported_track_is_not_baked_over`.
+
+Out of scope for this version, as the design says: tracks without
+`fast_lane.ai`, point-to-point stages (refused), kit props in place of AC
+scenery, night lighting from AC's lights, and cars.
+
 ### Runtime tracks (`UApexTrackContentSubsystem`, `UApexTrackInstance`, docs/RUNTIME_CONTENT_LOADING.md)
 
 Every circuit is built by the running game from its export; **there are no

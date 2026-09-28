@@ -54,3 +54,31 @@ function Find-ApexTrackFile {
     }
     return $null
 }
+
+# Whether a track's .ats says another tool wrote it whole ("imported": "ac",
+# scripts/ac_import.py, docs/AC_TRACK_IMPORT.md): its export and sidecars
+# are the importer's, and the bake, the dressing and the smoothing all
+# leave it alone. The marker sits in the head of the file, so only that
+# is read.
+function Test-ApexImportedTrack {
+    param([Parameter(Mandatory)][string]$TrackFile)
+    $ats = [IO.Path]::ChangeExtension($TrackFile, '.ats')
+    if (-not (Test-Path -LiteralPath $ats)) { return $false }
+    $head = @(Get-Content -LiteralPath $ats -TotalCount 16 -ErrorAction SilentlyContinue)
+    return [bool](($head -join "`n") -match '"imported"\s*:\s*"[^"]+"')
+}
+
+# The command that rebuilds an imported track, from its <Stem>.import.json
+# (the importer writes it there), or $null when there is no report.
+function Get-ApexImportedTrackRebuild {
+    param([Parameter(Mandatory)][string]$TrackFile)
+    $report = [IO.Path]::ChangeExtension($TrackFile, '.import.json')
+    if (-not (Test-Path -LiteralPath $report)) { return $null }
+    try {
+        $data = Get-Content -LiteralPath $report -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        if ($data.PSObject.Properties['rebuild']) { return [string]$data.rebuild }
+    }
+    catch { }
+    return $null
+}
+

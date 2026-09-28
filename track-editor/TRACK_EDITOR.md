@@ -74,13 +74,14 @@ The manifest is compact JSON whose top-level keys come in this order: `format`, 
 
 | Field | Contents |
 | --- | --- |
-| `version` | 2 |
+| `version` | 2, or 3 when the scene uses the imported-circuit fields below |
 | `track_id`, `track_name`, `source_track` | The YAML's `track_id` (or null) and name, and the YAML's file name |
 | `source_crc` | CRC-32 (zlib/PNG; `"123456789"` → `0xCBF43926`) of the YAML's bytes with every carriage return dropped: the same checksum the server sends as `ContentCrc` (`server/src/content_crc.rs`, `scripts/build_track_catalog.py`). Written by `ats-export` and the editor's export; absent when the scene was not baked from a file |
 | `metadata`, `dressing` | Country, city, category, environment; season and spectators |
 | `mesh_blob` | The blob's file name only (`Spa.uemesh`), resolved against the manifest's own directory |
-| `materials` | Every material key the meshes reference, with a `family` (`road`, `curb`, `surface`, `marking`, `pit_lane`) and the base color the editor previewed. Sorted by key |
-| `meshes` | One header per mesh, in blob order: `{"name", "material_key", "vertex_count", "index_count"}`, no buffers. Named `{material_key}_{section:03}`. Includes the terrain ground tiles (key `ground`, family `surface`) |
+| `materials` | Every material key the meshes reference, with a `family` (`road`, `curb`, `surface`, `marking`, `pit_lane`, `decal`, or `scenery`) and the base color the editor previewed. Sorted by key. **Version 3** (written by `scripts/ac_import.py`, read by both sides): a `surface` key may carry `ground_set` (`grass`, `gravel`, ...), and a `scenery` key `texture` (a DDS path relative to the manifest, `<Stem>.textures/x.dds`), `blend` (`opaque` / `masked` / `translucent`), `two_sided`, `roughness` and `alpha_cutoff` |
+| `imported` | Version 3: which importer wrote the export whole (`"ac"`); a scalar ahead of the first array, absent on a generated circuit |
+| `meshes` | One header per mesh, in blob order: `{"name", "material_key", "vertex_count", "index_count"}`, no buffers. Named `{material_key}_{section:03}`. Includes the terrain ground tiles (key `ground`, family `surface`). **Version 3** headers may add `draw_distance_m` (metres; absent means always drawn) and `collision: false` (not a traceable track surface) |
 | `props` | Prop transforms with asset keys |
 | `grid` | Starting grid, resolved exactly the way `server/src/track_loader.rs` resolves it |
 | `centerline` | The sampled centerline, for splines, minimaps and AI |

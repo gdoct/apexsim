@@ -130,6 +130,18 @@ fn main() -> ExitCode {
     let mut written = 0usize;
     for track_path in &tracks {
         let name = track_path.display();
+        match track_core::ats_io::imported_marker(track_path) {
+            Ok(Some(by)) => {
+                println!("{name}: skipped (imported by {by}; see docs/AC_TRACK_IMPORT.md)");
+                continue;
+            }
+            Ok(None) => {}
+            Err(e) => {
+                eprintln!("{name}: {e}");
+                failures += 1;
+                continue;
+            }
+        }
         let mut track: TrackFile = match track_io::load_track_file(track_path) {
             Ok(track) => track,
             Err(e) => {

@@ -1,6 +1,7 @@
 #include "Track/ApexTrackSceneBuilder.h"
 
 #include "Algo/Count.h"
+#include "Cars/ApexCarMaterials.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -10,6 +11,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "HAL/PlatformTime.h"
 #include "Materials/MaterialInterface.h"
@@ -954,6 +956,13 @@ FApexTrackParents ApexTrackMaterials::LoadParents()
 	Parents.Emissive = Load(EmissiveName);
 	Parents.Brand = Load(BrandName);
 	Parents.Decal = Load(DecalName);
+	// An imported circuit's textured scenery draws on the car parents: the
+	// same shapes (opaque, masked, translucent; two-sided) and the same
+	// parameter names, so no track parent of its own is needed.
+	const FApexCarParents Car = ApexCarMaterials::LoadParents();
+	Parents.SceneryOpaque = Car.Opaque;
+	Parents.SceneryMasked = Car.Masked;
+	Parents.SceneryTranslucent = Car.Translucent;
 	return Parents;
 }
 
@@ -999,7 +1008,14 @@ void FApexTrackSceneBuilder::AddReferencedObjects(FReferenceCollector& Collector
 	Collector.AddReferencedObject(Parents.Emissive);
 	Collector.AddReferencedObject(Parents.Brand);
 	Collector.AddReferencedObject(Parents.Decal);
+	Collector.AddReferencedObject(Parents.SceneryOpaque);
+	Collector.AddReferencedObject(Parents.SceneryMasked);
+	Collector.AddReferencedObject(Parents.SceneryTranslucent);
 	Collector.AddReferencedObject(PlaceholderMesh);
+	for (TPair<FString, TObjectPtr<UTexture2D>>& Pair : Textures)
+	{
+		Collector.AddReferencedObject(Pair.Value);
+	}
 	for (TPair<FString, TObjectPtr<UMaterialInterface>>& Pair : Materials)
 	{
 		Collector.AddReferencedObject(Pair.Value);
@@ -1136,6 +1152,18 @@ bool FApexTrackSceneBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 			}
 			continue;
 		}
+		// An imported circuit's own textured material (version 3).
+		if (Source.IsScenery())
+		{
+			UMaterialInterface* Scenery = SceneryMaterialFor(Scene, Source);
+			if (!Scenery)
+			{
+				OutError = FString::Printf(TEXT("could not create scenery material %s"), *Source.Key);
+				return false;
+			}
+			Materials.Add(Source.Key, Scenery);
+			continue;
+		}
 
 		FApexMaterialParams Params;
 
@@ -1227,8 +1255,12 @@ bool FApexTrackSceneBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 			SetDetail(2.0f, 0.25f, 0.15f, 0.2f);
 		}
 
-		// Which baked set this family samples, and how hard.
-		const ApexGround::FSurfaceLook Look = ApexGround::LookFor(Source.Family, Source.Key);
+		// Which baked set this family samples, and how hard. A version 3
+		// surface key may name its set outright (an imported circuit's
+		// `ac_gravel`), which wins over what the key's spelling would say.
+		const ApexGround::FSurfaceLook Look = Source.GroundSet.IsEmpty()
+			? ApexGround::LookFor(Source.Family, Source.Key)
+			: ApexGround::LookForSet(Source.GroundSet);
 		if (bGroundTextures && Look.Set[0] != TEXT('\0'))
 		{
 			const FGroundMapSet& Set = GroundSetFor(Look.Set);
@@ -1308,7 +1340,117 @@ bool FApexTrackSceneBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 
 	UE_LOG(LogApexTrack, Display, TEXT("    %d material(s)%s"), Materials.Num(),
 		bGroundTextures ? TEXT(" on the ground-textured parent") : TEXT(" on the noise-grain parent (no /Game/Ground when it was baked)"));
+	if (Textures.Num() > 0)
+	{
+		UE_LOG(LogApexTrack, Display, TEXT("    %d imported texture(s), %.0f MB of compressed blocks"), Textures.Num(),
+			TextureBytes / 1.0e6);
+	}
 	return true;
+}
+
+UTexture2D* FApexTrackSceneBuilder::TextureFor(const FApexTrackScene& Scene, const FString& Path)
+{
+	if (const TObjectPtr<UTexture2D>* Cached = Textures.Find(Path))
+	{
+		return *Cached;
+	}
+	const FApexTrackTexture* Source = Scene.Textures.Find(Path);
+	UTexture2D* Texture = nullptr;
+	if (Source && Source->Mips.Num() > 0 && Source->Width > 0 && Source->Height > 0)
+	{
+		// The blocks are copied straight into the mips: no decode, no
+		// re-encode, so a texture costs what its DDS weighs.
+		const FName ObjectName = MakeUniqueObjectName(GetTransientPackage(), UTexture2D::StaticClass(),
+			FName(*(TEXT("T_") + TextKey(FPaths::GetBaseFilename(Path)))));
+		Texture = UTexture2D::CreateTransient(Source->Width, Source->Height, Source->Format, ObjectName);
+		FTexturePlatformData* Platform = Texture ? Texture->GetPlatformData() : nullptr;
+		if (Platform && Platform->Mips.Num() == 1)
+		{
+			for (int32 Level = 0; Level < Source->Mips.Num(); ++Level)
+			{
+				const TArray<uint8>& Bytes = Source->Mips[Level];
+				FTexture2DMipMap* Mip = nullptr;
+				if (Level == 0)
+				{
+					Mip = &Platform->Mips[0];
+				}
+				else
+				{
+					Mip = new FTexture2DMipMap(
+						FMath::Max(1, Source->Width >> Level), FMath::Max(1, Source->Height >> Level), 1);
+					Platform->Mips.Add(Mip);
+				}
+				void* Data = Mip->BulkData.Lock(LOCK_READ_WRITE);
+				if (Level > 0 || Mip->BulkData.GetBulkDataSize() != Bytes.Num())
+				{
+					Data = Mip->BulkData.Realloc(Bytes.Num());
+				}
+				FMemory::Memcpy(Data, Bytes.GetData(), Bytes.Num());
+				Mip->BulkData.Unlock();
+				TextureBytes += Bytes.Num();
+			}
+			Texture->SRGB = Source->bSRGB;
+			Texture->AddressX = TA_Wrap;
+			Texture->AddressY = TA_Wrap;
+			Texture->NeverStream = true;
+			Texture->UpdateResource();
+		}
+		else
+		{
+			UE_LOG(LogApexTrack, Warning, TEXT("    texture %s (%d x %d) could not be created; its material draws flat"),
+				*Path, Source->Width, Source->Height);
+			Texture = nullptr;
+		}
+	}
+	Textures.Add(Path, Texture);
+	return Texture;
+}
+
+UMaterialInterface* FApexTrackSceneBuilder::SceneryMaterialFor(
+	const FApexTrackScene& Scene, const FApexTrackMaterial& Source)
+{
+	UMaterialInterface* Parent = Parents.SceneryOpaque;
+	if (Source.Blend == TEXT("masked") && Parents.SceneryMasked)
+	{
+		Parent = Parents.SceneryMasked;
+	}
+	else if (Source.Blend == TEXT("translucent") && Parents.SceneryTranslucent)
+	{
+		Parent = Parents.SceneryTranslucent;
+	}
+	UTexture2D* Texture = Source.Texture.IsEmpty() ? nullptr : TextureFor(Scene, Source.Texture);
+	FApexMaterialParams Params;
+	if (!Parent)
+	{
+		// No car parents baked: a flat colour on the track base, which at
+		// least keeps the shape of the circuit on screen.
+		static bool bWarned = false;
+		if (!bWarned)
+		{
+			UE_LOG(LogApexTrack, Warning,
+				TEXT("    no car parent materials under %s; imported scenery draws in flat colours (run `-run=ApexMaterialBake`)"),
+				ApexCarMaterials::Folder);
+			bWarned = true;
+		}
+		FLinearColor Base = Source.BaseColor * (Texture ? 0.5f : 1.0f);
+		Base.A = 1.0f;
+		Params.Vector(TEXT("BaseColor"), Base);
+		Params.Scalar(TEXT("Roughness"), Source.Roughness >= 0.0f ? Source.Roughness : 0.8f);
+		return Factory.MakeMaterial(Source.Key, Parents.Base, Params);
+	}
+	Params.Vector(ApexCarMaterials::BaseColorFactor, Source.BaseColor);
+	if (Texture)
+	{
+		Params.Texture(ApexCarMaterials::BaseColorTexture, Texture);
+	}
+	Params.Scalar(ApexCarMaterials::MetallicFactor, 0.0f);
+	Params.Scalar(ApexCarMaterials::RoughnessFactor, Source.Roughness >= 0.0f ? Source.Roughness : 0.8f);
+	Params.Vector(ApexCarMaterials::EmissiveFactor, FLinearColor::Black);
+	if (Parent == Parents.SceneryMasked)
+	{
+		Params.Scalar(ApexCarMaterials::AlphaCutoff, Source.AlphaCutoff >= 0.0f ? Source.AlphaCutoff : 0.5f);
+	}
+	return Factory.MakeMaterial(Source.Key, Parent, Params);
 }
 
 UMaterialInterface* FApexTrackSceneBuilder::DecalMaterialFor(const FString& Key)
@@ -1879,10 +2021,18 @@ void FApexTrackSceneBuilder::SpawnActors(
 			Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
 		Component->SetStaticMesh(Mesh);
+		if (Source.DrawDistanceCm > 0.0f)
+		{
+			// An imported circuit carries its scenery's own draw distances
+			// (the kn5's lodOut): past it the mesh is culled outright.
+			Component->SetCullDistance(Source.DrawDistanceCm);
+			Component->bAllowCullDistanceVolume = false;
+		}
 		// Road paint lies on the road, which already answers the traces; a
-		// decal's own collision would only cost a cook.
+		// decal's own collision would only cost a cook, and an imported
+		// circuit's scenery says itself that it is not a track surface.
 		const FApexTrackMaterial* Material = Scene.FindMaterial(Source.MaterialKey);
-		if (bCollisionComponents && !(Material && Material->Family == TEXT("decal")))
+		if (bCollisionComponents && Source.bCollision && !(Material && Material->Family == TEXT("decal")))
 		{
 			UApexTrackCollisionComponent* Collision =
 				NewObject<UApexTrackCollisionComponent>(Actor, TEXT("Collision"), RF_Transactional);

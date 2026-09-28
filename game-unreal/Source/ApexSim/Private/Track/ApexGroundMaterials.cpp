@@ -67,6 +67,32 @@ ApexGround::FSurfaceLook ApexGround::LookFor(const FString& Family, const FStrin
 	return {TEXT(""), 0.0f, 0.0f, 0.0f, 0.0f};
 }
 
+ApexGround::FSurfaceLook ApexGround::LookForSet(const FString& Set)
+{
+	static const TArray<FString> Sets = AllSets();
+	const FString Lower = Set.ToLower();
+	const FString* Known = Sets.FindByPredicate([&Lower](const FString& S) { return S == Lower; });
+	if (!Known)
+	{
+		return {TEXT("grass"), TextureTileM * 2.0f, 1.0f, 0.5f, 0.0f};
+	}
+	// The pointer must outlive the call: the set names are static.
+	const TCHAR* Name = **Known;
+	if (Lower == TEXT("grass"))
+	{
+		return {Name, TextureTileM * 2.0f, 1.0f, 0.5f, 0.0f};
+	}
+	if (Lower == TEXT("astroturf"))
+	{
+		return {Name, TextureTileM * 0.5f, 0.8f, 0.4f, 0.0f};
+	}
+	if (Lower == TEXT("concrete"))
+	{
+		return {Name, TextureTileM, 0.7f, 0.4f, 0.0f};
+	}
+	return {Name, TextureTileM, 1.0f, 0.5f, 0.0f};
+}
+
 TArray<FString> ApexGround::AllSets()
 {
 	// The `GROUND_SLOTS` table in apex_tex.py, in the order it is written.

@@ -7,6 +7,52 @@ It builds on work that has landed since the feasibility study: runtime-loaded
 tracks and cars, the mesh road backend (now the default),
 `content/tracks/custom`, and `external_sidecars`.*
 
+## Status (2026-09-27)
+
+Built, in the order the phases below describe, on the same day:
+
+- `scripts/ac_import.py` and the `scripts/ac_import/` package: the readers,
+  the frame, the YAML and all four server sidecars (phase 1); export format
+  version 3, compressed runtime textures, scenery on the car parents and
+  draw distances on the client (phase 2); scene selection, per-mesh
+  material classification, merging into 250 m cells, texture conversion,
+  previews and the report (phase 3); the `imported` marker across the
+  Rust tools and the PowerShell scripts, `--all`, and the AI survey on a
+  custom stem (phase 4). CLAUDE.md, "Assetto Corsa track import", is the
+  working reference.
+- Checked on the Kunos Zandvoort: 4 189 m, 153 k physics triangles, 1.1 M
+  drawn triangles in ~570 draw calls, 129 textures (86 MB); grid, coverage
+  and centerline checks pass; the server test loads it with every sidecar
+  and the mesh agrees with the centerline within 15 cm; the Unreal editor
+  target builds. **Not yet done:** the twelve-track acceptance run, the
+  frame-rate and load-time measurement on the reference machine, and a
+  look at an imported circuit on screen (the Unreal code compiled and its
+  reader tests exist, but no imported track has been raced in the game
+  yet).
+
+What differs from the design below, on purpose:
+
+- **Kerbs keep AC's textures** rather than the kit's curb family: their
+  stripes are authored into the texture, and the kit's 2 m stripes would
+  need an along-kerb UV the kn5 does not carry.
+- **Classification is per mesh, not per material**, by what physics lies
+  under three quarters of the mesh's vertices; one AC material can be the
+  kit road on one mesh and AC-textured on another. Alpha-tested and
+  blended materials are never a kit surface.
+- **Only the diffuse maps come over**, and most are re-encoded: the
+  majority of Kunos textures ship without mip chains, so they are decoded,
+  mipped and range-fit to BC1/BC3 by the tool; a BC1/BC3 source with its
+  mips is copied verbatim. `txMaps` is not read; roughness is a scalar
+  from `ksSpecularEXP`.
+- **A two-sector AC track** (only `AC_TIME_1`) gets a synthetic second
+  boundary halfway to the finish, since the server wants three sectors.
+- **Validation is the tool's own** (the grid on the mesh, coverage, the
+  line on the road, wall openings, the budget), plus
+  `server/tests/imported_track_test.rs` through the real loader; the
+  server binary is not invoked by the tool.
+- Wall kinds come from the mesh and material names (tyres, concrete, else
+  armco); AC carries no material for a wall.
+
 ## Summary
 
 Many sim racers have large collections of Assetto Corsa tracks, most of them
