@@ -36,7 +36,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from generate_track_previews import generate_preview_image, parse_track_file  # noqa: E402
-from track_dirs import track_dir, track_glob  # noqa: E402
+from track_dirs import imported_marker, track_dir, track_glob  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXPORT_DIR = REPO_ROOT / "build" / "tracks"
@@ -84,7 +84,11 @@ def main(argv):
         meta = data.get("metadata") or {}
 
         png = PREVIEW_DIR / f"{stem}.png"
-        if not generate_preview_image(track, png):
+        # An imported circuit's preview is the importer's (AC's own picture);
+        # it is drawn here only when the importer left none.
+        if imported_marker(yaml_path) and png.is_file():
+            pass
+        elif not generate_preview_image(track, png):
             skipped.append(f"{stem}: preview failed")
             continue
 

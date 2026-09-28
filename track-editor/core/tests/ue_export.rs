@@ -15,8 +15,9 @@ use track_core::ats::{
 use track_core::project;
 use track_core::track_data::{TrackFile, TrackNode};
 use track_core::ue_export::{
-    self, UeMesh, UeScene, WallSegment, CURB_BANDS_VERSION, CURB_BAND_STEP_M, UE_SCENE_FORMAT,
-    UE_SCENE_VERSION, WALLS_VERSION, WALL_KIND_ARMCO, WALL_KIND_CONCRETE, WALL_KIND_TIRES,
+    self, UeMaterial, UeMesh, UeScene, WallSegment, CURB_BANDS_VERSION, CURB_BAND_STEP_M,
+    UE_SCENE_FORMAT, UE_SCENE_VERSION, WALLS_VERSION, WALL_KIND_ARMCO, WALL_KIND_CONCRETE,
+    WALL_KIND_TIRES,
 };
 use track_core::ue_export_io;
 
@@ -1101,12 +1102,132 @@ fn a_newer_manifest_is_refused() {
     ue_export_io::write_scene(&path, &bake_test_scene()).unwrap();
     let text = fs::read_to_string(&path)
         .unwrap()
-        .replacen("\"version\":2", "\"version\":3", 1);
+        .replacen("\"version\":2", "\"version\":4", 1);
     fs::write(&path, text).unwrap();
     assert!(matches!(
         ue_export_io::read_scene(&path),
-        Err(ue_export_io::UeExportError::UnsupportedVersion(3))
+        Err(ue_export_io::UeExportError::UnsupportedVersion(4))
     ));
+}
+
+/// Version 3 is version 2 plus what an imported circuit needs: a textured
+/// `scenery` material, a `surface` key that names its ground set, a draw
+/// distance and a collision flag per mesh, and the `imported` marker. A
+/// scene using none of it still writes version 2; one using any of it
+/// writes 3 and reads back whole.
+#[test]
+fn a_version_3_manifest_carries_the_imported_extensions() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut scene = bake_test_scene();
+    assert_eq!(ue_export_io::scene_version(&scene), 2);
+    let plain = dir.path().join("Plain.uescene.json");
+    ue_export_io::write_scene(&plain, &scene).unwrap();
+    assert!(fs::read_to_string(&plain)
+        .unwrap()
+        .contains("\"version\":2"));
+
+    scene.imported = Some("ac".to_string());
+    scene.materials.push(UeMaterial {
+        key: "scenery_fence".to_string(),
+        family: "scenery".to_string(),
+        base_color: [1.0, 1.0, 1.0, 1.0],
+        texture: Some("Plain.textures/fence.dds".to_string()),
+        blend: Some("masked".to_string()),
+        two_sided: true,
+        roughness: Some(0.7),
+        alpha_cutoff: Some(0.4),
+        ..UeMaterial::default()
+    });
+    scene.materials.push(UeMaterial {
+        key: "ac_gravel".to_string(),
+        family: "surface".to_string(),
+        base_color: [0.62, 0.55, 0.4, 1.0],
+        ground_set: Some("gravel".to_string()),
+        ..UeMaterial::default()
+    });
+    scene.materials.sort_by(|a, b| a.key.cmp(&b.key));
+    let mut fence = golden_triangle();
+    fence.name = "scenery_fence_p0_p0".to_string();
+    fence.material_key = "scenery_fence".to_string();
+    fence.draw_distance_m = Some(400.0);
+    fence.collision = Some(false);
+    scene.meshes.push(fence);
+    assert_eq!(ue_export_io::scene_version(&scene), 3);
+
+    let path = dir.path().join("Imported.uescene.json");
+    ue_export_io::write_scene(&path, &scene).unwrap();
+    let text = fs::read_to_string(&path).unwrap();
+    assert!(text.contains("\"version\":3"));
+    assert!(text.contains("\"imported\":\"ac\""));
+    assert!(text.contains("\"draw_distance_m\":400.0"));
+    assert!(text.contains("\"collision\":false"));
+    assert!(text.contains("\"ground_set\":\"gravel\""));
+    // The version 2 keys stay where the catalog scanner expects them: the
+    // marker is a scalar ahead of the first array.
+    assert!(text.find("\"imported\"").unwrap() < text.find("\"materials\"").unwrap());
+
+    let back = ue_export_io::read_scene(&path).unwrap();
+    assert_eq!(back.imported.as_deref(), Some("ac"));
+    let fence = back.meshes.last().unwrap();
+    assert_eq!(fence.draw_distance_m, Some(400.0));
+    assert_eq!(fence.collision, Some(false));
+    assert!(back.meshes[0].draw_distance_m.is_none() && back.meshes[0].collision.is_none());
+    let material = back
+        .materials
+        .iter()
+        .find(|m| m.key == "scenery_fence")
+        .unwrap();
+    assert_eq!(
+        material.texture.as_deref(),
+        Some("Plain.textures/fence.dds")
+    );
+    assert_eq!(material.blend.as_deref(), Some("masked"));
+    assert!(material.two_sided);
+    assert_eq!(material.alpha_cutoff, Some(0.4));
+    let gravel = back
+        .materials
+        .iter()
+        .find(|m| m.key == "ac_gravel")
+        .unwrap();
+    assert_eq!(gravel.ground_set.as_deref(), Some("gravel"));
+}
+
+/// A track whose `.ats` says `imported` is the importer's: the export
+/// refuses to bake over it, and the marker survives a save.
+#[test]
+fn an_imported_track_is_not_baked_over() {
+    let dir = tempfile::tempdir().unwrap();
+    let yaml = dir.path().join("Mini.yaml");
+    fs::write(
+        &yaml,
+        "name: Mini\nnodes:\n  - { x: 0.0, y: 0.0 }\n  - { x: 100.0, y: 0.0 }\n  - { x: 200.0, y: 40.0 }\ndefault_width: 10.0\nclosed_loop: false\n",
+    )
+    .unwrap();
+    let track = track_core::track_io::load_track_file(&yaml).unwrap();
+    let mut scene = AtsScene::new_for_track(&track, "Mini.yaml");
+    assert!(!scene.is_imported());
+    assert_eq!(track_core::ats_io::imported_marker(&yaml).unwrap(), None);
+    scene.imported = Some("ac".to_string());
+    track_core::ats_io::save_ats(dir.path().join("Mini.ats"), &scene).unwrap();
+    assert_eq!(
+        track_core::ats_io::imported_marker(&yaml)
+            .unwrap()
+            .as_deref(),
+        Some("ac")
+    );
+    let loaded = track_core::ats_io::load_ats(dir.path().join("Mini.ats")).unwrap();
+    assert!(loaded.is_imported());
+
+    let out = dir.path().join("export");
+    match ue_export_io::export_track(&yaml, &out) {
+        Err(ue_export_io::UeExportError::Imported { stem, by }) => {
+            assert_eq!((stem.as_str(), by.as_str()), ("Mini", "ac"));
+        }
+        Err(other) => panic!("refused for the wrong reason: {other}"),
+        Ok(_) => panic!("an imported track was baked over"),
+    }
+    assert!(!out.exists(), "nothing was written");
+    assert!(!ue_export_io::road_sidecar_path_for(&yaml).exists());
 }
 
 /// A blob that does not hold what the manifest lists is an error, not a
@@ -1147,6 +1268,7 @@ fn golden_triangle() -> UeMesh {
         ],
         uvs: vec![0.123, 0.456, 4.567, 0.891, 0.345, 2.789],
         indices: vec![0, 2, 1],
+        ..UeMesh::default()
     }
 }
 
@@ -1213,6 +1335,7 @@ fn a_mesh_that_compresses_is_stored_as_zlib() {
         normals: Vec::new(),
         uvs: Vec::new(),
         indices: Vec::new(),
+        ..UeMesh::default()
     };
     for j in 0..n {
         for i in 0..n {

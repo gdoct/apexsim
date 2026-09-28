@@ -12,6 +12,7 @@ class UMaterialInterface;
 class UStaticMesh;
 class UStaticMeshComponent;
 class UTexture;
+class UTexture2D;
 class UWorld;
 
 APEXSIM_API DECLARE_LOG_CATEGORY_EXTERN(LogApexTrack, Log, All);
@@ -33,6 +34,15 @@ struct FApexTrackParents
 	TObjectPtr<UMaterialInterface> Brand;
 	/** `M_ApexDecal`: masked road paint. */
 	TObjectPtr<UMaterialInterface> Decal;
+	/**
+	 * The car parents under `/Game/Materials/Car` (opaque, masked,
+	 * translucent; two-sided, with `BaseColorTexture` and friends), which
+	 * an imported circuit's textured scenery is drawn on. Null on a clone
+	 * that has not baked them, when scenery draws flat on `Base`.
+	 */
+	TObjectPtr<UMaterialInterface> SceneryOpaque;
+	TObjectPtr<UMaterialInterface> SceneryMasked;
+	TObjectPtr<UMaterialInterface> SceneryTranslucent;
 };
 
 namespace ApexTrackMaterials
@@ -237,6 +247,15 @@ private:
 	 * in which case the decal's meshes are left out.
 	 */
 	UMaterialInterface* DecalMaterialFor(const FString& Key);
+	/**
+	 * An imported circuit's textured material (family `scenery`): an
+	 * instance of the car parent its blend mode wants, with the texture the
+	 * scene parsed made into a transient texture (once per path), or the
+	 * base colour alone when it has none.
+	 */
+	UMaterialInterface* SceneryMaterialFor(const FApexTrackScene& Scene, const FApexTrackMaterial& Source);
+	/** The transient texture for a parsed DDS, made on first use and kept per path. */
+	UTexture2D* TextureFor(const FApexTrackScene& Scene, const FString& Path);
 	/** Brand, marker and emissive slot overrides for an authored mesh on a component. */
 	void ApplyAuthoredSlots(UStaticMeshComponent* Component, const UStaticMesh* Mesh, const FString& Text);
 	/** A stand laid out of bays and end caps under one actor. */
@@ -263,6 +282,10 @@ private:
 	TMap<FString, TObjectPtr<UMaterialInterface>> SlotMaterials;
 	/** Decal keys whose texture is not imported: their meshes are skipped. */
 	TSet<FString> MissingDecals;
+	/** Texture path -> the transient texture made from the scene's parsed DDS. */
+	TMap<FString, TObjectPtr<UTexture2D>> Textures;
+	/** Bytes of texture the scene's scenery brought, for the log. */
+	int64 TextureBytes = 0;
 	/** Texts with no brand or marker texture, logged once each. */
 	TSet<FString> UnknownTexts;
 	TArray<FRoadMaterial> RoadMaterials;

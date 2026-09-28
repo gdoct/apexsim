@@ -38,6 +38,25 @@ pub fn load_ats<P: AsRef<Path>>(path: P) -> Result<AtsScene, AtsIoError> {
     Ok(scene)
 }
 
+/// The `imported` marker of the `.ats` beside a track file, without
+/// loading the scene: `Ok(None)` for a generated circuit or a track with
+/// no scene. The tools that rewrite a track's files ask this first and
+/// skip a track another tool wrote whole (docs/AC_TRACK_IMPORT.md).
+pub fn imported_marker<P: AsRef<Path>>(track_path: P) -> Result<Option<String>, AtsIoError> {
+    #[derive(serde::Deserialize)]
+    struct Head {
+        #[serde(default)]
+        imported: Option<String>,
+    }
+    let ats_path = ats_path_for(track_path);
+    if !ats_path.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(&ats_path)?;
+    let head: Head = serde_json::from_str(&content)?;
+    Ok(head.imported.filter(|s| !s.trim().is_empty()))
+}
+
 pub fn save_ats<P: AsRef<Path>>(path: P, scene: &AtsScene) -> Result<(), AtsIoError> {
     scene.validate().map_err(AtsIoError::Invalid)?;
     let path = path.as_ref();

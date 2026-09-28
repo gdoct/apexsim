@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Track/ApexDdsReader.h"
 
 /**
  * In-memory form of a `.uescene.json` baked by the ApexSim track editor.
@@ -24,9 +25,33 @@
 struct FApexTrackMaterial
 {
 	FString Key;
-	/** road, curb, surface, marking or pit_lane. */
+	/** road, curb, surface, marking, pit_lane, decal or (version 3) scenery. */
 	FString Family;
 	FLinearColor BaseColor = FLinearColor::White;
+	/**
+	 * Version 3, `surface` family: which of the kit's ground texture sets
+	 * the key samples (`grass`, `gravel`...) when the key itself does not
+	 * say; empty for the generated keys, which `ApexGround::LookFor` reads.
+	 */
+	FString GroundSet;
+	/**
+	 * Version 3, `scenery` family: a DDS relative to the manifest's folder,
+	 * parsed into `FApexTrackScene::Textures`; empty for a flat colour.
+	 */
+	FString Texture;
+	/** Version 3, `scenery`: `opaque`, `masked` or `translucent`. */
+	FString Blend;
+	bool bTwoSided = false;
+	/** Version 3, `scenery`: roughness, or negative for the parent's. */
+	float Roughness = -1.0f;
+	/** Version 3, `scenery` masked: the alpha cutoff, or negative for the parent's. */
+	float AlphaCutoff = -1.0f;
+
+	/** An imported, textured material drawn on the car parents rather than the track base. */
+	bool IsScenery() const
+	{
+		return Family == TEXT("scenery");
+	}
 };
 
 /** One bakeable static mesh. */
@@ -40,6 +65,14 @@ struct FApexTrackMesh
 	/** u along the track, v across it, both in meters. */
 	TArray<FVector2f> UVs;
 	TArray<uint32> Indices;
+	/** Version 3: how far the mesh is drawn, UE cm; 0 for always. */
+	float DrawDistanceCm = 0.0f;
+	/**
+	 * Version 3: whether the mesh is a traceable track surface (a collision
+	 * component for the racing line and the cameras). Every version 2 mesh
+	 * is; an imported circuit's scenery is not.
+	 */
+	bool bCollision = true;
 
 	int32 NumTriangles() const { return Indices.Num() / 3; }
 };
@@ -141,6 +174,8 @@ struct FApexTrackSceneHeader
 	FString Description;
 	/** Version 2: the mesh blob's file name, beside the manifest. */
 	FString MeshBlob;
+	/** Version 3: which importer wrote the export whole (`ac`); empty for a generated circuit. */
+	FString Imported;
 };
 
 struct FApexTrackScene
@@ -148,6 +183,10 @@ struct FApexTrackScene
 	FString TrackId;
 	FString TrackName;
 	FString SourceTrack;
+	/** The manifest's folder, which the materials' texture paths are relative to. */
+	FString BaseDir;
+	/** See `FApexTrackSceneHeader::Imported`. */
+	FString Imported;
 	/** See `FApexTrackSceneHeader::SourceCrc`. */
 	int64 SourceCrc = 0;
 	bool bClosedLoop = false;
@@ -161,6 +200,13 @@ struct FApexTrackScene
 	FApexTrackDressing Dressing;
 
 	TArray<FApexTrackMaterial> Materials;
+	/**
+	 * Version 3: every texture a scenery material names, keyed by the path
+	 * the material carries, read and parsed with the scene (off the game
+	 * thread, like the meshes). A material whose texture failed to read
+	 * has no entry here and draws its base colour.
+	 */
+	TMap<FString, FApexTrackTexture> Textures;
 	TArray<FApexTrackMesh> Meshes;
 	TArray<FApexTrackProp> Props;
 	TArray<FApexTrackGridSlot> Grid;

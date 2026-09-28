@@ -76,6 +76,10 @@ pub const UE_SCENE_FORMAT: &str = "apex-ue-scene";
 /// 2: the vertex data moved out of the JSON into a `<Stem>.uemesh` blob
 /// beside it (`ue_export_io::write_scene`), and `source_crc` appeared.
 pub const UE_SCENE_VERSION: u32 = 2;
+/// The layout with the textured-material and per-mesh extensions an
+/// imported circuit needs (docs/AC_TRACK_IMPORT.md); written only when a
+/// scene uses one of them, read by `read_scene` and the client either way.
+pub const UE_SCENE_VERSION_EXTENDED: u32 = 3;
 
 /// Meters -> Unreal centimeters.
 const M_TO_CM: f32 = 100.0;
@@ -238,6 +242,10 @@ pub struct UeScene {
     /// Season and spectators: which kit variants the importer picks
     /// (`_autumn` trees, `_crowd` stands). The props keep their base keys.
     pub dressing: UeDressing,
+    /// Version 3: which importer wrote the export whole (`"ac"`), for the
+    /// log; absent on a generated circuit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported: Option<String>,
     /// Every material key referenced by `meshes`, with what the commandlet
     /// needs to generate a material for it. Sorted by key.
     pub materials: Vec<UeMaterial>,
@@ -284,20 +292,51 @@ pub struct UeMetadata {
 /// How a material key should look. The commandlet generates one material
 /// instance per key; `base_color` is what the editor previewed, which is at
 /// least a legible stand-in until real materials exist in the project.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct UeMaterial {
     pub key: String,
-    /// `road`, `curb`, `surface`, `marking`, `decal` or `pit_lane` — lets the
-    /// commandlet pick a parent material per family.
+    /// `road`, `curb`, `surface`, `marking`, `decal`, `pit_lane` or, from
+    /// format version 3, `scenery` (an imported, textured material) — lets
+    /// the builder pick a parent material per family.
     pub family: String,
     /// Linear RGBA.
     pub base_color: [f32; 4],
+    /// Version 3, `surface` family: which of the kit's ground texture sets
+    /// the key samples (`grass`, `gravel`, ...), when the key itself does
+    /// not say (an imported circuit's `ac_grass`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ground_set: Option<String>,
+    /// Version 3, `scenery` family: a DDS beside the manifest, relative to
+    /// its directory (`<Stem>.textures/name.dds`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub texture: Option<String>,
+    /// Version 3, `scenery`: `opaque`, `masked` or `translucent`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blend: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub two_sided: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub roughness: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alpha_cutoff: Option<f32>,
+}
+
+impl UeMaterial {
+    /// Whether this material uses anything a version 2 reader would not see.
+    pub fn needs_version_3(&self) -> bool {
+        self.ground_set.is_some()
+            || self.texture.is_some()
+            || self.blend.is_some()
+            || self.two_sided
+            || self.roughness.is_some()
+            || self.alpha_cutoff.is_some()
+    }
 }
 
 /// One bakeable static mesh. Buffers are flattened (`[x, y, z, x, y, z, …]`).
 /// On disk (version 2) they live in the `.uemesh` blob, not the JSON; the
 /// manifest lists only each mesh's name, key and counts.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct UeMesh {
     /// `{material_key}_{section:03}`, unique within the scene.
     pub name: String,
@@ -310,6 +349,21 @@ pub struct UeMesh {
     pub uvs: Vec<f32>,
     /// Triangle list, already wound for Unreal's left-handed frame.
     pub indices: Vec<u32>,
+    /// Version 3: how far the mesh is drawn, metres; `None` for always (an
+    /// imported circuit carries the kn5's own `lodOut`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draw_distance_m: Option<f32>,
+    /// Version 3: whether the mesh is a traceable track surface (collision
+    /// for the racing line's snap and the cameras); `None` means yes, as
+    /// every version 2 mesh is. Scenery says `false`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collision: Option<bool>,
+}
+
+impl UeMesh {
+    pub fn needs_version_3(&self) -> bool {
+        self.draw_distance_m.is_some() || self.collision.is_some()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -1149,6 +1203,7 @@ pub fn bake_all_with_options(
         length_cm: round(path.total_length_m() * M_TO_CM, 1),
         metadata,
         dressing: scene.dressing.into(),
+        imported: None,
         materials: materials.into_values().collect(),
         meshes: merge_chunks(chunks),
         props,
@@ -1463,6 +1518,7 @@ impl Bake<'_> {
                 key: key.to_string(),
                 family: family.to_string(),
                 base_color: base_color.map(|c| round(c, 4)),
+                ..UeMaterial::default()
             });
     }
 
@@ -2187,6 +2243,7 @@ fn merge_chunks(mut chunks: Vec<Chunk>) -> Vec<UeMesh> {
                 normals: Vec::new(),
                 uvs: Vec::new(),
                 indices: Vec::new(),
+                ..UeMesh::default()
             });
             open = Some(bucket);
         }

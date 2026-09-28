@@ -151,6 +151,12 @@ if (-not $SkipTracks) {
       if (Test-Path -LiteralPath $preview) {
          Copy-Item -LiteralPath $preview -Destination (Join-Path $tracksOut "$stem.png") -Force
       }
+      # An imported circuit's textures (scripts/ac_import.py) sit in a
+      # folder beside its manifest, which the manifest names by relative path.
+      $textures = Join-Path $exportDir "$stem.textures"
+      if (Test-Path -LiteralPath $textures) {
+         Copy-Item -LiteralPath $textures -Destination (Join-Path $tracksOut "$stem.textures") -Recurse -Force
+      }
    }
    if ($manifests.Count -eq 0) {
       Write-Warning "no track exports in $exportDir; the game will have nothing to race on (run scripts/build_track_levels.ps1)"

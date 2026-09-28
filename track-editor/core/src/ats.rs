@@ -38,6 +38,14 @@ pub struct AtsScene {
     pub source_track: String,
     /// Track name copied from the source at creation time, for display.
     pub track_name: String,
+    /// Set by an importer that wrote this track whole (`"ac"`: the Assetto
+    /// Corsa import, docs/AC_TRACK_IMPORT.md). Such a track's sidecars and
+    /// its client export come from the importer, and its centerline is a
+    /// measurement of the imported road, so `ats-export`, `ats-dress`,
+    /// `ats-groom`, `ats-smooth` and `ats-bank` all leave it alone. `None`
+    /// for every generated circuit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported: Option<String>,
     /// Ground beside the track: runoff, gravel traps, grass. Listed before
     /// the curbs because that is the order they stack on the ground.
     #[serde(default)]
@@ -585,6 +593,7 @@ impl AtsScene {
             version: ATS_VERSION,
             source_track: source_file_name.to_string(),
             track_name: track.name.clone(),
+            imported: None,
             surfaces: Vec::new(),
             curbs: Vec::new(),
             markings: vec![Marking {
@@ -606,6 +615,13 @@ impl AtsScene {
     }
 
     /// Hand out the next element id.
+    /// Whether another tool owns this track whole (see `imported`).
+    pub fn is_imported(&self) -> bool {
+        self.imported
+            .as_deref()
+            .is_some_and(|s| !s.trim().is_empty())
+    }
+
     pub fn alloc_id(&mut self) -> u64 {
         let id = self.next_id;
         self.next_id += 1;

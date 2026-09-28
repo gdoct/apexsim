@@ -78,6 +78,18 @@ fn main() -> ExitCode {
     let mut failures = 0usize;
     for track_path in &tracks {
         let name = track_path.display();
+        match ats_io::imported_marker(track_path) {
+            Ok(Some(by)) => {
+                println!("{name}: skipped (imported by {by}; see docs/AC_TRACK_IMPORT.md)");
+                continue;
+            }
+            Ok(None) => {}
+            Err(e) => {
+                eprintln!("{name}: {e}");
+                failures += 1;
+                continue;
+            }
+        }
         let layout_path = layout::layout_path_for(track_path);
         let layout = match layout::load_layout(&layout_path) {
             Ok(Some(layout)) => layout,

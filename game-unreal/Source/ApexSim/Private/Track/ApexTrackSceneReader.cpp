@@ -1,5 +1,7 @@
 #include "Track/ApexTrackSceneReader.h"
 
+#include "ApexSim.h"
+#include "Track/ApexDdsReader.h"
 #include "Track/ApexTrackSceneData.h"
 #include "Dom/JsonObject.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -13,7 +15,8 @@
 namespace
 {
 	const TCHAR* kFormatTag = TEXT("apex-ue-scene");
-	constexpr int32 kSupportedVersion = 2;
+	/** Version 3 adds the imported circuits' textured materials and per-mesh fields. */
+	constexpr int32 kSupportedVersion = 3;
 	const TCHAR* kSceneExtension = TEXT(".uescene.json");
 	const TCHAR* kMeshBlobExtension = TEXT(".uemesh");
 
@@ -443,6 +446,10 @@ bool FApexTrackSceneReader::LoadHeader(const FString& Path, FApexTrackSceneHeade
 			{
 				Header.MeshBlob = Value;
 			}
+			else if (Id == TEXT("imported"))
+			{
+				Header.Imported = Value;
+			}
 		}
 		else if (Notation == EJsonNotation::Number)
 		{
@@ -525,6 +532,8 @@ bool FApexTrackSceneReader::LoadFromFile(
 	Scene.TrackId = GetString(Root, TEXT("track_id"));
 	Scene.TrackName = GetString(Root, TEXT("track_name"));
 	Scene.SourceTrack = GetString(Root, TEXT("source_track"));
+	Scene.BaseDir = FPaths::GetPath(Path);
+	Scene.Imported = GetString(Root, TEXT("imported"));
 	{
 		// Not `GetNumber`: a float cannot hold a 32-bit checksum exactly.
 		double Crc = 0.0;
@@ -575,6 +584,13 @@ bool FApexTrackSceneReader::LoadFromFile(
 			{
 				Material.BaseColor = FLinearColor(Color[0], Color[1], Color[2], Color[3]);
 			}
+			// Version 3 (absent on a version 2 export, so every default holds).
+			Material.GroundSet = GetString(Object, TEXT("ground_set"));
+			Material.Texture = GetString(Object, TEXT("texture"));
+			Material.Blend = GetString(Object, TEXT("blend"));
+			Object->TryGetBoolField(TEXT("two_sided"), Material.bTwoSided);
+			Material.Roughness = GetNumber(Object, TEXT("roughness"), -1.0f);
+			Material.AlphaCutoff = GetNumber(Object, TEXT("alpha_cutoff"), -1.0f);
 			Scene.Materials.Add(MoveTemp(Material));
 		}
 	}
@@ -608,7 +624,7 @@ bool FApexTrackSceneReader::LoadFromFile(
 			for (int32 i = 0; i < Headers->Num(); ++i)
 			{
 				const TSharedPtr<FJsonObject> Object = (*Headers)[i]->AsObject();
-				const FApexTrackMesh& Mesh = Scene.Meshes[i];
+				FApexTrackMesh& Mesh = Scene.Meshes[i];
 				if (!Object.IsValid() || GetString(Object, TEXT("name")) != Mesh.Name
 					|| GetString(Object, TEXT("material_key")) != Mesh.MaterialKey)
 				{
@@ -616,6 +632,9 @@ bool FApexTrackSceneReader::LoadFromFile(
 						*Path, i, *Mesh.Name);
 					return false;
 				}
+				// Version 3: the per-mesh fields ride in the header, the buffers in the blob.
+				Mesh.DrawDistanceCm = FMath::Max(0.0f, GetNumber(Object, TEXT("draw_distance_m"), 0.0f)) * 100.0f;
+				Object->TryGetBoolField(TEXT("collision"), Mesh.bCollision);
 			}
 		}
 	}
@@ -744,6 +763,45 @@ bool FApexTrackSceneReader::LoadFromFile(
 				TEXT("mesh %s references material \"%s\", which the export does not declare"),
 				*Mesh.Name, *Mesh.MaterialKey);
 			return false;
+		}
+	}
+
+	// Version 3: the scenery materials' textures, parsed here so the game
+	// thread only copies blocks. A texture that will not read is logged and
+	// its material draws flat; it never fails the track.
+	for (FApexTrackMaterial& Material : Scene.Materials)
+	{
+		if (Material.Texture.IsEmpty() || Scene.Textures.Contains(Material.Texture))
+		{
+			continue;
+		}
+		if (Material.Texture.Contains(TEXT("..")) || FPaths::IsRelative(Material.Texture) == false)
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("%s: material %s names texture %s, which is not beside the manifest; drawing it flat"),
+				*Path, *Material.Key, *Material.Texture);
+			Material.Texture.Empty();
+			continue;
+		}
+		const FString TexturePath = FPaths::Combine(Scene.BaseDir, Material.Texture);
+		TArray<uint8> Bytes;
+		FApexTrackTexture Texture;
+		FString TextureError;
+		if (!FFileHelper::LoadFileToArray(Bytes, *TexturePath) || !ApexDds::Parse(Bytes, Texture, TextureError))
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("%s: texture %s could not be read (%s); material %s draws flat"), *Path,
+				*TexturePath, TextureError.IsEmpty() ? TEXT("unreadable") : *TextureError, *Material.Key);
+			Material.Texture.Empty();
+			continue;
+		}
+		Texture.Path = Material.Texture;
+		Scene.Textures.Add(Material.Texture, MoveTemp(Texture));
+	}
+	// Materials that share a texture that failed: clear them too.
+	for (FApexTrackMaterial& Material : Scene.Materials)
+	{
+		if (!Material.Texture.IsEmpty() && !Scene.Textures.Contains(Material.Texture))
+		{
+			Material.Texture.Empty();
 		}
 	}
 

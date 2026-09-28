@@ -31,6 +31,23 @@ def track_dir(stem: str) -> Path:
     return DEFAULT_DIR
 
 
+def imported_marker(yaml_path: Path) -> str | None:
+    """What the `.ats` beside a track YAML says imported it (`"ac"` for
+    `scripts/ac_import.py`), or None for a generated circuit. Such a track's
+    export, sidecars and preview are the importer's."""
+    ats = Path(yaml_path).with_suffix(".ats")
+    if not ats.is_file():
+        return None
+    import json
+    try:
+        with open(ats, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    value = data.get("imported") if isinstance(data, dict) else None
+    return str(value) if isinstance(value, str) and value.strip() else None
+
+
 def track_glob(pattern: str) -> list[Path]:
     """`pattern` matched in both folders, default first, sorted within each."""
     return [p for folder in TRACK_DIRS if folder.is_dir() for p in sorted(folder.glob(pattern))]

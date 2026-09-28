@@ -66,6 +66,18 @@ fn main() -> ExitCode {
     let mut written = 0usize;
     for track_path in &tracks {
         let name = track_path.display();
+        match ats_io::imported_marker(track_path) {
+            Ok(Some(by)) => {
+                println!("{name}: skipped (imported by {by}; see docs/AC_TRACK_IMPORT.md)");
+                continue;
+            }
+            Ok(None) => {}
+            Err(e) => {
+                eprintln!("{name}: {e}");
+                failures += 1;
+                continue;
+            }
+        }
         let opened = match project::open_project(track_path) {
             Ok(opened) => opened,
             Err(e) => {

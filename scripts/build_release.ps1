@@ -233,6 +233,12 @@ function Copy-RuntimeTracks {
         } else {
             $noPreview.Add($stem)
         }
+        # An imported circuit's textures (scripts/ac_import.py; only with
+        # -IncludeCustomTracks) sit in a folder beside its manifest.
+        $textures = Join-Path $ExportDir "$stem.textures"
+        if (Test-Path -LiteralPath $textures) {
+            Copy-Item -LiteralPath $textures -Destination (Join-Path $Destination "$stem.textures") -Recurse -Force
+        }
     }
     if ($noPreview.Count -gt 0) {
         Write-Warning ("no preview for: {0} (run build_track_catalog.py; the picker shows placeholder art)" -f ($noPreview -join ', '))

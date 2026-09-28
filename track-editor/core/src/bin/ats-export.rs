@@ -161,6 +161,14 @@ fn main() -> ExitCode {
                     }
                 );
             }
+            Err(ue_export_io::UeExportError::Imported { stem, by }) if all => {
+                // An imported circuit's export is the importer's; a batch
+                // run walks past it.
+                println!(
+                    "{}: skipped (imported by {by}; its export is the importer's)",
+                    stem
+                );
+            }
             Err(e) => {
                 eprintln!("{}: {e}", track.display());
                 failures += 1;
@@ -185,6 +193,8 @@ const USAGE: &str = "\
 usage: ats-export [--all] [--out DIR] [--flat-curbs] [--keep-sidecars LIST] [TRACK.yaml ...]
 
   --all, -a      export every *.yaml under content/tracks/{default,custom}
+                 (a track whose .ats says \"imported\" is skipped: its export and
+                 sidecars are its importer's)
   --out, -o DIR  destination for the .uescene.json manifest and the .uemesh mesh blob
                  beside it (default: build/tracks); the .ground.msgpack,
                  .curbs.msgpack, .walls.msgpack and .road.msgpack sidecars always land

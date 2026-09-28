@@ -177,6 +177,14 @@ function Resolve-TrackFiles {
                 ForEach-Object { $_.BaseName }) -join ', '
             throw "no track named `"$stem`" in content\tracks\default or content\tracks\custom. Available: $available"
         }
+        # An imported circuit (scripts/ac_import.py) is the importer's whole:
+        # nothing here can rebuild it, and the tools would refuse anyway.
+        if (Test-ApexImportedTrack -TrackFile $path) {
+            $rebuild = Get-ApexImportedTrackRebuild -TrackFile $path
+            Write-Warning ("skipping ${stem}: it was imported, so its export and sidecars come from the importer" +
+                $(if ($rebuild) { "; rebuild it with: $rebuild" } else { '' }))
+            continue
+        }
         $files += $path
     }
     return $files
@@ -192,6 +200,14 @@ $trackFiles = @()
 if ($Track) {
     # @() keeps a single track from unrolling into a bare string.
     $trackFiles = @(Resolve-TrackFiles $Track)
+    if ($trackFiles.Count -eq 0) {
+        # Every named track was imported: there is nothing to dress, bake or
+        # draw, and running the batch forms instead would rebake the calendar.
+        Write-Host 'Nothing to bake: every named track is an import.' -ForegroundColor Yellow
+        $SkipDress = $true
+        $SkipExport = $true
+        $SkipPreviews = $true
+    }
 }
 
 $needEngine = $Build -or $ImportProps -or $ImportLevels -or -not $SkipMaterials

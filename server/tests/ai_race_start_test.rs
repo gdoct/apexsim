@@ -35,12 +35,21 @@ fn road_contact() -> apexsim_server::config::RoadContactMode {
         .unwrap_or(apexsim_server::config::RoadContactMode::Centerline)
 }
 
+/// `<stem>.yaml` in the shipped folder, else the player's own
+/// (`content/tracks/custom`, where `scripts/ac_import.py` writes).
+fn track_file(stem: &str) -> PathBuf {
+    let custom = repo(&format!("content/tracks/custom/{stem}.yaml"));
+    let default = repo(&format!("content/tracks/default/{stem}.yaml"));
+    if !default.exists() && custom.exists() {
+        custom
+    } else {
+        default
+    }
+}
+
 fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
-    let track = TrackLoader::load_from_file_with(
-        repo(&format!("content/tracks/default/{track}.yaml")),
-        road_contact(),
-    )
-    .expect("track loads");
+    let track =
+        TrackLoader::load_from_file_with(track_file(track), road_contact()).expect("track loads");
     let car = CarLoader::load_from_file(&repo(&format!("content/cars/{car}/car.toml")))
         .expect("car loads");
     let car_id = car.id;
@@ -213,8 +222,12 @@ fn ai_field_makes_the_first_lap_at_le_mans() {
 #[test]
 #[ignore]
 fn survey_ai_races_on_every_circuit() {
-    let mut tracks: Vec<String> = std::fs::read_dir(repo("content/tracks/default"))
-        .expect("tracks")
+    // The shipped circuits and the player's own (an imported AC track is
+    // named by its stem too: `SURVEY_TRACKS=KsZandvoort`).
+    let mut tracks: Vec<String> = ["content/tracks/default", "content/tracks/custom"]
+        .iter()
+        .filter_map(|dir| std::fs::read_dir(repo(dir)).ok())
+        .flatten()
         .filter_map(|entry| {
             let path = entry.ok()?.path();
             if path.extension()? != "yaml" {
@@ -224,6 +237,7 @@ fn survey_ai_races_on_every_circuit() {
         })
         .collect();
     tracks.sort();
+    tracks.dedup();
     // `SURVEY_TRACKS=Spa,Monza` narrows the run to a few circuits.
     if let Ok(only) = std::env::var("SURVEY_TRACKS") {
         let only: Vec<&str> = only.split(',').map(str::trim).collect();
