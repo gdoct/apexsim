@@ -155,11 +155,12 @@ preview `.png`, and the run aborts if a circuit has no export or the track
 materials were never baked. A new circuit can be added to an installed
 game by dropping those three files in `Game/Tracks` and its YAML (with the
 sidecars) in `Server/content/tracks/default`. The cars ship the same way
-(see "Cars" below): `Game/Cars/<folder>/` holds each car.toml with the GLBs
+(see "Cars" below): `Game/Cars/default/<folder>/` holds each car.toml with the GLBs
 and logos it names and `Game/Wheels/` the class wheels; the run aborts if a
 car.toml names a file that is not there or the car materials were never
-baked. A new car is its folder in `Game/Cars` and its car.toml in
-`Server/content/cars/<folder>`.
+baked. A new car is its folder in `Game/Cars/custom` and its car.toml in
+`Server/content/cars/custom/<folder>`. `content/cars/custom` is shipped only
+with `-IncludeCustomCars` (both scripts), like `-IncludeCustomTracks`.
 
 Layout: `Game/` (the packaged client, `Tracks/`, `Cars/`, `Wheels/`, plus a `settings.sample.yml`), `Server/` (`apexsim-server.exe`,
 `server.toml` and only the content the server reads � `car.toml` per car and
@@ -715,7 +716,8 @@ How it reads AC (`scripts/ac_import/`: `kn5.py`, `ai.py`, `ini.py`,
 - **The `.ai` files** carry an `i32 extra_count` between the points and the
   18-float records (the "shifted by one float" of the feasibility study);
   `side_left`/`side_right` are only a fallback.
-- **Physics** is every mesh named `NN<KEY>` across *all* the layout's kn5s,
+- **Physics** is every mesh named `NN<KEY>` (any number of digits: the
+  Nordschleife's last 2 km is `100TRM-NRM`…) across *all* the layout's kn5s,
   as AC itself finds them (Kunos keep them in a non-renderable file, mods
   often draw them): the longest `surfaces.ini` KEY the name starts with,
   `WALL` walls. Contact classes from the key (`KERB/CURB` curb; `GRASS/
@@ -739,10 +741,12 @@ How it reads AC (`scripts/ac_import/`: `kn5.py`, `ai.py`, `ini.py`,
   slot's x, y), DRS from `drs_zones.ini` re-based from the AI start.
 - **Scene.** Every renderable kn5 mesh at `lodIn == 0` (lower LODs, `AC_*`
   logic objects, crews, `GROOVE` overlays dropped), classified **per
-  mesh**: what physics lies under three quarters of its vertices decides
+  material**: what physics lies under its meshes' triangle centres decides
   (on the road -> `road_ac`, family road, so the wet look applies; on
-  grass/sand/gravel -> `ac_<set>`, family surface with `ground_set`), else a
-  multi-layer terrain shader or a grass/sand/gravel name is kit terrain,
+  grass/sand/gravel -> `ac_<set>`, family surface with `ground_set`; never
+  sampled at vertices, which on a road ribbon all sit on the grass edge),
+  else a plain `ksMultilayer` shader or a grass/sand/gravel name is kit
+  terrain (`ksMultilayer_fresnel*` is road, `_objsp` is an object),
   else an AC-textured `scenery_<material>` material on the **car parents**
   (opaque / masked / translucent by the kn5's alpha flags and shader, two
   sided, roughness from `ksSpecularEXP`). Alpha-tested or blended
@@ -1005,7 +1009,9 @@ surface of another leg extrapolated to it, which had four of Zandvoort's
 exit-road nodes 7 m in the air.
 
 ### Cars (`content/cars`, `UApexCarContentSubsystem`, docs/RUNTIME_CONTENT_LOADING.md)
-A car is `content/cars/<folder>/car.toml` plus the GLB its `model` names, and,
+A car is `content/cars/default/<folder>/car.toml` (a shipped car; the
+player's own, imported or hand-made, go in `content/cars/custom/<folder>`,
+gitignored but for its README) plus the GLB its `model` names, and,
 like a track, **the game builds it from those files**; nothing about a car is
 cooked (`/Game/Cars` is in `DirectoriesToNeverCook`). `UApexCarContentSubsystem`
 (an engine subsystem, `ApexSim/Cars/`) reads every car.toml on first use
@@ -1021,7 +1027,12 @@ Interchange's parameter names (`BaseColorFactor`, `BaseColorTexture`,
 `MetallicFactor`, `RoughnessFactor`, `EmissiveFactor`), so the livery, ghost
 and brake-light code is unchanged. Folders: `-ApexCarsDir=`, then `Cars/`
 beside `ApexSim.exe` in a package (wheels in `Wheels/`), else the repo's
-`content/cars` (wheels in `content/wheels`). Edit a car, re-export, then
+`content/cars` (wheels in `content/wheels`); each is read as `default/` then
+`custom/` (`UApexCarContentSubsystem::CarFolders`; a folder with neither is
+read as it is), and the server does the same (`car_loader::car_toml_paths`),
+so a custom car reusing a shipped `id` is skipped with a warning. A folder
+name must be unique across both (meshes and `/Game/Cars/<folder>` are keyed
+by it; `Test-ApexCars` flags a clash). Edit a car, re-export, then
 `apexsim.car.Rescan` or restart. The race director `Prefetch`es the roster's
 GLBs on the thread pool before it dresses the cars.
 
@@ -2179,7 +2190,7 @@ There is no wheel support for an H-pattern shifter (the wire protocol's gear
 field is filled from a shift delta, not an absolute gear).
 
 ### Content (`content/`)
-- `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges)
+- `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges): `cars/default/<folder>` the shipped cars, `cars/custom/<folder>` the player's own (gitignored but for its README, read after `default/`, shipped only with `-IncludeCustomCars`)
 - No generator scripts live in `content/`: the Blender builders and texture generators that write the cars, wheels and prop kit are in `scripts/content/{cars,props,wheels}` (libraries `carlib.py`, `apex_props.py`, `apex_tex.py` beside them). The Blender ones find the repo through `APEXSIM_ROOT` (default `E:pexsim`), since `exec(open(...).read())` gives them no `__file__`; the plain-Python ones (`liveries.py`, `gen_graffiti.py`, `gen_brands.py`) from their own path. Either way they write into `content/`
 - `tracks/default/` - the shipped circuits: YAML, `.ats`, dossier, DEM and the generated sidecars side by side
 - `tracks/custom/` - the player's own tracks (imported or hand-made), same layout, gitignored but for its README and not shipped unless `build_release.ps1`/`build_game_standalone.ps1` get `-IncludeCustomTracks`. Every tool walks `default/` then `custom/` (`ue_export_io::TRACK_DIRS`, `scripts/track_dirs.py`, `scripts/lib/ApexTracks.ps1`); a stem must be unique across both (`ats-export --all` refuses a shared one, since exports are keyed by stem), and a custom track reusing a shipped `track_id` is skipped by the server with a warning

@@ -65,6 +65,11 @@ pub struct CarConfig {
     pub gear_ratios: Vec<f32>, // Gear ratios (including reverse as negative)
     pub final_drive_ratio: f32,
     pub drivetrain: Drivetrain, // FWD, RWD, AWD
+    /// Share of the drive an AWD car sends to the front axle
+    /// (`[drivetrain] awd_front_share`); the rest goes to the rear. Ignored
+    /// by FWD and RWD cars.
+    #[serde(default = "default_awd_front_share")]
+    pub awd_front_share: f32,
 
     // Engine simulation parameters (more detailed than the legacy fields above).
     // These are optional/soft-configurable: physics falls back to legacy behavior if unset.
@@ -159,6 +164,59 @@ pub struct EngineConfig {
     pub engine_brake_torque_nm: f32,
     /// Idle controller strength (simple proportional gain).
     pub idle_control_gain: f32,
+    /// Turbo lag (`[engine.turbo]`), for a car whose torque curve already
+    /// carries its boost. `None`: the curve is delivered the instant the
+    /// throttle opens, as it always was.
+    #[serde(default)]
+    pub turbo: Option<TurboConfig>,
+}
+
+/// How long a turbo takes to deliver the boosted part of the torque curve.
+///
+/// The curve is the engine at full boost (an Assetto Corsa import bakes
+/// `power.lut x (1 + boost)` into it). Of that, `1 - boosted_share` is the
+/// engine without boost and arrives with the throttle; the rest follows a
+/// first-order spool toward the throttle opening, `lag_up_s` to build and
+/// `lag_down_s` to bleed off. Only a tip-in waits for it: at a steady
+/// pedal the spool has caught up and the curve is delivered exactly, and a
+/// lift never costs torque the pedal still asks for.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TurboConfig {
+    /// Share of the curve's torque that is boost, 0..0.9.
+    pub boosted_share: f32,
+    /// Spool-up time constant, s.
+    pub lag_up_s: f32,
+    /// Spool-down time constant, s.
+    pub lag_down_s: f32,
+}
+
+impl TurboConfig {
+    /// The spool one tick on from `spool`, chasing the throttle opening.
+    pub fn spool_toward(&self, spool: f32, throttle: f32, dt: f32) -> f32 {
+        let target = throttle.clamp(0.0, 1.0);
+        let tau = if target > spool {
+            self.lag_up_s
+        } else {
+            self.lag_down_s
+        };
+        let step = if tau > 0.0 {
+            1.0 - (-dt / tau).exp()
+        } else {
+            1.0
+        };
+        (spool + (target - spool) * step).clamp(0.0, 1.0)
+    }
+
+    /// Share of the curve delivered at `throttle` with the turbo at
+    /// `spool`: 1 once the spool has reached the pedal.
+    pub fn torque_factor(&self, spool: f32, throttle: f32) -> f32 {
+        let ready = if throttle > 0.0 {
+            (spool / throttle).min(1.0)
+        } else {
+            1.0
+        };
+        1.0 - self.boosted_share * (1.0 - ready)
+    }
 }
 
 impl Default for EngineConfig {
@@ -170,6 +228,7 @@ impl Default for EngineConfig {
             friction_torque_nm: 20.0,
             engine_brake_torque_nm: 80.0,
             idle_control_gain: 0.15,
+            turbo: None,
         }
     }
 }
@@ -202,6 +261,13 @@ pub struct DifferentialConfig {
     pub lock_power: f32,
     /// Lock factor on coast (0-1).
     pub lock_coast: f32,
+    /// Whether the physics runs the differential at all
+    /// (`[differential] simulated = true`). Every car's table predates the
+    /// model and its lap time was set without one, so a car only gets a
+    /// differential by asking for it; without, each driven wheel gets half
+    /// its axle's torque whatever the other can carry.
+    #[serde(default)]
+    pub simulated: bool,
 }
 
 impl Default for DifferentialConfig {
@@ -211,6 +277,7 @@ impl Default for DifferentialConfig {
             preload_nm: 60.0,
             lock_power: 0.35,
             lock_coast: 0.20,
+            simulated: false,
         }
     }
 }
@@ -307,11 +374,48 @@ pub struct TireConfig {
     pub pressure_rear_kpa: f32,
     #[serde(default = "default_tyre_pressure_kpa")]
     pub optimal_pressure_kpa: f32,
+    /// Load sensitivity per axle, the exponent of the peak force in the
+    /// load (Assetto Corsa's `LS_EXPY`): the peak friction coefficient is
+    /// `mu x (Fz / Fz_ref)^(load_sensitivity - 1)`, so below 1 a tyre
+    /// pressed harder grips less per newton, which is what makes load
+    /// transfer cost grip. 1.0 is the linear tyre every car had before.
+    #[serde(default = "default_one")]
+    pub load_sensitivity_front: f32,
+    #[serde(default = "default_one")]
+    pub load_sensitivity_rear: f32,
+    /// The load at which a tyre grips exactly its axle's coefficient
+    /// (`Fz_ref`), N. `None`: the axle's own static per-wheel load, so the
+    /// car standing still grips as `grip_coefficient` says and the racing
+    /// line and the AI, which read that figure, stay honest.
+    #[serde(default)]
+    pub reference_load_front_n: Option<f32>,
+    #[serde(default)]
+    pub reference_load_rear_n: Option<f32>,
+    /// Longitudinal peak over the lateral one (AC's `DX0 / DY0`): the
+    /// friction circle becomes an ellipse this much longer along the
+    /// tyre. 1.0 is the circle.
+    #[serde(default = "default_one")]
+    pub longitudinal_grip_factor: f32,
+    /// Per-axle multipliers on `grip_coefficient`, for a car with a
+    /// different compound front and rear. 1.0 on both is one compound.
+    #[serde(default = "default_one")]
+    pub front_grip_scale: f32,
+    #[serde(default = "default_one")]
+    pub rear_grip_scale: f32,
 }
 
 fn default_tyre_pressure_kpa() -> f32 {
     180.0
 }
+
+fn default_one() -> f32 {
+    1.0
+}
+
+/// Load over the reference is clamped to this range before the load
+/// sensitivity sees it, so an unloaded wheel (a kerb, a crest) does not
+/// get an unbounded coefficient from a negative exponent.
+const LOAD_SENSITIVITY_RATIO_RANGE: (f32, f32) = (0.1, 5.0);
 
 /// Grip lost per unit of (pressure error / optimum) squared: 25 kPa off a
 /// 180 kPa optimum (five clicks) costs the axle 4%.
@@ -337,6 +441,88 @@ impl TireConfig {
     pub fn rear_grip_factor(&self) -> f32 {
         self.pressure_grip_factor(self.pressure_rear_kpa)
     }
+
+    /// Nothing but `grip_coefficient` decides the peak: no load
+    /// sensitivity, one compound. The racing line and the AI take the
+    /// coefficient as it is for such a tyre, to the bit.
+    pub fn is_linear_single_compound(&self) -> bool {
+        self.load_sensitivity_front == 1.0
+            && self.load_sensitivity_rear == 1.0
+            && self.front_grip_scale == 1.0
+            && self.rear_grip_scale == 1.0
+    }
+}
+
+impl CarConfig {
+    /// Static load on one wheel of the axle, N.
+    pub fn static_wheel_load_n(&self, front: bool) -> f32 {
+        let share = if front {
+            self.weight_distribution_front
+        } else {
+            1.0 - self.weight_distribution_front
+        };
+        self.mass_kg * 9.81 * share / 2.0
+    }
+
+    /// Multiplier the load sensitivity puts on an axle's coefficient for a
+    /// tyre carrying `load_n`: exactly 1.0 for a linear tyre, whatever the
+    /// load, so a car without the key is the car it was.
+    pub fn load_sensitivity_factor(&self, front: bool, load_n: f32) -> f32 {
+        let tyre = &self.tire_config;
+        let (exponent, reference) = if front {
+            (tyre.load_sensitivity_front, tyre.reference_load_front_n)
+        } else {
+            (tyre.load_sensitivity_rear, tyre.reference_load_rear_n)
+        };
+        if exponent == 1.0 {
+            return 1.0;
+        }
+        let reference = reference
+            .unwrap_or_else(|| self.static_wheel_load_n(front))
+            .max(1.0);
+        let (lo, hi) = LOAD_SENSITIVITY_RATIO_RANGE;
+        (load_n / reference).clamp(lo, hi).powf(exponent - 1.0)
+    }
+
+    /// Peak friction coefficient of one of the axle's tyres at `load_n`,
+    /// before the surface and the tyre pressure: `grip_coefficient` times
+    /// the axle's compound and its load sensitivity.
+    pub fn axle_tyre_mu(&self, front: bool, load_n: f32) -> f32 {
+        let scale = if front {
+            self.tire_config.front_grip_scale
+        } else {
+            self.tire_config.rear_grip_scale
+        };
+        self.tire_config.grip_coefficient * scale * self.load_sensitivity_factor(front, load_n)
+    }
+
+    /// The car's friction coefficient as a point mass whose weight is
+    /// `load_ratio` times its static weight (1 + downforce / weight): what
+    /// the racing line and the AI's grip envelope plan with. For a linear,
+    /// single-compound tyre it is `grip_coefficient` itself; otherwise the
+    /// two axles' coefficients at that share of their static load,
+    /// weighted by the static weight split.
+    pub fn envelope_mu(&self, load_ratio: f32) -> f32 {
+        if self.tire_config.is_linear_single_compound() {
+            return self.tire_config.grip_coefficient;
+        }
+        let w_f = self.weight_distribution_front;
+        let at =
+            |front: bool| self.axle_tyre_mu(front, self.static_wheel_load_n(front) * load_ratio);
+        w_f * at(true) + (1.0 - w_f) * at(false)
+    }
+
+    /// Front and rear shares of the drive for an AWD car.
+    pub fn awd_shares(&self) -> (f32, f32) {
+        let front = self.awd_front_share;
+        // The literal pair the split was hardcoded as: `1.0 - 0.4` is not
+        // `0.6` in f32, and the shipped AWD cars must drive to the bit.
+        if front == DEFAULT_AWD_FRONT_SHARE {
+            (0.4, 0.6)
+        } else {
+            (front, 1.0 - front)
+        }
+    }
 }
 
 impl Default for TireConfig {
@@ -352,6 +538,13 @@ impl Default for TireConfig {
             pressure_front_kpa: 180.0,
             pressure_rear_kpa: 180.0,
             optimal_pressure_kpa: 180.0,
+            load_sensitivity_front: 1.0,
+            load_sensitivity_rear: 1.0,
+            reference_load_front_n: None,
+            reference_load_rear_n: None,
+            longitudinal_grip_factor: 1.0,
+            front_grip_scale: 1.0,
+            rear_grip_scale: 1.0,
         }
     }
 }
@@ -390,6 +583,7 @@ impl Default for CarConfig {
             gear_ratios: vec![-3.5, 3.8, 2.4, 1.7, 1.3, 1.0, 0.8], // R, 1-6
             final_drive_ratio: 3.7,
             drivetrain: Drivetrain::RWD,
+            awd_front_share: DEFAULT_AWD_FRONT_SHARE,
 
             engine: EngineConfig {
                 rev_limiter_rpm: 8000.0,
@@ -1005,6 +1199,11 @@ pub struct CarState {
     #[serde(default = "default_battery_uninitialized")]
     pub hybrid_battery_kwh: f32,
 
+    /// Turbo spool, 0..1: how much of the boost the turbo is delivering
+    /// (`TurboConfig`). Stays 0 on a car without one.
+    #[serde(default)]
+    pub turbo_spool: f32,
+
     // Aerodynamics
     pub downforce_front_n: f32,
     pub downforce_rear_n: f32,
@@ -1135,6 +1334,7 @@ impl CarState {
 
             wheel_angular_vel: [0.0; 4],
             hybrid_battery_kwh: default_battery_uninitialized(),
+            turbo_spool: 0.0,
 
             // Aerodynamics (will be calculated)
             downforce_front_n: 0.0,
@@ -1152,6 +1352,13 @@ fn default_battery_uninitialized() -> f32 {
 
 fn default_traction_control() -> bool {
     true
+}
+
+/// The AWD split every car had before it was a key: 40% to the front.
+pub const DEFAULT_AWD_FRONT_SHARE: f32 = 0.4;
+
+fn default_awd_front_share() -> f32 {
+    DEFAULT_AWD_FRONT_SHARE
 }
 
 // --- Race Session State (Server Authoritative) ---

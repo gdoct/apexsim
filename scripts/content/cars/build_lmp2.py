@@ -1,5 +1,5 @@
 """Build one of the LMP2 prototypes in Blender and export it to
-content/cars/<folder>/<stem>.glb.
+content/cars/default/<folder>/<stem>.glb.
 
     VARIANT = "posh"       # yotota | posh | fugazzi | jeanetti
     exec(open(r"E:\\apexsim\\content\\cars\\build_lmp2.py").read())

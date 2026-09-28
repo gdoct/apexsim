@@ -10,7 +10,7 @@
 
 use std::path::Path;
 
-use apexsim_server::car_loader::{drag_limited_speed_mps, CarLoader};
+use apexsim_server::car_loader::{car_toml_paths, drag_limited_speed_mps, CarLoader};
 use apexsim_server::data::*;
 use apexsim_server::physics::{update_car_3d, AIR_DENSITY};
 
@@ -36,17 +36,14 @@ fn skidpad() -> TrackConfig {
 }
 
 fn shipped_cars() -> Vec<CarConfig> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/cars");
-    let mut cars: Vec<CarConfig> = std::fs::read_dir(dir)
-        .expect("content/cars")
-        .filter_map(|entry| {
-            let path = entry.ok()?.path().join("car.toml");
-            path.exists()
-                .then(|| CarLoader::load_from_file(&path).expect("shipped car loads"))
-        })
+    // The shipped cars only: a player's import is theirs to balance.
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/cars/default");
+    let mut cars: Vec<CarConfig> = car_toml_paths(&dir)
+        .iter()
+        .map(|path| CarLoader::load_from_file(path).expect("shipped car loads"))
         .collect();
     cars.sort_by(|a, b| a.name.cmp(&b.name));
-    assert!(!cars.is_empty(), "no cars found in content/cars");
+    assert!(!cars.is_empty(), "no cars found in content/cars/default");
     cars
 }
 

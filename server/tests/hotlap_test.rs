@@ -382,7 +382,7 @@ fn generate_ghost_fixture() {
     let player = std::env::var("APEXSIM_GHOST_PLAYER").unwrap_or_else(|_| "Player".to_string());
     let track = monza();
     let car = CarLoader::load_from_file(std::path::Path::new(
-        "../content/cars/fugazzi-lmp2/car.toml",
+        "../content/cars/default/fugazzi-lmp2/car.toml",
     ))
     .expect("LMP2");
     let (track_id, car_id) = (track.id, car.id);

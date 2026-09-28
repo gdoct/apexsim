@@ -244,6 +244,55 @@ class ReaderTests(unittest.TestCase):
                 kn5.write_kn5(path, {"tex.dds": b"ENCRYPTED!!"}, [mat()], nodes)
                 kn5.read_kn5(path)
 
+    def test_a_skinned_node_reads_to_the_last_byte(self):
+        # Cars carry type 3 nodes (belts, the shift boot): flags before the
+        # bone table, 76-byte vertices, no sphere and no renderable byte. A
+        # mesh after it proves the reader stayed in step.
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "car.kn5"
+            verts = np.zeros(3, dtype=kn5.VERTEX_DTYPE)
+            verts["pos"] = [[0, 0, 0], [1, 0, 0], [0, 0, 1]]
+            verts["nrm"] = [0, 1, 0]
+            tri = np.array([[0, 2, 1]])
+            nodes = [
+                ("skinned", "CINTURE_ON", verts, tri, 0, 0.0, 50.0, ["bone_a", "bone_b"]),
+                ("mesh", "BODY", verts, tri, 0, 0.0, 500.0, True),
+            ]
+            kn5.write_kn5(path, {}, [mat()], nodes)
+            f = kn5.read_kn5(path)
+            self.assertEqual([x.name for x in f.meshes], ["CINTURE_ON", "BODY"])
+            self.assertEqual(f.meshes[0].lod_out, 50.0)
+            self.assertTrue(f.meshes[0].renderable)
+            np.testing.assert_allclose(f.meshes[0].world_positions()[1], [1, 0, 0])
+            self.assertEqual(f.meshes[1].lod_out, 500.0)
+
+    def test_jpeg_and_bmp_textures_are_images_not_encryption(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "mod.kn5"
+            texs = {
+                "a.jpg": b"\xff\xd8\xff\xe0\x00\x10JFIF",
+                "b.bmp": b"BM\x00\x00\x00\x00",
+                "c.png": b"\x89PNG\r\n\x1a\n",
+                "d.dds": b"DDS \x7c\x00\x00\x00",
+            }
+            kn5.write_kn5(path, texs, [mat()], [])
+            self.assertEqual(sorted(kn5.read_kn5(path).textures), sorted(texs))
+
+    def test_csp_protected_cars_are_refused_as_encrypted(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "protected.kn5"
+            kn5.write_kn5(path, {}, [mat()], [])
+            name = b"acd.checksum.e"
+            path.write_bytes(path.read_bytes() + struct.pack("<i", len(name)) + name + bytes(32))
+            with self.assertRaisesRegex(kn5.EncryptedKn5, "Custom Shaders Patch"):
+                kn5.read_kn5(path)
+            # A texture table that runs off the file (the RSS mods' extra
+            # field per record) is encryption too, not a truncated file.
+            data = bytearray(kn5.MAGIC) + struct.pack("<iii", 6, 0, 1) + struct.pack("<ii", 0, 1) + bytes([0x12, 0, 0, 0]) + b"R"
+            path.write_bytes(bytes(data))
+            with self.assertRaises(kn5.EncryptedKn5):
+                kn5.read_kn5(path)
+
     def test_ai_reader_offsets(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "fast_lane.ai"
@@ -270,6 +319,16 @@ class ReaderTests(unittest.TestCase):
             surfaces = ini.read_surfaces([])
             self.assertEqual(surfaces, {})
 
+    def test_a_folder_without_models_ini_is_its_own_kn5(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "oldtrack"
+            root.mkdir()
+            self.assertEqual(ini.find_layouts(root), [])
+            (root / "oldtrack.kn5").write_bytes(b"")
+            layouts = ini.find_layouts(root)
+            self.assertEqual([lay.name for lay in layouts], [""])
+            self.assertEqual(ini.model_files(layouts[0]), ["oldtrack.kn5"])
+
     def test_surface_keys_and_classes(self):
         surfaces = {"ROAD": ini.Surface("ROAD", 1.0, True, False), "GRASS": ini.Surface("GRASS", 0.6, False, False),
                     "KERB": ini.Surface("KERB", 0.92, True, False), "PITS": ini.Surface("PITS", 0.96, True, True),
@@ -279,6 +338,9 @@ class ReaderTests(unittest.TestCase):
         self.assertEqual(physics.surface_key_for("05WALL01", surfaces), ("WALL", True))
         self.assertEqual(physics.surface_key_for("Rete_campo", surfaces), (None, False))
         self.assertEqual(physics.surface_key_for("3NOPE", surfaces), (None, False))
+        self.assertEqual(physics.surface_key_for("103TRM-ZNDV_1", surfaces), ("TRM-ZNDV", False))
+        digit_keys = {"1ASPHALT": ini.Surface("1ASPHALT", 0.98, True, False)}
+        self.assertEqual(physics.surface_key_for("1ASPHALT_004", digit_keys), ("1ASPHALT", False))
         self.assertEqual(physics.contact_for(surfaces["KERB"]), CONTACT_CURB)
         self.assertEqual(physics.contact_for(surfaces["GRASS"]), CONTACT_OFF)
         self.assertEqual(physics.contact_for(surfaces["OUT"]), 2)
@@ -296,6 +358,65 @@ class TriangleIndexTests(unittest.TestCase):
         self.assertAlmostEqual(z[0], 0.0)
         self.assertAlmostEqual(z[1], 5.0)
         self.assertTrue(np.isnan(z[2]) and hit[2] == -1)
+
+
+class SceneClassificationTests(unittest.TestCase):
+    @staticmethod
+    def strip(x0, x1, y0, y1, z=0.0, step=10.0):
+        xs = np.arange(x0, x1 + 1e-9, step)
+        v = np.array([[x, y, z] for x in xs for y in (y0, y1)], dtype=np.float64)
+        t = []
+        for i in range(len(xs) - 1):
+            a, b, c, d = 2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 3
+            t += [[a, c, b], [b, c, d]]
+        return v, np.array(t, dtype=np.int64)
+
+    def world(self):
+        """A 10 m road from x 0 to 200 with 25 m of grass either side."""
+        parts = [(self.strip(0, 200, -5, 5), 0), (self.strip(0, 200, 5, 30), 1), (self.strip(0, 200, -30, -5), 1)]
+        verts, tris, surf, off = [], [], [], 0
+        for (v, t), s in parts:
+            verts.append(v)
+            tris.append(t + off)
+            surf.append(np.full(len(t), s))
+            off += len(v)
+        v, t, s = np.concatenate(verts), np.concatenate(tris), np.concatenate(surf)
+        surfaces = [physics.RoadSurfaceSpec("ROAD", CONTACT_ROAD, 1.0, True, False, 0.98),
+                    physics.RoadSurfaceSpec("GRASS", CONTACT_OFF, 1.0, False, False, 0.6)]
+        return physics.PhysicsWorld(vertices=v, triangles=t, triangle_surface=s, surfaces=surfaces,
+                                    triangle_contact=np.array([CONTACT_ROAD, CONTACT_OFF])[s],
+                                    index=trigrid.TriangleIndex(v, t), wall_segments=np.zeros((0, 6)),
+                                    wall_kinds=np.zeros(0, dtype=np.int64))
+
+    def test_a_road_ribbon_is_road_though_its_vertices_are_on_the_edges(self):
+        # Every vertex of a road ribbon lies on the road's edge, where the
+        # physics is road or grass by a coin toss; its triangles are road.
+        w = self.world()
+        v, t = self.strip(0, 200, -5, 5, z=0.01)
+        self.assertEqual(scene._verdict(scene._under_votes(v, t, w), w), (CONTACT_ROAD, "ROAD"))
+
+    def test_a_material_is_one_surface(self):
+        # A chunk of the same asphalt that stands off the physics mesh is
+        # road because the material's other chunks are.
+        w = self.world()
+        on = scene._under_votes(*self.strip(0, 200, -5, 5, z=0.01), w)
+        away = scene._under_votes(*self.strip(0, 200, 300, 310, z=0.01), w)
+        self.assertEqual(scene._verdict(away, w), (None, None))
+        verdicts = scene._material_verdicts([(("t.kn5", "Asfalto"), 40, on), (("t.kn5", "Asfalto"), 40, away)], w)
+        self.assertEqual(verdicts[("t.kn5", "Asfalto")], (CONTACT_ROAD, "ROAD"))
+
+    def test_only_a_mesh_lying_flat_can_be_a_kit_surface(self):
+        floor, ft = self.strip(0, 20, 0, 10)
+        wall = np.array([[0, 0, 0], [20, 0, 0], [20, 0, 3], [0, 0, 3]], dtype=np.float64)
+        self.assertTrue(scene._lies_flat(floor, ft))
+        self.assertFalse(scene._lies_flat(wall, np.array([[0, 1, 2], [0, 2, 3]])))
+
+    def test_name_hints(self):
+        self.assertEqual(scene._hint_kit("BASE_1 Erba3000 Terreno.dds", "ksMultilayer"), "grass")
+        self.assertEqual(scene._hint_kit("BASE_5 Asfalto asph4.dds", "ksMultilayer_fresnel_nm"), "road")
+        self.assertIsNone(scene._hint_kit("TorreRadar TorreRadar radar.dds", "ksMultilayer_objsp"))
+        self.assertIsNone(scene._hint_kit("TerrazzoBox TerrazzoBox box.dds", "ksPerPixel"))
+        self.assertEqual(scene._hint_kit("Terra_01 Terra_500 t.dds", "ksPerPixel"), "sand")
 
 
 class TextureTests(unittest.TestCase):

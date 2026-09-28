@@ -269,7 +269,11 @@ pub fn update_car_3d(
     state.downforce_front_n = downforce_front;
     state.downforce_rear_n = downforce_rear;
 
-    // 4. Calculate engine torque and RPM
+    // 4. Calculate engine torque and RPM. A turbo's spool chases the
+    // throttle first, so the torque this tick has the boost it has built.
+    if let Some(turbo) = &config.engine.turbo {
+        state.turbo_spool = turbo.spool_toward(state.turbo_spool, input.throttle, dt);
+    }
     let (engine_torque, engine_rpm) = calculate_engine_output(state, config, input, dt);
     state.engine_rpm = engine_rpm;
 
@@ -279,8 +283,9 @@ pub fn update_car_3d(
     // 5. Calculate wheel torques from drivetrain. A partially released
     // clutch transmits proportionally less torque.
     let clutch = input.clutch.unwrap_or(state.clutch_input).clamp(0.0, 1.0);
+    let crank_torque = (engine_torque + motor_torque) * clutch;
     let (drive_torque_front, drive_torque_rear) =
-        calculate_drive_torques((engine_torque + motor_torque) * clutch, config, state.gear);
+        calculate_drive_torques(crank_torque, config, state.gear);
 
     // 6. Calculate brake forces
     let brake_force = input.brake * config.max_brake_force_n;
@@ -588,14 +593,45 @@ pub fn update_car_3d(
     // on the grass lose theirs while the other two keep the road's, and a
     // wheel on the curb has the curb's. Tyre pressure per axle (the garage
     // setup) is exactly 1.0 at the optimum, so a stock car is unchanged to
-    // the bit.
-    let tyre_grip = config.tire_config.grip_coefficient;
+    // the bit. The axle's compound and the tyre's load sensitivity at the
+    // load it carries (`CarConfig::axle_tyre_mu`) are exactly 1.0 too
+    // unless the car's `[tires]` table says otherwise.
     let front_factor = config.tire_config.front_grip_factor();
     let rear_factor = config.tire_config.rear_grip_factor();
-    let grip_fl = tyre_grip * wheel_front_left.grip_modifier * front_factor;
-    let grip_fr = tyre_grip * wheel_front_right.grip_modifier * front_factor;
-    let grip_rl = tyre_grip * wheel_rear_left.grip_modifier * rear_factor;
-    let grip_rr = tyre_grip * wheel_rear_right.grip_modifier * rear_factor;
+    let grip_fl = config.axle_tyre_mu(true, state.weight_front_left_n)
+        * wheel_front_left.grip_modifier
+        * front_factor;
+    let grip_fr = config.axle_tyre_mu(true, state.weight_front_right_n)
+        * wheel_front_right.grip_modifier
+        * front_factor;
+    let grip_rl = config.axle_tyre_mu(false, state.weight_rear_left_n)
+        * wheel_rear_left.grip_modifier
+        * rear_factor;
+    let grip_rr = config.axle_tyre_mu(false, state.weight_rear_right_n)
+        * wheel_rear_right.grip_modifier
+        * rear_factor;
+
+    // The differential shares each driven axle's torque between its two
+    // wheels by what each can carry. Without one (every car that does not
+    // ask for it) each wheel gets half, as it always did.
+    let long_factor = config.tire_config.longitudinal_grip_factor;
+    let traction_torque =
+        |grip: f32, load_n: f32| grip * load_n.max(0.0) * long_factor * config.wheel_radius_m;
+    let on_power = crank_torque > 0.0;
+    let (drive_fl, drive_fr) = split_axle_torque(
+        drive_torque_front,
+        traction_torque(grip_fl, state.weight_front_left_n),
+        traction_torque(grip_fr, state.weight_front_right_n),
+        on_power,
+        &config.differential,
+    );
+    let (drive_rl, drive_rr) = split_axle_torque(
+        drive_torque_rear,
+        traction_torque(grip_rl, state.weight_rear_left_n),
+        traction_torque(grip_rr, state.weight_rear_right_n),
+        on_power,
+        &config.differential,
+    );
 
     // Solve per-wheel tire forces (quasi-static torque balance with
     // wheelspin / lockup / ABS behavior and friction-ellipse coupling)
@@ -627,7 +663,7 @@ pub fn update_car_3d(
             state.angular_vel_yaw,
             steer_left,
             front_axle_x,
-            drive_torque_front / 2.0,
+            drive_fl,
             brake_front / 2.0,
             config.wheel_radius_m,
             state.weight_front_left_n,
@@ -642,7 +678,7 @@ pub fn update_car_3d(
             state.angular_vel_yaw,
             steer_right,
             front_axle_x,
-            drive_torque_front / 2.0,
+            drive_fr,
             brake_front / 2.0,
             config.wheel_radius_m,
             state.weight_front_right_n,
@@ -657,7 +693,7 @@ pub fn update_car_3d(
             state.angular_vel_yaw,
             0.0,
             rear_axle_x,
-            drive_torque_rear / 2.0,
+            drive_rl,
             brake_rear / 2.0,
             config.wheel_radius_m,
             state.weight_rear_left_n,
@@ -672,7 +708,7 @@ pub fn update_car_3d(
             state.angular_vel_yaw,
             0.0,
             rear_axle_x,
-            drive_torque_rear / 2.0,
+            drive_rr,
             brake_rear / 2.0,
             config.wheel_radius_m,
             state.weight_rear_right_n,
@@ -1177,6 +1213,12 @@ fn calculate_engine_output(
         0.0
     };
 
+    // A turbo still spooling holds back the boosted part of the curve.
+    let torque_at_rpm = match &config.engine.turbo {
+        Some(turbo) => torque_at_rpm * turbo.torque_factor(state.turbo_spool, input.throttle),
+        None => torque_at_rpm,
+    };
+
     // Net torque produced by engine (positive = drive, negative = braking)
     let mut engine_torque = (input.throttle * torque_at_rpm * limiter_cut) - engine_brake;
 
@@ -1312,7 +1354,79 @@ fn calculate_drive_torques(engine_torque: f32, config: &CarConfig, gear: i8) -> 
     match config.drivetrain {
         Drivetrain::FWD => (wheel_torque, 0.0),
         Drivetrain::RWD => (0.0, wheel_torque),
-        Drivetrain::AWD => (wheel_torque * 0.4, wheel_torque * 0.6), // 40/60 split
+        Drivetrain::AWD => {
+            let (front, rear) = config.awd_shares();
+            (wheel_torque * front, wheel_torque * rear)
+        }
+    }
+}
+
+/// One driven axle's torque shared between its left and right wheel,
+/// `(left, right)`, given the torque each tyre can put on the road.
+///
+/// The wheels' speeds come out of the quasi-static slip solution rather than
+/// a wheel ODE, and left and right roll at the same speed, so there is no
+/// speed difference for a differential to act on. What is modelled is what
+/// a differential decides on a corner exit: while both tyres can carry half
+/// the torque each gets half; once the weaker one cannot, the stronger one
+/// may take the weaker one's torque plus the locking torque (Assetto Corsa's
+/// semantics: `preload_nm` plus `lock_power` or `lock_coast` times the axle
+/// torque), and what it cannot take spins the weaker wheel. An open
+/// differential therefore gives the gripping wheel no more than the
+/// spinning one can hold; a locked one gives it everything the spinning one
+/// cannot use. A viscous or Torsen unit is taken as a clutch pack with the
+/// same figures.
+///
+/// `simulated = false` (every car without the key) is the old even split.
+fn split_axle_torque(
+    axle_torque: f32,
+    capacity_left: f32,
+    capacity_right: f32,
+    on_power: bool,
+    diff: &DifferentialConfig,
+) -> (f32, f32) {
+    let half = axle_torque / 2.0;
+    if !diff.simulated {
+        return (half, half);
+    }
+    let total = axle_torque.abs();
+    let weak_capacity = capacity_left.min(capacity_right).max(0.0);
+    if total / 2.0 <= weak_capacity {
+        return (half, half);
+    }
+    let locking = match diff.differential_type {
+        DifferentialType::Open => 0.0,
+        DifferentialType::Locked => f32::INFINITY,
+        DifferentialType::ClutchLSD | DifferentialType::ViscousLSD | DifferentialType::Torsen => {
+            let lock = if on_power {
+                diff.lock_power
+            } else {
+                diff.lock_coast
+            };
+            diff.preload_nm.max(0.0) + lock.clamp(0.0, 1.0) * total
+        }
+    };
+    // A locked axle gives the stronger wheel everything the weaker cannot
+    // use while it can carry it; past both wheels' grip the two spin at the
+    // same slip, which the slip solution reads as the same overshoot, so the
+    // torque is shared by grip. A limited-slip unit gives the stronger wheel
+    // no more than that, and no more than the weaker wheel's torque plus
+    // its locking torque; the rest spins the weaker wheel (in a car it
+    // would flare the engine, which here is held to the road speed).
+    let strong_capacity = capacity_left.max(capacity_right).max(0.0);
+    let axle_capacity = weak_capacity + strong_capacity;
+    let locked_strong = if total <= axle_capacity || axle_capacity <= 0.0 {
+        total - weak_capacity
+    } else {
+        total * strong_capacity / axle_capacity
+    };
+    let strong = locked_strong.min(weak_capacity + locking);
+    let weak = total - strong;
+    let sign = axle_torque.signum();
+    if capacity_left <= capacity_right {
+        (weak * sign, strong * sign)
+    } else {
+        (strong * sign, weak * sign)
     }
 }
 
@@ -1361,8 +1475,9 @@ fn calculate_weight_transfer(
 /// radius at which cornering takes all its grip (downforce included), as a
 /// steering angle `L·a/v²`.
 pub fn grip_limit_lock_rad(config: &CarConfig, speed_mps: f32, downforce_n: f32) -> f32 {
-    let grip_accel = config.tire_config.grip_coefficient
-        * (GRAVITY + downforce_n.max(0.0) / config.mass_kg.max(1.0));
+    let load_ratio = 1.0 + downforce_n.max(0.0) / (config.mass_kg.max(1.0) * GRAVITY);
+    let grip_accel =
+        config.envelope_mu(load_ratio) * (GRAVITY + downforce_n.max(0.0) / config.mass_kg.max(1.0));
     config.wheelbase_m * grip_accel / (speed_mps * speed_mps).max(1e-3)
 }
 
@@ -1657,8 +1772,9 @@ fn steering_column_torque(
     config: &CarConfig,
     static_front_load_n: f32,
 ) -> f32 {
-    let reference =
-        config.tire_config.grip_coefficient * static_front_load_n * (1.0 + MECHANICAL_TRAIL_SHARE);
+    let reference = config.axle_tyre_mu(true, static_front_load_n / 2.0)
+        * static_front_load_n
+        * (1.0 + MECHANICAL_TRAIL_SHARE);
     if reference <= 1.0 {
         return 0.0;
     }
@@ -1739,8 +1855,12 @@ fn solve_wheel_forces(
         };
     }
 
-    // Peak available force (friction circle radius)
+    // Peak available force: `d` sideways, `dx` along the tyre. The two are
+    // the same (a friction circle) unless the car's `[tires]` table gives
+    // the tyre a longitudinal peak of its own, when they are the semi-axes
+    // of a friction ellipse.
     let d = grip_coefficient * wheel_load;
+    let dx = d * tire_config.longitudinal_grip_factor;
 
     // Slip angle: angle between where the wheel points and where its
     // contact patch actually travels. Backing up, the steered wheel's
@@ -1776,9 +1896,12 @@ fn solve_wheel_forces(
     // margin, so the ellipse below never has to scale the lateral force down.
     let tc_limit = match traction_control {
         TractionControl::High => {
-            ((d * d - fy * fy).max(0.0).sqrt() * TC_HIGH_LATERAL_MARGIN).min(d)
+            // The lateral force in longitudinal units, so the root is the
+            // ellipse's remaining reach along the tyre.
+            let fy_x = if d > 0.0 { fy * (dx / d) } else { 0.0 };
+            ((dx * dx - fy_x * fy_x).max(0.0).sqrt() * TC_HIGH_LATERAL_MARGIN).min(dx)
         }
-        TractionControl::Low | TractionControl::Off => d,
+        TractionControl::Low | TractionControl::Off => dx,
     };
     let tc_enabled = traction_control != TractionControl::Off;
 
@@ -1786,14 +1909,14 @@ fn solve_wheel_forces(
         // Traction control cuts drive torque to what the tyre can carry: at
         // Low the wheel is held at peak slip and delivers peak force, at High
         // it stays short of the peak with the lateral share kept.
-        let normalized = pacejka_inverse(d, PACEJKA_C_LONG, tc_limit);
+        let normalized = pacejka_inverse(dx, PACEJKA_C_LONG, tc_limit);
         (
             tc_limit,
             (normalized * tire_config.optimal_slip_ratio).clamp(-1.0, 1.0),
         )
-    } else if requested_force.abs() <= d {
+    } else if requested_force.abs() <= dx {
         // Stable region: the tire transmits exactly what is asked of it.
-        let normalized = pacejka_inverse(d, PACEJKA_C_LONG, requested_force);
+        let normalized = pacejka_inverse(dx, PACEJKA_C_LONG, requested_force);
         (
             requested_force,
             (normalized * tire_config.optimal_slip_ratio).clamp(-1.0, 1.0),
@@ -1802,29 +1925,29 @@ fn solve_wheel_forces(
         // Brake torque exceeds traction.
         if abs_enabled {
             // ABS holds the wheel at peak slip → peak braking force.
-            (-d, -tire_config.optimal_slip_ratio)
+            (-dx, -tire_config.optimal_slip_ratio)
         } else {
             // Locked wheel: full negative slip, sliding-friction force from
             // the falloff region of the magic formula.
             let normalized = -1.0 / tire_config.optimal_slip_ratio;
-            (pacejka(d, PACEJKA_C_LONG, normalized), -1.0)
+            (pacejka(dx, PACEJKA_C_LONG, normalized), -1.0)
         }
     } else {
         // Drive torque exceeds traction: wheelspin. The spin depth grades
         // with the torque oversupply — a slight excess hovers just past the
         // peak (little force lost), a large excess spins deep into the
         // falloff region.
-        let overshoot = (requested_force / d).min(3.0);
+        let overshoot = (requested_force / dx).min(3.0);
         let slip = (tire_config.optimal_slip_ratio * (1.25 + (overshoot - 1.0) * 1.5))
             .min(WHEELSPIN_MAX_SLIP_RATIO);
         let normalized = slip / tire_config.optimal_slip_ratio;
-        (pacejka(d, PACEJKA_C_LONG, normalized), slip)
+        (pacejka(dx, PACEJKA_C_LONG, normalized), slip)
     };
 
     // Combined slip: friction ellipse. Longitudinal and lateral demands
     // share one grip budget; scale both down proportionally when the
     // combined demand exceeds it.
-    let usage = ((fx / d).powi(2) + (fy / d).powi(2)).sqrt();
+    let usage = ((fx / dx).powi(2) + (fy / d).powi(2)).sqrt();
     let (fx, fy) = if usage > 1.0 {
         (fx / usage, fy / usage)
     } else {
@@ -1842,7 +1965,7 @@ fn solve_wheel_forces(
         slip_ratio,
         slip_angle,
         omega,
-        abs_active: abs_enabled && requested_force < -d,
+        abs_active: abs_enabled && requested_force < -dx,
         tc_active: tc_enabled && requested_force > tc_limit,
     }
 }
@@ -6427,5 +6550,354 @@ mod tests {
         assert!(launch(None).tc_active, "unset: the file's traction control");
         assert!(launch(Some(TractionControl::High)).tc_active);
         assert!(!launch(Some(TractionControl::Off)).tc_active);
+    }
+
+    // --- Tyre, drivetrain and turbo keys (`[tires]`, `awd_front_share`,
+    // `[differential] simulated`, `[engine.turbo]`) ---
+
+    /// A scripted drive that uses everything the new keys touch: a launch,
+    /// wheelspin through the bends with traction control off, a lift, hard
+    /// braking and a weave, every state bit fingerprinted.
+    fn drive_fingerprint(config: &CarConfig) -> Vec<u32> {
+        let track = open_asphalt();
+        let mut state = create_test_car_state();
+        state.auto_gearbox = true;
+        state.traction_control = Some(TractionControl::Off);
+        let mut out = Vec::new();
+        for tick in 0..240 * 12u32 {
+            let t = tick as f32 / 240.0;
+            let braking = (6.0..7.5).contains(&t);
+            let input = PlayerInputData {
+                throttle: if braking { 0.0 } else { 1.0 },
+                brake: if braking { 1.0 } else { 0.0 },
+                steering: 0.6 * (t * 0.9).sin(),
+                ..Default::default()
+            };
+            update_car_3d(&mut state, config, &input, &track, 1.0 / 240.0);
+            for v in [
+                state.pos_x,
+                state.pos_y,
+                state.yaw_rad,
+                state.vel_x,
+                state.vel_y,
+                state.angular_vel_yaw,
+                state.engine_rpm,
+                state.wheel_angular_vel[0],
+                state.wheel_angular_vel[3],
+                state.weight_front_left_n,
+            ] {
+                out.push(v.to_bits());
+            }
+        }
+        out
+    }
+
+    fn assert_same_drive(a: &CarConfig, b: &CarConfig, what: &str) {
+        let (fa, fb) = (drive_fingerprint(a), drive_fingerprint(b));
+        let first = fa.iter().zip(&fb).position(|(x, y)| x != y);
+        assert!(first.is_none(), "{what}: diverged at {first:?}");
+    }
+
+    #[test]
+    fn default_valued_tyre_keys_simulate_to_the_bit() {
+        let base = create_test_config();
+        let mut explicit = base.clone();
+        let tyre = &mut explicit.tire_config;
+        tyre.load_sensitivity_front = 1.0;
+        tyre.load_sensitivity_rear = 1.0;
+        // With a linear tyre the reference load cannot matter.
+        tyre.reference_load_front_n = Some(2500.0);
+        tyre.reference_load_rear_n = Some(9000.0);
+        tyre.longitudinal_grip_factor = 1.0;
+        tyre.front_grip_scale = 1.0;
+        tyre.rear_grip_scale = 1.0;
+        assert_same_drive(&base, &explicit, "linear tyre, explicit keys");
+    }
+
+    #[test]
+    fn a_linear_single_compound_tyre_grips_as_its_coefficient() {
+        let mut config = create_test_config();
+        config.tire_config.grip_coefficient = 1.37;
+        for load in [0.0, 500.0, 3000.0, 12000.0] {
+            assert_eq!(config.axle_tyre_mu(true, load), 1.37);
+            assert_eq!(config.axle_tyre_mu(false, load), 1.37);
+        }
+        for ratio in [1.0, 1.8, 3.0] {
+            assert_eq!(config.envelope_mu(ratio), 1.37);
+        }
+    }
+
+    #[test]
+    fn a_load_sensitive_tyre_grips_less_per_newton_the_harder_it_is_pressed() {
+        let mut config = create_test_config();
+        config.tire_config.load_sensitivity_front = 0.8;
+        config.tire_config.load_sensitivity_rear = 0.8;
+        let static_front = config.static_wheel_load_n(true);
+        let mu = config.tire_config.grip_coefficient;
+        // At the reference (the static load, by default) it is the figure
+        // the file gives; twice as loaded, 2^-0.2 of it.
+        assert!((config.axle_tyre_mu(true, static_front) - mu).abs() < 1e-6);
+        let doubled = config.axle_tyre_mu(true, 2.0 * static_front);
+        assert!((doubled - mu * 2f32.powf(-0.2)).abs() < 1e-4, "{doubled}");
+        assert!(config.axle_tyre_mu(true, 0.5 * static_front) > mu);
+        // The peak force still grows with load, only more slowly.
+        assert!(doubled * 2.0 * static_front > mu * static_front);
+        // An explicit reference moves the load it grips as the file says at.
+        config.tire_config.reference_load_front_n = Some(2.0 * static_front);
+        assert!((config.axle_tyre_mu(true, 2.0 * static_front) - mu).abs() < 1e-6);
+        // Downforce loads the tyres, so the envelope plans with less grip.
+        config.tire_config.reference_load_front_n = None;
+        assert!((config.envelope_mu(1.0) - mu).abs() < 1e-6);
+        assert!(config.envelope_mu(2.5) < mu * 0.9);
+
+        // On the road: the same car on a steady lock at the limit holds less
+        // lateral g, because load transfer loads the outside tyres where
+        // they grip less per newton.
+        let lateral_g = |config: &CarConfig| {
+            let track = open_asphalt();
+            let mut state = create_test_car_state();
+            state.vel_x = 30.0;
+            state.speed_mps = 30.0;
+            state.gear = 3;
+            let mut peak: f32 = 0.0;
+            for _ in 0..240 * 2 {
+                let input = PlayerInputData {
+                    throttle: ((30.0 - state.speed_mps) * 0.5 + 0.3).clamp(0.0, 1.0),
+                    steering: 0.5,
+                    ..Default::default()
+                };
+                update_car_3d(&mut state, config, &input, &track, 1.0 / 240.0);
+                peak = peak.max(state.g_forces.lateral_g.abs());
+            }
+            peak
+        };
+        let linear = lateral_g(&create_test_config());
+        let sensitive = lateral_g(&config);
+        assert!(
+            sensitive < linear * 0.98,
+            "load-sensitive {sensitive:.3} g vs linear {linear:.3} g"
+        );
+    }
+
+    #[test]
+    fn a_longer_longitudinal_peak_brakes_harder_but_corners_the_same() {
+        let mut tire = TireConfig::default();
+        let solve = |tire: &TireConfig, brake: f32, v_lat: f32| {
+            solve_wheel_forces(
+                30.0,
+                v_lat,
+                0.0,
+                0.0,
+                1.35,
+                0.0,
+                brake,
+                0.33,
+                3000.0,
+                1.0,
+                tire,
+                true,
+                TractionControl::Low,
+            )
+        };
+        let circle = solve(&tire, 20000.0, 0.0);
+        let cornering_circle = solve(&tire, 0.0, 2.0);
+        tire.longitudinal_grip_factor = 1.2;
+        let ellipse = solve(&tire, 20000.0, 0.0);
+        let cornering_ellipse = solve(&tire, 0.0, 2.0);
+        assert!(circle.abs_active && ellipse.abs_active);
+        assert!((circle.fx + 3000.0).abs() < 1.0, "{}", circle.fx);
+        assert!((ellipse.fx + 3600.0).abs() < 1.0, "{}", ellipse.fx);
+        assert_eq!(cornering_circle.fy, cornering_ellipse.fy);
+    }
+
+    #[test]
+    fn per_axle_compounds_scale_each_axle() {
+        let mut config = create_test_config();
+        config.tire_config.grip_coefficient = 1.5;
+        config.tire_config.front_grip_scale = 1.1;
+        config.tire_config.rear_grip_scale = 0.9;
+        assert!((config.axle_tyre_mu(true, 3000.0) - 1.65).abs() < 1e-5);
+        assert!((config.axle_tyre_mu(false, 3000.0) - 1.35).abs() < 1e-5);
+        let w_f = config.weight_distribution_front;
+        let blended = w_f * 1.65 + (1.0 - w_f) * 1.35;
+        assert!((config.envelope_mu(1.0) - blended).abs() < 1e-5);
+    }
+
+    #[test]
+    fn the_awd_split_is_a_key_and_defaults_to_forty_sixty() {
+        let mut config = create_test_config();
+        config.drivetrain = Drivetrain::AWD;
+        let (front, rear) = calculate_drive_torques(100.0, &config, 3);
+        let wheel = 100.0
+            * (config.gear_ratios[3] * config.final_drive_ratio)
+            * config.transmission.efficiency;
+        assert_eq!(front, wheel * 0.4);
+        assert_eq!(rear, wheel * 0.6);
+
+        let mut explicit = config.clone();
+        explicit.awd_front_share = 0.4;
+        assert_same_drive(&config, &explicit, "AWD at an explicit 0.4");
+
+        explicit.awd_front_share = 0.7;
+        let (front, rear) = calculate_drive_torques(100.0, &explicit, 3);
+        assert!((front - wheel * 0.7).abs() < 1e-3 && (rear - wheel * 0.3).abs() < 1e-3);
+        explicit.awd_front_share = 0.0;
+        assert_eq!(calculate_drive_torques(100.0, &explicit, 3).0, 0.0);
+    }
+
+    fn lsd(kind: DifferentialType, simulated: bool) -> DifferentialConfig {
+        DifferentialConfig {
+            differential_type: kind,
+            preload_nm: 100.0,
+            lock_power: 0.3,
+            lock_coast: 0.1,
+            simulated,
+        }
+    }
+
+    #[test]
+    fn the_differential_shares_the_torque_the_weak_wheel_cannot_use() {
+        use DifferentialType::*;
+        // Not simulated: halves, whatever the wheels can carry.
+        assert_eq!(
+            split_axle_torque(2000.0, 200.0, 5000.0, true, &lsd(Locked, false)),
+            (1000.0, 1000.0)
+        );
+        // Both wheels can carry half: halves, whatever the unit.
+        for kind in [Open, Locked, ClutchLSD] {
+            assert_eq!(
+                split_axle_torque(2000.0, 1200.0, 5000.0, true, &lsd(kind, true)),
+                (1000.0, 1000.0)
+            );
+        }
+        // The left wheel can hold 400 Nm. Open: the right gets as much as
+        // the left can react; the rest spins the left.
+        let open = split_axle_torque(2000.0, 400.0, 5000.0, true, &lsd(Open, true));
+        assert_eq!(open, (1600.0, 400.0));
+        // Locked: the left is held at what it can carry; the right takes the
+        // rest while it can hold it, and past both they share by grip.
+        assert_eq!(
+            split_axle_torque(8000.0, 1000.0, 3000.0, true, &lsd(Locked, true)),
+            (2000.0, 6000.0)
+        );
+        assert_eq!(
+            split_axle_torque(3000.0, 1000.0, 2500.0, true, &lsd(Locked, true)),
+            (1000.0, 2000.0)
+        );
+        let locked = split_axle_torque(2000.0, 400.0, 5000.0, true, &lsd(Locked, true));
+        assert_eq!(locked, (400.0, 1600.0));
+        // Clutch pack on power: 400 + 100 preload + 0.3 x 2000 = 1100 on the right.
+        let clutch = split_axle_torque(2000.0, 400.0, 5000.0, true, &lsd(ClutchLSD, true));
+        assert_eq!(clutch, (900.0, 1100.0));
+        // On coast the coast lock, 400 + 100 + 0.1 x 2000 = 700, signs kept.
+        let coast = split_axle_torque(-2000.0, 5000.0, 400.0, false, &lsd(ClutchLSD, true));
+        assert_eq!(coast, (-700.0, -1300.0));
+    }
+
+    #[test]
+    fn a_differential_decides_how_hard_a_split_grip_axle_pulls() {
+        // Right-hand wheels on the grass, in second with no traction
+        // control: the right rear can hold little, so what reaches the left
+        // rear is up to the differential. The acceleration is read on the
+        // second tick, before the car has turned off the line.
+        let run = |diff: DifferentialConfig, throttle: f32| {
+            let mut config = create_test_config();
+            config.differential = diff;
+            let track = create_straight_test_track();
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.pos_y = -10.0;
+            state.vel_x = 12.0;
+            state.speed_mps = 12.0;
+            state.gear = 2;
+            state.traction_control = Some(TractionControl::Off);
+            let input = PlayerInputData {
+                throttle,
+                ..Default::default()
+            };
+            for _ in 0..2 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            }
+            state.g_forces.longitudinal_g
+        };
+        use DifferentialType::*;
+        // Gently, both rear tyres carry half: every unit is the even split.
+        let gentle = run(lsd(ClutchLSD, false), 0.2);
+        for kind in [Open, ClutchLSD, Locked] {
+            assert_eq!(run(lsd(kind, true), 0.2), gentle);
+        }
+        // Harder, the grass tyre cannot: an open unit gives the road tyre
+        // only what the grass one holds, a locked one everything it cannot
+        // use, a clutch pack in between.
+        let legacy = run(lsd(ClutchLSD, false), 0.45);
+        let open = run(lsd(Open, true), 0.45);
+        let clutch = run(lsd(ClutchLSD, true), 0.45);
+        let locked = run(lsd(Locked, true), 0.45);
+        assert!(
+            open < legacy && legacy < clutch && clutch <= locked,
+            "open {open:.3} < even split {legacy:.3} < clutch {clutch:.3} <= locked {locked:.3} g"
+        );
+    }
+
+    #[test]
+    fn a_turbo_without_boost_is_no_turbo() {
+        let base = create_test_config();
+        let mut turbo = base.clone();
+        turbo.engine.turbo = Some(TurboConfig {
+            boosted_share: 0.0,
+            lag_up_s: 0.8,
+            lag_down_s: 1.2,
+        });
+        assert_same_drive(&base, &turbo, "a turbo with no boost");
+    }
+
+    #[test]
+    fn turbo_lag_holds_back_the_boost_on_a_tip_in_only() {
+        let spec = TurboConfig {
+            boosted_share: 0.5,
+            lag_up_s: 0.5,
+            lag_down_s: 1.0,
+        };
+        // Spooled to the pedal: the whole curve. Lifting never costs torque.
+        assert_eq!(spec.torque_factor(1.0, 1.0), 1.0);
+        assert_eq!(spec.torque_factor(1.0, 0.4), 1.0);
+        assert_eq!(spec.torque_factor(0.0, 1.0), 0.5);
+        // The spool reaches 63% of a step in one time constant.
+        let mut spool = 0.0;
+        for _ in 0..120 {
+            spool = spec.spool_toward(spool, 1.0, 1.0 / 240.0);
+        }
+        assert!((spool - (1.0 - (-1.0f32).exp())).abs() < 0.01, "{spool}");
+
+        // On the road: from a steady cruise, the first half second of full
+        // throttle pulls less than the same car without lag, while the
+        // spool catches up.
+        let accelerate = |config: &CarConfig| {
+            let track = create_straight_test_track();
+            let mut state = create_test_car_state();
+            state.vel_x = 20.0;
+            state.speed_mps = 20.0;
+            state.gear = 3;
+            for _ in 0..120 {
+                let input = PlayerInputData {
+                    throttle: 1.0,
+                    ..Default::default()
+                };
+                update_car_3d(&mut state, config, &input, &track, 1.0 / 240.0);
+            }
+            state
+        };
+        let base = create_test_config();
+        let mut lagged = base.clone();
+        lagged.engine.turbo = Some(spec);
+        let without = accelerate(&base);
+        let with = accelerate(&lagged);
+        assert!(
+            with.speed_mps < without.speed_mps - 0.2,
+            "lagged {:.2} m/s vs instant {:.2} m/s",
+            with.speed_mps,
+            without.speed_mps
+        );
+        assert!(with.turbo_spool > 0.6 && without.turbo_spool == 0.0);
     }
 }

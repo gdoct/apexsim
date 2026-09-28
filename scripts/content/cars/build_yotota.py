@@ -1,5 +1,5 @@
 """Build the Yotota LMP2 car model in Blender and export it to
-content/cars/yotota-lmp2/yotota_lmp2.glb.
+content/cars/default/yotota-lmp2/yotota_lmp2.glb.
 
 Run inside Blender (5.x) with the apex helper on the path:
 
@@ -17,7 +17,7 @@ import bpy, bmesh, math, os, importlib.util, sys
 from mathutils import Vector
 
 _ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
-CAR_DIR = os.path.join(_ROOT, "content", "cars", "yotota-lmp2")
+CAR_DIR = os.path.join(_ROOT, "content", "cars", "default", "yotota-lmp2")
 TOOLS = os.path.join(_ROOT, "scripts", "content", "props", "apex_props.py")
 spec = importlib.util.spec_from_file_location("apex", TOOLS)
 apex = importlib.util.module_from_spec(spec); sys.modules["apex"] = apex; spec.loader.exec_module(apex)

@@ -135,6 +135,12 @@ fn default_telemetry_divisor() -> u16 {
 pub struct ContentSettings {
     pub cars_dir: String,
     pub tracks_dir: String,
+    /// Leave out tracks the AC importer wrote (a `<Stem>.import.json` beside
+    /// the YAML). Their sidecars run to hundreds of megabytes, which a debug
+    /// build takes long enough to parse that the in-process test servers
+    /// time out at startup; the harness sets it there.
+    #[serde(default)]
+    pub skip_imported_tracks: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -208,6 +214,7 @@ impl Default for ServerConfig {
             content: ContentSettings {
                 cars_dir: "../content/cars".to_string(),
                 tracks_dir: "../content/tracks".to_string(),
+                skip_imported_tracks: false,
             },
             logging: LoggingSettings {
                 level: "info".to_string(),

@@ -80,6 +80,10 @@ pub struct RacingLineProfile {
     pub phases: Vec<LinePhase>,
 }
 
+/// Speed at which the envelope takes a load-sensitive tyre's coefficient:
+/// a typical corner, where the line's speed is decided.
+const ENVELOPE_REFERENCE_SPEED_MPS: f32 = 40.0;
+
 /// The car as a point mass: what limits its speed along a line.
 struct CarEnvelope {
     /// Tyre grip times track grip.
@@ -113,9 +117,15 @@ impl CarEnvelope {
             Drivetrain::RWD => 1.0 - car.weight_distribution_front,
             Drivetrain::FWD => car.weight_distribution_front,
         };
+        let downforce_k = 0.5 * AIR_DENSITY * car.frontal_area_m2 * (-lift).max(0.0) / mass;
         Self {
-            mu: car.tire_config.grip_coefficient * track_grip,
-            downforce_k: 0.5 * AIR_DENSITY * car.frontal_area_m2 * (-lift).max(0.0) / mass,
+            // A load-sensitive tyre grips less per newton at speed, where the
+            // downforce loads it: plan with its coefficient at the load it
+            // carries at the reference speed. A linear tyre's is
+            // `grip_coefficient`, to the bit.
+            mu: car.envelope_mu(1.0 + downforce_k * ENVELOPE_REFERENCE_SPEED_MPS.powi(2) / GRAVITY)
+                * track_grip,
+            downforce_k,
             drag_k: 0.5 * AIR_DENSITY * car.drag_coefficient * car.frontal_area_m2 / mass,
             rolling_accel: car.tire_config.rolling_resistance * GRAVITY,
             // Peak power over the whole run: a real gearbox spends part of

@@ -133,6 +133,8 @@ void AApexCarPreviewStage::SetCarMesh(UStaticMesh* MeshToShow)
 
 	// Overrides are per slot index: the last car's livery must not land on this one's slots.
 	CarMesh->EmptyOverrideMaterials();
+	// The wheels may outlive the body (the same wheel spec): a skin's rims go with the skin.
+	Wheels.ForEachComponent([](UStaticMeshComponent& Wheel) { ApexLivery::Apply(&Wheel, nullptr); });
 	bLiveryApplied = false;
 	CarMesh->SetStaticMesh(Loaded);
 	Turntable->SetRelativeRotation(FRotator::ZeroRotator);
@@ -167,6 +169,8 @@ void AApexCarPreviewStage::SetCarLivery(const FApexCarLivery* Livery)
 		{
 			ApexLivery::Apply(DrsFlap.GetComponent(), Livery);
 		}
+		// The rims too, as on the race car.
+		Wheels.ForEachComponent([Livery](UStaticMeshComponent& Wheel) { ApexLivery::Apply(&Wheel, Livery); });
 	}
 	bLiveryApplied = Livery != nullptr;
 }

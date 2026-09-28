@@ -52,6 +52,42 @@ struct APEXSIM_API FApexCockpitOverrides
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
 	FVector MirrorRight = FVector::ZeroVector;
+
+	/**
+	 * Pitch of the wheel plane, degrees, as FApexCockpitLayout::WheelRakeDeg
+	 * (positive tips the top of the rim toward the driver). Zero derives it
+	 * from the style; a car whose rim is truly upright writes a hair off zero.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
+	float WheelRakeDeg = 0.0f;
+
+	/** Rim rotation at full steering input, one way, degrees; zero derives it from the style. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
+	float WheelLockDeg = 0.0f;
+
+	/**
+	 * Whether the rig draws its own flat-bottomed rim. Off for a car whose
+	 * body carries a steering wheel of its own (a static one, modelled into
+	 * the interior); a `RuntimeSteeringWheel` replaces the rim either way.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
+	bool bRigWheel = true;
+
+	/** Whether the rig draws its display on the wheel hub. Off for an interior with a display of its own. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
+	bool bRigDash = true;
+
+	/**
+	 * The car's own steering wheel (`[cockpit] steering_wheel_model`, a GLB
+	 * beside the car.toml), drawn by the rig in place of its rim and turned
+	 * with the steering. The GLB is authored in the car's glTF axes with the
+	 * wheel straight and upright: hub at the origin, rim in glTF XY (+Y up,
+	 * +X the car's left), the column along +Z toward the nose. The rig puts
+	 * the hub at `Wheel`, tips it by the rake and rolls it about the column.
+	 * Never saved.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
+	FString RuntimeSteeringWheel;
 };
 
 /**
@@ -77,6 +113,11 @@ struct APEXSIM_API FApexCockpitLayout
 	float WheelLockDeg = 120.0f;
 	/** Half the rim's width; grips sit at ±this. */
 	float WheelHalfWidthCm = 14.0f;
+	/** Draw the rig's own rim and hub display (FApexCockpitOverrides::bRigWheel / bRigDash). */
+	bool bRigWheel = true;
+	bool bRigDash = true;
+	/** The car's own steering wheel GLB, drawn in place of the rim; empty for none. */
+	FString SteeringWheelModel;
 
 	bool bCentreMirror = false;
 	FVector MirrorCentre = FVector::ZeroVector;

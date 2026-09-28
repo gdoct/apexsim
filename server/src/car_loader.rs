@@ -31,6 +31,8 @@ struct CarToml {
     hybrid: Option<HybridToml>,
     #[serde(default)]
     suspension: Option<SuspensionToml>,
+    #[serde(default)]
+    tires: Option<TiresToml>,
     /// `[[livery]]` tables: only the names matter here (the client paints).
     #[serde(default)]
     livery: Vec<LiveryToml>,
@@ -136,6 +138,58 @@ struct SuspensionToml {
     max_travel_m: Option<f32>,
 }
 
+/// Optional `[tires]` section: what the one `grip_coefficient` cannot say
+/// about a tyre. Every key defaults to the tyre every car had before it
+/// (180 kPa at a 180 kPa optimum, linear in load, one compound, a friction
+/// circle), so a car without the table simulates to the bit as it did. An
+/// axle's own key (`load_sensitivity_front`) wins over the shared one.
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct TiresToml {
+    #[serde(default)]
+    optimal_pressure_kpa: Option<f32>,
+    #[serde(default)]
+    pressure_front_kpa: Option<f32>,
+    #[serde(default)]
+    pressure_rear_kpa: Option<f32>,
+    #[serde(default)]
+    load_sensitivity: Option<f32>,
+    #[serde(default)]
+    load_sensitivity_front: Option<f32>,
+    #[serde(default)]
+    load_sensitivity_rear: Option<f32>,
+    #[serde(default)]
+    reference_load_n: Option<f32>,
+    #[serde(default)]
+    reference_load_front_n: Option<f32>,
+    #[serde(default)]
+    reference_load_rear_n: Option<f32>,
+    #[serde(default)]
+    longitudinal_grip_factor: Option<f32>,
+    #[serde(default)]
+    front_grip_scale: Option<f32>,
+    #[serde(default)]
+    rear_grip_scale: Option<f32>,
+}
+
+/// Optional `[engine.turbo]`: the lag of a turbo whose boost the torque
+/// curve already carries. Absent, the curve arrives with the throttle.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TurboToml {
+    boosted_share: f32,
+    #[serde(default)]
+    lag_up_s: Option<f32>,
+    #[serde(default)]
+    lag_down_s: Option<f32>,
+}
+
+/// Spool times for an `[engine.turbo]` that names only its boost: a
+/// modern single turbo, a quarter second to build and a little longer to
+/// bleed off.
+const DEFAULT_TURBO_LAG_UP_S: f32 = 0.25;
+const DEFAULT_TURBO_LAG_DOWN_S: f32 = 0.4;
+
 #[derive(Debug, Deserialize, Default)]
 struct TorqueCurvePointToml {
     rpm: f32,
@@ -168,6 +222,8 @@ struct EngineToml {
 
     #[serde(default)]
     torque_curve: Vec<TorqueCurvePointToml>,
+    #[serde(default)]
+    turbo: Option<TurboToml>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -353,6 +409,9 @@ pub fn gear_ratios_from_curve(
 struct DrivetrainToml {
     #[serde(default)]
     layout: Option<String>,
+    /// Share of an AWD car's drive to the front axle; 0.4 when absent.
+    #[serde(default)]
+    awd_front_share: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -365,6 +424,8 @@ struct DifferentialToml {
     lock_power: Option<f32>,
     #[serde(default)]
     lock_coast: Option<f32>,
+    #[serde(default)]
+    simulated: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -413,6 +474,48 @@ pub enum CarLoadError {
     Invalid { path: String, reason: String },
 }
 
+/// The subfolders of a cars folder, in the order they are read: the shipped
+/// cars, then the player's own (imported or hand-made, gitignored). The
+/// first car to claim an id wins, so a custom car can never replace a
+/// shipped one by reusing its id.
+pub const CAR_DIRS: [&str; 2] = ["default", "custom"];
+
+/// Every `car.toml` under a cars folder (`content/cars`, or `content/cars`
+/// beside a packaged server): `default/` then `custom/`, each searched at
+/// any depth and sorted, so the order never depends on the filesystem. A
+/// folder with neither subfolder (an older layout, or a folder of cars
+/// passed by hand) is searched as it is.
+pub fn car_toml_paths(cars_dir: &Path) -> Vec<std::path::PathBuf> {
+    fn walk(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        let mut paths: Vec<_> = entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+        paths.sort();
+        for path in paths {
+            if path.is_dir() {
+                walk(&path, out);
+            } else if path.file_name().and_then(|s| s.to_str()) == Some("car.toml") {
+                out.push(path);
+            }
+        }
+    }
+    let split: Vec<_> = CAR_DIRS
+        .iter()
+        .map(|sub| cars_dir.join(sub))
+        .filter(|dir| dir.is_dir())
+        .collect();
+    let mut out = Vec::new();
+    if split.is_empty() {
+        walk(cars_dir, &mut out);
+    } else {
+        for dir in split {
+            walk(&dir, &mut out);
+        }
+    }
+    out
+}
+
 pub struct CarLoader;
 
 impl CarLoader {
@@ -440,6 +543,8 @@ impl CarLoader {
         let fuel_toml = car_toml.fuel.unwrap_or_default();
         let hybrid_toml = car_toml.hybrid.unwrap_or_default();
         let suspension_toml = car_toml.suspension.unwrap_or_default();
+        let tires_toml = car_toml.tires.unwrap_or_default();
+        let tire_defaults = TireConfig::default();
         let suspension_defaults = SuspensionConfig::default();
 
         // Convert engine force to power (legacy approximation: P = F * v, assuming ~100 m/s)
@@ -531,6 +636,9 @@ impl CarLoader {
                 Some("AWD") | Some("awd") | Some("4WD") | Some("4wd") => Drivetrain::AWD,
                 _ => Drivetrain::RWD,
             },
+            awd_front_share: drivetrain_toml
+                .awd_front_share
+                .unwrap_or(DEFAULT_AWD_FRONT_SHARE),
 
             engine: EngineConfig {
                 rev_limiter_rpm: engine_toml
@@ -548,6 +656,11 @@ impl CarLoader {
                 friction_torque_nm: engine_toml.friction_torque_nm.unwrap_or(20.0),
                 engine_brake_torque_nm: engine_toml.engine_brake_torque_nm.unwrap_or(80.0),
                 idle_control_gain: engine_toml.idle_control_gain.unwrap_or(0.15),
+                turbo: engine_toml.turbo.map(|t| TurboConfig {
+                    boosted_share: t.boosted_share,
+                    lag_up_s: t.lag_up_s.unwrap_or(DEFAULT_TURBO_LAG_UP_S),
+                    lag_down_s: t.lag_down_s.unwrap_or(DEFAULT_TURBO_LAG_DOWN_S),
+                }),
             },
             transmission: TransmissionConfig {
                 transmission_type: match transmission_toml.transmission_type.as_deref() {
@@ -575,6 +688,7 @@ impl CarLoader {
                 preload_nm: differential_toml.preload_nm.unwrap_or(60.0),
                 lock_power: differential_toml.lock_power.unwrap_or(0.35),
                 lock_coast: differential_toml.lock_coast.unwrap_or(0.20),
+                simulated: differential_toml.simulated.unwrap_or(false),
             },
             fuel: FuelConfig {
                 capacity_liters: fuel_toml.capacity_liters.unwrap_or(100.0),
@@ -642,7 +756,45 @@ impl CarLoader {
             // Tires
             tire_config: TireConfig {
                 grip_coefficient: car_toml.physics.grip_coefficient,
-                ..TireConfig::default()
+                optimal_pressure_kpa: tires_toml
+                    .optimal_pressure_kpa
+                    .unwrap_or(tire_defaults.optimal_pressure_kpa),
+                // Running pressures default to the optimum, so a car that
+                // names only its optimum runs at it.
+                pressure_front_kpa: tires_toml.pressure_front_kpa.unwrap_or(
+                    tires_toml
+                        .optimal_pressure_kpa
+                        .unwrap_or(tire_defaults.pressure_front_kpa),
+                ),
+                pressure_rear_kpa: tires_toml.pressure_rear_kpa.unwrap_or(
+                    tires_toml
+                        .optimal_pressure_kpa
+                        .unwrap_or(tire_defaults.pressure_rear_kpa),
+                ),
+                load_sensitivity_front: tires_toml
+                    .load_sensitivity_front
+                    .or(tires_toml.load_sensitivity)
+                    .unwrap_or(tire_defaults.load_sensitivity_front),
+                load_sensitivity_rear: tires_toml
+                    .load_sensitivity_rear
+                    .or(tires_toml.load_sensitivity)
+                    .unwrap_or(tire_defaults.load_sensitivity_rear),
+                reference_load_front_n: tires_toml
+                    .reference_load_front_n
+                    .or(tires_toml.reference_load_n),
+                reference_load_rear_n: tires_toml
+                    .reference_load_rear_n
+                    .or(tires_toml.reference_load_n),
+                longitudinal_grip_factor: tires_toml
+                    .longitudinal_grip_factor
+                    .unwrap_or(tire_defaults.longitudinal_grip_factor),
+                front_grip_scale: tires_toml
+                    .front_grip_scale
+                    .unwrap_or(tire_defaults.front_grip_scale),
+                rear_grip_scale: tires_toml
+                    .rear_grip_scale
+                    .unwrap_or(tire_defaults.rear_grip_scale),
+                ..tire_defaults
             },
         };
 
@@ -756,6 +908,78 @@ impl CarLoader {
                 "brake_bias_front must be in (0, 1) (got {})",
                 config.brake_bias_front
             ));
+        }
+
+        // Tyres, drivetrain and turbo: each range is wide enough for any
+        // real car (an Assetto Corsa import's figures included) and narrow
+        // enough that a typo cannot make a tyre with no grip or a turbo
+        // that is all boost.
+        let tyre = &config.tire_config;
+        let mut in_range = |name: &str, value: f32, lo: f32, hi: f32| {
+            if !(value.is_finite() && value >= lo && value <= hi) {
+                problems.push(format!("{name} must be in [{lo}, {hi}] (got {value})"));
+            }
+        };
+        in_range(
+            "tires.optimal_pressure_kpa",
+            tyre.optimal_pressure_kpa,
+            50.0,
+            400.0,
+        );
+        in_range(
+            "tires.pressure_front_kpa",
+            tyre.pressure_front_kpa,
+            50.0,
+            400.0,
+        );
+        in_range(
+            "tires.pressure_rear_kpa",
+            tyre.pressure_rear_kpa,
+            50.0,
+            400.0,
+        );
+        in_range(
+            "tires.load_sensitivity_front",
+            tyre.load_sensitivity_front,
+            0.3,
+            1.2,
+        );
+        in_range(
+            "tires.load_sensitivity_rear",
+            tyre.load_sensitivity_rear,
+            0.3,
+            1.2,
+        );
+        for (name, reference) in [
+            ("tires.reference_load_front_n", tyre.reference_load_front_n),
+            ("tires.reference_load_rear_n", tyre.reference_load_rear_n),
+        ] {
+            if let Some(load) = reference {
+                in_range(name, load, 100.0, 30000.0);
+            }
+        }
+        in_range(
+            "tires.longitudinal_grip_factor",
+            tyre.longitudinal_grip_factor,
+            0.6,
+            1.6,
+        );
+        in_range("tires.front_grip_scale", tyre.front_grip_scale, 0.5, 1.5);
+        in_range("tires.rear_grip_scale", tyre.rear_grip_scale, 0.5, 1.5);
+        in_range(
+            "drivetrain.awd_front_share",
+            config.awd_front_share,
+            0.0,
+            1.0,
+        );
+        let diff = &config.differential;
+        in_range("differential.preload_nm", diff.preload_nm, 0.0, 5000.0);
+        in_range("differential.lock_power", diff.lock_power, 0.0, 1.0);
+        in_range("differential.lock_coast", diff.lock_coast, 0.0, 1.0);
+        if let Some(turbo) = &config.engine.turbo {
+            in_range("engine.turbo.boosted_share", turbo.boosted_share, 0.0, 0.9);
+            in_range("engine.turbo.lag_up_s", turbo.lag_up_s, 0.0, 5.0);
+            in_range("engine.turbo.lag_down_s", turbo.lag_down_s, 0.0, 5.0);
         }
 
         if problems.is_empty() {
@@ -954,8 +1178,8 @@ max_travel_m = 0.10
     fn real_content_cars_still_load() {
         // Skip gracefully on CI checkouts without the content folder.
         let candidates = [
-            "../content/cars/posh-gt3rs/car.toml",
-            "../content/cars/fugazzi-sf26/car.toml",
+            "../content/cars/default/posh-gt3rs/car.toml",
+            "../content/cars/default/fugazzi-sf26/car.toml",
         ];
         for candidate in candidates {
             let path = Path::new(candidate);
@@ -1151,17 +1375,14 @@ gear_ratios = [3.0, 3.0, 2.0]
     /// limiter above fourth.
     #[test]
     fn shipped_cars_are_geared_for_speeds_they_can_reach() {
-        let dir = Path::new("../content/cars");
-        let Ok(entries) = std::fs::read_dir(dir) else {
+        let dir = Path::new("../content/cars/default");
+        let paths = car_toml_paths(dir);
+        if paths.is_empty() {
             eprintln!("skipping: content not present");
             return;
-        };
+        }
         let mut checked = 0;
-        for entry in entries.flatten() {
-            let path = entry.path().join("car.toml");
-            if !path.exists() {
-                continue;
-            }
+        for path in paths {
             let config = CarLoader::load_from_file(&path)
                 .unwrap_or_else(|e| panic!("{} should load: {e}", path.display()));
             let top = *config.gear_ratios.last().unwrap();
@@ -1177,5 +1398,209 @@ gear_ratios = [3.0, 3.0, 2.0]
             checked += 1;
         }
         assert!(checked > 0, "no cars found under {}", dir.display());
+    }
+
+    /// The tables an Assetto Corsa import writes, every key set.
+    const IMPORT_TABLES: &str = r#"
+[drivetrain]
+layout = "AWD"
+awd_front_share = 0.3
+
+[differential]
+differential_type = "ClutchLSD"
+preload_nm = 50.0
+lock_power = 0.4
+lock_coast = 0.2
+simulated = true
+
+[tires]
+optimal_pressure_kpa = 179.0
+pressure_front_kpa = 182.0
+load_sensitivity = 0.85
+load_sensitivity_rear = 0.9
+reference_load_n = 3768.0
+longitudinal_grip_factor = 1.1
+front_grip_scale = 0.98
+rear_grip_scale = 1.02
+
+[engine]
+max_torque_nm = 500.0
+
+[engine.turbo]
+boosted_share = 0.35
+lag_up_s = 0.6
+"#;
+
+    #[test]
+    fn tyre_drivetrain_and_turbo_keys_load_from_toml() {
+        let config = load_toml_str(&format!("{BASE_TOML}{IMPORT_TABLES}"))
+            .expect("car with the import tables should load");
+        assert_eq!(config.drivetrain, Drivetrain::AWD);
+        assert_eq!(config.awd_front_share, 0.3);
+        assert!(config.differential.simulated);
+        assert_eq!(config.differential.lock_power, 0.4);
+
+        let tyre = &config.tire_config;
+        assert_eq!(tyre.optimal_pressure_kpa, 179.0);
+        assert_eq!(tyre.pressure_front_kpa, 182.0);
+        // Unnamed, a running pressure is the optimum.
+        assert_eq!(tyre.pressure_rear_kpa, 179.0);
+        // The shared key, and an axle's own key over it.
+        assert_eq!(tyre.load_sensitivity_front, 0.85);
+        assert_eq!(tyre.load_sensitivity_rear, 0.9);
+        assert_eq!(tyre.reference_load_front_n, Some(3768.0));
+        assert_eq!(tyre.reference_load_rear_n, Some(3768.0));
+        assert_eq!(tyre.longitudinal_grip_factor, 1.1);
+        assert_eq!(tyre.front_grip_scale, 0.98);
+        assert_eq!(tyre.rear_grip_scale, 1.02);
+
+        let turbo = config.engine.turbo.expect("turbo table");
+        assert_eq!(turbo.boosted_share, 0.35);
+        assert_eq!(turbo.lag_up_s, 0.6);
+        assert_eq!(turbo.lag_down_s, DEFAULT_TURBO_LAG_DOWN_S);
+    }
+
+    #[test]
+    fn without_the_tables_the_tyre_drivetrain_and_turbo_are_as_before() {
+        let config = load_toml_str(BASE_TOML).expect("minimal car should load");
+        let tyre = &config.tire_config;
+        assert_eq!(tyre.pressure_front_kpa, 180.0);
+        assert_eq!(tyre.pressure_rear_kpa, 180.0);
+        assert_eq!(tyre.optimal_pressure_kpa, 180.0);
+        assert_eq!(tyre.load_sensitivity_front, 1.0);
+        assert_eq!(tyre.load_sensitivity_rear, 1.0);
+        assert_eq!(tyre.reference_load_front_n, None);
+        assert_eq!(tyre.reference_load_rear_n, None);
+        assert_eq!(tyre.longitudinal_grip_factor, 1.0);
+        assert_eq!(tyre.front_grip_scale, 1.0);
+        assert_eq!(tyre.rear_grip_scale, 1.0);
+        assert!(tyre.is_linear_single_compound());
+        assert_eq!(config.awd_front_share, DEFAULT_AWD_FRONT_SHARE);
+        assert!(!config.differential.simulated);
+        assert!(config.engine.turbo.is_none());
+    }
+
+    /// A car.toml that spells out every new key at its default drives to
+    /// the bit like one that has none of them.
+    #[test]
+    fn default_valued_tables_simulate_like_no_tables() {
+        let with_layout =
+            |extra: &str| format!("{BASE_TOML}\n[drivetrain]\nlayout = \"AWD\"\n{extra}");
+        let bare = load_toml_str(&with_layout("")).unwrap();
+        let explicit = load_toml_str(&with_layout(
+            r#"awd_front_share = 0.4
+
+[differential]
+simulated = false
+
+[tires]
+optimal_pressure_kpa = 180.0
+pressure_front_kpa = 180.0
+pressure_rear_kpa = 180.0
+load_sensitivity = 1.0
+reference_load_n = 4000.0
+longitudinal_grip_factor = 1.0
+front_grip_scale = 1.0
+rear_grip_scale = 1.0
+
+[engine.turbo]
+boosted_share = 0.0
+"#,
+        ))
+        .unwrap();
+
+        let run = |config: &CarConfig| {
+            let track = TrackConfig {
+                centerline: (0..600)
+                    .map(|i| TrackPoint {
+                        x: i as f32 * 4.0,
+                        distance_from_start_m: i as f32 * 4.0,
+                        width_left_m: 500.0,
+                        width_right_m: 500.0,
+                        ..Default::default()
+                    })
+                    .collect(),
+                ..TrackConfig::default()
+            };
+            let slot = GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            };
+            let mut state = CarState::new(Uuid::from_u128(1), config.id, &slot);
+            state.auto_gearbox = true;
+            state.traction_control = Some(TractionControl::Off);
+            let mut bits = Vec::new();
+            for tick in 0..240 * 8u32 {
+                let t = tick as f32 / 240.0;
+                let braking = (5.0..6.0).contains(&t);
+                let input = PlayerInputData {
+                    throttle: if braking { 0.0 } else { 1.0 },
+                    brake: if braking { 1.0 } else { 0.0 },
+                    steering: 0.5 * (t * 1.1).sin(),
+                    ..Default::default()
+                };
+                crate::physics::update_car_3d(&mut state, config, &input, &track, 1.0 / 240.0);
+                bits.extend(
+                    [
+                        state.pos_x,
+                        state.pos_y,
+                        state.yaw_rad,
+                        state.vel_x,
+                        state.engine_rpm,
+                    ]
+                    .map(f32::to_bits),
+                );
+            }
+            bits
+        };
+        assert_eq!(run(&bare), run(&explicit));
+    }
+
+    #[test]
+    fn out_of_range_tyre_drivetrain_and_turbo_keys_are_rejected() {
+        for bad in [
+            "[tires]\nload_sensitivity = 1.5\n",
+            "[tires]\nload_sensitivity_front = 0.1\n",
+            "[tires]\nreference_load_n = 10.0\n",
+            "[tires]\nlongitudinal_grip_factor = 3.0\n",
+            "[tires]\nrear_grip_scale = 0.2\n",
+            "[tires]\noptimal_pressure_kpa = 20.0\n",
+            "[tires]\npressure_rear_kpa = 900.0\n",
+            "[tires]\ncamber = 1.0\n",
+            "[drivetrain]\nawd_front_share = 1.2\n",
+            "[differential]\nlock_power = 1.5\n",
+            "[differential]\npreload_nm = -10.0\n",
+            "[engine.turbo]\nboosted_share = 0.95\n",
+            "[engine.turbo]\nboosted_share = 0.3\nlag_up_s = -1.0\n",
+        ] {
+            assert!(
+                load_toml_str(&format!("{BASE_TOML}\n{bad}")).is_err(),
+                "should be refused: {bad}"
+            );
+        }
+    }
+
+    /// The garage's pressure clicks move the car's own running pressures,
+    /// so a car whose optimum is not 180 kPa is still at its optimum stock
+    /// and loses grip either side of it.
+    #[test]
+    fn the_garage_clicks_pressure_from_the_files_own_optimum() {
+        let config = load_toml_str(&format!(
+            "{BASE_TOML}\n[tires]\noptimal_pressure_kpa = 165.0\n"
+        ))
+        .unwrap();
+        assert_eq!(config.tire_config.front_grip_factor(), 1.0);
+        let setup = crate::car_setup::CarSetup {
+            tyre_pressure_front: 2,
+            ..Default::default()
+        };
+        let tuned = setup.apply(&config);
+        assert_eq!(tuned.tire_config.pressure_front_kpa, 175.0);
+        assert_eq!(tuned.tire_config.pressure_rear_kpa, 165.0);
+        assert!(tuned.tire_config.front_grip_factor() < 1.0);
+        assert_eq!(tuned.tire_config.rear_grip_factor(), 1.0);
     }
 }

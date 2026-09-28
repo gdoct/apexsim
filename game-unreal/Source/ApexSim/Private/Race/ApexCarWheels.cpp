@@ -110,15 +110,27 @@ void FApexCarWheelSet::SetSpec(const FApexWheelSpec& InSpec)
 {
 	Spec = InSpec;
 	UStaticMesh* Loaded = Spec.IsUsable() ? ApexCarContent::LoadMesh(Spec.Mesh, Spec.RuntimeModel) : nullptr;
+	// The rear pair's own model when the car has one; one that will not load
+	// falls back to the front's, which scaled to the rear axle is still a wheel.
+	UStaticMesh* Rear = Loaded && Spec.HasRearModel() ? ApexCarContent::LoadMesh(Spec.RearMesh, Spec.RearRuntimeModel) : nullptr;
+	if (!Rear)
+	{
+		Rear = Loaded;
+	}
 	bHasWheels = Loaded != nullptr;
 	MeshBounds = Loaded ? Loaded->GetBounds() : FBoxSphereBounds(ForceInit);
+	RearMeshBounds = Rear ? Rear->GetBounds() : FBoxSphereBounds(ForceInit);
 	SpinRad[0] = SpinRad[1] = 0.0f;
 	SteerRad = 0.0f;
-	for (UStaticMeshComponent* Wheel : Components)
+	for (int32 i = 0; i < Components.Num(); ++i)
 	{
-		if (Wheel)
+		UStaticMeshComponent* Wheel = Components[i];
+		UStaticMesh* Mesh = ApexWheels::IsFront(static_cast<ApexWheels::EWheel>(i)) ? Loaded : Rear;
+		if (Wheel && Wheel->GetStaticMesh() != Mesh)
 		{
-			Wheel->SetStaticMesh(Loaded);
+			// Overrides are per slot index (a skin's rims): not the old model's on the new one.
+			Wheel->EmptyOverrideMaterials();
+			Wheel->SetStaticMesh(Mesh);
 		}
 	}
 	SetVisible(bVisible);
@@ -150,8 +162,9 @@ void FApexCarWheelSet::Place()
 		const ApexWheels::EWheel Wheel = static_cast<ApexWheels::EWheel>(i);
 		if (UStaticMeshComponent* Component = Components[i])
 		{
+			const bool bFront = ApexWheels::IsFront(Wheel);
 			Component->SetRelativeTransform(ApexWheels::WheelTransform(
-				Spec, Wheel, MeshBounds, SteerRad, SpinRad[ApexWheels::IsFront(Wheel) ? 0 : 1]));
+				Spec, Wheel, bFront ? MeshBounds : RearMeshBounds, SteerRad, SpinRad[bFront ? 0 : 1]));
 		}
 	}
 }

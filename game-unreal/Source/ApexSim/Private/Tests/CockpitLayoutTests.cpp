@@ -199,4 +199,43 @@ bool FApexCockpitHeadAndWheelTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCockpitCarWheelTest,
+	"ApexSim.Cockpit.CarWheel",
+	ApexTestFlags)
+
+bool FApexCockpitCarWheelTest::RunTest(const FString& Parameters)
+{
+	const FBox Box = ApexCockpit::ActorFrameBox(GtMeshBounds, MeshMount);
+	const FApexCockpitLayout Derived = ApexCockpit::DeriveLayout(Box, EApexCockpitStyle::Closed, FApexCockpitOverrides());
+	TestTrue(TEXT("the rig's rim by default"), Derived.bRigWheel);
+	TestTrue(TEXT("the rig's display by default"), Derived.bRigDash);
+	TestTrue(TEXT("no car wheel by default"), Derived.SteeringWheelModel.IsEmpty());
+
+	FApexCockpitOverrides Overrides;
+	Overrides.bRigWheel = false;
+	Overrides.bRigDash = false;
+	Overrides.WheelRakeDeg = -6.0f;
+	Overrides.WheelLockDeg = 270.0f;
+	Overrides.RuntimeSteeringWheel = TEXT("C:/cars/x/steer.glb");
+	const FApexCockpitLayout Own = ApexCockpit::DeriveLayout(Box, EApexCockpitStyle::Closed, Overrides);
+	TestFalse(TEXT("rim off"), Own.bRigWheel);
+	TestFalse(TEXT("display off"), Own.bRigDash);
+	TestEqual(TEXT("the car's rake"), Own.WheelRakeDeg, -6.0f);
+	TestEqual(TEXT("the car's lock"), Own.WheelLockDeg, 270.0f);
+	TestEqual(TEXT("the car's wheel"), Own.SteeringWheelModel, Overrides.RuntimeSteeringWheel);
+	TestEqual(TEXT("the seat is not moved by any of it"), Own.Eye, Derived.Eye);
+
+	// The rig mounts a car GLB's steering wheel turned -90 about Z, as the
+	// race car mounts the body: the column (glTF +Z, the mesh's +Y) must land
+	// on the pivot's +X, which the rake tips and the steering rolls about,
+	// and the car's left (glTF +X) on the pivot's -Y.
+	const FQuat Mount = FRotator(0.0f, -90.0f, 0.0f).Quaternion();
+	TestTrue(TEXT("column along the pivot's X"), Mount.RotateVector(FVector(0.0, 1.0, 0.0)).Equals(FVector(1.0, 0.0, 0.0), 1.0e-4));
+	TestTrue(TEXT("the car's left on the pivot's left"), Mount.RotateVector(FVector(1.0, 0.0, 0.0)).Equals(FVector(0.0, -1.0, 0.0), 1.0e-4));
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

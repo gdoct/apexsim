@@ -1,5 +1,5 @@
 """Build one of the Hypercar (LMH) prototypes in Blender and export it to
-content/cars/<folder>/<stem>.glb.
+content/cars/default/<folder>/<stem>.glb.
 
     VARIANT = "panini"     # panini | fugazzi | bugotti
     exec(open(r"E:\\apexsim\\content\\cars\\build_hypercar.py").read())

@@ -35,10 +35,17 @@ What differs from the design below, on purpose:
 - **Kerbs keep AC's textures** rather than the kit's curb family: their
   stripes are authored into the texture, and the kit's 2 m stripes would
   need an along-kerb UV the kn5 does not carry.
-- **Classification is per mesh, not per material**, by what physics lies
-  under three quarters of the mesh's vertices; one AC material can be the
-  kit road on one mesh and AC-textured on another. Alpha-tested and
-  blended materials are never a kit surface.
+- **Classification is per material, from its meshes' physics**: each
+  mesh is sampled at its triangles' centres (three quarters must lie on
+  physics, 60% of those in one class), and the meshes of a material that
+  resolve vote, weighted by size, for the whole material. Vertices were
+  tried first and failed: a road ribbon's vertices all lie on the road's
+  edges, where the physics is road or grass by a coin toss, and Zandvoort's
+  asphalt chunks came out as kit grass. A material none of whose meshes
+  stand on physics falls to the name and shader hints: plain
+  `ksMultilayer` is grass, `ksMultilayer_fresnel*` (Kunos' tarmac) road,
+  and `ksMultilayer_objsp` (an object shader: railings, towers, stands)
+  nothing. Alpha-tested and blended materials are never a kit surface.
 - **Only the diffuse maps come over**, and most are re-encoded: the
   majority of Kunos textures ship without mip chains, so they are decoded,
   mipped and range-fit to BC1/BC3 by the tool; a BC1/BC3 source with its

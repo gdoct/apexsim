@@ -1,6 +1,7 @@
 #include "Race/ApexCockpitRig.h"
 
 #include "ApexSim.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
@@ -156,6 +157,32 @@ void AApexCockpitRig::BuildWheel()
 	Dash->SetupAttachment(WheelPivot);
 	SetupFace(*Dash, UApexCockpitDashWidget::StaticClass(),
 		FVector2D(UApexCockpitDashWidget::DrawWidth, UApexCockpitDashWidget::DrawHeight));
+
+	// Empty until a car brings a steering wheel of its own. A car GLB has its
+	// nose on +Y (ApexGlbReader.h); the pivot's is +X, as the body is turned
+	// -90 into the actor, so the column (glTF +Z) lies along the pivot's X,
+	// which the rake tips and the steering rolls about.
+	CarWheel = MakePart(TEXT("CarWheel"), nullptr);
+	CarWheel->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+}
+
+TArray<UStaticMeshComponent*, TInlineAllocator<5>> AApexCockpitRig::RimParts() const
+{
+	return {WheelHub.Get(), GripLeft.Get(), GripRight.Get(), SpokeTop.Get(), SpokeBottom.Get()};
+}
+
+void AApexCockpitRig::DressWheel()
+{
+	// Built on first use and kept by the content subsystem, like the car's
+	// other GLBs; the race director prefetches it with the roster.
+	UStaticMesh* Mesh = Layout.SteeringWheelModel.IsEmpty()
+		? nullptr
+		: ApexCarContent::LoadMesh(TSoftObjectPtr<UStaticMesh>(), Layout.SteeringWheelModel);
+	if (CarWheel->GetStaticMesh() != Mesh)
+	{
+		CarWheel->EmptyOverrideMaterials();
+		CarWheel->SetStaticMesh(Mesh);
+	}
 }
 
 AApexCockpitRig::FMirror AApexCockpitRig::BuildMirror(
@@ -235,6 +262,7 @@ void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 	}
 
 	Layout = Car->GetCockpitLayout();
+	DressWheel();
 	AttachToActor(Car, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	// The parts ride the attachment, but the display reads the car's
 	// telemetry: same frame's values, after the car has taken them.
@@ -260,10 +288,12 @@ void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 	PlaceParts();
 	ApplyVisibility();
 
-	UE_LOG(LogApexSim, Log, TEXT("Cockpit rig in car %d: %s, eye (%.0f, %.0f, %.0f) cm, %s"),
+	UE_LOG(LogApexSim, Log, TEXT("Cockpit rig in car %d: %s, eye (%.0f, %.0f, %.0f) cm, %s%s%s"),
 		Car->GetCarIndex(), Layout.bOpenWheel ? TEXT("open cockpit") : TEXT("closed cabin"),
 		Layout.Eye.X, Layout.Eye.Y, Layout.Eye.Z,
-		Layout.bCentreMirror ? TEXT("three mirrors") : TEXT("two mirrors"));
+		Layout.bCentreMirror ? TEXT("three mirrors") : TEXT("two mirrors"),
+		CarWheel->GetStaticMesh() ? TEXT(", the car's own steering wheel") : (Layout.bRigWheel ? TEXT("") : TEXT(", no rim")),
+		Layout.bRigDash ? TEXT("") : TEXT(", no hub display"));
 }
 
 void AApexCockpitRig::DetachFromCar()
@@ -384,6 +414,18 @@ void AApexCockpitRig::ApplyVisibility()
 	const bool bInside = Features.bCockpitActive && Car != nullptr;
 
 	WheelPivot->SetVisibility(bInside && Features.bWheel, /*bPropagateToChildren*/ true);
+	if (WheelPivot->IsVisible())
+	{
+		// The car's own wheel replaces the rim; a car may also switch the rim
+		// or the display off because its interior has its own.
+		const bool bOwnWheel = CarWheel->GetStaticMesh() != nullptr;
+		for (UStaticMeshComponent* Part : RimParts())
+		{
+			Part->SetVisibility(!bOwnWheel && Layout.bRigWheel);
+		}
+		CarWheel->SetVisibility(bOwnWheel);
+		Dash->SetVisibility(Layout.bRigDash);
+	}
 
 	Centre.bWanted = bInside && Features.bMirrors && Layout.bCentreMirror;
 	Left.bWanted = bInside && Features.bMirrors;
@@ -476,7 +518,10 @@ void AApexCockpitRig::Tick(float DeltaSeconds)
 	if (WheelPivot->IsVisible())
 	{
 		UpdateWheel(DeltaSeconds);
-		PushDash();
+		if (Layout.bRigDash)
+		{
+			PushDash();
+		}
 	}
 
 	EnsureRenderTargets();

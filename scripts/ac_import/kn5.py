@@ -16,8 +16,12 @@ Layout (every integer little-endian, every string `i32 length + UTF-8`):
                           uv, tangent), i32 index_count x u16, i32 material,
                           i32 layer, f32 lod_in, f32 lod_out, 4 f32 sphere,
                           u8 renderable
-        type 3 (skinned): i32 bone_count x (str, 64 bytes), vertices of 76
-                          bytes, otherwise as a mesh; never used on a track
+        type 3 (skinned): u8 x3, i32 bone_count x (str, 64 bytes), vertices
+                          of 76 bytes (the 44 plus four bone weights and four
+                          bone indices as f32), then indices, material, layer,
+                          lod_in and lod_out as a mesh but no sphere and no
+                          renderable byte; cars carry them (the belts, the
+                          shift boot), tracks do not
 
 A kn5 whose content was encrypted by Custom Shaders Patch has no `sc6969`
 magic, or carries textures that are not images; it is refused, never
@@ -188,11 +192,22 @@ def read_kn5(path: Path, *, textures: bool = True) -> Kn5File:
     out = Kn5File(path=path, version=version)
 
     for _ in range(r.i32()):
-        r.i32()  # active
-        name = r.string()
-        size = r.i32()
-        blob = r.take(size)
-        if size >= 4 and blob[:4] not in _IMAGE_MAGICS:
+        # A protected mod's texture table does not parse as Kunos writes it
+        # (the RSS cars carry an extra field in every record), so a table
+        # that runs off the file is reported as encryption, not damage.
+        try:
+            r.i32()  # active
+            name = r.string()
+            size = r.i32()
+            blob = r.take(size)
+        except Kn5Error as e:
+            raise EncryptedKn5(
+                f"{path.name}: the texture table is unreadable ({e}); the file looks encrypted"
+            ) from None
+        # startswith, not a four-byte slice: the JPEG and BMP magics are
+        # shorter than four bytes and a slice compare never matched them,
+        # which refused every kn5 carrying a JPEG as "encrypted".
+        if size >= 4 and not blob.startswith(_IMAGE_MAGICS):
             raise EncryptedKn5(
                 f"{path.name}: texture {name!r} is not an image; the file looks encrypted"
             )
@@ -232,12 +247,11 @@ def read_kn5(path: Path, *, textures: bool = True) -> Kn5File:
             transform = local @ parent_transform
             out.dummies.append(Kn5Dummy(name, parent_name, transform, active))
         elif kind in (2, 3):
+            r.take(3)
             if kind == 3:
                 for _ in range(r.i32()):
                     r.string()
                     r.take(64)
-            else:
-                r.take(3)
             nverts = r.i32()
             stride = 76 if kind == 3 else 44
             raw = r.take(nverts * stride)
@@ -252,8 +266,10 @@ def read_kn5(path: Path, *, textures: bool = True) -> Kn5File:
             layer = r.i32()
             lod_in = r.f32()
             lod_out = r.f32()
-            r.take(16)
-            renderable = bool(r.u8())
+            renderable = True
+            if kind == 2:
+                r.take(16)
+                renderable = bool(r.u8())
             if material < 0 or material >= len(out.materials):
                 raise Kn5Error(
                     f"{path.name}: mesh {name!r} names material {material} of {len(out.materials)}"
@@ -284,6 +300,13 @@ def read_kn5(path: Path, *, textures: bool = True) -> Kn5File:
 
     node(identity, "")
     if r.at != len(data):
+        # Custom Shaders Patch's car protection appends its encrypted payload
+        # after an intact tree as named blocks (`acd.checksum.e`, ...): the
+        # geometry reads, but it is not the car the author shipped.
+        if b".checksum" in data[r.at:r.at + 64]:
+            raise EncryptedKn5(
+                f"{path.name}: carries Custom Shaders Patch encrypted data after the model"
+            )
         raise Kn5Error(f"{path.name}: {len(data) - r.at} bytes after the node tree")
     return out
 
@@ -293,7 +316,9 @@ def write_kn5(path: Path, textures: dict[str, bytes], materials: list[Kn5Materia
     """Write a kn5 (for the tests: a synthetic track). `nodes` is a tree of
     `("dummy", name, matrix4x4, [children])` and
     `("mesh", name, vertices(VERTEX_DTYPE), triangles(n,3), material, lod_in,
-    lod_out, renderable)` tuples under an implicit root dummy."""
+    lod_out, renderable)` tuples under an implicit root dummy; a
+    `("skinned", name, vertices, triangles, material, lod_in, lod_out,
+    bone_names)` tuple writes a type 3 node (zero weights, identity bones)."""
     out = bytearray()
 
     def s(text: str) -> None:
@@ -335,20 +360,32 @@ def write_kn5(path: Path, textures: dict[str, bytes], materials: list[Kn5Materia
             for c in children:
                 node(c)
         else:
-            _, name, vertices, triangles, material, lod_in, lod_out, renderable = n
-            out.extend(struct.pack("<i", 2))
+            skinned = n[0] == "skinned"
+            _, name, vertices, triangles, material, lod_in, lod_out, extra = n
+            out.extend(struct.pack("<i", 3 if skinned else 2))
             s(name)
             out.extend(struct.pack("<iB", 0, 1))
             out.extend(bytes(3))
+            if skinned:
+                out.extend(struct.pack("<i", len(extra)))
+                for bone in extra:
+                    s(bone)
+                    out.extend(np.eye(4, dtype="<f4").tobytes())
             vertices = np.asarray(vertices, dtype=VERTEX_DTYPE)
             out.extend(struct.pack("<i", len(vertices)))
-            out.extend(vertices.tobytes())
+            if skinned:
+                raw = np.zeros((len(vertices), 76), dtype=np.uint8)
+                raw[:, :44] = np.frombuffer(vertices.tobytes(), dtype=np.uint8).reshape(-1, 44)
+                out.extend(raw.tobytes())
+            else:
+                out.extend(vertices.tobytes())
             idx = np.asarray(triangles, dtype="<u2").reshape(-1)
             out.extend(struct.pack("<i", len(idx)))
             out.extend(idx.tobytes())
             out.extend(struct.pack("<iiff", material, 0, lod_in, lod_out))
-            out.extend(bytes(16))
-            out.extend(struct.pack("<B", int(renderable)))
+            if not skinned:
+                out.extend(bytes(16))
+                out.extend(struct.pack("<B", int(extra)))
 
     node(("dummy", "root", np.eye(4), nodes))
     Path(path).write_bytes(bytes(out))

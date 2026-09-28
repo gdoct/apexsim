@@ -20,8 +20,9 @@ struct FApexGlbModel;
  * Where the game's cars come from: their files on disk, as the tracks do.
  *
  * A car is its folder — `car.toml` plus the GLB it names as `model`, the
- * DRS flap GLB and the livery logo PNGs — and the class wheel
- * `<model>.glb` in the wheels folder beside the cars. The game reads each
+ * DRS flap GLB, the livery logos and skins, and any wheel or steering wheel
+ * GLB of its own — and otherwise the class wheel `<model>.glb` in the wheels
+ * folder beside the cars. The game reads each
  * car.toml when a catalog row is first asked for, and builds a GLB into a
  * transient static mesh the first time something draws it: its own GLB
  * reader (`ApexGlb`), the fast mesh build the tracks use, and dynamic
@@ -33,6 +34,10 @@ struct FApexGlbModel;
  *  - a packaged build: `Cars/` beside `ApexSim.exe` (`<Release>/Game/Cars`),
  *    wheels in `Wheels/` beside it;
  *  - the editor: the repo's `content/cars`, wheels in `content/wheels`.
+ * Each is read as `default/` (the shipped cars) then `custom/` (the
+ * player's own), or as it is when it has neither (`CarFolders`), so a custom
+ * car reusing a shipped id is the one left out. The wheels folder sits
+ * beside the cars folder, not beside `default/`.
  *
  * A row from a car on disk wins over the `DT_CarCatalog` table's; the table
  * is a fallback for a car with no folder here, and lends a runtime car its
@@ -62,6 +67,12 @@ public:
 	static TArray<FString> CarDirectories();
 
 	/**
+	 * The folders one cars folder's cars sit in, in order: its `default` and
+	 * `custom` subfolders, or the folder itself when it has neither.
+	 */
+	static TArray<FString> CarFolders(const FString& CarsDir);
+
+	/**
 	 * The catalog row for a car id: the car on disk's, else the table's;
 	 * null when neither knows it. Case-insensitive.
 	 */
@@ -78,11 +89,15 @@ public:
 	 */
 	UStaticMesh* LoadModel(const FString& Path);
 
-	/** A PNG (a livery logo) as a transient texture, loaded once. */
+	/**
+	 * A PNG or JPEG (a livery logo, skin or slot texture) as a transient sRGB
+	 * texture, loaded once per path: twenty cars in one skin share it. Null,
+	 * logged once, when it will not decode.
+	 */
 	UTexture2D* LoadTexture(const FString& Path);
 
 	/**
-	 * Start reading a row's GLBs (body, wheels, flap) on the thread pool, so
+	 * Start reading a row's GLBs (body, wheels, flap, steering wheel) on the thread pool, so
 	 * the `LoadModel` that follows only builds. The race director calls it for
 	 * the whole roster before it dresses the first car.
 	 */
@@ -157,6 +172,9 @@ namespace ApexCarContent
 
 	/** A livery's logo, runtime PNG or cooked texture; null when it has none. */
 	APEXSIM_API UTexture2D* LoadLogo(const FApexCarLivery& Livery);
+
+	/** A livery's skin or slot texture (`RuntimeSkin`, `RuntimeTextures`); null for an empty path or one that will not load. */
+	APEXSIM_API UTexture2D* LoadLiveryTexture(const FString& RuntimePath);
 
 	/**
 	 * A dynamic instance on slot `Index` that belongs to `Component` alone.

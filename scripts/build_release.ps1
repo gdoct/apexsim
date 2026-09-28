@@ -81,6 +81,11 @@
     client export). Off by default: that folder is the player's own, and may
     hold circuits converted from content that must not be redistributed.
 
+.PARAMETER IncludeCustomCars
+    Also ship the cars in content\cars\custom (car.toml for the server,
+    car.toml and the files it names for the client). Off by default, for the
+    same reason as -IncludeCustomTracks.
+
 .PARAMETER SkipClient
     Reuse a packaged client instead of running BuildCookRun. Uses the build
     already staged in this release's Game/ folder if present, otherwise falls
@@ -113,6 +118,7 @@ param(
     [switch]$SkipProps,
     [switch]$SkipTracks,
     [switch]$IncludeCustomTracks,
+    [switch]$IncludeCustomCars,
     [switch]$SkipClient,
     [string]$ClientArtifactDirectory
 )
@@ -191,9 +197,11 @@ function Test-Command {
 
 # Both return an array PowerShell will unroll to $null when empty, so callers
 # wrap the call in @() before touching .Count.
+# The cars this release ships: content\cars\default, plus
+# content\cars\custom with -IncludeCustomCars.
 function Get-CarFiles {
     if (-not (Test-Path $CarsDir)) { return @() }
-    return @(Get-ChildItem $CarsDir -Filter 'car.toml' -Recurse -File)
+    return @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly:(-not $IncludeCustomCars))
 }
 
 # The circuits this release ships: content\tracks\default, plus
@@ -269,7 +277,7 @@ function Invoke-Preflight {
     else {
         # The game builds every car from these files; one it cannot find is a
         # car drawn as nothing, or without its wheels.
-        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir)) {
+        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir -DefaultOnly:(-not $IncludeCustomCars))) {
             $problems.Add("car data: $problem")
         }
     }
@@ -373,7 +381,8 @@ function Copy-ServerContent {
 
     $carsOut = Join-Path $Destination 'cars'
     foreach ($car in Get-CarFiles) {
-        $target = Join-Path $carsOut (Split-Path -Leaf $car.DirectoryName)
+        # The same folder it came from (cars\default\<car> or cars\custom\<car>).
+        $target = Join-Path $carsOut (Get-ApexCarRelativeDir -CarsDir $CarsDir -CarDir $car.DirectoryName)
         New-Item -ItemType Directory -Path $target -Force | Out-Null
         Copy-Item -LiteralPath $car.FullName -Destination (Join-Path $target 'car.toml') -Force
     }
@@ -571,7 +580,8 @@ Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
 Copy-RuntimeTracks -Destination (Join-Path $GameDir 'Tracks')
 $runtimeTrackCount = @(Get-ChildItem (Join-Path $GameDir 'Tracks') -Filter '*.uescene.json' -File).Count
 Write-Detail "$runtimeTrackCount track(s) in $(Join-Path $GameDir 'Tracks')"
-$runtimeCarCount = Copy-ApexRuntimeCars -CarsDir $CarsDir -WheelsDir $WheelsDir -Destination $GameDir
+$runtimeCarCount = Copy-ApexRuntimeCars -CarsDir $CarsDir -WheelsDir $WheelsDir -Destination $GameDir `
+    -DefaultOnly:(-not $IncludeCustomCars)
 Write-Detail "$runtimeCarCount car(s) in $(Join-Path $GameDir 'Cars')"
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination $ReleaseDir -Force
 
@@ -661,8 +671,8 @@ WHAT IS IN HERE
                        with the matching .yaml in Server\content\tracks\default.
     Game\Cars\         Every car, as the car.toml and GLBs the game builds
                        it from; Game\Wheels\ holds the class wheels. A new
-                       car is its folder here, with the same car.toml in
-                       Server\content\cars.
+                       car is its folder in Game\Cars\custom, with the same
+                       car.toml in Server\content\cars\custom.
     Game\settings.yml  Resolution, window mode and the server to connect to.
                        Written on the first run; edit it in any text editor.
                        Game\settings.sample.yml is the same file with the
@@ -703,7 +713,7 @@ HOSTING FOR OTHER PEOPLE
 
 MODDING
 
-    Server\content\cars\<car>\car.toml holds each car's physics, and
+    Server\content\cars\default\<car>\car.toml holds each car's physics, and
     Server\content\tracks\default\*.yaml the circuit centrelines. The server
     validates both at startup and is the authority on them, so edits change
     the simulation for everyone connected. A circuit's scenery is

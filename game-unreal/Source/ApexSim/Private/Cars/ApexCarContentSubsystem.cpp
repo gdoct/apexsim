@@ -77,6 +77,32 @@ namespace
 	}
 
 	/**
+	 * The wheel a `[wheels] model` / `rear_model` names, as a full path: a GLB
+	 * in the car's own folder (ApexCarToml::IsCarLocalWheel), else the class
+	 * wheel in the wheels folder beside the cars folder it was found in, then
+	 * beside any other. Empty, and a warning, when it is nowhere.
+	 */
+	FString ResolveWheel(const FString& CarsDir, const FString& CarDir, const FString& Model, const FString& Folder)
+	{
+		if (ApexCarToml::IsCarLocalWheel(Model))
+		{
+			return CarFile(CarDir, Model, Folder, TEXT("its wheel"));
+		}
+		FString Path = FindWheel(CarsDir, Model);
+		const TArray<FString> Dirs = UApexCarContentSubsystem::CarDirectories();
+		for (int32 i = 0; Path.IsEmpty() && i < Dirs.Num(); ++i)
+		{
+			Path = FindWheel(Dirs[i], Model);
+		}
+		if (Path.IsEmpty())
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s wants the %s wheel, and no wheels folder beside the cars has %s.glb"),
+				*Folder, *Model, *Model);
+		}
+		return Path;
+	}
+
+	/**
 	 * Per-vertex tangents from the UV gradient, orthogonalised against the
 	 * normals, with the binormal's handedness as a sign; the fast build
 	 * takes them as they are. (No car material samples a normal map yet;
@@ -172,6 +198,27 @@ TArray<FString> UApexCarContentSubsystem::CarDirectories()
 	return Dirs;
 }
 
+TArray<FString> UApexCarContentSubsystem::CarFolders(const FString& CarsDir)
+{
+	// The shipped cars, then the player's own: the first to hold an id wins,
+	// so an import can never replace a shipped car by reusing its id.
+	TArray<FString> Folders;
+	for (const TCHAR* Sub : {TEXT("default"), TEXT("custom")})
+	{
+		const FString Folder = FPaths::Combine(CarsDir, Sub);
+		if (IFileManager::Get().DirectoryExists(*Folder))
+		{
+			Folders.Add(Folder);
+		}
+	}
+	// A folder with neither (an -ApexCarsDir of loose cars) holds the cars itself.
+	if (Folders.IsEmpty())
+	{
+		Folders.Add(CarsDir);
+	}
+	return Folders;
+}
+
 void UApexCarContentSubsystem::EnsureScanned() const
 {
 	if (!bScanned)
@@ -224,6 +271,7 @@ void UApexCarContentSubsystem::ScanNow()
 
 	int32 Skipped = 0;
 	TArray<FString> Found;
+	TMap<FString, FString> SourceOf; // id -> the car folder it was read from
 	for (const FString& Dir : CarDirectories())
 	{
 		if (!IFileManager::Get().DirectoryExists(*Dir))
@@ -231,113 +279,129 @@ void UApexCarContentSubsystem::ScanNow()
 			UE_LOG(LogApexSim, Log, TEXT("Runtime cars: no folder at %s"), *Dir);
 			continue;
 		}
-		TArray<FString> Folders;
-		IFileManager::Get().FindFiles(Folders, *FPaths::Combine(Dir, TEXT("*")), false, true);
-		Folders.Sort();
-		for (const FString& Folder : Folders)
+		for (const FString& Parent : CarFolders(Dir))
 		{
-			const FString CarDir = FPaths::Combine(Dir, Folder);
-			const FString TomlPath = FPaths::Combine(CarDir, TEXT("car.toml"));
-			TArray<uint8> Bytes;
-			if (!IFileManager::Get().FileExists(*TomlPath))
+			TArray<FString> Folders;
+			IFileManager::Get().FindFiles(Folders, *FPaths::Combine(Parent, TEXT("*")), false, true);
+			Folders.Sort();
+			for (const FString& Folder : Folders)
 			{
-				continue;
-			}
-			if (!FFileHelper::LoadFileToArray(Bytes, *TomlPath))
-			{
-				UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s is unreadable; skipped"), *TomlPath);
-				++Skipped;
-				continue;
-			}
-			FString Text;
-			FFileHelper::BufferToString(Text, Bytes.GetData(), Bytes.Num());
-			FApexCarToml Toml;
-			FString Error;
-			if (!ApexCarToml::Parse(Text, Toml, Error))
-			{
-				UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s: %s; skipped"), *TomlPath, *Error);
-				++Skipped;
-				continue;
-			}
-			const FString IdKey = Toml.Id.ToLower();
-			if (const FApexCarCatalogRow* Earlier = RuntimeRows.Find(IdKey))
-			{
-				// An earlier folder wins: that is what -ApexCarsDir is for.
-				if (!Earlier->FolderName.Equals(Folder))
+				const FString CarDir = FPaths::Combine(Parent, Folder);
+				const FString TomlPath = FPaths::Combine(CarDir, TEXT("car.toml"));
+				TArray<uint8> Bytes;
+				if (!IFileManager::Get().FileExists(*TomlPath))
 				{
-					UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s has the id of %s (%s); the first one found is used"),
-						*CarDir, *Earlier->FolderName, *Toml.Id);
+					continue;
 				}
-				continue;
-			}
-
-			FApexCarCatalogRow Row;
-			Row.DisplayName = Toml.Name;
-			Row.Brand = Toml.Brand;
-			Row.CarClass = Toml.CarClass;
-			Row.ManufacturerCountry = Toml.ManufacturerCountry;
-			Row.ModelYear = Toml.ModelYear;
-			Row.MassKg = Toml.MassKg;
-			Row.MaxPowerKw = Toml.MaxPowerKw;
-			Row.FolderName = Folder;
-			// Hashed from the raw bytes, exactly as the server does.
-			Row.SourceCrc = ApexContentCrc::Compute(Bytes);
-			Row.RuntimeModel = CarFile(CarDir, Toml.Model, Folder, TEXT("its model"));
-			Row.EngineSound = Toml.Sound;
-
-			Row.Wheels = ApexCarToml::MakeWheelSpec(Toml);
-			if (Toml.Wheels.IsPresent())
-			{
-				Row.Wheels.RuntimeModel = FindWheel(Dir, Toml.Wheels.Model);
-				for (int32 i = 0; Row.Wheels.RuntimeModel.IsEmpty() && i < CarDirectories().Num(); ++i)
+				if (!FFileHelper::LoadFileToArray(Bytes, *TomlPath))
 				{
-					Row.Wheels.RuntimeModel = FindWheel(CarDirectories()[i], Toml.Wheels.Model);
+					UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s is unreadable; skipped"), *TomlPath);
+					++Skipped;
+					continue;
 				}
-				if (Row.Wheels.RuntimeModel.IsEmpty())
+				FString Text;
+				FFileHelper::BufferToString(Text, Bytes.GetData(), Bytes.Num());
+				FApexCarToml Toml;
+				FString Error;
+				if (!ApexCarToml::Parse(Text, Toml, Error))
 				{
-					UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s wants the %s wheel, and no wheels folder beside the cars has %s.glb"),
-						*Folder, *Toml.Wheels.Model, *Toml.Wheels.Model);
+					UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s: %s; skipped"), *TomlPath, *Error);
+					++Skipped;
+					continue;
 				}
-			}
-			Row.DrsFlap = ApexCarToml::MakeDrsFlapSpec(Toml);
-			if (Toml.DrsFlap.IsPresent())
-			{
-				Row.DrsFlap.RuntimeModel = CarFile(CarDir, Toml.DrsFlap.Model, Folder, TEXT("its DRS flap"));
-			}
-			for (const FApexCarLiveryToml& Source : Toml.Liveries)
-			{
-				FApexCarLivery& Livery = Row.Liveries.AddDefaulted_GetRef();
-				Livery.Name = Source.Name;
-				Livery.Paint = Source.Paint;
-				Livery.Accent = Source.Accent;
-				Livery.PaintMetallic = Source.Metallic;
-				Livery.RuntimeLogo = CarFile(CarDir, Source.Logo, Folder, TEXT("a livery logo"));
-			}
+				const FString IdKey = Toml.Id.ToLower();
+				if (const FString* Earlier = SourceOf.Find(IdKey))
+				{
+					// An earlier folder wins: that is what -ApexCarsDir is for, and
+					// what keeps a custom car from replacing a shipped one. The same
+					// folder name under a later root is a copy of it, not a clash.
+					if (!FPaths::GetCleanFilename(*Earlier).Equals(Folder))
+					{
+						UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s has the id of %s (%s); the first one found is used"),
+							*CarDir, **Earlier, *Toml.Id);
+					}
+					continue;
+				}
+				SourceOf.Add(IdKey, CarDir);
 
-			const FApexCarCatalogRow* TableRow = TableRows.Find(IdKey);
-			if (Toml.Preview.bPresent)
-			{
-				Row.PreviewOffset = Toml.Preview.OffsetCm;
-				Row.PreviewRotation = Toml.Preview.Rotation;
-				Row.PreviewScale = Toml.Preview.Scale;
-			}
-			else if (TableRow)
-			{
-				Row.PreviewOffset = TableRow->PreviewOffset;
-				Row.PreviewRotation = TableRow->PreviewRotation;
-				Row.PreviewScale = TableRow->PreviewScale;
-			}
-			if (Toml.bHasCockpit)
-			{
-				Row.Cockpit = Toml.Cockpit;
-			}
-			else if (TableRow)
-			{
-				Row.Cockpit = TableRow->Cockpit;
-			}
+				FApexCarCatalogRow Row;
+				Row.DisplayName = Toml.Name;
+				Row.Brand = Toml.Brand;
+				Row.CarClass = Toml.CarClass;
+				Row.ManufacturerCountry = Toml.ManufacturerCountry;
+				Row.ModelYear = Toml.ModelYear;
+				Row.MassKg = Toml.MassKg;
+				Row.MaxPowerKw = Toml.MaxPowerKw;
+				Row.FolderName = Folder;
+				// Hashed from the raw bytes, exactly as the server does.
+				Row.SourceCrc = ApexContentCrc::Compute(Bytes);
+				Row.RuntimeModel = CarFile(CarDir, Toml.Model, Folder, TEXT("its model"));
+				Row.EngineSound = Toml.Sound;
 
-			Found.Add(Folder);
-			RuntimeRows.Add(IdKey, MoveTemp(Row));
+				Row.Wheels = ApexCarToml::MakeWheelSpec(Toml);
+				if (Toml.Wheels.IsPresent())
+				{
+					Row.Wheels.RuntimeModel = ResolveWheel(Dir, CarDir, Toml.Wheels.Model, Folder);
+					if (!Toml.Wheels.RearModel.IsEmpty())
+					{
+						// Missing, the rears fall back to the front's model rather than vanish.
+						Row.Wheels.RearRuntimeModel = ResolveWheel(Dir, CarDir, Toml.Wheels.RearModel, Folder);
+					}
+				}
+				Row.DrsFlap = ApexCarToml::MakeDrsFlapSpec(Toml);
+				if (Toml.DrsFlap.IsPresent())
+				{
+					Row.DrsFlap.RuntimeModel = CarFile(CarDir, Toml.DrsFlap.Model, Folder, TEXT("its DRS flap"));
+				}
+				for (const FApexCarLiveryToml& Source : Toml.Liveries)
+				{
+					FApexCarLivery& Livery = Row.Liveries.AddDefaulted_GetRef();
+					Livery.Name = Source.Name;
+					Livery.Paint = Source.Paint;
+					Livery.Accent = Source.Accent;
+					Livery.PaintMetallic = Source.Metallic;
+					Livery.RuntimeLogo = CarFile(CarDir, Source.Logo, Folder, TEXT("a livery logo"));
+					// A skin or texture that is not there leaves its slots as authored.
+					Livery.RuntimeSkin = CarFile(CarDir, Source.Skin, Folder, TEXT("a livery skin"));
+					for (const TPair<FString, FString>& Texture : Source.Textures)
+					{
+						const FString Path = CarFile(CarDir, Texture.Value, Folder, TEXT("a livery texture"));
+						if (!Path.IsEmpty())
+						{
+							FApexLiveryTexture& Entry = Livery.RuntimeTextures.AddDefaulted_GetRef();
+							Entry.Slot = FName(*Texture.Key);
+							Entry.RuntimeTexture = Path;
+						}
+					}
+					Livery.RuntimePreview = CarFile(CarDir, Source.Preview, Folder, TEXT("a livery preview"));
+				}
+
+				const FApexCarCatalogRow* TableRow = TableRows.Find(IdKey);
+				if (Toml.Preview.bPresent)
+				{
+					Row.PreviewOffset = Toml.Preview.OffsetCm;
+					Row.PreviewRotation = Toml.Preview.Rotation;
+					Row.PreviewScale = Toml.Preview.Scale;
+				}
+				else if (TableRow)
+				{
+					Row.PreviewOffset = TableRow->PreviewOffset;
+					Row.PreviewRotation = TableRow->PreviewRotation;
+					Row.PreviewScale = TableRow->PreviewScale;
+				}
+				if (Toml.bHasCockpit)
+				{
+					Row.Cockpit = Toml.Cockpit;
+					Row.Cockpit.RuntimeSteeringWheel = CarFile(CarDir, Toml.SteeringWheelModel, Folder, TEXT("its steering wheel"));
+				}
+				else if (TableRow)
+				{
+					Row.Cockpit = TableRow->Cockpit;
+				}
+
+				Found.Add(Folder);
+				RuntimeRows.Add(IdKey, MoveTemp(Row));
+			}
 		}
 	}
 
@@ -428,7 +492,8 @@ TSharedPtr<UApexCarContentSubsystem::FParsedModel> UApexCarContentSubsystem::Par
 void UApexCarContentSubsystem::Prefetch(const FApexCarCatalogRow& Row)
 {
 	IImageWrapperModule* Wrappers = nullptr;
-	for (const FString* Path : {&Row.RuntimeModel, &Row.Wheels.RuntimeModel, &Row.DrsFlap.RuntimeModel})
+	for (const FString* Path : {&Row.RuntimeModel, &Row.Wheels.RuntimeModel, &Row.Wheels.RearRuntimeModel, &Row.DrsFlap.RuntimeModel,
+			 &Row.Cockpit.RuntimeSteeringWheel})
 	{
 		if (Path->IsEmpty())
 		{
@@ -788,6 +853,12 @@ UTexture2D* ApexCarContent::LoadLogo(const FApexCarLivery& Livery)
 		}
 	}
 	return Livery.Logo.IsNull() ? nullptr : Livery.Logo.LoadSynchronous();
+}
+
+UTexture2D* ApexCarContent::LoadLiveryTexture(const FString& RuntimePath)
+{
+	UApexCarContentSubsystem* Content = RuntimePath.IsEmpty() ? nullptr : UApexCarContentSubsystem::Get();
+	return Content ? Content->LoadTexture(RuntimePath) : nullptr;
 }
 
 UMaterialInstanceDynamic* ApexCarContent::OwnMaterialInstance(UStaticMeshComponent& Component, int32 Index, bool bFromMesh)

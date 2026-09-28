@@ -38,6 +38,10 @@
    default: that folder is the player's own, and may hold circuits converted
    from content that must not be redistributed.
 
+.PARAMETER IncludeCustomCars
+   Also copy the cars in content\cars\custom. Off by default, for the same
+   reason as -IncludeCustomTracks.
+
 .PARAMETER SkipCars
    Do not copy the cars and wheels next to the executable.
 
@@ -59,6 +63,7 @@ param(
    [switch]$Clean,
    [switch]$SkipTracks,
    [switch]$IncludeCustomTracks,
+   [switch]$IncludeCustomCars,
    [switch]$SkipCars,
    [string[]]$ExtraUatArgs
 )
@@ -168,11 +173,12 @@ if (-not $SkipTracks) {
 
 if (-not $SkipCars) {
    # Where UApexCarContentSubsystem looks in a packaged build: Cars\ and
-   # Wheels\ next to ApexSim.exe.
+   # Wheels\ next to ApexSim.exe (Cars\default and Cars\custom, as in the repo).
    Write-Host ''
    Write-Host "==> Copying the cars to $(Join-Path $executable.DirectoryName 'Cars')" -ForegroundColor Cyan
    $carCount = Copy-ApexRuntimeCars -CarsDir (Join-Path $RepoRoot 'content\cars') `
-      -WheelsDir (Join-Path $RepoRoot 'content\wheels') -Destination $executable.DirectoryName
+      -WheelsDir (Join-Path $RepoRoot 'content\wheels') -Destination $executable.DirectoryName `
+      -DefaultOnly:(-not $IncludeCustomCars)
    if ($carCount -eq 0) {
       Write-Warning 'no cars in content\cars; every car will be drawn as nothing'
    }

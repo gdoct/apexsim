@@ -297,7 +297,7 @@ def _aim(cam, target):
 
 
 for folder in CARS:
-    car_dir = os.path.join(ROOT, "cars", folder)
+    car_dir = os.path.join(ROOT, "cars", "default", folder)
     with open(os.path.join(car_dir, "car.toml"), "rb") as f:
         cfg = tomllib.load(f)
     OPEN_WHEEL = cfg.get("class", "").strip().upper() in ("F1", "FORMULA", "OPEN", "INDY")
