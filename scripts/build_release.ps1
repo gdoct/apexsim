@@ -420,6 +420,12 @@ function Copy-ServerContent {
         } else {
             $missingRoad.Add($track.BaseName)
         }
+        # The pit lane and its boxes: a circuit without one (the
+        # Nordschleife) simply has no pit stops, so its absence is no error.
+        $pit = Join-Path $track.DirectoryName ($track.BaseName + '.pit.msgpack')
+        if (Test-Path -LiteralPath $pit) {
+            Copy-Item -LiteralPath $pit -Destination $tracksOut -Force
+        }
     }
     if ($missingGround.Count -gt 0) {
         Write-Warning ("no ground heightfield for: {0} (run the track bake; off-track cars will sit at road height)" -f ($missingGround -join ', '))

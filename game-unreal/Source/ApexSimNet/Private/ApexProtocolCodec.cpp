@@ -100,6 +100,27 @@ namespace
 				bOk = Reader.ReadUInt64(Raw);
 				Out.TimeOfDayMinutes = static_cast<int32>(Raw);
 			}
+			else if (Key == TEXT("air_temp_c"))
+			{
+				int64 Signed = 0;
+				bOk = Reader.ReadInt64(Signed);
+				Out.AirTempC = static_cast<int32>(Signed);
+			}
+			else if (Key == TEXT("humidity_pct"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.HumidityPct = static_cast<int32>(Raw);
+			}
+			else if (Key == TEXT("wind_kph"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.WindKph = static_cast<int32>(Raw);
+			}
+			else if (Key == TEXT("wind_from_deg"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.WindFromDeg = static_cast<int32>(Raw);
+			}
 			else
 			{
 				bOk = Reader.SkipValue();
@@ -841,7 +862,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 27;
+	constexpr int32 CompactCarFieldCount = 31;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -1025,6 +1046,78 @@ namespace
 					return false;
 				}
 				Out.TowShare = FMath::Min(static_cast<float>(Raw), 100.0f) / 100.0f;
+				return true;
+			});
+		}
+		// Wear, the compound and the pit lane, appended after the tow: a
+		// server that predates them sends none, and the car shows none.
+		for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+		{
+			Out.TyreWearPct[Tyre] = -1.0f;
+		}
+		Out.Compound = -1;
+		Out.bInPitLane = false;
+		Out.bPitLimiter = false;
+		Out.bPitServicing = false;
+		Out.ServiceSecondsLeft = 0.0f;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				for (int32 Tyre = 0; Tyre < Count; ++Tyre)
+				{
+					if (!Reader.ReadUInt64(Raw))
+					{
+						return false;
+					}
+					if (Tyre < 4)
+					{
+						Out.TyreWearPct[Tyre] = static_cast<float>(Raw);
+					}
+				}
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.Compound = Raw <= 2 ? static_cast<int32>(Raw) : -1;
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.bPitLimiter = (Raw & 1) != 0;
+				Out.bPitServicing = (Raw & 2) != 0;
+				Out.bInPitLane = (Raw & 4) != 0;
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.ServiceSecondsLeft = static_cast<float>(Raw) / 10.0f;
 				return true;
 			});
 		}
@@ -1358,12 +1451,35 @@ namespace ApexProtocol
 	/** `SessionConditions` (data.rs): no rename_all, so snake_case keys wherever it nests. */
 	void WriteSessionConditions(FMsgPackWriter& Writer, const FApexSessionConditions& Conditions)
 	{
+		// The air's figures only when picked, as the server leaves them off:
+		// an absent one is "from the weather".
 		const FApexSessionConditions Clamped = Conditions.Clamped();
-		Writer.WriteMapHeader(2);
+		Writer.WriteMapHeader(2 + (Clamped.HasAirTemp() ? 1 : 0) + (Clamped.HumidityPct >= 0 ? 1 : 0)
+			+ (Clamped.HasWind() ? 1 : 0) + (Clamped.HasWindDirection() ? 1 : 0));
 		Writer.WriteString("weather");
 		Writer.WriteUInt(static_cast<uint8>(Clamped.Weather));
 		Writer.WriteString("time_of_day_minutes");
 		Writer.WriteUInt(static_cast<uint16>(Clamped.TimeOfDayMinutes));
+		if (Clamped.HasAirTemp())
+		{
+			Writer.WriteString("air_temp_c");
+			Writer.WriteInt(Clamped.AirTempC);
+		}
+		if (Clamped.HumidityPct >= 0)
+		{
+			Writer.WriteString("humidity_pct");
+			Writer.WriteUInt(static_cast<uint8>(Clamped.HumidityPct));
+		}
+		if (Clamped.HasWind())
+		{
+			Writer.WriteString("wind_kph");
+			Writer.WriteUInt(static_cast<uint8>(Clamped.WindKph));
+		}
+		if (Clamped.HasWindDirection())
+		{
+			Writer.WriteString("wind_from_deg");
+			Writer.WriteUInt(static_cast<uint16>(Clamped.WindFromDeg));
+		}
 	}
 
 	TArray<uint8> EncodeCreateSession(

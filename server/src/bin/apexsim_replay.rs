@@ -250,6 +250,7 @@ fn run(args: Args) -> Result<(), String> {
                 conditions: SessionConditions {
                     weather: parse_weather(&weather)?,
                     time_of_day_minutes: parse_time_of_day(&time)?,
+                    ..SessionConditions::DEFAULT
                 },
                 tick_rate,
                 record_hz,

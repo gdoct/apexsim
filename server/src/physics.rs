@@ -219,6 +219,18 @@ pub fn update_car_3d(
     if !state.damage.is_drivable {
         return;
     }
+    // A car in its box is being worked on: held where it stands
+    // (`crate::pit`).
+    if state.pit.servicing {
+        state.vel_x = 0.0;
+        state.vel_y = 0.0;
+        state.vel_z = 0.0;
+        state.speed_mps = 0.0;
+        state.angular_vel_yaw = 0.0;
+        state.throttle_input = 0.0;
+        state.brake_input = 1.0;
+        return;
+    }
 
     // Automatic gearbox: a manual shift from the driver always wins, the
     // box only fills in when none was sent this tick.
@@ -238,6 +250,14 @@ pub fn update_car_3d(
     if state.auto_gearbox && state.gear < 0 {
         std::mem::swap(&mut auto_input.throttle, &mut auto_input.brake);
     }
+    // The pit limiter: between the lane's lines the throttle fades out over
+    // the last metre per second below the limit and is gone above it.
+    if state.pit.limiter {
+        if let Some(lane) = &track.pit_lane {
+            let margin = lane.speed_limit_mps - state.speed_mps;
+            auto_input.throttle *= margin.clamp(0.0, 1.0);
+        }
+    }
     let input = &auto_input;
 
     // The DRS flap: open while the driver holds the button where the rules
@@ -251,7 +271,12 @@ pub fn update_car_3d(
     // A car nobody sent out on a set of tyres starts on warm ones.
     if !state.tyres_fitted {
         let optimum = config.tire_config.optimal_temperature_c;
-        crate::tyre_thermal::fit(state, &config.tire_config, optimum);
+        crate::tyre_thermal::fit(
+            state,
+            &config.tire_config,
+            optimum,
+            crate::tyre_thermal::MEDIUM,
+        );
     }
 
     // 1. Get track context at current position (windowed search seeded by
@@ -273,8 +298,27 @@ pub fn update_car_3d(
     let (front_axle_x, rear_axle_x) = axle_positions_at(config, front_share);
 
     // 3. Calculate aerodynamic forces
-    let (drag_force, downforce_front, downforce_rear) = calculate_aerodynamic_forces(state, config);
-    state.drag_force_n = drag_force;
+    // Where the car rides (`crate::aero`): each axle's static height less
+    // last tick's load change over its springs.
+    let (ride_front, ride_rear) = if state.speed_mps > MIN_SPEED_THRESHOLD {
+        crate::aero::ride_heights(
+            config,
+            state.weight_front_left_n + state.weight_front_right_n - static_front_weight,
+            state.weight_rear_left_n + state.weight_rear_right_n - static_rear_weight,
+        )
+    } else {
+        (
+            config.aero.ride_height_front_m,
+            config.aero.ride_height_rear_m,
+        )
+    };
+    state.ride_height_front_m = ride_front;
+    state.ride_height_rear_m = ride_rear;
+    let air =
+        calculate_aerodynamic_forces(state, config, &track.track_surface, ride_front, ride_rear);
+    let (downforce_front, downforce_rear) = (air.downforce_front, air.downforce_rear);
+    state.drag_force_n = air.drag;
+    state.aero_load_share = air.load_share;
     state.downforce_front_n = downforce_front;
     state.downforce_rear_n = downforce_rear;
 
@@ -283,8 +327,13 @@ pub fn update_car_3d(
     if let Some(turbo) = &config.engine.turbo {
         state.turbo_spool = turbo.spool_toward(state.turbo_spool, input.throttle, dt);
     }
-    let (engine_torque, engine_rpm, combustion_torque) =
-        calculate_engine_output(state, config, input, dt);
+    let (engine_torque, engine_rpm, combustion_torque) = calculate_engine_output(
+        state,
+        config,
+        input,
+        track.track_surface.air_density_ratio,
+        dt,
+    );
     state.engine_rpm = engine_rpm;
 
     // 4b. Hybrid system: electric motor assist + brake regeneration
@@ -610,8 +659,9 @@ pub fn update_car_3d(
     // carries (`CarConfig::axle_tyre_mu`) are exactly 1.0 unless the car's
     // `[tires]` table says otherwise.
     let tyre_config = &config.tire_config;
+    let compound = crate::tyre_thermal::compound(state.tyre_compound);
     let thermal = |tyre: &crate::data::TireData, set_kpa: f32| {
-        crate::tyre_thermal::grip_multiplier(tyre_config, set_kpa, tyre)
+        crate::tyre_thermal::grip_multiplier(tyre_config, compound, set_kpa, tyre)
     };
     let grip_fl = config.axle_tyre_mu(true, state.weight_front_left_n)
         * wheel_front_left.grip_modifier
@@ -849,15 +899,11 @@ pub fn update_car_3d(
     let fr_force_x = fr_forces.0 * steer_right.cos() - fr_forces.1 * steer_right.sin();
     let fr_force_y = fr_forces.0 * steer_right.sin() + fr_forces.1 * steer_right.cos();
 
-    // Total forces in vehicle frame. Drag opposes the motion, which is
-    // rearwards only while the car is going forwards.
-    let drag_force_x = if v_long < 0.0 {
-        -drag_force
-    } else {
-        drag_force
-    };
-    let total_force_x = fl_force_x + fr_force_x + rl_forces.0 + rr_forces.0 - drag_force_x;
-    let total_force_y = fl_force_y + fr_force_y + rl_forces.1 + rr_forces.1;
+    // Total forces in vehicle frame, the air's included: the drag along
+    // the airflow (rearwards going forwards in still air) and the side
+    // force of a crosswind.
+    let total_force_x = fl_force_x + fr_force_x + rl_forces.0 + rr_forces.0 + air.force_x;
+    let total_force_y = fl_force_y + fr_force_y + rl_forces.1 + rr_forces.1 + air.force_y;
 
     // Gravity along the ground the body stands on: the plane through the
     // four contact patches, in the car's own frame, so it follows the car's
@@ -1109,9 +1155,49 @@ pub fn car_mass_kg(config: &CarConfig, state: &CarState) -> f32 {
 }
 
 /// Calculate aerodynamic forces (drag and downforce)
-fn calculate_aerodynamic_forces(state: &CarState, config: &CarConfig) -> (f32, f32, f32) {
-    let speed_squared = state.speed_mps.powi(2);
-    let dynamic_pressure = 0.5 * AIR_DENSITY * speed_squared;
+/// The air on the car this tick, in its own frame.
+#[derive(Debug, Clone, Copy, Default)]
+struct AeroForces {
+    /// The drag's magnitude, N (telemetry).
+    drag: f32,
+    /// Everything the air pushes the body with, body frame (+x forward, +y
+    /// left): the drag along the airflow and the side force of air crossing
+    /// the car.
+    force_x: f32,
+    force_y: f32,
+    downforce_front: f32,
+    downforce_rear: f32,
+    /// The tyres' load with this downforce over their load with what the
+    /// car would make at this ground speed in still, clean air: what the
+    /// wind and the wake of a car ahead have done to its grip.
+    load_share: f32,
+}
+
+/// Side force coefficient of a car's flank, and the share of its length x
+/// height that the flank presents.
+const SIDE_FORCE_COEFFICIENT: f32 = 0.9;
+const FLANK_AREA_SHARE: f32 = 0.75;
+
+fn calculate_aerodynamic_forces(
+    state: &CarState,
+    config: &CarConfig,
+    surface: &TrackSurface,
+    ride_front_m: f32,
+    ride_rear_m: f32,
+) -> AeroForces {
+    // The air the car drives through: its own velocity less the wind, in
+    // the car's frame. In still air this is the car's own velocity.
+    let (cos_yaw, sin_yaw) = (state.yaw_rad.cos(), state.yaw_rad.sin());
+    let air_x = state.vel_x - surface.wind_now_mps[0];
+    let air_y = state.vel_y - surface.wind_now_mps[1];
+    let along = air_x * cos_yaw + air_y * sin_yaw;
+    let across = -air_x * sin_yaw + air_y * cos_yaw;
+    let airspeed_sq = along * along + across * across + state.vel_z * state.vel_z;
+    // Filed at the reference day's air: the density scales every figure.
+    let rho = AIR_DENSITY * surface.air_density_ratio;
+    let dynamic_pressure = 0.5 * rho * airspeed_sq;
+    // Downforce is the flow along the car; a crosswind makes none.
+    let flow_pressure = 0.5 * rho * (along * along + state.vel_z * state.vel_z);
 
     // The open DRS flap takes its share off the drag and the rear wing.
     let (drag_scale, rear_scale) = match (state.drs_open, config.drs) {
@@ -1122,26 +1208,59 @@ fn calculate_aerodynamic_forces(state: &CarState, config: &CarConfig) -> (f32, f
     // tow, less downforce in the dirty air, the front wing worst. Exactly
     // 1.0 in clean air.
     let wake = state.wake;
+    // The posture (`crate::aero`: ride height and rake; exactly 1.0 for a
+    // car without an `[aero]` table) and a damaged nose.
+    let posture = crate::aero::multipliers(config, ride_front_m, ride_rear_m);
+    let nose = 1.0
+        - crate::aero::FRONT_DAMAGE_AERO_LOSS
+            * (state.damage.front_damage_percent / 100.0).clamp(0.0, 1.0);
 
-    // Drag force
+    // Drag, along the airflow.
     let drag = dynamic_pressure
         * config.drag_coefficient
         * config.frontal_area_m2
         * drag_scale
-        * wake.drag;
+        * wake.drag
+        * posture.drag;
+    let airspeed = airspeed_sq.sqrt();
+    let (drag_x, drag_y) = if airspeed > 1e-3 {
+        (-drag * along / airspeed, -drag * across / airspeed)
+    } else {
+        (0.0, 0.0)
+    };
+    // Air crossing the car pushes its flank.
+    let flank = config.length_m * config.height_m * FLANK_AREA_SHARE;
+    let side = -0.5 * rho * across * across.abs() * SIDE_FORCE_COEFFICIENT * flank;
 
     // Downforce (lift coefficients are negative for downforce)
-    let downforce_front = -dynamic_pressure
-        * config.lift_coefficient_front
-        * config.frontal_area_m2
-        * wake.downforce_front;
-    let downforce_rear = -dynamic_pressure
-        * config.lift_coefficient_rear
+    let front_filed =
+        (-config.lift_coefficient_front * config.frontal_area_m2 * posture.downforce_front * nose)
+            .max(0.0);
+    let rear_filed = (-config.lift_coefficient_rear
         * config.frontal_area_m2
         * rear_scale
-        * wake.downforce_rear;
+        * posture.downforce_rear)
+        .max(0.0);
+    let downforce_front = flow_pressure * front_filed * wake.downforce_front;
+    let downforce_rear = flow_pressure * rear_filed * wake.downforce_rear;
 
-    (drag, downforce_front.max(0.0), downforce_rear.max(0.0))
+    // Against the same car at this ground speed in still, clean air.
+    let still = 0.5 * rho * state.speed_mps * state.speed_mps * (front_filed + rear_filed);
+    let weight = car_mass_kg(config, state) * GRAVITY;
+    let load_share = if still > 0.0 {
+        ((weight + downforce_front + downforce_rear) / (weight + still)).min(1.0)
+    } else {
+        1.0
+    };
+
+    AeroForces {
+        drag,
+        force_x: drag_x,
+        force_y: drag_y + side,
+        downforce_front,
+        downforce_rear,
+        load_share,
+    }
 }
 
 /// Time constant of a free-revving engine climbing toward the revs the
@@ -1211,6 +1330,7 @@ fn calculate_engine_output(
     state: &CarState,
     config: &CarConfig,
     input: &PlayerInputData,
+    air_density_ratio: f32,
     dt: f32,
 ) -> (f32, f32, f32) {
     // Calculate wheel speed based on current velocity
@@ -1279,9 +1399,14 @@ fn calculate_engine_output(
         None => torque_at_rpm,
     };
 
-    // What the combustion makes: nothing once the tank is dry.
+    // What the combustion makes: nothing once the tank is dry, and what
+    // the air it breathes allows (thin air at altitude, dense on a cold
+    // morning; exactly the curve on the reference day).
     let combustion_torque = if state.fuel_liters > 0.0 {
-        input.throttle * torque_at_rpm * limiter_cut
+        input.throttle
+            * torque_at_rpm
+            * limiter_cut
+            * engine_density_factor(config, air_density_ratio)
     } else {
         0.0
     };
@@ -1293,6 +1418,27 @@ fn calculate_engine_output(
     engine_torque -= config.engine.friction_torque_nm * rpm_frac;
 
     (engine_torque, engine_rpm, combustion_torque)
+}
+
+/// Share of a turbo engine's torque that follows the air's density: the
+/// turbo makes up the rest (its wastegate holds the manifold pressure), so
+/// a turbo loses a quarter of what a naturally aspirated engine does at
+/// altitude.
+pub const TURBO_DENSITY_SHARE: f32 = 0.25;
+
+/// What the air's density (against the reference day the car is filed at)
+/// does to a combustion engine's torque: all of it for a naturally
+/// aspirated engine, [`TURBO_DENSITY_SHARE`] of it for a turbo. Exactly 1.0
+/// on the reference day.
+pub fn engine_density_factor(config: &CarConfig, air_density_ratio: f32) -> f32 {
+    if air_density_ratio == 1.0 {
+        return 1.0;
+    }
+    if config.engine.forced_induction || config.engine.turbo.is_some() {
+        1.0 - TURBO_DENSITY_SHARE * (1.0 - air_density_ratio)
+    } else {
+        air_density_ratio
+    }
 }
 
 /// Torque the engine makes at `rpm` with the throttle wide open, before the
@@ -2567,12 +2713,11 @@ pub enum RoadContact {
 }
 
 impl RoadContact {
-    /// Off the track for the lap: past the curbs.
+    /// Off the track for the lap: past the curbs. The pit lane is not: a
+    /// lap with a stop in it counts, and the limiter takes any shortcut
+    /// the lane might be.
     pub fn off_track(self) -> bool {
-        matches!(
-            self,
-            RoadContact::Runoff | RoadContact::Off | RoadContact::PitLane
-        )
+        matches!(self, RoadContact::Runoff | RoadContact::Off)
     }
 
     /// What the driver feels: the tarmac run-off is as smooth as the road.
@@ -2726,11 +2871,10 @@ fn update_telemetry_3d(
     fr_slip: (f32, f32),
     rl_slip: (f32, f32),
     rr_slip: (f32, f32),
-    dt: f32,
+    _dt: f32,
 ) {
-    // Slip and wear per tyre; the temperatures and pressures are the
-    // thermal model's (`tyre_thermal`), stepped with the forces.
-    let wear = |slip_ratio: f32| slip_ratio.abs() * 0.0001 * config.tire_config.wear_rate * dt;
+    // Slip per tyre; the temperatures, pressures and wear are the tyre
+    // model's (`tyre_thermal`), stepped with the forces.
     for (tyre, (slip_ratio, slip_angle)) in state
         .tires
         .each_mut()
@@ -2739,7 +2883,6 @@ fn update_telemetry_3d(
     {
         tyre.slip_ratio = slip_ratio;
         tyre.slip_angle_rad = slip_angle;
-        tyre.wear_percent = (tyre.wear_percent + wear(slip_ratio)).min(100.0);
     }
 
     // Engine temperature (increases with load, decreases with airflow)
@@ -5701,13 +5844,76 @@ mod tests {
     fn test_aerodynamic_forces() {
         let mut state = create_test_car_state();
         state.speed_mps = 50.0; // 180 km/h
+        state.vel_x = 50.0;
+        state.yaw_rad = 0.0;
         let config = create_test_config();
+        let still = TrackSurface::default();
 
-        let (drag, df_front, df_rear) = calculate_aerodynamic_forces(&state, &config);
+        let air = calculate_aerodynamic_forces(&state, &config, &still, 0.06, 0.08);
 
-        assert!(drag > 0.0, "Drag should be positive at speed");
-        assert!(df_front > 0.0, "Front downforce should be positive");
-        assert!(df_rear > 0.0, "Rear downforce should be positive");
+        assert!(air.drag > 0.0, "Drag should be positive at speed");
+        assert!(air.force_x < 0.0, "and pull the car back");
+        assert!(
+            air.force_y.abs() < 1e-3,
+            "straight into still air: no side force"
+        );
+        assert!(
+            air.downforce_front > 0.0,
+            "Front downforce should be positive"
+        );
+        assert!(
+            air.downforce_rear > 0.0,
+            "Rear downforce should be positive"
+        );
+        assert_eq!(air.load_share, 1.0);
+    }
+
+    #[test]
+    fn the_wind_is_the_air_the_car_drives_through() {
+        let mut state = create_test_car_state();
+        state.speed_mps = 50.0;
+        state.vel_x = 50.0;
+        state.yaw_rad = 0.0;
+        let config = create_test_config();
+        let air_with = |wind: [f32; 2]| {
+            let surface = TrackSurface {
+                wind_now_mps: wind,
+                ..TrackSurface::default()
+            };
+            calculate_aerodynamic_forces(&state, &config, &surface, 0.06, 0.08)
+        };
+        let still = air_with([0.0, 0.0]);
+        let head = air_with([-10.0, 0.0]);
+        let tail = air_with([10.0, 0.0]);
+        let from_left = air_with([0.0, -10.0]);
+        // Into a headwind: more drag and more downforce; a tailwind, less.
+        assert!(head.drag > still.drag && tail.drag < still.drag);
+        assert!(head.downforce_rear > still.downforce_rear);
+        assert!(tail.downforce_rear < still.downforce_rear);
+        assert!(tail.load_share < 1.0, "a tailwind takes grip away");
+        assert_eq!(
+            head.load_share, 1.0,
+            "a headwind's extra grip is not counted on"
+        );
+        // A wind from the left pushes the car to the right (-y).
+        assert!(from_left.force_y < 0.0, "{}", from_left.force_y);
+        assert!((from_left.downforce_rear - still.downforce_rear).abs() < 1e-3);
+    }
+
+    #[test]
+    fn thin_air_costs_an_engine_its_breath_and_a_turbo_less() {
+        let mut na = create_test_config();
+        na.engine.turbo = None;
+        assert_eq!(engine_density_factor(&na, 1.0), 1.0);
+        assert_eq!(engine_density_factor(&na, 0.8), 0.8);
+        let mut turbo = na.clone();
+        turbo.engine.turbo = Some(crate::data::TurboConfig {
+            boosted_share: 0.4,
+            lag_up_s: 0.5,
+            lag_down_s: 0.8,
+        });
+        let t = engine_density_factor(&turbo, 0.8);
+        assert!((t - (1.0 - TURBO_DENSITY_SHARE * 0.2)).abs() < 1e-6);
     }
 
     #[test]
@@ -6152,7 +6358,7 @@ mod tests {
         );
         let pit = RoadContact::from_surface(&surface(CONTACT_PIT_LANE, false));
         assert_eq!(pit, RoadContact::PitLane);
-        assert!(pit.off_track());
+        assert!(!pit.off_track(), "a lap with a stop in it counts");
         assert_eq!(pit.feedback(), ContactSurface::Road);
 
         let track = create_straight_test_track();

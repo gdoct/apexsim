@@ -316,6 +316,11 @@ async fn handle_create_session(
         .and_then(|t| t.source_path.clone())
         .unwrap_or_else(|| "tracks/unknown.yaml".to_string());
 
+    // Listed as the session simulates it: the air resolved on create.
+    let conditions = state_write
+        .sessions
+        .get(&session_id)
+        .map_or(conditions, |s| s.session.conditions);
     let session_info = LobbySessionInfo {
         session_id,
         host_player_id: conn_info.player_id,

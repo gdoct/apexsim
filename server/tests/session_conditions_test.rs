@@ -106,6 +106,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             weather: Weather::HeavyRain,
             // Past midnight, wrapped by the server onto the day: 25:30 -> 01:30.
             time_of_day_minutes: 25 * 60 + 30,
+            ..SessionConditions::DEFAULT
         };
         host.send(&ClientMessage::CreateSession {
             track_config_id: track_id,
@@ -118,14 +119,20 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
         })
         .await?;
         let joined = host.wait_joined().await?;
+        // Clamped, and the air the host left to the weather named: the
+        // server resolves it with the session's own id.
         let expected = SessionConditions {
             weather: Weather::HeavyRain,
             time_of_day_minutes: 90,
-        };
+            ..SessionConditions::DEFAULT
+        }
+        .resolve(joined.session_id.as_u64_pair().0);
         assert_eq!(
             joined.conditions, expected,
-            "SessionJoined echoes the clamped conditions"
+            "SessionJoined echoes the clamped, resolved conditions"
         );
+        assert!(expected.air_temp_c.is_some() && expected.wind_kph.is_some());
+        assert_eq!(expected.wind_kph, Some(28), "a storm's wind");
 
         // The browser lists them.
         let lobby = host.lobby_state().await?;
@@ -228,7 +235,11 @@ async fn a_session_created_without_conditions_is_a_sunny_afternoon() {
         host.tcp.flush().await?;
 
         let joined = host.wait_joined().await?;
-        assert_eq!(joined.conditions, SessionConditions::DEFAULT);
+        assert_eq!(
+            joined.conditions,
+            SessionConditions::DEFAULT.resolve(joined.session_id.as_u64_pair().0),
+            "a sunny 13:00, its air named"
+        );
         let state = server.state.read().await;
         let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
         let shared = state.track_configs.get(&track_id).ok_or("no track")?;

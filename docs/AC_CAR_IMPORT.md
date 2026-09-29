@@ -295,7 +295,8 @@ CRC check compare their car.toml files.
 | `STEER_LOCK / STEER_RATIO` | `max_steering_angle_rad` | `radians(lock / ratio)`: 360/12.5 = 0.503 on the 911 (the shipped GT3: 0.51); `steering_ratio` written for the record, unused |
 | `suspensions.ini WHEELBASE`, `CG_LOCATION`, `TRACK` f/r | `wheelbase_m`, `weight_distribution_front`, `track_width_front/rear_m` | as is |
 | `tyres.ini RADIUS`, `suspensions.ini BASEY` | `cog_height_m` | `RADIUS - BASEY`, averaged over the axles: 0.42 m on the 911, 0.26 m on the SF70H (plausible; the server default is 0.45) |
-| `SPRING_RATE`, `DAMP_BUMP`, `DAMP_REBOUND`, `[ARB]` | `[suspension]` | 1:1 (AC's rates are at the wheel, as ApexSim's); bump stops, packers, fast damping, geometry, camber, toe, ride height: **no home** |
+| `SPRING_RATE`, `[HEAVE_*] SPRING_RATE`, `DAMP_BUMP`, `DAMP_REBOUND`, `[ARB]` | `[suspension]` | 1:1 (AC's rates are at the wheel, as ApexSim's), plus half an axle's heave spring at each corner (`wheel_spring_rate`: in heave both work; the SF70H is 40 + 120/2 = 100 kN/m, where the corner spring alone sagged it 4.6 cm onto the floor); bump stops, packers, fast damping, geometry, camber, toe: **no home** |
+| `car.ini [RIDE]`, `ROD_LENGTH`, the static sag | `[aero] ride_height_front_m / _rear_m` | the static ride heights the ground-height tables are read at (the 911: 60/60 mm; SF70H 37/77; R18 51/61) |
 | `power.lut`, `[TURBO_n]` | `[[engine.torque_curve]]` | `torque(rpm) x (1 + boost(rpm))` per point, `boost = min(WASTEGATE, MAX_BOOST x min(rpm / REFERENCE_RPM, 1))` summed over turbos (Kunos's own comment in `engine.ini` makes `GAMMA` the boost's sensitivity to the *pedal*, which is 1 at full throttle, not an rpm exponent; `ctrl_turbo*.ini` controllers are not modelled). Skip this and a turbo car is 30-80% down (the SF70H 78%) |
 | `LIMITER`, `MINIMUM` | `rev_limiter_rpm`, `redline_rpm`, `max_rpm`, `idle_rpm` | limiter as is, redline = limiter - 200, max = limiter + 100 (the server clamps rpm to `max_rpm`) |
 | `[COAST_REF] TORQUE at RPM`, `INERTIA` | `engine_brake_torque_nm`, `friction_torque_nm` | the coast torque scaled to the redline; inertia written, unused |
@@ -304,7 +305,7 @@ CRC check compare their car.toml files.
 | `TYPE` | `[drivetrain] layout` | `AWD2` -> `AWD`; the split is 40/60 whatever AC says |
 | `[DIFFERENTIAL]` | `[differential]` | written; the sim has no differential |
 | `brakes.ini MAX_TORQUE, FRONT_SHARE` | `max_brake_force_n`, `brake_bias_front` | `2 x T x (share / r_front + (1 - share) / r_rear)` = 22.9 kN on the 911 (1.76 g at 1325 kg, right for a GT3 with aero); bias as is |
-| `aero.ini` wings | `frontal_area_m2`, `drag_coefficient`, `lift_coefficient_front/rear` | evaluate each wing at its `ANGLE` (and the ride-height table at the static height): `Cl_i x A_i`, `Cd_i x A_i`; `A` = the BODY wing's chord x span (2.2 m2 on the 911, 1.59 on the SF70H, i.e. AC's frontal area); `Cd = sum(Cd_i A_i) / A`; the downforce is split by each wing's station against the axles (`(z - z_rear) / wheelbase` to the front) and written as negative lift coefficients over the same `A`. The 911: Cl.A 2.40 (44% front), Cd.A 0.99. Lost: ride-height and yaw sensitivity, the DRS wing's own tables |
+| `aero.ini` wings | `frontal_area_m2`, `drag_coefficient`, `lift_coefficient_front/rear` | evaluate each wing at its `ANGLE` and, when the car has `LUT_GH_CL` tables, at the height it rides at the server's aero reference speed (50 m/s, solved against the server's heave model: `aero_posture`; each wing's height interpolated between the axles by its station): `Cl_i x A_i`, `Cd_i x A_i`; `A` = the BODY wing's chord x span (2.2 m2 on the 911, 1.59 on the SF70H, i.e. AC's frontal area); `Cd = sum(Cd_i A_i) / A`; the downforce is split by each wing's station against the axles (`(z - z_rear) / wheelbase` to the front) and written as negative lift coefficients over the same `A`. The 911: Cl.A 2.45 at 55/49 mm, Cd.A 0.99. From the same tables the server's `[aero]` map (`aero_posture`): `ride_height_sensitivity` the summed tables' slope per cm of mean height around that posture, `rake_sensitivity` the front share's per cm of rake, `stall_height_m` where the sum falls under 90% of its peak on the way down (the 911: 1.8%/cm, 0.8%/cm, 25 mm; Kunos' 2015-17 F1 tables are flat where the cars run, so about 0). A table that loses downforce lower down (the R18 near its diffuser's cliff) clamps the slope at 0 and speaks through the stall height. Lost: yaw sensitivity, the DRS wing's own tables |
 | `drs.ini` / the DRS wing | `drs_drag_reduction`, `drs_rear_downforce_reduction` | from the DRS wing's Cd and Cl at its closed and open angle over the totals; **0 when there is no DRS wing**, whatever the class (a `F1`-class 1967 car must not get the class default) |
 | `tyres.ini` (the default compound, or `--compound`) | `grip_coefficient`, `wheel_radius_m` | `mu = DY0 x (Fz / FZ0)^(LS_EXPY - 1) x (1 - SPEED_SENSITIVITY x v)` at a reference: the loaded outside wheel at the car's typical corner load (static + downforce at 40 m/s), v = 40 m/s. The 911's DY0 1.668 at FZ0 3768 N gives 1.61 at 4500 N and 1.44 at 40 m/s; the shipped GT3 runs 1.43. Then the grip probe decides (below). Lost: DX0 (a separate longitudinal peak), camber gain, flex, AC's own heat model (the window is carried, see `[tires]` below), wear |
 | `PRESSURE_IDEAL` (psi), `WIDTH`, `RADIUS` per axle | (nothing today) | 26 psi is 179 kPa, ApexSim's default optimum is 180: no loss, but `TireConfig` pressures are not TOML keys. Worth exposing (`[tires] optimal_pressure_kpa`) since the garage's clicks are relative to it |
@@ -510,11 +511,16 @@ profile laps are unchanged. `MODDING.md` lists the ranges.
     over the 30 degrees past each edge (the cold one divided by the 0.6 the
     server charges cold). AC's own thermal model (`FRICTION_K`,
     `SURFACE_TRANSFER`...) is not carried: the server heats the tyre its
-    own way, so an imported car's tyres may run a little off AC's window.
+    own way, so an imported car's tyres may run a little off AC's window
+    (the 911 runs 86/95 °C front/rear at AI pace against 88 +- 8).
+  - `blanket_temperature_c = 70` for an F1-class car from 1990 on (or with
+    DRS when the year is unknown): a rule, not an AC figure.
 
   The sim's mu is `grip x scale x (Fz/FZ0)^(LS-1)`. The racing line and the
   AI plan at the load the car carries at 40 m/s. Keep fitting
   `grip_coefficient` with the grip probe.
+- `[aero]` (only for a car whose wings have `LUT_GH_CL` tables): the static
+  ride heights and the map above.
 - `[drivetrain] awd_front_share`: AC's AWD front share. The default is 0.4.
 - `[differential]`:
   - write `simulated = true` (opt-in: the shipped cars carry the table but

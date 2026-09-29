@@ -140,6 +140,17 @@ conventions the generators follow:
   temperature_grip_falloff = 0.004 # 0-0.03, default 0.004: grip lost per degree outside it
   blanket_temperature_c = 70.0     # 0-120, default none: the car goes out at the air
 
+  [engine]
+  forced_induction = true          # default: has an [engine.turbo] table; a turbo keeps
+                                   #   most of its power in thin air (altitude, heat)
+
+  [aero]                           # ride-height aero (default: downforce is a constant)
+  ride_height_front_m = 0.045      # 0.005-0.3, default 0.06: static, at rest
+  ride_height_rear_m = 0.090       # 0.005-0.3, default 0.08
+  ride_height_sensitivity = 0.03   # 0-0.1: share of downforce gained per cm lower
+  rake_sensitivity = 0.01          # 0-0.05: front balance shift per cm more rake
+  stall_height_m = 0.012           # 0-0.1: mean height below which the floor stalls
+
   [drivetrain]
   awd_front_share = 0.4            # 0-1, default 0.4: an AWD car's drive to the front axle
 

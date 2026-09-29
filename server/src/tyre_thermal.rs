@@ -81,6 +81,71 @@ const SLIDE_HEAT_TO_TREAD: f32 = 0.85;
 /// heat; the rest goes into the tread and the road at the patch.
 const CARCASS_HEAT_SHARE: f32 = 0.8;
 
+/// A tyre compound, as a change to the car's own tyre: its grip, how fast
+/// it wears and where its working window sits. The medium is the car's
+/// tyre exactly, so everything calibrated on it holds.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Compound {
+    pub name: &'static str,
+    /// Multiplier on the tyre's grip.
+    pub grip_scale: f32,
+    /// Multiplier on its wear.
+    pub wear_scale: f32,
+    /// Shift of its working window, °C (a soft works cooler).
+    pub optimal_shift_c: f32,
+}
+
+/// The compounds every car has, softest first: `CarState::tyre_compound`
+/// and the setup's `tyre_compound` knob index them.
+pub const COMPOUNDS: [Compound; 3] = [
+    Compound {
+        name: "soft",
+        grip_scale: 1.03,
+        wear_scale: 1.8,
+        optimal_shift_c: -6.0,
+    },
+    Compound {
+        name: "medium",
+        grip_scale: 1.0,
+        wear_scale: 1.0,
+        optimal_shift_c: 0.0,
+    },
+    Compound {
+        name: "hard",
+        grip_scale: 0.97,
+        wear_scale: 0.55,
+        optimal_shift_c: 6.0,
+    },
+];
+/// The medium: what a car is fitted with unless someone chose otherwise.
+pub const MEDIUM: u8 = 1;
+
+/// The compound at `index`, the medium for an index out of range.
+pub fn compound(index: u8) -> &'static Compound {
+    COMPOUNDS
+        .get(index as usize)
+        .unwrap_or(&COMPOUNDS[MEDIUM as usize])
+}
+
+/// Wear, percent of the tread, per megajoule the patch dissipates sliding
+/// (the same friction power that heats it), on a medium at its window.
+pub const WEAR_PERCENT_PER_MJ: f32 = 7.0;
+/// Each degree the tread runs over its window wears it this much faster.
+const HOT_WEAR_PER_C: f32 = 0.04;
+/// Grip a tyre loses as it wears: this share across its life, and on top
+/// of it a cliff of [`WEAR_CLIFF_LOSS`] from [`WEAR_CLIFF_START`] to worn
+/// through (quadratic, so it comes on slowly and then all at once).
+const WEAR_LINEAR_LOSS: f32 = 0.06;
+const WEAR_CLIFF_START: f32 = 0.7;
+const WEAR_CLIFF_LOSS: f32 = 0.24;
+
+/// Grip left in a tyre `wear_percent` worn.
+pub fn wear_grip_factor(wear_percent: f32) -> f32 {
+    let w = (wear_percent / 100.0).clamp(0.0, 1.0);
+    let cliff = ((w - WEAR_CLIFF_START) / (1.0 - WEAR_CLIFF_START)).max(0.0);
+    1.0 - WEAR_LINEAR_LOSS * w - WEAR_CLIFF_LOSS * cliff * cliff
+}
+
 /// What one tyre did this tick, as the heat model needs it.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TyreWork {
@@ -107,9 +172,14 @@ impl TyreWork {
 
 /// Grip the temperature leaves a tyre whose tread and core are at these,
 /// as a share of its peak (1.0 inside the window).
-pub fn thermal_grip_factor(tire: &TireConfig, tread_c: f32, core_c: f32) -> f32 {
+pub fn thermal_grip_factor(
+    tire: &TireConfig,
+    compound: &Compound,
+    tread_c: f32,
+    core_c: f32,
+) -> f32 {
     let t = TREAD_GRIP_SHARE * tread_c + (1.0 - TREAD_GRIP_SHARE) * core_c;
-    let from_optimum = t - tire.optimal_temperature_c;
+    let from_optimum = t - optimum_c(tire, compound);
     let off = from_optimum.abs() - tire.temperature_window_c.max(0.0);
     if off <= 0.0 {
         return 1.0;
@@ -124,28 +194,45 @@ pub fn thermal_grip_factor(tire: &TireConfig, tread_c: f32, core_c: f32) -> f32 
     (1.0 - falloff * eased).max(1.0 - MAX_THERMAL_GRIP_LOSS)
 }
 
+/// The middle of a compound's window on this car's tyre, °C.
+pub fn optimum_c(tire: &TireConfig, compound: &Compound) -> f32 {
+    tire.optimal_temperature_c + compound.optimal_shift_c
+}
+
 /// Gauge pressure, kPa, of a tyre set to `set_kpa` at its optimum whose gas
 /// is at `core_c`: the gas law at constant volume, on absolute pressures.
-pub fn pressure_kpa(tire: &TireConfig, set_kpa: f32, core_c: f32) -> f32 {
-    if core_c == tire.optimal_temperature_c {
+pub fn pressure_kpa(tire: &TireConfig, compound: &Compound, set_kpa: f32, core_c: f32) -> f32 {
+    let optimum = optimum_c(tire, compound);
+    if core_c == optimum {
         return set_kpa;
     }
-    let ratio = (core_c + KELVIN).max(1.0) / (tire.optimal_temperature_c + KELVIN).max(1.0);
+    let ratio = (core_c + KELVIN).max(1.0) / (optimum + KELVIN).max(1.0);
     (set_kpa + ATMOSPHERE_KPA) * ratio - ATMOSPHERE_KPA
 }
 
-/// The multiplier a tyre's grip takes from its temperature and the
-/// pressure that puts it at: thermal factor times the pressure grip curve.
-/// At the optimum with the set pressure on it, this is the set pressure's
-/// own factor, exactly.
-pub fn grip_multiplier(tire: &TireConfig, set_kpa: f32, tyre: &TireData) -> f32 {
-    if tyre.core_temperature_c == tire.optimal_temperature_c
-        && tyre.temperature_c == tire.optimal_temperature_c
-    {
-        return tire.pressure_grip_factor(set_kpa);
+/// The multiplier a tyre's grip takes from its compound, its wear, its
+/// temperature and the pressure that puts it at. A new medium at its
+/// optimum with the set pressure on it is the set pressure's own factor,
+/// exactly.
+pub fn grip_multiplier(
+    tire: &TireConfig,
+    compound: &Compound,
+    set_kpa: f32,
+    tyre: &TireData,
+) -> f32 {
+    let optimum = optimum_c(tire, compound);
+    let used = compound.grip_scale * wear_grip_factor(tyre.wear_percent);
+    if tyre.core_temperature_c == optimum && tyre.temperature_c == optimum {
+        return tire.pressure_grip_factor(set_kpa) * used;
     }
-    thermal_grip_factor(tire, tyre.temperature_c, tyre.core_temperature_c)
-        * tire.pressure_grip_factor(pressure_kpa(tire, set_kpa, tyre.core_temperature_c))
+    thermal_grip_factor(tire, compound, tyre.temperature_c, tyre.core_temperature_c)
+        * tire.pressure_grip_factor(pressure_kpa(
+            tire,
+            compound,
+            set_kpa,
+            tyre.core_temperature_c,
+        ))
+        * used
 }
 
 /// The set pressure of each tyre, FL FR RL RR.
@@ -159,22 +246,31 @@ fn set_pressures(tire: &TireConfig) -> [f32; 4] {
 }
 
 /// Refresh the pressure and the grip share a tyre reports from its
-/// temperatures. The grip share is against the same tyre in its window at
-/// its set pressure, so 1.0 is "as good as the setup makes it".
-fn refresh(tyre: &mut TireData, tire: &TireConfig, set_kpa: f32) {
-    tyre.pressure_kpa = pressure_kpa(tire, set_kpa, tyre.core_temperature_c);
+/// temperatures and wear. The grip share is against a new medium in its
+/// window at its set pressure, so 1.0 is "as good as the setup makes it"
+/// (a fresh soft is a little over).
+fn refresh(tyre: &mut TireData, tire: &TireConfig, compound: &Compound, set_kpa: f32) {
+    tyre.pressure_kpa = pressure_kpa(tire, compound, set_kpa, tyre.core_temperature_c);
     let best = tire.pressure_grip_factor(set_kpa).max(1e-3);
-    tyre.grip_factor = grip_multiplier(tire, set_kpa, tyre) / best;
+    tyre.grip_factor = grip_multiplier(tire, compound, set_kpa, tyre) / best;
 }
 
-/// Put a set of tyres at `temperature_c` right through, as a car is sent
-/// out on them.
-pub fn fit(state: &mut CarState, tire: &TireConfig, temperature_c: f32) {
+/// Put a new set of `compound` (a [`COMPOUNDS`] index) on a car, at
+/// `temperature_c` right through, as it is sent out on them.
+pub fn fit(state: &mut CarState, tire: &TireConfig, temperature_c: f32, compound_index: u8) {
+    let index = if (compound_index as usize) < COMPOUNDS.len() {
+        compound_index
+    } else {
+        MEDIUM
+    };
+    let c = compound(index);
     for (tyre, set) in state.tires.each_mut().into_iter().zip(set_pressures(tire)) {
         tyre.temperature_c = temperature_c;
         tyre.core_temperature_c = temperature_c;
-        refresh(tyre, tire, set);
+        tyre.wear_percent = 0.0;
+        refresh(tyre, tire, c, set);
     }
+    state.tyre_compound = index;
     state.tyres_fitted = true;
 }
 
@@ -195,6 +291,8 @@ pub const FORMATION_LAP_WARMTH: f32 = 0.5;
 pub fn grid_temperature_c(tire: &TireConfig, surface: &TrackSurface) -> f32 {
     let start = start_temperature_c(tire, surface);
     let optimum = tire.optimal_temperature_c;
+    // (The medium's optimum: a grid warms the tyres a formation lap's worth
+    // whatever they are.)
     if start >= optimum {
         start
     } else {
@@ -202,11 +300,13 @@ pub fn grid_temperature_c(tire: &TireConfig, surface: &TrackSurface) -> f32 {
     }
 }
 
-/// Advance one tyre by `dt`.
+/// Advance one tyre by `dt`: its heat, and the tread its sliding wears
+/// away (faster the hotter it runs over its window).
 pub fn step(
     tyre: &mut TireData,
     work: &TyreWork,
     tire: &TireConfig,
+    compound: &Compound,
     set_kpa: f32,
     surface: &TrackSurface,
     dt: f32,
@@ -236,7 +336,17 @@ pub fn step(
 
     tyre.temperature_c = tread + (tread_in - across) * dt / TREAD_HEAT_CAPACITY;
     tyre.core_temperature_c = core + (core_in + across) * dt / CORE_HEAT_CAPACITY;
-    refresh(tyre, tire, set_kpa);
+
+    let over = (tread - optimum_c(tire, compound) - tire.temperature_window_c).max(0.0);
+    let wear = WEAR_PERCENT_PER_MJ
+        * slide
+        * dt
+        * 1e-6
+        * compound.wear_scale
+        * tire.wear_rate.max(0.0)
+        * (1.0 + HOT_WEAR_PER_C * over);
+    tyre.wear_percent = (tyre.wear_percent + wear).min(100.0);
+    refresh(tyre, tire, compound, set_kpa);
 }
 
 /// Advance all four tyres, FL FR RL RR.
@@ -247,6 +357,7 @@ pub fn step_all(
     surface: &TrackSurface,
     dt: f32,
 ) {
+    let c = compound(state.tyre_compound);
     for ((tyre, w), set) in state
         .tires
         .each_mut()
@@ -254,13 +365,14 @@ pub fn step_all(
         .zip(work)
         .zip(set_pressures(tire))
     {
-        step(tyre, w, tire, set, surface, dt);
+        step(tyre, w, tire, c, set, surface, dt);
     }
 }
 
 impl CarState {
     /// How much of its grip the car's weaker axle has from its tyres'
-    /// temperatures and pressures (1.0 in the window at the set pressure):
+    /// compound, wear, temperatures and pressures (1.0 a new medium in the
+    /// window at the set pressure):
     /// what a driver who can feel the tyres drives to. 1.0 before the
     /// tyres are fitted.
     pub fn tyre_grip_share(&self) -> f32 {
@@ -270,13 +382,16 @@ impl CarState {
         let t = &self.tires;
         let front = 0.5 * (t.front_left.grip_factor + t.front_right.grip_factor);
         let rear = 0.5 * (t.rear_left.grip_factor + t.rear_right.grip_factor);
-        front.min(rear).clamp(0.0, 1.0)
+        // A fresh soft is a little over the plan's tyre, and a driver uses it.
+        front.min(rear).clamp(0.0, COMPOUNDS[0].grip_scale)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const M: Compound = COMPOUNDS[MEDIUM as usize];
 
     fn tyre() -> TireConfig {
         TireConfig::default()
@@ -287,15 +402,15 @@ mod tests {
         let t = tyre();
         let opt = t.optimal_temperature_c;
         for d in [-10.0, -5.0, 0.0, 5.0, 10.0] {
-            assert_eq!(thermal_grip_factor(&t, opt + d, opt + d), 1.0);
+            assert_eq!(thermal_grip_factor(&t, &M, opt + d, opt + d), 1.0);
         }
         // Just past the edge: almost nothing, then the full slope.
-        let edge = 1.0 - thermal_grip_factor(&t, opt + 11.0, opt + 11.0);
+        let edge = 1.0 - thermal_grip_factor(&t, &M, opt + 11.0, opt + 11.0);
         assert!(
             edge > 0.0 && edge < t.temperature_grip_falloff * 0.3,
             "{edge}"
         );
-        let far = |d: f32| thermal_grip_factor(&t, opt + d, opt + d);
+        let far = |d: f32| thermal_grip_factor(&t, &M, opt + d, opt + d);
         let slope = far(40.0) - far(41.0);
         assert!((slope - t.temperature_grip_falloff).abs() < 2e-4, "{slope}");
         // Cold is charged less per degree: the pressure charges the rest.
@@ -314,8 +429,8 @@ mod tests {
         let t = tyre();
         let opt = t.optimal_temperature_c;
         // 30 °C over is 9 over when it is the core, 21 when it is the tread.
-        let hot_tread = thermal_grip_factor(&t, opt + 30.0, opt);
-        let hot_core = thermal_grip_factor(&t, opt, opt + 30.0);
+        let hot_tread = thermal_grip_factor(&t, &M, opt + 30.0, opt);
+        let hot_core = thermal_grip_factor(&t, &M, opt, opt + 30.0);
         assert!(hot_tread < hot_core && hot_core == 1.0);
     }
 
@@ -323,12 +438,12 @@ mod tests {
     fn the_set_pressure_is_the_pressure_at_the_optimum() {
         let t = tyre();
         let opt = t.optimal_temperature_c;
-        assert!((pressure_kpa(&t, 175.0, opt) - 175.0).abs() < 1e-3);
+        assert!((pressure_kpa(&t, &M, 175.0, opt) - 175.0).abs() < 1e-3);
         // A slick set to 180 hot is at about 125 kPa at 20 °C, as a real
         // tyre that gains half a bar on the way up to temperature.
-        let cold = pressure_kpa(&t, 180.0, 20.0);
+        let cold = pressure_kpa(&t, &M, 180.0, 20.0);
         assert!((120.0..132.0).contains(&cold), "{cold}");
-        assert!(pressure_kpa(&t, 180.0, opt + 20.0) > 195.0);
+        assert!(pressure_kpa(&t, &M, 180.0, opt + 20.0) > 195.0);
     }
 
     #[test]
@@ -339,12 +454,12 @@ mod tests {
             core_temperature_c: t.optimal_temperature_c,
             ..Default::default()
         };
-        assert_eq!(grip_multiplier(&t, 180.0, &data), 1.0);
+        assert_eq!(grip_multiplier(&t, &M, 180.0, &data), 1.0);
         assert_eq!(
-            grip_multiplier(&t, 190.0, &data),
+            grip_multiplier(&t, &M, 190.0, &data),
             t.pressure_grip_factor(190.0)
         );
-        refresh(&mut data, &t, 190.0);
+        refresh(&mut data, &t, &M, 190.0);
         assert_eq!(data.grip_factor, 1.0, "as good as the setup makes it");
         assert_eq!(data.pressure_kpa, 190.0);
     }
@@ -366,7 +481,7 @@ mod tests {
             ..Default::default()
         };
         for _ in 0..(240 * 3) {
-            step(&mut data, &slide, &t, 180.0, &surface, 1.0 / 240.0);
+            step(&mut data, &slide, &t, &M, 180.0, &surface, 1.0 / 240.0);
         }
         assert!(
             data.temperature_c > data.core_temperature_c + 10.0,
@@ -380,7 +495,7 @@ mod tests {
             ..Default::default()
         };
         for _ in 0..(240 * 5) {
-            step(&mut data, &straight, &t, 180.0, &surface, 1.0 / 240.0);
+            step(&mut data, &straight, &t, &M, 180.0, &surface, 1.0 / 240.0);
         }
         assert!(data.temperature_c < peak - 15.0, "{peak} -> {data:?}");
     }
@@ -398,7 +513,7 @@ mod tests {
         let mut last = data.temperature_c;
         for _ in 0..30 {
             for _ in 0..(240 * 60) {
-                step(&mut data, &idle, &t, 180.0, &surface, 1.0 / 240.0);
+                step(&mut data, &idle, &t, &M, 180.0, &surface, 1.0 / 240.0);
             }
             assert!(data.temperature_c < last, "cooling every minute: {data:?}");
             last = data.temperature_c;
@@ -429,7 +544,7 @@ mod tests {
                 ..Default::default()
             };
             for _ in 0..(240 * 10) {
-                step(&mut data, &roll, &t, 180.0, surface, 1.0 / 240.0);
+                step(&mut data, &roll, &t, &M, 180.0, surface, 1.0 / 240.0);
             }
             data.temperature_c
         };

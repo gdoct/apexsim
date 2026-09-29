@@ -13,7 +13,7 @@ import math
 
 from .physics import Physics
 
-TABLE_ORDER = ("physics", "tires", "engine", "engine.turbo", "transmission", "drivetrain",
+TABLE_ORDER = ("physics", "aero", "tires", "engine", "engine.turbo", "transmission", "drivetrain",
                "differential", "fuel", "hybrid", "suspension")
 
 

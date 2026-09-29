@@ -604,6 +604,45 @@ fn the_pit_lane_bakes_a_garage_row_and_pit_walls() {
     }
 }
 
+/// The server's pit lane: a box in front of every garage, in the working
+/// lane between the lane's middle and the garage, facing down the lane;
+/// the speed limit over the parallel stretch; entry before exit.
+#[test]
+fn the_pit_sidecar_puts_a_box_in_front_of_every_garage() {
+    let (track, scene) = stadium_scene();
+    let all = ue_export::bake_all(&track, &scene).unwrap();
+    let baked = &all.scene;
+    let pit = all.pit.as_ref().expect("a pit sidecar");
+    assert_eq!(pit.version, ue_export::PIT_SIDECAR_VERSION);
+    assert_eq!(pit.lane_side, -1, "the lane is on the track's right");
+    let garages = props_with(baked, "pit", "garage_6m");
+    assert_eq!(pit.boxes.len(), garages.len());
+    for (spot, garage) in pit.boxes.iter().zip(&garages) {
+        assert!(
+            spot.y < -20.0 && spot.y > -25.0,
+            "between the lane's middle and the garage: y {}",
+            spot.y
+        );
+        assert!(
+            (spot.x - garage.location[0] / 100.0).abs() < 0.5,
+            "in front of its garage: {} against {}",
+            spot.x,
+            garage.location[0] / 100.0
+        );
+        assert!(spot.yaw_rad.abs() < 0.05, "down the lane: {}", spot.yaw_rad);
+        assert!((pit.limit_start_m..=pit.limit_end_m).contains(&spot.lane_station_m));
+    }
+    assert!(pit.limit_start_m < pit.limit_end_m && pit.limit_end_m <= pit.length_m);
+    assert!(
+        (pit.speed_limit_mps - scene.pit_lane.as_ref().unwrap().speed_limit_kmh / 3.6).abs() < 1e-3
+    );
+    assert!(pit.nodes.len() as f32 >= pit.length_m / ue_export::PIT_SIDECAR_STEP_M);
+    assert!(
+        pit.entry_station_m < pit.exit_station_m,
+        "a lane beside the straight"
+    );
+}
+
 /// The pre-kit scenes stood pit garages in as `building/pit_garage`; the
 /// generated complex replaces them rather than doubling up.
 #[test]

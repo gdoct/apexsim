@@ -1,3 +1,4 @@
+pub mod aero;
 pub mod ai_driver;
 pub mod car_loader;
 pub mod car_setup;
@@ -17,6 +18,7 @@ pub mod lobby;
 pub mod metrics;
 pub mod network;
 pub mod physics;
+pub mod pit;
 pub mod procgen;
 pub mod racing_line;
 pub mod records;
@@ -31,3 +33,4 @@ pub mod track_mesh;
 pub mod transport;
 pub mod tyre_thermal;
 pub mod walls;
+pub mod wind;

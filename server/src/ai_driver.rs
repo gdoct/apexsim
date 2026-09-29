@@ -562,12 +562,16 @@ impl<'a> AiDriverController<'a> {
 
         let pace = PROFILE_NOVICE_PACE + (PROFILE_ACE_PACE - PROFILE_NOVICE_PACE) * skill_factor;
         // The profile is planned on tyres in their window. Cold or cooked
-        // tyres grip less, and every speed the grip sets goes with its root:
-        // a driver who feels them go off slows down to match.
-        // Likewise the downforce the dirty air of a car ahead takes away.
-        let mass = crate::physics::car_mass_kg(self.car_config, state);
-        let grip = state.tyre_grip_share() * state.wake_load_share(mass);
-        slowest * pace * grip.sqrt() * env_f("AI_PACE", 1.0)
+        // tyres grip less, and every speed the grip sets goes with its root;
+        // the driver takes a little more off than that (the 0.75 power, not
+        // the root), because the grip changes under it through a corner as
+        // the tread heats. With the root the AI survey found 13-25% more
+        // time off the road; with 0.75, less than before tyres had a
+        // temperature at all.
+        // Likewise the downforce the dirty air of a car ahead or a tailwind
+        // takes away.
+        let grip = state.tyre_grip_share() * state.aero_load_share;
+        slowest * pace * grip.powf(0.75) * env_f("AI_PACE", 1.0)
     }
 
     /// Plan the current target speed from upcoming curvature: sample the

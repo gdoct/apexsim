@@ -97,7 +97,7 @@ struct APEXSIMNET_API FApexCarSetup
 {
 	GENERATED_BODY()
 
-	static constexpr int32 KnobCount = 15;
+	static constexpr int32 KnobCount = 20;
 
 	/** Clicks per knob, in ApexCarSetup::EKnob order. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Setup")
@@ -168,8 +168,16 @@ namespace ApexCarSetup
 		AntiRollRear,
 		/** Laps of fuel over or under what the session fills the car with. */
 		FuelLoad,
+		/** Wing angle per axle: downforce, and drag, per click. */
+		FrontWing,
+		RearWing,
+		/** Static ride height per axle (server `aero.rs`). */
+		RideHeightFront,
+		RideHeightRear,
+		/** The compound of the next set: -1 hard, 0 medium, +1 soft. */
+		TyreCompound,
 	};
-	static_assert(FuelLoad + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
+	static_assert(TyreCompound + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
 }
 
 /**
@@ -255,16 +263,70 @@ struct APEXSIMNET_API FApexSessionConditions
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	int32 TimeOfDayMinutes = DefaultTimeOfDayMinutes;
 
-	/** The clock wrapped onto one day, as the server does it. */
+	/** The air's figures are optional: "auto" leaves them to the server,
+	 * which works them out from the weather and the clock and echoes them
+	 * named (server `SessionConditions::resolve`). */
+	static constexpr int32 AutoAirTemp = -128;
+	static constexpr int32 Auto = -1;
+	static constexpr int32 MinAirTempC = -5;
+	static constexpr int32 MaxAirTempC = 45;
+	static constexpr int32 MaxWindKph = 60;
+
+	/** Air temperature, °C; AutoAirTemp when left to the weather. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 AirTempC = AutoAirTemp;
+
+	/** Relative humidity, percent; Auto when left to the weather. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 HumidityPct = Auto;
+
+	/** Mean wind, km/h; Auto when left to the weather. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 WindKph = Auto;
+
+	/** Where the wind blows from, degrees in the track's frame (0 head-on
+	 * down the start straight, 90 from its left); Auto when left to the
+	 * server (it picks one per session). */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 WindFromDeg = Auto;
+
+	bool HasAirTemp() const { return AirTempC != AutoAirTemp; }
+	bool HasWind() const { return WindKph >= 0; }
+	bool HasWindDirection() const { return WindFromDeg >= 0; }
+
+	/** "ahead", "the left", "behind", "the right" (and the diagonals):
+	 * where the wind comes from, seen from the start line. */
+	static FString WindFromLabel(int32 Degrees)
+	{
+		static const TCHAR* Names[8] = {
+			TEXT("ahead"), TEXT("ahead-left"), TEXT("the left"), TEXT("behind-left"),
+			TEXT("behind"), TEXT("behind-right"), TEXT("the right"), TEXT("ahead-right") };
+		const int32 Wrapped = ((Degrees % 360) + 360) % 360;
+		return Names[((Wrapped + 22) / 45) % 8];
+	}
+
+	/** The clock wrapped onto one day and the air held to what the sim
+	 * takes, as the server does it. */
 	FApexSessionConditions Clamped() const
 	{
 		FApexSessionConditions Out = *this;
 		Out.TimeOfDayMinutes = ((TimeOfDayMinutes % MinutesPerDay) + MinutesPerDay) % MinutesPerDay;
+		if (Out.HasAirTemp())
+		{
+			Out.AirTempC = FMath::Clamp(Out.AirTempC, MinAirTempC, MaxAirTempC);
+		}
+		Out.HumidityPct = Out.HumidityPct < 0 ? Auto : FMath::Min(Out.HumidityPct, 100);
+		Out.WindKph = Out.WindKph < 0 ? Auto : FMath::Min(Out.WindKph, MaxWindKph);
+		Out.WindFromDeg = Out.WindFromDeg < 0 ? Auto : Out.WindFromDeg % 360;
 		return Out;
 	}
 
 	bool IsWet() const { return Weather == EApexWeather::LightRain || Weather == EApexWeather::HeavyRain; }
-	bool IsDefault() const { return Weather == EApexWeather::Sunny && TimeOfDayMinutes == DefaultTimeOfDayMinutes; }
+	bool IsDefault() const
+	{
+		return Weather == EApexWeather::Sunny && TimeOfDayMinutes == DefaultTimeOfDayMinutes
+			&& !HasAirTemp() && HumidityPct < 0 && !HasWind() && !HasWindDirection();
+	}
 
 	/** Hours since midnight, fractional. */
 	float Hours() const { return static_cast<float>(Clamped().TimeOfDayMinutes) / 60.0f; }
@@ -290,15 +352,30 @@ struct APEXSIMNET_API FApexSessionConditions
 		}
 	}
 
-	/** "Light rain · 21:30". */
+	/** "Light rain · 21:30 · 14°C · wind 18 km/h from the left": the air
+	 * only where it is named (a session always names it; a pick may not). */
 	FString Describe() const
 	{
-		return FString::Printf(TEXT("%s · %s"), *WeatherLabel(Weather), *ClockText());
+		FString Out = FString::Printf(TEXT("%s · %s"), *WeatherLabel(Weather), *ClockText());
+		if (HasAirTemp())
+		{
+			Out += FString::Printf(TEXT(" · %d°C"), AirTempC);
+		}
+		if (HasWind())
+		{
+			Out += WindKph == 0 ? FString(TEXT(" · calm"))
+				: HasWindDirection()
+					? FString::Printf(TEXT(" · wind %d km/h from %s"), WindKph, *WindFromLabel(WindFromDeg))
+					: FString::Printf(TEXT(" · wind %d km/h"), WindKph);
+		}
+		return Out;
 	}
 
 	bool operator==(const FApexSessionConditions& Other) const
 	{
-		return Weather == Other.Weather && TimeOfDayMinutes == Other.TimeOfDayMinutes;
+		return Weather == Other.Weather && TimeOfDayMinutes == Other.TimeOfDayMinutes
+			&& AirTempC == Other.AirTempC && HumidityPct == Other.HumidityPct
+			&& WindKph == Other.WindKph && WindFromDeg == Other.WindFromDeg;
 	}
 	bool operator!=(const FApexSessionConditions& Other) const { return !(*this == Other); }
 };
@@ -1135,6 +1212,32 @@ struct APEXSIMNET_API FApexCarTelemetry
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	float TowShare = -1.0f;
+
+	/** Each tyre's wear, percent, FL FR RL RR (`tyre_wear`); negative when the
+	 * server does not send it. */
+	float TyreWearPct[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+
+	/** The compound on the car: 0 soft, 1 medium, 2 hard (server
+	 * `tyre_thermal::COMPOUNDS`); -1 unknown. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Compound = -1;
+
+	/** In the pit lane; between its lines, on the limiter; stopped at the box
+	 * being serviced, with the seconds left (`pit_flags`, `service_ds`). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bInPitLane = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bPitLimiter = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bPitServicing = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float ServiceSecondsLeft = 0.0f;
+
+	/** "S", "M", "H", or empty when unknown. */
+	static FString CompoundLetter(int32 InCompound)
+	{
+		return InCompound == 0 ? TEXT("S") : InCompound == 1 ? TEXT("M") : InCompound == 2 ? TEXT("H") : TEXT("");
+	}
 };
 
 /** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */

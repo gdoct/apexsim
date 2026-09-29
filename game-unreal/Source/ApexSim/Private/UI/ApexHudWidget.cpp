@@ -312,6 +312,9 @@ void UApexHudWidget::BuildHud()
 	DrsText = nullptr;
 	TowBadge = nullptr;
 	TowText = nullptr;
+	PitBadge = nullptr;
+	PitText = nullptr;
+	TyreCaption = nullptr;
 	LapInvalidText = nullptr;
 	FastestLapName = nullptr;
 	FastestLapTime = nullptr;
@@ -628,6 +631,10 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 	TowText = MakeText(*WidgetTree, TEXT("TOW"), Font::Body(12.0f, true), Palette::TextDisabled);
 	TowBadge = MakePanel(*WidgetTree, TowText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
 	AddH(RpmHeader, TowBadge, FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+	// The pit lane: the limiter between its lines, the service at the box.
+	PitText = MakeText(*WidgetTree, TEXT("PIT"), Font::Body(12.0f, true), Palette::TextDisabled);
+	PitBadge = MakePanel(*WidgetTree, PitText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
+	AddH(RpmHeader, PitBadge, FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	AddH(RpmHeader, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
 	RpmText = MakeText(*WidgetTree, TEXT("0"), Font::Mono(12.0f, 40), Palette::TextSecondary);
 	AddH(RpmHeader, RpmText);
@@ -697,7 +704,8 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 	// The tyres, from the server's thermal model: each tread's temperature
 	// coloured against the car's working window, its running pressure under it.
 	UHorizontalBox* Tyres = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(Tyres, MakeLabel(*WidgetTree, TEXT("Tyres")), FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Center);
+	TyreCaption = MakeLabel(*WidgetTree, TEXT("Tyres"));
+	AddH(Tyres, TyreCaption, FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Center);
 	TyreTempTexts.Reset();
 	TyrePressureTexts.Reset();
 	const TCHAR* TyreNames[4] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
@@ -1175,6 +1183,16 @@ void UApexHudWidget::RefreshCarState()
 		DrsBadge->SetBrush(MakeBrush(Fill));
 		DrsText->SetColorAndOpacity(FSlateColor(Ink));
 	}
+	if (PitBadge && PitText)
+	{
+		const bool bService = Local->bPitServicing;
+		const bool bLimiter = Local->bPitLimiter;
+		PitBadge->SetBrush(MakeBrush(bService ? Palette::Live : bLimiter ? Palette::Accent : Palette::Border));
+		PitText->SetColorAndOpacity(FSlateColor(bService || bLimiter ? Palette::OnAccent : Palette::TextDisabled));
+		PitText->SetText(FText::FromString(bService
+			? FString::Printf(TEXT("SERVICE %.1f"), Local->ServiceSecondsLeft)
+			: bLimiter ? FString(TEXT("LIMITER")) : FString(TEXT("PIT"))));
+	}
 	if (TowBadge && TowText)
 	{
 		// 3% and up, as the server's `slipstream::TOW_SHOWN`.
@@ -1239,6 +1257,11 @@ void UApexHudWidget::RefreshTyres(const FApexCarTelemetry& Local)
 		}
 	}
 	const bool bKnown = Local.HasTyres();
+	if (TyreCaption)
+	{
+		const FString Letter = FApexCarTelemetry::CompoundLetter(Local.Compound);
+		TyreCaption->SetText(FText::FromString(Letter.IsEmpty() ? FString(TEXT("TYRES")) : FString::Printf(TEXT("TYRES · %s"), *Letter)));
+	}
 	for (int32 Tyre = 0; Tyre < 4; ++Tyre)
 	{
 		UTextBlock* Temp = TyreTempTexts[Tyre];
@@ -1258,7 +1281,17 @@ void UApexHudWidget::RefreshTyres(const FApexCarTelemetry& Local)
 		Temp->SetText(FText::FromString(FString::Printf(TEXT("%.0f°"), TempC)));
 		Temp->SetColorAndOpacity(FSlateColor(TyreColour(TempC, TyreOptimalC, TyreWindowC)));
 		const float Kpa = Local.TyrePressureKpa[Tyre];
-		Pressure->SetText(FText::FromString(Kpa >= 0.0f ? FString::Printf(TEXT("%.0f kPa"), Kpa) : TEXT("—")));
+		const float Wear = Local.TyreWearPct[Tyre];
+		FString Under = Kpa >= 0.0f ? FString::Printf(TEXT("%.0f kPa"), Kpa) : FString(TEXT("—"));
+		if (Wear >= 0.0f)
+		{
+			Under += FString::Printf(TEXT(" · %.0f%%"), Wear);
+		}
+		Pressure->SetText(FText::FromString(Under));
+		// Past the cliff (70%) the wear is the story: the text goes amber, red
+		// once the tyre is nearly through.
+		Pressure->SetColorAndOpacity(FSlateColor(
+			Wear >= 90.0f ? Palette::Error : Wear >= 70.0f ? Palette::Accent : Palette::TextMuted));
 	}
 }
 

@@ -35,6 +35,15 @@ lift_coefficient_rear = -0.63
 # - The server currently uses these fields where available; otherwise it falls back to legacy defaults.
 # - RPM values are in revolutions per minute, torque in N·m, power in Watts.
 
+# Aero posture (server/src/aero.rs): a flat-bottomed GT, high and only
+# a little sensitive to its height.
+[aero]
+ride_height_front_m = 0.070
+ride_height_rear_m = 0.090
+ride_height_sensitivity = 0.01
+rake_sensitivity = 0.006
+stall_height_m = 0.015
+
 # Tyres: a GT slick, soft and quick to come in, with a lower window
 # (server/src/tyre_thermal.rs). No blankets: out at the air temperature.
 [tires]

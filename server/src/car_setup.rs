@@ -15,6 +15,11 @@
 //! per-axle grip factor off the optimum (`TireConfig::pressure_grip_factor`)
 //! — which is what lets pressures shift the balance of the car.
 //!
+//! The aero knobs (appended after the fuel load) scale each axle's lift
+//! coefficient, with drag, and move the static ride heights on the car's
+//! aero map (`crate::aero`), whose reference stays the file's; a car with
+//! no `[aero]` table takes the wings but not the ride heights.
+//!
 //! The fuel knob is the odd one out: it is not a figure of the car but
 //! laps of fuel either side of what the session fills it with
 //! (`GameSession::start_fuel_liters`), so `apply` leaves it alone and it
@@ -58,13 +63,23 @@ pub const DAMPER_PER_CLICK: f32 = 0.05;
 pub const ANTI_ROLL_PER_CLICK: f32 = 0.08;
 /// Laps of fuel per click of the fuel load, on the session's own fill.
 pub const FUEL_LAPS_PER_CLICK: f32 = 1.0;
+/// Scale of a wing's lift coefficient per click.
+pub const WING_PER_CLICK: f32 = 0.05;
+/// Drag scale per click of the front and of the rear wing: the rear wing
+/// costs three times as much drag for its downforce.
+pub const FRONT_WING_DRAG_PER_CLICK: f32 = 0.005;
+pub const REAR_WING_DRAG_PER_CLICK: f32 = 0.015;
+/// Static ride height per click, m (`crate::aero`).
+pub const RIDE_HEIGHT_M_PER_CLICK: f32 = 0.002;
+/// Lowest static ride height a setup can ask for, m.
+const MIN_RIDE_HEIGHT_M: f32 = 0.01;
 
 /// Number of knobs in a setup.
-pub const KNOB_COUNT: usize = 15;
+pub const KNOB_COUNT: usize = 20;
 
 /// The knobs in wire order: tyres, engine, transmission, torque,
-/// suspension, then the fuel load (appended last, so the order of the
-/// others never moved).
+/// suspension, the fuel load, then the aero (each group appended after
+/// the last, so the order of the others never moved).
 pub const KNOBS: [Knob; KNOB_COUNT] = [
     Knob {
         name: "tyre_pressure_front",
@@ -141,6 +156,31 @@ pub const KNOBS: [Knob; KNOB_COUNT] = [
         min: -MAX_CLICKS,
         max: MAX_CLICKS,
     },
+    Knob {
+        name: "front_wing",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
+    Knob {
+        name: "rear_wing",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
+    Knob {
+        name: "ride_height_front",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
+    Knob {
+        name: "ride_height_rear",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
+    Knob {
+        name: "tyre_compound",
+        min: -1,
+        max: 1,
+    },
 ];
 
 /// A driver's setup as clicks per knob; all zero is the car as filed.
@@ -179,6 +219,22 @@ pub struct CarSetup {
     /// Laps of fuel over (or under) the session's fill.
     #[serde(default)]
     pub fuel_load: i8,
+    /// Wing angle per axle: more downforce, and drag, per click.
+    #[serde(default)]
+    pub front_wing: i8,
+    #[serde(default)]
+    pub rear_wing: i8,
+    /// Static ride height per axle, [`RIDE_HEIGHT_M_PER_CLICK`] a click;
+    /// it only matters to a car with an `[aero]` map.
+    #[serde(default)]
+    pub ride_height_front: i8,
+    #[serde(default)]
+    pub ride_height_rear: i8,
+    /// The compound the next set of tyres is: -1 hard, 0 medium, +1 soft.
+    /// Like the fuel load it is not a figure of the car: a set is fitted
+    /// in the garage, on the grid or at a pit stop, never mid-lap.
+    #[serde(default)]
+    pub tyre_compound: i8,
 }
 
 impl CarSetup {
@@ -200,6 +256,11 @@ impl CarSetup {
             self.anti_roll_front,
             self.anti_roll_rear,
             self.fuel_load,
+            self.front_wing,
+            self.rear_wing,
+            self.ride_height_front,
+            self.ride_height_rear,
+            self.tyre_compound,
         ]
     }
 
@@ -221,6 +282,11 @@ impl CarSetup {
             anti_roll_front: c[12],
             anti_roll_rear: c[13],
             fuel_load: c[14],
+            front_wing: c[15],
+            rear_wing: c[16],
+            ride_height_front: c[17],
+            ride_height_rear: c[18],
+            tyre_compound: c[19],
         }
     }
 
@@ -243,8 +309,15 @@ impl CarSetup {
     pub fn changes_car(&self) -> bool {
         Self {
             fuel_load: 0,
+            tyre_compound: 0,
             ..*self
         } != Self::default()
+    }
+
+    /// The compound the next set is, as a `tyre_thermal::COMPOUNDS` index
+    /// (softest first).
+    pub fn compound_index(&self) -> u8 {
+        (crate::tyre_thermal::MEDIUM as i8 - self.tyre_compound.clamp(-1, 1)) as u8
     }
 
     /// The car with this setup applied. `self` is expected clamped.
@@ -311,6 +384,23 @@ impl CarSetup {
         s.anti_roll_bar_rear =
             b.anti_roll_bar_rear * scale(self.anti_roll_rear, ANTI_ROLL_PER_CLICK);
 
+        // Aero: each wing scales its axle's downforce and the drag with it;
+        // the ride heights move the car on its aero map, whose reference
+        // stays where the file put it.
+        car.lift_coefficient_front =
+            base.lift_coefficient_front * scale(self.front_wing, WING_PER_CLICK);
+        car.lift_coefficient_rear =
+            base.lift_coefficient_rear * scale(self.rear_wing, WING_PER_CLICK);
+        car.drag_coefficient = base.drag_coefficient
+            * scale(self.front_wing, FRONT_WING_DRAG_PER_CLICK)
+            * scale(self.rear_wing, REAR_WING_DRAG_PER_CLICK);
+        let height = |base_m: f32, clicks: i8| {
+            (base_m + clicks as f32 * RIDE_HEIGHT_M_PER_CLICK).max(MIN_RIDE_HEIGHT_M)
+        };
+        car.aero.ride_height_front_m =
+            height(base.aero.ride_height_front_m, self.ride_height_front);
+        car.aero.ride_height_rear_m = height(base.aero.ride_height_rear_m, self.ride_height_rear);
+
         car
     }
 }
@@ -356,7 +446,9 @@ mod tests {
 
     #[test]
     fn clamp_pins_every_knob_and_one_sided_knobs_only_lower() {
-        let wild = CarSetup::from_clicks([100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30]);
+        let wild = CarSetup::from_clicks([
+            100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30, 9, -9, 12, -12, 4,
+        ]);
         let c = wild.clamp();
         assert_eq!(c.tyre_pressure_front, MAX_CLICKS);
         assert_eq!(c.tyre_pressure_rear, -MAX_CLICKS);
@@ -366,6 +458,13 @@ mod tests {
         assert_eq!(c.final_drive, -MAX_CLICKS);
         assert_eq!(c.anti_roll_rear, -MAX_CLICKS);
         assert_eq!(c.fuel_load, MAX_CLICKS);
+        assert_eq!(c.tyre_compound, 1, "soft is the end of the range");
+        assert_eq!(c.compound_index(), 0, "and the first compound");
+        assert_eq!((c.front_wing, c.rear_wing), (MAX_CLICKS, -MAX_CLICKS));
+        assert_eq!(
+            (c.ride_height_front, c.ride_height_rear),
+            (MAX_CLICKS, -MAX_CLICKS)
+        );
         assert_eq!(c.clamp(), c);
         assert_eq!(KNOBS.len(), c.clicks().len());
     }
@@ -474,6 +573,15 @@ mod tests {
         };
         assert!(!fuel_only.is_stock(), "the knob is kept");
         assert!(!fuel_only.changes_car(), "but needs no tuned copy");
+        let softs = CarSetup {
+            tyre_compound: 1,
+            ..Default::default()
+        };
+        assert!(!softs.changes_car(), "nor does the next set's compound");
+        assert_eq!(
+            CarSetup::default().compound_index(),
+            crate::tyre_thermal::MEDIUM
+        );
         let tuned = fuel_only.apply(&car());
         assert_eq!(
             tuned.fuel.capacity_liters,
@@ -486,7 +594,41 @@ mod tests {
             ..Default::default()
         }
         .changes_car());
-        assert_eq!(KNOBS[KNOB_COUNT - 1].name, "fuel_load");
+        assert_eq!(KNOBS[14].name, "fuel_load");
+    }
+
+    #[test]
+    fn wings_trade_downforce_for_drag_and_ride_height_moves_the_map() {
+        let mut base = car();
+        base.aero.ride_height_sensitivity = 0.03;
+        crate::aero::fit_reference(&mut base);
+        let setup = CarSetup {
+            front_wing: 2,
+            rear_wing: -1,
+            ride_height_front: -3,
+            ..Default::default()
+        };
+        let t = setup.apply(&base);
+        assert!((t.lift_coefficient_front - base.lift_coefficient_front * 1.10).abs() < 1e-6);
+        assert!((t.lift_coefficient_rear - base.lift_coefficient_rear * 0.95).abs() < 1e-6);
+        let drag = 1.01 * 0.985;
+        assert!((t.drag_coefficient - base.drag_coefficient * drag).abs() < 1e-6);
+        assert!(
+            (t.aero.ride_height_front_m - (base.aero.ride_height_front_m - 0.006)).abs() < 1e-6
+        );
+        assert_eq!(t.aero.ride_height_rear_m, base.aero.ride_height_rear_m);
+        assert_eq!(
+            t.aero.reference_front_m, base.aero.reference_front_m,
+            "the map's zero is the file's"
+        );
+        // The floor never goes through the road.
+        let floor = CarSetup {
+            ride_height_front: -5,
+            ..Default::default()
+        };
+        let mut low = base.clone();
+        low.aero.ride_height_front_m = 0.012;
+        assert!(floor.apply(&low).aero.ride_height_front_m >= MIN_RIDE_HEIGHT_M);
     }
 
     #[test]

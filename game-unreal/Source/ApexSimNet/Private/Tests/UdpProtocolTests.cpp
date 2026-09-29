@@ -495,6 +495,31 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("tyres still read"), Car.TyreTempC[2], 103.0f);
 			TestEqual(TEXT("tow"), Car.TowShare, 0.17f);
 		}
+		// A 31-field frame: wear, the compound and the pit lane.
+		FApexServerMessage Pit;
+		if (TestTrue(TEXT("31-field telemetry decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactPit, Pit, Error))
+			&& Pit.Telemetry.Cars.Num() == 1)
+		{
+			const FApexCarTelemetry& Car = Pit.Telemetry.Cars[0];
+			TestEqual(TEXT("tow still reads"), Car.TowShare, 0.17f);
+			TestEqual(TEXT("FL wear"), Car.TyreWearPct[0], 12.0f);
+			TestEqual(TEXT("RR wear"), Car.TyreWearPct[3], 100.0f);
+			TestEqual(TEXT("softs"), Car.Compound, 0);
+			TestEqual(TEXT("letter"), FApexCarTelemetry::CompoundLetter(Car.Compound), FString(TEXT("S")));
+			TestTrue(TEXT("in the lane"), Car.bInPitLane);
+			TestTrue(TEXT("on the limiter"), Car.bPitLimiter);
+			TestTrue(TEXT("in service"), Car.bPitServicing);
+			TestEqual(TEXT("service left"), Car.ServiceSecondsLeft, 7.3f);
+		}
+		// A 27-field frame from before them leaves them unknown.
+		FApexServerMessage Tow;
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactTow, Tow, Error)
+			&& Tow.Telemetry.Cars.Num() == 1)
+		{
+			TestEqual(TEXT("no compound from an older server"), Tow.Telemetry.Cars[0].Compound, -1);
+			TestTrue(TEXT("no wear from an older server"), Tow.Telemetry.Cars[0].TyreWearPct[0] < 0.0f);
+		}
 		// A 26-field frame from before the tow leaves it unknown.
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactTyres, Message, Error)
 			&& Message.Telemetry.Cars.Num() == 1)

@@ -268,10 +268,7 @@ impl ServerState {
             return None;
         }
 
-        // The session's own copy of the track carries the weather's grip:
-        // one bake here, no branch in the tick.
         let mut track = self.track_configs.get(&track_config_id)?.clone();
-        conditions.apply_to_track(&mut track);
         let mut session = RaceSession::new(
             host_player_id,
             track_config_id,
@@ -280,6 +277,14 @@ impl ServerState {
             ai_count,
             lap_limit,
         );
+        // Every figure of the air named (what the host left to the weather
+        // worked out now, the wind's direction from the session's id), so
+        // the session echoes and lists what it simulates.
+        let conditions = conditions.resolve(session.id.as_u64_pair().0);
+        // The session's own copy of the track carries the weather's grip,
+        // the air's density and the wind: one bake here, no branch in the
+        // tick.
+        conditions.apply_to_track(&mut track);
         session.host_car_id = Some(host_car_id);
         session.allowed_assists = allowed_assists;
         session.conditions = conditions;

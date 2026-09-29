@@ -192,20 +192,6 @@ pub fn update(
     }
 }
 
-impl CarState {
-    /// The share of its clean-air tyre load a car has in the wake it is in:
-    /// its weight and downforce now over its weight and the downforce it
-    /// would have in clean air. What a driver feels as the car going light
-    /// behind another; 1.0 in clean air.
-    pub fn wake_load_share(&self, mass_kg: f32) -> f32 {
-        let weight = mass_kg.max(1.0) * 9.81;
-        let now = self.downforce_front_n + self.downforce_rear_n;
-        let clean = self.downforce_front_n / self.wake.downforce_front.max(0.1)
-            + self.downforce_rear_n / self.wake.downforce_rear.max(0.1);
-        ((weight + now) / (weight + clean)).clamp(0.0, 1.0)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -301,32 +287,5 @@ mod tests {
         for (id, s) in &cars {
             assert_eq!(s.wake, fresh[id].wake);
         }
-    }
-
-    #[test]
-    fn the_load_share_is_what_the_wake_took_off_the_downforce() {
-        let mut s = CarState::new(
-            uuid::Uuid::nil(),
-            uuid::Uuid::nil(),
-            &crate::data::GridSlot {
-                position: 1,
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-                yaw_rad: 0.0,
-            },
-        );
-        s.downforce_front_n = 4000.0;
-        s.downforce_rear_n = 4000.0;
-        assert_eq!(s.wake_load_share(800.0), 1.0);
-        s.wake = Wake {
-            drag: 0.8,
-            downforce_front: 0.5,
-            downforce_rear: 1.0,
-        };
-        // 4000 N of front downforce would be 8000 in clean air.
-        let weight = 800.0 * 9.81;
-        let expected = (weight + 8000.0) / (weight + 12000.0);
-        assert!((s.wake_load_share(800.0) - expected).abs() < 1e-5);
     }
 }

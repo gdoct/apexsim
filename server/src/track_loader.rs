@@ -209,6 +209,7 @@ impl TrackLoader {
             track_path.and_then(|path| Self::load_ground_heightfield(&track_file.name, path));
         let curbs = track_path.and_then(|path| Self::load_curb_bands(&track_file.name, path));
         let walls = track_path.and_then(|path| Self::load_walls(&track_file.name, path));
+        let pit_lane = track_path.and_then(|path| Self::load_pit_lane(&track_file.name, path));
         let road_mesh = track_path
             .and_then(|path| Self::load_road_mesh(&track_file.name, path, road_contact))
             .map(std::sync::Arc::new);
@@ -308,7 +309,7 @@ impl TrackLoader {
                 off_track_drag_mps2: crate::data::OFF_TRACK_DRAG_MPS2,
                 ..TrackSurface::default()
             },
-            pit_lane: None,
+            pit_lane,
             raceline,
             drs_zones: track_file
                 .drs_zones
@@ -485,6 +486,38 @@ impl TrackLoader {
             Err(e) => {
                 warn!(
                     "Ignoring walls {} for {}: {}",
+                    sidecar.display(),
+                    track_name,
+                    e
+                );
+                None
+            }
+        }
+    }
+
+    /// Load the pit lane the track editor writes next to the track file,
+    /// if present. Missing is normal (a circuit without a pit lane, or not
+    /// yet baked) and means no pit stops; a present-but-broken file is a
+    /// warning.
+    fn load_pit_lane(track_name: &str, track_path: &Path) -> Option<crate::pit::PitLane> {
+        let sidecar = crate::pit::PitLane::sidecar_path(track_path);
+        if !sidecar.exists() {
+            debug!("No pit lane for {} ({})", track_name, sidecar.display());
+            return None;
+        }
+        match crate::pit::PitLane::load(&sidecar) {
+            Ok(lane) => {
+                info!(
+                    "Loaded the pit lane for {}: {:.0} m, {} boxes",
+                    track_name,
+                    lane.length_m,
+                    lane.boxes.len()
+                );
+                Some(lane)
+            }
+            Err(e) => {
+                warn!(
+                    "Ignoring pit lane {} for {}: {}",
                     sidecar.display(),
                     track_name,
                     e

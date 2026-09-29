@@ -29,10 +29,19 @@ lift_coefficient_rear = -1.12
 # Narrow-pod silver arrow: the least drag of the four, a touch less
 # downforce to go with it.
 
+# Aero posture (server/src/aero.rs): a ground-effect floor, low and very
+# sensitive to height, with rake moving the balance forward.
+[aero]
+ride_height_front_m = 0.045
+ride_height_rear_m = 0.090
+ride_height_sensitivity = 0.03   # share of downforce per cm lower
+rake_sensitivity = 0.010         # front balance shift per cm more rake
+stall_height_m = 0.012
+
 # Tyres: the slick's working window (server/src/tyre_thermal.rs). The
 # car goes out on 70 °C blankets, as the rules allow.
 [tires]
-optimal_temperature_c = 95.0
+optimal_temperature_c = 93.0
 temperature_window_c = 12.0
 blanket_temperature_c = 70.0
 
@@ -40,6 +49,7 @@ blanket_temperature_c = 70.0
 # 300 kW from a small store, so a lap is energy-managed: the battery is empty
 # after ~13 s of full deployment and refills under braking.
 [engine]
+forced_induction = true   # turbocharged: holds its power in thin air
 max_power_w = 400000.0
 max_torque_nm = 355.5
 idle_rpm = 4500.0

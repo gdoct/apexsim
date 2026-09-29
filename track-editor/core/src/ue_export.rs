@@ -426,6 +426,135 @@ pub struct UeCenterlinePoint {
     pub half_right_cm: f32,
 }
 
+/// The pit lane as the server drives it (`<Stem>.pit.msgpack`): the lane's
+/// own centerline, where it leaves and rejoins the track, the speed-limit
+/// stretch and every box, all from the same geometry the bake paints the
+/// lines and stands the garages on, so a car stops where it sees its box.
+/// Stations along the lane are metres from its first node; along the track,
+/// metres from the start line.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PitSidecar {
+    pub version: u32,
+    pub width_m: f32,
+    pub speed_limit_mps: f32,
+    /// +1 when the lane lies on the track's left, -1 on its right.
+    pub lane_side: i32,
+    /// The lane's centerline every [`PIT_SIDECAR_STEP_M`], `[x, y, z]`.
+    pub nodes: Vec<[f32; 3]>,
+    pub length_m: f32,
+    /// The speed limit holds between these lane stations.
+    pub limit_start_m: f32,
+    pub limit_end_m: f32,
+    /// Track stations nearest the lane's first and last node.
+    pub entry_station_m: f32,
+    pub exit_station_m: f32,
+    pub boxes: Vec<PitBoxSpot>,
+}
+
+/// Where a car stops for service: the middle of the box's working lane, in
+/// front of its garage, facing down the lane.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct PitBoxSpot {
+    pub lane_station_m: f32,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub yaw_rad: f32,
+}
+
+/// Version of [`PitSidecar`].
+pub const PIT_SIDECAR_VERSION: u32 = 1;
+/// Spacing of the pit sidecar's lane nodes, m.
+pub const PIT_SIDECAR_STEP_M: f32 = 2.0;
+
+/// The server's pit lane from the lane, the scene's figures for it and its
+/// relation to the road: the limit lines and the box row exactly as
+/// `Bake::pit_markings` paints them.
+fn bake_pit_sidecar(
+    path: &CenterlinePath,
+    lane: &CenterlinePath,
+    pit: &crate::ats::PitLane,
+    relation: &LaneRelation,
+) -> Option<PitSidecar> {
+    let total = lane.total_length_m();
+    if total < 10.0 {
+        return None;
+    }
+    let steps = (total / PIT_SIDECAR_STEP_M).ceil().max(1.0) as usize;
+    let nodes: Vec<[f32; 3]> = (0..=steps)
+        .map(|i| {
+            let p = lane.sample_at(total * i as f32 / steps as f32).pos;
+            [p.0, p.1, p.2]
+        })
+        .collect();
+    let (limit_start, limit_end) = relation
+        .spans
+        .iter()
+        .filter(|(_, _, parallel)| *parallel)
+        .map(|(s, e, _)| (*s, *e))
+        .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
+        .unwrap_or((0.0, total));
+    let side = if relation.lane_side == 0 {
+        1.0
+    } else {
+        relation.lane_side as f32
+    };
+    let half = pit.width_m / 2.0;
+    // The middle of a box's working lane, across the lane from its centre.
+    let stop_lateral = side * (half - PIT_BOX_DEPTH_M / 2.0);
+    let span = limit_end - limit_start;
+    let count = (pit.box_count as f32)
+        .min((span / PIT_MODULE_M).floor())
+        .max(0.0) as u32;
+    let row_start = (limit_start + limit_end) / 2.0 - count as f32 * PIT_MODULE_M / 2.0;
+    let boxes = (0..count)
+        .map(|i| {
+            let at = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
+            let s = lane.sample_at(at);
+            let (nx, ny) = (-s.heading_rad.sin(), s.heading_rad.cos());
+            PitBoxSpot {
+                lane_station_m: at,
+                x: s.pos.0 + nx * stop_lateral,
+                y: s.pos.1 + ny * stop_lateral,
+                z: s.pos.2,
+                yaw_rad: s.heading_rad,
+            }
+        })
+        .collect();
+    let station_of = |p: [f32; 3]| nearest_station(path, p[0], p[1]);
+    Some(PitSidecar {
+        version: PIT_SIDECAR_VERSION,
+        width_m: pit.width_m,
+        speed_limit_mps: pit.speed_limit_kmh / 3.6,
+        lane_side: side as i32,
+        length_m: total,
+        limit_start_m: limit_start,
+        limit_end_m: limit_end,
+        entry_station_m: station_of(nodes[0]),
+        exit_station_m: station_of(*nodes.last()?),
+        nodes,
+        boxes,
+    })
+}
+
+/// The track station nearest `(x, y)`: a 2 m walk of the centerline, then
+/// a 0.1 m one around the best (an export-time search, not a hot one).
+fn nearest_station(path: &CenterlinePath, x: f32, y: f32) -> f32 {
+    let total = path.total_length_m();
+    let dist = |s: f32| {
+        let p = path.sample_at(s).pos;
+        (p.0 - x).powi(2) + (p.1 - y).powi(2)
+    };
+    let coarse = (0..=(total / 2.0).ceil() as usize)
+        .map(|i| (i as f32 * 2.0).min(total))
+        .min_by(|a, b| dist(*a).total_cmp(&dist(*b)))
+        .unwrap_or(0.0);
+    (0..=40)
+        .map(|i| (coarse - 2.0 + i as f32 * 0.1).rem_euclid(total.max(1e-3)))
+        .min_by(|a, b| dist(*a).total_cmp(&dist(*b)))
+        .unwrap_or(coarse)
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UePitLane {
     pub width_cm: f32,
@@ -449,6 +578,9 @@ pub struct Baked {
     /// outer face, a sliver), with the station of each. A hole inside the
     /// road's width is one a wheel falls through to the centerline.
     pub road_dropped: Vec<DroppedFacet>,
+    /// The pit lane as the server drives it; `None` for a circuit without
+    /// one (the Nordschleife) or one too short to stand a box on.
+    pub pit: Option<PitSidecar>,
 }
 
 /// Knobs on a bake that change what is written, not just how much.
@@ -1145,6 +1277,11 @@ pub fn bake_all_with_options(
     bake.grid_boxes(track, &path);
     bake.drs_lines(track, &path);
     bake.wear(track, &path);
+    let pit = scene
+        .pit_lane
+        .as_ref()
+        .zip(lane.as_ref())
+        .and_then(|(pit, lane)| bake_pit_sidecar(&path, lane, pit, &lane_relation));
     let pit_lane = scene.pit_lane.as_ref().and_then(|pit| {
         let lane = lane.as_ref()?;
         bake.pit_lane(lane, pit.width_m);
@@ -1219,6 +1356,7 @@ pub fn bake_all_with_options(
         walls,
         road,
         road_dropped,
+        pit,
     })
 }
 

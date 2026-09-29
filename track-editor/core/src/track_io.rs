@@ -90,6 +90,45 @@ mod tests {
     use super::*;
     use crate::track_data::{Checkpoint, TrackNode};
 
+    /// `scripts/track_location.py` writes the location at the end of the
+    /// metadata block in an f32's shortest form; a tool that rewrites the
+    /// YAML (ats-smooth, ats-bank) must write the same lines back.
+    #[test]
+    fn the_location_survives_a_rewrite_as_written() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/default");
+        let mut seen = 0;
+        for entry in std::fs::read_dir(&dir).expect("tracks") {
+            let path = entry.expect("entry").path();
+            if path.extension().and_then(|e| e.to_str()) != Some("yaml") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).expect("yaml");
+            let lines: Vec<&str> = text
+                .lines()
+                .filter(|l| {
+                    l.starts_with("  altitude_m:")
+                        || l.starts_with("  latitude_deg:")
+                        || l.starts_with("  longitude_deg:")
+                })
+                .collect();
+            if lines.is_empty() {
+                continue;
+            }
+            let track = parse_track_file(&text).expect("parses");
+            let written = serde_yaml::to_string(&track).expect("writes");
+            for line in &lines {
+                assert!(
+                    written.lines().any(|w| w == *line),
+                    "{}: {line} comes back as something else",
+                    path.display()
+                );
+            }
+            seen += 1;
+        }
+        assert!(seen > 20, "only {seen} tracks carry a location");
+    }
+
     fn minimal_track() -> TrackFile {
         TrackFile {
             name: "Test".to_string(),

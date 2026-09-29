@@ -150,6 +150,11 @@ pub fn road_sidecar_path_for(track_path: &Path) -> PathBuf {
     track_path.with_extension("road.msgpack")
 }
 
+/// `Monza.yaml` -> `<same dir>/Monza.pit.msgpack`.
+pub fn pit_sidecar_path_for(track_path: &Path) -> PathBuf {
+    track_path.with_extension("pit.msgpack")
+}
+
 /// What an export writes beyond the bake itself.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ExportOptions {
@@ -295,6 +300,16 @@ pub fn export_track_with_options(
     let road_path = road_sidecar_path_for(track_path);
     if !keeps(Sidecar::Road) {
         write_road_sidecar(&road_path, &baked.road)?;
+    }
+    // A circuit without a pit lane has no sidecar: a stale one from an
+    // earlier scene would stand boxes on the grass.
+    let pit_path = pit_sidecar_path_for(track_path);
+    if !keeps(Sidecar::Pit) {
+        match &baked.pit {
+            Some(pit) => write_msgpack(&pit_path, &rmp_serde::to_vec_named(pit)?)?,
+            None if pit_path.exists() => fs::remove_file(&pit_path)?,
+            None => {}
+        }
     }
     Ok(Exported {
         mesh_blob_path: mesh_blob_path_for(&scene_path),
