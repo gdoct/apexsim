@@ -113,7 +113,7 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 
 	{
 		FApexCarSetup Setup;
-		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4 };
+		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2 };
 		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
 		{
 			Setup.Clicks[Index] = Clicks[Index];
@@ -174,7 +174,10 @@ bool FApexCarSetupClicksTest::RunTest(const FString& Parameters)
 
 	// The wire key table must line up with the enum it is indexed by.
 	TestEqual(TEXT("first key"), FString(ApexCarSetup::Knob(ApexCarSetup::TyrePressureFront).Key), FString(TEXT("tyre_pressure_front")));
-	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::AntiRollRear).Key), FString(TEXT("anti_roll_rear")));
+	TestEqual(TEXT("anti-roll key"), FString(ApexCarSetup::Knob(ApexCarSetup::AntiRollRear).Key), FString(TEXT("anti_roll_rear")));
+	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::FuelLoad).Key), FString(TEXT("fuel_load")));
+	TestEqual(TEXT("fuel reads in laps"),
+		ApexCarSetup::Describe(ApexCarSetup::FuelLoad, 2), FString(TEXT("+2  (+2 laps)")));
 	return true;
 }
 

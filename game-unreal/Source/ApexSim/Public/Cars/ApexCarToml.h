@@ -110,6 +110,12 @@ struct FApexCarToml
 	float MassKg = 0.0f;
 	float MaxPowerKw = 0.0f;
 	float MaxSteerRad = 0.0f;
+	/**
+	 * The `[tires]` table's working window, °C: the middle and half-width
+	 * (the server's `tyre_thermal` defaults when the car does not say).
+	 */
+	float TyreOptimalC = 90.0f;
+	float TyreWindowC = 10.0f;
 	FApexCarWheelsToml Wheels;
 	FApexCarDrsFlapToml DrsFlap;
 	/**

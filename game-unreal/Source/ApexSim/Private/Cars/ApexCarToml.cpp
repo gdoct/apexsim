@@ -322,6 +322,11 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 				}
 			}
 		}
+		else if (Table == TEXT("tires"))
+		{
+			if (Key == TEXT("optimal_temperature_c")) { Out.TyreOptimalC = FCString::Atof(*Value); }
+			else if (Key == TEXT("temperature_window_c")) { Out.TyreWindowC = FCString::Atof(*Value); }
+		}
 		else if (Table == TEXT("sound"))
 		{
 			FApexEngineSoundSpec& S = Out.Sound;

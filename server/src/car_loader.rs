@@ -170,6 +170,17 @@ struct TiresToml {
     front_grip_scale: Option<f32>,
     #[serde(default)]
     rear_grip_scale: Option<f32>,
+    /// The compound's working window (`crate::tyre_thermal`): its middle,
+    /// half-width and the grip lost per degree outside it, °C.
+    #[serde(default)]
+    optimal_temperature_c: Option<f32>,
+    #[serde(default)]
+    temperature_window_c: Option<f32>,
+    #[serde(default)]
+    temperature_grip_falloff: Option<f32>,
+    /// Tyre blankets: what the car goes out at, °C. Absent: the air.
+    #[serde(default)]
+    blanket_temperature_c: Option<f32>,
 }
 
 /// Optional `[engine.turbo]`: the lag of a turbo whose boost the torque
@@ -436,6 +447,12 @@ struct FuelToml {
     idle_consumption_lps: Option<f32>,
     #[serde(default)]
     load_consumption_scale: Option<f32>,
+    #[serde(default)]
+    thermal_efficiency: Option<f32>,
+    #[serde(default)]
+    density_kg_per_l: Option<f32>,
+    #[serde(default)]
+    tank_front_share: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -693,7 +710,18 @@ impl CarLoader {
             fuel: FuelConfig {
                 capacity_liters: fuel_toml.capacity_liters.unwrap_or(100.0),
                 idle_consumption_lps: fuel_toml.idle_consumption_lps.unwrap_or(0.00005),
-                load_consumption_scale: fuel_toml.load_consumption_scale.unwrap_or(0.003),
+                // The old throttle-times-revs rule only for a file that
+                // names its scale and not the engine's efficiency.
+                load_consumption_scale: fuel_toml
+                    .load_consumption_scale
+                    .filter(|_| fuel_toml.thermal_efficiency.is_none()),
+                thermal_efficiency: fuel_toml
+                    .thermal_efficiency
+                    .unwrap_or(FuelConfig::default().thermal_efficiency),
+                density_kg_per_l: fuel_toml
+                    .density_kg_per_l
+                    .unwrap_or(FuelConfig::default().density_kg_per_l),
+                tank_front_share: fuel_toml.tank_front_share,
             },
             hybrid: HybridConfig {
                 enabled: hybrid_toml.enabled.unwrap_or(false),
@@ -794,6 +822,16 @@ impl CarLoader {
                 rear_grip_scale: tires_toml
                     .rear_grip_scale
                     .unwrap_or(tire_defaults.rear_grip_scale),
+                optimal_temperature_c: tires_toml
+                    .optimal_temperature_c
+                    .unwrap_or(tire_defaults.optimal_temperature_c),
+                temperature_window_c: tires_toml
+                    .temperature_window_c
+                    .unwrap_or(tire_defaults.temperature_window_c),
+                temperature_grip_falloff: tires_toml
+                    .temperature_grip_falloff
+                    .unwrap_or(tire_defaults.temperature_grip_falloff),
+                blanket_temperature_c: tires_toml.blanket_temperature_c,
                 ..tire_defaults
             },
         };
@@ -810,6 +848,33 @@ impl CarLoader {
 
         if !(config.mass_kg.is_finite() && config.mass_kg > 0.0) {
             problems.push(format!("mass_kg must be positive (got {})", config.mass_kg));
+        }
+        let fuel = &config.fuel;
+        if !(fuel.capacity_liters.is_finite() && fuel.capacity_liters >= 0.0) {
+            problems.push(format!(
+                "[fuel] capacity_liters must not be negative (got {})",
+                fuel.capacity_liters
+            ));
+        }
+        if !(fuel.thermal_efficiency.is_finite() && (0.05..=0.7).contains(&fuel.thermal_efficiency))
+        {
+            problems.push(format!(
+                "[fuel] thermal_efficiency must be within 0.05-0.7 (got {})",
+                fuel.thermal_efficiency
+            ));
+        }
+        if !(fuel.density_kg_per_l.is_finite() && (0.5..=1.0).contains(&fuel.density_kg_per_l)) {
+            problems.push(format!(
+                "[fuel] density_kg_per_l must be within 0.5-1.0 (got {})",
+                fuel.density_kg_per_l
+            ));
+        }
+        if let Some(share) = fuel.tank_front_share {
+            if !(share.is_finite() && (0.0..=1.0).contains(&share)) {
+                problems.push(format!(
+                    "[fuel] tank_front_share must be within 0-1 (got {share})"
+                ));
+            }
         }
         if !(config.wheelbase_m.is_finite() && config.wheelbase_m > 0.0) {
             problems.push(format!(
@@ -966,6 +1031,27 @@ impl CarLoader {
         );
         in_range("tires.front_grip_scale", tyre.front_grip_scale, 0.5, 1.5);
         in_range("tires.rear_grip_scale", tyre.rear_grip_scale, 0.5, 1.5);
+        in_range(
+            "tires.optimal_temperature_c",
+            tyre.optimal_temperature_c,
+            30.0,
+            150.0,
+        );
+        in_range(
+            "tires.temperature_window_c",
+            tyre.temperature_window_c,
+            0.0,
+            50.0,
+        );
+        in_range(
+            "tires.temperature_grip_falloff",
+            tyre.temperature_grip_falloff,
+            0.0,
+            0.03,
+        );
+        if let Some(blanket) = tyre.blanket_temperature_c {
+            in_range("tires.blanket_temperature_c", blanket, 0.0, 120.0);
+        }
         in_range(
             "drivetrain.awd_front_share",
             config.awd_front_share,

@@ -841,7 +841,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 23;
+	constexpr int32 CompactCarFieldCount = 27;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -930,6 +930,7 @@ namespace
 		Out.bDrsOpen = false;
 		Out.bHeadlights = false;
 		Out.bHeadlightFlash = false;
+		Out.FuelLiters = -1.0f;
 		if (Index < Known)
 		{
 			bOk &= Next([&]
@@ -945,6 +946,85 @@ namespace
 				Out.bDrsOpen = (Raw & 16) != 0;
 				Out.bHeadlights = (Raw & 32) != 0;
 				Out.bHeadlightFlash = (Raw & 64) != 0;
+				return true;
+			});
+		}
+		// Fuel, appended after `lap_flags` in tenths of a litre; a server
+		// that predates it leaves the tank unknown.
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.FuelLiters = static_cast<float>(Raw) / 10.0f;
+				return true;
+			});
+		}
+		// Tyres, appended after the tank: four tread temperatures (°C), then
+		// four running pressures (kPa), FL FR RL RR. 0 is "not known", and a
+		// server that predates them sends neither.
+		for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+		{
+			Out.TyreTempC[Tyre] = -1.0f;
+			Out.TyrePressureKpa[Tyre] = -1.0f;
+		}
+		auto ReadTyreBytes = [&](float (&Into)[4])
+		{
+			int32 Count = 0;
+			if (!Reader.ReadArrayHeader(Count))
+			{
+				return false;
+			}
+			float Values[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+			for (int32 Tyre = 0; Tyre < Count; ++Tyre)
+			{
+				if (Tyre >= 4)
+				{
+					if (!Reader.SkipValue())
+					{
+						return false;
+					}
+					continue;
+				}
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Values[Tyre] = Raw == 0 ? -1.0f : static_cast<float>(Raw);
+			}
+			// All four or none: a half-known set is no use to a display.
+			const bool bKnown = Count >= 4 && Values[0] >= 0.0f && Values[1] >= 0.0f
+				&& Values[2] >= 0.0f && Values[3] >= 0.0f;
+			for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+			{
+				Into[Tyre] = bKnown ? Values[Tyre] : -1.0f;
+			}
+			return true;
+		};
+		if (Index < Known)
+		{
+			bOk &= Next([&] { return ReadTyreBytes(Out.TyreTempC); });
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&] { return ReadTyreBytes(Out.TyrePressureKpa); });
+		}
+		// The tow, appended after the tyres: the share of the car's drag the
+		// wake ahead saves, in percent. A server that predates it leaves it
+		// unknown.
+		Out.TowShare = -1.0f;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.TowShare = FMath::Min(static_cast<float>(Raw), 100.0f) / 100.0f;
 				return true;
 			});
 		}

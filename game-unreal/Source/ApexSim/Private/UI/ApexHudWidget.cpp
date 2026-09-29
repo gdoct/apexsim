@@ -62,6 +62,27 @@ namespace
 	/** A sector the driver has been quicker through before. */
 	const FLinearColor SlowerColour = Palette::Accent;
 
+	/** A tyre under its working window. */
+	const FLinearColor TyreColdColour = FLinearColor::FromSRGBColor(FColor(0x5A, 0x9B, 0xE0));
+
+	/**
+	 * A tread's colour against the car's working window: blue under it,
+	 * green in it, amber over it and red once it is well past (15 °C over
+	 * the edge, where the grip is going fast).
+	 */
+	FLinearColor TyreColour(float TempC, float OptimalC, float WindowC)
+	{
+		if (TempC < OptimalC - WindowC)
+		{
+			return TyreColdColour;
+		}
+		if (TempC <= OptimalC + WindowC)
+		{
+			return Palette::Live;
+		}
+		return TempC <= OptimalC + WindowC + 15.0f ? Palette::Accent : Palette::Error;
+	}
+
 	/** Milliseconds as "27.431", the way a split is read. */
 	FString FormatSplit(int32 Ms)
 	{
@@ -289,6 +310,8 @@ void UApexHudWidget::BuildHud()
 	RpmSegments.Reset();
 	DrsBadge = nullptr;
 	DrsText = nullptr;
+	TowBadge = nullptr;
+	TowText = nullptr;
 	LapInvalidText = nullptr;
 	FastestLapName = nullptr;
 	FastestLapTime = nullptr;
@@ -600,6 +623,11 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 	DrsText = MakeText(*WidgetTree, TEXT("DRS"), Font::Body(12.0f, true), Palette::TextDisabled);
 	DrsBadge = MakePanel(*WidgetTree, DrsText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
 	AddH(RpmHeader, DrsBadge, FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+	// The tow: lit while the wake of a car ahead saves a noticeable share of
+	// the drag (server `slipstream.rs`), with how much.
+	TowText = MakeText(*WidgetTree, TEXT("TOW"), Font::Body(12.0f, true), Palette::TextDisabled);
+	TowBadge = MakePanel(*WidgetTree, TowText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
+	AddH(RpmHeader, TowBadge, FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	AddH(RpmHeader, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
 	RpmText = MakeText(*WidgetTree, TEXT("0"), Font::Mono(12.0f, 40), Palette::TextSecondary);
 	AddH(RpmHeader, RpmText);
@@ -651,18 +679,43 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 	UTextBlock* Last = nullptr;
 	UTextBlock* Best = nullptr;
 	UTextBlock* LapsLeft = nullptr;
+	UTextBlock* Fuel = nullptr;
 	AddFooterCell(TEXT("Last"), Last, Palette::TextPrimary, false);
 	AddFooterCell(TEXT("Best"), Best, PersonalBestColour, true);
-	// The mockup has a fuel gauge here. Nothing in the protocol carries fuel —
-	// the server does not model it — so the cell shows what is actually known
-	// about how much race is left.
 	AddFooterCell(TEXT("Laps left"), LapsLeft, Palette::TextPrimary, true);
+	// The tank, from the server's telemetry: amber once the last lap's burn
+	// says it will not reach the flag, red under a lap.
+	AddFooterCell(TEXT("Fuel"), Fuel, Palette::TextPrimary, true);
 	LastLapText = Last;
 	BestLapText = Best;
 	LapsLeftText = LapsLeft;
+	FuelText = Fuel;
 
 	AddV(Stack, MakeDivider(*WidgetTree), FMargin(0.0f, 14.0f, 0.0f, 12.0f));
 	AddV(Stack, Footer);
+
+	// The tyres, from the server's thermal model: each tread's temperature
+	// coloured against the car's working window, its running pressure under it.
+	UHorizontalBox* Tyres = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddH(Tyres, MakeLabel(*WidgetTree, TEXT("Tyres")), FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Center);
+	TyreTempTexts.Reset();
+	TyrePressureTexts.Reset();
+	const TCHAR* TyreNames[4] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
+	for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+	{
+		UVerticalBox* Cell = WidgetTree->ConstructWidget<UVerticalBox>();
+		AddV(Cell, MakeLabel(*WidgetTree, TyreNames[Tyre]));
+		UTextBlock* Temp = MakeText(*WidgetTree, TEXT("—"), Font::Mono(15.0f), Palette::TextMuted);
+		AddV(Cell, Temp, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+		UTextBlock* Pressure = MakeText(*WidgetTree, TEXT("—"), Font::Mono(11.0f), Palette::TextMuted);
+		AddV(Cell, Pressure, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+		// A gap between the axles, so the four read as front pair and rear pair.
+		AddH(Tyres, Cell, FMargin(0.0f, 0.0f, Tyre == 1 ? 30.0f : 16.0f, 0.0f), VAlign_Center);
+		TyreTempTexts.Add(Temp);
+		TyrePressureTexts.Add(Pressure);
+	}
+	AddV(Stack, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 10.0f));
+	AddV(Stack, Tyres);
 
 	UBorder* Panel = MakePanel(*WidgetTree, Stack, FMargin(22.0f, 16.0f), MakeBrush(Palette::Surface));
 	return MakeSized(*WidgetTree, Panel, 470.0f, -1.0f);
@@ -1122,6 +1175,16 @@ void UApexHudWidget::RefreshCarState()
 		DrsBadge->SetBrush(MakeBrush(Fill));
 		DrsText->SetColorAndOpacity(FSlateColor(Ink));
 	}
+	if (TowBadge && TowText)
+	{
+		// 3% and up, as the server's `slipstream::TOW_SHOWN`.
+		const bool bTow = Local->TowShare >= 0.03f;
+		TowBadge->SetBrush(MakeBrush(bTow ? Palette::Surface : Palette::Border));
+		TowText->SetColorAndOpacity(FSlateColor(bTow ? Palette::Live : Palette::TextDisabled));
+		TowText->SetText(FText::FromString(bTow
+			? FString::Printf(TEXT("TOW %.0f%%"), Local->TowShare * 100.0f)
+			: FString(TEXT("TOW"))));
+	}
 
 	if (ThrottleBar)
 	{
@@ -1144,15 +1207,110 @@ void UApexHudWidget::RefreshCarState()
 	{
 		BestLapText->SetText(FText::FromString(FormatTime(Local->BestLapTimeMs / 1000.0f)));
 	}
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const int32 LapLimit = Flow && HeaderGameMode != EApexGameMode::Hotlap ? Flow->CreateLapLimit : 0;
+	const int32 LapsLeft = LapLimit > 0
+		? (Local->FinishPosition > 0 ? 0 : FMath::Max(0, LapLimit - FMath::Max(0, Local->CurrentLap - 1)))
+		: -1;
 	if (LapsLeftText)
 	{
-		const UApexMenuFlowSubsystem* Flow = GetFlow();
-		const int32 LapLimit = Flow && HeaderGameMode != EApexGameMode::Hotlap ? Flow->CreateLapLimit : 0;
-		LapsLeftText->SetText(FText::FromString(
-			LapLimit > 0
-				? FString::FromInt(Local->FinishPosition > 0 ? 0 : FMath::Max(0, LapLimit - FMath::Max(0, Local->CurrentLap - 1)))
-				: TEXT("—")));
+		LapsLeftText->SetText(FText::FromString(LapsLeft >= 0 ? FString::FromInt(LapsLeft) : TEXT("—")));
 	}
+	RefreshFuel(*Local, LapsLeft);
+	RefreshTyres(*Local);
+}
+
+void UApexHudWidget::RefreshTyres(const FApexCarTelemetry& Local)
+{
+	if (TyreTempTexts.Num() != 4 || TyrePressureTexts.Num() != 4)
+	{
+		return;
+	}
+	// The window is the car's, from its car.toml; read once per car.
+	if (const UApexMenuFlowSubsystem* Flow = GetFlow())
+	{
+		if (Flow->GetPendingCarId() != TyreWindowCarId)
+		{
+			TyreWindowCarId = Flow->GetPendingCarId();
+			FApexCarCatalogRow CarRow;
+			const bool bRow = Flow->GetCarCatalogRow(TyreWindowCarId, CarRow);
+			TyreOptimalC = bRow ? CarRow.TyreOptimalC : 90.0f;
+			TyreWindowC = bRow ? CarRow.TyreWindowC : 10.0f;
+		}
+	}
+	const bool bKnown = Local.HasTyres();
+	for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+	{
+		UTextBlock* Temp = TyreTempTexts[Tyre];
+		UTextBlock* Pressure = TyrePressureTexts[Tyre];
+		if (!Temp || !Pressure)
+		{
+			continue;
+		}
+		if (!bKnown)
+		{
+			Temp->SetText(FText::FromString(TEXT("—")));
+			Temp->SetColorAndOpacity(FSlateColor(Palette::TextMuted));
+			Pressure->SetText(FText::FromString(TEXT("—")));
+			continue;
+		}
+		const float TempC = Local.TyreTempC[Tyre];
+		Temp->SetText(FText::FromString(FString::Printf(TEXT("%.0f°"), TempC)));
+		Temp->SetColorAndOpacity(FSlateColor(TyreColour(TempC, TyreOptimalC, TyreWindowC)));
+		const float Kpa = Local.TyrePressureKpa[Tyre];
+		Pressure->SetText(FText::FromString(Kpa >= 0.0f ? FString::Printf(TEXT("%.0f kPa"), Kpa) : TEXT("—")));
+	}
+}
+
+void UApexHudWidget::RefreshFuel(const FApexCarTelemetry& Local, int32 LapsLeft)
+{
+	if (!FuelText)
+	{
+		return;
+	}
+	if (Local.FuelLiters < 0.0f)
+	{
+		FuelText->SetText(FText::FromString(TEXT("—")));
+		FuelText->SetColorAndOpacity(FSlateColor(Palette::TextPrimary));
+		return;
+	}
+
+	// What a lap costs is measured at the line: the tank there against the
+	// tank one lap earlier. A car filled up (the hotlap garage) starts over.
+	if (Local.CurrentLap != FuelLap)
+	{
+		if (FuelLap > 0 && Local.CurrentLap == FuelLap + 1 && FuelAtLapStart > Local.FuelLiters)
+		{
+			FuelPerLap = FuelAtLapStart - Local.FuelLiters;
+		}
+		FuelLap = Local.CurrentLap;
+		FuelAtLapStart = Local.FuelLiters;
+	}
+	else if (Local.FuelLiters > FuelAtLapStart + 0.5f)
+	{
+		FuelAtLapStart = Local.FuelLiters;
+		FuelPerLap = -1.0f;
+	}
+
+	FLinearColor Colour = Palette::TextPrimary;
+	if (Local.FuelLiters <= 0.0f)
+	{
+		Colour = Palette::Error;
+	}
+	else if (FuelPerLap > 0.0f)
+	{
+		const float LapsOfFuel = Local.FuelLiters / FuelPerLap;
+		if (LapsOfFuel < 1.0f)
+		{
+			Colour = Palette::Error;
+		}
+		else if (LapsLeft > 0 && LapsOfFuel < LapsLeft)
+		{
+			Colour = Palette::Accent;
+		}
+	}
+	FuelText->SetText(FText::FromString(FString::Printf(TEXT("%.1f L"), Local.FuelLiters)));
+	FuelText->SetColorAndOpacity(FSlateColor(Colour));
 }
 
 void UApexHudWidget::RefreshDelta()

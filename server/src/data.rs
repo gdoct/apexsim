@@ -282,13 +282,48 @@ impl Default for DifferentialConfig {
     }
 }
 
+/// Lower heating value of racing petrol, J/kg: the chemical energy a
+/// kilogram of fuel releases, of which the engine turns
+/// [`FuelConfig::thermal_efficiency`] into work at the crank.
+pub const FUEL_ENERGY_J_PER_KG: f32 = 43.0e6;
+
+/// The fuel system: the tank, what the fuel weighs and where, and how fast
+/// the engine burns it.
+///
+/// `CarConfig::mass_kg` is the car with its driver and a dry tank (as AC's
+/// `TOTALMASS` is), so what is in the tank is carried on top of it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuelConfig {
     pub capacity_liters: f32,
     /// Base consumption at idle (L/s)
     pub idle_consumption_lps: f32,
-    /// Consumption scaling with throttle/rpm (tuned constant).
-    pub load_consumption_scale: f32,
+    /// The old consumption rule, `throttle x rpm / max_rpm x scale` L/s on
+    /// top of idle, kept for a car.toml that still names it and no
+    /// `thermal_efficiency`. `None` burns fuel by the power the engine
+    /// makes instead.
+    #[serde(default)]
+    pub load_consumption_scale: Option<f32>,
+    /// Share of the fuel's energy the engine turns into work at the crank
+    /// (brake thermal efficiency): about 0.30-0.35 for a GT or LMP engine,
+    /// 0.40 for a hypercar's, 0.50 for a current F1 power unit.
+    #[serde(default = "default_thermal_efficiency")]
+    pub thermal_efficiency: f32,
+    /// kg per litre.
+    #[serde(default = "default_fuel_density")]
+    pub density_kg_per_l: f32,
+    /// Share of the fuel's weight on the front axle: where the tank sits.
+    /// `None` puts it at the car's own weight split, so a draining tank
+    /// lightens the car without moving its balance.
+    #[serde(default)]
+    pub tank_front_share: Option<f32>,
+}
+
+fn default_thermal_efficiency() -> f32 {
+    0.30
+}
+
+fn default_fuel_density() -> f32 {
+    0.745
 }
 
 impl Default for FuelConfig {
@@ -296,8 +331,28 @@ impl Default for FuelConfig {
         Self {
             capacity_liters: 100.0,
             idle_consumption_lps: 0.00005,
-            load_consumption_scale: 0.003,
+            load_consumption_scale: None,
+            thermal_efficiency: default_thermal_efficiency(),
+            density_kg_per_l: default_fuel_density(),
+            tank_front_share: None,
         }
+    }
+}
+
+impl FuelConfig {
+    /// What `liters` of fuel weigh, kg.
+    pub fn mass_kg(&self, liters: f32) -> f32 {
+        liters.max(0.0) * self.density_kg_per_l
+    }
+
+    /// Litres per second the engine burns making `crank_power_w` at the
+    /// crank (combustion only: engine braking and a fuel cut burn none).
+    pub fn burn_lps(&self, crank_power_w: f32) -> f32 {
+        let per_joule = 1.0
+            / (self.thermal_efficiency.max(0.05)
+                * FUEL_ENERGY_J_PER_KG
+                * self.density_kg_per_l.max(0.1));
+        crank_power_w.max(0.0) * per_joule
     }
 }
 
@@ -357,17 +412,33 @@ impl Default for SuspensionConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TireConfig {
-    pub grip_coefficient: f32,         // Base grip coefficient (0.8-1.2)
-    pub optimal_slip_ratio: f32,       // Peak longitudinal slip (typically 0.06-0.12)
-    pub optimal_slip_angle_rad: f32,   // Peak lateral slip angle (typically 6-10 degrees)
-    pub rolling_resistance: f32,       // Rolling resistance coefficient
-    pub optimal_temperature_c: f32,    // Optimal tire temp for best grip
-    pub temperature_grip_falloff: f32, // Grip reduction per degree from optimal
-    pub wear_rate: f32,                // Wear rate multiplier
+    pub grip_coefficient: f32,       // Base grip coefficient (0.8-1.2)
+    pub optimal_slip_ratio: f32,     // Peak longitudinal slip (typically 0.06-0.12)
+    pub optimal_slip_angle_rad: f32, // Peak lateral slip angle (typically 6-10 degrees)
+    pub rolling_resistance: f32,     // Rolling resistance coefficient
+    /// The middle of the compound's working window, °C: the temperature
+    /// the tyre grips best at (`crate::tyre_thermal`). The running
+    /// pressures below are the pressures *at* this temperature.
+    pub optimal_temperature_c: f32,
+    /// Grip lost per degree outside the window (a share of the peak, so
+    /// 0.004 is 0.4% a degree), eased in over the first few degrees.
+    pub temperature_grip_falloff: f32,
+    /// Half-width of the window, °C: within `optimal ± window` the tyre
+    /// grips its full figure.
+    #[serde(default = "default_temperature_window_c")]
+    pub temperature_window_c: f32,
+    /// Tyre blankets: the temperature a car is sent out on, °C. `None`
+    /// (no blankets) sends it out at the air temperature.
+    #[serde(default)]
+    pub blanket_temperature_c: Option<f32>,
+    pub wear_rate: f32, // Wear rate multiplier
     /// Running pressure per axle and the pressure the tyre grips best at.
     /// Off the optimum the contact patch shrinks (or crowns) and the axle
     /// loses grip quadratically (`pressure_grip_factor`); the garage setup
     /// moves the running pressures, which is how it shifts the balance.
+    /// A running pressure is the *hot* one, at `optimal_temperature_c`:
+    /// the gas in a colder tyre is at less (`tyre_thermal::pressure_kpa`),
+    /// in a hotter one at more.
     #[serde(default = "default_tyre_pressure_kpa")]
     pub pressure_front_kpa: f32,
     #[serde(default = "default_tyre_pressure_kpa")]
@@ -406,6 +477,10 @@ pub struct TireConfig {
 
 fn default_tyre_pressure_kpa() -> f32 {
     180.0
+}
+
+fn default_temperature_window_c() -> f32 {
+    crate::tyre_thermal::DEFAULT_WINDOW_C
 }
 
 fn default_one() -> f32 {
@@ -454,6 +529,22 @@ impl TireConfig {
 }
 
 impl CarConfig {
+    /// The car as it stands with `fuel_liters` in the tank: its mass, kg,
+    /// and the share of it on the front axle.
+    pub fn laden(&self, fuel_liters: f32) -> (f32, f32) {
+        let fuel = self.fuel.mass_kg(fuel_liters);
+        let mass = self.mass_kg + fuel;
+        if fuel <= 0.0 {
+            return (self.mass_kg, self.weight_distribution_front);
+        }
+        let tank = self
+            .fuel
+            .tank_front_share
+            .unwrap_or(self.weight_distribution_front);
+        let front = (self.mass_kg * self.weight_distribution_front + fuel * tank) / mass;
+        (mass, front)
+    }
+
     /// Static load on one wheel of the axle, N.
     pub fn static_wheel_load_n(&self, front: bool) -> f32 {
         let share = if front {
@@ -532,8 +623,10 @@ impl Default for TireConfig {
             optimal_slip_ratio: 0.08,
             optimal_slip_angle_rad: 0.12, // ~7 degrees
             rolling_resistance: 0.015,
-            optimal_temperature_c: 90.0,
-            temperature_grip_falloff: 0.005,
+            optimal_temperature_c: crate::tyre_thermal::DEFAULT_OPTIMAL_C,
+            temperature_grip_falloff: crate::tyre_thermal::DEFAULT_GRIP_FALLOFF,
+            temperature_window_c: crate::tyre_thermal::DEFAULT_WINDOW_C,
+            blanket_temperature_c: None,
             wear_rate: 1.0,
             pressure_front_kpa: 180.0,
             pressure_rear_kpa: 180.0,
@@ -771,6 +864,26 @@ pub struct TrackSurface {
     /// already slow through its grip, and a proportional drag fought the
     /// throttle so hard that a car could not get back above a crawl.
     pub off_track_drag_mps2: f32,
+    /// The air, °C: what cools the tyres, and what they go out at without
+    /// blankets. Baked from the session's weather and clock
+    /// (`SessionConditions::apply_to_track`).
+    #[serde(default = "default_air_temperature_c")]
+    pub air_temperature_c: f32,
+    /// The asphalt, °C: what the tread touches.
+    #[serde(default = "default_track_temperature_c")]
+    pub track_temperature_c: f32,
+    /// Standing water: the road draws heat out of the tyres several times
+    /// faster (`tyre_thermal`).
+    #[serde(default)]
+    pub wet: bool,
+}
+
+fn default_air_temperature_c() -> f32 {
+    SessionConditions::DEFAULT.air_temperature_c()
+}
+
+fn default_track_temperature_c() -> f32 {
+    SessionConditions::DEFAULT.track_temperature_c()
 }
 
 /// Rolling drag on grass: about 0.06 g, a car tyre's rolling resistance on
@@ -785,6 +898,9 @@ impl Default for TrackSurface {
             curb_grip: 0.85,
             off_track_grip: 0.4,
             off_track_drag_mps2: OFF_TRACK_DRAG_MPS2,
+            air_temperature_c: default_air_temperature_c(),
+            track_temperature_c: default_track_temperature_c(),
+            wet: false,
         }
     }
 }
@@ -977,11 +1093,23 @@ pub struct GridSlot {
 // --- Telemetry Data Structures ---
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct TireData {
+    /// The tread, °C: the rubber on the road, quick to heat in a slide and
+    /// quick to cool on a straight (`crate::tyre_thermal`).
     pub temperature_c: f32,
+    /// Running (gauge) pressure, kPa: the setup's hot pressure moved by the
+    /// temperature of the gas, which is the core's.
     pub pressure_kpa: f32,
     pub wear_percent: f32,
     pub slip_ratio: f32,
     pub slip_angle_rad: f32,
+    /// The carcass and the gas inside it, °C: slow, heated by the tyre
+    /// flexing and by the tread.
+    #[serde(default)]
+    pub core_temperature_c: f32,
+    /// What the tyre's temperature and pressure leave of its grip, as a
+    /// share of what it has in its window at the set pressure (1.0).
+    #[serde(default)]
+    pub grip_factor: f32,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -990,6 +1118,27 @@ pub struct TireTelemetry {
     pub front_right: TireData,
     pub rear_left: TireData,
     pub rear_right: TireData,
+}
+
+impl TireTelemetry {
+    /// The four tyres, FL FR RL RR.
+    pub fn each(&self) -> [&TireData; 4] {
+        [
+            &self.front_left,
+            &self.front_right,
+            &self.rear_left,
+            &self.rear_right,
+        ]
+    }
+
+    pub fn each_mut(&mut self) -> [&mut TireData; 4] {
+        [
+            &mut self.front_left,
+            &mut self.front_right,
+            &mut self.rear_left,
+            &mut self.rear_right,
+        ]
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -1169,6 +1318,15 @@ pub struct CarState {
 
     // Telemetry
     pub tires: TireTelemetry,
+    /// The tyres' temperatures have been set for this run
+    /// (`tyre_thermal::fit`). A car nobody fitted gets its tyres at their
+    /// optimum on its first tick.
+    #[serde(default)]
+    pub tyres_fitted: bool,
+    /// The air this car drives into: the tow and dirty air of the cars
+    /// ahead (`crate::slipstream`), set each tick before the physics.
+    #[serde(default)]
+    pub wake: crate::slipstream::Wake,
     pub g_forces: GForces,
     pub suspension: SuspensionTelemetry,
     pub fuel_liters: f32,
@@ -1311,6 +1469,8 @@ impl CarState {
 
             // Telemetry
             tires: TireTelemetry::default(),
+            tyres_fitted: false,
+            wake: crate::slipstream::Wake::CLEAN,
             g_forces: GForces::default(),
             suspension: SuspensionTelemetry::default(),
             fuel_liters: 100.0,
@@ -1605,6 +1765,9 @@ impl SessionConditions {
     /// without a branch in the hot loop, and a dry session is the track to
     /// the bit.
     pub fn apply_to_track(&self, track: &mut TrackConfig) {
+        track.track_surface.air_temperature_c = self.air_temperature_c();
+        track.track_surface.track_temperature_c = self.track_temperature_c();
+        track.track_surface.wet = self.weather.is_wet();
         let road = self.weather.road_grip_factor();
         if road == 1.0 && self.weather.curb_grip_factor() == 1.0 {
             return;
@@ -1631,6 +1794,44 @@ impl SessionConditions {
         let hour_angle = ((hours - SOLAR_NOON_HOURS) * 15.0).to_radians();
         let sin_elev = lat.sin() * dec.sin() + lat.cos() * dec.cos() * hour_angle.cos();
         sin_elev.clamp(-1.0, 1.0).asin().to_degrees()
+    }
+
+    /// The air temperature, °C, for this weather at this hour, on the sky
+    /// model's late-May day at 50° N: 13 °C before dawn to 23 °C at 15:00
+    /// in the sun, the swing damped under cloud and a few degrees lower in
+    /// the rain. Until a host can pick one, this is the session's air.
+    pub fn air_temperature_c(&self) -> f32 {
+        const COOLEST_C: f32 = 13.0;
+        const SWING_C: f32 = 10.0;
+        const WARMEST_HOURS: f32 = 15.0;
+        let hours = (self.time_of_day_minutes % Self::MINUTES_PER_DAY) as f32 / 60.0;
+        let day = 0.5 + 0.5 * ((hours - WARMEST_HOURS) / 24.0 * std::f32::consts::TAU).cos();
+        let (swing, offset) = match self.weather {
+            Weather::Sunny => (1.0, 0.0),
+            Weather::Cloudy => (0.8, -0.5),
+            Weather::Overcast => (0.5, -1.5),
+            Weather::LightRain => (0.4, -3.0),
+            Weather::HeavyRain => (0.3, -4.0),
+        };
+        COOLEST_C + SWING_C * (0.5 + (day - 0.5) * swing) + offset
+    }
+
+    /// The asphalt, °C: the air plus what the sun puts into it through the
+    /// cloud (up to 20 °C more under a high sun on a clear day). A wet
+    /// track sits a degree under the air.
+    pub fn track_temperature_c(&self) -> f32 {
+        const SOLAR_GAIN_C: f32 = 20.0;
+        let air = self.air_temperature_c();
+        if self.weather.is_wet() {
+            return air - 1.0;
+        }
+        let sun = self.sun_elevation_deg().to_radians().sin().max(0.0);
+        let through_cloud = match self.weather {
+            Weather::Sunny => 1.0,
+            Weather::Cloudy => 0.6,
+            _ => 0.25,
+        };
+        air + SOLAR_GAIN_C * sun * through_cloud
     }
 
     /// Whether a car's lights are on when nobody has touched the switch:

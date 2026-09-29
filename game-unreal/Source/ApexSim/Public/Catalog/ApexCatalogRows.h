@@ -394,6 +394,17 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	FApexEngineSoundSpec EngineSound;
 
 	/**
+	 * The tyres' working window, °C (car.toml `[tires]`
+	 * `optimal_temperature_c` / `temperature_window_c`): the HUD colours the
+	 * tread temperatures against it. The server's grip reads the same keys.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	float TyreOptimalC = 90.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	float TyreWindowC = 10.0f;
+
+	/**
 	 * The car's extra liveries, the car.toml's `[[livery]]` tables in order:
 	 * livery N on the wire is `Liveries[N - 1]`, livery 0 the model as
 	 * authored. Derived on every import, like the wheels.

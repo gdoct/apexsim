@@ -337,6 +337,8 @@ void UApexCarContentSubsystem::ScanNow()
 				Row.SourceCrc = ApexContentCrc::Compute(Bytes);
 				Row.RuntimeModel = CarFile(CarDir, Toml.Model, Folder, TEXT("its model"));
 				Row.EngineSound = Toml.Sound;
+				Row.TyreOptimalC = Toml.TyreOptimalC;
+				Row.TyreWindowC = Toml.TyreWindowC;
 
 				Row.Wheels = ApexCarToml::MakeWheelSpec(Toml);
 				if (Toml.Wheels.IsPresent())

@@ -306,6 +306,7 @@ impl TrackLoader {
                 curb_grip: 0.85,
                 off_track_grip: 0.6,
                 off_track_drag_mps2: crate::data::OFF_TRACK_DRAG_MPS2,
+                ..TrackSurface::default()
             },
             pit_lane: None,
             raceline,

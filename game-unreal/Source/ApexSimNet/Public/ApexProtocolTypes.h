@@ -97,7 +97,7 @@ struct APEXSIMNET_API FApexCarSetup
 {
 	GENERATED_BODY()
 
-	static constexpr int32 KnobCount = 14;
+	static constexpr int32 KnobCount = 15;
 
 	/** Clicks per knob, in ApexCarSetup::EKnob order. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Setup")
@@ -166,8 +166,10 @@ namespace ApexCarSetup
 		DamperRear,
 		AntiRollFront,
 		AntiRollRear,
+		/** Laps of fuel over or under what the session fills the car with. */
+		FuelLoad,
 	};
-	static_assert(AntiRollRear + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
+	static_assert(FuelLoad + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
 }
 
 /**
@@ -1105,6 +1107,34 @@ struct APEXSIMNET_API FApexCarTelemetry
 	/** The driver is flashing the headlights. `lap_flags` bit 6. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bHeadlightFlash = false;
+
+	/**
+	 * Litres in the tank, to a tenth (`fuel_dl`); negative when the server
+	 * does not send it. Zero is a dry tank: the engine makes no power.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float FuelLiters = -1.0f;
+
+	/**
+	 * Each tyre's tread temperature, °C, FL FR RL RR (`tyre_c`); negative
+	 * when unknown (an older server, or a car not yet on its tyres). Plain
+	 * members: Blueprint cannot take a fixed array.
+	 */
+	float TyreTempC[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+
+	/** Each tyre's running pressure, kPa, FL FR RL RR (`tyre_kpa`); negative when unknown. */
+	float TyrePressureKpa[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+
+	/** Whether the server sent tyre temperatures for this car. */
+	bool HasTyres() const { return TyreTempC[0] >= 0.0f; }
+
+	/**
+	 * The tow the car is in: the share of its drag the wake of the cars
+	 * ahead saves, 0-1 (`tow_pct`, server `slipstream.rs`); negative when
+	 * the server does not send it.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float TowShare = -1.0f;
 };
 
 /** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */

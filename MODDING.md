@@ -118,8 +118,8 @@ conventions the generators follow:
   the server simulates. Values are range-checked at load, and a car that fails
   validation is logged and skipped.
 - Optional, for a car that needs more than one grip figure (an Assetto Corsa
-  import writes them; none of the shipped cars do, and every key's default
-  is how the sim behaved before it existed). `[tires]` and `[engine.turbo]`
+  import writes them; the shipped cars set only the tyre window, and every
+  other key's default is how the sim behaved before it existed). `[tires]` and `[engine.turbo]`
   refuse keys they do not know, so a typo fails the load:
 
   ```toml
@@ -134,6 +134,11 @@ conventions the generators follow:
   longitudinal_grip_factor = 1.05  # 0.6-1.6, default 1.0: the friction ellipse's long axis
   front_grip_scale = 1.0           # 0.5-1.5, default 1.0: per-axle compound on grip_coefficient
   rear_grip_scale = 1.0
+  optimal_temperature_c = 90.0     # 30-150, default 90: the compound grips fully within
+  temperature_window_c = 10.0      #   optimum +- window (0-50, default 10) °C, and the
+                                   #   pressures above are the ones at the optimum (hot)
+  temperature_grip_falloff = 0.004 # 0-0.03, default 0.004: grip lost per degree outside it
+  blanket_temperature_c = 70.0     # 0-120, default none: the car goes out at the air
 
   [drivetrain]
   awd_front_share = 0.4            # 0-1, default 0.4: an AWD car's drive to the front axle

@@ -25,6 +25,9 @@ namespace ApexCarSetup
 			{ "damper_rear",         -MaxClicks, MaxClicks, 5.0f,   TEXT("%") },
 			{ "anti_roll_front",     -MaxClicks, MaxClicks, 8.0f,   TEXT("%") },
 			{ "anti_roll_rear",      -MaxClicks, MaxClicks, 8.0f,   TEXT("%") },
+			// Laps, not a figure of the car: the server fills the tank for
+			// the run (a race's distance, three hotlap laps) plus these.
+			{ "fuel_load",           -MaxClicks, MaxClicks, 1.0f,   TEXT(" laps") },
 		};
 	}
 

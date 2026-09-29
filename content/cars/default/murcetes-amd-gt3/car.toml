@@ -35,6 +35,12 @@ lift_coefficient_rear = -0.58
 # - The server currently uses these fields where available; otherwise it falls back to legacy defaults.
 # - RPM values are in revolutions per minute, torque in N·m, power in Watts.
 
+# Tyres: a GT slick, soft and quick to come in, with a lower window
+# (server/src/tyre_thermal.rs). No blankets: out at the air temperature.
+[tires]
+optimal_temperature_c = 87.0
+temperature_window_c = 10.0
+
 [engine]
 # front-mid 6.3 L V8, naturally aspirated, torquey.
 max_power_w = 405000.0
@@ -122,7 +128,9 @@ lock_coast = 0.20
 [fuel]
 capacity_liters = 64.0
 idle_consumption_lps = 0.00005
-load_consumption_scale = 0.003
+# Share of the fuel's energy the engine turns into work (a racing petrol engine);
+# consumption follows the power it makes.
+thermal_efficiency = 0.33
 
 [hybrid]
 enabled = false

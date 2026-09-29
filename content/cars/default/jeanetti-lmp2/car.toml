@@ -33,6 +33,12 @@ lift_coefficient_rear = -1.77
 # Spec-series 4.2 L V8, restricted to ~400 kW; same class, a few kg and a few
 # aero points apart from the Yotota so the four LMP2s race close but not identical.
 
+# Tyres: the spec slick's working window (server/src/tyre_thermal.rs).
+# No blankets: the car goes out at the air temperature.
+[tires]
+optimal_temperature_c = 92.0
+temperature_window_c = 10.0
+
 [engine]
 max_power_w = 400000.0
 max_torque_nm = 510.0
@@ -109,7 +115,9 @@ lock_coast = 0.30
 [fuel]
 capacity_liters = 75.0
 idle_consumption_lps = 0.00006
-load_consumption_scale = 0.0032
+# Share of the fuel's energy the engine turns into work (a racing petrol engine);
+# consumption follows the power it makes.
+thermal_efficiency = 0.33
 
 [hybrid]
 enabled = false

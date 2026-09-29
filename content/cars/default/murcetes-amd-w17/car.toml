@@ -29,6 +29,13 @@ lift_coefficient_rear = -1.12
 # Narrow-pod silver arrow: the least drag of the four, a touch less
 # downforce to go with it.
 
+# Tyres: the slick's working window (server/src/tyre_thermal.rs). The
+# car goes out on 70 °C blankets, as the rules allow.
+[tires]
+optimal_temperature_c = 95.0
+temperature_window_c = 12.0
+blanket_temperature_c = 70.0
+
 # 2026 power unit: the 1.6 L V6 down to ~400 kW, the electric half up to
 # 300 kW from a small store, so a lap is energy-managed: the battery is empty
 # after ~13 s of full deployment and refills under braking.
@@ -108,7 +115,9 @@ lock_coast = 0.15
 [fuel]
 capacity_liters = 100.0
 idle_consumption_lps = 0.00008
-load_consumption_scale = 0.0035
+# Share of the fuel's energy the engine turns into work (a current F1 power unit's combustion engine);
+# consumption follows the power it makes.
+thermal_efficiency = 0.50
 
 [hybrid]
 enabled = true
