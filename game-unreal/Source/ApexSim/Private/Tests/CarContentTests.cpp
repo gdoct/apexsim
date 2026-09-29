@@ -265,12 +265,79 @@ bool FApexCarGlbRepoCarsTest::RunTest(const FString& Parameters)
 			continue;
 		}
 		TestTrue(*FString::Printf(TEXT("%s has triangles"), *FPaths::GetCleanFilename(File)), Model.NumTriangles() > 0);
-		const bool bBody = !File.Contains(TEXT("wheels")) && !File.EndsWith(TEXT("_drs.glb"));
+		// An imported car's own steering wheel is a part, not a body.
+		const bool bBody = !File.Contains(TEXT("wheels")) && !File.EndsWith(TEXT("_drs.glb"))
+			&& !File.EndsWith(TEXT("steering_wheel.glb"));
 		if (bBody)
 		{
 			const FVector3f Size = Model.Bounds.GetSize();
 			TestTrue(*FString::Printf(TEXT("%s is long along Y (%.0f x %.0f)"), *FPaths::GetCleanFilename(File), Size.X, Size.Y),
 				Size.Y > Size.X);
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarTomlRepoCarsTest, "ApexSim.Cars.TomlRepoCars", ApexTestFlags)
+
+bool FApexCarTomlRepoCarsTest::RunTest(const FString& Parameters)
+{
+	// Every car.toml in the repo, shipped or the player's own (an Assetto
+	// Corsa import included), parses with this reader and names only files
+	// that are there. Nothing to check without the repo.
+	const FString Root = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("content"), TEXT("cars")));
+	TArray<FString> Files;
+	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("car.toml"), true, false);
+	if (Files.Num() == 0)
+	{
+		AddInfo(FString::Printf(TEXT("no car.toml under %s; skipped"), *Root));
+		return true;
+	}
+	for (const FString& File : Files)
+	{
+		const FString Dir = FPaths::GetPath(File);
+		const FString Car = FPaths::GetCleanFilename(Dir);
+		FString Text;
+		FApexCarToml Toml;
+		FString Error;
+		if (!TestTrue(*FString::Printf(TEXT("%s reads"), *Car), FFileHelper::LoadFileToString(Text, *File))
+			|| !TestTrue(*FString::Printf(TEXT("%s parses (%s)"), *Car, *Error), ApexCarToml::Parse(Text, Toml, Error)))
+		{
+			continue;
+		}
+		auto Exists = [&](const FString& Rel, const TCHAR* What)
+		{
+			TestTrue(*FString::Printf(TEXT("%s: %s %s is there"), *Car, What, *Rel),
+				FPaths::FileExists(FPaths::Combine(Dir, Rel)));
+		};
+		Exists(Toml.Model, TEXT("model"));
+		if (ApexCarToml::IsCarLocalWheel(Toml.Wheels.Model))
+		{
+			Exists(Toml.Wheels.Model, TEXT("wheel"));
+		}
+		if (!Toml.Wheels.RearModel.IsEmpty() && ApexCarToml::IsCarLocalWheel(Toml.Wheels.RearModel))
+		{
+			Exists(Toml.Wheels.RearModel, TEXT("rear wheel"));
+		}
+		if (!Toml.SteeringWheelModel.IsEmpty())
+		{
+			Exists(Toml.SteeringWheelModel, TEXT("steering wheel"));
+		}
+		for (const FApexCarLiveryToml& Livery : Toml.Liveries)
+		{
+			TestFalse(*FString::Printf(TEXT("%s: livery %s textures parse"), *Car, *Livery.Name), Livery.bBadTextures);
+			if (!Livery.Logo.IsEmpty())
+			{
+				Exists(Livery.Logo, TEXT("logo"));
+			}
+			if (!Livery.Skin.IsEmpty())
+			{
+				Exists(Livery.Skin, TEXT("skin"));
+			}
+			for (const TPair<FString, FString>& Slot : Livery.Textures)
+			{
+				Exists(Slot.Value, *FString::Printf(TEXT("%s texture"), *Slot.Key));
+			}
 		}
 	}
 	return true;

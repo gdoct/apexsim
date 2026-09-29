@@ -66,6 +66,12 @@ Four things stand between "a tool" and "a player runs it on 200 cars":
    lost: camber, toe, ride-height and yaw aero, speed sensitivity, tyre heat
    and wear, and a differential's yaw effect in a corner without wheelspin.
 
+5. **The tool is built, 2026-09-28**, and imports the Kunos 911 GT3 R
+   end to end (see "The tool" below): the server loads it, it passes the
+   stability tests, it laps the Silverstone profile inside the shipped
+   GT3s, and the game's own readers take its GLBs and car.toml. Not yet
+   seen on screen, and no DRS flap split.
+
 Everything else (turbo torque, aero from the wing tables, brakes, gearing,
 the DRS flap, the lights, the driver's eye, the collision box) is data work,
 and the numbers land in class: the Kunos 911 GT3 R's wing tables sum to a
@@ -290,7 +296,7 @@ CRC check compare their car.toml files.
 | `suspensions.ini WHEELBASE`, `CG_LOCATION`, `TRACK` f/r | `wheelbase_m`, `weight_distribution_front`, `track_width_front/rear_m` | as is |
 | `tyres.ini RADIUS`, `suspensions.ini BASEY` | `cog_height_m` | `RADIUS - BASEY`, averaged over the axles: 0.42 m on the 911, 0.26 m on the SF70H (plausible; the server default is 0.45) |
 | `SPRING_RATE`, `DAMP_BUMP`, `DAMP_REBOUND`, `[ARB]` | `[suspension]` | 1:1 (AC's rates are at the wheel, as ApexSim's); bump stops, packers, fast damping, geometry, camber, toe, ride height: **no home** |
-| `power.lut`, `[TURBO_n]` | `[[engine.torque_curve]]` | `torque(rpm) x (1 + boost(rpm))` per point, `boost = min(WASTEGATE, MAX_BOOST x (rpm / REFERENCE_RPM)^GAMMA)` summed over turbos, capped at `MAX_BOOST`. Skip this and a turbo car is 30-80% down (the SF70H 78%) |
+| `power.lut`, `[TURBO_n]` | `[[engine.torque_curve]]` | `torque(rpm) x (1 + boost(rpm))` per point, `boost = min(WASTEGATE, MAX_BOOST x min(rpm / REFERENCE_RPM, 1))` summed over turbos (Kunos's own comment in `engine.ini` makes `GAMMA` the boost's sensitivity to the *pedal*, which is 1 at full throttle, not an rpm exponent; `ctrl_turbo*.ini` controllers are not modelled). Skip this and a turbo car is 30-80% down (the SF70H 78%) |
 | `LIMITER`, `MINIMUM` | `rev_limiter_rpm`, `redline_rpm`, `max_rpm`, `idle_rpm` | limiter as is, redline = limiter - 200, max = limiter + 100 (the server clamps rpm to `max_rpm`) |
 | `[COAST_REF] TORQUE at RPM`, `INERTIA` | `engine_brake_torque_nm`, `friction_torque_nm` | the coast torque scaled to the redline; inertia written, unused |
 | the curve | `max_power_w`, `max_torque_nm`, `max_engine_force_n` | power = max over the curve of `T x rpm x 2pi/60` (the racing line and the AI read it: get it right); force = peak torque x gear 1 x final x efficiency / radius (required, only a fallback) |
@@ -461,14 +467,23 @@ carries it.
 - *Steering wheel.* Keep `STEER_HR` out of the body, and write its meshes to
   `steering_wheel.glb` in the dummy's local frame with the tilt removed:
   hub at the origin, the rim in glTF XY (+Y up, +X the car's left), the
-  column along +Z toward the nose, the wheel straight. **Unverified:** check
-  which way `STEER_HR`'s local +Z points on a real car. Then write in
-  `[cockpit]`:
+  column along +Z toward the nose, the wheel straight. **Checked on the 911
+  GT3 R:** `STEER_HR`'s local +Z is the column, pointing at the nose and
+  15.6° down; its local Y is the rim's up. Its local frame is therefore
+  the file's frame as it stands. Then write in `[cockpit]`:
   - `steering_wheel_model = "steering_wheel.glb"`
   - `wheel_cm`: `STEER_HR`'s origin in the actor frame
-  - `wheel_rake_deg`: the column's tilt. Positive tips the top of the rim
-    toward the driver.
-  - `wheel_lock_deg`: half of `STEER_LOCK`
+  - `wheel_rake_deg`: the pitch that turns the nose axis onto the column,
+    in the rig's convention (Unreal pitch: positive lifts the column's
+    forward end, tipping the top of the rim toward the driver). A real
+    column runs forward and *down*, so a real car's figure is negative:
+    -15.58 on the 911. Mounted that way, the file lands within 8 mm (95th
+    percentile) of AC's own geometry; with the opposite sign it is 8-10 cm
+    off.
+  - `wheel_lock_deg`: `STEER_LOCK` itself (or `driver3d.ini`'s
+    `[STEER_ANIMATION] LOCK`), not half of it: AC's `car.ini` documents
+    it as "steer lock from center to right", which is the rim turn one way
+    that the key means
   - `rig_dash = false` when the interior has its own display
   - or `rig_wheel = false` when a static wheel stays in the body
 
@@ -568,68 +583,136 @@ profile laps are unchanged. `MODDING.md` lists the ranges.
     not gaps in the importer, they are things ApexSim does not do for its
     own cars either.
 
-## The tool: `scripts/ac_car_import.py`
+## The tool: `scripts/ac_car_import.py` (built 2026-09-28)
 
 ```powershell
 python scripts/ac_car_import.py "E:\SteamLibrary\...\content\cars\ks_porsche_911_gt3_r_2016"
 python scripts/ac_car_import.py <folder> --list            # skins, compounds, LODs, what would be dropped
 python scripts/ac_car_import.py --all <ac>\content\cars    # a collection, one line each
-#   --stem, --display-name, --class, --skin NAME | --all-skins, --compound N,
-#   --lod A|B, --max-texture N, --cylinders N, --keep-steering-wheel,
-#   --force, --dry-run
+#   --stem, --display-name, --class, --skin NAME, --compound N, --lod A|B,
+#   --max-texture N (1024), --max-skin-texture N (2048), --cylinders N,
+#   --keep-steering-wheel, --force, --dry-run
+python -m unittest discover -s scripts/ac_car_import/tests   # the importer's tests
 # then restart the server, and restart the game or run apexsim.car.Rescan
 ```
 
 **What it writes**, in `content/cars/custom/<Stem>/` (the stem defaults
 to CamelCase of the folder, `KsPorsche911Gt3R2016`, `--stem` to rename; a
-stem or id that exists under `default/` is refused):
+folder name or id that exists under `default/` is refused, and an existing
+import is replaced only with `--force`):
 
 | file | contents |
 |---|---|
-| `car.toml` | everything above, `imported = "ac"` at the top, `version` from the tool, an `id` that is a UUID v5 of the folder (and skin), the AC folder and every source file's CRC in a `[source]` table for the record; comments say which AC key each figure came from and what was approximated |
-| `<stem>.glb`, `<stem>_wheel.glb`, `<stem>_drs.glb` | the body, the wheel, the flap (when there is one), textures embedded as PNG |
-| `skins/<name>/Skin_00.png`, `preview.jpg` | with texture liveries; before them only the chosen skin is inside the GLB |
-| `<Stem>.import.json` | the report: source folder, tool version, every file read with its CRC, the physics fit (the reference load and speed, the grip, the Cl.A / Cd.A totals, the boost applied), the subtrees dropped, the materials and their slot mapping, the textures written with sizes, the warnings, and the command that rebuilds it |
+| `car.toml` | everything above, `imported = "ac"` at the top, an `id` that is a UUID v5 of the AC folder, a `[source]` table (folder, kn5, data, baked skin, tool version); every physics figure carries a comment naming the AC key it came from |
+| `<Stem>.glb` | the body, seated (tyres on y = 0, origin midway between the axles), textures embedded as JPEG (opaque) or PNG (sampled by a blended or masked material) |
+| `wheels/front.glb`, `wheels/rear.glb` | `WHEEL_LF` / `WHEEL_LR` with their discs, in the dummy's frame; slots `wheel_tyre`, `wheel_rim`, `wheel_brake` |
+| `steering_wheel.glb` | `STEER_HR` in its own frame (see "Blockers 3 and 4") |
+| `skins/<skin>/Skin_00.jpg`, other slot textures, `preview.jpg`; `skins/_kn5/` | one `[[livery]]` per AC skin except the baked one. A texture that some skin overrides and this one does not comes from the kn5 (`_kn5/`), so stepping between liveries never leaves the previous one's banner behind. Identical files are written once |
+| `<Stem>.import.json` | the report: source files with CRCs, the physics as written, the fit (compound, reference speed, the tyre's mu at a corner load, every wing's Cl/Cd, static ride heights, the boost), the seat offset, the parts dropped and why, the materials and their slots, the lamps, the skins, the checks, the warnings and the command that rebuilds it |
 
-Re-running writes byte-identical files. The server picks the car up on
-restart; the client on `apexsim.car.Rescan`.
+Every file is byte-identical on a re-run (the 911: 21 files, 12 MB of
+GLBs, 3.4 MB of skins, under 2 s).
 
-**Stages** (a Python package `scripts/ac_car_import/` beside the track
-importer's, sharing `kn5.py`, `ini.py`, `textures.py`):
+**Package** (`scripts/ac_car_import/`, beside the track importer's and
+sharing its `kn5.py`, `ini.py` and texture decoder): `acd.py` (the key and
+the decryption; a wrong key, a renamed folder for instance, is refused
+because `car.ini` comes out as noise), `data.py` (INIs, LUTs,
+`ui_car.json`, skins), `physics.py` (the mapping), `model.py` (split, seat,
+lamps, materials, the GLBs), `glb.py` (a small deterministic GLB writer:
+positions, normals, UV0, uint32 indices, one primitive per material, clear
+coat, embedded images), `liveries.py`, `toml_out.py` (laid out for the
+client's line reader: no comment after a header, arrays on one line) and
+`cli.py`. `kn5.py` gained `path` on every mesh and dummy (its ancestors'
+names), which is what parts are selected by.
 
-1. **Read**: `data.acd` or `data/`, the LOD A kn5 (or B), `ui_car.json`,
-   `skins/`, `lights.ini`, `mirrors.ini`, `wing_animations.ini`,
-   `drs.ini`, the `.ksanim` for the DRS wing. Encrypted kn5s refused; a
-   car whose decrypted `car.ini` does not start with `[` is refused as
-   "cannot read this car's data".
-2. **Physics**: the mapping table, in one module (`physics.py`) with a
-   unit test per row against the 911 GT3 R and the SF70H figures quoted
-   here.
-3. **Scene**: subtree selection by node name, seating, the wheel and the
-   flap in their local frames, material renaming, texture decode and
-   resize, the GLB writer (a small one in numpy: the importer needs
-   positions, normals, UV0, indices, materials, PNG images; `pygltflib`
-   and `trimesh` are not installed and not needed).
-4. **Write and check**: car.toml (every server-required key present, gear
-   ratios descending, `[wheels]` radii and tracks positive, the client
-   parser's one-line arrays), the report, and the checks below.
+Decisions the build made that the plan left open:
 
-**Checks** (in the report; a failed one is exit code 1): the body is long
-along glTF Z and its tyres stand on y = 0 (the `ApexSim.Cars.Glb.RepoCars`
-rule), every server-required key is set and finite, gears descend, the
-torque curve is sorted, the texture and triangle budget (warn over 400 k
-triangles or 300 MB decoded), the four wheel dummies were found, and the
-skin the GLB embeds is named.
+- **Grip.** The sim now applies AC's load sensitivity itself, so
+  `grip_coefficient` is the axles' mean `DY0 x (1 - SPEED_SENSITIVITY x
+  40 m/s)` at each tyre's `FZ0`, and `front_grip_scale` / `rear_grip_scale`
+  carry only the balance (each times the grip is that axle's own figure).
+  The 911 GT3 R: 1.494, and 1.47 / 1.37 at a loaded outside wheel in a
+  40 m/s corner. Its Silverstone profile lap is 2:04.49 against the shipped
+  GT3s' 2:04.85-2:06.08, so no refit was needed.
+- **Aero heights.** A wing's height table is read at its axle's static ride
+  height: the design CG height at the pickup point, plus `ROD_LENGTH`, less
+  the spring's and the tyre's sag under the axle load (the 911: 60 mm at
+  both ends). Downforce is split to the axles by moment, so a wing behind
+  the rear axle takes a little off the front.
+- **Frames.** `DRIVEREYES` is in the *model's* frame (that puts the 911's
+  eye 0.96 m up and 51 cm behind the rim; read in the physics frame it is
+  in the roof); the aero `POSITION`s are from the CG; the model sits at
+  `physics - GRAPHICS_OFFSET`.
+- **Lamps.** `lights.ini` nodes become `car_brakelight` (a `[BRAKE_n]`
+  behind the rear axle), `car_taillight`, `car_headlight` (ahead of the
+  front axle) and `car_rainlight` (`SPECIAL`, written dark: nothing
+  switches it yet), one material per slot since the game finds them by
+  name. Display LEDs between the axles and glass lit from behind (a
+  blended material) keep their own.
+- **Height.** The collision box's height is the highest 2 cm slice of the
+  body at least 30 cm across, so the 911's aerial (35 cm over the roof)
+  does not make it a 1.54 m car.
+- **Open or closed** comes from the tags (single seaters) or a ray cast up
+  from the eye through the body.
+- **Sound** comes from the name and description (`V8`, `flat-six`, a
+  911...), else `--cylinders`; `turbo` from `[TURBO_n]`.
+
+**Checks** (in the report and printed; a failed fatal one is exit code
+1): the body is long along glTF Z, it sits above the ground, the four
+wheels were found and measured, every server-required key is set and
+positive, and the torque curve is sorted. The triangle (400 k) and decoded
+texture (300 MB) budgets are warnings, and so is an unnamed baked skin.
+
+**Verification on the 911 GT3 R.** `server/tests/imported_car_test.rs`
+(`cargo test --release --test imported_car_test -- --ignored --nocapture`)
+loads every import through the server's loader and bounds its figures;
+`car_stability_test` has `imported_*` twins of its two tests (opt-in the
+same way); the grip probe's profile laps already walk `custom/`. On the
+client, `ApexSim.Cars.Glb.RepoCars` reads every GLB under `content/cars`
+(a steering wheel is exempt from the body's long-along-Y rule) and
+`ApexSim.Cars.TomlRepoCars` parses every car.toml with the game's own
+parser and checks that each file it names is there. `Test-ApexCars`
+passes it for packaging with `-IncludeCustomCars`. **Not yet looked at in
+the game:** the car on the turntable, in the cockpit, on the track, and a
+night race for the lamps.
+
+**The collection, dry run** (`--all --dry-run`, read-only): 189 of the
+196 folders import and pass every fatal check; the other seven are the
+two Kunos Ferraris with no data at all and five mods refused as encrypted
+(three RSS, two with CSP's appended block). A non-fatal `power` check
+compares the curve (plus a hybrid's motor) with `ui_car.json`'s own
+figure: 182 of 188 land within 0.75-1.33 of it. Three bugs the collection
+found and the tests now pin: a negative `STEER_RATIO` (the Audi S1's, which
+turns the rim the other way in AC), a key on a section's header line
+(`[REAR]NAME=...`, fixed in the shared `ac_import/ini.py`, so tracks read
+it too), and zero corner springs with a heave spring (the Tatuus FA01:
+half the heave rate per wheel). And one mapping error: the 488 GTB's boost
+is ten turbos, two switched on per gear by `ctrl_turbo<n>.ini`
+controllers (an rpm LUT added, a gear LUT multiplied); summed, they made
+1406 kW. The controllers are now evaluated at full throttle as the
+wastegate, per gear, and the curve takes the gear with the most boost
+(424 kW against the UI's 492; the SF70H's engine fell from 757 to 531 kW
+the same way). Controllers on other inputs fall back to `WASTEGATE`, with
+a warning.
+
+The six below the band: the 919 Hybrid, 2015 and 2016 (its `ers.ini` curve is the rear
+motor's, all zeros; the real one is on the front axle, which ApexSim's
+hybrid cannot drive, so no hybrid is written), the R18 e-tron the same
+way, the TS040 (the UI's 746 kW is a peak system figure), the LaFerrari
+(AC's older `kers.ini`, not read), and the Maserati 250F.
+
+**Not done yet:** splitting a DRS flap off the body (a DRS car's aero gets
+the `drs_*` reductions, but its wing is drawn closed, and the report says
+so); `--lod B` is untested; ERS deployment strategies and the aero
+controllers are read as their authored figures (each warned); front-axle
+ERS and `kers.ini` are not modelled; and no car but the 911 has been
+written for real.
 
 **Pipeline integration**: `imported = "ac"` in car.toml is the car's
-`imported` marker. `liveries.py` skips it, `Test-ApexCars` checks its files
-like any other, `build_release.ps1` leaves `custom/` out unless
-`-IncludeCustomCars`, and `initialize_content.ps1` never touches it
-(cars need no bake). The server's `real_content_cars_still_load`-style test
-gains a sibling, `server/tests/imported_car_test.rs`, that loads every
-`content/cars/custom/*/car.toml` through `load_car_config` and asserts the
-required keys and the gearing rule; it is skipped when the folder is empty.
-`ApexSim.Cars.Glb.RepoCars` walks `custom/` too.
+`imported` marker. `liveries.py` only walks `default/`, `Test-ApexCars`
+checks an import's files like any other, `build_release.ps1` leaves
+`custom/` out unless `-IncludeCustomCars`, and `initialize_content.ps1`
+has nothing to bake for a car.
 
 ## Phases
 

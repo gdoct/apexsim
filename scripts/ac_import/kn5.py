@@ -94,6 +94,10 @@ class Kn5Mesh:
     lod_out: float
     renderable: bool
     active: bool
+    #: Every ancestor's name from the root down to `parent`: what a car's
+    #: parts are selected by (`WHEEL_LF`, `COCKPIT_HR`), since a mesh sits
+    #: several dummies below the one that names the part.
+    path: tuple[str, ...] = ()
 
     @property
     def triangle_count(self) -> int:
@@ -123,6 +127,8 @@ class Kn5Dummy:
     #: World transform, same convention as a mesh's.
     transform: np.ndarray
     active: bool
+    #: Ancestors' names, root first, as `Kn5Mesh.path`.
+    path: tuple[str, ...] = ()
 
     @property
     def position(self) -> np.ndarray:
@@ -236,7 +242,8 @@ def read_kn5(path: Path, *, textures: bool = True) -> Kn5File:
 
     identity = np.eye(4, dtype=np.float32)
 
-    def node(parent_transform: np.ndarray, parent_name: str) -> None:
+    def node(parent_transform: np.ndarray, path: tuple[str, ...]) -> None:
+        parent_name = path[-1] if path else ""
         kind = r.i32()
         name = r.string()
         children = r.i32()
@@ -245,7 +252,7 @@ def read_kn5(path: Path, *, textures: bool = True) -> Kn5File:
         if kind == 1:
             local = np.frombuffer(r.take(64), dtype="<f4").reshape(4, 4)
             transform = local @ parent_transform
-            out.dummies.append(Kn5Dummy(name, parent_name, transform, active))
+            out.dummies.append(Kn5Dummy(name, parent_name, transform, active, path))
         elif kind in (2, 3):
             r.take(3)
             if kind == 3:
@@ -291,14 +298,15 @@ def read_kn5(path: Path, *, textures: bool = True) -> Kn5File:
                     lod_out=lod_out,
                     renderable=renderable,
                     active=active,
+                    path=path,
                 )
             )
         else:
             raise Kn5Error(f"{path.name}: unknown node type {kind} at offset {r.at}")
         for _ in range(children):
-            node(transform, name)
+            node(transform, path + (name,))
 
-    node(identity, "")
+    node(identity, ())
     if r.at != len(data):
         # Custom Shaders Patch's car protection appends its encrypted payload
         # after an intact tree as named blocks (`acd.checksum.e`, ...): the

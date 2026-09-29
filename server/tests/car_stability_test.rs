@@ -47,6 +47,21 @@ fn shipped_cars() -> Vec<CarConfig> {
     cars
 }
 
+/// Every car `scripts/ac_car_import.py` wrote (`imported = "ac"`) into
+/// `content/cars/custom`; empty on a machine without imports.
+fn imported_cars() -> Vec<CarConfig> {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/cars/custom");
+    let mut cars: Vec<CarConfig> = car_toml_paths(&dir)
+        .iter()
+        .filter(|path| std::fs::read_to_string(path).is_ok_and(|t| t.contains("imported = \"ac\"")))
+        .map(|path| {
+            CarLoader::load_from_file(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+        })
+        .collect();
+    cars.sort_by(|a, b| a.name.cmp(&b.name));
+    cars
+}
+
 /// The speed each car is tested at: fast, but short of its top speed.
 fn test_speed(config: &CarConfig) -> f32 {
     (0.85 * drag_limited_speed_mps(config)).min(80.0)
@@ -114,10 +129,10 @@ fn steering_step(
     }
 }
 
-#[test]
-fn shipped_cars_settle_after_a_steering_step_at_speed() {
-    let failures: Vec<String> = shipped_cars()
-        .iter()
+/// Why each car fails to settle after a steering step asking for most of
+/// its grip; empty when all do.
+fn steering_step_failures(cars: &[CarConfig]) -> Vec<String> {
+    cars.iter()
         .filter_map(|config| {
             let speed = test_speed(config);
             // A step asking for most of the grip the car has at this speed,
@@ -133,18 +148,47 @@ fn shipped_cars_settle_after_a_steering_step_at_speed() {
             let steering = wheel_angle / config.max_steering_angle_rad;
             steering_step(config, speed, steering, 1.0, false).err()
         })
-        .collect();
+        .collect()
+}
+
+/// A pad stick slammed to the stop at speed. The aid turns it into the
+/// most lock the front tyres can use, so the car turns in hard and has to
+/// come back once the stick is let go, not spin.
+fn full_lock_flick_failures(cars: &[CarConfig]) -> Vec<String> {
+    cars.iter()
+        .filter_map(|config| steering_step(config, test_speed(config), 1.0, 0.5, true).err())
+        .collect()
+}
+
+#[test]
+fn shipped_cars_settle_after_a_steering_step_at_speed() {
+    let failures = steering_step_failures(&shipped_cars());
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]
 fn shipped_cars_survive_a_full_lock_flick_with_the_steering_aid() {
-    // A pad stick slammed to the stop at speed. The aid turns it into the
-    // most lock the front tyres can use, so the car turns in hard and has to
-    // come back once the stick is let go, not spin.
-    let failures: Vec<String> = shipped_cars()
-        .iter()
-        .filter_map(|config| steering_step(config, test_speed(config), 1.0, 0.5, true).err())
-        .collect();
+    let failures = full_lock_flick_failures(&shipped_cars());
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+// Opt-in, like the imported tracks' test: an import is the player's own
+// data. Run after importing a car with
+// `cargo test --release --test car_stability_test imported -- --ignored`.
+#[test]
+#[ignore]
+fn imported_cars_settle_after_a_steering_step_at_speed() {
+    let cars = imported_cars();
+    if cars.is_empty() {
+        eprintln!("no imported cars under content/cars/custom; nothing to check");
+    }
+    let failures = steering_step_failures(&cars);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+#[ignore]
+fn imported_cars_survive_a_full_lock_flick_with_the_steering_aid() {
+    let failures = full_lock_flick_failures(&imported_cars());
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
