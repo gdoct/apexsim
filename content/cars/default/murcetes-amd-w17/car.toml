@@ -41,8 +41,8 @@ stall_height_m = 0.012
 # Tyres: the slick's working window (server/src/tyre_thermal.rs). The
 # car goes out on 70 °C blankets, as the rules allow.
 [tires]
-optimal_temperature_c = 93.0
-temperature_window_c = 12.0
+optimal_temperature_c = 91.0
+temperature_window_c = 13.0
 blanket_temperature_c = 70.0
 
 # 2026 power unit: the 1.6 L V6 down to ~400 kW, the electric half up to

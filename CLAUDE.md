@@ -2051,7 +2051,7 @@ run ahead is a race, which is how a session set straight into `Race`
 still gets it) half way from there to the optimum
 (`FORMATION_LAP_WARMTH`: there is no formation lap to drive); a hotlap car
 going out (`hotlap_relocate`) at the optimum, so a hotlap measures the car,
-not its warm-up. Per class (car.toml `[tires]`): F1 93 ± 12 °C on 70 °C
+not its warm-up. Per class (car.toml `[tires]`): F1 91 ± 13 °C on 70 °C
 blankets, Hypercar 105 ± 13, LMP2 92 ± 10, GT3 87 ± 10, all without
 blankets but the F1. The windows were set where each car runs at the AI's
 race pace at Monza (`tyre_temperature_probe`, below); the imported AC cars
@@ -2296,6 +2296,102 @@ amber for LIMITER and green with the SERVICE countdown; the hotlap garage
 has a "Next tyres" row. Golden bytes: `cargo test
 telemetry_compact_wire_format car_setup_wire_format -- --nocapture` ->
 `ApexUdpGolden::S_TelemetryCompactPit`, `ApexGolden::C_SetCarSetup`.
+
+### Brake and engine heat (`brakes.rs`, `engine_heat.rs`)
+
+The brake/engine-thermal item of docs/SIMULATION_GAPS.md (progressive
+damage is its own, below). **Brakes**: `CarState::brake_temp_c` per corner,
+one thermal mass each, heated by what the pads absorb (the wheel's brake
+force, capped at what its tyre carried, times the wheel's own rim speed:
+a locked wheel heats its tyre, not its disc), cooled through the duct
+(`BrakeMaterial::convection` x the car's `brake_duct_scale`, which the
+setup's 21st knob `brake_ducts` moves 10% a click for 0.3% drag) and by
+radiation. The pads' grip is `BrakeMaterial::friction(T)`: **carbon**
+(F1, Hypercar, LMP2 by `for_class`, or car.toml `[brakes] material`) 0.55
+cold, full 400-900 °C, fading past 1000; **steel** (GT3) 0.9 cold, full
+200-600, fading past 700. The physics scales each wheel's brake force by
+it. Brakes are fitted with the tyres (`fit_tyres`: the air from the
+garage, carbon at 300 °C / steel half way to its window on a race grid,
+in the window for a hotlap; a car nobody fitted starts warm); a pit stop
+does not change them. At Monza at AI pace carbon peaks 650-850 °C and
+cools to 250-390 down the straights; steel peaks ~300. An F1 from 288
+km/h stops in 109 m on warm carbon, 129 m on cold; a GT3 in 182 m warm,
+187 m cold (`tests/brake_heat_test.rs`). **The AI** looks further ahead
+by the braking distance its pads lose (`CarState::brake_share`; carbon
+judged 100 °C hotter than it is, since it comes in within the first moment
+of a stop: judged at its end-of-straight temperature the AI braked early
+at every corner and lost 2.5 s a lap, and judged 200 °C hotter it trusted
+a race grid's 300 °C carbon into the first corner and the survey's
+off-road time rose 6%. At 100, with everything since fuel in, the survey
+against 87c3c6e: contact 23 397 car-seconds against 24 166, off the road
+11 779 against 11 381, the F1 the one class above its baseline there
+(5 019 against 4 625, inside a class's ~10% run-to-run noise).
+
+**Engine heat**: `water_temp_c` (the old stateless engine, oil and water
+figures are gone; `engine_temp_c` is the coolant, the oil follows with a
+minute's lag) heated by 0.9 W per watt of combustion power plus idle,
+cooled by a radiator sized per car (`engine_heat::radiator_conductance`:
+at 65% of peak power, 60 m/s and 25 °C air it holds 95 °C; `[engine]
+radiator_scale` shrinks or grows it) through the air the car meets, times
+`wake.drag`, so a long tow runs it hotter; a fan below 6 m/s. Past 112 °C
+the engine gives up 2% of its torque a degree (`power_factor`, floor 60%).
+At Monza the classes settle at 84-101 °C. Cars go out at 80 °C.
+
+**Wire**: `CompactCarState.brake_c` ([u16;4], °C) and `water_c` (u8)
+appended after `service_ds` (33 fields); client `BrakeTempC` /
+`WaterTempC`, a brake line under each tyre in the HUD's tyre row
+(coloured from the temperature alone: the client does not know the
+material) and a Water cell after it; the garage's "Brake ducts" row.
+Golden bytes: `cargo test telemetry_compact_wire_format
+car_setup_wire_format -- --nocapture` -> `ApexUdpGolden::
+S_TelemetryCompactHeat`, `ApexGolden::C_SetCarSetup`. The probe
+(`tyre_temperature_probe`) prints each lap's brake peak, brakes at the
+line and coolant.
+
+### Progressive damage (`damage.rs`)
+
+`DamageState`'s five percentages (front, rear, left, right, engine) used to
+be inert until 80% front or engine parked the car, and a hit cost at most
+5%. Now every hit counts and every zone costs something first:
+
+- **Accrual.** A car-car or wall contact does `damage::impact_damage` of
+  its closing speed along the normal: `0.2 x (v - 2.5 m/s)^1.6` (nothing
+  under 2.5 m/s, ~4% at 10 m/s, ~40% at 30, ~96% at the 50 m/s cap) to the
+  zone the hit came from, and a nose hit puts `NOSE_TO_ENGINE` (0.3) of
+  it on the engine. The engine also wears past `engine_heat::OVERHEAT_C`
+  (0.08% a second per degree over) and when a missed downshift forces it
+  past 1.02x `max_engine_rpm` (`over_rev_damage` from the unclamped
+  `physics::geared_rpm`; not in top gear, where a tow down a hill spins it
+  there with nobody to blame).
+- **Effects.** Front: the existing downforce loss (`aero::
+  FRONT_DAMAGE_AERO_LOSS`) and up to 60% of the radiator's cooling
+  (`radiator_factor`), so a damaged nose runs hot and then wears the
+  engine. Rear: up to 40% of the rear downforce. A side: its tyres up to
+  12% of their grip (`side_grip_factor`) and the fronts toed toward it,
+  up to 0.025 rad (`toe_offset_rad`): at 60% left a GT3 hands-off drifts
+  10 m left in 2 s. Engine: up to 40% of the power
+  (`engine_power_factor`, 16% at half). All exactly 1.0 undamaged.
+- **Out** when any zone reaches 100% (`DamageState::refresh`); the car
+  stops where it is (`update_car_3d` returns early) and is not towed off.
+- **The AI** feels the aero through `aero_load_share` (now measured
+  against the *undamaged* car, so the loss shows) and plans a stop at 25%
+  in any body zone or 20% engine (`pit::AI_PIT_DAMAGE`,
+  `AI_PIT_ENGINE_DAMAGE`); a stop repairs everything at
+  `REPAIR_S_PER_PERCENT`. The steering pull is corrected by its steering
+  loop.
+- **Wire**: `CompactCarState.damage` ([u8;5], percent) appended after
+  `water_c` (34 fields); client `FApexCarTelemetry::DamagePct` /
+  `HasDamage()`, a Damage cell under Water in the HUD's tyre row ("F23 L8
+  E4", amber from 25%, red from 60). Golden bytes: `cargo test
+  telemetry_compact_wire_format -- --nocapture` -> `ApexUdpGolden::
+  S_TelemetryCompactDamage`.
+
+Tests: `damage::tests`, `tests/damage_test.rs` (the pull, the power, the
+heat). The survey against the brake-heat run: contact 22 637 car-seconds
+against 23 397, off 12 020 against 11 779, and no car retired on any
+shipped circuit in its 3 minutes (it prints `retired N` per race now);
+the player's AC imports, whose AI already spends hundreds of car-seconds
+in contact, lose one to ten cars a race.
 
 ### Hotlap (`GameMode::Hotlap`, `HotlapRelocate`, `GhostLap`, `UApexHotlapWidget`, `AApexGhostCarActor`)
 

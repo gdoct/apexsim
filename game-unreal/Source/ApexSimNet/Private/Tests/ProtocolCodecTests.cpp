@@ -127,7 +127,7 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 
 	{
 		FApexCarSetup Setup;
-		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1 };
+		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2 };
 		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
 		{
 			Setup.Clicks[Index] = Clicks[Index];
@@ -193,7 +193,9 @@ bool FApexCarSetupClicksTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("fuel reads in laps"),
 		ApexCarSetup::Describe(ApexCarSetup::FuelLoad, 2), FString(TEXT("+2  (+2 laps)")));
 	TestEqual(TEXT("wing key"), FString(ApexCarSetup::Knob(ApexCarSetup::FrontWing).Key), FString(TEXT("front_wing")));
-	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::TyreCompound).Key), FString(TEXT("tyre_compound")));
+	TestEqual(TEXT("compound key"), FString(ApexCarSetup::Knob(ApexCarSetup::TyreCompound).Key), FString(TEXT("tyre_compound")));
+	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::BrakeDucts).Key), FString(TEXT("brake_ducts")));
+	TestEqual(TEXT("ducts read in air"), ApexCarSetup::Describe(ApexCarSetup::BrakeDucts, 2), FString(TEXT("+2  (+20% air)")));
 	TestEqual(TEXT("compound reads by name"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, 1), FString(TEXT("Soft")));
 	TestEqual(TEXT("hard"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, -1), FString(TEXT("Hard")));
 	TestEqual(TEXT("ride height reads in mm"),

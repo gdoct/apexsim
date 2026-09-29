@@ -14,7 +14,8 @@ loads, vertical spring/damper suspension with anti-roll bars, Pacejka-style
 tires with pressure, load sensitivity and a friction ellipse, static aero
 (drag, front/rear downforce, DRS), turbo lag, an opt-in differential, fuel
 consumption and fuel mass, two-node tyre temperatures with a gas-law
-pressure, tyre wear and three compounds, pit stops, slipstream and dirty air, ride-height and rake aero with wing
+pressure, tyre wear and three compounds, pit stops, brake temperature and fade,
+engine coolant temperature, slipstream and dirty air, ride-height and rake aero with wing
 knobs, a simple hybrid deploy/regen, weather-baked grip, air density from altitude
 and temperature, gusting wind, and collision
 damage with a drivable/undrivable threshold.
@@ -211,7 +212,14 @@ race and the demo mode look.
 
 ## Brake temperature and fade
 
-**Today:** braking is a constant force with a bias and ABS. Brakes never
+**Done 2026-09-29** (CLAUDE.md, "Brake and engine heat"): a temperature per
+corner from what the pads absorb, cooled through a duct (a setup knob) and
+by radiation; carbon (weak cold, fading past 1000 °C) and steel (fine
+cold, fading past 700 °C) by class; the AI braking earlier on brakes short
+of their best; brake temperatures on the telemetry and the HUD. Left for
+later: brake wear.
+
+**Was:** braking is a constant force with a bias and ABS. Brakes never
 heat, fade or wear, and there are no brake ducts.
 
 **Missing:** per-corner brake temperature from braking energy, cooled by
@@ -226,7 +234,16 @@ and heavy-braking circuits; subtle in short races.
 
 ## Engine thermal, wear and progressive damage
 
-**Today:** the engine is a torque curve with a limiter, turbo lag and an
+**Engine thermal done 2026-09-29** (CLAUDE.md, "Brake and engine heat"):
+the coolant heated by the power made, cooled by a radiator sized per car
+through the air the car meets (less in a tow), power lost past 112 °C.
+**Progressive damage done 2026-09-29** (CLAUDE.md, "Progressive
+damage"): hits scaled by closing speed to a power, engine damage from
+heat and missed downshifts; front costs downforce and cooling, rear its
+downforce, a side grip and a pull, the engine power; out at 100%; the AI
+pits for it; a HUD Damage cell. Engine wear over distance is still open.
+
+**Was:** the engine is a torque curve with a limiter, turbo lag and an
 inert damage percentage: `engine_damage_percent` accumulates from crashes
 but changes nothing until the 80% drivable threshold parks the car.
 Body-side damage percentages are likewise all-or-nothing.
@@ -501,9 +518,40 @@ here as well as under its item.
   no crew and no pit-lane time on the timing sheet.
 - `initialize_content.ps1` does not check for the pit sidecar.
 
+**Brake and engine heat**
+- No brake wear, no brake bias or pad choice beyond the existing bias
+  knob; the ducts are one knob for all four corners.
+- No radiator (grille) setup knob; `[engine] radiator_scale` is car.toml
+  only.
+- The HUD colours the brakes by temperature alone: the client does not
+  know whether a car's brakes are carbon or steel.
+- The imported AC cars take carbon or steel from their class, not from
+  AC's `brakes.ini` (which has no material, but its `[TEMPS_*]` could).
+- The AI survey's F1 off-road time sits 8.5% over the pre-fuel baseline
+  after brake heat (the field as a whole +3.5%, contact -3%): inside the
+  per-class noise, but the one class trending up; worth a look at where
+  (`SURVEY_DBG=1`) if it grows.
+
+**Progressive damage**
+- A retired car stops where it is: no tow-away, no retirement shown on the
+  timing screens, and it stays an obstacle (its last contact/off-track
+  state is what the survey counts for it).
+- No engine wear over distance (only heat and over-rev damage).
+- Damage is not an FFB, audio or visual cue: no bodywork falls off, the
+  engine note does not change; the HUD cell is the only readout.
+- No damage for kerb strikes, bottoming out or airborne landings.
+- The AI does not drive around its damage beyond its steering loop and
+  the aero share: its speed profile still assumes full power.
+- Damaged cars in the AC imports: their AI already crashes a lot, and one
+  to ten cars a race now retire there.
+- A setup cannot turn damage off or down (no "damage: off / visual /
+  full" session option).
+
 **Built but never seen in the running game** (automation tests only)
 - The HUD's tyre row and TOW badge.
 - The hotlap garage's Aero section (wings, ride heights).
 - The create screen's air temperature slider and wind row.
 - The HUD's PIT badge and the tyre row's wear and compound; the garage's
   "Next tyres" row; an AI pit stop as the client draws it.
+- The HUD's brake line and Water cell; the garage's "Brake ducts" row.
+- The HUD's Damage cell.

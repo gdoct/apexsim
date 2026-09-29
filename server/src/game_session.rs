@@ -254,6 +254,13 @@ fn fit_tyres(
         TyreStart::Warm => tyre.optimal_temperature_c,
     };
     tyre_thermal::fit(state, tyre, temperature, compound);
+    let brakes = crate::brakes::start_temperature_c(
+        config.brake_material,
+        track.track_surface.air_temperature_c,
+        matches!(start, TyreStart::Grid),
+        matches!(start, TyreStart::Warm),
+    );
+    crate::brakes::fit(state, brakes);
 }
 
 impl GameSession {

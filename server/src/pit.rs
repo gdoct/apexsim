@@ -45,8 +45,10 @@ pub const REPAIR_S_PER_PERCENT: f32 = 0.04;
 
 /// A car wants a stop when a tyre is this worn, percent.
 pub const AI_PIT_WEAR: f32 = 70.0;
-/// Or its nose is this damaged, percent.
+/// Or any body zone is this damaged, percent.
 pub const AI_PIT_DAMAGE: f32 = 25.0;
+/// Or its engine is, percent: power it would lose for the rest of the race.
+pub const AI_PIT_ENGINE_DAMAGE: f32 = 20.0;
 /// It turns onto the pit route this far before the lane leaves the track, m.
 pub const AI_PIT_APPROACH_M: f32 = 250.0;
 
@@ -264,7 +266,16 @@ pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> O
         .each()
         .iter()
         .any(|t| t.wear_percent >= AI_PIT_WEAR);
-    let damaged = state.damage.front_damage_percent >= AI_PIT_DAMAGE;
+    let d = &state.damage;
+    let damaged = [
+        d.front_damage_percent,
+        d.rear_damage_percent,
+        d.left_damage_percent,
+        d.right_damage_percent,
+    ]
+    .iter()
+    .any(|z| *z >= AI_PIT_DAMAGE)
+        || d.engine_damage_percent >= AI_PIT_ENGINE_DAMAGE;
     let short = lap_fuel_l.is_some_and(|lap| state.fuel_liters < lap * (laps_left as f32 + 0.8));
     if !(worn || damaged || short) {
         return None;

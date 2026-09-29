@@ -108,6 +108,15 @@ pub struct CarConfig {
     /// the default is a car whose downforce does not.
     #[serde(default)]
     pub aero: crate::aero::AeroConfig,
+    /// What the brakes are made of (`crate::brakes`): carbon for the
+    /// prototypes and F1, steel otherwise, unless car.toml's `[brakes]`
+    /// says.
+    #[serde(default)]
+    pub brake_material: crate::brakes::BrakeMaterial,
+    /// The brake ducts' size against the car's own (the setup's
+    /// `brake_ducts`): how much air cools the brakes.
+    #[serde(default = "default_one_f32")]
+    pub brake_duct_scale: f32,
 
     // Steering
     pub max_steering_angle_rad: f32,
@@ -178,6 +187,10 @@ pub struct EngineConfig {
     /// Apart from the lag model, which the shipped cars do not use.
     #[serde(default)]
     pub forced_induction: bool,
+    /// The radiator against the one sized for this engine
+    /// (`engine_heat::radiator_conductance`): under 1 runs hotter.
+    #[serde(default = "default_one_f32")]
+    pub radiator_scale: f32,
 }
 
 /// How long a turbo takes to deliver the boosted part of the torque curve.
@@ -239,6 +252,7 @@ impl Default for EngineConfig {
             idle_control_gain: 0.15,
             turbo: None,
             forced_induction: false,
+            radiator_scale: 1.0,
         }
     }
 }
@@ -710,6 +724,8 @@ impl Default for CarConfig {
             lift_coefficient_rear: -0.20,
             drs: None,
             aero: crate::aero::AeroConfig::default(),
+            brake_material: crate::brakes::BrakeMaterial::Steel,
+            brake_duct_scale: 1.0,
 
             // Steering
             max_steering_angle_rad: 0.52, // ~30 degrees
@@ -1361,6 +1377,9 @@ pub struct CarState {
     /// The car against the pit lane, and its stop (`crate::pit`).
     #[serde(default)]
     pub pit: crate::pit::PitState,
+    /// Each corner's brake, °C, FL FR RL RR (`crate::brakes`).
+    #[serde(default)]
+    pub brake_temp_c: [f32; 4],
     /// The air this car drives into: the tow and dirty air of the cars
     /// ahead (`crate::slipstream`), set each tick before the physics.
     #[serde(default)]
@@ -1522,6 +1541,7 @@ impl CarState {
             tyres_fitted: false,
             tyre_compound: crate::tyre_thermal::MEDIUM,
             pit: crate::pit::PitState::default(),
+            brake_temp_c: [20.0; 4],
             wake: crate::slipstream::Wake::CLEAN,
             aero_load_share: 1.0,
             g_forces: GForces::default(),
@@ -1537,7 +1557,7 @@ impl CarState {
             engine_temp_c: 85.0,
             oil_temp_c: 90.0,
             oil_pressure_kpa: 350.0,
-            water_temp_c: 80.0,
+            water_temp_c: crate::engine_heat::START_C,
 
             // Weight (will be calculated)
             weight_front_left_n: 0.0,
