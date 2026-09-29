@@ -13,7 +13,8 @@ For orientation, what *is* simulated today: a 4-wheel 3D model with per-wheel
 loads, vertical spring/damper suspension with anti-roll bars, Pacejka-style
 tires with pressure, load sensitivity and a friction ellipse, static aero
 (drag, front/rear downforce, DRS), turbo lag, an opt-in differential, fuel
-consumption, a simple hybrid deploy/regen, weather-baked grip, and collision
+consumption and fuel mass, two-node tyre temperatures with a gas-law
+pressure, slipstream and dirty air, a simple hybrid deploy/regen, weather-baked grip, and collision
 damage with a drivable/undrivable threshold.
 
 ## Cross-cutting constraints
@@ -39,7 +40,21 @@ each feature is here rather than in its physics:
 
 ## Tire temperature
 
-**Today:** `TireConfig` carries `optimal_temperature_c` and
+**Done 2026-09-29** (CLAUDE.md, "Tyre temperature"): a tread and a core per
+tyre, heated by the patch's friction power and the carcass flexing, cooled
+by the air, the road (much more when wet) and each other; grip flat in a
+per-compound window and falling off either side; the garage's pressures
+become the hot ones, the gas law moving the running pressure with the core;
+air and track temperature derived from the session's weather and clock;
+blankets for the F1, half a formation lap's warmth on a race grid, a hotlap
+out on warm tyres; the AI scaling its plan by the grip its tyres have; the
+temperatures and pressures on the telemetry and the HUD; AC imports take
+their window from AC's performance curve. Left for later: the player's
+racing line on cold tyres, tyre heat as an FFB and squeal cue, the
+hypercars' front tread spikes, inner/middle/outer temperatures (they need
+camber, below), and wear, which now has the heat to be built on.
+
+**Was:** `TireConfig` carries `optimal_temperature_c` and
 `temperature_grip_falloff`, but physics never reads them — the fields are
 parsed and inert. Tire grip only varies with pressure, load and weather.
 
@@ -96,7 +111,17 @@ into a strategy game. Meaningless until wear and fuel mass exist.
 
 ## Fuel mass and strategy
 
-**Today:** fuel is consumed per tick and the level is tracked, but the mass
+**Done 2026-09-29** (CLAUDE.md, "Fuel"): the tank's mass on top of the dry
+car (and optionally its position), consumption from the power the engine
+makes over its thermal efficiency (so lift-and-coast saves fuel), a dry tank
+cutting the engine, the session filling each car from its own lap estimate
+(race distance + 8% + a lap, three laps for a hotlap, full for practice), a
+`fuel_load` knob in laps, the AI planning at its starting load, and the tank
+on the telemetry and the HUD. Left for later: rebuilding the AI's and the
+racing line's profiles as the tank drains, an AI that saves fuel when short,
+and a per-car `tank_front_share` (no shipped car sets one).
+
+**Was:** fuel is consumed per tick and the level is tracked, but the mass
 of the car never changes — a full tank and a dry tank corner identically —
 and nothing happens when it reaches zero.
 
@@ -133,7 +158,18 @@ existing suspension knobs (springs, ride) their real consequences.
 
 ## Slipstream and dirty air
 
-**Today:** cars do not exist for each other aerodynamically. No tow on the
+**Done 2026-09-29** (CLAUDE.md, "Slipstream and dirty air"): a wake behind
+every car, set once per tick from a snapshot of the field — the tow taking
+up to 35% off the follower's drag and fading over ~30 m, the dirty air up
+to 25% off its downforce (the front wing worst) and fading over ~15 m,
+both across a widening wake and scaled by the two cars' drag areas; the
+AI backing off in dirty air; the tow on the telemetry and a TOW light on
+the HUD. Left for later: an AI that pulls out of the tow to pass (the
+traffic layer still holds a follower at a following distance, see "AI
+that races" below), tyre heat from following closely, and the wake in the
+racing line's plan.
+
+**Was:** cars do not exist for each other aerodynamically. No tow on the
 straights, no downforce loss following through a corner.
 
 **Missing:** a wake behind each car reducing drag (the tow) and, closer and
@@ -251,6 +287,12 @@ cold dawn session are physically identical.
   into a braking zone, a crosswind pushes the car and asymmetrically loads
   it. Per-corner character falls out for free, because the same wind meets
   every straight at a different angle.
+
+*Since 2026-09-29 the air and track temperatures exist server-side*,
+derived from the weather and the clock and baked into the session's track
+(`SessionConditions::air_temperature_c` / `track_temperature_c`), because
+the tyre model needed them; they are not on the wire, not host-pickable
+and move nothing but the tyres.
 
 All of it extends `SessionConditions` (host-picked or auto from the
 weather), is baked or evaluated server-side like the existing weather grip,

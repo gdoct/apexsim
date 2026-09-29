@@ -31,6 +31,13 @@ lift_coefficient_rear = -1.54
 # 3.0 L twin-turbo 120-degree V6 as a stressed member, ~450 kW, with the
 # front-axle motor; torque is flat from 4500 to 7000.
 
+# Tyres: a hard-wearing endurance slick with a high window; the heavy
+# car leans on its fronts, which run the hottest (server/src/tyre_thermal.rs).
+# No blankets: the car goes out at the air temperature.
+[tires]
+optimal_temperature_c = 105.0
+temperature_window_c = 13.0
+
 [engine]
 max_power_w = 450000.0
 max_torque_nm = 650.0
@@ -107,7 +114,9 @@ lock_coast = 0.30
 [fuel]
 capacity_liters = 90.0
 idle_consumption_lps = 0.00006
-load_consumption_scale = 0.0034
+# Share of the fuel's energy the engine turns into work (a hybrid prototype's engine);
+# consumption follows the power it makes.
+thermal_efficiency = 0.40
 
 # The LMH energy recovery system: a front-axle motor, deployed on throttle
 # and recharged under braking. The sim adds its torque at the crank.

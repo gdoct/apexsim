@@ -11,9 +11,12 @@
 //! where the forward pass does it is accelerating, and where neither does it
 //! is cornering at the limit.
 //!
-//! A driving aid, not part of the simulation: nothing here feeds physics or
-//! the AI. It is computed once when a player joins a session and sent to
-//! them as `ServerMessage::RacingLine`.
+//! Nothing here feeds physics. The same profile is the AI's speed plan, the
+//! driving aid sent to a joining player as `ServerMessage::RacingLine`, and
+//! the basis of the session's fuel estimate (`lap_fuel_liters`). It is
+//! planned for the car as it stands with a given fuel load
+//! (`build_laden`), since a full tank corners, brakes and pulls slower
+//! than an empty one.
 
 use crate::data::{CarConfig, Drivetrain, TrackConfig};
 use crate::physics::AIR_DENSITY;
@@ -104,8 +107,9 @@ struct CarEnvelope {
 }
 
 impl CarEnvelope {
-    fn new(car: &CarConfig, track_grip: f32) -> Self {
-        let mass = car.mass_kg.max(1.0);
+    /// The car at `mass` kg: its dry mass and whatever fuel it carries.
+    fn new(car: &CarConfig, track_grip: f32, mass: f32) -> Self {
+        let mass = mass.max(1.0);
         let lift = car.lift_coefficient_front + car.lift_coefficient_rear;
         let hybrid_w = if car.hybrid.enabled {
             car.hybrid.motor_max_power_kw * 1000.0
@@ -202,9 +206,19 @@ fn top_gear_speed(car: &CarConfig) -> f32 {
     rpm / 60.0 * std::f32::consts::TAU * car.wheel_radius_m / overall
 }
 
-/// Build the racing line `car` should follow on `track`, or `None` when the
-/// track has too few points to make a loop.
+/// Build the racing line `car` should follow on `track` with a dry tank,
+/// or `None` when the track has too few points to make a loop.
 pub fn build(track: &TrackConfig, car: &CarConfig) -> Option<RacingLineProfile> {
+    build_laden(track, car, 0.0)
+}
+
+/// [`build`] for the car carrying `fuel_liters`: the extra mass costs
+/// braking, acceleration and, on a downforce car, cornering speed.
+pub fn build_laden(
+    track: &TrackConfig,
+    car: &CarConfig,
+    fuel_liters: f32,
+) -> Option<RacingLineProfile> {
     let source: Vec<[f32; 3]> = if track.raceline.len() >= 3 {
         track.raceline.iter().map(|p| [p.x, p.y, p.z]).collect()
     } else {
@@ -214,7 +228,8 @@ pub fn build(track: &TrackConfig, car: &CarConfig) -> Option<RacingLineProfile> 
     let n = points.len();
     let spacing = loop_length(&points) / n as f32;
 
-    let envelope = CarEnvelope::new(car, track.track_surface.base_grip);
+    let (mass, _) = car.laden(fuel_liters);
+    let envelope = CarEnvelope::new(car, track.track_surface.base_grip, mass);
     let kappa = curvature(&points, spacing);
     let grade: Vec<f32> = (0..n)
         .map(|i| {
@@ -301,6 +316,69 @@ pub fn build(track: &TrackConfig, car: &CarConfig) -> Option<RacingLineProfile> 
         speed_mps: speed,
         phases,
     })
+}
+
+/// Fuel the car burns over one lap of `profile` carrying `fuel_liters`, in
+/// litres: at every point the power the profile's speed change asks for
+/// against drag, rolling and the grade, less what a hybrid adds, capped at
+/// the engine's peak, burnt at the car's efficiency; idle where it asks
+/// for none. An estimate: the profile's margins make it a little slower
+/// than a car at the limit, so the real figure runs a few percent higher.
+pub fn lap_fuel_liters(profile: &RacingLineProfile, car: &CarConfig, fuel_liters: f32) -> f32 {
+    let n = profile.points.len();
+    if n < 3 || profile.speed_mps.len() != n {
+        return 0.0;
+    }
+    let (mass, _) = car.laden(fuel_liters);
+    let drag_k = 0.5 * AIR_DENSITY * car.drag_coefficient * car.frontal_area_m2;
+    let rolling_n = car.tire_config.rolling_resistance * GRAVITY * mass;
+    let efficiency = car.transmission.efficiency.clamp(0.5, 1.0);
+    let wide_open = wide_open_power_w(car);
+    let spacing = profile.spacing_m.max(1e-3);
+    let fuel = &car.fuel;
+    let mut liters = 0.0;
+    for i in 0..n {
+        let next = (i + 1) % n;
+        let (v0, v1) = (profile.speed_mps[i], profile.speed_mps[next]);
+        let v = (0.5 * (v0 + v1)).max(1.0);
+        let dt = spacing / v;
+        let accel = (v1 * v1 - v0 * v0) / (2.0 * spacing);
+        let grade = ((profile.points[next][2] - profile.points[i][2]) / spacing).clamp(-0.3, 0.3);
+        let wheel_force = mass * (accel + GRAVITY * grade) + drag_k * v * v + rolling_n;
+        let demand_w = (wheel_force * v / efficiency).max(0.0);
+        // Where the plan is power-limited the throttle is wide open, and
+        // the engine makes its curve whatever a hybrid adds on top; below
+        // that (traction, a corner, a lift) it makes what is asked of it.
+        let engine_w = if demand_w >= 0.95 * car.max_engine_power_w {
+            wide_open
+        } else {
+            demand_w.min(wide_open)
+        };
+        let load_lps = match fuel.load_consumption_scale {
+            // The old rule burns by throttle; the engine's share of its
+            // peak stands in for it, near the top of the rev range.
+            Some(scale) => engine_w / car.max_engine_power_w.max(1.0) * 0.85 * scale,
+            None => fuel.burn_lps(engine_w),
+        };
+        liters += (fuel.idle_consumption_lps + load_lps) * dt;
+    }
+    liters
+}
+
+/// The engine's power flat out where a racing driver keeps it, W: its
+/// curve averaged over the top quarter of the revs below the redline,
+/// where the gearbox holds it between shifts.
+fn wide_open_power_w(car: &CarConfig) -> f32 {
+    const SAMPLES: usize = 16;
+    let top = car.redline_rpm.max(car.idle_rpm + 1.0);
+    let bottom = (top * 0.75).max(car.idle_rpm);
+    let total: f32 = (0..SAMPLES)
+        .map(|k| {
+            let rpm = bottom + (top - bottom) * (k as f32 + 0.5) / SAMPLES as f32;
+            crate::physics::engine_curve_torque_nm(car, rpm) * rpm * std::f32::consts::TAU / 60.0
+        })
+        .sum();
+    (total / SAMPLES as f32).max(0.0)
 }
 
 /// Length of a closed polyline, including the closing segment.
@@ -552,7 +630,7 @@ mod tests {
         // The corner speed is what the default car's grip allows around a
         // 30 m radius, less the margin.
         let slowest = profile.speed_mps.iter().copied().fold(f32::MAX, f32::min);
-        let envelope = CarEnvelope::new(&CarConfig::default(), 1.0);
+        let envelope = CarEnvelope::new(&CarConfig::default(), 1.0, CarConfig::default().mass_kg);
         let expected = envelope.corner_speed(1.0 / 30.0);
         assert!(
             (slowest - expected).abs() < 1.0,
@@ -576,7 +654,7 @@ mod tests {
         let slowest = profile.speed_mps.iter().copied().fold(f32::MAX, f32::min);
         // Bounds from constant decelerations either side of what the car
         // does: tyres alone at their margin, and tyres plus drag at the top.
-        let envelope = CarEnvelope::new(&car, 1.0);
+        let envelope = CarEnvelope::new(&car, 1.0, car.mass_kg);
         let weakest = envelope.grip_accel(0.0) * BRAKING_GRIP_MARGIN;
         let strongest = envelope.deceleration(fastest, 0.0, 0.0);
         let longest = (fastest * fastest - slowest * slowest) / (2.0 * weakest);

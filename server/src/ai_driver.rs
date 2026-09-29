@@ -561,7 +561,13 @@ impl<'a> AiDriverController<'a> {
             .fold(f32::INFINITY, f32::min);
 
         let pace = PROFILE_NOVICE_PACE + (PROFILE_ACE_PACE - PROFILE_NOVICE_PACE) * skill_factor;
-        slowest * pace * env_f("AI_PACE", 1.0)
+        // The profile is planned on tyres in their window. Cold or cooked
+        // tyres grip less, and every speed the grip sets goes with its root:
+        // a driver who feels them go off slows down to match.
+        // Likewise the downforce the dirty air of a car ahead takes away.
+        let mass = crate::physics::car_mass_kg(self.car_config, state);
+        let grip = state.tyre_grip_share() * state.wake_load_share(mass);
+        slowest * pace * grip.sqrt() * env_f("AI_PACE", 1.0)
     }
 
     /// Plan the current target speed from upcoming curvature: sample the
@@ -579,7 +585,7 @@ impl<'a> AiDriverController<'a> {
         // 110), inside the ~1g tire grip of the default car. The corner-speed
         // margin below keeps the plan off the exact limit so imperfect
         // steering doesn't turn every apex into an excursion.
-        let a_lat_max = (0.65 + 0.25 * skill_factor) * 9.81;
+        let a_lat_max = (0.65 + 0.25 * skill_factor) * 9.81 * state.tyre_grip_share();
         // Planned braking decel; higher aggressiveness plans with harder
         // braking, i.e. brakes later. Kept below real braking capability so
         // the plan is always achievable.
@@ -938,7 +944,8 @@ impl<'a> AiDriverController<'a> {
         let downforce = state.downforce_front_n + state.downforce_rear_n;
         let front_travel = self.front_axle_travel_rad(state);
         let toward_travel = (steering.signum() * front_travel).max(0.0);
-        let lock = crate::physics::grip_limit_lock_rad(config, state.speed_mps, downforce)
+        let mass = crate::physics::car_mass_kg(config, state);
+        let lock = crate::physics::grip_limit_lock_rad(config, mass, state.speed_mps, downforce)
             + config.tire_config.optimal_slip_angle_rad
             + toward_travel;
         let cap = (lock / full_lock).min(1.0);
@@ -964,8 +971,9 @@ impl<'a> AiDriverController<'a> {
     fn grip_budget(&self, state: &CarState) -> GripBudget {
         let config = self.car_config;
         let downforce = state.downforce_front_n + state.downforce_rear_n;
-        let load_ratio = 1.0 + downforce.max(0.0) / (config.mass_kg.max(1.0) * 9.81);
-        let grip_g = config.envelope_mu(load_ratio) * load_ratio;
+        let mass = crate::physics::car_mass_kg(config, state).max(1.0);
+        let load_ratio = 1.0 + downforce.max(0.0) / (mass * 9.81);
+        let grip_g = config.envelope_mu(load_ratio) * load_ratio * state.tyre_grip_share();
         let used =
             (state.g_forces.lateral_g.abs() / (grip_g * env_f("AI_GM", 1.0)).max(0.1)).min(1.0);
 

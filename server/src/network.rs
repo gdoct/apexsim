@@ -544,6 +544,47 @@ pub struct CompactCarState {
     /// is positional, so a field added at the end is one an older client
     /// skips rather than one that shifts everything after it.
     pub lap_flags: u8,
+    /// Fuel in the tank, in tenths of a litre ([`fuel_decilitres`]).
+    /// Appended after `lap_flags`, for the same reason; an older server
+    /// sends none.
+    #[serde(default)]
+    pub fuel_dl: u16,
+    /// Each tyre's tread temperature, °C, FL FR RL RR ([`tyre_bytes`]).
+    /// Appended after `fuel_dl`; 0 is "not known" (an older server sends
+    /// none, a car not yet on its tyres has none).
+    #[serde(default)]
+    pub tyre_c: [u8; 4],
+    /// Each tyre's running pressure, kPa (gauge), FL FR RL RR; 0 is "not
+    /// known", as above.
+    #[serde(default)]
+    pub tyre_kpa: [u8; 4],
+    /// The tow the car is in: the share of its drag the wake of the cars
+    /// ahead saves, percent (`crate::slipstream`). Appended after
+    /// `tyre_kpa`; 0 in clean air, and from an older server.
+    #[serde(default)]
+    pub tow_pct: u8,
+}
+
+/// A car's tyres as telemetry carries them: the tread temperatures and the
+/// running pressures, each rounded to a whole degree / kPa and held within
+/// 1..=255, so 0 is left to mean "not known" (a car whose tyres were never
+/// fitted).
+pub fn tyre_bytes(state: &CarState) -> ([u8; 4], [u8; 4]) {
+    if !state.tyres_fitted {
+        return ([0; 4], [0; 4]);
+    }
+    let byte = |v: f32| v.round().clamp(1.0, 255.0) as u8;
+    let tyres = state.tires.each();
+    (
+        tyres.map(|t| byte(t.temperature_c)),
+        tyres.map(|t| byte(t.pressure_kpa)),
+    )
+}
+
+/// A tank's contents as telemetry carries them: tenths of a litre, rounded,
+/// so a HUD can show one decimal and a msgpack uint16 carries a full tank.
+pub fn fuel_decilitres(liters: f32) -> u16 {
+    (liters.max(0.0) * 10.0).round().min(u16::MAX as f32) as u16
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -557,6 +598,7 @@ pub struct CompactTelemetry {
 
 impl CompactCarState {
     pub fn from_car_state(state: &CarState, car_index: u8) -> Self {
+        let (tyre_c, tyre_kpa) = tyre_bytes(state);
         Self {
             car_index,
             pos_x: state.pos_x,
@@ -581,6 +623,10 @@ impl CompactCarState {
             is_on_track: state.is_on_track,
             is_colliding: state.is_colliding,
             lap_flags: lap_flags_of(state),
+            fuel_dl: fuel_decilitres(state.fuel_liters),
+            tyre_c,
+            tyre_kpa,
+            tow_pct: (state.wake.tow() * 100.0).round().clamp(0.0, 100.0) as u8,
         }
     }
 }
@@ -1388,6 +1434,18 @@ mod tests {
         state.is_on_track = true;
         state.is_colliding = false;
         state.laps.invalid = true;
+        state.fuel_liters = 42.46;
+        state.tyres_fitted = true;
+        for (tyre, (c, kpa)) in state.tires.each_mut().into_iter().zip([
+            (84.4, 176.0),
+            (91.6, 181.2),
+            (102.5, 190.0),
+            (300.0, 0.2),
+        ]) {
+            tyre.temperature_c = c;
+            tyre.pressure_kpa = kpa;
+        }
+        state.wake.drag = 0.83;
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -1398,7 +1456,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactLapFlags: {}",
+            "S_TelemetryCompactTow: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -1406,16 +1464,20 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 23-field array: 0xDC 0x00 0x17 is the array-16 header.
+        // The car is a 27-field array: 0xDC 0x00 0x1B is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x17]),
-            "CompactCarState must stay 23 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x1B]),
+            "CompactCarState must stay 27 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
             ServerMessage::TelemetryCompact(frame) => {
                 let car = &frame.car_states[0];
                 assert_eq!(car.lap_flags, 1, "the lap in progress is struck");
+                assert_eq!(car.fuel_dl, 425, "42.46 L goes out as 42.5");
+                assert_eq!(car.tyre_c, [84, 92, 103, 255], "rounded, held to a byte");
+                assert_eq!(car.tyre_kpa, [176, 181, 190, 1], "0 is kept for unknown");
+                assert_eq!(car.tow_pct, 17, "a 17% tow");
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }
@@ -1834,7 +1896,7 @@ mod tests {
     #[test]
     fn test_car_setup_wire_format() {
         let setup = ClientMessage::SetCarSetup(CarSetup::from_clicks([
-            1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4,
+            1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2,
         ]));
         let bytes = rmp_serde::to_vec_named(&setup).unwrap();
         let hex = bytes
@@ -1847,6 +1909,7 @@ mod tests {
             ClientMessage::SetCarSetup(decoded) => {
                 assert_eq!(decoded.tyre_pressure_rear, -2);
                 assert_eq!(decoded.anti_roll_rear, 4);
+                assert_eq!(decoded.fuel_load, -2);
             }
             _ => panic!("Wrong message type"),
         }
@@ -1872,7 +1935,7 @@ mod tests {
 
     const GOLDEN_C_SET_CAR_SETUP: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAB, 0x53, 0x65, 0x74, 0x43, 0x61, 0x72, 0x53, 0x65,
-        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x8E, 0xB3, 0x74, 0x79, 0x72, 0x65, 0x5F,
+        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x8F, 0xB3, 0x74, 0x79, 0x72, 0x65, 0x5F,
         0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0x01,
         0xB2, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x5F,
         0x72, 0x65, 0x61, 0x72, 0xFE, 0xAB, 0x72, 0x65, 0x76, 0x5F, 0x6C, 0x69, 0x6D, 0x69, 0x74,
@@ -1886,7 +1949,8 @@ mod tests {
         0x72, 0x6F, 0x6E, 0x74, 0x00, 0xAB, 0x64, 0x61, 0x6D, 0x70, 0x65, 0x72, 0x5F, 0x72, 0x65,
         0x61, 0x72, 0x01, 0xAF, 0x61, 0x6E, 0x74, 0x69, 0x5F, 0x72, 0x6F, 0x6C, 0x6C, 0x5F, 0x66,
         0x72, 0x6F, 0x6E, 0x74, 0xFC, 0xAE, 0x61, 0x6E, 0x74, 0x69, 0x5F, 0x72, 0x6F, 0x6C, 0x6C,
-        0x5F, 0x72, 0x65, 0x61, 0x72, 0x04,
+        0x5F, 0x72, 0x65, 0x61, 0x72, 0x04, 0xA9, 0x66, 0x75, 0x65, 0x6C, 0x5F, 0x6C, 0x6F, 0x61,
+        0x64, 0xFE,
     ];
 
     const GOLDEN_C_CREATE_SESSION: &[u8] = &[

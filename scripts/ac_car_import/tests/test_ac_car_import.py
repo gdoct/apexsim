@@ -339,6 +339,21 @@ class DataTest(unittest.TestCase):
         self.assertAlmostEqual(physics.boost_at([turbo(1), turbo(2), turbo(3)], 3000, gears=3), 0.6)
 
 
+class ThermalWindowTest(unittest.TestCase):
+    def test_the_plateau_is_the_window_and_the_shoulders_the_falloff(self):
+        # The 911 GT3 R's tcurve_slicksGT3s.lut.
+        curve = data.parse_lut(
+            "0|0.7\n20|0.8\n45|0.9\n60|0.98\n70|1.0\n80|1.0\n85|1.0\n100|0.97\n"
+            "140|0.95\n160|0.95\n180|0.95\n240|0.8\n300|0.6\n")
+        optimum, window, falloff = physics.thermal_window(curve)
+        self.assertEqual((optimum, window), (77.5, 7.5))
+        self.assertTrue(0.002 < falloff < 0.006, falloff)
+
+    def test_a_flat_curve_has_a_wide_window_and_no_falloff(self):
+        optimum, window, falloff = physics.thermal_window(data.parse_lut("0|1\n200|1\n"))
+        self.assertEqual((optimum, window, falloff), (100.0, 50.0, 0.0))
+
+
 class SyntheticImportTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

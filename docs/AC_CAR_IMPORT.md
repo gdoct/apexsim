@@ -306,12 +306,12 @@ CRC check compare their car.toml files.
 | `brakes.ini MAX_TORQUE, FRONT_SHARE` | `max_brake_force_n`, `brake_bias_front` | `2 x T x (share / r_front + (1 - share) / r_rear)` = 22.9 kN on the 911 (1.76 g at 1325 kg, right for a GT3 with aero); bias as is |
 | `aero.ini` wings | `frontal_area_m2`, `drag_coefficient`, `lift_coefficient_front/rear` | evaluate each wing at its `ANGLE` (and the ride-height table at the static height): `Cl_i x A_i`, `Cd_i x A_i`; `A` = the BODY wing's chord x span (2.2 m2 on the 911, 1.59 on the SF70H, i.e. AC's frontal area); `Cd = sum(Cd_i A_i) / A`; the downforce is split by each wing's station against the axles (`(z - z_rear) / wheelbase` to the front) and written as negative lift coefficients over the same `A`. The 911: Cl.A 2.40 (44% front), Cd.A 0.99. Lost: ride-height and yaw sensitivity, the DRS wing's own tables |
 | `drs.ini` / the DRS wing | `drs_drag_reduction`, `drs_rear_downforce_reduction` | from the DRS wing's Cd and Cl at its closed and open angle over the totals; **0 when there is no DRS wing**, whatever the class (a `F1`-class 1967 car must not get the class default) |
-| `tyres.ini` (the default compound, or `--compound`) | `grip_coefficient`, `wheel_radius_m` | `mu = DY0 x (Fz / FZ0)^(LS_EXPY - 1) x (1 - SPEED_SENSITIVITY x v)` at a reference: the loaded outside wheel at the car's typical corner load (static + downforce at 40 m/s), v = 40 m/s. The 911's DY0 1.668 at FZ0 3768 N gives 1.61 at 4500 N and 1.44 at 40 m/s; the shipped GT3 runs 1.43. Then the grip probe decides (below). Lost: DX0 (a separate longitudinal peak), camber gain, flex, thermal, wear |
+| `tyres.ini` (the default compound, or `--compound`) | `grip_coefficient`, `wheel_radius_m` | `mu = DY0 x (Fz / FZ0)^(LS_EXPY - 1) x (1 - SPEED_SENSITIVITY x v)` at a reference: the loaded outside wheel at the car's typical corner load (static + downforce at 40 m/s), v = 40 m/s. The 911's DY0 1.668 at FZ0 3768 N gives 1.61 at 4500 N and 1.44 at 40 m/s; the shipped GT3 runs 1.43. Then the grip probe decides (below). Lost: DX0 (a separate longitudinal peak), camber gain, flex, AC's own heat model (the window is carried, see `[tires]` below), wear |
 | `PRESSURE_IDEAL` (psi), `WIDTH`, `RADIUS` per axle | (nothing today) | 26 psi is 179 kPa, ApexSim's default optimum is 180: no loss, but `TireConfig` pressures are not TOML keys. Worth exposing (`[tires] optimal_pressure_kpa`) since the garage's clicks are relative to it |
 | `electronics.ini ABS/TC PRESENT` | `abs_enabled`, `traction_control_enabled` | as is (a driver's aids override them anyway) |
 | `ers.ini`, `kers_torque.lut` | `[hybrid]` | motor torque = the LUT's peak, power from torque x rpm, capacity from `MAX_KJ_PER_LAP` (a deployment budget, the nearest thing to a battery), charge and discharge power from the same. 16 cars |
 | `colliders.ini`, the mesh bounds | `length_m`, `width_m`, `height_m` | the visual bounds (AC's colliders are thin slabs): 4.7 x 2.0 x 1.42 m on the 911. These set the OBB and the yaw inertia |
-| `car.ini FUEL, MAX_FUEL, CONSUMPTION` | `[fuel]` | `capacity_liters = MAX_FUEL`; the consumption scale from `CONSUMPTION` |
+| `car.ini FUEL, MAX_FUEL, CONSUMPTION` | `[fuel]` | `capacity_liters = MAX_FUEL`. `CONSUMPTION` is not carried: consumption follows the power the engine makes at `[fuel] thermal_efficiency` (default 0.30; see CLAUDE.md, Fuel) |
 | `ui_car.json` | `name`, `brand`, `class`, `manufacturer_country`, `model_year` (from the name when it has one), `version`, `model` | see "Class" below |
 
 **Balancing.** The tool writes the fitted `grip_coefficient` and the report
@@ -503,6 +503,14 @@ profile laps are unchanged. `MODDING.md` lists the ranges.
   - `front_grip_scale` / `rear_grip_scale` = each axle's `DY0` over the
     `grip_coefficient` written.
   - `longitudinal_grip_factor` = `DX0/DY0`, one value for the car.
+  - `optimal_temperature_c`, `temperature_window_c`,
+    `temperature_grip_falloff` from the front compound's `[THERMAL_FRONT]`
+    `PERFORMANCE_CURVE` (`physics.thermal_window`): the middle and half
+    the plateau within half a percent of the peak, and the average slope
+    over the 30 degrees past each edge (the cold one divided by the 0.6 the
+    server charges cold). AC's own thermal model (`FRICTION_K`,
+    `SURFACE_TRANSFER`...) is not carried: the server heats the tyre its
+    own way, so an imported car's tyres may run a little off AC's window.
 
   The sim's mu is `grip x scale x (Fz/FZ0)^(LS-1)`. The racing line and the
   AI plan at the load the car carries at 40 m/s. Keep fitting

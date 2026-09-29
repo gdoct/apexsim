@@ -1930,6 +1930,180 @@ lives in the net module beside the encoder and mirrors the server's
 constants; `ApexSim.Net.CarSetup.Clicks` pins the ranges and read-outs, the
 golden encode test the bytes. The garage's Reset returns every knob to stock.
 
+### Fuel (`FuelConfig`, `GameSession::start_fuel_liters`, the fuel knob)
+
+The first item of docs/SIMULATION_GAPS.md. `mass_kg` in car.toml is the car
+with its driver and a **dry** tank (as AC's `TOTALMASS` is); the fuel rides
+on top of it: `CarConfig::laden(fuel_liters)` gives the mass and front share
+the physics step uses for the static loads, the axle lever arms, weight
+transfer, gravity, the accelerations, yaw inertia, the steering aid's grip
+lock (`grip_limit_lock_rad` now takes the mass) and the car-car impulse
+(`physics::car_mass_kg`). `[fuel] tank_front_share` puts the tank somewhere
+other than the car's own weight split, so draining it moves the balance;
+no shipped car sets it. `density_kg_per_l` defaults to 0.745.
+
+**Consumption is the engine's power**: `FuelConfig::burn_lps` = combustion
+power (throttle x the curve's torque x the limiter cut, at the crank's
+speed) / (`thermal_efficiency` x 43 MJ/kg x density), plus idle. A lift
+burns idle only, so lifting and coasting saves fuel by itself. The shipped
+cars say 0.50 (F1), 0.40 (Hypercar), 0.33 (LMP2, GT3); the default is 0.30.
+A car.toml that still names `load_consumption_scale` and no efficiency
+keeps the old throttle-times-revs rule. **A dry tank makes no combustion
+torque** (engine braking and friction remain; a hybrid still drives).
+
+**What a car is filled with** is the server's (`start_fuel_liters`), from
+its own estimate of a lap: `racing_line::lap_fuel_liters` integrates the
+car's speed profile (planned half full with `build_laden`), wide open where
+the plan is power-limited (the curve averaged over the top quarter of the
+revs, whatever a hybrid adds) and the power the speed change asks for
+elsewhere, cached per car in `GameSession::lap_fuel`. A race gets its
+distance x (1 + `RACE_FUEL_MARGIN`, 8%) + `RACE_FUEL_RESERVE_LAPS` (1); a
+hotlap or qualifying run `HOTLAP_FUEL_LAPS` (3); practice a full tank;
+never under `MIN_FUEL_LAPS` (1) or over the tank. The margin is measured,
+not guessed: at Monza the AI burns 105% of the plan in the F1 and 79-85% in
+the other classes (`fuel_test.rs` pins it per class; an estimate short of a
+car at the limit runs a long race dry). Cars are filled where they are put
+out: `add_player` (for the mode the session is heading into),
+`line_up_on_grid` (race fuel), `hotlap_relocate` (the garage fills to the
+hotlap load, out or in), entering FreePractice or Qualification.
+
+**The fuel knob** is the setup's fifteenth, `fuel_load` (appended last on
+the wire, ±5): laps over or under the session's fill, not a figure of the
+car, so `CarSetup::apply` leaves it alone and `changes_car()` (not
+`is_stock()`) decides whether a tuned copy is needed. It fills the car at
+once only in a hotlap garage or before the start (lobby, countdown);
+anywhere else it waits for the next time the car is fuelled, never mid-lap.
+
+**The AI plans laden**: its speed profile is built at a race's starting
+load (`build_laden`), the heaviest the car will be, so it only gets quicker
+than the plan as the tank drains; its grip budget reads the laden mass. The
+player's racing line is still planned dry (`racing_line::build`). Neither is
+rebuilt as the fuel burns — a follow-up if the gap matters.
+
+**Wire**: `CompactCarState.fuel_dl` (u16, tenths of a litre) appended after
+`lap_flags`; `FApexCarTelemetry::FuelLiters` (-1 from an older server). The
+HUD's footer has a Fuel cell (`UApexHudWidget::RefreshFuel`): the litres,
+amber when the last lap's burn says the tank will not reach the flag, red
+under a lap or dry. The garage has a "Fuel load" row. Golden bytes:
+`cargo test telemetry_compact_wire_format -- --nocapture` ->
+`ApexUdpGolden::S_TelemetryCompactFuel`, `cargo test car_setup_wire_format
+-- --nocapture` -> `ApexGolden::C_SetCarSetup`. Tests: `tests/fuel_test.rs`
+(race fill, per-class burn against the plan, the plan's cost of a full
+tank, the hotlap garage and the knob, practice), the physics unit tests
+(`a_full_tank_weighs_on_the_car`, `a_dry_tank_stops_the_engine`,
+`the_engine_burns_by_the_power_it_makes`), `ApexSim.Net.Udp.LapFields`,
+`ApexSim.Net.CarSetup.Clicks`.
+
+### Tyre temperature (`server/src/tyre_thermal.rs`, `[tires]` window keys)
+
+The second item of docs/SIMULATION_GAPS.md. Each tyre is two thermal
+masses: a **tread** (2 kJ/K) heated by the contact patch's friction power
+(`|Fx|·slip speed along + |Fy|·slip speed across`, 85% of it) and cooled by
+the air (growing with speed^0.8) and the road (with √speed, four times as
+much on a wet track), and a **core** (7 kJ/K: carcass, gas, hub) heated by
+the carcass flexing (0.8 of `rolling_resistance · load · speed`, the first
+use of that field in physics) and the rest of the slide heat, cooled by the
+air inside the wheel, with conduction between the two. The tread answers a
+slide in a corner or two; the core takes a lap or so. `update_car_3d` reads
+the grip from the end of the last tick and steps the heat after the force
+solve; the old stateless "temperature" in `update_telemetry_3d` is gone.
+
+**Grip** reads 0.7 tread + 0.3 core (`TREAD_GRIP_SHARE`): full inside
+`optimal_temperature_c ± temperature_window_c`, less by
+`temperature_grip_falloff` per degree outside it (eased in over the first
+few degrees; the cold side charged 0.6 of it, because a cold tyre is also
+soft and the pressure charges for that; never more than 25% off).
+**Pressure is the gas law on the core**, and the garage's pressures are now
+the *hot* ones, at the optimum (`tyre_thermal::pressure_kpa`): a cold tyre
+is soft (180 kPa set is ~125 at 20 °C), a cooked one over-inflated, and
+`pressure_grip_factor` charges both. A tyre at its optimum at the set
+pressure grips to the bit what it did before temperatures, which is what
+`CarState::new` gives a car nobody fitted (`tyres_fitted`), so the physics
+unit tests are unchanged.
+
+**Air and track temperature** come from the session's weather and clock
+(`SessionConditions::air_temperature_c` / `track_temperature_c`: 13 °C
+before dawn to 23 °C at 15:00 on the sky model's day, the sun adding up to
+20 °C to the asphalt through the cloud), baked into the session's
+`TrackSurface` with `wet` by `apply_to_track`, like the weather's grip.
+Not on the wire yet and not host-pickable: that is the ambient-temperature
+item of the gaps list.
+
+**Where the tyres start** (`game_session::fit_tyres`): out of the garage /
+on joining (`add_player`) at the car's `blanket_temperature_c` or the air;
+on a race grid (`line_up_on_grid`) half way from there to the optimum
+(`FORMATION_LAP_WARMTH`: there is no formation lap to drive); a hotlap car
+going out (`hotlap_relocate`) at the optimum, so a hotlap measures the car,
+not its warm-up. Per class (car.toml `[tires]`): F1 95 ± 12 °C on 70 °C
+blankets, Hypercar 105 ± 13, LMP2 92 ± 10, GT3 87 ± 10, all without
+blankets but the F1. The windows were set where each car runs at the AI's
+race pace at Monza (`tyre_temperature_probe`, below); the imported AC cars
+take theirs from AC's `PERFORMANCE_CURVE` plateau (`thermal_window`).
+
+**The AI drives to the grip it has**: `CarState::tyre_grip_share` (the
+weaker axle's grip against the same tyres in their window at the set
+pressure) scales its profile's speeds by the root and its grip budget
+outright, so cold tyres on lap 1 do not put it into the first chicane at
+full-grip pace. At Monza every class is in its window by lap 2; lap 1 costs
+0.1 s (F1, blankets) to ~2 s; a steady lap is 0.1-0.5 s off the old
+full-grip AI (the hypercars ~1.2 s: they lean on their fronts, which settle
+at the top of the window with the pressure up, and their tread spikes to
+~150 °C somewhere each lap, a lead worth chasing). The player's racing
+line is still planned on warm tyres.
+
+**Wire**: `CompactCarState.tyre_c` and `tyre_kpa` (`[u8; 4]` each, FL FR RL
+RR, °C and kPa rounded into 1..=255, 0 = not known; `network::tyre_bytes`)
+appended after `fuel_dl`. On the client `FApexCarTelemetry::TyreTempC` /
+`TyrePressureKpa` (plain arrays, -1 unknown, `HasTyres()`), the catalog
+row's `TyreOptimalC` / `TyreWindowC` from car.toml, and a **Tyres** row
+under the HUD footer (`UApexHudWidget::RefreshTyres`): each tread blue
+under the window, green in it, amber over it, red 15 °C past it, the
+pressure beneath. Golden bytes: `cargo test telemetry_compact_wire_format
+-- --nocapture` -> `ApexUdpGolden::S_TelemetryCompactTyres`. Tests:
+`tyre_thermal::tests`, `tests/tyre_temperature_test.rs` (every class warms
+into its window and keeps its grip, rain runs cooler, blankets / grid /
+hotlap starts), `ApexSim.Net.Udp.GoldenDecode`,
+`ApexSim.Cars.TomlClientTables`; the harness
+`cargo test --release --test tyre_temperature_test tyre_temperature_probe
+-- --ignored --nocapture` (`TYRE_PROBE_CARS=a,b`, `TYRE_PROBE_LAPS=N`)
+prints each lap's temperatures, grip and time per class.
+
+### Slipstream and dirty air (`server/src/slipstream.rs`)
+
+The third item of docs/SIMULATION_GAPS.md. Once per tick before the
+physics (`GameSession::update_air`, beside the DRS rule; the demo lap too)
+`slipstream::update` takes a snapshot of every car not in a garage and
+sets each car's `CarState::wake` (`Wake { drag, downforce_front,
+downforce_rear }`, 1.0 in clean air) from the strongest wake it sits in;
+`calculate_aerodynamic_forces` multiplies them in. Behind a car, along its
+velocity: the **tow** saves `TOW_MAX` (35%) of the drag bumper to bumper,
+falling by e every `TOW_DECAY_M` (30 m); the **dirty air** takes
+`DIRTY_AIR_MAX` (25%) of the downforce, falling by e every 15 m, 1.3x of
+it off the front wing and 0.7x off the rear, so a close follower also
+understeers. Both are Gaussian across a wake half the leader's width
+wide at its tail, widening 4 cm per metre; nothing past 100 m, nothing
+from a leader under 10 m/s (full by 25), less for a car not pointing down
+the wake, and scaled by the root of the leader's drag area over the
+follower's (0.6-1.4). The snapshot makes the answer independent of visit
+order; it is O(n²) with a distance reject, trivial at 20 cars.
+
+On Monza's straight an F1 10 m behind another gains ~14 km/h in four
+seconds (291 -> 305 km/h: drag x0.71, front downforce x0.75;
+`tests/slipstream_test.rs`). The AI's profile speeds also scale by the
+root of `CarState::wake_load_share` (its weight and downforce now over
+what it would have in clean air), so it backs off through a fast corner in
+dirty air; its grip budget already read the real downforce. It does not
+yet *use* the tow to pass: the traffic layer still caps a follower's speed
+to a following distance. The racing line is planned in clean air.
+
+**Wire**: `CompactCarState.tow_pct` (u8, percent of drag saved) appended
+after `tyre_kpa`; `FApexCarTelemetry::TowShare` (0-1, -1 unknown) and a
+**TOW** badge beside the HUD's DRS light, lit with the percentage from 3%
+(`slipstream::TOW_SHOWN`). Golden bytes: `cargo test
+telemetry_compact_wire_format -- --nocapture` ->
+`ApexUdpGolden::S_TelemetryCompactTow` (the 26-field
+`S_TelemetryCompactTyres` stays as an older server's frame).
+
 ### Hotlap (`GameMode::Hotlap`, `HotlapRelocate`, `GhostLap`, `UApexHotlapWidget`, `AApexGhostCarActor`)
 
 Time attack, with the create screen's tile where "Demo lap" used to be (that

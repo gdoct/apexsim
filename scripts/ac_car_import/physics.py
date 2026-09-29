@@ -117,6 +117,40 @@ def _tyre(sections: dict, section: str) -> Tyre:
     )
 
 
+def thermal_window(curve: Lut) -> tuple[float, float, float] | None:
+    """ApexSim's working window from AC's ``PERFORMANCE_CURVE`` (grip against
+    temperature): ``(optimal_temperature_c, temperature_window_c,
+    temperature_grip_falloff)``. The window is the curve's plateau (within
+    half a percent of its peak), and the falloff the average slope over the
+    30 degrees past each edge; ApexSim charges the cold side 0.6 of it (the
+    pressure charges the rest), so the cold slope is divided by that.
+    ``None`` for a curve with no plateau to speak of."""
+    if curve.x.size < 2:
+        return None
+    peak = float(curve.y.max())
+    if peak <= 0.0:
+        return None
+    top = curve.x[curve.y >= peak - 0.005]
+    lo, hi = float(top.min()), float(top.max())
+    optimum = 0.5 * (lo + hi)
+    window = max(0.5 * (hi - lo), 2.0)
+    span = 30.0
+    cold = max(peak - curve(lo - span), 0.0) / peak / span / 0.6
+    hot = max(peak - curve(hi + span), 0.0) / peak / span
+    falloff = min(max(0.5 * (cold + hot), 0.0), 0.03)
+    return round(optimum, 1), round(min(window, 50.0), 1), round(falloff, 5)
+
+
+def read_thermal_window(car: CarData, compound: int) -> tuple[float, float, float] | None:
+    """The front tyre's working window for ``compound`` (``[THERMAL_FRONT]``
+    or ``[THERMAL_FRONT_n]``), or ``None`` when tyres.ini has no curve."""
+    t = car.ini("tyres.ini")
+    section = "THERMAL_FRONT" if compound == 0 else f"THERMAL_FRONT_{compound}"
+    name = str(t.get(section, {}).get("PERFORMANCE_CURVE", "")).strip()
+    curve = car.lut(name) if name else None
+    return thermal_window(curve) if curve is not None else None
+
+
 def tyre_compounds(car: CarData) -> list[tuple[int, str]]:
     """(index, name) of every compound in tyres.ini."""
     t = car.ini("tyres.ini")
@@ -579,6 +613,12 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     out.put(t, "longitudinal_grip_factor", round(min(max(long_factor, 0.6), 1.6), 4), "tyres.ini DX0 / DY0")
     out.put(t, "front_grip_scale", round(min(max(mu_f / grip, 0.5), 1.5), 4), "the front axle's share of the grip")
     out.put(t, "rear_grip_scale", round(min(max(mu_r / grip, 0.5), 1.5), 4), "the rear axle's share of the grip")
+    window = read_thermal_window(car, compound)
+    if window:
+        optimum, half_width, falloff = window
+        out.put(t, "optimal_temperature_c", min(max(optimum, 30.0), 150.0), "tyres.ini PERFORMANCE_CURVE: the plateau's middle")
+        out.put(t, "temperature_window_c", half_width, "tyres.ini PERFORMANCE_CURVE: half the plateau")
+        out.put(t, "temperature_grip_falloff", falloff, "tyres.ini PERFORMANCE_CURVE: the slope past the plateau")
 
     # ---- engine
     e = "engine"

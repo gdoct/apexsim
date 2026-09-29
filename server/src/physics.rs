@@ -248,6 +248,12 @@ pub fn update_car_3d(
     state.fuel_capacity_liters = config.fuel.capacity_liters;
     state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
 
+    // A car nobody sent out on a set of tyres starts on warm ones.
+    if !state.tyres_fitted {
+        let optimum = config.tire_config.optimal_temperature_c;
+        crate::tyre_thermal::fit(state, &config.tire_config, optimum);
+    }
+
     // 1. Get track context at current position (windowed search seeded by
     // the previous tick's cached index; cache updated for wheel queries)
     let track_ctx = get_track_context(state, track);
@@ -257,11 +263,14 @@ pub fn update_car_3d(
     state.surface_grip_modifier = track_ctx.grip_modifier;
     state.lateral_offset_m = track_ctx.lateral_offset;
 
-    // 2. Calculate static weight distribution
-    let total_weight = config.mass_kg * GRAVITY;
+    // 2. Calculate static weight distribution. The fuel in the tank rides
+    // on top of the car's dry mass, and where the tank sits moves the
+    // centre of gravity as it drains.
+    let (mass, front_share) = config.laden(state.fuel_liters);
+    let total_weight = mass * GRAVITY;
     let (static_front_weight, static_rear_weight) =
-        calculate_static_weight_distribution(config, total_weight);
-    let (front_axle_x, rear_axle_x) = axle_positions(config);
+        calculate_static_weight_distribution(front_share, total_weight);
+    let (front_axle_x, rear_axle_x) = axle_positions_at(config, front_share);
 
     // 3. Calculate aerodynamic forces
     let (drag_force, downforce_front, downforce_rear) = calculate_aerodynamic_forces(state, config);
@@ -274,7 +283,8 @@ pub fn update_car_3d(
     if let Some(turbo) = &config.engine.turbo {
         state.turbo_spool = turbo.spool_toward(state.turbo_spool, input.throttle, dt);
     }
-    let (engine_torque, engine_rpm) = calculate_engine_output(state, config, input, dt);
+    let (engine_torque, engine_rpm, combustion_torque) =
+        calculate_engine_output(state, config, input, dt);
     state.engine_rpm = engine_rpm;
 
     // 4b. Hybrid system: electric motor assist + brake regeneration
@@ -571,6 +581,7 @@ pub fn update_car_3d(
             (v_lat + state.angular_vel_yaw * front_axle_x).atan2(v_long.max(MIN_SPEED_THRESHOLD));
         assisted_steering(
             config,
+            mass,
             input.steering,
             state.speed_mps,
             downforce_front + downforce_rear,
@@ -591,25 +602,29 @@ pub fn update_car_3d(
     // 10. Calculate tire forces using Pacejka-inspired model
     // Each tyre has the grip of the surface under its own patch: two wheels
     // on the grass lose theirs while the other two keep the road's, and a
-    // wheel on the curb has the curb's. Tyre pressure per axle (the garage
-    // setup) is exactly 1.0 at the optimum, so a stock car is unchanged to
-    // the bit. The axle's compound and the tyre's load sensitivity at the
-    // load it carries (`CarConfig::axle_tyre_mu`) are exactly 1.0 too
-    // unless the car's `[tires]` table says otherwise.
-    let front_factor = config.tire_config.front_grip_factor();
-    let rear_factor = config.tire_config.rear_grip_factor();
+    // wheel on the curb has the curb's. Each tyre's temperature and the
+    // pressure it puts the tyre at (`tyre_thermal::grip_multiplier`, from
+    // the end of the last tick) are exactly the set pressure's factor in
+    // the window, so a tyre at its optimum grips as the setup says. The
+    // axle's compound and the tyre's load sensitivity at the load it
+    // carries (`CarConfig::axle_tyre_mu`) are exactly 1.0 unless the car's
+    // `[tires]` table says otherwise.
+    let tyre_config = &config.tire_config;
+    let thermal = |tyre: &crate::data::TireData, set_kpa: f32| {
+        crate::tyre_thermal::grip_multiplier(tyre_config, set_kpa, tyre)
+    };
     let grip_fl = config.axle_tyre_mu(true, state.weight_front_left_n)
         * wheel_front_left.grip_modifier
-        * front_factor;
+        * thermal(&state.tires.front_left, tyre_config.pressure_front_kpa);
     let grip_fr = config.axle_tyre_mu(true, state.weight_front_right_n)
         * wheel_front_right.grip_modifier
-        * front_factor;
+        * thermal(&state.tires.front_right, tyre_config.pressure_front_kpa);
     let grip_rl = config.axle_tyre_mu(false, state.weight_rear_left_n)
         * wheel_rear_left.grip_modifier
-        * rear_factor;
+        * thermal(&state.tires.rear_left, tyre_config.pressure_rear_kpa);
     let grip_rr = config.axle_tyre_mu(false, state.weight_rear_right_n)
         * wheel_rear_right.grip_modifier
-        * rear_factor;
+        * thermal(&state.tires.rear_right, tyre_config.pressure_rear_kpa);
 
     // The differential shares each driven axle's torque between its two
     // wheels by what each can carry. Without one (every car that does not
@@ -729,6 +744,24 @@ pub fn update_car_3d(
     let rr_forces = (rr.fx, rr.fy);
     state.wheel_angular_vel = [fl.omega, fr.omega, rl.omega, rr.omega];
 
+    // 10a. The heat this tick's work put into each tyre, and what the air
+    // and the road took out; the grip reads it next tick.
+    let tyre_work = |w: &WheelForces, load_n: f32| crate::tyre_thermal::TyreWork {
+        fx: w.fx,
+        fy: w.fy,
+        slip_ratio: w.slip_ratio,
+        slip_angle_rad: w.slip_angle,
+        load_n,
+        speed_mps: v_long,
+    };
+    let work = [
+        tyre_work(&fl, state.weight_front_left_n),
+        tyre_work(&fr, state.weight_front_right_n),
+        tyre_work(&rl, state.weight_rear_left_n),
+        tyre_work(&rr, state.weight_rear_right_n),
+    ];
+    crate::tyre_thermal::step_all(state, &work, tyre_config, &track.track_surface, dt);
+
     // 10b. What the driver feels, for the DriverFeedback message. Output
     // only: nothing below reads it back.
     let per_slip_ratio =
@@ -767,6 +800,7 @@ pub fn update_car_3d(
         let aided = |input: f32| {
             assisted_steering(
                 config,
+                mass,
                 input,
                 state.speed_mps,
                 downforce_front + downforce_rear,
@@ -835,7 +869,7 @@ pub fn update_car_3d(
         (0.0, 0.0)
     } else {
         let (gx, gy) = plane.gravity_pull();
-        (config.mass_kg * gx, config.mass_kg * gy)
+        (mass * gx, mass * gy)
     };
 
     // 12. Calculate yaw moment: front tires ahead of CoG, rear tires behind,
@@ -846,18 +880,17 @@ pub fn update_car_3d(
         + (rr_forces.0 - rl_forces.0) * (config.track_width_rear_m / 2.0);
 
     // 13. Calculate accelerations
-    let accel_x = (total_force_x + gravity_pull_x) / config.mass_kg;
-    let accel_y = (total_force_y + gravity_pull_y) / config.mass_kg;
+    let accel_x = (total_force_x + gravity_pull_x) / mass;
+    let accel_y = (total_force_y + gravity_pull_y) / mass;
 
     // Yaw moment of inertia (simplified as rectangular body)
-    let yaw_inertia = config.mass_kg * (config.length_m.powi(2) + config.width_m.powi(2)) / 12.0;
+    let yaw_inertia = mass * (config.length_m.powi(2) + config.width_m.powi(2)) / 12.0;
     let angular_accel_yaw = yaw_moment / yaw_inertia;
 
     // 14. Update G-forces
     state.g_forces.longitudinal_g = accel_x / GRAVITY;
     state.g_forces.lateral_g = accel_y / GRAVITY;
-    state.g_forces.vertical_g =
-        1.0 + (downforce_front + downforce_rear) / (config.mass_kg * GRAVITY);
+    state.g_forces.vertical_g = 1.0 + (downforce_front + downforce_rear) / (mass * GRAVITY);
 
     // 15. Integrate velocities
     // Transform acceleration from vehicle frame to world frame
@@ -1040,7 +1073,7 @@ pub fn update_car_3d(
     );
 
     // 21. Update fuel consumption
-    update_fuel_consumption(state, config, input, dt);
+    update_fuel_consumption(state, config, input, combustion_torque, dt);
 }
 
 /// Where the axles sit along the body relative to the centre of gravity
@@ -1053,15 +1086,26 @@ pub fn update_car_3d(
 /// arms in the right place the axles reach their limits together, and the
 /// balance is set by aero and suspension as it should be.
 fn axle_positions(config: &CarConfig) -> (f32, f32) {
-    let w_f = config.weight_distribution_front.clamp(0.05, 0.95);
+    axle_positions_at(config, config.weight_distribution_front)
+}
+
+/// [`axle_positions`] for a car whose weight split is `front_share`, as a
+/// fuel load puts it.
+fn axle_positions_at(config: &CarConfig, front_share: f32) -> (f32, f32) {
+    let w_f = front_share.clamp(0.05, 0.95);
     (config.wheelbase_m * (1.0 - w_f), -config.wheelbase_m * w_f)
 }
 
-/// Calculate static weight distribution based on CoG position
-fn calculate_static_weight_distribution(config: &CarConfig, total_weight: f32) -> (f32, f32) {
-    let front_weight = total_weight * config.weight_distribution_front;
-    let rear_weight = total_weight * (1.0 - config.weight_distribution_front);
+/// Static axle loads for a weight split of `front_share`.
+fn calculate_static_weight_distribution(front_share: f32, total_weight: f32) -> (f32, f32) {
+    let front_weight = total_weight * front_share;
+    let rear_weight = total_weight * (1.0 - front_share);
     (front_weight, rear_weight)
+}
+
+/// What the car weighs as it stands, fuel included, kg.
+pub fn car_mass_kg(config: &CarConfig, state: &CarState) -> f32 {
+    config.laden(state.fuel_liters).0
 }
 
 /// Calculate aerodynamic forces (drag and downforce)
@@ -1074,15 +1118,28 @@ fn calculate_aerodynamic_forces(state: &CarState, config: &CarConfig) -> (f32, f
         (true, Some(drs)) => (1.0 - drs.drag_reduction, 1.0 - drs.rear_downforce_reduction),
         _ => (1.0, 1.0),
     };
+    // The wake of the cars ahead (`crate::slipstream`): less drag in the
+    // tow, less downforce in the dirty air, the front wing worst. Exactly
+    // 1.0 in clean air.
+    let wake = state.wake;
 
     // Drag force
-    let drag = dynamic_pressure * config.drag_coefficient * config.frontal_area_m2 * drag_scale;
+    let drag = dynamic_pressure
+        * config.drag_coefficient
+        * config.frontal_area_m2
+        * drag_scale
+        * wake.drag;
 
     // Downforce (lift coefficients are negative for downforce)
-    let downforce_front =
-        -dynamic_pressure * config.lift_coefficient_front * config.frontal_area_m2;
-    let downforce_rear =
-        -dynamic_pressure * config.lift_coefficient_rear * config.frontal_area_m2 * rear_scale;
+    let downforce_front = -dynamic_pressure
+        * config.lift_coefficient_front
+        * config.frontal_area_m2
+        * wake.downforce_front;
+    let downforce_rear = -dynamic_pressure
+        * config.lift_coefficient_rear
+        * config.frontal_area_m2
+        * rear_scale
+        * wake.downforce_rear;
 
     (drag, downforce_front.max(0.0), downforce_rear.max(0.0))
 }
@@ -1147,12 +1204,15 @@ pub fn update_car_on_grid(
 }
 
 /// Calculate engine output torque and RPM
+/// The engine this tick: the net torque at the crank (negative when it
+/// brakes the car), its revs, and the part of the torque the fuel made,
+/// which is what burns it. A dry tank makes none.
 fn calculate_engine_output(
     state: &CarState,
     config: &CarConfig,
     input: &PlayerInputData,
     dt: f32,
-) -> (f32, f32) {
+) -> (f32, f32, f32) {
     // Calculate wheel speed based on current velocity
     let wheel_rpm = if state.speed_mps > MIN_SPEED_THRESHOLD {
         (state.speed_mps / (2.0 * PI * config.wheel_radius_m)) * 60.0
@@ -1219,19 +1279,26 @@ fn calculate_engine_output(
         None => torque_at_rpm,
     };
 
+    // What the combustion makes: nothing once the tank is dry.
+    let combustion_torque = if state.fuel_liters > 0.0 {
+        input.throttle * torque_at_rpm * limiter_cut
+    } else {
+        0.0
+    };
+
     // Net torque produced by engine (positive = drive, negative = braking)
-    let mut engine_torque = (input.throttle * torque_at_rpm * limiter_cut) - engine_brake;
+    let mut engine_torque = combustion_torque - engine_brake;
 
     // Always apply a small friction torque opposing rotation
     engine_torque -= config.engine.friction_torque_nm * rpm_frac;
 
-    (engine_torque, engine_rpm)
+    (engine_torque, engine_rpm, combustion_torque)
 }
 
 /// Torque the engine makes at `rpm` with the throttle wide open, before the
 /// limiter cut: the car's torque curve, or the legacy parabola (peak at ~60%
 /// of the redline) for a car that has none.
-fn engine_curve_torque_nm(config: &CarConfig, rpm: f32) -> f32 {
+pub(crate) fn engine_curve_torque_nm(config: &CarConfig, rpm: f32) -> f32 {
     if !config.engine.torque_curve.is_empty() {
         interpolate_torque_curve(&config.engine.torque_curve, rpm)
     } else {
@@ -1435,11 +1502,12 @@ fn calculate_weight_transfer(
     config: &CarConfig,
     longitudinal_accel: f32,
     lateral_accel: f32,
-    _total_weight: f32,
+    total_weight: f32,
 ) -> (f32, f32, f32) {
+    let mass = total_weight / GRAVITY;
     // Longitudinal weight transfer
     let weight_transfer_long =
-        (config.mass_kg * longitudinal_accel * config.cog_height_m) / config.wheelbase_m;
+        (mass * longitudinal_accel * config.cog_height_m) / config.wheelbase_m;
 
     // Lateral weight transfer, split front/rear by roll stiffness. Each
     // axle's roll stiffness comes from its springs acting across the track
@@ -1457,12 +1525,11 @@ fn calculate_weight_transfer(
     let front_roll_ratio = front_roll_stiffness / total_roll_stiffness.max(1.0);
     let rear_roll_ratio = rear_roll_stiffness / total_roll_stiffness.max(1.0);
 
-    let lateral_transfer_front = (config.mass_kg * lateral_accel * config.cog_height_m)
+    let lateral_transfer_front = (mass * lateral_accel * config.cog_height_m)
         / config.track_width_front_m
         * front_roll_ratio;
-    let lateral_transfer_rear = (config.mass_kg * lateral_accel * config.cog_height_m)
-        / config.track_width_rear_m
-        * rear_roll_ratio;
+    let lateral_transfer_rear =
+        (mass * lateral_accel * config.cog_height_m) / config.track_width_rear_m * rear_roll_ratio;
 
     (
         weight_transfer_long,
@@ -1474,10 +1541,16 @@ fn calculate_weight_transfer(
 /// Wheel angle of the tightest turn the car can hold at `speed_mps`: the
 /// radius at which cornering takes all its grip (downforce included), as a
 /// steering angle `L·a/v²`.
-pub fn grip_limit_lock_rad(config: &CarConfig, speed_mps: f32, downforce_n: f32) -> f32 {
-    let load_ratio = 1.0 + downforce_n.max(0.0) / (config.mass_kg.max(1.0) * GRAVITY);
-    let grip_accel =
-        config.envelope_mu(load_ratio) * (GRAVITY + downforce_n.max(0.0) / config.mass_kg.max(1.0));
+/// `mass_kg` is the car as it stands, fuel included (`car_mass_kg`).
+pub fn grip_limit_lock_rad(
+    config: &CarConfig,
+    mass_kg: f32,
+    speed_mps: f32,
+    downforce_n: f32,
+) -> f32 {
+    let mass = mass_kg.max(1.0);
+    let load_ratio = 1.0 + downforce_n.max(0.0) / (mass * GRAVITY);
+    let grip_accel = config.envelope_mu(load_ratio) * (GRAVITY + downforce_n.max(0.0) / mass);
     config.wheelbase_m * grip_accel / (speed_mps * speed_mps).max(1e-3)
 }
 
@@ -1504,6 +1577,7 @@ const STEERING_AID_SLIP_ALLOWANCE: f32 = 0.5;
 /// aid never countersteers by itself.
 pub fn assisted_steering(
     config: &CarConfig,
+    mass_kg: f32,
     input: f32,
     speed_mps: f32,
     downforce_n: f32,
@@ -1512,9 +1586,10 @@ pub fn assisted_steering(
     let full_lock = config.max_steering_angle_rad.max(1e-3);
     let toward_travel = (input.signum() * front_axle_travel_rad).max(0.0);
     let slip_allowance = STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad;
-    let lock =
-        (grip_limit_lock_rad(config, speed_mps, downforce_n) + slip_allowance + toward_travel)
-            .min(full_lock);
+    let lock = (grip_limit_lock_rad(config, mass_kg, speed_mps, downforce_n)
+        + slip_allowance
+        + toward_travel)
+        .min(full_lock);
     (input.clamp(-1.0, 1.0) * lock / full_lock).clamp(-1.0, 1.0)
 }
 
@@ -2653,54 +2728,19 @@ fn update_telemetry_3d(
     rr_slip: (f32, f32),
     dt: f32,
 ) {
-    // Calculate tire temperatures based on slip and load
-    let calculate_tire_temp = |slip_ratio: f32, slip_angle: f32, load: f32| -> f32 {
-        let base_temp = 80.0;
-        let slip_heat = (slip_ratio.abs() + slip_angle.abs()) * 100.0;
-        let load_heat = load / 10000.0 * 10.0;
-        let speed_cooling = state.speed_mps * 0.1;
-        base_temp + slip_heat + load_heat - speed_cooling
-    };
-
-    // Front left tire
-    state.tires.front_left.temperature_c =
-        calculate_tire_temp(fl_slip.0, fl_slip.1, state.weight_front_left_n);
-    state.tires.front_left.pressure_kpa = 200.0 + state.tires.front_left.temperature_c * 0.5;
-    state.tires.front_left.slip_ratio = fl_slip.0;
-    state.tires.front_left.slip_angle_rad = fl_slip.1;
-    state.tires.front_left.wear_percent = (state.tires.front_left.wear_percent
-        + fl_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt)
-        .min(100.0);
-
-    // Front right tire
-    state.tires.front_right.temperature_c =
-        calculate_tire_temp(fr_slip.0, fr_slip.1, state.weight_front_right_n);
-    state.tires.front_right.pressure_kpa = 200.0 + state.tires.front_right.temperature_c * 0.5;
-    state.tires.front_right.slip_ratio = fr_slip.0;
-    state.tires.front_right.slip_angle_rad = fr_slip.1;
-    state.tires.front_right.wear_percent = (state.tires.front_right.wear_percent
-        + fr_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt)
-        .min(100.0);
-
-    // Rear left tire
-    state.tires.rear_left.temperature_c =
-        calculate_tire_temp(rl_slip.0, rl_slip.1, state.weight_rear_left_n);
-    state.tires.rear_left.pressure_kpa = 200.0 + state.tires.rear_left.temperature_c * 0.5;
-    state.tires.rear_left.slip_ratio = rl_slip.0;
-    state.tires.rear_left.slip_angle_rad = rl_slip.1;
-    state.tires.rear_left.wear_percent = (state.tires.rear_left.wear_percent
-        + rl_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt)
-        .min(100.0);
-
-    // Rear right tire
-    state.tires.rear_right.temperature_c =
-        calculate_tire_temp(rr_slip.0, rr_slip.1, state.weight_rear_right_n);
-    state.tires.rear_right.pressure_kpa = 200.0 + state.tires.rear_right.temperature_c * 0.5;
-    state.tires.rear_right.slip_ratio = rr_slip.0;
-    state.tires.rear_right.slip_angle_rad = rr_slip.1;
-    state.tires.rear_right.wear_percent = (state.tires.rear_right.wear_percent
-        + rr_slip.0.abs() * 0.0001 * config.tire_config.wear_rate * dt)
-        .min(100.0);
+    // Slip and wear per tyre; the temperatures and pressures are the
+    // thermal model's (`tyre_thermal`), stepped with the forces.
+    let wear = |slip_ratio: f32| slip_ratio.abs() * 0.0001 * config.tire_config.wear_rate * dt;
+    for (tyre, (slip_ratio, slip_angle)) in state
+        .tires
+        .each_mut()
+        .into_iter()
+        .zip([fl_slip, fr_slip, rl_slip, rr_slip])
+    {
+        tyre.slip_ratio = slip_ratio;
+        tyre.slip_angle_rad = slip_angle;
+        tyre.wear_percent = (tyre.wear_percent + wear(slip_ratio)).min(100.0);
+    }
 
     // Engine temperature (increases with load, decreases with airflow)
     let engine_load = input.throttle * (state.engine_rpm / config.redline_rpm);
@@ -2719,19 +2759,29 @@ fn update_telemetry_3d(
     state.water_temp_c = state.water_temp_c + (state.engine_temp_c - state.water_temp_c) * 0.02;
 }
 
-/// Update fuel consumption
+/// Burn this tick's fuel: idle, plus what the combustion torque made at
+/// these revs over the engine's efficiency (`FuelConfig::burn_lps`), so a
+/// lift burns only idle and lifting early into a braking zone saves fuel.
+/// A car.toml that still names `load_consumption_scale` (and no
+/// `thermal_efficiency`) keeps the old throttle-times-revs rule. A dry
+/// tank burns nothing.
 fn update_fuel_consumption(
     state: &mut CarState,
     config: &CarConfig,
     input: &PlayerInputData,
+    combustion_torque: f32,
     dt: f32,
 ) {
-    // Base consumption + load-based consumption
-    let rpm_factor = state.engine_rpm / config.max_engine_rpm;
-    let throttle_factor = input.throttle;
-
-    state.fuel_consumption_lps = config.fuel.idle_consumption_lps
-        + (throttle_factor * rpm_factor * config.fuel.load_consumption_scale);
+    if state.fuel_liters <= 0.0 {
+        state.fuel_consumption_lps = 0.0;
+        return;
+    }
+    let fuel = &config.fuel;
+    let load = match fuel.load_consumption_scale {
+        Some(scale) => input.throttle * (state.engine_rpm / config.max_engine_rpm) * scale,
+        None => fuel.burn_lps(combustion_torque * state.engine_rpm * (2.0 * PI / 60.0)),
+    };
+    state.fuel_consumption_lps = fuel.idle_consumption_lps + load;
     state.fuel_liters = (state.fuel_liters - state.fuel_consumption_lps * dt).max(0.0);
 }
 
@@ -2782,8 +2832,8 @@ pub fn check_collisions_refs(
 
                     // Separate exactly by penetration depth, split inversely
                     // proportional to mass (light car moves further).
-                    let inv_mass_i = 1.0 / cfg_i.mass_kg.max(1.0);
-                    let inv_mass_j = 1.0 / cfg_j.mass_kg.max(1.0);
+                    let inv_mass_i = 1.0 / car_mass_kg(cfg_i, states[i]).max(1.0);
+                    let inv_mass_j = 1.0 / car_mass_kg(cfg_j, states[j]).max(1.0);
                     let total_inv_mass = inv_mass_i + inv_mass_j;
                     let sep_i = overlap.penetration * inv_mass_i / total_inv_mass;
                     let sep_j = overlap.penetration * inv_mass_j / total_inv_mass;
@@ -2806,10 +2856,10 @@ pub fn check_collisions_refs(
                         // Collision impulse (elastic coefficient)
                         let restitution = 0.3;
                         let impulse = -(1.0 + restitution) * rel_vel_normal;
-                        let impulse = impulse / (1.0 / cfg_i.mass_kg + 1.0 / cfg_j.mass_kg);
+                        let impulse = impulse / total_inv_mass;
 
-                        let dv_i = (-impulse * nx / cfg_i.mass_kg, -impulse * ny / cfg_i.mass_kg);
-                        let dv_j = (impulse * nx / cfg_j.mass_kg, impulse * ny / cfg_j.mass_kg);
+                        let dv_i = (-impulse * nx * inv_mass_i, -impulse * ny * inv_mass_i);
+                        let dv_j = (impulse * nx * inv_mass_j, impulse * ny * inv_mass_j);
                         states[i].vel_x += dv_i.0;
                         states[i].vel_y += dv_i.1;
                         states[j].vel_x += dv_j.0;
@@ -5033,12 +5083,16 @@ mod tests {
     #[test]
     fn steering_assist_gives_full_lock_slowly_and_less_at_speed() {
         let config = create_test_config();
-        let full =
-            |speed: f32, downforce: f32| assisted_steering(&config, 1.0, speed, downforce, 0.0);
+        let full = |speed: f32, downforce: f32| {
+            assisted_steering(&config, config.mass_kg, 1.0, speed, downforce, 0.0)
+        };
         assert_eq!(full(0.0, 0.0), 1.0);
         assert_eq!(full(5.0, 0.0), 1.0);
         // Where full lock is allowed, the input maps straight through.
-        assert_eq!(assisted_steering(&config, 0.5, 5.0, 0.0, 0.0), 0.5);
+        assert_eq!(
+            assisted_steering(&config, config.mass_kg, 0.5, 5.0, 0.0, 0.0),
+            0.5
+        );
         let mut previous = 1.0;
         for speed in [20.0, 40.0, 60.0, 80.0] {
             let share = full(speed, 0.0);
@@ -5048,7 +5102,10 @@ mod tests {
         // Downforce is grip, and grip is lock worth having.
         assert!(full(80.0, 20000.0) > previous);
         // Centred is centred, whatever the car is doing.
-        assert_eq!(assisted_steering(&config, 0.0, 60.0, 0.0, -0.2), 0.0);
+        assert_eq!(
+            assisted_steering(&config, config.mass_kg, 0.0, 60.0, 0.0, -0.2),
+            0.0
+        );
     }
 
     /// Full input held for `seconds` at `speed`, then the car's sideslip at
@@ -5137,8 +5194,12 @@ mod tests {
             update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
             state.steering_input * config.max_steering_angle_rad
         };
-        let grip_lock = grip_limit_lock_rad(&config, 50.0, 0.0)
-            + STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad;
+        let grip_lock = grip_limit_lock_rad(
+            &config,
+            car_mass_kg(&config, &create_test_car_state()),
+            50.0,
+            0.0,
+        ) + STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad;
         let countersteer = slide(-1.0);
         assert!(
             countersteer < -0.15 && countersteer > -(0.15 + grip_lock + 0.01),
@@ -6373,6 +6434,126 @@ mod tests {
             state.fuel_consumption_lps > 0.0,
             "Fuel consumption rate should be positive"
         );
+    }
+
+    /// A second flat out in fourth from 20 m/s, well short of the limiter:
+    /// where the car got to.
+    fn pull_away_with(fuel_liters: f32) -> CarState {
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let mut state = create_test_car_state();
+        state.fuel_liters = fuel_liters;
+        state.vel_x = 20.0;
+        state.speed_mps = 20.0;
+        state.gear = 4;
+        let input = PlayerInputData {
+            throttle: 1.0,
+            ..Default::default()
+        };
+        for _ in 0..240 {
+            update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        }
+        state
+    }
+
+    #[test]
+    fn a_full_tank_weighs_on_the_car() {
+        let config = create_test_config();
+        let full = pull_away_with(config.fuel.capacity_liters);
+        let light = pull_away_with(2.0);
+        assert!(
+            light.speed_mps > full.speed_mps + 0.2,
+            "2 L of fuel pulls away harder than a full tank: {:.2} vs {:.2} m/s",
+            light.speed_mps,
+            full.speed_mps
+        );
+        // The static loads carry the fuel's weight.
+        let (mass, share) = config.laden(config.fuel.capacity_liters);
+        assert!((mass - config.mass_kg - 74.5).abs() < 0.01, "{mass}");
+        assert!((share - config.weight_distribution_front).abs() < 1e-5);
+        let loads = full.weight_front_left_n
+            + full.weight_front_right_n
+            + full.weight_rear_left_n
+            + full.weight_rear_right_n;
+        assert!(loads > config.mass_kg * GRAVITY, "{loads} N on the wheels");
+    }
+
+    #[test]
+    fn a_dry_tank_stops_the_engine() {
+        let dry = pull_away_with(0.0);
+        assert!(
+            dry.speed_mps < 20.0,
+            "no fuel, no drive: {:.2} m/s after a second flat out",
+            dry.speed_mps
+        );
+        assert_eq!(dry.fuel_liters, 0.0);
+        assert_eq!(dry.fuel_consumption_lps, 0.0);
+    }
+
+    #[test]
+    fn the_engine_burns_by_the_power_it_makes() {
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let run = |throttle: f32| {
+            let mut state = create_test_car_state();
+            state.vel_x = 40.0;
+            state.speed_mps = 40.0;
+            state.gear = 4;
+            let input = PlayerInputData {
+                throttle,
+                ..Default::default()
+            };
+            for _ in 0..24 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            }
+            state
+        };
+        let lift = run(0.0);
+        assert!(
+            (lift.fuel_consumption_lps - config.fuel.idle_consumption_lps).abs() < 1e-9,
+            "a lift burns idle only: {}",
+            lift.fuel_consumption_lps
+        );
+        let flat = run(1.0);
+        let power =
+            engine_curve_torque_nm(&config, flat.engine_rpm) * flat.engine_rpm * (2.0 * PI / 60.0);
+        let expected = config.fuel.idle_consumption_lps + config.fuel.burn_lps(power);
+        assert!(
+            (flat.fuel_consumption_lps - expected).abs() < expected * 0.02,
+            "flat out burns {:.4} L/s, the curve's power says {expected:.4}",
+            flat.fuel_consumption_lps
+        );
+        // A 300 kW engine at 30% burns about 0.03 L/s: a racing car's rate.
+        assert!((0.005..0.08).contains(&flat.fuel_consumption_lps));
+    }
+
+    #[test]
+    fn the_old_consumption_rule_stays_for_a_file_that_names_it() {
+        let mut config = create_test_config();
+        config.fuel.load_consumption_scale = Some(0.003);
+        let track = create_straight_test_track();
+        let mut state = create_test_car_state();
+        state.vel_x = 40.0;
+        state.speed_mps = 40.0;
+        state.gear = 4;
+        let input = PlayerInputData {
+            throttle: 1.0,
+            ..Default::default()
+        };
+        update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+        let expected =
+            config.fuel.idle_consumption_lps + state.engine_rpm / config.max_engine_rpm * 0.003;
+        assert!((state.fuel_consumption_lps - expected).abs() < 1e-7);
+    }
+
+    #[test]
+    fn a_tank_behind_the_axle_moves_the_balance_as_it_drains() {
+        let mut config = create_test_config();
+        config.fuel.tank_front_share = Some(0.2);
+        let (_, full) = config.laden(config.fuel.capacity_liters);
+        let (_, empty) = config.laden(0.0);
+        assert!(full < empty, "a rear tank puts weight on the rear");
+        assert_eq!(empty, config.weight_distribution_front);
     }
 
     #[test]

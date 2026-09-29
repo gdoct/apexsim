@@ -6,6 +6,7 @@ use crate::network::*;
 use crate::physics;
 use crate::racing_line::{self, RacingLineProfile};
 use crate::records::{GhostLap, GhostSample, GHOST_SAMPLE_HZ};
+use crate::tyre_thermal;
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -23,6 +24,20 @@ pub const FINISH_GRACE_MIN_SECONDS: u32 = 60;
 /// Skill of the server driver that takes a human's car round on the
 /// cool-down lap after they finish: unhurried, off the racing pace.
 const COOLDOWN_SKILL: u8 = 75;
+
+/// Laps of fuel a hotlap or qualifying run goes out with, before the
+/// driver's fuel knob: light enough to be quick, enough for a warm-up lap,
+/// a flying lap and the way in.
+pub const HOTLAP_FUEL_LAPS: f32 = 3.0;
+/// Share of a race's distance fuelled on top of it: what the estimate may
+/// fall short of a car driven at the limit (`racing_line::lap_fuel_liters`
+/// plans a little inside it).
+pub const RACE_FUEL_MARGIN: f32 = 0.08;
+/// Laps of fuel a race starts with beyond its distance and margin, before
+/// the knob: the cool-down lap.
+pub const RACE_FUEL_RESERVE_LAPS: f32 = 1.0;
+/// Least fuel a car is ever sent out with, in laps, whatever the knob says.
+pub const MIN_FUEL_LAPS: f32 = 1.0;
 
 /// How far before the line a hotlap car is put out, so the first flying lap
 /// starts at speed. Shortened on a track too small for it.
@@ -62,6 +77,9 @@ pub struct GameSession {
     tuned_configs: HashMap<PlayerId, CarConfig>,
     /// What each driver asked for, clamped.
     car_setups: HashMap<PlayerId, CarSetup>,
+    /// Litres a lap of this track costs each car (`racing_line::lap_fuel_liters`),
+    /// worked out the first time the car is fuelled. Looked up by key only.
+    lap_fuel: HashMap<CarConfigId, f32>,
     /// The livery each human driver picked (`SelectCar`); AI drivers are
     /// dealt one in `build_roster`. Looked up by key only.
     liveries: HashMap<PlayerId, u8>,
@@ -197,6 +215,40 @@ fn simulated_config<'a>(
         .or_else(|| car_configs.get(&state.car_config_id))
 }
 
+/// What a set of tyres is at when a car is sent out on it.
+#[derive(Clone, Copy)]
+enum TyreStart {
+    /// Out of the garage: its blankets, or the air.
+    Garage,
+    /// On a race grid: part of the way from there to the optimum, the
+    /// formation lap there is none of.
+    Grid,
+    /// At the optimum: a hotlap measures the car, not its warm-up.
+    Warm,
+}
+
+/// Fit a car's tyres for a run (`tyre_thermal::fit`), with the car's
+/// setup's pressures.
+fn fit_tyres(
+    state: &mut CarState,
+    car_configs: &HashMap<CarConfigId, CarConfig>,
+    tuned_configs: &HashMap<PlayerId, CarConfig>,
+    track: &TrackConfig,
+    start: TyreStart,
+) {
+    let Some(config) = simulated_config(car_configs, tuned_configs, state) else {
+        return;
+    };
+    let tyre = &config.tire_config;
+    let surface = &track.track_surface;
+    let temperature = match start {
+        TyreStart::Garage => tyre_thermal::start_temperature_c(tyre, surface),
+        TyreStart::Grid => tyre_thermal::grid_temperature_c(tyre, surface),
+        TyreStart::Warm => tyre.optimal_temperature_c,
+    };
+    tyre_thermal::fit(state, tyre, temperature);
+}
+
 impl GameSession {
     pub fn new(
         session: RaceSession,
@@ -216,6 +268,7 @@ impl GameSession {
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
             car_setups: HashMap::new(),
+            lap_fuel: HashMap::new(),
             lap_events: Vec::new(),
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
@@ -252,6 +305,7 @@ impl GameSession {
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
             car_setups: HashMap::new(),
+            lap_fuel: HashMap::new(),
             lap_events: Vec::new(),
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
@@ -379,7 +433,9 @@ impl GameSession {
                 inputs.insert(*ai_id, ai_input);
             }
 
-            // Update physics for all cars (player + AI)
+            // Update physics for all cars (player + AI), each in the wake
+            // of the cars ahead of it.
+            crate::slipstream::update(&mut self.session.participants, &self.car_configs);
             let ai_ids: std::collections::HashSet<PlayerId> =
                 self.session.ai_player_ids.iter().copied().collect();
             let current_tick = self.session.current_tick;
@@ -539,7 +595,7 @@ impl GameSession {
 
     /// Free practice mode: Players drive freely with lap timing
     fn tick_free_practice(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
-        self.update_drs();
+        self.update_air();
         let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // Update each car
@@ -598,7 +654,7 @@ impl GameSession {
     /// in the garage stand still — not simulated, not collided with, so a
     /// driver tuning in the garage is out of everyone's way.
     fn tick_hotlap(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
-        self.update_drs();
+        self.update_air();
         let dt = self.dt();
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
@@ -661,7 +717,7 @@ impl GameSession {
     /// as cars complete the race distance, session finished when all cars
     /// are classified.
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
-        self.update_drs();
+        self.update_air();
         let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // A human who has finished is looking at the results and stops
@@ -835,6 +891,7 @@ impl GameSession {
             GameMode::FreePractice => {
                 // Change session state to Racing so telemetry is sent
                 self.session.state = SessionState::Racing;
+                self.refuel_all(GameMode::FreePractice);
             }
             GameMode::Sandbox => {
                 // Change session state to Racing so telemetry is sent
@@ -869,6 +926,7 @@ impl GameSession {
                 // Practice-with-timing: telemetry must flow
                 self.session.state = SessionState::Racing;
                 self.session.demo_lap_progress = None;
+                self.refuel_all(GameMode::Qualification);
             }
             GameMode::Hotlap => {
                 // Every driver starts in the garage, with the setup screen;
@@ -926,6 +984,10 @@ impl GameSession {
                 .ok_or("Track has no centerline")?,
         };
         let in_garage = destination == HotlapDestination::Garage;
+        // The garage fills the car to the driver's fuel knob, for the next
+        // run or for this one.
+        let car_id = state.car_config_id;
+        let fuel = self.start_fuel_liters(player_id, car_id, GameMode::Hotlap);
         let state = self
             .session
             .participants
@@ -953,6 +1015,14 @@ impl GameSession {
         fresh.laps.best_lap_splits_ms = state.laps.best_lap_splits_ms;
         fresh.laps.best_splits_ms = state.laps.best_splits_ms;
         fresh.in_garage = in_garage;
+        fresh.fuel_liters = fuel;
+        fit_tyres(
+            &mut fresh,
+            &self.car_configs,
+            &self.tuned_configs,
+            &self.track_config,
+            TyreStart::Warm,
+        );
         // Parked cars wait in neutral; a car put on the run-up is in first.
         fresh.gear = if in_garage { 0 } else { 1 };
         physics::seed_track_progress(&mut fresh, &self.track_config);
@@ -1042,6 +1112,8 @@ impl GameSession {
             }
         }
 
+        let fuel = self.start_fuel_liters(&player_id, car_config_id, self.planned_mode());
+
         // Get grid slot
         if let Some(grid_slot) = self
             .track_config
@@ -1050,6 +1122,14 @@ impl GameSession {
             .find(|s| s.position == grid_position)
         {
             let mut car_state = CarState::new(player_id, car_config_id, grid_slot);
+            car_state.fuel_liters = fuel;
+            fit_tyres(
+                &mut car_state,
+                &self.car_configs,
+                &self.tuned_configs,
+                &self.track_config,
+                TyreStart::Garage,
+            );
             // A client that never sends SetDriverAids would otherwise run the
             // car's own ABS and traction control in a session that forbids them.
             car_state.set_driver_aids(self.session.allowed_assists.clamp(car_state.driver_aids()));
@@ -1078,19 +1158,119 @@ impl GameSession {
     /// Apply a driver's garage setup: every knob clamped into range, the
     /// result baked into the car they are simulated with from now on. A
     /// stock setup drops the tuned copy. `None` when the player has no car
-    /// here. The setup takes effect at once, on the grid or mid-lap.
+    /// here. The setup takes effect at once, on the grid or mid-lap — but
+    /// the fuel knob only where a car is fuelled: in a hotlap garage, or
+    /// before the start (in the lobby or the countdown). Anywhere else it
+    /// waits for the next time the car is put out.
     pub fn set_car_setup(&mut self, player_id: &PlayerId, asked: CarSetup) -> Option<CarSetup> {
         let applied = asked.clamp();
         let car = self.session.participants.get(player_id)?;
-        let base = self.car_configs.get(&car.car_config_id)?;
-        if applied.is_stock() {
+        let car_id = car.car_config_id;
+        let refuel = car.in_garage
+            || matches!(
+                self.session.game_mode,
+                GameMode::Lobby | GameMode::Countdown
+            );
+        let base = self.car_configs.get(&car_id)?;
+        if applied.changes_car() {
+            self.tuned_configs.insert(*player_id, applied.apply(base));
+        } else {
             self.tuned_configs.remove(player_id);
+        }
+        if applied.is_stock() {
             self.car_setups.remove(player_id);
         } else {
-            self.tuned_configs.insert(*player_id, applied.apply(base));
             self.car_setups.insert(*player_id, applied);
         }
+        if refuel {
+            let mode = if car.in_garage {
+                GameMode::Hotlap
+            } else {
+                self.planned_mode()
+            };
+            let fuel = self.start_fuel_liters(player_id, car_id, mode);
+            if let Some(car) = self.session.participants.get_mut(player_id) {
+                car.fuel_liters = fuel;
+            }
+        }
         Some(applied)
+    }
+
+    /// Litres a lap of this track costs `car_id`, planned half full; `None`
+    /// for an unknown car or a track with no line to plan on. Worked out
+    /// once per car and kept.
+    pub fn lap_fuel_liters(&mut self, car_id: CarConfigId) -> Option<f32> {
+        if let Some(&liters) = self.lap_fuel.get(&car_id) {
+            return Some(liters);
+        }
+        let car = self.car_configs.get(&car_id)?;
+        let half = car.fuel.capacity_liters * 0.5;
+        let profile = racing_line::build_laden(&self.track_config, car, half)?;
+        let liters = racing_line::lap_fuel_liters(&profile, car, half);
+        if !(liters.is_finite() && liters > 0.0) {
+            return None;
+        }
+        self.lap_fuel.insert(car_id, liters);
+        Some(liters)
+    }
+
+    /// What a driver's car is fuelled with for a run in `mode`: the race
+    /// distance, [`RACE_FUEL_MARGIN`] and [`RACE_FUEL_RESERVE_LAPS`] for a race,
+    /// [`HOTLAP_FUEL_LAPS`] for a hotlap or qualifying, a full tank for
+    /// anything else; plus or minus the driver's fuel knob in laps, never
+    /// under [`MIN_FUEL_LAPS`] and never over the tank. A car with no lap
+    /// estimate goes out full.
+    pub fn start_fuel_liters(
+        &mut self,
+        player_id: &PlayerId,
+        car_id: CarConfigId,
+        mode: GameMode,
+    ) -> f32 {
+        let Some(capacity) = self
+            .car_configs
+            .get(&car_id)
+            .map(|car| car.fuel.capacity_liters.max(0.0))
+        else {
+            return 0.0;
+        };
+        let Some(lap) = self.lap_fuel_liters(car_id) else {
+            return capacity;
+        };
+        let knob = self.car_setup(player_id).fuel_load as f32;
+        let laps = match mode {
+            GameMode::Race => {
+                self.session.lap_limit as f32 * (1.0 + RACE_FUEL_MARGIN) + RACE_FUEL_RESERVE_LAPS
+            }
+            GameMode::Hotlap | GameMode::Qualification => HOTLAP_FUEL_LAPS,
+            _ => capacity / lap,
+        };
+        ((laps + knob).max(MIN_FUEL_LAPS) * lap).min(capacity)
+    }
+
+    /// The run a car put on the grid now is being fuelled for: the mode
+    /// being counted into, or a race from the lobby.
+    fn planned_mode(&self) -> GameMode {
+        match self.session.game_mode {
+            GameMode::Lobby => GameMode::Race,
+            GameMode::Countdown => self.session.next_mode.unwrap_or(GameMode::Race),
+            mode => mode,
+        }
+    }
+
+    /// Fill every car for a run in `mode`, as a session starting it does.
+    fn refuel_all(&mut self, mode: GameMode) {
+        let cars: Vec<(PlayerId, CarConfigId)> = self
+            .session
+            .participants
+            .values()
+            .map(|s| (s.player_id, s.car_config_id))
+            .collect();
+        for (player_id, car_id) in cars {
+            let fuel = self.start_fuel_liters(&player_id, car_id, mode);
+            if let Some(state) = self.session.participants.get_mut(&player_id) {
+                state.fuel_liters = fuel;
+            }
+        }
     }
 
     /// The clamped setup a driver last sent; stock when they never did.
@@ -1161,6 +1341,20 @@ impl GameSession {
         self.session_best_splits_ms = [None; SECTOR_COUNT];
         self.lap_traces.clear();
         self.lap_events.clear();
+        let race_fuel: HashMap<PlayerId, f32> = self
+            .session
+            .participants
+            .values()
+            .map(|s| (s.player_id, s.car_config_id))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|(player_id, car_id)| {
+                (
+                    player_id,
+                    self.start_fuel_liters(&player_id, car_id, GameMode::Race),
+                )
+            })
+            .collect();
         for state in self.session.participants.values_mut() {
             let Some(slot) = self
                 .track_config
@@ -1173,6 +1367,16 @@ impl GameSession {
             let mut fresh = CarState::new(state.player_id, state.car_config_id, slot);
             // A race starts in neutral, so a driver can rev on the grid.
             fresh.gear = 0;
+            if let Some(&fuel) = race_fuel.get(&state.player_id) {
+                fresh.fuel_liters = fuel;
+            }
+            fit_tyres(
+                &mut fresh,
+                &self.car_configs,
+                &self.tuned_configs,
+                &self.track_config,
+                TyreStart::Grid,
+            );
             fresh.auto_gearbox = state.auto_gearbox;
             fresh.abs = state.abs;
             fresh.traction_control = state.traction_control;
@@ -1199,6 +1403,13 @@ impl GameSession {
         let mut profile = AiDriverProfile::new("Cool-down", COOLDOWN_SKILL);
         profile.id = *player_id;
         self.ai_input_for(&profile, state, car_config)
+    }
+
+    /// What the air does this tick, before the physics: the DRS rule and
+    /// every car's wake (`crate::slipstream`).
+    fn update_air(&mut self) {
+        self.update_drs();
+        crate::slipstream::update(&mut self.session.participants, &self.car_configs);
     }
 
     /// The DRS rule for this tick (`crate::drs`): which cars may open the
@@ -1490,11 +1701,12 @@ impl GameSession {
                 .insert(*player_id, state.steering_assist);
             state.steering_assist = false;
             let car_id = state.car_config_id;
+            let fuel = state.fuel_liters;
             if !self.ai_speed_profiles.contains_key(&car_id) {
                 if let Some(speeds) = self
                     .car_configs
                     .get(&car_id)
-                    .and_then(|car| racing_line::build(&self.track_config, car))
+                    .and_then(|car| racing_line::build_laden(&self.track_config, car, fuel))
                 {
                     self.ai_speed_profiles.insert(car_id, speeds);
                 }
@@ -1553,10 +1765,13 @@ impl GameSession {
             if self.add_player(ai_id, car_id).is_some() {
                 self.session.ai_player_ids.push(ai_id);
                 if !self.ai_speed_profiles.contains_key(&car_id) {
+                    // Planned for the heaviest the car will be: a race's
+                    // full load. It only gets quicker than the plan.
+                    let fuel = self.start_fuel_liters(&ai_id, car_id, GameMode::Race);
                     if let Some(speeds) = self
                         .car_configs
                         .get(&car_id)
-                        .and_then(|car| racing_line::build(&self.track_config, car))
+                        .and_then(|car| racing_line::build_laden(&self.track_config, car, fuel))
                     {
                         self.ai_speed_profiles.insert(car_id, speeds);
                     }
@@ -2476,6 +2691,10 @@ mod tests {
             ai_state.speed_mps = 5.0; // Start with 5 m/s (18 km/h)
             ai_state.vel_x = 5.0;
             ai_state.engine_rpm = 2000.0; // Start engine above idle
+                                          // And on warm tyres: this is about the AI driving, not about
+                                          // cold tyres (tyre_temperature_test). Unfitted tyres are put
+                                          // at their optimum on the first tick.
+            ai_state.tyres_fitted = false;
         }
 
         // Run simulation for 2 seconds (480 ticks at 240Hz)

@@ -186,12 +186,19 @@ private:
 	/** The DRS light beside the rev counter's caption. */
 	UPROPERTY(Transient) TObjectPtr<UBorder> DrsBadge;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> DrsText;
+	/** The slipstream light beside it: lit, with the drag saved, in a tow. */
+	UPROPERTY(Transient) TObjectPtr<UBorder> TowBadge;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TowText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GearText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SpeedText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SpeedUnitText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LastLapText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> BestLapText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapsLeftText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FuelText;
+	/** The tyre row: tread temperature and pressure per tyre, FL FR RL RR. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TyreTempTexts;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TyrePressureTexts;
 
 	UPROPERTY(Transient) TObjectPtr<UApexMinimapWidget> Minimap;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SectorCaption;
@@ -223,6 +230,23 @@ private:
 
 	/** Highest RPM seen this session — the protocol never states a redline. */
 	float ObservedMaxRpm = 8000.0f;
+
+	/** The lap the fuel cell last measured from, and the tank at its start. */
+	int32 FuelLap = -1;
+	float FuelAtLapStart = -1.0f;
+	/** What the last whole lap burnt, litres; negative until one is measured. */
+	float FuelPerLap = -1.0f;
+
+	/** The fuel cell: the tank, coloured by whether it reaches the flag. */
+	void RefreshFuel(const FApexCarTelemetry& Local, int32 LapsLeft);
+
+	/** The car the tyre window below was read for, and the window, °C. */
+	FString TyreWindowCarId;
+	float TyreOptimalC = 90.0f;
+	float TyreWindowC = 10.0f;
+
+	/** The tyre row: each tread coloured against the car's working window. */
+	void RefreshTyres(const FApexCarTelemetry& Local);
 
 	/** What the tree was last built for, so a settings change rebuilds once. */
 	EApexHudDetail BuiltDetail = EApexHudDetail::All;

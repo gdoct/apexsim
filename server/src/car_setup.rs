@@ -14,6 +14,11 @@
 //! appears here. Tyre pressure is the one addition to the physics — a
 //! per-axle grip factor off the optimum (`TireConfig::pressure_grip_factor`)
 //! — which is what lets pressures shift the balance of the car.
+//!
+//! The fuel knob is the odd one out: it is not a figure of the car but
+//! laps of fuel either side of what the session fills it with
+//! (`GameSession::start_fuel_liters`), so `apply` leaves it alone and it
+//! only takes effect where a car is fuelled — never mid-lap.
 
 use crate::data::CarConfig;
 use serde::{Deserialize, Serialize};
@@ -51,10 +56,16 @@ pub const SPRING_PER_CLICK: f32 = 0.04;
 pub const DAMPER_PER_CLICK: f32 = 0.05;
 /// Anti-roll bar stiffness scale per click.
 pub const ANTI_ROLL_PER_CLICK: f32 = 0.08;
+/// Laps of fuel per click of the fuel load, on the session's own fill.
+pub const FUEL_LAPS_PER_CLICK: f32 = 1.0;
 
-/// The knobs in the order the garage screen shows them, grouped tyres,
-/// engine, transmission, torque, suspension.
-pub const KNOBS: [Knob; 14] = [
+/// Number of knobs in a setup.
+pub const KNOB_COUNT: usize = 15;
+
+/// The knobs in wire order: tyres, engine, transmission, torque,
+/// suspension, then the fuel load (appended last, so the order of the
+/// others never moved).
+pub const KNOBS: [Knob; KNOB_COUNT] = [
     Knob {
         name: "tyre_pressure_front",
         min: -MAX_CLICKS,
@@ -125,6 +136,11 @@ pub const KNOBS: [Knob; 14] = [
         min: -MAX_CLICKS,
         max: MAX_CLICKS,
     },
+    Knob {
+        name: "fuel_load",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
 ];
 
 /// A driver's setup as clicks per knob; all zero is the car as filed.
@@ -160,11 +176,14 @@ pub struct CarSetup {
     pub anti_roll_front: i8,
     #[serde(default)]
     pub anti_roll_rear: i8,
+    /// Laps of fuel over (or under) the session's fill.
+    #[serde(default)]
+    pub fuel_load: i8,
 }
 
 impl CarSetup {
     /// The knob values in `KNOBS` order.
-    pub fn clicks(&self) -> [i8; 14] {
+    pub fn clicks(&self) -> [i8; KNOB_COUNT] {
         [
             self.tyre_pressure_front,
             self.tyre_pressure_rear,
@@ -180,11 +199,12 @@ impl CarSetup {
             self.damper_rear,
             self.anti_roll_front,
             self.anti_roll_rear,
+            self.fuel_load,
         ]
     }
 
     /// A setup from knob values in `KNOBS` order.
-    pub fn from_clicks(c: [i8; 14]) -> Self {
+    pub fn from_clicks(c: [i8; KNOB_COUNT]) -> Self {
         Self {
             tyre_pressure_front: c[0],
             tyre_pressure_rear: c[1],
@@ -200,6 +220,7 @@ impl CarSetup {
             damper_rear: c[11],
             anti_roll_front: c[12],
             anti_roll_rear: c[13],
+            fuel_load: c[14],
         }
     }
 
@@ -212,10 +233,18 @@ impl CarSetup {
         Self::from_clicks(clicks)
     }
 
-    /// True when every knob is at the file's value, so the shared config
-    /// serves and no tuned copy is needed.
+    /// True when every knob is at the file's value.
     pub fn is_stock(&self) -> bool {
         self.clicks().iter().all(|&c| c == 0)
+    }
+
+    /// True when a knob `apply` bakes into the car is off the file's value,
+    /// so a tuned copy is needed; the fuel load is not one.
+    pub fn changes_car(&self) -> bool {
+        Self {
+            fuel_load: 0,
+            ..*self
+        } != Self::default()
     }
 
     /// The car with this setup applied. `self` is expected clamped.
@@ -327,7 +356,7 @@ mod tests {
 
     #[test]
     fn clamp_pins_every_knob_and_one_sided_knobs_only_lower() {
-        let wild = CarSetup::from_clicks([100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6]);
+        let wild = CarSetup::from_clicks([100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30]);
         let c = wild.clamp();
         assert_eq!(c.tyre_pressure_front, MAX_CLICKS);
         assert_eq!(c.tyre_pressure_rear, -MAX_CLICKS);
@@ -336,6 +365,7 @@ mod tests {
         assert_eq!(c.engine_braking, MAX_CLICKS);
         assert_eq!(c.final_drive, -MAX_CLICKS);
         assert_eq!(c.anti_roll_rear, -MAX_CLICKS);
+        assert_eq!(c.fuel_load, MAX_CLICKS);
         assert_eq!(c.clamp(), c);
         assert_eq!(KNOBS.len(), c.clicks().len());
     }
@@ -434,6 +464,29 @@ mod tests {
         assert!((t.suspension.damper_rebound_rear - b.damper_rebound_rear * 0.90).abs() < 1e-2);
         assert!((t.suspension.anti_roll_bar_front - b.anti_roll_bar_front * 1.08).abs() < 1e-2);
         assert!((t.suspension.anti_roll_bar_rear - b.anti_roll_bar_rear * 0.92).abs() < 1e-2);
+    }
+
+    #[test]
+    fn the_fuel_knob_is_not_a_figure_of_the_car() {
+        let fuel_only = CarSetup {
+            fuel_load: -2,
+            ..Default::default()
+        };
+        assert!(!fuel_only.is_stock(), "the knob is kept");
+        assert!(!fuel_only.changes_car(), "but needs no tuned copy");
+        let tuned = fuel_only.apply(&car());
+        assert_eq!(
+            tuned.fuel.capacity_liters,
+            car().fuel.capacity_liters,
+            "the tank is the file's"
+        );
+        assert!(CarSetup {
+            spring_rear: 1,
+            fuel_load: 3,
+            ..Default::default()
+        }
+        .changes_car());
+        assert_eq!(KNOBS[KNOB_COUNT - 1].name, "fuel_load");
     }
 
     #[test]

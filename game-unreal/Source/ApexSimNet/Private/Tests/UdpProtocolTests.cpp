@@ -436,6 +436,74 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 	}
 
 	{
+		// 24 fields: the tank appended after lap_flags, in tenths of a litre.
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("24-field telemetry decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactFuel, Message, Error))
+			&& TestEqual(TEXT("one car"), Message.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Message.Telemetry.Cars[0];
+			TestEqual(TEXT("pos X"), Car.Position.X, 100.5);
+			TestTrue(TEXT("the flags still read"), Car.bLapInvalid);
+			TestEqual(TEXT("fuel"), Car.FuelLiters, 42.5f);
+		}
+		// A 23-field frame from before the tank leaves it unknown.
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactLapFlags, Message, Error)
+			&& Message.Telemetry.Cars.Num() == 1)
+		{
+			TestTrue(TEXT("no fuel from an older server"), Message.Telemetry.Cars[0].FuelLiters < 0.0f);
+		}
+	}
+
+	{
+		// 26 fields: the tyres' tread temperatures and pressures appended
+		// after the tank, a byte each per tyre.
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("26-field telemetry decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactTyres, Message, Error))
+			&& TestEqual(TEXT("one car"), Message.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Message.Telemetry.Cars[0];
+			TestEqual(TEXT("fuel still reads"), Car.FuelLiters, 42.5f);
+			TestTrue(TEXT("tyres known"), Car.HasTyres());
+			TestEqual(TEXT("FL tread"), Car.TyreTempC[0], 84.0f);
+			TestEqual(TEXT("FR tread"), Car.TyreTempC[1], 92.0f);
+			TestEqual(TEXT("RL tread"), Car.TyreTempC[2], 103.0f);
+			TestEqual(TEXT("RR tread"), Car.TyreTempC[3], 255.0f);
+			TestEqual(TEXT("FL pressure"), Car.TyrePressureKpa[0], 176.0f);
+			TestEqual(TEXT("RR pressure"), Car.TyrePressureKpa[3], 1.0f);
+		}
+		// A 24-field frame from before the tyres leaves them unknown.
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactFuel, Message, Error)
+			&& Message.Telemetry.Cars.Num() == 1)
+		{
+			TestFalse(TEXT("no tyres from an older server"), Message.Telemetry.Cars[0].HasTyres());
+		}
+	}
+
+	{
+		// 27 fields: the tow appended after the tyres, in percent.
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("27-field telemetry decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactTow, Message, Error))
+			&& TestEqual(TEXT("one car"), Message.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Message.Telemetry.Cars[0];
+			TestEqual(TEXT("tyres still read"), Car.TyreTempC[2], 103.0f);
+			TestEqual(TEXT("tow"), Car.TowShare, 0.17f);
+		}
+		// A 26-field frame from before the tow leaves it unknown.
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactTyres, Message, Error)
+			&& Message.Telemetry.Cars.Num() == 1)
+		{
+			TestTrue(TEXT("no tow from an older server"), Message.Telemetry.Cars[0].TowShare < 0.0f);
+		}
+	}
+
+	{
 		// The blob from before the lap fields: 22 fields, no flags.
 		FApexServerMessage Message;
 		FString Error;

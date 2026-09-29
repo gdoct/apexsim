@@ -356,7 +356,11 @@ bool FApexCarTomlClientTablesTest::RunTest(const FString& Parameters)
 		"scale = 1.5\n"
 		"[cockpit]\n"
 		"style = \"open\"\n"
-		"eye_cm = [10, -20, 95.5]\n");
+		"eye_cm = [10, -20, 95.5]\n"
+		"[tires]\n"
+		"optimal_temperature_c = 105.0   # an endurance compound\n"
+		"temperature_window_c = 13.0\n"
+		"blanket_temperature_c = 70.0\n");
 	FApexCarToml Car;
 	FString Error;
 	TestTrue(TEXT("parses"), ApexCarToml::Parse(Text, Car, Error));
@@ -367,11 +371,14 @@ bool FApexCarTomlClientTablesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("cockpit present"), Car.bHasCockpit);
 	TestTrue(TEXT("open cockpit"), Car.Cockpit.Style == EApexCockpitStyle::OpenWheel);
 	TestEqual(TEXT("eye"), Car.Cockpit.Eye, FVector(10.0, -20.0, 95.5));
+	TestEqual(TEXT("tyre window middle"), Car.TyreOptimalC, 105.0f);
+	TestEqual(TEXT("tyre window half-width"), Car.TyreWindowC, 13.0f);
 
 	FApexCarToml Plain;
 	TestTrue(TEXT("no tables parses"), ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n"), Plain, Error));
 	TestFalse(TEXT("no preview"), Plain.Preview.bPresent);
 	TestFalse(TEXT("no cockpit"), Plain.bHasCockpit);
+	TestEqual(TEXT("the server's default window"), Plain.TyreOptimalC, 90.0f);
 
 	FApexCarToml Bad;
 	TestFalse(TEXT("zero scale is an error"), ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n[preview]\nscale = 0\n"), Bad, Error));

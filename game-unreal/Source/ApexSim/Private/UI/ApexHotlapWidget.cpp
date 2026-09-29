@@ -208,7 +208,7 @@ UWidget* UApexHotlapWidget::BuildGarageCard()
 	AddV(Actions, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 12.0f));
 	ResetButton = MakeCardButton(Actions, TEXT("RESET SETUP"), TEXT("Every knob to stock"), ActionResetSetup, false);
 	UTextBlock* Note = MakeText(*WidgetTree,
-		TEXT("Out on the track the car spawns on the run-up before the line, so the first lap is a flying one. Each setup click is a fixed step off the car's own file; the server applies a change at once, so the next run drives it."),
+		TEXT("Out on the track the car spawns on the run-up before the line, so the first lap is a flying one. Each setup click is a fixed step off the car's own file; the server applies a change at once, so the next run drives it. Fuel is laps over or under the session's fill, and is put in here in the garage."),
 		Font::Body(12.0f), Palette::TextMuted);
 	Note->SetAutoWrapText(true);
 	AddV(Actions, Note, FMargin(2.0f, 16.0f, 0.0f, 0.0f));
@@ -232,6 +232,8 @@ UWidget* UApexHotlapWidget::BuildGarageCard()
 	AddV(Left, MakeLabel(*WidgetTree, TEXT("Torque")), SectionGap);
 	MakeSetupRow(Left, ApexCarSetup::TorqueMap, TEXT("Torque map"), TEXT("Whole curve. Down only."));
 	MakeSetupRow(Left, ApexCarSetup::BrakeBias, TEXT("Brake bias"), TEXT("Front share of the braking."));
+	AddV(Left, MakeLabel(*WidgetTree, TEXT("Fuel")), SectionGap);
+	MakeSetupRow(Left, ApexCarSetup::FuelLoad, TEXT("Fuel load"), TEXT("Laps on the fill. Weight is lap time."));
 
 	AddV(Right, MakeLabel(*WidgetTree, TEXT("Suspension")), FirstSection);
 	MakeSetupRow(Right, ApexCarSetup::SpringFront, TEXT("Front springs"), TEXT("Stiffer: less dive and roll."));
