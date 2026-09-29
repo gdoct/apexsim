@@ -1,12 +1,15 @@
 pub mod aero;
 pub mod ai_driver;
+pub mod brakes;
 pub mod car_loader;
 pub mod car_setup;
 pub mod config;
 pub mod content_crc;
 pub mod curbs;
+pub mod damage;
 pub mod data;
 pub mod drs;
+pub mod engine_heat;
 pub mod feedback;
 pub mod game_loop;
 pub mod game_session;

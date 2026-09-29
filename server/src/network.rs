@@ -579,6 +579,18 @@ pub struct CompactCarState {
     /// Seconds left of a service under way, in tenths.
     #[serde(default)]
     pub service_ds: u16,
+    /// Each corner's brake, °C, FL FR RL RR (`crate::brakes`). Appended
+    /// after `service_ds`; all 0 from an older server.
+    #[serde(default)]
+    pub brake_c: [u16; 4],
+    /// The engine's coolant, °C (`crate::engine_heat`); 0 from an older
+    /// server.
+    #[serde(default)]
+    pub water_c: u8,
+    /// The damage (`crate::damage`), percent: front, rear, left, right,
+    /// engine. Appended after `water_c`; all 0 from an older server.
+    #[serde(default)]
+    pub damage: [u8; 5],
 }
 
 /// The `pit_flags` byte of a car's telemetry.
@@ -680,6 +692,21 @@ impl CompactCarState {
                 COMPOUND_UNKNOWN
             },
             pit_flags: pit_flags_of(state),
+            brake_c: state
+                .brake_temp_c
+                .map(|t| t.round().clamp(0.0, u16::MAX as f32) as u16),
+            water_c: state.water_temp_c.round().clamp(0.0, 255.0) as u8,
+            damage: {
+                let d = &state.damage;
+                [
+                    d.front_damage_percent,
+                    d.rear_damage_percent,
+                    d.left_damage_percent,
+                    d.right_damage_percent,
+                    d.engine_damage_percent,
+                ]
+                .map(|p| p.round().clamp(0.0, 100.0) as u8)
+            },
             service_ds: (state.pit.service_left_s.max(0.0) * 10.0)
                 .round()
                 .min(u16::MAX as f32) as u16,
@@ -1515,6 +1542,11 @@ mod tests {
         state.pit.in_lane = true;
         state.pit.servicing = true;
         state.pit.service_left_s = 7.34;
+        state.brake_temp_c = [612.4, 598.0, 355.5, 350.0];
+        state.water_temp_c = 104.6;
+        state.damage.front_damage_percent = 23.4;
+        state.damage.left_damage_percent = 7.6;
+        state.damage.engine_damage_percent = 100.0;
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -1525,7 +1557,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactPit: {}",
+            "S_TelemetryCompactDamage: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -1533,10 +1565,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 31-field array: 0xDC 0x00 0x1F is the array-16 header.
+        // The car is a 34-field array: 0xDC 0x00 0x22 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x1F]),
-            "CompactCarState must stay 31 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x22]),
+            "CompactCarState must stay 34 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -1551,6 +1583,9 @@ mod tests {
                 assert_eq!(car.compound, 0, "softs");
                 assert_eq!(car.pit_flags, 7, "in the lane, on the limiter, in service");
                 assert_eq!(car.service_ds, 73);
+                assert_eq!(car.brake_c, [612, 598, 356, 350]);
+                assert_eq!(car.water_c, 105);
+                assert_eq!(car.damage, [23, 0, 8, 0, 100]);
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }
@@ -2031,7 +2066,7 @@ mod tests {
     #[test]
     fn test_car_setup_wire_format() {
         let setup = ClientMessage::SetCarSetup(CarSetup::from_clicks([
-            1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1,
+            1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2,
         ]));
         let bytes = rmp_serde::to_vec_named(&setup).unwrap();
         let hex = bytes
@@ -2048,6 +2083,7 @@ mod tests {
                 assert_eq!((decoded.front_wing, decoded.rear_wing), (2, -1));
                 assert_eq!(decoded.ride_height_rear, 1);
                 assert_eq!(decoded.tyre_compound, 1);
+                assert_eq!(decoded.brake_ducts, 2);
             }
             _ => panic!("Wrong message type"),
         }
@@ -2073,7 +2109,7 @@ mod tests {
 
     const GOLDEN_C_SET_CAR_SETUP: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAB, 0x53, 0x65, 0x74, 0x43, 0x61, 0x72, 0x53, 0x65,
-        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0xDE, 0x00, 0x14, 0xB3, 0x74, 0x79, 0x72,
+        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0xDE, 0x00, 0x15, 0xB3, 0x74, 0x79, 0x72,
         0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x5F, 0x66, 0x72, 0x6F, 0x6E,
         0x74, 0x01, 0xB2, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72,
         0x65, 0x5F, 0x72, 0x65, 0x61, 0x72, 0xFE, 0xAB, 0x72, 0x65, 0x76, 0x5F, 0x6C, 0x69, 0x6D,
@@ -2093,7 +2129,8 @@ mod tests {
         0x64, 0x65, 0x5F, 0x68, 0x65, 0x69, 0x67, 0x68, 0x74, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74,
         0xFD, 0xB0, 0x72, 0x69, 0x64, 0x65, 0x5F, 0x68, 0x65, 0x69, 0x67, 0x68, 0x74, 0x5F, 0x72,
         0x65, 0x61, 0x72, 0x01, 0xAD, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x63, 0x6F, 0x6D, 0x70, 0x6F,
-        0x75, 0x6E, 0x64, 0x01,
+        0x75, 0x6E, 0x64, 0x01, 0xAB, 0x62, 0x72, 0x61, 0x6B, 0x65, 0x5F, 0x64, 0x75, 0x63, 0x74,
+        0x73, 0x02,
     ];
 
     const GOLDEN_C_CREATE_SESSION: &[u8] = &[

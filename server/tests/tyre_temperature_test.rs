@@ -55,6 +55,11 @@ struct LapLog {
     max_tread: f32,
     /// The most worn tyre at the line, percent.
     wear: f32,
+    /// The hottest any brake got in the lap, the front and rear brakes at
+    /// the line, and the coolant at the line, °C.
+    brake_peak: f32,
+    brakes_at_line: (f32, f32),
+    water: f32,
 }
 
 fn ai_race(folder: &str, laps: u8, conditions: SessionConditions) -> (CarConfig, Vec<LapLog>) {
@@ -82,7 +87,7 @@ fn ai_race(folder: &str, laps: u8, conditions: SessionConditions) -> (CarConfig,
     gs.start_countdown_mode(1, GameMode::Race);
 
     let mut logs = Vec::new();
-    let (mut min_grip, mut max_tread) = (1.0f32, f32::MIN);
+    let (mut min_grip, mut max_tread, mut brake_peak) = (1.0f32, f32::MIN, f32::MIN);
     for _ in 0..(240 * 60 * 3 * laps as usize) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
@@ -92,6 +97,9 @@ fn ai_race(folder: &str, laps: u8, conditions: SessionConditions) -> (CarConfig,
             min_grip = min_grip.min(state.tyre_grip_share());
             for t in state.tires.each() {
                 max_tread = max_tread.max(t.temperature_c);
+            }
+            for b in state.brake_temp_c {
+                brake_peak = brake_peak.max(b);
             }
         }
         for out in gs.take_lap_events() {
@@ -108,9 +116,13 @@ fn ai_race(folder: &str, laps: u8, conditions: SessionConditions) -> (CarConfig,
                         .iter()
                         .map(|t| t.wear_percent)
                         .fold(0.0, f32::max),
+                    brake_peak,
+                    brakes_at_line: (s.brake_temp_c[0], s.brake_temp_c[2]),
+                    water: s.water_temp_c,
                 });
                 min_grip = 1.0;
                 max_tread = f32::MIN;
+                brake_peak = f32::MIN;
             }
         }
         if logs.len() >= laps as usize {
@@ -135,6 +147,10 @@ fn print_race(folder: &str, car: &CarConfig, logs: &[LapLog]) {
             lap.min_grip,
             lap.max_tread,
             lap.wear
+        );
+        println!(
+            "          brakes {:.0} peak, {:.0}/{:.0} front/rear at the line; water {:.1}",
+            lap.brake_peak, lap.brakes_at_line.0, lap.brakes_at_line.1, lap.water
         );
     }
 }

@@ -143,6 +143,11 @@ conventions the generators follow:
   [engine]
   forced_induction = true          # default: has an [engine.turbo] table; a turbo keeps
                                    #   most of its power in thin air (altitude, heat)
+  radiator_scale = 1.0             # 0.3-3, default 1: under 1 the engine runs hotter
+
+  [brakes]
+  material = "carbon"              # "carbon" | "steel"; default by class (carbon for
+                                   #   F1, Hypercar, LMP2)
 
   [aero]                           # ride-height aero (default: downforce is a constant)
   ride_height_front_m = 0.045      # 0.005-0.3, default 0.06: static, at rest

@@ -204,6 +204,11 @@ private:
 	/** The tyre row: tread temperature and pressure per tyre, FL FR RL RR. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TyreTempTexts;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TyrePressureTexts;
+	/** Each corner's brake temperature, under its tyre. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> BrakeTempTexts;
+	/** The engine's coolant, at the end of the tyre row. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WaterText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DamageText;
 
 	UPROPERTY(Transient) TObjectPtr<UApexMinimapWidget> Minimap;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SectorCaption;

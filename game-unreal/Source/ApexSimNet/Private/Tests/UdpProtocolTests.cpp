@@ -512,6 +512,41 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("in service"), Car.bPitServicing);
 			TestEqual(TEXT("service left"), Car.ServiceSecondsLeft, 7.3f);
 		}
+		// 33 fields: the brakes and the coolant.
+		FApexServerMessage Heat;
+		if (TestTrue(TEXT("33-field telemetry decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactHeat, Heat, Error))
+			&& Heat.Telemetry.Cars.Num() == 1)
+		{
+			const FApexCarTelemetry& Car = Heat.Telemetry.Cars[0];
+			TestTrue(TEXT("the pit still reads"), Car.bPitServicing);
+			TestEqual(TEXT("FL brake"), Car.BrakeTempC[0], 612.0f);
+			TestEqual(TEXT("RR brake"), Car.BrakeTempC[3], 350.0f);
+			TestEqual(TEXT("coolant"), Car.WaterTempC, 105.0f);
+		}
+		// 34 fields: the damage.
+		FApexServerMessage Damage;
+		if (TestTrue(TEXT("34-field telemetry decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactDamage, Damage, Error))
+			&& Damage.Telemetry.Cars.Num() == 1)
+		{
+			const FApexCarTelemetry& Car = Damage.Telemetry.Cars[0];
+			TestEqual(TEXT("the coolant still reads"), Car.WaterTempC, 105.0f);
+			TestTrue(TEXT("damage known"), Car.HasDamage());
+			TestEqual(TEXT("front"), Car.DamagePct[0], 23.0f);
+			TestEqual(TEXT("left"), Car.DamagePct[2], 8.0f);
+			TestEqual(TEXT("engine"), Car.DamagePct[4], 100.0f);
+		}
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactHeat, Damage, Error)
+			&& Damage.Telemetry.Cars.Num() == 1)
+		{
+			TestFalse(TEXT("no damage from an older server"), Damage.Telemetry.Cars[0].HasDamage());
+		}
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactPit, Heat, Error)
+			&& Heat.Telemetry.Cars.Num() == 1)
+		{
+			TestTrue(TEXT("no brakes from an older server"), Heat.Telemetry.Cars[0].BrakeTempC[0] < 0.0f);
+		}
 		// A 27-field frame from before them leaves them unknown.
 		FApexServerMessage Tow;
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactTow, Tow, Error)

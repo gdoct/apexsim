@@ -35,6 +35,8 @@ struct CarToml {
     tires: Option<TiresToml>,
     #[serde(default)]
     aero: Option<AeroToml>,
+    #[serde(default)]
+    brakes: Option<BrakesToml>,
     /// `[[livery]]` tables: only the names matter here (the client paints).
     #[serde(default)]
     livery: Vec<LiveryToml>,
@@ -138,6 +140,15 @@ struct SuspensionToml {
     anti_roll_bar_rear: Option<f32>,
     #[serde(default)]
     max_travel_m: Option<f32>,
+}
+
+/// Optional `[brakes]` section: what they are made of (`"carbon"` or
+/// `"steel"`); absent, the class's (`BrakeMaterial::for_class`).
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct BrakesToml {
+    #[serde(default)]
+    material: Option<crate::brakes::BrakeMaterial>,
 }
 
 /// Optional `[aero]` section: how the downforce answers ride height and
@@ -261,6 +272,10 @@ struct EngineToml {
     /// whether the car has an `[engine.turbo]` table.
     #[serde(default)]
     forced_induction: Option<bool>,
+    /// The radiator against the one sized for this engine; under 1 runs
+    /// hotter (`engine_heat`).
+    #[serde(default)]
+    radiator_scale: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -704,6 +719,7 @@ impl CarLoader {
                 forced_induction: engine_toml
                     .forced_induction
                     .unwrap_or(engine_toml.turbo.is_some()),
+                radiator_scale: engine_toml.radiator_scale.unwrap_or(1.0),
                 turbo: engine_toml.turbo.map(|t| TurboConfig {
                     boosted_share: t.boosted_share,
                     lag_up_s: t.lag_up_s.unwrap_or(DEFAULT_TURBO_LAG_UP_S),
@@ -777,6 +793,8 @@ impl CarLoader {
             lift_coefficient_rear: car_toml.physics.lift_coefficient_rear.unwrap_or(-0.20),
             drs,
             aero: aero_defaults,
+            brake_material: crate::brakes::BrakeMaterial::Steel,
+            brake_duct_scale: 1.0,
 
             // Steering
             max_steering_angle_rad: car_toml.physics.max_steering_angle_rad,
@@ -868,6 +886,11 @@ impl CarLoader {
             },
         };
 
+        config.brake_material = car_toml
+            .brakes
+            .as_ref()
+            .and_then(|b| b.material)
+            .unwrap_or_else(|| crate::brakes::BrakeMaterial::for_class(&config.class));
         config.aero = crate::aero::AeroConfig {
             ride_height_front_m: aero_toml
                 .ride_height_front_m
@@ -1104,6 +1127,12 @@ impl CarLoader {
         );
         in_range("aero.rake_sensitivity", aero.rake_sensitivity, 0.0, 0.05);
         in_range("aero.stall_height_m", aero.stall_height_m, 0.0, 0.1);
+        in_range(
+            "engine.radiator_scale",
+            config.engine.radiator_scale,
+            0.3,
+            3.0,
+        );
         in_range(
             "tires.optimal_temperature_c",
             tyre.optimal_temperature_c,

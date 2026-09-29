@@ -277,6 +277,13 @@ pub fn update_car_3d(
             optimum,
             crate::tyre_thermal::MEDIUM,
         );
+        let warm = crate::brakes::start_temperature_c(
+            config.brake_material,
+            track.track_surface.air_temperature_c,
+            false,
+            true,
+        );
+        crate::brakes::fit(state, warm);
     }
 
     // 1. Get track context at current position (windowed search seeded by
@@ -327,14 +334,31 @@ pub fn update_car_3d(
     if let Some(turbo) = &config.engine.turbo {
         state.turbo_spool = turbo.spool_toward(state.turbo_spool, input.throttle, dt);
     }
-    let (engine_torque, engine_rpm, combustion_torque) = calculate_engine_output(
-        state,
-        config,
-        input,
-        track.track_surface.air_density_ratio,
-        dt,
-    );
+    // The air it breathes, and the heat it can shed (`engine_heat`: past
+    // its limit a hot engine protects itself).
+    let breath = track.track_surface.air_density_ratio;
+    let heat_limit = crate::engine_heat::power_factor(state.water_temp_c)
+        * crate::damage::engine_power_factor(&state.damage);
+    let (engine_torque, engine_rpm, combustion_torque) =
+        calculate_engine_output(state, config, input, breath, heat_limit, dt);
     state.engine_rpm = engine_rpm;
+    // Revs the gearbox forces past the limit (a missed downshift) hurt it
+    // (`crate::damage`). Top gear is left out: a tow down a hill spins it
+    // past the limiter with nobody to blame.
+    let top_gear = config
+        .gear_ratios
+        .iter()
+        .skip(1)
+        .filter(|&&g| g > 0.0)
+        .count() as i8;
+    let forced = if state.gear > 0 && state.gear < top_gear {
+        geared_rpm(state, config) / config.max_engine_rpm.max(1.0)
+    } else {
+        0.0
+    };
+    state
+        .damage
+        .hurt_engine(crate::damage::over_rev_damage(forced, dt));
 
     // 4b. Hybrid system: electric motor assist + brake regeneration
     let motor_torque = update_hybrid_system(state, config, input, engine_rpm, dt);
@@ -350,6 +374,16 @@ pub fn update_car_3d(
     let brake_force = input.brake * config.max_brake_force_n;
     let brake_front = brake_force * config.brake_bias_front;
     let brake_rear = brake_force * (1.0 - config.brake_bias_front);
+    // Each corner's pads grip by their temperature (`crate::brakes`).
+    let pads = state
+        .brake_temp_c
+        .map(|t| config.brake_material.friction(t));
+    let brake_wheel = [
+        brake_front / 2.0 * pads[0],
+        brake_front / 2.0 * pads[1],
+        brake_rear / 2.0 * pads[2],
+        brake_rear / 2.0 * pads[3],
+    ];
 
     // 7. Calculate weight transfer.
     // Deliberately uses the PREVIOUS tick's accelerations (g_forces are
@@ -639,7 +673,10 @@ pub fn update_car_3d(
     } else {
         input.steering
     };
-    let steering_angle = steering * config.max_steering_angle_rad;
+    // A bent side toes its front wheel in, and the car pulls toward it
+    // (`crate::damage`).
+    let steering_angle =
+        steering * config.max_steering_angle_rad + crate::damage::toe_offset_rad(&state.damage);
 
     // Apply Ackermann steering geometry (inner wheel turns more)
     let (steer_left, steer_right) = calculate_ackermann_steering(
@@ -663,16 +700,22 @@ pub fn update_car_3d(
     let thermal = |tyre: &crate::data::TireData, set_kpa: f32| {
         crate::tyre_thermal::grip_multiplier(tyre_config, compound, set_kpa, tyre)
     };
-    let grip_fl = config.axle_tyre_mu(true, state.weight_front_left_n)
+    let side_left = crate::damage::side_grip_factor(&state.damage, true);
+    let side_right = crate::damage::side_grip_factor(&state.damage, false);
+    let grip_fl = side_left
+        * config.axle_tyre_mu(true, state.weight_front_left_n)
         * wheel_front_left.grip_modifier
         * thermal(&state.tires.front_left, tyre_config.pressure_front_kpa);
-    let grip_fr = config.axle_tyre_mu(true, state.weight_front_right_n)
+    let grip_fr = side_right
+        * config.axle_tyre_mu(true, state.weight_front_right_n)
         * wheel_front_right.grip_modifier
         * thermal(&state.tires.front_right, tyre_config.pressure_front_kpa);
-    let grip_rl = config.axle_tyre_mu(false, state.weight_rear_left_n)
+    let grip_rl = side_left
+        * config.axle_tyre_mu(false, state.weight_rear_left_n)
         * wheel_rear_left.grip_modifier
         * thermal(&state.tires.rear_left, tyre_config.pressure_rear_kpa);
-    let grip_rr = config.axle_tyre_mu(false, state.weight_rear_right_n)
+    let grip_rr = side_right
+        * config.axle_tyre_mu(false, state.weight_rear_right_n)
         * wheel_rear_right.grip_modifier
         * thermal(&state.tires.rear_right, tyre_config.pressure_rear_kpa);
 
@@ -729,7 +772,7 @@ pub fn update_car_3d(
             steer_left,
             front_axle_x,
             drive_fl,
-            brake_front / 2.0,
+            brake_wheel[0],
             config.wheel_radius_m,
             state.weight_front_left_n,
             grip_fl,
@@ -744,7 +787,7 @@ pub fn update_car_3d(
             steer_right,
             front_axle_x,
             drive_fr,
-            brake_front / 2.0,
+            brake_wheel[1],
             config.wheel_radius_m,
             state.weight_front_right_n,
             grip_fr,
@@ -759,7 +802,7 @@ pub fn update_car_3d(
             0.0,
             rear_axle_x,
             drive_rl,
-            brake_rear / 2.0,
+            brake_wheel[2],
             config.wheel_radius_m,
             state.weight_rear_left_n,
             grip_rl,
@@ -774,7 +817,7 @@ pub fn update_car_3d(
             0.0,
             rear_axle_x,
             drive_rr,
-            brake_rear / 2.0,
+            brake_wheel[3],
             config.wheel_radius_m,
             state.weight_rear_right_n,
             grip_rr,
@@ -811,6 +854,42 @@ pub fn update_car_3d(
         tyre_work(&rr, state.weight_rear_right_n),
     ];
     crate::tyre_thermal::step_all(state, &work, tyre_config, &track.track_surface, dt);
+
+    // 10b. The brakes: each takes what its pads absorb (the brake force the
+    // tyre carried, at the speed its wheel turns: none from a locked
+    // wheel), and the air through its duct takes it out.
+    let air_c = track.track_surface.air_temperature_c;
+    for (i, w) in [&fl, &fr, &rl, &rr].into_iter().enumerate() {
+        let absorbed = brake_wheel[i].min(w.fx.abs()) * (w.omega * config.wheel_radius_m).abs();
+        crate::brakes::step(
+            &mut state.brake_temp_c[i],
+            absorbed,
+            state.speed_mps,
+            air_c,
+            config.brake_material,
+            config.brake_duct_scale,
+            dt,
+        );
+    }
+
+    // 10c. The engine's coolant: the combustion power in, the radiator's
+    // air out (the slower air of a tow through it).
+    let shaft_w = combustion_torque.max(0.0) * engine_rpm * (2.0 * PI / 60.0);
+    crate::engine_heat::step(
+        &mut state.water_temp_c,
+        shaft_w,
+        state.speed_mps * state.wake.drag,
+        air_c,
+        crate::engine_heat::radiator_conductance(
+            config.max_engine_power_w,
+            config.engine.radiator_scale,
+        ) * crate::damage::radiator_factor(&state.damage),
+        dt,
+    );
+    // Run past its limit, the engine wears itself out.
+    state
+        .damage
+        .hurt_engine(crate::damage::overheat_damage(state.water_temp_c, dt));
 
     // 10b. What the driver feels, for the DriverFeedback message. Output
     // only: nothing below reads it back.
@@ -1236,16 +1315,19 @@ fn calculate_aerodynamic_forces(
     let front_filed =
         (-config.lift_coefficient_front * config.frontal_area_m2 * posture.downforce_front * nose)
             .max(0.0);
+    let tail = crate::damage::rear_downforce_factor(&state.damage);
     let rear_filed = (-config.lift_coefficient_rear
         * config.frontal_area_m2
         * rear_scale
         * posture.downforce_rear)
         .max(0.0);
     let downforce_front = flow_pressure * front_filed * wake.downforce_front;
-    let downforce_rear = flow_pressure * rear_filed * wake.downforce_rear;
+    let downforce_rear = flow_pressure * rear_filed * tail * wake.downforce_rear;
 
-    // Against the same car at this ground speed in still, clean air.
-    let still = 0.5 * rho * state.speed_mps * state.speed_mps * (front_filed + rear_filed);
+    // Against the same undamaged car at this ground speed in still, clean
+    // air: the share tells the AI what the wake and the damage cost it.
+    let front_whole = if nose > 1e-3 { front_filed / nose } else { 0.0 };
+    let still = 0.5 * rho * state.speed_mps * state.speed_mps * (front_whole + rear_filed);
     let weight = car_mass_kg(config, state) * GRAVITY;
     let load_share = if still > 0.0 {
         ((weight + downforce_front + downforce_rear) / (weight + still)).min(1.0)
@@ -1322,6 +1404,19 @@ pub fn update_car_on_grid(
     state.auto_reverse_ticks = 0;
 }
 
+/// The revs the wheels turn the engine at through the gear it is in, not
+/// clamped to the limit: past it a downshift is over-revving the engine.
+/// Zero in neutral.
+pub fn geared_rpm(state: &CarState, config: &CarConfig) -> f32 {
+    let ratio = match state.gear {
+        g if g > 0 => config.gear_ratios.get(g as usize).copied().unwrap_or(0.0),
+        0 => 0.0,
+        _ => config.gear_ratios.first().copied().unwrap_or(0.0),
+    };
+    let wheel_rpm = state.speed_mps / (2.0 * PI * config.wheel_radius_m) * 60.0;
+    wheel_rpm * ratio.abs() * config.final_drive_ratio
+}
+
 /// Calculate engine output torque and RPM
 /// The engine this tick: the net torque at the crank (negative when it
 /// brakes the car), its revs, and the part of the torque the fuel made,
@@ -1331,6 +1426,7 @@ fn calculate_engine_output(
     config: &CarConfig,
     input: &PlayerInputData,
     air_density_ratio: f32,
+    heat_limit: f32,
     dt: f32,
 ) -> (f32, f32, f32) {
     // Calculate wheel speed based on current velocity
@@ -1407,6 +1503,7 @@ fn calculate_engine_output(
             * torque_at_rpm
             * limiter_cut
             * engine_density_factor(config, air_density_ratio)
+            * heat_limit
     } else {
         0.0
     };
@@ -2885,21 +2982,14 @@ fn update_telemetry_3d(
         tyre.slip_angle_rad = slip_angle;
     }
 
-    // Engine temperature (increases with load, decreases with airflow)
-    let engine_load = input.throttle * (state.engine_rpm / config.redline_rpm);
-    let cooling = state.speed_mps * 0.2;
-    state.engine_temp_c = 85.0 + engine_load * 15.0 - cooling;
-    state.engine_temp_c = state.engine_temp_c.clamp(60.0, 120.0);
-
-    // Oil temperature follows engine temp with lag
-    state.oil_temp_c = state.oil_temp_c + (state.engine_temp_c + 5.0 - state.oil_temp_c) * 0.01;
-
-    // Oil pressure (decreases at high temp)
-    state.oil_pressure_kpa = 400.0 - (state.oil_temp_c - 80.0) * 2.0;
-    state.oil_pressure_kpa = state.oil_pressure_kpa.clamp(100.0, 500.0);
-
-    // Water temperature
-    state.water_temp_c = state.water_temp_c + (state.engine_temp_c - state.water_temp_c) * 0.02;
+    // The engine runs at its coolant's temperature (`engine_heat`, stepped
+    // with the forces); the oil follows a little hotter and slower, and
+    // thins as it heats.
+    state.engine_temp_c = state.water_temp_c;
+    let oil_blend = 1.0 - (-_dt / 60.0).exp();
+    state.oil_temp_c += (state.water_temp_c + 5.0 - state.oil_temp_c) * oil_blend;
+    state.oil_pressure_kpa = (400.0 - (state.oil_temp_c - 80.0) * 2.0).clamp(100.0, 500.0);
+    let _ = (config, input);
 }
 
 /// Burn this tick's fuel: idle, plus what the combustion torque made at
@@ -3030,7 +3120,7 @@ pub fn check_collisions_refs(
                     // whole packs from incidental contact.
                     let impact_speed = rel_vel_normal.abs().min(50.0);
                     if impact_speed > 1.0 {
-                        let damage_amount = (impact_speed / 50.0) * 5.0;
+                        let damage_amount = crate::damage::impact_damage(impact_speed);
 
                         let angle_i = (ny.atan2(nx) - states[i].yaw_rad).rem_euclid(2.0 * PI);
                         let angle_j = (ny.atan2(nx) - states[j].yaw_rad + PI).rem_euclid(2.0 * PI);
@@ -3137,13 +3227,19 @@ fn obb_overlap(
     })
 }
 
-/// Apply damage to a car based on collision angle
+/// Apply damage to a car based on collision angle: the zone the hit came
+/// from takes it, and a hit to the nose dents the engine behind it too
+/// (`crate::damage`). A zone at 100% puts the car out.
 fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
+    if damage_amount <= 0.0 {
+        return;
+    }
     if !(PI / 4.0..=7.0 * PI / 4.0).contains(&angle) {
         car.damage.front_damage_percent =
             (car.damage.front_damage_percent + damage_amount).min(100.0);
-        car.damage.engine_damage_percent =
-            (car.damage.engine_damage_percent + damage_amount * 0.5).min(100.0);
+        car.damage.engine_damage_percent = (car.damage.engine_damage_percent
+            + damage_amount * crate::damage::NOSE_TO_ENGINE)
+            .min(100.0);
     } else if (PI / 4.0..3.0 * PI / 4.0).contains(&angle) {
         car.damage.left_damage_percent =
             (car.damage.left_damage_percent + damage_amount).min(100.0);
@@ -3155,8 +3251,7 @@ fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
             (car.damage.right_damage_percent + damage_amount).min(100.0);
     }
 
-    car.damage.is_drivable =
-        car.damage.front_damage_percent < 80.0 && car.damage.engine_damage_percent < 80.0;
+    car.damage.refresh();
 }
 
 // ---------------------------------------------------------------------------
@@ -3335,7 +3430,7 @@ pub fn resolve_wall_contacts(
             state.feedback.record_steer_kick(steer_kick);
             let impact_speed = closing.min(50.0);
             if impact_speed > 1.0 {
-                let damage_amount = (impact_speed / 50.0) * 5.0;
+                let damage_amount = crate::damage::impact_damage(impact_speed);
                 // Where the wall is, seen from the car (0 = dead ahead),
                 // as the car-car pass measures it.
                 let angle = ((-ny).atan2(-nx) - state.yaw_rad).rem_euclid(2.0 * PI);

@@ -248,6 +248,7 @@ UWidget* UApexHotlapWidget::BuildGarageCard()
 	MakeSetupRow(Right, ApexCarSetup::RearWing, TEXT("Rear wing"), TEXT("Rear grip for top speed."));
 	MakeSetupRow(Right, ApexCarSetup::RideHeightFront, TEXT("Front ride height"), TEXT("Lower: more downforce."));
 	MakeSetupRow(Right, ApexCarSetup::RideHeightRear, TEXT("Rear ride height"), TEXT("Rake moves balance forward."));
+	MakeSetupRow(Right, ApexCarSetup::BrakeDucts, TEXT("Brake ducts"), TEXT("Cooler brakes, a little drag."));
 
 	AddH(Body, Left, FMargin(22.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
 	AddH(Body, Right, FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);

@@ -862,7 +862,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 31;
+	constexpr int32 CompactCarFieldCount = 34;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -1118,6 +1118,75 @@ namespace
 					return false;
 				}
 				Out.ServiceSecondsLeft = static_cast<float>(Raw) / 10.0f;
+				return true;
+			});
+		}
+		// The brakes and the coolant, appended after the service.
+		for (int32 Corner = 0; Corner < 4; ++Corner)
+		{
+			Out.BrakeTempC[Corner] = -1.0f;
+		}
+		Out.WaterTempC = -1.0f;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				for (int32 Corner = 0; Corner < Count; ++Corner)
+				{
+					if (!Reader.ReadUInt64(Raw))
+					{
+						return false;
+					}
+					if (Corner < 4)
+					{
+						Out.BrakeTempC[Corner] = static_cast<float>(Raw);
+					}
+				}
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.WaterTempC = static_cast<float>(Raw);
+				return true;
+			});
+		}
+		// The damage, appended after the coolant: five zones in percent.
+		for (int32 Zone = 0; Zone < 5; ++Zone)
+		{
+			Out.DamagePct[Zone] = -1.0f;
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				for (int32 Zone = 0; Zone < Count; ++Zone)
+				{
+					if (!Reader.ReadUInt64(Raw))
+					{
+						return false;
+					}
+					if (Zone < 5)
+					{
+						Out.DamagePct[Zone] = static_cast<float>(Raw);
+					}
+				}
 				return true;
 			});
 		}

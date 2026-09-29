@@ -69,13 +69,17 @@ pub const WING_PER_CLICK: f32 = 0.05;
 /// costs three times as much drag for its downforce.
 pub const FRONT_WING_DRAG_PER_CLICK: f32 = 0.005;
 pub const REAR_WING_DRAG_PER_CLICK: f32 = 0.015;
+/// Brake duct size per click, as a share of the car's own; and the drag
+/// each click of opening costs.
+pub const BRAKE_DUCT_PER_CLICK: f32 = 0.1;
+pub const BRAKE_DUCT_DRAG_PER_CLICK: f32 = 0.003;
 /// Static ride height per click, m (`crate::aero`).
 pub const RIDE_HEIGHT_M_PER_CLICK: f32 = 0.002;
 /// Lowest static ride height a setup can ask for, m.
 const MIN_RIDE_HEIGHT_M: f32 = 0.01;
 
 /// Number of knobs in a setup.
-pub const KNOB_COUNT: usize = 20;
+pub const KNOB_COUNT: usize = 21;
 
 /// The knobs in wire order: tyres, engine, transmission, torque,
 /// suspension, the fuel load, then the aero (each group appended after
@@ -181,6 +185,11 @@ pub const KNOBS: [Knob; KNOB_COUNT] = [
         min: -1,
         max: 1,
     },
+    Knob {
+        name: "brake_ducts",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
 ];
 
 /// A driver's setup as clicks per knob; all zero is the car as filed.
@@ -235,6 +244,10 @@ pub struct CarSetup {
     /// in the garage, on the grid or at a pit stop, never mid-lap.
     #[serde(default)]
     pub tyre_compound: i8,
+    /// Brake ducts: more air to the brakes (cooler, a little drag), or
+    /// less (warmer, for a cold day or carbon brakes that will not come in).
+    #[serde(default)]
+    pub brake_ducts: i8,
 }
 
 impl CarSetup {
@@ -261,6 +274,7 @@ impl CarSetup {
             self.ride_height_front,
             self.ride_height_rear,
             self.tyre_compound,
+            self.brake_ducts,
         ]
     }
 
@@ -287,6 +301,7 @@ impl CarSetup {
             ride_height_front: c[17],
             ride_height_rear: c[18],
             tyre_compound: c[19],
+            brake_ducts: c[20],
         }
     }
 
@@ -393,7 +408,10 @@ impl CarSetup {
             base.lift_coefficient_rear * scale(self.rear_wing, WING_PER_CLICK);
         car.drag_coefficient = base.drag_coefficient
             * scale(self.front_wing, FRONT_WING_DRAG_PER_CLICK)
-            * scale(self.rear_wing, REAR_WING_DRAG_PER_CLICK);
+            * scale(self.rear_wing, REAR_WING_DRAG_PER_CLICK)
+            * scale(self.brake_ducts, BRAKE_DUCT_DRAG_PER_CLICK);
+        car.brake_duct_scale =
+            base.brake_duct_scale * scale(self.brake_ducts, BRAKE_DUCT_PER_CLICK);
         let height = |base_m: f32, clicks: i8| {
             (base_m + clicks as f32 * RIDE_HEIGHT_M_PER_CLICK).max(MIN_RIDE_HEIGHT_M)
         };
@@ -447,7 +465,7 @@ mod tests {
     #[test]
     fn clamp_pins_every_knob_and_one_sided_knobs_only_lower() {
         let wild = CarSetup::from_clicks([
-            100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30, 9, -9, 12, -12, 4,
+            100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30, 9, -9, 12, -12, 4, -9,
         ]);
         let c = wild.clamp();
         assert_eq!(c.tyre_pressure_front, MAX_CLICKS);
@@ -460,6 +478,7 @@ mod tests {
         assert_eq!(c.fuel_load, MAX_CLICKS);
         assert_eq!(c.tyre_compound, 1, "soft is the end of the range");
         assert_eq!(c.compound_index(), 0, "and the first compound");
+        assert_eq!(c.brake_ducts, -MAX_CLICKS);
         assert_eq!((c.front_wing, c.rear_wing), (MAX_CLICKS, -MAX_CLICKS));
         assert_eq!(
             (c.ride_height_front, c.ride_height_rear),

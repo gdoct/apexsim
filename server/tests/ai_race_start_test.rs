@@ -295,8 +295,15 @@ fn survey_ai_races_on_every_circuit() {
                     bucket * 20
                 );
             }
+            // Cars progressive damage put out (`crate::damage`).
+            let retired = race
+                .session
+                .participants
+                .values()
+                .filter(|c| !c.damage.is_drivable)
+                .count();
             println!(
-                "{track:>14} {car:>14}: out of shape at 3 s {at_3s}, car-seconds of contact {:5.1}, off {:5.1}, sliding {:5.1}",
+                "{track:>14} {car:>14}: out of shape at 3 s {at_3s}, car-seconds of contact {:5.1}, off {:5.1}, sliding {:5.1}, retired {retired}",
                 secs(contact),
                 secs(off),
                 secs(slide)

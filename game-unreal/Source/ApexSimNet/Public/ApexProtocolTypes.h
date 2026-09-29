@@ -97,7 +97,7 @@ struct APEXSIMNET_API FApexCarSetup
 {
 	GENERATED_BODY()
 
-	static constexpr int32 KnobCount = 20;
+	static constexpr int32 KnobCount = 21;
 
 	/** Clicks per knob, in ApexCarSetup::EKnob order. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Setup")
@@ -176,8 +176,10 @@ namespace ApexCarSetup
 		RideHeightRear,
 		/** The compound of the next set: -1 hard, 0 medium, +1 soft. */
 		TyreCompound,
+		/** Brake duct size: cooler brakes for a little drag. */
+		BrakeDucts,
 	};
-	static_assert(TyreCompound + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
+	static_assert(BrakeDucts + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
 }
 
 /**
@@ -1232,6 +1234,21 @@ struct APEXSIMNET_API FApexCarTelemetry
 	bool bPitServicing = false;
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	float ServiceSecondsLeft = 0.0f;
+
+	/** Each corner's brake, °C, FL FR RL RR (`brake_c`); negative when the
+	 * server does not send it. */
+	float BrakeTempC[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+
+	/** The engine's coolant, °C (`water_c`); negative when unknown. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float WaterTempC = -1.0f;
+
+	/** The damage, percent: front, rear, left, right, engine (`damage`,
+	 * server damage.rs); negative when the server does not send it. A zone
+	 * at 100 has put the car out. */
+	float DamagePct[5] = {-1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+
+	bool HasDamage() const { return DamagePct[0] >= 0.0f; }
 
 	/** "S", "M", "H", or empty when unknown. */
 	static FString CompoundLetter(int32 InCompound)

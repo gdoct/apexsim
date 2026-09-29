@@ -708,6 +708,7 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 	AddH(Tyres, TyreCaption, FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Center);
 	TyreTempTexts.Reset();
 	TyrePressureTexts.Reset();
+	BrakeTempTexts.Reset();
 	const TCHAR* TyreNames[4] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
 	for (int32 Tyre = 0; Tyre < 4; ++Tyre)
 	{
@@ -717,11 +718,23 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 		AddV(Cell, Temp, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
 		UTextBlock* Pressure = MakeText(*WidgetTree, TEXT("—"), Font::Mono(11.0f), Palette::TextMuted);
 		AddV(Cell, Pressure, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+		UTextBlock* Brake = MakeText(*WidgetTree, TEXT("—"), Font::Mono(11.0f), Palette::TextMuted);
+		AddV(Cell, Brake, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+		BrakeTempTexts.Add(Brake);
 		// A gap between the axles, so the four read as front pair and rear pair.
 		AddH(Tyres, Cell, FMargin(0.0f, 0.0f, Tyre == 1 ? 30.0f : 16.0f, 0.0f), VAlign_Center);
 		TyreTempTexts.Add(Temp);
 		TyrePressureTexts.Add(Pressure);
 	}
+	// The coolant, after the four tyres.
+	UVerticalBox* WaterCell = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddV(WaterCell, MakeLabel(*WidgetTree, TEXT("Water")));
+	WaterText = MakeText(*WidgetTree, TEXT("—"), Font::Mono(15.0f), Palette::TextMuted);
+	AddV(WaterCell, WaterText, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+	AddV(WaterCell, MakeLabel(*WidgetTree, TEXT("Damage")), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	DamageText = MakeText(*WidgetTree, TEXT("—"), Font::Mono(13.0f), Palette::TextMuted);
+	AddV(WaterCell, DamageText, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+	AddH(Tyres, WaterCell, FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Top);
 	AddV(Stack, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 10.0f));
 	AddV(Stack, Tyres);
 
@@ -1257,6 +1270,58 @@ void UApexHudWidget::RefreshTyres(const FApexCarTelemetry& Local)
 		}
 	}
 	const bool bKnown = Local.HasTyres();
+	// The brakes: blue under the pads' working range, primary in it, amber
+	// and red as they fade. The range is the material's, which the client
+	// does not know, so it is judged from how hot they run: anything over
+	// 300 °C is carbon doing its work, the steel range is below that.
+	for (int32 Corner = 0; Corner < BrakeTempTexts.Num() && Corner < 4; ++Corner)
+	{
+		if (UTextBlock* Brake = BrakeTempTexts[Corner])
+		{
+			const float C = Local.BrakeTempC[Corner];
+			Brake->SetText(FText::FromString(C >= 0.0f ? FString::Printf(TEXT("B %.0f°"), C) : FString(TEXT("—"))));
+			Brake->SetColorAndOpacity(FSlateColor(
+				C < 0.0f ? Palette::TextMuted
+				: C >= 1000.0f ? Palette::Error
+				: C >= 850.0f ? Palette::Accent
+				: C < 150.0f ? TyreColdColour
+				: Palette::TextSecondary));
+		}
+	}
+	if (WaterText)
+	{
+		const float W = Local.WaterTempC;
+		WaterText->SetText(FText::FromString(W >= 0.0f ? FString::Printf(TEXT("%.0f°"), W) : FString(TEXT("—"))));
+		// The engine protects itself past 112 °C (server engine_heat.rs).
+		WaterText->SetColorAndOpacity(FSlateColor(
+			W < 0.0f ? Palette::TextMuted : W > 112.0f ? Palette::Error : W > 105.0f ? Palette::Accent : Palette::TextPrimary));
+	}
+	if (DamageText)
+	{
+		// Every zone with damage, by its letter: "F23 L8 E4"; "OK" on a clean
+		// car. Amber from 25% (what costs a car real pace), red from 60.
+		static const TCHAR* Zones[5] = {TEXT("F"), TEXT("R"), TEXT("L"), TEXT("Rt"), TEXT("E")};
+		FString Line;
+		float Worst = 0.0f;
+		if (Local.HasDamage())
+		{
+			for (int32 Zone = 0; Zone < 5; ++Zone)
+			{
+				const float D = Local.DamagePct[Zone];
+				if (D >= 1.0f)
+				{
+					Line += FString::Printf(TEXT("%s%s%.0f"), Line.IsEmpty() ? TEXT("") : TEXT(" "), Zones[Zone], D);
+					Worst = FMath::Max(Worst, D);
+				}
+			}
+		}
+		DamageText->SetText(FText::FromString(!Local.HasDamage() ? FString(TEXT("—")) : Line.IsEmpty() ? FString(TEXT("OK")) : Line));
+		DamageText->SetColorAndOpacity(FSlateColor(
+			!Local.HasDamage() || Line.IsEmpty() ? Palette::TextMuted
+			: Worst >= 60.0f ? Palette::Error
+			: Worst >= 25.0f ? Palette::Accent
+			: Palette::TextSecondary));
+	}
 	if (TyreCaption)
 	{
 		const FString Letter = FApexCarTelemetry::CompoundLetter(Local.Compound);
