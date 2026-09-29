@@ -809,6 +809,40 @@ Out of scope for this version, as the design says: tracks without
 `fast_lane.ai`, point-to-point stages (refused), kit props in place of AC
 scenery, night lighting from AC's lights, and cars.
 
+### Assetto Corsa car import (`scripts/ac_car_import.py`, docs/AC_CAR_IMPORT.md)
+
+A car from the player's own AC install becomes a custom car in one command,
+local only like the tracks (a CSP-encrypted kn5 is refused):
+
+```powershell
+python scripts/ac_car_import.py "E:\SteamLibrary\steamapps\common\assettocorsa\content\cars\ks_porsche_911_gt3_r_2016"
+python scripts/ac_car_import.py <folder> --list      # skins, compounds, parts, LODs
+python scripts/ac_car_import.py --all <ac>\content\cars [--dry-run]
+#   --stem, --class, --skin, --compound, --cylinders, --keep-steering-wheel, --force
+python -m unittest discover -s scripts/ac_car_import/tests
+```
+
+It writes `content/cars/custom/<Stem>/`: a car.toml marked `imported =
+"ac"` (id a UUID v5 of the AC folder; every figure commented with its AC
+key), the body GLB seated with its tyres on y = 0, `wheels/front.glb` and
+`rear.glb` (car-local wheels), `steering_wheel.glb` for the cockpit rig,
+every other AC skin as a texture `[[livery]]` under `skins/`, and
+`<Stem>.import.json`. Re-running writes byte-identical files. The package
+(`scripts/ac_car_import/`) decrypts `data.acd` (`acd.py`: the key is a
+hash of the folder name, so a renamed folder is refused) and shares the
+track importer's kn5 reader, whose meshes and dummies carry `path` (their
+ancestors' names) for the part split. Traps it settled: `DRIVEREYES` is in
+the model frame, the aero positions are from the CG; `wheel_rake_deg` is
+negative for a real car (the rig's positive pitch lifts the column's
+forward end); `wheel_lock_deg` is `STEER_LOCK` itself (centre to lock);
+turbo `GAMMA` is pedal sensitivity, not an rpm exponent. Checks after an
+import: `cargo test --release --test imported_car_test -- --ignored
+--nocapture`, `cargo test --release --test car_stability_test imported --
+--ignored`, `PROBE_CLASS=GT3 cargo test --release --test grip_probe_test
+silverstone_profile_lap_times -- --ignored --nocapture`, and on the client
+`ApexSim.Cars.Glb.RepoCars` and `ApexSim.Cars.TomlRepoCars`. Not done: a
+DRS flap is not split off the body yet.
+
 ### Runtime tracks (`UApexTrackContentSubsystem`, `UApexTrackInstance`, docs/RUNTIME_CONTENT_LOADING.md)
 
 Every circuit is built by the running game from its export; **there are no

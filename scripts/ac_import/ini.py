@@ -37,10 +37,13 @@ def parse_ini(text: str) -> dict[str, dict[str, str]]:
         line = line.split(";", 1)[0].split("//", 1)[0].strip()
         if not line:
             continue
-        if line.startswith("[") and line.endswith("]"):
-            name = line[1:-1].strip().upper()
-            current = sections.setdefault(name, {})
-            continue
+        if line.startswith("[") and "]" in line:
+            # AC also takes a key on the header's own line (`[REAR]NAME=x`).
+            name, rest = line[1:].split("]", 1)
+            current = sections.setdefault(name.strip().upper(), {})
+            line = rest.strip()
+            if not line:
+                continue
         if "=" in line and current is not None:
             key, value = line.split("=", 1)
             current[key.strip().upper()] = value.strip()

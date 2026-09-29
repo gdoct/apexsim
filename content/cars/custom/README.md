@@ -6,6 +6,10 @@ build does not ship it unless you pass `-IncludeCustomCars` to
 `build_release.ps1` or `build_game_standalone.ps1`. An import may be derived
 from another game's content that you may use but must not redistribute.
 
+To import a car from your own Assetto Corsa install, run
+`python scripts/ac_car_import.py <path to the AC car folder>` from the repo
+root; it writes the car's folder here (docs/AC_CAR_IMPORT.md).
+
 A custom car is laid out exactly like one in `../default/`: a folder holding
 its `car.toml` and the files that names (the body GLB as `model`, the DRS
 flap GLB, the livery logos). The class wheel it names in `[wheels]` comes
