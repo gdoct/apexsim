@@ -28,6 +28,14 @@ namespace ApexCarSetup
 			// Laps, not a figure of the car: the server fills the tank for
 			// the run (a race's distance, three hotlap laps) plus these.
 			{ "fuel_load",           -MaxClicks, MaxClicks, 1.0f,   TEXT(" laps") },
+			// Aero: each wing scales its axle's downforce (and the drag);
+			// the ride heights move the car on its aero map.
+			{ "front_wing",          -MaxClicks, MaxClicks, 5.0f,   TEXT("%") },
+			{ "rear_wing",           -MaxClicks, MaxClicks, 5.0f,   TEXT("%") },
+			{ "ride_height_front",   -MaxClicks, MaxClicks, 2.0f,   TEXT(" mm") },
+			{ "ride_height_rear",    -MaxClicks, MaxClicks, 2.0f,   TEXT(" mm") },
+			// Not a figure but the next set's compound: read out by name.
+			{ "tyre_compound",       -1,         1,         1.0f,   TEXT("") },
 		};
 	}
 
@@ -38,6 +46,10 @@ namespace ApexCarSetup
 
 	FString Describe(int32 Index, int32 Clicks)
 	{
+		if (Index == TyreCompound)
+		{
+			return Clicks > 0 ? TEXT("Soft") : Clicks < 0 ? TEXT("Hard") : TEXT("Medium");
+		}
 		if (Clicks == 0)
 		{
 			return TEXT("0");

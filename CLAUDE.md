@@ -450,6 +450,7 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-bank -- --all     # 
 python scripts/drs_zones.py --all                                             # DRS zones onto the corners
 python scripts/osm_layout.py --all --offline                                  # dossiers (fit to the centerline)
 python scripts/dem_fetch.py --all --offline                                   # elevation (same fit, same datum)
+python scripts/track_location.py --all                                        # altitude and position from the DEM
 ./scripts/build_track_levels.ps1                                              # dress, export, import
 ```
 
@@ -581,7 +582,7 @@ running it every time costs seconds and removes the failure mode
 `content/tracks/{default,custom,export}` relative to the working directory, so it must be
 run from the repo root — not from `track-editor/`.
 
-The exporter also writes four gitignored sidecars (like the exports) into
+The exporter also writes five gitignored sidecars (like the exports) into
 `content/tracks/default/`, all loaded by the server from beside the YAML and
 all shipped in `Server/` by `build_release.ps1`. A track whose sidecars
 another tool wrote (an importer that measured the real road) lists them in
@@ -651,6 +652,11 @@ than guessed ones:
   `determinism_test` on the mesh, and `physics_step_monza_mesh` /
   `session_tick_8cars_monza_mesh` in the bench. `SURVEY_ROAD_CONTACT=mesh`
   runs the AI survey on the meshes.
+
+- `<Stem>.pit.msgpack` — the pit lane and its boxes (`ue_export::
+  PitSidecar`): the lane's centerline, the limit lines, a stop spot per
+  box, where it leaves and rejoins the track. Without it a circuit has no
+  pit stops (see "Tyre wear, compounds and pit stops").
 
 Where the course passes over itself with at least 4 m to spare (Suzuka's
 crossover) the terrain finds an `Underpass` (`terrain.rs`): behind wall lines
@@ -835,7 +841,13 @@ ancestors' names) for the part split. Traps it settled: `DRIVEREYES` is in
 the model frame, the aero positions are from the CG; `wheel_rake_deg` is
 negative for a real car (the rig's positive pitch lifts the column's
 forward end); `wheel_lock_deg` is `STEER_LOCK` itself (centre to lock);
-turbo `GAMMA` is pedal sensitivity, not an rpm exponent. Checks after an
+turbo `GAMMA` is pedal sensitivity, not an rpm exponent. The server's newer
+tables are mapped too: the tyre window from `[THERMAL_FRONT]`'s
+`PERFORMANCE_CURVE`, blankets for a modern F1, and the `[aero]`
+ride-height map from the wings' `LUT_GH_CL` tables, the lift coefficients
+taken at the posture the car rides at 50 m/s (the server's reference); a
+heave spring adds half its rate to each corner. Re-run an import with
+`--force` after an importer change. Checks after an
 import: `cargo test --release --test imported_car_test -- --ignored
 --nocapture`, `cargo test --release --test car_stability_test imported --
 --ignored`, `PROBE_CLASS=GT3 cargo test --release --test grip_probe_test
@@ -1818,8 +1830,9 @@ in `ApexGoldenBlobs.h`.
 A session's host picks its sky on the create screen: a **Weather** chip row
 (sunny, cloudy, overcast, light rain, heavy rain) and a **Time of day**
 slider in quarter hours. Both go out inside `CreateSession.conditions`
-(`SessionConditions { weather, time_of_day_minutes }`, defaulting to a
-sunny 13:00 so an old client's session is unchanged), are kept on
+(`SessionConditions { weather, time_of_day_minutes }` and the optional
+air, see "The air" below; defaulting to a sunny 13:00 so an old
+client's session is unchanged), are kept on
 `RaceSession::conditions`, echoed in `SessionJoined.Conditions` and listed
 in every `SessionSummary` (the browser row shows "Light rain · 21:30").
 The clock wraps onto one day on the way in (`SessionConditions::clamp`).
@@ -1882,9 +1895,11 @@ screenshot run under that sky.
 
 ### Car setup (`server/src/car_setup.rs`, `SetCarSetup`, the hotlap garage)
 
-The garage: tyres, engine, transmission, torque and suspension, per driver.
+The garage: tyres, engine, transmission, torque, suspension, fuel and aero,
+per driver.
 A setup is **clicks** off the car's own `car.toml`, one `i8` per knob
-(`CarSetup`, 14 knobs in `KNOBS` order), so neither the wire nor the client
+(`CarSetup`, 19 knobs in `KNOBS` order; the fuel load and the four aero
+knobs appended after the first 14), so neither the wire nor the client
 needs the car's base figures; the client shows "+2  (+8%)" and the server
 turns that into newtons per metre against the file it loaded. Every knob
 has a fixed click range (±5; the rev limiter and torque map only go down)
@@ -2030,11 +2045,13 @@ Not on the wire yet and not host-pickable: that is the ambient-temperature
 item of the gaps list.
 
 **Where the tyres start** (`game_session::fit_tyres`): out of the garage /
-on joining (`add_player`) at the car's `blanket_temperature_c` or the air;
-on a race grid (`line_up_on_grid`) half way from there to the optimum
+on joining a practice (`add_player`) at the car's `blanket_temperature_c`
+or the air; on a race grid (`line_up_on_grid`, and `add_player` when the
+run ahead is a race, which is how a session set straight into `Race`
+still gets it) half way from there to the optimum
 (`FORMATION_LAP_WARMTH`: there is no formation lap to drive); a hotlap car
 going out (`hotlap_relocate`) at the optimum, so a hotlap measures the car,
-not its warm-up. Per class (car.toml `[tires]`): F1 95 ± 12 °C on 70 °C
+not its warm-up. Per class (car.toml `[tires]`): F1 93 ± 12 °C on 70 °C
 blankets, Hypercar 105 ± 13, LMP2 92 ± 10, GT3 87 ± 10, all without
 blankets but the F1. The windows were set where each car runs at the AI's
 race pace at Monza (`tyre_temperature_probe`, below); the imported AC cars
@@ -2042,9 +2059,22 @@ take theirs from AC's `PERFORMANCE_CURVE` plateau (`thermal_window`).
 
 **The AI drives to the grip it has**: `CarState::tyre_grip_share` (the
 weaker axle's grip against the same tyres in their window at the set
-pressure) scales its profile's speeds by the root and its grip budget
-outright, so cold tyres on lap 1 do not put it into the first chicane at
-full-grip pace. At Monza every class is in its window by lap 2; lap 1 costs
+pressure) scales its profile's speeds by its 0.75 power and its grip
+budget outright, so cold tyres on lap 1 do not put it into the first
+chicane at full-grip pace. The root (what the physics alone would say)
+was tried first: the AI survey then found 13-25% more car-seconds off the
+road than before tyre temperatures, because the grip moves under the car
+through a corner as the tread heats. At 0.75, with fuel, tyres, slipstream
+and ride-height aero all in, the survey against the commit before any of
+them (87c3c6e, all 234 circuit-car runs): contact 23 374 car-seconds
+against 24 166, off the road 11 345 against 11 381, out of shape at 3 s
+175 against 197, sliding 5 078 against 4 807. Run by run the off-road
+time still leans a little worse (30 runs clearly worse, 16 clearly
+better). Single pile-ups dominate a run: a change as small as the
+damaged-nose downforce loss moves a class's total by about 10%, so
+compare totals, not circuits. Isolating one feature at a time (a scratch
+copy with it switched off, `content` junctioned in) is how the root was
+caught. At Monza every class is in its window by lap 2; lap 1 costs
 0.1 s (F1, blankets) to ~2 s; a steady lap is 0.1-0.5 s off the old
 full-grip AI (the hypercars ~1.2 s: they lean on their fronts, which settle
 at the top of the window with the pressure up, and their tread spikes to
@@ -2103,6 +2133,169 @@ after `tyre_kpa`; `FApexCarTelemetry::TowShare` (0-1, -1 unknown) and a
 telemetry_compact_wire_format -- --nocapture` ->
 `ApexUdpGolden::S_TelemetryCompactTow` (the 26-field
 `S_TelemetryCompactTyres` stays as an older server's frame).
+
+### Ride-height aero and wings (`server/src/aero.rs`, `[aero]`, the aero knobs)
+
+The fourth item of docs/SIMULATION_GAPS.md. The sim has no body heave (the
+body follows the ground plane and the loads are analytic), so the ride
+height is worked out: each axle sits at its `[aero]` static height less
+its load change over its springs (`aero::ride_heights`, from last tick's
+wheel loads, which carry the downforce, braking and acceleration),
+stiffening 6x on the bump rubbers past 65% of its height. The map
+(`aero::multipliers`): the downforce gains `ride_height_sensitivity` per
+cm the mean height is below the reference, the floor gives back up to 40%
+below `stall_height_m`, and rake over the reference moves
+`rake_sensitivity` of the balance forward per cm; induced drag follows a
+quarter of the total change. The **reference** is where the car rides at
+50 m/s on its stock springs (`fit_reference`, at load), so there it makes
+exactly its car.toml downforce and the class calibration holds: the
+Silverstone profile laps moved under 0.2 s and the AI's Monza laps under
+0.15 s. A car with no `[aero]` table makes exactly what it did. A damaged
+nose loses up to half its front downforce (`FRONT_DAMAGE_AERO_LOSS`).
+
+Per class (car.toml `[aero]`): F1 45/90 mm, 3% a cm, 1% balance a cm of
+rake, stall at 12 mm; Hypercar and LMP2 50/80 mm, 2%, 0.8%; GT3 70/90 mm,
+1%, 0.6%, stall at 15 mm. On Monza's straight an F1 goes from 39/54 mm at
+173 km/h to 13/28 mm at 290 km/h (7% more downforce than filed) and dives
+to 10/58 mm under braking (`tests/aero_test.rs`).
+
+The racing line plans with the same map at steady state
+(`aero::steady_downforce_factor`, tabulated per 2 m/s on the envelope;
+the corner speed is solved again at its own answer), so the AI's plan
+follows it. **Setup**: four knobs appended to `CarSetup` (19 now):
+`front_wing` / `rear_wing` (5% of that axle's lift a click, 0.5% / 1.5%
+drag), `ride_height_front` / `_rear` (2 mm a click, never under 10 mm; the
+reference stays the file's). The springs knob now moves the aero too (a
+stiffer car squats less). Client: `ApexCarSetup::FrontWing` ...
+`RideHeightRear`, an **Aero** section in the hotlap garage. Golden bytes:
+`cargo test car_setup_wire_format -- --nocapture` ->
+`ApexGolden::C_SetCarSetup`. Not modelled: crests (the loads carry no
+vertical acceleration), yaw and roll sensitivity, and porpoising.
+
+### The air: temperature, density and wind (`SessionConditions`, `wind.rs`)
+
+The environmental item of docs/SIMULATION_GAPS.md. `SessionConditions`
+gained four optional figures, `air_temp_c` (i8, -5..45), `humidity_pct`,
+`wind_kph` (0..60) and `wind_from_deg` (from the start straight's
+direction: 0 head-on, 90 from its left); `None` is "from the weather and
+the clock" and is left off the wire, so an old client's or server's bytes
+are unchanged. `create_session` **resolves** them
+(`SessionConditions::resolve`, the wind's direction hashed from the
+session id; `replay_tools` seeds it from `--seed`), so `SessionJoined` and
+the listing always name every figure. Auto values: the air as before
+(13-23 °C over the day, damped under cloud; now whole degrees), humidity
+50-97% and wind 8-28 km/h by weather. `apply_to_track` bakes into the
+session's `TrackSurface`:
+
+- `air_density_ratio`: moist-air density (standard-atmosphere pressure for
+  the track's `metadata.altitude_m`, Tetens vapour pressure) over the
+  **reference day** every car.toml is filed at (sea level, a sunny 13:00),
+  exactly 1.0 there. It scales the aero (`calculate_aerodynamic_forces`,
+  the racing line's envelope) and the combustion torque
+  (`physics::engine_density_factor`: all of it for a naturally aspirated
+  engine, `TURBO_DENSITY_SHARE` 0.25 for one with `[engine]
+  forced_induction`, which the F1s and two hypercars set; an
+  `[engine.turbo]` table implies it). Mexico City is 0.78: the LMP2's
+  Monza plan is 5.4 s slower there, the turbo F1's top speed 339 -> 349
+  km/h (`tests/air_test.rs`).
+- `wind_mps` (rotated onto the track by the start line's heading: the
+  real circuits keep their real orientation, so the start straight is not
+  +X) and `wind_now_mps`, which `GameSession::update_wind` (in
+  `update_air`, and the demo lap) sets each tick from `wind::gusting`:
+  hash-based smooth noise over the session clock, speed +-35%, veering
+  +-15° every few seconds, deterministic.
+
+The physics drives through the air: downforce from the flow along the
+car, drag along the relative airflow, and a side force on the flank
+(Cs 0.9 on 0.75 of length x height) from air crossing it; a 35 km/h
+headwind down Monza's straight costs an F1 13 km/h over four seconds, a
+tailwind adds 12. `CarState::aero_load_share` (the tyres' load with this
+downforce over the load in still, clean air at this ground speed, capped
+at 1) replaced the wake-only share in the AI, so it backs off for a
+tailwind into a corner as for dirty air; in a 50 km/h gale it laps Monza
+without leaving the road. Humidity has no host control (auto only).
+`SURVEY_WIND_KPH=25` runs the AI survey in wind.
+
+**Where a circuit is**: `metadata.altitude_m`, `latitude_deg`,
+`longitude_deg` in the track YAML, written by `scripts/track_location.py
+--all` from each `.dem.msgpack`'s georeference (altitude = the first
+node's z less `datum_offset_m`), with a `MANUAL` table for the four
+shipped circuits without a DEM (Mexico City 2240 m). The track editor's
+`TrackMetadata` carries the keys so its rewrites keep them
+(`the_location_survives_a_rewrite_as_written`). Changing a YAML changes
+its checksum: re-run `ats-export --all` after. Latitude is stored, not
+yet used (the sun is still the sky model's 50° N).
+
+**Client**: `FApexSessionConditions::AirTempC` / `HumidityPct` /
+`WindKph` / `WindFromDeg` (-128 / -1 = auto), written only when picked;
+`Describe()` names them ("Overcast · 08:00 · -3°C · wind 22 km/h from the
+right"). The create screen has an **Air temperature** slider (first step
+Auto) and a **Wind** chip row (Auto / Calm / Light / Breezy / Strong, and a
+chip that steps the direction through auto, ahead, left, behind, right).
+Golden bytes: `cargo test conditions_air_wire_format -- --nocapture` ->
+`ApexGolden::C_CreateSessionAir` / `S_SessionJoinedAir`.
+
+### Tyre wear, compounds and pit stops (`tyre_thermal.rs`, `pit.rs`, `<Stem>.pit.msgpack`)
+
+The next package of docs/SIMULATION_GAPS.md. **Compounds**: every car has
+`tyre_thermal::COMPOUNDS`, soft / medium / hard as changes to its own tyre
+(soft +3% grip, 1.8x wear, window 6 °C lower; hard 0.97, 0.55x, 6 °C
+higher; the medium is the tyre exactly, so every calibration holds).
+`CarState::tyre_compound` is what is on the car, set when a set is fitted
+(`tyre_thermal::fit`, which also zeroes the wear); the setup's twentieth
+knob `tyre_compound` (-1 hard, 0 medium, +1 soft; `CarSetup::
+compound_index`, like the fuel load not baked into the car) chooses the
+*next* set: in the hotlap garage, on the grid, at a stop. **Wear** grows
+with the same friction power that heats the tread
+(`WEAR_PERCENT_PER_MJ` 7, x the compound, x `[tires] wear_rate`, 4% more a
+degree over the window) and costs grip (`wear_grip_factor`: 6% across
+the tyre's life, plus a cliff of 24% from 70% worn, quadratic); the AI's
+`tyre_grip_share` reads it, so it slows as its tyres go off. At Monza a
+medium wears 2.5-3.5% a lap at the AI's pace (the hypercars' hot fronts
+the most). The old stateless `wear_percent` in `update_telemetry_3d` is
+gone.
+
+**The pit lane** reaches the server as a sidecar `ats-export` writes
+beside the YAML (`ue_export::PitSidecar`, gitignored like the others,
+shipped by `build_release.ps1`; `Sidecar::Pit`): the lane's centerline
+every 2 m, the limit lines and the box row exactly as `pit_markings`
+paints them, a stop spot in the middle of each box's working lane, and
+the track stations where the lane leaves and rejoins. 26 of 27 shipped
+circuits have one (not the Nordschleife); AC imports have none yet.
+`TrackConfig::pit_lane` (`pit::PitLane`) replaced the never-filled
+`PitLaneConfig`. **Each tick** (`GameSession::update_pits`, first in
+`update_air`) every car is placed on the lane (`PitState`, windowed
+search): between the lines `physics::update_car_3d` fades the throttle
+out over the last m/s below the limit (80 km/h at Monza: 79.8 held flat
+out); a car stopped within 2.5 m of its box's spot (its grid slot's,
+shared past the box count) is serviced for `pit::service_seconds` (tyres
+2.5 s for an F1 crew, 9 s for others; then refuelling at 2 L/s where the
+rules allow it, not an F1: a race's remaining distance with its margin;
+then repairs at 0.04 s a percent of damage), held still by the physics;
+at the end the new set goes on at the car's start temperature (blankets
+or air), the fuel in, the damage off. The pit lane is **on the track for
+the lap** now (`RoadContact::off_track`), so a lap with a stop counts.
+**The AI** in a race plans a stop (`pit::plan_stop`: a tyre 70% worn,
+the nose 25% damaged, or short of fuel for the rest; hards with 15+ laps
+left, mediums with 6+, softs otherwise), turns onto the pit route 250 m
+before the lane leaves the track, and `pit::drive_input` drives it (pure
+pursuit along the lane onto its box's spot, the limit between the lines,
+a stop at the box, the automatic box on for the route) until past the
+lane's end, where the normal AI takes over. At Monza a GT3 AI on 72% worn
+tyres pits on lap 1, 9 s in the box, rejoins on softs and races on
+(`tests/pit_stop_test.rs`).
+
+**Wire**: `CompactCarState.tyre_wear` ([u8;4], %), `compound` (255
+unknown), `pit_flags` (bit 0 limiter, 1 servicing, 2 in the lane),
+`service_ds` (tenths), appended after `tow_pct` (31 fields). Client:
+`FApexCarTelemetry::TyreWearPct` / `Compound` / `bInPitLane` /
+`bPitLimiter` / `bPitServicing` / `ServiceSecondsLeft`; the HUD's tyre
+row shows the compound in its caption and each tyre's wear beside its
+pressure (amber from 70%, red from 90%), and a PIT badge beside TOW goes
+amber for LIMITER and green with the SERVICE countdown; the hotlap garage
+has a "Next tyres" row. Golden bytes: `cargo test
+telemetry_compact_wire_format car_setup_wire_format -- --nocapture` ->
+`ApexUdpGolden::S_TelemetryCompactPit`, `ApexGolden::C_SetCarSetup`.
 
 ### Hotlap (`GameMode::Hotlap`, `HotlapRelocate`, `GhostLap`, `UApexHotlapWidget`, `AApexGhostCarActor`)
 

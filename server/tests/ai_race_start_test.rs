@@ -48,8 +48,23 @@ fn track_file(stem: &str) -> PathBuf {
 }
 
 fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
-    let track =
+    let mut track =
         TrackLoader::load_from_file_with(track_file(track), road_contact()).expect("track loads");
+    // `SURVEY_WIND_KPH=25` races the field in that wind, from 45° off the
+    // start straight's nose (every straight meets it differently); still
+    // air otherwise, the reference day's density either way.
+    if let Some(kph) = std::env::var("SURVEY_WIND_KPH")
+        .ok()
+        .and_then(|v| v.parse::<u8>().ok())
+    {
+        apexsim_server::data::SessionConditions {
+            wind_kph: Some(kph),
+            wind_from_deg: Some(45),
+            ..apexsim_server::data::SessionConditions::DEFAULT
+        }
+        .apply_to_track(&mut track);
+        track.track_surface.air_density_ratio = 1.0;
+    }
     let car = CarLoader::load_from_file(&repo(&format!("content/cars/default/{car}/car.toml")))
         .expect("car loads");
     let car_id = car.id;

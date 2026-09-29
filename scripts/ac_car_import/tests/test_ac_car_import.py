@@ -354,6 +354,100 @@ class ThermalWindowTest(unittest.TestCase):
         self.assertEqual((optimum, window, falloff), (100.0, 50.0, 0.0))
 
 
+class AeroPostureTest(unittest.TestCase):
+    def test_the_heave_model_is_the_servers(self):
+        # server/src/aero.rs the_bump_rubbers_hold_the_car_off_the_road:
+        # 2 cm of free travel on a 4 cm car is 2 cm, and an unloaded axle
+        # rises at most 5 cm.
+        k = 80000.0
+        self.assertAlmostEqual(physics.axle_travel(2 * k * 0.02, k, 0.04), 0.02, places=6)
+        bumped = physics.axle_travel(2 * k * 0.06, k, 0.04)
+        free = physics.FREE_TRAVEL_SHARE * 0.04
+        self.assertAlmostEqual(bumped, free + (2 * k * 0.06 - 2 * k * free) / (2 * k * physics.BUMP_STIFFENING))
+        self.assertEqual(physics.axle_travel(-1e6, k, 0.04), -physics.MAX_EXTENSION_M)
+
+    def test_a_heave_spring_adds_half_its_rate_to_each_corner(self):
+        susp = {"FRONT": {"SPRING_RATE": "40000"}, "HEAVE_FRONT": {"SPRING_RATE": "120000"},
+                "REAR": {"SPRING_RATE": "30000"}}
+        self.assertEqual(physics.wheel_spring_rate(susp, "FRONT")[0], 100000.0)
+        self.assertEqual(physics.wheel_spring_rate(susp, "REAR")[0], 30000.0)
+        self.assertEqual(physics.wheel_spring_rate({"FRONT": {}}, "FRONT")[0], None)
+
+    def test_a_floor_table_gives_a_sensitivity_and_a_stall(self):
+        floor = data.parse_lut("0|0\n0.01|0.3\n0.02|1.2\n0.04|1.1\n0.06|1.0\n0.1|0.8\n")
+        wings = [physics.AeroWing(cl=lambda h: 0.6, z=0.0),
+                 physics.AeroWing(cl=lambda h: 1.0 * floor(h), z=-1.0)]
+        m = physics.aero_posture(wings, (0.06, 0.07), (80000.0, 70000.0), 1.4, -1.2, 2.6)
+        front, rear = m["posture"]
+        self.assertLess(front, 0.06)
+        self.assertLess(rear, 0.07)
+        self.assertGreater(m["ride_height_sensitivity"], 0.0, "lower is more downforce up here")
+        self.assertGreater(m["stall_height_m"], 0.0)
+        self.assertLess(m["stall_height_m"], 0.5 * (front + rear), "the stall is below where it runs")
+        # A car of flat tables has neither.
+        flat = physics.aero_posture([physics.AeroWing(cl=lambda h: 1.0, z=0.0)],
+                                    (0.06, 0.07), (80000.0, 70000.0), 1.4, -1.2, 2.6)
+        self.assertAlmostEqual(flat["ride_height_sensitivity"], 0.0)
+        self.assertEqual(flat["stall_height_m"], 0.0)
+
+
+class GroundEffectImportTest(unittest.TestCase):
+    """The synthetic car with a floor, a heave spring and a tyre thermal
+    curve: the server's `[aero]` and the tyre window come out of it."""
+
+    @classmethod
+    def setUpClass(cls):
+        extra = {
+            "aero.ini": DATA["aero.ini"] + """[WING_2]
+NAME=DIFFUSER
+CHORD=1
+SPAN=2.0
+POSITION=0,-0.2,-1.4
+LUT_AOA_CL=body_cl.lut
+LUT_AOA_CD=body_cd.lut
+LUT_GH_CL=diffuser_gh.lut
+ANGLE=0
+CL_GAIN=5
+""",
+            "diffuser_gh.lut": "0|0\n0.01|0.3\n0.02|1.2\n0.04|1.1\n0.06|1.0\n0.1|0.8\n0.2|0.5\n",
+            "suspensions.ini": DATA["suspensions.ini"] + "[HEAVE_FRONT]\nSPRING_RATE=60000\n",
+            "tyres.ini": DATA["tyres.ini"] + "[THERMAL_FRONT]\nPERFORMANCE_CURVE=tcurve.lut\n",
+            "tcurve.lut": "0|0.7\n20|0.8\n60|0.98\n70|1.0\n90|1.0\n120|0.96\n",
+        }
+        cls.tmp = tempfile.TemporaryDirectory()
+        root = Path(cls.tmp.name)
+        from unittest import mock
+        with mock.patch.dict(DATA, extra):
+            car_dir = build_car(root / "ac", folder="test_floor")
+        opts = cli.Options(custom_dir=root / "custom", default_dir=root / "default")
+        (root / "default").mkdir()
+        cls.result = cli.import_car(car_dir, opts)
+        out = next((opts.custom_dir).iterdir())
+        cls.toml = tomllib.loads((out / "car.toml").read_text(encoding="utf-8"))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_floor_becomes_the_servers_aero_map(self):
+        a = self.toml["aero"]
+        # Inside the server's validation ranges (car_loader.rs).
+        self.assertTrue(0.005 <= a["ride_height_front_m"] <= 0.3)
+        self.assertTrue(0.005 <= a["ride_height_rear_m"] <= 0.3)
+        self.assertTrue(0.0 < a["ride_height_sensitivity"] <= 0.1)
+        self.assertTrue(0.0 <= a["rake_sensitivity"] <= 0.05)
+        self.assertTrue(0.0 < a["stall_height_m"] <= 0.1)
+
+    def test_the_heave_spring_is_in_the_front_rate(self):
+        self.assertEqual(self.toml["suspension"]["spring_rate_front_n_per_m"], 90000.0 + 30000.0)
+
+    def test_the_thermal_curve_is_the_tyre_window(self):
+        t = self.toml["tires"]
+        self.assertEqual(t["optimal_temperature_c"], 80.0)
+        self.assertEqual(t["temperature_window_c"], 10.0)
+        self.assertNotIn("blanket_temperature_c", t, "a GT3 has no blankets")
+
+
 class SyntheticImportTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -537,9 +631,23 @@ class Porsche911Gt3RTest(unittest.TestCase):
         cls.phys = physics.map_physics(data.read_car(GT3R))
 
     def test_aero(self):
+        # At the height it rides at 50 m/s (the server's reference), not at
+        # rest: 2.42 m2 at rest, 2.45 at 55/49 mm on its springs.
         a = self.phys.fit["aero"]
-        self.assertAlmostEqual(a["cl_area_m2"], 2.42, delta=0.02)
-        self.assertAlmostEqual(a["cd_area_m2"], 0.99, delta=0.01)
+        self.assertAlmostEqual(a["cl_area_m2"], 2.45, delta=0.02)
+        self.assertAlmostEqual(a["cd_area_m2"], 0.99, delta=0.02)
+        front, rear = a["posture_at_reference_m"]
+        self.assertAlmostEqual(front, 0.055, delta=0.003)
+        self.assertAlmostEqual(rear, 0.049, delta=0.003)
+
+    def test_the_ride_height_map(self):
+        # The front splitter's and the diffuser's LUT_GH_CL: ~2% a cm lower,
+        # stalling around 25 mm (the diffuser's table falls off under 40).
+        m = self.phys.fit["aero"]["map"]
+        self.assertAlmostEqual(m["ride_height_sensitivity"], 0.018, delta=0.004)
+        self.assertGreater(m["rake_sensitivity"], 0.0)
+        self.assertAlmostEqual(m["stall_height_m"], 0.025, delta=0.004)
+        self.assertEqual(self.phys.get("aero", "stall_height_m"), round(m["stall_height_m"], 4))
 
     def test_brakes_steering_and_grip(self):
         self.assertAlmostEqual(self.phys.get("physics", "max_brake_force_n"), 22921, delta=2)

@@ -78,6 +78,39 @@ namespace
 		return FName(*FString::Printf(TEXT("__weather%d"), static_cast<int32>(Weather)));
 	}
 
+	/** The wind's strengths offered, km/h, after "Auto". */
+	constexpr int32 WindPresetsKph[] = {0, 12, 22, 35};
+	const TCHAR* WindPresetLabels[] = {TEXT("Calm"), TEXT("Light"), TEXT("Breezy"), TEXT("Strong")};
+	constexpr int32 WindPresetCount = UE_ARRAY_COUNT(WindPresetsKph);
+	/** Where the wind blows from, stepped through by one chip: auto, then
+	 * the four quarters of the track's frame. */
+	constexpr int32 WindDirections[] = {FApexSessionConditions::Auto, 0, 90, 180, 270};
+	constexpr int32 WindDirectionCount = UE_ARRAY_COUNT(WindDirections);
+
+	/** Wind chips carry their index (0 auto, then the presets) in the action id. */
+	FName WindAction(int32 Index)
+	{
+		return FName(*FString::Printf(TEXT("__wind%d"), Index));
+	}
+	const FName ActionWindFrom(TEXT("__windfrom"));
+
+	/** The wind-direction chip's label. */
+	FString WindFromChip(int32 Degrees)
+	{
+		return Degrees < 0 ? FString(TEXT("From: auto"))
+			: FString::Printf(TEXT("From %s"), *FApexSessionConditions::WindFromLabel(Degrees));
+	}
+
+	/** What the air temperature feels like, for the slider's suffix. */
+	const TCHAR* DescribeAir(int32 Celsius)
+	{
+		if (Celsius < 5)  { return TEXT("COLD: SLOW TYRES"); }
+		if (Celsius < 15) { return TEXT("COOL"); }
+		if (Celsius < 26) { return TEXT("MILD"); }
+		if (Celsius < 33) { return TEXT("WARM"); }
+		return TEXT("HOT: THIN AIR, HOT TYRES");
+	}
+
 	/** What the clock reads as, for the slider's suffix. */
 	const TCHAR* DescribeDaylight(int32 Minutes)
 	{
@@ -238,6 +271,12 @@ bool UApexSessionCreateWidget::HandleNavigation(EUINavigation Direction, UWidget
 	if (WeatherAt != INDEX_NONE && Direction == EUINavigation::Left)
 	{
 		return (WeatherAt > 0 && ApexNav::Focus(WeatherButtons[WeatherAt - 1])) || FocusContent(true);
+	}
+
+	const int32 WindAt = ApexNav::IndexOf(WindButtons, Source);
+	if (WindAt != INDEX_NONE && Direction == EUINavigation::Left)
+	{
+		return (WindAt > 0 && ApexNav::Focus(WindButtons[WindAt - 1])) || FocusContent(true);
 	}
 
 	return false;
@@ -460,6 +499,49 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 	TimeOfDayFill = ClockFill;
 	TimeOfDaySlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleTimeOfDayChanged);
 	TimeOfDaySlider->SetStepSize(1.0f / TimeOfDaySteps);
+
+	// The air: its temperature (the tyres' warm-up and window, the engine's
+	// breath and the downforce's, through the density) and the wind. Both
+	// start as "from the weather", which the server works out and names.
+	UTextBlock* AirValue = nullptr;
+	UTextBlock* AirSuffix = nullptr;
+	USlider* AirSlider = nullptr;
+	UProgressBar* AirFill = nullptr;
+	ApexUI::AddV(
+		Column,
+		ApexUI::MakeSliderRow(*WidgetTree, TEXT("Air temperature"), AirValue, AirSuffix, AirSlider, AirFill),
+		FMargin(0.0f, 0.0f, 0.0f, 16.0f));
+	AirTempValue = AirValue;
+	AirTempSuffix = AirSuffix;
+	AirTempSlider = AirSlider;
+	AirTempFill = AirFill;
+	AirTempSlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleAirTempChanged);
+	AirTempSlider->SetStepSize(1.0f / AirTempSteps);
+
+	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Wind")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+	WindButtons.Reset();
+	UHorizontalBox* WindRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+	for (int32 Index = 0; Index <= WindPresetCount + 1; ++Index)
+	{
+		const bool bDirection = Index == WindPresetCount + 1;
+		FApexButtonSpec Spec;
+		Spec.Label = bDirection ? WindFromChip(FApexSessionConditions::Auto)
+			: Index == 0 ? FString(TEXT("Auto"))
+			: FString(WindPresetLabels[Index - 1]);
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.bCentreLabel = true;
+		Spec.LabelSize = 14.0f;
+		Spec.Height = 44.0f;
+		Spec.ActionId = bDirection ? ActionWindFrom : WindAction(Index);
+
+		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Button->Setup(Spec);
+		Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
+		WindButtons.Add(Button);
+		ApexUI::AddH(WindRow, Button, FMargin(Index == 0 ? 0.0f : 8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill,
+			bDirection ? 1.6f : 1.0f);
+	}
+	ApexUI::AddV(Column, WindRow, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
 
 	// --- Grid and length ------------------------------------------------------
 	UTextBlock* PlayersValue = nullptr;
@@ -792,6 +874,43 @@ void UApexSessionCreateWidget::RefreshSettings()
 		if (TimeOfDaySuffix) { TimeOfDaySuffix->SetText(FText::FromString(DescribeDaylight(Minutes))); }
 	}
 
+	{
+		const FApexSessionConditions& Air = Flow->CreateConditions;
+		const int32 Step = Air.HasAirTemp()
+			? FMath::Clamp(Air.AirTempC - FApexSessionConditions::MinAirTempC + 1, 1, AirTempSteps)
+			: 0;
+		const float Fraction = static_cast<float>(Step) / AirTempSteps;
+		if (AirTempSlider) { AirTempSlider->SetValue(Fraction); }
+		if (AirTempFill)   { AirTempFill->SetPercent(Fraction); }
+		if (AirTempValue)
+		{
+			AirTempValue->SetText(FText::FromString(
+				Air.HasAirTemp() ? FString::Printf(TEXT("%d°C"), Air.AirTempC) : FString(TEXT("Auto"))));
+		}
+		if (AirTempSuffix)
+		{
+			AirTempSuffix->SetText(FText::FromString(
+				Air.HasAirTemp() ? FString(DescribeAir(Air.AirTempC)) : FString(TEXT("FROM THE WEATHER"))));
+		}
+
+		for (int32 Index = 0; Index < WindButtons.Num(); ++Index)
+		{
+			UApexButtonWidget* Button = WindButtons[Index];
+			if (!Button)
+			{
+				continue;
+			}
+			if (Index == WindPresetCount + 1)
+			{
+				Button->SetLabel(WindFromChip(Air.WindFromDeg));
+				Button->SetSelected(Air.HasWindDirection());
+				continue;
+			}
+			const bool bSelected = Index == 0 ? !Air.HasWind() : Air.WindKph == WindPresetsKph[Index - 1];
+			Button->SetSelected(bSelected);
+		}
+	}
+
 	// Sliders are normalised 0..1; the labels carry the real numbers.
 	if (MaxPlayersSlider)
 	{
@@ -966,6 +1085,23 @@ void UApexSessionCreateWidget::HandleTimeOfDayChanged(float Value)
 	RefreshSettings();
 }
 
+void UApexSessionCreateWidget::HandleAirTempChanged(float Value)
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow)
+	{
+		return;
+	}
+
+	// Step 0 is "from the weather", then a degree a step.
+	const int32 Step = FMath::Clamp(FMath::RoundToInt(Value * AirTempSteps), 0, AirTempSteps);
+	Flow->CreateConditions.AirTempC = Step == 0
+		? FApexSessionConditions::AutoAirTemp
+		: FApexSessionConditions::MinAirTempC + Step - 1;
+	Flow->SaveProfile();
+	RefreshSettings();
+}
+
 void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 {
 	UApexMenuFlowSubsystem* Flow = GetFlow();
@@ -1061,6 +1197,33 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			RefreshSettings();
 			return;
 		}
+	}
+
+	for (int32 Index = 0; Index <= WindPresetCount; ++Index)
+	{
+		if (Id == WindAction(Index))
+		{
+			Flow->CreateConditions.WindKph = Index == 0 ? FApexSessionConditions::Auto : WindPresetsKph[Index - 1];
+			Flow->SaveProfile();
+			RefreshSettings();
+			return;
+		}
+	}
+	if (Id == ActionWindFrom)
+	{
+		// Auto, head-on, from the left, behind, from the right, and round.
+		int32 At = 0;
+		for (int32 Index = 0; Index < WindDirectionCount; ++Index)
+		{
+			if (WindDirections[Index] == Flow->CreateConditions.WindFromDeg)
+			{
+				At = Index;
+			}
+		}
+		Flow->CreateConditions.WindFromDeg = WindDirections[(At + 1) % WindDirectionCount];
+		Flow->SaveProfile();
+		RefreshSettings();
+		return;
 	}
 
 	for (int32 Index = 0; Index < static_cast<int32>(EApexAssistChip::Count); ++Index)

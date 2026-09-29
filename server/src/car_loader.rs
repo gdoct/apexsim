@@ -33,6 +33,8 @@ struct CarToml {
     suspension: Option<SuspensionToml>,
     #[serde(default)]
     tires: Option<TiresToml>,
+    #[serde(default)]
+    aero: Option<AeroToml>,
     /// `[[livery]]` tables: only the names matter here (the client paints).
     #[serde(default)]
     livery: Vec<LiveryToml>,
@@ -138,6 +140,26 @@ struct SuspensionToml {
     max_travel_m: Option<f32>,
 }
 
+/// Optional `[aero]` section: how the downforce answers ride height and
+/// rake (`crate::aero`). Without it the downforce is the constant the
+/// lift coefficients give, as it always was.
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct AeroToml {
+    #[serde(default)]
+    ride_height_front_m: Option<f32>,
+    #[serde(default)]
+    ride_height_rear_m: Option<f32>,
+    /// Share of the downforce gained per centimetre lower.
+    #[serde(default)]
+    ride_height_sensitivity: Option<f32>,
+    /// Front balance shift per centimetre more rake.
+    #[serde(default)]
+    rake_sensitivity: Option<f32>,
+    #[serde(default)]
+    stall_height_m: Option<f32>,
+}
+
 /// Optional `[tires]` section: what the one `grip_coefficient` cannot say
 /// about a tyre. Every key defaults to the tyre every car had before it
 /// (180 kPa at a 180 kPa optimum, linear in load, one compound, a friction
@@ -235,6 +257,10 @@ struct EngineToml {
     torque_curve: Vec<TorqueCurvePointToml>,
     #[serde(default)]
     turbo: Option<TurboToml>,
+    /// Turbo- or supercharged (the air's density costs it little). Absent:
+    /// whether the car has an `[engine.turbo]` table.
+    #[serde(default)]
+    forced_induction: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -561,6 +587,8 @@ impl CarLoader {
         let hybrid_toml = car_toml.hybrid.unwrap_or_default();
         let suspension_toml = car_toml.suspension.unwrap_or_default();
         let tires_toml = car_toml.tires.unwrap_or_default();
+        let aero_toml = car_toml.aero.unwrap_or_default();
+        let aero_defaults = crate::aero::AeroConfig::default();
         let tire_defaults = TireConfig::default();
         let suspension_defaults = SuspensionConfig::default();
 
@@ -617,7 +645,7 @@ impl CarLoader {
             car_toml.physics.drs_drag_reduction,
             car_toml.physics.drs_rear_downforce_reduction,
         );
-        let config = CarConfig {
+        let mut config = CarConfig {
             id,
             name: car_toml.name,
             model: car_toml.model,
@@ -673,6 +701,9 @@ impl CarLoader {
                 friction_torque_nm: engine_toml.friction_torque_nm.unwrap_or(20.0),
                 engine_brake_torque_nm: engine_toml.engine_brake_torque_nm.unwrap_or(80.0),
                 idle_control_gain: engine_toml.idle_control_gain.unwrap_or(0.15),
+                forced_induction: engine_toml
+                    .forced_induction
+                    .unwrap_or(engine_toml.turbo.is_some()),
                 turbo: engine_toml.turbo.map(|t| TurboConfig {
                     boosted_share: t.boosted_share,
                     lag_up_s: t.lag_up_s.unwrap_or(DEFAULT_TURBO_LAG_UP_S),
@@ -745,6 +776,7 @@ impl CarLoader {
             lift_coefficient_front: car_toml.physics.lift_coefficient_front.unwrap_or(-0.15),
             lift_coefficient_rear: car_toml.physics.lift_coefficient_rear.unwrap_or(-0.20),
             drs,
+            aero: aero_defaults,
 
             // Steering
             max_steering_angle_rad: car_toml.physics.max_steering_angle_rad,
@@ -836,7 +868,27 @@ impl CarLoader {
             },
         };
 
+        config.aero = crate::aero::AeroConfig {
+            ride_height_front_m: aero_toml
+                .ride_height_front_m
+                .unwrap_or(aero_defaults.ride_height_front_m),
+            ride_height_rear_m: aero_toml
+                .ride_height_rear_m
+                .unwrap_or(aero_defaults.ride_height_rear_m),
+            ride_height_sensitivity: aero_toml
+                .ride_height_sensitivity
+                .unwrap_or(aero_defaults.ride_height_sensitivity),
+            rake_sensitivity: aero_toml
+                .rake_sensitivity
+                .unwrap_or(aero_defaults.rake_sensitivity),
+            stall_height_m: aero_toml
+                .stall_height_m
+                .unwrap_or(aero_defaults.stall_height_m),
+            ..aero_defaults
+        };
         Self::validate(&config, &path_str)?;
+        // Where the map is zero: the car on its stock springs at speed.
+        crate::aero::fit_reference(&mut config);
         warn_about_unusable_gearing(&config, &path_str);
         Ok(config)
     }
@@ -1031,6 +1083,27 @@ impl CarLoader {
         );
         in_range("tires.front_grip_scale", tyre.front_grip_scale, 0.5, 1.5);
         in_range("tires.rear_grip_scale", tyre.rear_grip_scale, 0.5, 1.5);
+        let aero = &config.aero;
+        in_range(
+            "aero.ride_height_front_m",
+            aero.ride_height_front_m,
+            0.005,
+            0.3,
+        );
+        in_range(
+            "aero.ride_height_rear_m",
+            aero.ride_height_rear_m,
+            0.005,
+            0.3,
+        );
+        in_range(
+            "aero.ride_height_sensitivity",
+            aero.ride_height_sensitivity,
+            0.0,
+            0.1,
+        );
+        in_range("aero.rake_sensitivity", aero.rake_sensitivity, 0.0, 0.05);
+        in_range("aero.stall_height_m", aero.stall_height_m, 0.0, 0.1);
         in_range(
             "tires.optimal_temperature_c",
             tyre.optimal_temperature_c,

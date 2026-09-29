@@ -189,6 +189,11 @@ private:
 	/** The slipstream light beside it: lit, with the drag saved, in a tow. */
 	UPROPERTY(Transient) TObjectPtr<UBorder> TowBadge;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TowText;
+	/** The pit light: the limiter, and a service's countdown. */
+	UPROPERTY(Transient) TObjectPtr<UBorder> PitBadge;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PitText;
+	/** The tyre row's caption, which carries the compound. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TyreCaption;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GearText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SpeedText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SpeedUnitText;

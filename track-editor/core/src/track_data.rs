@@ -142,4 +142,13 @@ pub struct TrackMetadata {
     pub object_density: Option<f32>,
     #[serde(default)]
     pub decal_profile: Option<String>,
+    /// Where the circuit is (`scripts/track_location.py`, from the elevation
+    /// sidecar's georeference): the start line's height above sea level, m,
+    /// which the server thins the air by, and its latitude and longitude.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub altitude_m: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latitude_deg: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub longitude_deg: Option<f32>,
 }

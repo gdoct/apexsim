@@ -95,6 +95,20 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, CreateAssists, CreateConditions),
 		ApexGolden::C_CreateSession);
 
+	{
+		// The air named in full; an absent figure is left off, as above.
+		FApexSessionConditions Air;
+		Air.Weather = EApexWeather::Overcast;
+		Air.TimeOfDayMinutes = 8 * 60;
+		Air.AirTempC = -3;
+		Air.HumidityPct = 80;
+		Air.WindKph = 22;
+		Air.WindFromDeg = 270;
+		CheckBytes(TEXT("CreateSession with the air"),
+			ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, FApexAllowedAssists(), Air),
+			ApexGolden::C_CreateSessionAir);
+	}
+
 	CheckBytes(TEXT("JoinSession"),
 		ApexProtocol::EncodeJoinSession(SessId),
 		ApexGolden::C_JoinSession);
@@ -113,7 +127,7 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 
 	{
 		FApexCarSetup Setup;
-		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2 };
+		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1 };
 		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
 		{
 			Setup.Clicks[Index] = Clicks[Index];
@@ -175,9 +189,15 @@ bool FApexCarSetupClicksTest::RunTest(const FString& Parameters)
 	// The wire key table must line up with the enum it is indexed by.
 	TestEqual(TEXT("first key"), FString(ApexCarSetup::Knob(ApexCarSetup::TyrePressureFront).Key), FString(TEXT("tyre_pressure_front")));
 	TestEqual(TEXT("anti-roll key"), FString(ApexCarSetup::Knob(ApexCarSetup::AntiRollRear).Key), FString(TEXT("anti_roll_rear")));
-	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::FuelLoad).Key), FString(TEXT("fuel_load")));
+	TestEqual(TEXT("fuel key"), FString(ApexCarSetup::Knob(ApexCarSetup::FuelLoad).Key), FString(TEXT("fuel_load")));
 	TestEqual(TEXT("fuel reads in laps"),
 		ApexCarSetup::Describe(ApexCarSetup::FuelLoad, 2), FString(TEXT("+2  (+2 laps)")));
+	TestEqual(TEXT("wing key"), FString(ApexCarSetup::Knob(ApexCarSetup::FrontWing).Key), FString(TEXT("front_wing")));
+	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::TyreCompound).Key), FString(TEXT("tyre_compound")));
+	TestEqual(TEXT("compound reads by name"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, 1), FString(TEXT("Soft")));
+	TestEqual(TEXT("hard"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, -1), FString(TEXT("Hard")));
+	TestEqual(TEXT("ride height reads in mm"),
+		ApexCarSetup::Describe(ApexCarSetup::RideHeightFront, -3), FString(TEXT("-3  (-6 mm)")));
 	return true;
 }
 
@@ -263,6 +283,21 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("Conditions.weather"), Message.Conditions.Weather, EApexWeather::HeavyRain);
 			TestEqual(TEXT("Conditions.time_of_day_minutes"), Message.Conditions.TimeOfDayMinutes, 6 * 60 + 15);
 			TestEqual(TEXT("Conditions.Describe"), Message.Conditions.Describe(), FString(TEXT("Heavy rain · 06:15")));
+		}
+	}
+
+	{
+		// A resolved session names its air, and the read-out says it.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with the air"), ApexGolden::S_SessionJoinedAir, Message))
+		{
+			TestEqual(TEXT("Air.weather"), Message.Conditions.Weather, EApexWeather::Overcast);
+			TestEqual(TEXT("Air.air_temp_c (signed)"), Message.Conditions.AirTempC, -3);
+			TestEqual(TEXT("Air.humidity_pct"), Message.Conditions.HumidityPct, 80);
+			TestEqual(TEXT("Air.wind_kph"), Message.Conditions.WindKph, 22);
+			TestEqual(TEXT("Air.wind_from_deg"), Message.Conditions.WindFromDeg, 270);
+			TestEqual(TEXT("Air.Describe"), Message.Conditions.Describe(),
+				FString(TEXT("Overcast · 08:00 · -3°C · wind 22 km/h from the right")));
 		}
 	}
 
@@ -370,7 +405,7 @@ bool FApexProtocolLobbyStateDecodeTest::RunTest(const FString& Parameters)
 		const FApexSessionSummary& Session = Lobby.AvailableSessions[0];
 		TestEqual(TEXT("session Id"), Session.Id, SessId);
 		TestEqual(TEXT("session TrackName decodes UTF-8"), Session.TrackName, FString(TEXT("São Paulo")));
-		TestEqual(TEXT("session TrackFile"), Session.TrackFile, FString(TEXT("tracks/default/SaoPaulo.yaml")));
+		TestEqual(TEXT("session TrackFile"), Session.TrackFile, FString(TEXT("tracks/real/SaoPaulo.yaml")));
 		TestEqual(TEXT("session HostName"), Session.HostName, FString(TEXT("Player")));
 		// Both of these are u8 integers on the wire, never strings.
 		TestEqual(TEXT("session SessionKind"), Session.SessionKind, EApexSessionKind::Practice);

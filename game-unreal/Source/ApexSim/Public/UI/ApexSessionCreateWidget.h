@@ -66,6 +66,7 @@ private:
 	UFUNCTION() void HandleAiCountChanged(float Value);
 	UFUNCTION() void HandleLapsChanged(float Value);
 	UFUNCTION() void HandleTimeOfDayChanged(float Value);
+	UFUNCTION() void HandleAirTempChanged(float Value);
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> TrackSummaryBox;
@@ -81,6 +82,9 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AssistButtons;
 	/** One radio chip per EApexWeather, in enum order. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeatherButtons;
+	/** The wind's strength chips (auto, then WindPresetsKph), then the chip
+	 * that steps through where it blows from. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WindButtons;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> MaxPlayersSlider;
 	UPROPERTY(Transient) TObjectPtr<USlider> AiCountSlider;
@@ -102,6 +106,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> TimeOfDayFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeOfDayValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeOfDaySuffix;
+	UPROPERTY(Transient) TObjectPtr<USlider> AirTempSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> AirTempFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> AirTempValue;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> AirTempSuffix;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusLine;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> CreateButtonWidget;
@@ -112,4 +120,7 @@ private:
 	/** The clock moves in quarter hours: one keypress, one step, 96 to the day. */
 	static constexpr int32 TimeOfDayStepMinutes = 15;
 	static constexpr int32 TimeOfDaySteps = 24 * 60 / TimeOfDayStepMinutes;
+	/** The air temperature slider: its first step is "from the weather",
+	 * then a degree a step over the server's range. */
+	static constexpr int32 AirTempSteps = FApexSessionConditions::MaxAirTempC - FApexSessionConditions::MinAirTempC + 1;
 };

@@ -276,6 +276,9 @@ fn convert_to_track_format(
         terrain_blend_width: None,
         object_density: None,
         decal_profile: None,
+        altitude_m: None,
+        latitude_deg: None,
+        longitude_deg: None,
     };
 
     // Calculate a reasonable default width from the nodes

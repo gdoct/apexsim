@@ -104,6 +104,10 @@ pub struct CarConfig {
     /// the track offers.
     #[serde(default)]
     pub drs: Option<DrsSpec>,
+    /// How the downforce answers ride height and rake (`crate::aero`);
+    /// the default is a car whose downforce does not.
+    #[serde(default)]
+    pub aero: crate::aero::AeroConfig,
 
     // Steering
     pub max_steering_angle_rad: f32,
@@ -169,6 +173,11 @@ pub struct EngineConfig {
     /// throttle opens, as it always was.
     #[serde(default)]
     pub turbo: Option<TurboConfig>,
+    /// A turbo- or supercharged engine: its boost control holds most of its
+    /// power where the air is thin (`physics::engine_density_factor`).
+    /// Apart from the lag model, which the shipped cars do not use.
+    #[serde(default)]
+    pub forced_induction: bool,
 }
 
 /// How long a turbo takes to deliver the boosted part of the torque curve.
@@ -229,6 +238,7 @@ impl Default for EngineConfig {
             engine_brake_torque_nm: 80.0,
             idle_control_gain: 0.15,
             turbo: None,
+            forced_induction: false,
         }
     }
 }
@@ -699,6 +709,7 @@ impl Default for CarConfig {
             lift_coefficient_front: -0.15, // Slight downforce
             lift_coefficient_rear: -0.20,
             drs: None,
+            aero: crate::aero::AeroConfig::default(),
 
             // Steering
             max_steering_angle_rad: 0.52, // ~30 degrees
@@ -730,7 +741,11 @@ pub struct TrackConfig {
     pub content_crc: u32,
     pub start_positions: Vec<GridSlot>,
     pub track_surface: TrackSurface,
-    pub pit_lane: Option<PitLaneConfig>,
+    /// The pit lane and its boxes, from `<Track>.pit.msgpack` beside the
+    /// track file (`crate::pit`); `None` for a circuit without one (no pit
+    /// stops). Runtime-only; loaded from the sidecar.
+    #[serde(skip)]
+    pub pit_lane: Option<crate::pit::PitLane>,
     /// Optional optimal racing line for AI and visualization
     #[serde(default)]
     pub raceline: Vec<RacelinePoint>,
@@ -852,6 +867,15 @@ pub struct TrackMetadata {
     pub object_density: Option<f32>, // 0-1 density multiplier (default: 0.8)
     #[serde(default)]
     pub decal_profile: Option<String>, // Decal set identifier (default: "default")
+    /// Where the circuit is: the start line's height above sea level, m,
+    /// and its latitude and longitude (`scripts/track_location.py`, from
+    /// the elevation sidecar's georeference). The height thins the air.
+    #[serde(default)]
+    pub altitude_m: Option<f32>,
+    #[serde(default)]
+    pub latitude_deg: Option<f32>,
+    #[serde(default)]
+    pub longitude_deg: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -876,6 +900,26 @@ pub struct TrackSurface {
     /// faster (`tyre_thermal`).
     #[serde(default)]
     pub wet: bool,
+    /// The air's density against the reference day the cars are filed at
+    /// (`SessionConditions::air_density_ratio`): the aero and a combustion
+    /// engine's torque are scaled by it. 1.0 on a default day at sea level.
+    #[serde(default = "default_one_f32")]
+    pub air_density_ratio: f32,
+    /// The session's mean wind, m/s toward where it blows, track frame.
+    #[serde(default)]
+    pub wind_mps: [f32; 2],
+    /// The wind this tick, gusts included (`GameSession` sets it before the
+    /// physics from the mean, `wind::gusting`).
+    #[serde(default)]
+    pub wind_now_mps: [f32; 2],
+}
+
+fn default_one_f32() -> f32 {
+    1.0
+}
+
+fn default_medium() -> u8 {
+    crate::tyre_thermal::MEDIUM
 }
 
 fn default_air_temperature_c() -> f32 {
@@ -901,24 +945,11 @@ impl Default for TrackSurface {
             air_temperature_c: default_air_temperature_c(),
             track_temperature_c: default_track_temperature_c(),
             wet: false,
+            air_density_ratio: 1.0,
+            wind_mps: [0.0; 2],
+            wind_now_mps: [0.0; 2],
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PitLaneConfig {
-    pub entry_point: TrackPoint,
-    pub exit_point: TrackPoint,
-    pub speed_limit_mps: f32,
-    pub pit_stalls: Vec<PitStall>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PitStall {
-    pub position: u8,
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
 }
 
 impl Default for TrackConfig {
@@ -1323,10 +1354,23 @@ pub struct CarState {
     /// optimum on its first tick.
     #[serde(default)]
     pub tyres_fitted: bool,
+    /// The compound on the car (`tyre_thermal::COMPOUNDS`: 0 soft, 1
+    /// medium, 2 hard), fitted with the set.
+    #[serde(default = "default_medium")]
+    pub tyre_compound: u8,
+    /// The car against the pit lane, and its stop (`crate::pit`).
+    #[serde(default)]
+    pub pit: crate::pit::PitState,
     /// The air this car drives into: the tow and dirty air of the cars
     /// ahead (`crate::slipstream`), set each tick before the physics.
     #[serde(default)]
     pub wake: crate::slipstream::Wake,
+    /// The tyres' load with the downforce the car makes now over the load
+    /// it would have at this ground speed in still, clean air (the wind and
+    /// the wake of a car ahead), never over 1: what the AI plans its grip
+    /// by. Set by the physics each tick.
+    #[serde(default = "default_one_f32")]
+    pub aero_load_share: f32,
     pub g_forces: GForces,
     pub suspension: SuspensionTelemetry,
     pub fuel_liters: f32,
@@ -1366,6 +1410,12 @@ pub struct CarState {
     pub downforce_front_n: f32,
     pub downforce_rear_n: f32,
     pub drag_force_n: f32,
+    /// Where each axle rides, m, as the aero map read it this tick
+    /// (`crate::aero::ride_heights`); 0 before the first tick.
+    #[serde(default)]
+    pub ride_height_front_m: f32,
+    #[serde(default)]
+    pub ride_height_rear_m: f32,
 
     /// What the driver should feel, collected each tick for the next
     /// `DriverFeedback` message. Output only: nothing in the sim reads it.
@@ -1470,7 +1520,10 @@ impl CarState {
             // Telemetry
             tires: TireTelemetry::default(),
             tyres_fitted: false,
+            tyre_compound: crate::tyre_thermal::MEDIUM,
+            pit: crate::pit::PitState::default(),
             wake: crate::slipstream::Wake::CLEAN,
+            aero_load_share: 1.0,
             g_forces: GForces::default(),
             suspension: SuspensionTelemetry::default(),
             fuel_liters: 100.0,
@@ -1500,6 +1553,8 @@ impl CarState {
             downforce_front_n: 0.0,
             downforce_rear_n: 0.0,
             drag_force_n: 0.0,
+            ride_height_front_m: 0.0,
+            ride_height_rear_m: 0.0,
 
             feedback: Default::default(),
         }
@@ -1722,14 +1777,32 @@ impl Weather {
 /// echoed in `SessionJoined` and listed in every `SessionSummary`. Absent
 /// fields (a client or server from before the feature) mean a sunny early
 /// afternoon, which is what every session was until now.
+///
+/// The air (temperature, humidity, wind) is optional: `None` is "from the
+/// weather and the clock", which the server works out when it creates the
+/// session ([`SessionConditions::resolve`]), so what a session echoes and
+/// lists always names every figure. An absent field is left off the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionConditions {
     #[serde(default)]
     pub weather: Weather,
-    /// Local time of day, minutes after midnight (0..=1439). Visual only:
-    /// the sim does not know night from day, the client's sun does.
+    /// Local time of day, minutes after midnight (0..=1439). The sun it
+    /// puts up warms the air and the asphalt; the client lights by it.
     #[serde(default = "SessionConditions::default_time_of_day")]
     pub time_of_day_minutes: u16,
+    /// Air temperature, °C.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub air_temp_c: Option<i8>,
+    /// Relative humidity, percent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub humidity_pct: Option<u8>,
+    /// Mean wind speed, km/h (it gusts about that).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wind_kph: Option<u8>,
+    /// Where the wind blows *from*, degrees from the start straight's
+    /// direction: 0 is head-on down the straight, 90 from its left.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wind_from_deg: Option<u16>,
 }
 
 impl Default for SessionConditions {
@@ -1743,6 +1816,10 @@ impl SessionConditions {
     pub const DEFAULT: SessionConditions = SessionConditions {
         weather: Weather::Sunny,
         time_of_day_minutes: 13 * 60,
+        air_temp_c: None,
+        humidity_pct: None,
+        wind_kph: None,
+        wind_from_deg: None,
     };
     pub const MINUTES_PER_DAY: u16 = 24 * 60;
 
@@ -1750,11 +1827,99 @@ impl SessionConditions {
         Self::DEFAULT.time_of_day_minutes
     }
 
-    /// The same conditions with the clock wrapped onto one day.
+    /// Coldest and hottest air a host may pick, °C.
+    pub const AIR_TEMP_RANGE_C: (i8, i8) = (-5, 45);
+    /// Strongest wind a host may pick, km/h.
+    pub const MAX_WIND_KPH: u8 = 60;
+
+    /// The same conditions with the clock wrapped onto one day and every
+    /// figure held to what the sim takes.
     pub fn clamp(self) -> Self {
+        let (cold, hot) = Self::AIR_TEMP_RANGE_C;
         Self {
             weather: self.weather,
             time_of_day_minutes: self.time_of_day_minutes % Self::MINUTES_PER_DAY,
+            air_temp_c: self.air_temp_c.map(|t| t.clamp(cold, hot)),
+            humidity_pct: self.humidity_pct.map(|h| h.min(100)),
+            wind_kph: self.wind_kph.map(|w| w.min(Self::MAX_WIND_KPH)),
+            wind_from_deg: self.wind_from_deg.map(|d| d % 360),
+        }
+    }
+
+    /// Every figure named: what was picked, and the weather's own for the
+    /// rest. `seed` picks an unnamed wind's direction (the session's id, so
+    /// it is the same for everyone and for the life of the session).
+    pub fn resolve(self, seed: u64) -> Self {
+        let c = self.clamp();
+        Self {
+            air_temp_c: Some(
+                c.air_temp_c
+                    .unwrap_or(c.auto_air_temperature_c().round() as i8),
+            ),
+            humidity_pct: Some(c.humidity_pct.unwrap_or(c.auto_humidity_pct())),
+            wind_kph: Some(c.wind_kph.unwrap_or(c.auto_wind_kph())),
+            wind_from_deg: Some(
+                c.wind_from_deg
+                    .unwrap_or((crate::wind::hash01(seed, 0x57_1D) * 360.0) as u16 % 360),
+            ),
+            ..c
+        }
+    }
+
+    /// The weather's humidity, percent.
+    pub fn auto_humidity_pct(&self) -> u8 {
+        match self.weather {
+            Weather::Sunny => 50,
+            Weather::Cloudy => 60,
+            Weather::Overcast => 70,
+            Weather::LightRain => 90,
+            Weather::HeavyRain => 97,
+        }
+    }
+
+    /// The weather's wind, km/h: a breeze in the sun, a blow in a storm.
+    pub fn auto_wind_kph(&self) -> u8 {
+        match self.weather {
+            Weather::Sunny => 8,
+            Weather::Cloudy => 12,
+            Weather::Overcast => 15,
+            Weather::LightRain => 18,
+            Weather::HeavyRain => 28,
+        }
+    }
+
+    /// Relative humidity, 0..1.
+    pub fn humidity(&self) -> f32 {
+        self.humidity_pct.unwrap_or(self.auto_humidity_pct()) as f32 / 100.0
+    }
+
+    /// The wind the air moves with, m/s, *toward* where it blows (the
+    /// opposite of `wind_from_deg`), in the start straight's frame: x down
+    /// the straight, y to its left (`apply_to_track` turns it onto the
+    /// track).
+    pub fn wind_mps(&self) -> [f32; 2] {
+        let speed = self.wind_kph.unwrap_or(self.auto_wind_kph()) as f32 / 3.6;
+        let from = (self.wind_from_deg.unwrap_or(0) as f32).to_radians();
+        [-speed * from.cos(), -speed * from.sin()]
+    }
+
+    /// The air's density, kg/m³, `altitude_m` above sea level at these
+    /// conditions: the standard atmosphere's pressure for the height, the
+    /// dry air and the water vapour each by their gas constants.
+    pub fn air_density(&self, altitude_m: f32) -> f32 {
+        air_density(altitude_m, self.air_temperature_c(), self.humidity())
+    }
+
+    /// The density against the reference day every car.toml is filed at
+    /// (sea level, a sunny 13:00: [`SessionConditions::DEFAULT`]), which is
+    /// what the aero and the engine are scaled by. Exactly 1.0 there.
+    pub fn air_density_ratio(&self, altitude_m: f32) -> f32 {
+        let reference = Self::DEFAULT.air_density(0.0);
+        let here = self.air_density(altitude_m);
+        if here == reference {
+            1.0
+        } else {
+            here / reference
         }
     }
 
@@ -1768,6 +1933,16 @@ impl SessionConditions {
         track.track_surface.air_temperature_c = self.air_temperature_c();
         track.track_surface.track_temperature_c = self.track_temperature_c();
         track.track_surface.wet = self.weather.is_wet();
+        let altitude = track.metadata.altitude_m.unwrap_or(0.0);
+        track.track_surface.air_density_ratio = self.air_density_ratio(altitude);
+        // The wind's direction is taken from the start straight: the
+        // circuits keep their real orientation, so the line's heading is not
+        // +X on every track.
+        let heading = track.centerline.first().map_or(0.0, |p| p.heading_rad);
+        let [wx, wy] = self.wind_mps();
+        let (c, sn) = (heading.cos(), heading.sin());
+        track.track_surface.wind_mps = [wx * c - wy * sn, wx * sn + wy * c];
+        track.track_surface.wind_now_mps = track.track_surface.wind_mps;
         let road = self.weather.road_grip_factor();
         if road == 1.0 && self.weather.curb_grip_factor() == 1.0 {
             return;
@@ -1801,6 +1976,15 @@ impl SessionConditions {
     /// in the sun, the swing damped under cloud and a few degrees lower in
     /// the rain. Until a host can pick one, this is the session's air.
     pub fn air_temperature_c(&self) -> f32 {
+        // Whole degrees either way, as a session names them.
+        match self.air_temp_c {
+            Some(t) => t as f32,
+            None => self.auto_air_temperature_c().round(),
+        }
+    }
+
+    /// The weather's and the clock's own air temperature, °C.
+    pub fn auto_air_temperature_c(&self) -> f32 {
         const COOLEST_C: f32 = 13.0;
         const SWING_C: f32 = 10.0;
         const WARMEST_HOURS: f32 = 15.0;
@@ -1845,6 +2029,18 @@ impl SessionConditions {
         let hour = self.time_of_day_minutes / 60;
         !(6..20).contains(&hour)
     }
+}
+
+/// Density of moist air, kg/m³, at `altitude_m` (the standard
+/// atmosphere's pressure), `temperature_c` and relative `humidity` (0..1).
+pub fn air_density(altitude_m: f32, temperature_c: f32, humidity: f32) -> f32 {
+    let pressure =
+        101_325.0 * (1.0 - 2.255_77e-5 * altitude_m.clamp(-500.0, 5000.0)).powf(5.255_88);
+    let kelvin = temperature_c + 273.15;
+    // Tetens: the vapour's saturation pressure, Pa.
+    let saturation = 610.78 * 10f32.powf(7.5 * temperature_c / (temperature_c + 237.3));
+    let vapour = humidity.clamp(0.0, 1.0) * saturation;
+    (pressure - vapour) / (287.058 * kelvin) + vapour / (461.495 * kelvin)
 }
 
 /// Game modes determine the behavior and rules during a session
@@ -2144,6 +2340,7 @@ mod tests {
         let wrapped = SessionConditions {
             weather: Weather::Overcast,
             time_of_day_minutes: 24 * 60 + 5,
+            ..SessionConditions::DEFAULT
         }
         .clamp();
         assert_eq!(wrapped.time_of_day_minutes, 5);
@@ -2166,6 +2363,7 @@ mod tests {
         let full = rmp_serde::to_vec_named(&SessionConditions {
             weather: Weather::LightRain,
             time_of_day_minutes: 1290,
+            ..SessionConditions::DEFAULT
         })
         .unwrap();
         let decoded: SessionConditions = rmp_serde::from_slice(&full).unwrap();

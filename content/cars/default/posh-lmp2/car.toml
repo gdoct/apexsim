@@ -33,6 +33,15 @@ lift_coefficient_rear = -1.83
 # Spec-series 4.2 L V8, restricted to ~402 kW; same class, a few kg and a few
 # aero points apart from the Yotota so the four LMP2s race close but not identical.
 
+# Aero posture (server/src/aero.rs): a prototype floor, less sensitive
+# than an F1's and run a little higher.
+[aero]
+ride_height_front_m = 0.050
+ride_height_rear_m = 0.080
+ride_height_sensitivity = 0.02
+rake_sensitivity = 0.008
+stall_height_m = 0.012
+
 # Tyres: the spec slick's working window (server/src/tyre_thermal.rs).
 # No blankets: the car goes out at the air temperature.
 [tires]

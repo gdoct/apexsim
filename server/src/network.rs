@@ -563,7 +563,50 @@ pub struct CompactCarState {
     /// `tyre_kpa`; 0 in clean air, and from an older server.
     #[serde(default)]
     pub tow_pct: u8,
+    /// Each tyre's wear, percent, FL FR RL RR (`tyre_thermal`). Appended
+    /// after `tow_pct`; all 0 from an older server.
+    #[serde(default)]
+    pub tyre_wear: [u8; 4],
+    /// The compound on the car (`tyre_thermal::COMPOUNDS`: 0 soft, 1
+    /// medium, 2 hard); [`COMPOUND_UNKNOWN`] before a set is fitted, or
+    /// from an older server.
+    #[serde(default = "compound_unknown")]
+    pub compound: u8,
+    /// The pit lane (`crate::pit`): [`PIT_FLAG_LIMITER`],
+    /// [`PIT_FLAG_SERVICING`], [`PIT_FLAG_IN_LANE`].
+    #[serde(default)]
+    pub pit_flags: u8,
+    /// Seconds left of a service under way, in tenths.
+    #[serde(default)]
+    pub service_ds: u16,
 }
+
+/// The `pit_flags` byte of a car's telemetry.
+pub fn pit_flags_of(state: &CarState) -> u8 {
+    let mut flags = 0;
+    if state.pit.limiter {
+        flags |= PIT_FLAG_LIMITER;
+    }
+    if state.pit.servicing {
+        flags |= PIT_FLAG_SERVICING;
+    }
+    if state.pit.in_lane {
+        flags |= PIT_FLAG_IN_LANE;
+    }
+    flags
+}
+
+/// `compound` before a set is fitted.
+pub const COMPOUND_UNKNOWN: u8 = 255;
+fn compound_unknown() -> u8 {
+    COMPOUND_UNKNOWN
+}
+/// `pit_flags` bit 0: the limiter holds the car (between the lane's lines).
+pub const PIT_FLAG_LIMITER: u8 = 1;
+/// `pit_flags` bit 1: stopped at its box, being serviced.
+pub const PIT_FLAG_SERVICING: u8 = 2;
+/// `pit_flags` bit 2: in the pit lane.
+pub const PIT_FLAG_IN_LANE: u8 = 4;
 
 /// A car's tyres as telemetry carries them: the tread temperatures and the
 /// running pressures, each rounded to a whole degree / kPa and held within
@@ -627,6 +670,19 @@ impl CompactCarState {
             tyre_c,
             tyre_kpa,
             tow_pct: (state.wake.tow() * 100.0).round().clamp(0.0, 100.0) as u8,
+            tyre_wear: state
+                .tires
+                .each()
+                .map(|t| t.wear_percent.round().clamp(0.0, 100.0) as u8),
+            compound: if state.tyres_fitted {
+                state.tyre_compound
+            } else {
+                COMPOUND_UNKNOWN
+            },
+            pit_flags: pit_flags_of(state),
+            service_ds: (state.pit.service_left_s.max(0.0) * 10.0)
+                .round()
+                .min(u16::MAX as f32) as u16,
         }
     }
 }
@@ -1446,6 +1502,19 @@ mod tests {
             tyre.pressure_kpa = kpa;
         }
         state.wake.drag = 0.83;
+        state.tyre_compound = 0;
+        for (tyre, wear) in state
+            .tires
+            .each_mut()
+            .into_iter()
+            .zip([12.4, 13.0, 30.6, 99.9])
+        {
+            tyre.wear_percent = wear;
+        }
+        state.pit.limiter = true;
+        state.pit.in_lane = true;
+        state.pit.servicing = true;
+        state.pit.service_left_s = 7.34;
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -1456,7 +1525,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactTow: {}",
+            "S_TelemetryCompactPit: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -1464,10 +1533,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 27-field array: 0xDC 0x00 0x1B is the array-16 header.
+        // The car is a 31-field array: 0xDC 0x00 0x1F is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x1B]),
-            "CompactCarState must stay 27 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x1F]),
+            "CompactCarState must stay 31 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -1478,6 +1547,10 @@ mod tests {
                 assert_eq!(car.tyre_c, [84, 92, 103, 255], "rounded, held to a byte");
                 assert_eq!(car.tyre_kpa, [176, 181, 190, 1], "0 is kept for unknown");
                 assert_eq!(car.tow_pct, 17, "a 17% tow");
+                assert_eq!(car.tyre_wear, [12, 13, 31, 100]);
+                assert_eq!(car.compound, 0, "softs");
+                assert_eq!(car.pit_flags, 7, "in the lane, on the limiter, in service");
+                assert_eq!(car.service_ds, 73);
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }
@@ -1733,6 +1806,7 @@ mod tests {
             conditions: SessionConditions {
                 weather: Weather::LightRain,
                 time_of_day_minutes: 21 * 60 + 30,
+                ..SessionConditions::DEFAULT
             },
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
@@ -1773,6 +1847,7 @@ mod tests {
             conditions: SessionConditions {
                 weather: Weather::HeavyRain,
                 time_of_day_minutes: 6 * 60 + 15,
+                ..SessionConditions::DEFAULT
             },
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
@@ -1781,6 +1856,66 @@ mod tests {
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION);
         assert_eq!(aids_bytes, GOLDEN_C_SET_DRIVER_AIDS);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_ASSISTS);
+    }
+
+    /// The session's air named in full: a create that picks every figure
+    /// (a frost, so the signed temperature is pinned too) and the joined
+    /// echo of a resolved session. Pinned on the client as
+    /// `ApexGolden::C_CreateSessionAir` / `S_SessionJoinedAir`;
+    /// `cargo test conditions_air_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_conditions_air_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let air = SessionConditions {
+            weather: Weather::Overcast,
+            time_of_day_minutes: 8 * 60,
+            air_temp_c: Some(-3),
+            humidity_pct: Some(80),
+            wind_kph: Some(22),
+            wind_from_deg: Some(270),
+        };
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: air,
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!("C_CreateSessionAir: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { conditions, .. } => assert_eq!(conditions, air),
+            _ => panic!("Wrong message type"),
+        }
+
+        // A session names every figure it left to the weather.
+        let resolved = SessionConditions {
+            weather: Weather::Sunny,
+            time_of_day_minutes: 15 * 60,
+            ..SessionConditions::DEFAULT
+        }
+        .resolve(7);
+        assert_eq!(resolved.air_temp_c, Some(23));
+        assert_eq!(resolved.humidity_pct, Some(50));
+        assert_eq!(resolved.wind_kph, Some(8));
+        assert!(resolved.wind_from_deg.is_some_and(|d| d < 360));
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::default(),
+            conditions: air,
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
     }
 
     /// The bytes of the hotlap messages, pinned on the client as
@@ -1896,7 +2031,7 @@ mod tests {
     #[test]
     fn test_car_setup_wire_format() {
         let setup = ClientMessage::SetCarSetup(CarSetup::from_clicks([
-            1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2,
+            1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1,
         ]));
         let bytes = rmp_serde::to_vec_named(&setup).unwrap();
         let hex = bytes
@@ -1910,6 +2045,9 @@ mod tests {
                 assert_eq!(decoded.tyre_pressure_rear, -2);
                 assert_eq!(decoded.anti_roll_rear, 4);
                 assert_eq!(decoded.fuel_load, -2);
+                assert_eq!((decoded.front_wing, decoded.rear_wing), (2, -1));
+                assert_eq!(decoded.ride_height_rear, 1);
+                assert_eq!(decoded.tyre_compound, 1);
             }
             _ => panic!("Wrong message type"),
         }
@@ -1935,22 +2073,27 @@ mod tests {
 
     const GOLDEN_C_SET_CAR_SETUP: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAB, 0x53, 0x65, 0x74, 0x43, 0x61, 0x72, 0x53, 0x65,
-        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x8F, 0xB3, 0x74, 0x79, 0x72, 0x65, 0x5F,
-        0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0x01,
-        0xB2, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x5F,
-        0x72, 0x65, 0x61, 0x72, 0xFE, 0xAB, 0x72, 0x65, 0x76, 0x5F, 0x6C, 0x69, 0x6D, 0x69, 0x74,
-        0x65, 0x72, 0xFD, 0xAE, 0x65, 0x6E, 0x67, 0x69, 0x6E, 0x65, 0x5F, 0x62, 0x72, 0x61, 0x6B,
-        0x69, 0x6E, 0x67, 0x04, 0xAB, 0x66, 0x69, 0x6E, 0x61, 0x6C, 0x5F, 0x64, 0x72, 0x69, 0x76,
-        0x65, 0xFB, 0xAB, 0x67, 0x65, 0x61, 0x72, 0x5F, 0x73, 0x70, 0x72, 0x65, 0x61, 0x64, 0x05,
-        0xAA, 0x74, 0x6F, 0x72, 0x71, 0x75, 0x65, 0x5F, 0x6D, 0x61, 0x70, 0xFF, 0xAA, 0x62, 0x72,
-        0x61, 0x6B, 0x65, 0x5F, 0x62, 0x69, 0x61, 0x73, 0x02, 0xAC, 0x73, 0x70, 0x72, 0x69, 0x6E,
-        0x67, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0x03, 0xAB, 0x73, 0x70, 0x72, 0x69, 0x6E, 0x67,
-        0x5F, 0x72, 0x65, 0x61, 0x72, 0xFD, 0xAC, 0x64, 0x61, 0x6D, 0x70, 0x65, 0x72, 0x5F, 0x66,
-        0x72, 0x6F, 0x6E, 0x74, 0x00, 0xAB, 0x64, 0x61, 0x6D, 0x70, 0x65, 0x72, 0x5F, 0x72, 0x65,
-        0x61, 0x72, 0x01, 0xAF, 0x61, 0x6E, 0x74, 0x69, 0x5F, 0x72, 0x6F, 0x6C, 0x6C, 0x5F, 0x66,
-        0x72, 0x6F, 0x6E, 0x74, 0xFC, 0xAE, 0x61, 0x6E, 0x74, 0x69, 0x5F, 0x72, 0x6F, 0x6C, 0x6C,
-        0x5F, 0x72, 0x65, 0x61, 0x72, 0x04, 0xA9, 0x66, 0x75, 0x65, 0x6C, 0x5F, 0x6C, 0x6F, 0x61,
-        0x64, 0xFE,
+        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0xDE, 0x00, 0x14, 0xB3, 0x74, 0x79, 0x72,
+        0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x5F, 0x66, 0x72, 0x6F, 0x6E,
+        0x74, 0x01, 0xB2, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72,
+        0x65, 0x5F, 0x72, 0x65, 0x61, 0x72, 0xFE, 0xAB, 0x72, 0x65, 0x76, 0x5F, 0x6C, 0x69, 0x6D,
+        0x69, 0x74, 0x65, 0x72, 0xFD, 0xAE, 0x65, 0x6E, 0x67, 0x69, 0x6E, 0x65, 0x5F, 0x62, 0x72,
+        0x61, 0x6B, 0x69, 0x6E, 0x67, 0x04, 0xAB, 0x66, 0x69, 0x6E, 0x61, 0x6C, 0x5F, 0x64, 0x72,
+        0x69, 0x76, 0x65, 0xFB, 0xAB, 0x67, 0x65, 0x61, 0x72, 0x5F, 0x73, 0x70, 0x72, 0x65, 0x61,
+        0x64, 0x05, 0xAA, 0x74, 0x6F, 0x72, 0x71, 0x75, 0x65, 0x5F, 0x6D, 0x61, 0x70, 0xFF, 0xAA,
+        0x62, 0x72, 0x61, 0x6B, 0x65, 0x5F, 0x62, 0x69, 0x61, 0x73, 0x02, 0xAC, 0x73, 0x70, 0x72,
+        0x69, 0x6E, 0x67, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0x03, 0xAB, 0x73, 0x70, 0x72, 0x69,
+        0x6E, 0x67, 0x5F, 0x72, 0x65, 0x61, 0x72, 0xFD, 0xAC, 0x64, 0x61, 0x6D, 0x70, 0x65, 0x72,
+        0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0x00, 0xAB, 0x64, 0x61, 0x6D, 0x70, 0x65, 0x72, 0x5F,
+        0x72, 0x65, 0x61, 0x72, 0x01, 0xAF, 0x61, 0x6E, 0x74, 0x69, 0x5F, 0x72, 0x6F, 0x6C, 0x6C,
+        0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0xFC, 0xAE, 0x61, 0x6E, 0x74, 0x69, 0x5F, 0x72, 0x6F,
+        0x6C, 0x6C, 0x5F, 0x72, 0x65, 0x61, 0x72, 0x04, 0xA9, 0x66, 0x75, 0x65, 0x6C, 0x5F, 0x6C,
+        0x6F, 0x61, 0x64, 0xFE, 0xAA, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0x5F, 0x77, 0x69, 0x6E, 0x67,
+        0x02, 0xA9, 0x72, 0x65, 0x61, 0x72, 0x5F, 0x77, 0x69, 0x6E, 0x67, 0xFF, 0xB1, 0x72, 0x69,
+        0x64, 0x65, 0x5F, 0x68, 0x65, 0x69, 0x67, 0x68, 0x74, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74,
+        0xFD, 0xB0, 0x72, 0x69, 0x64, 0x65, 0x5F, 0x68, 0x65, 0x69, 0x67, 0x68, 0x74, 0x5F, 0x72,
+        0x65, 0x61, 0x72, 0x01, 0xAD, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x63, 0x6F, 0x6D, 0x70, 0x6F,
+        0x75, 0x6E, 0x64, 0x01,
     ];
 
     const GOLDEN_C_CREATE_SESSION: &[u8] = &[

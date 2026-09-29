@@ -87,12 +87,22 @@ pub struct RacingLineProfile {
 /// a typical corner, where the line's speed is decided.
 const ENVELOPE_REFERENCE_SPEED_MPS: f32 = 40.0;
 
+/// Speed step of the envelope's table of the aero posture factor, m/s.
+const AERO_TABLE_STEP_MPS: f32 = 2.0;
+/// The table reaches this speed and holds the last value past it.
+const AERO_TABLE_TOP_MPS: f32 = 120.0;
+
 /// The car as a point mass: what limits its speed along a line.
 struct CarEnvelope {
     /// Tyre grip times track grip.
     mu: f32,
-    /// Downforce per unit mass per (m/s)², so downforce accel = k · v².
+    /// Downforce per unit mass per (m/s)², so downforce accel = k · v² ·
+    /// the posture's factor at v.
     downforce_k: f32,
+    /// What the car's ride height makes of its downforce at steady speed
+    /// (`aero::steady_downforce_factor`), every [`AERO_TABLE_STEP_MPS`]
+    /// from standstill; empty for a car whose downforce does not change.
+    aero_factor: Vec<f32>,
     /// Drag per unit mass per (m/s)².
     drag_k: f32,
     rolling_accel: f32,
@@ -107,9 +117,13 @@ struct CarEnvelope {
 }
 
 impl CarEnvelope {
-    /// The car at `mass` kg: its dry mass and whatever fuel it carries.
-    fn new(car: &CarConfig, track_grip: f32, mass: f32) -> Self {
+    /// The car at `mass` kg: its dry mass and whatever fuel it carries, in
+    /// air `air_density_ratio` times as dense as the reference day's: the
+    /// aero and a combustion engine are filed at that day.
+    fn new(car: &CarConfig, track_grip: f32, mass: f32, air_density_ratio: f32) -> Self {
         let mass = mass.max(1.0);
+        let air = air_density_ratio;
+        let breath = crate::physics::engine_density_factor(car, air);
         let lift = car.lift_coefficient_front + car.lift_coefficient_rear;
         let hybrid_w = if car.hybrid.enabled {
             car.hybrid.motor_max_power_kw * 1000.0
@@ -121,7 +135,7 @@ impl CarEnvelope {
             Drivetrain::RWD => 1.0 - car.weight_distribution_front,
             Drivetrain::FWD => car.weight_distribution_front,
         };
-        let downforce_k = 0.5 * AIR_DENSITY * car.frontal_area_m2 * (-lift).max(0.0) / mass;
+        let downforce_k = 0.5 * AIR_DENSITY * air * car.frontal_area_m2 * (-lift).max(0.0) / mass;
         Self {
             // A load-sensitive tyre grips less per newton at speed, where the
             // downforce loads it: plan with its coefficient at the load it
@@ -130,32 +144,67 @@ impl CarEnvelope {
             mu: car.envelope_mu(1.0 + downforce_k * ENVELOPE_REFERENCE_SPEED_MPS.powi(2) / GRAVITY)
                 * track_grip,
             downforce_k,
-            drag_k: 0.5 * AIR_DENSITY * car.drag_coefficient * car.frontal_area_m2 / mass,
+            aero_factor: if car.aero.is_constant() {
+                Vec::new()
+            } else {
+                (0..=(AERO_TABLE_TOP_MPS / AERO_TABLE_STEP_MPS) as usize)
+                    .map(|i| {
+                        crate::aero::steady_downforce_factor(car, i as f32 * AERO_TABLE_STEP_MPS)
+                    })
+                    .collect()
+            },
+            drag_k: 0.5 * AIR_DENSITY * air * car.drag_coefficient * car.frontal_area_m2 / mass,
             rolling_accel: car.tire_config.rolling_resistance * GRAVITY,
             // Peak power over the whole run: a real gearbox spends part of
             // each gear below the peak, so this reaches a little more speed
             // than the car does, which errs towards braking early.
-            power_per_kg: (car.max_engine_power_w * car.transmission.efficiency + hybrid_w) / mass,
+            power_per_kg: (car.max_engine_power_w * breath * car.transmission.efficiency
+                + hybrid_w)
+                / mass,
             driven_fraction: driven_fraction.clamp(0.2, 1.0),
             brake_accel: car.max_brake_force_n / mass,
             top_speed: top_gear_speed(car),
         }
     }
 
+    /// Downforce per unit mass per (m/s)² at `speed`: the filed figure times
+    /// what the car's ride height makes of it there.
+    fn downforce_k_at(&self, speed: f32) -> f32 {
+        if self.aero_factor.is_empty() {
+            return self.downforce_k;
+        }
+        let x = (speed.max(0.0) / AERO_TABLE_STEP_MPS).min((self.aero_factor.len() - 1) as f32);
+        let i = (x as usize).min(self.aero_factor.len() - 2);
+        let t = x - i as f32;
+        self.downforce_k * (self.aero_factor[i] * (1.0 - t) + self.aero_factor[i + 1] * t)
+    }
+
     /// Total grip the tyres offer at `speed`, m/s².
     fn grip_accel(&self, speed: f32) -> f32 {
-        self.mu * (GRAVITY + self.downforce_k * speed * speed)
+        self.mu * (GRAVITY + self.downforce_k_at(speed) * speed * speed)
     }
 
     /// Fastest speed a corner of curvature `kappa` can be taken at, capped at
-    /// top speed. Solves κ·v² = μ·m·(g + k·v²) for v.
+    /// top speed. Solves κ·v² = μ·m·(g + k·v²) for v; with a ride-height
+    /// car k depends on v, so it is solved again at the answer a few times
+    /// (the factor moves slowly with speed and this settles at once).
     fn corner_speed(&self, kappa: f32) -> f32 {
         let mu = self.mu * LATERAL_GRIP_MARGIN;
-        let denominator = kappa - mu * self.downforce_k;
-        if denominator <= 1e-6 {
-            return self.top_speed;
+        let solve = |k: f32| {
+            let denominator = kappa - mu * k;
+            if denominator <= 1e-6 {
+                self.top_speed
+            } else {
+                (mu * GRAVITY / denominator).sqrt().min(self.top_speed)
+            }
+        };
+        let mut v = solve(self.downforce_k);
+        if !self.aero_factor.is_empty() {
+            for _ in 0..4 {
+                v = solve(self.downforce_k_at(v));
+            }
         }
-        (mu * GRAVITY / denominator).sqrt().min(self.top_speed)
+        v
     }
 
     /// Grip left along the car once `kappa` at `speed` has taken its share
@@ -229,7 +278,12 @@ pub fn build_laden(
     let spacing = loop_length(&points) / n as f32;
 
     let (mass, _) = car.laden(fuel_liters);
-    let envelope = CarEnvelope::new(car, track.track_surface.base_grip, mass);
+    let envelope = CarEnvelope::new(
+        car,
+        track.track_surface.base_grip,
+        mass,
+        track.track_surface.air_density_ratio,
+    );
     let kappa = curvature(&points, spacing);
     let grade: Vec<f32> = (0..n)
         .map(|i| {
@@ -630,7 +684,12 @@ mod tests {
         // The corner speed is what the default car's grip allows around a
         // 30 m radius, less the margin.
         let slowest = profile.speed_mps.iter().copied().fold(f32::MAX, f32::min);
-        let envelope = CarEnvelope::new(&CarConfig::default(), 1.0, CarConfig::default().mass_kg);
+        let envelope = CarEnvelope::new(
+            &CarConfig::default(),
+            1.0,
+            CarConfig::default().mass_kg,
+            1.0,
+        );
         let expected = envelope.corner_speed(1.0 / 30.0);
         assert!(
             (slowest - expected).abs() < 1.0,
@@ -654,7 +713,7 @@ mod tests {
         let slowest = profile.speed_mps.iter().copied().fold(f32::MAX, f32::min);
         // Bounds from constant decelerations either side of what the car
         // does: tyres alone at their margin, and tyres plus drag at the top.
-        let envelope = CarEnvelope::new(&car, 1.0, car.mass_kg);
+        let envelope = CarEnvelope::new(&car, 1.0, car.mass_kg, 1.0);
         let weakest = envelope.grip_accel(0.0) * BRAKING_GRIP_MARGIN;
         let strongest = envelope.deceleration(fastest, 0.0, 0.0);
         let longest = (fastest * fastest - slowest * slowest) / (2.0 * weakest);

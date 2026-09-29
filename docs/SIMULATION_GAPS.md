@@ -14,7 +14,9 @@ loads, vertical spring/damper suspension with anti-roll bars, Pacejka-style
 tires with pressure, load sensitivity and a friction ellipse, static aero
 (drag, front/rear downforce, DRS), turbo lag, an opt-in differential, fuel
 consumption and fuel mass, two-node tyre temperatures with a gas-law
-pressure, slipstream and dirty air, a simple hybrid deploy/regen, weather-baked grip, and collision
+pressure, tyre wear and three compounds, pit stops, slipstream and dirty air, ride-height and rake aero with wing
+knobs, a simple hybrid deploy/regen, weather-baked grip, air density from altitude
+and temperature, gusting wind, and collision
 damage with a drivable/undrivable threshold.
 
 ## Cross-cutting constraints
@@ -75,7 +77,12 @@ FFB and tire-squeal audio a temperature cue for free.
 
 ## Tire wear and degradation
 
-**Today:** `wear_rate` is parsed and inert. A tire is identical on lap 1 and
+**Done 2026-09-29** (CLAUDE.md, "Tyre wear, compounds and pit stops"):
+wear from the patch's friction power (faster when hot), a gradual grip
+loss and a cliff from 70%, read by the AI. Left for later: flat spots
+from lockups and punctures.
+
+**Was:** `wear_rate` is parsed and inert. A tire is identical on lap 1 and
 lap 50.
 
 **Missing:** per-tire wear accumulating from slip energy, costing peak grip
@@ -93,7 +100,14 @@ today.
 
 ## Tire compounds and pit stops
 
-**Today:** one compound per car (front/rear scale factors exist for cars
+**Done 2026-09-29** (CLAUDE.md, "Tyre wear, compounds and pit stops"):
+soft / medium / hard on every car, chosen by a setup knob; the pit lane
+baked to the server (`<Stem>.pit.msgpack`), an automatic limiter, a stop
+at the car's box with a timed service (tyres, fuel where the rules allow,
+repairs), and an AI that plans a stop and drives the lane. Left for later
+in the running list below.
+
+**Was:** one compound per car (front/rear scale factors exist for cars
 with different compounds per axle). No pit stops of any kind — the pit lane
 is a surface and a speed-limit line, but nothing happens in the box.
 
@@ -137,7 +151,17 @@ race trim, and it makes the existing fuel plumbing mean something.
 
 ## Aerodynamics: ride height, wing settings and damage
 
-**Today:** aero is three constants (drag, front lift, rear lift) plus DRS.
+**Done 2026-09-29** (CLAUDE.md, "Ride-height aero and wings"): ride heights
+worked out from the axle loads over the springs with bump rubbers, a
+per-class map (more downforce lower, a stalling floor, rake moving the
+balance forward) referenced to where the car rides at 50 m/s so the
+calibration holds, the racing line planning with it at steady state,
+front and rear wing and ride-height knobs in the garage, and a damaged
+nose losing front downforce. Left for later: crests (the loads carry no
+vertical acceleration yet), yaw/roll sensitivity and porpoising. Imported
+Assetto Corsa cars get their map from AC's own ground-height tables.
+
+**Was:** aero is three constants (drag, front lift, rear lift) plus DRS.
 The suspension moves but the aero never notices: pitch, heave and ride
 height change nothing, and the setup garage deliberately offers no aero
 knobs because none would do anything.
@@ -258,7 +282,19 @@ enthusiasts.
 
 ## Environmental conditions: ambient temperature, humidity, wind
 
-**Today:** the environment is one enum. `SessionConditions` carries weather
+**Done 2026-09-29** (CLAUDE.md, "The air"): air temperature, humidity and
+a gusting wind in `SessionConditions` (host-picked or from the weather,
+named by the server on create and shown in the browser), the track
+temperature from the air and the sun, the air's density from altitude
+(every circuit's height from its elevation data), temperature and
+humidity scaling the aero and the engines (a turbo keeps most of its
+power), and the wind as the air the car drives through: drag, downforce
+and a side force, felt differently on every straight. Left for later: a
+humidity control, per-circuit latitude for the sun (stored, unused), a
+drying or cooling day within a session, and the wind in the racing line's
+plan (the AI reads it live).
+
+**Was:** the environment is one enum. `SessionConditions` carries weather
 and a clock; the weather is baked into the track's grip once at session
 create (dry, light rain, heavy rain) and the time of day is visual only.
 There is no temperature, no humidity, no wind — a summer noon race and a
@@ -287,12 +323,6 @@ cold dawn session are physically identical.
   into a braking zone, a crosswind pushes the car and asymmetrically loads
   it. Per-corner character falls out for free, because the same wind meets
   every straight at a different angle.
-
-*Since 2026-09-29 the air and track temperatures exist server-side*,
-derived from the weather and the clock and baked into the session's track
-(`SessionConditions::air_temperature_c` / `track_temperature_c`), because
-the tyre model needed them; they are not on the wire, not host-pickable
-and move nothing but the tyres.
 
 All of it extends `SessionConditions` (host-picked or auto from the
 weather), is baked or evaluated server-side like the existing weather grip,
@@ -395,3 +425,85 @@ control are independent and can be slotted anywhere; suspension geometry
 last. Of the "better, not equal" items, dynamic track evolution is worth
 starting early — it is independent of the car-model work, and it is the
 feature the others compound with.
+
+## Not done yet (running list)
+
+Everything a finished item above left for later, and what was built but
+never checked on screen, in one place. Kept up to date as items land: a
+line is struck off when it is done, and every new "left for later" goes
+here as well as under its item.
+
+**Fuel**
+- The AI's and the racing line's speed profiles are built once, at the
+  starting load; they are not rebuilt as the tank drains.
+- No AI fuel saving when short (lift and coast).
+- `[fuel] tank_front_share` exists; no shipped car sets one.
+
+**Tyre temperature**
+- The player's racing line is planned on warm tyres.
+- Tyre heat is not yet an FFB or tyre-squeal cue.
+- The hypercars' front treads spike to ~150 °C somewhere each lap:
+  unexplained (a front-axle slide, the front motor's regen, or AWD drive).
+- No inner/middle/outer temperatures (they need camber).
+- Convective cooling reads the car's ground speed, not its airspeed, so
+  a headwind does not cool the tyres.
+- Following closely does not heat the tyres (no slide-heat link to the
+  dirty air beyond the grip it costs).
+
+**Slipstream**
+- The AI does not pull out of a tow to pass: the traffic layer holds a
+  follower at a following distance.
+- The racing line is planned in clean air.
+
+**Ride-height aero**
+- Crests do not unload the car (the loads carry no vertical
+  acceleration).
+- No yaw or roll sensitivity, no porpoising.
+- The steady-state map the racing line uses takes its heave at the
+  reference air density (second order at altitude).
+- The AI and the racing line plan on a new medium: a soft's extra grip is
+  used through the AI's grip share (up to 3%), but the racing line shown
+  to the player does not change with compound or wear.
+
+**The air**
+- No humidity control on the create screen (auto only).
+- Latitude is stored per circuit but unused: the sun is still the sky
+  model's 50° N for every track.
+- Conditions are fixed for a session: no drying track, no cooling
+  evening, no rain arriving.
+- The wind is not in the racing line's plan (the AI reads it live).
+- The client draws no wind (no windsock, flags or rain drift).
+
+**Assetto Corsa imports**
+- Kunos' 2015-17 F1 ground-height tables are nearly flat where those cars
+  run, so they map to about zero ride-height sensitivity (faithful to AC,
+  but it means those imports gain nothing from the aero map).
+- AC's own tyre heat model (`FRICTION_K`, `SURFACE_TRANSFER`...) is not
+  carried; only its grip-temperature window.
+- Imported AC tracks have no altitude or position: they race at sea level.
+- AC's dynamic aero controllers (wings moving with speed or throttle) are
+  not modelled; a DRS flap is not split off an imported car's body.
+
+**Tyre wear, compounds and pit stops**
+- No flat spots from lockups, no punctures (wear stops at 100%).
+- No wet or intermediate tyres: rain costs grip whatever is fitted.
+- Compounds are the same three changes on every car; a car.toml cannot
+  list its own compounds yet.
+- Imported AC tracks have no pit sidecar, so no pit stops (AC's `AC_PIT_n`
+  objects could give the boxes).
+- A player can choose the next compound only in the hotlap garage (the
+  setup is sent on joining any session); there is no in-race pit menu
+  (compound, fuel, "tyres only").
+- The AI's strategy is a threshold: no undercuts, no reaction to the
+  cars around it, no fuel saving to skip a stop, no mandatory-stop rules.
+- Boxes are shared by grid slot beyond the box count, not by team; no
+  pit-lane speeding penalties (the limiter is automatic); the client draws
+  no crew and no pit-lane time on the timing sheet.
+- `initialize_content.ps1` does not check for the pit sidecar.
+
+**Built but never seen in the running game** (automation tests only)
+- The HUD's tyre row and TOW badge.
+- The hotlap garage's Aero section (wings, ride heights).
+- The create screen's air temperature slider and wind row.
+- The HUD's PIT badge and the tyre row's wear and compound; the garage's
+  "Next tyres" row; an AI pit stop as the client draws it.

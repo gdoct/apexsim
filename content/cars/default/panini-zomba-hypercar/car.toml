@@ -31,6 +31,15 @@ lift_coefficient_rear = -1.55
 # Naturally aspirated 6.0 L V12 from the old Zomba road cars, capped at
 # ~445 kW, plus a small front-mounted motor: the lightest-sounding car on the grid.
 
+# Aero posture (server/src/aero.rs): a prototype floor, less sensitive
+# than an F1's and run a little higher.
+[aero]
+ride_height_front_m = 0.050
+ride_height_rear_m = 0.080
+ride_height_sensitivity = 0.02
+rake_sensitivity = 0.008
+stall_height_m = 0.012
+
 # Tyres: a hard-wearing endurance slick with a high window; the heavy
 # car leans on its fronts, which run the hottest (server/src/tyre_thermal.rs).
 # No blankets: the car goes out at the air temperature.

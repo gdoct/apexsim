@@ -234,6 +234,7 @@ UWidget* UApexHotlapWidget::BuildGarageCard()
 	MakeSetupRow(Left, ApexCarSetup::BrakeBias, TEXT("Brake bias"), TEXT("Front share of the braking."));
 	AddV(Left, MakeLabel(*WidgetTree, TEXT("Fuel")), SectionGap);
 	MakeSetupRow(Left, ApexCarSetup::FuelLoad, TEXT("Fuel load"), TEXT("Laps on the fill. Weight is lap time."));
+	MakeSetupRow(Left, ApexCarSetup::TyreCompound, TEXT("Next tyres"), TEXT("Softs grip; hards last. Fitted here or at a stop."));
 
 	AddV(Right, MakeLabel(*WidgetTree, TEXT("Suspension")), FirstSection);
 	MakeSetupRow(Right, ApexCarSetup::SpringFront, TEXT("Front springs"), TEXT("Stiffer: less dive and roll."));
@@ -242,6 +243,11 @@ UWidget* UApexHotlapWidget::BuildGarageCard()
 	MakeSetupRow(Right, ApexCarSetup::DamperRear, TEXT("Rear dampers"), TEXT("Bump and rebound together."));
 	MakeSetupRow(Right, ApexCarSetup::AntiRollFront, TEXT("Front anti-roll bar"), TEXT("Stiffer: more understeer."));
 	MakeSetupRow(Right, ApexCarSetup::AntiRollRear, TEXT("Rear anti-roll bar"), TEXT("Stiffer: more oversteer."));
+	AddV(Right, MakeLabel(*WidgetTree, TEXT("Aero")), SectionGap);
+	MakeSetupRow(Right, ApexCarSetup::FrontWing, TEXT("Front wing"), TEXT("Front grip, a little drag."));
+	MakeSetupRow(Right, ApexCarSetup::RearWing, TEXT("Rear wing"), TEXT("Rear grip for top speed."));
+	MakeSetupRow(Right, ApexCarSetup::RideHeightFront, TEXT("Front ride height"), TEXT("Lower: more downforce."));
+	MakeSetupRow(Right, ApexCarSetup::RideHeightRear, TEXT("Rear ride height"), TEXT("Rake moves balance forward."));
 
 	AddH(Body, Left, FMargin(22.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
 	AddH(Body, Right, FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);

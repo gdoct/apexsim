@@ -9658,3 +9658,6 @@ metadata:
   year_built: 1909
   category: IndyCar
   environment_type: country
+  altitude_m: 218.0
+  latitude_deg: 39.795
+  longitude_deg: -86.2347

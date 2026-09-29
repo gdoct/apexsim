@@ -8857,3 +8857,6 @@ metadata:
   terrain_blend_width: null
   object_density: null
   decal_profile: null
+  altitude_m: 85.9
+  latitude_deg: 52.00491
+  longitude_deg: 11.30681

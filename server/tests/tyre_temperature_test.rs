@@ -20,11 +20,16 @@ fn monza() -> TrackConfig {
         .expect("failed to load Monza")
 }
 
+/// A shipped car, or the player's own (an imported one) by its folder.
 fn car(folder: &str) -> CarConfig {
-    CarLoader::load_from_file(Path::new(&format!(
-        "../content/cars/default/{folder}/car.toml"
-    )))
-    .expect("car loads")
+    let shipped = format!("../content/cars/default/{folder}/car.toml");
+    let custom = format!("../content/cars/custom/{folder}/car.toml");
+    let path = if Path::new(&shipped).exists() {
+        shipped
+    } else {
+        custom
+    };
+    CarLoader::load_from_file(Path::new(&path)).expect("car loads")
 }
 
 /// One tyre set's state, averaged per axle: (front tread, front core, rear
@@ -48,6 +53,8 @@ struct LapLog {
     /// Lowest grip share seen during the lap, and the hottest tread.
     min_grip: f32,
     max_tread: f32,
+    /// The most worn tyre at the line, percent.
+    wear: f32,
 }
 
 fn ai_race(folder: &str, laps: u8, conditions: SessionConditions) -> (CarConfig, Vec<LapLog>) {
@@ -89,11 +96,18 @@ fn ai_race(folder: &str, laps: u8, conditions: SessionConditions) -> (CarConfig,
         }
         for out in gs.take_lap_events() {
             if let Some(ms) = out.event.lap_time_ms {
+                let s = &gs.session.participants[&driver];
                 logs.push(LapLog {
                     time_s: ms as f32 / 1000.0,
-                    tyres: axles(&gs.session.participants[&driver]),
+                    tyres: axles(s),
                     min_grip,
                     max_tread,
+                    wear: s
+                        .tires
+                        .each()
+                        .iter()
+                        .map(|t| t.wear_percent)
+                        .fold(0.0, f32::max),
                 });
                 min_grip = 1.0;
                 max_tread = f32::MIN;
@@ -115,11 +129,12 @@ fn print_race(folder: &str, car: &CarConfig, logs: &[LapLog]) {
     for (i, lap) in logs.iter().enumerate() {
         let (ft, fc, rt, rc, grip) = lap.tyres;
         println!(
-            "  lap {}: {:7.3} s  front {ft:5.1}/{fc:5.1}  rear {rt:5.1}/{rc:5.1}  grip {grip:.3}  (lap min {:.3}, hottest tread {:.0})",
+            "  lap {}: {:7.3} s  front {ft:5.1}/{fc:5.1}  rear {rt:5.1}/{rc:5.1}  grip {grip:.3}  (lap min {:.3}, hottest tread {:.0}, wear {:.1}%)",
             i + 1,
             lap.time_s,
             lap.min_grip,
-            lap.max_tread
+            lap.max_tread,
+            lap.wear
         );
     }
 }
@@ -182,10 +197,11 @@ fn every_class_warms_into_its_window_and_stays_there() {
             logs[2].tyres.4
         );
         // The start costs something (cool tyres, and the standing start),
-        // not a whole lap of crawling.
+        // not a whole lap of crawling. The standing start alone is ~5 s in
+        // the LMP2 on warm tyres; the cool ones add about 3.
         let cost = logs[0].time_s - logs[2].time_s;
         assert!(
-            (0.0..8.0).contains(&cost),
+            (0.0..10.0).contains(&cost),
             "{folder}: lap 1 is {cost:.2} s slower than lap 3"
         );
     }
@@ -220,8 +236,10 @@ fn seated(folder: &str, mode: GameMode) -> (GameSession, PlayerId, CarConfig) {
     );
     let mut gs = GameSession::new(session, monza(), car_configs);
     let player = Uuid::from_u128(100);
-    gs.add_player(player, car.id).expect("seat");
+    // Seated into the mode, as a driver joining it is: a seat taken in the
+    // lobby is one on a race grid.
     gs.set_game_mode(mode);
+    gs.add_player(player, car.id).expect("seat");
     (gs, player, car)
 }
 
@@ -234,7 +252,7 @@ fn tread(gs: &GameSession, player: &PlayerId) -> f32 {
 
 #[test]
 fn cars_go_out_at_the_air_or_on_their_blankets() {
-    let (gs, player, _) = seated("posh-gt3rs", GameMode::Lobby);
+    let (gs, player, _) = seated("posh-gt3rs", GameMode::FreePractice);
     let air = gs.track_config.track_surface.air_temperature_c;
     assert!(gs.session.participants[&player].tyres_fitted);
     assert_eq!(tread(&gs, &player), air, "no blankets: out at the air");
@@ -244,10 +262,20 @@ fn cars_go_out_at_the_air_or_on_their_blankets() {
         .pressure_kpa;
     assert!(pressure < 140.0, "a cold tyre is soft: {pressure:.0} kPa");
 
-    let (gs, player, car) = seated("fugazzi-sf26", GameMode::Lobby);
+    let (gs, player, car) = seated("fugazzi-sf26", GameMode::FreePractice);
     assert_eq!(
         tread(&gs, &player),
         car.tire_config.blanket_temperature_c.expect("F1 blankets")
+    );
+
+    // A seat taken in the lobby is on a race grid.
+    let (gs, player, car) = seated("posh-gt3rs", GameMode::Lobby);
+    assert_eq!(
+        tread(&gs, &player),
+        apexsim_server::tyre_thermal::grid_temperature_c(
+            &car.tire_config,
+            &gs.track_config.track_surface
+        )
     );
 }
 

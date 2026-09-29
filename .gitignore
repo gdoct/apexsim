@@ -221,6 +221,8 @@ server/records/
 # Scratch/working directory, not part of the project
 _claude_tmp/
 content/tracks/default/*.walls.msgpack
+# The pit lane and its boxes (ats-export, beside the other sidecars).
+content/tracks/default/*.pit.msgpack
 # Raw OpenStreetMap extracts the layout dossiers are built from
 # (scripts/osm_layout.py). Tens of MB, refetchable, and the dossier that
 # comes out of them is what is checked in.

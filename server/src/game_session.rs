@@ -235,7 +235,14 @@ fn fit_tyres(
     tuned_configs: &HashMap<PlayerId, CarConfig>,
     track: &TrackConfig,
     start: TyreStart,
+    car_setups: &HashMap<PlayerId, CarSetup>,
 ) {
+    // The compound the driver's setup chose for the next set.
+    let compound = car_setups
+        .get(&state.player_id)
+        .copied()
+        .unwrap_or_default()
+        .compound_index();
     let Some(config) = simulated_config(car_configs, tuned_configs, state) else {
         return;
     };
@@ -246,7 +253,7 @@ fn fit_tyres(
         TyreStart::Grid => tyre_thermal::grid_temperature_c(tyre, surface),
         TyreStart::Warm => tyre.optimal_temperature_c,
     };
-    tyre_thermal::fit(state, tyre, temperature);
+    tyre_thermal::fit(state, tyre, temperature, compound);
 }
 
 impl GameSession {
@@ -434,7 +441,8 @@ impl GameSession {
             }
 
             // Update physics for all cars (player + AI), each in the wake
-            // of the cars ahead of it.
+            // of the cars ahead of it and the wind.
+            self.update_wind();
             crate::slipstream::update(&mut self.session.participants, &self.car_configs);
             let ai_ids: std::collections::HashSet<PlayerId> =
                 self.session.ai_player_ids.iter().copied().collect();
@@ -1022,6 +1030,7 @@ impl GameSession {
             &self.tuned_configs,
             &self.track_config,
             TyreStart::Warm,
+            &self.car_setups,
         );
         // Parked cars wait in neutral; a car put on the run-up is in first.
         fresh.gear = if in_garage { 0 } else { 1 };
@@ -1113,6 +1122,12 @@ impl GameSession {
         }
 
         let fuel = self.start_fuel_liters(&player_id, car_config_id, self.planned_mode());
+        // Seated on the grid for a race: its tyres are what the grid's are.
+        let start = if self.planned_mode() == GameMode::Race {
+            TyreStart::Grid
+        } else {
+            TyreStart::Garage
+        };
 
         // Get grid slot
         if let Some(grid_slot) = self
@@ -1128,7 +1143,8 @@ impl GameSession {
                 &self.car_configs,
                 &self.tuned_configs,
                 &self.track_config,
-                TyreStart::Garage,
+                start,
+                &self.car_setups,
             );
             // A client that never sends SetDriverAids would otherwise run the
             // car's own ABS and traction control in a session that forbids them.
@@ -1376,6 +1392,7 @@ impl GameSession {
                 &self.tuned_configs,
                 &self.track_config,
                 TyreStart::Grid,
+                &self.car_setups,
             );
             fresh.auto_gearbox = state.auto_gearbox;
             fresh.abs = state.abs;
@@ -1408,8 +1425,201 @@ impl GameSession {
     /// What the air does this tick, before the physics: the DRS rule and
     /// every car's wake (`crate::slipstream`).
     fn update_air(&mut self) {
+        self.update_pits();
         self.update_drs();
+        self.update_wind();
         crate::slipstream::update(&mut self.session.participants, &self.car_configs);
+    }
+
+    /// The pit lane this tick (`crate::pit`): every car placed against it
+    /// (its limiter, its box), services started and finished, and in a race
+    /// the AI's decision to stop and its turn onto the pit route.
+    fn update_pits(&mut self) {
+        let Some(lane) = self.track_config.pit_lane.as_ref() else {
+            return;
+        };
+        let dt = self.dt();
+        let mut arrived: Vec<PlayerId> = Vec::new();
+        let mut finished: Vec<PlayerId> = Vec::new();
+        for state in self.session.participants.values_mut() {
+            if state.in_garage {
+                continue;
+            }
+            let at = lane.locate(state.pos_x, state.pos_y, state.pit.lane_node);
+            let pit = &mut state.pit;
+            pit.lane_node = Some(at.node as u32);
+            pit.lane_station_m = at.station_m;
+            pit.in_lane = at.distance_m <= lane.width_m / 2.0 + 1.0;
+            pit.limiter =
+                pit.in_lane && (lane.limit_start_m..=lane.limit_end_m).contains(&at.station_m);
+            if !pit.in_lane && !pit.driving {
+                // Out of the lane: the next visit is a new stop.
+                pit.serviced = false;
+            }
+            if pit.servicing {
+                pit.service_left_s -= dt;
+                if pit.service_left_s <= 0.0 {
+                    finished.push(state.player_id);
+                }
+            } else if pit.limiter
+                && !pit.serviced
+                && state.speed_mps < crate::pit::BOX_STOP_SPEED_MPS
+            {
+                let spot = lane.box_for(state.grid_position);
+                let d = ((state.pos_x - spot.x).powi(2) + (state.pos_y - spot.y).powi(2)).sqrt();
+                if d <= crate::pit::BOX_RADIUS_M {
+                    arrived.push(state.player_id);
+                }
+            }
+            // The AI's route ends past the lane's last line.
+            if pit.driving && pit.serviced && at.station_m >= lane.length_m - 3.0 {
+                pit.driving = false;
+                state.auto_gearbox = false;
+            }
+        }
+        for player_id in arrived {
+            self.start_service(&player_id);
+        }
+        for player_id in finished {
+            self.finish_service(&player_id);
+        }
+        self.plan_ai_stops();
+    }
+
+    /// Laps a car has left after the one it is on, in a race.
+    fn laps_left(&self, state: &CarState) -> u32 {
+        (self.session.lap_limit as u32).saturating_sub(state.current_lap.max(1) as u32)
+    }
+
+    /// A car has stopped at its box: what the service will do, and how long
+    /// it takes. The compound is the driver's setup's choice (the AI's plan
+    /// for an AI); the fuel, where the rules let this car refuel, what the
+    /// rest of the run needs (a race's distance with its margin, else what
+    /// the session fills a car with); the repairs, whatever is damaged.
+    fn start_service(&mut self, player_id: &PlayerId) {
+        let Some(state) = self.session.participants.get(player_id) else {
+            return;
+        };
+        let car_id = state.car_config_id;
+        let is_ai = self.is_ai_player(player_id);
+        let compound = if is_ai {
+            state.pit.next_compound
+        } else {
+            self.car_setup(player_id).compound_index()
+        };
+        let laps_left = self.laps_left(state) as f32 + 1.0;
+        let fuel_now = state.fuel_liters;
+        let damage = crate::pit::damage_percent(state);
+        let mode = self.session.game_mode;
+        let Some(config) = self.car_configs.get(&car_id).cloned() else {
+            return;
+        };
+        let fuel_target = if !crate::pit::refuelling_allowed(&config) {
+            fuel_now
+        } else if mode == GameMode::Race {
+            match self.lap_fuel_liters(car_id) {
+                Some(lap) => (laps_left * (1.0 + RACE_FUEL_MARGIN) * lap + 0.5 * lap)
+                    .min(config.fuel.capacity_liters),
+                None => config.fuel.capacity_liters,
+            }
+        } else {
+            self.start_fuel_liters(player_id, car_id, mode)
+        };
+        let fuel_added = (fuel_target - fuel_now).max(0.0);
+        let seconds = crate::pit::service_seconds(&config, fuel_added, damage);
+        if let Some(state) = self.session.participants.get_mut(player_id) {
+            let pit = &mut state.pit;
+            pit.servicing = true;
+            pit.service_left_s = seconds;
+            pit.service_compound = compound;
+            pit.service_fuel_l = fuel_added;
+        }
+    }
+
+    /// The service is done: the new set on (at what the car's tyres go out
+    /// at: its blankets, or the air), the fuel in, the car repaired.
+    fn finish_service(&mut self, player_id: &PlayerId) {
+        let Some(state) = self.session.participants.get_mut(player_id) else {
+            return;
+        };
+        let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state).cloned()
+        else {
+            return;
+        };
+        let tyre = &config.tire_config;
+        let temperature = tyre_thermal::start_temperature_c(tyre, &self.track_config.track_surface);
+        let compound = state.pit.service_compound;
+        tyre_thermal::fit(state, tyre, temperature, compound);
+        state.fuel_liters =
+            (state.fuel_liters + state.pit.service_fuel_l).min(config.fuel.capacity_liters);
+        state.damage = DamageState {
+            is_drivable: true,
+            ..Default::default()
+        };
+        let pit = &mut state.pit;
+        pit.servicing = false;
+        pit.service_left_s = 0.0;
+        pit.serviced = true;
+        pit.wants_stop = false;
+        pit.stops += 1;
+    }
+
+    /// In a race, each AI driver's decision to stop (`pit::plan_stop`), and
+    /// its turn onto the pit route once the lane's entry is near: the
+    /// automatic gearbox on for the route, `pit::drive_input` driving.
+    fn plan_ai_stops(&mut self) {
+        if self.session.game_mode != GameMode::Race {
+            return;
+        }
+        let Some((entry, approach)) = self
+            .track_config
+            .pit_lane
+            .as_ref()
+            .map(|lane| (lane.entry_station_m, crate::pit::AI_PIT_APPROACH_M))
+        else {
+            return;
+        };
+        let total = crate::laps::track_length_m(&self.track_config);
+        let ai_ids = self.session.ai_player_ids.clone();
+        for ai_id in ai_ids {
+            let Some(state) = self.session.participants.get(&ai_id) else {
+                continue;
+            };
+            if state.finish_position.is_some() || state.pit.driving || state.pit.servicing {
+                continue;
+            }
+            if !state.pit.wants_stop {
+                let laps_left = self.laps_left(state);
+                let car_id = state.car_config_id;
+                let lap_fuel = self.lap_fuel_liters(car_id);
+                let Some(state) = self.session.participants.get(&ai_id) else {
+                    continue;
+                };
+                if let Some(compound) = crate::pit::plan_stop(state, laps_left, lap_fuel) {
+                    if let Some(state) = self.session.participants.get_mut(&ai_id) {
+                        state.pit.wants_stop = true;
+                        state.pit.next_compound = compound;
+                    }
+                }
+                continue;
+            }
+            let to_entry = (entry - state.track_progress).rem_euclid(total.max(1.0));
+            if to_entry <= approach {
+                if let Some(state) = self.session.participants.get_mut(&ai_id) {
+                    state.pit.driving = true;
+                    state.pit.serviced = false;
+                    state.auto_gearbox = true;
+                }
+            }
+        }
+    }
+
+    /// The wind this tick, gusting about the session's mean
+    /// (`crate::wind::gusting`), on the session's own track.
+    fn update_wind(&mut self) {
+        let surface = &mut self.track_config.track_surface;
+        let seconds = self.session.current_tick as f32 / self.tick_rate_hz.max(1) as f32;
+        surface.wind_now_mps = crate::wind::gusting(surface.wind_mps, seconds);
     }
 
     /// The DRS rule for this tick (`crate::drs`): which cars may open the
@@ -1433,6 +1643,17 @@ impl GameSession {
         state: &CarState,
         car_config: &CarConfig,
     ) -> PlayerInputData {
+        // On the pit route the lane drives it (`crate::pit`).
+        if state.pit.driving {
+            if let Some(lane) = &self.track_config.pit_lane {
+                return crate::pit::drive_input(
+                    lane,
+                    lane.box_for(state.grid_position),
+                    state,
+                    car_config,
+                );
+            }
+        }
         let controller = AiDriverController::new(profile, &self.track_config, car_config)
             .with_speed_profile(self.ai_speed_profiles.get(&state.car_config_id));
         // BTreeMap order: the traffic list, and so the input, is

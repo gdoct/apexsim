@@ -167,7 +167,10 @@ pub fn track_stem(track_path: &Path) -> Option<String> {
 pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<ReplayFrame>), String> {
     let mut track = TrackLoader::load_from_file(&opts.track_path)
         .map_err(|e| format!("track {}: {e}", opts.track_path.display()))?;
-    opts.conditions.apply_to_track(&mut track);
+    // The air named in full, the wind's direction from the seed, so a
+    // seeded race replays with the same wind.
+    let conditions = opts.conditions.resolve(opts.seed.unwrap_or(0));
+    conditions.apply_to_track(&mut track);
 
     let (cars, folders) = load_car_folder(&opts.cars_dir)?;
     let host_car = resolve_car(&cars, &folders, &opts.host_car).ok_or_else(|| {
@@ -200,7 +203,7 @@ pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<Repl
         opts.laps.max(1),
     );
     session.host_car_id = Some(host_car);
-    session.conditions = opts.conditions.clamp();
+    session.conditions = conditions;
 
     let track_length_m = track
         .centerline
@@ -292,7 +295,7 @@ pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<Repl
         duration_ticks: 0,
         tick_rate: opts.tick_rate,
         participants,
-        conditions: opts.conditions.clamp(),
+        conditions: race.session.conditions,
         race_start_tick,
         track_stem: track_stem(&opts.track_path),
         track_length_m,
@@ -1315,6 +1318,7 @@ mod tests {
             conditions: SessionConditions {
                 weather: Weather::LightRain,
                 time_of_day_minutes: 20 * 60,
+                ..SessionConditions::DEFAULT
             },
             tick_rate: 240,
             record_hz: 30,

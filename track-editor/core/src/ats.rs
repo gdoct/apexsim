@@ -89,14 +89,17 @@ pub enum Sidecar {
     Walls,
     /// `<Stem>.road.msgpack`, the road mesh.
     Road,
+    /// `<Stem>.pit.msgpack`, the pit lane and its boxes.
+    Pit,
 }
 
 impl Sidecar {
-    pub const ALL: [Sidecar; 4] = [
+    pub const ALL: [Sidecar; 5] = [
         Sidecar::Ground,
         Sidecar::Curbs,
         Sidecar::Walls,
         Sidecar::Road,
+        Sidecar::Pit,
     ];
 
     pub fn key(self) -> &'static str {
@@ -105,6 +108,7 @@ impl Sidecar {
             Sidecar::Curbs => "curbs",
             Sidecar::Walls => "walls",
             Sidecar::Road => "road",
+            Sidecar::Pit => "pit",
         }
     }
 

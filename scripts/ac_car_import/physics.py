@@ -30,6 +30,17 @@ AC_PHYSICS_HZ = 333.0
 #: applies the load sensitivity itself; the speed sensitivity it cannot).
 REFERENCE_SPEED_MPS = 40.0
 
+#: The server's ride-height aero (server/src/aero.rs): the speed its map is
+#: referenced at, and its heave model. Kept equal to the Rust constants so
+#: the posture worked out here is the one the server finds.
+AERO_REFERENCE_SPEED_MPS = 50.0
+FREE_TRAVEL_SHARE = 0.65
+BUMP_STIFFENING = 6.0
+MAX_EXTENSION_M = 0.05
+#: The server's default springs, for a car whose suspensions.ini has none.
+DEFAULT_SPRING_FRONT = 80000.0
+DEFAULT_SPRING_REAR = 70000.0
+
 
 class PhysicsError(Exception):
     """A car whose data cannot give a figure the server requires."""
@@ -362,16 +373,114 @@ def _wing_coefficients(car: CarData, s: dict, angle: float, ride_height: float |
     return cl, cd
 
 
+def axle_travel(delta_n: float, spring_n_per_m: float, static_height_m: float) -> float:
+    """How far an axle moves down for a load `delta_n` over its static
+    load: the server's `aero::axle_travel`, bump rubbers and all."""
+    k = 2.0 * max(spring_n_per_m, 1.0)
+    travel = delta_n / k
+    free = FREE_TRAVEL_SHARE * max(static_height_m, 0.0)
+    if travel <= free:
+        return max(travel, -MAX_EXTENSION_M)
+    return free + (delta_n - k * free) / (k * BUMP_STIFFENING)
+
+
+def wing_height(z: float, front_m: float, rear_m: float, z_front: float, z_rear: float) -> float:
+    """A wing's height above the road, from the two axles' ride heights by
+    where it sits between them (held at the axle's past either end)."""
+    span = z_front - z_rear
+    t = 0.5 if abs(span) < 1e-6 else min(max((z - z_rear) / span, 0.0), 1.0)
+    return rear_m + t * (front_m - rear_m)
+
+
+@dataclass
+class AeroWing:
+    """One aero.ini wing for the ride-height map: `cl(h)` is its Cl x area,
+    m2, at a ground height h (the angle and the gain already in), `z` its
+    station in the physics frame."""
+    cl: object
+    z: float
+
+
+def aero_posture(wings: list[AeroWing], static: tuple[float, float], springs: tuple[float, float],
+                 z_front: float, z_rear: float, wheelbase: float) -> dict:
+    """Where the car rides at the server's reference speed on its springs
+    with the downforce its wings make there, and the ride-height map around
+    that posture, as the server's `[aero]` keys want it:
+
+    - `posture`: (front, rear) ride height, m, at `AERO_REFERENCE_SPEED_MPS`
+      (the wings' heights feed back into their downforce: iterated);
+    - `cla`: (front, rear) Cl x area there, split by station as the rest of
+      the import does;
+    - `ride_height_sensitivity`: downforce gained per cm lower (mean height,
+      rake held), a share of the total there;
+    - `rake_sensitivity`: the front share's gain per cm more rake;
+    - `stall_height_m`: the mean height below the tables' peak where the
+      total falls under 90% of it, 0 when it never does above the road.
+    """
+
+    def split(front_m: float, rear_m: float) -> tuple[float, float]:
+        cla_f = cla = 0.0
+        for w in wings:
+            c = w.cl(wing_height(w.z, front_m, rear_m, z_front, z_rear))
+            cla += c
+            cla_f += c * (w.z - z_rear) / wheelbase
+        return cla_f, cla - cla_f
+
+    q = 0.5 * AIR_DENSITY * AERO_REFERENCE_SPEED_MPS ** 2
+    front, rear = static
+    for _ in range(20):
+        cf, cr = split(front, rear)
+        front = max(static[0] - axle_travel(q * cf, springs[0], static[0]), 0.0)
+        rear = max(static[1] - axle_travel(q * cr, springs[1], static[1]), 0.0)
+    cla = split(front, rear)
+
+    def total(mean: float, rake: float) -> float:
+        return sum(split(max(mean - rake / 2.0, 0.0), max(mean + rake / 2.0, 0.0)))
+
+    def share(mean: float, rake: float) -> float:
+        cf, cr = split(max(mean - rake / 2.0, 0.0), max(mean + rake / 2.0, 0.0))
+        return cf / (cf + cr) if abs(cf + cr) > 1e-9 else 0.5
+
+    mean0, rake0 = 0.5 * (front + rear), rear - front
+    t0 = total(mean0, rake0)
+    sensitivity = (total(mean0 - 0.005, rake0) - total(mean0 + 0.005, rake0)) / t0 if t0 > 1e-9 else 0.0
+    rake_sensitivity = share(mean0, rake0 + 0.005) - share(mean0, rake0 - 0.005)
+
+    # Down from the posture a millimetre at a time: the tables' peak, then
+    # where the total has fallen under 90% of it.
+    stall = 0.0
+    best = t0
+    h = mean0
+    while h > 0.0:
+        t = total(h, rake0)
+        if t > best:
+            best = t
+        elif t < 0.9 * best:
+            stall = h
+            break
+        h -= 0.001
+    return {
+        "posture": (front, rear),
+        "cla": cla,
+        "ride_height_sensitivity": sensitivity,
+        "rake_sensitivity": rake_sensitivity,
+        "stall_height_m": stall,
+    }
+
+
 def wheel_spring_rate(susp: dict, axle: str) -> tuple[float | None, str]:
-    """The axle's spring rate at each wheel. An open-wheeler may carry its
-    springing on a heave spring (`[HEAVE_FRONT]`) with the corner springs at
-    zero; in heave that is half its rate at each wheel."""
-    k = _opt(susp, axle, "SPRING_RATE")
-    if k and k > 0:
+    """The axle's spring rate at each wheel in heave: the corner spring plus
+    half the axle's heave spring (`[HEAVE_FRONT]`), which an open-wheeler
+    carries beside (or instead of) its corner springs. Heave is what the
+    server's springs do most (the static sag, the ride height under
+    downforce); roll has the anti-roll bars."""
+    k = _opt(susp, axle, "SPRING_RATE") or 0.0
+    heave = _opt(susp, f"HEAVE_{axle}", "SPRING_RATE") or 0.0
+    if heave > 0:
+        return k + heave / 2.0, (f"suspensions.ini [{axle}] SPRING_RATE {k:g} + "
+                                  f"[HEAVE_{axle}] SPRING_RATE / 2")
+    if k > 0:
         return k, f"suspensions.ini [{axle}] SPRING_RATE"
-    heave = _opt(susp, f"HEAVE_{axle}", "SPRING_RATE")
-    if heave and heave > 0:
-        return (k or 0.0) + heave / 2.0, f"suspensions.ini [HEAVE_{axle}] SPRING_RATE / 2 (the corner springs are {k or 0:g})"
     return None, ""
 
 
@@ -485,8 +594,8 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     # height at the pickup point, the push rod, less the static sag of the
     # spring and the tyre under the axle's load.
     springs = {axle: wheel_spring_rate(susp, axle) for axle in ("FRONT", "REAR")}
-    k_f = springs["FRONT"][0] or 80000.0
-    k_r = springs["REAR"][0] or 70000.0
+    k_f = springs["FRONT"][0] or DEFAULT_SPRING_FRONT
+    k_r = springs["REAR"][0] or DEFAULT_SPRING_REAR
     load_f = mass * G * wf / 2.0
     load_r = mass * G * (1.0 - wf) / 2.0
     sag_f = load_f / k_f + (load_f / front.rate if front.rate else 0.0)
@@ -496,20 +605,39 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     ride_f, ride_r = max(ride_f, 0.02), max(ride_r, 0.02)
     out.fit["static_ride_height_m"] = [round(ride_f, 4), round(ride_r, 4)]
 
-    # Aero: every wing at its authored angle and the static ride height.
+    # Aero: every wing at its authored angle, at the height it runs at the
+    # server's reference speed. A car whose wings have ground-height tables
+    # (LUT_GH_CL) gets the server's ride-height map from them (`[aero]`):
+    # its lift coefficients are the ones it makes at that posture, where
+    # the server's map is zero, and the map's slopes are the tables'.
     wings: list[Wing] = []
     drs_ini = car.ini("drs.ini")
     drs_wings = {int(m.group(1)) for sec in drs_ini for m in [re.match(r"WING_(\d+)$", sec)] if m}
+    z_front_axle = wheelbase * (1.0 - wf)
+    z_rear_axle = -wheelbase * wf
+    sections = []
     i = 0
     while f"WING_{i}" in aero:
         s = aero[f"WING_{i}"]
         pos = vector(s.get("POSITION")) or [0.0, 0.0, 0.0]
-        angle = number(s.get("ANGLE"), 0.0)
-        height = ride_f if pos[2] >= 0.0 else ride_r
-        cl, cd = _wing_coefficients(car, s, angle, height)
-        area = number(s.get("CHORD"), 1.0) * number(s.get("SPAN"), 1.0)
-        wings.append(Wing(i, str(s.get("NAME", f"WING_{i}")).strip(), area, pos, angle, cl, cd, height))
+        sections.append((i, s, pos, number(s.get("ANGLE"), 0.0),
+                         number(s.get("CHORD"), 1.0) * number(s.get("SPAN"), 1.0)))
         i += 1
+    has_ground_tables = any(str(s.get("LUT_GH_CL", "")).strip() for _, s, _, _, _ in sections)
+    aero_map = None
+    if has_ground_tables:
+        aero_map = aero_posture(
+            [AeroWing(cl=(lambda h, s=s, a=angle, area=area: _wing_coefficients(car, s, a, h)[0] * area),
+                      z=pos[2]) for _, s, pos, angle, area in sections],
+            (ride_f, ride_r), (k_f, k_r), z_front_axle, z_rear_axle, wheelbase)
+        post_f, post_r = aero_map["posture"]
+    else:
+        post_f, post_r = ride_f, ride_r
+    for i, s, pos, angle, area in sections:
+        height = (wing_height(pos[2], post_f, post_r, z_front_axle, z_rear_axle) if has_ground_tables
+                  else (ride_f if pos[2] >= 0.0 else ride_r))
+        cl, cd = _wing_coefficients(car, s, angle, height)
+        wings.append(Wing(i, str(s.get("NAME", f"WING_{i}")).strip(), area, pos, angle, cl, cd, height))
     if any(sec.startswith("DYNAMIC_CONTROLLER") for sec in aero):
         out.warnings.append("aero.ini's dynamic controllers (wings that move with speed or throttle) are not "
                             "modelled: every wing is taken at its authored ANGLE")
@@ -528,6 +656,10 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
         "wings": [{"name": w.name, "angle": w.angle, "cl": round(w.cl, 4), "cd": round(w.cd, 4),
                    "area_m2": round(w.area, 3), "z_m": w.position[2]} for w in wings],
     }
+    if aero_map:
+        out.fit["aero"]["posture_at_reference_m"] = [round(post_f, 4), round(post_r, 4)]
+        out.fit["aero"]["map"] = {k: round(v, 5) for k, v in aero_map.items()
+                                  if k in ("ride_height_sensitivity", "rake_sensitivity", "stall_height_m")}
 
     # DRS: the named wing's drag and rear downforce, closed against open.
     drs_drag = drs_rear = 0.0
@@ -600,6 +732,21 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     out.put(p, "lift_coefficient_rear", round(-cla_rear / area_ref, 4), "aero.ini: the rest on the rear axle")
     out.put(p, "drs_drag_reduction", round(drs_drag, 4), "drs.ini's wing, closed against open" if drs_wings else "no DRS wing")
     out.put(p, "drs_rear_downforce_reduction", round(drs_rear, 4), "drs.ini's wing, closed against open" if drs_wings else "no DRS wing")
+
+    # ---- aero posture: the server's ride-height map, from the wings' tables.
+    if aero_map:
+        a = "aero"
+        clamp = lambda v, lo, hi: min(max(v, lo), hi)  # noqa: E731
+        out.put(a, "ride_height_front_m", round(clamp(ride_f, 0.005, 0.3), 4),
+                "car.ini [RIDE] pickup, ROD_LENGTH and the static sag")
+        out.put(a, "ride_height_rear_m", round(clamp(ride_r, 0.005, 0.3), 4),
+                "car.ini [RIDE] pickup, ROD_LENGTH and the static sag")
+        out.put(a, "ride_height_sensitivity", round(clamp(aero_map["ride_height_sensitivity"], 0.0, 0.1), 4),
+                "aero.ini LUT_GH_CL: downforce gained per cm lower at the 50 m/s posture")
+        out.put(a, "rake_sensitivity", round(clamp(aero_map["rake_sensitivity"], 0.0, 0.05), 4),
+                "aero.ini LUT_GH_CL: front share gained per cm more rake")
+        out.put(a, "stall_height_m", round(clamp(aero_map["stall_height_m"], 0.0, 0.1), 4),
+                "aero.ini LUT_GH_CL: mean height where the tables fall under 90% of their peak")
 
     # ---- tires
     t = "tires"
@@ -731,4 +878,9 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     out.fit["reference_speed_mps"] = REFERENCE_SPEED_MPS
     out.fit["cog_height_m"] = round(cog, 4)
     out.car_class = car_class or map_class(car, out.has_drs)
+    # Tyre blankets are a rule, not a figure AC carries: a modern F1 car
+    # goes out on them as the shipped ones do (server tyre_thermal.rs).
+    modern = car.ui.year >= 1990 if car.ui.year else out.has_drs
+    if out.car_class == "F1" and modern:
+        out.put("tires", "blanket_temperature_c", 70.0, "F1 rules: tyre blankets (AC has none)")
     return out

@@ -59,6 +59,7 @@ mod tests {
         SessionConditions {
             weather,
             time_of_day_minutes: hh * 60 + mm,
+            ..SessionConditions::DEFAULT
         }
     }
 
