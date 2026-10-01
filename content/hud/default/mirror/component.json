@@ -1,0 +1,10 @@
+// The virtual rear-view mirror (Camera settings), under the race state.
+// It floats: it comes and goes with the setting, and the layout must not
+// shift when it does. It only shows while the race director has a capture.
+{
+  "name": "Virtual mirror",
+  "region": "top",
+  "float": true,
+  "margin": [0, 96, 0, 0],
+  "root": { "type": "mirror", "width": 480, "height": 150 }
+}

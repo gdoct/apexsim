@@ -461,13 +461,39 @@ dossier or terrain sidecar the track is dressed and grounded generically.
 - Anything that moves barriers, walls, the centerline or the ground should go
   through the AI survey again (step 9).
 
-## Hud interface (not available yet)
+## HUD
 
-### Creating a new hud element
-(not available yet)
+The race HUD is drawn from files: every panel (standings, the car's
+numbers, the minimap, ...) is a component folder under `content/hud`, laid out
+in JSON and bound to the data points the game publishes every frame (speed,
+lap times, tyres, the standings, the delta and about a hundred more). The full
+reference, every element, function and data point, is
+[docs/HUD_MODDING.md](docs/HUD_MODDING.md).
 
-### Installing your hud element
-(not available yet)
+### Creating a new HUD element
 
-### Updating your hud element
-(not available yet)
+1. Make a folder in `content/hud/custom/` (in a packaged game,
+   `Hud\custom\` beside `ApexSim.exe`) with a `component.json`: where it
+   sits (`region`, `order`, `margin`) and a tree of elements (`panel`,
+   `row`, `text`, `bar`, `rect`, ...). Starting from a copy of a shipped one
+   in `content/hud/default/` is the quickest way in.
+2. Bind what it shows to data points: `"text": "{fmt(car.speed)}"`,
+   `"value": "=car.throttle"`, `"color": "=car.drs_open ? 'live' : 'border'"`.
+   `apexsim.hud.Data` in the game's console lists every name with its value
+   right now.
+3. To change a shipped panel, copy its folder into `custom/` under the same
+   name; to hide one, give `custom/<name>/component.json` the content
+   `{ "enabled": false }`.
+
+### Installing your HUD element
+
+Drop the folder into `content/hud/custom/` (editor build) or
+`Hud\custom\` (packaged game). Nothing on the server changes, and nothing is
+cooked or repackaged.
+
+### Updating your HUD element
+
+Edit the file and run `apexsim.hud.Reload` in the console during a race; the
+HUD is rebuilt in place. A component that fails to load is named on screen
+with the reason, and the log (`LogApexSim`) warns about anything suspicious
+that still loads, such as a misspelt data point.

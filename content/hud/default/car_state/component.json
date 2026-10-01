@@ -1,0 +1,151 @@
+// The car's own numbers: revs with the DRS / tow / pit / hybrid lights, gear
+// and speed, lap times, laps left and fuel, then the tyres, brakes and coolant.
+{
+  "name": "Car state",
+  "region": "bottom-right",
+  "order": 30,
+  "root": {
+    "type": "panel", "width": 500, "padding": [22, 16], "background": "surface",
+    "children": [
+      // --- Rev counter caption and the lights beside it ---
+      {
+        "type": "row",
+        "children": [
+          { "type": "label", "text": "Rpm" },
+          // DRS, as on the steering wheel: dark until the car is in a zone it
+          // may use, lit when it may, bright with the flap open.
+          { "type": "panel", "valign": "center", "margin": [12, 0, 0, 0], "padding": [8, 1],
+            "background": "=car.drs_open ? 'live' : car.drs_allowed ? 'surface' : 'border'",
+            "children": [{ "type": "text", "text": "DRS", "font": "body", "size": 12, "bold": true,
+              "color": "=car.drs_open ? 'on_accent' : car.drs_allowed ? 'live' : 'text_disabled'" }] },
+          // The tow: lit while the wake of a car ahead saves 3% of the drag or more.
+          { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [8, 1],
+            "background": "=car.tow >= 0.03 ? 'surface' : 'border'",
+            "children": [{ "type": "text", "font": "body", "size": 12, "bold": true,
+              "text": "=car.tow >= 0.03 ? 'TOW ' + fmt(car.tow * 100) + '%' : 'TOW'",
+              "color": "=car.tow >= 0.03 ? 'live' : 'text_disabled'" }] },
+          // The pit lane: the limiter between its lines, the service at the box.
+          { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [8, 1],
+            "background": "=pit.servicing ? 'live' : pit.limiter ? 'accent' : 'border'",
+            "children": [{ "type": "text", "font": "body", "size": 12, "bold": true,
+              "text": "=pit.servicing ? 'SERVICE ' + fmt(pit.service_s, 1) : pit.limiter ? 'LIMITER' : 'PIT'",
+              "color": "=pit.servicing || pit.limiter ? 'on_accent' : 'text_disabled'" }] },
+          // The hybrid: mode, charge and what is left of the lap's budget; lit
+          // while the motor drives, OVERTAKE while the button is held.
+          { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [8, 1], "visible": "=ers.present",
+            "background": "=ers.deploying ? 'live' : 'surface'",
+            "children": [{ "type": "text", "font": "body", "size": 12, "bold": true,
+              "text": "=(ers.boost ? 'OVERTAKE ' + fmt(ers.charge_pct) + '%' : 'ERS ' + ers.mode + ' ' + fmt(ers.charge_pct) + '%') + (has(ers.lap_pct) ? '  LAP ' + fmt(ers.lap_pct) + '%' : '')",
+              "color": "=ers.deploying ? 'on_accent' : ers.harvesting ? 'accent' : ers.charge_pct < 10 || ers.lap_pct == 0 ? 'text_disabled' : 'text_secondary'" }] },
+          { "type": "spacer", "fill": 1 },
+          { "type": "text", "font": "mono", "size": 12, "tracking": 40, "color": "text_secondary",
+            "text": "=fmt(car.rpm)" }
+        ]
+      },
+
+      // --- Rev counter: thirty blocks lit left to right, the last five the shift light ---
+      {
+        "type": "row", "margin": [0, 8, 0, 0],
+        "children": [
+          { "type": "rect", "repeat": 30, "width": 10, "height": 14, "margin": [0, 0, 2, 0],
+            "color": "=index < round(car.rpm_fraction * 30) ? (index >= 25 ? 'error' : 'accent') : 'border'" }
+        ]
+      },
+
+      // --- Gear on the left, speed on the right: the two numbers read at a glance ---
+      {
+        "type": "row", "margin": [0, 6, 0, 0],
+        "children": [
+          { "type": "column", "valign": "bottom", "margin": [0, 10, 0, 0],
+            "children": [
+              { "type": "label", "text": "Gear" },
+              { "type": "text", "margin": [0, 2, 0, 0], "font": "display", "size": 58, "color": "accent",
+                "text": "=has(car.gear_text) ? car.gear_text : 'N'" }
+            ] },
+          { "type": "spacer", "fill": 1 },
+          { "type": "text", "valign": "bottom", "font": "display", "size": 70,
+            "text": "=has(car.speed) ? fmt(car.speed) : '0'" },
+          { "type": "text", "valign": "bottom", "margin": [7, 0, 0, 12], "font": "mono", "size": 11, "tracking": 60,
+            "color": "text_muted", "text": "{hud.speed_unit}" }
+        ]
+      },
+
+      { "type": "divider", "margin": [0, 14, 0, 12] },
+
+      // --- Lap times, laps left and the tank. All the server's clocks. ---
+      {
+        "type": "row",
+        "children": [
+          { "type": "column", "children": [
+            { "type": "label", "text": "Last" },
+            { "type": "text", "margin": [0, 6, 0, 0], "font": "mono", "size": 15,
+              "text": "=fmt_time(lap.last_s)", "color": "=lap.last_invalid ? 'error' : 'text'" }
+          ]},
+          { "type": "divider", "vertical": true, "width": 1, "height": 34, "margin": [18, 0] },
+          { "type": "column", "children": [
+            { "type": "label", "text": "Best" },
+            { "type": "text", "margin": [0, 6, 0, 0], "font": "mono", "size": 15,
+              "text": "=fmt_time(lap.best_s)", "color": "personal_best" }
+          ]},
+          { "type": "divider", "vertical": true, "width": 1, "height": 34, "margin": [18, 0] },
+          { "type": "column", "children": [
+            { "type": "label", "text": "Laps left" },
+            { "type": "text", "margin": [0, 6, 0, 0], "font": "mono", "size": 15,
+              "text": "=has(lap.laps_left) ? str(lap.laps_left) : '—'" }
+          ]},
+          { "type": "divider", "vertical": true, "width": 1, "height": 34, "margin": [18, 0] },
+          // Amber once the last lap's burn says the tank will not reach the
+          // flag, red under a lap.
+          { "type": "column", "children": [
+            { "type": "label", "text": "Fuel" },
+            { "type": "text", "margin": [0, 6, 0, 0], "font": "mono", "size": 15,
+              "text": "=has(fuel.liters) ? fmt(fuel.liters, 1) + ' L' : '—'",
+              "color": "=switch(fuel.state, 'empty', 'error', 'critical', 'error', 'short', 'accent', 'text')" }
+          ]}
+        ]
+      },
+
+      { "type": "divider", "margin": [0, 12, 0, 10] },
+
+      // --- Tyres: each tread against the car's working window (blue cold,
+      // green in it, amber hot, red well past), its pressure and wear, and the
+      // brake behind it; then the coolant. ---
+      {
+        "type": "row",
+        "children": [
+          { "type": "label", "margin": [0, 0, 12, 0],
+            "text": "=has(tyre.compound) ? 'Tyres · ' + tyre.compound : 'Tyres'" },
+          {
+            "type": "row", "repeat": { "list": "tyres", "max": 4 },
+            "children": [
+              { "type": "column", "margin": [0, 0, 10, 0], "children": [
+                { "type": "label", "text": "{item.name}" },
+                { "type": "text", "margin": [0, 4, 0, 0], "font": "mono", "size": 15,
+                  "text": "=has(item.temp_c) ? fmt(item.temp_c) + '°' : '—'",
+                  "color": "=switch(item.state, 'cold', 'tyre_cold', 'ok', 'live', 'hot', 'accent', 'over', 'error', 'text_muted')" },
+                { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11, "color": "text_muted",
+                  "text": "=has(item.pressure_kpa) ? fmt(item.pressure_kpa) + ' kPa' : '—'" },
+                // Wear on a line of its own: beside the pressure it pushed the
+                // fourth tyre off the panel. Past the cliff (70%) it is the story.
+                { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11, "visible": "=has(item.wear_pct)",
+                  "text": "W {fmt(item.wear_pct)}%",
+                  "color": "=item.wear_pct >= 90 ? 'error' : item.wear_pct >= 70 ? 'accent' : 'text_muted'" },
+                { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11,
+                  "text": "=has(item.brake_c) ? 'B ' + fmt(item.brake_c) + '°' : '—'",
+                  "color": "=switch(item.brake_state, 'over', 'error', 'hot', 'accent', 'cold', 'tyre_cold', 'ok', 'text_secondary', 'text_muted')" }
+              ]},
+              // A gap between the axles, so the four read as front pair and rear pair.
+              { "type": "spacer", "width": 10, "visible": "=index == 1" }
+            ]
+          },
+          { "type": "column", "valign": "top", "margin": [6, 0, 0, 0], "children": [
+            { "type": "label", "text": "Water" },
+            { "type": "text", "margin": [0, 4, 0, 0], "font": "mono", "size": 15,
+              "text": "=has(engine.water_c) ? fmt(engine.water_c) + '°' : '—'",
+              "color": "=switch(engine.water_state, 'over', 'error', 'hot', 'accent', 'ok', 'text', 'text_muted')" }
+          ]}
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+// The circuit with a dot per car, and the sector the car is in.
+// Shown only at the "All" HUD detail level.
+{
+  "name": "Minimap",
+  "region": "bottom-left",
+  "order": 10,
+  "margin": [0, 0, 22, 0],
+  "visible": "=hud.full",
+  "root": {
+    "type": "panel", "width": 250, "height": 250, "background": "surface", "direction": "stack",
+    "children": [
+      { "type": "minimap", "color": "accent" },
+      { "type": "label", "halign": "left", "valign": "bottom", "margin": [14, 0, 0, 12],
+        "text": "Sector {sector.current}" }
+    ]
+  }
+}

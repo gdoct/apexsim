@@ -1,0 +1,50 @@
+// Five rows of the order around the player, and the session's fastest lap.
+{
+  "name": "Standings",
+  "region": "bottom-left",
+  "order": 20,
+  "root": {
+    "type": "column", "width": 366,
+    "children": [
+      { "type": "panel", "padding": [16, 9], "background": "surface_hover",
+        "children": [{ "type": "label", "text": "Standings" }] },
+
+      // One row per car, five at most, scrolled so the player sits in the
+      // middle: in eleventh place the leaders are not who you are racing.
+      {
+        "type": "panel",
+        "repeat": { "list": "standings", "max": 5, "focus": "is_local" },
+        "height": 43, "margin": [0, 1, 0, 0], "padding": [16, 0],
+        "background": "=item.is_local ? 'accent' : 'surface'",
+        "children": [{
+          "type": "row", "valign": "center",
+          "children": [
+            { "type": "text", "width": 22, "font": "mono", "size": 12, "text": "{item.position}",
+              "color": "=item.is_local ? 'on_accent' : 'text_muted'" },
+            { "type": "text", "fill": 1, "margin": [14, 0, 0, 0], "font": "body", "size": 14,
+              "text": "=item.is_local ? 'YOU' : upper(item.name)",
+              "bold": "=item.is_local",
+              "color": "=item.is_local ? 'on_accent' : 'text'" },
+            // The leader's cell carries a lap time; everyone else's the gap to
+            // them. A gap means nothing once a car has taken the flag.
+            { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 13,
+              "text": "=item.finished ? 'FINISHED' : item.position == 1 ? (has(item.best_lap_s) ? fmt_time(item.best_lap_s) : 'LEADER') : fmt_gap(item.gap_leader_s)",
+              "color": "=item.is_local ? 'on_accent' : 'text_secondary'" }
+          ]
+        }]
+      },
+
+      // The session's fastest lap, the way a timing screen carries it: who,
+      // and what. Purple, because nobody in the session has beaten it.
+      {
+        "type": "row", "margin": [0, 8, 0, 0],
+        "children": [
+          { "type": "text", "font": "body", "size": 12, "color": "text_muted",
+            "text": "='FASTEST ' + (timing.session_best_is_local ? 'YOU' : has(timing.session_best_name) ? upper(timing.session_best_name) : '—')" },
+          { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12, "color": "session_best",
+            "text": "=fmt_time(timing.session_best_s)" }
+        ]
+      }
+    ]
+  }
+}

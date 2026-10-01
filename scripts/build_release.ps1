@@ -35,6 +35,8 @@
             Game/Cars/          every car as its car.toml, GLBs and livery
                                 logos, built by the game when it is drawn
             Game/Wheels/        the class wheels the cars name
+            Game/Hud/           the HUD's components (default/, and custom/
+                                for the player's own), drawn from files
             Server/             apexsim-server.exe + server.toml + content/
 
     Every stage can be skipped so a broken piece does not block the rest; a
@@ -679,6 +681,9 @@ WHAT IS IN HERE
                        it from; Game\Wheels\ holds the class wheels. A new
                        car is its folder in Game\Cars\custom, with the same
                        car.toml in Server\content\cars\custom.
+    Game\Hud\          The race HUD, one folder per panel. Copy one from
+                       Game\Hud\default into Game\Hud\custom to change it,
+                       or add your own; the format is in the README there.
     Game\settings.yml  Resolution, window mode and the server to connect to.
                        Written on the first run; edit it in any text editor.
                        Game\settings.sample.yml is the same file with the

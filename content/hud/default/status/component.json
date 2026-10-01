@@ -1,0 +1,20 @@
+// Connection health and the way out, top right.
+{
+  "name": "Status",
+  "region": "top-right",
+  "order": 10,
+  "root": {
+    "type": "row",
+    "children": [
+      // The ping is a heartbeat round trip, refreshed every two seconds:
+      // a health light rather than a live latency read.
+      { "type": "rect", "width": 8, "height": 8, "radius": 4,
+        "color": "=!has(net.ping_ms) ? 'text_muted' : net.ping_ms < 80 ? 'live' : net.ping_ms < 200 ? 'accent' : 'error'" },
+      { "type": "text", "margin": [9, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40, "color": "text_secondary",
+        "text": "=has(net.ping_ms) ? net.ping_ms + ' ms' : '-- ms'" },
+      { "type": "text", "margin": [20, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40, "color": "text_muted",
+        "text": "{race.car_count} CARS" },
+      { "type": "keycap", "margin": [20, 0, 0, 0], "text": "ESC MENU" }
+    ]
+  }
+}

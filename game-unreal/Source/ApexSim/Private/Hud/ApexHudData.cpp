@@ -1,0 +1,620 @@
+#include "Hud/ApexHudData.h"
+
+#include "ApexErs.h"
+#include "Race/ApexRaceCoordinate.h"
+
+namespace
+{
+	const TCHAR* const HudTyreKeys[4] = {TEXT("fl"), TEXT("fr"), TEXT("rl"), TEXT("rr")};
+	const TCHAR* const HudTyreNames[4] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
+	/** The order of FApexCarTelemetry::DamagePct. */
+	const TCHAR* const HudDamageKeys[5] = {TEXT("front"), TEXT("rear"), TEXT("left"), TEXT("right"), TEXT("engine")};
+	const TCHAR* const HudDamageNames[5] = {TEXT("Front"), TEXT("Rear"), TEXT("Left"), TEXT("Right"), TEXT("Engine")};
+
+	/** How long a zone that has just been hurt flashes, seconds. */
+	constexpr double HudDamageFlashSeconds = 0.8;
+
+	/**
+	 * A tread against the car's working window: cold under it, ok in it, hot
+	 * over it and over once 15 °C past the edge, where the grip goes fast.
+	 */
+	const TCHAR* HudTyreState(float TempC, float OptimalC, float WindowC)
+	{
+		if (TempC < 0.0f)
+		{
+			return TEXT("unknown");
+		}
+		if (TempC < OptimalC - WindowC)
+		{
+			return TEXT("cold");
+		}
+		if (TempC <= OptimalC + WindowC)
+		{
+			return TEXT("ok");
+		}
+		return TempC <= OptimalC + WindowC + 15.0f ? TEXT("hot") : TEXT("over");
+	}
+
+	/**
+	 * A brake's working range is its material's, which the client does not
+	 * know, so it is judged from how hot it runs: carbon works from 300 °C,
+	 * steel below that, and both are fading by 850 °C.
+	 */
+	const TCHAR* HudBrakeState(float TempC)
+	{
+		return TempC < 0.0f ? TEXT("unknown")
+			: TempC >= 1000.0f ? TEXT("over")
+			: TempC >= 850.0f ? TEXT("hot")
+			: TempC < 150.0f ? TEXT("cold")
+			: TEXT("ok");
+	}
+
+	/** The engine protects itself past 112 °C (server engine_heat.rs). */
+	const TCHAR* HudWaterState(float TempC)
+	{
+		return TempC < 0.0f ? TEXT("unknown") : TempC > 112.0f ? TEXT("over") : TempC > 105.0f ? TEXT("hot") : TEXT("ok");
+	}
+
+	const TCHAR* HudModeKey(EApexGameMode Mode)
+	{
+		switch (Mode)
+		{
+		case EApexGameMode::Lobby: return TEXT("lobby");
+		case EApexGameMode::Sandbox: return TEXT("sandbox");
+		case EApexGameMode::Countdown: return TEXT("countdown");
+		case EApexGameMode::DemoLap: return TEXT("demo_lap");
+		case EApexGameMode::FreePractice: return TEXT("practice");
+		case EApexGameMode::Replay: return TEXT("replay");
+		case EApexGameMode::Qualification: return TEXT("qualifying");
+		case EApexGameMode::Race: return TEXT("race");
+		case EApexGameMode::Hotlap: return TEXT("hotlap");
+		default: return TEXT("unknown");
+		}
+	}
+
+	/** One car's place in the order, before it becomes a record. */
+	struct FHudStanding
+	{
+		const FApexCarTelemetry* Car = nullptr;
+		FString Name;
+		/** Race distance in metres; negative on the grid behind the line. */
+		float Progress = 0.0f;
+		bool bIsLocal = false;
+	};
+
+	/** Milliseconds as seconds, null when the server has no time. */
+	FApexHudValue HudSeconds(int32 Ms)
+	{
+		return Ms > 0 ? FApexHudValue::Of(Ms / 1000.0) : FApexHudValue();
+	}
+
+	FApexHudValue HudKnown(float Value, bool bKnown)
+	{
+		return bKnown ? FApexHudValue::Of(Value) : FApexHudValue();
+	}
+}
+
+void FApexHudMemory::SampleLap(const FApexCarTelemetry& Local, float TrackLengthM)
+{
+	const float LapSeconds = Local.CurrentLapTimeMs / 1000.0f;
+
+	// Samples are keyed by fraction of the lap so a reference lap can be looked
+	// up by position; the wire's TrackProgress is a station in metres.
+	const float Progress = TrackLengthM > 0.0f ? FMath::Clamp(Local.TrackProgress / TrackLengthM, 0.0f, 1.0f) : 0.0f;
+
+	if (Local.CurrentLap != LastSeenLap)
+	{
+		// The lap counter moved on, and the lap it left behind is on the wire
+		// as `LastLapTimeMs`. A lap that left the track is no reference:
+		// chasing a delta against a lap that cut a chicane would ask the
+		// driver to cut it too.
+		const float Completed = Local.LastLapTimeMs / 1000.0f;
+		if (LastSeenLap > 0 && LapSamples.Num() > 1 && Completed > 0.0f && !Local.bLastLapInvalid)
+		{
+			if (ReferenceLapSeconds <= 0.0f || Completed < ReferenceLapSeconds)
+			{
+				ReferenceLapSeconds = Completed;
+				ReferenceLap = LapSamples;
+			}
+		}
+		LastSeenLap = Local.CurrentLap;
+		LapSamples.Reset();
+	}
+
+	// Samples must stay monotonic in progress for the lookup to work; a frame
+	// that arrives out of order (or the wrap at the line) is dropped.
+	if (LapSamples.Num() == 0 || Progress > LapSamples.Last().Key)
+	{
+		LapSamples.Emplace(Progress, LapSeconds);
+	}
+}
+
+float FApexHudMemory::ReferenceTimeAt(float Fraction) const
+{
+	if (ReferenceLap.Num() < 2)
+	{
+		return -1.0f;
+	}
+	// Linear scan is fine: a lap holds a few thousand samples at most and this
+	// runs once a frame.
+	if (Fraction <= ReferenceLap[0].Key)
+	{
+		return ReferenceLap[0].Value;
+	}
+	for (int32 Index = 1; Index < ReferenceLap.Num(); ++Index)
+	{
+		if (Fraction <= ReferenceLap[Index].Key)
+		{
+			const TPair<float, float>& Before = ReferenceLap[Index - 1];
+			const TPair<float, float>& After = ReferenceLap[Index];
+			const float Span = After.Key - Before.Key;
+			const float Alpha = Span > KINDA_SMALL_NUMBER ? (Fraction - Before.Key) / Span : 0.0f;
+			return FMath::Lerp(Before.Value, After.Value, Alpha);
+		}
+	}
+	return ReferenceLap.Last().Value;
+}
+
+const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
+{
+	static const TMap<FName, TArray<FName>> Fields = {
+		{TEXT("standings"), {TEXT("position"), TEXT("car_index"), TEXT("name"), TEXT("is_local"), TEXT("finished"),
+			TEXT("finish_position"), TEXT("lap"), TEXT("gap_leader_s"), TEXT("gap_s"), TEXT("best_lap_s"),
+			TEXT("last_lap_s"), TEXT("speed_kph"), TEXT("in_pit"), TEXT("on_track")}},
+		{TEXT("sectors"), {TEXT("number"), TEXT("time_s"), TEXT("best_s"), TEXT("session_best_s"), TEXT("state"),
+			TEXT("is_current")}},
+		{TEXT("tyres"), {TEXT("key"), TEXT("name"), TEXT("temp_c"), TEXT("pressure_kpa"), TEXT("wear_pct"),
+			TEXT("brake_c"), TEXT("state"), TEXT("brake_state")}},
+		{TEXT("damage"), {TEXT("key"), TEXT("name"), TEXT("pct"), TEXT("flash")}},
+	};
+	return Fields;
+}
+
+TArray<FName> ApexHudData::ScalarNames()
+{
+	FApexHudInputs Empty;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+	Build(Empty, Memory, Data);
+	TArray<FName> Names;
+	Data.Values.GetKeys(Names);
+	Names.Sort(FNameLexicalLess());
+	return Names;
+}
+
+void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexHudData& Out)
+{
+	static const FApexTelemetryFrame NoFrame;
+	static const FApexSessionRoster NoRoster;
+	static const FApexTimingBoard NoTiming;
+	static const FApexTrackSectors NoSectors;
+	const FApexTelemetryFrame& Frame = In.Frame ? *In.Frame : NoFrame;
+	const FApexSessionRoster& Roster = In.Roster ? *In.Roster : NoRoster;
+	const FApexTimingBoard& Timing = In.Timing ? *In.Timing : NoTiming;
+	const FApexTrackSectors& Sectors = In.Sectors ? *In.Sectors : NoSectors;
+
+	const FApexCarTelemetry* Local = Frame.Cars.FindByPredicate(
+		[&In](const FApexCarTelemetry& Car) { return Car.CarIndex == In.LocalCarIndex; });
+	const FApexCarTiming* LocalTiming = Local ? Timing.Find(Local->CarIndex) : nullptr;
+
+	// --- HUD and session ----------------------------------------------------
+
+	Out.Set(TEXT("hud.full"), In.bFullDetail);
+	Out.Set(TEXT("hud.time_s"), In.TimeSeconds);
+	Out.Set(TEXT("hud.imperial"), In.bImperial);
+	Out.Set(TEXT("hud.speed_unit"), In.bImperial ? TEXT("MPH") : TEXT("KM/H"));
+
+	Out.Set(TEXT("session.track_name"), In.TrackName);
+	Out.Set(TEXT("session.car_name"), In.CarName);
+	Out.Set(TEXT("session.mode"), HudModeKey(In.GameMode));
+	Out.Set(TEXT("session.mode_name"), In.ModeName);
+	Out.Set(TEXT("session.is_race"), In.GameMode == EApexGameMode::Race);
+	Out.Set(TEXT("session.is_hotlap"), In.GameMode == EApexGameMode::Hotlap);
+	if (In.bHasConditions)
+	{
+		Out.Set(TEXT("session.conditions"), In.Conditions.Describe());
+		Out.Set(TEXT("session.weather"), FApexSessionConditions::WeatherLabel(In.Conditions.Weather));
+		Out.Set(TEXT("session.clock"), In.Conditions.ClockText());
+		Out.Values.FindOrAdd(TEXT("session.air_temp_c")) = In.Conditions.HasAirTemp() ? FApexHudValue::Of(In.Conditions.AirTempC) : FApexHudValue();
+		Out.Values.FindOrAdd(TEXT("session.wind_kph")) = In.Conditions.HasWind() ? FApexHudValue::Of(In.Conditions.WindKph) : FApexHudValue();
+	}
+	else
+	{
+		Out.SetNone(TEXT("session.conditions"));
+		Out.SetNone(TEXT("session.weather"));
+		Out.SetNone(TEXT("session.clock"));
+		Out.SetNone(TEXT("session.air_temp_c"));
+		Out.SetNone(TEXT("session.wind_kph"));
+	}
+	Out.Values.FindOrAdd(TEXT("net.ping_ms")) = In.PingMs >= 0 ? FApexHudValue::Of(In.PingMs) : FApexHudValue();
+
+	// --- Standings ----------------------------------------------------------
+
+	// Without a catalog length the stations still order cars within a lap; the
+	// nominal length only has to dwarf any real station so a completed lap
+	// always outranks a partial one. Gaps stay null in that case: they need
+	// the real length to mean anything.
+	const float RankLength = In.TrackLengthM > 0.0f ? In.TrackLengthM : 100000.0f;
+	TArray<FHudStanding> Order;
+	Order.Reserve(Frame.Cars.Num());
+	for (const FApexCarTelemetry& Car : Frame.Cars)
+	{
+		FHudStanding Entry;
+		Entry.Car = &Car;
+		// The wire's TrackProgress is a station in metres, not a lap fraction;
+		// RaceDistanceM also folds in the grid sitting behind the line.
+		Entry.Progress = ApexRace::RaceDistanceM(Car.CurrentLap, Car.TrackProgress, RankLength);
+		Entry.bIsLocal = Car.CarIndex == In.LocalCarIndex;
+		if (const FApexRosterEntry* Row = Roster.Entries.FindByPredicate(
+				[&Car](const FApexRosterEntry& Candidate) { return Candidate.CarIndex == Car.CarIndex; }))
+		{
+			Entry.Name = Row->PlayerName;
+		}
+		if (Entry.Name.IsEmpty())
+		{
+			Entry.Name = FString::Printf(TEXT("CAR %d"), Car.CarIndex);
+		}
+		Order.Add(MoveTemp(Entry));
+	}
+	// Finishers first, in classified order; then furthest round the race. Ties
+	// break on car index so the order does not flicker between two cars sitting
+	// on the grid.
+	Order.Sort([](const FHudStanding& A, const FHudStanding& B)
+	{
+		if (A.Car->FinishPosition != B.Car->FinishPosition || !FMath::IsNearlyEqual(A.Progress, B.Progress))
+		{
+			return ApexRace::RanksAhead(A.Car->FinishPosition, A.Progress, B.Car->FinishPosition, B.Progress);
+		}
+		return A.Car->CarIndex < B.Car->CarIndex;
+	});
+
+	const int32 LocalPlace = Order.IndexOfByPredicate([](const FHudStanding& Entry) { return Entry.bIsLocal; });
+	const bool bLengthKnown = In.TrackLengthM > 0.0f;
+
+	TArray<FApexHudRecord>& Standings = Out.Lists.FindOrAdd(TEXT("standings"));
+	Standings.Reset(Order.Num());
+	for (int32 Place = 0; Place < Order.Num(); ++Place)
+	{
+		const FHudStanding& Entry = Order[Place];
+		const FApexCarTelemetry& Car = *Entry.Car;
+		const FApexCarTiming* CarTiming = Timing.Find(Car.CarIndex);
+		FApexHudRecord& Row = Standings.AddDefaulted_GetRef();
+		Row.Add(TEXT("position"), FApexHudValue::Of(Place + 1));
+		Row.Add(TEXT("car_index"), FApexHudValue::Of(Car.CarIndex));
+		Row.Add(TEXT("name"), FApexHudValue::Of(Entry.Name));
+		Row.Add(TEXT("is_local"), FApexHudValue::Of(Entry.bIsLocal));
+		Row.Add(TEXT("finished"), FApexHudValue::Of(Car.FinishPosition > 0));
+		Row.Add(TEXT("finish_position"), FApexHudValue::Of(Car.FinishPosition));
+		Row.Add(TEXT("lap"), FApexHudValue::Of(ApexRace::DisplayLap(Car.CurrentLap, In.LapLimit)));
+		// Gaps are a time, not a distance: how long the car behind would take,
+		// at its current speed, to cover the ground between them.
+		Row.Add(TEXT("gap_leader_s"), bLengthKnown && Place > 0
+			? FApexHudValue::Of((Order[0].Progress - Entry.Progress) / FMath::Max(Car.SpeedMps, 5.0f))
+			: FApexHudValue());
+		Row.Add(TEXT("gap_s"), bLengthKnown && LocalPlace >= 0
+			? FApexHudValue::Of((Order[LocalPlace].Progress - Entry.Progress) / FMath::Max(Order[LocalPlace].Car->SpeedMps, 5.0f))
+			: FApexHudValue());
+		Row.Add(TEXT("best_lap_s"), HudSeconds(CarTiming && CarTiming->BestLapMs > 0 ? CarTiming->BestLapMs : Car.BestLapTimeMs));
+		Row.Add(TEXT("last_lap_s"), HudSeconds(Car.LastLapTimeMs));
+		Row.Add(TEXT("speed_kph"), FApexHudValue::Of(ApexRace::MpsToKph(Car.SpeedMps)));
+		Row.Add(TEXT("in_pit"), FApexHudValue::Of(Car.bInPitLane));
+		Row.Add(TEXT("on_track"), FApexHudValue::Of(Car.bIsOnTrack));
+	}
+
+	Out.Values.FindOrAdd(TEXT("race.position")) = LocalPlace >= 0 ? FApexHudValue::Of(LocalPlace + 1) : FApexHudValue();
+	Out.Set(TEXT("race.car_count"), Order.Num());
+
+	auto SetGap = [&](const TCHAR* Prefix, int32 OtherPlace)
+	{
+		const bool bThere = LocalPlace >= 0 && Order.IsValidIndex(OtherPlace);
+		Out.Values.FindOrAdd(FName(FString(Prefix) + TEXT("_name"))) = bThere ? FApexHudValue::Of(Order[OtherPlace].Name) : FApexHudValue();
+		FApexHudValue Gap;
+		if (bThere && bLengthKnown)
+		{
+			const float Speed = FMath::Max(Order[LocalPlace].Car->SpeedMps, 5.0f);
+			Gap = FApexHudValue::Of(FMath::Abs(Order[OtherPlace].Progress - Order[LocalPlace].Progress) / Speed);
+		}
+		Out.Values.FindOrAdd(FName(FString(Prefix) + TEXT("_s"))) = Gap;
+	};
+	SetGap(TEXT("gap.ahead"), LocalPlace - 1);
+	SetGap(TEXT("gap.behind"), LocalPlace + 1);
+
+	// --- Laps and timing ----------------------------------------------------
+
+	Out.Set(TEXT("lap.limit"), In.LapLimit);
+	if (Local)
+	{
+		Out.Set(TEXT("lap.current"), Local->CurrentLap);
+		// The counter keeps stepping on the cool-down lap after the flag.
+		Out.Set(TEXT("lap.display"), ApexRace::DisplayLap(Local->CurrentLap, In.LapLimit));
+		Out.Values.FindOrAdd(TEXT("lap.laps_left")) = In.LapLimit > 0
+			? FApexHudValue::Of(Local->FinishPosition > 0 ? 0 : FMath::Max(0, In.LapLimit - FMath::Max(0, Local->CurrentLap - 1)))
+			: FApexHudValue();
+		Out.Set(TEXT("lap.time_s"), Local->CurrentLapTimeMs / 1000.0);
+		Out.Set(TEXT("lap.invalid"), Local->bLapInvalid);
+		Out.Values.FindOrAdd(TEXT("lap.last_s")) = HudSeconds(Local->LastLapTimeMs);
+		Out.Set(TEXT("lap.last_invalid"), Local->LastLapTimeMs > 0 && Local->bLastLapInvalid);
+		Out.Values.FindOrAdd(TEXT("lap.best_s")) = HudSeconds(Local->BestLapTimeMs);
+	}
+	else
+	{
+		for (const TCHAR* Name : {TEXT("lap.current"), TEXT("lap.display"), TEXT("lap.laps_left"), TEXT("lap.time_s"),
+				 TEXT("lap.last_s"), TEXT("lap.best_s")})
+		{
+			Out.SetNone(Name);
+		}
+		Out.Set(TEXT("lap.invalid"), false);
+		Out.Set(TEXT("lap.last_invalid"), false);
+	}
+
+	// The delta against the quickest legal lap this HUD has watched.
+	{
+		const float Fraction = Local && bLengthKnown ? FMath::Clamp(Local->TrackProgress / In.TrackLengthM, 0.0f, 1.0f) : 0.0f;
+		const float ReferenceNow = Local ? Memory.ReferenceTimeAt(Fraction) : -1.0f;
+		Out.Values.FindOrAdd(TEXT("timing.delta_s")) = ReferenceNow >= 0.0f
+			? FApexHudValue::Of(Local->CurrentLapTimeMs / 1000.0 - ReferenceNow)
+			: FApexHudValue();
+		Out.Values.FindOrAdd(TEXT("timing.reference_s")) = Memory.ReferenceLapSeconds > 0.0f
+			? FApexHudValue::Of(Memory.ReferenceLapSeconds)
+			: FApexHudValue();
+	}
+	// The session's fastest lap. The server names it: only a lap inside track
+	// limits can hold it.
+	{
+		Out.Values.FindOrAdd(TEXT("timing.session_best_s")) = HudSeconds(Timing.SessionBestLapMs);
+		const FHudStanding* Holder = Order.FindByPredicate(
+			[&Timing](const FHudStanding& Entry) { return Entry.Car->CarIndex == Timing.SessionBestLapCarIndex; });
+		Out.Values.FindOrAdd(TEXT("timing.session_best_name")) = Holder ? FApexHudValue::Of(Holder->Name) : FApexHudValue();
+		Out.Set(TEXT("timing.session_best_is_local"), Holder && Holder->bIsLocal);
+		Out.Values.FindOrAdd(TEXT("timing.optimal_s")) = HudSeconds(LocalTiming ? LocalTiming->OptimalLapMs() : 0);
+	}
+
+	// --- Sectors --------------------------------------------------------------
+
+	{
+		const int32 Current = (Local && Sectors.IsValid()) ? Sectors.SectorAt(Local->TrackProgress) : 0;
+		Out.Set(TEXT("sector.current"), Current + 1);
+		// The server splits a lap into three unless the track names its own.
+		const int32 Count = Timing.SectorCount > 0 ? Timing.SectorCount : Sectors.IsValid() ? Sectors.SectorCount() : 3;
+		Out.Set(TEXT("sector.count"), Count);
+
+		// The lap in progress, or (in the moments after the line, before the
+		// first sector of the new lap is done) the lap that just ended, so the
+		// driver gets to read their final split.
+		const bool bShowLastLap = LocalTiming
+			&& !LocalTiming->CurrentSplitsMs.ContainsByPredicate([](int32 Split) { return Split > 0; });
+		const TArray<int32>* Splits = LocalTiming
+			? (bShowLastLap ? &LocalTiming->LastSplitsMs : &LocalTiming->CurrentSplitsMs)
+			: nullptr;
+
+		TArray<FApexHudRecord>& List = Out.Lists.FindOrAdd(TEXT("sectors"));
+		List.Reset(Count);
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const int32 Mine = Splits && Splits->IsValidIndex(Index) ? (*Splits)[Index] : 0;
+			const int32 MyBest = LocalTiming && LocalTiming->BestSplitsMs.IsValidIndex(Index) ? LocalTiming->BestSplitsMs[Index] : 0;
+			const int32 SessionBest = Timing.SessionBestSplitsMs.IsValidIndex(Index) ? Timing.SessionBestSplitsMs[Index] : 0;
+			// Purple is the session's best, green the driver's own, amber a
+			// sector they have done quicker before.
+			const TCHAR* State = Mine <= 0 ? TEXT("none")
+				: (SessionBest > 0 && Mine <= SessionBest) ? TEXT("session_best")
+				: (MyBest <= 0 || Mine <= MyBest) ? TEXT("personal_best")
+				: TEXT("slower");
+			FApexHudRecord& Row = List.AddDefaulted_GetRef();
+			Row.Add(TEXT("number"), FApexHudValue::Of(Index + 1));
+			Row.Add(TEXT("time_s"), HudSeconds(Mine));
+			Row.Add(TEXT("best_s"), HudSeconds(MyBest));
+			Row.Add(TEXT("session_best_s"), HudSeconds(SessionBest));
+			Row.Add(TEXT("state"), FApexHudValue::Of(State));
+			Row.Add(TEXT("is_current"), FApexHudValue::Of(Index == Current));
+		}
+	}
+
+	// --- The car ----------------------------------------------------------------
+
+	Out.Set(TEXT("car.present"), Local != nullptr);
+	Out.Set(TEXT("car.redline_rpm"), In.RedlineRpm > 0.0f ? FApexHudValue::Of(In.RedlineRpm) : FApexHudValue());
+	if (Local)
+	{
+		const float Kph = ApexRace::MpsToKph(Local->SpeedMps);
+		const float Mph = Local->SpeedMps * 2.236936f;
+		Out.Set(TEXT("car.index"), Local->CarIndex);
+		Out.Set(TEXT("car.speed_kph"), Kph);
+		Out.Set(TEXT("car.speed_mph"), Mph);
+		Out.Set(TEXT("car.speed"), In.bImperial ? Mph : Kph);
+		Out.Set(TEXT("car.gear"), Local->Gear);
+		Out.Set(TEXT("car.gear_text"), Local->Gear < 0 ? FString(TEXT("R")) : Local->Gear == 0 ? FString(TEXT("N")) : FString::FromInt(Local->Gear));
+		Out.Set(TEXT("car.rpm"), Local->EngineRpm);
+
+		// The scale is the car's rev limiter when its car.toml names one;
+		// otherwise the highest reading so far, which only ever grows and so
+		// never rescales the strip under the driver.
+		Memory.ObservedMaxRpm = FMath::Max(Memory.ObservedMaxRpm, Local->EngineRpm);
+		const float Ceiling = In.LimiterRpm > 0.0f ? FMath::Max(In.LimiterRpm, Local->EngineRpm)
+			: In.RedlineRpm > 0.0f ? FMath::Max(In.RedlineRpm, Local->EngineRpm)
+			: Memory.ObservedMaxRpm;
+		Out.Set(TEXT("car.rpm_max"), Ceiling);
+		Out.Set(TEXT("car.rpm_fraction"), FMath::Clamp(Local->EngineRpm / FMath::Max(Ceiling, 1.0f), 0.0f, 1.0f));
+
+		Out.Set(TEXT("car.throttle"), FMath::Clamp(Local->Throttle, 0.0f, 1.0f));
+		Out.Set(TEXT("car.brake"), FMath::Clamp(Local->Brake, 0.0f, 1.0f));
+		Out.Set(TEXT("car.steering"), Local->Steering);
+		Out.Set(TEXT("car.in_garage"), Local->bInGarage);
+		Out.Set(TEXT("car.on_track"), Local->bIsOnTrack);
+		Out.Set(TEXT("car.colliding"), Local->bIsColliding);
+		Out.Set(TEXT("car.headlights"), Local->bHeadlights);
+		Out.Set(TEXT("car.finish_position"), Local->FinishPosition);
+		Out.Set(TEXT("car.drs_allowed"), Local->bDrsAllowed);
+		Out.Set(TEXT("car.drs_open"), Local->bDrsOpen);
+		Out.Set(TEXT("car.tow"), HudKnown(Local->TowShare, Local->TowShare >= 0.0f));
+		Out.Set(TEXT("car.x"), Local->Position.X);
+		Out.Set(TEXT("car.y"), Local->Position.Y);
+		Out.Set(TEXT("car.z"), Local->Position.Z);
+		Out.Set(TEXT("car.yaw_deg"), FMath::RadiansToDegrees(Local->YawRad));
+		Out.Set(TEXT("car.station_m"), Local->TrackProgress);
+
+		Out.Set(TEXT("pit.in_lane"), Local->bInPitLane);
+		Out.Set(TEXT("pit.limiter"), Local->bPitLimiter);
+		Out.Set(TEXT("pit.servicing"), Local->bPitServicing);
+		Out.Set(TEXT("pit.service_s"), Local->ServiceSecondsLeft);
+	}
+	else
+	{
+		for (const TCHAR* Name : {TEXT("car.index"), TEXT("car.speed_kph"), TEXT("car.speed_mph"), TEXT("car.speed"),
+				 TEXT("car.gear"), TEXT("car.gear_text"), TEXT("car.rpm"), TEXT("car.rpm_max"), TEXT("car.rpm_fraction"),
+				 TEXT("car.throttle"), TEXT("car.brake"), TEXT("car.steering"), TEXT("car.in_garage"), TEXT("car.on_track"),
+				 TEXT("car.colliding"), TEXT("car.headlights"), TEXT("car.finish_position"), TEXT("car.drs_allowed"),
+				 TEXT("car.drs_open"), TEXT("car.tow"), TEXT("car.x"), TEXT("car.y"), TEXT("car.z"), TEXT("car.yaw_deg"),
+				 TEXT("car.station_m"), TEXT("pit.in_lane"), TEXT("pit.limiter"), TEXT("pit.servicing"), TEXT("pit.service_s")})
+		{
+			Out.SetNone(Name);
+		}
+	}
+
+	// --- Fuel -------------------------------------------------------------------
+
+	{
+		FApexHudValue Liters;
+		FApexHudValue Laps;
+		const TCHAR* State = TEXT("unknown");
+		if (Local && Local->FuelLiters >= 0.0f)
+		{
+			// What a lap costs is measured at the line: the tank there against
+			// the tank one lap earlier. A car filled up (the hotlap garage)
+			// starts over.
+			if (Local->CurrentLap != Memory.FuelLap)
+			{
+				if (Memory.FuelLap > 0 && Local->CurrentLap == Memory.FuelLap + 1 && Memory.FuelAtLapStart > Local->FuelLiters)
+				{
+					Memory.FuelPerLap = Memory.FuelAtLapStart - Local->FuelLiters;
+				}
+				Memory.FuelLap = Local->CurrentLap;
+				Memory.FuelAtLapStart = Local->FuelLiters;
+			}
+			else if (Local->FuelLiters > Memory.FuelAtLapStart + 0.5f)
+			{
+				Memory.FuelAtLapStart = Local->FuelLiters;
+				Memory.FuelPerLap = -1.0f;
+			}
+
+			Liters = FApexHudValue::Of(Local->FuelLiters);
+			State = TEXT("ok");
+			const int32 LapsLeft = In.LapLimit > 0 && Local->FinishPosition <= 0
+				? FMath::Max(0, In.LapLimit - FMath::Max(0, Local->CurrentLap - 1))
+				: -1;
+			if (Local->FuelLiters <= 0.0f)
+			{
+				State = TEXT("empty");
+			}
+			else if (Memory.FuelPerLap > 0.0f)
+			{
+				const float LapsOfFuel = Local->FuelLiters / Memory.FuelPerLap;
+				Laps = FApexHudValue::Of(LapsOfFuel);
+				State = LapsOfFuel < 1.0f ? TEXT("critical") : (LapsLeft > 0 && LapsOfFuel < LapsLeft) ? TEXT("short") : TEXT("ok");
+			}
+		}
+		Out.Set(TEXT("fuel.liters"), Liters);
+		Out.Set(TEXT("fuel.per_lap"), Memory.FuelPerLap > 0.0f && Local ? FApexHudValue::Of(Memory.FuelPerLap) : FApexHudValue());
+		Out.Set(TEXT("fuel.laps"), Laps);
+		Out.Set(TEXT("fuel.state"), State);
+	}
+
+	// --- Hybrid -----------------------------------------------------------------
+
+	{
+		const bool bHybrid = Local && Local->HasHybrid();
+		Out.Set(TEXT("ers.present"), bHybrid);
+		Out.Set(TEXT("ers.charge_pct"), bHybrid ? FApexHudValue::Of(Local->ErsChargePct) : FApexHudValue());
+		Out.Set(TEXT("ers.lap_pct"), bHybrid && Local->ErsLapPct >= 0.0f ? FApexHudValue::Of(Local->ErsLapPct) : FApexHudValue());
+		Out.Set(TEXT("ers.mode"), bHybrid ? FApexHudValue::Of(ApexErs::ShortLabel(Local->ErsMode)) : FApexHudValue());
+		Out.Set(TEXT("ers.deploying"), bHybrid && Local->bErsDeploying);
+		Out.Set(TEXT("ers.harvesting"), bHybrid && Local->bErsHarvesting);
+		Out.Set(TEXT("ers.boost"), bHybrid && Local->bErsBoost);
+	}
+
+	// --- Tyres, brakes and engine -------------------------------------------------
+
+	{
+		const bool bTyres = Local && Local->HasTyres();
+		Out.Set(TEXT("tyre.known"), bTyres);
+		const FString Letter = Local ? FApexCarTelemetry::CompoundLetter(Local->Compound) : FString();
+		Out.Set(TEXT("tyre.compound"), Letter.IsEmpty() ? FApexHudValue() : FApexHudValue::Of(Letter));
+		Out.Set(TEXT("tyre.optimal_c"), In.TyreOptimalC);
+		Out.Set(TEXT("tyre.window_c"), In.TyreWindowC);
+
+		TArray<FApexHudRecord>& List = Out.Lists.FindOrAdd(TEXT("tyres"));
+		List.Reset(4);
+		for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+		{
+			const float TempC = bTyres ? Local->TyreTempC[Tyre] : -1.0f;
+			const float Kpa = Local ? Local->TyrePressureKpa[Tyre] : -1.0f;
+			const float Wear = Local ? Local->TyreWearPct[Tyre] : -1.0f;
+			const float BrakeC = Local ? Local->BrakeTempC[Tyre] : -1.0f;
+
+			FApexHudRecord& Row = List.AddDefaulted_GetRef();
+			Row.Add(TEXT("key"), FApexHudValue::Of(HudTyreKeys[Tyre]));
+			Row.Add(TEXT("name"), FApexHudValue::Of(HudTyreNames[Tyre]));
+			Row.Add(TEXT("temp_c"), HudKnown(TempC, TempC >= 0.0f));
+			Row.Add(TEXT("pressure_kpa"), HudKnown(Kpa, bTyres && Kpa >= 0.0f));
+			Row.Add(TEXT("wear_pct"), HudKnown(Wear, Wear >= 0.0f));
+			Row.Add(TEXT("brake_c"), HudKnown(BrakeC, BrakeC >= 0.0f));
+			Row.Add(TEXT("state"), FApexHudValue::Of(HudTyreState(TempC, In.TyreOptimalC, In.TyreWindowC)));
+			Row.Add(TEXT("brake_state"), FApexHudValue::Of(HudBrakeState(BrakeC)));
+
+			// The same figures by name, for a layout that places each tyre itself.
+			for (const TPair<FName, FApexHudValue>& Field : Row)
+			{
+				if (Field.Key != TEXT("key") && Field.Key != TEXT("name"))
+				{
+					Out.Values.FindOrAdd(FName(FString::Printf(TEXT("tyre.%s.%s"), HudTyreKeys[Tyre], *Field.Key.ToString()))) = Field.Value;
+				}
+			}
+		}
+
+		const float Water = Local ? Local->WaterTempC : -1.0f;
+		Out.Set(TEXT("engine.water_c"), HudKnown(Water, Water >= 0.0f));
+		Out.Set(TEXT("engine.water_state"), HudWaterState(Water));
+	}
+
+	// --- Damage -----------------------------------------------------------------------
+
+	{
+		const bool bDamage = Local && Local->HasDamage();
+		Out.Set(TEXT("damage.known"), bDamage);
+		Out.Set(TEXT("damage.level"), In.DamageLevel == EApexDamageLevel::Off ? TEXT("off")
+			: In.DamageLevel == EApexDamageLevel::Reduced ? TEXT("reduced") : TEXT("full"));
+
+		TArray<FApexHudRecord>& List = Out.Lists.FindOrAdd(TEXT("damage"));
+		List.Reset(5);
+		for (int32 Zone = 0; Zone < 5; ++Zone)
+		{
+			FApexHudValue Pct;
+			float Flash = 0.0f;
+			if (bDamage)
+			{
+				const float D = FMath::Clamp(Local->DamagePct[Zone], 0.0f, 100.0f);
+				// A fresh hit (a whole percent at once; overheating creeps in by
+				// fractions and does not flash) lights the zone for a moment.
+				if (D >= Memory.LastDamagePct[Zone] + 1.0f)
+				{
+					Memory.DamageFlashUntil[Zone] = In.TimeSeconds + HudDamageFlashSeconds;
+				}
+				else if (D < Memory.LastDamagePct[Zone])
+				{
+					// Repaired (a pit stop, the garage): no flash to finish.
+					Memory.DamageFlashUntil[Zone] = 0.0;
+				}
+				Memory.LastDamagePct[Zone] = D;
+				Pct = FApexHudValue::Of(D);
+				Flash = static_cast<float>(FMath::Clamp((Memory.DamageFlashUntil[Zone] - In.TimeSeconds) / HudDamageFlashSeconds, 0.0, 1.0));
+			}
+			FApexHudRecord& Row = List.AddDefaulted_GetRef();
+			Row.Add(TEXT("key"), FApexHudValue::Of(HudDamageKeys[Zone]));
+			Row.Add(TEXT("name"), FApexHudValue::Of(HudDamageNames[Zone]));
+			Row.Add(TEXT("pct"), Pct);
+			Row.Add(TEXT("flash"), FApexHudValue::Of(Flash));
+			Out.Values.FindOrAdd(FName(FString::Printf(TEXT("damage.%s"), HudDamageKeys[Zone]))) = Pct;
+			Out.Values.FindOrAdd(FName(FString::Printf(TEXT("damage.%s_flash"), HudDamageKeys[Zone]))) = FApexHudValue::Of(Flash);
+		}
+	}
+}
