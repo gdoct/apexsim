@@ -29,6 +29,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnTelemetry, const FApexTelemet
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnLapTiming, const FApexLapTiming&, Timing);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnLapRecord, const FApexLapRecord&, Record);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnGhostLap, const FApexGhostLap&, Lap);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCarSetupSheet, const FApexCarSetupSheet&, Sheet);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnDemoSessionChanged, bool /*bJoined*/);
@@ -127,6 +128,10 @@ public:
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
 	FApexOnGhostLap OnGhostLap;
+
+	/** The garage's reference card for the joined car arrived (after SessionJoined). */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
+	FApexOnCarSetupSheet OnCarSetupSheet;
 
 	/** Fires once the UDP handshake is acknowledged and telemetry can flow. */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
@@ -277,7 +282,8 @@ public:
 	 * joining a session and whenever they change.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
-	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
+	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
+		EApexDamageLevel Damage = EApexDamageLevel::Full);
 
 	/**
 	 * The garage setup for this player's car, as clicks per knob. The server
@@ -391,6 +397,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexGhostLap& GetGhostLap() const { return CachedGhostLap; }
 
+	/** Every setup knob of the joined car in real units; no knobs until it arrives, or from an older server. */
+	const FApexCarSetupSheet& GetCarSetupSheet() const { return CachedSetupSheet; }
+
 	/** The most recent telemetry frame, for anything that polls rather than binds. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexTelemetryFrame& GetLatestTelemetry() const { return LatestTelemetry; }
@@ -468,6 +477,7 @@ private:
 
 	UPROPERTY()
 	FApexGhostLap CachedGhostLap;
+	FApexCarSetupSheet CachedSetupSheet;
 
 	/** Forget the session's timing sheet: a new session times from scratch. */
 	void ClearLapTiming();

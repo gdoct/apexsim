@@ -9,6 +9,7 @@
 class AApexRaceCarActor;
 class UApexCockpitDashWidget;
 class UApexMirrorWidget;
+class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class USceneCaptureComponent2D;
 class UStaticMesh;
@@ -45,6 +46,11 @@ struct FApexCockpitFeatures
  * and the driver's eye (with the seat adjustments) is what the screens face.
  *
  * Mirrors are scene captures into render targets shown on widget faces.
+ * A car whose body names its own glass (the `car_mirror_centre` / `_left` /
+ * `_right` slots an imported car carries) gets the capture painted onto that
+ * glass instead, through the same unlit pass-through material the faces
+ * draw with, and no face: the render target is sized to the glass, whose
+ * UVs the importer laid out so the capture reads as a mirror.
  * Captures are the expensive part — each is a scene render — so they are
  * not left on "every frame": the rig refreshes them itself, round-robin, at
  * a rate the mirror-quality setting picks.
@@ -70,6 +76,14 @@ public:
 	/** The eye the screens turn to face, in the car's frame. */
 	void SetEyeLocal(const FVector& InEyeLocal);
 
+	/**
+	 * Rim degrees at full steering, centre to lock, when the player steers
+	 * this car with a wheel: the lock the wheel's gain uses, so the rim on
+	 * screen turns as far as the one in their hands. 0 (anyone else's car, a
+	 * pad) is the layout's own lock.
+	 */
+	void SetDriverRimLockDeg(float InLockDeg) { DriverRimLockDeg = InLockDeg; }
+
 	void SetFeatures(const FApexCockpitFeatures& InFeatures);
 
 	/** Session countdown for the display; negative when not counting. */
@@ -91,8 +105,20 @@ private:
 		TObjectPtr<USceneCaptureComponent2D> Capture;
 		TObjectPtr<UTextureRenderTarget2D> Target;
 		FIntPoint BaseResolution = FIntPoint(384, 240);
+		/** The face's resolution, which BaseResolution returns to off the car's glass. */
+		FIntPoint FaceResolution = FIntPoint(384, 240);
 		float FovDeg = 40.0f;
 		bool bWanted = false;
+
+		/** The body slot of this mirror's own glass, e.g. `car_mirror_left`; none for the virtual one. */
+		FName GlassSlot;
+		/** Index of GlassSlot on the bound body; INDEX_NONE draws the rig's face instead. */
+		int32 GlassIndex = INDEX_NONE;
+		/** The body's override on that slot before the rig painted it (usually none). */
+		TObjectPtr<UMaterialInterface> GlassOriginal;
+		/** The capture on the glass: an unlit pass-through instance showing Target. */
+		TObjectPtr<UMaterialInstanceDynamic> Glass;
+		bool bGlassPainted = false;
 	};
 
 	void BuildWheel();
@@ -101,6 +127,13 @@ private:
 	/** The rig's own rim: hub, grips and spokes. */
 	TArray<UStaticMeshComponent*, TInlineAllocator<5>> RimParts() const;
 	FMirror BuildMirror(const TCHAR* Name, const FIntPoint& BaseResolution, float FovDeg, bool bWithFace);
+
+	/** Find the followed car's own mirror glass and size the captures to it. */
+	void BindCarGlass();
+	/** Give the car's glass back its own material and forget it. */
+	void ReleaseCarGlass();
+	/** Paint the glass of every wanted mirror with its capture, and unpaint the rest. */
+	void PaintCarGlass();
 
 	/** Position every part from the layout and turn the faces to the eye. */
 	void PlaceParts();
@@ -168,6 +201,14 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> ShapeMaterial;
 
+	/** The engine's opaque widget pass-through: what a face draws with, and what the car's glass is painted with. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> GlassMaterial;
+
+	/** The body and mesh the glass slots were found on; a new mesh means finding them again. */
+	TWeakObjectPtr<UStaticMeshComponent> GlassBody;
+	TWeakObjectPtr<UStaticMesh> GlassMesh;
+
 	UPROPERTY(Transient)
 	TObjectPtr<AApexRaceCarActor> Car;
 
@@ -177,6 +218,7 @@ private:
 	int32 CountdownMs = -1;
 
 	float WheelRollDeg = 0.0f;
+	float DriverRimLockDeg = 0.0f;
 	/** Highest RPM the car has shown: the light bar's full scale. */
 	float ObservedMaxRpm = 8000.0f;
 	/** Which mirror the round-robin refreshes next. */

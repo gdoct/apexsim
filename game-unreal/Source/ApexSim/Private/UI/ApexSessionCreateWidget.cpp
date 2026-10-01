@@ -45,6 +45,7 @@ namespace
 		AutoGearbox,
 		SteeringAssist,
 		RacingLine,
+		Damage,
 		Count,
 	};
 
@@ -62,6 +63,7 @@ namespace
 		case EApexAssistChip::TractionControl: return Assists.bTractionControl;
 		case EApexAssistChip::AutoGearbox:     return Assists.bAutoGearbox;
 		case EApexAssistChip::SteeringAssist:  return Assists.bSteeringAssist;
+		case EApexAssistChip::Damage:          return Assists.bDamage;
 		default:                               return Assists.bRacingLine;
 		}
 	}
@@ -435,6 +437,8 @@ UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
 
 	static const TCHAR* AssistLabels[] = {
 		TEXT("ABS"), TEXT("Traction ctrl"), TEXT("Auto gears"), TEXT("Steering aid"), TEXT("Racing line"),
+		// Lit: drivers may turn damage down or off. Unlit: everyone takes it all.
+		TEXT("Damage aid"),
 	};
 	static_assert(UE_ARRAY_COUNT(AssistLabels) == static_cast<int32>(EApexAssistChip::Count), "one label per chip");
 

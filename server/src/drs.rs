@@ -81,7 +81,7 @@ pub fn race_rules(mode: GameMode) -> bool {
 
 /// Seconds to the nearest car ahead of `me` on the road, or `None` when
 /// nobody is within [`GAP_REACH_M`].
-fn gap_ahead_s(me: &CarState, field: &[(PlayerId, f32)], total: f32) -> Option<f32> {
+pub fn gap_ahead_s(me: &CarState, field: &[(PlayerId, f32)], total: f32) -> Option<f32> {
     let speed = me.speed_mps.max(1.0);
     field
         .iter()

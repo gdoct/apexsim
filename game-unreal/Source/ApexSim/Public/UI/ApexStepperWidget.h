@@ -13,13 +13,14 @@ class UApexStepperWidget;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FApexOnStepperChanged, UApexStepperWidget*, Control, int32, Value);
 
 /**
- * An integer stepped by a pair of pills: [ − ]  +2  (+8%)  [ + ].
+ * An integer stepped by a pair of pills: [ − ] 124.8 N/mm [ + ], with a
+ * second line under the value (+4.8, in the accent) while it is off zero.
  *
  * The garage setup is made of these — a click count either side of the
  * car's own figure — and a slider is the wrong shape for eleven discrete
  * stops, most of them zero. The pills are ordinary UApexButtonWidgets, so
  * focus, hover and pad activation match every other control; the read-out
- * between them is whatever the owner's formatter says the value means.
+ * between them is whatever the owner's formatters say the value means.
  */
 UCLASS()
 class APEXSIM_API UApexStepperWidget : public UUserWidget
@@ -35,6 +36,9 @@ public:
 	/** The read-out for a value; the plain number when unset. */
 	TFunction<FString(int32)> Formatter;
 
+	/** The line under the read-out while the value is off zero ("+4.8"); none when unset. */
+	TFunction<FString(int32)> DeltaFormatter;
+
 	/**
 	 * Builds the pills and the read-out. ReadoutWidth is the text cell between
 	 * the pills, so a column of steppers lines up whatever their read-outs.
@@ -48,6 +52,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	int32 GetValue() const { return Value; }
+
+	/** Runs the formatters again, for when what they read has changed. */
+	void RefreshReadout() { ApplyValue(); }
 
 	/** Identifies the row in the owning screen's single handler. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
@@ -78,6 +85,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> Readout;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> DeltaText;
 
 	int32 Min = -5;
 	int32 Max = 5;

@@ -10,9 +10,13 @@
 class UApexButtonWidget;
 class UApexStepperWidget;
 class UBorder;
+class UEditableTextBox;
+class UHorizontalBox;
 class UTextBlock;
 class UVerticalBox;
 class UWidget;
+class UWidgetSwitcher;
+enum class EApexButtonVariant : uint8;
 
 /** What the hotlap overlay is showing. */
 UENUM(BlueprintType)
@@ -20,7 +24,7 @@ enum class EApexHotlapView : uint8
 {
 	/** Not a hotlap session. */
 	Hidden,
-	/** The car is in the garage: the setup card and the timing sheet. */
+	/** The car is in the garage: the tuning sheet. */
 	Garage,
 	/** The car is on the track: the timing sheet beside the HUD. */
 	Track,
@@ -42,6 +46,16 @@ enum class EApexHotlapAction : uint8
 	ResetSetup,
 };
 
+/** The garage's pages, in tab order. */
+enum class EApexGarageTab : uint8
+{
+	Tyres,
+	Suspension,
+	Engine,
+	Save,
+	Count,
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnHotlapAction, EApexHotlapAction, Action);
 
 /**
@@ -49,19 +63,25 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnHotlapAction, EApexHotlapActi
  * lap-by-lap timing sheet.
  *
  * **Garage.** While the server holds the car in its garage (the car's
- * `bInGarage` telemetry flag), a card on the left carries the way out, the
- * record lap's replay, the ghost toggle and the car setup — the fourteen
- * clicks-per-knob rows that used to live on a settings tab. Tuning belongs
- * here because it is per car and per circuit: a setup is tried, driven and
- * changed between runs, which is what a hotlap is for. The knobs write
- * through UApexSettingsSubsystem exactly as the tab did, so the root widget
- * still forwards every change to the server as SetCarSetup.
+ * `bInGarage` telemetry flag) a full-screen sheet covers the view: the way
+ * out, the record lap's replay, the ghost toggle and a reset down the left,
+ * and the setup split into four tabs on the right — Tyres (pressures,
+ * brakes, the next compound), Suspension (front and rear side by side, with
+ * the rake and aero balance they add up to), Engine (engine, gearing, fuel,
+ * with top speed per gear and the fuel's range and weight) and Load / Save
+ * (named setups per car). Q / E (or the shoulders, or Tab) change tab.
  *
- * **Timing sheet.** Every lap the local car completes, from the server's
- * `LapTiming` messages: number, time, the delta to the best legal lap so
- * far, struck laps greyed. It stays through trips to the garage — the
- * point is to see whether the last change made the car faster — and is
- * cleared when a hotlap session begins.
+ * Every stepper shows the knob in real units with its change from stock
+ * under it. The units come from the server's CarSetupSheet (the car's own
+ * stock figures, many of which are the sim's defaults and not in any file);
+ * until one arrives, or from a server without it, a knob reads in clicks.
+ * The knobs write through UApexSettingsSubsystem, so the root widget still
+ * forwards every change to the server as SetCarSetup.
+ *
+ * **Timing sheet.** On the track, every lap the local car completes, from
+ * the server's `LapTiming`: number, time, the delta to the best legal lap,
+ * struck laps greyed. Cleared when a hotlap session begins. A legal lap also
+ * becomes the loaded saved setup's best while the working setup matches it.
  *
  * The card acts through OnAction; relocating the car and starting a replay
  * are the shell's and the race director's to carry out.
@@ -77,10 +97,11 @@ public:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	/** Focus lands on the way out of the garage. */
 	virtual void FocusDefault() override;
+	/** Previous / Next (shoulders, Tab) change tab; the rest is Slate's. */
+	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
 	/** Nothing to go back to: Escape falls through to the pause key. */
 	virtual bool HandleBack() override { return false; }
 
@@ -98,6 +119,13 @@ public:
 
 	/** The replay's clock, for the strip. */
 	void SetReplayTime(float ReplayMs, int32 LapTimeMs);
+
+	/** Shows a garage tab (also `apexsim.hotlap.Tab` / `-ApexGarageTab=`). */
+	void SetTab(EApexGarageTab Tab);
+
+protected:
+	/** Q / E change tab, unless the setup name box is being typed in. */
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 	UFUNCTION()
@@ -118,26 +146,59 @@ private:
 	UFUNCTION()
 	void HandleLapRecord(const FApexLapRecord& Record);
 
+	UFUNCTION()
+	void HandleSetupSheet(const FApexCarSetupSheet& Sheet);
+
 	// --- Construction ---------------------------------------------------------
 
-	UWidget* BuildGarageCard();
+	UWidget* BuildGarage();
+	UWidget* BuildGarageHeader();
+	UWidget* BuildActionColumn();
+	UWidget* BuildTabBar();
+	UWidget* BuildTyresPage();
+	UWidget* BuildSuspensionPage();
+	UWidget* BuildEnginePage();
+	UWidget* BuildSavePage();
 	UWidget* BuildTimingPanel();
 	UWidget* BuildReplayStrip();
-	/** One setup row: name and note on the left, the stepper on the right. */
-	void MakeSetupRow(UVerticalBox* Column, int32 Knob, const TCHAR* Label, const TCHAR* Description);
-	UApexButtonWidget* MakeCardButton(UVerticalBox* Stack, const FString& Label, const FString& Badge, FName ActionId, bool bPrimary);
+
+	/** A stepper for one knob, registered for refreshes. */
+	UApexStepperWidget* MakeStepper(int32 Knob);
+	/** A section caption and its rows of one knob each. */
+	void AddSection(UVerticalBox* Column, const TCHAR* Title, std::initializer_list<int32> Knobs);
+	/** One suspension row: the pair's name and note, the front stepper, the rear. */
+	UWidget* AddPairRow(UVerticalBox* Table, const TCHAR* Label, const TCHAR* Note, int32 Front, int32 Rear);
+	UApexButtonWidget* MakeActionButton(const FString& Label, const FString& Badge, FName ActionId, EApexButtonVariant Variant, float Height, float LabelSize);
 
 	// --- State ----------------------------------------------------------------
 
-	/** Push every knob's value from the settings into its stepper. */
+	/** Every stepper's value from the settings, and everything derived from the setup. */
 	void RefreshSetup();
+	/** Rake, balance, gear speeds and fuel: the read-outs worked out from the setup. */
+	void RefreshDerived();
+	/** The compound cards' selection. */
+	void RefreshCompounds();
+	/** The saved list and the selected setup's detail. */
+	void RefreshSaved();
 	/** The replay and ghost rows follow whether a record lap exists and the ghost setting. */
 	void RefreshGhostRows();
+	/** The header's track and car. */
+	void RefreshSubtitle();
 	/** Redraw the lap rows and the summary line. */
 	void RefreshSheet();
 	void ApplyView();
+	void ApplyTab();
 
 	UApexSettingsSubsystem* GetSettings() const;
+	const FApexCarSetup* GetWorkingSetup() const;
+	/** The server's reference card for the car being driven, or null. */
+	const FApexCarSetupSheet* GetSheet() const;
+	FString GetCarId() const;
+
+	/** A knob at a click count, in the sheet's units ("124.8 N/mm"), or in clicks without one. */
+	FString DescribeValue(int32 Knob, int32 Clicks) const;
+	/** Its change from stock ("+4.8"), or empty at stock. */
+	FString DescribeDelta(int32 Knob, int32 Clicks) const;
 
 	/** One completed lap of the local car. */
 	struct FLapEntry
@@ -153,6 +214,7 @@ private:
 	int32 BestMs = 0;
 
 	EApexHotlapView View = EApexHotlapView::Hidden;
+	EApexGarageTab Tab = EApexGarageTab::Tyres;
 	bool bActive = false;
 	/** Set while the steppers are being written from the settings, so their events are not changes. */
 	bool bRefreshing = false;
@@ -161,11 +223,18 @@ private:
 	int32 LiveLapTimeMs = 0;
 	bool bLiveInvalid = false;
 
-	UPROPERTY(Transient) TObjectPtr<UWidget> GarageCard;
+	/** The saved setup picked in the Load / Save list. */
+	FGuid SelectedSaved;
+	/** The saved setups of this car, in the list's order (mirrors the rows). */
+	TArray<FGuid> SavedRowIds;
+
+	UPROPERTY(Transient) TObjectPtr<UWidget> Garage;
 	UPROPERTY(Transient) TObjectPtr<UWidget> TimingPanel;
 	UPROPERTY(Transient) TObjectPtr<UWidget> ReplayStrip;
 	UPROPERTY(Transient) TObjectPtr<UWidget> TrackHint;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GarageSubtitle;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> SetupNameText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> SetupChangesText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SheetLiveText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SheetLiveLabel;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SheetBestText;
@@ -177,4 +246,44 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GhostButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ResetButton;
 	UPROPERTY(Transient) TMap<int32, TObjectPtr<UApexStepperWidget>> SetupSteppers;
+
+	// Tabs.
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> TabButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> TabUnderlines;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TabNumbers;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TabLabels;
+	/** Where focus goes on each page when the tab is changed from the keyboard. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> PageDefaults;
+	UPROPERTY(Transient) TObjectPtr<UWidgetSwitcher> Pages;
+
+	// Tyres.
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> CompoundButtons;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PressureNote;
+
+	// Suspension.
+	UPROPERTY(Transient) TObjectPtr<UWidget> CamberRow;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> RakeText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> BalanceText;
+
+	// Engine.
+	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> GearBars;
+	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> GearLabels;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FuelRangeText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FuelWeightText;
+
+	// Load / Save.
+	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> SaveNameBox;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> SaveButton;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> SavedCountText;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> SavedList;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> SavedRowButtons;
+	UPROPERTY(Transient) TObjectPtr<UWidget> DetailPanel;
+	UPROPERTY(Transient) TObjectPtr<UWidget> DetailEmpty;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DetailName;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DetailMeta;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> DetailDiff;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> LoadButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> OverwriteButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> RenameButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DeleteButton;
 };

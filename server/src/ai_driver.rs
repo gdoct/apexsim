@@ -418,6 +418,8 @@ impl<'a> AiDriverController<'a> {
                 drs: state.drs_allowed,
                 headlights: None,
                 flash: false,
+                ers_mode: None,
+                ers_boost: false,
             };
         }
 
@@ -437,6 +439,8 @@ impl<'a> AiDriverController<'a> {
             drs: state.drs_allowed,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         }
     }
 

@@ -105,6 +105,7 @@ pub(crate) async fn handle_message(
             steering_assist,
             abs,
             traction_control,
+            damage,
         } => {
             handle_set_driver_aids(
                 ctx,
@@ -114,6 +115,7 @@ pub(crate) async fn handle_message(
                     steering_assist,
                     abs,
                     traction_control,
+                    damage,
                 },
             )
             .await;
@@ -145,6 +147,8 @@ pub(crate) async fn handle_message(
             drs,
             headlights,
             flash,
+            ers_mode,
+            ers_boost,
             ..
         } => {
             handle_player_input(
@@ -158,6 +162,7 @@ pub(crate) async fn handle_message(
                 drs.unwrap_or(false),
                 headlights,
                 flash.unwrap_or(false),
+                (ers_mode, ers_boost.unwrap_or(false)),
                 player_inputs,
             )
             .await;
@@ -387,6 +392,7 @@ async fn handle_create_session(
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         game_session.set_livery(conn_info.player_id, livery);
         let racing_line = racing_line_message(game_session, session_id, car_id);
+        let setup_sheet = setup_sheet_message(game_session, session_id, car_id);
         let timing = timing_messages(
             game_session,
             session_id,
@@ -410,6 +416,9 @@ async fn handle_create_session(
             )
             .await;
         if let Some(msg) = racing_line {
+            let _ = ctx.send(connection_id, msg).await;
+        }
+        if let Some(msg) = setup_sheet {
             let _ = ctx.send(connection_id, msg).await;
         }
         for msg in timing {
@@ -615,6 +624,25 @@ fn racing_line_message(
     let profile = racing_line::build(&game_session.track_config, car)?;
     Some(ServerMessage::RacingLine(RacingLineData::from_profile(
         session_id, &profile,
+    )))
+}
+
+/// The garage's reference card for `car_id`: every setup knob in real units
+/// (`setup_sheet.rs`). The fuel is quoted for a hotlap's fill, which is
+/// where the garage is; `None` for an unknown car. The lap's fuel is planned
+/// once per car and cached, so this costs a racing-line build at most once.
+fn setup_sheet_message(
+    game_session: &mut GameSession,
+    session_id: SessionId,
+    car_id: CarConfigId,
+) -> Option<ServerMessage> {
+    let lap_fuel = game_session.lap_fuel_liters(car_id).unwrap_or(0.0);
+    let car = game_session.car_configs.get(&car_id)?;
+    Some(ServerMessage::CarSetupSheet(crate::setup_sheet::build(
+        session_id,
+        car,
+        lap_fuel,
+        crate::game_session::HOTLAP_FUEL_LAPS,
     )))
 }
 
@@ -852,12 +880,13 @@ async fn handle_set_driver_aids(ctx: &GameLoopCtx, connection_id: ConnectionId, 
     if let Some(applied) = game_session.set_driver_aids(&conn_info.player_id, aids) {
         let on_off = |on: bool| if on { "on" } else { "off" };
         tracing::debug!(
-            "Player {} auto gearbox {}, steering assist {}, abs {:?}, traction control {:?}",
+            "Player {} auto gearbox {}, steering assist {}, abs {:?}, traction control {:?}, damage {:?}",
             conn_info.player_id,
             on_off(applied.auto_gearbox),
             on_off(applied.steering_assist),
             applied.abs,
-            applied.traction_control
+            applied.traction_control,
+            applied.damage
         );
     }
 }
@@ -1107,6 +1136,7 @@ async fn handle_player_input(
     drs: bool,
     headlights: Option<bool>,
     flash: bool,
+    (ers_mode, ers_boost): (Option<u8>, bool),
     player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
 ) {
     // Sanitize before the values reach physics: drop NaN/Inf,
@@ -1134,6 +1164,8 @@ async fn handle_player_input(
             drs,
             headlights,
             flash,
+            ers_mode,
+            ers_boost,
         };
         player_inputs.insert(conn_info.player_id, input);
         ctx.metrics

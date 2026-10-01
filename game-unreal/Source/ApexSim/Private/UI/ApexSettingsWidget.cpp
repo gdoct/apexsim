@@ -101,6 +101,7 @@ namespace
 	const FName SegGearbox    = TEXT("Gearbox");
 	const FName SegSteering   = TEXT("Steering");
 	const FName SegRacingLine = TEXT("RacingLine");
+	const FName SegDamage     = TEXT("Damage");
 	const FName SegUnits      = TEXT("Units");
 	const FName SegHud        = TEXT("Hud");
 	const FName SegPreset     = TEXT("Preset");
@@ -148,6 +149,17 @@ namespace
 	{
 		const float Effective = FMath::Min(LockDeg, RotationDeg);
 		return FString::Printf(TEXT("%d° (±%d°)"), FMath::RoundToInt(Effective), FMath::RoundToInt(Effective / 2.0f));
+	}
+
+	/**
+	 * The steering lock slider's range: one step below the shortest lock is
+	 * Auto, the car's own lock (UApexSettingsSave::bWheelSteeringLockAuto).
+	 */
+	constexpr float SteeringLockSliderMinDeg = ApexInput::SteeringLockMinDeg - SteeringLockStepDeg;
+
+	FString SteeringLockSettingText(bool bAuto, float LockDeg, float RotationDeg)
+	{
+		return bAuto ? FString(TEXT("Auto (per car)")) : SteeringLockText(LockDeg, RotationDeg);
 	}
 
 	FString SignedCm(float Cm)
@@ -615,6 +627,15 @@ UWidget* UApexSettingsWidget::BuildAssistsPage()
 		MakeSegment(SegSteering, { TEXT("FULL LOCK"), TEXT("SPEED SENSITIVE") }, 1, 178.0f),
 		FString(), 0.0f, MakeAssistLockBadge(SegSteering)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
+	// Server-side like the rest: it scales every hit, overheating second and
+	// missed shift the car would take (damage.rs). The HUD's damage diagram
+	// shows what it has taken.
+	AddV(Page, MakeRow(
+		TEXT("Damage"),
+		TEXT("How much a hit, an overheating engine or a missed shift hurts the car. REDUCED takes half of it."),
+		MakeSegment(SegDamage, { TEXT("OFF"), TEXT("REDUCED"), TEXT("FULL") }, 2),
+		FString(), 0.0f, MakeAssistLockBadge(SegDamage)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
 	AddV(Page, MakeSectionLabel(TEXT("Guides")), FMargin(0.0f, 26.0f, 0.0f, 14.0f));
 
 	// The server works the line out for the car being driven, so the braking
@@ -659,6 +680,7 @@ void UApexSettingsWidget::RefreshAssistLocks()
 		{ SegGearbox,    Allowed.bAutoGearbox },
 		{ SegSteering,   Allowed.bSteeringAssist },
 		{ SegRacingLine, Allowed.bRacingLine },
+		{ SegDamage,     Allowed.bDamage },
 	};
 	for (const TPair<FName, bool>& Row : Rows)
 	{
@@ -1055,11 +1077,11 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 
 		AddSliderCell(Row, TEXT("Wheel rotation"), TEXT("Lock to lock, as set in the wheel's driver."),
 			WheelRotationSlider, WheelRotationFill, WheelRotationValue, true);
-		AddSliderCell(Row, TEXT("Steering lock"), TEXT("Rim turn for full lock. GT3 about 480°."),
+		AddSliderCell(Row, TEXT("Steering lock"), TEXT("Rim turn for full lock. Auto takes each car's own."),
 			WheelSteeringLockSlider, WheelSteeringLockFill, WheelSteeringLockValue, false);
 
 		WheelRotationSlider->SetStepSize(WheelRotationStepDeg / (ApexInput::WheelRotationMaxDeg - ApexInput::WheelRotationMinDeg));
-		WheelSteeringLockSlider->SetStepSize(SteeringLockStepDeg / (ApexInput::SteeringLockMaxDeg - ApexInput::SteeringLockMinDeg));
+		WheelSteeringLockSlider->SetStepSize(SteeringLockStepDeg / (ApexInput::SteeringLockMaxDeg - SteeringLockSliderMinDeg));
 		WheelRotationSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelRotationChanged);
 		WheelSteeringLockSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelSteeringLockChanged);
 
@@ -1136,6 +1158,8 @@ UWidget* UApexSettingsWidget::BuildWheelBindings()
 		{ TEXT("DRS"),         ApexInput::Actions::Drs,          ApexInput::Slot::Wheel,     false, 1 },
 		{ TEXT("Headlights"),  ApexInput::Actions::Headlights,   ApexInput::Slot::Wheel,     false, 1 },
 		{ TEXT("Flash lights"), ApexInput::Actions::FlashLights, ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("ERS mode"),    ApexInput::Actions::ErsMode,      ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("Overtake"),    ApexInput::Actions::ErsBoost,     ApexInput::Slot::Wheel,     false, 1 },
 		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,    ApexInput::Slot::Wheel,     false, 1 },
 		{ TEXT("Up"),          ApexInput::Actions::MenuUp,       ApexInput::Slot::Wheel,     false, 2 },
 		{ TEXT("Down"),        ApexInput::Actions::MenuDown,     ApexInput::Slot::Wheel,     false, 2 },
@@ -1416,6 +1440,8 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		{ TEXT("DRS"),         ApexInput::Actions::Drs,           0,  1 },
 		{ TEXT("Headlights"),  ApexInput::Actions::Headlights,    0,  1 },
 		{ TEXT("Flash lights"), ApexInput::Actions::FlashLights,  0,  1 },
+		{ TEXT("ERS mode"),    ApexInput::Actions::ErsMode,       0,  1 },
+		{ TEXT("Overtake"),    ApexInput::Actions::ErsBoost,      0,  1 },
 		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,     0,  1 },
 	};
 
@@ -1603,6 +1629,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegGearbox, Values->bAutoGearbox ? 1 : 0);
 	SetSegment(SegSteering, Values->bSteeringAssist ? 1 : 0);
 	SetSegment(SegRacingLine, static_cast<int32>(Values->RacingLine));
+	SetSegment(SegDamage, static_cast<int32>(Values->Damage));
 	RefreshAssistLocks();
 	SetSegment(SegUnits, static_cast<int32>(Values->Units));
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
@@ -1656,9 +1683,10 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSlider(WheelRotationSlider, WheelRotationFill, WheelRotationValue, Values->WheelRotationDeg,
 		ApexInput::WheelRotationMinDeg, ApexInput::WheelRotationMaxDeg,
 		FString::Printf(TEXT("%d°"), FMath::RoundToInt(Values->WheelRotationDeg)));
-	SetSlider(WheelSteeringLockSlider, WheelSteeringLockFill, WheelSteeringLockValue, Values->WheelSteeringLockDeg,
-		ApexInput::SteeringLockMinDeg, ApexInput::SteeringLockMaxDeg,
-		SteeringLockText(Values->WheelSteeringLockDeg, Values->WheelRotationDeg));
+	SetSlider(WheelSteeringLockSlider, WheelSteeringLockFill, WheelSteeringLockValue,
+		Values->bWheelSteeringLockAuto ? SteeringLockSliderMinDeg : Values->WheelSteeringLockDeg,
+		SteeringLockSliderMinDeg, ApexInput::SteeringLockMaxDeg,
+		SteeringLockSettingText(Values->bWheelSteeringLockAuto, Values->WheelSteeringLockDeg, Values->WheelRotationDeg));
 	SetSlider(MasterVolumeSlider, MasterVolumeFill, MasterVolumeValue, Values->MasterVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->MasterVolume * 100.0f)));
 	SetSlider(UiVolumeSlider, UiVolumeFill, UiVolumeValue, Values->UiVolume, 0.0f, 1.0f,
@@ -1913,6 +1941,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegGearbox)    { Settings->SetAutoGearbox(Index == 1); }
 	else if (Id == SegSteering)   { Settings->SetSteeringAssist(Index == 1); }
 	else if (Id == SegRacingLine) { Settings->SetRacingLine(static_cast<EApexRacingLine>(Index)); }
+	else if (Id == SegDamage)     { Settings->SetDamage(static_cast<EApexDamageLevel>(Index)); }
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
 	else if (Id == SegVSync)      { Settings->SetVSync(Index == 1); }
@@ -2089,18 +2118,25 @@ void UApexSettingsWidget::HandleWheelRotationChanged(float Value)
 	// The lock cannot be longer than the rotation, so its read-out follows.
 	if (Settings && Settings->Get() && WheelSteeringLockValue)
 	{
-		WheelSteeringLockValue->SetText(FText::FromString(SteeringLockText(Settings->Get()->WheelSteeringLockDeg, Degrees)));
+		const UApexSettingsSave* Values = Settings->Get();
+		WheelSteeringLockValue->SetText(FText::FromString(
+			SteeringLockSettingText(Values->bWheelSteeringLockAuto, Values->WheelSteeringLockDeg, Degrees)));
 	}
 }
 
 void UApexSettingsWidget::HandleWheelSteeringLockChanged(float Value)
 {
 	if (bRefreshing) { return; }
-	const float Degrees = SliderDegrees(Value, ApexInput::SteeringLockMinDeg, ApexInput::SteeringLockMaxDeg, SteeringLockStepDeg);
+	const float Degrees = SliderDegrees(Value, SteeringLockSliderMinDeg, ApexInput::SteeringLockMaxDeg, SteeringLockStepDeg);
+	const bool bAuto = Degrees < ApexInput::SteeringLockMinDeg;
 	UApexSettingsSubsystem* Settings = GetSettings();
-	if (Settings) { Settings->SetWheelSteeringLock(Degrees); }
+	if (Settings)
+	{
+		if (bAuto) { Settings->SetWheelSteeringLockAuto(true); }
+		else { Settings->SetWheelSteeringLock(Degrees); }
+	}
 	const float Rotation = Settings && Settings->Get() ? Settings->Get()->WheelRotationDeg : ApexInput::WheelRotationMaxDeg;
-	ReflectSlider(WheelSteeringLockFill, WheelSteeringLockValue, Value, SteeringLockText(Degrees, Rotation));
+	ReflectSlider(WheelSteeringLockFill, WheelSteeringLockValue, Value, SteeringLockSettingText(bAuto, Degrees, Rotation));
 }
 
 void UApexSettingsWidget::HandleWheelTestActivated(UApexButtonWidget* Button)

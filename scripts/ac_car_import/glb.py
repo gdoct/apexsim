@@ -208,3 +208,16 @@ def read_glb_json(path: Path) -> dict:
     if kind != CHUNK_JSON:
         raise ValueError(f"{path}: first chunk is not JSON")
     return json.loads(data[20:20 + length])
+
+
+def read_glb_floats(path: Path, accessor: int) -> np.ndarray:
+    """A float accessor of a GLB as an (count, components) array (for the tests)."""
+    data = Path(path).read_bytes()
+    js = read_glb_json(path)
+    json_len = struct.unpack_from("<I", data, 12)[0]
+    bin_start = 20 + json_len + 8
+    acc = js["accessors"][accessor]
+    view = js["bufferViews"][acc["bufferView"]]
+    width = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}[acc["type"]]
+    start = bin_start + view.get("byteOffset", 0) + acc.get("byteOffset", 0)
+    return np.frombuffer(data, dtype="<f4", count=acc["count"] * width, offset=start).reshape(-1, width)

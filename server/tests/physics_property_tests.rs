@@ -103,6 +103,8 @@ proptest! {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         for tick in 0..ticks {
@@ -223,6 +225,8 @@ proptest! {
                 drs: None,
                 headlights: None,
                 flash: None,
+                ers_mode: None,
+                ers_boost: None,
             },
         ];
 

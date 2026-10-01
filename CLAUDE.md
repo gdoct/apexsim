@@ -743,16 +743,23 @@ How it reads AC (`scripts/ac_import/`: `kn5.py`, `ai.py`, `ini.py`,
   and z and banking come from the mesh. Sectors from `AC_TIME_1/2` (a
   two-sector AC track gets a synthetic boundary halfway to the finish),
   grid slots from `AC_START_n` as `spawn_points` with `position: 0` and
-  absolute offsets (node 0 is the origin, so the offsets are just the
-  slot's x, y), DRS from `drs_zones.ini` re-based from the AI start.
+  offsets from node 0 (the road's middle at the gate's foot on the AI
+  line, not the gate's middle: pinning it there put a kink in Spa's
+  raceline the profile braked for), DRS from `drs_zones.ini` re-based from
+  the AI start. The middle is smoothed along the lap (quantised to the
+  0.25 m section step it zig-zagged into a 100 m radius on straights).
 - **Scene.** Every renderable kn5 mesh at `lodIn == 0` (lower LODs, `AC_*`
-  logic objects, crews, `GROOVE` overlays dropped), classified **per
+  logic objects, crews, `GROOVE` overlays by mesh or see-through
+  material name dropped, and any material AC draws at `alpha = 0`: how
+  mods hide renderable physics meshes), classified **per
   material**: what physics lies under its meshes' triangle centres decides
   (on the road -> `road_ac`, family road, so the wet look applies; on
   grass/sand/gravel -> `ac_<set>`, family surface with `ground_set`; never
   sampled at vertices, which on a road ribbon all sit on the grass edge),
-  else a plain `ksMultilayer` shader or a grass/sand/gravel name is kit
-  terrain (`ksMultilayer_fresnel*` is road, `_objsp` is an object),
+  else a grass/sand/gravel/road *name*, and only then a plain
+  `ksMultilayer` shader, is kit terrain (`ksMultilayer_fresnel*` is road,
+  `_objsp` an object; shader first drew Spa's `grass-ext-shad` valley as
+  asphalt), a `KERB`/`CURB` name never,
   else an AC-textured `scenery_<material>` material on the **car parents**
   (opaque / masked / translucent by the kn5's alpha flags and shader, two
   sided, roughness from `ksSpecularEXP`). Alpha-tested or blended
@@ -1099,7 +1106,8 @@ shared one's cooked parent with its values copied.
 
 `DT_CarCatalog` is now a fallback for a car with no folder on this machine,
 and the source of hand-tuned turntable framing and cockpit points for a car
-whose car.toml has no `[preview]` / `[cockpit]` table (docs/CAR_MODELS.md).
+whose car.toml has no `[preview]` table, or leaves a `[cockpit]` key out
+(docs/CAR_MODELS.md).
 `ApexCarImport` still imports a car as `/Game/Cars/<folder>/SM_<folder>` and
 refreshes its row, for looking at it in the editor:
 
@@ -1796,9 +1804,15 @@ there and sent on join. The client's settings overlay has an **Assists** tab
 (`EApexSettingsTab::Assists`, group `EApexSettingsGroup::Assists`; the tab
 order is gameplay, assists, graphics, camera, controls, wheel, audio, car
 setup, so `-ApexSettingsTab=1` opens it) holding ABS, traction control OFF/LOW/HIGH,
-gearbox, steering and the racing line. `UApexRootWidget::SendDriverAids`
-sends `SetDriverAids { auto_gearbox, steering_assist, abs, traction_control }`
-on join and on any change of the group; ABS and traction control are
+gearbox, steering, damage OFF/REDUCED/FULL and the racing line.
+`UApexRootWidget::SendDriverAids` sends `SetDriverAids { auto_gearbox,
+steering_assist, abs, traction_control, damage }` on join and on any change
+of the group. **Damage** (`DamageLevel`, `CarState::damage_level`, `None` =
+full for the AI and an old client) multiplies every accrual in `damage.rs`
+(impacts in `apply_damage_to_car`, overheating, over-revving) by
+`DamageLevel::scale` (0, `REDUCED_SHARE` 0.5, 1); what damage already done
+costs is unchanged. `damage` is left off the wire while unset, so the older
+aids keep their bytes. ABS and traction control are
 `Option`s on the server (`CarState::abs`, `CarState::traction_control`) so an
 AI, or a client from before the fields, drives the car as its `car.toml`
 describes it. Traction control LOW holds a spinning wheel at peak slip as
@@ -1809,8 +1823,10 @@ a corner exit keeps the cornering grip instead of pushing the rear wide.
 A session's host decides which assists its drivers may use: the create
 screen's "Allowed assists" chips go out as `CreateSession.allowed_assists`
 (`AllowedAssists { abs, traction_control, auto_gearbox, steering_assist,
-racing_line }`, every field defaulting to true so an old client's session
-allows everything), the session keeps them on `RaceSession::allowed_assists`
+racing_line, damage }`, every field defaulting to true so an old client's
+session allows everything; `damage` is only written when false, "Damage aid"
+chip, and a forbidden one pins `DamageLevel::Full`), the session keeps them
+on `RaceSession::allowed_assists`
 and echoes them in `SessionJoined.AllowedAssists`. The server enforces the
 rule (`AllowedAssists::clamp`): a forbidden aid is pinned off when a car is
 seated and on every `SetDriverAids`, whatever the client asked, and a
@@ -1818,12 +1834,13 @@ session that forbids the racing line sends none. On the client the Assists
 tab dims a locked row, disables its pills and shows an "Off in this session"
 badge (`UApexNetSubsystem::GetAllowedAssists`, `RefreshAssistLocks`); the
 player's own choice is kept for the next session; `-ApexAutoRace
--ApexLockAssists=abs,tc,gearbox,steering,line` creates the auto-race session
+-ApexLockAssists=abs,tc,gearbox,steering,line,damage` creates the auto-race session
 with those forbidden, for a screenshot run of the locked tab
 (`-ApexOpenSettings=N -ApexSettingsTab=1`). Golden bytes for all three
 messages come from `network.rs` `test_assists_wire_format`
 (`cargo test assists_wire_format -- --nocapture` prints them) and are pinned
-in `ApexGoldenBlobs.h`.
+in `ApexGoldenBlobs.h`; the damage aid's from `test_damage_assist_wire_format`
+(`ApexGolden::C_SetDriverAidsDamage`, `S_SessionJoinedNoDamage`).
 
 ### Weather and time of day (`SessionConditions`, `Race/ApexSkyModel.h`)
 
@@ -1934,9 +1951,26 @@ applies at once, on the grid or mid-lap. AI cars and the collision passes
 On the client the setup lives on `UApexSettingsSave::CarSetup`
 (`FApexCarSetup`, `TArray<int32> Clicks`, one setup shared by every car),
 edited in the **hotlap garage** (`UApexHotlapWidget`, below; it used to be
-a settings tab, `-ApexSettingsTab` now stops at 6, Audio) as two columns of
-`UApexStepperWidget` rows: a − / + pill pair around a read-out from
-`ApexCarSetup::Describe`. The steppers write through
+a settings tab, `-ApexSettingsTab` now stops at 6, Audio) on four tabs
+(Tyres, Suspension with front and rear side by side, Engine, Load / Save;
+Q / E, the shoulders or Tab change tab, `apexsim.hotlap.Tab N` /
+`-ApexGarageTab=N` for screenshots) of `UApexStepperWidget` rows: a − / +
+pill pair around the knob **in real units** with its change from stock
+under it. The units are the server's: `ServerMessage::CarSetupSheet`
+(`server/src/setup_sheet.rs`, sent once after `SessionJoined`) carries each
+knob's stock value, per-click step and bounds in display units (psi, N/mm,
+Ns/m, mm, kg of downforce at 200 km/h, litres...), since many of those
+figures are sim defaults in no car.toml, plus the gear ratios, wheel
+radius, fuel per lap and the rake's balance shift, from which the garage
+draws top speed per gear, fuel range and weight, rake and aero balance.
+Every knob is linear in clicks, so the client needs no round trip
+(`the_sheet_predicts_what_apply_does` pins that); without a sheet (an older
+server) a knob reads in clicks through `ApexCarSetup::Describe`. Named
+setups are kept per car on `UApexSettingsSave::SavedSetups`
+(`FApexSavedSetup`: name, car id, date, clicks, the best legal lap driven
+while the working setup matched it) with `LoadedSetupId` naming the one in
+the header; `UApexSettingsSubsystem::SaveSetupAs` / `LoadSavedSetup` /
+`OverwriteSavedSetup` / `RenameSavedSetup` / `DeleteSavedSetup` / `RecordSetupLap`. The steppers write through
 `UApexSettingsSubsystem::SetCarSetupClick`, so the group's change still
 reaches the server through `SendCarSetup`, and the setup is sent on joining
 any session, so a car tuned in the garage races with that setup. The knob
@@ -2381,8 +2415,14 @@ be inert until 80% front or engine parked the car, and a hit cost at most
   loop.
 - **Wire**: `CompactCarState.damage` ([u8;5], percent) appended after
   `water_c` (34 fields); client `FApexCarTelemetry::DamagePct` /
-  `HasDamage()`, a Damage cell under Water in the HUD's tyre row ("F23 L8
-  E4", amber from 25%, red from 60). Golden bytes: `cargo test
+  `HasDamage()`, and a **damage panel** left of the HUD's car-state panel
+  (`UApexHudWidget::BuildDamagePanel` / `RefreshDamage`, both detail
+  levels, collapsed from an older server): a top-down car of five blocks
+  (front, rear, the sides, the engine in the middle) grey while sound,
+  amber by 25%, red by 60, flashing white for 0.8 s on a fresh hit of a
+  percent or more, each zone's percentage beside it (OUT at 100) and the
+  driver's damage level in the caption. The damage aid is under
+  "Driving assists". Golden bytes: `cargo test
   telemetry_compact_wire_format -- --nocapture` -> `ApexUdpGolden::
   S_TelemetryCompactDamage`.
 
@@ -2392,6 +2432,71 @@ against 23 397, off 12 020 against 11 779, and no car retired on any
 shipped circuit in its 3 minutes (it prints `retired N` per race now);
 the player's AC imports, whose AI already spends hundreds of car-seconds
 in contact, lose one to ten cars a race.
+
+### Hybrid deployment (`hybrid.rs`, `PlayerInput.ers_mode` / `ers_boost`)
+
+The hybrid used to add its motor whenever the throttle was open and the
+battery had charge. `hybrid::update` (called from `update_car_3d` where
+`update_hybrid_system` was) now gives the driver a say:
+
+- **Modes** (`ErsMode`, `CarState::ers_mode`, default Balanced):
+  *Harvest* never deploys and recovers `HARVEST_SHARE` (0.5) of the regen
+  power against the crank on the throttle; *Balanced* deploys from 60% to
+  95% throttle, eased out below 35% charge (nothing under 15%) and paced
+  against a car.toml lap budget: the motor gives (budget left + 5%) /
+  (lap left + 5%) of its torque, capped at 1, so an even spend is full
+  power and a spend ahead of it tapers. A step (full power until an
+  allowance ran out, then none) cut every F1's motor two seconds past the
+  line and the field ran into each other at the first corner, the survey's
+  F1 contact at the Nordschleife 1.6 -> 102 car-seconds; *Attack* deploys at
+  any throttle until the budget or the battery is gone. The **overtake button**
+  (`ers_boost`, held) is Attack whatever the mode.
+- **Recovery**: under braking as before (the brakes' own work, free);
+  off both pedals `COAST_SHARE` (0.3) of the regen power against the crank
+  (a little more engine braking); `heat_recovery_kw` (an MGU-H) charges
+  at full throttle for nothing.
+- **car.toml `[hybrid]`**: `deploy_kj_per_lap` (spent between two
+  crossings of the line: reset when the car's lap share wraps, and when
+  `current_lap` changes, since pole's lap 1 starts on green behind the
+  line; the four F1s 4000), `deploy_min_speed_kph` (the WEC rule: the two hypercars 190),
+  `heat_recovery_kw` (no shipped car). The racing line counts the motor
+  only above the minimum speed (`hybrid::plan_power_w`) but still at full
+  power, whatever the budget allows.
+- **Filled** with the tyres (`fit_tyres` -> `hybrid::charge_full`): a full
+  battery and a fresh budget out of the garage, on a grid, for a hotlap.
+- **The AI** drives Balanced and holds the overtake button in a race from
+  lap 2 within `AI_BOOST_GAP_S` (0.8 s) of the car ahead
+  (`GameSession::ai_wants_boost`, `drs::gap_ahead_s`).
+- **AC imports** (`ac_car_import/physics.py`): the battery is the motor's
+  peak power x `DISCHARGE_TIME` (it used to be `MAX_KJ_PER_LAP`, which is
+  the lap budget and is now `deploy_kj_per_lap`, unless absurd like a road
+  car's 10^7), `[HEAT] TORQUE_PERC` x the motor's power becomes
+  `heat_recovery_kw`; AC's `ctrl_ers_*` delivery profiles and
+  `[FRONT_MOTORS]` are warned about, not carried.
+- **Wire**: `PlayerInput.ers_mode` (u8, nil keeps the car's) and
+  `ers_boost` appended after `flash` (11 fields); `CompactCarState.ers_pct`,
+  `ers_lap_pct` (255: none) and `ers_flags` (bits 0-1 mode, 2 deploying, 3
+  harvesting, 4 boost) after `damage` (37 fields). Golden bytes: `cargo
+  test player_input_headlights_wire_format telemetry_compact_wire_format
+  -- --nocapture` -> `ApexUdpGolden::C_PlayerInput`,
+  `S_TelemetryCompactErs`.
+- **Client**: actions `ErsMode` (pressed: steps Balanced -> Attack ->
+  Harvest, `ApexErs::NextMode`; M, pad D-pad right, a wheel slot) and
+  `ErsBoost` (held: Space, pad A, a wheel slot), rebindable on the
+  Controls and Wheel tabs like DRS; the race director steps the mode from
+  what the server reports (`LocalErsMode`, `ErsModeSwitch`, reset with the
+  headlight switch) and plays the Adjust cue. HUD: an ERS badge beside PIT
+  ("ERS BAL 64%  LAP 72%", lit while the motor drives, "OVERTAKE" while
+  held, amber ink while harvesting) and an Ers battery bar beside the
+  pedal bars, both collapsed on a car without a hybrid.
+
+Tests: `hybrid::tests`, `ApexSim.Net.Udp.*`, `ApexSim.Net.Ers.Modes`, the
+importer's `ErsImportTest`. The survey against the damage run (only the F1
+is a hybrid there): F1 contact 7 876 car-seconds against 7 937, off 4 303
+against 4 993, sliding 1 856 against 1 581; on the shipped circuits every
+F1 run is as before but SaoPaulo, where a lap-1 wall graze now happens and
+the two damaged cars retire into the walls later (the AI does not drive
+around its damage).
 
 ### Hotlap (`GameMode::Hotlap`, `HotlapRelocate`, `GhostLap`, `UApexHotlapWidget`, `AApexGhostCarActor`)
 
@@ -2418,12 +2523,12 @@ left driving. `tests/hotlap_test.rs` covers all of it, over the wire too.
 
 **The client** (`UApexRootWidget::HandleTelemetryForHotlap`) reads the
 local car's `bInGarage` and opens or closes the garage: `UApexHotlapWidget`
-is the layer between the HUD and the pause menu, showing the garage card
-(GO OUT, REPLAY BEST LAP, GHOST CAR, RESET SETUP and the fourteen setup
-rows), the lap-by-lap timing sheet (every `LapTiming` lap end for the local
-car, with the delta to the best legal lap and struck laps greyed; it
-survives trips to the garage and clears when a hotlap begins) and the replay
-strip. While the card is up the HUD is hidden, driving input is off and the
+is the layer between the HUD and the pause menu, showing the garage
+(a full-screen sheet: GO OUT, REPLAY LAP, GHOST CAR and RESET SETUP down the
+left, the four setup tabs on the right; see "Car setup"), the lap-by-lap
+timing sheet on the track (every `LapTiming` lap end for the local car, with
+the delta to the best legal lap and struck laps greyed; it survives trips to
+the garage and clears when a hotlap begins) and the replay strip. While the card is up the HUD is hidden, driving input is off and the
 card owns the keys like the pause menu (`IsGarageOpen`, honoured by
 `FApexMenuInputProcessor`); on the track the pause menu gains BACK TO
 GARAGE. Other drivers' garaged cars are hidden by the race director.
@@ -2655,7 +2760,17 @@ between its ends) and "Steering lock" (rim degrees lock to lock for the car's
 full lock, default 480°) make a gain, `ApexInput::WheelSteeringScale`
 (rotation / lock, never under 1), applied by `UApexInputModifierWheelSteering`
 on the wheel's steering mapping. Before it a 1080° base needed 540° of rim for
-full lock. Past half the lock either way `MixWheel` puts a soft stop on the
+full lock. The lock's first step, and the default, is **Auto (per car)**
+(`UApexSettingsSave::bWheelSteeringLockAuto`): twice the driven car's
+`[cockpit] wheel_lock_deg` (AC's `STEER_LOCK` on an import; every shipped
+car names one: 180° F1 / Hypercar / LMP2, 270° GT3), pushed each frame by
+`AApexRaceDirector::UpdateSteeringLock` through
+`UApexSettingsSubsystem::SetCarSteeringLock`
+(`GetWheelSteeringLockDeg` is the lock in use). The same frame hands the
+cockpit rig that lock (`AApexCockpitRig::SetDriverRimLockDeg`) while a wheel
+steers the player's own car, so the rim on screen turns exactly as far as
+the one in their hands, a manual lock included. One lock for every car used
+to show a Group C car's 360° each way at 1.5x the player's rim. Past half the lock either way `MixWheel` puts a soft stop on the
 rim (0.9 of the base over 6°, with a damper), from the rim angle the player
 controller reads off the device (`ApexInput::ReadWheelSteering`,
 `FSignals::RimDegrees`). The same reading **centres the rim** when a car

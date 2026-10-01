@@ -33,6 +33,28 @@ namespace
 	/** Render-target scale per mirror-quality bucket. */
 	constexpr float QualityScale[] = { 0.5f, 0.75f, 1.0f };
 
+	/**
+	 * Pixels per centimetre of a car's own mirror glass at the high quality
+	 * bucket, the density the rig's faces are drawn at; the long side is held
+	 * to [256, 1024] and the short to at least 64.
+	 */
+	constexpr float GlassPixelsPerCm = 24.0f;
+
+	/**
+	 * Nothing nearer a mirror's camera than this is drawn, cm. The camera
+	 * sits at the glass, and the housing behind it (two-sided, as every car
+	 * material is) would otherwise fill the mirror.
+	 */
+	constexpr float MirrorNearClipCm = 25.0f;
+
+	FIntPoint GlassResolution(const FVector2D& SizeCm)
+	{
+		const double Aspect = SizeCm.Y > 0.0 ? SizeCm.X / SizeCm.Y : 1.6;
+		const int32 Width = FMath::Clamp(FMath::RoundToInt(SizeCm.X * GlassPixelsPerCm), 256, 1024);
+		const int32 Height = FMath::Clamp(FMath::RoundToInt(Width / Aspect), 64, 1024);
+		return FIntPoint(Width, Height);
+	}
+
 	/** Width of the wheel display in centimetres; the height follows the widget's aspect. */
 	constexpr float DashWidthCm = 21.0f;
 
@@ -48,6 +70,8 @@ namespace
 		Capture.ProjectionType = ECameraProjectionMode::Perspective;
 		Capture.MaxViewDistanceOverride = 30000.0f;
 		Capture.bUseRayTracingIfEnabled = false;
+		Capture.bOverride_CustomNearClippingPlane = true;
+		Capture.CustomNearClippingPlane = MirrorNearClipCm;
 
 		// A mirror is glanced at, not studied: global illumination and the
 		// screen-space effects are most of a capture's cost and none of its
@@ -121,6 +145,11 @@ AApexCockpitRig::AApexCockpitRig()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> MaterialFinder(
 		TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	// What a widget face draws with (UWidgetComponent's own opaque, two-sided
+	// pass-through), so the car's glass is painted exactly as a face is.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> GlassFinder(
+		TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque"));
+	GlassMaterial = GlassFinder.Object;
 	CubeMesh = CubeFinder.Object;
 	CylinderMesh = CylinderFinder.Object;
 	ShapeMaterial = MaterialFinder.Object;
@@ -131,6 +160,9 @@ AApexCockpitRig::AApexCockpitRig()
 	Centre = BuildMirror(TEXT("Centre"), FIntPoint(512, 160), 50.0f, /*bWithFace*/ true);
 	Left = BuildMirror(TEXT("Left"), FIntPoint(384, 240), 38.0f, /*bWithFace*/ true);
 	Right = BuildMirror(TEXT("Right"), FIntPoint(384, 240), 38.0f, /*bWithFace*/ true);
+	Centre.GlassSlot = TEXT("car_mirror_centre");
+	Left.GlassSlot = TEXT("car_mirror_left");
+	Right.GlassSlot = TEXT("car_mirror_right");
 	Virtual = BuildMirror(TEXT("Virtual"), FIntPoint(640, 200), 70.0f, /*bWithFace*/ false);
 }
 
@@ -190,6 +222,7 @@ AApexCockpitRig::FMirror AApexCockpitRig::BuildMirror(
 {
 	FMirror Mirror;
 	Mirror.BaseResolution = BaseResolution;
+	Mirror.FaceResolution = BaseResolution;
 	Mirror.FovDeg = FovDeg;
 
 	Mirror.Mount = CreateDefaultSubobject<USceneComponent>(*FString::Printf(TEXT("Mirror%sMount"), Name));
@@ -254,6 +287,8 @@ void AApexCockpitRig::BeginPlay()
 
 void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 {
+	// The car being left keeps no painted glass.
+	ReleaseCarGlass();
 	Car = InCar;
 	if (!Car)
 	{
@@ -269,38 +304,146 @@ void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 	AddTickPrerequisiteActor(Car);
 	SetActorRelativeTransform(FTransform::Identity);
 
-	// Nothing on the rig belongs in a mirror — the centre one looks back
-	// through the cabin, straight at the wheel. The virtual mirror is the
-	// clear rear view a HUD strip wants, so it hides the bodywork too.
+	// Nothing on the rig belongs in a mirror. The centre one looks back
+	// through the cabin, where a modelled interior (the rear bulkhead, the
+	// cage) or an exterior shell's two-sided inside is all it would see, so
+	// it hides the car as the virtual mirror does: both show the road
+	// behind. The door mirrors keep the car's flank.
 	for (FMirror* Mirror : { &Centre, &Left, &Right, &Virtual })
 	{
 		Mirror->Capture->ClearHiddenComponents();
 		Mirror->Capture->HideActorComponents(this);
 	}
-	if (UStaticMeshComponent* Body = Car->GetMeshComponent())
+	for (FMirror* Mirror : { &Centre, &Virtual })
 	{
-		Virtual.Capture->HideComponent(Body);
+		if (UStaticMeshComponent* Body = Car->GetMeshComponent())
+		{
+			Mirror->Capture->HideComponent(Body);
+		}
+		Car->ForEachWheelComponent([Mirror](UStaticMeshComponent& Wheel) { Mirror->Capture->HideComponent(&Wheel); });
 	}
-	Car->ForEachWheelComponent([this](UStaticMeshComponent& Wheel) { Virtual.Capture->HideComponent(&Wheel); });
+	BindCarGlass();
 
 	ObservedMaxRpm = 8000.0f;
 	bPlaced = false;
 	PlaceParts();
 	ApplyVisibility();
 
-	UE_LOG(LogApexSim, Log, TEXT("Cockpit rig in car %d: %s, eye (%.0f, %.0f, %.0f) cm, %s%s%s"),
+	const int32 OnGlass = (Centre.GlassIndex != INDEX_NONE) + (Left.GlassIndex != INDEX_NONE) + (Right.GlassIndex != INDEX_NONE);
+	UE_LOG(LogApexSim, Log, TEXT("Cockpit rig in car %d: %s, eye (%.0f, %.0f, %.0f) cm, %s (%d on the car's own glass)%s%s"),
 		Car->GetCarIndex(), Layout.bOpenWheel ? TEXT("open cockpit") : TEXT("closed cabin"),
 		Layout.Eye.X, Layout.Eye.Y, Layout.Eye.Z,
-		Layout.bCentreMirror ? TEXT("three mirrors") : TEXT("two mirrors"),
+		Layout.bCentreMirror ? TEXT("three mirrors") : TEXT("two mirrors"), OnGlass,
 		CarWheel->GetStaticMesh() ? TEXT(", the car's own steering wheel") : (Layout.bRigWheel ? TEXT("") : TEXT(", no rim")),
 		Layout.bRigDash ? TEXT("") : TEXT(", no hub display"));
 }
 
 void AApexCockpitRig::DetachFromCar()
 {
+	ReleaseCarGlass();
 	Car = nullptr;
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	ApplyVisibility();
+}
+
+void AApexCockpitRig::BindCarGlass()
+{
+	ReleaseCarGlass();
+	UStaticMeshComponent* Body = Car ? Car->GetMeshComponent() : nullptr;
+	GlassBody = Body;
+	GlassMesh = Body ? Body->GetStaticMesh() : nullptr;
+	if (!Body || !GlassMesh.IsValid() || !GlassMaterial)
+	{
+		return;
+	}
+
+	const float Nits = FMath::Max(1.0f, CVarScreenNits.GetValueOnGameThread());
+	const TPair<FMirror*, FVector2D> Mirrors[] = {
+		{ &Centre, Layout.CentreMirrorSizeCm }, { &Left, Layout.LeftMirrorSizeCm }, { &Right, Layout.RightMirrorSizeCm } };
+	for (const TPair<FMirror*, FVector2D>& Entry : Mirrors)
+	{
+		FMirror& Mirror = *Entry.Key;
+		const int32 Index = Body->GetMaterialIndex(Mirror.GlassSlot);
+		if (Index == INDEX_NONE)
+		{
+			continue;
+		}
+		Mirror.GlassIndex = Index;
+		Mirror.GlassOriginal = Body->OverrideMaterials.IsValidIndex(Index) ? Body->OverrideMaterials[Index].Get() : nullptr;
+		Mirror.BaseResolution = GlassResolution(Entry.Value);
+		if (!Mirror.Glass)
+		{
+			Mirror.Glass = UMaterialInstanceDynamic::Create(GlassMaterial, this);
+			Owned.Add(Mirror.Glass);
+		}
+		Mirror.Glass->SetVectorParameterValue(TEXT("TintColorAndOpacity"), FLinearColor(Nits, Nits, Nits, 1.0f));
+		Mirror.Glass->SetScalarParameterValue(TEXT("OpacityFromTexture"), 1.0f);
+	}
+	// The targets are sized to the glass now.
+	BuiltQuality = -1;
+}
+
+void AApexCockpitRig::ReleaseCarGlass()
+{
+	UStaticMeshComponent* Body = GlassBody.Get();
+	const bool bSameMesh = Body && Body->GetStaticMesh() == GlassMesh.Get();
+	bool bResized = false;
+	for (FMirror* Mirror : { &Centre, &Left, &Right })
+	{
+		if (Mirror->GlassIndex == INDEX_NONE)
+		{
+			continue;
+		}
+		// A new mesh has dropped every override already, and its slots
+		// need not line up with the old one's.
+		if (bSameMesh && Mirror->bGlassPainted)
+		{
+			Body->SetMaterial(Mirror->GlassIndex, Mirror->GlassOriginal);
+		}
+		Mirror->GlassIndex = INDEX_NONE;
+		Mirror->GlassOriginal = nullptr;
+		Mirror->bGlassPainted = false;
+		Mirror->BaseResolution = Mirror->FaceResolution;
+		bResized = true;
+	}
+	GlassBody.Reset();
+	GlassMesh.Reset();
+	if (bResized)
+	{
+		BuiltQuality = -1;
+	}
+}
+
+void AApexCockpitRig::PaintCarGlass()
+{
+	UStaticMeshComponent* Body = GlassBody.Get();
+	if (!Body)
+	{
+		return;
+	}
+	for (FMirror* Mirror : { &Centre, &Left, &Right })
+	{
+		if (Mirror->GlassIndex == INDEX_NONE)
+		{
+			continue;
+		}
+		if (Mirror->bWanted && Mirror->Glass)
+		{
+			// Checked every frame: a livery change may have emptied the
+			// body's overrides since.
+			if (Body->GetMaterial(Mirror->GlassIndex) != Mirror->Glass)
+			{
+				Body->SetMaterial(Mirror->GlassIndex, Mirror->Glass);
+			}
+			Mirror->bGlassPainted = true;
+		}
+		else if (Mirror->bGlassPainted)
+		{
+			// Out of the cockpit the glass is the car's chrome again.
+			Body->SetMaterial(Mirror->GlassIndex, Mirror->GlassOriginal);
+			Mirror->bGlassPainted = false;
+		}
+	}
 }
 
 void AApexCockpitRig::SetEyeLocal(const FVector& InEyeLocal)
@@ -365,8 +508,8 @@ void AApexCockpitRig::PlaceParts()
 	// glass shows the flank of the car and the lane beside it. Pitch is a
 	// touch down: the interesting things behind are on the road.
 	PlaceMirror(Centre, Layout.MirrorCentre, Layout.CentreMirrorSizeCm, FRotator(-2.0f, 180.0f, 0.0f));
-	PlaceMirror(Left, Layout.MirrorLeft, Layout.SideMirrorSizeCm, FRotator(-2.0f, 190.0f, 0.0f));
-	PlaceMirror(Right, Layout.MirrorRight, Layout.SideMirrorSizeCm, FRotator(-2.0f, 170.0f, 0.0f));
+	PlaceMirror(Left, Layout.MirrorLeft, Layout.LeftMirrorSizeCm, FRotator(-2.0f, 190.0f, 0.0f));
+	PlaceMirror(Right, Layout.MirrorRight, Layout.RightMirrorSizeCm, FRotator(-2.0f, 170.0f, 0.0f));
 
 	// The virtual mirror looks back from just above the roofline, behind
 	// the driver, which is the view a rear-facing camera on the car gives.
@@ -427,15 +570,25 @@ void AApexCockpitRig::ApplyVisibility()
 		Dash->SetVisibility(Layout.bRigDash);
 	}
 
-	Centre.bWanted = bInside && Features.bMirrors && Layout.bCentreMirror;
-	Left.bWanted = bInside && Features.bMirrors;
-	Right.bWanted = bInside && Features.bMirrors;
+	// A car that brings its own glass has exactly the mirrors it modelled:
+	// a face where it has none would hang in its windscreen.
+	const bool bOwnGlass = Centre.GlassIndex != INDEX_NONE || Left.GlassIndex != INDEX_NONE || Right.GlassIndex != INDEX_NONE;
+	auto Wanted = [bInside, bOwnGlass, this](const FMirror& Mirror, bool bLayoutHasIt)
+	{
+		return bInside && Features.bMirrors && (bOwnGlass ? Mirror.GlassIndex != INDEX_NONE : bLayoutHasIt);
+	};
+	Centre.bWanted = Wanted(Centre, Layout.bCentreMirror);
+	Left.bWanted = Wanted(Left, true);
+	Right.bWanted = Wanted(Right, true);
 	Virtual.bWanted = Features.bVirtualMirror && Car != nullptr;
 
+	// On the car's own glass the capture is painted there, and the face
+	// would be a second mirror in front of it.
 	for (FMirror* Mirror : { &Centre, &Left, &Right })
 	{
-		Mirror->Mount->SetVisibility(Mirror->bWanted, /*bPropagateToChildren*/ true);
+		Mirror->Mount->SetVisibility(Mirror->bWanted && Mirror->GlassIndex == INDEX_NONE, /*bPropagateToChildren*/ true);
 	}
+	PaintCarGlass();
 }
 
 void AApexCockpitRig::EnsureRenderTargets()
@@ -479,6 +632,10 @@ void AApexCockpitRig::EnsureRenderTargets()
 				Widget->SetTexture(Target);
 			}
 		}
+		if (Mirror->Glass)
+		{
+			Mirror->Glass->SetTextureParameterValue(TEXT("SlateUI"), Target);
+		}
 	}
 }
 
@@ -495,6 +652,10 @@ void AApexCockpitRig::ApplyScreenBrightness()
 	for (FMirror* Mirror : { &Centre, &Left, &Right })
 	{
 		SetFaceBrightness(Mirror->Face, Nits);
+		if (Mirror->Glass)
+		{
+			Mirror->Glass->SetVectorParameterValue(TEXT("TintColorAndOpacity"), FLinearColor(Nits, Nits, Nits, 1.0f));
+		}
 	}
 }
 
@@ -515,6 +676,14 @@ void AApexCockpitRig::Tick(float DeltaSeconds)
 
 	ApplyScreenBrightness();
 
+	// A new body under the rig (the car's mesh swapped) has new slots.
+	if (UStaticMeshComponent* Body = Car->GetMeshComponent(); Body && Body->GetStaticMesh() != GlassMesh.Get())
+	{
+		BindCarGlass();
+		ApplyVisibility();
+	}
+	PaintCarGlass();
+
 	if (WheelPivot->IsVisible())
 	{
 		UpdateWheel(DeltaSeconds);
@@ -532,7 +701,8 @@ void AApexCockpitRig::UpdateWheel(float DeltaSeconds)
 {
 	// Steering telemetry steps at the broadcast rate; the rim eases onto it
 	// the way the car eases onto its position, so the wheel never snaps.
-	const float Target = ApexCockpit::WheelRollDeg(Car->GetSteering(), Layout.WheelLockDeg);
+	const float LockDeg = DriverRimLockDeg > 0.0f ? DriverRimLockDeg : Layout.WheelLockDeg;
+	const float Target = ApexCockpit::WheelRollDeg(Car->GetSteering(), LockDeg);
 	WheelRollDeg = FMath::FInterpTo(WheelRollDeg, Target, DeltaSeconds, 14.0f);
 	WheelPivot->SetRelativeRotation(FRotator(Layout.WheelRakeDeg, 0.0f, WheelRollDeg));
 }

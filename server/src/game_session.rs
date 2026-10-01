@@ -261,6 +261,7 @@ fn fit_tyres(
         matches!(start, TyreStart::Warm),
     );
     crate::brakes::fit(state, brakes);
+    crate::hybrid::charge_full(state, config);
 }
 
 impl GameSession {
@@ -1019,6 +1020,7 @@ impl GameSession {
         fresh.auto_gearbox = state.auto_gearbox;
         fresh.abs = state.abs;
         fresh.traction_control = state.traction_control;
+        fresh.damage_level = state.damage_level;
         fresh.steering_assist = state.steering_assist;
         // The timing sheet survives the trip: the panel and the delta are
         // measured against what the driver did before going in.
@@ -1404,6 +1406,7 @@ impl GameSession {
             fresh.auto_gearbox = state.auto_gearbox;
             fresh.abs = state.abs;
             fresh.traction_control = state.traction_control;
+            fresh.damage_level = state.damage_level;
             fresh.steering_assist = self
                 .held_steering_assist
                 .remove(&state.player_id)
@@ -1679,12 +1682,43 @@ impl GameSession {
                 })
             })
             .collect();
-        controller.generate_input_in_traffic(
+        let mut input = controller.generate_input_in_traffic(
             state,
             &traffic,
             self.session.current_tick,
             self.tick_rate_hz,
-        )
+        );
+        // The hybrid: balanced, and the overtake button when chasing.
+        if car_config.hybrid.enabled {
+            input.ers_mode = Some(crate::hybrid::DEFAULT_MODE);
+            input.ers_boost = self.ai_wants_boost(state);
+        }
+        input
+    }
+
+    /// An AI in a race presses the overtake button within
+    /// [`crate::hybrid::AI_BOOST_GAP_S`] of the car ahead, from the second
+    /// lap, on the throttle.
+    fn ai_wants_boost(&self, state: &CarState) -> bool {
+        if !crate::drs::race_rules(self.session.game_mode)
+            || state.current_lap < crate::drs::DRS_RACE_FROM_LAP
+            || state.pit.driving
+        {
+            return false;
+        }
+        let total = crate::laps::track_length_m(&self.track_config);
+        if total <= 0.0 {
+            return false;
+        }
+        let field: Vec<(PlayerId, f32)> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| !s.in_garage && s.damage.is_drivable)
+            .map(|s| (s.player_id, s.track_progress))
+            .collect();
+        crate::drs::gap_ahead_s(state, &field, total)
+            .is_some_and(|g| g <= crate::hybrid::AI_BOOST_GAP_S)
     }
 
     /// Generate AI input for a player using their AI profile.
@@ -2587,6 +2621,8 @@ mod tests {
                 drs: false,
                 headlights: None,
                 flash: false,
+                ers_mode: None,
+                ers_boost: false,
             },
         );
 
@@ -3254,6 +3290,7 @@ mod tests {
             steering_assist: true,
             abs: Some(true),
             traction_control: Some(TractionControl::High),
+            damage: Some(DamageLevel::Off),
         };
 
         let mut strict = create_test_session();
@@ -3268,6 +3305,7 @@ mod tests {
             "a client that never sends its aids must not get the car's ABS"
         );
         assert_eq!(seated.traction_control, Some(TractionControl::Off));
+        assert_eq!(seated.damage, Some(DamageLevel::Full));
 
         let applied = strict.set_driver_aids(&player, everything).unwrap();
         assert_eq!(
@@ -3277,6 +3315,7 @@ mod tests {
                 steering_assist: false,
                 abs: Some(false),
                 traction_control: Some(TractionControl::Off),
+                damage: Some(DamageLevel::Full),
             }
         );
         assert_eq!(strict.session.participants[&player].driver_aids(), applied);
@@ -3306,6 +3345,7 @@ mod tests {
         let applied = no_tc.set_driver_aids(&player, everything).unwrap();
         assert_eq!(applied.traction_control, Some(TractionControl::Off));
         assert_eq!(applied.abs, Some(true));
+        assert_eq!(applied.damage, Some(DamageLevel::Off));
         assert!(applied.auto_gearbox && applied.steering_assist);
         assert_eq!(no_tc.set_driver_aids(&Uuid::new_v4(), everything), None);
     }

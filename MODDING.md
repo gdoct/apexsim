@@ -116,7 +116,15 @@ conventions the generators follow:
 - `[physics]`, `[engine]` (with its torque curve), `[transmission]`,
   `[drivetrain]`, `[differential]`, `[fuel]` and optionally `[hybrid]` are what
   the server simulates. Values are range-checked at load, and a car that fails
-  validation is logged and skipped.
+  validation is logged and skipped. `[hybrid]` has three optional keys for how
+  the driver may use the motor (the driver picks Harvest / Balanced / Attack
+  and has an overtake button; `server/src/hybrid.rs`):
+
+  ```toml
+  deploy_kj_per_lap = 4000.0    # energy the motor may deploy per lap, kJ (default: no limit)
+  deploy_min_speed_kph = 190.0  # the motor drives only above this speed (default 0)
+  heat_recovery_kw = 30.0       # a turbo generator charging at full throttle (default 0)
+  ```
 - Optional, for a car that needs more than one grip figure (an Assetto Corsa
   import writes them; the shipped cars set only the tyre window, and every
   other key's default is how the sim behaved before it existed). `[tires]` and `[engine.turbo]`

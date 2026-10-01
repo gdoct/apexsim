@@ -1,6 +1,7 @@
 #include "Race/ApexRaceDirector.h"
 
 #include "ApexMenuFlowSubsystem.h"
+#include "ApexErs.h"
 #include "ApexNetSubsystem.h"
 #include "ApexPlayerController.h"
 #include "ApexSettingsSubsystem.h"
@@ -31,6 +32,7 @@
 #include "Audio/ApexRoadSound.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Input/ApexForceFeedback.h"
+#include "Input/ApexInputConfig.h"
 #include "Race/ApexCarLivery.h"
 #include "Race/ApexCockpitRig.h"
 #include "Race/ApexGhostCarActor.h"
@@ -738,6 +740,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		{
 			bLocalInGarage = Car.bInGarage;
 			bLocalHeadlights = Car.bHeadlights;
+			LocalErsMode = Car.ErsMode;
 			LocalLap = Car.CurrentLap;
 			LocalLapTimeMs = Car.CurrentLapTimeMs;
 		}
@@ -1027,8 +1030,31 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	{
 		UpdateGhost(DeltaSeconds);
 	}
+	UpdateSteeringLock();
 	PollViewInput();
 	PollDrivingInput();
+}
+
+void AApexRaceDirector::UpdateSteeringLock()
+{
+	UApexSettingsSubsystem* Settings = GetSettings();
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Settings)
+	{
+		return;
+	}
+	// The car the player drives, whichever car the camera is on.
+	AApexRaceCarActor* Local = Net ? FindCar(Net->GetLocalCarIndex()) : nullptr;
+	Settings->SetCarSteeringLock(Local ? 2.0f * Local->GetCockpitLayout().WheelLockDeg : 0.0f);
+
+	if (!Rig)
+	{
+		return;
+	}
+	float Axis = 0.0f;
+	const UApexSettingsSave* Values = Settings->Get();
+	const bool bWheel = Values && ApexInput::ReadWheelSteering(Values->Bindings, Axis);
+	Rig->SetDriverRimLockDeg(bWheel && Local && Local == FollowedCar ? 0.5f * Settings->GetWheelSteeringLockDeg() : 0.0f);
 }
 
 // --- Ghost and replay --------------------------------------------------------------
@@ -1757,6 +1783,24 @@ void AApexRaceDirector::PollDrivingInput()
 	Input.Headlights = HeadlightSwitch;
 	Input.bFlash = PlayerController->IsFlashingLights();
 
+	// The hybrid: each press of the ERS key steps the mode on from what
+	// the car is in; the overtake button as held. A car with no hybrid
+	// ignores both, so the key does nothing there.
+	const int32 ErsSteps = PlayerController->ConsumeErsModeSteps();
+	if (ErsSteps > 0 && LocalErsMode >= 0)
+	{
+		int32 Mode = ErsModeSwitch >= 0 ? ErsModeSwitch : LocalErsMode;
+		for (int32 Step = 0; Step < ErsSteps; ++Step)
+		{
+			Mode = ApexErs::NextMode(Mode);
+		}
+		ErsModeSwitch = Mode;
+		UE_LOG(LogApexSim, Log, TEXT("ERS mode %s"), *ApexErs::Name(Mode));
+		ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	}
+	Input.ErsMode = ErsModeSwitch;
+	Input.bErsBoost = Drive.bErsBoost;
+
 	Net->SetPlayerInput(Input);
 }
 
@@ -2081,6 +2125,8 @@ void AApexRaceDirector::BeginRaceView()
 	BleepCarIndex = -1;
 	HeadlightSwitch = -1;
 	bLocalHeadlights = false;
+	ErsModeSwitch = -1;
+	LocalErsMode = -1;
 
 	LoadTrackLevel();
 	ApplyRaceEnvironment();

@@ -41,10 +41,19 @@ KIT_COLOURS = {
     "concrete": [0.55, 0.55, 0.55, 1.0],
 }
 
+#: Overlays, matched on the mesh name and a see-through material's name:
+#: Spa's rubber grooves are meshes called `Plane023` and `Loft286` wearing
+#: a `groove3` material. They are painted to darken AC's own asphalt, and
+#: laid over the kit's they drew a hard-edged dark sheet across the road.
 _SKIP_NAME = re.compile(r"(GROOVE|SKIDMARK|KSLAYER)", re.IGNORECASE)
+_KERB_HINTS = ("KERB", "CURB", "CORDOL")
 _GRASS_HINTS = ("GRASS", "ERBA", "TERRAIN", "TERREN", "GROUND", "HILL", "COLLINA", "FIELD", "PRATO", "LAND")
-_SAND_HINTS = ("SAND", "SABBIA", "DUNE", "DIRT", "TERRA")
+_SAND_HINTS = ("SAND", "SABBIA", "DUNE")
+#: Earth: sand, but only once grass has had its turn, since `TERRAIN` holds
+#: `TERRA`.
+_DIRT_HINTS = ("DIRT", "TERRA")
 _GRAVEL_HINTS = ("GRAVEL", "GHIAIA", "GRVL")
+_ROAD_HINTS = ("ASPH", "ASFALT", "TARMAC", "ROAD", "STRADA")
 _GLASS_HINTS = ("GLASS", "VETRO", "WINDOW", "FINESTR")
 _PERF_TRAP_TRIS = 150_000
 
@@ -140,6 +149,18 @@ def _blend_for(material: Kn5Material) -> str:
     return "opaque"
 
 
+def _invisible(material: Kn5Material) -> bool:
+    """A material AC draws fully transparent: its `alpha` property at zero.
+    Mods hide physics meshes they leave renderable this way; Monza 2022's
+    216 (`01WALL`..., the road and run-off) wear `physics`, `ksPerPixelAlpha`
+    with `alpha = 0` on a flat normal map, and drawn they painted every
+    wall and run-off in the normal map's lavender."""
+    try:
+        return float(material.props.get("alpha", 1.0)) <= 0.01
+    except (TypeError, ValueError):
+        return False
+
+
 def _roughness_for(material: Kn5Material) -> float:
     exp = float(material.props.get("ksSpecularEXP", 40.0) or 40.0)
     return float(np.clip(1.0 - 0.22 * np.log10(max(exp, 1.0) + 1.0), 0.35, 0.95))
@@ -154,20 +175,36 @@ def _kit_key(kind: str) -> tuple[str, str, str | None]:
     return f"ac_{kind}", "surface", kind
 
 
+def _is_kerb(names: str) -> bool:
+    """Kerbs keep AC's texture whatever lies under them: the stripes are in
+    it. Spa's `CURB_B` stands on road physics in places and was drawn as
+    kit asphalt there and as grass where nothing was under it."""
+    text = names.upper()
+    return any(h in text for h in _KERB_HINTS)
+
+
 def _hint_kit(names: str, shader: str) -> str | None:
+    """A kit surface from the names, then the shader, for a mesh with no
+    physics under it. The names come first: Spa's terrain is
+    `grass-ext-shad` on `grass-ext.dds` with Kunos' *tarmac* shader, and
+    shader-first painted the whole valley as asphalt."""
     # A terrazzo is a terrace, not terra.
     text = names.upper().replace("TERRAZZ", "")
     if any(h in text for h in _GRAVEL_HINTS):
         return "gravel"
     if any(h in text for h in _SAND_HINTS):
         return "sand"
+    if any(h in text for h in _GRASS_HINTS):
+        return "grass"
+    if any(h in text for h in _DIRT_HINTS):
+        return "sand"
+    if any(h in text for h in _ROAD_HINTS):
+        return "road"
     # `ksMultilayer_objsp` is an object shader (railings, towers, stands)
     # and `ksMultilayer_fresnel*` is Kunos' tarmac: only the plain
     # multilayer family is terrain.
     if shader.startswith("ksMultilayer") and "objsp" not in shader:
         return "road" if "fresnel" in shader else "grass"
-    if any(h in text for h in _GRASS_HINTS):
-        return "grass"
     return None
 
 
@@ -326,12 +363,18 @@ def collect_scene(kn5s: list[Kn5File], world: PhysicsWorld, frame: Frame, textur
             if name_u.startswith("AC_"):
                 report.dropped_logic += 1
                 continue
-            if _SKIP_NAME.search(mesh.name):
-                report.dropped_overlay += 1
-                continue
             if mesh.triangle_count == 0:
                 continue
             material = kn.materials[mesh.material]
+            if _invisible(material):
+                report.dropped_hidden += 1
+                continue
+            # By material only when it is see-through: an opaque asphalt a
+            # mod called `groove` is the road itself.
+            if _SKIP_NAME.search(mesh.name) or (_SKIP_NAME.search(material.name)
+                                                and _blend_for(material) != "opaque"):
+                report.dropped_overlay += 1
+                continue
             positions = frame.ac_points(mesh.world_positions())
             if not np.isfinite(positions).all():
                 report.warnings.append(f"mesh {mesh.name!r} has non-finite vertices; left out")
@@ -347,7 +390,9 @@ def collect_scene(kn5s: list[Kn5File], world: PhysicsWorld, frame: Frame, textur
         blend = _blend_for(material)
         under, under_key = by_material.get((kn.path.name, material.name)) or _verdict(votes, world)
         kit: str | None = None
-        if textures_mode == "kit" and blend == "opaque" and _lies_flat(positions, mesh.triangles):
+        names = f"{mesh.name} {material.name} {material.texture('txDiffuse') or ''}"
+        if textures_mode == "kit" and blend == "opaque" and not _is_kerb(names) \
+                and _lies_flat(positions, mesh.triangles):
             if under in (CONTACT_ROAD,):
                 kit = "road"
             elif under == CONTACT_PIT_LANE:
@@ -355,8 +400,7 @@ def collect_scene(kn5s: list[Kn5File], world: PhysicsWorld, frame: Frame, textur
             elif under in (CONTACT_RUNOFF, CONTACT_OFF):
                 kit = ground_set_for(under_key or "", under)
             elif under is None:
-                kit = _hint_kit(f"{mesh.name} {material.name} {material.texture('txDiffuse') or ''}",
-                                material.shader)
+                kit = _hint_kit(names, material.shader)
         if mesh.triangle_count > _PERF_TRAP_TRIS or material.shader == "ksGrass":
             report.warnings.append(
                 f"mesh {mesh.name!r} ({mesh.triangle_count} triangles, {material.shader}) is a performance trap")

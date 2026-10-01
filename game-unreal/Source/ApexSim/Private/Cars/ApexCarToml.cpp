@@ -33,8 +33,8 @@ namespace
 		return Value;
 	}
 
-	/** `[1, 2, 3]` -> three numbers; false unless it is exactly that. */
-	bool TomlTriple(const FString& Value, double Out[3])
+	/** `[1, 2, ...]` -> `Count` numbers; false unless it is exactly that many. */
+	bool TomlNumbers(const FString& Value, double* Out, int32 Count)
 	{
 		FString Inner = Value;
 		Inner.TrimStartAndEndInline();
@@ -45,14 +45,32 @@ namespace
 		Inner.MidInline(1, Inner.Len() - 2);
 		TArray<FString> Parts;
 		Inner.ParseIntoArray(Parts, TEXT(","), true);
-		if (Parts.Num() != 3)
+		if (Parts.Num() != Count)
 		{
 			return false;
 		}
-		for (int32 i = 0; i < 3; ++i)
+		for (int32 i = 0; i < Count; ++i)
 		{
 			Out[i] = FCString::Atod(*Parts[i].TrimStartAndEnd());
 		}
+		return true;
+	}
+
+	/** `[1, 2, 3]` -> three numbers; false unless it is exactly that. */
+	bool TomlTriple(const FString& Value, double Out[3])
+	{
+		return TomlNumbers(Value, Out, 3);
+	}
+
+	/** `[1, 2]` -> a pair; false unless it is exactly two numbers. */
+	bool TomlPair(const FString& Value, FVector2D& Out)
+	{
+		double V[2];
+		if (!TomlNumbers(Value, V, 2))
+		{
+			return false;
+		}
+		Out = FVector2D(V[0], V[1]);
 		return true;
 	}
 
@@ -363,6 +381,9 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			else if (Key == TEXT("mirror_centre_cm")) { TomlVector(Value, C.MirrorCentre); }
 			else if (Key == TEXT("mirror_left_cm")) { TomlVector(Value, C.MirrorLeft); }
 			else if (Key == TEXT("mirror_right_cm")) { TomlVector(Value, C.MirrorRight); }
+			else if (Key == TEXT("mirror_centre_size_cm")) { TomlPair(Value, C.MirrorCentreSizeCm); }
+			else if (Key == TEXT("mirror_left_size_cm")) { TomlPair(Value, C.MirrorLeftSizeCm); }
+			else if (Key == TEXT("mirror_right_size_cm")) { TomlPair(Value, C.MirrorRightSizeCm); }
 			else if (Key == TEXT("wheel_rake_deg")) { C.WheelRakeDeg = FCString::Atof(*Value); }
 			else if (Key == TEXT("wheel_lock_deg")) { C.WheelLockDeg = FCString::Atof(*Value); }
 			else if (Key == TEXT("steering_wheel_model")) { Out.SteeringWheelModel = Value; }

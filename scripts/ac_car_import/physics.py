@@ -486,6 +486,104 @@ def wheel_spring_rate(susp: dict, axle: str) -> tuple[float | None, str]:
 
 # --- the mapping ----------------------------------------------------------
 
+
+# ---- suspension geometry (server geometry.rs)
+
+def _point(sections: dict, section: str, key: str):
+    """A suspensions.ini point `x, y, z` (x toward the car, y up, z forward,
+    from the wheel's hub), or None."""
+    return vector(sections.get(section, {}).get(key), 3)
+
+
+def _circle_meet(c1, r1, c2, r2, near):
+    """Of the two points at `r1` from `c1` and `r2` from `c2` (2D), the one
+    nearer `near`; None if the circles miss."""
+    dx, dy = c2[0] - c1[0], c2[1] - c1[1]
+    d = math.hypot(dx, dy)
+    if d < 1e-9 or d > r1 + r2 or d < abs(r1 - r2):
+        return None
+    a = (r1 * r1 - r2 * r2 + d * d) / (2 * d)
+    h = math.sqrt(max(r1 * r1 - a * a, 0.0))
+    mx, my = c1[0] + a * dx / d, c1[1] + a * dy / d
+    candidates = [(mx + h * dy / d, my - h * dx / d), (mx - h * dy / d, my + h * dx / d)]
+    return min(candidates, key=lambda q: math.hypot(q[0] - near[0], q[1] - near[1]))
+
+
+#: Wheel travel the camber gain is measured over, m.
+GAIN_PROBE_M = 0.005
+
+
+def camber_gain(sections: dict, axle: str, track_m: float):
+    """How much of the body's roll the linkage gives back as camber, 0..1,
+    from the front view of the suspension: the wheel lifted 5 mm in bump,
+    the upright's lean change per metre of travel times half the track is
+    the share of a roll angle it recovers. None when the points are not
+    there or it is neither a double wishbone nor a strut."""
+    kind = str(sections.get(axle, {}).get("TYPE", "")).split(";")[0].strip().upper()
+    bottom_f = _point(sections, axle, "WBCAR_BOTTOM_FRONT")
+    bottom_r = _point(sections, axle, "WBCAR_BOTTOM_REAR")
+    ball = _point(sections, axle, "WBTYRE_BOTTOM")
+    if not (bottom_f and bottom_r and ball):
+        return None
+    # Front view: across (x, toward the car) and up (y).
+    lower = ((bottom_f[0] + bottom_r[0]) / 2, (bottom_f[1] + bottom_r[1]) / 2)
+    b = (ball[0], ball[1])
+    r_lower = math.hypot(b[0] - lower[0], b[1] - lower[1])
+    if r_lower < 1e-6:
+        return None
+    # The lower ball joint lifted GAIN_PROBE_M on its arc.
+    sin_new = (b[1] + GAIN_PROBE_M - lower[1]) / r_lower
+    if abs(sin_new) > 1:
+        return None
+    ang = math.atan2(b[1] - lower[1], b[0] - lower[0])
+    cands = [math.asin(sin_new), math.pi - math.asin(sin_new)]
+    new_ang = min(cands, key=lambda a: abs(math.atan2(math.sin(a - ang), math.cos(a - ang))))
+    b2 = (lower[0] + r_lower * math.cos(new_ang), lower[1] + r_lower * math.sin(new_ang))
+    lean = lambda top, bot: math.atan2(top[0] - bot[0], top[1] - bot[1])
+    if kind == "DWB":
+        top_f = _point(sections, axle, "WBCAR_TOP_FRONT")
+        top_r = _point(sections, axle, "WBCAR_TOP_REAR")
+        top = _point(sections, axle, "WBTYRE_TOP")
+        if not (top_f and top_r and top):
+            return None
+        upper = ((top_f[0] + top_r[0]) / 2, (top_f[1] + top_r[1]) / 2)
+        t = (top[0], top[1])
+        t2 = _circle_meet(upper, math.hypot(t[0] - upper[0], t[1] - upper[1]),
+                          b2, math.hypot(t[0] - b[0], t[1] - b[1]), t)
+        if t2 is None:
+            return None
+        change = lean(t2, b2) - lean(t, b)
+    elif kind == "STRUT":
+        mount = _point(sections, axle, "STRUT_CAR")
+        if not mount:
+            return None
+        c = (mount[0], mount[1])
+        change = lean(c, b2) - lean(c, b)
+    else:
+        return None
+    # x points at the car: the top leaning further in is negative camber
+    # gained in bump.
+    return min(max(change / GAIN_PROBE_M * track_m / 2, 0.0), 1.0)
+
+
+def toe_in_deg(sections: dict, axle: str):
+    """AC's TOE_OUT (the steering arm's length change, m) as degrees of
+    toe-in per wheel, over the arm from the kingpin to the tie rod."""
+    toe_out = _opt(sections, axle, "TOE_OUT")
+    steer = _point(sections, axle, "WBTYRE_STEER")
+    low = _point(sections, axle, "WBTYRE_BOTTOM")
+    high = _point(sections, axle, "WBTYRE_TOP") or _point(sections, axle, "STRUT_CAR")
+    if toe_out is None or not (steer and low and high):
+        return None
+    # The kingpin's fore-aft position at the tie rod's height.
+    span = high[1] - low[1]
+    k = (steer[1] - low[1]) / span if abs(span) > 1e-6 else 0.0
+    kingpin_z = low[2] + k * (high[2] - low[2])
+    arm = abs(steer[2] - kingpin_z)
+    if arm < 0.02:
+        return None
+    return -math.degrees(math.atan(toe_out / arm))
+
 def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[float, float, float] | None = None,
                 car_class: str | None = None) -> Physics:
     """Every car.toml figure the server reads. `bounds_m` is the body
@@ -839,17 +937,35 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
             regen_p = motor_p
             if coast_lut is not None and coast_lut.x.size:
                 regen_p = max(abs(r * tq) * 2 * math.pi / 60 for r, tq in coast_lut.points) / 1000.0
-            kj = number(k.get("MAX_KJ_PER_LAP"), 2000.0)
             h = "hybrid"
+            # DISCHARGE_TIME is how long the store lasts deploying flat out,
+            # so the store is the motor's power over that time; MAX_KJ_PER_LAP
+            # is what may be deployed per lap (a regulation, not the store).
+            discharge_s = number(k.get("DISCHARGE_TIME"), 0.0) / 1000.0
+            kj = number(k.get("MAX_KJ_PER_LAP"), 0.0)
+            store_kj = motor_p * discharge_s if discharge_s > 0.0 else (kj if 0.0 < kj < 1.0e5 else 4000.0)
             out.put(h, "enabled", True, "ers.ini [KINETIC]")
-            out.put(h, "battery_capacity_kwh", round(kj / 3600.0, 3), "ers.ini MAX_KJ_PER_LAP (a lap's deployment, as the store)")
+            out.put(h, "battery_capacity_kwh", round(store_kj / 3600.0, 3),
+                    "ers.ini DISCHARGE_TIME x the motor's peak power" if discharge_s > 0.0
+                    else "ers.ini MAX_KJ_PER_LAP (no DISCHARGE_TIME)")
             out.put(h, "battery_max_discharge_kw", round(motor_p, 1), "the motor's peak power")
             out.put(h, "battery_max_charge_kw", round(regen_p, 1), "ers.ini COAST_CURVE peak power")
             out.put(h, "motor_max_torque_nm", round(motor_t, 1), "ers.ini TORQUE_CURVE peak")
             out.put(h, "motor_max_power_kw", round(motor_p, 1), "ers.ini TORQUE_CURVE peak power")
             out.put(h, "regen_max_power_kw", round(regen_p, 1), "ers.ini COAST_CURVE peak power")
-            out.warnings.append("ERS deployment strategies (ctrl_ers_*.ini) are not modelled: the motor deploys "
-                                "whenever the hybrid model allows")
+            # Road cars file an absurd budget (the P1's 10 000 000 kJ): no limit.
+            if 0.0 < kj < 1.0e5:
+                out.put(h, "deploy_kj_per_lap", round(kj, 1), "ers.ini MAX_KJ_PER_LAP")
+            heat = ers.get("HEAT", {})
+            heat_perc = number(heat.get("TORQUE_PERC"), 0.0)
+            if heat_perc > 0.0:
+                out.put(h, "heat_recovery_kw", round(motor_p * heat_perc / 100.0, 1),
+                        "ers.ini [HEAT] TORQUE_PERC x the motor's peak power (the MGU-H feeding the motor)")
+            out.warnings.append("ERS delivery profiles (ctrl_ers_*.ini) are not carried: the car gets the "
+                                "sim's Harvest / Balanced / Attack modes and the overtake button")
+            if "FRONT_MOTORS" in ers:
+                out.warnings.append("ers.ini [FRONT_MOTORS] (a front-axle motor) is not modelled: the rear "
+                                    "motor alone")
 
     if "kers.ini" in car.files and "KINETIC" not in ers:
         out.warnings.append("kers.ini (AC's older KERS) is not modelled: the engine alone")
@@ -874,6 +990,34 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
         arb = _opt(susp, "ARB", axle)
         if arb is not None:
             out.put(s, f"anti_roll_bar_{key}", round(arb, 1), f"suspensions.ini [ARB] {axle}")
+    # Geometry: static camber, the linkage's camber gain, toe and bump stops.
+    for axle, key in (("FRONT", "front"), ("REAR", "rear")):
+        camber = _opt(susp, axle, "STATIC_CAMBER")
+        if camber is not None:
+            out.put(s, f"camber_{key}_deg", round(camber, 2), f"suspensions.ini [{axle}] STATIC_CAMBER")
+        track = _opt(susp, axle, "TRACK") or 1.6
+        gain = camber_gain(susp, axle, track)
+        if gain is not None:
+            out.put(s, f"camber_gain_{key}", round(gain, 3),
+                    f"suspensions.ini [{axle}] points: camber per metre of bump x half the track")
+        elif camber is not None:
+            out.warnings.append(f"suspensions.ini [{axle}]: no double-wishbone or strut points, the sim's "
+                                "default camber gain (0.5)")
+        toe = toe_in_deg(susp, axle)
+        if toe is not None:
+            out.put(s, f"toe_{key}_deg", round(toe, 3),
+                    f"suspensions.ini [{axle}] TOE_OUT over the steering arm (positive toe-in)")
+    rates = [_opt(susp, a, "BUMP_STOP_RATE") for a in ("FRONT", "REAR")]
+    gaps = []
+    for a in ("FRONT", "REAR"):
+        cands = [v for v in (_opt(susp, a, "BUMPSTOP_UP"), _opt(susp, a, "PACKER_RANGE")) if v and v > 0]
+        if cands:
+            gaps.append(min(cands))
+    if gaps and all(rates):
+        out.put(s, "bump_stop_gap_m", round(min(gaps), 4),
+                "suspensions.ini BUMPSTOP_UP / PACKER_RANGE, the nearer (one gap for the car)")
+        out.put(s, "bump_stop_rate_n_per_m", round(min(max(sum(rates) / 2, 0.0), 2.0e6), 1),
+                "suspensions.ini BUMP_STOP_RATE, both axles averaged")
 
     out.fit["reference_speed_mps"] = REFERENCE_SPEED_MPS
     out.fit["cog_height_m"] = round(cog, 4)

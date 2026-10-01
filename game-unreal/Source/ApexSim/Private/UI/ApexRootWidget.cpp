@@ -1179,7 +1179,7 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: creating '%s' on '%s' with %d AI over %d lap(s)"),
 		*Car.Name, *Track.Name, AutoRaceAiCount, AutoRaceLaps);
 
-	// -ApexLockAssists=abs,tc,gearbox,steering,line forbids those assists in
+	// -ApexLockAssists=abs,tc,gearbox,steering,line,damage forbids those assists in
 	// the session, the way the create screen's chips would, so a screenshot
 	// run can look at the Assists tab with its locks on.
 	FApexAllowedAssists Allowed;
@@ -1196,9 +1196,10 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 			else if (Key == TEXT("gearbox"))  { Allowed.bAutoGearbox = false; }
 			else if (Key == TEXT("steering")) { Allowed.bSteeringAssist = false; }
 			else if (Key == TEXT("line"))     { Allowed.bRacingLine = false; }
+			else if (Key == TEXT("damage"))   { Allowed.bDamage = false; }
 			else
 			{
-				UE_LOG(LogApexSim, Warning, TEXT("-ApexLockAssists: unknown assist '%s' (abs, tc, gearbox, steering, line)"), *Lock);
+				UE_LOG(LogApexSim, Warning, TEXT("-ApexLockAssists: unknown assist '%s' (abs, tc, gearbox, steering, line, damage)"), *Lock);
 			}
 		}
 	}
@@ -1294,7 +1295,8 @@ void UApexRootWidget::SendDriverAids()
 		Values->bAutoGearbox,
 		Values->bSteeringAssist && !bAidsSentForWheel,
 		Values->bAbs,
-		static_cast<EApexTractionControl>(Values->TractionControl));
+		static_cast<EApexTractionControl>(Values->TractionControl),
+		Values->Damage);
 }
 
 void UApexRootWidget::SendCarSetup()

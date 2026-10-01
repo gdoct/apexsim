@@ -97,6 +97,16 @@ public:
 		BuildParams.bBuildSimpleCollision = !bTrackSurface;
 		BuildParams.bCommitMeshDescription = false;
 		BuildParams.bMarkPackageDirty = false;
+		// Full-precision UVs: the fast build stores half floats otherwise,
+		// and an imported circuit's kit surfaces (and the generated far
+		// ground) carry world metres in them, kilometres from the origin,
+		// where a half float steps a metre or more: a whole texture tile.
+		if (bTrackSurface)
+		{
+			UStaticMesh::FBuildMeshDescriptionsLODParams LodParams;
+			LodParams.bUseFullPrecisionUVs = true;
+			BuildParams.PerLODOverrides.Add(LodParams);
+		}
 		if (!Mesh->BuildFromMeshDescriptions({&Description}, BuildParams))
 		{
 			return nullptr;

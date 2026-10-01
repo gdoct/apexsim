@@ -30,6 +30,9 @@ LATERAL_STEP_M = 0.25
 #: The AI line rides this much above AC's physics road on the Kunos circuits.
 AI_HEIGHT_FALLBACK_M = 0.3
 SANE_SIDE_M = (0.5, 60.0)
+#: Smoothing of the road middle's offset from the AI line, in metres of lap.
+OFFSET_MEDIAN_M = 9
+OFFSET_SIGMA_M = 6.0
 
 
 def track_id_for(folder: str, layout: str) -> str:
@@ -107,11 +110,13 @@ def build_spine(fl_positions_ac: np.ndarray, frame: Frame, closed: bool) -> Spin
     x = interp(p[:, 0])
     y = interp(p[:, 1])
     z = interp(p[:, 2])
+    # Station 0 is the foot of the origin on the line, which is not the
+    # origin: that is the middle of the timing gate, and Spa's gate is
+    # 5.4 m off its AI line. Pinning the first point to the origin put a
+    # 5 m-radius kink in the raceline at the seam, the speed profile
+    # braked for it, and every braking point after it was planned for
+    # the wrong entry speed. The grid is measured from the measured node 0.
     positions = np.column_stack([x, y, z])
-    # Re-seat the sampled points exactly on the origin at station 0: the
-    # frame put the origin on the line, so this only removes interpolation
-    # residue, and node 0 is what the grid offsets are measured from.
-    positions[0, :2] = 0.0
     nxt = np.roll(positions, -1, axis=0)
     prv = np.roll(positions, 1, axis=0)
     if not closed:
@@ -178,6 +183,8 @@ def measure(spine: Spine, world: PhysicsWorld, ai_side_left: np.ndarray, ai_side
                & (ai_side_right > SANE_SIDE_M[0]) & (ai_side_right < SANE_SIDE_M[1]))
     fallback_used = 0
     last_wl, last_wr = 5.0, 5.0
+    edge_left = np.zeros(m)
+    edge_right = np.zeros(m)
     for i in range(m):
         row = is_road[i]
         seed = zero if row[zero] else _nearest_true(row, zero, int(4.0 / LATERAL_STEP_M))
@@ -205,7 +212,7 @@ def measure(spine: Spine, world: PhysicsWorld, ai_side_left: np.ndarray, ai_side
             if lo == 0:
                 d_right = max(d_right, -wr_ai)
         c = (d_left + d_right) / 2.0
-        centre[i, :2] = spine.positions[i, :2] + c * spine.lefts[i]
+        edge_left[i], edge_right[i] = d_left, d_right
         width_left[i] = d_left - c
         width_right[i] = c - d_right
         from_mesh[i] = True
@@ -216,6 +223,17 @@ def measure(spine: Spine, world: PhysicsWorld, ai_side_left: np.ndarray, ai_side
     if fallback_used:
         warnings.append(f"{fallback_used} of {m} cross-sections found no road under the AI line; "
                         "the AI file's side distances were used there")
+
+    # The middle of each section is quantised to the lateral step and follows
+    # every notch in the mesh's road edge: at Spa it zig-zagged 0.3 m node to
+    # node, a 100 m radius on every straight. The offset from the (smooth)
+    # AI line is smoothed along the lap instead; the edges stay where they
+    # were measured.
+    offset = np.where(from_mesh, (edge_left + edge_right) / 2.0, 0.0)
+    offset = _smooth_along(offset, spine.closed)
+    centre[:, :2] = spine.positions[:, :2] + offset[:, None] * spine.lefts
+    width_left = np.where(from_mesh, np.maximum(edge_left - offset, 0.5), width_left)
+    width_right = np.where(from_mesh, np.maximum(offset - edge_right, 0.5), width_right)
 
     # Height and banking at the node: the mesh under the node and at both edges.
     ceiling_n = centre[:, 2] + 1.5
@@ -237,6 +255,24 @@ def measure(spine: Spine, world: PhysicsWorld, ai_side_left: np.ndarray, ai_side
                     curb_left=curb_left, curb_right=curb_right, runoff_left=runoff_left,
                     runoff_right=runoff_right, from_mesh=from_mesh, spine_contact=spine_contact,
                     laterals=laterals, section_contact=contact, section_z=z)
+
+
+def _smooth_along(values: np.ndarray, closed: bool) -> np.ndarray:
+    """A running median over `OFFSET_MEDIAN_M` (a section that caught a
+    paddock is one sample, not a bump) then a Gaussian of `OFFSET_SIGMA_M`,
+    wrapping round a closed lap. The samples are a metre apart."""
+    n = values.shape[0]
+    half = OFFSET_MEDIAN_M // 2
+    pad = int(4 * OFFSET_SIGMA_M) + half
+    if n <= 2 * pad:
+        return values.copy()
+    padded = np.concatenate([values[-pad:], values, values[:pad]]) if closed         else np.pad(values, pad, mode="edge")
+    windows = np.lib.stride_tricks.sliding_window_view(padded, 2 * half + 1)
+    median = np.median(windows, axis=1)  # length n + 2 * (pad - half)
+    x = np.arange(-(pad - half), pad - half + 1)
+    kernel = np.exp(-0.5 * (x / OFFSET_SIGMA_M) ** 2)
+    kernel /= kernel.sum()
+    return np.convolve(median, kernel, mode="valid")
 
 
 def _nearest_true(row: np.ndarray, at: int, reach: int) -> int | None:

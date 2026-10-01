@@ -54,6 +54,21 @@ struct APEXSIM_API FApexCockpitOverrides
 	FVector MirrorRight = FVector::ZeroVector;
 
 	/**
+	 * The glass of each mirror as the driver faces it, width × height (car.toml
+	 * `mirror_*_size_cm`); zero derives it from the style. An imported car
+	 * writes it for its own glass, which the rig paints its capture onto
+	 * (the body's `car_mirror_*` slots) and sizes the capture to.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
+	FVector2D MirrorCentreSizeCm = FVector2D::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
+	FVector2D MirrorLeftSizeCm = FVector2D::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cockpit")
+	FVector2D MirrorRightSizeCm = FVector2D::ZeroVector;
+
+	/**
 	 * Pitch of the wheel plane, degrees, as FApexCockpitLayout::WheelRakeDeg
 	 * (positive tips the top of the rim toward the driver). Zero derives it
 	 * from the style; a car whose rim is truly upright writes a hair off zero.
@@ -125,7 +140,8 @@ struct APEXSIM_API FApexCockpitLayout
 	FVector MirrorRight = FVector::ZeroVector;
 	/** Glass size, width × height. */
 	FVector2D CentreMirrorSizeCm = FVector2D(26.0f, 8.0f);
-	FVector2D SideMirrorSizeCm = FVector2D(16.0f, 10.0f);
+	FVector2D LeftMirrorSizeCm = FVector2D(16.0f, 10.0f);
+	FVector2D RightMirrorSizeCm = FVector2D(16.0f, 10.0f);
 
 	/** Top of the bodywork on the centreline; the virtual mirror looks back from above it. */
 	float RoofZ = 0.0f;

@@ -233,6 +233,8 @@ impl TestClient {
             drs: None,
             headlights: None,
             flash: None,
+            ers_mode: None,
+            ers_boost: None,
         };
 
         // Send via TCP for now (UDP not fully implemented in server)
@@ -974,6 +976,7 @@ async fn test_sandbox_session_workflow() {
                 ServerMessage::SessionRoster(_)
                 | ServerMessage::RacingLine(_)
                 | ServerMessage::TrackSectors(_)
+                | ServerMessage::CarSetupSheet(_)
                 | ServerMessage::LapRecord(_)
                 | ServerMessage::LobbyState(_)
                 | ServerMessage::HeartbeatAck { .. } => continue,

@@ -124,10 +124,13 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("SetDriverAids"),
 		ApexProtocol::EncodeSetDriverAids(true, true, false, EApexTractionControl::High),
 		ApexGolden::C_SetDriverAids);
+	CheckBytes(TEXT("SetDriverAids with damage"),
+		ApexProtocol::EncodeSetDriverAids(false, false, true, EApexTractionControl::Low, EApexDamageLevel::Reduced),
+		ApexGolden::C_SetDriverAidsDamage);
 
 	{
 		FApexCarSetup Setup;
-		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2 };
+		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2, -1, 2, 1, -2 };
 		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
 		{
 			Setup.Clicks[Index] = Clicks[Index];
@@ -281,10 +284,22 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("AllowedAssists.auto_gearbox"), Message.AllowedAssists.bAutoGearbox);
 			TestTrue(TEXT("AllowedAssists.steering_assist"), Message.AllowedAssists.bSteeringAssist);
 			TestFalse(TEXT("AllowedAssists.racing_line"), Message.AllowedAssists.bRacingLine);
+			TestTrue(TEXT("AllowedAssists.damage absent is allowed"), Message.AllowedAssists.bDamage);
 			TestEqual(TEXT("AllowedAssists.CountLocked"), Message.AllowedAssists.CountLocked(), 3);
 			TestEqual(TEXT("Conditions.weather"), Message.Conditions.Weather, EApexWeather::HeavyRain);
 			TestEqual(TEXT("Conditions.time_of_day_minutes"), Message.Conditions.TimeOfDayMinutes, 6 * 60 + 15);
 			TestEqual(TEXT("Conditions.Describe"), Message.Conditions.Describe(), FString(TEXT("Heavy rain · 06:15")));
+		}
+	}
+
+	{
+		// Damage is named only when the host locks it.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with damage locked"), ApexGolden::S_SessionJoinedNoDamage, Message))
+		{
+			TestFalse(TEXT("AllowedAssists.damage"), Message.AllowedAssists.bDamage);
+			TestTrue(TEXT("AllowedAssists.abs beside it"), Message.AllowedAssists.bAbs);
+			TestEqual(TEXT("NoDamage.CountLocked"), Message.AllowedAssists.CountLocked(), 1);
 		}
 	}
 
@@ -860,3 +875,47 @@ bool FApexProtocolGhostLapTest::RunTest(const FString& Parameters)
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
+
+// -----------------------------------------------------------------------------
+// The garage's setup sheet: every knob's stock value and click in real units.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolCarSetupSheetTest,
+	"ApexSim.Net.Protocol.CarSetupSheet",
+	ApexTestFlags)
+
+bool FApexProtocolCarSetupSheetTest::RunTest(const FString& Parameters)
+{
+	FString Error;
+	FApexServerMessage Message;
+	if (!TestTrue(FString::Printf(TEXT("CarSetupSheet decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_CarSetupSheet, Message, Error)))
+	{
+		return false;
+	}
+	TestEqual(TEXT("type"), Message.Type, EApexServerMessageType::CarSetupSheet);
+	const FApexCarSetupSheet& Sheet = Message.CarSetupSheet;
+	TestEqual(TEXT("car id"), Sheet.CarConfigId, FString(TEXT("00000000-0000-0000-0000-000000000002")));
+	if (!TestEqual(TEXT("two knobs"), Sheet.Knobs.Num(), 2))
+	{
+		return false;
+	}
+	TestEqual(TEXT("stock"), Sheet.Knobs[0].Stock, 26.0f);
+	TestEqual(TEXT("step"), Sheet.Knobs[0].Step, 0.5f);
+	TestEqual(TEXT("unbounded below"), Sheet.Knobs[0].Lo, -MAX_flt);
+	TestEqual(TEXT("decimals"), Sheet.Knobs[0].Decimals, 1);
+	TestEqual(TEXT("unit"), Sheet.Knobs[0].Unit, FString(TEXT("psi")));
+	TestEqual(TEXT("floor"), Sheet.Knobs[1].Lo, 10.0f);
+	TestEqual(TEXT("mm"), Sheet.Knobs[1].Unit, FString(TEXT("mm")));
+	TestEqual(TEXT("gears"), Sheet.GearRatios.Num(), 2);
+	TestEqual(TEXT("final drive"), Sheet.FinalDrive, 3.75f);
+	TestEqual(TEXT("wheel"), Sheet.WheelRadiusM, 0.25f);
+	TestEqual(TEXT("optimum"), Sheet.TyreOptimalPsi, 27.5f);
+	TestEqual(TEXT("fuel per lap"), Sheet.LapFuelL, 2.5f);
+	TestEqual(TEXT("density"), Sheet.FuelKgPerL, 0.75f);
+	TestEqual(TEXT("fill"), Sheet.FillLaps, 3.0f);
+	TestTrue(TEXT("camber"), Sheet.bCamberModelled);
+	TestEqual(TEXT("rake balance"), Sheet.RakeBalancePerMm, 0.001f);
+	return true;
+}

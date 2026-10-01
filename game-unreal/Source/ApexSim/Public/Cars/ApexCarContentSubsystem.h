@@ -161,6 +161,13 @@ private:
  */
 namespace ApexCarContent
 {
+	/**
+	 * A car.toml's `[cockpit]` over the catalog table's row for the car:
+	 * every point, size, rake and lock the TOML leaves at zero (and an Auto
+	 * style) keeps the table's; the rig flags are the TOML's.
+	 */
+	APEXSIM_API FApexCockpitOverrides MergeCockpit(const FApexCockpitOverrides* Table, const FApexCockpitOverrides& Toml);
+
 	/** The body a row draws: its runtime model, else its cooked mesh; null for neither. */
 	APEXSIM_API UStaticMesh* LoadBody(const FApexCarCatalogRow& Row);
 

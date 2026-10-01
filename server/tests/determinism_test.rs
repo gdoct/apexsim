@@ -64,6 +64,8 @@ fn scripted_input(tick: u32, player_index: u32) -> PlayerInputData {
         drs: false,
         headlights: None,
         flash: false,
+        ers_mode: None,
+        ers_boost: false,
     }
 }
 

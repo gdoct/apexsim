@@ -235,6 +235,13 @@ void UApexSettingsSubsystem::SetRacingLine(EApexRacingLine Line)
 	Changed(EApexSettingsGroup::Assists);
 }
 
+void UApexSettingsSubsystem::SetDamage(EApexDamageLevel Level)
+{
+	if (!Settings || Settings->Damage == Level) { return; }
+	Settings->Damage = Level;
+	Changed(EApexSettingsGroup::Assists);
+}
+
 void UApexSettingsSubsystem::SetGhostCar(bool bOn)
 {
 	if (!Settings || Settings->bGhostCar == bOn) { return; }
@@ -750,14 +757,35 @@ void UApexSettingsSubsystem::SetWheelRotation(float Degrees)
 void UApexSettingsSubsystem::SetWheelSteeringLock(float Degrees)
 {
 	const float Clamped = FMath::Clamp(Degrees, ApexInput::SteeringLockMinDeg, ApexInput::SteeringLockMaxDeg);
-	if (!Settings || FMath::IsNearlyEqual(Settings->WheelSteeringLockDeg, Clamped)) { return; }
+	if (!Settings || (!Settings->bWheelSteeringLockAuto && FMath::IsNearlyEqual(Settings->WheelSteeringLockDeg, Clamped))) { return; }
 	Settings->WheelSteeringLockDeg = Clamped;
+	Settings->bWheelSteeringLockAuto = false;
 	Changed(EApexSettingsGroup::Wheel);
+}
+
+void UApexSettingsSubsystem::SetWheelSteeringLockAuto(bool bAuto)
+{
+	if (!Settings || Settings->bWheelSteeringLockAuto == bAuto) { return; }
+	Settings->bWheelSteeringLockAuto = bAuto;
+	Changed(EApexSettingsGroup::Wheel);
+}
+
+float UApexSettingsSubsystem::GetWheelSteeringLockDeg() const
+{
+	if (!Settings)
+	{
+		return ApexInput::SteeringLockMinDeg;
+	}
+	const float Wanted = Settings->bWheelSteeringLockAuto && CarSteeringLockDeg > 0.0f
+		? CarSteeringLockDeg
+		: Settings->WheelSteeringLockDeg;
+	const float Rotation = FMath::Clamp(Settings->WheelRotationDeg, ApexInput::WheelRotationMinDeg, ApexInput::WheelRotationMaxDeg);
+	return Rotation / ApexInput::WheelSteeringScale(Rotation, Wanted);
 }
 
 float UApexSettingsSubsystem::GetWheelSteeringScale() const
 {
-	return Settings ? ApexInput::WheelSteeringScale(Settings->WheelRotationDeg, Settings->WheelSteeringLockDeg) : 1.0f;
+	return Settings ? ApexInput::WheelSteeringScale(Settings->WheelRotationDeg, GetWheelSteeringLockDeg()) : 1.0f;
 }
 
 void UApexSettingsSubsystem::SetWheelInvertForce(bool bInvert)
@@ -779,6 +807,119 @@ void UApexSettingsSubsystem::SetCarSetupClick(int32 Knob, int32 Clicks)
 		Settings->CarSetup.Clamp();
 	}
 	if (!Settings->CarSetup.SetClick(Knob, Clicks)) { return; }
+	Changed(EApexSettingsGroup::CarSetup);
+}
+
+void UApexSettingsSubsystem::SetCarSetup(const FApexCarSetup& Setup)
+{
+	if (!Settings) { return; }
+	FApexCarSetup Pinned = Setup;
+	Pinned.Clamp();
+	if (Settings->CarSetup == Pinned) { return; }
+	Settings->CarSetup = Pinned;
+	Changed(EApexSettingsGroup::CarSetup);
+}
+
+TArray<FApexSavedSetup> UApexSettingsSubsystem::GetSavedSetups(const FString& CarId) const
+{
+	TArray<FApexSavedSetup> Out;
+	if (Settings)
+	{
+		for (const FApexSavedSetup& Saved : Settings->SavedSetups)
+		{
+			if (Saved.CarId == CarId)
+			{
+				Out.Add(Saved);
+			}
+		}
+	}
+	return Out;
+}
+
+FGuid UApexSettingsSubsystem::SaveSetupAs(const FString& Name, const FString& CarId)
+{
+	if (!Settings) { return FGuid(); }
+	FApexSavedSetup Saved;
+	Saved.Id = FGuid::NewGuid();
+	Saved.Name = Name;
+	Saved.CarId = CarId;
+	Saved.SavedAt = FDateTime::Now();
+	Saved.Setup = Settings->CarSetup;
+	Saved.Setup.Clamp();
+	Settings->SavedSetups.Insert(Saved, 0);
+	Settings->LoadedSetupId = Saved.Id;
+	Changed(EApexSettingsGroup::CarSetup);
+	return Saved.Id;
+}
+
+void UApexSettingsSubsystem::OverwriteSavedSetup(const FGuid& Id)
+{
+	if (!Settings) { return; }
+	FApexSavedSetup* Saved = Settings->SavedSetups.FindByPredicate([&Id](const FApexSavedSetup& S) { return S.Id == Id; });
+	if (!Saved) { return; }
+	Saved->Setup = Settings->CarSetup;
+	Saved->Setup.Clamp();
+	Saved->SavedAt = FDateTime::Now();
+	// The old best was driven on different clicks.
+	Saved->BestLapMs = 0;
+	Settings->LoadedSetupId = Id;
+	Changed(EApexSettingsGroup::CarSetup);
+}
+
+void UApexSettingsSubsystem::RenameSavedSetup(const FGuid& Id, const FString& Name)
+{
+	if (!Settings || Name.IsEmpty()) { return; }
+	FApexSavedSetup* Saved = Settings->SavedSetups.FindByPredicate([&Id](const FApexSavedSetup& S) { return S.Id == Id; });
+	if (!Saved || Saved->Name == Name) { return; }
+	Saved->Name = Name;
+	Changed(EApexSettingsGroup::CarSetup);
+}
+
+void UApexSettingsSubsystem::DeleteSavedSetup(const FGuid& Id)
+{
+	if (!Settings) { return; }
+	if (Settings->SavedSetups.RemoveAll([&Id](const FApexSavedSetup& S) { return S.Id == Id; }) == 0) { return; }
+	if (Settings->LoadedSetupId == Id)
+	{
+		Settings->LoadedSetupId.Invalidate();
+	}
+	Changed(EApexSettingsGroup::CarSetup);
+}
+
+void UApexSettingsSubsystem::LoadSavedSetup(const FGuid& Id)
+{
+	if (!Settings) { return; }
+	const FApexSavedSetup* Saved = Settings->SavedSetups.FindByPredicate([&Id](const FApexSavedSetup& S) { return S.Id == Id; });
+	if (!Saved) { return; }
+	Settings->CarSetup = Saved->Setup;
+	Settings->CarSetup.Clamp();
+	Settings->LoadedSetupId = Id;
+	// Fired even when the clicks already match, so the header picks up the name.
+	Changed(EApexSettingsGroup::CarSetup);
+}
+
+FGuid UApexSettingsSubsystem::GetLoadedSetupId() const
+{
+	return Settings ? Settings->LoadedSetupId : FGuid();
+}
+
+void UApexSettingsSubsystem::ClearLoadedSetup()
+{
+	if (!Settings || !Settings->LoadedSetupId.IsValid()) { return; }
+	Settings->LoadedSetupId.Invalidate();
+	Changed(EApexSettingsGroup::CarSetup);
+}
+
+void UApexSettingsSubsystem::RecordSetupLap(const FString& CarId, int32 LapMs)
+{
+	if (!Settings || LapMs <= 0 || !Settings->LoadedSetupId.IsValid()) { return; }
+	FApexSavedSetup* Saved = Settings->SavedSetups.FindByPredicate(
+		[this](const FApexSavedSetup& S) { return S.Id == Settings->LoadedSetupId; });
+	FApexCarSetup Working = Settings->CarSetup;
+	Working.Clamp();
+	if (!Saved || Saved->CarId != CarId || Saved->Setup != Working) { return; }
+	if (Saved->BestLapMs > 0 && Saved->BestLapMs <= LapMs) { return; }
+	Saved->BestLapMs = LapMs;
 	Changed(EApexSettingsGroup::CarSetup);
 }
 
@@ -939,6 +1080,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->bAutoGearbox = Defaults->bAutoGearbox;
 		Settings->bSteeringAssist = Defaults->bSteeringAssist;
 		Settings->RacingLine = Defaults->RacingLine;
+		Settings->Damage = Defaults->Damage;
 		break;
 
 	case EApexSettingsGroup::Graphics:
@@ -986,6 +1128,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->bWheelInvertForce = Defaults->bWheelInvertForce;
 		Settings->WheelRotationDeg = Defaults->WheelRotationDeg;
 		Settings->WheelSteeringLockDeg = Defaults->WheelSteeringLockDeg;
+		Settings->bWheelSteeringLockAuto = Defaults->bWheelSteeringLockAuto;
 		ApexInput::ResetColumn(Settings->Bindings, ApexInput::EColumn::Wheel);
 		break;
 
@@ -998,7 +1141,9 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		break;
 
 	case EApexSettingsGroup::CarSetup:
+		// The working setup only: the saved ones are the player's to delete.
 		Settings->CarSetup = FApexCarSetup();
+		Settings->LoadedSetupId.Invalidate();
 		break;
 	}
 

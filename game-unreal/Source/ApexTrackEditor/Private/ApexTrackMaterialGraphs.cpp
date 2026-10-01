@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Texture.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionAbs.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "MaterialShared.h"
 #include "Materials/MaterialExpressionAppendVector.h"
@@ -145,7 +146,7 @@ namespace
 		RoughnessNoiseParam->ParameterName = TEXT("RoughnessNoise");
 		RoughnessNoiseParam->DefaultValue = 0.0f;
 
-		// Stripe mask: fmod(floor(u / period), 2) alternates 0/1 along `u`,
+		// Stripe mask: fmod(floor(|u| / period), 2) alternates 0/1 along `u`,
 		// which the bake emits as meters of station for track strips and which
 		// is plain 0..1 face UVs on the placeholder prop cubes.
 		UMaterialExpressionTextureCoordinate* TexCoord =
@@ -156,8 +157,18 @@ namespace
 		MaskU->G = 0;
 		MaskU->B = 0;
 		MaskU->A = 0;
+		// |u|, not u: at a negative `u` floor(u / 1e6) is -1, the stripe
+		// index of a surface with stripes off came out odd, and the paint
+		// was the secondary colour (or, with a plain fmod, which keeps the
+		// sign, 2 x base - secondary: black). An imported circuit's
+		// world-metre UVs are negative on half the map (AC Spa's asphalt
+		// from the start line back round Eau Rouge drew black), and so is
+		// the generated terrain's far ground. Stripes mirror about u = 0,
+		// where no generated strip reaches.
+		UMaterialExpressionAbs* AbsU = AddExpr<UMaterialExpressionAbs>(Parent);
+		AbsU->Input.Expression = MaskU;
 		UMaterialExpressionDivide* StripeU = AddExpr<UMaterialExpressionDivide>(Parent);
-		StripeU->A.Expression = MaskU;
+		StripeU->A.Expression = AbsU;
 		StripeU->B.Expression = StripeParam;
 		UMaterialExpressionFloor* StripeIndex = AddExpr<UMaterialExpressionFloor>(Parent);
 		StripeIndex->Input.Expression = StripeU;

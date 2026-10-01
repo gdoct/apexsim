@@ -389,6 +389,16 @@ pub struct HybridConfig {
     pub motor_max_torque_nm: f32,
     pub motor_max_power_kw: f32,
     pub regen_max_power_kw: f32,
+    /// Energy the motor may deploy between two crossings of the line, kJ
+    /// (`crate::hybrid`); `None` is no limit but the battery.
+    #[serde(default)]
+    pub deploy_kj_per_lap: Option<f32>,
+    /// The motor drives only above this speed, km/h (a hypercar's rule).
+    #[serde(default)]
+    pub deploy_min_speed_kph: f32,
+    /// A turbo generator charging the battery at full throttle, kW.
+    #[serde(default)]
+    pub heat_recovery_kw: f32,
 }
 
 impl Default for HybridConfig {
@@ -401,6 +411,9 @@ impl Default for HybridConfig {
             motor_max_torque_nm: 0.0,
             motor_max_power_kw: 0.0,
             regen_max_power_kw: 0.0,
+            deploy_kj_per_lap: None,
+            deploy_min_speed_kph: 0.0,
+            heat_recovery_kw: 0.0,
         }
     }
 }
@@ -416,6 +429,37 @@ pub struct SuspensionConfig {
     pub anti_roll_bar_front: f32,
     pub anti_roll_bar_rear: f32,
     pub max_travel_m: f32,
+    /// Suspension geometry (`crate::geometry`). Static camber per axle,
+    /// degrees (negative: the top of the wheel toward the car), and what
+    /// the car.toml filed, which the grip is measured against (a setup
+    /// moves the first, never the second); how much of the body's roll
+    /// the linkage gains back (0..1); and whether the car.toml gave any
+    /// camber at all (without, camber changes nothing).
+    #[serde(default)]
+    pub camber_front_deg: f32,
+    #[serde(default)]
+    pub camber_rear_deg: f32,
+    #[serde(default)]
+    pub camber_filed_front_deg: f32,
+    #[serde(default)]
+    pub camber_filed_rear_deg: f32,
+    #[serde(default)]
+    pub camber_gain_front: f32,
+    #[serde(default)]
+    pub camber_gain_rear: f32,
+    #[serde(default)]
+    pub camber_modelled: bool,
+    /// Toe per wheel, degrees, positive toe-in.
+    #[serde(default)]
+    pub toe_front_deg: f32,
+    #[serde(default)]
+    pub toe_rear_deg: f32,
+    /// The bump stop engages this far past the static laden compression,
+    /// m, at this rate, N/m; none without a gap.
+    #[serde(default)]
+    pub bump_stop_gap_m: Option<f32>,
+    #[serde(default)]
+    pub bump_stop_rate_n_per_m: f32,
 }
 
 impl Default for SuspensionConfig {
@@ -430,6 +474,17 @@ impl Default for SuspensionConfig {
             anti_roll_bar_front: 15000.0,
             anti_roll_bar_rear: 12000.0,
             max_travel_m: 0.15,
+            camber_front_deg: 0.0,
+            camber_rear_deg: 0.0,
+            camber_filed_front_deg: 0.0,
+            camber_filed_rear_deg: 0.0,
+            camber_gain_front: 0.0,
+            camber_gain_rear: 0.0,
+            camber_modelled: false,
+            toe_front_deg: 0.0,
+            toe_rear_deg: 0.0,
+            bump_stop_gap_m: None,
+            bump_stop_rate_n_per_m: 0.0,
         }
     }
 }
@@ -1260,6 +1315,11 @@ pub struct CarState {
     /// `traction_control_enabled` (as `Low`).
     #[serde(default)]
     pub traction_control: Option<TractionControl>,
+    /// How much damage this driver takes, set by
+    /// `ClientMessage::SetDriverAids`; `None` (AI drivers, older clients)
+    /// is full damage. Read through [`CarState::damage_scale`].
+    #[serde(default)]
+    pub damage_level: Option<DamageLevel>,
 
     // 3D Position
     pub pos_x: f32,
@@ -1419,6 +1479,30 @@ pub struct CarState {
     /// first tick.
     #[serde(default = "default_battery_uninitialized")]
     pub hybrid_battery_kwh: f32,
+    /// The hybrid's mode (`crate::hybrid::ErsMode` as a byte), the
+    /// overtake button, what the motor deployed this lap (kJ) and on which
+    /// lap that count started, the car's share of the lap for the pacing,
+    /// and what the motor did this tick.
+    #[serde(default = "default_ers_mode")]
+    pub ers_mode: u8,
+    #[serde(default)]
+    pub ers_boost: bool,
+    #[serde(default)]
+    pub ers_deployed_kj: f32,
+    #[serde(default)]
+    pub ers_lap_mark: u16,
+    #[serde(default)]
+    pub ers_lap_share: f32,
+    #[serde(default)]
+    pub ers_deploying: bool,
+    #[serde(default)]
+    pub ers_harvesting: bool,
+    /// What telemetry says of the hybrid, kept by `crate::hybrid`: the
+    /// charge and the lap budget left, percent, 255 for none.
+    #[serde(default = "no_hybrid_pct")]
+    pub ers_charge_pct: u8,
+    #[serde(default = "no_hybrid_pct")]
+    pub ers_budget_pct: u8,
 
     /// Turbo spool, 0..1: how much of the boost the turbo is delivering
     /// (`TurboConfig`). Stays 0 on a car without one.
@@ -1450,7 +1534,13 @@ impl CarState {
             steering_assist: self.steering_assist,
             abs: self.abs,
             traction_control: self.traction_control,
+            damage: self.damage_level,
         }
+    }
+
+    /// What every damage accrual on this car is multiplied by.
+    pub fn damage_scale(&self) -> f32 {
+        self.damage_level.unwrap_or_default().scale()
     }
 
     /// Set the aids; the automatic box starts its timers afresh.
@@ -1461,6 +1551,7 @@ impl CarState {
         self.steering_assist = aids.steering_assist;
         self.abs = aids.abs;
         self.traction_control = aids.traction_control;
+        self.damage_level = aids.damage;
     }
 
     pub fn new(player_id: PlayerId, car_config_id: CarConfigId, grid_slot: &GridSlot) -> Self {
@@ -1474,6 +1565,7 @@ impl CarState {
             steering_assist: false,
             abs: None,
             traction_control: None,
+            damage_level: None,
 
             // 3D Position
             pos_x: grid_slot.x,
@@ -1567,6 +1659,15 @@ impl CarState {
 
             wheel_angular_vel: [0.0; 4],
             hybrid_battery_kwh: default_battery_uninitialized(),
+            ers_mode: default_ers_mode(),
+            ers_boost: false,
+            ers_deployed_kj: 0.0,
+            ers_lap_mark: 0,
+            ers_lap_share: 0.0,
+            ers_deploying: false,
+            ers_harvesting: false,
+            ers_charge_pct: 255,
+            ers_budget_pct: 255,
             turbo_spool: 0.0,
 
             // Aerodynamics (will be calculated)
@@ -1579,6 +1680,14 @@ impl CarState {
             feedback: Default::default(),
         }
     }
+}
+
+fn no_hybrid_pct() -> u8 {
+    255
+}
+
+fn default_ers_mode() -> u8 {
+    crate::hybrid::DEFAULT_MODE
 }
 
 fn default_battery_uninitialized() -> f32 {
@@ -1639,6 +1748,38 @@ pub enum TractionControl {
     High = 2,
 }
 
+/// How much damage this driver's car takes, chosen per player like the
+/// aids (`ClientMessage::SetDriverAids`) and allowed or not by the host
+/// (`AllowedAssists::damage`). It scales every accrual in `crate::damage`
+/// (impacts, overheating, over-revving); what damage already done costs is
+/// the same whichever level is set. Encoded as a small integer.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
+pub enum DamageLevel {
+    /// The car takes no damage at all.
+    Off = 0,
+    /// Every hit and every overheating second does [`DamageLevel::REDUCED_SHARE`]
+    /// of what it would.
+    Reduced = 1,
+    /// Damage as the model has it.
+    #[default]
+    Full = 2,
+}
+
+impl DamageLevel {
+    /// The share of the damage a `Reduced` car takes.
+    pub const REDUCED_SHARE: f32 = 0.5;
+
+    /// What this level multiplies every damage accrual by.
+    pub fn scale(self) -> f32 {
+        match self {
+            DamageLevel::Off => 0.0,
+            DamageLevel::Reduced => Self::REDUCED_SHARE,
+            DamageLevel::Full => 1.0,
+        }
+    }
+}
+
 /// The aids a `SetDriverAids` asks for. The session's `AllowedAssists`
 /// are applied on top (`AllowedAssists::clamp`), so a player can ask for
 /// whatever their settings say and the server keeps what the host allowed.
@@ -1650,6 +1791,8 @@ pub struct DriverAids {
     pub abs: Option<bool>,
     /// `None` keeps the car's own `traction_control_enabled` (as `Low`).
     pub traction_control: Option<TractionControl>,
+    /// `None` is full damage.
+    pub damage: Option<DamageLevel>,
 }
 
 /// Which driving aids a session's host lets its drivers use, fixed when the
@@ -1671,10 +1814,19 @@ pub struct AllowedAssists {
     /// the client has nothing to draw.
     #[serde(default = "default_true")]
     pub racing_line: bool,
+    /// Whether a driver may take less than full damage
+    /// (`DamageLevel::Off` / `Reduced`). Left off the wire while allowed, so
+    /// every message from before the field keeps its bytes.
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub damage: bool,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 impl Default for AllowedAssists {
@@ -1691,6 +1843,7 @@ impl AllowedAssists {
         auto_gearbox: true,
         steering_assist: true,
         racing_line: true,
+        damage: true,
     };
 
     /// Nothing allowed but the driver.
@@ -1700,12 +1853,13 @@ impl AllowedAssists {
         auto_gearbox: false,
         steering_assist: false,
         racing_line: false,
+        damage: false,
     };
 
     /// The aids a driver may actually run here: what they asked for, less
     /// whatever the session forbids. A forbidden ABS or traction control is
     /// pinned to `Some(off)` rather than left `None`, or the car's own file
-    /// would switch it back on.
+    /// would switch it back on; forbidden damage aids pin full damage.
     pub fn clamp(&self, asked: DriverAids) -> DriverAids {
         DriverAids {
             auto_gearbox: asked.auto_gearbox && self.auto_gearbox,
@@ -1715,6 +1869,11 @@ impl AllowedAssists {
                 asked.traction_control
             } else {
                 Some(TractionControl::Off)
+            },
+            damage: if self.damage {
+                asked.damage
+            } else {
+                Some(DamageLevel::Full)
             },
         }
     }
@@ -2191,6 +2350,11 @@ pub struct PlayerInputData {
     /// The flash button is held: the lights flick to full beam whatever the
     /// switch says.
     pub flash: bool,
+    /// The hybrid's mode (`crate::hybrid::ErsMode`); `None` keeps the
+    /// car's.
+    pub ers_mode: Option<u8>,
+    /// The overtake button is held: full deployment whatever the mode.
+    pub ers_boost: bool,
 }
 
 impl PlayerInputData {
@@ -2259,6 +2423,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         input.clamp();

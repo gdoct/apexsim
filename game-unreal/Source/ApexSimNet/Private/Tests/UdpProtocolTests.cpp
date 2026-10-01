@@ -1,5 +1,6 @@
 #include "Misc/AutomationTest.h"
 
+#include "ApexErs.h"
 #include "ApexProtocolCodec.h"
 #include "ApexProtocolTypes.h"
 #include "Tests/ApexUdpGoldenBlobs.h"
@@ -58,17 +59,22 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 	Input.bDrs = false;
 	Input.Headlights = -1;
 	Input.bFlash = false;
+	Input.ErsMode = 1;
+	Input.bErsBoost = false;
 	CheckBytes(TEXT("PlayerInput"),
 		ApexProtocol::EncodePlayerInput(4242, Input),
 		ApexUdpGolden::C_PlayerInput);
 
-	// Every bool and the nil switch is one byte, so a held button or a set
-	// switch is the same message with that byte changed (server: `cargo test
-	// player_input_headlights_wire_format`). From the end: flash, then
+	// Every bool, the nil switch and the mode are one byte, so a held button
+	// or a set switch is the same message with that byte changed (server:
+	// `cargo test player_input_headlights_wire_format`). From the end: the
+	// overtake button, `a9 "ers_boost"`, the mode, `a8 "ers_mode"`, flash,
 	// `a5 "flash"`, the switch, `aa "headlights"`, drs.
 	{
 		const int32 Len = (int32)UE_ARRAY_COUNT(ApexUdpGolden::C_PlayerInput);
-		const int32 FlashAt = Len - 1;
+		const int32 BoostAt = Len - 1;
+		const int32 ModeAt = BoostAt - 11;
+		const int32 FlashAt = ModeAt - 10;
 		const int32 SwitchAt = FlashAt - 7;
 		const int32 DrsAt = SwitchAt - 12;
 		TestEqual(TEXT("the switch left to the sky is nil"), ApexUdpGolden::C_PlayerInput[SwitchAt], (uint8)0xC0);
@@ -76,13 +82,20 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 		Input.bDrs = true;
 		Input.Headlights = 0;
 		Input.bFlash = true;
+		Input.ErsMode = 2;
+		Input.bErsBoost = true;
 		const TArray<uint8> Held = ApexProtocol::EncodePlayerInput(4242, Input);
 		if (TestEqual(TEXT("PlayerInput with every button set is the same length"), Held.Num(), Len))
 		{
 			TestEqual(TEXT("DRS held is true"), Held[DrsAt], (uint8)0xC3);
 			TestEqual(TEXT("headlights switched off is false"), Held[SwitchAt], (uint8)0xC2);
 			TestEqual(TEXT("flash held is true"), Held[FlashAt], (uint8)0xC3);
+			TestEqual(TEXT("attack is 2"), Held[ModeAt], (uint8)0x02);
+			TestEqual(TEXT("overtake held is true"), Held[BoostAt], (uint8)0xC3);
 		}
+		Input.ErsMode = -1;
+		TestEqual(TEXT("the car's own mode is nil"),
+			ApexProtocol::EncodePlayerInput(4242, Input)[ModeAt], (uint8)0xC0);
 		Input.Headlights = 1;
 		TestEqual(TEXT("headlights switched on is true"),
 			ApexProtocol::EncodePlayerInput(4242, Input)[SwitchAt], (uint8)0xC3);
@@ -542,6 +555,28 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 		{
 			TestFalse(TEXT("no damage from an older server"), Damage.Telemetry.Cars[0].HasDamage());
 		}
+		// 37 fields: the hybrid.
+		FApexServerMessage Ers;
+		if (TestTrue(TEXT("37-field telemetry decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactErs, Ers, Error))
+			&& Ers.Telemetry.Cars.Num() == 1)
+		{
+			const FApexCarTelemetry& Car = Ers.Telemetry.Cars[0];
+			TestEqual(TEXT("the damage still reads"), Car.DamagePct[4], 100.0f);
+			TestTrue(TEXT("a hybrid"), Car.HasHybrid());
+			TestEqual(TEXT("charge"), Car.ErsChargePct, 64.0f);
+			TestTrue(TEXT("no lap budget"), Car.ErsLapPct < 0.0f);
+			TestEqual(TEXT("attack"), Car.ErsMode, 2);
+			TestTrue(TEXT("deploying"), Car.bErsDeploying);
+			TestFalse(TEXT("not harvesting"), Car.bErsHarvesting);
+			TestTrue(TEXT("overtake"), Car.bErsBoost);
+		}
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactDamage, Ers, Error)
+			&& Ers.Telemetry.Cars.Num() == 1)
+		{
+			TestFalse(TEXT("no hybrid from an older server"), Ers.Telemetry.Cars[0].HasHybrid());
+			TestEqual(TEXT("no mode from an older server"), Ers.Telemetry.Cars[0].ErsMode, -1);
+		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactPit, Heat, Error)
 			&& Heat.Telemetry.Cars.Num() == 1)
 		{
@@ -578,6 +613,27 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexErsModesTest,
+	"ApexSim.Net.Ers.Modes",
+	ApexUdpTestFlags)
+
+bool FApexErsModesTest::RunTest(const FString& Parameters)
+{
+	// The ERS key steps Balanced -> Attack -> Harvest -> Balanced, the
+	// server's numbering (hybrid.rs ErsMode).
+	TestEqual(TEXT("balanced to attack"), ApexErs::NextMode(1), 2);
+	TestEqual(TEXT("attack to harvest"), ApexErs::NextMode(2), 0);
+	TestEqual(TEXT("harvest to balanced"), ApexErs::NextMode(0), 1);
+	TestEqual(TEXT("unknown counts as balanced"), ApexErs::NextMode(-1), 2);
+	TestEqual(TEXT("labels"), ApexErs::ShortLabel(0) + ApexErs::ShortLabel(1) + ApexErs::ShortLabel(2),
+		FString(TEXT("HARVBALATK")));
+	TestTrue(TEXT("no hybrid, no label"), ApexErs::ShortLabel(-1).IsEmpty());
 	return true;
 }
 

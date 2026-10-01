@@ -75,11 +75,16 @@ pub const BRAKE_DUCT_PER_CLICK: f32 = 0.1;
 pub const BRAKE_DUCT_DRAG_PER_CLICK: f32 = 0.003;
 /// Static ride height per click, m (`crate::aero`).
 pub const RIDE_HEIGHT_M_PER_CLICK: f32 = 0.002;
+/// Camber per click, degrees: a click more is more negative camber
+/// (`crate::geometry`; only on a car.toml that gives camber).
+pub const CAMBER_DEG_PER_CLICK: f32 = -0.25;
+/// Toe per wheel per click, degrees: a click more is more toe-in.
+pub const TOE_DEG_PER_CLICK: f32 = 0.05;
 /// Lowest static ride height a setup can ask for, m.
 const MIN_RIDE_HEIGHT_M: f32 = 0.01;
 
 /// Number of knobs in a setup.
-pub const KNOB_COUNT: usize = 21;
+pub const KNOB_COUNT: usize = 25;
 
 /// The knobs in wire order: tyres, engine, transmission, torque,
 /// suspension, the fuel load, then the aero (each group appended after
@@ -190,6 +195,26 @@ pub const KNOBS: [Knob; KNOB_COUNT] = [
         min: -MAX_CLICKS,
         max: MAX_CLICKS,
     },
+    Knob {
+        name: "camber_front",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
+    Knob {
+        name: "camber_rear",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
+    Knob {
+        name: "toe_front",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
+    Knob {
+        name: "toe_rear",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
 ];
 
 /// A driver's setup as clicks per knob; all zero is the car as filed.
@@ -248,6 +273,17 @@ pub struct CarSetup {
     /// less (warmer, for a cold day or carbon brakes that will not come in).
     #[serde(default)]
     pub brake_ducts: i8,
+    /// Static camber per axle, [`CAMBER_DEG_PER_CLICK`] a click (more
+    /// negative per click), and toe per axle, [`TOE_DEG_PER_CLICK`] a
+    /// click (more toe-in per click): `crate::geometry`.
+    #[serde(default)]
+    pub camber_front: i8,
+    #[serde(default)]
+    pub camber_rear: i8,
+    #[serde(default)]
+    pub toe_front: i8,
+    #[serde(default)]
+    pub toe_rear: i8,
 }
 
 impl CarSetup {
@@ -275,6 +311,10 @@ impl CarSetup {
             self.ride_height_rear,
             self.tyre_compound,
             self.brake_ducts,
+            self.camber_front,
+            self.camber_rear,
+            self.toe_front,
+            self.toe_rear,
         ]
     }
 
@@ -302,6 +342,10 @@ impl CarSetup {
             ride_height_rear: c[18],
             tyre_compound: c[19],
             brake_ducts: c[20],
+            camber_front: c[21],
+            camber_rear: c[22],
+            toe_front: c[23],
+            toe_rear: c[24],
         }
     }
 
@@ -419,6 +463,17 @@ impl CarSetup {
             height(base.aero.ride_height_front_m, self.ride_height_front);
         car.aero.ride_height_rear_m = height(base.aero.ride_height_rear_m, self.ride_height_rear);
 
+        // Geometry: the static camber and toe move; the filed camber the
+        // grip is measured against does not (`crate::geometry`).
+        let s = &mut car.suspension;
+        let b = &base.suspension;
+        s.camber_front_deg =
+            (b.camber_front_deg + self.camber_front as f32 * CAMBER_DEG_PER_CLICK).clamp(-8.0, 3.0);
+        s.camber_rear_deg =
+            (b.camber_rear_deg + self.camber_rear as f32 * CAMBER_DEG_PER_CLICK).clamp(-8.0, 3.0);
+        s.toe_front_deg = b.toe_front_deg + self.toe_front as f32 * TOE_DEG_PER_CLICK;
+        s.toe_rear_deg = b.toe_rear_deg + self.toe_rear as f32 * TOE_DEG_PER_CLICK;
+
         car
     }
 }
@@ -465,7 +520,8 @@ mod tests {
     #[test]
     fn clamp_pins_every_knob_and_one_sided_knobs_only_lower() {
         let wild = CarSetup::from_clicks([
-            100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30, 9, -9, 12, -12, 4, -9,
+            100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30, 9, -9, 12, -12, 4, -9, 7, -7,
+            9, -9,
         ]);
         let c = wild.clamp();
         assert_eq!(c.tyre_pressure_front, MAX_CLICKS);
@@ -479,6 +535,8 @@ mod tests {
         assert_eq!(c.tyre_compound, 1, "soft is the end of the range");
         assert_eq!(c.compound_index(), 0, "and the first compound");
         assert_eq!(c.brake_ducts, -MAX_CLICKS);
+        assert_eq!((c.camber_front, c.camber_rear), (MAX_CLICKS, -MAX_CLICKS));
+        assert_eq!((c.toe_front, c.toe_rear), (MAX_CLICKS, -MAX_CLICKS));
         assert_eq!((c.front_wing, c.rear_wing), (MAX_CLICKS, -MAX_CLICKS));
         assert_eq!(
             (c.ride_height_front, c.ride_height_rear),
@@ -648,6 +706,31 @@ mod tests {
         let mut low = base.clone();
         low.aero.ride_height_front_m = 0.012;
         assert!(floor.apply(&low).aero.ride_height_front_m >= MIN_RIDE_HEIGHT_M);
+    }
+
+    #[test]
+    fn geometry_knobs_move_the_static_camber_and_toe_not_the_filed_one() {
+        let mut base = car();
+        base.suspension.camber_front_deg = -3.0;
+        base.suspension.camber_filed_front_deg = -3.0;
+        base.suspension.toe_rear_deg = 0.15;
+        let t = CarSetup {
+            camber_front: 2,
+            toe_rear: -1,
+            ..Default::default()
+        }
+        .apply(&base);
+        assert!(
+            (t.suspension.camber_front_deg - -3.5).abs() < 1e-6,
+            "more negative"
+        );
+        assert_eq!(t.suspension.camber_filed_front_deg, -3.0);
+        assert!((t.suspension.toe_rear_deg - 0.10).abs() < 1e-6);
+        assert!(CarSetup {
+            toe_front: 1,
+            ..Default::default()
+        }
+        .changes_car());
     }
 
     #[test]

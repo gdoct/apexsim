@@ -344,6 +344,8 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
         drs: None,
         headlights: None,
         flash: None,
+        ers_mode: None,
+        ers_boost: None,
     })
     .expect("serialize input");
 
@@ -407,6 +409,8 @@ async fn test_driver_feedback_reaches_the_driver_over_udp() {
         drs: None,
         headlights: None,
         flash: None,
+        ers_mode: None,
+        ers_boost: None,
     })
     .expect("serialize input");
 

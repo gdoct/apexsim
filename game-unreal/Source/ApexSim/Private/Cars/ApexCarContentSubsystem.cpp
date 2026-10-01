@@ -393,7 +393,9 @@ void UApexCarContentSubsystem::ScanNow()
 				}
 				if (Toml.bHasCockpit)
 				{
-					Row.Cockpit = Toml.Cockpit;
+					// Key by key over the table's hand-tuned points: a car.toml
+					// that only names its wheel lock keeps the framing.
+					Row.Cockpit = ApexCarContent::MergeCockpit(TableRow ? &TableRow->Cockpit : nullptr, Toml.Cockpit);
 					Row.Cockpit.RuntimeSteeringWheel = CarFile(CarDir, Toml.SteeringWheelModel, Folder, TEXT("its steering wheel"));
 				}
 				else if (TableRow)
@@ -830,6 +832,45 @@ UStaticMesh* ApexCarContent::LoadMesh(const TSoftObjectPtr<UStaticMesh>& Cooked,
 		}
 	}
 	return Cooked.IsNull() ? nullptr : Cooked.LoadSynchronous();
+}
+
+FApexCockpitOverrides ApexCarContent::MergeCockpit(const FApexCockpitOverrides* Table, const FApexCockpitOverrides& Toml)
+{
+	if (!Table)
+	{
+		return Toml;
+	}
+	FApexCockpitOverrides Out = *Table;
+	auto Take = [](auto& Target, const auto& Value)
+	{
+		if (!Value.IsZero())
+		{
+			Target = Value;
+		}
+	};
+	if (Toml.Style != EApexCockpitStyle::Auto)
+	{
+		Out.Style = Toml.Style;
+	}
+	Take(Out.Eye, Toml.Eye);
+	Take(Out.Wheel, Toml.Wheel);
+	Take(Out.MirrorCentre, Toml.MirrorCentre);
+	Take(Out.MirrorLeft, Toml.MirrorLeft);
+	Take(Out.MirrorRight, Toml.MirrorRight);
+	Take(Out.MirrorCentreSizeCm, Toml.MirrorCentreSizeCm);
+	Take(Out.MirrorLeftSizeCm, Toml.MirrorLeftSizeCm);
+	Take(Out.MirrorRightSizeCm, Toml.MirrorRightSizeCm);
+	if (Toml.WheelRakeDeg != 0.0f)
+	{
+		Out.WheelRakeDeg = Toml.WheelRakeDeg;
+	}
+	if (Toml.WheelLockDeg > 0.0f)
+	{
+		Out.WheelLockDeg = Toml.WheelLockDeg;
+	}
+	Out.bRigWheel = Toml.bRigWheel;
+	Out.bRigDash = Toml.bRigDash;
+	return Out;
 }
 
 UStaticMesh* ApexCarContent::LoadBody(const FApexCarCatalogRow& Row)

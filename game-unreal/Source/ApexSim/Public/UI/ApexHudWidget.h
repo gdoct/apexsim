@@ -82,6 +82,7 @@ private:
 	UWidget* BuildDeltaPanel();
 	UWidget* BuildPedalPanel();
 	UWidget* BuildCarStatePanel();
+	UWidget* BuildDamagePanel();
 	UWidget* BuildMinimapPanel();
 
 	// --- Per-frame ------------------------------------------------------------
@@ -192,6 +193,12 @@ private:
 	/** The pit light: the limiter, and a service's countdown. */
 	UPROPERTY(Transient) TObjectPtr<UBorder> PitBadge;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PitText;
+	/** The hybrid: mode, charge and lap budget as a badge, and the charge
+	 * as a bar beside the pedals; both collapsed on a car without one. */
+	UPROPERTY(Transient) TObjectPtr<UBorder> ErsBadge;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErsText;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> ErsBar;
+	UPROPERTY(Transient) TObjectPtr<UWidget> ErsBarColumn;
 	/** The tyre row's caption, which carries the compound. */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TyreCaption;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GearText;
@@ -208,7 +215,17 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> BrakeTempTexts;
 	/** The engine's coolant, at the end of the tyre row. */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WaterText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> DamageText;
+
+	/**
+	 * The damage panel: a top-down car of five blocks (front, rear, left,
+	 * right, engine, the order of FApexCarTelemetry::DamagePct), each
+	 * coloured by its zone's damage, with the percentages beside it and the
+	 * driver's damage level in the caption. Collapsed from an older server.
+	 */
+	UPROPERTY(Transient) TObjectPtr<UWidget> DamagePanel;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DamageCaption;
+	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> DamageZones;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> DamageValueTexts;
 
 	UPROPERTY(Transient) TObjectPtr<UApexMinimapWidget> Minimap;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SectorCaption;
@@ -249,6 +266,7 @@ private:
 
 	/** The fuel cell: the tank, coloured by whether it reaches the flag. */
 	void RefreshFuel(const FApexCarTelemetry& Local, int32 LapsLeft);
+	void RefreshErs(const FApexCarTelemetry& Local);
 
 	/** The car the tyre window below was read for, and the window, °C. */
 	FString TyreWindowCarId;
@@ -257,6 +275,12 @@ private:
 
 	/** The tyre row: each tread coloured against the car's working window. */
 	void RefreshTyres(const FApexCarTelemetry& Local);
+
+	/** The damage panel, and a flash on a zone that has just been hurt. */
+	void RefreshDamage(const FApexCarTelemetry& Local);
+	/** Each zone's damage at the last refresh, and when its flash fades, platform seconds. */
+	float LastDamagePct[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+	double DamageFlashUntil[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
 
 	/** What the tree was last built for, so a settings change rebuilds once. */
 	EApexHudDetail BuiltDetail = EApexHudDetail::All;

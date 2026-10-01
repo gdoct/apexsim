@@ -140,6 +140,25 @@ struct SuspensionToml {
     anti_roll_bar_rear: Option<f32>,
     #[serde(default)]
     max_travel_m: Option<f32>,
+    /// Geometry (`crate::geometry`): static camber per axle, degrees;
+    /// camber gain (0..1 of the roll); toe per wheel, degrees, toe-in
+    /// positive; the bump stop's gap past static and its rate.
+    #[serde(default)]
+    camber_front_deg: Option<f32>,
+    #[serde(default)]
+    camber_rear_deg: Option<f32>,
+    #[serde(default)]
+    camber_gain_front: Option<f32>,
+    #[serde(default)]
+    camber_gain_rear: Option<f32>,
+    #[serde(default)]
+    toe_front_deg: Option<f32>,
+    #[serde(default)]
+    toe_rear_deg: Option<f32>,
+    #[serde(default)]
+    bump_stop_gap_m: Option<f32>,
+    #[serde(default)]
+    bump_stop_rate_n_per_m: Option<f32>,
 }
 
 /// Optional `[brakes]` section: what they are made of (`"carbon"` or
@@ -496,6 +515,10 @@ struct FuelToml {
     tank_front_share: Option<f32>,
 }
 
+/// Camber gain for a car.toml that gives camber but no gain: about what
+/// a double wishbone gives back of the body's roll.
+const DEFAULT_CAMBER_GAIN: f32 = 0.5;
+
 #[derive(Debug, Deserialize, Default)]
 struct HybridToml {
     #[serde(default)]
@@ -512,6 +535,15 @@ struct HybridToml {
     motor_max_power_kw: Option<f32>,
     #[serde(default)]
     regen_max_power_kw: Option<f32>,
+    /// A lap's deployment budget, kJ (`crate::hybrid`).
+    #[serde(default)]
+    deploy_kj_per_lap: Option<f32>,
+    /// The motor drives only above this speed, km/h.
+    #[serde(default)]
+    deploy_min_speed_kph: Option<f32>,
+    /// A turbo generator (MGU-H) charging at full throttle, kW.
+    #[serde(default)]
+    heat_recovery_kw: Option<f32>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -778,6 +810,9 @@ impl CarLoader {
                 motor_max_torque_nm: hybrid_toml.motor_max_torque_nm.unwrap_or(0.0),
                 motor_max_power_kw: hybrid_toml.motor_max_power_kw.unwrap_or(0.0),
                 regen_max_power_kw: hybrid_toml.regen_max_power_kw.unwrap_or(0.0),
+                deploy_kj_per_lap: hybrid_toml.deploy_kj_per_lap.filter(|b| *b > 0.0),
+                deploy_min_speed_kph: hybrid_toml.deploy_min_speed_kph.unwrap_or(0.0).max(0.0),
+                heat_recovery_kw: hybrid_toml.heat_recovery_kw.unwrap_or(0.0).max(0.0),
             },
 
             // Braking
@@ -829,6 +864,22 @@ impl CarLoader {
                 max_travel_m: suspension_toml
                     .max_travel_m
                     .unwrap_or(suspension_defaults.max_travel_m),
+                camber_front_deg: suspension_toml.camber_front_deg.unwrap_or(0.0),
+                camber_rear_deg: suspension_toml.camber_rear_deg.unwrap_or(0.0),
+                camber_filed_front_deg: suspension_toml.camber_front_deg.unwrap_or(0.0),
+                camber_filed_rear_deg: suspension_toml.camber_rear_deg.unwrap_or(0.0),
+                camber_gain_front: suspension_toml
+                    .camber_gain_front
+                    .unwrap_or(DEFAULT_CAMBER_GAIN),
+                camber_gain_rear: suspension_toml
+                    .camber_gain_rear
+                    .unwrap_or(DEFAULT_CAMBER_GAIN),
+                camber_modelled: suspension_toml.camber_front_deg.is_some()
+                    || suspension_toml.camber_rear_deg.is_some(),
+                toe_front_deg: suspension_toml.toe_front_deg.unwrap_or(0.0),
+                toe_rear_deg: suspension_toml.toe_rear_deg.unwrap_or(0.0),
+                bump_stop_gap_m: suspension_toml.bump_stop_gap_m,
+                bump_stop_rate_n_per_m: suspension_toml.bump_stop_rate_n_per_m.unwrap_or(0.0),
             },
 
             // Tires
@@ -1049,6 +1100,33 @@ impl CarLoader {
                 config.brake_bias_front
             ));
         }
+
+        let s = &config.suspension;
+        let mut geometry_range = |name: &str, value: f32, lo: f32, hi: f32| {
+            if !(value.is_finite() && value >= lo && value <= hi) {
+                problems.push(format!("{name} must be in [{lo}, {hi}] (got {value})"));
+            }
+        };
+        geometry_range("suspension.camber_front_deg", s.camber_front_deg, -8.0, 3.0);
+        geometry_range("suspension.camber_rear_deg", s.camber_rear_deg, -8.0, 3.0);
+        geometry_range(
+            "suspension.camber_gain_front",
+            s.camber_gain_front,
+            0.0,
+            1.0,
+        );
+        geometry_range("suspension.camber_gain_rear", s.camber_gain_rear, 0.0, 1.0);
+        geometry_range("suspension.toe_front_deg", s.toe_front_deg, -2.0, 2.0);
+        geometry_range("suspension.toe_rear_deg", s.toe_rear_deg, -2.0, 2.0);
+        if let Some(gap) = s.bump_stop_gap_m {
+            geometry_range("suspension.bump_stop_gap_m", gap, 0.0, 0.3);
+        }
+        geometry_range(
+            "suspension.bump_stop_rate_n_per_m",
+            s.bump_stop_rate_n_per_m,
+            0.0,
+            2.0e6,
+        );
 
         // Tyres, drivetrain and turbo: each range is wide enough for any
         // real car (an Assetto Corsa import's figures included) and narrow

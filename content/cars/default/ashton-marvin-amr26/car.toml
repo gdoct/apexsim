@@ -137,6 +137,25 @@ battery_max_charge_kw = 250.0
 motor_max_torque_nm = 300.0
 motor_max_power_kw = 300.0
 regen_max_power_kw = 250.0
+# A lap's deployment budget, kJ, spent between two crossings of the line
+# (server/src/hybrid.rs); the Balanced mode paces it over the lap.
+deploy_kj_per_lap = 4000.0
+
+# Suspension geometry (server/src/geometry.rs): static camber per axle
+# (negative: the wheel's top toward the car), how much of the body's roll
+# the linkage gains back, toe per wheel (positive toe-in) and the bump
+# stops (gap past the static laden compression, rate). The springs and
+# dampers are still the sim's defaults. The grip is measured against this
+# camber, so the setup garage's camber clicks move it from here.
+[suspension]
+camber_front_deg = -3.0
+camber_rear_deg = -1.8
+camber_gain_front = 0.6
+camber_gain_rear = 0.6
+toe_front_deg = -0.05
+toe_rear_deg = 0.15
+bump_stop_gap_m = 0.02
+bump_stop_rate_n_per_m = 200000.0
 
 # Where the client draws the wheels (build_f1.py builds the car to this
 # stance): visual only, the physics reads its own figures above.
@@ -202,3 +221,8 @@ paint = [0.800, 0.780, 0.800]
 accent = [0.850, 0.200, 0.420]
 metallic = 0.60
 logo = "textures/livery_sakura.png"
+
+[cockpit]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 180.0

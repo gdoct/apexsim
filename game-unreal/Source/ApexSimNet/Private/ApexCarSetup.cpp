@@ -37,6 +37,10 @@ namespace ApexCarSetup
 			// Not a figure but the next set's compound: read out by name.
 			{ "tyre_compound",       -1,         1,         1.0f,   TEXT("") },
 			{ "brake_ducts",         -MaxClicks, MaxClicks, 10.0f,  TEXT("% air") },
+			{ "camber_front",        -MaxClicks, MaxClicks, -0.25f,  TEXT("°") },
+			{ "camber_rear",         -MaxClicks, MaxClicks, -0.25f,  TEXT("°") },
+			{ "toe_front",           -MaxClicks, MaxClicks, 0.05f,  TEXT("°") },
+			{ "toe_rear",            -MaxClicks, MaxClicks, 0.05f,  TEXT("°") },
 		};
 	}
 
