@@ -1,142 +1,119 @@
 #include "UI/ApexHudWidget.h"
 
-#include "ApexErs.h"
-#include "ApexMenuFlowSubsystem.h"
-#include "ApexNetSubsystem.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
+#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Engine/GameInstance.h"
+#include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Race/ApexRaceCoordinate.h"
+#include "HAL/IConsoleManager.h"
+#include "Hud/ApexHudDataSubsystem.h"
+#include "ImageUtils.h"
 #include "Race/ApexRaceDirector.h"
 #include "UI/ApexMinimapWidget.h"
 #include "UI/ApexMirrorWidget.h"
 #include "UI/ApexUIStyle.h"
+#include "UObject/UObjectIterator.h"
 
-// The HUD is nothing but style primitives; qualifying every one of them would
+// The host is nothing but style primitives; qualifying every one of them would
 // double the length of each layout line without adding any information.
 using namespace ApexUI;
 
 namespace
 {
-	/** Rows the standings panel shows. Five is what fits without crowding. */
-	constexpr int32 StandingRowCount = 5;
-	constexpr float StandingRowHeight = 43.0f;
-	constexpr float StandingsWidth = 366.0f;
-
-	/** Lit blocks in the rev counter. */
-	constexpr int32 RpmSegmentCount = 30;
-	/** The last few segments are the shift light. */
-	constexpr int32 RpmRedSegments = 5;
-
-	constexpr float MinimapSize = 250.0f;
+	/** Clear of the screen's edges, as the menu screens are. */
 	constexpr float HudEdgeGutter = 30.0f;
-	/** The virtual mirror's glass, screen pixels; the same 3.2:1 as the capture. */
-	constexpr float VirtualMirrorWidth = 480.0f;
-	constexpr float VirtualMirrorHeight = 150.0f;
-	/** Clearance under the race-state strip, which is about 80 px tall. */
-	constexpr float VirtualMirrorTop = HudEdgeGutter + 96.0f;
 
-	/**
-	 * Bars in the sector strip. The server splits a lap into three
-	 * (`laps::SECTOR_COUNT`); the strip is built for that many and the board
-	 * says how many actually arrived.
-	 */
-	constexpr int32 SectorCount = 3;
+	/** The virtual mirror's glass when a component does not size it; the same 3.2:1 as the capture. */
+	const FVector2D HudDefaultMirrorSize(480.0f, 150.0f);
 
-	/** Purple in every sim: a time nobody in the session has beaten. */
-	const FLinearColor SessionBestColour = FLinearColor::FromSRGBColor(FColor(0xB0, 0x7C, 0xE8));
+	FAutoConsoleCommand HudReloadCommand(TEXT("apexsim.hud.Reload"),
+		TEXT("Read the HUD components (content/hud, -ApexHudDir) again and rebuild the HUD."),
+		FConsoleCommandDelegate::CreateLambda([]() {
+			int32 Count = 0;
+			for (TObjectIterator<UApexHudWidget> It; It; ++It)
+			{
+				if (!It->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) && It->GetWorld())
+				{
+					It->Reload();
+					++Count;
+				}
+			}
+			UE_LOG(LogApexSim, Display, TEXT("apexsim.hud.Reload: %d HUD(s) rebuilt"), Count);
+		}));
 
-	/** A driver's own best, green — the colour a timing screen uses for it. */
-	const FLinearColor PersonalBestColour = Palette::Live;
-
-	/** A sector the driver has been quicker through before. */
-	const FLinearColor SlowerColour = Palette::Accent;
-
-	/** A tyre under its working window. */
-	const FLinearColor TyreColdColour = FLinearColor::FromSRGBColor(FColor(0x5A, 0x9B, 0xE0));
-
-	/**
-	 * A tread's colour against the car's working window: blue under it,
-	 * green in it, amber over it and red once it is well past (15 °C over
-	 * the edge, where the grip is going fast).
-	 */
-	FLinearColor TyreColour(float TempC, float OptimalC, float WindowC)
+	struct FHudRegionLayout
 	{
-		if (TempC < OptimalC - WindowC)
-		{
-			return TyreColdColour;
-		}
-		if (TempC <= OptimalC + WindowC)
-		{
-			return Palette::Live;
-		}
-		return TempC <= OptimalC + WindowC + 15.0f ? Palette::Accent : Palette::Error;
+		EHorizontalAlignment H = HAlign_Left;
+		EVerticalAlignment V = VAlign_Top;
+		/** Components in the region sit side by side (the top and bottom bands) or stacked (the sides and middle). */
+		bool bHorizontal = true;
+	};
+
+	FHudRegionLayout HudRegionLayout(const FString& Region)
+	{
+		FHudRegionLayout Out;
+		Out.H = Region.EndsWith(TEXT("left")) ? HAlign_Left : Region.EndsWith(TEXT("right")) ? HAlign_Right : HAlign_Center;
+		Out.V = Region.StartsWith(TEXT("top")) ? VAlign_Top : Region.StartsWith(TEXT("bottom")) ? VAlign_Bottom : VAlign_Center;
+		Out.bHorizontal = Out.V != VAlign_Center;
+		return Out;
 	}
 
-	/** Milliseconds as "27.431", the way a split is read. */
-	FString FormatSplit(int32 Ms)
+	FSlateFontInfo HudFont(const FApexHudElementDef& Def, bool bBold)
 	{
-		return Ms > 0 ? FString::Printf(TEXT("%.3f"), Ms / 1000.0f) : TEXT("--.---");
+		if (Def.FontFace == TEXT("display"))
+		{
+			return Font::Display(Def.FontSize, Def.Tracking);
+		}
+		if (Def.FontFace == TEXT("mono"))
+		{
+			return Font::Mono(Def.FontSize, Def.Tracking);
+		}
+		FSlateFontInfo Body = Font::Body(Def.FontSize, bBold);
+		Body.LetterSpacing = Def.Tracking;
+		return Body;
 	}
 
-	/** A car's colour on the map. Distinct enough at four pixels across. */
-	/**
-	 * A damage zone's colour: grey while sound, warming to amber by 25% (what
-	 * costs a car real pace, as the server's damage.rs has it) and to red by
-	 * 60%.
-	 */
-	FLinearColor DamageColour(float Percent)
+	EProgressBarFillType::Type HudBarFill(const FString& Direction)
 	{
-		if (Percent < 1.0f)
-		{
-			return Palette::TextDisabled;
-		}
-		if (Percent < 25.0f)
-		{
-			return FMath::Lerp(Palette::TextDisabled, Palette::Accent, Percent / 25.0f);
-		}
-		if (Percent < 60.0f)
-		{
-			return FMath::Lerp(Palette::Accent, Palette::Error, (Percent - 25.0f) / 35.0f);
-		}
-		return Palette::Error;
+		return Direction == TEXT("left") ? EProgressBarFillType::RightToLeft
+			: Direction == TEXT("up") ? EProgressBarFillType::BottomToTop
+			: Direction == TEXT("down") ? EProgressBarFillType::TopToBottom
+			: EProgressBarFillType::LeftToRight;
 	}
 
-	/** How long a zone that has just been hurt flashes, seconds. */
-	constexpr double DamageFlashSeconds = 0.8;
-
-	FLinearColor BlipColour(int32 CarIndex, bool bIsLocal)
+	/** Re-evaluate a colour attribute; true when it changed (or was never applied). */
+	bool HudUpdateColour(const FApexHudProp& Prop, const FApexHudScope& Scope, bool& bHas, FLinearColor& Last)
 	{
-		if (bIsLocal)
+		if (!Prop.IsSet() || (bHas && !Prop.IsDynamic()))
 		{
-			return Palette::Accent;
+			return false;
 		}
-		// Hue by index rather than a palette lookup: the field size is not known
-		// until the roster lands, and every car has to get a colour.
-		return FLinearColor::MakeFromHSV8(static_cast<uint8>((CarIndex * 47) % 255), 140, 235);
-	}
-
-	/** "1:32.104" — the same shape the results screen uses. */
-	FString FormatTime(float Seconds)
-	{
-		if (Seconds <= 0.0f)
+		FLinearColor Colour;
+		if (!Prop.Expr->Evaluate(Scope).AsColour(Colour))
 		{
-			return TEXT("--:--.---");
+			// Not a colour this frame (null, a misspelt name): keep what is there.
+			return false;
 		}
-		const int32 Minutes = FMath::FloorToInt(Seconds / 60.0f);
-		const float Remainder = Seconds - Minutes * 60.0f;
-		return FString::Printf(TEXT("%d:%06.3f"), Minutes, Remainder);
+		if (bHas && Colour == Last)
+		{
+			return false;
+		}
+		bHas = true;
+		Last = Colour;
+		return true;
 	}
 }
 
@@ -148,28 +125,14 @@ UApexHudWidget::UApexHudWidget(const FObjectInitializer& ObjectInitializer)
 	// Not HitTestInvisible-by-default: the shell only calls SetRaceActive when
 	// the race view *changes*, so a HUD that starts visible is never told to go
 	// away and sits on top of every menu screen from launch. HitTestInvisible is
-	// what it switches to once racing — clicks have to reach the race view.
+	// what it switches to once racing: clicks have to reach the race view.
 	SetVisibility(ESlateVisibility::Collapsed);
 }
 
-// --- Subsystems -------------------------------------------------------------
-
-UApexNetSubsystem* UApexHudWidget::GetNet() const
+UApexHudDataSubsystem* UApexHudWidget::GetHudData() const
 {
 	const UGameInstance* GameInstance = GetGameInstance();
-	return GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
-}
-
-UApexSettingsSubsystem* UApexHudWidget::GetSettings() const
-{
-	const UGameInstance* GameInstance = GetGameInstance();
-	return GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
-}
-
-UApexMenuFlowSubsystem* UApexHudWidget::GetFlow() const
-{
-	const UGameInstance* GameInstance = GetGameInstance();
-	return GameInstance ? GameInstance->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	return GameInstance ? GameInstance->GetSubsystem<UApexHudDataSubsystem>() : nullptr;
 }
 
 // --- Lifecycle --------------------------------------------------------------
@@ -177,122 +140,105 @@ UApexMenuFlowSubsystem* UApexHudWidget::GetFlow() const
 void UApexHudWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
-	BuildHud();
+	Reload();
 }
 
 void UApexHudWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	if (UApexSettingsSubsystem* Settings = GetSettings())
+	if (const UGameInstance* GameInstance = GetGameInstance())
 	{
-		Settings->OnSettingsChanged.AddDynamic(this, &UApexHudWidget::HandleSettingsChanged);
-	}
-	if (UApexNetSubsystem* Net = GetNet())
-	{
-		Net->OnTelemetry.AddDynamic(this, &UApexHudWidget::HandleTelemetry);
+		if (UApexSettingsSubsystem* Settings = GameInstance->GetSubsystem<UApexSettingsSubsystem>())
+		{
+			Settings->OnSettingsChanged.AddDynamic(this, &UApexHudWidget::HandleSettingsChanged);
+		}
 	}
 }
 
 void UApexHudWidget::NativeDestruct()
 {
-	if (UApexSettingsSubsystem* Settings = GetSettings())
+	if (const UGameInstance* GameInstance = GetGameInstance())
 	{
-		Settings->OnSettingsChanged.RemoveDynamic(this, &UApexHudWidget::HandleSettingsChanged);
+		if (UApexSettingsSubsystem* Settings = GameInstance->GetSubsystem<UApexSettingsSubsystem>())
+		{
+			Settings->OnSettingsChanged.RemoveDynamic(this, &UApexHudWidget::HandleSettingsChanged);
+		}
 	}
-	if (UApexNetSubsystem* Net = GetNet())
+	Super::NativeDestruct();
+}
+
+void UApexHudWidget::Reload()
+{
+	Components.Reset();
+	Report = FApexHudLoadReport();
+	const TArray<FString> Directories = ApexHud::HudDirectories();
+	ApexHud::LoadComponents(Directories, Components, Report);
+
+	for (const FString& Error : Report.Errors)
 	{
-		Net->OnTelemetry.RemoveDynamic(this, &UApexHudWidget::HandleTelemetry);
+		UE_LOG(LogApexSim, Warning, TEXT("HUD component left out: %s"), *Error);
+	}
+	for (const FString& Warning : Report.Warnings)
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("HUD component: %s"), *Warning);
+	}
+	UE_LOG(LogApexSim, Log, TEXT("HUD: %d component(s) from %s"), Components.Num(), *FString::Join(Directories, TEXT(" + ")));
+	if (Components.IsEmpty())
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("HUD: no components found; the race will have no HUD"));
 	}
 
-	Super::NativeDestruct();
+	BuildHud();
+	ApplyVisibility();
 }
 
 void UApexHudWidget::SetRaceActive(bool bActive)
 {
-	bRaceActive = bActive;
-
-	const UApexSettingsSubsystem* Settings = GetSettings();
-	const EApexHudDetail Detail = Settings && Settings->Get() ? Settings->Get()->HudDetail : EApexHudDetail::All;
-
-	SetVisibility(bActive && bShownWanted && Detail != EApexHudDetail::Hidden
-		? ESlateVisibility::HitTestInvisible
-		: ESlateVisibility::Collapsed);
-
-	if (bActive)
+	if (bActive && !bRaceActive)
 	{
-		// A new race starts with no history: keeping the previous session's
-		// reference lap would show a delta against a lap of a different circuit.
-		LapSamples.Reset();
-		ReferenceLap.Reset();
-		LastSeenLap = 0;
-		ReferenceLapSeconds = 0.0f;
-		ObservedMaxRpm = 8000.0f;
-		HeaderGameMode = EApexGameMode::Lobby;
-
 		// The outline is only fetched while the map is empty, and the HUD lives
 		// on from one race to the next: without this, a second race on another
 		// circuit kept drawing the first one's shape under the blips.
-		if (Minimap)
+		for (UApexMinimapWidget* Minimap : Minimaps)
 		{
-			Minimap->SetCenterline(TArray<FVector2D>());
+			if (Minimap)
+			{
+				Minimap->SetCenterline(TArray<FVector2D>());
+			}
 		}
+		bMinimapOutlineSet = false;
+	}
+	bRaceActive = bActive;
+	if (UApexHudDataSubsystem* Data = GetHudData())
+	{
+		Data->SetRaceActive(bActive);
+	}
+	ApplyVisibility();
+}
 
-		RefreshHeader();
+void UApexHudWidget::SetShown(bool bShown)
+{
+	if (bShownWanted != bShown)
+	{
+		bShownWanted = bShown;
+		ApplyVisibility();
 	}
 }
 
 void UApexHudWidget::HandleSettingsChanged(EApexSettingsGroup Group)
 {
-	if (Group != EApexSettingsGroup::Gameplay)
+	// The detail level hides the whole HUD or, through `hud.full`, the
+	// optional components; the components follow it on the next frame.
+	if (Group == EApexSettingsGroup::Gameplay)
 	{
-		return;
-	}
-
-	const UApexSettingsSubsystem* Settings = GetSettings();
-	const EApexHudDetail Detail = Settings && Settings->Get() ? Settings->Get()->HudDetail : EApexHudDetail::All;
-
-	if (Detail != BuiltDetail)
-	{
-		BuildHud();
-	}
-	// Visibility depends on the detail level, and so does whether the minimap
-	// exists at all, so re-apply it either way.
-	SetRaceActive(bRaceActive);
-}
-
-void UApexHudWidget::HandleTelemetry(const FApexTelemetryFrame& Frame)
-{
-	if (!bRaceActive)
-	{
-		return;
-	}
-
-	const UApexNetSubsystem* Net = GetNet();
-	if (!Net)
-	{
-		return;
-	}
-
-	// Lap bookkeeping is driven off the frame rather than the tick: a lap
-	// rolling over is an event on the stream, and sampling it at frame rate
-	// would miss the frame the counter moved on a slow client.
-	const int32 LocalIndex = Net->GetLocalCarIndex();
-	if (const FApexCarTelemetry* Local = Frame.Cars.FindByPredicate(
-			[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; }))
-	{
-		UpdateDeltaReference(*Local);
+		ApplyVisibility();
 	}
 }
 
-void UApexHudWidget::SetShown(bool bShown)
+void UApexHudWidget::ApplyVisibility()
 {
-	if (bShownWanted == bShown)
-	{
-		return;
-	}
-	bShownWanted = bShown;
-	const UApexSettingsSubsystem* Settings = GetSettings();
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexSettingsSubsystem* Settings = GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
 	const EApexHudDetail Detail = Settings && Settings->Get() ? Settings->Get()->HudDetail : EApexHudDetail::All;
 	SetVisibility(bRaceActive && bShownWanted && Detail != EApexHudDetail::Hidden
 		? ESlateVisibility::HitTestInvisible
@@ -303,1450 +249,519 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (!bRaceActive || GetVisibility() == ESlateVisibility::Collapsed)
+	UApexHudDataSubsystem* Hud = GetHudData();
+	if (!bRaceActive || GetVisibility() == ESlateVisibility::Collapsed || !Hud)
 	{
 		return;
 	}
 
-	RefreshRaceState();
-	RefreshStandings();
-	RefreshCarState();
-	RefreshDelta();
-	RefreshSectors();
-	RefreshMinimap();
-	RefreshVirtualMirror();
+	Hud->Refresh();
+	FApexHudScope Scope;
+	Scope.Data = &Hud->GetData();
+
+	for (int32 Index = 0; Index < Components.Num(); ++Index)
+	{
+		const int32 Root = ComponentRoots.IsValidIndex(Index) ? ComponentRoots[Index] : INDEX_NONE;
+		if (Root == INDEX_NONE)
+		{
+			continue;
+		}
+		const FApexHudComponentDef& Component = Components[Index];
+		if (Component.Visible.IsSet() && !Component.Visible.Expr->Evaluate(Scope).AsBool())
+		{
+			SetNodeVisible(Nodes[Root], false);
+			continue;
+		}
+		UpdateNode(Root, Scope);
+	}
 }
 
-// --- Construction -----------------------------------------------------------
+// --- Construction -------------------------------------------------------------
 
 void UApexHudWidget::BuildHud()
 {
-	const UApexSettingsSubsystem* Settings = GetSettings();
-	BuiltDetail = Settings && Settings->Get() ? Settings->Get()->HudDetail : EApexHudDetail::All;
-	const bool bFull = BuiltDetail == EApexHudDetail::All;
+	// Every node points into the old tree, which is about to go.
+	Nodes.Reset();
+	ComponentRoots.Reset();
+	Minimaps.Reset();
+	Mirrors.Reset();
+	Images.Reset();
+	ErrorText = nullptr;
+	bMinimapOutlineSet = false;
 
-	// Every cached pointer is about to dangle.
-	StandingSlots.Reset();
-	StandingRows.Reset();
-	StandingPlace.Reset();
-	StandingName.Reset();
-	StandingTime.Reset();
-	SectorBars.Reset();
-	SectorTimes.Reset();
-	RpmSegments.Reset();
-	DrsBadge = nullptr;
-	DrsText = nullptr;
-	TowBadge = nullptr;
-	TowText = nullptr;
-	PitBadge = nullptr;
-	PitText = nullptr;
-	ErsBadge = nullptr;
-	ErsText = nullptr;
-	ErsBar = nullptr;
-	ErsBarColumn = nullptr;
-	TyreCaption = nullptr;
-	DamagePanel = nullptr;
-	DamageCaption = nullptr;
-	DamageZones.Reset();
-	DamageValueTexts.Reset();
-	LapInvalidText = nullptr;
-	FastestLapName = nullptr;
-	FastestLapTime = nullptr;
-	Minimap = nullptr;
-	ThrottleBar = nullptr;
-	BrakeBar = nullptr;
-
-	RootStack = WidgetTree->ConstructWidget<UVerticalBox>();
-
-	AddV(RootStack, BuildTopBar(), FMargin(Metrics::PageGutter, HudEdgeGutter, Metrics::PageGutter, 0.0f));
-
-	// The middle of the screen is the driver's sight line into the next corner.
-	// Nothing goes here, ever.
-	AddV(RootStack, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), HAlign_Fill, 1.0f);
-
-	UHorizontalBox* BottomRow = WidgetTree->ConstructWidget<UHorizontalBox>();
-
-	if (bFull)
-	{
-		AddH(BottomRow, BuildMinimapPanel(), FMargin(0.0f, 0.0f, 22.0f, 0.0f), VAlign_Bottom);
-	}
-
-	AddH(BottomRow, BuildStandingsPanel(), FMargin(), VAlign_Bottom);
-	AddH(BottomRow, BuildDeltaPanel(), FMargin(24.0f, 0.0f, 0.0f, 0.0f), VAlign_Bottom);
-
-	// Filler pushes the car's own numbers to the right-hand edge.
-	AddH(BottomRow, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Bottom, 1.0f);
-
-	if (bFull)
-	{
-		AddH(BottomRow, BuildPedalPanel(), FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Bottom);
-	}
-
-	// Damage beside the car's numbers, in both detail levels: a car that
-	// has been hit is worth knowing about whatever else is hidden.
-	AddH(BottomRow, BuildDamagePanel(), FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Bottom);
-	AddH(BottomRow, BuildCarStatePanel(), FMargin(), VAlign_Bottom);
-
-	AddV(RootStack, BottomRow, FMargin(Metrics::PageGutter, 0.0f, Metrics::PageGutter, HudEdgeGutter));
-
-	// The virtual mirror floats over the stack rather than living in it: it
-	// comes and goes with a setting and a capture, and the layout underneath
-	// must not shift when it does.
 	UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>();
-	UOverlaySlot* StackSlot = Layers->AddChildToOverlay(RootStack);
-	StackSlot->SetHorizontalAlignment(HAlign_Fill);
-	StackSlot->SetVerticalAlignment(VAlign_Fill);
+	const FMargin Gutter(Metrics::PageGutter, HudEdgeGutter);
 
-	VirtualMirror = WidgetTree->ConstructWidget<UApexMirrorWidget>();
-	VirtualMirror->SetFaceSize(FVector2D(VirtualMirrorWidth, VirtualMirrorHeight));
-	VirtualMirror->SetVisibility(ESlateVisibility::Collapsed);
-	UOverlaySlot* MirrorSlot = Layers->AddChildToOverlay(VirtualMirror);
-	MirrorSlot->SetHorizontalAlignment(HAlign_Center);
-	MirrorSlot->SetVerticalAlignment(VAlign_Top);
-	MirrorSlot->SetPadding(FMargin(0.0f, VirtualMirrorTop, 0.0f, 0.0f));
+	// Components sit in their region in order; equal orders by name, so the
+	// layout is the same on every machine.
+	TArray<int32> Placement;
+	for (int32 Index = 0; Index < Components.Num(); ++Index)
+	{
+		Placement.Add(Index);
+	}
+	Placement.Sort([this](int32 A, int32 B)
+	{
+		const FApexHudComponentDef& X = Components[A];
+		const FApexHudComponentDef& Y = Components[B];
+		return X.Order != Y.Order ? X.Order < Y.Order : X.Id < Y.Id;
+	});
+
+	ComponentRoots.Init(INDEX_NONE, Components.Num());
+	TMap<FString, UPanelWidget*> RegionBoxes;
+	for (const int32 Index : Placement)
+	{
+		const FApexHudComponentDef& Component = Components[Index];
+		const int32 Root = BuildElement(Component.Root, INDEX_NONE);
+		ComponentRoots[Index] = Root;
+		UWidget* Widget = Nodes[Root].Outer;
+		const FHudRegionLayout Region = HudRegionLayout(Component.Region);
+
+		if (Component.bFloat)
+		{
+			// On its own: comes and goes without moving the region's row.
+			UOverlaySlot* HudSlot = Layers->AddChildToOverlay(Widget);
+			HudSlot->SetHorizontalAlignment(Region.H);
+			HudSlot->SetVerticalAlignment(Region.V);
+			HudSlot->SetPadding(Gutter + Component.Margin);
+			continue;
+		}
+
+		UPanelWidget*& Box = RegionBoxes.FindOrAdd(Component.Region);
+		if (!Box)
+		{
+			Box = Region.bHorizontal
+				? static_cast<UPanelWidget*>(WidgetTree->ConstructWidget<UHorizontalBox>())
+				: static_cast<UPanelWidget*>(WidgetTree->ConstructWidget<UVerticalBox>());
+			UOverlaySlot* HudSlot = Layers->AddChildToOverlay(Box);
+			HudSlot->SetHorizontalAlignment(Region.H);
+			HudSlot->SetVerticalAlignment(Region.V);
+			HudSlot->SetPadding(Gutter);
+		}
+		if (UHorizontalBox* Row = Cast<UHorizontalBox>(Box))
+		{
+			// The band's components line up along the screen's edge.
+			AddH(Row, Widget, Component.Margin, Region.V == VAlign_Top ? VAlign_Top : VAlign_Bottom);
+		}
+		else if (UVerticalBox* Column = Cast<UVerticalBox>(Box))
+		{
+			AddV(Column, Widget, Component.Margin, Region.H);
+		}
+	}
+
+	// A component that could not be loaded says so on screen: a missing panel
+	// with the reason only in the log reads as a game bug.
+	if (!Report.Errors.IsEmpty())
+	{
+		TArray<FString> Lines = Report.Errors;
+		if (Lines.Num() > 6)
+		{
+			Lines.SetNum(6);
+			Lines.Add(TEXT("…"));
+		}
+		const FString Message = FString::Printf(TEXT("HUD: %d component(s) left out (apexsim.hud.Reload after a fix)\n%s"),
+			Report.Errors.Num(), *FString::Join(Lines, TEXT("\n")));
+		ErrorText = MakeText(*WidgetTree, Message, Font::Mono(11.0f), Palette::Error);
+		ErrorText->SetAutoWrapText(true);
+		UWidget* Panel = MakeSized(*WidgetTree, MakePanel(*WidgetTree, ErrorText, FMargin(12.0f, 8.0f), MakeBrush(Palette::Background)), 720.0f, -1.0f);
+		UOverlaySlot* HudSlot = Layers->AddChildToOverlay(Panel);
+		HudSlot->SetHorizontalAlignment(HAlign_Center);
+		HudSlot->SetVerticalAlignment(VAlign_Center);
+	}
 
 	WidgetTree->RootWidget = Layers;
 }
 
-void UApexHudWidget::RefreshVirtualMirror()
+int32 UApexHudWidget::BuildElement(const FApexHudElementDef& Def, int32 Copy)
 {
-	if (!VirtualMirror)
+	const int32 Index = Nodes.AddDefaulted();
+	Nodes[Index].Def = &Def;
+	Nodes[Index].Slot = Copy;
+
+	UWidget* Widget = nullptr;
+	UPanelWidget* Container = nullptr;
+	UBorder* SingleChildPanel = nullptr;
+
+	switch (Def.Type)
 	{
-		return;
+	case EApexHudElementType::Row:
+		Container = WidgetTree->ConstructWidget<UHorizontalBox>();
+		Widget = Container;
+		break;
+	case EApexHudElementType::Column:
+		Container = WidgetTree->ConstructWidget<UVerticalBox>();
+		Widget = Container;
+		break;
+	case EApexHudElementType::Stack:
+		Container = WidgetTree->ConstructWidget<UOverlay>();
+		Widget = Container;
+		break;
+	case EApexHudElementType::Panel:
+	{
+		UBorder* Border = MakePanel(*WidgetTree, nullptr, Def.Padding, MakeBrush(FLinearColor::Transparent));
+		Widget = Border;
+		// One plain child sits straight in the panel, aligned by its own
+		// halign/valign; anything more goes in a box laid out by `direction`.
+		if (Def.Children.Num() == 1 && !Def.Children[0].Repeat.IsSet())
+		{
+			SingleChildPanel = Border;
+		}
+		else
+		{
+			Container = Def.Direction == EApexHudElementType::Row ? static_cast<UPanelWidget*>(WidgetTree->ConstructWidget<UHorizontalBox>())
+				: Def.Direction == EApexHudElementType::Stack ? static_cast<UPanelWidget*>(WidgetTree->ConstructWidget<UOverlay>())
+				: static_cast<UPanelWidget*>(WidgetTree->ConstructWidget<UVerticalBox>());
+			Border->SetContent(Container);
+		}
+		break;
 	}
-	// The director owns the capture; it hands out a texture only while the
-	// setting is on and a car is being followed.
-	const AApexRaceDirector* Director = AApexRaceDirector::Find(this);
-	UTextureRenderTarget2D* Texture = Director ? Director->GetVirtualMirrorTexture() : nullptr;
-	VirtualMirror->SetTexture(Texture);
-	const ESlateVisibility Wanted = Texture ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-	if (VirtualMirror->GetVisibility() != Wanted)
+	case EApexHudElementType::Text:
+	case EApexHudElementType::Label:
 	{
-		VirtualMirror->SetVisibility(Wanted);
+		UTextBlock* Text = MakeText(*WidgetTree, FString(), HudFont(Def, false), Palette::TextPrimary);
+		Text->SetJustification(Def.Justify);
+		Widget = Text;
+		break;
 	}
-}
-
-UWidget* UApexHudWidget::BuildTopBar()
-{
-	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
-
-	// Left: which circuit, and what kind of session it is.
-	UVerticalBox* Identity = WidgetTree->ConstructWidget<UVerticalBox>();
-	TrackNameText = MakeText(*WidgetTree, TEXT("—"), Font::Display(30.0f, 20), Palette::TextPrimary);
-	AddV(Identity, TrackNameText);
-	SessionLineText = MakeLabel(*WidgetTree, TEXT("—"), Palette::TextSecondary);
-	AddV(Identity, SessionLineText, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-	AddH(Row, Identity, FMargin(), VAlign_Top, 1.0f);
-
-	AddH(Row, BuildRaceStateStrip(), FMargin(), VAlign_Top);
-
-	// Right: connection health and the way out.
-	UHorizontalBox* Status = WidgetTree->ConstructWidget<UHorizontalBox>();
-	UBorder* Dot = nullptr;
-	AddH(Status, MakeDot(*WidgetTree, Palette::TextMuted, 8.0f, &Dot));
-	PingDot = Dot;
-	PingText = MakeText(*WidgetTree, TEXT("-- ms"), Font::Mono(11.0f, 40), Palette::TextSecondary);
-	AddH(Status, PingText, FMargin(9.0f, 0.0f, 0.0f, 0.0f));
-	CarCountText = MakeText(*WidgetTree, TEXT("0 CARS"), Font::Mono(11.0f, 40), Palette::TextMuted);
-	AddH(Status, CarCountText, FMargin(20.0f, 0.0f, 0.0f, 0.0f));
-	AddH(Status, MakeKeyCap(*WidgetTree, TEXT("ESC MENU")), FMargin(20.0f, 0.0f, 0.0f, 0.0f));
-
-	// Both outer cells fill equally, so the state strip stays centred on screen
-	// however long the circuit's name turns out to be.
-	if (UHorizontalBoxSlot* StatusSlot = AddH(Row, Status, FMargin(), VAlign_Top, 1.0f))
+	case EApexHudElementType::Rect:
+		Widget = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(FLinearColor::Transparent));
+		break;
+	case EApexHudElementType::Bar:
 	{
-		StatusSlot->SetHorizontalAlignment(HAlign_Right);
-	}
-
-	return Row;
-}
-
-UWidget* UApexHudWidget::BuildRaceStateStrip()
-{
-	UHorizontalBox* Strip = WidgetTree->ConstructWidget<UHorizontalBox>();
-
-	// Position, on the accent — the one number a driver looks for first.
-	{
-		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>();
-		FLinearColor Caption = Palette::OnAccent;
-		Caption.A = 0.7f;
-		AddV(Box, MakeLabel(*WidgetTree, TEXT("Pos"), Caption), FMargin(), HAlign_Center);
-
-		UHorizontalBox* Value = WidgetTree->ConstructWidget<UHorizontalBox>();
-		PositionText = MakeText(*WidgetTree, TEXT("-"), Font::Display(34.0f), Palette::OnAccent);
-		AddH(Value, PositionText, FMargin(), VAlign_Bottom);
-		PositionOfText = MakeText(*WidgetTree, TEXT("/-"), Font::Mono(13.0f), Caption);
-		AddH(Value, PositionOfText, FMargin(2.0f, 0.0f, 0.0f, 4.0f), VAlign_Bottom);
-		AddV(Box, Value, FMargin(0.0f, 2.0f, 0.0f, 0.0f), HAlign_Center);
-
-		UBorder* Panel = MakePanel(*WidgetTree, Box, FMargin(20.0f, 9.0f), MakeBrush(Palette::Accent));
-		AddH(Strip, MakeSized(*WidgetTree, Panel, -1.0f, 76.0f), FMargin(), VAlign_Fill);
-	}
-
-	// Lap.
-	{
-		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>();
-		AddV(Box, MakeLabel(*WidgetTree, TEXT("Lap")), FMargin(), HAlign_Center);
-
-		UHorizontalBox* Value = WidgetTree->ConstructWidget<UHorizontalBox>();
-		LapText = MakeText(*WidgetTree, TEXT("-"), Font::Display(34.0f), Palette::TextPrimary);
-		AddH(Value, LapText, FMargin(), VAlign_Bottom);
-		LapOfText = MakeText(*WidgetTree, TEXT("/-"), Font::Mono(13.0f), Palette::TextMuted);
-		AddH(Value, LapOfText, FMargin(2.0f, 0.0f, 0.0f, 4.0f), VAlign_Bottom);
-		AddV(Box, Value, FMargin(0.0f, 2.0f, 0.0f, 0.0f), HAlign_Center);
-
-		UBorder* Panel = MakePanel(*WidgetTree, Box, FMargin(20.0f, 9.0f), MakeBrush(Palette::Surface));
-		AddH(Strip, MakeSized(*WidgetTree, Panel, -1.0f, 76.0f), FMargin(2.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
-	}
-
-	// Gap to the car in front, then to the one behind. Both name their rival:
-	// a bare number does not tell you who you are racing.
-	// The out-params are raw pointers, not the TObjectPtr members: a
-	// TObjectPtr<T> does not bind to a T*& and assigning after the call is
-	// cheaper than a wrapper for every one of these builders.
-	auto AddGapTile = [this, Strip](const TCHAR* Caption, UTextBlock*& OutLabel, UTextBlock*& OutValue)
-	{
-		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>();
-		OutLabel = MakeLabel(*WidgetTree, Caption);
-		AddV(Box, OutLabel, FMargin(), HAlign_Center);
-		OutValue = MakeText(*WidgetTree, TEXT("—"), Font::Mono(23.0f), Palette::TextSecondary);
-		AddV(Box, OutValue, FMargin(0.0f, 5.0f, 0.0f, 0.0f), HAlign_Center);
-
-		UBorder* Panel = MakePanel(*WidgetTree, Box, FMargin(20.0f, 9.0f), MakeBrush(Palette::Surface));
-		AddH(Strip, MakeSized(*WidgetTree, Panel, 200.0f, 76.0f), FMargin(2.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
-	};
-
-	UTextBlock* AheadCaption = nullptr;
-	UTextBlock* AheadNumber = nullptr;
-	AddGapTile(TEXT("Ahead"), AheadCaption, AheadNumber);
-	AheadLabel = AheadCaption;
-	AheadValue = AheadNumber;
-
-	UTextBlock* BehindCaption = nullptr;
-	UTextBlock* BehindNumber = nullptr;
-	AddGapTile(TEXT("Behind"), BehindCaption, BehindNumber);
-	BehindLabel = BehindCaption;
-	BehindValue = BehindNumber;
-
-	return Strip;
-}
-
-UWidget* UApexHudWidget::BuildStandingsPanel()
-{
-	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
-
-	UBorder* Header = MakePanel(
-		*WidgetTree,
-		MakeLabel(*WidgetTree, TEXT("Standings")),
-		FMargin(16.0f, 9.0f),
-		MakeBrush(Palette::SurfaceHover));
-	AddV(Stack, Header);
-
-	for (int32 Index = 0; Index < StandingRowCount; ++Index)
-	{
-		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
-
-		UTextBlock* Place = MakeText(*WidgetTree, FString::FromInt(Index + 1), Font::Mono(12.0f), Palette::TextMuted);
-		AddH(Row, MakeSized(*WidgetTree, Place, 22.0f, -1.0f));
-
-		UTextBlock* Name = MakeText(*WidgetTree, FString(), Font::Body(14.0f), Palette::TextPrimary);
-		AddH(Row, Name, FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Center, 1.0f);
-
-		UTextBlock* Time = MakeText(*WidgetTree, FString(), Font::Mono(13.0f), Palette::TextSecondary);
-		AddH(Row, Time, FMargin(10.0f, 0.0f, 0.0f, 0.0f));
-
-		UBorder* Background = MakePanel(*WidgetTree, Row, FMargin(16.0f, 0.0f), MakeBrush(Palette::Surface));
-		Background->SetVerticalAlignment(VAlign_Center);
-		USizeBox* Sized = MakeSized(*WidgetTree, Background, -1.0f, StandingRowHeight);
-		AddV(Stack, Sized, FMargin(0.0f, 1.0f, 0.0f, 0.0f));
-
-		// The size box, not the border, is what gets hidden: collapsing the
-		// border alone would leave its row height behind as a gap.
-		StandingSlots.Add(Sized);
-		StandingRows.Add(Background);
-		StandingPlace.Add(Place);
-		StandingName.Add(Name);
-		StandingTime.Add(Time);
-	}
-
-	// The session's fastest lap, the way a timing screen carries it: who, and
-	// what. Purple, because nobody in the session has beaten it.
-	UHorizontalBox* Fastest = WidgetTree->ConstructWidget<UHorizontalBox>();
-	FastestLapName = MakeText(*WidgetTree, TEXT("FASTEST —"), Font::Body(12.0f), Palette::TextMuted);
-	AddH(Fastest, FastestLapName);
-	FastestLapTime = MakeText(*WidgetTree, TEXT("--:--.---"), Font::Mono(12.0f), SessionBestColour);
-	AddH(Fastest, FastestLapTime, FMargin(10.0f, 0.0f, 0.0f, 0.0f));
-	AddV(Stack, Fastest, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-
-	return MakeSized(*WidgetTree, Stack, StandingsWidth, -1.0f);
-}
-
-UWidget* UApexHudWidget::BuildDeltaPanel()
-{
-	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
-
-	// Sector strip: one bar and one split per sector, coloured by the server's
-	// own verdict on the time (purple session best, green personal best).
-	UHorizontalBox* Sectors = WidgetTree->ConstructWidget<UHorizontalBox>();
-	for (int32 Index = 0; Index < SectorCount; ++Index)
-	{
-		UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
-		UBorder* Bar = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(Palette::Border));
-		AddV(Column, MakeSized(*WidgetTree, Bar, 62.0f, 5.0f));
-		UTextBlock* Split = MakeText(*WidgetTree, TEXT("--.---"), Font::Mono(12.0f), Palette::TextMuted);
-		AddV(Column, Split, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
-		AddH(Sectors, Column, FMargin(Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f, 0.0f));
-		SectorBars.Add(Bar);
-		SectorTimes.Add(Split);
-	}
-	AddV(Stack, Sectors, FMargin(0.0f, 0.0f, 0.0f, 10.0f), HAlign_Left);
-
-	// The lap was struck for leaving the track. Hidden while it is clean, so
-	// the panel does not carry an empty row around all race.
-	LapInvalidText = MakeText(*WidgetTree, TEXT("LAP INVALID"), Font::Body(14.0f, true), Palette::Error);
-	LapInvalidText->SetVisibility(ESlateVisibility::Collapsed);
-	AddV(Stack, LapInvalidText, FMargin(0.0f, 0.0f, 0.0f, 8.0f), HAlign_Left);
-
-	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(Row, MakeLabel(*WidgetTree, TEXT("Delta")));
-	DeltaValue = MakeText(*WidgetTree, TEXT("—"), Font::Mono(25.0f), Palette::TextSecondary);
-	AddH(Row, DeltaValue, FMargin(16.0f, 0.0f, 0.0f, 0.0f));
-
-	UBorder* Panel = MakePanel(*WidgetTree, Row, FMargin(18.0f, 13.0f), MakeBrush(Palette::Surface));
-	Panel->SetHorizontalAlignment(HAlign_Left);
-	AddV(Stack, Panel, FMargin(), HAlign_Left);
-
-	return Stack;
-}
-
-UWidget* UApexHudWidget::BuildPedalPanel()
-{
-	UHorizontalBox* Bars = WidgetTree->ConstructWidget<UHorizontalBox>();
-
-	auto AddPedal = [this, Bars](const TCHAR* Caption, const FLinearColor& Fill, UProgressBar*& OutBar)
-	{
-		OutBar = WidgetTree->ConstructWidget<UProgressBar>();
-		FProgressBarStyle Style = OutBar->GetWidgetStyle();
+		UProgressBar* Bar = WidgetTree->ConstructWidget<UProgressBar>();
+		FProgressBarStyle Style = Bar->GetWidgetStyle();
 		Style.SetBackgroundImage(MakeBrush(Palette::Surface));
-		Style.SetFillImage(MakeBrush(Fill));
-		OutBar->SetWidgetStyle(Style);
-		// Fills from the bottom, like a pedal travelling.
-		OutBar->SetBarFillType(EProgressBarFillType::BottomToTop);
-		OutBar->SetPercent(0.0f);
-
-		UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
-		AddV(Column, MakeSized(*WidgetTree, OutBar, 13.0f, 108.0f), FMargin(), HAlign_Center);
-		AddV(Column, MakeLabel(*WidgetTree, Caption), FMargin(0.0f, 7.0f, 0.0f, 0.0f), HAlign_Center);
-
-		AddH(Bars, Column, FMargin(4.0f, 0.0f), VAlign_Bottom);
-	};
-
-	UProgressBar* Throttle = nullptr;
-	UProgressBar* Brake = nullptr;
-	UProgressBar* Ers = nullptr;
-	AddPedal(TEXT("Thr"), Palette::Live, Throttle);
-	AddPedal(TEXT("Brk"), Palette::Error, Brake);
-	// The hybrid's battery, beside the pedals; collapsed without one.
-	AddPedal(TEXT("Ers"), Palette::Accent, Ers);
-	ThrottleBar = Throttle;
-	BrakeBar = Brake;
-	ErsBar = Ers;
-	ErsBarColumn = Bars->GetChildAt(Bars->GetChildrenCount() - 1);
-	if (ErsBarColumn)
-	{
-		ErsBarColumn->SetVisibility(ESlateVisibility::Collapsed);
+		Style.SetFillImage(MakeBrush(Palette::Accent));
+		Bar->SetWidgetStyle(Style);
+		Bar->SetBarFillType(HudBarFill(Def.BarDirection));
+		Bar->SetPercent(0.0f);
+		Widget = Bar;
+		break;
 	}
-
-	return Bars;
-}
-
-UWidget* UApexHudWidget::BuildCarStatePanel()
-{
-	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
-
-	// Rev counter: a caption row, then the segment strip.
-	UHorizontalBox* RpmHeader = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(RpmHeader, MakeLabel(*WidgetTree, TEXT("Rpm")));
-	// The DRS light, as the steering wheel's: dark until the car is in a
-	// zone it may use, lit when it may, bright with the flap open.
-	DrsText = MakeText(*WidgetTree, TEXT("DRS"), Font::Body(12.0f, true), Palette::TextDisabled);
-	DrsBadge = MakePanel(*WidgetTree, DrsText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
-	AddH(RpmHeader, DrsBadge, FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
-	// The tow: lit while the wake of a car ahead saves a noticeable share of
-	// the drag (server `slipstream.rs`), with how much.
-	TowText = MakeText(*WidgetTree, TEXT("TOW"), Font::Body(12.0f, true), Palette::TextDisabled);
-	TowBadge = MakePanel(*WidgetTree, TowText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
-	AddH(RpmHeader, TowBadge, FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
-	// The pit lane: the limiter between its lines, the service at the box.
-	PitText = MakeText(*WidgetTree, TEXT("PIT"), Font::Body(12.0f, true), Palette::TextDisabled);
-	PitBadge = MakePanel(*WidgetTree, PitText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
-	AddH(RpmHeader, PitBadge, FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
-	// The hybrid (server hybrid.rs): the mode, the charge and what is left
-	// of the lap's budget; lit while the motor drives, OVERTAKE while the
-	// button is held. Collapsed on a car without a hybrid.
-	ErsText = MakeText(*WidgetTree, TEXT("ERS"), Font::Body(12.0f, true), Palette::TextDisabled);
-	ErsBadge = MakePanel(*WidgetTree, ErsText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
-	ErsBadge->SetVisibility(ESlateVisibility::Collapsed);
-	AddH(RpmHeader, ErsBadge, FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
-	AddH(RpmHeader, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
-	RpmText = MakeText(*WidgetTree, TEXT("0"), Font::Mono(12.0f, 40), Palette::TextSecondary);
-	AddH(RpmHeader, RpmText);
-	AddV(Stack, RpmHeader);
-
-	UHorizontalBox* Segments = WidgetTree->ConstructWidget<UHorizontalBox>();
-	for (int32 Index = 0; Index < RpmSegmentCount; ++Index)
+	case EApexHudElementType::Spacer:
+		Widget = WidgetTree->ConstructWidget<USpacer>();
+		break;
+	case EApexHudElementType::Divider:
+		Widget = MakeDivider(*WidgetTree, Def.bVertical);
+		break;
+	case EApexHudElementType::KeyCap:
+		Widget = MakeKeyCap(*WidgetTree, Def.Text.IsSet() ? Def.Text.Expr->Evaluate(FApexHudScope()).AsString() : FString());
+		break;
+	case EApexHudElementType::Image:
 	{
-		UBorder* Segment = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(Palette::Border));
-		AddH(Segments, MakeSized(*WidgetTree, Segment, 10.0f, 14.0f), FMargin(0.0f, 0.0f, 2.0f, 0.0f));
-		RpmSegments.Add(Segment);
-	}
-	AddV(Stack, Segments, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-
-	// Gear on the left, speed on the right — the two numbers read at a glance.
-	UHorizontalBox* Numbers = WidgetTree->ConstructWidget<UHorizontalBox>();
-
-	UVerticalBox* GearBox = WidgetTree->ConstructWidget<UVerticalBox>();
-	AddV(GearBox, MakeLabel(*WidgetTree, TEXT("Gear")));
-	GearText = MakeText(*WidgetTree, TEXT("N"), Font::Display(58.0f), Palette::Accent);
-	AddV(GearBox, GearText, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
-	AddH(Numbers, GearBox, FMargin(0.0f, 10.0f, 0.0f, 0.0f), VAlign_Bottom);
-
-	AddH(Numbers, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
-
-	SpeedText = MakeText(*WidgetTree, TEXT("0"), Font::Display(70.0f), Palette::TextPrimary);
-	AddH(Numbers, SpeedText, FMargin(), VAlign_Bottom);
-	SpeedUnitText = MakeText(*WidgetTree, TEXT("KM/H"), Font::Mono(11.0f, 60), Palette::TextMuted);
-	AddH(Numbers, SpeedUnitText, FMargin(7.0f, 0.0f, 0.0f, 12.0f), VAlign_Bottom);
-
-	AddV(Stack, Numbers, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
-
-	// Lap times, and how much of the race is left.
-	UHorizontalBox* Footer = WidgetTree->ConstructWidget<UHorizontalBox>();
-
-	auto AddFooterCell = [this, Footer](const TCHAR* Caption, UTextBlock*& OutValue, const FLinearColor& Colour, bool bDivider)
-	{
-		if (bDivider)
+		UImage* Image = WidgetTree->ConstructWidget<UImage>();
+		if (UTexture2D* Texture = FImageUtils::ImportFileAsTexture2D(Def.ImageFile))
 		{
-			AddH(Footer, MakeSized(*WidgetTree, MakeDivider(*WidgetTree, true), 1.0f, 34.0f), FMargin(18.0f, 0.0f));
+			Images.Add(Texture);
+			Image->SetBrushFromTexture(Texture, Def.Width < 0.0f && Def.Height < 0.0f);
 		}
-		UVerticalBox* Cell = WidgetTree->ConstructWidget<UVerticalBox>();
-		AddV(Cell, MakeLabel(*WidgetTree, Caption));
-		OutValue = MakeText(*WidgetTree, TEXT("—"), Font::Mono(15.0f), Colour);
-		AddV(Cell, OutValue, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
-		AddH(Footer, Cell, FMargin(), VAlign_Center);
-	};
-
-	UTextBlock* Last = nullptr;
-	UTextBlock* Best = nullptr;
-	UTextBlock* LapsLeft = nullptr;
-	UTextBlock* Fuel = nullptr;
-	AddFooterCell(TEXT("Last"), Last, Palette::TextPrimary, false);
-	AddFooterCell(TEXT("Best"), Best, PersonalBestColour, true);
-	AddFooterCell(TEXT("Laps left"), LapsLeft, Palette::TextPrimary, true);
-	// The tank, from the server's telemetry: amber once the last lap's burn
-	// says it will not reach the flag, red under a lap.
-	AddFooterCell(TEXT("Fuel"), Fuel, Palette::TextPrimary, true);
-	LastLapText = Last;
-	BestLapText = Best;
-	LapsLeftText = LapsLeft;
-	FuelText = Fuel;
-
-	AddV(Stack, MakeDivider(*WidgetTree), FMargin(0.0f, 14.0f, 0.0f, 12.0f));
-	AddV(Stack, Footer);
-
-	// The tyres, from the server's thermal model: each tread's temperature
-	// coloured against the car's working window, its running pressure under it.
-	UHorizontalBox* Tyres = WidgetTree->ConstructWidget<UHorizontalBox>();
-	TyreCaption = MakeLabel(*WidgetTree, TEXT("Tyres"));
-	AddH(Tyres, TyreCaption, FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Center);
-	TyreTempTexts.Reset();
-	TyrePressureTexts.Reset();
-	BrakeTempTexts.Reset();
-	const TCHAR* TyreNames[4] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
-	for (int32 Tyre = 0; Tyre < 4; ++Tyre)
-	{
-		UVerticalBox* Cell = WidgetTree->ConstructWidget<UVerticalBox>();
-		AddV(Cell, MakeLabel(*WidgetTree, TyreNames[Tyre]));
-		UTextBlock* Temp = MakeText(*WidgetTree, TEXT("—"), Font::Mono(15.0f), Palette::TextMuted);
-		AddV(Cell, Temp, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
-		UTextBlock* Pressure = MakeText(*WidgetTree, TEXT("—"), Font::Mono(11.0f), Palette::TextMuted);
-		AddV(Cell, Pressure, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
-		UTextBlock* Brake = MakeText(*WidgetTree, TEXT("—"), Font::Mono(11.0f), Palette::TextMuted);
-		AddV(Cell, Brake, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
-		BrakeTempTexts.Add(Brake);
-		// A gap between the axles, so the four read as front pair and rear pair.
-		AddH(Tyres, Cell, FMargin(0.0f, 0.0f, Tyre == 1 ? 30.0f : 16.0f, 0.0f), VAlign_Center);
-		TyreTempTexts.Add(Temp);
-		TyrePressureTexts.Add(Pressure);
+		Widget = Image;
+		break;
 	}
-	// The coolant, after the four tyres.
-	UVerticalBox* WaterCell = WidgetTree->ConstructWidget<UVerticalBox>();
-	AddV(WaterCell, MakeLabel(*WidgetTree, TEXT("Water")));
-	WaterText = MakeText(*WidgetTree, TEXT("—"), Font::Mono(15.0f), Palette::TextMuted);
-	AddV(WaterCell, WaterText, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
-	AddH(Tyres, WaterCell, FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Top);
-	AddV(Stack, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 10.0f));
-	AddV(Stack, Tyres);
-
-	UBorder* Panel = MakePanel(*WidgetTree, Stack, FMargin(22.0f, 16.0f), MakeBrush(Palette::Surface));
-	return MakeSized(*WidgetTree, Panel, 470.0f, -1.0f);
-}
-
-UWidget* UApexHudWidget::BuildDamagePanel()
-{
-	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
-	DamageCaption = MakeLabel(*WidgetTree, TEXT("Damage"));
-	AddV(Stack, DamageCaption);
-
-	UHorizontalBox* Body = WidgetTree->ConstructWidget<UHorizontalBox>();
-
-	// The car from above, nose up: the front and rear blocks across it, the
-	// sides down its flanks, the engine in the middle.
-	DamageZones.Reset();
-	DamageZones.SetNum(5);
-	auto MakeZone = [this](int32 Zone, float Width, float Height) -> UWidget*
+	case EApexHudElementType::Minimap:
 	{
-		UBorder* Block = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(DamageColour(0.0f), FLinearColor::Transparent, 0.0f, 3.0f));
-		DamageZones[Zone] = Block;
-		return MakeSized(*WidgetTree, Block, Width, Height);
-	};
-	constexpr float SideW = 10.0f;
-	constexpr float EngineW = 24.0f;
-	constexpr float Gap = 3.0f;
-	constexpr float CarW = SideW * 2.0f + EngineW + Gap * 2.0f;
-	UVerticalBox* Car = WidgetTree->ConstructWidget<UVerticalBox>();
-	AddV(Car, MakeZone(0, CarW, 13.0f), FMargin(0.0f, 0.0f, 0.0f, Gap), HAlign_Center);
-	UHorizontalBox* Middle = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(Middle, MakeZone(2, SideW, 52.0f));
-	AddH(Middle, MakeZone(4, EngineW, 52.0f), FMargin(Gap, 0.0f));
-	AddH(Middle, MakeZone(3, SideW, 52.0f));
-	AddV(Car, Middle, FMargin(), HAlign_Center);
-	AddV(Car, MakeZone(1, CarW, 13.0f), FMargin(0.0f, Gap, 0.0f, 0.0f), HAlign_Center);
-	AddH(Body, Car, FMargin(0.0f, 0.0f, 16.0f, 0.0f), VAlign_Center);
-
-	// Each zone's figure, in the order a driver reads the car: nose to tail.
-	DamageValueTexts.Reset();
-	DamageValueTexts.SetNum(5);
-	static const TPair<int32, const TCHAR*> Rows[] = {
-		{0, TEXT("Front")}, {2, TEXT("Left")}, {3, TEXT("Right")}, {1, TEXT("Rear")}, {4, TEXT("Engine")},
-	};
-	UVerticalBox* Figures = WidgetTree->ConstructWidget<UVerticalBox>();
-	for (int32 Row = 0; Row < UE_ARRAY_COUNT(Rows); ++Row)
-	{
-		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>();
-		AddH(Line, MakeLabel(*WidgetTree, Rows[Row].Value), FMargin(), VAlign_Center, 1.0f);
-		UTextBlock* Value = MakeText(*WidgetTree, TEXT("—"), Font::Mono(12.0f), Palette::TextMuted);
-		AddH(Line, Value, FMargin(10.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
-		DamageValueTexts[Rows[Row].Key] = Value;
-		AddV(Figures, Line, FMargin(0.0f, Row == 0 ? 0.0f : 3.0f, 0.0f, 0.0f));
+		UApexMinimapWidget* Minimap = WidgetTree->ConstructWidget<UApexMinimapWidget>();
+		Minimaps.Add(Minimap);
+		Widget = Minimap;
+		break;
 	}
-	AddH(Body, MakeSized(*WidgetTree, Figures, 92.0f, -1.0f), FMargin(), VAlign_Center);
-
-	AddV(Stack, Body, FMargin(0.0f, 10.0f, 0.0f, 0.0f));
-
-	UBorder* Panel = MakePanel(*WidgetTree, Stack, FMargin(18.0f, 14.0f), MakeBrush(Palette::Surface));
-	DamagePanel = Panel;
-	// Until the first telemetry says whether this server sends damage.
-	Panel->SetVisibility(ESlateVisibility::Collapsed);
-	return Panel;
-}
-
-UWidget* UApexHudWidget::BuildMinimapPanel()
-{
-	Minimap = WidgetTree->ConstructWidget<UApexMinimapWidget>();
-
-	UOverlay* Stack = WidgetTree->ConstructWidget<UOverlay>();
-	UOverlaySlot* MapSlot = Stack->AddChildToOverlay(Minimap);
-	MapSlot->SetHorizontalAlignment(HAlign_Fill);
-	MapSlot->SetVerticalAlignment(VAlign_Fill);
-
-	SectorCaption = MakeLabel(*WidgetTree, TEXT("Sector 1"), Palette::TextMuted);
-	UOverlaySlot* CaptionSlot = Stack->AddChildToOverlay(SectorCaption);
-	CaptionSlot->SetHorizontalAlignment(HAlign_Left);
-	CaptionSlot->SetVerticalAlignment(VAlign_Bottom);
-	CaptionSlot->SetPadding(FMargin(14.0f, 0.0f, 0.0f, 12.0f));
-
-	UBorder* Panel = MakePanel(*WidgetTree, Stack, FMargin(0.0f), MakeBrush(Palette::Surface));
-	return MakeSized(*WidgetTree, Panel, MinimapSize, MinimapSize);
-}
-
-// --- Derived state ----------------------------------------------------------
-
-const FApexCarTelemetry* UApexHudWidget::FindLocalCar() const
-{
-	const UApexNetSubsystem* Net = GetNet();
-	if (!Net)
+	case EApexHudElementType::Mirror:
 	{
-		return nullptr;
+		UApexMirrorWidget* Mirror = WidgetTree->ConstructWidget<UApexMirrorWidget>();
+		Mirror->SetFaceSize(Def.Width > 0.0f && Def.Height > 0.0f ? FVector2D(Def.Width, Def.Height) : HudDefaultMirrorSize);
+		Mirrors.Add(Mirror);
+		Widget = Mirror;
+		break;
 	}
-	const int32 LocalIndex = Net->GetLocalCarIndex();
-	return Net->GetLatestTelemetry().Cars.FindByPredicate(
-		[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; });
-}
-
-float UApexHudWidget::CatalogTrackLengthM() const
-{
-	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	FApexTrackCatalogRow Row;
-	return Flow && Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) ? Row.LengthM : 0.0f;
-}
-
-void UApexHudWidget::ComputeStandings(TArray<FStanding>& OutOrder) const
-{
-	const UApexNetSubsystem* Net = GetNet();
-	if (!Net)
-	{
-		return;
 	}
 
-	const int32 LocalIndex = Net->GetLocalCarIndex();
-	const FApexSessionRoster& Roster = Net->GetSessionRoster();
-
-	// Without a catalog length the stations still order cars within a lap; the
-	// nominal length only has to dwarf any real station so a completed lap
-	// always outranks a partial one. Gaps stay dashed in that case — they need
-	// the real length to mean anything.
-	const float CatalogLength = CatalogTrackLengthM();
-	const float RankLength = CatalogLength > 0.0f ? CatalogLength : 100000.0f;
-
-	for (const FApexCarTelemetry& Car : Net->GetLatestTelemetry().Cars)
+	UWidget* Outer = Widget;
+	// The mirror sizes its own glass; everything else gets a size box, which
+	// is also what is hidden, so a hidden element leaves no gap.
+	if ((Def.Width >= 0.0f || Def.Height >= 0.0f) && Def.Type != EApexHudElementType::Mirror)
 	{
-		FStanding Entry;
-		Entry.CarIndex = Car.CarIndex;
-		// The wire's TrackProgress is a station in metres, not a lap fraction;
-		// RaceDistanceM also folds in the grid sitting behind the line.
-		Entry.Progress = ApexRace::RaceDistanceM(Car.CurrentLap, Car.TrackProgress, RankLength);
-		Entry.SpeedMps = Car.SpeedMps;
-		Entry.FinishPosition = Car.FinishPosition;
-		Entry.bIsLocal = Car.CarIndex == LocalIndex;
+		Outer = MakeSized(*WidgetTree, Widget, Def.Width, Def.Height);
+	}
+	Nodes[Index].Widget = Widget;
+	Nodes[Index].Outer = Outer;
 
-		if (const FApexRosterEntry* Row = Roster.Entries.FindByPredicate(
-				[&Car](const FApexRosterEntry& Candidate) { return Candidate.CarIndex == Car.CarIndex; }))
+	for (const FApexHudElementDef& ChildDef : Def.Children)
+	{
+		const int32 Copies = ChildDef.Repeat.IsSet() ? ChildDef.Repeat.Slots() : 1;
+		for (int32 Instance = 0; Instance < Copies; ++Instance)
 		{
-			Entry.Name = Row->PlayerName;
-		}
-		if (Entry.Name.IsEmpty())
-		{
-			Entry.Name = FString::Printf(TEXT("CAR %d"), Car.CarIndex);
-		}
-
-		OutOrder.Add(MoveTemp(Entry));
-	}
-
-	// Finishers first, in classified order; then furthest round the race. Ties
-	// break on car index so the order does not flicker between two cars sitting
-	// on the grid.
-	OutOrder.Sort([](const FStanding& A, const FStanding& B)
-	{
-		if (A.FinishPosition != B.FinishPosition || !FMath::IsNearlyEqual(A.Progress, B.Progress))
-		{
-			return ApexRace::RanksAhead(A.FinishPosition, A.Progress, B.FinishPosition, B.Progress);
-		}
-		return A.CarIndex < B.CarIndex;
-	});
-}
-
-void UApexHudWidget::UpdateDeltaReference(const FApexCarTelemetry& Local)
-{
-	const float LapSeconds = Local.CurrentLapTimeMs / 1000.0f;
-
-	// Samples are keyed by fraction of the lap so a reference lap can be looked
-	// up by position; the wire's TrackProgress is a station in metres.
-	const float TrackLength = CatalogTrackLengthM();
-	const float Progress = TrackLength > 0.0f
-		? FMath::Clamp(Local.TrackProgress / TrackLength, 0.0f, 1.0f)
-		: 0.0f;
-
-	if (Local.CurrentLap != LastSeenLap)
-	{
-		// The lap counter moved on, and the lap it left behind is on the wire
-		// as `LastLapTimeMs`. A lap that left the track is no reference:
-		// chasing a delta against a lap that cut a chicane would ask the
-		// driver to cut it too.
-		const float Completed = Local.LastLapTimeMs / 1000.0f;
-		if (LastSeenLap > 0 && LapSamples.Num() > 1 && Completed > 0.0f && !Local.bLastLapInvalid)
-		{
-			if (ReferenceLapSeconds <= 0.0f || Completed < ReferenceLapSeconds)
+			// Nodes may reallocate under the recursion: hold indices, not references.
+			const int32 Child = BuildElement(ChildDef, ChildDef.Repeat.IsSet() ? Instance : INDEX_NONE);
+			Nodes[Index].Children.Add(Child);
+			if (SingleChildPanel)
 			{
-				ReferenceLapSeconds = Completed;
-				ReferenceLap = LapSamples;
+				SingleChildPanel->SetContent(Nodes[Child].Outer);
+				SingleChildPanel->SetHorizontalAlignment(ChildDef.HAlign.Get(HAlign_Fill));
+				SingleChildPanel->SetVerticalAlignment(ChildDef.VAlign.Get(VAlign_Fill));
+				SingleChildPanel->SetPadding(Def.Padding + ChildDef.Margin);
+			}
+			else if (Container)
+			{
+				AddToContainer(Container, Nodes[Child]);
 			}
 		}
-
-		LastSeenLap = Local.CurrentLap;
-		LapSamples.Reset();
 	}
-
-	// Samples must stay monotonic in progress for the lookup to work; a frame
-	// that arrives out of order (or the wrap at the line) is dropped.
-	if (LapSamples.Num() == 0 || Progress > LapSamples.Last().Key)
-	{
-		LapSamples.Emplace(Progress, LapSeconds);
-	}
-
+	return Index;
 }
 
-float UApexHudWidget::ReferenceTimeAt(float Progress) const
+void UApexHudWidget::AddToContainer(UPanelWidget* Container, const FHudNode& Child)
 {
-	if (ReferenceLap.Num() < 2)
+	const FApexHudElementDef& Def = *Child.Def;
+	if (UHorizontalBox* Row = Cast<UHorizontalBox>(Container))
 	{
-		return -1.0f;
-	}
-
-	// Linear scan is fine: a lap holds a few thousand samples at most and this
-	// runs once a frame.
-	if (Progress <= ReferenceLap[0].Key)
-	{
-		return ReferenceLap[0].Value;
-	}
-	for (int32 Index = 1; Index < ReferenceLap.Num(); ++Index)
-	{
-		if (Progress <= ReferenceLap[Index].Key)
+		UHorizontalBoxSlot* HudSlot = AddH(Row, Child.Outer, Def.Margin, Def.VAlign.Get(VAlign_Center), Def.Fill);
+		if (HudSlot && Def.Fill > 0.0f)
 		{
-			const TPair<float, float>& Before = ReferenceLap[Index - 1];
-			const TPair<float, float>& After = ReferenceLap[Index];
-			const float Span = After.Key - Before.Key;
-			const float Alpha = Span > KINDA_SMALL_NUMBER ? (Progress - Before.Key) / Span : 0.0f;
-			return FMath::Lerp(Before.Value, After.Value, Alpha);
+			FSlateChildSize Size(ESlateSizeRule::Fill);
+			Size.Value = Def.Fill;
+			HudSlot->SetSize(Size);
+		}
+		if (HudSlot && Def.HAlign.IsSet())
+		{
+			HudSlot->SetHorizontalAlignment(Def.HAlign.GetValue());
 		}
 	}
-	return ReferenceLap.Last().Value;
-}
-
-FString UApexHudWidget::FormatSpeed(float Mps) const
-{
-	const UApexSettingsSubsystem* Settings = GetSettings();
-	const bool bImperial = Settings && Settings->Get() && Settings->Get()->Units == EApexUnits::Imperial;
-	const float Value = bImperial ? Mps * 2.236936f : ApexRace::MpsToKph(Mps);
-	return FString::FromInt(FMath::RoundToInt(Value));
-}
-
-FString UApexHudWidget::FormatGap(float Seconds, bool bSigned)
-{
-	if (Seconds <= 0.0f || Seconds > 999.0f)
+	else if (UVerticalBox* Column = Cast<UVerticalBox>(Container))
 	{
-		return TEXT("—");
+		UVerticalBoxSlot* HudSlot = AddV(Column, Child.Outer, Def.Margin, Def.HAlign.Get(HAlign_Fill), Def.Fill);
+		if (HudSlot && Def.Fill > 0.0f)
+		{
+			FSlateChildSize Size(ESlateSizeRule::Fill);
+			Size.Value = Def.Fill;
+			HudSlot->SetSize(Size);
+		}
+		if (HudSlot && Def.VAlign.IsSet())
+		{
+			HudSlot->SetVerticalAlignment(Def.VAlign.GetValue());
+		}
 	}
-	return FString::Printf(TEXT("%s%.3f"), bSigned ? TEXT("+") : TEXT(""), Seconds);
+	else if (UOverlay* Stack = Cast<UOverlay>(Container))
+	{
+		UOverlaySlot* HudSlot = Stack->AddChildToOverlay(Child.Outer);
+		HudSlot->SetPadding(Def.Margin);
+		HudSlot->SetHorizontalAlignment(Def.HAlign.Get(HAlign_Fill));
+		HudSlot->SetVerticalAlignment(Def.VAlign.Get(VAlign_Fill));
+	}
 }
 
-// --- Per-frame --------------------------------------------------------------
+// --- Per frame ----------------------------------------------------------------
 
-void UApexHudWidget::RefreshHeader()
+void UApexHudWidget::SetNodeVisible(FHudNode& Node, bool bVisible)
 {
-	const UApexNetSubsystem* Net = GetNet();
-	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	if (!Net || !TrackNameText || !SessionLineText)
+	const int8 Wanted = bVisible ? 1 : 0;
+	if (Node.LastVisible != Wanted && Node.Outer)
+	{
+		Node.LastVisible = Wanted;
+		Node.Outer->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
+void UApexHudWidget::ApplyFont(FHudNode& Node, bool bBold)
+{
+	const int8 Wanted = bBold ? 1 : 0;
+	if (Node.LastBold != Wanted)
+	{
+		Node.LastBold = Wanted;
+		if (UTextBlock* Text = Cast<UTextBlock>(Node.Widget))
+		{
+			Text->SetFont(HudFont(*Node.Def, bBold));
+		}
+	}
+}
+
+void UApexHudWidget::ApplyBrush(FHudNode& Node)
+{
+	const FApexHudElementDef& Def = *Node.Def;
+	if (UBorder* Border = Cast<UBorder>(Node.Widget))
+	{
+		const bool bPanel = Def.Type == EApexHudElementType::Panel;
+		const FLinearColor Fill = bPanel ? (Node.bHasBackground ? Node.LastBackground : FLinearColor::Transparent)
+			: (Node.bHasColour ? Node.LastColour : FLinearColor::Transparent);
+		const FLinearColor OutlineColour = Node.bHasOutline ? Node.LastOutline : FLinearColor::Transparent;
+		Border->SetBrush(MakeBrush(Fill, OutlineColour, Node.bHasOutline ? FMath::Max(Def.OutlineWidth, 1.0f) : 0.0f, Def.Radius));
+	}
+}
+
+void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
+{
+	FHudNode& Node = Nodes[NodeIndex];
+	const FApexHudElementDef& Def = *Node.Def;
+
+	bool bVisible = !Def.Visible.IsSet() || Def.Visible.Expr->Evaluate(Scope).AsBool();
+	if (Def.Type == EApexHudElementType::Mirror && bVisible)
+	{
+		// The director owns the capture; it hands out a texture only while the
+		// setting is on and a car is being followed.
+		const AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+		UTextureRenderTarget2D* Texture = Director ? Director->GetVirtualMirrorTexture() : nullptr;
+		if (UApexMirrorWidget* Mirror = Cast<UApexMirrorWidget>(Node.Widget))
+		{
+			Mirror->SetTexture(Texture);
+		}
+		bVisible = Texture != nullptr;
+	}
+	SetNodeVisible(Node, bVisible);
+	if (!bVisible)
 	{
 		return;
 	}
 
-	FString TrackName;
-	FApexSessionSummary Session;
-	if (Net->FindSessionById(Net->GetCurrentSessionId(), Session) && !Session.TrackName.IsEmpty())
+	switch (Def.Type)
 	{
-		TrackName = Session.TrackName;
-	}
-	else if (Flow)
+	case EApexHudElementType::Text:
+	case EApexHudElementType::Label:
 	{
-		FApexTrackCatalogRow Row;
-		if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row))
+		UTextBlock* Text = Cast<UTextBlock>(Node.Widget);
+		if (Def.Text.IsSet() && (Def.Text.IsDynamic() || !Node.bHasText))
 		{
-			TrackName = Row.DisplayName;
+			FString Value = Def.Text.Expr->Evaluate(Scope).AsString();
+			if (Def.bUpper)
+			{
+				Value = Value.ToUpper();
+			}
+			if (!Node.bHasText || !Value.Equals(Node.LastText, ESearchCase::CaseSensitive))
+			{
+				Node.bHasText = true;
+				Node.LastText = Value;
+				Text->SetText(FText::FromString(Value));
+			}
 		}
+		if (HudUpdateColour(Def.Colour, Scope, Node.bHasColour, Node.LastColour))
+		{
+			Text->SetColorAndOpacity(FSlateColor(Node.LastColour));
+		}
+		if (Def.Bold.IsSet() ? (Def.Bold.IsDynamic() || Node.LastBold < 0) : Node.LastBold < 0)
+		{
+			ApplyFont(Node, Def.Bold.IsSet() && Def.Bold.Expr->Evaluate(Scope).AsBool());
+		}
+		break;
 	}
-	TrackNameText->SetText(FText::FromString(TrackName.IsEmpty() ? TEXT("CIRCUIT") : TrackName.ToUpper()));
+	case EApexHudElementType::Rect:
+	case EApexHudElementType::Panel:
+	{
+		const bool bFill = Def.Type == EApexHudElementType::Panel
+			? HudUpdateColour(Def.Background, Scope, Node.bHasBackground, Node.LastBackground)
+			: HudUpdateColour(Def.Colour, Scope, Node.bHasColour, Node.LastColour);
+		const bool bOutline = HudUpdateColour(Def.Outline, Scope, Node.bHasOutline, Node.LastOutline);
+		if (bFill || bOutline)
+		{
+			ApplyBrush(Node);
+		}
+		break;
+	}
+	case EApexHudElementType::Bar:
+	{
+		UProgressBar* Bar = Cast<UProgressBar>(Node.Widget);
+		if (Def.Value.IsSet())
+		{
+			const float Value = FMath::Clamp(static_cast<float>(Def.Value.Expr->Evaluate(Scope).AsNumber()), 0.0f, 1.0f);
+			if (Value != Node.LastValue)
+			{
+				Node.LastValue = Value;
+				Bar->SetPercent(Value);
+			}
+		}
+		const bool bFill = HudUpdateColour(Def.Colour, Scope, Node.bHasColour, Node.LastColour);
+		const bool bTrack = HudUpdateColour(Def.Background, Scope, Node.bHasBackground, Node.LastBackground);
+		if (bFill || bTrack)
+		{
+			FProgressBarStyle Style = Bar->GetWidgetStyle();
+			Style.SetBackgroundImage(MakeBrush(Node.bHasBackground ? Node.LastBackground : Palette::Surface));
+			Style.SetFillImage(MakeBrush(Node.bHasColour ? Node.LastColour : Palette::Accent));
+			Bar->SetWidgetStyle(Style);
+		}
+		break;
+	}
+	case EApexHudElementType::Image:
+		if (HudUpdateColour(Def.Colour, Scope, Node.bHasColour, Node.LastColour))
+		{
+			Cast<UImage>(Node.Widget)->SetColorAndOpacity(Node.LastColour);
+		}
+		break;
+	case EApexHudElementType::Minimap:
+		if (UApexMinimapWidget* Minimap = Cast<UApexMinimapWidget>(Node.Widget))
+		{
+			HudUpdateColour(Def.Colour, Scope, Node.bHasColour, Node.LastColour);
+			if (UApexHudDataSubsystem* Hud = GetHudData())
+			{
+				if (!Minimap->HasCenterline())
+				{
+					// The outline arrives with the lobby state, so keep asking until it has.
+					const TArray<FVector2D>& TrackOutline = Hud->GetTrackOutline();
+					if (TrackOutline.Num() > 1)
+					{
+						Minimap->SetCenterline(TrackOutline);
+					}
+				}
+				TArray<FApexMinimapBlip> Blips;
+				Hud->MakeMinimapBlips(Blips, Node.bHasColour ? Node.LastColour : Palette::Accent);
+				Minimap->SetBlips(MoveTemp(Blips));
+			}
+		}
+		break;
+	default:
+		break;
+	}
 
-	// The mockup's second line carries weather. There is none on the wire, so
-	// the line names the session and the car instead — both known, both useful.
-	TArray<FString> Parts;
-	Parts.Add(UApexMenuFlowSubsystem::GetGameModeName(Net->GetGameMode()));
-	if (Flow)
-	{
-		FApexCarCatalogRow CarRow;
-		if (Flow->GetCarCatalogRow(Flow->GetPendingCarId(), CarRow) && !CarRow.DisplayName.IsEmpty())
-		{
-			Parts.Add(CarRow.DisplayName);
-		}
-	}
-	SessionLineText->SetText(FText::FromString(FString::Join(Parts, TEXT("  ·  ")).ToUpper()));
+	UpdateChildren(NodeIndex, Scope);
 }
 
-void UApexHudWidget::RefreshRaceState()
+void UApexHudWidget::UpdateChildren(int32 NodeIndex, const FApexHudScope& Scope)
 {
-	const UApexNetSubsystem* Net = GetNet();
-	if (!Net || !PositionText)
+	// The window a list repeat shows, worked out at its first copy and used by the rest.
+	const TArray<FApexHudRecord>* List = nullptr;
+	int32 Start = 0;
+
+	for (const int32 ChildIndex : Nodes[NodeIndex].Children)
 	{
-		return;
-	}
-
-	// The header is not per-frame work, but two things it shows arrive after the
-	// race view opens: the track name comes with the lobby state, and the mode
-	// goes Countdown -> Race a few seconds in. Both would otherwise sit stale on
-	// screen for the whole session.
-	if (Net->GetGameMode() != HeaderGameMode || (TrackNameText && TrackNameText->GetText().IsEmpty()))
-	{
-		HeaderGameMode = Net->GetGameMode();
-		RefreshHeader();
-	}
-
-	TArray<FStanding> Order;
-	ComputeStandings(Order);
-
-	const int32 LocalPlace = Order.IndexOfByPredicate([](const FStanding& Entry) { return Entry.bIsLocal; });
-
-	PositionText->SetText(FText::FromString(LocalPlace >= 0 ? FString::FromInt(LocalPlace + 1) : TEXT("-")));
-	PositionOfText->SetText(FText::FromString(FString::Printf(TEXT("/%d"), Order.Num())));
-
-	const FApexCarTelemetry* Local = FindLocalCar();
-	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	// A hotlap has no distance: laps are counted, never counted down.
-	const int32 LapLimit = Flow && HeaderGameMode != EApexGameMode::Hotlap ? Flow->CreateLapLimit : 0;
-
-	// The counter keeps stepping on the cool-down lap after the flag.
-	LapText->SetText(FText::FromString(Local ? FString::FromInt(ApexRace::DisplayLap(Local->CurrentLap, LapLimit)) : TEXT("-")));
-	LapOfText->SetText(FText::FromString(LapLimit > 0 ? FString::Printf(TEXT("/%d"), LapLimit) : TEXT("")));
-
-	// Gaps are a time, not a distance: how long it would take this car, at its
-	// current speed, to cover the ground between them. Progress is already in
-	// metres, but only when the catalog knows the circuit's length.
-	const float TrackLength = CatalogTrackLengthM();
-
-	auto GapTo = [&](int32 OtherPlace) -> float
-	{
-		if (LocalPlace < 0 || !Order.IsValidIndex(OtherPlace) || TrackLength <= 0.0f)
+		FHudNode& Child = Nodes[ChildIndex];
+		const FApexHudRepeat& Repeat = Child.Def->Repeat;
+		if (!Repeat.IsSet())
 		{
-			return -1.0f;
-		}
-		const float Speed = FMath::Max(Order[LocalPlace].SpeedMps, 5.0f);
-		const float Metres = FMath::Abs(Order[OtherPlace].Progress - Order[LocalPlace].Progress);
-		return Metres / Speed;
-	};
-
-	auto SetGapTile = [](UTextBlock* Label, UTextBlock* Value, const TCHAR* Caption,
-		const TArray<FStanding>& InOrder, int32 Place, float Gap, const FLinearColor& Colour)
-	{
-		if (!Label || !Value)
-		{
-			return;
-		}
-		if (!InOrder.IsValidIndex(Place))
-		{
-			Label->SetText(FText::FromString(FString(Caption).ToUpper()));
-			Value->SetText(FText::FromString(TEXT("—")));
-			Value->SetColorAndOpacity(FSlateColor(Palette::TextMuted));
-			return;
-		}
-		Label->SetText(FText::FromString(FString::Printf(TEXT("%s · %s"), Caption, *InOrder[Place].Name).ToUpper()));
-		Value->SetText(FText::FromString(FormatGap(Gap)));
-		Value->SetColorAndOpacity(FSlateColor(Colour));
-	};
-
-	SetGapTile(AheadLabel, AheadValue, TEXT("Ahead"), Order, LocalPlace - 1, GapTo(LocalPlace - 1), Palette::Error);
-	SetGapTile(BehindLabel, BehindValue, TEXT("Behind"), Order, LocalPlace + 1, GapTo(LocalPlace + 1), Palette::Live);
-
-	// Connection health. The ping is a heartbeat round trip, refreshed every two
-	// seconds, so it is a health light rather than a live latency read.
-	const int32 Ping = Net->GetPingMs();
-	if (PingText)
-	{
-		PingText->SetText(FText::FromString(Ping >= 0 ? FString::Printf(TEXT("%d ms"), Ping) : TEXT("-- ms")));
-	}
-	if (PingDot)
-	{
-		const FLinearColor Health = Ping < 0 ? Palette::TextMuted
-			: Ping < 80 ? Palette::Live
-			: Ping < 200 ? Palette::Accent
-			: Palette::Error;
-		SetDotColour(PingDot, Health, 8.0f);
-	}
-	if (CarCountText)
-	{
-		CarCountText->SetText(FText::FromString(FString::Printf(TEXT("%d CARS"), Order.Num())));
-	}
-}
-
-void UApexHudWidget::RefreshStandings()
-{
-	if (StandingRows.Num() == 0)
-	{
-		return;
-	}
-
-	const UApexNetSubsystem* Net = GetNet();
-
-	TArray<FStanding> Order;
-	ComputeStandings(Order);
-
-	const int32 LocalPlace = Order.IndexOfByPredicate([](const FStanding& Entry) { return Entry.bIsLocal; });
-
-	// The panel shows five rows around the local car rather than the top five:
-	// in eleventh place the leaders are not who you are racing.
-	int32 First = 0;
-	if (LocalPlace >= 0 && Order.Num() > StandingRowCount)
-	{
-		First = FMath::Clamp(LocalPlace - StandingRowCount / 2, 0, Order.Num() - StandingRowCount);
-	}
-
-	const float TrackLength = CatalogTrackLengthM();
-
-	for (int32 Row = 0; Row < StandingRows.Num(); ++Row)
-	{
-		const int32 Place = First + Row;
-		const bool bUsed = Order.IsValidIndex(Place);
-
-		if (StandingSlots.IsValidIndex(Row) && StandingSlots[Row])
-		{
-			StandingSlots[Row]->SetVisibility(
-				bUsed ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-		}
-		if (!bUsed)
-		{
+			UpdateNode(ChildIndex, Scope);
 			continue;
 		}
 
-		const FStanding& Entry = Order[Place];
-		const bool bLocal = Entry.bIsLocal;
-
-		StandingRows[Row]->SetBrush(MakeBrush(bLocal ? Palette::Accent : Palette::Surface));
-		StandingPlace[Row]->SetText(FText::FromString(FString::FromInt(Place + 1)));
-		StandingPlace[Row]->SetColorAndOpacity(FSlateColor(bLocal ? Palette::OnAccent : Palette::TextMuted));
-
-		StandingName[Row]->SetText(FText::FromString(bLocal ? TEXT("YOU") : Entry.Name.ToUpper()));
-		StandingName[Row]->SetFont(Font::Body(14.0f, bLocal));
-		StandingName[Row]->SetColorAndOpacity(FSlateColor(bLocal ? Palette::OnAccent : Palette::TextPrimary));
-
-		// The leader's cell carries a lap time; everyone else's a gap to them.
-		// A gap means nothing once a car has taken the flag.
-		FString Right;
-		if (Entry.FinishPosition > 0)
+		FApexHudScope Inner = Scope;
+		if (!Repeat.IsList())
 		{
-			Right = TEXT("FINISHED");
-		}
-		else if (Place == 0)
-		{
-			const FApexCarTiming* Timing = Net ? Net->GetTimingBoard().Find(Entry.CarIndex) : nullptr;
-			Right = Timing && Timing->BestLapMs > 0 ? FormatTime(Timing->BestLapMs / 1000.0f) : TEXT("LEADER");
-		}
-		else if (TrackLength > 0.0f)
-		{
-			const float Speed = FMath::Max(Entry.SpeedMps, 5.0f);
-			Right = FormatGap((Order[0].Progress - Entry.Progress) / Speed);
-		}
-		else
-		{
-			Right = TEXT("—");
-		}
-		StandingTime[Row]->SetText(FText::FromString(Right));
-		StandingTime[Row]->SetColorAndOpacity(FSlateColor(bLocal ? Palette::OnAccent : Palette::TextSecondary));
-	}
-
-	// The session's fastest lap. The server names it — only a lap inside track
-	// limits can hold it — so the row stays empty until somebody sets one.
-	if (FastestLapName && FastestLapTime && Net)
-	{
-		const FApexTimingBoard& Board = Net->GetTimingBoard();
-		const FStanding* Holder = Order.FindByPredicate(
-			[&Board](const FStanding& Entry) { return Entry.CarIndex == Board.SessionBestLapCarIndex; });
-		const FString Who = Holder
-			? (Holder->bIsLocal ? FString(TEXT("YOU")) : Holder->Name.ToUpper())
-			: FString(TEXT("—"));
-		FastestLapName->SetText(FText::FromString(FString::Printf(TEXT("FASTEST %s"), *Who)));
-		FastestLapTime->SetText(FText::FromString(
-			Board.SessionBestLapMs > 0 ? FormatTime(Board.SessionBestLapMs / 1000.0f) : TEXT("--:--.---")));
-	}
-}
-
-void UApexHudWidget::RefreshCarState()
-{
-	const FApexCarTelemetry* Local = FindLocalCar();
-	if (!Local || !SpeedText)
-	{
-		return;
-	}
-
-	SpeedText->SetText(FText::FromString(FormatSpeed(Local->SpeedMps)));
-	if (SpeedUnitText)
-	{
-		const UApexSettingsSubsystem* Settings = GetSettings();
-		const bool bImperial = Settings && Settings->Get() && Settings->Get()->Units == EApexUnits::Imperial;
-		SpeedUnitText->SetText(FText::FromString(bImperial ? TEXT("MPH") : TEXT("KM/H")));
-	}
-
-	if (GearText)
-	{
-		const FString Gear = Local->Gear < 0 ? TEXT("R") : Local->Gear == 0 ? TEXT("N") : FString::FromInt(Local->Gear);
-		GearText->SetText(FText::FromString(Gear));
-	}
-
-	// No redline is broadcast, so the scale is the highest reading so far. It
-	// only ever grows, which keeps the strip from rescaling under the driver.
-	ObservedMaxRpm = FMath::Max(ObservedMaxRpm, Local->EngineRpm);
-	const float Fraction = FMath::Clamp(Local->EngineRpm / FMath::Max(ObservedMaxRpm, 1.0f), 0.0f, 1.0f);
-	const int32 Lit = FMath::RoundToInt(Fraction * RpmSegmentCount);
-
-	for (int32 Index = 0; Index < RpmSegments.Num(); ++Index)
-	{
-		const bool bOn = Index < Lit;
-		const bool bRed = Index >= RpmSegmentCount - RpmRedSegments;
-		const FLinearColor Colour = !bOn ? Palette::Border : (bRed ? Palette::Error : Palette::Accent);
-		RpmSegments[Index]->SetBrush(MakeBrush(Colour));
-	}
-	if (RpmText)
-	{
-		RpmText->SetText(FText::FromString(FString::FromInt(FMath::RoundToInt(Local->EngineRpm))));
-	}
-	if (DrsBadge && DrsText)
-	{
-		const FLinearColor Fill = Local->bDrsOpen ? Palette::Live
-			: Local->bDrsAllowed ? Palette::Surface : Palette::Border;
-		const FLinearColor Ink = Local->bDrsOpen ? Palette::OnAccent
-			: Local->bDrsAllowed ? Palette::Live : Palette::TextDisabled;
-		DrsBadge->SetBrush(MakeBrush(Fill));
-		DrsText->SetColorAndOpacity(FSlateColor(Ink));
-	}
-	if (PitBadge && PitText)
-	{
-		const bool bService = Local->bPitServicing;
-		const bool bLimiter = Local->bPitLimiter;
-		PitBadge->SetBrush(MakeBrush(bService ? Palette::Live : bLimiter ? Palette::Accent : Palette::Border));
-		PitText->SetColorAndOpacity(FSlateColor(bService || bLimiter ? Palette::OnAccent : Palette::TextDisabled));
-		PitText->SetText(FText::FromString(bService
-			? FString::Printf(TEXT("SERVICE %.1f"), Local->ServiceSecondsLeft)
-			: bLimiter ? FString(TEXT("LIMITER")) : FString(TEXT("PIT"))));
-	}
-	if (TowBadge && TowText)
-	{
-		// 3% and up, as the server's `slipstream::TOW_SHOWN`.
-		const bool bTow = Local->TowShare >= 0.03f;
-		TowBadge->SetBrush(MakeBrush(bTow ? Palette::Surface : Palette::Border));
-		TowText->SetColorAndOpacity(FSlateColor(bTow ? Palette::Live : Palette::TextDisabled));
-		TowText->SetText(FText::FromString(bTow
-			? FString::Printf(TEXT("TOW %.0f%%"), Local->TowShare * 100.0f)
-			: FString(TEXT("TOW"))));
-	}
-
-	if (ThrottleBar)
-	{
-		ThrottleBar->SetPercent(FMath::Clamp(Local->Throttle, 0.0f, 1.0f));
-	}
-	if (BrakeBar)
-	{
-		BrakeBar->SetPercent(FMath::Clamp(Local->Brake, 0.0f, 1.0f));
-	}
-
-	// Both times are the server's: it starts and stops the clock on the tick
-	// the car crosses the line, and it decides whether the lap counted.
-	if (LastLapText)
-	{
-		LastLapText->SetText(FText::FromString(FormatTime(Local->LastLapTimeMs / 1000.0f)));
-		LastLapText->SetColorAndOpacity(FSlateColor(
-			Local->LastLapTimeMs > 0 && Local->bLastLapInvalid ? Palette::Error : Palette::TextPrimary));
-	}
-	if (BestLapText)
-	{
-		BestLapText->SetText(FText::FromString(FormatTime(Local->BestLapTimeMs / 1000.0f)));
-	}
-	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	const int32 LapLimit = Flow && HeaderGameMode != EApexGameMode::Hotlap ? Flow->CreateLapLimit : 0;
-	const int32 LapsLeft = LapLimit > 0
-		? (Local->FinishPosition > 0 ? 0 : FMath::Max(0, LapLimit - FMath::Max(0, Local->CurrentLap - 1)))
-		: -1;
-	if (LapsLeftText)
-	{
-		LapsLeftText->SetText(FText::FromString(LapsLeft >= 0 ? FString::FromInt(LapsLeft) : TEXT("—")));
-	}
-	RefreshFuel(*Local, LapsLeft);
-	RefreshTyres(*Local);
-	RefreshDamage(*Local);
-	RefreshErs(*Local);
-}
-
-void UApexHudWidget::RefreshErs(const FApexCarTelemetry& Local)
-{
-	const bool bHybrid = Local.HasHybrid();
-	const ESlateVisibility Shown = bHybrid ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-	if (ErsBarColumn)
-	{
-		ErsBarColumn->SetVisibility(Shown);
-	}
-	if (ErsBadge)
-	{
-		ErsBadge->SetVisibility(Shown);
-	}
-	if (!bHybrid)
-	{
-		return;
-	}
-	if (ErsBar)
-	{
-		ErsBar->SetPercent(FMath::Clamp(Local.ErsChargePct / 100.0f, 0.0f, 1.0f));
-	}
-	if (ErsBadge && ErsText)
-	{
-		FString Label = Local.bErsBoost
-			? FString::Printf(TEXT("OVERTAKE %.0f%%"), Local.ErsChargePct)
-			: FString::Printf(TEXT("ERS %s %.0f%%"), *ApexErs::ShortLabel(Local.ErsMode), Local.ErsChargePct);
-		if (Local.ErsLapPct >= 0.0f)
-		{
-			Label += FString::Printf(TEXT("  LAP %.0f%%"), Local.ErsLapPct);
-		}
-		const bool bDrive = Local.bErsDeploying;
-		const FLinearColor Fill = bDrive ? Palette::Live : Palette::Surface;
-		const FLinearColor Ink = bDrive ? Palette::OnAccent
-			: Local.bErsHarvesting ? Palette::Accent
-			: Local.ErsChargePct < 10.0f || Local.ErsLapPct == 0.0f ? Palette::TextDisabled
-			: Palette::TextSecondary;
-		ErsBadge->SetBrush(MakeBrush(Fill));
-		ErsText->SetColorAndOpacity(FSlateColor(Ink));
-		ErsText->SetText(FText::FromString(Label));
-	}
-}
-
-void UApexHudWidget::RefreshTyres(const FApexCarTelemetry& Local)
-{
-	if (TyreTempTexts.Num() != 4 || TyrePressureTexts.Num() != 4)
-	{
-		return;
-	}
-	// The window is the car's, from its car.toml; read once per car.
-	if (const UApexMenuFlowSubsystem* Flow = GetFlow())
-	{
-		if (Flow->GetPendingCarId() != TyreWindowCarId)
-		{
-			TyreWindowCarId = Flow->GetPendingCarId();
-			FApexCarCatalogRow CarRow;
-			const bool bRow = Flow->GetCarCatalogRow(TyreWindowCarId, CarRow);
-			TyreOptimalC = bRow ? CarRow.TyreOptimalC : 90.0f;
-			TyreWindowC = bRow ? CarRow.TyreWindowC : 10.0f;
-		}
-	}
-	const bool bKnown = Local.HasTyres();
-	// The brakes: blue under the pads' working range, primary in it, amber
-	// and red as they fade. The range is the material's, which the client
-	// does not know, so it is judged from how hot they run: anything over
-	// 300 °C is carbon doing its work, the steel range is below that.
-	for (int32 Corner = 0; Corner < BrakeTempTexts.Num() && Corner < 4; ++Corner)
-	{
-		if (UTextBlock* Brake = BrakeTempTexts[Corner])
-		{
-			const float C = Local.BrakeTempC[Corner];
-			Brake->SetText(FText::FromString(C >= 0.0f ? FString::Printf(TEXT("B %.0f°"), C) : FString(TEXT("—"))));
-			Brake->SetColorAndOpacity(FSlateColor(
-				C < 0.0f ? Palette::TextMuted
-				: C >= 1000.0f ? Palette::Error
-				: C >= 850.0f ? Palette::Accent
-				: C < 150.0f ? TyreColdColour
-				: Palette::TextSecondary));
-		}
-	}
-	if (WaterText)
-	{
-		const float W = Local.WaterTempC;
-		WaterText->SetText(FText::FromString(W >= 0.0f ? FString::Printf(TEXT("%.0f°"), W) : FString(TEXT("—"))));
-		// The engine protects itself past 112 °C (server engine_heat.rs).
-		WaterText->SetColorAndOpacity(FSlateColor(
-			W < 0.0f ? Palette::TextMuted : W > 112.0f ? Palette::Error : W > 105.0f ? Palette::Accent : Palette::TextPrimary));
-	}
-	if (TyreCaption)
-	{
-		const FString Letter = FApexCarTelemetry::CompoundLetter(Local.Compound);
-		TyreCaption->SetText(FText::FromString(Letter.IsEmpty() ? FString(TEXT("TYRES")) : FString::Printf(TEXT("TYRES · %s"), *Letter)));
-	}
-	for (int32 Tyre = 0; Tyre < 4; ++Tyre)
-	{
-		UTextBlock* Temp = TyreTempTexts[Tyre];
-		UTextBlock* Pressure = TyrePressureTexts[Tyre];
-		if (!Temp || !Pressure)
-		{
+			Inner.Index = Child.Slot;
+			UpdateNode(ChildIndex, Inner);
 			continue;
 		}
-		if (!bKnown)
+
+		if (Child.Slot == 0)
 		{
-			Temp->SetText(FText::FromString(TEXT("—")));
-			Temp->SetColorAndOpacity(FSlateColor(Palette::TextMuted));
-			Pressure->SetText(FText::FromString(TEXT("—")));
+			List = Scope.Data ? Scope.Data->FindList(Repeat.List) : nullptr;
+			Start = 0;
+			// Rows around the focus rather than the top of the list: in
+			// eleventh place the leaders are not who you are racing.
+			if (List && !Repeat.Focus.IsNone() && List->Num() > Repeat.Max)
+			{
+				const FName Focus = Repeat.Focus;
+				const int32 Focused = List->IndexOfByPredicate([Focus](const FApexHudRecord& Row)
+				{
+					const FApexHudValue* Value = Row.Find(Focus);
+					return Value && Value->AsBool();
+				});
+				if (Focused >= 0)
+				{
+					Start = FMath::Clamp(Focused - Repeat.Max / 2, 0, List->Num() - Repeat.Max);
+				}
+			}
+		}
+		const int32 Row = Start + Child.Slot;
+		if (!List || !List->IsValidIndex(Row))
+		{
+			SetNodeVisible(Child, false);
 			continue;
 		}
-		const float TempC = Local.TyreTempC[Tyre];
-		Temp->SetText(FText::FromString(FString::Printf(TEXT("%.0f°"), TempC)));
-		Temp->SetColorAndOpacity(FSlateColor(TyreColour(TempC, TyreOptimalC, TyreWindowC)));
-		const float Kpa = Local.TyrePressureKpa[Tyre];
-		const float Wear = Local.TyreWearPct[Tyre];
-		FString Under = Kpa >= 0.0f ? FString::Printf(TEXT("%.0f kPa"), Kpa) : FString(TEXT("—"));
-		if (Wear >= 0.0f)
-		{
-			Under += FString::Printf(TEXT(" · %.0f%%"), Wear);
-		}
-		Pressure->SetText(FText::FromString(Under));
-		// Past the cliff (70%) the wear is the story: the text goes amber, red
-		// once the tyre is nearly through.
-		Pressure->SetColorAndOpacity(FSlateColor(
-			Wear >= 90.0f ? Palette::Error : Wear >= 70.0f ? Palette::Accent : Palette::TextMuted));
+		Inner.Item = &(*List)[Row];
+		Inner.Index = Row;
+		UpdateNode(ChildIndex, Inner);
 	}
-}
-
-void UApexHudWidget::RefreshDamage(const FApexCarTelemetry& Local)
-{
-	if (!DamagePanel || DamageZones.Num() != 5 || DamageValueTexts.Num() != 5)
-	{
-		return;
-	}
-	if (!Local.HasDamage())
-	{
-		DamagePanel->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-	DamagePanel->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-	// The level this car runs at: the player's setting, unless the session
-	// pins full damage (the server applies the same rule).
-	if (DamageCaption)
-	{
-		EApexDamageLevel Level = EApexDamageLevel::Full;
-		const UApexSettingsSubsystem* Settings = GetSettings();
-		if (Settings && Settings->Get())
-		{
-			Level = Settings->Get()->Damage;
-		}
-		const UApexNetSubsystem* Net = GetNet();
-		if (Net && Net->IsInSession() && !Net->GetAllowedAssists().bDamage)
-		{
-			Level = EApexDamageLevel::Full;
-		}
-		DamageCaption->SetText(FText::FromString(
-			Level == EApexDamageLevel::Off ? TEXT("DAMAGE · OFF")
-			: Level == EApexDamageLevel::Reduced ? TEXT("DAMAGE · REDUCED")
-			: TEXT("DAMAGE")));
-	}
-
-	const double Now = FPlatformTime::Seconds();
-	for (int32 Zone = 0; Zone < 5; ++Zone)
-	{
-		const float D = FMath::Clamp(Local.DamagePct[Zone], 0.0f, 100.0f);
-		// A fresh hit (a whole percent at once; overheating creeps in by
-		// fractions and does not flash) lights the zone white for a moment.
-		if (D >= LastDamagePct[Zone] + 1.0f)
-		{
-			DamageFlashUntil[Zone] = Now + DamageFlashSeconds;
-		}
-		else if (D < LastDamagePct[Zone])
-		{
-			// Repaired (a pit stop, the garage): no flash to finish.
-			DamageFlashUntil[Zone] = 0.0;
-		}
-		LastDamagePct[Zone] = D;
-
-		FLinearColor Colour = DamageColour(D);
-		const double FlashLeft = DamageFlashUntil[Zone] - Now;
-		if (FlashLeft > 0.0)
-		{
-			Colour = FMath::Lerp(Colour, FLinearColor::White, static_cast<float>(FlashLeft / DamageFlashSeconds));
-		}
-		if (UBorder* Block = DamageZones[Zone])
-		{
-			Block->SetBrush(MakeBrush(Colour, FLinearColor::Transparent, 0.0f, 3.0f));
-		}
-		if (UTextBlock* Value = DamageValueTexts[Zone])
-		{
-			// A zone at 100% has put the car out (damage.rs refresh).
-			Value->SetText(FText::FromString(D >= 100.0f ? FString(TEXT("OUT")) : FString::Printf(TEXT("%.0f%%"), D)));
-			Value->SetColorAndOpacity(FSlateColor(
-				D < 1.0f ? Palette::TextMuted : D < 25.0f ? Palette::TextSecondary : DamageColour(D)));
-		}
-	}
-}
-
-void UApexHudWidget::RefreshFuel(const FApexCarTelemetry& Local, int32 LapsLeft)
-{
-	if (!FuelText)
-	{
-		return;
-	}
-	if (Local.FuelLiters < 0.0f)
-	{
-		FuelText->SetText(FText::FromString(TEXT("—")));
-		FuelText->SetColorAndOpacity(FSlateColor(Palette::TextPrimary));
-		return;
-	}
-
-	// What a lap costs is measured at the line: the tank there against the
-	// tank one lap earlier. A car filled up (the hotlap garage) starts over.
-	if (Local.CurrentLap != FuelLap)
-	{
-		if (FuelLap > 0 && Local.CurrentLap == FuelLap + 1 && FuelAtLapStart > Local.FuelLiters)
-		{
-			FuelPerLap = FuelAtLapStart - Local.FuelLiters;
-		}
-		FuelLap = Local.CurrentLap;
-		FuelAtLapStart = Local.FuelLiters;
-	}
-	else if (Local.FuelLiters > FuelAtLapStart + 0.5f)
-	{
-		FuelAtLapStart = Local.FuelLiters;
-		FuelPerLap = -1.0f;
-	}
-
-	FLinearColor Colour = Palette::TextPrimary;
-	if (Local.FuelLiters <= 0.0f)
-	{
-		Colour = Palette::Error;
-	}
-	else if (FuelPerLap > 0.0f)
-	{
-		const float LapsOfFuel = Local.FuelLiters / FuelPerLap;
-		if (LapsOfFuel < 1.0f)
-		{
-			Colour = Palette::Error;
-		}
-		else if (LapsLeft > 0 && LapsOfFuel < LapsLeft)
-		{
-			Colour = Palette::Accent;
-		}
-	}
-	FuelText->SetText(FText::FromString(FString::Printf(TEXT("%.1f L"), Local.FuelLiters)));
-	FuelText->SetColorAndOpacity(FSlateColor(Colour));
-}
-
-void UApexHudWidget::RefreshDelta()
-{
-	if (!DeltaValue)
-	{
-		return;
-	}
-
-	const FApexCarTelemetry* Local = FindLocalCar();
-
-	// The reference lap is keyed by fraction of the lap; the wire's
-	// TrackProgress is a station in metres.
-	const float TrackLength = CatalogTrackLengthM();
-	const float Fraction = Local && TrackLength > 0.0f
-		? FMath::Clamp(Local->TrackProgress / TrackLength, 0.0f, 1.0f)
-		: 0.0f;
-	const float ReferenceNow = Local ? ReferenceTimeAt(Fraction) : -1.0f;
-
-	if (!Local || ReferenceNow < 0.0f)
-	{
-		// Before a lap is in the books there is nothing to be quicker than.
-		DeltaValue->SetText(FText::FromString(TEXT("—")));
-		DeltaValue->SetColorAndOpacity(FSlateColor(Palette::TextMuted));
-	}
-	else
-	{
-		const float Delta = Local->CurrentLapTimeMs / 1000.0f - ReferenceNow;
-		DeltaValue->SetText(FText::FromString(FString::Printf(TEXT("%+.3f"), Delta)));
-		DeltaValue->SetColorAndOpacity(FSlateColor(Delta <= 0.0f ? Palette::Live : Palette::Error));
-	}
-
-}
-
-/**
- * The sector strip and the lap-invalid banner.
- *
- * Every number here was timed by the server and arrived as a `LapTiming`
- * message; the client only decides what colour it is. Purple is the session's
- * best, green the driver's own, amber a sector they have done quicker before,
- * and grey a sector still being driven.
- */
-void UApexHudWidget::RefreshSectors()
-{
-	const UApexNetSubsystem* Net = GetNet();
-	const FApexCarTelemetry* Local = FindLocalCar();
-	if (!Net)
-	{
-		return;
-	}
-
-	const FApexTimingBoard& Board = Net->GetTimingBoard();
-	const FApexCarTiming* Timing = Local ? Board.Find(Local->CarIndex) : nullptr;
-
-	// The lap in progress, or — in the moments after the line, before the
-	// first sector of the new lap is done — the lap that just ended, so the
-	// driver gets to read their final split.
-	const bool bShowLastLap = Timing
-		&& !Timing->CurrentSplitsMs.ContainsByPredicate([](int32 Split) { return Split > 0; });
-	const TArray<int32>* Splits = Timing
-		? (bShowLastLap ? &Timing->LastSplitsMs : &Timing->CurrentSplitsMs)
-		: nullptr;
-
-	for (int32 Index = 0; Index < SectorBars.Num(); ++Index)
-	{
-		const int32 Mine = Splits && Splits->IsValidIndex(Index) ? (*Splits)[Index] : 0;
-		const int32 MyBest = Timing && Timing->BestSplitsMs.IsValidIndex(Index)
-			? Timing->BestSplitsMs[Index]
-			: 0;
-		const int32 SessionBest = Board.SessionBestSplitsMs.IsValidIndex(Index)
-			? Board.SessionBestSplitsMs[Index]
-			: 0;
-
-		FLinearColor Colour = Palette::Border;
-		if (Mine > 0)
-		{
-			Colour = (SessionBest > 0 && Mine <= SessionBest)
-				? SessionBestColour
-				: ((MyBest <= 0 || Mine <= MyBest) ? PersonalBestColour : SlowerColour);
-		}
-		SectorBars[Index]->SetBrush(MakeBrush(Colour));
-		if (SectorTimes.IsValidIndex(Index))
-		{
-			SectorTimes[Index]->SetText(FText::FromString(FormatSplit(Mine)));
-			SectorTimes[Index]->SetColorAndOpacity(
-				FSlateColor(Mine > 0 ? Colour : Palette::TextMuted));
-		}
-	}
-
-	if (LapInvalidText)
-	{
-		LapInvalidText->SetVisibility(Local && Local->bLapInvalid
-			? ESlateVisibility::HitTestInvisible
-			: ESlateVisibility::Collapsed);
-	}
-
-	if (SectorCaption)
-	{
-		// The sector lines are the server's, so the caption reads the station
-		// against them rather than splitting the lap into thirds by eye.
-		const FApexTrackSectors& Sectors = Net->GetTrackSectors();
-		const int32 Sector = (Local && Sectors.IsValid()) ? Sectors.SectorAt(Local->TrackProgress) : 0;
-		SectorCaption->SetText(FText::FromString(FString::Printf(TEXT("SECTOR %d"), Sector + 1)));
-	}
-}
-
-void UApexHudWidget::RefreshMinimap()
-{
-	const UApexNetSubsystem* Net = GetNet();
-	if (!Minimap || !Net)
-	{
-		return;
-	}
-
-	if (!Minimap->HasCenterline())
-	{
-		// The outline arrives with the lobby state, which is broadcast every two
-		// seconds and only carries points when the codec is parsing them. The map
-		// is emptied by SetRaceActive, so this also picks up a track change.
-		const UApexMenuFlowSubsystem* Flow = GetFlow();
-		FApexTrackConfigSummary Track;
-		if (Flow && Net->FindTrackById(Flow->GetPendingTrackId(), Track) && Track.Centerline.Num() > 1)
-		{
-			Minimap->SetCenterline(Track.Centerline);
-		}
-		else
-		{
-			return;
-		}
-	}
-
-	const int32 LocalIndex = Net->GetLocalCarIndex();
-	TArray<FApexMinimapBlip> Blips;
-	Blips.Reserve(Net->GetLatestTelemetry().Cars.Num());
-	for (const FApexCarTelemetry& Car : Net->GetLatestTelemetry().Cars)
-	{
-		FApexMinimapBlip Blip;
-		Blip.Position = FVector2D(Car.Position.X, Car.Position.Y);
-		Blip.bIsLocal = Car.CarIndex == LocalIndex;
-		Blip.Colour = BlipColour(Car.CarIndex, Blip.bIsLocal);
-		Blips.Add(Blip);
-	}
-	Minimap->SetBlips(MoveTemp(Blips));
 }

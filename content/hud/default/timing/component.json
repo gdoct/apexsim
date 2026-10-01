@@ -1,0 +1,43 @@
+// The sector strip, the lap-invalid banner and the delta.
+// Every split was timed by the server; this only decides its colour: purple
+// the session's best, green the driver's own, amber a sector they have done
+// quicker before, grey one still being driven.
+{
+  "name": "Sectors and delta",
+  "region": "bottom-left",
+  "order": 30,
+  "margin": [24, 0, 0, 0],
+  "root": {
+    "type": "column",
+    "children": [
+      {
+        "type": "row", "halign": "left", "margin": [0, 0, 0, 10],
+        "children": [{
+          "type": "column", "repeat": { "list": "sectors", "max": 6 }, "margin": [0, 0, 4, 0],
+          "children": [
+            { "type": "rect", "width": 62, "height": 5,
+              "color": "=switch(item.state, 'session_best', 'session_best', 'personal_best', 'personal_best', 'slower', 'accent', 'border')" },
+            { "type": "text", "margin": [0, 4, 0, 0], "font": "mono", "size": 12,
+              "text": "=fmt_split(item.time_s)",
+              "color": "=switch(item.state, 'session_best', 'session_best', 'personal_best', 'personal_best', 'slower', 'accent', 'text_muted')" }
+          ]
+        }]
+      },
+
+      // Struck for leaving the track; hidden while the lap is clean.
+      { "type": "text", "halign": "left", "margin": [0, 0, 0, 8], "visible": "=lap.invalid",
+        "text": "LAP INVALID", "font": "body", "size": 14, "bold": true, "color": "error" },
+
+      // Against the quickest legal lap this session; a dash until there is one.
+      {
+        "type": "panel", "halign": "left", "padding": [18, 13], "background": "surface", "direction": "row",
+        "children": [
+          { "type": "label", "text": "Delta" },
+          { "type": "text", "margin": [16, 0, 0, 0], "font": "mono", "size": 25,
+            "text": "=fmt_delta(timing.delta_s)",
+            "color": "=!has(timing.delta_s) ? 'text_muted' : timing.delta_s <= 0 ? 'live' : 'error'" }
+        ]
+      }
+    ]
+  }
+}

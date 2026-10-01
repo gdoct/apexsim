@@ -1,0 +1,38 @@
+// Throttle and brake as they travel, and the hybrid's battery beside them.
+// Shown only at the "All" HUD detail level.
+{
+  "name": "Pedals",
+  "region": "bottom-right",
+  "order": 10,
+  "margin": [0, 0, 18, 0],
+  "visible": "=hud.full",
+  "root": {
+    "type": "row",
+    "children": [
+      {
+        "type": "column", "valign": "bottom", "margin": [4, 0],
+        "children": [
+          { "type": "bar", "halign": "center", "width": 13, "height": 108, "direction": "up",
+            "color": "live", "value": "=car.throttle" },
+          { "type": "label", "halign": "center", "margin": [0, 7, 0, 0], "text": "Thr" }
+        ]
+      },
+      {
+        "type": "column", "valign": "bottom", "margin": [4, 0],
+        "children": [
+          { "type": "bar", "halign": "center", "width": 13, "height": 108, "direction": "up",
+            "color": "error", "value": "=car.brake" },
+          { "type": "label", "halign": "center", "margin": [0, 7, 0, 0], "text": "Brk" }
+        ]
+      },
+      {
+        "type": "column", "valign": "bottom", "margin": [4, 0], "visible": "=ers.present",
+        "children": [
+          { "type": "bar", "halign": "center", "width": 13, "height": 108, "direction": "up",
+            "color": "accent", "value": "=ers.charge_pct / 100" },
+          { "type": "label", "halign": "center", "margin": [0, 7, 0, 0], "text": "Ers" }
+        ]
+      }
+    ]
+  }
+}

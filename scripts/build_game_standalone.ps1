@@ -16,6 +16,10 @@
    runtime. Every content/cars folder's car.toml, model, DRS flap and livery
    logos are copied into Cars\, and the class wheels into Wheels\.
 
+   The HUD is files too (docs/HUD_MODDING.md): content\hud\default is
+   copied into Hud\default, with an empty Hud\custom (and its README) for
+   the player's own components.
+
 .PARAMETER EngineRoot
    Unreal Engine install directory (the folder containing Engine/). Defaults
    to $env:UE, $env:UE_ROOT, the project's launcher registry entry, and then
@@ -45,6 +49,10 @@
 .PARAMETER SkipCars
    Do not copy the cars and wheels next to the executable.
 
+.PARAMETER SkipHud
+   Do not copy the HUD components (content\hud\default) into Hud\ next to
+   the executable. The game then races with no HUD.
+
 .PARAMETER ExtraUatArgs
    Extra arguments appended to the BuildCookRun invocation.
 
@@ -65,6 +73,7 @@ param(
    [switch]$IncludeCustomTracks,
    [switch]$IncludeCustomCars,
    [switch]$SkipCars,
+   [switch]$SkipHud,
    [string[]]$ExtraUatArgs
 )
 
@@ -184,6 +193,28 @@ if (-not $SkipCars) {
    }
    else {
       Write-Host "    $carCount car(s)" -ForegroundColor DarkGray
+   }
+}
+
+if (-not $SkipHud) {
+   # Where the HUD host looks in a packaged build (ApexHud::HudDirectories):
+   # Hud\ next to ApexSim.exe. Only the shipped components: content\hud\custom
+   # is this machine's own, and Hud\custom is left for the player's.
+   $hudSource = Join-Path $RepoRoot 'content\hud'
+   $hudOut = Join-Path $executable.DirectoryName 'Hud'
+   Write-Host ''
+   Write-Host "==> Copying the HUD to $hudOut" -ForegroundColor Cyan
+   if (Test-Path -LiteralPath $hudOut) { Remove-Item -LiteralPath $hudOut -Recurse -Force }
+   New-Item -ItemType Directory -Path (Join-Path $hudOut 'custom') -Force | Out-Null
+   Copy-Item -LiteralPath (Join-Path $hudSource 'default') -Destination (Join-Path $hudOut 'default') -Recurse -Force
+   $readme = Join-Path $hudSource 'custom\README.md'
+   if (Test-Path -LiteralPath $readme) { Copy-Item -LiteralPath $readme -Destination (Join-Path $hudOut 'custom') -Force }
+   $hudCount = @(Get-ChildItem -LiteralPath (Join-Path $hudOut 'default') -Filter 'component.json' -Recurse -File).Count
+   if ($hudCount -eq 0) {
+      Write-Warning 'no HUD components in content\hud\default; races will have no HUD'
+   }
+   else {
+      Write-Host "    $hudCount component(s)" -ForegroundColor DarkGray
    }
 }
 

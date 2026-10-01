@@ -1329,6 +1329,42 @@ driving. Focus left in the shell routes events through the focusable
 `WBP_Root`, whose default Slate handler eats the left stick, D-pad and arrows
 as menu navigation - pad steering died while throttle and shoulders worked.
 
+### Race HUD (`content/hud`, `Hud/`, docs/HUD_MODDING.md)
+
+The HUD is content, not code. Each panel is a component folder,
+`content/hud/default/<id>/component.json` (`track_info`, `race_state`,
+`status`, `minimap`, `standings`, `timing`, `pedals`, `damage`, `car_state`,
+`mirror`): JSON with comments and trailing commas, a `region` of nine
+(`top-left` ... `bottom-right`; a band's components sit side by side by
+`order`, a `float` one alone at the corner) and a tree of elements (`row`,
+`column`, `stack`, `panel`, `text`, `label`, `rect`, `bar`, `spacer`,
+`divider`, `keycap`, `image`, `minimap`, `mirror`), with `repeat` over a
+count (`index`) or a list (`item.<field>`, `max`, `focus`). Any attribute
+starting with `=` is an expression, `text` takes `{expr}` holes
+(`Hud/ApexHudExpression.h`: literals, data names, arithmetic, comparisons,
+`?:`, `fmt_time`/`fmt_gap`/`ramp`/`mix`/`switch`...; compiled at load,
+side-effect free). `content/hud/custom/<id>` (gitignored but for its README)
+replaces a default of the same id, `{ "enabled": false }` hides one;
+`-ApexHudDir=` adds directories on top. A package carries `Hud/default` and
+an empty `Hud/custom` beside `ApexSim.exe` (`build_game_standalone.ps1
+-SkipHud` to leave it out).
+
+What the components read is `FApexHudData`, built every frame by
+`ApexHudData::Build` from `FApexHudInputs` (gathered by
+`UApexHudDataSubsystem` from the net, flow and settings subsystems; pure, so
+tests feed it a synthetic frame). The derived state the old monolithic widget
+kept (the delta's reference lap, fuel per lap, damage flashes, the rev scale)
+is `FApexHudMemory`. **Every name is set on every path** (null via `SetNone`
+when unknown) and **documented in docs/HUD_MODDING.md**: a new data point is one
+`Out.Set` there plus a line in the doc, or `ApexSim.Hud.Data.Stable` /
+`.Documented` fail. `UApexHudWidget` is only the host: it builds the tree once
+per load and applies changed values per frame; `apexsim.hud.Reload` rereads
+the folders, `apexsim.hud.Data [filter]` prints every data point. Load errors
+drop the component and show on screen; warnings (unknown keys, a name the game
+does not publish) go to the log, and `ApexSim.Hud.Shipped` fails on either for
+the shipped set. Lua was considered and not used (the doc's last section says
+why): logic belongs in a data point.
+
 ### Racing line (`Race/ApexRacingLineActor`)
 Gameplay settings -> Racing line: OFF / BRAKING ONLY / FULL (default off).
 The server works the line out per car (`server/src/racing_line.rs`: the
@@ -2807,6 +2843,7 @@ field is filled from a shift delta, not an absolute gear).
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges): `cars/default/<folder>` the shipped cars, `cars/custom/<folder>` the player's own (gitignored but for its README, read after `default/`, shipped only with `-IncludeCustomCars`)
 - No generator scripts live in `content/`: the Blender builders and texture generators that write the cars, wheels and prop kit are in `scripts/content/{cars,props,wheels}` (libraries `carlib.py`, `apex_props.py`, `apex_tex.py` beside them). The Blender ones find the repo through `APEXSIM_ROOT` (default `E:pexsim`), since `exec(open(...).read())` gives them no `__file__`; the plain-Python ones (`liveries.py`, `gen_graffiti.py`, `gen_brands.py`) from their own path. Either way they write into `content/`
+- `hud/default/` - the race HUD's components, one folder each (`hud/custom/` the player's own); see "Race HUD"
 - `tracks/default/` - the shipped circuits: YAML, `.ats`, dossier, DEM and the generated sidecars side by side
 - `tracks/custom/` - the player's own tracks (imported or hand-made), same layout, gitignored but for its README and not shipped unless `build_release.ps1`/`build_game_standalone.ps1` get `-IncludeCustomTracks`. Every tool walks `default/` then `custom/` (`ue_export_io::TRACK_DIRS`, `scripts/track_dirs.py`, `scripts/lib/ApexTracks.ps1`); a stem must be unique across both (`ats-export --all` refuses a shared one, since exports are keyed by stem), and a custom track reusing a shipped `track_id` is skipped by the server with a warning
 - `build/tracks/` (outside `content/`, gitignored) - the client exports baked from both; `.cache/osm` and `.cache/dem` hold the raw OpenStreetMap and elevation downloads

@@ -1,44 +1,33 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ApexProtocolTypes.h"
-#include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
 #include "Blueprint/UserWidget.h"
+#include "Hud/ApexHudComponent.h"
 
 #include "ApexHudWidget.generated.h"
 
-class UApexMenuFlowSubsystem;
+class UApexHudDataSubsystem;
 class UApexMinimapWidget;
 class UApexMirrorWidget;
-class UApexNetSubsystem;
-class UApexSettingsSubsystem;
-class UBorder;
-class UHorizontalBox;
-class UHorizontalBoxSlot;
-class UProgressBar;
-class USizeBox;
+class UPanelWidget;
 class UTextBlock;
-class UVerticalBox;
+class UTexture2D;
 class UWidget;
 
 /**
- * The race HUD.
+ * The race HUD: a host that draws the components under `content/hud`.
  *
- * Most of it is derived, because the protocol carries no HUD: telemetry gives
- * each car a lap number, a fraction of a lap, a lap time and a speed, and
- * position, gaps, the delta and the standings all fall out of those.
+ * It knows no panel by name. Each component folder (`standings`, `car_state`,
+ * a player's own in `custom/`) says where it sits and what it draws, in
+ * elements bound to the data points UApexHudDataSubsystem publishes, and this
+ * widget builds the tree once and, every frame, evaluates the bindings and
+ * touches only the widgets whose value moved. docs/HUD_MODDING.md is the
+ * format; `apexsim.hud.Reload` reads the folders again without a restart.
  *
- * Lap timing is the exception. Sector splits, whether a lap counts and the
- * session's bests are the server's (`crate::laps`), because it alone sees
- * every tick: a client timing splits off 60 Hz snapshots would be tens of
- * milliseconds out, and track limits need the four wheels the wire never
- * carries. They arrive as `LapTiming` messages and are read back here from
- * `UApexNetSubsystem::GetTimingBoard`.
- *
- * Built in C++ like the rest of the shell and rebuilt only when the detail
- * level changes; the per-frame path just sets text on widgets that already
- * exist.
+ * What the panels show is still mostly derived (position, gaps and the delta
+ * fall out of each car's lap and station) and the lap timing is the server's;
+ * both live in ApexHudData now, not here.
  */
 UCLASS()
 class APEXSIM_API UApexHudWidget : public UUserWidget
@@ -64,226 +53,72 @@ public:
 	 */
 	void SetShown(bool bShown);
 
+	/** Read the component folders again and rebuild the tree. */
+	void Reload();
+
+	/** What the last load said: errors (components left out) and warnings. */
+	const FApexHudLoadReport& GetLoadReport() const { return Report; }
+	const TArray<FApexHudComponentDef>& GetComponents() const { return Components; }
+
 protected:
 	UFUNCTION()
 	void HandleSettingsChanged(EApexSettingsGroup Group);
 
-	UFUNCTION()
-	void HandleTelemetry(const FApexTelemetryFrame& Frame);
-
 private:
-	// --- Construction ---------------------------------------------------------
-
-	/** Rebuilds the whole tree for the current detail level. */
-	void BuildHud();
-	UWidget* BuildTopBar();
-	UWidget* BuildRaceStateStrip();
-	UWidget* BuildStandingsPanel();
-	UWidget* BuildDeltaPanel();
-	UWidget* BuildPedalPanel();
-	UWidget* BuildCarStatePanel();
-	UWidget* BuildDamagePanel();
-	UWidget* BuildMinimapPanel();
-
-	// --- Per-frame ------------------------------------------------------------
-
-	void RefreshHeader();
-	void RefreshRaceState();
-	void RefreshStandings();
-	void RefreshCarState();
-	void RefreshDelta();
-	void RefreshMinimap();
-	/** Show the director's rear capture at the top of the screen while the setting is on. */
-	void RefreshVirtualMirror();
-
-	/** One car's classification, sorted best-first. */
-	struct FStanding
+	/** One built element: its widgets, its children and what was last applied to it. */
+	struct FHudNode
 	{
-		int32 CarIndex = 0;
-		FString Name;
-		/** Race distance in metres; negative on the grid behind the line. */
-		float Progress = 0.0f;
-		float SpeedMps = 0.0f;
-		/** Classified position once the car has finished, else 0. */
-		int32 FinishPosition = 0;
-		bool bIsLocal = false;
+		const FApexHudElementDef* Def = nullptr;
+		/** What collapses when the element is hidden: its size box, or the element itself. */
+		UWidget* Outer = nullptr;
+		UWidget* Widget = nullptr;
+		/** Which copy of a repeated element this is; INDEX_NONE when it is not repeated. */
+		int32 Slot = INDEX_NONE;
+		TArray<int32> Children;
+
+		int8 LastVisible = -1;
+		int8 LastBold = -1;
+		bool bHasText = false;
+		FString LastText;
+		bool bHasColour = false;
+		FLinearColor LastColour;
+		bool bHasBackground = false;
+		FLinearColor LastBackground;
+		bool bHasOutline = false;
+		FLinearColor LastOutline;
+		float LastValue = -1.0f;
 	};
 
-	/** Field order this frame, leader first. */
-	void ComputeStandings(TArray<FStanding>& OutOrder) const;
+	void BuildHud();
+	/** Builds Def (copy Copy of a repeat) and its children; the node's index. */
+	int32 BuildElement(const FApexHudElementDef& Def, int32 Copy);
+	void AddToContainer(UPanelWidget* Container, const FHudNode& Child);
 
-	/** The local player's telemetry this frame, or null. */
-	const FApexCarTelemetry* FindLocalCar() const;
+	void UpdateNode(int32 NodeIndex, const FApexHudScope& Scope);
+	void UpdateChildren(int32 NodeIndex, const FApexHudScope& Scope);
+	void SetNodeVisible(FHudNode& Node, bool bVisible);
+	void ApplyFont(FHudNode& Node, bool bBold);
+	void ApplyBrush(FHudNode& Node);
+	void ApplyVisibility();
 
-	/** The circuit's length from the track catalog, or 0 when unknown. */
-	float CatalogTrackLengthM() const;
+	UApexHudDataSubsystem* GetHudData() const;
 
-	/**
-	 * Samples the lap in progress and, when it turns out to be the fastest,
-	 * keeps it as the reference the delta is measured against.
-	 *
-	 * A delta needs a lap to compare with, and the protocol only ever reports
-	 * one number — the elapsed time of the current lap. Recording elapsed time
-	 * against track position turns that into a curve, and the difference
-	 * between the live curve and the reference is the delta a driver expects.
-	 */
-	void UpdateDeltaReference(const FApexCarTelemetry& Local);
+	TArray<FApexHudComponentDef> Components;
+	FApexHudLoadReport Report;
+	TArray<FHudNode> Nodes;
+	/** The root node of each component, parallel to Components. */
+	TArray<int32> ComponentRoots;
 
-	/** Reference-lap time at a fraction of the lap, or -1 with no reference. */
-	float ReferenceTimeAt(float Progress) const;
+	/** Widgets with their own per-frame feed. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexMinimapWidget>> Minimaps;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexMirrorWidget>> Mirrors;
+	/** Images read from component folders, kept alive while the tree shows them. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UTexture2D>> Images;
+	/** Load errors, on screen, so a broken component is not just missing. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErrorText;
 
-	/** The local car's sector strip and the lap-invalid banner. */
-	void RefreshSectors();
-
-	FString FormatSpeed(float Mps) const;
-	static FString FormatGap(float Seconds, bool bSigned = true);
-
-	UApexNetSubsystem* GetNet() const;
-	UApexSettingsSubsystem* GetSettings() const;
-	UApexMenuFlowSubsystem* GetFlow() const;
-
-	// --- Widgets --------------------------------------------------------------
-
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> TrackNameText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> SessionLineText;
-
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PositionText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PositionOfText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapOfText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> AheadLabel;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> AheadValue;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> BehindLabel;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> BehindValue;
-
-	UPROPERTY(Transient) TObjectPtr<UBorder> PingDot;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PingText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> CarCountText;
-
-	/** Five rows: place, name, time. Hidden from the size box, painted on the border. */
-	UPROPERTY(Transient) TArray<TObjectPtr<USizeBox>> StandingSlots;
-	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> StandingRows;
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> StandingPlace;
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> StandingName;
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> StandingTime;
-
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> DeltaValue;
-	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> SectorBars;
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> SectorTimes;
-
-	/** "LAP INVALID", shown only while the lap in progress is struck. */
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapInvalidText;
-
-	/** The session's fastest lap, under the standings. */
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> FastestLapName;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> FastestLapTime;
-
-	UPROPERTY(Transient) TObjectPtr<UProgressBar> ThrottleBar;
-	UPROPERTY(Transient) TObjectPtr<UProgressBar> BrakeBar;
-
-	/** One border per RPM segment, lit left to right. */
-	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> RpmSegments;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> RpmText;
-	/** The DRS light beside the rev counter's caption. */
-	UPROPERTY(Transient) TObjectPtr<UBorder> DrsBadge;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> DrsText;
-	/** The slipstream light beside it: lit, with the drag saved, in a tow. */
-	UPROPERTY(Transient) TObjectPtr<UBorder> TowBadge;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> TowText;
-	/** The pit light: the limiter, and a service's countdown. */
-	UPROPERTY(Transient) TObjectPtr<UBorder> PitBadge;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PitText;
-	/** The hybrid: mode, charge and lap budget as a badge, and the charge
-	 * as a bar beside the pedals; both collapsed on a car without one. */
-	UPROPERTY(Transient) TObjectPtr<UBorder> ErsBadge;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErsText;
-	UPROPERTY(Transient) TObjectPtr<UProgressBar> ErsBar;
-	UPROPERTY(Transient) TObjectPtr<UWidget> ErsBarColumn;
-	/** The tyre row's caption, which carries the compound. */
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> TyreCaption;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> GearText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> SpeedText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> SpeedUnitText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> LastLapText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> BestLapText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapsLeftText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> FuelText;
-	/** The tyre row: tread temperature and pressure per tyre, FL FR RL RR. */
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TyreTempTexts;
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TyrePressureTexts;
-	/** Each corner's brake temperature, under its tyre. */
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> BrakeTempTexts;
-	/** The engine's coolant, at the end of the tyre row. */
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> WaterText;
-
-	/**
-	 * The damage panel: a top-down car of five blocks (front, rear, left,
-	 * right, engine, the order of FApexCarTelemetry::DamagePct), each
-	 * coloured by its zone's damage, with the percentages beside it and the
-	 * driver's damage level in the caption. Collapsed from an older server.
-	 */
-	UPROPERTY(Transient) TObjectPtr<UWidget> DamagePanel;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> DamageCaption;
-	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> DamageZones;
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> DamageValueTexts;
-
-	UPROPERTY(Transient) TObjectPtr<UApexMinimapWidget> Minimap;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> SectorCaption;
-
-	/** The virtual mirror strip, top centre under the race state; collapsed unless a capture exists. */
-	UPROPERTY(Transient) TObjectPtr<UApexMirrorWidget> VirtualMirror;
-
-	UPROPERTY(Transient) TObjectPtr<UVerticalBox> RootStack;
-
-	// --- Derived state --------------------------------------------------------
-
-	/** Elapsed lap time sampled against track position, for the current lap. */
-	TArray<TPair<float, float>> LapSamples;
-	/** The same curve for the fastest lap so far; empty until one completes. */
-	TArray<TPair<float, float>> ReferenceLap;
-
-	/**
-	 * The lap the delta is measured against: the quickest legal lap this HUD
-	 * has watched, in seconds. The splits themselves come from the server
-	 * (`UApexNetSubsystem::GetTimingBoard`), which is the only clock that sees
-	 * every tick.
-	 */
-	float ReferenceLapSeconds = 0.0f;
-
-	/** The mode the header was last written for, so it is rebuilt when it moves. */
-	EApexGameMode HeaderGameMode = EApexGameMode::Lobby;
-
-	int32 LastSeenLap = 0;
-
-	/** Highest RPM seen this session — the protocol never states a redline. */
-	float ObservedMaxRpm = 8000.0f;
-
-	/** The lap the fuel cell last measured from, and the tank at its start. */
-	int32 FuelLap = -1;
-	float FuelAtLapStart = -1.0f;
-	/** What the last whole lap burnt, litres; negative until one is measured. */
-	float FuelPerLap = -1.0f;
-
-	/** The fuel cell: the tank, coloured by whether it reaches the flag. */
-	void RefreshFuel(const FApexCarTelemetry& Local, int32 LapsLeft);
-	void RefreshErs(const FApexCarTelemetry& Local);
-
-	/** The car the tyre window below was read for, and the window, °C. */
-	FString TyreWindowCarId;
-	float TyreOptimalC = 90.0f;
-	float TyreWindowC = 10.0f;
-
-	/** The tyre row: each tread coloured against the car's working window. */
-	void RefreshTyres(const FApexCarTelemetry& Local);
-
-	/** The damage panel, and a flash on a zone that has just been hurt. */
-	void RefreshDamage(const FApexCarTelemetry& Local);
-	/** Each zone's damage at the last refresh, and when its flash fades, platform seconds. */
-	float LastDamagePct[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-	double DamageFlashUntil[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
-
-	/** What the tree was last built for, so a settings change rebuilds once. */
-	EApexHudDetail BuiltDetail = EApexHudDetail::All;
 	bool bRaceActive = false;
 	bool bShownWanted = true;
+	/** Whether the minimaps hold an outline, so it is only handed over once per race. */
+	bool bMinimapOutlineSet = false;
 };

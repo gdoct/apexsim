@@ -1,0 +1,79 @@
+// The car from above, nose up, each zone coloured by its damage: grey while
+// sound, amber by 25% (what costs real pace) and red by 60%, flashing white
+// for a moment on a fresh hit. Hidden when the server sends no damage.
+{
+  "name": "Damage",
+  "region": "bottom-right",
+  "order": 20,
+  "margin": [0, 0, 18, 0],
+  "visible": "=damage.known",
+  "root": {
+    "type": "panel", "padding": [18, 14], "background": "surface",
+    "children": [
+      { "type": "label",
+        "text": "=damage.level == 'off' ? 'Damage · off' : damage.level == 'reduced' ? 'Damage · reduced' : 'Damage'" },
+      {
+        "type": "row", "margin": [0, 10, 0, 0],
+        "children": [
+          {
+            "type": "column", "valign": "center", "margin": [0, 0, 16, 0],
+            "children": [
+              { "type": "rect", "halign": "center", "width": 50, "height": 13, "radius": 3, "margin": [0, 0, 0, 3],
+                "color": "=mix(ramp(damage.front, 0, 'text_disabled', 25, 'accent', 60, 'error'), 'white', damage.front_flash)" },
+              {
+                "type": "row", "halign": "center",
+                "children": [
+                  { "type": "rect", "width": 10, "height": 52, "radius": 3,
+                    "color": "=mix(ramp(damage.left, 0, 'text_disabled', 25, 'accent', 60, 'error'), 'white', damage.left_flash)" },
+                  { "type": "rect", "width": 24, "height": 52, "radius": 3, "margin": [3, 0],
+                    "color": "=mix(ramp(damage.engine, 0, 'text_disabled', 25, 'accent', 60, 'error'), 'white', damage.engine_flash)" },
+                  { "type": "rect", "width": 10, "height": 52, "radius": 3,
+                    "color": "=mix(ramp(damage.right, 0, 'text_disabled', 25, 'accent', 60, 'error'), 'white', damage.right_flash)" }
+                ]
+              },
+              { "type": "rect", "halign": "center", "width": 50, "height": 13, "radius": 3, "margin": [0, 3, 0, 0],
+                "color": "=mix(ramp(damage.rear, 0, 'text_disabled', 25, 'accent', 60, 'error'), 'white', damage.rear_flash)" }
+            ]
+          },
+          // Each zone's figure, in the order a driver reads the car: nose to
+          // tail. A zone at 100% has put the car out.
+          {
+            "type": "column", "valign": "center", "width": 92,
+            "children": [
+              { "type": "row", "children": [
+                { "type": "label", "fill": 1, "text": "Front" },
+                { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12,
+                  "text": "=damage.front >= 100 ? 'OUT' : fmt(damage.front) + '%'",
+                  "color": "=damage.front < 1 ? 'text_muted' : damage.front < 25 ? 'text_secondary' : ramp(damage.front, 25, 'accent', 60, 'error')" }
+              ]},
+              { "type": "row", "margin": [0, 3, 0, 0], "children": [
+                { "type": "label", "fill": 1, "text": "Left" },
+                { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12,
+                  "text": "=damage.left >= 100 ? 'OUT' : fmt(damage.left) + '%'",
+                  "color": "=damage.left < 1 ? 'text_muted' : damage.left < 25 ? 'text_secondary' : ramp(damage.left, 25, 'accent', 60, 'error')" }
+              ]},
+              { "type": "row", "margin": [0, 3, 0, 0], "children": [
+                { "type": "label", "fill": 1, "text": "Right" },
+                { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12,
+                  "text": "=damage.right >= 100 ? 'OUT' : fmt(damage.right) + '%'",
+                  "color": "=damage.right < 1 ? 'text_muted' : damage.right < 25 ? 'text_secondary' : ramp(damage.right, 25, 'accent', 60, 'error')" }
+              ]},
+              { "type": "row", "margin": [0, 3, 0, 0], "children": [
+                { "type": "label", "fill": 1, "text": "Rear" },
+                { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12,
+                  "text": "=damage.rear >= 100 ? 'OUT' : fmt(damage.rear) + '%'",
+                  "color": "=damage.rear < 1 ? 'text_muted' : damage.rear < 25 ? 'text_secondary' : ramp(damage.rear, 25, 'accent', 60, 'error')" }
+              ]},
+              { "type": "row", "margin": [0, 3, 0, 0], "children": [
+                { "type": "label", "fill": 1, "text": "Engine" },
+                { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12,
+                  "text": "=damage.engine >= 100 ? 'OUT' : fmt(damage.engine) + '%'",
+                  "color": "=damage.engine < 1 ? 'text_muted' : damage.engine < 25 ? 'text_secondary' : ramp(damage.engine, 25, 'accent', 60, 'error')" }
+              ]}
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

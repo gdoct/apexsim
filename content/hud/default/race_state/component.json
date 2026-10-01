@@ -1,0 +1,76 @@
+// Position, lap, and the gaps to the cars either side, centred at the top.
+{
+  "name": "Race state",
+  "region": "top",
+  "order": 10,
+  "root": {
+    "type": "row",
+    "children": [
+      // Position, on the accent: the one number a driver looks for first.
+      {
+        "type": "panel", "height": 76, "valign": "fill", "padding": [20, 9], "background": "accent",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "text": "Pos", "halign": "center", "color": "=alpha('on_accent', 0.7)" },
+            {
+              "type": "row", "halign": "center", "margin": [0, 2, 0, 0],
+              "children": [
+                { "type": "text", "valign": "bottom", "font": "display", "size": 34, "color": "on_accent",
+                  "text": "=has(race.position) ? str(race.position) : '-'" },
+                { "type": "text", "valign": "bottom", "margin": [2, 0, 0, 4], "font": "mono", "size": 13,
+                  "color": "=alpha('on_accent', 0.7)", "text": "/{race.car_count}" }
+              ]
+            }
+          ]
+        }]
+      },
+      // Lap, counted towards the race distance when there is one.
+      {
+        "type": "panel", "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9], "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "text": "Lap", "halign": "center" },
+            {
+              "type": "row", "halign": "center", "margin": [0, 2, 0, 0],
+              "children": [
+                { "type": "text", "valign": "bottom", "font": "display", "size": 34,
+                  "text": "=has(lap.display) ? str(lap.display) : '-'" },
+                { "type": "text", "valign": "bottom", "margin": [2, 0, 0, 4], "font": "mono", "size": 13,
+                  "color": "text_muted", "text": "=lap.limit > 0 ? '/' + lap.limit : ''" }
+              ]
+            }
+          ]
+        }]
+      },
+      // The gaps name their rival: a bare number does not tell you who you are racing.
+      {
+        "type": "panel", "width": 200, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9], "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "halign": "center",
+              "text": "=has(gap.ahead_name) ? 'Ahead · ' + gap.ahead_name : 'Ahead'" },
+            { "type": "text", "halign": "center", "margin": [0, 5, 0, 0], "font": "mono", "size": 23,
+              "text": "=fmt_gap(gap.ahead_s)",
+              "color": "=has(gap.ahead_name) ? 'error' : 'text_muted'" }
+          ]
+        }]
+      },
+      {
+        "type": "panel", "width": 200, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9], "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "halign": "center",
+              "text": "=has(gap.behind_name) ? 'Behind · ' + gap.behind_name : 'Behind'" },
+            { "type": "text", "halign": "center", "margin": [0, 5, 0, 0], "font": "mono", "size": 23,
+              "text": "=fmt_gap(gap.behind_s)",
+              "color": "=has(gap.behind_name) ? 'live' : 'text_muted'" }
+          ]
+        }]
+      }
+    ]
+  }
+}

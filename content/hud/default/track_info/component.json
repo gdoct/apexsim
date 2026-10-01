@@ -1,0 +1,23 @@
+// Which circuit, and what kind of session in which car.
+// The format is in docs/HUD_MODDING.md; `apexsim.hud.Data` lists every data point.
+{
+  "name": "Track and session",
+  "region": "top-left",
+  "order": 10,
+  "root": {
+    "type": "column",
+    "children": [
+      {
+        "type": "text",
+        "text": "=session.track_name != '' ? session.track_name : 'Circuit'",
+        "font": "display", "size": 30, "tracking": 20, "upper": true
+      },
+      {
+        "type": "label",
+        "margin": [0, 8, 0, 0],
+        "color": "text_secondary",
+        "text": "=session.mode_name + (session.car_name != '' ? '  ·  ' + session.car_name : '')"
+      }
+    ]
+  }
+}
