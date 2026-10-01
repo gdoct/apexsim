@@ -180,6 +180,19 @@ rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
 
+[cockpit]
+# Written by the build script: the eye and wheel the cabin was built to
+# (car frame: +X nose, +Y right, +Z up). The client uses these instead of
+# deriving them from the mesh box, so the greenhouse can sit where a
+# real one does. Remove a key to fall back to the derivation.
+# GT3: the seat where the class puts it.
+style = "closed"
+eye_cm = [-33.0, -36.0, 97.0]
+wheel_cm = [7.0, -36.0, 77.0]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 270.0
+
 # --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 
@@ -224,8 +237,3 @@ paint = [0.950, 0.400, 0.015]
 accent = [0.015, 0.120, 0.400]
 metallic = 0.25
 logo = "textures/livery_citrus.png"
-
-[cockpit]
-# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
-# wheel on the Auto steering lock the real rim turns twice this lock to lock.
-wheel_lock_deg = 270.0

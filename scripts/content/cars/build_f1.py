@@ -449,38 +449,14 @@ def write_drs_table(toml_path, stem, hinge_yz, open_deg):
     """Put the flap's `[drs_flap]` table in car.toml (docs/CAR_MODELS.md): the
     GLB, the hinge in the wheels' convention (forward of the body origin,
     up from the floor, metres) and how far it opens. Replaced on every run,
-    kept above the liveries' marker, line endings as the file has them."""
-    with open(toml_path, encoding="utf-8", newline="") as f:
-        text = f.read()
-    nl = "\r\n" if "\r\n" in text else "\n"
-    lines = text.replace("\r\n", "\n").split("\n")
-    out, skip = [], False
-    for line in lines:
-        head = line.strip()
-        if head.startswith("["):
-            skip = head == "[drs_flap]"
-        elif head.startswith("# --- liveries:"):
-            skip = False
-        if not skip:
-            out.append(line)
-    block = ["[drs_flap]",
-             "# the rear wing's upper element, cut out of the body so the client can open it",
-             'model = "%s_drs.glb"' % stem,
-             "hinge_forward_m = %.4f" % -hinge_yz[0],
-             "hinge_up_m = %.4f" % hinge_yz[1],
-             "open_deg = %.1f" % open_deg, ""]
-    marker = next((i for i, l in enumerate(out) if l.startswith("# --- liveries:")), None)
-    if marker is None:
-        while out and not out[-1].strip():
-            out.pop()
-        out += [""] + block
-    else:
-        while marker > 0 and not out[marker - 1].strip():
-            out.pop(marker - 1)
-            marker -= 1
-        out[marker:marker] = [""] + block
-    with open(toml_path, "w", encoding="utf-8", newline="") as f:
-        f.write(nl.join(out))
+    kept above the liveries' marker (`carlib.write_table`)."""
+    carlib.write_table(toml_path, "drs_flap", [
+        "[drs_flap]",
+        "# the rear wing's upper element, cut out of the body so the client can open it",
+        'model = "%s_drs.glb"' % stem,
+        "hinge_forward_m = %.4f" % -hinge_yz[0],
+        "hinge_up_m = %.4f" % hinge_yz[1],
+        "open_deg = %.1f" % open_deg])
 
 # ------------------------------------------------------------ join + export
 car, glb = carlib.join_and_export([body, parts], V["stem"], CAR_DIR,

@@ -618,3 +618,112 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		}
 	}
 }
+
+FApexHudPreview::FApexHudPreview()
+{
+	constexpr float Length = 5793.0f;
+	static const TCHAR* const Names[] = {TEXT("Rex Thunder"), TEXT("Nova Blaze"), TEXT("Kai Storm"), TEXT("Player"),
+		TEXT("Luna Swift"), TEXT("Max Voltage"), TEXT("Zara Vortex"), TEXT("Atlas Fury"), TEXT("Ivy Comet"), TEXT("Jett Rider")};
+	constexpr int32 LocalIndex = 3;
+
+	// A loop with a long straight and a few bends, for the minimap and the blips.
+	constexpr int32 Points = 240;
+	auto LoopAt = [](float Fraction)
+	{
+		const float T = Fraction * 2.0f * PI;
+		return FVector2D(900.0f * FMath::Cos(T) + 160.0f * FMath::Cos(3.0f * T), 430.0f * FMath::Sin(T) + 90.0f * FMath::Sin(2.0f * T));
+	};
+	for (int32 Point = 0; Point < Points; ++Point)
+	{
+		Outline.Add(LoopAt(static_cast<float>(Point) / Points));
+	}
+
+	// The field strung out over a quarter of a lap, the player fourth.
+	const float LocalFraction = 0.4f;
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
+	{
+		const float Fraction = LocalFraction + (LocalIndex - Index) * 0.018f;
+		FApexCarTelemetry Car;
+		Car.CarIndex = Index;
+		Car.CurrentLap = 6;
+		Car.TrackProgress = Fraction * Length;
+		Car.SpeedMps = 68.0f + (Index % 3) * 2.0f;
+		const FVector2D At = LoopAt(Fraction);
+		Car.Position = FVector(At.X, At.Y, 0.0f);
+		Car.BestLapTimeMs = 81500 + Index * 230;
+		Car.LastLapTimeMs = 82100 + Index * 310;
+		Frame.Cars.Add(Car);
+
+		FApexRosterEntry& Row = Roster.Entries.AddDefaulted_GetRef();
+		Row.CarIndex = Index;
+		Row.PlayerName = Names[Index];
+	}
+
+	FApexCarTelemetry& Local = Frame.Cars[LocalIndex];
+	Local.SpeedMps = 63.0f;
+	Local.Gear = 5;
+	Local.EngineRpm = 9800.0f;
+	Local.Throttle = 0.82f;
+	Local.Brake = 0.0f;
+	Local.CurrentLapTimeMs = 32600;
+	Local.LastLapTimeMs = 82345;
+	Local.BestLapTimeMs = 81902;
+	Local.bDrsAllowed = true;
+	Local.TowShare = 0.06f;
+	Local.FuelLiters = 38.4f;
+	Local.Compound = 1;
+	const float Tread[4] = {88.0f, 91.0f, 95.0f, 97.0f};
+	const float Pressure[4] = {176.0f, 178.0f, 181.0f, 183.0f};
+	const float Wear[4] = {14.0f, 16.0f, 12.0f, 13.0f};
+	const float Brakes[4] = {520.0f, 545.0f, 380.0f, 395.0f};
+	for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+	{
+		Local.TyreTempC[Tyre] = Tread[Tyre];
+		Local.TyrePressureKpa[Tyre] = Pressure[Tyre];
+		Local.TyreWearPct[Tyre] = Wear[Tyre];
+		Local.BrakeTempC[Tyre] = Brakes[Tyre];
+	}
+	Local.WaterTempC = 92.0f;
+	const float Damage[5] = {8.0f, 0.0f, 3.0f, 0.0f, 1.0f};
+	for (int32 Zone = 0; Zone < 5; ++Zone)
+	{
+		Local.DamagePct[Zone] = Damage[Zone];
+	}
+	Local.ErsChargePct = 64.0f;
+	Local.ErsLapPct = 72.0f;
+	Local.ErsMode = 1;
+
+	Timing.SectorCount = 3;
+	Timing.SessionBestLapMs = 81500;
+	Timing.SessionBestLapCarIndex = 0;
+	Timing.SessionBestSplitsMs = {28200, 27100, 26200};
+	FApexCarTiming& Mine = Timing.Cars.Add(LocalIndex);
+	Mine.CurrentSplitsMs = {28412, 0, 0};
+	Mine.BestSplitsMs = {28480, 27300, 26122};
+	Mine.BestLapMs = 81902;
+
+	Sectors.TrackLengthM = Length;
+	Sectors.BoundariesM = {Length / 3.0f, Length * 2.0f / 3.0f};
+
+	// A reference lap that puts the player two tenths up at this point.
+	Memory.ReferenceLap.Emplace(0.0f, 0.0f);
+	Memory.ReferenceLap.Emplace(1.0f, 82.0f);
+	Memory.ReferenceLapSeconds = 82.0f;
+	Memory.LastSeenLap = 6;
+
+	Inputs.Frame = &Frame;
+	Inputs.LocalCarIndex = LocalIndex;
+	Inputs.Roster = &Roster;
+	Inputs.Timing = &Timing;
+	Inputs.Sectors = &Sectors;
+	Inputs.TrackLengthM = Length;
+	Inputs.LapLimit = 12;
+	Inputs.GameMode = EApexGameMode::Race;
+	Inputs.ModeName = TEXT("Race");
+	Inputs.TrackName = TEXT("Preview circuit");
+	Inputs.CarName = TEXT("Your car");
+	Inputs.PingMs = 24;
+	Inputs.LimiterRpm = 11000.0f;
+	Inputs.RedlineRpm = 10500.0f;
+	Inputs.bHasConditions = true;
+}

@@ -1,8 +1,9 @@
 """Render a consistent preview sheet for the generated cars.
 
-Run inside Blender; set CARS (folder names) and optionally VIEWS first:
+Run inside Blender; set CARS (folder names, or "custom/<folder>" for one of
+the player's own cars, an AC import included) and optionally VIEWS first:
 
-    CARS = ["posh-gt3rs"]
+    CARS = ["posh-gt3rs", "custom/KsPorsche911Gt3R2016"]
     exec(open(r"E:\\apexsim\\content\\cars\\preview_cars.py").read())
 
 Loads each car's GLB plus the shared class wheel from content/wheels, places
@@ -57,7 +58,18 @@ def wipe():
 def studio():
     """Neutral grey studio: sky-ish world, key sun, soft fill, matte ground."""
     sc = bpy.context.scene
-    sc.render.engine = 'BLENDER_EEVEE'
+    # Eevee needs a GPU/EGL context; headless bpy (a cloud session) has none,
+    # so APEX_PREVIEW_CYCLES=1 renders the same sheet with Cycles on the CPU.
+    if os.environ.get("APEX_PREVIEW_CYCLES") == "1":
+        sc.render.engine = 'CYCLES'
+        sc.cycles.samples = int(os.environ.get("APEX_PREVIEW_SAMPLES", "48"))
+        sc.cycles.use_denoising = True
+        sc.cycles.device = 'CPU'
+    else:
+        try:
+            sc.render.engine = 'BLENDER_EEVEE_NEXT'
+        except TypeError:
+            sc.render.engine = 'BLENDER_EEVEE'
     sc.render.resolution_x, sc.render.resolution_y = RES
     sc.render.film_transparent = False
     sc.view_settings.view_transform = 'AgX'
@@ -149,19 +161,25 @@ def bounds(objs):
     return lo, hi
 
 
-def add_wheels(cfg):
+def add_wheels(cfg, car_dir):
     """Four wheels from content/wheels/<model>.glb at the car.toml positions."""
     w = cfg.get("wheels")
     if not w:
         return []
-    src = os.path.join(ROOT, "wheels", w.get("model", "gt3") + ".glb")
-    if not os.path.exists(src):
-        print("no wheel model", src)
+    def wheel_path(model):
+        # a car-local wheel (an imported car's own rims) or a class wheel
+        if model.endswith(".glb") or "/" in model:
+            return os.path.join(car_dir, model.replace("/", os.sep))
+        return os.path.join(ROOT, "wheels", model + ".glb")
+    front = wheel_path(w.get("model", "gt3"))
+    rear = wheel_path(w["rear_model"]) if w.get("rear_model") else front
+    if not os.path.exists(front) or not os.path.exists(rear):
+        print("no wheel model", front, rear)
         return []
     out = []
-    for (ax_key, tr_key, r_key, wd_key, sign) in (
-            ("front_axle_m", "front_track_m", "front_radius_m", "front_width_m", -1),
-            ("rear_axle_m", "rear_track_m", "rear_radius_m", "rear_width_m", -1)):
+    for (ax_key, tr_key, r_key, wd_key, sign, src) in (
+            ("front_axle_m", "front_track_m", "front_radius_m", "front_width_m", -1, front),
+            ("rear_axle_m", "rear_track_m", "rear_radius_m", "rear_width_m", -1, rear)):
         axle = float(w[ax_key]); track = float(w[tr_key])
         R = float(w[r_key]); W = float(w[wd_key])
         for sx in (-1, 1):
@@ -201,6 +219,17 @@ def add_drs_flap(cfg, car_dir):
 
 
 OPEN_WHEEL = False   # set per car from its class: F1 cars get the open-wheel eye
+COCKPIT_EYE = None   # the car.toml's own [cockpit] eye_cm, when it has one (Blender frame)
+
+
+def authored_eye(cfg):
+    """The eye the car.toml authors (`[cockpit] eye_cm`, car frame: +X nose,
+    +Y right, +Z up, cm) in the build frame (nose -Y, driver +X), or None.
+    The client prefers it to the derivation, so the previews must too."""
+    e = (cfg.get("cockpit") or {}).get("eye_cm")
+    if not e or not any(e):
+        return None
+    return Vector((-e[1] / 100.0, -e[0] / 100.0, e[2] / 100.0))
 
 
 def apply_livery(objs, car_dir, livery):
@@ -233,6 +262,8 @@ def eye_from_box(lo, hi):
     (ApexCockpit::DeriveLayout, closed style - docs/CAR_MODELS.md). An
     open-wheeler's is on the centreline, 8% behind centre, 82% up."""
     c = (lo + hi) / 2.0
+    if COCKPIT_EYE is not None:
+        return COCKPIT_EYE
     if OPEN_WHEEL:
         return Vector((0.0, c.y + 0.08 * (hi.y - lo.y), lo.z + 0.82 * (hi.z - lo.z)))
     return Vector((0.18 * (hi.x - lo.x),
@@ -297,10 +328,13 @@ def _aim(cam, target):
 
 
 for folder in CARS:
-    car_dir = os.path.join(ROOT, "cars", "default", folder)
+    # "posh-gt3rs" is a shipped car; "custom/KsPorsche911Gt3R2016" the player's own
+    car_dir = os.path.join(ROOT, "cars", *(folder.split("/") if "/" in folder else ("default", folder)))
+    stem = folder.split("/")[-1]
     with open(os.path.join(car_dir, "car.toml"), "rb") as f:
         cfg = tomllib.load(f)
     OPEN_WHEEL = cfg.get("class", "").strip().upper() in ("F1", "FORMULA", "OPEN", "INDY")
+    COCKPIT_EYE = authored_eye(cfg)
     glb = os.path.join(car_dir, cfg["model"])
     for view in VIEWS:
         wipe()
@@ -310,12 +344,12 @@ for folder in CARS:
         body = import_glb(glb) + add_drs_flap(cfg, car_dir)
         if LIVERY and len(cfg.get("livery", [])) >= LIVERY:
             apply_livery(body, car_dir, cfg["livery"][LIVERY - 1])
-        wheels = add_wheels(cfg)
+        wheels = add_wheels(cfg, car_dir)
         # the client derives the eye from the body mesh's own box (no wheels)
         lo, hi = bounds(body) if view in ("cockpit", "mirror") else bounds(body + wheels)
         frame(view, lo, hi)
         os.makedirs(OUT, exist_ok=True)
-        path = os.path.join(OUT, "%s_%s%s.png" % (folder, view, "_L%d" % LIVERY if LIVERY else ""))
+        path = os.path.join(OUT, "%s_%s%s.png" % (stem, view, "_L%d" % LIVERY if LIVERY else ""))
         bpy.context.scene.render.filepath = path
         bpy.ops.render.render(write_still=True)
         print("rendered", path)

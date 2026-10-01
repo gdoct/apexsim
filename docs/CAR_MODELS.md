@@ -19,7 +19,8 @@ resets the scene, builds body → wheel arches → apertures → parts → joine
 iterating on shape.
 
 They also run headless, outside Blender, on the `bpy` module
-(`pip install bpy`, Python 3.11): set `APEXSIM_ROOT` to the checkout (the
+(`pip install bpy`, Python 3.11; pass 5 was built on bpy 5.0.1 in a cloud
+session, eight seconds a car): set `APEXSIM_ROOT` to the checkout (the
 scripts, `carlib.CARS_ROOT`, `apex_props.PROPS_ROOT` and `preview_cars.py`
 fall back to `E:\apexsim` without it), define `VARIANT` and `exec` the
 script. `preview_cars.py` renders the same way with Cycles where Eevee has
@@ -125,7 +126,9 @@ under the LMP2s.
 | `prism_xz()`, `aperture_poly()`, `rounded()`, `flip_x()`, `poly_depth()`, `poly_fill()`, `poly_bars()`, `poly_rim()` | shaped openings: cut an `(x, z)` outline, fill it (fan from the centroid, so keep it star-shaped), bar it at any angle clipped to the outline, rim it |
 | `surface_station()` | the first station where the skin is wide enough to carry a part. The nose station is the narrowest part of the car, so a corner part placed at `NOSE` hangs in mid-air |
 | `bevel()`, `sharpen()` | a small radius on every hard edge, and shading normals split by angle. `sharpen()` replaces `shade_auto_smooth`, whose geometry-nodes asset is missing on some installs |
-| `lower_roof()`, `tumblehome()`, `shift_upper()`, `drop_bonnet()` | key reshaping, applied before the loft: pull the greenhouse down towards the belt and lean it in; slide the cabin along the car (the Murcetes' is 0.38 m forward of its keys, see Cockpit); drop the bonnet between the fender crowns so the driver sees the road |
+| `lower_roof()`, `tumblehome()`, `shift_upper()`, `drop_bonnet()` | key reshaping, applied before the loft: pull the greenhouse down towards the belt and lean it in; slide the cabin along the car; drop the bonnet between the fender crowns so the driver sees the road |
+| `scale_width()`, `lift_points()`, `roofline()` | pass-5 key reshaping, measured against the imported cars: scale the half-widths to the class's real width; lift the belt or the fender crowns over a span; and author the roof as a *line in profile* - `(y, z)` targets the roof centre is scaled onto about the belt - so a fastback is a list of six points rather than a by-product of nine section tables |
+| `authored_cockpit()`, `cockpit_table()`, `write_table()`, `write_cockpit_table()` | the eye the *car* says (see Cockpit): the wheel and mirror laid off it, and the `[cockpit]` table written into car.toml above the liveries' marker (`write_table` is the generic one; the F1 builds' `[drs_flap]` goes through it too) |
 | `top_patch()`, `top_text()` | a number plate and a race number lying on the bonnet or deck, each vertex dropped onto `z_at` so they bend over the crown instead of sinking in at the edges |
 | `bucket_seat()`, `switch_panel()`, `door_card()`, `inner_skin()`, `extinguisher()` | the cabin kit (see Cockpit) |
 | `sightline()` | the number the cockpit is judged by: from the eye the client will derive, how far ahead the road is visible |
@@ -155,16 +158,22 @@ Two things to know about the loft:
 into `content/props/_preview/cars/`:
 
 ```python
-CARS = ["posh-gt3rs"]; VIEWS = ["hero", "side", "front", "rear", "cockpit", "mirror"]
+CARS = ["posh-gt3rs", "custom/KsPorsche911Gt3R2016"]
+VIEWS = ["hero", "side", "front", "rear", "cockpit", "mirror"]
 exec(open(r"E:\apexsim\scripts\content\cars\preview_cars.py").read())
 ```
 
-It loads the exported GLB plus the class wheel and places the four wheels
-where `car.toml` says, so the previews show what actually ships. Bounds are
+It loads the exported GLB plus the class wheel (or, for a `custom/` car such
+as an AC import, the car's own `wheels/front.glb` and `rear_model`) and
+places the four wheels where `car.toml` says, so the previews show what
+actually ships, and what a generated car is measured against. Headless
+without a GPU (a cloud session on the `bpy` wheel) `APEX_PREVIEW_CYCLES=1`
+renders the same sheet with Cycles on the CPU (`APEX_PREVIEW_SAMPLES`,
+default 48; about 80 s a view). Bounds are
 taken from the vertices (a freshly imported object's `bound_box` is stale
 until the depsgraph runs, and an eye derived from it sat 10 cm low), and
-the `cockpit`/`mirror` eye comes from the body's box alone, as the client's
-does. `side`,
+the `cockpit`/`mirror` eye is the car.toml's `[cockpit] eye_cm` when it has
+one, else derived from the body's box alone, as the client's is. `side`,
 `front` and `top` are orthographic. `cockpit` and `mirror` sit at the points
 the client derives from the mesh box - which is how a new car's cockpit gets
 verified, per the section below.
@@ -182,7 +191,7 @@ draws the wheel where the arch is not:
 
 | | tyre radius (f/r) | track | axles | arch clearance |
 | --- | --- | --- | --- | --- |
-| GT3 | 0.345 / 0.355 m | 1.700 m | ±1.375 m | 24 mm |
+| GT3 | 0.345 / 0.355 m | 1.700 m | ±1.375 m | 32 mm, the arch wrapping 28° under the hub |
 | LMP2 | 0.355 / 0.365 m | 1.580 m | ±1.500 m | 22 mm |
 | Hypercar | 0.360 / 0.360 m | 1.620 m | ±1.550 m | 20 mm |
 | F1 (generated) | 0.360 / 0.360 m | 1.580 / 1.520 m | -1.650 / +1.750 m | open wheels |
@@ -192,16 +201,77 @@ the arch lip, so the wheel fills the opening. The first generation ran a
 0.42 m arch around a 0.35 m tyre on a 1.60 m track inside a 2.0 m body: a
 circular porthole with a 7 cm gap and the tyre 20 cm inboard of it.
 
+### Pass 5: measured against the imported cars (2026-10-01)
+
+The AC importer put real GT3s and prototypes beside the generated ones
+(`content/cars/custom/Ks*`), so the generated ones could be measured
+against them: `preview_cars.py` takes `"custom/<folder>"` entries (and an
+imported car's own wheels), and a GLB's silhouette was tabulated station by
+station (top of the body at the centreline, at the shoulder and at the
+flank, the half-width, the floor, every 20 cm; the project notes for the
+pass have the script). What the numbers said, and what changed:
+
+| | imported | generated, before | now |
+| --- | --- | --- | --- |
+| GT3 width over the arches | 2.00-2.06 m (AMG, 911, Huracán) | 2.10-2.14 m | 2.00-2.02 m (`scale_width` to 1.0) |
+| GT3 floor / splitter | 85 / 70 mm | 75 / 52 mm | 85 / 62 mm (`FLOOR_LIFT`) |
+| GT3 belt line at the door | 0.93-0.96 m, the flank standing to it | 0.80-0.84 m, the flank rolling in from 0.72 | 0.90-0.96 m (`belt_lift`; new Murcetes keys) |
+| GT3 roof | 1.17-1.25 m, peaking behind the B-pillar, one fastback to the deck | 1.28-1.30 m, peaking ahead of the middle, a flat deck a metre long | 1.17-1.25 m, authored with `roofline` (Posh, Limbotiti) or new keys (Murcetes) |
+| GT3 cabin | cab-rearward on the front-engined AMG (screen base 0.45 m ahead of the middle, roof peak 0.7 behind it) | slid 0.38 m forward to meet the derived eye | where the engine puts it, since the eye is authored |
+| GT3 arch | a circle the tyre fills, the flare in body colour | a U as wide as the tyre down to the sill, a carbon ring | wraps 28° under the hub, flare in `car_paint` |
+| GT3 mirrors | on the door at the belt | on the A-pillar | on the door, 0.36 m behind the screen base |
+| prototype width | 1.90 m (by rule) | 2.04 m with the skirts | 1.93-1.98 m |
+| prototype fender crowns | 0.73-0.76 m (LMP1), ~0.80 (LMP2) | 0.95 m | 0.76-0.81 m |
+| prototype canopy base | ~0.9 m across | 1.2 m (widened 16% for the derived eye) | ~0.95 m |
+| prototype engine deck at the rear axle | 0.45-0.55 m beside the fin | 0.87 m | 0.61 m, the fin standing out of it |
+| prototype wing endplates | 10-15 cm over the plane | 25.5 cm | 13 cm |
+| driver's eye, GT3 | 0.33-0.66 m behind the middle of the wheelbase (rear- to front-engined), 0.33-0.40 m off centre, 0.90-0.96 m up | derived: 0.24 m behind, 0.40 off, 0.93 up | authored per car: 0.05 / 0.33 / 0.60 behind, 0.36 off, 0.92-0.97 up |
+| driver's eye, prototype | 0.21-0.28 m *ahead* of the middle, 0.15-0.20 m off centre, 0.78-0.79 m up | derived: 0.24 behind, 0.35 off, 0.92 up | authored: 0.25 ahead (+ the canopy shift), 0.18 off, 0.82 up |
+
+The lamp kit, the faces, the flanks and the cabin kit are unchanged; what
+the imported cars taught was proportion, and the one structural change
+proportion needed - the eye - is the Cockpit section below. Still open
+after this pass, in the order the renders show it: the class wheel's rim
+is small in the tyre (an 18" GT3 rim nearly fills a 0.69 m tyre; the AC
+rims do), the GT3 headlamps are slits where the real ones are pods that
+wrap onto the fender, the nose faces are flatter than the real cars'
+(the AMG's grille is most of its face), and the imported cars' panel
+shut lines, bonnet vents and door furniture are denser than the kit's.
+
 ## Cockpit
 
-The client derives the driver's eye from the mesh bounds
+**The GT3 and LMP2 builds author the eye** (pass 5). Each GT3 variant
+names it (`eye=(x, y, z)` in `build_gt3.py`'s `VARIANTS`; the LMP2 build
+uses one point for the class plus the canopy shift), the cabin kit is laid
+off it (`carlib.authored_cockpit()`: wheel 40 cm ahead and 20 cm below,
+mirror 45 cm ahead and 12 cm up, the bucket's front edge 0.46-0.48 m
+ahead, pedals 1.1-1.2 m ahead), `carlib.sightline(car, eye=EYE)` is judged
+from it, and the build ends by writing it into car.toml as the `[cockpit]`
+table (`eye_cm`, `wheel_cm`, `style`, the class's `wheel_lock_deg`;
+`write_cockpit_table`, above the liveries' marker so `liveries.py` leaves
+it alone - the hand-written table that used to sit below the marker was
+one rerun away from being lost). The client takes those over its
+derivation, and `preview_cars.py`'s `cockpit` and `mirror` views read them
+too (`authored_eye`). The numbers come from the imported cars'
+`DRIVEREYES`: a front-engined GT3 driver sits 0.65 m behind the middle of
+the wheelbase, a mid-engined one on it, a rear-engined one a third of a
+metre behind, all ~0.35 m off centre and 0.90-0.96 m up; a prototype
+driver 0.2-0.3 m ahead of the middle, 0.15-0.20 m off centre and
+0.78-0.80 m up. Every generated cabin used to be shifted, widened or
+raised to meet the derived eye instead - the LMP2 driver sat 0.35 m off
+centre and 0.92 m up in a canopy 1.2 m wide, and the Murcetes' greenhouse
+was slid 0.38 m forward of a long-bonnet GT's - which is why the derived
+eye is now the fallback, not the rule.
+
+For a car without a `[cockpit]` eye (the F1s, the hypercars) the client
+derives the driver's eye from the mesh bounds
 (`ApexCockpit::DeriveLayout`, closed style): 70% of the box height (the box
-now runs from the splitter at ~0.04 m to the wing endplates at
-`wing_z + 0.235`), 5% of the length (splitter to diffuser) behind centre, 18%
+runs from the splitter at ~0.04 m to the wing endplates), 5% of the length
+(splitter to diffuser) behind centre, 18%
 of the width to the left; the wheel goes 40 cm ahead of and 18 cm below the
 eye, the centre mirror 45 cm ahead and 12 cm above it. `carlib.cockpit_points()`
-reproduces that arithmetic so both generators build the interior to the same
-points. Note the 18% is of the car's **width** (the mesh box's X extent), not
+reproduces that arithmetic so a generator can build the interior to the same
+points (`eye=` hands it an authored one instead). Note the 18% is of the car's **width** (the mesh box's X extent), not
 of the section's local width at eye height - measuring it up by the roof, where
 the shell is barely a metre across, seats the driver 18 cm too far inboard.
 `cockpit_points()` takes `top_z`, the true top of the mesh (wing endplates or
@@ -226,27 +296,21 @@ the mirror sees over it). The main hoop is at `y = 0.96`, just behind the
 seat back, and the A-pillar bars run down the edge of the screen from the
 roof's outer edge - at `x = 0.46` the bar was across the driver's face.
 
-**The road has to be visible.** The eye is 70% of the box up whatever the
-silhouette, and a flat bonnet at 0.87 m put the cowl 5 cm under a 0.93 m
-eye: the road appeared forty metres out. Two things fix it, both key
-transforms in `carlib`: `drop_bonnet()` lowers the upper surface from the
-screen base to the nose (the fender crowns stay, so the bonnet sits in a
-valley between them, which is what a front-engined GT3 bonnet looks like),
-and for the Murcetes `shift_upper()` moves the greenhouse 0.38 m forward
-of its keys, because a driver seated 5% behind centre under a cab-rearward
-roof had his eyes in the sunstrip. `build_gt3.py` prints
-`carlib.sightline(car)` after every build: rays from the derived eye,
-steepening until the bodywork blocks one. All three GT3s see the road from
-6-7 m (`road_from_m`); a real GT3 driver sees it from 5-8. Anything over 10
-is a letterbox and a shape problem, not a camera one. The LMP2s see it
-from 6.4-7.6 m with a 2-5 cm `drop_bonnet` on the nose deck; their canopy
-was also widened (j6 x1.16, j7 x1.14) and raised 4.5 cm in `apply_variant`,
-because the derived eye — 18% of the width off centre, 70% of the box up —
-sat inside the side glass and 6 cm under the roof of the original bubble.
-Open: an LMP2 driver really sits nearer the centreline (~12% of the width),
-and the left fender hump fills a third of the derived view; that is a
-`FApexCockpitOverrides::Eye` per prototype, or a per-class fraction in
-`ApexCockpit::DeriveLayout`, not a mesh change. Rear-view: the engine deck behind the rear
+**The road has to be visible.** A flat bonnet at 0.87 m once put the cowl
+5 cm under a 0.93 m eye and the road appeared forty metres out.
+`drop_bonnet()` lowers the upper surface from the screen base to the nose
+(the fender crowns stay, so the bonnet sits in a valley between them, which
+is what a front-engined GT3 bonnet looks like), and the pass-5 keys keep
+the bonnet valley 0.13-0.17 m under the eye at the screen base and falling
+to the nose. Both builds print `carlib.sightline(car, eye=EYE)` after every
+build: rays from the authored eye, steepening until the bodywork blocks one.
+The GT3s see the road from 6.2-8.5 m (`road_from_m`; a real GT3 driver,
+by the imported AMG's own eye and cowl, from about 12), the LMP2s from
+5.5-6.2 m (the deck is held low to the foot of a steep screen by the key
+at -0.95, which the canopy shift carries with it). Anything over 10 is a
+letterbox and a shape problem, not a camera one - and the first thing a
+0.36 m eye saw on the new Murcetes was a bonnet pin at x = 0.36.
+Rear-view: the engine deck behind the rear
 glass must stay below the mirror point, and the deck louvres start behind the
 glass, or the mirror shows only bodywork (the Limbotiti's deck drops to
 0.84 m for this). Verify a new car with `preview_cars.py`'s `cockpit` and `mirror`

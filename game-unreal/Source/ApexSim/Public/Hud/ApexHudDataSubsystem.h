@@ -34,6 +34,14 @@ public:
 	/** Rebuild the data from the game's state; the HUD calls it once a frame while it is shown. */
 	void Refresh();
 
+	/**
+	 * Fill the data from a made-up race (FApexHudPreview) whenever no real one
+	 * is running: the HUD editor, opened from the main menu, lays the panels
+	 * out over it.
+	 */
+	void SetPreview(bool bInPreview);
+	bool IsShowingPreview() const { return bPreview && !bRaceActive; }
+
 	const FApexHudData& GetData() const { return Data; }
 
 	/** A data point as a number (null reads 0). */
@@ -69,6 +77,11 @@ private:
 
 	FApexHudData Data;
 	FApexHudMemory Memory;
+	bool bPreview = false;
+	TUniquePtr<FApexHudPreview> Preview;
+	/** The frame the data was last built from, for the minimap's blips. */
+	const FApexTelemetryFrame* LastFrame = nullptr;
+	int32 LastLocalIndex = -1;
 	bool bRaceActive = false;
 	double RaceStartSeconds = 0.0;
 

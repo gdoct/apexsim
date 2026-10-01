@@ -3,6 +3,7 @@
 #include "Hud/ApexHudComponent.h"
 #include "Hud/ApexHudData.h"
 #include "Hud/ApexHudExpression.h"
+#include "Hud/ApexHudLayout.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Guid.h"
 #include "Misc/Paths.h"
@@ -57,6 +58,12 @@ namespace
 		Car.TrackProgress = Station;
 		Car.SpeedMps = SpeedMps;
 		return Car;
+	}
+
+	/** Two points within a hundredth of a unit (FSlateRect hands back float vectors). */
+	bool HudSame(const FVector2D& A, const FVector2D& B)
+	{
+		return A.Equals(B, 0.01);
 	}
 
 	const FApexHudValue& HudValue(const FApexHudData& Data, const TCHAR* Name)
@@ -515,7 +522,14 @@ bool FApexHudShippedTest::RunTest(const FString& Parameters)
 	for (const TCHAR* Id : {TEXT("track_info"), TEXT("race_state"), TEXT("status"), TEXT("minimap"), TEXT("standings"),
 			 TEXT("timing"), TEXT("pedals"), TEXT("damage"), TEXT("car_state"), TEXT("mirror")})
 	{
-		TestTrue(*FString::Printf(TEXT("has %s"), Id), Components.ContainsByPredicate([Id](const FApexHudComponentDef& C) { return C.Id == Id; }));
+		const FApexHudComponentDef* Found = Components.FindByPredicate([Id](const FApexHudComponentDef& C) { return C.Id == Id; });
+		TestTrue(*FString::Printf(TEXT("has %s, shown"), Id), Found && Found->bDefaultEnabled);
+	}
+	// The extras the HUD editor offers to add.
+	for (const TCHAR* Id : {TEXT("relative"), TEXT("speed_gear"), TEXT("conditions")})
+	{
+		const FApexHudComponentDef* Found = Components.FindByPredicate([Id](const FApexHudComponentDef& C) { return C.Id == Id; });
+		TestTrue(*FString::Printf(TEXT("has %s, off until added"), Id), Found && !Found->bDefaultEnabled);
 	}
 	return true;
 }
@@ -558,6 +572,135 @@ bool FApexHudDocumentedTest::RunTest(const FString& Parameters)
 		TestTrue(*FString::Printf(TEXT("function `%s` documented"), *Function), Doc.Contains(TEXT("`") + Function + TEXT("(")));
 	}
 	TestTrue(TEXT("tyre pattern documented"), Documented(TEXT("tyre.<fl|fr|rl|rr>.<field>")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudLayoutJsonTest, "ApexSim.Hud.Layout.Json", ApexTestFlags)
+
+bool FApexHudLayoutJsonTest::RunTest(const FString& Parameters)
+{
+	FApexHudLayout Layout;
+	FApexHudPlacement Pinned;
+	Pinned.bPinned = true;
+	Pinned.Anchor = FVector2D(1.0, 1.0);
+	Pinned.Position = FVector2D(-56.0, -30.0);
+	Pinned.Scale = 1.25f;
+	Layout.Components.Add(TEXT("car_state"), Pinned);
+	FApexHudPlacement Hidden;
+	Hidden.bEnabled = false;
+	Layout.Components.Add(TEXT("minimap"), Hidden);
+	FApexHudPlacement Added;
+	Layout.Components.Add(TEXT("relative"), Added);
+
+	FApexHudLayout Back;
+	FString Error;
+	TestTrue(TEXT("reads what it writes"), Back.FromJson(Layout.ToJson(), Error));
+	TestTrue(TEXT("no complaint"), Error.IsEmpty());
+	TestEqual(TEXT("three entries"), Back.Components.Num(), 3);
+	TestTrue(TEXT("pinned survives"), Back.Find(TEXT("car_state")) && *Back.Find(TEXT("car_state")) == Pinned);
+	TestTrue(TEXT("hidden survives"), Back.Find(TEXT("minimap")) && !Back.Find(TEXT("minimap"))->bEnabled);
+	TestTrue(TEXT("added survives"), Back.Find(TEXT("relative")) && Back.Find(TEXT("relative"))->bEnabled && !Back.Find(TEXT("relative"))->bPinned);
+
+	FApexHudLayout OnlyAdded;
+	OnlyAdded.Components.Add(TEXT("relative"), Added);
+	TestFalse(TEXT("an unpinned entry writes no position"), OnlyAdded.ToJson().Contains(TEXT("\"position\"")));
+
+	TestTrue(TEXT("enabled from the layout"), Back.IsEnabled(TEXT("relative"), false));
+	TestFalse(TEXT("hidden by the layout"), Back.IsEnabled(TEXT("minimap"), true));
+	TestTrue(TEXT("else the component's own default"), Back.IsEnabled(TEXT("standings"), true));
+	TestEqual(TEXT("scale"), Back.ScaleOf(TEXT("car_state")), 1.25f);
+	TestEqual(TEXT("default scale"), Back.ScaleOf(TEXT("standings")), 1.0f);
+
+	// Written by hand: comments, trailing commas, a scale out of range, half a pin.
+	FApexHudLayout Hand;
+	TestTrue(TEXT("hand-written file"), Hand.FromJson(TEXT(R"({
+		// mine
+		"components": {
+			"standings": { "scale": 9, },
+			"timing": { "anchor": [0, 1] },
+		},
+	})"), Error));
+	TestEqual(TEXT("scale held to the range"), Hand.ScaleOf(TEXT("standings")), FApexHudLayout::MaxScale);
+	TestFalse(TEXT("half a pin is no pin"), Hand.Find(TEXT("timing")) && Hand.Find(TEXT("timing"))->bPinned);
+	TestTrue(TEXT("and is reported"), Error.Contains(TEXT("timing")));
+	TestFalse(TEXT("not JSON"), Hand.FromJson(TEXT("{ nope"), Error));
+
+	// To disk and back; a missing file is an empty layout.
+	const FString Dir = HudScratchDir();
+	const FString File = FPaths::Combine(Dir, TEXT("custom"), TEXT("layout.json"));
+	TestTrue(TEXT("saves"), Layout.Save(File));
+	FApexHudLayout Loaded;
+	TestTrue(TEXT("loads"), Loaded.Load(File, Error) && Loaded.Components.Num() == 3);
+	TestTrue(TEXT("missing file is fine"), Loaded.Load(FPaths::Combine(Dir, TEXT("none.json")), Error) && Loaded.Components.IsEmpty());
+	IFileManager::Get().DeleteDirectory(*Dir, false, true);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudLayoutPinTest, "ApexSim.Hud.Layout.Pin", ApexTestFlags)
+
+bool FApexHudLayoutPinTest::RunTest(const FString& Parameters)
+{
+	const FVector2D Screen(1920.0, 1080.0);
+
+	// The car panel in the bottom-right corner keeps to that corner.
+	const FSlateRect Corner(1394.0f, 820.0f, 1864.0f, 1050.0f);
+	const FApexHudPlacement BottomRight = ApexHudPlace::PinRect(Corner, Screen, 1.0f);
+	TestTrue(TEXT("anchored bottom right"), HudSame(BottomRight.Anchor, FVector2D(1.0, 1.0)));
+	TestTrue(TEXT("56 in, 30 up"), HudSame(BottomRight.Position, FVector2D(-56.0, -30.0)));
+	TestTrue(TEXT("nothing moves"), HudSame(FVector2D(ApexHudPlace::TopLeft(BottomRight, Corner.GetSize(), Screen)), FVector2D(Corner.GetTopLeft())));
+	// On a wider, taller screen it is still 56 and 30 from that corner.
+	const FVector2D Wide(2560.0, 1440.0);
+	const FVector2D WideTopLeft = ApexHudPlace::TopLeft(BottomRight, Corner.GetSize(), Wide);
+	TestTrue(TEXT("follows the corner"), HudSame(WideTopLeft + FVector2D(Corner.GetSize()), Wide - FVector2D(56.0, 30.0)));
+
+	// The middle third is the middle.
+	const FSlateRect Middle(860.0f, 500.0f, 1060.0f, 560.0f);
+	const FApexHudPlacement Centre = ApexHudPlace::PinRect(Middle, Screen, 1.5f);
+	TestTrue(TEXT("anchored in the middle"), HudSame(Centre.Anchor, FVector2D(0.5, 0.5)));
+	TestEqual(TEXT("scale kept"), Centre.Scale, 1.5f);
+	TestTrue(TEXT("middle stays put"), HudSame(FVector2D(ApexHudPlace::TopLeft(Centre, Middle.GetSize(), Screen)), FVector2D(Middle.GetTopLeft())));
+
+	// Top left, by the top-left gutters.
+	const FApexHudPlacement TopLeft = ApexHudPlace::PinRect(FSlateRect(56.0f, 30.0f, 400.0f, 120.0f), Screen, 1.0f);
+	TestTrue(TEXT("anchored top left"), HudSame(TopLeft.Anchor, FVector2D(0.0, 0.0)));
+	TestTrue(TEXT("position is the corner"), HudSame(TopLeft.Position, FVector2D(56.0, 30.0)));
+
+	TestEqual(TEXT("scale floor"), ApexHudPlace::ClampScale(0.1f), FApexHudLayout::MinScale);
+	TestEqual(TEXT("scale ceiling"), ApexHudPlace::ClampScale(3.0f), FApexHudLayout::MaxScale);
+	TestEqual(TEXT("5% steps"), ApexHudPlace::ClampScale(1.234f), 1.25f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudLayoutSnapTest, "ApexSim.Hud.Layout.Snap", ApexTestFlags)
+
+bool FApexHudLayoutSnapTest::RunTest(const FString& Parameters)
+{
+	const FVector2D Screen(1920.0, 1080.0);
+	ApexHudPlace::FSnapLines Lines;
+
+	// 5 off the left gutter and 3 off the bottom one: both snap.
+	const FSlateRect Near(61.0f, 900.0f, 361.0f, 1047.0f);
+	const FSlateRect Snapped = ApexHudPlace::Snap(Near, Screen, {}, 8.0f, Lines);
+	TestEqual(TEXT("left edge on the gutter"), Snapped.Left, 56.0f);
+	TestEqual(TEXT("bottom edge on the gutter"), Snapped.Bottom, 1050.0f);
+	TestTrue(TEXT("both lines reported"), Lines.X.IsSet() && Lines.Y.IsSet());
+	TestTrue(TEXT("size kept"), HudSame(FVector2D(Snapped.GetSize()), FVector2D(Near.GetSize())));
+
+	// Beside another panel: its right edge meets the other's left.
+	const FSlateRect Other(600.0f, 700.0f, 900.0f, 1050.0f);
+	const FSlateRect Beside(305.0f, 300.0f, 596.0f, 400.0f);
+	const FSlateRect Joined = ApexHudPlace::Snap(Beside, Screen, {Other}, 8.0f, Lines);
+	TestEqual(TEXT("edge to edge"), Joined.Right, 600.0f);
+
+	// The screen's centre line catches a centred panel.
+	const FSlateRect Centred(856.0f, 200.0f, 1056.0f, 260.0f);
+	TestEqual(TEXT("centred"), static_cast<double>(ApexHudPlace::Snap(Centred, Screen, {}, 8.0f, Lines).GetCenter().X), 960.0);
+
+	// Too far from anything: left alone.
+	const FSlateRect Free(300.0f, 300.0f, 500.0f, 350.0f);
+	const FSlateRect Same = ApexHudPlace::Snap(Free, Screen, {}, 8.0f, Lines);
+	TestTrue(TEXT("not moved"), HudSame(FVector2D(Same.GetTopLeft()), FVector2D(Free.GetTopLeft())));
+	TestFalse(TEXT("no lines"), Lines.X.IsSet() || Lines.Y.IsSet());
 	return true;
 }
 

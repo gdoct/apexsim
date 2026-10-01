@@ -4,13 +4,18 @@
 #include "ApexSettingsSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Hud/ApexHudComponent.h"
+#include "Hud/ApexHudLayout.h"
 
 #include "ApexHudWidget.generated.h"
 
 class UApexHudDataSubsystem;
 class UApexMinimapWidget;
 class UApexMirrorWidget;
+class UCanvasPanel;
+class UCanvasPanelSlot;
+class UOverlay;
 class UPanelWidget;
+class UScaleBox;
 class UTextBlock;
 class UTexture2D;
 class UWidget;
@@ -28,6 +33,11 @@ class UWidget;
  * What the panels show is still mostly derived (position, gaps and the delta
  * fall out of each car's lap and station) and the lap timing is the server's;
  * both live in ApexHudData now, not here.
+ *
+ * Where each panel sits is its component.json's region, unless the player's
+ * layout (FApexHudLayout, `custom/layout.json`, written by the HUD editor)
+ * pins it somewhere else, scales it or hides it. Every component is wrapped in
+ * a scale box; a pinned one sits on a canvas over the regions.
  */
 UCLASS()
 class APEXSIM_API UApexHudWidget : public UUserWidget
@@ -58,7 +68,46 @@ public:
 
 	/** What the last load said: errors (components left out) and warnings. */
 	const FApexHudLoadReport& GetLoadReport() const { return Report; }
+	/** Every component that loaded, shown or not. */
 	const TArray<FApexHudComponentDef>& GetComponents() const { return Components; }
+
+	// --- The HUD editor (UApexHudEditorWidget) ------------------------------------
+
+	/**
+	 * Show the HUD for laying out, race or not: every shown component is drawn
+	 * whatever its own `visible` says, over a made-up race when there is no
+	 * real one (UApexHudDataSubsystem::SetPreview).
+	 */
+	void BeginEditing();
+	void EndEditing();
+	bool IsEditing() const { return bEditing; }
+
+	const FApexHudLayout& GetLayout() const { return Layout; }
+	/** Applies a layout (rebuilding the tree); it is saved by the editor, not here. */
+	void SetLayout(const FApexHudLayout& InLayout);
+	/** The layout file the HUD was read with, and is saved to. */
+	FString GetLayoutFile() const;
+
+	bool IsComponentShown(int32 Index) const;
+	/** A shown component's rectangle in HUD units (1080p pixels, from the top left); false before it is laid out. */
+	bool GetComponentRect(int32 Index, FSlateRect& OutRect) const;
+	/** The HUD's size in its own units. */
+	FVector2D GetHudSize() const;
+	FVector2D AbsoluteToHud(const FVector2D& Absolute) const;
+	FVector2D HudToAbsolute(const FVector2D& Local) const;
+
+	/**
+	 * Pins every shown, laid-out component where it is now, so moving one
+	 * leaves the rest where they were rather than closing up its region.
+	 */
+	void PinAll();
+
+	/**
+	 * Moves or scales one component now, without a rebuild while it is already
+	 * pinned (a drag calls this every mouse move); the layout takes the
+	 * placement either way.
+	 */
+	void PlaceComponent(int32 Index, const FApexHudPlacement& Placement);
 
 protected:
 	UFUNCTION()
@@ -106,8 +155,21 @@ private:
 	TArray<FApexHudComponentDef> Components;
 	FApexHudLoadReport Report;
 	TArray<FHudNode> Nodes;
-	/** The root node of each component, parallel to Components. */
+	/** The root node of each component, parallel to Components; INDEX_NONE for one the layout hides. */
 	TArray<int32> ComponentRoots;
+	/** Each component's scale box, and its canvas slot when pinned; parallel to Components. */
+	TArray<UScaleBox*> ComponentWrappers;
+	TArray<UCanvasPanelSlot*> ComponentCanvasSlots;
+
+	FApexHudLayout Layout;
+	FString LayoutFile;
+	/** The widget tree's root for good; each build's layers go inside it. */
+	UPROPERTY(Transient) TObjectPtr<UOverlay> HostRoot;
+	/** The canvas pinned components sit on, over the regions. */
+	UPROPERTY(Transient) TObjectPtr<UCanvasPanel> PinCanvas;
+	/** Behind the panels while laying out from the menu, so they are not drawn over the menu's own screens. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> EditBackdrop;
+	bool bEditing = false;
 
 	/** Widgets with their own per-frame feed. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexMinimapWidget>> Minimaps;

@@ -94,6 +94,7 @@ namespace
 	constexpr int32 TabCount = static_cast<int32>(EApexSettingsTab::Audio) + 1;
 	const FName ActionSettingsBack        = TEXT("Back");
 	const FName ActionReset       = TEXT("Reset");
+	const FName ActionEditHud     = TEXT("EditHud");
 
 	// Segmented-control ids.
 	const FName SegTraction   = TEXT("Traction");
@@ -584,6 +585,24 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 		TEXT("HUD elements"),
 		TEXT("Minimap and pedal telemetry."),
 		MakeSegment(SegHud, { TEXT("ALL"), TEXT("ESSENTIAL"), TEXT("HIDDEN") }, 0)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	// The HUD editor: the overlay steps aside while it runs (UApexRootWidget).
+	{
+		UApexButtonWidget* Edit = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		FApexButtonSpec EditSpec;
+		EditSpec.Label = TEXT("Edit layout");
+		EditSpec.Variant = EApexButtonVariant::Ghost;
+		EditSpec.bCentreLabel = true;
+		EditSpec.Height = 44.0f;
+		EditSpec.LabelSize = 15.0f;
+		EditSpec.ActionId = ActionEditHud;
+		Edit->Setup(EditSpec);
+		Edit->OnActivated.AddDynamic(this, &UApexSettingsWidget::HandleFooterActivated);
+		AddV(Page, MakeRow(
+			TEXT("HUD layout"),
+			TEXT("Move, resize, add and remove the HUD's panels."),
+			MakeSized(*WidgetTree, Edit, 178.0f, 44.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+	}
 
 	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
 	return Page;
@@ -1912,6 +1931,12 @@ void UApexSettingsWidget::HandleFooterActivated(UApexButtonWidget* Button)
 	if (Button->GetActionId() == ActionSettingsBack)
 	{
 		Close();
+		return;
+	}
+
+	if (Button->GetActionId() == ActionEditHud)
+	{
+		OnEditHudLayout.Broadcast();
 		return;
 	}
 

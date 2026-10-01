@@ -770,7 +770,7 @@ bool ApexHud::ParseComponent(const FString& Text, const FString& Folder, FApexHu
 
 	FHudElementParser Parser{Folder, Out.Id, Report};
 	const FString Top = TEXT("component");
-	static const TArray<FString> KnownTop = {TEXT("name"), TEXT("description"), TEXT("enabled"), TEXT("region"),
+	static const TArray<FString> KnownTop = {TEXT("name"), TEXT("description"), TEXT("enabled"), TEXT("default_enabled"), TEXT("region"),
 		TEXT("order"), TEXT("margin"), TEXT("float"), TEXT("visible"), TEXT("root")};
 	for (const TPair<FString, TSharedPtr<FJsonValue>>& Field : Json->Values)
 	{
@@ -783,7 +783,8 @@ bool ApexHud::ParseComponent(const FString& Text, const FString& Folder, FApexHu
 	float Order = 0.0f;
 	if (!Parser.ReadString(*Json, TEXT("name"), Out.Name, Top)
 		|| !Parser.ReadString(*Json, TEXT("description"), Out.Description, Top)
-		|| !Parser.ReadBool(*Json, TEXT("enabled"), Out.bEnabled, Top))
+		|| !Parser.ReadBool(*Json, TEXT("enabled"), Out.bEnabled, Top)
+		|| !Parser.ReadBool(*Json, TEXT("default_enabled"), Out.bDefaultEnabled, Top))
 	{
 		return false;
 	}

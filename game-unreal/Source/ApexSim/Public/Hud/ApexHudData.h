@@ -118,6 +118,28 @@ struct APEXSIM_API FApexHudMemory
 	float ReferenceTimeAt(float Fraction) const;
 };
 
+/**
+ * A made-up race for the HUD editor to show when there is no real one: ten
+ * cars mid-race, the player fourth on a hybrid with warm tyres, a little
+ * damage and a delta, so every component has something to draw.
+ */
+struct APEXSIM_API FApexHudPreview
+{
+	FApexTelemetryFrame Frame;
+	FApexSessionRoster Roster;
+	FApexTimingBoard Timing;
+	FApexTrackSectors Sectors;
+	/** A circuit-shaped loop for the minimap. */
+	TArray<FVector2D> Outline;
+	FApexHudMemory Memory;
+	/** Points into this struct, so it must not be copied once made. */
+	FApexHudInputs Inputs;
+
+	FApexHudPreview();
+	FApexHudPreview(const FApexHudPreview&) = delete;
+	FApexHudPreview& operator=(const FApexHudPreview&) = delete;
+};
+
 namespace ApexHudData
 {
 	/** Fills Out from In, every name every time (see FApexHudData). */

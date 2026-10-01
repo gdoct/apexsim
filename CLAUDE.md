@@ -1365,6 +1365,28 @@ does not publish) go to the log, and `ApexSim.Hud.Shipped` fails on either for
 the shipped set. Lua was considered and not used (the doc's last section says
 why): logic belongs in a data point.
 
+**The HUD editor** (Settings > Gameplay > HUD layout, `apexsim.hud.Edit`,
+`UI/ApexHudEditorWidget`) moves, resizes, adds and removes panels with the
+mouse, keys or pad and saves `FApexHudLayout` (`Hud/ApexHudLayout.h`) to
+`<first HUD dir>/custom/layout.json`: per component `enabled`, an `anchor`
+(0-1 each axis) + `position` (1080p units from that point of the screen) when
+pinned, and `scale` (0.5-2). Moving anything first pins every panel where it
+is (`UApexHudWidget::PinAll`, nearest of nine anchors by thirds); snapping to
+gutters, centre lines and other panels is `ApexHudPlace::Snap`. Components
+with `"default_enabled": false` (`relative`, `speed_gear`, `conditions`) ship
+off and are added from the editor. Outside a race the editor shows
+`FApexHudPreview`, a made-up race fed through the same `Build`. Settings is
+hidden, not closed, while it runs; the input processor stands back for it
+like it does for settings. Trap: the HUD keeps one `HostRoot` and swaps its
+content on rebuild, because a user widget never rereads
+`WidgetTree->RootWidget` after its Slate widgets exist (replacing it froze the
+old tree on screen). Unattended: `-ApexOpenHudEditor=N
+-ApexHudEditorSteps="select standings;move 500 -350;scale 0.25;save"`;
+`grab standings;dragby 300 -200;release` and `grab car_state corner` drive the
+real mouse path with synthesised Slate events, run from the world timer
+because a widget's tick is inside paint, where the hit-test grid is half built
+(a click synthesised there fell through to the menu screen).
+
 ### Racing line (`Race/ApexRacingLineActor`)
 Gameplay settings -> Racing line: OFF / BRAKING ONLY / FULL (default off).
 The server works the line out per car (`server/src/racing_line.rs`: the

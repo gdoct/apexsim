@@ -40,7 +40,9 @@ from carlib import Builder                                  # noqa: E402
 TYRE_F, TYRE_R = 0.345, 0.355          # tyre radii; car.toml [wheels] must agree
 TRACK = 1.700                          # hub to hub, both axles
 HUB_X = TRACK / 2.0
-ARCH_GAP = 0.024
+ARCH_GAP = 0.032                       # the opening's clearance; the flare lip overhangs it
+ARCH_WRAP = 28.0                       # degrees the arch keeps curving below the hub (pass 5)
+FLOOR_LIFT = 0.010                     # the keys were drawn at a 75 mm floor; a GT3 runs ~85
 SAMP = 6
 BELT, ROOF = 5.35, 6.60                  # control indices where glass starts / ends
 TRIM_J = 0.22                            # black surround under the glass, just above the belt crease (j=5)
@@ -51,15 +53,22 @@ VARIANTS = {
     "posh": dict(
         folder="posh-gt3rs", stem="posh_gt3rs", logo="posh_logo.png",
         paint=(0.02, 0.10, 0.42), accent=(0.86, 0.87, 0.90), caliper=(0.95, 0.75, 0.05),
-        paint_metallic=0.78, number="91", roof_factor=0.94, hips=(0.085, 0.110),
+        paint_metallic=0.78, number="91", roof_factor=1.0, hips=(0.050, 0.075),
         rear_number_y=(1.30, 1.62), cam_x=0.0, bonnet_drop=(0.075, 0.13),
         axles=(-1.375, 1.375),
-        glass_y=(-0.92, 0.92), screen_y=(-0.95, -0.40), rear_glass_y=(0.50, 0.94),
+        # rear-engined: the cabin far forward, the screen base 0.85 m ahead of
+        # the middle, a roof peaking just behind it, a long fastback to a
+        # short deck (measured against the imported 911 GT3 R)
+        glass_y=(-0.85, 0.95), screen_y=(-0.85, -0.25), rear_glass_y=(0.55, 1.05),
+        eye=(0.36, 0.33, 0.97),
+        roof=[(-0.85, 0.80), (-0.45, 1.02), (0.0, 1.20), (0.35, 1.245), (0.80, 1.20),
+              (1.20, 1.07), (1.60, 0.95), (1.90, 0.90)],
+        belt_lift=((3, 0.04), (4, 0.05), (5, 0.05)), belt_y=(-1.0, 1.7),
         wing="swan", wing_z=1.19, wing_y=1.86, wing_hw=0.86, ducktail=True,
         # an arched plane on swan necks over the ducktail, endplates that
         # sweep up to a tall trailing corner, the brake strip along the edge
         wing_plan=("arch", 0.030), wing_chord=0.345, wing_aoa=-9.0, endplate="swoop", wing_led="trail",
-        ends=dict(nose_top=0.545, nose_w=0.90, tail_top=0.905, tail_bot=0.30, tail_w=0.94),
+        ends=dict(nose_top=0.58, nose_w=0.90, tail_top=0.84, tail_bot=0.30, tail_w=0.94),
         lights="round", grille=False, exhaust="centre", mirror="pod",
         lamp_x=(0.52, 0.82), lamp_h=0.125, face="tri", tail="bar",
         shutlines=[(-1.82, "upper"), (-0.94, "side"), (0.58, "side"), (1.24, "upper"), (1.84, "upper")],
@@ -93,16 +102,22 @@ VARIANTS = {
     "limbotiti": dict(
         folder="limbotiti-caravan-gt3", stem="limbotiti_caravan", logo="limbotiti_logo.png",
         paint=(0.95, 0.66, 0.02), accent=(0.04, 0.04, 0.045), caliper=(0.05, 0.05, 0.05),
-        paint_metallic=0.55, number="63", roof_factor=0.97, hips=(0.085, 0.115),
+        paint_metallic=0.55, number="63", roof_factor=1.0, hips=(0.050, 0.080),
         rear_number_y=None, cam_x=-0.28, bonnet_drop=(0.035, 0.09),
         axles=(-1.375, 1.375),
-        glass_y=(-0.98, 0.50), screen_y=(-1.00, -0.46), rear_glass_y=(0.30, 0.74),
+        # mid-engined wedge: the driver on the middle of the wheelbase, a
+        # low roof over him and a flat deck behind (the imported Huracan)
+        glass_y=(-0.98, 0.50), screen_y=(-1.00, -0.40), rear_glass_y=(0.30, 0.74),
+        eye=(0.36, 0.05, 0.92),
+        roof=[(-1.00, 0.72), (-0.65, 0.95), (-0.30, 1.12), (0.0, 1.17), (0.30, 1.15),
+              (0.85, 1.02), (1.375, 0.88), (1.85, 0.86)],
+        belt_lift=((3, 0.03), (4, 0.04), (5, 0.04)), belt_y=(-1.1, 1.7),
         wing="pylon", wing_z=1.14, wing_y=1.80, wing_hw=0.88, ducktail=False,
         # a short, steep plane swept to a V, faceted endplates carrying the
         # brake lights as two upright bars, on narrow pylons
         wing_plan=("swept", 0.10), wing_chord=0.30, wing_aoa=-12.0, endplate="facet", wing_led="endplate",
         pylon_x=0.40,
-        ends=dict(nose_top=0.47, nose_w=0.92, tail_top=0.80, tail_bot=0.30, tail_w=0.95),
+        ends=dict(nose_top=0.52, nose_w=0.92, tail_top=0.84, tail_bot=0.30, tail_w=0.95),
         lights="ybar", grille=False, exhaust="hexquad", mirror="stalk",
         lamp_x=(0.46, 0.86), lamp_h=0.085, face="arrow", tail="y",
         shutlines=[(-1.84, "upper"), (-0.94, "side"), (0.56, "side"), (0.86, "upper"), (1.84, "upper")],
@@ -135,20 +150,24 @@ VARIANTS = {
     "murcetes": dict(
         folder="murcetes-amd-gt3", stem="murcetes_amd_gt3", logo="murcetes_logo.png",
         paint=(0.56, 0.57, 0.60), accent=(0.0, 0.62, 0.60), caliper=(0.85, 0.10, 0.05),
-        paint_metallic=0.90, number="88", roof_factor=0.93, hips=(0.070, 0.115),
-        rear_number_y=(0.86, 1.18), cam_x=0.0,
+        paint_metallic=0.90, number="88", roof_factor=1.0, hips=(0.035, 0.050),
+        rear_number_y=(1.88, 2.14), cam_x=0.0,
         axles=(-1.375, 1.375),
-        glass_y=(-0.84, 0.62), screen_y=(-0.86, -0.26), rear_glass_y=(0.38, 0.62),
-        cabin_shift=0.38, logo_y=(-0.60, 0.44), bonnet_drop=(0.14, 0.25),
-        wing="pylon", wing_z=1.16, wing_y=1.90, wing_hw=0.86, ducktail=False,
+        # the long-bonnet GT, cab rearward as the real thing is: the screen
+        # base 0.45 m ahead of the middle of the wheelbase, the roof peaking
+        # 0.9 m behind it and running down in one fastback to the deck
+        glass_y=(-0.45, 1.05), screen_y=(-0.45, 0.30), rear_glass_y=(1.05, 1.80),
+        eye=(0.36, 0.60, 0.97),
+        logo_y=(-0.30, 0.75), bonnet_drop=None,
+        wing="pylon", wing_z=1.16, wing_y=1.95, wing_hw=0.86, ducktail=False,
         # a broad spoon-shaped plane on wide-set pylons, rounded endplates,
         # the brake strip only across the middle third
         wing_plan=("spoon", 0.045), wing_chord=0.38, wing_aoa=-7.0, endplate="round", wing_led="centre",
         pylon_x=0.66,
-        ends=dict(nose_top=0.54, nose_w=0.88, tail_top=0.92, tail_bot=0.32, tail_w=0.93),
+        ends=dict(nose_top=0.60, nose_w=0.88, tail_top=0.86, tail_bot=0.32, tail_w=0.93),
         lights="slant", grille=True, exhaust="side", mirror="pod",
-        lamp_x=(0.50, 0.84), lamp_h=0.115, face="shield", tail="wrap",
-        shutlines=[(-1.86, "upper"), (-0.90, "upper"), (-0.82, "side"), (0.44, "side"), (1.30, "upper"), (1.92, "upper")],
+        lamp_x=(0.50, 0.84), lamp_h=0.150, face="shield", tail="wrap",
+        shutlines=[(-1.86, "upper"), (-0.52, "upper"), (-0.40, "side"), (0.78, "side"), (1.84, "upper")],
         vents=["bonnet_louvres"], scoop=None,
         # the long-bonnet GT: three gills behind the front wheel raked back
         # like a shark's, a brake exit ahead of the rear wheel leaning the
@@ -156,24 +175,28 @@ VARIANTS = {
         side=[("recess", dict(y0=(-0.955 + 0.075 * k, -0.875 + 0.075 * k),
                               y1=(-0.915 + 0.075 * k, -0.835 + 0.075 * k), j0=2.30, j1=3.45,
                               depth=0.034, rim=0.012)) for k in range(3)] + [
-            ("recess", dict(y0=(0.66, 0.54), y1=(0.92, 0.84), j0=2.10, j1=3.25,
-                            depth=0.045, rim=0.022, blades=3, blade_r=0.006)),
+            ("recess", dict(y0=(0.84, 0.78), y1=(0.975, 0.93), j0=2.10, j1=3.25,
+                            depth=0.045, rim=0.020, blades=3, blade_r=0.006)),
             ("swage", dict(y0=-0.75, y1=1.00, j_a=3.55, j_b=3.92, depth=0.008,
                            width=0.30, fade=0.30)),
         ],
         logo_j=(2.05, 3.05),
+        # Sections measured off the imported AMG GT3 (pass 5): 2.0 m over the
+        # arches, a flank that stands near-vertical to a belt at ~0.95, fender
+        # crowns at 0.80 a hand inboard of the flank, the bonnet in a valley
+        # between them, a 1.25 m roof peaking behind the B-pillar.
         keys=[
-            (-2.35, [(0, .215), (.60, .215), (.775, .335), (.835, .535), (.685, .625), (.47, .675), (.28, .70), (.12, .715), (0, .72)]),
-            (-1.95, [(0, .095), (.885, .095), (.975, .355), (1.00, .635), (.855, .765), (.63, .835), (.42, .855), (.18, .875), (0, .89)]),
-            (-1.375, [(0, .075), (.925, .075), (1.005, .395), (1.02, .695), (.875, .825), (.655, .84), (.44, .845), (.18, .855), (0, .86)]),
-            (-0.80, [(0, .075), (.925, .075), (1.005, .395), (1.01, .695), (.885, .815), (.675, .84), (.46, .855), (.20, .865), (0, .87)]),
-            (-0.45, [(0, .075), (.925, .075), (1.005, .395), (1.01, .695), (.885, .815), (.695, .855), (.48, .875), (.22, .875), (0, .88)]),
-            (-0.10, [(0, .075), (.925, .075), (1.005, .395), (1.01, .695), (.885, .815), (.715, .915), (.52, 1.055), (.28, 1.135), (0, 1.16)]),
-            (0.40, [(0, .075), (.945, .075), (1.025, .415), (1.03, .715), (.905, .835), (.735, .935), (.56, 1.135), (.30, 1.245), (0, 1.28)]),
-            (0.95, [(0, .075), (.965, .075), (1.045, .435), (1.055, .755), (.925, .875), (.755, .955), (.52, 1.075), (.26, 1.155), (0, 1.18)]),
-            (1.375, [(0, .075), (.965, .075), (1.045, .435), (1.065, .775), (.925, .895), (.735, .955), (.48, 1.015), (.24, 1.055), (0, 1.08)]),
-            (1.90, [(0, .155), (.925, .155), (1.005, .435), (1.025, .755), (.885, .875), (.675, .935), (.42, .975), (.20, .995), (0, 1.01)]),
-            (2.35, [(0, .335), (.805, .335), (.885, .495), (.905, .715), (.765, .835), (.56, .895), (.36, .935), (.16, .955), (0, .97)]),
+            (-2.30, [(0, .215), (.58, .215), (.74, .33), (.80, .52), (.66, .58), (.46, .60), (.28, .61), (.12, .62), (0, .62)]),
+            (-1.90, [(0, .095), (.86, .095), (.94, .34), (.96, .62), (.84, .70), (.62, .68), (.42, .66), (.18, .66), (0, .66)]),
+            (-1.375, [(0, .075), (.90, .075), (.975, .38), (.99, .72), (.88, .80), (.66, .73), (.44, .705), (.20, .70), (0, .70)]),
+            (-0.80, [(0, .075), (.90, .075), (.975, .38), (.985, .72), (.885, .85), (.70, .81), (.47, .80), (.22, .80), (0, .80)]),
+            (-0.45, [(0, .075), (.90, .075), (.975, .38), (.985, .73), (.89, .84), (.72, .88), (.50, .80), (.24, .83), (0, .84)]),
+            (-0.10, [(0, .075), (.90, .075), (.975, .38), (.985, .74), (.90, .86), (.74, .92), (.56, .98), (.30, 1.04), (0, 1.06)]),
+            (0.40, [(0, .075), (.92, .075), (.99, .40), (1.00, .76), (.92, .90), (.76, .96), (.60, 1.12), (.33, 1.19), (0, 1.21)]),
+            (0.95, [(0, .075), (.94, .075), (1.00, .42), (1.01, .78), (.93, .92), (.77, .98), (.60, 1.14), (.33, 1.22), (0, 1.25)]),
+            (1.375, [(0, .075), (.94, .075), (1.00, .42), (1.015, .78), (.93, .91), (.75, .96), (.56, 1.08), (.30, 1.15), (0, 1.17)]),
+            (1.90, [(0, .145), (.90, .145), (.975, .42), (.985, .76), (.90, .86), (.70, .90), (.48, .96), (.24, 1.00), (0, 1.02)]),
+            (2.35, [(0, .33), (.80, .33), (.88, .49), (.90, .70), (.78, .80), (.58, .85), (.38, .87), (.16, .88), (0, .88)]),
         ]),
 }
 
@@ -202,16 +225,30 @@ M = carlib.car_materials(V["paint"], V["accent"], V["caliper"],
 # greenhouse is pulled down towards the belt and leaned in a little, so the
 # cabin reads as a low canopy on wide hips rather than a bubble of the same
 # width as the sills.
+# Pass 5, measured against the imported GT3s: 2.0 m over the arches (the
+# keys were drawn to 2.1), an 85 mm floor, a belt line near 0.95 with the
+# flank standing to it, and the roof as an authored line in profile
+# (`roofline`) rather than whatever nine section tables add up to. The
+# cabin sits where a real one does because the build writes its own
+# `[cockpit]` eye (`eye`), instead of being shifted to meet the derived one.
 KEYS = V["keys"]
 if V.get("cabin_shift"):
     KEYS = carlib.shift_upper(KEYS, V["cabin_shift"], j_from=6, y_from=-1.7, y_to=-1.1)
 if V.get("bonnet_drop"):
     KEYS = carlib.drop_bonnet(KEYS, V["bonnet_drop"][0], V["bonnet_drop"][1],
                               V["screen_y"][0], V["keys"][1][0])
+WIDTH_SCALE = 1.0 / max(x for (_, pts) in KEYS for (x, _) in pts)
+KEYS = carlib.scale_width(KEYS, WIDTH_SCALE)
+KEYS = carlib.lift_points(KEYS, (0, 1), FLOOR_LIFT)
+for (j, dz) in V.get("belt_lift", ()):
+    KEYS = carlib.lift_points(KEYS, (j,), dz, y_range=V["belt_y"], fade=0.35)
+if V.get("roof"):
+    KEYS = carlib.roofline(KEYS, V["roof"], j_from=6, pivot_j=5)
 KEYS = carlib.fender_bump(KEYS, (AX_F, AX_R),
                           amount=V.get("hips", (0.085, 0.110)), width=(0.62, 0.72), j0=2.2, j1=4.3)
-KEYS = carlib.lower_roof(KEYS, factor=V.get("roof_factor", 0.93), j_from=6, pivot_j=5)
-KEYS = carlib.tumblehome(KEYS, amount=0.028, j_from=6)
+if V.get("roof_factor", 1.0) != 1.0:
+    KEYS = carlib.lower_roof(KEYS, factor=V["roof_factor"], j_from=6, pivot_j=5)
+KEYS = carlib.tumblehome(KEYS, amount=0.020, j_from=6)
 # The ends. Two keys 35 cm apart loft into one blunt blend, so the nose and
 # tail get their own stations: a bumper face at the tip, a corner station
 # behind it, the bonnet leading edge, and a pulled-in tip so the end cap is a
@@ -328,7 +365,8 @@ parts_objs = []
 for (y, tyre) in ((AX_F, TYRE_F), (AX_R, TYRE_R)):
     for sx in (-1, 1):
         bead = carlib.arch(body, L, M, y, tyre, sx=sx, gap=ARCH_GAP,
-                           x_in=0.53, z_bottom=0.125, bead=V.get("arch_bead", True))
+                           x_in=0.53, z_bottom=0.125, bead=V.get("arch_bead", True),
+                           wrap_deg=ARCH_WRAP, lip=0.026, flare=0.022)
         if bead is not None:
             parts_objs.append(bead)
 carlib.sharpen(body, 34.0)
@@ -415,8 +453,9 @@ p = Builder("parts")
 # the client will measure off the exported mesh box
 # the client measures the eye off the exported mesh box: its top is the wing
 # endplates or the aerial, whichever stands taller (the ducktail/roof pod never do)
-TOP_Z = max(V["wing_z"] + 0.150, L.roof_z(0.92) + 0.22)
-CK = carlib.cockpit_points(L, V["wing_z"], liner_z=0.043, top_z=TOP_Z)
+# The eye is the car's own, written to car.toml as [cockpit] at the end of
+# the build; the client prefers it to the one it would derive from the box.
+CK = carlib.authored_cockpit(V["eye"])
 EYE, DASH_Z = CK["eye"], CK["dash_z"]
 DX = EYE.x                                       # driver centreline (LHD: +X)
 SILL_X = L.x_at(0.0, 0.20)
@@ -424,7 +463,7 @@ HALF = max(L.x_at(y, 0.30) for y in (AX_F, 0.0, AX_R))
 
 # ---- floor aero: splitter, dive planes, side skirts, diffuser
 # splitter: a plan panel that follows the nose, oversailing it by 55 mm
-SPL_Z = 0.052
+SPL_Z = 0.052 + FLOOR_LIFT
 spl_plan = carlib.floor_plan(L, NOSE + 0.05, AX_F - 0.20, 0.16, steps=14, inset=-0.028)
 carlib.panel_xy(p, M.carbon, spl_plan, SPL_Z - 0.009, SPL_Z + 0.009)
 for sx in (-1, 1):
@@ -443,20 +482,20 @@ for sx in (-1, 1):
     dp2 = [(dy2, 0.415), (dy2 + 0.20, 0.440), (dy2 + 0.20, 0.460), (dy2, 0.435)]
     carlib.plate(p, M.carbon, dp2, sx * (dx2 + 0.040), 0.090, chamfer=0.008)
 for sx in (-1, 1):
-    skirt = [(-1.00, 0.085), (1.00, 0.085), (1.00, 0.175), (-1.00, 0.165)]
+    skirt = [(-1.00, 0.085 + FLOOR_LIFT), (1.00, 0.085 + FLOOR_LIFT), (1.00, 0.175), (-1.00, 0.165)]
     carlib.plate(p, M.carbon, skirt, sx * (SILL_X + 0.012), 0.032, chamfer=0.008)
     # accent stripe along the sill: the slot the client paints per team, so
     # every car has to carry it (docs/CAR_MODELS.md)
     stripe = [(-0.96, 0.190), (0.96, 0.190), (0.96, 0.270), (-0.96, 0.265)]
     carlib.plate(p, M.accent, stripe, sx * (SILL_X + 0.004), 0.008)
     # a fin standing on the end of the skirt, ahead of the rear arch
-    fin = [(0.78, 0.085), (1.00, 0.085), (1.00, 0.300), (0.86, 0.250)]
+    fin = [(0.78, 0.085 + FLOOR_LIFT), (1.00, 0.085 + FLOOR_LIFT), (1.00, 0.300), (0.86, 0.250)]
     carlib.plate(p, M.carbon, fin, sx * (SILL_X + 0.040), 0.010, chamfer=0.004)
 # diffuser: tucked under the tail, ramping up into the bodywork
 DIF_Y0, DIF_Y1 = AX_R + 0.22, TAIL - 0.02
 DIF_HW = min(L.x_at(y, 0.19) for y in
              (DIF_Y0, (DIF_Y0 + DIF_Y1) / 2, DIF_Y1 - 0.05)) - 0.050
-carlib.diffuser(p, M.carbon, DIF_Y0, DIF_Y1, DIF_HW, 0.070, VAL_Z[0] + 0.02,
+carlib.diffuser(p, M.carbon, DIF_Y0, DIF_Y1, DIF_HW, 0.070 + FLOOR_LIFT, VAL_Z[0] + 0.02,
                 thick=0.014, strakes=(-0.70, -0.42, -0.14, 0.14, 0.42, 0.70), strake_h=0.190)
 
 # ---- rear wing: each car's own plane, endplates, mounts and brake light.
@@ -485,9 +524,9 @@ EPS = {
               (WY - 0.07, WZ + 0.010)],
     "facet": [(WY - 0.08, WZ - 0.020), (WY + 0.04, WZ - 0.105), (WY + 0.36, WZ - 0.105),
               (WY + 0.405, WZ + 0.060), (WY + 0.30, WZ + 0.150), (WY + 0.05, WZ + 0.150)],
-    "round": [(WY - 0.06, WZ - 0.060), (WY + 0.10, WZ - 0.105), (WY + 0.38, WZ - 0.085),
-              (WY + 0.405, WZ + 0.030), (WY + 0.36, WZ + 0.120), (WY + 0.16, WZ + 0.150),
-              (WY - 0.02, WZ + 0.105), (WY - 0.08, WZ + 0.030)],
+    # a tall board with a rounded top corner, as the imported AMG carries
+    "round": [(WY - 0.04, WZ - 0.080), (WY + 0.38, WZ - 0.105), (WY + 0.405, WZ + 0.120),
+              (WY + 0.36, WZ + 0.150), (WY + 0.02, WZ + 0.150), (WY - 0.06, WZ + 0.090)],
 }
 EP = EPS[V["endplate"]]
 for sx in (-1, 1):
@@ -693,8 +732,10 @@ if "naca_front" in V["vents"]:
     p.box(M.mesh, (-0.34, yv, zt - 0.040), (0.34, yv + 0.24, zt - 0.024))
 
 # ---- mirrors, exhausts, roof scoop, antenna, tow hooks, wiper
-MIR_Y = V["screen_y"][0] + 0.30
-MIR_Z = L.point(MIR_Y, 4.55).z + 0.045
+# on the door at the belt, a third of a metre behind the screen base, where
+# every imported GT3 carries its mirrors (they stood on the A-pillar before)
+MIR_Y = V["screen_y"][0] + 0.36
+MIR_Z = L.point(MIR_Y, 5.0).z - 0.015
 for sx in (-1, 1):
     carlib.mirror(p, M, L.x_at(MIR_Y, MIR_Z) + 0.115, MIR_Y, MIR_Z, sx=sx, style=V["mirror"])
 EXH_Z = (VAL_Z[0] + VAL_Z[1]) / 2
@@ -717,7 +758,8 @@ if V["scoop"]:
                (sy_ - 0.20, zt + sr_ * 0.92)]
     carlib.plate(p, M.carbon, sc_prof, sx_, 0.30, chamfer=0.030)
     p.box(M.mesh, (sx_ - 0.115, sy_ - 0.355, zt + 0.01), (sx_ + 0.115, sy_ - 0.33, zt + sr_ - 0.01))
-p.bar(M.carbon, (0.0, 0.92, L.roof_z(0.92) - 0.01), (0.0, 0.92, L.roof_z(0.92) + 0.22), 0.007)
+AER_Y = V["screen_y"][1] + 0.55
+p.bar(M.carbon, (0.0, AER_Y, L.roof_z(AER_Y) - 0.01), (0.0, AER_Y, L.roof_z(AER_Y) + 0.13), 0.006)
 for yy in (NOSE + 0.10, TAIL - 0.10):
     p.torus(M.towhook, (0.30, yy, 0.245), 0.055, 0.014, segs=16, rings=8)
 wy = V["screen_y"][0] - 0.02
@@ -772,13 +814,15 @@ if V.get("rear_number_y"):
 # switch panel, a headliner under the cage and a bulkhead behind the seat.
 XIN = min(L.x_at(y, DASH_Z) for y in (-0.66, -0.3, 0.0, 0.3, 0.64)) - 0.055   # inside face of the door cards
 BELT_Z = L.point(0.0, 5.0).z                    # the belt crease at the B-pillar
-HOOP_Y = 0.96                                   # main hoop: just behind the seat back
+SEAT_Y0 = EYE.y - 0.48                          # the bucket's front edge, from the eye
+HOOP_Y = SEAT_Y0 + 0.84                         # main hoop: just behind the seat back
 BULK_Y = HOOP_Y + 0.03
 DOOR0, DOOR1 = SIDE_SHUTS[0] + 0.03, SIDE_SHUTS[-1] - 0.03
-p.box(M.interior, (-XIN, -0.80, 0.115), (XIN, BULK_Y, 0.155))                 # floor
-p.box(M.alcantara, (-XIN + 0.02, -0.60, 0.155), (XIN - 0.02, 0.10, 0.160))   # footwell mats
-p.box(M.interior, (-0.17, -0.80, 0.155), (0.17, BULK_Y, 0.31))               # tunnel
-p.box(M.trim, (-0.19, -0.80, 0.31), (0.19, BULK_Y, 0.325))                    # tunnel top
+FLOOR_Y0 = min(DOOR0 - 0.25, EYE.y - 1.40)
+p.box(M.interior, (-XIN, FLOOR_Y0, 0.115), (XIN, BULK_Y, 0.155))             # floor
+p.box(M.alcantara, (-XIN + 0.02, FLOOR_Y0 + 0.20, 0.155), (XIN - 0.02, SEAT_Y0 - 0.02, 0.160))   # footwell mats
+p.box(M.interior, (-0.17, FLOOR_Y0, 0.155), (0.17, BULK_Y, 0.31))            # tunnel
+p.box(M.trim, (-0.19, FLOOR_Y0, 0.31), (0.19, BULK_Y, 0.325))                 # tunnel top
 carlib.switch_panel(p, M, -0.15, 0.15, CK["wheel"].y - 0.20, CK["wheel"].y + 0.22, 0.335,
                     rows=3, cols=4, rotary=True)
 p.box(M.interior, (-XIN, BULK_Y, 0.155), (XIN, BULK_Y + 0.03, 0.60))          # bulkhead
@@ -790,7 +834,7 @@ p.box(M.trim, (-XIN, BULK_Y - 0.01, 0.60), (XIN, BULK_Y + 0.04, 0.63))
 # 40 cm ahead of the eye; the cowl is ~70 cm), and its top a hand under the
 # eye line: a dash any closer or taller fills the cockpit view with felt.
 DASH_Z = EYE.z - 0.22
-DASH_Y0, DASH_Y1 = -0.80, CK["wheel"].y - 0.28
+DASH_Y0, DASH_Y1 = FLOOR_Y0, CK["wheel"].y - 0.28
 p.box(M.interior, (-XIN, DASH_Y0, 0.56), (XIN, DASH_Y1, DASH_Z - 0.06))
 p.box(M.alcantara, (-XIN, DASH_Y0, DASH_Z - 0.06), (XIN, DASH_Y1, DASH_Z))
 p.bar(M.alcantara, (-XIN, DASH_Y1, DASH_Z - 0.016), (XIN, DASH_Y1, DASH_Z - 0.016), 0.016, segs=10)
@@ -810,11 +854,12 @@ for sx in (-1, 1):
     p.box(M.interior, (min(sx * XIN, sx * (XIN + 0.02)), DOOR1, 0.155),
           (max(sx * XIN, sx * (XIN + 0.02)), BULK_Y + 0.03, 0.60))              # rear quarter
 # seat and harness, pedals, footrest, extinguisher on the passenger floor
-carlib.bucket_seat(p, M, DX, 0.12, 0.155, width=0.50, depth=0.52, back_h=0.64, rake_deg=22.0)
+carlib.bucket_seat(p, M, DX, SEAT_Y0, 0.155, width=0.50, depth=0.52, back_h=0.64, rake_deg=22.0)
+PED_Y = EYE.y - 1.16
 for x in (DX - 0.20, DX - 0.08, DX + 0.04):
-    p.box(M.metal, (x - 0.032, -0.56, 0.165), (x + 0.032, -0.50, 0.30))           # pedals
-p.box(M.metal, (DX + 0.14, -0.58, 0.165), (DX + 0.22, -0.48, 0.28))               # dead pedal
-carlib.extinguisher(p, M, -0.48, -0.30, 0.225)
+    p.box(M.metal, (x - 0.032, PED_Y - 0.06, 0.165), (x + 0.032, PED_Y, 0.30))    # pedals
+p.box(M.metal, (DX + 0.14, PED_Y - 0.08, 0.165), (DX + 0.22, PED_Y + 0.02, 0.28))  # dead pedal
+carlib.extinguisher(p, M, -0.48, SEAT_Y0 - 0.42, 0.225)
 p.bar(M.alc, (DX - 0.36, DASH_Y1 - 0.22, DASH_Z - 0.10), (DX - 0.36, DASH_Y1 + 0.02, DASH_Z - 0.10),
       0.008, segs=6)                                                            # stalk
 # headliner, hung under the roof between the screen and the rear glass
@@ -845,10 +890,10 @@ for sx in (-1, 1):
     mid = (sx * (L.x_at(mid_y, 0.86) - 0.070), mid_y, L.z_at(mid_y, 0.66) - 0.050)
     p.bar(M.cage, rail, mid, 0.019, segs=8)
     p.bar(M.cage, mid, foot, 0.019, segs=8)
-    p.bar(M.cage, (sx * 0.70, HOOP_Y, hoop_top[2] - 0.16), (sx * 0.56, AX_R - 0.10, 0.54),
+    p.bar(M.cage, (sx * 0.70, HOOP_Y, hoop_top[2] - 0.16), (sx * 0.56, max(AX_R - 0.10, HOOP_Y + 0.25), 0.54),
           0.020, segs=8)
-    p.bar(M.cage, (sx * 0.70, HOOP_Y, 0.56), (sx * 0.68, -0.52, 0.60), 0.020, segs=8)
-    p.bar(M.cage, (sx * 0.70, HOOP_Y, 0.30), (sx * 0.68, -0.50, 0.34), 0.017, segs=8)
+    p.bar(M.cage, (sx * 0.70, HOOP_Y, 0.56), (sx * 0.68, DOOR0 + 0.05, 0.60), 0.020, segs=8)
+    p.bar(M.cage, (sx * 0.70, HOOP_Y, 0.30), (sx * 0.68, DOOR0 + 0.07, 0.34), 0.017, segs=8)
 p.bar(M.cage, inside(HOOP_Y, -0.54), inside(HOOP_Y, 0.54), 0.023, segs=8)
 p.bar(M.cage, (-0.70, HOOP_Y, 0.58), (0.70, HOOP_Y, 0.58), 0.019, segs=8)
 
@@ -869,6 +914,8 @@ car, glb = carlib.join_and_export([body] + parts_objs, V["stem"], CAR_DIR,
                                   export=os.environ.get("APEX_EXPORT", "1") == "1")
 save("joined")
 print("stats:", carlib.mesh_stats(car))
-print("sightline:", carlib.sightline(car))
+print("sightline:", carlib.sightline(car, eye=EYE))
 if glb:
+    carlib.write_cockpit_table(CAR_DIR, CK, 270.0,
+                               note="GT3: %s." % V.get("eye_note", "the seat where the class puts it"))
     print("GLB:", glb, os.path.getsize(glb))

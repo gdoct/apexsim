@@ -694,19 +694,28 @@ def _prism(mat, profile_yz, x0, x1, name="prism"):
     return outward_normals(ob)
 
 
-def arch_outline(y_axle, r_open, tyre_r, z_bottom, segs=40):
-    """The opening a wheel arch cuts, as a (y, z) polyline: straight up the
-    trailing edge, over the tyre at `r_open`, straight down the leading edge."""
-    pts = [(y_axle - r_open, z_bottom)]
+def arch_outline(y_axle, r_open, tyre_r, z_bottom, segs=40, wrap_deg=0.0):
+    """The opening a wheel arch cuts, as a (y, z) polyline: up the trailing
+    edge, over the tyre at `r_open`, down the leading edge.
+
+    `wrap_deg` carries the arc on below the axle height by that angle before
+    the edges drop to `z_bottom`. With 0 the opening is a U as wide as the
+    tyre all the way down to the sill, which is what the first four passes
+    cut: measured against the imported cars the real arch keeps curving
+    round the tyre to ~30° under the hub, so the fender wraps the wheel
+    and the opening reads as a circle the tyre fills, not a slot it hangs in."""
+    w = math.radians(wrap_deg)
+    pts = [(y_axle - r_open * math.cos(w), z_bottom)]
     for i in range(segs + 1):
-        a = math.pi * (1.0 - i / segs)
+        a = (math.pi + w) - (math.pi + 2 * w) * i / segs
         pts.append((y_axle + r_open * math.cos(a), tyre_r + r_open * math.sin(a)))
-    pts.append((y_axle + r_open, z_bottom))
+    pts.append((y_axle + r_open * math.cos(w), z_bottom))
     return pts
 
 
 def arch(body, loft, mats, y_axle, tyre_r, sx=1, gap=0.022, x_in=0.50,
-         z_bottom=0.11, segs=40, bead=False, lip=0.024, flare=0.016):
+         z_bottom=0.11, segs=40, bead=False, lip=0.024, flare=0.016, wrap_deg=0.0,
+         bead_mat=None):
     """Cut one wheel arch in `body`, following the tyre at `gap` clearance.
 
     The body shell is closed, so it is a valid solid and the boolean gives a
@@ -719,8 +728,8 @@ def arch(body, loft, mats, y_axle, tyre_r, sx=1, gap=0.022, x_in=0.50,
     which read as a circular porthole with a 7 cm gap and a zero-thickness
     edge. Returns the bead object, or None."""
     r_open = tyre_r + gap
-    out = arch_outline(y_axle, r_open, tyre_r, z_bottom, segs)
-    cut_poly = out + [(y_axle + r_open, -0.5), (y_axle - r_open, -0.5)]
+    out = arch_outline(y_axle, r_open, tyre_r, z_bottom, segs, wrap_deg=wrap_deg)
+    cut_poly = out + [(out[-1][0], -0.5), (out[0][0], -0.5)]
     c = _prism(mats.liner, cut_poly, min(sx * x_in, sx * 1.6), max(sx * x_in, sx * 1.6),
                "arch_cut")
     mod = body.modifiers.new("arch", 'BOOLEAN')
@@ -732,10 +741,12 @@ def arch(body, loft, mats, y_axle, tyre_r, sx=1, gap=0.022, x_in=0.50,
     bpy.data.objects.remove(c)
     if not bead:
         return None
-    # an arch extension standing proud of the fender, as a solid ring
+    # an arch extension standing proud of the fender, as a solid ring: body
+    # colour by default (a GT3's flares are moulded into the fender, not a
+    # bolt-on in carbon - the carbon ring read as a grey halo over the wheel)
     b = Builder("arch_bead")
     bm = b.bm
-    sc = b.slot(mats.carbon)
+    sc = b.slot(bead_mat or mats.paint)
     ax = Vector((0.0, y_axle, tyre_r))
     xsamp = [loft.x_at(y, z) for (y, z) in out]
     xsm = [sum(xsamp[max(i - 2, 0):i + 3]) / len(xsamp[max(i - 2, 0):i + 3])
@@ -1524,11 +1535,15 @@ def conform_decal(b, mat, loft, y0, y1, j0, j1, sx=1, lift=0.004, nu=10, nv=5, f
 
 
 # ----------------------------------------------------------------- cockpit
-def cockpit_points(loft, wing_z, liner_z=-0.057, tail_pad=0.12, nose_pad=0.14, top_z=None):
+def cockpit_points(loft, wing_z, liner_z=-0.057, tail_pad=0.12, nose_pad=0.14, top_z=None, eye=None):
     """Where the client will put the driver's eye, wheel and mirror.
 
     Mirrors `ApexCockpit::DeriveLayout` (closed style, docs/CAR_MODELS.md) so
-    the interior can be built around the same points instead of by eye."""
+    the interior can be built around the same points instead of by eye. With
+    `eye` given (a build that writes its own `[cockpit]` table) the points
+    are laid off that eye instead: see `authored_cockpit()`."""
+    if eye is not None:
+        return authored_cockpit(eye)
     lo_z, hi_z = liner_z, (wing_z + 0.22 if top_z is None else top_z)
     y0, y1 = loft.nose - nose_pad, loft.tail + tail_pad
     eye_z = lo_z + 0.70 * (hi_z - lo_z)
@@ -1653,6 +1668,175 @@ def tumblehome(keys, amount=0.03, j_from=6):
             new.append((x, z))
         out.append((y, new))
     return out
+
+
+def scale_width(keys, factor, j_from=1, j_to=None, y_range=None):
+    """Scale the half-widths of control points `j_from`..`j_to` (inclusive;
+    None = the last) by `factor`, within `y_range` if given.
+
+    Measured against the imported cars (pass 5): a GT3 body is 2.00-2.05 m
+    over the arches and a prototype 1.90 m by rule, and the generated cars
+    were 2.14 and 2.04. Ten centimetres of width on a 1.25 m tall car is
+    the difference between a racing car and a bar of soap."""
+    out = []
+    for (y, pts) in keys:
+        if y_range and not (y_range[0] <= y <= y_range[1]):
+            out.append((y, pts))
+            continue
+        n = len(pts)
+        jt = n - 1 if j_to is None else j_to
+        out.append((y, [(x * factor if j_from <= j <= jt else x, z) for j, (x, z) in enumerate(pts)]))
+    return out
+
+
+def roofline(keys, targets, j_from=6, pivot_j=5, ease=0.0):
+    """Set the silhouette of the upper body along the car: `targets` is a
+    list of `(y, z)` giving the height the roof centre (the last control
+    point) should have at each station; between them it is interpolated,
+    outside them nothing changes. At each key inside the span every control
+    point from `j_from` up is scaled about the belt (`pivot_j`) so the roof
+    centre lands on the target and the glass keeps its proportions.
+
+    This is how the roof arc of a GT is authored as a line in profile
+    rather than as a by-product of nine section tables. The imported GT3s
+    all have the same gesture: the screen rises from the cowl in one sweep,
+    the roof peaks a little behind the B-pillar and comes down in a long
+    fastback to a short deck. The generated ones peaked ahead of the
+    middle and dropped onto a flat deck a metre long, which is most of what
+    made them read as a kit car."""
+    ts = sorted(targets)
+    out = []
+    for (y, pts) in keys:
+        if y < ts[0][0] - 1e-9 or y > ts[-1][0] + 1e-9:
+            out.append((y, pts))
+            continue
+        for (ya, za), (yb, zb) in zip(ts, ts[1:]):
+            if ya - 1e-9 <= y <= yb + 1e-9:
+                t = 0.0 if yb == ya else (y - ya) / (yb - ya)
+                if ease:
+                    t = _smoothstep(t)
+                target = za + (zb - za) * t
+                break
+        zb_ = pts[pivot_j][1]
+        zr = pts[-1][1]
+        if zr - zb_ < 0.03:
+            # a cowl station, where the "roof" points are the bonnet and sit
+            # at or under the belt: there is nothing to scale about, so the
+            # upper surface is moved as one
+            d = target - zr
+            new = [(x, z + d if j >= j_from else z) for j, (x, z) in enumerate(pts)]
+        else:
+            f = (target - zb_) / (zr - zb_)
+            new = [(x, zb_ + (z - zb_) * f if j >= j_from else z) for j, (x, z) in enumerate(pts)]
+        out.append((y, new))
+    return out
+
+
+def lift_points(keys, js, dz, y_range=None, fade=0.0):
+    """Raise (or lower) control points `js` by `dz`, within `y_range`, fading
+    in and out over `fade` metres at its ends. For the belt line and the
+    fender crowns, which the imported cars put higher and further inboard
+    than the generated ones."""
+    out = []
+    for (y, pts) in keys:
+        w = 1.0
+        if y_range:
+            if y < y_range[0] or y > y_range[1]:
+                out.append((y, pts))
+                continue
+            if fade:
+                w = min(_smoothstep((y - y_range[0]) / fade), _smoothstep((y_range[1] - y) / fade))
+        out.append((y, [(x, z + dz * w if j in js else z) for j, (x, z) in enumerate(pts)]))
+    return out
+
+
+def authored_cockpit(eye, wheel_ahead=0.40, wheel_below=0.20):
+    """The driver's eye the *car* says, not the one the client would derive
+    from the mesh box, with the wheel and mirror points laid off it the way
+    `cockpit_points()` does. Written into car.toml as `[cockpit]` by
+    `write_cockpit_table()`, which the client prefers over its derivation.
+
+    Measured from the imported cars (their `DRIVEREYES`): a front-engined
+    GT3 driver sits 0.65 m behind the middle of the wheelbase, a mid-engined
+    one on it, a rear-engined one 0.33 m behind, all ~0.33-0.40 m off the
+    centreline and 0.90-0.96 m up; a prototype driver sits 0.2-0.3 m *ahead*
+    of the middle, only 0.15-0.20 m off centre and 0.78-0.80 m up. The
+    derived eye (5% behind centre, 18% of the width out, 70% of the box up)
+    had every generated cabin shifted, widened and raised to meet it: the
+    LMP2 driver was 0.35 m off centre and 0.92 m up, and the Murcetes'
+    greenhouse was slid 0.38 m forward of a long-bonnet GT's."""
+    eye = Vector(eye)
+    return dict(eye=eye,
+                wheel=Vector((eye.x, eye.y - wheel_ahead, eye.z - wheel_below)),
+                mirror=Vector((0.0, eye.y - 0.45, eye.z + 0.12)),
+                dash_z=eye.z - 0.16)
+
+
+def cockpit_table(ck, wheel_lock_deg, style="closed", rake_deg=None, note=None):
+    """The `[cockpit]` lines for car.toml (docs/CAR_MODELS.md): the authored
+    eye and wheel in the car's frame (+X nose, +Y right, +Z up, cm) from the
+    build frame (nose -Y, driver +X)."""
+    def cm(v):
+        return "[%.1f, %.1f, %.1f]" % (-v.y * 100.0, -v.x * 100.0, v.z * 100.0)
+    lines = ["[cockpit]",
+             "# Written by the build script: the eye and wheel the cabin was built to",
+             "# (car frame: +X nose, +Y right, +Z up). The client uses these instead of",
+             "# deriving them from the mesh box, so the greenhouse can sit where a",
+             "# real one does. Remove a key to fall back to the derivation."]
+    if note:
+        lines.append("# " + note)
+    lines += ['style = "%s"' % style,
+              "eye_cm = " + cm(ck["eye"]),
+              "wheel_cm = " + cm(ck["wheel"])]
+    if rake_deg is not None:
+        lines.append("wheel_rake_deg = %.1f" % rake_deg)
+    lines += ["# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a",
+              "# wheel on the Auto steering lock the real rim turns twice this lock to lock.",
+              "wheel_lock_deg = %.1f" % wheel_lock_deg, ""]
+    return lines
+
+
+def write_table(toml_path, name, block):
+    """Replace every `[name]` table in car.toml with `block` (a list of
+    lines, the header included), kept above the liveries' marker so
+    `liveries.py` - which rewrites everything below it - leaves it alone.
+    Line endings as the file has them. (The F1 builds' `[drs_flap]` table
+    and the GT3/LMP2 `[cockpit]` table both go through here.)"""
+    with open(toml_path, encoding="utf-8", newline="") as f:
+        text = f.read()
+    nl = "\r\n" if "\r\n" in text else "\n"
+    lines = text.replace("\r\n", "\n").split("\n")
+    out, skip = [], False
+    for line in lines:
+        head = line.strip()
+        if head.startswith("["):
+            skip = head == "[%s]" % name
+        elif head.startswith("# --- liveries:"):
+            skip = False
+        if not skip:
+            out.append(line)
+    block = list(block)
+    if block and block[-1] != "":
+        block.append("")
+    marker = next((i for i, l in enumerate(out) if l.startswith("# --- liveries:")), None)
+    if marker is None:
+        while out and not out[-1].strip():
+            out.pop()
+        out += [""] + block
+    else:
+        while marker > 0 and not out[marker - 1].strip():
+            out.pop(marker - 1)
+            marker -= 1
+        out[marker:marker] = [""] + block
+    while out and not out[-1].strip():
+        out.pop()
+    out.append("")
+    with open(toml_path, "w", encoding="utf-8", newline="") as f:
+        f.write(nl.join(out))
+
+
+def write_cockpit_table(car_dir, ck, wheel_lock_deg, **kw):
+    write_table(os.path.join(car_dir, "car.toml"), "cockpit", cockpit_table(ck, wheel_lock_deg, **kw))
 
 
 # ------------------------------------------------------- top-surface decals
@@ -1889,18 +2073,22 @@ def join_and_export(objs, stem, car_dir, export=True, hide=True):
     return car, glb
 
 
-def sightline(ob, transparent=("car_glass",), step_deg=0.5, max_deg=25.0, open_wheel=False):
+def sightline(ob, transparent=("car_glass",), step_deg=0.5, max_deg=25.0, open_wheel=False,
+              eye=None):
     """How far ahead the driver can see the road from the eye the client will
-    derive from this mesh: casts rays forward from the eye, steepening until
-    one clears the bodywork (glass is looked through), and reports the angle
-    and the distance where that ray meets the ground.
+    use for this car - the one `eye` says (an authored `[cockpit]` eye), else
+    the one it derives from the mesh box: casts rays forward from the eye,
+    steepening until one clears the bodywork (glass is looked through), and
+    reports the angle and the distance where that ray meets the ground.
 
     A GT3 driver sees the road from 8-10 m out. Forty is a letterbox."""
     from mathutils.bvhtree import BVHTree
     me = ob.data
     lo = [min(v.co[i] for v in me.vertices) for i in range(3)]
     hi = [max(v.co[i] for v in me.vertices) for i in range(3)]
-    if open_wheel:
+    if eye is not None:
+        eye = Vector(eye)
+    elif open_wheel:
         # ApexCockpit::DeriveLayout, OpenWheel: on the centreline, 8% of the
         # length behind centre, 82% of the height up
         eye = Vector((0.0, (lo[1] + hi[1]) / 2 + 0.08 * (hi[1] - lo[1]),

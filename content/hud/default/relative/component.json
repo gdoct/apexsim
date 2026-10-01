@@ -1,0 +1,36 @@
+// The cars either side of you in the order, with the gap to each: green
+// for a car behind, red for one ahead. Off until added in the HUD editor.
+{
+  "name": "Relative",
+  "description": "The cars around you and the gap to each.",
+  "default_enabled": false,
+  "region": "left",
+  "order": 10,
+  "root": {
+    "type": "column", "width": 300,
+    "children": [
+      { "type": "panel", "padding": [14, 8], "background": "surface_hover",
+        "children": [{ "type": "label", "text": "Relative" }] },
+      {
+        "type": "panel",
+        "repeat": { "list": "standings", "max": 7, "focus": "is_local" },
+        "height": 32, "margin": [0, 1, 0, 0], "padding": [14, 0],
+        "background": "=item.is_local ? 'accent' : alpha('surface', 0.92)",
+        "children": [{
+          "type": "row", "valign": "center",
+          "children": [
+            { "type": "text", "width": 26, "font": "mono", "size": 11, "text": "{item.position}",
+              "color": "=item.is_local ? 'on_accent' : 'text_muted'" },
+            { "type": "text", "fill": 1, "font": "body", "size": 13,
+              "text": "=item.is_local ? 'YOU' : upper(item.name)",
+              "bold": "=item.is_local",
+              "color": "=item.is_local ? 'on_accent' : 'text'" },
+            { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12,
+              "text": "=item.is_local ? '' : !has(item.gap_s) ? '—' : (item.gap_s > 0 ? '+' : '-') + fmt(abs(item.gap_s), 1)",
+              "color": "=item.is_local ? 'on_accent' : item.gap_s > 0 ? 'live' : 'error'" }
+          ]
+        }]
+      }
+    ]
+  }
+}
