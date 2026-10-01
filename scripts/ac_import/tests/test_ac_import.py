@@ -115,7 +115,11 @@ class SyntheticOval:
         (root / "ui").mkdir()
         r, w = self.RADIUS, self.WIDTH
         materials = [mat("Fisica"), mat("Asphalt", texture="asph.png"), mat("StandWall", texture="stand.png"),
-                     mat("Erba", shader="ksMultilayer", texture="grass.png")]
+                     mat("Erba", shader="ksMultilayer", texture="grass.png"),
+                     mat("groove3", shader="ksPerPixelAlpha", texture="asph.png"),
+                     mat("CURB_B", shader="ksMultilayer", texture="stand.png"),
+                     mat("grass-ext-shad", shader="ksMultilayer_fresnel_nm", texture="grass.png"),
+                     mat("physics", shader="ksPerPixelAlpha", texture="asph.png", alpha=0.0)]
         nodes = []
         # Physics: road, inside kerb over the first quarter, grass, walls.
         p, t = self.ring(r - w / 2, r + w / 2, 0.0)
@@ -145,6 +149,18 @@ class SyntheticOval:
         nodes.append(mesh_node("asphalt_vis", p, t, 1, lod_out=0.0))
         p, t = self.ring(r + w / 2, r + 40.0, -0.07)
         nodes.append(mesh_node("erba_vis", p, t, 3))
+        # Spa's traps: a rubber groove named like any mesh but wearing a
+        # groove material, a kerb drawn over road physics, and terrain far
+        # from any physics on Kunos' tarmac shader with a grass name.
+        p, t = self.ring(r - 2.0, r + 2.0, 0.02)
+        nodes.append(mesh_node("Plane023", p, t, 4))
+        p, t = self.ring(r - w / 2, r - w / 2 + 1.0, 0.02)
+        nodes.append(mesh_node("Object806_SUB3", p, t, 5))
+        p, t = self.ring(r + 60.0, r + 120.0, -0.5)
+        nodes.append(mesh_node("Line8234", p, t, 6))
+        # Monza 2022's hidden physics: renderable, but `alpha = 0`.
+        p, t = self.ring(r - w / 2, r + w / 2, 0.0)
+        nodes.append(mesh_node("01WALL_skin", p, t, 7))
         bx, by = r + 30.0, 0.0
         box = np.array([self.ac(bx + dx, by + dy, dz) for dx in (0, 6) for dy in (0, 10) for dz in (0, 4)])
         bt = np.array([[0, 2, 3], [0, 3, 1], [4, 5, 7], [4, 7, 6], [0, 1, 5], [0, 5, 4], [2, 6, 7], [2, 7, 3],
@@ -348,6 +364,35 @@ class ReaderTests(unittest.TestCase):
         self.assertEqual(physics.contact_for(surfaces["ROAD"]), CONTACT_ROAD)
 
 
+class SpineTests(unittest.TestCase):
+    def test_a_gate_off_the_line_leaves_no_kink_at_the_seam(self):
+        # Spa's timing gate is centred 5.4 m off its AI line. The spine
+        # starts at the gate's foot on the line; pinning its first point to
+        # the gate itself was a 5 m radius the speed profile braked for.
+        r = 200.0
+        angles = np.linspace(0, 2 * np.pi, 840, endpoint=False) - 0.1
+        pts = np.array([SyntheticOval.ac(r * np.cos(a), r * np.sin(a), 0.0) for a in angles])
+        gate = (SyntheticOval.ac(r + 1.0, 0.0, 0.0), SyntheticOval.ac(r + 11.0, 0.0, 0.0))
+        f, _ = centerline.make_frame(pts, True, gate, [])
+        spine = centerline.build_spine(pts, f, True)
+        p = spine.positions[:, :2]
+        a, b, c = np.roll(p, 1, 0), p, np.roll(p, -1, 0)
+        cross = np.abs(np.cross(b - a, c - b))
+        k = 2 * cross / (np.linalg.norm(b - a, axis=1) * np.linalg.norm(c - b, axis=1) * np.linalg.norm(c - a, axis=1))
+        self.assertLess(k.max(), 1.5 / r, "no point of the spine turns tighter than the ring")
+        self.assertAlmostEqual(float(np.hypot(*p[0])), 6.0, delta=0.05, msg="station 0 is the gate's foot")
+
+    def test_the_road_middle_is_smoothed_along_the_lap(self):
+        # A middle that zig-zags a sampling step either way every metre
+        # and one section that caught a paddock.
+        v = np.where(np.arange(1000) % 2 == 0, 0.125, -0.125)
+        v[400] = 12.0
+        out = centerline._smooth_along(v, True)
+        self.assertLess(np.abs(out).max(), 0.05)
+        ramp = centerline._smooth_along(np.linspace(0.0, 10.0, 1000), False)
+        self.assertLess(np.abs(ramp[100:900] - np.linspace(0.0, 10.0, 1000)[100:900]).max(), 1e-6)
+
+
 class TriangleIndexTests(unittest.TestCase):
     def test_highest_below_ceiling_wins(self):
         v = np.array([[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0],
@@ -417,6 +462,14 @@ class SceneClassificationTests(unittest.TestCase):
         self.assertIsNone(scene._hint_kit("TorreRadar TorreRadar radar.dds", "ksMultilayer_objsp"))
         self.assertIsNone(scene._hint_kit("TerrazzoBox TerrazzoBox box.dds", "ksPerPixel"))
         self.assertEqual(scene._hint_kit("Terra_01 Terra_500 t.dds", "ksPerPixel"), "sand")
+        # The name wins over the shader: Spa's valley is a grass material on
+        # Kunos' tarmac shader, and was drawn as asphalt.
+        self.assertEqual(scene._hint_kit("Line8234 grass-ext-shad grass-ext.dds", "ksMultilayer_fresnel_nm"), "grass")
+        self.assertEqual(scene._hint_kit("Hills TERRAIN_01 t.dds", "ksPerPixel"), "grass", "TERRAIN is not TERRA")
+        self.assertEqual(scene._hint_kit("rd-ex road-ext-tile road-tile-ext1.dds", "ksMultilayer"), "road")
+        self.assertTrue(scene._is_kerb("Object806_SUB3 CURB_B curbB.dds"))
+        self.assertTrue(scene._is_kerb("krb_HI004 kerb_new curbs_new.dds"))
+        self.assertFalse(scene._is_kerb("Object799_SUB7 asph asph.dds"))
 
 
 class TextureTests(unittest.TestCase):
@@ -475,7 +528,7 @@ class ImportTests(unittest.TestCase):
             import yaml
             doc = yaml.safe_load((custom / "SynthOval.yaml").read_text(encoding="utf-8"))
             nodes = doc["nodes"]
-            self.assertEqual(nodes[0]["x"], 0.0, "node 0 is on the start line")
+            self.assertLess(abs(nodes[0]["x"]), 0.05, "node 0 is on the start line")
             self.assertLessEqual(abs(nodes[0]["y"]), 0.13, "node 0 is the road's centre, within a sampling step")
             self.assertLess(abs(nodes[0]["z"]), 0.05, "the origin is on the road")
             widths = [n["width_left"] + n["width_right"] for n in nodes]
@@ -503,6 +556,11 @@ class ImportTests(unittest.TestCase):
             self.assertEqual(keys["road_ac"]["family"], "road")
             self.assertEqual(keys["ac_grass"]["ground_set"], "grass")
             self.assertTrue(any(k.startswith("scenery_standwall") for k in keys))
+            self.assertFalse(any("groove" in k for k in keys), "a groove overlay is dropped by its material")
+            self.assertFalse(any("physics" in k for k in keys), "a material AC draws at alpha 0 is not drawn")
+            self.assertEqual(keys["scenery_curb_b"]["family"], "scenery", "a kerb keeps its texture on road physics")
+            self.assertEqual(keys["road_ac"]["meshes"], 1, "grass-ext-shad is terrain, not road")
+            self.assertEqual(keys["ac_grass"]["meshes"], 2)
             surfaces = {s["key"]: s for s in report["physics"]["surfaces"]}
             self.assertEqual(surfaces["KERB"]["contact"], "curb")
             self.assertAlmostEqual(surfaces["KERB"]["friction_multiplier"], (0.95 / 0.98) / 0.85, places=3)

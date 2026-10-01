@@ -510,6 +510,34 @@ bool FApexCarTomlCockpitRigTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarCockpitMergeTest, "ApexSim.Cars.CockpitMerge", ApexTestFlags)
+
+bool FApexCarCockpitMergeTest::RunTest(const FString& Parameters)
+{
+	FApexCockpitOverrides Table;
+	Table.Eye = FVector(-35.0f, 38.0f, 108.0f);
+	Table.Wheel = FVector(10.0f, 38.0f, 90.0f);
+	Table.WheelRakeDeg = 18.0f;
+
+	// A car.toml that only names its lock keeps the table's framing.
+	FApexCockpitOverrides Toml;
+	Toml.WheelLockDeg = 180.0f;
+	const FApexCockpitOverrides Merged = ApexCarContent::MergeCockpit(&Table, Toml);
+	TestEqual(TEXT("eye kept"), Merged.Eye, Table.Eye);
+	TestEqual(TEXT("wheel kept"), Merged.Wheel, Table.Wheel);
+	TestEqual(TEXT("rake kept"), Merged.WheelRakeDeg, 18.0f);
+	TestEqual(TEXT("lock taken"), Merged.WheelLockDeg, 180.0f);
+
+	// A point the TOML gives wins; no table is the TOML as it is.
+	Toml.Eye = FVector(-30.0f, 0.0f, 100.0f);
+	Toml.bRigDash = false;
+	const FApexCockpitOverrides Placed = ApexCarContent::MergeCockpit(&Table, Toml);
+	TestEqual(TEXT("eye from the toml"), Placed.Eye, Toml.Eye);
+	TestFalse(TEXT("rig flags from the toml"), Placed.bRigDash);
+	TestEqual(TEXT("no table"), ApexCarContent::MergeCockpit(nullptr, Toml).Eye, Toml.Eye);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarLiverySkinSlotsTest, "ApexSim.Cars.LiverySkinSlots", ApexTestFlags)
 
 bool FApexCarLiverySkinSlotsTest::RunTest(const FString& Parameters)

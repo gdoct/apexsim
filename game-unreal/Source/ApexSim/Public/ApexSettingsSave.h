@@ -116,6 +116,38 @@ struct APEXSIM_API FApexKeyBinding
  *
  * Written through UApexSettingsSubsystem; nothing else should touch the slot.
  */
+/**
+ * A setup the player saved in the garage's Load / Save tab: a name, the car
+ * it was made for, and the clicks. Kept per car because clicks are relative
+ * to one car.toml; the best lap is the quickest legal lap driven while the
+ * working setup was exactly this one.
+ */
+USTRUCT()
+struct APEXSIM_API FApexSavedSetup
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid Id;
+
+	UPROPERTY()
+	FString Name;
+
+	/** The car.toml `id` this was tuned on. */
+	UPROPERTY()
+	FString CarId;
+
+	UPROPERTY()
+	FDateTime SavedAt;
+
+	/** Quickest legal lap on it, ms; 0 before one. */
+	UPROPERTY()
+	int32 BestLapMs = 0;
+
+	UPROPERTY()
+	FApexCarSetup Setup;
+};
+
 UCLASS()
 class APEXSIM_API UApexSettingsSave : public USaveGame
 {
@@ -148,6 +180,13 @@ public:
 	/** The dotted line on the road: green flat out, amber at the limit, red braking. */
 	UPROPERTY()
 	EApexRacingLine RacingLine = EApexRacingLine::Off;
+
+	/**
+	 * How much damage the car takes, applied by the server (SetDriverAids):
+	 * off, half of every hit, or full. A session that locks it races on full.
+	 */
+	UPROPERTY()
+	EApexDamageLevel Damage = EApexDamageLevel::Full;
 
 	/** In a hotlap, the record lap's ghost car drives alongside. Toggled from the garage. */
 	UPROPERTY()
@@ -330,6 +369,17 @@ public:
 	UPROPERTY()
 	float WheelSteeringLockDeg = 480.0f;
 
+	/**
+	 * Take the steering lock from the car being driven: twice its car.toml
+	 * `[cockpit] wheel_lock_deg` (AC's STEER_LOCK on an import), else the
+	 * cockpit layout's default for its style. The rim on screen then turns
+	 * exactly as far as the one in the player's hands, which a single lock
+	 * for every car could not do: a Group C car at 360° each way showed 1.5
+	 * turns of rim for one. WheelSteeringLockDeg is the manual figure.
+	 */
+	UPROPERTY()
+	bool bWheelSteeringLockAuto = true;
+
 	// --- Audio ----------------------------------------------------------------
 
 	/** 0..1. Scales everything the game plays, through the audio device's primary volume. */
@@ -369,4 +419,12 @@ public:
 	 */
 	UPROPERTY()
 	FApexCarSetup CarSetup;
+
+	/** The garage's saved setups, every car's, newest first. */
+	UPROPERTY()
+	TArray<FApexSavedSetup> SavedSetups;
+
+	/** The saved setup last loaded or saved (what the garage's header names); invalid for none. */
+	UPROPERTY()
+	FGuid LoadedSetupId;
 };

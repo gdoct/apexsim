@@ -442,6 +442,7 @@ namespace
 			else if (Key == TEXT("auto_gearbox"))     { bOk = Reader.ReadBool(Out.bAutoGearbox); }
 			else if (Key == TEXT("steering_assist"))  { bOk = Reader.ReadBool(Out.bSteeringAssist); }
 			else if (Key == TEXT("racing_line"))      { bOk = Reader.ReadBool(Out.bRacingLine); }
+			else if (Key == TEXT("damage"))           { bOk = Reader.ReadBool(Out.bDamage); }
 			else                                      { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -696,6 +697,84 @@ namespace
 		return true;
 	}
 
+	/** `SetupKnobFigure` — PascalCase keys. */
+	bool ParseSetupKnobFigure(FMsgPackReader& Reader, FApexSetupKnobFigure& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Stock"))         { bOk = Reader.ReadFloat(Out.Stock); }
+			else if (Key == TEXT("Step"))     { bOk = Reader.ReadFloat(Out.Step); }
+			else if (Key == TEXT("Lo"))       { bOk = Reader.ReadFloat(Out.Lo); }
+			else if (Key == TEXT("Hi"))       { bOk = Reader.ReadFloat(Out.Hi); }
+			else if (Key == TEXT("Decimals")) { bOk = Reader.ReadUInt64(Raw); Out.Decimals = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Unit"))     { bOk = Reader.ReadString(Out.Unit); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `CarSetupSheetData` (setup_sheet.rs) — PascalCase keys. */
+	bool ParseCarSetupSheet(FMsgPackReader& Reader, FApexCarSetupSheet& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("SessionId"))              { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("CarConfigId"))       { bOk = Reader.ReadString(Out.CarConfigId); }
+			else if (Key == TEXT("Knobs"))
+			{
+				int32 Count = 0;
+				bOk = Reader.ReadArrayHeader(Count);
+				Out.Knobs.SetNum(bOk ? Count : 0);
+				for (int32 k = 0; bOk && k < Count; ++k)
+				{
+					bOk = ParseSetupKnobFigure(Reader, Out.Knobs[k]);
+				}
+			}
+			else if (Key == TEXT("GearRatios"))        { bOk = ParseFloatArray(Reader, Out.GearRatios); }
+			else if (Key == TEXT("FinalDrive"))        { bOk = Reader.ReadFloat(Out.FinalDrive); }
+			else if (Key == TEXT("WheelRadiusM"))      { bOk = Reader.ReadFloat(Out.WheelRadiusM); }
+			else if (Key == TEXT("TyreOptimalPsi"))    { bOk = Reader.ReadFloat(Out.TyreOptimalPsi); }
+			else if (Key == TEXT("LapFuelL"))          { bOk = Reader.ReadFloat(Out.LapFuelL); }
+			else if (Key == TEXT("FuelKgPerL"))        { bOk = Reader.ReadFloat(Out.FuelKgPerL); }
+			else if (Key == TEXT("FillLaps"))          { bOk = Reader.ReadFloat(Out.FillLaps); }
+			else if (Key == TEXT("CamberModelled"))    { bOk = Reader.ReadBool(Out.bCamberModelled); }
+			else if (Key == TEXT("RakeBalancePerMm"))  { bOk = Reader.ReadFloat(Out.RakeBalancePerMm); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/**
 	 * `GhostLapData` — PascalCase keys, struct-of-arrays on the wire, zipped
 	 * into one sample per moment here. Arrays of unequal length are cut to
@@ -862,7 +941,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 34;
+	constexpr int32 CompactCarFieldCount = 37;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -1190,6 +1269,57 @@ namespace
 				return true;
 			});
 		}
+		// The hybrid, appended after the damage: charge and lap budget in
+		// percent (255: none) and the flags (bits 0-1 the mode, 2 deploying,
+		// 3 harvesting, 4 the overtake button).
+		Out.ErsChargePct = -1.0f;
+		Out.ErsLapPct = -1.0f;
+		Out.ErsMode = -1;
+		Out.bErsDeploying = false;
+		Out.bErsHarvesting = false;
+		Out.bErsBoost = false;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.ErsChargePct = Raw >= 255 ? -1.0f : static_cast<float>(Raw);
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.ErsLapPct = Raw >= 255 ? -1.0f : static_cast<float>(Raw);
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				if (Out.ErsChargePct >= 0.0f)
+				{
+					Out.ErsMode = static_cast<int32>(Raw & 3);
+					Out.bErsDeploying = (Raw & 4) != 0;
+					Out.bErsHarvesting = (Raw & 8) != 0;
+					Out.bErsBoost = (Raw & 16) != 0;
+				}
+				return true;
+			});
+		}
 
 		if (!bOk)
 		{
@@ -1386,6 +1516,7 @@ namespace
 		if (Variant == TEXT("LapTiming"))          { return EApexServerMessageType::LapTiming; }
 		if (Variant == TEXT("LapRecord"))          { return EApexServerMessageType::LapRecord; }
 		if (Variant == TEXT("GhostLap"))           { return EApexServerMessageType::GhostLap; }
+		if (Variant == TEXT("CarSetupSheet"))      { return EApexServerMessageType::CarSetupSheet; }
 		if (Variant == TEXT("UdpHandshakeAck"))    { return EApexServerMessageType::UdpHandshakeAck; }
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 		if (Variant == TEXT("DriverFeedback"))     { return EApexServerMessageType::DriverFeedback; }
@@ -1433,6 +1564,8 @@ namespace
 
 		case EApexServerMessageType::GhostLap:
 			return ParseGhostLap(Reader, Out.GhostLap);
+		case EApexServerMessageType::CarSetupSheet:
+			return ParseCarSetupSheet(Reader, Out.CarSetupSheet);
 
 		case EApexServerMessageType::TelemetryCompact:
 		case EApexServerMessageType::DriverFeedback:
@@ -1504,7 +1637,8 @@ namespace ApexProtocol
 	/** `AllowedAssists` (data.rs): no rename_all, so snake_case keys wherever it nests. */
 	void WriteAllowedAssists(FMsgPackWriter& Writer, const FApexAllowedAssists& Assists)
 	{
-		Writer.WriteMapHeader(5);
+		// `damage` only when locked, as the server leaves it off while allowed.
+		Writer.WriteMapHeader(Assists.bDamage ? 5 : 6);
 		Writer.WriteString("abs");
 		Writer.WriteBool(Assists.bAbs);
 		Writer.WriteString("traction_control");
@@ -1515,6 +1649,11 @@ namespace ApexProtocol
 		Writer.WriteBool(Assists.bSteeringAssist);
 		Writer.WriteString("racing_line");
 		Writer.WriteBool(Assists.bRacingLine);
+		if (!Assists.bDamage)
+		{
+			Writer.WriteString("damage");
+			Writer.WriteBool(false);
+		}
 	}
 
 	/** `SessionConditions` (data.rs): no rename_all, so snake_case keys wherever it nests. */
@@ -1622,10 +1761,11 @@ namespace ApexProtocol
 	}
 
 	TArray<uint8> EncodeSetDriverAids(
-		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl)
+		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
+		TOptional<EApexDamageLevel> Damage)
 	{
-		FMsgPackWriter Writer(96);
-		BeginDataVariant(Writer, "SetDriverAids", 4);
+		FMsgPackWriter Writer(112);
+		BeginDataVariant(Writer, "SetDriverAids", Damage.IsSet() ? 5 : 4);
 		Writer.WriteString("auto_gearbox");
 		Writer.WriteBool(bAutoGearbox);
 		Writer.WriteString("steering_assist");
@@ -1636,6 +1776,12 @@ namespace ApexProtocol
 		Writer.WriteBool(bAbs);
 		Writer.WriteString("traction_control");
 		Writer.WriteUInt(static_cast<uint8>(TractionControl));
+		// Unset is left off, as the server does: full damage.
+		if (Damage.IsSet())
+		{
+			Writer.WriteString("damage");
+			Writer.WriteUInt(static_cast<uint8>(Damage.GetValue()));
+		}
 		return MoveTemp(Writer.GetBuffer());
 	}
 
@@ -1678,8 +1824,8 @@ namespace ApexProtocol
 
 	TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input)
 	{
-		FMsgPackWriter Writer(136);
-		BeginDataVariant(Writer, "PlayerInput", 9);
+		FMsgPackWriter Writer(160);
+		BeginDataVariant(Writer, "PlayerInput", 11);
 		Writer.WriteString("server_tick_ack");
 		Writer.WriteUInt(ServerTickAck);
 		Writer.WriteString("throttle");
@@ -1719,6 +1865,19 @@ namespace ApexProtocol
 		}
 		Writer.WriteString("flash");
 		Writer.WriteBool(Input.bFlash);
+		// The hybrid's mode (nil: keep the car's) and the overtake button,
+		// after the lights for the same reason.
+		Writer.WriteString("ers_mode");
+		if (Input.ErsMode < 0)
+		{
+			Writer.WriteNil();
+		}
+		else
+		{
+			Writer.WriteUInt(static_cast<uint64>(FMath::Clamp(Input.ErsMode, 0, 2)));
+		}
+		Writer.WriteString("ers_boost");
+		Writer.WriteBool(Input.bErsBoost);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

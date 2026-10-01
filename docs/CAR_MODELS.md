@@ -289,6 +289,11 @@ rig_dash = false                  # optional (default true): hide the rig's hub 
 
 Every key is optional, and a zero `wheel_rake_deg` / `wheel_lock_deg` means
 "derive it from the style" as before (write `0.01` for a truly upright rim).
+A key the table leaves out keeps the `DT_CarCatalog` row's hand-tuned value
+when the car has one (`ApexCarContent::MergeCockpit`), so a car.toml that
+only names its `wheel_lock_deg` keeps its framing. `wheel_lock_deg` is also
+the car's steering lock for a wheel on the Auto steering lock: the real rim
+turns twice it lock to lock, and the rim on screen follows it 1:1.
 The last three are for a car with a real interior, an imported one:
 
 - `steering_wheel_model` is a GLB beside the car.toml that the cockpit rig

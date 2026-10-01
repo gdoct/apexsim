@@ -222,7 +222,11 @@ def import_car(car_dir: Path, opts: Options) -> Result:
     seat = model.seat_for(fits)
     lights = model.read_lights(car, kn5, seat)
     colours = model.light_colours(car)
-    plan = model.plan_materials(kn5, split, lights)
+    carini = car.ini("car.ini")
+    eye = vector(carini.get("GRAPHICS", {}).get("DRIVEREYES"))
+    mirrors = model.read_mirrors(car, kn5, eye)
+    # The glass is a slot of its own, like a lamp: the rig paints it.
+    plan = model.plan_materials(kn5, split, lights, mirrors)
     if plan.skin_texture is None:
         warnings.append("the kn5 has no Skin_00.dds: the paint cannot be repainted by a livery")
 
@@ -249,7 +253,8 @@ def import_car(car_dir: Path, opts: Options) -> Result:
     def same(n):
         return n
 
-    body = model.build_glb(kn5, split.body, plan, lights, colours, seat_pts, same, texture_sizes, cache, True)
+    body = model.build_glb(kn5, split.body, plan, lights, colours, seat_pts, same, texture_sizes, cache, True,
+                            mirrors)
     lo, hi = body.builder.bounds()
     top = model.body_top(np.concatenate([p.positions for p in body.builder.primitives]).astype(np.float64))
     length, width, height = float(hi[2] - lo[2]), float(hi[0] - lo[0]), top
@@ -289,8 +294,6 @@ def import_car(car_dir: Path, opts: Options) -> Result:
         g = seat.apply(np.asarray(p_model, dtype=np.float64))
         return [round(float(g[2]) * 100, 1), round(float(-g[0]) * 100, 1), round(float(g[1]) * 100, 1)]
 
-    carini = car.ini("car.ini")
-    eye = vector(carini.get("GRAPHICS", {}).get("DRIVEREYES"))
     tags = {t.lower().lstrip("#") for t in car.ui.tags}
     open_cockpit = bool(tags & {"singleseater", "open wheel", "open-wheel", "formula"}) or phys.car_class in ("F1", "Formula")
     if eye is not None and not open_cockpit:
@@ -312,18 +315,14 @@ def import_car(car_dir: Path, opts: Options) -> Result:
             cockpit["wheel_lock_deg"] = round(float(re.match(r"[\d.]+", lock.strip()).group(0)), 1)
         if steer_glb is not None:
             cockpit["steering_wheel_model"] = "steering_wheel.glb"
-    mirrors = car.ini("mirrors.ini")
-    for sec in mirrors.values():
-        node = str(sec.get("NAME", "")).strip()
-        c = model.mesh_centroid(kn5, node) if node else None
-        if c is None:
+    for slot in model.MIRROR_SLOTS:
+        glass = mirrors.get(slot)
+        if glass is None:
             continue
-        if node.upper().startswith("INT") or abs(c[0]) < 0.2:
-            cockpit.setdefault("mirror_centre_cm", actor_cm(c))
-        elif c[0] > 0:
-            cockpit.setdefault("mirror_left_cm", actor_cm(c))
-        else:
-            cockpit.setdefault("mirror_right_cm", actor_cm(c))
+        key = slot.removeprefix("car_")
+        cockpit[f"{key}_cm"] = actor_cm(glass.centroid)
+        # The glass as the driver faces it: the rig sizes its capture to it.
+        cockpit[f"{key}_size_cm"] = [round(glass.size[0] * 100, 1), round(glass.size[1] * 100, 1)]
     has_display = model.find_dummy(kn5, "DISPLAY_DUMMY") is not None or "digital_instruments.ini" in car.files
     if has_display:
         cockpit["rig_dash"] = False
@@ -431,6 +430,7 @@ def import_car(car_dir: Path, opts: Options) -> Result:
         },
         "materials": plan.report,
         "lights": dict(sorted(lights.items())),
+        "mirrors": {s: g.node for s, g in mirrors.items()},
         "skins": {"default": default_skin.name if default_skin else None, "baked": baked,
                   "overridden_textures": liv.overridden,
                   "liveries": [{"name": l.name, "folder": l.folder} for l in liv.liveries]},

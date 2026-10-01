@@ -34,7 +34,9 @@ What differs from the design below, on purpose:
 
 - **Kerbs keep AC's textures** rather than the kit's curb family: their
   stripes are authored into the texture, and the kit's 2 m stripes would
-  need an along-kerb UV the kn5 does not carry.
+  need an along-kerb UV the kn5 does not carry. A material or mesh named
+  `KERB`/`CURB`/`CORDOL` is never kit, whatever lies under it: Spa's
+  `CURB_B` stands on road physics in places and was drawn as asphalt.
 - **Classification is per material, from its meshes' physics**: each
   mesh is sampled at its triangles' centres (three quarters must lie on
   physics, 60% of those in one class), and the meshes of a material that
@@ -42,10 +44,32 @@ What differs from the design below, on purpose:
   tried first and failed: a road ribbon's vertices all lie on the road's
   edges, where the physics is road or grass by a coin toss, and Zandvoort's
   asphalt chunks came out as kit grass. A material none of whose meshes
-  stand on physics falls to the name and shader hints: plain
-  `ksMultilayer` is grass, `ksMultilayer_fresnel*` (Kunos' tarmac) road,
-  and `ksMultilayer_objsp` (an object shader: railings, towers, stands)
-  nothing. Alpha-tested and blended materials are never a kit surface.
+  stand on physics falls to the hints, **names before shaders**: a
+  gravel, sand, grass (`TERRAIN` included), earth or road name decides,
+  and only then plain `ksMultilayer` is grass, `ksMultilayer_fresnel*`
+  (Kunos' tarmac) road, and `ksMultilayer_objsp` (an object shader:
+  railings, towers, stands) nothing. Shader first painted Spa's whole
+  valley as asphalt: its terrain is `grass-ext-shad` on `grass-ext.dds`
+  with the tarmac shader. Alpha-tested and blended materials are never a
+  kit surface.
+- **A material AC draws at `alpha = 0` is not drawn**: mods hide the
+  physics meshes they leave renderable that way. Monza 2022's 216
+  (`01WALL`..., the road and run-off) wear `physics`, `ksPerPixelAlpha`
+  with `alpha = 0` on a flat normal map, and drawn they painted every wall
+  and run-off lavender.
+- **Overlays are dropped** by the mesh name, or by a see-through
+  material's name (`GROOVE`, `SKIDMARK`, `KSLAYER`): Spa's rubber grooves
+  are `Plane023` and `Loft286` wearing `groove3`, painted to darken AC's
+  asphalt, and over the kit's they drew hard-edged dark sheets across the
+  road after the grid and after La Source.
+- **The spine starts at the timing gate's foot on the AI line**, not at
+  the gate's middle: Spa's gate is 5.4 m off its line, and pinning the
+  first point to it put a 5 m-radius kink in the raceline at the seam,
+  which the speed profile braked for (red dots on the grid, and a La
+  Source braking point planned for an entry 30 km/h slow). The road's
+  middle, quantised to the 0.25 m cross-section step, is smoothed along
+  the lap (a 9 m median, then a 6 m Gaussian); unsmoothed it zig-zagged
+  0.3 m node to node, a 100 m radius on every straight.
 - **Only the diffuse maps come over**, and most are re-encoded: the
   majority of Kunos textures ship without mip chains, so they are decoded,
   mipped and range-fit to BC1/BC3 by the tool; a BC1/BC3 source with its

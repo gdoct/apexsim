@@ -137,6 +137,22 @@ motor_max_torque_nm = 0.0
 motor_max_power_kw = 0.0
 regen_max_power_kw = 0.0
 
+# Suspension geometry (server/src/geometry.rs): static camber per axle
+# (negative: the wheel's top toward the car), how much of the body's roll
+# the linkage gains back, toe per wheel (positive toe-in) and the bump
+# stops (gap past the static laden compression, rate). The springs and
+# dampers are still the sim's defaults. The grip is measured against this
+# camber, so the setup garage's camber clicks move it from here.
+[suspension]
+camber_front_deg = -3.0
+camber_rear_deg = -2.0
+camber_gain_front = 0.55
+camber_gain_rear = 0.55
+toe_front_deg = -0.05
+toe_rear_deg = 0.15
+bump_stop_gap_m = 0.03
+bump_stop_rate_n_per_m = 200000.0
+
 # Where the client draws the wheels, measured from the model (content/cars/
 # strip_wheels.py): visual only, the physics reads its own figures above.
 # Axles are metres ahead of (+) or behind (-) the model origin; the wheel
@@ -196,3 +212,8 @@ paint = [0.220, 0.025, 0.420]
 accent = [0.950, 0.500, 0.015]
 metallic = 0.70
 logo = "textures/livery_ember.png"
+
+[cockpit]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 180.0

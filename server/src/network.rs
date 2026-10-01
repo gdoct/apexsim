@@ -3,7 +3,7 @@ use crate::data::*;
 pub use crate::feedback::DriverFeedback;
 use serde::{Deserialize, Serialize};
 
-fn deserialize_uuid_from_string<'de, D>(deserializer: D) -> Result<uuid::Uuid, D::Error>
+pub(crate) fn deserialize_uuid_from_string<'de, D>(deserializer: D) -> Result<uuid::Uuid, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -113,6 +113,10 @@ pub enum ClientMessage {
         /// Traction control level; absent keeps the car's own.
         #[serde(default)]
         traction_control: Option<TractionControl>,
+        /// How much damage the car takes; absent is full damage. Left off
+        /// the wire when unset, so the older aids keep their bytes.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage: Option<DamageLevel>,
     },
     /// The garage setup for this player's car, as clicks per knob
     /// (`car_setup::CarSetup`). Sent on joining a session and whenever a
@@ -169,6 +173,14 @@ pub enum ClientMessage {
         /// The flash button is held.
         #[serde(default)]
         flash: Option<bool>,
+        /// The hybrid's mode (`crate::hybrid::ErsMode`: 0 harvest, 1
+        /// balanced, 2 attack). `None` (and a client from before the
+        /// field) keeps the car's.
+        #[serde(default)]
+        ers_mode: Option<u8>,
+        /// The overtake button is held.
+        #[serde(default)]
+        ers_boost: Option<bool>,
     },
 }
 
@@ -296,6 +308,11 @@ pub enum ServerMessage {
     // the client to drive a ghost car through.
     GhostLap(GhostLapData),
 
+    // TCP - The garage's reference card for the joining driver's car: each
+    // setup knob's stock value and click in real units (`setup_sheet.rs`).
+    // Sent once, right after `SessionJoined`.
+    CarSetupSheet(crate::setup_sheet::CarSetupSheetData),
+
     // Full (named-encoding) telemetry. Used internally for replays; the wire
     // uses `TelemetryCompact` since protocol v2.
     Telemetry(Telemetry),
@@ -329,6 +346,7 @@ impl ServerMessage {
             // Asked for once; a reply that never came leaves the driver
             // with no ghost at all.
             ServerMessage::GhostLap(_) => MessagePriority::Critical,
+            ServerMessage::CarSetupSheet(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -417,7 +435,10 @@ pub struct CarConfigSummary {
     pub max_engine_force_n: f32,
 }
 
-fn serialize_uuid_as_string<S>(uuid: &uuid::Uuid, serializer: S) -> Result<S::Ok, S::Error>
+pub(crate) fn serialize_uuid_as_string<S>(
+    uuid: &uuid::Uuid,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -591,6 +612,20 @@ pub struct CompactCarState {
     /// engine. Appended after `water_c`; all 0 from an older server.
     #[serde(default)]
     pub damage: [u8; 5],
+    /// The hybrid (`crate::hybrid`): the battery's charge and the lap's
+    /// deployment budget left, percent (255: no hybrid / no budget), and
+    /// `ers_flags` (bits 0-1 the mode, 2 deploying, 3 harvesting, 4 the
+    /// overtake button). Appended after `damage`.
+    #[serde(default = "no_hybrid")]
+    pub ers_pct: u8,
+    #[serde(default = "no_hybrid")]
+    pub ers_lap_pct: u8,
+    #[serde(default)]
+    pub ers_flags: u8,
+}
+
+fn no_hybrid() -> u8 {
+    255
 }
 
 /// The `pit_flags` byte of a car's telemetry.
@@ -654,6 +689,7 @@ pub struct CompactTelemetry {
 impl CompactCarState {
     pub fn from_car_state(state: &CarState, car_index: u8) -> Self {
         let (tyre_c, tyre_kpa) = tyre_bytes(state);
+        let (ers_pct, ers_lap_pct, ers_flags) = crate::hybrid::telemetry_bytes(state);
         Self {
             car_index,
             pos_x: state.pos_x,
@@ -707,6 +743,9 @@ impl CompactCarState {
                 ]
                 .map(|p| p.round().clamp(0.0, 100.0) as u8)
             },
+            ers_pct,
+            ers_lap_pct,
+            ers_flags,
             service_ds: (state.pit.service_left_s.max(0.0) * 10.0)
                 .round()
                 .min(u16::MAX as f32) as u16,
@@ -1095,10 +1134,12 @@ mod tests {
                 steering_assist,
                 abs,
                 traction_control,
+                damage,
             } => {
                 assert!(auto_gearbox && !steering_assist);
                 assert_eq!(abs, None, "an old client leaves the car's own ABS");
                 assert_eq!(traction_control, None);
+                assert_eq!(damage, None, "an old client takes full damage");
             }
             _ => panic!("Wrong message type"),
         }
@@ -1108,6 +1149,7 @@ mod tests {
             steering_assist: true,
             abs: Some(false),
             traction_control: Some(TractionControl::High),
+            damage: Some(DamageLevel::Off),
         };
         let bytes = rmp_serde::to_vec_named(&both).unwrap();
         match rmp_serde::from_slice(&bytes).unwrap() {
@@ -1116,10 +1158,12 @@ mod tests {
                 steering_assist,
                 abs,
                 traction_control,
+                damage,
             } => {
                 assert!(!auto_gearbox && steering_assist);
                 assert_eq!(abs, Some(false));
                 assert_eq!(traction_control, Some(TractionControl::High));
+                assert_eq!(damage, Some(DamageLevel::Off));
             }
             _ => panic!("Wrong message type"),
         }
@@ -1160,6 +1204,8 @@ mod tests {
             drs: Some(true),
             headlights: Some(false),
             flash: Some(true),
+            ers_mode: Some(2),
+            ers_boost: Some(true),
         };
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -1176,7 +1222,11 @@ mod tests {
                 drs,
                 headlights,
                 flash,
+                ers_mode,
+                ers_boost,
             } => {
+                assert_eq!(ers_mode, Some(2));
+                assert_eq!(ers_boost, Some(true));
                 assert_eq!(server_tick_ack, 100);
                 assert_eq!(throttle, 0.8);
                 assert_eq!(brake, 0.0);
@@ -1207,6 +1257,8 @@ mod tests {
             drs: Some(true),
             headlights: None,
             flash: None,
+            ers_mode: None,
+            ers_boost: None,
         };
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!("C_PlayerInputDrs = {bytes:02x?}");
@@ -1234,8 +1286,12 @@ mod tests {
                 gear,
                 headlights,
                 flash,
+                ers_mode,
+                ers_boost,
                 ..
             } => {
+                assert_eq!(ers_mode, None);
+                assert_eq!(ers_boost, None);
                 assert_eq!(drs, None);
                 assert_eq!(gear, None);
                 assert_eq!(headlights, None);
@@ -1245,10 +1301,11 @@ mod tests {
         }
     }
 
-    /// The headlight switch and the flash button, last in `PlayerInput`
-    /// after `drs`: this message is `ApexUdpGolden::C_PlayerInput` (`cargo
-    /// test player_input_headlights_wire_format -- --nocapture`). The switch
-    /// left to the conditions is nil, the flash a bool.
+    /// The headlight switch and the flash button after `drs`, then the
+    /// hybrid's mode and overtake button: this message is
+    /// `ApexUdpGolden::C_PlayerInput` (`cargo test
+    /// player_input_headlights_wire_format -- --nocapture`). The switch left
+    /// to the conditions is nil, the flash a bool, the mode a byte.
     #[test]
     fn test_player_input_headlights_wire_format() {
         let mut msg = ClientMessage::PlayerInput {
@@ -1261,6 +1318,8 @@ mod tests {
             drs: Some(false),
             headlights: None,
             flash: Some(false),
+            ers_mode: Some(1),
+            ers_boost: Some(false),
         };
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!("C_PlayerInput = {bytes:02x?}");
@@ -1269,9 +1328,12 @@ mod tests {
             0xaa, b'h', b'e', b'a', b'd', b'l', b'i', b'g', b'h', b't', b's',
             0xc0, // headlights: nil
             0xa5, b'f', b'l', b'a', b's', b'h', 0xc2, // flash: false
+            0xa8, b'e', b'r', b's', b'_', b'm', b'o', b'd', b'e', 0x01, // ers_mode: 1
+            0xa9, b'e', b'r', b's', b'_', b'b', b'o', b'o', b's', b't',
+            0xc2, // ers_boost: false
         ];
         assert!(bytes.ends_with(tail), "{bytes:02x?}");
-        assert_eq!(bytes[23], 0x89, "nine fields in the data map");
+        assert_eq!(bytes[23], 0x8b, "eleven fields in the data map");
 
         if let ClientMessage::PlayerInput {
             headlights, flash, ..
@@ -1282,8 +1344,8 @@ mod tests {
         }
         let on = rmp_serde::to_vec_named(&msg).unwrap();
         assert_eq!(on.len(), bytes.len(), "a bool is as long as nil");
-        assert_eq!(on[on.len() - 8], 0xc3, "headlights: true");
-        assert_eq!(on[on.len() - 1], 0xc3, "flash: true");
+        assert_eq!(on[on.len() - 29], 0xc3, "headlights: true");
+        assert_eq!(on[on.len() - 22], 0xc3, "flash: true");
     }
 
     #[test]
@@ -1547,6 +1609,11 @@ mod tests {
         state.damage.front_damage_percent = 23.4;
         state.damage.left_damage_percent = 7.6;
         state.damage.engine_damage_percent = 100.0;
+        state.ers_charge_pct = 64;
+        state.ers_budget_pct = 255;
+        state.ers_mode = crate::hybrid::ErsMode::Attack as u8;
+        state.ers_deploying = true;
+        state.ers_boost = true;
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -1557,7 +1624,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactDamage: {}",
+            "S_TelemetryCompactErs: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -1565,10 +1632,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 34-field array: 0xDC 0x00 0x22 is the array-16 header.
+        // The car is a 37-field array: 0xDC 0x00 0x25 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x22]),
-            "CompactCarState must stay 34 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x25]),
+            "CompactCarState must stay 37 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -1586,6 +1653,8 @@ mod tests {
                 assert_eq!(car.brake_c, [612, 598, 356, 350]);
                 assert_eq!(car.water_c, 105);
                 assert_eq!(car.damage, [23, 0, 8, 0, 100]);
+                assert_eq!((car.ers_pct, car.ers_lap_pct), (64, 255));
+                assert_eq!(car.ers_flags, 2 | 4 | 16, "attack, deploying, boost");
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }
@@ -1837,6 +1906,7 @@ mod tests {
                 auto_gearbox: true,
                 steering_assist: false,
                 racing_line: true,
+                damage: true,
             },
             conditions: SessionConditions {
                 weather: Weather::LightRain,
@@ -1864,6 +1934,7 @@ mod tests {
             steering_assist: true,
             abs: Some(false),
             traction_control: Some(TractionControl::High),
+            damage: None,
         };
         let aids_bytes = rmp_serde::to_vec_named(&aids).unwrap();
         println!("C_SetDriverAids: {}", hex(&aids_bytes));
@@ -1878,6 +1949,7 @@ mod tests {
                 auto_gearbox: false,
                 steering_assist: true,
                 racing_line: false,
+                damage: true,
             },
             conditions: SessionConditions {
                 weather: Weather::HeavyRain,
@@ -1891,6 +1963,52 @@ mod tests {
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION);
         assert_eq!(aids_bytes, GOLDEN_C_SET_DRIVER_AIDS);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_ASSISTS);
+    }
+
+    /// The damage aid: a `SetDriverAids` that asks for reduced damage, and
+    /// a session that forbids it (the only time `AllowedAssists` names
+    /// `damage`). Pinned on the client as `ApexGolden::C_SetDriverAidsDamage`
+    /// / `S_SessionJoinedNoDamage`; `cargo test damage_assist_wire_format --
+    /// --nocapture` prints them.
+    #[test]
+    fn test_damage_assist_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let aids = ClientMessage::SetDriverAids {
+            auto_gearbox: false,
+            steering_assist: false,
+            abs: Some(true),
+            traction_control: Some(TractionControl::Low),
+            damage: Some(DamageLevel::Reduced),
+        };
+        let aids_bytes = rmp_serde::to_vec_named(&aids).unwrap();
+        println!("C_SetDriverAidsDamage: {}", hex(&aids_bytes));
+
+        let no_damage = AllowedAssists {
+            damage: false,
+            ..AllowedAssists::ALL
+        };
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Practice,
+            allowed_assists: no_damage,
+            conditions: SessionConditions::DEFAULT,
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.allowed_assists, no_damage),
+            _ => panic!("Wrong message type"),
+        }
+
+        assert_eq!(aids_bytes, GOLDEN_C_SET_DRIVER_AIDS_DAMAGE);
+        assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_NO_DAMAGE);
     }
 
     /// The session's air named in full: a create that picks every figure
@@ -2066,7 +2184,7 @@ mod tests {
     #[test]
     fn test_car_setup_wire_format() {
         let setup = ClientMessage::SetCarSetup(CarSetup::from_clicks([
-            1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2,
+            1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2, -1, 2, 1, -2,
         ]));
         let bytes = rmp_serde::to_vec_named(&setup).unwrap();
         let hex = bytes
@@ -2084,6 +2202,8 @@ mod tests {
                 assert_eq!(decoded.ride_height_rear, 1);
                 assert_eq!(decoded.tyre_compound, 1);
                 assert_eq!(decoded.brake_ducts, 2);
+                assert_eq!((decoded.camber_front, decoded.camber_rear), (-1, 2));
+                assert_eq!((decoded.toe_front, decoded.toe_rear), (1, -2));
             }
             _ => panic!("Wrong message type"),
         }
@@ -2107,9 +2227,95 @@ mod tests {
         assert_eq!(bytes, GOLDEN_C_SET_CAR_SETUP);
     }
 
+    /// The bytes of a small `CarSetupSheet`, the client's
+    /// `ApexGolden::S_CarSetupSheet`; `cargo test car_setup_sheet_wire_format
+    /// -- --nocapture` prints them.
+    #[test]
+    fn test_car_setup_sheet_wire_format() {
+        use crate::setup_sheet::{CarSetupSheetData, SetupKnobFigure};
+        let sheet = ServerMessage::CarSetupSheet(CarSetupSheetData {
+            session_id: uuid::Uuid::from_u128(1),
+            car_config_id: uuid::Uuid::from_u128(2),
+            knobs: vec![
+                SetupKnobFigure {
+                    stock: 26.0,
+                    step: 0.5,
+                    lo: f32::MIN,
+                    hi: f32::MAX,
+                    decimals: 1,
+                    unit: "psi".to_string(),
+                },
+                SetupKnobFigure {
+                    stock: 58.0,
+                    step: 2.0,
+                    lo: 10.0,
+                    hi: f32::MAX,
+                    decimals: 0,
+                    unit: "mm".to_string(),
+                },
+            ],
+            gear_ratios: vec![3.5, 1.0],
+            final_drive: 3.75,
+            wheel_radius_m: 0.25,
+            tyre_optimal_psi: 27.5,
+            lap_fuel_l: 2.5,
+            fuel_kg_per_l: 0.75,
+            fill_laps: 3.0,
+            camber_modelled: true,
+            rake_balance_per_mm: 0.001,
+        });
+        let bytes = rmp_serde::to_vec_named(&sheet).unwrap();
+        let hex = bytes
+            .iter()
+            .map(|b| format!("0x{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("S_CarSetupSheet: {}", hex);
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::CarSetupSheet(decoded) => {
+                assert_eq!(decoded.knobs.len(), 2);
+                assert_eq!(decoded.knobs[1].unit, "mm");
+                assert_eq!(decoded.gear_ratios, vec![3.5, 1.0]);
+                assert!(decoded.camber_modelled);
+            }
+            _ => panic!("Wrong message type"),
+        }
+        assert_eq!(bytes, GOLDEN_S_CAR_SETUP_SHEET);
+    }
+
+    const GOLDEN_S_CAR_SETUP_SHEET: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x61, 0x72, 0x53, 0x65, 0x74, 0x75, 0x70,
+        0x53, 0x68, 0x65, 0x65, 0x74, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x8C, 0xA9, 0x53, 0x65, 0x73,
+        0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30,
+        0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30, 0x30,
+        0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x31, 0xAB,
+        0x43, 0x61, 0x72, 0x43, 0x6F, 0x6E, 0x66, 0x69, 0x67, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x30,
+        0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30, 0x30,
+        0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30,
+        0x30, 0x30, 0x30, 0x32, 0xA5, 0x4B, 0x6E, 0x6F, 0x62, 0x73, 0x92, 0x86, 0xA5, 0x53, 0x74,
+        0x6F, 0x63, 0x6B, 0xCA, 0x41, 0xD0, 0x00, 0x00, 0xA4, 0x53, 0x74, 0x65, 0x70, 0xCA, 0x3F,
+        0x00, 0x00, 0x00, 0xA2, 0x4C, 0x6F, 0xCA, 0xFF, 0x7F, 0xFF, 0xFF, 0xA2, 0x48, 0x69, 0xCA,
+        0x7F, 0x7F, 0xFF, 0xFF, 0xA8, 0x44, 0x65, 0x63, 0x69, 0x6D, 0x61, 0x6C, 0x73, 0x01, 0xA4,
+        0x55, 0x6E, 0x69, 0x74, 0xA3, 0x70, 0x73, 0x69, 0x86, 0xA5, 0x53, 0x74, 0x6F, 0x63, 0x6B,
+        0xCA, 0x42, 0x68, 0x00, 0x00, 0xA4, 0x53, 0x74, 0x65, 0x70, 0xCA, 0x40, 0x00, 0x00, 0x00,
+        0xA2, 0x4C, 0x6F, 0xCA, 0x41, 0x20, 0x00, 0x00, 0xA2, 0x48, 0x69, 0xCA, 0x7F, 0x7F, 0xFF,
+        0xFF, 0xA8, 0x44, 0x65, 0x63, 0x69, 0x6D, 0x61, 0x6C, 0x73, 0x00, 0xA4, 0x55, 0x6E, 0x69,
+        0x74, 0xA2, 0x6D, 0x6D, 0xAA, 0x47, 0x65, 0x61, 0x72, 0x52, 0x61, 0x74, 0x69, 0x6F, 0x73,
+        0x92, 0xCA, 0x40, 0x60, 0x00, 0x00, 0xCA, 0x3F, 0x80, 0x00, 0x00, 0xAA, 0x46, 0x69, 0x6E,
+        0x61, 0x6C, 0x44, 0x72, 0x69, 0x76, 0x65, 0xCA, 0x40, 0x70, 0x00, 0x00, 0xAC, 0x57, 0x68,
+        0x65, 0x65, 0x6C, 0x52, 0x61, 0x64, 0x69, 0x75, 0x73, 0x4D, 0xCA, 0x3E, 0x80, 0x00, 0x00,
+        0xAE, 0x54, 0x79, 0x72, 0x65, 0x4F, 0x70, 0x74, 0x69, 0x6D, 0x61, 0x6C, 0x50, 0x73, 0x69,
+        0xCA, 0x41, 0xDC, 0x00, 0x00, 0xA8, 0x4C, 0x61, 0x70, 0x46, 0x75, 0x65, 0x6C, 0x4C, 0xCA,
+        0x40, 0x20, 0x00, 0x00, 0xAA, 0x46, 0x75, 0x65, 0x6C, 0x4B, 0x67, 0x50, 0x65, 0x72, 0x4C,
+        0xCA, 0x3F, 0x40, 0x00, 0x00, 0xA8, 0x46, 0x69, 0x6C, 0x6C, 0x4C, 0x61, 0x70, 0x73, 0xCA,
+        0x40, 0x40, 0x00, 0x00, 0xAE, 0x43, 0x61, 0x6D, 0x62, 0x65, 0x72, 0x4D, 0x6F, 0x64, 0x65,
+        0x6C, 0x6C, 0x65, 0x64, 0xC3, 0xB0, 0x52, 0x61, 0x6B, 0x65, 0x42, 0x61, 0x6C, 0x61, 0x6E,
+        0x63, 0x65, 0x50, 0x65, 0x72, 0x4D, 0x6D, 0xCA, 0x3A, 0x83, 0x12, 0x6F,
+    ];
+
     const GOLDEN_C_SET_CAR_SETUP: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAB, 0x53, 0x65, 0x74, 0x43, 0x61, 0x72, 0x53, 0x65,
-        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0xDE, 0x00, 0x15, 0xB3, 0x74, 0x79, 0x72,
+        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0xDE, 0x00, 0x19, 0xB3, 0x74, 0x79, 0x72,
         0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x5F, 0x66, 0x72, 0x6F, 0x6E,
         0x74, 0x01, 0xB2, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72,
         0x65, 0x5F, 0x72, 0x65, 0x61, 0x72, 0xFE, 0xAB, 0x72, 0x65, 0x76, 0x5F, 0x6C, 0x69, 0x6D,
@@ -2130,7 +2336,10 @@ mod tests {
         0xFD, 0xB0, 0x72, 0x69, 0x64, 0x65, 0x5F, 0x68, 0x65, 0x69, 0x67, 0x68, 0x74, 0x5F, 0x72,
         0x65, 0x61, 0x72, 0x01, 0xAD, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x63, 0x6F, 0x6D, 0x70, 0x6F,
         0x75, 0x6E, 0x64, 0x01, 0xAB, 0x62, 0x72, 0x61, 0x6B, 0x65, 0x5F, 0x64, 0x75, 0x63, 0x74,
-        0x73, 0x02,
+        0x73, 0x02, 0xAC, 0x63, 0x61, 0x6D, 0x62, 0x65, 0x72, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74,
+        0xFF, 0xAB, 0x63, 0x61, 0x6D, 0x62, 0x65, 0x72, 0x5F, 0x72, 0x65, 0x61, 0x72, 0x02, 0xA9,
+        0x74, 0x6F, 0x65, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0x01, 0xA8, 0x74, 0x6F, 0x65, 0x5F,
+        0x72, 0x65, 0x61, 0x72, 0xFE,
     ];
 
     const GOLDEN_C_CREATE_SESSION: &[u8] = &[
@@ -2160,6 +2369,32 @@ mod tests {
         0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xA3, 0x61, 0x62,
         0x73, 0xC2, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E,
         0x74, 0x72, 0x6F, 0x6C, 0x02,
+    ];
+    const GOLDEN_C_SET_DRIVER_AIDS_DAMAGE: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x74, 0x44, 0x72, 0x69, 0x76, 0x65,
+        0x72, 0x41, 0x69, 0x64, 0x73, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x85, 0xAC, 0x61, 0x75, 0x74,
+        0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC2, 0xAF, 0x73, 0x74, 0x65, 0x65,
+        0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC2, 0xA3, 0x61, 0x62,
+        0x73, 0xC3, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E,
+        0x74, 0x72, 0x6F, 0x6C, 0x01, 0xA6, 0x64, 0x61, 0x6D, 0x61, 0x67, 0x65, 0x01,
+    ];
+    const GOLDEN_S_SESSION_JOINED_NO_DAMAGE: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4A,
+        0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x85, 0xA9, 0x53, 0x65, 0x73,
+        0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
+        0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66, 0x2D, 0x30, 0x31, 0x32,
+        0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0xB0,
+        0x59, 0x6F, 0x75, 0x72, 0x47, 0x72, 0x69, 0x64, 0x50, 0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F,
+        0x6E, 0x03, 0xAB, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4B, 0x69, 0x6E, 0x64, 0x01,
+        0xAE, 0x41, 0x6C, 0x6C, 0x6F, 0x77, 0x65, 0x64, 0x41, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73,
+        0x86, 0xA3, 0x61, 0x62, 0x73, 0xC3, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E,
+        0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72, 0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F,
+        0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69,
+        0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69,
+        0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC3, 0xA6, 0x64, 0x61, 0x6D, 0x61, 0x67, 0x65,
+        0xC2, 0xAA, 0x43, 0x6F, 0x6E, 0x64, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x73, 0x82, 0xA7, 0x77,
+        0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3, 0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F, 0x66,
+        0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03, 0x0C,
     ];
     const GOLDEN_S_SESSION_JOINED_ASSISTS: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4A,

@@ -53,6 +53,14 @@ namespace ApexInput
 		/** Held: flash the headlights. Sent as `PlayerInput.flash`. */
 		inline const FName FlashLights  = TEXT("FlashLights");
 		/**
+		 * Pressed: step the hybrid's deployment mode, Balanced -> Attack ->
+		 * Harvest -> Balanced. Sent as `PlayerInput.ers_mode`; a car without
+		 * a hybrid ignores it.
+		 */
+		inline const FName ErsMode      = TEXT("ErsMode");
+		/** Held: the hybrid's overtake button. Sent as `PlayerInput.ers_boost`. */
+		inline const FName ErsBoost     = TEXT("ErsBoost");
+		/**
 		 * Not an Enhanced Input action: the pause key has to work while the race
 		 * view owns input, so the root widget tests it directly. Listed here so
 		 * it is rebindable and appears in the controls screen with the rest.
@@ -376,4 +384,12 @@ public:
 	/** Digital, held. Goes to the server as `PlayerInput.flash`. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> FlashLights;
+
+	/** Digital, fires once per press. Steps `PlayerInput.ers_mode`. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> ErsMode;
+
+	/** Digital, held. Goes to the server as `PlayerInput.ers_boost`. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> ErsBoost;
 };

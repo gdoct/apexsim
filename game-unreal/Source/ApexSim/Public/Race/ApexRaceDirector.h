@@ -355,6 +355,13 @@ private:
 	void PollDrivingInput();
 
 	/**
+	 * Hands the local car's steering lock to the settings (the wheel's Auto
+	 * lock) and the lock the wheel really uses to the cockpit rim, so the rim
+	 * on screen turns as far as the player's.
+	 */
+	void UpdateSteeringLock();
+
+	/**
 	 * The gear an automatic box would ask for this tick, or -128 for none.
 	 *
 	 * The protocol has no "automatic" flag — the server always takes the gear it
@@ -563,6 +570,11 @@ private:
 	 * flips whatever the server shows. Reset when a race view begins.
 	 */
 	int32 HeadlightSwitch = -1;
+	/** The local car's hybrid mode as the server last reported it (-1: no
+	 * hybrid), and the mode the player picked (`FApexPlayerInput::ErsMode`,
+	 * -1 until the first press: the car's default). Reset with the lights. */
+	int32 LocalErsMode = -1;
+	int32 ErsModeSwitch = -1;
 	/** The ghost is hidden this close to the player's car and shown again past the larger distance, cm. */
 	static constexpr float GhostHideDistanceCm = 300.0f;
 	static constexpr float GhostShowDistanceCm = 500.0f;

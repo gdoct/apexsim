@@ -448,6 +448,53 @@ CL_GAIN=5
         self.assertNotIn("blanket_temperature_c", t, "a GT3 has no blankets")
 
 
+class ErsImportTest(unittest.TestCase):
+    """A synthetic hybrid laid out like Kunos' 2017 F1: the store from the
+    discharge time, the lap budget from MAX_KJ_PER_LAP, the MGU-H share."""
+
+    @classmethod
+    def setUpClass(cls):
+        extra = {
+            "ers.ini": """[HEADER]
+VERSION=1
+[KINETIC]
+TORQUE_CURVE=kers_torque.lut
+COAST_CURVE=kers_torque_coast.lut
+DISCHARGE_TIME=33330
+HAS_BUTTON_OVERRIDE=1
+MAX_KJ_PER_LAP=4000
+[HEAT]
+TORQUE_PERC=25
+""",
+            # 120 kW: 191 Nm at 6000 rpm.
+            "kers_torque.lut": "1000|191\n6000|191\n12000|95.5\n15000|0\n",
+            "kers_torque_coast.lut": "1000|100\n6000|100\n12000|50\n",
+        }
+        cls.tmp = tempfile.TemporaryDirectory()
+        root = Path(cls.tmp.name)
+        from unittest import mock
+        with mock.patch.dict(DATA, extra):
+            car_dir = build_car(root / "ac", folder="test_ers")
+        opts = cli.Options(custom_dir=root / "custom", default_dir=root / "default")
+        (root / "default").mkdir()
+        cli.import_car(car_dir, opts)
+        out = next((opts.custom_dir).iterdir())
+        cls.toml = tomllib.loads((out / "car.toml").read_text(encoding="utf-8"))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_store_the_budget_and_the_heat_recovery(self):
+        h = self.toml["hybrid"]
+        self.assertTrue(h["enabled"])
+        self.assertAlmostEqual(h["motor_max_power_kw"], 120.0, delta=0.5)
+        # 120 kW for 33.33 s: 4 MJ, 1.11 kWh.
+        self.assertAlmostEqual(h["battery_capacity_kwh"], 1.111, delta=0.01)
+        self.assertEqual(h["deploy_kj_per_lap"], 4000.0)
+        self.assertAlmostEqual(h["heat_recovery_kw"], 30.0, delta=0.2)
+
+
 class SyntheticImportTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -550,7 +597,26 @@ class SyntheticImportTest(unittest.TestCase):
         self.assertEqual(mats["car_brakelight"]["emissiveFactor"][0], 1.0)
         self.assertIn("car_headlight", mats)
         self.assertEqual(mats["EXT_Banner"]["alphaMode"], "BLEND")
-        self.assertEqual(mats["MIRROR"]["pbrMetallicRoughness"]["metallicFactor"], 1.0)
+        # The mirrors.ini glass: a slot of its own, chrome, no texture.
+        self.assertEqual(mats["car_mirror_left"]["pbrMetallicRoughness"]["metallicFactor"], 1.0)
+        self.assertNotIn("baseColorTexture", mats["car_mirror_left"]["pbrMetallicRoughness"])
+        self.assertNotIn("MIRROR", mats)
+
+    def test_the_mirror_glass_is_laid_out_for_the_rig(self):
+        js = glb.read_glb_json(self.out / "TestCar.glb")
+        mats = [m["name"] for m in js["materials"]]
+        (prim,) = [p for p in js["meshes"][0]["primitives"] if mats[p["material"]] == "car_mirror_left"]
+        pos = glb.read_glb_floats(self.out / "TestCar.glb", prim["attributes"]["POSITION"])
+        uv = glb.read_glb_floats(self.out / "TestCar.glb", prim["attributes"]["TEXCOORD_0"])
+        # The glass spans 0..1 both ways; u runs from the driver's right
+        # (-x) to their left (+x), v from the top down.
+        np.testing.assert_allclose(uv.min(axis=0), [0.0, 0.0], atol=1e-5)
+        np.testing.assert_allclose(uv.max(axis=0), [1.0, 1.0], atol=1e-5)
+        np.testing.assert_allclose(uv[:, 0], (pos[:, 0] - 0.95) / 0.1, atol=1e-4)
+        np.testing.assert_allclose(uv[:, 1], (pos[:, 1].max() - pos[:, 1]) / 0.1, atol=1e-4)
+        c = self.toml["cockpit"]
+        self.assertEqual(c["mirror_left_size_cm"], [10.0, 10.0])
+        self.assertNotIn("mirror_right_cm", c)
 
     def test_the_steering_wheel_is_upright_in_its_file_and_raked_by_the_cockpit_table(self):
         lo, hi = self._bounds("steering_wheel.glb")
@@ -611,6 +677,45 @@ class SyntheticImportTest(unittest.TestCase):
         lo = np.min([acc[p["attributes"]["POSITION"]]["min"] for p in prims], axis=0)
         hi = np.max([acc[p["attributes"]["POSITION"]]["max"] for p in prims], axis=0)
         return lo, hi
+
+
+class MirrorPiecesTest(unittest.TestCase):
+    """Kunos often model every mirror's glass as one mesh (the 787B's
+    `MIRROR`): it is cut into pieces, each its own slot."""
+
+    class Mesh:
+        def __init__(self, name, geos):
+            ps, ts, base = [], [], 0
+            for p, t in geos:
+                ps.append(p)
+                ts.append(t + base)
+                base += len(p)
+            self.name, self.path = name, ("CAR",)
+            self._p, self.triangles = np.concatenate(ps), np.concatenate(ts)
+
+        def world_positions(self):
+            return self._p
+
+    class Car:
+        def ini(self, name):
+            return {"MIRROR_0": {"NAME": "MIRROR"}} if name == "mirrors.ini" else {}
+
+    def test_one_mesh_of_three_glasses_is_three_mirrors(self):
+        left = box((0.80, 0.8, 0.5), (1.00, 0.9, 0.52))
+        right = box((-1.00, 0.8, 0.5), (-0.80, 0.9, 0.52))
+        centre = box((-0.15, 1.0, 0.3), (0.15, 1.06, 0.31))
+        mesh = self.Mesh("MIRROR", [left, right, centre])
+
+        class Kn5:
+            meshes = [mesh]
+
+        mirrors = model.read_mirrors(self.Car(), Kn5(), np.array([0.3, 0.9, -0.3]))
+        self.assertEqual(sorted(mirrors), ["car_mirror_centre", "car_mirror_left", "car_mirror_right"])
+        np.testing.assert_allclose(mirrors["car_mirror_left"].size, (0.2, 0.1), atol=1e-6)
+        np.testing.assert_allclose(mirrors["car_mirror_centre"].size, (0.3, 0.06), atol=1e-6)
+        parts = model.mirror_parts(mirrors)[id(mesh)]
+        self.assertEqual(sorted(len(rows) for _, rows in parts), [12, 12, 12])
+        self.assertNotIn("", [s for s, _ in parts])
 
 
 class Kn5PathTest(unittest.TestCase):

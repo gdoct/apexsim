@@ -61,6 +61,8 @@ fn bench_physics_step_on(c: &mut Criterion, name: &str, track: TrackConfig) {
         drs: false,
         headlights: None,
         flash: false,
+        ers_mode: None,
+        ers_boost: false,
     };
     let dt = 1.0 / 240.0;
 

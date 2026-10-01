@@ -1,5 +1,6 @@
 #include "UI/ApexHudWidget.h"
 
+#include "ApexErs.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexSettingsSubsystem.h"
@@ -90,6 +91,31 @@ namespace
 	}
 
 	/** A car's colour on the map. Distinct enough at four pixels across. */
+	/**
+	 * A damage zone's colour: grey while sound, warming to amber by 25% (what
+	 * costs a car real pace, as the server's damage.rs has it) and to red by
+	 * 60%.
+	 */
+	FLinearColor DamageColour(float Percent)
+	{
+		if (Percent < 1.0f)
+		{
+			return Palette::TextDisabled;
+		}
+		if (Percent < 25.0f)
+		{
+			return FMath::Lerp(Palette::TextDisabled, Palette::Accent, Percent / 25.0f);
+		}
+		if (Percent < 60.0f)
+		{
+			return FMath::Lerp(Palette::Accent, Palette::Error, (Percent - 25.0f) / 35.0f);
+		}
+		return Palette::Error;
+	}
+
+	/** How long a zone that has just been hurt flashes, seconds. */
+	constexpr double DamageFlashSeconds = 0.8;
+
 	FLinearColor BlipColour(int32 CarIndex, bool bIsLocal)
 	{
 		if (bIsLocal)
@@ -314,7 +340,15 @@ void UApexHudWidget::BuildHud()
 	TowText = nullptr;
 	PitBadge = nullptr;
 	PitText = nullptr;
+	ErsBadge = nullptr;
+	ErsText = nullptr;
+	ErsBar = nullptr;
+	ErsBarColumn = nullptr;
 	TyreCaption = nullptr;
+	DamagePanel = nullptr;
+	DamageCaption = nullptr;
+	DamageZones.Reset();
+	DamageValueTexts.Reset();
 	LapInvalidText = nullptr;
 	FastestLapName = nullptr;
 	FastestLapTime = nullptr;
@@ -348,6 +382,9 @@ void UApexHudWidget::BuildHud()
 		AddH(BottomRow, BuildPedalPanel(), FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Bottom);
 	}
 
+	// Damage beside the car's numbers, in both detail levels: a car that
+	// has been hit is worth knowing about whatever else is hidden.
+	AddH(BottomRow, BuildDamagePanel(), FMargin(0.0f, 0.0f, 18.0f, 0.0f), VAlign_Bottom);
 	AddH(BottomRow, BuildCarStatePanel(), FMargin(), VAlign_Bottom);
 
 	AddV(RootStack, BottomRow, FMargin(Metrics::PageGutter, 0.0f, Metrics::PageGutter, HudEdgeGutter));
@@ -606,10 +643,19 @@ UWidget* UApexHudWidget::BuildPedalPanel()
 
 	UProgressBar* Throttle = nullptr;
 	UProgressBar* Brake = nullptr;
+	UProgressBar* Ers = nullptr;
 	AddPedal(TEXT("Thr"), Palette::Live, Throttle);
 	AddPedal(TEXT("Brk"), Palette::Error, Brake);
+	// The hybrid's battery, beside the pedals; collapsed without one.
+	AddPedal(TEXT("Ers"), Palette::Accent, Ers);
 	ThrottleBar = Throttle;
 	BrakeBar = Brake;
+	ErsBar = Ers;
+	ErsBarColumn = Bars->GetChildAt(Bars->GetChildrenCount() - 1);
+	if (ErsBarColumn)
+	{
+		ErsBarColumn->SetVisibility(ESlateVisibility::Collapsed);
+	}
 
 	return Bars;
 }
@@ -635,6 +681,13 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 	PitText = MakeText(*WidgetTree, TEXT("PIT"), Font::Body(12.0f, true), Palette::TextDisabled);
 	PitBadge = MakePanel(*WidgetTree, PitText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
 	AddH(RpmHeader, PitBadge, FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+	// The hybrid (server hybrid.rs): the mode, the charge and what is left
+	// of the lap's budget; lit while the motor drives, OVERTAKE while the
+	// button is held. Collapsed on a car without a hybrid.
+	ErsText = MakeText(*WidgetTree, TEXT("ERS"), Font::Body(12.0f, true), Palette::TextDisabled);
+	ErsBadge = MakePanel(*WidgetTree, ErsText, FMargin(8.0f, 1.0f), MakeBrush(Palette::Border));
+	ErsBadge->SetVisibility(ESlateVisibility::Collapsed);
+	AddH(RpmHeader, ErsBadge, FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	AddH(RpmHeader, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
 	RpmText = MakeText(*WidgetTree, TEXT("0"), Font::Mono(12.0f, 40), Palette::TextSecondary);
 	AddH(RpmHeader, RpmText);
@@ -731,15 +784,71 @@ UWidget* UApexHudWidget::BuildCarStatePanel()
 	AddV(WaterCell, MakeLabel(*WidgetTree, TEXT("Water")));
 	WaterText = MakeText(*WidgetTree, TEXT("—"), Font::Mono(15.0f), Palette::TextMuted);
 	AddV(WaterCell, WaterText, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
-	AddV(WaterCell, MakeLabel(*WidgetTree, TEXT("Damage")), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-	DamageText = MakeText(*WidgetTree, TEXT("—"), Font::Mono(13.0f), Palette::TextMuted);
-	AddV(WaterCell, DamageText, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
 	AddH(Tyres, WaterCell, FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Top);
 	AddV(Stack, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 10.0f));
 	AddV(Stack, Tyres);
 
 	UBorder* Panel = MakePanel(*WidgetTree, Stack, FMargin(22.0f, 16.0f), MakeBrush(Palette::Surface));
 	return MakeSized(*WidgetTree, Panel, 470.0f, -1.0f);
+}
+
+UWidget* UApexHudWidget::BuildDamagePanel()
+{
+	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
+	DamageCaption = MakeLabel(*WidgetTree, TEXT("Damage"));
+	AddV(Stack, DamageCaption);
+
+	UHorizontalBox* Body = WidgetTree->ConstructWidget<UHorizontalBox>();
+
+	// The car from above, nose up: the front and rear blocks across it, the
+	// sides down its flanks, the engine in the middle.
+	DamageZones.Reset();
+	DamageZones.SetNum(5);
+	auto MakeZone = [this](int32 Zone, float Width, float Height) -> UWidget*
+	{
+		UBorder* Block = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(DamageColour(0.0f), FLinearColor::Transparent, 0.0f, 3.0f));
+		DamageZones[Zone] = Block;
+		return MakeSized(*WidgetTree, Block, Width, Height);
+	};
+	constexpr float SideW = 10.0f;
+	constexpr float EngineW = 24.0f;
+	constexpr float Gap = 3.0f;
+	constexpr float CarW = SideW * 2.0f + EngineW + Gap * 2.0f;
+	UVerticalBox* Car = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddV(Car, MakeZone(0, CarW, 13.0f), FMargin(0.0f, 0.0f, 0.0f, Gap), HAlign_Center);
+	UHorizontalBox* Middle = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddH(Middle, MakeZone(2, SideW, 52.0f));
+	AddH(Middle, MakeZone(4, EngineW, 52.0f), FMargin(Gap, 0.0f));
+	AddH(Middle, MakeZone(3, SideW, 52.0f));
+	AddV(Car, Middle, FMargin(), HAlign_Center);
+	AddV(Car, MakeZone(1, CarW, 13.0f), FMargin(0.0f, Gap, 0.0f, 0.0f), HAlign_Center);
+	AddH(Body, Car, FMargin(0.0f, 0.0f, 16.0f, 0.0f), VAlign_Center);
+
+	// Each zone's figure, in the order a driver reads the car: nose to tail.
+	DamageValueTexts.Reset();
+	DamageValueTexts.SetNum(5);
+	static const TPair<int32, const TCHAR*> Rows[] = {
+		{0, TEXT("Front")}, {2, TEXT("Left")}, {3, TEXT("Right")}, {1, TEXT("Rear")}, {4, TEXT("Engine")},
+	};
+	UVerticalBox* Figures = WidgetTree->ConstructWidget<UVerticalBox>();
+	for (int32 Row = 0; Row < UE_ARRAY_COUNT(Rows); ++Row)
+	{
+		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Line, MakeLabel(*WidgetTree, Rows[Row].Value), FMargin(), VAlign_Center, 1.0f);
+		UTextBlock* Value = MakeText(*WidgetTree, TEXT("—"), Font::Mono(12.0f), Palette::TextMuted);
+		AddH(Line, Value, FMargin(10.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		DamageValueTexts[Rows[Row].Key] = Value;
+		AddV(Figures, Line, FMargin(0.0f, Row == 0 ? 0.0f : 3.0f, 0.0f, 0.0f));
+	}
+	AddH(Body, MakeSized(*WidgetTree, Figures, 92.0f, -1.0f), FMargin(), VAlign_Center);
+
+	AddV(Stack, Body, FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+
+	UBorder* Panel = MakePanel(*WidgetTree, Stack, FMargin(18.0f, 14.0f), MakeBrush(Palette::Surface));
+	DamagePanel = Panel;
+	// Until the first telemetry says whether this server sends damage.
+	Panel->SetVisibility(ESlateVisibility::Collapsed);
+	return Panel;
 }
 
 UWidget* UApexHudWidget::BuildMinimapPanel()
@@ -1249,6 +1358,49 @@ void UApexHudWidget::RefreshCarState()
 	}
 	RefreshFuel(*Local, LapsLeft);
 	RefreshTyres(*Local);
+	RefreshDamage(*Local);
+	RefreshErs(*Local);
+}
+
+void UApexHudWidget::RefreshErs(const FApexCarTelemetry& Local)
+{
+	const bool bHybrid = Local.HasHybrid();
+	const ESlateVisibility Shown = bHybrid ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+	if (ErsBarColumn)
+	{
+		ErsBarColumn->SetVisibility(Shown);
+	}
+	if (ErsBadge)
+	{
+		ErsBadge->SetVisibility(Shown);
+	}
+	if (!bHybrid)
+	{
+		return;
+	}
+	if (ErsBar)
+	{
+		ErsBar->SetPercent(FMath::Clamp(Local.ErsChargePct / 100.0f, 0.0f, 1.0f));
+	}
+	if (ErsBadge && ErsText)
+	{
+		FString Label = Local.bErsBoost
+			? FString::Printf(TEXT("OVERTAKE %.0f%%"), Local.ErsChargePct)
+			: FString::Printf(TEXT("ERS %s %.0f%%"), *ApexErs::ShortLabel(Local.ErsMode), Local.ErsChargePct);
+		if (Local.ErsLapPct >= 0.0f)
+		{
+			Label += FString::Printf(TEXT("  LAP %.0f%%"), Local.ErsLapPct);
+		}
+		const bool bDrive = Local.bErsDeploying;
+		const FLinearColor Fill = bDrive ? Palette::Live : Palette::Surface;
+		const FLinearColor Ink = bDrive ? Palette::OnAccent
+			: Local.bErsHarvesting ? Palette::Accent
+			: Local.ErsChargePct < 10.0f || Local.ErsLapPct == 0.0f ? Palette::TextDisabled
+			: Palette::TextSecondary;
+		ErsBadge->SetBrush(MakeBrush(Fill));
+		ErsText->SetColorAndOpacity(FSlateColor(Ink));
+		ErsText->SetText(FText::FromString(Label));
+	}
 }
 
 void UApexHudWidget::RefreshTyres(const FApexCarTelemetry& Local)
@@ -1296,32 +1448,6 @@ void UApexHudWidget::RefreshTyres(const FApexCarTelemetry& Local)
 		WaterText->SetColorAndOpacity(FSlateColor(
 			W < 0.0f ? Palette::TextMuted : W > 112.0f ? Palette::Error : W > 105.0f ? Palette::Accent : Palette::TextPrimary));
 	}
-	if (DamageText)
-	{
-		// Every zone with damage, by its letter: "F23 L8 E4"; "OK" on a clean
-		// car. Amber from 25% (what costs a car real pace), red from 60.
-		static const TCHAR* Zones[5] = {TEXT("F"), TEXT("R"), TEXT("L"), TEXT("Rt"), TEXT("E")};
-		FString Line;
-		float Worst = 0.0f;
-		if (Local.HasDamage())
-		{
-			for (int32 Zone = 0; Zone < 5; ++Zone)
-			{
-				const float D = Local.DamagePct[Zone];
-				if (D >= 1.0f)
-				{
-					Line += FString::Printf(TEXT("%s%s%.0f"), Line.IsEmpty() ? TEXT("") : TEXT(" "), Zones[Zone], D);
-					Worst = FMath::Max(Worst, D);
-				}
-			}
-		}
-		DamageText->SetText(FText::FromString(!Local.HasDamage() ? FString(TEXT("—")) : Line.IsEmpty() ? FString(TEXT("OK")) : Line));
-		DamageText->SetColorAndOpacity(FSlateColor(
-			!Local.HasDamage() || Line.IsEmpty() ? Palette::TextMuted
-			: Worst >= 60.0f ? Palette::Error
-			: Worst >= 25.0f ? Palette::Accent
-			: Palette::TextSecondary));
-	}
 	if (TyreCaption)
 	{
 		const FString Letter = FApexCarTelemetry::CompoundLetter(Local.Compound);
@@ -1357,6 +1483,77 @@ void UApexHudWidget::RefreshTyres(const FApexCarTelemetry& Local)
 		// once the tyre is nearly through.
 		Pressure->SetColorAndOpacity(FSlateColor(
 			Wear >= 90.0f ? Palette::Error : Wear >= 70.0f ? Palette::Accent : Palette::TextMuted));
+	}
+}
+
+void UApexHudWidget::RefreshDamage(const FApexCarTelemetry& Local)
+{
+	if (!DamagePanel || DamageZones.Num() != 5 || DamageValueTexts.Num() != 5)
+	{
+		return;
+	}
+	if (!Local.HasDamage())
+	{
+		DamagePanel->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+	DamagePanel->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	// The level this car runs at: the player's setting, unless the session
+	// pins full damage (the server applies the same rule).
+	if (DamageCaption)
+	{
+		EApexDamageLevel Level = EApexDamageLevel::Full;
+		const UApexSettingsSubsystem* Settings = GetSettings();
+		if (Settings && Settings->Get())
+		{
+			Level = Settings->Get()->Damage;
+		}
+		const UApexNetSubsystem* Net = GetNet();
+		if (Net && Net->IsInSession() && !Net->GetAllowedAssists().bDamage)
+		{
+			Level = EApexDamageLevel::Full;
+		}
+		DamageCaption->SetText(FText::FromString(
+			Level == EApexDamageLevel::Off ? TEXT("DAMAGE · OFF")
+			: Level == EApexDamageLevel::Reduced ? TEXT("DAMAGE · REDUCED")
+			: TEXT("DAMAGE")));
+	}
+
+	const double Now = FPlatformTime::Seconds();
+	for (int32 Zone = 0; Zone < 5; ++Zone)
+	{
+		const float D = FMath::Clamp(Local.DamagePct[Zone], 0.0f, 100.0f);
+		// A fresh hit (a whole percent at once; overheating creeps in by
+		// fractions and does not flash) lights the zone white for a moment.
+		if (D >= LastDamagePct[Zone] + 1.0f)
+		{
+			DamageFlashUntil[Zone] = Now + DamageFlashSeconds;
+		}
+		else if (D < LastDamagePct[Zone])
+		{
+			// Repaired (a pit stop, the garage): no flash to finish.
+			DamageFlashUntil[Zone] = 0.0;
+		}
+		LastDamagePct[Zone] = D;
+
+		FLinearColor Colour = DamageColour(D);
+		const double FlashLeft = DamageFlashUntil[Zone] - Now;
+		if (FlashLeft > 0.0)
+		{
+			Colour = FMath::Lerp(Colour, FLinearColor::White, static_cast<float>(FlashLeft / DamageFlashSeconds));
+		}
+		if (UBorder* Block = DamageZones[Zone])
+		{
+			Block->SetBrush(MakeBrush(Colour, FLinearColor::Transparent, 0.0f, 3.0f));
+		}
+		if (UTextBlock* Value = DamageValueTexts[Zone])
+		{
+			// A zone at 100% has put the car out (damage.rs refresh).
+			Value->SetText(FText::FromString(D >= 100.0f ? FString(TEXT("OUT")) : FString::Printf(TEXT("%.0f%%"), D)));
+			Value->SetColorAndOpacity(FSlateColor(
+				D < 1.0f ? Palette::TextMuted : D < 25.0f ? Palette::TextSecondary : DamageColour(D)));
+		}
 	}
 }
 

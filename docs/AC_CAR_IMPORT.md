@@ -405,8 +405,31 @@ ways to more:
   `[cockpit] rig = "full" | "wheel" | "none"` switch on the row (a day):
   `wheel` keeps the rig's display and mirrors and hides its rim, and the
   importer keeps `STEER_HR` as a `car_steering_wheel` slot; rotating it with
-  the steering telemetry is another half day. The mirrors' scene captures
-  work unchanged, on the measured mirror points.
+  the steering telemetry is another half day.
+- **Mirrors are the car's own glass.** AC renders one low-resolution rear
+  view and maps it through each glass's UVs; imported as-is the glass was
+  chrome reflecting the sky, with the rig's own mirror faces drawn over or
+  beside it (two of every mirror). The importer now cuts the `mirrors.ini`
+  meshes into pieces (connected triangles, joined within 3 cm: Kunos often
+  model all the glass as one mesh, the 787B's `MIRROR` is both door
+  mirrors), classes each piece centre (within 20 cm of the centreline) or
+  left / right, and writes the largest of each as its own material slot,
+  `car_mirror_centre` / `_left` / `_right` (`model.read_mirrors`,
+  `mirror_parts`), with new UVs laid flat across the glass as the driver
+  faces it: `u` from the driver's right to their left, `v` top down, which
+  is the rig's rear-facing capture read as a mirror reads. The car.toml
+  gets `mirror_*_cm` (the piece's centre) and `mirror_*_size_cm` (width,
+  height). Outside the cockpit the slot is chrome. The cockpit rig
+  (`AApexCockpitRig::BindCarGlass`) finds those slots on the followed
+  car's body, sizes each capture to its glass (24 px/cm at high quality)
+  and paints it onto the glass with the engine's opaque widget
+  pass-through, the same material and brightness as its faces; it draws
+  no face of its own where the car has glass, and none where a car with
+  glass has no such mirror (the 787B has no interior mirror). The
+  captures clip everything nearer than 25 cm (the housing behind the
+  glass), and the centre capture hides the car's own body and wheels as
+  the virtual mirror does, so it shows the road, not the cabin's rear
+  bulkhead. Re-import with `--force` to get the slots.
 
 ### Sound
 

@@ -45,6 +45,10 @@ struct APEXSIM_API FApexDriveInput
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
 	bool bFlashLights = false;
+
+	/** Held: the hybrid's overtake button. Sent as `PlayerInput.ers_boost`. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
+	bool bErsBoost = false;
 };
 
 /**
@@ -124,6 +128,10 @@ public:
 	 */
 	bool IsFlashingLights() const;
 
+	/** Presses of the ERS mode key since the last call, and clears the
+	 * tally (latched like the headlight switch). */
+	int32 ConsumeErsModeSteps();
+
 	/**
 	 * Rebuild the mapping context from the saved bindings.
 	 *
@@ -201,6 +209,9 @@ private:
 	void HandleHeadlights(const struct FInputActionValue& Value);
 	void HandleFlashLights(const struct FInputActionValue& Value);
 	void HandleFlashLightsReleased(const struct FInputActionValue& Value);
+	void HandleErsMode(const struct FInputActionValue& Value);
+	void HandleErsBoost(const struct FInputActionValue& Value);
+	void HandleErsBoostReleased(const struct FInputActionValue& Value);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexInputConfig> InputConfig;
@@ -209,6 +220,7 @@ private:
 	int32 PendingGearDelta = 0;
 	bool bPendingCameraToggle = false;
 	int32 PendingHeadlightToggles = 0;
+	int32 PendingErsModeSteps = 0;
 	/** `FPlatformTime::Seconds()` the flash button last went down. */
 	double FlashPressedAt = -1.0e9;
 	bool bDriveInputEnabled = false;

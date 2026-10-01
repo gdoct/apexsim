@@ -75,6 +75,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetRacingLine(EApexRacingLine Line);
 
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetDamage(EApexDamageLevel Level);
+
 	/** The hotlap ghost car on or off (Gameplay group). */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetGhostCar(bool bOn);
@@ -221,8 +224,25 @@ public:
 	/** The base's rotation lock to lock, as its own driver has it; clamped to what the Wheel page offers. */
 	void SetWheelRotation(float Degrees);
 
-	/** Degrees of rim, lock to lock, for the car's full steering lock. */
+	/** Degrees of rim, lock to lock, for the car's full steering lock; turns Auto off. */
 	void SetWheelSteeringLock(float Degrees);
+
+	/** Take the steering lock from the car being driven (UApexSettingsSave::bWheelSteeringLockAuto). */
+	void SetWheelSteeringLockAuto(bool bAuto);
+
+	/**
+	 * The lock to lock of the car the player is driving, from its cockpit
+	 * layout; 0 when there is none. Set every frame by the race director,
+	 * not saved.
+	 */
+	void SetCarSteeringLock(float LockToLockDeg) { CarSteeringLockDeg = LockToLockDeg; }
+
+	/**
+	 * Rim degrees lock to lock that give full steering, as the gain applies
+	 * it: the car's lock in Auto (the manual one until a car is known),
+	 * never longer than the base's rotation.
+	 */
+	float GetWheelSteeringLockDeg() const;
 
 	/** The wheel's axis to the steering: rotation over lock (ApexInput::WheelSteeringScale). */
 	float GetWheelSteeringScale() const;
@@ -249,6 +269,38 @@ public:
 	/** Moves one knob (ApexCarSetup::EKnob) to a click count, pinned to its range. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetCarSetupClick(int32 Knob, int32 Clicks);
+
+	/** Replaces the whole working setup (a saved one being loaded). */
+	void SetCarSetup(const FApexCarSetup& Setup);
+
+	/** The saved setups made for one car, newest first. */
+	TArray<FApexSavedSetup> GetSavedSetups(const FString& CarId) const;
+
+	/** Saves the working setup under Name for CarId; returns the new entry's id. */
+	FGuid SaveSetupAs(const FString& Name, const FString& CarId);
+
+	/** Writes the working setup over a saved one (its best lap is forgotten). */
+	void OverwriteSavedSetup(const FGuid& Id);
+
+	void DeleteSavedSetup(const FGuid& Id);
+
+	/** Gives a saved setup a new name; its clicks and best lap stay. */
+	void RenameSavedSetup(const FGuid& Id, const FString& Name);
+
+	/** Makes a saved setup the working one. */
+	void LoadSavedSetup(const FGuid& Id);
+
+	/** The saved setup last loaded or saved; invalid when the working setup came from none. */
+	FGuid GetLoadedSetupId() const;
+
+	/** Forgets which saved setup is loaded (a reset to stock). */
+	void ClearLoadedSetup();
+
+	/**
+	 * A legal lap was driven on CarId: if the working setup is exactly the
+	 * loaded saved one, it becomes that setup's best when quicker.
+	 */
+	void RecordSetupLap(const FString& CarId, int32 LapMs);
 
 	// --- Audio ----------------------------------------------------------------
 
@@ -323,6 +375,9 @@ private:
 
 	/** The keys ApplyMenuNavigation added to the config, to take back out. */
 	TArray<FKey> MenuNavigationKeys;
+
+	/** SetCarSteeringLock's figure: the driven car's lock to lock, 0 for none. */
+	float CarSteeringLockDeg = 0.0f;
 
 	/** A device arrived or left: the bindings are rebuilt around what is here now. */
 	void HandleInputDevicesChanged();

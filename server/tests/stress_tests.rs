@@ -532,6 +532,8 @@ impl TestClientMinimal {
             drs: None,
             headlights: None,
             flash: None,
+            ers_mode: None,
+            ers_boost: None,
         };
         self.send_message(&msg).await
     }

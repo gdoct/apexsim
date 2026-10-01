@@ -42,9 +42,14 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeDisconnect();
 	APEXSIMNET_API TArray<uint8> EncodeSetGameMode(EApexGameMode Mode);
 	APEXSIMNET_API TArray<uint8> EncodeStartCountdown(uint16 CountdownSeconds, EApexGameMode NextMode);
-	/** ABS and traction control are the driver's own; the session's allowed set is applied by the server. */
+	/**
+	 * ABS, traction control and damage are the driver's own; the session's
+	 * allowed set is applied by the server. An unset damage level is left off
+	 * the wire (full damage, as an older client).
+	 */
 	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(
-		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
+		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
+		TOptional<EApexDamageLevel> Damage = TOptional<EApexDamageLevel>());
 	/** Every knob is sent, clamped here as the server will clamp it again. */
 	APEXSIMNET_API TArray<uint8> EncodeSetCarSetup(const FApexCarSetup& Setup);
 	/** A hotlap driver asks to be put in the garage or out on the run-up. */

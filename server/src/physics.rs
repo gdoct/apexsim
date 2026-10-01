@@ -356,12 +356,12 @@ pub fn update_car_3d(
     } else {
         0.0
     };
-    state
-        .damage
-        .hurt_engine(crate::damage::over_rev_damage(forced, dt));
+    let over_rev = crate::damage::over_rev_damage(forced, dt) * state.damage_scale();
+    state.damage.hurt_engine(over_rev);
 
     // 4b. Hybrid system: electric motor assist + brake regeneration
-    let motor_torque = update_hybrid_system(state, config, input, engine_rpm, dt);
+    let lap_share = state.track_progress / crate::laps::track_length_m(track).max(1.0);
+    let motor_torque = crate::hybrid::update(state, config, input, engine_rpm, lap_share, dt);
 
     // 5. Calculate wheel torques from drivetrain. A partially released
     // clutch transmits proportionally less torque.
@@ -513,7 +513,14 @@ pub fn update_car_3d(
             damper_rebound
         };
 
-        let spring_force = spring_rate_n_per_m * compression;
+        // Past its bump stop (over a kerb, bottoming out) the wheel carries
+        // the stop's force too (`crate::geometry`).
+        let spring_force = spring_rate_n_per_m * compression
+            + crate::geometry::bump_stop_force_n(
+                &config.suspension,
+                compression,
+                suspension_rest_length_m,
+            );
         let damper_force = damping_coeff * compression_velocity;
 
         WheelState {
@@ -678,12 +685,20 @@ pub fn update_car_3d(
     let steering_angle =
         steering * config.max_steering_angle_rad + crate::damage::toe_offset_rad(&state.damage);
 
-    // Apply Ackermann steering geometry (inner wheel turns more)
+    // Apply Ackermann steering geometry (inner wheel turns more), and each
+    // wheel's toe on top (`crate::geometry`): the rears steer by theirs.
     let (steer_left, steer_right) = calculate_ackermann_steering(
         steering_angle,
         config.wheelbase_m,
         config.track_width_front_m,
     );
+    let toe = crate::geometry::toe_steer_rad(&config.suspension);
+    let (steer_left, steer_right) = (steer_left + toe[0], steer_right + toe[1]);
+    let (steer_rear_left, steer_rear_right) = (toe[2], toe[3]);
+    // Camber: each tyre's grip sideways and along from its lean against
+    // the road in last tick's cornering (`crate::geometry`); exactly 1.0
+    // for a car.toml without camber.
+    let camber = crate::geometry::camber_grip(config, mass, lateral_accel);
 
     // 10. Calculate tire forces using Pacejka-inspired model
     // Each tyre has the grip of the surface under its own patch: two wheels
@@ -703,18 +718,22 @@ pub fn update_car_3d(
     let side_left = crate::damage::side_grip_factor(&state.damage, true);
     let side_right = crate::damage::side_grip_factor(&state.damage, false);
     let grip_fl = side_left
+        * camber[0].lateral
         * config.axle_tyre_mu(true, state.weight_front_left_n)
         * wheel_front_left.grip_modifier
         * thermal(&state.tires.front_left, tyre_config.pressure_front_kpa);
     let grip_fr = side_right
+        * camber[1].lateral
         * config.axle_tyre_mu(true, state.weight_front_right_n)
         * wheel_front_right.grip_modifier
         * thermal(&state.tires.front_right, tyre_config.pressure_front_kpa);
     let grip_rl = side_left
+        * camber[2].lateral
         * config.axle_tyre_mu(false, state.weight_rear_left_n)
         * wheel_rear_left.grip_modifier
         * thermal(&state.tires.rear_left, tyre_config.pressure_rear_kpa);
     let grip_rr = side_right
+        * camber[3].lateral
         * config.axle_tyre_mu(false, state.weight_rear_right_n)
         * wheel_rear_right.grip_modifier
         * thermal(&state.tires.rear_right, tyre_config.pressure_rear_kpa);
@@ -722,21 +741,22 @@ pub fn update_car_3d(
     // The differential shares each driven axle's torque between its two
     // wheels by what each can carry. Without one (every car that does not
     // ask for it) each wheel gets half, as it always did.
+    let long_scale = camber.map(|c| c.longitudinal / c.lateral);
     let long_factor = config.tire_config.longitudinal_grip_factor;
     let traction_torque =
         |grip: f32, load_n: f32| grip * load_n.max(0.0) * long_factor * config.wheel_radius_m;
     let on_power = crank_torque > 0.0;
     let (drive_fl, drive_fr) = split_axle_torque(
         drive_torque_front,
-        traction_torque(grip_fl, state.weight_front_left_n),
-        traction_torque(grip_fr, state.weight_front_right_n),
+        traction_torque(grip_fl * long_scale[0], state.weight_front_left_n),
+        traction_torque(grip_fr * long_scale[1], state.weight_front_right_n),
         on_power,
         &config.differential,
     );
     let (drive_rl, drive_rr) = split_axle_torque(
         drive_torque_rear,
-        traction_torque(grip_rl, state.weight_rear_left_n),
-        traction_torque(grip_rr, state.weight_rear_right_n),
+        traction_torque(grip_rl * long_scale[2], state.weight_rear_left_n),
+        traction_torque(grip_rr * long_scale[3], state.weight_rear_right_n),
         on_power,
         &config.differential,
     );
@@ -776,6 +796,7 @@ pub fn update_car_3d(
             config.wheel_radius_m,
             state.weight_front_left_n,
             grip_fl,
+            long_scale[0],
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -791,6 +812,7 @@ pub fn update_car_3d(
             config.wheel_radius_m,
             state.weight_front_right_n,
             grip_fr,
+            long_scale[1],
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -799,13 +821,14 @@ pub fn update_car_3d(
             v_long,
             v_lat,
             state.angular_vel_yaw,
-            0.0,
+            steer_rear_left,
             rear_axle_x,
             drive_rl,
             brake_wheel[2],
             config.wheel_radius_m,
             state.weight_rear_left_n,
             grip_rl,
+            long_scale[2],
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -814,13 +837,14 @@ pub fn update_car_3d(
             v_long,
             v_lat,
             state.angular_vel_yaw,
-            0.0,
+            steer_rear_right,
             rear_axle_x,
             drive_rr,
             brake_wheel[3],
             config.wheel_radius_m,
             state.weight_rear_right_n,
             grip_rr,
+            long_scale[3],
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -887,9 +911,8 @@ pub fn update_car_3d(
         dt,
     );
     // Run past its limit, the engine wears itself out.
-    state
-        .damage
-        .hurt_engine(crate::damage::overheat_damage(state.water_temp_c, dt));
+    let overheat = crate::damage::overheat_damage(state.water_temp_c, dt) * state.damage_scale();
+    state.damage.hurt_engine(overheat);
 
     // 10b. What the driver feels, for the DriverFeedback message. Output
     // only: nothing below reads it back.
@@ -977,6 +1000,15 @@ pub fn update_car_3d(
     let fl_force_y = fl_forces.0 * steer_left.sin() + fl_forces.1 * steer_left.cos();
     let fr_force_x = fr_forces.0 * steer_right.cos() - fr_forces.1 * steer_right.sin();
     let fr_force_y = fr_forces.0 * steer_right.sin() + fr_forces.1 * steer_right.cos();
+    // The rears by their toe (nothing without one).
+    let rl_forces = (
+        rl_forces.0 * steer_rear_left.cos() - rl_forces.1 * steer_rear_left.sin(),
+        rl_forces.0 * steer_rear_left.sin() + rl_forces.1 * steer_rear_left.cos(),
+    );
+    let rr_forces = (
+        rr_forces.0 * steer_rear_right.cos() - rr_forces.1 * steer_rear_right.sin(),
+        rr_forces.0 * steer_rear_right.sin() + rr_forces.1 * steer_rear_right.cos(),
+    );
 
     // Total forces in vehicle frame, the air's included: the drag along
     // the airflow (rearwards going forwards in still air) and the side
@@ -1585,67 +1617,6 @@ fn interpolate_torque_curve(curve: &[TorqueCurvePoint], rpm: f32) -> f32 {
     curve[curve.len() - 1].torque_nm
 }
 
-/// Hybrid system update: returns the electric motor's assist torque (Nm at
-/// the crank) and updates the battery state of charge on the car. Under
-/// braking the motor regenerates instead of assisting.
-fn update_hybrid_system(
-    state: &mut CarState,
-    config: &CarConfig,
-    input: &PlayerInputData,
-    engine_rpm: f32,
-    dt: f32,
-) -> f32 {
-    let hybrid = &config.hybrid;
-    if !hybrid.enabled {
-        return 0.0;
-    }
-
-    // Seed the battery from config on first use (serde default is -1.0).
-    if state.hybrid_battery_kwh < 0.0 {
-        state.hybrid_battery_kwh = hybrid.battery_capacity_kwh;
-    }
-
-    const KWH_PER_JOULE: f32 = 1.0 / 3.6e6;
-
-    // Regeneration under braking: charge the battery, no assist.
-    if input.brake > 0.1 && state.speed_mps > 3.0 {
-        let regen_kw = hybrid
-            .regen_max_power_kw
-            .min(hybrid.battery_max_charge_kw)
-            .max(0.0)
-            * input.brake;
-        state.hybrid_battery_kwh = (state.hybrid_battery_kwh
-            + regen_kw * 1000.0 * dt * KWH_PER_JOULE)
-            .min(hybrid.battery_capacity_kwh);
-        return 0.0;
-    }
-
-    // Assist under throttle, limited by motor torque, motor/battery power
-    // and remaining charge.
-    if input.throttle > 0.05 && state.hybrid_battery_kwh > 0.0 {
-        let omega = (engine_rpm / 60.0) * 2.0 * PI; // rad/s
-        let power_limit_w = hybrid
-            .motor_max_power_kw
-            .min(hybrid.battery_max_discharge_kw)
-            .max(0.0)
-            * 1000.0;
-        let torque_from_power = if omega > 1.0 {
-            power_limit_w / omega
-        } else {
-            hybrid.motor_max_torque_nm
-        };
-        let motor_torque = (input.throttle * hybrid.motor_max_torque_nm)
-            .min(torque_from_power)
-            .max(0.0);
-        let drawn_w = motor_torque * omega.max(1.0);
-        state.hybrid_battery_kwh =
-            (state.hybrid_battery_kwh - drawn_w * dt * KWH_PER_JOULE).max(0.0);
-        return motor_torque;
-    }
-
-    0.0
-}
-
 /// Calculate drive torques for front and rear axles
 fn calculate_drive_torques(engine_torque: f32, config: &CarConfig, gear: i8) -> (f32, f32) {
     if gear == 0 {
@@ -2143,6 +2114,7 @@ fn solve_wheel_forces(
     wheel_radius: f32,
     wheel_load: f32,
     grip_coefficient: f32,
+    long_scale: f32, // The tyre's grip along over its grip across (camber)
     tire_config: &TireConfig,
     abs_enabled: bool,
     traction_control: TractionControl,
@@ -2178,7 +2150,7 @@ fn solve_wheel_forces(
     // the tyre a longitudinal peak of its own, when they are the semi-axes
     // of a friction ellipse.
     let d = grip_coefficient * wheel_load;
-    let dx = d * tire_config.longitudinal_grip_factor;
+    let dx = d * tire_config.longitudinal_grip_factor * long_scale;
 
     // Slip angle: angle between where the wheel points and where its
     // contact patch actually travels. Backing up, the steered wheel's
@@ -3229,8 +3201,10 @@ fn obb_overlap(
 
 /// Apply damage to a car based on collision angle: the zone the hit came
 /// from takes it, and a hit to the nose dents the engine behind it too
-/// (`crate::damage`). A zone at 100% puts the car out.
+/// (`crate::damage`), scaled by the driver's damage level. A zone at 100%
+/// puts the car out.
 fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
+    let damage_amount = damage_amount * car.damage_scale();
     if damage_amount <= 0.0 {
         return;
     }
@@ -4048,6 +4022,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
         let dt = 1.0 / 240.0;
 
@@ -4098,6 +4074,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
         let dt = 1.0 / 240.0;
         let mut track = straight_track_with_right_curb(1.5);
@@ -4138,6 +4116,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4178,6 +4158,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4212,6 +4194,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         // Measure the average decel between 55 and 25 m/s
@@ -4405,6 +4389,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
         let dt = 1.0 / 240.0;
         let mut lowest = state.gear;
@@ -4670,6 +4656,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
         let dt = 1.0 / 240.0;
         let mut worst: f32 = 0.0;
@@ -5472,6 +5460,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
         let dt = 1.0 / 240.0;
         for _ in 0..480 {
@@ -5513,6 +5503,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -5547,6 +5539,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -5589,6 +5583,8 @@ mod tests {
                 drs: false,
                 headlights: None,
                 flash: false,
+                ers_mode: None,
+                ers_boost: false,
             };
             update_car_3d(&mut state, &config, &input, &track, dt);
             if state.speed_mps >= 27.8 {
@@ -5621,6 +5617,7 @@ mod tests {
             0.33,
             3000.0,
             1.0,
+            1.0,
             &tire,
             true,
             TractionControl::Low,
@@ -5635,6 +5632,7 @@ mod tests {
             0.0,
             0.33,
             3000.0,
+            1.0,
             1.0,
             &tire,
             true,
@@ -5663,6 +5661,7 @@ mod tests {
             0.0,
             0.33,
             3000.0,
+            1.0,
             1.0,
             &tire,
             true,
@@ -5696,6 +5695,7 @@ mod tests {
             motor_max_torque_nm: 200.0,
             motor_max_power_kw: 120.0,
             regen_max_power_kw: 100.0,
+            ..Default::default()
         };
         let track = create_straight_test_track();
         let dt = 1.0 / 240.0;
@@ -5709,6 +5709,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
         for _ in 0..240 {
             update_car_3d(&mut state, &config, &throttle_input, &track, dt);
@@ -5729,6 +5731,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
         for _ in 0..120 {
             update_car_3d(&mut state, &config, &brake_input, &track, dt);
@@ -5758,6 +5762,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -6048,6 +6054,7 @@ mod tests {
             0.33,
             load,
             1.0,
+            1.0,
             &tire_config,
             true,
             TractionControl::Low,
@@ -6074,6 +6081,7 @@ mod tests {
             0.0,
             0.33,
             load,
+            1.0,
             1.0,
             &tire_config,
             true,
@@ -6132,6 +6140,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         // Run several ticks
@@ -6200,6 +6210,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -6725,6 +6737,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         let initial_fuel = state.fuel_liters;
@@ -6902,6 +6916,51 @@ mod tests {
         assert!(total_damage_0 > 0.0, "Collision should cause damage");
     }
 
+    /// The damage aid scales the same hit: none with it off, half reduced,
+    /// and the car's partner in the crash takes its own level's share.
+    #[test]
+    fn the_damage_level_scales_what_a_hit_does() {
+        let config = create_test_config();
+        let mut configs = HashMap::new();
+        configs.insert(config.id, config.clone());
+        let front_after = |level: Option<DamageLevel>| {
+            let slot = |position: u8, x: f32| GridSlot {
+                position,
+                x,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            };
+            let mut states = vec![
+                CarState::new(Uuid::new_v4(), config.id, &slot(1, 0.0)),
+                CarState::new(Uuid::new_v4(), config.id, &slot(2, config.length_m - 0.1)),
+            ];
+            states[0].vel_x = 30.0;
+            states[0].speed_mps = 30.0;
+            states[1].vel_x = -30.0;
+            states[1].speed_mps = 30.0;
+            states[0].damage_level = level;
+            check_obb_collisions_3d(&mut states, &configs);
+            let d = &states[0].damage;
+            let other = &states[1].damage;
+            (
+                d.front_damage_percent + d.rear_damage_percent + d.engine_damage_percent,
+                other.front_damage_percent + other.rear_damage_percent,
+            )
+        };
+        let (full, _) = front_after(None);
+        let (reduced, other_reduced) = front_after(Some(DamageLevel::Reduced));
+        let (off, other_off) = front_after(Some(DamageLevel::Off));
+        assert!(full > 0.0);
+        assert_eq!(off, 0.0, "damage off takes nothing");
+        assert!((reduced - full * DamageLevel::REDUCED_SHARE).abs() < 1e-3);
+        assert_eq!(
+            other_off, other_reduced,
+            "the other car keeps its own level"
+        );
+        assert!(other_off > 0.0);
+    }
+
     #[test]
     fn test_legacy_2d_api() {
         let mut state = create_test_car_state();
@@ -6915,6 +6974,8 @@ mod tests {
             drs: false,
             headlights: None,
             flash: false,
+            ers_mode: None,
+            ers_boost: false,
         };
 
         // Test that legacy API still works
@@ -6941,6 +7002,7 @@ mod tests {
                 0.0,
                 0.33,
                 load,
+                1.0,
                 1.0,
                 &tire,
                 true,
@@ -7175,6 +7237,7 @@ mod tests {
                 brake,
                 0.33,
                 3000.0,
+                1.0,
                 1.0,
                 tire,
                 true,

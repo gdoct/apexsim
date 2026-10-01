@@ -71,7 +71,7 @@ namespace ApexCockpit
 			const float MirrorY = 0.25f * Size.Y;
 			Layout.MirrorLeft = FVector(Layout.Eye.X + 70.0f, Centre.Y - MirrorY, Layout.Eye.Z - 8.0f);
 			Layout.MirrorRight = FVector(Layout.Eye.X + 70.0f, Centre.Y + MirrorY, Layout.Eye.Z - 8.0f);
-			Layout.SideMirrorSizeCm = FVector2D(14.0f, 7.0f);
+			Layout.LeftMirrorSizeCm = Layout.RightMirrorSizeCm = FVector2D(14.0f, 7.0f);
 		}
 		else
 		{
@@ -92,7 +92,7 @@ namespace ApexCockpit
 			const float MirrorY = 0.5f * Size.Y + 9.0f;
 			Layout.MirrorLeft = FVector(Layout.Eye.X + 105.0f, Centre.Y - MirrorY, Layout.Eye.Z - 12.0f);
 			Layout.MirrorRight = FVector(Layout.Eye.X + 105.0f, Centre.Y + MirrorY, Layout.Eye.Z - 12.0f);
-			Layout.SideMirrorSizeCm = FVector2D(16.0f, 10.0f);
+			Layout.LeftMirrorSizeCm = Layout.RightMirrorSizeCm = FVector2D(16.0f, 10.0f);
 		}
 
 		auto Override = [](FVector& Target, const FVector& Value)
@@ -112,6 +112,16 @@ namespace ApexCockpit
 			Layout.MirrorCentre = Overrides.MirrorCentre;
 			Layout.bCentreMirror = true;
 		}
+		auto OverrideSize = [](FVector2D& Target, const FVector2D& Value)
+		{
+			if (Value.X > 0.0f && Value.Y > 0.0f)
+			{
+				Target = Value;
+			}
+		};
+		OverrideSize(Layout.CentreMirrorSizeCm, Overrides.MirrorCentreSizeCm);
+		OverrideSize(Layout.LeftMirrorSizeCm, Overrides.MirrorLeftSizeCm);
+		OverrideSize(Layout.RightMirrorSizeCm, Overrides.MirrorRightSizeCm);
 		if (Overrides.WheelRakeDeg != 0.0f)
 		{
 			Layout.WheelRakeDeg = Overrides.WheelRakeDeg;

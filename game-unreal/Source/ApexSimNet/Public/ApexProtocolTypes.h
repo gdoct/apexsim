@@ -84,6 +84,20 @@ enum class EApexTractionControl : uint8
 };
 
 /**
+ * Mirrors `DamageLevel` (data.rs): how much damage the driver's car takes.
+ * Serialize_repr => a plain u8 on the wire. Scales every accrual on the
+ * server (hits, overheating, over-revving); what damage costs is unchanged.
+ */
+UENUM(BlueprintType)
+enum class EApexDamageLevel : uint8
+{
+	Off     = 0,
+	/** Half of every hit. */
+	Reduced = 1,
+	Full    = 2,
+};
+
+/**
  * Mirrors `CarSetup` (car_setup.rs): the garage setup as *clicks* per knob,
  * one signed integer each, so neither the wire nor the client needs the
  * car's base figures — the server turns "+2" into newtons per metre against
@@ -97,7 +111,7 @@ struct APEXSIMNET_API FApexCarSetup
 {
 	GENERATED_BODY()
 
-	static constexpr int32 KnobCount = 21;
+	static constexpr int32 KnobCount = 25;
 
 	/** Clicks per knob, in ApexCarSetup::EKnob order. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Setup")
@@ -178,9 +192,95 @@ namespace ApexCarSetup
 		TyreCompound,
 		/** Brake duct size: cooler brakes for a little drag. */
 		BrakeDucts,
+		/** Static camber per axle, degrees: negative for grip, positive for stability. */
+		CamberFront,
+		CamberRear,
+		/** Toe per wheel, degrees: toe-in steadies the car but costs grip and tire heat. */
+		ToeFront,
+		ToeRear,
 	};
-	static_assert(BrakeDucts + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
+	static_assert(ToeRear + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
 }
+
+/**
+ * One setup knob in real units (`SetupKnobFigure`, setup_sheet.rs): its value
+ * at a click count is `Stock + Clicks * Step`, held to Lo..Hi, printed with
+ * Decimals and Unit.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexSetupKnobFigure
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float Stock = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float Step = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float Lo = -MAX_flt;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float Hi = MAX_flt;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	int32 Decimals = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	FString Unit;
+};
+
+/**
+ * Mirrors `CarSetupSheetData` (setup_sheet.rs): the garage's reference card
+ * for the joining driver's car, sent once after SessionJoined. Knobs is in
+ * ApexCarSetup::EKnob order; empty from a server that predates it.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexCarSetupSheet
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	FString SessionId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	FString CarConfigId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	TArray<FApexSetupKnobFigure> Knobs;
+
+	/** Forward gears, first first, and the final drive, as filed. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	TArray<float> GearRatios;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float FinalDrive = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float WheelRadiusM = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float TyreOptimalPsi = 0.0f;
+
+	/** Litres a lap of the session's track costs the car; 0 when unknown. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float LapFuelL = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float FuelKgPerL = 0.745f;
+
+	/** Laps a hotlap fills the tank with, before the fuel knob. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float FillLaps = 3.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	bool bCamberModelled = false;
+
+	/** Front downforce share moved per mm of rake over the stock rake. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float RakeBalancePerMm = 0.0f;
+};
 
 /**
  * Mirrors `AllowedAssists` (data.rs): which driving aids a session's host lets
@@ -210,23 +310,30 @@ struct APEXSIMNET_API FApexAllowedAssists
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	bool bRacingLine = true;
 
+	/**
+	 * Whether a driver may take less than full damage. Off pins every car
+	 * to full damage. The server only names the key when it is off.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bDamage = true;
+
 	bool AllowsEverything() const
 	{
-		return bAbs && bTractionControl && bAutoGearbox && bSteeringAssist && bRacingLine;
+		return bAbs && bTractionControl && bAutoGearbox && bSteeringAssist && bRacingLine && bDamage;
 	}
 
-	/** How many of the five are locked. */
+	/** How many of the six are locked. */
 	int32 CountLocked() const
 	{
 		return (bAbs ? 0 : 1) + (bTractionControl ? 0 : 1) + (bAutoGearbox ? 0 : 1)
-			+ (bSteeringAssist ? 0 : 1) + (bRacingLine ? 0 : 1);
+			+ (bSteeringAssist ? 0 : 1) + (bRacingLine ? 0 : 1) + (bDamage ? 0 : 1);
 	}
 
 	bool operator==(const FApexAllowedAssists& Other) const
 	{
 		return bAbs == Other.bAbs && bTractionControl == Other.bTractionControl
 			&& bAutoGearbox == Other.bAutoGearbox && bSteeringAssist == Other.bSteeringAssist
-			&& bRacingLine == Other.bRacingLine;
+			&& bRacingLine == Other.bRacingLine && bDamage == Other.bDamage;
 	}
 	bool operator!=(const FApexAllowedAssists& Other) const { return !(*this == Other); }
 };
@@ -1250,6 +1357,26 @@ struct APEXSIMNET_API FApexCarTelemetry
 
 	bool HasDamage() const { return DamagePct[0] >= 0.0f; }
 
+	/** The hybrid (server hybrid.rs): the battery's charge and the lap's
+	 * deployment budget left, percent; negative when the car has no
+	 * hybrid / no budget (or the server does not send them). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float ErsChargePct = -1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float ErsLapPct = -1.0f;
+
+	/** The hybrid's mode (`ApexErs::EMode` as a number), -1 without one. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 ErsMode = -1;
+
+	/** The motor drives / recovers this frame; the overtake button is held. */
+	bool bErsDeploying = false;
+	bool bErsHarvesting = false;
+	bool bErsBoost = false;
+
+	bool HasHybrid() const { return ErsChargePct >= 0.0f; }
+
 	/** "S", "M", "H", or empty when unknown. */
 	static FString CompoundLetter(int32 InCompound)
 	{
@@ -1436,6 +1563,15 @@ struct APEXSIMNET_API FApexPlayerInput
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
 	bool bFlash = false;
 
+	/** The hybrid's mode (`ApexErs::EMode`: 0 harvest, 1 balanced, 2
+	 * attack); -1 is sent as nil and keeps the car's. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	int32 ErsMode = -1;
+
+	/** The overtake button is held: full deployment whatever the mode. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	bool bErsBoost = false;
+
 	bool HasGear() const { return Gear != -128; }
 };
 
@@ -1460,6 +1596,7 @@ enum class EApexServerMessageType : uint8
 	LapTiming,
 	LapRecord,
 	GhostLap,
+	CarSetupSheet,
 	UdpHandshakeAck,
 	TelemetryCompact,
 	DriverFeedback,
@@ -1487,6 +1624,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexLapTiming LapTiming;
 	FApexLapRecord LapRecord;
 	FApexGhostLap GhostLap;
+	FApexCarSetupSheet CarSetupSheet;
 	FApexTelemetryFrame Telemetry;
 	FApexDriverFeedback DriverFeedback;
 

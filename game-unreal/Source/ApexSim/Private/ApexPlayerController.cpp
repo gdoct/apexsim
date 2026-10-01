@@ -154,6 +154,9 @@ void AApexPlayerController::SetupInputComponent()
 	Input->BindAction(InputConfig->Headlights, ETriggerEvent::Started, this, &AApexPlayerController::HandleHeadlights);
 	Input->BindAction(InputConfig->FlashLights, ETriggerEvent::Started, this, &AApexPlayerController::HandleFlashLights);
 	Input->BindAction(InputConfig->FlashLights, ETriggerEvent::Completed, this, &AApexPlayerController::HandleFlashLightsReleased);
+	Input->BindAction(InputConfig->ErsMode, ETriggerEvent::Started, this, &AApexPlayerController::HandleErsMode);
+	Input->BindAction(InputConfig->ErsBoost, ETriggerEvent::Started, this, &AApexPlayerController::HandleErsBoost);
+	Input->BindAction(InputConfig->ErsBoost, ETriggerEvent::Completed, this, &AApexPlayerController::HandleErsBoostReleased);
 }
 
 void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
@@ -215,12 +218,13 @@ void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
 		PendingGearDelta = 0;
 		bPendingCameraToggle = false;
 		PendingHeadlightToggles = 0;
+		PendingErsModeSteps = 0;
 		FlashPressedAt = -1.0e9;
 	}
 
 	bShowMouseCursor = true;
 	UE_LOG(LogApexSim, Log, TEXT("Driving controls %s"),
-		bEnabled ? TEXT("enabled (WASD, Q/E gears, C camera, ,/. look, B behind, L lights, H flash)") : TEXT("disabled"));
+		bEnabled ? TEXT("enabled (WASD, Q/E gears, C camera, ,/. look, B behind, L lights, H flash, M ERS mode, Space overtake)") : TEXT("disabled"));
 }
 
 void AApexPlayerController::PreviewForceFeedback()
@@ -456,6 +460,13 @@ int32 AApexPlayerController::ConsumeHeadlightToggles()
 	return Toggles;
 }
 
+int32 AApexPlayerController::ConsumeErsModeSteps()
+{
+	const int32 Steps = PendingErsModeSteps;
+	PendingErsModeSteps = 0;
+	return Steps;
+}
+
 bool AApexPlayerController::IsFlashingLights() const
 {
 	return DriveInput.bFlashLights || FPlatformTime::Seconds() - FlashPressedAt < kMinFlashSeconds;
@@ -549,6 +560,21 @@ void AApexPlayerController::HandleFlashLights(const FInputActionValue&)
 {
 	DriveInput.bFlashLights = true;
 	FlashPressedAt = FPlatformTime::Seconds();
+}
+
+void AApexPlayerController::HandleErsMode(const FInputActionValue&)
+{
+	++PendingErsModeSteps;
+}
+
+void AApexPlayerController::HandleErsBoost(const FInputActionValue&)
+{
+	DriveInput.bErsBoost = true;
+}
+
+void AApexPlayerController::HandleErsBoostReleased(const FInputActionValue&)
+{
+	DriveInput.bErsBoost = false;
 }
 
 void AApexPlayerController::HandleFlashLightsReleased(const FInputActionValue&)

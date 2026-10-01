@@ -356,6 +356,8 @@ pub fn drive_input(
         drs: false,
         headlights: None,
         flash: false,
+        ers_mode: None,
+        ers_boost: false,
     }
 }
 

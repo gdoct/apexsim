@@ -335,11 +335,11 @@ void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
 }
 
 void UApexNetSubsystem::SetDriverAids(
-	bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl)
+	bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl, EApexDamageLevel Damage)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d abs=%d traction_control=%d"),
-		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0, bAbs ? 1 : 0, static_cast<int32>(TractionControl));
-	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl));
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d abs=%d traction_control=%d damage=%d"),
+		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0, bAbs ? 1 : 0, static_cast<int32>(TractionControl), static_cast<int32>(Damage));
+	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl, Damage));
 }
 
 void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination)
@@ -392,6 +392,7 @@ void UApexNetSubsystem::ClearLapTiming()
 	CachedSectors = FApexTrackSectors();
 	CachedLapRecord = FApexLapRecord();
 	CachedGhostLap = FApexGhostLap();
+	CachedSetupSheet = FApexCarSetupSheet();
 	TimingBoard.Reset();
 }
 
@@ -863,6 +864,18 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- GhostLap %d sample(s), %d ms"),
 			CachedGhostLap.Samples.Num(), CachedGhostLap.LapTimeMs);
 		OnGhostLap.Broadcast(CachedGhostLap);
+		break;
+
+	case EApexServerMessageType::CarSetupSheet:
+		// The demo's car is not the one the garage tunes.
+		if (bInDemoSession)
+		{
+			break;
+		}
+		CachedSetupSheet = Message.CarSetupSheet;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- CarSetupSheet %d knob(s), %d gear(s), %.2f L/lap"),
+			CachedSetupSheet.Knobs.Num(), CachedSetupSheet.GearRatios.Num(), CachedSetupSheet.LapFuelL);
+		OnCarSetupSheet.Broadcast(CachedSetupSheet);
 		break;
 
 	default:

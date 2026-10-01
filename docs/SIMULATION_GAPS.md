@@ -241,7 +241,9 @@ through the air the car meets (less in a tow), power lost past 112 °C.
 damage"): hits scaled by closing speed to a power, engine damage from
 heat and missed downshifts; front costs downforce and cooling, rear its
 downforce, a side grip and a pull, the engine power; out at 100%; the AI
-pits for it; a HUD Damage cell. Engine wear over distance is still open.
+pits for it; a HUD damage panel (a car diagram per zone). A per-driver
+damage aid (off / reduced / full, host-lockable) followed 2026-10-01.
+Engine wear over distance is still open.
 
 **Was:** the engine is a torque curve with a limiter, turbo lag and an
 inert damage percentage: `engine_damage_percent` accumulates from crashes
@@ -263,7 +265,17 @@ the AI race each other; today a survivable hit is nearly free.
 
 ## Hybrid deployment control
 
-**Today:** the hybrid deploys naively — full assist whenever the throttle is
+**Done 2026-09-29** (CLAUDE.md, "Hybrid deployment"): three modes
+(Harvest, Balanced, Attack) on a key, an overtake button, a per-lap
+deployment budget the Balanced mode paces over the lap, coasting and
+harvest-mode recovery against the crank, a turbo generator (MGU-H) for
+the AC imports that have one, the WEC's minimum deployment speed for the
+hypercars, the AI on Balanced with the button when chasing, and an ERS
+badge and battery bar on the HUD. AC's `ers.ini` now maps to the battery
+(from `DISCHARGE_TIME`), the lap budget (`MAX_KJ_PER_LAP`) and the heat
+recovery (`TORQUE_PERC`).
+
+**Was:** the hybrid deploys naively — full assist whenever the throttle is
 open and the battery has charge, regen under braking. The driver has no say
 and the battery balance over a lap is whatever falls out.
 
@@ -278,6 +290,24 @@ HUD badge) already exists to copy.
 it those cars are just cars with a bigger torque curve.
 
 ## Suspension geometry
+
+**In progress 2026-09-29** (server side built, uncommitted): `server/src/geometry.rs`
+— body roll from the roll stiffness, per-wheel contact camber (static +
+roll less the linkage's gain less carcass lean) feeding a lateral and a
+longitudinal grip multiplier normalised to the filed camber at the car's
+reference cornering (Monza AI laps within 0.15 s of before), toe on all
+four wheels (rears steered and rotated), bump stops past the static
+compression. `[suspension]` keys `camber_*_deg`, `camber_gain_*`,
+`toe_*_deg`, `bump_stop_gap_m`, `bump_stop_rate_n_per_m` on every shipped
+car; `CarSetup` knobs 22-25 (`camber_front/rear`, `toe_front/rear`) with
+the server's golden bytes; `tests/geometry_test.rs`. The AC importer maps
+`STATIC_CAMBER`, the camber gain from the wishbone/strut points,
+`TOE_OUT` over the steering arm and the bump stops (not yet re-run on the
+911, no importer test yet). **Still to do:** the client (knob table and
+garage rows for the four knobs, `C_SetCarSetup` golden), an importer
+test, the AI survey, CLAUDE.md, and the not-done list (no camber thrust,
+no inner/outer tyre temperatures, one bump-stop gap per car, FFB
+stiffness ignores toe).
 
 **Today:** the suspension is four vertical spring/damper units with
 anti-roll bars — no camber, toe or caster as physics inputs (caster exists
@@ -538,14 +568,34 @@ here as well as under its item.
   state is what the survey counts for it).
 - No engine wear over distance (only heat and over-rev damage).
 - Damage is not an FFB, audio or visual cue: no bodywork falls off, the
-  engine note does not change; the HUD cell is the only readout.
+  engine note does not change; the HUD's damage panel is the only readout.
 - No damage for kerb strikes, bottoming out or airborne landings.
 - The AI does not drive around its damage beyond its steering loop and
   the aero share: its speed profile still assumes full power.
 - Damaged cars in the AC imports: their AI already crashes a lot, and one
   to ten cars a race now retire there.
-- A setup cannot turn damage off or down (no "damage: off / visual /
-  full" session option).
+- The damage aid (off / reduced / full) has no "visual only" level, and
+  there is no visual damage for it to leave; the AI always takes full
+  damage.
+
+**Hybrid deployment**
+- The racing line and the AI's plan count the motor's full power at every
+  speed over its minimum, whatever the lap budget allows: the plan is
+  optimistic for the F1s once the budget is spent.
+- Regen under braking is still free energy (the brakes do all the
+  stopping; no brake-by-wire split, no rear-brake correction).
+- No per-stint energy (the WEC's real limit), no 2026-style manual
+  override energy; the overtake button only overrides the pacing.
+- AC's `ctrl_ers_*.ini` delivery profiles (speed, gear, throttle curves
+  per mode) and `[FRONT_MOTORS]` are not carried; a front-axle-motor
+  hypercar (919, TS040, R18) imports with its rear motor only.
+- The AI never harvests or saves energy on purpose; it does not defend
+  with the button.
+- The mode resets to Balanced each race; it is not a saved preference.
+- The survey's F1 slides 17% more than before (1 856 car-seconds against
+  1 581) with less time off the road; SaoPaulo's F1 race now has a lap-1
+  wall graze whose two damaged cars later retire into the walls.
+- The HUD badge and the keys have never been seen in the running game.
 
 **Built but never seen in the running game** (automation tests only)
 - The HUD's tyre row and TOW badge.

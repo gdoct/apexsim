@@ -1,19 +1,23 @@
 #include "UI/ApexStepperWidget.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexUIStyle.h"
 
 namespace
 {
-	/** The same pill as a segmented control's, so the two line up in a column. */
-	constexpr float StepperPillHeight = 38.0f;
-	constexpr float StepperPillWidth = 44.0f;
-	constexpr float StepperPillLabelSize = 15.0f;
+	/** The garage design's stepper: square-ish outlined pills either side of a dark well. */
+	constexpr float StepperPillHeight = 46.0f;
+	constexpr float StepperPillWidth = 48.0f;
+	constexpr float StepperPillLabelSize = 22.0f;
 	constexpr float StepperPillGap = 4.0f;
+	/** The well behind the read-out: the page's near-black at 55%. */
+	const FLinearColor WellColour = FLinearColor::FromSRGBColor(FColor(0x0A, 0x0B, 0x0C)).CopyWithNewOpacity(0.55f);
 
 	const FName ActionMinus = TEXT("Minus");
 	const FName ActionPlus = TEXT("Plus");
@@ -72,9 +76,17 @@ void UApexStepperWidget::Setup(int32 InMin, int32 InMax, int32 InValue, float Re
 	MinusPill = MakePill(TEXT("−"), ActionMinus);
 	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, MinusPill, StepperPillWidth, StepperPillHeight));
 
-	Readout = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(13.0f, 40), ApexUI::Palette::TextPrimary);
+	UVerticalBox* Lines = WidgetTree->ConstructWidget<UVerticalBox>();
+	Readout = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(15.0f), ApexUI::Palette::TextPrimary);
 	Readout->SetJustification(ETextJustify::Center);
-	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Readout, TextWidth, -1.0f), FMargin(StepperPillGap, 0.0f), VAlign_Center);
+	ApexUI::AddV(Lines, Readout, FMargin(), HAlign_Center);
+	DeltaText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f), ApexUI::Palette::Accent);
+	DeltaText->SetJustification(ETextJustify::Center);
+	ApexUI::AddV(Lines, DeltaText, FMargin(0.0f, 1.0f, 0.0f, 0.0f), HAlign_Center);
+	UBorder* Well = ApexUI::MakePanel(*WidgetTree, Lines, FMargin(4.0f, 0.0f), ApexUI::MakeBrush(WellColour));
+	Well->SetHorizontalAlignment(HAlign_Center);
+	Well->SetVerticalAlignment(VAlign_Center);
+	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Well, TextWidth, StepperPillHeight), FMargin(StepperPillGap, 0.0f), VAlign_Center);
 
 	PlusPill = MakePill(TEXT("+"), ActionPlus);
 	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, PlusPill, StepperPillWidth, StepperPillHeight));
@@ -101,6 +113,12 @@ void UApexStepperWidget::ApplyValue()
 		Readout->SetText(FText::FromString(Text));
 		// A knob off its stock value is what the player came here to see.
 		Readout->SetColorAndOpacity(Value == 0 ? ApexUI::Palette::TextSecondary : ApexUI::Palette::TextPrimary);
+	}
+	if (DeltaText)
+	{
+		const bool bShow = Value != 0 && DeltaFormatter;
+		DeltaText->SetText(FText::FromString(bShow ? DeltaFormatter(Value) : FString()));
+		DeltaText->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	// A pill at the end of its range is dimmed, not removed: focus must still
 	// be able to land on it and cross to the other one.
