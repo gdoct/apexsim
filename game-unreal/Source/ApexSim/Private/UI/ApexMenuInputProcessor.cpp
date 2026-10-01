@@ -60,7 +60,7 @@ void FApexMenuInputProcessor::KeepFocusOnGame(FSlateApplication& SlateApp, uint3
 
 bool FApexMenuInputProcessor::IsDriving(const UApexRootWidget& Root)
 {
-	return Root.IsRaceViewActive() && !Root.IsPaused() && !Root.IsSettingsOpen();
+	return Root.IsRaceViewActive() && !Root.IsPaused() && !Root.IsSettingsOpen() && !Root.IsHudEditorOpen();
 }
 
 void FApexMenuInputProcessor::SetGamepadActive(UApexRootWidget& Root, bool bActive)
@@ -104,9 +104,9 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 		}
 	}
 
-	// While settings is up every key may be a rebind in progress; nothing here
-	// is allowed to get in front of that.
-	if (Root->IsSettingsOpen())
+	// While settings is up every key may be a rebind in progress, and the HUD
+	// editor takes every key itself; nothing here may get in front of either.
+	if (Root->IsSettingsOpen() || Root->IsHudEditorOpen())
 	{
 		return false;
 	}
@@ -224,7 +224,7 @@ bool FApexMenuInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp
 
 	SetGamepadActive(*Root, true);
 
-	if (Root->IsSettingsOpen() || IsDriving(*Root))
+	if (Root->IsSettingsOpen() || Root->IsHudEditorOpen() || IsDriving(*Root))
 	{
 		return false;
 	}

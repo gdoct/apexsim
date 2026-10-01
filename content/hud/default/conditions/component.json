@@ -1,0 +1,22 @@
+// The session's sky: the weather, the time of day and, when the host set
+// them, the air temperature and the wind. Off until added in the HUD editor.
+{
+  "name": "Conditions",
+  "description": "Weather, time of day and the air.",
+  "default_enabled": false,
+  "region": "right",
+  "order": 10,
+  "root": {
+    "type": "panel", "width": 220, "padding": [16, 12], "background": "=alpha('surface', 0.9)",
+    "children": [
+      { "type": "label", "text": "Conditions" },
+      { "type": "text", "margin": [0, 6, 0, 0], "font": "body", "size": 16, "bold": true,
+        "text": "=has(session.weather) ? session.weather : '—'" },
+      { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 13, "color": "text_secondary",
+        "text": "=has(session.clock) ? session.clock : '--:--'" },
+      { "type": "text", "margin": [0, 6, 0, 0], "font": "mono", "size": 12, "color": "text_muted",
+        "visible": "=has(session.air_temp_c) || has(session.wind_kph)",
+        "text": "=(has(session.air_temp_c) ? fmt(session.air_temp_c) + '°C' : '') + (has(session.wind_kph) ? '  wind ' + fmt(session.wind_kph) + ' km/h' : '')" }
+    ]
+  }
+}

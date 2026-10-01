@@ -9,6 +9,12 @@ restyle, replace or add any of them without touching C++ or the Unreal editor:
 edit a file, run `apexsim.hud.Reload` in the console, and the race HUD is
 rebuilt in place.
 
+Players who only want to move things do not need any of that: **Settings >
+Gameplay > HUD layout** opens the HUD editor, where panels are dragged,
+resized, added and removed on screen (see "The HUD editor" below). It writes
+the arrangement to `custom/layout.json`, which sits on top of the components'
+own placement.
+
 ```
 content/hud/
   default/            the shipped HUD (one folder per component)
@@ -18,6 +24,7 @@ content/hud/
   custom/             the player's own: gitignored, read after default/
     my_relative/component.json
     standings/component.json     <- replaces default/standings
+    layout.json                  <- the HUD editor's arrangement
 ```
 
 In a packaged game the same tree sits in `Hud/` beside `ApexSim.exe`.
@@ -65,6 +72,7 @@ trailing commas.
   "float": false,                  // true: placed alone at the region's corner
   "visible": "=car.present",       // optional: hide the whole component
   "enabled": true,                 // false: leave it out (how custom/ hides a default)
+  "default_enabled": true,         // false: shipped off; the HUD editor offers to add it
   "root": {                        // the element tree
     "type": "panel", "padding": [16, 8], "background": "surface",
     "children": [
@@ -87,6 +95,67 @@ virtual mirror is one.
 
 Keep `center` empty in anything meant for racing: it is the driver's sight
 line into the next corner.
+
+The region is where a component starts. Once a player moves it in the HUD
+editor, `custom/layout.json` pins it somewhere else, and that wins.
+
+## The HUD editor
+
+**Settings > Gameplay > HUD layout > Edit layout** (or `apexsim.hud.Edit` in
+the console) lays the HUD out on screen: over the race when there is one,
+otherwise over a made-up race so every panel has something to show. A card in
+the middle of the screen lists every component; each is drawn with a frame.
+
+| | Mouse | Keyboard | Pad |
+|---|---|---|---|
+| Pick a panel | click it, or its name on the card | Tab / Shift+Tab | shoulders |
+| Move it | drag it | arrows (Shift: 10 at a time) | left stick, D-pad |
+| Resize it | drag its corner handle | `[` `]` | triggers |
+| Show / hide it | the card's Show / Hide | Del | Y |
+| Put it back where it shipped | the card's Reset | R | X |
+| Hide the card | Hide | H | Back |
+| Save / cancel | Save / Cancel | Enter / Esc | Start / B |
+
+A dragged panel snaps to the screen's gutters and centre lines and to the
+other panels' edges and centres (hold Shift to place it freely). Sizes run
+from 50% to 200% in 5% steps. Components shipped with `"default_enabled":
+false` (a relative board, a big gear and speed, the conditions) are listed
+as hidden: Show adds them. Cancel puts back the layout the editor opened with;
+Reset all goes back to the shipped one (until saved).
+
+Moving one panel first *pins* every panel where it is, so the others in its
+region stay put rather than closing up the gap. A pinned panel keeps to the
+nearest of nine anchor points (the screen cut in thirds; where its centre
+falls decides), so one dragged to the bottom right stays 56 from the right
+edge and 30 from the bottom on any screen size.
+
+### `layout.json`
+
+The editor writes `custom/layout.json` in the first HUD directory (the repo's
+`content/hud/custom/` in the editor, `Hud\custom\` in a packaged game). It is
+plain JSON (comments allowed) and can be edited or shared by hand:
+
+```jsonc
+{
+  "version": 1,
+  "components": {
+    "car_state": { "enabled": true, "anchor": [1, 1], "position": [-56, -30] },
+    "standings": { "enabled": true, "anchor": [0, 1], "position": [828, -310], "scale": 1.25 },
+    "minimap":   { "enabled": false },
+    "relative":  { "enabled": true }
+  }
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `enabled` | shown or not; a component with no entry follows its own `default_enabled` |
+| `anchor` | the corner of the panel, and the point of the screen, it is measured from: `[0, 0]` top left, `[1, 1]` bottom right, `0.5` the middle |
+| `position` | how far the panel's anchor corner sits from the screen's anchor point, in 1080p pixels (negative is left / up) |
+| `scale` | size, 0.5 to 2 (1 when left out) |
+
+An entry without `anchor` and `position` keeps the component's own region.
+Delete the file to go back to the shipped layout.
 
 ## Elements
 
@@ -391,6 +460,21 @@ lap it finished).
   evaluated once a frame per binding, with no side effects. The host widget
   (`UI/ApexHudWidget`) applies only the values that changed.
 - Shipped components must load with no warnings (`ApexSim.Hud.Shipped`).
+- The layout is `Hud/ApexHudLayout.h` (the file, and the pin / snap maths,
+  pure and tested by `ApexSim.Hud.Layout.*`). The host wraps every component
+  in a scale box and puts pinned ones on a canvas over the regions; it keeps
+  one root widget for good and swaps the built tree inside it, because a user
+  widget never rereads `WidgetTree->RootWidget` once its Slate widgets exist.
+- The editor is `UI/ApexHudEditorWidget` (a frame layer under its card does
+  the drawing). `apexsim.hud.EditStep select standings | move 200 -100 |
+  scale 0.2 | toggle relative | save ...` drives it from the console, and
+  `-ApexOpenHudEditor=N -ApexHudEditorSteps="...;..."` from the command line
+  for a screenshot run; `grab <id> [corner]`, `dragby <dx> <dy>` and
+  `release` drive the real mouse path with synthesised Slate events. Those
+  are run from the world's timer, never from a widget's tick: a widget ticks
+  inside Slate's paint, when the frame's hit-test grid is only half built, so
+  a click synthesised there lands on whatever was painted first. Outside a
+  race the data subsystem feeds it `FApexHudPreview`, a made-up race.
 
 ### Why files and expressions, not Lua or Blueprints
 

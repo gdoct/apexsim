@@ -470,6 +470,13 @@ lap times, tyres, the standings, the delta and about a hundred more). The full
 reference, every element, function and data point, is
 [docs/HUD_MODDING.md](docs/HUD_MODDING.md).
 
+### Moving things around
+
+**Settings > Gameplay > HUD layout > Edit layout** opens the HUD editor: drag
+a panel to move it, drag its corner to resize it, show or hide panels from
+the list (including a few extras that ship switched off), then Save. No files
+to edit; the arrangement is kept in `custom/layout.json`.
+
 ### Creating a new HUD element
 
 1. Make a folder in `content/hud/custom/` (in a packaged game,

@@ -121,6 +121,11 @@ struct APEXSIM_API FApexHudComponentDef
 	/** The folder it was read from. */
 	FString Folder;
 	bool bEnabled = true;
+	/**
+	 * Shown until the player's layout says otherwise. A component shipped with
+	 * `"default_enabled": false` is one the HUD editor offers to add.
+	 */
+	bool bDefaultEnabled = true;
 
 	/** One of ApexHud::Regions(). */
 	FString Region = TEXT("bottom-left");

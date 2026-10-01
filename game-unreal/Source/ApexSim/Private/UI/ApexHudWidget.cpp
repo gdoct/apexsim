@@ -4,12 +4,15 @@
 #include "ApexSim.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
+#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
@@ -183,6 +186,20 @@ void UApexHudWidget::Reload()
 		UE_LOG(LogApexSim, Warning, TEXT("HUD component: %s"), *Warning);
 	}
 	UE_LOG(LogApexSim, Log, TEXT("HUD: %d component(s) from %s"), Components.Num(), *FString::Join(Directories, TEXT(" + ")));
+
+	// The player's arrangement, from the HUD editor. A broken file is a
+	// warning and the shipped layout, never a missing HUD.
+	LayoutFile = FApexHudLayout::DefaultFile();
+	FString LayoutError;
+	if (!Layout.Load(LayoutFile, LayoutError))
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("HUD layout %s ignored: %s"), *LayoutFile, *LayoutError);
+		Layout = FApexHudLayout();
+	}
+	else if (!LayoutError.IsEmpty())
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("HUD layout %s: %s"), *LayoutFile, *LayoutError);
+	}
 	if (Components.IsEmpty())
 	{
 		UE_LOG(LogApexSim, Warning, TEXT("HUD: no components found; the race will have no HUD"));
@@ -240,9 +257,15 @@ void UApexHudWidget::ApplyVisibility()
 	const UGameInstance* GameInstance = GetGameInstance();
 	const UApexSettingsSubsystem* Settings = GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
 	const EApexHudDetail Detail = Settings && Settings->Get() ? Settings->Get()->HudDetail : EApexHudDetail::All;
-	SetVisibility(bRaceActive && bShownWanted && Detail != EApexHudDetail::Hidden
+	// The editor shows the HUD whatever the detail level, race or no race:
+	// the panels being laid out have to be on screen.
+	SetVisibility(bEditing || (bRaceActive && bShownWanted && Detail != EApexHudDetail::Hidden)
 		? ESlateVisibility::HitTestInvisible
 		: ESlateVisibility::Collapsed);
+	if (EditBackdrop)
+	{
+		EditBackdrop->SetVisibility(bEditing && !bRaceActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -250,7 +273,7 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
 	UApexHudDataSubsystem* Hud = GetHudData();
-	if (!bRaceActive || GetVisibility() == ESlateVisibility::Collapsed || !Hud)
+	if ((!bRaceActive && !bEditing) || GetVisibility() == ESlateVisibility::Collapsed || !Hud)
 	{
 		return;
 	}
@@ -267,7 +290,9 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 			continue;
 		}
 		const FApexHudComponentDef& Component = Components[Index];
-		if (Component.Visible.IsSet() && !Component.Visible.Expr->Evaluate(Scope).AsBool())
+		// While laying out, every shown panel is on screen: a damage panel that
+		// only appears after a hit could not be placed otherwise.
+		if (!bEditing && Component.Visible.IsSet() && !Component.Visible.Expr->Evaluate(Scope).AsBool())
 		{
 			SetNodeVisible(Nodes[Root], false);
 			continue;
@@ -283,6 +308,8 @@ void UApexHudWidget::BuildHud()
 	// Every node points into the old tree, which is about to go.
 	Nodes.Reset();
 	ComponentRoots.Reset();
+	ComponentWrappers.Reset();
+	ComponentCanvasSlots.Reset();
 	Minimaps.Reset();
 	Mirrors.Reset();
 	Images.Reset();
@@ -291,6 +318,15 @@ void UApexHudWidget::BuildHud()
 
 	UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>();
 	const FMargin Gutter(Metrics::PageGutter, HudEdgeGutter);
+
+	{
+		FLinearColor Backdrop = Palette::Background;
+		Backdrop.A = 0.94f;
+		EditBackdrop = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(Backdrop));
+		UOverlaySlot* BackdropSlot = Layers->AddChildToOverlay(EditBackdrop);
+		BackdropSlot->SetHorizontalAlignment(HAlign_Fill);
+		BackdropSlot->SetVerticalAlignment(VAlign_Fill);
+	}
 
 	// Components sit in their region in order; equal orders by name, so the
 	// layout is the same on every machine.
@@ -307,13 +343,44 @@ void UApexHudWidget::BuildHud()
 	});
 
 	ComponentRoots.Init(INDEX_NONE, Components.Num());
+	ComponentWrappers.Init(nullptr, Components.Num());
+	ComponentCanvasSlots.Init(nullptr, Components.Num());
 	TMap<FString, UPanelWidget*> RegionBoxes;
+
+	// Pinned components sit on a canvas over the regions, each with its anchor
+	// corner at its anchor point of the screen.
+	PinCanvas = WidgetTree->ConstructWidget<UCanvasPanel>();
+
 	for (const int32 Index : Placement)
 	{
 		const FApexHudComponentDef& Component = Components[Index];
+		if (!Layout.IsEnabled(Component.Id, Component.bDefaultEnabled))
+		{
+			continue;
+		}
 		const int32 Root = BuildElement(Component.Root, INDEX_NONE);
 		ComponentRoots[Index] = Root;
-		UWidget* Widget = Nodes[Root].Outer;
+
+		// Every component is scaled by the layout, 100% unless resized.
+		UScaleBox* Wrapper = WidgetTree->ConstructWidget<UScaleBox>();
+		Wrapper->SetStretch(EStretch::UserSpecified);
+		Wrapper->SetUserSpecifiedScale(Layout.ScaleOf(Component.Id));
+		Wrapper->AddChild(Nodes[Root].Outer);
+		ComponentWrappers[Index] = Wrapper;
+		UWidget* Widget = Wrapper;
+
+		const FApexHudPlacement* Pinned = Layout.Find(Component.Id);
+		if (Pinned && Pinned->bPinned)
+		{
+			UCanvasPanelSlot* PinSlot = PinCanvas->AddChildToCanvas(Wrapper);
+			PinSlot->SetAutoSize(true);
+			PinSlot->SetAnchors(FAnchors(Pinned->Anchor.X, Pinned->Anchor.Y));
+			PinSlot->SetAlignment(Pinned->Anchor);
+			PinSlot->SetPosition(Pinned->Position);
+			ComponentCanvasSlots[Index] = PinSlot;
+			continue;
+		}
+
 		const FHudRegionLayout Region = HudRegionLayout(Component.Region);
 
 		if (Component.bFloat)
@@ -348,6 +415,10 @@ void UApexHudWidget::BuildHud()
 		}
 	}
 
+	UOverlaySlot* CanvasSlot = Layers->AddChildToOverlay(PinCanvas);
+	CanvasSlot->SetHorizontalAlignment(HAlign_Fill);
+	CanvasSlot->SetVerticalAlignment(VAlign_Fill);
+
 	// A component that could not be loaded says so on screen: a missing panel
 	// with the reason only in the log reads as a game bug.
 	if (!Report.Errors.IsEmpty())
@@ -368,7 +439,19 @@ void UApexHudWidget::BuildHud()
 		HudSlot->SetVerticalAlignment(VAlign_Center);
 	}
 
-	WidgetTree->RootWidget = Layers;
+	// The root is set once and the tree is swapped inside it: a user widget
+	// builds its Slate widgets from RootWidget the first time it is shown and
+	// never looks again, so a rebuild that replaced the root (apexsim.hud.Reload,
+	// every change in the HUD editor) left the old tree frozen on screen.
+	if (!HostRoot)
+	{
+		HostRoot = WidgetTree->ConstructWidget<UOverlay>();
+		WidgetTree->RootWidget = HostRoot;
+	}
+	HostRoot->ClearChildren();
+	UOverlaySlot* LayersSlot = HostRoot->AddChildToOverlay(Layers);
+	LayersSlot->SetHorizontalAlignment(HAlign_Fill);
+	LayersSlot->SetVerticalAlignment(VAlign_Fill);
 }
 
 int32 UApexHudWidget::BuildElement(const FApexHudElementDef& Def, int32 Copy)
@@ -601,8 +684,10 @@ void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
 		if (UApexMirrorWidget* Mirror = Cast<UApexMirrorWidget>(Node.Widget))
 		{
 			Mirror->SetTexture(Texture);
+			// Laid out without a capture, the glass is a faint stand-in.
+			Mirror->SetRenderOpacity(Texture || !bEditing ? 1.0f : 0.25f);
 		}
-		bVisible = Texture != nullptr;
+		bVisible = Texture != nullptr || bEditing;
 	}
 	SetNodeVisible(Node, bVisible);
 	if (!bVisible)
@@ -764,4 +849,167 @@ void UApexHudWidget::UpdateChildren(int32 NodeIndex, const FApexHudScope& Scope)
 		Inner.Index = Row;
 		UpdateNode(ChildIndex, Inner);
 	}
+}
+
+// --- The HUD editor ---------------------------------------------------------------
+
+void UApexHudWidget::BeginEditing()
+{
+	if (bEditing)
+	{
+		return;
+	}
+	bEditing = true;
+	if (UApexHudDataSubsystem* Hud = GetHudData())
+	{
+		Hud->SetPreview(true);
+	}
+	// Outside a race the preview has its own outline for the map.
+	if (!bRaceActive)
+	{
+		for (UApexMinimapWidget* Minimap : Minimaps)
+		{
+			if (Minimap)
+			{
+				Minimap->SetCenterline(TArray<FVector2D>());
+			}
+		}
+	}
+	ApplyVisibility();
+}
+
+void UApexHudWidget::EndEditing()
+{
+	if (!bEditing)
+	{
+		return;
+	}
+	bEditing = false;
+	if (UApexHudDataSubsystem* Hud = GetHudData())
+	{
+		Hud->SetPreview(false);
+	}
+	if (!bRaceActive)
+	{
+		for (UApexMinimapWidget* Minimap : Minimaps)
+		{
+			if (Minimap)
+			{
+				Minimap->SetCenterline(TArray<FVector2D>());
+			}
+		}
+	}
+	// The mirror's stand-in goes now; components the editor showed regardless
+	// go back to their own rules on the next frame.
+	for (UApexMirrorWidget* Mirror : Mirrors)
+	{
+		if (Mirror)
+		{
+			Mirror->SetRenderOpacity(1.0f);
+		}
+	}
+	ApplyVisibility();
+}
+
+void UApexHudWidget::SetLayout(const FApexHudLayout& InLayout)
+{
+	Layout = InLayout;
+	BuildHud();
+	ApplyVisibility();
+}
+
+FString UApexHudWidget::GetLayoutFile() const
+{
+	return LayoutFile.IsEmpty() ? FApexHudLayout::DefaultFile() : LayoutFile;
+}
+
+bool UApexHudWidget::IsComponentShown(int32 Index) const
+{
+	return ComponentRoots.IsValidIndex(Index) && ComponentRoots[Index] != INDEX_NONE;
+}
+
+FVector2D UApexHudWidget::GetHudSize() const
+{
+	return GetCachedGeometry().GetLocalSize();
+}
+
+FVector2D UApexHudWidget::AbsoluteToHud(const FVector2D& Absolute) const
+{
+	return GetCachedGeometry().AbsoluteToLocal(Absolute);
+}
+
+FVector2D UApexHudWidget::HudToAbsolute(const FVector2D& Local) const
+{
+	return GetCachedGeometry().LocalToAbsolute(Local);
+}
+
+bool UApexHudWidget::GetComponentRect(int32 Index, FSlateRect& OutRect) const
+{
+	if (!IsComponentShown(Index) || !ComponentWrappers.IsValidIndex(Index) || !ComponentWrappers[Index])
+	{
+		return false;
+	}
+	const UScaleBox* Wrapper = ComponentWrappers[Index];
+	const FGeometry& Geometry = Wrapper->GetCachedGeometry();
+	const FVector2D AbsoluteSize = Geometry.GetAbsoluteSize();
+	if (AbsoluteSize.X < 1.0 || AbsoluteSize.Y < 1.0)
+	{
+		return false;
+	}
+	const FVector2D TopLeft = AbsoluteToHud(Geometry.GetAbsolutePosition());
+	const FVector2D BottomRight = AbsoluteToHud(Geometry.GetAbsolutePosition() + AbsoluteSize);
+	OutRect = FSlateRect(TopLeft, BottomRight);
+	return true;
+}
+
+void UApexHudWidget::PinAll()
+{
+	const FVector2D Size = GetHudSize();
+	if (Size.X < 1.0 || Size.Y < 1.0)
+	{
+		return;
+	}
+	bool bChanged = false;
+	for (int32 Index = 0; Index < Components.Num(); ++Index)
+	{
+		const FString& Id = Components[Index].Id;
+		const FApexHudPlacement* Existing = Layout.Find(Id);
+		FSlateRect Rect;
+		if ((Existing && Existing->bPinned) || !GetComponentRect(Index, Rect))
+		{
+			continue;
+		}
+		Layout.Components.Add(Id, ApexHudPlace::PinRect(Rect, Size, Layout.ScaleOf(Id)));
+		bChanged = true;
+	}
+	if (bChanged)
+	{
+		BuildHud();
+		ApplyVisibility();
+	}
+}
+
+void UApexHudWidget::PlaceComponent(int32 Index, const FApexHudPlacement& Placement)
+{
+	if (!Components.IsValidIndex(Index))
+	{
+		return;
+	}
+	const FString& Id = Components[Index].Id;
+	const bool bWasShown = IsComponentShown(Index);
+	Layout.Components.Add(Id, Placement);
+
+	UCanvasPanelSlot* PinSlot = ComponentCanvasSlots.IsValidIndex(Index) ? ComponentCanvasSlots[Index] : nullptr;
+	UScaleBox* Wrapper = ComponentWrappers.IsValidIndex(Index) ? ComponentWrappers[Index] : nullptr;
+	if (bWasShown && Placement.bEnabled && Placement.bPinned && PinSlot && Wrapper)
+	{
+		// Already on the canvas: move it there, no rebuild, so a drag stays smooth.
+		PinSlot->SetAnchors(FAnchors(Placement.Anchor.X, Placement.Anchor.Y));
+		PinSlot->SetAlignment(Placement.Anchor);
+		PinSlot->SetPosition(Placement.Position);
+		Wrapper->SetUserSpecifiedScale(Placement.Scale);
+		return;
+	}
+	BuildHud();
+	ApplyVisibility();
 }

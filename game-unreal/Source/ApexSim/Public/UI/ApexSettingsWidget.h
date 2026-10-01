@@ -21,6 +21,7 @@ class UWidget;
 class UWidgetSwitcher;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnSettingsClosed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnSettingsEditHud);
 
 /** The settings overlay's seven pages. */
 UENUM(BlueprintType)
@@ -76,6 +77,14 @@ public:
 	/** Fires when the overlay wants to go away — Escape, Back, or Back to race. */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
 	FApexOnSettingsClosed OnClosed;
+
+	/**
+	 * Fires when the player asks to lay the HUD out (Gameplay > HUD layout).
+	 * The root widget hides this overlay, without closing it, while the HUD
+	 * editor is up, and shows it again when the editor closes.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
+	FApexOnSettingsEditHud OnEditHudLayout;
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void Open(EApexSettingsTab Tab = EApexSettingsTab::Gameplay);

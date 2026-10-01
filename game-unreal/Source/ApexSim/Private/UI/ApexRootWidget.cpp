@@ -26,6 +26,7 @@
 #include "UI/ApexCarSelectWidget.h"
 #include "UI/ApexConnectDialogWidget.h"
 #include "UI/ApexHotlapWidget.h"
+#include "UI/ApexHudEditorWidget.h"
 #include "UI/ApexHudWidget.h"
 #include "UI/ApexMainMenuWidget.h"
 #include "UI/ApexMenuInputProcessor.h"
@@ -148,6 +149,9 @@ void UApexRootWidget::BuildShell()
 	PauseMenu->OnAction.AddDynamic(this, &UApexRootWidget::HandlePauseAction);
 	SettingsOverlay = WidgetTree->ConstructWidget<UApexSettingsWidget>();
 	SettingsOverlay->OnClosed.AddDynamic(this, &UApexRootWidget::HandleSettingsClosed);
+	SettingsOverlay->OnEditHudLayout.AddDynamic(this, &UApexRootWidget::OpenHudEditor);
+	HudEditor = WidgetTree->ConstructWidget<UApexHudEditorWidget>();
+	HudEditor->OnClosed.AddDynamic(this, &UApexRootWidget::HandleHudEditorClosed);
 
 	UOverlay* Frame = WidgetTree->ConstructWidget<UOverlay>();
 
@@ -182,6 +186,10 @@ void UApexRootWidget::BuildShell()
 	UOverlaySlot* SettingsSlot = Frame->AddChildToOverlay(SettingsOverlay);
 	SettingsSlot->SetHorizontalAlignment(HAlign_Fill);
 	SettingsSlot->SetVerticalAlignment(VAlign_Fill);
+
+	UOverlaySlot* EditorSlot = Frame->AddChildToOverlay(HudEditor);
+	EditorSlot->SetHorizontalAlignment(HAlign_Fill);
+	EditorSlot->SetVerticalAlignment(VAlign_Fill);
 
 	UOverlaySlot* ToastSlot = Frame->AddChildToOverlay(ToastPanel);
 	ToastSlot->SetHorizontalAlignment(HAlign_Center);
@@ -324,6 +332,22 @@ void UApexRootWidget::NativeConstruct()
 			}),
 			OverlayDelay,
 			false);
+	}
+
+	// -ApexOpenHudEditor=N opens the HUD editor N seconds in, for a screenshot
+	// run; -ApexHudEditorSteps="select standings;move 200 -100;scale 0.2"
+	// then drives it (UApexHudEditorWidget::RunStep).
+	float HudEditorDelay = 0.0f;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexOpenHudEditor="), HudEditorDelay) && HudEditorDelay > 0.0f && GetWorld())
+	{
+		FTimerHandle Handle;
+		GetWorld()->GetTimerManager().SetTimer(Handle,
+			FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				UE_LOG(LogApexSim, Log, TEXT("Opening the HUD editor on request from the command line"));
+				OpenHudEditor();
+			}),
+			HudEditorDelay, false);
 	}
 
 	bAutoRaceRequested = FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"));
@@ -698,7 +722,48 @@ void UApexRootWidget::HandleFocusChanging(
 
 bool UApexRootWidget::IsRaceOverlayOpen() const
 {
-	return (PauseMenu && PauseMenu->IsOpen()) || (SettingsOverlay && SettingsOverlay->IsOpen()) || bGarageOpen;
+	return (PauseMenu && PauseMenu->IsOpen()) || (SettingsOverlay && SettingsOverlay->IsOpen()) || bGarageOpen
+		|| IsHudEditorOpen();
+}
+
+bool UApexRootWidget::IsHudEditorOpen() const
+{
+	return HudEditor && HudEditor->IsOpen();
+}
+
+void UApexRootWidget::OpenHudEditor()
+{
+	if (!HudEditor || !Hud || HudEditor->IsOpen())
+	{
+		return;
+	}
+	// Settings steps aside without closing, so closing the editor lands back
+	// on the page it was opened from.
+	if (SettingsOverlay && SettingsOverlay->IsOpen())
+	{
+		SettingsOverlay->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	HudEditor->Open(Hud);
+	ApplyDriveInput();
+}
+
+void UApexRootWidget::HandleHudEditorClosed()
+{
+	if (SettingsOverlay && SettingsOverlay->IsOpen())
+	{
+		SettingsOverlay->SetVisibility(ESlateVisibility::Visible);
+	}
+	ApplyDriveInput();
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::ApplyDriveInput()
+{
+	if (AApexPlayerController* PlayerController =
+			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+	{
+		PlayerController->SetDriveInputEnabled(bRaceViewActive && !bPauseMenuOpen && !bGarageOpen && !IsHudEditorOpen());
+	}
 }
 
 bool UApexRootWidget::IsSettingsOpen() const
@@ -719,6 +784,11 @@ bool UApexRootWidget::IsScreenActive(const UApexScreenWidget* Screen) const
 void UApexRootWidget::FocusDefault()
 {
 	// Front to back: whatever is drawn on top is what the keys should reach.
+	if (IsHudEditorOpen())
+	{
+		HudEditor->FocusDefault();
+		return;
+	}
 	if (SettingsOverlay && SettingsOverlay->IsOpen())
 	{
 		SettingsOverlay->FocusDefault();
@@ -1573,7 +1643,12 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 	if (!bActive)
 	{
 		// A session that ends while paused — a race finishing, a disconnect —
-		// must not leave the overlays up over the menu.
+		// must not leave the overlays up over the menu. A layout half made
+		// over the race is put back rather than saved behind the player's back.
+		if (HudEditor && HudEditor->IsOpen())
+		{
+			HudEditor->Close(/*bSave*/ false);
+		}
 		if (SettingsOverlay)
 		{
 			SettingsOverlay->Close();

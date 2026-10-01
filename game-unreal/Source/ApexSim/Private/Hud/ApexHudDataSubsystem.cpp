@@ -111,8 +111,39 @@ void UApexHudDataSubsystem::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	}
 }
 
+void UApexHudDataSubsystem::SetPreview(bool bInPreview)
+{
+	bPreview = bInPreview;
+	if (!bPreview)
+	{
+		Preview.Reset();
+	}
+}
+
 void UApexHudDataSubsystem::Refresh()
 {
+	if (IsShowingPreview())
+	{
+		if (!Preview)
+		{
+			Preview = MakeUnique<FApexHudPreview>();
+		}
+		FApexHudInputs& PreviewInputs = Preview->Inputs;
+		PreviewInputs.TimeSeconds = FPlatformTime::Seconds();
+		if (const UApexSettingsSubsystem* PreviewSettings = GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>())
+		{
+			if (const UApexSettingsSave* PreviewSave = PreviewSettings->Get())
+			{
+				PreviewInputs.bImperial = PreviewSave->Units == EApexUnits::Imperial;
+				PreviewInputs.DamageLevel = PreviewSave->Damage;
+			}
+		}
+		LastFrame = &Preview->Frame;
+		LastLocalIndex = PreviewInputs.LocalCarIndex;
+		ApexHudData::Build(PreviewInputs, Preview->Memory, Data);
+		return;
+	}
+
 	const UApexNetSubsystem* Net = GetNet();
 	const UApexMenuFlowSubsystem* Flow = GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>();
 	const UApexSettingsSubsystem* Settings = GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>();
@@ -125,10 +156,14 @@ void UApexHudDataSubsystem::Refresh()
 	In.DamageLevel = Save ? Save->Damage : EApexDamageLevel::Full;
 	In.TrackLengthM = CatalogTrackLengthM();
 
+	LastFrame = nullptr;
+	LastLocalIndex = -1;
 	if (Net)
 	{
 		In.Frame = &Net->GetLatestTelemetry();
 		In.LocalCarIndex = Net->GetLocalCarIndex();
+		LastFrame = In.Frame;
+		LastLocalIndex = In.LocalCarIndex;
 		In.Roster = &Net->GetSessionRoster();
 		In.Timing = &Net->GetTimingBoard();
 		In.Sectors = &Net->GetTrackSectors();
@@ -243,6 +278,10 @@ TArray<FString> UApexHudDataSubsystem::DescribeData(const FString& Filter) const
 
 const TArray<FVector2D>& UApexHudDataSubsystem::GetTrackOutline()
 {
+	if (IsShowingPreview() && Preview)
+	{
+		return Preview->Outline;
+	}
 	const UApexNetSubsystem* Net = GetNet();
 	const UApexMenuFlowSubsystem* Flow = GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>();
 	if (!Net || !Flow)
@@ -271,14 +310,13 @@ const TArray<FVector2D>& UApexHudDataSubsystem::GetTrackOutline()
 
 void UApexHudDataSubsystem::MakeMinimapBlips(TArray<FApexMinimapBlip>& Out, const FLinearColor& LocalColour) const
 {
-	const UApexNetSubsystem* Net = GetNet();
-	if (!Net)
+	if (!LastFrame)
 	{
 		return;
 	}
-	const int32 LocalIndex = Net->GetLocalCarIndex();
-	Out.Reserve(Net->GetLatestTelemetry().Cars.Num());
-	for (const FApexCarTelemetry& Car : Net->GetLatestTelemetry().Cars)
+	const int32 LocalIndex = LastLocalIndex;
+	Out.Reserve(LastFrame->Cars.Num());
+	for (const FApexCarTelemetry& Car : LastFrame->Cars)
 	{
 		FApexMinimapBlip Blip;
 		Blip.Position = FVector2D(Car.Position.X, Car.Position.Y);

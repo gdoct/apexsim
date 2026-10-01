@@ -13,6 +13,7 @@ class FWidgetPath;
 class SWidget;
 struct FFocusEvent;
 class UApexHotlapWidget;
+class UApexHudEditorWidget;
 class UApexHudWidget;
 class UApexPauseMenuWidget;
 class UApexScreenWidget;
@@ -108,6 +109,18 @@ public:
 	/** True while any race-side overlay owns input. */
 	bool IsRaceOverlayOpen() const;
 
+	/** True while the HUD editor is up: it owns the mouse and the keys. */
+	bool IsHudEditorOpen() const;
+
+	/**
+	 * Lays the HUD out (UApexHudEditorWidget). From the settings overlay it
+	 * steps aside and comes back when the editor closes; opened on its own
+	 * (`apexsim.hud.Edit`, -ApexOpenHudEditor=N) it just takes over the
+	 * screen. Driving input is off while it is up.
+	 */
+	UFUNCTION()
+	void OpenHudEditor();
+
 	/**
 	 * Opens or closes the pause menu.
 	 *
@@ -170,6 +183,10 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexSettingsWidget> SettingsOverlay;
+
+	/** The HUD editor, over everything but the toasts. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
+	TObjectPtr<UApexHudEditorWidget> HudEditor;
 
 private:
 	/** Builds the frame and fills the switcher, one screen per EApexScreen. */
@@ -257,6 +274,12 @@ private:
 
 	UFUNCTION()
 	void HandleSettingsClosed();
+
+	UFUNCTION()
+	void HandleHudEditorClosed();
+
+	/** Drive input on or off for whatever is open now: the one rule SetPaused, the garage and the HUD editor share. */
+	void ApplyDriveInput();
 
 	/** True for any mode in which the server is simulating and sending telemetry. */
 	static bool IsDrivingMode(EApexGameMode Mode);

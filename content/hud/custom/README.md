@@ -3,6 +3,10 @@
 Put your own HUD components here. Each one is a folder holding a
 `component.json`; the game reads this folder after `../default/`.
 
+To move, resize, add or remove panels you do not need to write anything: use
+Settings > Gameplay > HUD layout in the game. It saves your arrangement here
+as `layout.json`; delete that file to go back to the shipped layout.
+
 - **Change a shipped panel:** copy its folder from `../default/` to here and
   edit the copy. A folder here with the same name replaces the shipped one.
 - **Hide a shipped panel:** make a folder here with its name, holding a
