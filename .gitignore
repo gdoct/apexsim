@@ -259,3 +259,4 @@ content/textures/ground/
 
 # Promo video pipeline (scripts/promo): race replays, clip cuts, frames, clips
 out/promo/
+.scratch-target/*
