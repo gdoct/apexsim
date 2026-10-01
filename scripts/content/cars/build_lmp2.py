@@ -738,10 +738,18 @@ for sx in (-1, 1):
     top = (sx * 0.40, HOOP_Y, L.z_at(HOOP_Y, 0.46) - 0.050)
     p.bar(M.cage, (sx * 0.56, HOOP_Y, 0.20), (sx * 0.56, HOOP_Y, top[2] - 0.12), 0.022, segs=8)
     p.bar(M.cage, (sx * 0.56, HOOP_Y, top[2] - 0.12), top, 0.022, segs=8)
-    scr = (sx * 0.50, SCREEN_Y[1], L.point(SCREEN_Y[1], CAN_LO + 0.25).z - 0.030)
+    # the screen's top corner is on the canopy's own edge (j7), ~0.3 m off
+    # centre now that the canopy is prototype-narrow; at x = 0.50 the bar
+    # ran down the middle of the driver's view
+    sp = L.point(SCREEN_Y[1], 7.0)
+    scr = (sx * (sp.x - 0.025), SCREEN_Y[1], sp.z - 0.035)
     p.bar(M.cage, top, scr, 0.019, segs=8)
-    foot = (sx * (L.x_at(wy, 0.58) - 0.075), wy + 0.02, L.z_at(wy + 0.02, 0.60) - 0.040)
-    p.bar(M.cage, scr, foot, 0.018, segs=8)
+    # the bar's foot is at the canopy's own edge (the glass starts at CAN_LO),
+    # not out on the fender: with the driver near the centreline a bar from
+    # the fender crossed his view (pass-5 cockpit render)
+    fx = L.point(wy + 0.02, CAN_LO).x - 0.03
+    foot = (sx * fx, wy + 0.02, L.z_at(wy + 0.02, fx + 0.02) - 0.040)
+    p.bar(M.cage, scr, foot, 0.013, segs=8)
     p.bar(M.cage, (sx * 0.56, HOOP_Y, top[2] - 0.18), (sx * 0.44, AX_R - 0.15, 0.50),
           0.019, segs=8)
     p.bar(M.cage, (sx * 0.56, HOOP_Y, 0.52), (sx * 0.55, -0.62, 0.56), 0.019, segs=8)
