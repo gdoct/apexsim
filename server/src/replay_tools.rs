@@ -161,10 +161,18 @@ pub fn track_stem(track_path: &Path) -> Option<String> {
         .map(|s| s.to_string_lossy().into_owned())
 }
 
-/// Simulate an AI race and return it as a replay (metadata and frames). The
-/// recording starts with the countdown, so a cut around
-/// `metadata.race_start_tick` is the start.
-pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<ReplayFrame>), String> {
+/// A race lined up on the grid and counting down, with what a recorder
+/// needs to know about it.
+pub struct StartedRace {
+    pub race: GameSession,
+    pub track_name: String,
+    pub track_id: TrackConfigId,
+    pub track_length_m: f32,
+}
+
+/// Load the track and the cars, seat the AI field and start the countdown:
+/// the race [`simulate_race`] and [`render_stream`] then tick.
+pub fn start_race(opts: &SimulateOptions) -> Result<StartedRace, String> {
     let mut track = TrackLoader::load_from_file(&opts.track_path)
         .map_err(|e| format!("track {}: {e}", opts.track_path.display()))?;
     // The air named in full, the wind's direction from the seed, so a
@@ -202,6 +210,12 @@ pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<Repl
         ai_count,
         opts.laps.max(1),
     );
+    // A seeded race is the same race down to its id: a stream rendered
+    // twice is the same file.
+    if let Some(seed) = opts.seed {
+        session.id = seeded_id(seed, u64::MAX);
+        session.host_player_id = seeded_id(seed, u64::MAX - 1);
+    }
     session.host_car_id = Some(host_car);
     session.conditions = conditions;
 
@@ -220,6 +234,24 @@ pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<Repl
         return Err("no AI could be seated: is the grid empty?".to_string());
     }
     race.start_countdown_mode(opts.countdown_seconds.max(1), GameMode::Race);
+    Ok(StartedRace {
+        race,
+        track_name,
+        track_id,
+        track_length_m,
+    })
+}
+
+/// Simulate an AI race and return it as a replay (metadata and frames). The
+/// recording starts with the countdown, so a cut around
+/// `metadata.race_start_tick` is the start.
+pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<ReplayFrame>), String> {
+    let StartedRace {
+        mut race,
+        track_name,
+        track_id,
+        track_length_m,
+    } = start_race(opts)?;
 
     let participants: Vec<ReplayParticipant> = race
         .session
@@ -1007,10 +1039,724 @@ pub fn parse_weather(text: &str) -> Result<Weather, String> {
     }
 }
 
+// --- Spectator streams (`.apxs`) ----------------------------------------------------
+
+use crate::spectator::{
+    BroadcastEncoder, EventKind, RaceScore, ScoreKeeper, StreamContent, StreamEvent, StreamFile,
+    StreamHeader, StreamPath, StreamRender, StreamRoster, StreamRosterEntry, StreamTrack,
+};
+
+/// A showcase race to render (`apexsim-replay render`).
+#[derive(Debug, Clone)]
+pub struct RenderOptions {
+    /// The race itself. `record_hz` is the stream's frame rate, `laps` the
+    /// laps from green, `countdown_seconds` how long the grid stands.
+    pub race: SimulateOptions,
+    /// Seconds kept after the winner takes the flag.
+    pub tail_seconds: f32,
+    /// Keep only this window of the race, in ticks.
+    pub from_tick: Option<u32>,
+    pub to_tick: Option<u32>,
+}
+
+impl Default for RenderOptions {
+    fn default() -> Self {
+        Self {
+            race: SimulateOptions {
+                ai_count: 20,
+                laps: 2,
+                countdown_seconds: 8,
+                record_hz: 30,
+                ..SimulateOptions::default()
+            },
+            tail_seconds: 10.0,
+            from_tick: None,
+            to_tick: None,
+        }
+    }
+}
+
+/// A rendered race and how it went.
+#[derive(Debug, Clone)]
+pub struct RenderedStream {
+    pub content: StreamContent,
+    pub score: RaceScore,
+    pub seed: Option<u64>,
+}
+
+/// The first car of a class by folder name, for `render --class`.
+pub fn car_of_class(cars: &CarMap, folders: &FolderMap, class: &str) -> Option<CarConfigId> {
+    let mut matches: Vec<(&str, CarConfigId)> = cars
+        .values()
+        .filter(|car| car.class.trim().eq_ignore_ascii_case(class.trim()))
+        .map(|car| (folders.get(&car.id).map_or("", |f| f.as_str()), car.id))
+        .collect();
+    matches.sort();
+    matches.first().map(|(_, id)| *id)
+}
+
+/// Simulate an AI race and return it as a spectator stream: the grid and
+/// its countdown, `laps` from green, and a tail after the winner's flag.
+/// The same options and seed give the same bytes.
+pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
+    let race_opts = &opts.race;
+    let StartedRace {
+        mut race,
+        track_length_m,
+        ..
+    } = start_race(race_opts)?;
+    let stem = track_stem(&race_opts.track_path).unwrap_or_default();
+
+    let mut encoder = BroadcastEncoder::new(0);
+    let mut header = encoder.header(&race, &stem);
+    let roster = encoder.roster(&race);
+    let path = encoder.path(&race);
+    let sectors = encoder.sectors(&race);
+    // The state the stream opens in is not an event.
+    encoder.observe(&race, &[]);
+
+    let tick_rate = race_opts.tick_rate.max(1);
+    let frame_rate = race_opts.record_hz.clamp(1, tick_rate);
+    let record_every = (tick_rate / frame_rate).max(1) as u32;
+    let frame_dt = record_every as f32 / tick_rate as f32;
+    let max_ticks = (race_opts.max_seconds.max(1.0) * tick_rate as f32) as u32
+        + race_opts.countdown_seconds as u32 * tick_rate as u32;
+    let tail_ticks = (opts.tail_seconds.max(0.0) * tick_rate as f32) as u32;
+
+    let mut records: Vec<(u32, Vec<u8>)> = Vec::new();
+    let mut keeper = ScoreKeeper::default();
+    let mut won_at: Option<u32> = None;
+    loop {
+        let inputs: HashMap<PlayerId, PlayerInputData> = race
+            .session
+            .participants
+            .keys()
+            .map(|id| (*id, race.generate_ai_input(id)))
+            .collect();
+        race.tick(&inputs);
+        let tick = race.session.current_tick;
+        let laps = race.take_lap_events();
+        for event in encoder.observe(&race, &laps) {
+            records.push((tick, event.encode()));
+        }
+        if tick.is_multiple_of(record_every) {
+            let rows = BroadcastEncoder::rows(&race);
+            keeper.frame(
+                &rows,
+                race.session.state == SessionState::Racing,
+                frame_dt,
+                track_length_m,
+            );
+            for body in encoder.frame_of(&race, &rows) {
+                records.push((tick, body));
+            }
+        }
+        if won_at.is_none()
+            && (race.session.state == SessionState::Finished
+                || race
+                    .session
+                    .participants
+                    .values()
+                    .any(|c| c.finish_position == Some(1)))
+        {
+            won_at = Some(tick);
+        }
+        if won_at.is_some_and(|w| tick >= w + tail_ticks) || tick >= max_ticks {
+            break;
+        }
+    }
+
+    if opts.from_tick.is_some() || opts.to_tick.is_some() {
+        let from = opts.from_tick.unwrap_or(0);
+        let to = opts.to_tick.unwrap_or(u32::MAX);
+        records.retain(|(tick, _)| *tick >= from && *tick <= to);
+    }
+    let (Some(first), Some(last)) = (records.first(), records.last()) else {
+        return Err("the window holds no frames".to_string());
+    };
+    header.start_tick = first.0;
+    header.end_tick = last.0;
+    header.frame_rate = (tick_rate as u32 / record_every) as u16;
+    header.race_start_tick = race.session.race_start_tick;
+    // What is being watched, not the countdown the stream opens in.
+    header.game_mode = race.session.game_mode;
+    header.render = StreamRender {
+        seed: race_opts.seed,
+        score: None,
+    };
+    Ok(RenderedStream {
+        content: StreamContent {
+            header,
+            roster,
+            path: Some(path),
+            preamble: vec![sectors],
+            records,
+        },
+        score: keeper.finish(),
+        seed: race_opts.seed,
+    })
+}
+
+/// Render `count` seeds from `opts.race.seed` (0 when unset) upward and
+/// keep the race that scores best ([`RaceScore::score`]); its seed and
+/// score go into the header, so the pick can be rendered again alone.
+pub fn render_best(opts: &RenderOptions, count: u32) -> Result<RenderedStream, String> {
+    let first = opts.race.seed.unwrap_or(0);
+    let mut best: Option<RenderedStream> = None;
+    for seed in first..first + count.max(1) as u64 {
+        let mut one = opts.clone();
+        one.race.seed = Some(seed);
+        let rendered = render_stream(&one)?;
+        eprintln!(
+            "seed {seed}: score {:.1} ({} retired, {:.1} s contact, {:.1} s off the road, {:.1} s close)",
+            rendered.score.score(),
+            rendered.score.retirements,
+            rendered.score.contact_s,
+            rendered.score.off_road_s,
+            rendered.score.close_s
+        );
+        if best
+            .as_ref()
+            .is_none_or(|b| rendered.score.score() > b.score.score())
+        {
+            best = Some(rendered);
+        }
+    }
+    let mut best = best.expect("at least one seed is rendered");
+    if count > 1 {
+        best.content.header.render.score = Some(best.score.score());
+    }
+    Ok(best)
+}
+
+/// A replay (or a cut of one) as a spectator stream at `rate` frames a
+/// second. A replay holds no pit state, compound, damage or hybrid, so the
+/// rows carry none, and the only events are state changes and finishes.
+/// `track` and `cars` fill in the checksums and the path when they are at
+/// hand.
+pub fn replay_to_stream(
+    metadata: &ReplayMetadata,
+    frames: &[ReplayFrame],
+    rate: u16,
+    track: Option<&TrackConfig>,
+    cars: Option<&CarMap>,
+) -> Result<StreamContent, String> {
+    let (Some(first), Some(last)) = (frames.first(), frames.last()) else {
+        return Err("the replay holds no frames".to_string());
+    };
+    let tick_rate = metadata.tick_rate.max(1);
+    let every = (tick_rate / rate.clamp(1, tick_rate)).max(1) as u32;
+    let index_of: HashMap<PlayerId, u8> = metadata
+        .participants
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (p.player_id, i as u8))
+        .collect();
+
+    let header = StreamHeader {
+        epoch: 0,
+        version: crate::spectator::FORMAT_VERSION,
+        stream_id: metadata.session_id,
+        tick_rate,
+        frame_rate: (tick_rate as u32 / every) as u16,
+        row_size: crate::spectator::ROW_SIZE as u8,
+        track: StreamTrack {
+            track_id: metadata.track_config_id,
+            stem: metadata.track_stem.clone().unwrap_or_default(),
+            display_name: metadata.track_name.clone(),
+            source_crc: track.map_or(0, |t| t.content_crc),
+            length_m: metadata.track_length_m,
+        },
+        conditions: metadata.conditions,
+        session_kind: SessionKind::Multiplayer,
+        game_mode: first.telemetry.game_mode,
+        lap_limit: 0,
+        race_start_tick: metadata.race_start_tick,
+        start_tick: first.tick,
+        end_tick: last.tick,
+        render: StreamRender::default(),
+    };
+    let roster = StreamRoster {
+        epoch: 0,
+        revision: 0,
+        entries: metadata
+            .participants
+            .iter()
+            .enumerate()
+            .map(|(i, p)| StreamRosterEntry {
+                car_index: i as u8,
+                car_config_id: p.car_config_id,
+                content_crc: cars
+                    .and_then(|c| c.get(&p.car_config_id))
+                    .map_or(0, |c| c.content_crc),
+                livery: p.livery,
+                name: p.player_name.clone(),
+                is_ai: p.is_ai,
+            })
+            .collect(),
+    };
+
+    let mut records = Vec::new();
+    let mut state = first.telemetry.session_state;
+    let mut finished = vec![false; metadata.participants.len()];
+    let mut next_frame_tick = first.tick;
+    for frame in frames {
+        let tick = frame.tick;
+        if frame.telemetry.session_state != state {
+            state = frame.telemetry.session_state;
+            records.push((
+                tick,
+                StreamEvent {
+                    epoch: 0,
+                    tick,
+                    kind: EventKind::SessionState(state),
+                }
+                .encode(),
+            ));
+        }
+        let mut rows = Vec::with_capacity(frame.telemetry.car_states.len());
+        for car in &frame.telemetry.car_states {
+            let Some(&index) = index_of.get(&car.player_id) else {
+                continue;
+            };
+            if let Some(position) = car.finish_position {
+                if !std::mem::replace(&mut finished[index as usize], true) {
+                    records.push((
+                        tick,
+                        StreamEvent {
+                            epoch: 0,
+                            tick,
+                            kind: EventKind::Finish {
+                                car_index: index,
+                                position,
+                            },
+                        }
+                        .encode(),
+                    ));
+                }
+            }
+            rows.push(crate::spectator::CarRow::from_replay(car, index));
+        }
+        if tick < next_frame_tick {
+            continue;
+        }
+        next_frame_tick = tick + every;
+        rows.sort_by_key(|r| r.car_index);
+        for body in crate::spectator::encode_frames(
+            0,
+            tick,
+            0,
+            frame.telemetry.session_state,
+            frame.telemetry.countdown_ms,
+            &rows,
+        ) {
+            records.push((tick, body));
+        }
+    }
+
+    Ok(StreamContent {
+        header,
+        roster,
+        path: track.map(|t| StreamPath::from_centerline(&t.centerline, 0)),
+        preamble: track
+            .map(|t| {
+                vec![StreamEvent {
+                    epoch: 0,
+                    tick: first.tick,
+                    kind: EventKind::TrackSectors {
+                        track_length_m: crate::laps::track_length_m(t),
+                        boundaries_m: crate::laps::sector_boundaries_m(t),
+                    },
+                }]
+            })
+            .unwrap_or_default(),
+        records,
+    })
+}
+
+/// What `apexsim-replay info` prints about a stream file.
+#[derive(Debug, Clone, Serialize)]
+pub struct StreamInfo {
+    pub format: &'static str,
+    pub version: u8,
+    pub stream_id: String,
+    pub track_stem: String,
+    pub track_name: String,
+    pub track_id: String,
+    pub track_source_crc: u32,
+    pub track_length_m: f32,
+    pub weather: String,
+    pub time_of_day_minutes: u16,
+    pub air_temp_c: Option<i8>,
+    pub humidity_pct: Option<u8>,
+    pub wind_kph: Option<u8>,
+    pub wind_from_deg: Option<u16>,
+    pub lap_limit: u8,
+    pub tick_rate: u16,
+    pub frame_rate: u16,
+    pub row_size: u8,
+    pub start_tick: u32,
+    pub end_tick: u32,
+    pub race_start_tick: Option<u32>,
+    pub duration_s: f32,
+    pub seed: Option<u64>,
+    pub score: Option<f32>,
+    pub cars: Vec<StreamCarInfo>,
+    pub has_path: bool,
+    pub blocks: usize,
+    pub frames: usize,
+    pub events: usize,
+    pub file_bytes: usize,
+    /// Bytes of the records once inflated.
+    pub raw_bytes: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StreamCarInfo {
+    pub index: u8,
+    pub name: String,
+    pub car_config_id: String,
+    pub content_crc: u32,
+    pub livery: u8,
+    pub is_ai: bool,
+}
+
+pub fn describe_stream(file: &StreamFile) -> Result<StreamInfo, String> {
+    let records = file.records().map_err(|e| e.to_string())?;
+    let kind = |k: u8| {
+        records
+            .iter()
+            .filter(|b| crate::spectator::record_type(b) == Some(k))
+            .count()
+    };
+    let h = &file.header;
+    Ok(StreamInfo {
+        format: "apxs",
+        version: h.version,
+        stream_id: h.stream_id.to_string(),
+        track_stem: h.track.stem.clone(),
+        track_name: h.track.display_name.clone(),
+        track_id: h.track.track_id.to_string(),
+        track_source_crc: h.track.source_crc,
+        track_length_m: h.track.length_m,
+        weather: h.conditions.weather.name().to_string(),
+        time_of_day_minutes: h.conditions.time_of_day_minutes,
+        air_temp_c: h.conditions.air_temp_c,
+        humidity_pct: h.conditions.humidity_pct,
+        wind_kph: h.conditions.wind_kph,
+        wind_from_deg: h.conditions.wind_from_deg,
+        lap_limit: h.lap_limit,
+        tick_rate: h.tick_rate,
+        frame_rate: h.frame_rate,
+        row_size: h.row_size,
+        start_tick: h.start_tick,
+        end_tick: h.end_tick,
+        race_start_tick: h.race_start_tick,
+        duration_s: h.duration_s(),
+        seed: h.render.seed,
+        score: h.render.score,
+        cars: file
+            .roster
+            .entries
+            .iter()
+            .map(|e| StreamCarInfo {
+                index: e.car_index,
+                name: e.name.clone(),
+                car_config_id: e.car_config_id.to_string(),
+                content_crc: e.content_crc,
+                livery: e.livery,
+                is_ai: e.is_ai,
+            })
+            .collect(),
+        has_path: file.path.is_some(),
+        blocks: file.block_count(),
+        frames: kind(crate::spectator::RECORD_FRAME),
+        events: kind(crate::spectator::RECORD_EVENT),
+        file_bytes: file.file_len(),
+        raw_bytes: records.iter().map(|b| b.len() + 4).sum(),
+    })
+}
+
+/// The track YAML a stream's stem names, under `tracks_dir`'s `default/`
+/// and `custom/` (or `tracks_dir` itself when it has neither).
+pub fn find_track_yaml(tracks_dir: &Path, stem: &str) -> Option<PathBuf> {
+    ["default", "custom", ""]
+        .iter()
+        .map(|sub| tracks_dir.join(sub).join(format!("{stem}.yaml")))
+        .find(|path| path.is_file())
+}
+
+/// Where a stream no longer matches the content on disk: the track YAML's
+/// checksum, and every car's. Empty when the file is fresh. A checksum of 0
+/// in the file (a converted replay) is not compared.
+pub fn check_stream(
+    header: &StreamHeader,
+    roster: &StreamRoster,
+    tracks_dir: &Path,
+    cars_dir: &Path,
+) -> Vec<String> {
+    let mut stale = Vec::new();
+    match find_track_yaml(tracks_dir, &header.track.stem) {
+        None => stale.push(format!(
+            "track {}: no {}.yaml under {}",
+            header.track.display_name,
+            header.track.stem,
+            tracks_dir.display()
+        )),
+        Some(path) => match std::fs::read(&path) {
+            Ok(bytes) => {
+                let crc = crate::content_crc::content_crc(&bytes);
+                if header.track.source_crc != 0 && crc != header.track.source_crc {
+                    stale.push(format!(
+                        "track {}: the stream was raced on {:08x}, {} is {:08x}",
+                        header.track.stem,
+                        header.track.source_crc,
+                        path.display(),
+                        crc
+                    ));
+                }
+            }
+            Err(e) => stale.push(format!("track {}: {e}", path.display())),
+        },
+    }
+    match load_car_folder(cars_dir) {
+        Err(e) => stale.push(format!("cars: {e}")),
+        Ok((cars, _)) => {
+            let mut seen = std::collections::BTreeSet::new();
+            for entry in &roster.entries {
+                if !seen.insert(entry.car_config_id) {
+                    continue;
+                }
+                match cars.get(&entry.car_config_id) {
+                    None => stale.push(format!(
+                        "car {}: not under {}",
+                        entry.car_config_id,
+                        cars_dir.display()
+                    )),
+                    Some(car) if entry.content_crc != 0 && car.content_crc != entry.content_crc => {
+                        stale.push(format!(
+                            "car {}: the stream was raced on {:08x}, its car.toml is {:08x}",
+                            car.name, entry.content_crc, car.content_crc
+                        ));
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+    }
+    stale
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::network::{CarStateTelemetry, Telemetry};
+
+    fn short_render() -> RenderOptions {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        RenderOptions {
+            race: SimulateOptions {
+                track_path: root.join("content/tracks/default/Zandvoort.yaml"),
+                cars_dir: root.join("content/cars/default"),
+                host_car: "yotota-lmp2".into(),
+                same_car: false,
+                ai_count: 3,
+                laps: 1,
+                max_seconds: 12.0,
+                countdown_seconds: 1,
+                conditions: SessionConditions {
+                    weather: Weather::Overcast,
+                    time_of_day_minutes: 19 * 60,
+                    ..SessionConditions::DEFAULT
+                },
+                tick_rate: 240,
+                record_hz: 30,
+                seed: Some(11),
+            },
+            tail_seconds: 2.0,
+            from_tick: None,
+            to_tick: None,
+        }
+    }
+
+    /// The determinism the pipeline's "only what is stale" rests on: the
+    /// same arguments and seed write the same file, byte for byte.
+    #[test]
+    fn a_seeded_render_is_byte_identical() {
+        use crate::spectator::{Record, StreamFile, RECORD_FRAME};
+        let opts = short_render();
+        let first = render_stream(&opts).expect("renders");
+        let bytes = first.content.to_bytes().unwrap();
+        let again = render_stream(&opts).expect("renders again");
+        assert!(
+            bytes == again.content.to_bytes().unwrap(),
+            "a seeded render must write the same file twice"
+        );
+        // Another seed is another grid.
+        let mut other = opts.clone();
+        other.race.seed = Some(12);
+        assert!(bytes != render_stream(&other).unwrap().content.to_bytes().unwrap());
+
+        let file = StreamFile::from_bytes(bytes).unwrap();
+        let h = &file.header;
+        assert_eq!(h.track.stem, "Zandvoort");
+        assert_ne!(h.track.source_crc, 0);
+        assert!(h.track.length_m > 4000.0);
+        assert_eq!((h.tick_rate, h.frame_rate), (240, 30));
+        assert_eq!(h.conditions.weather, Weather::Overcast);
+        // Resolved: every figure the AI raced in is named.
+        assert!(h.conditions.air_temp_c.is_some() && h.conditions.wind_from_deg.is_some());
+        assert_eq!(h.render.seed, Some(11));
+        assert_eq!(h.game_mode, GameMode::Race);
+        assert!(h.race_start_tick.is_some_and(|t| t > 200 && t < 300));
+        assert_eq!(file.roster.entries.len(), 3);
+        assert!(file
+            .roster
+            .entries
+            .iter()
+            .all(|e| e.is_ai && e.content_crc != 0));
+        assert!(file.path.as_ref().is_some_and(|p| p.points.len() > 300));
+        assert!(matches!(
+            file.preamble.first().map(|e| &e.kind),
+            Some(EventKind::TrackSectors { boundaries_m, .. }) if boundaries_m.len() == 2
+        ));
+
+        let records = file.records().unwrap();
+        let frames: Vec<_> = records
+            .iter()
+            .filter(|b| crate::spectator::record_type(b) == Some(RECORD_FRAME))
+            .map(|b| match Record::decode(b).unwrap() {
+                Record::Frame(f) => f,
+                _ => unreachable!(),
+            })
+            .collect();
+        assert!(frames.len() > 350, "{}", frames.len());
+        assert!(frames.windows(2).all(|w| w[1].tick == w[0].tick + 8));
+        assert_eq!(frames[0].state, SessionState::Countdown);
+        assert!(frames[0].countdown_ms < 1000);
+        let last = frames.last().unwrap();
+        assert_eq!(last.state, SessionState::Racing);
+        assert_eq!(last.tick, h.end_tick);
+        assert!(last
+            .cars(h.row_size as usize)
+            .all(|car| car.station_m() > 100.0 && car.speed_mps() > 10.0));
+        // The lights going out is the first thing that happens.
+        let first_event = records
+            .iter()
+            .find_map(|b| match Record::decode(b).unwrap() {
+                Record::Event(e) => Some(e),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(
+            first_event.kind,
+            EventKind::SessionState(SessionState::Racing)
+        );
+        assert_eq!(Some(first_event.tick), h.race_start_tick);
+
+        // Fresh against the content it was rendered from, stale once that
+        // content's checksum has moved.
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let (tracks, cars) = (
+            root.join("content/tracks"),
+            root.join("content/cars/default"),
+        );
+        assert_eq!(
+            check_stream(&file.header, &file.roster, &tracks, &cars),
+            Vec::<String>::new()
+        );
+        let mut moved = file.header.clone();
+        moved.track.source_crc ^= 1;
+        let mut roster = file.roster.clone();
+        roster.entries[0].content_crc ^= 1;
+        let stale = check_stream(&moved, &roster, &tracks, &cars);
+        assert_eq!(stale.len(), 2, "{stale:?}");
+        moved.track.stem = "Nowhere".into();
+        assert!(check_stream(&moved, &file.roster, &tracks, &cars)[0].contains("no Nowhere.yaml"));
+
+        let info = describe_stream(&file).unwrap();
+        assert_eq!(info.frames, frames.len());
+        assert_eq!(info.cars.len(), 3);
+        assert!(info.file_bytes < info.raw_bytes);
+    }
+
+    #[test]
+    fn a_window_and_the_best_seed_are_kept() {
+        let mut opts = short_render();
+        opts.race.max_seconds = 6.0;
+        opts.from_tick = Some(480);
+        opts.to_tick = Some(960);
+        let cut = render_stream(&opts).unwrap();
+        assert_eq!(cut.content.header.start_tick, 480);
+        assert_eq!(cut.content.header.end_tick, 960);
+        assert!(cut
+            .content
+            .records
+            .iter()
+            .all(|(tick, _)| (480..=960).contains(tick)));
+
+        opts.from_tick = None;
+        opts.to_tick = None;
+        let best = render_best(&opts, 2).unwrap();
+        assert!(best.seed == Some(11) || best.seed == Some(12));
+        assert_eq!(best.content.header.render.seed, best.seed);
+        assert_eq!(best.content.header.render.score, Some(best.score.score()));
+
+        let (cars, folders) =
+            load_car_folder(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/cars/default"))
+                .unwrap();
+        let gt3 = car_of_class(&cars, &folders, "gt3").expect("a GT3 car ships");
+        assert_eq!(cars[&gt3].class, "GT3");
+        assert!(car_of_class(&cars, &folders, "karts").is_none());
+    }
+
+    #[test]
+    fn a_replay_converts_to_a_stream() {
+        use crate::spectator::{Record, StreamFile};
+        let ids = [uuid::Uuid::from_u128(1), uuid::Uuid::from_u128(2)];
+        let mut frames = cut(&two_car_lap(&ids), 0, 960);
+        // The second car takes the flag part way through.
+        for f in frames.iter_mut().filter(|f| f.tick >= 480) {
+            f.telemetry.car_states[1].finish_position = Some(1);
+        }
+        let content = replay_to_stream(&metadata(&ids), &frames, 30, None, None).unwrap();
+        assert_eq!(content.header.frame_rate, 30);
+        assert_eq!(
+            (content.header.start_tick, content.header.end_tick),
+            (0, 960)
+        );
+        assert!(content.path.is_none() && content.preamble.is_empty());
+        let file = StreamFile::from_bytes(content.to_bytes().unwrap()).unwrap();
+        assert_eq!(file.roster.entries[1].name, "AI 1");
+        let records: Vec<Record> = file
+            .records()
+            .unwrap()
+            .iter()
+            .map(|b| Record::decode(b).unwrap())
+            .collect();
+        let frame_ticks: Vec<u32> = records
+            .iter()
+            .filter_map(|r| match r {
+                Record::Frame(f) => Some(f.tick),
+                _ => None,
+            })
+            .collect();
+        // 60 Hz in, 30 Hz out.
+        assert_eq!(frame_ticks.len(), 121);
+        assert!(frame_ticks.windows(2).all(|w| w[1] == w[0] + 8));
+        assert!(records.iter().any(|r| matches!(
+            r,
+            Record::Event(e) if e.tick == 480 && e.kind == EventKind::Finish { car_index: 1, position: 1 }
+        )));
+        let Some(Record::Frame(frame)) = records.iter().find(|r| matches!(r, Record::Frame(_)))
+        else {
+            panic!("no frame");
+        };
+        let cars: Vec<_> = frame.cars(file.header.row_size as usize).collect();
+        assert_eq!(cars.len(), 2);
+        assert_eq!(cars[0].compound, crate::network::COMPOUND_UNKNOWN);
+        assert_eq!(cars[0].gear, 4);
+    }
 
     fn car(id: PlayerId, progress: f32, lap: u16) -> CarStateTelemetry {
         CarStateTelemetry {

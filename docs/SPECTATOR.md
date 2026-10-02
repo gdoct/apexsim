@@ -1,12 +1,14 @@
 # Spectator stream, showcase races and the menu backdrop
 
-*Spec, 2026-10-02. Status: design, nothing implemented yet.*
+*Spec 2026-10-02; implemented the same day. Status: steps 1–7 of the
+implementation order are in (format, render tool, client player, backdrop,
+pipeline, server showcase, `.apxs` replays). Live spectating is not.*
 
 ## Why
 
-The menu plays an AI race behind its screens. Today that race is a live
+The menu plays an AI race behind its screens. That race used to be a live
 `SessionKind::Demo` session on the server: every connected client in the menu
-gets its own 20-car simulation at 240 Hz and its own full telemetry stream
+got its own 20-car simulation at 240 Hz and its own full telemetry stream
 (`CompactCarState`, 37 fields, at the broadcast rate). One client is fine;
 a hundred clients in the menu are a hundred races nobody drives.
 
@@ -27,27 +29,26 @@ format that is also what a spectator of a live race will receive later:
 Later, spectating a *live* race is the same stream with the server's live
 session as the source instead of a file.
 
-## What exists today
+## What exists and how it is reused
 
 | Piece | Where | Reused how |
 |---|---|---|
-| Headless seeded AI race, bit-identical per seed | `replay_tools::simulate_race`, `apexsim-replay simulate` | The render tool's simulation, unchanged |
-| Replay file (named `Telemetry` per frame, MessagePack, ~200 MB a race) | `replay.rs` v2 | Converted by the tool; may move to `.apxs` later (open question 1) |
-| Clip file (`.clip.json`, 16 floats per car per frame, ~90 KB/s for 12 cars) | `replay_tools::ClipFile`, `FApexReplayClip` | Superseded by `.apxs`; `cut` writes `.apxs` once the client reads it |
-| Clip playback on the client (`-ApexReplay=`) | `UApexReplaySubsystem`, `AApexRaceDirector::BeginReplayView`, `SetPlaybackPose` | Its director path becomes the player's file source |
-| Demo session | `SessionKind::Demo`, `UApexDemoModeSubsystem` | Replaced by the showcase; kept one release for old clients |
-| Spectators of a session | `JoinAsSpectator`, `lobby.rs` spectator counts, `broadcast.rs` | Receive the full racer telemetry today; move to the stream later |
-| Car motion buffer (tick-clocked playhead, blending) | `Race/ApexCarMotion.h` | Fed by the player for both sources |
-| Engine sound (RPM, throttle, gear) | `ApexEngineSynth`, `AApexRaceCarActor` | Needs only those three per frame; everything else is the car's `[sound]` table |
-| TV director | `ApexTv::FDirector` | The camera for the backdrop and for spectating |
+| Headless seeded AI race, bit-identical per seed | `replay_tools::start_race` / `simulate_race`, `apexsim-replay simulate` | `render` ticks the same `GameSession` |
+| Replay file (named `Telemetry` per frame, MessagePack, ~200 MB a race) | `replay.rs` v2 | Kept for `find` / `pose`; `convert` and `cut` turn it into `.apxs` |
+| Clip file (`.clip.json`) | `replay_tools::ClipFile`, `FApexReplayClip::LoadFromString` | Superseded: `cut` writes `.apxs` when the output ends in it; the JSON reader stays for old files |
+| Clip playback on the client (`-ApexReplay=`) | `UApexReplaySubsystem`, `AApexRaceDirector::BeginReplayView`, `SetPlaybackPose` | Unchanged; `FApexReplayClip::LoadFromStream` fills the same table from an `.apxs` |
+| Demo session | `SessionKind::Demo`, `UApexDemoModeSubsystem` | Third choice, for a server that predates showcases; see "The menu backdrop" |
+| Spectators of a session | `JoinAsSpectator`, `lobby.rs`, `broadcast.rs` | Still receive the full racer telemetry (live spectating is the open item) |
+| Car motion buffer (tick-clocked playhead, blending) | `Race/ApexCarMotion.h` | Fed by the backdrop feed for both sources, as a live session feeds it |
+| Engine sound (RPM, throttle, gear) | `ApexEngineSynth`, `AApexRaceCarActor` | Needs only those three per frame; the row carries them |
+| TV director | `ApexTv::FDirector` | The camera for the backdrop; its path comes from the stream |
 
 Audio needs nothing new: the synth derives pops, limiter, turbo, blow-off and
 gear whine from RPM, throttle and gear plus the catalog row. Tyre, kerb and
 road sound come from `DriverFeedback` for the local car only, and a spectator
-has no local car. The race start launches properly because the physics has a
-clutch-slip launch model (`physics::geared_rpm`).
+has no local car.
 
-## 1. The stream format
+## 1. The stream format (`server/src/spectator.rs`, `ApexSpectatorStream.h`)
 
 ### Records
 
@@ -57,26 +58,42 @@ A stream is a sequence of records, framed like the TCP protocol:
 [u32 big-endian length][MessagePack body]
 ```
 
-The body is a positional MessagePack array whose first element is the record
-type (u8). Named maps are not used: the client's hand-written codec already
-reads positional arrays, and golden bytes pin every record (`network.rs`
-tests print them, `ApexSpectatorGoldenBlobs.h` holds them), as for the rest of
-the protocol.
+The body is a positional MessagePack array. Its first element is the record
+type (u8). Named maps are not used: the client's hand-written codec reads
+positional arrays, and golden bytes pin every record (`cargo test
+spectator_wire_format -- --nocapture` prints them; `ApexSpectatorGoldenBlobs.h`
+holds them, and `ApexSim.Spectator.*` decode them), as for the rest of the
+protocol.
 
-| Type | Record | Live transport | Contents |
+**The epoch is the second element of every record a viewer receives, written
+as a full `uint 32` (`0xCE` + 4 bytes)**, so it sits at bytes 3..7 of every
+such body and a showcase channel can stamp it into the bytes read from a file
+(`spectator::patch_epoch`) without decoding anything. A `Frame`'s and an
+`Event`'s tick is written the same way right after it (bytes 8..12), so the
+server finds a record's tick without decoding it either. A reader accepts any
+integer width, as MessagePack allows.
+
+| Type | Record | Live transport | Body |
 |---|---|---|---|
-| 1 | `Header` | TCP, on join and on loop | format version, stream id, epoch, tick rate, frame rate, row size, track (`track_id`, stem, display name, `source_crc`, length), `SessionConditions` (resolved: weather, time, air, wind), session kind, game mode, lap limit, race start tick, start/end tick of the content |
-| 2 | `Roster` | TCP, on change | epoch, roster revision, entries: car index, `car_config_id`, car `content_crc`, livery, display name, is AI |
-| 3 | `Frame` | UDP | tick, epoch, roster revision, session state, countdown ms, part / parts, `bin` rows (below) |
-| 4 | `Event` | TCP | tick, epoch, kind, payload (below) |
-| 5 | `Block` | file only | zlib-compressed run of records |
-| 6 | `Index` | file only | per block: first tick, byte offset; keyframe ticks |
+| 1 | `Header` | TCP, on join and on loop | `[1, epoch, version, stream_id, tick_rate, frame_rate, row_size, track[track_id, stem, display_name, source_crc, length_m], conditions[weather, time_of_day_minutes, air_temp_c, humidity_pct, wind_kph, wind_from_deg], session_kind, game_mode, lap_limit, ticks[race_start_tick, start_tick, end_tick], render[seed, score]]` (nil where a figure is unknown) |
+| 2 | `Roster` | TCP, on change | `[2, epoch, revision, [[car_index, car_config_id, content_crc, livery, name, is_ai], ...]]` |
+| 3 | `Frame` | UDP | `[3, epoch, tick, revision, state, countdown_ms (0xFFFF none), part, parts, bin rows]` |
+| 4 | `Event` | TCP | `[4, epoch, tick, kind, payload]` |
+| 5 | `Block` | file only | `[5, first_tick, last_tick, records, raw_len, bin zlib]` |
+| 6 | `Index` | file only | `[6, [[first_tick, offset, records], ...]]` |
+| 7 | `Path` | TCP, with the header | `[7, epoch, spacing_m, bin points]`: the centerline every 10 m as `i32` mm pairs, where the broadcast cameras stand, so a viewer with no lobby (a file played offline) has one |
 
-**Epoch** counts restarts of the stream: a showcase that loops bumps it and
-sends a fresh `Header`, so a client restarts its cars cleanly instead of
-seeing every car jump back to the grid. **Roster revision** counts roster
-changes within an epoch. A `Frame` whose epoch or revision does not match
-what the client holds is dropped, the same rule the client applies today to
+Every array is read by position with anything a later writer appends
+skipped (`a_newer_writers_extra_fields_are_skipped`, `ApexSim.Spectator.Codec`).
+
+**Epoch** counts restarts of the stream: a showcase that loops takes a fresh
+one and sends a fresh `Header`, so a client restarts its cars cleanly
+instead of seeing every car jump back to the grid. On the server the epoch
+comes from one counter for all channels (from 1; a file holds 0), so a
+frame's epoch alone tells a stale datagram of any other channel or loop from
+the stream being watched. **Roster revision** counts roster changes within an
+epoch. A `Frame` whose epoch or revision does not match what the client holds
+is dropped (`FApexSpectatorPlayer`), the rule the client already applied to
 stale demo frames.
 
 ### Frames are self-contained
@@ -86,9 +103,10 @@ join at any frame, and a file seeks by index. Delta encoding against a
 keyframe is a possible later mode (a `Header` flag), not part of v1.
 
 A frame carries every car. If the rows would not fit one datagram (more than
-about 28 cars at the v1 row size under a 1 400-byte budget) the frame is sent
-in `parts`, each a self-contained subset of rows with the same tick; the
-client applies whatever parts arrive.
+28 cars at the v1 row size under a 1 400-byte budget, `MAX_ROWS_PER_PART`)
+the frame is sent in `parts`, each a self-contained subset of rows with the
+same tick; the client puts the parts of a tick together and applies whatever
+arrived once a newer tick comes (`ApexSim.Spectator.Player`).
 
 ### The car row (v1, 44 bytes, little-endian)
 
@@ -125,10 +143,13 @@ follows).
 That is what a spectator draws: pose, wheels (steering, speed), brake and
 head lights, DRS flap, visible damage and debris, engine sound, standings
 (lap, station, finish), the pit state and the tyre on the car. Tyre and brake
-temperatures, fuel, feedback and setup stay in the racer's telemetry.
+temperatures, fuel, feedback and setup stay in the racer's telemetry; the
+client's `FApexCarTelemetry` has them as "unknown" (`-1`), which is what the
+HUD data and the car actor already handle for an older server.
 
-Size: 20 cars are 880 bytes of rows plus ~25 bytes of frame header. At 30 Hz
-that is ~27 KB/s per viewer; 100 viewers ~22 Mbit/s, 1 000 ~220 Mbit/s.
+Size: 20 cars are 880 bytes of rows plus 21 bytes of frame header (902 bytes
+a datagram, `a_big_field_is_sent_in_parts`). At 30 Hz that is ~27 KB/s per
+viewer; 100 viewers ~22 Mbit/s, 1 000 ~220 Mbit/s.
 
 ### Events
 
@@ -137,39 +158,43 @@ exists:
 
 | Kind | Payload |
 |---|---|
-| `LapTiming` | the existing `LapTiming` body (sector and lap times, flags) |
-| `TrackSectors` | the existing body, once after the `Header` |
-| `SessionState` | lobby / countdown / racing / finished |
-| `Finish` | car index, position |
-| `Retired` | car index, reason |
-| `PitStop` | car index, entered / serviced / left |
-| `Contact` | car indices, closing speed (TV director's incident cue) |
+| 1 `LapTiming` | `[car_index, lap, sector, sector_time_ms, lap_time_ms, is_lap_end, valid, flags]`: the `LapTiming` message's own fields |
+| 2 `TrackSectors` | `[track_length_m, [boundaries_m...]]`, once after the `Header` |
+| 3 `SessionState` | `[state]` (lobby / countdown / racing / finished) |
+| 4 `Finish` | `[car_index, position]` |
+| 5 `Retired` | `[car_index, reason]` (1: damage) |
+| 6 `PitStop` | `[car_index, phase]` (0 entered the lane, 1 serviced, 2 left) |
+| 7 `Contact` | `[car_index, other, speed_cms]`: a car started colliding; `other` is 255 (the sim does not say what it hit) and the speed is the car's own at the moment (the TV director's incident cue) |
 
-A file stores every event; a viewer joining a live stream gets the session's
-`TrackSectors` and the `LapTiming` history of the current lap so the timing
-board starts filled.
+`BroadcastEncoder::observe` raises them from one tick's state to the next:
+the session's lap events, a finish position appearing, `damage.is_drivable`
+dropping, the pit lane's `in_lane` / `servicing` edges, `is_colliding`
+rising. A file stores every event; a viewer joining a live channel gets the
+`Header`, `Roster`, `Path`, `TrackSectors` and every `LapTiming` so far, as
+one TCP message, so the timing board starts filled.
 
 ### The file (`.apxs`)
 
 ```
-"APXS" magic, u16 file version
-Header                 (plain, so `info` and the client's catalog read it fast)
-Roster                 (plain)
-Block, Block, ...      (zlib, ~1 s of Frame / Event / Roster records each)
-Index                  (plain)
-u64 offset of Index    (trailer)
+"APXS" magic, u16 file version (big-endian)
+Header, Roster, Path, TrackSectors event      (plain, so `info` and the client's catalog read the first kilobytes)
+Block, Block, ...                             (zlib level 6, one second of ticks of Frame / Event / Roster records each)
+Index                                         (plain)
+u64 big-endian offset of the Index record     (trailer)
 ```
 
 A live stream is the same records without `Block` and `Index`. Writing a
 file is compressing the live sequence; playing a file is decompressing it
-back. Expected size: a grid start plus two laps at a 1:40 circuit with 20 cars
-at 30 Hz, ~5.5 MB of rows before zlib; a few MB on disk.
+back. Measured: a grid start plus two laps at Zandvoort with 16 GT3s at
+30 Hz is 260 s, 7 786 frames, 5.7 MB of records, **2.8 MB on disk**, rendered
+in 6 s in a release build.
 
 Determinism: the same render arguments and seed write a byte-identical file
-(no timestamps, no hash-map order), checked by a test like
-`tests/determinism_test.rs`.
+(no timestamps, no hash-map order; the session id and host id are seeded
+too), pinned by `a_seeded_render_is_byte_identical`. Every frame is a
+keyframe in v1, so the index holds no keyframe list.
 
-## 2. The render tool
+## 2. The render tool (`apexsim-replay`)
 
 A subcommand of the existing server bin, so it simulates with the server's
 own `GameSession`, physics and AI:
@@ -179,98 +204,124 @@ apexsim-replay render --track content/tracks/default/Zandvoort.yaml \
     --class GT3 | --car posh-gt3rs   --cars 20   --laps 2 \
     --weather sunny --time 13:00 [--air 22] [--wind 15 --wind-from 90] \
     --seed 7 | --seeds 10 --pick best \
-    --rate 30 --out build/showcase/Zandvoort.gt3.day.apxs
-apexsim-replay info  build/showcase/Zandvoort.gt3.day.apxs   # header, roster, CRCs, stats
+    --rate 30 --cars-dir content/cars/default --out build/showcase/Zandvoort.gt3.day.apxs
+apexsim-replay info  build/showcase/Zandvoort.gt3.day.apxs [--check]   # header, roster, CRCs, stats
 apexsim-replay convert out/promo/races/monza_rain.bin --rate 30 --out monza_rain.apxs
+apexsim-replay cut out/zandvoort.bin --from-s 330 --to-s 345 --out out/luyendyk.apxs
 ```
 
-- **Content.** The race starts on the grid with the countdown (the start is
-  the best part of a backdrop) and runs `--laps` from green, then a short
-  tail so the leader is seen taking the flag. `--from-tick` / `--to-tick`
-  cut a window instead.
+Run from the repo root (content paths are relative). `render` prints the
+seed, the score and `info`'s JSON; `info --check` prints the stream and a
+`stale` list.
+
+- **Content.** The race starts on the grid with the countdown (`--countdown`,
+  8 s: the start is the best part of a backdrop) and runs `--laps` from
+  green, then `--tail` (10 s) past the first car to take the flag, so the
+  leader is seen crossing it without the field trailing in for a minute.
+  `--from-tick` / `--to-tick` keep a window instead. `--max-seconds` (1800)
+  is the stop when nobody finishes.
 - **Field.** `--class` deals the class's cars as `game_session::class_field`
-  does; `--car` picks the host car and the field follows its class. Liveries
-  are dealt per model as in a live session. `--cars-dir` restricts the cars
-  (the promo pipeline's rule: shipped cars only, no AC imports).
+  does, with the class's first car by folder name as the host; `--car` picks
+  the host car and the field follows its class. Liveries are dealt per model
+  as in a live session. `--cars-dir` restricts the cars (the promo pipeline's
+  rule: `content/cars/default`, no AC imports). A circuit's grid may hold
+  fewer than `--cars` (Zandvoort seats 16).
 - **Sky.** Every `SessionConditions` field the create screen offers. The AI
   drove those conditions (wet grip is baked into the session's track), so the
-  sky travels in the `Header` and the client lights the scene from it.
-- **Seed picking.** `--seeds N --pick best` renders N seeds and keeps the one
-  with the best score: no retirements, least contact and off-road car-seconds,
-  most time with cars within a second of each other (the measures the AI
-  survey and `find` already compute). The chosen seed and its score are in
-  the `Header`, so a rebake is reproducible.
-- **Rate.** Recorded from the 240 Hz sim at `--rate` (default 30; 60 for
-  promo material).
+  sky travels in the `Header`, resolved (air, humidity, wind named in full),
+  and the client lights the scene from it.
+- **Seed picking.** `--seeds N` renders N seeds from `--seed` up and keeps the
+  one with the best `RaceScore::score`: car-seconds spent within a second of
+  the car ahead on the road count for it; contact (x2) and off-road
+  car-seconds and retirements (60 each) count against. The chosen seed and
+  its score are in the `Header`, so a rebake is reproducible.
+- **Rate.** Recorded from the 240 Hz sim at `--rate` (default 30).
 - **Freshness.** The `Header` carries the track's `source_crc` and every car's
   `content_crc`. `info --check` exits non-zero when the content on disk no
-  longer matches, which is how the pipeline decides to rebake.
+  longer matches (`check_stream`), which is how the pipeline decides to
+  rebake; a checksum of 0 (a converted replay) is not compared.
+- **`convert`** turns a replay (`.bin`) into a stream at `--rate`. A replay
+  holds no pit state, compound, damage or hybrid, so those rows are blank,
+  and its only events are state changes and finishes; the track YAML (found
+  by the stem, or `--track`) fills in the checksum, the path and the
+  sectors.
 
 ### Naming and where files live
 
 `<Stem>.<class>.<variant>.apxs`, variant a short name for the sky
 (`day`, `dusk`, `rain`, `night`). Rendered into `build/showcase/`
-(gitignored, like the track exports).
+(gitignored, like the track exports) from the list in `content/showcase.yml`
+(track, class, variants, seed; `scripts/lib/ApexShowcase.ps1` reads it):
 
-- `scripts/build_track_levels.ps1` gains a showcase stage after the export
-  (`-SkipShowcase`), rendering the default variant per circuit from a list in
-  `content/showcase.yml` (track, class, variants, seed) and only what is
-  missing or stale.
-- `scripts/initialize_content.ps1` gets the same stage.
+- `scripts/build_track_levels.ps1` has a showcase stage after the export
+  (`-SkipShowcase`), rendering only what is missing or stale by `info
+  --check`, honouring `-Track` and `-DryRun`.
+- `scripts/initialize_content.ps1` runs the same stage.
 - `build_game_standalone.ps1` / `build_release.ps1` copy the files to
-  `Game/Showcase/` (the client's local backdrop) and `Server/showcase/` (the
-  server's playlist), and ship `apexsim-replay.exe` in `Server/` so a modder
-  can render a custom track or class with the same command.
-- Imported tracks (`imported` marker) are rendered only on request, never by
-  the pipeline, like their exports.
+  `Game/Showcase/` (the client's local backdrop) and the release to
+  `Server/showcase/` (the server's playlist), and ship `apexsim-replay.exe`
+  in `Server/` so a modder can render a custom track or class with the same
+  command.
+- Imported tracks (`imported` marker) are never rendered by the pipeline,
+  like their exports; render one by hand.
 
-## 3. The server showcase endpoint
+## 3. The server showcase endpoint (`server/src/showcase.rs`, `game_loop/showcase.rs`)
 
 ### Configuration
 
 ```toml
 [showcase]
 enabled = true
-dir = "showcase"                     # relative to the server's working dir
-playlist = ["Zandvoort.gt3.day", "Spa.lmp2.dusk"]   # or ["*"]
+dir = "./showcase"                   # relative to the server's working dir; absent = no showcases
+playlist = ["*"]                     # file names without .apxs, in channel order; "*" is every file not named
 mode = "loop"                        # "loop": one file per channel, forever
-                                     # "rotate": next file in the playlist at each end
+                                     # "rotate": each channel moves on to the next file of the playlist at its end
 stream_divisor = 1                   # send every Nth frame of the file
 ```
 
-At startup the server reads every file's `Header` and `Roster` (a few KB
-each), drops a file whose track or cars it does not have or whose CRCs
-disagree with its content (logged), and lists the rest.
+`APEXSIM_SHOWCASE_DIR` and `APEXSIM_SHOWCASE_ENABLED` override. At startup
+the server reads every file's `Header` and `Roster`, drops a file whose
+track or cars it does not have or whose CRCs disagree with its content
+(logged, with "render it again"), and lists the rest
+(`a_file_that_does_not_match_the_content_is_left_out`).
 
 ### Messages
 
 | Direction | Message | Notes |
 |---|---|---|
 | C→S | `ListShowcases` | |
-| S→C | `Showcases { entries }` | per entry: showcase id, track id, class, sky summary, duration, viewers |
-| C→S | `SpectateShowcase { id: Option }` | none = the server's default (first in the playlist) |
-| S→C | `SpectatorJoined { stream_id, kind: Showcase }` then `Header`, `Roster`, `TrackSectors` | TCP |
-| S→C | `Frame` records | UDP, after the existing `UdpHandshake` |
-| S→C | `Event` records | TCP |
-| C→S | `LeaveSpectate` | also implied by joining or creating a session |
+| S→C | `Showcases { Entries }` | per channel: `Id`, `TrackId`, `TrackName`, `Class`, `Conditions`, `DurationS`, `Cars`, `Viewers` |
+| C→S | `SpectateShowcase { id: Option }` | none = the first channel; `Error 404` for an unknown one, `400` from inside a session |
+| S→C | `SpectatorJoined { StreamId, Kind: Showcase, ShowcaseId }`, then one `SpectatorRecord` holding `Header`, `Roster`, `Path`, `TrackSectors` and the `LapTiming` so far | TCP |
+| S→C | `Frame` records | UDP, each datagram one record body (no length, no envelope) once the existing `UdpHandshake` is done; TCP (droppable) before |
+| S→C | `SpectatorRecord` | TCP: `{"type": "SpectatorRecord", "data": bin}` with the records inside in the stream's own `[u32 length][body]` framing, so one message carries a run and the bytes read from the file are forwarded as they are |
+| C→S | `LeaveSpectate` | also implied by `CreateSession`, `JoinSession`, `JoinAsSpectator` and a disconnect |
 
-`LobbyState` gains `showcase_available: bool` so a client knows to ask.
-The HTTP side lists the channels at `/showcase` and counts viewers in
-`/metrics` (`apexsim_showcase_viewers{showcase=...}`).
+`LobbyState` gained `ShowcaseAvailable: bool` so a client knows to ask. The
+HTTP side lists the channels at `/showcase` (JSON) and counts viewers in
+`/metrics` (`apexsim_showcase_viewers{showcase=...}`,
+`apexsim_showcase_frames_sent`). Golden bytes: `cargo test
+showcase_wire_format -- --nocapture` → `ApexShowcaseGolden::*`.
 
 ### Channels
 
 A **channel** is one file playing on one clock, shared by all its viewers:
 viewers join mid-race, which is what a broadcast is. The game loop advances
-each channel with viewers once per tick (no thread per channel), finds the
-frames whose tick has come, and fans out the **record bytes from the file
-as they are**: a `Frame` is self-contained, so nothing is decoded or encoded
-on the way. A channel with no viewers stops and drops its decompressed
-blocks; the first viewer starts it from the beginning of the content (or the
-countdown, configurable).
+each channel with viewers once per tick (`ShowcaseState::advance`, no thread
+per channel), finds the records whose tick has come, and fans out the
+**record bytes from the file as they are**, the epoch stamped in: a `Frame`
+is self-contained, so nothing is decoded or encoded on the way. A channel
+with no viewers stops and drops its inflated records; the first viewer
+starts it from the beginning of the content, the file inflated on a
+blocking task off the loop and installed when it is in. A newcomer (or
+everyone, after a loop) gets the preamble and the timing so far as one TCP
+message before any frame of the epoch.
 
-At the end of the content the channel bumps its epoch and sends the `Header`
-again (`loop`) or the next file's `Header` and `Roster` (`rotate`).
+At the end of the content the channel takes the next epoch and sends the
+`Header` again (`loop`) or moves on to the next file, whose `Header` and
+`Roster` follow (`rotate`). `tests/showcase_test.rs` streams a channel to
+two in-process clients: shared clock, a late joiner's preamble, the loop's
+epoch, the implied leave and the HTTP side.
 
 Cost per viewer: one UDP send per frame of ~900 bytes. No physics, no AI, no
 per-viewer serialization.
@@ -284,112 +335,135 @@ so an older client still gets a backdrop, then goes.
 ### Later: live spectating
 
 `JoinAsSpectator` today sends the full racer telemetry. With the stream in
-place a spectator gets `SpectatorJoined { kind: Live }`, the session's
+place a spectator gets `SpectatorJoined { Kind: Live }`, the session's
 `Header`/`Roster`, and `Frame`s encoded from the live session once per
 broadcast tick (`broadcast.rs` already serializes once per session). The
-encoder (`BroadcastEncoder`: session + `Telemetry` → records) is the same one
-the render tool writes files with, and the live session can record to a file
-through it too. Out of scope for the first implementation; the format is
-designed for it now.
+encoder (`spectator::BroadcastEncoder`: session → records) is the one the
+render tool writes files with, and the live session can record to a file
+through it too. **Not done**; `SpectatorKind::Live` exists on the wire.
 
 ## 4. The client spectator player
 
 ### One player, two sources
 
 `UApexSpectatorSubsystem` (game instance, `ApexSim`) owns the playback; the
-record codec lives in `ApexSimNet` beside the protocol (`ApexSpectatorStream`,
-pure, unit-tested on golden bytes).
+record codec lives in `ApexSimNet` beside the protocol (`ApexSpectatorStream.h`:
+`FApexStreamFile`, `FApexSpectatorPlayer`, pure, unit-tested on the golden
+bytes).
 
-- **File source**: reads an `.apxs`, decompresses blocks on a worker thread,
-  hands records to the game thread ahead of the playhead. Clock: game time,
-  advanced by the subsystem, so a fixed-timestep recording run
-  (`-ApexReplayRecord`) stays in step.
-- **Net source**: `UApexNetSubsystem` routes `SpectatorJoined`, the stream
-  records and `Event`s to the subsystem instead of the session path.
-  `IsInSession()` stays false and the session delegates stay quiet, as the
-  demo session does today. Clock: arrival fitting, as the motion buffer does
-  for live telemetry.
+- **File source**: reads an `.apxs` whole and inflates it on the thread pool,
+  then releases records as the game's clock (delta time x the file's tick
+  rate) reaches their tick, so a fixed-timestep recording run stays in step.
+  At the end it applies the preamble again, which the player takes as a new
+  epoch; the cars jump back to the grid and the motion buffers restart.
+- **Net source**: `UApexNetSubsystem` routes `SpectatorJoined` and every
+  `SpectatorRecord` (TCP) and frame datagram (UDP, `PopSpectatorRecord`) to
+  `OnSpectatorRecords`, which the subsystem applies as they come. Clock:
+  arrival fitting, as the motion buffer does for live telemetry.
 
-### What the records drive
+Either way the records go through `FApexSpectatorPlayer` and out as a
+**backdrop feed** on the net subsystem (`BeginBackdropFeed`, `FeedBackdropRoster`,
+`FeedBackdropTelemetry`, `FeedBackdropSectors`, `FeedBackdropLapTiming`,
+`EndBackdropFeed`): `IsInDemoSession()` turns true and the roster, frames
+and timing go out through the same delegates a live session's do, so the
+race director, the TV director, the HUD data, the recorder and the engine
+sound see exactly what a demo session showed them. That is the one design
+change from the spec: the motion buffer needed no external clock, because
+the file source releases frames in real time and the buffer's arrival
+fitting handles it; `SetPlaybackPose` and `FApexReplayClip` stay for the
+frame-exact `-ApexReplay` path, which now reads `.apxs`.
 
 | Record | Becomes | Consumer, unchanged |
 |---|---|---|
-| `Header` | track stem/id, conditions, tick rate | `AApexRaceDirector` builds the track (`UApexTrackInstance`), `ApexSky::Derive` lights it |
-| `Roster` | `FApexSessionRoster` | the director spawns and dresses the cars (`Prefetch`, liveries) |
-| `Frame` row | `FApexCarTelemetry` per car (fields the row lacks set to unknown: tyres -1, fuel -1, ...) | each car's `FApexCarMotionBuffer`, so pose, wheels, lights, DRS flap, damage, engine sound work as in a live race |
-| `Event` | `LapTiming`, sectors, finishes | `FApexTimingBoard`, TV director incident cues |
-
-The motion buffer gains an optional external clock in ticks (the file
-source's), so one blending path serves both sources; `SetPlaybackPose`
-and `FApexReplayClip` retire once `-ApexReplay` reads `.apxs`.
+| `Header` | conditions (`BeginBackdropFeed`), track stem/id for the demo view | `AApexRaceDirector::BeginDemoView` builds the track, `ApexSky::Derive` lights it |
+| `Path` | the demo view's centerline | the TV director's trackside cameras (the lobby's centerline is the fallback) |
+| `Roster` | `FApexSessionRoster` (player ids `stream-<index>`) | the director spawns and dresses the cars (`Prefetch`, liveries) |
+| `Frame` row | `FApexCarTelemetry` per car (fields the row lacks set to unknown) | each car's `FApexCarMotionBuffer`: pose, wheels, lights, DRS flap, damage, engine sound |
+| `Event` | `LapTiming`, `TrackSectors` | `FApexTimingBoard` |
 
 ### The menu backdrop
 
-`UApexDemoModeSubsystem` picks a source in this order:
+`UApexDemoModeSubsystem` picks a source in this order (`EApexBackdropSource`):
 
-1. Connected and the server lists a showcase: `SpectateShowcase`.
+1. Connected and the lobby says `ShowcaseAvailable`: `ListShowcases`, then
+   `SpectateShowcase` on the channel of the pending track if there is one
+   (and this machine has its export), else another, never the same one twice
+   running. A connection under way, or a channel list asked for, is given
+   three seconds (`ServerGraceSeconds`) before the next source is tried, so
+   with a server the showcase wins the race against the local file; offline
+   the connect fails in under a second and nothing waits.
 2. Otherwise a local file from `Showcase/` beside `ApexSim.exe` (the repo's
-   `build/showcase` in the editor): the pending track and the last car class
-   if a file matches, else any. This needs no server, so the splash hold
-   (`IsDemoExpected` / `IsDemoReady`) can end on it even offline.
-3. Otherwise the static page backgrounds, as with `-ApexNoDemo`.
+   `build/showcase` in the editor; `-ApexShowcaseDir=` adds folders): the
+   pending track's file when one matches, else any
+   (`UApexDemoModeSubsystem::ChooseFile`, `ApexSim.Backdrop.ChooseFile`).
+   The files are scanned once at startup (`FApexStreamFile::ReadPreamble`,
+   the first kilobytes), so the splash hold (`IsDemoExpected`) can count on
+   one offline.
+3. Otherwise a `SessionKind::Demo` session, for a server that predates
+   showcases.
+4. Otherwise the static page backgrounds, as with `-ApexNoDemo`.
 
 The rest of the backdrop is unchanged: the TV director's camera, the root
 widget's fade and scrim, the world hidden behind car select and session
-create, the demo's engine volume scale, and `apexsim.demo.*` (MaxMinutes
-cycles to another file or showcase). The random sky roll goes: the sky is the
-file's, because the AI raced in it.
+create, the demo's engine volume scale, and `apexsim.demo.*` (`MaxMinutes`
+and a finished race move on to the next file or showcase). The random sky
+roll only applies to a demo session: a stream's sky is the file's, because
+the AI raced in it.
 
 A local file whose track `source_crc` or car CRCs do not match this
-machine's content is skipped and logged (cars would drive a road that has
-moved). A net stream that disagrees logs once, as a demo session does today.
+machine's catalog rows is skipped and logged (cars would drive a road that
+has moved); 0 on either side is unknown and passes. A net stream is the
+server's responsibility (it drops mismatching files at startup).
 
 ### Console and command line
 
-`-ApexShowcase=<file|id>`, `-ApexNoShowcase`, `apexsim.spectate.Info`
-(source, epoch, frames buffered, rate, drops), `apexsim.spectate.Next`.
+`-ApexShowcase=<file|id>` (a file on disk, else a channel id),
+`-ApexNoShowcase` (demo sessions only), `apexsim.spectate.Info` (source,
+epoch, rates, frames applied / dropped / incomplete, the file's clock),
+`apexsim.spectate.Next` and `apexsim.demo.Restart` (move on).
 
-## Implementation order
+## Implementation order (as built)
 
-| # | Step | Size |
+| # | Step | Where |
 |---|---|---|
-| 1 | Stream codec in Rust (`spectator.rs`: records, row, file blocks/index), golden bytes, determinism test | 2-3 days |
-| 2 | `apexsim-replay render` / `info` / `convert`, seed scoring | 1-2 days |
-| 3 | Client codec (`ApexSimNet`) on the golden bytes; file source; player into roster / motion buffer / timing board | 3-4 days |
-| 4 | Backdrop from a local file; splash hold; retire the sky roll | 1-2 days |
-| 5 | Pipeline: `content/showcase.yml`, `build_track_levels.ps1`, `initialize_content.ps1`, release copies, ship `apexsim-replay.exe` | 1 day |
-| 6 | Server `[showcase]`, channels, messages, `/showcase`, metrics; client net source; prefer showcase over the demo session | 2-3 days |
-| 7 | `-ApexReplay` and `cut` on `.apxs`, promo pipeline moved over; retire `.clip.json` | 1 day |
-| later | Live spectating through `BroadcastEncoder`; replays recorded as `.apxs` | |
-
-Steps 1-5 solve the startup problem without touching the server's runtime;
-step 6 moves the backdrop's source to the server.
+| 1 | Stream codec in Rust (`spectator.rs`: records, row, file blocks/index, encoder, scoring), golden bytes, determinism test | done |
+| 2 | `apexsim-replay render` / `info [--check]` / `convert`, seed scoring; `cut` to `.apxs` | done |
+| 3 | Client codec (`ApexSpectatorStream`) on the golden bytes; file source; player into roster / motion buffer / timing board via the backdrop feed | done |
+| 4 | Backdrop from a local file; splash hold; the sky roll kept for demo sessions only | done |
+| 5 | Pipeline: `content/showcase.yml`, `build_track_levels.ps1`, `initialize_content.ps1`, release copies, ship `apexsim-replay.exe` | done |
+| 6 | Server `[showcase]`, channels, messages, `/showcase`, metrics; client net source; showcase preferred over the demo session | done |
+| 7 | `-ApexReplay` and `cut` on `.apxs`, promo pipeline moved over; `.clip.json` still readable, no longer written | done |
+| later | Live spectating through `BroadcastEncoder`; replays recorded as `.apxs`; `convert` recovering lap timing from a replay | |
 
 ## Tests
 
-- Rust: record and row round-trips, golden bytes printed by
-  `cargo test spectator_wire_format -- --nocapture`, a seeded render written
-  twice byte-identical, `info --check` against changed content, a showcase
-  channel streamed to two in-process `TestClient`s (shared clock, loop bumps
-  the epoch, a late joiner gets `Header` and `Roster` first).
-- Client: `ApexSim.Spectator.Codec` (golden bytes, unknown trailing row bytes
-  skipped), `.File` (block decode, seek by index), `.Player` (stale epoch and
-  revision dropped, roster change mid-stream, parts), `.Backdrop` (source
-  order, CRC mismatch skips a file).
+- Rust: `spectator::tests` (record and row round-trips, the epoch patched in
+  place, parts, a file round trip with a seek, a newer writer's fields
+  skipped, the score), `replay_tools::tests` (a seeded render written twice
+  byte-identical, `check_stream` fresh and stale, a window, the best of two
+  seeds, a replay converted), `showcase::tests` (one clock for two viewers,
+  the loop's epoch, a late joiner's catch-up, the divisor, rotate, files
+  left out), `network.rs` `test_showcase_wire_format`, `metrics.rs`,
+  `tests/showcase_test.rs` (two in-process `TestClient`s on one channel).
+- Client: `ApexSim.Spectator.Codec` (golden bytes, unknown trailing row
+  bytes skipped), `.File` (block decode, seek by index, the whole file
+  through a player), `.Player` (stale epoch and revision dropped, roster
+  change mid-stream, parts, a framed run), `.Protocol` (the showcase
+  messages, a frame datagram, `ShowcaseAvailable`),
+  `ApexSim.Replay.Clip.Stream` (`-ApexReplay` on an `.apxs`),
+  `ApexSim.Backdrop.ChooseFile` (source order, CRC mismatch skips a file).
+- Seen running: the menu over a GT3 race at Zandvoort from a local file with
+  no server at all, and from the server's channel over UDP with
+  `apexsim_showcase_viewers` at 1 (2026-10-02).
 
-## Open questions
+## Open questions, answered
 
-1. **Replays as `.apxs`.** One format everywhere is cleaner, but `find`,
-   `pose` and `cut` read today's replay (full `Telemetry`, which also has
-   what a spectator does not need). Proposal: keep `replay.rs` for now and
-   `convert` from it; revisit with live spectating.
-2. **Showcase vs local file at startup.** Proposed: server showcase first when
-   connected (the server owner picks what the menu shows), local file
-   otherwise. The alternative, local first and the server never involved in
-   the backdrop, makes step 6 optional.
-3. **Frame rate.** 30 Hz in files and streams keeps a viewer at ~27 KB/s;
-   60 Hz matches live racing telemetry and the promo material. Proposed: 30
-   for showcase files, 60 for `convert`/promo, `stream_divisor` for live.
-4. **Variants per circuit.** One sky per circuit keeps the build short; three
-   (day, dusk, rain) give the backdrop variety at about 3x the render time and
-   disk.
+1. **Replays as `.apxs`.** Kept `replay.rs` for `find` / `pose`; `cut` and
+   `convert` write `.apxs`. Revisit with live spectating.
+2. **Showcase vs local file at startup.** Server showcase first when
+   connected (the server owner picks what the menu shows), with a short
+   grace for the connection, local file otherwise.
+3. **Frame rate.** 30 Hz for showcase files; `cut` keeps the replay's own
+   rate (60 for promo material); `stream_divisor` thins a channel.
+4. **Variants per circuit.** One per circuit in `content/showcase.yml` keeps
+   the build short; more variants are one line each.

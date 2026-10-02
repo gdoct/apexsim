@@ -1,4 +1,5 @@
 #include "ApexTestCommon.h"
+#include "Cars/ApexBlockCompress.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -295,6 +296,25 @@ bool FApexTrackDdsParseTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("two pixels of four bytes"), Texture.Mips[0].Num(), 8);
 		TestEqual(TEXT("blue first"), int32(Texture.Mips[0][0]), 10);
 		TestEqual(TEXT("opaque"), int32(Texture.Mips[0][3]), 255);
+	}
+
+	// The same at 4 x 4 is compressed: one BC1 block, its colour kept.
+	TArray<uint8> Rgb4 = Rgb;
+	Rgb4.SetNum(Rgb4.Num() - 6);
+	Rgb4[12] = 4;	 // height
+	Rgb4[16] = 4;	 // width
+	for (int32 i = 0; i < 16; ++i)
+	{
+		Rgb4.Append({10, 20, 30});
+	}
+	if (TestTrue(TEXT("4x4 rgb24 parses"), ApexDds::Parse(Rgb4, Texture, Error)))
+	{
+		TestTrue(TEXT("as BC1"), Texture.Format == PF_DXT1);
+		TestEqual(TEXT("one block"), Texture.Mips[0].Num(), 8);
+		uint8 Decoded[64];
+		ApexBc::DecodeBlock(Texture.Mips[0].GetData(), false, Decoded);
+		TestTrue(TEXT("blue near 10"), FMath::Abs(int32(Decoded[0]) - 10) <= 2);
+		TestTrue(TEXT("red near 30"), FMath::Abs(int32(Decoded[2]) - 30) <= 2);
 	}
 	return true;
 }

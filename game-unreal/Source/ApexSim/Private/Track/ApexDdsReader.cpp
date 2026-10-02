@@ -1,5 +1,7 @@
 #include "Track/ApexDdsReader.h"
 
+#include "Cars/ApexBlockCompress.h"
+
 namespace
 {
 	constexpr uint32 kFlagMipMapCount = 0x20000;
@@ -229,6 +231,13 @@ bool ApexDds::Parse(TConstArrayView<uint8> Bytes, FApexTrackTexture& Out, FStrin
 			}
 		}
 		Offset += SourceBytes;
+	}
+	if (SourceBpp)
+	{
+		// Four times the memory as it stands: compressed here, on the
+		// worker that reads the scene, like every other texture the game
+		// makes at runtime.
+		Texture.Format = ApexBc::CompressChain(Width, Height, Texture.Mips);
 	}
 	Out = MoveTemp(Texture);
 	return true;

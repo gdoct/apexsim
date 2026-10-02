@@ -1,0 +1,60 @@
+# Showcases: rendered AI races the menu plays behind its screens and the
+# server plays to clients (docs/SPECTATOR.md). Rendered into build/showcase/
+# as <track>.<class>.<variant>.apxs by scripts/build_track_levels.ps1 (and
+# initialize_content.ps1); only what is missing or stale is rendered, where
+# stale means `apexsim-replay info --check` says the track YAML or a car.toml
+# changed since the render. The same entry and seed write a byte-identical
+# file, so a rebake after a content change is reproducible.
+#
+# Read by scripts/lib/ApexShowcase.ps1 with a hand-rolled parser (PowerShell
+# has no YAML reader), so keep to this exact shape: top-level maps of
+# `key: value` and `key: { k: v, ... }`, a `showcases` list of one-line flow
+# maps, lists as `[a, b]`, strings quoted only when they hold a colon.
+#
+#   defaults   cars (grid size), laps (from green), seed; `seeds: N` renders
+#              N seeds from `seed` up and keeps the best
+#   variants   a short name for a sky: weather (sunny | cloudy | overcast |
+#              lightrain | heavyrain) and time (hh:mm), optionally air (°C),
+#              wind (km/h) and wind_from (degrees from the start straight)
+#   showcases  track (the YAML stem under content/tracks), class (as the
+#              car.toml spells it: GT3, LMP2, F1, Hypercar), variants (one
+#              file each); cars, laps, seed and seeds override the defaults
+#
+# An imported track (scripts/ac_import.py) is never rendered by the pipeline.
+defaults:
+  cars: 20
+  laps: 2
+  seed: 7
+variants:
+  day:   { weather: sunny, time: "13:00" }
+  dusk:  { weather: cloudy, time: "19:30" }
+  rain:  { weather: lightrain, time: "15:00" }
+  night: { weather: sunny, time: "22:30" }
+showcases:
+  - { track: Austin, class: F1, variants: [day] }
+  - { track: BrandsHatch, class: GT3, variants: [day] }
+  - { track: Budapest, class: F1, variants: [day] }
+  - { track: Catalunya, class: LMP2, variants: [day] }
+  - { track: Hockenheim, class: GT3, variants: [day] }
+  - { track: IMS, class: Hypercar, variants: [day] }
+  - { track: LeMans, class: Hypercar, variants: [dusk] }
+  - { track: Melbourne, class: Hypercar, variants: [day] }
+  - { track: MexicoCity, class: F1, variants: [day] }
+  - { track: Montreal, class: LMP2, variants: [day] }
+  - { track: Monza, class: F1, variants: [day] }
+  - { track: MoscowRaceway, class: LMP2, variants: [day] }
+  - { track: Nordschleife, class: GT3, variants: [day] }
+  - { track: Norisring, class: GT3, variants: [day] }
+  - { track: Nuerburgring, class: GT3, variants: [rain] }
+  - { track: Oschersleben, class: GT3, variants: [day] }
+  - { track: Sakhir, class: F1, variants: [night] }
+  - { track: SaoPaulo, class: F1, variants: [rain] }
+  - { track: Sepang, class: Hypercar, variants: [rain] }
+  - { track: Shanghai, class: LMP2, variants: [day] }
+  - { track: Silverstone, class: F1, variants: [day] }
+  - { track: Sochi, class: LMP2, variants: [day] }
+  - { track: Spa, class: LMP2, variants: [dusk] }
+  - { track: Spielberg, class: GT3, variants: [day] }
+  - { track: Suzuka, class: F1, variants: [day] }
+  - { track: YasMarina, class: Hypercar, variants: [dusk] }
+  - { track: Zandvoort, class: GT3, variants: [day] }

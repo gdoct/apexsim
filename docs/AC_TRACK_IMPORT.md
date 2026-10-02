@@ -304,8 +304,9 @@ This route needs real engine and pipeline work. In dependency order:
 2. **Compressed runtime textures.** The runtime builder creates textures
    from DDS files by copying their compressed blocks (BC1, BC3, BC5) straight
    into transient textures, with no decoding. That is what makes 300 MB of
-   AC textures cost about 300 MB rather than 1.2 GB. The car loader's
-   uncompressed BGRA8 path does not scale to a track.
+   AC textures cost about 300 MB rather than 1.2 GB. (The car loader
+   decoded to BGRA8 then; it now compresses to BC1/BC3 at load, and so
+   does the DDS reader for an uncompressed DDS.)
 3. **Scenery materials.** The runtime builder uses the car parents under
    `/Game/Materials/Car` (opaque, masked, translucent: two-sided, and the
    same parameter names) for the AC-textured materials, so no new cooked

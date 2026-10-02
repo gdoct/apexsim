@@ -144,6 +144,19 @@ pub enum ClientMessage {
     /// in their car, for a ghost car or a replay. Answered with `GhostLap`,
     /// empty when no record lap is stored.
     RequestGhost,
+    /// Asks which showcases the server plays (`crate::showcase`); answered
+    /// with `Showcases`.
+    ListShowcases,
+    /// Watch a showcase: a rendered race played in a loop, as a spectator
+    /// stream (`crate::spectator`). `id` names a channel from `Showcases`;
+    /// none is the server's first. Answered with `SpectatorJoined` and the
+    /// stream's records, or an `Error` when there is no such showcase.
+    SpectateShowcase {
+        #[serde(default)]
+        id: Option<String>,
+    },
+    /// Stop watching. Also implied by creating or joining a session.
+    LeaveSpectate,
     Disconnect,
 
     // UDP - Binds the sender's UDP address to the TCP connection that was
@@ -264,6 +277,131 @@ pub struct LobbyStateData {
     pub available_sessions: Vec<SessionSummary>,
     pub car_configs: Vec<CarConfigSummary>,
     pub track_configs: Vec<TrackConfigSummary>,
+    /// The server plays showcases (`SpectateShowcase`): a client in the menu
+    /// watches one instead of asking for a demo session. False from a server
+    /// that predates the field.
+    #[serde(default)]
+    pub showcase_available: bool,
+}
+
+/// What a spectator stream is of.
+#[repr(u8)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde_repr::Serialize_repr,
+    serde_repr::Deserialize_repr,
+    Default,
+)]
+pub enum SpectatorKind {
+    /// A rendered race played from a file.
+    #[default]
+    Showcase = 0,
+    /// A session being raced now (not sent yet).
+    Live = 1,
+}
+
+/// One showcase channel, as `Showcases` lists it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ShowcaseSummary {
+    /// What `SpectateShowcase` takes.
+    pub id: String,
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub track_id: TrackConfigId,
+    pub track_name: String,
+    /// The field's class as car.toml spells it (`GT3`, `F1`).
+    pub class: String,
+    pub conditions: SessionConditions,
+    /// Seconds of race before it starts over.
+    pub duration_s: f32,
+    pub cars: u8,
+    pub viewers: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ShowcasesData {
+    pub entries: Vec<ShowcaseSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SpectatorJoinedData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub stream_id: uuid::Uuid,
+    pub kind: SpectatorKind,
+    /// The channel joined (a showcase's id).
+    pub showcase_id: String,
+}
+
+/// A run of spectator stream records (`crate::spectator`) in the stream's
+/// own framing, `[u32 big-endian length][body]` each: MessagePack `bin` on
+/// the wire, so records read from a file are forwarded without being
+/// decoded, and a joining viewer's whole preamble is one message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordBytes(pub Vec<u8>);
+
+impl Serialize for RecordBytes {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for RecordBytes {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct BytesVisitor;
+        impl<'de> serde::de::Visitor<'de> for BytesVisitor {
+            type Value = RecordBytes;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a record's bytes")
+            }
+            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<RecordBytes, E> {
+                Ok(RecordBytes(v.to_vec()))
+            }
+            fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<RecordBytes, E> {
+                Ok(RecordBytes(v))
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<RecordBytes, A::Error> {
+                let mut out = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(byte) = seq.next_element::<u8>()? {
+                    out.push(byte);
+                }
+                Ok(RecordBytes(out))
+            }
+        }
+        deserializer.deserialize_bytes(BytesVisitor)
+    }
+}
+
+/// Stream records wrapped as the TCP message a client receives:
+/// `{"type": "SpectatorRecord", "data": bin}` with the framed records as
+/// the `bin`: the bytes `rmp_serde::to_vec_named` gives for
+/// `ServerMessage::SpectatorRecord`, built without a pass through serde.
+pub fn spectator_record_message<'a>(bodies: impl IntoIterator<Item = &'a [u8]>) -> Vec<u8> {
+    const HEAD: &[u8] = b"\x82\xA4type\xAFSpectatorRecord\xA4data";
+    let mut framed = Vec::new();
+    for body in bodies {
+        framed.extend_from_slice(&(body.len() as u32).to_be_bytes());
+        framed.extend_from_slice(body);
+    }
+    let mut out = Vec::with_capacity(HEAD.len() + 5 + framed.len());
+    out.extend_from_slice(HEAD);
+    rmp::encode::write_bin_len(&mut out, framed.len() as u32).expect("vec write");
+    out.extend_from_slice(&framed);
+    out
 }
 
 // --- Server to Client Messages ---
@@ -318,6 +456,19 @@ pub enum ServerMessage {
     // Sent once, right after `SessionJoined`.
     CarSetupSheet(crate::setup_sheet::CarSetupSheetData),
 
+    // TCP - The showcases the server plays, answering `ListShowcases`.
+    Showcases(ShowcasesData),
+
+    // TCP - A showcase was joined (`SpectateShowcase`). The stream's
+    // `Header`, `Roster`, `Path` and `TrackSectors` records follow.
+    SpectatorJoined(SpectatorJoinedData),
+
+    // TCP - Records of the spectator stream being watched, framed as the
+    // stream frames them: everything but frames, and frames too for a
+    // client with no UDP. Over UDP a frame is one record's body alone, with
+    // no length and no envelope.
+    SpectatorRecord(RecordBytes),
+
     // Full (named-encoding) telemetry. Used internally for replays; the wire
     // uses `TelemetryCompact` since protocol v2.
     Telemetry(Telemetry),
@@ -352,6 +503,9 @@ impl ServerMessage {
             // with no ghost at all.
             ServerMessage::GhostLap(_) => MessagePriority::Critical,
             ServerMessage::CarSetupSheet(_) => MessagePriority::Critical,
+            ServerMessage::Showcases(_) => MessagePriority::Critical,
+            ServerMessage::SpectatorJoined(_) => MessagePriority::Critical,
+            ServerMessage::SpectatorRecord(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -1412,6 +1566,103 @@ mod tests {
         }
     }
 
+    /// Golden bytes for the showcase messages (`ApexGoldenBlobs.h`):
+    /// `cargo test showcase_wire_format -- --nocapture`.
+    #[test]
+    fn test_showcase_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let list = rmp_serde::to_vec_named(&ClientMessage::ListShowcases).unwrap();
+        let spectate = rmp_serde::to_vec_named(&ClientMessage::SpectateShowcase {
+            id: Some("Zandvoort.gt3.day".into()),
+        })
+        .unwrap();
+        let spectate_any =
+            rmp_serde::to_vec_named(&ClientMessage::SpectateShowcase { id: None }).unwrap();
+        let leave = rmp_serde::to_vec_named(&ClientMessage::LeaveSpectate).unwrap();
+        println!("C_ListShowcases: {}", hex(&list));
+        println!("C_SpectateShowcase: {}", hex(&spectate));
+        println!("C_SpectateShowcaseAny: {}", hex(&spectate_any));
+        println!("C_LeaveSpectate: {}", hex(&leave));
+        for bytes in [&list, &spectate, &spectate_any, &leave] {
+            let _: ClientMessage = rmp_serde::from_slice(bytes).unwrap();
+        }
+        // An older client's message, without the id, reads as "any".
+        let bare: ClientMessage =
+            rmp_serde::from_slice(b"\x82\xA4type\xB0SpectateShowcase\xA4data\x80").unwrap();
+        assert!(matches!(bare, ClientMessage::SpectateShowcase { id: None }));
+
+        let showcases = ServerMessage::Showcases(ShowcasesData {
+            entries: vec![ShowcaseSummary {
+                id: "Zandvoort.gt3.day".into(),
+                track_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+                track_name: "Zandervoort".into(),
+                class: "GT3".into(),
+                conditions: SessionConditions {
+                    weather: Weather::Cloudy,
+                    time_of_day_minutes: 16 * 60 + 30,
+                    air_temp_c: Some(19),
+                    humidity_pct: Some(60),
+                    wind_kph: Some(12),
+                    wind_from_deg: Some(90),
+                },
+                duration_s: 259.5,
+                cars: 16,
+                viewers: 2,
+            }],
+        });
+        let joined = ServerMessage::SpectatorJoined(SpectatorJoinedData {
+            stream_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            kind: SpectatorKind::Showcase,
+            showcase_id: "Zandvoort.gt3.day".into(),
+        });
+        // Two tiny records in one message: the stream's own framing inside.
+        let bodies: [&[u8]; 2] = [&[0x92, 0x07, 0xC0], &[0x93, 0x08, 0xC0, 0x01]];
+        let record = spectator_record_message(bodies);
+        let showcases_bytes = rmp_serde::to_vec_named(&showcases).unwrap();
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_Showcases: {}", hex(&showcases_bytes));
+        println!("S_SpectatorJoined: {}", hex(&joined_bytes));
+        println!("S_SpectatorRecord: {}", hex(&record));
+
+        // The hand-built envelope is what serde would have written.
+        let mut framed = Vec::new();
+        for body in bodies {
+            framed.extend_from_slice(&(body.len() as u32).to_be_bytes());
+            framed.extend_from_slice(body);
+        }
+        assert_eq!(
+            record,
+            rmp_serde::to_vec_named(&ServerMessage::SpectatorRecord(RecordBytes(framed.clone())))
+                .unwrap()
+        );
+        let back: ServerMessage = rmp_serde::from_slice(&record).unwrap();
+        let ServerMessage::SpectatorRecord(run) = back else {
+            panic!("not a record");
+        };
+        assert_eq!(run.0, framed);
+        assert_eq!(
+            crate::spectator::split_framed(&run.0).unwrap(),
+            bodies.iter().map(|b| b.to_vec()).collect::<Vec<_>>()
+        );
+        let back: ServerMessage = rmp_serde::from_slice(&showcases_bytes).unwrap();
+        let ServerMessage::Showcases(data) = back else {
+            panic!("not the list");
+        };
+        assert_eq!(data.entries[0].viewers, 2);
+        assert_eq!(data.entries[0].conditions.wind_from_deg, Some(90));
+        let back: ServerMessage = rmp_serde::from_slice(&joined_bytes).unwrap();
+        assert!(
+            matches!(back, ServerMessage::SpectatorJoined(d) if d.kind == SpectatorKind::Showcase)
+        );
+        let text = String::from_utf8_lossy(&showcases_bytes);
+        assert!(text.contains("TrackName") && text.contains("Viewers"));
+    }
     /// The lobby summaries carry each content file's checksum, and a client
     /// that predates the field must still read the message.
     #[test]
@@ -1444,6 +1695,7 @@ mod tests {
                 content_crc: 0xDEAD_BEEF,
                 centerline: vec![],
             }],
+            showcase_available: true,
         });
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         let text = String::from_utf8_lossy(&bytes);

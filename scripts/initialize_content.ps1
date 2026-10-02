@@ -23,6 +23,13 @@
            the game builds each circuit from its export when it is raced,
            with whatever props and ground textures /Game holds then, so an
            import in stage 3 or 5 needs no rebake.
+        7. Showcases: apexsim-replay render for every showcase in
+           content/showcase.yml (a rendered AI race the menu plays behind
+           its screens and the server plays to clients, docs/SPECTATOR.md)
+           that build/showcase lacks, or that `apexsim-replay info --check`
+           calls stale because its track YAML or a car.toml changed since
+           it was rendered. About 6 s each; an imported track is never
+           rendered here.
 
     Cars need no stage: the game builds each from content/cars and
     content/wheels when it is drawn (docs/RUNTIME_CONTENT_LOADING.md). The
@@ -73,6 +80,7 @@ $TrackMats   = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
 $CarMats     = Join-Path $RepoRoot 'game-unreal\Content\Materials\Car'
 $GroundPngs  = Join-Path $RepoRoot 'content\textures\ground'
 $ServerExe   = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
+$ShowcaseDir = Join-Path $RepoRoot 'build\showcase'
 
 # Must match bake_ground_textures.py and ApexGroundTexImport.
 $GroundSets  = 'asphalt', 'grass', 'gravel', 'sand', 'concrete', 'astroturf', 'kerb'
@@ -82,6 +90,7 @@ $Sidecars    = 'ground', 'curbs', 'walls', 'road'
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
 
 function Write-Step {
     param([string]$Message)
@@ -144,7 +153,13 @@ $missingGround = @()
 foreach ($set in $GroundSets) {
     foreach ($map in $GroundMaps) {
         if (-not (Test-Path (Join-Path $GroundPngs "${set}_$map.png"))) { $missingPngs += "${set}_$map" }
-        if (-not (Test-Path (Join-Path $GameContent "Ground\T_ground_${set}_$map.uasset"))) {
+        $groundAsset = Join-Path $GameContent "Ground\T_ground_${set}_$map.uasset"
+        if (-not (Test-Path $groundAsset)) {
+            $missingGround += "${set}_$map"
+        } elseif ($map -eq 'rough' -and (Select-String -Path $groundAsset -Pattern 'TC_Grayscale' -SimpleMatch -Quiet)) {
+            # Imported before the roughness maps became BC4 (TC_Alpha): an
+            # uncompressed G8 map at twice the size. Re-importing re-bakes
+            # the base material for the new sampler type by itself.
             $missingGround += "${set}_$map"
         }
     }
@@ -194,11 +209,18 @@ $missingMaterials = @(
         -not (Test-Path (Join-Path $CarMats "$_.uasset"))
     }))
 
+# The showcases content\showcase.yml asks for: missing, or stale by the
+# render tool's own check (skipped, with every existing file counted as
+# unchecked, until the tool is built in stage 2).
+$showcasePlan = @(Get-ApexShowcasePlan -RepoRoot $RepoRoot)
+$showcaseWork = @(Select-ApexShowcaseWork -Plan $showcasePlan)
+$showcaseUnchecked = @($showcasePlan | Where-Object { $_.Status -eq 'unchecked' })
+
 $splash = Join-Path $GameContent 'Splash\Splash.bmp'
 
 Write-Detail ("cars:            " + $(if ($carProblems) { Format-List $carProblems } else { 'ok (built by the game)' }))
 Write-Detail ("ground PNGs:     " + $(if ($missingPngs) { "$($missingPngs.Count) missing" } else { 'ok' }))
-Write-Detail ("ground textures: " + $(if ($missingGround) { "$($missingGround.Count) missing" } else { 'ok' }))
+Write-Detail ("ground textures: " + $(if ($missingGround) { "$($missingGround.Count) missing or stale" } else { 'ok' }))
 Write-Detail ("materials:       " + $(if ($missingMaterials) { Format-List $missingMaterials } else { 'ok' }))
 Write-Detail ("props:           " + $(if ($missingProps) { Format-List $missingProps } else { 'ok' }))
 Write-Detail ("tracks:          " + $(if ($missingTracks) { Format-List $missingTracks } else { 'ok' }))
@@ -213,6 +235,11 @@ if ($importedTracks.Count -gt 0) {
             Write-Warning "$($missing.BaseName) was imported but its export or road mesh is missing; run scripts/ac_import.py on its AC folder again"
         }
     }
+}
+Write-Detail ("showcases:       " + $(if ($showcaseWork) { Format-List @($showcaseWork | ForEach-Object { "$($_.Name) ($($_.Status))" }) }
+    elseif ($showcaseUnchecked) { "$($showcaseUnchecked.Count) there, not checked (no apexsim-replay.exe yet)" } else { 'ok' }))
+foreach ($row in $showcasePlan | Where-Object { $_.Status -eq 'no-track' }) {
+    Write-Warning "content\showcase.yml names $($row.Track), which is not under content\tracks"
 }
 Write-Detail ("server:          " + $(if (Test-Path $ServerExe) { 'ok' } else { 'not built' }))
 if (-not (Test-Path $splash)) {
@@ -235,6 +262,10 @@ $doProps   = $Force -or $missingProps.Count -gt 0
 $allTracks = $Force
 $tracks    = @(if ($allTracks) { $trackStems } else { $missingTracks })
 $doTracks  = $tracks.Count -gt 0
+# -Force re-renders every showcase (the same seed writes the same bytes, so
+# it only changes what the content changed under).
+$showcases = @(if ($Force) { Select-ApexShowcaseWork -Plan $showcasePlan -Force } else { $showcaseWork })
+$doShowcase = $showcases.Count -gt 0
 $needUnreal = $doGround -or $doMats -or $doProps
 
 $plan = [Collections.Generic.List[string]]::new()
@@ -245,6 +276,7 @@ if ($doGround)  { $plan.Add('import the ground textures') }
 if ($doMats)    { $plan.Add('bake the track and car materials') }
 if ($doProps)   { $plan.Add('import the prop kit') }
 if ($doTracks)  { $plan.Add($(if ($allTracks) { 'dress and bake every track, with previews' } else { "dress and bake, with previews: $(Format-List $tracks)" })) }
+if ($doShowcase) { $plan.Add($(if ($Force) { "render every showcase ($($showcases.Count))" } else { "render the showcases: $(Format-List @($showcases | ForEach-Object { $_.Name }))" })) }
 
 if ($plan.Count -eq 0) {
     Write-Step 'Nothing is missing'
@@ -263,7 +295,7 @@ if ($DryRun) {
 # ---------------------------------------------------------------------------
 
 $problems = [Collections.Generic.List[string]]::new()
-if (($doServer -or $doTracks) -and -not (Test-Command 'cargo')) {
+if (($doServer -or $doTracks -or $doShowcase) -and -not (Test-Command 'cargo')) {
     $problems.Add('cargo is not on PATH (install Rust)')
 }
 if ($doPngs -or $doTracks) {
@@ -346,9 +378,18 @@ if ($doProps) {
 if ($doTracks) {
     Write-Step 'Baking the tracks'
     # The materials were seen to above; this is Rust and Python only.
-    $trackArgs = @{ Release = $true; SkipMaterials = $true }
+    # The showcases are this script's own stage below, where -Force reaches them.
+    $trackArgs = @{ Release = $true; SkipMaterials = $true; SkipShowcase = $true }
     if (-not $allTracks) { $trackArgs.Track = $tracks }
     & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
+}
+
+if ($doShowcase) {
+    Write-Step "Rendering the showcases into $ShowcaseDir"
+    # The tool is built with the server (stage 2); Start-ApexShowcaseRender
+    # builds it by itself when it is still missing.
+    $rendered = Start-ApexShowcaseRender -RepoRoot $RepoRoot -Rows $showcases
+    Write-Detail "rendered $rendered showcase(s)"
 }
 
 $stopwatch.Stop()

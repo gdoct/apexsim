@@ -17,6 +17,48 @@ pub struct ServerConfig {
     pub records: RecordsSettings,
     #[serde(default)]
     pub physics: PhysicsSettings,
+    #[serde(default)]
+    pub showcase: ShowcaseSettings,
+}
+
+/// What a showcase channel does when its file ends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ShowcaseMode {
+    /// One file per channel, forever.
+    Loop,
+    /// The next file of the playlist at each end.
+    Rotate,
+}
+
+/// Rendered races the server plays to clients sitting in the menu
+/// (`crate::showcase`, docs/SPECTATOR.md): a file read and a fan-out in
+/// place of a simulated demo race per client.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ShowcaseSettings {
+    pub enabled: bool,
+    /// Folder of `.apxs` files, relative to the working directory. A folder
+    /// that is not there is no showcase, not an error.
+    pub dir: String,
+    /// File names without `.apxs`, in channel order; `"*"` is every file
+    /// not named. The first is what a client gets when it asks for none.
+    pub playlist: Vec<String>,
+    pub mode: ShowcaseMode,
+    /// Send every Nth frame of a file (1 = all of them).
+    pub stream_divisor: u16,
+}
+
+impl Default for ShowcaseSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            dir: "./showcase".to_string(),
+            playlist: vec!["*".to_string()],
+            mode: ShowcaseMode::Loop,
+            stream_divisor: 1,
+        }
+    }
 }
 
 /// How the sim finds the surface under a wheel (`docs/ROAD_MESH.md`).
@@ -226,6 +268,7 @@ impl Default for ServerConfig {
             auth: AuthSettings::default(),
             records: RecordsSettings::default(),
             physics: PhysicsSettings::default(),
+            showcase: ShowcaseSettings::default(),
         }
     }
 }
@@ -327,6 +370,8 @@ impl ServerConfig {
             "APEXSIM_PHYSICS_ROAD_CONTACT",
             &mut self.physics.road_contact,
         );
+        env_parse("APEXSIM_SHOWCASE_ENABLED", &mut self.showcase.enabled);
+        env_string("APEXSIM_SHOWCASE_DIR", &mut self.showcase.dir);
     }
 
     /// Sanity-check the configuration. Returns all problems found.
@@ -341,6 +386,9 @@ impl ServerConfig {
         }
         if self.server.max_sessions == 0 {
             errors.push("server.max_sessions must be at least 1".to_string());
+        }
+        if self.showcase.stream_divisor == 0 {
+            errors.push("showcase.stream_divisor must be at least 1".to_string());
         }
         for (name, bind) in [
             ("network.tcp_bind", &self.network.tcp_bind),

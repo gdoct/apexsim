@@ -172,7 +172,123 @@ void UApexNetSubsystem::Disconnect()
 	PlayerId.Reset();
 	CurrentSessionId.Reset();
 	ResetDemoSession();
+	ResetSpectate();
 	SetConnectionState(EApexConnectionState::Disconnected, TEXT("Disconnected"));
+}
+
+void UApexNetSubsystem::ListShowcases()
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> ListShowcases"));
+	SendPayload(ApexProtocol::EncodeListShowcases());
+}
+
+void UApexNetSubsystem::SpectateShowcase(const FString& Id)
+{
+	if (!IsAuthenticated() || (!CurrentSessionId.IsEmpty() && !bInDemoSession))
+	{
+		return;
+	}
+	// One backdrop at a time: the server's demo session goes first.
+	LeaveDemoSession();
+	UE_LOG(LogApexSimNet, Log, TEXT("-> SpectateShowcase %s"), Id.IsEmpty() ? TEXT("(first)") : *Id);
+	bSpectateRequested = true;
+	bSpectating = false;
+	SendPayload(ApexProtocol::EncodeSpectateShowcase(Id));
+}
+
+void UApexNetSubsystem::LeaveSpectate()
+{
+	if (!bSpectating && !bSpectateRequested)
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> LeaveSpectate"));
+	if (Connection && Connection->IsConnected())
+	{
+		SendPayload(ApexProtocol::EncodeLeaveSpectate());
+	}
+	ResetSpectate();
+}
+
+void UApexNetSubsystem::ResetSpectate()
+{
+	bSpectating = false;
+	bSpectateRequested = false;
+	if (UdpConnection)
+	{
+		UdpConnection->DiscardQueuedSpectatorRecords();
+	}
+}
+
+void UApexNetSubsystem::BeginBackdropFeed(const FApexSessionConditions& Conditions)
+{
+	if (bBackdropFeed)
+	{
+		EndBackdropFeed();
+	}
+	bBackdropFeed = true;
+	DemoSessionState = EApexSessionState::Lobby;
+	CurrentConditions = Conditions;
+	CachedRoster = FApexSessionRoster();
+	ClearLapTiming();
+	UE_LOG(LogApexSimNet, Log, TEXT("Backdrop feed begins (%s)"), *Conditions.Describe());
+	OnDemoSessionChanged.Broadcast(true);
+}
+
+void UApexNetSubsystem::FeedBackdropRoster(const FApexSessionRoster& Roster)
+{
+	if (!bBackdropFeed)
+	{
+		return;
+	}
+	CachedRoster = Roster;
+	OnSessionRosterUpdated.Broadcast(CachedRoster);
+}
+
+void UApexNetSubsystem::FeedBackdropTelemetry(const FApexTelemetryFrame& Frame)
+{
+	if (!bBackdropFeed)
+	{
+		return;
+	}
+	LatestTelemetry = Frame;
+	DemoSessionState = Frame.SessionState;
+	OnTelemetry.Broadcast(LatestTelemetry);
+}
+
+void UApexNetSubsystem::FeedBackdropSectors(const FApexTrackSectors& Sectors)
+{
+	if (!bBackdropFeed)
+	{
+		return;
+	}
+	CachedSectors = Sectors;
+	TimingBoard.Reset(CachedSectors.SectorCount());
+}
+
+void UApexNetSubsystem::FeedBackdropLapTiming(const FApexLapTiming& Timing)
+{
+	if (!bBackdropFeed)
+	{
+		return;
+	}
+	TimingBoard.Apply(Timing);
+	OnLapTiming.Broadcast(Timing);
+}
+
+void UApexNetSubsystem::EndBackdropFeed()
+{
+	if (!bBackdropFeed)
+	{
+		return;
+	}
+	bBackdropFeed = false;
+	DemoSessionState = EApexSessionState::Lobby;
+	CurrentConditions = FApexSessionConditions();
+	CachedRoster = FApexSessionRoster();
+	ClearLapTiming();
+	UE_LOG(LogApexSimNet, Log, TEXT("Backdrop feed ends"));
+	OnDemoSessionChanged.Broadcast(false);
 }
 
 void UApexNetSubsystem::SendPayload(TArray<uint8>&& Payload)
@@ -214,8 +330,10 @@ void UApexNetSubsystem::CreateSession(
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d locked_assists=%d conditions=%s"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit, AllowedAssists.CountLocked(), *Conditions.Describe());
-	// The server holds one session per player: the menu's demo goes first.
+	// The server holds one session per player: the menu's demo goes first,
+	// and the server takes a showcase viewer off their channel by itself.
 	LeaveDemoSession();
+	ResetSpectate();
 	bSessionRequestPending = true;
 	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeCreateSession(
@@ -232,6 +350,7 @@ void UApexNetSubsystem::JoinSession(const FString& SessionId)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> JoinSession %s"), *SessionId);
 	LeaveDemoSession();
+	ResetSpectate();
 	bSessionRequestPending = true;
 	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeJoinSession(SessionId));
@@ -241,6 +360,7 @@ void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> JoinAsSpectator %s"), *SessionId);
 	LeaveDemoSession();
+	ResetSpectate();
 	bSessionRequestPending = true;
 	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeJoinAsSpectator(SessionId));
@@ -496,6 +616,7 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		PlayerId.Reset();
 		CurrentSessionId.Reset();
 		ResetDemoSession();
+		ResetSpectate();
 
 		if (bAuthRejected)
 		{
@@ -560,6 +681,17 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		{
 			++DriverFeedbackSerial;
 			DriverFeedbackTime = FPlatformTime::Seconds();
+		}
+
+		// Spectator stream frames, in arrival order: the player (not this
+		// subsystem) decides which epoch they belong to.
+		TArray<uint8> Records;
+		while (UdpConnection->PopSpectatorRecord(Records))
+		{
+			if (bSpectating)
+			{
+				OnSpectatorRecords.Broadcast(Records);
+			}
 		}
 
 		// Drain to the newest frame. Telemetry is a snapshot, not a stream of
@@ -794,6 +926,13 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::Error:
+		if (bSpectateRequested && !bSessionRequestPending && !bDemoRequested)
+		{
+			UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d for the showcase: %s"), Message.ErrorCode, *Message.Reason);
+			bSpectateRequested = false;
+			OnSpectatorJoined.Broadcast(FString(), FString());
+			break;
+		}
 		if (bDemoRequested && !bSessionRequestPending)
 		{
 			// Errors carry no request id; one that lands while only a demo is
@@ -865,6 +1004,37 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- GhostLap %d sample(s), %d ms"),
 			CachedGhostLap.Samples.Num(), CachedGhostLap.LapTimeMs);
 		OnGhostLap.Broadcast(CachedGhostLap);
+		break;
+
+	case EApexServerMessageType::Showcases:
+		CachedShowcases = Message.Showcases;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- Showcases %d channel(s)"), CachedShowcases.Num());
+		OnShowcases.Broadcast(CachedShowcases);
+		break;
+
+	case EApexServerMessageType::SpectatorJoined:
+		if (!bSpectateRequested)
+		{
+			// Withdrawn while in flight; the LeaveSpectate sent then takes
+			// the server back out of it.
+			UE_LOG(LogApexSimNet, Log, TEXT("<- SpectatorJoined (already withdrawn) %s"), *Message.ShowcaseId);
+			break;
+		}
+		bSpectateRequested = false;
+		bSpectating = true;
+		if (UdpConnection)
+		{
+			UdpConnection->DiscardQueuedSpectatorRecords();
+		}
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SpectatorJoined showcase %s stream %s"), *Message.ShowcaseId, *Message.StreamId);
+		OnSpectatorJoined.Broadcast(Message.StreamId, Message.ShowcaseId);
+		break;
+
+	case EApexServerMessageType::SpectatorRecord:
+		if (bSpectating)
+		{
+			OnSpectatorRecords.Broadcast(Message.SpectatorRecords);
+		}
 		break;
 
 	case EApexServerMessageType::CarSetupSheet:

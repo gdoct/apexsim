@@ -59,6 +59,11 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres = false);
 	/** Asks for the trace of the driver's record lap here, answered with GhostLap. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
+	/** Asks which showcases the server plays; answered with Showcases. */
+	APEXSIMNET_API TArray<uint8> EncodeListShowcases();
+	/** Watch a showcase channel (empty: the server's first); answered with SpectatorJoined and the stream. */
+	APEXSIMNET_API TArray<uint8> EncodeSpectateShowcase(const FString& Id);
+	APEXSIMNET_API TArray<uint8> EncodeLeaveSpectate();
 
 	// --- Client -> server over UDP -------------------------------------------
 	// Sent as bare datagrams: no length prefix, unlike the TCP stream. The
@@ -83,11 +88,13 @@ namespace ApexProtocol
 	/**
 	 * Decodes one UDP datagram.
 	 *
-	 * UDP carries two different encodings: `UdpHandshakeAck` arrives named (a
-	 * `{"type": ...}` map, same as TCP) while `TelemetryCompact` and
+	 * UDP carries three different encodings: `UdpHandshakeAck` arrives named (a
+	 * `{"type": ...}` map, same as TCP), `TelemetryCompact` and
 	 * `DriverFeedback` arrive positional (a `["TelemetryCompact", [...]]`
-	 * array). This dispatches on the leading format byte and hands off to the
-	 * right decoder.
+	 * array), and a spectator stream frame is a bare record body (an array
+	 * opening on a small integer, ApexSpectatorStream.h), which comes back as
+	 * `SpectatorRecord` with the body framed in `SpectatorRecords`. This
+	 * dispatches on the leading bytes and hands off to the right decoder.
 	 */
 	APEXSIMNET_API bool DecodeUdpMessage(
 		TArrayView<const uint8> Payload,

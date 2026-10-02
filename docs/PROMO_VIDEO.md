@@ -10,7 +10,7 @@ scripts/promo/shots.yml ──make_clips.py──▶ out/promo/clips/*.mp4 ─�
           │                    ├─ apexsim-replay simulate   headless AI race       -> out/promo/races/<race>.bin
           │                    ├─ apexsim-replay find       where the field is     -> the shot's window
           │                    ├─ apexsim-replay pose       where the camera stands
-          │                    ├─ apexsim-replay cut        a few seconds of it    -> out/promo/cuts/<id>.clip.json
+          │                    ├─ apexsim-replay cut        a few seconds of it    -> out/promo/cuts/<id>.apxs
           │                    ├─ ApexSim -ApexReplay=...   plays + records        -> out/promo/frames/<id>/frame_*.png
           │                    └─ ffmpeg                    frames -> clip
 ```
@@ -115,13 +115,13 @@ $R simulate --track content/tracks/default/Zandvoort.yaml --car yotota-lmp2 --ai
    --weather sunny --time 19:10 --countdown 7 --seed 1 --out out/zandvoort.bin
 $R info out/zandvoort.bin                  # laps, finish order, start and finish ticks
 $R find out/zandvoort.bin --corner Luyendyk --before 300 --after 150 --min-cars 3 --last-laps 1
-$R cut  out/zandvoort.bin --from-s 330 --to-s 345 --out out/luyendyk.clip.json
+$R cut  out/zandvoort.bin --from-s 330 --to-s 345 --out out/luyendyk.apxs
 $R pose --track content/tracks/default/Zandvoort.yaml --corner Luyendyk --offset 40 \
    --lateral 28 --side outside --height 8 --look-offset -30 --look-height 1
 ```
 
 ```
-UnrealEditor.exe game-unreal/ApexSim.uproject -game -ApexReplay=out/luyendyk.clip.json
+UnrealEditor.exe game-unreal/ApexSim.uproject -game -ApexReplay=out/luyendyk.apxs
     -ApexReplayCam=pan -ApexCameraLookAt=<from pose> -ApexReplayFollow=nearest -ApexReplayFrameWidth=20
     [-ApexReplayRecord=out/frames/luyendyk -ApexReplayFps=60 -ApexReplayRes=1920x1080 -nosound]
 ```
@@ -137,7 +137,7 @@ Every client switch is listed in `ApexReplaySubsystem.h`:
 ## Formats
 
 - **Replay (`.bin`).** This is the server's own replay format (`replay.rs`), version 2. Its header adds the conditions, the start tick, the track stem and the lap length. A version 1 file still reads.
-- **Clip (`.clip.json`).** This is `replay_tools::ClipFile`. Every frame lists every car in roster order as 16 numbers: position, yaw, pitch, roll, speed, throttle, brake, steering, gear, rpm, lap, station, on-track and finish position. The client (`FApexReplayClip`) blends between frames by game time: angles the short way round, and the station across the line. It never blends across a jump of more than 50 m.
+- **Clip (`.apxs`).** A spectator stream (docs/SPECTATOR.md, `server/src/spectator.rs`): the same format the menu backdrop and the server's showcase play, cut at the replay's own frame rate. The client (`FApexReplayClip::LoadFromStream`) reads every frame into a table of 16 numbers per car in roster order — position, yaw, pitch, roll, speed, throttle, brake, steering, gear, rpm, lap, station, on-track and finish position — and blends between frames by game time: angles the short way round, and the station across the line. It never blends across a jump of more than 50 m. The older JSON clip (`replay_tools::ClipFile`, `cut ... --out x.clip.json`) is still read.
 
 ## Known limits
 

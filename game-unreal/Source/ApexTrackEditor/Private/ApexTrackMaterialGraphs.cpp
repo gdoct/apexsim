@@ -36,6 +36,7 @@
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionSign.h"
 #include "Materials/MaterialExpressionSubtract.h"
+#include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionTransform.h"
@@ -432,7 +433,7 @@ namespace
 			// instance may only swap a map for one of the same class. That is
 			// what the importer's fixed per-suffix settings are for: every
 			// `_col` is sRGB colour, every `_nrm` a normal map and every
-			// `_rough` grayscale, on every set.
+			// `_rough` single-channel BC4, on every set.
 			auto SampleMap = [&](const TCHAR* Name, UTexture* Texture, UMaterialExpression* Coords) {
 				UMaterialExpressionTextureSampleParameter2D* Sample =
 					AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
@@ -1224,6 +1225,31 @@ namespace
 	{
 		return FPackageName::DoesPackageExist(ApexTrackMaterials::PackageName(Name));
 	}
+
+	/**
+	 * A ground map the base samples as another class than the map now is:
+	 * the roughness maps went from G8 (`TC_Grayscale`) to BC4 (`TC_Alpha`),
+	 * and a base baked before cannot compile against the re-imported ones.
+	 */
+	FString StaleGroundSampler(const UMaterialInterface* Base)
+	{
+		const UMaterial* Material = Base ? Base->GetMaterial() : nullptr;
+		if (!Material)
+		{
+			return FString();
+		}
+		const FString Root = FString(ApexGround::TexturesRoot) + TEXT("/");
+		for (const TObjectPtr<UMaterialExpression>& Expression : Material->GetExpressions())
+		{
+			const UMaterialExpressionTextureBase* Sample = Cast<UMaterialExpressionTextureBase>(Expression.Get());
+			if (Sample && Sample->Texture && Sample->Texture->GetPathName().StartsWith(Root)
+				&& Sample->SamplerType != MaterialExpressionUtils::GetSamplerTypeForTexture(Sample->Texture))
+			{
+				return Sample->Texture->GetName();
+			}
+		}
+		return FString();
+	}
 }	 // namespace
 
 bool ApexTrackMaterialGraphs::GroundSetImported()
@@ -1248,6 +1274,12 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 			UE_LOG(LogApexTrackImport, Display, TEXT("    %s was baked %s the ground textures; baking it again"),
 				ApexTrackMaterials::BaseName,
 				GroundSetImported() ? TEXT("without") : TEXT("with"));
+			bRebakeBase = true;
+		}
+		else if (const FString Stale = StaleGroundSampler(Current.Base); !Stale.IsEmpty())
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s samples %s as another kind of texture than it now is; baking it again"),
+				ApexTrackMaterials::BaseName, *Stale);
 			bRebakeBase = true;
 		}
 	}

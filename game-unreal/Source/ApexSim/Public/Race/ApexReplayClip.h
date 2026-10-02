@@ -3,13 +3,17 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 
+class FApexStreamFile;
+
 /**
- * A race clip played back from disk (`-ApexReplay=<file>.clip.json`).
+ * A race clip played back from disk (`-ApexReplay=<file>.apxs`, or the
+ * older `<file>.clip.json`).
  *
  * The server's `apexsim-replay` tool simulates an AI race, finds the moment
- * worth filming and cuts it into this file (`replay_tools::ClipFile` on the
- * Rust side is the format's definition). Each frame holds every car as a
- * positional array in roster order, in the server frame:
+ * worth filming and cuts it into a spectator stream (`server/src/spectator.rs`,
+ * docs/SPECTATOR.md), whose frames are read into the same table the JSON
+ * clip (`replay_tools::ClipFile`) filled: every car per frame as a
+ * positional row in roster order, in the server frame:
  *
  *   [x, y, z, yaw, pitch, roll, speed_mps, throttle, brake, steering, gear,
  *    rpm, lap, station_m, on_track (0/1), finish_position (0 = none)]
@@ -34,6 +38,9 @@ public:
 
 	/** Parse a clip; false with a reason when it is not one. */
 	bool LoadFromString(const FString& Json, FString& OutError);
+	/** A stream's frames (its parts put together), roster, path and sky. */
+	bool LoadFromStream(const FApexStreamFile& File, FString& OutError);
+	/** `.apxs` by its magic, else the JSON clip. */
 	bool LoadFromFile(const FString& Path, FString& OutError);
 
 	bool IsValid() const { return Ticks.Num() > 0 && Cars.Num() > 0; }

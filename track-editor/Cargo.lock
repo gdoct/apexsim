@@ -240,10 +240,12 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "clap",
+ "flate2",
  "http-body-util",
  "hyper",
  "hyper-util",
  "noise",
+ "rmp",
  "rmp-serde",
  "rustls",
  "rustls-pemfile",

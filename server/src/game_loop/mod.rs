@@ -6,6 +6,7 @@
 //! - [`lifecycle`]: unified player-disconnect handling
 //! - [`track_loads`]: a track's sidecars loaded off the loop before the
 //!   first session on it is created
+//! - [`showcase`]: rendered races played to clients in the menu
 //!
 //! Lock discipline: inbound events are drained without any lock (the TCP
 //! receiver is taken out of the transport at startup). Each phase then takes
@@ -16,6 +17,7 @@
 mod broadcast;
 mod dispatch;
 mod lifecycle;
+mod showcase;
 mod tick;
 mod track_loads;
 
@@ -194,6 +196,7 @@ pub(crate) async fn run_game_loop(
         // Cleanup stale connections every second and handle their players.
         if tick_count.is_multiple_of(tick_rate as u64) {
             lifecycle::cleanup_stale_connections(&ctx).await;
+            showcase::refresh_status(&ctx).await;
         }
 
         // Broadcast lobby state every 2 seconds.
@@ -210,6 +213,9 @@ pub(crate) async fn run_game_loop(
         broadcast::broadcast_rosters(&ctx, output.rosters).await;
         broadcast::deliver_lap_timing(&ctx, output.lap_timing).await;
         broadcast::broadcast_telemetry(&ctx, output.telemetry, tick_count).await;
+
+        // Showcase channels: no physics, a cursor through a file per channel.
+        showcase::advance(&ctx).await;
 
         // Cleanup timed-out finished sessions and refresh gauges.
         tick::cleanup_finished_sessions(&ctx, tick_count).await;

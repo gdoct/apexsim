@@ -10,13 +10,15 @@
         2. server     - cargo build --release -> apexsim-server.exe
         3. props      - ApexPropImport, the authored prop kit into /Game/Props
         4. tracks     - scripts/build_track_levels.ps1: dress, export,
-                        previews and the shared track materials; every
-                        circuit ships as data the game builds at runtime
-                        (docs/RUNTIME_CONTENT_LOADING.md), not as a level
+                        previews, the showcases and the shared track
+                        materials; every circuit ships as data the game
+                        builds at runtime (docs/RUNTIME_CONTENT_LOADING.md),
+                        not as a level
                         track picker has names, metadata and preview art
         5. client     - scripts/build_game_standalone.ps1 (BuildCookRun)
         6. assemble   - server binary, server.toml and the content the server
-                        reads at runtime, plus launchers and a manifest
+                        reads at runtime, the showcases for both sides, plus
+                        launchers and a manifest
         7. zip        - optional, with -Zip
 
     The package lands under artifacts/, which .gitignore already excludes, so
@@ -37,7 +39,11 @@
             Game/Wheels/        the class wheels the cars name
             Game/Hud/           the HUD's components (default/, and custom/
                                 for the player's own), drawn from files
-            Server/             apexsim-server.exe + server.toml + content/
+            Game/Showcase/      the rendered AI races (.apxs) the menu plays
+                                behind its screens (docs/SPECTATOR.md)
+            Server/             apexsim-server.exe + apexsim-replay.exe +
+                                server.toml + content/ + showcase/ (the same
+                                .apxs files, the server's playlist)
 
     Every stage can be skipped so a broken piece does not block the rest; a
     skipped stage still has to find the output it would have produced, or the
@@ -76,7 +82,13 @@
 
 .PARAMETER SkipTracks
     Reuse the exports and previews already under build/tracks and
-    the track materials already baked.
+    the track materials already baked. The showcases are the track stage's
+    too; -SkipShowcase leaves them out of a run that bakes.
+
+.PARAMETER SkipShowcase
+    Render no showcase: reuse the .apxs files already under build/showcase.
+    Every showcase content/showcase.yml lists still has to be there, or the
+    run aborts rather than shipping a menu with nothing behind it.
 
 .PARAMETER IncludeCustomTracks
     Also ship the tracks in content\tracks\custom (server YAML and sidecars,
@@ -119,6 +131,7 @@ param(
     [switch]$SkipServer,
     [switch]$SkipProps,
     [switch]$SkipTracks,
+    [switch]$SkipShowcase,
     [switch]$IncludeCustomTracks,
     [switch]$IncludeCustomCars,
     [switch]$SkipClient,
@@ -145,6 +158,9 @@ if (-not $ClientArtifactDirectory) {
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
+$ReplayExe    = Get-ApexShowcaseToolPath -RepoRoot $RepoRoot
+$ShowcaseDir  = Get-ApexShowcaseDir -RepoRoot $RepoRoot
 
 function Write-Step {
     param([string]$Message)
@@ -341,6 +357,16 @@ function Invoke-Preflight {
         }
     }
 
+    # The showcases are rendered by the track stage; a run that skips the
+    # rendering (either switch) has to find every listed one already there.
+    if (($SkipTracks -or $SkipShowcase) -and $tracks.Count -gt 0) {
+        $missingShowcases = @(Get-ApexMissingShowcases -RepoRoot $RepoRoot)
+        if ($missingShowcases.Count -gt 0) {
+            $switch = if ($SkipShowcase) { '-SkipShowcase' } else { '-SkipTracks' }
+            $problems.Add("$switch, but these showcases have not been rendered under ${ShowcaseDir}: $($missingShowcases -join ', ')")
+        }
+    }
+
     if ($problems.Count -gt 0) {
         $lines = ($problems | ForEach-Object { "  - $_" }) -join [Environment]::NewLine
         throw ("cannot build a release package:" + [Environment]::NewLine + $lines)
@@ -481,6 +507,11 @@ else {
 if (-not (Test-Path $ServerExe)) {
     throw "the server build did not produce $ServerExe"
 }
+# The same cargo build makes the render tool, which ships beside the server
+# so a modder can render a showcase of a custom track or class.
+if (-not (Test-Path $ReplayExe)) {
+    throw "the server build did not produce $ReplayExe (cargo build --release --bin apexsim-replay)"
+}
 
 # --- props -----------------------------------------------------------------
 
@@ -521,11 +552,16 @@ else {
     $trackArgs = @{ Release = $true }
     if ($BuildEditor) { $trackArgs.Build = $true }
     if ($EngineRoot)  { $trackArgs.EngineRoot = $EngineRoot }
+    if ($SkipShowcase) { $trackArgs.SkipShowcase = $true }
     & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
 }
 $missing = @(Get-MissingExports)
 if ($missing.Count -gt 0) {
     throw "these circuits have no export, so they would race in an empty world: $($missing -join ', ')"
+}
+$missingShowcases = @(Get-ApexMissingShowcases -RepoRoot $RepoRoot)
+if ($missingShowcases.Count -gt 0) {
+    throw "these showcases have not been rendered, so the menu would have nothing behind it on those circuits: $($missingShowcases -join ', ')"
 }
 if (-not (Test-Path (Join-Path $MaterialsDir 'M_ApexTrackBase.uasset'))) {
     throw "no track materials under $MaterialsDir; run -run=ApexMaterialBake (build_track_levels.ps1 does)"
@@ -564,8 +600,8 @@ else {
     }
     New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null
 
-    # The release copies the tracks and cars itself, at assembly, with the checks it wants.
-    $clientArgs = @{ Configuration = $Configuration; OutputDirectory = $ReleaseDir; SkipTracks = $true; SkipCars = $true }
+    # The release copies the tracks, cars and showcases itself, at assembly, with the checks it wants.
+    $clientArgs = @{ Configuration = $Configuration; OutputDirectory = $ReleaseDir; SkipTracks = $true; SkipCars = $true; SkipShowcase = $true }
     if ($EngineRoot) { $clientArgs.EngineRoot = $EngineRoot }
     & (Join-Path $PSScriptRoot 'build_game_standalone.ps1') @clientArgs
 
@@ -583,8 +619,15 @@ if (Test-Path $ServerDir) { Remove-Item -LiteralPath $ServerDir -Recurse -Force 
 New-Item -ItemType Directory -Path $ServerDir -Force | Out-Null
 
 Copy-Item -LiteralPath $ServerExe -Destination $ServerDir -Force
+Copy-Item -LiteralPath $ReplayExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'server.toml') -Destination $ServerDir -Force
 Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
+# The showcases, twice: Game\Showcase is the menu's local backdrop, and
+# Server\showcase the playlist the server streams (its [showcase] dir
+# defaults to ./showcase beside the exe).
+$showcaseCount = Copy-ApexShowcases -RepoRoot $RepoRoot -Destination (Join-Path $GameDir 'Showcase')
+[void](Copy-ApexShowcases -RepoRoot $RepoRoot -Destination (Join-Path $ServerDir 'showcase'))
+Write-Detail "$showcaseCount showcase(s) in $(Join-Path $GameDir 'Showcase') and $(Join-Path $ServerDir 'showcase')"
 Copy-RuntimeTracks -Destination (Join-Path $GameDir 'Tracks')
 $runtimeTrackCount = @(Get-ChildItem (Join-Path $GameDir 'Tracks') -Filter '*.uescene.json' -File).Count
 Write-Detail "$runtimeTrackCount track(s) in $(Join-Path $GameDir 'Tracks')"
@@ -684,12 +727,16 @@ WHAT IS IN HERE
     Game\Hud\          The race HUD, one folder per panel. Copy one from
                        Game\Hud\default into Game\Hud\custom to change it,
                        or add your own; the format is in the README there.
+    Game\Showcase\     Rendered AI races (.apxs) the menu plays behind its
+                       screens when no server is streaming one.
     Game\settings.yml  Resolution, window mode and the server to connect to.
                        Written on the first run; edit it in any text editor.
                        Game\settings.sample.yml is the same file with the
                        shipped defaults, to read before you have run anything.
     Server\            The authoritative simulation server, its server.toml
-                       and the car and track data it reads at startup.
+                       and the car and track data it reads at startup;
+                       Server\showcase holds the races it streams to the
+                       menus of connected players ([showcase] in server.toml).
     Start-Server.bat   Run the server on its own, to host for other people.
     Play.bat           Server plus client, for playing on your own machine.
 
@@ -732,9 +779,15 @@ MODDING
     from when it is raced: a new circuit is those two files and a .png in
     Game\Tracks, plus its .yaml here.
 
+    Server\apexsim-replay.exe renders a showcase of any track and class:
+        apexsim-replay.exe render --track content\tracks\custom\<Track>.yaml
+            --class GT3 --cars-dir content\cars --out showcase\<Track>.gt3.day.apxs
+    run from the Server folder; copy the file into Game\Showcase as well
+    for the menu's own backdrop.
+
 CONTENTS
 
-    $trackCount track(s) ($runtimeTrackCount built by the game from Game\Tracks), $carCount car(s).
+    $trackCount track(s) ($runtimeTrackCount built by the game from Game\Tracks), $carCount car(s), $showcaseCount showcase(s).
 
 Licensed under the terms in LICENSE.
 "@
@@ -753,7 +806,9 @@ $manifest = [ordered]@{
         cars         = $carCount
         tracks       = $trackCount
         runtime_tracks = $runtimeTrackCount
+        showcases    = $showcaseCount
         server       = (Split-Path -Leaf $ServerExe)
+        render_tool  = (Split-Path -Leaf $ReplayExe)
     }
 }
 Write-TextFile (Join-Path $ReleaseDir 'release.json') ($manifest | ConvertTo-Json -Depth 4)

@@ -19,6 +19,7 @@ pub(crate) async fn handle_player_disconnect(
     );
 
     let mut state_write = ctx.state.write().await;
+    state_write.showcase.leave(&player_id);
 
     // Remove from game session if in one
     if let Some(session_id) = session_id {

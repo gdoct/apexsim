@@ -20,6 +20,11 @@
    copied into Hud\default, with an empty Hud\custom (and its README) for
    the player's own components.
 
+   The showcases (docs/SPECTATOR.md) are the rendered AI races the menu
+   plays behind its screens when no server streams one: every .apxs in
+   build\showcase (run scripts/build_track_levels.ps1 first) is copied into
+   Showcase\ beside ApexSim.exe, where the game looks.
+
 .PARAMETER EngineRoot
    Unreal Engine install directory (the folder containing Engine/). Defaults
    to $env:UE, $env:UE_ROOT, the project's launcher registry entry, and then
@@ -53,6 +58,13 @@
    Do not copy the HUD components (content\hud\default) into Hud\ next to
    the executable. The game then races with no HUD.
 
+.PARAMETER SkipShowcase
+   Do not copy the showcases (build\showcase\*.apxs) into Showcase\ next to
+   the executable. The run still checks that every showcase
+   content\showcase.yml lists has been rendered, like -SkipTracks does for
+   the exports, so a package is never quietly short of them; the menu then
+   plays only what a server streams.
+
 .PARAMETER ExtraUatArgs
    Extra arguments appended to the BuildCookRun invocation.
 
@@ -74,6 +86,7 @@ param(
    [switch]$IncludeCustomCars,
    [switch]$SkipCars,
    [switch]$SkipHud,
+   [switch]$SkipShowcase,
    [string[]]$ExtraUatArgs
 )
 
@@ -84,6 +97,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
 
 $Uproject = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 if (-not $OutputDirectory) {
@@ -98,6 +112,15 @@ $engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
    -Requires 'Engine\Build\BatchFiles\RunUAT.bat'
 $uat = Join-Path $engine 'Engine\Build\BatchFiles\RunUAT.bat'
 $output = [IO.Path]::GetFullPath($OutputDirectory)
+
+# A showcase that was never rendered is checked for before the long cook,
+# whether or not it is copied: a package short of one has a menu with
+# nothing behind it on that circuit.
+$missingShowcases = @(Get-ApexMissingShowcases -RepoRoot $RepoRoot)
+if ($missingShowcases.Count -gt 0) {
+   throw ("these showcases have not been rendered under $(Get-ApexShowcaseDir -RepoRoot $RepoRoot) " +
+      "(run scripts/build_track_levels.ps1): $($missingShowcases -join ', ')")
+}
 
 if ($Clean -and (Test-Path $output)) {
    Write-Host "Removing previous archive: $output" -ForegroundColor DarkGray
@@ -215,6 +238,22 @@ if (-not $SkipHud) {
    }
    else {
       Write-Host "    $hudCount component(s)" -ForegroundColor DarkGray
+   }
+}
+
+if (-not $SkipShowcase) {
+   # Where the menu's local backdrop looks in a packaged build: Showcase\
+   # next to ApexSim.exe (docs/SPECTATOR.md). Every rendered showcase, the
+   # pipeline's and any rendered by hand.
+   $showcaseOut = Join-Path $executable.DirectoryName 'Showcase'
+   Write-Host ''
+   Write-Host "==> Copying the showcases to $showcaseOut" -ForegroundColor Cyan
+   $showcaseCount = Copy-ApexShowcases -RepoRoot $RepoRoot -Destination $showcaseOut
+   if ($showcaseCount -eq 0) {
+      Write-Warning 'no showcases in build\showcase; the menu plays only what a server streams (run scripts/build_track_levels.ps1)'
+   }
+   else {
+      Write-Host "    $showcaseCount showcase(s)" -ForegroundColor DarkGray
    }
 }
 

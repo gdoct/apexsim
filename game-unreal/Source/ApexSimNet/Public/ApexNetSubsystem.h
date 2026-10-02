@@ -33,6 +33,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCarSetupSheet, const FApexCar
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnDemoSessionChanged, bool /*bJoined*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnShowcases, const TArray<FApexShowcaseSummary>&);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FApexOnSpectatorJoined, const FString& /*StreamId*/, const FString& /*ShowcaseId*/);
+/** A run of spectator stream records in the stream's framing (ApexSpectatorStream.h), as they arrived. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnSpectatorRecords, TArrayView<const uint8>);
 
 /**
  * Owns the connection to the ApexSim server and translates it into Blueprint
@@ -230,8 +234,15 @@ public:
 	/** Leave the demo session, or withdraw a request for one. Nothing if there is neither. */
 	void LeaveDemoSession();
 
-	/** Joined to a demo session. `IsInSession` is false throughout one. */
-	bool IsInDemoSession() const { return bInDemoSession; }
+	/**
+	 * A backdrop is on this connection's race view: the server's demo
+	 * session, or a spectator stream fed through BeginBackdropFeed (a
+	 * showcase, or a local file). `IsInSession` is false throughout.
+	 */
+	bool IsInDemoSession() const { return bInDemoSession || bBackdropFeed; }
+
+	/** The server's demo session itself is joined (not a stream). */
+	bool IsInServerDemoSession() const { return bInDemoSession; }
 
 	/** A demo session has been asked for and not yet answered. */
 	bool IsDemoSessionRequested() const { return bDemoRequested; }
@@ -249,6 +260,53 @@ public:
 		// A request the server never answers must not park the demo for good.
 		return bSessionRequestPending && FPlatformTime::Seconds() - SessionRequestSentSeconds < 10.0;
 	}
+
+	// --- Showcases (spectator streams) ------------------------------------------
+
+	/** Asks which showcases the server plays; OnShowcases answers. */
+	void ListShowcases();
+
+	/**
+	 * Watch a showcase channel (empty: the server's first) instead of a demo
+	 * session: OnSpectatorJoined, then the stream's records through
+	 * OnSpectatorRecords (frames over UDP once the handshake is done, TCP
+	 * before). Leaves the demo session first; the server leaves the showcase
+	 * by itself when a session is created or joined.
+	 */
+	void SpectateShowcase(const FString& Id = FString());
+
+	/** Stop watching a showcase, or withdraw a request for one. */
+	void LeaveSpectate();
+
+	/** A showcase was joined and not left. */
+	bool IsSpectating() const { return bSpectating; }
+	/** A SpectateShowcase is on its way and not yet answered. */
+	bool IsSpectateRequested() const { return bSpectateRequested; }
+	/** The last `Showcases` answer. */
+	const TArray<FApexShowcaseSummary>& GetShowcases() const { return CachedShowcases; }
+	/** The lobby says the server plays showcases. */
+	bool IsShowcaseAvailable() const { return CachedLobbyState.bShowcaseAvailable; }
+
+	FApexOnShowcases OnShowcases;
+	FApexOnSpectatorJoined OnSpectatorJoined;
+	FApexOnSpectatorRecords OnSpectatorRecords;
+
+	// --- Backdrop feed --------------------------------------------------------------
+
+	/**
+	 * A spectator stream played into this subsystem as if it were the demo
+	 * session (UApexSpectatorSubsystem drives it): IsInDemoSession turns
+	 * true, OnDemoSessionChanged fires, and the roster, frames and timing fed
+	 * below go out through the same delegates a live session's do, so the
+	 * race director, the HUD data and the recorder see nothing new.
+	 */
+	void BeginBackdropFeed(const FApexSessionConditions& Conditions);
+	void FeedBackdropRoster(const FApexSessionRoster& Roster);
+	void FeedBackdropTelemetry(const FApexTelemetryFrame& Frame);
+	void FeedBackdropSectors(const FApexTrackSectors& Sectors);
+	void FeedBackdropLapTiming(const FApexLapTiming& Timing);
+	void EndBackdropFeed();
+	bool IsBackdropFeedActive() const { return bBackdropFeed; }
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void JoinSession(const FString& SessionId);
@@ -537,6 +595,15 @@ private:
 	void DiscardTelemetryOfPreviousSession();
 	EApexSessionState DemoSessionState = EApexSessionState::Lobby;
 	bool bSessionRequestPending = false;
+
+	// --- Showcases and the backdrop feed ------------------------------------------
+
+	bool bSpectating = false;
+	bool bSpectateRequested = false;
+	bool bBackdropFeed = false;
+	TArray<FApexShowcaseSummary> CachedShowcases;
+	/** Forget the showcase bookkeeping (a disconnect, a session joined). */
+	void ResetSpectate();
 	double SessionRequestSentSeconds = 0.0;
 
 	uint32 ClientTick = 0;

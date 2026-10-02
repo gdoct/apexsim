@@ -1,6 +1,8 @@
 #include "Cars/ApexGlbReader.h"
 
+#include "Cars/ApexBlockCompress.h"
 #include "Dom/JsonObject.h"
+#include "Hash/CityHash.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "Misc/Base64.h"
@@ -437,6 +439,10 @@ namespace
 						: AlphaMode == TEXT("BLEND")			 ? EApexGlbAlpha::Blend
 																 : EApexGlbAlpha::Opaque;
 					Material.AlphaCutoff = static_cast<float>(JsonNumber(*Source, TEXT("alphaCutoff"), 0.5));
+					if (Material.Alpha != EApexGlbAlpha::Opaque && Out.Images.IsValidIndex(Material.BaseColorImage))
+					{
+						Out.Images[Material.BaseColorImage].bAlphaUsed = true;
+					}
 					Source->TryGetBoolField(TEXT("doubleSided"), Material.bDoubleSided);
 					if (const FJsonObject* Extensions = JsonObjectField(*Source, TEXT("extensions")))
 					{
@@ -981,7 +987,7 @@ void ApexGlb::BuildMips(int32 Width, int32 Height, TArray<TArray<uint8>>& Mips)
 	}
 }
 
-bool ApexGlb::DecodeImage(FApexGlbImage& Image, IImageWrapperModule& ImageWrappers)
+bool ApexGlb::DecodeImage(FApexGlbImage& Image, IImageWrapperModule& ImageWrappers, bool bCompress)
 {
 	const EImageFormat Format = Image.Encoded.Num() > 0
 		? ImageWrappers.DetectImageFormat(Image.Encoded.GetData(), Image.Encoded.Num())
@@ -1003,11 +1009,22 @@ bool ApexGlb::DecodeImage(FApexGlbImage& Image, IImageWrapperModule& ImageWrappe
 	}
 	Image.Width = Width;
 	Image.Height = Height;
+	Image.ContentHash = CityHash64(reinterpret_cast<const char*>(Image.Encoded.GetData()), Image.Encoded.Num());
 	Image.Mips.Reset();
 	TArray<uint8>& Top = Image.Mips.AddDefaulted_GetRef();
 	Top.Append(Raw.GetData(), static_cast<int32>(Raw.Num()));
+	Raw.Empty();
+	if (!Image.bAlphaUsed)
+	{
+		// Opaque throughout, so the chain compresses to BC1.
+		for (int32 i = 3; i < Top.Num(); i += 4)
+		{
+			Top[i] = 255;
+		}
+	}
 	BuildMips(Width, Height, Image.Mips);
-	// The pixels are what the texture is made from; the file is done with.
+	Image.Format = bCompress ? ApexBc::CompressChain(Width, Height, Image.Mips) : PF_B8G8R8A8;
+	// The blocks are what the texture is made from; the file is done with.
 	Image.Encoded.Empty();
 	return true;
 }

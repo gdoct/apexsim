@@ -56,6 +56,15 @@ public:
 	/** Pops one decoded force-feedback message. Returns false when the queue is empty. */
 	bool PopDriverFeedback(FApexDriverFeedback& OutFeedback);
 
+	/**
+	 * Pops one spectator stream frame as it arrived, framed
+	 * (`[u32 length][body]`, ApexSpectatorStream.h). Returns false when the
+	 * queue is empty.
+	 */
+	bool PopSpectatorRecord(TArray<uint8>& OutRecords);
+	/** Throws away every queued spectator frame and returns how many. */
+	int32 DiscardQueuedSpectatorRecords();
+
 	/** Total datagrams received, for diagnostics. */
 	int32 GetReceivedDatagramCount() const { return ReceivedDatagrams.GetValue(); }
 
@@ -106,6 +115,7 @@ private:
 	/** Worker produces, game thread consumes. */
 	TQueue<FApexTelemetryFrame, EQueueMode::Spsc> TelemetryQueue;
 	TQueue<FApexDriverFeedback, EQueueMode::Spsc> DriverFeedbackQueue;
+	TQueue<TArray<uint8>, EQueueMode::Spsc> SpectatorQueue;
 
 	/** Written by the game thread, read by the worker. */
 	mutable FCriticalSection InputLock;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PixelFormat.h"
 
 class IImageWrapperModule;
 
@@ -37,7 +38,7 @@ struct FApexGlbMaterial
 	bool bDoubleSided = false;
 };
 
-/** One embedded image: the file's bytes, and once decoded, BGRA8 mips. */
+/** One embedded image: the file's bytes, and once decoded, the texture's mips. */
 struct FApexGlbImage
 {
 	FString Name;
@@ -45,9 +46,19 @@ struct FApexGlbImage
 	TArray<uint8> Encoded;
 	/** Whether a material samples it; only those are decoded. */
 	bool bUsed = false;
+	/**
+	 * Whether a MASK or BLEND material samples it. glTF ignores the alpha of
+	 * an image only opaque materials use, so its alpha is dropped and it
+	 * compresses to BC1 at half the size of BC3.
+	 */
+	bool bAlphaUsed = false;
 	int32 Width = 0;
 	int32 Height = 0;
-	/** BGRA8, largest first; empty until `ApexGlb::DecodeImages`. */
+	/** What `Encoded` hashed to (CityHash64), so an image two GLBs embed is made into one texture; 0 when unknown. */
+	uint64 ContentHash = 0;
+	/** What `Mips` hold: PF_DXT1 / PF_DXT5 blocks, or PF_B8G8R8A8 for a size not a multiple of four. */
+	EPixelFormat Format = PF_B8G8R8A8;
+	/** Largest first; empty until `ApexGlb::DecodeImages`. */
 	TArray<TArray<uint8>> Mips;
 };
 
@@ -114,14 +125,19 @@ namespace ApexGlb
 	APEXSIM_API bool ReadFile(const FString& Path, FApexGlbModel& Out, FString& OutError);
 
 	/**
-	 * Decode every image a material uses into BGRA8 mips. `ImageWrappers`
+	 * Decode every image a material uses into compressed mips. `ImageWrappers`
 	 * must have been loaded on the game thread
 	 * (`FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper")`).
 	 */
 	APEXSIM_API bool DecodeImages(FApexGlbModel& Model, IImageWrapperModule& ImageWrappers, FString& OutError);
 
-	/** One image's `Encoded` bytes into BGRA8 mips; the livery logos, which are loose PNGs, come through here too. */
-	APEXSIM_API bool DecodeImage(FApexGlbImage& Image, IImageWrapperModule& ImageWrappers);
+	/**
+	 * One image's `Encoded` bytes into a box-filtered mip chain, block
+	 * compressed (`ApexBc::CompressChain`) unless `bCompress` is false; its
+	 * alpha is kept only when `bAlphaUsed`. The livery logos and skins,
+	 * which are loose PNGs, come through here too.
+	 */
+	APEXSIM_API bool DecodeImage(FApexGlbImage& Image, IImageWrapperModule& ImageWrappers, bool bCompress = true);
 
 	/**
 	 * A 2x2 box-filtered chain below a BGRA8 image, down to 1x1; only for

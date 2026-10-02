@@ -692,6 +692,58 @@ struct APEXSIMNET_API FApexLobbyState
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	TArray<FApexTrackConfigSummary> TrackConfigs;
+
+	/**
+	 * The server plays showcases (rendered races a client in the menu watches
+	 * instead of asking for a demo session); false from a server that
+	 * predates them.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	bool bShowcaseAvailable = false;
+};
+
+/** What a spectator stream is of (`SpectatorKind`, network.rs). */
+UENUM(BlueprintType)
+enum class EApexSpectatorKind : uint8
+{
+	/** A rendered race played from a file. */
+	Showcase = 0,
+	/** A session being raced now. */
+	Live = 1,
+};
+
+/** One showcase channel as `Showcases` lists it (`ShowcaseSummary`, network.rs) — PascalCase keys. */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexShowcaseSummary
+{
+	GENERATED_BODY()
+
+	/** What `SpectateShowcase` takes. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Showcase")
+	FString Id;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Showcase")
+	FString TrackId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Showcase")
+	FString TrackName;
+
+	/** The field's class as car.toml spells it (`GT3`, `F1`). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Showcase")
+	FString Class;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Showcase")
+	FApexSessionConditions Conditions;
+
+	/** Seconds of race before it starts over. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Showcase")
+	float DurationS = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Showcase")
+	int32 Cars = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Showcase")
+	int32 Viewers = 0;
 };
 
 /** `AuthSuccessData` (network.rs:131) — PascalCase keys. */
@@ -1597,6 +1649,10 @@ enum class EApexServerMessageType : uint8
 	LapRecord,
 	GhostLap,
 	CarSetupSheet,
+	Showcases,
+	SpectatorJoined,
+	/** A run of spectator stream records (TCP: framed in `SpectatorRecords`; UDP: one frame body, framed on the way in). */
+	SpectatorRecord,
 	UdpHandshakeAck,
 	TelemetryCompact,
 	DriverFeedback,
@@ -1627,6 +1683,15 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexCarSetupSheet CarSetupSheet;
 	FApexTelemetryFrame Telemetry;
 	FApexDriverFeedback DriverFeedback;
+
+	/** Showcases::entries. */
+	TArray<FApexShowcaseSummary> Showcases;
+	/** SpectatorJoined. */
+	FString StreamId;
+	EApexSpectatorKind SpectatorKind = EApexSpectatorKind::Showcase;
+	FString ShowcaseId;
+	/** SpectatorRecord: stream records in the stream's own `[u32 length][body]` framing. */
+	TArray<uint8> SpectatorRecords;
 
 	/** AuthFailure::reason, or Error::message. */
 	FString Reason;

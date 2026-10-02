@@ -31,6 +31,8 @@ pub struct ServerState {
     /// the game loop can write a record after dropping the state lock: the
     /// store does its own locking and its own disk IO.
     pub records: Arc<crate::records::RecordStore>,
+    /// Rendered races played to clients in the menu (`crate::showcase`).
+    pub showcase: crate::showcase::ShowcaseState,
 }
 
 impl ServerState {
@@ -80,7 +82,11 @@ impl ServerState {
             crate::records::RecordStore::in_memory()
         };
 
+        let showcase =
+            crate::showcase::ShowcaseState::load(&config.showcase, &car_configs, &track_configs);
+
         Self {
+            showcase,
             config,
             car_configs,
             track_configs,

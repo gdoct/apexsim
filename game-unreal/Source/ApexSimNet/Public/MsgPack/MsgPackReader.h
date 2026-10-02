@@ -45,6 +45,12 @@ public:
 	 */
 	bool ReadStringOrNil(FString& Out);
 
+	/**
+	 * Reads a bin value as a view into the input (valid as long as the input
+	 * is): the spectator stream's rows and its framed records.
+	 */
+	bool ReadBinary(TArrayView<const uint8>& Out);
+
 	/** Skips exactly one complete value (recursing through containers). */
 	bool SkipValue();
 

@@ -1,5 +1,6 @@
 #include "Race/ApexReplayClip.h"
 
+#include "ApexSpectatorStream.h"
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonReader.h"
@@ -41,6 +42,17 @@ namespace ApexReplayClipMath
 
 bool FApexReplayClip::LoadFromFile(const FString& Path, FString& OutError)
 {
+	// A spectator stream (`.apxs`, what `apexsim-replay cut` and `render`
+	// write now) or the older JSON clip.
+	if (FApexStreamFile::IsStreamFile(Path))
+	{
+		FApexStreamFile File;
+		if (!File.LoadFromFile(Path, OutError))
+		{
+			return false;
+		}
+		return LoadFromStream(File, OutError);
+	}
 	FString Text;
 	if (!FFileHelper::LoadFileToString(Text, *Path))
 	{
@@ -48,6 +60,96 @@ bool FApexReplayClip::LoadFromFile(const FString& Path, FString& OutError)
 		return false;
 	}
 	return LoadFromString(Text, OutError);
+}
+
+bool FApexReplayClip::LoadFromStream(const FApexStreamFile& File, FString& OutError)
+{
+	*this = FApexReplayClip();
+	const FApexStreamHeader& Header = File.GetHeader();
+	TrackName = Header.Track.DisplayName;
+	TrackStem = Header.Track.Stem;
+	TrackId = Header.Track.TrackId;
+	TrackLengthM = Header.Track.LengthM;
+	TickRate = FMath::Max(1, Header.TickRate);
+	Conditions = Header.Conditions.Clamped();
+	for (const FApexStreamRosterEntry& Entry : File.GetRoster().Entries)
+	{
+		FCarInfo& Car = Cars.AddDefaulted_GetRef();
+		Car.Index = Cars.Num() - 1;
+		Car.Name = Entry.Name;
+		Car.CarConfigId = Entry.CarConfigId;
+		Car.Livery = Entry.Livery;
+	}
+	if (Cars.Num() == 0)
+	{
+		OutError = TEXT("the stream has no cars");
+		return false;
+	}
+	if (File.HasPath())
+	{
+		Centerline = File.GetPath().Points;
+	}
+
+	// Every frame, the parts of one tick put together by the player.
+	TArray<TArray<uint8>> Bodies;
+	if (!File.ReadAll(Bodies, OutError))
+	{
+		return false;
+	}
+	FApexSpectatorPlayer Player;
+	if (!Player.ApplyFramed(File.GetPreambleBytes(), OutError))
+	{
+		return false;
+	}
+	for (const TArray<uint8>& Body : Bodies)
+	{
+		Player.Apply(Body, OutError);
+	}
+	const int32 CarCount = Cars.Num();
+	TArray<FApexTelemetryFrame> Frames = Player.TakeFrames();
+	Ticks.Reserve(Frames.Num());
+	Values.Reserve(Frames.Num() * CarCount * FieldsPerCar);
+	for (const FApexTelemetryFrame& Frame : Frames)
+	{
+		if (Ticks.Num() > 0 && Frame.ServerTick <= Ticks.Last())
+		{
+			continue;
+		}
+		const int32 Start = Values.AddZeroed(CarCount * FieldsPerCar);
+		for (const FApexCarTelemetry& Car : Frame.Cars)
+		{
+			if (Car.CarIndex < 0 || Car.CarIndex >= CarCount)
+			{
+				continue;
+			}
+			float* Row = Values.GetData() + Start + Car.CarIndex * FieldsPerCar;
+			Row[ApexReplayField::X] = static_cast<float>(Car.Position.X);
+			Row[ApexReplayField::Y] = static_cast<float>(Car.Position.Y);
+			Row[ApexReplayField::Z] = static_cast<float>(Car.Position.Z);
+			Row[ApexReplayField::Yaw] = Car.YawRad;
+			Row[ApexReplayField::Pitch] = Car.PitchRad;
+			Row[ApexReplayField::Roll] = Car.RollRad;
+			Row[ApexReplayField::Speed] = Car.SpeedMps;
+			Row[ApexReplayField::Throttle] = Car.Throttle;
+			Row[ApexReplayField::Brake] = Car.Brake;
+			Row[ApexReplayField::Steering] = Car.Steering;
+			Row[ApexReplayField::Gear] = static_cast<float>(Car.Gear);
+			Row[ApexReplayField::Rpm] = Car.EngineRpm;
+			Row[ApexReplayField::Lap] = static_cast<float>(Car.CurrentLap);
+			Row[ApexReplayField::Station] = Car.TrackProgress;
+			Row[ApexReplayField::OnTrack] = Car.bIsOnTrack ? 1.0f : 0.0f;
+			Row[ApexReplayField::Finish] = static_cast<float>(Car.FinishPosition);
+		}
+		Ticks.Add(Frame.ServerTick);
+		States.Add(static_cast<uint8>(Frame.SessionState));
+		CountdownMs.Add(Frame.CountdownMs);
+	}
+	if (Ticks.Num() == 0)
+	{
+		OutError = TEXT("the stream has no frames");
+		return false;
+	}
+	return true;
 }
 
 bool FApexReplayClip::LoadFromString(const FString& Json, FString& OutError)
