@@ -74,9 +74,19 @@ const CORE_AIR_SHARE: f32 = 0.8;
 /// times that a wet road takes.
 const TREAD_ROAD_CONDUCTANCE: f32 = 3.5;
 const WET_ROAD_FACTOR: f32 = 4.0;
-/// Share of the patch's friction power that stays in the tread; the rest
-/// is the rubber's own deformation, which heats the carcass.
+/// Share of the patch's friction power up to the tyre's peak slip that
+/// stays in the tread; the rest is the rubber's own deformation, which
+/// heats the carcass.
 const SLIDE_HEAT_TO_TREAD: f32 = 0.85;
+/// Share of the power past the peak slip (the patch sliding over the
+/// road) that goes into the tyre at all. Sliding friction heats the
+/// interface, and the heat splits between rubber and asphalt by their
+/// thermal effusivities (about 0.7 and 1.5 kJ/m²K√s): roughly a third to
+/// the tyre, the rest into a road that is fresh under every pass. With all
+/// of it in the tread, a few seconds of understeer took a GT3's fronts from
+/// 85 to 160 °C, the lost grip made it slide more, and a locked wheel
+/// cooked its tread to 370 °C in six seconds.
+const SLIDING_HEAT_TO_TYRE: f32 = 0.3;
 /// Share of the rolling-resistance power that stays in the carcass as
 /// heat; the rest goes into the tread and the road at the patch.
 const CARCASS_HEAT_SHARE: f32 = 0.8;
@@ -167,6 +177,22 @@ impl TyreWork {
         let v = self.speed_mps.abs();
         self.fx.abs() * self.slip_ratio.abs().min(1.0) * v
             + self.fy.abs() * self.slip_angle_rad.sin().abs() * v
+    }
+
+    /// The patch's friction power split at the tyre's peak slip, W: the
+    /// part up to it (the rubber gripping and deforming) and the part past
+    /// it (the rubber sliding). They add up to [`Self::slide_power_w`].
+    pub fn power_split_w(&self, tire: &TireConfig) -> (f32, f32) {
+        let v = self.speed_mps.abs();
+        let along = self.slip_ratio.abs().min(1.0);
+        let across = self.slip_angle_rad.sin().abs();
+        let along_peak = along.min(tire.optimal_slip_ratio.max(0.0));
+        let across_peak = across.min(tire.optimal_slip_angle_rad.max(0.0).sin());
+        let fx = self.fx.abs() * v;
+        let fy = self.fy.abs() * v;
+        let gripping = fx * along_peak + fy * across_peak;
+        let sliding = fx * (along - along_peak) + fy * (across - across_peak);
+        (gripping, sliding)
     }
 }
 
@@ -312,7 +338,8 @@ pub fn step(
     dt: f32,
 ) {
     let v = work.speed_mps.abs();
-    let slide = work.slide_power_w();
+    let (gripping, sliding) = work.power_split_w(tire);
+    let slide = gripping + sliding;
     let rolling = tire.rolling_resistance.max(0.0) * work.load_n.max(0.0) * v * CARCASS_HEAT_SHARE;
 
     let air = surface.air_temperature_c;
@@ -330,9 +357,11 @@ pub fn step(
     };
     let across = TREAD_CORE_CONDUCTANCE * (tread - core);
 
-    let tread_in = SLIDE_HEAT_TO_TREAD * slide - to_air * (tread - air) - to_road * (tread - road);
+    let tread_in = SLIDE_HEAT_TO_TREAD * gripping + SLIDING_HEAT_TO_TYRE * sliding
+        - to_air * (tread - air)
+        - to_road * (tread - road);
     let core_in =
-        (1.0 - SLIDE_HEAT_TO_TREAD) * slide + rolling - CORE_AIR_SHARE * to_air * (core - air);
+        (1.0 - SLIDE_HEAT_TO_TREAD) * gripping + rolling - CORE_AIR_SHARE * to_air * (core - air);
 
     tyre.temperature_c = tread + (tread_in - across) * dt / TREAD_HEAT_CAPACITY;
     tyre.core_temperature_c = core + (core_in + across) * dt / CORE_HEAT_CAPACITY;
@@ -462,6 +491,56 @@ mod tests {
         refresh(&mut data, &t, &M, 190.0);
         assert_eq!(data.grip_factor, 1.0, "as good as the setup makes it");
         assert_eq!(data.pressure_kpa, 190.0);
+    }
+
+    #[test]
+    fn a_slide_past_the_peak_puts_most_of_its_heat_into_the_road() {
+        let t = tyre();
+        let surface = TrackSurface::default();
+        let heat = |work: &TyreWork| {
+            let mut data = TireData {
+                temperature_c: 85.0,
+                core_temperature_c: 70.0,
+                ..Default::default()
+            };
+            for _ in 0..(5 * 240) {
+                step(&mut data, work, &t, &M, 180.0, &surface, 1.0 / 240.0);
+            }
+            data.temperature_c
+        };
+        // The split adds up to the whole.
+        let understeer = TyreWork {
+            fy: 4000.0,
+            slip_angle_rad: 0.5,
+            load_n: 3300.0,
+            speed_mps: 25.0,
+            ..Default::default()
+        };
+        let (gripping, sliding) = understeer.power_split_w(&t);
+        assert!((gripping + sliding - understeer.slide_power_w()).abs() < 1.0);
+        assert!(sliding > 2.0 * gripping);
+        // Five seconds of heavy understeer warms the fronts, not cooks them.
+        let hot = heat(&understeer);
+        assert!((95.0..135.0).contains(&hot), "understeer: {hot:.1}");
+        // Nor does five seconds of a locked wheel at 40 m/s.
+        let locked = TyreWork {
+            fx: 4000.0,
+            slip_ratio: -1.0,
+            load_n: 3300.0,
+            speed_mps: 40.0,
+            ..Default::default()
+        };
+        let hot = heat(&locked);
+        assert!(hot < 220.0, "locked: {hot:.1}");
+        // At the peak nothing changes: all of it is gripping power.
+        let at_peak = TyreWork {
+            fy: 4000.0,
+            slip_angle_rad: t.optimal_slip_angle_rad,
+            load_n: 3300.0,
+            speed_mps: 25.0,
+            ..Default::default()
+        };
+        assert!(at_peak.power_split_w(&t).1.abs() < 1e-3);
     }
 
     #[test]

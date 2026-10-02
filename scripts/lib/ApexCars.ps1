@@ -14,8 +14,9 @@
     body GLB (`model`), the DRS flap GLB (`[drs_flap] model`), the livery
     logos, skins, slot textures and previews (`[[livery]] logo`, `skin`,
     `textures`, `preview`), a wheel GLB of the car's own (`[wheels] model` or
-    `rear_model` ending in .glb or holding a /) and its steering wheel
-    (`[cockpit] steering_wheel_model`), not the .blend files or the texture
+    `rear_model` ending in .glb or holding a /), its steering wheel
+    (`[cockpit] steering_wheel_model`) and its driver (`[driver] model`), not
+    the .blend files or the texture
     sources.
 
     content\cars\default holds the cars that ship with the game;
@@ -113,6 +114,7 @@ function Get-ApexCarFiles {
                 elseif ($key -eq 'skin' -or $key -eq 'preview') { $carFiles.Add($value) }
             }
             'cockpit'  { if ($key -eq 'steering_wheel_model') { $carFiles.Add($value) } }
+            'driver'   { if ($key -eq 'model') { $carFiles.Add($value) } }
         }
     }
     $result.Logos = @($logos)

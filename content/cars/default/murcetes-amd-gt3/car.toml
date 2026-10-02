@@ -181,6 +181,11 @@ rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
 
+[driver]
+# the driver, drawn on the body (same frame) and hidden for the car the
+# cockpit camera sits in; written by the build script
+model = "murcetes_amd_gt3_driver.glb"
+
 [cockpit]
 # Written by the build script: the eye and wheel the cabin was built to
 # (car frame: +X nose, +Y right, +Z up). The client uses these instead of
@@ -190,6 +195,10 @@ rear_width_m = 0.330
 style = "closed"
 eye_cm = [-60.0, -36.0, 97.0]
 wheel_cm = [-20.0, -36.0, 77.0]
+mirror_left_cm = [2.9, -89.4, 90.6]
+mirror_left_size_cm = [17.0, 6.5]
+mirror_right_cm = [2.9, 89.4, 90.6]
+mirror_right_size_cm = [17.0, 6.5]
 # Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
 wheel_lock_deg = 270.0

@@ -648,6 +648,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 	// The fallback mesh has its wheels modelled in: none drawn on it.
 	FApexWheelSpec Wheels;
 	FApexDrsFlapSpec DrsFlap;
+	FApexDriverSpec Driver;
 	FApexCarCatalogRow Row;
 	bool bRowBody = false;
 	if (Flow && !CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, Row))
@@ -659,6 +660,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 			bRowBody = true;
 			Wheels = Row.Wheels;
 			DrsFlap = Row.DrsFlap;
+			Driver = Row.Driver;
 		}
 		else
 		{
@@ -691,11 +693,13 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		{
 			Wheels = Own.Wheels;
 			DrsFlap = Own.DrsFlap;
+			Driver = Own.Driver;
 		}
 	}
 	Car->SetCarMesh(Mesh);
 	Car->SetWheels(Wheels);
 	Car->SetDrsFlap(DrsFlap);
+	Car->SetDriver(Driver);
 	Car->SetLivery(bRowBody ? ApexLivery::Find(Row, Livery) : nullptr);
 }
 
@@ -937,6 +941,7 @@ void AApexRaceDirector::UpdateCameraTarget()
 		if (FollowedCar)
 		{
 			FollowedCar->SetMeshVisible(true);
+			FollowedCar->SetDriverVisible(true);
 			RemoveTickPrerequisiteActor(FollowedCar);
 		}
 		FollowedCar = Target;
@@ -1968,6 +1973,12 @@ void AApexRaceDirector::ApplyCameraMode()
 	{
 		FollowedCar->SetMeshVisible(bShowOwnCar);
 	}
+	// The cockpit camera is the driver's eyes: his figure would fill it. He
+	// stays for every other view, his shadow for this one (ApexCarDriver.h).
+	if (FollowedCar)
+	{
+		FollowedCar->SetDriverVisible(!(bCockpitView && !bTvView && !bShotCameraPose));
+	}
 	PushRigFeatures();
 }
 
@@ -2220,6 +2231,7 @@ void AApexRaceDirector::EndRaceView()
 	if (FollowedCar)
 	{
 		FollowedCar->SetMeshVisible(true);
+		FollowedCar->SetDriverVisible(true);
 	}
 	FollowedCar = nullptr;
 	DestroyRig();
@@ -2909,6 +2921,7 @@ void AApexRaceDirector::EndReplayView()
 	if (FollowedCar)
 	{
 		FollowedCar->SetMeshVisible(true);
+		FollowedCar->SetDriverVisible(true);
 		RemoveTickPrerequisiteActor(FollowedCar);
 	}
 	FollowedCar = nullptr;

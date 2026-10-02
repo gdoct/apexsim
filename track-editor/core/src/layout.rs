@@ -261,6 +261,11 @@ pub struct PitRoad {
     #[serde(default)]
     pub length_m: f32,
     pub nodes: Vec<[f32; 2]>,
+    /// How many garages the real pit lane has, when a survey counted them
+    /// (`scripts/ac_layout.py` reads AC's `AC_PIT_n` markers). Absent: as
+    /// many as the lane's parallel stretch holds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub box_count: Option<u32>,
 }
 
 /// One grandstand. `front` is the run of its outline that faces the road,
@@ -393,5 +398,31 @@ impl Layout {
             .iter()
             .rfind(|c| c.station_m <= station_m)
             .or_else(|| self.corners.last())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A dossier corrected by `scripts/ac_layout.py` carries a surveyed box
+    /// count, a `source` on its entries and an `ac_survey` block (what the
+    /// overlay replaced, for undoing it); the reader takes all of it.
+    #[test]
+    fn a_dossier_with_an_ac_overlay_reads() {
+        let json = r#"{
+            "format": "apex-track-layout", "version": 1, "source_track": "X.yaml",
+            "pit_lane": {"side": "right", "length_m": 300, "nodes": [[0, -10], [300, -10]],
+                         "source": "ac", "box_count": 18},
+            "stands": [{"name": null, "source": "ac", "station_m": 10, "side": "left",
+                        "offset_m": 15, "length_m": 80, "depth_m": 30, "yaw_rad": 0.1,
+                        "centre": [5, 30], "covered": false, "front": [[0, 20], [80, 20]]}],
+            "woods": [{"leaf": "mixed", "source": "ac", "ring": [[0, 0], [10, 0], [10, 10]]}],
+            "ac_survey": {"overlay": "X.layout.ac.json", "removed": {}, "pit_lane_before": null}
+        }"#;
+        let layout: Layout = serde_json::from_str(json).expect("parses");
+        assert_eq!(layout.pit_lane.as_ref().and_then(|p| p.box_count), Some(18));
+        assert_eq!(layout.stands.len(), 1);
+        assert_eq!(layout.woods.len(), 1);
     }
 }

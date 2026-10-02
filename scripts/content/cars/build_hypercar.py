@@ -18,6 +18,16 @@ Stance (class-wide, matched by each car.toml's [wheels] table): a 0.360 m
 tyre all round on a 1.62 m track inside a ~2.0 m body, arch cut 20 mm clear
 of the tyre, wheelbase 3.1 m.
 
+Pass 6 (measured against the imported Ferrari 499P): the deck between the
+front fenders raised out of its scoop, the crowns lowered, a narrow tall
+cabin with a windscreen and door windows instead of a glass bubble, bare
+(woven) carbon below the sill line, louvred openings over the front wheels,
+inverted wing elements (the first cut's sloped down, a lifting wing), a sponsor atlas and door number panels, aero mirrors whose
+glass is the `car_mirror_*` slot the cockpit rig paints, and an authored
+eye (`[cockpit]`, as the GT3s and LMP2s since pass 5): 0.36 m ahead of the
+wheelbase's middle, 0.16 m off centre, 0.83 m up - the 499P's is 0.40 /
+0.15 / 0.74.
+
 Section control points, floor centre outwards and up to the roof centre:
     0 floor centre        3 fender crown (HARD)   6 canopy side
     1 floor edge          4 fender inner          7 canopy upper
@@ -66,7 +76,8 @@ VARIANTS = {
                    # canopy, fenders that stand like boxes over the wheels
                    nose_z=0.060, valley=0.065, canopy_w=1.07, fender_r=1.00, face="twin", side="upright",
                    # a straight plane on square endplates, brake strip along the flap
-                   wing_plan=("straight", 0.0), endplate="square", wing_led="trail"),
+                   wing_plan=("straight", 0.0), endplate="square", wing_led="trail",
+                   sponsors=dict(door=7, rear=2, nose=6, wing=0, ep=14)),
     # Fugazzi 994P: rosso with a yellow sill, a single thin blade over a slit
     # headlamp, a thin double stripe at the back. The lowest and sharpest.
     "fugazzi": dict(folder="fugazzi-994p-hypercar", stem="fugazzi_994p", logo="fugazzi_hyper_logo.png",
@@ -81,7 +92,8 @@ VARIANTS = {
                     side="slash",
                     # a spoon-shaped plane between endplates that rise to a
                     # swept-back horn, the brake light up their trailing edges
-                    wing_plan=("spoon", 0.055), endplate="horn", wing_led="endplate"),
+                    wing_plan=("spoon", 0.055), endplate="horn", wing_led="endplate",
+                    sponsors=dict(door=9, rear=4, nose=15, wing=8, ep=14)),
     # Bugotti Chiffon: two-tone French blue, the horseshoe grille, the C-line
     # round the side intake, a quad-lamp bar and one light bar across the tail.
     "bugotti": dict(folder="bugotti-chiffon-hypercar", stem="bugotti_chiffon", logo="bugotti_logo.png",
@@ -96,23 +108,29 @@ VARIANTS = {
                     face="horseshoe", side="c",
                     # an arched plane, endplates with a rounded top rolling
                     # over it, brake light across the middle
-                    wing_plan=("arch", 0.040), endplate="roll", wing_led="centre"),
+                    wing_plan=("arch", 0.040), endplate="roll", wing_led="centre",
+                    sponsors=dict(door=10, rear=8, nose=14, wing=6, ep=2)),
 }
 
 # Base hull. Right-half section control points (x, z).
 KEYS = [
-    (-2.52, [(0, .100), (.46, .100), (.53, .140), (.55, .200), (.44, .235), (.30, .245), (.18, .250), (.08, .255), (0, .260)]),
-    (-2.30, [(0, .060), (.80, .060), (.885, .180), (.90, .420), (.76, .490), (.53, .370), (.31, .330), (.14, .330), (0, .330)]),
-    (-1.90, [(0, .050), (.95, .050), (.99, .380), (1.00, .720), (.83, .800), (.62, .640), (.37, .490), (.16, .465), (0, .460)]),
-    (-1.55, [(0, .050), (.965, .050), (1.00, .420), (1.005, .830), (.82, .890), (.63, .770), (.38, .580), (.17, .530), (0, .515)]),
-    (-1.12, [(0, .050), (.975, .050), (1.00, .400), (.99, .720), (.81, .770), (.62, .640), (.42, .630), (.21, .650), (0, .655)]),
-    (-0.62, [(0, .050), (.975, .050), (.99, .380), (.975, .600), (.80, .630), (.65, .580), (.47, .810), (.27, .935), (0, .965)]),
-    (-0.10, [(0, .050), (.975, .050), (.99, .380), (.975, .590), (.80, .615), (.66, .585), (.48, .925), (.29, 1.020), (0, 1.040)]),
-    (0.45, [(0, .050), (.975, .050), (.99, .380), (.975, .600), (.80, .630), (.66, .610), (.47, .910), (.28, 1.000), (0, 1.020)]),
-    (1.02, [(0, .050), (.975, .050), (1.00, .400), (.99, .740), (.81, .800), (.63, .720), (.41, .800), (.21, .860), (0, .875)]),
-    (1.55, [(0, .050), (.965, .050), (1.00, .430), (1.005, .850), (.81, .900), (.62, .800), (.36, .760), (.18, .770), (0, .780)]),
-    (1.98, [(0, .070), (.95, .070), (.985, .400), (.975, .760), (.78, .800), (.59, .720), (.34, .690), (.16, .685), (0, .690)]),
-    (2.46, [(0, .230), (.84, .230), (.90, .400), (.89, .600), (.72, .635), (.54, .610), (.31, .590), (.14, .585), (0, .585)]),
+    # Pass 6, measured against the imported 499P: the deck between the front
+    # fenders ~15 cm higher (the old one was a scoop from the nose to the
+    # screen), the fender crowns ~6 cm lower, the cabin narrower at its base
+    # (~0.43 against 0.47-0.55) and taller (1.11 against 1.04), the engine
+    # cover and tail higher.
+    (-2.52, [(0, .100), (.46, .100), (.53, .140), (.55, .200), (.44, .240), (.30, .265), (.18, .275), (.08, .280), (0, .282)]),
+    (-2.30, [(0, .060), (.80, .060), (.885, .180), (.90, .400), (.76, .460), (.53, .420), (.31, .440), (.14, .452), (0, .455)]),
+    (-1.90, [(0, .050), (.95, .050), (.99, .380), (1.00, .680), (.84, .730), (.64, .620), (.40, .585), (.18, .590), (0, .592)]),
+    (-1.55, [(0, .050), (.965, .050), (1.00, .420), (1.005, .745), (.84, .780), (.64, .690), (.40, .632), (.18, .632), (0, .632)]),
+    (-1.12, [(0, .050), (.975, .050), (1.00, .400), (.99, .700), (.82, .740), (.62, .640), (.42, .625), (.21, .640), (0, .645)]),
+    (-0.62, [(0, .050), (.975, .050), (.99, .380), (.975, .600), (.80, .630), (.62, .600), (.44, .740), (.28, .910), (0, .955)]),
+    (-0.10, [(0, .050), (.975, .050), (.99, .380), (.975, .590), (.80, .615), (.62, .620), (.43, .880), (.30, 1.060), (0, 1.110)]),
+    (0.45, [(0, .050), (.975, .050), (.99, .380), (.975, .600), (.80, .630), (.62, .630), (.42, .860), (.29, 1.040), (0, 1.090)]),
+    (1.02, [(0, .050), (.975, .050), (1.00, .400), (.99, .720), (.81, .780), (.62, .700), (.36, .770), (.22, .850), (0, .875)]),
+    (1.55, [(0, .050), (.965, .050), (1.00, .430), (1.005, .800), (.82, .850), (.62, .780), (.36, .770), (.18, .790), (0, .800)]),
+    (1.98, [(0, .070), (.95, .070), (.985, .400), (.975, .740), (.78, .780), (.59, .720), (.34, .730), (.16, .735), (0, .740)]),
+    (2.46, [(0, .230), (.84, .230), (.90, .400), (.89, .620), (.72, .660), (.54, .650), (.31, .650), (.14, .655), (0, .660)]),
 ]
 
 
@@ -157,6 +175,11 @@ CS = V["canopy_shift"]
 SCREEN_Y = (-1.00 + CS, -0.30 + CS)
 SIDE_Y = (-0.30 + CS, 0.58 + CS)
 CANOPY_Y = (SCREEN_Y[0], SIDE_Y[1])
+# the driver (authored, see above): rides with the cabin
+EYE = Vector((0.16, -0.36 + CS, 0.83))
+# the door window: the front of the cabin's side only, the rest is bodywork
+WIN_Y = (SIDE_Y[0], SIDE_Y[0] + 0.50)
+SP = V["sponsors"]
 NOSE_KEY = KEYS[1][0]
 
 
@@ -170,7 +193,9 @@ carlib.reset_scene()
 M = carlib.car_materials(V["paint"], V["accent"], V["caliper"],
                          logo_path=os.path.join(CAR_DIR, "textures", V["logo"]),
                          seat_rgb=V["seat"], paint_metallic=V.get("paint_metallic", 0.8),
-                         paint_rough=0.20, accent_metallic=V.get("accent_metallic", 0.55))
+                         paint_rough=0.20, accent_metallic=V.get("accent_metallic", 0.55),
+                         carbon_weave=True, sponsors=True)
+MIR = {k: carlib.mat("car_mirror_" + k, (0.55, 0.57, 0.60), 1.0, 0.05) for k in ("left", "right")}
 
 # ---------------------------------------------------------------- body loft
 VK = carlib.fender_bump(apply_variant(KEYS, V), (AX_F, AX_R),
@@ -248,15 +273,19 @@ for (kind, kw) in SIDES[V["side"]]:
         SIDE_FLOORS.append(f)
     if blades:
         SIDE_BLADES.append((f, blades, blade_r))
+# Louvred openings over the front wheels, every car (the LMH look: the
+# wheel's turbulence let out through the fender top). Panini's upright flank
+# already carries its own.
+VENT_OPEN = not LOUVRES          # cut through over the wheel (below), blades across
 # The valley between each front fender and the cockpit, carved deeper.
 L.recess(AX_F + 0.30, -0.35 + CS, 4.70, 5.90, depth=0.035, rim=0.14)
 
 # Headlamp: a slit across the front face of each fender, above the mouths;
 # lower and further inboard it would break out through the low nose deck.
 LIGHTS = {  # x span, z0, height
-    "round": ((0.56, 0.84), 0.290, 0.075),
-    "slit": ((0.54, 0.86), 0.315, 0.045),
-    "quad": ((0.54, 0.86), 0.300, 0.055),
+    "round": ((0.56, 0.84), 0.285, 0.088),
+    "slit": ((0.54, 0.86), 0.310, 0.056),
+    "quad": ((0.54, 0.86), 0.295, 0.068),
 }[V["lights"]]
 LAMP_X = LIGHTS[0]
 LAMP_Z = (LIGHTS[1], LIGHTS[1] + LIGHTS[2])
@@ -283,23 +312,29 @@ TOP = M.accent if V.get("two_tone") else M.paint
 def face_mat(ym, kk, right):
     jc = kk / SAMP
     is_screen = SCREEN_Y[0] < ym < SCREEN_Y[1]
-    is_side = SIDE_Y[0] <= ym < SIDE_Y[1]
+    is_side = WIN_Y[0] <= ym < WIN_Y[1]
     if jc < CAN_LO - TRIM_J:
         if jc < 3.6 and L._offset(ym, kk, right, skip_swept=True) > 0.030:
             return M.mesh
+        if 3.3 < jc < 4.4 and abs(ym - AX_F) < 0.24 and L._offset(ym, kk, right, skip_swept=True) > 0.020:
+            return M.mesh                 # the louvred opening's floor, dark under the blades
+        if jc < 1.70:
+            return M.carbon               # bare carbon below the sill line
         return TOP if jc > TWO_TONE_J else M.paint
     if jc < CAN_LO:
         return M.trim if (is_screen or is_side) else TOP
     if is_screen:
         return M.trim if jc > CAN_HI + SUN_J else M.glass
-    if is_side and jc < CAN_HI:
+    if is_side and CAN_LO + 0.30 < jc < CAN_HI - 0.20:
         return M.glass
-    if jc < CAN_HI + 0.4 and any(abs(ym - e) < TRIM_Y for e in (SCREEN_Y[0], SIDE_Y[1])):
+    if is_side and jc < CAN_HI:
+        return M.trim                     # the window's frame
+    if jc < CAN_HI + 0.4 and any(abs(ym - e) < TRIM_Y for e in (SCREEN_Y[0], WIN_Y[1])):
         return M.trim
     return TOP
 
 
-body = L.build("body", face_mat, [M.paint, M.glass, M.trim, M.mesh] + ([M.accent] if V.get("two_tone") else []),
+body = L.build("body", face_mat, [M.paint, M.glass, M.trim, M.mesh, M.carbon] + ([M.accent] if V.get("two_tone") else []),
                subsurf=0)
 save("body")
 
@@ -309,6 +344,13 @@ for (y, tyre) in ((AX_F, TYRE_F), (AX_R, TYRE_R)):
     for sx in (-1, 1):
         carlib.arch(body, L, M, y, tyre, sx=sx, gap=ARCH_GAP,
                     x_in=0.60, z_bottom=0.100)
+# the vents over the front wheels, cut through into the arch well (lined
+# by the cut), behind the wheel's top where the 499P's open
+VENT = (0.70, 0.965, AX_F + 0.04, AX_F + 0.36)
+if VENT_OPEN:
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * VENT[0], sx * VENT[1]))
+        carlib.aperture(body, M, (x0, VENT[2], 0.50), (x1, VENT[3], 1.10))
 carlib.sharpen(body, 34.0)
 save("arches")
 
@@ -358,8 +400,8 @@ save("apertures")
 p = Builder("parts")
 WZ = 1.04 + V["wing_z"]
 TOP_Z = WZ + 0.235                          # endplate tops
-CK = carlib.cockpit_points(L, WZ, liner_z=0.036, top_z=TOP_Z)
-EYE, DASH_Z = CK["eye"], CK["dash_z"]
+CK = carlib.authored_cockpit(EYE, wheel_ahead=0.38, wheel_below=0.19)
+DASH_Z = CK["dash_z"]
 DX = EYE.x
 SILL_X = L.x_at(0.0, 0.18)
 
@@ -388,12 +430,24 @@ carlib.diffuser(p, M.carbon, DIF_Y0, DIF_Y1, DIF_HW, 0.055, 0.235,
 # that grow out of the rear fenders (no swan necks), a fin into its middle.
 WY, WHW = 2.04, 0.935
 PLAN, AMT = V["wing_plan"]
-(te_y, te_z), TE = carlib.wing(p, M.carbon, WHW, 0.380, 0.090, 0.050, WY, WZ, angle_deg=-8.0,
+# (pass 6: inverted - leading edge low, trailing edge up; the first cut's
+# elements sloped down to the rear, a lifting wing)
+W_ANG, F_ANG = 7.0, 30.0
+(te_y, te_z), TE = carlib.wing(p, M.carbon, WHW, 0.360, 0.090, -0.050, WY, WZ - 0.030, angle_deg=W_ANG,
                                plan=PLAN, amount=AMT)
-(f2_y, f2_z), TE2 = carlib.wing(p, M.carbon, WHW, 0.140, 0.085, 0.045, WY + 0.325, WZ + 0.075,
-                                angle_deg=-22.0, plan=PLAN, amount=AMT)
+(f2_y, f2_z), TE2 = carlib.wing(p, M.carbon, WHW, 0.150, 0.085, -0.045, te_y - 0.030, te_z + 0.012,
+                                angle_deg=F_ANG, plan=PLAN, amount=AMT)
 for (xa, xb, y, z) in carlib.spans(TE2, -WHW, WHW, 12):
-    carlib.gurney(p, M.carbon, xa, xb, y, z, h=0.018, t=0.005, angle_deg=-22.0)
+    carlib.gurney(p, M.carbon, xa, xb, y, z, h=0.018, t=0.005, angle_deg=F_ANG)
+# the wing's sponsor on the main plane's upper face, reading from behind
+# (the chase camera's view of it)
+_a = math.radians(W_ANG)
+_dz = TE(0.0)[1] - TE(WHW)[1]
+_dy = TE(0.0)[0] - TE(WHW)[0]
+carlib.flat_decal(p, M.sponsor, (0.0, WY + 0.16 * math.cos(_a) - 0.020 * math.sin(_a) + _dy,
+                                 WZ - 0.030 + 0.16 * math.sin(_a) + 0.020 * math.cos(_a) + _dz),
+                  (-1, 0, 0), (0, -math.cos(_a), -math.sin(_a)), 0.80, 0.20, carlib.atlas_uv(SP["wing"]),
+                  lift=0.004)
 if V["wing_led"] in ("trail", "centre"):
     lx = WHW - 0.05 if V["wing_led"] == "trail" else 0.32
     for (xa, xb, y, z) in carlib.spans(TE2, -lx, lx, 12 if V["wing_led"] == "trail" else 4):
@@ -556,13 +610,28 @@ for f in SIDE_FLOORS:
     for sx in (-1, 1):
         carlib.swept_floor(p, M.mesh, L, f, sx=sx)
 for f in LOUVRES:
+    y0f, y1f = (f["y0"], f["y1"]) if not isinstance(f["y0"], tuple) else (f["y0"][0], f["y1"][1])
+    n = max(5, int((y1f - y0f - 0.06) / 0.048))
     for sx in (-1, 1):
-        for k in range(5):
-            yv = f["y0"] + 0.02 + k * 0.058
-            zt = L.point(yv, 3.75).z
-            xv = L.point(yv, 3.75).x
-            p.box(M.carbon, (min(sx * (xv - 0.20), sx * (xv + 0.02)), yv, zt - 0.026),
-                  (max(sx * (xv - 0.20), sx * (xv + 0.02)), yv + 0.026, zt - 0.006))
+        for k in range(n):
+            yv = y0f + 0.04 + k * (y1f - y0f - 0.08) / max(n - 1, 1)
+            pa, pb = L.point(yv, f["j0"] + 0.15), L.point(yv, f["j1"] - 0.15)
+            zt = min(pa.z, pb.z)
+            # a blade raked back, its top just under the skin
+            prof = [(yv - 0.012, zt - 0.030), (yv + 0.010, zt - 0.006), (yv + 0.018, zt - 0.010),
+                    (yv - 0.004, zt - 0.034)]
+            carlib.plate(p, M.carbon, prof, sx * (pa.x + pb.x) / 2, abs(pa.x - pb.x), chamfer=0.002)
+
+if VENT_OPEN:
+    # louvres across the vent: carbon blades raked back, tops at the skin
+    for sx in (-1, 1):
+        for k in range(6):
+            yv = VENT[2] + 0.035 + k * (VENT[3] - VENT[2] - 0.07) / 5
+            zt = min(L.z_at(yv, VENT[0] + 0.01), L.z_at(yv, VENT[1] - 0.01))
+            prof = [(yv - 0.016, zt - 0.045), (yv + 0.012, zt - 0.004), (yv + 0.020, zt - 0.008),
+                    (yv - 0.008, zt - 0.049)]
+            carlib.plate(p, M.carbon, prof, sx * (VENT[0] + VENT[1]) / 2, VENT[1] - VENT[0] - 0.004,
+                         chamfer=0.002)
 
 # ---- exhausts
 if V["exhaust"] == "quad":
@@ -587,13 +656,21 @@ if V["scoop"]:
     carlib.plate(p, M.carbon, sc_prof, 0.0, sc_x * 1.10, chamfer=0.035)
     p.box(M.mesh, (-sc_x * 0.42, SC_Y - 0.262, sc_z + 0.020),
           (sc_x * 0.42, SC_Y - 0.242, sc_z + sc_h * 0.80))
-MIR_Y = SCREEN_Y[0] + 0.26
-# a deeper valley would drop the mirror onto the wider fender and push it
-# out, widening the mesh box the client derives the driver's eye from
-MIR_Z = L.point(MIR_Y, 5.10).z + 0.035 - min(V.get("valley", 0.0), 0.0)
-for sx in (-1, 1):
-    carlib.mirror(p, M, L.x_at(MIR_Y, MIR_Z) + 0.100, MIR_Y, MIR_Z, sx=sx,
-                  style=V["mirror"], head=(0.064, 0.120, 0.046))
+# Mirrors: aero heads on stalks off the front fenders' inner shoulders,
+# half a metre ahead of the eye (the 499P's: 0.52 ahead, 0.89 out, 0.76 up),
+# the glass in the car_mirror_* slots and in car.toml as built.
+MIR_Y = EYE.y - 0.50
+MIR_X = 0.84
+MIR_Z = EYE.z - 0.01
+MIRRORS = {}
+for sx, key in ((1, "left"), (-1, "right")):
+    gc, gsz = carlib.aero_mirror(p, M, MIR[key], (sx * MIR_X, MIR_Y, MIR_Z), w=0.20, h=0.095, d=0.13,
+                                 housing=M.carbon if V["mirror"] == "pod" else M.paint)
+    MIRRORS[key] = (gc, gsz)
+    base_z = L.z_at(MIR_Y + 0.02, MIR_X - 0.04)
+    stalk = [(MIR_Y - 0.05, base_z - 0.02), (MIR_Y + 0.08, base_z - 0.02), (MIR_Y + 0.04, MIR_Z - 0.03),
+             (MIR_Y - 0.02, MIR_Z - 0.03)]
+    carlib.plate(p, M.carbon, stalk, sx * (MIR_X - 0.04), 0.016, chamfer=0.005)
 p.bar(M.carbon, (0.16, SIDE_Y[1] - 0.10, L.roof_z(SIDE_Y[1] - 0.10) - 0.01),
       (0.16, SIDE_Y[1] - 0.10, L.roof_z(SIDE_Y[1] - 0.10) + 0.16), 0.005)
 for yy in (NOSE + 0.16, TAIL - 0.12):
@@ -624,19 +701,24 @@ p.cylinder(M.glass, (0.22, cy + 0.05, cz + 0.014), 0.010, 0.006, segs=10, axis='
 
 # ---- race number on the nose
 NUM = V.get("number", "1")
-carlib.top_patch(p, M.decal, L, NOSE + 0.30, NOSE + 0.64, -0.19, 0.19, lift=0.004, nu=8, nv=6)
-carlib.top_text(p, M.trim, L, NUM, 0.0, NOSE + 0.47, size=0.24, thick=0.006, lift=0.005,
-                face="front", squash=0.80)
+carlib.top_decal(p, M.number, L, 0.0, NOSE + 0.50, 0.30, 0.30, carlib.number_uv(NUM), along_y=False,
+                 lift=0.005, nu=8, nv=8)
 
-# ---- cockpit, built to the points the client derives (docs/CAR_MODELS.md)
+# ---- cockpit, built to the authored eye (docs/CAR_MODELS.md); the seat,
+# pedals and footwell were laid out for the derived eye 0.25 m behind
+# the middle, so they move with it
+SH = EYE.y - 0.25
 DASH_Z = min(EYE.z - 0.22, L.roof_z(SCREEN_Y[0]) - 0.03)
 DASH_Y0, DASH_Y1 = SCREEN_Y[0] - 0.02, CK["wheel"].y - 0.28
-XIN = min(L.x_at(y, DASH_Z) for y in (DASH_Y0, -0.3, 0.0, 0.3, SIDE_Y[1])) - 0.050
+# inside the cabin, not the pods: measured above the pod tops (the pass-6
+# cabin is narrower than the sidepods it stands between)
+XIN = min(L.x_at(y, 0.80) for y in (DASH_Y0 + 0.10, -0.3 + CS, 0.0 + CS, 0.3 + CS, SIDE_Y[1] - 0.05)) - 0.050
+CG = min(0.56, XIN + 0.02)          # the cage's hoop legs
 HOOP_Y = SIDE_Y[1] - 0.06
 BULK_Y = HOOP_Y + 0.03
 BELT_Z = L.point(0.0, CAN_LO).z
 p.box(M.interior, (-XIN, DASH_Y0, 0.090), (XIN, BULK_Y, 0.130))                  # floor
-p.box(M.alcantara, (-XIN + 0.02, -0.74, 0.130), (XIN - 0.02, 0.08, 0.135))       # footwell mat
+p.box(M.alcantara, (-XIN + 0.02, -0.74 + SH, 0.130), (XIN - 0.02, 0.08 + SH, 0.135))  # footwell mat
 p.box(M.interior, (-0.14, DASH_Y0, 0.130), (0.14, BULK_Y, 0.29))                  # tunnel
 p.box(M.trim, (-0.16, DASH_Y0, 0.29), (0.16, BULK_Y, 0.305))
 carlib.switch_panel(p, M, -0.13, 0.13, CK["wheel"].y - 0.18, CK["wheel"].y + 0.20, 0.315,
@@ -646,8 +728,9 @@ p.box(M.trim, (-XIN, BULK_Y - 0.01, BELT_Z - 0.06), (XIN, BULK_Y + 0.04, BELT_Z 
 p.box(M.interior, (-XIN, DASH_Y0, 0.52), (XIN, DASH_Y1, DASH_Z - 0.06))           # dash
 p.box(M.alcantara, (-XIN, DASH_Y0, DASH_Z - 0.06), (XIN, DASH_Y1, DASH_Z))
 p.bar(M.alcantara, (-XIN, DASH_Y1, DASH_Z - 0.016), (XIN, DASH_Y1, DASH_Z - 0.016), 0.016, segs=10)
-hood = [(DASH_Y1 - 0.28, DASH_Z), (DASH_Y1 + 0.02, DASH_Z), (DASH_Y1 + 0.02, DASH_Z + 0.036),
-        (DASH_Y1 - 0.22, DASH_Z + 0.036)]
+H0 = max(DASH_Y1 - 0.28, DASH_Y0 + 0.10)       # inside the screen's foot, not through the deck
+hood = [(H0, DASH_Z), (DASH_Y1 + 0.02, DASH_Z), (DASH_Y1 + 0.02, DASH_Z + 0.036),
+        (H0 + 0.06, DASH_Z + 0.036)]
 carlib.plate(p, M.alcantara, hood, DX, 0.30, chamfer=0.010)
 p.box(M.trim, (-0.09, DASH_Y1 - 0.06, DASH_Z), (0.09, DASH_Y1 - 0.01, DASH_Z + 0.036))
 p.box(M.display, (-0.075, DASH_Y1 - 0.012, DASH_Z + 0.008), (0.075, DASH_Y1 - 0.008, DASH_Z + 0.032))
@@ -660,33 +743,53 @@ for sx in (-1, 1):
           (max(sx * XIN, sx * (XIN + 0.02)), SIDE_Y[0] + 0.02, 0.52))
     p.box(M.interior, (min(sx * XIN, sx * (XIN + 0.02)), SIDE_Y[1] - 0.02, 0.130),
           (max(sx * XIN, sx * (XIN + 0.02)), BULK_Y + 0.03, BELT_Z - 0.06))
-carlib.bucket_seat(p, M, DX, 0.10, 0.130, width=0.48, depth=0.52, back_h=0.60, rake_deg=26.0)
+carlib.bucket_seat(p, M, DX, 0.10 + SH, 0.130, width=0.48, depth=0.52, back_h=0.60, rake_deg=26.0)
 for x in (DX - 0.19, DX - 0.07, DX + 0.05):
-    p.box(M.metal, (x - 0.030, -0.78, 0.140), (x + 0.030, -0.72, 0.265))
-p.box(M.metal, (DX + 0.13, -0.80, 0.140), (DX + 0.20, -0.70, 0.25))
-carlib.extinguisher(p, M, -0.40, -0.40, 0.19, r=0.046, length=0.32)
+    p.box(M.metal, (x - 0.030, -0.78 + SH, 0.140), (x + 0.030, -0.72 + SH, 0.265))
+p.box(M.metal, (DX + 0.13, -0.80 + SH, 0.140), (DX + 0.20, -0.70 + SH, 0.25))
+carlib.extinguisher(p, M, -0.40, -0.40 + SH, 0.19, r=0.046, length=0.32)
 carlib.inner_skin(p, M.alcantara, L, SCREEN_Y[1] + 0.03, SIDE_Y[1] - 0.03, 0.40,
                   drop=0.030, nu=10, nv=6)
 for sx in (-1, 1):
     top = (sx * 0.40, HOOP_Y, L.z_at(HOOP_Y, 0.46) - 0.050)
-    p.bar(M.cage, (sx * 0.56, HOOP_Y, 0.20), (sx * 0.56, HOOP_Y, top[2] - 0.12), 0.022, segs=8)
-    p.bar(M.cage, (sx * 0.56, HOOP_Y, top[2] - 0.12), top, 0.022, segs=8)
-    scr = (sx * 0.50, SCREEN_Y[1], L.point(SCREEN_Y[1], CAN_LO + 0.25).z - 0.030)
-    p.bar(M.cage, top, scr, 0.019, segs=8)
-    foot = (sx * (L.x_at(wy, 0.58) - 0.075), wy + 0.02, L.z_at(wy + 0.02, 0.60) - 0.040)
-    p.bar(M.cage, scr, foot, 0.018, segs=8)
-    p.bar(M.cage, (sx * 0.56, HOOP_Y, top[2] - 0.18), (sx * 0.44, AX_R - 0.15, 0.50),
+    carlib.inside_bar(p, M.cage, L, (sx * CG, HOOP_Y, 0.20), (sx * CG, HOOP_Y, top[2] - 0.12), 0.022, segs=8)
+    carlib.inside_bar(p, M.cage, L, (sx * CG, HOOP_Y, top[2] - 0.12), top, 0.022, segs=8)
+    scr_z = L.point(SCREEN_Y[1], CAN_LO + 0.25).z - 0.030
+    scr = (sx * min(0.50, L.x_at(SCREEN_Y[1], scr_z) - 0.05), SCREEN_Y[1], scr_z)
+    carlib.inside_bar(p, M.cage, L, top, scr, 0.019, segs=8)
+    fz = L.z_at(wy + 0.06, 0.40) - 0.045
+    foot = (sx * min(L.x_at(wy + 0.06, fz) - 0.06, 0.38), wy + 0.06, fz)
+    carlib.inside_bar(p, M.cage, L, scr, foot, 0.018, segs=8)
+    carlib.inside_bar(p, M.cage, L, (sx * CG, HOOP_Y, top[2] - 0.18), (sx * min(0.44, CG), AX_R - 0.15, 0.50),
           0.019, segs=8)
-    p.bar(M.cage, (sx * 0.56, HOOP_Y, 0.50), (sx * 0.55, -0.64, 0.54), 0.019, segs=8)
-p.bar(M.cage, (-0.40, HOOP_Y, L.z_at(HOOP_Y, 0.46) - 0.050),
+    carlib.inside_bar(p, M.cage, L, (sx * CG, HOOP_Y, 0.50), (sx * CG, -0.64 + CS, 0.54), 0.019, segs=8)
+carlib.inside_bar(p, M.cage, L, (-0.40, HOOP_Y, L.z_at(HOOP_Y, 0.46) - 0.050),
       (0.40, HOOP_Y, L.z_at(HOOP_Y, 0.46) - 0.050), 0.022, segs=8)
 
-# ---- wordmark on the door, ahead of the side intake
-DEC_Y = (AX_F + 0.80, SIDE_Y[1] + 0.00)
-carlib.conform_decal(p, M.logo, L, DEC_Y[0], DEC_Y[1], 1.95, 2.95, sx=1,
-                     lift=0.005, nu=14, nv=6)
-carlib.conform_decal(p, M.logo, L, DEC_Y[0], DEC_Y[1], 1.95, 2.95, sx=-1,
-                     lift=0.005, nu=14, nv=6, flip_u=True)
+# ---- the door: its number panel behind the front wheel, the maker's
+# wordmark along it; a sponsor on the cabin's flank behind the window, one
+# on the tail's flank, one on each front fender's crown, the endplates'
+NUM_Y = (AX_F + 0.56, AX_F + 0.84)
+DEC_Y = (AX_F + 0.92, SIDE_Y[1] + 0.00)
+for sx in (-1, 1):
+    carlib.conform_decal(p, M.number, L, NUM_Y[0], NUM_Y[1], 1.80, 3.05, sx=sx, lift=0.005, nu=8, nv=8,
+                         flip_u=sx < 0, uv_rect=carlib.number_uv(NUM))
+    carlib.conform_decal(p, M.logo, L, DEC_Y[0], DEC_Y[1], 1.95, 2.95, sx=sx,
+                         lift=0.005, nu=14, nv=6, flip_u=sx < 0)
+    carlib.conform_decal(p, M.sponsor, L, WIN_Y[1] + 0.03, SIDE_Y[1] - 0.04, 6.05, 6.85, sx=sx,
+                         lift=0.004, nu=10, nv=5, flip_u=sx < 0, uv_rect=carlib.atlas_uv(SP["door"]))
+    carlib.conform_decal(p, M.sponsor, L, AX_R + 0.42, TAIL - 0.10, 2.05, 2.85, sx=sx,
+                         lift=0.004, nu=10, nv=5, flip_u=sx < 0, uv_rect=carlib.atlas_uv(SP["rear"]))
+    carlib.top_decal(p, M.sponsor, L, sx * 0.90, AX_F - 0.48, 0.30, 0.075, carlib.atlas_uv(SP["nose"]),
+                     along_y=True, read_from=sx, lift=0.005, nu=8, nv=3)
+    carlib.flat_decal(p, M.sponsor, (sx * (WHW + 0.0195), WY + 0.30, WZ + 0.06), (0, sx, 0), (0, 0, 1),
+                      0.36, 0.09, carlib.atlas_uv(SP["ep"]), lift=0.0005)
+
+# ---- the driver (pass 7): on the bucket, gloves on the rig's rim, feet on
+# the pedals; exported apart from the body (carlib.export_driver)
+drv = Builder("driver")
+carlib.driver_figure(drv, M, EYE, CK["wheel"], (DX, 0.10 + SH + 0.35, 0.130 + 0.21), (-0.78 + SH, 0.17),
+                     wheel_hw=0.16, suit=V["paint"])
 
 parts = carlib.bevel(p.finish(planar_uv=True, recalc=False), width=0.0035, segments=2,
                      angle_deg=38.0)
@@ -696,8 +799,14 @@ save("parts")
 # ------------------------------------------------------------ join + export
 car, glb = carlib.join_and_export([body] + parts_objs, V["stem"], CAR_DIR,
                                   export=os.environ.get("APEX_EXPORT", "1") == "1")
+# the driver, in his own GLB (pass 7; see carlib.driver_figure)
+DRIVER = carlib.export_driver(drv, V["stem"], CAR_DIR, export=bool(glb))
+if glb:
+    carlib.write_cockpit_table(CAR_DIR, CK, 180.0, style="closed", mirrors=MIRRORS,
+                               note="Pass 6: authored against the imported 499P.")
 save("joined")
 print("stats:", carlib.mesh_stats(car))
-print("sightline:", carlib.sightline(car))
+print("sightline:", carlib.sightline(car, eye=EYE))
+print("eye:", [round(c, 3) for c in EYE], "mirrors:", {k: [round(c, 3) for c in v[0]] for k, v in MIRRORS.items()})
 if glb:
     print("GLB:", glb, os.path.getsize(glb))

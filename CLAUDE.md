@@ -316,6 +316,39 @@ the wood's leaf type — which is what leaves Zandvoort's dunes bare, Spa's
 Ardennes in spruce and the Parco di Monza in broadleaf. Both passes recycle
 their own element ids, so re-running either writes a byte-identical file.
 
+**AC survey overlays** (`scripts/ac_layout.py`, `scripts/ac_import/features.py`,
+docs/AC_LAYOUT_SURVEY.md). Twelve circuits have an Assetto Corsa
+counterpart (`content/tracks/ac_pairs.json`), and AC places their stands,
+buildings, pit lane, bridges, masts and trees far better than OSM. The
+tool surveys the AC layout (objects from the kn5 node tree, classified by
+names, seated-crowd cards and a tiered-seating height profile; trees as
+points; the pit spline trimmed to where it leaves the road), fits its
+centerline onto the native one (`osm_layout.coarse_fit` + ICP: the frames
+are 50-170 degrees and up to 300 m apart), then **rubber-sheets** every
+point by the displacement of the native road beside it (Gaussian, sigma 12
+m on the road to 60 m 120 m out, fading to nothing by 300 m), because the
+two traces disagree by up to 10-20 m over whole stretches while agreeing
+locally (Zandvoort's back section, Interlagos). Matching: a footprint
+overlapping a dossier entry by 30% of the smaller takes AC's geometry and
+keeps the dossier's name (an OSM grandstand stays a stand even when AC
+calls it a building); AC-only entries are added, dossier-only ones kept
+(the AC version may be older), manual (`MANUAL_*`, seating map, authored)
+never replaced, footprints of very different size (under 1:5) left to the
+dossier; woods are a union; the pit lane is replaced unless
+`MANUAL_PIT_LANE` says otherwise, with AC's `AC_PIT_n` count as
+`PitRoad::box_count` (capped by what the lane holds). Gates: rigid fit 40%
+of the lap within 3 m, 90% after the field, scale within 0.5%, under 15%
+reshaped. Output: `<Stem>.layout.ac.json` (checked in; positions and sizes
+only, keyed to the centerline plan's CRC, so `osm_layout.py` re-applies it
+after a refetch and drops it with a warning when the road has moved), the
+merged `layout.json` with an `ac_survey` block that `--unapply` undoes
+byte for byte, and `build/ac_layout/<Stem>/{report.json,overlay.png}`
+(look at the picture before trusting a track). `--ac-root` or
+`APEXSIM_AC_TRACKS` is the AC `content/tracks` folder; surveys are cached
+under `.cache/ac_layout`. Tests: `python -m unittest
+scripts/ac_import/tests/test_ac_layout.py` (a surveyed synthetic oval,
+the fit and field on a rotated, shifted and bent trace, every merge rule).
+
 Twenty-two of the twenty-six circuits have dossiers; a track without one is
 groomed exactly as before.
 
@@ -448,7 +481,8 @@ python scripts/dem_elevation.py <Stem>                                        # 
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- --all   # centerline
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-bank -- --all     # banking onto its bends
 python scripts/drs_zones.py --all                                             # DRS zones onto the corners
-python scripts/osm_layout.py --all --offline                                  # dossiers (fit to the centerline)
+python scripts/osm_layout.py --all --offline                                  # dossiers (fit to the centerline; re-applies the AC overlays)
+python scripts/ac_layout.py --all                                             # AC overlays, only where the centerline's plan moved
 python scripts/dem_fetch.py --all --offline                                   # elevation (same fit, same datum)
 python scripts/track_location.py --all                                        # altitude and position from the DEM
 ./scripts/build_track_levels.ps1                                              # dress, export, import
@@ -685,7 +719,8 @@ coordinate/winding conventions; the reader still takes a version 1 file.
 
 A track from the player's own AC install becomes a complete ApexSim track
 in one command: AC's geometry drawn by the client, AC's physics mesh driven
-on by the server. Local only; nothing AC-derived is bundled, and a
+on by the server. Local only; no AC geometry, textures or physics data is
+bundled (the dossier overlays below are positions and sizes only), and a
 CSP-encrypted kn5 is refused, never decrypted.
 
 ```powershell
@@ -2111,7 +2146,12 @@ much on a wet track), and a **core** (7 kJ/K: carcass, gas, hub) heated by
 the carcass flexing (0.8 of `rolling_resistance · load · speed`, the first
 use of that field in physics) and the rest of the slide heat, cooled by the
 air inside the wheel, with conduction between the two. The tread answers a
-slide in a corner or two; the core takes a lap or so. `update_car_3d` reads
+slide in a corner or two; the core takes a lap or so. Only the power up to
+the tyre's peak slip heats the tyre that way: what a slide past the peak
+dissipates splits with the road by effusivity, 30% into the tread
+(`SLIDING_HEAT_TO_TYRE`, `TyreWork::power_split_w`). With all of it in the
+tread a player's understeer at La Source took a GT3's fronts to 150 °C and
+the run to Eau Rouge to 200 (2026-10-01); the AI, at the peak, is unchanged. `update_car_3d` reads
 the grip from the end of the last tick and steps the heat after the force
 solve; the old stateless "temperature" in `update_telemetry_3d` is gone.
 

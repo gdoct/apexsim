@@ -302,6 +302,10 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			else if (Key == TEXT("hinge_up_m")) { D.HingeUpM = Number; }
 			else if (Key == TEXT("open_deg")) { D.OpenDeg = Number; }
 		}
+		else if (Table == TEXT("driver"))
+		{
+			if (Key == TEXT("model")) { Out.Driver.Model = Value; }
+		}
 		else if (Table == TEXT("engine"))
 		{
 			// `[[engine.torque_curve]]` has an `rpm` of its own; it is another table.

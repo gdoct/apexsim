@@ -355,6 +355,10 @@ void UApexCarContentSubsystem::ScanNow()
 				{
 					Row.DrsFlap.RuntimeModel = CarFile(CarDir, Toml.DrsFlap.Model, Folder, TEXT("its DRS flap"));
 				}
+				if (Toml.Driver.IsPresent())
+				{
+					Row.Driver.RuntimeModel = CarFile(CarDir, Toml.Driver.Model, Folder, TEXT("its driver"));
+				}
 				for (const FApexCarLiveryToml& Source : Toml.Liveries)
 				{
 					FApexCarLivery& Livery = Row.Liveries.AddDefaulted_GetRef();
@@ -496,7 +500,7 @@ TSharedPtr<UApexCarContentSubsystem::FParsedModel> UApexCarContentSubsystem::Par
 void UApexCarContentSubsystem::Prefetch(const FApexCarCatalogRow& Row)
 {
 	IImageWrapperModule* Wrappers = nullptr;
-	for (const FString* Path : {&Row.RuntimeModel, &Row.Wheels.RuntimeModel, &Row.Wheels.RearRuntimeModel, &Row.DrsFlap.RuntimeModel,
+	for (const FString* Path : {&Row.RuntimeModel, &Row.Wheels.RuntimeModel, &Row.Wheels.RearRuntimeModel, &Row.DrsFlap.RuntimeModel, &Row.Driver.RuntimeModel,
 			 &Row.Cockpit.RuntimeSteeringWheel})
 	{
 		if (Path->IsEmpty())

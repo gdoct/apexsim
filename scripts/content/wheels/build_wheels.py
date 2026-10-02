@@ -13,7 +13,14 @@ The client puts the face outboard on both sides of the car.
 
 Material slots: `wheel_tyre`, `wheel_mark` (sidewall lettering, which is
 also what shows the wheel turning), `wheel_band` (compound ring),
-`wheel_rim`, `wheel_nut`, `wheel_brake`.
+`wheel_rim`, `wheel_nut`, `wheel_brake`, and on a class with `cover` the
+`wheel_cover` disc (the 2022+ F1 wheel's aero cover).
+
+Pass 6: where content/cars/_textures/tyre_marks.png exists the lettering is
+that image (scripts/content/cars/textures.py) wrapped twice round each
+sidewall, reading from that side - the client turns the right-hand wheels
+round rather than mirroring them, so every outboard face reads true -
+instead of two plain arcs.
 """
 import bpy, bmesh, contextlib, io, math, os
 from mathutils import Matrix, Vector
@@ -24,7 +31,7 @@ CLASSES = {
     # R: tyre radius, W: tyre width, RR: rim flange radius (18" rims).
     "f1":   dict(R=0.360, W=0.380, RR=0.235, spokes=12, spoke_w=0.016, twin=False,
                  rim=(0.05, 0.05, 0.055), rim_metal=0.8, nut=(0.85, 0.05, 0.05),
-                 band=(0.95, 0.80, 0.05), marks=(0.92, 0.92, 0.92)),
+                 band=(0.95, 0.80, 0.05), marks=(0.92, 0.92, 0.92), cover=True),
     "gt3":  dict(R=0.350, W=0.310, RR=0.235, spokes=5, spoke_w=0.028, twin=True,
                  rim=(0.62, 0.63, 0.65), rim_metal=1.0, nut=(0.85, 0.10, 0.05),
                  band=None, marks=(0.85, 0.85, 0.85)),
@@ -39,6 +46,8 @@ CLASSES = {
 }
 
 SEGS = 64
+MARKS_PNG = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content", "cars", "_textures",
+                         "tyre_marks.png")
 
 
 def material(name, color, metallic=0.0, roughness=0.5):
@@ -49,6 +58,47 @@ def material(name, color, metallic=0.0, roughness=0.5):
     bsdf.inputs["Metallic"].default_value = metallic
     bsdf.inputs["Roughness"].default_value = roughness
     return m
+
+
+def image_material(name, path, roughness=0.6):
+    """Base-colour image, alpha masked (the client's car parents cut at 0.5)."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    img = bpy.data.images.load(path, check_existing=True)
+    img.pack()
+    ti = nt.nodes.new("ShaderNodeTexImage")
+    ti.image = img
+    nt.links.new(ti.outputs["Color"], bsdf.inputs["Base Color"])
+    gt = nt.nodes.new("ShaderNodeMath")
+    gt.operation = 'GREATER_THAN'
+    gt.inputs[1].default_value = 0.5
+    nt.links.new(ti.outputs["Alpha"], gt.inputs[0])
+    nt.links.new(gt.outputs[0], bsdf.inputs["Alpha"])
+    bsdf.inputs["Roughness"].default_value = roughness
+    return m
+
+
+def lettering(bm, uv, x, r0, r1, side, slot, segs=192, copies=2):
+    """A flat ring on a sidewall carrying the lettering image: u runs round
+    the tyre (`copies` times), v outwards, so the glyphs stand on the rim
+    with their tops to the tread. Reads clockwise seen from its own side."""
+    ring0, ring1 = [], []
+    for i in range(segs + 1):
+        a = 2 * math.pi * i / segs
+        ring0.append(bm.verts.new((x, r0 * math.cos(a), r0 * math.sin(a))))
+        ring1.append(bm.verts.new((x, r1 * math.cos(a), r1 * math.sin(a))))
+    for i in range(segs):
+        u0, u1 = copies * i / segs, copies * (i + 1) / segs
+        if side > 0:              # seen from +X the text runs towards -a
+            u0, u1 = -u0, -u1
+        q = (ring0[i], ring0[i + 1], ring1[i + 1], ring1[i])
+        f = bm.faces.new(q if side < 0 else tuple(reversed(q)))
+        f.material_index = slot
+        uvs = {ring0[i]: (u0, 0.0), ring0[i + 1]: (u1, 0.0), ring1[i + 1]: (u1, 1.0), ring1[i]: (u0, 1.0)}
+        for l in f.loops:
+            l[uv].uv = uvs[l.vert]
 
 
 def lathe(bm, profile, slot, segs=SEGS, a0=0.0, a1=2 * math.pi):
@@ -86,16 +136,19 @@ def box(bm, slot, centre, size, rot=Matrix.Identity(3)):
 def build(name, P):
     R, W, RR = P["R"], P["W"], P["RR"]
     h = W / 2
+    textured = os.path.exists(MARKS_PNG)
     mats = [
-        material("wheel_tyre", (0.025, 0.025, 0.025), 0.0, 0.85),
-        material("wheel_mark", P["marks"], 0.0, 0.6),
+        material("wheel_tyre", (0.022, 0.022, 0.024), 0.0, 0.80),
+        image_material("wheel_mark", MARKS_PNG, 0.6) if textured else material("wheel_mark", P["marks"], 0.0, 0.6),
         material("wheel_band", P["band"] or (0.5, 0.5, 0.5), 0.0, 0.6),
         material("wheel_rim", P["rim"], P["rim_metal"], 0.3),
         material("wheel_nut", P["nut"], 0.6, 0.35),
         material("wheel_brake", (0.30, 0.28, 0.26), 1.0, 0.55),
+        material("wheel_cover", (0.025, 0.025, 0.028), 0.4, 0.35),
     ]
-    TYRE, MARK, BAND, RIM, NUT, BRAKE = range(6)
+    TYRE, MARK, BAND, RIM, NUT, BRAKE, COVER = range(7)
     bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
 
     # Tyre: bead at the rim, flat sidewalls, rounded shoulders, tread.
     sh = 0.035
@@ -117,8 +170,11 @@ def build(name, P):
         x = side * (h + eps)
         if P["band"]:
             lathe(bm, [(x, R - sh - 0.012), (x, R - sh - 0.004)][::side], BAND)
-        for a in (0.0, math.pi):
-            lathe(bm, [(x, RR + 0.035), (x, RR + 0.065)][::side], MARK, segs=12, a0=a + 0.2, a1=a + 0.2 + 0.9)
+        if textured:
+            lettering(bm, uv, x + side * 0.0005, RR + 0.030, RR + 0.078, side, MARK)
+        else:
+            for a in (0.0, math.pi):
+                lathe(bm, [(x, RR + 0.035), (x, RR + 0.065)][::side], MARK, segs=12, a0=a + 0.2, a1=a + 0.2 + 0.9)
 
     # Rim barrel with a flange lip on the face.
     rim = [(-h + 0.02, RR - 0.012), (h - 0.012, RR - 0.012), (h - 0.004, RR + 0.004),
@@ -144,6 +200,11 @@ def build(name, P):
             side = up.cross(fwd).normalized()
             rot = Matrix((fwd, side, up)).transposed()
             box(bm, RIM, (p0 + p1) / 2, (d.length, P["spoke_w"], 0.018), rot)
+    if P.get("cover"):
+        # the aero cover over the face: a shallow dish from the nut out to
+        # just inside the rim's lip, which stays visible round it
+        loop_lathe(bm, [(h - 0.026, 0.045), (h - 0.016, 0.045), (h - 0.022, RR - 0.016),
+                        (h - 0.030, RR - 0.016)], COVER, segs=SEGS)
     # Centre-lock nut: hexagon, inside the tyre's width.
     loop_lathe(bm, [(hub_x + 0.02, 0.0), (h - 0.012, 0.0), (h - 0.012, 0.028), (hub_x + 0.02, 0.04)], NUT, segs=6)
 
@@ -151,8 +212,9 @@ def build(name, P):
     loop_lathe(bm, [(-h + 0.05, 0.10), (-h + 0.078, 0.10), (-h + 0.078, 0.165), (-h + 0.05, 0.165)], BRAKE, segs=48)
     loop_lathe(bm, [(-h + 0.078, 0.06), (hub_x - 0.03, 0.05), (hub_x - 0.03, 0.07), (-h + 0.078, 0.105)], RIM, segs=24)
 
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    keep = {f for f in bm.faces if f.material_index == MARK} if textured else set()
+    bmesh.ops.remove_doubles(bm, verts=[v for v in bm.verts if not any(f in keep for f in v.link_faces)], dist=1e-6)
+    bmesh.ops.recalc_face_normals(bm, faces=[f for f in bm.faces if f not in keep])
     me = bpy.data.meshes.new("wheel_" + name)
     bm.to_mesh(me)
     bm.free()
@@ -160,6 +222,7 @@ def build(name, P):
         me.materials.append(m)
     for p in me.polygons:
         p.use_smooth = True
+    # unused slots (the cover on a wheel without one) are dropped by the exporter
     return me, mats
 
 

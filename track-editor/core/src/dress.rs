@@ -477,7 +477,13 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
         })
         .map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]))
         .sum();
-    let box_count = ((clear / PIT_BOX_PITCH_M) as u32).clamp(*PIT_BOXES.start(), *PIT_BOXES.end());
+    // A surveyed count wins, but never more boxes than the stretch holds:
+    // the garages would run onto the tapers.
+    let room = (clear / PIT_BOX_PITCH_M) as u32;
+    let box_count = road
+        .box_count
+        .map_or(room, |n| n.min(room))
+        .clamp(*PIT_BOXES.start(), *PIT_BOXES.end());
     Some(PitLane {
         nodes,
         width_m: PIT_WIDTH_M,
@@ -2088,6 +2094,7 @@ mod tests {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+            box_count: None,
         });
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
         assert!(report.pit_lane);
@@ -2106,6 +2113,32 @@ mod tests {
     }
 
     #[test]
+    fn a_surveyed_box_count_is_kept_within_what_the_lane_holds() {
+        let track = track();
+        let lane = |count| PitRoad {
+            side: Side::Right,
+            length_m: 300.0,
+            nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+            box_count: count,
+        };
+        let boxes = |count| {
+            let mut scene = scene(&track);
+            let mut layout = layout();
+            layout.pit_lane = Some(lane(count));
+            dress_scene(&track, &mut scene, &layout).unwrap();
+            scene.pit_lane.expect("lane").box_count
+        };
+        let room = boxes(None);
+        assert_eq!(boxes(Some(12)), 12, "a survey's count is used");
+        assert_eq!(boxes(Some(200)), room, "but never past the lane's room");
+        assert_eq!(
+            boxes(Some(2)),
+            *PIT_BOXES.start(),
+            "and never under the minimum"
+        );
+    }
+
+    #[test]
     fn buildings_in_the_pit_complex_are_left_to_the_bake() {
         let track = track();
         let mut scene = scene(&track);
@@ -2114,6 +2147,7 @@ mod tests {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+            box_count: None,
         });
         layout.structures.push(Structure {
             name: Some("Pit building".to_string()),
