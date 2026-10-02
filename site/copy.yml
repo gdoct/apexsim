@@ -101,12 +101,14 @@ features:
         weak when cold; steel fades past 700&nbsp;°C. The radiator runs hot
         in a long tow, and an engine that overheats gives up power.
     - tag: Damage
-      title: Every hit counts
+      title: Every hit counts, and shows
       body: >-
         Contact is scored by closing speed across five zones. A bent nose
         loses downforce and radiator flow, a damaged flank pulls the
         steering, a hurt engine loses power, and a zone at 100% ends the
-        race. The host picks full, reduced or no damage.
+        race. You can see it on the car: panels dent and scuff, wings and
+        noses come off, and a hurt engine trails smoke. The host picks
+        full, reduced or no damage.
     - tag: Strategy
       title: Pit stops, DRS and deployment
       body: >-
@@ -313,9 +315,10 @@ tech:
       title: Unreal client
       body: >-
         Tracks and cars built at runtime from their files, menus as C++
-        widget trees, a HUD from JSON, a cockpit built per car, TV
-        director, synthesized audio, DirectInput wheels. Every car a
-        telemetry puppet.
+        widget trees, a HUD from JSON, a cockpit built per car, dents and
+        debris drawn from the server's damage figures, TV director,
+        synthesized audio, DirectInput wheels. Every car a telemetry
+        puppet.
     - key: track-editor/ · Rust
       title: Track pipeline
       body: >-
