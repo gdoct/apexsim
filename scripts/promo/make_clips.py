@@ -154,6 +154,13 @@ class Planner:
             # planned moment in it, repeats exactly.
             "seed": int(race.get("seed", self.defaults.get("seed", 1))),
         }
+        # Where the field is dealt from. content/cars is the shipped cars and
+        # the player's own; `cars_dir: content/cars/default` keeps a custom
+        # car (an import in a real team's colours) out of the race. Part of
+        # the spec only when set, so the replays cached before it still match.
+        cars_dir = race.get("cars_dir", self.defaults.get("cars_dir"))
+        if cars_dir:
+            spec["cars_dir"] = str(cars_dir)
         replay = self.out / "races" / f"{name}.bin"
         meta = self.out / "races" / f"{name}.json"
         wanted = spec_hash(spec)
@@ -169,7 +176,7 @@ class Planner:
             "simulate",
             "--track", str(self.track_yaml(race)),
             "--car", spec["car"],
-            "--cars-dir", str(REPO / "content" / "cars"),
+            "--cars-dir", str(REPO / (cars_dir or "content/cars")),
             "--ai", str(spec["ai"]),
             "--laps", str(spec["laps"]),
             "--max-seconds", str(spec["max_seconds"]),

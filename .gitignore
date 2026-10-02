@@ -259,4 +259,7 @@ content/textures/ground/
 
 # Promo video pipeline (scripts/promo): race replays, clip cuts, frames, clips
 out/promo/
+# scripts/site/make_shots.py: races, clips and candidate frames (the picked
+# masters are checked in under site/shots/)
+out/site/
 .scratch-target/*

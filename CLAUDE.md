@@ -1323,6 +1323,64 @@ kind tables, the variants and the bay layout; `cargo test` in
 `track-editor` covers the catalogue (every default is a kit file), the
 export hints, the pit complex and the groom behaviours.
 
+### Marketing page (`site/`, `scripts/site/`, `docs/index.html`)
+
+GitHub Pages serves `docs/` from `main`, and `docs/index.html` with
+`docs/assets/` is **generated**: never edit them. The source is `site/`
+(`site/README.md`), in three kinds of content refreshed three ways:
+
+```powershell
+python scripts/site/build_site.py              # -> docs/index.html, docs/assets
+python scripts/site/build_site.py --check      # CI (job `site`): exit 1 when docs/ is behind
+python scripts/site/build_site.py --stale      # feature-doc sections changed since the copy was reviewed
+python scripts/site/build_site.py --reviewed   # record them as covered
+python scripts/site/make_shots.py [id ...]     # the in-engine pictures (opens the game)
+python -m unittest discover -s scripts/site/tests
+```
+
+- **Facts** (`scripts/site/facts.py`): the car cards from every
+  `content/cars/default/*/car.toml`, the circuits from the track YAMLs
+  (display name, metadata, an SVG outline of the centerline, the dossier's
+  corner display names) and the counts the copy quotes (`n.cars`,
+  `n.tracks`, `n.km`, `n.setup_knobs` from the server's `KNOB_COUNT`,
+  `n.hud_components`...). Read on every build, so a change to a car.toml, a
+  track YAML or a car render makes `--check` fail until `docs/` is rebuilt
+  and committed. Display names only: `facts.display_class` mirrors
+  `ApexCatalog::DisplayClass`.
+- **Words** (`site/copy.yml`): hand-written, every string a Jinja template
+  over the facts (`{{ n.cars|words }}`, `{{ name('Spa') }}`,
+  `{{ car('posh-gt3rs') }}`), so no number is typed. The build cannot know
+  when prose is stale; it hashes every section of CLAUDE.md and
+  docs/SIMULATION_GAPS.md into `site/copy.lock.json` and `--stale` lists
+  the ones changed since `--reviewed` (a warning in CI, not a failure). The
+  `/site-refresh` command (`.claude/commands/`) is the rewrite pass.
+- **Media** (`site/media.yml`): each picture's source file in the repo and
+  how to cut it (`width`, `aspect`, `focus`), encoded to WebP;
+  `docs/assets/manifest.json` records the hash of the source each was made
+  from, which is what `--check` compares (two WebP encoders need not agree
+  on bytes). The car pictures are the Blender previews,
+  `content/props/_preview/cars/<folder>_hero.png`; the page names an asset
+  only through `asset()`, which fails the build on one `media.yml` lacks.
+
+**In-engine pictures** (`site/shots.yml` -> `site/shots/<id>.webp`, checked
+in): *action* shots reuse the promo pipeline (`make_clips.Planner` and
+`render`): a seeded headless AI race, the moment found by `window`, played
+with `-ApexReplay` under the TV director or a tripod, no HUD; `frames`
+candidates are kept in `out/site/candidates/<id>/` with a `sheet.jpg`, and
+the shot's `pick` names the one used (the race replays bit for bit, so a
+retake after a visual change is the same moment). *ui* shots are live runs
+(`-ApexAutoRace`..., `-ApexScreenshotAfter`), with `r.SetRes` because
+settings.yml's borderless mode otherwise makes the grab the monitor's size,
+`DisableAllScreenMessages`, and the game killed once the grabs are on disk
+(it does not quit by itself). Both keep the player's own cars out: the
+races are dealt from `cars_dir: content/cars/default` (a `defaults` / race
+key of the promo shot list too) and the ui shots' server is started with
+`APEXSIM_CONTENT_CARS_DIR` pointing there, because an AC import carries a
+real team's colours. A fixed tripod (`mode: pan` with an `eye`) can end up
+inside a stand after a re-dress; the TV director's `trackside` traces for
+visibility and does not. A ui run rewrites the profile's "continue where
+you left off" car, track and mode.
+
 ## Architecture
 
 ### Server (`server/`)

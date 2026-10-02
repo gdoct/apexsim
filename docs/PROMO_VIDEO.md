@@ -49,7 +49,7 @@ The editor build is the quickest to iterate on. The first launch compiles shader
 
 ## shots.yml
 
-**Races.** Each entry sets `track` (the YAML stem), `car`, `ai`, `laps`, `weather`, `time`, `seed`, `max_seconds` and `countdown`. The car is the host car, and the field is its class dealt round-robin, as the server deals it. Set `same_car: true` to put everyone in the host car.
+**Races.** Each entry sets `track` (the YAML stem), `car`, `ai`, `laps`, `weather`, `time`, `seed`, `max_seconds` and `countdown`. The car is the host car, and the field is its class dealt round-robin, as the server deals it. Set `same_car: true` to put everyone in the host car. `cars_dir` (per race or under `defaults`, default `content/cars`) is where the field is dealt from: `content/cars/default` keeps the player's own cars, an imported one in a real team's colours included, out of the race.
 
 `weather` changes the grip the race is simulated with. A shot's own `time` and `weather` only change the look. For example, `11_lemans_night` re-lights the dusk race at 23:40.
 
