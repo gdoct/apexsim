@@ -2452,6 +2452,12 @@ def main() -> int:
         if stem not in BBOXES:
             raise SystemExit(f"no bbox for {stem}; add one to BBOXES")
         layout = build(stem, args.offline)
+        # A checked-in AC survey overlay (scripts/ac_layout.py) corrects the
+        # stands, buildings, pit lane, crossings, landmarks and woods; it is
+        # re-applied on every refresh so a refetch does not undo it.
+        from ac_layout import apply_overlay_file
+
+        layout = apply_overlay_file(stem, layout, strict=False)
         if args.dry_run:
             continue
         out = track_dir(stem) / f"{stem}.layout.json"

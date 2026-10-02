@@ -170,12 +170,35 @@ rear_radius_m = 0.360
 front_width_m = 0.305
 rear_width_m = 0.375
 
+[driver]
+# the driver, drawn on the body (same frame) and hidden for the car the
+# cockpit camera sits in; written by the build script
+model = "fugazzi_sf26_driver.glb"
+
 [drs_flap]
 # the rear wing's upper element, cut out of the body so the client can open it
 model = "fugazzi_sf26_drs.glb"
-hinge_forward_m = -2.5298
-hinge_up_m = 0.8226
+hinge_forward_m = -2.5056
+hinge_up_m = 0.9429
 open_deg = 25.0
+
+[cockpit]
+# Written by the build script: the eye and wheel the cabin was built to
+# (car frame: +X nose, +Y right, +Z up). The client uses these instead of
+# deriving them from the mesh box, so the greenhouse can sit where a
+# real one does. Remove a key to fall back to the derivation.
+# Pass 6: authored against the imported F1s (1.43-1.57 m behind the front axle).
+style = "open"
+eye_cm = [13.0, -0.0, 79.0]
+wheel_cm = [53.0, -0.0, 62.0]
+wheel_rake_deg = 12.0
+mirror_left_cm = [69.8, -50.0, 73.0]
+mirror_left_size_cm = [15.0, 5.0]
+mirror_right_cm = [69.8, 50.0, 73.0]
+mirror_right_size_cm = [15.0, 5.0]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 180.0
 
 # --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
@@ -221,8 +244,3 @@ paint = [0.420, 0.780, 0.015]
 accent = [0.012, 0.012, 0.014]
 metallic = 0.25
 logo = "textures/livery_voltaic.png"
-
-[cockpit]
-# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
-# wheel on the Auto steering lock the real rim turns twice this lock to lock.
-wheel_lock_deg = 180.0

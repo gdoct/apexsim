@@ -95,6 +95,10 @@ void AApexGhostCarActor::ApplyGhostLook()
 	{
 		TintComponent(*Flap);
 	}
+	if (UStaticMeshComponent* Figure = GetDriverComponent())
+	{
+		TintComponent(*Figure);
+	}
 }
 
 void AApexGhostCarActor::Show(bool bVisible)

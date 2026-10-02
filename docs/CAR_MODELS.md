@@ -70,19 +70,27 @@ wider fender and took the eye outside the canopy (`MIR_Z` now compensates).
 
 **F1** (`build_f1.py`, class `F1`) is the open-wheeler, 2026 proportions:
 a 3.4 m wheelbase, a 1.8 m front wing, a 1.0 m rear wing. The loft is the
-survival cell, undercut sidepods and engine cover in one skin, nose cone to
-crash structure; the floor, diffuser, wings, halo, suspension, brake ducts
-and mirrors are parts. The client derives an open-wheel cockpit from the
-mesh box (`ApexCockpit::DeriveLayout`: centreline, 8% of the length behind
-centre, 82% of the height up; mirrors 70 cm ahead, 8 cm down, a quarter of
-the width out), so the box is fixed by the class kit - front wing leading
-edge to rear wing trailing edge, plank to T-cam - and the cockpit opening,
-halo and mirror heads are built to `open_wheel_points()` before the parts
-exist. `carlib.sightline(ob, open_wheel=True)` and `preview_cars.py` (for
-any F1-class car) use the same eye. Brands (`VARIANTS`): shape factors
+survival cell with the sidepods on it and the engine cover, nose cone to
+crash structure: a ~0.48 m tub whose rim is at ~0.72, pod tops ten
+centimetres under it with a crease where they meet (j5), the pod flank as
+the widest line (j3) and under it the undercut turning in to the floor
+edge (j2) - the void between pod and floor you see from the front
+three-quarter. Everything below j2 is bare carbon. The floor (edge wing,
+fences, plank, diffuser), wings, halo, suspension, brake ducts with their
+wheel-wake deflectors, and mirrors are parts. The wings are inverted
+wings - each element's trailing edge above its leading edge - and the
+front wing's flaps rise and steepen towards the endplates
+(`carlib.foil_path`). The eye is authored (pass 6, see Cockpit): 1.52 m
+behind the front axle, 0.79 m up, on the centreline; the cockpit opening,
+halo (a 4.8 cm section, body colour or carbon per car) and the mirrors
+(aero heads whose glass is the `car_mirror_*` slot the rig paints) are
+laid off it, and `[cockpit]` carries the eye, wheel and both mirrors as
+built. `carlib.sightline(ob, eye=EYE, ray_x=0.032)` looks past the halo's
+centre pillar from one eye. Brands (`VARIANTS`): shape factors
 `nose_z`, `pod_w`/`pod_h`, `cover_h`, `coke`, an `inlet` shape and an
 `airbox`; the livery is a list of loft boxes `(y0, y1, j0, j1)` painted in
-the accent. Fugazzi SF-26 (red, white shoulder band and nose), Murcetes-AMD
+the accent, `sponsors` the atlas cells for the pod, engine cover, nose,
+both endplates and the DRS flap. Fugazzi SF-26 (red, white shoulder band and nose), Murcetes-AMD
 W17 (silver over black, narrow pods, low nose), McLarsen MCL40 (papaya over
 dark blue with a dark spine), Ashton Marvin AMR26 (green with a lime
 pinstripe). Physics: 2026 power unit - 400 kW of V6 plus a 300 kW motor on a
@@ -92,9 +100,19 @@ pinstripe). Physics: 2026 power unit - 400 kW of V6 plus a 300 kW motor on a
 
 **Hypercars** (`build_hypercar.py`, class `Hypercar`) are the LMH class: 5.0 m
 long, 2.0 m wide, a 3.1 m wheelbase, and a different hull from the LMP2s -
-a low pointed nose between tall floating fenders, a deep valley either side
-of a narrow teardrop canopy, a long tail, and a wing carried on carbon
-endplates that grow out of the rear fenders instead of swan necks. Lamps sit
+a nose deck between the front fenders, a valley either side of a narrow,
+tall cabin (pass 6, sections matched to the imported 499P: deck ~0.6, crowns
+~0.75-0.8, cabin ~0.43 a side at its base and 1.11 high), a long tail, and a
+wing carried on carbon endplates that grow out of the rear fenders instead
+of swan necks. The cabin has a windscreen and door windows, not a glass
+bubble; below the sill line (j < 1.7) the body is bare woven carbon; louvred
+vents are cut through the front fenders into the arch wells; the door
+carries a number panel (`numbers.png`) and the maker's wordmark, with
+sponsors (`sponsors`) behind the window, on the tail, on the fender crowns,
+the wing and its endplates. The eye is authored, 0.36 m ahead of the
+wheelbase's middle, 0.16 m off centre, 0.83 m up (the 499P's: 0.40 /
+0.15 / 0.74), the seat and pedals moved with it, and the mirrors are aero
+heads on the front fenders' shoulders with `car_mirror_*` glass. Lamps sit
 in slits across the fender fronts. Signatures (`VARIANTS`): Panini Zomba -
 dark carbon blue, three round lamps a side, four round tail lamps, the quad
 exhaust in the middle of the tail and a roof snorkel; Fugazzi 994P - rosso,
@@ -129,6 +147,11 @@ under the LMP2s.
 | `lower_roof()`, `tumblehome()`, `shift_upper()`, `drop_bonnet()` | key reshaping, applied before the loft: pull the greenhouse down towards the belt and lean it in; slide the cabin along the car; drop the bonnet between the fender crowns so the driver sees the road |
 | `scale_width()`, `lift_points()`, `roofline()` | pass-5 key reshaping, measured against the imported cars: scale the half-widths to the class's real width; lift the belt or the fender crowns over a span; and author the roof as a *line in profile* - `(y, z)` targets the roof centre is scaled onto about the belt - so a fastback is a list of six points rather than a by-product of nine section tables |
 | `authored_cockpit()`, `cockpit_table()`, `write_table()`, `write_cockpit_table()` | the eye the *car* says (see Cockpit): the wheel and mirror laid off it, and the `[cockpit]` table written into car.toml above the liveries' marker (`write_table` is the generic one; the F1 builds' `[drs_flap]` goes through it too) |
+| `textured_mat()`, `atlas_uv()`, `number_uv()`; `car_materials(carbon_weave=, sponsors=)` | pass 6: base-colour textures from `content/cars/_textures/` (written by `textures.py`): the carbon twill on `car_carbon` (its UVs scaled by `CARBON_UV_SCALE` in `join_and_export()`), the sponsor atlas `car_sponsor` and the number panels `car_number`, both alpha-masked. Opt-in per build; the F1s and hypercars use them, the GT3s and LMP2s not yet |
+| `conform_decal(uv_rect=)`, `top_decal()`, `flat_decal()` | a decal following the flank, lying on an upper surface (along or across the car), or flat on a plate (endplates, wings): each takes an atlas cell |
+| `driver_figure()`, `export_driver()`, `ellipsoid()`, `capsule()`, `inside_bar()` | the driver (see Driver) and his GLB / `[driver]` table; a cage tube kept inside the shell |
+| `foil_path()` | a wing element lofted through sections whose leading edge, pitch and chord vary along the span - a front-wing flap rising and steepening into the endplate |
+| `aero_mirror()`, `mirror_glass()` | a teardrop mirror head with its glass in a `car_mirror_left` / `_right` slot, UVs as the cockpit rig expects (u from the driver's right to left, v top-down), so the rig paints its capture onto the car's own glass as it does an imported car's |
 | `top_patch()`, `top_text()` | a number plate and a race number lying on the bonnet or deck, each vertex dropped onto `z_at` so they bend over the crown instead of sinking in at the edges |
 | `bucket_seat()`, `switch_panel()`, `door_card()`, `inner_skin()`, `extinguisher()` | the cabin kit (see Cockpit) |
 | `sightline()` | the number the cockpit is judged by: from the eye the client will derive, how far ahead the road is visible |
@@ -238,6 +261,46 @@ wrap onto the fender, the nose faces are flatter than the real cars'
 (the AMG's grille is most of its face), and the imported cars' panel
 shut lines, bonnet vents and door furniture are denser than the kit's.
 
+### Pass 7: the texture kit on the GT3s and LMP2s, drivers (2026-10-02)
+
+The GT3s and LMP2s take the pass-6 kit (woven carbon, sponsors from the
+atlas - sunstrip, quarter, fender, endplates on the GT3s; fender crowns,
+wing and endplates on the LMP2s - number panels on the doors, bonnet, nose
+and deck instead of the white plates and extruded numerals; bare carbon
+below the LMP2 sill line), mirror heads whose glass is the rig's
+`car_mirror_*` slot (`carlib.mirror(glass=)`, written into `[cockpit]`), and
+the `gt3` / `lmp2` wheels the lettered sidewalls. Their wings were lifting
+wings too (trailing edges below the leading) and are inverted. A ray probe
+from outside (any interior or cage face hit before the shell) found the
+cabins leaking: the LMP2 cabin walls at the pods' width, the GT3 dash and
+door cards standing through the bonnet and the A-pillar foot, the cage's
+A-pillar bars outside a tumblehome canopy. Fixed with `XIN` measured up to
+the belt, the GT3 footwell kept inside the front wells (`ibox`), the door
+cards starting where the skin covers them, and `carlib.inside_bar()` for
+every cage tube. Every car now has a driver (below).
+
+### Pass 6: the F1s and hypercars against the imports (2026-10-02)
+
+The same method as pass 5 - silhouettes and full sections of each GLB
+against the imported SF70H / Formula Hybrid 2021 and the 499P, aligned on
+the front axle - plus a shared texture kit (`scripts/content/cars/textures.py`
+-> `content/cars/_textures/`: carbon twill, sponsor atlas, number panels,
+tyre lettering; every name in them invented).
+
+| | imported | native before | now |
+|---|---|---|---|
+| F1 eye behind front axle / up | 1.43-1.57 / 0.67-0.78 | 1.87 / 0.84 (derived) | 1.52 / 0.79 (authored) |
+| F1 section at the pods | tub, pods with a shoulder, undercut to a separate floor | one round blob from 0.03 to 0.66 | tub rim 0.72, pod top 0.58, flank 0.62 out, undercut to the floor edge |
+| F1 wings | elements rise to the trailing edge | sloped down to it (a lifting wing) | inverted; front flaps rise into the endplates |
+| F1 floor | 50-90 mm up | 12-28 mm | 28-40 mm, edge wing, 4 fences a side |
+| LMH deck between front fenders | ~0.60, flat | 0.33-0.52, a scoop | 0.45-0.65 |
+| LMH front fender crowns | ~0.70-0.78 | 0.83-0.89 | 0.73-0.80 |
+| LMH cabin base / roof | ±0.42 / 1.12 | ±0.47-0.55 / 1.04 | ±0.43 / 1.11 |
+| LMH eye ahead of middle / off / up | 0.40 / 0.15 / 0.74 | derived | 0.36 / 0.16 / 0.83 |
+| bare carbon | wings, floor, lower third of the body, woven | flat near-black | twill texture (4 tiles a metre) on every carbon face, lower body carbon |
+| livery | 15-25 decals | one wordmark, a white number plate | wordmark, 5-6 sponsors, number panels (LMH) |
+
+
 ## Cockpit
 
 **The GT3 and LMP2 builds author the eye** (pass 5). Each GT3 variant
@@ -263,7 +326,14 @@ centre and 0.92 m up in a canopy 1.2 m wide, and the Murcetes' greenhouse
 was slid 0.38 m forward of a long-bonnet GT's - which is why the derived
 eye is now the fallback, not the rule.
 
-For a car without a `[cockpit]` eye (the F1s, the hypercars) the client
+Since pass 6 the F1s (`style = "open"`) and the hypercars write `[cockpit]`
+too, with `mirror_left_cm` / `mirror_right_cm` and their sizes as built:
+the client lays the mirrors off the eye it *derives* unless they are named,
+so an authored eye alone would leave them where the old box put them. The
+F1 eye moved from the derived 1.87 m behind the front axle and 0.84 m up to
+1.52 m and 0.79 m (the SF70H: 1.57 / 0.78; the 2021 car: 1.43 / 0.67).
+
+For a car without a `[cockpit]` eye the client
 derives the driver's eye from the mesh bounds
 (`ApexCockpit::DeriveLayout`, closed style): 70% of the box height (the box
 runs from the splitter at ~0.04 m to the wing endplates), 5% of the length
@@ -398,6 +468,36 @@ Every GLB carries these slot names; keep them when re-exporting.
 | `car_rainlight` | FIA rain light, centre of the tail (vertical bar on the LMP2s) | emissive red — on in rain / low visibility, else off |
 | `car_display` | dash display | emissive green |
 | `car_logo` | door / flank wordmark | masked texture from `textures/` |
+| `car_carbon` | bare carbon: wings, floor, splitter, diffuser, the lower body of the F1s and prototypes | since pass 6/7 the twill texture (`content/cars/_textures/carbon_twill.png`, 4 tiles a metre) under a clearcoat |
+| `car_sponsor`, `car_number` | sponsor decals and race-number panels | masked textures (`sponsors.png`, `numbers.png`); not touched by a livery |
+| `car_mirror_left`, `car_mirror_right` | the door / pod mirrors' glass | the cockpit rig paints its rear-view capture onto them (u from the driver's right to left, v top-down), as on an imported car |
+| driver GLB: `car_suit`, `car_visor` (+ `car_paint`, `car_accent`, `car_trim`, `car_harness`) | the driver figure (`[driver]`, below): race suit in the car's colour, dark visor; the helmet in the paint and accent, so a livery repaints it | |
+
+## Driver (all generated cars, pass 7)
+
+Every generated car has a driver in its seat, in a GLB of his own beside
+the body, `<stem>_driver.glb`, in the body's frame (no transform), named by
+a `[driver]` table the build writes above the liveries' marker:
+
+```toml
+[driver]
+model = "posh_gt3rs_driver.glb"
+```
+
+`carlib.driver_figure()` builds him from the points the cabin is built to:
+the authored eye (his eyes - the visor sits a few cm ahead of them), the
+rig's wheel (gloves at 9 and 3, `wheel_hw` out: 16 cm closed, 13 cm open,
+the rig's own rim half-widths), the hip joint the bucket seat puts him on and
+his boots on the pedals; arms and legs are two-bone IK
+(`_ik`), the torso and helmet ellipsoids, limbs capsules (`ellipsoid()`,
+`capsule()`), with the HANS collar and belts. The F1 one (`style="open"`)
+lies back in the tub with narrower shoulders. ~4k triangles, ~140 kB. The client
+(`FApexCarDriver`, `AApexRaceCarActor::SetDriver` / `SetDriverVisible`) draws
+him on every car and hides him for the car the cockpit camera sits in (the
+camera is his eyes) while keeping his shadow (`bCastHiddenShadow`); he goes
+with the bodywork (`SetMeshVisible`), takes the livery on his helmet and the
+ghost's tint. `preview_cars.py` loads him for every view but `cockpit` and
+`mirror`. He does not move: the rig's wheel turns under static gloves.
 
 ## DRS flap (F1)
 
@@ -565,7 +665,13 @@ The bodies carry no wheels. Each class has one shared wheel model,
 rebuild only some): hub at the origin, axle along X, the face
 (spokes, centre-lock nut) on +X, everything inside the tyre's width and
 radius. Slots `wheel_tyre`, `wheel_mark` (sidewall lettering — what makes
-the spin visible), `wheel_band`, `wheel_rim`, `wheel_nut`, `wheel_brake`.
+the spin visible), `wheel_band`, `wheel_rim`, `wheel_nut`, `wheel_brake`,
+and `wheel_cover` on the F1 wheel (the 2022+ aero cover over the spokes).
+Since pass 6 the lettering is `content/cars/_textures/tyre_marks.png`
+wrapped twice round each sidewall, reading from that side (the client turns
+the right-hand wheels round rather than mirroring them, and
+`preview_cars.py` now does the same); the `f1` and `hypercar` wheels are
+rebuilt with it, `gt3` and `lmp2` still carry the plain arcs until rebuilt.
 
 Each car.toml says where they go (visual only; the physics reads `[physics]`):
 

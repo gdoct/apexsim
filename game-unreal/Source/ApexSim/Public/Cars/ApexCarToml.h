@@ -39,6 +39,15 @@ struct FApexCarDrsFlapToml
 	bool IsPresent() const { return !Model.IsEmpty(); }
 };
 
+/** The `[driver]` table: the driver figure's GLB beside the car.toml, in the body's frame. */
+struct FApexCarDriverToml
+{
+	/** Relative to the car folder; empty when the table is absent. */
+	FString Model;
+
+	bool IsPresent() const { return !Model.IsEmpty(); }
+};
+
 /**
  * A `[[livery]]` table: colours are linear RGB, files relative to the car
  * folder. A colour livery names `paint` (and maybe `accent`, `metallic`,
@@ -118,6 +127,7 @@ struct FApexCarToml
 	float TyreWindowC = 10.0f;
 	FApexCarWheelsToml Wheels;
 	FApexCarDrsFlapToml DrsFlap;
+	FApexCarDriverToml Driver;
 	/**
 	 * The `[sound]` table and the `[engine]` rev range, already in the
 	 * row's shape. `Cylinders == 0` when the car has no `[sound]` table.

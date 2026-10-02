@@ -194,7 +194,12 @@ def add_wheels(cfg, car_dir):
             for o in objs:
                 if o.parent:
                     continue
-                o.scale = (o.scale.x * s[0] * sx, o.scale.y * s[1], o.scale.z * s[2])
+                # the face is the wheel's +X: outboard as it comes on the +X
+                # side, turned (not mirrored, as the client does) on the other
+                o.scale = (o.scale.x * s[0], o.scale.y * s[1], o.scale.z * s[2])
+                o.rotation_mode = 'XYZ'
+                o.rotation_euler = (o.rotation_euler.x, o.rotation_euler.y,
+                                    o.rotation_euler.z + (0.0 if sx > 0 else math.pi))
                 o.location = (sx * track / 2.0, sign * axle, R)
             out += objs
     return out
@@ -216,6 +221,17 @@ def add_drs_flap(cfg, car_dir):
         o.rotation_mode = 'XYZ'
         o.rotation_euler = (-math.radians(float(d["open_deg"])) * DRS_OPEN, 0.0, 0.0)
     return objs
+
+
+def add_driver(cfg, car_dir):
+    """The driver from car.toml's [driver] (pass 7): the body's frame, so no
+    transform. The client hides him for the car the cockpit camera rides,
+    and so do the cockpit and mirror views here."""
+    d = cfg.get("driver")
+    if not d or not d.get("model"):
+        return []
+    path = os.path.join(car_dir, d["model"])
+    return import_glb(path) if os.path.exists(path) else []
 
 
 OPEN_WHEEL = False   # set per car from its class: F1 cars get the open-wheel eye
@@ -342,6 +358,8 @@ for folder in CARS:
         if view.startswith("lamps"):
             dusk()
         body = import_glb(glb) + add_drs_flap(cfg, car_dir)
+        if view not in ("cockpit", "mirror"):
+            body += add_driver(cfg, car_dir)
         if LIVERY and len(cfg.get("livery", [])) >= LIVERY:
             apply_livery(body, car_dir, cfg["livery"][LIVERY - 1])
         wheels = add_wheels(cfg, car_dir)

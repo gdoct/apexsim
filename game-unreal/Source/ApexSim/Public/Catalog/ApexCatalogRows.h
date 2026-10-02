@@ -164,6 +164,33 @@ struct APEXSIM_API FApexDrsFlapSpec
 };
 
 /**
+ * The driver figure in a car's seat (car.toml `[driver]`, docs/CAR_MODELS.md):
+ * a mesh in the body mesh's own frame, drawn on the body with no transform
+ * and hidden for the car the cockpit camera sits in.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIM_API FApexDriverSpec
+{
+	GENERATED_BODY()
+
+	/** A cooked mesh, when a car has one; the runtime GLB wins. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Driver")
+	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	/** The driver GLB beside a car found on disk, built at runtime; wins over `Mesh`. Never saved. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Driver")
+	FString RuntimeModel;
+
+	bool IsUsable() const { return !Mesh.IsNull() || !RuntimeModel.IsEmpty(); }
+
+	bool operator==(const FApexDriverSpec& Other) const
+	{
+		return Mesh == Other.Mesh && RuntimeModel == Other.RuntimeModel;
+	}
+	bool operator!=(const FApexDriverSpec& Other) const { return !(*this == Other); }
+};
+
+/**
  * The engine as the client's synthesiser hears it: a car.toml's `[sound]`
  * table plus the rev range from its `[engine]`. See ApexEngineSound.h for what
  * each figure does to the note, and ApexEngineAudio::MakeSpec for the defaults
@@ -388,6 +415,13 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	FApexDrsFlapSpec DrsFlap;
+
+	/**
+	 * The driver in the seat (the generated cars; an unusable spec draws
+	 * none). Derived from car.toml, like the flap.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	FApexDriverSpec Driver;
 
 	/** What the engine sounds like. Derived from car.toml on every import, like the wheels. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")

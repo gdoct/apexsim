@@ -6,6 +6,7 @@
 #include "Audio/ApexListenerSpace.h"
 #include "Race/ApexCarMotion.h"
 #include "Race/ApexCarDrsFlap.h"
+#include "Race/ApexCarDriver.h"
 #include "Race/ApexCarWheels.h"
 #include "Race/ApexCockpitLayout.h"
 
@@ -88,6 +89,18 @@ public:
 
 	/** The flap's component when the car has one, for tinting and capture flags. */
 	UStaticMeshComponent* GetDrsFlapComponent() const { return DrsFlap.HasFlap() ? DrsFlap.GetComponent() : nullptr; }
+
+	/**
+	 * The driver in the seat (the catalog row's `Driver`); an unusable spec
+	 * draws none. He goes with the bodywork (SetMeshVisible) and the race
+	 * director hides him for the car the cockpit camera rides
+	 * (SetDriverVisible): that camera is his eyes.
+	 */
+	void SetDriver(const FApexDriverSpec& Spec);
+	void SetDriverVisible(bool bVisible);
+
+	/** The driver's component when the car has one, for tinting. */
+	UStaticMeshComponent* GetDriverComponent() const { return Driver.HasDriver() ? Driver.GetComponent() : nullptr; }
 
 	/**
 	 * Show or hide just this car's bodywork.
@@ -216,6 +229,10 @@ protected:
 	/** The DRS flap on CarMesh, opened from the telemetry. */
 	UPROPERTY()
 	FApexCarDrsFlap DrsFlap;
+
+	/** The driver figure on CarMesh. */
+	UPROPERTY()
+	FApexCarDriver Driver;
 
 	/** The newest telemetry's `bDrsOpen`: where the flap is swinging to. */
 	bool bDrsOpen = false;

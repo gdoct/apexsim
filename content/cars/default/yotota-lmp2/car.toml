@@ -167,6 +167,11 @@ rear_radius_m = 0.365
 front_width_m = 0.310
 rear_width_m = 0.360
 
+[driver]
+# the driver, drawn on the body (same frame) and hidden for the car the
+# cockpit camera sits in; written by the build script
+model = "yotota_lmp2_driver.glb"
+
 [cockpit]
 # Written by the build script: the eye and wheel the cabin was built to
 # (car frame: +X nose, +Y right, +Z up). The client uses these instead of
@@ -176,6 +181,10 @@ rear_width_m = 0.360
 style = "closed"
 eye_cm = [25.0, -18.0, 82.0]
 wheel_cm = [65.0, -18.0, 62.0]
+mirror_left_cm = [67.8, -65.2, 69.4]
+mirror_left_size_cm = [16.0, 6.0]
+mirror_right_cm = [67.8, 65.2, 69.4]
+mirror_right_size_cm = [16.0, 6.0]
 # Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
 wheel_lock_deg = 180.0

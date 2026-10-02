@@ -131,9 +131,12 @@ python scripts/ac_import.py "E:\SteamLibrary\steamapps\common\assettocorsa\conte
 
 ## Non-goals
 
-- **Distribution.** No AC-derived data is bundled, hosted, packaged or sent
-  to other players. Release builds leave `content/tracks/custom` and its
-  exports out.
+- **Distribution.** No AC geometry, textures or physics data is bundled,
+  hosted, packaged or sent to other players. Release builds leave
+  `content/tracks/custom` and its exports out. (Measurements of where a
+  real circuit's buildings stand, read off an AC track as boxes and lines,
+  are a different thing and may correct a shipped dossier: see
+  `docs/AC_LAYOUT_SURVEY.md`.)
 - **Encrypted content.** kn5 files encrypted by Custom Shaders Patch are
   refused with a clear message, never decrypted.
 - **AC's shaders and effects.** CSP extensions, AC's lighting, reflection
@@ -372,7 +375,9 @@ the right side:
 - **Local only.** The tool runs on the player's own install and writes to
   the player's own machine. Output goes to the gitignored `custom/` folder
   and to `build/`, and release builds exclude both.
-- **Nothing bundled.** ApexSim ships no AC data. It ships a converter, like
+- **Nothing bundled.** ApexSim ships no AC geometry, textures or physics
+  data (the dossier corrections of `docs/AC_LAYOUT_SURVEY.md` are
+  positions and sizes only). It ships a converter, like
   the existing AC modding tools.
 - **Encrypted content is refused.** A mod author who encrypted their track
   did not want it unpacked.

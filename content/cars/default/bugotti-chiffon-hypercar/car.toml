@@ -171,6 +171,28 @@ rear_radius_m = 0.360
 front_width_m = 0.320
 rear_width_m = 0.345
 
+[driver]
+# the driver, drawn on the body (same frame) and hidden for the car the
+# cockpit camera sits in; written by the build script
+model = "bugotti_chiffon_driver.glb"
+
+[cockpit]
+# Written by the build script: the eye and wheel the cabin was built to
+# (car frame: +X nose, +Y right, +Z up). The client uses these instead of
+# deriving them from the mesh box, so the greenhouse can sit where a
+# real one does. Remove a key to fall back to the derivation.
+# Pass 6: authored against the imported 499P.
+style = "closed"
+eye_cm = [36.0, -16.0, 83.0]
+wheel_cm = [74.0, -16.0, 64.0]
+mirror_left_cm = [79.4, -84.0, 82.0]
+mirror_left_size_cm = [18.0, 7.5]
+mirror_right_cm = [79.4, 84.0, 82.0]
+mirror_right_size_cm = [18.0, 7.5]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 180.0
+
 # --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 
@@ -215,8 +237,3 @@ paint = [0.420, 0.780, 0.015]
 accent = [0.012, 0.012, 0.014]
 metallic = 0.25
 logo = "textures/livery_voltaic.png"
-
-[cockpit]
-# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
-# wheel on the Auto steering lock the real rim turns twice this lock to lock.
-wheel_lock_deg = 180.0

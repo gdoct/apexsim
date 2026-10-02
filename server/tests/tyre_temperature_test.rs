@@ -20,6 +20,15 @@ fn monza() -> TrackConfig {
         .expect("failed to load Monza")
 }
 
+/// The probe's circuit: `TYRE_PROBE_TRACK=<Stem>`, Monza by default.
+fn probe_track() -> TrackConfig {
+    match std::env::var("TYRE_PROBE_TRACK") {
+        Ok(stem) => TrackLoader::load_from_file(format!("../content/tracks/default/{stem}.yaml"))
+            .expect("failed to load the probe track"),
+        Err(_) => monza(),
+    }
+}
+
 /// A shipped car, or the player's own (an imported one) by its folder.
 fn car(folder: &str) -> CarConfig {
     let shipped = format!("../content/cars/default/{folder}/car.toml");
@@ -80,7 +89,7 @@ fn ai_race(folder: &str, laps: u8, conditions: SessionConditions) -> (CarConfig,
         1,
         laps,
     );
-    let mut track = monza();
+    let mut track = probe_track();
     conditions.apply_to_track(&mut track);
     let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
     gs.spawn_ai_drivers();

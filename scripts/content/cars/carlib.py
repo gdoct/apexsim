@@ -71,8 +71,57 @@ class Mats(dict):
             raise AttributeError(k)
 
 
+TEXTURES = os.path.join(os.environ.get("APEXSIM_ROOT", r"E:\apexsim"), "content", "cars", "_textures")
+# carbon_twill.png covers a quarter of a metre: the UVs of `car_carbon` faces
+# (planar, in metres) are scaled by this in join_and_export()
+CARBON_UV_SCALE = 4.0
+# sponsors.png: 2 columns x 8 rows of 4:1 cells (scripts/content/cars/textures.py)
+SPONSOR_GRID = (2, 8)
+
+
+def textured_mat(name, path, color=(1, 1, 1), metallic=0.0, roughness=0.5, coat=0.0,
+                 coat_roughness=None, masked=False):
+    """`mat()` with a base-colour image (the only texture the client's car
+    parents take). masked=True: alpha cut at 0.5, glTF alphaMode MASK."""
+    m = mat(name, color, metallic, roughness, coat=coat, coat_roughness=coat_roughness)
+    nt = m.node_tree
+    b = nt.nodes["Principled BSDF"]
+    img = bpy.data.images.load(path, check_existing=True)
+    img.pack()
+    ti = nt.nodes.new("ShaderNodeTexImage")
+    ti.image = img
+    nt.links.new(ti.outputs["Color"], b.inputs["Base Color"])
+    if masked:
+        gt = nt.nodes.new("ShaderNodeMath")
+        gt.operation = 'GREATER_THAN'
+        gt.inputs[1].default_value = 0.5
+        nt.links.new(ti.outputs["Alpha"], gt.inputs[0])
+        nt.links.new(gt.outputs[0], b.inputs["Alpha"])
+    return m
+
+
+def atlas_uv(cell, grid=SPONSOR_GRID, inset=0.004):
+    """UV rectangle (u0, v0, u1, v1) of an atlas cell, numbered left to
+    right, top to bottom (Blender's v runs up)."""
+    cols, rows = grid
+    c, r = cell % cols, cell // cols
+    u0, u1 = c / cols, (c + 1) / cols
+    v1, v0 = 1.0 - r / rows, 1.0 - (r + 1) / rows
+    return (u0 + inset, v0 + inset * 2, u1 - inset, v1 - inset * 2)
+
+
+# numbers.png: 4 x 4 cells, in this order (scripts/content/cars/textures.py)
+NUMBERS = ["9", "50", "16", "7", "22", "51", "38", "91", "63", "88", "4", "14", "1", "2", "3", "5"]
+
+
+def number_uv(number):
+    """UV rectangle of a race number's panel in numbers.png."""
+    return atlas_uv(NUMBERS.index(str(number)), grid=(4, 4), inset=0.002)
+
+
 def car_materials(paint_rgb, accent_rgb, caliper_rgb, logo_path=None, seat_rgb=(0.10, 0.10, 0.12),
-                  paint_metallic=0.80, paint_rough=0.22, accent_metallic=0.55, accent_rough=0.28):
+                  paint_metallic=0.80, paint_rough=0.22, accent_metallic=0.55, accent_rough=0.28,
+                  carbon_weave=False, sponsors=False):
     """The slot set every car GLB carries; names are what the client drives
     (docs/CAR_MODELS.md - do not rename).
 
@@ -114,6 +163,21 @@ def car_materials(paint_rgb, accent_rgb, caliper_rgb, logo_path=None, seat_rgb=(
     )
     if logo_path:
         m["logo"] = apex.image_material("car_logo", logo_path, roughness=0.30, masked=True)
+    # Pass 6: bare carbon carries its weave (a base-colour texture at
+    # CARBON_UV_SCALE tiles a metre), and a sponsor atlas for the livery's
+    # decals. Opt-in per build so a class not yet rebuilt keeps its look.
+    weave = os.path.join(TEXTURES, "carbon_twill.png")
+    if carbon_weave and os.path.exists(weave):
+        m["carbon"] = textured_mat("car_carbon", weave, metallic=0.30, roughness=0.32, coat=0.9,
+                                   coat_roughness=0.04)
+    atlas = os.path.join(TEXTURES, "sponsors.png")
+    if sponsors and os.path.exists(atlas):
+        m["sponsor"] = textured_mat("car_sponsor", atlas, roughness=0.30, coat=1.0, coat_roughness=0.03,
+                                    masked=True)
+        nums = os.path.join(TEXTURES, "numbers.png")
+        if os.path.exists(nums):
+            m["number"] = textured_mat("car_number", nums, roughness=0.30, coat=1.0, coat_roughness=0.03,
+                                       masked=True)
     return m
 
 
@@ -1169,6 +1233,81 @@ def wing(b, mat, hw, chord, thick, camber, ly, lz, angle_deg=-8.0, plan="straigh
     return trailing(hw), trailing
 
 
+def foil_path(b, mat, xs, fn, thick, camber, n=14):
+    """A wing element lofted through sections along X whose leading edge,
+    pitch and chord vary: `fn(x)` gives (ly, lz, angle_deg, chord) at each
+    x of `xs` (in order). What a modern front-wing flap is: flat over the
+    middle, rising, steepening and shortening as it runs out to the
+    endplate, which a straight `foil()` cannot draw. Capped at both ends.
+    Returns the trailing edge as a function of x (linear between sections)."""
+    s = b.slot(mat)
+    bm = b.bm
+
+    def yt(t):
+        return 5 * thick * (0.2969 * math.sqrt(max(t, 0.0)) - 0.126 * t
+                            - 0.3516 * t ** 2 + 0.2843 * t ** 3 - 0.1015 * t ** 4)
+
+    def yc(t):
+        return camber * (2 * t - t * t)
+
+    pts = [(t, yc(t) + yt(t)) for t in (i / n for i in range(n + 1))]
+    pts += [(t, yc(t) - yt(t)) for t in ((n - i) / n for i in range(n + 1))]
+    rings, tes = [], []
+    for x in xs:
+        ly, lz, ang, ch = fn(x)
+        a = math.radians(ang)
+        ring = [bm.verts.new((x, ly + (py * math.cos(a) - pz * math.sin(a)) * ch,
+                              lz + (py * math.sin(a) + pz * math.cos(a)) * ch)) for (py, pz) in pts]
+        rings.append(ring)
+        tes.append((x, ly + ch * math.cos(a), lz + ch * math.sin(a)))
+    L = len(pts)
+    for A, B in zip(rings, rings[1:]):
+        for i in range(L):
+            j = (i + 1) % L
+            f = bm.faces.new((A[i], B[i], B[j], A[j]))
+            f.material_index = s
+    f = bm.faces.new(list(reversed(rings[0]))); f.material_index = s
+    f = bm.faces.new(rings[-1]); f.material_index = s
+    for ring in (rings[0], rings[-1]):
+        pass
+
+    def trailing(x):
+        if x <= tes[0][0]:
+            return tes[0][1], tes[0][2]
+        for (x0, y0, z0), (x1, y1, z1) in zip(tes, tes[1:]):
+            if x0 <= x <= x1:
+                t = (x - x0) / max(x1 - x0, 1e-9)
+                return y0 + (y1 - y0) * t, z0 + (z1 - z0) * t
+        return tes[-1][1], tes[-1][2]
+    return trailing
+
+
+def mirror_glass(b, mat, centre, w, h, normal=(0.0, 1.0, 0.0), tilt_deg=0.0):
+    """A mirror's glass as the cockpit rig paints its capture onto it (the
+    `car_mirror_left` / `_right` / `_centre` slots, as an imported car
+    carries): a quad facing the driver (`normal`, +Y = towards the tail),
+    UVs laid as the driver faces it - u from their right (-X) to their left
+    (+X), v from the top down (glTF), so the capture reads as a mirror."""
+    n = Vector(normal).normalized()
+    up = Vector((0.0, 0.0, 1.0))
+    a = math.radians(tilt_deg)
+    across = Vector((1.0, 0.0, 0.0))
+    up = (up * math.cos(a) + n * math.sin(a)).normalized()
+    c = Vector(centre)
+    s = b.slot(mat)
+    corners = [(-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)]
+    vs = [b.bm.verts.new(c + across * (cu * w) + up * (cv * h)) for (cu, cv) in corners]
+    f = b.bm.faces.new(vs)
+    f.material_index = s
+    for l, (cu, cv) in zip(f.loops, corners):
+        # Blender's v runs up; the exporter flips it to glTF's top-down
+        l[b.uv].uv = (cu + 0.5, cv + 0.5)
+    f.normal_update()
+    if f.normal.dot(n) < 0:
+        f.normal_flip()
+    b.keep.add(f)
+
+
 def spans(trailing, x0, x1, segs=8):
     """(xa, xb, y, z) pieces from x0 to x1 along a `wing()`'s trailing edge,
     for the gurney and brake strip on a wing that is not straight."""
@@ -1486,24 +1625,69 @@ def duct_lip(b, mat, x0, x1, y, z0, z1, out=0.018, dir_y=1.0):
 
 
 # ----------------------------------------------------------------- mirrors
-def mirror(b, mats, x, y, z, sx=1, style="pod", head=(0.075, 0.140, 0.055)):
-    """A GT mirror: aerofoil stalk and a teardrop head with a glass face -
-    not a sphere on a stick."""
-    hx, hy, hz = head
+def mirror(b, mats, x, y, z, sx=1, style="pod", head=(0.075, 0.140, 0.055), glass=None,
+           size=(0.19, 0.085, 0.12)):
+    """A door mirror: an aerofoil stalk off the door and an aero head
+    (`aero_mirror`) whose glass faces the driver. `glass` (pass 6) is the
+    `car_mirror_left` / `_right` material the cockpit rig paints its capture
+    onto; without it the glass is plain `car_glass` (the first cut faced
+    its glass forward, at the road). Returns the glass centre and size.
+    `head` is kept for old callers; `size` (width, height, depth) is the head."""
+    w, h, d = size
     stalk = [(y - 0.035, z - 0.10), (y + 0.035, z - 0.10), (y + 0.022, z), (y - 0.022, z)]
-    plate(b, mats.carbon, stalk, sx * (x - 0.055), 0.024, chamfer=0.006)
+    plate(b, mats.carbon, stalk, sx * (x - w / 2 - 0.005), 0.024, chamfer=0.006)
     if style == "stalk":
-        b.bar(mats.carbon, (sx * (x - 0.16), y, z), (sx * x, y - 0.01, z + 0.015), 0.012, segs=8)
-    b.box(mats.carbon, (sx * x - hx / 2, y - hy / 2, z - hz / 2),
-          (sx * x + hx / 2, y + hy / 2, z + hz / 2))
-    b.box(mats.glass, (sx * x - hx / 2 + 0.008, y - hy / 2 + 0.006, z - hz / 2 + 0.008),
-          (sx * x + hx / 2 - 0.008, y - hy / 2 + 0.012, z + hz / 2 - 0.008))
+        b.bar(mats.carbon, (sx * (x - w / 2 - 0.10), y, z), (sx * (x - w / 2 + 0.02), y - 0.01, z + 0.015),
+              0.012, segs=8)
+    return aero_mirror(b, mats, glass or mats.glass, (sx * x, y, z), w=w, h=h, d=d,
+                       housing=mats.carbon if style == "stalk" else mats.paint)
+
+
+def inside_bar(b, mat, loft, p0, p1, r, margin=0.045, n=12, segs=8):
+    """A roll-cage tube from p0 to p1 kept inside the shell: walked in `n`
+    pieces, each point's |x| clamped to the skin's half-width at its (y, z)
+    less `margin` and the tube's radius. A straight chord between two
+    points that are inside a tumblehome canopy runs outside it in between
+    (pass 7: the GT3 and LMP2 A-pillar bars showed through the flank)."""
+    P0, P1 = Vector(p0), Vector(p1)
+    pts = []
+    for k in range(n + 1):
+        q = P0.lerp(P1, k / n)
+        lim = max(loft.x_at(q.y, q.z) - margin - r, 0.0)
+        if abs(q.x) > lim:
+            q.x = math.copysign(lim, q.x)
+        pts.append(q)
+    for a, c in zip(pts, pts[1:]):
+        b.bar(mat, a, c, r, segs)
+
+
+def aero_mirror(b, mats, glass_mat, centre, w=0.17, h=0.075, d=0.10, glass_inset=0.010,
+                housing=None):
+    """A mirror head shaped like one: a teardrop in side view (rounded nose
+    into the wind, flat back), `w` wide across the car, with the glass let
+    into the back face in its `car_mirror_*` slot (`mirror_glass`). Returns
+    the glass centre and size (for the car.toml's mirror_*_cm)."""
+    cx, cy, cz = centre
+    housing = housing or mats.carbon
+    yb = cy + d / 2                       # back face, towards the driver
+    # back top, back bottom, then round the nose from the bottom to the top
+    prof = [(yb, cz + h / 2), (yb, cz - h / 2)]
+    for k in range(13):
+        t = math.pi * k / 12
+        prof.append((yb - 0.40 * d - 0.60 * d * math.sin(t), cz - h / 2 * math.cos(t)))
+    plate(b, housing, prof, cx, w, chamfer=0.006)
+    gw, gh = w - 2 * glass_inset, h - 2 * glass_inset
+    mirror_glass(b, glass_mat, (cx, yb + 0.0015, cz), gw, gh)
+    return Vector((cx, yb + 0.0015, cz)), (gw, gh)
 
 
 # ------------------------------------------------------------------ decals
-def conform_decal(b, mat, loft, y0, y1, j0, j1, sx=1, lift=0.004, nu=10, nv=5, flip_u=False):
+def conform_decal(b, mat, loft, y0, y1, j0, j1, sx=1, lift=0.004, nu=10, nv=5, flip_u=False,
+                  uv_rect=(0.0, 0.0, 1.0, 1.0)):
     """Lay a wordmark on the flank so it follows the surface, rather than
-    standing a flat quad off a curved panel."""
+    standing a flat quad off a curved panel. `uv_rect` picks part of the
+    image (an atlas cell, `atlas_uv()`)."""
+    ru0, rv0, ru1, rv1 = uv_rect
     s = b.slot(mat)
     bm = b.bm
     grid = []
@@ -1517,7 +1701,8 @@ def conform_decal(b, mat, loft, y0, y1, j0, j1, sx=1, lift=0.004, nu=10, nv=5, f
             p = loft.point(y, j)
             n = loft.normal(y, j)
             q = p + n * lift
-            row.append((bm.verts.new((sx * q.x, q.y, q.z)), (1 - u if flip_u else u, v)))
+            uu = 1 - u if flip_u else u
+            row.append((bm.verts.new((sx * q.x, q.y, q.z)), (ru0 + (ru1 - ru0) * uu, rv0 + (rv1 - rv0) * v)))
         grid.append(row)
     for iu in range(nu):
         for iv in range(nv):
@@ -1532,6 +1717,68 @@ def conform_decal(b, mat, loft, y0, y1, j0, j1, sx=1, lift=0.004, nu=10, nv=5, f
             if (f.normal.x > 0) != (sx > 0):
                 f.normal_flip()
             b.keep.add(f)
+
+
+def top_decal(b, mat, loft, xc, yc, length, height, uv_rect, along_y=True, read_from=1,
+              lift=0.004, nu=10, nv=4, z_fn=None):
+    """A decal lying on an upper surface (nose, engine cover, deck), every
+    vertex dropped onto `z_fn(y, x)` (default the loft's `z_at`). `along_y`:
+    the text runs along the car, reading from the side `read_from` (+1 the
+    car's +X side, -1 the other); else across it, reading from the front
+    (glyph tops towards the tail, as `top_text(face="front")`)."""
+    z_fn = z_fn or (lambda y, x: loft.z_at(y, abs(x)))
+    ru0, rv0, ru1, rv1 = uv_rect
+    s = b.slot(mat)
+    bm = b.bm
+    grid = []
+    for iu in range(nu + 1):
+        u = iu / nu
+        row = []
+        for iv in range(nv + 1):
+            v = iv / nv
+            if along_y:
+                # text left->right runs nose->tail seen from +X (tail->nose from -X)
+                y = yc + (u - 0.5) * length * read_from
+                x = xc + (v - 0.5) * height * read_from
+            else:
+                # read from ahead of the car: glyph tops towards the tail
+                x = xc + (u - 0.5) * length
+                y = yc + (v - 0.5) * height
+            row.append((bm.verts.new((x, y, z_fn(y, x) + lift)), (ru0 + (ru1 - ru0) * u, rv0 + (rv1 - rv0) * v)))
+        grid.append(row)
+    for iu in range(nu):
+        for iv in range(nv):
+            quad = (grid[iu][iv], grid[iu + 1][iv], grid[iu + 1][iv + 1], grid[iu][iv + 1])
+            f = bm.faces.new([q[0] for q in quad])
+            f.material_index = s
+            for l, q in zip(f.loops, quad):
+                l[b.uv].uv = q[1]
+            f.normal_update()
+            if f.normal.z < 0:
+                f.normal_flip()
+            b.keep.add(f)
+
+
+def flat_decal(b, mat, centre, u_dir, v_dir, w, h, uv_rect, lift=0.0015):
+    """A flat decal on a flat part (an endplate, a wing, a fin): a quad of
+    w x h centred on `centre`, its text running along `u_dir` and up
+    `v_dir`; the face looks along u x v and is lifted that way by `lift`.
+    Both faces of a thin plate want one each (mirror u_dir)."""
+    u_dir, v_dir = Vector(u_dir).normalized(), Vector(v_dir).normalized()
+    n = u_dir.cross(v_dir).normalized()
+    c = Vector(centre) + n * lift
+    ru0, rv0, ru1, rv1 = uv_rect
+    s = b.slot(mat)
+    corners = [(-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)]
+    vs = [b.bm.verts.new(c + u_dir * (cu * w) + v_dir * (cv * h)) for (cu, cv) in corners]
+    f = b.bm.faces.new(vs)
+    f.material_index = s
+    for l, (cu, cv) in zip(f.loops, corners):
+        l[b.uv].uv = (ru0 + (ru1 - ru0) * (cu + 0.5), rv0 + (rv1 - rv0) * (cv + 0.5))
+    f.normal_update()
+    if f.normal.dot(n) < 0:
+        f.normal_flip()
+    b.keep.add(f)
 
 
 # ----------------------------------------------------------------- cockpit
@@ -1772,7 +2019,7 @@ def authored_cockpit(eye, wheel_ahead=0.40, wheel_below=0.20):
                 dash_z=eye.z - 0.16)
 
 
-def cockpit_table(ck, wheel_lock_deg, style="closed", rake_deg=None, note=None):
+def cockpit_table(ck, wheel_lock_deg, style="closed", rake_deg=None, note=None, mirrors=None):
     """The `[cockpit]` lines for car.toml (docs/CAR_MODELS.md): the authored
     eye and wheel in the car's frame (+X nose, +Y right, +Z up, cm) from the
     build frame (nose -Y, driver +X)."""
@@ -1790,6 +2037,15 @@ def cockpit_table(ck, wheel_lock_deg, style="closed", rake_deg=None, note=None):
               "wheel_cm = " + cm(ck["wheel"])]
     if rake_deg is not None:
         lines.append("wheel_rake_deg = %.1f" % rake_deg)
+    if mirrors:
+        # the door / pod mirrors as built (the client otherwise lays them off
+        # the eye it derives from the box, not the authored one): build-frame
+        # centre of the glass and its size in cm (width, height)
+        for side, key in ((1, "left"), (-1, "right")):
+            m = mirrors.get(key)
+            if m:
+                lines += ["mirror_%s_cm = %s" % (key, cm(m[0])),
+                          "mirror_%s_size_cm = [%.1f, %.1f]" % (key, m[1][0] * 100.0, m[1][1] * 100.0)]
     lines += ["# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a",
               "# wheel on the Auto steering lock the real rim turns twice this lock to lock.",
               "wheel_lock_deg = %.1f" % wheel_lock_deg, ""]
@@ -1929,6 +2185,194 @@ def bucket_seat(b, mats, x, y0, z0, width=0.50, depth=0.52, back_h=0.62, rake_de
     b.box(mats.metal, (x - 0.05, y0 + 0.15, z0 + 0.17), (x + 0.05, y0 + 0.22, z0 + 0.24))   # buckle
 
 
+# ------------------------------------------------------------- driver
+# Pass 7: a driver in every seat, in a GLB of his own beside the body
+# (`<stem>_driver.glb`, the body's frame) named by car.toml's `[driver]`
+# table, so the client can hide him for the car the cockpit camera sits in
+# - the camera is where his eyes are - and draw him everywhere else.
+def _basis(fwd):
+    """Orthonormal (side, along, normal) for a body segment whose long axis
+    is `fwd`: `side` stays as close to +X as it can."""
+    a = Vector(fwd).normalized()
+    side = Vector((1.0, 0.0, 0.0))
+    if abs(side.dot(a)) > 0.95:
+        side = Vector((0.0, 1.0, 0.0))
+    n = side.cross(a).normalized()
+    side = a.cross(n).normalized()
+    return side, a, n
+
+
+def ellipsoid(b, mat, centre, radii, axes=None, segs=16, rings=10, u_range=(0.0, 1.0), v_range=(0.0, 1.0)):
+    """A (part of an) ellipsoid: `radii` along the columns of `axes` (three
+    Vectors, default the world axes). u runs round the third axis, v from
+    its -end to its +end; a partial range makes a band or a visor."""
+    s = b.slot(mat)
+    bm = b.bm
+    ax = axes or (Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
+    c = Vector(centre)
+    full_u = u_range == (0.0, 1.0)
+    nu = segs if full_u else max(2, int(segs * (u_range[1] - u_range[0])) + 1)
+    grid = []
+    for iv in range(rings + 1):
+        v = v_range[0] + (v_range[1] - v_range[0]) * iv / rings
+        th = math.pi * (v - 0.5)                       # -90..90 deg along the third axis
+        row = []
+        for iu in range(nu if full_u else nu + 1):
+            u = u_range[0] + (u_range[1] - u_range[0]) * iu / nu
+            ph = 2 * math.pi * u
+            q = (ax[0] * (radii[0] * math.cos(th) * math.cos(ph)) + ax[1] * (radii[1] * math.cos(th) * math.sin(ph))
+                 + ax[2] * (radii[2] * math.sin(th)))
+            row.append(bm.verts.new(c + q))
+        grid.append(row)
+    for iv in range(rings):
+        A, B = grid[iv], grid[iv + 1]
+        n = len(A)
+        for iu in range(n if full_u else n - 1):
+            j = (iu + 1) % n
+            f = bm.faces.new((A[iu], A[j], B[j], B[iu]))
+            f.material_index = s
+            f.normal_update()
+            mid = (A[iu].co + B[j].co) / 2
+            if f.normal.dot(mid - c) < 0:
+                f.normal_flip()
+            f.smooth = True
+
+
+def capsule(b, mat, p0, p1, r0, r1=None, segs=12):
+    """A limb: a tapered tube from p0 (radius r0) to p1 (r1) with round ends."""
+    r1 = r0 if r1 is None else r1
+    P0, P1 = Vector(p0), Vector(p1)
+    d = P1 - P0
+    if d.length < 1e-4:
+        ellipsoid(b, mat, P0, (r0, r0, r0), segs=segs, rings=6)
+        return
+    side, along, n = _basis(d)
+    s = b.slot(mat)
+    bm = b.bm
+    rings = []
+    for (c, r) in ((P0, r0), (P1, r1)):
+        rings.append([bm.verts.new(c + (side * math.cos(2 * math.pi * k / segs) + n * math.sin(2 * math.pi * k / segs)) * r)
+                      for k in range(segs)])
+    for k in range(segs):
+        j = (k + 1) % segs
+        f = bm.faces.new((rings[0][k], rings[0][j], rings[1][j], rings[1][k]))
+        f.material_index = s
+        f.normal_update()
+        if f.normal.dot(rings[0][k].co - P0) < 0:
+            f.normal_flip()
+        f.smooth = True
+    ellipsoid(b, mat, P0, (r0, r0, r0), axes=(side, n, -along), segs=segs, rings=4, v_range=(0.5, 1.0))
+    ellipsoid(b, mat, P1, (r1, r1, r1), axes=(side, n, along), segs=segs, rings=4, v_range=(0.5, 1.0))
+
+
+def _ik(a, c, l1, l2, pole):
+    """The middle joint of a two-bone chain from a to c (lengths l1, l2),
+    bent towards `pole` (a direction). Out of reach, the chain lies straight
+    along a->c."""
+    a, c, pole = Vector(a), Vector(c), Vector(pole)
+    d = c - a
+    L = d.length
+    u = d.normalized()
+    if L >= l1 + l2 - 1e-4:
+        return a + u * (l1 * L / (l1 + l2))
+    L = max(L, abs(l1 - l2) + 1e-3)
+    x = (l1 * l1 - l2 * l2 + L * L) / (2 * L)
+    h = math.sqrt(max(l1 * l1 - x * x, 0.0))
+    w = (pole - u * pole.dot(u))
+    w = w.normalized() if w.length > 1e-6 else Vector((0, 0, 1))
+    return a + u * x + w * h
+
+
+def driver_figure(b, mats, eye, wheel, hip, feet, wheel_hw=0.16, suit=(0.05, 0.05, 0.06), style="closed"):
+    """A seated driver in a race suit and full-face helmet, built from the
+    points the cabin is built to: the eye (the camera - his eyes), the wheel
+    centre (the rig's rim: his gloves at 9 and 3, `wheel_hw` out), the hip
+    joint the seat puts him on and his feet on the pedals (`feet`: (y, z)).
+    `style` "open" (the F1s) narrows his shoulders to fit a tub ~0.48 m wide. Slots: the helmet in `car_paint` with a
+    `car_accent` band (so a livery repaints it), the visor `car_visor`, the
+    suit `car_suit` in the car's colour, gloves and boots `car_trim`, the
+    HANS `car_trim`, the belts `car_harness`."""
+    E, W, P = Vector(eye), Vector(wheel), Vector(hip)
+    xd = E.x
+    suit_m = mat("car_suit", suit, 0.0, 0.82)
+    visor = mat("car_visor", (0.015, 0.015, 0.02), 0.9, 0.05, coat=1.0, coat_roughness=0.02)
+    # head: the eyes a few cm behind the visor's face
+    H = E + Vector((0.0, 0.080, 0.030))
+    hr = (0.130, 0.150, 0.140)
+    ellipsoid(b, mats.paint, H, hr, segs=24, rings=14)
+    # visor: a band across the front, proud of the shell
+    ax = (Vector((1, 0, 0)), Vector((0, -1, 0)), Vector((0, 0, 1)))   # u=0 straight ahead
+    ellipsoid(b, visor, H, (hr[1] + 0.005, hr[0] + 0.005, hr[2] + 0.005),
+              axes=(Vector((0, -1, 0)), Vector((1, 0, 0)), Vector((0, 0, 1))),
+              segs=28, rings=4, u_range=(-0.21, 0.21), v_range=(0.39, 0.57))
+    # the chin bar, forward and down under the visor
+    ellipsoid(b, mats.paint, H + Vector((0.0, -0.065, -0.075)), (0.105, 0.085, 0.072), segs=18, rings=8)
+    # crown stripe in the accent, front to back over the top
+    ellipsoid(b, mats.accent, H, (hr[1] + 0.003, hr[2] + 0.003, hr[0] + 0.003),
+              axes=(Vector((0, 1, 0)), Vector((0, 0, 1)), Vector((1, 0, 0))),
+              segs=24, rings=2, u_range=(0.0, 0.5), v_range=(0.475, 0.525))
+    # chin and neck under the helmet
+    Nb = H + Vector((0.0, 0.035, -0.20))
+    # torso: from the hip joint up the seat back to the shoulders
+    # the shoulder line a quarter metre under the head's centre, whatever
+    # the seat makes of the torso's length
+    S = H + Vector((0.0, 0.030, -0.245))
+    capsule(b, suit_m, S + Vector((0, 0, 0.02)), H + Vector((0, 0.01, -0.10)), 0.055)
+    side, along, n = _basis(S - P)
+    # an F1 tub is ~0.48 m wide at the shoulders: narrower there
+    sw = 0.165 if style == "open" else 0.190
+    ellipsoid(b, suit_m, P.lerp(S, 0.58), (sw, 0.130, 0.250), axes=(side, n, along), segs=18, rings=10)
+    ellipsoid(b, suit_m, P + along * 0.04, (0.175, 0.125, 0.140), axes=(side, n, along), segs=16, rings=8)
+    # (n points out of his chest, along up his spine)
+    # HANS: a collar lying on the shoulders behind the neck (satin black, not
+    # the woven carbon: that would embed the weave texture in every driver GLB)
+    ellipsoid(b, mats.trim, S - n * 0.035 + along * 0.015, (0.145, 0.060, 0.030), axes=(side, n, along),
+              segs=16, rings=6)
+    # belts: shoulder straps over the chest into the lap, the lap belt
+    for sx in (-1, 1):
+        a0 = S + side * (sx * 0.085) + n * 0.10 + along * 0.02
+        a1 = P + side * (sx * 0.05) + n * 0.125 + along * 0.10
+        b.bar(mats.harness, a0, a1, 0.016, segs=4)
+    b.bar(mats.harness, P + side * (-0.15) + n * 0.11 + along * 0.05, P + side * 0.15 + n * 0.11 + along * 0.05,
+          0.018, segs=4)
+    # arms: shoulders to gloves on the rim at 9 and 3
+    up_l, fo_l = 0.30, 0.29
+    for sx in (-1, 1):
+        sh = S + side * (sx * (sw - 0.005)) - along * 0.03
+        hand = Vector((xd + sx * wheel_hw, W.y + 0.015, W.z))
+        el = _ik(sh, hand, up_l, fo_l, Vector((sx * 0.8, 0.2, -1.0)))
+        ellipsoid(b, suit_m, sh, (0.065, 0.065, 0.065), segs=12, rings=6)
+        capsule(b, suit_m, sh, el, 0.052, 0.045)
+        capsule(b, suit_m, el, hand + (el - hand).normalized() * 0.05, 0.044, 0.038)
+        ellipsoid(b, mats.trim, hand, (0.040, 0.050, 0.045), segs=12, rings=6)
+    # legs: hip joints to the knees (bent up) to the boots on the pedals
+    fy, fz = feet
+    for sx in (-1, 1):
+        hj = P + Vector((sx * 0.095, -0.04, -0.02))
+        foot = Vector((xd + sx * 0.10, fy + 0.10, fz + 0.06))
+        kn = _ik(hj, foot, 0.48, 0.48, Vector((sx * 0.15, -0.2, 1.0)))
+        capsule(b, suit_m, hj, kn, 0.078, 0.058)
+        capsule(b, suit_m, kn, foot, 0.055, 0.044)
+        ellipsoid(b, mats.trim, foot + Vector((0, -0.06, -0.02)), (0.050, 0.130, 0.055), segs=12, rings=6)
+    return dict(head=H, shoulders=S, hips=P)
+
+
+def export_driver(b, stem, car_dir, export=True):
+    """Finish the driver's Builder and write <car_dir>/<stem>_driver.glb and
+    car.toml's `[driver]` table (above the liveries' marker)."""
+    ob = b.finish(planar_uv=True, recalc=False)
+    ob.name = stem + "_driver"
+    if export:
+        export_glb(ob, os.path.join(car_dir, stem + "_driver.glb"))
+        write_table(os.path.join(car_dir, "car.toml"), "driver", [
+            "[driver]",
+            "# the driver, drawn on the body (same frame) and hidden for the car the",
+            "# cockpit camera sits in; written by the build script",
+            'model = "%s_driver.glb"' % stem])
+    ob.hide_render = ob.hide_viewport = True
+    return ob
+
+
 def switch_panel(b, mats, x0, x1, y0, y1, z, rows=2, cols=4, rotary=True, tilt=0.0):
     """A carbon plate with backlit push buttons and a rotary, on the tunnel or dash."""
     b.box(mats.carbon, (x0, y0, z - 0.012), (x1, y1, z))
@@ -2055,6 +2499,17 @@ def join_and_export(objs, stem, car_dir, export=True, hide=True):
         tmp.free()
         joined.from_mesh(tmp_me)
         bpy.data.meshes.remove(tmp_me)
+    # the carbon weave: planar UVs are metres, the texture a quarter of one
+    if "car_carbon" in [m.name.split(".")[0] for m in mat_list if m] and \
+            any(n.type == 'TEX_IMAGE' for m in mat_list if m and m.name.split(".")[0] == "car_carbon"
+                for n in m.node_tree.nodes):
+        ci = [i for i, m in enumerate(mat_list) if m and m.name.split(".")[0] == "car_carbon"]
+        uvl = joined.loops.layers.uv.active
+        if uvl is not None:
+            for f in joined.faces:
+                if f.material_index in ci:
+                    for l in f.loops:
+                        l[uvl].uv = (l[uvl].uv[0] * CARBON_UV_SCALE, l[uvl].uv[1] * CARBON_UV_SCALE)
     final = bpy.data.meshes.new(stem)
     joined.to_mesh(final)
     joined.free()
@@ -2074,7 +2529,7 @@ def join_and_export(objs, stem, car_dir, export=True, hide=True):
 
 
 def sightline(ob, transparent=("car_glass",), step_deg=0.5, max_deg=25.0, open_wheel=False,
-              eye=None):
+              eye=None, ray_x=0.0):
     """How far ahead the driver can see the road from the eye the client will
     use for this car - the one `eye` says (an authored `[cockpit]` eye), else
     the one it derives from the mesh box: casts rays forward from the eye,
@@ -2096,6 +2551,9 @@ def sightline(ob, transparent=("car_glass",), step_deg=0.5, max_deg=25.0, open_w
     else:
         eye = Vector((0.18 * (hi[0] - lo[0]), (lo[1] + hi[1]) / 2 + 0.05 * (hi[1] - lo[1]),
                       lo[2] + 0.70 * (hi[2] - lo[2])))
+    # an open-wheeler's eyes straddle the halo's centre pillar: look from one
+    # of them (`ray_x`), or the pillar is all the centreline ever sees
+    eye = eye + Vector((ray_x, 0.0, 0.0))
     skip = {i for i, m in enumerate(me.materials) if m and m.name.split(".")[0] in transparent}
     polys = [list(pg.vertices) for pg in me.polygons if pg.material_index not in skip]
     bvh = BVHTree.FromPolygons([v.co for v in me.vertices], polys)

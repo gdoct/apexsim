@@ -126,6 +126,7 @@ AApexRaceCarActor::AApexRaceCarActor()
 	// The wheels ride the body mesh, so they share its frame: nose +Y, left +X.
 	Wheels.CreateComponents(*this, CarMesh);
 	DrsFlap.CreateComponent(*this, CarMesh);
+	Driver.CreateComponent(*this, CarMesh);
 
 	// Nothing places the car until the first telemetry frame; until then it
 	// would sit at the world origin, which on most circuits is in mid-air or
@@ -236,6 +237,11 @@ void AApexRaceCarActor::SetLivery(const FApexCarLivery* Livery)
 		{
 			ApexLivery::Apply(Flap, Livery);
 		}
+		// The driver's helmet is in the livery's paint and accent.
+		if (UStaticMeshComponent* Figure = GetDriverComponent())
+		{
+			ApexLivery::Apply(Figure, Livery);
+		}
 		// A skin may retexture the rims; a colour livery finds no slot of its
 		// own on a wheel and leaves it alone.
 		Wheels.ForEachComponent([Livery](UStaticMeshComponent& Wheel) { ApexLivery::Apply(&Wheel, Livery); });
@@ -251,6 +257,20 @@ void AApexRaceCarActor::SetDrsFlap(const FApexDrsFlapSpec& Spec)
 	}
 	DrsFlap.SetSpec(Spec);
 	bDrsOpen = false;
+}
+
+void AApexRaceCarActor::SetDriver(const FApexDriverSpec& Spec)
+{
+	if (Spec == Driver.GetSpec() && Driver.HasDriver() == Spec.IsUsable())
+	{
+		return;
+	}
+	Driver.SetSpec(Spec);
+}
+
+void AApexRaceCarActor::SetDriverVisible(bool bVisible)
+{
+	Driver.SetDriverVisible(bVisible);
 }
 
 void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
@@ -400,6 +420,7 @@ void AApexRaceCarActor::SetMeshVisible(bool bVisible)
 	CarMesh->SetVisibility(bVisible);
 	Wheels.SetVisible(bVisible);
 	DrsFlap.SetVisible(bVisible);
+	Driver.SetMeshVisible(bVisible);
 }
 
 void AApexRaceCarActor::SetCockpitSpec(const FString& InCarClass, const FApexCockpitOverrides& InOverrides)

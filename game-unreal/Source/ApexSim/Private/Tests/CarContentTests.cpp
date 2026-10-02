@@ -267,7 +267,7 @@ bool FApexCarGlbRepoCarsTest::RunTest(const FString& Parameters)
 		TestTrue(*FString::Printf(TEXT("%s has triangles"), *FPaths::GetCleanFilename(File)), Model.NumTriangles() > 0);
 		// An imported car's own steering wheel is a part, not a body.
 		const bool bBody = !File.Contains(TEXT("wheels")) && !File.EndsWith(TEXT("_drs.glb"))
-			&& !File.EndsWith(TEXT("steering_wheel.glb"));
+			&& !File.EndsWith(TEXT("_driver.glb")) && !File.EndsWith(TEXT("steering_wheel.glb"));
 		if (bBody)
 		{
 			const FVector3f Size = Model.Bounds.GetSize();
@@ -382,6 +382,27 @@ bool FApexCarTomlClientTablesTest::RunTest(const FString& Parameters)
 
 	FApexCarToml Bad;
 	TestFalse(TEXT("zero scale is an error"), ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n[preview]\nscale = 0\n"), Bad, Error));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarTomlDriverTest, "ApexSim.Cars.TomlDriver", ApexTestFlags)
+
+bool FApexCarTomlDriverTest::RunTest(const FString& Parameters)
+{
+	FApexCarToml Car;
+	FString Error;
+	TestTrue(TEXT("parses"), ApexCarToml::Parse(TEXT(
+		"id = \"a\"\nname = \"b\"\n"
+		"[driver]\n"
+		"# the driver, drawn on the body\n"
+		"model = \"posh_gt3rs_driver.glb\"\n"
+		"[cockpit]\n"
+		"style = \"closed\"\n"), Car, Error));
+	TestTrue(TEXT("driver present"), Car.Driver.IsPresent());
+	TestEqual(TEXT("model"), Car.Driver.Model, FString(TEXT("posh_gt3rs_driver.glb")));
+	FApexCarToml Plain;
+	TestTrue(TEXT("no table parses"), ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n"), Plain, Error));
+	TestFalse(TEXT("no table, no driver"), Plain.Driver.IsPresent());
 	return true;
 }
 
