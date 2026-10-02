@@ -29,7 +29,7 @@
    "Cars (`content/cars`, `UApexCarContentSubsystem`, docs/RUNTIME_CONTENT_LOADING.md)": "23dd47d51479",
    "Content checksums (`content_crc.rs`, `ApexContentCrc.h`)": "85201787e625",
    "Prop kit (`content/props`, `ApexPropImport`)": "d1585dc2a511",
-   "Marketing page (`site/`, `scripts/site/`, `docs/index.html`)": "c67a9f2f4531",
+   "Marketing page (`site/`, `scripts/site/`, `docs/index.html`)": "fb59d96adaa2",
    "Architecture": "da39a3ee5e6b",
    "Server (`server/`)": "ddf48d5517ce",
    "Unreal client networking (`game-unreal/Source/ApexSimNet/`)": "69316220d744",

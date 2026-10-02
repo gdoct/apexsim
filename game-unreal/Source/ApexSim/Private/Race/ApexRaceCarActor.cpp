@@ -1,5 +1,7 @@
 #include "Race/ApexRaceCarActor.h"
 
+#include "ApexSim.h"
+
 #include "Audio/ApexEngineSoundWave.h"
 #include "Audio/ApexRoadSoundWave.h"
 #include "Cars/ApexCarContentSubsystem.h"
@@ -10,6 +12,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Engine.h"
+#include "Race/ApexCarEffectsActor.h"
 #include "Race/ApexCarLivery.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Sound/SoundAttenuation.h"
@@ -100,6 +103,40 @@ namespace
 	constexpr float RunningLightShare = 0.12f;
 	/** A headlight flash (full beam) against the dipped beam. */
 	constexpr float HeadlightFullBeamScale = 2.5f;
+
+	/**
+	 * Damage to draw on every car instead of the server's, percent: "front,
+	 * rear, left, right, engine" (e.g. "60,40,30,20,80"); empty uses the
+	 * telemetry. For looking at the dents, parts and smoke without a crash.
+	 */
+	TAutoConsoleVariable<FString> CVarDamagePreview(
+		TEXT("apexsim.car.DamagePreview"),
+		TEXT(""),
+		TEXT("Damage drawn on every car instead of the server's: \"front,rear,left,right,engine\" percent; empty for the telemetry"),
+		ECVF_Default);
+
+	/** Smoke, steam, sparks and thrown parts; dents are drawn either way. */
+	TAutoConsoleVariable<int32> CVarDamageEffects(
+		TEXT("apexsim.car.DamageEffects"),
+		1,
+		TEXT("1: damaged cars smoke, steam, spark and throw off parts; 0: dents only"),
+		ECVF_Default);
+
+	/** "60,40,30,20,80" -> five percentages; false unless it is five numbers. */
+	bool ParseDamagePreview(const FString& Text, float Out[ApexDamage::NumZones])
+	{
+		TArray<FString> Parts;
+		Text.ParseIntoArray(Parts, TEXT(","), true);
+		if (Parts.Num() != ApexDamage::NumZones)
+		{
+			return false;
+		}
+		for (int32 i = 0; i < ApexDamage::NumZones; ++i)
+		{
+			Out[i] = FCString::Atof(*Parts[i].TrimStartAndEnd());
+		}
+		return true;
+	}
 
 	TAutoConsoleVariable<float> CVarHeadlightLumens(
 		TEXT("apexsim.car.HeadlightLumens"),
@@ -198,6 +235,8 @@ void AApexRaceCarActor::SetCarMesh(UStaticMesh* MeshToShow)
 	CarMesh->SetStaticMesh(Loaded);
 	// A different body is a different seat.
 	bCockpitLayoutValid = false;
+	// ... and a different frame for the dents; the parts belong to the old body.
+	SetDamageParts({}, {});
 
 	// Normalised authored colour, so the cvars alone set how bright the lights are.
 	auto LightSlot = [this, Loaded](FName Slot, FLinearColor& OutColor) -> UMaterialInstanceDynamic*
@@ -242,6 +281,8 @@ void AApexRaceCarActor::SetLivery(const FApexCarLivery* Livery)
 		{
 			ApexLivery::Apply(Figure, Livery);
 		}
+		// The parts were cut from the painted body.
+		ForEachDamagePartComponent([Livery](UStaticMeshComponent& Part) { ApexLivery::Apply(&Part, Livery); });
 		// A skin may retexture the rims; a colour livery finds no slot of its
 		// own on a wheel and leaves it alone.
 		Wheels.ForEachComponent([Livery](UStaticMeshComponent& Wheel) { ApexLivery::Apply(&Wheel, Livery); });
@@ -419,8 +460,10 @@ void AApexRaceCarActor::SetMeshVisible(bool bVisible)
 	// with the bodywork they belong to.
 	CarMesh->SetVisibility(bVisible);
 	Wheels.SetVisible(bVisible);
-	DrsFlap.SetVisible(bVisible);
 	Driver.SetMeshVisible(bVisible);
+	bBodyShown = bVisible;
+	// The flap and the parts: shown with the body unless they have come off.
+	ApplyPartVisibility();
 }
 
 void AApexRaceCarActor::SetCockpitSpec(const FString& InCarClass, const FApexCockpitOverrides& InOverrides)
@@ -576,6 +619,9 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	bDrsOpen = Car.bDrsOpen;
 	CurrentLap = Car.CurrentLap;
 	CurrentLapTimeMs = Car.CurrentLapTimeMs;
+	FMemory::Memcpy(TelemetryDamagePct, Car.DamagePct, sizeof(TelemetryDamagePct));
+	WaterTempC = Car.WaterTempC;
+	bColliding = Car.bIsColliding;
 
 	ApexMotion::FSnapshot Snapshot;
 	Snapshot.Tick = ServerTick;
@@ -684,6 +730,7 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	// Swung, not snapped: the telemetry flips the flag in one frame, a real
 	// actuator takes a fifth of a second.
 	DrsFlap.Update(bDrsOpen, DeltaSeconds);
+	UpdateDamage(DeltaSeconds);
 
 	if (CVarInterpDebug.GetValueOnGameThread() != 0 && GEngine)
 	{
@@ -695,5 +742,378 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 			FString::Printf(TEXT("car %d %s: %d buffered, tick rate %.0f/s, spacing %lld, lag %.1f ms%s"),
 				CarIndex, *DisplayName, Motion.Num(), Rate, Motion.GetFrameSpacingTicks(), LagMs,
 				Pose.bExtrapolated ? TEXT(" EXTRAPOLATING") : TEXT("")));
+	}
+}
+
+void AApexRaceCarActor::SetDamageParts(const TArray<FApexDamagePartSpec>& Specs, const TArray<UStaticMesh*>& Meshes)
+{
+	const int32 Count = Specs.Num() == Meshes.Num() ? Specs.Num() : 0;
+	while (DamagePartMeshes.Num() < Count)
+	{
+		UStaticMeshComponent* Part =
+			NewObject<UStaticMeshComponent>(this, *FString::Printf(TEXT("DamagePart%d"), DamagePartMeshes.Num()));
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->SetMobility(EComponentMobility::Movable);
+		// In the body's own frame, like the wheels: no transform of its own.
+		Part->SetupAttachment(CarMesh);
+		Part->RegisterComponent();
+		DamagePartMeshes.Add(Part);
+	}
+	for (int32 i = 0; i < DamagePartMeshes.Num(); ++i)
+	{
+		if (UStaticMeshComponent* Part = DamagePartMeshes[i])
+		{
+			// Overrides are per slot index: the last car's livery must not land on this one.
+			Part->EmptyOverrideMaterials();
+			Part->SetStaticMesh(i < Count ? Meshes[i] : nullptr);
+		}
+	}
+	DamagePartSpecs = Count > 0 ? Specs : TArray<FApexDamagePartSpec>();
+	DamagePartOn.Init(true, Count);
+
+	// The flap goes with the wing it is hinged on.
+	DrsFlapPart = INDEX_NONE;
+	if (DrsFlap.HasFlap())
+	{
+		const FApexDrsFlapSpec& Flap = DrsFlap.GetSpec();
+		const FVector Hinge(0.0f, Flap.HingeForwardM * 100.0f, Flap.HingeUpM * 100.0f);
+		for (int32 i = 0; i < Count && DrsFlapPart == INDEX_NONE; ++i)
+		{
+			if (Meshes[i] && DamagePartSpecs[i].Box().ExpandBy(5.0).IsInsideOrOn(Hinge))
+			{
+				DrsFlapPart = i;
+			}
+		}
+	}
+	// A car dressed anew starts from what the telemetry says, without
+	// throwing off what is already gone.
+	bDamageSeen = false;
+	for (float& Share : DrawnDents.Zone)
+	{
+		Share = -1.0f;
+	}
+	ApplyDamageFrame();
+	ApplyPartVisibility();
+}
+
+void AApexRaceCarActor::ForEachDamagePartComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const
+{
+	for (UStaticMeshComponent* Part : DamagePartMeshes)
+	{
+		if (Part && Part->GetStaticMesh())
+		{
+			Fn(*Part);
+		}
+	}
+}
+
+void AApexRaceCarActor::ApplyPartVisibility()
+{
+	for (int32 i = 0; i < DamagePartMeshes.Num(); ++i)
+	{
+		if (UStaticMeshComponent* Part = DamagePartMeshes[i])
+		{
+			const bool bOn = DamagePartOn.IsValidIndex(i) && DamagePartOn[i];
+			Part->SetVisibility(bBodyShown && bOn && Part->GetStaticMesh() != nullptr);
+		}
+	}
+	const bool bFlapOff = DrsFlapPart != INDEX_NONE && DamagePartOn.IsValidIndex(DrsFlapPart) && !DamagePartOn[DrsFlapPart];
+	DrsFlap.SetVisible(bBodyShown && !bFlapOff);
+}
+
+void AApexRaceCarActor::ApplyDamageFrame()
+{
+	const UStaticMesh* Mesh = CarMesh->GetStaticMesh();
+	const FBoxSphereBounds Bounds = Mesh ? Mesh->GetBounds() : FBoxSphereBounds(FVector::ZeroVector, FVector(100.0), 100.0);
+	const FVector Extent = Bounds.BoxExtent.ComponentMax(FVector(1.0));
+	// Two cars of a model should not crumple alike.
+	const float Seed = FMath::Frac(static_cast<float>(GetUniqueID()) * 0.6180339f);
+	auto Write = [&](UStaticMeshComponent& Component) {
+		Component.SetCustomPrimitiveDataVector4(ApexDamage::CpdCentre, FVector4(Bounds.Origin, 0.0));
+		Component.SetCustomPrimitiveDataVector4(ApexDamage::CpdExtent, FVector4(Extent, 0.0));
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdSeed, Seed);
+	};
+	Write(*CarMesh);
+	ForEachDamagePartComponent(Write);
+}
+
+void AApexRaceCarActor::ApplyDents(const ApexDamage::FShares& Shares)
+{
+	auto Write = [&Shares](UStaticMeshComponent& Component) {
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdFront, ApexDamage::Visual(Shares.Zone[ApexDamage::Front]));
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdRear, ApexDamage::Visual(Shares.Zone[ApexDamage::Rear]));
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdLeft, ApexDamage::Visual(Shares.Zone[ApexDamage::Left]));
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdRight, ApexDamage::Visual(Shares.Zone[ApexDamage::Right]));
+	};
+	Write(*CarMesh);
+	ForEachDamagePartComponent(Write);
+	DrawnDents = Shares;
+}
+
+AApexCarEffectsActor* AApexRaceCarActor::GetEffects()
+{
+	if (!Effects.IsValid())
+	{
+		Effects = AApexCarEffectsActor::Get(GetWorld());
+	}
+	return Effects.Get();
+}
+
+FVector AApexRaceCarActor::ZonePoint(int32 Zone, FVector& OutNormal)
+{
+	const UStaticMesh* Mesh = CarMesh->GetStaticMesh();
+	const FBoxSphereBounds Bounds = Mesh ? Mesh->GetBounds() : FBoxSphereBounds(FVector(0.0, 0.0, 60.0), FVector(90.0, 230.0, 60.0), 250.0);
+	const FVector O = Bounds.Origin;
+	const FVector E = Bounds.BoxExtent;
+	FRandomStream& R = DamageRandom;
+	const double Height = O.Z - E.Z + 2.0 * E.Z * R.FRandRange(0.12f, 0.5f);
+	// The body mesh's frame: nose +Y, left +X, floor at Z = 0.
+	FVector Local;
+	FVector Normal;
+	switch (Zone)
+	{
+	case ApexDamage::Front:
+		Local = FVector(O.X + E.X * R.FRandRange(-0.6f, 0.6f), O.Y + E.Y * 0.97, Height);
+		Normal = FVector(0.0, 1.0, 0.25);
+		break;
+	case ApexDamage::Rear:
+		Local = FVector(O.X + E.X * R.FRandRange(-0.6f, 0.6f), O.Y - E.Y * 0.97, Height);
+		Normal = FVector(0.0, -1.0, 0.25);
+		break;
+	case ApexDamage::Left:
+		Local = FVector(O.X + E.X * 0.95, O.Y + E.Y * R.FRandRange(-0.6f, 0.6f), Height);
+		Normal = FVector(1.0, 0.0, 0.25);
+		break;
+	case ApexDamage::Right:
+		Local = FVector(O.X - E.X * 0.95, O.Y + E.Y * R.FRandRange(-0.6f, 0.6f), Height);
+		Normal = FVector(-1.0, 0.0, 0.25);
+		break;
+	default:
+		// The floor: a plank or a skid block on the ground.
+		Local = FVector(O.X + E.X * R.FRandRange(-0.7f, 0.7f), O.Y + E.Y * R.FRandRange(-0.7f, 0.7f), O.Z - E.Z + 2.0);
+		Normal = FVector(R.FRandRange(-0.5f, 0.5f), R.FRandRange(-0.5f, 0.5f), 0.2);
+		break;
+	}
+	const FTransform& Frame = CarMesh->GetComponentTransform();
+	OutNormal = Frame.TransformVectorNoScale(Normal).GetSafeNormal();
+	return Frame.TransformPosition(Local);
+}
+
+void AApexRaceCarActor::EmitSparks(int32 Zone, int32 Count)
+{
+	AApexCarEffectsActor* Fx = GetEffects();
+	if (!Fx || !Fx->CanDraw())
+	{
+		return;
+	}
+	const FVector CarVelocity = Root->ComponentVelocity;
+	FRandomStream& R = DamageRandom;
+	for (int32 i = 0; i < Count; ++i)
+	{
+		FVector Normal;
+		ApexDamage::FPuff Spark;
+		Spark.bSpark = true;
+		Spark.Location = ZonePoint(Zone, Normal);
+		const FVector Spray = (Normal + FVector(0.0, 0.0, 0.5) + R.GetUnitVector() * 0.8).GetSafeNormal();
+		Spark.Velocity = CarVelocity * 0.85 + Spray * R.FRandRange(300.0f, 950.0f);
+		Spark.Life = R.FRandRange(0.3f, 0.7f);
+		// Thicker than a real one: at a chase camera's distance a true spark is under a pixel.
+		Spark.StartSize = 2.5f;
+		Spark.Glow = R.FRandRange(1500.0f, 4000.0f);
+		Spark.Drag = 0.8f;
+		Spark.Gravity = 1.0f;
+		Fx->Emit(Spark);
+	}
+	if (Zone == INDEX_NONE)
+	{
+		return;
+	}
+	// A hit throws up a little dust and paint with its sparks.
+	for (int32 i = 0; i < 3; ++i)
+	{
+		FVector Normal;
+		ApexDamage::FPuff Dust;
+		Dust.Location = ZonePoint(Zone, Normal);
+		Dust.Velocity = CarVelocity * 0.5 + Normal * R.FRandRange(80.0f, 220.0f);
+		Dust.Life = R.FRandRange(1.0f, 1.8f);
+		Dust.StartSize = 15.0f;
+		Dust.EndSize = R.FRandRange(70.0f, 120.0f);
+		Dust.Shade = 0.55f;
+		Dust.Opacity = 0.22f;
+		Dust.Drag = 2.5f;
+		Dust.Gravity = -0.02f;
+		Fx->Emit(Dust);
+	}
+}
+
+void AApexRaceCarActor::ThrowPart(int32 Index)
+{
+	UStaticMeshComponent* Part = DamagePartMeshes.IsValidIndex(Index) ? DamagePartMeshes[Index].Get() : nullptr;
+	UWorld* World = GetWorld();
+	AApexCarEffectsActor* Fx = GetEffects();
+	if (!Part || !Part->GetStaticMesh() || !World || !Fx)
+	{
+		return;
+	}
+	const int32 Zone = ApexDamage::ZoneIndex(DamagePartSpecs[Index].Zone);
+	FVector Normal;
+	ZonePoint(Zone, Normal);
+	FRandomStream& R = DamageRandom;
+	auto Throw = [&](const UStaticMeshComponent& Source) {
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AApexCarDebrisActor* Debris =
+			World->SpawnActor<AApexCarDebrisActor>(AApexCarDebrisActor::StaticClass(), Source.GetComponentTransform(), Params);
+		if (!Debris)
+		{
+			return;
+		}
+		// Left behind by the car, knocked off the way the hit came from, and up.
+		const FVector Velocity = Root->ComponentVelocity * R.FRandRange(0.75f, 0.92f) + Normal * R.FRandRange(250.0f, 600.0f)
+			+ FVector(0.0, 0.0, R.FRandRange(250.0f, 550.0f));
+		const FVector Spin = R.GetUnitVector() * R.FRandRange(3.0f, 9.0f);
+		Debris->Launch(Source, Velocity, Spin, static_cast<float>(GetActorLocation().Z));
+		Fx->AddDebris(Debris);
+	};
+	Throw(*Part);
+	if (Index == DrsFlapPart)
+	{
+		if (const UStaticMeshComponent* Flap = DrsFlap.GetComponent(); Flap && Flap->GetStaticMesh())
+		{
+			Throw(*Flap);
+		}
+	}
+	EmitSparks(Zone, 30);
+	UE_LOG(LogApexSim, Log, TEXT("Car %d (%s) lost its %s"), CarIndex, *DisplayName, *DamagePartSpecs[Index].Name);
+}
+
+void AApexRaceCarActor::UpdateDamage(float DeltaSeconds)
+{
+	ApexDamage::FShares Shares = ApexDamage::FromPercent(TelemetryDamagePct);
+	float Preview[ApexDamage::NumZones];
+	if (ParseDamagePreview(CVarDamagePreview.GetValueOnGameThread(), Preview))
+	{
+		Shares = ApexDamage::FromPercent(Preview);
+	}
+	const ApexDamage::FShares Before = DamageShares;
+	DamageShares = Shares;
+	SinceLastHit += DeltaSeconds;
+
+	// The dents: written only when a zone has moved, which is a hit or a repair.
+	for (int32 Zone = 0; Zone < ApexDamage::Engine; ++Zone)
+	{
+		if (FMath::Abs(Shares.Zone[Zone] - DrawnDents.Zone[Zone]) > 0.0005f)
+		{
+			ApplyDents(Shares);
+			break;
+		}
+	}
+
+	const bool bEffects = bDamageSeen && bHasTarget && !IsHidden() && CVarDamageEffects.GetValueOnGameThread() != 0;
+
+	// Parts off past their zone's threshold, back on after a repair.
+	bool bPartsChanged = false;
+	for (int32 i = 0; i < DamagePartSpecs.Num(); ++i)
+	{
+		const bool bOn = ApexDamage::IsAttached(DamagePartSpecs[i], Shares);
+		if (bOn != DamagePartOn[i])
+		{
+			DamagePartOn[i] = bOn;
+			bPartsChanged = true;
+			if (!bOn && bEffects)
+			{
+				ThrowPart(i);
+			}
+		}
+	}
+	if (bPartsChanged)
+	{
+		ApplyPartVisibility();
+	}
+
+	// A zone that jumped took a hit: sparks off its face.
+	if (bDamageSeen)
+	{
+		for (int32 Zone = 0; Zone < ApexDamage::Engine; ++Zone)
+		{
+			const float Grown = (Shares.Zone[Zone] - Before.Zone[Zone]) * 100.0f;
+			if (Grown >= ApexDamage::HitPercent)
+			{
+				LastHitZone = Zone;
+				SinceLastHit = 0.0f;
+				if (bEffects)
+				{
+					EmitSparks(Zone, 10 + FMath::Min(FMath::RoundToInt(Grown * 4.0f), 60));
+				}
+			}
+		}
+	}
+	bDamageSeen = true;
+
+	AApexCarEffectsActor* Fx = bEffects ? GetEffects() : nullptr;
+	if (!Fx || !Fx->CanDraw() || DeltaSeconds <= 0.0f)
+	{
+		SmokeOwed = SteamOwed = ScrapeOwed = 0.0f;
+		return;
+	}
+	const UStaticMesh* Mesh = CarMesh->GetStaticMesh();
+	if (!Mesh)
+	{
+		return;
+	}
+	const FBoxSphereBounds Bounds = Mesh->GetBounds();
+	const FVector O = Bounds.Origin;
+	const FVector E = Bounds.BoxExtent;
+	const FTransform& Frame = CarMesh->GetComponentTransform();
+	const FVector CarVelocity = Root->ComponentVelocity;
+	FRandomStream& R = DamageRandom;
+
+	// Oil smoke out of the back of the car: the engine bay and the exhaust.
+	SmokeOwed += ApexDamage::EngineSmokeRate(Shares) * DeltaSeconds;
+	const float Shade = ApexDamage::EngineSmokeShade(Shares);
+	const bool bOut = Shares.Zone[ApexDamage::Engine] >= 1.0f;
+	for (; SmokeOwed >= 1.0f; SmokeOwed -= 1.0f)
+	{
+		ApexDamage::FPuff Puff;
+		Puff.Location = Frame.TransformPosition(
+			FVector(O.X + E.X * R.FRandRange(-0.15f, 0.15f), O.Y - E.Y * 0.88, O.Z - E.Z + 2.0 * E.Z * R.FRandRange(0.4f, 0.65f)));
+		Puff.Velocity = CarVelocity * 0.25 + FVector(0.0, 0.0, 70.0) + R.GetUnitVector() * 40.0;
+		Puff.Life = 2.8f * R.FRandRange(0.8f, 1.2f);
+		Puff.StartSize = 20.0f;
+		Puff.EndSize = R.FRandRange(130.0f, 190.0f);
+		Puff.Shade = FMath::Clamp(Shade + R.FRandRange(-0.05f, 0.05f), 0.0f, 1.0f);
+		Puff.Opacity = bOut ? 0.7f : 0.5f;
+		Puff.Drag = 1.6f;
+		Puff.Gravity = -0.04f;
+		Fx->Emit(Puff);
+	}
+
+	// Steam out of a holed radiator in a damaged nose.
+	SteamOwed += ApexDamage::SteamRate(Shares, WaterTempC) * DeltaSeconds;
+	for (; SteamOwed >= 1.0f; SteamOwed -= 1.0f)
+	{
+		ApexDamage::FPuff Puff;
+		Puff.Location = Frame.TransformPosition(
+			FVector(O.X + E.X * R.FRandRange(-0.3f, 0.3f), O.Y + E.Y * 0.7, O.Z - E.Z + 2.0 * E.Z * R.FRandRange(0.5f, 0.7f)));
+		Puff.Velocity = CarVelocity * 0.3 + FVector(0.0, 0.0, 120.0) + R.GetUnitVector() * 50.0;
+		Puff.Life = R.FRandRange(0.8f, 1.2f);
+		Puff.StartSize = 10.0f;
+		Puff.EndSize = R.FRandRange(55.0f, 85.0f);
+		Puff.Shade = 0.93f;
+		Puff.Opacity = 0.35f;
+		Puff.Drag = 2.2f;
+		Puff.Gravity = -0.08f;
+		Fx->Emit(Puff);
+	}
+
+	// Scraping along a wall or another car: sparks off the side that last
+	// took a hit, else off the floor.
+	ScrapeOwed += bColliding ? ApexDamage::ScrapeSparkRate(SpeedMps) * DeltaSeconds : 0.0f;
+	const int32 ScrapeZone = SinceLastHit < 3.0f ? LastHitZone : INDEX_NONE;
+	const int32 Scrape = FMath::FloorToInt(ScrapeOwed);
+	if (Scrape > 0)
+	{
+		ScrapeOwed -= Scrape;
+		EmitSparks(ScrapeZone, Scrape);
 	}
 }

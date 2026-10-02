@@ -1034,3 +1034,61 @@ bool ApexGlb::DecodeImages(FApexGlbModel& Model, IImageWrapperModule& ImageWrapp
 	}
 	return true;
 }
+
+void ApexGlb::SplitByBoxes(const FApexGlbModel& Model, TArrayView<const FBox3f> Boxes, TArray<FApexGlbModel>& OutPieces)
+{
+	const int32 NumPieces = Boxes.Num() + 1;
+	OutPieces.Reset();
+	OutPieces.SetNum(NumPieces);
+	// Source vertex -> its index in each piece, made on first use.
+	TArray<TArray<int32>> Remap;
+	Remap.SetNum(NumPieces);
+	for (int32 p = 0; p < NumPieces; ++p)
+	{
+		Remap[p].Init(INDEX_NONE, Model.Positions.Num());
+		OutPieces[p].Materials = Model.Materials;
+	}
+	TArray<int32> SectionOf;
+	SectionOf.SetNum(NumPieces);
+	for (const FApexGlbSection& Section : Model.Sections)
+	{
+		for (int32 p = 0; p < NumPieces; ++p)
+		{
+			SectionOf[p] = INDEX_NONE;
+		}
+		for (int32 Tri = 0; Tri + 2 < Section.Indices.Num(); Tri += 3)
+		{
+			const uint32 Corners[3] = {Section.Indices[Tri], Section.Indices[Tri + 1], Section.Indices[Tri + 2]};
+			const FVector3f Centre =
+				(Model.Positions[Corners[0]] + Model.Positions[Corners[1]] + Model.Positions[Corners[2]]) / 3.0f;
+			int32 Piece = 0;
+			for (int32 b = 0; b < Boxes.Num(); ++b)
+			{
+				if (Boxes[b].IsInsideOrOn(Centre))
+				{
+					Piece = b + 1;
+					break;
+				}
+			}
+			FApexGlbModel& Out = OutPieces[Piece];
+			if (SectionOf[Piece] == INDEX_NONE)
+			{
+				SectionOf[Piece] = Out.Sections.Num();
+				Out.Sections.AddDefaulted_GetRef().Material = Section.Material;
+			}
+			FApexGlbSection& Into = Out.Sections[SectionOf[Piece]];
+			for (const uint32 Source : Corners)
+			{
+				int32& Index = Remap[Piece][Source];
+				if (Index == INDEX_NONE)
+				{
+					Index = Out.Positions.Add(Model.Positions[Source]);
+					Out.Normals.Add(Model.Normals.IsValidIndex(Source) ? Model.Normals[Source] : FVector3f::UpVector);
+					Out.UVs.Add(Model.UVs.IsValidIndex(Source) ? Model.UVs[Source] : FVector2f::ZeroVector);
+					Out.Bounds += Model.Positions[Source];
+				}
+				Into.Indices.Add(static_cast<uint32>(Index));
+			}
+		}
+	}
+}

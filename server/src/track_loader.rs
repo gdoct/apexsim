@@ -109,8 +109,9 @@ pub struct TrackLoader;
 impl TrackLoader {
     /// Load a track with its ground, curb and wall sidecars, driving on the
     /// centerline: the road mesh sidecar, if any, is left on disk. The
-    /// server itself goes through [`Self::load_from_file_with`] with its
-    /// `[physics] road_contact` setting.
+    /// server itself reads [`Self::load_catalog_entry`] at startup and
+    /// [`Self::load_sidecars`] with its `[physics] road_contact` setting when
+    /// a session first needs the track (`crate::track_content`).
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<TrackConfig, TrackLoadError> {
         Self::load_from_file_with(path, RoadContactMode::Centerline)
     }
@@ -122,18 +123,29 @@ impl TrackLoader {
         road_contact: RoadContactMode,
     ) -> Result<TrackConfig, TrackLoadError> {
         let path_ref = path.as_ref();
+        let mut config = Self::load_catalog_entry(path_ref)?;
+        Self::load_sidecars(&mut config, path_ref, road_contact);
+        Ok(config)
+    }
+
+    /// The track as the lobby needs it: the file parsed, the centerline
+    /// interpolated, the grid on the centerline, and none of the baked
+    /// sidecars (ground, curbs, walls, pit lane, road mesh), which are most
+    /// of a track's bytes and only a session drives on.
+    /// [`Self::load_sidecars`] completes it (`crate::track_content`).
+    pub fn load_catalog_entry<P: AsRef<Path>>(path: P) -> Result<TrackConfig, TrackLoadError> {
+        let path_ref = path.as_ref();
         let content = fs::read_to_string(path_ref)?;
-        Self::load_from_string_with_path(&content, Some(path_ref), road_contact)
+        Self::load_from_string_with_path(&content, Some(path_ref))
     }
 
     pub fn load_from_string(content: &str) -> Result<TrackConfig, TrackLoadError> {
-        Self::load_from_string_with_path(content, None, RoadContactMode::Centerline)
+        Self::load_from_string_with_path(content, None)
     }
 
     fn load_from_string_with_path(
         content: &str,
         track_path: Option<&Path>,
-        road_contact: RoadContactMode,
     ) -> Result<TrackConfig, TrackLoadError> {
         let track_file: TrackFileFormat = if content.trim_start().starts_with('{') {
             serde_json::from_str(content)
@@ -144,9 +156,36 @@ impl TrackLoader {
         };
 
         Self::validate(&track_file)?;
-        let mut config = Self::build_track_config(track_file, track_path, road_contact)?;
+        let mut config = Self::build_track_config(track_file, track_path)?;
         config.content_crc = crate::content_crc::content_crc(content.as_bytes());
         Ok(config)
+    }
+
+    /// Load the baked sidecars beside the track file into a track from
+    /// [`Self::load_catalog_entry`], and seat the grid on the road mesh when
+    /// there is one. Each is optional: a missing or broken sidecar is
+    /// logged and the track drives without it.
+    pub fn load_sidecars(
+        config: &mut TrackConfig,
+        track_path: &Path,
+        road_contact: RoadContactMode,
+    ) {
+        let name = config.name.clone();
+        config.ground = Self::load_ground_heightfield(&name, track_path);
+        config.curbs = Self::load_curb_bands(&name, track_path);
+        config.walls = Self::load_walls(&name, track_path);
+        config.pit_lane = Self::load_pit_lane(&name, track_path);
+        config.road_mesh =
+            Self::load_road_mesh(&name, track_path, road_contact).map(std::sync::Arc::new);
+
+        // The grid is seated on the road the cars will drive on: the mesh
+        // when there is one (a slot on a bridge lands on the deck), the
+        // centerline formula otherwise.
+        if let Some(mesh) = config.road_mesh.as_deref() {
+            for slot in &mut config.start_positions {
+                slot.z = crate::physics::seat_height_on(mesh, slot.x, slot.y, slot.z);
+            }
+        }
     }
 
     fn validate(track: &TrackFileFormat) -> Result<(), TrackLoadError> {
@@ -181,7 +220,6 @@ impl TrackLoader {
     fn build_track_config(
         track_file: TrackFileFormat,
         track_path: Option<&Path>,
-        road_contact: RoadContactMode,
     ) -> Result<TrackConfig, TrackLoadError> {
         let default_width = if track_file.default_width > 0.0 {
             track_file.default_width
@@ -205,24 +243,7 @@ impl TrackLoader {
             track_path,
         );
 
-        let ground =
-            track_path.and_then(|path| Self::load_ground_heightfield(&track_file.name, path));
-        let curbs = track_path.and_then(|path| Self::load_curb_bands(&track_file.name, path));
-        let walls = track_path.and_then(|path| Self::load_walls(&track_file.name, path));
-        let pit_lane = track_path.and_then(|path| Self::load_pit_lane(&track_file.name, path));
-        let road_mesh = track_path
-            .and_then(|path| Self::load_road_mesh(&track_file.name, path, road_contact))
-            .map(std::sync::Arc::new);
-
-        // The grid is seated on the road the cars will drive on: the mesh
-        // when there is one (a slot on a bridge lands on the deck), the
-        // centerline formula otherwise.
-        let mut start_positions = Self::generate_start_positions(&track_file, &centerline_points);
-        if let Some(mesh) = road_mesh.as_deref() {
-            for slot in &mut start_positions {
-                slot.z = crate::physics::seat_height_on(mesh, slot.x, slot.y, slot.z);
-            }
-        }
+        let start_positions = Self::generate_start_positions(&track_file, &centerline_points);
 
         // Use track_id from file if provided, otherwise generate new UUID
         let track_id = if let Some(track_id_str) = &track_file.track_id {
@@ -309,7 +330,7 @@ impl TrackLoader {
                 off_track_drag_mps2: crate::data::OFF_TRACK_DRAG_MPS2,
                 ..TrackSurface::default()
             },
-            pit_lane,
+            pit_lane: None,
             raceline,
             drs_zones: track_file
                 .drs_zones
@@ -324,10 +345,10 @@ impl TrackLoader {
             sectors,
             metadata,
             procedural_world,
-            ground,
-            curbs,
-            walls,
-            road_mesh,
+            ground: None,
+            curbs: None,
+            walls: None,
+            road_mesh: None,
         };
         config.rebuild_raceline_distances();
         Ok(config)

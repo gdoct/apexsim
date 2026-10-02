@@ -2032,6 +2032,13 @@ void FApexTrackSceneBuilder::SpawnActors(
 		// decal's own collision would only cost a cook, and an imported
 		// circuit's scenery says itself that it is not a track surface.
 		const FApexTrackMaterial* Material = Scene.FindMaterial(Source.MaterialKey);
+		if (Material && Material->IsScenery())
+		{
+			// An imported circuit's scenery is drawn on the car parents, whose
+			// damage graph pushes vertices about; a building has no dents, so
+			// none of it is run.
+			Component->SetEvaluateWorldPositionOffset(false);
+		}
 		if (bCollisionComponents && Source.bCollision && !(Material && Material->Family == TEXT("decal")))
 		{
 			UApexTrackCollisionComponent* Collision =

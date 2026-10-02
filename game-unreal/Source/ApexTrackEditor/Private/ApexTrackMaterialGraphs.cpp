@@ -9,28 +9,43 @@
 #include "Materials/MaterialExpressionAdd.h"
 #include "MaterialShared.h"
 #include "Materials/MaterialExpressionAppendVector.h"
+#include "Materials/MaterialExpressionCameraVectorWS.h"
 #include "Materials/MaterialExpressionClamp.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
+#include "Materials/MaterialExpressionConstant3Vector.h"
+#include "Materials/MaterialExpressionCrossProduct.h"
+#include "Materials/MaterialExpressionDDX.h"
+#include "Materials/MaterialExpressionDDY.h"
+#include "Materials/MaterialExpressionDepthFade.h"
 #include "Materials/MaterialExpressionDivide.h"
+#include "Materials/MaterialExpressionDotProduct.h"
 #include "Materials/MaterialExpressionFloor.h"
 #include "Materials/MaterialExpressionFmod.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
+#include "Materials/MaterialExpressionLocalPosition.h"
+#include "Materials/MaterialExpressionMax.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionNoise.h"
 #include "Materials/MaterialExpressionNormalize.h"
 #include "Materials/MaterialExpressionPerInstanceCustomData.h"
 #include "Materials/MaterialExpressionPixelDepth.h"
+#include "Materials/MaterialExpressionPower.h"
+#include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
+#include "Materials/MaterialExpressionSign.h"
 #include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
+#include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialExpressionUtils.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionVertexColor.h"
+#include "Materials/MaterialExpressionVertexNormalWS.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
 #include "Misc/PackageName.h"
+#include "Race/ApexCarDamage.h"
 #include "Track/ApexGroundMaterials.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
@@ -788,6 +803,280 @@ namespace
 		return Result;
 	}
 
+	/** Terse graph building for the damage and smoke graphs: each call adds one expression. */
+	struct FGraph
+	{
+		UMaterial* M;
+
+		UMaterialExpression* C(float Value) const
+		{
+			UMaterialExpressionConstant* E = AddExpr<UMaterialExpressionConstant>(M);
+			E->R = Value;
+			return E;
+		}
+		UMaterialExpression* C3(float X, float Y, float Z) const
+		{
+			UMaterialExpressionConstant3Vector* E = AddExpr<UMaterialExpressionConstant3Vector>(M);
+			E->Constant = FLinearColor(X, Y, Z);
+			return E;
+		}
+		template <typename T>
+		UMaterialExpression* Binary(UMaterialExpression* A, UMaterialExpression* B) const
+		{
+			T* E = AddExpr<T>(M);
+			E->A.Expression = A;
+			E->B.Expression = B;
+			return E;
+		}
+		UMaterialExpression* Mul(UMaterialExpression* A, UMaterialExpression* B) const { return Binary<UMaterialExpressionMultiply>(A, B); }
+		UMaterialExpression* Add(UMaterialExpression* A, UMaterialExpression* B) const { return Binary<UMaterialExpressionAdd>(A, B); }
+		UMaterialExpression* Sub(UMaterialExpression* A, UMaterialExpression* B) const { return Binary<UMaterialExpressionSubtract>(A, B); }
+		UMaterialExpression* Div(UMaterialExpression* A, UMaterialExpression* B) const { return Binary<UMaterialExpressionDivide>(A, B); }
+		UMaterialExpression* Max(UMaterialExpression* A, UMaterialExpression* B) const { return Binary<UMaterialExpressionMax>(A, B); }
+		UMaterialExpression* Append(UMaterialExpression* A, UMaterialExpression* B) const { return Binary<UMaterialExpressionAppendVector>(A, B); }
+		UMaterialExpression* Cross(UMaterialExpression* A, UMaterialExpression* B) const { return Binary<UMaterialExpressionCrossProduct>(A, B); }
+		UMaterialExpression* Dot(UMaterialExpression* A, UMaterialExpression* B) const { return Binary<UMaterialExpressionDotProduct>(A, B); }
+		UMaterialExpression* Lerp(UMaterialExpression* A, UMaterialExpression* B, UMaterialExpression* Alpha) const
+		{
+			UMaterialExpressionLinearInterpolate* E = AddExpr<UMaterialExpressionLinearInterpolate>(M);
+			E->A.Expression = A;
+			E->B.Expression = B;
+			E->Alpha.Expression = Alpha;
+			return E;
+		}
+		UMaterialExpression* Sat(UMaterialExpression* Input) const
+		{
+			UMaterialExpressionSaturate* E = AddExpr<UMaterialExpressionSaturate>(M);
+			E->Input.Expression = Input;
+			return E;
+		}
+		UMaterialExpression* Sign(UMaterialExpression* Input) const
+		{
+			UMaterialExpressionSign* E = AddExpr<UMaterialExpressionSign>(M);
+			E->Input.Expression = Input;
+			return E;
+		}
+		UMaterialExpression* Normalize(UMaterialExpression* Input) const
+		{
+			UMaterialExpressionNormalize* E = AddExpr<UMaterialExpressionNormalize>(M);
+			E->VectorInput.Expression = Input;
+			return E;
+		}
+		UMaterialExpression* Pow(UMaterialExpression* Base, float Exponent) const
+		{
+			UMaterialExpressionPower* E = AddExpr<UMaterialExpressionPower>(M);
+			E->Base.Expression = Base;
+			E->ConstExponent = Exponent;
+			return E;
+		}
+		UMaterialExpression* Mask(UMaterialExpression* Input, bool R, bool G, bool B) const
+		{
+			UMaterialExpressionComponentMask* E = AddExpr<UMaterialExpressionComponentMask>(M);
+			E->Input.Expression = Input;
+			E->R = R;
+			E->G = G;
+			E->B = B;
+			E->A = false;
+			return E;
+		}
+		UMaterialExpression* Transform(UMaterialExpression* Input, EMaterialVectorCoordTransformSource From, EMaterialVectorCoordTransform To) const
+		{
+			UMaterialExpressionTransform* E = AddExpr<UMaterialExpressionTransform>(M);
+			E->Input.Expression = Input;
+			E->TransformSourceType = From;
+			E->TransformType = To;
+			return E;
+		}
+		/** Gradient noise in 0..1, computed (it runs in the vertex shader too); `Scale` is cycles per cm. */
+		UMaterialExpression* Noise(UMaterialExpression* Position, float Scale, int32 Levels) const
+		{
+			UMaterialExpressionNoise* E = AddExpr<UMaterialExpressionNoise>(M);
+			E->Position.Expression = Position;
+			E->Scale = Scale;
+			E->Levels = Levels;
+			E->Quality = 1;
+			E->NoiseFunction = NOISEFUNCTION_GradientALU;
+			E->bTurbulence = false;
+			E->OutputMin = 0.0f;
+			E->OutputMax = 1.0f;
+			E->LevelScale = 2.0f;
+			return E;
+		}
+		/** x² (3 - 2x): a smooth step over an already saturated 0..1. */
+		UMaterialExpression* Smooth(UMaterialExpression* X) const
+		{
+			return Mul(Mul(X, X), Sub(C(3.0f), Mul(C(2.0f), X)));
+		}
+		/** A scalar parameter read from the primitive's custom data at `Index`. */
+		UMaterialExpression* PrimitiveScalar(const TCHAR* Name, int32 Index) const
+		{
+			UMaterialExpressionScalarParameter* E = AddExpr<UMaterialExpressionScalarParameter>(M);
+			E->ParameterName = Name;
+			E->DefaultValue = 0.0f;
+			E->bUseCustomPrimitiveData = true;
+			E->PrimitiveDataIndex = static_cast<uint8>(Index);
+			return E;
+		}
+		/** A vector parameter's RGB read from the primitive's custom data at `Index`.. `Index + 3`. */
+		UMaterialExpression* PrimitiveVector(const TCHAR* Name, int32 Index, const FLinearColor& Default) const
+		{
+			UMaterialExpressionVectorParameter* E = AddExpr<UMaterialExpressionVectorParameter>(M);
+			E->ParameterName = Name;
+			E->DefaultValue = Default;
+			E->bUseCustomPrimitiveData = true;
+			E->PrimitiveDataIndex = static_cast<uint8>(Index);
+			return MaskRgb(E);
+		}
+		UMaterialExpression* MaskRgb(UMaterialExpression* Input) const { return Mask(Input, true, true, true); }
+	};
+
+	/** What the damage graph hands the car parent's outputs. */
+	struct FCarDamage
+	{
+		/** World position offset: the dents and the crumple. */
+		UMaterialExpression* Offset = nullptr;
+		/** Tangent-space normal: faceted where dented, (0, 0, 1) elsewhere. */
+		UMaterialExpression* Normal = nullptr;
+		/** How scuffed the paint is here, 0..1, and what shows through. */
+		UMaterialExpression* Scuff = nullptr;
+		UMaterialExpression* ScuffColor = nullptr;
+	};
+
+	/**
+	 * The damage every car parent draws (ApexCarDamage.h): the body's custom
+	 * primitive data holds each zone's visual amount (0 front, 1 rear, 2
+	 * left, 3 right), the body's centre (4) and half extents (8) in its mesh
+	 * frame, and a seed (12). A zone's panels within reach of its face (15%
+	 * of the half extent, 45% at full damage) are pushed in by up to
+	 * `DamageDentCm` (the sides 60% of it, the tail 80%), unevenly by a 33 cm
+	 * noise, crumpled by `DamageCrumpleCm` of an 8 cm one, and dropped a
+	 * little; the same reach scuffs the paint in patches down to dark carbon
+	 * with streaks of bare metal along the car, and the dented panels are
+	 * shaded flat per triangle (the derivatives of the moved position), which
+	 * reads as crushed metal. With every zone at zero nothing moves, the
+	 * normal is (0, 0, 1) and nothing is scuffed: an undamaged car, a wheel,
+	 * a flap and an imported track's scenery draw as before.
+	 */
+	FCarDamage BuildCarDamage(UMaterial* Parent)
+	{
+		const FGraph G{Parent};
+		UMaterialExpression* Front = G.PrimitiveScalar(TEXT("DamageFront"), ApexDamage::CpdFront);
+		UMaterialExpression* Rear = G.PrimitiveScalar(TEXT("DamageRear"), ApexDamage::CpdRear);
+		UMaterialExpression* Left = G.PrimitiveScalar(TEXT("DamageLeft"), ApexDamage::CpdLeft);
+		UMaterialExpression* Right = G.PrimitiveScalar(TEXT("DamageRight"), ApexDamage::CpdRight);
+		UMaterialExpression* Centre = G.PrimitiveVector(TEXT("DamageCentre"), ApexDamage::CpdCentre, FLinearColor(0.0f, 0.0f, 60.0f));
+		UMaterialExpression* Extent = G.PrimitiveVector(TEXT("DamageExtent"), ApexDamage::CpdExtent, FLinearColor(100.0f, 250.0f, 60.0f));
+		UMaterialExpression* Seed = G.PrimitiveScalar(TEXT("DamageSeed"), ApexDamage::CpdSeed);
+		UMaterialExpressionScalarParameter* Dent = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		Dent->ParameterName = ApexCarMaterials::DamageDentCm;
+		Dent->DefaultValue = 15.0f;
+		UMaterialExpressionScalarParameter* Crumple = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		Crumple->ParameterName = ApexCarMaterials::DamageCrumpleCm;
+		Crumple->DefaultValue = 3.0f;
+
+		// The undeformed position in the mesh's frame (nose +Y, left +X):
+		// the dents and scuffs stay put on the panel whatever moves it.
+		UMaterialExpressionLocalPosition* Local = AddExpr<UMaterialExpressionLocalPosition>(Parent);
+		Local->IncludedOffsets = EPositionIncludedOffsets::ExcludeOffsets;
+		Local->LocalOrigin = ELocalPositionOrigin::Primitive;
+		// -1..1 across the body's box; the extent never under a centimetre.
+		UMaterialExpression* P = G.Div(G.Sub(Local, Centre), G.Max(Extent, G.C(1.0f)));
+		UMaterialExpression* Px = G.Mask(P, true, false, false);
+		UMaterialExpression* Py = G.Mask(P, false, true, false);
+		// The seed moves the noise kilometres along: another car, another crumple.
+		UMaterialExpression* NoisePos = G.Add(Local, G.Mul(Seed, G.C3(91700.0f, 53300.0f, 37100.0f)));
+
+		// A zone's weight here: its amount, faded in over its reach of its face.
+		auto Zone = [&G](UMaterialExpression* Toward, UMaterialExpression* Amount) {
+			UMaterialExpression* Reach = G.Add(G.C(0.15f), G.Mul(Amount, G.C(0.3f)));
+			UMaterialExpression* Into = G.Sat(G.Div(G.Sub(Toward, G.Sub(G.C(1.0f), Reach)), Reach));
+			return G.Mul(G.Smooth(Into), Amount);
+		};
+		UMaterialExpression* WFront = Zone(Py, Front);
+		UMaterialExpression* WRear = Zone(G.Mul(Py, G.C(-1.0f)), Rear);
+		UMaterialExpression* WLeft = Zone(Px, Left);
+		UMaterialExpression* WRight = Zone(G.Mul(Px, G.C(-1.0f)), Right);
+		UMaterialExpression* Weight = G.Add(G.Add(WFront, WRear), G.Add(WLeft, WRight));
+
+		// Pushed in toward the middle, unevenly.
+		UMaterialExpression* Uneven = G.Add(G.C(0.35f), G.Mul(G.C(0.65f), G.Noise(NoisePos, 0.03f, 2)));
+		UMaterialExpression* Depth = G.Mul(Dent, Uneven);
+		UMaterialExpression* Ox = G.Mul(G.Sub(WRight, WLeft), G.Mul(Depth, G.C(0.6f)));
+		UMaterialExpression* Oy = G.Sub(G.Mul(WRear, G.Mul(Depth, G.C(0.8f))), G.Mul(WFront, Depth));
+		UMaterialExpression* Oz = G.Mul(Weight, G.Mul(Depth, G.C(-0.15f)));
+		UMaterialExpression* Crush = G.Append(G.Append(Ox, Oy), Oz);
+		UMaterialExpression* Wrinkle = G.Mul(G.Mul(G.Sub(G.Noise(NoisePos, 0.12f, 1), G.C(0.5f)), G.C(2.0f)), G.Mul(Crumple, Weight));
+		UMaterialExpression* OffsetLocal = G.Add(Crush, G.Mul(Wrinkle, G.C3(0.7f, 0.7f, 1.0f)));
+
+		FCarDamage Out;
+		Out.Offset = G.Transform(OffsetLocal, TRANSFORMSOURCE_Local, TRANSFORM_World);
+
+		// The moved surface's own facet normal, in tangent space and on the
+		// face's side; blended in by how dented it is.
+		UMaterialExpressionWorldPosition* World = AddExpr<UMaterialExpressionWorldPosition>(Parent);
+		UMaterialExpressionDDX* Ddx = AddExpr<UMaterialExpressionDDX>(Parent);
+		Ddx->Value.Expression = World;
+		UMaterialExpressionDDY* Ddy = AddExpr<UMaterialExpressionDDY>(Parent);
+		Ddy->Value.Expression = World;
+		UMaterialExpression* Facet = G.Normalize(G.Add(G.Cross(Ddy, Ddx), G.C3(0.0f, 0.0f, 1.0e-6f)));
+		UMaterialExpression* FacetTangent = G.Transform(Facet, TRANSFORMSOURCE_World, TRANSFORM_Tangent);
+		UMaterialExpression* Outward = G.Mul(FacetTangent, G.Sign(G.Mask(FacetTangent, false, false, true)));
+		UMaterialExpression* Flatness = G.Mul(G.Sat(G.Mul(Weight, G.C(2.0f))), G.C(0.8f));
+		Out.Normal = G.Normalize(G.Lerp(G.C3(0.0f, 0.0f, 1.0f), Outward, Flatness));
+
+		// Scuffed in patches where the weight is; streaks of bare metal along the car.
+		UMaterialExpression* Patches = G.Noise(NoisePos, 0.05f, 2);
+		// Never all of it: some paint survives even a write-off.
+		Out.Scuff = G.Mul(G.Sat(G.Mul(G.Sub(G.Add(G.Mul(Weight, G.C(1.2f)), Patches), G.C(1.0f)), G.C(3.0f))), G.C(0.8f));
+		UMaterialExpression* Streaks = G.Noise(G.Mul(NoisePos, G.C3(1.0f, 0.12f, 1.0f)), 0.35f, 1);
+		Out.ScuffColor = G.Lerp(G.C3(0.03f, 0.03f, 0.032f), G.C3(0.3f, 0.3f, 0.29f), G.Sat(G.Mul(G.Sub(Streaks, G.C(0.7f)), G.C(6.0f))));
+		return Out;
+	}
+
+	/**
+	 * `M_ApexCarSmoke` (ApexCarMaterials::SmokeName): the smoke, steam and
+	 * sparks AApexCarEffectsActor draws on instanced spheres and cubes. Lit
+	 * translucent, so the sun and the night light it; per instance 0 the
+	 * opacity, 1 the shade (near black to white), 2 the glow (emissive, a
+	 * spark), 3 the edge softness: a puff fades toward its silhouette, so a
+	 * sphere reads as a ball of smoke, and where it meets the ground.
+	 */
+	void BuildSmoke(UMaterial* Parent)
+	{
+		const FGraph G{Parent};
+		auto Instance = [Parent](uint32 Index) {
+			UMaterialExpressionPerInstanceCustomData* E = AddExpr<UMaterialExpressionPerInstanceCustomData>(Parent);
+			E->DataIndex = Index;
+			E->ConstDefaultValue = 0.0f;
+			return E;
+		};
+		UMaterialExpression* Opacity = Instance(0);
+		UMaterialExpression* Shade = Instance(1);
+		UMaterialExpression* Glow = Instance(2);
+		UMaterialExpression* Softness = Instance(3);
+
+		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
+		EditorOnly->BaseColor.Expression = G.Lerp(G.C3(0.02f, 0.02f, 0.022f), G.C3(0.8f, 0.8f, 0.82f), Shade);
+		EditorOnly->EmissiveColor.Expression = G.Mul(Glow, G.C3(1.0f, 0.45f, 0.12f));
+		EditorOnly->Roughness.Expression = G.C(1.0f);
+		EditorOnly->Specular.Expression = G.C(0.0f);
+		EditorOnly->Metallic.Expression = G.C(0.0f);
+
+		UMaterialExpressionVertexNormalWS* Normal = AddExpr<UMaterialExpressionVertexNormalWS>(Parent);
+		UMaterialExpressionCameraVectorWS* Camera = AddExpr<UMaterialExpressionCameraVectorWS>(Parent);
+		UMaterialExpression* Facing = G.Pow(G.Sat(G.Dot(Normal, Camera)), 1.6f);
+		UMaterialExpression* Edge = G.Lerp(G.C(1.0f), Facing, Softness);
+		UMaterialExpressionDepthFade* Fade = AddExpr<UMaterialExpressionDepthFade>(Parent);
+		Fade->InOpacity.Expression = G.Mul(Opacity, Edge);
+		Fade->FadeDistanceDefault = 60.0f;
+		EditorOnly->Opacity.Expression = Fade;
+
+		Parent->BlendMode = BLEND_Translucent;
+		Parent->TranslucencyLightingMode = TLM_VolumetricNonDirectional;
+		Parent->bUsedWithInstancedStaticMeshes = true;
+		Parent->PostEditChange();
+	}
+
 	/**
 	 * A car parent (`ApexCarMaterials`): glTF's metallic-roughness model
 	 * under the names Interchange's glTF parents gave it, which is what the
@@ -820,18 +1109,29 @@ namespace
 		Emissive->ParameterName = ApexCarMaterials::EmissiveFactor;
 		Emissive->DefaultValue = FLinearColor::Black;
 
+		// Dents everywhere (glass and logos move with the panel under them),
+		// scuffs on everything but the glass.
+		const FGraph G{Parent};
+		const FCarDamage Damage = BuildCarDamage(Parent);
+		const bool bScuffs = Kind != ECarParent::Translucent;
+		auto Scuffed = [&](UMaterialExpression* Clean, UMaterialExpression* Worn) {
+			return bScuffs ? G.Lerp(Clean, Worn, Damage.Scuff) : Clean;
+		};
+
 		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
-		EditorOnly->BaseColor.Expression = BaseColor;
-		EditorOnly->Metallic.Expression = CarScalar(Parent, ApexCarMaterials::MetallicFactor, 1.0f);
-		EditorOnly->Roughness.Expression = CarScalar(Parent, ApexCarMaterials::RoughnessFactor, 1.0f);
+		EditorOnly->BaseColor.Expression = Scuffed(BaseColor, Damage.ScuffColor);
+		EditorOnly->Metallic.Expression = Scuffed(CarScalar(Parent, ApexCarMaterials::MetallicFactor, 1.0f), G.C(0.3f));
+		EditorOnly->Roughness.Expression = Scuffed(CarScalar(Parent, ApexCarMaterials::RoughnessFactor, 1.0f), G.C(0.55f));
 		EditorOnly->EmissiveColor.Expression = CarMask(Parent, Emissive, true, true, true, false);
+		EditorOnly->WorldPositionOffset.Expression = Damage.Offset;
+		EditorOnly->Normal.Expression = Damage.Normal;
 		Parent->TwoSided = true;
 
 		switch (Kind)
 		{
 		case ECarParent::ClearCoat:
 			Parent->SetShadingModel(MSM_ClearCoat);
-			EditorOnly->ClearCoat.Expression = CarScalar(Parent, ApexCarMaterials::ClearCoatFactor, 1.0f);
+			EditorOnly->ClearCoat.Expression = Scuffed(CarScalar(Parent, ApexCarMaterials::ClearCoatFactor, 1.0f), G.C(0.0f));
 			EditorOnly->ClearCoatRoughness.Expression = CarScalar(Parent, ApexCarMaterials::ClearCoatRoughnessFactor, 0.03f);
 			break;
 		case ECarParent::Masked:
@@ -1020,10 +1320,27 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 		const FString PackageName = ApexCarMaterials::PackageName(Car.Key);
 		if (!bForce && FPackageName::DoesPackageExist(PackageName))
 		{
-			continue;
+			// One baked before the damage graph draws no dents: bake it again.
+			const UMaterialInterface* Existing = LoadObject<UMaterialInterface>(nullptr, *ApexCarMaterials::ObjectPath(Car.Key));
+			float Dent = 0.0f;
+			if (!Existing
+				|| Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::DamageDentCm), Dent))
+			{
+				continue;
+			}
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph; baking it again"), Car.Key);
 		}
 		const ECarParent Kind = Car.Value;
 		if (!BakeAs(PackageName, [Kind, White](UMaterial* M) { BuildCar(M, Kind, White); }, OutError))
+		{
+			return false;
+		}
+		++CarsBaked;
+	}
+	const FString SmokePackage = ApexCarMaterials::PackageName(ApexCarMaterials::SmokeName);
+	if (bForce || !FPackageName::DoesPackageExist(SmokePackage))
+	{
+		if (!BakeAs(SmokePackage, [](UMaterial* M) { BuildSmoke(M); }, OutError))
 		{
 			return false;
 		}

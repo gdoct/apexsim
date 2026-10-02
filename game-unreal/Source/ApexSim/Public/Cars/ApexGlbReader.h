@@ -141,4 +141,16 @@ namespace ApexGlb
 	{
 		return FVector3f(static_cast<float>(Gltf.X), static_cast<float>(Gltf.Z), static_cast<float>(Gltf.Y));
 	}
+
+	/**
+	 * A model's triangles dealt out by box, for the bodywork that comes off
+	 * in a crash (FApexDamagePartSpec): `OutPieces[0]` holds every triangle
+	 * whose centre lies in no box, `OutPieces[i + 1]` those whose centre lies
+	 * in `Boxes[i]` (the first box that holds it). Each piece keeps only the
+	 * vertices its triangles use and the sections that kept a triangle, with
+	 * the materials copied whole; images are not copied, so a material's
+	 * `BaseColorImage` still indexes the source's. A piece with no triangle
+	 * has no section.
+	 */
+	APEXSIM_API void SplitByBoxes(const FApexGlbModel& Model, TArrayView<const FBox3f> Boxes, TArray<FApexGlbModel>& OutPieces);
 }

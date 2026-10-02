@@ -321,6 +321,7 @@ void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 			Mirror->Capture->HideComponent(Body);
 		}
 		Car->ForEachWheelComponent([Mirror](UStaticMeshComponent& Wheel) { Mirror->Capture->HideComponent(&Wheel); });
+		Car->ForEachDamagePartComponent([Mirror](UStaticMeshComponent& Part) { Mirror->Capture->HideComponent(&Part); });
 	}
 	BindCarGlass();
 

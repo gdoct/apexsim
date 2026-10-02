@@ -33,6 +33,7 @@
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Input/ApexForceFeedback.h"
 #include "Input/ApexInputConfig.h"
+#include "Race/ApexCarEffectsActor.h"
 #include "Race/ApexCarLivery.h"
 #include "Race/ApexCockpitRig.h"
 #include "Race/ApexGhostCarActor.h"
@@ -649,18 +650,25 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 	FApexWheelSpec Wheels;
 	FApexDrsFlapSpec DrsFlap;
 	FApexDriverSpec Driver;
+	// The bodywork that comes off in a crash, cut out of the body.
+	TArray<FApexDamagePartSpec> DamageParts;
+	TArray<UStaticMesh*> DamagePartMeshes;
 	FApexCarCatalogRow Row;
 	bool bRowBody = false;
 	if (Flow && !CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, Row))
 	{
 		// Built from the car's GLB the first time any car shows it.
-		Mesh = ApexCarContent::LoadBody(Row);
+		Mesh = ApexCarContent::LoadBodyPieces(Row, DamagePartMeshes);
 		if (Mesh)
 		{
 			bRowBody = true;
 			Wheels = Row.Wheels;
 			DrsFlap = Row.DrsFlap;
 			Driver = Row.Driver;
+			if (DamagePartMeshes.Num() == Row.DamageParts.Num())
+			{
+				DamageParts = Row.DamageParts;
+			}
 		}
 		else
 		{
@@ -700,6 +708,12 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 	Car->SetWheels(Wheels);
 	Car->SetDrsFlap(DrsFlap);
 	Car->SetDriver(Driver);
+	// After the flap: a part carrying its hinge takes it along.
+	if (DamageParts.IsEmpty())
+	{
+		DamagePartMeshes.Reset();
+	}
+	Car->SetDamageParts(DamageParts, DamagePartMeshes);
 	Car->SetLivery(bRowBody ? ApexLivery::Find(Row, Livery) : nullptr);
 }
 
@@ -2439,6 +2453,11 @@ void AApexRaceDirector::DestroyAllCars()
 	Cars.Reset();
 	CarIdShown.Reset();
 	VerifiedCarId.Reset();
+	// Their smoke and the bodywork they shed go with them.
+	if (AApexCarEffectsActor* Effects = AApexCarEffectsActor::Get(GetWorld(), /*bSpawn*/ false))
+	{
+		Effects->Clear();
+	}
 }
 
 // --- Broadcast camera ------------------------------------------------------------

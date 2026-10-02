@@ -136,9 +136,9 @@ pub struct ContentSettings {
     pub cars_dir: String,
     pub tracks_dir: String,
     /// Leave out tracks the AC importer wrote (a `<Stem>.import.json` beside
-    /// the YAML). Their sidecars run to hundreds of megabytes, which a debug
-    /// build takes long enough to parse that the in-process test servers
-    /// time out at startup; the harness sets it there.
+    /// the YAML): the player's own data, with sidecars a debug build reads
+    /// slowly when a session lands on one. The in-process test servers set
+    /// it in a debug build.
     #[serde(default)]
     pub skip_imported_tracks: bool,
 }

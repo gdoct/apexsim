@@ -218,6 +218,27 @@ FApexDrsFlapSpec ApexCarToml::MakeDrsFlapSpec(const FApexCarToml& Toml)
 	return Spec;
 }
 
+TArray<FApexDamagePartSpec> ApexCarToml::MakeDamageParts(const FApexCarToml& Toml)
+{
+	TArray<FApexDamagePartSpec> Parts;
+	for (const FApexCarDamagePartToml& Source : Toml.DamageParts)
+	{
+		FApexDamagePartSpec& Part = Parts.AddDefaulted_GetRef();
+		Part.Name = Source.Name;
+		Part.Zone = Source.Zone == TEXT("rear") ? EApexDamageZone::Rear
+			: Source.Zone == TEXT("left")       ? EApexDamageZone::Left
+			: Source.Zone == TEXT("right")      ? EApexDamageZone::Right
+												: EApexDamageZone::Front;
+		Part.DetachPct = Source.DetachPct;
+		// The car's (forward, left, up) metres onto the body mesh's
+		// (left, forward, up) centimetres.
+		auto ToMesh = [](const FVector& M) { return FVector(M.Y, M.X, M.Z) * 100.0; };
+		Part.MinCm = ToMesh(Source.MinM).ComponentMin(ToMesh(Source.MaxM));
+		Part.MaxCm = ToMesh(Source.MinM).ComponentMax(ToMesh(Source.MaxM));
+	}
+	return Parts;
+}
+
 bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutError)
 {
 	TArray<FString> Lines;
@@ -236,6 +257,10 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 		if (Line.StartsWith(TEXT("[[livery]]")))
 		{
 			Out.Liveries.AddDefaulted();
+		}
+		if (Line.StartsWith(TEXT("[[damage_part]]")))
+		{
+			Out.DamageParts.AddDefaulted();
 		}
 		if (Line.StartsWith(TEXT("[")))
 		{
@@ -344,6 +369,15 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 				}
 			}
 		}
+		else if (Table == TEXT("damage_part") && Out.DamageParts.Num() > 0)
+		{
+			FApexCarDamagePartToml& P = Out.DamageParts.Last();
+			if (Key == TEXT("name")) { P.Name = Value; }
+			else if (Key == TEXT("zone")) { P.Zone = Value.ToLower(); }
+			else if (Key == TEXT("detach_pct")) { P.DetachPct = FCString::Atof(*Value); }
+			else if (Key == TEXT("min_m")) { P.bBadBox |= !TomlVector(Value, P.MinM); }
+			else if (Key == TEXT("max_m")) { P.bBadBox |= !TomlVector(Value, P.MaxM); }
+		}
 		else if (Table == TEXT("tires"))
 		{
 			if (Key == TEXT("optimal_temperature_c")) { Out.TyreOptimalC = FCString::Atof(*Value); }
@@ -440,6 +474,23 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			OutError = FString::Printf(TEXT("[[livery]] %s: textures must be one line of [\"SLOT=file\", ...]"), *L.Name);
 			return false;
 		}
+	}
+	for (const FApexCarDamagePartToml& P : Out.DamageParts)
+	{
+		const bool bZone = P.Zone == TEXT("front") || P.Zone == TEXT("rear") || P.Zone == TEXT("left") || P.Zone == TEXT("right");
+		if (P.Name.IsEmpty() || !bZone || P.DetachPct <= 0.0f || P.DetachPct > 100.0f || P.bBadBox
+			|| P.MinM.X >= P.MaxM.X || P.MinM.Y >= P.MaxM.Y || P.MinM.Z >= P.MaxM.Z)
+		{
+			OutError = FString::Printf(
+				TEXT("[[damage_part]] %s needs a name, a zone of front, rear, left or right, a detach_pct of 0-100 and min_m below max_m on every axis"),
+				*P.Name);
+			return false;
+		}
+	}
+	if (Out.DamageParts.Num() > 8)
+	{
+		OutError = TEXT("at most 8 [[damage_part]] tables");
+		return false;
 	}
 	if (Out.Cockpit.WheelLockDeg < 0.0f || Out.Cockpit.WheelLockDeg > 1080.0f || FMath::Abs(Out.Cockpit.WheelRakeDeg) > 90.0f)
 	{

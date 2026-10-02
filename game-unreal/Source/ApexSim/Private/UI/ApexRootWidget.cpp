@@ -265,6 +265,41 @@ void UApexRootWidget::NativeConstruct()
 		}
 	}
 
+	// -ApexExecAfter="N=command|N=command" runs a console command N seconds
+	// in, for whatever has no switch of its own: e.g. damage arriving
+	// mid-race (`25=apexsim.car.DamagePreview 70,55,40,30,90`), so parts fly
+	// off on camera rather than being gone from the first frame.
+	FString ExecAfter;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexExecAfter="), ExecAfter, /*bShouldStopOnSeparator*/ false)
+		&& GetWorld())
+	{
+		TArray<FString> Entries;
+		ExecAfter.ParseIntoArray(Entries, TEXT("|"));
+		for (const FString& Entry : Entries)
+		{
+			FString When;
+			FString Command;
+			const float Seconds = Entry.Split(TEXT("="), &When, &Command) ? FCString::Atof(*When) : 0.0f;
+			if (Seconds <= 0.0f || Command.TrimStartAndEnd().IsEmpty())
+			{
+				continue;
+			}
+			FTimerHandle Handle;
+			GetWorld()->GetTimerManager().SetTimer(
+				Handle,
+				FTimerDelegate::CreateWeakLambda(this, [this, Seconds, Command]()
+				{
+					UE_LOG(LogApexSim, Log, TEXT("-ApexExecAfter: %s (%.0f s)"), *Command, Seconds);
+					if (GEngine)
+					{
+						GEngine->Exec(GetWorld(), *Command.TrimStartAndEnd());
+					}
+				}),
+				Seconds,
+				false);
+		}
+	}
+
 	// -ApexCameraCycleAfter=N[,N] presses C N seconds in: with a matching
 	// -ApexScreenshotAfter list, one unattended run walks the whole camera
 	// ladder (cockpit, roof, close, near, far) and grabs each of them.

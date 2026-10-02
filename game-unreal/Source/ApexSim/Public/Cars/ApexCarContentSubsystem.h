@@ -90,6 +90,17 @@ public:
 	UStaticMesh* LoadModel(const FString& Path);
 
 	/**
+	 * The same GLB split into the bodywork that comes off in a crash
+	 * (`ApexGlb::SplitByBoxes`): `[0]` the body without the parts, which
+	 * keeps the whole model's bounds so everything framed on the body (the
+	 * cockpit, the headlights, the turntable) sits where it did, then one
+	 * mesh per part in `Parts` order, null for a box that holds no triangle.
+	 * Built once per GLB and set of boxes, sharing the whole model's
+	 * textures. Empty when the GLB cannot be read.
+	 */
+	TArray<UStaticMesh*> LoadModelPieces(const FString& Path, const TArray<FApexDamagePartSpec>& Parts);
+
+	/**
 	 * A PNG or JPEG (a livery logo, skin or slot texture) as a transient sRGB
 	 * texture, loaded once per path: twenty cars in one skin share it. Null,
 	 * logged once, when it will not decode.
@@ -119,7 +130,17 @@ private:
 	void DropBuilt();
 	static FString ModelKey(const FString& Path);
 	static TSharedPtr<FParsedModel> ParseModel(const FString& Path, IImageWrapperModule* ImageWrappers);
-	UStaticMesh* BuildModel(const FString& Path, const FApexGlbModel& Model);
+	/** The prefetched read of a GLB if one is in flight, else a read now; logs a failure. */
+	TSharedPtr<FParsedModel> TakeParsed(const FString& Path);
+	/** The model's images as textures, made once per GLB and shared by its whole mesh and its pieces. */
+	TArray<UTexture2D*> ModelTextures(const FString& Key, const FApexGlbModel& Model);
+	/**
+	 * One mesh from a model whose images are already `Textures`; `Suffix`
+	 * goes on the mesh's and instances' names, and `Bounds` (when valid)
+	 * stands for the model's own.
+	 */
+	UStaticMesh* BuildModel(const FString& Path, const FApexGlbModel& Model, const TArray<UTexture2D*>& Textures,
+		const FString& Suffix = FString(), const FBox3f& Bounds = FBox3f(ForceInit));
 	UTexture2D* MakeTexture(const FApexGlbImage& Image, const FString& Name);
 	IImageWrapperModule* ImageWrappers();
 
@@ -132,6 +153,10 @@ private:
 	/** GLB path (full, lower case) -> built mesh. */
 	UPROPERTY(Transient)
 	TMap<FString, TObjectPtr<UStaticMesh>> Models;
+
+	/** `<model key>#<image>` -> a GLB's embedded image as a texture. */
+	UPROPERTY(Transient)
+	TMap<FString, TObjectPtr<UTexture2D>> EmbeddedImages;
 
 	/** PNG path (full, lower case) -> texture. */
 	UPROPERTY(Transient)
@@ -170,6 +195,14 @@ namespace ApexCarContent
 
 	/** The body a row draws: its runtime model, else its cooked mesh; null for neither. */
 	APEXSIM_API UStaticMesh* LoadBody(const FApexCarCatalogRow& Row);
+
+	/**
+	 * The body a race car draws and the bodywork that comes off it: the
+	 * runtime model split by the row's `DamageParts` (one mesh per part, null
+	 * for an empty box), or the whole body and no parts for a row without
+	 * them, a cooked body or a GLB that will not split.
+	 */
+	APEXSIM_API UStaticMesh* LoadBodyPieces(const FApexCarCatalogRow& Row, TArray<UStaticMesh*>& OutParts);
 
 	/** Whether the row has a body to draw at all, without building it. */
 	APEXSIM_API bool HasBody(const FApexCarCatalogRow& Row);

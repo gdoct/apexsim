@@ -102,7 +102,7 @@
 
 <div class="band">
 {%- for b in band %}
-  <figure><img src="{{ asset(b.image) }}" alt="{{ b.alt|attr }}" loading="lazy"><figcaption>{{ b.caption }}</figcaption></figure>
+  <figure><img src="{{ asset(b.image) }}"{{ zoom_attr(b.image) }} alt="{{ b.alt|attr }}" loading="lazy"><figcaption>{{ b.caption }}</figcaption></figure>
 {%- endfor %}
 </div>
 
@@ -124,13 +124,13 @@
       </div>
       <div class="liv-grid">
 {%- for i in cars.liveries.images %}
-        <figure><img src="{{ asset(i.image) }}" alt="{{ i.alt|attr }}" loading="lazy"></figure>
+        <figure><img src="{{ asset(i.image) }}"{{ zoom_attr(i.image) }} alt="{{ i.alt|attr }}" loading="lazy"></figure>
 {%- endfor %}
       </div>
     </div>
     <div class="details reveal">
 {%- for d in cars.details %}
-      <figure><img src="{{ asset(d.image) }}" alt="{{ d.alt|attr }}" loading="lazy"></figure>
+      <figure><img src="{{ asset(d.image) }}"{{ zoom_attr(d.image) }} alt="{{ d.alt|attr }}" loading="lazy"></figure>
 {%- endfor %}
     </div>
   </div>
@@ -175,13 +175,13 @@
     </div>
     <div class="shots reveal">
 {%- for s in engine.shots %}
-      <figure><img src="{{ asset(s.image) }}" alt="{{ s.alt|attr }}" loading="lazy"><figcaption>{{ s.caption }}</figcaption></figure>
+      <figure><img src="{{ asset(s.image) }}"{{ zoom_attr(s.image) }} alt="{{ s.alt|attr }}" loading="lazy"><figcaption>{{ s.caption }}</figcaption></figure>
 {%- endfor %}
     </div>
     <div class="eyebrow sub reveal">{{ engine.screens_eyebrow }}</div>
     <div class="screens reveal">
 {%- for s in engine.screens %}
-      <figure><img src="{{ asset(s.image) }}" alt="{{ s.alt|attr }}" loading="lazy"><figcaption>{{ s.caption }}</figcaption></figure>
+      <figure><img src="{{ asset(s.image) }}"{{ zoom_attr(s.image) }} alt="{{ s.alt|attr }}" loading="lazy"><figcaption>{{ s.caption }}</figcaption></figure>
 {%- endfor %}
     </div>
   </div>

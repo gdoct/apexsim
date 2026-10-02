@@ -245,6 +245,7 @@ void UApexCarContentSubsystem::DropBuilt()
 	// Cars already on screen keep what they were given until they are dressed again.
 	Models.Reset();
 	Images.Reset();
+	EmbeddedImages.Reset();
 	Broken.Reset();
 }
 
@@ -359,6 +360,7 @@ void UApexCarContentSubsystem::ScanNow()
 				{
 					Row.Driver.RuntimeModel = CarFile(CarDir, Toml.Driver.Model, Folder, TEXT("its driver"));
 				}
+				Row.DamageParts = ApexCarToml::MakeDamageParts(Toml);
 				for (const FApexCarLiveryToml& Source : Toml.Liveries)
 				{
 					FApexCarLivery& Livery = Row.Liveries.AddDefaulted_GetRef();
@@ -521,6 +523,32 @@ void UApexCarContentSubsystem::Prefetch(const FApexCarCatalogRow& Row)
 	}
 }
 
+TSharedPtr<UApexCarContentSubsystem::FParsedModel> UApexCarContentSubsystem::TakeParsed(const FString& Path)
+{
+	const FString Key = ModelKey(Path);
+	TSharedPtr<FParsedModel> Parsed;
+	if (TFuture<TSharedPtr<FParsedModel>>* InFlight = Pending.Find(Key))
+	{
+		Parsed = InFlight->Get();
+		Pending.Remove(Key);
+	}
+	else
+	{
+		Parsed = ParseModel(Path, ImageWrappers());
+	}
+	if (Parsed && Parsed->bOk)
+	{
+		if (!Parsed->Warning.IsEmpty())
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("Car model %s: %s"), *Path, *Parsed->Warning);
+		}
+		return Parsed;
+	}
+	UE_LOG(LogApexSim, Error, TEXT("Car model %s could not be read: %s"), *Path,
+		Parsed ? *Parsed->Error : TEXT("the reader returned nothing"));
+	return nullptr;
+}
+
 UStaticMesh* UApexCarContentSubsystem::LoadModel(const FString& Path)
 {
 	if (Path.IsEmpty())
@@ -536,41 +564,123 @@ UStaticMesh* UApexCarContentSubsystem::LoadModel(const FString& Path)
 	{
 		return nullptr;
 	}
-	TSharedPtr<FParsedModel> Parsed;
-	if (TFuture<TSharedPtr<FParsedModel>>* InFlight = Pending.Find(Key))
-	{
-		Parsed = InFlight->Get();
-		Pending.Remove(Key);
-	}
-	else
-	{
-		Parsed = ParseModel(Path, ImageWrappers());
-	}
-	UStaticMesh* Mesh = nullptr;
-	if (Parsed && Parsed->bOk)
-	{
-		if (!Parsed->Warning.IsEmpty())
-		{
-			UE_LOG(LogApexSim, Warning, TEXT("Car model %s: %s"), *Path, *Parsed->Warning);
-		}
-		Mesh = BuildModel(Path, *Parsed->Model);
-		if (Mesh)
-		{
-			UE_LOG(LogApexSim, Log, TEXT("Car model %s: read in %.0f ms"), *FPaths::GetCleanFilename(Path), Parsed->Seconds * 1000.0);
-		}
-	}
-	else
-	{
-		UE_LOG(LogApexSim, Error, TEXT("Car model %s could not be read: %s"), *Path,
-			Parsed ? *Parsed->Error : TEXT("the reader returned nothing"));
-	}
+	const TSharedPtr<FParsedModel> Parsed = TakeParsed(Path);
+	UStaticMesh* Mesh = Parsed ? BuildModel(Path, *Parsed->Model, ModelTextures(Key, *Parsed->Model)) : nullptr;
 	if (!Mesh)
 	{
 		Broken.Add(Key);
 		return nullptr;
 	}
+	UE_LOG(LogApexSim, Log, TEXT("Car model %s: read in %.0f ms"), *FPaths::GetCleanFilename(Path), Parsed->Seconds * 1000.0);
 	Models.Add(Key, Mesh);
 	return Mesh;
+}
+
+TArray<UStaticMesh*> UApexCarContentSubsystem::LoadModelPieces(const FString& Path, const TArray<FApexDamagePartSpec>& Parts)
+{
+	TArray<UStaticMesh*> Out;
+	if (Path.IsEmpty())
+	{
+		return Out;
+	}
+	const FString Key = ModelKey(Path);
+	// One set of pieces per GLB and set of boxes: two cars sharing a GLB
+	// with different parts are two sets.
+	FString Boxes;
+	for (const FApexDamagePartSpec& Part : Parts)
+	{
+		Boxes += FString::Printf(TEXT("%s:%s:%s;"), *Part.Name, *Part.MinCm.ToString(), *Part.MaxCm.ToString());
+	}
+	const FString PieceKey = FString::Printf(TEXT("%s#pieces%08x"), *Key, GetTypeHash(Boxes));
+	auto PieceName = [&PieceKey](int32 Index) { return FString::Printf(TEXT("%s#%d"), *PieceKey, Index); };
+	auto Collect = [this, &PieceName, &Parts, &Out]() {
+		for (int32 i = 0; i <= Parts.Num(); ++i)
+		{
+			const TObjectPtr<UStaticMesh>* Built = Models.Find(PieceName(i));
+			Out.Add(Built ? Built->Get() : nullptr);
+		}
+	};
+	if (Models.Contains(PieceName(0)))
+	{
+		Collect();
+		return Out;
+	}
+	if (Broken.Contains(PieceKey))
+	{
+		return Out;
+	}
+	const double Began = FPlatformTime::Seconds();
+	const TSharedPtr<FParsedModel> Parsed = TakeParsed(Path);
+	if (!Parsed)
+	{
+		Broken.Add(PieceKey);
+		return Out;
+	}
+	const FApexGlbModel& Model = *Parsed->Model;
+	TArray<FBox3f> PartBoxes;
+	for (const FApexDamagePartSpec& Part : Parts)
+	{
+		PartBoxes.Add(FBox3f(FVector3f(Part.MinCm), FVector3f(Part.MaxCm)));
+	}
+	TArray<FApexGlbModel> Pieces;
+	ApexGlb::SplitByBoxes(Model, PartBoxes, Pieces);
+	const TArray<UTexture2D*> Textures = ModelTextures(Key, Model);
+	for (int32 i = 0; i < Pieces.Num(); ++i)
+	{
+		if (Pieces[i].Sections.IsEmpty())
+		{
+			if (i > 0)
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("Car model %s: the damage part %s holds no triangle; it never comes off"),
+					*FPaths::GetCleanFilename(Path), *Parts[i - 1].Name);
+			}
+			continue;
+		}
+		// The body keeps the whole car's bounds: the cockpit, the
+		// headlights and the damage's own frame are all read off them.
+		UStaticMesh* Mesh = BuildModel(Path, Pieces[i], Textures,
+			i == 0 ? FString(TEXT("_body")) : TEXT("_") + ApexCarToml::Segment(Parts[i - 1].Name),
+			i == 0 ? Model.Bounds : FBox3f(ForceInit));
+		if (Mesh)
+		{
+			Models.Add(PieceName(i), Mesh);
+		}
+	}
+	if (!Models.Contains(PieceName(0)))
+	{
+		Broken.Add(PieceKey);
+		return Out;
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Car model %s: split into the body and %d damage part(s) in %.0f ms"),
+		*FPaths::GetCleanFilename(Path), Parts.Num(), (FPlatformTime::Seconds() - Began) * 1000.0);
+	Collect();
+	return Out;
+}
+
+TArray<UTexture2D*> UApexCarContentSubsystem::ModelTextures(const FString& Key, const FApexGlbModel& Model)
+{
+	const FString Stem = ApexCarToml::Segment(FPaths::GetBaseFilename(Key));
+	TArray<UTexture2D*> Textures;
+	Textures.SetNumZeroed(Model.Images.Num());
+	for (int32 i = 0; i < Model.Images.Num(); ++i)
+	{
+		if (!Model.Images[i].bUsed)
+		{
+			continue;
+		}
+		const FString ImageKey = FString::Printf(TEXT("%s#%d"), *Key, i);
+		if (const TObjectPtr<UTexture2D>* Made = EmbeddedImages.Find(ImageKey))
+		{
+			Textures[i] = *Made;
+			continue;
+		}
+		Textures[i] = MakeTexture(Model.Images[i], FString::Printf(TEXT("%s_%d"), *Stem, i));
+		if (Textures[i])
+		{
+			EmbeddedImages.Add(ImageKey, Textures[i]);
+		}
+	}
+	return Textures;
 }
 
 UTexture2D* UApexCarContentSubsystem::MakeTexture(const FApexGlbImage& Image, const FString& Name)
@@ -647,10 +757,11 @@ UTexture2D* UApexCarContentSubsystem::LoadTexture(const FString& Path)
 	return Texture;
 }
 
-UStaticMesh* UApexCarContentSubsystem::BuildModel(const FString& Path, const FApexGlbModel& Model)
+UStaticMesh* UApexCarContentSubsystem::BuildModel(const FString& Path, const FApexGlbModel& Model,
+	const TArray<UTexture2D*>& Textures, const FString& Suffix, const FBox3f& Bounds)
 {
 	const double Began = FPlatformTime::Seconds();
-	const FString Stem = ApexCarToml::Segment(FPaths::GetBaseFilename(Path));
+	const FString Stem = ApexCarToml::Segment(FPaths::GetBaseFilename(Path)) + Suffix;
 
 	if (!bParentsLoaded)
 	{
@@ -671,17 +782,6 @@ UStaticMesh* UApexCarContentSubsystem::BuildModel(const FString& Path, const FAp
 			TEXT("Runtime cars: the car parents under %s are %s — run `-run=ApexMaterialBake` in the editor and re-cook; %s"),
 			ApexCarMaterials::Folder, CarParents.Opaque ? TEXT("incomplete") : TEXT("missing"),
 			CarParents.Opaque ? TEXT("the rest draw opaque") : TEXT("drawing flat colours"));
-	}
-
-	// The images a material samples, as textures.
-	TArray<UTexture2D*> Textures;
-	Textures.SetNumZeroed(Model.Images.Num());
-	for (int32 i = 0; i < Model.Images.Num(); ++i)
-	{
-		if (Model.Images[i].bUsed)
-		{
-			Textures[i] = MakeTexture(Model.Images[i], FString::Printf(TEXT("%s_%d"), *Stem, i));
-		}
 	}
 
 	// One instance per slot, owned by this subsystem and shared by every car
@@ -812,12 +912,12 @@ UStaticMesh* UApexCarContentSubsystem::BuildModel(const FString& Path, const FAp
 		UE_LOG(LogApexSim, Error, TEXT("Car model %s built empty"), *Path);
 		return nullptr;
 	}
-	RenderData->Bounds = FBoxSphereBounds(FBox(Model.Bounds));
+	RenderData->Bounds = FBoxSphereBounds(FBox(Bounds.IsValid ? Bounds : Model.Bounds));
 	Mesh->CalculateExtendedBounds();
 
 	const FVector Size = Mesh->GetBounds().BoxExtent * 2.0;
 	UE_LOG(LogApexSim, Log, TEXT("Car model %s: %d tris, %.0f x %.0f x %.0f cm, %d slot(s), %d texture(s), built in %.0f ms"),
-		*FPaths::GetCleanFilename(Path), TriangleCount, Size.X, Size.Y, Size.Z, SlotNames.Num(),
+		*(FPaths::GetCleanFilename(Path) + Suffix), TriangleCount, Size.X, Size.Y, Size.Z, SlotNames.Num(),
 		Textures.FilterByPredicate([](const UTexture2D* T) { return T != nullptr; }).Num(),
 		(FPlatformTime::Seconds() - Began) * 1000.0);
 	return Mesh;
@@ -880,6 +980,22 @@ FApexCockpitOverrides ApexCarContent::MergeCockpit(const FApexCockpitOverrides* 
 UStaticMesh* ApexCarContent::LoadBody(const FApexCarCatalogRow& Row)
 {
 	return LoadMesh(Row.Mesh, Row.RuntimeModel);
+}
+
+UStaticMesh* ApexCarContent::LoadBodyPieces(const FApexCarCatalogRow& Row, TArray<UStaticMesh*>& OutParts)
+{
+	OutParts.Reset();
+	UApexCarContentSubsystem* Content = UApexCarContentSubsystem::Get();
+	if (!Row.RuntimeModel.IsEmpty() && !Row.DamageParts.IsEmpty() && Content)
+	{
+		TArray<UStaticMesh*> Pieces = Content->LoadModelPieces(Row.RuntimeModel, Row.DamageParts);
+		if (Pieces.Num() == Row.DamageParts.Num() + 1 && Pieces[0])
+		{
+			OutParts.Append(Pieces.GetData() + 1, Row.DamageParts.Num());
+			return Pieces[0];
+		}
+	}
+	return LoadBody(Row);
 }
 
 bool ApexCarContent::HasBody(const FApexCarCatalogRow& Row)
