@@ -53,7 +53,10 @@ namespace ApexProtocol
 	/** Every knob is sent, clamped here as the server will clamp it again. */
 	APEXSIMNET_API TArray<uint8> EncodeSetCarSetup(const FApexCarSetup& Setup);
 	/** A hotlap driver asks to be put in the garage or out on the run-up. */
-	APEXSIMNET_API TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination);
+	/** bColdTyres asks to go out as from the garage (blankets or the air) rather
+	 *  than at the compound's optimum; it is only written when set, so the bytes
+	 *  an older server reads are unchanged. */
+	APEXSIMNET_API TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres = false);
 	/** Asks for the trace of the driver's record lap here, answered with GhostLap. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
 

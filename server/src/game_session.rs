@@ -251,7 +251,9 @@ fn fit_tyres(
     let temperature = match start {
         TyreStart::Garage => tyre_thermal::start_temperature_c(tyre, surface),
         TyreStart::Grid => tyre_thermal::grid_temperature_c(tyre, surface),
-        TyreStart::Warm => tyre.optimal_temperature_c,
+        // (A hotlap goes out at the chosen compound's own optimum: a soft
+        // works 6 °C cooler than the medium.)
+        TyreStart::Warm => tyre_thermal::optimum_c(tyre, tyre_thermal::compound(compound)),
     };
     tyre_thermal::fit(state, tyre, temperature, compound);
     let brakes = crate::brakes::start_temperature_c(
@@ -958,7 +960,7 @@ impl GameSession {
                     .copied()
                     .collect();
                 for player_id in humans {
-                    let _ = self.hotlap_relocate(&player_id, HotlapDestination::Garage);
+                    let _ = self.hotlap_relocate(&player_id, HotlapDestination::Garage, false);
                 }
             }
             _ => {
@@ -972,11 +974,16 @@ impl GameSession {
     /// the line, on the first free slot of a queue spaced [`HOTLAP_SPACING_M`]
     /// apart, so several drivers can go out together. The car comes back
     /// fresh — no damage, no half-driven lap — but keeps its aids and its
-    /// bests. The lap starts, timed, as the car crosses the line.
+    /// bests. The lap starts, timed, as the car crosses the line. The
+    /// tyres go on at the compound's optimum, so a hotlap measures the car
+    /// and not its warm-up, unless the driver asks for `cold_tyres`: then
+    /// as out of the garage (blankets or the air, cold brakes), and the
+    /// first lap is the warm-up.
     pub fn hotlap_relocate(
         &mut self,
         player_id: &PlayerId,
         destination: HotlapDestination,
+        cold_tyres: bool,
     ) -> Result<(), &'static str> {
         if self.session.game_mode != GameMode::Hotlap {
             return Err("Not a hotlap session");
@@ -1038,7 +1045,11 @@ impl GameSession {
             &self.car_configs,
             &self.tuned_configs,
             &self.track_config,
-            TyreStart::Warm,
+            if cold_tyres {
+                TyreStart::Garage
+            } else {
+                TyreStart::Warm
+            },
             &self.car_setups,
         );
         // Parked cars wait in neutral; a car put on the run-up is in first.

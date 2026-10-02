@@ -95,7 +95,7 @@ fn going_out_puts_the_car_on_the_run_up_and_the_lap_starts_at_the_line() {
     let driver = ids[0];
     let length = laps::track_length_m(&gs.track_config);
 
-    gs.hotlap_relocate(&driver, HotlapDestination::Track)
+    gs.hotlap_relocate(&driver, HotlapDestination::Track, false)
         .expect("out onto the track");
     let state = &gs.session.participants[&driver];
     assert!(!state.in_garage);
@@ -146,12 +146,45 @@ fn going_out_puts_the_car_on_the_run_up_and_the_lap_starts_at_the_line() {
     );
 }
 
+/// GO OUT normally fits the tyres at the compound's optimum (and warm
+/// brakes); asked for cold tyres, the car goes out as from the garage, on
+/// its blankets or at the air, and the first lap is the warm-up.
+#[test]
+fn going_out_on_cold_tyres_is_an_option() {
+    let (mut gs, ids) = hotlap_session(1);
+    let driver = ids[0];
+    let car = gs.car_configs[&gs.session.participants[&driver].car_config_id].clone();
+    let tyre = &car.tire_config;
+    let surface = gs.track_config.track_surface.clone();
+    gs.hotlap_relocate(&driver, HotlapDestination::Track, false)
+        .unwrap();
+    let warm = gs.session.participants[&driver]
+        .tires
+        .front_left
+        .temperature_c;
+    assert!((warm - tyre.optimal_temperature_c).abs() < 1e-3, "{warm}");
+
+    gs.hotlap_relocate(&driver, HotlapDestination::Track, true)
+        .unwrap();
+    let s = &gs.session.participants[&driver];
+    let cold = s.tires.front_left.temperature_c;
+    let expected = apexsim_server::tyre_thermal::start_temperature_c(tyre, &surface);
+    assert!(
+        (cold - expected).abs() < 1e-3,
+        "cold start at {cold}, expected {expected}"
+    );
+    assert!(cold < warm - 20.0, "{cold} vs {warm}");
+    assert!(!s.in_garage, "on the track, on cold tyres");
+    // And the grip says so: a cold tyre has less of it.
+    assert!(s.tyre_grip_share() < 0.99, "{}", s.tyre_grip_share());
+}
+
 #[test]
 fn two_drivers_going_out_are_queued_not_stacked() {
     let (mut gs, ids) = hotlap_session(2);
-    gs.hotlap_relocate(&ids[0], HotlapDestination::Track)
+    gs.hotlap_relocate(&ids[0], HotlapDestination::Track, false)
         .unwrap();
-    gs.hotlap_relocate(&ids[1], HotlapDestination::Track)
+    gs.hotlap_relocate(&ids[1], HotlapDestination::Track, false)
         .unwrap();
     let a = &gs.session.participants[&ids[0]];
     let b = &gs.session.participants[&ids[1]];
@@ -177,7 +210,7 @@ fn two_drivers_going_out_are_queued_not_stacked() {
     state.best_lap_time_ms = Some(101_000);
     state.laps.best_lap_ms = Some(101_000);
     state.damage.front_damage_percent = 3.0;
-    gs.hotlap_relocate(&ids[0], HotlapDestination::Garage)
+    gs.hotlap_relocate(&ids[0], HotlapDestination::Garage, false)
         .unwrap();
     let state = &gs.session.participants[&ids[0]];
     assert!(state.in_garage);
@@ -197,10 +230,10 @@ fn relocating_is_refused_outside_a_hotlap() {
     let (mut gs, ids) = hotlap_session(1);
     gs.set_game_mode(GameMode::FreePractice);
     assert!(gs
-        .hotlap_relocate(&ids[0], HotlapDestination::Track)
+        .hotlap_relocate(&ids[0], HotlapDestination::Track, false)
         .is_err());
     assert!(gs
-        .hotlap_relocate(&Uuid::from_u128(999), HotlapDestination::Garage)
+        .hotlap_relocate(&Uuid::from_u128(999), HotlapDestination::Garage, false)
         .is_err());
 }
 
@@ -304,6 +337,7 @@ async fn relocate_is_refused_in_practice_and_a_new_driver_has_no_ghost() {
         .await?;
         host.send(&ClientMessage::HotlapRelocate {
             destination: HotlapDestination::Track,
+            cold_tyres: false,
         })
         .await?;
         let (code, message) = host
@@ -329,6 +363,7 @@ async fn relocate_is_refused_in_practice_and_a_new_driver_has_no_ghost() {
         .await?;
         host.send(&ClientMessage::HotlapRelocate {
             destination: HotlapDestination::Track,
+            cold_tyres: false,
         })
         .await?;
         // Telemetry is on UDP after a handshake; over TCP a client that has

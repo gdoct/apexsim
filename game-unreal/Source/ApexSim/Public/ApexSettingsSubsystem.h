@@ -82,6 +82,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetGhostCar(bool bOn);
 
+	/** Whether a hotlap goes out on cold tyres (Gameplay group). */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetHotlapColdTyres(bool bCold);
+
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetAiSkill(float Skill01);
 

@@ -2139,21 +2139,77 @@ tank, the hotlap garage and the knob, practice), the physics unit tests
 ### Tyre temperature (`server/src/tyre_thermal.rs`, `[tires]` window keys)
 
 The second item of docs/SIMULATION_GAPS.md. Each tyre is two thermal
-masses: a **tread** (2 kJ/K) heated by the contact patch's friction power
-(`|Fx|·slip speed along + |Fy|·slip speed across`, 85% of it) and cooled by
+masses: a **tread** layer (2 kJ/K, the surface the HUD shows) cooled by
 the air (growing with speed^0.8) and the road (with √speed, four times as
-much on a wet track), and a **core** (7 kJ/K: carcass, gas, hub) heated by
-the carcass flexing (0.8 of `rolling_resistance · load · speed`, the first
-use of that field in physics) and the rest of the slide heat, cooled by the
-air inside the wheel, with conduction between the two. The tread answers a
-slide in a corner or two; the core takes a lap or so. Only the power up to
-the tyre's peak slip heats the tyre that way: what a slide past the peak
-dissipates splits with the road by effusivity, 30% into the tread
-(`SLIDING_HEAT_TO_TYRE`, `TyreWork::power_split_w`). With all of it in the
-tread a player's understeer at La Source took a GT3's fronts to 150 °C and
-the run to Eau Rouge to 200 (2026-10-01); the AI, at the peak, is unchanged. `update_car_3d` reads
-the grip from the end of the last tick and steps the heat after the force
-solve; the old stateless "temperature" in `update_telemetry_3d` is gone.
+much on a wet track), and a **core** (7 kJ/K: the tread's bulk, carcass,
+gas, hub) heated by the carcass flexing (0.8 of `rolling_resistance ·
+load · speed`, the first use of that field in physics), cooled by the air
+inside the wheel, with 350 W/K of conduction between the two. The slip
+power (`|Fx|·slip speed along + |Fy|·slip speed across`,
+`TyreWork::power_split_w`) is split at the tyre's peak slip: up to it the
+power is the rubber's hysteresis and heats the rubber **by mass**, 30% to
+the tread layer and 70% to the bulk (`TREAD_HYSTERESIS_SHARE`); past it
+the rubber is sliding, and that friction splits with the road by
+effusivity, 30% into the tread (`FRICTION_HEAT_TO_TYRE`). Two reports set
+this (2026-10-01 and 10-02): with all the sliding heat in the tread, a
+player's understeer at La Source took a GT3's fronts to 150 °C; with 85%
+of the sub-peak power in the tread layer, a *careful* LMP2 driver on a pad
+gained 10 °C per slight turn and went from 85 to 150 up Eau Rouge, while
+the AI, smooth and at the peak, saw 109 on the same lap (an LMP2 front at
+2° of slip at 70 m/s dissipates 22 kW: 9 °C/s into that layer). Handing
+part of the sub-peak power to the road was tried and rejected, because the
+AI at its peak slip sets every class's window: a quarter of it in the
+tyre ran the LMP2's fronts at 66 °C at Monza against 82-102, 0.9 at 78.
+The tyre keeps the energy it kept; only where it lands changed, and the
+surface now follows the bulk over a lap instead of leading it through
+every corner (Spa's hottest LMP2 tread at AI pace: 109 -> 99 °C, lap time
+unchanged; `a_careful_corner_warms_the_tread_a_few_degrees`,
+`a_lap_of_fast_corners_keeps_the_surface_near_the_bulk`). `update_car_3d`
+reads the grip from the end of the last tick and steps the heat after the
+force solve; the old stateless "temperature" in `update_telemetry_3d` is
+gone. A hotlap goes out at the chosen compound's own optimum (a soft 6 °C
+under the medium's).
+
+**A pad without the steering aid cooks the tyres, and that is the
+handling, not the heat.** The second report (170 °C at Zandvoort in the
+994P "just trying to stay inside the white lines", on the model whose AI
+peaks at 108 there) was a session whose create-screen chips forbade the
+steering aid (`ApexProfile.sav` `AllowedAssists.bSteeringAssist`,
+`LockedAssists=1` in the client log): without the aid a pad's stick is
+the car's whole 23° of lock at any speed, so at 150 km/h anything past a
+third of the travel is beyond the peak slip, and the car is driven on
+sliding fronts. `tests/pad_driver_probe.rs` (`#[ignore]`d; `PAD_AID`,
+`PAD_NOISE`, `PAD_HOLD_S`, `PAD_SKILL`, `PAD_CAR`, `PAD_TRACK`) drives the
+AI's line with a pad's hand error on top, through the aid (the AI's wheel
+angle inverted to a stick through `assisted_steering`) or raw: ±0.7° of
+hand error held half a second, aid off, puts the 994P off the road 377 s
+of 479 at Zandvoort (hottest tread 118 °C while it slides); the same hand
+through the aid laps at the same pace, never off, hottest 101; ±1.4°
+through the aid is 130 (the left front, past the peak 10% of the lap),
+and the same without the aid is 141 and off the road 394 s. The AI with
+no hand error is 90 either way. The server has no file log and a hotlap
+writes no replay, so a player's lap cannot be read back after the fact:
+reproduce it with the harness.
+
+**The aid itself scrubbed the fronts in slow corners** (fixed 2026-10-02,
+after the above). The third report was with the aid on: fronts at 169 °C
+and 48% worn after one Zandvoort lap, rears cold at 3%. `assisted_steering`
+set the stop's lock to the kinematic angle for the tightest turn plus the
+slip allowance *plus* the angle the front axle already travels at, and in
+a steady corner at the limit the travel angle is the kinematic angle less
+the rear's slip, so the stop held the fronts at kinematic + allowance of
+slip: a degree extra at speed, 10° at 20 m/s, 18° at 12 m/s (`hold_full_lock`
+measured 0.31 rad against a 0.12 peak). Every pad driver leans the stick
+on its stop in a slow corner. The lock is now `max(kinematic, travel +
+allowance)`, the allowance 0.7 of the peak (what the stop gave at 60 m/s
+before, inside the flat top of the curve at 95% of the force), so a fast
+corner feels as it did, a crawl still gets full lock, and the stop holds
+the fronts at the allowance in every corner
+(`steering_assist_never_scrubs_the_fronts_in_a_slow_corner`, the stick
+held on the stop at 12, 20 and 30 m/s). The harness's `PAD_FULL` mode
+(stick to the stop whenever more than 30% is meant) cannot measure it: the
+AI plans for the wheel angle it asked for and never completes a lap on the
+stop, before or after.
 
 **Grip** reads 0.7 tread + 0.3 core (`TREAD_GRIP_SHARE`): full inside
 `optimal_temperature_c ± temperature_window_c`, less by
@@ -2183,7 +2239,9 @@ run ahead is a race, which is how a session set straight into `Race`
 still gets it) half way from there to the optimum
 (`FORMATION_LAP_WARMTH`: there is no formation lap to drive); a hotlap car
 going out (`hotlap_relocate`) at the optimum, so a hotlap measures the car,
-not its warm-up. Per class (car.toml `[tires]`): F1 91 ± 13 °C on 70 °C
+not its warm-up, unless the driver asked for cold tyres (the garage's
+TYRES OUT toggle, `HotlapRelocate.cold_tyres`: then as from the garage,
+and the first lap is the warm-up). Per class (car.toml `[tires]`): F1 91 ± 13 °C on 70 °C
 blankets, Hypercar 105 ± 13, LMP2 92 ± 10, GT3 87 ± 10, all without
 blankets but the F1. The windows were set where each car runs at the AI's
 race pace at Monza (`tyre_temperature_probe`, below); the imported AC cars
@@ -2610,7 +2668,10 @@ garage.
 parked on its grid slot with `CarState::in_garage`, not ticked and left out
 of both collision passes, and telemetry says so in `lap_flags` bit 2
 (`LAP_FLAG_IN_GARAGE`, appended semantics: an old client reads it as a clean
-lap). `ClientMessage::HotlapRelocate { destination }` moves the car:
+lap). `ClientMessage::HotlapRelocate { destination, cold_tyres }` moves the
+car (`cold_tyres` is optional and only written when set, so an older
+client's bytes are unchanged; it sends the car out on its blankets or at
+the air with cold brakes instead of at the compound's optimum):
 `Track` puts it on the centerline `HOTLAP_RUNUP_M` (300 m) before the line,
 in first, so the first flying lap starts timed as it crosses; a second car
 going out is queued `HOTLAP_SPACING_M` behind the first slot still occupied
@@ -2622,7 +2683,8 @@ left driving. `tests/hotlap_test.rs` covers all of it, over the wire too.
 **The client** (`UApexRootWidget::HandleTelemetryForHotlap`) reads the
 local car's `bInGarage` and opens or closes the garage: `UApexHotlapWidget`
 is the layer between the HUD and the pause menu, showing the garage
-(a full-screen sheet: GO OUT, REPLAY LAP, GHOST CAR and RESET SETUP down the
+(a full-screen sheet: GO OUT, REPLAY LAP, GHOST CAR, TYRES OUT (Warm /
+Cold, `UApexSettingsSave::bHotlapColdTyres`) and RESET SETUP down the
 left, the four setup tabs on the right; see "Car setup"), the lap-by-lap
 timing sheet on the track (every `LapTiming` lap end for the local car, with
 the delta to the best legal lap and struck laps greyed; it survives trips to
@@ -2652,8 +2714,8 @@ chase → trackside → onboard → trackside (`CutReplayShot`; a trackside shot
 stands ahead of the car, off to the side, and cuts once the car is past),
 the followed car being the ghost for the duration; the pause key stops it
 and the lap's end ends it. Golden bytes: `cargo test hotlap_wire_format --
---nocapture` → `ApexGolden::C_HotlapRelocate` / `C_RequestGhost` /
-`S_GhostLap`, and `ApexUdpGolden::S_TelemetryCompactGarage` (the lap-flags
+--nocapture` → `ApexGolden::C_HotlapRelocate` / `C_HotlapRelocateCold` /
+`C_RequestGhost` / `S_GhostLap`, and `ApexUdpGolden::S_TelemetryCompactGarage` (the lap-flags
 blob with bit 2 set); `ApexSim.Net.Protocol.GhostLap` and
 `ApexSim.Net.Udp.LapFields` decode them.
 

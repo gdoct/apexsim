@@ -342,11 +342,12 @@ void UApexNetSubsystem::SetDriverAids(
 	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl, Damage));
 }
 
-void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination)
+void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres)
 {
-	UE_LOG(LogApexSimNet, Log, TEXT("-> HotlapRelocate %s"),
-		Destination == EApexHotlapDestination::Garage ? TEXT("garage") : TEXT("track"));
-	SendPayload(ApexProtocol::EncodeHotlapRelocate(Destination));
+	UE_LOG(LogApexSimNet, Log, TEXT("-> HotlapRelocate %s%s"),
+		Destination == EApexHotlapDestination::Garage ? TEXT("garage") : TEXT("track"),
+		bColdTyres ? TEXT(" on cold tyres") : TEXT(""));
+	SendPayload(ApexProtocol::EncodeHotlapRelocate(Destination, bColdTyres));
 }
 
 void UApexNetSubsystem::RequestGhost()

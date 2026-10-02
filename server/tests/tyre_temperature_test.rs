@@ -182,6 +182,76 @@ fn tyre_temperature_probe() {
     }
 }
 
+/// A lap of fast corners does not run the surface away from the bulk: the
+/// LMP2 at Spa (Eau Rouge, Pouhon, Blanchimont at 2-3 g) peaks a few
+/// degrees over the top of its window at the AI's pace, where the first
+/// heat split, with 85% of the slip power in the tread layer, took a
+/// careful human driver's fronts to 150 °C up Eau Rouge alone (the AI saw
+/// 109 on that model).
+#[test]
+fn a_lap_of_fast_corners_keeps_the_surface_near_the_bulk() {
+    std::env::remove_var("TYRE_PROBE_TRACK");
+    let spa = TrackLoader::load_from_file("../content/tracks/default/Spa.yaml")
+        .expect("failed to load Spa");
+    let car = car("yotota-lmp2");
+    let car_id = car.id;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car.clone());
+    let mut profile = AiDriverProfile::new("Spa AI", 95);
+    profile.id = Uuid::from_u128(7101);
+    profile.preferred_car_id = Some(car_id);
+    let driver = profile.id;
+    let session = RaceSession::new(
+        Uuid::from_u128(2),
+        Uuid::nil(),
+        SessionKind::Multiplayer,
+        8,
+        1,
+        2,
+    );
+    let mut track = spa;
+    SessionConditions::DEFAULT.apply_to_track(&mut track);
+    let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
+    gs.spawn_ai_drivers();
+    gs.start_countdown_mode(1, GameMode::Race);
+
+    let t = &car.tire_config;
+    let top = t.optimal_temperature_c + t.temperature_window_c;
+    let mut laps = 0;
+    let mut hottest = f32::MIN;
+    let mut widest_lead = f32::MIN;
+    for _ in 0..(240 * 60 * 6) {
+        let inputs: HashMap<PlayerId, PlayerInputData> =
+            [(driver, gs.generate_ai_input(&driver))].into();
+        gs.tick(&inputs);
+        let state = &gs.session.participants[&driver];
+        if gs.session.game_mode == GameMode::Race && laps >= 1 {
+            for tyre in state.tires.each() {
+                hottest = hottest.max(tyre.temperature_c);
+                widest_lead = widest_lead.max(tyre.temperature_c - tyre.core_temperature_c);
+            }
+        }
+        for out in gs.take_lap_events() {
+            if out.event.lap_time_ms.is_some() {
+                laps += 1;
+            }
+        }
+        if laps >= 2 {
+            break;
+        }
+    }
+    assert_eq!(laps, 2, "two laps of Spa");
+    println!("Spa, LMP2, lap 2: hottest tread {hottest:.1} °C, surface at most {widest_lead:.1} °C over the bulk");
+    assert!(
+        hottest < top + 8.0,
+        "the hottest tread on a flying lap of Spa is {hottest:.1} °C, the window's top {top}"
+    );
+    assert!(
+        widest_lead < 12.0,
+        "the surface led the bulk by {widest_lead:.1} °C"
+    );
+}
+
 /// The temperature the grip reads, per axle (front, rear), from the
 /// logged tread and core.
 fn grip_temperatures(tyres: (f32, f32, f32, f32, f32)) -> (f32, f32) {
@@ -319,7 +389,7 @@ fn a_race_grid_is_given_its_formation_lap() {
 #[test]
 fn a_hotlap_goes_out_on_warm_tyres() {
     let (mut gs, player, car) = seated("posh-gt3rs", GameMode::Hotlap);
-    gs.hotlap_relocate(&player, HotlapDestination::Track)
+    gs.hotlap_relocate(&player, HotlapDestination::Track, false)
         .expect("out");
     let state = &gs.session.participants[&player];
     assert_eq!(tread(&gs, &player), car.tire_config.optimal_temperature_c);

@@ -192,6 +192,11 @@ public:
 	UPROPERTY()
 	bool bGhostCar = true;
 
+	/** In a hotlap, go out on cold tyres (blankets or the air, as from the garage) rather
+	 *  than at the compound's optimum, and drive the warm-up. Toggled from the garage. */
+	UPROPERTY()
+	bool bHotlapColdTyres = false;
+
 	/** 0..1. Applied to AI cars when a session is created. */
 	UPROPERTY()
 	float AiSkill = 0.74f;

@@ -904,7 +904,8 @@ void UApexRootWidget::HandleHotlapAction(EApexHotlapAction Action)
 		// The telemetry's garage flag flips the view once the server has moved the car.
 		if (Net)
 		{
-			Net->HotlapRelocate(EApexHotlapDestination::Track);
+			Net->HotlapRelocate(EApexHotlapDestination::Track,
+				Settings && Settings->Get() && Settings->Get()->bHotlapColdTyres);
 		}
 		break;
 
@@ -929,6 +930,13 @@ void UApexRootWidget::HandleHotlapAction(EApexHotlapAction Action)
 		if (Settings && Settings->Get())
 		{
 			Settings->SetGhostCar(!Settings->Get()->bGhostCar);
+		}
+		break;
+
+	case EApexHotlapAction::ToggleColdTyres:
+		if (Settings && Settings->Get())
+		{
+			Settings->SetHotlapColdTyres(!Settings->Get()->bHotlapColdTyres);
 		}
 		break;
 

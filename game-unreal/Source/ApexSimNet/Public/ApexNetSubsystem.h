@@ -300,7 +300,7 @@ public:
 	 * an Error.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
-	void HotlapRelocate(EApexHotlapDestination Destination);
+	void HotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres = false);
 
 	/** Ask for the record lap's trace; OnGhostLap answers, empty when there is none. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
