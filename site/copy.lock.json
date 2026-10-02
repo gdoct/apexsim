@@ -31,7 +31,7 @@
    "Prop kit (`content/props`, `ApexPropImport`)": "d1585dc2a511",
    "Marketing page (`site/`, `scripts/site/`, `docs/index.html`)": "fb59d96adaa2",
    "Architecture": "da39a3ee5e6b",
-   "Server (`server/`)": "ddf48d5517ce",
+   "Server (`server/`)": "1631c03b63f6",
    "Unreal client networking (`game-unreal/Source/ApexSimNet/`)": "69316220d744",
    "Unreal client input (`game-unreal/Source/ApexSim/`)": "1bd53c9782d4",
    "Race HUD (`content/hud`, `Hud/`, docs/HUD_MODDING.md)": "9c025209c8b0",
@@ -59,6 +59,7 @@
    "Tyre wear, compounds and pit stops (`tyre_thermal.rs`, `pit.rs`, `<Stem>.pit.msgpack`)": "c26039f43e16",
    "Brake and engine heat (`brakes.rs`, `engine_heat.rs`)": "ea846c6f4bd2",
    "Progressive damage (`damage.rs`)": "f952c1716429",
+   "Visible damage (`Race/ApexCarDamage.h`, `[[damage_part]]`, docs/CAR_MODELS.md, Damage)": "c65030ebf87b",
    "Hybrid deployment (`hybrid.rs`, `PlayerInput.ers_mode` / `ers_boost`)": "e1efa1e74853",
    "Hotlap (`GameMode::Hotlap`, `HotlapRelocate`, `GhostLap`, `UApexHotlapWidget`, `AApexGhostCarActor`)": "8520cdda65e4",
    "Force feedback (`server/src/feedback.rs`, `Input/ApexForceFeedback.h`)": "86c626148da0",
@@ -85,7 +86,7 @@
    "Small inert fields worth resolving": "cb70867157e7",
    "Where to be better, not equal": "1eacad90f01e",
    "Suggested order": "21672dc963a3",
-   "Not done yet (running list)": "8edbeb010df2"
+   "Not done yet (running list)": "1d23d683dc8a"
   }
  }
 }

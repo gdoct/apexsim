@@ -147,6 +147,18 @@ action:
     time: "21:50"         # the same race, later: headlights on
     camera: {mode: tv, shot: tracking, follow: lead}
 
+  # A replay carries no damage, so this one draws it with the preview
+  # console variable (front, rear, left, right, engine percent), set a second
+  # in: every car in the clip wears it, hence a window with one car in view.
+  # No `pick` yet and not in site/media.yml: take it and look at the sheet.
+  - id: damage
+    about: A GT3 car with its nose and wing gone, trailing engine smoke
+    race: brands
+    window: {corner: "Paddock Hill", before: 150, after: 150, min_cars: 1}
+    length: 4.0
+    camera: {mode: tv, shot: tracking, follow: lead}
+    extra_args: ['-ApexExecAfter=1=apexsim.car.DamagePreview 70,30,45,0,65']
+
 ui:
   - id: hud-chase
     about: The chase view on the grid during the countdown, HUD on
