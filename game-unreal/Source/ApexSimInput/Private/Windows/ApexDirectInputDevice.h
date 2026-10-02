@@ -63,6 +63,7 @@ public:
 
 private:
 	struct FJoystick;
+	struct FCrashStop;
 
 	void Rescan();
 	/** Opens and configures a device, shared; null for one that is skipped or fails. */
@@ -83,6 +84,8 @@ private:
 	/** Sends every control of a device back to rest, so nothing it held stays held. */
 	void ReleaseControls(FJoystick& Joystick);
 	void Close(FJoystick& Joystick);
+	/** The crash stop no longer points at this device; call before its effects or the device are released. */
+	void ForgetForCrashStop(const FJoystick& Joystick);
 	void PublishDevices();
 
 	TSharedRef<FGenericApplicationMessageHandler> MessageHandler;
@@ -101,6 +104,13 @@ private:
 	/** Which device is playing forces, and when the game last said what. */
 	int32 EffectsSlot = INDEX_NONE;
 	double EffectsTime = 0.0;
+
+	/**
+	 * Stops the wheel's forces when the process crashes, from a thread made
+	 * for nothing else (see the .cpp). Null when it could not be started; the
+	 * constant force's own life on the device still stops it then.
+	 */
+	TUniquePtr<FCrashStop> CrashStop;
 };
 
 #endif // PLATFORM_WINDOWS

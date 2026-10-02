@@ -986,4 +986,89 @@ bool FApexFfbWheelBrakingTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelNotANumberTest,
+	"ApexSim.Input.ForceFeedback.WheelNotANumber",
+	ApexTestFlags)
+
+bool FApexFfbWheelNotANumberTest::RunTest(const FString& Parameters)
+{
+	// FMath::Clamp turns a NaN into its upper bound; unchecked, any of these
+	// would reach the wheelbase as full force, and the torque's smoothing
+	// would hold it there.
+	const float NaN = std::numeric_limits<float>::quiet_NaN();
+	const float Inf = std::numeric_limits<float>::infinity();
+	const ApexFfb::FWheelTuning Designed;
+
+	auto Calm = [this](const TCHAR* What, const FApexWheelEffects& Out)
+	{
+		TestTrue(FString::Printf(TEXT("%s: a number (%f)"), What, Out.Constant),
+			FMath::IsFinite(Out.Constant) && FMath::IsFinite(Out.VibrationAmplitude) && FMath::IsFinite(Out.VibrationHz)
+			&& FMath::IsFinite(Out.Damper) && FMath::IsFinite(Out.Spring));
+		TestTrue(FString::Printf(TEXT("%s: no pull (%.3f)"), What, Out.Constant), FMath::Abs(Out.Constant) < 0.05f);
+	};
+
+	for (const float Bad : { NaN, Inf, -Inf })
+	{
+		ApexFfb::FSignals Signals = Cruising(40.0f);
+		Signals.SteerTorque = Bad;
+		Calm(TEXT("a torque that is not a number"), SettledWheel(Signals, Designed));
+
+		Signals = Cruising(40.0f);
+		Signals.SteerStiffness = Bad;
+		Signals.bHasLocalSteer = true;
+		Signals.LocalSteer = 0.1f;
+		Calm(TEXT("a slope that is not a number"), SettledWheel(Signals, Designed));
+
+		Signals = Cruising(40.0f);
+		Signals.bHasRim = true;
+		Signals.RimDegrees = Bad;
+		Calm(TEXT("a rim reading that is not a number"), SettledWheel(Signals, Designed));
+
+		Signals = Cruising(40.0f);
+		Signals.bHasStation = true;
+		Signals.StationM = Bad;
+		Calm(TEXT("a station that is not a number"), SettledWheel(Signals, Designed));
+
+		ApexFfb::FWheelTuning Broken;
+		Broken.Force = Bad;
+		Broken.RoadEffects = Bad;
+		Broken.Damping = Bad;
+		ApexFfb::FSignals Cornering = Cruising(40.0f);
+		Cornering.SteerTorque = 1.0f;
+		const FApexWheelEffects Out = SettledWheel(Cornering, Broken);
+		TestTrue(FString::Printf(TEXT("a setting that is not a number is off (%.3f)"), Out.Constant), FMath::Abs(Out.Constant) < 1e-3f);
+		TestTrue(TEXT("its damping too"), Out.Damper < 1e-3f);
+
+		ApexFfb::FWheelState State;
+		Calm(TEXT("a frame time that is not a number"), ApexFfb::MixWheel(Cruising(40.0f), State, Bad, Designed));
+	}
+
+	// A state poisoned anyway starts over rather than playing it.
+	{
+		ApexFfb::FWheelState State;
+		State.Torque = NaN;
+		Calm(TEXT("a poisoned state"), ApexFfb::MixWheel(Cruising(40.0f), State, FeedbackTestDt, Designed));
+		TestTrue(TEXT("and is clean afterwards"), FMath::IsFinite(State.Torque));
+	}
+
+	// And a good torque after a bad one is felt again at once.
+	{
+		ApexFfb::FWheelState State;
+		ApexFfb::FSignals Signals = Cruising(40.0f);
+		Signals.SteerTorque = NaN;
+		ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Designed);
+		Signals.SteerTorque = 1.0f;
+		FApexWheelEffects Out;
+		for (float T = 0.0f; T < 0.3f; T += FeedbackTestDt)
+		{
+			Out = ApexFfb::MixWheel(Signals, State, FeedbackTestDt, Designed);
+		}
+		TestTrue(FString::Printf(TEXT("the torque comes back (%.3f)"), Out.Constant), FMath::Abs(Out.Constant) > 0.2f);
+	}
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

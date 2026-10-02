@@ -2951,9 +2951,21 @@ constant force goes at most 250 times a second, the sine, damper and spring
 backs off 0.5 s, twenty refused rounds hand the wheel back, a lost device is
 asked to reacquire twice a second rather than every frame, and it is torn
 down and reopened only after 2 s of failed reads rather than 30 frames. Effects are a constant force, a
-sine, a damper and a spring, updated only when they change; a watchdog drops
-every force if the game stops updating them for 0.3 s, so a hitch or a crash
-never leaves a wheel pulling. Which way a positive force turns a rim is not
+sine, a damper and a spring, updated only when they change. Three things
+stop a wheel pulling when the game does not: a watchdog on the game thread
+drops every force after 0.3 s without an update (a hitch); the constant
+force is created with a 0.5 s duration *on the device* and restarted every
+0.15 s while it plays (`ApexDirectInput::PlanConstantSend`), so a hung game
+thread, a crash or a killed process stops it in the base itself (the damper
+and spring only resist the rim, and the sine is zero-mean, so they stay
+infinite); and on a crash `OnHandleSystemError` asks a thread made for the
+purpose to send `DISFFC_STOPALL`, waiting at most 250 ms so a DirectInput
+lock held by the crashed thread cannot hang the crash handler. A NaN is
+never a force: `FMath::Clamp` returns its upper bound for one, so
+`MixWheel` cleans its inputs and resets a poisoned state, and
+`ApexDirectInput::SanitiseEffects` zeroes anything non-finite before the
+hardware (`ApexSim.Input.ForceFeedback.WheelNotANumber`,
+`ApexSim.Input.DirectInput.ConstantSchedule` / `.Sanitise`). Which way a positive force turns a rim is not
 something DirectInput promises — hence the Wheel page's Direction test, which
 pushes right and asks.
 

@@ -7,6 +7,9 @@
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/CoreDelegates.h"
+
+#include <atomic>
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #define DIRECTINPUT_VERSION 0x0800
@@ -44,19 +47,16 @@ namespace
 	/** A device that stopped answering is asked to take us back at most this often. */
 	constexpr double ReacquireIntervalSeconds = 0.5;
 
+	// The send rates (ConstantMinIntervalSeconds: the torque arrives from the
+	// server at 60 Hz and is smoothed, so 250 Hz loses nothing and saves one
+	// USB report per rendered frame) and the constant force's life on the
+	// device are in ApexDirectInputTypes.h, beside PlanConstantSend.
+
 	/**
-	 * Fastest the constant force is sent. The torque arrives from the server at
-	 * 60 Hz and is smoothed here, so this loses nothing; what it prevents is one
-	 * USB report per rendered frame, which at an uncapped frame rate is several
-	 * hundred a second on top of everything else the driver is doing.
+	 * How long a crash waits for the forces to be stopped before it carries
+	 * on without: the stop must never be what hangs the crash handler.
 	 */
-	constexpr double ConstantMinIntervalSeconds = 1.0 / 250.0;
-
-	/** The vibration, damper and spring are textures and settings: 30 updates a second is plenty. */
-	constexpr double SlowEffectMinIntervalSeconds = 1.0 / 30.0;
-
-	/** Constant-force steps smaller than this (of 10000) wait for the slow rate. */
-	constexpr LONG ConstantDeadband = 8;
+	constexpr DWORD CrashStopWaitMs = 250;
 
 	/** After a failed or lost effect update, wait this long before sending again. */
 	constexpr double EffectBackoffSeconds = 0.5;
@@ -97,13 +97,23 @@ namespace
 		return Out;
 	}
 
+	// Both treat a value that is not a number as zero: FMath::Clamp would pass
+	// a NaN through as its upper bound, which is full force.
 	LONG ToMagnitude(float Value)
 	{
+		if (!FMath::IsFinite(Value))
+		{
+			return 0;
+		}
 		return static_cast<LONG>(FMath::RoundToInt(FMath::Clamp(Value, -1.0f, 1.0f) * DI_FFNOMINALMAX));
 	}
 
 	DWORD ToUnsignedMagnitude(float Value)
 	{
+		if (!FMath::IsFinite(Value))
+		{
+			return 0;
+		}
 		return static_cast<DWORD>(FMath::RoundToInt(FMath::Clamp(Value, 0.0f, 1.0f) * DI_FFNOMINALMAX));
 	}
 
@@ -220,6 +230,8 @@ struct FApexDirectInputDevice::FJoystick
 	double VibrationSentAt = 0.0;
 	double DamperSentAt = 0.0;
 	double SpringSentAt = 0.0;
+	/** When the constant force was last started: it runs out on the device ConstantForceLifeSeconds later. */
+	double ConstantStartedAt = 0.0;
 	/** False after an acquire was lost: the device dropped its effects, so everything is sent again. */
 	bool bEffectsKnown = false;
 	/** No effect updates before this: set after a failure, so a device in trouble is not hammered. */
@@ -229,6 +241,104 @@ struct FApexDirectInputDevice::FJoystick
 	bool bLoggedEffectFailure = false;
 	/** The driver cannot change a playing effect in place; updates restart it instead. Logged once. */
 	bool bLoggedRestartUpdates = false;
+};
+
+/**
+ * Stops every force on the wheel the game is playing forces on when the
+ * process crashes, before the crash report is written.
+ *
+ * The engine broadcasts OnHandleSystemError from its crash handler, which may
+ * run on the crashed thread or on the engine's crash-reporting thread while
+ * the crashed one waits. Either way the game thread may have died inside a
+ * DirectInput call, holding the lock the stop needs, so the stop is never
+ * made from the handler itself: a thread started with the device waits for
+ * the request and makes it, and the handler waits for it at most
+ * CrashStopWaitMs. A stop that blocks costs the crash a quarter of a second
+ * and that thread, never the crash report. If the stop cannot be made at
+ * all, the constant force still runs out on the device
+ * (ConstantForceLifeSeconds), which also covers a process killed outright,
+ * where nothing of ours runs.
+ */
+struct FApexDirectInputDevice::FCrashStop
+{
+	/** The device playing forces, exclusively acquired; null when none is. */
+	std::atomic<IDirectInputDevice8W*> Device{ nullptr };
+	std::atomic<bool> bQuit{ false };
+	HANDLE Request = nullptr;
+	HANDLE Done = nullptr;
+	HANDLE Thread = nullptr;
+	FDelegateHandle SystemError;
+
+	static DWORD WINAPI Main(LPVOID Param)
+	{
+		FCrashStop& Self = *static_cast<FCrashStop*>(Param);
+		for (;;)
+		{
+			WaitForSingleObject(Self.Request, INFINITE);
+			if (Self.bQuit.load())
+			{
+				return 0;
+			}
+			if (IDirectInputDevice8W* Playing = Self.Device.load())
+			{
+				Playing->SendForceFeedbackCommand(DISFFC_STOPALL);
+			}
+			SetEvent(Self.Done);
+		}
+	}
+
+	bool Start()
+	{
+		// Auto-reset, unsignalled.
+		Request = CreateEventW(nullptr, false, false, nullptr);
+		Done = CreateEventW(nullptr, false, false, nullptr);
+		if (Request && Done)
+		{
+			Thread = CreateThread(nullptr, 64 * 1024, &Main, this, 0, nullptr);
+		}
+		if (!Thread)
+		{
+			Stop();
+			return false;
+		}
+		// No logging, no allocation, no engine state: this runs inside a crash.
+		SystemError = FCoreDelegates::OnHandleSystemError.AddLambda([this]
+		{
+			if (Device.load())
+			{
+				ResetEvent(Done);
+				SetEvent(Request);
+				WaitForSingleObject(Done, CrashStopWaitMs);
+			}
+		});
+		return true;
+	}
+
+	void Stop()
+	{
+		if (SystemError.IsValid())
+		{
+			FCoreDelegates::OnHandleSystemError.Remove(SystemError);
+			SystemError.Reset();
+		}
+		Device.store(nullptr);
+		if (Thread)
+		{
+			bQuit.store(true);
+			SetEvent(Request);
+			WaitForSingleObject(Thread, INFINITE);
+			CloseHandle(Thread);
+			Thread = nullptr;
+		}
+		for (HANDLE* Event : { &Request, &Done })
+		{
+			if (*Event)
+			{
+				CloseHandle(*Event);
+				*Event = nullptr;
+			}
+		}
+	}
 };
 
 FApexDirectInputDevice::FApexDirectInputDevice(
@@ -265,6 +375,14 @@ FApexDirectInputDevice::FApexDirectInputDevice(
 		return;
 	}
 
+	CrashStop = MakeUnique<FCrashStop>();
+	if (!CrashStop->Start())
+	{
+		CrashStop.Reset();
+		UE_LOG(LogApexInput, Warning, TEXT("DirectInput: could not start the crash stop (error %u); a crash leaves the wheel's forces to run out by themselves"),
+			GetLastError());
+	}
+
 	UE_LOG(LogApexInput, Log, TEXT("DirectInput: ready"));
 	RequestRescan(0.0);
 }
@@ -276,6 +394,13 @@ FApexDirectInputDevice::~FApexDirectInputDevice()
 
 void FApexDirectInputDevice::Shutdown()
 {
+	// First, while every device it might point at is still alive.
+	if (CrashStop)
+	{
+		CrashStop->Stop();
+		CrashStop.Reset();
+	}
+
 	for (TUniquePtr<FJoystick>& Joystick : Joysticks)
 	{
 		Close(*Joystick);
@@ -630,6 +755,10 @@ bool FApexDirectInputDevice::AcquireForForces(FJoystick& Joystick)
 		Joystick.bExclusive = true;
 		CreateEffects(Joystick);
 		Joystick.Info.bForcesReady = Joystick.ConstantEffect != nullptr;
+		if (CrashStop)
+		{
+			CrashStop->Device.store(Joystick.Device);
+		}
 		UE_LOG(LogApexInput, Log, TEXT("DirectInput: playing forces on device %d \"%s\"%s"),
 			Joystick.Info.Slot + 1, *Joystick.Info.Name,
 			Joystick.Info.bForcesReady ? TEXT("") : TEXT(" — but it has no effects to play"));
@@ -649,6 +778,7 @@ bool FApexDirectInputDevice::AcquireForForces(FJoystick& Joystick)
 
 void FApexDirectInputDevice::ReleaseForces(FJoystick& Joystick)
 {
+	ForgetForCrashStop(Joystick);
 	for (IDirectInputEffect** Effect : { &Joystick.ConstantEffect, &Joystick.VibrationEffect, &Joystick.DamperEffect, &Joystick.SpringEffect })
 	{
 		if (*Effect)
@@ -697,8 +827,10 @@ void FApexDirectInputDevice::CreateEffects(FJoystick& Joystick)
 	Effect.rgdwAxes = Axes;
 	Effect.rglDirection = Direction;
 
-	auto Create = [&Joystick, &Effect](const GUID& Type, void* Parameters, DWORD Size, const TCHAR* What) -> IDirectInputEffect*
+	auto Create = [&Joystick, &Effect](const GUID& Type, void* Parameters, DWORD Size, const TCHAR* What,
+		DWORD DurationUs = INFINITE) -> IDirectInputEffect*
 	{
+		Effect.dwDuration = DurationUs;
 		Effect.cbTypeSpecificParams = Size;
 		Effect.lpvTypeSpecificParams = Parameters;
 		IDirectInputEffect* Created = nullptr;
@@ -714,8 +846,12 @@ void FApexDirectInputDevice::CreateEffects(FJoystick& Joystick)
 		return Created;
 	};
 
+	// The constant force alone runs out on the device unless the game keeps
+	// starting it (see ConstantForceLifeSeconds): the one effect that can pull
+	// a rim to its lock must not outlive the game that sets it.
 	DICONSTANTFORCE Constant = { 0 };
-	Joystick.ConstantEffect = Create(GUID_ConstantForce, &Constant, sizeof(Constant), TEXT("constant force"));
+	Joystick.ConstantEffect = Create(GUID_ConstantForce, &Constant, sizeof(Constant), TEXT("constant force"),
+		static_cast<DWORD>(ConstantForceLifeSeconds * 1.0e6));
 
 	DIPERIODIC Periodic = { 0, 0, 0, 20000 };
 	Joystick.VibrationEffect = Create(GUID_Sine, &Periodic, sizeof(Periodic), TEXT("sine"));
@@ -725,6 +861,8 @@ void FApexDirectInputDevice::CreateEffects(FJoystick& Joystick)
 	Joystick.SpringEffect = Create(GUID_Spring, &Condition, sizeof(Condition), TEXT("spring"));
 
 	Joystick.PlayingConstant = 0;
+	// Long ago, so the first force sent starts it again.
+	Joystick.ConstantStartedAt = 0.0;
 	Joystick.PlayingVibrationMagnitude = 0;
 	Joystick.PlayingVibrationPeriod = Periodic.dwPeriod;
 	Joystick.PlayingDamper = 0;
@@ -732,7 +870,7 @@ void FApexDirectInputDevice::CreateEffects(FJoystick& Joystick)
 	Joystick.bEffectsKnown = true;
 }
 
-void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelEffects& Effects)
+void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelEffects& Requested)
 {
 	if (!Joystick.bExclusive)
 	{
@@ -745,11 +883,15 @@ void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelE
 		return;
 	}
 
+	// Nothing reaches the hardware that is not a number in its range.
+	const FApexWheelEffects Effects = SanitiseEffects(Requested);
+
 	const bool bResendAll = !Joystick.bEffectsKnown;
 	bool bLost = false;
 	bool bFailed = false;
 
-	auto Send = [&Joystick, &bLost, &bFailed, bResendAll](IDirectInputEffect* Effect, void* Parameters, DWORD Size, const TCHAR* What)
+	auto Send = [&Joystick, &bLost, &bFailed, bResendAll](IDirectInputEffect* Effect, void* Parameters, DWORD Size, const TCHAR* What,
+		bool bStart = false)
 	{
 		DIEFFECT Change = {};
 		Change.dwSize = sizeof(DIEFFECT);
@@ -758,8 +900,10 @@ void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelE
 
 		// NORESTART keeps a running effect running; a device that cannot
 		// update one in place says so, and gets a restart instead. After a lost
-		// acquire the effect has to be downloaded and started again anyway.
-		const DWORD Flags = DIEP_TYPESPECIFICPARAMS | (bResendAll ? DIEP_START : DIEP_NORESTART);
+		// acquire the effect has to be downloaded and started again anyway,
+		// and a start is also what renews the constant force's life on the
+		// device.
+		const DWORD Flags = DIEP_TYPESPECIFICPARAMS | (bResendAll || bStart ? DIEP_START : DIEP_NORESTART);
 		HRESULT Result = Effect->SetParameters(&Change, Flags);
 		if (Result == DIERR_EFFECTPLAYING)
 		{
@@ -802,21 +946,23 @@ void FApexDirectInputDevice::ApplyEffects(FJoystick& Joystick, const FApexWheelE
 		// pushed the rim away from centre and a straight line had to be
 		// balanced by hand.
 		const LONG Magnitude = ToMagnitude(-Effects.Constant);
-		const double SinceSent = Now - Joystick.ConstantSentAt;
 		// Letting go is never held back. A real change goes at the constant
 		// force's own rate, a step inside the deadband at the slow one, so the
-		// rim still settles on the exact value.
-		const bool bLettingGo = Magnitude == 0 && Joystick.PlayingConstant != 0;
-		const LONG Step = FMath::Abs(Magnitude - Joystick.PlayingConstant);
-		const bool bDue = (Step > ConstantDeadband && SinceSent >= ConstantMinIntervalSeconds)
-			|| (Step > 0 && SinceSent >= SlowEffectMinIntervalSeconds);
-		if (bResendAll || bLettingGo || bDue)
+		// rim still settles on the exact value; and a force that is playing is
+		// started again before it runs out on the device.
+		const FConstantSend Plan = PlanConstantSend(Magnitude, Joystick.PlayingConstant,
+			Now - Joystick.ConstantSentAt, Now - Joystick.ConstantStartedAt, bResendAll);
+		if (Plan.bSend)
 		{
 			DICONSTANTFORCE Parameters = { Magnitude };
-			if (Send(Effect, &Parameters, sizeof(Parameters), TEXT("constant force")))
+			if (Send(Effect, &Parameters, sizeof(Parameters), TEXT("constant force"), Plan.bStart))
 			{
 				Joystick.PlayingConstant = Magnitude;
 				Joystick.ConstantSentAt = Now;
+				if (Plan.bStart)
+				{
+					Joystick.ConstantStartedAt = Now;
+				}
 			}
 		}
 	}
@@ -1118,8 +1264,18 @@ void FApexDirectInputDevice::ReleaseControls(FJoystick& Joystick)
 	}
 }
 
+void FApexDirectInputDevice::ForgetForCrashStop(const FJoystick& Joystick)
+{
+	if (CrashStop && Joystick.Device)
+	{
+		IDirectInputDevice8W* Expected = Joystick.Device;
+		CrashStop->Device.compare_exchange_strong(Expected, nullptr);
+	}
+}
+
 void FApexDirectInputDevice::Close(FJoystick& Joystick)
 {
+	ForgetForCrashStop(Joystick);
 	for (IDirectInputEffect** Effect : { &Joystick.ConstantEffect, &Joystick.VibrationEffect, &Joystick.DamperEffect, &Joystick.SpringEffect })
 	{
 		if (*Effect)

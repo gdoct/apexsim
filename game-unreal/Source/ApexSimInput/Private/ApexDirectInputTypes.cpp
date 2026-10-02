@@ -392,4 +392,33 @@ namespace ApexDirectInput
 		if (Angle >= 20250 && Angle <= 33750)    { Bits |= 8; }
 		return Bits;
 	}
+
+	FConstantSend PlanConstantSend(int32 Magnitude, int32 Playing, double SinceSent, double SinceStarted, bool bResendAll)
+	{
+		const bool bLettingGo = Magnitude == 0 && Playing != 0;
+		const int32 Step = FMath::Abs(Magnitude - Playing);
+		const bool bDue = (Step > ConstantDeadband && SinceSent >= ConstantMinIntervalSeconds)
+			|| (Step > 0 && SinceSent >= SlowEffectMinIntervalSeconds);
+		// A force that has not been started for a while has run out on the
+		// device, or soon will: start it again, changed or not.
+		const bool bRenew = Magnitude != 0 && SinceStarted >= ConstantForceRenewSeconds;
+
+		FConstantSend Out;
+		Out.bSend = bResendAll || bLettingGo || bDue || bRenew;
+		Out.bStart = bResendAll || bRenew;
+		return Out;
+	}
+
+	FApexWheelEffects SanitiseEffects(const FApexWheelEffects& Effects)
+	{
+		auto Finite = [](float Value) { return FMath::IsFinite(Value) ? Value : 0.0f; };
+
+		FApexWheelEffects Out;
+		Out.Constant = FMath::Clamp(Finite(Effects.Constant), -1.0f, 1.0f);
+		Out.VibrationAmplitude = FMath::Clamp(Finite(Effects.VibrationAmplitude), 0.0f, 1.0f);
+		Out.VibrationHz = FMath::Max(Finite(Effects.VibrationHz), 0.0f);
+		Out.Damper = FMath::Clamp(Finite(Effects.Damper), 0.0f, 1.0f);
+		Out.Spring = FMath::Clamp(Finite(Effects.Spring), 0.0f, 1.0f);
+		return Out;
+	}
 }
