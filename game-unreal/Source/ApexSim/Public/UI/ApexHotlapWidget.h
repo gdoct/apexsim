@@ -42,6 +42,8 @@ enum class EApexHotlapAction : uint8
 	ReplayBestLap,
 	/** Show or hide the ghost while driving. */
 	ToggleGhost,
+	/** Go out on cold tyres, or at the optimum. */
+	ToggleColdTyres,
 	/** Every setup knob back to stock. */
 	ResetSetup,
 };
@@ -244,6 +246,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GoOutButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ReplayButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GhostButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> TyresButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ResetButton;
 	UPROPERTY(Transient) TMap<int32, TObjectPtr<UApexStepperWidget>> SetupSteppers;
 

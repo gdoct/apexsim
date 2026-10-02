@@ -134,6 +134,11 @@ pub enum ClientMessage {
     /// on comes back in telemetry (`lap_flags` bit 2).
     HotlapRelocate {
         destination: HotlapDestination,
+        /// Go out on cold tyres (blankets or the air, cold brakes), as out
+        /// of the garage, instead of at the compound's optimum. Left off
+        /// the wire when false, so an older client's bytes are unchanged.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        cold_tyres: bool,
     },
     /// Asks for the trace of the driver's record lap on the session's track
     /// in their car, for a ghost car or a replay. Answered with `GhostLap`,
@@ -2085,13 +2090,30 @@ mod tests {
         }
         let relocate = ClientMessage::HotlapRelocate {
             destination: HotlapDestination::Track,
+            cold_tyres: false,
         };
         let relocate_bytes = rmp_serde::to_vec_named(&relocate).unwrap();
         println!("C_HotlapRelocate: {}", hex(&relocate_bytes));
         match rmp_serde::from_slice::<ClientMessage>(&relocate_bytes).unwrap() {
-            ClientMessage::HotlapRelocate { destination } => {
-                assert_eq!(destination, HotlapDestination::Track)
+            ClientMessage::HotlapRelocate {
+                destination,
+                cold_tyres,
+            } => {
+                assert_eq!(destination, HotlapDestination::Track);
+                assert!(!cold_tyres);
             }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        // The cold-tyres flag is only written when set (`C_HotlapRelocateCold`).
+        assert!(!String::from_utf8_lossy(&relocate_bytes).contains("cold"));
+        let cold = ClientMessage::HotlapRelocate {
+            destination: HotlapDestination::Track,
+            cold_tyres: true,
+        };
+        let cold_bytes = rmp_serde::to_vec_named(&cold).unwrap();
+        println!("C_HotlapRelocateCold: {}", hex(&cold_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&cold_bytes).unwrap() {
+            ClientMessage::HotlapRelocate { cold_tyres, .. } => assert!(cold_tyres),
             other => panic!("Wrong message type: {other:?}"),
         }
 

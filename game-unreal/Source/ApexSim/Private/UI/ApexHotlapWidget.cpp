@@ -52,6 +52,7 @@ namespace
 	const FName ActionGoOut      = TEXT("Hotlap.GoOut");
 	const FName ActionReplay     = TEXT("Hotlap.Replay");
 	const FName ActionGhost      = TEXT("Hotlap.Ghost");
+	const FName ActionTyres      = TEXT("Hotlap.Tyres");
 	const FName ActionResetSetup = TEXT("Hotlap.Reset");
 	const FName ActionTab        = TEXT("Hotlap.Tab");
 	const FName ActionCompound   = TEXT("Hotlap.Compound");
@@ -475,6 +476,11 @@ UWidget* UApexHotlapWidget::BuildActionColumn()
 	AddV(Column, ReplayButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	GhostButton = MakeActionButton(TEXT("GHOST CAR"), TEXT("No lap yet"), ActionGhost, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, GhostButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	// Out of the garage the tyres go on at their optimum, so a hotlap measures
+	// the car and not its warm-up; a driver who wants the warm-up asks for
+	// cold tyres here (blankets or the air, as from the garage).
+	TyresButton = MakeActionButton(TEXT("TYRES OUT"), TEXT("Warm"), ActionTyres, EApexButtonVariant::Panel, 64.0f, 20.0f);
+	AddV(Column, TyresButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	AddV(Column, Rule(*WidgetTree), FMargin(0.0f, 18.0f));
 	ResetButton = MakeActionButton(TEXT("RESET SETUP"), TEXT("Stock"), ActionResetSetup, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, ResetButton);
@@ -1170,6 +1176,11 @@ void UApexHotlapWidget::RefreshGhostRows()
 		GhostButton->SetBadge(bHasGhost ? (bOn ? TEXT("On") : TEXT("Off")) : TEXT("No lap yet"),
 			bOn && bHasGhost ? Palette::Live : Palette::TextMuted);
 	}
+	if (TyresButton)
+	{
+		const bool bCold = Settings && Settings->Get() ? Settings->Get()->bHotlapColdTyres : false;
+		TyresButton->SetBadge(bCold ? TEXT("Cold") : TEXT("Warm"), bCold ? Palette::TextPrimary : Palette::Live);
+	}
 }
 
 void UApexHotlapWidget::RefreshSetup()
@@ -1502,6 +1513,10 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Id == ActionGhost)
 	{
 		OnAction.Broadcast(EApexHotlapAction::ToggleGhost);
+	}
+	else if (Id == ActionTyres)
+	{
+		OnAction.Broadcast(EApexHotlapAction::ToggleColdTyres);
 	}
 	else if (Id == ActionResetSetup)
 	{

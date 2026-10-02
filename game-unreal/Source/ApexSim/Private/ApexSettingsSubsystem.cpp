@@ -249,6 +249,13 @@ void UApexSettingsSubsystem::SetGhostCar(bool bOn)
 	Changed(EApexSettingsGroup::Gameplay);
 }
 
+void UApexSettingsSubsystem::SetHotlapColdTyres(bool bCold)
+{
+	if (!Settings || Settings->bHotlapColdTyres == bCold) { return; }
+	Settings->bHotlapColdTyres = bCold;
+	Changed(EApexSettingsGroup::Gameplay);
+}
+
 // --- Gameplay ---------------------------------------------------------------
 
 void UApexSettingsSubsystem::SetAiSkill(float Skill01)
@@ -1072,6 +1079,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->Units = Defaults->Units;
 		Settings->HudDetail = Defaults->HudDetail;
 		Settings->bGhostCar = Defaults->bGhostCar;
+		Settings->bHotlapColdTyres = Defaults->bHotlapColdTyres;
 		break;
 
 	case EApexSettingsGroup::Assists:

@@ -141,6 +141,9 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("HotlapRelocate"),
 		ApexProtocol::EncodeHotlapRelocate(EApexHotlapDestination::Track),
 		ApexGolden::C_HotlapRelocate);
+	CheckBytes(TEXT("HotlapRelocate cold"),
+		ApexProtocol::EncodeHotlapRelocate(EApexHotlapDestination::Track, true),
+		ApexGolden::C_HotlapRelocateCold);
 	CheckBytes(TEXT("RequestGhost"), ApexProtocol::EncodeRequestGhost(), ApexGolden::C_RequestGhost);
 
 	return true;

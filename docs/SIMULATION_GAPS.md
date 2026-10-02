@@ -489,8 +489,14 @@ here as well as under its item.
 **Tyre temperature**
 - The player's racing line is planned on warm tyres.
 - Tyre heat is not yet an FFB or tyre-squeal cue.
-- The hypercars' front treads spike to ~150 °C somewhere each lap:
-  unexplained (a front-axle slide, the front motor's regen, or AWD drive).
+- ~~The hypercars' front treads spike to ~150 °C somewhere each lap~~:
+  the spike was the heat split (85% of the sub-peak slip power into the
+  surface layer), fixed 2026-10-02; the hypercar's hottest tread at Monza
+  is now 107 °C against a window topping at 118.
+- The surface layer's constants (2 kJ/K, 350 W/K to the bulk, 30% of the
+  hysteresis by mass) are set so the AI at Monza lands in each class's
+  window and a careful corner costs a few degrees; nobody has checked a
+  real tyre's surface swing through a corner against them.
 - No inner/middle/outer temperatures (they need camber).
 - Convective cooling reads the car's ground speed, not its airspeed, so
   a headwind does not cool the tyres.

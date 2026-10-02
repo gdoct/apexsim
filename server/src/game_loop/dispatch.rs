@@ -129,8 +129,11 @@ pub(crate) async fn handle_message(
         } => {
             handle_start_countdown(ctx, connection_id, countdown_seconds, next_mode).await;
         }
-        ClientMessage::HotlapRelocate { destination } => {
-            handle_hotlap_relocate(ctx, connection_id, destination).await;
+        ClientMessage::HotlapRelocate {
+            destination,
+            cold_tyres,
+        } => {
+            handle_hotlap_relocate(ctx, connection_id, destination, cold_tyres).await;
         }
         ClientMessage::RequestGhost => {
             handle_request_ghost(ctx, connection_id).await;
@@ -1050,6 +1053,7 @@ async fn handle_hotlap_relocate(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,
     destination: HotlapDestination,
+    cold_tyres: bool,
 ) {
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
@@ -1060,7 +1064,9 @@ async fn handle_hotlap_relocate(
     let result = {
         let mut state_write = ctx.state.write().await;
         match state_write.sessions.get_mut(&session_id) {
-            Some(game_session) => game_session.hotlap_relocate(&conn_info.player_id, destination),
+            Some(game_session) => {
+                game_session.hotlap_relocate(&conn_info.player_id, destination, cold_tyres)
+            }
             None => Err("Session not found"),
         }
     };

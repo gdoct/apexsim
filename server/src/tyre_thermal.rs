@@ -21,13 +21,30 @@
 //!   window at the set pressure grips exactly what it did before
 //!   temperatures existed.
 //!
-//! Heat in, per tyre: `|Fx| · slip speed along + |Fy| · slip speed across`
-//! (the friction power of the patch, [`SLIDE_HEAT_TO_TREAD`] of it into the
-//! tread), and [`CARCASS_HEAT_SHARE`] of `rolling_resistance · load ·
-//! speed` (the carcass's hysteresis) into the core. Heat out: convection to the air, growing with
-//! speed to the 0.8 as a turbulent boundary layer does, and conduction into
-//! the road through the patch, growing with the root of speed as fresh road
-//! keeps arriving under it; a wet road takes several times as much.
+//! Heat in, per tyre: the slip power, `|Fx| · slip speed along + |Fy| ·
+//! slip speed across`, is what the tyre dissipates to make its force.
+//! Up to the tyre's peak slip it is the rubber's hysteresis as the patch
+//! is sheared and let go every revolution, and it heats the rubber right
+//! through: [`TREAD_HYSTERESIS_SHARE`] of it the tread layer, by mass,
+//! the rest the bulk (the core here). Past the peak it is the rubber
+//! sliding over the road, and friction at an interface heats both sides
+//! by their thermal effusivities: only [`FRICTION_HEAT_TO_TYRE`] of that
+//! goes into the tread, the rest into a road that is fresh under every
+//! pass. [`CARCASS_HEAT_SHARE`] of `rolling_resistance · load · speed`
+//! (the carcass flexing) heats the core too. Heat out: convection to the
+//! air, growing with speed to the 0.8 as a turbulent boundary layer does,
+//! and conduction into the road through the patch, growing with the root
+//! of speed as fresh road keeps arriving under it; a wet road takes
+//! several times as much.
+//!
+//! The first version put 85% of the sub-peak slip power into the tread.
+//! That is the whole of the power into a kilogram and a half of rubber,
+//! and a careful driver felt it as "every slight turn is 10 °C": an LMP2
+//! at 2° of slip at 70 m/s dissipates 22 kW per front tyre, which is 9 °C
+//! a second in that layer, and Eau Rouge took its fronts from 85 to 150 °C
+//! while the AI, smooth and at the peak, saw 109 on the same lap. The
+//! tyre keeps the same energy now; it lands in the bulk, and the surface
+//! follows it over a lap instead of leading it through every corner.
 //!
 //! Everything is a pure function of the tick's inputs (no clock, no RNG),
 //! so the sim stays deterministic.
@@ -61,8 +78,9 @@ const KELVIN: f32 = 273.15;
 /// on a carcass, gas and hub of ten times that.
 const TREAD_HEAT_CAPACITY: f32 = 2_000.0;
 const CORE_HEAT_CAPACITY: f32 = 7_000.0;
-/// Conduction between tread and core, W/K.
-const TREAD_CORE_CONDUCTANCE: f32 = 150.0;
+/// Conduction between tread and core, W/K (a millimetre or two of rubber
+/// under the surface).
+const TREAD_CORE_CONDUCTANCE: f32 = 350.0;
 /// Convection from the tread to the air: still air, and the forced part
 /// per (m/s)^0.8, W/K.
 const TREAD_AIR_STILL: f32 = 5.0;
@@ -74,19 +92,25 @@ const CORE_AIR_SHARE: f32 = 0.8;
 /// times that a wet road takes.
 const TREAD_ROAD_CONDUCTANCE: f32 = 3.5;
 const WET_ROAD_FACTOR: f32 = 4.0;
-/// Share of the patch's friction power up to the tyre's peak slip that
-/// stays in the tread; the rest is the rubber's own deformation, which
-/// heats the carcass.
-const SLIDE_HEAT_TO_TREAD: f32 = 0.85;
-/// Share of the power past the peak slip (the patch sliding over the
-/// road) that goes into the tyre at all. Sliding friction heats the
-/// interface, and the heat splits between rubber and asphalt by their
-/// thermal effusivities (about 0.7 and 1.5 kJ/m²K√s): roughly a third to
-/// the tyre, the rest into a road that is fresh under every pass. With all
-/// of it in the tread, a few seconds of understeer took a GT3's fronts from
-/// 85 to 160 °C, the lost grip made it slide more, and a locked wheel
-/// cooked its tread to 370 °C in six seconds.
-const SLIDING_HEAT_TO_TYRE: f32 = 0.3;
+/// Share of the slip power below the peak slip (the rubber's hysteresis,
+/// spread through it) that the tread layer takes, by mass: the surface
+/// layer and the tread blocks under it, which flex the most. The bulk
+/// takes the rest. Handing part of that power to the road instead was
+/// tried (a quarter of it in the tyre: the LMP2's fronts ran at 66 °C at
+/// Monza against a window of 82-102; 0.55: 72; 0.9: 78): the AI at its
+/// peak slip sets every class's window, and the tyre has to keep the
+/// energy it kept before. Only where it lands changed.
+const TREAD_HYSTERESIS_SHARE: f32 = 0.3;
+/// Share of the friction power at the patch (the rubber sliding over the
+/// road: everything past the peak slip) that goes into the tyre at all.
+/// Friction heats the interface, and
+/// the heat splits between rubber and asphalt by their thermal
+/// effusivities (about 0.7 and 1.5 kJ/m²K√s): roughly a third to the tyre,
+/// the rest into a road that is fresh under every pass. With all of it in
+/// the tread, a few seconds of understeer took a GT3's fronts from 85 to
+/// 160 °C, the lost grip made it slide more, and a locked wheel cooked its
+/// tread to 370 °C in six seconds.
+const FRICTION_HEAT_TO_TYRE: f32 = 0.3;
 /// Share of the rolling-resistance power that stays in the carcass as
 /// heat; the rest goes into the tread and the road at the patch.
 const CARCASS_HEAT_SHARE: f32 = 0.8;
@@ -357,11 +381,14 @@ pub fn step(
     };
     let across = TREAD_CORE_CONDUCTANCE * (tread - core);
 
-    let tread_in = SLIDE_HEAT_TO_TREAD * gripping + SLIDING_HEAT_TO_TYRE * sliding
+    // Sliding friction heats the tread's surface (the tyre's share of it);
+    // the rubber's hysteresis heats the rubber by mass, and the carcass's
+    // flexing the bulk.
+    let tread_in = FRICTION_HEAT_TO_TYRE * sliding + TREAD_HYSTERESIS_SHARE * gripping
         - to_air * (tread - air)
         - to_road * (tread - road);
-    let core_in =
-        (1.0 - SLIDE_HEAT_TO_TREAD) * gripping + rolling - CORE_AIR_SHARE * to_air * (core - air);
+    let core_in = (1.0 - TREAD_HYSTERESIS_SHARE) * gripping + rolling
+        - CORE_AIR_SHARE * to_air * (core - air);
 
     tyre.temperature_c = tread + (tread_in - across) * dt / TREAD_HEAT_CAPACITY;
     tyre.core_temperature_c = core + (core_in + across) * dt / CORE_HEAT_CAPACITY;
@@ -552,21 +579,25 @@ mod tests {
             core_temperature_c: 80.0,
             ..Default::default()
         };
+        // Twice the peak slip angle: a proper slide.
         let slide = TyreWork {
             fy: 6_000.0,
-            slip_angle_rad: 0.15,
+            slip_angle_rad: 0.25,
             load_n: 5_000.0,
             speed_mps: 40.0,
             ..Default::default()
         };
-        for _ in 0..(240 * 3) {
+        for _ in 0..(240 * 2) {
             step(&mut data, &slide, &t, &M, 180.0, &surface, 1.0 / 240.0);
         }
         assert!(
-            data.temperature_c > data.core_temperature_c + 10.0,
+            data.temperature_c > data.core_temperature_c + 2.0,
             "the tread runs ahead: {data:?}"
         );
-        assert!(data.temperature_c > 100.0, "{data:?}");
+        for _ in 0..(240 * 4) {
+            step(&mut data, &slide, &t, &M, 180.0, &surface, 1.0 / 240.0);
+        }
+        assert!(data.temperature_c > 95.0, "{data:?}");
         let peak = data.temperature_c;
         let straight = TyreWork {
             load_n: 4_000.0,
@@ -576,7 +607,56 @@ mod tests {
         for _ in 0..(240 * 5) {
             step(&mut data, &straight, &t, &M, 180.0, &surface, 1.0 / 240.0);
         }
-        assert!(data.temperature_c < peak - 15.0, "{peak} -> {data:?}");
+        assert!(data.temperature_c < peak - 8.0, "{peak} -> {data:?}");
+    }
+
+    /// The report that found the old split: an LMP2 driven carefully on a
+    /// pad, 2° of slip on a loaded front at 70 m/s (a third of the peak;
+    /// 22 kW of slip power), gained 10 °C per slight turn and 65 through
+    /// Eau Rouge. A fast corner now warms the surface by a few degrees,
+    /// and a lap of them does not run away.
+    #[test]
+    fn a_careful_corner_warms_the_tread_a_few_degrees() {
+        let t = tyre();
+        let surface = TrackSurface::default();
+        let mut data = TireData {
+            temperature_c: 92.0,
+            core_temperature_c: 92.0,
+            ..Default::default()
+        };
+        let corner = TyreWork {
+            fy: 9_000.0,
+            slip_angle_rad: 2.0f32.to_radians(),
+            load_n: 6_500.0,
+            speed_mps: 70.0,
+            ..Default::default()
+        };
+        assert!((corner.slide_power_w() - 22_000.0).abs() < 500.0);
+        for _ in 0..(240 * 4) {
+            step(&mut data, &corner, &t, &M, 180.0, &surface, 1.0 / 240.0);
+        }
+        let rise = data.temperature_c - 92.0;
+        assert!((1.0..12.0).contains(&rise), "four seconds of it: {data:?}");
+        // The bulk takes most of the energy, and shows it slowly.
+        let core_rise = data.core_temperature_c - 92.0;
+        assert!((2.0..12.0).contains(&core_rise), "{data:?}");
+        assert!(
+            rise < 2.0 * core_rise,
+            "the surface leads a little: {data:?}"
+        );
+        // The straight after it takes the surface back toward the bulk.
+        let peak = data.temperature_c;
+        let straight = TyreWork {
+            load_n: 5_000.0,
+            speed_mps: 75.0,
+            ..Default::default()
+        };
+        for _ in 0..(240 * 5) {
+            step(&mut data, &straight, &t, &M, 180.0, &surface, 1.0 / 240.0);
+        }
+        assert!(data.temperature_c < peak - 2.0, "{peak} -> {data:?}");
+        // (A lap of such corners is pinned on the AI at Monza and Spa in
+        // `tests/tyre_temperature_test.rs`.)
     }
 
     #[test]

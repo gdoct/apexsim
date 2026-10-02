@@ -1802,12 +1802,17 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
-	TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination)
+	TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres)
 	{
-		FMsgPackWriter Writer(48);
-		BeginDataVariant(Writer, "HotlapRelocate", 1);
+		FMsgPackWriter Writer(64);
+		BeginDataVariant(Writer, "HotlapRelocate", bColdTyres ? 2 : 1);
 		Writer.WriteString("destination");
 		Writer.WriteUInt(static_cast<uint8>(Destination));
+		if (bColdTyres)
+		{
+			Writer.WriteString("cold_tyres");
+			Writer.WriteBool(true);
+		}
 		return MoveTemp(Writer.GetBuffer());
 	}
 

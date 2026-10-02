@@ -171,7 +171,7 @@ fn a_hotlap_goes_out_light_and_the_knob_adds_laps_in_the_garage() {
     let fuel = |gs: &GameSession| gs.session.participants[&player].fuel_liters;
     close(fuel(&gs), HOTLAP_FUEL_LAPS * lap, "garage fill");
 
-    gs.hotlap_relocate(&player, HotlapDestination::Track)
+    gs.hotlap_relocate(&player, HotlapDestination::Track, false)
         .expect("out");
     close(fuel(&gs), HOTLAP_FUEL_LAPS * lap, "out on three laps");
 
@@ -191,7 +191,7 @@ fn a_hotlap_goes_out_light_and_the_knob_adds_laps_in_the_garage() {
         "the fuel knob alone makes no tuned car"
     );
 
-    gs.hotlap_relocate(&player, HotlapDestination::Garage)
+    gs.hotlap_relocate(&player, HotlapDestination::Garage, false)
         .expect("in");
     close(
         fuel(&gs),

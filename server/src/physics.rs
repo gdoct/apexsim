@@ -1768,12 +1768,15 @@ pub fn grip_limit_lock_rad(
     config.wheelbase_m * grip_accel / (speed_mps * speed_mps).max(1e-3)
 }
 
-/// Lock the steering aid allows past the kinematic turn angle, as a share of
-/// the tyre's peak slip angle. The front tyres only make their peak force at
-/// that slip, so with no allowance a stick at the stop held the car short of
-/// its grip once the axles were balanced (`axle_positions`). Half the peak
-/// is inside the flat top of the curve, where extra lock is force, not scrub.
-const STEERING_AID_SLIP_ALLOWANCE: f32 = 0.5;
+/// Front slip the steering aid lets a stick at the stop hold, as a share
+/// of the tyre's peak slip angle. The front tyres only make their peak
+/// force at that slip, so with no allowance a stick at the stop held the
+/// car short of its grip once the axles were balanced (`axle_positions`).
+/// 0.7 of the peak is inside the flat top of the curve (over 95% of the
+/// force), where extra lock is force, not scrub, and it is what the stop
+/// gave at 60 m/s before the lock stopped double-counting the kinematic
+/// angle (below), so a fast corner feels as it did.
+const STEERING_AID_SLIP_ALLOWANCE: f32 = 0.7;
 
 /// The speed-sensitive steering aid: the driver's input (-1..1, + = left)
 /// turned into the share of the rack's lock the front wheels get.
@@ -1785,10 +1788,21 @@ const STEERING_AID_SLIP_ALLOWANCE: f32 = 0.5;
 /// Any lock past it would only make the car rotate faster than it can
 /// corner, which is how a flick of the stick at speed became a spin.
 ///
-/// The lock towards whichever side the front axle is already travelling
-/// grows by that angle, so the stick can still point the wheels where the
-/// car is going and catch a slide. Centred, the wheels stay straight: the
-/// aid never countersteers by itself.
+/// The lock is the larger of the kinematic angle for the tightest turn
+/// (full lock at a crawl, a degree at speed) and the angle the front axle
+/// is already travelling at toward that side plus the slip allowance.
+/// Once the car is turning, the second term holds the fronts at the
+/// allowance of slip whatever the speed, and with the tail out the stick
+/// can still point the wheels past where the car is going and catch the
+/// slide. The first version *added* the travel angle to the kinematic
+/// angle and the allowance, and in a steady corner at the limit the travel
+/// angle is the kinematic angle less the rear's slip, so the stop held the
+/// fronts at the kinematic angle plus the allowance of slip: a degree
+/// more at speed, 10° at 20 m/s, 18° at 12 m/s. A pad driver who leans
+/// on the stop (every pad driver) scrubbed the fronts through every slow
+/// corner at Zandvoort to 169 °C and 48% worn in a lap, with the rears
+/// cold. Centred, the wheels stay straight: the aid never countersteers by
+/// itself.
 pub fn assisted_steering(
     config: &CarConfig,
     mass_kg: f32,
@@ -1800,9 +1814,8 @@ pub fn assisted_steering(
     let full_lock = config.max_steering_angle_rad.max(1e-3);
     let toward_travel = (input.signum() * front_axle_travel_rad).max(0.0);
     let slip_allowance = STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad;
-    let lock = (grip_limit_lock_rad(config, mass_kg, speed_mps, downforce_n)
-        + slip_allowance
-        + toward_travel)
+    let lock = grip_limit_lock_rad(config, mass_kg, speed_mps, downforce_n)
+        .max(toward_travel + slip_allowance)
         .min(full_lock);
     (input.clamp(-1.0, 1.0) * lock / full_lock).clamp(-1.0, 1.0)
 }
@@ -5320,13 +5333,20 @@ mod tests {
             0.5
         );
         let mut previous = 1.0;
-        for speed in [20.0, 40.0, 60.0, 80.0] {
+        for speed in [10.0, 20.0, 40.0, 60.0, 80.0] {
             let share = full(speed, 0.0);
-            assert!(share < previous, "lock should shrink with speed");
+            assert!(share <= previous, "lock should never grow with speed");
             previous = share;
         }
+        // At speed the stop is the slip allowance from straight ahead.
+        let allowance = STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad
+            / config.max_steering_angle_rad;
+        assert!(
+            (previous - allowance).abs() < 1e-4,
+            "{previous} vs {allowance}"
+        );
         // Downforce is grip, and grip is lock worth having.
-        assert!(full(80.0, 20000.0) > previous);
+        assert!(full(80.0, 20000.0) >= previous);
         // Centred is centred, whatever the car is doing.
         assert_eq!(
             assisted_steering(&config, config.mass_kg, 0.0, 60.0, 0.0, -0.2),
@@ -5398,6 +5418,30 @@ mod tests {
         );
     }
 
+    /// Zandvoort on a pad (2026-10-02): the fronts at 169 °C and 48% worn
+    /// after one lap, the rears cold, with the aid on. The aid's lock was
+    /// the kinematic angle for the limit radius plus the slip allowance
+    /// plus the angle the front axle already travels at, and in a steady
+    /// corner the travel angle *is* the kinematic angle, so the stick at
+    /// the stop held the fronts at kinematic + allowance of slip: nothing
+    /// at speed, 10° at 20 m/s, 15° at 15 m/s, past the peak in every slow
+    /// corner. The stop now holds the allowance alone once the car turns.
+    #[test]
+    fn steering_assist_never_scrubs_the_fronts_in_a_slow_corner() {
+        let peak = create_test_config().tire_config.optimal_slip_angle_rad;
+        for speed in [12.0, 20.0, 30.0] {
+            let (_, lateral_g, front_slip) = hold_full_lock(true, speed, 4.0);
+            assert!(
+                front_slip.abs() < peak,
+                "{speed} m/s: fronts at {front_slip:.3} rad with the stick on the stop, peak {peak:.2}"
+            );
+            assert!(
+                lateral_g > 0.6,
+                "{speed} m/s: only {lateral_g:.2} g at the stop"
+            );
+        }
+    }
+
     #[test]
     fn steering_assist_lets_the_stick_catch_a_slide() {
         // The car points 0.15 rad left of where it is going: the tail is
@@ -5420,15 +5464,17 @@ mod tests {
             update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
             state.steering_input * config.max_steering_angle_rad
         };
-        let grip_lock = grip_limit_lock_rad(
+        let kinematic = grip_limit_lock_rad(
             &config,
             car_mass_kg(&config, &create_test_car_state()),
             50.0,
             0.0,
-        ) + STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad;
+        );
+        let allowance = STEERING_AID_SLIP_ALLOWANCE * config.tire_config.optimal_slip_angle_rad;
+        let grip_lock = kinematic + allowance;
         let countersteer = slide(-1.0);
         assert!(
-            countersteer < -0.15 && countersteer > -(0.15 + grip_lock + 0.01),
+            countersteer < -0.15 && countersteer > -(0.15 + allowance + 0.01),
             "countersteer reached {countersteer:.3} rad"
         );
         let into = slide(1.0);
