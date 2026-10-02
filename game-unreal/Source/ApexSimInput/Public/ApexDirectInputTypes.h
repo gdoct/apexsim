@@ -214,3 +214,59 @@ struct FApexWheelEffects
 	/** 0..1: a pull back to centre, for when there is no car to supply one. */
 	float Spring = 0.0f;
 };
+
+namespace ApexDirectInput
+{
+	// --- Sending forces ---------------------------------------------------------
+
+	/** Fastest the constant force is sent (see FApexDirectInputDevice::ApplyEffects). */
+	inline constexpr double ConstantMinIntervalSeconds = 1.0 / 250.0;
+
+	/** The vibration, damper and spring are textures and settings: 30 updates a second is plenty. */
+	inline constexpr double SlowEffectMinIntervalSeconds = 1.0 / 30.0;
+
+	/** Constant-force steps smaller than this (of 10000) wait for the slow rate. */
+	inline constexpr int32 ConstantDeadband = 8;
+
+	/**
+	 * How long the constant force plays on the DEVICE once it is started, and
+	 * how often a playing one is started again to keep it going.
+	 *
+	 * This is the watchdog that does not depend on the game: a game thread
+	 * that hangs, a crash the crash handler cannot clean up after, a process
+	 * killed from the task manager all stop restarting it, and the base drops
+	 * the force by itself within ConstantForceLifeSeconds. The game's own
+	 * watchdog (0.3 s without an update) still runs on top for the cases
+	 * where the game is alive. Only the constant force needs it: the damper
+	 * and spring only resist the rim, and the sine is a zero-mean texture
+	 * whose phase a restart would break.
+	 */
+	inline constexpr double ConstantForceLifeSeconds = 0.5;
+	inline constexpr double ConstantForceRenewSeconds = 0.15;
+
+	/** Whether to send the constant force this frame, and whether to (re)start it with the send. */
+	struct FConstantSend
+	{
+		bool bSend = false;
+		bool bStart = false;
+	};
+
+	/**
+	 * The constant force's schedule. `Magnitude` is what the game wants and
+	 * `Playing` what was last sent (both of 10000), `SinceSent` and
+	 * `SinceStarted` seconds since the last send and the last start;
+	 * `bResendAll` after the device dropped its effects. Letting go is never
+	 * held back, a real change goes at the fast rate, a step inside the
+	 * deadband at the slow one, and a non-zero force is started again every
+	 * ConstantForceRenewSeconds whether it changed or not.
+	 */
+	APEXSIMINPUT_API FConstantSend PlanConstantSend(int32 Magnitude, int32 Playing, double SinceSent, double SinceStarted, bool bResendAll);
+
+	/**
+	 * Every value in its range, and every value that is not a number zero.
+	 * The last line of defence before the hardware: FMath::Clamp returns its
+	 * upper bound for a NaN, so an unchecked NaN anywhere upstream would reach
+	 * the device as full force.
+	 */
+	APEXSIMINPUT_API FApexWheelEffects SanitiseEffects(const FApexWheelEffects& Effects);
+}

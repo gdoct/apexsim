@@ -236,4 +236,133 @@ bool FApexDirectInputClassifyTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexDirectInputConstantScheduleTest,
+	"ApexSim.Input.DirectInput.ConstantSchedule",
+	ApexInputTestFlags)
+
+bool FApexDirectInputConstantScheduleTest::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("the device's watchdog outlives a renewal several times over"),
+		ConstantForceLifeSeconds >= 3.0 * ConstantForceRenewSeconds);
+
+	// Nothing to say: a steady force just started, or silence.
+	FConstantSend Plan = PlanConstantSend(3000, 3000, 0.05, 0.05, false);
+	TestFalse(TEXT("a steady force just started is left alone"), Plan.bSend);
+	Plan = PlanConstantSend(0, 0, 10.0, 10.0, false);
+	TestFalse(TEXT("silence is not renewed"), Plan.bSend);
+
+	// A steady force is started again before it runs out on the device.
+	Plan = PlanConstantSend(3000, 3000, 0.01, ConstantForceRenewSeconds, false);
+	TestTrue(TEXT("a steady force is renewed"), Plan.bSend && Plan.bStart);
+	Plan = PlanConstantSend(-3000, -3000, 0.01, ConstantForceRenewSeconds, false);
+	TestTrue(TEXT("either way"), Plan.bSend && Plan.bStart);
+
+	// A change goes as an update, without a restart, until one is due.
+	Plan = PlanConstantSend(3100, 3000, ConstantMinIntervalSeconds, 0.05, false);
+	TestTrue(TEXT("a change is sent"), Plan.bSend);
+	TestFalse(TEXT("as an update"), Plan.bStart);
+	Plan = PlanConstantSend(3100, 3000, 0.5 * ConstantMinIntervalSeconds, 0.05, false);
+	TestFalse(TEXT("but not faster than the constant force's rate"), Plan.bSend);
+	Plan = PlanConstantSend(3000 + ConstantDeadband, 3000, ConstantMinIntervalSeconds, 0.05, false);
+	TestFalse(TEXT("a step inside the deadband waits"), Plan.bSend);
+	Plan = PlanConstantSend(3000 + ConstantDeadband, 3000, SlowEffectMinIntervalSeconds, 0.05, false);
+	TestTrue(TEXT("for the slow rate"), Plan.bSend);
+
+	// A force after silence starts the effect, which may have run out.
+	Plan = PlanConstantSend(2000, 0, 5.0, 5.0, false);
+	TestTrue(TEXT("a force after silence starts the effect"), Plan.bSend && Plan.bStart);
+
+	// Letting go is never held back, and needs no start.
+	Plan = PlanConstantSend(0, 3000, 0.0, 0.0, false);
+	TestTrue(TEXT("letting go is sent at once"), Plan.bSend);
+	TestFalse(TEXT("without a start"), Plan.bStart);
+
+	// After the device dropped its effects everything goes again, started.
+	Plan = PlanConstantSend(0, 0, 0.0, 0.0, true);
+	TestTrue(TEXT("a lost device is sent everything"), Plan.bSend && Plan.bStart);
+
+	// Played at a steady force for a few seconds at 300 frames a second, no
+	// start is ever further apart than the renewal (plus a frame), and the
+	// device never goes ConstantForceLifeSeconds without one.
+	{
+		const double Frame = 1.0 / 300.0;
+		double SentAt = -1.0;
+		double StartedAt = -1.0;
+		int32 Playing = 0;
+		double LongestGap = 0.0;
+		int32 Sends = 0;
+		for (double Now = 0.0; Now < 3.0; Now += Frame)
+		{
+			const FConstantSend Step = PlanConstantSend(4000, Playing, Now - SentAt, Now - StartedAt, false);
+			if (Step.bSend)
+			{
+				++Sends;
+				Playing = 4000;
+				SentAt = Now;
+				if (Step.bStart)
+				{
+					if (StartedAt >= 0.0)
+					{
+						LongestGap = FMath::Max(LongestGap, Now - StartedAt);
+					}
+					StartedAt = Now;
+				}
+			}
+		}
+		TestTrue(FString::Printf(TEXT("the force is renewed in time (%.3f s apart)"), LongestGap),
+			LongestGap > 0.0 && LongestGap <= ConstantForceRenewSeconds + Frame && LongestGap < ConstantForceLifeSeconds);
+		TestTrue(FString::Printf(TEXT("without flooding the device (%d sends in 3 s)"), Sends), Sends <= 25);
+	}
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexDirectInputSanitiseTest,
+	"ApexSim.Input.DirectInput.Sanitise",
+	ApexInputTestFlags)
+
+bool FApexDirectInputSanitiseTest::RunTest(const FString& Parameters)
+{
+	// FMath::Clamp returns its upper bound for a NaN: unchecked, a NaN is
+	// full force on the hardware.
+	TestEqual(TEXT("the engine's clamp really does that"),
+		FMath::Clamp(std::numeric_limits<float>::quiet_NaN(), -1.0f, 1.0f), 1.0f);
+
+	for (const float Bad : { std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(),
+		-std::numeric_limits<float>::infinity() })
+	{
+		FApexWheelEffects Effects;
+		Effects.Constant = Bad;
+		Effects.VibrationAmplitude = Bad;
+		Effects.VibrationHz = Bad;
+		Effects.Damper = Bad;
+		Effects.Spring = Bad;
+		const FApexWheelEffects Out = SanitiseEffects(Effects);
+		TestEqual(TEXT("no constant force"), Out.Constant, 0.0f);
+		TestEqual(TEXT("no vibration"), Out.VibrationAmplitude, 0.0f);
+		TestEqual(TEXT("no vibration rate"), Out.VibrationHz, 0.0f);
+		TestEqual(TEXT("no damper"), Out.Damper, 0.0f);
+		TestEqual(TEXT("no spring"), Out.Spring, 0.0f);
+	}
+
+	FApexWheelEffects Wild;
+	Wild.Constant = -7.0f;
+	Wild.VibrationAmplitude = 3.0f;
+	Wild.VibrationHz = 40.0f;
+	Wild.Damper = -1.0f;
+	Wild.Spring = 2.0f;
+	const FApexWheelEffects Out = SanitiseEffects(Wild);
+	TestEqual(TEXT("a force past the base's peak is its peak"), Out.Constant, -1.0f);
+	TestEqual(TEXT("vibration in range"), Out.VibrationAmplitude, 1.0f);
+	TestEqual(TEXT("a good rate is kept"), Out.VibrationHz, 40.0f);
+	TestEqual(TEXT("damper in range"), Out.Damper, 0.0f);
+	TestEqual(TEXT("spring in range"), Out.Spring, 1.0f);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

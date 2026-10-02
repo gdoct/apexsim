@@ -332,6 +332,76 @@ namespace
 		}
 		return Tug;
 	}
+
+	// --- Numbers that are not numbers (MixWheel) ------------------------------
+
+	float WheelFinite(float Value, float Otherwise = 0.0f)
+	{
+		return FMath::IsFinite(Value) ? Value : Otherwise;
+	}
+
+	/** Every float made a number; a reading that is not one is no reading. */
+	ApexFfb::FSignals WheelFiniteSignals(const ApexFfb::FSignals& In)
+	{
+		ApexFfb::FSignals Out = In;
+		Out.SpeedMps = WheelFinite(In.SpeedMps);
+		Out.SteerTorque = WheelFinite(In.SteerTorque);
+		Out.SteerStiffness = WheelFinite(In.SteerStiffness);
+		Out.ServerSteer = WheelFinite(In.ServerSteer);
+		Out.bHasLocalSteer = In.bHasLocalSteer && FMath::IsFinite(In.LocalSteer);
+		Out.LocalSteer = WheelFinite(In.LocalSteer);
+		Out.FrontLoad = WheelFinite(In.FrontLoad, 1.0f);
+		Out.FrontBrakeSlip = WheelFinite(In.FrontBrakeSlip);
+		Out.bHasStation = In.bHasStation && FMath::IsFinite(In.StationM);
+		Out.StationM = WheelFinite(In.StationM);
+		Out.FrontSlide = WheelFinite(In.FrontSlide);
+		Out.RearSlide = WheelFinite(In.RearSlide);
+		Out.Lockup = WheelFinite(In.Lockup);
+		Out.Wheelspin = WheelFinite(In.Wheelspin);
+		Out.CurbLeft = WheelFinite(In.CurbLeft);
+		Out.CurbRight = WheelFinite(In.CurbRight);
+		Out.OffTrack = WheelFinite(In.OffTrack);
+		Out.BumpMps = WheelFinite(In.BumpMps);
+		Out.ImpactMps = WheelFinite(In.ImpactMps);
+		Out.SteerKick = WheelFinite(In.SteerKick);
+		Out.bHasRim = In.bHasRim && FMath::IsFinite(In.RimDegrees);
+		Out.RimDegrees = WheelFinite(In.RimDegrees);
+		return Out;
+	}
+
+	/** A setting that is not a number is off, never "all the way up". */
+	ApexFfb::FWheelTuning WheelFiniteTuning(const ApexFfb::FWheelTuning& In)
+	{
+		ApexFfb::FWheelTuning Out = In;
+		Out.Force = WheelFinite(In.Force);
+		Out.RoadEffects = WheelFinite(In.RoadEffects);
+		Out.Damping = WheelFinite(In.Damping);
+		Out.SteeringLockDeg = WheelFinite(In.SteeringLockDeg);
+		Out.RimDegreesPerInput = WheelFinite(In.RimDegreesPerInput);
+		return Out;
+	}
+
+	bool IsWheelStateFinite(const ApexFfb::FWheelState& State)
+	{
+		for (const float Value : {
+			State.Torque, State.ServerSteer, State.Stiffness, State.Correction, State.Road, State.StiffnessLimit,
+			State.RoadStation, State.LastStationSample, State.Bump, State.Impact, State.ShiftKick, State.SteerKick,
+			State.NoiseClock, State.NoiseLevel, State.RimRate, State.LastRim,
+			State.CentreSeconds, State.CentreGain, State.CentredFor })
+		{
+			if (!FMath::IsFinite(Value))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool AreWheelEffectsFinite(const FApexWheelEffects& Effects)
+	{
+		return FMath::IsFinite(Effects.Constant) && FMath::IsFinite(Effects.VibrationAmplitude)
+			&& FMath::IsFinite(Effects.VibrationHz) && FMath::IsFinite(Effects.Damper) && FMath::IsFinite(Effects.Spring);
+	}
 }
 
 namespace ApexFfb
@@ -497,9 +567,19 @@ namespace ApexFfb
 	}
 
 	FApexWheelEffects MixWheel(
-		const FSignals& Signals, FWheelState& State, float DeltaSeconds, const FWheelTuning& Tuning)
+		const FSignals& RawSignals, FWheelState& State, float DeltaSeconds, const FWheelTuning& RawTuning)
 	{
-		const float Dt = FMath::Clamp(DeltaSeconds, 0.0f, 0.1f);
+		// A number that is not one is a fault upstream, never a force: the
+		// smoothing would keep it for good, and FMath::Clamp turns a NaN into
+		// its upper bound, i.e. full force. The inputs are cleaned, a state
+		// that holds one anyway starts over, and the output is checked last.
+		const FSignals Signals = WheelFiniteSignals(RawSignals);
+		const FWheelTuning Tuning = WheelFiniteTuning(RawTuning);
+		if (!IsWheelStateFinite(State))
+		{
+			State = FWheelState();
+		}
+		const float Dt = FMath::IsFinite(DeltaSeconds) ? FMath::Clamp(DeltaSeconds, 0.0f, 0.1f) : 0.0f;
 
 		// The rim's own speed, for damping the centring.
 		if (Signals.bHasRim)
@@ -779,6 +859,12 @@ namespace ApexFfb
 		// Only in the menus, and only if forces are on at all: a rim that
 		// flops to one side while the player picks a car feels broken.
 		Out.Spring = Signals.bActive ? 0.0f : WheelMenuSpring * FMath::Clamp(2.0f * Tuning.Force, 0.0f, 1.0f);
+
+		if (!AreWheelEffectsFinite(Out) || !IsWheelStateFinite(State))
+		{
+			State = FWheelState();
+			return FApexWheelEffects();
+		}
 		return Out;
 	}
 }
