@@ -59,6 +59,24 @@ namespace ApexCarMaterials
 	inline const TCHAR* const ClearCoatFactor = TEXT("ClearCoatFactor");
 	inline const TCHAR* const ClearCoatRoughnessFactor = TEXT("ClearCoatRoughnessFactor");
 
+	/**
+	 * The damage graph every car parent carries (ApexCarDamage.h has the
+	 * custom primitive data it reads): the dent depth and crumple at a
+	 * zone's full visual amount, cm. `DamageDentCm` is also how the bake
+	 * tells a parent from before the graph.
+	 */
+	inline const TCHAR* const DamageDentCm = TEXT("DamageDentCm");
+	inline const TCHAR* const DamageCrumpleCm = TEXT("DamageCrumpleCm");
+
+	/**
+	 * `M_ApexCarSmoke`: the lit translucent parent the smoke, steam and
+	 * sparks are drawn with (AApexCarEffectsActor), on instanced meshes;
+	 * per-instance data 0 opacity, 1 shade (black to white), 2 glow (an
+	 * emissive multiplier), 3 edge softness (1 for a puff, 0 for a spark).
+	 */
+	inline const TCHAR* const SmokeName = TEXT("M_ApexCarSmoke");
+	inline constexpr int32 SmokeCustomFloats = 4;
+
 	/** `/Game/Materials/Car/<Name>`. */
 	APEXSIM_API FString PackageName(const TCHAR* Name);
 	/** `/Game/Materials/Car/<Name>.<Name>`. */

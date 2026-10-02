@@ -59,6 +59,8 @@ FEATURE_DOCS = ["CLAUDE.md", "docs/SIMULATION_GAPS.md"]
 
 # The text files the build writes into docs/assets beside the pictures.
 TEXT_ASSETS = ["site.css", "site.js", "data.js"]
+# WebP quality of the large version a click on a picture opens.
+ZOOM_QUALITY = 86
 
 _WORDS_ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
                "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
@@ -99,15 +101,22 @@ def load_yaml(path: Path):
 
 # --- media ---------------------------------------------------------------
 
-def image_plan(media: dict, car_list: list[dict]) -> dict[str, dict]:
-    """Output name -> {src, params}: every picture the build makes."""
+def image_plan(media: dict, car_list: list[dict]) -> tuple[dict[str, dict], dict[str, str]]:
+    """Output name -> {src, params}: every picture the build makes; and
+    picture -> the large version of it a click opens (`zoom` in media.yml)."""
     plan: dict[str, dict] = {}
+    zooms: dict[str, str] = {}
 
     def add(out: str, entry: dict, src: str):
         params = {k: entry[k] for k in ("width", "aspect", "focus", "quality") if k in entry}
         if out in plan:
             raise SiteError(f"site/media.yml: two pictures are named {out}")
         plan[out] = {"src": src, "params": params}
+        if entry.get("zoom"):
+            # The whole frame, uncropped: what the page shows is a cut of it.
+            large = out.rsplit(".", 1)[0] + "-zoom.webp"
+            plan[large] = {"src": src, "params": {"width": int(entry["zoom"]), "quality": ZOOM_QUALITY}}
+            zooms[out] = large
 
     per_car = media.get("cars")
     if per_car:
@@ -117,11 +126,13 @@ def image_plan(media: dict, car_list: list[dict]) -> dict[str, dict]:
                 out = per_car["out"].format(folder=car["folder"])
                 add(out, per_car, src)
                 car["img"] = out
+                if out in zooms:
+                    car["zoom"] = zooms[out]
     for out, entry in (media.get("images") or {}).items():
         if not (REPO / entry["src"]).is_file():
             raise SiteError(f"site/media.yml: {out}: no such file {entry['src']}")
         add(out, entry, entry["src"])
-    return plan
+    return plan, zooms
 
 
 def encode(src: Path, out: Path, width=None, aspect=None, focus=(0.5, 0.5), quality=82):
@@ -238,7 +249,7 @@ def render() -> tuple[dict[str, str], dict[str, dict], list[str]]:
     plan and the static files the page needs."""
     data = facts.gather()
     media = load_yaml(SITE / "media.yml")
-    plan = image_plan(media, data["cars"])
+    plan, zooms = image_plan(media, data["cars"])
     static = list(media.get("static") or [])
     known = set(plan) | set(static)
 
@@ -302,13 +313,20 @@ def render() -> tuple[dict[str, str], dict[str, dict], list[str]]:
             raise SiteError(f"the page uses assets/{file}, which site/media.yml does not list")
         return f"assets/{file}"
 
+    def zoom_attr(file: str) -> str:
+        """The attributes that make a picture open large on a click (the
+        page's script picks up any `img[data-zoom]`), or nothing."""
+        if file not in zooms:
+            return ""
+        return f' data-zoom="assets/{zooms[file]}" tabindex="0"'
+
     def versioned(file: str) -> str:
         digest = hashlib.sha1(texts[f"assets/{file}"].replace("\r", "").encode("utf-8")).hexdigest()[:8]
         return f"assets/{file}?v={digest}"
 
     try:
         texts["index.html"] = env.get_template("template.html").render(
-            n=data["n"], asset=asset, versioned=versioned, **copy)
+            n=data["n"], asset=asset, zoom_attr=zoom_attr, versioned=versioned, **copy)
     except jinja2.TemplateError as error:
         raise SiteError(f"site/template.html: {error}") from error
     return {path: text.replace("\r", "") for path, text in texts.items()}, plan, static

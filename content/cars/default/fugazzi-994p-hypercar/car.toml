@@ -192,6 +192,22 @@ mirror_right_size_cm = [18.0, 7.5]
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
 wheel_lock_deg = 180.0
 
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "nose"
+zone = "front"
+detach_pct = 45
+min_m = [1.990, -1.171, -0.077]   # forward, left, up
+max_m = [2.620, 1.171, 0.473]
+
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "rear_wing"
+zone = "rear"
+detach_pct = 50
+min_m = [-2.670, -1.171, 0.933]   # forward, left, up
+max_m = [-1.810, 1.171, 1.375]
+
 # --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 

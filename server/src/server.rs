@@ -4,10 +4,11 @@
 use crate::{
     car_loader::CarLoader, config::ServerConfig, data::*, game_session::GameSession,
     health::HealthState, lobby::LobbyManager, metrics::ServerMetrics, replay::ReplayManager,
-    track_loader::TrackLoader, transport::TransportLayer,
+    track_content::TrackContent, track_loader::TrackLoader, transport::TransportLayer,
 };
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
@@ -15,7 +16,13 @@ use tracing::{debug, info, warn};
 pub struct ServerState {
     pub config: ServerConfig,
     pub car_configs: HashMap<CarConfigId, CarConfig>,
+    /// Every track as the lobby shows it, without its sidecars (ground,
+    /// curbs, walls, pit lane, road mesh): `track_content` loads those the
+    /// first time a session needs them.
     pub track_configs: HashMap<TrackConfigId, TrackConfig>,
+    /// The tracks with their sidecars, loaded on first use. Behind an `Arc`
+    /// so the game loop can load one off the loop, without the state lock.
+    pub track_content: Arc<TrackContent>,
     pub sessions: HashMap<SessionId, GameSession>,
     pub players: HashMap<PlayerId, Player>,
     pub lobby: LobbyManager,
@@ -50,10 +57,11 @@ impl ServerState {
         // Load custom tracks from configured directory
         let tracks_dir = config.content.tracks_dir.clone();
         debug!("Loading tracks from {}...", tracks_dir);
+        let mut track_content = TrackContent::new(config.physics.road_contact);
         Self::load_custom_tracks(
             &mut track_configs,
+            &mut track_content,
             &tracks_dir,
-            config.physics.road_contact,
             config.content.skip_imported_tracks,
         );
 
@@ -76,6 +84,7 @@ impl ServerState {
             config,
             car_configs,
             track_configs,
+            track_content: Arc::new(track_content),
             sessions: HashMap::new(),
             players: HashMap::new(),
             lobby: LobbyManager::new(),
@@ -84,13 +93,17 @@ impl ServerState {
         }
     }
 
+    /// Every track file under the folder as a catalog entry (no sidecars:
+    /// `TrackContent` loads those when a session first needs them), read in
+    /// parallel and kept in the walk's order, so which of two tracks
+    /// claiming one id is kept does not depend on which parsed first.
     fn load_custom_tracks(
         track_configs: &mut HashMap<TrackConfigId, TrackConfig>,
+        track_content: &mut TrackContent,
         tracks_dir_str: &str,
-        road_contact: crate::config::RoadContactMode,
         skip_imported: bool,
     ) {
-        let tracks_dir = std::path::Path::new(tracks_dir_str);
+        let tracks_dir = Path::new(tracks_dir_str);
 
         // Content root is the parent of the tracks directory (e.g., ../content)
         let content_root = tracks_dir.parent().unwrap_or(tracks_dir);
@@ -103,13 +116,71 @@ impl ServerState {
             return;
         }
 
-        Self::load_tracks_recursive(
-            track_configs,
-            tracks_dir,
-            content_root,
-            road_contact,
-            skip_imported,
-        );
+        let mut files = Vec::new();
+        Self::collect_track_files(tracks_dir, skip_imported, &mut files);
+        let loaded = Self::load_catalog_entries(&files);
+        for (path, result) in files.into_iter().zip(loaded) {
+            match result {
+                Ok(mut track) => {
+                    // Compute relative path from content root, normalize to forward slashes
+                    let rel = path.strip_prefix(content_root).unwrap_or(&path);
+                    let rel_norm = rel.to_string_lossy().replace('\\', "/");
+                    track.source_path = Some(rel_norm);
+                    if let Some(kept) = track_configs.get(&track.id) {
+                        warn!(
+                            "Track {:?} has the same track_id as {:?}; ignoring it \
+                             (give a custom track its own track_id)",
+                            track.source_path.as_deref().unwrap_or_default(),
+                            kept.source_path.as_deref().unwrap_or_default()
+                        );
+                        continue;
+                    }
+                    track_content.register(track.id, path);
+                    track_configs.insert(track.id, track);
+                }
+                Err(e) => {
+                    warn!("Failed to load track from {:?}: {}", path, e);
+                }
+            }
+        }
+    }
+
+    /// Parse the track files on every core, each result at its file's index.
+    fn load_catalog_entries(
+        paths: &[PathBuf],
+    ) -> Vec<Result<TrackConfig, crate::track_loader::TrackLoadError>> {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let next = AtomicUsize::new(0);
+        let threads = std::thread::available_parallelism()
+            .map_or(1, |n| n.get())
+            .clamp(1, paths.len().max(1));
+        let mut results: Vec<Option<_>> = (0..paths.len()).map(|_| None).collect();
+        std::thread::scope(|scope| {
+            let workers: Vec<_> = (0..threads)
+                .map(|_| {
+                    scope.spawn(|| {
+                        let mut parsed = Vec::new();
+                        loop {
+                            let i = next.fetch_add(1, Ordering::Relaxed);
+                            let Some(path) = paths.get(i) else {
+                                break;
+                            };
+                            parsed.push((i, TrackLoader::load_catalog_entry(path)));
+                        }
+                        parsed
+                    })
+                })
+                .collect();
+            for worker in workers {
+                for (i, result) in worker.join().expect("a track loader thread panicked") {
+                    results[i] = Some(result);
+                }
+            }
+        });
+        results
+            .into_iter()
+            .map(|r| r.expect("every track file was parsed"))
+            .collect()
     }
 
     /// A track the AC importer wrote: its report sits beside the YAML.
@@ -137,13 +208,7 @@ impl ServerState {
         name.ends_with(".layout.json") || name.ends_with(".import.json")
     }
 
-    fn load_tracks_recursive(
-        track_configs: &mut HashMap<TrackConfigId, TrackConfig>,
-        dir: &std::path::Path,
-        content_root: &std::path::Path,
-        road_contact: crate::config::RoadContactMode,
-        skip_imported: bool,
-    ) {
+    fn collect_track_files(dir: &Path, skip_imported: bool, files: &mut Vec<PathBuf>) {
         match std::fs::read_dir(dir) {
             Ok(entries) => {
                 // Sorted, so which of two tracks claiming one id is kept does
@@ -161,13 +226,7 @@ impl ServerState {
                     if path.is_dir() {
                         // Recursively load tracks from subdirectories.
                         if !Self::is_non_track_json(&path) {
-                            Self::load_tracks_recursive(
-                                track_configs,
-                                &path,
-                                content_root,
-                                road_contact,
-                                skip_imported,
-                            );
+                            Self::collect_track_files(&path, skip_imported, files);
                         }
                     } else if path.is_file() && !Self::is_non_track_json(&path) {
                         let ext = path.extension().and_then(|s| s.to_str());
@@ -176,27 +235,7 @@ impl ServerState {
                             continue;
                         }
                         if ext == Some("json") || ext == Some("yaml") || ext == Some("yml") {
-                            match TrackLoader::load_from_file_with(&path, road_contact) {
-                                Ok(mut track) => {
-                                    // Compute relative path from content root, normalize to forward slashes
-                                    let rel = path.strip_prefix(content_root).unwrap_or(&path);
-                                    let rel_norm = rel.to_string_lossy().replace('\\', "/");
-                                    track.source_path = Some(rel_norm);
-                                    if let Some(kept) = track_configs.get(&track.id) {
-                                        warn!(
-                                            "Track {:?} has the same track_id as {:?}; ignoring it \
-                                             (give a custom track its own track_id)",
-                                            track.source_path.as_deref().unwrap_or_default(),
-                                            kept.source_path.as_deref().unwrap_or_default()
-                                        );
-                                        continue;
-                                    }
-                                    track_configs.insert(track.id, track);
-                                }
-                                Err(e) => {
-                                    warn!("Failed to load track from {:?}: {}", path, e);
-                                }
-                            }
+                            files.push(path);
                         }
                     }
                 }
@@ -268,7 +307,10 @@ impl ServerState {
             return None;
         }
 
-        let mut track = self.track_configs.get(&track_config_id)?.clone();
+        // The track with its sidecars: the game loop has loaded them off the
+        // loop by now (`game_loop::track_loads`); anyone else waits here.
+        let catalog = self.track_configs.get(&track_config_id)?;
+        let mut track = (*self.track_content.complete(catalog)).clone();
         let mut session = RaceSession::new(
             host_player_id,
             track_config_id,
@@ -474,12 +516,16 @@ mod tests {
         write("custom", "Mine", "0d9f8e7c-6b5a-4f3e-8d2c-1b0a9f8e7d6c");
 
         let mut configs = HashMap::new();
+        let mut content = TrackContent::new(crate::config::RoadContactMode::Centerline);
         ServerState::load_custom_tracks(
             &mut configs,
+            &mut content,
             tracks.to_str().unwrap(),
-            crate::config::RoadContactMode::Centerline,
             false,
         );
+        for id in configs.keys() {
+            assert!(content.needs_loading(*id), "each kept track is registered");
+        }
 
         let mut sources: Vec<String> = configs
             .values()
@@ -495,12 +541,8 @@ mod tests {
         // asked, as the debug-build test servers do; the rest still load.
         std::fs::write(tracks.join("custom/Mine.import.json"), "{}").unwrap();
         let mut configs = HashMap::new();
-        ServerState::load_custom_tracks(
-            &mut configs,
-            tracks.to_str().unwrap(),
-            crate::config::RoadContactMode::Centerline,
-            true,
-        );
+        let mut content = TrackContent::new(crate::config::RoadContactMode::Centerline);
+        ServerState::load_custom_tracks(&mut configs, &mut content, tracks.to_str().unwrap(), true);
         let sources: Vec<String> = configs
             .values()
             .map(|t| t.source_path.clone().unwrap_or_default())

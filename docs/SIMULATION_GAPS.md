@@ -573,8 +573,9 @@ here as well as under its item.
   timing screens, and it stays an obstacle (its last contact/off-track
   state is what the survey counts for it).
 - No engine wear over distance (only heat and over-rev damage).
-- Damage is not an FFB, audio or visual cue: no bodywork falls off, the
-  engine note does not change; the HUD's damage panel is the only readout.
+- Damage is not an FFB or audio cue: the engine note does not change.
+  ~~No visual cue~~: drawn since 2026-10-02 (dents, scuffs, parts that come
+  off, smoke and steam; see "Visible damage" below).
 - No damage for kerb strikes, bottoming out or airborne landings.
 - The AI does not drive around its damage beyond its steering loop and
   the aero share: its speed profile still assumes full power.
@@ -583,6 +584,28 @@ here as well as under its item.
 - The damage aid (off / reduced / full) has no "visual only" level, and
   there is no visual damage for it to leave; the AI always takes full
   damage.
+
+**Visible damage** (client only, `Race/ApexCarDamage.h`)
+- The wire carries five percentages and no hit point, so a zone always
+  dents the same way across its face (varied per car by a seed); a hit
+  location would need a reliable message and golden bytes.
+- Debris is cosmetic: the server does not know it, the cars drive through
+  it, it has no collision with anything but the ground under it, and it
+  is cleared after 40 s (or past 40 pieces).
+- Engine smoke comes out of the tail whatever the engine's position (the
+  front-engined GT3s too).
+- The DRS flap and the driver figure are not dented (their meshes are in
+  frames of their own); wheels are not drawn toed or bent by side damage.
+- No windscreen cracks, no tyre smoke, no loose parts dragging or hanging
+  by one corner: a part is on or off.
+- Only the generated cars have `[[damage_part]]` tables
+  (`scripts/content/cars/damage_parts.py`); an AC import dents and smokes
+  but nothing comes off it. The Murcetes GT3's rear wing is a hand-set
+  entry (`MANUAL_REAR_WING`), the gap rule cannot see under it.
+- Replay clips carry no damage, so the promo and site shots never show it.
+- Seen on screen at Monza (dents and scuffs, wings and noses thrown off,
+  engine smoke); the steam (a damaged nose with the coolant past 104 °C)
+  and the sparks have not been caught in a screenshot.
 
 **Hybrid deployment**
 - The racing line and the AI's plan count the motor's full power at every

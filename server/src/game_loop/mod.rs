@@ -4,6 +4,8 @@
 //! - [`tick`]: session ticking + replay recording
 //! - [`broadcast`]: telemetry fan-out and lobby-state broadcasts
 //! - [`lifecycle`]: unified player-disconnect handling
+//! - [`track_loads`]: a track's sidecars loaded off the loop before the
+//!   first session on it is created
 //!
 //! Lock discipline: inbound events are drained without any lock (the TCP
 //! receiver is taken out of the transport at startup). Each phase then takes
@@ -15,6 +17,7 @@ mod broadcast;
 mod dispatch;
 mod lifecycle;
 mod tick;
+mod track_loads;
 
 use crate::data::{ConnectionId, PlayerId, PlayerInputData, SessionId};
 use crate::metrics::ServerMetrics;
@@ -144,6 +147,7 @@ pub(crate) async fn run_game_loop(
     let mut tick_count = 0u64;
     let mut player_inputs: HashMap<PlayerId, PlayerInputData> = HashMap::new();
     let mut lobby_state_cache = broadcast::LobbyStateCache::default();
+    let mut track_loads = track_loads::TrackLoads::new();
 
     // Skipped ticks never show up as overruns (each tick's own work is
     // tiny), yet every one is simulation time lost against the wall clock.
@@ -174,12 +178,17 @@ pub(crate) async fn run_game_loop(
         // system timer resolution get rounded up to it, so even a
         // microsecond-scale `tokio::time::timeout` here would stall every
         // tick by ~15ms whenever the channel is empty (the common case).
-        let mut drained = Vec::new();
+        // A create on a track whose sidecars are still on disk is held while
+        // they load off the loop, with whatever its connection sends after
+        // it (`track_loads`); the held events come back here, in order.
+        let mut drained = track_loads.release_loaded();
         while let Ok(event) = inbound_events.try_recv() {
             drained.push(event);
         }
         for event in drained {
-            dispatch::handle_event(&ctx, event, &mut player_inputs).await;
+            if let Some(event) = track_loads.admit(&ctx, event).await {
+                dispatch::handle_event(&ctx, event, &mut player_inputs).await;
+            }
         }
 
         // Cleanup stale connections every second and handle their players.

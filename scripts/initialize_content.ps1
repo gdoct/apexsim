@@ -190,7 +190,7 @@ $missingMaterials = @(
     @('M_ApexTrackBase', 'M_ApexEmissive', 'M_ApexBrand', 'M_ApexDecal' | Where-Object {
         -not (Test-Path (Join-Path $TrackMats "$_.uasset"))
     }) +
-    @('M_ApexCarOpaque', 'M_ApexCarClearCoat', 'M_ApexCarMasked', 'M_ApexCarTranslucent' | Where-Object {
+    @('M_ApexCarOpaque', 'M_ApexCarClearCoat', 'M_ApexCarMasked', 'M_ApexCarTranslucent', 'M_ApexCarSmoke' | Where-Object {
         -not (Test-Path (Join-Path $CarMats "$_.uasset"))
     }))
 

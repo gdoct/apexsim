@@ -49,6 +49,30 @@ struct FApexCarDriverToml
 };
 
 /**
+ * A `[[damage_part]]` table: bodywork that comes off in a crash
+ * (FApexDamagePartSpec has the frames). The box is the car's frame, metres:
+ *
+ * ```toml
+ * [[damage_part]]
+ * name = "front_wing"
+ * zone = "front"            # front | rear | left | right
+ * detach_pct = 30           # the zone's damage at which it comes off
+ * min_m = [2.42, -1.0, -0.1]   # forward, left, up
+ * max_m = [3.20, 1.0, 0.45]
+ * ```
+ */
+struct FApexCarDamagePartToml
+{
+	FString Name;
+	FString Zone;
+	float DetachPct = 0.0f;
+	FVector MinM = FVector::ZeroVector;
+	FVector MaxM = FVector::ZeroVector;
+	/** `min_m` / `max_m` was not three numbers; Parse fails on it. */
+	bool bBadBox = false;
+};
+
+/**
  * A `[[livery]]` table: colours are linear RGB, files relative to the car
  * folder. A colour livery names `paint` (and maybe `accent`, `metallic`,
  * `logo`); a texture livery, an imported car's skin, names `skin` and maybe
@@ -135,6 +159,8 @@ struct FApexCarToml
 	FApexEngineSoundSpec Sound;
 	/** The `[[livery]]` tables, in order. */
 	TArray<FApexCarLiveryToml> Liveries;
+	/** The `[[damage_part]]` tables, in order. */
+	TArray<FApexCarDamagePartToml> DamageParts;
 	FApexCarPreviewToml Preview;
 	/**
 	 * The optional `[cockpit]` table (`style = "auto" | "open" | "closed"`,
@@ -167,6 +193,12 @@ namespace ApexCarToml
 
 	/** The row's DRS flap figures from the TOML, with no mesh yet; an empty spec when the TOML has none. */
 	APEXSIM_API FApexDrsFlapSpec MakeDrsFlapSpec(const FApexCarToml& Toml);
+
+	/**
+	 * The row's damage parts from the TOML: the boxes moved into the body
+	 * mesh's frame (centimetres, nose +Y, left +X). Parse has checked them.
+	 */
+	APEXSIM_API TArray<FApexDamagePartSpec> MakeDamageParts(const FApexCarToml& Toml);
 
 	/** `yotota-lmp2` -> `yotota_lmp2`: a folder name as a package or object name segment. */
 	APEXSIM_API FString Segment(const FString& Folder);

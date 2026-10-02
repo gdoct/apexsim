@@ -95,6 +95,18 @@ class CopyTest(unittest.TestCase):
         self.assertIn("hero.lede", str(raised.exception))
 
 
+class ZoomTest(unittest.TestCase):
+    def test_a_zoom_is_a_second_uncropped_picture_of_the_same_source(self):
+        src = "content/artwork/liveries_gt3_lmp2.jpg"
+        media = {"images": {"sheet.webp": {"src": src, "width": 600, "aspect": 1.5, "zoom": 1440},
+                            "plain.webp": {"src": src, "width": 600}}}
+        plan, zooms = build_site.image_plan(media, [])
+        self.assertEqual(zooms, {"sheet.webp": "sheet-zoom.webp"})
+        self.assertEqual(plan["sheet-zoom.webp"]["src"], src)
+        self.assertEqual(plan["sheet-zoom.webp"]["params"], {"width": 1440, "quality": build_site.ZOOM_QUALITY})
+        self.assertNotIn("plain-zoom.webp", plan)
+
+
 class RepoTest(unittest.TestCase):
     """The checked-in site against the checked-in content."""
 

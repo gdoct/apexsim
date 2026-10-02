@@ -21,7 +21,7 @@ function showClass(k){
   const cars=DATA.cars.filter(c=>c.cls===k).sort((a,b)=>!!b.img-!!a.img||b.hp-a.hp);
   grid.innerHTML=cars.map((c,i)=>`
     <article class="car" style="animation-delay:${i*60}ms">
-      <div class="shot${c.img?"":" none"}">${c.img?`<img src="assets/${c.img}" alt="${esc(c.name)}" loading="lazy">`:`<span>Render coming</span>`}<span class="tag">${esc(CLASSES[k].title)}</span></div>
+      <div class="shot${c.img?"":" none"}">${c.img?`<img src="assets/${c.img}"${c.zoom?` data-zoom="assets/${c.zoom}" tabindex="0"`:""} alt="${esc(c.name)}" loading="lazy">`:`<span>Render coming</span>`}<span class="tag">${esc(CLASSES[k].title)}</span></div>
       <div class="meta">
         <div class="brandname">${esc(c.brand)}</div>
         <h4>${esc(c.name.replace(c.brand+" ",""))}</h4>
@@ -153,3 +153,53 @@ document.querySelectorAll('[data-trailer]').forEach(a => a.addEventListener('cli
   document.body.append(d);
   d.showModal();
 }));
+
+// A picture with a large version (`data-zoom`, from site/media.yml's `zoom`)
+// opens over the page on a click or Enter, with the others of its gallery an
+// arrow away. The large file is only fetched then: the picture already on the
+// page stands in until it has loaded.
+(() => {
+  if (!window.HTMLDialogElement) return;
+  const GALLERIES = '.shots,.screens,.band,.details,.liv-grid,.cars';
+  let box = null, group = [], at = 0;
+  const captionOf = img => img.closest('figure')?.querySelector('figcaption')?.textContent || img.alt || '';
+  function show(i) {
+    at = (i + group.length) % group.length;
+    const small = group[at], big = box.querySelector('img');
+    big.src = small.currentSrc || small.src;
+    big.alt = small.alt;
+    box.querySelector('figcaption').textContent = captionOf(small);
+    const full = new Image();
+    full.onload = () => { if (box && group[at] === small) big.src = full.src; };
+    full.src = small.dataset.zoom;
+  }
+  function open(img) {
+    group = [...(img.closest(GALLERIES) || document).querySelectorAll('img[data-zoom]')];
+    box = document.createElement('dialog');
+    box.className = 'lightbox' + (group.length < 2 ? ' single' : '');
+    box.innerHTML = `<button type="button" class="x">Close ✕</button>
+      <button type="button" class="prev" aria-label="Previous picture">‹</button>
+      <figure><img alt=""><figcaption></figcaption></figure>
+      <button type="button" class="next" aria-label="Next picture">›</button>`;
+    box.addEventListener('click', e => {
+      if (e.target.closest('.prev')) show(at - 1);
+      else if (e.target.closest('.next')) show(at + 1);
+      else box.close();
+    });
+    box.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft') show(at - 1);
+      if (e.key === 'ArrowRight') show(at + 1);
+    });
+    box.addEventListener('close', () => { box.remove(); box = null; img.focus({preventScroll: true}); });
+    document.body.append(box);
+    show(group.indexOf(img));
+    box.showModal();
+  }
+  document.addEventListener('click', e => {
+    const img = e.target.closest('img[data-zoom]');
+    if (img && !box) open(img);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !box && document.activeElement?.matches('img[data-zoom]')) open(document.activeElement);
+  });
+})();

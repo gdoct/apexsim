@@ -1358,7 +1358,10 @@ python -m unittest discover -s scripts/site/tests
   how to cut it (`width`, `aspect`, `focus`), encoded to WebP;
   `docs/assets/manifest.json` records the hash of the source each was made
   from, which is what `--check` compares (two WebP encoders need not agree
-  on bytes). The car pictures are the Blender previews,
+  on bytes). An entry's `zoom: px` adds `<name>-zoom.webp`, the uncropped
+  frame at up to that width, which a click on the picture opens in a
+  `<dialog>` (`site.js`; any `img[data-zoom]`, arrows step through its
+  gallery, the file is fetched on the click). The car pictures are the Blender previews,
   `content/props/_preview/cars/<folder>_hero.png`; the page names an asset
   only through `asset()`, which fails the build on one `media.yml` lacks.
 
@@ -1396,6 +1399,7 @@ you left off" car, track and mode.
   - `curbs.rs` — baked curb widths per station; the sim's track limits
   - `racing_line.rs` - the racing-line driving aid: a per-car speed profile along the raceline (throttle / partial / brake per point), sent to the joining player as `RacingLine`
   - `game_session.rs` — session/game-mode state machine, `lobby.rs` — matchmaking (single-lock), `metrics.rs`, `config.rs`, `car_loader.rs`, `track_loader.rs` (adaptive-density Catmull-Rom spline)
+  - `track_content.rs` — tracks load lazily: startup parses every YAML in parallel (`TrackLoader::load_catalog_entry`, all the lobby needs) and the sidecars (ground, curbs, walls, pit, road mesh: ~600 MB across the calendar) load when the first session on a track is created (`load_sidecars`), then stay cached. `game_loop/track_loads.rs` does that load on a blocking task and holds the connection's `CreateSession`, and everything it sends after, until it is done, so running sessions never stall and a client's messages keep their order (`tests/track_content_test.rs`). A debug server starts in under a second instead of ~20 s
 
 ### Unreal client networking (`game-unreal/Source/ApexSimNet/`)
 - Hand-written MessagePack codec matching Rust `rmp_serde` (named/`to_vec_named`) format — wire-format changes must be coordinated between server and client, and are pinned by golden bytes (`ApexGoldenBlobs.h`, `ApexUdpGoldenBlobs.h`) printed by the server's `network.rs` tests
@@ -2646,6 +2650,40 @@ against 23 397, off 12 020 against 11 779, and no car retired on any
 shipped circuit in its 3 minutes (it prints `retired N` per race now);
 the player's AC imports, whose AI already spends hundreds of car-seconds
 in contact, lose one to ten cars a race.
+
+### Visible damage (`Race/ApexCarDamage.h`, `[[damage_part]]`, docs/CAR_MODELS.md, Damage)
+
+The client draws the five damage percentages, with nothing new on the wire:
+
+- **Dents and scuffs** in the four car parents (`BuildCarDamage` in
+  `ApexTrackMaterialGraphs.cpp`): custom primitive data on the body
+  (`ApexDamage::Cpd*`: each body zone's `Visual` amount, the body's box in
+  its mesh frame, a seed) drives a world position offset that pushes a
+  zone's panels in and crumples them, faceted shading on the moved surface
+  and scuffed paint. Zero damage draws as before; imported-track scenery,
+  which shares the parents, has the offset switched off
+  (`SetEvaluateWorldPositionOffset(false)`). `ApexMaterialBake` re-bakes a
+  car parent without `DamageDentCm` by itself.
+- **Parts** that come off: car.toml `[[damage_part]]` boxes (car frame,
+  metres; the server ignores them, but they change the car's CRC) split
+  the body GLB at runtime (`ApexGlb::SplitByBoxes`,
+  `ApexCarContent::LoadBodyPieces`, the body keeping the whole model's
+  bounds); past `detach_pct` the race car throws the part off as an
+  `AApexCarDebrisActor` (ballistic, `ApexDamage::StepDebris`, ground from
+  a trace against the track's collision, 40 s, at most 40), and a repair
+  puts it back. `scripts/content/cars/damage_parts.py [--preview]` writes
+  the shipped cars' tables from their geometry (wings and noses).
+- **Smoke, steam and sparks**: `AApexCarEffectsActor` (one per world)
+  draws puffs on instanced engine spheres and cubes with the baked
+  `M_ApexCarSmoke` (per-instance opacity, shade, glow, softness);
+  `initialize_content.ps1` counts it among the car materials.
+
+`apexsim.car.DamagePreview "F,R,L,Rt,E"` (percent) overrides every car's
+damage, `apexsim.car.DamageEffects 0` keeps only the dents, and
+`-ApexExecAfter="N=command|N=command"` runs console commands N seconds into
+an unattended run (damage arriving mid-race, so the parts fly on camera).
+Tests: `ApexSim.Cars.Damage.*` (TOML, split, shares, emitters, debris,
+puffs, every repo car's parts).
 
 ### Hybrid deployment (`hybrid.rs`, `PlayerInput.ers_mode` / `ers_boost`)
 

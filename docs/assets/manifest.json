@@ -1,6 +1,14 @@
 {
   "comment": "Written by scripts/site/build_site.py: the source each picture was made from.",
   "images": {
+    "band-left-zoom.webp": {
+      "src": "content/props/_preview/cars/posh-gt3rs_rear.png",
+      "sha256": "08f0253173ab3d2eb9c0e6e267164f5854e0ee0d41e9fa3e1abef67b4053cd65",
+      "params": {
+        "width": 1200,
+        "quality": 86
+      }
+    },
     "band-left.webp": {
       "src": "content/props/_preview/cars/posh-gt3rs_rear.png",
       "sha256": "08f0253173ab3d2eb9c0e6e267164f5854e0ee0d41e9fa3e1abef67b4053cd65",
@@ -11,6 +19,14 @@
           0.5,
           0.55
         ]
+      }
+    },
+    "band-right-zoom.webp": {
+      "src": "content/props/_preview/cars/fugazzi-994p-hypercar_rear.png",
+      "sha256": "300bb46a9699ccc5e46fa57e2d83f1ed5a7a5e956df099bfd0cd1127f2877238",
+      "params": {
+        "width": 1200,
+        "quality": 86
       }
     },
     "band-right.webp": {
@@ -25,6 +41,14 @@
         ]
       }
     },
+    "car-ashton-marvin-amr26-zoom.webp": {
+      "src": "content/props/_preview/cars/ashton-marvin-amr26_hero.png",
+      "sha256": "4bd9201cef67d7e87b95c89d4d1723a97287bbfb58660de35eda01a20565a163",
+      "params": {
+        "width": 1200,
+        "quality": 86
+      }
+    },
     "car-ashton-marvin-amr26.webp": {
       "src": "content/props/_preview/cars/ashton-marvin-amr26_hero.png",
       "sha256": "4bd9201cef67d7e87b95c89d4d1723a97287bbfb58660de35eda01a20565a163",
@@ -35,6 +59,14 @@
           0.5,
           0.62
         ]
+      }
+    },
+    "car-bugotti-chiffon-hypercar-zoom.webp": {
+      "src": "content/props/_preview/cars/bugotti-chiffon-hypercar_hero.png",
+      "sha256": "ce443f820f6ccb8ad2a8447be5a0daddfa34e7ade5f5986580565a8bd0077bd3",
+      "params": {
+        "width": 1200,
+        "quality": 86
       }
     },
     "car-bugotti-chiffon-hypercar.webp": {
@@ -49,6 +81,14 @@
         ]
       }
     },
+    "car-fugazzi-994p-hypercar-zoom.webp": {
+      "src": "content/props/_preview/cars/fugazzi-994p-hypercar_hero.png",
+      "sha256": "e8a3c7ef8885226e56027100c62c8c229f718ed1d38e7aa64a02ca6d5fc8ab9f",
+      "params": {
+        "width": 1200,
+        "quality": 86
+      }
+    },
     "car-fugazzi-994p-hypercar.webp": {
       "src": "content/props/_preview/cars/fugazzi-994p-hypercar_hero.png",
       "sha256": "e8a3c7ef8885226e56027100c62c8c229f718ed1d38e7aa64a02ca6d5fc8ab9f",
@@ -59,6 +99,14 @@
           0.5,
           0.62
         ]
+      }
+    },
+    "car-fugazzi-lmp2-zoom.webp": {
+      "src": "content/props/_preview/cars/fugazzi-lmp2_hero.png",
+      "sha256": "e984787049a87fcb852eadc312eb250e3f8d2e18e60afce972e263ee3f15a7e5",
+      "params": {
+        "width": 1200,
+        "quality": 86
       }
     },
     "car-fugazzi-lmp2.webp": {
@@ -73,6 +121,14 @@
         ]
       }
     },
+    "car-fugazzi-sf26-zoom.webp": {
+      "src": "content/props/_preview/cars/fugazzi-sf26_hero.png",
+      "sha256": "ef0893991ef49adafb713f1ee5781da5cd8d952139fb9b93a7ed2d8aebced8f7",
+      "params": {
+        "width": 1200,
+        "quality": 86
+      }
+    },
     "car-fugazzi-sf26.webp": {
       "src": "content/props/_preview/cars/fugazzi-sf26_hero.png",
       "sha256": "ef0893991ef49adafb713f1ee5781da5cd8d952139fb9b93a7ed2d8aebced8f7",
@@ -83,6 +139,14 @@
           0.5,
           0.62
         ]
+      }
+    },
+    "car-jeanetti-lmp2-zoom.webp": {
+      "src": "content/props/_preview/cars/jeanetti-lmp2_hero.png",
+      "sha256": "0df3c3eba87e76a12cec53727fc1750cce0c4e3c5f9dc3da79dca4bb0ebbafca",
+      "params": {
+        "width": 1200,
+        "quality": 86
       }
     },
     "car-jeanetti-lmp2.webp": {
@@ -97,6 +161,14 @@
         ]
       }
     },
+    "car-limbotiti-caravan-gt3-zoom.webp": {
+      "src": "content/props/_preview/cars/limbotiti-caravan-gt3_hero.png",
+      "sha256": "d9f9c17ed00d46ef6faef6231ea0fe3d62b038c0a06b149e549282b982636bca",
+      "params": {
+        "width": 1200,
+        "quality": 86
+      }
+    },
     "car-limbotiti-caravan-gt3.webp": {
       "src": "content/props/_preview/cars/limbotiti-caravan-gt3_hero.png",
       "sha256": "d9f9c17ed00d46ef6faef6231ea0fe3d62b038c0a06b149e549282b982636bca",
@@ -107,6 +179,14 @@
           0.5,
           0.62
         ]
+      }
+    },
+    "car-mclarsen-mcl40-zoom.webp": {
+      "src": "content/props/_preview/cars/mclarsen-mcl40_hero.png",
+      "sha256": "a9bb747050d05d2d6b40267884cb0c4bed76bfa36cdc33f79e8d1ca50e511b45",
+      "params": {
+        "width": 1200,
+        "quality": 86
       }
     },
     "car-mclarsen-mcl40.webp": {
@@ -121,6 +201,14 @@
         ]
       }
     },
+    "car-murcetes-amd-gt3-zoom.webp": {
+      "src": "content/props/_preview/cars/murcetes-amd-gt3_hero.png",
+      "sha256": "7772a9b3baaf47efb7c33a44d23ed0d7fafcd3ba1a41db880c4c5850762f156e",
+      "params": {
+        "width": 1200,
+        "quality": 86
+      }
+    },
     "car-murcetes-amd-gt3.webp": {
       "src": "content/props/_preview/cars/murcetes-amd-gt3_hero.png",
       "sha256": "7772a9b3baaf47efb7c33a44d23ed0d7fafcd3ba1a41db880c4c5850762f156e",
@@ -131,6 +219,14 @@
           0.5,
           0.62
         ]
+      }
+    },
+    "car-murcetes-amd-w17-zoom.webp": {
+      "src": "content/props/_preview/cars/murcetes-amd-w17_hero.png",
+      "sha256": "135ab48f4bd90bf5e3aace862c7b877d924db9e397bc6ca2c8f7a09616f86795",
+      "params": {
+        "width": 1200,
+        "quality": 86
       }
     },
     "car-murcetes-amd-w17.webp": {
@@ -145,6 +241,14 @@
         ]
       }
     },
+    "car-panini-zomba-hypercar-zoom.webp": {
+      "src": "content/props/_preview/cars/panini-zomba-hypercar_hero.png",
+      "sha256": "86b4853c862d8b83f21073e844af70605b1f70335a513969f75ed73efe0134ba",
+      "params": {
+        "width": 1200,
+        "quality": 86
+      }
+    },
     "car-panini-zomba-hypercar.webp": {
       "src": "content/props/_preview/cars/panini-zomba-hypercar_hero.png",
       "sha256": "86b4853c862d8b83f21073e844af70605b1f70335a513969f75ed73efe0134ba",
@@ -155,6 +259,14 @@
           0.5,
           0.62
         ]
+      }
+    },
+    "car-posh-gt3rs-zoom.webp": {
+      "src": "content/props/_preview/cars/posh-gt3rs_hero.png",
+      "sha256": "73d5c4aeb1b5fe83c1fc662b24832d9996464b0df815f8440fb4f140b6d9a426",
+      "params": {
+        "width": 1200,
+        "quality": 86
       }
     },
     "car-posh-gt3rs.webp": {
@@ -169,6 +281,14 @@
         ]
       }
     },
+    "car-posh-lmp2-zoom.webp": {
+      "src": "content/props/_preview/cars/posh-lmp2_hero.png",
+      "sha256": "647c5d7473d93e336e4d9d65deff323738790f01e1355e5bf28991c9285ec83c",
+      "params": {
+        "width": 1200,
+        "quality": 86
+      }
+    },
     "car-posh-lmp2.webp": {
       "src": "content/props/_preview/cars/posh-lmp2_hero.png",
       "sha256": "647c5d7473d93e336e4d9d65deff323738790f01e1355e5bf28991c9285ec83c",
@@ -179,6 +299,14 @@
           0.5,
           0.62
         ]
+      }
+    },
+    "car-yotota-lmp2-zoom.webp": {
+      "src": "content/props/_preview/cars/yotota-lmp2_hero.png",
+      "sha256": "e0cfdb35d2a5f2edf0ec3062ad48cb4df1da62069a5a745aa0bc1770c0af595b",
+      "params": {
+        "width": 1200,
+        "quality": 86
       }
     },
     "car-yotota-lmp2.webp": {
@@ -200,12 +328,28 @@
         "width": 1200
       }
     },
+    "detail-1-zoom.webp": {
+      "src": "content/props/_preview/cars/limbotiti-caravan-gt3_lamps_front.png",
+      "sha256": "90183b26eadea758cddf5843237da8a26d6f67b53ef38213be11d7ad2df12a8a",
+      "params": {
+        "width": 1280,
+        "quality": 86
+      }
+    },
     "detail-1.webp": {
       "src": "content/props/_preview/cars/limbotiti-caravan-gt3_lamps_front.png",
       "sha256": "90183b26eadea758cddf5843237da8a26d6f67b53ef38213be11d7ad2df12a8a",
       "params": {
         "width": 640,
         "aspect": 1.6
+      }
+    },
+    "detail-2-zoom.webp": {
+      "src": "content/props/_preview/cars/fugazzi-lmp2_lamps_rear.png",
+      "sha256": "fdaa03691901908a3ef7ab3d8d22f2bcf1900a815567758c837c002d088b44de",
+      "params": {
+        "width": 1280,
+        "quality": 86
       }
     },
     "detail-2.webp": {
@@ -216,12 +360,28 @@
         "aspect": 1.6
       }
     },
+    "detail-3-zoom.webp": {
+      "src": "content/props/_preview/cars/bugotti-chiffon-hypercar_lamps_front.png",
+      "sha256": "4866787da23790b55385bf94ef7da4b7595401ca5f5fe567967b2fe223d62b93",
+      "params": {
+        "width": 1280,
+        "quality": 86
+      }
+    },
     "detail-3.webp": {
       "src": "content/props/_preview/cars/bugotti-chiffon-hypercar_lamps_front.png",
       "sha256": "4866787da23790b55385bf94ef7da4b7595401ca5f5fe567967b2fe223d62b93",
       "params": {
         "width": 640,
         "aspect": 1.6
+      }
+    },
+    "detail-4-zoom.webp": {
+      "src": "content/props/_preview/cars/posh-gt3rs_lamps_rear.png",
+      "sha256": "371356f19f0b1b64f06a71bb67bc172c855efd86b4472fd1ba745730a4a6feb2",
+      "params": {
+        "width": 1280,
+        "quality": 86
       }
     },
     "detail-4.webp": {
@@ -232,11 +392,27 @@
         "aspect": 1.6
       }
     },
+    "liveries-gt3-lmp2-zoom.webp": {
+      "src": "content/artwork/liveries_gt3_lmp2.jpg",
+      "sha256": "2918cc67fc9ec736f2c830343e8379770a42c492512e4a9632d41ad034eca10a",
+      "params": {
+        "width": 1440,
+        "quality": 86
+      }
+    },
     "liveries-gt3-lmp2.webp": {
       "src": "content/artwork/liveries_gt3_lmp2.jpg",
       "sha256": "2918cc67fc9ec736f2c830343e8379770a42c492512e4a9632d41ad034eca10a",
       "params": {
         "width": 1200
+      }
+    },
+    "liveries-hyper-f1-zoom.webp": {
+      "src": "content/artwork/liveries_hypercar_f1.jpg",
+      "sha256": "737c78449f00d9b2f6a3b8c1281145b5ed37ea40d2d1548bf306be78597604bb",
+      "params": {
+        "width": 1440,
+        "quality": 86
       }
     },
     "liveries-hyper-f1.webp": {
@@ -246,11 +422,27 @@
         "width": 1200
       }
     },
+    "screen-garage-zoom.webp": {
+      "src": "site/shots/garage.webp",
+      "sha256": "1d2aae5b389c1c52a37637f454b91227dc8769065eaefc5d9ea0cdc719f035cc",
+      "params": {
+        "width": 1920,
+        "quality": 86
+      }
+    },
     "screen-garage.webp": {
       "src": "site/shots/garage.webp",
       "sha256": "1d2aae5b389c1c52a37637f454b91227dc8769065eaefc5d9ea0cdc719f035cc",
       "params": {
         "width": 1280,
+        "quality": 86
+      }
+    },
+    "screen-hud-editor-zoom.webp": {
+      "src": "site/shots/hud-editor.webp",
+      "sha256": "561659f8ab68be0b14ff7324b92f152857833c90a787cd8c7c245c6feded2b70",
+      "params": {
+        "width": 1920,
         "quality": 86
       }
     },
@@ -262,11 +454,27 @@
         "quality": 86
       }
     },
+    "screen-hud-zoom.webp": {
+      "src": "site/shots/hud-chase.webp",
+      "sha256": "3c02f5b01931898e0d7fe5c4717b103d5cf5729028bc5a3fdacd6b8ddaa906e1",
+      "params": {
+        "width": 1920,
+        "quality": 86
+      }
+    },
     "screen-hud.webp": {
       "src": "site/shots/hud-chase.webp",
       "sha256": "3c02f5b01931898e0d7fe5c4717b103d5cf5729028bc5a3fdacd6b8ddaa906e1",
       "params": {
         "width": 1280,
+        "quality": 86
+      }
+    },
+    "screen-menu-zoom.webp": {
+      "src": "site/shots/menu-demo.webp",
+      "sha256": "d28ede6e596a917153f9c0cc95a457cc9340911ffc893f09413b2a96a50ef78d",
+      "params": {
+        "width": 1920,
         "quality": 86
       }
     },
@@ -278,11 +486,27 @@
         "quality": 86
       }
     },
+    "shot-banking-zoom.webp": {
+      "src": "site/shots/banking.webp",
+      "sha256": "a309d4f8a4cd96d72a1864ef2048d8a1c30982fc28cb4623ff115e459893aac5",
+      "params": {
+        "width": 1920,
+        "quality": 86
+      }
+    },
     "shot-banking.webp": {
       "src": "site/shots/banking.webp",
       "sha256": "a309d4f8a4cd96d72a1864ef2048d8a1c30982fc28cb4623ff115e459893aac5",
       "params": {
         "width": 1000
+      }
+    },
+    "shot-climb-zoom.webp": {
+      "src": "site/shots/eau-rouge.webp",
+      "sha256": "0efd721890ad7cfd3ad5647f7d065f353fe7a3ab04767bb30969fc654c8835c6",
+      "params": {
+        "width": 1920,
+        "quality": 86
       }
     },
     "shot-climb.webp": {
@@ -292,11 +516,27 @@
         "width": 1000
       }
     },
+    "shot-grid-zoom.webp": {
+      "src": "site/shots/grid-start.webp",
+      "sha256": "20b40a20ae01516822aed5604c9aa6b0bcd0101d2e332018572e06463c13ecb7",
+      "params": {
+        "width": 1920,
+        "quality": 86
+      }
+    },
     "shot-grid.webp": {
       "src": "site/shots/grid-start.webp",
       "sha256": "20b40a20ae01516822aed5604c9aa6b0bcd0101d2e332018572e06463c13ecb7",
       "params": {
         "width": 1600
+      }
+    },
+    "shot-night-zoom.webp": {
+      "src": "site/shots/endurance-dusk.webp",
+      "sha256": "9f6e5b33e671822fd81822cd8f518ed3b19d04b1b48f4214f8ed8631184701a0",
+      "params": {
+        "width": 1920,
+        "quality": 86
       }
     },
     "shot-night.webp": {
@@ -306,6 +546,14 @@
         "width": 1000
       }
     },
+    "shot-pack-zoom.webp": {
+      "src": "site/shots/paddock-hill.webp",
+      "sha256": "9c347d869d1267e8795871a776a2cf4866c019109a2963288c6608e285c9a1e1",
+      "params": {
+        "width": 1920,
+        "quality": 86
+      }
+    },
     "shot-pack.webp": {
       "src": "site/shots/paddock-hill.webp",
       "sha256": "9c347d869d1267e8795871a776a2cf4866c019109a2963288c6608e285c9a1e1",
@@ -313,11 +561,27 @@
         "width": 1000
       }
     },
+    "shot-rain-zoom.webp": {
+      "src": "site/shots/rain.webp",
+      "sha256": "cc7070d02365d60cff6d80eb55e360937dcf54b2f4fcf7119f5e87db8316aa38",
+      "params": {
+        "width": 1920,
+        "quality": 86
+      }
+    },
     "shot-rain.webp": {
       "src": "site/shots/rain.webp",
       "sha256": "cc7070d02365d60cff6d80eb55e360937dcf54b2f4fcf7119f5e87db8316aa38",
       "params": {
         "width": 1000
+      }
+    },
+    "shot-sunset-zoom.webp": {
+      "src": "site/shots/night-lights.webp",
+      "sha256": "839075fd581e815695735c029a1f8211f9397e781ac5c35e1d9ca5a893b098fd",
+      "params": {
+        "width": 1920,
+        "quality": 86
       }
     },
     "shot-sunset.webp": {

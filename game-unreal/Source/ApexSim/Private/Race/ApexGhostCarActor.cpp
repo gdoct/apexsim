@@ -91,6 +91,7 @@ void AApexGhostCarActor::ApplyGhostLook()
 		TintComponent(*Body);
 	}
 	ForEachWheelComponent([](UStaticMeshComponent& Wheel) { TintComponent(Wheel); });
+	ForEachDamagePartComponent([](UStaticMeshComponent& Part) { TintComponent(Part); });
 	if (UStaticMeshComponent* Flap = GetDrsFlapComponent())
 	{
 		TintComponent(*Flap);

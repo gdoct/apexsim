@@ -4,6 +4,7 @@
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
 #include "Audio/ApexListenerSpace.h"
+#include "Race/ApexCarDamage.h"
 #include "Race/ApexCarMotion.h"
 #include "Race/ApexCarDrsFlap.h"
 #include "Race/ApexCarDriver.h"
@@ -12,6 +13,7 @@
 
 #include "ApexRaceCarActor.generated.h"
 
+class AApexCarEffectsActor;
 class UApexEngineSoundWave;
 class UApexRoadSoundWave;
 namespace ApexRoadSynth { struct FInputs; }
@@ -101,6 +103,22 @@ public:
 
 	/** The driver's component when the car has one, for tinting. */
 	UStaticMeshComponent* GetDriverComponent() const { return Driver.HasDriver() ? Driver.GetComponent() : nullptr; }
+
+	/**
+	 * The bodywork that comes off in a crash (the catalog row's
+	 * `DamageParts`, built by `ApexCarContent::LoadBodyPieces` into one mesh
+	 * per part, null for an empty box), drawn on the body in its own frame
+	 * until its zone's damage passes the part's `DetachPct`; then it flies
+	 * off as an `AApexCarDebrisActor` and comes back with a repair. After
+	 * SetCarMesh, whose body must be the split one; empty arrays draw none.
+	 */
+	void SetDamageParts(const TArray<FApexDamagePartSpec>& Specs, const TArray<UStaticMesh*>& Meshes);
+
+	/** Calls `Fn` for each damage part's component, on the car or not, e.g. to hide them from a capture. */
+	void ForEachDamagePartComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const;
+
+	/** The damage as last drawn, 0..1 per zone (front, rear, left, right, engine). */
+	const ApexDamage::FShares& GetDamageShares() const { return DamageShares; }
 
 	/**
 	 * Show or hide just this car's bodywork.
@@ -237,6 +255,10 @@ protected:
 	/** The newest telemetry's `bDrsOpen`: where the flap is swinging to. */
 	bool bDrsOpen = false;
 
+	/** One component per damage part, attached to CarMesh; see SetDamageParts. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> DamagePartMeshes;
+
 	/**
 	 * Beyond this distance between two samples the actor teleports instead of
 	 * blending — a respawn or the first frame after joining should not slide
@@ -327,6 +349,51 @@ private:
 
 	/** Lights or darkens the brake lights from `Brake`, writing only on a change. */
 	void UpdateBrakeLights();
+
+	// --- Damage (ApexCarDamage.h) ---
+
+	/** The body's box and this car's seed into the custom primitive data the dents are drawn from. */
+	void ApplyDamageFrame();
+	/** Dents, parts, sparks, smoke and steam from the damage this frame. */
+	void UpdateDamage(float DeltaSeconds);
+	/** The visual amounts into every bodywork component's custom primitive data. */
+	void ApplyDents(const ApexDamage::FShares& Shares);
+	/** Which parts, the DRS flap and the bodywork are drawn, from the body's visibility and what has come off. */
+	void ApplyPartVisibility();
+	/** Throws part `Index` off the car as debris, with a shower of sparks. */
+	void ThrowPart(int32 Index);
+	/** A point on the face of a zone (or anywhere on the floor for INDEX_NONE), world space, and the face's outward normal. */
+	FVector ZonePoint(int32 Zone, FVector& OutNormal);
+	/** A shower of sparks off a zone's face; `Count` sparks. */
+	void EmitSparks(int32 Zone, int32 Count);
+	/** The world's effects actor, found once. */
+	AApexCarEffectsActor* GetEffects();
+
+	TArray<FApexDamagePartSpec> DamagePartSpecs;
+	/** Per part: drawn on the car (not thrown off). */
+	TArray<bool> DamagePartOn;
+	/** The part that carries the DRS flap's hinge, or INDEX_NONE. */
+	int32 DrsFlapPart = INDEX_NONE;
+	/** The newest telemetry's damage, percent; negative when the server sends none. */
+	float TelemetryDamagePct[ApexDamage::NumZones] = {-1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+	/** What the car shows, and what it showed when the dents were last written. */
+	ApexDamage::FShares DamageShares;
+	ApexDamage::FShares DrawnDents;
+	/** The damage has been seen once: parts already off when a car first appears do not fly. */
+	bool bDamageSeen = false;
+	/** CarMesh's visibility as SetMeshVisible last set it. */
+	bool bBodyShown = true;
+	float WaterTempC = -1.0f;
+	bool bColliding = false;
+	/** The last zone to take a hit and how long ago, for where a scrape sparks from. */
+	int32 LastHitZone = INDEX_NONE;
+	float SinceLastHit = 1000.0f;
+	/** Fractional puffs owed to each emitter. */
+	float SmokeOwed = 0.0f;
+	float SteamOwed = 0.0f;
+	float ScrapeOwed = 0.0f;
+	FRandomStream DamageRandom;
+	TWeakObjectPtr<AApexCarEffectsActor> Effects;
 
 	/** Seats the headlights at the nose of the current mesh. */
 	void PlaceHeadlights();

@@ -524,6 +524,73 @@ tints it. `ApexSim.Drs.FlapTransform` and `ApexSim.Cars.TomlDrsFlap` pin the
 maths and the TOML. A car without the table draws its whole wing in the
 body, as before. `preview_cars.py` draws the flap too (`DRS_OPEN = 1` opens it).
 
+## Damage
+
+What a car's damage looks like is the client's (`Race/ApexCarDamage.h`);
+the server only sends five percentages per car (front, rear, left, right,
+engine; server `damage.rs`), so everything below is worked out from them.
+
+- **Dents and scuffs** are drawn by the four car parents themselves
+  (`ApexMaterialBake`, `BuildCarDamage`): the body's custom primitive data
+  holds each body zone's visual amount (`ApexDamage::Visual`, the share to
+  the 0.6 power, so a 4% tap already shows) and the body's box in its mesh
+  frame. Within reach of a damaged face (15% of the half length or width,
+  45% at full damage) the world position offset pushes the panels in by up
+  to `DamageDentCm` (15; the sides 60% of it, the tail 80%), unevenly, with
+  an 8 cm crumple; the moved surface is shaded flat per triangle (crushed
+  metal) and the paint scuffed in patches to carbon with streaks of bare
+  metal along the car. An undamaged car draws exactly as before, and so do
+  the wheels, the flap and an imported track's scenery (which shares the
+  parents and has the offset switched off). A parent baked before the
+  graph is baked again by the next `ApexMaterialBake`.
+- **Parts** come off: see below.
+- **Smoke, steam and sparks** (`AApexCarEffectsActor`, drawn with the
+  baked `M_ApexCarSmoke` on instanced engine spheres and cubes, as the rain
+  is; no particle assets): oil smoke from the tail from 35% engine damage,
+  darkening to black when it is out; steam from the nose when it is
+  damaged and the coolant is past 104 °C; sparks off a zone's face on
+  every hit (a zone growing 0.5% in a frame) and while the car scrapes a
+  wall (`bIsColliding`).
+
+`apexsim.car.DamagePreview "60,50,35,20,85"` draws that damage on every car
+instead of the server's (empty for the telemetry), and
+`apexsim.car.DamageEffects 0` leaves only the dents. An unattended run can
+damage the field mid-race with `-ApexExecAfter="22=apexsim.car.DamagePreview
+60,50,35,20,85"`, so the parts fly on camera.
+
+### Damage parts
+
+A part is a box of the body that comes off when its zone's damage reaches
+`detach_pct`: the game splits the body GLB at runtime
+(`ApexGlb::SplitByBoxes`, `UApexCarContentSubsystem::LoadModelPieces`),
+every triangle whose centre lies in a box going to that part's own mesh,
+which the race car draws on the body (`AApexRaceCarActor::SetDamageParts`)
+until it is thrown off as an `AApexCarDebrisActor` (the car's velocity, a
+kick off the damaged face, a spin; it bounces, slides and lies on the
+track for 40 s). A repair puts it back. A part that carries the DRS flap's
+hinge takes the flap with it. The body keeps the whole model's bounds, so
+the cockpit, the headlights and the turntable do not move.
+
+```toml
+[[damage_part]]
+name = "front_wing"
+zone = "front"            # front | rear | left | right
+detach_pct = 30           # the zone's damage, percent
+min_m = [2.485, -1.012, -0.094]   # forward, left, up: the car's frame, metres
+max_m = [3.125, 1.012, 0.500]
+```
+
+`scripts/content/cars/damage_parts.py` writes them for the shipped cars
+from each body's geometry (above the liveries' marker, replaced on every
+run; `--preview` draws `build/damage_parts/<folder>.png`): an F1 loses its
+front wing with the nose tip (30%) and its rear wing (45%), a hypercar or
+LMP2 its lower nose (45%) and rear wing (50%), a GT3 its splitter and
+bumper (50%) and rear wing (55%). The script's docstring has the rules;
+`MANUAL_REAR_WING` holds what they cannot find. A car without the tables
+dents and smokes but keeps its bodywork. `ApexSim.Cars.Damage.*` test the
+TOML, the split, the shares, the debris, the puffs and every repo car's
+parts.
+
 ## Liveries
 
 Every generated car has its works livery (the GLB as built) plus six more,

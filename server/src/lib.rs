@@ -34,6 +34,7 @@ pub mod server;
 pub mod setup_sheet;
 pub mod slipstream;
 pub mod timer_resolution;
+pub mod track_content;
 pub mod track_loader;
 pub mod track_mesh;
 pub mod transport;

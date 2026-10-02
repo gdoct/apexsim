@@ -190,6 +190,59 @@ struct APEXSIM_API FApexDriverSpec
 	bool operator!=(const FApexDriverSpec& Other) const { return !(*this == Other); }
 };
 
+/** Which of the server's body damage zones a part belongs to (`CompactCarState.damage`, damage.rs). */
+UENUM(BlueprintType)
+enum class EApexDamageZone : uint8
+{
+	Front,
+	Rear,
+	Left,
+	Right,
+};
+
+/**
+ * A piece of bodywork that comes off in a big enough hit: a car.toml
+ * `[[damage_part]]` table (docs/CAR_MODELS.md, Damage parts). The body GLB
+ * is split at runtime: every triangle whose centre lies inside the box is
+ * built into the part's own mesh (the first box to hold it wins), drawn on
+ * the body until the zone's damage reaches `DetachPct` and then thrown off
+ * as debris (`AApexCarDebrisActor`). A repair puts it back.
+ *
+ * The box is in the body mesh's frame, centimetres (nose +Y, left +X,
+ * floor at Z = 0), like the wheels; the TOML gives it in the car's frame,
+ * metres (`min_m` / `max_m` = forward, left, up).
+ */
+USTRUCT(BlueprintType)
+struct APEXSIM_API FApexDamagePartSpec
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
+	FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
+	EApexDamageZone Zone = EApexDamageZone::Front;
+
+	/** The zone's damage, percent, at which it comes off. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
+	float DetachPct = 50.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
+	FVector MinCm = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
+	FVector MaxCm = FVector::ZeroVector;
+
+	FBox Box() const { return FBox(MinCm, MaxCm); }
+
+	bool operator==(const FApexDamagePartSpec& Other) const
+	{
+		return Name == Other.Name && Zone == Other.Zone && DetachPct == Other.DetachPct && MinCm == Other.MinCm
+			&& MaxCm == Other.MaxCm;
+	}
+	bool operator!=(const FApexDamagePartSpec& Other) const { return !(*this == Other); }
+};
+
 /**
  * The engine as the client's synthesiser hears it: a car.toml's `[sound]`
  * table plus the rev range from its `[engine]`. See ApexEngineSound.h for what
@@ -422,6 +475,13 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
 	FApexDriverSpec Driver;
+
+	/**
+	 * Bodywork that comes off in a crash (car.toml `[[damage_part]]`; none on
+	 * a car without the tables, whose body is drawn whole).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	TArray<FApexDamagePartSpec> DamageParts;
 
 	/** What the engine sounds like. Derived from car.toml on every import, like the wheels. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
