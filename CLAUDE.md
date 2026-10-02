@@ -95,6 +95,9 @@ safe on an existing checkout too. The stages, in order (run by hand if needed):
    `{ground,curbs,walls}.msgpack` sidecar (which the server needs). No track
    is rebaked because stage 3 or 5 ran: the game dresses each circuit with
    what `/Game` holds when it builds it.
+7. The showcases of `content/showcase.yml` (`apexsim-replay render`, see
+   "Spectator stream" below) that are missing or stale by `info --check`:
+   the menu's backdrop races, `build/showcase/*.apxs`, a few seconds each.
 
 It also checks that every file each car.toml names (model, DRS flap, logos,
 class wheel) is on disk, and imports no car: see "Cars" below.
@@ -1029,7 +1032,8 @@ are normalised to a per-channel mean of 0.5 and the material doubles them,
 so the exporter's per-key colour still decides a surface's hue — a map with
 its own hue would tint twice. `apex_tex.GROUND_TILE_M` and
 `ApexGround::TextureTileM` must agree. The importer fixes each map's class
-by suffix (sRGB colour, BC5 normal, grayscale roughness), because a material
+by suffix (sRGB colour, BC5 normal, BC4 roughness: `TC_Alpha`, not
+`TC_Grayscale`, which cooks to uncompressed G8), because a material
 instance can only swap a texture for one of the sampler type the parent was
 compiled with.
 
@@ -1110,11 +1114,13 @@ cooked (`/Game/Cars` is in `DirectoriesToNeverCook`). `UApexCarContentSubsystem`
 `FApexCarCatalogRow` keyed by the TOML's `id` (the wire only carries id and
 name), and builds a GLB into a transient mesh the first time something draws
 it: `ApexGlb` (its own glTF reader: node tree, triangles, PNG/JPEG images with
-mips; glTF `(x, y, z)` m -> Unreal `(x, z, y)` cm, Interchange's frame, which
-also turns glTF's front face into Unreal's), the tracks' fast mesh build, and
-dynamic instances of four cooked parents under `/Game/Materials/Car`
-(`ApexMaterialBake`: opaque, clear coat, masked, translucent) with
-Interchange's parameter names (`BaseColorFactor`, `BaseColorTexture`,
+mips, block compressed at load to BC1/BC3 by `ApexBc` because the engine's
+encoders are editor-only and BGRA8 put 50 MB per car in video memory;
+identical images across GLBs are one texture; glTF `(x, y, z)` m -> Unreal
+`(x, z, y)` cm, Interchange's frame, which also turns glTF's front face into
+Unreal's), the tracks' fast mesh build, and dynamic instances of four cooked
+parents under `/Game/Materials/Car` (`ApexMaterialBake`: opaque, clear coat,
+masked, translucent) with Interchange's parameter names (`BaseColorFactor`, `BaseColorTexture`,
 `MetallicFactor`, `RoughnessFactor`, `EmissiveFactor`), so the livery, ghost
 and brake-light code is unchanged. Folders: `-ApexCarsDir=`, then `Cars/`
 beside `ApexSim.exe` in a package (wheels in `Wheels/`), else the repo's
@@ -1683,10 +1689,11 @@ track stem and the lap length; the live server's recorder fills them too).
 together (a dossier corner by name, or a station); `pose` works out a camera
 point beside the road (`--side outside|inside` of the bend, seated on the
 ground heightfield when there is one, `--look-landmark big_wheel`); `cut`
-writes a few seconds as a JSON clip (`replay_tools::ClipFile`: cars as
-16-number arrays in roster order, server frame).
+writes a few seconds as a spectator stream (`.apxs`, see "Spectator
+stream" below; the older `.clip.json`, `replay_tools::ClipFile`, is still
+written when the output ends in `.json` and still read by the client).
 
-The client plays a clip with `-ApexReplay=<file>.clip.json`
+The client plays a clip with `-ApexReplay=<file>.apxs`
 (`UApexReplaySubsystem`, created only for such a run): no server, no demo,
 no splash hold; `AApexRaceDirector::BeginReplayView` builds the track by
 the clip's stem, spawns the field from its roster, lights the clip's sky
@@ -1704,9 +1711,87 @@ into the video; `docs/PROMO_VIDEO.md` has the keys. Tests:
 `replay_tools::tests` (windows, cut, clip, poses, a seeded race on
 Zandvoort), `ApexSim.Replay.*`, `ApexSim.Tv.LockTarget`.
 
+### Spectator stream, showcases and the menu backdrop (`spectator.rs`, `showcase.rs`, `ApexSpectatorStream.h`, `UApexSpectatorSubsystem`; docs/SPECTATOR.md)
+
+The menu's backdrop race is no longer simulated per client: it is
+**played back** from a spectator stream (`.apxs`), a sequence of
+self-contained records, `[u32 big-endian length][positional MessagePack
+body]`, that goes to a file or over the wire unchanged. `Header` (track,
+stem, `source_crc`, resolved conditions, ticks, the render's seed and
+score), `Roster` (cars with their `content_crc`), `Frame` (a `bin` of
+44-byte little-endian car rows: pose in mm, yaw/pitch/roll, speed, pedals,
+gear, rpm, lap, station, finish, the lap/pit/ERS flag bytes and the five
+damage percentages; nothing a spectator does not draw), `Event`
+(`LapTiming`, `TrackSectors`, state, finish, retired, pit stop, contact),
+`Path` (the centerline every 10 m, for the TV cameras) and, in a file,
+zlib `Block`s of a second each plus an `Index`. **The epoch is the second
+element of every viewer-facing record, always a full `uint 32`** at bytes
+3..7, so a looping channel stamps a new one into the file's bytes
+(`spectator::patch_epoch`) and forwards them undecoded; a client drops a
+frame whose epoch or roster revision is not the one it holds. Fields are
+only appended; readers skip what they do not know. Golden bytes:
+`cargo test spectator_wire_format showcase_wire_format -- --nocapture`
+-> `ApexSpectatorGoldenBlobs.h` (and the `File` copy in
+`BackdropTests.cpp`).
+
+**Rendering**: `apexsim-replay render --track ... --class GT3 --cars 20
+--laps 2 --weather sunny --time 13:00 --seed 7 [--seeds N] --cars-dir
+content/cars/default --out build/showcase/<Stem>.<class>.<variant>.apxs`
+runs the grid, the countdown, the laps and a tail past the winner on the
+server's own `GameSession`, byte-identical per seed (the session id is
+seeded too; `a_seeded_render_is_byte_identical`), and keeps the best of
+`--seeds` by `RaceScore` (close racing for, contact, off-road and
+retirements against). `info <file> [--check]` prints it and exits non-zero
+when the track YAML or a car.toml changed since; `convert` turns a replay
+`.bin` into a stream (no pit, damage or hybrid rows, no lap timing).
+`content/showcase.yml` lists what the pipeline renders;
+`build_track_levels.ps1` and `initialize_content.ps1` have the stage
+(`-SkipShowcase`), the packages copy `build/showcase/*.apxs` to
+`Game/Showcase/` and the release to `Server/showcase/` with
+`apexsim-replay.exe` beside the server. Rendering takes ~6 s a circuit; a
+file is a few MB.
+
+**The server** (`[showcase]` in server.toml: `dir`, `playlist`, `mode`
+loop|rotate, `stream_divisor`; `APEXSIM_SHOWCASE_DIR`) reads every file's
+preamble at startup and drops one whose track or cars it lacks or whose
+CRCs disagree. A **channel** is one file on one clock shared by its
+viewers; the game loop advances it per tick (`ShowcaseState::advance`),
+sends frames as bare record bodies over UDP (TCP, droppable, before the
+handshake) and everything else as `SpectatorRecord` (a `bin` of framed
+records: a newcomer's whole preamble and the lap timing so far is one
+message). Messages: `ListShowcases` -> `Showcases`, `SpectateShowcase
+{id}` -> `SpectatorJoined` (400 inside a session, 404 unknown),
+`LeaveSpectate` (implied by any session create/join); `LobbyState.
+ShowcaseAvailable`; `/showcase` JSON and `apexsim_showcase_viewers` on the
+health port. A channel nobody watches drops its inflated records; the
+first viewer's join inflates the file off the loop. `tests/showcase_test.rs`.
+
+**The client**: `FApexStreamFile` / `FApexSpectatorPlayer` (ApexSimNet,
+pure) decode and assemble parts; `UApexSpectatorSubsystem` plays a local
+file on the game clock (loop = the preamble again = a new epoch) or the
+server's records as they arrive, and feeds both into
+`UApexNetSubsystem`'s **backdrop feed** (`BeginBackdropFeed`,
+`FeedBackdropRoster/Telemetry/Sectors/LapTiming`, `EndBackdropFeed`),
+which makes `IsInDemoSession()` true and raises the same delegates a demo
+session did, so the race director, TV camera, HUD data and engine sound
+are untouched. `UApexDemoModeSubsystem` picks the source: the server's
+showcase when the lobby lists one (a 3 s grace for a connection under
+way, so the showcase wins the startup race), else a local `.apxs` from
+`Showcase/` beside the exe (`build/showcase` in the editor) whose CRCs
+match the catalog rows (`ChooseFile`; scanned at init so the splash hold
+works offline), else a `SessionKind::Demo` session for an old server. The
+sky roll only applies to demo sessions. `-ApexShowcase=<file|id>`,
+`-ApexNoShowcase`, `-ApexShowcaseDir=`, `apexsim.spectate.Info`,
+`apexsim.spectate.Next`. Trap found writing it: a test fixture whose
+roster revision was not its frames' had every frame silently dropped;
+the file test now plays the whole file through the player. Not done:
+live spectating (`SpectatorKind::Live` is reserved; `JoinAsSpectator`
+still sends racer telemetry).
+
 ### Demo mode and the broadcast camera (`ApexDemoModeSubsystem`, `Race/ApexTvDirector.h`)
 
-The menu plays an AI race behind its screens. `UApexDemoModeSubsystem` asks the
+The menu plays an AI race behind its screens, from a showcase stream when
+one is to be had (above) and otherwise as a demo session. `UApexDemoModeSubsystem` asks the
 server for a `SessionKind::Demo` session whenever the client is connected and
 not in a session: unlisted, unjoinable, spectated by its creator, counted
 straight into a race, no replay written, removed when the spectator leaves.

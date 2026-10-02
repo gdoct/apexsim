@@ -45,3 +45,22 @@ dir = "./records"
 #                  track without the sidecar.
 # APEXSIM_PHYSICS_ROAD_CONTACT overrides it.
 road_contact = "mesh"
+
+[showcase]
+# Rendered AI races (build/showcase/*.apxs from scripts/build_track_levels.ps1,
+# docs/SPECTATOR.md) the server streams to clients sitting in the menu, in
+# place of a simulated demo race per client. Every key is optional; these
+# are the defaults. A `dir` that is not there is no showcase, not an error;
+# a file whose track or cars this server does not have, or whose checksums
+# disagree with its content, is dropped with a log line.
+# APEXSIM_SHOWCASE_ENABLED / APEXSIM_SHOWCASE_DIR override the first two.
+#enabled = true
+#dir = "./showcase"
+# File names without .apxs, in channel order; "*" is every file not named.
+# The first is what a client gets when it asks for none.
+#playlist = ["*"]
+# What a channel does when its file ends: "loop" plays the same file again,
+# "rotate" moves on to the next of the playlist.
+#mode = "loop"
+# Send every Nth frame of a file (1 = all of them).
+#stream_divisor = 1

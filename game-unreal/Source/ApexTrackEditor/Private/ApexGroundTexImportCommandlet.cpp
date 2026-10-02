@@ -27,9 +27,11 @@ namespace
 	const FMapKind kMapKinds[] = {
 		{TEXT("col"), true, TC_Default, TEXTUREGROUP_World},
 		{TEXT("nrm"), false, TC_Normalmap, TEXTUREGROUP_WorldNormalMap},
-		// One channel, so BC4 rather than a full RGBA block. The material
-		// reads red, which is what a grayscale sampler gives it.
-		{TEXT("rough"), false, TC_Grayscale, TEXTUREGROUP_World},
+		// One channel, so BC4 (TC_Alpha, read from the source's red) rather
+		// than a full RGBA block; TC_Grayscale, which this was, cooks to
+		// uncompressed G8 at twice the size. The material reads red, and an
+		// alpha sampler replicates red like a grayscale one did.
+		{TEXT("rough"), false, TC_Alpha, TEXTUREGROUP_World},
 	};
 
 	const FMapKind* FindMapKind(const FString& Suffix)

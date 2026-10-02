@@ -165,6 +165,37 @@ bool FMsgPackReader::ReadString(FString& Out)
 	return true;
 }
 
+bool FMsgPackReader::ReadBinary(TArrayView<const uint8>& Out)
+{
+	uint8 Tag = 0;
+	if (!ReadByte(Tag))
+	{
+		return false;
+	}
+	int32 Length = 0;
+	switch (Tag)
+	{
+	case MsgPack::Bin8:
+		if (!ReadLength(1, Length)) { return false; }
+		break;
+	case MsgPack::Bin16:
+		if (!ReadLength(2, Length)) { return false; }
+		break;
+	case MsgPack::Bin32:
+		if (!ReadLength(4, Length)) { return false; }
+		break;
+	default:
+		return Fail(FString::Printf(TEXT("expected bin, got format byte 0x%02X"), Tag));
+	}
+	if (!Need(Length))
+	{
+		return false;
+	}
+	Out = TArrayView<const uint8>(Data.GetData() + Pos, Length);
+	Pos += Length;
+	return true;
+}
+
 bool FMsgPackReader::ReadStringOrNil(FString& Out)
 {
 	if (TryReadNil())

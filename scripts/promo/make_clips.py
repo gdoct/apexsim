@@ -6,7 +6,7 @@ Every shot in `scripts/promo/shots.yml` goes through four stages:
   plan    simulate its race headless (`apexsim-replay simulate`, cached per
           race), find the moment (`find` at a corner, or the start/finish),
           work out the camera (`pose`) and cut a short clip file
-          (`cut ... --out <id>.clip.json`)                    -> out/promo/cuts/
+          (`cut ... --out <id>.apxs`)                         -> out/promo/cuts/
   render  launch the game on the clip (`-ApexReplay=`), which plays it at a
           fixed timestep and writes every frame as a PNG     -> out/promo/frames/<id>/
   encode  ffmpeg the frames into a clip                       -> out/promo/clips/<id>.mp4
@@ -344,15 +344,18 @@ class Planner:
 
         cuts = self.out / "cuts"
         cuts.mkdir(parents=True, exist_ok=True)
-        clip = cuts / f"{shot_id}.clip.json"
-        self.tool.run(
+        # A spectator stream (.apxs): what the client plays with -ApexReplay=,
+        # and the same format the menu backdrop and the server's showcase use.
+        clip = cuts / f"{shot_id}.apxs"
+        cut = self.tool.run(
             "cut", str(replay),
             "--from-s", f"{cut_from:.4f}", "--to-s", f"{cut_to:.4f}",
             "--track", str(self.track_yaml(self.config["races"][shot["race"]])),
+            "--rate", str(rate),
             "--out", str(clip),
         )
         # The cut starts on the first frame at or after `cut_from`.
-        clip_first = json.loads(clip.read_text(encoding="utf-8"))["frames"][0]["tick"] / rate
+        clip_first = cut["from_tick"] / rate
 
         fps = int(shot.get("fps", self.defaults.get("fps", 60)))
         slowmo = float(shot.get("slowmo", 1.0))

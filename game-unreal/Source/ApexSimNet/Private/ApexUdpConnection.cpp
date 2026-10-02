@@ -65,6 +65,22 @@ int32 FApexUdpConnection::DiscardQueuedTelemetry()
 	return Discarded;
 }
 
+bool FApexUdpConnection::PopSpectatorRecord(TArray<uint8>& OutRecords)
+{
+	return SpectatorQueue.Dequeue(OutRecords);
+}
+
+int32 FApexUdpConnection::DiscardQueuedSpectatorRecords()
+{
+	int32 Count = 0;
+	TArray<uint8> Dropped;
+	while (SpectatorQueue.Dequeue(Dropped))
+	{
+		++Count;
+	}
+	return Count;
+}
+
 bool FApexUdpConnection::PopDriverFeedback(FApexDriverFeedback& OutFeedback)
 {
 	return DriverFeedbackQueue.Dequeue(OutFeedback);
@@ -228,6 +244,16 @@ void FApexUdpConnection::ReceiveAvailable()
 
 		case EApexServerMessageType::DriverFeedback:
 			DriverFeedbackQueue.Enqueue(MoveTemp(Message.DriverFeedback));
+			break;
+
+		case EApexServerMessageType::SpectatorRecord:
+			// A showcase frame: the server bound us, as with telemetry.
+			if (!bHandshakeComplete)
+			{
+				bHandshakeComplete = true;
+				UE_LOG(LogApexSimNet, Log, TEXT("A stream frame arrived before the ack; treating the handshake as done"));
+			}
+			SpectatorQueue.Enqueue(MoveTemp(Message.SpectatorRecords));
 			break;
 
 		default:

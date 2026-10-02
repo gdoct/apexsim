@@ -18,10 +18,17 @@
         4. cargo run --bin ats-export -- --all   -> build/tracks/<Track>.{uescene.json,uemesh}
                                                     (+ the server's sidecars beside each YAML)
         5. python scripts/build_track_catalog.py -> build/tracks/previews/<Track>.png
-        6. UnrealEditor-Cmd -run=ApexMaterialBake -> /Game/Materials/Track and
+        6. apexsim-replay render ...              -> build/showcase/<Track>.<class>.<variant>.apxs
+           The showcases content/showcase.yml lists (docs/SPECTATOR.md): a
+           rendered AI race per circuit that the menu plays behind its
+           screens and the server plays to clients. Only the missing ones
+           and those `apexsim-replay info --check` calls stale (the track
+           YAML or a car.toml changed since the render) are rendered, about
+           6 s each; an imported track is never rendered here.
+        7. UnrealEditor-Cmd -run=ApexMaterialBake -> /Game/Materials/Track and
            /Game/Materials/Car, the parent materials every runtime track and
            car instantiates (only the missing ones; cheap)
-        7. (optional, -ImportLevels) UnrealEditor-Cmd -run=ApexTrackImport
+        8. (optional, -ImportLevels) UnrealEditor-Cmd -run=ApexTrackImport
                                                  -> game-unreal/Content/Tracks/<Track>/L_<Track>
            A level to look at a circuit in the editor. The game never loads
            it and it is never cooked.
@@ -66,8 +73,8 @@
 
 .PARAMETER DryRun
     Report what each step would do without writing assets: prints the
-    commands, passes --dry-run to the dresser and -dryrun to the commandlets.
-    The bake still runs.
+    commands, passes --dry-run to the dresser and -dryrun to the commandlets,
+    and lists the showcases it would render. The bake still runs.
 
 .PARAMETER SkipDress
     Leave the .ats scenes alone. Only for working on a scene by hand; the
@@ -79,6 +86,10 @@
 .PARAMETER SkipPreviews
     Leave the catalog previews alone (they need Python with numpy, Pillow and
     PyYAML).
+
+.PARAMETER SkipShowcase
+    Leave build/showcase alone: render no showcase, check none for
+    staleness. The game and the server play whatever is there.
 
 .PARAMETER SkipMaterials
     Do not run ApexMaterialBake. With neither -ImportProps nor -ImportLevels
@@ -114,6 +125,7 @@ param(
     [switch]$SkipDress,
     [switch]$SkipExport,
     [switch]$SkipPreviews,
+    [switch]$SkipShowcase,
     [switch]$SkipMaterials,
     [switch]$ImportLevels,
     [string[]]$ExtraEditorArgs
@@ -129,6 +141,8 @@ $LevelDir  = Join-Path $RepoRoot 'game-unreal\Content\Tracks'
 
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
+$ShowcaseDir = Get-ApexShowcaseDir -RepoRoot $RepoRoot
 
 function Write-Step {
     param([string]$Message)
@@ -207,6 +221,7 @@ if ($Track) {
         $SkipDress = $true
         $SkipExport = $true
         $SkipPreviews = $true
+        $SkipShowcase = $true
     }
 }
 
@@ -286,6 +301,34 @@ else {
     Invoke-Tool -Exe 'python' -Arguments $previewArgs -What 'build_track_catalog.py'
 }
 
+if ($SkipShowcase) {
+    Write-Step 'Skipping the showcases'
+}
+else {
+    # The showcases are rendered from the YAML and the cars, not the export,
+    # so this stage needs nothing from the bake; it sits after it so a
+    # content change flows through in one run. The plan runs `info --check`
+    # on every existing file, which is what decides a rebake.
+    Write-Step "Rendering the showcases (content\showcase.yml) into $ShowcaseDir (the missing and stale ones)"
+    $showcasePlan = @(Get-ApexShowcasePlan -RepoRoot $RepoRoot -Track $Track)
+    foreach ($row in $showcasePlan | Where-Object { $_.Status -eq 'imported' }) {
+        Write-Host "    $($row.Name): $($row.Track) was imported, so it is not rendered here (render it by hand with apexsim-replay if wanted)" -ForegroundColor DarkGray
+    }
+    foreach ($row in $showcasePlan | Where-Object { $_.Status -eq 'no-track' }) {
+        Write-Warning "$($row.Name): content\showcase.yml names a track that is not under content\tracks"
+    }
+    $showcaseWork = @(Select-ApexShowcaseWork -Plan $showcasePlan)
+    $fresh = @($showcasePlan | Where-Object { $_.Status -in 'fresh', 'unchecked' }).Count
+    if ($showcaseWork.Count -eq 0) {
+        Write-Host "    nothing to render ($fresh up to date)" -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host "    $($showcaseWork.Count) to render, $fresh up to date" -ForegroundColor DarkGray
+        $rendered = Start-ApexShowcaseRender -RepoRoot $RepoRoot -Rows $showcaseWork -DryRun:$DryRun
+        if (-not $DryRun) { Write-Host "    rendered $rendered showcase(s)" -ForegroundColor DarkGray }
+    }
+}
+
 if ($SkipMaterials) {
     Write-Step 'Skipping the track materials'
 }
@@ -320,9 +363,11 @@ $stopwatch.Stop()
 
 $exports = @(Get-ChildItem $ExportDir -Filter '*.uescene.json' -ErrorAction SilentlyContinue)
 $levels = @(Get-ChildItem $LevelDir -Filter 'L_*.umap' -Recurse -ErrorAction SilentlyContinue)
+$showcases = @(Get-ApexShowcaseFiles -RepoRoot $RepoRoot)
 
 Write-Step 'Done'
 Write-Host ("    {0} export(s) in {1}" -f $exports.Count, $ExportDir)
+Write-Host ("    {0} showcase(s) in {1}" -f $showcases.Count, $ShowcaseDir)
 if ($levels.Count -gt 0) {
     Write-Host ("    {0} editor-only level(s) in {1} (never loaded by the game)" -f $levels.Count, $LevelDir)
 }

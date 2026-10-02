@@ -16,7 +16,7 @@ struct FApexTrackTexture
 	FString Path;
 	int32 Width = 0;
 	int32 Height = 0;
-	/** PF_DXT1, PF_DXT3, PF_DXT5, PF_BC5, PF_BC7 or PF_B8G8R8A8. */
+	/** PF_DXT1, PF_DXT3, PF_DXT5, PF_BC5, PF_BC7, or PF_B8G8R8A8 for an uncompressed source whose size is not a multiple of four. */
 	EPixelFormat Format = PF_Unknown;
 	/** Colour data is sRGB; a normal or mask map would not be. */
 	bool bSRGB = true;
@@ -39,7 +39,9 @@ namespace ApexDds
 	/**
 	 * Parse a DDS file (the classic 124-byte header, or with the DX10
 	 * extension) into its mips. Block-compressed formats are copied as they
-	 * are; 24- and 32-bit uncompressed ones become BGRA8. Fails on anything
+	 * are; 24- and 32-bit uncompressed ones are compressed to BC1 (opaque) or
+	 * BC3 (`ApexBc::CompressChain`), or kept as BGRA8 when the size is not a
+	 * multiple of four. Fails on anything
 	 * else, on a compressed texture whose top level is not a multiple of
 	 * four (which a transient texture cannot hold) and on a truncated top
 	 * level; a truncated lower mip only ends the chain there.

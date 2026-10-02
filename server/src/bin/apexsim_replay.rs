@@ -8,7 +8,15 @@
 //! apexsim-replay find out/zandvoort.bin --corner Hugenholtz --before 150 --after 120 --min-cars 3
 //! apexsim-replay cut out/zandvoort.bin --from-tick 24000 --to-tick 26400 --out out/clip.clip.json
 //! apexsim-replay pose --track content/tracks/default/Spa.yaml --corner "Eau Rouge" --offset -60 --lateral -25 --height 6
+//! apexsim-replay render --track content/tracks/default/Zandvoort.yaml --class GT3 --cars 20 --laps 2 \
+//!     --seed 7 --out build/showcase/Zandvoort.gt3.day.apxs
+//! apexsim-replay info build/showcase/Zandvoort.gt3.day.apxs --check
+//! apexsim-replay convert out/zandvoort.bin --rate 30 --out out/zandvoort.apxs
 //! ```
+//!
+//! `render`, `convert` and a `cut` to `.apxs` write spectator streams
+//! (docs/SPECTATOR.md): what the menu backdrop, the server's showcase and
+//! `-ApexReplay=` play.
 //!
 //! Every command that reports prints JSON on stdout, so a script can drive
 //! it; progress and warnings go to stderr.
@@ -19,9 +27,12 @@ use std::process::ExitCode;
 use apexsim_server::data::SessionConditions;
 use apexsim_server::replay::{read_replay_file, write_replay_file};
 use apexsim_server::replay_tools::{
-    corner_station, cut, describe, find_windows, landmark_point, lateral_on, parse_time_of_day,
-    parse_weather, pose_at, pose_on_ground, simulate_race, to_clip, Side, SimulateOptions, Span,
+    car_of_class, check_stream, corner_station, cut, describe, describe_stream, find_track_yaml,
+    find_windows, landmark_point, lateral_on, load_car_folder, parse_time_of_day, parse_weather,
+    pose_at, pose_on_ground, render_best, render_stream, replay_to_stream, simulate_race, to_clip,
+    RenderOptions, Side, SimulateOptions, Span,
 };
+use apexsim_server::spectator::StreamFile;
 use apexsim_server::track_loader::TrackLoader;
 use clap::{Parser, Subcommand};
 
@@ -74,8 +85,112 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
-    /// Print what a replay holds, as JSON.
-    Info { replay: PathBuf },
+    /// Run a headless AI race and write it as a spectator stream (.apxs):
+    /// the grid, the countdown, the laps and a tail past the winner's flag.
+    Render {
+        /// Track YAML.
+        #[arg(long)]
+        track: PathBuf,
+        /// Car class (GT3, LMP2, F1...): the field is every car of it.
+        #[arg(long)]
+        class: Option<String>,
+        /// Host car (folder, id or name) instead of --class; the field is
+        /// its class.
+        #[arg(long)]
+        car: Option<String>,
+        /// Every AI drives the host car.
+        #[arg(long)]
+        same_car: bool,
+        /// The `content/cars` folder (`content/cars/default` keeps the
+        /// player's own cars out).
+        #[arg(long, default_value = "content/cars")]
+        cars_dir: PathBuf,
+        /// Grid size.
+        #[arg(long, default_value_t = 20)]
+        cars: u8,
+        /// Laps from green.
+        #[arg(long, default_value_t = 2)]
+        laps: u8,
+        /// Stop after this many seconds of racing even without a winner.
+        #[arg(long, default_value_t = 1800.0)]
+        max_seconds: f32,
+        /// Seconds the grid stands before the lights go out.
+        #[arg(long, default_value_t = 8)]
+        countdown: u16,
+        /// Seconds kept after the winner takes the flag.
+        #[arg(long, default_value_t = 10.0)]
+        tail: f32,
+        /// sunny | cloudy | overcast | lightrain | heavyrain
+        #[arg(long, default_value = "sunny")]
+        weather: String,
+        /// Local time, hh:mm.
+        #[arg(long, default_value = "13:00")]
+        time: String,
+        /// Air temperature, °C (from the weather and the clock when absent).
+        #[arg(long, allow_hyphen_values = true)]
+        air: Option<i8>,
+        /// Mean wind, km/h.
+        #[arg(long)]
+        wind: Option<u8>,
+        /// Where the wind blows from, degrees from the start straight.
+        #[arg(long)]
+        wind_from: Option<u16>,
+        #[arg(long, default_value_t = 240)]
+        tick_rate: u16,
+        /// Frames per second of the stream.
+        #[arg(long, default_value_t = 30)]
+        rate: u16,
+        /// The grid's seed: the same seed, the same file.
+        #[arg(long, default_value_t = 0)]
+        seed: u64,
+        /// Render this many seeds, from --seed up, and keep the best.
+        #[arg(long, default_value_t = 1)]
+        seeds: u32,
+        /// How the kept seed is chosen; `best` (least trouble, closest
+        /// racing) is the only rule.
+        #[arg(long, default_value = "best")]
+        pick: String,
+        /// Keep only a window of the race, in ticks.
+        #[arg(long)]
+        from_tick: Option<u32>,
+        #[arg(long)]
+        to_tick: Option<u32>,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Turn a replay (.bin) into a spectator stream (.apxs).
+    Convert {
+        replay: PathBuf,
+        /// Frames per second of the stream.
+        #[arg(long, default_value_t = 30)]
+        rate: u16,
+        /// Track YAML (checksum, path, sectors); defaults from the stem.
+        #[arg(long)]
+        track: Option<PathBuf>,
+        /// The `content/cars` folder, for the cars' checksums.
+        #[arg(long, default_value = "content/cars")]
+        cars_dir: PathBuf,
+        #[arg(long)]
+        from_tick: Option<u32>,
+        #[arg(long)]
+        to_tick: Option<u32>,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Print what a replay (.bin) or a stream (.apxs) holds, as JSON.
+    Info {
+        replay: PathBuf,
+        /// A stream only: exit non-zero when the track or a car it was
+        /// raced on no longer matches the content on disk.
+        #[arg(long)]
+        check: bool,
+        /// The `content/tracks` folder --check compares against.
+        #[arg(long, default_value = "content/tracks")]
+        tracks_dir: PathBuf,
+        /// The `content/cars` folder --check compares against.
+        #[arg(long, default_value = "content/cars")]
+        cars_dir: PathBuf,
+    },
     /// Find where the field runs through a stretch of the lap together.
     Find {
         replay: PathBuf,
@@ -110,7 +225,8 @@ enum Command {
         #[arg(long, default_value_t = 5)]
         top: usize,
     },
-    /// Cut a replay to a window: `.bin` writes a replay, `.json` a client clip.
+    /// Cut a replay to a window: `.apxs` writes a stream the client plays
+    /// (`-ApexReplay=`), `.bin` a replay, `.json` the older client clip.
     Cut {
         replay: PathBuf,
         #[arg(long)]
@@ -125,6 +241,12 @@ enum Command {
         /// Track YAML (for the clip's centerline); defaults from the stem.
         #[arg(long)]
         track: Option<PathBuf>,
+        /// Frames per second of an `.apxs` (the replay's own rate at most).
+        #[arg(long, default_value_t = 60)]
+        rate: u16,
+        /// The `content/cars` folder, for an `.apxs`' car checksums.
+        #[arg(long, default_value = "content/cars")]
+        cars_dir: PathBuf,
         #[arg(long)]
         out: PathBuf,
     },
@@ -208,6 +330,39 @@ fn default_track(explicit: Option<PathBuf>, stem: Option<&str>) -> Result<PathBu
         })
 }
 
+/// Write a replay's frames as a spectator stream, with the track's and the
+/// cars' checksums when the content is at hand (a stream without them still
+/// plays; `info --check` just has less to compare).
+fn write_stream(
+    metadata: &apexsim_server::replay::ReplayMetadata,
+    frames: &[apexsim_server::replay::ReplayFrame],
+    rate: u16,
+    track: Option<PathBuf>,
+    cars_dir: &Path,
+    out: &Path,
+) -> Result<(), String> {
+    let track = track
+        .or_else(|| {
+            metadata
+                .track_stem
+                .as_deref()
+                .and_then(|stem| find_track_yaml(Path::new("content/tracks"), stem))
+        })
+        .and_then(|path| match TrackLoader::load_from_file(&path) {
+            Ok(track) => Some(track),
+            Err(e) => {
+                eprintln!("track {}: {e}; the stream carries no path", path.display());
+                None
+            }
+        });
+    if track.is_none() {
+        eprintln!("no track YAML at hand: the stream carries no checksum, path or sectors");
+    }
+    let cars = load_car_folder(cars_dir).ok().map(|(cars, _)| cars);
+    let content = replay_to_stream(metadata, frames, rate, track.as_ref(), cars.as_ref())?;
+    content.write_file(out).map_err(|e| e.to_string())
+}
+
 fn station_for(track: &Path, corner: Option<&str>, station: Option<f32>) -> Result<f32, String> {
     match (corner, station) {
         (Some(name), _) => {
@@ -268,7 +423,143 @@ fn run(args: Args) -> Result<(), String> {
             );
             print_json(&describe(&metadata, &frames))
         }
-        Command::Info { replay } => {
+        Command::Render {
+            track,
+            class,
+            car,
+            same_car,
+            cars_dir,
+            cars,
+            laps,
+            max_seconds,
+            countdown,
+            tail,
+            weather,
+            time,
+            air,
+            wind,
+            wind_from,
+            tick_rate,
+            rate,
+            seed,
+            seeds,
+            pick,
+            from_tick,
+            to_tick,
+            out,
+        } => {
+            if !pick.eq_ignore_ascii_case("best") {
+                return Err(format!("unknown --pick '{pick}' (best)"));
+            }
+            let host_car = match (car, class) {
+                (Some(car), _) => car,
+                (None, Some(class)) => {
+                    let (configs, folders) = load_car_folder(&cars_dir)?;
+                    car_of_class(&configs, &folders, &class)
+                        .map(|id| id.to_string())
+                        .ok_or_else(|| {
+                            format!("no car of class '{class}' under {}", cars_dir.display())
+                        })?
+                }
+                (None, None) => return Err("pass --class or --car".to_string()),
+            };
+            let opts = RenderOptions {
+                race: SimulateOptions {
+                    track_path: track,
+                    cars_dir,
+                    host_car,
+                    same_car,
+                    ai_count: cars,
+                    laps,
+                    max_seconds,
+                    countdown_seconds: countdown,
+                    conditions: SessionConditions {
+                        weather: parse_weather(&weather)?,
+                        time_of_day_minutes: parse_time_of_day(&time)?,
+                        air_temp_c: air,
+                        humidity_pct: None,
+                        wind_kph: wind,
+                        wind_from_deg: wind_from,
+                    }
+                    .clamp(),
+                    tick_rate,
+                    record_hz: rate,
+                    seed: Some(seed),
+                },
+                tail_seconds: tail,
+                from_tick,
+                to_tick,
+            };
+            let started = std::time::Instant::now();
+            let rendered = if seeds > 1 {
+                render_best(&opts, seeds)?
+            } else {
+                render_stream(&opts)?
+            };
+            rendered
+                .content
+                .write_file(&out)
+                .map_err(|e| e.to_string())?;
+            let file = StreamFile::open(&out).map_err(|e| e.to_string())?;
+            eprintln!(
+                "rendered {} cars on {} ({:.0} s of race) in {:.1} s -> {} ({} KB)",
+                file.roster.entries.len(),
+                file.header.track.display_name,
+                file.header.duration_s(),
+                started.elapsed().as_secs_f32(),
+                out.display(),
+                file.file_len() / 1024
+            );
+            print_json(&serde_json::json!({
+                "out": out,
+                "seed": rendered.seed,
+                "score": rendered.score.score(),
+                "race": rendered.score,
+                "stream": describe_stream(&file)?,
+            }))
+        }
+        Command::Convert {
+            replay,
+            rate,
+            track,
+            cars_dir,
+            from_tick,
+            to_tick,
+            out,
+        } => {
+            let (metadata, frames) = read_replay_file(&replay).map_err(|e| e.to_string())?;
+            let part = cut(&frames, from_tick.unwrap_or(0), to_tick.unwrap_or(u32::MAX));
+            write_stream(&metadata, &part, rate, track, &cars_dir, &out)?;
+            let file = StreamFile::open(&out).map_err(|e| e.to_string())?;
+            print_json(&describe_stream(&file)?)
+        }
+        Command::Info {
+            replay,
+            check,
+            tracks_dir,
+            cars_dir,
+        } => {
+            if StreamFile::is_stream_file(&replay) {
+                let file = StreamFile::open(&replay).map_err(|e| e.to_string())?;
+                let info = describe_stream(&file)?;
+                if !check {
+                    return print_json(&info);
+                }
+                let stale = check_stream(&file.header, &file.roster, &tracks_dir, &cars_dir);
+                print_json(&serde_json::json!({ "stream": info, "stale": stale }))?;
+                return if stale.is_empty() {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "{} no longer matches the content: {}",
+                        replay.display(),
+                        stale.join("; ")
+                    ))
+                };
+            }
+            if check {
+                return Err("--check reads a stream (.apxs), not a replay".to_string());
+            }
             let (metadata, frames) = read_replay_file(&replay).map_err(|e| e.to_string())?;
             print_json(&describe(&metadata, &frames))
         }
@@ -324,6 +615,8 @@ fn run(args: Args) -> Result<(), String> {
             from_s,
             to_s,
             track,
+            rate: stream_rate,
+            cars_dir,
             out,
         } => {
             let (metadata, frames) = read_replay_file(&replay).map_err(|e| e.to_string())?;
@@ -346,7 +639,12 @@ fn run(args: Args) -> Result<(), String> {
             let is_json = out
                 .extension()
                 .is_some_and(|e| e.eq_ignore_ascii_case("json"));
-            if is_json {
+            let is_stream = out
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("apxs"));
+            if is_stream {
+                write_stream(&metadata, &part, stream_rate, track, &cars_dir, &out)?;
+            } else if is_json {
                 let track = default_track(track, metadata.track_stem.as_deref())?;
                 let track = TrackLoader::load_from_file(&track).map_err(|e| e.to_string())?;
                 let clip = to_clip(&metadata, &part, &track.centerline, 10.0);

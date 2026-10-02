@@ -1,5 +1,7 @@
 #include "ApexProtocolCodec.h"
 
+#include "ApexSpectatorStream.h"
+
 #include "ApexSimNetModule.h"
 #include "HAL/IConsoleManager.h"
 #include "MsgPack/MsgPackFormat.h"
@@ -376,6 +378,10 @@ namespace
 			{
 				bOk = ParseArrayOf(Reader, Out.TrackConfigs, &ParseTrackConfigSummary);
 			}
+			else if (Key == TEXT("ShowcaseAvailable"))
+			{
+				bOk = Reader.ReadBool(Out.bShowcaseAvailable);
+			}
 			else
 			{
 				bOk = Reader.SkipValue();
@@ -480,6 +486,105 @@ namespace
 				return false;
 			}
 		}
+		return true;
+	}
+
+	/** `ShowcaseSummary` (network.rs) — PascalCase keys. */
+	bool ParseShowcaseSummary(FMsgPackReader& Reader, FApexShowcaseSummary& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Id"))              { bOk = Reader.ReadString(Out.Id); }
+			else if (Key == TEXT("TrackId"))    { bOk = Reader.ReadString(Out.TrackId); }
+			else if (Key == TEXT("TrackName"))  { bOk = Reader.ReadString(Out.TrackName); }
+			else if (Key == TEXT("Class"))      { bOk = Reader.ReadString(Out.Class); }
+			else if (Key == TEXT("Conditions")) { bOk = ParseSessionConditions(Reader, Out.Conditions); }
+			else if (Key == TEXT("DurationS"))  { bOk = Reader.ReadFloat(Out.DurationS); }
+			else if (Key == TEXT("Cars"))       { bOk = Reader.ReadUInt64(Raw); Out.Cars = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Viewers"))    { bOk = Reader.ReadUInt64(Raw); Out.Viewers = static_cast<int32>(Raw); }
+			else                                { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `ShowcasesData` (network.rs) — PascalCase keys. */
+	bool ParseShowcases(FMsgPackReader& Reader, TArray<FApexShowcaseSummary>& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			const bool bOk = Key == TEXT("Entries") ? ParseArrayOf(Reader, Out, &ParseShowcaseSummary) : Reader.SkipValue();
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `SpectatorJoinedData` (network.rs) — PascalCase keys. */
+	bool ParseSpectatorJoined(FMsgPackReader& Reader, FApexServerMessage& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("StreamId"))        { bOk = Reader.ReadString(Out.StreamId); }
+			else if (Key == TEXT("Kind"))       { bOk = Reader.ReadUInt64(Raw); Out.SpectatorKind = static_cast<EApexSpectatorKind>(Raw); }
+			else if (Key == TEXT("ShowcaseId")) { bOk = Reader.ReadString(Out.ShowcaseId); }
+			else                                { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `SpectatorRecord`: a `bin` of framed stream records, kept as it is. */
+	bool ParseSpectatorRecord(FMsgPackReader& Reader, TArray<uint8>& Out)
+	{
+		TArrayView<const uint8> Bytes;
+		if (!Reader.ReadBinary(Bytes))
+		{
+			return false;
+		}
+		Out = TArray<uint8>(Bytes.GetData(), Bytes.Num());
 		return true;
 	}
 
@@ -1517,6 +1622,9 @@ namespace
 		if (Variant == TEXT("LapRecord"))          { return EApexServerMessageType::LapRecord; }
 		if (Variant == TEXT("GhostLap"))           { return EApexServerMessageType::GhostLap; }
 		if (Variant == TEXT("CarSetupSheet"))      { return EApexServerMessageType::CarSetupSheet; }
+		if (Variant == TEXT("Showcases"))          { return EApexServerMessageType::Showcases; }
+		if (Variant == TEXT("SpectatorJoined"))    { return EApexServerMessageType::SpectatorJoined; }
+		if (Variant == TEXT("SpectatorRecord"))    { return EApexServerMessageType::SpectatorRecord; }
 		if (Variant == TEXT("UdpHandshakeAck"))    { return EApexServerMessageType::UdpHandshakeAck; }
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 		if (Variant == TEXT("DriverFeedback"))     { return EApexServerMessageType::DriverFeedback; }
@@ -1566,6 +1674,15 @@ namespace
 			return ParseGhostLap(Reader, Out.GhostLap);
 		case EApexServerMessageType::CarSetupSheet:
 			return ParseCarSetupSheet(Reader, Out.CarSetupSheet);
+
+		case EApexServerMessageType::Showcases:
+			return ParseShowcases(Reader, Out.Showcases);
+
+		case EApexServerMessageType::SpectatorJoined:
+			return ParseSpectatorJoined(Reader, Out);
+
+		case EApexServerMessageType::SpectatorRecord:
+			return ParseSpectatorRecord(Reader, Out.SpectatorRecords);
 
 		case EApexServerMessageType::TelemetryCompact:
 		case EApexServerMessageType::DriverFeedback:
@@ -1817,6 +1934,24 @@ namespace ApexProtocol
 	}
 
 	TArray<uint8> EncodeRequestGhost() { return EncodeUnitVariant("RequestGhost"); }
+	TArray<uint8> EncodeListShowcases() { return EncodeUnitVariant("ListShowcases"); }
+	TArray<uint8> EncodeLeaveSpectate() { return EncodeUnitVariant("LeaveSpectate"); }
+
+	TArray<uint8> EncodeSpectateShowcase(const FString& Id)
+	{
+		FMsgPackWriter Writer(96);
+		BeginDataVariant(Writer, "SpectateShowcase", 1);
+		Writer.WriteString("id");
+		if (Id.IsEmpty())
+		{
+			Writer.WriteNil();
+		}
+		else
+		{
+			Writer.WriteString(Id);
+		}
+		return MoveTemp(Writer.GetBuffer());
+	}
 
 	TArray<uint8> EncodeUdpHandshake(const FString& UdpToken)
 	{
@@ -1897,11 +2032,21 @@ namespace ApexProtocol
 		}
 
 		// A named envelope starts with a map header; a positional one with an
-		// array header. That first byte is enough to pick the decoder.
+		// array header. That first byte is enough to pick the decoder. A
+		// spectator stream frame is an array too, but opens on its record
+		// type (a small integer) where the envelope opens on a string.
 		const uint8 Tag = Payload[0];
 		if (!MsgPack::IsFixArray(Tag) && Tag != MsgPack::Array16 && Tag != MsgPack::Array32)
 		{
 			return DecodeServerMessage(Payload, OutMessage, OutError);
+		}
+		if (ApexSpectator::IsRecordDatagram(Payload))
+		{
+			OutMessage.Type = EApexServerMessageType::SpectatorRecord;
+			OutMessage.VariantName = TEXT("SpectatorRecord");
+			OutMessage.SpectatorRecords.Reserve(Payload.Num() + 4);
+			ApexSpectator::AppendFramed(OutMessage.SpectatorRecords, Payload);
+			return true;
 		}
 
 		FMsgPackReader Reader(Payload);

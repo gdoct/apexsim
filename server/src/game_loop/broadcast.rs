@@ -260,6 +260,7 @@ async fn build_lobby_state_with(
         })
         .collect();
 
+    let showcase_available = state_read.showcase.is_available();
     drop(state_read);
 
     ServerMessage::LobbyState(LobbyStateData {
@@ -267,6 +268,7 @@ async fn build_lobby_state_with(
         available_sessions,
         car_configs,
         track_configs,
+        showcase_available,
     })
 }
 

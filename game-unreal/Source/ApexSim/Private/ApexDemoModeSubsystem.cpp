@@ -3,11 +3,15 @@
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexSim.h"
+#include "ApexSpectatorSubsystem.h"
+#include "ApexSpectatorStream.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Engine/GameInstance.h"
+#include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "Race/ApexRaceDirector.h"
 #include "Track/ApexTrackContentSubsystem.h"
 
@@ -22,41 +26,55 @@ namespace
 	TAutoConsoleVariable<int32> CVarDemoAiCount(
 		TEXT("apexsim.demo.AiCount"),
 		10,
-		TEXT("Cars in the menu's demo race (the circuit's grid may hold fewer)."),
+		TEXT("Cars in a demo session (the circuit's grid may hold fewer); a showcase has its own field."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int32> CVarDemoLaps(
 		TEXT("apexsim.demo.Laps"),
 		3,
-		TEXT("Laps in each demo race before the next one starts."),
+		TEXT("Laps in each demo session before the next one starts."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int32> CVarDemoRandomSky(
 		TEXT("apexsim.demo.RandomSky"),
 		1,
-		TEXT("1 gives each demo race a random weather and time of day; 0 races under the default sunny 13:00."),
+		TEXT("1 gives each demo session a random weather and time of day; 0 races under the default sunny 13:00. A showcase keeps the sky it was rendered in."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarDemoMaxMinutes(
 		TEXT("apexsim.demo.MaxMinutes"),
 		12.0f,
-		TEXT("A demo race still running after this long is restarted (a car stuck off the road never finishes)."),
+		TEXT("A backdrop still running after this long moves on to the next (a car stuck off the road never finishes)."),
 		ECVF_Default);
 
 	FAutoConsoleCommandWithWorldAndArgs DemoRestartCommand(
 		TEXT("apexsim.demo.Restart"),
-		TEXT("Start the menu's demo race over."),
+		TEXT("Start the menu's backdrop race over."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 			{
 				const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-				if (UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr)
+				if (UApexSpectatorSubsystem* Spectator = GameInstance ? GameInstance->GetSubsystem<UApexSpectatorSubsystem>() : nullptr)
 				{
-					Net->LeaveDemoSession();
+					Spectator->RequestNext();
 				}
 			}));
 
-	/** Seconds a finished demo race lingers on its cool-down laps before the next. */
+	/** Seconds a finished backdrop race lingers on its cool-down laps before the next. */
 	constexpr float FinishedLingerSeconds = 6.0f;
+	/** How long a connection under way, or a channel list asked for, is given before a local file plays instead. */
+	constexpr float ServerGraceSeconds = 3.0f;
+
+	/** `Zandvoort.gt3.day.apxs` -> `Zandvoort`. */
+	FString StemOfShowcaseFile(const FString& Path)
+	{
+		FString Name = FPaths::GetCleanFilename(Path);
+		int32 Dot = INDEX_NONE;
+		if (Name.FindChar(TEXT('.'), Dot))
+		{
+			Name.LeftInline(Dot);
+		}
+		return Name;
+	}
 }
 
 void UApexDemoModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -64,10 +82,20 @@ void UApexDemoModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	Collection.InitializeDependency<UApexNetSubsystem>();
 	Collection.InitializeDependency<UApexMenuFlowSubsystem>();
+	Collection.InitializeDependency<UApexSpectatorSubsystem>();
 
 	if (UApexNetSubsystem* Net = GetNet())
 	{
 		DemoChangedHandle = Net->OnDemoSessionChanged.AddUObject(this, &UApexDemoModeSubsystem::HandleDemoSessionChanged);
+		ShowcasesHandle = Net->OnShowcases.AddUObject(this, &UApexDemoModeSubsystem::HandleShowcases);
+	}
+	FParse::Value(FCommandLine::Get(), TEXT("-ApexShowcase="), ForcedShowcase);
+	bNoShowcase = FParse::Param(FCommandLine::Get(), TEXT("ApexNoShowcase"));
+	// Known from the start, so the splash hold can count on a file before
+	// the server has answered (or refused).
+	if (!IsDemoDisabled() && !bNoShowcase)
+	{
+		ScanLocalFiles();
 	}
 	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateUObject(this, &UApexDemoModeSubsystem::Tick));
@@ -79,6 +107,7 @@ void UApexDemoModeSubsystem::Deinitialize()
 	if (UApexNetSubsystem* Net = GetNet())
 	{
 		Net->OnDemoSessionChanged.Remove(DemoChangedHandle);
+		Net->OnShowcases.Remove(ShowcasesHandle);
 	}
 	Super::Deinitialize();
 }
@@ -95,6 +124,12 @@ UApexMenuFlowSubsystem* UApexDemoModeSubsystem::GetFlow() const
 	return GameInstance ? GameInstance->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
 }
 
+UApexSpectatorSubsystem* UApexDemoModeSubsystem::GetSpectator() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance ? GameInstance->GetSubsystem<UApexSpectatorSubsystem>() : nullptr;
+}
+
 AApexRaceDirector* UApexDemoModeSubsystem::GetDirector() const
 {
 	const UGameInstance* GameInstance = GetGameInstance();
@@ -109,10 +144,8 @@ bool UApexDemoModeSubsystem::IsDemoAllowed(const UApexNetSubsystem& Net) const
 	}
 	const AApexRaceDirector* Director = GetDirector();
 	return Director
-		&& Net.IsAuthenticated()
 		&& !Net.IsInSession()
 		&& !Net.IsSessionRequestPending()
-		&& Net.GetCachedLobbyState().TrackConfigs.Num() > 0
 		// The player's own race has the director.
 		&& (!Director->IsRaceViewActive() || Director->IsDemoViewActive());
 }
@@ -128,17 +161,27 @@ bool UApexDemoModeSubsystem::IsDemoExpected() const
 	{
 		return false;
 	}
+	if (Source != EApexBackdropSource::None)
+	{
+		return true;
+	}
+	// A local file needs no server: as long as one is on disk and nothing
+	// has failed, a backdrop is coming.
+	if (!bNoShowcase && bFilesScanned && LocalFiles.Num() > 0 && Failures == 0)
+	{
+		return true;
+	}
 	switch (Net->GetConnectionState())
 	{
 	case EApexConnectionState::Connecting:
 	case EApexConnectionState::Authenticating:
 		return true;
 	case EApexConnectionState::Authenticated:
-		// A failed create backs off for seconds; a startup should not wait it out.
+		// A failed request backs off for seconds; a startup should not wait it out.
 		return !bWarnedNoTracks && (Failures == 0 || Net->IsInDemoSession() || Net->IsDemoSessionRequested());
 	default:
 		// Disconnected (nobody asked to connect), Failed, or Reconnecting after
-		// the server could not be reached.
+		// the server could not be reached: a local file, if any, was tried above.
 		return false;
 	}
 }
@@ -148,7 +191,7 @@ bool UApexDemoModeSubsystem::IsDemoDisabled()
 	static const bool bCommandLineOff = FParse::Param(FCommandLine::Get(), TEXT("ApexNoDemo"))
 		// An unattended run is there to look at something else.
 		|| FParse::Param(FCommandLine::Get(), TEXT("ApexAutoRace"))
-		// A replay clip plays offline, with no server to race a demo on.
+		// A replay plays offline, with no backdrop under it.
 		|| FCString::Strifind(FCommandLine::Get(), TEXT("-ApexReplay=")) != nullptr;
 	return bCommandLineOff || CVarDemoEnabled.GetValueOnGameThread() == 0;
 }
@@ -263,50 +306,394 @@ bool UApexDemoModeSubsystem::ChooseTrack(const UApexNetSubsystem& Net)
 	return true;
 }
 
+void UApexDemoModeSubsystem::ScanLocalFiles()
+{
+	if (bFilesScanned)
+	{
+		return;
+	}
+	bFilesScanned = true;
+	LocalFiles.Reset();
+	TArray<FString> Files = UApexSpectatorSubsystem::FindShowcaseFiles();
+	if (!ForcedShowcase.IsEmpty() && IFileManager::Get().FileExists(*ForcedShowcase))
+	{
+		Files.Reset();
+		Files.Add(FPaths::ConvertRelativePathToFull(ForcedShowcase));
+	}
+	for (const FString& Path : Files)
+	{
+		FApexStreamHeader Header;
+		FApexStreamRoster Roster;
+		FString Error;
+		if (!FApexStreamFile::ReadPreamble(Path, Header, Roster, Error))
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("Demo mode: %s is not a showcase file: %s"), *Path, *Error);
+			continue;
+		}
+		FFileCandidate& Candidate = LocalFiles.AddDefaulted_GetRef();
+		Candidate.Path = Path;
+		Candidate.TrackStem = Header.Track.Stem.IsEmpty() ? StemOfShowcaseFile(Path) : Header.Track.Stem;
+		Candidate.TrackId = Header.Track.TrackId;
+		Candidate.TrackCrc = Header.Track.SourceCrc;
+		for (const FApexStreamRosterEntry& Entry : Roster.Entries)
+		{
+			Candidate.Cars.AddUnique(TPair<FString, int64>(Entry.CarConfigId, static_cast<int64>(Entry.ContentCrc)));
+		}
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: %d local showcase file(s)"), LocalFiles.Num());
+}
+
+UApexDemoModeSubsystem::FContentCrcs UApexDemoModeSubsystem::GatherContentCrcs(const UApexNetSubsystem& Net) const
+{
+	FContentCrcs Content;
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexTrackContentSubsystem* Tracks = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+	if (!Flow)
+	{
+		return Content;
+	}
+	// Every track with an export on this machine, by id: the catalog is keyed
+	// by it whether the server lists the track or not.
+	for (const FFileCandidate& File : LocalFiles)
+	{
+		FApexTrackCatalogRow Row;
+		if (Flow->GetTrackCatalogRow(File.TrackId, Row) && !Row.YamlBaseName.IsEmpty() && Tracks && Tracks->HasTrack(Row.YamlBaseName))
+		{
+			Content.Tracks.Add(File.TrackId, TPair<FString, int64>(Row.YamlBaseName, Row.SourceCrc));
+		}
+		for (const TPair<FString, int64>& Car : File.Cars)
+		{
+			FApexCarCatalogRow CarRow;
+			if (Flow->GetCarCatalogRow(Car.Key, CarRow))
+			{
+				Content.Cars.Add(Car.Key, CarRow.SourceCrc);
+			}
+		}
+	}
+	return Content;
+}
+
+int32 UApexDemoModeSubsystem::ChooseFile(const TArray<FFileCandidate>& Files, const FContentCrcs& Content,
+	const FString& PendingTrackId, const FString& Avoid, TArray<FString>* OutWhySkipped)
+{
+	TArray<int32> Playable;
+	for (int32 i = 0; i < Files.Num(); ++i)
+	{
+		const FFileCandidate& File = Files[i];
+		const TPair<FString, int64>* Track = Content.Tracks.Find(File.TrackId);
+		FString Why;
+		if (!Track)
+		{
+			Why = TEXT("its track has no export here");
+		}
+		else if (File.TrackCrc != 0 && Track->Value != 0 && File.TrackCrc != Track->Value)
+		{
+			Why = TEXT("its track has changed since it was rendered");
+		}
+		for (const TPair<FString, int64>& Car : File.Cars)
+		{
+			if (!Why.IsEmpty())
+			{
+				break;
+			}
+			const int64* Crc = Content.Cars.Find(Car.Key);
+			if (!Crc)
+			{
+				Why = FString::Printf(TEXT("car %s is not here"), *Car.Key);
+			}
+			else if (Car.Value != 0 && *Crc != 0 && Car.Value != *Crc)
+			{
+				Why = FString::Printf(TEXT("car %s has changed since it was rendered"), *Car.Key);
+			}
+		}
+		if (!Why.IsEmpty())
+		{
+			if (OutWhySkipped)
+			{
+				OutWhySkipped->Add(FString::Printf(TEXT("%s: %s"), *FPaths::GetCleanFilename(File.Path), *Why));
+			}
+			continue;
+		}
+		Playable.Add(i);
+	}
+	if (Playable.Num() == 0)
+	{
+		return INDEX_NONE;
+	}
+	// The player's own track first, then anything but the one just played.
+	for (int32 i : Playable)
+	{
+		if (!PendingTrackId.IsEmpty() && Files[i].TrackId.Equals(PendingTrackId, ESearchCase::IgnoreCase) && Files[i].Path != Avoid)
+		{
+			return i;
+		}
+	}
+	for (int32 i : Playable)
+	{
+		if (!PendingTrackId.IsEmpty() && Files[i].TrackId.Equals(PendingTrackId, ESearchCase::IgnoreCase))
+		{
+			return i;
+		}
+	}
+	for (int32 i : Playable)
+	{
+		if (Files[i].Path != Avoid)
+		{
+			return i;
+		}
+	}
+	return Playable[0];
+}
+
+bool UApexDemoModeSubsystem::StartShowcase(UApexNetSubsystem& Net)
+{
+	UApexSpectatorSubsystem* Spectator = GetSpectator();
+	if (!Spectator || bNoShowcase || !Net.IsAuthenticated() || !Net.IsShowcaseAvailable())
+	{
+		return false;
+	}
+	if (!bShowcasesKnown)
+	{
+		if (!bShowcasesAsked)
+		{
+			bShowcasesAsked = true;
+			SecondsSinceAsked = 0.0f;
+			Net.ListShowcases();
+		}
+		// The answer comes on the next tick or so; try again then.
+		return false;
+	}
+	const TArray<FApexShowcaseSummary>& Channels = Net.GetShowcases();
+	if (Channels.Num() == 0)
+	{
+		return false;
+	}
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+	const FString Pending = Flow && Flow->HasPendingTrack() ? Flow->GetPendingTrackId() : FString();
+
+	// A channel this client can draw: its track has a level here.
+	auto StemOf = [&](const FApexShowcaseSummary& Channel, FString& OutStem)
+	{
+		FApexTrackCatalogRow Row;
+		if (Flow && Flow->GetTrackCatalogRow(Channel.TrackId, Row) && !Row.YamlBaseName.IsEmpty()
+			&& Content && Content->HasTrack(Row.YamlBaseName))
+		{
+			OutStem = Row.YamlBaseName;
+			return true;
+		}
+		return false;
+	};
+	const FApexShowcaseSummary* Chosen = nullptr;
+	FString Stem;
+	if (!ForcedShowcase.IsEmpty())
+	{
+		Chosen = Channels.FindByPredicate([this](const FApexShowcaseSummary& C) { return C.Id.Equals(ForcedShowcase, ESearchCase::IgnoreCase); });
+		if (Chosen && !StemOf(*Chosen, Stem))
+		{
+			Chosen = nullptr;
+		}
+	}
+	if (!Chosen && !Pending.IsEmpty())
+	{
+		for (const FApexShowcaseSummary& Channel : Channels)
+		{
+			if (Channel.TrackId.Equals(Pending, ESearchCase::IgnoreCase) && Channel.Id != LastShowcaseId && StemOf(Channel, Stem))
+			{
+				Chosen = &Channel;
+				break;
+			}
+		}
+	}
+	if (!Chosen)
+	{
+		for (const FApexShowcaseSummary& Channel : Channels)
+		{
+			if ((Channel.Id != LastShowcaseId || Channels.Num() == 1) && StemOf(Channel, Stem))
+			{
+				Chosen = &Channel;
+				break;
+			}
+		}
+	}
+	if (!Chosen)
+	{
+		return false;
+	}
+	TrackId = Chosen->TrackId;
+	TrackStem = Stem;
+	Centerline.Reset();
+	FApexTrackConfigSummary Track;
+	if (Net.FindTrackById(TrackId, Track))
+	{
+		Centerline = Track.Centerline;
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: watching showcase %s on %s (%s)"), *Chosen->Id, *TrackStem, *Chosen->Conditions.Describe());
+	if (!Spectator->WatchShowcase(Chosen->Id))
+	{
+		return false;
+	}
+	Source = EApexBackdropSource::Showcase;
+	LastShowcaseId = Chosen->Id;
+	return true;
+}
+
+bool UApexDemoModeSubsystem::StartLocalFile(UApexNetSubsystem& Net)
+{
+	UApexSpectatorSubsystem* Spectator = GetSpectator();
+	if (!Spectator || bNoShowcase)
+	{
+		return false;
+	}
+	ScanLocalFiles();
+	if (LocalFiles.Num() == 0)
+	{
+		return false;
+	}
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const FString Pending = Flow && Flow->HasPendingTrack() ? Flow->GetPendingTrackId() : FString();
+	TArray<FString> Skipped;
+	const int32 Pick = ChooseFile(LocalFiles, GatherContentCrcs(Net), Pending, LastFile, &Skipped);
+	for (const FString& Why : Skipped)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Demo mode: skipping %s"), *Why);
+	}
+	if (Pick == INDEX_NONE)
+	{
+		return false;
+	}
+	const FFileCandidate& File = LocalFiles[Pick];
+	TrackId = File.TrackId;
+	TrackStem = File.TrackStem;
+	// The cameras' path comes with the stream; the lobby's is a fallback.
+	Centerline.Reset();
+	FApexTrackConfigSummary Track;
+	if (Net.FindTrackById(TrackId, Track))
+	{
+		Centerline = Track.Centerline;
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: playing %s"), *File.Path);
+	if (!Spectator->PlayFile(File.Path))
+	{
+		return false;
+	}
+	Source = EApexBackdropSource::LocalFile;
+	LastFile = File.Path;
+	return true;
+}
+
+bool UApexDemoModeSubsystem::StartDemoSession(UApexNetSubsystem& Net)
+{
+	if (!Net.IsAuthenticated() || Net.GetCachedLobbyState().TrackConfigs.Num() == 0 || !ChooseTrack(Net))
+	{
+		return false;
+	}
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	// The field races in the class of the car the player picked.
+	if (Flow && Flow->HasPendingCar())
+	{
+		Net.SelectCar(Flow->GetPendingCarId());
+	}
+	FApexSessionConditions Conditions;
+	if (CVarDemoRandomSky.GetValueOnGameThread() != 0)
+	{
+		FRandomStream Random(static_cast<int32>(FPlatformTime::Cycles()));
+		Conditions = RollConditions(Random);
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: starting an AI race on %s, %s"), *TrackStem, *Conditions.Describe());
+	Net.CreateDemoSession(TrackId, CVarDemoAiCount.GetValueOnGameThread(), CVarDemoLaps.GetValueOnGameThread(), Conditions);
+	Source = EApexBackdropSource::DemoSession;
+	return true;
+}
+
+bool UApexDemoModeSubsystem::StartBackdrop(UApexNetSubsystem& Net)
+{
+	if (StartShowcase(Net))
+	{
+		return true;
+	}
+	// The server's showcase comes first when there is a server: give a
+	// connection under way, and a channel list asked for, a moment before
+	// falling back to a file. A startup offline is not held up: the connect
+	// fails in under a second and the file plays.
+	const EApexConnectionState State = Net.GetConnectionState();
+	const bool bConnecting = State == EApexConnectionState::Connecting || State == EApexConnectionState::Authenticating
+		|| (State == EApexConnectionState::Authenticated && Net.GetCachedLobbyState().TrackConfigs.Num() == 0);
+	const bool bListPending = Net.IsAuthenticated() && Net.IsShowcaseAvailable() && bShowcasesAsked && !bShowcasesKnown;
+	if (!bNoShowcase && ((bConnecting && SecondsSinceInit < ServerGraceSeconds) || (bListPending && SecondsSinceAsked < ServerGraceSeconds)))
+	{
+		return false;
+	}
+	return StartLocalFile(Net) || StartDemoSession(Net);
+}
+
+void UApexDemoModeSubsystem::Teardown(UApexNetSubsystem& Net)
+{
+	if (UApexSpectatorSubsystem* Spectator = GetSpectator())
+	{
+		Spectator->Stop();
+	}
+	Net.LeaveDemoSession();
+	Source = EApexBackdropSource::None;
+}
+
 bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 {
 	UApexNetSubsystem* Net = GetNet();
+	UApexSpectatorSubsystem* Spectator = GetSpectator();
 	if (!Net)
 	{
 		return true;
 	}
 	Cooldown = FMath::Max(0.0f, Cooldown - DeltaSeconds);
+	SecondsSinceInit += DeltaSeconds;
+	SecondsSinceAsked += DeltaSeconds;
+	if (Net->GetConnectionState() != EApexConnectionState::Authenticated)
+	{
+		// The channels are the server's: ask again on the next connection.
+		bShowcasesAsked = false;
+		bShowcasesKnown = false;
+	}
 
-	const bool bDemoOnServer = Net->IsInDemoSession() || Net->IsDemoSessionRequested();
+	const bool bStreaming = Spectator && Spectator->GetSource() != EApexSpectatorSource::None;
+	const bool bRunning = bStreaming || Net->IsInDemoSession() || Net->IsDemoSessionRequested();
 	if (!IsDemoAllowed(*Net))
 	{
-		if (bDemoOnServer && !Net->IsSessionRequestPending())
+		if (bRunning && !Net->IsSessionRequestPending())
 		{
 			// Turned off, or disconnected mid-demo: a session request already
 			// left it on its own.
-			Net->LeaveDemoSession();
+			Teardown(*Net);
 		}
 		bRestarting = false;
 		return true;
 	}
 
-	if (!bDemoOnServer)
+	if (!bRunning)
 	{
-		if (Cooldown <= 0.0f && ChooseTrack(*Net))
+		Source = EApexBackdropSource::None;
+		if (Cooldown <= 0.0f)
 		{
-			UApexMenuFlowSubsystem* Flow = GetFlow();
-			// The field races in the class of the car the player picked.
-			if (Flow && Flow->HasPendingCar())
+			if (StartBackdrop(*Net))
 			{
-				Net->SelectCar(Flow->GetPendingCarId());
+				// Until the answer: a request that fails backs off further each time.
+				Cooldown = FMath::Min(5.0f * FMath::Pow(2.0f, static_cast<float>(Failures)), 120.0f);
+				++Failures;
 			}
-			FApexSessionConditions Conditions;
-			if (CVarDemoRandomSky.GetValueOnGameThread() != 0)
+			else
 			{
-				FRandomStream Random(static_cast<int32>(FPlatformTime::Cycles()));
-				Conditions = RollConditions(Random);
+				// Waiting on the server, or nothing to play yet: look again soon.
+				Cooldown = 0.25f;
 			}
-			UE_LOG(LogApexSim, Log, TEXT("Demo mode: starting an AI race on %s, %s"), *TrackStem, *Conditions.Describe());
-			Net->CreateDemoSession(TrackId, CVarDemoAiCount.GetValueOnGameThread(), CVarDemoLaps.GetValueOnGameThread(), Conditions);
-			// Until the answer: a request that fails backs off further each time.
-			Cooldown = FMath::Min(5.0f * FMath::Pow(2.0f, static_cast<float>(Failures)), 120.0f);
-			++Failures;
 		}
+		return true;
+	}
+
+	if (bStreaming && Spectator->HasFailed())
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Demo mode: the backdrop could not be played (%s); trying another"), *Spectator->GetFailure());
+		Teardown(*Net);
+		Cooldown = FMath::Max(Cooldown, 1.0f);
 		return true;
 	}
 
@@ -322,13 +709,17 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 	{
 		if (!Director || Director->GetDemoBackdropOpacity() <= 0.0f)
 		{
-			Net->LeaveDemoSession();
+			Teardown(*Net);
 		}
 		return true;
 	}
 
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	if (FinishedFor > FinishedLingerSeconds)
+	if (Spectator && Spectator->TakeNextRequested())
+	{
+		Restart(TEXT("the next one was asked for"));
+	}
+	else if (FinishedFor > FinishedLingerSeconds)
 	{
 		Restart(TEXT("the race is over"));
 	}
@@ -338,11 +729,26 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 	}
 	else if (Flow && Flow->HasPendingTrack() && !Flow->GetPendingTrackId().Equals(TrackId, ESearchCase::IgnoreCase))
 	{
-		// The player picked another circuit; show that one, if it has a level.
+		// The player picked another circuit; show that one, if it has a level
+		// and something to play on it.
 		FApexTrackCatalogRow Row;
 		const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
-		if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) && !Row.YamlBaseName.IsEmpty() && Content
-			&& Content->HasTrack(Row.YamlBaseName))
+		const bool bHasLevel = Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) && !Row.YamlBaseName.IsEmpty() && Content
+			&& Content->HasTrack(Row.YamlBaseName);
+		bool bHasRace = Source == EApexBackdropSource::DemoSession;
+		if (Source == EApexBackdropSource::Showcase)
+		{
+			bHasRace = Net->GetShowcases().ContainsByPredicate([Flow](const FApexShowcaseSummary& C) {
+				return C.TrackId.Equals(Flow->GetPendingTrackId(), ESearchCase::IgnoreCase);
+			});
+		}
+		else if (Source == EApexBackdropSource::LocalFile)
+		{
+			bHasRace = LocalFiles.ContainsByPredicate([Flow](const FFileCandidate& F) {
+				return F.TrackId.Equals(Flow->GetPendingTrackId(), ESearchCase::IgnoreCase);
+			});
+		}
+		if (bHasLevel && bHasRace)
 		{
 			Restart(TEXT("the player chose another track"));
 		}
@@ -360,6 +766,16 @@ void UApexDemoModeSubsystem::Restart(const TCHAR* Why)
 	}
 }
 
+void UApexDemoModeSubsystem::HandleShowcases(const TArray<FApexShowcaseSummary>& Showcases)
+{
+	bShowcasesKnown = true;
+	// A channel list in hand: no need to wait out the back-off from asking.
+	if (Source == EApexBackdropSource::None && Showcases.Num() > 0)
+	{
+		Cooldown = 0.0f;
+	}
+}
+
 void UApexDemoModeSubsystem::HandleDemoSessionChanged(bool bJoined)
 {
 	AApexRaceDirector* Director = GetDirector();
@@ -370,6 +786,18 @@ void UApexDemoModeSubsystem::HandleDemoSessionChanged(bool bJoined)
 		FinishedFor = 0.0f;
 		bRestarting = false;
 		LastTrackId = TrackId;
+		// A stream brings its own path for the cameras; it beats the lobby's.
+		if (const UApexSpectatorSubsystem* Spectator = GetSpectator())
+		{
+			if (Spectator->GetSource() != EApexSpectatorSource::None && Spectator->GetCenterline().Num() > 0)
+			{
+				Centerline = Spectator->GetCenterline();
+			}
+			if (Spectator->GetSource() != EApexSpectatorSource::None && TrackStem.IsEmpty() && Spectator->HasHeader())
+			{
+				TrackStem = Spectator->GetHeader().Track.Stem;
+			}
+		}
 		if (Director && !TrackStem.IsEmpty())
 		{
 			Director->BeginDemoView(TrackStem, Centerline);

@@ -662,23 +662,44 @@ TArray<UTexture2D*> UApexCarContentSubsystem::ModelTextures(const FString& Key, 
 	const FString Stem = ApexCarToml::Segment(FPaths::GetBaseFilename(Key));
 	TArray<UTexture2D*> Textures;
 	Textures.SetNumZeroed(Model.Images.Num());
+	int32 Made = 0;
+	int32 Shared = 0;
+	int64 Bytes = 0;
+	int64 AsBgra = 0;
 	for (int32 i = 0; i < Model.Images.Num(); ++i)
 	{
 		if (!Model.Images[i].bUsed)
 		{
 			continue;
 		}
-		const FString ImageKey = FString::Printf(TEXT("%s#%d"), *Key, i);
-		if (const TObjectPtr<UTexture2D>* Made = EmbeddedImages.Find(ImageKey))
+		// Keyed by content where it is known: an F1's DRS flap embeds the
+		// body's 2048 map again, and two cars may share a decal sheet.
+		const FApexGlbImage& Image = Model.Images[i];
+		const FString ImageKey = Image.ContentHash != 0
+			? FString::Printf(TEXT("#%016llx_%dx%d_%d"), Image.ContentHash, Image.Width, Image.Height, int32(Image.Format))
+			: FString::Printf(TEXT("%s#%d"), *Key, i);
+		if (const TObjectPtr<UTexture2D>* Existing = EmbeddedImages.Find(ImageKey))
 		{
-			Textures[i] = *Made;
+			Textures[i] = *Existing;
+			++Shared;
 			continue;
 		}
-		Textures[i] = MakeTexture(Model.Images[i], FString::Printf(TEXT("%s_%d"), *Stem, i));
+		Textures[i] = MakeTexture(Image, FString::Printf(TEXT("%s_%d"), *Stem, i));
 		if (Textures[i])
 		{
 			EmbeddedImages.Add(ImageKey, Textures[i]);
+			++Made;
+			for (int32 Level = 0; Level < Image.Mips.Num(); ++Level)
+			{
+				Bytes += Image.Mips[Level].Num();
+				AsBgra += int64(FMath::Max(1, Image.Width >> Level)) * FMath::Max(1, Image.Height >> Level) * 4;
+			}
 		}
+	}
+	if (Made > 0 || Shared > 0)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Car model %s: %d texture(s) made, %.1f MB (%.1f MB as BGRA8), %d shared with a model read before"),
+			*FPaths::GetCleanFilename(Key), Made, Bytes / 1.0e6, AsBgra / 1.0e6, Shared);
 	}
 	return Textures;
 }
@@ -690,7 +711,8 @@ UTexture2D* UApexCarContentSubsystem::MakeTexture(const FApexGlbImage& Image, co
 		return nullptr;
 	}
 	const FName ObjectName = MakeUniqueObjectName(GetTransientPackage(), UTexture2D::StaticClass(), FName(*(TEXT("T_") + Name)));
-	UTexture2D* Texture = UTexture2D::CreateTransient(Image.Width, Image.Height, PF_B8G8R8A8, ObjectName);
+	// BC1 / BC3 blocks from the decode (BGRA8 only for a size that is not a multiple of four).
+	UTexture2D* Texture = UTexture2D::CreateTransient(Image.Width, Image.Height, Image.Format, ObjectName);
 	FTexturePlatformData* Platform = Texture ? Texture->GetPlatformData() : nullptr;
 	if (!Platform || Platform->Mips.Num() != 1)
 	{
@@ -742,6 +764,8 @@ UTexture2D* UApexCarContentSubsystem::LoadTexture(const FString& Path)
 		return nullptr;
 	}
 	FApexGlbImage Image;
+	// A logo is cut out by its alpha, and a skin may stand in for a masked slot's map.
+	Image.bAlphaUsed = true;
 	UTexture2D* Texture = nullptr;
 	if (FFileHelper::LoadFileToArray(Image.Encoded, *Path) && ApexGlb::DecodeImage(Image, *ImageWrappers()))
 	{

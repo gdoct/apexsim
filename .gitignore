@@ -193,10 +193,12 @@ certs/
 # Procedural terrain cache files (generated)
 *.terrain.msgpack
 # Everything the content pipeline bakes, at the repo root: the Unreal track
-# exports and previews (build/tracks; cargo run --bin ats-export -- --all).
-# Anchored: on Windows git matches case-insensitively, and game-unreal/Build
-# is checked in.
+# exports and previews (build/tracks; cargo run --bin ats-export -- --all)
+# and the showcases (build/showcase; apexsim-replay render, from
+# content/showcase.yml). Anchored: on Windows git matches case-insensitively,
+# and game-unreal/Build is checked in.
 /build/
+/build/showcase/
 # Generated server sidecars — the ground heightfield, the curb bands, the
 # walls and the road mesh — written next to each track YAML by the same
 # ats-export run

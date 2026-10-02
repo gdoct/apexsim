@@ -81,6 +81,15 @@ async fn handle_health(
                 .expect("metrics response construction cannot fail")),
             None => Ok(text_response(StatusCode::NOT_FOUND, "Not Found")),
         },
+        // The showcase channels and how many watch each (`crate::showcase`).
+        "/showcase" => match metrics {
+            Some(m) => Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/json")
+                .body(Full::new(Bytes::from(m.render_showcases_json())))
+                .expect("showcase response construction cannot fail")),
+            None => Ok(text_response(StatusCode::NOT_FOUND, "Not Found")),
+        },
         _ => Ok(text_response(StatusCode::NOT_FOUND, "Not Found")),
     }
 }

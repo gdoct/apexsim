@@ -3,7 +3,7 @@
 //! transport lock at the same time (state is dropped before sends where the
 //! two would otherwise overlap; sends only ever take a transport read lock).
 
-use super::{broadcast, lifecycle, GameLoopCtx};
+use super::{broadcast, lifecycle, showcase, GameLoopCtx};
 use crate::car_setup::CarSetup;
 use crate::data::*;
 use crate::game_session::GameSession;
@@ -48,6 +48,16 @@ pub(crate) async fn handle_message(
     msg: ClientMessage,
     player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
 ) {
+    // Taking part in a session ends watching a showcase: one or the other
+    // has the client's race view.
+    if matches!(
+        msg,
+        ClientMessage::CreateSession { .. }
+            | ClientMessage::JoinSession { .. }
+            | ClientMessage::JoinAsSpectator { .. }
+    ) {
+        showcase::handle_leave(ctx, connection_id).await;
+    }
     match msg {
         ClientMessage::Authenticate { player_name, .. } => {
             handle_authenticate(ctx, connection_id, player_name).await;
@@ -137,6 +147,15 @@ pub(crate) async fn handle_message(
         }
         ClientMessage::RequestGhost => {
             handle_request_ghost(ctx, connection_id).await;
+        }
+        ClientMessage::ListShowcases => {
+            showcase::handle_list(ctx, connection_id).await;
+        }
+        ClientMessage::SpectateShowcase { id } => {
+            showcase::handle_spectate(ctx, connection_id, id).await;
+        }
+        ClientMessage::LeaveSpectate => {
+            showcase::handle_leave(ctx, connection_id).await;
         }
         ClientMessage::Disconnect => {
             handle_disconnect(ctx, connection_id).await;

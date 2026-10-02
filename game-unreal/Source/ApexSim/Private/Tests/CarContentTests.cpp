@@ -1,4 +1,5 @@
 #include "ApexTestCommon.h"
+#include "Cars/ApexBlockCompress.h"
 #include "Cars/ApexCarContentSubsystem.h"
 #include "Cars/ApexCarToml.h"
 #include "Cars/ApexGlbReader.h"
@@ -203,6 +204,114 @@ bool FApexCarGlbMipsTest::RunTest(const FString& Parameters)
 	Odd.AddDefaulted_GetRef().SetNumZeroed(3 * 3 * 4);
 	ApexGlb::BuildMips(3, 3, Odd);
 	TestEqual(TEXT("not a power of two: one level"), Odd.Num(), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarBlockCompressTest, "ApexSim.Cars.Glb.BlockCompress", ApexTestFlags)
+
+bool FApexCarBlockCompressTest::RunTest(const FString& Parameters)
+{
+	// A BGRA ramp: red and half as much green across, a little blue down;
+	// alpha as given on every other pixel.
+	auto Ramp = [](int32 Side, uint8 Alpha) {
+		TArray<uint8> Pixels;
+		for (int32 y = 0; y < Side; ++y)
+		{
+			for (int32 x = 0; x < Side; ++x)
+			{
+				const uint8 A = (x + y) % 2 ? Alpha : 255;
+				Pixels.Append({uint8(90 + y * 4), uint8(x * 255 / (Side - 1) / 2), uint8(x * 255 / (Side - 1)), A});
+			}
+		}
+		return Pixels;
+	};
+	auto WorstError = [](const TArray<uint8>& Pixels, const TArray<uint8>& Blocks, int32 Side, bool bAlpha) {
+		int32 Worst = 0;
+		const int32 BlockBytes = bAlpha ? 16 : 8;
+		for (int32 b = 0; b < (Side / 4) * (Side / 4); ++b)
+		{
+			uint8 Decoded[64];
+			ApexBc::DecodeBlock(Blocks.GetData() + b * BlockBytes, bAlpha, Decoded);
+			const int32 Bx = b % (Side / 4);
+			const int32 By = b / (Side / 4);
+			for (int32 i = 0; i < 16; ++i)
+			{
+				const uint8* Source = Pixels.GetData() + ((By * 4 + i / 4) * Side + Bx * 4 + i % 4) * 4;
+				for (int32 c = 0; c < (bAlpha ? 4 : 3); ++c)
+				{
+					Worst = FMath::Max(Worst, FMath::Abs(int32(Source[c]) - int32(Decoded[i * 4 + c])));
+				}
+			}
+		}
+		return Worst;
+	};
+
+	TArray<TArray<uint8>> Opaque;
+	Opaque.Add(Ramp(8, 255));
+	const TArray<uint8> OpaqueSource = Opaque[0];
+	ApexGlb::BuildMips(8, 8, Opaque);
+	TestTrue(TEXT("an opaque image is BC1"), ApexBc::CompressChain(8, 8, Opaque) == PF_DXT1);
+	TestEqual(TEXT("8x8, 4x4, 2x2, 1x1"), Opaque.Num(), 4);
+	if (Opaque.Num() == 4)
+	{
+		TestEqual(TEXT("8x8 is four blocks"), Opaque[0].Num(), 32);
+		TestEqual(TEXT("1x1 is still a block"), Opaque[3].Num(), 8);
+		// A smooth ramp: a few levels at most off, where 5:6:5 alone is up to four.
+		TestTrue(TEXT("the ramp survives"), WorstError(OpaqueSource, Opaque[0], 8, false) <= 12);
+	}
+
+	TArray<TArray<uint8>> Cutout;
+	Cutout.Add(Ramp(8, 0));
+	const TArray<uint8> CutoutSource = Cutout[0];
+	TestTrue(TEXT("an image with alpha is BC3"), ApexBc::CompressChain(8, 8, Cutout) == PF_DXT5);
+	if (Cutout.Num() == 1 && TestEqual(TEXT("16 bytes a block"), Cutout[0].Num(), 64))
+	{
+		uint8 Decoded[64];
+		ApexBc::DecodeBlock(Cutout[0].GetData(), true, Decoded);
+		TestEqual(TEXT("a cut-out pixel stays clear"), int32(Decoded[1 * 4 + 3]), 0);
+		TestEqual(TEXT("a solid pixel stays solid"), int32(Decoded[0 * 4 + 3]), 255);
+		TestTrue(TEXT("the colour survives the alpha"), WorstError(CutoutSource, Cutout[0], 8, true) <= 12);
+	}
+
+	// A solid colour is drawn from the two-thirds entry, nearer than its own 5:6:5.
+	TArray<uint8> Solid;
+	for (int32 i = 0; i < 16; ++i)
+	{
+		Solid.Append({uint8(37), uint8(141), uint8(203), uint8(255)});
+	}
+	TArray<uint8> SolidBlock;
+	ApexBc::EncodeLevel(Solid.GetData(), 4, 4, false, SolidBlock);
+	uint8 SolidDecoded[64];
+	ApexBc::DecodeBlock(SolidBlock.GetData(), false, SolidDecoded);
+	TestTrue(TEXT("solid blue"), FMath::Abs(int32(SolidDecoded[0]) - 37) <= 1);
+	TestTrue(TEXT("solid green"), FMath::Abs(int32(SolidDecoded[1]) - 141) <= 1);
+	TestTrue(TEXT("solid red"), FMath::Abs(int32(SolidDecoded[2]) - 203) <= 1);
+	TestEqual(TEXT("solid opaque"), int32(SolidDecoded[3]), 255);
+
+	TArray<TArray<uint8>> Odd;
+	Odd.AddDefaulted_GetRef().SetNumZeroed(6 * 6 * 4);
+	TestTrue(TEXT("6x6 stays BGRA8"), ApexBc::CompressChain(6, 6, Odd) == PF_B8G8R8A8);
+	TestEqual(TEXT("6x6 untouched"), Odd[0].Num(), 6 * 6 * 4);
+
+	// Through the decode: an image only opaque materials read loses its alpha.
+	IImageWrapperModule& Wrappers = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName(TEXT("ImageWrapper")));
+	const TSharedPtr<IImageWrapper> Png = Wrappers.CreateImageWrapper(EImageFormat::PNG);
+	const TArray<uint8> Source = Ramp(8, 0);
+	if (TestTrue(TEXT("png written"), Png.IsValid() && Png->SetRaw(Source.GetData(), Source.Num(), 8, 8, ERGBFormat::BGRA, 8)))
+	{
+		const TArray64<uint8> Encoded = Png->GetCompressed();
+		FApexGlbImage OpaqueUse;
+		OpaqueUse.Encoded.Append(Encoded.GetData(), int32(Encoded.Num()));
+		FApexGlbImage MaskUse = OpaqueUse;
+		MaskUse.bAlphaUsed = true;
+		TestTrue(TEXT("opaque use decodes"), ApexGlb::DecodeImage(OpaqueUse, Wrappers));
+		TestTrue(TEXT("mask use decodes"), ApexGlb::DecodeImage(MaskUse, Wrappers));
+		TestTrue(TEXT("opaque use: alpha dropped, BC1"), OpaqueUse.Format == PF_DXT1);
+		TestTrue(TEXT("mask use: alpha kept, BC3"), MaskUse.Format == PF_DXT5);
+		TestTrue(TEXT("hashed"), OpaqueUse.ContentHash != 0 && OpaqueUse.ContentHash == MaskUse.ContentHash);
+		TestEqual(TEXT("a full chain"), OpaqueUse.Mips.Num(), 4);
+		TestEqual(TEXT("the file is let go"), OpaqueUse.Encoded.Num(), 0);
+	}
 	return true;
 }
 
