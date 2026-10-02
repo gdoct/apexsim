@@ -1,0 +1,174 @@
+# The marketing page's in-engine pictures: the shot list.
+#
+#   python scripts/site/make_shots.py                # take them all
+#   python scripts/site/make_shots.py eau-rouge      # or some
+#   python scripts/site/make_shots.py --pick         # after changing a `pick`
+#   python scripts/site/build_site.py                # then cut the page's pictures (site/media.yml)
+#
+# action: a race nobody drove, filmed by the replay cameras: no HUD, no menu.
+#   The keys are the promo video's (scripts/promo/shots.yml, docs/PROMO_VIDEO.md):
+#   `race` names one of the seeded AI races below, `window` finds the moment
+#   (a dossier corner by its real name, a station, "start" or "finish"),
+#   `camera` is the TV director (mode: tv, shot: grid | trackside | helicopter |
+#   tracking | chase | onboard | nose | reverse), a tripod (fixed, pan), chase
+#   or cockpit. `length` seconds are filmed and `frames` of them kept as
+#   candidates in out/site/candidates/<id>/ (look at sheet.jpg); `pick` is the
+#   one the page uses, counted from 1. The races are seeded and replay bit
+#   for bit, so a retake after the game's look has changed is the same
+#   moment and the pick still holds.
+#
+# ui: the game as a player sees it. `args` are the game's own switches
+#   (-ApexAutoRace, -ApexTrack=<stem>, -ApexCar=<part of the name>,
+#   -ApexView=cockpit|chase|roof|tv, -ApexMode=8 for a hotlap, -ApexGarageTab=,
+#   -ApexOpenSettings=N, -ApexOpenHudEditor=N, -ApexWeather=, -ApexTimeOfDay=;
+#   without -ApexAutoRace the game sits on its main menu over the demo race).
+#   `at` is seconds after the menu comes up; a list grabs at each and `pick`
+#   chooses. These are live sessions: a retake is a new picture of the same
+#   kind, so look at the sheet again.
+
+defaults:
+  resolution: 1920x1080
+  fps: 60               # frames filmed per second of race
+  frames: 6             # candidates kept per action shot
+  ai: 12
+  laps: 2
+  pad_s: 1.5
+  preroll_s: 1.0
+  warmup_s: 4.0         # held on the first frame while the track settles
+  countdown_s: 7
+  seed: 1
+  # The field is dealt from the shipped cars only: a player's own imports
+  # (real teams' colours) do not belong on the page.
+  cars_dir: content/cars/default
+
+races:
+  zandvoort:
+    track: Zandvoort
+    car: yotota-lmp2
+    laps: 3
+    weather: sunny
+    time: "19:10"       # golden hour over the dunes
+  spa:
+    track: Spa
+    car: murcetes-amd-w17
+    weather: sunny
+    time: "15:30"
+  monza_rain:
+    track: Monza
+    car: posh-gt3rs
+    weather: heavyrain
+    time: "17:30"
+  sakhir:
+    track: Sakhir
+    car: mclarsen-mcl40
+    weather: sunny
+    time: "21:00"       # the night race, under the floodlights
+  brands:
+    track: BrandsHatch
+    car: limbotiti-caravan-gt3
+    laps: 3
+    weather: overcast
+    time: "16:00"
+  lemans:
+    track: LeMans
+    car: panini-zomba-hypercar
+    max_seconds: 520
+    weather: sunny
+    time: "20:40"
+
+action:
+  - id: grid-start
+    about: The grid as the lights go out
+    pick: 6
+    race: zandvoort
+    window: start
+    start_offset_s: -1.5
+    length: 5.0
+    camera: {mode: tv, shot: grid, follow: leader}
+
+  - id: eau-rouge
+    about: The field through the compression, from the outside
+    pick: 6
+    race: spa
+    window: {corner: "Eau Rouge", before: 120, after: 180, min_cars: 2, anchor: 0.35}
+    length: 3.0
+    camera:               # from the top of the hill, the cars coming up at it
+      mode: pan
+      eye:  {corner: "Raidillon", offset: 40, lateral: 11, side: outside, height: 2.2}
+      fov: 40
+      frame_width: 13
+      follow: nearest
+      pan_speed: 6
+
+  - id: banking
+    about: The pack through the banked hairpin, on the long lens
+    pick: 2
+    race: zandvoort
+    window: {corner: "Hugenholtz", before: 150, after: 120, min_cars: 4}
+    length: 4.0
+    camera: {mode: tv, shot: trackside, follow: lead}
+
+  - id: rain
+    about: Heavy rain into the last corner, looking back at the pack
+    pick: 6
+    race: monza_rain
+    window: {corner: "Alboreto", before: 250, after: 150, min_cars: 3}
+    length: 4.0
+    camera: {mode: tv, shot: reverse, follow: lead}
+
+  - id: night-lights
+    about: The field at sunset, headlights on
+    pick: 1
+    race: sakhir
+    window: {station: 400, before: 200, after: 150, min_cars: 3}
+    length: 4.0
+    camera: {mode: tv, shot: trackside, follow: lead}
+
+  - id: paddock-hill
+    about: Over the crest and down the hill
+    pick: 6
+    race: brands
+    window: {corner: "Paddock Hill", before: 150, after: 150, min_cars: 3}
+    length: 3.5
+    camera:
+      mode: pan
+      eye:  {corner: "Paddock Hill", offset: 60, lateral: 20, side: outside, height: 4}
+      fov: 45
+      frame_width: 12
+      follow: nearest
+      pan_speed: 5
+
+  - id: endurance-dusk
+    about: A hypercar after dark, under the floodlight towers
+    pick: 2
+    race: lemans
+    window: {corner: "Tertre Rouge", before: 100, after: 400, min_cars: 2}
+    length: 4.0
+    time: "21:50"         # the same race, later: headlights on
+    camera: {mode: tv, shot: tracking, follow: lead}
+
+ui:
+  - id: hud-chase
+    about: The chase view on the grid during the countdown, HUD on
+    pick: 1
+    args: [-ApexAutoRace, -ApexTrack=Spa, -ApexCar=994P, -ApexAiCount=11, -ApexLaps=5,
+           -ApexCountdown=30, -ApexView=near, -ApexRacingLine=full]
+    at: [14, 20, 26]
+
+  - id: garage
+    about: The hotlap garage's setup sheet
+    pick: 1
+    args: [-ApexAutoRace, -ApexMode=8, -ApexAiCount=0, -ApexTrack=Spa, -ApexCar=994P, -ApexGarageTab=1]
+    at: [16, 22]
+
+  - id: menu-demo
+    about: The main menu over the live demo race
+    pick: 2
+    args: []
+    at: [35, 45, 55, 65, 75]
+
+  - id: hud-editor
+    about: The in-game HUD layout editor
+    pick: 1
+    args: [-ApexAutoRace, -ApexTrack=Spielberg, -ApexCar=RS, -ApexAiCount=9, -ApexOpenHudEditor=14]
+    at: [22]

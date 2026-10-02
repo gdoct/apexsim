@@ -7,3 +7,17 @@ content/tracks/default/*.ats          text eol=lf
 content/tracks/default/*.yaml         text eol=lf
 content/tracks/default/*.layout.json  text eol=lf
 content/tracks/default/*.msgpack      binary
+
+# The marketing page: site/ is its source, docs/ what scripts/site/build_site.py
+# writes from it (LF, so `--check` and a Windows checkout agree).
+site/*.yml               text eol=lf
+site/*.html              text eol=lf
+site/*.css               text eol=lf
+site/*.js                text eol=lf
+site/*.json              text eol=lf
+site/*.md                text eol=lf
+site/shots/*             binary
+docs/index.html          text eol=lf
+docs/assets/*.css        text eol=lf
+docs/assets/*.js         text eol=lf
+docs/assets/*.json       text eol=lf

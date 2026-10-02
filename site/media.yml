@@ -1,0 +1,98 @@
+# Where the marketing page's pictures come from.
+#
+# scripts/site/build_site.py turns every entry into a file under docs/assets
+# and records the source's hash in docs/assets/manifest.json, so a render or
+# screenshot that changes under content/ is picked up by the next build and
+# `--check` fails until it is. An entry:
+#
+#   <output name>: {src: <path in the repo>, width: px, aspect: w/h, focus: [x, y], quality: 0-100}
+#
+# `width` only ever shrinks, `aspect` crops around `focus` (0-1 of the frame,
+# default the middle), and the output is WebP whatever the source is.
+
+# One card picture per shipped car, from the Blender previews
+# (scripts/content/cars/preview_cars.py). `{folder}` is the car's folder under
+# content/cars/default; a car with no render yet shows "Render coming".
+cars:
+  src: content/props/_preview/cars/{folder}_hero.png
+  out: car-{folder}.webp
+  width: 800
+  aspect: 1.9          # the card is 16:9 and crops the sky itself
+  focus: [0.5, 0.62]
+
+images:
+  # hero still (the splash art; the hero loop plays over it)
+  splash.webp:
+    src: game-unreal/Content/Splash/Splash.bmp
+    quality: 84
+
+  # the two-up band under the feature grid
+  band-left.webp:
+    src: content/props/_preview/cars/posh-gt3rs_rear.png
+    width: 1200
+    aspect: 2.08
+    focus: [0.5, 0.55]
+  band-right.webp:
+    src: content/props/_preview/cars/fugazzi-994p-hypercar_rear.png
+    width: 1200
+    aspect: 2.08
+    focus: [0.5, 0.55]
+
+  # livery sheets
+  liveries-gt3-lmp2.webp:
+    src: content/artwork/liveries_gt3_lmp2.jpg
+    width: 1200
+  liveries-hyper-f1.webp:
+    src: content/artwork/liveries_hypercar_f1.jpg
+    width: 1200
+
+  # lamp details under the liveries
+  detail-1.webp:
+    src: content/props/_preview/cars/limbotiti-caravan-gt3_lamps_front.png
+    width: 640
+    aspect: 1.6
+  detail-2.webp:
+    src: content/props/_preview/cars/fugazzi-lmp2_lamps_rear.png
+    width: 640
+    aspect: 1.6
+  detail-3.webp:
+    src: content/props/_preview/cars/bugotti-chiffon-hypercar_lamps_front.png
+    width: 640
+    aspect: 1.6
+  detail-4.webp:
+    src: content/props/_preview/cars/posh-gt3rs_lamps_rear.png
+    width: 640
+    aspect: 1.6
+
+  # behind "Get on the grid"
+  cta.webp:
+    src: content/props/_preview/cars/panini-zomba-hypercar_rear.png
+    width: 1200
+
+  # In the engine: the masters scripts/site/make_shots.py takes (site/shots.yml).
+  # Races nobody drove, filmed by the replay cameras...
+  shot-grid.webp:      {src: site/shots/grid-start.webp, width: 1600}
+  shot-rain.webp:      {src: site/shots/rain.webp, width: 1000}
+  shot-sunset.webp:    {src: site/shots/night-lights.webp, width: 1000}
+  shot-climb.webp:     {src: site/shots/eau-rouge.webp, width: 1000}
+  shot-night.webp:     {src: site/shots/endurance-dusk.webp, width: 1000}
+  shot-banking.webp:   {src: site/shots/banking.webp, width: 1000}
+  shot-pack.webp:      {src: site/shots/paddock-hill.webp, width: 1000}
+  # ...and the game as a player sees it.
+  screen-hud.webp:        {src: site/shots/hud-chase.webp, width: 1280, quality: 86}
+  screen-garage.webp:     {src: site/shots/garage.webp, width: 1280, quality: 86}
+  screen-menu.webp:       {src: site/shots/menu-demo.webp, width: 1280, quality: 86}
+  screen-hud-editor.webp: {src: site/shots/hud-editor.webp, width: 1280, quality: 86}
+
+# Files that live in docs/assets as they are: nothing in the repo they are
+# rebuilt from (the hero loop is cut from the promo video by hand). The build
+# only checks they are there.
+static:
+  - logo.png
+  - hero-loop.webm
+
+# The silent loop over the hero still, best format first. Only files listed
+# under `static` are offered (the .mp4 is gitignored, so it never reaches
+# the published site).
+hero_loop:
+  - {file: hero-loop.webm, type: 'video/webm; codecs="av01.0.08M.08"'}

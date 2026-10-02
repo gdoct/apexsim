@@ -40,6 +40,28 @@ jobs:
       - name: Test
         run: cargo test
 
+  site:
+    name: Marketing page is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install the build's dependencies
+        run: pip install pyyaml jinja2 pillow
+
+      # docs/ is generated from site/ and from content/ (car.toml, track
+      # YAML, the car renders): a change to any of them without a rebuild
+      # leaves the published page behind the game.
+      - name: Check docs/ against a fresh build
+        run: python scripts/site/build_site.py --check
+
+      - name: Unit tests
+        run: python -m unittest discover -s scripts/site/tests
+
   client:
     name: Client (Unreal project sanity)
     runs-on: ubuntu-latest

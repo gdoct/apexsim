@@ -1321,7 +1321,10 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 
 	// SelectCar before CreateSession, same order the UI uses.
 	Net->SelectCar(Car.Id);
-	Net->CreateSession(Track.Id, 8, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions);
+	// Room for the AI and the host: the AI are seated first, and a field that
+	// fills the session leaves the host refused (Error 500) on the main menu.
+	const int32 MaxPlayers = FMath::Clamp(AutoRaceAiCount + 1, 8, 255);
+	Net->CreateSession(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions);
 }
 
 void UApexRootWidget::HandleUdpReady()

@@ -1,0 +1,388 @@
+# The marketing page's words. scripts/site/build_site.py puts them into
+# site/template.html and writes docs/index.html.
+#
+# Every string is HTML (so `&amp;`, `&nbsp;`, <code>, <br> work) and may
+# quote the game's own figures, which the build reads from content/ and the
+# server source (scripts/site/facts.py), so no number is typed here:
+#
+#   {{ n.cars }} {{ n.tracks }} {{ n.km }} {{ n.classes }} {{ n.dossiers }}
+#   {{ n.setup_knobs }} {{ n.hud_components }} {{ n.liveries }} {{ n.countries }}
+#   {{ n.longest_km }} {{ n.longest_relief }} {{ n.tick_hz }} {{ n.telemetry_hz }}
+#   {{ n.cars|words }}            fourteen
+#   {{ name('Monza') }}           a circuit's display name, by stem
+#   {{ car('posh-gt3rs') }}       a car's name, by folder
+#   {{ car_class('posh-gt3rs') }} its class as the game shows it
+#
+# Circuits and corners appear by their display names only (CLAUDE.md, "No
+# trademarks on screen"): write {{ name('Spa') }}, never the real name.
+#
+# `python scripts/site/build_site.py --stale` lists what changed in the
+# feature docs since this copy was last reviewed against them.
+
+site:
+  url: https://gdoct.github.io/apexsim/
+  repo: https://github.com/gdoct/apexsim
+  trailer: yiTEfozkK00
+  title: ApexSim — Racing Simulator
+  description: >-
+    ApexSim is a source-available racing simulator: a {{ n.tick_hz }} Hz
+    authoritative Rust physics server, an Unreal Engine 5 client,
+    {{ n.cars }} cars across {{ n.classes }} classes and {{ n.tracks }}
+    real-world circuits, a {{ n.longest_km }} km mountain loop among them.
+  og_description: >-
+    {{ n.tick_hz }} Hz authoritative physics, Unreal Engine 5, {{ n.cars }}
+    cars, {{ n.tracks }} real circuits, tyres, fuel, pit stops and damage
+    simulated on the server.
+  og_image: splash.webp
+
+hero:
+  image: splash.webp
+  image_alt: Four GT cars racing into an alpine sunset under the ApexSim wordmark
+  eyebrow: Source-available simracing platform
+  headline: The server decides <br><em>where every car is.</em>
+  lede: >-
+    ApexSim runs a {{ n.tick_hz }}&nbsp;Hz authoritative physics simulation
+    in Rust and renders it in Unreal&nbsp;Engine&nbsp;5.
+    {{ n.cars|words|capitalize }} cars, {{ n.tracks|words }} real circuits,
+    and no second physics model to argue with. Cars, circuits and the HUD
+    are files you can open.
+  telemetry_label: Telemetry · S2
+
+stats:
+  - {value: '{{ n.tick_hz }}', unit: Hz, label: Authoritative physics tick}
+  - {value: '{{ n.cars }}', label: 'Cars · {{ n.classes|words }} classes'}
+  - {value: '{{ n.tracks }}', label: Real-world circuits}
+  - {value: '{{ n.km }}', unit: km, label: Of surveyed tarmac}
+  - {value: '0', label: Client-side physics}
+
+features:
+  eyebrow: What's under the bodywork
+  title: Built like<br>a race car
+  intro: >-
+    Every system that matters to how a car drives lives on the server,
+    computed from the tyres outward. The client's job is to render it
+    faithfully and get out of the way.
+  cards:
+    - tag: Physics
+      wide: true
+      icon: wheel
+      title: A four-wheel model that earns its grip
+      body: >-
+        Per-wheel loads, Pacejka-style tyres, suspension and a drivetrain
+        with real gear ratios, driving on the same road mesh the client
+        draws: a kerb is five centimetres tall in the physics too.
+        Downforce follows ride height and rake, a tow saves drag and dirty
+        air takes the front wing away. Deterministic to the bit, guarded by
+        a test that asserts identical runs.
+      chips: [Pacejka tyres, Ride-height aero, Slipstream, Road mesh, Deterministic]
+    - tag: Netcode
+      wide: true
+      icon: graph
+      title: One simulation, clocked in server ticks
+      body: >-
+        TCP+TLS for the lobby, UDP for telemetry and input, bound by a
+        token handshake. Cars are rendered from a telemetry buffer
+        interpolated between samples and dead-reckoned across gaps, so
+        motion stays smooth without a second model to reconcile.
+      chips: [Protocol v2, MessagePack, 'Telemetry at {{ n.telemetry_hz }} Hz', Prometheus metrics]
+    - tag: Tyres and fuel
+      title: A car that changes over a stint
+      body: >-
+        Each tyre is a tread and a core with their own temperatures.
+        Pressure follows the gas law, grip follows the working window, and
+        wear ends in a cliff. Soft, medium and hard compounds. Fuel is
+        burned by the power the engine makes, and its weight moves the
+        balance as the tank drains.
+    - tag: Heat
+      title: Carbon wants heat, steel fades
+      body: >-
+        Each brake disc is a thermal mass, heated by what the pads absorb
+        and cooled through a duct you can resize in the garage. Carbon is
+        weak when cold; steel fades past 700&nbsp;°C. The radiator runs hot
+        in a long tow, and an engine that overheats gives up power.
+    - tag: Damage
+      title: Every hit counts
+      body: >-
+        Contact is scored by closing speed across five zones. A bent nose
+        loses downforce and radiator flow, a damaged flank pulls the
+        steering, a hurt engine loses power, and a zone at 100% ends the
+        race. The host picks full, reduced or no damage.
+    - tag: Strategy
+      title: Pit stops, DRS and deployment
+      body: >-
+        A working pit lane: a speed limiter, a box per car, and a crew that
+        changes tyres, refuels and repairs. DRS arms within a second of the
+        car ahead. Hybrids have harvest, balanced and attack modes, a lap
+        budget and an overtake button. The AI plans its own stops.
+    - tag: Circuits
+      title: Real ground, real furniture
+      body: >-
+        Measured centerlines with per-side width and banking, and terrain
+        from the Copernicus GLO-30 elevation model out to an eight
+        kilometre horizon. Stands, pit lanes, barriers and woodland are
+        laid from OpenStreetMap dossiers on {{ n.dossiers }} of the
+        {{ n.tracks }} circuits.
+    - tag: Force feedback
+      title: Feel the front let go
+      body: >-
+        Steering-column torque summed from each front tyre's aligning
+        moment, scrub and jacking: the rim goes light as the grip peaks.
+        Kerbs, lock-ups and the road's own texture come through it.
+        DirectInput wheels, pedals and button boxes, with the steering lock
+        matched to each car.
+    - tag: Audio
+      title: Engines that are simulated, not sampled
+      body: >-
+        A crank turned at live RPM fires each cylinder into exhaust banks,
+        headers and a silencer. Crossplane burble, overrun pops, gear
+        whine, and tyres that howl only past their grip peak. Zero audio
+        files.
+    - tag: Weather
+      title: Rain, wind and thin air
+      body: >-
+        Five weather states, any time of day, a host-picked air temperature
+        and wind that gusts. Wet grip, air density and altitude are baked
+        into the session, so physics, AI and the racing line all follow: at
+        2,240&nbsp;m a turbo keeps its power and a wing does not.
+        Floodlights and headlights come on after dark.
+    - tag: Hotlap
+      title: Garage, ghost, repeat
+      body: >-
+        Time attack with sector splits, track limits and records that
+        persist. Chase your best lap's ghost, replay it from the TV
+        cameras, then work through {{ n.setup_knobs }} setup knobs shown in
+        real units: psi, N/mm, millimetres of ride height.
+    - tag: Racecraft
+      wide: true
+      title: AI and a TV director
+      body: >-
+        Deterministic AI drivers race in your car's class with a traffic
+        layer, and drive to the grip they have: cold tyres, dirty air, a
+        tailwind into a braking zone, a damaged wing. Behind the menus a
+        broadcast director follows the battles through trackside,
+        helicopter and onboard shots, in a race that rolls its own weather.
+      chips: [Class fields, Pit strategy, Broadcast cameras, Live menu backdrop]
+    - tag: Modding
+      wide: true
+      title: Open the files
+      body: >-
+        A car is a <code>car.toml</code> and a GLB. A circuit is an export
+        the game builds as it loads. The HUD is {{ n.hud_components }} JSON
+        components with an in-game layout editor. Nothing is cooked, so a
+        change is a file save and a rescan. Tracks and cars from your own
+        Assetto Corsa install import with one command, and stay on your
+        machine.
+      chips: [car.toml, Runtime tracks, JSON HUD, AC importers]
+
+band:
+  - image: band-left.webp
+    alt: '{{ car("posh-gt3rs") }} from the rear'
+    caption: '{{ car("posh-gt3rs") }} · {{ car_class("posh-gt3rs") }}'
+  - image: band-right.webp
+    alt: '{{ car("fugazzi-994p-hypercar") }} from the rear'
+    caption: '{{ car("fugazzi-994p-hypercar") }} · {{ car_class("fugazzi-994p-hypercar") }}'
+
+cars:
+  eyebrow: The grid
+  title: '{{ n.cars }} cars.<br>{{ n.classes|words|capitalize }} classes.'
+  intro: >-
+    Every car is a physics definition and a 3D model, read from the same
+    files by the server and the client. The AI fills the field from your
+    car's own class.
+  # Keyed by the class in car.toml; `title` is what the page shows.
+  classes:
+    GT3:
+      title: GT3
+      text: >-
+        Front-engined and mid-engined production racers: heavy, planted and
+        forgiving at the limit. Steel brakes, big bodywork, bigger wings,
+        and the most door-to-door racing on the calendar.
+    LMP2:
+      title: LMP2
+      text: >-
+        Spec-engine prototypes with naturally aspirated V8s. Closed
+        canopies, long tails and downforce that builds with every km/h. The
+        class that races through the night.
+    Hypercar:
+      title: Hypercar
+      text: >-
+        The top of endurance racing: hybrids from a naturally aspirated V12
+        to a quad-turbo W16, each with an electric motor and a battery to
+        manage. Over a tonne, and the longest straights to use it on.
+    F1:
+      title: Formula
+      text: >-
+        Open-wheel single-seaters with turbo V6s screaming to 15,000 rpm
+        and half their power from the battery. The lightest cars, the most
+        sensitive to ride height, and a lap that has to be energy-managed.
+  liveries:
+    eyebrow: Paint shop
+    title: '{{ n.liveries|words|capitalize }} liveries a car'
+    body: >-
+      Liveries repaint paint, accent and logo at runtime on the race car
+      and in the garage turntable. Pick yours in the lobby; the AI is dealt
+      the rest in turn, so a full field never looks cloned.
+    images:
+      - {image: liveries-gt3-lmp2.webp, alt: Livery sheet for GT3 and LMP2 cars}
+      - {image: liveries-hyper-f1.webp, alt: Livery sheet for Hypercar and Formula cars}
+  # lamp details, under the liveries
+  details:
+    - {image: detail-1.webp, alt: GT3 headlight detail}
+    - {image: detail-2.webp, alt: Prototype tail light detail}
+    - {image: detail-3.webp, alt: Hypercar headlight detail}
+    - {image: detail-4.webp, alt: GT3 tail light detail}
+
+tracks:
+  eyebrow: The calendar
+  title: '{{ n.tracks }} circuits.<br>Surveyed, not sketched.'
+  intro: >-
+    Centerlines from public GPS traces, smoothed without shrinking the
+    circuit, in {{ n.countries }} countries. The longest is the
+    {{ n.longest_km }}&nbsp;km {{ name('Nordschleife') }}, routed over
+    OpenStreetMap: {{ n.longest_relief }}&nbsp;m of relief, guard rail
+    close to the road, the forest right behind it and the fans' graffiti on
+    the asphalt. Banking is laid onto the bends it belongs to, and
+    elevation comes from satellite surface models.
+  featured: Spa
+  note: >-
+    ● green = real layout dossier (named corners, stands, pit lane,
+    woodland from OpenStreetMap). Maps drawn from each circuit's own
+    centerline data.
+
+engine:
+  eyebrow: Unreal Engine 5
+  title: In the engine
+  intro: >-
+    Every picture here is the game. The action is from seeded AI races that
+    nobody drove, played back and filmed by the game's own broadcast
+    cameras; the screens are what a player sees.
+  # site/shots.yml takes them, site/media.yml cuts them. The first is shown large.
+  shots:
+    - image: shot-grid.webp
+      alt: 'Prototypes lined up on the grid at {{ name("Zandvoort") }} in low evening sun'
+      caption: '{{ name("Zandvoort") }} · the grid at golden hour'
+    - image: shot-rain.webp
+      alt: 'GT3 cars with headlights on in heavy rain at {{ name("Monza") }}'
+      caption: '{{ name("Monza") }} · heavy rain'
+    - image: shot-sunset.webp
+      alt: 'Formula cars past the pit building at sunset at {{ name("Sakhir") }}'
+      caption: '{{ name("Sakhir") }} · sunset'
+    - image: shot-climb.webp
+      alt: 'A Formula car over the top of the hill at {{ name("Spa") }}'
+      caption: '{{ name("Spa") }} · Raidillon'
+    - image: shot-night.webp
+      alt: 'A hypercar under floodlight towers at night at {{ name("LeMans") }}'
+      caption: '{{ name("LeMans") }} · after dark'
+    - image: shot-banking.webp
+      alt: 'A prototype through the banked hairpin at {{ name("Zandvoort") }}'
+      caption: '{{ name("Zandvoort") }} · the banked hairpin'
+    - image: shot-pack.webp
+      alt: 'Three GT3 cars nose to tail at {{ name("BrandsHatch") }}'
+      caption: '{{ name("BrandsHatch") }} · Paddock Hill'
+  screens_eyebrow: What the player sees
+  screens:
+    - image: screen-hud.webp
+      alt: Chase view on the grid with the HUD
+      caption: 'Race view · a HUD of {{ n.hud_components }} moddable components'
+    - image: screen-garage.webp
+      alt: The hotlap garage with the suspension setup sheet
+      caption: 'Hotlap garage · {{ n.setup_knobs }} setup knobs in real units'
+    - image: screen-menu.webp
+      alt: Main menu over a live AI demo race
+      caption: Main menu · over a live demo race
+    - image: screen-hud-editor.webp
+      alt: The in-game HUD layout editor
+      caption: HUD layout editor · move, resize and hide panels in game
+
+tech:
+  eyebrow: Architecture
+  title: Three parts,<br>one truth
+  intro: >-
+    Simulation logic stays isolated from presentation, so each piece can
+    evolve on its own. The circuit you race is the circuit the server
+    simulates, checked by CRC on both sides.
+  nodes:
+    - key: server/ · Rust
+      title: Authoritative server
+      body: >-
+        {{ n.tick_hz }}&nbsp;Hz tokio loop. Physics, OBB collision against
+        cars and baked barriers, tyres, fuel, heat and damage, race control
+        and pit stops, AI, force feedback, lap timing and records.
+        <code>/health</code> <code>/metrics</code>
+    - key: game-unreal/ · C++
+      title: Unreal client
+      body: >-
+        Tracks and cars built at runtime from their files, menus as C++
+        widget trees, a HUD from JSON, a cockpit built per car, TV
+        director, synthesized audio, DirectInput wheels. Every car a
+        telemetry puppet.
+    - key: track-editor/ · Rust
+      title: Track pipeline
+      body: >-
+        <code>ats-dress</code>, <code>ats-groom</code> and
+        <code>ats-export</code> turn a centerline and a dossier into the
+        export the game builds, and the road mesh, walls, kerbs and pit
+        lane the server drives on. A Bevy editor sits on top.
+  links:
+    - UDP<br>{{ n.telemetry_hz }}&nbsp;Hz
+    - exports<br>&amp; sidecars
+  specs:
+    - title: Collision that means it
+      body: >-
+        Every armco, tyre wall, stand and building is baked into a walls
+        sidecar. Nothing off the road is decorative.
+    - title: A road with height
+      body: >-
+        The server drives on the rendered road as triangles: kerbs you can
+        feel, run-off that is tarmac, and two levels where a circuit
+        crosses itself.
+    - title: Track limits
+      body: >-
+        Four wheels past the kerb band for 0.2&nbsp;s strikes the lap. Cut
+        the course and it's gone too.
+    - title: Racing line
+      body: >-
+        A quasi-steady-state speed profile per car from its grip,
+        downforce, power and brakes.
+    - title: Assists, host-controlled
+      body: >-
+        ABS, traction control, auto gearbox, steering assist, damage level.
+        The session host decides what's allowed; the server enforces it.
+    - title: Cockpit
+      body: >-
+        Wheel, dash and scene-captured mirrors built per car. Seat, horizon
+        lock and head motion are yours to set.
+    - title: Records and ghosts
+      body: >-
+        Your best legal lap per car and circuit survives restarts, with a
+        trace of the lap that set it to race against.
+    - title: Checked content
+      body: >-
+        Each car and circuit carries a checksum of its source file. A
+        client racing on different data than the server is told so.
+    - title: Replays nobody drove
+      body: >-
+        A seeded AI race replays bit for bit. The trailer was cut from
+        headless races, filmed afterwards by the game's own cameras.
+
+cta:
+  image: cta.webp
+  eyebrow: In active development
+  title: Get on the grid
+  body: >-
+    The simulation and the networking underneath it are solid. Presentation
+    and gameplay are filling in fast. Build it, run a server, and go
+    racing.
+  commands: |-
+    <i># once, on a fresh clone: generate the content</i>
+    ./scripts/initialize_content.ps1
+    <i># build, start a local server and play (Windows)</i>
+    ./scripts/play_editor.ps1 -Build
+
+footer:
+  logo: logo.png
+  logo_alt: ApexSim simracing platform
+  owner: Source-available · © ApexSim
+  lines:
+    - 'Circuit layouts © OpenStreetMap contributors (ODbL). Elevation: Copernicus GLO-30 DEM.'
+    - All car brands and models shown are fictional.
