@@ -19,6 +19,8 @@ enum class EApexPauseAction : uint8
 	OpenSettings,
 	/** Hotlap only: the car back into its garage. */
 	ReturnToGarage,
+	/** Write the session so far as a replay (UApexReplayRecorder). */
+	SaveReplay,
 	LeaveSession,
 	QuitGame,
 };
@@ -69,6 +71,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsOpen() const { return bOpen; }
 
+	/**
+	 * Over a race being watched rather than driven: the way out is "stop
+	 * watching", and the strip names the race, not the player's car. Read
+	 * when the menu opens.
+	 */
+	void SetWatching(bool bInWatching) { bWatching = bInWatching; }
+
 private:
 	UFUNCTION()
 	void HandleButtonActivated(UApexButtonWidget* Button);
@@ -101,5 +110,14 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UApexButtonWidget> GarageRow;
 
+	/** Back to the main menu, or out of the race being watched. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> LeaveRow;
+
+	/** Shown while there is a session on record worth a replay. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> SaveReplayRow;
+
 	bool bOpen = false;
+	bool bWatching = false;
 };

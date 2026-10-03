@@ -409,7 +409,7 @@ namespace ApexSpectatorCodec
 
 bool FApexStreamCarRow::Read(const uint8* B, int32 Len, FApexStreamCarRow& Out)
 {
-	if (Len < ApexSpectator::RowSize)
+	if (Len < ApexSpectator::RowSizeV1)
 	{
 		return false;
 	}
@@ -440,6 +440,13 @@ bool FApexStreamCarRow::Read(const uint8* B, int32 Len, FApexStreamCarRow& Out)
 		Out.Damage[i] = B[38 + i];
 	}
 	Out.ErsFlags = B[43];
+	// Version 1 rows end here: their tyres stay unknown.
+	const bool bTyres = Len >= ApexSpectator::RowSize;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Out.TyreWear[i] = bTyres ? B[44 + i] : ApexSpectator::TyreWearUnknown;
+		Out.TyreC[i] = bTyres ? B[48 + i] : 0;
+	}
 	return true;
 }
 
@@ -474,6 +481,11 @@ void FApexStreamCarRow::Write(TArray<uint8>& Out) const
 		B[38 + i] = Damage[i];
 	}
 	B[43] = ErsFlags;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		B[44 + i] = TyreWear[i];
+		B[48 + i] = TyreC[i];
+	}
 }
 
 FApexCarTelemetry FApexStreamCarRow::ToTelemetry() const
@@ -514,12 +526,71 @@ FApexCarTelemetry FApexStreamCarRow::ToTelemetry() const
 	T.bErsDeploying = (ErsFlags & 4) != 0;
 	T.bErsHarvesting = (ErsFlags & 8) != 0;
 	T.bErsBoost = (ErsFlags & 16) != 0;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		T.TyreWearPct[i] = TyreWear[i] == ApexSpectator::TyreWearUnknown ? -1.0f : TyreWear[i];
+		T.TyreTempC[i] = TyreC[i] == 0 ? -1.0f : TyreC[i];
+	}
 	return T;
+}
+
+FApexStreamCarRow FApexStreamCarRow::FromTelemetry(const FApexCarTelemetry& T)
+{
+	auto Unit = [](float V) { return static_cast<uint8>(FMath::RoundToInt(FMath::Clamp(V, 0.0f, 1.0f) * 255.0f)); };
+	auto Mm = [](double Metres) { return static_cast<int32>(FMath::Clamp(FMath::RoundToDouble(Metres * 1000.0), static_cast<double>(MIN_int32), static_cast<double>(MAX_int32))); };
+	auto Angle = [](float Rad) { return static_cast<int16>(FMath::Clamp(FMath::RoundToInt(Rad / UE_PI * 32768.0f), -32768, 32767)); };
+
+	FApexStreamCarRow Row;
+	Row.CarIndex = T.CarIndex;
+	bool bRetired = false;
+	if (T.HasDamage())
+	{
+		for (const float Pct : T.DamagePct)
+		{
+			bRetired = bRetired || Pct >= 100.0f;
+		}
+	}
+	Row.Status = (T.bIsOnTrack ? ApexSpectator::StatusOnTrack : 0) | (T.bIsColliding ? ApexSpectator::StatusColliding : 0)
+		| (T.bInGarage ? ApexSpectator::StatusInGarage : 0) | (bRetired ? ApexSpectator::StatusRetired : 0)
+		| (T.FinishPosition > 0 ? ApexSpectator::StatusFinished : 0);
+	Row.XMm = Mm(T.Position.X);
+	Row.YMm = Mm(T.Position.Y);
+	Row.ZMm = Mm(T.Position.Z);
+	const double Turns = FMath::Fmod(static_cast<double>(T.YawRad) / UE_DOUBLE_TWO_PI, 1.0);
+	Row.Yaw = static_cast<uint16>(FMath::RoundToInt((Turns < 0.0 ? Turns + 1.0 : Turns) * 65536.0) & 0xFFFF);
+	Row.Pitch = Angle(T.PitchRad);
+	Row.Roll = Angle(T.RollRad);
+	Row.SpeedCms = static_cast<uint16>(FMath::Min(FMath::RoundToInt(FMath::Abs(T.SpeedMps) * 100.0f), 65535));
+	Row.Steering = static_cast<int8>(FMath::RoundToInt(FMath::Clamp(T.Steering, -1.0f, 1.0f) * 127.0f));
+	Row.Throttle = Unit(T.Throttle);
+	Row.Brake = Unit(T.Brake);
+	Row.Gear = static_cast<int8>(FMath::Clamp(T.Gear, -1, 127));
+	Row.EngineRpm = static_cast<uint16>(FMath::Clamp(FMath::RoundToInt(T.EngineRpm), 0, 65535));
+	Row.Lap = static_cast<uint16>(FMath::Clamp(T.CurrentLap, 0, 65535));
+	Row.StationCm = static_cast<uint32>(FMath::RoundToDouble(FMath::Max(0.0, static_cast<double>(T.TrackProgress)) * 100.0));
+	Row.FinishPosition = static_cast<uint8>(FMath::Clamp(T.FinishPosition, 0, 255));
+	Row.LapFlags = (T.bLapInvalid ? 1 : 0) | (T.bLastLapInvalid ? 2 : 0) | (T.bInGarage ? 4 : 0) | (T.bDrsAllowed ? 8 : 0)
+		| (T.bDrsOpen ? 16 : 0) | (T.bHeadlights ? 32 : 0) | (T.bHeadlightFlash ? 64 : 0);
+	Row.PitFlags = (T.bPitLimiter ? 1 : 0) | (T.bPitServicing ? 2 : 0) | (T.bInPitLane ? 4 : 0);
+	Row.Compound = T.Compound < 0 ? 255 : static_cast<uint8>(FMath::Min(T.Compound, 254));
+	for (int32 i = 0; i < 5; ++i)
+	{
+		Row.Damage[i] = static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(T.DamagePct[i]), 0, 100));
+	}
+	Row.ErsFlags = (T.ErsMode >= 0 ? static_cast<uint8>(T.ErsMode & 3) : 0) | (T.bErsDeploying ? 4 : 0)
+		| (T.bErsHarvesting ? 8 : 0) | (T.bErsBoost ? 16 : 0);
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Row.TyreWear[i] = T.TyreWearPct[i] < 0.0f ? ApexSpectator::TyreWearUnknown
+			: static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(T.TyreWearPct[i]), 0, 100));
+		Row.TyreC[i] = T.TyreTempC[i] < 0.0f ? 0 : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(T.TyreTempC[i]), 1, 255));
+	}
+	return Row;
 }
 
 TArray<FApexStreamCarRow> FApexStreamFrame::Cars(int32 RowSize) const
 {
-	const int32 Stride = FMath::Max(RowSize, ApexSpectator::RowSize);
+	const int32 Stride = FMath::Max(RowSize, ApexSpectator::RowSizeV1);
 	TArray<FApexStreamCarRow> Out;
 	Out.Reserve(Rows.Num() / Stride);
 	for (int32 Offset = 0; Offset + Stride <= Rows.Num(); Offset += Stride)

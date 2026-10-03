@@ -43,12 +43,18 @@ pub const FORMAT_VERSION: u8 = 1;
 pub const FILE_MAGIC: &[u8; 4] = b"APXS";
 /// Version of the file's container (magic, blocks, index, trailer).
 pub const FILE_VERSION: u16 = 1;
-/// Bytes of one car in a frame's `rows`, version 1. A later version only
-/// ever appends: a reader takes the fields it knows and skips the rest.
-pub const ROW_SIZE: usize = 44;
+/// Bytes of one car in a frame's `rows` as this build writes them. A later
+/// version only ever appends: a reader takes the fields it knows and skips
+/// the rest, and fills what an older stream's shorter rows lack as unknown.
+pub const ROW_SIZE: usize = 52;
+/// The first row layout's size (no tyres): the shortest row a reader takes.
+pub const ROW_SIZE_V1: usize = 44;
 /// Rows that fit one datagram under a 1 400 byte budget; a bigger field is
 /// sent in parts.
-pub const MAX_ROWS_PER_PART: usize = 28;
+pub const MAX_ROWS_PER_PART: usize = 26;
+/// `tyre_wear` of a tyre the stream does not know (a converted replay, a car
+/// before its set is fitted, a v1 row).
+pub const TYRE_WEAR_UNKNOWN: u8 = u8::MAX;
 /// `countdown_ms` when nothing is counting down.
 pub const NO_COUNTDOWN: u16 = u16::MAX;
 /// Metres between the points of a [`StreamPath`].
@@ -657,7 +663,8 @@ impl StreamRoster {
 
 // --- Car rows and frames --------------------------------------------------------
 
-/// One car in a frame: what a spectator draws. 44 bytes, little-endian.
+/// One car in a frame: what a spectator draws. 52 bytes, little-endian
+/// (the first 44 are version 1's, which a reader still takes).
 ///
 /// | Offset | Type | Field |
 /// |---|---|---|
@@ -679,6 +686,8 @@ impl StreamRoster {
 /// | 37 | u8 | compound, 255 unknown |
 /// | 38 | u8 x 5 | damage, percent: front, rear, left, right, engine |
 /// | 43 | u8 | ERS flags, as `CompactCarState.ers_flags` |
+/// | 44 | u8 x 4 | tyre wear, percent, FL FR RL RR; [`TYRE_WEAR_UNKNOWN`] unknown |
+/// | 48 | u8 x 4 | tread temperature, °C as `CompactCarState.tyre_c` (0 unknown) |
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CarRow {
     pub car_index: u8,
@@ -703,6 +712,8 @@ pub struct CarRow {
     pub compound: u8,
     pub damage: [u8; 5],
     pub ers_flags: u8,
+    pub tyre_wear: [u8; 4],
+    pub tyre_c: [u8; 4],
 }
 
 fn metres_to_mm(m: f32) -> i32 {
@@ -779,6 +790,15 @@ impl CarRow {
             ]
             .map(|p| p.round().clamp(0.0, 100.0) as u8),
             ers_flags: crate::hybrid::telemetry_bytes(state).2,
+            tyre_wear: if state.tyres_fitted {
+                state
+                    .tires
+                    .each()
+                    .map(|t| t.wear_percent.round().clamp(0.0, 100.0) as u8)
+            } else {
+                [TYRE_WEAR_UNKNOWN; 4]
+            },
+            tyre_c: crate::network::tyre_bytes(state).0,
         }
     }
 
@@ -821,6 +841,8 @@ impl CarRow {
             compound: crate::network::COMPOUND_UNKNOWN,
             damage: [0; 5],
             ers_flags: 0,
+            tyre_wear: [TYRE_WEAR_UNKNOWN; 4],
+            tyre_c: [0; 4],
         }
     }
 
@@ -848,15 +870,26 @@ impl CarRow {
         out.push(self.compound);
         out.extend_from_slice(&self.damage);
         out.push(self.ers_flags);
+        out.extend_from_slice(&self.tyre_wear);
+        out.extend_from_slice(&self.tyre_c);
         debug_assert_eq!(out.len() - start, ROW_SIZE);
     }
 
-    /// Read a row of at least [`ROW_SIZE`] bytes; anything a later version
-    /// appended is ignored.
+    /// Read a row of at least [`ROW_SIZE_V1`] bytes; anything a later
+    /// version appended is ignored, and the tyres of a version 1 row are
+    /// unknown.
     pub fn read(row: &[u8]) -> Option<Self> {
-        if row.len() < ROW_SIZE {
+        if row.len() < ROW_SIZE_V1 {
             return None;
         }
+        let tyres = row.len() >= ROW_SIZE;
+        let quad = |o: usize, unknown: u8| {
+            if tyres {
+                [row[o], row[o + 1], row[o + 2], row[o + 3]]
+            } else {
+                [unknown; 4]
+            }
+        };
         let i32_at = |o: usize| i32::from_le_bytes([row[o], row[o + 1], row[o + 2], row[o + 3]]);
         let u16_at = |o: usize| u16::from_le_bytes([row[o], row[o + 1]]);
         Some(Self {
@@ -882,6 +915,8 @@ impl CarRow {
             compound: row[37],
             damage: [row[38], row[39], row[40], row[41], row[42]],
             ers_flags: row[43],
+            tyre_wear: quad(44, TYRE_WEAR_UNKNOWN),
+            tyre_c: quad(48, 0),
         })
     }
 
@@ -970,7 +1005,7 @@ impl StreamFrame {
     /// are longer than this build reads).
     pub fn cars(&self, row_size: usize) -> impl Iterator<Item = CarRow> + '_ {
         self.rows
-            .chunks_exact(row_size.max(ROW_SIZE))
+            .chunks_exact(row_size.max(ROW_SIZE_V1))
             .filter_map(CarRow::read)
     }
 }
@@ -2116,6 +2151,8 @@ mod tests {
             compound: 1,
             damage: [12, 0, 3, 0, 40],
             ers_flags: 0x05,
+            tyre_wear: [14, 16, 9, 11],
+            tyre_c: [88, 91, 95, 97],
         }
     }
 
@@ -2137,10 +2174,49 @@ mod tests {
         );
         assert_eq!(&bytes[38..43], &[12, 0, 3, 0, 40]);
         assert_eq!(bytes[43], 0x05);
+        assert_eq!(&bytes[44..48], &[14, 16, 9, 11]);
+        assert_eq!(&bytes[48..52], &[88, 91, 95, 97]);
         // A longer row from a newer writer still reads.
         bytes.extend_from_slice(&[9, 9, 9, 9]);
         assert_eq!(CarRow::read(&bytes), Some(row));
         assert!(CarRow::read(&bytes[..40]).is_none());
+    }
+
+    #[test]
+    fn a_version_1_row_reads_with_its_tyres_unknown() {
+        let row = sample_row(3);
+        let mut bytes = Vec::new();
+        row.write(&mut bytes);
+        let old = CarRow::read(&bytes[..ROW_SIZE_V1]).unwrap();
+        assert_eq!(old.tyre_wear, [TYRE_WEAR_UNKNOWN; 4]);
+        assert_eq!(old.tyre_c, [0; 4]);
+        assert_eq!(
+            CarRow {
+                tyre_wear: row.tyre_wear,
+                tyre_c: row.tyre_c,
+                ..old
+            },
+            row
+        );
+        // A v1 stream's frame: its header says 44, and every row reads.
+        let mut rows = Vec::new();
+        for i in 0..3u8 {
+            let mut one = Vec::new();
+            sample_row(i).write(&mut one);
+            rows.extend_from_slice(&one[..ROW_SIZE_V1]);
+        }
+        let frame = StreamFrame {
+            epoch: 0,
+            tick: 8,
+            roster_revision: 0,
+            state: SessionState::Racing,
+            countdown_ms: NO_COUNTDOWN,
+            part: 0,
+            parts: 1,
+            rows,
+        };
+        let read: Vec<u8> = frame.cars(ROW_SIZE_V1).map(|r| r.car_index).collect();
+        assert_eq!(read, vec![0, 1, 2]);
     }
 
     #[test]
@@ -2320,11 +2396,11 @@ mod tests {
             seen.extend(frame.cars(ROW_SIZE).map(|r| r.car_index));
         }
         assert_eq!(seen, (0..40).collect::<Vec<u8>>());
-        // Twenty cars: one datagram of about 900 bytes.
+        // Twenty cars: one datagram of about 1 060 bytes.
         let twenty = encode_frames(1, 240, 0, SessionState::Racing, None, &rows[..20]);
         assert_eq!(twenty.len(), 1);
         assert!(
-            twenty[0].len() < 920 && twenty[0].len() > 880,
+            twenty[0].len() < 1080 && twenty[0].len() > 1040,
             "{}",
             twenty[0].len()
         );

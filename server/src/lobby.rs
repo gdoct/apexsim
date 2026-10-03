@@ -33,6 +33,8 @@ pub struct LobbySessionInfo {
     pub track_config_id: TrackConfigId,
     pub session_kind: SessionKind,
     pub conditions: SessionConditions,
+    /// The race distance in laps, for the session browser and a spectator's HUD.
+    pub lap_limit: u8,
     pub max_players: u8,
     pub current_player_count: u8,
     pub spectator_count: u8,
@@ -335,6 +337,7 @@ impl LobbyManager {
                 max_players: s.max_players,
                 state: s.state,
                 conditions: s.conditions,
+                lap_limit: s.lap_limit,
             })
             .collect()
     }
@@ -443,6 +446,7 @@ mod tests {
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
+            lap_limit: 3,
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -487,6 +491,7 @@ mod tests {
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
+            lap_limit: 3,
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -534,6 +539,7 @@ mod tests {
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
+            lap_limit: 3,
             max_players: 8,
             current_player_count: 2,
             spectator_count: 0,

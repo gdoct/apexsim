@@ -356,6 +356,7 @@ async fn handle_create_session(
         track_file,
         session_kind,
         conditions,
+        lap_limit,
         track_config_id,
         max_players,
         current_player_count: 0, // join_session will increment this
@@ -752,24 +753,34 @@ async fn handle_join_as_spectator(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
-    let (joined, session_kind, allowed_assists, conditions) = {
-        let state_read = ctx.state.read().await;
-        let (session_kind, allowed_assists, conditions) = state_read
+    let (joined, session_kind, allowed_assists, conditions, sectors) = {
+        let mut state_write = ctx.state.write().await;
+        let joined = state_write
+            .lobby
+            .join_as_spectator(conn_info.player_id, session_id)
+            .await;
+        let (session_kind, allowed_assists, conditions, sectors) = state_write
             .sessions
-            .get(&session_id)
+            .get_mut(&session_id)
             .map(|s| {
+                // A spectator arriving mid-session has no roster, and the
+                // client drops telemetry it cannot place: send it again.
+                if joined {
+                    s.mark_roster_dirty();
+                }
                 (
                     s.session.session_kind,
                     s.session.allowed_assists,
                     s.session.conditions,
+                    Some(ServerMessage::TrackSectors(TrackSectorsData {
+                        session_id,
+                        track_length_m: s.track_length_m(),
+                        boundaries_m: s.sector_boundaries_m(),
+                    })),
                 )
             })
             .unwrap_or_default();
-        let joined = state_read
-            .lobby
-            .join_as_spectator(conn_info.player_id, session_id)
-            .await;
-        (joined, session_kind, allowed_assists, conditions)
+        (joined, session_kind, allowed_assists, conditions, sectors)
     };
 
     if joined {
@@ -789,6 +800,11 @@ async fn handle_join_as_spectator(
                 }),
             )
             .await;
+        // Where the sector lines are, so the spectator's timing board can
+        // place every car; the roster follows with the next tick.
+        if let Some(msg) = sectors {
+            let _ = ctx.send(connection_id, msg).await;
+        }
         // Track that player is in a session
         ctx.set_player_session(connection_id, Some(session_id))
             .await;

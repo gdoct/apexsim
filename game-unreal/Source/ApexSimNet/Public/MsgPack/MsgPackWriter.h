@@ -28,6 +28,10 @@ public:
 	void WriteFloat(float Value);
 	void WriteBool(bool Value);
 	void WriteNil();
+	/** Always `0xCE` and four bytes, whatever the value: a field patched in place (the stream's epoch, ApexSpectatorWriter.h). */
+	void WriteUInt32Fixed(uint32 Value);
+	/** A MessagePack `bin` in its narrowest header. */
+	void WriteBinary(TArrayView<const uint8> Bytes);
 
 	const TArray<uint8>& GetBuffer() const { return Buffer; }
 	TArray<uint8>& GetBuffer() { return Buffer; }

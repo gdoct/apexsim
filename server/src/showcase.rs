@@ -551,6 +551,8 @@ mod tests {
             compound: 1,
             damage: [0; 5],
             ers_flags: 0,
+            tyre_wear: [5; 4],
+            tyre_c: [85; 4],
         }
     }
 

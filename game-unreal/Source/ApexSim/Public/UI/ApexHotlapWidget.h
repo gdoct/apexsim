@@ -46,6 +46,8 @@ enum class EApexHotlapAction : uint8
 	ToggleColdTyres,
 	/** Every setup knob back to stock. */
 	ResetSetup,
+	/** Keep the session's laps so far as a replay. */
+	SaveReplay,
 };
 
 /** The garage's pages, in tab order. */
@@ -246,6 +248,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GoOutButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ReplayButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GhostButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> SaveReplayButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> TyresButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ResetButton;
 	UPROPERTY(Transient) TMap<int32, TObjectPtr<UApexStepperWidget>> SetupSteppers;

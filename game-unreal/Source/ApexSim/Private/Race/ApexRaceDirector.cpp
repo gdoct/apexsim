@@ -766,6 +766,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		Progress.Lap = Car.CurrentLap;
 		Progress.StationM = Car.TrackProgress;
 		Progress.bOnTrack = Car.bIsOnTrack;
+		Progress.FinishPosition = Car.FinishPosition;
 	}
 
 	UpdateStartLights(Frame);
@@ -859,7 +860,8 @@ void AApexRaceDirector::UpdateStartLights(const FApexTelemetryFrame& Frame)
 
 void AApexRaceDirector::UpdateRaceBleeps(const FApexTelemetryFrame& Frame, EApexSessionState PreviousState)
 {
-	if (bDemoView)
+	// Behind the menu the race is silent; watched, its start is heard.
+	if (bDemoView && !bSpectating)
 	{
 		return;
 	}
@@ -933,6 +935,26 @@ void AApexRaceDirector::UpdateCameraTarget()
 	if (!Target && bTvView)
 	{
 		Target = FindCar(LocalIndex);
+	}
+	if (bSpectating && !bReplayView && !bGhostReplay)
+	{
+		// The spectator's car: the director's pick while it chooses, the
+		// car picked otherwise, the leader before there is either.
+		AApexRaceCarActor* Watched = bTvView && bSpectatorAuto ? FindCar(Tv.GetTargetCarIndex()) : nullptr;
+		if (!Watched)
+		{
+			Watched = FindCar(SpectatorFocus);
+		}
+		if (!Watched)
+		{
+			const TArray<int32> Order = GetRaceOrder();
+			Watched = Order.Num() > 0 ? FindCar(Order[0]) : nullptr;
+		}
+		Target = Watched;
+		if (Watched)
+		{
+			SpectatorFocus = Watched->GetCarIndex();
+		}
 	}
 	if (!Target)
 	{
@@ -1033,8 +1055,17 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	}
 	if (bDemoView)
 	{
-		// The menu owns input; nothing here drives, looks or swaps cameras.
 		UpdateDemoOpacity(DeltaSeconds);
+		if (!bSpectating)
+		{
+			// The menu owns input; nothing here drives, looks or swaps cameras.
+			return;
+		}
+		// Watched: the spectator's chase and onboard cameras ride the car.
+		UpdateHeadMotion(DeltaSeconds);
+		UpdateLook(DeltaSeconds);
+		UpdateCockpitCamera();
+		UpdateCarAudio();
 		return;
 	}
 	UpdateHeadMotion(DeltaSeconds);
@@ -1050,6 +1081,11 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 		UpdateGhost(DeltaSeconds);
 	}
 	UpdateSteeringLock();
+	if (bSpectating)
+	{
+		// No car of our own: the watch keys come through the shell.
+		return;
+	}
 	PollViewInput();
 	PollDrivingInput();
 }
@@ -2142,6 +2178,10 @@ void AApexRaceDirector::BeginRaceView()
 	bLoggedFirstTelemetry = false;
 	bHasTvPose = false;
 	bTvView = false;
+	// A spectator's view is asked for by the shell once the race view is up.
+	bSpectating = false;
+	bSpectatorRig = false;
+	SpectatorFocus = INDEX_NONE;
 	Tv.Reset(static_cast<int32>(FPlatformTime::Cycles()));
 	CarProgress.Reset();
 	CarMotion.Reset();
@@ -2234,6 +2274,10 @@ void AApexRaceDirector::EndRaceView()
 	}
 	bRaceViewActive = false;
 	bTvView = false;
+	bSpectating = false;
+	bSpectatorRig = false;
+	SpectatorFocus = INDEX_NONE;
+	Tv.LockTarget(INDEX_NONE);
 	DestroyGhost();
 	bLocalInGarage = false;
 	LocalLap = 0;
@@ -2464,9 +2508,9 @@ void AApexRaceDirector::DestroyAllCars()
 
 void AApexRaceDirector::SetTvView(bool bTv)
 {
-	if (bDemoView || bReplayView || bTvView == bTv)
+	if ((bDemoView && !bSpectating) || bReplayView || bTvView == bTv)
 	{
-		// The demo is filmed by nothing else.
+		// The demo is filmed by nothing else, unless someone is watching it.
 		return;
 	}
 	bTvView = bTv;
@@ -2631,6 +2675,16 @@ void AApexRaceDirector::BeginDemoView(const FString& TrackStem, const TArray<FVe
 	}
 	UpdateCameraTarget();
 	ApplyCameraMode();
+	if (bSpectating)
+	{
+		// Still watching as the backdrop moves on to its next race: a new
+		// field, so the director picks again on the camera in use.
+		SpectatorFocus = INDEX_NONE;
+		bSpectatorAuto = SpectatorCamera == ApexSpectate::ECamera::Broadcast;
+		EnsureRig();
+		bSpectatorRig = true;
+		ApplySpectatorCamera();
+	}
 
 	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
 	{
@@ -2659,6 +2713,13 @@ void AApexRaceDirector::EndDemoView()
 		RemoveTickPrerequisiteActor(FollowedCar);
 	}
 	FollowedCar = nullptr;
+	if (bSpectatorRig)
+	{
+		// Attached to a car about to go; the next race's view makes another.
+		DestroyRig();
+		bSpectatorRig = false;
+	}
+	SpectatorFocus = INDEX_NONE;
 	DestroyAllCars();
 	CarProgress.Reset();
 	CarMotion.Reset();
@@ -2727,8 +2788,8 @@ void AApexRaceDirector::UpdateCarAudio()
 	// The car the player is in, or behind, is heard from its seat; a parked
 	// shot camera, the TV director and a ghost replay are spectators, to whom
 	// every car is a point in the world.
-	const bool bSpectating = bTvView || bShotCameraPose || bGhostReplay;
-	const ApexSpace::ESeat OwnSeat = bSpectating ? ApexSpace::ESeat::None
+	const bool bFromOutside = bTvView || bShotCameraPose || bGhostReplay;
+	const ApexSpace::ESeat OwnSeat = bFromOutside ? ApexSpace::ESeat::None
 		: bCockpitView                          ? ApexSpace::ESeat::Cabin
 												: ApexSpace::ESeat::Chase;
 	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
@@ -2791,7 +2852,7 @@ void AApexRaceDirector::ApplyDemoWorldVisibility()
 		if (AApexRaceCarActor* Car = Pair.Value.Get())
 		{
 			Car->SetMeshVisible(bDemoWorldVisible);
-			Car->SetEngineVolume(bDemoWorldVisible ? DemoEngineVolume : 0.0f);
+			Car->SetEngineVolume(bDemoWorldVisible ? (bSpectating ? 1.0f : DemoEngineVolume) : 0.0f);
 		}
 	}
 }
@@ -2811,7 +2872,9 @@ bool AApexRaceDirector::IsDemoReady() const
 
 void AApexRaceDirector::UpdateDemoOpacity(float DeltaSeconds)
 {
-	const bool bReady = bDemoWorldVisible && !bDemoFadeOut && bHasTvPose && Cars.Num() > 0 && IsTrackVisible();
+	// The broadcast camera needs its first shot; the chase and onboard cameras ride a car.
+	const bool bFramed = bTvView ? bHasTvPose : FollowedCar != nullptr;
+	const bool bReady = bDemoWorldVisible && !bDemoFadeOut && bFramed && Cars.Num() > 0 && IsTrackVisible();
 	DemoReadyFor = bReady ? DemoReadyFor + DeltaSeconds : 0.0f;
 	// A moment's grace once everything is in: the sky capture and the first
 	// textures settle before anyone sees them.
@@ -2819,6 +2882,175 @@ void AApexRaceDirector::UpdateDemoOpacity(float DeltaSeconds)
 	DemoOpacity = Target > DemoOpacity
 		? FMath::Min(Target, DemoOpacity + DeltaSeconds * 0.8f)
 		: FMath::Max(Target, DemoOpacity - DeltaSeconds * 3.0f);
+}
+
+// --- Watching ------------------------------------------------------------------------
+
+void AApexRaceDirector::SetSpectating(bool bInSpectating)
+{
+	if (bSpectating == bInSpectating || (bInSpectating && !bDemoView && !bRaceViewActive))
+	{
+		return;
+	}
+	bSpectating = bInSpectating;
+	if (bSpectating)
+	{
+		// Picked up where the backdrop's director was: on its car, choosing.
+		SpectatorCamera = ApexSpectate::ECamera::Broadcast;
+		bSpectatorAuto = true;
+		SpectatorFocus = FollowedCar ? FollowedCar->GetCarIndex() : INDEX_NONE;
+		if (bDemoView && !Rig)
+		{
+			EnsureRig();
+			bSpectatorRig = true;
+		}
+		if (bDemoView)
+		{
+			ApplyDemoWorldVisibility();
+		}
+		ApplySpectatorCamera();
+		UE_LOG(LogApexSim, Log, TEXT("Watching the %s race, %d car(s)"), bDemoView ? TEXT("backdrop") : TEXT("session's"), Cars.Num());
+		return;
+	}
+
+	Tv.LockTarget(INDEX_NONE);
+	if (bSpectatorRig)
+	{
+		DestroyRig();
+		bSpectatorRig = false;
+	}
+	if (bDemoView)
+	{
+		// Back behind the menu: the broadcast camera, the director's choice, quietly.
+		bTvView = true;
+		bHasTvPose = false;
+		Tv.RequestCut();
+		ApplyDemoWorldVisibility();
+		UpdateCameraTarget();
+		ApplyCameraMode();
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Stopped watching"));
+}
+
+void AApexRaceDirector::SetSpectatorCamera(ApexSpectate::ECamera Camera)
+{
+	if (!bSpectating)
+	{
+		return;
+	}
+	if (Camera != ApexSpectate::ECamera::Broadcast)
+	{
+		// The chase and onboard cameras stay on the car they find; the
+		// director's choice would swap the car under them.
+		bSpectatorAuto = false;
+	}
+	SpectatorCamera = Camera;
+	ApplySpectatorCamera();
+	UE_LOG(LogApexSim, Log, TEXT("Watch camera: %s on car %d%s"), ApexSpectate::CameraName(Camera), SpectatorFocus,
+		bSpectatorAuto ? TEXT(" (auto)") : TEXT(""));
+}
+
+void AApexRaceDirector::CycleSpectatorCamera()
+{
+	SetSpectatorCamera(ApexSpectate::NextCamera(SpectatorCamera));
+}
+
+void AApexRaceDirector::SetSpectatorAuto(bool bAuto)
+{
+	if (!bSpectating)
+	{
+		return;
+	}
+	bSpectatorAuto = bAuto;
+	if (bAuto)
+	{
+		// The director films the race its own way.
+		SpectatorCamera = ApexSpectate::ECamera::Broadcast;
+	}
+	ApplySpectatorCamera();
+}
+
+void AApexRaceDirector::FocusCar(int32 CarIndex)
+{
+	if (!bSpectating || !FindCar(CarIndex))
+	{
+		return;
+	}
+	bSpectatorAuto = false;
+	SpectatorFocus = CarIndex;
+	ApplySpectatorCamera();
+}
+
+void AApexRaceDirector::StepFocus(int32 Delta)
+{
+	FocusCar(ApexSpectate::Step(GetRaceOrder(), GetFocusCarIndex(), Delta));
+}
+
+bool AApexRaceDirector::FocusPosition(int32 Position)
+{
+	const int32 CarIndex = ApexSpectate::AtPosition(GetRaceOrder(), Position);
+	if (CarIndex == INDEX_NONE)
+	{
+		return false;
+	}
+	FocusCar(CarIndex);
+	return true;
+}
+
+int32 AApexRaceDirector::GetFocusCarIndex() const
+{
+	return FollowedCar ? FollowedCar->GetCarIndex() : INDEX_NONE;
+}
+
+TArray<int32> AApexRaceDirector::GetRaceOrder() const
+{
+	// Without the TV path's length the stations still order cars within a
+	// lap; the stand-in only has to dwarf any station (as the HUD's does).
+	const float PathLengthM = static_cast<float>(Tv.GetPath().LengthCm / ApexRace::MetresToCentimetres);
+	const float LapLengthM = PathLengthM > 1.0f ? PathLengthM : 100000.0f;
+	TArray<ApexSpectate::FRunner> Runners;
+	Runners.Reserve(Cars.Num());
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		if (!Pair.Value)
+		{
+			continue;
+		}
+		ApexSpectate::FRunner& Runner = Runners.AddDefaulted_GetRef();
+		Runner.CarIndex = Pair.Key;
+		if (const FCarProgress* Progress = CarProgress.Find(Pair.Key))
+		{
+			Runner.FinishPosition = Progress->FinishPosition;
+			Runner.RaceDistanceM = ApexRace::RaceDistanceM(Progress->Lap, Progress->StationM, LapLengthM);
+		}
+	}
+	return ApexSpectate::RaceOrder(Runners);
+}
+
+void AApexRaceDirector::ApplySpectatorCamera()
+{
+	const bool bBroadcast = SpectatorCamera == ApexSpectate::ECamera::Broadcast;
+	if (!bBroadcast)
+	{
+		bCockpitView = SpectatorCamera == ApexSpectate::ECamera::Onboard;
+	}
+	if (bTvView != bBroadcast)
+	{
+		bTvView = bBroadcast;
+		bHasTvPose = false;
+	}
+	if (bBroadcast)
+	{
+		// Locked, the director cuts between its shots of the one car.
+		Tv.LockTarget(bSpectatorAuto ? INDEX_NONE : SpectatorFocus);
+		Tv.RequestCut();
+	}
+	else
+	{
+		Tv.LockTarget(INDEX_NONE);
+	}
+	UpdateCameraTarget();
+	ApplyCameraMode();
 }
 
 // --- Replay clip ---------------------------------------------------------------------

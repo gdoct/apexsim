@@ -1,5 +1,6 @@
 #include "UI/ApexPauseMenuWidget.h"
 
+#include "ApexReplayRecorder.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexSettingsSubsystem.h"
@@ -27,6 +28,7 @@ namespace
 	const FName ActionResume   = TEXT("Resume");
 	const FName ActionSettings = TEXT("Settings");
 	const FName ActionPauseLeave    = TEXT("Leave");
+	const FName ActionPauseSaveReplay    = TEXT("SaveReplay");
 	const FName ActionGarage   = TEXT("Garage");
 	const FName ActionQuit     = TEXT("Quit");
 }
@@ -63,11 +65,15 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	// with the setup card up. Collapsed in every other mode and in the garage.
 	GarageRow = AddRow(Actions, TEXT("BACK TO GARAGE"), TEXT("Tune, replay, go again"), ActionGarage, false);
 	GarageRow->SetVisibility(ESlateVisibility::Collapsed);
+	// Every session is recorded; this keeps it (Saved/Replays) rather than
+	// leaving it among the recent ones that make way for newer sessions.
+	SaveReplayRow = AddRow(Actions, TEXT("SAVE REPLAY"), TEXT("Watch it again later"), ActionPauseSaveReplay, false);
+	SaveReplayRow->SetVisibility(ESlateVisibility::Collapsed);
 
 	// The two exits are separated from the rest and carry a consequence label.
 	// Leaving the session and quitting are never adjacent to Resume.
 	AddV(Actions, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 12.0f));
-	AddRow(Actions, TEXT("BACK TO MAIN MENU"), TEXT("Session ends"), ActionPauseLeave, false);
+	LeaveRow = AddRow(Actions, TEXT("BACK TO MAIN MENU"), TEXT("Session ends"), ActionPauseLeave, false);
 	AddRow(Actions, TEXT("EXIT"), TEXT("Quit ApexSim"), ActionQuit, false);
 
 	AddV(Card, MakePanel(*WidgetTree, Actions, FMargin(22.0f, 22.0f), MakeBrush(Palette::Background)));
@@ -143,6 +149,22 @@ void UApexPauseMenuWidget::Open()
 	// and what it needs is the focus back, not a fresh open.
 	bOpen = true;
 
+	if (LeaveRow)
+	{
+		LeaveRow->SetLabel(bWatching ? TEXT("STOP WATCHING") : TEXT("BACK TO MAIN MENU"));
+		LeaveRow->SetBadge(bWatching ? TEXT("Back to the menu") : TEXT("Session ends"), Palette::TextMuted);
+	}
+	if (SaveReplayRow)
+	{
+		const UApexReplayRecorder* Recorder = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexReplayRecorder>() : nullptr;
+		const bool bCanSave = Recorder && Recorder->IsRecording() && Recorder->HasSomethingToSave();
+		SaveReplayRow->SetVisibility(bCanSave ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (bCanSave)
+		{
+			const int32 Seconds = FMath::FloorToInt(Recorder->GetRecordedSeconds());
+			SaveReplayRow->SetBadge(FString::Printf(TEXT("%d:%02d recorded"), Seconds / 60, Seconds % 60), Palette::TextMuted);
+		}
+	}
 	SetVisibility(ESlateVisibility::Visible);
 	RefreshStatusStrip();
 	FocusDefault();
@@ -177,6 +199,10 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	}
 
 	TArray<FString> Parts;
+	if (bWatching)
+	{
+		Parts.Add(TEXT("Watching"));
+	}
 
 	const int32 LocalIndex = Net->GetLocalCarIndex();
 	bool bOnTrackInHotlap = false;
@@ -200,7 +226,7 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 		Parts.Add(Session.TrackName);
 	}
 
-	if (Flow)
+	if (Flow && !bWatching)
 	{
 		FApexCarCatalogRow CarRow;
 		if (Flow->GetCarCatalogRow(Flow->GetPendingCarId(), CarRow) && !CarRow.DisplayName.IsEmpty())
@@ -214,8 +240,8 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	// The server has no pause: it is authoritative and the rest of the field is
 	// still driving. Saying "HELD" here would be a lie the moment anyone else is
 	// in the session, so the badge reports what is actually happening.
-	const bool bSimRunning = Net->GetSessionState() == EApexSessionState::Racing
-		|| Net->GetSessionState() == EApexSessionState::Countdown;
+	const EApexSessionState State = Net->IsInDemoSession() ? Net->GetDemoSessionState() : Net->GetSessionState();
+	const bool bSimRunning = State == EApexSessionState::Racing || State == EApexSessionState::Countdown;
 	if (StatusBadgeText)
 	{
 		StatusBadgeText->SetText(FText::FromString(bSimRunning ? TEXT("SIM LIVE") : TEXT("HELD")));
@@ -246,6 +272,10 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Action == ActionGarage)
 	{
 		OnAction.Broadcast(EApexPauseAction::ReturnToGarage);
+	}
+	else if (Action == ActionPauseSaveReplay)
+	{
+		OnAction.Broadcast(EApexPauseAction::SaveReplay);
 	}
 	else if (Action == ActionPauseLeave)
 	{

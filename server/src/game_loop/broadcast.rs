@@ -211,7 +211,15 @@ async fn lobby_participants(
             );
         }
     }
-    let available_sessions = state_read.lobby.get_available_sessions().await;
+    let mut available_sessions = state_read.lobby.get_available_sessions().await;
+    // The lobby's record is written when a session is made; the session
+    // itself knows whether it is racing, which is what the browser shows
+    // and what a spectator looks for.
+    for summary in &mut available_sessions {
+        if let Some(game) = state_read.sessions.get(&summary.id) {
+            summary.state = game.session.state;
+        }
+    }
 
     (players_in_lobby, available_sessions)
 }

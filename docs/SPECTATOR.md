@@ -2,7 +2,11 @@
 
 *Spec 2026-10-02; implemented the same day. Status: steps 1–7 of the
 implementation order are in (format, render tool, client player, backdrop,
-pipeline, server showcase, `.apxs` replays). Live spectating is not.*
+pipeline, server showcase, `.apxs` replays). 2026-10-03: the watch view
+(any race on screen, full screen with the spectator's controls, section 5),
+live sessions watched from the browser (with the racer telemetry; a live
+session encoded as this stream is still to come) and replays recorded and
+saved by the client (section 6).*
 
 ## Why
 
@@ -103,12 +107,12 @@ join at any frame, and a file seeks by index. Delta encoding against a
 keyframe is a possible later mode (a `Header` flag), not part of v1.
 
 A frame carries every car. If the rows would not fit one datagram (more than
-28 cars at the v1 row size under a 1 400-byte budget, `MAX_ROWS_PER_PART`)
+26 cars at the 52-byte row under a 1 400-byte budget, `MAX_ROWS_PER_PART`)
 the frame is sent in `parts`, each a self-contained subset of rows with the
 same tick; the client puts the parts of a tick together and applies whatever
 arrived once a newer tick comes (`ApexSim.Spectator.Player`).
 
-### The car row (v1, 44 bytes, little-endian)
+### The car row (52 bytes, little-endian; version 1 was the first 44)
 
 Packed as a MessagePack `bin` of `row_size x cars` bytes. `row_size` is in the
 `Header`; a reader takes the fields it knows and skips the rest of each row,
@@ -139,17 +143,24 @@ follows).
 | 37 | u8 | compound | 255 unknown |
 | 38 | u8 x 5 | damage | percent: front, rear, left, right, engine |
 | 43 | u8 | ERS flags | as `CompactCarState.ers_flags` |
+| 44 | u8 x 4 | tyre wear | percent, FL FR RL RR; 255 unknown (appended 2026-10-03) |
+| 48 | u8 x 4 | tread temperature | °C as `CompactCarState.tyre_c`; 0 unknown |
+
+A stream whose header says 44 (rendered before the tyres) still plays, its
+tyres unknown; `apexsim-replay info --check` calls such a file stale, so the
+pipeline renders it again.
 
 That is what a spectator draws: pose, wheels (steering, speed), brake and
 head lights, DRS flap, visible damage and debris, engine sound, standings
-(lap, station, finish), the pit state and the tyre on the car. Tyre and brake
-temperatures, fuel, feedback and setup stay in the racer's telemetry; the
+(lap, station, finish), the pit state, the tyre on the car with its wear and
+tread temperature. Pressures, brake temperatures, fuel, feedback and setup
+stay in the racer's telemetry; the
 client's `FApexCarTelemetry` has them as "unknown" (`-1`), which is what the
 HUD data and the car actor already handle for an older server.
 
-Size: 20 cars are 880 bytes of rows plus 21 bytes of frame header (902 bytes
-a datagram, `a_big_field_is_sent_in_parts`). At 30 Hz that is ~27 KB/s per
-viewer; 100 viewers ~22 Mbit/s, 1 000 ~220 Mbit/s.
+Size: 20 cars are 1 040 bytes of rows plus 21 bytes of frame header (about
+1 060 bytes a datagram, `a_big_field_is_sent_in_parts`). At 30 Hz that is
+~32 KB/s per viewer; 100 viewers ~25 Mbit/s, 1 000 ~250 Mbit/s.
 
 ### Events
 
@@ -332,9 +343,24 @@ The client asks for a showcase instead of creating a `SessionKind::Demo`
 session when the server lists one. `SessionKind::Demo` stays for one release
 so an older client still gets a backdrop, then goes.
 
-### Later: live spectating
+### Live spectating, as built
 
-`JoinAsSpectator` today sends the full racer telemetry. With the stream in
+The session browser's **Watch** button (enabled while a session's race is
+being driven) sends `JoinAsSpectator`; the server answers `SessionJoined`
+with grid position 0 and the session's `TrackSectors`, and marks its roster
+to go out again on the next tick (`GameSession::mark_roster_dirty`): a
+spectator arriving mid-race had no roster, and the client drops every
+telemetry frame it cannot place (`tests/live_spectator_test.rs` fails
+without it). The lobby's `SessionSummary` now carries the live session's
+`State` (it read `Lobby` forever: `Lobby::update_session` had no caller)
+and its `LapLimit`. The spectator gets the full racer telemetry, which is
+more than a stream frame carries (pressures, brakes, fuel). On the client
+`UApexNetSubsystem::IsSessionSpectator` is true, the race view opens with
+no car, and the watch view (section 5) takes the keys.
+
+### Later: live spectating as a stream
+
+`JoinAsSpectator` still sends the full racer telemetry. With the stream in
 place a spectator gets `SpectatorJoined { Kind: Live }`, the session's
 `Header`/`Roster`, and `Frame`s encoded from the live session once per
 broadcast tick (`broadcast.rs` already serializes once per session). The
@@ -422,6 +448,87 @@ server's responsibility (it drops mismatching files at startup).
 epoch, rates, frames applied / dropped / incomplete, the file's clock),
 `apexsim.spectate.Next` and `apexsim.demo.Restart` (move on).
 
+## 5. Watching a race (the watch view)
+
+Anything the race director has on screen can be watched full screen with a
+spectator's controls (`UApexRootWidget::WatchBackdrop`, `WatchSession`,
+`WatchReplay`):
+
+- **Main menu > Watch a race**: the race playing behind the menu (a
+  showcase, a local file, a demo session). It survives the backdrop moving
+  on to its next race; between two the plain page covers the gap.
+- **Session browser > Watch**: a live session, as above.
+- **Main menu > Replays**: a saved replay (section 6).
+
+The race director keeps the spectator's choice (`SetSpectating`; the rules
+are `ApexSpectate` in `Race/ApexSpectatorView.h`, pure and tested by
+`ApexSim.Spectate.*`): the watched car (`FocusCar`, `StepFocus` through the
+race order, `FocusPosition`), the camera (`ECamera`: the TV director locked
+on that car, the chase camera, the onboard view with the cockpit rig) and
+whether the TV director picks the car (`SetSpectatorAuto`). Watched, the
+backdrop's engines play at full volume and its start is heard.
+
+The keys go through `FApexMenuInputProcessor` to
+`UApexRootWidget::HandleWatchKey`, so none reaches the hidden menu or a car:
+
+| Keyboard | Pad | |
+|---|---|---|
+| Up, Left / Down, Right | D-pad, LB / RB | the car ahead / behind |
+| 1-9, 0 | | P1-P9, P10 |
+| C | Y | camera: TV, chase, onboard |
+| A | X | the TV director picks the car |
+| T | View | timing tower column: interval, gap, last lap, best lap, tyres |
+| H | R3 | hide the overlay |
+| N | L3 | the next race (the backdrop) |
+| Space | A | pause a replay (at its end: from the start) |
+| comma / full stop | LT / RT | ten seconds back / on in a replay |
+| - / = | | slower / faster (0.25x to 4x) |
+| Backspace | B | stop watching |
+| Esc | Start | the pause menu ("STOP WATCHING") |
+
+`apexsim.watch [start|stop|next|prev|car N|camera|auto|tower|overlay|race|
+pause|back|forward|faster|slower]` does the same from the console;
+`-ApexWatch` (the backdrop), `-ApexWatchSession` (the first race on the
+server), `-ApexWatchReplay=<file|latest>`, with `-ApexWatchCamera=`,
+`-ApexWatchTower=`, `-ApexWatchCar=` and `-ApexWatchHideHud`, set it up for
+an unattended run.
+
+The HUD follows the watched car: `FApexHudInputs::LocalCarIndex` is the car
+on screen, so every component shows its figures, and the HUD's circuit,
+length and race distance are the race's own (a stream's header, the
+session's summary) rather than the player's picks. The `spectate.*`,
+`replay.*` and new `standings` fields (interval, laps down, compound, tyre
+age and wear, pit stops, retired, car model) are in docs/HUD_MODDING.md;
+the shipped `spectator_tower`, `spectator_driver`, `spectator_controls` and
+`spectator_replay` components show only while watching, and `standings`,
+`race_state`, `track_info`, `status` and `mirror` hide.
+
+## 6. Replays
+
+`UApexReplayRecorder` records every session the client is in (a race, a
+practice, a hotlap, a live race watched) as this stream, on the client:
+every other telemetry frame (30 Hz) through `FApexStreamCarRow::FromTelemetry`,
+the roster and its changes, the lap timing, the session's state and the
+finishes, compressed a second at a time (`FApexStreamWriter`,
+`ApexSpectatorWriter.h`; the record encoders are byte-identical to the
+server's, pinned by `ApexSim.Spectator.Writer` on the golden bytes). Time
+with every car parked in a hotlap garage is cut. The server's tick rate is
+measured from the frames' ticks against their arrival. A 12-car race is
+about 8 KB a second on disk.
+
+When the session ends the recording goes to `Saved/Replays/Recent/` (the
+newest ten kept); **SAVE REPLAY** in the pause menu or the hotlap garage
+(`apexsim.replay.Save`) writes it to `Saved/Replays/` for good. The
+**Replays** screen (`UApexReplaysWidget`) lists both, newest first: Enter
+watches one, K keeps a recent one, Delete removes one. Playing one is
+`UApexDemoModeSubsystem::PlayReplay`: the backdrop source `Replay`, a file
+that does not loop and is never moved on from, with
+`UApexSpectatorSubsystem`'s transport (`SetPaused`, `SetPlaybackRate`,
+`SeekTo`: forward applies the timing on the way and only the last frame;
+back applies the preamble again first). A replay plays with the menu
+backdrop turned off too. A file the client wrote reads in `apexsim-replay
+info` like a rendered one, and the other way round.
+
 ## Implementation order (as built)
 
 | # | Step | Where |
@@ -433,7 +540,8 @@ epoch, rates, frames applied / dropped / incomplete, the file's clock),
 | 5 | Pipeline: `content/showcase.yml`, `build_track_levels.ps1`, `initialize_content.ps1`, release copies, ship `apexsim-replay.exe` | done |
 | 6 | Server `[showcase]`, channels, messages, `/showcase`, metrics; client net source; showcase preferred over the demo session | done |
 | 7 | `-ApexReplay` and `cut` on `.apxs`, promo pipeline moved over; `.clip.json` still readable, no longer written | done |
-| later | Live spectating through `BroadcastEncoder`; replays recorded as `.apxs`; `convert` recovering lap timing from a replay | |
+| 8 | The watch view; live spectating from the browser (racer telemetry); the tyre fields in the row; client-recorded replays and the Replays screen | done |
+| later | Live spectating through `BroadcastEncoder`; the server's own replays recorded as `.apxs`; `convert` recovering lap timing from a replay | |
 
 ## Tests
 

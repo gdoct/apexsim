@@ -68,12 +68,30 @@ public:
 	/** Every car on the map, the local one marked. */
 	void MakeMinimapBlips(TArray<FApexMinimapBlip>& Out, const FLinearColor& LocalColour) const;
 
+	/**
+	 * The shell's watch view (UApexRootWidget): what is being watched
+	 * (`showcase`, `file`, `demo`, `live`; empty while not watching) and
+	 * the timing tower's column. The watched car and the camera are the race
+	 * director's.
+	 */
+	void SetWatchState(const FString& Source, const FString& TowerMode);
+	/** The last input came from a gamepad: the hints show its buttons. */
+	void SetGamepadActive(bool bActive) { bGamepad = bActive; }
+
 private:
 	UFUNCTION()
 	void HandleTelemetry(const FApexTelemetryFrame& Frame);
 
 	UApexNetSubsystem* GetNet() const;
-	float CatalogTrackLengthM() const;
+
+	/**
+	 * The race on screen's circuit: a stream's own header, the backdrop's
+	 * demo track, the joined session's, or (before any of those) the
+	 * player's pending pick. Its catalog length, name and race distance.
+	 */
+	void ResolveTrack(bool bBackdrop);
+	/** Each roster car's model name, read from the catalog when the roster changes. */
+	void RefreshCarNames();
 
 	FApexHudData Data;
 	FApexHudMemory Memory;
@@ -95,4 +113,17 @@ private:
 
 	TArray<FVector2D> TrackOutline;
 	FString TrackOutlineId;
+
+	/** What ResolveTrack found; the lap limit is -1 when the race does not say. */
+	FString HudTrackId;
+	FString HudTrackName;
+	float HudTrackLengthM = 0.0f;
+	int32 HudLapLimit = -1;
+
+	TMap<int32, FString> CarNames;
+	FString CarNamesKey;
+
+	FString WatchSource;
+	FString TowerMode = TEXT("interval");
+	bool bGamepad = false;
 };

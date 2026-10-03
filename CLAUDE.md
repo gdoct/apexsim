@@ -1719,7 +1719,8 @@ self-contained records, `[u32 big-endian length][positional MessagePack
 body]`, that goes to a file or over the wire unchanged. `Header` (track,
 stem, `source_crc`, resolved conditions, ticks, the render's seed and
 score), `Roster` (cars with their `content_crc`), `Frame` (a `bin` of
-44-byte little-endian car rows: pose in mm, yaw/pitch/roll, speed, pedals,
+52-byte little-endian car rows (44 in a v1 file, which still plays with
+no tyres): pose in mm, yaw/pitch/roll, speed, pedals,
 gear, rpm, lap, station, finish, the lap/pit/ERS flag bytes and the five
 damage percentages; nothing a spectator does not draw), `Event`
 (`LapTiming`, `TrackSectors`, state, finish, retired, pit stop, contact),
@@ -1785,8 +1786,44 @@ sky roll only applies to demo sessions. `-ApexShowcase=<file|id>`,
 `apexsim.spectate.Next`. Trap found writing it: a test fixture whose
 roster revision was not its frames' had every frame silently dropped;
 the file test now plays the whole file through the player. Not done:
-live spectating (`SpectatorKind::Live` is reserved; `JoinAsSpectator`
-still sends racer telemetry).
+a live session as a stream (`SpectatorKind::Live` is reserved;
+`JoinAsSpectator` sends racer telemetry, below).
+
+### Watching a race and replays (`Race/ApexSpectatorView.h`, `UApexReplayRecorder`, `UApexReplaysWidget`; docs/SPECTATOR.md sections 5-6)
+
+Any race on the director can be **watched** full screen with a spectator's
+controls: Main menu > *Watch a race* (the backdrop, kept across its next
+races), the session browser's *Watch* (a live session, `JoinAsSpectator`;
+the server now resends the roster and sends `TrackSectors` to a spectator
+who joins mid-race, without which every frame was dropped, and lists each
+session's real `State` and `LapLimit`), and Main menu > *Replays*. The
+director holds the watched car, the camera (TV locked on it / chase /
+onboard with the rig) and the auto director (`SetSpectating`, `FocusCar`,
+`StepFocus`, `SetSpectatorCamera`); `ApexSpectate` is the pure part
+(order, stepping, the key map; `ApexSim.Spectate.*`). Keys reach
+`UApexRootWidget::HandleWatchKey` through the input processor (arrows /
+shoulders car, 1-0 position, C camera, A auto, T tower column, H overlay, N
+next race, Space / , . / - = a replay's pause, seek and speed, Backspace
+leave, Esc the pause menu); `apexsim.watch ...` and `-ApexWatch`,
+`-ApexWatchSession`, `-ApexWatchReplay=<file|latest>` (+ `-ApexWatchCamera=`,
+`-ApexWatchTower=`, `-ApexWatchCar=`, `-ApexWatchHideHud`) for unattended
+runs. The HUD's local car is the watched one, its circuit, length and race
+distance the race's own; `spectate.*`, `replay.*` and the new `standings`
+fields are in docs/HUD_MODDING.md, drawn by the `spectator_*` components
+(the driver-only ones hide).
+
+**Replays**: `UApexReplayRecorder` records every session the client is in
+(race, practice, hotlap, a race watched) as `.apxs` on the client (30 Hz,
+`FApexStreamCarRow::FromTelemetry`, `FApexStreamWriter` in
+`ApexSpectatorWriter.h`, encoders byte-identical to the server's:
+`ApexSim.Spectator.Writer`), cutting time with every car in a hotlap
+garage; the session goes to `Saved/Replays/Recent/` (ten kept) when it
+ends, and SAVE REPLAY (pause menu, hotlap garage, `apexsim.replay.Save`)
+keeps it in `Saved/Replays/`. Playing one is
+`UApexDemoModeSubsystem::PlayReplay` (backdrop source `Replay`: no loop,
+no moving on) with `UApexSpectatorSubsystem`'s `SetPaused` /
+`SetPlaybackRate` / `SeekTo`. `apexsim-replay info` reads a client-saved
+file like a rendered one.
 
 ### Demo mode and the broadcast camera (`ApexDemoModeSubsystem`, `Race/ApexTvDirector.h`)
 
@@ -2615,12 +2652,17 @@ the lap** now (`RoadContact::off_track`), so a lap with a stop counts.
 **The AI** in a race plans a stop (`pit::plan_stop`: a tyre 70% worn,
 the nose 25% damaged, or short of fuel for the rest; hards with 15+ laps
 left, mediums with 6+, softs otherwise), turns onto the pit route 250 m
-before the lane leaves the track, and `pit::drive_input` drives it (pure
+before the lane leaves the track, races that run-up on the road held to
+the speed the lane wants at its mouth (`pit::run_up_m`, `run_up_input`),
+and from 10 m short of the lane `pit::drive_input` drives it (pure
 pursuit along the lane onto its box's spot, the limit between the lines,
 a stop at the box, the automatic box on for the route) until past the
-lane's end, where the normal AI takes over. At Monza a GT3 AI on 72% worn
+lane's end, where the normal AI takes over. Pure pursuit from 250 m out
+used to cut Monza's Parabolica over the run-off and swerve into the lane
+at 37 m/s, into the armco beyond it. At Monza a GT3 AI on 72% worn
 tyres pits on lap 1, 9 s in the box, rejoins on softs and races on
-(`tests/pit_stop_test.rs`).
+(`tests/pit_stop_test.rs`); on most other circuits the AI's stop still
+fails (docs/SIMULATION_GAPS.md, "Not done yet").
 
 **Wire**: `CompactCarState.tyre_wear` ([u8;4], %), `compound` (255
 unknown), `pit_flags` (bit 0 limiter, 1 servicing, 2 in the lane),

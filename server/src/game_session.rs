@@ -1664,15 +1664,24 @@ impl GameSession {
         state: &CarState,
         car_config: &CarConfig,
     ) -> PlayerInputData {
-        // On the pit route the lane drives it (`crate::pit`).
+        // On the pit route the lane drives it (`crate::pit`), from just short
+        // of where the lane leaves the track; on the run-up to there the car
+        // races on along the road, held to a speed it can take the lane at.
+        let mut run_up = None;
         if state.pit.driving {
             if let Some(lane) = &self.track_config.pit_lane {
-                return crate::pit::drive_input(
-                    lane,
-                    lane.box_for(state.grid_position),
-                    state,
-                    car_config,
-                );
+                let total = crate::laps::track_length_m(&self.track_config);
+                match crate::pit::run_up_m(lane, state, total) {
+                    Some(to_lane) => run_up = Some((lane, to_lane)),
+                    None => {
+                        return crate::pit::drive_input(
+                            lane,
+                            lane.box_for(state.grid_position),
+                            state,
+                            car_config,
+                        );
+                    }
+                }
             }
         }
         let controller = AiDriverController::new(profile, &self.track_config, car_config)
@@ -1703,6 +1712,9 @@ impl GameSession {
         if car_config.hybrid.enabled {
             input.ers_mode = Some(crate::hybrid::DEFAULT_MODE);
             input.ers_boost = self.ai_wants_boost(state);
+        }
+        if let Some((lane, to_lane)) = run_up {
+            input = crate::pit::run_up_input(lane, to_lane, state.speed_mps, input);
         }
         input
     }
@@ -1823,6 +1835,13 @@ impl GameSession {
     /// Whether session membership changed since the last roster broadcast.
     pub fn roster_is_dirty(&self) -> bool {
         self.roster_dirty
+    }
+
+    /// Send the roster again on the next tick, to everyone in the session:
+    /// a spectator who joins a session already under way has never had it,
+    /// and its telemetry means nothing without it.
+    pub fn mark_roster_dirty(&mut self) {
+        self.roster_dirty = true;
     }
 
     /// True once per membership change: returns whether a fresh roster needs

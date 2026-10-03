@@ -1,0 +1,49 @@
+// A saved replay's transport: where it is, how fast, paused or over, and its
+// keys. Floats under the watched car's card, where the mirror would be.
+{
+  "name": "Replay transport",
+  "region": "top",
+  "float": true,
+  "margin": [0, 92, 0, 0],
+  "visible": "=replay.active",
+  "root": {
+    "type": "panel", "width": 560, "padding": [16, 10], "background": "=alpha('surface', 0.94)",
+    "children": [{
+      "type": "column",
+      "children": [
+        {
+          "type": "row", "valign": "center",
+          "children": [
+            { "type": "panel", "valign": "center", "padding": [8, 2],
+              "background": "=replay.ended ? 'surface_hover' : replay.paused ? 'accent' : 'live'",
+              "children": [{ "type": "text", "font": "mono", "size": 11, "tracking": 80, "bold": true,
+                "color": "=replay.ended ? 'text_secondary' : 'on_accent'",
+                "text": "=replay.ended ? 'END' : replay.paused ? 'PAUSED' : 'REPLAY'" }] },
+            { "type": "text", "margin": [12, 0, 0, 0], "valign": "center", "font": "mono", "size": 14,
+              "text": "=fmt_time(replay.time_s) + '  /  ' + fmt_time(replay.duration_s)" },
+            { "type": "spacer", "fill": 1 },
+            { "type": "text", "valign": "center", "font": "mono", "size": 14,
+              "color": "=replay.rate == 1 ? 'text_muted' : 'accent'",
+              "text": "=fmt(replay.rate, replay.rate < 1 ? 2 : 0) + '×'" }
+          ]
+        },
+        { "type": "bar", "margin": [0, 8, 0, 0], "height": 4, "value": "=replay.progress", "color": "accent", "background": "border" },
+        {
+          "type": "row", "halign": "right", "margin": [0, 8, 0, 0], "visible": "=!hud.gamepad",
+          "children": [
+            { "type": "keycap", "text": "SPACE PAUSE" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": ", . 10 S" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "- = SPEED" }
+          ]
+        },
+        {
+          "type": "row", "halign": "right", "margin": [0, 8, 0, 0], "visible": "=hud.gamepad",
+          "children": [
+            { "type": "keycap", "text": "A PAUSE" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "LT RT 10 S" }
+          ]
+        }
+      ]
+    }]
+  }
+}

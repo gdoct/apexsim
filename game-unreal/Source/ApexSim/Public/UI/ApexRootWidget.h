@@ -4,6 +4,7 @@
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexProtocolTypes.h"
 #include "Blueprint/UserWidget.h"
+#include "Race/ApexSpectatorView.h"
 
 #include "ApexRootWidget.generated.h"
 
@@ -137,6 +138,49 @@ public:
 	 * that screen.
 	 */
 	void OpenSettings(EApexSettingsTab Tab);
+
+	// --- Watching a race -------------------------------------------------------
+
+	/**
+	 * Take the race playing behind the menu (a showcase, a local file or a
+	 * demo session) full screen, with the spectator's controls and the HUD
+	 * on the watched car (docs/SPECTATOR.md, "Watching a race"). False, with
+	 * a toast, when there is nothing to watch. Between the backdrop's races
+	 * the view waits for the next one.
+	 */
+	bool WatchBackdrop();
+
+	/** Spectate a live session from the browser: JoinAsSpectator, then the race view without a car. */
+	void WatchSession(const FString& SessionId);
+
+	/**
+	 * Play a saved replay (UApexReplayRecorder) in the watch view, with its
+	 * transport (pause, seek, speed); leaving it comes back to the Replays
+	 * screen. False, with a toast, when it cannot be played.
+	 */
+	bool WatchReplay(const FString& Path);
+	bool IsWatchingReplay() const { return WatchKind == EWatchKind::Backdrop && bWatchingReplay; }
+
+	/** Save the session being recorded as a replay, with a toast either way. */
+	void SaveReplay();
+
+	/** Back to the menu (the backdrop) or out of the session (live). */
+	void StopWatching();
+
+	bool IsWatching() const { return WatchKind != EWatchKind::None; }
+	bool IsWatchingLive() const { return WatchKind == EWatchKind::Live; }
+
+	/**
+	 * A key while watching, from the input processor (ApexSpectate::CommandFor):
+	 * which car, which camera, the tower, the overlay, the next race, out.
+	 * True when the key meant something.
+	 */
+	bool HandleWatchKey(const FKeyEvent& InKeyEvent);
+	/** The same, by action, for the console (`apexsim.watch`). */
+	void RunWatchCommand(const ApexSpectate::FCommand& Command);
+
+	/** The pad is in use: the HUD's key hints show its buttons. */
+	void SetGamepadHints(bool bGamepad);
 
 	/** The screen the car picker should return to once a car is confirmed. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
@@ -300,6 +344,39 @@ private:
 
 	/** Counts a freshly created session into its starting mode. */
 	void StartRequestedSession();
+
+	enum class EWatchKind : uint8
+	{
+		None,
+		/** The menu's backdrop race, full screen. */
+		Backdrop,
+		/** A live session joined as a spectator. */
+		Live,
+	};
+	EWatchKind WatchKind = EWatchKind::None;
+	/** A WatchSession is waiting for its SessionJoined. */
+	bool bWatchJoinPending = false;
+	/** The backdrop being watched is a replay the player chose. */
+	bool bWatchingReplay = false;
+	ApexSpectate::ETowerMode WatchTower = ApexSpectate::ETowerMode::Interval;
+	bool bWatchOverlayHidden = false;
+	/** Whether the director's backdrop was up last frame, to notice the next race begin. */
+	bool bWatchDemoUp = false;
+	/** Seconds the backdrop watch has had no race to show; it gives up eventually. */
+	float WatchIdleSeconds = 0.0f;
+
+	/** Keep a watched backdrop on screen and its HUD in step with its races. */
+	void UpdateWatch(float DeltaSeconds);
+	/** What the HUD data needs of the watch view. */
+	void PushWatchState();
+	/** The shell's own widgets for watching or not: the menu out of the way, the HUD up. */
+	void ApplyWatchLayers();
+	/** `-ApexWatch` and its options, for an unattended run. */
+	void ApplyWatchCommandLine();
+	bool bWatchFromCommandLine = false;
+	bool bWatchCommandLineApplied = false;
+	bool bWatchSessionFromCommandLine = false;
+	bool bWatchReplayFromCommandLine = false;
 
 	bool bRaceViewActive = false;
 	bool bPauseMenuOpen = false;

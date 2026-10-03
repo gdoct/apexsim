@@ -70,6 +70,7 @@ void FApexMenuInputProcessor::SetGamepadActive(UApexRootWidget& Root, bool bActi
 		return;
 	}
 	bGamepadActive = bActive;
+	Root.SetGamepadHints(bActive);
 
 	if (APlayerController* PlayerController = Root.GetOwningPlayer())
 	{
@@ -109,6 +110,30 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 	if (Root->IsSettingsOpen() || Root->IsHudEditorOpen())
 	{
 		return false;
+	}
+
+	// Watching a race: the pause key opens the pause menu, as in a race, and
+	// every other key is the watch view's, so none falls through to a car we
+	// do not have or a menu screen hidden behind the race.
+	if (Root->IsWatching() && !Root->IsPaused())
+	{
+		const UApexSettingsSubsystem* WatchSettings =
+			Root->GetGameInstance() ? Root->GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+		const bool bWatchPauseKey = WatchSettings ? WatchSettings->IsPauseKey(Key) : Key == EKeys::Escape;
+		if (bWatchPauseKey || Key == EKeys::Gamepad_Special_Right)
+		{
+			if (!InKeyEvent.IsRepeat())
+			{
+				Root->SetPaused(true);
+				ApexUiAudio::Play(Root, EApexUiSound::Accept);
+			}
+			return true;
+		}
+		if (!InKeyEvent.IsRepeat())
+		{
+			Root->HandleWatchKey(InKeyEvent);
+		}
+		return true;
 	}
 
 	if (Root->IsRaceViewActive())
@@ -223,6 +248,12 @@ bool FApexMenuInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp
 	}
 
 	SetGamepadActive(*Root, true);
+
+	// Watching: the stick would walk focus round a menu hidden behind the race.
+	if (Root->IsWatching() && !Root->IsPaused() && !Root->IsSettingsOpen() && !Root->IsHudEditorOpen())
+	{
+		return true;
+	}
 
 	if (Root->IsSettingsOpen() || Root->IsHudEditorOpen() || IsDriving(*Root))
 	{

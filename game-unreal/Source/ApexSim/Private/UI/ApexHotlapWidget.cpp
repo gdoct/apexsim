@@ -2,6 +2,7 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexReplayRecorder.h"
 #include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
@@ -54,6 +55,7 @@ namespace
 	const FName ActionGhost      = TEXT("Hotlap.Ghost");
 	const FName ActionTyres      = TEXT("Hotlap.Tyres");
 	const FName ActionResetSetup = TEXT("Hotlap.Reset");
+	const FName ActionGarageSaveReplay = TEXT("Hotlap.SaveReplay");
 	const FName ActionTab        = TEXT("Hotlap.Tab");
 	const FName ActionCompound   = TEXT("Hotlap.Compound");
 	const FName ActionSave       = TEXT("Hotlap.Save");
@@ -481,6 +483,9 @@ UWidget* UApexHotlapWidget::BuildActionColumn()
 	// cold tyres here (blankets or the air, as from the garage).
 	TyresButton = MakeActionButton(TEXT("TYRES OUT"), TEXT("Warm"), ActionTyres, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, TyresButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	// The laps driven so far, kept to watch again (the Replays screen).
+	SaveReplayButton = MakeActionButton(TEXT("SAVE REPLAY"), TEXT("Nothing yet"), ActionGarageSaveReplay, EApexButtonVariant::Panel, 64.0f, 20.0f);
+	AddV(Column, SaveReplayButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	AddV(Column, Rule(*WidgetTree), FMargin(0.0f, 18.0f));
 	ResetButton = MakeActionButton(TEXT("RESET SETUP"), TEXT("Stock"), ActionResetSetup, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, ResetButton);
@@ -1170,6 +1175,14 @@ void UApexHotlapWidget::RefreshGhostRows()
 			: (Net && Net->GetLapRecord().bHasGhost ? TEXT("Loading") : TEXT("No lap yet")),
 			bHasGhost ? Palette::TextPrimary : Palette::TextMuted);
 	}
+	if (SaveReplayButton)
+	{
+		const UApexReplayRecorder* Recorder = GameInstance ? GameInstance->GetSubsystem<UApexReplayRecorder>() : nullptr;
+		const bool bSomething = Recorder && Recorder->HasSomethingToSave();
+		const int32 Seconds = Recorder ? FMath::FloorToInt(Recorder->GetRecordedSeconds()) : 0;
+		SaveReplayButton->SetBadge(bSomething ? FString::Printf(TEXT("%d:%02d on track"), Seconds / 60, Seconds % 60) : TEXT("Nothing yet"),
+			bSomething ? Palette::TextPrimary : Palette::TextMuted);
+	}
 	if (GhostButton)
 	{
 		const bool bOn = Settings && Settings->Get() ? Settings->Get()->bGhostCar : true;
@@ -1521,6 +1534,10 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Id == ActionResetSetup)
 	{
 		OnAction.Broadcast(EApexHotlapAction::ResetSetup);
+	}
+	else if (Id == ActionGarageSaveReplay)
+	{
+		OnAction.Broadcast(EApexHotlapAction::SaveReplay);
 	}
 	else if (Id == ActionTab)
 	{

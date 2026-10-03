@@ -11,6 +11,7 @@ class UButton;
 class UTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionJoinClicked, UApexSessionRowWidget*, Row);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionWatchClicked, UApexSessionRowWidget*, Row);
 
 /** One session in the browser: track, host, occupancy, kind and state. */
 UCLASS(Abstract)
@@ -30,6 +31,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
 	FApexOnSessionJoinClicked OnJoinClicked;
+
+	/** Watch the session without a car: enabled while its race is being driven. */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
+	FApexOnSessionWatchClicked OnWatchClicked;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
@@ -60,6 +65,18 @@ protected:
 private:
 	UFUNCTION()
 	void HandleJoinClicked();
+
+	UFUNCTION()
+	void HandleWatchClicked();
+
+	/**
+	 * The Watch button, made here beside Join (the row's layout is a widget
+	 * blueprint) and dressed like it.
+	 */
+	void BuildWatchButton();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> WatchButton;
 
 	static FString DescribeKind(EApexSessionKind Kind);
 	static FString DescribeState(EApexSessionState State);

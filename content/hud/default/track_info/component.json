@@ -4,6 +4,8 @@
   "name": "Track and session",
   "region": "top-left",
   "order": 10,
+  // The timing tower names the circuit while watching.
+  "visible": "=!spectate.active",
   "root": {
     "type": "column",
     "children": [

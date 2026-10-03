@@ -573,6 +573,10 @@ pub struct SessionSummary {
     /// Weather and time of day, for the session browser.
     #[serde(default)]
     pub conditions: SessionConditions,
+    /// The race distance in laps, so a spectator's HUD can count down to it.
+    /// Appended; 0 from an older server.
+    #[serde(default)]
+    pub lap_limit: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1680,6 +1684,7 @@ mod tests {
                 max_players: 8,
                 state: SessionState::Lobby,
                 conditions: SessionConditions::DEFAULT,
+                lap_limit: 5,
             }],
             car_configs: vec![CarConfigSummary {
                 id: Uuid::nil(),

@@ -3,6 +3,8 @@
   "name": "Status",
   "region": "top-right",
   "order": 10,
+  // The watch controls take this corner while watching.
+  "visible": "=!spectate.active",
   "root": {
     "type": "row",
     "children": [

@@ -2,6 +2,7 @@
 
 #include "ApexProtocolCodec.h"
 #include "ApexSpectatorStream.h"
+#include "ApexSpectatorWriter.h"
 #include "Tests/ApexSpectatorGoldenBlobs.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -63,7 +64,7 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("header stream id"), Record.Header.StreamId, FString(TEXT("01234567-89ab-cdef-0123-456789abcdef")));
 	TestEqual(TEXT("header tick rate"), Record.Header.TickRate, 240);
 	TestEqual(TEXT("header frame rate"), Record.Header.FrameRate, 30);
-	TestEqual(TEXT("header row size"), Record.Header.RowSize, 44);
+	TestEqual(TEXT("header row size"), Record.Header.RowSize, ApexSpectator::RowSize);
 	TestEqual(TEXT("header stem"), Record.Header.Track.Stem, FString(TEXT("Zandvoort")));
 	TestEqual(TEXT("header display name"), Record.Header.Track.DisplayName, FString(TEXT("Zandervoort")));
 	TestTrue(TEXT("header crc"), Record.Header.Track.SourceCrc == 0xCBF43926u);
@@ -110,8 +111,8 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("frame state"), (int32)Record.Frame.State, (int32)EApexSessionState::Racing);
 	TestEqual(TEXT("frame countdown"), Record.Frame.CountdownMs, 1500);
 	TestEqual(TEXT("frame parts"), Record.Frame.Parts, 1);
-	TestEqual(TEXT("frame rows bytes"), Record.Frame.Rows.Num(), 88);
-	const TArray<FApexStreamCarRow> Rows = Record.Frame.Cars(44);
+	TestEqual(TEXT("frame rows bytes"), Record.Frame.Rows.Num(), 2 * ApexSpectator::RowSize);
+	const TArray<FApexStreamCarRow> Rows = Record.Frame.Cars(ApexSpectator::RowSize);
 	TestEqual(TEXT("frame rows"), Rows.Num(), 2);
 	if (Rows.Num() == 2)
 	{
@@ -132,6 +133,8 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("row compound"), (int32)Row.Compound, 1);
 		TestEqual(TEXT("row damage"), (int32)Row.Damage[4], 40);
 		TestEqual(TEXT("row ers"), (int32)Row.ErsFlags, 5);
+		TestTrue(TEXT("row tyre wear"), Row.TyreWear[0] == 14 && Row.TyreWear[1] == 16 && Row.TyreWear[2] == 9 && Row.TyreWear[3] == 11);
+		TestTrue(TEXT("row tyre temperatures"), Row.TyreC[0] == 88 && Row.TyreC[3] == 97);
 
 		const FApexCarTelemetry T = Row.ToTelemetry();
 		TestEqual(TEXT("telemetry index"), T.CarIndex, 1);
@@ -147,22 +150,44 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("telemetry compound"), T.Compound, 1);
 		TestTrue(TEXT("telemetry damage"), T.HasDamage() && FMath::IsNearlyEqual(T.DamagePct[0], 12.0f) && FMath::IsNearlyEqual(T.DamagePct[4], 40.0f));
 		TestTrue(TEXT("telemetry ers"), T.ErsMode == 1 && T.bErsDeploying && !T.bErsHarvesting && !T.bErsBoost);
-		TestTrue(TEXT("telemetry unknowns"), !T.HasTyres() && T.FuelLiters < 0.0f && !T.HasHybrid());
+		TestTrue(TEXT("telemetry tyres"), T.HasTyres() && FMath::IsNearlyEqual(T.TyreTempC[1], 91.0f)
+			&& FMath::IsNearlyEqual(T.TyreWearPct[2], 9.0f));
+		TestTrue(TEXT("telemetry unknowns"), T.TyrePressureKpa[0] < 0.0f && T.FuelLiters < 0.0f && !T.HasHybrid());
 
-		// Written back, the row is its 44 bytes.
+		// Written back, the row is its bytes.
 		TArray<uint8> Back;
 		Row.Write(Back);
-		TestTrue(TEXT("row round trip"), Back == TArray<uint8>(Record.Frame.Rows.GetData() + 44, 44));
+		TestTrue(TEXT("row round trip"), Back == TArray<uint8>(Record.Frame.Rows.GetData() + ApexSpectator::RowSize, ApexSpectator::RowSize));
+	}
+
+	// A version 1 stream's rows (44 bytes, no tyres): they read, tyres unknown.
+	{
+		TArray<uint8> Old;
+		for (int32 Car = 0; Car < 2; ++Car)
+		{
+			Old.Append(Record.Frame.Rows.GetData() + Car * ApexSpectator::RowSize, ApexSpectator::RowSizeV1);
+		}
+		FApexStreamFrame V1 = Record.Frame;
+		V1.Rows = Old;
+		const TArray<FApexStreamCarRow> OldRows = V1.Cars(ApexSpectator::RowSizeV1);
+		TestEqual(TEXT("v1 rows"), OldRows.Num(), 2);
+		if (OldRows.Num() == 2)
+		{
+			TestTrue(TEXT("v1 rows read the known fields"), OldRows[1].XMm == 100500 && OldRows[1].ErsFlags == 5);
+			TestTrue(TEXT("v1 rows have no tyres"), OldRows[1].TyreWear[0] == ApexSpectator::TyreWearUnknown && OldRows[1].TyreC[0] == 0);
+			const FApexCarTelemetry OldT = OldRows[1].ToTelemetry();
+			TestTrue(TEXT("v1 telemetry tyres unknown"), !OldT.HasTyres() && OldT.TyreWearPct[0] < 0.0f);
+		}
 	}
 
 	// A newer writer's longer row: the known fields read, the rest ignored.
 	{
 		TArray<uint8> Longer = Record.Frame.Rows;
-		Longer.Insert(TArray<uint8>{9, 9, 9, 9}, 44);
+		Longer.Insert(TArray<uint8>{9, 9, 9, 9}, ApexSpectator::RowSize);
 		Longer.Append({ 9, 9, 9, 9 });
 		FApexStreamFrame Wide = Record.Frame;
 		Wide.Rows = Longer;
-		const TArray<FApexStreamCarRow> WideRows = Wide.Cars(48);
+		const TArray<FApexStreamCarRow> WideRows = Wide.Cars(ApexSpectator::RowSize + 4);
 		TestEqual(TEXT("wide rows"), WideRows.Num(), 2);
 		TestTrue(TEXT("wide rows read the known fields"), WideRows.Num() == 2 && WideRows[1].XMm == 100500 && WideRows[1].ErsFlags == 5);
 	}
@@ -429,6 +454,90 @@ bool FApexSpectatorProtocolTest::RunTest(const FString& Parameters)
 		0xA4, 'd', 'a', 't', 'a', 0x81, 0xB1, 'S', 'h', 'o', 'w', 'c', 'a', 's', 'e', 'A', 'v', 'a', 'i', 'l', 'a', 'b', 'l', 'e', 0xC3 };
 	TestTrue(TEXT("lobby decodes"), ApexProtocol::DecodeServerMessage(View(Lobby, UE_ARRAY_COUNT(Lobby)), Message, Error));
 	TestTrue(TEXT("lobby showcase flag"), Message.Type == EApexServerMessageType::LobbyState && Message.LobbyState.bShowcaseAvailable);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// Writer: what the client writes is what the server writes.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSpectatorWriterTest, "ApexSim.Spectator.Writer", ApexSpectatorTests::Flags)
+
+bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexSpectatorGolden;
+	using namespace ApexSpectatorTests;
+
+	// Every golden record decodes and encodes back to the server's bytes.
+	auto RoundTrip = [this](const TCHAR* What, const uint8* Golden, int32 Num)
+	{
+		FApexStreamRecord Record;
+		FString Error;
+		if (!ApexSpectator::DecodeRecord(View(Golden, Num), Record, Error))
+		{
+			AddError(FString::Printf(TEXT("%s does not decode: %s"), What, *Error));
+			return;
+		}
+		TArray<uint8> Bytes;
+		switch (Record.Type)
+		{
+		case ApexSpectator::RecordHeader: Bytes = ApexSpectator::EncodeHeader(Record.Header); break;
+		case ApexSpectator::RecordRoster: Bytes = ApexSpectator::EncodeRoster(Record.Roster); break;
+		case ApexSpectator::RecordFrame: Bytes = ApexSpectator::EncodeFrame(Record.Frame); break;
+		case ApexSpectator::RecordEvent: Bytes = ApexSpectator::EncodeEvent(Record.Event); break;
+		case ApexSpectator::RecordPath: Bytes = ApexSpectator::EncodePath(Record.Path); break;
+		default: break;
+		}
+		TestTrue(*FString::Printf(TEXT("%s encodes as the server does"), What), Bytes == TArray<uint8>(Golden, Num));
+	};
+	RoundTrip(TEXT("header"), Header, UE_ARRAY_COUNT(Header));
+	RoundTrip(TEXT("roster"), Roster, UE_ARRAY_COUNT(Roster));
+	RoundTrip(TEXT("frame"), Frame, UE_ARRAY_COUNT(Frame));
+	RoundTrip(TEXT("lap timing"), EventLapTiming, UE_ARRAY_COUNT(EventLapTiming));
+	RoundTrip(TEXT("track sectors"), EventTrackSectors, UE_ARRAY_COUNT(EventTrackSectors));
+	RoundTrip(TEXT("contact"), EventContact, UE_ARRAY_COUNT(EventContact));
+	RoundTrip(TEXT("path"), Path, UE_ARRAY_COUNT(Path));
+
+	// A row through the telemetry a race director reads and back is the row.
+	{
+		FApexStreamRecord Record;
+		FString Error;
+		ApexSpectator::DecodeRecord(View(Frame, UE_ARRAY_COUNT(Frame)), Record, Error);
+		for (const FApexStreamCarRow& Row : Record.Frame.Cars(ApexSpectator::RowSize))
+		{
+			TArray<uint8> Before;
+			TArray<uint8> After;
+			Row.Write(Before);
+			FApexStreamCarRow::FromTelemetry(Row.ToTelemetry()).Write(After);
+			TestTrue(*FString::Printf(TEXT("row %d survives telemetry"), Row.CarIndex), Before == After);
+		}
+	}
+
+	// A whole file, written again from the golden file's own records, reads
+	// back record for record.
+	FApexStreamFile Source;
+	FString Error;
+	TestTrue(TEXT("golden file loads"), Source.LoadFromBytes(TArray<uint8>(File, UE_ARRAY_COUNT(File)), Error));
+	TArray<TArray<uint8>> Bodies;
+	TestTrue(TEXT("golden file reads"), Source.ReadAll(Bodies, Error));
+	FApexStreamWriter Writer(Source.GetHeader().TickRate);
+	for (const TArray<uint8>& Body : Bodies)
+	{
+		int64 Tick = 0;
+		ApexSpectator::RecordTick(Body, Tick);
+		Writer.Add(Tick, Body);
+	}
+	TestEqual(TEXT("records taken"), Writer.NumRecords(), Bodies.Num());
+	const TArray<uint8> Written = Writer.ToBytes(Source.GetHeader(), Source.GetRoster(),
+		Source.HasPath() ? &Source.GetPath() : nullptr, Source.GetPreamble());
+	FApexStreamFile Back;
+	TestTrue(*FString::Printf(TEXT("written file loads (%s)"), *Error), Back.LoadFromBytes(TArray<uint8>(Written), Error));
+	TArray<TArray<uint8>> BackBodies;
+	TestTrue(TEXT("written file reads"), Back.ReadAll(BackBodies, Error));
+	TestTrue(TEXT("same records"), BackBodies == Bodies);
+	TestTrue(TEXT("same preamble"), Back.GetPreambleBytes().Num() == Source.GetPreambleBytes().Num()
+		&& FMemory::Memcmp(Back.GetPreambleBytes().GetData(), Source.GetPreambleBytes().GetData(), Back.GetPreambleBytes().Num()) == 0);
+	TestEqual(TEXT("blocks of a second"), Back.NumBlocks(), Source.NumBlocks());
 	return true;
 }
 

@@ -1496,6 +1496,15 @@ pub fn check_stream(
     cars_dir: &Path,
 ) -> Vec<String> {
     let mut stale = Vec::new();
+    // Rows from before a field was appended play, but without it (a stream
+    // from before the tyres has no tyres on its timing tower).
+    if (header.row_size as usize) < crate::spectator::ROW_SIZE {
+        stale.push(format!(
+            "rows of {} bytes, from before this build's {}: render it again for the fields since",
+            header.row_size,
+            crate::spectator::ROW_SIZE
+        ));
+    }
     match find_track_yaml(tracks_dir, &header.track.stem) {
         None => stale.push(format!(
             "track {}: no {}.yaml under {}",
@@ -1673,6 +1682,14 @@ mod tests {
         assert_eq!(stale.len(), 2, "{stale:?}");
         moved.track.stem = "Nowhere".into();
         assert!(check_stream(&moved, &file.roster, &tracks, &cars)[0].contains("no Nowhere.yaml"));
+        // A stream from before the tyres were in a row is rendered again.
+        let mut old = file.header.clone();
+        old.row_size = crate::spectator::ROW_SIZE_V1 as u8;
+        let stale = check_stream(&old, &file.roster, &tracks, &cars);
+        assert!(
+            stale.len() == 1 && stale[0].contains("rows of 44 bytes"),
+            "{stale:?}"
+        );
 
         let info = describe_stream(&file).unwrap();
         assert_eq!(info.frames, frames.len());

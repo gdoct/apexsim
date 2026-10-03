@@ -1,0 +1,113 @@
+// The car being watched, the way a broadcast puts it on screen: its place,
+// its driver and car, the lap, its tyres and stops, its last and best laps,
+// and the gaps either side (the tower names the cars). About 800 wide, so
+// it clears the tower and the watch controls on a 16:10 screen too. Takes
+// the race state's place at the top while watching (`race_state` hides
+// itself then).
+{
+  "name": "Watched car",
+  "region": "top",
+  "order": 5,
+  "visible": "=spectate.active && car.present",
+  "root": {
+    "type": "row",
+    "children": [
+      // Place, on the accent.
+      {
+        "type": "panel", "height": 76, "valign": "fill", "padding": [18, 9], "background": "accent",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "text": "Pos", "halign": "center", "color": "=alpha('on_accent', 0.7)" },
+            {
+              "type": "row", "halign": "center", "margin": [0, 2, 0, 0],
+              "children": [
+                { "type": "text", "valign": "bottom", "font": "display", "size": 34, "color": "on_accent",
+                  "text": "=car.retired ? 'OUT' : has(race.position) ? str(race.position) : '-'" },
+                { "type": "text", "valign": "bottom", "margin": [2, 0, 0, 4], "font": "mono", "size": 13,
+                  "color": "=alpha('on_accent', 0.7)", "text": "=car.retired ? '' : '/' + race.car_count" }
+              ]
+            }
+          ]
+        }]
+      },
+      // Who, in what, on which lap.
+      {
+        "type": "panel", "width": 252, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [16, 10], "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "text", "font": "display", "size": 24, "tracking": 10, "upper": true,
+              "text": "=has(car.driver_name) ? car.driver_name : 'Car ' + car.index" },
+            { "type": "label", "margin": [0, 6, 0, 0], "color": "text_secondary",
+              "text": "=(session.car_name != '' ? session.car_name + ' · ' : '') + (car.finish_position > 0 ? 'Finished P' + car.finish_position : 'Lap ' + lap.display + (lap.limit > 0 ? '/' + lap.limit : ''))" }
+          ]
+        }]
+      },
+      // Tyres: the compound, how many laps it has done, how worn, and the stops so far.
+      {
+        "type": "panel", "width": 146, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [14, 9], "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "text": "=has(car.pit_stops) && car.pit_stops > 0 ? 'Tyres · ' + car.pit_stops + (car.pit_stops == 1 ? ' stop' : ' stops') : 'Tyres'" },
+            {
+              "type": "row", "margin": [0, 6, 0, 0], "valign": "center",
+              "children": [
+                { "type": "panel", "valign": "center", "width": 30, "height": 30, "radius": 15, "background": "background",
+                  "outline": "=switch(tyre.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'border')", "outline_width": 3,
+                  "children": [{ "type": "text", "halign": "center", "valign": "center", "font": "body", "size": 14, "bold": true,
+                    "text": "=has(tyre.compound) ? tyre.compound : '?'",
+                    "color": "=switch(tyre.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'text_muted')" }] },
+                {
+                  "type": "column", "margin": [10, 0, 0, 0], "valign": "center",
+                  "children": [
+                    { "type": "text", "font": "mono", "size": 13,
+                      "text": "=has(tyre.age_laps) ? tyre.age_laps + (tyre.age_laps == 1 ? ' LAP' : ' LAPS') : '—'" },
+                    { "type": "text", "font": "mono", "size": 11, "visible": "=has(tyre.wear_max_pct)",
+                      "text": "='WEAR ' + fmt(tyre.wear_max_pct) + '%'",
+                      "color": "=tyre.wear_max_pct >= 90 ? 'error' : tyre.wear_max_pct >= 70 ? 'accent' : 'text_muted'" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }]
+      },
+      // Its laps: the last (red when struck) and its best (purple when it is the session's).
+      {
+        "type": "panel", "width": 176, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [14, 11], "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "row", "children": [
+              { "type": "label", "width": 42, "valign": "center", "text": "Last" },
+              { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.last_s)",
+                "color": "=lap.last_invalid ? 'error' : 'text'" } ] },
+            { "type": "row", "margin": [0, 8, 0, 0], "children": [
+              { "type": "label", "width": 42, "valign": "center", "text": "Best" },
+              { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.best_s)",
+                "color": "=has(lap.best_s) && lap.best_s == timing.session_best_s ? 'session_best' : 'text'" } ] }
+          ]
+        }]
+      },
+      // The fight: the gaps to the cars either side (the tower says who they are).
+      {
+        "type": "panel", "width": 150, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [14, 11], "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "row", "children": [
+              { "type": "label", "fill": 1, "valign": "center", "text": "Ahead" },
+              { "type": "text", "font": "mono", "size": 15, "text": "=fmt_gap(gap.ahead_s, false)",
+                "color": "=has(gap.ahead_name) ? 'text' : 'text_muted'" } ] },
+            { "type": "row", "margin": [0, 8, 0, 0], "children": [
+              { "type": "label", "fill": 1, "valign": "center", "text": "Behind" },
+              { "type": "text", "font": "mono", "size": 15, "text": "=fmt_gap(gap.behind_s, false)",
+                "color": "=has(gap.behind_name) ? 'text' : 'text_muted'" } ] }
+          ]
+        }]
+      }
+    ]
+  }
+}
