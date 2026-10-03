@@ -49,6 +49,11 @@ namespace ApexUI
 		Block->SetText(FText::FromString(Text));
 		Block->SetFont(Font);
 		Block->SetColorAndOpacity(FSlateColor(Colour));
+		// UTextBlock defaults to a (1, 1) shadow offset with a transparent
+		// shadow, and Slate measures the text with it all the same: every box
+		// came out a pixel wider and taller than its glyphs, so centred text
+		// sat half a pixel up and left.
+		Block->SetShadowOffset(FVector2D::ZeroVector);
 		return Block;
 	}
 

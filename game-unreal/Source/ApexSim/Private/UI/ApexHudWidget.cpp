@@ -577,10 +577,15 @@ int32 UApexHudWidget::BuildElement(const FApexHudElementDef& Def, int32 Copy)
 			Nodes[Index].Children.Add(Child);
 			if (SingleChildPanel)
 			{
-				SingleChildPanel->SetContent(Nodes[Child].Outer);
+				// Alignment and padding first: the border's slot copies them when
+				// the content goes in, and it is the slot's that the Slate border
+				// is built with. Set afterwards, before the widget exists, they
+				// were dropped and every child filled its panel from the top left
+				// (the compound letter sat up and left in its ring).
 				SingleChildPanel->SetHorizontalAlignment(ChildDef.HAlign.Get(HAlign_Fill));
 				SingleChildPanel->SetVerticalAlignment(ChildDef.VAlign.Get(VAlign_Fill));
 				SingleChildPanel->SetPadding(Def.Padding + ChildDef.Margin);
+				SingleChildPanel->SetContent(Nodes[Child].Outer);
 			}
 			else if (Container)
 			{

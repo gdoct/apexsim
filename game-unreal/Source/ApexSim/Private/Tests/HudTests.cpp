@@ -570,6 +570,60 @@ bool FApexHudDataWatchingTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStandingsHoldTest, "ApexSim.Hud.Data.StandingsHold", ApexTestFlags)
+
+bool FApexHudDataStandingsHoldTest::RunTest(const FString& Parameters)
+{
+	// Two cars side by side, trading the lead on the road every frame: the
+	// places and gaps move at most twice a second.
+	FApexTelemetryFrame Frame;
+	Frame.Cars.Add(HudCar(0, 3, 1001.0f, 50.0f));
+	Frame.Cars.Add(HudCar(1, 3, 1000.0f, 50.0f));
+	Frame.Cars.Add(HudCar(2, 3, 900.0f, 50.0f));
+
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 1;
+	In.TrackLengthM = 4000.0f;
+	In.LapLimit = 10;
+	In.GameMode = EApexGameMode::Race;
+
+	FApexHudMemory Memory;
+	FApexHudData Data;
+	In.TimeSeconds = 10.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("second"), HudValue(Data, TEXT("race.position")).AsNumber(), 2.0);
+	TestEqual(TEXT("a metre behind at 50 m/s"), HudValue(Data, TEXT("gap.ahead_s")).AsNumber(), 0.02, 1e-4);
+
+	Frame.Cars[1].TrackProgress = 1003.0f;
+	Frame.Cars[2].TrackProgress = 950.0f;
+	In.TimeSeconds = 10.2;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("still second a moment later"), HudValue(Data, TEXT("race.position")).AsNumber(), 2.0);
+	TestEqual(TEXT("the gap held too"), HudValue(Data, TEXT("gap.ahead_s")).AsNumber(), 0.02, 1e-4);
+	const TArray<FApexHudRecord>* Held = Data.FindList(TEXT("standings"));
+	TestTrue(TEXT("the tower held"), Held && Held->Num() == 3 && (*Held)[0][TEXT("car_index")].AsNumber() == 0.0);
+
+	In.TimeSeconds = 10.5;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("leads half a second on"), HudValue(Data, TEXT("race.position")).AsNumber(), 1.0);
+	TestEqual(TEXT("the car behind by its new gap"), HudValue(Data, TEXT("gap.behind_s")).AsNumber(), 0.04, 1e-4);
+
+	// A car leaving the field takes the order at once.
+	Frame.Cars.RemoveAt(0);
+	In.TimeSeconds = 10.6;
+	ApexHudData::Build(In, Memory, Data);
+	const TArray<FApexHudRecord>* Fewer = Data.FindList(TEXT("standings"));
+	TestTrue(TEXT("two cars"), Fewer && Fewer->Num() == 2);
+
+	// A replay seek runs the clock back: taken at once.
+	Frame.Cars[1].TrackProgress = 1100.0f;
+	In.TimeSeconds = 4.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("passed after the seek"), HudValue(Data, TEXT("race.position")).AsNumber(), 2.0);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStableTest, "ApexSim.Hud.Data.Stable", ApexTestFlags)
 
 bool FApexHudDataStableTest::RunTest(const FString& Parameters)

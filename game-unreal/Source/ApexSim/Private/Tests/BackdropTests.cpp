@@ -162,6 +162,13 @@ bool FApexBackdropChooseFileTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("the pending track's file even if just played"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("spa"), TEXT("Spa.lmp2.dusk")), 0);
 	TestEqual(TEXT("a stale pending track falls back"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("monza"), FString()), 0);
 
+	// With three playable, a run of races goes round all of them, not back
+	// and forth between the first two.
+	Content.Tracks.Add(TEXT("austin"), TPair<FString, int64>(TEXT("Austin"), 400));
+	TestEqual(TEXT("after the second, the third"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), TEXT("Zandvoort.gt3.day")), 3);
+	TestEqual(TEXT("after the last, the first"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), TEXT("Austin.gt3.day")), 0);
+	Content.Tracks.Remove(TEXT("austin"));
+
 	// A car that changed, or is missing, keeps a file off the screen; a zero
 	// checksum on either side is unknown and passes.
 	Content.Cars[TEXT("gt3")] = 21;

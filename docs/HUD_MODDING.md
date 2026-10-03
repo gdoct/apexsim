@@ -343,6 +343,10 @@ A saved replay (Main menu > Replays) is watched the same way, with
 
 ### Race order and gaps
 
+The order, the places and every gap here and in `standings` are taken at
+most twice a second and held in between, so two cars side by side do not
+swap places on screen every frame.
+
 | Name | Meaning |
 |---|---|
 | `race.position` | the local car's place, from 1 (*null* without a car) |

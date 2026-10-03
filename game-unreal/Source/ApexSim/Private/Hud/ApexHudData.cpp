@@ -14,6 +14,9 @@ namespace
 	/** How long a zone that has just been hurt flashes, seconds. */
 	constexpr double HudDamageFlashSeconds = 0.8;
 
+	/** The running order and its gaps are taken at most this often, seconds. */
+	constexpr double HudStandingsRefreshSeconds = 0.5;
+
 	/**
 	 * A tread against the car's working window: cold under it, ok in it, hot
 	 * over it and over once 15 °C past the edge, where the grip goes fast.
@@ -79,6 +82,8 @@ namespace
 		FString Name;
 		/** Race distance in metres; negative on the grid behind the line. */
 		float Progress = 0.0f;
+		/** Speed the gaps are read at, m/s. */
+		float Speed = 0.0f;
 		bool bIsLocal = false;
 	};
 
@@ -324,6 +329,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		// The wire's TrackProgress is a station in metres, not a lap fraction;
 		// RaceDistanceM also folds in the grid sitting behind the line.
 		Entry.Progress = ApexRace::RaceDistanceM(Car.CurrentLap, Car.TrackProgress, RankLength);
+		Entry.Speed = FMath::Max(Car.SpeedMps, 5.0f);
 		Entry.bIsLocal = Car.CarIndex == In.LocalCarIndex;
 		if (const FApexRosterEntry* Row = Roster.Entries.FindByPredicate(
 				[&Car](const FApexRosterEntry& Candidate) { return Candidate.CarIndex == Car.CarIndex; }))
@@ -348,6 +354,47 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		return A.Car->CarIndex < B.Car->CarIndex;
 	});
 
+	// Two cars side by side swap places on the road every few frames, and
+	// every place, gap and lit row flickered with them: the order and the
+	// distances the gaps are read from are taken at most twice a second and
+	// held in between. A change in the field, a clock that ran back (a replay
+	// seek) or no race clock at all takes them at once.
+	bool bTakeOrder = In.TimeSeconds <= 0.0 || Memory.StandingsTakenAt < 0.0
+		|| In.TimeSeconds < Memory.StandingsTakenAt
+		|| In.TimeSeconds - Memory.StandingsTakenAt >= HudStandingsRefreshSeconds
+		|| Memory.Standings.Num() != Order.Num();
+	if (!bTakeOrder)
+	{
+		TArray<FHudStanding> Held;
+		Held.Reserve(Order.Num());
+		for (const FApexHudMemory::FStanding& Was : Memory.Standings)
+		{
+			const FHudStanding* Now = Order.FindByPredicate(
+				[&Was](const FHudStanding& Entry) { return Entry.Car->CarIndex == Was.CarIndex; });
+			if (!Now)
+			{
+				bTakeOrder = true;
+				break;
+			}
+			FHudStanding& Entry = Held.Add_GetRef(*Now);
+			Entry.Progress = Was.Progress;
+			Entry.Speed = Was.Speed;
+		}
+		if (!bTakeOrder)
+		{
+			Order = MoveTemp(Held);
+		}
+	}
+	if (bTakeOrder)
+	{
+		Memory.Standings.Reset(Order.Num());
+		for (const FHudStanding& Entry : Order)
+		{
+			Memory.Standings.Add({Entry.Car->CarIndex, Entry.Progress, Entry.Speed});
+		}
+		Memory.StandingsTakenAt = In.TimeSeconds;
+	}
+
 	const int32 LocalPlace = Order.IndexOfByPredicate([](const FHudStanding& Entry) { return Entry.bIsLocal; });
 	const bool bLengthKnown = In.TrackLengthM > 0.0f;
 
@@ -370,15 +417,15 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		// Gaps are a time, not a distance: how long the car behind would take,
 		// at its current speed, to cover the ground between them.
 		Row.Add(TEXT("gap_leader_s"), bLengthKnown && Place > 0
-			? FApexHudValue::Of((Order[0].Progress - Entry.Progress) / FMath::Max(Car.SpeedMps, 5.0f))
+			? FApexHudValue::Of((Order[0].Progress - Entry.Progress) / Entry.Speed)
 			: FApexHudValue());
 		Row.Add(TEXT("gap_s"), bLengthKnown && LocalPlace >= 0
-			? FApexHudValue::Of((Order[LocalPlace].Progress - Entry.Progress) / FMath::Max(Order[LocalPlace].Car->SpeedMps, 5.0f))
+			? FApexHudValue::Of((Order[LocalPlace].Progress - Entry.Progress) / Order[LocalPlace].Speed)
 			: FApexHudValue());
 		// The car directly ahead on the road of the order, the way a timing
 		// tower reads: the leader has none.
 		Row.Add(TEXT("interval_s"), bLengthKnown && Place > 0
-			? FApexHudValue::Of((Order[Place - 1].Progress - Entry.Progress) / FMath::Max(Car.SpeedMps, 5.0f))
+			? FApexHudValue::Of((Order[Place - 1].Progress - Entry.Progress) / Entry.Speed)
 			: FApexHudValue());
 		Row.Add(TEXT("laps_down"), FApexHudValue::Of(bLengthKnown && Place > 0 && Car.FinishPosition <= 0
 			? FMath::Max(0, FMath::FloorToInt((Order[0].Progress - Entry.Progress) / In.TrackLengthM))
@@ -419,8 +466,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		FApexHudValue Gap;
 		if (bThere && bLengthKnown)
 		{
-			const float Speed = FMath::Max(Order[LocalPlace].Car->SpeedMps, 5.0f);
-			Gap = FApexHudValue::Of(FMath::Abs(Order[OtherPlace].Progress - Order[LocalPlace].Progress) / Speed);
+			Gap = FApexHudValue::Of(FMath::Abs(Order[OtherPlace].Progress - Order[LocalPlace].Progress) / Order[LocalPlace].Speed);
 		}
 		Out.Values.FindOrAdd(FName(FString(Prefix) + TEXT("_s"))) = Gap;
 	};

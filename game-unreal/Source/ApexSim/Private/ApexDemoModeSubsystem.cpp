@@ -436,14 +436,10 @@ int32 UApexDemoModeSubsystem::ChooseFile(const TArray<FFileCandidate>& Files, co
 			return i;
 		}
 	}
-	for (int32 i : Playable)
-	{
-		if (Files[i].Path != Avoid)
-		{
-			return i;
-		}
-	}
-	return Playable[0];
+	// Otherwise the one after the one just played, so a run of races goes
+	// round every file rather than back and forth between the first two.
+	const int32 Last = Playable.IndexOfByPredicate([&Files, &Avoid](int32 i) { return Files[i].Path == Avoid; });
+	return Playable[(Last + 1) % Playable.Num()];
 }
 
 bool UApexDemoModeSubsystem::StartShowcase(UApexNetSubsystem& Net)
@@ -508,12 +504,16 @@ bool UApexDemoModeSubsystem::StartShowcase(UApexNetSubsystem& Net)
 	}
 	if (!Chosen)
 	{
-		for (const FApexShowcaseSummary& Channel : Channels)
+		// The next channel after the one just watched that this client can
+		// draw (the same one again only when it is the only one), so a run of
+		// races goes round the playlist rather than between its first two.
+		const int32 Last = Channels.IndexOfByPredicate([this](const FApexShowcaseSummary& C) { return C.Id == LastShowcaseId; });
+		for (int32 Step = 1; Step <= Channels.Num() && !Chosen; ++Step)
 		{
-			if ((Channel.Id != LastShowcaseId || Channels.Num() == 1) && StemOf(Channel, Stem))
+			const FApexShowcaseSummary& Channel = Channels[(Last + Step) % Channels.Num()];
+			if (StemOf(Channel, Stem))
 			{
 				Chosen = &Channel;
-				break;
 			}
 		}
 	}

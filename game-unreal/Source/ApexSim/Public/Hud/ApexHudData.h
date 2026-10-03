@@ -149,6 +149,21 @@ struct APEXSIM_API FApexHudMemory
 	};
 	TMap<int32, FCarHistory> Cars;
 
+	/**
+	 * The running order as last taken, with each car's race distance (m) and
+	 * speed (m/s) then: the places and gaps are read from it, so two cars
+	 * side by side do not swap places on screen every frame.
+	 */
+	struct FStanding
+	{
+		int32 CarIndex = -1;
+		float Progress = 0.0f;
+		float Speed = 0.0f;
+	};
+	TArray<FStanding> Standings;
+	/** The HUD clock when Standings was taken; negative before the first. */
+	double StandingsTakenAt = -1.0;
+
 	void Reset() { *this = FApexHudMemory(); }
 
 	/**
