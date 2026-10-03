@@ -221,16 +221,16 @@ R > ~150 m). Verified in Blender with six `curve12_roof` bays.
 
 | kind | asset | size | notes | prio |
 | --- | --- | --- | --- | --- |
-| tree | `broadleaf_s` / `_m` / `_l` | 6 / 10 / 16 m | default = `_m`; **solid** low-poly foliage blobs (240–520 tris, no alpha), three green slots `tree_foliage_a/b/c` — **done** | P2 |
-| tree | `conifer_m` / `_l` | 12 / 20 m | stacked cones, solid — **done** | P2 |
-| tree | `poplar` | 18 m | — **done** | P3 |
-| tree | `bush_cluster` | 3 m | — **done** | P3 |
-| tree | `broadleaf_s/m/l_autumn`, `poplar_autumn`, `bush_cluster_autumn` | as the base asset | autumn colour set (`tree_autumn_a/b/c`); pick by the track's season — **done** | P3 |
-| tree | `palm_ornamental` | 13.15 m | tall avenue date palm, ringed tapering trunk, drooping 2-segment fronds on `tree_foliage_a/b/c` (same shared slots as the broadleaf trees) — for Sakhir and Yas Marina landscaping — **done** | P1 |
-| tree | `palm_oil` | 8.35 m | shorter, denser plantation palm, fuller radiating crown — for the oil-palm plantations around Sepang — **done** | P1 |
-| tree | `forest_impostor` / `_conifer` | 43 × 43 m, 17.5 m | one flat-shaded cluster (46 blob/cone trees on a dark floor skirt, ~1 K tris) standing in for a 40 m patch of wood; mixed 60 % spruce, or all spruce; planted per forest polygon out to 8 km, centred — **done** | P1 |
-| tree | `broadleaf_m_near` | 10 m | near-LOD (first 60 m) version of `broadleaf_m`: textured trunk + branches, ~250 bent leaf cards (2.2 K tris) on the alpha-MASKED two-sided `tree_card_broadleaf` slot — **done** | P2 |
-| tree | `conifer_m_near` | 12 m | spruce: trunk + drooping frond cards on `tree_card_conifer` (1.2 K tris) — **done** | P2 |
+| tree | `broadleaf_s` / `_m` / `_l` | 6 / 10 / 16 m | default = `_m`; **leaf-card trees** (`card_trees.py`, 2026-10-03): a curved trunk with a branch to each lobe of a lumpy crown, the crown shelled with 260 / 440 / 620 folded cards on the alpha-MASKED two-sided `tree_card_broadleaf` slot (a 2x2 atlas of leaf sprays: sunlit, warm, cool, and a dark one inside the crown), crown-shaped custom normals; 1.4 / 2.2 / 3.1 K tris. Replaced the solid noise-bumped icosphere blobs, which read as low-poly beside the card trees — **done** | P2 |
+| tree | `conifer_m` / `_l` | 12 / 20 m | spruce: whorls of frond cards on `tree_card_conifer` (feather-shaped spruce branches with light new growth at the tips), drooping low down and rising near the top; 1.4 / 2.0 K tris. Replaced the stacked solid cones — **done** | P2 |
+| tree | `poplar` | 18 m | Lombardy poplar: a spindle of upright leaf clusters on `tree_card_broadleaf`, 1.9 K tris — **done** | P3 |
+| tree | `bush_cluster` | 3 m | a low mound of leaf cards on a few stems, 0.6 K tris — **done** | P3 |
+| tree | `broadleaf_s/m/l_autumn`, `broadleaf_m_near_autumn`, `poplar_autumn`, `bush_cluster_autumn` | as the base asset | the same tree (same seed) on `tree_card_autumn`; picked by the track's season — **done** | P3 |
+| tree | `palm_ornamental` | 13.15 m | tall avenue date palm, ringed tapering trunk, drooping 2-segment fronds on `tree_foliage_a/b/c` — for Sakhir and Yas Marina landscaping; still the solid v2 build (no track plants one yet) — **done** | P1 |
+| tree | `palm_oil` | 8.35 m | shorter, denser plantation palm, fuller radiating crown — for the oil-palm plantations around Sepang; solid v2 build — **done** | P1 |
+| tree | `forest_impostor` / `_conifer` | 43 × 43 m, 17.5 m | a 40 m patch of wood: 46 trees, each three crossed billboards of a sprite rendered from the card trees themselves (`card_trees.forest_material`: four sprites, ambient-lit, on `forest_billboard`), 552 tris; mixed 60 % spruce, or all spruce; trunks reach 4 m below the pivot so a patch planted level on a slope does not float; planted per forest polygon out to 8 km, centred — **done** | P1 |
+| tree | `broadleaf_m_near` | 10 m | near-LOD (first 60 m) version of `broadleaf_m`: the same generator with 440 smaller cards bent once along their length (4 K tris) — **done** | P2 |
+| tree | `conifer_m_near` | 12 m | near-LOD spruce: denser whorls, each frond bent and its tip turned up (3.2 K tris) — **done** | P2 |
 | tree | `grass_clump` / `wildflower_clump` | 1 × 0.7 m | three crossed masked cards (`scatter_grass` / `scatter_flower`, 6 tris), sunk 0.1 m; scatter for the grass band within 40 m of the road — **done** | P2 |
 | vehicle | `car_a` / `car_b` / `car_c` | 4–4.7 m | hatch / saloon / SUV, `vehicle_paint_*` slot for colour — **done** | P3 |
 | vehicle | `fire_truck` | 5.5 m | — **done** | P3 |
@@ -363,8 +363,7 @@ the groomer, `props::KIT` and the kind tables know nothing of it.
 
 - Masked materials (`fence_mesh`, `crowd_cards`) arrive as glTF `MASK` +
   `doubleSided`; the importer must make them Masked and two-sided or they render
-  as opaque black cards. Trees no longer use alpha at all (solid geometry) after
-  exactly that happened in the first import.
+  as opaque black cards (which is what happened to the first, alpha-card trees).
 - Emissive-able slots: `gantry_lamp`, `led_panel`, `floodlight_lamp`,
   `led_screen` (the last is meant for a render target / media texture).
 - **Night pass.** These slots carry an emissive colour/texture in the GLB and
@@ -376,9 +375,24 @@ the groomer, `props::KIT` and the kind tables know nothing of it.
   (blue rim ring and leg strips) and `ferris_lights_hub`. A slow hue cycle on
   `ferris_lights_rim` is cheap and looks right.
 - Chain-link goes sub-pixel at distance; mip bias or a fade helps.
-- **Masked card slots** `tree_card_*` and `scatter_*` (near-LOD trees, grass) are
-  alpha MASK + two-sided like `fence_mesh`; `ApexPropLibrary::IsMaskedSlot`
-  covers them.
+- **Masked card slots** `tree_card_*` and `scatter_*` (every tree but the palms,
+  grass) are alpha MASK + two-sided like `fence_mesh`; `ApexPropLibrary::IsMaskedSlot`
+  covers them. A card's front faces out of its crown so the two-sided
+  back-face normal flip agrees with the crown normals.
+- **Alpha coverage.** The importer turns on `bDoScaleMipsForAlphaCoverage`
+  (threshold 0.5, the glTF clip value) for every texture a masked material
+  uses; without it the box-filtered mips average the leaves away and a tree
+  thins to its twigs a hundred metres out. The card textures also bleed
+  their colour into the clear texels, so no mip has a black fringe.
+- **`forest_billboard`** (the far woods) is masked but *one-sided*: each
+  billboard is two cards back to back with sky-leaning normals, since the
+  two-sided flip turned the back half of every far wood black. Not a
+  `tree_card_*` name, or the importer would force it two-sided.
+- **Trees are built together.** `tree_bark` and the card slots are shared by
+  name across the kind on import (the first GLB brings them in), so run
+  `build_trees.py`, `build_near_trees.py` and the two impostors of
+  `build_batch_f_terrain.py` together after changing `card_trees.py`, then
+  `-run=ApexPropImport -kind=tree`.
 - **Text slots.** `corner_sign` carries the corner name on its blank
   `board_text` face; the importer (`ApexProps::HasTextFace`) spawns it as its
   own actor rather than an instance and hangs a text component just off the

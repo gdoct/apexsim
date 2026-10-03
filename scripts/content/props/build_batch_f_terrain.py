@@ -1,6 +1,6 @@
 r"""Batch F - terrain and horizon (docs/PROPS.md step 3):
 
-  tree/forest_impostor          40 x 40 x 18 m flat-shaded wood cluster, one per forest polygon
+  tree/forest_impostor          40 x 40 x 18 m patch of billboard trees, one per forest polygon
   tree/forest_impostor_conifer  same footprint, all spruce (Styrian hillsides)
   building/village_house_a/b/c  Styrian gabled farmhouses
   building/barn                 timber barn
@@ -18,6 +18,8 @@ _s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "scripts
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
 _t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "scripts\\content\\props\\apex_tex.py"))
 tex = importlib.util.module_from_spec(_t); sys.modules["apex_tex"] = tex; _t.loader.exec_module(tex)
+_c = importlib.util.spec_from_file_location("card_trees", os.path.join(_ROOT, "scripts\\content\\props\\card_trees.py"))
+ct = importlib.util.module_from_spec(_c); sys.modules["card_trees"] = ct; _c.loader.exec_module(ct)
 B, M = apex.Builder, tex.kit_material   # baked slot where the kit has one, flat otherwise
 
 try:
@@ -28,11 +30,6 @@ except NameError:
 
 def mats():
     return dict(
-        fol_a=M("tree_foliage_a", (0.10, 0.30, 0.06), roughness=1.0),
-        fol_b=M("tree_foliage_b", (0.14, 0.36, 0.09), roughness=1.0),
-        con_a=M("tree_conifer_a", (0.06, 0.20, 0.08), roughness=1.0),
-        con_b=M("tree_conifer_b", (0.08, 0.25, 0.10), roughness=1.0),
-        floor=M("forest_floor", (0.12, 0.14, 0.07), roughness=1.0),
         render=M("house_render", (0.92, 0.9, 0.84), roughness=0.85),
         render_b=M("house_render_b", (0.85, 0.8, 0.62), roughness=0.85),
         timber=M("house_timber", (0.42, 0.28, 0.15), roughness=0.8),
@@ -47,15 +44,23 @@ def mats():
 
 
 # ------------------------------------------------------------- forest impostor
+# A patch is planted level at its centre's height, so on a slope its
+# downhill trees would stand on air: their trunks reach this far below.
+SINK_M = 4.0
+
+
 def forest(name, conifer_share=0.6, seed=3, size=40.0, top=18.0):
-    """A 40 x 40 m patch of wood as one cluster mesh: broadleaf blobs (ico,
-    subdiv 1) and spruce cones, denser in the middle, on a dark floor
-    skirt. Centred pivot. Flat shaded, solid, ~2.5 K tris."""
-    m = mats()
-    b = B(name)
+    """A 40 x 40 m patch of wood: 46 trees, denser in the middle, each three
+    crossed billboards of a sprite rendered from the kit's own card trees
+    (card_trees.forest_material, slot `forest_billboard`). No floor: a flat
+    skirt stood out of every hillside as a dark terrace once the canopy
+    was no longer solid. Centred pivot, 552 tris."""
+    tm = ct.TreeMesh(name)
+    card, cells = ct.forest_material(os.path.join(_ROOT, "build", "sprites"))
     rng = random.Random(seed)
     half = size / 2
-    b.box(m["floor"], (-half, -half, 0), (half, half, 0.3))
+    conifers = [i for i, (_, kind) in enumerate(cells) if kind == "conifer"]
+    broad = [i for i, (_, kind) in enumerate(cells) if kind != "conifer"]
     n = 46
     for i in range(n):
         # jittered grid so the canopy has no holes
@@ -64,18 +69,11 @@ def forest(name, conifer_share=0.6, seed=3, size=40.0, top=18.0):
         y = -half + size * (gy + 0.5 + rng.uniform(-0.35, 0.35)) / 7
         edge = max(abs(x), abs(y)) / half          # 0 centre .. 1 edge
         h = top * (1.0 - 0.45 * edge ** 2) * rng.uniform(0.8, 1.0)
-        if rng.random() < conifer_share:
-            r = h * 0.28
-            mat = m["con_a"] if rng.random() < 0.6 else m["con_b"]
-            b.cone(mat, (x, y, 0.3), r, r * 0.25, h * 0.45, segs=7, cap=False)
-            b.cone(mat, (x, y, 0.3 + h * 0.35), r * 0.75, 0.0, h * 0.65, segs=7, cap=False)
-        else:
-            r = h * 0.3
-            mat = m["fol_a"] if rng.random() < 0.5 else m["fol_b"]
-            b.ico(mat, (x, y, h * 0.6), r, subdiv=1, scale=(1, 1, 0.75), jitter=0.12, seed=i)
-    ob = b.finish(recalc=True)
-    ob.data.shade_flat()
-    return ob
+        cell = rng.choice(conifers if rng.random() < conifer_share else broad)
+        # the frame is square and the tree fills its height
+        ct.billboard_tree(tm, card, cell, x, y, 0.0, h * 1.02, rng.uniform(0.85, 1.05), rng.uniform(0, math.pi),
+                          sink_m=SINK_M)
+    return tm.finish()
 
 
 # --------------------------------------------------------------------- houses
@@ -151,7 +149,7 @@ def door(b, m, cx, y, w=1.1, h=2.1):
 
 
 def village_house_a():
-    """12 x 9 m farmhouse, 1.5 storeys, 45° roof, ridge along the road,
+    """12 x 9 m farmhouse, 1.5 storeys, 45Â° roof, ridge along the road,
     timber upper gable, balcony on the road side. Pivot road edge (y=0)."""
     m = mats()
     b = B("village_house_a")
@@ -277,7 +275,7 @@ def power_pylon():
             for k in range(4):
                 b.box(m["stone"], (cur[k][0] - 0.5, cur[k][1] - 0.5, 0.0), (cur[k][0] + 0.5, cur[k][1] + 0.5, 0.25))
         prev = cur
-    # crossarms (along Y, out to ±7 and ±5.5 m) at 22 and 29 m, insulators hanging
+    # crossarms (along Y, out to Â±7 and Â±5.5 m) at 22 and 29 m, insulators hanging
     for z, reach in ((22.0, 7.0), (29.0, 5.5)):
         for s in (-1, 1):
             tip = (0, s * reach, z)

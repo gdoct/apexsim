@@ -301,6 +301,26 @@ namespace
 	}
 
 	/**
+	 * A masked card's leaves (or wire, or grass) are its alpha, and plain
+	 * box-filtered mips average that coverage away: a tree thins to a
+	 * skeleton of twigs a hundred metres out. Scaling each mip's alpha to
+	 * keep the share of texels over the glTF clip value (0.5) keeps a crown
+	 * as full far off as it is up close. Returns whether it changed.
+	 */
+	bool PreserveAlphaCoverage(UTexture* Texture)
+	{
+		const FVector4 Thresholds(0.0, 0.0, 0.0, 0.5);
+		if (Texture->bDoScaleMipsForAlphaCoverage && Texture->AlphaCoverageThresholds == Thresholds)
+		{
+			return false;
+		}
+		Texture->bDoScaleMipsForAlphaCoverage = true;
+		Texture->AlphaCoverageThresholds = Thresholds;
+		Texture->PostEditChange();
+		return true;
+	}
+
+	/**
 	 * Foliage cards and fence mesh must be masked and two-sided. The GLBs
 	 * say so (`alphaMode: MASK`, `doubleSided`) and the glTF pipeline honours
 	 * it; this is the belt to those braces.
@@ -735,6 +755,13 @@ bool UApexPropImportCommandlet::SettleMaterials(const FString& MaterialsFolder, 
 			Discard(Texture);
 			continue;
 		}
+		// Cards: the named masked slots, and anything the GLB itself says is
+		// alpha-tested (the far woods' one-sided `forest_billboard`).
+		const bool bCard = Users.ContainsByPredicate(
+			[](const UMaterialInterface* Material)
+			{
+				return ApexProps::IsMaskedSlot(FName(*Material->GetName())) || Material->GetBlendMode() == BLEND_Masked;
+			});
 		const FString Target = MaterialsFolder / Texture->GetName();
 		if (UTexture* Existing = FindExisting<UTexture>(Target))
 		{
@@ -745,9 +772,17 @@ bool UApexPropImportCommandlet::SettleMaterials(const FString& MaterialsFolder, 
 					ReplaceTexture(Material, Texture, Existing);
 				}
 				Discard(Texture);
+				if (bCard && PreserveAlphaCoverage(Existing))
+				{
+					OutPackages.Add(Existing->GetOutermost());
+				}
 				++Stats.TexturesReused;
 				continue;
 			}
+		}
+		if (bCard)
+		{
+			PreserveAlphaCoverage(Texture);
 		}
 		if (!Relocate(Texture, Target, OutError))
 		{

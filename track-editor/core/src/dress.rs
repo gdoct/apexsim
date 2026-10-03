@@ -1443,12 +1443,12 @@ mod surroundings {
         }
     }
 
-    /// Woodland on the slopes, as one flat-shaded cluster per 40 m patch.
+    /// Woodland on the slopes, as one billboard cluster per 40 m patch.
     ///
     /// The detailed belts reach 90 m from the road and stop, and past
     /// that every circuit had bare ground to the horizon. Planting real
-    /// trees out there is not affordable — a thousand-triangle impostor
-    /// covers what four hundred of them would — and the mapped woodland
+    /// trees out there is not affordable — a 550-triangle impostor of
+    /// billboards covers what forty-six card trees would — and the mapped woodland
     /// does not reach that far either, because the OSM extracts are a
     /// couple of kilometres across.
     ///

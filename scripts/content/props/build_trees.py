@@ -1,50 +1,52 @@
-"""Build the trackside tree/foliage kit and export to content/props/tree/<asset>.glb.
+"""Build the trackside tree kit and export to content/props/tree/<asset>.glb.
 
     ASSET = "broadleaf_m"      # any key in ASSETS, or "all"
     exec(open(r"E:\apexsim\scripts\content\props\build_trees.py").read())
 
-v2: on top of the v1 shape work (blob-cluster broadleaf, tiered/drooping
-conifers, tapered/drooping palms) this adds the two things a shape pass alone
-can't fix - actual surface material and organic irregularity:
+or headless, which leaves the open Blender session alone:
 
-* every canopy blob and trunk ring gets a Perlin bump baked straight into its
-  vertex positions (radial on blobs, per-ring on trunks/branches), so nothing
-  is a bare primitive anymore - no perfect sphere, no perfect cylinder.
-* every material slot (tree_bark, tree_foliage_a-c, tree_conifer_a-b,
-  tree_autumn_a-c) gets a procedurally generated, tileable base-colour +
-  roughness + normal map instead of one flat Principled BSDF colour - bark
-  gets vertical ridge-and-groove detail, foliage/conifer/autumn get mottled
-  leaf-cluster blotching plus fine speckle, all baked with numpy directly in
-  Blender (no textures fetched or hand-painted) and saved alongside the GLBs
-  under content/props/tree/textures/ so they're inspectable and regenerable.
+    blender -b --factory-startup --python-expr "ASSET='all'; exec(open(r'E:\apexsim\scripts\content\props\build_trees.py').read())"
 
-Still the same "solid, no alpha" contract - textures only drive colour,
-roughness and normal, never alpha - and the same material-slot names the
-importer and existing tracks already reference.
+v3: every tree but the palms is a leaf-card tree from card_trees.py (the
+same generator as the near-view trees in build_near_trees.py): trunk and
+branches in `tree_bark`, crowns of masked, two-sided `tree_card_broadleaf`
+/ `tree_card_autumn` / `tree_card_conifer` cards with crown normals. The
+v2 kit (subdivided noise-bumped icospheres and solid cone tiers) read as
+low-poly blobs beside the card trees and is gone; the asset keys, sizes and
+autumn twins are the same, so no track needs re-dressing, only the props
+re-importing. The palms keep the v2 solid build (tapered trunk, curved
+frond strips, textured `tree_foliage_*`), on the shared bark.
+
+Build this and build_near_trees.py together: the card and bark materials
+are shared by name across the kind on import, so every tree GLB must carry
+the same textures.
 """
 import bpy, bmesh, math, os, random, importlib.util, sys
 import numpy as np
 from mathutils import Vector, Matrix, noise as mnoise
 
 _ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
-_s = importlib.util.spec_from_file_location(
-    "apex", os.path.join(_ROOT, r"scripts\content\props\apex_props.py"))
-apex = importlib.util.module_from_spec(_s)
-sys.modules["apex"] = apex
-_s.loader.exec_module(apex)
+
+
+def _load(name, rel):
+    s = importlib.util.spec_from_file_location(name, os.path.join(_ROOT, rel))
+    m = importlib.util.module_from_spec(s)
+    sys.modules[name] = m
+    s.loader.exec_module(m)
+    return m
+
+
+apex = _load("apex", r"scripts\content\props\apex_props.py")
+ct = _load("card_trees", r"scripts\content\props\card_trees.py")
 
 OUT_DIR = os.path.join(_ROOT, "content", "props", "tree")
 TEX_DIR = os.path.join(OUT_DIR, "textures")
 os.makedirs(TEX_DIR, exist_ok=True)
 
-BARK_RGB = (0.20, 0.14, 0.09)
 GREEN = [(0.10, 0.30, 0.06), (0.14, 0.36, 0.09), (0.07, 0.24, 0.05)]
-AUTUMN = [(0.75, 0.32, 0.05), (0.85, 0.58, 0.08), (0.55, 0.14, 0.05)]
-CONIFER = [(0.06, 0.20, 0.08), (0.08, 0.25, 0.10)]
 
 TEX_SIZE = 256
-UV_SCALE = 0.9   # texture tiles per metre, box-mapped
-
+UV_SCALE = 0.9   # texture tiles per metre, box-mapped (palms)
 
 # ------------------------------------------------------------- pixel helpers
 def _gauss_blur(a, sigma):
@@ -270,30 +272,6 @@ class TB:
             f.material_index = idx
             f.smooth = smooth
 
-    def cone_tier(self, mat, apex_pt, base_z, base_center_xy, base_r, segs=10,
-                  droop=0.10, notch=0.16, seed=0, smooth=True):
-        """One conifer tier: apex up top, a scalloped, drooping base rim
-        (branch tips sagging down and out) instead of a flat circular cut."""
-        idx = self.slot(mat)
-        rnd = random.Random(seed)
-        apex_v = self.bm.verts.new(apex_pt)
-        ring = []
-        for i in range(segs):
-            a = 2 * math.pi * i / segs + rnd.uniform(-0.05, 0.05)
-            r = base_r * (1.0 + notch * math.sin(a * 3.0 + seed) * 0.5
-                           + notch * rnd.uniform(-0.35, 0.35))
-            sag = droop * (0.55 + 0.45 * math.sin(a * 5.0 + seed * 1.7) ** 2
-                            + 0.3 * rnd.random())
-            x = base_center_xy[0] + math.cos(a) * r
-            y = base_center_xy[1] + math.sin(a) * r
-            z = base_z - sag
-            ring.append(self.bm.verts.new((x, y, z)))
-        for i in range(segs):
-            f = self.bm.faces.new((apex_v, ring[i], ring[(i + 1) % segs]))
-            f.material_index = idx
-            f.smooth = smooth
-        return ring
-
     def frond(self, mat, root, tip, width0, width1, droop, side_tilt=0.0,
               segs=6, smooth=True):
         """A tapering, drooping palm-frond blade: a thin curved strip rather
@@ -353,135 +331,6 @@ class TB:
         return ob
 
 
-def export_glb(ob, path):
-    for o in bpy.data.objects:
-        o.select_set(o is ob)
-    bpy.context.view_layer.objects.active = ob
-    win = bpy.context.window_manager.windows[0]
-    with bpy.context.temp_override(window=win, screen=win.screen,
-                                    area=win.screen.areas[0] if win.screen.areas else None):
-        bpy.ops.export_scene.gltf(filepath=path, use_selection=True,
-                                   export_apply=True, export_yup=True,
-                                   export_materials='EXPORT')
-    return path
-
-
-def mats_for(rgb_list, prefix, suffix=""):
-    return [apex.material("%s_%s%s" % (prefix, k, suffix), c, roughness=0.9)
-            for k, c in zip("abc"[:len(rgb_list)], rgb_list)]
-
-
-result_log = []
-
-
-def base_materials():
-    bark = make_organic_material("tree_bark", BARK_RGB, seed=1, kind="bark")
-    foliage = [make_organic_material("tree_foliage_%s" % k, c, seed=10 + i, kind="foliage")
-               for i, (k, c) in enumerate(zip("abc", GREEN))]
-    conifer = [make_organic_material("tree_conifer_%s" % k, c, seed=20 + i, kind="conifer")
-               for i, (k, c) in enumerate(zip("ab", CONIFER))]
-    autumn = [make_organic_material("tree_autumn_%s" % k, c, seed=30 + i, kind="autumn")
-              for i, (k, c) in enumerate(zip("abc", AUTUMN))]
-    return bark, foliage, conifer, autumn
-
-
-# --------------------------------------------------------------- per-asset builds
-def build_broadleaf(name, height, width, bark_mat, foliage_mats, seed=0):
-    rnd = random.Random(seed)
-    tb = TB(name)
-    trunk_h = height * rnd.uniform(0.38, 0.46)
-    top_r = width * 0.10
-    base_r = width * 0.045
-    segs_n = 3
-    pts = [Vector((0.0, 0.0, 0.0))]
-    for i in range(1, segs_n + 1):
-        t = i / segs_n
-        jitter = Vector((rnd.uniform(-0.04, 0.04), rnd.uniform(-0.04, 0.04), 0.0)) * width
-        pts.append(Vector((0.0, 0.0, trunk_h * t)) + jitter * t)
-    radii = [base_r + (top_r - base_r) * (i / segs_n) for i in range(segs_n + 1)]
-    for i in range(segs_n):
-        tb.taper(bark_mat, pts[i], pts[i + 1], radii[i], radii[i + 1], segs=7, smooth=True)
-    canopy_h = height - trunk_h
-    canopy_center = pts[-1] + Vector((0.0, 0.0, canopy_h * 0.30))
-    n_hero = 3 if height < 8 else (4 if height < 13 else 5)
-    n_fill = 4 if height < 8 else (6 if height < 13 else 8)
-    for i in range(n_hero):
-        a = rnd.uniform(0, 2 * math.pi)
-        r_xy = rnd.uniform(0.0, width * 0.26)
-        r_z = rnd.uniform(-canopy_h * 0.22, canopy_h * 0.38)
-        c = canopy_center + Vector((math.cos(a) * r_xy, math.sin(a) * r_xy, r_z))
-        rad = rnd.uniform(canopy_h * 0.34, canopy_h * 0.48)
-        sc = (rnd.uniform(0.9, 1.2), rnd.uniform(0.9, 1.2), rnd.uniform(0.8, 1.05))
-        mat = foliage_mats[i % len(foliage_mats)]
-        tb.blob(mat, c, rad, scale=sc, subdiv=1,
-                rot=(rnd.uniform(0, math.pi), rnd.uniform(0, math.pi), rnd.uniform(0, math.pi)))
-    for i in range(n_fill):
-        a = rnd.uniform(0, 2 * math.pi)
-        r_xy = rnd.uniform(width * 0.18, width * 0.38)
-        r_z = rnd.uniform(-canopy_h * 0.32, canopy_h * 0.46)
-        c = canopy_center + Vector((math.cos(a) * r_xy, math.sin(a) * r_xy, r_z))
-        rad = rnd.uniform(canopy_h * 0.16, canopy_h * 0.26)
-        sc = (rnd.uniform(0.85, 1.2), rnd.uniform(0.85, 1.2), rnd.uniform(0.8, 1.1))
-        mat = foliage_mats[i % len(foliage_mats)]
-        tb.blob(mat, c, rad, scale=sc, subdiv=0,
-                rot=(rnd.uniform(0, math.pi), rnd.uniform(0, math.pi), rnd.uniform(0, math.pi)))
-    tb.blob(foliage_mats[0], pts[-1] + Vector((0.0, 0.0, canopy_h * 0.05)),
-            canopy_h * 0.24, scale=(1.1, 1.1, 0.7), subdiv=0)
-    return tb.finish()
-
-
-def build_conifer(name, height, width, bark_mat, conifer_mats, seed=0):
-    rnd = random.Random(seed)
-    tb = TB(name)
-    n_tiers = 9
-    trunk_top = height * 0.96
-    tb.taper(bark_mat, (0, 0, 0), (0, 0, trunk_top), width * 0.045, width * 0.014, segs=8, smooth=True)
-    tier_h = (trunk_top - height * 0.04) / (n_tiers - 1) if n_tiers > 1 else trunk_top
-    for i in range(n_tiers):
-        frac = i / (n_tiers - 1)
-        base_z = height * 0.04 + frac * (trunk_top - height * 0.04)
-        apex_z = min(base_z + tier_h * 1.55, height * 0.998)
-        r = width * 0.52 * (1.0 - frac * 0.86) + width * 0.03
-        tb.cone_tier(conifer_mats[i % 2], (0.0, 0.0, apex_z), base_z, (0.0, 0.0), r,
-                     segs=9, droop=tier_h * 0.55, notch=0.34, seed=seed * 13 + i, smooth=False)
-    return tb.finish()
-
-
-def build_poplar(name, height, width, bark_mat, foliage_mats, seed=0):
-    rnd = random.Random(seed)
-    tb = TB(name)
-    trunk_h = height * 0.32
-    tb.taper(bark_mat, (0, 0, 0), (0, 0, trunk_h), width * 0.05, width * 0.035, segs=7, smooth=True)
-    tb.taper(bark_mat, (0, 0, trunk_h), (0, 0, trunk_h * 1.15), width * 0.035, width * 0.03, segs=7, smooth=True)
-    canopy_h = height - trunk_h
-    n = 8
-    for i in range(n):
-        t = i / (n - 1)
-        z = trunk_h * 0.85 + canopy_h * t * 0.92
-        wobble = rnd.uniform(-width * 0.10, width * 0.10)
-        rad = width * (0.30 - 0.10 * abs(t - 0.5)) * rnd.uniform(0.85, 1.05)
-        c = (wobble, rnd.uniform(-width * 0.06, width * 0.06), z)
-        sc = (1.0, 1.0, rnd.uniform(1.5, 2.0))
-        mat = foliage_mats[i % len(foliage_mats)]
-        tb.blob(mat, c, rad, scale=sc, subdiv=1, rot=(0.0, 0.0, rnd.uniform(0, math.pi)))
-    return tb.finish()
-
-
-def build_bush(name, foliage_mats, seed=0):
-    rnd = random.Random(seed)
-    tb = TB(name)
-    width, height = 4.32, 2.41
-    n = 6
-    for i in range(n):
-        a = rnd.uniform(0, 2 * math.pi)
-        r_xy = rnd.uniform(0.0, width * 0.28)
-        c = (math.cos(a) * r_xy, math.sin(a) * r_xy, rnd.uniform(height * 0.25, height * 0.55))
-        rad = rnd.uniform(height * 0.35, height * 0.55)
-        sc = (rnd.uniform(0.9, 1.2), rnd.uniform(0.9, 1.2), rnd.uniform(0.7, 0.9))
-        rot = (rnd.uniform(0, math.pi), rnd.uniform(0, math.pi), rnd.uniform(0, math.pi))
-        tb.blob(foliage_mats[i % len(foliage_mats)], c, rad, scale=sc, subdiv=1, rot=rot)
-    return tb.finish()
-
 
 def build_palm(name, kind, bark_mat, foliage_mats, seed=0):
     rnd = random.Random(seed)
@@ -523,40 +372,27 @@ def build_palm(name, kind, bark_mat, foliage_mats, seed=0):
     return tb.finish()
 
 
+
+def palm_foliage():
+    return [make_organic_material("tree_foliage_%s" % k, c, seed=10 + i, kind="foliage")
+            for i, (k, c) in enumerate(zip("abc", GREEN))]
+
+
 # ------------------------------------------------------------------- dispatch
+# (builder, height, width, cards, card size): the sizes are the v2 kit's,
+# which props.rs and the groomer's spacing are written against.
 ASSETS = {
-    "broadleaf_s": dict(kind="broadleaf", height=5.46, width=3.96),
-    "broadleaf_m": dict(kind="broadleaf", height=9.48, width=7.26),
-    "broadleaf_l": dict(kind="broadleaf", height=15.44, width=11.99),
-    "conifer_m": dict(kind="conifer", height=13.48, width=5.25),
-    "conifer_l": dict(kind="conifer", height=22.46, width=8.40),
-    "poplar": dict(kind="poplar", height=17.68, width=3.67),
-    "bush_cluster": dict(kind="bush"),
-    "palm_ornamental": dict(kind="palm", palm_kind="ornamental"),
-    "palm_oil": dict(kind="palm", palm_kind="oil"),
+    "broadleaf_s": lambda nm, fol, sd: ct.broadleaf(nm, 6.0, 5.0, sd, 260, 1.1, foliage=fol),
+    "broadleaf_m": lambda nm, fol, sd: ct.broadleaf(nm, 10.0, 8.0, sd, 440, 1.4, foliage=fol),
+    "broadleaf_l": lambda nm, fol, sd: ct.broadleaf(nm, 16.0, 13.0, sd, 620, 2.0, foliage=fol),
+    "conifer_m": lambda nm, fol, sd: ct.conifer(nm, 12.0, 4.2, sd, rows=1),
+    "conifer_l": lambda nm, fol, sd: ct.conifer(nm, 20.0, 6.8, sd, rows=1),
+    "poplar": lambda nm, fol, sd: ct.poplar(nm, 17.5, 4.0, sd, 440, 1.2, foliage=fol),
+    "bush_cluster": lambda nm, fol, sd: ct.bush(nm, 4.0, 3.0, sd, 130, 0.85, foliage=fol),
+    "palm_ornamental": lambda nm, fol, sd: build_palm(nm, "ornamental", ct.materials()["bark"], palm_foliage(), seed=sd),
+    "palm_oil": lambda nm, fol, sd: build_palm(nm, "oil", ct.materials()["bark"], palm_foliage(), seed=sd),
 }
 AUTUMN_CAPABLE = {"broadleaf_s", "broadleaf_m", "broadleaf_l", "poplar", "bush_cluster"}
-
-
-def build_asset(key, autumn=False, seed=0):
-    spec = ASSETS[key]
-    bark, foliage, conifer_m, autumn_m = base_materials()
-    fol = autumn_m if autumn else foliage
-    kind = spec["kind"]
-    nm = key + ("_autumn" if autumn else "")
-    if kind == "broadleaf":
-        ob = build_broadleaf(nm, spec["height"], spec["width"], bark, fol, seed=seed)
-    elif kind == "conifer":
-        ob = build_conifer(nm, spec["height"], spec["width"], bark, conifer_m, seed=seed)
-    elif kind == "poplar":
-        ob = build_poplar(nm, spec["height"], spec["width"], bark, fol, seed=seed)
-    elif kind == "bush":
-        ob = build_bush(nm, fol, seed=seed)
-    elif kind == "palm":
-        ob = build_palm(nm, spec["palm_kind"], bark, fol, seed=seed)
-    else:
-        raise ValueError(key)
-    return ob
 
 
 try:
@@ -569,15 +405,11 @@ built = []
 keys = list(ASSETS.keys()) if ASSET == "all" else [ASSET]
 
 for key in keys:
-    ob = build_asset(key, autumn=False, seed=(hash(key) & 0xffff))
-    out_path = os.path.join(OUT_DIR, key + ".glb")
-    export_glb(ob, out_path)
-    built.append((key, len(ob.data.polygons), out_path))
-    if key in AUTUMN_CAPABLE:
-        ob2 = build_asset(key, autumn=True, seed=(hash(key) & 0xffff) + 1)
-        out_path2 = os.path.join(OUT_DIR, key + "_autumn.glb")
-        export_glb(ob2, out_path2)
-        built.append((key + "_autumn", len(ob2.data.polygons), out_path2))
+    # the autumn twin is the same tree (same seed) in autumn leaves
+    for autumn in ((False, True) if key in AUTUMN_CAPABLE else (False,)):
+        nm = key + ("_autumn" if autumn else "")
+        ob = ASSETS[key](nm, "autumn" if autumn else "broadleaf", ct.seed_of(key))
+        path, size = apex.export_one("tree", nm)
+        built.append((nm, sum(len(p.vertices) - 2 for p in ob.data.polygons), size))
 
 result = {"built": built}
-

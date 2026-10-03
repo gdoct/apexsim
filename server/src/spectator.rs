@@ -1333,7 +1333,9 @@ impl StreamPath {
         let spacing_m = rd.f32()?;
         let points = rd
             .bin()?
-            .chunks_exact(8)
+            .as_chunks::<8>()
+            .0
+            .iter()
             .map(|c| {
                 [
                     i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 / 1000.0,

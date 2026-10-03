@@ -147,12 +147,11 @@ const MIXED: [&str; 5] = [
     "bush_cluster",
 ];
 
-/// The near-view versions of the two commonest species: real foliage
-/// cards rather than the solid blobs, for the band a driver actually
-/// looks into. A 97-triangle conifer standing beside a 200 000-triangle
-/// car is most of why the trackside read as a decade too old, and the
-/// blobs are kept only for the belt behind, where they are all that makes
-/// a belt affordable.
+/// The near-view versions of the two commonest species, for the band a
+/// driver actually looks into. Every species is a leaf-card tree now
+/// (scripts/content/props/card_trees.py); the near ones carry more and
+/// smaller cards, each bent along its length, at about twice the
+/// triangles of the belt behind.
 const NEAR_TREES: [(&str, &str); 2] = [
     ("broadleaf_m", "broadleaf_m_near"),
     ("conifer_m", "conifer_m_near"),
