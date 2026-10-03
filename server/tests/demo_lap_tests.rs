@@ -89,6 +89,7 @@ impl DemoLapTestClient {
             lap_limit,
             allowed_assists: Default::default(),
             conditions: Default::default(),
+            damage: Default::default(),
         };
 
         self.send_message(&msg).await?;

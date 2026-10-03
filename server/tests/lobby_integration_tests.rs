@@ -90,6 +90,7 @@ impl LobbyTestClient {
             lap_limit: 3,
             allowed_assists: Default::default(),
             conditions: Default::default(),
+            damage: Default::default(),
         };
 
         self.send_message(&msg).await?;

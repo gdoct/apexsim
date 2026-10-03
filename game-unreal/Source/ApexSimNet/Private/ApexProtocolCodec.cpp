@@ -449,7 +449,6 @@ namespace
 			else if (Key == TEXT("auto_gearbox"))     { bOk = Reader.ReadBool(Out.bAutoGearbox); }
 			else if (Key == TEXT("steering_assist"))  { bOk = Reader.ReadBool(Out.bSteeringAssist); }
 			else if (Key == TEXT("racing_line"))      { bOk = Reader.ReadBool(Out.bRacingLine); }
-			else if (Key == TEXT("damage"))           { bOk = Reader.ReadBool(Out.bDamage); }
 			else                                      { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -481,6 +480,7 @@ namespace
 			else if (Key == TEXT("SessionKind"))       { bOk = Reader.ReadUInt64(Raw); Out.SessionKind = static_cast<EApexSessionKind>(Raw); }
 			else if (Key == TEXT("AllowedAssists"))    { bOk = ParseAllowedAssists(Reader, Out.AllowedAssists); }
 			else if (Key == TEXT("Conditions"))        { bOk = ParseSessionConditions(Reader, Out.Conditions); }
+			else if (Key == TEXT("Damage"))            { bOk = Reader.ReadUInt64(Raw); Out.Damage = static_cast<EApexDamageLevel>(FMath::Min<uint64>(Raw, 2)); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -1755,8 +1755,7 @@ namespace ApexProtocol
 	/** `AllowedAssists` (data.rs): no rename_all, so snake_case keys wherever it nests. */
 	void WriteAllowedAssists(FMsgPackWriter& Writer, const FApexAllowedAssists& Assists)
 	{
-		// `damage` only when locked, as the server leaves it off while allowed.
-		Writer.WriteMapHeader(Assists.bDamage ? 5 : 6);
+		Writer.WriteMapHeader(5);
 		Writer.WriteString("abs");
 		Writer.WriteBool(Assists.bAbs);
 		Writer.WriteString("traction_control");
@@ -1767,11 +1766,6 @@ namespace ApexProtocol
 		Writer.WriteBool(Assists.bSteeringAssist);
 		Writer.WriteString("racing_line");
 		Writer.WriteBool(Assists.bRacingLine);
-		if (!Assists.bDamage)
-		{
-			Writer.WriteString("damage");
-			Writer.WriteBool(false);
-		}
 	}
 
 	/** `SessionConditions` (data.rs): no rename_all, so snake_case keys wherever it nests. */
@@ -1815,10 +1809,14 @@ namespace ApexProtocol
 		uint8 LapLimit,
 		EApexSessionKind SessionKind,
 		const FApexAllowedAssists& AllowedAssists,
-		const FApexSessionConditions& Conditions)
+		const FApexSessionConditions& Conditions,
+		EApexDamageLevel Damage)
 	{
+		// Full damage is left off, as the server does: an older server's
+		// create, and every full-damage one, keep their bytes.
+		const bool bDamage = Damage != EApexDamageLevel::Full;
 		FMsgPackWriter Writer(320);
-		BeginDataVariant(Writer, "CreateSession", 7);
+		BeginDataVariant(Writer, "CreateSession", bDamage ? 8 : 7);
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -1833,6 +1831,11 @@ namespace ApexProtocol
 		WriteAllowedAssists(Writer, AllowedAssists);
 		Writer.WriteString("conditions");
 		WriteSessionConditions(Writer, Conditions);
+		if (bDamage)
+		{
+			Writer.WriteString("damage");
+			Writer.WriteUInt(static_cast<uint8>(Damage));
+		}
 		return MoveTemp(Writer.GetBuffer());
 	}
 
@@ -1879,11 +1882,10 @@ namespace ApexProtocol
 	}
 
 	TArray<uint8> EncodeSetDriverAids(
-		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
-		TOptional<EApexDamageLevel> Damage)
+		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl)
 	{
 		FMsgPackWriter Writer(112);
-		BeginDataVariant(Writer, "SetDriverAids", Damage.IsSet() ? 5 : 4);
+		BeginDataVariant(Writer, "SetDriverAids", 4);
 		Writer.WriteString("auto_gearbox");
 		Writer.WriteBool(bAutoGearbox);
 		Writer.WriteString("steering_assist");
@@ -1894,12 +1896,6 @@ namespace ApexProtocol
 		Writer.WriteBool(bAbs);
 		Writer.WriteString("traction_control");
 		Writer.WriteUInt(static_cast<uint8>(TractionControl));
-		// Unset is left off, as the server does: full damage.
-		if (Damage.IsSet())
-		{
-			Writer.WriteString("damage");
-			Writer.WriteUInt(static_cast<uint8>(Damage.GetValue()));
-		}
 		return MoveTemp(Writer.GetBuffer());
 	}
 

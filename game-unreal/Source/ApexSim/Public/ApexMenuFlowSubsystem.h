@@ -122,6 +122,13 @@ public:
 	FApexSessionConditions CreateConditions;
 
 	/**
+	 * How much damage every car takes in the session, AI included: a rule of
+	 * the session the server applies to all of them, not a driver's choice.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	EApexDamageLevel CreateDamage = EApexDamageLevel::Full;
+
+	/**
 	 * The mode a session is counted into once it starts.
 	 *
 	 * Not part of CreateSession — the server always creates a session in Lobby —

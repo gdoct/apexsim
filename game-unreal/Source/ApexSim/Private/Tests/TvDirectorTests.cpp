@@ -225,7 +225,7 @@ bool FApexTvCuttingTest::RunTest(const FString& Parameters)
 		Field.Step(Dt, !bCountdown);
 
 		ApexTv::FPose Pose;
-		if (!Director.Tick(Field.Cars, bCountdown, Dt, static_cast<float>(Time), Flat, Pose))
+		if (!Director.Tick(Field.Cars, bCountdown, static_cast<float>(Dt), static_cast<float>(Time), Flat, Pose))
 		{
 			AddError(TEXT("the director had nothing to film with a full field"));
 			return false;
@@ -305,7 +305,7 @@ bool FApexTvTracksideTest::RunTest(const FString& Parameters)
 	constexpr double Dt = 1.0 / 30.0;
 	ApexTv::FPose Pose;
 	Field.Step(Dt, true);
-	TestTrue(TEXT("filmed"), Director.Tick(Field.Cars, false, Dt, 0.0f, Flat, Pose));
+	TestTrue(TEXT("filmed"), Director.Tick(Field.Cars, false, static_cast<float>(Dt), 0.0f, Flat, Pose));
 	TestTrue(TEXT("on the trackside shot"), Director.GetShot() == EShot::Trackside);
 
 	const FPath& Path = Director.GetPath();
@@ -328,7 +328,7 @@ bool FApexTvTracksideTest::RunTest(const FString& Parameters)
 	for (; Frames < static_cast<int32>(15.0 / Dt) && Director.GetCutCount() == 1; ++Frames)
 	{
 		Field.Step(Dt, true);
-		Director.Tick(Field.Cars, false, Dt, static_cast<float>(Frames * Dt), Flat, Pose);
+		Director.Tick(Field.Cars, false, static_cast<float>(Dt), static_cast<float>(Frames * Dt), Flat, Pose);
 		if (Director.GetCutCount() == 1)
 		{
 			bStood &= Pose.Location.Equals(Stand, 1.0);
@@ -367,7 +367,7 @@ bool FApexTvBlockedTest::RunTest(const FString& Parameters)
 	for (int32 Frame = 0; Frame < static_cast<int32>(20.0 / Dt); ++Frame)
 	{
 		Field.Step(Dt, true);
-		Director.Tick(Field.Cars, false, Dt, static_cast<float>(Frame * Dt), Walled, Pose);
+		Director.Tick(Field.Cars, false, static_cast<float>(Dt), static_cast<float>(Frame * Dt), Walled, Pose);
 		if (Director.GetCutCount() != LastCuts)
 		{
 			if (LastShot != EShot::None && LastShot != EShot::Onboard && LastShot != EShot::Nose)
@@ -387,12 +387,12 @@ bool FApexTvBlockedTest::RunTest(const FString& Parameters)
 	// The onboard cameras ride the car: nothing is between them and it.
 	Director.ForceShot(EShot::Onboard);
 	Field.Step(Dt, true);
-	Director.Tick(Field.Cars, false, Dt, 3.0f, Walled, Pose);
+	Director.Tick(Field.Cars, false, static_cast<float>(Dt), 3.0f, Walled, Pose);
 	const int32 CutsAtOnboard = Director.GetCutCount();
 	for (int32 Frame = 0; Frame < static_cast<int32>(2.0 / Dt); ++Frame)
 	{
 		Field.Step(Dt, true);
-		Director.Tick(Field.Cars, false, Dt, static_cast<float>(3.0 + Frame * Dt), Walled, Pose);
+		Director.Tick(Field.Cars, false, static_cast<float>(Dt), static_cast<float>(3.0 + Frame * Dt), Walled, Pose);
 	}
 	TestEqual(TEXT("the onboard camera is not cut for a wall"), Director.GetCutCount(), CutsAtOnboard);
 	return true;
@@ -426,7 +426,7 @@ bool FApexTvIncidentTest::RunTest(const FString& Parameters)
 			Field.Speeds[Stricken] = 0.0;
 		}
 		Field.Step(Dt, true);
-		Director.Tick(Field.Cars, false, Dt, static_cast<float>(Time), Flat, Pose);
+		Director.Tick(Field.Cars, false, static_cast<float>(Dt), static_cast<float>(Time), Flat, Pose);
 		if (Time > 20.0 && FoundAfter < 0.0 && Director.GetTargetCarIndex() == Stricken)
 		{
 			FoundAfter = Time - 20.0;
@@ -459,7 +459,7 @@ bool FApexTvLockTargetTest::RunTest(const FString& Parameters)
 	{
 		Field.Step(Dt, true);
 		ApexTv::FPose Pose;
-		if (!Director.Tick(Field.Cars, false, Dt, static_cast<float>(Frame * Dt), Flat, Pose))
+		if (!Director.Tick(Field.Cars, false, static_cast<float>(Dt), static_cast<float>(Frame * Dt), Flat, Pose))
 		{
 			AddError(TEXT("nothing to film"));
 			return false;
@@ -473,7 +473,7 @@ bool FApexTvLockTargetTest::RunTest(const FString& Parameters)
 	// A car that is not in the field does not blank the camera.
 	Director.LockTarget(42);
 	ApexTv::FPose Pose;
-	TestTrue(TEXT("a missing locked car still films someone"), Director.Tick(Field.Cars, false, Dt, 61.0f, Flat, Pose));
+	TestTrue(TEXT("a missing locked car still films someone"), Director.Tick(Field.Cars, false, static_cast<float>(Dt), 61.0f, Flat, Pose));
 	TestTrue(TEXT("on a car that exists"), Director.GetTargetCarIndex() >= 0 && Director.GetTargetCarIndex() < Field.Cars.Num());
 	return true;
 }

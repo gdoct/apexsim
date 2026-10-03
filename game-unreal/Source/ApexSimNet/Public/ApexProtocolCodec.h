@@ -34,7 +34,8 @@ namespace ApexProtocol
 		uint8 LapLimit,
 		EApexSessionKind SessionKind,
 		const FApexAllowedAssists& AllowedAssists,
-		const FApexSessionConditions& Conditions);
+		const FApexSessionConditions& Conditions,
+		EApexDamageLevel Damage = EApexDamageLevel::Full);
 	APEXSIMNET_API TArray<uint8> EncodeJoinSession(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeJoinAsSpectator(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeLeaveSession();
@@ -43,13 +44,12 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeSetGameMode(EApexGameMode Mode);
 	APEXSIMNET_API TArray<uint8> EncodeStartCountdown(uint16 CountdownSeconds, EApexGameMode NextMode);
 	/**
-	 * ABS, traction control and damage are the driver's own; the session's
-	 * allowed set is applied by the server. An unset damage level is left off
-	 * the wire (full damage, as an older client).
+	 * ABS and traction control are the driver's own; the session's allowed
+	 * set is applied by the server. Damage is no aid: it is the session's
+	 * (EncodeCreateSession).
 	 */
 	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(
-		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
-		TOptional<EApexDamageLevel> Damage = TOptional<EApexDamageLevel>());
+		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
 	/** Every knob is sent, clamped here as the server will clamp it again. */
 	APEXSIMNET_API TArray<uint8> EncodeSetCarSetup(const FApexCarSetup& Setup);
 	/** A hotlap driver asks to be put in the garage or out on the run-up. */

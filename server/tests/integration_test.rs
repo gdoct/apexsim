@@ -134,6 +134,7 @@ impl TestClient {
             lap_limit: 3,
             allowed_assists: Default::default(),
             conditions: Default::default(),
+            damage: Default::default(),
         };
 
         self.send_tcp_message(&msg).await?;

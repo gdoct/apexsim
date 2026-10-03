@@ -242,7 +242,9 @@ damage"): hits scaled by closing speed to a power, engine damage from
 heat and missed downshifts; front costs downforce and cooling, rear its
 downforce, a side grip and a pull, the engine power; out at 100%; the AI
 pits for it; a HUD damage panel (a car diagram per zone). A per-driver
-damage aid (off / reduced / full, host-lockable) followed 2026-10-01.
+damage aid (off / reduced / full, host-lockable) followed 2026-10-01, and
+became a rule of the session on 2026-10-03: the host picks the level on
+create and every car takes it, AI included.
 Engine wear over distance is still open.
 
 **Was:** the engine is a torque curve with a limiter, turbo lag and an
@@ -594,9 +596,9 @@ here as well as under its item.
   the aero share: its speed profile still assumes full power.
 - Damaged cars in the AC imports: their AI already crashes a lot, and one
   to ten cars a race now retire there.
-- The damage aid (off / reduced / full) has no "visual only" level, and
-  there is no visual damage for it to leave; the AI always takes full
-  damage.
+- The session's damage rule (off / reduced / full) has no "visual only"
+  level, and the session browser does not list it yet: a guest learns it
+  on joining (`SessionJoined.Damage`).
 
 **Visible damage** (client only, `Race/ApexCarDamage.h`)
 - The wire carries five percentages and no hit point, so a zone always

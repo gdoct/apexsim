@@ -322,6 +322,7 @@ async fn relocate_is_refused_in_practice_and_a_new_driver_has_no_ghost() {
             session_kind: SessionKind::Practice,
             allowed_assists: AllowedAssists::ALL,
             conditions: SessionConditions::default(),
+            damage: Default::default(),
         })
         .await?;
         host.wait_for(|m| match m {

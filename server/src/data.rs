@@ -1315,9 +1315,10 @@ pub struct CarState {
     /// `traction_control_enabled` (as `Low`).
     #[serde(default)]
     pub traction_control: Option<TractionControl>,
-    /// How much damage this driver takes, set by
-    /// `ClientMessage::SetDriverAids`; `None` (AI drivers, older clients)
-    /// is full damage. Read through [`CarState::damage_scale`].
+    /// How much damage this car takes: the session's rule
+    /// (`RaceSession::damage`), stamped on every car it seats, AI included;
+    /// `None` (a car no session seated) is full damage. Read through
+    /// [`CarState::damage_scale`].
     #[serde(default)]
     pub damage_level: Option<DamageLevel>,
 
@@ -1534,7 +1535,6 @@ impl CarState {
             steering_assist: self.steering_assist,
             abs: self.abs,
             traction_control: self.traction_control,
-            damage: self.damage_level,
         }
     }
 
@@ -1551,7 +1551,6 @@ impl CarState {
         self.steering_assist = aids.steering_assist;
         self.abs = aids.abs;
         self.traction_control = aids.traction_control;
-        self.damage_level = aids.damage;
     }
 
     pub fn new(player_id: PlayerId, car_config_id: CarConfigId, grid_slot: &GridSlot) -> Self {
@@ -1748,11 +1747,12 @@ pub enum TractionControl {
     High = 2,
 }
 
-/// How much damage this driver's car takes, chosen per player like the
-/// aids (`ClientMessage::SetDriverAids`) and allowed or not by the host
-/// (`AllowedAssists::damage`). It scales every accrual in `crate::damage`
-/// (impacts, overheating, over-revving); what damage already done costs is
-/// the same whichever level is set. Encoded as a small integer.
+/// How much damage the cars in a session take: a rule of the session, chosen
+/// by its host on create (`ClientMessage::CreateSession::damage`) and the same
+/// for every car in it, AI included (`RaceSession::damage`). It scales every
+/// accrual in `crate::damage` (impacts, overheating, over-revving); what
+/// damage already done costs is the same whichever level is set. Encoded as
+/// a small integer.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
 pub enum DamageLevel {
@@ -1769,6 +1769,12 @@ pub enum DamageLevel {
 impl DamageLevel {
     /// The share of the damage a `Reduced` car takes.
     pub const REDUCED_SHARE: f32 = 0.5;
+
+    /// Full damage, the default: left off the wire, so every message from
+    /// before the session rule keeps its bytes.
+    pub fn is_full(&self) -> bool {
+        *self == DamageLevel::Full
+    }
 
     /// What this level multiplies every damage accrual by.
     pub fn scale(self) -> f32 {
@@ -1791,8 +1797,6 @@ pub struct DriverAids {
     pub abs: Option<bool>,
     /// `None` keeps the car's own `traction_control_enabled` (as `Low`).
     pub traction_control: Option<TractionControl>,
-    /// `None` is full damage.
-    pub damage: Option<DamageLevel>,
 }
 
 /// Which driving aids a session's host lets its drivers use, fixed when the
@@ -1814,19 +1818,10 @@ pub struct AllowedAssists {
     /// the client has nothing to draw.
     #[serde(default = "default_true")]
     pub racing_line: bool,
-    /// Whether a driver may take less than full damage
-    /// (`DamageLevel::Off` / `Reduced`). Left off the wire while allowed, so
-    /// every message from before the field keeps its bytes.
-    #[serde(default = "default_true", skip_serializing_if = "is_true")]
-    pub damage: bool,
 }
 
 fn default_true() -> bool {
     true
-}
-
-fn is_true(value: &bool) -> bool {
-    *value
 }
 
 impl Default for AllowedAssists {
@@ -1843,7 +1838,6 @@ impl AllowedAssists {
         auto_gearbox: true,
         steering_assist: true,
         racing_line: true,
-        damage: true,
     };
 
     /// Nothing allowed but the driver.
@@ -1853,13 +1847,12 @@ impl AllowedAssists {
         auto_gearbox: false,
         steering_assist: false,
         racing_line: false,
-        damage: false,
     };
 
     /// The aids a driver may actually run here: what they asked for, less
     /// whatever the session forbids. A forbidden ABS or traction control is
     /// pinned to `Some(off)` rather than left `None`, or the car's own file
-    /// would switch it back on; forbidden damage aids pin full damage.
+    /// would switch it back on.
     pub fn clamp(&self, asked: DriverAids) -> DriverAids {
         DriverAids {
             auto_gearbox: asked.auto_gearbox && self.auto_gearbox,
@@ -1869,11 +1862,6 @@ impl AllowedAssists {
                 asked.traction_control
             } else {
                 Some(TractionControl::Off)
-            },
-            damage: if self.damage {
-                asked.damage
-            } else {
-                Some(DamageLevel::Full)
             },
         }
     }
@@ -2278,6 +2266,9 @@ pub struct RaceSession {
     /// The weather and the clock; see `SessionConditions`.
     #[serde(default)]
     pub conditions: SessionConditions,
+    /// How much damage every car here takes; see `DamageLevel`.
+    #[serde(default)]
+    pub damage: DamageLevel,
     pub state: SessionState,
     #[serde(default)]
     pub game_mode: GameMode,
@@ -2315,6 +2306,7 @@ impl RaceSession {
             session_kind,
             allowed_assists: AllowedAssists::ALL,
             conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
             state: SessionState::Lobby,
             game_mode: GameMode::Lobby,
             participants: std::collections::BTreeMap::new(),

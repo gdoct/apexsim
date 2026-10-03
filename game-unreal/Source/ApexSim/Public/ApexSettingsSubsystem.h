@@ -75,9 +75,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetRacingLine(EApexRacingLine Line);
 
-	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
-	void SetDamage(EApexDamageLevel Level);
-
 	/** The hotlap ghost car on or off (Gameplay group). */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetGhostCar(bool bOn);

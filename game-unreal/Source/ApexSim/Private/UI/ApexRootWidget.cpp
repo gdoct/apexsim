@@ -1455,7 +1455,6 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 			else if (Key == TEXT("gearbox"))  { Allowed.bAutoGearbox = false; }
 			else if (Key == TEXT("steering")) { Allowed.bSteeringAssist = false; }
 			else if (Key == TEXT("line"))     { Allowed.bRacingLine = false; }
-			else if (Key == TEXT("damage"))   { Allowed.bDamage = false; }
 			else
 			{
 				UE_LOG(LogApexSim, Warning, TEXT("-ApexLockAssists: unknown assist '%s' (abs, tc, gearbox, steering, line, damage)"), *Lock);
@@ -1505,7 +1504,16 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	// Room for the AI and the host: the AI are seated first, and a field that
 	// fills the session leaves the host refused (Error 500) on the main menu.
 	const int32 MaxPlayers = FMath::Clamp(AutoRaceAiCount + 1, 8, 255);
-	Net->CreateSession(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions);
+	// -ApexDamage=off|reduced|full: the session's damage rule (full by default).
+	EApexDamageLevel Damage = EApexDamageLevel::Full;
+	FString DamageText;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexDamage="), DamageText))
+	{
+		Damage = DamageText.Equals(TEXT("off"), ESearchCase::IgnoreCase) ? EApexDamageLevel::Off
+			: DamageText.Equals(TEXT("reduced"), ESearchCase::IgnoreCase) ? EApexDamageLevel::Reduced
+			: EApexDamageLevel::Full;
+	}
+	Net->CreateSession(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage);
 }
 
 void UApexRootWidget::HandleUdpReady()
@@ -1557,8 +1565,7 @@ void UApexRootWidget::SendDriverAids()
 		Values->bAutoGearbox,
 		Values->bSteeringAssist && !bAidsSentForWheel,
 		Values->bAbs,
-		static_cast<EApexTractionControl>(Values->TractionControl),
-		Values->Damage);
+		static_cast<EApexTractionControl>(Values->TractionControl));
 }
 
 void UApexRootWidget::SendCarSetup()

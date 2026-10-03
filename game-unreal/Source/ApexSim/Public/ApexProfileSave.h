@@ -63,6 +63,10 @@ public:
 	UPROPERTY()
 	FApexSessionConditions Conditions;
 
+	/** How much damage every car takes in a session this player creates. */
+	UPROPERTY()
+	EApexDamageLevel Damage = EApexDamageLevel::Full;
+
 	/** Track UUID -> best lap in seconds. Populated by the results screen. */
 	UPROPERTY()
 	TMap<FString, float> BestLapSeconds;

@@ -2081,15 +2081,24 @@ there and sent on join. The client's settings overlay has an **Assists** tab
 (`EApexSettingsTab::Assists`, group `EApexSettingsGroup::Assists`; the tab
 order is gameplay, assists, graphics, camera, controls, wheel, audio, car
 setup, so `-ApexSettingsTab=1` opens it) holding ABS, traction control OFF/LOW/HIGH,
-gearbox, steering, damage OFF/REDUCED/FULL and the racing line.
+gearbox, steering and the racing line.
 `UApexRootWidget::SendDriverAids` sends `SetDriverAids { auto_gearbox,
-steering_assist, abs, traction_control, damage }` on join and on any change
-of the group. **Damage** (`DamageLevel`, `CarState::damage_level`, `None` =
-full for the AI and an old client) multiplies every accrual in `damage.rs`
-(impacts in `apply_damage_to_car`, overheating, over-revving) by
-`DamageLevel::scale` (0, `REDUCED_SHARE` 0.5, 1); what damage already done
-costs is unchanged. `damage` is left off the wire while unset, so the older
-aids keep their bytes. ABS and traction control are
+steering_assist, abs, traction_control }` on join and on any change
+of the group. **Damage is not an aid** (2026-10-03): it is a rule of the
+session, picked by the host on the create screen (Off / Reduced / Full,
+`UApexMenuFlowSubsystem::CreateDamage`, kept on the profile) and the same
+for every car, AI included. It goes out as `CreateSession.damage`
+(`DamageLevel`, left off the wire when full, so every full-damage create
+keeps its bytes), lives on `RaceSession::damage`, is stamped on every car
+as it is seated (`GameSession::add_player`; `set_damage` stamps the AI the
+session was created with) as `CarState::damage_level`, and is echoed in
+`SessionJoined.Damage` (`UApexNetSubsystem::GetSessionDamage`, the HUD's
+`damage.level`). It multiplies every accrual in `damage.rs` (impacts in
+`apply_damage_to_car`, overheating, over-revving) by `DamageLevel::scale`
+(0, `REDUCED_SHARE` 0.5, 1); what damage already done costs is unchanged.
+A `damage` key an older client still sends in `SetDriverAids` is ignored.
+`-ApexAutoRace -ApexDamage=off|reduced|full` sets it for an unattended run.
+ABS and traction control are
 `Option`s on the server (`CarState::abs`, `CarState::traction_control`) so an
 AI, or a client from before the fields, drives the car as its `car.toml`
 describes it. Traction control LOW holds a spinning wheel at peak slip as
@@ -2100,9 +2109,8 @@ a corner exit keeps the cornering grip instead of pushing the rear wide.
 A session's host decides which assists its drivers may use: the create
 screen's "Allowed assists" chips go out as `CreateSession.allowed_assists`
 (`AllowedAssists { abs, traction_control, auto_gearbox, steering_assist,
-racing_line, damage }`, every field defaulting to true so an old client's
-session allows everything; `damage` is only written when false, "Damage aid"
-chip, and a forbidden one pins `DamageLevel::Full`), the session keeps them
+racing_line }`, every field defaulting to true so an old client's
+session allows everything), the session keeps them
 on `RaceSession::allowed_assists`
 and echoes them in `SessionJoined.AllowedAssists`. The server enforces the
 rule (`AllowedAssists::clamp`): a forbidden aid is pinned off when a car is
@@ -2111,19 +2119,22 @@ session that forbids the racing line sends none. On the client the Assists
 tab dims a locked row, disables its pills and shows an "Off in this session"
 badge (`UApexNetSubsystem::GetAllowedAssists`, `RefreshAssistLocks`); the
 player's own choice is kept for the next session; `-ApexAutoRace
--ApexLockAssists=abs,tc,gearbox,steering,line,damage` creates the auto-race session
+-ApexLockAssists=abs,tc,gearbox,steering,line` creates the auto-race session
 with those forbidden, for a screenshot run of the locked tab
 (`-ApexOpenSettings=N -ApexSettingsTab=1`). Golden bytes for all three
 messages come from `network.rs` `test_assists_wire_format`
 (`cargo test assists_wire_format -- --nocapture` prints them) and are pinned
-in `ApexGoldenBlobs.h`; the damage aid's from `test_damage_assist_wire_format`
-(`ApexGolden::C_SetDriverAidsDamage`, `S_SessionJoinedNoDamage`).
+in `ApexGoldenBlobs.h`; the session's damage rule from
+`test_session_damage_wire_format` (`ApexGolden::C_CreateSessionDamage`,
+`S_SessionJoinedNoDamage`); `tests/session_conditions_test.rs`
+`the_hosts_damage_rule_holds_for_every_car` checks it end to end.
 
 ### Weather and time of day (`SessionConditions`, `Race/ApexSkyModel.h`)
 
-A session's host picks its sky on the create screen: a **Weather** chip row
-(sunny, cloudy, overcast, light rain, heavy rain) and a **Time of day**
-slider in quarter hours. Both go out inside `CreateSession.conditions`
+A session's host picks its sky on the create screen's Conditions tab: five
+**Weather** tiles (sunny, cloudy, overcast, light rain, heavy rain) and a
+**Time of day** slider in quarter hours with Dawn / Noon / Dusk / Night
+picks. Both go out inside `CreateSession.conditions`
 (`SessionConditions { weather, time_of_day_minutes }` and the optional
 air, see "The air" below; defaulting to a sunny 13:00 so an old
 client's session is unchanged), are kept on
@@ -2247,7 +2258,11 @@ setups are kept per car on `UApexSettingsSave::SavedSetups`
 (`FApexSavedSetup`: name, car id, date, clicks, the best legal lap driven
 while the working setup matched it) with `LoadedSetupId` naming the one in
 the header; `UApexSettingsSubsystem::SaveSetupAs` / `LoadSavedSetup` /
-`OverwriteSavedSetup` / `RenameSavedSetup` / `DeleteSavedSetup` / `RecordSetupLap`. The steppers write through
+`OverwriteSavedSetup` / `RenameSavedSetup` / `DeleteSavedSetup` / `RecordSetupLap`.
+The create screen's Race tab offers them too ("Car setup": Stock, Custom
+while the working setup is an unsaved one, then the pending car's four
+newest with their best laps); picking one loads it as the working setup,
+which goes out on joining. The steppers write through
 `UApexSettingsSubsystem::SetCarSetupClick`, so the group's change still
 reaches the server through `SendCarSetup`, and the setup is sent on joining
 any session, so a car tuned in the garage races with that setup. The knob
@@ -2603,9 +2618,10 @@ yet used (the sun is still the sky model's 50° N).
 **Client**: `FApexSessionConditions::AirTempC` / `HumidityPct` /
 `WindKph` / `WindFromDeg` (-128 / -1 = auto), written only when picked;
 `Describe()` names them ("Overcast · 08:00 · -3°C · wind 22 km/h from the
-right"). The create screen has an **Air temperature** slider (first step
-Auto) and a **Wind** chip row (Auto / Calm / Light / Breezy / Strong, and a
-chip that steps the direction through auto, ahead, left, behind, right).
+right"). The create screen's Conditions tab has an **Air temperature**
+stepper with an AUTO chip and a **Wind** list (Calm / Light / Breezy /
+Strong / Auto) beside a dial of eight directions round the start straight
+(the chosen one again is auto).
 Golden bytes: `cargo test conditions_air_wire_format -- --nocapture` ->
 `ApexGolden::C_CreateSessionAir` / `S_SessionJoinedAir`.
 
@@ -2766,8 +2782,8 @@ be inert until 80% front or engine parked the car, and a hit cost at most
   (front, rear, the sides, the engine in the middle) grey while sound,
   amber by 25%, red by 60, flashing white for 0.8 s on a fresh hit of a
   percent or more, each zone's percentage beside it (OUT at 100) and the
-  driver's damage level in the caption. The damage aid is under
-  "Driving assists". Golden bytes: `cargo test
+  session's damage rule in the caption (see "Driving assists": it is the
+  host's, for every car). Golden bytes: `cargo test
   telemetry_compact_wire_format -- --nocapture` -> `ApexUdpGolden::
   S_TelemetryCompactDamage`.
 

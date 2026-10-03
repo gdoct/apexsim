@@ -72,6 +72,7 @@ struct APEXSIM_API FApexHudInputs
 	/** Settings. */
 	bool bImperial = false;
 	bool bFullDetail = true;
+	/** The session's damage rule (SessionJoined), the same for every car. */
 	EApexDamageLevel DamageLevel = EApexDamageLevel::Full;
 
 	/** The local car's catalog row: its tyres' working window and its rev range (0 when unknown). */

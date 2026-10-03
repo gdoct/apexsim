@@ -235,7 +235,6 @@ void UApexHudDataSubsystem::Refresh()
 			if (const UApexSettingsSave* PreviewSave = PreviewSettings->Get())
 			{
 				PreviewInputs.bImperial = PreviewSave->Units == EApexUnits::Imperial;
-				PreviewInputs.DamageLevel = PreviewSave->Damage;
 			}
 		}
 		LastFrame = &Preview->Frame;
@@ -256,7 +255,6 @@ void UApexHudDataSubsystem::Refresh()
 	In.TimeSeconds = bRaceActive ? FPlatformTime::Seconds() - RaceStartSeconds : 0.0;
 	In.bImperial = Save && Save->Units == EApexUnits::Imperial;
 	In.bFullDetail = !Save || Save->HudDetail == EApexHudDetail::All;
-	In.DamageLevel = Save ? Save->Damage : EApexDamageLevel::Full;
 	In.bGamepad = bGamepad;
 	In.bSpectating = bSpectating;
 	if (bSpectating)
@@ -301,12 +299,8 @@ void UApexHudDataSubsystem::Refresh()
 		In.PingMs = Net->GetPingMs();
 		In.Conditions = Net->GetSessionConditions();
 		In.bHasConditions = Net->IsInSession() || Net->IsInDemoSession();
-		// The level this car runs at: the player's setting, unless the session
-		// pins full damage (the server applies the same rule).
-		if (Net->IsInSession() && !Net->GetAllowedAssists().bDamage)
-		{
-			In.DamageLevel = EApexDamageLevel::Full;
-		}
+		// The session's damage rule, the same for every car.
+		In.DamageLevel = Net->GetSessionDamage();
 		RefreshCarNames();
 		In.CarNames = &CarNames;
 	}

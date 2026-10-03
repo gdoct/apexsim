@@ -170,7 +170,7 @@ void UApexButtonWidget::Setup(const FApexButtonSpec& InSpec)
 		const bool bBare = Spec.Variant == EApexButtonVariant::Bare;
 		if (UOverlaySlot* RingSlot = Cast<UOverlaySlot>(FocusRing->Slot))
 		{
-			RingSlot->SetPadding(bBare ? FMargin(-10.0f, -2.0f) : FMargin());
+			RingSlot->SetPadding(bBare && !Spec.bOverlay ? FMargin(-10.0f, -2.0f) : FMargin());
 		}
 	}
 
@@ -267,6 +267,13 @@ void UApexButtonWidget::ApplyState()
 		OutlineWidth = 0.0f;
 		LabelColour = bHighlighted ? ApexUI::Palette::TextPrimary : ApexUI::Palette::TextSecondary;
 		break;
+	}
+
+	if (Spec.bOverlay)
+	{
+		Fill = FLinearColor::Transparent;
+		Outline = bHighlighted ? ApexUI::Palette::TextMuted : FLinearColor::Transparent;
+		OutlineWidth = bHighlighted ? 1.0f : 0.0f;
 	}
 
 	if (Spec.LabelColour.A > 0.0f)

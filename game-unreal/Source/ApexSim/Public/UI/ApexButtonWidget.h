@@ -87,6 +87,14 @@ struct FApexButtonSpec
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
 	EApexUiSound Sound = EApexUiSound::Accept;
+
+	/**
+	 * Draws no fill of its own, only a faint outline under the cursor and the
+	 * selected and focus rings: a hit area laid over art the owner draws
+	 * beneath it (a weather swatch, a grid slot).
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
+	bool bOverlay = false;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnButtonActivated, UApexButtonWidget*, Button);

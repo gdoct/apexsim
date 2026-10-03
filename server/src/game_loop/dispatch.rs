@@ -81,6 +81,7 @@ pub(crate) async fn handle_message(
             session_kind,
             allowed_assists,
             conditions,
+            damage,
         } => {
             handle_create_session(
                 ctx,
@@ -92,6 +93,7 @@ pub(crate) async fn handle_message(
                 lap_limit,
                 allowed_assists,
                 conditions,
+                damage,
             )
             .await;
         }
@@ -115,7 +117,6 @@ pub(crate) async fn handle_message(
             steering_assist,
             abs,
             traction_control,
-            damage,
         } => {
             handle_set_driver_aids(
                 ctx,
@@ -125,7 +126,6 @@ pub(crate) async fn handle_message(
                     steering_assist,
                     abs,
                     traction_control,
-                    damage,
                 },
             )
             .await;
@@ -258,6 +258,7 @@ async fn handle_create_session(
     lap_limit: u8,
     allowed_assists: AllowedAssists,
     conditions: SessionConditions,
+    damage: DamageLevel,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -329,6 +330,12 @@ async fn handle_create_session(
         "Session {} created by player {}",
         session_id, conn_info.player_name
     );
+
+    // The host's damage rule, for every car: the AI seated with the session
+    // take it now, everyone who joins later as they are seated.
+    if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
+        game_session.set_damage(damage);
+    }
 
     // Register session in lobby
     let track_name = state_write
@@ -425,6 +432,7 @@ async fn handle_create_session(
         );
         let allowed_assists = game_session.session.allowed_assists;
         let conditions = game_session.session.conditions;
+        let damage = game_session.session.damage;
         drop(state_write);
         let _ = ctx
             .send(
@@ -435,6 +443,7 @@ async fn handle_create_session(
                     session_kind,
                     allowed_assists,
                     conditions,
+                    damage,
                 }),
             )
             .await;
@@ -523,6 +532,7 @@ async fn start_demo_session(
                 session_kind: SessionKind::Demo,
                 allowed_assists: AllowedAssists::ALL,
                 conditions,
+                damage: DamageLevel::Full,
             }),
         )
         .await;
@@ -601,6 +611,7 @@ async fn handle_join_session(
         );
         let allowed_assists = game_session.session.allowed_assists;
         let conditions = game_session.session.conditions;
+        let damage = game_session.session.damage;
         drop(state_write);
         let _ = ctx
             .send(
@@ -611,6 +622,7 @@ async fn handle_join_session(
                     session_kind: game_session_kind,
                     allowed_assists,
                     conditions,
+                    damage,
                 }),
             )
             .await;
@@ -753,13 +765,13 @@ async fn handle_join_as_spectator(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
-    let (joined, session_kind, allowed_assists, conditions, sectors) = {
+    let (joined, session_kind, allowed_assists, conditions, damage, sectors) = {
         let mut state_write = ctx.state.write().await;
         let joined = state_write
             .lobby
             .join_as_spectator(conn_info.player_id, session_id)
             .await;
-        let (session_kind, allowed_assists, conditions, sectors) = state_write
+        let (session_kind, allowed_assists, conditions, damage, sectors) = state_write
             .sessions
             .get_mut(&session_id)
             .map(|s| {
@@ -772,6 +784,7 @@ async fn handle_join_as_spectator(
                     s.session.session_kind,
                     s.session.allowed_assists,
                     s.session.conditions,
+                    s.session.damage,
                     Some(ServerMessage::TrackSectors(TrackSectorsData {
                         session_id,
                         track_length_m: s.track_length_m(),
@@ -780,7 +793,14 @@ async fn handle_join_as_spectator(
                 )
             })
             .unwrap_or_default();
-        (joined, session_kind, allowed_assists, conditions, sectors)
+        (
+            joined,
+            session_kind,
+            allowed_assists,
+            conditions,
+            damage,
+            sectors,
+        )
     };
 
     if joined {
@@ -797,6 +817,7 @@ async fn handle_join_as_spectator(
                     session_kind,
                     allowed_assists,
                     conditions,
+                    damage,
                 }),
             )
             .await;
@@ -918,13 +939,12 @@ async fn handle_set_driver_aids(ctx: &GameLoopCtx, connection_id: ConnectionId, 
     if let Some(applied) = game_session.set_driver_aids(&conn_info.player_id, aids) {
         let on_off = |on: bool| if on { "on" } else { "off" };
         tracing::debug!(
-            "Player {} auto gearbox {}, steering assist {}, abs {:?}, traction control {:?}, damage {:?}",
+            "Player {} auto gearbox {}, steering assist {}, abs {:?}, traction control {:?}",
             conn_info.player_id,
             on_off(applied.auto_gearbox),
             on_off(applied.steering_assist),
             applied.abs,
-            applied.traction_control,
-            applied.damage
+            applied.traction_control
         );
     }
 }

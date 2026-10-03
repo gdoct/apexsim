@@ -211,7 +211,8 @@ public:
 
 	/**
 	 * AllowedAssists: which driving aids the session lets its drivers use
-	 * (every one by default). Conditions: its weather and clock.
+	 * (every one by default). Conditions: its weather and clock. Damage: how
+	 * much damage every car in it takes, AI included.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void CreateSession(
@@ -221,7 +222,8 @@ public:
 		int32 LapLimit,
 		EApexSessionKind SessionKind,
 		const FApexAllowedAssists& AllowedAssists,
-		const FApexSessionConditions& Conditions);
+		const FApexSessionConditions& Conditions,
+		EApexDamageLevel Damage = EApexDamageLevel::Full);
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -308,6 +310,11 @@ public:
 	void EndBackdropFeed();
 	bool IsBackdropFeedActive() const { return bBackdropFeed; }
 
+#if WITH_DEV_AUTOMATION_TESTS
+	/** One server message through the handler, as if it had come off the wire. */
+	void HandleMessageForTest(const FApexServerMessage& Message) { HandleMessage(Message); }
+#endif
+
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void JoinSession(const FString& SessionId);
 
@@ -350,8 +357,7 @@ public:
 	 * joining a session and whenever they change.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
-	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
-		EApexDamageLevel Damage = EApexDamageLevel::Full);
+	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
 
 	/**
 	 * The garage setup for this player's car, as clicks per knob. The server
@@ -388,6 +394,13 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FApexSessionConditions& GetSessionConditions() const { return CurrentConditions; }
+
+	/**
+	 * The damage rule of the session this client is in, from its
+	 * SessionJoined: the same for every car. Full outside one.
+	 */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	EApexDamageLevel GetSessionDamage() const { return CurrentDamage; }
 
 	// --- State ----------------------------------------------------------------
 
@@ -584,6 +597,7 @@ private:
 	FApexAllowedAssists CurrentAllowedAssists;
 	/** From the session's SessionJoined, demo or not; reset when it is left. */
 	FApexSessionConditions CurrentConditions;
+	EApexDamageLevel CurrentDamage = EApexDamageLevel::Full;
 
 	// --- Demo session -----------------------------------------------------------
 

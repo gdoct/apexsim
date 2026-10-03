@@ -97,6 +97,7 @@ async fn a_spectator_joining_mid_race_gets_the_roster_and_the_sectors() {
             session_kind: SessionKind::Multiplayer,
             allowed_assists: AllowedAssists::ALL,
             conditions: SessionConditions::DEFAULT,
+            damage: Default::default(),
         })
         .await?;
         let joined = host.wait_joined().await?;

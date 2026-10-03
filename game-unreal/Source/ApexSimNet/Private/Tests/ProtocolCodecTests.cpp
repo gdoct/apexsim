@@ -124,9 +124,11 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("SetDriverAids"),
 		ApexProtocol::EncodeSetDriverAids(true, true, false, EApexTractionControl::High),
 		ApexGolden::C_SetDriverAids);
-	CheckBytes(TEXT("SetDriverAids with damage"),
-		ApexProtocol::EncodeSetDriverAids(false, false, true, EApexTractionControl::Low, EApexDamageLevel::Reduced),
-		ApexGolden::C_SetDriverAidsDamage);
+	CheckBytes(TEXT("CreateSession with damage"),
+		ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Reduced),
+		ApexGolden::C_CreateSessionDamage);
 
 	{
 		FApexCarSetup Setup;
@@ -287,7 +289,7 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("AllowedAssists.auto_gearbox"), Message.AllowedAssists.bAutoGearbox);
 			TestTrue(TEXT("AllowedAssists.steering_assist"), Message.AllowedAssists.bSteeringAssist);
 			TestFalse(TEXT("AllowedAssists.racing_line"), Message.AllowedAssists.bRacingLine);
-			TestTrue(TEXT("AllowedAssists.damage absent is allowed"), Message.AllowedAssists.bDamage);
+			TestEqual(TEXT("Damage absent is full"), Message.Damage, EApexDamageLevel::Full);
 			TestEqual(TEXT("AllowedAssists.CountLocked"), Message.AllowedAssists.CountLocked(), 3);
 			TestEqual(TEXT("Conditions.weather"), Message.Conditions.Weather, EApexWeather::HeavyRain);
 			TestEqual(TEXT("Conditions.time_of_day_minutes"), Message.Conditions.TimeOfDayMinutes, 6 * 60 + 15);
@@ -296,13 +298,12 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 	}
 
 	{
-		// Damage is named only when the host locks it.
+		// The session's damage rule is named only when it is not full.
 		FApexServerMessage Message;
-		if (Decode(TEXT("SessionJoined with damage locked"), ApexGolden::S_SessionJoinedNoDamage, Message))
+		if (Decode(TEXT("SessionJoined without damage"), ApexGolden::S_SessionJoinedNoDamage, Message))
 		{
-			TestFalse(TEXT("AllowedAssists.damage"), Message.AllowedAssists.bDamage);
-			TestTrue(TEXT("AllowedAssists.abs beside it"), Message.AllowedAssists.bAbs);
-			TestEqual(TEXT("NoDamage.CountLocked"), Message.AllowedAssists.CountLocked(), 1);
+			TestEqual(TEXT("Damage"), Message.Damage, EApexDamageLevel::Off);
+			TestEqual(TEXT("NoDamage.CountLocked"), Message.AllowedAssists.CountLocked(), 0);
 		}
 	}
 

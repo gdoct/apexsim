@@ -1,42 +1,44 @@
 #include "UI/ApexSessionCreateWidget.h"
 
 #include "ApexCarPreviewStage.h"
-#include "Cars/ApexCarContentSubsystem.h"
-#include "Components/Image.h"
-#include "Components/ScaleBox.h"
-#include "Engine/TextureRenderTarget2D.h"
-
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexSettingsSave.h"
+#include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "Blueprint/WidgetTree.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
+#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
 #include "Components/Slider.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Engine/GameInstance.h"
+#include "Engine/Texture2D.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Track/ApexTrackContentSubsystem.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexCreateSessionModel.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
 namespace
 {
-	const FName ActionCreateBack(TEXT("__back"));
-	const FName ActionCancel(TEXT("__cancel"));
-	const FName ActionCreate(TEXT("__create"));
-	const FName ActionChangeTrack(TEXT("__changetrack"));
-	const FName ActionCreateChangeCar(TEXT("__changecar"));
-	const FName ActionKindMultiplayer(TEXT("__kindmulti"));
-	const FName ActionKindSingle(TEXT("__kindsingle"));
-
 	/** The allowed-assist toggles, in the order they are laid out. */
 	enum class EApexAssistChip : int32
 	{
@@ -45,14 +47,8 @@ namespace
 		AutoGearbox,
 		SteeringAssist,
 		RacingLine,
-		Damage,
 		Count,
 	};
-
-	FName AssistAction(EApexAssistChip Chip)
-	{
-		return FName(*FString::Printf(TEXT("__assist%d"), static_cast<int32>(Chip)));
-	}
 
 	/** The flag a chip toggles on the flow's allowed set. */
 	bool& AssistFlag(FApexAllowedAssists& Assists, EApexAssistChip Chip)
@@ -63,47 +59,85 @@ namespace
 		case EApexAssistChip::TractionControl: return Assists.bTractionControl;
 		case EApexAssistChip::AutoGearbox:     return Assists.bAutoGearbox;
 		case EApexAssistChip::SteeringAssist:  return Assists.bSteeringAssist;
-		case EApexAssistChip::Damage:          return Assists.bDamage;
 		default:                               return Assists.bRacingLine;
 		}
 	}
 
-	/** Mode buttons carry their EApexGameMode in the action id. */
-	FName ModeAction(EApexGameMode Mode)
+	/** The damage tiles, in EApexDamageLevel order. */
+	struct FDamageOption
 	{
-		return FName(*FString::Printf(TEXT("__mode%d"), static_cast<int32>(Mode)));
+		const TCHAR* Label;
+		const TCHAR* Description;
+		const TCHAR* Summary;
+	};
+	const FDamageOption DamageOptions[] = {
+		{ TEXT("Off"),     TEXT("No damage"),        TEXT("NO DAMAGE") },
+		{ TEXT("Reduced"), TEXT("Half"),             TEXT("REDUCED DAMAGE") },
+		{ TEXT("Full"),    TEXT("As modelled"),      TEXT("FULL DAMAGE") },
+	};
+
+	struct FModeOption
+	{
+		EApexGameMode Mode;
+		const TCHAR* Label;
+		const TCHAR* Description;
+	};
+
+	// Replay and Qualification are left out because nothing drives them yet,
+	// and Demo lap because the server turns it into a dead end for whoever
+	// asks (it drops the human players to spectators); the hotlap took its
+	// tile.
+	const FModeOption ModeOptions[] = {
+		{ EApexGameMode::FreePractice, TEXT("Free practice"), TEXT("Drive freely") },
+		{ EApexGameMode::Sandbox,      TEXT("Sandbox"),       TEXT("Free camera") },
+		{ EApexGameMode::Hotlap,       TEXT("Hotlap"),        TEXT("Flying laps") },
+		{ EApexGameMode::Race,         TEXT("Race"),          TEXT("Grid start") },
+	};
+
+	const TCHAR* ModeLabel(EApexGameMode Mode)
+	{
+		for (const FModeOption& Option : ModeOptions)
+		{
+			if (Option.Mode == Mode)
+			{
+				return Option.Label;
+			}
+		}
+		return TEXT("Session");
 	}
 
-	/** Weather chips carry their EApexWeather in the action id. */
-	FName WeatherAction(EApexWeather Weather)
+	struct FLapPreset
 	{
-		return FName(*FString::Printf(TEXT("__weather%d"), static_cast<int32>(Weather)));
-	}
+		const TCHAR* Label;
+		int32 Laps;
+	};
+	const FLapPreset LapPresets[] = {
+		{ TEXT("Sprint"), 3 }, { TEXT("Short"), 5 }, { TEXT("Feature"), 12 }, { TEXT("Endurance"), 30 },
+	};
 
-	/** The wind's strengths offered, km/h, after "Auto". */
+	/** Quick picks for the clock on the model day: sunrise is just after
+	 * five, sunset a little before nine (ApexSky). */
+	struct FTimePreset
+	{
+		const TCHAR* Label;
+		int32 Minutes;
+	};
+	const FTimePreset TimePresets[] = {
+		{ TEXT("Dawn"), 6 * 60 + 15 }, { TEXT("Noon"), 13 * 60 }, { TEXT("Dusk"), 20 * 60 + 30 }, { TEXT("Night"), 23 * 60 },
+	};
+
+	/** The wind's strengths offered, km/h; the last chip is Auto. */
 	constexpr int32 WindPresetsKph[] = {0, 12, 22, 35};
 	const TCHAR* WindPresetLabels[] = {TEXT("Calm"), TEXT("Light"), TEXT("Breezy"), TEXT("Strong")};
 	constexpr int32 WindPresetCount = UE_ARRAY_COUNT(WindPresetsKph);
-	/** Where the wind blows from, stepped through by one chip: auto, then
-	 * the four quarters of the track's frame. */
-	constexpr int32 WindDirections[] = {FApexSessionConditions::Auto, 0, 90, 180, 270};
-	constexpr int32 WindDirectionCount = UE_ARRAY_COUNT(WindDirections);
 
-	/** Wind chips carry their index (0 auto, then the presets) in the action id. */
-	FName WindAction(int32 Index)
-	{
-		return FName(*FString::Printf(TEXT("__wind%d"), Index));
-	}
-	const FName ActionWindFrom(TEXT("__windfrom"));
+	/** The dial's eight points, from ahead round to the left (the track
+	 * frame turns counter-clockwise), and what each is called on its chip. */
+	constexpr int32 WindFromCount = 8;
+	const TCHAR* WindFromChips[WindFromCount] = {
+		TEXT("AHD"), TEXT("AL"), TEXT("L"), TEXT("BL"), TEXT("BHD"), TEXT("BR"), TEXT("R"), TEXT("AR") };
 
-	/** The wind-direction chip's label. */
-	FString WindFromChip(int32 Degrees)
-	{
-		return Degrees < 0 ? FString(TEXT("From: auto"))
-			: FString::Printf(TEXT("From %s"), *FApexSessionConditions::WindFromLabel(Degrees));
-	}
-
-	/** What the air temperature feels like, for the slider's suffix. */
+	/** What the air temperature feels like, under a fixed figure. */
 	const TCHAR* DescribeAir(int32 Celsius)
 	{
 		if (Celsius < 5)  { return TEXT("COLD: SLOW TYRES"); }
@@ -113,20 +147,122 @@ namespace
 		return TEXT("HOT: THIN AIR, HOT TYRES");
 	}
 
-	/** What the clock reads as, for the slider's suffix. */
-	const TCHAR* DescribeDaylight(int32 Minutes)
+	/** The setup chip for a working setup that is no saved one. */
+	const FGuid CustomSetupMarker(0x43555354, 0x4F4D, 0x5345, 0x5455);
+	/** Saved setups shown at most, newest first (the working one always is). */
+	constexpr int32 MaxSetupsShown = 4;
+
+	constexpr float RightColumnWidth = 760.0f;
+	constexpr int32 GridSlots = 20;
+	constexpr float SlotHeight = 38.0f;
+	constexpr float SlotGap = 6.0f;
+
+	/** The near-black of wells and the preview panels. */
+	const FLinearColor PanelWell = FLinearColor::FromSRGBColor(FColor(0x0A, 0x0B, 0x0C));
+
+	FLinearColor SrgbColour(const FColor& Colour, float Alpha = 1.0f)
 	{
-		const int32 Hour = Minutes / 60;
-		if (Hour < 5 || Hour >= 22)  { return TEXT("NIGHT"); }
-		if (Hour < 7)                { return TEXT("DAWN"); }
-		if (Hour < 10)               { return TEXT("MORNING"); }
-		if (Hour < 16)               { return TEXT("DAY"); }
-		if (Hour < 19)               { return TEXT("AFTERNOON"); }
-		if (Hour < 21)               { return TEXT("DUSK"); }
-		return TEXT("EVENING");
+		return FLinearColor::FromSRGBColor(Colour).CopyWithNewOpacity(Alpha);
 	}
 
-	constexpr float SettingsWidth = 720.0f;
+	UOverlaySlot* AddFill(UOverlay* Overlay, UWidget* Child, const FMargin& Padding = FMargin())
+	{
+		UOverlaySlot* Slot = Overlay->AddChildToOverlay(Child);
+		Slot->SetHorizontalAlignment(HAlign_Fill);
+		Slot->SetVerticalAlignment(VAlign_Fill);
+		Slot->SetPadding(Padding);
+		return Slot;
+	}
+
+	/** A fill slot's share of the space. ApexUI::AddV/AddH fill evenly
+	 * whatever weight they are given, so a split that is not even is set
+	 * here. */
+	void SetFillWeight(UVerticalBoxSlot* Slot, float Weight)
+	{
+		if (Slot)
+		{
+			FSlateChildSize Size(ESlateSizeRule::Fill);
+			Size.Value = Weight;
+			Slot->SetSize(Size);
+		}
+	}
+
+	/** Where a widget was last drawn, in desktop space. */
+	FBox2D RectOf(const UWidget* Widget)
+	{
+		const FGeometry& Geometry = Widget->GetCachedGeometry();
+		const FVector2D Min = Geometry.GetAbsolutePosition();
+		return FBox2D(Min, Min + Geometry.GetAbsoluteSize());
+	}
+
+	/** Space between two intervals; zero where they overlap. */
+	float IntervalGap(float AMin, float AMax, float BMin, float BMax)
+	{
+		return FMath::Max(0.0f, FMath::Max(BMin - AMax, AMin - BMax));
+	}
+
+	/**
+	 * The control to go to from Source in Direction: wholly on that side of
+	 * it, nearest along the way, then nearest across it, so a move that lines
+	 * up with nothing still lands on the closest thing that way.
+	 */
+	UWidget* NearestToward(EUINavigation Direction, const UWidget* Source, const TArray<UWidget*>& Candidates)
+	{
+		constexpr float Slack = 4.0f;
+		const FBox2D From = RectOf(Source);
+		const FVector2D FromCentre = From.GetCenter();
+
+		UWidget* Best = nullptr;
+		float BestScore = TNumericLimits<float>::Max();
+		for (UWidget* Candidate : Candidates)
+		{
+			if (!Candidate || Candidate == Source || !ApexNav::CanFocus(Candidate))
+			{
+				continue;
+			}
+			const FBox2D To = RectOf(Candidate);
+			const FVector2D ToCentre = To.GetCenter();
+			float Along = 0.0f;
+			float Across = 0.0f;
+			float CentreAcross = 0.0f;
+			switch (Direction)
+			{
+			case EUINavigation::Right:
+				if (To.Min.X < From.Max.X - Slack) { continue; }
+				Along = To.Min.X - From.Max.X;
+				Across = IntervalGap(From.Min.Y, From.Max.Y, To.Min.Y, To.Max.Y);
+				CentreAcross = FMath::Abs(ToCentre.Y - FromCentre.Y);
+				break;
+			case EUINavigation::Left:
+				if (To.Max.X > From.Min.X + Slack) { continue; }
+				Along = From.Min.X - To.Max.X;
+				Across = IntervalGap(From.Min.Y, From.Max.Y, To.Min.Y, To.Max.Y);
+				CentreAcross = FMath::Abs(ToCentre.Y - FromCentre.Y);
+				break;
+			case EUINavigation::Down:
+				if (To.Min.Y < From.Max.Y - Slack) { continue; }
+				Along = To.Min.Y - From.Max.Y;
+				Across = IntervalGap(From.Min.X, From.Max.X, To.Min.X, To.Max.X);
+				CentreAcross = FMath::Abs(ToCentre.X - FromCentre.X);
+				break;
+			case EUINavigation::Up:
+				if (To.Max.Y > From.Min.Y + Slack) { continue; }
+				Along = From.Min.Y - To.Max.Y;
+				Across = IntervalGap(From.Min.X, From.Max.X, To.Min.X, To.Max.X);
+				CentreAcross = FMath::Abs(ToCentre.X - FromCentre.X);
+				break;
+			default:
+				return nullptr;
+			}
+			const float Score = FMath::Max(0.0f, Along) + 2.0f * Across + 0.05f * CentreAcross;
+			if (Score < BestScore)
+			{
+				BestScore = Score;
+				Best = Candidate;
+			}
+		}
+		return Best;
+	}
 }
 
 UApexSessionCreateWidget::UApexSessionCreateWidget(const FObjectInitializer& ObjectInitializer)
@@ -164,9 +300,15 @@ void UApexSessionCreateWidget::OnScreenActivated()
 {
 	Super::OnScreenActivated();
 
+	// A screenshot run can open either tab: -ApexCreateTab=1 is Conditions.
+	int32 Tab = ActiveTab;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexCreateTab="), Tab))
+	{
+		SetActiveTab(Tab);
+	}
+
+	// Redraws the settings and the footer too.
 	RefreshContent();
-	RefreshSettings();
-	RefreshFooter();
 }
 
 void UApexSessionCreateWidget::FocusDefault()
@@ -187,106 +329,197 @@ bool UApexSessionCreateWidget::HandleAccept()
 	return false;
 }
 
-bool UApexSessionCreateWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
+void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 {
-	const bool bFromContent = Source && (Source == ChangeTrackLink || Source == ChangeCarLink);
-
-	auto FocusContent = [this](bool bCarFirst)
+	auto AddAll = [&Out](const auto& List)
 	{
-		return bCarFirst
-			? (ApexNav::Focus(ChangeCarLink) || ApexNav::Focus(ChangeTrackLink))
-			: (ApexNav::Focus(ChangeTrackLink) || ApexNav::Focus(ChangeCarLink));
+		for (const auto& Widget : List)
+		{
+			Out.Add(Widget);
+		}
 	};
 
-	// The settings column as rows of two: the session kind, then the mode tiles.
-	TArray<UApexButtonWidget*, TInlineAllocator<6>> Grid;
-	Grid.Add(KindMultiplayerButton);
-	Grid.Add(KindSingleButton);
-	for (UApexButtonWidget* Button : ModeButtons)
+	Out.Add(HomeButton);
+	Out.Add(KindMultiplayerButton);
+	Out.Add(KindSingleButton);
+	Out.Add(ChangeTrackLink);
+	Out.Add(ChangeCarLink);
+	AddAll(TabButtons);
+
+	if (ActiveTab == 0)
 	{
-		Grid.Add(Button);
+		AddAll(ModeButtons);
+		Out.Add(LapsMinus);
+		Out.Add(LapsPlus);
+		AddAll(LapPresetButtons);
+		Out.Add(FieldMinus);
+		Out.Add(FieldPlus);
+		Out.Add(AiMinus);
+		Out.Add(AiPlus);
+		AddAll(AssistPresetButtons);
+		AddAll(AssistButtons);
+		AddAll(DamageButtons);
+		AddAll(SetupButtons);
+	}
+	else
+	{
+		Out.Add(TimeOfDaySlider);
+		AddAll(TimePresetButtons);
+		AddAll(WeatherButtons);
+		Out.Add(AirAutoButton);
+		Out.Add(AirMinus);
+		Out.Add(AirPlus);
+		AddAll(WindButtons);
+		AddAll(WindFromButtons);
 	}
 
-	auto FocusRow = [&Grid](int32 Row)
-	{
-		const int32 First = Row * 2;
-		return (Grid.IsValidIndex(First) && ApexNav::Focus(Grid[First]))
-			|| (Grid.IsValidIndex(First + 1) && ApexNav::Focus(Grid[First + 1]));
-	};
+	Out.Add(CancelButton);
+	Out.Add(CreateButtonWidget);
+}
 
+bool UApexSessionCreateWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
+{
 	if (ApexNav::IsSequential(Direction))
 	{
-		if (bFromContent)
-		{
-			FocusRow(0);
-		}
-		else
-		{
-			FocusContent(false);
-		}
+		SetActiveTab(Direction == EUINavigation::Next ? 1 : 0);
+		ApexNav::Focus(TabButtons.IsValidIndex(ActiveTab) ? TabButtons[ActiveTab].Get() : nullptr);
 		return true;
 	}
 
-	if (bFromContent)
+	if (!Source || Source == this)
 	{
-		const bool bOnCar = Source == ChangeCarLink;
-		switch (Direction)
+		return false;
+	}
+
+	TArray<UWidget*> Candidates;
+	GatherFocusables(Candidates);
+	if (UWidget* Target = NearestToward(Direction, Source, Candidates))
+	{
+		ApexNav::Focus(Target);
+	}
+	// Nothing that way: stay put rather than let Slate wander off-screen.
+	return true;
+}
+
+void UApexSessionCreateWidget::SetActiveTab(int32 Tab)
+{
+	ActiveTab = FMath::Clamp(Tab, 0, 1);
+	if (RaceTab)
+	{
+		RaceTab->SetVisibility(ActiveTab == 0 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (ConditionsTab)
+	{
+		ConditionsTab->SetVisibility(ActiveTab == 1 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (GridPreview)
+	{
+		GridPreview->SetVisibility(ActiveTab == 0 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (SkyPreview)
+	{
+		SkyPreview->SetVisibility(ActiveTab == 1 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	for (int32 Index = 0; Index < TabLines.Num(); ++Index)
+	{
+		if (TabLines[Index])
 		{
-		case EUINavigation::Right:
-			// Level with the kind row for the track, the lower mode row for the car.
-			return bOnCar ? (FocusRow(2) || FocusRow(0)) : FocusRow(0);
-
-		case EUINavigation::Down:
-			if (!bOnCar)
-			{
-				return ApexNav::Focus(ChangeCarLink);
-			}
-			return ApexNav::Focus(CreateButtonWidget);
-
-		case EUINavigation::Up:
-			return bOnCar && ApexNav::Focus(ChangeTrackLink);
-
-		default:
-			return true;
+			TabLines[Index]->SetBrush(ApexUI::MakeBrush(Index == ActiveTab ? ApexUI::Palette::Accent : FLinearColor::Transparent));
+		}
+		if (TabButtons.IsValidIndex(Index) && TabButtons[Index])
+		{
+			// The open tab's name in full white; RefreshSettings puts the
+			// summaries back as badges.
+			FApexButtonSpec Spec;
+			Spec.Label = Index == 0 ? TEXT("Race") : TEXT("Conditions");
+			Spec.Badge = TEXT(" ");
+			Spec.Variant = EApexButtonVariant::Bare;
+			Spec.LabelSize = 20.0f;
+			Spec.Height = 56.0f;
+			Spec.LabelColour = Index == ActiveTab ? ApexUI::Palette::TextPrimary : FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+			TabButtons[Index]->Setup(Spec);
 		}
 	}
-
-	const int32 GridAt = Grid.IndexOfByKey(Cast<UApexButtonWidget>(Source));
-	if (GridAt != INDEX_NONE && Direction == EUINavigation::Left)
-	{
-		// A right-hand tile steps to its neighbour when that can take focus
-		// (the locked demo lap cannot); the left edge crosses to the content.
-		if (GridAt % 2 == 1 && ApexNav::Focus(Grid[GridAt - 1]))
-		{
-			return true;
-		}
-		return FocusContent(GridAt / 2 >= 2);
-	}
-
-	const int32 AssistAt = ApexNav::IndexOf(AssistButtons, Source);
-	if (AssistAt != INDEX_NONE && Direction == EUINavigation::Left)
-	{
-		return (AssistAt > 0 && ApexNav::Focus(AssistButtons[AssistAt - 1])) || FocusContent(true);
-	}
-
-	const int32 WeatherAt = ApexNav::IndexOf(WeatherButtons, Source);
-	if (WeatherAt != INDEX_NONE && Direction == EUINavigation::Left)
-	{
-		return (WeatherAt > 0 && ApexNav::Focus(WeatherButtons[WeatherAt - 1])) || FocusContent(true);
-	}
-
-	const int32 WindAt = ApexNav::IndexOf(WindButtons, Source);
-	if (WindAt != INDEX_NONE && Direction == EUINavigation::Left)
-	{
-		return (WindAt > 0 && ApexNav::Focus(WindButtons[WindAt - 1])) || FocusContent(true);
-	}
-
-	return false;
+	RefreshSettings();
 }
 
 // ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
+
+UApexButtonWidget* UApexSessionCreateWidget::MakeButton(const FApexButtonSpec& Spec)
+{
+	UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	Button->Setup(Spec);
+	Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
+	return Button;
+}
+
+UWidget* UApexSessionCreateWidget::MakeStepper(
+	UApexButtonWidget*& OutMinus, UTextBlock*& OutValue, UApexButtonWidget*& OutPlus,
+	float PillSize, float ValueWidth, float ValueSize, UTextBlock** OutNote)
+{
+	auto MakePill = [this, PillSize](const TCHAR* Label)
+	{
+		FApexButtonSpec Spec;
+		Spec.Label = Label;
+		Spec.Variant = EApexButtonVariant::Ghost;
+		Spec.bCentreLabel = true;
+		Spec.LabelSize = PillSize * 0.42f;
+		Spec.Height = PillSize;
+		return MakeButton(Spec);
+	};
+
+	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+	OutMinus = MakePill(TEXT("−"));
+	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, OutMinus, PillSize, PillSize), FMargin(), VAlign_Fill);
+
+	UVerticalBox* Lines = WidgetTree->ConstructWidget<UVerticalBox>();
+	OutValue = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Display(ValueSize), ApexUI::Palette::TextPrimary);
+	OutValue->SetJustification(ETextJustify::Center);
+	ApexUI::AddV(Lines, OutValue, FMargin(), HAlign_Center);
+	if (OutNote)
+	{
+		*OutNote = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(8.0f, 60), ApexUI::Palette::TextMuted);
+		(*OutNote)->SetJustification(ETextJustify::Center);
+		ApexUI::AddV(Lines, *OutNote, FMargin(0.0f, 2.0f, 0.0f, 0.0f), HAlign_Center);
+	}
+
+	const bool bWell = ValueWidth < 0.0f || OutNote;
+	UBorder* Cell = ApexUI::MakePanel(*WidgetTree, Lines, FMargin(4.0f, 0.0f),
+		ApexUI::MakeBrush(bWell ? PanelWell : FLinearColor::Transparent));
+	Cell->SetHorizontalAlignment(HAlign_Center);
+	Cell->SetVerticalAlignment(VAlign_Center);
+	if (ValueWidth < 0.0f)
+	{
+		ApexUI::AddH(Row, Cell, FMargin(6.0f, 0.0f), VAlign_Fill, 1.0f);
+	}
+	else
+	{
+		ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Cell, ValueWidth, PillSize), FMargin(4.0f, 0.0f), VAlign_Fill);
+	}
+
+	OutPlus = MakePill(TEXT("+"));
+	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, OutPlus, PillSize, PillSize), FMargin(), VAlign_Fill);
+	return Row;
+}
+
+UWidget* UApexSessionCreateWidget::MakeCaption(const FString& Label, UTextBlock** OutRight, UWidget* RightWidget)
+{
+	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(Row, ApexUI::MakeLabel(*WidgetTree, Label));
+	ApexUI::AddH(Row, WidgetTree->ConstructWidget<USpacer>(), FMargin(), VAlign_Center, 1.0f);
+	if (OutRight)
+	{
+		*OutRight = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 100), ApexUI::Palette::TextSecondary);
+		ApexUI::AddH(Row, *OutRight);
+	}
+	if (RightWidget)
+	{
+		ApexUI::AddH(Row, RightWidget, FMargin(12.0f, 0.0f, 0.0f, 0.0f));
+	}
+	return ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 26.0f);
+}
 
 void UApexSessionCreateWidget::BuildLayout()
 {
@@ -297,19 +530,15 @@ void UApexSessionCreateWidget::BuildLayout()
 	BackSpec.Sound = EApexUiSound::Back;
 	BackSpec.Variant = EApexButtonVariant::Bare;
 	BackSpec.LabelSize = 15.0f;
-	BackSpec.ActionId = ActionCreateBack;
-
-	UApexButtonWidget* BackButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
-	BackButton->Setup(BackSpec);
-	BackButton->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
+	HomeButton = MakeButton(BackSpec);
 
 	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
-	ApexUI::AddV(Page, ApexUI::MakeScreenHeader(*WidgetTree, BackButton, TEXT("Create session")));
+	ApexUI::AddV(Page, ApexUI::MakeScreenHeader(*WidgetTree, HomeButton, TEXT("Create session"), BuildHeaderKinds()));
 
 	UHorizontalBox* Columns = WidgetTree->ConstructWidget<UHorizontalBox>();
-	ApexUI::AddH(Columns, BuildContentColumn(), FMargin(), VAlign_Fill, 1.0f);
+	ApexUI::AddH(Columns, BuildLeftColumn(), FMargin(), VAlign_Fill, 1.0f);
 	ApexUI::AddH(Columns, ApexUI::MakeDivider(*WidgetTree, true), FMargin(), VAlign_Fill);
-	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, BuildSettingsColumn(), SettingsWidth, -1.0f), FMargin(), VAlign_Fill);
+	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, BuildRightColumn(), RightColumnWidth, -1.0f), FMargin(), VAlign_Fill);
 
 	ApexUI::AddV(Page, Columns, FMargin(), HAlign_Fill, 1.0f);
 	ApexUI::AddV(Page, ApexUI::MakeDivider(*WidgetTree));
@@ -320,296 +549,765 @@ void UApexSessionCreateWidget::BuildLayout()
 		Page,
 		FMargin(),
 		ApexUI::MakeBrush(ApexUI::Palette::Background));
+
+	SetActiveTab(0);
 }
 
-UWidget* UApexSessionCreateWidget::BuildContentColumn()
+UWidget* UApexSessionCreateWidget::BuildHeaderKinds()
 {
-	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
-	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Content")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
-
-	TrackSummaryBox = WidgetTree->ConstructWidget<UVerticalBox>();
-	ApexUI::AddV(
-		Column,
-		ApexUI::MakePanel(*WidgetTree, TrackSummaryBox, FMargin(16.0f), ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f)),
-		FMargin(0.0f, 0.0f, 0.0f, 12.0f));
-
-	CarSummaryBox = WidgetTree->ConstructWidget<UVerticalBox>();
-	ApexUI::AddV(
-		Column,
-		ApexUI::MakePanel(*WidgetTree, CarSummaryBox, FMargin(16.0f), ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f)));
-
-	ApexUI::AddV(Column, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
-
-	return ApexUI::MakePanel(
-		*WidgetTree,
-		Column,
-		FMargin(ApexUI::Metrics::PageGutter, 26.0f, 30.0f, 26.0f),
-		ApexUI::MakeBrush(FLinearColor::Transparent));
-}
-
-UWidget* UApexSessionCreateWidget::BuildSettingsColumn()
-{
-	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
-
-	// --- Session kind ---------------------------------------------------------
-	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Session kind")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
-
-	auto MakeKindButton = [this](const FString& Label, FName Action)
+	auto MakeKind = [this](const TCHAR* Label)
 	{
 		FApexButtonSpec Spec;
 		Spec.Label = Label;
 		Spec.Variant = EApexButtonVariant::Panel;
 		Spec.bCentreLabel = true;
-		Spec.LabelSize = 17.0f;
-		Spec.Height = 48.0f;
-		Spec.ActionId = Action;
-
-		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
-		Button->Setup(Spec);
-		Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
-		return Button;
+		Spec.LabelSize = 16.0f;
+		Spec.Height = 40.0f;
+		return MakeButton(Spec);
 	};
 
-	KindMultiplayerButton = MakeKindButton(TEXT("Multiplayer"), ActionKindMultiplayer);
-	KindSingleButton = MakeKindButton(TEXT("Single player"), ActionKindSingle);
+	KindMultiplayerButton = MakeKind(TEXT("Multiplayer"));
+	KindSingleButton = MakeKind(TEXT("Single player"));
 
-	UHorizontalBox* KindRow = WidgetTree->ConstructWidget<UHorizontalBox>();
-	ApexUI::AddH(KindRow, KindMultiplayerButton, FMargin(), VAlign_Fill, 1.0f);
-	ApexUI::AddH(KindRow, KindSingleButton, FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
-	ApexUI::AddV(Column, KindRow, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
+	UHorizontalBox* Tray = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(Tray, ApexUI::MakeSized(*WidgetTree, KindMultiplayerButton, 170.0f, 40.0f));
+	ApexUI::AddH(Tray, ApexUI::MakeSized(*WidgetTree, KindSingleButton, 170.0f, 40.0f), FMargin(3.0f, 0.0f, 0.0f, 0.0f));
+	return ApexUI::MakePanel(*WidgetTree, Tray, FMargin(3.0f), ApexUI::MakeBrush(PanelWell, ApexUI::Palette::Border, 1.0f));
+}
 
-	// --- Starting mode --------------------------------------------------------
-	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Starting mode")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+UWidget* UApexSessionCreateWidget::BuildLeftColumn()
+{
+	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
 
-	struct FModeOption
+	auto MakeCard = [this](UHorizontalBox*& OutBox)
 	{
-		EApexGameMode Mode;
-		const TCHAR* Label;
-		const TCHAR* Description;
-		bool bAvailable;
+		OutBox = WidgetTree->ConstructWidget<UHorizontalBox>();
+		return ApexUI::MakePanel(*WidgetTree, OutBox, FMargin(12.0f),
+			ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
 	};
 
-	// Replay and Qualification are left out because nothing drives them yet,
-	// and Demo lap because the server turns it into a dead end for whoever
-	// asks (it drops the human players to spectators); the hotlap took its
-	// tile. A locked tile would still be skipped by HandleNavigation.
-	static const FModeOption Options[] = {
-		{ EApexGameMode::FreePractice, TEXT("Free practice"), TEXT("Drive freely, no limits"),        true },
-		{ EApexGameMode::Sandbox,      TEXT("Sandbox"),       TEXT("Free camera, cars frozen"),       true },
-		{ EApexGameMode::Hotlap,       TEXT("Hotlap"),        TEXT("Garage, then flying laps"),       true },
-		{ EApexGameMode::Race,         TEXT("Race"),          TEXT("Countdown, then racing"),         true },
-	};
+	UHorizontalBox* Cards = WidgetTree->ConstructWidget<UHorizontalBox>();
+	UHorizontalBox* TrackBox = nullptr;
+	UHorizontalBox* CarBox = nullptr;
+	ApexUI::AddH(Cards, MakeCard(TrackBox), FMargin(), VAlign_Fill, 1.0f);
+	ApexUI::AddH(Cards, MakeCard(CarBox), FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	TrackSummaryBox = TrackBox;
+	CarSummaryBox = CarBox;
+	ApexUI::AddV(Column, Cards, FMargin(0.0f, 0.0f, 0.0f, 18.0f));
 
-	ModeButtons.Reset();
-	UVerticalBox* ModeStack = WidgetTree->ConstructWidget<UVerticalBox>();
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Options); Index += 2)
-	{
-		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
-		for (int32 Column2 = 0; Column2 < 2; ++Column2)
-		{
-			const FModeOption& Option = Options[Index + Column2];
-
-			FApexButtonSpec Spec;
-			Spec.Label = Option.Label;
-			Spec.SubLabel = Option.Description;
-			Spec.Variant = Option.bAvailable ? EApexButtonVariant::Panel : EApexButtonVariant::Locked;
-			Spec.Badge = Option.bAvailable ? FString() : TEXT("Locked");
-			Spec.LabelSize = 18.0f;
-			Spec.Height = 66.0f;
-			Spec.ActionId = ModeAction(Option.Mode);
-
-			UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
-			Button->Setup(Spec);
-			Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
-			ModeButtons.Add(Button);
-
-			ApexUI::AddH(Row, Button, FMargin(Column2 == 0 ? 0.0f : 8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
-		}
-		ApexUI::AddV(ModeStack, Row, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
-	}
-	ApexUI::AddV(Column, ModeStack, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
-
-	// --- Allowed assists ------------------------------------------------------
-	// Which aids the drivers may run. The server forces a disallowed aid off for
-	// everyone in the session, so a chip here is a rule, not a suggestion; the
-	// Assists settings page shows the lock to whoever joins.
-	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Allowed assists")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
-
-	static const TCHAR* AssistLabels[] = {
-		TEXT("ABS"), TEXT("Traction ctrl"), TEXT("Auto gears"), TEXT("Steering aid"), TEXT("Racing line"),
-		// Lit: drivers may turn damage down or off. Unlit: everyone takes it all.
-		TEXT("Damage aid"),
-	};
-	static_assert(UE_ARRAY_COUNT(AssistLabels) == static_cast<int32>(EApexAssistChip::Count), "one label per chip");
-
-	AssistButtons.Reset();
-	UHorizontalBox* AssistRow = WidgetTree->ConstructWidget<UHorizontalBox>();
-	for (int32 Index = 0; Index < static_cast<int32>(EApexAssistChip::Count); ++Index)
-	{
-		FApexButtonSpec Spec;
-		Spec.Label = AssistLabels[Index];
-		Spec.Variant = EApexButtonVariant::Panel;
-		Spec.bCentreLabel = true;
-		Spec.LabelSize = 14.0f;
-		Spec.Height = 44.0f;
-		Spec.ActionId = AssistAction(static_cast<EApexAssistChip>(Index));
-
-		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
-		Button->Setup(Spec);
-		Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
-		AssistButtons.Add(Button);
-		ApexUI::AddH(AssistRow, Button, FMargin(Index == 0 ? 0.0f : 8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
-	}
-	ApexUI::AddV(Column, AssistRow, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
-
-	// --- Conditions -----------------------------------------------------------
-	// The sky the session races under. Weather is a rule like the assists:
-	// the server takes the rain's grip off the track for everyone; the clock
-	// only moves the sun, but a night race is a night race for the field.
-	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Weather")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
-
-	WeatherButtons.Reset();
-	UHorizontalBox* WeatherRow = WidgetTree->ConstructWidget<UHorizontalBox>();
-	for (int32 Index = 0; Index < FApexSessionConditions::WeatherCount; ++Index)
-	{
-		const EApexWeather Weather = static_cast<EApexWeather>(Index);
-		FApexButtonSpec Spec;
-		Spec.Label = FApexSessionConditions::WeatherLabel(Weather);
-		Spec.Variant = EApexButtonVariant::Panel;
-		Spec.bCentreLabel = true;
-		Spec.LabelSize = 14.0f;
-		Spec.Height = 44.0f;
-		Spec.ActionId = WeatherAction(Weather);
-
-		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
-		Button->Setup(Spec);
-		Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
-		WeatherButtons.Add(Button);
-		ApexUI::AddH(WeatherRow, Button, FMargin(Index == 0 ? 0.0f : 8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
-	}
-	ApexUI::AddV(Column, WeatherRow, FMargin(0.0f, 0.0f, 0.0f, 16.0f));
-
-	UTextBlock* ClockValue = nullptr;
-	UTextBlock* ClockSuffix = nullptr;
-	USlider* ClockSlider = nullptr;
-	UProgressBar* ClockFill = nullptr;
-	ApexUI::AddV(
-		Column,
-		ApexUI::MakeSliderRow(*WidgetTree, TEXT("Time of day"), ClockValue, ClockSuffix, ClockSlider, ClockFill),
-		FMargin(0.0f, 0.0f, 0.0f, 20.0f));
-	TimeOfDayValue = ClockValue;
-	TimeOfDaySuffix = ClockSuffix;
-	TimeOfDaySlider = ClockSlider;
-	TimeOfDayFill = ClockFill;
-	TimeOfDaySlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleTimeOfDayChanged);
-	TimeOfDaySlider->SetStepSize(1.0f / TimeOfDaySteps);
-
-	// The air: its temperature (the tyres' warm-up and window, the engine's
-	// breath and the downforce's, through the density) and the wind. Both
-	// start as "from the weather", which the server works out and names.
-	UTextBlock* AirValue = nullptr;
-	UTextBlock* AirSuffix = nullptr;
-	USlider* AirSlider = nullptr;
-	UProgressBar* AirFill = nullptr;
-	ApexUI::AddV(
-		Column,
-		ApexUI::MakeSliderRow(*WidgetTree, TEXT("Air temperature"), AirValue, AirSuffix, AirSlider, AirFill),
-		FMargin(0.0f, 0.0f, 0.0f, 16.0f));
-	AirTempValue = AirValue;
-	AirTempSuffix = AirSuffix;
-	AirTempSlider = AirSlider;
-	AirTempFill = AirFill;
-	AirTempSlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleAirTempChanged);
-	AirTempSlider->SetStepSize(1.0f / AirTempSteps);
-
-	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Wind")), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
-	WindButtons.Reset();
-	UHorizontalBox* WindRow = WidgetTree->ConstructWidget<UHorizontalBox>();
-	for (int32 Index = 0; Index <= WindPresetCount + 1; ++Index)
-	{
-		const bool bDirection = Index == WindPresetCount + 1;
-		FApexButtonSpec Spec;
-		Spec.Label = bDirection ? WindFromChip(FApexSessionConditions::Auto)
-			: Index == 0 ? FString(TEXT("Auto"))
-			: FString(WindPresetLabels[Index - 1]);
-		Spec.Variant = EApexButtonVariant::Panel;
-		Spec.bCentreLabel = true;
-		Spec.LabelSize = 14.0f;
-		Spec.Height = 44.0f;
-		Spec.ActionId = bDirection ? ActionWindFrom : WindAction(Index);
-
-		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
-		Button->Setup(Spec);
-		Button->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
-		WindButtons.Add(Button);
-		ApexUI::AddH(WindRow, Button, FMargin(Index == 0 ? 0.0f : 8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill,
-			bDirection ? 1.6f : 1.0f);
-	}
-	ApexUI::AddV(Column, WindRow, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
-
-	// --- Grid and length ------------------------------------------------------
-	UTextBlock* PlayersValue = nullptr;
-	UTextBlock* PlayersSuffix = nullptr;
-	USlider* PlayersSlider = nullptr;
-	UProgressBar* PlayersFill = nullptr;
-	ApexUI::AddV(
-		Column,
-		ApexUI::MakeSliderRow(*WidgetTree, TEXT("Max players"), PlayersValue, PlayersSuffix, PlayersSlider, PlayersFill),
-		FMargin(0.0f, 0.0f, 0.0f, 16.0f));
-	MaxPlayersValue = PlayersValue;
-	MaxPlayersSuffix = PlayersSuffix;
-	MaxPlayersSlider = PlayersSlider;
-	MaxPlayersFill = PlayersFill;
-	MaxPlayersSlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleMaxPlayersChanged);
-	// One keypress, one seat: the sliders are normalised, so the step is the
-	// width of a single value.
-	MaxPlayersSlider->SetStepSize(1.0f / (MaxPlayersCeiling - 1));
-
-	UTextBlock* AiValue = nullptr;
-	UTextBlock* AiSuffix = nullptr;
-	USlider* AiSlider = nullptr;
-	UProgressBar* AiFill = nullptr;
-	AiCountRow = ApexUI::MakeSliderRow(*WidgetTree, TEXT("AI drivers"), AiValue, AiSuffix, AiSlider, AiFill);
-	ApexUI::AddV(Column, AiCountRow);
-	AiCountValue = AiValue;
-	AiCountSuffix = AiSuffix;
-	AiCountSlider = AiSlider;
-	AiCountFill = AiFill;
-	AiCountSlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleAiCountChanged);
-	AiCountSlider->SetStepSize(1.0f / (MaxPlayersCeiling - 1));
-
-	GridSummaryText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 80), ApexUI::Palette::TextMuted);
-	ApexUI::AddV(Column, GridSummaryText, FMargin(0.0f, 6.0f, 0.0f, 16.0f));
-
-	UTextBlock* LapValue = nullptr;
-	UTextBlock* LapSuffix = nullptr;
-	USlider* LapSlider = nullptr;
-	UProgressBar* LapFill = nullptr;
-	LapsRow = ApexUI::MakeSliderRow(*WidgetTree, TEXT("Laps"), LapValue, LapSuffix, LapSlider, LapFill);
-	ApexUI::AddV(Column, LapsRow);
-	LapsValue = LapValue;
-	LapsSuffix = LapSuffix;
-	LapsSlider = LapSlider;
-	LapsFill = LapFill;
-	LapsSlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleLapsChanged);
-	LapsSlider->SetStepSize(1.0f / (LapsCeiling - 1));
-
-	ApexUI::AddV(Column, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
+	UOverlay* Preview = WidgetTree->ConstructWidget<UOverlay>();
+	GridPreview = BuildGridPreview();
+	SkyPreview = BuildSkyPreview();
+	AddFill(Preview, GridPreview);
+	AddFill(Preview, SkyPreview);
+	ApexUI::AddV(Column, Preview, FMargin(), HAlign_Fill, 1.0f);
 
 	return ApexUI::MakePanel(
 		*WidgetTree,
 		Column,
-		FMargin(34.0f, 26.0f, ApexUI::Metrics::PageGutter, 26.0f),
+		FMargin(ApexUI::Metrics::PageGutter, 22.0f, 28.0f, 22.0f),
 		ApexUI::MakeBrush(FLinearColor::Transparent));
+}
+
+UWidget* UApexSessionCreateWidget::BuildGridPreview()
+{
+	UVerticalBox* Panel = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(Head, ApexUI::MakeLabel(*WidgetTree, TEXT("Starting grid")));
+	ApexUI::AddH(Head, WidgetTree->ConstructWidget<USpacer>(), FMargin(), VAlign_Center, 1.0f);
+	GridHintText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 80), ApexUI::Palette::TextSecondary);
+	ApexUI::AddH(Head, GridHintText);
+	ApexUI::AddV(Panel, Head, FMargin(20.0f, 14.0f));
+	ApexUI::AddV(Panel, ApexUI::MakeDivider(*WidgetTree));
+
+	UOverlay* Body = WidgetTree->ConstructWidget<UOverlay>();
+
+	// The slots, two staggered columns behind a chequered start line, odd
+	// positions on the left as a grid stands.
+	UHorizontalBox* Slots = WidgetTree->ConstructWidget<UHorizontalBox>();
+	{
+		UVerticalBox* Line = WidgetTree->ConstructWidget<UVerticalBox>();
+		for (int32 Block = 0; Block < 48; ++Block)
+		{
+			FLinearColor Colour = ApexUI::Palette::TextPrimary;
+			Colour.A = Block % 2 == 0 ? 0.5f : 0.0f;
+			ApexUI::AddV(Line, ApexUI::MakeSized(*WidgetTree,
+				ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(Colour)), 6.0f, 10.0f));
+		}
+		Line->SetClipping(EWidgetClipping::ClipToBounds);
+		ApexUI::AddH(Slots, Line, FMargin(0.0f, 0.0f, 28.0f, 0.0f), VAlign_Fill);
+	}
+
+	UVerticalBox* Odd = WidgetTree->ConstructWidget<UVerticalBox>();
+	UVerticalBox* Even = WidgetTree->ConstructWidget<UVerticalBox>();
+	SlotFaces.Reset();
+	SlotNumbers.Reset();
+	SlotNames.Reset();
+	SlotButtons.Reset();
+	for (int32 Index = 0; Index < GridSlots; ++Index)
+	{
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		UTextBlock* Number = ApexUI::MakeText(*WidgetTree, FString::Printf(TEXT("P%d"), Index + 1),
+			ApexUI::Font::Mono(10.0f), ApexUI::Palette::TextMuted);
+		ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Number, 34.0f, -1.0f));
+		UTextBlock* Name = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Display(15.0f), ApexUI::Palette::TextSecondary);
+		ApexUI::AddH(Row, Name, FMargin(), VAlign_Center, 1.0f);
+
+		UBorder* Face = ApexUI::MakePanel(*WidgetTree, Row, FMargin(12.0f, 0.0f), ApexUI::MakeBrush(FLinearColor::Transparent));
+		Face->SetVerticalAlignment(VAlign_Center);
+
+		// A click on a slot sets the field to it. Mouse only: the steppers
+		// beside are the keyboard's way, and twenty more stops would bury them.
+		FApexButtonSpec HitSpec;
+		HitSpec.Variant = EApexButtonVariant::Ghost;
+		HitSpec.bOverlay = true;
+		HitSpec.Height = SlotHeight;
+		HitSpec.Sound = EApexUiSound::Adjust;
+		UApexButtonWidget* Hit = MakeButton(HitSpec);
+		Hit->SetIsFocusable(false);
+
+		UOverlay* Cell = WidgetTree->ConstructWidget<UOverlay>();
+		AddFill(Cell, Face);
+		AddFill(Cell, Hit);
+
+		const bool bLeft = Index % 2 == 0;
+		ApexUI::AddV(bLeft ? Odd : Even, ApexUI::MakeSized(*WidgetTree, Cell, -1.0f, SlotHeight),
+			FMargin(0.0f, 0.0f, 0.0f, SlotGap));
+
+		SlotFaces.Add(Face);
+		SlotNumbers.Add(Number);
+		SlotNames.Add(Name);
+		SlotButtons.Add(Hit);
+	}
+	ApexUI::AddH(Slots, Odd, FMargin(), VAlign_Top, 1.0f);
+	ApexUI::AddH(Slots, Even, FMargin(22.0f, 22.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
+	GridSlotsPanel = Slots;
+	AddFill(Body, Slots, FMargin(30.0f, 16.0f, 24.0f, 12.0f));
+
+	UVerticalBox* Solo = WidgetTree->ConstructWidget<UVerticalBox>();
+	GridSoloTitle = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Display(24.0f), ApexUI::Palette::TextPrimary);
+	GridSoloTitle->SetJustification(ETextJustify::Center);
+	ApexUI::AddV(Solo, GridSoloTitle, FMargin(), HAlign_Center);
+	GridSoloText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Body(14.0f), ApexUI::Palette::TextSecondary);
+	GridSoloText->SetJustification(ETextJustify::Center);
+	ApexUI::AddV(Solo, GridSoloText, FMargin(0.0f, 8.0f, 0.0f, 0.0f), HAlign_Center);
+	GridSoloPanel = Solo;
+	UOverlaySlot* SoloSlot = Body->AddChildToOverlay(Solo);
+	SoloSlot->SetHorizontalAlignment(HAlign_Center);
+	SoloSlot->SetVerticalAlignment(VAlign_Center);
+
+	Body->SetClipping(EWidgetClipping::ClipToBounds);
+	ApexUI::AddV(Panel, Body, FMargin(), HAlign_Fill, 1.0f);
+	ApexUI::AddV(Panel, ApexUI::MakeDivider(*WidgetTree));
+
+	// The legend.
+	UHorizontalBox* Legend = WidgetTree->ConstructWidget<UHorizontalBox>();
+	auto AddKey = [this, Legend](const TCHAR* Label, const FSlateBrush& Swatch)
+	{
+		ApexUI::AddH(Legend, ApexUI::MakeSized(*WidgetTree, ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), Swatch), 10.0f, 10.0f));
+		ApexUI::AddH(Legend, ApexUI::MakeText(*WidgetTree, Label, ApexUI::Font::Mono(9.0f, 80), ApexUI::Palette::TextSecondary),
+			FMargin(8.0f, 0.0f, 22.0f, 0.0f));
+	};
+	AddKey(TEXT("YOU"), ApexUI::MakeBrush(ApexUI::Palette::Accent));
+	AddKey(TEXT("AI"), ApexUI::MakeBrush(ApexUI::Palette::SurfaceHover, ApexUI::Palette::Border, 1.0f));
+	AddKey(TEXT("OPEN SEAT"), ApexUI::MakeBrush(FLinearColor::Transparent, ApexUI::Palette::TextMuted, 1.0f));
+	ApexUI::AddH(Legend, WidgetTree->ConstructWidget<USpacer>(), FMargin(), VAlign_Center, 1.0f);
+	ApexUI::AddH(Legend, ApexUI::MakeText(*WidgetTree, TEXT("CLICK A SLOT TO SET THE FIELD"),
+		ApexUI::Font::Mono(9.0f, 80), ApexUI::Palette::TextMuted));
+	ApexUI::AddV(Panel, Legend, FMargin(20.0f, 12.0f));
+
+	return ApexUI::MakePanel(*WidgetTree, Panel, FMargin(), ApexUI::MakeBrush(PanelWell, ApexUI::Palette::Border, 1.0f));
+}
+
+UWidget* UApexSessionCreateWidget::BuildSkyPreview()
+{
+	UOverlay* Sky = WidgetTree->ConstructWidget<UOverlay>();
+	Sky->SetClipping(EWidgetClipping::ClipToBounds);
+
+	// The sky: the horizon's colour, the zenith's laid over it fading out.
+	SkyBase = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(FLinearColor::Black));
+	AddFill(Sky, SkyBase);
+
+	FSlateBrush Ramp;
+	Ramp.SetResourceObject(GradientTexture());
+	Ramp.DrawAs = ESlateBrushDrawType::Image;
+	Ramp.ImageSize = FVector2D(1.0f, 64.0f);
+	SkyTop = WidgetTree->ConstructWidget<UImage>();
+	SkyTop->SetBrush(Ramp);
+	AddFill(Sky, SkyTop);
+
+	// The sun, with a glow round it, placed by anchor on a canvas.
+	UCanvasPanel* SunCanvas = WidgetTree->ConstructWidget<UCanvasPanel>();
+	SunGlow = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(FLinearColor::White, FLinearColor::Transparent, 0.0f, 80.0f));
+	SunGlowSlot = SunCanvas->AddChildToCanvas(SunGlow);
+	SunGlowSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+	SunGlowSlot->SetSize(FVector2D(160.0f, 160.0f));
+	SunDisc = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(FLinearColor::White, FLinearColor::Transparent, 0.0f, 30.0f));
+	SunDiscSlot = SunCanvas->AddChildToCanvas(SunDisc);
+	SunDiscSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+	SunDiscSlot->SetSize(FVector2D(60.0f, 60.0f));
+	AddFill(Sky, SunCanvas);
+
+	CloudVeil = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(FLinearColor::Transparent));
+	AddFill(Sky, CloudVeil);
+
+	FSlateBrush Hatch;
+	Hatch.SetResourceObject(RainTexture());
+	Hatch.DrawAs = ESlateBrushDrawType::Image;
+	Hatch.Tiling = ESlateBrushTileType::Both;
+	Hatch.ImageSize = FVector2D(12.0f, 48.0f);
+	RainVeil = WidgetTree->ConstructWidget<UImage>();
+	RainVeil->SetBrush(Hatch);
+	AddFill(Sky, RainVeil);
+
+	// The ground: the bottom quarter, darkening down, under a faint horizon.
+	{
+		UVerticalBox* Ground = WidgetTree->ConstructWidget<UVerticalBox>();
+		SetFillWeight(ApexUI::AddV(Ground, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f), 0.74f);
+		FLinearColor Horizon = ApexUI::Palette::TextPrimary;
+		Horizon.A = 0.18f;
+		ApexUI::AddV(Ground, ApexUI::MakeSized(*WidgetTree,
+			ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(Horizon)), -1.0f, 2.0f));
+
+		FSlateBrush Down = Ramp;
+		Down.Mirroring = ESlateBrushMirrorType::Vertical;
+		UImage* Dark = WidgetTree->ConstructWidget<UImage>();
+		Dark->SetBrush(Down);
+		Dark->SetColorAndOpacity(PanelWell);
+		UBorder* Earth = ApexUI::MakePanel(*WidgetTree, Dark, FMargin(),
+			ApexUI::MakeBrush(SrgbColour(FColor(12, 14, 15), 0.7f)));
+		SetFillWeight(ApexUI::AddV(Ground, Earth, FMargin(), HAlign_Fill, 1.0f), 0.26f);
+		AddFill(Sky, Ground);
+	}
+
+	// What it all comes to, over the picture.
+	UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>();
+	SkyClockText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Display(76.0f), ApexUI::Palette::TextPrimary);
+	SkyClockText->SetShadowOffset(FVector2D(0.0f, 2.0f));
+	SkyClockText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.35f));
+	ApexUI::AddV(Text, SkyClockText);
+	SkyPhaseText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(11.0f, 180), ApexUI::Palette::TextPrimary);
+	ApexUI::AddV(Text, SkyPhaseText, FMargin(2.0f, 0.0f, 0.0f, 0.0f));
+	ApexUI::AddV(Text, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
+
+	UHorizontalBox* Tiles = WidgetTree->ConstructWidget<UHorizontalBox>();
+	auto MakeTile = [this](const TCHAR* Label, UTextBlock*& OutValue, UWidget* Extra = nullptr)
+	{
+		UVerticalBox* Lines = WidgetTree->ConstructWidget<UVerticalBox>();
+		ApexUI::AddV(Lines, ApexUI::MakeText(*WidgetTree, Label, ApexUI::Font::Mono(9.0f, 160), ApexUI::Palette::TextSecondary));
+		OutValue = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Display(24.0f), ApexUI::Palette::TextPrimary);
+		ApexUI::AddV(Lines, OutValue, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		ApexUI::AddH(Row, Lines, FMargin(), VAlign_Center, 1.0f);
+		if (Extra)
+		{
+			ApexUI::AddH(Row, Extra);
+		}
+		return ApexUI::MakePanel(*WidgetTree, Row, FMargin(14.0f, 12.0f), ApexUI::MakeBrush(SrgbColour(FColor(10, 11, 12), 0.7f)));
+	};
+
+	// The wind tile's arrow: a vane pointing into the wind, like the dial's.
+	{
+		UVerticalBox* Vane = WidgetTree->ConstructWidget<UVerticalBox>();
+		UBorder* Head = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::TextPrimary));
+		UWidget* HeadBox = ApexUI::MakeSized(*WidgetTree, Head, 8.0f, 8.0f);
+		HeadBox->SetRenderTransformAngle(45.0f);
+		ApexUI::AddV(Vane, HeadBox, FMargin(0.0f, 0.0f, 0.0f, -4.0f), HAlign_Center);
+		ApexUI::AddV(Vane, ApexUI::MakeSized(*WidgetTree,
+			ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::TextPrimary)), 2.0f, 14.0f),
+			FMargin(), HAlign_Center);
+		UBorder* Ring = ApexUI::MakePanel(*WidgetTree, Vane, FMargin(),
+			ApexUI::MakeBrush(FLinearColor::Transparent, ApexUI::Palette::TextMuted, 1.0f, 17.0f));
+		Ring->SetHorizontalAlignment(HAlign_Center);
+		Ring->SetVerticalAlignment(VAlign_Center);
+		// Turning the ring turns the vane in it; hiding it hides both.
+		SkyWindArrow = Ring;
+		Ring->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+
+		UTextBlock* Air = nullptr;
+		UTextBlock* Track = nullptr;
+		UTextBlock* Grip = nullptr;
+		UTextBlock* Wind = nullptr;
+		ApexUI::AddH(Tiles, MakeTile(TEXT("AIR"), Air), FMargin(), VAlign_Fill, 1.0f);
+		ApexUI::AddH(Tiles, MakeTile(TEXT("TRACK"), Track), FMargin(2.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		ApexUI::AddH(Tiles, MakeTile(TEXT("GRIP"), Grip), FMargin(2.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		ApexUI::AddH(Tiles, MakeTile(TEXT("WIND"), Wind, ApexUI::MakeSized(*WidgetTree, Ring, 34.0f, 34.0f)),
+			FMargin(2.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		SkyAirText = Air;
+		SkyTrackText = Track;
+		SkyGripText = Grip;
+		SkyWindText = Wind;
+	}
+	ApexUI::AddV(Text, Tiles);
+	AddFill(Sky, Text, FMargin(24.0f, 18.0f, 24.0f, 20.0f));
+
+	return ApexUI::MakePanel(*WidgetTree, Sky, FMargin(), ApexUI::MakeBrush(PanelWell, ApexUI::Palette::Border, 1.0f));
+}
+
+UWidget* UApexSessionCreateWidget::BuildRightColumn()
+{
+	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	UHorizontalBox* Strip = WidgetTree->ConstructWidget<UHorizontalBox>();
+	TabButtons.Reset();
+	TabLines.Reset();
+	for (int32 Tab = 0; Tab < 2; ++Tab)
+	{
+		FApexButtonSpec Spec;
+		Spec.Label = Tab == 0 ? TEXT("Race") : TEXT("Conditions");
+		Spec.Badge = TEXT(" ");
+		Spec.Variant = EApexButtonVariant::Bare;
+		Spec.LabelSize = 20.0f;
+		Spec.Height = 56.0f;
+		UApexButtonWidget* Button = MakeButton(Spec);
+
+		UBorder* Line = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(FLinearColor::Transparent));
+		UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
+		ApexUI::AddV(Stack, Button, FMargin(18.0f, 0.0f));
+		ApexUI::AddV(Stack, ApexUI::MakeSized(*WidgetTree, Line, -1.0f, 3.0f));
+		ApexUI::AddH(Strip, Stack, FMargin(Tab == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Bottom);
+
+		TabButtons.Add(Button);
+		TabLines.Add(Line);
+	}
+	ApexUI::AddV(Column, ApexUI::MakeSized(*WidgetTree, Strip, -1.0f, 62.0f), FMargin(14.0f, 0.0f, ApexUI::Metrics::PageGutter, 0.0f));
+	ApexUI::AddV(Column, ApexUI::MakeDivider(*WidgetTree));
+
+	UOverlay* Body = WidgetTree->ConstructWidget<UOverlay>();
+	RaceTab = BuildRaceTab();
+	ConditionsTab = BuildConditionsTab();
+	AddFill(Body, RaceTab);
+	AddFill(Body, ConditionsTab);
+	ApexUI::AddV(Column, Body, FMargin(32.0f, 22.0f, ApexUI::Metrics::PageGutter, 22.0f), HAlign_Fill, 1.0f);
+
+	return Column;
+}
+
+UWidget* UApexSessionCreateWidget::BuildRaceTab()
+{
+	UVerticalBox* Tab = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	// --- Mode -------------------------------------------------------------------
+	ApexUI::AddV(Tab, MakeCaption(TEXT("Mode")), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+	UHorizontalBox* Modes = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ModeButtons.Reset();
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(ModeOptions); ++Index)
+	{
+		FApexButtonSpec Spec;
+		Spec.Label = ModeOptions[Index].Label;
+		Spec.SubLabel = ModeOptions[Index].Description;
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.LabelSize = 18.0f;
+		Spec.Height = 76.0f;
+		UApexButtonWidget* Button = MakeButton(Spec);
+		ModeButtons.Add(Button);
+		ApexUI::AddH(Modes, Button, FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	}
+	ApexUI::AddV(Tab, Modes, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+
+	// --- Race length --------------------------------------------------------------
+	{
+		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Section, MakeCaption(TEXT("Race length"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		LengthInfoText = Info;
+
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		UApexButtonWidget* Minus = nullptr;
+		UApexButtonWidget* Plus = nullptr;
+		UTextBlock* Value = nullptr;
+		ApexUI::AddH(Row, MakeStepper(Minus, Value, Plus, 62.0f, 130.0f, 40.0f), FMargin(), VAlign_Fill);
+		LapsMinus = Minus;
+		LapsPlus = Plus;
+		LapsValueText = Value;
+
+		LapPresetButtons.Reset();
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(LapPresets); ++Index)
+		{
+			FApexButtonSpec Spec;
+			Spec.Label = LapPresets[Index].Label;
+			Spec.SubLabel = FString::Printf(TEXT("%d laps"), LapPresets[Index].Laps);
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.bCentreLabel = true;
+			Spec.LabelSize = 16.0f;
+			Spec.Height = 62.0f;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			LapPresetButtons.Add(Button);
+			ApexUI::AddH(Row, Button, FMargin(Index == 0 ? 12.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+		ApexUI::AddV(Section, ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 62.0f));
+		LengthSection = Section;
+		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Field --------------------------------------------------------------------
+	{
+		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Section, MakeCaption(TEXT("Field"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		FieldInfoText = Info;
+
+		auto MakeCard = [this](const TCHAR* Label, UTextBlock*& OutLabel, UApexButtonWidget*& OutMinus,
+			UTextBlock*& OutValue, UApexButtonWidget*& OutPlus)
+		{
+			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+			OutLabel = ApexUI::MakeText(*WidgetTree, Label, ApexUI::Font::Display(17.0f), ApexUI::Palette::TextPrimary);
+			ApexUI::AddH(Row, OutLabel, FMargin(), VAlign_Center, 1.0f);
+			ApexUI::AddH(Row, MakeStepper(OutMinus, OutValue, OutPlus, 42.0f, 48.0f, 24.0f));
+			return ApexUI::MakePanel(*WidgetTree, Row, FMargin(16.0f, 6.0f, 6.0f, 6.0f),
+				ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
+		};
+
+		UHorizontalBox* Cards = WidgetTree->ConstructWidget<UHorizontalBox>();
+		UTextBlock* FieldLabel = nullptr;
+		UTextBlock* AiLabel = nullptr;
+		UApexButtonWidget* FMinus = nullptr;
+		UApexButtonWidget* FPlus = nullptr;
+		UTextBlock* FValue = nullptr;
+		UApexButtonWidget* AMinus = nullptr;
+		UApexButtonWidget* APlus = nullptr;
+		UTextBlock* AValue = nullptr;
+		ApexUI::AddH(Cards, MakeCard(TEXT("Grid size"), FieldLabel, FMinus, FValue, FPlus), FMargin(), VAlign_Fill, 1.0f);
+		ApexUI::AddH(Cards, MakeCard(TEXT("AI drivers"), AiLabel, AMinus, AValue, APlus), FMargin(10.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		FieldLabelText = FieldLabel;
+		FieldMinus = FMinus;
+		FieldPlus = FPlus;
+		FieldValueText = FValue;
+		AiMinus = AMinus;
+		AiPlus = APlus;
+		AiValueText = AValue;
+		ApexUI::AddV(Section, Cards);
+		FieldSection = Section;
+		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Allowed assists ----------------------------------------------------------
+	// Which aids the drivers may run. The server forces a disallowed aid off for
+	// everyone in the session, so a toggle here is a rule, not a suggestion; the
+	// Assists settings page shows the lock to whoever joins.
+	{
+		UHorizontalBox* Presets = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AssistPresetButtons.Reset();
+		for (int32 Index = 0; Index < static_cast<int32>(ApexCreateSession::EAssistPreset::Count); ++Index)
+		{
+			FApexButtonSpec Spec;
+			Spec.Label = FString(ApexCreateSession::PresetName(static_cast<ApexCreateSession::EAssistPreset>(Index))).ToUpper();
+			Spec.Variant = EApexButtonVariant::Ghost;
+			Spec.bCentreLabel = true;
+			Spec.LabelSize = 12.0f;
+			Spec.Height = 26.0f;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			AssistPresetButtons.Add(Button);
+			ApexUI::AddH(Presets, ApexUI::MakeSized(*WidgetTree, Button, 76.0f, 26.0f), FMargin(Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f, 0.0f));
+		}
+		ApexUI::AddV(Tab, MakeCaption(TEXT("Assists allowed"), nullptr, Presets), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+		static const TCHAR* AssistLabels[] = {
+			TEXT("ABS"), TEXT("Traction ctrl"), TEXT("Auto gears"), TEXT("Steering aid"), TEXT("Racing line"),
+		};
+		static_assert(UE_ARRAY_COUNT(AssistLabels) == static_cast<int32>(EApexAssistChip::Count), "one label per chip");
+
+		// Three to a row, the short last row keeping the thirds.
+		AssistButtons.Reset();
+		UVerticalBox* Rows = WidgetTree->ConstructWidget<UVerticalBox>();
+		constexpr int32 ChipCount = static_cast<int32>(EApexAssistChip::Count);
+		for (int32 First = 0; First < ChipCount; First += 3)
+		{
+			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+			for (int32 Column = 0; Column < 3; ++Column)
+			{
+				const FMargin Gap(Column == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f);
+				if (First + Column >= ChipCount)
+				{
+					ApexUI::AddH(Row, WidgetTree->ConstructWidget<USpacer>(), Gap, VAlign_Fill, 1.0f);
+					continue;
+				}
+				FApexButtonSpec Spec;
+				Spec.Label = AssistLabels[First + Column];
+				Spec.Badge = TEXT("On");
+				Spec.Variant = EApexButtonVariant::Panel;
+				Spec.LabelSize = 16.0f;
+				Spec.Height = 46.0f;
+				UApexButtonWidget* Button = MakeButton(Spec);
+				AssistButtons.Add(Button);
+				ApexUI::AddH(Row, Button, Gap, VAlign_Fill, 1.0f);
+			}
+			ApexUI::AddV(Rows, Row, FMargin(0.0f, First == 0 ? 0.0f : 6.0f, 0.0f, 0.0f));
+		}
+		ApexUI::AddV(Tab, Rows);
+	}
+
+	// --- Damage ---------------------------------------------------------------------
+	// A rule of the session, not a driver's: the server scales every hit,
+	// overheating second and missed shift by it for every car, AI included.
+	{
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		DamageButtons.Reset();
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(DamageOptions); ++Index)
+		{
+			FApexButtonSpec Spec;
+			Spec.Label = DamageOptions[Index].Label;
+			Spec.Badge = DamageOptions[Index].Description;
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.LabelSize = 16.0f;
+			Spec.Height = 46.0f;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			DamageButtons.Add(Button);
+			ApexUI::AddH(Row, Button, FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Tab, MakeCaption(TEXT("Damage"), &Info), FMargin(0.0f, 22.0f, 0.0f, 8.0f));
+		Info->SetText(FText::FromString(TEXT("EVERY CAR, AI INCLUDED")));
+		ApexUI::AddV(Tab, Row);
+	}
+
+	// --- Car setup ------------------------------------------------------------------
+	// The setups saved in the hotlap garage for this car. One working setup
+	// goes to the server on joining any session, so picking one here loads
+	// it, as the garage's Load does; the chips are built in RefreshSetups.
+	{
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Tab, MakeCaption(TEXT("Car setup"), &Info), FMargin(0.0f, 22.0f, 0.0f, 8.0f));
+		SetupInfoText = Info;
+		SetupRows = WidgetTree->ConstructWidget<UVerticalBox>();
+		ApexUI::AddV(Tab, SetupRows);
+	}
+
+	return Tab;
+}
+
+UWidget* UApexSessionCreateWidget::BuildConditionsTab()
+{
+	UVerticalBox* Tab = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	// --- Time of day ----------------------------------------------------------
+	// The clock only moves the sun, but a night race is a night race for the
+	// whole field, and the sun warms the asphalt.
+	{
+		UTextBlock* Clock = nullptr;
+		ApexUI::AddV(Tab, MakeCaption(TEXT("Time of day"), &Clock), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		TimeOfDayValue = Clock;
+		TimeOfDayValue->SetColorAndOpacity(FSlateColor(ApexUI::Palette::TextPrimary));
+
+		USlider* Slider = nullptr;
+		UProgressBar* Fill = nullptr;
+		ApexUI::AddV(Tab, ApexUI::MakeSliderTrack(*WidgetTree, Slider, Fill, 26.0f), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+		TimeOfDaySlider = Slider;
+		TimeOfDayFill = Fill;
+		TimeOfDaySlider->OnValueChanged.AddDynamic(this, &UApexSessionCreateWidget::HandleTimeOfDayChanged);
+		TimeOfDaySlider->SetStepSize(1.0f / TimeOfDaySteps);
+
+		UHorizontalBox* Presets = WidgetTree->ConstructWidget<UHorizontalBox>();
+		TimePresetButtons.Reset();
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(TimePresets); ++Index)
+		{
+			FApexSessionConditions At;
+			At.TimeOfDayMinutes = TimePresets[Index].Minutes;
+			FApexButtonSpec Spec;
+			Spec.Label = TimePresets[Index].Label;
+			Spec.Badge = At.ClockText();
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.LabelSize = 16.0f;
+			Spec.Height = 42.0f;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			TimePresetButtons.Add(Button);
+			ApexUI::AddH(Presets, Button, FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+		ApexUI::AddV(Tab, Presets, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Weather ----------------------------------------------------------------
+	// A rule like the assists: the server takes the rain's grip off the track
+	// for everyone.
+	{
+		ApexUI::AddV(Tab, MakeCaption(TEXT("Weather")), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+		FSlateBrush Ramp;
+		Ramp.SetResourceObject(GradientTexture());
+		Ramp.DrawAs = ESlateBrushDrawType::Image;
+		Ramp.ImageSize = FVector2D(1.0f, 64.0f);
+		FSlateBrush Hatch;
+		Hatch.SetResourceObject(RainTexture());
+		Hatch.DrawAs = ESlateBrushDrawType::Image;
+		Hatch.Tiling = ESlateBrushTileType::Both;
+		Hatch.ImageSize = FVector2D(12.0f, 48.0f);
+		FSlateBrush Shade = Ramp;
+		Shade.Mirroring = ESlateBrushMirrorType::Vertical;
+
+		UHorizontalBox* Tiles = WidgetTree->ConstructWidget<UHorizontalBox>();
+		WeatherButtons.Reset();
+		for (int32 Index = 0; Index < FApexSessionConditions::WeatherCount; ++Index)
+		{
+			const EApexWeather Weather = static_cast<EApexWeather>(Index);
+			const ApexCreateSession::FWeatherLook Look = ApexCreateSession::WeatherLook(Weather);
+
+			UOverlay* Tile = WidgetTree->ConstructWidget<UOverlay>();
+			Tile->SetClipping(EWidgetClipping::ClipToBounds);
+			AddFill(Tile, ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(SrgbColour(Look.Bottom))));
+			UImage* Top = WidgetTree->ConstructWidget<UImage>();
+			Top->SetBrush(Ramp);
+			Top->SetColorAndOpacity(SrgbColour(Look.Top));
+			AddFill(Tile, Top);
+			if (Look.Rain > 0.0f)
+			{
+				UImage* Drops = WidgetTree->ConstructWidget<UImage>();
+				Drops->SetBrush(Hatch);
+				Drops->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, Look.Rain));
+				AddFill(Tile, Drops);
+			}
+
+			UVerticalBox* Caption = WidgetTree->ConstructWidget<UVerticalBox>();
+			ApexUI::AddV(Caption, ApexUI::MakeText(*WidgetTree, FApexSessionConditions::WeatherLabel(Weather),
+				ApexUI::Font::Display(16.0f), ApexUI::Palette::TextPrimary));
+			ApexUI::AddV(Caption, ApexUI::MakeText(*WidgetTree, FString::Printf(TEXT("GRIP %d%%"), ApexCreateSession::GripPercent(Weather)),
+				ApexUI::Font::Mono(8.0f, 60), ApexUI::Palette::TextSecondary), FMargin(0.0f, 1.0f, 0.0f, 0.0f));
+			UOverlay* Strip = WidgetTree->ConstructWidget<UOverlay>();
+			UImage* Dim = WidgetTree->ConstructWidget<UImage>();
+			Dim->SetBrush(Shade);
+			Dim->SetColorAndOpacity(SrgbColour(FColor(10, 11, 12), 0.85f));
+			AddFill(Strip, Dim);
+			AddFill(Strip, Caption, FMargin(10.0f, 14.0f, 8.0f, 8.0f));
+			UVerticalBox* Lower = WidgetTree->ConstructWidget<UVerticalBox>();
+			ApexUI::AddV(Lower, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
+			ApexUI::AddV(Lower, Strip);
+			AddFill(Tile, Lower);
+
+			FApexButtonSpec Spec;
+			Spec.Variant = EApexButtonVariant::Ghost;
+			Spec.bOverlay = true;
+			Spec.Height = 96.0f;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			AddFill(Tile, Button);
+			WeatherButtons.Add(Button);
+
+			UBorder* Frame = ApexUI::MakePanel(*WidgetTree, Tile, FMargin(1.0f),
+				ApexUI::MakeBrush(FLinearColor::Transparent, ApexUI::Palette::Border, 1.0f));
+			ApexUI::AddH(Tiles, ApexUI::MakeSized(*WidgetTree, Frame, -1.0f, 96.0f),
+				FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+		ApexUI::AddV(Tab, Tiles, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- The air: temperature and wind -------------------------------------------
+	// Both start as "from the weather", which the server works out and names;
+	// the preview shows what it will name.
+	UVerticalBox* Air = WidgetTree->ConstructWidget<UVerticalBox>();
+	{
+		UVerticalBox* Temperature = WidgetTree->ConstructWidget<UVerticalBox>();
+		FApexButtonSpec AutoSpec;
+		AutoSpec.Label = TEXT("AUTO");
+		AutoSpec.Variant = EApexButtonVariant::Ghost;
+		AutoSpec.bCentreLabel = true;
+		AutoSpec.LabelSize = 12.0f;
+		AutoSpec.Height = 26.0f;
+		AirAutoButton = MakeButton(AutoSpec);
+		ApexUI::AddV(Temperature, MakeCaption(TEXT("Air temperature"), nullptr,
+			ApexUI::MakeSized(*WidgetTree, AirAutoButton, 68.0f, 26.0f)), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+		UApexButtonWidget* Minus = nullptr;
+		UApexButtonWidget* Plus = nullptr;
+		UTextBlock* Value = nullptr;
+		UTextBlock* Note = nullptr;
+		ApexUI::AddV(Temperature, ApexUI::MakeSized(*WidgetTree,
+			MakeStepper(Minus, Value, Plus, 58.0f, -1.0f, 26.0f, &Note), -1.0f, 58.0f));
+		AirMinus = Minus;
+		AirPlus = Plus;
+		AirValueText = Value;
+		AirNoteText = Note;
+		ApexUI::AddV(Air, Temperature, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+	{
+		UVerticalBox* Wind = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* From = nullptr;
+		ApexUI::AddV(Wind, MakeCaption(TEXT("Wind"), &From), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		WindFromText = From;
+
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		UVerticalBox* Strengths = WidgetTree->ConstructWidget<UVerticalBox>();
+		WindButtons.Reset();
+		for (int32 Index = 0; Index <= WindPresetCount; ++Index)
+		{
+			const bool bAuto = Index == WindPresetCount;
+			FApexButtonSpec Spec;
+			Spec.Label = bAuto ? TEXT("Auto") : WindPresetLabels[Index];
+			Spec.Badge = bAuto ? FString(TEXT("Weather")) : FString::Printf(TEXT("%d km/h"), WindPresetsKph[Index]);
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.LabelSize = 15.0f;
+			Spec.Height = 32.0f;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			WindButtons.Add(Button);
+			ApexUI::AddV(Strengths, Button, FMargin(0.0f, Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f));
+		}
+		ApexUI::AddH(Row, Strengths, FMargin(), VAlign_Top, 1.0f);
+
+		// The dial: where the wind comes from, round the start straight
+		// (ahead at the top), with a vane pointing into it.
+		constexpr float Dial = 184.0f;
+		constexpr float Chip = 34.0f;
+		UOverlay* Face = WidgetTree->ConstructWidget<UOverlay>();
+		AddFill(Face, ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(),
+			ApexUI::MakeBrush(PanelWell, ApexUI::Palette::Border, 1.0f, Dial * 0.5f)));
+		UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>();
+
+		UVerticalBox* Needle = WidgetTree->ConstructWidget<UVerticalBox>();
+		UBorder* Tip = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Accent));
+		UWidget* TipBox = ApexUI::MakeSized(*WidgetTree, Tip, 12.0f, 12.0f);
+		TipBox->SetRenderTransformAngle(45.0f);
+		ApexUI::AddV(Needle, TipBox, FMargin(0.0f, 0.0f, 0.0f, -6.0f), HAlign_Center);
+		WindNeedleShaft = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Accent));
+		ApexUI::AddV(Needle, ApexUI::MakeSized(*WidgetTree, WindNeedleShaft, 4.0f, 44.0f), FMargin(), HAlign_Center);
+		ApexUI::AddV(Needle, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
+		Needle->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		UCanvasPanelSlot* NeedleSlot = Canvas->AddChildToCanvas(Needle);
+		NeedleSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+		NeedleSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+		NeedleSlot->SetSize(FVector2D(16.0f, 112.0f));
+		WindNeedle = Needle;
+		Tip->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		WindFromButtons.Reset();
+		for (int32 Index = 0; Index < WindFromCount; ++Index)
+		{
+			FApexButtonSpec Spec;
+			Spec.Label = WindFromChips[Index];
+			Spec.Variant = EApexButtonVariant::Ghost;
+			Spec.bCentreLabel = true;
+			Spec.LabelSize = 11.0f;
+			Spec.Height = Chip;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			// From the left is counter-clockwise from ahead, as in the track's
+			// frame: the left of the dial.
+			const float Angle = FMath::DegreesToRadians(Index * 45.0f);
+			UCanvasPanelSlot* ChipSlot = Canvas->AddChildToCanvas(Button);
+			ChipSlot->SetAnchors(FAnchors(0.5f - FMath::Sin(Angle) * 0.39f, 0.5f - FMath::Cos(Angle) * 0.39f));
+			ChipSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+			ChipSlot->SetSize(FVector2D(Chip, Chip));
+			WindFromButtons.Add(Button);
+		}
+		AddFill(Face, Canvas);
+		ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Face, Dial, Dial), FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Top);
+		ApexUI::AddV(Wind, Row);
+		ApexUI::AddV(Air, Wind);
+	}
+	ApexUI::AddV(Tab, Air);
+
+	return Tab;
 }
 
 UWidget* UApexSessionCreateWidget::BuildFooter()
 {
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 
-	StatusLine = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 120), ApexUI::Palette::TextMuted);
-	ApexUI::AddH(Row, StatusLine);
-	ApexUI::AddH(Row, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+	UBorder* Dot = nullptr;
+	ApexUI::AddH(Row, ApexUI::MakeDot(*WidgetTree, ApexUI::Palette::Live, 8.0f, &Dot));
+	StatusDot = Dot;
+	StatusLine = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 100), ApexUI::Palette::Live);
+	ApexUI::AddH(Row, StatusLine, FMargin(10.0f, 0.0f, 0.0f, 0.0f));
+	SummaryText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 60), ApexUI::Palette::TextSecondary);
+	SummaryText->SetClipping(EWidgetClipping::ClipToBounds);
+	ApexUI::AddH(Row, SummaryText, FMargin(18.0f, 0.0f, 18.0f, 0.0f), VAlign_Center, 1.0f);
 
 	FApexButtonSpec CancelSpec;
 	CancelSpec.Label = TEXT("Cancel");
@@ -617,11 +1315,8 @@ UWidget* UApexSessionCreateWidget::BuildFooter()
 	CancelSpec.bCentreLabel = true;
 	CancelSpec.LabelSize = 17.0f;
 	CancelSpec.Height = 52.0f;
-	CancelSpec.ActionId = ActionCancel;
-
-	UApexButtonWidget* CancelButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
-	CancelButton->Setup(CancelSpec);
-	CancelButton->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
+	CancelSpec.Sound = EApexUiSound::Back;
+	CancelButton = MakeButton(CancelSpec);
 	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, CancelButton, 170.0f, -1.0f), FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 
 	FApexButtonSpec CreateSpec;
@@ -630,11 +1325,7 @@ UWidget* UApexSessionCreateWidget::BuildFooter()
 	CreateSpec.Variant = EApexButtonVariant::Primary;
 	CreateSpec.LabelSize = 21.0f;
 	CreateSpec.Height = 52.0f;
-	CreateSpec.ActionId = ActionCreate;
-
-	CreateButtonWidget = WidgetTree->ConstructWidget<UApexButtonWidget>();
-	CreateButtonWidget->Setup(CreateSpec);
-	CreateButtonWidget->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
+	CreateButtonWidget = MakeButton(CreateSpec);
 	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, CreateButtonWidget, 330.0f, -1.0f));
 
 	UBorder* Bar = ApexUI::MakePanel(
@@ -644,7 +1335,73 @@ UWidget* UApexSessionCreateWidget::BuildFooter()
 		ApexUI::MakeBrush(ApexUI::Palette::Background));
 	Bar->SetVerticalAlignment(VAlign_Center);
 
-	return ApexUI::MakeSized(*WidgetTree, Bar, -1.0f, 92.0f);
+	return ApexUI::MakeSized(*WidgetTree, Bar, -1.0f, 88.0f);
+}
+
+UTexture2D* UApexSessionCreateWidget::GradientTexture()
+{
+	if (Gradient)
+	{
+		return Gradient;
+	}
+	// White, opaque at the top and clear at the bottom: tinted, one colour
+	// fading over another.
+	constexpr int32 Height = 64;
+	Gradient = UTexture2D::CreateTransient(1, Height, PF_B8G8R8A8);
+	if (!Gradient)
+	{
+		return nullptr;
+	}
+	Gradient->SRGB = true;
+	Gradient->Filter = TF_Bilinear;
+	Gradient->AddressX = TA_Clamp;
+	Gradient->AddressY = TA_Clamp;
+	FTexture2DMipMap& Mip = Gradient->GetPlatformData()->Mips[0];
+	FColor* Pixels = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+	for (int32 Y = 0; Y < Height; ++Y)
+	{
+		const float Alpha = 1.0f - static_cast<float>(Y) / static_cast<float>(Height - 1);
+		Pixels[Y] = FColor(255, 255, 255, static_cast<uint8>(FMath::RoundToInt(Alpha * 255.0f)));
+	}
+	Mip.BulkData.Unlock();
+	Gradient->UpdateResource();
+	return Gradient;
+}
+
+UTexture2D* UApexSessionCreateWidget::RainTexture()
+{
+	if (Rain)
+	{
+		return Rain;
+	}
+	// Thin streaks leaning a quarter step per row, tiling: across 48 rows the
+	// lean is exactly one 12-pixel period.
+	constexpr int32 Width = 12;
+	constexpr int32 Height = 48;
+	Rain = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+	if (!Rain)
+	{
+		return nullptr;
+	}
+	Rain->SRGB = true;
+	Rain->Filter = TF_Bilinear;
+	Rain->AddressX = TA_Wrap;
+	Rain->AddressY = TA_Wrap;
+	FTexture2DMipMap& Mip = Rain->GetPlatformData()->Mips[0];
+	FColor* Pixels = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+	for (int32 Y = 0; Y < Height; ++Y)
+	{
+		for (int32 X = 0; X < Width; ++X)
+		{
+			const float Phase = FMath::Fmod(static_cast<float>(X) + static_cast<float>(Y) * 0.25f, static_cast<float>(Width));
+			const float Distance = FMath::Min(Phase, static_cast<float>(Width) - Phase);
+			const float Alpha = FMath::Clamp(1.0f - Distance, 0.0f, 1.0f) * 0.38f;
+			Pixels[Y * Width + X] = FColor(225, 235, 245, static_cast<uint8>(FMath::RoundToInt(Alpha * 255.0f)));
+		}
+	}
+	Mip.BulkData.Unlock();
+	Rain->UpdateResource();
+	return Rain;
 }
 
 // ---------------------------------------------------------------------------
@@ -664,6 +1421,35 @@ void UApexSessionCreateWidget::RefreshContent()
 	// keyboard would otherwise take the focus down with it.
 	const bool bTrackLinkHadFocus = ChangeTrackLink && ChangeTrackLink->HasKeyboardFocus();
 	const bool bCarLinkHadFocus = ChangeCarLink && ChangeCarLink->HasKeyboardFocus();
+
+	constexpr float ArtWidth = 150.0f;
+	constexpr float ArtHeight = 92.0f;
+
+	auto MakeText = [this](const FString& Name, const FString& Empty, const TArray<FString>& Meta,
+		const FString& LinkLabel, UApexButtonWidget*& OutLink)
+	{
+		UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>();
+		ApexUI::AddV(Text, ApexUI::MakeText(
+			*WidgetTree,
+			Name.IsEmpty() ? Empty : Name,
+			ApexUI::Font::Display(20.0f),
+			Name.IsEmpty() ? ApexUI::Palette::TextDisabled : ApexUI::Palette::TextPrimary));
+		ApexUI::AddV(
+			Text,
+			ApexUI::MakeText(*WidgetTree, FString::Join(Meta, TEXT(" · ")), ApexUI::Font::Mono(9.0f, 60), ApexUI::Palette::TextSecondary),
+			FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+		ApexUI::AddV(Text, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
+
+		FApexButtonSpec LinkSpec;
+		LinkSpec.Label = LinkLabel;
+		LinkSpec.Variant = EApexButtonVariant::Bare;
+		LinkSpec.LabelSize = 15.0f;
+		LinkSpec.LabelColour = ApexUI::Palette::Accent;
+		LinkSpec.Height = 28.0f;
+		OutLink = MakeButton(LinkSpec);
+		ApexUI::AddV(Text, OutLink, FMargin(), HAlign_Left);
+		return Text;
+	};
 
 	// --- Track ---------------------------------------------------------------
 	TrackSummaryBox->ClearChildren();
@@ -689,40 +1475,17 @@ void UApexSessionCreateWidget::RefreshContent()
 			if (!Row.Category.IsEmpty()) { Meta.Add(ApexCatalog::DisplayClass(Row.Category).ToUpper()); }
 		}
 
-		UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>();
-		UTextBlock* Title = ApexUI::MakeText(
-			*WidgetTree,
-			Name.IsEmpty() ? TEXT("No track selected") : Name,
-			ApexUI::Font::Display(24.0f),
-			Name.IsEmpty() ? ApexUI::Palette::TextDisabled : ApexUI::Palette::TextPrimary);
-		Title->SetAutoWrapText(true);
-		ApexUI::AddV(Text, Title);
-		ApexUI::AddV(
-			Text,
-			ApexUI::MakeText(*WidgetTree, FString::Join(Meta, TEXT(" · ")), ApexUI::Font::Mono(10.0f, 60), ApexUI::Palette::TextMuted),
-			FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-
-		FApexButtonSpec LinkSpec;
-		LinkSpec.Label = Name.IsEmpty() ? TEXT("Select a track") : TEXT("Change track");
-		LinkSpec.Variant = EApexButtonVariant::Bare;
-		LinkSpec.LabelSize = 15.0f;
-		LinkSpec.LabelColour = ApexUI::Palette::Accent;
-		LinkSpec.ActionId = ActionChangeTrack;
-
-		UApexButtonWidget* Link = WidgetTree->ConstructWidget<UApexButtonWidget>();
-		Link->Setup(LinkSpec);
-		Link->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
-		ApexUI::AddV(Text, Link, FMargin(0.0f, 10.0f, 0.0f, 0.0f), HAlign_Left);
+		UApexButtonWidget* Link = nullptr;
+		UWidget* Text = MakeText(Name, TEXT("No track selected"), Meta,
+			Name.IsEmpty() ? TEXT("Select a track") : TEXT("Change track"), Link);
 		ChangeTrackLink = Link;
 
-		UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>();
 		ApexUI::AddH(
-			RowBox,
-			ApexUI::MakePreview(*WidgetTree, bHasRow ? UApexTrackContentSubsystem::PreviewOf(Row) : nullptr, TEXT("No preview"), 200.0f, 116.0f),
-			FMargin(0.0f, 0.0f, 18.0f, 0.0f),
+			TrackSummaryBox,
+			ApexUI::MakePreview(*WidgetTree, bHasRow ? UApexTrackContentSubsystem::PreviewOf(Row) : nullptr, TEXT("No preview"), ArtWidth, ArtHeight),
+			FMargin(0.0f, 0.0f, 14.0f, 0.0f),
 			VAlign_Center);
-		ApexUI::AddH(RowBox, Text, FMargin(), VAlign_Center, 1.0f);
-		ApexUI::AddV(TrackSummaryBox, RowBox);
+		ApexUI::AddH(TrackSummaryBox, Text, FMargin(), VAlign_Fill, 1.0f);
 	}
 
 	// --- Car -----------------------------------------------------------------
@@ -749,28 +1512,9 @@ void UApexSessionCreateWidget::RefreshContent()
 			if (Row.MassKg > 0.0f)       { Meta.Add(FString::Printf(TEXT("%.0f KG"), Row.MassKg)); }
 		}
 
-		UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>();
-		ApexUI::AddV(Text, ApexUI::MakeText(
-			*WidgetTree,
-			Name.IsEmpty() ? TEXT("No car selected") : Name,
-			ApexUI::Font::Display(24.0f),
-			Name.IsEmpty() ? ApexUI::Palette::TextDisabled : ApexUI::Palette::TextPrimary));
-		ApexUI::AddV(
-			Text,
-			ApexUI::MakeText(*WidgetTree, FString::Join(Meta, TEXT(" · ")), ApexUI::Font::Mono(10.0f, 60), ApexUI::Palette::TextMuted),
-			FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-
-		FApexButtonSpec LinkSpec;
-		LinkSpec.Label = Name.IsEmpty() ? TEXT("Select a car") : TEXT("Change car");
-		LinkSpec.Variant = EApexButtonVariant::Bare;
-		LinkSpec.LabelSize = 15.0f;
-		LinkSpec.LabelColour = ApexUI::Palette::Accent;
-		LinkSpec.ActionId = ActionCreateChangeCar;
-
-		UApexButtonWidget* Link = WidgetTree->ConstructWidget<UApexButtonWidget>();
-		Link->Setup(LinkSpec);
-		Link->OnActivated.AddDynamic(this, &UApexSessionCreateWidget::HandleButtonActivated);
-		ApexUI::AddV(Text, Link, FMargin(0.0f, 10.0f, 0.0f, 0.0f), HAlign_Left);
+		UApexButtonWidget* Link = nullptr;
+		UWidget* Text = MakeText(Name, TEXT("No car selected"), Meta,
+			Name.IsEmpty() ? TEXT("Select a car") : TEXT("Change car"), Link);
 		ChangeCarLink = Link;
 
 		// Cars have meshes rather than preview textures, so the card borrows the
@@ -801,22 +1545,19 @@ void UApexSessionCreateWidget::RefreshContent()
 			UScaleBox* Fit = WidgetTree->ConstructWidget<UScaleBox>();
 			Fit->SetStretch(EStretch::ScaleToFit);
 			Fit->AddChild(StageImage);
-			CarArt = ApexUI::MakePanel(
-				*WidgetTree, Fit, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
+			CarArt = ApexUI::MakePanel(*WidgetTree, Fit, FMargin(), ApexUI::MakeBrush(PanelWell));
 		}
 		else
 		{
 			CarArt = ApexUI::MakeArtPlaceholder(*WidgetTree, TEXT("Car"));
 		}
 
-		UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>();
 		ApexUI::AddH(
-			RowBox,
-			ApexUI::MakeSized(*WidgetTree, CarArt, 200.0f, 116.0f),
-			FMargin(0.0f, 0.0f, 18.0f, 0.0f),
+			CarSummaryBox,
+			ApexUI::MakeSized(*WidgetTree, CarArt, ArtWidth, ArtHeight),
+			FMargin(0.0f, 0.0f, 14.0f, 0.0f),
 			VAlign_Center);
-		ApexUI::AddH(RowBox, Text, FMargin(), VAlign_Center, 1.0f);
-		ApexUI::AddV(CarSummaryBox, RowBox);
+		ApexUI::AddH(CarSummaryBox, Text, FMargin(), VAlign_Fill, 1.0f);
 	}
 
 	if (bTrackLinkHadFocus)
@@ -827,6 +1568,9 @@ void UApexSessionCreateWidget::RefreshContent()
 	{
 		ApexNav::Focus(ChangeCarLink);
 	}
+
+	// The race length reads in kilometres off the track row.
+	RefreshSettings();
 }
 
 void UApexSessionCreateWidget::RefreshSettings()
@@ -837,27 +1581,134 @@ void UApexSessionCreateWidget::RefreshSettings()
 		return;
 	}
 
+	const bool bMultiplayer = Flow->CreateSessionKind != EApexSessionKind::Practice;
+	const EApexGameMode Mode = Flow->CreateStartingMode;
+	const bool bRace = Mode == EApexGameMode::Race;
+	const bool bHotlap = Mode == EApexGameMode::Hotlap;
+	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(bMultiplayer, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+	const FApexSessionConditions Conditions = Flow->CreateConditions.Clamped();
+
 	if (KindMultiplayerButton && KindSingleButton)
 	{
-		const bool bSingle = Flow->CreateSessionKind == EApexSessionKind::Practice;
-		KindMultiplayerButton->SetSelected(!bSingle);
-		KindSingleButton->SetSelected(bSingle);
+		KindMultiplayerButton->SetSelected(bMultiplayer);
+		KindSingleButton->SetSelected(!bMultiplayer);
 	}
 
-	for (UApexButtonWidget* Button : ModeButtons)
+	// --- Tabs --------------------------------------------------------------------
+	for (int32 Tab = 0; Tab < TabButtons.Num(); ++Tab)
 	{
-		if (Button)
+		if (!TabButtons[Tab])
 		{
-			Button->SetSelected(Button->GetActionId() == ModeAction(Flow->CreateStartingMode));
+			continue;
+		}
+		const FString Summary = Tab == 0
+			? FString(ModeLabel(Mode)).ToUpper()
+			: FString::Printf(TEXT("%s · %s"), *Conditions.ClockText(), *FApexSessionConditions::WeatherLabel(Conditions.Weather).ToUpper());
+		TabButtons[Tab]->SetBadge(Summary, ApexUI::Palette::TextSecondary);
+	}
+
+	// --- Race tab ----------------------------------------------------------------
+	for (int32 Index = 0; Index < ModeButtons.Num(); ++Index)
+	{
+		if (ModeButtons[Index])
+		{
+			ModeButtons[Index]->SetSelected(ModeOptions[Index].Mode == Mode);
 		}
 	}
 
+	if (LengthSection)
+	{
+		LengthSection->SetVisibility(bRace ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (LapsValueText)
+	{
+		LapsValueText->SetText(FText::AsNumber(Flow->CreateLapLimit));
+	}
+	for (int32 Index = 0; Index < LapPresetButtons.Num(); ++Index)
+	{
+		if (LapPresetButtons[Index])
+		{
+			LapPresetButtons[Index]->SetSelected(LapPresets[Index].Laps == Flow->CreateLapLimit);
+		}
+	}
+	if (LapsMinus) { LapsMinus->SetIsEnabled(Flow->CreateLapLimit > 1); }
+	if (LapsPlus)  { LapsPlus->SetIsEnabled(Flow->CreateLapLimit < LapsCeiling); }
+	if (LengthInfoText)
+	{
+		// The distance from the track's length; the time only from a lap this
+		// player has actually driven here. No personal best, no estimate.
+		TArray<FString> Parts;
+		float BestSeconds = 0.0f;
+		if (Flow->GetBestLapSeconds(Flow->GetPendingTrackId(), BestSeconds) && BestSeconds > 0.0f)
+		{
+			const int32 Minutes = FMath::Max(1, FMath::RoundToInt(BestSeconds * Flow->CreateLapLimit / 60.0f));
+			Parts.Add(FString::Printf(TEXT("≈ %d MIN AT YOUR BEST"), Minutes));
+		}
+		FApexTrackCatalogRow Row;
+		if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) && Row.LengthM > 0.0f)
+		{
+			Parts.Add(FString::Printf(TEXT("%.1f KM"), Row.LengthM * Flow->CreateLapLimit / 1000.0f));
+		}
+		LengthInfoText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · "))));
+	}
+
+	// A hotlap has no field: every driver goes out from their own garage.
+	if (FieldSection)
+	{
+		FieldSection->SetVisibility(bHotlap ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (FieldLabelText) { FieldLabelText->SetText(FText::FromString(bMultiplayer ? TEXT("Grid size") : TEXT("Field"))); }
+	if (FieldValueText) { FieldValueText->SetText(FText::AsNumber(G.Field)); }
+	if (AiValueText)    { AiValueText->SetText(FText::AsNumber(G.Ai)); }
+	if (FieldInfoText)
+	{
+		FieldInfoText->SetText(FText::FromString(bMultiplayer
+			? FString::Printf(TEXT("%d OPEN FOR PLAYERS"), G.Open)
+			: FString(TEXT("SINGLE PLAYER · AI ONLY"))));
+	}
+	if (FieldMinus) { FieldMinus->SetIsEnabled(G.Field > 1); }
+	if (FieldPlus)  { FieldPlus->SetIsEnabled(G.Field < MaxPlayersCeiling); }
+	if (AiMinus)    { AiMinus->SetIsEnabled(G.Ai > 0); }
+	if (AiPlus)     { AiPlus->SetIsEnabled(bMultiplayer ? G.Ai < G.Field - 1 : G.Field < MaxPlayersCeiling); }
+
+	const int32 Preset = ApexCreateSession::MatchingPreset(Flow->CreateAllowedAssists);
+	for (int32 Index = 0; Index < AssistPresetButtons.Num(); ++Index)
+	{
+		if (AssistPresetButtons[Index])
+		{
+			AssistPresetButtons[Index]->SetSelected(Index == Preset);
+		}
+	}
 	for (int32 Index = 0; Index < AssistButtons.Num(); ++Index)
 	{
 		if (AssistButtons[Index])
 		{
-			AssistButtons[Index]->SetSelected(
-				AssistFlag(Flow->CreateAllowedAssists, static_cast<EApexAssistChip>(Index)));
+			const bool bOn = AssistFlag(Flow->CreateAllowedAssists, static_cast<EApexAssistChip>(Index));
+			AssistButtons[Index]->SetBadge(bOn ? TEXT("On") : TEXT("Off"),
+				bOn ? ApexUI::Palette::Accent : ApexUI::Palette::TextMuted);
+		}
+	}
+
+	for (int32 Index = 0; Index < DamageButtons.Num(); ++Index)
+	{
+		if (DamageButtons[Index])
+		{
+			DamageButtons[Index]->SetSelected(static_cast<int32>(Flow->CreateDamage) == Index);
+		}
+	}
+
+	// --- Conditions tab ----------------------------------------------------------
+	{
+		const float Fraction = static_cast<float>(Conditions.TimeOfDayMinutes) / FApexSessionConditions::MinutesPerDay;
+		if (TimeOfDaySlider) { TimeOfDaySlider->SetValue(Fraction); }
+		if (TimeOfDayFill)   { TimeOfDayFill->SetPercent(Fraction); }
+		if (TimeOfDayValue)  { TimeOfDayValue->SetText(FText::FromString(Conditions.ClockText())); }
+		for (int32 Index = 0; Index < TimePresetButtons.Num(); ++Index)
+		{
+			if (TimePresetButtons[Index])
+			{
+				TimePresetButtons[Index]->SetSelected(TimePresets[Index].Minutes == Conditions.TimeOfDayMinutes);
+			}
 		}
 	}
 
@@ -865,113 +1716,338 @@ void UApexSessionCreateWidget::RefreshSettings()
 	{
 		if (WeatherButtons[Index])
 		{
-			WeatherButtons[Index]->SetSelected(static_cast<int32>(Flow->CreateConditions.Weather) == Index);
+			WeatherButtons[Index]->SetSelected(static_cast<int32>(Conditions.Weather) == Index);
 		}
 	}
 
 	{
-		const int32 Minutes = Flow->CreateConditions.Clamped().TimeOfDayMinutes;
-		const float Fraction = static_cast<float>(Minutes) / FApexSessionConditions::MinutesPerDay;
-		if (TimeOfDaySlider) { TimeOfDaySlider->SetValue(Fraction); }
-		if (TimeOfDayFill)   { TimeOfDayFill->SetPercent(Fraction); }
-		if (TimeOfDayValue)  { TimeOfDayValue->SetText(FText::FromString(Flow->CreateConditions.ClockText())); }
-		if (TimeOfDaySuffix) { TimeOfDaySuffix->SetText(FText::FromString(DescribeDaylight(Minutes))); }
+		const int32 Air = ApexCreateSession::AirTempC(Conditions);
+		if (AirAutoButton) { AirAutoButton->SetSelected(!Conditions.HasAirTemp()); }
+		if (AirValueText)  { AirValueText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), Air))); }
+		if (AirNoteText)
+		{
+			AirNoteText->SetText(FText::FromString(Conditions.HasAirTemp()
+				? FString(DescribeAir(Air))
+				: FString(TEXT("FROM WEATHER AND TIME"))));
+		}
+		if (AirMinus) { AirMinus->SetIsEnabled(Air > FApexSessionConditions::MinAirTempC); }
+		if (AirPlus)  { AirPlus->SetIsEnabled(Air < FApexSessionConditions::MaxAirTempC); }
 	}
 
+	for (int32 Index = 0; Index < WindButtons.Num(); ++Index)
 	{
-		const FApexSessionConditions& Air = Flow->CreateConditions;
-		const int32 Step = Air.HasAirTemp()
-			? FMath::Clamp(Air.AirTempC - FApexSessionConditions::MinAirTempC + 1, 1, AirTempSteps)
-			: 0;
-		const float Fraction = static_cast<float>(Step) / AirTempSteps;
-		if (AirTempSlider) { AirTempSlider->SetValue(Fraction); }
-		if (AirTempFill)   { AirTempFill->SetPercent(Fraction); }
-		if (AirTempValue)
+		if (WindButtons[Index])
 		{
-			AirTempValue->SetText(FText::FromString(
-				Air.HasAirTemp() ? FString::Printf(TEXT("%d°C"), Air.AirTempC) : FString(TEXT("Auto"))));
+			const bool bAuto = Index == WindPresetCount;
+			WindButtons[Index]->SetSelected(bAuto ? !Conditions.HasWind() : Conditions.WindKph == WindPresetsKph[Index]);
 		}
-		if (AirTempSuffix)
+	}
+	for (int32 Index = 0; Index < WindFromButtons.Num(); ++Index)
+	{
+		if (WindFromButtons[Index])
 		{
-			AirTempSuffix->SetText(FText::FromString(
-				Air.HasAirTemp() ? FString(DescribeAir(Air.AirTempC)) : FString(TEXT("FROM THE WEATHER"))));
+			WindFromButtons[Index]->SetSelected(Conditions.HasWindDirection() && Conditions.WindFromDeg == Index * 45);
+		}
+	}
+	{
+		const bool bCalm = ApexCreateSession::WindKph(Conditions) == 0;
+		if (WindNeedle)
+		{
+			WindNeedle->SetVisibility(Conditions.HasWindDirection() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+			WindNeedle->SetRenderTransformAngle(-static_cast<float>(Conditions.WindFromDeg));
+			WindNeedle->SetRenderOpacity(bCalm ? 0.35f : 1.0f);
+		}
+		if (WindFromText)
+		{
+			WindFromText->SetText(FText::FromString(bCalm ? FString(TEXT("CALM"))
+				: Conditions.HasWindDirection()
+					? FString::Printf(TEXT("FROM %s"), *FApexSessionConditions::WindFromLabel(Conditions.WindFromDeg).ToUpper())
+					: FString(TEXT("DIRECTION AUTO"))));
+		}
+	}
+
+	RefreshSetups();
+	RefreshGridPreview();
+	RefreshSkyPreview();
+	RefreshFooter();
+}
+
+UApexSettingsSubsystem* UApexSessionCreateWidget::GetSettingsSubsystem() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	return GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+}
+
+void UApexSessionCreateWidget::RefreshSetups()
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexSettingsSubsystem* Settings = GetSettingsSubsystem();
+	if (!Flow || !Settings || !Settings->Get() || !SetupRows)
+	{
+		return;
+	}
+
+	const FString CarId = Flow->GetPendingCarId();
+	const TArray<FApexSavedSetup> Saved = Settings->GetSavedSetups(CarId);
+	FApexCarSetup Working = Settings->Get()->CarSetup;
+	Working.Clamp();
+
+	// Which saved setup the working one is: the loaded one while it is
+	// unchanged, else any with the very same clicks.
+	auto Matches = [&Working](const FApexSavedSetup& Entry)
+	{
+		FApexCarSetup Clicks = Entry.Setup;
+		Clicks.Clamp();
+		return Clicks == Working;
+	};
+	const FGuid Loaded = Settings->GetLoadedSetupId();
+	int32 Current = Saved.IndexOfByPredicate([&](const FApexSavedSetup& Entry) { return Entry.Id == Loaded && Matches(Entry); });
+	if (Current == INDEX_NONE)
+	{
+		Current = Saved.IndexOfByPredicate(Matches);
+	}
+	const bool bStock = Working.IsStock();
+	const bool bCustom = !bStock && Current == INDEX_NONE;
+
+	// The newest few, and the working one wherever it is in the list.
+	TArray<int32> Shown;
+	for (int32 Index = 0; Index < Saved.Num() && Shown.Num() < MaxSetupsShown; ++Index)
+	{
+		Shown.Add(Index);
+	}
+	if (Current != INDEX_NONE && !Shown.Contains(Current))
+	{
+		Shown.Last() = Current;
+	}
+
+	CurrentSetupLabel = bStock ? FString(TEXT("Stock"))
+		: bCustom ? FString(TEXT("Custom"))
+		: Saved[Current].Name;
+
+	FString Signature = CarId + (bCustom ? TEXT("|custom") : TEXT(""));
+	for (const int32 Index : Shown)
+	{
+		Signature += FString::Printf(TEXT("|%s:%s:%d"), *Saved[Index].Id.ToString(), *Saved[Index].Name, Saved[Index].BestLapMs);
+	}
+
+	if (Signature != SetupSignature || SetupButtons.IsEmpty())
+	{
+		SetupSignature = Signature;
+		const bool bHadFocus = SetupButtons.ContainsByPredicate(
+			[](const TObjectPtr<UApexButtonWidget>& Button) { return Button && Button->HasKeyboardFocus(); });
+
+		SetupRows->ClearChildren();
+		SetupButtons.Reset();
+		SetupButtonIds.Reset();
+
+		auto Add = [this](const FString& Label, const FString& Badge, const FGuid& Id)
+		{
+			FApexButtonSpec Spec;
+			Spec.Label = Label;
+			Spec.Badge = Badge;
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.LabelSize = 16.0f;
+			Spec.Height = 46.0f;
+			SetupButtons.Add(MakeButton(Spec));
+			SetupButtonIds.Add(Id);
+		};
+		Add(TEXT("Stock"), TEXT("As filed"), FGuid());
+		if (bCustom)
+		{
+			Add(TEXT("Custom"), TEXT("Unsaved"), CustomSetupMarker);
+		}
+		for (const int32 Index : Shown)
+		{
+			const FApexSavedSetup& Entry = Saved[Index];
+			Add(Entry.Name, Entry.BestLapMs > 0
+				? UApexMenuFlowSubsystem::FormatLapTime(Entry.BestLapMs / 1000.0f)
+				: FString(TEXT("No lap")), Entry.Id);
 		}
 
-		for (int32 Index = 0; Index < WindButtons.Num(); ++Index)
+		// Three to a row, a short last row keeping the thirds.
+		UHorizontalBox* Row = nullptr;
+		for (int32 Index = 0; Index < SetupButtons.Num(); ++Index)
 		{
-			UApexButtonWidget* Button = WindButtons[Index];
-			if (!Button)
+			if (Index % 3 == 0)
 			{
-				continue;
+				Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+				ApexUI::AddV(SetupRows, Row, FMargin(0.0f, Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f));
 			}
-			if (Index == WindPresetCount + 1)
-			{
-				Button->SetLabel(WindFromChip(Air.WindFromDeg));
-				Button->SetSelected(Air.HasWindDirection());
-				continue;
-			}
-			const bool bSelected = Index == 0 ? !Air.HasWind() : Air.WindKph == WindPresetsKph[Index - 1];
-			Button->SetSelected(bSelected);
+			ApexUI::AddH(Row, SetupButtons[Index], FMargin(Index % 3 == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+		for (int32 Pad = SetupButtons.Num() % 3; Row && Pad != 0 && Pad < 3; ++Pad)
+		{
+			ApexUI::AddH(Row, WidgetTree->ConstructWidget<USpacer>(), FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+
+		if (bHadFocus)
+		{
+			// Back onto the chip now in use, wherever the rebuild put it.
+			const FGuid Selected = bStock ? FGuid() : bCustom ? CustomSetupMarker : Saved[Current].Id;
+			const int32 At = SetupButtonIds.IndexOfByKey(Selected);
+			ApexNav::Focus(SetupButtons.IsValidIndex(At) ? SetupButtons[At].Get() : SetupButtons[0].Get());
 		}
 	}
 
-	// Sliders are normalised 0..1; the labels carry the real numbers.
-	if (MaxPlayersSlider)
+	for (int32 Index = 0; Index < SetupButtons.Num(); ++Index)
 	{
-		MaxPlayersSlider->SetValue(static_cast<float>(Flow->CreateMaxPlayers - 1) / (MaxPlayersCeiling - 1));
-	}
-	if (AiCountSlider)
-	{
-		AiCountSlider->SetValue(static_cast<float>(Flow->CreateAiCount) / FMath::Max(1, MaxPlayersCeiling - 1));
-	}
-	if (LapsSlider)
-	{
-		LapsSlider->SetValue(static_cast<float>(Flow->CreateLapLimit - 1) / (LapsCeiling - 1));
+		const FGuid& Id = SetupButtonIds[Index];
+		const bool bSelected = !Id.IsValid() ? bStock
+			: Id == CustomSetupMarker ? bCustom
+			: Current != INDEX_NONE && Saved[Current].Id == Id;
+		SetupButtons[Index]->SetSelected(bSelected);
 	}
 
-	if (MaxPlayersValue)  { MaxPlayersValue->SetText(FText::AsNumber(Flow->CreateMaxPlayers)); }
-	if (MaxPlayersSuffix) { MaxPlayersSuffix->SetText(FText::FromString(FString::Printf(TEXT("/ %d"), MaxPlayersCeiling))); }
-	if (MaxPlayersFill)   { MaxPlayersFill->SetPercent(static_cast<float>(Flow->CreateMaxPlayers) / MaxPlayersCeiling); }
-
-	if (AiCountValue)  { AiCountValue->SetText(FText::AsNumber(Flow->CreateAiCount)); }
-	if (AiCountSuffix) { AiCountSuffix->SetText(FText::FromString(FString::Printf(TEXT("/ %d"), MaxPlayersCeiling - 1))); }
-	if (AiCountFill)   { AiCountFill->SetPercent(static_cast<float>(Flow->CreateAiCount) / (MaxPlayersCeiling - 1)); }
-
-	if (LapsValue)  { LapsValue->SetText(FText::AsNumber(Flow->CreateLapLimit)); }
-	if (LapsFill)   { LapsFill->SetPercent(static_cast<float>(Flow->CreateLapLimit) / LapsCeiling); }
-
-	if (LapsSuffix)
+	if (SetupInfoText)
 	{
-		// The only honest estimate available: laps times a lap this player has
-		// actually driven here. No personal best, no estimate.
-		float BestSeconds = 0.0f;
-		if (Flow->GetBestLapSeconds(Flow->GetPendingTrackId(), BestSeconds) && BestSeconds > 0.0f)
+		SetupInfoText->SetText(FText::FromString(Saved.IsEmpty()
+			? FString(TEXT("NONE SAVED · TUNE ONE IN THE HOTLAP GARAGE"))
+			: Saved.Num() > Shown.Num()
+				? FString::Printf(TEXT("%d SAVED FOR THIS CAR · NEWEST %d SHOWN"), Saved.Num(), Shown.Num())
+				: FString::Printf(TEXT("%d SAVED FOR THIS CAR"), Saved.Num())));
+	}
+}
+
+void UApexSessionCreateWidget::RefreshGridPreview()
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow)
+	{
+		return;
+	}
+
+	const bool bMultiplayer = Flow->CreateSessionKind != EApexSessionKind::Practice;
+	const bool bHotlap = Flow->CreateStartingMode == EApexGameMode::Hotlap;
+	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(bMultiplayer, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+
+	if (GridSlotsPanel) { GridSlotsPanel->SetVisibility(bHotlap ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible); }
+	if (GridSoloPanel)  { GridSoloPanel->SetVisibility(bHotlap ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed); }
+	if (GridSoloTitle)  { GridSoloTitle->SetText(FText::FromString(TEXT("Just you and the clock"))); }
+	if (GridSoloText)
+	{
+		GridSoloText->SetText(FText::FromString(
+			TEXT("Every driver hotlaps from their own garage: no AI, no grid, no lap limit.")));
+	}
+
+	if (GridHintText)
+	{
+		FString Hint;
+		if (bHotlap)
 		{
-			const int32 TotalSeconds = FMath::RoundToInt(BestSeconds * Flow->CreateLapLimit);
-			LapsSuffix->SetText(FText::FromString(
-				FString::Printf(TEXT("≈ %d:%02d at your best"), TotalSeconds / 60, TotalSeconds % 60)));
+			Hint = TEXT("HOTLAP");
+		}
+		else if (bMultiplayer)
+		{
+			Hint = FString::Printf(TEXT("%d CARS · %d AI · %d OPEN · YOU START P%d"), G.Field, G.Ai, G.Open, G.YourSlot);
 		}
 		else
 		{
-			LapsSuffix->SetText(FText::GetEmpty());
+			Hint = G.Ai > 0
+				? FString::Printf(TEXT("%d CARS · YOU START P%d, BEHIND THE AI"), G.Field, G.YourSlot)
+				: FString(TEXT("1 CAR · JUST YOU"));
 		}
+		GridHintText->SetText(FText::FromString(Hint));
 	}
 
-	// A hotlap has no AI field and no distance: the two rows go away rather
-	// than sit there looking like they apply, and the grid line says what
-	// the session is.
-	const bool bHotlap = Flow->CreateStartingMode == EApexGameMode::Hotlap;
-	if (AiCountRow) { AiCountRow->SetVisibility(bHotlap ? ESlateVisibility::Collapsed : ESlateVisibility::Visible); }
-	if (LapsRow)    { LapsRow->SetVisibility(bHotlap ? ESlateVisibility::Collapsed : ESlateVisibility::Visible); }
-
-	if (GridSummaryText)
+	for (int32 Index = 0; Index < SlotFaces.Num(); ++Index)
 	{
-		const int32 Slots = Flow->CreateMaxPlayers;
-		const int32 Ai = FMath::Min(Flow->EffectiveAiCount(), FMath::Max(0, Slots - 1));
-		const int32 Open = FMath::Max(0, Slots - 1 - Ai);
-		GridSummaryText->SetText(FText::FromString(bHotlap
-			? FString::Printf(TEXT("GRID: %d SLOTS · EVERY DRIVER HOTLAPS FROM THEIR OWN GARAGE, NO AI, NO LAP LIMIT"), Slots)
-			: FString::Printf(TEXT("GRID: %d SLOTS · 1 HUMAN + %d AI · %d OPEN"), Slots, Ai, Open)));
+		const ApexCreateSession::ESlot Kind = ApexCreateSession::SlotAt(G, Index + 1);
+		FLinearColor Fill = FLinearColor::Transparent;
+		FLinearColor Outline = ApexUI::Palette::Border;
+		FLinearColor NumberColour = ApexUI::Palette::TextMuted;
+		FLinearColor NameColour = ApexUI::Palette::TextSecondary;
+		FString Name;
+		switch (Kind)
+		{
+		case ApexCreateSession::ESlot::You:
+			Fill = ApexUI::Palette::Accent;
+			Outline = ApexUI::Palette::Accent;
+			NumberColour = ApexUI::Palette::OnAccent;
+			NameColour = ApexUI::Palette::OnAccent;
+			Name = TEXT("YOU");
+			break;
+		case ApexCreateSession::ESlot::Ai:
+			Fill = ApexUI::Palette::SurfaceHover;
+			Name = FString::Printf(TEXT("AI %d"), Index + 1);
+			break;
+		case ApexCreateSession::ESlot::Open:
+			Outline = ApexUI::Palette::TextMuted;
+			NameColour = ApexUI::Palette::TextMuted;
+			Name = TEXT("Open seat");
+			break;
+		default:
+			Outline = ApexUI::Palette::Border * 0.6f;
+			Outline.A = 1.0f;
+			NumberColour = ApexUI::Palette::TextDisabled;
+			break;
+		}
+		if (SlotFaces[Index])   { SlotFaces[Index]->SetBrush(ApexUI::MakeBrush(Fill, Outline, 1.0f)); }
+		if (SlotNumbers[Index]) { SlotNumbers[Index]->SetColorAndOpacity(FSlateColor(NumberColour)); }
+		if (SlotNames[Index])
+		{
+			SlotNames[Index]->SetText(FText::FromString(Name));
+			SlotNames[Index]->SetColorAndOpacity(FSlateColor(NameColour));
+		}
+	}
+}
+
+void UApexSessionCreateWidget::RefreshSkyPreview()
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow)
+	{
+		return;
+	}
+
+	const FApexSessionConditions C = Flow->CreateConditions.Clamped();
+	const ApexCreateSession::FSkyLook Look = ApexCreateSession::Sky(C);
+	const ApexCreateSession::FWeatherLook Weather = ApexCreateSession::WeatherLook(C.Weather);
+
+	if (SkyBase) { SkyBase->SetBrush(ApexUI::MakeBrush(SrgbColour(Look.Bottom))); }
+	if (SkyTop)  { SkyTop->SetColorAndOpacity(SrgbColour(Look.Top)); }
+
+	// The horizon is a quarter of the way up the panel; the sun climbs the
+	// rest by its elevation and crosses it from sunrise on the left.
+	const FAnchors SunAt(0.08f + Look.SunX * 0.84f, 1.0f - (0.26f + Look.SunHeight * 0.56f));
+	const FLinearColor SunColour = Look.bLowSun ? SrgbColour(FColor(0xFF, 0xB4, 0x6B)) : SrgbColour(FColor(0xFF, 0xF4, 0xD6));
+	const FLinearColor GlowColour = Look.bLowSun ? SrgbColour(FColor(0xFF, 0x96, 0x50), 0.3f) : SrgbColour(FColor(0xFF, 0xF0, 0xC8), 0.25f);
+	if (SunDiscSlot) { SunDiscSlot->SetAnchors(SunAt); }
+	if (SunGlowSlot) { SunGlowSlot->SetAnchors(SunAt); }
+	if (SunDisc)
+	{
+		SunDisc->SetBrush(ApexUI::MakeBrush(SunColour, FLinearColor::Transparent, 0.0f, 30.0f));
+		SunDisc->SetRenderOpacity(Look.SunOpacity);
+	}
+	if (SunGlow)
+	{
+		SunGlow->SetBrush(ApexUI::MakeBrush(GlowColour, FLinearColor::Transparent, 0.0f, 80.0f));
+		SunGlow->SetRenderOpacity(Look.SunOpacity);
+	}
+	if (CloudVeil) { CloudVeil->SetBrush(ApexUI::MakeBrush(SrgbColour(FColor(150, 158, 166), Weather.Cloud * 0.35f))); }
+	if (RainVeil)  { RainVeil->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, Weather.Rain)); }
+
+	if (SkyClockText) { SkyClockText->SetText(FText::FromString(C.ClockText())); }
+	if (SkyPhaseText)
+	{
+		SkyPhaseText->SetText(FText::FromString(FString::Printf(TEXT("%s · %s"),
+			Look.Phase, *FApexSessionConditions::WeatherLabel(C.Weather).ToUpper())));
+	}
+
+	const int32 Grip = ApexCreateSession::GripPercent(C.Weather);
+	if (SkyAirText)   { SkyAirText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), ApexCreateSession::AirTempC(C)))); }
+	if (SkyTrackText) { SkyTrackText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), FMath::RoundToInt(ApexCreateSession::TrackTempC(C))))); }
+	if (SkyGripText)
+	{
+		SkyGripText->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), Grip)));
+		SkyGripText->SetColorAndOpacity(FSlateColor(Grip >= 95 ? ApexUI::Palette::TextPrimary
+			: Grip >= 80 ? ApexUI::Palette::Accent
+			: ApexUI::Palette::Error));
+	}
+	if (SkyWindText) { SkyWindText->SetText(FText::FromString(FString::Printf(TEXT("%d km/h"), ApexCreateSession::WindKph(C)))); }
+	if (SkyWindArrow)
+	{
+		SkyWindArrow->SetVisibility(C.HasWindDirection() && ApexCreateSession::WindKph(C) > 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+		SkyWindArrow->SetRenderTransformAngle(-static_cast<float>(C.WindFromDeg));
 	}
 }
 
@@ -989,31 +2065,65 @@ void UApexSessionCreateWidget::RefreshFooter()
 	const bool bHasCar = Flow->HasPendingCar();
 
 	FString Status;
-	FLinearColor Colour = ApexUI::Palette::TextMuted;
-
+	FLinearColor Colour = ApexUI::Palette::Live;
 	if (!bConnected)
 	{
-		Status = TEXT("NOT CONNECTED — CONNECT TO A SERVER FIRST");
+		Status = TEXT("NOT CONNECTED");
 		Colour = ApexUI::Palette::Error;
 	}
 	else if (!bHasTrack)
 	{
-		Status = TEXT("PICK A TRACK TO CONTINUE");
+		Status = TEXT("PICK A TRACK");
 		Colour = ApexUI::Palette::Error;
 	}
 	else if (!bHasCar)
 	{
-		Status = TEXT("READY · NO CAR PICKED, THE SERVER WILL ASK FOR ONE");
+		Status = TEXT("NO CAR PICKED");
 		Colour = ApexUI::Palette::Accent;
 	}
 	else
 	{
-		Status = TEXT("READY · TRACK AND CAR SELECTED");
-		Colour = ApexUI::Palette::Live;
+		Status = TEXT("READY");
 	}
-
 	StatusLine->SetText(FText::FromString(Status));
 	StatusLine->SetColorAndOpacity(FSlateColor(Colour));
+	ApexUI::SetDotColour(StatusDot, Colour, 8.0f);
+
+	if (SummaryText)
+	{
+		const EApexGameMode Mode = Flow->CreateStartingMode;
+		const bool bMultiplayer = Flow->CreateSessionKind != EApexSessionKind::Practice;
+		const ApexCreateSession::FGrid G = ApexCreateSession::Grid(bMultiplayer, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+		const FApexSessionConditions C = Flow->CreateConditions.Clamped();
+
+		TArray<FString> Parts;
+		Parts.Add(FString(ModeLabel(Mode)).ToUpper());
+		if (Mode == EApexGameMode::Race)
+		{
+			Parts.Add(FString::Printf(TEXT("%d LAPS"), Flow->CreateLapLimit));
+		}
+		if (Mode != EApexGameMode::Hotlap)
+		{
+			Parts.Add(FString::Printf(TEXT("%d CARS"), G.Field));
+		}
+		Parts.Add(C.ClockText());
+		Parts.Add(FApexSessionConditions::WeatherLabel(C.Weather).ToUpper());
+		const int32 Preset = ApexCreateSession::MatchingPreset(Flow->CreateAllowedAssists);
+		Parts.Add(Preset != INDEX_NONE
+			? FString::Printf(TEXT("%s ASSISTS"), *FString(ApexCreateSession::PresetName(static_cast<ApexCreateSession::EAssistPreset>(Preset))).ToUpper())
+			: FString::Printf(TEXT("%d/%d ASSISTS"), FApexAllowedAssists::Count - Flow->CreateAllowedAssists.CountLocked(),
+				FApexAllowedAssists::Count));
+		Parts.Add(DamageOptions[FMath::Clamp(static_cast<int32>(Flow->CreateDamage), 0, 2)].Summary);
+		if (!CurrentSetupLabel.IsEmpty())
+		{
+			Parts.Add(FString::Printf(TEXT("SETUP %s"), *CurrentSetupLabel.ToUpper()));
+		}
+		if (!bConnected)
+		{
+			Parts.Insert(TEXT("CONNECT TO A SERVER FIRST"), 0);
+		}
+		SummaryText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · "))));
+	}
 
 	if (CreateButtonWidget)
 	{
@@ -1028,49 +2138,66 @@ void UApexSessionCreateWidget::RefreshFooter()
 void UApexSessionCreateWidget::HandleLobbyStateUpdated(const FApexLobbyState& LobbyState)
 {
 	RefreshContent();
-	RefreshFooter();
 }
 
-void UApexSessionCreateWidget::HandleMaxPlayersChanged(float Value)
+void UApexSessionCreateWidget::Changed()
+{
+	if (UApexMenuFlowSubsystem* Flow = GetFlow())
+	{
+		Flow->SaveProfile();
+	}
+	RefreshSettings();
+}
+
+void UApexSessionCreateWidget::SetGridSize(int32 Size)
 {
 	UApexMenuFlowSubsystem* Flow = GetFlow();
 	if (!Flow)
 	{
 		return;
 	}
-
-	Flow->CreateMaxPlayers = FMath::Clamp(FMath::RoundToInt(Value * (MaxPlayersCeiling - 1)) + 1, 1, MaxPlayersCeiling);
+	Flow->CreateMaxPlayers = FMath::Clamp(Size, 1, MaxPlayersCeiling);
 	// AI can never outnumber the grid minus the player.
 	Flow->CreateAiCount = FMath::Min(Flow->CreateAiCount, FMath::Max(0, Flow->CreateMaxPlayers - 1));
-	Flow->SaveProfile();
-	RefreshSettings();
+	Changed();
 }
 
-void UApexSessionCreateWidget::HandleAiCountChanged(float Value)
+void UApexSessionCreateWidget::SetAiCount(int32 Count)
 {
 	UApexMenuFlowSubsystem* Flow = GetFlow();
 	if (!Flow)
 	{
 		return;
 	}
-
-	const int32 Ceiling = FMath::Max(0, FMath::Min(MaxPlayersCeiling - 1, Flow->CreateMaxPlayers - 1));
-	Flow->CreateAiCount = FMath::Clamp(FMath::RoundToInt(Value * (MaxPlayersCeiling - 1)), 0, Ceiling);
-	Flow->SaveProfile();
-	RefreshSettings();
+	if (Flow->CreateSessionKind == EApexSessionKind::Practice)
+	{
+		// Alone, the field is the AI and you: the grid grows to seat them.
+		Flow->CreateAiCount = FMath::Clamp(Count, 0, MaxPlayersCeiling - 1);
+		Flow->CreateMaxPlayers = FMath::Max(Flow->CreateMaxPlayers, Flow->CreateAiCount + 1);
+	}
+	else
+	{
+		Flow->CreateAiCount = FMath::Clamp(Count, 0, FMath::Max(0, Flow->CreateMaxPlayers - 1));
+	}
+	Changed();
 }
 
-void UApexSessionCreateWidget::HandleLapsChanged(float Value)
+void UApexSessionCreateWidget::PickGridSlot(int32 Position)
 {
-	UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
 	if (!Flow)
 	{
 		return;
 	}
-
-	Flow->CreateLapLimit = FMath::Clamp(FMath::RoundToInt(Value * (LapsCeiling - 1)) + 1, 1, LapsCeiling);
-	Flow->SaveProfile();
-	RefreshSettings();
+	if (Flow->CreateSessionKind == EApexSessionKind::Practice)
+	{
+		// You start behind the AI, so the slot you pick is yours.
+		SetAiCount(Position - 1);
+	}
+	else
+	{
+		SetGridSize(Position);
+	}
 }
 
 void UApexSessionCreateWidget::HandleTimeOfDayChanged(float Value)
@@ -1085,25 +2212,7 @@ void UApexSessionCreateWidget::HandleTimeOfDayChanged(float Value)
 	// than reading 24:00.
 	const int32 Step = FMath::Clamp(FMath::RoundToInt(Value * TimeOfDaySteps), 0, TimeOfDaySteps);
 	Flow->CreateConditions.TimeOfDayMinutes = (Step * TimeOfDayStepMinutes) % FApexSessionConditions::MinutesPerDay;
-	Flow->SaveProfile();
-	RefreshSettings();
-}
-
-void UApexSessionCreateWidget::HandleAirTempChanged(float Value)
-{
-	UApexMenuFlowSubsystem* Flow = GetFlow();
-	if (!Flow)
-	{
-		return;
-	}
-
-	// Step 0 is "from the weather", then a degree a step.
-	const int32 Step = FMath::Clamp(FMath::RoundToInt(Value * AirTempSteps), 0, AirTempSteps);
-	Flow->CreateConditions.AirTempC = Step == 0
-		? FApexSessionConditions::AutoAirTemp
-		: FApexSessionConditions::MinAirTempC + Step - 1;
-	Flow->SaveProfile();
-	RefreshSettings();
+	Changed();
 }
 
 void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
@@ -1114,15 +2223,13 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		return;
 	}
 
-	const FName Id = Button->GetActionId();
-
-	if (Id == ActionCreateBack || Id == ActionCancel)
+	if (Button == HomeButton || Button == CancelButton)
 	{
 		GoBack();
 		return;
 	}
 
-	if (Id == ActionChangeTrack)
+	if (Button == ChangeTrackLink)
 	{
 		if (UApexRootWidget* Root = GetRoot())
 		{
@@ -1132,7 +2239,7 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		return;
 	}
 
-	if (Id == ActionCreateChangeCar)
+	if (Button == ChangeCarLink)
 	{
 		if (UApexRootWidget* Root = GetRoot())
 		{
@@ -1142,17 +2249,17 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		return;
 	}
 
-	if (Id == ActionKindMultiplayer || Id == ActionKindSingle)
+	if (Button == KindMultiplayerButton || Button == KindSingleButton)
 	{
 		// "Single player" is the protocol's Practice kind: the same session, not
 		// listed for others to join.
-		Flow->CreateSessionKind = Id == ActionKindSingle ? EApexSessionKind::Practice : EApexSessionKind::Multiplayer;
-		Flow->SaveProfile();
-		RefreshSettings();
+		Flow->CreateSessionKind = Button == KindSingleButton ? EApexSessionKind::Practice : EApexSessionKind::Multiplayer;
+		Flow->CreateMaxPlayers = FMath::Max(Flow->CreateMaxPlayers, Flow->CreateAiCount + 1);
+		Changed();
 		return;
 	}
 
-	if (Id == ActionCreate)
+	if (Button == CreateButtonWidget)
 	{
 		UApexNetSubsystem* Net = GetNet();
 		if (!Net || !Net->IsAuthenticated())
@@ -1176,10 +2283,11 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Flow->bAutoStartOnJoin = false;
 		Flow->SaveProfile();
 
-		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI, %d laps, kind %d, %d assists locked, %s"),
+		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI, %d laps, kind %d, %d assists locked, %s, damage %d"),
 			*Flow->GetPendingTrackId(), Flow->CreateMaxPlayers, Flow->EffectiveAiCount(),
 			Flow->EffectiveLapLimit(), static_cast<int32>(Flow->CreateSessionKind),
-			Flow->CreateAllowedAssists.CountLocked(), *Flow->CreateConditions.Describe());
+			Flow->CreateAllowedAssists.CountLocked(), *Flow->CreateConditions.Describe(),
+			static_cast<int32>(Flow->CreateDamage));
 
 		Net->CreateSession(
 			Flow->GetPendingTrackId(),
@@ -1188,69 +2296,142 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->EffectiveLapLimit(),
 			Flow->CreateSessionKind,
 			Flow->CreateAllowedAssists,
-			Flow->CreateConditions);
+			Flow->CreateConditions,
+			Flow->CreateDamage);
 		return;
 	}
 
-	for (int32 Index = 0; Index < FApexSessionConditions::WeatherCount; ++Index)
+	if (const int32 Tab = ApexNav::IndexOf(TabButtons, Button); Tab != INDEX_NONE)
 	{
-		if (Id == WeatherAction(static_cast<EApexWeather>(Index)))
-		{
-			Flow->CreateConditions.Weather = static_cast<EApexWeather>(Index);
-			Flow->SaveProfile();
-			RefreshSettings();
-			return;
-		}
+		SetActiveTab(Tab);
+		return;
 	}
 
-	for (int32 Index = 0; Index <= WindPresetCount; ++Index)
+	// --- Race tab ----------------------------------------------------------------
+	if (const int32 Mode = ApexNav::IndexOf(ModeButtons, Button); Mode != INDEX_NONE)
 	{
-		if (Id == WindAction(Index))
+		Flow->CreateStartingMode = ModeOptions[Mode].Mode;
+		Changed();
+		return;
+	}
+	if (Button == LapsMinus || Button == LapsPlus)
+	{
+		Flow->CreateLapLimit = FMath::Clamp(Flow->CreateLapLimit + (Button == LapsPlus ? 1 : -1), 1, LapsCeiling);
+		Changed();
+		return;
+	}
+	if (const int32 Laps = ApexNav::IndexOf(LapPresetButtons, Button); Laps != INDEX_NONE)
+	{
+		Flow->CreateLapLimit = LapPresets[Laps].Laps;
+		Changed();
+		return;
+	}
+	if (Button == FieldMinus || Button == FieldPlus)
+	{
+		const int32 Step = Button == FieldPlus ? 1 : -1;
+		const bool bMultiplayer = Flow->CreateSessionKind != EApexSessionKind::Practice;
+		const ApexCreateSession::FGrid G = ApexCreateSession::Grid(bMultiplayer, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+		if (bMultiplayer)
 		{
-			Flow->CreateConditions.WindKph = Index == 0 ? FApexSessionConditions::Auto : WindPresetsKph[Index - 1];
-			Flow->SaveProfile();
-			RefreshSettings();
+			SetGridSize(G.Field + Step);
+		}
+		else
+		{
+			SetAiCount(G.Ai + Step);
+		}
+		return;
+	}
+	if (Button == AiMinus || Button == AiPlus)
+	{
+		SetAiCount(FMath::Min(Flow->CreateAiCount, FMath::Max(0, Flow->CreateMaxPlayers - 1)) + (Button == AiPlus ? 1 : -1));
+		return;
+	}
+	if (const int32 Position = ApexNav::IndexOf(SlotButtons, Button); Position != INDEX_NONE)
+	{
+		PickGridSlot(Position + 1);
+		return;
+	}
+	if (const int32 Preset = ApexNav::IndexOf(AssistPresetButtons, Button); Preset != INDEX_NONE)
+	{
+		Flow->CreateAllowedAssists = ApexCreateSession::AssistPreset(static_cast<ApexCreateSession::EAssistPreset>(Preset));
+		Changed();
+		return;
+	}
+	if (const int32 SetupAt = ApexNav::IndexOf(SetupButtons, Button); SetupAt != INDEX_NONE)
+	{
+		UApexSettingsSubsystem* Settings = GetSettingsSubsystem();
+		const FGuid Id = SetupButtonIds.IsValidIndex(SetupAt) ? SetupButtonIds[SetupAt] : FGuid();
+		if (!Settings || Id == CustomSetupMarker)
+		{
+			// Custom is the working setup already; nothing to load.
 			return;
 		}
-	}
-	if (Id == ActionWindFrom)
-	{
-		// Auto, head-on, from the left, behind, from the right, and round.
-		int32 At = 0;
-		for (int32 Index = 0; Index < WindDirectionCount; ++Index)
+		if (Id.IsValid())
 		{
-			if (WindDirections[Index] == Flow->CreateConditions.WindFromDeg)
-			{
-				At = Index;
-			}
+			Settings->LoadSavedSetup(Id);
 		}
-		Flow->CreateConditions.WindFromDeg = WindDirections[(At + 1) % WindDirectionCount];
-		Flow->SaveProfile();
+		else
+		{
+			Settings->ResetToDefaults(EApexSettingsGroup::CarSetup);
+		}
 		RefreshSettings();
 		return;
 	}
-
-	for (int32 Index = 0; Index < static_cast<int32>(EApexAssistChip::Count); ++Index)
+	if (const int32 Damage = ApexNav::IndexOf(DamageButtons, Button); Damage != INDEX_NONE)
 	{
-		if (Id == AssistAction(static_cast<EApexAssistChip>(Index)))
-		{
-			bool& Flag = AssistFlag(Flow->CreateAllowedAssists, static_cast<EApexAssistChip>(Index));
-			Flag = !Flag;
-			Flow->SaveProfile();
-			RefreshSettings();
-			return;
-		}
+		Flow->CreateDamage = static_cast<EApexDamageLevel>(Damage);
+		Changed();
+		return;
+	}
+	if (const int32 Assist = ApexNav::IndexOf(AssistButtons, Button); Assist != INDEX_NONE)
+	{
+		bool& Flag = AssistFlag(Flow->CreateAllowedAssists, static_cast<EApexAssistChip>(Assist));
+		Flag = !Flag;
+		Changed();
+		return;
 	}
 
-	// Otherwise a starting-mode tile.
-	for (int32 Mode = 0; Mode <= static_cast<int32>(EApexGameMode::Hotlap); ++Mode)
+	// --- Conditions tab ----------------------------------------------------------
+	if (const int32 Time = ApexNav::IndexOf(TimePresetButtons, Button); Time != INDEX_NONE)
 	{
-		if (Id == ModeAction(static_cast<EApexGameMode>(Mode)))
-		{
-			Flow->CreateStartingMode = static_cast<EApexGameMode>(Mode);
-			Flow->SaveProfile();
-			RefreshSettings();
-			return;
-		}
+		Flow->CreateConditions.TimeOfDayMinutes = TimePresets[Time].Minutes;
+		Changed();
+		return;
+	}
+	if (const int32 Weather = ApexNav::IndexOf(WeatherButtons, Button); Weather != INDEX_NONE)
+	{
+		Flow->CreateConditions.Weather = static_cast<EApexWeather>(Weather);
+		Changed();
+		return;
+	}
+	if (Button == AirAutoButton)
+	{
+		// Off auto, the figure starts at what auto would have said.
+		FApexSessionConditions& C = Flow->CreateConditions;
+		C.AirTempC = C.HasAirTemp() ? FApexSessionConditions::AutoAirTemp : ApexCreateSession::AirTempC(C.Clamped());
+		Changed();
+		return;
+	}
+	if (Button == AirMinus || Button == AirPlus)
+	{
+		FApexSessionConditions& C = Flow->CreateConditions;
+		C.AirTempC = FMath::Clamp(ApexCreateSession::AirTempC(C.Clamped()) + (Button == AirPlus ? 1 : -1),
+			FApexSessionConditions::MinAirTempC, FApexSessionConditions::MaxAirTempC);
+		Changed();
+		return;
+	}
+	if (const int32 Wind = ApexNav::IndexOf(WindButtons, Button); Wind != INDEX_NONE)
+	{
+		Flow->CreateConditions.WindKph = Wind == WindPresetCount ? FApexSessionConditions::Auto : WindPresetsKph[Wind];
+		Changed();
+		return;
+	}
+	if (const int32 From = ApexNav::IndexOf(WindFromButtons, Button); From != INDEX_NONE)
+	{
+		// The chosen point again hands the direction back to the server.
+		FApexSessionConditions& C = Flow->CreateConditions;
+		C.WindFromDeg = C.HasWindDirection() && C.WindFromDeg == From * 45 ? FApexSessionConditions::Auto : From * 45;
+		Changed();
+		return;
 	}
 }
