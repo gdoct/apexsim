@@ -17,7 +17,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Saira:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/site.css?v=9d7a886c">
+<link rel="stylesheet" href="assets/site.css?v=a3f26341">
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
 
@@ -36,6 +37,7 @@
     </ul>
     <a class="gh" href="https://github.com/gdoct/apexsim"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>Source</a>
   </div>
+  <div class="read" id="readBar" aria-hidden="true"></div>
 </nav>
 
 <header class="hero" id="top">
@@ -65,7 +67,7 @@
 </header>
 
 <div class="stats">
-  <div class="wrap">
+  <div class="wrap stagger">
     <div class="stat"><b>240<sup>Hz</sup></b><span>Authoritative physics tick</span></div>
     <div class="stat"><b>14</b><span>Cars · four classes</span></div>
     <div class="stat"><b>27</b><span>Real-world circuits</span></div>
@@ -76,11 +78,11 @@
 
 <section id="features">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">What's under the bodywork</div><h2>Built like<br>a race car</h2></div>
       <p>Every system that matters to how a car drives lives on the server, computed from the tyres outward. The client's job is to render it faithfully and get out of the way.</p>
     </div>
-    <div class="features reveal">
+    <div class="features stagger">
       <article class="feat wide">
         <svg class="ico" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="14"/><circle cx="18" cy="18" r="5"/><path d="M18 4v9M18 23v9M4 18h9M23 18h9"/></svg>
         <div class="num">01 / PHYSICS</div>
@@ -156,20 +158,26 @@
   </div>
 </section>
 
-<div class="band">
+<div class="band stagger">
   <figure><img src="assets/band-left.webp" data-zoom="assets/band-left-zoom.webp" tabindex="0" alt="Posh GT3 RS from the rear" loading="lazy"><figcaption>Posh GT3 RS · GT3</figcaption></figure>
   <figure><img src="assets/band-right.webp" data-zoom="assets/band-right-zoom.webp" tabindex="0" alt="Fugazzi 994P from the rear" loading="lazy"><figcaption>Fugazzi 994P · Hypercar</figcaption></figure>
 </div>
 
 <section id="cars">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">The grid</div><h2>14 cars.<br>Four classes.</h2></div>
       <p>Every car is a physics definition and a 3D model, read from the same files by the server and the client. The AI fills the field from your car's own class.</p>
     </div>
-    <div class="tabs" role="tablist" id="classTabs"></div>
-    <div class="class-intro"><h3 id="classTitle"></h3><p id="classText"></p></div>
-    <div class="cars" id="carGrid"></div>
+    <div class="garage" id="garage">
+      <div class="garage-pin">
+        <div class="garage-rail">
+          <div class="tabs" role="tablist" id="classTabs" aria-label="Car classes"></div>
+          <div class="garage-count" id="garageCount" aria-hidden="true"></div>
+        </div>
+        <div class="garage-stage" id="carStage"></div>
+      </div>
+    </div>
 
     <div class="liveries reveal">
       <div>
@@ -177,12 +185,12 @@
         <h3>Six liveries a car</h3>
         <p>Liveries repaint paint, accent and logo at runtime on the race car and in the garage turntable. Pick yours in the lobby; the AI is dealt the rest in turn, so a full field never looks cloned.</p>
       </div>
-      <div class="liv-grid">
+      <div class="liv-grid stagger">
         <figure><img src="assets/liveries-gt3-lmp2.webp" data-zoom="assets/liveries-gt3-lmp2-zoom.webp" tabindex="0" alt="Livery sheet for GT3 and LMP2 cars" loading="lazy"></figure>
         <figure><img src="assets/liveries-hyper-f1.webp" data-zoom="assets/liveries-hyper-f1-zoom.webp" tabindex="0" alt="Livery sheet for Hypercar and Formula cars" loading="lazy"></figure>
       </div>
     </div>
-    <div class="details reveal">
+    <div class="details stagger">
       <figure><img src="assets/detail-1.webp" data-zoom="assets/detail-1-zoom.webp" tabindex="0" alt="GT3 headlight detail" loading="lazy"></figure>
       <figure><img src="assets/detail-2.webp" data-zoom="assets/detail-2-zoom.webp" tabindex="0" alt="Prototype tail light detail" loading="lazy"></figure>
       <figure><img src="assets/detail-3.webp" data-zoom="assets/detail-3-zoom.webp" tabindex="0" alt="Hypercar headlight detail" loading="lazy"></figure>
@@ -193,7 +201,7 @@
 
 <section id="tracks">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">The calendar</div><h2>27 circuits.<br>Surveyed, not sketched.</h2></div>
       <p>Centerlines from public GPS traces, smoothed without shrinking the circuit, in 20 countries. The longest is the 20.8&nbsp;km Nürburger Mordschleife, routed over OpenStreetMap: 292&nbsp;m of relief, guard rail close to the road, the forest right behind it and the fans' graffiti on the asphalt. Banking is laid onto the bends it belongs to, and elevation comes from satellite surface models.</p>
     </div>
@@ -201,7 +209,7 @@
     <div class="track-layout">
       <div class="feature-track" aria-live="polite">
         <svg viewBox="-6 -6 212 212" id="ftSvg" role="img" aria-label="Track map">
-          <path class="ft-path-bg" id="ftBg"/><path class="ft-path" id="ftPath"/><path class="ft-run" id="ftRun"/>
+          <path class="ft-path-bg" id="ftBg"/><path class="ft-path" id="ftPath" pathLength="1"/><path class="ft-run" id="ftRun"/>
           <rect class="ft-start" id="ftStart" width="6" height="6" x="-3" y="-3"/><circle class="ft-car" id="ftCar" r="4.5"/>
         </svg>
         <div class="loc" id="ftLoc"></div>
@@ -215,7 +223,7 @@
         <div class="corners" id="ftCorners"></div>
       </div>
       <div>
-        <div class="track-grid" id="trackGrid"></div>
+        <div class="track-grid stagger" id="trackGrid"></div>
         <p class="track-note">● green = real layout dossier (named corners, stands, pit lane, woodland from OpenStreetMap). Maps drawn from each circuit's own centerline data.</p>
       </div>
     </div>
@@ -224,11 +232,11 @@
 
 <section id="engine">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">Unreal Engine 5</div><h2>In the engine</h2></div>
       <p>Every picture here is the game. The action is from seeded AI races that nobody drove, played back and filmed by the game's own broadcast cameras; the screens are what a player sees.</p>
     </div>
-    <div class="shots reveal">
+    <div class="shots stagger">
       <figure><img src="assets/shot-grid.webp" data-zoom="assets/shot-grid-zoom.webp" tabindex="0" alt="Prototypes lined up on the grid at Zandervoort in low evening sun" loading="lazy"><figcaption>Zandervoort · the grid at golden hour</figcaption></figure>
       <figure><img src="assets/shot-rain.webp" data-zoom="assets/shot-rain-zoom.webp" tabindex="0" alt="GT3 cars with headlights on in heavy rain at Autodromo Monzarella" loading="lazy"><figcaption>Autodromo Monzarella · heavy rain</figcaption></figure>
       <figure><img src="assets/shot-sunset.webp" data-zoom="assets/shot-sunset-zoom.webp" tabindex="0" alt="Formula cars past the pit building at sunset at Bahrainless International Circuit" loading="lazy"><figcaption>Bahrainless International Circuit · sunset</figcaption></figure>
@@ -238,7 +246,7 @@
       <figure><img src="assets/shot-pack.webp" data-zoom="assets/shot-pack-zoom.webp" tabindex="0" alt="Three GT3 cars nose to tail at Brands Scratch" loading="lazy"><figcaption>Brands Scratch · Paddock Hill</figcaption></figure>
     </div>
     <div class="eyebrow sub reveal">What the player sees</div>
-    <div class="screens reveal">
+    <div class="screens stagger">
       <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the grid with the HUD" loading="lazy"><figcaption>Race view · a HUD of 17 moddable components</figcaption></figure>
       <figure><img src="assets/screen-garage.webp" data-zoom="assets/screen-garage-zoom.webp" tabindex="0" alt="The hotlap garage with the suspension setup sheet" loading="lazy"><figcaption>Hotlap garage · 25 setup knobs in real units</figcaption></figure>
       <figure><img src="assets/screen-menu.webp" data-zoom="assets/screen-menu-zoom.webp" tabindex="0" alt="Main menu over a live AI demo race" loading="lazy"><figcaption>Main menu · over a live demo race</figcaption></figure>
@@ -249,18 +257,18 @@
 
 <section id="tech">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">Architecture</div><h2>Three parts,<br>one truth</h2></div>
       <p>Simulation logic stays isolated from presentation, so each piece can evolve on its own. The circuit you race is the circuit the server simulates, checked by CRC on both sides.</p>
     </div>
-    <div class="arch reveal">
+    <div class="arch stagger">
       <div class="node"><div class="k">server/ · Rust</div><h3>Authoritative server</h3><p>240&nbsp;Hz tokio loop. Physics, OBB collision against cars and baked barriers, tyres, fuel, heat and damage, race control and pit stops, AI, force feedback, lap timing and records. <code>/health</code> <code>/metrics</code></p></div>
       <div class="link"><span>UDP<br>60&nbsp;Hz</span></div>
       <div class="node"><div class="k">game-unreal/ · C++</div><h3>Unreal client</h3><p>Tracks and cars built at runtime from their files, menus as C++ widget trees, a HUD from JSON, a cockpit built per car, dents and debris drawn from the server's damage figures, TV director, synthesized audio, DirectInput wheels. Every car a telemetry puppet.</p></div>
       <div class="link"><span>exports<br>&amp; sidecars</span></div>
       <div class="node"><div class="k">track-editor/ · Rust</div><h3>Track pipeline</h3><p><code>ats-dress</code>, <code>ats-groom</code> and <code>ats-export</code> turn a centerline and a dossier into the export the game builds, and the road mesh, walls, kerbs and pit lane the server drives on. A Bevy editor sits on top.</p></div>
     </div>
-    <div class="specs reveal">
+    <div class="specs stagger">
       <div class="spec"><b>Collision that means it</b><p>Every armco, tyre wall, stand and building is baked into a walls sidecar. Nothing off the road is decorative.</p></div>
       <div class="spec"><b>A road with height</b><p>The server drives on the rendered road as triangles: kerbs you can feel, run-off that is tarmac, and two levels where a circuit crosses itself.</p></div>
       <div class="spec"><b>Track limits</b><p>Four wheels past the kerb band for 0.2&nbsp;s strikes the lap. Cut the course and it's gone too.</p></div>
@@ -306,6 +314,6 @@
 </footer>
 
 <script src="assets/data.js?v=3e0b8a8a"></script>
-<script src="assets/site.js?v=a772b23c"></script>
+<script src="assets/site.js?v=4f158c3b"></script>
 </body>
 </html>
