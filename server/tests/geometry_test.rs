@@ -94,6 +94,7 @@ fn more_camber_brakes_later_to_a_stop() {
 }
 
 #[test]
+#[ignore = "needs Monza's baked sidecars, which CI does not have (gitignored): on the bare centerline the circle leaves the road"]
 fn camber_away_from_the_best_corners_worse() {
     // A steady circle at the grip limit: full lock at 30 m/s on the
     // throttle that holds the speed; the car's lateral acceleration after
