@@ -18,6 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Saira:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ versioned('site.css') }}">
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
 {%- set icons = {
@@ -40,6 +41,7 @@
     </ul>
     <a class="gh" href="{{ site.repo }}"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>Source</a>
   </div>
+  <div class="read" id="readBar" aria-hidden="true"></div>
 </nav>
 
 <header class="hero" id="top">
@@ -69,7 +71,7 @@
 </header>
 
 <div class="stats">
-  <div class="wrap">
+  <div class="wrap stagger">
 {%- for s in stats %}
     <div class="stat"><b>{{ s.value }}{% if s.unit is defined %}<sup>{{ s.unit }}</sup>{% endif %}</b><span>{{ s.label }}</span></div>
 {%- endfor %}
@@ -78,11 +80,11 @@
 
 <section id="features">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">{{ features.eyebrow }}</div><h2>{{ features.title }}</h2></div>
       <p>{{ features.intro }}</p>
     </div>
-    <div class="features reveal">
+    <div class="features stagger">
 {%- for f in features.cards %}
       <article class="feat{% if f.wide is defined and f.wide %} wide{% endif %}">
 {%- if f.icon is defined %}
@@ -100,7 +102,7 @@
   </div>
 </section>
 
-<div class="band">
+<div class="band stagger">
 {%- for b in band %}
   <figure><img src="{{ asset(b.image) }}"{{ zoom_attr(b.image) }} alt="{{ b.alt|attr }}" loading="lazy"><figcaption>{{ b.caption }}</figcaption></figure>
 {%- endfor %}
@@ -108,13 +110,19 @@
 
 <section id="cars">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">{{ cars.eyebrow }}</div><h2>{{ cars.title }}</h2></div>
       <p>{{ cars.intro }}</p>
     </div>
-    <div class="tabs" role="tablist" id="classTabs"></div>
-    <div class="class-intro"><h3 id="classTitle"></h3><p id="classText"></p></div>
-    <div class="cars" id="carGrid"></div>
+    <div class="garage" id="garage">
+      <div class="garage-pin">
+        <div class="garage-rail">
+          <div class="tabs" role="tablist" id="classTabs" aria-label="Car classes"></div>
+          <div class="garage-count" id="garageCount" aria-hidden="true"></div>
+        </div>
+        <div class="garage-stage" id="carStage"></div>
+      </div>
+    </div>
 
     <div class="liveries reveal">
       <div>
@@ -122,13 +130,13 @@
         <h3>{{ cars.liveries.title }}</h3>
         <p>{{ cars.liveries.body }}</p>
       </div>
-      <div class="liv-grid">
+      <div class="liv-grid stagger">
 {%- for i in cars.liveries.images %}
         <figure><img src="{{ asset(i.image) }}"{{ zoom_attr(i.image) }} alt="{{ i.alt|attr }}" loading="lazy"></figure>
 {%- endfor %}
       </div>
     </div>
-    <div class="details reveal">
+    <div class="details stagger">
 {%- for d in cars.details %}
       <figure><img src="{{ asset(d.image) }}"{{ zoom_attr(d.image) }} alt="{{ d.alt|attr }}" loading="lazy"></figure>
 {%- endfor %}
@@ -138,7 +146,7 @@
 
 <section id="tracks">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">{{ tracks.eyebrow }}</div><h2>{{ tracks.title }}</h2></div>
       <p>{{ tracks.intro }}</p>
     </div>
@@ -146,7 +154,7 @@
     <div class="track-layout">
       <div class="feature-track" aria-live="polite">
         <svg viewBox="-6 -6 212 212" id="ftSvg" role="img" aria-label="Track map">
-          <path class="ft-path-bg" id="ftBg"/><path class="ft-path" id="ftPath"/><path class="ft-run" id="ftRun"/>
+          <path class="ft-path-bg" id="ftBg"/><path class="ft-path" id="ftPath" pathLength="1"/><path class="ft-run" id="ftRun"/>
           <rect class="ft-start" id="ftStart" width="6" height="6" x="-3" y="-3"/><circle class="ft-car" id="ftCar" r="4.5"/>
         </svg>
         <div class="loc" id="ftLoc"></div>
@@ -160,7 +168,7 @@
         <div class="corners" id="ftCorners"></div>
       </div>
       <div>
-        <div class="track-grid" id="trackGrid"></div>
+        <div class="track-grid stagger" id="trackGrid"></div>
         <p class="track-note">{{ tracks.note }}</p>
       </div>
     </div>
@@ -169,17 +177,17 @@
 
 <section id="engine">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">{{ engine.eyebrow }}</div><h2>{{ engine.title }}</h2></div>
       <p>{{ engine.intro }}</p>
     </div>
-    <div class="shots reveal">
+    <div class="shots stagger">
 {%- for s in engine.shots %}
       <figure><img src="{{ asset(s.image) }}"{{ zoom_attr(s.image) }} alt="{{ s.alt|attr }}" loading="lazy"><figcaption>{{ s.caption }}</figcaption></figure>
 {%- endfor %}
     </div>
     <div class="eyebrow sub reveal">{{ engine.screens_eyebrow }}</div>
-    <div class="screens reveal">
+    <div class="screens stagger">
 {%- for s in engine.screens %}
       <figure><img src="{{ asset(s.image) }}"{{ zoom_attr(s.image) }} alt="{{ s.alt|attr }}" loading="lazy"><figcaption>{{ s.caption }}</figcaption></figure>
 {%- endfor %}
@@ -189,11 +197,11 @@
 
 <section id="tech">
   <div class="wrap">
-    <div class="sec-head reveal">
+    <div class="sec-head reveal-head">
       <div><div class="eyebrow">{{ tech.eyebrow }}</div><h2>{{ tech.title }}</h2></div>
       <p>{{ tech.intro }}</p>
     </div>
-    <div class="arch reveal">
+    <div class="arch stagger">
 {%- for node in tech.nodes %}
       <div class="node"><div class="k">{{ node.key }}</div><h3>{{ node.title }}</h3><p>{{ node.body }}</p></div>
 {%- if not loop.last %}
@@ -201,7 +209,7 @@
 {%- endif %}
 {%- endfor %}
     </div>
-    <div class="specs reveal">
+    <div class="specs stagger">
 {%- for s in tech.specs %}
       <div class="spec"><b>{{ s.title }}</b><p>{{ s.body }}</p></div>
 {%- endfor %}

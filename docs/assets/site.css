@@ -8,7 +8,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{overflow-x:clip;scroll-behavior:smooth;scroll-padding-top:72px}
-body{background:var(--bg);color:var(--fg);font:400 16px/1.6 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{background:var(--bg);color:var(--fg);font:400 16px/1.6 var(--body);-webkit-font-smoothing:antialiased;overflow-x:clip}
 img{display:block;max-width:100%}
 a{color:inherit}
 .wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
@@ -40,7 +40,12 @@ nav.top .wrap{display:flex;align-items:center;height:68px;gap:32px}
 .brand b span{color:var(--red)}
 nav.top ul{display:flex;gap:28px;list-style:none;margin-left:auto}
 nav.top ul a{font:600 14px/1 var(--display);letter-spacing:.16em;text-transform:uppercase;text-decoration:none;color:var(--mute);transition:color .2s}
-nav.top ul a:hover{color:var(--fg)}
+nav.top ul a:hover,nav.top ul a[aria-current]{color:var(--fg)}
+nav.top ul a{position:relative}
+nav.top ul a::after{content:"";position:absolute;left:0;right:0;bottom:-9px;height:2px;background:var(--red);transform:scaleX(0);transform-origin:0 50%;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+nav.top ul a[aria-current]::after{transform:scaleX(1)}
+nav.top .read{position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--red),var(--red2));transform:scaleX(0);transform-origin:0 50%;opacity:0;transition:opacity .25s}
+nav.top.solid .read{opacity:1}
 nav.top .gh{font:600 13px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;border:1px solid var(--line2);padding:10px 14px}
 nav.top .gh:hover{border-color:var(--fg)}
 nav.top .gh svg{width:16px;height:16px}
@@ -78,13 +83,13 @@ nav.top .gh svg{width:16px;height:16px}
 .stats .wrap{display:grid;grid-template-columns:repeat(5,1fr)}
 .stat{padding:30px 24px;border-left:1px solid var(--line)}
 .stat:first-child{border-left:0}
-.stat b{display:block;font:800 clamp(38px,4.4vw,58px)/1 var(--display)}
+.stat b{display:block;font:800 clamp(38px,4.4vw,58px)/1 var(--display);font-variant-numeric:tabular-nums}
 .stat b sup{font-size:.42em;color:var(--red2);margin-left:4px;vertical-align:top;position:relative;top:.3em}
 .stat span{display:block;margin-top:8px;font:500 12px/1.3 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
 
 /* features */
-.features{display:grid;grid-template-columns:repeat(12,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
-.feat{background:var(--bg);padding:34px 30px 32px;grid-column:span 4;position:relative;overflow:hidden;transition:background .25s}
+.features{display:grid;grid-template-columns:repeat(12,1fr);gap:1px;padding:1px}
+.feat{background:var(--bg);box-shadow:0 0 0 1px var(--line);padding:34px 30px 32px;grid-column:span 4;position:relative;overflow:hidden;transition:background .25s}
 .feat:hover{background:var(--bg2)}
 .feat.wide{grid-column:span 6}
 .feat .num{font:600 12px/1 var(--mono);color:var(--dim);letter-spacing:.14em}
@@ -104,18 +109,65 @@ nav.top .gh svg{width:16px;height:16px}
 .band figcaption{position:absolute;left:24px;bottom:22px;font:600 12px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;background:rgba(11,13,16,.78);padding:10px 12px}
 
 /* cars */
-.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:34px;overflow-x:auto;scrollbar-width:none}
-.tabs button{all:unset;cursor:pointer;padding:16px 26px 14px;font:700 18px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--mute);border-bottom:3px solid transparent;white-space:nowrap;transition:color .2s}
+/* The garage: the class tabs are a rail whose underlines fill as the
+   classes go by; site.js pins it (.pinned) where a class fits on screen. */
+.garage{position:relative}
+.garage-rail{display:flex;align-items:flex-end;gap:24px;border-bottom:1px solid var(--line);margin-bottom:34px}
+.tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;min-width:0}
+.tabs button{all:unset;position:relative;cursor:pointer;padding:16px 26px 17px;font:700 18px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--mute);white-space:nowrap;transition:color .2s}
+.tabs button::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--red);transform:scaleX(var(--p,0));transform-origin:0 50%}
 .tabs button:hover{color:var(--fg)}
-.tabs button[aria-selected=true]{color:var(--fg);border-color:var(--red)}
+.tabs button[aria-selected=true]{color:var(--fg)}
+.garage:not(.pinned) .tabs button::after{transform:scaleX(0);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.garage:not(.pinned) .tabs button[aria-selected=true]::after{transform:scaleX(1)}
+.garage.pinned .tabs button[aria-selected=false]::after{background:#6e1c20}
+.garage-count{margin-left:auto;padding-bottom:17px;display:flex;align-items:center;gap:16px;font:600 12px/1 var(--mono);letter-spacing:.18em;color:var(--dim);white-space:nowrap}
+.garage-count b{font-weight:600;color:var(--fg)}
+.garage-count .hint{color:var(--red2);text-transform:uppercase;transition:opacity .3s}
+.garage-count .hint i{display:inline-block;font-style:normal;animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{50%{transform:translateY(3px)}}
+.garage:not(.pinned) .garage-count .hint,.garage.last .garage-count .hint{opacity:0}
+.class-block{position:relative;isolation:isolate}
+.garage:not(.pinned) .garage-rail{position:sticky;top:68px;z-index:6;background:var(--bg)}
+.garage:not(.pinned) .class-block{scroll-margin-top:64px}
+.garage:not(.pinned) .class-block+.class-block{margin-top:72px}
+.class-mark{display:none}
+.garage.pinned{height:calc(100vh - 68px + var(--n,4) * 62vh)}
+.garage.pinned .garage-pin{position:sticky;top:68px;height:calc(100vh - 68px);display:flex;flex-direction:column;justify-content:center;padding:24px 0 36px;overflow:hidden}
+.garage.pinned .garage-stage{position:relative;flex:none}
+.garage.pinned .class-block{position:absolute;top:0;left:0;right:0;visibility:hidden;pointer-events:none}
+.garage.pinned .class-block.on{visibility:visible;pointer-events:auto}
+.garage.pinned .class-block.leaving{visibility:visible}
+.garage.pinned .cars{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr))}
+.garage.pinned.tight .cars{grid-template-columns:repeat(4,minmax(0,1fr))}
+.garage.pinned .class-intro h3{font-size:clamp(44px,4.6vw,64px)}
+.garage.pinned .class-mark{display:block;position:absolute;z-index:-1;right:-.03em;top:-.2em;font:800 clamp(150px,19vw,290px)/.8 var(--display);text-transform:uppercase;letter-spacing:-.01em;color:transparent;-webkit-text-stroke:1px #283039;white-space:nowrap;pointer-events:none;user-select:none}
+/* A class's cards fall in from the way the page is going, tilted, and
+   settle; the outgoing ones lift away the same way. --dir is +1 scrolling
+   down, -1 up; --i is a card's place in the row. */
+.class-block:not(.on):not(.leaving) :is(.class-intro,.car){opacity:0}
+.class-block.on .car{animation:carIn .9s cubic-bezier(.16,.84,.24,1) backwards;animation-delay:calc(var(--i,0) * 85ms + 120ms)}
+.class-block.on .car .pw i{animation:grow 1.1s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--i,0) * 85ms + 520ms)}
+.class-block.on .class-intro h3{animation:slideIn .8s cubic-bezier(.16,.84,.24,1) backwards}
+.class-block.on .class-intro p{animation:fadeUp .8s cubic-bezier(.16,.84,.24,1) .12s backwards}
+.class-block.on .class-mark{animation:markIn 1.2s cubic-bezier(.16,.84,.24,1) backwards}
+.class-block.leaving .car{animation:carOut .42s cubic-bezier(.55,0,.75,.2) forwards;animation-delay:calc(var(--i,0) * 35ms)}
+.class-block.leaving .class-intro,.class-block.leaving .class-mark{animation:fadeOut .35s forwards}
+@keyframes carIn{from{opacity:0;transform:perspective(1100px) translate3d(0,calc(var(--dir,1) * 110px),0) rotateX(calc(var(--dir,1) * 18deg)) scale(.94)}}
+@keyframes carOut{to{opacity:0;transform:perspective(1100px) translate3d(0,calc(var(--dir,1) * -70px),0) rotateX(calc(var(--dir,1) * -10deg)) scale(.96)}}
+@keyframes slideIn{from{opacity:0;transform:translate3d(calc(var(--dir,1) * -36px),0,0);filter:blur(6px)}}
+@keyframes markIn{from{opacity:0;transform:translate3d(calc(var(--dir,1) * 10%),0,0)}}
+@keyframes grow{from{transform:scaleX(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translate3d(0,22px,0)}}
+@keyframes fadeIn{from{opacity:0}}
+@keyframes fadeOut{to{opacity:0}}
 .tabs button small{font:500 11px/1 var(--mono);color:var(--dim);margin-left:8px;letter-spacing:.06em}
 .class-intro{display:grid;grid-template-columns:1fr 2fr;gap:40px;margin-bottom:28px;align-items:start}
 .class-intro h3{font-size:44px}
 .class-intro p{color:var(--mute);max-width:70ch}
 .cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
-.car{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;transition:border-color .25s,transform .25s;animation:rise .5s both}
+.car{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;transform-origin:50% 0;transition:border-color .25s,transform .25s}
 .car:hover{border-color:var(--line2);transform:translateY(-3px)}
-@keyframes rise{from{opacity:0;transform:translateY(14px)}}
 .car .shot{aspect-ratio:16/9;background:linear-gradient(180deg,#d6dbe0 0 14%,var(--studio) 14%);overflow:hidden;position:relative}
 .car .shot img{width:100%;height:100%;object-fit:cover;object-position:50% 70%;transition:transform .6s}
 .car:hover .shot img{transform:scale(1.05)}
@@ -130,7 +182,7 @@ nav.top .gh svg{width:16px;height:16px}
 .car dd{font:700 20px/1.1 var(--display);margin-top:4px}
 .car dd small{font:500 11px var(--mono);color:var(--mute);margin-left:2px}
 .car .pw{height:3px;background:#232830;margin-top:14px;position:relative}
-.car .pw i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--red),var(--amber))}
+.car .pw i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--red),var(--amber));transform-origin:0 50%}
 .car .eng{margin-top:10px;font:500 11.5px/1.3 var(--mono);color:var(--mute)}
 
 .liveries{margin-top:72px;display:grid;grid-template-columns:1fr 1.2fr;gap:48px;align-items:center}
@@ -154,6 +206,7 @@ nav.top .gh svg{width:16px;height:16px}
 .feature-track svg{width:100%;height:auto;aspect-ratio:1;display:block}
 .feature-track .ft-path-bg{fill:none;stroke:#2a3039;stroke-width:9;stroke-linejoin:round;stroke-linecap:round}
 .feature-track .ft-path{fill:none;stroke:var(--fg);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.feature-track .ft-path.draw{stroke-dasharray:1;animation:draw 1.6s cubic-bezier(.6,.05,.25,1) backwards}
 .feature-track .ft-run{fill:none;stroke:var(--red);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
 .feature-track .ft-car{fill:var(--red2)}
 .feature-track .ft-start{fill:var(--amber)}
@@ -227,8 +280,8 @@ dialog.lightbox.single .prev,dialog.lightbox.single .next{display:none}
 .link::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:repeating-linear-gradient(90deg,var(--red) 0 6px,transparent 6px 12px);background-size:24px 1px;animation:flow 0.8s linear infinite}
 @keyframes flow{to{background-position:24px 0}}
 .link span{position:relative;font:600 9.5px/1.2 var(--mono);letter-spacing:.1em;color:var(--mute);background:var(--bg);padding:3px 4px;text-align:center}
-.specs{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
-.spec{background:var(--bg);padding:24px}
+.specs{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;padding:1px}
+.spec{background:var(--bg);box-shadow:0 0 0 1px var(--line);padding:24px}
 .spec b{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--fg)}
 .spec p{color:var(--mute);font-size:14.5px;margin-top:10px}
 
@@ -246,8 +299,34 @@ footer .wrap{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap}
 footer img{height:56px;width:auto;margin-bottom:10px}
 footer a{color:var(--mute)}
 
-.reveal{opacity:0;transform:translateY(24px);transition:opacity .8s,transform .8s cubic-bezier(.2,.7,.2,1)}
+/* Scroll reveals (site.js adds .in as an element comes up the screen; the
+   hidden states only apply with the script running, html.js). */
+.js .reveal{opacity:0;transform:perspective(1200px) translate3d(0,56px,0) rotateX(10deg);transform-origin:50% 0;transition:opacity .9s,transform 1.1s cubic-bezier(.16,.84,.24,1)}
 .reveal.in{opacity:1;transform:none}
+/* .reveal-head: a section heading's rule draws, the title rises out of a blur. */
+.js .reveal-head:not(.in)>*{opacity:0}
+.reveal-head.in .eyebrow{animation:fadeIn .6s backwards}
+.reveal-head.in .eyebrow::before{transform-origin:0 50%;animation:grow .7s cubic-bezier(.2,.8,.2,1) backwards}
+.reveal-head.in h2{animation:headIn 1s cubic-bezier(.16,.84,.24,1) .08s backwards}
+.reveal-head.in>p{animation:fadeUp .9s cubic-bezier(.16,.84,.24,1) .3s backwards}
+@keyframes headIn{from{opacity:0;transform:translate3d(0,48px,0);filter:blur(10px)}}
+/* .stagger: its children fall into place one after another (--i, set by
+   site.js), tilted back from the top edge and settling flat. */
+.js .stagger>*{opacity:0}
+.stagger.in>*{opacity:1;animation:fallIn 1s cubic-bezier(.16,.84,.24,1) backwards;animation-delay:calc(min(var(--i,0),18) * var(--step,85ms))}
+@keyframes fallIn{from{opacity:0;transform:perspective(1200px) translate3d(0,64px,0) rotateX(14deg) scale(.97)}}
+.stagger>*{transform-origin:50% 0}
+.stagger.in>figure img{animation:settle 1.8s cubic-bezier(.16,.84,.24,1) backwards;animation-delay:calc(min(var(--i,0),18) * var(--step,85ms))}
+@keyframes settle{from{transform:scale(1.16)}}
+/* the full-bleed band opens out of a frame instead of tilting */
+.band.stagger.in>*{animation-name:openUp;animation-duration:1.3s}
+@keyframes openUp{from{opacity:0;clip-path:inset(14% 8% 14% 8%)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+.stats .wrap.stagger{--step:90ms}
+.track-grid.stagger{--step:35ms}
+.track-grid.stagger.in .trk svg path{stroke-dasharray:1;animation:draw 1.4s cubic-bezier(.6,.05,.25,1) backwards;animation-delay:calc(min(var(--i,0),26) * 35ms + 200ms)}
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+/* pictures site.js drifts against the page: oversized so the drift never shows an edge */
+img.drift{scale:1.14;will-change:translate}
 
 @media (max-width:1000px){
   nav.top ul{display:none}
@@ -286,5 +365,11 @@ footer a{color:var(--mute)}
   .specs{grid-template-columns:1fr}
   .telemetry{display:none}
   .track-grid{grid-template-columns:repeat(2,1fr)}
+  .garage-count{display:none}
+  .tabs button{padding:14px 16px 15px;font-size:16px}
 }
-@media (prefers-reduced-motion:reduce){.hero>img{animation:none}.reveal{opacity:1;transform:none;transition:none}}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .hero>img{animation:none}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}

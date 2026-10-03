@@ -2,6 +2,9 @@
 // scripts/site/build_site.py writes into assets/data.js from the game's own
 // content: the cars, the circuits, the class blurbs.
 const DATA = SITE, CLASSES = SITE.classes, ORDER = SITE.order;
+// Asked for less motion: everything is shown at once and nothing pins or drifts.
+const REDUCE=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 const maxPW=Math.max(...DATA.cars.map(c=>c.hp/c.mass));
 const esc=s=>String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 function engine(c){
@@ -13,42 +16,116 @@ function engine(c){
   bits.push((c.redline/1000).toFixed(1).replace(/\.0$/,"")+"k rpm");
   return bits.join(" · ");
 }
-const tabs=document.getElementById("classTabs"), grid=document.getElementById("carGrid");
-function showClass(k){
-  [...tabs.children].forEach(b=>b.setAttribute("aria-selected",b.dataset.k===k));
-  document.getElementById("classTitle").textContent=CLASSES[k].title;
-  document.getElementById("classText").textContent=CLASSES[k].text;
+
+/* cars: a block per class. Where a class fits on the screen at once the
+   garage pins under the nav and scrolling steps through the classes, each
+   one's cards falling into place as the last one's leave; anywhere else
+   (narrow, short, less motion) the classes stack and each falls in as it is
+   reached. */
+const garage=document.getElementById("garage"), pin=garage.querySelector(".garage-pin"),
+  rail=garage.querySelector(".garage-rail"), stage=document.getElementById("carStage"),
+  tabs=document.getElementById("classTabs"), count=document.getElementById("garageCount");
+const carCard=(c,k,i)=>`
+      <article class="car" style="--i:${i}">
+        <div class="shot${c.img?"":" none"}">${c.img?`<img src="assets/${c.img}"${c.zoom?` data-zoom="assets/${c.zoom}" tabindex="0"`:""} alt="${esc(c.name)}" loading="lazy">`:`<span>Render coming</span>`}<span class="tag">${esc(CLASSES[k].title)}</span></div>
+        <div class="meta">
+          <div class="brandname">${esc(c.brand)}</div>
+          <h4>${esc(c.name.replace(c.brand+" ",""))}</h4>
+          <dl>
+            <div><dt>Power</dt><dd>${c.hp}<small>hp</small></dd></div>
+            <div><dt>Mass</dt><dd>${c.mass}<small>kg</small></dd></div>
+            <div><dt>hp/t</dt><dd>${Math.round(c.hp/c.mass*1000)}</dd></div>
+          </dl>
+          <div class="pw" title="Power-to-weight relative to the fastest car"><i style="width:${(c.hp/c.mass/maxPW*100).toFixed(1)}%"></i></div>
+          <div class="eng">${engine(c)}${c.liv?` · ${c.liv} liveries`:""}</div>
+        </div>
+      </article>`;
+stage.innerHTML=ORDER.map(k=>{
   const cars=DATA.cars.filter(c=>c.cls===k).sort((a,b)=>!!b.img-!!a.img||b.hp-a.hp);
-  grid.innerHTML=cars.map((c,i)=>`
-    <article class="car" style="animation-delay:${i*60}ms">
-      <div class="shot${c.img?"":" none"}">${c.img?`<img src="assets/${c.img}"${c.zoom?` data-zoom="assets/${c.zoom}" tabindex="0"`:""} alt="${esc(c.name)}" loading="lazy">`:`<span>Render coming</span>`}<span class="tag">${esc(CLASSES[k].title)}</span></div>
-      <div class="meta">
-        <div class="brandname">${esc(c.brand)}</div>
-        <h4>${esc(c.name.replace(c.brand+" ",""))}</h4>
-        <dl>
-          <div><dt>Power</dt><dd>${c.hp}<small>hp</small></dd></div>
-          <div><dt>Mass</dt><dd>${c.mass}<small>kg</small></dd></div>
-          <div><dt>hp/t</dt><dd>${Math.round(c.hp/c.mass*1000)}</dd></div>
-        </dl>
-        <div class="pw" title="Power-to-weight relative to the fastest car"><i style="width:${(c.hp/c.mass/maxPW*100).toFixed(1)}%"></i></div>
-        <div class="eng">${engine(c)}${c.liv?` · ${c.liv} liveries`:""}</div>
-      </div>
-    </article>`).join("");
+  return `
+    <div class="class-block" id="class-${k}" role="tabpanel" aria-label="${esc(CLASSES[k].title)}" style="--cols:${Math.min(cars.length,4)}">
+      <div class="class-mark" aria-hidden="true">${esc(CLASSES[k].title)}</div>
+      <div class="class-intro"><h3>${esc(CLASSES[k].title)}</h3><p>${esc(CLASSES[k].text)}</p></div>
+      <div class="cars">${cars.map((c,i)=>carCard(c,k,i)).join("")}</div>
+    </div>`;
+}).join("");
+tabs.innerHTML=ORDER.map((k,i)=>`<button role="tab" aria-controls="class-${k}" aria-selected="${i===0}" data-i="${i}">${esc(CLASSES[k].title)}<small>${DATA.cars.filter(c=>c.cls===k).length}</small></button>`).join("");
+const blocks=[...stage.children], tabButtons=[...tabs.children], N=blocks.length;
+const two=i=>String(i+1).padStart(2,"0");
+count.innerHTML=`<b>01</b> / ${two(N-1)}<span class="hint">Scroll <i>↓</i></span>`;
+garage.style.setProperty("--n",N);
+let pinned=false, active=-1, current=-1, pinTop=0, step=1;
+function highlight(i){
+  if(i===current) return;
+  current=i;
+  tabButtons.forEach((b,j)=>b.setAttribute("aria-selected",j===i));
+  count.firstChild.textContent=two(i);
+  garage.classList.toggle("last",i===N-1);
 }
-ORDER.forEach(k=>{
-  const n=DATA.cars.filter(c=>c.cls===k).length;
-  const b=document.createElement("button");
-  b.setAttribute("role","tab"); b.dataset.k=k; b.innerHTML=`${CLASSES[k].title}<small>${n}</small>`;
-  b.onclick=()=>showClass(k); tabs.appendChild(b);
+// Pinned: class i comes on, and the one before leaves the way the page is going.
+function show(i){
+  if(i===active) return;
+  const dir=i>active?1:-1, prev=blocks[active], next=blocks[i];
+  if(prev){
+    prev.style.setProperty("--dir",dir);
+    prev.classList.replace("on","leaving");
+    clearTimeout(prev.leave); prev.leave=setTimeout(()=>prev.classList.remove("leaving"),900);
+  }
+  clearTimeout(next.leave);
+  next.style.setProperty("--dir",dir);
+  next.classList.remove("leaving"); next.classList.add("on");
+  active=i; highlight(i);
+}
+function layoutGarage(){
+  const want=!REDUCE&&matchMedia("(min-width:1001px) and (min-height:620px)").matches;
+  garage.classList.toggle("pinned",want);
+  garage.classList.remove("tight");
+  stage.style.height="";
+  let fits=want;
+  if(want){
+    // The stage is as tall as the tallest class and pins only if that fits
+    // under the rail: with a column per car, else with every class in four.
+    const cs=getComputedStyle(pin), tallest=()=>Math.max(...blocks.map(b=>b.offsetHeight));
+    const room=pin.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)
+      -rail.offsetHeight-parseFloat(getComputedStyle(rail).marginBottom);
+    let h=tallest();
+    if(h>room){garage.classList.add("tight"); h=tallest();}
+    fits=h<=room;
+    if(fits) stage.style.height=h+"px"; else garage.classList.remove("pinned","tight");
+  }
+  if(fits!==pinned){
+    pinned=fits; active=-1;
+    blocks.forEach(b=>{clearTimeout(b.leave); b.classList.remove("on","leaving")});
+    if(!pinned) blocks.forEach(b=>{if(b.getBoundingClientRect().top<innerHeight) b.classList.add("on")});
+  }
+  if(pinned){pinTop=parseFloat(getComputedStyle(pin).top)||0; step=(garage.offsetHeight-pin.offsetHeight)/N;}
+}
+function garageFrame(){
+  if(!pinned){
+    let i=0; blocks.forEach((b,j)=>{if(b.getBoundingClientRect().top<innerHeight*.5) i=j});
+    highlight(i); return;
+  }
+  const top=garage.getBoundingClientRect().top, d=pinTop-top;
+  tabButtons.forEach((b,j)=>b.style.setProperty("--p",clamp(d/step-j,0,1).toFixed(3)));
+  if(active<0&&top>innerHeight*.75) return;
+  show(clamp(Math.floor(d/step),0,N-1));
+}
+tabs.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const i=+b.dataset.i;
+  if(pinned) scrollTo({top:scrollY+garage.getBoundingClientRect().top-pinTop+i*step+1});
+  else blocks[i].scrollIntoView({block:"start"});
 });
-showClass(ORDER[0]);
+// Stacked: each class falls in as it comes up the screen.
+const blockIO=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting&&!pinned) e.target.classList.add("on")}),{rootMargin:"0px 0px -15% 0px"});
+blocks.forEach(b=>blockIO.observe(b));
 
 /* tracks */
 const tg=document.getElementById("trackGrid"), tf=document.getElementById("trackFilters");
 const tracks=[...DATA.tracks].sort((a,b)=>a.name.localeCompare(b.name));
 tg.innerHTML=tracks.map(t=>`
   <button class="trk" data-stem="${t.stem}" data-cat="${esc(t.cat)}">
-    <svg viewBox="-6 -6 212 212" aria-hidden="true"><path d="${t.path}"/></svg>
+    <svg viewBox="-6 -6 212 212" aria-hidden="true"><path d="${t.path}" pathLength="1"/></svg>
     <b>${esc(t.name)}</b>
     <span>${esc(t.country)} · ${(t.length/1000).toFixed(2)} km${t.dossier?' <span class="dossier">●</span>':""}</span>
   </button>`).join("");
@@ -60,11 +137,14 @@ tf.onclick=e=>{
   tg.querySelectorAll(".trk").forEach(x=>x.classList.toggle("hide",b.dataset.c!=="All"&&x.dataset.cat!==b.dataset.c));
 };
 const ft={bg:ftBg,path:ftPath,run:ftRun,car:ftCar,start:ftStart};
+// The featured circuit's outline draws itself: on a pick, and when the section is reached.
+function drawFeatured(){ft.path.classList.remove("draw"); ft.path.getBoundingClientRect(); ft.path.classList.add("draw");}
 let anim=null;
 function selectTrack(stem){
   const t=DATA.tracks.find(x=>x.stem===stem); if(!t) return;
   tg.querySelectorAll(".trk").forEach(x=>x.setAttribute("aria-current",x.dataset.stem===stem));
   ["bg","path","run"].forEach(k=>ft[k].setAttribute("d",t.path));
+  drawFeatured();
   ft.start.setAttribute("x",t.sx-3); ft.start.setAttribute("y",t.sy-3);
   document.getElementById("ftLoc").textContent=[t.city,t.country].filter(Boolean).join(", ");
   document.getElementById("ftName").textContent=t.name;
@@ -78,7 +158,6 @@ function selectTrack(stem){
   ft.run.style.strokeDasharray=`${seg} ${L}`;
   const dur=Math.max(6000,t.length*1.4); let t0=null;
   cancelAnimationFrame(anim);
-  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
   const step=ts=>{
     t0??=ts; const f=((ts-t0)%dur)/dur, d=f*L;
     ft.run.style.strokeDashoffset=-(d-seg);
@@ -90,12 +169,74 @@ function selectTrack(stem){
 tg.onclick=e=>{const b=e.target.closest(".trk"); if(b){selectTrack(b.dataset.stem); if(innerWidth<1000) document.querySelector(".feature-track").scrollIntoView({behavior:"smooth",block:"start"});}};
 selectTrack(DATA.tracks.some(t=>t.stem===SITE.featured)?SITE.featured:tracks[0].stem);
 
-/* nav + reveal */
-const nav=document.getElementById("nav");
-addEventListener("scroll",()=>nav.classList.toggle("solid",scrollY>40),{passive:true});
-const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}}),{threshold:.12});
-document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
-setTimeout(()=>document.querySelectorAll(".reveal:not(.in)").forEach(el=>{const r=el.getBoundingClientRect();if(r.top<innerHeight)el.classList.add("in")}),1500);
+/* reveal: a heading (.reveal-head), a panel (.reveal) or a row of panels
+   (.stagger, one after another) falls into place as it comes up the screen */
+const onReveal=new Map();
+const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&reveal(e.target)),{rootMargin:"0px 0px -10% 0px"});
+function reveal(el){
+  if(el.classList.contains("in")) return;
+  el.classList.add("in"); io.unobserve(el);
+  const then=onReveal.get(el); if(then) then();
+}
+// The stats count up to their figure.
+function countUp(b){
+  const t=b.firstChild; if(REDUCE||!t||t.nodeType!==3) return;
+  const text=t.nodeValue, to=parseInt(text.replace(/,/g,""),10);
+  if(!(to>1)) return;
+  const fmt=text.includes(",")?v=>v.toLocaleString("en-US"):String, t0=performance.now(), dur=1300;
+  const tick=now=>{
+    const f=clamp((now-t0)/dur,0,1);
+    t.nodeValue=f<1?fmt(Math.round(to*(1-Math.pow(1-f,3)))):text;
+    if(f<1) requestAnimationFrame(tick);
+  };
+  t.nodeValue=fmt(0); requestAnimationFrame(tick);
+}
+onReveal.set(document.querySelector(".stats .wrap"),()=>document.querySelectorAll(".stat b").forEach((b,i)=>setTimeout(()=>countUp(b),i*90)));
+onReveal.set(tg,drawFeatured);
+document.querySelectorAll(".reveal,.reveal-head,.stagger").forEach(el=>{
+  if(el.classList.contains("stagger")) [...el.children].forEach((c,i)=>c.style.setProperty("--i",i));
+  if(REDUCE) reveal(el); else io.observe(el);
+});
+setTimeout(()=>document.querySelectorAll(".reveal:not(.in),.reveal-head:not(.in),.stagger:not(.in)").forEach(el=>{if(el.getBoundingClientRect().top<innerHeight)reveal(el)}),1500);
+
+/* scroll: the nav, its progress line and the section it is in, the hero
+   sinking away, the pictures that drift against the page, and the garage */
+const nav=document.getElementById("nav"), readBar=document.getElementById("readBar");
+const hero=document.querySelector(".hero"), heroCopy=hero.querySelector(".wrap");
+const spy=[...nav.querySelectorAll("ul a")].map(a=>[a,document.querySelector(a.getAttribute("href"))]).filter(([,s])=>s);
+const drifting=REDUCE?[]:[...document.querySelectorAll(".band img,.shots figure:first-child img,.cta>img")]
+  .map(img=>{img.classList.add("drift"); return {img,box:img.parentElement};});
+function heroFrame(y){
+  if(REDUCE) return;
+  const h=hero.offsetHeight, live=innerWidth>640;
+  if(live&&y>h) return; // gone off the top: leave it where it went
+  const f=live?y:0;
+  hero.querySelectorAll(":scope>img,:scope>video").forEach(m=>{m.style.translate=f?`0 ${(f*.35).toFixed(1)}px`:""});
+  heroCopy.style.translate=f?`0 ${(f*.2).toFixed(1)}px`:"";
+  heroCopy.style.opacity=f?clamp(1-f/(h*.6),0,1).toFixed(3):"";
+}
+let queued=false;
+function frame(){
+  queued=false;
+  const y=scrollY, vh=innerHeight, max=document.documentElement.scrollHeight-vh;
+  nav.classList.toggle("solid",y>40);
+  readBar.style.transform=`scaleX(${max>0?clamp(y/max,0,1).toFixed(4):0})`;
+  let here=null; for(const [a,s] of spy) if(s.getBoundingClientRect().top<vh*.4) here=a;
+  spy.forEach(([a])=>a===here?a.setAttribute("aria-current","location"):a.removeAttribute("aria-current"));
+  heroFrame(y);
+  for(const {img,box} of drifting){
+    const r=box.getBoundingClientRect();
+    if(r.bottom<-80||r.top>vh+80) continue;
+    const t=(r.top+r.height/2-vh/2)/(vh/2+r.height/2);
+    img.style.translate=`0 ${(-t*r.height*.06).toFixed(1)}px`;
+  }
+  garageFrame();
+}
+const queue=()=>{if(!queued){queued=true; requestAnimationFrame(frame);}};
+addEventListener("scroll",queue,{passive:true});
+addEventListener("resize",()=>{layoutGarage(); queue();});
+if(document.fonts) document.fonts.ready.then(()=>{layoutGarage(); queue();});
+layoutGarage(); frame();
 
 /* hero telemetry: a scripted lap segment, looped */
 (function(){
