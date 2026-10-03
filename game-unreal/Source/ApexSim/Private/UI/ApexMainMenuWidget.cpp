@@ -755,7 +755,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->EffectiveLapLimit(),
 		Flow->CreateSessionKind,
 		Flow->CreateAllowedAssists,
-		Flow->CreateConditions);
+		Flow->CreateConditions,
+		Flow->CreateDamage);
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

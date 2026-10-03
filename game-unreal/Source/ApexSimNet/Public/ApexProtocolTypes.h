@@ -84,9 +84,11 @@ enum class EApexTractionControl : uint8
 };
 
 /**
- * Mirrors `DamageLevel` (data.rs): how much damage the driver's car takes.
- * Serialize_repr => a plain u8 on the wire. Scales every accrual on the
- * server (hits, overheating, over-revving); what damage costs is unchanged.
+ * Mirrors `DamageLevel` (data.rs): how much damage the cars in a session
+ * take, a rule its host picks on create (CreateSession) and the same for
+ * every car, AI included; SessionJoined echoes it. Serialize_repr => a plain
+ * u8 on the wire, left off when Full. Scales every accrual on the server
+ * (hits, overheating, over-revving); what damage costs is unchanged.
  */
 UENUM(BlueprintType)
 enum class EApexDamageLevel : uint8
@@ -310,30 +312,26 @@ struct APEXSIMNET_API FApexAllowedAssists
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	bool bRacingLine = true;
 
-	/**
-	 * Whether a driver may take less than full damage. Off pins every car
-	 * to full damage. The server only names the key when it is off.
-	 */
-	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
-	bool bDamage = true;
+	/** How many of the aids there are, and so how many CountLocked can reach. */
+	static constexpr int32 Count = 5;
 
 	bool AllowsEverything() const
 	{
-		return bAbs && bTractionControl && bAutoGearbox && bSteeringAssist && bRacingLine && bDamage;
+		return bAbs && bTractionControl && bAutoGearbox && bSteeringAssist && bRacingLine;
 	}
 
-	/** How many of the six are locked. */
+	/** How many of the five are locked. */
 	int32 CountLocked() const
 	{
 		return (bAbs ? 0 : 1) + (bTractionControl ? 0 : 1) + (bAutoGearbox ? 0 : 1)
-			+ (bSteeringAssist ? 0 : 1) + (bRacingLine ? 0 : 1) + (bDamage ? 0 : 1);
+			+ (bSteeringAssist ? 0 : 1) + (bRacingLine ? 0 : 1);
 	}
 
 	bool operator==(const FApexAllowedAssists& Other) const
 	{
 		return bAbs == Other.bAbs && bTractionControl == Other.bTractionControl
 			&& bAutoGearbox == Other.bAutoGearbox && bSteeringAssist == Other.bSteeringAssist
-			&& bRacingLine == Other.bRacingLine && bDamage == Other.bDamage;
+			&& bRacingLine == Other.bRacingLine;
 	}
 	bool operator!=(const FApexAllowedAssists& Other) const { return !(*this == Other); }
 };
@@ -1718,6 +1716,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexAllowedAssists AllowedAssists;
 	/** SessionJoined::Conditions; a sunny afternoon from a server that predates the field. */
 	FApexSessionConditions Conditions;
+	/** SessionJoined::Damage, the session's damage rule; full when absent. */
+	EApexDamageLevel Damage = EApexDamageLevel::Full;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

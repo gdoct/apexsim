@@ -312,6 +312,7 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
             session_kind: SessionKind::Multiplayer,
             allowed_assists: Default::default(),
             conditions: Default::default(),
+            damage: Default::default(),
         })
         .await;
     first

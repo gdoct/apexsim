@@ -102,7 +102,6 @@ namespace
 	const FName SegGearbox    = TEXT("Gearbox");
 	const FName SegSteering   = TEXT("Steering");
 	const FName SegRacingLine = TEXT("RacingLine");
-	const FName SegDamage     = TEXT("Damage");
 	const FName SegUnits      = TEXT("Units");
 	const FName SegHud        = TEXT("Hud");
 	const FName SegPreset     = TEXT("Preset");
@@ -646,14 +645,8 @@ UWidget* UApexSettingsWidget::BuildAssistsPage()
 		MakeSegment(SegSteering, { TEXT("FULL LOCK"), TEXT("SPEED SENSITIVE") }, 1, 178.0f),
 		FString(), 0.0f, MakeAssistLockBadge(SegSteering)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
-	// Server-side like the rest: it scales every hit, overheating second and
-	// missed shift the car would take (damage.rs). The HUD's damage diagram
-	// shows what it has taken.
-	AddV(Page, MakeRow(
-		TEXT("Damage"),
-		TEXT("How much a hit, an overheating engine or a missed shift hurts the car. REDUCED takes half of it."),
-		MakeSegment(SegDamage, { TEXT("OFF"), TEXT("REDUCED"), TEXT("FULL") }, 2),
-		FString(), 0.0f, MakeAssistLockBadge(SegDamage)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+	// Damage is not here: it is the session's rule, picked by the host on
+	// the create screen and the same for every car.
 
 	AddV(Page, MakeSectionLabel(TEXT("Guides")), FMargin(0.0f, 26.0f, 0.0f, 14.0f));
 
@@ -699,7 +692,6 @@ void UApexSettingsWidget::RefreshAssistLocks()
 		{ SegGearbox,    Allowed.bAutoGearbox },
 		{ SegSteering,   Allowed.bSteeringAssist },
 		{ SegRacingLine, Allowed.bRacingLine },
-		{ SegDamage,     Allowed.bDamage },
 	};
 	for (const TPair<FName, bool>& Row : Rows)
 	{
@@ -1648,7 +1640,6 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegGearbox, Values->bAutoGearbox ? 1 : 0);
 	SetSegment(SegSteering, Values->bSteeringAssist ? 1 : 0);
 	SetSegment(SegRacingLine, static_cast<int32>(Values->RacingLine));
-	SetSegment(SegDamage, static_cast<int32>(Values->Damage));
 	RefreshAssistLocks();
 	SetSegment(SegUnits, static_cast<int32>(Values->Units));
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
@@ -1966,7 +1957,6 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegGearbox)    { Settings->SetAutoGearbox(Index == 1); }
 	else if (Id == SegSteering)   { Settings->SetSteeringAssist(Index == 1); }
 	else if (Id == SegRacingLine) { Settings->SetRacingLine(static_cast<EApexRacingLine>(Index)); }
-	else if (Id == SegDamage)     { Settings->SetDamage(static_cast<EApexDamageLevel>(Index)); }
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
 	else if (Id == SegVSync)      { Settings->SetVSync(Index == 1); }

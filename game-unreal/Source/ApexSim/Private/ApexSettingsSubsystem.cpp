@@ -235,13 +235,6 @@ void UApexSettingsSubsystem::SetRacingLine(EApexRacingLine Line)
 	Changed(EApexSettingsGroup::Assists);
 }
 
-void UApexSettingsSubsystem::SetDamage(EApexDamageLevel Level)
-{
-	if (!Settings || Settings->Damage == Level) { return; }
-	Settings->Damage = Level;
-	Changed(EApexSettingsGroup::Assists);
-}
-
 void UApexSettingsSubsystem::SetGhostCar(bool bOn)
 {
 	if (!Settings || Settings->bGhostCar == bOn) { return; }
@@ -1088,7 +1081,6 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->bAutoGearbox = Defaults->bAutoGearbox;
 		Settings->bSteeringAssist = Defaults->bSteeringAssist;
 		Settings->RacingLine = Defaults->RacingLine;
-		Settings->Damage = Defaults->Damage;
 		break;
 
 	case EApexSettingsGroup::Graphics:

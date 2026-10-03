@@ -1,5 +1,7 @@
 #include "ApexTestCommon.h"
 #include "ApexDemoModeSubsystem.h"
+#include "ApexNetSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "ApexSpectatorStream.h"
 #include "Race/ApexReplayClip.h"
 
@@ -169,6 +171,54 @@ bool FApexBackdropChooseFileTest::RunTest(const FString& Parameters)
 	Content.Cars.Remove(TEXT("lmp2"));
 	Content.Cars.Remove(TEXT("gt3"));
 	TestEqual(TEXT("nothing playable"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), FString()), INDEX_NONE);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// Joining a real session while the menu backdrop plays: the backdrop ends at
+// the join, so the session's own roster and sky that follow it stay. It used
+// to end only when the demo subsystem heard of the join, after the roster had
+// arrived, and wiped it: the race opened with no cars.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexBackdropEndsAtJoinTest, "ApexSim.Backdrop.EndsAtJoin", ApexTestFlags)
+
+bool FApexBackdropEndsAtJoinTest::RunTest(const FString& Parameters)
+{
+	// No connection here, so the lobby refresh the join asks for is dropped.
+	AddExpectedError(TEXT("Dropped an outbound message"), EAutomationExpectedErrorFlags::Contains, 0);
+
+	// A game-instance subsystem has to live in a game instance.
+	UApexNetSubsystem* Net = NewObject<UApexNetSubsystem>(NewObject<UGameInstance>(GetTransientPackage()));
+
+	FApexSessionConditions Showcase;
+	Showcase.Weather = EApexWeather::Cloudy;
+	Net->BeginBackdropFeed(Showcase);
+	FApexSessionRoster Backdrop;
+	Backdrop.Entries.SetNum(16);
+	Net->FeedBackdropRoster(Backdrop);
+
+	FApexServerMessage Joined;
+	Joined.Type = EApexServerMessageType::SessionJoined;
+	Joined.SessionId = TEXT("c401cf66-0e18-4c10-8bbd-18cf5e162ddd");
+	Joined.GridPosition = 10;
+	Joined.Conditions.Weather = EApexWeather::LightRain;
+	Joined.Conditions.TimeOfDayMinutes = 20 * 60 + 45;
+	Net->HandleMessageForTest(Joined);
+	TestFalse(TEXT("the backdrop ended at the join"), Net->IsBackdropFeedActive());
+
+	FApexServerMessage Roster;
+	Roster.Type = EApexServerMessageType::SessionRoster;
+	Roster.Roster.SessionId = Joined.SessionId;
+	Roster.Roster.Entries.SetNum(10);
+	Net->HandleMessageForTest(Roster);
+
+	// What the demo subsystem does once it hears of the join.
+	Net->EndBackdropFeed();
+
+	TestEqual(TEXT("the session's roster stays"), Net->GetSessionRoster().Entries.Num(), 10);
+	TestEqual(TEXT("the session's sky stays"), static_cast<int32>(Net->GetSessionConditions().Weather), static_cast<int32>(EApexWeather::LightRain));
+	TestEqual(TEXT("the session's clock stays"), Net->GetSessionConditions().TimeOfDayMinutes, 20 * 60 + 45);
 	return true;
 }
 

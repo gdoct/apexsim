@@ -78,6 +78,10 @@ pub enum ClientMessage {
         /// Weather and time of day; a sunny afternoon when absent.
         #[serde(default)]
         conditions: SessionConditions,
+        /// How much damage every car takes, AI included; full when absent,
+        /// and left off the wire when full so older bytes are unchanged.
+        #[serde(default, skip_serializing_if = "DamageLevel::is_full")]
+        damage: DamageLevel,
     },
     JoinSession {
         #[serde(
@@ -113,10 +117,6 @@ pub enum ClientMessage {
         /// Traction control level; absent keeps the car's own.
         #[serde(default)]
         traction_control: Option<TractionControl>,
-        /// How much damage the car takes; absent is full damage. Left off
-        /// the wire when unset, so the older aids keep their bytes.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        damage: Option<DamageLevel>,
     },
     /// The garage setup for this player's car, as clicks per knob
     /// (`car_setup::CarSetup`). Sent on joining a session and whenever a
@@ -258,6 +258,10 @@ pub struct SessionJoinedData {
     /// predates the field.
     #[serde(default)]
     pub conditions: SessionConditions,
+    /// The session's damage rule, the same for every car; left off the wire
+    /// when full (and full from a server that predates the field).
+    #[serde(default, skip_serializing_if = "DamageLevel::is_full")]
+    pub damage: DamageLevel,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1297,12 +1301,10 @@ mod tests {
                 steering_assist,
                 abs,
                 traction_control,
-                damage,
             } => {
                 assert!(auto_gearbox && !steering_assist);
                 assert_eq!(abs, None, "an old client leaves the car's own ABS");
                 assert_eq!(traction_control, None);
-                assert_eq!(damage, None, "an old client takes full damage");
             }
             _ => panic!("Wrong message type"),
         }
@@ -1312,7 +1314,6 @@ mod tests {
             steering_assist: true,
             abs: Some(false),
             traction_control: Some(TractionControl::High),
-            damage: Some(DamageLevel::Off),
         };
         let bytes = rmp_serde::to_vec_named(&both).unwrap();
         match rmp_serde::from_slice(&bytes).unwrap() {
@@ -1321,15 +1322,41 @@ mod tests {
                 steering_assist,
                 abs,
                 traction_control,
-                damage,
             } => {
                 assert!(!auto_gearbox && steering_assist);
                 assert_eq!(abs, Some(false));
                 assert_eq!(traction_control, Some(TractionControl::High));
-                assert_eq!(damage, Some(DamageLevel::Off));
             }
             _ => panic!("Wrong message type"),
         }
+
+        // Damage was a driver aid once; a client from then still sends the
+        // key, and it no longer does anything (the session decides).
+        #[derive(Serialize)]
+        struct AidsWithDamage {
+            auto_gearbox: bool,
+            damage: u8,
+        }
+        #[derive(Serialize)]
+        struct DamageEnvelope {
+            r#type: String,
+            data: AidsWithDamage,
+        }
+        let with_damage = rmp_serde::to_vec_named(&DamageEnvelope {
+            r#type: "SetDriverAids".to_string(),
+            data: AidsWithDamage {
+                auto_gearbox: true,
+                damage: 0,
+            },
+        })
+        .unwrap();
+        assert!(matches!(
+            rmp_serde::from_slice(&with_damage).unwrap(),
+            ClientMessage::SetDriverAids {
+                auto_gearbox: true,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -2168,13 +2195,13 @@ mod tests {
                 auto_gearbox: true,
                 steering_assist: false,
                 racing_line: true,
-                damage: true,
             },
             conditions: SessionConditions {
                 weather: Weather::LightRain,
                 time_of_day_minutes: 21 * 60 + 30,
                 ..SessionConditions::DEFAULT
             },
+            damage: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -2196,7 +2223,6 @@ mod tests {
             steering_assist: true,
             abs: Some(false),
             traction_control: Some(TractionControl::High),
-            damage: None,
         };
         let aids_bytes = rmp_serde::to_vec_named(&aids).unwrap();
         println!("C_SetDriverAids: {}", hex(&aids_bytes));
@@ -2211,13 +2237,13 @@ mod tests {
                 auto_gearbox: false,
                 steering_assist: true,
                 racing_line: false,
-                damage: true,
             },
             conditions: SessionConditions {
                 weather: Weather::HeavyRain,
                 time_of_day_minutes: 6 * 60 + 15,
                 ..SessionConditions::DEFAULT
             },
+            damage: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -2227,13 +2253,13 @@ mod tests {
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_ASSISTS);
     }
 
-    /// The damage aid: a `SetDriverAids` that asks for reduced damage, and
-    /// a session that forbids it (the only time `AllowedAssists` names
-    /// `damage`). Pinned on the client as `ApexGolden::C_SetDriverAidsDamage`
-    /// / `S_SessionJoinedNoDamage`; `cargo test damage_assist_wire_format --
-    /// --nocapture` prints them.
+    /// The session's damage rule: a create that picks reduced damage and
+    /// the joined echo of a session without any. Full is the default and
+    /// left off the wire. Pinned on the client as
+    /// `ApexGolden::C_CreateSessionDamage` / `S_SessionJoinedNoDamage`;
+    /// `cargo test session_damage_wire_format -- --nocapture` prints them.
     #[test]
-    fn test_damage_assist_wire_format() {
+    fn test_session_damage_wire_format() {
         fn hex(bytes: &[u8]) -> String {
             bytes
                 .iter()
@@ -2241,35 +2267,58 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join(", ")
         }
-        let aids = ClientMessage::SetDriverAids {
-            auto_gearbox: false,
-            steering_assist: false,
-            abs: Some(true),
-            traction_control: Some(TractionControl::Low),
-            damage: Some(DamageLevel::Reduced),
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Reduced,
         };
-        let aids_bytes = rmp_serde::to_vec_named(&aids).unwrap();
-        println!("C_SetDriverAidsDamage: {}", hex(&aids_bytes));
+        let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!("C_CreateSessionDamage: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { damage, .. } => assert_eq!(damage, DamageLevel::Reduced),
+            _ => panic!("Wrong message type"),
+        }
 
-        let no_damage = AllowedAssists {
-            damage: false,
-            ..AllowedAssists::ALL
-        };
         let joined = ServerMessage::SessionJoined(SessionJoinedData {
             session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
             your_grid_position: 3,
             session_kind: SessionKind::Practice,
-            allowed_assists: no_damage,
+            allowed_assists: AllowedAssists::ALL,
             conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Off,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
         match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
-            ServerMessage::SessionJoined(data) => assert_eq!(data.allowed_assists, no_damage),
+            ServerMessage::SessionJoined(data) => assert_eq!(data.damage, DamageLevel::Off),
             _ => panic!("Wrong message type"),
         }
 
-        assert_eq!(aids_bytes, GOLDEN_C_SET_DRIVER_AIDS_DAMAGE);
+        // Full damage is the default and stays off the wire: a create and a
+        // join from before the rule keep their bytes, and decode as full.
+        let full = ClientMessage::CreateSession {
+            track_config_id: Uuid::nil(),
+            max_players: 2,
+            ai_count: 0,
+            lap_limit: 1,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+        };
+        let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
+        assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
+        match rmp_serde::from_slice::<ClientMessage>(&full_bytes).unwrap() {
+            ClientMessage::CreateSession { damage, .. } => assert_eq!(damage, DamageLevel::Full),
+            _ => panic!("Wrong message type"),
+        }
+
+        assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION_DAMAGE);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_NO_DAMAGE);
     }
 
@@ -2303,6 +2352,7 @@ mod tests {
             session_kind: SessionKind::Multiplayer,
             allowed_assists: AllowedAssists::default(),
             conditions: air,
+            damage: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -2328,6 +2378,7 @@ mod tests {
             session_kind: SessionKind::Practice,
             allowed_assists: AllowedAssists::default(),
             conditions: air,
+            damage: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -2649,31 +2700,43 @@ mod tests {
         0x73, 0xC2, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E,
         0x74, 0x72, 0x6F, 0x6C, 0x02,
     ];
-    const GOLDEN_C_SET_DRIVER_AIDS_DAMAGE: &[u8] = &[
-        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x74, 0x44, 0x72, 0x69, 0x76, 0x65,
-        0x72, 0x41, 0x69, 0x64, 0x73, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x85, 0xAC, 0x61, 0x75, 0x74,
-        0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC2, 0xAF, 0x73, 0x74, 0x65, 0x65,
-        0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC2, 0xA3, 0x61, 0x62,
-        0x73, 0xC3, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E,
-        0x74, 0x72, 0x6F, 0x6C, 0x01, 0xA6, 0x64, 0x61, 0x6D, 0x61, 0x67, 0x65, 0x01,
+    const GOLDEN_C_CREATE_SESSION_DAMAGE: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x65,
+        0x73, 0x73, 0x69, 0x6F, 0x6E, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x88, 0xAF, 0x74, 0x72, 0x61,
+        0x63, 0x6B, 0x5F, 0x63, 0x6F, 0x6E, 0x66, 0x69, 0x67, 0x5F, 0x69, 0x64, 0xD9, 0x24, 0x61,
+        0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x2D, 0x62, 0x62, 0x62, 0x62, 0x2D, 0x63, 0x63,
+        0x63, 0x63, 0x2D, 0x64, 0x64, 0x64, 0x64, 0x2D, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65,
+        0x65, 0x65, 0x65, 0x65, 0x65, 0xAB, 0x6D, 0x61, 0x78, 0x5F, 0x70, 0x6C, 0x61, 0x79, 0x65,
+        0x72, 0x73, 0x08, 0xA8, 0x61, 0x69, 0x5F, 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x03, 0xA9, 0x6C,
+        0x61, 0x70, 0x5F, 0x6C, 0x69, 0x6D, 0x69, 0x74, 0x05, 0xAC, 0x73, 0x65, 0x73, 0x73, 0x69,
+        0x6F, 0x6E, 0x5F, 0x6B, 0x69, 0x6E, 0x64, 0x00, 0xAF, 0x61, 0x6C, 0x6C, 0x6F, 0x77, 0x65,
+        0x64, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73, 0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3,
+        0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72,
+        0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72, 0x62, 0x6F,
+        0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73,
+        0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69, 0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E,
+        0x65, 0xC3, 0xAA, 0x63, 0x6F, 0x6E, 0x64, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x73, 0x82, 0xA7,
+        0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3, 0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F,
+        0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03,
+        0x0C, 0xA6, 0x64, 0x61, 0x6D, 0x61, 0x67, 0x65, 0x01,
     ];
     const GOLDEN_S_SESSION_JOINED_NO_DAMAGE: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4A,
-        0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x85, 0xA9, 0x53, 0x65, 0x73,
+        0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x86, 0xA9, 0x53, 0x65, 0x73,
         0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
         0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66, 0x2D, 0x30, 0x31, 0x32,
         0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0xB0,
         0x59, 0x6F, 0x75, 0x72, 0x47, 0x72, 0x69, 0x64, 0x50, 0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F,
         0x6E, 0x03, 0xAB, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4B, 0x69, 0x6E, 0x64, 0x01,
         0xAE, 0x41, 0x6C, 0x6C, 0x6F, 0x77, 0x65, 0x64, 0x41, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73,
-        0x86, 0xA3, 0x61, 0x62, 0x73, 0xC3, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E,
+        0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E,
         0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72, 0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F,
         0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69,
         0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69,
-        0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC3, 0xA6, 0x64, 0x61, 0x6D, 0x61, 0x67, 0x65,
-        0xC2, 0xAA, 0x43, 0x6F, 0x6E, 0x64, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x73, 0x82, 0xA7, 0x77,
-        0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3, 0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F, 0x66,
-        0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03, 0x0C,
+        0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC3, 0xAA, 0x43, 0x6F, 0x6E, 0x64, 0x69, 0x74,
+        0x69, 0x6F, 0x6E, 0x73, 0x82, 0xA7, 0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3,
+        0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F, 0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E,
+        0x75, 0x74, 0x65, 0x73, 0xCD, 0x03, 0x0C, 0xA6, 0x44, 0x61, 0x6D, 0x61, 0x67, 0x65, 0x00,
     ];
     const GOLDEN_S_SESSION_JOINED_ASSISTS: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4A,

@@ -1169,12 +1169,24 @@ impl GameSession {
             // A client that never sends SetDriverAids would otherwise run the
             // car's own ABS and traction control in a session that forbids them.
             car_state.set_driver_aids(self.session.allowed_assists.clamp(car_state.driver_aids()));
+            // The session's damage rule, the same for every car (AI included).
+            car_state.damage_level = Some(self.session.damage);
             physics::seed_track_progress(&mut car_state, &self.track_config);
             self.session.participants.insert(player_id, car_state);
             self.roster_dirty = true;
             Some(grid_position)
         } else {
             None
+        }
+    }
+
+    /// The session's damage rule (`RaceSession::damage`), stamped on every
+    /// car already seated; `add_player` stamps it on the rest. Set by the
+    /// host on create, after the AI have been seated with the default.
+    pub fn set_damage(&mut self, level: DamageLevel) {
+        self.session.damage = level;
+        for state in self.session.participants.values_mut() {
+            state.damage_level = Some(level);
         }
     }
 
@@ -3320,7 +3332,6 @@ mod tests {
             steering_assist: true,
             abs: Some(true),
             traction_control: Some(TractionControl::High),
-            damage: Some(DamageLevel::Off),
         };
 
         let mut strict = create_test_session();
@@ -3335,7 +3346,6 @@ mod tests {
             "a client that never sends its aids must not get the car's ABS"
         );
         assert_eq!(seated.traction_control, Some(TractionControl::Off));
-        assert_eq!(seated.damage, Some(DamageLevel::Full));
 
         let applied = strict.set_driver_aids(&player, everything).unwrap();
         assert_eq!(
@@ -3345,7 +3355,6 @@ mod tests {
                 steering_assist: false,
                 abs: Some(false),
                 traction_control: Some(TractionControl::Off),
-                damage: Some(DamageLevel::Full),
             }
         );
         assert_eq!(strict.session.participants[&player].driver_aids(), applied);
@@ -3375,8 +3384,54 @@ mod tests {
         let applied = no_tc.set_driver_aids(&player, everything).unwrap();
         assert_eq!(applied.traction_control, Some(TractionControl::Off));
         assert_eq!(applied.abs, Some(true));
-        assert_eq!(applied.damage, Some(DamageLevel::Off));
         assert!(applied.auto_gearbox && applied.steering_assist);
         assert_eq!(no_tc.set_driver_aids(&Uuid::new_v4(), everything), None);
+    }
+
+    /// Damage is the session's rule, not a driver's: every car takes the
+    /// same, those seated before the host set it (the AI) and after, and
+    /// nothing a driver sends changes it.
+    #[test]
+    fn every_car_takes_the_sessions_damage() {
+        let mut session = create_test_session();
+        let car_id = session.car_configs.values().next().unwrap().id;
+        let early = Uuid::new_v4();
+        session.add_player(early, car_id).unwrap();
+        assert_eq!(
+            session.session.participants[&early].damage_level,
+            Some(DamageLevel::Full),
+            "full damage unless the host says otherwise"
+        );
+
+        session.set_damage(DamageLevel::Off);
+        let late = Uuid::new_v4();
+        session.add_player(late, car_id).unwrap();
+        for player in [early, late] {
+            let car = &session.session.participants[&player];
+            assert_eq!(car.damage_level, Some(DamageLevel::Off));
+            assert_eq!(car.damage_scale(), 0.0);
+        }
+
+        session.set_driver_aids(
+            &late,
+            DriverAids {
+                auto_gearbox: true,
+                steering_assist: true,
+                abs: Some(true),
+                traction_control: Some(TractionControl::High),
+            },
+        );
+        session.line_up_on_grid();
+        assert_eq!(
+            session.session.participants[&late].damage_level,
+            Some(DamageLevel::Off),
+            "the aids and the grid leave the session's damage alone"
+        );
+
+        session.set_damage(DamageLevel::Reduced);
+        assert_eq!(
+            session.session.participants[&early].damage_scale(),
+            DamageLevel::REDUCED_SHARE
+        );
     }
 }

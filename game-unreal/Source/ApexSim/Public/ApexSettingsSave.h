@@ -181,13 +181,6 @@ public:
 	UPROPERTY()
 	EApexRacingLine RacingLine = EApexRacingLine::Off;
 
-	/**
-	 * How much damage the car takes, applied by the server (SetDriverAids):
-	 * off, half of every hit, or full. A session that locks it races on full.
-	 */
-	UPROPERTY()
-	EApexDamageLevel Damage = EApexDamageLevel::Full;
-
 	/** In a hotlap, the record lap's ghost car drives alongside. Toggled from the garage. */
 	UPROPERTY()
 	bool bGhostCar = true;

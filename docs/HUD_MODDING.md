@@ -430,7 +430,7 @@ Lap times, sectors and track limits are the server's: it times every tick.
 | Name | Meaning |
 |---|---|
 | `damage.known` | the server sends damage |
-| `damage.level` | the driver's damage setting in force: `off`, `reduced`, `full` |
+| `damage.level` | the session's damage rule, the same for every car: `off`, `reduced`, `full` |
 | `damage.front`, `damage.rear`, `damage.left`, `damage.right`, `damage.engine` | each zone, %; 100 puts the car out |
 | `damage.front_flash`, `damage.rear_flash`, `damage.left_flash`, `damage.right_flash`, `damage.engine_flash` | 1 at a fresh hit, fading to 0 over 0.8 s |
 

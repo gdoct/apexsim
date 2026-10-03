@@ -328,10 +328,11 @@ void UApexNetSubsystem::CreateSession(
 	int32 LapLimit,
 	EApexSessionKind SessionKind,
 	const FApexAllowedAssists& AllowedAssists,
-	const FApexSessionConditions& Conditions)
+	const FApexSessionConditions& Conditions,
+	EApexDamageLevel Damage)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d locked_assists=%d conditions=%s"),
-		*TrackConfigId, MaxPlayers, AiCount, LapLimit, AllowedAssists.CountLocked(), *Conditions.Describe());
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d locked_assists=%d conditions=%s damage=%d"),
+		*TrackConfigId, MaxPlayers, AiCount, LapLimit, AllowedAssists.CountLocked(), *Conditions.Describe(), static_cast<int32>(Damage));
 	// The server holds one session per player: the menu's demo goes first,
 	// and the server takes a showcase viewer off their channel by itself.
 	LeaveDemoSession();
@@ -346,7 +347,8 @@ void UApexNetSubsystem::CreateSession(
 		static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)),
 		SessionKind,
 		AllowedAssists,
-		Conditions));
+		Conditions,
+		Damage));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -461,11 +463,11 @@ void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
 }
 
 void UApexNetSubsystem::SetDriverAids(
-	bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl, EApexDamageLevel Damage)
+	bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d abs=%d traction_control=%d damage=%d"),
-		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0, bAbs ? 1 : 0, static_cast<int32>(TractionControl), static_cast<int32>(Damage));
-	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl, Damage));
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d abs=%d traction_control=%d"),
+		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0, bAbs ? 1 : 0, static_cast<int32>(TractionControl));
+	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl));
 }
 
 void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres)
@@ -861,6 +863,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			break;
 		}
 		bSessionRequestPending = false;
+		// A menu backdrop still playing ends here, before this session's
+		// state goes in: the demo subsystem stops it only once it hears of
+		// the join, after the roster and sectors that follow this message
+		// have arrived, and ending the feed then wiped them (and the sky),
+		// leaving the player in a race view with no cars.
+		EndBackdropFeed();
 		// Seated as a spectator: no car of our own, every car is someone else's.
 		bSessionSpectator = bSpectatorJoinRequested;
 		bSpectatorJoinRequested = false;
@@ -871,9 +879,11 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentSessionId = Message.SessionId;
 		CurrentAllowedAssists = Message.AllowedAssists;
 		CurrentConditions = Message.Conditions;
+		CurrentDamage = Message.Damage;
 		DiscardTelemetryOfPreviousSession();
-		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s"),
-			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe());
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d"),
+			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe(),
+			static_cast<int32>(CurrentDamage));
 		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
 
 		// The cached lobby state predates this session, so anything resolving the
@@ -902,6 +912,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		bSessionSpectator = false;
 		CurrentAllowedAssists = FApexAllowedAssists();
 		CurrentConditions = FApexSessionConditions();
+		CurrentDamage = EApexDamageLevel::Full;
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
 		ClearLapTiming();

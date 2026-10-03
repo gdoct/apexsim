@@ -116,6 +116,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             session_kind: SessionKind::Multiplayer,
             allowed_assists: AllowedAssists::ALL,
             conditions: asked,
+            damage: Default::default(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -247,6 +248,78 @@ async fn a_session_created_without_conditions_is_a_sunny_afternoon() {
             session.track_config.track_surface.base_grip,
             shared.track_surface.base_grip
         );
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => panic!("test failed: {e}"),
+        Err(_) => panic!("test timed out"),
+    }
+}
+
+/// Damage is the session's rule: the host picks it on create, every car takes
+/// it (the AI seated with the session and a guest who joins later), and every
+/// driver is told it on joining.
+#[tokio::test]
+async fn the_hosts_damage_rule_holds_for_every_car() {
+    let result = timeout(TEST_TIMEOUT, async {
+        let server = common::start_test_server().await;
+        let (mut host, lobby) = Client::connect("Host", server.tcp_addr).await?;
+        let car_id = lobby.car_configs.first().ok_or("no cars")?.id;
+        let track_id = lobby.track_configs.first().ok_or("no tracks")?.id;
+
+        host.send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+            livery: 0,
+        })
+        .await?;
+        sleep(Duration::from_millis(50)).await;
+        host.send(&ClientMessage::CreateSession {
+            track_config_id: track_id,
+            max_players: 6,
+            ai_count: 2,
+            lap_limit: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Off,
+        })
+        .await?;
+        let joined = host.wait_joined().await?;
+        assert_eq!(
+            joined.damage,
+            DamageLevel::Off,
+            "SessionJoined echoes the rule"
+        );
+
+        let (mut guest, _) = Client::connect("Guest", server.tcp_addr).await?;
+        guest
+            .send(&ClientMessage::SelectCar {
+                car_config_id: car_id,
+                livery: 0,
+            })
+            .await?;
+        sleep(Duration::from_millis(50)).await;
+        guest
+            .send(&ClientMessage::JoinSession {
+                session_id: joined.session_id,
+            })
+            .await?;
+        assert_eq!(guest.wait_joined().await?.damage, DamageLevel::Off);
+
+        let state = server.state.read().await;
+        let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
+        assert_eq!(
+            session.session.participants.len(),
+            4,
+            "two AI, the host and the guest"
+        );
+        for car in session.session.participants.values() {
+            assert_eq!(car.damage_level, Some(DamageLevel::Off));
+            assert_eq!(car.damage_scale(), 0.0);
+        }
         Ok::<(), Box<dyn std::error::Error>>(())
     })
     .await;
