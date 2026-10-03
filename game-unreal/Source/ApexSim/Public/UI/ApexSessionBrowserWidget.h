@@ -57,6 +57,7 @@ private:
 	UFUNCTION() void HandleCreateClicked();
 	UFUNCTION() void HandleBackClicked();
 	UFUNCTION() void HandleJoinClicked(UApexSessionRowWidget* Row);
+	UFUNCTION() void HandleWatchClicked(UApexSessionRowWidget* Row);
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
 
 	void RefreshList();

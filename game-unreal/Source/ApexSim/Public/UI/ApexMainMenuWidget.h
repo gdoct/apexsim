@@ -47,6 +47,7 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
 	// --- Construction ---------------------------------------------------------
@@ -65,6 +66,10 @@ private:
 	void RefreshHeader();
 	void RefreshHero();
 	void RefreshRail();
+	/** The Watch row's badge: whether a race is on behind the menu to watch. */
+	void RefreshWatchBadge();
+	/** What the badge last said: -1 never set, 0 none, 1 on now. */
+	int32 WatchBadgeState = -1;
 
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail);

@@ -22,7 +22,7 @@
             { "type": "text", "width": 26, "font": "mono", "size": 11, "text": "{item.position}",
               "color": "=item.is_local ? 'on_accent' : 'text_muted'" },
             { "type": "text", "fill": 1, "font": "body", "size": 13,
-              "text": "=item.is_local ? 'YOU' : upper(item.name)",
+              "text": "=item.is_player ? 'YOU' : upper(item.name)",
               "bold": "=item.is_local",
               "color": "=item.is_local ? 'on_accent' : 'text'" },
             { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12,

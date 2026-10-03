@@ -446,6 +446,130 @@ bool FApexHudDataBuildTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataWatchingTest, "ApexSim.Hud.Data.Watching", ApexTestFlags)
+
+bool FApexHudDataWatchingTest::RunTest(const FString& Parameters)
+{
+	constexpr float Length = 4000.0f;
+
+	// Watching car 1, second on the road; car 2 is a lap down on softs, car 3 is out.
+	FApexTelemetryFrame Frame;
+	FApexCarTelemetry Leader = HudCar(0, 5, 2000.0f, 50.0f);
+	Leader.Compound = 2;
+	Frame.Cars.Add(Leader);
+	FApexCarTelemetry Watched = HudCar(1, 5, 1500.0f, 50.0f);
+	Watched.Compound = 1;
+	Watched.TyreWearPct[0] = 12.0f;
+	Watched.TyreWearPct[1] = 31.0f;
+	Watched.TyreWearPct[2] = 9.0f;
+	Watched.TyreWearPct[3] = 10.0f;
+	Frame.Cars.Add(Watched);
+	FApexCarTelemetry Lapped = HudCar(2, 4, 1700.0f, 40.0f);
+	Lapped.Compound = 0;
+	Frame.Cars.Add(Lapped);
+	FApexCarTelemetry Out = HudCar(3, 3, 100.0f, 0.0f);
+	for (float& Pct : Out.DamagePct)
+	{
+		Pct = 0.0f;
+	}
+	Out.DamagePct[4] = 100.0f;
+	Frame.Cars.Add(Out);
+
+	FApexSessionRoster Roster;
+	for (int32 Index = 0; Index < 4; ++Index)
+	{
+		FApexRosterEntry& Row = Roster.Entries.AddDefaulted_GetRef();
+		Row.CarIndex = Index;
+		Row.PlayerName = FString::Printf(TEXT("Driver %d"), Index);
+	}
+	TMap<int32, FString> CarNames = {{0, TEXT("Posh GT")}, {1, TEXT("Zomba")}};
+
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 1;
+	In.Roster = &Roster;
+	In.TrackLengthM = Length;
+	In.LapLimit = 12;
+	In.GameMode = EApexGameMode::Race;
+	In.bSpectating = true;
+	In.SpectateSource = TEXT("showcase");
+	In.SpectateCamera = TEXT("TV");
+	In.bSpectateAuto = true;
+	In.SpectateTowerMode = TEXT("tyres");
+	In.CarNames = &CarNames;
+
+	FApexHudMemory Memory;
+	FApexHudData Data;
+	ApexHudData::Build(In, Memory, Data);
+
+	TestTrue(TEXT("watching"), HudValue(Data, TEXT("spectate.active")).AsBool());
+	TestFalse(TEXT("a recorded race"), HudValue(Data, TEXT("spectate.live")).AsBool());
+	TestEqual(TEXT("source"), HudValue(Data, TEXT("spectate.source")).AsString(), FString(TEXT("showcase")));
+	TestEqual(TEXT("camera"), HudValue(Data, TEXT("spectate.camera")).AsString(), FString(TEXT("TV")));
+	TestEqual(TEXT("tower"), HudValue(Data, TEXT("spectate.tower_mode")).AsString(), FString(TEXT("tyres")));
+	TestEqual(TEXT("leader's lap"), HudValue(Data, TEXT("race.leader_lap")).AsNumber(), 5.0);
+	TestEqual(TEXT("the watched car's driver"), HudValue(Data, TEXT("car.driver_name")).AsString(), FString(TEXT("Driver 1")));
+	TestEqual(TEXT("its place"), HudValue(Data, TEXT("race.position")).AsNumber(), 2.0);
+	TestEqual(TEXT("its compound"), HudValue(Data, TEXT("tyre.compound")).AsString(), FString(TEXT("M")));
+	TestEqual(TEXT("its most worn tyre"), HudValue(Data, TEXT("tyre.wear_max_pct")).AsNumber(), 31.0, 1e-4);
+	TestEqual(TEXT("on its first set since lap 1"), HudValue(Data, TEXT("tyre.age_laps")).AsNumber(), 4.0);
+
+	const TArray<FApexHudRecord>* Standings = Data.FindList(TEXT("standings"));
+	TestTrue(TEXT("standings"), Standings && Standings->Num() == 4);
+	if (!Standings || Standings->Num() != 4)
+	{
+		return false;
+	}
+	const FApexHudRecord& First = (*Standings)[0];
+	const FApexHudRecord& Second = (*Standings)[1];
+	const FApexHudRecord& Third = (*Standings)[2];
+	const FApexHudRecord& Fourth = (*Standings)[3];
+	TestTrue(TEXT("the watched car is the HUD's"), Second[TEXT("is_local")].AsBool());
+	TestFalse(TEXT("but it is not the player's"), Second[TEXT("is_player")].AsBool());
+	TestEqual(TEXT("its model"), Second[TEXT("car_name")].AsString(), FString(TEXT("Zomba")));
+	TestTrue(TEXT("a car this machine lacks has no model"), Third[TEXT("car_name")].IsNone());
+	TestEqual(TEXT("interval: 500 m at 50 m/s"), Second[TEXT("interval_s")].AsNumber(), 10.0, 1e-4);
+	TestTrue(TEXT("the leader has no interval"), First[TEXT("interval_s")].IsNone());
+	TestEqual(TEXT("the lapped car is a lap down"), Third[TEXT("laps_down")].AsNumber(), 1.0);
+	TestEqual(TEXT("its interval is to the car one place ahead: 3 800 m at 40 m/s"), Third[TEXT("interval_s")].AsNumber(), 95.0, 1e-3);
+	TestEqual(TEXT("softs"), Third[TEXT("compound")].AsString(), FString(TEXT("S")));
+	TestTrue(TEXT("the car out of the race"), Fourth[TEXT("retired")].AsBool());
+	TestTrue(TEXT("wear unknown is null"), Third[TEXT("tyre_wear_pct")].IsNone());
+
+	// A stop: the car comes to rest in its box, is serviced, and goes out on new tyres.
+	Frame.Cars[1].bInPitLane = true;
+	Frame.Cars[1].bPitServicing = true;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("a stop counted at the box"), HudValue(Data, TEXT("car.pit_stops")).AsNumber(), 1.0);
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("once"), HudValue(Data, TEXT("car.pit_stops")).AsNumber(), 1.0);
+	Frame.Cars[1].bPitServicing = false;
+	Frame.Cars[1].Compound = 0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("fresh softs"), HudValue(Data, TEXT("tyre.age_laps")).AsNumber(), 0.0);
+	Frame.Cars[1].CurrentLap = 7;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("two laps on them"), HudValue(Data, TEXT("tyre.age_laps")).AsNumber(), 2.0);
+
+	// Watching another car keeps the field's history but not the delta.
+	Memory.ReferenceLapSeconds = 90.0f;
+	Memory.ResetForNewCar();
+	TestEqual(TEXT("the reference goes"), Memory.ReferenceLapSeconds, 0.0f);
+	TestTrue(TEXT("the stops stay"), Memory.Cars.Contains(1) && Memory.Cars[1].PitStops == 1);
+
+	// The player's own race: the player's row says so.
+	In.bSpectating = false;
+	ApexHudData::Build(In, Memory, Data);
+	TestFalse(TEXT("not watching"), HudValue(Data, TEXT("spectate.active")).AsBool());
+	TestTrue(TEXT("no source"), HudValue(Data, TEXT("spectate.source")).IsNone());
+	const TArray<FApexHudRecord>* Driving = Data.FindList(TEXT("standings"));
+	// Car 1 is on lap 7 by now, and leads.
+	const FApexHudRecord* Mine = Driving ? Driving->FindByPredicate(
+		[](const FApexHudRecord& Row) { return Row[TEXT("car_index")].AsNumber() == 1.0; }) : nullptr;
+	TestTrue(TEXT("the player's row"), Mine && (*Mine)[TEXT("is_player")].AsBool());
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStableTest, "ApexSim.Hud.Data.Stable", ApexTestFlags)
 
 bool FApexHudDataStableTest::RunTest(const FString& Parameters)

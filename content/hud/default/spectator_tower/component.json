@@ -1,0 +1,83 @@
+// The timing tower while watching a race: the whole field, the watched car
+// lit, and one column the viewer picks with T (the pad's View button): the
+// interval to the car ahead, the gap to the leader, the last lap, the best
+// lap, or the tyres (compound, laps on them, the most worn of the four).
+// Each row carries the compound it runs on and a tag in the pit lane.
+{
+  "name": "Timing tower",
+  "region": "top-left",
+  "order": 5,
+  "visible": "=spectate.active",
+  "root": {
+    "type": "column", "width": 392,
+    "children": [
+      // The race: circuit and the leader's lap.
+      {
+        "type": "panel", "padding": [14, 9], "background": "accent", "direction": "row",
+        "children": [
+          { "type": "text", "fill": 1, "valign": "center", "font": "display", "size": 22, "tracking": 20, "upper": true,
+            "color": "on_accent", "text": "=session.track_name != '' ? session.track_name : 'Race'" },
+          { "type": "text", "valign": "center", "margin": [10, 0, 0, 0], "font": "mono", "size": 13, "color": "on_accent",
+            "text": "=has(race.leader_lap) ? 'LAP ' + race.leader_lap + (lap.limit > 0 ? '/' + lap.limit : '') : ''" }
+        ]
+      },
+      // What the right-hand column is showing.
+      {
+        "type": "panel", "padding": [14, 5], "background": "surface_hover", "direction": "row",
+        "children": [
+          { "type": "label", "fill": 1, "text": "=session.mode_name" },
+          { "type": "label", "color": "text_secondary",
+            "text": "=switch(spectate.tower_mode, 'interval', 'Interval', 'gap', 'Gap to leader', 'last', 'Last lap', 'best', 'Best lap', 'tyres', 'Tyres', '')" }
+        ]
+      },
+
+      // One row per car; past twenty the window scrolls to keep the watched car in it.
+      {
+        "type": "panel",
+        "repeat": { "list": "standings", "max": 20, "focus": "is_local" },
+        "height": 30, "margin": [0, 1, 0, 0], "padding": [10, 0],
+        "background": "=item.is_local ? 'accent' : alpha('surface', 0.92)",
+        "children": [{
+          "type": "row", "valign": "center",
+          "children": [
+            { "type": "text", "width": 24, "font": "mono", "size": 13, "justify": "right", "text": "{item.position}",
+              "color": "=item.is_local ? 'on_accent' : 'text_muted'" },
+            { "type": "text", "fill": 1, "margin": [12, 0, 0, 0], "font": "body", "size": 14,
+              "text": "=upper(item.name)", "bold": "=item.is_local",
+              "color": "=item.is_local ? 'on_accent' : item.retired ? 'text_disabled' : 'text'" },
+            // In the pit lane, at the box, or out of the race.
+            { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [6, 0],
+              "visible": "=item.in_pit || item.retired",
+              "background": "=item.retired ? 'error' : item.servicing ? 'live' : 'surface_hover'",
+              "children": [{ "type": "text", "font": "body", "size": 11, "bold": true,
+                "text": "=item.retired ? 'OUT' : item.servicing ? 'BOX' : 'PIT'",
+                "color": "=item.retired || item.servicing ? 'on_accent' : 'text_secondary'" }] },
+            {
+              "type": "text", "width": 104, "margin": [8, 0, 0, 0], "font": "mono", "size": 13, "justify": "right",
+              "text": "=item.retired ? '' : item.finished && spectate.tower_mode != 'last' && spectate.tower_mode != 'best' && spectate.tower_mode != 'tyres' ? 'FINISHED' : switch(spectate.tower_mode, 'interval', item.position == 1 ? 'LEADER' : fmt_gap(item.interval_s), 'gap', item.position == 1 ? 'LEADER' : item.laps_down > 0 ? '+' + item.laps_down + (item.laps_down > 1 ? ' LAPS' : ' LAP') : fmt_gap(item.gap_leader_s), 'last', fmt_time(item.last_lap_s), 'best', fmt_time(item.best_lap_s), 'tyres', (has(item.tyre_age_laps) ? item.tyre_age_laps + ' LAPS' : '') + (has(item.tyre_wear_pct) ? '  ' + fmt(item.tyre_wear_pct) + '%' : ''), '')",
+              "color": "=item.is_local ? 'on_accent' : spectate.tower_mode == 'best' && item.is_session_best ? 'session_best' : spectate.tower_mode == 'last' && item.last_lap_invalid ? 'error' : 'text_secondary'"
+            },
+            // The compound on the car, in its usual colour.
+            { "type": "panel", "valign": "center", "width": 22, "height": 22, "radius": 11, "margin": [8, 0, 0, 0],
+              "background": "=item.is_local ? alpha('black', 0.25) : 'background'",
+              "outline": "=switch(item.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'border')", "outline_width": 2,
+              "children": [{ "type": "text", "halign": "center", "valign": "center", "font": "body", "size": 11, "bold": true,
+                "text": "=has(item.compound) ? item.compound : '·'",
+                "color": "=switch(item.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'text_muted')" }] }
+          ]
+        }]
+      },
+
+      // The session's fastest lap, as a timing screen carries it.
+      {
+        "type": "row", "margin": [0, 8, 0, 0], "visible": "=has(timing.session_best_s)",
+        "children": [
+          { "type": "text", "font": "body", "size": 12, "color": "text_secondary",
+            "text": "='FASTEST ' + (has(timing.session_best_name) ? upper(timing.session_best_name) : '—')" },
+          { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 12, "color": "session_best",
+            "text": "=fmt_time(timing.session_best_s)" }
+        ]
+      }
+    ]
+  }
+}

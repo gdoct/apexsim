@@ -3,6 +3,8 @@
   "name": "Race state",
   "region": "top",
   "order": 10,
+  // The watched car's card takes its place while watching.
+  "visible": "=!spectate.active",
   "root": {
     "type": "row",
     "children": [

@@ -114,6 +114,7 @@ void UApexNetSubsystem::Connect(const FString& InHost, int32 InPort, const FStri
 	Token = InToken;
 	PlayerId.Reset();
 	CurrentSessionId.Reset();
+	bSessionSpectator = false;
 
 	bReconnectEnabled = true;
 	ReconnectAttempt = 0;
@@ -171,6 +172,7 @@ void UApexNetSubsystem::Disconnect()
 
 	PlayerId.Reset();
 	CurrentSessionId.Reset();
+	bSessionSpectator = false;
 	ResetDemoSession();
 	ResetSpectate();
 	SetConnectionState(EApexConnectionState::Disconnected, TEXT("Disconnected"));
@@ -335,6 +337,7 @@ void UApexNetSubsystem::CreateSession(
 	LeaveDemoSession();
 	ResetSpectate();
 	bSessionRequestPending = true;
+	bSpectatorJoinRequested = false;
 	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeCreateSession(
 		TrackConfigId,
@@ -352,6 +355,7 @@ void UApexNetSubsystem::JoinSession(const FString& SessionId)
 	LeaveDemoSession();
 	ResetSpectate();
 	bSessionRequestPending = true;
+	bSpectatorJoinRequested = false;
 	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeJoinSession(SessionId));
 }
@@ -362,6 +366,7 @@ void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
 	LeaveDemoSession();
 	ResetSpectate();
 	bSessionRequestPending = true;
+	bSpectatorJoinRequested = true;
 	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeJoinAsSpectator(SessionId));
 }
@@ -405,6 +410,7 @@ void UApexNetSubsystem::ResetDemoSession()
 	if (bInDemoSession)
 	{
 		CurrentSessionId.Reset();
+		bSessionSpectator = false;
 		CachedRoster = FApexSessionRoster();
 	}
 	bInDemoSession = false;
@@ -615,6 +621,7 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		TeardownConnection();
 		PlayerId.Reset();
 		CurrentSessionId.Reset();
+		bSessionSpectator = false;
 		ResetDemoSession();
 		ResetSpectate();
 
@@ -854,6 +861,9 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			break;
 		}
 		bSessionRequestPending = false;
+		// Seated as a spectator: no car of our own, every car is someone else's.
+		bSessionSpectator = bSpectatorJoinRequested;
+		bSpectatorJoinRequested = false;
 		// The new session's line follows this message; the old one is for a
 		// different track or car.
 		ClearRacingLine();
@@ -889,6 +899,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			break;
 		}
 		CurrentSessionId.Reset();
+		bSessionSpectator = false;
 		CurrentAllowedAssists = FApexAllowedAssists();
 		CurrentConditions = FApexSessionConditions();
 		CachedRoster = FApexSessionRoster();
@@ -943,6 +954,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			break;
 		}
 		bSessionRequestPending = false;
+		bSpectatorJoinRequested = false;
 		UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d: %s"), Message.ErrorCode, *Message.Reason);
 		OnServerError.Broadcast(Message.ErrorCode, Message.Reason);
 		break;

@@ -138,7 +138,8 @@ AApexRaceDirector* UApexDemoModeSubsystem::GetDirector() const
 
 bool UApexDemoModeSubsystem::IsDemoAllowed(const UApexNetSubsystem& Net) const
 {
-	if (IsDemoDisabled())
+	// A replay the player asked for plays with the backdrop turned off too.
+	if (IsDemoDisabled() && Source != EApexBackdropSource::Replay)
 	{
 		return false;
 	}
@@ -627,6 +628,69 @@ bool UApexDemoModeSubsystem::StartBackdrop(UApexNetSubsystem& Net)
 	return StartLocalFile(Net) || StartDemoSession(Net);
 }
 
+bool UApexDemoModeSubsystem::PlayReplay(const FString& Path, FString& OutError)
+{
+	UApexNetSubsystem* Net = GetNet();
+	UApexSpectatorSubsystem* Spectator = GetSpectator();
+	if (!Net || !Spectator)
+	{
+		OutError = TEXT("the game is not ready");
+		return false;
+	}
+	const AApexRaceDirector* Director = GetDirector();
+	if (!Director || Net->IsInSession() || Net->IsSessionRequestPending()
+		|| (Director->IsRaceViewActive() && !Director->IsDemoViewActive()))
+	{
+		OutError = TEXT("leave the session first");
+		return false;
+	}
+	FApexStreamHeader Header;
+	FApexStreamRoster Roster;
+	if (!FApexStreamFile::ReadPreamble(Path, Header, Roster, OutError))
+	{
+		return false;
+	}
+	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+	if (!Content || !Content->HasTrack(Header.Track.Stem))
+	{
+		OutError = FString::Printf(TEXT("%s is not installed on this machine"), *Header.Track.DisplayName);
+		return false;
+	}
+	Teardown(*Net);
+	TrackId = Header.Track.TrackId;
+	TrackStem = Header.Track.Stem;
+	Centerline.Reset();
+	FApexTrackConfigSummary Track;
+	if (Net->FindTrackById(TrackId, Track))
+	{
+		Centerline = Track.Centerline;
+	}
+	if (!Spectator->PlayFile(Path, /*bInLoop*/ false))
+	{
+		OutError = TEXT("the file is gone");
+		return false;
+	}
+	Source = EApexBackdropSource::Replay;
+	Cooldown = 0.0f;
+	Failures = 0;
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: playing the replay %s"), *Path);
+	return true;
+}
+
+void UApexDemoModeSubsystem::StopReplay()
+{
+	if (Source != EApexBackdropSource::Replay)
+	{
+		return;
+	}
+	if (UApexNetSubsystem* Net = GetNet())
+	{
+		Teardown(*Net);
+	}
+	// The ordinary backdrop comes back on the next tick or so.
+	Cooldown = 0.5f;
+}
+
 void UApexDemoModeSubsystem::Teardown(UApexNetSubsystem& Net)
 {
 	if (UApexSpectatorSubsystem* Spectator = GetSpectator())
@@ -699,6 +763,16 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 
 	if (!Net->IsInDemoSession() || !bViewBegun)
 	{
+		return true;
+	}
+	if (Source == EApexBackdropSource::Replay)
+	{
+		// The player's own choice: it runs until they leave it, and the
+		// backdrop's reasons to move on do not apply.
+		if (Spectator)
+		{
+			Spectator->TakeNextRequested();
+		}
 		return true;
 	}
 	RunningFor += DeltaSeconds;

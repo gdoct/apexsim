@@ -311,8 +311,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void JoinSession(const FString& SessionId);
 
+	/**
+	 * Watch a session without a car: answered with SessionJoined (grid
+	 * position 0), then the session's roster, sectors and every car's
+	 * telemetry as its drivers get them. IsSessionSpectator is true from
+	 * the join until the session is left.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void JoinAsSpectator(const FString& SessionId);
+
+	/** The session joined was joined as a spectator: there is no local car in it. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	bool IsSessionSpectator() const { return bSessionSpectator; }
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void LeaveSession();
@@ -600,6 +610,10 @@ private:
 
 	bool bSpectating = false;
 	bool bSpectateRequested = false;
+	/** JoinAsSpectator is in flight; the SessionJoined that answers it seats no car. */
+	bool bSpectatorJoinRequested = false;
+	/** The current session was joined as a spectator. */
+	bool bSessionSpectator = false;
 	bool bBackdropFeed = false;
 	TArray<FApexShowcaseSummary> CachedShowcases;
 	/** Forget the showcase bookkeeping (a disconnect, a session joined). */

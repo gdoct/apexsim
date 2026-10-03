@@ -162,6 +162,7 @@ namespace
 			else if (Key == TEXT("MaxPlayers")) { bOk = Reader.ReadUInt64(Raw); Out.MaxPlayers = static_cast<int32>(Raw); }
 			else if (Key == TEXT("State"))      { bOk = Reader.ReadUInt64(Raw); Out.State = static_cast<EApexSessionState>(Raw); }
 			else if (Key == TEXT("Conditions")) { bOk = ParseSessionConditions(Reader, Out.Conditions); }
+			else if (Key == TEXT("LapLimit"))   { bOk = Reader.ReadUInt64(Raw); Out.LapLimit = static_cast<int32>(Raw); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

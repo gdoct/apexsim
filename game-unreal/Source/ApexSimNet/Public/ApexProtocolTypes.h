@@ -607,7 +607,18 @@ struct APEXSIMNET_API FApexSessionSummary
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	FApexSessionConditions Conditions;
 
-	bool IsJoinable() const { return State == EApexSessionState::Lobby && PlayerCount < MaxPlayers; }
+	/** The race distance in laps; 0 from an older server. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	int32 LapLimit = 0;
+
+	/** A race is being driven: there is something to watch. */
+	bool IsWatchable() const { return State == EApexSessionState::Countdown || State == EApexSessionState::Racing; }
+
+	/**
+	 * Room for another driver in a session not yet over. A session under way
+	 * takes one too (a hotlap, a practice); the server seats them.
+	 */
+	bool IsJoinable() const { return State != EApexSessionState::Finished && PlayerCount < MaxPlayers; }
 };
 
 /** `CarConfigSummary` (network.rs:285) — PascalCase keys. */

@@ -6,6 +6,7 @@
 #include "Race/ApexChaseView.h"
 #include "Race/ApexReplayCamera.h"
 #include "Race/ApexSkyModel.h"
+#include "Race/ApexSpectatorView.h"
 #include "Race/ApexTvDirector.h"
 
 #include "ApexRaceDirector.generated.h"
@@ -142,6 +143,41 @@ public:
 
 	/** Fade the backdrop out ahead of ending the demo; watch GetDemoBackdropOpacity reach 0. */
 	void FadeOutDemo() { bDemoFadeOut = true; }
+
+	// --- Watching -------------------------------------------------------------------
+
+	/**
+	 * The spectator's controls over the race on screen: the menu's backdrop
+	 * (a showcase, a local file, a demo session) taken full screen, or a live
+	 * session joined as a spectator. While on, the shell routes the watch
+	 * keys here (UApexRootWidget::HandleWatchKey): which car is watched,
+	 * from which camera (ApexSpectate::ECamera), and whether the TV director
+	 * picks the car. The backdrop's cars get their full engine volume and an
+	 * onboard view gets the cockpit rig. Kept across a backdrop that moves on
+	 * to its next race; the watched car starts over with the new field.
+	 */
+	void SetSpectating(bool bInSpectating);
+	bool IsSpectating() const { return bSpectating; }
+
+	void SetSpectatorCamera(ApexSpectate::ECamera Camera);
+	ApexSpectate::ECamera GetSpectatorCamera() const { return SpectatorCamera; }
+	/** What C does while watching: broadcast, chase, onboard, broadcast... */
+	void CycleSpectatorCamera();
+
+	/** The TV director chooses whom to watch (the camera goes back to it); off once a car is picked. */
+	void SetSpectatorAuto(bool bAuto);
+	bool IsSpectatorAuto() const { return bSpectatorAuto; }
+
+	/** Watch this car, from the camera in use; the director stops choosing. */
+	void FocusCar(int32 CarIndex);
+	/** The car `Delta` places behind the watched one (negative: ahead), wrapping. */
+	void StepFocus(int32 Delta);
+	/** Watch the car in `Position` (from 1); false when there is none. */
+	bool FocusPosition(int32 Position);
+	/** The car the camera is on, INDEX_NONE before there is one. */
+	int32 GetFocusCarIndex() const;
+	/** Every car's index, leader first, from the telemetry seen so far. */
+	TArray<int32> GetRaceOrder() const;
 
 	// --- Replay clip (offline playback) ------------------------------------------------
 
@@ -383,6 +419,9 @@ private:
 	void UpdateReplayCamera(float DeltaSeconds);
 	/** Who a replay camera follows now, by the clip's follow rule. */
 	int32 ResolveReplayFollow() const;
+
+	/** Point the cameras where the spectator's choice says (SetSpectatorCamera). */
+	void ApplySpectatorCamera();
 
 	/** Ease the demo backdrop's opacity toward whether there is anything worth showing. */
 	void UpdateDemoOpacity(float DeltaSeconds);
@@ -647,8 +686,17 @@ private:
 	float DemoOpacity = 0.0f;
 	/** Seconds the demo has had everything it needs on screen. */
 	float DemoReadyFor = 0.0f;
-	/** The demo's cars sit under the menu's own sounds. */
+	/** The demo's cars sit under the menu's own sounds; watched, they are the show. */
 	static constexpr float DemoEngineVolume = 0.35f;
+
+	// --- Watching ---
+	bool bSpectating = false;
+	ApexSpectate::ECamera SpectatorCamera = ApexSpectate::ECamera::Broadcast;
+	bool bSpectatorAuto = true;
+	/** The car picked to watch, or the director's pick while auto; INDEX_NONE before either. */
+	int32 SpectatorFocus = INDEX_NONE;
+	/** The cockpit rig was spawned for watching the backdrop (a race view has its own). */
+	bool bSpectatorRig = false;
 
 	/**
 	 * Tyres, kerbs, road and wind for the local car, from the server's
@@ -668,6 +716,7 @@ private:
 		int32 Lap = 0;
 		float StationM = 0.0f;
 		bool bOnTrack = true;
+		int32 FinishPosition = 0;
 	};
 	TMap<int32, FCarProgress> CarProgress;
 

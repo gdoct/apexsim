@@ -83,6 +83,7 @@ void UApexSessionBrowserWidget::RefreshList()
 				continue;
 			}
 			Row->OnJoinClicked.AddDynamic(this, &UApexSessionBrowserWidget::HandleJoinClicked);
+			Row->OnWatchClicked.AddDynamic(this, &UApexSessionBrowserWidget::HandleWatchClicked);
 			SessionList->AddChild(Row);
 			Rows.Add(Row);
 		}
@@ -174,4 +175,13 @@ void UApexSessionBrowserWidget::HandleJoinClicked(UApexSessionRowWidget* Row)
 	// player, so joining first would put them on the grid without one.
 	Net->SelectCar(Flow->GetPendingCarId());
 	Net->JoinSession(Row->GetSessionId());
+}
+
+void UApexSessionBrowserWidget::HandleWatchClicked(UApexSessionRowWidget* Row)
+{
+	// No car needed: the race view opens on the session's cars once joined.
+	if (UApexRootWidget* Root = Row ? GetRoot() : nullptr)
+	{
+		Root->WatchSession(Row->GetSessionId());
+	}
 }

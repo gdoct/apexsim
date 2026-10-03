@@ -283,8 +283,10 @@ Using the names keeps a component in step with the rest of the game's look.
 ## Data points
 
 Everything below is refreshed every frame while a race view is open. Times
-are seconds, temperatures °C, distances metres. "Local" is the car the
-player drives. Names marked *null* above their meaning can be `null`.
+are seconds, temperatures °C, distances metres. "Local" is the car the HUD
+is about: the one the player drives or, while watching a race, the car on
+screen (every `car.*`, `lap.*`, `tyre.*`, `sector.*`... is then that car's).
+Names marked *null* above their meaning can be `null`.
 
 ### HUD and session
 
@@ -294,6 +296,7 @@ player drives. Names marked *null* above their meaning can be `null`.
 | `hud.time_s` | seconds since the race view opened, for blinking and fades |
 | `hud.imperial` | the units setting is imperial |
 | `hud.speed_unit` | `KM/H` or `MPH`, by the units setting |
+| `hud.gamepad` | the last input came from a pad: key hints should show its buttons |
 | `session.track_name` | the circuit's display name |
 | `session.car_name` | the local car's display name |
 | `session.mode` | `race`, `qualifying`, `practice`, `hotlap`, `countdown`, `lobby`, `sandbox`, `demo_lap`, `replay` |
@@ -306,12 +309,45 @@ player drives. Names marked *null* above their meaning can be `null`.
 | `session.wind_kph` | the wind, when the host set it (*null* when left to the weather) |
 | `net.ping_ms` | heartbeat round trip, refreshed every two seconds (*null* before the first) |
 
+### Watching a race
+
+Set while the player watches a race rather than drives in it: the menu's
+backdrop race taken full screen (Main menu > Watch a race) or a live session
+joined from the browser's Watch button (docs/SPECTATOR.md, "Watching a
+race"). The shipped `spectator_tower`, `spectator_driver` and
+`spectator_controls` components show only then, and `standings`,
+`race_state`, `track_info`, `status` and `mirror` hide.
+
+| Name | Meaning |
+|---|---|
+| `spectate.active` | watching: there is no car of the player's, the local car is the one on screen |
+| `spectate.live` | the race is a live session (not a recorded showcase, file or demo) |
+| `spectate.source` | `showcase`, `file`, `demo`, `replay` or `live` (*null* when not watching) |
+| `spectate.camera` | the watch camera: `TV`, `CHASE`, `ONBOARD` (*null* when not watching) |
+| `spectate.auto` | the TV director chooses the car |
+| `spectate.tower_mode` | the timing tower's column, stepped with T: `interval`, `gap`, `last`, `best`, `tyres` |
+| `spectate.waiting` | watching, between two races (no cars yet) |
+
+A saved replay (Main menu > Replays) is watched the same way, with
+`spectate.source` `replay` and its transport below; the shipped
+`spectator_replay` component draws it.
+
+| Name | Meaning |
+|---|---|
+| `replay.active` | a saved replay is playing |
+| `replay.time_s`, `replay.duration_s` | how far into it, and how long it runs (*null* outside a replay) |
+| `replay.progress` | `replay.time_s` over `replay.duration_s`, 0 to 1 |
+| `replay.rate` | playback speed: 0.25, 0.5, 1, 2 or 4 |
+| `replay.paused` | paused (Space) |
+| `replay.ended` | at its end, holding the last frame |
+
 ### Race order and gaps
 
 | Name | Meaning |
 |---|---|
 | `race.position` | the local car's place, from 1 (*null* without a car) |
 | `race.car_count` | cars in the session |
+| `race.leader_lap` | the leader's lap, as `lap.display` (*null* with no cars) |
 | `gap.ahead_name`, `gap.behind_name` | the drivers either side (*null* at either end) |
 | `gap.ahead_s`, `gap.behind_s` | the gap to them in seconds at the local car's speed (*null* when the circuit's length is unknown) |
 
@@ -342,8 +378,11 @@ Lap times, sectors and track limits are the server's: it times every tick.
 
 | Name | Meaning |
 |---|---|
-| `car.present` | there is a local car in this session |
+| `car.present` | there is a local car in this session (or a car on screen while watching) |
 | `car.index` | its car index |
+| `car.driver_name` | its driver's name, as the standings show it |
+| `car.pit_stops` | the stops it has made since the HUD first saw it (*null* without a car) |
+| `car.retired` | out of the race: a damage zone has reached 100% |
 | `car.speed_kph`, `car.speed_mph` | speed |
 | `car.speed` | speed in the player's units |
 | `car.gear`, `car.gear_text` | gear as a number (-1 reverse, 0 neutral) and as shown (`R`, `N`, `1`...) |
@@ -381,6 +420,8 @@ Lap times, sectors and track limits are the server's: it times every tick.
 |---|---|
 | `tyre.known` | the server sends tyre temperatures |
 | `tyre.compound` | `S`, `M` or `H` (*null* when unknown) |
+| `tyre.age_laps` | laps the set on the car has done: since the start, or since the last stop the HUD saw (*null* when the compound is unknown) |
+| `tyre.wear_max_pct` | the most worn of the four, % (*null* when the wear is not sent) |
 | `tyre.optimal_c`, `tyre.window_c` | the car's working window: optimal ± window |
 | `tyre.<fl|fr|rl|rr>.<field>` | each tyre's figures by name, the fields of the `tyres` list below: `tyre.fl.temp_c`, `tyre.rr.wear_pct`, ... |
 
@@ -405,14 +446,26 @@ then the furthest round).
 | `item.position` | place, from 1 |
 | `item.car_index` | car index |
 | `item.name` | driver name |
-| `item.is_local` | the player's car |
+| `item.car_name` | the car's model, from the catalog (*null* for a car this machine does not have) |
+| `item.is_local` | the car the HUD is about: the player's, or the watched car |
+| `item.is_player` | the player's own car (never while watching) |
 | `item.finished`, `item.finish_position` | has taken the flag, and where |
+| `item.retired` | out of the race (a damage zone at 100%) |
 | `item.lap` | lap, as `lap.display` |
 | `item.gap_leader_s` | seconds behind the leader (*null* for the leader, or when the circuit's length is unknown) |
+| `item.interval_s` | seconds behind the car one place ahead (*null* for the leader, or when the length is unknown) |
+| `item.laps_down` | whole laps behind the leader (0 on the lead lap) |
 | `item.gap_s` | seconds behind the local car (negative: ahead) |
 | `item.best_lap_s`, `item.last_lap_s` | lap times |
+| `item.last_lap_invalid` | the last lap was struck for track limits |
+| `item.is_session_best` | the car holds the session's fastest lap |
 | `item.speed_kph` | speed |
 | `item.in_pit`, `item.on_track` | |
+| `item.servicing` | stopped at its box being serviced |
+| `item.compound` | `S`, `M` or `H` on the car (*null* when unknown) |
+| `item.tyre_age_laps` | laps on that set, as `tyre.age_laps` |
+| `item.tyre_wear_pct` | its most worn tyre, % (*null* when not sent) |
+| `item.pit_stops` | stops made since the HUD first saw it |
 
 **`sectors`**: the local car's lap in progress (or, just past the line, the
 lap it finished).

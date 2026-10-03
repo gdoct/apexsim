@@ -3,6 +3,8 @@
   "name": "Standings",
   "region": "bottom-left",
   "order": 20,
+  // The timing tower has the whole field while watching.
+  "visible": "=!spectate.active",
   "root": {
     "type": "column", "width": 366,
     "children": [
@@ -22,7 +24,7 @@
             { "type": "text", "width": 22, "font": "mono", "size": 12, "text": "{item.position}",
               "color": "=item.is_local ? 'on_accent' : 'text_muted'" },
             { "type": "text", "fill": 1, "margin": [14, 0, 0, 0], "font": "body", "size": 14,
-              "text": "=item.is_local ? 'YOU' : upper(item.name)",
+              "text": "=item.is_player ? 'YOU' : upper(item.name)",
               "bold": "=item.is_local",
               "color": "=item.is_local ? 'on_accent' : 'text'" },
             // The leader's cell carries a lap time; everyone else's the gap to

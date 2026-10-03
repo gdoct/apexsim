@@ -116,6 +116,33 @@ void FMsgPackWriter::WriteUInt(uint64 Value)
 	}
 }
 
+void FMsgPackWriter::WriteUInt32Fixed(uint32 Value)
+{
+	PushByte(MsgPack::UInt32);
+	PushBigEndian(static_cast<uint64>(Value), 4);
+}
+
+void FMsgPackWriter::WriteBinary(TArrayView<const uint8> Bytes)
+{
+	const int32 Count = Bytes.Num();
+	if (Count <= MAX_uint8)
+	{
+		PushByte(MsgPack::Bin8);
+		PushBigEndian(static_cast<uint64>(Count), 1);
+	}
+	else if (Count <= MAX_uint16)
+	{
+		PushByte(MsgPack::Bin16);
+		PushBigEndian(static_cast<uint64>(Count), 2);
+	}
+	else
+	{
+		PushByte(MsgPack::Bin32);
+		PushBigEndian(static_cast<uint64>(Count), 4);
+	}
+	PushBytes(Bytes.GetData(), Count);
+}
+
 void FMsgPackWriter::WriteInt(int64 Value)
 {
 	if (Value >= 0)

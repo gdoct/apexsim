@@ -1,0 +1,83 @@
+// What is being watched, from which camera, and the keys of the watch view
+// (the pad's buttons once a pad is in use). Takes the status panel's corner
+// while watching (`status` hides itself then).
+{
+  "name": "Watch controls",
+  "region": "top-right",
+  "order": 5,
+  "visible": "=spectate.active",
+  "root": {
+    "type": "column",
+    "children": [
+      {
+        "type": "row", "halign": "right",
+        "children": [
+          // Live session, or a recorded race (a showcase, a file, a demo).
+          { "type": "panel", "valign": "center", "padding": [10, 4],
+            "background": "=spectate.live ? 'error' : 'surface_hover'",
+            "children": [{ "type": "text", "font": "mono", "size": 11, "tracking": 80, "bold": true,
+              "color": "=spectate.live ? 'white' : 'text_secondary'",
+              "text": "=spectate.live ? 'LIVE' : switch(spectate.source, 'showcase', 'SHOWCASE', 'replay', 'SAVED REPLAY', 'file', 'RECORDED', 'RACE')" }] },
+          { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [10, 4], "background": "surface",
+            "children": [{ "type": "text", "font": "mono", "size": 11, "tracking": 80, "color": "text",
+              "text": "='CAM ' + spectate.camera + (spectate.auto ? '  ·  AUTO' : '')" }] },
+          { "type": "text", "valign": "center", "margin": [14, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40,
+            "color": "text_secondary", "visible": "=spectate.live",
+            "text": "=has(net.ping_ms) ? net.ping_ms + ' ms' : '-- ms'" }
+        ]
+      },
+      // Between two races of the backdrop.
+      { "type": "text", "halign": "right", "margin": [0, 8, 0, 0], "visible": "=spectate.waiting",
+        "font": "body", "size": 14, "color": "text_secondary", "text": "Next race loading…" },
+
+      // The keys, on a backing so they read over a bright grandstand.
+      {
+        "type": "panel", "halign": "right", "margin": [0, 10, 0, 0], "padding": [10, 8],
+        "background": "=alpha('background', 0.72)",
+        "children": [{
+          "type": "column",
+          "children": [
+            // The keys, keyboard...
+            {
+              "type": "row", "halign": "right", "visible": "=!hud.gamepad",
+              "children": [
+                { "type": "keycap", "text": "← → CAR" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "C CAMERA" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "A AUTO" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "T TIMING" }
+              ]
+            },
+            {
+              "type": "row", "halign": "right", "margin": [0, 6, 0, 0], "visible": "=!hud.gamepad",
+              "children": [
+                { "type": "keycap", "text": "1-0 POSITION" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "H HIDE" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "visible": "=!spectate.live && !replay.active", "text": "N NEXT RACE" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "ESC MENU" }
+              ]
+            },
+            // ...and pad.
+            {
+              "type": "row", "halign": "right", "visible": "=hud.gamepad",
+              "children": [
+                { "type": "keycap", "text": "LB RB CAR" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "Y CAMERA" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "X AUTO" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "VIEW TIMING" }
+              ]
+            },
+            {
+              "type": "row", "halign": "right", "margin": [0, 6, 0, 0], "visible": "=hud.gamepad",
+              "children": [
+                { "type": "keycap", "text": "R3 HIDE" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "visible": "=!spectate.live && !replay.active", "text": "L3 NEXT RACE" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "B LEAVE" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "START MENU" }
+              ]
+            }
+          ]
+        }]
+      }
+    ]
+  }
+}

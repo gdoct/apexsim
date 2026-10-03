@@ -104,9 +104,10 @@ TArray<FString> UApexSpectatorSubsystem::FindShowcaseFiles()
 	return Files;
 }
 
-bool UApexSpectatorSubsystem::PlayFile(const FString& Path)
+bool UApexSpectatorSubsystem::PlayFile(const FString& Path, bool bInLoop)
 {
 	Stop();
+	bLoop = bInLoop;
 	if (!IFileManager::Get().FileExists(*Path))
 	{
 		UE_LOG(LogApexSim, Warning, TEXT("Spectator: no such file %s"), *Path);
@@ -181,6 +182,82 @@ void UApexSpectatorSubsystem::Stop()
 	Clock = 0.0;
 	Cursor = 0;
 	Loops = 0;
+	bLoop = true;
+	bPaused = false;
+	PlaybackRate = 1.0f;
+}
+
+void UApexSpectatorSubsystem::SetPlaybackRate(float Rate)
+{
+	PlaybackRate = FMath::Clamp(Rate, 0.25f, 4.0f);
+}
+
+double UApexSpectatorSubsystem::GetPlaybackSeconds() const
+{
+	if (Source != EApexSpectatorSource::File || !Loaded || !Loaded->bOk)
+	{
+		return 0.0;
+	}
+	const FApexStreamHeader& H = Loaded->File.GetHeader();
+	return H.TickRate > 0 ? FMath::Max(0.0, (Clock - static_cast<double>(H.StartTick)) / H.TickRate) : 0.0;
+}
+
+double UApexSpectatorSubsystem::GetDurationSeconds() const
+{
+	return Source == EApexSpectatorSource::File && Loaded && Loaded->bOk ? Loaded->File.GetHeader().DurationSeconds() : 0.0;
+}
+
+bool UApexSpectatorSubsystem::IsAtEnd() const
+{
+	return Source == EApexSpectatorSource::File && !bLoop && Loaded && Loaded->bOk && Cursor >= Loaded->Records.Num();
+}
+
+void UApexSpectatorSubsystem::SeekTo(double Seconds)
+{
+	if (Source != EApexSpectatorSource::File || bLoading || bFailed || !Loaded || !Loaded->bOk)
+	{
+		return;
+	}
+	const FApexStreamHeader& H = Loaded->File.GetHeader();
+	const double Target = FMath::Clamp(static_cast<double>(H.StartTick) + FMath::Max(0.0, Seconds) * H.TickRate,
+		static_cast<double>(H.StartTick), static_cast<double>(H.EndTick));
+	FString Error;
+	if (Target < Clock)
+	{
+		// Back: the preamble again (the sectors in it start the timing over),
+		// then forward from the top.
+		Player.ApplyFramed(Loaded->File.GetPreambleBytes(), Error);
+		Cursor = 0;
+	}
+	// Every record on the way but the frames, which only the last tick's
+	// need: a minute skipped is a minute of lap timing, not of cars.
+	int32 LastFrameTickStart = INDEX_NONE;
+	while (Cursor < Loaded->Records.Num() && static_cast<double>(RecordTicks[Cursor]) <= Target)
+	{
+		const TArray<uint8>& Body = Loaded->Records[Cursor];
+		if (ApexSpectator::RecordType(Body) == ApexSpectator::RecordFrame)
+		{
+			if (LastFrameTickStart == INDEX_NONE || RecordTicks[LastFrameTickStart] != RecordTicks[Cursor])
+			{
+				LastFrameTickStart = Cursor;
+			}
+		}
+		else
+		{
+			Player.Apply(Body, Error);
+		}
+		++Cursor;
+	}
+	for (int32 Index = LastFrameTickStart; Index != INDEX_NONE && Index < Cursor; ++Index)
+	{
+		if (RecordTicks[Index] == RecordTicks[LastFrameTickStart]
+			&& ApexSpectator::RecordType(Loaded->Records[Index]) == ApexSpectator::RecordFrame)
+		{
+			Player.Apply(Loaded->Records[Index], Error);
+		}
+	}
+	Clock = Target;
+	Drain();
 }
 
 void UApexSpectatorSubsystem::Fail(const FString& Why)
@@ -269,13 +346,21 @@ bool UApexSpectatorSubsystem::Tick(float DeltaSeconds)
 				return true;
 			}
 		}
-		Clock += static_cast<double>(DeltaSeconds) * Loaded->File.GetHeader().TickRate;
+		if (!bPaused)
+		{
+			Clock += static_cast<double>(DeltaSeconds) * Loaded->File.GetHeader().TickRate * PlaybackRate;
+		}
+		if (!bLoop)
+		{
+			// A replay holds on its last frame.
+			Clock = FMath::Min(Clock, static_cast<double>(Loaded->File.GetHeader().EndTick));
+		}
 		while (Cursor < Loaded->Records.Num() && static_cast<double>(RecordTicks[Cursor]) <= Clock)
 		{
 			Player.Apply(Loaded->Records[Cursor], Error);
 			++Cursor;
 		}
-		if (Cursor >= Loaded->Records.Num() && Clock > static_cast<double>(Loaded->File.GetHeader().EndTick) + Loaded->File.GetHeader().TickRate)
+		if (bLoop && Cursor >= Loaded->Records.Num() && Clock > static_cast<double>(Loaded->File.GetHeader().EndTick) + Loaded->File.GetHeader().TickRate)
 		{
 			// The end: start over. The header resets the player, and the cars
 			// jump back to the grid, which the motion buffers take as a

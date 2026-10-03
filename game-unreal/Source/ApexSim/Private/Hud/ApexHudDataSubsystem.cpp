@@ -1,9 +1,12 @@
 #include "Hud/ApexHudDataSubsystem.h"
 
+#include "ApexDemoModeSubsystem.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
+#include "ApexSpectatorSubsystem.h"
+#include "Race/ApexRaceDirector.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -74,11 +77,106 @@ UApexNetSubsystem* UApexHudDataSubsystem::GetNet() const
 	return GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
 }
 
-float UApexHudDataSubsystem::CatalogTrackLengthM() const
+void UApexHudDataSubsystem::SetWatchState(const FString& Source, const FString& InTowerMode)
 {
-	const UApexMenuFlowSubsystem* Flow = GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>();
+	WatchSource = Source;
+	TowerMode = InTowerMode;
+}
+
+void UApexHudDataSubsystem::ResolveTrack(bool bBackdrop)
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GetNet();
+	const UApexMenuFlowSubsystem* Flow = GameInstance->GetSubsystem<UApexMenuFlowSubsystem>();
+	FString TrackId;
+	FString Name;
+	float LengthM = 0.0f;
+	int32 LapLimit = -1;
+
+	if (bBackdrop)
+	{
+		// A stream names its own circuit, distance and length; a demo
+		// session is on the circuit the demo chose.
+		const UApexSpectatorSubsystem* Spectator = GameInstance->GetSubsystem<UApexSpectatorSubsystem>();
+		if (Spectator && Spectator->GetSource() != EApexSpectatorSource::None && Spectator->HasHeader())
+		{
+			const FApexStreamHeader& Header = Spectator->GetHeader();
+			TrackId = Header.Track.TrackId;
+			Name = Header.Track.DisplayName;
+			LengthM = Header.Track.LengthM;
+			LapLimit = Header.LapLimit;
+		}
+		else if (const UApexDemoModeSubsystem* Demo = GameInstance->GetSubsystem<UApexDemoModeSubsystem>())
+		{
+			TrackId = Demo->GetDemoTrackId();
+		}
+	}
+	else if (Net && Net->IsInSession())
+	{
+		FApexSessionSummary Session;
+		if (Net->FindSessionById(Net->GetCurrentSessionId(), Session))
+		{
+			TrackId = Session.TrackId;
+			Name = Session.TrackName;
+			if (Session.LapLimit > 0)
+			{
+				LapLimit = Session.LapLimit;
+			}
+		}
+	}
+	if (TrackId.IsEmpty() && Flow)
+	{
+		TrackId = Flow->GetPendingTrackId();
+	}
 	FApexTrackCatalogRow Row;
-	return Flow && Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) ? Row.LengthM : 0.0f;
+	if (Flow && !TrackId.IsEmpty() && Flow->GetTrackCatalogRow(TrackId, Row))
+	{
+		if (LengthM <= 0.0f)
+		{
+			LengthM = Row.LengthM;
+		}
+		if (Name.IsEmpty())
+		{
+			Name = Row.DisplayName;
+		}
+	}
+	HudTrackId = TrackId;
+	HudTrackName = Name;
+	HudTrackLengthM = LengthM;
+	HudLapLimit = LapLimit;
+}
+
+void UApexHudDataSubsystem::RefreshCarNames()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const UApexMenuFlowSubsystem* Flow = GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>();
+	if (!Net || !Flow)
+	{
+		return;
+	}
+	const FApexSessionRoster& Roster = Net->GetSessionRoster();
+	FString Key = Roster.SessionId;
+	for (const FApexRosterEntry& Entry : Roster.Entries)
+	{
+		Key += FString::Printf(TEXT("|%d=%s"), Entry.CarIndex, *Entry.CarConfigId);
+	}
+	if (Key == CarNamesKey)
+	{
+		return;
+	}
+	CarNamesKey = Key;
+	CarNames.Reset();
+	TMap<FString, FString> ByCarId;
+	for (const FApexRosterEntry& Entry : Roster.Entries)
+	{
+		FString* Known = ByCarId.Find(Entry.CarConfigId);
+		if (!Known)
+		{
+			FApexCarCatalogRow Row;
+			Known = &ByCarId.Add(Entry.CarConfigId, Flow->GetCarCatalogRow(Entry.CarConfigId, Row) ? Row.DisplayName : FString());
+		}
+		CarNames.Add(Entry.CarIndex, *Known);
+	}
 }
 
 void UApexHudDataSubsystem::SetRaceActive(bool bActive)
@@ -103,11 +201,13 @@ void UApexHudDataSubsystem::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	{
 		return;
 	}
-	const int32 LocalIndex = Net->GetLocalCarIndex();
+	// The car the HUD is about, as the last refresh found it: the player's,
+	// or the one being watched.
+	const int32 LocalIndex = LastLocalIndex;
 	if (const FApexCarTelemetry* Local = Frame.Cars.FindByPredicate(
 			[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; }))
 	{
-		Memory.SampleLap(*Local, CatalogTrackLengthM());
+		Memory.SampleLap(*Local, HudTrackLengthM);
 	}
 }
 
@@ -148,26 +248,55 @@ void UApexHudDataSubsystem::Refresh()
 	const UApexMenuFlowSubsystem* Flow = GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>();
 	const UApexSettingsSubsystem* Settings = GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>();
 	const UApexSettingsSave* Save = Settings ? Settings->Get() : nullptr;
+	const AApexRaceDirector* Director = AApexRaceDirector::Find(GetGameInstance()->GetWorld());
+	const bool bSpectating = Director && Director->IsSpectating();
+	const bool bBackdrop = Net && Net->IsInDemoSession();
 
 	FApexHudInputs In;
 	In.TimeSeconds = bRaceActive ? FPlatformTime::Seconds() - RaceStartSeconds : 0.0;
 	In.bImperial = Save && Save->Units == EApexUnits::Imperial;
 	In.bFullDetail = !Save || Save->HudDetail == EApexHudDetail::All;
 	In.DamageLevel = Save ? Save->Damage : EApexDamageLevel::Full;
-	In.TrackLengthM = CatalogTrackLengthM();
+	In.bGamepad = bGamepad;
+	In.bSpectating = bSpectating;
+	if (bSpectating)
+	{
+		In.SpectateSource = WatchSource.IsEmpty() ? FString(bBackdrop ? TEXT("demo") : TEXT("live")) : WatchSource;
+		In.SpectateCamera = ApexSpectate::CameraName(Director->GetSpectatorCamera());
+		In.bSpectateAuto = Director->IsSpectatorAuto();
+		const UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
+		const UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
+		if (bBackdrop && Demo && Demo->IsPlayingReplay() && Spectator)
+		{
+			In.bReplay = true;
+			In.ReplaySeconds = Spectator->GetPlaybackSeconds();
+			In.ReplayDurationSeconds = Spectator->GetDurationSeconds();
+			In.ReplayRate = Spectator->GetPlaybackRate();
+			In.bReplayPaused = Spectator->IsPaused();
+			In.bReplayEnded = Spectator->IsAtEnd();
+		}
+	}
+	In.SpectateTowerMode = TowerMode;
+
+	ResolveTrack(bBackdrop);
+	In.TrackLengthM = HudTrackLengthM;
+	In.TrackName = HudTrackName;
 
 	LastFrame = nullptr;
+	const int32 PreviousLocalIndex = LastLocalIndex;
 	LastLocalIndex = -1;
 	if (Net)
 	{
 		In.Frame = &Net->GetLatestTelemetry();
-		In.LocalCarIndex = Net->GetLocalCarIndex();
+		// Watching, the HUD is about the car on screen.
+		In.LocalCarIndex = bSpectating ? Director->GetFocusCarIndex() : Net->GetLocalCarIndex();
 		LastFrame = In.Frame;
 		LastLocalIndex = In.LocalCarIndex;
 		In.Roster = &Net->GetSessionRoster();
 		In.Timing = &Net->GetTimingBoard();
 		In.Sectors = &Net->GetTrackSectors();
-		In.GameMode = Net->GetGameMode();
+		// The backdrop's mode is its frames'; the net subsystem keeps a demo out of its own.
+		In.GameMode = bBackdrop && In.Frame->GameMode != EApexGameMode::Lobby ? In.Frame->GameMode : Net->GetGameMode();
 		In.ModeName = UApexMenuFlowSubsystem::GetGameModeName(In.GameMode);
 		In.PingMs = Net->GetPingMs();
 		In.Conditions = Net->GetSessionConditions();
@@ -178,30 +307,37 @@ void UApexHudDataSubsystem::Refresh()
 		{
 			In.DamageLevel = EApexDamageLevel::Full;
 		}
-		FApexSessionSummary Session;
-		if (Net->FindSessionById(Net->GetCurrentSessionId(), Session) && !Session.TrackName.IsEmpty())
-		{
-			In.TrackName = Session.TrackName;
-		}
+		RefreshCarNames();
+		In.CarNames = &CarNames;
+	}
+	if (PreviousLocalIndex >= 0 && LastLocalIndex >= 0 && PreviousLocalIndex != LastLocalIndex)
+	{
+		// Another car: its delta, fuel and damage start over.
+		Memory.ResetForNewCar();
 	}
 
 	if (Flow)
 	{
-		// A hotlap has no distance: laps are counted, never counted down.
-		In.LapLimit = In.GameMode == EApexGameMode::Hotlap ? 0 : Flow->CreateLapLimit;
-		if (In.TrackName.IsEmpty())
-		{
-			FApexTrackCatalogRow Row;
-			if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row))
-			{
-				In.TrackName = Row.DisplayName;
-			}
-		}
+		// A hotlap has no distance: laps are counted, never counted down. The
+		// race on screen says its own; before it does, the host's choice.
+		In.LapLimit = In.GameMode == EApexGameMode::Hotlap ? 0
+			: HudLapLimit >= 0 ? HudLapLimit
+			: (bSpectating || bBackdrop) ? 0
+			: Flow->CreateLapLimit;
 		// The car's own figures, read once per car: its tyres' working window
-		// and its rev range, neither of which is on the wire.
-		if (Flow->GetPendingCarId() != CatalogCarId)
+		// and its rev range, neither of which is on the wire. Watching, the
+		// car on screen; driving, the player's.
+		FString CarId = Flow->GetPendingCarId();
+		if (bSpectating && Net)
 		{
-			CatalogCarId = Flow->GetPendingCarId();
+			const int32 Watched = In.LocalCarIndex;
+			const FApexRosterEntry* Entry = Net->GetSessionRoster().Entries.FindByPredicate(
+				[Watched](const FApexRosterEntry& Candidate) { return Candidate.CarIndex == Watched; });
+			CarId = Entry ? Entry->CarConfigId : FString();
+		}
+		if (CarId != CatalogCarId)
+		{
+			CatalogCarId = CarId;
 			FApexCarCatalogRow CarRow;
 			const bool bRow = Flow->GetCarCatalogRow(CatalogCarId, CarRow);
 			TyreOptimalC = bRow ? CarRow.TyreOptimalC : 90.0f;
@@ -290,14 +426,22 @@ const TArray<FVector2D>& UApexHudDataSubsystem::GetTrackOutline()
 	}
 	// The outline arrives with the lobby state, which is broadcast every two
 	// seconds and only carries points when the codec is parsing them; keep
-	// asking until it has, and again when the track changes.
-	const FString TrackId = Flow->GetPendingTrackId();
+	// asking until it has, and again when the track changes. A stream played
+	// with no server brings its own path.
+	const FString TrackId = HudTrackId.IsEmpty() ? Flow->GetPendingTrackId() : HudTrackId;
 	if (TrackOutline.Num() < 2 || TrackId != TrackOutlineId)
 	{
 		FApexTrackConfigSummary Track;
+		const UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
 		if (Net->FindTrackById(TrackId, Track) && Track.Centerline.Num() > 1)
 		{
 			TrackOutline = Track.Centerline;
+			TrackOutlineId = TrackId;
+		}
+		else if (Net->IsInDemoSession() && Spectator && Spectator->GetSource() != EApexSpectatorSource::None
+			&& Spectator->GetCenterline().Num() > 1)
+		{
+			TrackOutline = Spectator->GetCenterline();
 			TrackOutlineId = TrackId;
 		}
 		else if (TrackId != TrackOutlineId)

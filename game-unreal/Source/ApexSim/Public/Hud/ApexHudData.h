@@ -46,6 +46,10 @@ struct APEXSIM_API FApexHudData
 struct APEXSIM_API FApexHudInputs
 {
 	const FApexTelemetryFrame* Frame = nullptr;
+	/**
+	 * The car the HUD is about: the player's own, or the car being watched
+	 * while spectating (every `car.*`, `lap.*`, `tyre.*`... is that car's).
+	 */
 	int32 LocalCarIndex = -1;
 	const FApexSessionRoster* Roster = nullptr;
 	const FApexTimingBoard* Timing = nullptr;
@@ -78,6 +82,31 @@ struct APEXSIM_API FApexHudInputs
 
 	/** Seconds since the race view opened, for blinking and fading. */
 	double TimeSeconds = 0.0;
+
+	/** The last input came from a gamepad (the hints show its buttons). */
+	bool bGamepad = false;
+
+	/** Watching a race rather than driving in it (docs/SPECTATOR.md, "Watching a race"). */
+	bool bSpectating = false;
+	/** What is being watched: `showcase`, `file`, `demo` or `live`. */
+	FString SpectateSource;
+	/** The watch camera's name, `TV`, `CHASE`, `ONBOARD`. */
+	FString SpectateCamera;
+	/** The TV director picks the car. */
+	bool bSpectateAuto = false;
+	/** The timing tower's column (ApexSpectate::TowerModeKey). */
+	FString SpectateTowerMode = TEXT("interval");
+
+	/** A saved replay is playing (UApexReplayRecorder), and where its transport stands. */
+	bool bReplay = false;
+	double ReplaySeconds = 0.0;
+	double ReplayDurationSeconds = 0.0;
+	float ReplayRate = 1.0f;
+	bool bReplayPaused = false;
+	bool bReplayEnded = false;
+
+	/** Each car's model by car index, from the roster and the car catalog; null when not known. */
+	const TMap<int32, FString>* CarNames = nullptr;
 };
 
 /**
@@ -104,7 +133,36 @@ struct APEXSIM_API FApexHudMemory
 	float LastDamagePct[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 	double DamageFlashUntil[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
 
+	/**
+	 * What every car has done since the HUD first saw it, for the timing
+	 * tower: the stops it made and the lap its tyres went on. Kept when the
+	 * HUD moves to another car.
+	 */
+	struct FCarHistory
+	{
+		int32 PitStops = 0;
+		/** The lap counter when the set on the car was fitted. */
+		int32 TyresFromLap = 1;
+		int32 Compound = -1;
+		bool bWasServicing = false;
+	};
+	TMap<int32, FCarHistory> Cars;
+
 	void Reset() { *this = FApexHudMemory(); }
+
+	/**
+	 * The HUD moved to another car: its delta, fuel, rev scale and damage
+	 * flashes were the other car's. The field's history stays.
+	 */
+	void ResetForNewCar()
+	{
+		TMap<int32, FCarHistory> Kept = MoveTemp(Cars);
+		*this = FApexHudMemory();
+		Cars = MoveTemp(Kept);
+	}
+
+	/** Note this frame's pit stops and tyre changes, car by car. */
+	void SampleField(const FApexTelemetryFrame& Frame);
 
 	/**
 	 * Feed one telemetry frame's local car into the delta's reference. Driven

@@ -17,10 +17,11 @@
 //!   `tyre_compound`, or the AI's plan), fuel for the rest of the race where
 //!   the rules allow refuelling (not an F1), and repairs.
 //! - **The AI** decides in a race whether it needs a stop ([`plan_stop`]:
-//!   worn tyres, a short tank, a damaged car, laps enough left to gain) and
-//!   drives the lane itself ([`drive_input`]): onto the lane before the
-//!   entry, to its box at the limit, stopped for the service, out at the
-//!   limit and back onto the track past the exit.
+//!   worn tyres, a short tank, a damaged car, laps enough left to gain),
+//!   races the run-up on the road at a speed it can take the lane at
+//!   ([`run_up_input`]), and from just short of the lane drives it itself
+//!   ([`drive_input`]): to its box at the limit, stopped for the service, out
+//!   at the limit and back onto the track past the exit.
 //!
 //! Everything is a pure function of the positions and the session clock, so
 //! the sim stays deterministic.
@@ -51,6 +52,14 @@ pub const AI_PIT_DAMAGE: f32 = 25.0;
 pub const AI_PIT_ENGINE_DAMAGE: f32 = 20.0;
 /// It turns onto the pit route this far before the lane leaves the track, m.
 pub const AI_PIT_APPROACH_M: f32 = 250.0;
+/// It races on the road up to this far before the lane leaves the track, m,
+/// and only then hands the wheel to the lane ([`drive_input`]).
+pub const AI_PIT_HANDOVER_M: f32 = 10.0;
+/// How hard the AI slows on the pit route, m/s²: to the limit by the first
+/// line, to a stop at its box, and on the run-up to the lane's own speed.
+const LANE_DECEL: f32 = 4.0;
+/// The fastest it drives any of the pit route, m/s.
+const LANE_TOP_SPEED_MPS: f32 = 45.0;
 
 /// One box: where a car stops for service.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -290,6 +299,71 @@ pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> O
     })
 }
 
+/// On the pit route but still short of the lane: how far along the track the
+/// lane leaves it, m, while that is more than [`AI_PIT_HANDOVER_M`]. Until
+/// then the car races on along the road ([`run_up_input`]); after it the
+/// lane drives it ([`drive_input`]).
+///
+/// The lane used to drive the whole route, aiming from 250 m out at a point
+/// just inside the lane's mouth: at Monza that chord cut the Parabolica so
+/// gently that the car ran 20 m wide over the run-off, then swerved back
+/// across the track into the lane at 37 m/s, across it, and into the armco
+/// on its far side.
+pub fn run_up_m(lane: &PitLane, state: &CarState, track_length_m: f32) -> Option<f32> {
+    if !state.pit.driving || state.pit.serviced || track_length_m <= 0.0 {
+        return None;
+    }
+    let to_lane = (lane.entry_station_m - state.track_progress).rem_euclid(track_length_m);
+    (to_lane > AI_PIT_HANDOVER_M && to_lane <= AI_PIT_APPROACH_M + AI_PIT_HANDOVER_M)
+        .then_some(to_lane)
+}
+
+/// The racing driver's own `input` on the run-up to the lane, `run_up_m`
+/// short of it ([`run_up_m`]), held to a speed it can take the lane at: no
+/// faster than slowing at the lane's rate from here would bring it to the
+/// lane's entry speed by the handover. No DRS on the way into the pits.
+pub fn run_up_input(
+    lane: &PitLane,
+    run_up_m: f32,
+    speed_mps: f32,
+    mut input: PlayerInputData,
+) -> PlayerInputData {
+    let entry = lane_speed_mps(lane, 0.0);
+    let left = (run_up_m - AI_PIT_HANDOVER_M).max(0.0);
+    let cap = (entry * entry + 2.0 * LANE_DECEL * left).sqrt();
+    let (throttle, brake) = pedals(cap, speed_mps);
+    input.throttle = input.throttle.min(throttle);
+    input.brake = input.brake.max(brake);
+    input.drs = false;
+    input
+}
+
+/// How fast the lane has a car go at `s` along it on the way in: down to
+/// the limit by the first line, held to it between, free past the last.
+fn lane_speed_mps(lane: &PitLane, s: f32) -> f32 {
+    let limit = lane.speed_limit_mps - 0.5;
+    let zone = if s < lane.limit_start_m {
+        (limit * limit + 2.0 * LANE_DECEL * (lane.limit_start_m - s)).sqrt()
+    } else if s <= lane.limit_end_m {
+        limit
+    } else {
+        f32::INFINITY
+    };
+    zone.min(LANE_TOP_SPEED_MPS)
+}
+
+/// Throttle and brake that bring `v` to `target`, m/s.
+fn pedals(target: f32, v: f32) -> (f32, f32) {
+    let error = target - v;
+    if error > 0.3 {
+        ((error * 0.25).clamp(0.0, 1.0), 0.0)
+    } else if error < -0.3 {
+        (0.0, (-error * 0.3).clamp(0.0, 1.0))
+    } else {
+        (0.1, 0.0)
+    }
+}
+
 /// Where the AI steers and how fast it goes on the pit route: pure pursuit
 /// along the lane (onto its box's spot at the end), the limit between the
 /// lines, a stop at the box, out at the limit. The automatic gearbox does
@@ -300,7 +374,6 @@ pub fn drive_input(
     state: &CarState,
     config: &CarConfig,
 ) -> PlayerInputData {
-    const STOP_DECEL: f32 = 4.0;
     let v = state.speed_mps;
     let s = state.pit.lane_station_m;
     let look = (4.0 + 0.35 * v).clamp(6.0, 25.0);
@@ -324,28 +397,15 @@ pub fn drive_input(
 
     // How fast: down to the limit by the first line, held to it between,
     // stopping at the box; free past the last line on the way out.
-    let limit = lane.speed_limit_mps - 0.5;
-    let zone = if s < lane.limit_start_m {
-        (limit * limit + 2.0 * STOP_DECEL * (lane.limit_start_m - s)).sqrt()
-    } else if s <= lane.limit_end_m {
-        limit
-    } else {
-        f32::INFINITY
-    };
-    let mut target = zone.min(45.0);
+    let mut target = lane_speed_mps(lane, s);
     if heading_to_box {
         let along = to_box.max(0.0);
-        target = target.min((2.0 * STOP_DECEL * (along - 0.3).max(0.0)).sqrt());
+        target = target.min((2.0 * LANE_DECEL * (along - 0.3).max(0.0)).sqrt());
     }
-    let error = target - v;
     let (throttle, brake) = if heading_to_box && to_box < 0.8 {
         (0.0, 1.0)
-    } else if error > 0.3 {
-        ((error * 0.25).clamp(0.0, 1.0), 0.0)
-    } else if error < -0.3 {
-        (0.0, (-error * 0.3).clamp(0.0, 1.0))
     } else {
-        (0.1, 0.0)
+        pedals(target, v)
     };
     PlayerInputData {
         throttle,
@@ -466,5 +526,71 @@ mod tests {
         state.tires.rear_left.wear_percent = 0.0;
         state.fuel_liters = 5.0;
         assert!(plan_stop(&state, 4, Some(2.0)).is_some(), "short of fuel");
+    }
+
+    #[test]
+    fn the_ai_races_the_run_up_and_takes_the_lane_at_its_speed() {
+        let lane = straight_lane();
+        let mut state = CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        // The lane leaves a 1000 m lap at 900 m.
+        state.pit.driving = true;
+        state.track_progress = 700.0;
+        assert_eq!(
+            run_up_m(&lane, &state, 1000.0),
+            Some(200.0),
+            "on the run-up"
+        );
+        state.track_progress = 895.0;
+        assert_eq!(run_up_m(&lane, &state, 1000.0), None, "handed to the lane");
+        state.track_progress = 920.0;
+        assert_eq!(run_up_m(&lane, &state, 1000.0), None, "past its mouth");
+        state.track_progress = 700.0;
+        state.pit.serviced = true;
+        assert_eq!(run_up_m(&lane, &state, 1000.0), None, "on the way out");
+        state.pit.serviced = false;
+        state.pit.driving = false;
+        assert_eq!(run_up_m(&lane, &state, 1000.0), None, "not stopping");
+
+        let racing = PlayerInputData {
+            throttle: 1.0,
+            drs: true,
+            ..Default::default()
+        };
+        let far = run_up_input(&lane, 200.0, 30.0, racing);
+        assert_eq!(
+            (far.throttle, far.brake, far.drs),
+            (1.0, 0.0, false),
+            "far out it races on, flap shut"
+        );
+        let corner = PlayerInputData {
+            brake: 0.8,
+            ..Default::default()
+        };
+        assert_eq!(
+            run_up_input(&lane, 200.0, 30.0, corner).brake,
+            0.8,
+            "and brakes for its own corners"
+        );
+        let near = run_up_input(&lane, AI_PIT_HANDOVER_M + 2.0, 40.0, racing);
+        assert!(
+            near.throttle == 0.0 && near.brake > 0.5,
+            "it slows for the lane: {near:?}"
+        );
+        let entry = lane_speed_mps(&lane, 0.0);
+        let at = run_up_input(&lane, AI_PIT_HANDOVER_M + 1.0, entry - 2.0, racing);
+        assert!(
+            at.throttle > 0.0 && at.brake == 0.0,
+            "but not below the lane's own speed: {at:?}"
+        );
     }
 }

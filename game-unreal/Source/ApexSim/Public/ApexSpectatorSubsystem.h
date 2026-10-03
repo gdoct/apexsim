@@ -50,9 +50,31 @@ public:
 
 	/**
 	 * Play a local file. Loading is off the game thread; IsLoading until it
-	 * is in, then IsPlaying. False when the file is not there.
+	 * is in, then IsPlaying. False when the file is not there. A looping file
+	 * starts over at its end (a showcase); otherwise it holds on its last
+	 * frame (a replay) until seeked back.
 	 */
-	bool PlayFile(const FString& Path);
+	bool PlayFile(const FString& Path, bool bInLoop = true);
+
+	// --- Playback of a file (a replay) -------------------------------------------
+
+	/** Speed of the file's clock: 1 real time, 0.25 to 4. */
+	void SetPlaybackRate(float Rate);
+	float GetPlaybackRate() const { return PlaybackRate; }
+	void SetPaused(bool bInPaused) { bPaused = bInPaused; }
+	bool IsPaused() const { return bPaused; }
+	/**
+	 * Jump to `Seconds` from the content's start. Forward, the records on the
+	 * way are applied (the timing, any roster change) but only the last frame;
+	 * back, the preamble is applied again first, which resets the timing.
+	 */
+	void SeekTo(double Seconds);
+	/** Seconds from the content's start, and its length; 0 without a file. */
+	double GetPlaybackSeconds() const;
+	double GetDurationSeconds() const;
+	/** A file that does not loop has reached its end. */
+	bool IsAtEnd() const;
+	bool IsLooping() const { return bLoop; }
 
 	/** Watch the server's showcase channel `Id` (empty: the server's first). */
 	bool WatchShowcase(const FString& Id);
@@ -129,6 +151,9 @@ private:
 	double Clock = 0.0;
 	int32 Cursor = 0;
 	int32 Loops = 0;
+	bool bLoop = true;
+	bool bPaused = false;
+	float PlaybackRate = 1.0f;
 	/** The timed records' ticks, parallel to Loaded->Records. */
 	TArray<int64> RecordTicks;
 };

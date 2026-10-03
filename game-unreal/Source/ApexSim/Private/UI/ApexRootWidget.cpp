@@ -1,12 +1,17 @@
 #include "UI/ApexRootWidget.h"
 
+#include "ApexDemoModeSubsystem.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexReplayRecorder.h"
 #include "ApexPlayerController.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
+#include "ApexSpectatorSubsystem.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Hud/ApexHudDataSubsystem.h"
+#include "UObject/UObjectIterator.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Engine/Texture2D.h"
@@ -31,6 +36,7 @@
 #include "UI/ApexMainMenuWidget.h"
 #include "UI/ApexMenuInputProcessor.h"
 #include "UI/ApexPauseMenuWidget.h"
+#include "UI/ApexReplaysWidget.h"
 #include "UI/ApexScreenWidget.h"
 #include "UI/ApexSessionCreateWidget.h"
 #include "UI/ApexSessionLobbyWidget.h"
@@ -75,6 +81,101 @@ namespace
 	 * normal main-menu start. On the command line use -ApexStartScreen=N instead:
 	 * -ExecCmds is applied after this widget is built.
 	 */
+	/** Seconds a backdrop watch waits for a race before giving up. */
+	constexpr float WatchGiveUpSeconds = 30.0f;
+
+	FAutoConsoleCommandWithWorldAndArgs WatchCommand(
+		TEXT("apexsim.watch"),
+		TEXT("Watch the race behind the menu, or steer the watch view: ")
+		TEXT("apexsim.watch [start|stop|next|prev|car <position>|camera|auto|tower|overlay|race|pause|back|forward|faster|slower]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			UApexRootWidget* Root = nullptr;
+			for (TObjectIterator<UApexRootWidget> It; It; ++It)
+			{
+				if (It->GetWorld() == World && It->GetCachedWidget().IsValid())
+				{
+					Root = *It;
+					break;
+				}
+			}
+			if (!Root)
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("apexsim.watch: no shell in this world"));
+				return;
+			}
+			const FString Verb = Args.Num() > 0 ? Args[0].ToLower() : FString(TEXT("start"));
+			ApexSpectate::FCommand Command;
+			if (Verb == TEXT("start"))
+			{
+				Root->WatchBackdrop();
+				return;
+			}
+			if (Verb == TEXT("stop"))
+			{
+				Command.Action = ApexSpectate::EAction::Leave;
+			}
+			else if (Verb == TEXT("next"))
+			{
+				Command.Action = ApexSpectate::EAction::NextCar;
+			}
+			else if (Verb == TEXT("prev"))
+			{
+				Command.Action = ApexSpectate::EAction::PreviousCar;
+			}
+			else if (Verb == TEXT("car") && Args.Num() > 1)
+			{
+				Command.Action = ApexSpectate::EAction::Position;
+				Command.Position = FCString::Atoi(*Args[1]);
+			}
+			else if (Verb == TEXT("camera"))
+			{
+				Command.Action = ApexSpectate::EAction::Camera;
+			}
+			else if (Verb == TEXT("auto"))
+			{
+				Command.Action = ApexSpectate::EAction::Auto;
+			}
+			else if (Verb == TEXT("tower"))
+			{
+				Command.Action = ApexSpectate::EAction::Tower;
+			}
+			else if (Verb == TEXT("overlay"))
+			{
+				Command.Action = ApexSpectate::EAction::Overlay;
+			}
+			else if (Verb == TEXT("race"))
+			{
+				Command.Action = ApexSpectate::EAction::NextRace;
+			}
+			else if (Verb == TEXT("pause"))
+			{
+				Command.Action = ApexSpectate::EAction::PlayPause;
+			}
+			else if (Verb == TEXT("back"))
+			{
+				Command.Action = ApexSpectate::EAction::SeekBack;
+			}
+			else if (Verb == TEXT("forward"))
+			{
+				Command.Action = ApexSpectate::EAction::SeekForward;
+			}
+			else if (Verb == TEXT("faster"))
+			{
+				Command.Action = ApexSpectate::EAction::Faster;
+			}
+			else if (Verb == TEXT("slower"))
+			{
+				Command.Action = ApexSpectate::EAction::Slower;
+			}
+			else
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("apexsim.watch: unknown '%s'"), *Verb);
+				return;
+			}
+			Root->RunWatchCommand(Command);
+		}));
+
 	TAutoConsoleVariable<int32> CVarStartScreen(
 		TEXT("apexsim.ui.StartScreen"),
 		-1,
@@ -107,6 +208,9 @@ UClass* UApexRootWidget::ResolveScreenClass(EApexScreen Screen)
 	case EApexScreen::SessionResults:
 		return UApexSessionResultsWidget::StaticClass();
 
+	case EApexScreen::Replays:
+		return UApexReplaysWidget::StaticClass();
+
 	default:
 		break;
 	}
@@ -131,7 +235,7 @@ void UApexRootWidget::BuildShell()
 	Background = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Background));
 
 	ScreenHost = WidgetTree->ConstructWidget<UWidgetSwitcher>();
-	for (int32 Index = 0; Index <= static_cast<int32>(EApexScreen::SessionResults); ++Index)
+	for (int32 Index = 0; Index <= static_cast<int32>(EApexScreen::Replays); ++Index)
 	{
 		const EApexScreen Screen = static_cast<EApexScreen>(Index);
 		UClass* ScreenClass = ResolveScreenClass(Screen);
@@ -625,6 +729,7 @@ FReply UApexRootWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 void UApexRootWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	UpdateWatch(InDeltaTime);
 	UpdateBackdrop(InDeltaTime);
 
 	// The replay ends itself when the lap is over; the garage card comes back.
@@ -679,6 +784,18 @@ UTexture2D* UApexRootWidget::MakeScrimTexture()
 void UApexRootWidget::UpdateBackdrop(float DeltaSeconds)
 {
 	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (WatchKind == EWatchKind::Backdrop)
+	{
+		// The race is the screen: the plain background covers only what the
+		// backdrop has not faded in yet (a race loading, the next one coming).
+		const float Watched = Director && Director->IsDemoViewActive() ? Director->GetDemoBackdropOpacity() : 0.0f;
+		if (Background)
+		{
+			Background->SetBrushColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f - Watched));
+		}
+		AppliedBackdrop = -1.0f;
+		return;
+	}
 	const bool bDemo = Director && Director->IsDemoViewActive() && !bRaceViewActive;
 	const UApexScreenWidget* Screen = GetScreenWidget(CurrentScreen);
 	const bool bScreenWants = Screen && Screen->WantsLiveBackdrop();
@@ -797,7 +914,7 @@ void UApexRootWidget::ApplyDriveInput()
 	if (AApexPlayerController* PlayerController =
 			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
-		PlayerController->SetDriveInputEnabled(bRaceViewActive && !bPauseMenuOpen && !bGarageOpen && !IsHudEditorOpen());
+		PlayerController->SetDriveInputEnabled(bRaceViewActive && !IsWatching() && !bPauseMenuOpen && !bGarageOpen && !IsHudEditorOpen());
 	}
 }
 
@@ -839,9 +956,10 @@ void UApexRootWidget::FocusDefault()
 		HotlapPanel->FocusDefault();
 		return;
 	}
-	if (bRaceViewActive)
+	if (bRaceViewActive || IsWatching())
 	{
 		// Driving: the viewport has focus on purpose, so the car gets the keys.
+		// Watching: the input processor hands every key to the watch view.
 		return;
 	}
 	if (UApexScreenWidget* Screen = GetScreenWidget(CurrentScreen))
@@ -881,6 +999,7 @@ void UApexRootWidget::SetPaused(bool bPaused)
 
 	if (bPaused)
 	{
+		PauseMenu->SetWatching(IsWatching());
 		PauseMenu->Open();
 	}
 	else
@@ -893,7 +1012,7 @@ void UApexRootWidget::SetPaused(bool bPaused)
 	if (AApexPlayerController* PlayerController =
 			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
-		PlayerController->SetDriveInputEnabled(!bPaused && bRaceViewActive && !bGarageOpen);
+		PlayerController->SetDriveInputEnabled(!bPaused && bRaceViewActive && !IsWatching() && !bGarageOpen);
 	}
 
 	// The input-mode switch above hands focus to the viewport when its deferred
@@ -975,6 +1094,10 @@ void UApexRootWidget::HandleHotlapAction(EApexHotlapAction Action)
 		}
 		break;
 
+	case EApexHotlapAction::SaveReplay:
+		SaveReplay();
+		break;
+
 	case EApexHotlapAction::ResetSetup:
 		if (Settings)
 		{
@@ -1050,6 +1173,10 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 		OpenSettings(EApexSettingsTab::Gameplay);
 		break;
 
+	case EApexPauseAction::SaveReplay:
+		SaveReplay();
+		break;
+
 	case EApexPauseAction::ReturnToGarage:
 		SetPaused(false);
 		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
@@ -1060,6 +1187,11 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 
 	case EApexPauseAction::LeaveSession:
 		SetPaused(false);
+		if (IsWatching())
+		{
+			StopWatching();
+			break;
+		}
 		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
 		{
 			// HandleSessionLeft takes the view back and returns to the main menu.
@@ -1209,6 +1341,20 @@ void UApexRootWidget::HandleServerError(int32 Code, const FString& Message)
 void UApexRootWidget::HandleLobbyStateForAutoRace(const FApexLobbyState& LobbyState)
 {
 	TryAutoRace(LobbyState);
+
+	// -ApexWatchSession: spectate the first race being driven on the server,
+	// for an unattended run of the live watch view.
+	if (!bWatchSessionFromCommandLine && !IsWatching() && !bWatchJoinPending
+		&& FParse::Param(FCommandLine::Get(), TEXT("ApexWatchSession")))
+	{
+		if (const FApexSessionSummary* Live = LobbyState.AvailableSessions.FindByPredicate(
+				[](const FApexSessionSummary& Session) { return Session.IsWatchable(); }))
+		{
+			bWatchSessionFromCommandLine = true;
+			UE_LOG(LogApexSim, Log, TEXT("-ApexWatchSession: watching %s on %s"), *Live->Id, *Live->TrackName);
+			WatchSession(Live->Id);
+		}
+	}
 }
 
 void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
@@ -1464,6 +1610,24 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 	// both screens.
 	BackStack.Reset();
 	ActivateScreen(EApexScreen::SessionLobby);
+
+	const UApexNetSubsystem* JoinedNet = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (JoinedNet && JoinedNet->IsSessionSpectator())
+	{
+		// No car: nothing to tune, nothing to start. The race view opens with
+		// the session's next telemetry when it is under way, in the lobby
+		// until then.
+		bWatchJoinPending = false;
+		if (WatchKind == EWatchKind::Backdrop)
+		{
+			StopWatching();
+		}
+		WatchKind = EWatchKind::Live;
+		ApplyWatchLayers();
+		PushWatchState();
+		UE_LOG(LogApexSim, Log, TEXT("Watching session %s"), *SessionId);
+		return;
+	}
 	SendDriverAids();
 	SendCarSetup();
 
@@ -1503,6 +1667,12 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 
 void UApexRootWidget::HandleSessionLeft()
 {
+	if (WatchKind == EWatchKind::Live)
+	{
+		WatchKind = EWatchKind::None;
+		ApplyWatchLayers();
+		PushWatchState();
+	}
 	ResetFinishWatch();
 	SetRaceViewActive(false);
 	BackStack.Reset();
@@ -1601,6 +1771,16 @@ void UApexRootWidget::HandleTelemetryForFinish(const FApexTelemetryFrame& Frame)
 
 	// Positions never change once given and every frame repeats them, so a lost
 	// datagram only delays this by a frame.
+	if (Winner && !bWinnerAnnounced && Net->IsSessionSpectator())
+	{
+		bWinnerAnnounced = true;
+		const FApexRosterEntry* Row = Net->GetSessionRoster().Entries.FindByPredicate(
+			[Winner](const FApexRosterEntry& Entry) { return Entry.CarIndex == Winner->CarIndex; });
+		ShowToast(Row && !Row->PlayerName.IsEmpty()
+			? FString::Printf(TEXT("Chequered flag: %s wins"), *Row->PlayerName)
+			: FString(TEXT("Chequered flag: the winner is in")));
+		return;
+	}
 	if (Winner && !bWinnerAnnounced)
 	{
 		bWinnerAnnounced = true;
@@ -1714,11 +1894,23 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 		if (bActive)
 		{
 			Director->BeginRaceView();
+			if (WatchKind == EWatchKind::Live)
+			{
+				Director->SetSpectating(true);
+				ApplyDriveInput();
+			}
 		}
 		else
 		{
 			Director->EndRaceView();
 		}
+	}
+	if (!bActive && WatchKind == EWatchKind::Live)
+	{
+		// The race is over (the results follow) or the session went.
+		WatchKind = EWatchKind::None;
+		ApplyWatchLayers();
+		PushWatchState();
 	}
 	else if (bActive)
 	{
@@ -1727,4 +1919,459 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 	}
 
 	UE_LOG(LogApexSim, Log, TEXT("Race view %s"), bActive ? TEXT("entered") : TEXT("left"));
+}
+
+// ---------------------------------------------------------------------------
+// Watching a race
+// ---------------------------------------------------------------------------
+
+bool UApexRootWidget::WatchBackdrop()
+{
+	if (IsWatching())
+	{
+		return true;
+	}
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	const UApexDemoModeSubsystem* Demo = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>() : nullptr;
+	const bool bRaceUp = Director && Director->IsDemoViewActive();
+	if (bRaceViewActive || !Director || !(bRaceUp || (Demo && Demo->IsDemoExpected())))
+	{
+		ShowToast(TEXT("No race to watch right now: connect to a server or add a showcase"), true);
+		return false;
+	}
+	WatchKind = EWatchKind::Backdrop;
+	WatchIdleSeconds = 0.0f;
+	bWatchDemoUp = false;
+	bWatchOverlayHidden = false;
+	WatchTower = ApexSpectate::ETowerMode::Interval;
+	ApplyWatchLayers();
+	// UpdateWatch hands the race to the spectator's controls as soon as it is up.
+	UpdateWatch(0.0f);
+	PushWatchState();
+	UE_LOG(LogApexSim, Log, TEXT("Watching the backdrop race%s"), bRaceUp ? TEXT("") : TEXT(" (waiting for it)"));
+	return true;
+}
+
+void UApexRootWidget::WatchSession(const FString& SessionId)
+{
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net || !Net->IsAuthenticated())
+	{
+		ShowToast(TEXT("Not connected to a server yet"), true);
+		return;
+	}
+	bWatchJoinPending = true;
+	WatchTower = ApexSpectate::ETowerMode::Interval;
+	bWatchOverlayHidden = false;
+	Net->JoinAsSpectator(SessionId);
+}
+
+void UApexRootWidget::StopWatching()
+{
+	const EWatchKind Was = WatchKind;
+	if (Was == EWatchKind::None)
+	{
+		return;
+	}
+	WatchKind = EWatchKind::None;
+	const bool bWasReplay = bWatchingReplay;
+	bWatchingReplay = false;
+	if (bWasReplay)
+	{
+		if (UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>())
+		{
+			Demo->StopReplay();
+		}
+	}
+	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+	{
+		Director->SetSpectating(false);
+	}
+	if (bPauseMenuOpen)
+	{
+		SetPaused(false);
+	}
+	if (Was == EWatchKind::Live)
+	{
+		// HandleSessionLeft takes the view back and returns to the main menu.
+		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		{
+			Net->LeaveSession();
+		}
+	}
+	ApplyWatchLayers();
+	PushWatchState();
+	if (bWasReplay && CurrentScreen != EApexScreen::Replays)
+	{
+		ShowScreen(EApexScreen::Replays);
+	}
+	ApexUiAudio::Play(this, EApexUiSound::Back);
+	RequestFocusDefault();
+	UE_LOG(LogApexSim, Log, TEXT("Stopped watching"));
+}
+
+void UApexRootWidget::ApplyWatchLayers()
+{
+	const bool bBackdrop = WatchKind == EWatchKind::Backdrop;
+	if (!bRaceViewActive)
+	{
+		// Over a watched backdrop the menu steps aside; the background stays
+		// to cover the gaps between races (UpdateBackdrop).
+		if (ScreenHost)
+		{
+			ScreenHost->SetVisibility(bBackdrop ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		}
+		if (BackdropScrim && bBackdrop)
+		{
+			BackdropScrim->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (Background && !bBackdrop)
+		{
+			Background->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		if (Hud)
+		{
+			const AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+			Hud->SetRaceActive(bBackdrop && Director && Director->IsDemoViewActive());
+		}
+	}
+	AppliedBackdrop = -1.0f;
+	if (Hud)
+	{
+		Hud->SetShown(!(IsWatching() && bWatchOverlayHidden) && !bGarageOpen);
+	}
+	ApplyDriveInput();
+}
+
+void UApexRootWidget::PushWatchState()
+{
+	UApexHudDataSubsystem* HudData = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexHudDataSubsystem>() : nullptr;
+	if (!HudData)
+	{
+		return;
+	}
+	FString Source;
+	if (WatchKind == EWatchKind::Live)
+	{
+		Source = TEXT("live");
+	}
+	else if (WatchKind == EWatchKind::Backdrop)
+	{
+		const UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
+		const EApexBackdropSource From = Demo ? Demo->GetSource() : EApexBackdropSource::None;
+		Source = From == EApexBackdropSource::Replay ? TEXT("replay")
+			: From == EApexBackdropSource::Showcase    ? TEXT("showcase")
+			: From == EApexBackdropSource::LocalFile   ? TEXT("file")
+													   : TEXT("demo");
+	}
+	HudData->SetWatchState(Source, ApexSpectate::TowerModeKey(WatchTower));
+}
+
+void UApexRootWidget::SetGamepadHints(bool bGamepad)
+{
+	if (UApexHudDataSubsystem* HudData = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexHudDataSubsystem>() : nullptr)
+	{
+		HudData->SetGamepadActive(bGamepad);
+	}
+}
+
+void UApexRootWidget::UpdateWatch(float DeltaSeconds)
+{
+	ApplyWatchCommandLine();
+	if (WatchKind != EWatchKind::Backdrop)
+	{
+		return;
+	}
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	const bool bUp = Director && Director->IsDemoViewActive();
+	if (bUp != bWatchDemoUp)
+	{
+		bWatchDemoUp = bUp;
+		if (bUp)
+		{
+			Director->SetDemoWorldVisible(true);
+			Director->SetSpectating(true);
+		}
+		// A new race on, or the last one gone: the HUD starts over with it
+		// (its minimap outline, its timing memory) or stands down meanwhile.
+		if (Hud)
+		{
+			Hud->SetRaceActive(false);
+			Hud->SetRaceActive(bUp);
+		}
+	}
+	if (bUp)
+	{
+		Director->SetDemoWorldVisible(true);
+		WatchIdleSeconds = 0.0f;
+	}
+	else
+	{
+		WatchIdleSeconds += DeltaSeconds;
+		const UApexDemoModeSubsystem* Demo = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>() : nullptr;
+		if (WatchIdleSeconds > WatchGiveUpSeconds || (Demo && !Demo->IsDemoExpected() && WatchIdleSeconds > 3.0f))
+		{
+			ShowToast(TEXT("No race to watch: back to the menu"), true);
+			StopWatching();
+			return;
+		}
+	}
+	// The source changes as the backdrop moves from file to showcase.
+	PushWatchState();
+}
+
+bool UApexRootWidget::HandleWatchKey(const FKeyEvent& InKeyEvent)
+{
+	const ApexSpectate::FCommand Command = ApexSpectate::CommandFor(InKeyEvent.GetKey());
+	if (Command.Action == ApexSpectate::EAction::None)
+	{
+		return false;
+	}
+	RunWatchCommand(Command);
+	return true;
+}
+
+void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
+{
+	if (!IsWatching())
+	{
+		return;
+	}
+	using ApexSpectate::EAction;
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	const bool bLive = Director && Director->IsSpectating();
+	switch (Command.Action)
+	{
+	case EAction::PreviousCar:
+	case EAction::NextCar:
+		if (bLive)
+		{
+			Director->StepFocus(Command.Action == EAction::NextCar ? 1 : -1);
+			ApexUiAudio::Play(this, EApexUiSound::Move);
+		}
+		break;
+
+	case EAction::Position:
+		if (bLive)
+		{
+			const bool bThere = Director->FocusPosition(Command.Position);
+			ApexUiAudio::Play(this, bThere ? EApexUiSound::Move : EApexUiSound::Denied);
+		}
+		break;
+
+	case EAction::Camera:
+		if (bLive)
+		{
+			Director->CycleSpectatorCamera();
+			ApexUiAudio::Play(this, EApexUiSound::Adjust);
+		}
+		break;
+
+	case EAction::Auto:
+		if (bLive)
+		{
+			Director->SetSpectatorAuto(!Director->IsSpectatorAuto());
+			ApexUiAudio::Play(this, EApexUiSound::Adjust);
+		}
+		break;
+
+	case EAction::Tower:
+		WatchTower = ApexSpectate::NextTowerMode(WatchTower);
+		PushWatchState();
+		ApexUiAudio::Play(this, EApexUiSound::Adjust);
+		break;
+
+	case EAction::Overlay:
+		bWatchOverlayHidden = !bWatchOverlayHidden;
+		ApplyWatchLayers();
+		ApexUiAudio::Play(this, EApexUiSound::Adjust);
+		break;
+
+	case EAction::PlayPause:
+	case EAction::SeekBack:
+	case EAction::SeekForward:
+	case EAction::Slower:
+	case EAction::Faster:
+	{
+		UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
+		if (!IsWatchingReplay() || !Spectator)
+		{
+			break;
+		}
+		if (Command.Action == EAction::PlayPause)
+		{
+			// At the end, play starts the replay over.
+			if (Spectator->IsAtEnd())
+			{
+				Spectator->SeekTo(0.0);
+				Spectator->SetPaused(false);
+			}
+			else
+			{
+				Spectator->SetPaused(!Spectator->IsPaused());
+			}
+		}
+		else if (Command.Action == EAction::SeekBack || Command.Action == EAction::SeekForward)
+		{
+			constexpr double SeekStepSeconds = 10.0;
+			Spectator->SeekTo(Spectator->GetPlaybackSeconds() + (Command.Action == EAction::SeekBack ? -SeekStepSeconds : SeekStepSeconds));
+		}
+		else
+		{
+			Spectator->SetPlaybackRate(ApexSpectate::StepPlaybackRate(Spectator->GetPlaybackRate(), Command.Action == EAction::Faster ? 1 : -1));
+		}
+		ApexUiAudio::Play(this, EApexUiSound::Adjust);
+		break;
+	}
+
+	case EAction::NextRace:
+		if (IsWatchingReplay())
+		{
+			ShowToast(TEXT("A replay: leave it to pick another"), true);
+		}
+		else if (WatchKind == EWatchKind::Backdrop)
+		{
+			if (UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>())
+			{
+				Spectator->RequestNext();
+			}
+			ShowToast(TEXT("Next race coming up"));
+		}
+		else
+		{
+			ShowToast(TEXT("A live session: leave it to watch another"), true);
+		}
+		break;
+
+	case EAction::Leave:
+		StopWatching();
+		break;
+
+	default:
+		break;
+	}
+}
+
+void UApexRootWidget::ApplyWatchCommandLine()
+{
+	// -ApexWatchReplay=<file|latest>: play a saved replay as soon as the shell
+	// is up, for an unattended run of the replay view.
+	FString ReplayArg;
+	if (!bWatchReplayFromCommandLine && FParse::Value(FCommandLine::Get(), TEXT("ApexWatchReplay="), ReplayArg)
+		&& AApexRaceDirector::Find(this) && !IsWatching())
+	{
+		bWatchReplayFromCommandLine = true;
+		if (ReplayArg.Equals(TEXT("latest"), ESearchCase::IgnoreCase))
+		{
+			const TArray<FApexReplayInfo> All = UApexReplayRecorder::ListReplays();
+			const FApexReplayInfo* Newest = nullptr;
+			for (const FApexReplayInfo& Info : All)
+			{
+				Newest = !Newest || Info.When > Newest->When ? &Info : Newest;
+			}
+			ReplayArg = Newest ? Newest->Path : FString();
+		}
+		UE_LOG(LogApexSim, Log, TEXT("-ApexWatchReplay: %s"), ReplayArg.IsEmpty() ? TEXT("no replay on disk") : *ReplayArg);
+		if (!ReplayArg.IsEmpty())
+		{
+			WatchReplay(ReplayArg);
+		}
+	}
+
+	// -ApexWatch: watch the backdrop as soon as it is up, for a screenshot
+	// run (-ApexWatchSession: a live session, HandleLobbyStateForAutoRace);
+	// -ApexWatchCamera=tv|chase|onboard, -ApexWatchTower=interval|gap|last|
+	// best|tyres and -ApexWatchCar=<position> set the view once a car is on
+	// screen, -ApexWatchHideHud the overlay.
+	const bool bWatchBackdrop = FParse::Param(FCommandLine::Get(), TEXT("ApexWatch"));
+	if (bWatchCommandLineApplied || !(bWatchBackdrop || FParse::Param(FCommandLine::Get(), TEXT("ApexWatchSession"))))
+	{
+		return;
+	}
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (bWatchBackdrop && !bWatchFromCommandLine)
+	{
+		if (!Director || !Director->IsDemoViewActive())
+		{
+			return;
+		}
+		bWatchFromCommandLine = WatchBackdrop();
+		return;
+	}
+	if (!Director || !Director->IsSpectating() || Director->GetFocusCarIndex() == INDEX_NONE)
+	{
+		return;
+	}
+	bWatchCommandLineApplied = true;
+
+	FString Value;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexWatchTower="), Value))
+	{
+		for (int32 Mode = 0; Mode < static_cast<int32>(ApexSpectate::ETowerMode::Count); ++Mode)
+		{
+			if (Value.Equals(ApexSpectate::TowerModeKey(static_cast<ApexSpectate::ETowerMode>(Mode)), ESearchCase::IgnoreCase))
+			{
+				WatchTower = static_cast<ApexSpectate::ETowerMode>(Mode);
+			}
+		}
+		PushWatchState();
+	}
+	int32 Position = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexWatchCar="), Position))
+	{
+		Director->FocusPosition(Position);
+	}
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexWatchCamera="), Value))
+	{
+		for (int32 Camera = 0; Camera < static_cast<int32>(ApexSpectate::ECamera::Count); ++Camera)
+		{
+			if (Value.Equals(ApexSpectate::CameraName(static_cast<ApexSpectate::ECamera>(Camera)), ESearchCase::IgnoreCase))
+			{
+				Director->SetSpectatorCamera(static_cast<ApexSpectate::ECamera>(Camera));
+			}
+		}
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("ApexWatchHideHud")))
+	{
+		bWatchOverlayHidden = true;
+		ApplyWatchLayers();
+	}
+}
+
+bool UApexRootWidget::WatchReplay(const FString& Path)
+{
+	UApexDemoModeSubsystem* Demo = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>() : nullptr;
+	if (!Demo || IsWatching() || bRaceViewActive)
+	{
+		return false;
+	}
+	FString Error;
+	if (!Demo->PlayReplay(Path, Error))
+	{
+		ShowToast(FString::Printf(TEXT("Cannot play this replay: %s"), *Error), true);
+		return false;
+	}
+	if (!WatchBackdrop())
+	{
+		Demo->StopReplay();
+		return false;
+	}
+	bWatchingReplay = true;
+	PushWatchState();
+	return true;
+}
+
+void UApexRootWidget::SaveReplay()
+{
+	UApexReplayRecorder* Recorder = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexReplayRecorder>() : nullptr;
+	FString Path;
+	FString Error;
+	if (Recorder && Recorder->SaveReplay(Path, Error))
+	{
+		ShowToast(FString::Printf(TEXT("Replay saved: %s"), *FPaths::GetBaseFilename(Path)));
+	}
+	else
+	{
+		ShowToast(FString::Printf(TEXT("No replay saved: %s"), Recorder ? *Error : TEXT("no recorder")), true);
+	}
 }

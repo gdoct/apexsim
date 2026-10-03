@@ -26,6 +26,8 @@ enum class EApexScreen : uint8
 	Loading        = 7,
 	/** Appended, not inserted: the switcher is indexed by this enum. */
 	SessionResults = 8,
+	/** Saved and recent replays (UApexReplaysWidget). */
+	Replays        = 9,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingCarChanged, const FString&, CarId);

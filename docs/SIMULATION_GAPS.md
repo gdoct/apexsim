@@ -553,6 +553,19 @@ here as well as under its item.
   pit-lane speeding penalties (the limiter is automatic); the client draws
   no crew and no pit-lane time on the timing sheet.
 - `initialize_content.ps1` does not check for the pit sidecar.
+- The AI completes a stop on 8 of the 26 circuits with a lane (Monza, IMS,
+  Mexico City, Moscow, Norisring, Sakhir, Sepang, Yas Marina; a GT3 on 72%
+  worn tyres, measured 2026-10-03). Since 2026-10-03 it races the run-up to
+  the lane on the road (`pit::run_up_m`); before, it aimed at the lane's
+  mouth from 250 m out and cut across the run-off, and 3 completed. Still
+  open: `drive_input`'s pure pursuit weaves ±5 m in the lane and at Austin,
+  Brands Hatch, Catalunya, Hockenheim, Spielberg and Suzuka the car is
+  serviced and then stuck; at Budapest, Montreal, the Nürburgring,
+  Oschersleben, São Paulo, Sochi, Spa and Zandvoort it never reaches its
+  box. Nothing on the route reverses off a wall, so a car pinned there
+  pushes until its engine cooks. Le Mans, Melbourne, Shanghai and
+  Silverstone's lanes do not join the track: the first node is 14, 14, 69
+  and 65 m off the centerline (Le Mans and Melbourne's last node too).
 
 **Brake and engine heat**
 - No brake wear, no brake bias or pad choice beyond the existing bias
@@ -626,11 +639,40 @@ here as well as under its item.
   wall graze whose two damaged cars later retire into the walls.
 - The HUD badge and the keys have never been seen in the running game.
 
+**Watching a race and replays** (docs/SPECTATOR.md sections 5-6)
+- A live session is watched through the racer telemetry, not as a stream
+  (`BroadcastEncoder` for a live session is still to do); a spectator who
+  joins mid-race gets no lap timing from before the join, so the timing
+  board and the sector colours start empty (the tower's last and best
+  laps come from the telemetry and are right).
+- Pit stops and tyre age are counted from what the client has seen: a
+  spectator who joins mid-race, or a replay that starts mid-race,
+  undercounts them.
+- The timing tower is not clickable; cars are picked with the keys.
+- The watch keys are fixed, not rebindable; the pad has no replay speed.
+- Replays are the client's: the server's own replays (`replay.rs`) are
+  still not `.apxs`. A replay holds what a stream row holds, so no tyre
+  pressures, brake temperatures or fuel, no ghost and no tyre or kerb
+  sound; a replay of a race joined mid-way names its first frame as the
+  start.
+- A replay's speed change goes through the motion buffer's re-seat; seen
+  at 2x, not checked by eye at 4x or 0.25x. No scrub bar for the mouse.
+- The session browser's Watch button has been seen on a racing row but
+  not clicked (the same path ran from `-ApexWatchSession`); the browser
+  is still the legacy blueprint screen, unstyled.
+- Never seen in the running game: the pause menu's and the
+  hotlap garage's SAVE REPLAY (the console command was used), the
+  Replays screen's Keep and Delete, the watch view on a pad, and a live
+  race finishing while watched (the results as a spectator).
+
 **Built but never seen in the running game** (automation tests only)
-- The HUD's tyre row and TOW badge.
+- ~~The HUD's tyre row and TOW badge~~: seen 2026-10-03, watching a live
+  LMP2 race at Zandvoort (TOW 4% and 12%, temperatures, pressures, wear).
 - The hotlap garage's Aero section (wings, ride heights).
 - The create screen's air temperature slider and wind row.
-- The HUD's PIT badge and the tyre row's wear and compound; the garage's
-  "Next tyres" row; an AI pit stop as the client draws it.
-- The HUD's brake line and Water cell; the garage's "Brake ducts" row.
-- The HUD's Damage cell.
+- The HUD's PIT badge (seen dark, never lit) ~~and the tyre row's wear and
+  compound~~ (seen 2026-10-03); the garage's "Next tyres" row; an AI pit
+  stop as the client draws it.
+- ~~The HUD's brake line and Water cell~~ (seen 2026-10-03); the garage's
+  "Brake ducts" row.
+- ~~The HUD's Damage cell~~ (seen 2026-10-03, undamaged).

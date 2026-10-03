@@ -5,6 +5,8 @@
   "name": "Virtual mirror",
   "region": "top",
   "float": true,
+  // A spectator has no car to look back from.
+  "visible": "=!spectate.active",
   "margin": [0, 96, 0, 0],
   "root": { "type": "mirror", "width": 480, "height": 150 }
 }

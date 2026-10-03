@@ -22,8 +22,12 @@ namespace ApexSpectator
 {
 	constexpr uint8 FormatVersion = 1;
 	constexpr uint16 FileVersion = 1;
-	/** Bytes of one car in a frame in format version 1; a newer writer only appends. */
-	constexpr int32 RowSize = 44;
+	/** Bytes of one car in a frame as written now; a newer writer only appends. */
+	constexpr int32 RowSize = 52;
+	/** The first layout's row (no tyres): the shortest a reader takes. */
+	constexpr int32 RowSizeV1 = 44;
+	/** `FApexStreamCarRow::TyreWear` of a tyre the stream does not know. */
+	constexpr uint8 TyreWearUnknown = 255;
 	constexpr int32 NoCountdown = 0xFFFF;
 
 	constexpr uint8 RecordHeader = 1;
@@ -107,7 +111,11 @@ struct APEXSIMNET_API FApexStreamRoster
 	FApexSessionRoster ToSessionRoster(const FString& SessionId) const;
 };
 
-/** One car in a frame (`spectator::CarRow`): 44 bytes, little-endian. */
+/**
+ * One car in a frame (`spectator::CarRow`): 52 bytes, little-endian. The
+ * first 44 are format version 1's; a stream whose header says 44 reads with
+ * its tyres unknown.
+ */
 struct APEXSIMNET_API FApexStreamCarRow
 {
 	int32 CarIndex = 0;
@@ -132,14 +140,25 @@ struct APEXSIMNET_API FApexStreamCarRow
 	uint8 Compound = 255;
 	uint8 Damage[5] = {0, 0, 0, 0, 0};
 	uint8 ErsFlags = 0;
+	/** Wear, percent, FL FR RL RR; ApexSpectator::TyreWearUnknown when unknown. */
+	uint8 TyreWear[4] = {255, 255, 255, 255};
+	/** Tread temperature, °C as `CompactCarState.tyre_c`; 0 when unknown. */
+	uint8 TyreC[4] = {0, 0, 0, 0};
 
-	/** Read a row of at least ApexSpectator::RowSize bytes; what a newer writer appended is ignored. */
+	/** Read a row of at least ApexSpectator::RowSizeV1 bytes; what a newer writer appended is ignored. */
 	static bool Read(const uint8* Bytes, int32 Len, FApexStreamCarRow& Out);
-	/** The row written back as its 44 bytes, for tests and the clip writer. */
+	/** The row written back as its ApexSpectator::RowSize bytes, for tests and the clip writer. */
 	void Write(TArray<uint8>& Out) const;
 
 	/** As the race director reads a live car: what the row lacks (tyres, fuel...) is unknown. */
 	FApexCarTelemetry ToTelemetry() const;
+
+	/**
+	 * A live car as a row, the way the server's encoder makes one: how a
+	 * replay of a race the client received is written (UApexReplayRecorder).
+	 * `FromTelemetry(Row.ToTelemetry())` is the row again.
+	 */
+	static FApexStreamCarRow FromTelemetry(const FApexCarTelemetry& Car);
 };
 
 struct APEXSIMNET_API FApexStreamFrame

@@ -23,6 +23,8 @@ enum class EApexBackdropSource : uint8
 	LocalFile,
 	/** A `SessionKind::Demo` session simulated for this client (an older server). */
 	DemoSession,
+	/** A replay the player chose (UApexReplayRecorder): it stays until they leave it. */
+	Replay,
 };
 
 /**
@@ -91,6 +93,17 @@ public:
 
 	/** What the running backdrop comes from. */
 	EApexBackdropSource GetSource() const { return Source; }
+
+	/**
+	 * Put a replay (an `.apxs` from Saved/Replays) on the director in place
+	 * of the backdrop: it does not loop or move on, and holds on its end.
+	 * False with a reason when it cannot be played (unreadable, or a circuit
+	 * this machine has no export of).
+	 */
+	bool PlayReplay(const FString& Path, FString& OutError);
+	/** Back to the ordinary backdrop. */
+	void StopReplay();
+	bool IsPlayingReplay() const { return Source == EApexBackdropSource::Replay; }
 
 	/**
 	 * Which local showcase file to play for a track, if any: the track's own

@@ -15,6 +15,10 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "ApexReplayRecorder.h"
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
+#include "Race/ApexRaceDirector.h"
 #include "TimerManager.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexNavigation.h"
@@ -30,6 +34,8 @@ namespace
 		const FName Start(TEXT("Start"));
 		const FName ChangeSetup(TEXT("ChangeSetup"));
 		const FName Browse(TEXT("Browse"));
+		const FName Watch(TEXT("Watch"));
+		const FName Replays(TEXT("Replays"));
 		const FName Create(TEXT("Create"));
 		const FName Garage(TEXT("Garage"));
 		const FName Tracks(TEXT("Tracks"));
@@ -317,6 +323,8 @@ UWidget* UApexMainMenuWidget::BuildRail()
 	Spec.Variant = EApexButtonVariant::Panel;
 
 	Spec.Label = TEXT("Browse sessions"); Spec.ActionId = Action::Browse;  AddColumnButton(Rail, Spec, true);
+	Spec.Label = TEXT("Watch a race");    Spec.ActionId = Action::Watch;   AddColumnButton(Rail, Spec, true);
+	Spec.Label = TEXT("Replays");         Spec.ActionId = Action::Replays; AddColumnButton(Rail, Spec, true);
 	Spec.Label = TEXT("Create session");  Spec.ActionId = Action::Create;  AddColumnButton(Rail, Spec, true);
 	Spec.Label = TEXT("Garage");          Spec.ActionId = Action::Garage;  AddColumnButton(Rail, Spec, true);
 	Spec.Label = TEXT("Tracks");          Spec.ActionId = Action::Tracks;  AddColumnButton(Rail, Spec, true);
@@ -330,7 +338,7 @@ UWidget* UApexMainMenuWidget::BuildRail()
 	FApexButtonSpec LockedSpec;
 	LockedSpec.Variant = EApexButtonVariant::Locked;
 	LockedSpec.Badge = TEXT("Locked");
-	for (const TCHAR* Label : { TEXT("Race weekend"), TEXT("Qualifying"), TEXT("Replay") })
+	for (const TCHAR* Label : { TEXT("Race weekend"), TEXT("Qualifying") })
 	{
 		LockedSpec.Label = Label;
 		AddColumnButton(Rail, LockedSpec, true);
@@ -587,12 +595,47 @@ void UApexMainMenuWidget::RefreshRail()
 		{
 			Button->SetBadge(Flow->ServerHost, ApexUI::Palette::TextMuted);
 		}
+		else if (Id == Action::Replays)
+		{
+			// A file count, not a read: this runs with every lobby broadcast.
+			TArray<FString> Saved;
+			TArray<FString> Recent;
+			IFileManager::Get().FindFiles(Saved, *FPaths::Combine(UApexReplayRecorder::ReplayDirectory(), TEXT("*.apxs")), true, false);
+			IFileManager::Get().FindFiles(Recent, *FPaths::Combine(UApexReplayRecorder::RecentDirectory(), TEXT("*.apxs")), true, false);
+			const int32 Count = Saved.Num() + Recent.Num();
+			Button->SetBadge(Count > 0 ? FString::FromInt(Count) : TEXT("None"), ApexUI::Palette::TextMuted);
+		}
 	}
 }
 
 // ---------------------------------------------------------------------------
 // Interaction
 // ---------------------------------------------------------------------------
+
+void UApexMainMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	// The backdrop comes and goes on its own clock, not the lobby's.
+	RefreshWatchBadge();
+}
+
+void UApexMainMenuWidget::RefreshWatchBadge()
+{
+	const AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	const bool bOn = Director && Director->IsDemoViewActive();
+	if (WatchBadgeState == (bOn ? 1 : 0))
+	{
+		return;
+	}
+	WatchBadgeState = bOn ? 1 : 0;
+	for (UApexButtonWidget* Button : RailButtons)
+	{
+		if (Button && Button->GetActionId() == Action::Watch)
+		{
+			Button->SetBadge(bOn ? TEXT("On now") : TEXT("None"), bOn ? ApexUI::Palette::Live : ApexUI::Palette::TextMuted);
+		}
+	}
+}
 
 void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 {
@@ -615,6 +658,18 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Id == Action::Browse)
 	{
 		ShowScreen(EApexScreen::SessionBrowser);
+	}
+	else if (Id == Action::Replays)
+	{
+		ShowScreen(EApexScreen::Replays);
+	}
+	else if (Id == Action::Watch)
+	{
+		// The race behind the menu, full screen; live sessions are watched from the browser.
+		if (Root)
+		{
+			Root->WatchBackdrop();
+		}
 	}
 	else if (Id == Action::Create)
 	{
