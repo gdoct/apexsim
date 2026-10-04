@@ -35,6 +35,8 @@ pub struct LobbySessionInfo {
     pub conditions: SessionConditions,
     /// The race distance in laps, for the session browser and a spectator's HUD.
     pub lap_limit: u8,
+    /// A timed race's length in seconds (`lap_limit` is then 0).
+    pub race_seconds: Option<u32>,
     pub max_players: u8,
     pub current_player_count: u8,
     pub spectator_count: u8,
@@ -338,6 +340,7 @@ impl LobbyManager {
                 state: s.state,
                 conditions: s.conditions,
                 lap_limit: s.lap_limit,
+                race_seconds: s.race_seconds,
             })
             .collect()
     }
@@ -447,6 +450,7 @@ mod tests {
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
             lap_limit: 3,
+            race_seconds: None,
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -492,6 +496,7 @@ mod tests {
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
             lap_limit: 3,
+            race_seconds: None,
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -540,6 +545,7 @@ mod tests {
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
             lap_limit: 3,
+            race_seconds: None,
             max_players: 8,
             current_player_count: 2,
             spectator_count: 0,

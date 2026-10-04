@@ -125,6 +125,39 @@ namespace
 		}
 		return Worst >= 0.0f ? FApexHudValue::Of(Worst) : FApexHudValue();
 	}
+
+	/**
+	 * Laps to the flag for a car, the one it is on included; -1 when there
+	 * is no telling (no distance, or a timed race before the car has a lap
+	 * time). A race over laps counts down its distance. A timed race: one
+	 * once anyone has the flag (every car takes it at its next crossing),
+	 * to the final lap once the clock has run out, and before that as many
+	 * of the car's last laps as the clock still holds, rounded up.
+	 */
+	int32 HudLapsToFlag(const FApexHudInputs& In, const FApexTelemetryFrame& Frame, const FApexCarTelemetry& Car)
+	{
+		if (Car.FinishPosition > 0)
+		{
+			return 0;
+		}
+		if (Frame.HasRaceClock())
+		{
+			const bool bFlagOut = Frame.Cars.ContainsByPredicate(
+				[](const FApexCarTelemetry& Other) { return Other.FinishPosition > 0; });
+			if (bFlagOut)
+			{
+				return 1;
+			}
+			if (Frame.RaceFinalLap > 0)
+			{
+				return FMath::Max(1, Frame.RaceFinalLap - FMath::Max(1, Car.CurrentLap) + 1);
+			}
+			return Car.LastLapTimeMs > 0
+				? FMath::Max(1, FMath::CeilToInt(static_cast<double>(Frame.RaceLeftMs) / Car.LastLapTimeMs))
+				: -1;
+		}
+		return In.LapLimit > 0 ? FMath::Max(0, In.LapLimit - FMath::Max(0, Car.CurrentLap - 1)) : -1;
+	}
 }
 
 void FApexHudMemory::SampleLap(const FApexCarTelemetry& Local, float TrackLengthM)
@@ -554,14 +587,22 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	// --- Laps and timing ----------------------------------------------------
 
 	Out.Set(TEXT("lap.limit"), In.LapLimit);
+	// A timed race's clock is the server's: the time left, then the lap the
+	// leader takes the flag on.
+	const bool bTimed = Frame.HasRaceClock();
+	Out.Set(TEXT("race.timed"), bTimed);
+	Out.Set(TEXT("race.time_left_s"), bTimed ? FApexHudValue::Of(Frame.RaceLeftMs / 1000.0) : FApexHudValue());
+	Out.Set(TEXT("race.final_lap"), bTimed && Frame.RaceFinalLap > 0 ? FApexHudValue::Of(Frame.RaceFinalLap) : FApexHudValue());
 	if (Local)
 	{
 		Out.Set(TEXT("lap.current"), Local->CurrentLap);
 		// The counter keeps stepping on the cool-down lap after the flag.
 		Out.Set(TEXT("lap.display"), ApexRace::DisplayLap(Local->CurrentLap, In.LapLimit));
-		Out.Values.FindOrAdd(TEXT("lap.laps_left")) = In.LapLimit > 0
-			? FApexHudValue::Of(Local->FinishPosition > 0 ? 0 : FMath::Max(0, In.LapLimit - FMath::Max(0, Local->CurrentLap - 1)))
-			: FApexHudValue();
+		const int32 LapsToFlag = HudLapsToFlag(In, Frame, *Local);
+		Out.Values.FindOrAdd(TEXT("lap.laps_left")) = LapsToFlag >= 0 ? FApexHudValue::Of(LapsToFlag) : FApexHudValue();
+		// Certain only once a timed race's clock has run out.
+		const bool bLastKnown = !bTimed || Frame.RaceFinalLap > 0;
+		Out.Set(TEXT("lap.final"), LapsToFlag == 1 && bLastKnown);
 		Out.Set(TEXT("lap.time_s"), Local->CurrentLapTimeMs / 1000.0);
 		Out.Set(TEXT("lap.invalid"), Local->bLapInvalid);
 		Out.Values.FindOrAdd(TEXT("lap.last_s")) = HudSeconds(Local->LastLapTimeMs);
@@ -575,6 +616,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		{
 			Out.SetNone(Name);
 		}
+		Out.Set(TEXT("lap.final"), false);
 		Out.Set(TEXT("lap.invalid"), false);
 		Out.Set(TEXT("lap.last_invalid"), false);
 	}
@@ -782,9 +824,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 
 			Liters = FApexHudValue::Of(Local->FuelLiters);
 			State = TEXT("ok");
-			const int32 LapsLeft = In.LapLimit > 0 && Local->FinishPosition <= 0
-				? FMath::Max(0, In.LapLimit - FMath::Max(0, Local->CurrentLap - 1))
-				: -1;
+			const int32 LapsLeft = HudLapsToFlag(In, Frame, *Local);
 			if (Local->FuelLiters <= 0.0f)
 			{
 				State = TEXT("empty");

@@ -49,6 +49,13 @@ public:
 	UPROPERTY()
 	int32 LapLimit = 5;
 
+	/** A race this player creates runs for RaceMinutes instead of LapLimit laps. */
+	UPROPERTY()
+	bool bTimedRace = false;
+
+	UPROPERTY()
+	int32 RaceMinutes = 60;
+
 	UPROPERTY()
 	EApexGameMode StartingMode = EApexGameMode::FreePractice;
 

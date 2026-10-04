@@ -537,8 +537,14 @@ in `track-editor/core/src/circuit_style.rs`, keyed by the track stem:
 the Nordschleife gets German guard rail (`vangrail_*`) 3 / 4.5 m off the
 road and no Tecpro, a denser forest from 8.5 m, German signs (chevrons,
 km boards, `de_*`) instead of braking boards and hoardings, no floodlight
-ring and no pit lane; every other circuit is `CircuitStyle::DEFAULT`, the
-old rules. Road graffiti is an `.ats` `decals` layer (`graffiti/<name>`
+ring and no pit lane; Yas Marina is `DESERT` and Sepang, Interlagos and
+Mexico City `TROPICAL` (`Flora`: the belts are palms and scrub, or
+broadleaf with palms, instead of the temperate broadleaf / spruce /
+poplar mix); Sakhir is `SAKHIR`, desert flora in sparse clumps on
+`Ground::Sand` (no verge scatter, and `ats-export` gives the terrain,
+horizon and grass aprons `ground_set: "sand"` in `DESERT_SAND_COLOR`;
+look only, the server still drives the aprons as grass); every other
+circuit is `CircuitStyle::DEFAULT`, the old rules. Road graffiti is an `.ats` `decals` layer (`graffiti/<name>`
 PNGs from `scripts/content/props/gen_graffiti.py`), laid by `ats-dress`
 from the dossier's `graffiti` (`MANUAL_GRAFFITI`), baked road-hugging by
 `ats-export` (family `decal`) and drawn with a masked `M_ApexDecal`
@@ -1530,7 +1536,7 @@ synthetic streams (lumpy arrivals, lost frames, a stall, a 120 Hz server).
 A car is seeded onto the centerline when it is put on the grid
 (`physics::seed_track_progress`); lap 1 starts as a grid car crosses the line,
 or on green for pole. The server classifies a car (`finish_position`) when it
-completes `lap_limit` laps; once the winner is in, the session finishes when
+completes `lap_limit` laps (a timed race: see "Timed races"); once the winner is in, the session finishes when
 every car is classified or at a deadline of max(60 s, 2 x the winner's average
 lap). A finished human's car is driven by a server cool-down AI, because the
 last input received otherwise stays applied. `start_countdown_mode(_, Race)`
@@ -1538,6 +1544,66 @@ lines the field up on the grid again. On the client the HUD ranks finishers
 first (`ApexRace::RanksAhead`); cars still racing get a toast when P1 takes
 the flag, and 2.5 s after the local car finishes the root widget swaps the race
 view for a provisional `SessionResults` that re-sorts until the session ends.
+
+### Timed races (`race_seconds`, `RaceClock`, `GameSession::race_clock`)
+
+A race can run for a time instead of a lap count: the create screen's Race
+length row has a Laps / Time switch, the time stepping along
+`ApexRaceLength::LadderMinutes` (5 min to 24 h) with Sprint 20 min /
+Feature 1 h / Endurance 6 h / Twenty-four presets
+(`UApexMenuFlowSubsystem::bCreateTimedRace` / `CreateRaceMinutes`, kept on
+the profile; `EffectiveRaceSeconds()` is 0 for anything but a race). It
+goes out as `CreateSession.race_seconds` (left off the wire for a race
+over laps, so every lap race's create keeps its bytes), clamped to
+`MIN_RACE_SECONDS` (60) .. `MAX_RACE_SECONDS` (24 h) by
+`data::clamp_race_seconds`, kept on `RaceSession::race_seconds` with
+`lap_limit` 0, and echoed in `SessionJoined.RaceSeconds`
+(`UApexNetSubsystem::GetSessionRaceSeconds`) and `SessionSummary.RaceSeconds`
+(the browser row says "2 h").
+
+**The rule** is the endurance one: the clock starts on green; when it runs
+out (`update_race_clock`, every race tick before the classification) the
+leader's lap is the last (`RaceEnd::final_lap`), the first car to complete
+it wins, and from then on every car takes the flag the next time it crosses
+the line, a lap down or not (`RaceEnd::flag_laps`). Classification is laps
+completed, then crossing order (`assign_finish_positions`, one code path
+for both kinds: in a lap race every finisher has the same laps, so a place
+never changes once given; in a timed race a lapped car that crossed early
+drops behind a lead-lap car crossing after it). Should nobody on the lead
+lap complete it, a deadline set when the clock runs out (the leader's lap
+plus the usual grace) still ends the race. Fuel: a race's laps are the
+clock over the car's ideal lap (`racing_line::lap_time_s`, cached beside
+the lap fuel) plus the one the clock runs out on; `laps_left` (the AI's
+stop plan, a stop's refuel) counts the clock down by the car's last lap.
+An AI in a car the rules do not refuel never stops for fuel alone.
+
+**Wire**: `CompactTelemetry.race_clock` (`RaceClock { left_ms, final_lap }`,
+positional, appended and left off in every other session, so a lap race's
+frame is unchanged): the whole clock while counting in, 0 once out, and the
+final lap once known. Client: `FApexTelemetryFrame::RaceLeftMs` (-1 none) /
+`RaceFinalLap`; HUD data points `race.timed`, `race.time_left_s`,
+`race.final_lap`, `lap.final` (and `lap.laps_left` estimated from the car's
+last lap until the clock is out), the `fmt_clock` function, a Time left /
+Final lap panel in `race_state` and the clock in the spectator tower; the
+pause menu, lobby and results header say the length. `-ApexAutoRace
+-ApexRaceMinutes=N` for an unattended run. Golden bytes: `cargo test
+race_time_wire_format -- --nocapture` -> `ApexGolden::C_CreateSessionRaceTime`
+/ `S_SessionJoinedRaceTime`, `ApexUdpGolden::S_TelemetryCompactRaceClock`.
+Tests: `game_session::tests::test_timed_race_*`, `race_flow_test`
+`test_timed_race_flow_to_the_flag_monza` (four AI, a 200 s race at Monza),
+`session_conditions_test` `the_hosts_race_time_is_echoed_and_listed`,
+`ApexSim.Hud.Data.Build`, `ApexSim.Net.Protocol.Golden*`,
+`ApexSim.Net.Udp.GoldenDecode`.
+
+**Long sessions and the server's replay**: the live recorder used to keep a
+full telemetry frame for every car on every 240 Hz tick in memory until the
+race ended (about 2.7 GB an hour for 20 cars). It now records on the
+telemetry ticks and streams each frame over a bounded channel to a writer
+thread that zlib-compresses it into `replays/.recording_<session>.frames`
+(`replay::ReplayRecorder`); stopping writes the header and copies the
+compressed frames after it (replay format v3; v2 files still read), a full
+queue drops frames rather than stall the loop, and a session removed
+without finishing has its recording discarded (the 5 s orphan sweep).
 
 ### Lap timing: sectors, track limits and records (`laps.rs`, `records.rs`)
 
@@ -1684,7 +1750,8 @@ A promotional clip is filmed from a race nobody drove. `apexsim-replay`
 network; `--seed` fixes the AI ids and so the grid, and a seeded race
 replays bit for bit) and writes it as an ordinary replay (`replay.rs`,
 format v2: the header now carries the conditions, the start tick, the
-track stem and the lap length; the live server's recorder fills them too).
+track stem and the lap length; the live server's recorder fills them too;
+v3 compresses the frames after the header, see "Timed races").
 `find` ranks the moments the field runs through a stretch of the lap
 together (a dossier corner by name, or a station); `pose` works out a camera
 point beside the road (`--side outside|inside` of the bend, seated on the

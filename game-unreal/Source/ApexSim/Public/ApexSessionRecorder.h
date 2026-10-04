@@ -111,6 +111,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Results")
 	int32 GetLapLimit() const { return LapLimit; }
 
+	/** A timed race's length (ApexRaceLength); 0 for a race over laps. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Results")
+	int32 GetRaceSeconds() const { return RaceSeconds; }
+
 	/**
 	 * How much the local best beat the previous personal best by; positive means
 	 * an improvement. Zero when there was no previous time or no improvement.
@@ -147,6 +151,7 @@ private:
 	float TrackLengthM = 0.0f;
 	EApexGameMode RecordedMode = EApexGameMode::Lobby;
 	int32 LapLimit = 0;
+	int32 RaceSeconds = 0;
 	float PersonalBestDelta = 0.0f;
 	bool bRecording = false;
 };

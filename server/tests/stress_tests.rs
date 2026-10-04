@@ -499,6 +499,7 @@ impl TestClientMinimal {
             conditions: Default::default(),
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         };
         self.send_message(&msg).await?;
 
@@ -846,6 +847,7 @@ async fn run_multi_client_test(
         conditions: Default::default(),
         damage: Default::default(),
         ai_skill: None,
+        race_seconds: None,
     };
     clients[0].send_message(&create_msg).await?;
 

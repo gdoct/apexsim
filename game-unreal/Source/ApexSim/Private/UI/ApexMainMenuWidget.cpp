@@ -533,9 +533,10 @@ void UApexMainMenuWidget::RefreshHero()
 		SessionValueText->SetText(FText::FromString(Flow->CreateStartingMode == EApexGameMode::Hotlap
 			? UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode)
 			: FString::Printf(
-				TEXT("%s · %d laps · %d AI"),
+				TEXT("%s · %s · %d AI"),
 				*UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode),
-				Flow->CreateLapLimit,
+				*(Flow->bCreateTimedRace ? ApexRaceLength::Describe(Flow->CreateRaceMinutes * 60)
+					: FString::Printf(TEXT("%d laps"), Flow->CreateLapLimit)),
 				Flow->CreateAiCount)));
 	}
 
@@ -744,8 +745,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 	Flow->bAutoStartOnJoin = true;
 	Flow->AutoStartMode = Flow->CreateStartingMode;
 
-	UE_LOG(LogApexSim, Log, TEXT("Main menu start: track '%s', %d AI, %d laps, mode %d, %s"),
-		*Flow->GetPendingTrackId(), Flow->EffectiveAiCount(), Flow->EffectiveLapLimit(),
+	UE_LOG(LogApexSim, Log, TEXT("Main menu start: track '%s', %d AI, %d laps, %d s, mode %d, %s"),
+		*Flow->GetPendingTrackId(), Flow->EffectiveAiCount(), Flow->EffectiveLapLimit(), Flow->EffectiveRaceSeconds(),
 		static_cast<int32>(Flow->CreateStartingMode), *Flow->CreateConditions.Describe());
 
 	Net->CreateSession(
@@ -757,7 +758,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->CreateAllowedAssists,
 		Flow->CreateConditions,
 		Flow->CreateDamage,
-		Flow->CreateAiSkill);
+		Flow->CreateAiSkill,
+		Flow->EffectiveRaceSeconds());
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

@@ -209,10 +209,21 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	if (const FApexCarTelemetry* Local = Net->GetLatestTelemetry().Cars.FindByPredicate(
 			[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; }))
 	{
-		const int32 LapLimit = Flow ? Flow->CreateLapLimit : 0;
+		const FApexTelemetryFrame& Frame = Net->GetLatestTelemetry();
+		const int32 LapLimit = Frame.HasRaceClock() || !Flow ? 0 : Flow->CreateLapLimit;
 		Parts.Add(LapLimit > 0
 			? FString::Printf(TEXT("Lap %d / %d"), ApexRace::DisplayLap(Local->CurrentLap, LapLimit), LapLimit)
 			: FString::Printf(TEXT("Lap %d"), FMath::Max(1, Local->CurrentLap)));
+		// A timed race: the clock, then the lap that ends it.
+		if (Frame.HasRaceClock())
+		{
+			const int32 Left = (Frame.RaceLeftMs + 999) / 1000;
+			Parts.Add(Frame.RaceFinalLap > 0
+				? FString::Printf(TEXT("Ends on lap %d"), Frame.RaceFinalLap)
+				: Left >= 3600
+				? FString::Printf(TEXT("%d:%02d:%02d left"), Left / 3600, Left / 60 % 60, Left % 60)
+				: FString::Printf(TEXT("%d:%02d left"), Left / 60, Left % 60));
+		}
 		bOnTrackInHotlap = Net->GetGameMode() == EApexGameMode::Hotlap && !Local->bInGarage;
 	}
 	if (GarageRow)

@@ -263,6 +263,7 @@ when the component loads.
 | `fmt_split(s)` | seconds as a split, `27.431`; `--.---` for none |
 | `fmt_gap(s)`, `fmt_gap(s, false)` | a gap, `+0.412` (unsigned with `false`); `—` for none or over 999 s |
 | `fmt_delta(s)` | a signed delta, `-0.250`; `—` for `null` |
+| `fmt_clock(s)` | seconds as a countdown, rounded up: `23:45`, `1:23:45` past an hour, `0:00` when out of time; `--:--` for `null` |
 | `upper(t)`, `lower(t)` | case |
 | `str(x)`, `num(x)` | as text, as a number |
 | `mix(c1, c2, t)` | colour `c1` blended toward `c2` by `t` (0 to 1) |
@@ -352,6 +353,9 @@ swap places on screen every frame.
 | `race.position` | the local car's place, from 1 (*null* without a car) |
 | `race.car_count` | cars in the session |
 | `race.leader_lap` | the leader's lap, as `lap.display` (*null* with no cars) |
+| `race.timed` | the race runs to a clock rather than a lap count (the host picked a time on the create screen) |
+| `race.time_left_s` | a timed race's clock: all of it on the grid, counting down from the green light, 0 once it has run out (*null* in any other session) |
+| `race.final_lap` | the lap a timed race ends on: the leader's lap when the clock ran out. The first car to complete it wins and every car after it takes the flag at its next crossing (*null* while the clock runs, and outside a timed race) |
 | `gap.ahead_name`, `gap.behind_name` | the drivers either side (*null* at either end) |
 | `gap.ahead_s`, `gap.behind_s` | the gap to them in seconds at the local car's speed (*null* when the circuit's length is unknown) |
 
@@ -363,8 +367,9 @@ Lap times, sectors and track limits are the server's: it times every tick.
 |---|---|
 | `lap.current` | the local car's lap counter as sent (0 on the grid) |
 | `lap.display` | the lap to show ("lap 3"), held at the race distance on the cool-down lap |
-| `lap.limit` | race distance in laps, 0 when there is none (hotlap, practice) |
-| `lap.laps_left` | laps to the flag (*null* without a race distance) |
+| `lap.limit` | race distance in laps, 0 when there is none (hotlap, practice, a timed race) |
+| `lap.laps_left` | laps to the flag, the one in progress included; in a timed race an estimate from the car's last lap until the clock runs out, then exact (*null* without a race distance, or in a timed race before a lap is in) |
+| `lap.final` | the lap in progress is the last: one to go in a race over laps, or in a timed race once the clock has run out |
 | `lap.time_s` | the lap in progress |
 | `lap.invalid` | the lap in progress has been struck for leaving the track |
 | `lap.last_s`, `lap.last_invalid` | the last completed lap, and whether it was struck |

@@ -40,6 +40,7 @@ namespace
 		FmtSplit,
 		FmtGap,
 		FmtDelta,
+		FmtClock,
 		Upper,
 		Lower,
 		Str,
@@ -75,6 +76,7 @@ namespace
 		{TEXT("fmt_split"), EFunction::FmtSplit, 1, 1},
 		{TEXT("fmt_gap"), EFunction::FmtGap, 1, 2},
 		{TEXT("fmt_delta"), EFunction::FmtDelta, 1, 1},
+		{TEXT("fmt_clock"), EFunction::FmtClock, 1, 1},
 		{TEXT("upper"), EFunction::Upper, 1, 1},
 		{TEXT("lower"), EFunction::Lower, 1, 1},
 		{TEXT("str"), EFunction::Str, 1, 1},
@@ -934,6 +936,22 @@ FApexHudValue FApexHudExpr::Eval(int32 NodeIndex, const FApexHudScope& Scope) co
 		{
 			const FApexHudValue Value = Arg(0);
 			return FApexHudValue::Of(Value.IsNone() ? FString(TEXT("—")) : FString::Printf(TEXT("%+.3f"), Value.AsNumber()));
+		}
+		case EFunction::FmtClock:
+		{
+			// A countdown: whole seconds rounded up, so 0:00 means out of time.
+			const FApexHudValue Value = Arg(0);
+			if (Value.IsNone())
+			{
+				return FApexHudValue::Of(TEXT("--:--"));
+			}
+			const int64 Total = FMath::Max<int64>(0, static_cast<int64>(FMath::CeilToDouble(Value.AsNumber())));
+			const int64 Hours = Total / 3600;
+			const int64 Minutes = Total / 60 % 60;
+			const int64 Secs = Total % 60;
+			return FApexHudValue::Of(Hours > 0
+				? FString::Printf(TEXT("%lld:%02lld:%02lld"), Hours, Minutes, Secs)
+				: FString::Printf(TEXT("%lld:%02lld"), Minutes, Secs));
 		}
 		case EFunction::Upper:
 			return FApexHudValue::Of(Arg(0).AsString().ToUpper());

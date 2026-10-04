@@ -578,7 +578,7 @@
     },
     "shot-sunset-zoom.webp": {
       "src": "site/shots/night-lights.webp",
-      "sha256": "839075fd581e815695735c029a1f8211f9397e781ac5c35e1d9ca5a893b098fd",
+      "sha256": "0ec5e4cdeda2f3bf7bc396c5f66d34e942cf2861c874ea09df8b04397bd363e5",
       "params": {
         "width": 1920,
         "quality": 86
@@ -586,7 +586,7 @@
     },
     "shot-sunset.webp": {
       "src": "site/shots/night-lights.webp",
-      "sha256": "839075fd581e815695735c029a1f8211f9397e781ac5c35e1d9ca5a893b098fd",
+      "sha256": "0ec5e4cdeda2f3bf7bc396c5f66d34e942cf2861c874ea09df8b04397bd363e5",
       "params": {
         "width": 1000
       }

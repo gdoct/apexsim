@@ -331,12 +331,15 @@ void UApexSessionLobbyWidget::RefreshHeader()
 
 	if (FormatText)
 	{
-		FormatText->SetText(FText::FromString(Flow->EffectiveLapLimit() > 0
-			? FString::Printf(
-				TEXT("%s · %d LAPS"),
-				*UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode).ToUpper(),
-				Flow->CreateLapLimit)
-			: UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode).ToUpper()));
+		// A timed race as the session was made (a guest's own create
+		// settings say nothing about the host's); a lap count as before.
+		const FString Mode = UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode).ToUpper();
+		const int32 RaceSeconds = Net->GetSessionRaceSeconds();
+		FormatText->SetText(FText::FromString(RaceSeconds > 0
+			? FString::Printf(TEXT("%s · %s"), *Mode, *ApexRaceLength::Describe(RaceSeconds).ToUpper())
+			: Flow->EffectiveLapLimit() > 0
+			? FString::Printf(TEXT("%s · %d LAPS"), *Mode, Flow->CreateLapLimit)
+			: Mode));
 	}
 
 	if (SlotsText)

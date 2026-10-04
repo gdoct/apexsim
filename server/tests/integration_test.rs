@@ -136,6 +136,7 @@ impl TestClient {
             conditions: Default::default(),
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         };
 
         self.send_tcp_message(&msg).await?;

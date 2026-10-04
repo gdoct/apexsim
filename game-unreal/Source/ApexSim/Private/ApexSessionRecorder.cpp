@@ -43,13 +43,28 @@ void UApexSessionRecorder::BeginRecording()
 	{
 		TrackId = Flow->GetPendingTrackId();
 		LapLimit = Flow->EffectiveLapLimit();
+		RaceSeconds = Flow->EffectiveRaceSeconds();
 		RecordedMode = Flow->CreateStartingMode;
 
 		FApexTrackCatalogRow Row;
 		TrackLengthM = Flow->GetTrackCatalogRow(TrackId, Row) ? Row.LengthM : 0.0f;
 	}
 
-	UE_LOG(LogApexSim, Log, TEXT("Recording session on track '%s' (%d lap limit)"), *TrackId, LapLimit);
+	// The session as it was made, when there is one: a guest's own create
+	// settings say nothing about the host's race.
+	if (const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+	{
+		if (Net->IsInSession())
+		{
+			RaceSeconds = Net->GetSessionRaceSeconds();
+			if (RaceSeconds > 0)
+			{
+				LapLimit = 0;
+			}
+		}
+	}
+
+	UE_LOG(LogApexSim, Log, TEXT("Recording session on track '%s' (%d lap limit, %d s)"), *TrackId, LapLimit, RaceSeconds);
 }
 
 void UApexSessionRecorder::FinishRecording()

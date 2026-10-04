@@ -87,6 +87,11 @@ pub enum ClientMessage {
         /// field, novice to ace, when absent, and left off the wire then.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         ai_skill: Option<u8>,
+        /// A timed race: its length in seconds from the green light
+        /// (`data::clamp_race_seconds`), `lap_limit` then ignored. Absent
+        /// for a race over laps, and left off the wire then.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        race_seconds: Option<u32>,
     },
     JoinSession {
         #[serde(
@@ -271,6 +276,10 @@ pub struct SessionJoinedData {
     /// the mixed field (and absent from a server that predates the field).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ai_skill: Option<u8>,
+    /// A timed race's length in seconds; left off the wire for a race over
+    /// laps (and absent from a server that predates the field).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub race_seconds: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -598,6 +607,10 @@ pub struct SessionSummary {
     /// Appended; 0 from an older server.
     #[serde(default)]
     pub lap_limit: u8,
+    /// A timed race's length in seconds (`lap_limit` is then 0); left off
+    /// the wire for a race over laps.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub race_seconds: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -885,6 +898,23 @@ pub struct CompactTelemetry {
     pub game_mode: GameMode,
     pub countdown_ms: Option<u16>,
     pub car_states: Vec<CompactCarState>,
+    /// A timed race's clock (`GameSession::race_clock`). Appended, and left
+    /// off in every other session, so a lap race's frame keeps its bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub race_clock: Option<RaceClock>,
+}
+
+/// Where a timed race's clock stands, positional like the rest of
+/// `CompactTelemetry`: `[left_ms, final_lap]`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RaceClock {
+    /// Race time left, ms: the whole length until the green light, 0 once
+    /// it has run out.
+    pub left_ms: u32,
+    /// The lap the race ends on: 0 while the clock runs, then the leader's
+    /// lap when it ran out. The first car to complete it wins, and every
+    /// car after it takes the flag at its next crossing of the line.
+    pub final_lap: u16,
 }
 
 impl CompactCarState {
@@ -1630,6 +1660,7 @@ mod tests {
             car_states: (0..8u8)
                 .map(|i| CompactCarState::from_car_state(&state, i))
                 .collect(),
+            race_clock: None,
         });
 
         let named_bytes = rmp_serde::to_vec_named(&named).unwrap();
@@ -1770,6 +1801,7 @@ mod tests {
                 state: SessionState::Lobby,
                 conditions: SessionConditions::DEFAULT,
                 lap_limit: 5,
+                race_seconds: None,
             }],
             car_configs: vec![CarConfigSummary {
                 id: Uuid::nil(),
@@ -1968,6 +2000,7 @@ mod tests {
             game_mode: GameMode::Race,
             countdown_ms: None,
             car_states: vec![CompactCarState::from_car_state(&state, 0)],
+            race_clock: None,
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
@@ -2307,6 +2340,7 @@ mod tests {
             },
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -2350,6 +2384,7 @@ mod tests {
             },
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -2383,6 +2418,7 @@ mod tests {
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Reduced,
             ai_skill: None,
+            race_seconds: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionDamage: {}", hex(&create_bytes));
@@ -2399,6 +2435,7 @@ mod tests {
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Off,
             ai_skill: None,
+            race_seconds: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
@@ -2419,6 +2456,7 @@ mod tests {
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Full,
             ai_skill: None,
+            race_seconds: None,
         };
         let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
         assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
@@ -2429,6 +2467,101 @@ mod tests {
 
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION_DAMAGE);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_NO_DAMAGE);
+    }
+
+    /// A timed race: a create for two hours, the joined echo, and a
+    /// telemetry frame whose clock has run out with lap 37 the last. A race
+    /// over laps leaves every one of them off the wire. Pinned on the client
+    /// as `ApexGolden::C_CreateSessionRaceTime` / `S_SessionJoinedRaceTime`
+    /// and `ApexUdpGolden::S_TelemetryCompactRaceClock`; `cargo test
+    /// race_time_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_race_time_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let create = |race_seconds| ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds,
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create(Some(7200))).unwrap();
+        println!("C_CreateSessionRaceTime: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { race_seconds, .. } => {
+                assert_eq!(race_seconds, Some(7200))
+            }
+            _ => panic!("Wrong message type"),
+        }
+        let laps_bytes = rmp_serde::to_vec_named(&create(None)).unwrap();
+        assert!(!laps_bytes.windows(12).any(|w| w == b"race_seconds"));
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: Some(7200),
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedRaceTime: {}", hex(&joined_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.race_seconds, Some(7200)),
+            _ => panic!("Wrong message type"),
+        }
+
+        let frame = |race_clock| {
+            ServerMessage::TelemetryCompact(CompactTelemetry {
+                server_tick: 123_456,
+                session_state: SessionState::Racing,
+                game_mode: GameMode::Race,
+                countdown_ms: None,
+                car_states: vec![],
+                race_clock,
+            })
+        };
+        let clock_bytes = rmp_serde::to_vec(&frame(Some(RaceClock {
+            left_ms: 0,
+            final_lap: 37,
+        })))
+        .unwrap();
+        println!("S_TelemetryCompactRaceClock: {}", hex(&clock_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&clock_bytes).unwrap() {
+            ServerMessage::TelemetryCompact(t) => assert_eq!(
+                t.race_clock,
+                Some(RaceClock {
+                    left_ms: 0,
+                    final_lap: 37
+                })
+            ),
+            _ => panic!("Wrong message type"),
+        }
+        // No clock: the frame is the five fields it always was, and one
+        // without the sixth decodes as no clock.
+        let lap_race = rmp_serde::to_vec(&frame(None)).unwrap();
+        assert_eq!(lap_race.len() + 3, clock_bytes.len());
+        match rmp_serde::from_slice::<ServerMessage>(&lap_race).unwrap() {
+            ServerMessage::TelemetryCompact(t) => assert_eq!(t.race_clock, None),
+            _ => panic!("Wrong message type"),
+        }
+
+        assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION_RACE_TIME);
+        assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_RACE_TIME);
+        assert_eq!(clock_bytes, GOLDEN_S_TELEMETRY_COMPACT_RACE_CLOCK);
     }
 
     /// The AI field's level: a create that picks one and the joined echo.
@@ -2455,6 +2588,7 @@ mod tests {
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Full,
             ai_skill: Some(95),
+            race_seconds: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAiSkill: {}", hex(&create_bytes));
@@ -2471,6 +2605,7 @@ mod tests {
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Full,
             ai_skill: Some(95),
+            race_seconds: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAiSkill: {}", hex(&joined_bytes));
@@ -2491,6 +2626,7 @@ mod tests {
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Full,
             ai_skill: None,
+            race_seconds: None,
         };
         let mixed_bytes = rmp_serde::to_vec_named(&mixed).unwrap();
         assert!(!mixed_bytes.windows(8).any(|w| w == b"ai_skill"));
@@ -2535,6 +2671,7 @@ mod tests {
             conditions: air,
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -2562,6 +2699,7 @@ mod tests {
             conditions: air,
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -2902,6 +3040,51 @@ mod tests {
         0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3, 0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F,
         0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03,
         0x0C, 0xA6, 0x64, 0x61, 0x6D, 0x61, 0x67, 0x65, 0x01,
+    ];
+    const GOLDEN_C_CREATE_SESSION_RACE_TIME: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x65,
+        0x73, 0x73, 0x69, 0x6F, 0x6E, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x88, 0xAF, 0x74, 0x72, 0x61,
+        0x63, 0x6B, 0x5F, 0x63, 0x6F, 0x6E, 0x66, 0x69, 0x67, 0x5F, 0x69, 0x64, 0xD9, 0x24, 0x61,
+        0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x2D, 0x62, 0x62, 0x62, 0x62, 0x2D, 0x63, 0x63,
+        0x63, 0x63, 0x2D, 0x64, 0x64, 0x64, 0x64, 0x2D, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65,
+        0x65, 0x65, 0x65, 0x65, 0x65, 0xAB, 0x6D, 0x61, 0x78, 0x5F, 0x70, 0x6C, 0x61, 0x79, 0x65,
+        0x72, 0x73, 0x08, 0xA8, 0x61, 0x69, 0x5F, 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x03, 0xA9, 0x6C,
+        0x61, 0x70, 0x5F, 0x6C, 0x69, 0x6D, 0x69, 0x74, 0x05, 0xAC, 0x73, 0x65, 0x73, 0x73, 0x69,
+        0x6F, 0x6E, 0x5F, 0x6B, 0x69, 0x6E, 0x64, 0x00, 0xAF, 0x61, 0x6C, 0x6C, 0x6F, 0x77, 0x65,
+        0x64, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73, 0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3,
+        0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72,
+        0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72, 0x62, 0x6F,
+        0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73,
+        0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69, 0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E,
+        0x65, 0xC3, 0xAA, 0x63, 0x6F, 0x6E, 0x64, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x73, 0x82, 0xA7,
+        0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3, 0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F,
+        0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03,
+        0x0C, 0xAC, 0x72, 0x61, 0x63, 0x65, 0x5F, 0x73, 0x65, 0x63, 0x6F, 0x6E, 0x64, 0x73, 0xCD,
+        0x1C, 0x20,
+    ];
+    const GOLDEN_S_SESSION_JOINED_RACE_TIME: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4A,
+        0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x86, 0xA9, 0x53, 0x65, 0x73,
+        0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
+        0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66, 0x2D, 0x30, 0x31, 0x32,
+        0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0xB0,
+        0x59, 0x6F, 0x75, 0x72, 0x47, 0x72, 0x69, 0x64, 0x50, 0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F,
+        0x6E, 0x03, 0xAB, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4B, 0x69, 0x6E, 0x64, 0x00,
+        0xAE, 0x41, 0x6C, 0x6C, 0x6F, 0x77, 0x65, 0x64, 0x41, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73,
+        0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E,
+        0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72, 0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F,
+        0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69,
+        0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69,
+        0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC3, 0xAA, 0x43, 0x6F, 0x6E, 0x64, 0x69, 0x74,
+        0x69, 0x6F, 0x6E, 0x73, 0x82, 0xA7, 0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3,
+        0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F, 0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E,
+        0x75, 0x74, 0x65, 0x73, 0xCD, 0x03, 0x0C, 0xAB, 0x52, 0x61, 0x63, 0x65, 0x53, 0x65, 0x63,
+        0x6F, 0x6E, 0x64, 0x73, 0xCD, 0x1C, 0x20,
+    ];
+    const GOLDEN_S_TELEMETRY_COMPACT_RACE_CLOCK: &[u8] = &[
+        0x92, 0xB0, 0x54, 0x65, 0x6C, 0x65, 0x6D, 0x65, 0x74, 0x72, 0x79, 0x43, 0x6F, 0x6D, 0x70,
+        0x61, 0x63, 0x74, 0x96, 0xCE, 0x00, 0x01, 0xE2, 0x40, 0x02, 0x07, 0xC0, 0x90, 0x92, 0x00,
+        0x25,
     ];
     const GOLDEN_C_CREATE_SESSION_AI_SKILL: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x65,

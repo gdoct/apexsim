@@ -148,6 +148,22 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// A timed race's clock: a sixth field after the cars.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("TelemetryCompact with a race clock decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRaceClock, Message, Error)))
+		{
+			const FApexTelemetryFrame& Frame = Message.Telemetry;
+			TestEqual(TEXT("clock frame tick"), Frame.ServerTick, static_cast<int64>(123456));
+			TestEqual(TEXT("clock frame has no cars"), Frame.Cars.Num(), 0);
+			TestTrue(TEXT("clock frame has a race clock"), Frame.HasRaceClock());
+			TestEqual(TEXT("race time left"), Frame.RaceLeftMs, 0);
+			TestEqual(TEXT("final lap"), Frame.RaceFinalLap, 37);
+		}
+	}
+
 	// The real prize: positional telemetry.
 	{
 		FApexServerMessage Message;
@@ -162,6 +178,7 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("session state"), Frame.SessionState, EApexSessionState::Racing);
 			TestEqual(TEXT("game mode"), Frame.GameMode, EApexGameMode::Race);
 			TestEqual(TEXT("countdown is absent"), Frame.CountdownMs, -1);
+			TestFalse(TEXT("a lap race has no race clock"), Frame.HasRaceClock());
 
 			if (TestEqual(TEXT("two cars"), Frame.Cars.Num(), 2))
 			{

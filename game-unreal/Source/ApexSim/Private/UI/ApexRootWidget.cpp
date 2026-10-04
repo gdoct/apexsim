@@ -1480,6 +1480,14 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	Flow->SetPendingTrack(Track.Id);
 	Flow->CreateLapLimit = AutoRaceLaps;
 	Flow->CreateStartingMode = AutoRaceMode;
+	// -ApexRaceMinutes=N: a timed race of N minutes instead of -ApexLaps.
+	int32 RaceMinutes = 0;
+	FParse::Value(FCommandLine::Get(), TEXT("ApexRaceMinutes="), RaceMinutes);
+	Flow->bCreateTimedRace = RaceMinutes > 0;
+	if (RaceMinutes > 0)
+	{
+		Flow->CreateRaceMinutes = RaceMinutes;
+	}
 
 	UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: creating '%s' on '%s' with %d AI over %d lap(s)"),
 		*Car.Name, *Track.Name, AutoRaceAiCount, AutoRaceLaps);
@@ -1566,7 +1574,7 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 		AiSkill = ApexAiSkill::Clamp(AiSkill);
 	}
 	Net->CreateSession(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
-		AiSkill);
+		AiSkill, Flow->EffectiveRaceSeconds());
 }
 
 void UApexRootWidget::HandleUdpReady()

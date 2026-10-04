@@ -268,9 +268,10 @@ void UApexSessionResultsWidget::RefreshTable()
 	if (HeaderFormatText)
 	{
 		HeaderFormatText->SetText(FText::FromString(FString::Printf(
-			TEXT("%s · %d LAPS · %d DRIVERS"),
+			TEXT("%s · %s · %d DRIVERS"),
 			*UApexMenuFlowSubsystem::GetGameModeName(Recorder->GetGameMode()).ToUpper(),
-			Recorder->GetLapLimit(),
+			*(Recorder->GetRaceSeconds() > 0 ? ApexRaceLength::Describe(Recorder->GetRaceSeconds()).ToUpper()
+				: FString::Printf(TEXT("%d LAPS"), Recorder->GetLapLimit())),
 			Recorder->GetResults().Num())));
 	}
 

@@ -46,6 +46,22 @@
           ]
         }]
       },
+      // A timed race's clock, then the lap that ends it: the leader's lap
+      // when the time ran out, lit on the accent.
+      {
+        "type": "panel", "visible": "=race.timed", "width": 150, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0],
+        "padding": [20, 9], "background": "=has(race.final_lap) ? 'accent' : 'surface'",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "halign": "center", "text": "=lap.final ? 'Final lap' : (has(race.final_lap) ? 'Last lap' : 'Time left')",
+              "color": "=has(race.final_lap) ? alpha('on_accent', 0.7) : 'text_muted'" },
+            { "type": "text", "halign": "center", "margin": [0, 2, 0, 0], "font": "display", "size": 34,
+              "color": "=has(race.final_lap) ? 'on_accent' : 'text'",
+              "text": "=has(race.final_lap) ? 'LAP ' + race.final_lap : fmt_clock(race.time_left_s)" }
+          ]
+        }]
+      },
       // The gaps name their rival: a bare number does not tell you who you are racing.
       {
         "type": "panel", "width": 200, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9], "background": "surface",

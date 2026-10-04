@@ -273,3 +273,104 @@ fn test_race_flow_countdown_to_finish_monza() {
         );
     }
 }
+
+/// A timed race, start to flag, on the AI: the clock runs out during the
+/// leader's second lap, that lap is the last, the winner takes the flag on
+/// completing it, every other car at its next crossing, and the result is
+/// ordered by laps completed. The telemetry's clock counts down to zero and
+/// then names the last lap.
+#[test]
+fn test_timed_race_flow_to_the_flag_monza() {
+    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
+        .expect("failed to load Monza");
+    let car = CarConfig::default();
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car.clone());
+
+    let skills = [105u8, 96, 88, 80];
+    let ai_profiles: Vec<AiDriverProfile> = skills
+        .iter()
+        .enumerate()
+        .map(|(i, &skill)| {
+            let mut p = AiDriverProfile::new(format!("Timed AI {}", i), skill);
+            p.id = fixed_uuid(4000 + i as u128);
+            p
+        })
+        .collect();
+    let ai_ids: Vec<PlayerId> = ai_profiles.iter().map(|p| p.id).collect();
+
+    let race_seconds = 200;
+    let mut session = RaceSession::new(fixed_uuid(1), track.id, SessionKind::Multiplayer, 8, 4, 0);
+    session.race_seconds = Some(race_seconds);
+    let mut gs = GameSession::with_ai_profiles(session, track, car_configs, ai_profiles);
+    gs.spawn_ai_drivers();
+    gs.start_countdown_mode(3, GameMode::Race);
+    assert_eq!(
+        gs.get_compact_telemetry().race_clock.map(|c| c.left_ms),
+        Some(race_seconds * 1000),
+        "the whole clock while counting in"
+    );
+
+    let mut flag_laps: HashMap<PlayerId, u16> = HashMap::new();
+    let mut last_left_ms = u32::MAX;
+    let mut final_lap = 0u16;
+    for _ in 0..(240u32 * 1800) {
+        let inputs: HashMap<PlayerId, PlayerInputData> = ai_ids
+            .iter()
+            .map(|id| (*id, gs.generate_ai_input(id)))
+            .collect();
+        gs.tick(&inputs);
+        if gs.session.game_mode == GameMode::Race {
+            let clock = gs.get_compact_telemetry().race_clock.expect("a clock");
+            assert!(clock.left_ms <= last_left_ms, "the clock only counts down");
+            last_left_ms = clock.left_ms;
+            if clock.final_lap > 0 {
+                assert_eq!(clock.left_ms, 0);
+                final_lap = clock.final_lap;
+            }
+        }
+        for (id, state) in &gs.session.participants {
+            if state.finish_position.is_some() {
+                flag_laps.entry(*id).or_insert(state.current_lap - 1);
+            }
+        }
+        if gs.session.state == SessionState::Finished {
+            break;
+        }
+    }
+
+    assert_eq!(
+        gs.session.state,
+        SessionState::Finished,
+        "the race must end"
+    );
+    assert!(final_lap >= 2, "the clock ran out during lap {final_lap}");
+    let mut result: Vec<(u8, u16)> = gs
+        .session
+        .participants
+        .iter()
+        .map(|(id, s)| {
+            (
+                s.finish_position.expect("every car classified"),
+                flag_laps[id],
+            )
+        })
+        .collect();
+    result.sort_unstable();
+    println!("Timed race result (position, laps): {result:?}, final lap {final_lap}");
+    assert_eq!(
+        result.iter().map(|r| r.0).collect::<Vec<_>>(),
+        vec![1, 2, 3, 4]
+    );
+    assert_eq!(result[0].1, final_lap, "the winner completed the last lap");
+    assert!(
+        result.windows(2).all(|w| w[0].1 >= w[1].1),
+        "ordered by laps completed: {result:?}"
+    );
+    assert!(
+        result
+            .iter()
+            .all(|r| r.1 <= final_lap && r.1 + 2 >= final_lap),
+        "nobody runs past the flag: {result:?}"
+    );
+}

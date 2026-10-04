@@ -324,6 +324,7 @@ async fn relocate_is_refused_in_practice_and_a_new_driver_has_no_ghost() {
             conditions: SessionConditions::default(),
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         })
         .await?;
         host.wait_for(|m| match m {

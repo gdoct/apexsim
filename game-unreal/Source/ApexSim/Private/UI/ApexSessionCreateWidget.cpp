@@ -115,6 +115,16 @@ namespace
 		{ TEXT("Sprint"), 3 }, { TEXT("Short"), 5 }, { TEXT("Feature"), 12 }, { TEXT("Endurance"), 30 },
 	};
 
+	/** A timed race's quick picks, minutes. */
+	struct FDurationPreset
+	{
+		const TCHAR* Label;
+		int32 Minutes;
+	};
+	const FDurationPreset DurationPresets[] = {
+		{ TEXT("Sprint"), 20 }, { TEXT("Feature"), 60 }, { TEXT("Endurance"), 6 * 60 }, { TEXT("Twenty-four"), 24 * 60 },
+	};
+
 	/** Quick picks for the clock on the model day: sunrise is just after
 	 * five, sunset a little before nine (ApexSky). */
 	struct FTimePreset
@@ -362,9 +372,11 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 	if (ActiveTab == 0)
 	{
 		AddAll(ModeButtons);
+		AddAll(LengthUnitButtons);
 		Out.Add(LapsMinus);
 		Out.Add(LapsPlus);
-		AddAll(LapPresetButtons);
+		const UApexMenuFlowSubsystem* Flow = GetFlow();
+		AddAll(Flow && Flow->bCreateTimedRace ? DurationPresetButtons : LapPresetButtons);
 		Out.Add(FieldMinus);
 		Out.Add(FieldPlus);
 		Out.Add(AiMinus);
@@ -930,10 +942,27 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		LengthInfoText = Info;
 
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+
+		// Laps or a time: the stepper and the presets follow the pick.
+		LengthUnitButtons.Reset();
+		for (const TCHAR* Unit : { TEXT("Laps"), TEXT("Time") })
+		{
+			FApexButtonSpec Spec;
+			Spec.Label = Unit;
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.bCentreLabel = true;
+			Spec.LabelSize = 16.0f;
+			Spec.Height = 62.0f;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Button, 84.0f, 62.0f),
+				FMargin(LengthUnitButtons.Num() == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+			LengthUnitButtons.Add(Button);
+		}
+
 		UApexButtonWidget* Minus = nullptr;
 		UApexButtonWidget* Plus = nullptr;
 		UTextBlock* Value = nullptr;
-		ApexUI::AddH(Row, MakeStepper(Minus, Value, Plus, 62.0f, 130.0f, 40.0f), FMargin(), VAlign_Fill);
+		ApexUI::AddH(Row, MakeStepper(Minus, Value, Plus, 62.0f, 130.0f, 40.0f), FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 		LapsMinus = Minus;
 		LapsPlus = Plus;
 		LapsValueText = Value;
@@ -950,6 +979,20 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			Spec.Height = 62.0f;
 			UApexButtonWidget* Button = MakeButton(Spec);
 			LapPresetButtons.Add(Button);
+			ApexUI::AddH(Row, Button, FMargin(Index == 0 ? 12.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+		DurationPresetButtons.Reset();
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(DurationPresets); ++Index)
+		{
+			FApexButtonSpec Spec;
+			Spec.Label = DurationPresets[Index].Label;
+			Spec.SubLabel = ApexRaceLength::Describe(DurationPresets[Index].Minutes * 60);
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.bCentreLabel = true;
+			Spec.LabelSize = 16.0f;
+			Spec.Height = 62.0f;
+			UApexButtonWidget* Button = MakeButton(Spec);
+			DurationPresetButtons.Add(Button);
 			ApexUI::AddH(Row, Button, FMargin(Index == 0 ? 12.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 		}
 		ApexUI::AddV(Section, ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 62.0f));
@@ -1649,34 +1692,71 @@ void UApexSessionCreateWidget::RefreshSettings()
 	{
 		LengthSection->SetVisibility(bRace ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
+	const bool bTimed = Flow->bCreateTimedRace;
+	const TArray<int32>& Ladder = ApexRaceLength::LadderMinutes();
+	for (int32 Index = 0; Index < LengthUnitButtons.Num(); ++Index)
+	{
+		if (LengthUnitButtons[Index])
+		{
+			LengthUnitButtons[Index]->SetSelected((Index == 1) == bTimed);
+		}
+	}
 	if (LapsValueText)
 	{
-		LapsValueText->SetText(FText::AsNumber(Flow->CreateLapLimit));
+		// "1 h 30" does not fit at the size of a lap count.
+		LapsValueText->SetFont(ApexUI::Font::Display(bTimed ? 26.0f : 40.0f));
+		LapsValueText->SetText(bTimed
+			? FText::FromString(ApexRaceLength::Describe(Flow->CreateRaceMinutes * 60))
+			: FText::AsNumber(Flow->CreateLapLimit));
 	}
 	for (int32 Index = 0; Index < LapPresetButtons.Num(); ++Index)
 	{
 		if (LapPresetButtons[Index])
 		{
+			LapPresetButtons[Index]->SetVisibility(bTimed ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 			LapPresetButtons[Index]->SetSelected(LapPresets[Index].Laps == Flow->CreateLapLimit);
 		}
 	}
-	if (LapsMinus) { LapsMinus->SetIsEnabled(Flow->CreateLapLimit > 1); }
-	if (LapsPlus)  { LapsPlus->SetIsEnabled(Flow->CreateLapLimit < LapsCeiling); }
+	for (int32 Index = 0; Index < DurationPresetButtons.Num(); ++Index)
+	{
+		if (DurationPresetButtons[Index])
+		{
+			DurationPresetButtons[Index]->SetVisibility(bTimed ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+			DurationPresetButtons[Index]->SetSelected(DurationPresets[Index].Minutes == Flow->CreateRaceMinutes);
+		}
+	}
+	if (LapsMinus) { LapsMinus->SetIsEnabled(bTimed ? Flow->CreateRaceMinutes > Ladder[0] : Flow->CreateLapLimit > 1); }
+	if (LapsPlus)  { LapsPlus->SetIsEnabled(bTimed ? Flow->CreateRaceMinutes < Ladder.Last() : Flow->CreateLapLimit < LapsCeiling); }
 	if (LengthInfoText)
 	{
-		// The distance from the track's length; the time only from a lap this
-		// player has actually driven here. No personal best, no estimate.
+		// The distance from the track's length; the time (or a timed race's
+		// laps) only from a lap this player has actually driven here. No
+		// personal best, no estimate.
 		TArray<FString> Parts;
 		float BestSeconds = 0.0f;
-		if (Flow->GetBestLapSeconds(Flow->GetPendingTrackId(), BestSeconds) && BestSeconds > 0.0f)
+		const bool bHasBest = Flow->GetBestLapSeconds(Flow->GetPendingTrackId(), BestSeconds) && BestSeconds > 0.0f;
+		if (bTimed)
 		{
-			const int32 Minutes = FMath::Max(1, FMath::RoundToInt(BestSeconds * Flow->CreateLapLimit / 60.0f));
-			Parts.Add(FString::Printf(TEXT("≈ %d MIN AT YOUR BEST"), Minutes));
+			if (bHasBest)
+			{
+				// The clock's laps, and the one it runs out on.
+				const int32 Laps = FMath::CeilToInt(Flow->CreateRaceMinutes * 60.0f / BestSeconds) + 1;
+				Parts.Add(FString::Printf(TEXT("≈ %d LAPS AT YOUR BEST"), Laps));
+			}
+			Parts.Add(TEXT("THEN THE LEADER'S LAP"));
 		}
-		FApexTrackCatalogRow Row;
-		if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) && Row.LengthM > 0.0f)
+		else
 		{
-			Parts.Add(FString::Printf(TEXT("%.1f KM"), Row.LengthM * Flow->CreateLapLimit / 1000.0f));
+			if (bHasBest)
+			{
+				const int32 Minutes = FMath::Max(1, FMath::RoundToInt(BestSeconds * Flow->CreateLapLimit / 60.0f));
+				Parts.Add(FString::Printf(TEXT("≈ %d MIN AT YOUR BEST"), Minutes));
+			}
+			FApexTrackCatalogRow Row;
+			if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) && Row.LengthM > 0.0f)
+			{
+				Parts.Add(FString::Printf(TEXT("%.1f KM"), Row.LengthM * Flow->CreateLapLimit / 1000.0f));
+			}
 		}
 		LengthInfoText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · "))));
 	}
@@ -2143,7 +2223,7 @@ void UApexSessionCreateWidget::RefreshFooter()
 		Parts.Add(FString(ModeLabel(Mode)).ToUpper());
 		if (Mode == EApexGameMode::Race)
 		{
-			Parts.Add(FString::Printf(TEXT("%d LAPS"), Flow->CreateLapLimit));
+			Parts.Add(Flow->DescribeRaceLength().ToUpper());
 		}
 		if (Mode != EApexGameMode::Hotlap)
 		{
@@ -2330,9 +2410,9 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Flow->bAutoStartOnJoin = false;
 		Flow->SaveProfile();
 
-		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI at %d, %d laps, kind %d, %d assists locked, %s, damage %d"),
+		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI at %d, %d laps, %d s, kind %d, %d assists locked, %s, damage %d"),
 			*Flow->GetPendingTrackId(), Flow->CreateMaxPlayers, Flow->EffectiveAiCount(), Flow->CreateAiSkill,
-			Flow->EffectiveLapLimit(), static_cast<int32>(Flow->CreateSessionKind),
+			Flow->EffectiveLapLimit(), Flow->EffectiveRaceSeconds(), static_cast<int32>(Flow->CreateSessionKind),
 			Flow->CreateAllowedAssists.CountLocked(), *Flow->CreateConditions.Describe(),
 			static_cast<int32>(Flow->CreateDamage));
 
@@ -2345,7 +2425,8 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->CreateAllowedAssists,
 			Flow->CreateConditions,
 			Flow->CreateDamage,
-			Flow->CreateAiSkill);
+			Flow->CreateAiSkill,
+			Flow->EffectiveRaceSeconds());
 		return;
 	}
 
@@ -2362,15 +2443,35 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Changed();
 		return;
 	}
+	if (const int32 Unit = ApexNav::IndexOf(LengthUnitButtons, Button); Unit != INDEX_NONE)
+	{
+		Flow->bCreateTimedRace = Unit == 1;
+		Changed();
+		return;
+	}
 	if (Button == LapsMinus || Button == LapsPlus)
 	{
-		Flow->CreateLapLimit = FMath::Clamp(Flow->CreateLapLimit + (Button == LapsPlus ? 1 : -1), 1, LapsCeiling);
+		const int32 Step = Button == LapsPlus ? 1 : -1;
+		if (Flow->bCreateTimedRace)
+		{
+			Flow->CreateRaceMinutes = ApexRaceLength::StepMinutes(Flow->CreateRaceMinutes, Step);
+		}
+		else
+		{
+			Flow->CreateLapLimit = FMath::Clamp(Flow->CreateLapLimit + Step, 1, LapsCeiling);
+		}
 		Changed();
 		return;
 	}
 	if (const int32 Laps = ApexNav::IndexOf(LapPresetButtons, Button); Laps != INDEX_NONE)
 	{
 		Flow->CreateLapLimit = LapPresets[Laps].Laps;
+		Changed();
+		return;
+	}
+	if (const int32 Duration = ApexNav::IndexOf(DurationPresetButtons, Button); Duration != INDEX_NONE)
+	{
+		Flow->CreateRaceMinutes = DurationPresets[Duration].Minutes;
 		Changed();
 		return;
 	}

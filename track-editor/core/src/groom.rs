@@ -43,7 +43,7 @@ use std::f32::consts::TAU;
 
 use crate::ats::{AtsScene, Prop, PropKind, Side, SurfaceKind};
 use crate::barriers;
-use crate::circuit_style::{CircuitStyle, Rail, RoadSigns, TreeBelt};
+use crate::circuit_style::{CircuitStyle, Flora, Ground, Rail, RoadSigns, TreeBelt};
 use crate::dem::DemFile;
 use crate::layout::{Layout, Wood};
 use crate::props;
@@ -146,6 +146,22 @@ const MIXED: [&str; 5] = [
     "poplar",
     "bush_cluster",
 ];
+/// [`Flora::Desert`]: the ornamental (date) palm the Gulf circuits plant
+/// along their roads, the stouter oil palm and scrub.
+const DESERT: [&str; 4] = [
+    "palm_ornamental",
+    "palm_ornamental",
+    "palm_oil",
+    "bush_cluster",
+];
+/// [`Flora::Tropical`]: broadleaf with palms among it, two in five.
+const TROPICAL: [&str; 5] = [
+    "broadleaf_m",
+    "broadleaf_l",
+    "palm_oil",
+    "palm_ornamental",
+    "bush_cluster",
+];
 
 /// The near-view versions of the two commonest species, for the band a
 /// driver actually looks into. Every species is a leaf-card tree now
@@ -168,6 +184,8 @@ fn is_tree_pass_asset(asset: &str) -> bool {
         || BROADLEAF.contains(&asset)
         || NEEDLELEAF.contains(&asset)
         || MIXED.contains(&asset)
+        || DESERT.contains(&asset)
+        || TROPICAL.contains(&asset)
         || NEAR_TREES.iter().any(|(_, near)| *near == asset)
         || SCATTER.contains(&asset)
 }
@@ -187,12 +205,15 @@ fn near_variant(asset: &str) -> &str {
         .map_or(asset, |(_, near)| *near)
 }
 
-/// The species for a tree, from the wood it stands in and its own hash.
-fn tree_asset(leaf: Option<&str>, roll: f32) -> &'static str {
-    let set: &[&'static str] = match leaf {
-        Some("broadleaved") => &BROADLEAF,
-        Some("needleleaved") => &NEEDLELEAF,
-        _ => &MIXED,
+/// The species for a tree, from the circuit's flora, the wood it stands
+/// in and its own hash.
+fn tree_asset(flora: Flora, leaf: Option<&str>, roll: f32) -> &'static str {
+    let set: &[&'static str] = match (flora, leaf) {
+        (Flora::Desert, _) => &DESERT,
+        (_, Some("needleleaved")) => &NEEDLELEAF,
+        (Flora::Tropical, _) => &TROPICAL,
+        (Flora::Temperate, Some("broadleaved")) => &BROADLEAF,
+        (Flora::Temperate, _) => &MIXED,
     };
     set[((roll * set.len() as f32) as usize).min(set.len() - 1)]
 }
@@ -974,13 +995,19 @@ pub fn groom_props_with_dem(
         tree_density(track),
         layout.map(|l| l.woods.as_slice()).unwrap_or(&[]),
         &style.trees,
+        style.flora,
     );
+    // Green clumps and wildflowers on a desert floor would undo it.
+    let cover_density = match style.ground {
+        Ground::Grass => tree_density(track),
+        Ground::Sand => 0.0,
+    };
     trees.extend(lay_ground_cover(
         &path,
         &terrain,
         &surfaces,
         lane.as_ref(),
-        tree_density(track),
+        cover_density,
     ));
     report.trees = trees.len();
     props.extend(adopt(
@@ -2430,6 +2457,7 @@ fn lay_tree_belts(
     density: f32,
     woods: &[Wood],
     belt: &TreeBelt,
+    flora: Flora,
 ) -> Vec<Prop> {
     const GRID_M: f32 = TREE_PROP_CLEAR_M;
     let grid_key = |x: f32, y: f32| ((x / GRID_M).floor() as i64, (y / GRID_M).floor() as i64);
@@ -2531,7 +2559,7 @@ fn lay_tree_belts(
                 planted.entry((gx, gy)).or_default().push((pos.0, pos.1));
                 // Within the near band the species is the detailed one;
                 // behind it, the blob.
-                let species = tree_asset(leaf, hash01(&tree, 5));
+                let species = tree_asset(flora, leaf, hash01(&tree, 5));
                 let asset = if beyond <= TREE_NEAR_VIEW_M {
                     near_variant(species)
                 } else {
@@ -2755,6 +2783,37 @@ mod tests {
     use super::*;
     use crate::ats::{Prop, Surface};
     use crate::track_data::TrackNode;
+
+    #[test]
+    fn the_flora_picks_the_species() {
+        let rolls = (0..100).map(|i| i as f32 / 100.0);
+        let planted = |flora, leaf| {
+            rolls
+                .clone()
+                .map(|r| tree_asset(flora, leaf, r))
+                .collect::<Vec<_>>()
+        };
+        // No spruce or poplar in a desert, whatever the wood is mapped as.
+        for leaf in [None, Some("mixed"), Some("needleleaved")] {
+            let desert = planted(Flora::Desert, leaf);
+            assert!(desert.iter().all(|a| DESERT.contains(a)), "{desert:?}");
+            assert!(desert.iter().any(|a| a.starts_with("palm_")));
+        }
+        let tropical = planted(Flora::Tropical, None);
+        assert!(tropical.iter().any(|a| a.starts_with("palm_")));
+        assert!(!tropical.iter().any(|a| NEEDLELEAF.contains(a)));
+        assert!(planted(Flora::Tropical, Some("needleleaved"))
+            .iter()
+            .all(|a| NEEDLELEAF.contains(a)));
+        assert!(!planted(Flora::Temperate, None)
+            .iter()
+            .any(|a| a.starts_with("palm_")));
+        // The pass owns what it plants, and the kit has it.
+        for asset in DESERT.iter().chain(&TROPICAL) {
+            assert!(is_tree_pass_asset(asset), "{asset}");
+            assert!(props::resolve(PropKind::Tree, asset).is_some(), "{asset}");
+        }
+    }
 
     fn node(x: f32, y: f32, z: f32) -> TrackNode {
         TrackNode {

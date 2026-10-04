@@ -83,6 +83,7 @@ pub(crate) async fn handle_message(
             conditions,
             damage,
             ai_skill,
+            race_seconds,
         } => {
             handle_create_session(
                 ctx,
@@ -96,6 +97,7 @@ pub(crate) async fn handle_message(
                 conditions,
                 damage,
                 ai_skill,
+                race_seconds,
             )
             .await;
         }
@@ -262,6 +264,7 @@ async fn handle_create_session(
     conditions: SessionConditions,
     damage: DamageLevel,
     ai_skill: Option<u8>,
+    race_seconds: Option<u32>,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -310,6 +313,7 @@ async fn handle_create_session(
         allowed_assists,
         conditions,
         ai_skill,
+        race_seconds,
     ) else {
         warn!(
             "Failed to create session for player {}: track_id={}",
@@ -354,11 +358,19 @@ async fn handle_create_session(
         .and_then(|t| t.source_path.clone())
         .unwrap_or_else(|| "tracks/unknown.yaml".to_string());
 
-    // Listed as the session simulates it: the air resolved on create.
-    let conditions = state_write
-        .sessions
-        .get(&session_id)
-        .map_or(conditions, |s| s.session.conditions);
+    // Listed as the session simulates it: the air resolved on create, the
+    // race's length clamped (and no lap limit when it is timed).
+    let (conditions, lap_limit, race_seconds) =
+        state_write
+            .sessions
+            .get(&session_id)
+            .map_or((conditions, lap_limit, race_seconds), |s| {
+                (
+                    s.session.conditions,
+                    s.session.lap_limit,
+                    s.session.race_seconds,
+                )
+            });
     let session_info = LobbySessionInfo {
         session_id,
         host_player_id: conn_info.player_id,
@@ -368,6 +380,7 @@ async fn handle_create_session(
         session_kind,
         conditions,
         lap_limit,
+        race_seconds,
         track_config_id,
         max_players,
         current_player_count: 0, // join_session will increment this
@@ -438,6 +451,7 @@ async fn handle_create_session(
         let conditions = game_session.session.conditions;
         let damage = game_session.session.damage;
         let ai_skill = game_session.session.ai_skill;
+        let race_seconds = game_session.session.race_seconds;
         drop(state_write);
         let _ = ctx
             .send(
@@ -450,6 +464,7 @@ async fn handle_create_session(
                     conditions,
                     damage,
                     ai_skill,
+                    race_seconds,
                 }),
             )
             .await;
@@ -490,10 +505,16 @@ async fn start_demo_session(
     connection_id: ConnectionId,
     session_id: SessionId,
 ) {
-    let (conditions, ai_skill) = state_write
+    let (conditions, ai_skill, race_seconds) = state_write
         .sessions
         .get(&session_id)
-        .map(|s| (s.session.conditions, s.session.ai_skill))
+        .map(|s| {
+            (
+                s.session.conditions,
+                s.session.ai_skill,
+                s.session.race_seconds,
+            )
+        })
         .unwrap_or_default();
     let joined = state_write
         .lobby
@@ -540,6 +561,7 @@ async fn start_demo_session(
                 conditions,
                 damage: DamageLevel::Full,
                 ai_skill,
+                race_seconds,
             }),
         )
         .await;
@@ -620,6 +642,7 @@ async fn handle_join_session(
         let conditions = game_session.session.conditions;
         let damage = game_session.session.damage;
         let ai_skill = game_session.session.ai_skill;
+        let race_seconds = game_session.session.race_seconds;
         drop(state_write);
         let _ = ctx
             .send(
@@ -632,6 +655,7 @@ async fn handle_join_session(
                     conditions,
                     damage,
                     ai_skill,
+                    race_seconds,
                 }),
             )
             .await;
@@ -774,35 +798,46 @@ async fn handle_join_as_spectator(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
-    let (joined, session_kind, allowed_assists, conditions, damage, ai_skill, sectors) = {
+    let (
+        joined,
+        session_kind,
+        allowed_assists,
+        conditions,
+        damage,
+        ai_skill,
+        race_seconds,
+        sectors,
+    ) = {
         let mut state_write = ctx.state.write().await;
         let joined = state_write
             .lobby
             .join_as_spectator(conn_info.player_id, session_id)
             .await;
-        let (session_kind, allowed_assists, conditions, damage, ai_skill, sectors) = state_write
-            .sessions
-            .get_mut(&session_id)
-            .map(|s| {
-                // A spectator arriving mid-session has no roster, and the
-                // client drops telemetry it cannot place: send it again.
-                if joined {
-                    s.mark_roster_dirty();
-                }
-                (
-                    s.session.session_kind,
-                    s.session.allowed_assists,
-                    s.session.conditions,
-                    s.session.damage,
-                    s.session.ai_skill,
-                    Some(ServerMessage::TrackSectors(TrackSectorsData {
-                        session_id,
-                        track_length_m: s.track_length_m(),
-                        boundaries_m: s.sector_boundaries_m(),
-                    })),
-                )
-            })
-            .unwrap_or_default();
+        let (session_kind, allowed_assists, conditions, damage, ai_skill, race_seconds, sectors) =
+            state_write
+                .sessions
+                .get_mut(&session_id)
+                .map(|s| {
+                    // A spectator arriving mid-session has no roster, and the
+                    // client drops telemetry it cannot place: send it again.
+                    if joined {
+                        s.mark_roster_dirty();
+                    }
+                    (
+                        s.session.session_kind,
+                        s.session.allowed_assists,
+                        s.session.conditions,
+                        s.session.damage,
+                        s.session.ai_skill,
+                        s.session.race_seconds,
+                        Some(ServerMessage::TrackSectors(TrackSectorsData {
+                            session_id,
+                            track_length_m: s.track_length_m(),
+                            boundaries_m: s.sector_boundaries_m(),
+                        })),
+                    )
+                })
+                .unwrap_or_default();
         (
             joined,
             session_kind,
@@ -810,6 +845,7 @@ async fn handle_join_as_spectator(
             conditions,
             damage,
             ai_skill,
+            race_seconds,
             sectors,
         )
     };
@@ -830,6 +866,7 @@ async fn handle_join_as_spectator(
                     conditions,
                     damage,
                     ai_skill,
+                    race_seconds,
                 }),
             )
             .await;

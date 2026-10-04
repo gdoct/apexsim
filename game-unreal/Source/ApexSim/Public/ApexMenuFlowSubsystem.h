@@ -96,12 +96,35 @@ public:
 	int32 CreateLapLimit = 5;
 
 	/**
+	 * A race runs for a time rather than a number of laps: CreateRaceMinutes
+	 * from the green light, then the leader's lap is the last. Both lengths
+	 * are kept, so switching back finds the other where it was left.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	bool bCreateTimedRace = false;
+
+	/** A timed race's length, minutes (ApexRaceLength::LadderMinutes). */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateRaceMinutes = 60;
+
+	/**
 	 * What a created session actually gets. A hotlap has no field and no
 	 * distance: whatever the sliders hold, it is made with no AI and no lap
-	 * limit, and the sliders keep their values for the next race.
+	 * limit, and the sliders keep their values for the next race. Only a
+	 * race is timed; a timed race has no lap limit.
 	 */
 	int32 EffectiveAiCount() const { return CreateStartingMode == EApexGameMode::Hotlap ? 0 : CreateAiCount; }
-	int32 EffectiveLapLimit() const { return CreateStartingMode == EApexGameMode::Hotlap ? 0 : CreateLapLimit; }
+	int32 EffectiveLapLimit() const
+	{
+		return CreateStartingMode == EApexGameMode::Hotlap || EffectiveRaceSeconds() > 0 ? 0 : CreateLapLimit;
+	}
+	int32 EffectiveRaceSeconds() const
+	{
+		return CreateStartingMode == EApexGameMode::Race && bCreateTimedRace
+			? ApexRaceLength::Clamp(CreateRaceMinutes * 60) : 0;
+	}
+	/** "5 LAPS", "2 h": the race length the way the menus say it (empty for anything but a race). */
+	FString DescribeRaceLength() const;
 
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
 	EApexSessionKind CreateSessionKind = EApexSessionKind::Multiplayer;

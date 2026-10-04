@@ -92,6 +92,7 @@ impl LobbyTestClient {
             conditions: Default::default(),
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         };
 
         self.send_message(&msg).await?;

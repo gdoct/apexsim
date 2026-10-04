@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::{self, File};
-use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
@@ -67,7 +66,48 @@ pub struct ReplayHeader {
 /// frame, `[u32 le frame length][frame msgpack]`, both named-field
 /// MessagePack. Version 2 added the metadata's conditions, start tick and
 /// track stem, all optional on the way in, so a version 1 file still reads.
-pub const REPLAY_FORMAT_VERSION: u32 = 2;
+/// Version 3 writes the frames as one zlib stream after the header, which
+/// is what lets the server stream a recording to disk as it goes instead
+/// of holding a whole race in memory; the header stays plain, so listing
+/// replays reads no frames. Older files still read.
+pub const REPLAY_FORMAT_VERSION: u32 = 3;
+/// The first version whose frames are a zlib stream.
+const ZLIB_FRAMES_VERSION: u32 = 3;
+
+/// Frames waiting for the writer thread before the game loop starts
+/// dropping them rather than wait: about half a minute at the telemetry
+/// rate, a few megabytes for a full grid.
+const RECORDING_QUEUE_FRAMES: usize = 2048;
+
+fn invalid_data(e: impl std::error::Error + Send + Sync + 'static) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidData, e)
+}
+
+/// One frame as the file holds it: `[u32 le length][named msgpack]`.
+fn write_frame(writer: &mut impl std::io::Write, frame: &ReplayFrame) -> std::io::Result<()> {
+    let frame_bytes = rmp_serde::to_vec_named(frame).map_err(invalid_data)?;
+    writer.write_all(&(frame_bytes.len() as u32).to_le_bytes())?;
+    writer.write_all(&frame_bytes)
+}
+
+/// The header as the file starts: `[u32 le length][named msgpack]`.
+fn write_header(writer: &mut impl std::io::Write, header: &ReplayHeader) -> std::io::Result<()> {
+    let header_bytes = rmp_serde::to_vec_named(header).map_err(invalid_data)?;
+    writer.write_all(&(header_bytes.len() as u32).to_le_bytes())?;
+    writer.write_all(&header_bytes)
+}
+
+fn read_frames(reader: &mut impl std::io::Read, count: u32) -> std::io::Result<Vec<ReplayFrame>> {
+    let mut len = [0u8; 4];
+    let mut frames = Vec::with_capacity(count as usize);
+    for _ in 0..count {
+        reader.read_exact(&mut len)?;
+        let mut frame_bytes = vec![0u8; u32::from_le_bytes(len) as usize];
+        reader.read_exact(&mut frame_bytes)?;
+        frames.push(rmp_serde::from_slice(&frame_bytes).map_err(invalid_data)?);
+    }
+    Ok(frames)
+}
 
 /// Write a replay file synchronously (the offline tools; the server's own
 /// recorder writes from the game loop through [`ReplayManager`]).
@@ -94,16 +134,13 @@ pub fn write_replay_file(
         frame_count: frames.len() as u32,
     };
     let mut writer = std::io::BufWriter::new(std::fs::File::create(path)?);
-    let header_bytes = rmp_serde::to_vec_named(&header)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    writer.write_all(&(header_bytes.len() as u32).to_le_bytes())?;
-    writer.write_all(&header_bytes)?;
+    write_header(&mut writer, &header)?;
+    let mut frames_out =
+        flate2::write::ZlibEncoder::new(&mut writer, flate2::Compression::default());
     for frame in frames {
-        let frame_bytes = rmp_serde::to_vec_named(frame)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        writer.write_all(&(frame_bytes.len() as u32).to_le_bytes())?;
-        writer.write_all(&frame_bytes)?;
+        write_frame(&mut frames_out, frame)?;
     }
+    frames_out.finish()?;
     writer.flush()
 }
 
@@ -117,17 +154,15 @@ pub fn read_replay_file(
     reader.read_exact(&mut len)?;
     let mut header_bytes = vec![0u8; u32::from_le_bytes(len) as usize];
     reader.read_exact(&mut header_bytes)?;
-    let header: ReplayHeader = rmp_serde::from_slice(&header_bytes)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    let mut frames = Vec::with_capacity(header.frame_count as usize);
-    for _ in 0..header.frame_count {
-        reader.read_exact(&mut len)?;
-        let mut frame_bytes = vec![0u8; u32::from_le_bytes(len) as usize];
-        reader.read_exact(&mut frame_bytes)?;
-        let frame: ReplayFrame = rmp_serde::from_slice(&frame_bytes)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        frames.push(frame);
-    }
+    let header: ReplayHeader = rmp_serde::from_slice(&header_bytes).map_err(invalid_data)?;
+    let frames = if header.version >= ZLIB_FRAMES_VERSION {
+        read_frames(
+            &mut flate2::read::ZlibDecoder::new(reader),
+            header.frame_count,
+        )?
+    } else {
+        read_frames(&mut reader, header.frame_count)?
+    };
     Ok((header.metadata, frames))
 }
 
@@ -140,11 +175,108 @@ pub struct ReplayManager {
     active_recordings: Arc<RwLock<HashMap<SessionId, ReplayRecorder>>>,
 }
 
-/// Records a single session's replay
+/// Records a single session's replay. The frames are not kept: each goes
+/// over a bounded channel to a writer thread that compresses it into a
+/// temporary file beside the replays, so a race of any length costs the
+/// server the queue and nothing more. Stopping writes the header and copies
+/// the compressed frames after it.
 pub struct ReplayRecorder {
     session_id: SessionId,
     metadata: ReplayMetadata,
-    frames: Vec<ReplayFrame>,
+    sender: Option<std::sync::mpsc::SyncSender<ReplayFrame>>,
+    writer: Option<std::thread::JoinHandle<std::io::Result<FrameSpan>>>,
+    temp_path: PathBuf,
+    /// Frames dropped because the writer had fallen a whole queue behind.
+    dropped: u64,
+}
+
+/// What the writer thread wrote: how many frames, and the ticks they span.
+#[derive(Debug, Default, Clone, Copy)]
+struct FrameSpan {
+    count: u32,
+    first_tick: Option<u32>,
+    last_tick: u32,
+}
+
+/// The writer thread: every frame the channel brings, compressed into the
+/// file at `path`, until the recorder hangs up.
+fn write_frames(
+    path: &std::path::Path,
+    frames: std::sync::mpsc::Receiver<ReplayFrame>,
+) -> std::io::Result<FrameSpan> {
+    let file = std::io::BufWriter::new(std::fs::File::create(path)?);
+    let mut out = flate2::write::ZlibEncoder::new(file, flate2::Compression::fast());
+    let mut span = FrameSpan::default();
+    for frame in frames {
+        write_frame(&mut out, &frame)?;
+        span.count += 1;
+        span.first_tick.get_or_insert(frame.tick);
+        span.last_tick = frame.tick;
+    }
+    let mut file = out.finish()?;
+    std::io::Write::flush(&mut file)?;
+    Ok(span)
+}
+
+/// Stop a recording's writer and wait for it. `None` when it failed
+/// (logged).
+fn finish_writer(recorder: &mut ReplayRecorder) -> Option<FrameSpan> {
+    recorder.sender = None;
+    let result = recorder.writer.take()?.join();
+    match result {
+        Ok(Ok(span)) => Some(span),
+        Ok(Err(e)) => {
+            warn!(
+                "Replay writer for session {} failed: {}",
+                recorder.session_id, e
+            );
+            None
+        }
+        Err(_) => {
+            warn!("Replay writer for session {} panicked", recorder.session_id);
+            None
+        }
+    }
+}
+
+/// Throw a recording away: stop its writer and delete its frames.
+fn discard(mut recorder: ReplayRecorder) {
+    finish_writer(&mut recorder);
+    let _ = std::fs::remove_file(&recorder.temp_path);
+}
+
+/// The replay file from a stopped recording: the header, then the
+/// compressed frames the writer left in the temporary file.
+fn assemble_replay(
+    mut recorder: ReplayRecorder,
+    replay_path: &std::path::Path,
+) -> std::io::Result<()> {
+    use std::io::Write;
+    let span = finish_writer(&mut recorder);
+    let result = (|| {
+        let span = span.ok_or_else(|| std::io::Error::other("the replay writer failed"))?;
+        let mut metadata = recorder.metadata.clone();
+        metadata.duration_ticks = span
+            .first_tick
+            .map_or(0, |first| span.last_tick.saturating_sub(first));
+        let header = ReplayHeader {
+            version: REPLAY_FORMAT_VERSION,
+            metadata,
+            frame_count: span.count,
+        };
+        let mut out = std::io::BufWriter::new(std::fs::File::create(replay_path)?);
+        write_header(&mut out, &header)?;
+        std::io::copy(&mut std::fs::File::open(&recorder.temp_path)?, &mut out)?;
+        out.flush()
+    })();
+    let _ = std::fs::remove_file(&recorder.temp_path);
+    if recorder.dropped > 0 {
+        warn!(
+            "Replay for session {} is missing {} frame(s): the disk could not keep up",
+            recorder.session_id, recorder.dropped
+        );
+    }
+    result
 }
 
 impl ReplayManager {
@@ -155,24 +287,54 @@ impl ReplayManager {
         }
     }
 
-    /// Start recording a session
+    /// Start recording a session. A recording already running for it (a
+    /// session that went back from racing without finishing) is dropped.
     pub async fn start_recording(&self, metadata: ReplayMetadata) {
         let session_id = metadata.session_id;
+        let temp_path = self
+            .replay_dir
+            .join(format!(".recording_{}.frames", session_id));
 
+        let (sender, receiver) = std::sync::mpsc::sync_channel(RECORDING_QUEUE_FRAMES);
+        let writer = {
+            let dir = self.replay_dir.clone();
+            let path = temp_path.clone();
+            std::thread::Builder::new()
+                .name("replay-writer".into())
+                .spawn(move || {
+                    std::fs::create_dir_all(&dir)?;
+                    write_frames(&path, receiver)
+                })
+        };
+        let writer = match writer {
+            Ok(handle) => handle,
+            Err(e) => {
+                warn!("Cannot record a replay for session {}: {}", session_id, e);
+                return;
+            }
+        };
         let recorder = ReplayRecorder {
             session_id,
             metadata,
-            frames: Vec::new(),
+            sender: Some(sender),
+            writer: Some(writer),
+            temp_path,
+            dropped: 0,
         };
 
-        self.active_recordings
+        let replaced = self
+            .active_recordings
             .write()
             .await
             .insert(session_id, recorder);
+        if let Some(old) = replaced {
+            tokio::task::spawn_blocking(move || discard(old));
+        }
         debug!("Started recording replay for session {}", session_id);
     }
 
-    /// Record a frame for a session
+    /// Record a frame for a session. Never waits on the disk: a frame that
+    /// finds the writer's queue full is dropped.
     pub async fn record_frame(&self, session_id: SessionId, tick: u32, telemetry: Telemetry) {
         if let Some(recorder) = self.active_recordings.write().await.get_mut(&session_id) {
             recorder.record_frame(tick, telemetry);
@@ -188,29 +350,14 @@ impl ReplayManager {
     ) -> Result<PathBuf, std::io::Error> {
         let recorder = self.active_recordings.write().await.remove(&session_id);
 
-        if let Some(mut recorder) = recorder {
-            recorder.metadata.race_start_tick = race_start_tick;
-            let replay_path = self.save_replay(recorder).await?;
-            debug!(
-                "Saved replay for session {} to {:?}",
-                session_id, replay_path
-            );
-            Ok(replay_path)
-        } else {
+        let Some(mut recorder) = recorder else {
             warn!("No active recording for session {}", session_id);
-            Err(std::io::Error::new(
+            return Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 "No active recording",
-            ))
-        }
-    }
-
-    /// Save replay to disk
-    async fn save_replay(&self, recorder: ReplayRecorder) -> Result<PathBuf, std::io::Error> {
-        // Create replay directory if it doesn't exist
-        fs::create_dir_all(&self.replay_dir).await?;
-
-        // Generate filename
+            ));
+        };
+        recorder.metadata.race_start_tick = race_start_tick;
         let filename = format!(
             "replay_{}_{}.bin",
             recorder.session_id,
@@ -219,86 +366,49 @@ impl ReplayManager {
                 .unwrap()
                 .as_secs()
         );
-
         let replay_path = self.replay_dir.join(filename);
-
-        // Create replay header
-        let mut metadata = recorder.metadata;
-        metadata.duration_ticks = recorder.frames.len() as u32;
-
-        let header = ReplayHeader {
-            version: REPLAY_FORMAT_VERSION,
-            metadata,
-            frame_count: recorder.frames.len() as u32,
-        };
-
-        // Write to file
-        let file = File::create(&replay_path).await?;
-        let mut writer = BufWriter::new(file);
-
-        // Write header
-        let header_bytes = rmp_serde::to_vec_named(&header)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        let header_len = header_bytes.len() as u32;
-        writer.write_all(&header_len.to_le_bytes()).await?;
-        writer.write_all(&header_bytes).await?;
-
-        // Write frames
-        for frame in &recorder.frames {
-            let frame_bytes = rmp_serde::to_vec_named(frame)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-            let frame_len = frame_bytes.len() as u32;
-            writer.write_all(&frame_len.to_le_bytes()).await?;
-            writer.write_all(&frame_bytes).await?;
-        }
-
-        writer.flush().await?;
-
+        let path = replay_path.clone();
+        tokio::task::spawn_blocking(move || assemble_replay(recorder, &path))
+            .await
+            .map_err(std::io::Error::other)??;
+        debug!(
+            "Saved replay for session {} to {:?}",
+            session_id, replay_path
+        );
         Ok(replay_path)
+    }
+
+    /// Drop the recordings of sessions that are gone without finishing
+    /// (everyone left mid-race), deleting what they had written.
+    pub async fn discard_recordings_except(&self, live: impl Fn(&SessionId) -> bool) {
+        let mut recordings = self.active_recordings.write().await;
+        let gone: Vec<SessionId> = recordings.keys().filter(|id| !live(id)).copied().collect();
+        for session_id in gone {
+            if let Some(recorder) = recordings.remove(&session_id) {
+                debug!("Discarding the replay of ended session {}", session_id);
+                tokio::task::spawn_blocking(move || discard(recorder));
+            }
+        }
+    }
+
+    /// Sessions being recorded.
+    pub async fn recording_count(&self) -> usize {
+        self.active_recordings.read().await.len()
     }
 
     /// Load a replay from disk
     pub async fn load_replay(&self, replay_path: PathBuf) -> Result<ReplayPlayer, std::io::Error> {
-        use tokio::io::{AsyncReadExt, BufReader};
-
-        let file = File::open(&replay_path).await?;
-        let mut reader = BufReader::new(file);
-
-        // Read header
-        let mut header_len_bytes = [0u8; 4];
-        reader.read_exact(&mut header_len_bytes).await?;
-        let header_len = u32::from_le_bytes(header_len_bytes) as usize;
-
-        let mut header_bytes = vec![0u8; header_len];
-        reader.read_exact(&mut header_bytes).await?;
-
-        let header: ReplayHeader = rmp_serde::from_slice(&header_bytes)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-
-        // Read frames
-        let mut frames = Vec::with_capacity(header.frame_count as usize);
-        for _ in 0..header.frame_count {
-            let mut frame_len_bytes = [0u8; 4];
-            reader.read_exact(&mut frame_len_bytes).await?;
-            let frame_len = u32::from_le_bytes(frame_len_bytes) as usize;
-
-            let mut frame_bytes = vec![0u8; frame_len];
-            reader.read_exact(&mut frame_bytes).await?;
-
-            let frame: ReplayFrame = rmp_serde::from_slice(&frame_bytes)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-
-            frames.push(frame);
-        }
-
+        let path = replay_path.clone();
+        let (metadata, frames) = tokio::task::spawn_blocking(move || read_replay_file(&path))
+            .await
+            .map_err(std::io::Error::other)??;
         debug!(
             "Loaded replay from {:?} ({} frames)",
             replay_path,
             frames.len()
         );
-
         Ok(ReplayPlayer {
-            metadata: header.metadata,
+            metadata,
             frames,
             current_frame: 0,
         })
@@ -355,11 +465,23 @@ impl ReplayManager {
 
 impl ReplayRecorder {
     pub fn record_frame(&mut self, tick: u32, telemetry: Telemetry) {
-        self.frames.push(ReplayFrame { tick, telemetry });
-    }
-
-    pub fn get_frame_count(&self) -> usize {
-        self.frames.len()
+        let Some(sender) = &self.sender else {
+            return;
+        };
+        match sender.try_send(ReplayFrame { tick, telemetry }) {
+            Ok(()) => {}
+            Err(std::sync::mpsc::TrySendError::Full(_)) => {
+                if self.dropped == 0 {
+                    warn!(
+                        "Replay writer for session {} is behind; dropping frames",
+                        self.session_id
+                    );
+                }
+                self.dropped += 1;
+            }
+            // The writer failed; stopping reports it.
+            Err(std::sync::mpsc::TrySendError::Disconnected(_)) => self.sender = None,
+        }
     }
 }
 
@@ -523,5 +645,110 @@ mod tests {
         // Reset and replay
         player.reset();
         assert_eq!(player.current_frame(), 0);
+    }
+
+    fn test_metadata(session_id: SessionId) -> ReplayMetadata {
+        ReplayMetadata {
+            session_id,
+            track_config_id: Uuid::nil(),
+            track_name: "Test Track".to_string(),
+            recorded_at: 0,
+            duration_ticks: 0,
+            tick_rate: 240,
+            participants: vec![],
+            conditions: SessionConditions::DEFAULT,
+            race_start_tick: None,
+            track_stem: None,
+            track_length_m: 0.0,
+        }
+    }
+
+    fn test_telemetry(tick: u32) -> Telemetry {
+        Telemetry {
+            server_tick: tick,
+            session_state: SessionState::Racing,
+            game_mode: GameMode::Race,
+            countdown_ms: None,
+            car_states: vec![],
+        }
+    }
+
+    /// A recording goes to disk as it is made: the frames are in a
+    /// temporary file while it runs, and only the finished replay is left
+    /// once it stops, compressed, every frame in order with its span.
+    #[tokio::test]
+    async fn a_recording_streams_to_disk_and_leaves_only_the_replay() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = ReplayManager::new(temp_dir.path().to_path_buf());
+        let session_id = Uuid::from_u128(7);
+        manager.start_recording(test_metadata(session_id)).await;
+        for tick in (100..100 + 4 * 1000).step_by(4) {
+            manager
+                .record_frame(session_id, tick, test_telemetry(tick))
+                .await;
+        }
+        let path = manager.stop_recording(session_id, Some(100)).await.unwrap();
+
+        let names: Vec<String> = std::fs::read_dir(temp_dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names.len(), 1, "only the replay is left: {names:?}");
+
+        let (meta, frames) = read_replay_file(&path).unwrap();
+        assert_eq!(frames.len(), 1000);
+        assert!(frames.windows(2).all(|w| w[1].tick == w[0].tick + 4));
+        assert_eq!(meta.duration_ticks, 3996);
+        assert_eq!(meta.race_start_tick, Some(100));
+        assert_eq!(manager.recording_count().await, 0);
+    }
+
+    /// A version 2 file, frames uncompressed, still reads.
+    #[test]
+    fn a_version_2_replay_still_reads() {
+        use std::io::Write;
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("old.bin");
+        let frames: Vec<ReplayFrame> = (0..3)
+            .map(|tick| ReplayFrame {
+                tick,
+                telemetry: test_telemetry(tick),
+            })
+            .collect();
+        let mut file = std::fs::File::create(&path).unwrap();
+        let header = ReplayHeader {
+            version: 2,
+            metadata: test_metadata(Uuid::nil()),
+            frame_count: 3,
+        };
+        write_header(&mut file, &header).unwrap();
+        for frame in &frames {
+            write_frame(&mut file, frame).unwrap();
+        }
+        file.flush().unwrap();
+        drop(file);
+
+        let (_, back) = read_replay_file(&path).unwrap();
+        assert_eq!(back.iter().map(|f| f.tick).collect::<Vec<_>>(), [0, 1, 2]);
+    }
+
+    /// A session that ends without finishing takes its recording with it.
+    #[tokio::test]
+    async fn an_abandoned_recording_is_discarded() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = ReplayManager::new(temp_dir.path().to_path_buf());
+        let session_id = Uuid::from_u128(8);
+        manager.start_recording(test_metadata(session_id)).await;
+        manager.record_frame(session_id, 1, test_telemetry(1)).await;
+        manager.discard_recordings_except(|_| false).await;
+        assert_eq!(manager.recording_count().await, 0);
+        // The writer is stopped and its file deleted off the loop.
+        for _ in 0..200 {
+            if std::fs::read_dir(temp_dir.path()).unwrap().next().is_none() {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        panic!("the recording's frames were not deleted");
     }
 }

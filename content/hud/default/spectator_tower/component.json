@@ -18,7 +18,7 @@
           { "type": "text", "fill": 1, "valign": "center", "font": "display", "size": 22, "tracking": 20, "upper": true,
             "color": "on_accent", "text": "=session.track_name != '' ? session.track_name : 'Race'" },
           { "type": "text", "valign": "center", "margin": [10, 0, 0, 0], "font": "mono", "size": 13, "color": "on_accent",
-            "text": "=has(race.leader_lap) ? 'LAP ' + race.leader_lap + (lap.limit > 0 ? '/' + lap.limit : '') : ''" }
+            "text": "=(race.timed ? (has(race.final_lap) ? 'FINAL LAP · ' : fmt_clock(race.time_left_s) + ' · ') : '') + (has(race.leader_lap) ? 'LAP ' + race.leader_lap + (lap.limit > 0 ? '/' + lap.limit : '') : '')" }
         ]
       },
       // What the right-hand column is showing.

@@ -84,6 +84,8 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	CreateMaxPlayers = Profile->MaxPlayers;
 	CreateAiCount = Profile->AiCount;
 	CreateLapLimit = Profile->LapLimit;
+	bCreateTimedRace = Profile->bTimedRace;
+	CreateRaceMinutes = FMath::Clamp(Profile->RaceMinutes, ApexRaceLength::MinSeconds / 60, ApexRaceLength::MaxSeconds / 60);
 	CreateStartingMode = Profile->StartingMode;
 	CreateSessionKind = Profile->SessionKind;
 	CreateAllowedAssists = Profile->AllowedAssists;
@@ -104,6 +106,16 @@ void UApexMenuFlowSubsystem::LoadProfile()
 		*PlayerName, *PendingTrackId, *PendingCarId, Profile->BestLapSeconds.Num());
 }
 
+FString UApexMenuFlowSubsystem::DescribeRaceLength() const
+{
+	if (CreateStartingMode != EApexGameMode::Race)
+	{
+		return FString();
+	}
+	const int32 Seconds = EffectiveRaceSeconds();
+	return Seconds > 0 ? ApexRaceLength::Describe(Seconds) : FString::Printf(TEXT("%d LAPS"), CreateLapLimit);
+}
+
 void UApexMenuFlowSubsystem::SaveProfile()
 {
 	if (!Profile)
@@ -119,6 +131,8 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->MaxPlayers = CreateMaxPlayers;
 	Profile->AiCount = CreateAiCount;
 	Profile->LapLimit = CreateLapLimit;
+	Profile->bTimedRace = bCreateTimedRace;
+	Profile->RaceMinutes = CreateRaceMinutes;
 	Profile->StartingMode = CreateStartingMode;
 	Profile->SessionKind = CreateSessionKind;
 	Profile->AllowedAssists = CreateAllowedAssists;

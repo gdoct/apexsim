@@ -40,7 +40,7 @@
             { "type": "text", "font": "display", "size": 24, "tracking": 10, "upper": true,
               "text": "=has(car.driver_name) ? car.driver_name : 'Car ' + car.index" },
             { "type": "label", "margin": [0, 6, 0, 0], "color": "text_secondary",
-              "text": "=(session.car_name != '' ? session.car_name + ' · ' : '') + (car.finish_position > 0 ? 'Finished P' + car.finish_position : 'Lap ' + lap.display + (lap.limit > 0 ? '/' + lap.limit : ''))" }
+              "text": "=(session.car_name != '' ? session.car_name + ' · ' : '') + (car.finish_position > 0 ? 'Finished P' + car.finish_position : 'Lap ' + lap.display + (lap.limit > 0 ? '/' + lap.limit : '') + (lap.final ? ' · final lap' : ''))" }
           ]
         }]
       },

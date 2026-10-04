@@ -89,9 +89,10 @@ The four tyres now each stand on their own ground, under either backend
   torque. Two wheels on the grass lose theirs while the other two keep
   the road's; braking astride the edge pulls the nose toward the road
   (`braking_with_two_wheels_on_the_grass_pulls_toward_the_road`).
-- **Off-track drag per tyre.** `off_track_drag_mps2` is shared by the
-  tyres on `RoadContact::Off` (a quarter each), not switched on by the
-  car's centre.
+- **Off-track drag per tyre.** `off_track_rolling_resistance` (a share of
+  the tyre's load) holds back each tyre on `RoadContact::Off` at its own
+  patch, so two wheels on the grass pull the nose toward it; the grass
+  grip under each tyre varies patch by patch (`grass_grip_patch`).
 - **Body pose from the four contacts.** The body is a rigid plane on four
   springs: it settles on the weighted least-squares plane through the
   contact heights (weights = corner spring rates), which is the

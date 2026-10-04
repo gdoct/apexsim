@@ -36,6 +36,9 @@ defaults:
   warmup_s: 3.0       # held on the first frame while the level settles
   countdown_s: 7      # grid time before the lights go out (five lights need five)
   seed: 1             # the grid; change it (or a race's own seed) for a different race
+  # The field is dealt from the shipped cars only: a player's own imports
+  # (an AC car in a real team's colours) do not belong in the video.
+  cars_dir: content/cars/default
 
 races:
   zandvoort:
@@ -128,7 +131,10 @@ shots:
 
   - id: 05_lemans_wheel
     race: lemans
-    window: {corner: "Chicane Dunlop", before: 60, after: 320, min_cars: 3, anchor: 0.3}
+    # at_s: picked from the seeded race (the most cars passing near this camera);
+    # the corner window put the shot seconds ahead of the field. Re-pick it if
+    # the race changes (a new seed, the AI, the track).
+    window: {at_s: 37.1}      # lap 1: the whole pack out of the chicane
     length: 6.0
     caption: "Lemons · Dunflop"
     camera:
@@ -156,8 +162,11 @@ shots:
 
   - id: 08_spielberg_bull
     race: spielberg
-    window: {corner: "Würth", before: 50, after: 250, min_cars: 3}
-    length: 5.0
+    # at_s: picked from the seeded race (the most cars passing near this camera);
+    # the corner window put the shot seconds ahead of the field. Re-pick it if
+    # the race changes (a new seed, the AI, the track).
+    window: {at_s: 227.1}
+    length: 4.3               # ends before the camera swings after the last car
     caption: "Red Pull Ring"
     camera:
       mode: pan
@@ -208,8 +217,11 @@ shots:
 
   - id: 13_zandvoort_luyendyk_final_lap
     race: zandvoort
-    window: {corner: "Luyendyk", before: 300, after: 150, min_cars: 3, last_laps: 1, anchor: 0.45}
-    length: 6.0
+    # at_s: picked from the seeded race (the most cars passing near this camera);
+    # the corner window put the shot seconds ahead of the field. Re-pick it if
+    # the race changes (a new seed, the AI, the track).
+    window: {at_s: 354.6}     # the last lap, four cars
+    length: 4.6               # ends before the camera swings after the last car
     caption: "Luierdijkbocht · 18° banking"
     camera:
       mode: pan

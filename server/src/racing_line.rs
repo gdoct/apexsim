@@ -419,6 +419,24 @@ pub fn lap_fuel_liters(profile: &RacingLineProfile, car: &CarConfig, fuel_liters
     liters
 }
 
+/// How long a lap of `profile` takes at its speeds, s: the ideal lap, a
+/// little quicker than anyone drives it (the AI runs 10-15% over), which
+/// is the safe side for a timed race's laps and fuel. 0 for a profile too
+/// short to drive.
+pub fn lap_time_s(profile: &RacingLineProfile) -> f32 {
+    let n = profile.speed_mps.len();
+    if n < 3 {
+        return 0.0;
+    }
+    let spacing = profile.spacing_m.max(1e-3);
+    (0..n)
+        .map(|i| {
+            let v = 0.5 * (profile.speed_mps[i] + profile.speed_mps[(i + 1) % n]);
+            spacing / v.max(1.0)
+        })
+        .sum()
+}
+
 /// The engine's power flat out where a racing driver keeps it, W: its
 /// curve averaged over the top quarter of the revs below the redline,
 /// where the gearbox holds it between shifts.

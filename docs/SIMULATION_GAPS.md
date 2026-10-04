@@ -539,6 +539,19 @@ here as well as under its item.
 - AC's dynamic aero controllers (wings moving with speed or throttle) are
   not modelled; a DRS flap is not split off an imported car's body.
 
+**Timed races**
+- A spectator stream has no race clock: a client replay (or a showcase) of
+  a timed race counts laps with no limit and shows no time left (the
+  stream header and frames have no field for it yet).
+- The AI does not plan a timed race's end: no splash-and-dash, no fuel
+  saving on the last stint, no strategy round the clock.
+- No driver swaps, no fixed stint lengths, no time of day that moves with
+  a 24-hour race (conditions are fixed for the session).
+- In a car the rules do not refuel (an F1) a race longer than a tank runs
+  dry: the start fill is capped at the tank and no stop adds fuel.
+- The client's own replay of a session stops growing at 512 MB of
+  compressed data, which a long race with a full grid can reach.
+
 **Tyre wear, compounds and pit stops**
 - No flat spots from lockups, no punctures (wear stops at 100%).
 - No wet or intermediate tyres: rain costs grip whatever is fitted.

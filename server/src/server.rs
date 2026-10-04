@@ -307,6 +307,7 @@ impl ServerState {
         allowed_assists: AllowedAssists,
         conditions: SessionConditions,
         ai_skill: Option<u8>,
+        race_seconds: Option<u32>,
     ) -> Option<SessionId> {
         use crate::ai_driver::{clamp_skill, generate_ai_profiles};
 
@@ -338,6 +339,12 @@ impl ServerState {
         session.allowed_assists = allowed_assists;
         session.conditions = conditions;
         session.ai_skill = ai_skill.map(clamp_skill);
+        // A timed race has no distance: it ends on the leader's lap when
+        // the clock runs out.
+        session.race_seconds = clamp_race_seconds(race_seconds);
+        if session.race_seconds.is_some() {
+            session.lap_limit = 0;
+        }
         let session_id = session.id;
 
         // Create AI profiles if AI count is specified
@@ -624,6 +631,7 @@ mod tests {
             AllowedAssists::ALL,
             SessionConditions::DEFAULT,
             Some(95),
+            None,
         );
 
         let session_id = session_id.expect("session created");
@@ -663,6 +671,7 @@ mod tests {
                 AllowedAssists::ALL,
                 SessionConditions::DEFAULT,
                 None,
+                None,
             );
             assert!(result.is_some());
         }
@@ -678,6 +687,7 @@ mod tests {
             3,
             AllowedAssists::ALL,
             SessionConditions::DEFAULT,
+            None,
             None,
         );
         assert!(result.is_none());

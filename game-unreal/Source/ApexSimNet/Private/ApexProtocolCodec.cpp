@@ -163,6 +163,7 @@ namespace
 			else if (Key == TEXT("State"))      { bOk = Reader.ReadUInt64(Raw); Out.State = static_cast<EApexSessionState>(Raw); }
 			else if (Key == TEXT("Conditions")) { bOk = ParseSessionConditions(Reader, Out.Conditions); }
 			else if (Key == TEXT("LapLimit"))   { bOk = Reader.ReadUInt64(Raw); Out.LapLimit = static_cast<int32>(Raw); }
+			else if (Key == TEXT("RaceSeconds")){ bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -482,6 +483,7 @@ namespace
 			else if (Key == TEXT("Conditions"))        { bOk = ParseSessionConditions(Reader, Out.Conditions); }
 			else if (Key == TEXT("Damage"))            { bOk = Reader.ReadUInt64(Raw); Out.Damage = static_cast<EApexDamageLevel>(FMath::Min<uint64>(Raw, 2)); }
 			else if (Key == TEXT("AiSkill"))           { bOk = Reader.ReadUInt64(Raw); Out.AiSkill = ApexAiSkill::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
+			else if (Key == TEXT("RaceSeconds"))       { bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -1524,7 +1526,32 @@ namespace
 			return false;
 		}
 
-		for (int32 Extra = CompactTelemetryFieldCount; Extra < FieldCount; ++Extra)
+		// `race_clock`, appended: `[left_ms, final_lap]`, or absent.
+		int32 Read = CompactTelemetryFieldCount;
+		Out.RaceLeftMs = -1;
+		Out.RaceFinalLap = 0;
+		if (FieldCount > Read)
+		{
+			++Read;
+			if (!Reader.TryReadNil())
+			{
+				int32 ClockFields = 0;
+				if (!Reader.ReadArrayHeader(ClockFields) || ClockFields < 2)
+				{
+					return false;
+				}
+				if (!Reader.ReadUInt64(Raw)) { return false; }
+				Out.RaceLeftMs = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32));
+				if (!Reader.ReadUInt64(Raw)) { return false; }
+				Out.RaceFinalLap = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16));
+				for (int32 Extra = 2; Extra < ClockFields; ++Extra)
+				{
+					if (!Reader.SkipValue()) { return false; }
+				}
+			}
+		}
+
+		for (int32 Extra = Read; Extra < FieldCount; ++Extra)
 		{
 			if (!Reader.SkipValue())
 			{
@@ -1857,16 +1884,19 @@ namespace ApexProtocol
 		const FApexAllowedAssists& AllowedAssists,
 		const FApexSessionConditions& Conditions,
 		EApexDamageLevel Damage,
-		int32 AiSkill)
+		int32 AiSkill,
+		int32 RaceSeconds)
 	{
-		// Full damage and the mixed AI field are left off, as the server
-		// does: an older server's create, and every create that picks
-		// neither, keep their bytes.
+		// Full damage, the mixed AI field and a race over laps are left
+		// off, as the server does: an older server's create, and every
+		// create that picks none of them, keep their bytes.
 		const bool bDamage = Damage != EApexDamageLevel::Full;
 		const int32 Skill = ApexAiSkill::Clamp(AiSkill);
 		const bool bAiSkill = Skill != ApexAiSkill::Mixed;
+		const int32 Seconds = ApexRaceLength::Clamp(RaceSeconds);
+		const bool bTimed = Seconds > 0;
 		FMsgPackWriter Writer(320);
-		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0));
+		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -1890,6 +1920,11 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("ai_skill");
 			Writer.WriteUInt(static_cast<uint8>(Skill));
+		}
+		if (bTimed)
+		{
+			Writer.WriteString("race_seconds");
+			Writer.WriteUInt(static_cast<uint32>(Seconds));
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

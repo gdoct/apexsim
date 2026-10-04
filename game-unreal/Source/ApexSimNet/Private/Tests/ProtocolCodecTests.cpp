@@ -142,6 +142,18 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Reduced, ApexAiSkill::Mixed);
 		CheckBytes(TEXT("CreateSession, mixed AI, has no ai_skill"), Mixed, ApexGolden::C_CreateSessionDamage);
 	}
+	CheckBytes(TEXT("CreateSession for a timed race"),
+		ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 7200),
+		ApexGolden::C_CreateSessionRaceTime);
+	{
+		// A race over laps is left off: no race_seconds in its bytes.
+		const TArray<uint8> Laps = ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Reduced, ApexAiSkill::Mixed, 0);
+		CheckBytes(TEXT("CreateSession over laps has no race_seconds"), Laps, ApexGolden::C_CreateSessionDamage);
+	}
 
 	{
 		FApexCarSetup Setup;
@@ -329,6 +341,35 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("AiSkill"), Message.AiSkill, 95);
 			TestEqual(TEXT("AiSkill.Damage"), Message.Damage, EApexDamageLevel::Full);
 		}
+	}
+
+	{
+		// A timed race's length is named only when the host picked one.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined for a timed race"), ApexGolden::S_SessionJoinedRaceTime, Message))
+		{
+			TestEqual(TEXT("RaceSeconds"), Message.RaceSeconds, 7200);
+			TestEqual(TEXT("RaceSeconds.AiSkill"), Message.AiSkill, ApexAiSkill::Mixed);
+		}
+		FApexServerMessage Laps;
+		if (Decode(TEXT("SessionJoined over laps"), ApexGolden::S_SessionJoinedAiSkill, Laps))
+		{
+			TestEqual(TEXT("RaceSeconds (0 when absent)"), Laps.RaceSeconds, 0);
+		}
+	}
+
+	{
+		// The create screen's ladder and read-out.
+		TestEqual(TEXT("RaceLength.Step up"), ApexRaceLength::StepMinutes(60, 1), 75);
+		TestEqual(TEXT("RaceLength.Step down"), ApexRaceLength::StepMinutes(60, -1), 45);
+		TestEqual(TEXT("RaceLength.Step off the ladder"), ApexRaceLength::StepMinutes(100, 1), 120);
+		TestEqual(TEXT("RaceLength.Step past the top"), ApexRaceLength::StepMinutes(1440, 1), 1440);
+		TestEqual(TEXT("RaceLength.Step below the bottom"), ApexRaceLength::StepMinutes(5, -1), 5);
+		TestEqual(TEXT("RaceLength.Clamp"), ApexRaceLength::Clamp(30), ApexRaceLength::MinSeconds);
+		TestEqual(TEXT("RaceLength.Clamp laps"), ApexRaceLength::Clamp(0), 0);
+		TestEqual(TEXT("RaceLength.Describe minutes"), ApexRaceLength::Describe(45 * 60), FString(TEXT("45 min")));
+		TestEqual(TEXT("RaceLength.Describe hours"), ApexRaceLength::Describe(24 * 3600), FString(TEXT("24 h")));
+		TestEqual(TEXT("RaceLength.Describe mixed"), ApexRaceLength::Describe(90 * 60), FString(TEXT("1 h 30")));
 	}
 
 	{

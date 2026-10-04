@@ -170,10 +170,14 @@ private:
 	/** Shown for a race only. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> LengthSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LengthInfoText;
+	/** Laps or Time: what the stepper and the presets count. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> LengthUnitButtons;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> LapsMinus;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> LapsPlus;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LapsValueText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> LapPresetButtons;
+	/** The timed race's presets, in the same place; one set shows at a time. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> DurationPresetButtons;
 	/** Hidden for a hotlap, which has no field. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> FieldSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FieldInfoText;

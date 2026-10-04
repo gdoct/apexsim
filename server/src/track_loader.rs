@@ -326,8 +326,8 @@ impl TrackLoader {
             track_surface: TrackSurface {
                 base_grip: 1.0,
                 curb_grip: 0.85,
-                off_track_grip: 0.6,
-                off_track_drag_mps2: crate::data::OFF_TRACK_DRAG_MPS2,
+                off_track_grip: crate::data::OFF_TRACK_GRIP,
+                off_track_rolling_resistance: crate::data::OFF_TRACK_ROLLING_RESISTANCE,
                 ..TrackSurface::default()
             },
             pit_lane: None,

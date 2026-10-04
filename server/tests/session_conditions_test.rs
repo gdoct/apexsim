@@ -119,6 +119,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             conditions: asked,
             damage: Default::default(),
             ai_skill: None,
+            race_seconds: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -288,6 +289,7 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Off,
             ai_skill: None,
+            race_seconds: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -361,6 +363,7 @@ async fn the_hosts_ai_level_sets_the_field() {
             damage: DamageLevel::Full,
             // Past the top: the server keeps it inside the bounds.
             ai_skill: Some(150),
+            race_seconds: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -379,6 +382,79 @@ async fn the_hosts_ai_level_sets_the_field() {
         assert_eq!(skills.len(), 5);
         assert_eq!(skills.first(), Some(&(MAX_SKILL_LEVEL - AI_FIELD_SPREAD)));
         assert_eq!(skills.last(), Some(&MAX_SKILL_LEVEL));
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => panic!("test failed: {e}"),
+        Err(_) => panic!("test timed out"),
+    }
+}
+
+/// A timed race is the host's pick: held inside its bounds, echoed to every
+/// driver and spectator, listed in the browser with no lap limit, and the
+/// session keeps it.
+#[tokio::test]
+async fn the_hosts_race_time_is_echoed_and_listed() {
+    let result = timeout(TEST_TIMEOUT, async {
+        let server = common::start_test_server().await;
+        let (mut host, lobby) = Client::connect("Host", server.tcp_addr).await?;
+        let car_id = lobby.car_configs.first().ok_or("no cars")?.id;
+        let track_id = lobby.track_configs.first().ok_or("no tracks")?.id;
+
+        host.send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+            livery: 0,
+        })
+        .await?;
+        sleep(Duration::from_millis(50)).await;
+        host.send(&ClientMessage::CreateSession {
+            track_config_id: track_id,
+            max_players: 8,
+            ai_count: 0,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            // Past the top: the server keeps it to a day.
+            race_seconds: Some(30 * 3600),
+        })
+        .await?;
+        let joined = host.wait_joined().await?;
+        assert_eq!(
+            joined.race_seconds,
+            Some(MAX_RACE_SECONDS),
+            "echoed, clamped"
+        );
+
+        let lobby = host.lobby_state().await?;
+        let summary = lobby
+            .available_sessions
+            .iter()
+            .find(|s| s.id == joined.session_id)
+            .ok_or("session not listed")?;
+        assert_eq!(summary.race_seconds, Some(MAX_RACE_SECONDS));
+        assert_eq!(summary.lap_limit, 0, "a timed race has no distance");
+
+        let (mut watcher, _) = Client::connect("Watcher", server.tcp_addr).await?;
+        watcher
+            .send(&ClientMessage::JoinAsSpectator {
+                session_id: joined.session_id,
+            })
+            .await?;
+        assert_eq!(
+            watcher.wait_joined().await?.race_seconds,
+            Some(MAX_RACE_SECONDS)
+        );
+
+        let state = server.state.read().await;
+        let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
+        assert_eq!(session.session.race_seconds, Some(MAX_RACE_SECONDS));
+        assert_eq!(session.session.lap_limit, 0);
         Ok::<(), Box<dyn std::error::Error>>(())
     })
     .await;

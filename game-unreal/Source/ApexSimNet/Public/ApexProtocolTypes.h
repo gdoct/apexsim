@@ -147,6 +147,66 @@ namespace ApexAiSkill
 }
 
 /**
+ * A timed race's length, as CreateSession's `race_seconds`, SessionJoined's
+ * `RaceSeconds` and SessionSummary's `RaceSeconds` carry it (data.rs
+ * `clamp_race_seconds`): seconds from the green light, 0 for a race over
+ * laps, which is left off the wire. When the clock runs out the leader's
+ * lap is the last.
+ */
+namespace ApexRaceLength
+{
+	/** `MIN_RACE_SECONDS` / `MAX_RACE_SECONDS`. */
+	constexpr int32 MinSeconds = 60;
+	constexpr int32 MaxSeconds = 24 * 3600;
+
+	/** The create screen's stepper, in minutes, shortest first. */
+	inline const TArray<int32>& LadderMinutes()
+	{
+		static const TArray<int32> Ladder = {
+			5, 10, 15, 20, 25, 30, 40, 45, 60, 75, 90, 120, 150, 180, 240, 300, 360, 480, 600, 720, 1080, 1440 };
+		return Ladder;
+	}
+
+	/** Seconds the server would keep: 0 (laps) for none, else inside the bounds. */
+	inline int32 Clamp(int32 Seconds)
+	{
+		return Seconds <= 0 ? 0 : FMath::Clamp(Seconds, MinSeconds, MaxSeconds);
+	}
+
+	/** One step of the ladder from Minutes, held at either end; a value off the ladder steps to its neighbour. */
+	inline int32 StepMinutes(int32 Minutes, int32 Delta)
+	{
+		const TArray<int32>& Ladder = LadderMinutes();
+		if (Delta > 0)
+		{
+			for (const int32 Rung : Ladder)
+			{
+				if (Rung > Minutes) { return Rung; }
+			}
+			return Ladder.Last();
+		}
+		for (int32 Index = Ladder.Num() - 1; Index >= 0; --Index)
+		{
+			if (Ladder[Index] < Minutes) { return Ladder[Index]; }
+		}
+		return Ladder[0];
+	}
+
+	/** "45 min", "2 h", "1 h 30", "24 h": a length the way the menus say it. */
+	inline FString Describe(int32 Seconds)
+	{
+		const int32 Minutes = FMath::Max(0, (Seconds + 30) / 60);
+		const int32 Hours = Minutes / 60;
+		const int32 Rest = Minutes % 60;
+		if (Hours == 0)
+		{
+			return FString::Printf(TEXT("%d min"), Minutes);
+		}
+		return Rest == 0 ? FString::Printf(TEXT("%d h"), Hours) : FString::Printf(TEXT("%d h %02d"), Hours, Rest);
+	}
+}
+
+/**
  * Mirrors `CarSetup` (car_setup.rs): the garage setup as *clicks* per knob,
  * one signed integer each, so neither the wire nor the client needs the
  * car's base figures — the server turns "+2" into newtons per metre against
@@ -652,9 +712,13 @@ struct APEXSIMNET_API FApexSessionSummary
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	FApexSessionConditions Conditions;
 
-	/** The race distance in laps; 0 from an older server. */
+	/** The race distance in laps; 0 from an older server, and in a timed race. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	int32 LapLimit = 0;
+
+	/** A timed race's length in seconds (ApexRaceLength); 0 for a race over laps. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	int32 RaceSeconds = 0;
 
 	/** A race is being driven: there is something to watch. */
 	bool IsWatchable() const { return State == EApexSessionState::Countdown || State == EApexSessionState::Racing; }
@@ -1578,6 +1642,19 @@ struct APEXSIMNET_API FApexTelemetryFrame
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	TArray<FApexCarTelemetry> Cars;
+
+	/**
+	 * A timed race's clock (`RaceClock`, appended): ms of race time left, 0
+	 * once it has run out; -1 in any other session and from an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 RaceLeftMs = -1;
+
+	/** The lap a timed race ends on, once its clock has run out; 0 before (and in any other session). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 RaceFinalLap = 0;
+
+	bool HasRaceClock() const { return RaceLeftMs >= 0; }
 };
 
 /** What is under one tyre (`feedback::ContactSurface`). Ordered by roughness. */
@@ -1834,6 +1911,8 @@ struct APEXSIMNET_API FApexServerMessage
 	EApexDamageLevel Damage = EApexDamageLevel::Full;
 	/** SessionJoined::AiSkill, the AI field's level (ApexAiSkill); Mixed when absent. */
 	int32 AiSkill = ApexAiSkill::Mixed;
+	/** SessionJoined::RaceSeconds, a timed race's length (ApexRaceLength); 0 for a race over laps. */
+	int32 RaceSeconds = 0;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

@@ -315,8 +315,8 @@ pub(crate) async fn tick_sessions(
         }
 
         // Telemetry: the broadcast payload uses the compact positional
-        // encoding and is only produced on divisor ticks; the replay frame
-        // (full telemetry) is captured every racing tick.
+        // encoding and is only produced on divisor ticks, as is the replay
+        // frame (full telemetry), captured further down.
         // Driver feedback is drained on every telemetry tick, broadcasting
         // or not, so a message never carries more than one interval (a car
         // that drove while nothing was sent would otherwise open with stale
@@ -361,8 +361,9 @@ pub(crate) async fn tick_sessions(
             }
         }
 
-        // Collect telemetry frame if racing
-        if !is_demo_session && new_state == SessionState::Racing {
+        // Collect a replay frame on every telemetry tick while racing: the
+        // frames the clients saw. The recorder streams them to disk.
+        if !is_demo_session && new_state == SessionState::Racing && telemetry_tick {
             if let ServerMessage::Telemetry(tel) = game_session.get_telemetry() {
                 replay_frames.push((*session_id, game_session.session.current_tick, tel));
             }
@@ -479,6 +480,12 @@ pub(crate) async fn tick_sessions(
                 state.lobby.unregister_session(session_id).await;
             }
         }
+        // A session removed mid-race never finishes its recording.
+        let sessions = &state.sessions;
+        state
+            .replay
+            .discard_recordings_except(|id| sessions.contains_key(id))
+            .await;
     }
 
     TickOutput {

@@ -954,11 +954,14 @@ pub struct TrackSurface {
     pub base_grip: f32,      // Base grip multiplier (1.0 = normal asphalt)
     pub curb_grip: f32,      // Grip on curbs
     pub off_track_grip: f32, // Grip off track (grass/gravel)
-    /// Rolling drag off track, m/s², opposing the car's motion. A fixed
-    /// deceleration rather than a fraction of speed per second: grass is
-    /// already slow through its grip, and a proportional drag fought the
-    /// throttle so hard that a car could not get back above a crawl.
-    pub off_track_drag_mps2: f32,
+    /// Rolling resistance off track: each tyre on the grass is held back
+    /// by this share of the load it carries, along its rolling direction
+    /// at its own contact patch, so two wheels dropped onto the grass drag
+    /// that side and pull the nose toward it. A share of the load rather
+    /// than a fraction of speed per second: grass is already slow through
+    /// its grip, and a proportional drag fought the throttle so hard that
+    /// a car could not get back above a crawl.
+    pub off_track_rolling_resistance: f32,
     /// The air, °C: what cools the tyres, and what they go out at without
     /// blankets. Baked from the session's weather and clock
     /// (`SessionConditions::apply_to_track`).
@@ -1001,18 +1004,24 @@ fn default_track_temperature_c() -> f32 {
     SessionConditions::DEFAULT.track_temperature_c()
 }
 
-/// Rolling drag on grass: about 0.06 g, a car tyre's rolling resistance on
-/// turf. Kept well under what grass grip can put down (about 2 m/s² for a
-/// rear-driven car), or the car still cannot pull away.
-pub const OFF_TRACK_DRAG_MPS2: f32 = 0.6;
+/// Grip on the grass against the road's: a slick on dry turf keeps about
+/// a third of what it has on asphalt (it was 0.6 on the real circuits,
+/// and two wheels on the grass felt like the road). The patch under each
+/// tyre varies about it (`physics::grass_grip_patch`).
+pub const OFF_TRACK_GRIP: f32 = 0.35;
+
+/// Rolling resistance on grass, a share of each tyre's load: about 0.06,
+/// a car tyre's on turf. Kept well under what grass grip can put down, or
+/// the car cannot pull away.
+pub const OFF_TRACK_ROLLING_RESISTANCE: f32 = 0.06;
 
 impl Default for TrackSurface {
     fn default() -> Self {
         Self {
             base_grip: 1.0,
             curb_grip: 0.85,
-            off_track_grip: 0.4,
-            off_track_drag_mps2: OFF_TRACK_DRAG_MPS2,
+            off_track_grip: OFF_TRACK_GRIP,
+            off_track_rolling_resistance: OFF_TRACK_ROLLING_RESISTANCE,
             air_temperature_c: default_air_temperature_c(),
             track_temperature_c: default_track_temperature_c(),
             wet: false,
@@ -2250,6 +2259,20 @@ pub enum HotlapDestination {
     Track = 1,
 }
 
+/// The shortest timed race a host can set (`CreateSession.race_seconds`).
+pub const MIN_RACE_SECONDS: u32 = 60;
+/// The longest: twenty-four hours.
+pub const MAX_RACE_SECONDS: u32 = 24 * 3600;
+
+/// A timed race's length as a session keeps it: `None` (a race over laps)
+/// for none or zero, otherwise held between [`MIN_RACE_SECONDS`] and
+/// [`MAX_RACE_SECONDS`].
+pub fn clamp_race_seconds(seconds: Option<u32>) -> Option<u32> {
+    seconds
+        .filter(|s| *s > 0)
+        .map(|s| s.clamp(MIN_RACE_SECONDS, MAX_RACE_SECONDS))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaceSession {
     pub id: SessionId,
@@ -2281,7 +2304,14 @@ pub struct RaceSession {
     pub participants: std::collections::BTreeMap<PlayerId, CarState>,
     pub max_players: u8,
     pub ai_count: u8,
+    /// The race distance in laps; 0 in a timed race (see `race_seconds`).
     pub lap_limit: u8,
+    /// A timed race's length, from the green light
+    /// (`clamp_race_seconds`); `None` for a race over `lap_limit` laps.
+    /// When it runs out the leader's lap is the last
+    /// (`GameSession::race_clock`).
+    #[serde(default)]
+    pub race_seconds: Option<u32>,
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>,
     /// Game mode to transition to when the countdown reaches zero.
@@ -2318,6 +2348,7 @@ impl RaceSession {
             max_players,
             ai_count,
             lap_limit,
+            race_seconds: None,
             current_tick: 0,
             countdown_ticks_remaining: None,
             next_mode: None,

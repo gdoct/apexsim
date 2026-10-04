@@ -118,7 +118,7 @@ action:
 
   - id: night-lights
     about: The field at sunset, headlights on
-    pick: 1
+    pick: 6
     race: sakhir
     window: {station: 400, before: 200, after: 150, min_cars: 3}
     length: 4.0
@@ -184,3 +184,10 @@ ui:
     pick: 1
     args: [-ApexAutoRace, -ApexTrack=Spielberg, -ApexCar=RS, -ApexAiCount=9, -ApexOpenHudEditor=14]
     at: [22]
+
+  # No `pick` yet and not in site/media.yml: take it and look at the sheet,
+  # then add guide.webp to media.yml and a screen to copy.yml.
+  - id: guide
+    about: The track guide at Raidillon (stop 2), on the first trackside camera
+    args: [-ApexGuide=Spa:GT3, -ApexGuideCorner=2, -ApexGuideCamera=1]
+    at: [20, 26, 32]

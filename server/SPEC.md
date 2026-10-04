@@ -148,7 +148,8 @@ pub struct RaceSession {
     pub participants: HashMap<PlayerId, CarState>, // All cars (human + AI)
     pub max_players: u8,
     pub ai_count: u8,                // Number of AI slots requested
-    pub lap_limit: u8,
+    pub lap_limit: u8,               // 0 in a timed race
+    pub race_seconds: Option<u32>,   // A timed race's length; None for a race over laps
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>, // Ticks until race start (240 ticks = 1 sec)
     pub race_start_tick: Option<u32>,           // Tick when racing began
@@ -180,7 +181,7 @@ pub enum ClientMessage {
     Heartbeat { client_tick: u32 },
     SelectCar { car_config_id: CarConfigId },
     RequestLobbyState,
-    CreateSession { track_config_id: TrackConfigId, max_players: u8, ai_count: u8, lap_limit: u8, session_kind: SessionKind },
+    CreateSession { track_config_id: TrackConfigId, max_players: u8, ai_count: u8, lap_limit: u8, session_kind: SessionKind, /* ..., */ race_seconds: Option<u32> /* a timed race; omitted for laps */ },
     JoinSession { session_id: SessionId },
     JoinAsSpectator { session_id: SessionId },
     LeaveSession,
@@ -413,7 +414,7 @@ Implements a 4-wheel 3D vehicle model at a fixed timestep (`dt = 1 / tick_rate_h
 
 **`update_car_3d(state, config, input, track, dt)`** — per tick, per car:
 
-1. **Track context:** windowed nearest-centerline query (seeded by the car's cached index from the previous tick — near-constant time), giving elevation, banking, slope, surface type, grip modifier, lateral offset and on/off-track state. Off-track surfaces use the track's `off_track_grip` and a fixed rolling drag (`off_track_drag_mps2`, 0.6 m/s²) against the car's motion.
+1. **Track context:** windowed nearest-centerline query (seeded by the car's cached index from the previous tick — near-constant time), giving elevation, banking, slope, surface type, grip modifier, lateral offset and on/off-track state. Off-track surfaces use the track's `off_track_grip` (0.35 of the road, varied ±20% patch by patch under each tyre by `physics::grass_grip_patch`) and a rolling resistance (`off_track_rolling_resistance`, 0.06 of each tyre's load) at each tyre on the grass, so two wheels off pull the nose toward the grass.
 2. **Aerodynamics:** drag plus front/rear downforce from the lift coefficients.
 3. **Engine & drivetrain:** RPM derived from wheel speed through the gear ratios; optional torque curve (else a legacy parabolic curve), rev limiter, engine braking and friction. A clutch-slip launch model lets the engine rev to a throttle-dependent launch RPM in the low gears (launches are traction-limited, not idle-torque-limited); the clutch input scales transmitted torque. The hybrid system ([hybrid] in car.toml) adds motor assist limited by motor torque/power and battery discharge, with brake regeneration charging the battery.
 4. **Wheel loads:** static distribution + aero downforce + longitudinal/lateral weight transfer (previous tick's accelerations; lateral split by spring+ARB roll stiffness) + a zero-sum suspension term from per-wheel spring/damper forces (terrain asymmetry without double-counting the static weight).

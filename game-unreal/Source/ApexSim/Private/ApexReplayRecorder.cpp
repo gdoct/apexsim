@@ -385,7 +385,10 @@ bool UApexReplayRecorder::BuildFile(TArray<uint8>& OutBytes, FApexStreamHeader& 
 		H.SessionKind = Session.SessionKind;
 		H.LapLimit = Session.LapLimit;
 	}
-	if (H.LapLimit <= 0 && Flow && H.GameMode == EApexGameMode::Race)
+	// A timed race has no distance; a stream header has no field for its
+	// clock yet, so a replay of one counts laps without a limit.
+	const bool bTimed = (Net && Net->GetSessionRaceSeconds() > 0) || (Flow && Flow->EffectiveRaceSeconds() > 0);
+	if (H.LapLimit <= 0 && Flow && H.GameMode == EApexGameMode::Race && !bTimed)
 	{
 		H.LapLimit = Flow->CreateLapLimit;
 	}

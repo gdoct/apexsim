@@ -123,6 +123,11 @@ void UApexHudDataSubsystem::ResolveTrack(bool bBackdrop)
 				LapLimit = Session.LapLimit;
 			}
 		}
+		// A timed race has no distance, listed or not.
+		if (Net->GetSessionRaceSeconds() > 0)
+		{
+			LapLimit = 0;
+		}
 	}
 	if (TrackId.IsEmpty() && Flow)
 	{
@@ -318,6 +323,7 @@ void UApexHudDataSubsystem::Refresh()
 		In.LapLimit = In.GameMode == EApexGameMode::Hotlap ? 0
 			: HudLapLimit >= 0 ? HudLapLimit
 			: (bSpectating || bBackdrop) ? 0
+			: Flow->EffectiveRaceSeconds() > 0 ? 0
 			: Flow->CreateLapLimit;
 		// The car's own figures, read once per car: its tyres' working window
 		// and its rev range, neither of which is on the wire. Watching, the

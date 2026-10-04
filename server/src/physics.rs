@@ -57,8 +57,8 @@ pub struct WheelState {
     /// own coefficient: the class's figure for the track (weather-scaled),
     /// times the road mesh surface's friction where there is one.
     pub grip_modifier: f32,
-    /// On the grass, gravel or sand (`RoadContact::Off`): this tyre adds
-    /// its share of the off-track rolling drag.
+    /// On the grass, gravel or sand (`RoadContact::Off`): this tyre is held
+    /// back by the off-track rolling resistance at its own patch.
     pub on_soft_ground: bool,
 }
 
@@ -434,12 +434,20 @@ pub fn update_car_3d(
         match sample {
             Some(s) => {
                 let ctx = track_context_of(track, &s);
+                let contact = road_contact(track, &s);
+                // Grass is not a uniform surface: each tyre finds its own
+                // patch, so two wheels on it never grip alike.
+                let patch = if contact == RoadContact::Off {
+                    grass_grip_patch(world_x, world_y)
+                } else {
+                    1.0
+                };
                 WheelContact {
                     local_x,
                     local_y,
                     contact_z: s.elevation,
-                    contact: road_contact(track, &s),
-                    grip_modifier: ctx.grip_modifier,
+                    contact,
+                    grip_modifier: ctx.grip_modifier * patch,
                 }
             }
             None => WheelContact {
@@ -1010,11 +1018,56 @@ pub fn update_car_3d(
         rr_forces.0 * steer_rear_right.sin() + rr_forces.1 * steer_rear_right.cos(),
     );
 
+    // Off-track rolling resistance, per tyre at its own patch: a share of
+    // the tyre's load along the way it rolls, against its rolling speed.
+    // Two wheels on the grass drag that side, so the nose is pulled toward
+    // the grass, as in a real car. Faded in over the first metre a second
+    // of rolling speed so it never reverses a wheel at a standstill.
+    let soft_drag = {
+        let rolling = track.track_surface.off_track_rolling_resistance;
+        let wheel_pos = [
+            (front_axle_x, config.track_width_front_m / 2.0),
+            (front_axle_x, -config.track_width_front_m / 2.0),
+            (rear_axle_x, config.track_width_rear_m / 2.0),
+            (rear_axle_x, -config.track_width_rear_m / 2.0),
+        ];
+        let wheel_steer = [steer_left, steer_right, steer_rear_left, steer_rear_right];
+        let wheel_load = [
+            state.weight_front_left_n,
+            state.weight_front_right_n,
+            state.weight_rear_left_n,
+            state.weight_rear_right_n,
+        ];
+        let mut drag = (0.0f32, 0.0f32, 0.0f32);
+        if !is_airborne && rolling > 0.0 {
+            for i in 0..4 {
+                if !wheel_states[i].on_soft_ground {
+                    continue;
+                }
+                let (x, y) = wheel_pos[i];
+                let (sin_s, cos_s) = wheel_steer[i].sin_cos();
+                // The patch's velocity in the body frame, then along the wheel.
+                let patch_vx = v_long - state.angular_vel_yaw * y;
+                let patch_vy = v_lat + state.angular_vel_yaw * x;
+                let v_roll = patch_vx * cos_s + patch_vy * sin_s;
+                let fade = v_roll.clamp(-1.0, 1.0);
+                let f = -rolling * wheel_load[i].max(0.0) * fade;
+                let (fx, fy) = (f * cos_s, f * sin_s);
+                drag.0 += fx;
+                drag.1 += fy;
+                drag.2 += x * fy - y * fx;
+            }
+        }
+        drag
+    };
+
     // Total forces in vehicle frame, the air's included: the drag along
     // the airflow (rearwards going forwards in still air) and the side
-    // force of a crosswind.
-    let total_force_x = fl_force_x + fr_force_x + rl_forces.0 + rr_forces.0 + air.force_x;
-    let total_force_y = fl_force_y + fr_force_y + rl_forces.1 + rr_forces.1 + air.force_y;
+    // force of a crosswind; and the grass's rolling resistance.
+    let total_force_x =
+        fl_force_x + fr_force_x + rl_forces.0 + rr_forces.0 + air.force_x + soft_drag.0;
+    let total_force_y =
+        fl_force_y + fr_force_y + rl_forces.1 + rr_forces.1 + air.force_y + soft_drag.1;
 
     // Gravity along the ground the body stands on: the plane through the
     // four contact patches, in the car's own frame, so it follows the car's
@@ -1034,7 +1087,8 @@ pub fn update_car_3d(
     let yaw_moment = (fl_force_y + fr_force_y) * front_axle_x
         + (rl_forces.1 + rr_forces.1) * rear_axle_x
         + (fr_force_x - fl_force_x) * (config.track_width_front_m / 2.0)
-        + (rr_forces.0 - rl_forces.0) * (config.track_width_rear_m / 2.0);
+        + (rr_forces.0 - rl_forces.0) * (config.track_width_rear_m / 2.0)
+        + soft_drag.2;
 
     // 13. Calculate accelerations
     let accel_x = (total_force_x + gravity_pull_x) / mass;
@@ -1059,24 +1113,6 @@ pub fn update_car_3d(
 
     state.vel_x += accel_world_x * dt;
     state.vel_y += accel_world_y * dt;
-
-    // Off-track rolling drag: a fixed deceleration against the planar
-    // velocity, never enough to reverse it, shared by the tyres on the soft
-    // ground (all four: the whole drag; two dropped onto the grass: half).
-    // The grass grip already makes a shortcut slow; this only adds the soft
-    // ground's resistance, so a car that went off can drive back at a
-    // sensible speed.
-    let wheels_on_soft_ground = wheel_states.iter().filter(|w| w.on_soft_ground).count();
-    if !is_airborne && wheels_on_soft_ground > 0 {
-        let planar = (state.vel_x.powi(2) + state.vel_y.powi(2)).sqrt();
-        if planar > 0.0 {
-            let share = wheels_on_soft_ground as f32 / 4.0;
-            let decel = track.track_surface.off_track_drag_mps2 * share;
-            let scale = (1.0 - decel * dt / planar).max(0.0);
-            state.vel_x *= scale;
-            state.vel_y *= scale;
-        }
-    }
 
     state.speed_mps = (state.vel_x.powi(2) + state.vel_y.powi(2) + state.vel_z.powi(2)).sqrt();
 
@@ -2831,6 +2867,32 @@ impl RoadContact {
 /// rubber laid on it.
 pub const RUNOFF_GRIP_FACTOR: f32 = 0.95;
 
+/// How far grass grip strays either side of the track's figure, as a share
+/// of it: drier and wetter turf, thinner and lusher grass, ruts.
+pub const GRASS_GRIP_VARIATION: f32 = 0.2;
+/// The size of a grass patch, metres: about a wheelbase, so the four tyres
+/// of a car on the grass rarely stand on the same one.
+const GRASS_PATCH_M: f32 = 2.5;
+
+/// The grass under a point, as a multiplier on its grip, in
+/// `1 +- GRASS_GRIP_VARIATION`: smooth value noise over the ground from an
+/// integer hash of the cell, so it is the same patch every lap and every
+/// replay (no RNG, no clock).
+pub fn grass_grip_patch(x: f32, y: f32) -> f32 {
+    let (gx, gy) = (x / GRASS_PATCH_M, y / GRASS_PATCH_M);
+    let (ix, iy) = (gx.floor(), gy.floor());
+    let ease = |f: f32| f * f * (3.0 - 2.0 * f);
+    let (ex, ey) = (ease(gx - ix), ease(gy - iy));
+    let corner = |dx: i64, dy: i64| {
+        let cx = (ix as i64 + dx) as u64;
+        let cy = (iy as i64 + dy) as u64;
+        crate::wind::hash01(cx, cy ^ 0x6A55_5000_0000_0000) * 2.0 - 1.0
+    };
+    let top = corner(0, 0) + (corner(1, 0) - corner(0, 0)) * ex;
+    let bottom = corner(0, 1) + (corner(1, 1) - corner(0, 1)) * ex;
+    1.0 + GRASS_GRIP_VARIATION * (top + (bottom - top) * ey)
+}
+
 fn road_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> RoadContact {
     // The mesh knows what it is standing on; the curb bands are only for
     // the centerline, and for wherever the mesh has nothing.
@@ -4093,7 +4155,7 @@ mod tests {
         let dt = 1.0 / 240.0;
         let mut track = straight_track_with_right_curb(1.5);
         // What `track_loader` gives every real circuit.
-        track.track_surface.off_track_grip = 0.6;
+        track.track_surface.off_track_grip = crate::data::OFF_TRACK_GRIP;
 
         let mut state = create_test_car_state();
         state.pos_x = 100.0;
@@ -4102,15 +4164,25 @@ mod tests {
         state.speed_mps = 5.0;
         state.gear = 1;
         state.auto_gearbox = true;
-        for _ in 0..(240 * 5) {
+        let mut at_5s = 0.0;
+        for tick in 1..=(240 * 8) {
             update_car_3d(&mut state, &config, &input, &track, dt);
             // Hold the car on the grass line; only the speed matters here.
             state.pos_y = -14.0;
+            if tick == 240 * 5 {
+                at_5s = state.speed_mps;
+            }
         }
         assert!(!state.is_on_track);
+        // Grass at a third of the road's grip spins the rears on full
+        // throttle, so it is slow going, but it never stops gaining.
         assert!(
-            state.speed_mps > 14.0,
-            "five seconds of full throttle on grass should be well past a crawl: {}",
+            at_5s > 9.0,
+            "five seconds of full throttle on grass should be well past a crawl: {at_5s}"
+        );
+        assert!(
+            state.speed_mps > at_5s + 2.0,
+            "and still pulling: {at_5s} at 5 s, {} at 8 s",
             state.speed_mps
         );
     }
@@ -6767,6 +6839,66 @@ mod tests {
         );
     }
 
+    /// Coasting with the right wheels on the grass, the grass drags that
+    /// side back and the nose is pulled right, into it.
+    #[test]
+    fn coasting_with_two_wheels_on_the_grass_pulls_toward_the_grass() {
+        let config = create_test_config();
+        let input = PlayerInputData::default();
+        let run = |y: f32| {
+            let track = create_straight_test_track();
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.pos_y = y;
+            state.vel_x = 40.0;
+            state.speed_mps = 40.0;
+            state.gear = 0;
+            for _ in 0..24 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+            }
+            state
+        };
+        let on_road = run(0.0);
+        let straddling = run(-10.0); // road edge at -10: right wheels off
+        assert!(
+            on_road.angular_vel_yaw.abs() < 1e-3,
+            "on the road it rolls straight: yaw rate {}",
+            on_road.angular_vel_yaw
+        );
+        assert!(
+            straddling.angular_vel_yaw < -1e-3,
+            "straddling the edge it should turn toward the grass (right): yaw rate {}",
+            straddling.angular_vel_yaw
+        );
+        assert!(straddling.speed_mps < on_road.speed_mps);
+    }
+
+    /// The grass's grip varies over the ground within its bounds, the same
+    /// every time it is asked, and averages out at the track's figure.
+    #[test]
+    fn grass_grip_comes_in_patches() {
+        let mut sum = 0.0f64;
+        let (mut lo, mut hi) = (f32::INFINITY, f32::NEG_INFINITY);
+        let n = 200;
+        for i in 0..n {
+            for j in 0..n {
+                let (x, y) = (i as f32 * 0.7 - 70.0, j as f32 * 0.7 - 70.0);
+                let g = grass_grip_patch(x, y);
+                assert_eq!(g, grass_grip_patch(x, y));
+                lo = lo.min(g);
+                hi = hi.max(g);
+                sum += g as f64;
+            }
+        }
+        let mean = sum / (n * n) as f64;
+        assert!(lo >= 1.0 - GRASS_GRIP_VARIATION - 1e-6, "low {lo}");
+        assert!(hi <= 1.0 + GRASS_GRIP_VARIATION + 1e-6, "high {hi}");
+        assert!(hi - lo > GRASS_GRIP_VARIATION, "barely varies: {lo}..{hi}");
+        assert!((mean - 1.0).abs() < 0.03, "mean {mean}");
+        // Smooth: a few centimetres apart is nearly the same grass.
+        assert!((grass_grip_patch(3.0, 4.0) - grass_grip_patch(3.02, 4.0)).abs() < 0.01);
+    }
+
     #[test]
     fn test_fuel_consumption() {
         let mut state = create_test_car_state();
@@ -7413,9 +7545,9 @@ mod tests {
         };
         use DifferentialType::*;
         // Gently, both rear tyres carry half: every unit is the even split.
-        let gentle = run(lsd(ClutchLSD, false), 0.2);
+        let gentle = run(lsd(ClutchLSD, false), 0.1);
         for kind in [Open, ClutchLSD, Locked] {
-            assert_eq!(run(lsd(kind, true), 0.2), gentle);
+            assert_eq!(run(lsd(kind, true), 0.1), gentle);
         }
         // Harder, the grass tyre cannot: an open unit gives the road tyre
         // only what the grass one holds, a locked one everything it cannot

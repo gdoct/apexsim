@@ -81,6 +81,36 @@ pub struct TreeBelt {
     pub empty_share: f32,
 }
 
+/// What grows beside the road. The kit's species are northern-European
+/// (broadleaf, spruce, poplar), which is right for most of the calendar
+/// and wrong in a desert or the tropics: Sakhir was ringed with spruce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Flora {
+    /// Broadleaf, conifers and poplars by the wood's leaf type.
+    Temperate,
+    /// Palms and scrub whatever a wood is mapped as: the only trees in a
+    /// Gulf desert are planted ones.
+    Desert,
+    /// Broadleaf and palms; a wood mapped needle-leaved keeps its conifers.
+    Tropical,
+}
+
+/// What the land beside the road is drawn as. Only the look: the server
+/// still drives the aprons as grass, so a desert's off-track grip and
+/// drag are the same as everywhere else's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ground {
+    Grass,
+    /// The terrain, the horizon and the grass aprons drawn with the sand
+    /// set in a desert tint ([`DESERT_SAND_COLOR`]), and no grass or
+    /// flower clumps scattered on the verge.
+    Sand,
+}
+
+/// Linear base colour of a desert floor: paler and redder than a gravel
+/// trap's sand, which is washed river gravel, not Arabian limestone dust.
+pub const DESERT_SAND_COLOR: [f32; 4] = [0.56, 0.44, 0.29, 1.0];
+
 /// Which roadside signs the groomer lays.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoadSigns {
@@ -103,6 +133,8 @@ pub struct CircuitStyle {
     /// Advertising hoardings on the rails.
     pub hoardings: bool,
     pub trees: TreeBelt,
+    pub flora: Flora,
+    pub ground: Ground,
     pub signs: RoadSigns,
     /// A ring of floodlight towers when the dossier maps no lighting of
     /// its own (`dress`), so a night session is not lit by headlights
@@ -129,6 +161,8 @@ impl CircuitStyle {
             max_per_cell: 6,
             empty_share: 0.10,
         },
+        flora: Flora::Temperate,
+        ground: Ground::Grass,
         signs: RoadSigns::BrakingBoards,
         floodlights: true,
         pit_lane: true,
@@ -148,9 +182,39 @@ impl CircuitStyle {
             max_per_cell: 11,
             empty_share: 0.0,
         },
+        flora: Flora::Temperate,
+        ground: Ground::Grass,
         signs: RoadSigns::German,
         floodlights: false,
         pit_lane: false,
+    };
+
+    /// The Gulf circuits: the modern rules, palms instead of a forest.
+    pub const DESERT: CircuitStyle = CircuitStyle {
+        flora: Flora::Desert,
+        ..Self::DEFAULT
+    };
+
+    /// Sakhir: built in open desert, so the land is sand rather than a
+    /// lawn, and the palms stand in scattered clumps, not a belt (two in
+    /// three cells empty, one to three trees in the rest, before the
+    /// desert's halving).
+    pub const SAKHIR: CircuitStyle = CircuitStyle {
+        ground: Ground::Sand,
+        trees: TreeBelt {
+            min_per_cell: 1,
+            max_per_cell: 3,
+            empty_share: 0.65,
+            ..Self::DEFAULT.trees
+        },
+        ..Self::DESERT
+    };
+
+    /// Sepang's oil-palm country, Interlagos and Mexico City: broadleaf
+    /// and palms.
+    pub const TROPICAL: CircuitStyle = CircuitStyle {
+        flora: Flora::Tropical,
+        ..Self::DEFAULT
     };
 
     /// The style of the circuit a scene decorates, by its source track's
@@ -166,6 +230,9 @@ impl CircuitStyle {
     pub fn for_stem(stem: &str) -> CircuitStyle {
         match stem {
             "Nordschleife" => Self::NORDSCHLEIFE,
+            "Sakhir" => Self::SAKHIR,
+            "YasMarina" => Self::DESERT,
+            "Sepang" | "SaoPaulo" | "MexicoCity" => Self::TROPICAL,
             _ => Self::DEFAULT,
         }
     }
@@ -181,6 +248,25 @@ mod tests {
         assert_eq!(
             CircuitStyle::for_stem("Nordschleife"),
             CircuitStyle::NORDSCHLEIFE
+        );
+    }
+
+    #[test]
+    fn the_hot_circuits_grow_palms() {
+        assert_eq!(CircuitStyle::for_stem("Sakhir").flora, Flora::Desert);
+        assert_eq!(CircuitStyle::for_stem("YasMarina").flora, Flora::Desert);
+        assert_eq!(CircuitStyle::for_stem("Sepang").flora, Flora::Tropical);
+        assert_eq!(CircuitStyle::for_stem("MexicoCity").flora, Flora::Tropical);
+        assert_eq!(CircuitStyle::for_stem("Sakhir").ground, Ground::Sand);
+        assert_eq!(CircuitStyle::for_stem("YasMarina").ground, Ground::Grass);
+        assert_eq!(CircuitStyle::for_stem("Spa").flora, Flora::Temperate);
+        // Only the trees differ.
+        assert_eq!(
+            CircuitStyle {
+                flora: Flora::Temperate,
+                ..CircuitStyle::DESERT
+            },
+            CircuitStyle::DEFAULT
         );
     }
 

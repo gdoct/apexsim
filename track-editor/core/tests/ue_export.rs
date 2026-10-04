@@ -2320,3 +2320,27 @@ fn road_decals_bake_as_pictures_on_the_road() {
         hi - lo
     );
 }
+
+#[test]
+fn a_desert_circuit_draws_its_land_as_sand() {
+    let track = test_track();
+    let mut scene = test_scene(&track);
+    let green = ue_export::bake(&track, &scene).expect("test track must bake");
+    scene.source_track = "Sakhir.yaml".to_string();
+    let sand = ue_export::bake(&track, &scene).expect("test track must bake");
+
+    let find = |s: &UeScene, key: &str| s.materials.iter().find(|m| m.key == key).cloned();
+    for key in ["ground", "surface_grass"] {
+        let before = find(&green, key).unwrap_or_else(|| panic!("{key} missing"));
+        let after = find(&sand, key).unwrap();
+        assert_eq!(before.ground_set, None, "{key}");
+        assert_eq!(after.ground_set.as_deref(), Some("sand"), "{key}");
+        assert_eq!(after.family, before.family);
+    }
+    // Only the look: the gravel trap, the road and every mesh are as they were.
+    assert_eq!(
+        find(&sand, "surface_gravel"),
+        find(&green, "surface_gravel")
+    );
+    assert_eq!(sand.meshes.len(), green.meshes.len());
+}

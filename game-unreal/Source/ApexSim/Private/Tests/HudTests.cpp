@@ -108,6 +108,10 @@ bool FApexHudExprBasicsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("fmt_gap unsigned"), HudText(TEXT("fmt_gap(0.4, false)")), FString(TEXT("0.400")));
 	TestEqual(TEXT("fmt_gap of nothing"), HudText(TEXT("fmt_gap(null)")), FString(TEXT("—")));
 	TestEqual(TEXT("fmt_delta"), HudText(TEXT("fmt_delta(-0.25)")), FString(TEXT("-0.250")));
+	TestEqual(TEXT("fmt_clock"), HudText(TEXT("fmt_clock(83.2)")), FString(TEXT("1:24")));
+	TestEqual(TEXT("fmt_clock with hours"), HudText(TEXT("fmt_clock(86400)")), FString(TEXT("24:00:00")));
+	TestEqual(TEXT("fmt_clock out of time"), HudText(TEXT("fmt_clock(0)")), FString(TEXT("0:00")));
+	TestEqual(TEXT("fmt_clock of nothing"), HudText(TEXT("fmt_clock(null)")), FString(TEXT("--:--")));
 	TestEqual(TEXT("fmt"), HudText(TEXT("fmt(12.345, 1)")), FString(TEXT("12.3")));
 	TestEqual(TEXT("fmt of nothing"), HudText(TEXT("fmt(null)")), FString(TEXT("—")));
 	TestEqual(TEXT("round"), HudEval(TEXT("round(2.5)")).AsNumber(), 3.0);
@@ -417,6 +421,41 @@ bool FApexHudDataBuildTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("local second"), (*Standings)[1][TEXT("is_local")].AsBool());
 		TestTrue(TEXT("leader has no gap"), (*Standings)[0][TEXT("gap_leader_s")].IsNone());
 		TestEqual(TEXT("Bob to the leader"), (*Standings)[2][TEXT("gap_leader_s")].AsNumber(), 500.0 / 45.0, 1e-3);
+	}
+	TestFalse(TEXT("a lap race is not timed"), HudValue(Data, TEXT("race.timed")).AsBool());
+	TestTrue(TEXT("a lap race has no clock"), HudValue(Data, TEXT("race.time_left_s")).IsNone());
+
+	{
+		// A timed race: no distance, the clock, laps to go from the car's own
+		// last lap, then the leader's lap once the clock has run out.
+		FApexTelemetryFrame Timed = Frame;
+		Timed.RaceLeftMs = 600000;
+		FApexCarTelemetry* Me = Timed.Cars.FindByPredicate([](const FApexCarTelemetry& Car) { return Car.CarIndex == 1; });
+		if (TestNotNull(TEXT("the local car"), Me))
+		{
+			Me->LastLapTimeMs = 90000;
+			Me->FinishPosition = 0;
+			In.Frame = &Timed;
+			In.LapLimit = 0;
+			FApexHudMemory TimedMemory;
+			FApexHudData TimedData;
+			ApexHudData::Build(In, TimedMemory, TimedData);
+			TestTrue(TEXT("timed"), HudValue(TimedData, TEXT("race.timed")).AsBool());
+			TestEqual(TEXT("ten minutes left"), HudValue(TimedData, TEXT("race.time_left_s")).AsNumber(), 600.0);
+			TestTrue(TEXT("no last lap yet"), HudValue(TimedData, TEXT("race.final_lap")).IsNone());
+			TestEqual(TEXT("seven laps of 90 s"), HudValue(TimedData, TEXT("lap.laps_left")).AsNumber(), 7.0);
+			TestFalse(TEXT("not the last lap"), HudValue(TimedData, TEXT("lap.final")).AsBool());
+
+			Timed.RaceLeftMs = 0;
+			Timed.RaceFinalLap = FMath::Max(1, Me->CurrentLap);
+			ApexHudData::Build(In, TimedMemory, TimedData);
+			TestEqual(TEXT("the leader's lap is the last"), HudValue(TimedData, TEXT("race.final_lap")).AsNumber(),
+				static_cast<double>(Timed.RaceFinalLap));
+			TestEqual(TEXT("one lap to go"), HudValue(TimedData, TEXT("lap.laps_left")).AsNumber(), 1.0);
+			TestTrue(TEXT("the last lap"), HudValue(TimedData, TEXT("lap.final")).AsBool());
+		}
+		In.Frame = &Frame;
+		In.LapLimit = 10;
 	}
 
 	const TArray<FApexHudRecord>* Sectors = Data.FindList(TEXT("sectors"));

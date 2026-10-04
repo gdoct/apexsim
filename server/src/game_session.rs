@@ -38,6 +38,9 @@ pub const RACE_FUEL_MARGIN: f32 = 0.08;
 pub const RACE_FUEL_RESERVE_LAPS: f32 = 1.0;
 /// Least fuel a car is ever sent out with, in laps, whatever the knob says.
 pub const MIN_FUEL_LAPS: f32 = 1.0;
+/// A lap's length in a timed race when nothing better is known (no lap
+/// driven, no line to plan on), s: only the AI's pit planning reads it.
+const FALLBACK_LAP_SECONDS: f32 = 120.0;
 
 /// How far before the line a hotlap car is put out, so the first flying lap
 /// starts at speed. Shortened on a track too small for it.
@@ -80,6 +83,11 @@ pub struct GameSession {
     /// Litres a lap of this track costs each car (`racing_line::lap_fuel_liters`),
     /// worked out the first time the car is fuelled. Looked up by key only.
     lap_fuel: HashMap<CarConfigId, f32>,
+    /// Each car's ideal lap here, s (`racing_line::lap_time_s`), worked out
+    /// with its lap fuel: how many laps a timed race is. Key lookups only.
+    lap_seconds: HashMap<CarConfigId, f32>,
+    /// How the race's end stands: its final lap, who has the flag.
+    race_end: RaceEnd,
     /// The livery each human driver picked (`SelectCar`); AI drivers are
     /// dealt one in `build_roster`. Looked up by key only.
     liveries: HashMap<PlayerId, u8>,
@@ -94,6 +102,29 @@ pub struct GameSession {
     /// each sector has been driven — the purple times on a timing screen.
     session_best_lap_ms: Option<u32>,
     session_best_splits_ms: [Option<u32>; SECTOR_COUNT],
+}
+
+/// How a race's end stands, reset with every start.
+#[derive(Debug, Default, Clone)]
+struct RaceEnd {
+    /// A timed race's last lap: the leader's lap when the clock ran out.
+    final_lap: Option<u16>,
+    /// Every car that has taken the flag, and how it took it.
+    finishers: std::collections::BTreeMap<PlayerId, Finisher>,
+    /// Once the winner is in, the lap each car still running was on: it
+    /// takes the flag the next time it crosses the line, a lap down or not.
+    /// Empty in a race over laps, where every car runs the distance.
+    flag_laps: std::collections::BTreeMap<PlayerId, u16>,
+}
+
+/// A car taking the flag.
+#[derive(Debug, Clone, Copy)]
+struct Finisher {
+    /// Laps completed.
+    laps: u16,
+    tick: u32,
+    /// How far past the line it was on that tick, m: who crossed first.
+    progress: f32,
 }
 
 /// A timing line crossed by one car, with what it meant for the session.
@@ -323,6 +354,8 @@ impl GameSession {
             liveries: HashMap::new(),
             car_setups: HashMap::new(),
             lap_fuel: HashMap::new(),
+            lap_seconds: HashMap::new(),
+            race_end: RaceEnd::default(),
             lap_events: Vec::new(),
             pit_events: Vec::new(),
             lap_traces: HashMap::new(),
@@ -361,6 +394,8 @@ impl GameSession {
             liveries: HashMap::new(),
             car_setups: HashMap::new(),
             lap_fuel: HashMap::new(),
+            lap_seconds: HashMap::new(),
+            race_end: RaceEnd::default(),
             lap_events: Vec::new(),
             pit_events: Vec::new(),
             lap_traces: HashMap::new(),
@@ -859,9 +894,10 @@ impl GameSession {
         physics::check_collisions_refs(&mut state_refs, &self.car_configs);
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
 
-        // Assign finish positions to cars that just completed the race
-        // distance (in crossing order), then finish the session exactly once
-        // when every car is classified.
+        // A timed race whose clock just ran out learns its last lap; then
+        // assign finish positions to cars that just took the flag, and
+        // finish the session exactly once when every car is classified.
+        self.update_race_clock();
         self.assign_finish_positions();
         if self.session.state != SessionState::Finished && self.is_race_complete() {
             self.session.state = SessionState::Finished;
@@ -982,6 +1018,7 @@ impl GameSession {
                 self.session.race_start_tick = Some(self.session.current_tick);
                 self.session.demo_lap_progress = None;
                 self.finish_deadline_tick = None;
+                self.race_end = RaceEnd::default();
                 // Pole sits on the line, so it never crosses it to start lap
                 // 1: its lap starts with the green light.
                 let tick = self.session.current_tick;
@@ -1313,8 +1350,31 @@ impl GameSession {
         if !(liters.is_finite() && liters > 0.0) {
             return None;
         }
+        let seconds = racing_line::lap_time_s(&profile);
+        if seconds.is_finite() && seconds > 0.0 {
+            self.lap_seconds.insert(car_id, seconds);
+        }
         self.lap_fuel.insert(car_id, liters);
         Some(liters)
+    }
+
+    /// The race's distance in laps for `car_id`: the lap limit, or in a
+    /// timed race as many of the car's ideal laps as the clock holds plus
+    /// the one it runs out on. Call after `lap_fuel_liters`, which works the
+    /// lap out.
+    fn race_laps(&self, car_id: CarConfigId) -> f32 {
+        match self.session.race_seconds {
+            None => self.session.lap_limit as f32,
+            Some(seconds) => {
+                let lap = self
+                    .lap_seconds
+                    .get(&car_id)
+                    .copied()
+                    .unwrap_or(FALLBACK_LAP_SECONDS)
+                    .max(1.0);
+                (seconds as f32 / lap).ceil() + 1.0
+            }
+        }
     }
 
     /// What a driver's car is fuelled with for a run in `mode`: the race
@@ -1342,7 +1402,7 @@ impl GameSession {
         let knob = self.car_setup(player_id).fuel_load as f32;
         let laps = match mode {
             GameMode::Race => {
-                self.session.lap_limit as f32 * (1.0 + RACE_FUEL_MARGIN) + RACE_FUEL_RESERVE_LAPS
+                self.race_laps(car_id) * (1.0 + RACE_FUEL_MARGIN) + RACE_FUEL_RESERVE_LAPS
             }
             GameMode::Hotlap | GameMode::Qualification => HOTLAP_FUEL_LAPS,
             _ => capacity / lap,
@@ -1438,6 +1498,7 @@ impl GameSession {
     /// times, finish position, damage), keeping the driver's aids.
     pub fn line_up_on_grid(&mut self) {
         self.finish_deadline_tick = None;
+        self.race_end = RaceEnd::default();
         // A fresh race, a fresh timing sheet: the session's bests and every
         // half-recorded ghost lap belong to the race that just ended.
         self.session_best_lap_ms = None;
@@ -1776,9 +1837,123 @@ impl GameSession {
         std::mem::take(&mut self.pit_events)
     }
 
-    /// Laps a car has left after the one it is on, in a race.
+    /// Laps a car has left after the one it is on, in a race. In a timed
+    /// race: none once it is on its flag lap, to the final lap once the
+    /// clock has run out, and before that as many of its laps (its last,
+    /// else the plan's) as the clock still holds, rounded up.
     fn laps_left(&self, state: &CarState) -> u32 {
-        (self.session.lap_limit as u32).saturating_sub(state.current_lap.max(1) as u32)
+        let lap = state.current_lap.max(1);
+        if self.session.race_seconds.is_none() {
+            return (self.session.lap_limit as u32).saturating_sub(lap as u32);
+        }
+        if self.race_end.flag_laps.contains_key(&state.player_id) {
+            return 0;
+        }
+        if let Some(final_lap) = self.race_end.final_lap {
+            return final_lap.saturating_sub(lap) as u32;
+        }
+        let lap_s = state
+            .last_lap_time_ms
+            .filter(|ms| *ms > 0)
+            .map(|ms| ms as f32 / 1000.0)
+            .or_else(|| self.lap_seconds.get(&state.car_config_id).copied())
+            .unwrap_or(FALLBACK_LAP_SECONDS)
+            .max(1.0);
+        (self.race_seconds_left().unwrap_or(0.0) / lap_s).ceil() as u32
+    }
+
+    /// A timed race's length in ticks; `None` in a race over laps.
+    fn race_length_ticks(&self) -> Option<u64> {
+        self.session
+            .race_seconds
+            .map(|s| s as u64 * self.tick_rate_hz as u64)
+    }
+
+    /// Ticks since the green light; 0 before it.
+    fn race_elapsed_ticks(&self) -> u64 {
+        self.session.race_start_tick.map_or(0, |start| {
+            self.session.current_tick.saturating_sub(start) as u64
+        })
+    }
+
+    /// Seconds left on a timed race's clock (all of it before the green
+    /// light, 0 once it has run out); `None` in a race over laps.
+    pub fn race_seconds_left(&self) -> Option<f32> {
+        let length = self.race_length_ticks()?;
+        let elapsed = match self.session.game_mode {
+            GameMode::Race => self.race_elapsed_ticks(),
+            _ => 0,
+        };
+        Some(length.saturating_sub(elapsed) as f32 / self.tick_rate_hz as f32)
+    }
+
+    /// Where a timed race's clock stands, for telemetry: `None` unless the
+    /// session is a timed race counting into or running its race.
+    pub fn race_clock(&self) -> Option<RaceClock> {
+        let length = self.race_length_ticks()?;
+        let elapsed = match self.session.game_mode {
+            GameMode::Race => self.race_elapsed_ticks(),
+            GameMode::Countdown if self.session.next_mode == Some(GameMode::Race) => 0,
+            _ => return None,
+        };
+        let left_ticks = length.saturating_sub(elapsed);
+        Some(RaceClock {
+            left_ms: (left_ticks * 1000 / self.tick_rate_hz.max(1) as u64).min(u32::MAX as u64)
+                as u32,
+            final_lap: self.race_end.final_lap.unwrap_or(0),
+        })
+    }
+
+    /// The lap whose completion wins the race: the distance in a race over
+    /// laps, and in a timed race the final lap once its clock has run out.
+    fn finish_lap(&self) -> Option<u16> {
+        if self.session.race_seconds.is_some() {
+            self.race_end.final_lap
+        } else {
+            Some(self.session.lap_limit as u16)
+        }
+    }
+
+    /// A timed race whose clock has just run out: the leader's lap is the
+    /// last (the first car to complete it wins). Should nobody on that lap
+    /// manage it, the race still ends: the leader's lap and the usual grace
+    /// after the clock.
+    fn update_race_clock(&mut self) {
+        let Some(length) = self.race_length_ticks() else {
+            return;
+        };
+        if self.race_end.final_lap.is_some()
+            || self.session.race_start_tick.is_none()
+            || self.race_elapsed_ticks() < length
+        {
+            return;
+        }
+        let running = self
+            .session
+            .participants
+            .values()
+            .filter(|s| s.finish_position.is_none() && s.damage.is_drivable);
+        let leader = running.max_by(|a, b| {
+            a.current_lap.cmp(&b.current_lap).then(
+                a.track_progress
+                    .partial_cmp(&b.track_progress)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
+        });
+        let final_lap = leader.map_or(1, |s| s.current_lap).max(1);
+        self.race_end.final_lap = Some(final_lap);
+
+        let laps_done = final_lap.saturating_sub(1).max(1) as u64;
+        let average_lap_ticks = self.race_elapsed_ticks() / laps_done;
+        let grace_ticks = ((average_lap_ticks as f32 * (FINISH_GRACE_LAPS + 1.0)) as u32)
+            .max(FINISH_GRACE_MIN_SECONDS * self.tick_rate_hz as u32);
+        self.finish_deadline_tick
+            .get_or_insert(self.session.current_tick + grace_ticks);
+        tracing::info!(
+            "Session {}: the race clock has run out; lap {} is the last",
+            self.session.id,
+            final_lap
+        );
     }
 
     /// A car has stopped at its box: what the service will do, and how long
@@ -1902,7 +2077,14 @@ impl GameSession {
             if !state.pit.wants_stop {
                 let laps_left = self.laps_left(state);
                 let car_id = state.car_config_id;
-                let lap_fuel = self.lap_fuel_liters(car_id);
+                // Short of fuel is no reason to stop in a car the rules do
+                // not refuel (an F1): the stop would add none, and the car
+                // would come in again every lap.
+                let refuels = self
+                    .car_configs
+                    .get(&car_id)
+                    .is_some_and(crate::pit::refuelling_allowed);
+                let lap_fuel = self.lap_fuel_liters(car_id).filter(|_| refuels);
                 let Some(state) = self.session.participants.get(&ai_id) else {
                     continue;
                 };
@@ -2111,6 +2293,7 @@ impl GameSession {
             game_mode: self.session.game_mode,
             countdown_ms,
             car_states,
+            race_clock: self.race_clock(),
         }
     }
 
@@ -2219,61 +2402,90 @@ impl GameSession {
             .all(|s| s.finish_position.is_some() || !s.damage.is_drivable)
     }
 
-    /// Assign finish positions incrementally, in the order cars complete the
-    /// race distance (`current_lap > lap_limit` means the car has completed
-    /// all `lap_limit` laps). Positions are unique and never reassigned;
-    /// cars finishing on the same tick are ordered by laps then progress
-    /// (ties broken by deterministic BTreeMap player order).
+    /// Classify the cars that just took the flag: those completing the
+    /// winning lap (`finish_lap`) and, in a timed race once the winner is
+    /// in, every car crossing the line after it, a lap down or not. The
+    /// order is laps completed, then who crossed first (the same tick: who
+    /// was further past the line; then deterministic BTreeMap order), so
+    /// in a race over laps a car's place never changes once it has one,
+    /// while in a timed race a lapped car that crossed early drops behind a
+    /// car on the lead lap that crosses after it.
     fn assign_finish_positions(&mut self) {
-        let lap_limit = self.session.lap_limit as u16;
-
-        let assigned = self
-            .session
-            .participants
-            .values()
-            .filter(|s| s.finish_position.is_some())
-            .count() as u8;
-
-        let mut new_finishers: Vec<(PlayerId, u16, f32)> = self
+        let Some(finish_lap) = self.finish_lap() else {
+            return;
+        };
+        let tick = self.session.current_tick;
+        let winner_was_in = !self.race_end.finishers.is_empty();
+        let flag_laps = &self.race_end.flag_laps;
+        let new_finishers: Vec<(PlayerId, Finisher)> = self
             .session
             .participants
             .iter()
-            .filter(|(_, s)| s.finish_position.is_none() && s.current_lap > lap_limit)
-            .map(|(id, s)| (*id, s.current_lap, s.track_progress))
+            .filter(|(id, s)| {
+                s.finish_position.is_none()
+                    && (s.current_lap > finish_lap
+                        || flag_laps.get(id).is_some_and(|lap| s.current_lap > *lap))
+            })
+            .map(|(id, s)| {
+                let finisher = Finisher {
+                    laps: s.current_lap.saturating_sub(1),
+                    tick,
+                    progress: s.track_progress,
+                };
+                (*id, finisher)
+            })
             .collect();
 
         if new_finishers.is_empty() {
             return;
         }
+        self.race_end
+            .finishers
+            .extend(new_finishers.iter().copied());
 
-        // Sort by laps (descending), then by progress (descending); stable
-        // sort preserves BTreeMap order for exact ties.
-        new_finishers.sort_by(|a, b| {
-            b.1.cmp(&a.1)
-                .then_with(|| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal))
+        let mut order: Vec<(PlayerId, Finisher)> = self
+            .race_end
+            .finishers
+            .iter()
+            .filter(|(id, _)| self.session.participants.contains_key(id))
+            .map(|(id, f)| (*id, *f))
+            .collect();
+        // Stable: exact ties keep BTreeMap order.
+        order.sort_by(|(_, a), (_, b)| {
+            b.laps.cmp(&a.laps).then(a.tick.cmp(&b.tick)).then(
+                b.progress
+                    .partial_cmp(&a.progress)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
         });
-
-        for (offset, (player_id, _, _)) in new_finishers.iter().enumerate() {
+        for (place, (player_id, _)) in order.iter().enumerate() {
             if let Some(state) = self.session.participants.get_mut(player_id) {
-                state.finish_position = Some(assigned + offset as u8 + 1);
+                state.finish_position = Some((place + 1).min(u8::MAX as usize) as u8);
             }
         }
 
-        if assigned == 0 {
+        if !winner_was_in {
             // The winner is in: the rest of the field is on the clock.
-            let race_ticks = self
-                .session
-                .current_tick
-                .saturating_sub(self.session.race_start_tick.unwrap_or(0));
-            let average_lap_ticks = race_ticks as f32 / lap_limit.max(1) as f32;
+            let race_ticks = tick.saturating_sub(self.session.race_start_tick.unwrap_or(0));
+            let average_lap_ticks = race_ticks as f32 / finish_lap.max(1) as f32;
             let grace_ticks = ((average_lap_ticks * FINISH_GRACE_LAPS) as u32)
                 .max(FINISH_GRACE_MIN_SECONDS * self.tick_rate_hz as u32);
-            self.finish_deadline_tick = Some(self.session.current_tick + grace_ticks);
+            self.finish_deadline_tick = Some(tick + grace_ticks);
+            // A timed race flags everyone at their next crossing.
+            if self.session.race_seconds.is_some() {
+                self.race_end.flag_laps = self
+                    .session
+                    .participants
+                    .iter()
+                    .filter(|(_, s)| s.finish_position.is_none())
+                    .map(|(id, s)| (*id, s.current_lap))
+                    .collect();
+            }
         }
 
         // Humans who just finished hand their car to the cool-down driver,
         // which steers the rack directly and plans on the car's own speeds.
-        for (player_id, _, _) in &new_finishers {
+        for (player_id, _) in &new_finishers {
             if self.is_ai_player(player_id) {
                 continue;
             }
@@ -3097,6 +3309,109 @@ mod tests {
             SessionState::Finished,
             "the race ends at the deadline with the second car unclassified"
         );
+    }
+
+    /// A timed race: the clock runs to the end, the leader's lap is the
+    /// last, the winner takes the flag on completing it, and every car
+    /// after it at its next crossing, a lap down or not; a lapped car that
+    /// crossed first is classified behind the car on the lead lap.
+    #[test]
+    fn test_timed_race_ends_on_the_leaders_lap_after_the_clock() {
+        let mut game_session = create_test_session();
+        game_session.session.race_seconds = Some(60);
+        game_session.session.lap_limit = 0;
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (leader, second, lapped) = (Uuid::from_u128(1), Uuid::from_u128(2), Uuid::from_u128(3));
+        for id in [leader, second, lapped] {
+            game_session.add_player(id, car_id).unwrap();
+        }
+        game_session.set_game_mode(GameMode::Race);
+        let start = game_session.session.race_start_tick.unwrap();
+        let set_lap = |gs: &mut GameSession, id: &PlayerId, lap: u16| {
+            gs.session.participants.get_mut(id).unwrap().current_lap = lap;
+        };
+        set_lap(&mut game_session, &leader, 6);
+        set_lap(&mut game_session, &second, 5);
+        set_lap(&mut game_session, &lapped, 4);
+        let none: HashMap<PlayerId, PlayerInputData> = HashMap::new();
+
+        // Laps past nothing while the clock runs: no lap is the last.
+        game_session.session.current_tick = start + 60 * 240 - 10;
+        game_session.tick(&none);
+        let clock = game_session.race_clock().expect("a timed race has a clock");
+        assert!(clock.left_ms > 0 && clock.left_ms < 100, "{clock:?}");
+        assert_eq!(clock.final_lap, 0);
+        assert!(game_session
+            .session
+            .participants
+            .values()
+            .all(|s| s.finish_position.is_none()));
+
+        // Out of time: the leader's lap is the last, and the race has a
+        // deadline in case nobody can complete it.
+        game_session.session.current_tick = start + 60 * 240;
+        game_session.tick(&none);
+        let clock = game_session.race_clock().unwrap();
+        assert_eq!(
+            clock,
+            RaceClock {
+                left_ms: 0,
+                final_lap: 6
+            }
+        );
+        assert!(game_session.finish_deadline_tick.is_some());
+
+        // The leader completes it: the winner.
+        set_lap(&mut game_session, &leader, 7);
+        game_session.tick(&none);
+        let place = |gs: &GameSession, id: &PlayerId| gs.session.participants[id].finish_position;
+        assert_eq!(place(&game_session, &leader), Some(1));
+        assert_eq!(place(&game_session, &second), None);
+
+        // The lapped car crosses first: it has the flag at once...
+        set_lap(&mut game_session, &lapped, 5);
+        game_session.tick(&none);
+        assert_eq!(place(&game_session, &lapped), Some(2));
+        assert_eq!(game_session.session.state, SessionState::Racing);
+
+        // ...and the car on the lead lap that crosses after it goes ahead.
+        set_lap(&mut game_session, &second, 6);
+        game_session.tick(&none);
+        assert_eq!(place(&game_session, &second), Some(2));
+        assert_eq!(place(&game_session, &lapped), Some(3));
+        assert_eq!(game_session.session.state, SessionState::Finished);
+    }
+
+    /// A timed race is as many laps as the clock holds plus the one it runs
+    /// out on, and a car's laps to go count down by its own lap time.
+    #[test]
+    fn test_timed_race_laps_come_from_the_clock() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.lap_seconds.insert(car_id, 90.0);
+        assert_eq!(game_session.race_laps(car_id), 3.0, "a race over laps");
+
+        game_session.session.race_seconds = Some(3600);
+        game_session.session.lap_limit = 0;
+        assert_eq!(game_session.race_laps(car_id), 41.0);
+
+        let player = Uuid::from_u128(1);
+        game_session.add_player(player, car_id).unwrap();
+        // Seating fuels the car, which plans its ideal lap on this track.
+        game_session.lap_seconds.insert(car_id, 90.0);
+        game_session.set_game_mode(GameMode::Race);
+        let start = game_session.session.race_start_tick.unwrap();
+        game_session.session.current_tick = start + 1800 * 240;
+        let state = game_session.session.participants[&player].clone();
+        assert_eq!(
+            game_session.laps_left(&state),
+            20,
+            "half an hour of 90 s laps"
+        );
+        let mut quicker = state.clone();
+        quicker.last_lap_time_ms = Some(60_000);
+        assert_eq!(game_session.laps_left(&quicker), 30, "its own pace wins");
+        assert_eq!(game_session.race_seconds_left(), Some(1800.0));
     }
 
     #[test]

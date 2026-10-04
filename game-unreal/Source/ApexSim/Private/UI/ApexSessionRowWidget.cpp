@@ -99,9 +99,13 @@ void UApexSessionRowWidget::SetSession(const FApexSessionSummary& Summary, bool 
 
 	if (KindAndStateText)
 	{
+		// The race's length, when it has one: a time or a lap count.
+		const FString Length = Summary.RaceSeconds > 0 ? ApexRaceLength::Describe(Summary.RaceSeconds)
+			: Summary.LapLimit > 0 ? FString::Printf(TEXT("%d laps"), Summary.LapLimit)
+			: FString();
 		KindAndStateText->SetText(FText::FromString(FString::Printf(
-			TEXT("%s   |   %s   |   %s"), *DescribeKind(Summary.SessionKind), *DescribeState(Summary.State),
-			*Summary.Conditions.Describe())));
+			TEXT("%s   |   %s   |   %s%s"), *DescribeKind(Summary.SessionKind), *DescribeState(Summary.State),
+			Length.IsEmpty() ? TEXT("") : *(Length + TEXT("   |   ")), *Summary.Conditions.Describe())));
 		KindAndStateText->SetColorAndOpacity(ColorForState(Summary.State));
 	}
 
