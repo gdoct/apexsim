@@ -524,6 +524,26 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("on the limiter"), Car.bPitLimiter);
 			TestTrue(TEXT("in service"), Car.bPitServicing);
 			TestEqual(TEXT("service left"), Car.ServiceSecondsLeft, 7.3f);
+			TestFalse(TEXT("no autopilot"), Car.bPitAutopilot);
+			TestFalse(TEXT("exit open"), Car.bPitExitClosed);
+			TestFalse(TEXT("not held"), Car.bPitHeld);
+		}
+		// The same frame with the autopilot, the red exit light and the hold
+		// bits set (pit_flags 63): the byte is the second last.
+		TArray<uint8> PitBits(ApexUdpGolden::S_TelemetryCompactPit, UE_ARRAY_COUNT(ApexUdpGolden::S_TelemetryCompactPit));
+		if (TestEqual(TEXT("pit_flags where expected"), static_cast<int32>(PitBits[PitBits.Num() - 2]), 7))
+		{
+			PitBits[PitBits.Num() - 2] = 63;
+			FApexServerMessage Held;
+			if (TestTrue(TEXT("pit bits decode"), ApexProtocol::DecodeUdpMessage(PitBits, Held, Error))
+				&& Held.Telemetry.Cars.Num() == 1)
+			{
+				const FApexCarTelemetry& Car = Held.Telemetry.Cars[0];
+				TestTrue(TEXT("still in service"), Car.bPitServicing);
+				TestTrue(TEXT("autopilot"), Car.bPitAutopilot);
+				TestTrue(TEXT("exit closed"), Car.bPitExitClosed);
+				TestTrue(TEXT("held"), Car.bPitHeld);
+			}
 		}
 		// 33 fields: the brakes and the coolant.
 		FApexServerMessage Heat;

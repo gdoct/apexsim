@@ -600,6 +600,29 @@ private:
 	/** Emissive strength of a lit lens. The race is exposed for a 50 klux sun. */
 	static constexpr float StartLightOnEmissive = 4000.0f;
 
+	/**
+	 * Drive the pit exit lights (`sign/pit_exit_light`, slots `pit_light_red`
+	 * and `pit_light_green`): red while the telemetry says the exit is closed
+	 * (`bPitExitClosed`, the same on every car), green otherwise. The bake
+	 * shows green until this takes over, and a stream without the bit (an
+	 * older server, a showcase) leaves it green. Written only on a change.
+	 */
+	void UpdatePitExitLights(const FApexTelemetryFrame& Frame);
+	/** Take over the lamp materials of every pit exit light on the circuit on show. */
+	void FindPitExitLights();
+
+	/** The red and the green lamps' materials. The runtime builder shares one per slot across the circuit, so these hold one each. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> PitExitRedLamps;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> PitExitGreenLamps;
+	/** 1 red, 0 green as last written; -1 forces a write. */
+	int8 PitExitClosedShown = -1;
+	/** Done once per circuit shown, like the gantry's. */
+	bool bSearchedPitExitLights = false;
+	/** A lit lamp, as the builder lights the green one (ApexTrackSceneBuilder, EmissiveMaterialFor). */
+	static constexpr float PitExitLampEmissive = StartLightOnEmissive;
+
 	/** The session's circuit, built from its export. */
 	UPROPERTY(Transient)
 	TObjectPtr<class UApexTrackInstance> Track;

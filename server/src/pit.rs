@@ -50,6 +50,9 @@ pub const AI_PIT_WEAR: f32 = 70.0;
 pub const AI_PIT_DAMAGE: f32 = 25.0;
 /// Or its engine is, percent: power it would lose for the rest of the race.
 pub const AI_PIT_ENGINE_DAMAGE: f32 = 20.0;
+/// A car further than this from the lane's bounding box is not looked for
+/// on it, m; within it, a hint further off the lane than this is stale.
+pub const LANE_SEARCH_MARGIN_M: f32 = 30.0;
 /// It turns onto the pit route this far before the lane leaves the track, m.
 pub const AI_PIT_APPROACH_M: f32 = 250.0;
 /// It races on the road up to this far before the lane leaves the track, m,
@@ -90,6 +93,9 @@ pub struct PitLane {
     /// Each node's station along the lane, m (worked out on load).
     #[serde(skip)]
     pub stations: Vec<f32>,
+    /// The lane's bounding box, `[min x, min y, max x, max y]` (on load).
+    #[serde(skip)]
+    pub bounds: [f32; 4],
 }
 
 /// Where a car is against the lane.
@@ -124,6 +130,17 @@ impl PitLane {
         if self.nodes.len() < 2 || self.boxes.is_empty() {
             return Err("a pit lane needs a line and a box".into());
         }
+        self.bounds = self
+            .nodes
+            .iter()
+            .fold([f32::MAX, f32::MAX, f32::MIN, f32::MIN], |b, n| {
+                [
+                    b[0].min(n[0]),
+                    b[1].min(n[1]),
+                    b[2].max(n[0]),
+                    b[3].max(n[1]),
+                ]
+            });
         let mut at = 0.0f32;
         self.stations = Vec::with_capacity(self.nodes.len());
         self.stations.push(0.0);
@@ -132,6 +149,13 @@ impl PitLane {
             self.stations.push(at);
         }
         Ok(())
+    }
+
+    /// Whether `(x, y)` is within `margin` of the lane's bounding box: a car
+    /// further out is nowhere near it, and is not looked for on it.
+    pub fn near(&self, x: f32, y: f32, margin: f32) -> bool {
+        let b = self.bounds;
+        x >= b[0] - margin && y >= b[1] - margin && x <= b[2] + margin && y <= b[3] + margin
     }
 
     /// The car at `(x, y)` against the lane, searching near `hint` (the
@@ -178,12 +202,6 @@ impl PitLane {
         let t = ((s - self.stations[i - 1]) / span).clamp(0.0, 1.0);
         (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
     }
-
-    /// The box a car on grid slot `grid_position` stops at: one each while
-    /// there are enough, shared beyond that.
-    pub fn box_for(&self, grid_position: u8) -> &PitBox {
-        &self.boxes[(grid_position.max(1) as usize - 1) % self.boxes.len()]
-    }
 }
 
 /// A car against the pit lane, and its stop.
@@ -225,16 +243,52 @@ pub struct PitState {
     pub service_compound: u8,
     #[serde(default)]
     pub service_fuel_l: f32,
+    /// The service under way repairs the car.
+    #[serde(default)]
+    pub service_repair: bool,
+    /// The car's own box (0-based), dealt the first time the car is placed
+    /// against the lane: the lowest box no other car holds.
+    #[serde(default)]
+    pub box_index: Option<u8>,
+    /// The pit exit light is red this tick (the same for every car).
+    #[serde(default)]
+    pub exit_closed: bool,
+    /// Held at the red exit light, and for how long, s.
+    #[serde(default)]
+    pub held: bool,
+    #[serde(default)]
+    pub held_s: f32,
+    /// A human's automatic gearbox and steering aid as they were when the
+    /// pit autopilot took the car, put back when it hands it back.
+    #[serde(default)]
+    pub restore_aids: Option<[bool; 2]>,
+    /// How long the route has made no headway, s ([`AUTOPILOT_STUCK_S`]).
+    #[serde(default)]
+    pub stuck_s: f32,
 }
 
-/// What a stop will do: the compound fitted, the fuel added, and the damage
-/// repaired, and how long it takes.
+/// Less fuel than this is not worth stopping the crew for, L.
+const MIN_REFUEL_L: f32 = 0.5;
+/// Less damage than this (summed over the zones, percent) is left alone.
+const MIN_REPAIR_PERCENT: f32 = 0.5;
+
+/// What a stop does and how long each part takes, in the order the crew
+/// does them: the tyres (an F1 crew is quicker), then the fuel (not at the
+/// same time, as endurance rules have it), then the repairs. A part the
+/// stop does not need takes 0 s.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Service {
-    pub compound: u8,
-    pub fuel_added_l: f32,
-    pub repair: bool,
-    pub seconds: f32,
+pub struct ServicePlan {
+    pub tyres_s: f32,
+    pub fuel_s: f32,
+    pub fuel_l: f32,
+    pub repair_s: f32,
+    pub repair_pct: f32,
+}
+
+impl ServicePlan {
+    pub fn total_s(&self) -> f32 {
+        self.tyres_s + self.fuel_s + self.repair_s
+    }
 }
 
 /// Whether the rules let this car refuel at a stop: not an F1 car.
@@ -242,16 +296,32 @@ pub fn refuelling_allowed(config: &CarConfig) -> bool {
     config.class != "F1"
 }
 
-/// How long a stop takes: the tyre change (an F1 crew is quicker), then the
-/// fuel (not at the same time, as endurance rules have it), then the
-/// repairs.
-pub fn service_seconds(config: &CarConfig, fuel_added_l: f32, damage_percent: f32) -> f32 {
-    let tyres = if config.class == "F1" {
+/// The stop for a car that wants `fuel_l` more fuel and carries
+/// `damage_percent` of damage (summed over its zones).
+pub fn plan_service(config: &CarConfig, fuel_l: f32, damage_percent: f32) -> ServicePlan {
+    let tyres_s = if config.class == "F1" {
         F1_TYRE_CHANGE_S
     } else {
         TYRE_CHANGE_S
     };
-    tyres + fuel_added_l.max(0.0) / REFUEL_LPS + damage_percent.max(0.0) * REPAIR_S_PER_PERCENT
+    let fuel_l = if fuel_l >= MIN_REFUEL_L { fuel_l } else { 0.0 };
+    let repair_pct = if damage_percent >= MIN_REPAIR_PERCENT {
+        damage_percent
+    } else {
+        0.0
+    };
+    ServicePlan {
+        tyres_s,
+        fuel_s: fuel_l / REFUEL_LPS,
+        fuel_l,
+        repair_s: repair_pct * REPAIR_S_PER_PERCENT,
+        repair_pct,
+    }
+}
+
+/// How long a stop takes ([`plan_service`]).
+pub fn service_seconds(config: &CarConfig, fuel_added_l: f32, damage_percent: f32) -> f32 {
+    plan_service(config, fuel_added_l, damage_percent).total_s()
 }
 
 /// The car's damage summed over its zones, percent.
@@ -364,45 +434,301 @@ fn pedals(target: f32, v: f32) -> (f32, f32) {
     }
 }
 
-/// Where the AI steers and how fast it goes on the pit route: pure pursuit
-/// along the lane (onto its box's spot at the end), the limit between the
-/// lines, a stop at the box, out at the limit. The automatic gearbox does
-/// the shifting (`GameSession` switches it on for the route).
+/// Another car on the lane, as the pit route sees it: where it is along
+/// the lane and across it, and how fast it goes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LaneCar {
+    pub station_m: f32,
+    pub lateral_m: f32,
+    pub speed_mps: f32,
+}
+
+/// A car stays this far behind the one ahead of it on the route, m
+/// (centre to centre).
+const LANE_FOLLOW_GAP_M: f32 = 9.0;
+/// Two cars this close across the lane share a path, m.
+const LANE_SAME_PATH_M: f32 = 2.6;
+/// The swing from the middle of the lane into the box, and back out, m of
+/// lane.
+const BOX_SWING_M: f32 = 20.0;
+/// Speed through the swing into the box, m/s.
+const BOX_SWING_SPEED_MPS: f32 = 8.0;
+/// A held car stops this far short of the exit light, m.
+const EXIT_STOP_SHORT_M: f32 = 2.0;
+/// The exit light holds a car at most this long, s: a stream of traffic
+/// never shuts a car in for good.
+pub const EXIT_HOLD_MAX_S: f32 = 10.0;
+/// The exit light goes red while a car on the track is this long, s (at
+/// its speed), from where the lane rejoins it…
+const EXIT_TRAFFIC_S: f32 = 3.0;
+/// …or this close, m, whatever its speed.
+const EXIT_TRAFFIC_M: f32 = 25.0;
+/// Stanley gain on the distance off the path (per m/s).
+const PATH_GAIN: f32 = 1.4;
+/// The route's bends are taken at no more than this lateral acceleration,
+/// m/s², looked for this far ahead, m.
+const ROUTE_LATERAL_MPS2: f32 = 6.0;
+const ROUTE_LOOKAHEAD_M: f32 = 60.0;
+/// The most cornering the route asks of the tyres when it steers, m/s²,
+/// and the slip angle on top of the kinematic lock, rad.
+const ROUTE_GRIP_MPS2: f32 = 13.0;
+const ROUTE_SLIP_RAD: f32 = 0.09;
+/// Off the route by this much, m, or pointing this far across it, rad, the
+/// car slows to half the limit, and to no less than ROUTE_WIDE_MPS, m/s,
+/// further astray, while it steers back.
+const ROUTE_WIDE_OFF_M: f32 = 4.0;
+const ROUTE_WIDE_ANGLE_RAD: f32 = 0.4;
+const ROUTE_WIDE_MPS: f32 = 9.0;
+/// Steering taken off per rad/s of yaw rate the route does not ask for.
+const YAW_DAMPING_S: f32 = 0.25;
+/// A car on the pit route that has made no headway for this long, s (not
+/// in service, not held at the light), is put back on its route
+/// ([`recovery_pose`]).
+pub const AUTOPILOT_STUCK_S: f32 = 4.0;
+/// Short of its box by less than this, m, a stuck car is put on the box.
+const RECOVER_TO_BOX_M: f32 = 8.0;
+
+fn smoothstep(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+impl PitLane {
+    /// The lane's middle and heading at `station`.
+    pub fn frame_at(&self, station: f32) -> (f32, f32, f32) {
+        let (x, y) = self.point_at(station);
+        let (ax, ay) = self.point_at(station - 1.5);
+        let (bx, by) = self.point_at(station + 1.5);
+        (x, y, (by - ay).atan2(bx - ax))
+    }
+
+    /// `(x, y)` against the lane, and its distance across the lane from
+    /// the middle, positive to the lane's left.
+    pub fn lateral_of(&self, x: f32, y: f32, hint: Option<u32>) -> (LanePoint, f32) {
+        let at = self.locate(x, y, hint);
+        let (mx, my, heading) = self.frame_at(at.station_m);
+        let lateral = -(x - mx) * heading.sin() + (y - my) * heading.cos();
+        (at, lateral)
+    }
+
+    /// Box `index` (dealt by [`deal_box`]); shared round the row when a
+    /// session holds more cars than the lane has boxes.
+    pub fn box_at(&self, index: u8) -> &PitBox {
+        &self.boxes[index as usize % self.boxes.len()]
+    }
+
+    /// How far across the lane a box's stop spot is from the middle, m,
+    /// positive to the lane's left.
+    pub fn box_lateral_m(&self, pit_box: &PitBox) -> f32 {
+        let (mx, my, heading) = self.frame_at(pit_box.lane_station_m);
+        -(pit_box.x - mx) * heading.sin() + (pit_box.y - my) * heading.cos()
+    }
+}
+
+/// The box a car gets: the lowest one no car in `taken` holds; when every
+/// box is held, the lowest of those held by the fewest.
+pub fn deal_box(taken: &[u8], box_count: usize) -> u8 {
+    let count = box_count.clamp(1, 255);
+    let mut held = vec![0u32; count];
+    for &b in taken {
+        held[b as usize % count] += 1;
+    }
+    let least = held.iter().copied().min().unwrap_or(0);
+    held.iter().position(|&n| n == least).unwrap_or(0) as u8
+}
+
+/// Whether the pit exit light is red: before the start of a race (the
+/// lane is closed while the field lines up), or while a car on the track
+/// is about to pass where the lane rejoins it, so nobody is sent out into
+/// its path. `traffic` is every car on the track: its station along the
+/// lap and its speed.
+pub fn exit_closed(
+    lane: &PitLane,
+    before_the_start: bool,
+    traffic: &[(f32, f32)],
+    track_length_m: f32,
+) -> bool {
+    if before_the_start {
+        return true;
+    }
+    if track_length_m <= 0.0 {
+        return false;
+    }
+    traffic.iter().any(|&(station, speed)| {
+        let to_exit = (lane.exit_station_m - station).rem_euclid(track_length_m);
+        to_exit <= (speed * EXIT_TRAFFIC_S).max(EXIT_TRAFFIC_M)
+    })
+}
+
+/// Whether a human's car has just driven into the pit lane, so the pit
+/// autopilot takes it over: on the lane, short of its first limit line,
+/// past the track's road edge on the lane's side by `off_road_m` (negative
+/// while it is still on the road), and pointing down the lane.
+pub fn takes_over(lane: &PitLane, at: &LanePoint, yaw_rad: f32, off_road_m: f32) -> bool {
+    if at.distance_m > lane.width_m / 2.0 + 1.0 || off_road_m < 0.3 {
+        return false;
+    }
+    if at.station_m < 0.5 || at.station_m > lane.limit_start_m.max(40.0) {
+        return false;
+    }
+    let (_, _, heading) = lane.frame_at(at.station_m);
+    (yaw_rad - heading).cos() > 0.3
+}
+
+/// Where the pit route runs across the lane at `s`, m from the middle
+/// (positive left): down the middle, swinging over to the box's spot over
+/// the last [`BOX_SWING_M`] before it, and back out over as much after.
+fn route_lateral(s: f32, box_s: f32, box_lat: f32, serviced: bool) -> f32 {
+    if !serviced {
+        box_lat * smoothstep((s - (box_s - BOX_SWING_M)) / (BOX_SWING_M - 2.0))
+    } else if s < box_s {
+        box_lat
+    } else {
+        box_lat * (1.0 - smoothstep((s - box_s) / BOX_SWING_M))
+    }
+}
+
+/// Where a car stuck on the pit route is put back: on its box's spot when
+/// it is stuck short of it, else three metres on along its route, pointing
+/// down the lane. A last resort: the route should never need it, but a
+/// player's car must never be left shut in the pits.
+pub fn recovery_pose(lane: &PitLane, pit_box: &PitBox, state: &CarState) -> (f32, f32, f32) {
+    let s = state.pit.lane_station_m;
+    if !state.pit.serviced && (pit_box.lane_station_m - s).abs() < RECOVER_TO_BOX_M {
+        return (pit_box.x, pit_box.y, pit_box.yaw_rad);
+    }
+    let at = (s + 3.0).min(lane.length_m);
+    let lat = route_lateral(
+        at,
+        pit_box.lane_station_m,
+        lane.box_lateral_m(pit_box),
+        state.pit.serviced,
+    );
+    let (x, y, heading) = lane.frame_at(at);
+    (x - heading.sin() * lat, y + heading.cos() * lat, heading)
+}
+
+/// The route's curvature at `s`, 1/m: the lane's own, plus the swing.
+fn route_curvature(lane: &PitLane, s: f32, box_s: f32, box_lat: f32, serviced: bool) -> f32 {
+    let heading = |at: f32| {
+        let (_, _, h) = lane.frame_at(at);
+        let slope = (route_lateral(at + 1.0, box_s, box_lat, serviced)
+            - route_lateral(at - 1.0, box_s, box_lat, serviced))
+            / 2.0;
+        h + slope.atan()
+    };
+    let turn = heading(s + 2.0) - heading(s - 2.0);
+    let turn =
+        (turn + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+    turn / 4.0
+}
+
+/// How the server drives a car along the pit route, the AI's and, under
+/// the pit autopilot, a human's: along the route ([`route_lateral`]) with a
+/// Stanley steer (the route's heading, corrected for the distance off it
+/// at the front axle), the limit between the lines, slowing through the
+/// swing into the box and stopping on its spot, queueing behind a car
+/// ahead on the same path, waiting at a red exit light, and free past the
+/// last line. The automatic gearbox shifts and the steering aid is off for
+/// the route (`GameSession`).
+///
+/// It used to be pure pursuit, aiming at the box's spot once it was near:
+/// the target jumped sideways when it switched, and the car weaved ±5 m
+/// down the lane.
 pub fn drive_input(
     lane: &PitLane,
     pit_box: &PitBox,
     state: &CarState,
     config: &CarConfig,
+    traffic: &[LaneCar],
 ) -> PlayerInputData {
-    let v = state.speed_mps;
-    let s = state.pit.lane_station_m;
-    let look = (4.0 + 0.35 * v).clamp(6.0, 25.0);
-    let to_box = pit_box.lane_station_m - s;
-    let heading_to_box = !state.pit.serviced;
-
-    // Where to aim: along the lane, then the box's spot once it is near.
-    let (mut tx, mut ty) = lane.point_at(s + look);
-    if heading_to_box && to_box < look + 6.0 {
-        tx = pit_box.x;
-        ty = pit_box.y;
-    }
+    let v = state.speed_mps.max(0.0);
+    let serviced = state.pit.serviced;
+    let box_s = pit_box.lane_station_m;
+    let box_lat = lane.box_lateral_m(pit_box);
     let (c, sn) = (state.yaw_rad.cos(), state.yaw_rad.sin());
-    let (dx, dy) = (tx - state.pos_x, ty - state.pos_y);
-    let local_x = dx * c + dy * sn;
-    let local_y = -dx * sn + dy * c;
-    let dist = (local_x * local_x + local_y * local_y).sqrt().max(1.0);
-    let alpha = local_y.atan2(local_x.max(0.1));
-    let steer_angle = (2.0 * config.wheelbase_m * alpha.sin()).atan2(dist);
+
+    // The path at the front axle.
+    let reach = config.wheelbase_m * 0.5;
+    let (fx, fy) = (state.pos_x + c * reach, state.pos_y + sn * reach);
+    let (front, lateral) = lane.lateral_of(fx, fy, state.pit.lane_node);
+    let s = front.station_m;
+    let want = route_lateral(s, box_s, box_lat, serviced);
+    let slope = (route_lateral(s + 1.0, box_s, box_lat, serviced)
+        - route_lateral(s - 1.0, box_s, box_lat, serviced))
+        / 2.0;
+    let (_, _, lane_heading) = lane.frame_at(s);
+    let heading_error = (lane_heading + slope.atan() - state.yaw_rad + std::f32::consts::PI)
+        .rem_euclid(std::f32::consts::TAU)
+        - std::f32::consts::PI;
+    // Damped by the yaw rate the route does not ask for: a car taken over
+    // while it crosses into the lane's mouth at an angle otherwise swings
+    // through the lane's middle onto its far edge.
+    let path_yaw_rate = v * route_curvature(lane, s, box_s, box_lat, serviced);
+    let steer_angle = heading_error + (-PATH_GAIN * (lateral - want)).atan2(v + 2.0)
+        - YAW_DAMPING_S * (state.angular_vel_yaw - path_yaw_rate);
+    // No more lock than the front tyres can use at this speed: past their
+    // peak slip they slide and the car ploughs wide (the steering aid,
+    // which would hold that, is off for the route).
+    let usable = (config.wheelbase_m * ROUTE_GRIP_MPS2 / (v * v).max(1.0)).atan() + ROUTE_SLIP_RAD;
+    let steer_angle = steer_angle.clamp(-usable, usable);
     let steering = (steer_angle / config.max_steering_angle_rad.max(1e-3)).clamp(-1.0, 1.0);
 
-    // How fast: down to the limit by the first line, held to it between,
-    // stopping at the box; free past the last line on the way out.
-    let mut target = lane_speed_mps(lane, s);
-    if heading_to_box {
-        let along = to_box.max(0.0);
-        target = target.min((2.0 * LANE_DECEL * (along - 0.3).max(0.0)).sqrt());
+    // How fast: the limit between the lines, slow through the swing into
+    // the box and stopped on its spot.
+    let s_car = state.pit.lane_station_m;
+    let mut target = lane_speed_mps(lane, s_car);
+    // No faster than the route's own bends ahead allow: the entry and exit
+    // tapers and the lane's curves, taken free past the last line, threw
+    // a car wide onto the walls.
+    let mut ahead = 0.0f32;
+    while ahead <= ROUTE_LOOKAHEAD_M {
+        let k = route_curvature(lane, s_car + ahead, box_s, box_lat, serviced).abs();
+        if k > 1e-4 {
+            let bend = (ROUTE_LATERAL_MPS2 / k).sqrt();
+            target = target.min((bend * bend + 2.0 * LANE_DECEL * ahead).sqrt());
+        }
+        ahead += 3.0;
     }
-    let (throttle, brake) = if heading_to_box && to_box < 0.8 {
+    // Wide of the route, or pointing across it (a car taken over as it
+    // cuts into the lane's mouth): slow down while the steer brings it
+    // back.
+    let astray =
+        (lateral - want).abs() / ROUTE_WIDE_OFF_M + heading_error.abs() / ROUTE_WIDE_ANGLE_RAD;
+    target = target.min((lane.speed_limit_mps * (1.0 - 0.5 * astray)).max(ROUTE_WIDE_MPS));
+    let mut stop_here = false;
+    if !serviced {
+        let to_box = box_s - s_car;
+        let to_stop = (2.0 * LANE_DECEL * (to_box - 0.3).max(0.0)).sqrt();
+        if to_box < BOX_SWING_M + 10.0 {
+            target = target.min(BOX_SWING_SPEED_MPS);
+        }
+        target = target.min(to_stop);
+        stop_here = to_box < 0.6;
+    }
+    // A red exit light holds a car short of it, for a while.
+    let to_light = lane.limit_end_m - EXIT_STOP_SHORT_M - s_car;
+    if serviced
+        && state.pit.exit_closed
+        && state.pit.held_s < EXIT_HOLD_MAX_S
+        && to_light > -EXIT_STOP_SHORT_M
+    {
+        target = target.min((2.0 * LANE_DECEL * to_light.max(0.0)).sqrt());
+        stop_here |= to_light < 0.5;
+    }
+    // Queue behind a car ahead on the same path.
+    let (_, my_lateral) = lane.lateral_of(state.pos_x, state.pos_y, state.pit.lane_node);
+    for other in traffic {
+        let ahead = other.station_m - s_car;
+        if ahead > 0.5 && ahead < 40.0 && (other.lateral_m - my_lateral).abs() < LANE_SAME_PATH_M {
+            let room = (ahead - LANE_FOLLOW_GAP_M).max(0.0);
+            target = target.min(other.speed_mps + (2.0 * LANE_DECEL * room).sqrt());
+            if room <= 0.0 && other.speed_mps < 1.0 {
+                stop_here = true;
+            }
+        }
+    }
+    let (throttle, brake) = if stop_here {
         (0.0, 1.0)
     } else {
         pedals(target, v)
@@ -449,6 +775,7 @@ mod tests {
                 })
                 .collect(),
             stations: Vec::new(),
+            bounds: [0.0; 4],
         };
         lane.finish().unwrap();
         lane
@@ -471,14 +798,18 @@ mod tests {
     }
 
     #[test]
-    fn boxes_go_one_each_then_are_shared() {
+    fn every_car_gets_its_own_box_then_they_are_shared() {
         let lane = straight_lane();
-        assert_eq!(lane.box_for(1).lane_station_m, 73.0);
-        assert_eq!(lane.box_for(3).lane_station_m, 85.0);
-        assert_eq!(
-            lane.box_for(11).lane_station_m,
-            73.0,
-            "slot 11 shares box 1"
+        assert_eq!(deal_box(&[], 10), 0);
+        assert_eq!(deal_box(&[0, 1, 3], 10), 2, "the lowest free box");
+        let full: Vec<u8> = (0..10).collect();
+        assert_eq!(deal_box(&full, 10), 0, "all held: shared from the first");
+        assert_eq!(deal_box(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0], 10), 1);
+        assert_eq!(lane.box_at(2).lane_station_m, 85.0);
+        assert_eq!(lane.box_at(12).lane_station_m, 85.0, "round the row");
+        assert!(
+            (lane.box_lateral_m(lane.box_at(0)) + 4.4).abs() < 1e-3,
+            "right of the lane"
         );
     }
 

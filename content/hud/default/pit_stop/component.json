@@ -1,0 +1,120 @@
+// The pit stop: the autopilot taking the car down the lane, the crew's work
+// at the box part by part, and the red light at the exit. Only shown in the
+// pit lane, where nothing else needs the middle of the screen; it floats
+// under the race state and the virtual mirror's strip so it moves nothing.
+{
+  "name": "Pit stop",
+  "region": "top",
+  "float": true,
+  "margin": [0, 300, 0, 0],
+  "visible": "=pit.autopilot || pit.servicing || pit.held",
+  "root": {
+    "type": "panel", "width": 560, "padding": [22, 14], "background": "surface",
+    "outline": "=pit.held ? 'error' : pit.servicing ? 'live' : 'accent'", "outline_width": 2,
+    "children": [
+      // --- What is happening, and the car's box once the crew has named it ---
+      {
+        "type": "row",
+        "children": [
+          { "type": "panel", "valign": "center", "padding": [8, 1],
+            "background": "=pit.held ? 'error' : pit.servicing ? 'live' : 'accent'",
+            "children": [{ "type": "text", "font": "body", "size": 12, "bold": true, "color": "on_accent",
+              "text": "=pit.held ? 'PIT EXIT' : pit.servicing ? 'PIT STOP' : 'PIT LANE'" }] },
+          { "type": "spacer", "fill": 1 },
+          { "type": "text", "valign": "center", "font": "mono", "size": 13, "tracking": 120, "color": "text_secondary",
+            "visible": "=has(pit.box)", "text": "BOX {pit.box}" }
+        ]
+      },
+
+      // --- Held at the red light: nothing to do but wait for green ---
+      {
+        "type": "row", "margin": [0, 10, 0, 0], "visible": "=pit.held",
+        "children": [
+          // The lamp, blinking like the one at the end of the lane.
+          { "type": "rect", "valign": "center", "width": 22, "height": 22, "radius": 11,
+            "color": "=floor(hud.time_s * 2) % 2 == 0 ? 'error' : alpha('error', 0.3)" },
+          { "type": "text", "valign": "center", "margin": [14, 0, 0, 0], "font": "display", "size": 32, "color": "error",
+            "text": "PIT EXIT CLOSED · WAIT" }
+        ]
+      },
+
+      // --- Down the lane on the autopilot, in or out ---
+      {
+        "type": "column", "margin": [0, 10, 0, 0], "visible": "=pit.autopilot && !pit.servicing && !pit.held",
+        "children": [
+          { "type": "text", "font": "display", "size": 32, "color": "accent", "text": "PIT LANE · AUTOPILOT" },
+          { "type": "label", "margin": [0, 4, 0, 0], "text": "Hands off: the car drives the lane" }
+        ]
+      },
+
+      // --- At the box: the seconds left, the part in hand and the whole stop ---
+      {
+        "type": "column", "margin": [0, 8, 0, 0], "visible": "=pit.servicing && !pit.held",
+        "children": [
+          {
+            "type": "row",
+            "children": [
+              { "type": "text", "valign": "bottom", "font": "display", "size": 58, "text": "=fmt(pit.service_s, 1)" },
+              { "type": "text", "valign": "bottom", "margin": [4, 0, 0, 12], "font": "mono", "size": 13, "color": "text_muted", "text": "S" },
+              { "type": "column", "valign": "bottom", "fill": 1, "margin": [22, 0, 0, 10],
+                "children": [
+                  { "type": "label", "text": "=has(pit.service_phase_left_s) ? 'Now · ' + fmt(pit.service_phase_left_s, 1) + ' s left' : 'Now'" },
+                  { "type": "text", "margin": [0, 4, 0, 0], "font": "body", "size": 17, "bold": true,
+                    "text": "=has(pit.service_phase_label) ? pit.service_phase_label : 'SERVICE'" }
+                ] }
+            ]
+          },
+
+          // The stop as one bar of up to three parts, each as long as its
+          // share of the stop and filling as the crew works through it.
+          {
+            "type": "row", "margin": [0, 10, 0, 0], "height": 8, "visible": "=has(pit.service_total_s)",
+            "children": [
+              { "type": "bar", "height": 8, "margin": [0, 0, 3, 0], "background": "border",
+                "visible": "=pit.service_tyres_s > 0", "fill": "=pit.service_tyres_share", "value": "=pit.service_tyres_fill",
+                "color": "=pit.service_tyres_fill >= 1 ? 'live' : 'accent'" },
+              { "type": "bar", "height": 8, "margin": [0, 0, 3, 0], "background": "border",
+                "visible": "=pit.service_fuel_s > 0", "fill": "=pit.service_fuel_share", "value": "=pit.service_fuel_fill",
+                "color": "=pit.service_fuel_fill >= 1 ? 'live' : 'accent'" },
+              { "type": "bar", "height": 8, "background": "border",
+                "visible": "=pit.service_repair_s > 0", "fill": "=pit.service_repair_share", "value": "=pit.service_repair_fill",
+                "color": "=pit.service_repair_fill >= 1 ? 'live' : 'accent'" }
+            ]
+          },
+
+          // What each part is, in the bar's colours: bright while it is the
+          // part in hand, muted once done or still to come.
+          {
+            "type": "row", "margin": [0, 8, 0, 0], "visible": "=has(pit.service_total_s)",
+            "children": [
+              { "type": "row", "margin": [0, 0, 20, 0], "visible": "=pit.service_tyres_s > 0",
+                "children": [
+                  { "type": "rect", "valign": "center", "width": 8, "height": 8,
+                    "color": "=pit.service_tyres_fill >= 1 ? 'live' : pit.service_phase == 'tyres' ? 'accent' : 'border'" },
+                  { "type": "text", "valign": "center", "margin": [6, 0, 0, 0], "font": "mono", "size": 11,
+                    "color": "=pit.service_phase == 'tyres' ? 'text' : 'text_muted'",
+                    "text": "TYRES {fmt(pit.service_tyres_s, 1)} s" }
+                ] },
+              { "type": "row", "margin": [0, 0, 20, 0], "visible": "=pit.service_fuel_s > 0",
+                "children": [
+                  { "type": "rect", "valign": "center", "width": 8, "height": 8,
+                    "color": "=pit.service_fuel_fill >= 1 ? 'live' : pit.service_phase == 'fuel' ? 'accent' : 'border'" },
+                  { "type": "text", "valign": "center", "margin": [6, 0, 0, 0], "font": "mono", "size": 11,
+                    "color": "=pit.service_phase == 'fuel' ? 'text' : 'text_muted'",
+                    "text": "FUEL +{fmt(pit.service_fuel_l, 1)} L {fmt(pit.service_fuel_s, 1)} s" }
+                ] },
+              { "type": "row", "visible": "=pit.service_repair_s > 0",
+                "children": [
+                  { "type": "rect", "valign": "center", "width": 8, "height": 8,
+                    "color": "=pit.service_repair_fill >= 1 ? 'live' : pit.service_phase == 'repair' ? 'accent' : 'border'" },
+                  { "type": "text", "valign": "center", "margin": [6, 0, 0, 0], "font": "mono", "size": 11,
+                    "color": "=pit.service_phase == 'repair' ? 'text' : 'text_muted'",
+                    "text": "REPAIRS {fmt(pit.service_repair_s, 1)} s" }
+                ] }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

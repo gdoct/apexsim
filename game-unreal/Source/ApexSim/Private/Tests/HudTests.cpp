@@ -284,6 +284,29 @@ bool FApexHudComponentParseTest::RunTest(const FString& Parameters)
 	TArray<FString> Warnings;
 	ApexHud::CheckDataNames(Misspelt, Warnings);
 	TestEqual(TEXT("a misspelt data point, an item outside a list and a misspelt field"), Warnings.Num(), 3);
+
+	// `fill` as an expression: built as a fill slot, its share read every frame.
+	{
+		FApexHudComponentDef Segments;
+		FApexHudLoadReport SegmentsReport;
+		TestTrue(TEXT("a fill expression parses"), ApexHud::ParseComponent(TEXT(R"({ "root": { "type": "row", "width": 400, "children": [
+			{ "type": "bar", "fill": "=pit.service_tyres_share", "height": 6, "value": "=pit.service_tyres_fill" },
+			{ "type": "bar", "fill": 2, "height": 6, "value": 0.5 }
+		] } })"), TEXT("C:/hud/x"), Segments, SegmentsReport));
+		TestEqual(TEXT("fill expression: no errors"), SegmentsReport.Errors.Num(), 0);
+		TestEqual(TEXT("fill expression: no warnings"), SegmentsReport.Warnings.Num(), 0);
+		if (Segments.Root.Children.Num() == 2)
+		{
+			TestTrue(TEXT("the share is dynamic"), Segments.Root.Children[0].FillShare.IsDynamic());
+			TestEqual(TEXT("built as a fill slot"), Segments.Root.Children[0].Fill, 1.0f);
+			TestFalse(TEXT("a number stays fixed"), Segments.Root.Children[1].FillShare.IsSet());
+			TestEqual(TEXT("the number"), Segments.Root.Children[1].Fill, 2.0f);
+		}
+		TArray<FString> SegmentWarnings;
+		ApexHud::CheckDataNames(Segments, SegmentWarnings);
+		TestEqual(TEXT("the fill's names are checked and published"), SegmentWarnings.Num(), 0);
+		TestTrue(TEXT("a fill that is neither"), Errors(TEXT(R"({ "root": { "type": "row", "children": [ { "type": "spacer", "fill": "half" } ] } })")).Errors.Num() > 0);
+	}
 	return true;
 }
 
@@ -621,6 +644,145 @@ bool FApexHudDataStandingsHoldTest::RunTest(const FString& Parameters)
 	In.TimeSeconds = 4.0;
 	ApexHudData::Build(In, Memory, Data);
 	TestEqual(TEXT("passed after the seek"), HudValue(Data, TEXT("race.position")).AsNumber(), 2.0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudPitProgressTest, "ApexSim.Hud.Pit.Progress", ApexTestFlags)
+
+bool FApexHudPitProgressTest::RunTest(const FString& Parameters)
+{
+	auto Near = [this](const TCHAR* What, float Actual, float Expected)
+	{
+		TestTrue(*FString::Printf(TEXT("%s: %.3f, expected %.3f"), What, Actual, Expected), FMath::IsNearlyEqual(Actual, Expected, 0.001f));
+	};
+
+	// Tyres alone: one part, the whole bar.
+	{
+		FApexPitService Stop;
+		Stop.TyresS = 2.5f;
+		Stop.Compound = 2;
+		Stop.TotalS = 2.5f;
+		const FApexPitStopProgress P = ApexHudData::PitStopProgress(Stop, 1.5f);
+		TestTrue(TEXT("tyres only: valid"), P.bValid);
+		TestEqual(TEXT("tyres only: phase"), P.Phase, static_cast<int32>(FApexPitStopProgress::Tyres));
+		TestEqual(TEXT("tyres only: key"), P.PhaseKey, FString(TEXT("tyres")));
+		TestEqual(TEXT("tyres only: label"), P.PhaseLabel, FString(TEXT("CHANGING TYRES · HARD")));
+		Near(TEXT("tyres only: elapsed"), P.ElapsedS, 1.0f);
+		Near(TEXT("tyres only: share"), P.PartShare[FApexPitStopProgress::Tyres], 1.0f);
+		Near(TEXT("tyres only: fill"), P.PartFill[FApexPitStopProgress::Tyres], 0.4f);
+		Near(TEXT("tyres only: phase left"), P.PhaseLeftS, 1.5f);
+		Near(TEXT("tyres only: no fuel share"), P.PartShare[FApexPitStopProgress::Fuel], 0.0f);
+		Near(TEXT("tyres only: no repair share"), P.PartShare[FApexPitStopProgress::Repair], 0.0f);
+	}
+
+	// All three parts: 9 s of softs, 12.5 s for 25 L, 2 s of repairs.
+	FApexPitService Full;
+	Full.TyresS = 9.0f;
+	Full.Compound = 0;
+	Full.FuelS = 12.5f;
+	Full.FuelL = 25.0f;
+	Full.RepairS = 2.0f;
+	Full.RepairPct = 50.0f;
+	Full.TotalS = 23.5f;
+	{
+		// Just stopped.
+		const FApexPitStopProgress P = ApexHudData::PitStopProgress(Full, 23.5f);
+		TestEqual(TEXT("start: tyres"), P.Phase, static_cast<int32>(FApexPitStopProgress::Tyres));
+		TestEqual(TEXT("start: label"), P.PhaseLabel, FString(TEXT("CHANGING TYRES · SOFT")));
+		Near(TEXT("start: progress"), P.Progress, 0.0f);
+		Near(TEXT("start: tyre share"), P.PartShare[FApexPitStopProgress::Tyres], 9.0f / 23.5f);
+		Near(TEXT("start: fuel share"), P.PartShare[FApexPitStopProgress::Fuel], 12.5f / 23.5f);
+		Near(TEXT("start: repair share"), P.PartShare[FApexPitStopProgress::Repair], 2.0f / 23.5f);
+	}
+	{
+		// Twelve seconds in: the tyres on, three seconds of fuel gone.
+		const FApexPitStopProgress P = ApexHudData::PitStopProgress(Full, 11.5f);
+		TestEqual(TEXT("12 s: fuel"), P.Phase, static_cast<int32>(FApexPitStopProgress::Fuel));
+		TestEqual(TEXT("12 s: key"), P.PhaseKey, FString(TEXT("fuel")));
+		TestEqual(TEXT("12 s: label"), P.PhaseLabel, FString(TEXT("REFUELLING · +25.0 L")));
+		Near(TEXT("12 s: elapsed"), P.ElapsedS, 12.0f);
+		Near(TEXT("12 s: tyres full"), P.PartFill[FApexPitStopProgress::Tyres], 1.0f);
+		Near(TEXT("12 s: fuel fill"), P.PartFill[FApexPitStopProgress::Fuel], 3.0f / 12.5f);
+		Near(TEXT("12 s: repairs not begun"), P.PartFill[FApexPitStopProgress::Repair], 0.0f);
+		Near(TEXT("12 s: phase left"), P.PhaseLeftS, 9.5f);
+		Near(TEXT("12 s: phase progress"), P.PhaseProgress, 3.0f / 12.5f);
+	}
+	{
+		// At the boundary the next part has begun.
+		const FApexPitStopProgress P = ApexHudData::PitStopProgress(Full, 2.0f);
+		TestEqual(TEXT("21.5 s: repairs"), P.Phase, static_cast<int32>(FApexPitStopProgress::Repair));
+		TestEqual(TEXT("21.5 s: label"), P.PhaseLabel, FString(TEXT("REPAIRING · 50%")));
+		Near(TEXT("21.5 s: fuel full"), P.PartFill[FApexPitStopProgress::Fuel], 1.0f);
+	}
+	{
+		// The last tick of the stop: the last part, full.
+		const FApexPitStopProgress P = ApexHudData::PitStopProgress(Full, 0.0f);
+		TestEqual(TEXT("done: repairs"), P.Phase, static_cast<int32>(FApexPitStopProgress::Repair));
+		Near(TEXT("done: progress"), P.Progress, 1.0f);
+		Near(TEXT("done: phase progress"), P.PhaseProgress, 1.0f);
+		Near(TEXT("done: phase left"), P.PhaseLeftS, 0.0f);
+	}
+
+	// A part the stop does not do is skipped: tyres and repairs, no fuel.
+	{
+		FApexPitService Stop;
+		Stop.TyresS = 9.0f;
+		Stop.Compound = 1;
+		Stop.RepairS = 4.0f;
+		Stop.RepairPct = 20.0f;
+		Stop.TotalS = 13.0f;
+		const FApexPitStopProgress P = ApexHudData::PitStopProgress(Stop, 4.0f);
+		TestEqual(TEXT("no fuel: straight to repairs"), P.Phase, static_cast<int32>(FApexPitStopProgress::Repair));
+		Near(TEXT("no fuel: no share"), P.PartShare[FApexPitStopProgress::Fuel], 0.0f);
+		Near(TEXT("no fuel: no fill"), P.PartFill[FApexPitStopProgress::Fuel], 0.0f);
+		Near(TEXT("no fuel: repair share"), P.PartShare[FApexPitStopProgress::Repair], 4.0f / 13.0f);
+		Near(TEXT("no fuel: repair fill"), P.PartFill[FApexPitStopProgress::Repair], 0.0f);
+	}
+
+	// An empty plan is no stop.
+	TestFalse(TEXT("empty plan"), ApexHudData::PitStopProgress(FApexPitService(), 0.0f).bValid);
+
+	// Through the data points: the player's car stopped twelve seconds in.
+	FApexTelemetryFrame Frame;
+	FApexCarTelemetry Car = HudCar(2, 3, 100.0f, 0.0f);
+	Car.bInPitLane = true;
+	Car.bPitServicing = true;
+	Car.ServiceSecondsLeft = 11.5f;
+	Frame.Cars.Add(Car);
+	TMap<int32, FApexPitService> Stops;
+	Full.CarIndex = 2;
+	Full.PitBox = 6;
+	Stops.Add(2, Full);
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 2;
+	In.PitServices = &Stops;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("box, from 1"), HudValue(Data, TEXT("pit.box")).AsNumber(), 7.0);
+	TestEqual(TEXT("phase"), HudValue(Data, TEXT("pit.service_phase")).AsString(), FString(TEXT("fuel")));
+	TestEqual(TEXT("compound"), HudValue(Data, TEXT("pit.service_compound")).AsString(), FString(TEXT("SOFT")));
+	TestEqual(TEXT("litres"), HudValue(Data, TEXT("pit.service_fuel_l")).AsNumber(), 25.0);
+	TestEqual(TEXT("total"), HudValue(Data, TEXT("pit.service_total_s")).AsNumber(), 23.5);
+	TestFalse(TEXT("not on autopilot"), HudValue(Data, TEXT("pit.autopilot")).AsBool());
+
+	// Rolling out of the box on the autopilot: the plan stays, the progress goes.
+	Frame.Cars[0].bPitServicing = false;
+	Frame.Cars[0].bPitAutopilot = true;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("autopilot"), HudValue(Data, TEXT("pit.autopilot")).AsBool());
+	TestEqual(TEXT("still box 7"), HudValue(Data, TEXT("pit.box")).AsNumber(), 7.0);
+	TestTrue(TEXT("no phase off the box"), HudValue(Data, TEXT("pit.service_phase")).IsNone());
+	TestTrue(TEXT("no progress off the box"), HudValue(Data, TEXT("pit.service_progress")).IsNone());
+
+	// Held at the red light.
+	Frame.Cars[0].bPitAutopilot = false;
+	Frame.Cars[0].bPitHeld = true;
+	Frame.Cars[0].bPitExitClosed = true;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("held"), HudValue(Data, TEXT("pit.held")).AsBool());
+	TestTrue(TEXT("exit closed"), HudValue(Data, TEXT("pit.exit_closed")).AsBool());
 	return true;
 }
 

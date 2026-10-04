@@ -85,6 +85,8 @@ pub struct GameSession {
     liveries: HashMap<PlayerId, u8>,
     /// Timing lines crossed since the game loop last drained them.
     lap_events: Vec<SessionLapEvent>,
+    /// Pit stops started since the clients were last told.
+    pit_events: Vec<(PlayerId, crate::network::PitServiceData)>,
     /// The lap each car is driving, sampled for a ghost. Human drivers only:
     /// a record is a driver's own, and the AI never sets one.
     lap_traces: HashMap<PlayerId, Vec<GhostSample>>,
@@ -205,6 +207,41 @@ fn sample_ghost_trace(
 /// The config a car is simulated with: the driver's tuned copy when they
 /// have one, else the shared config for the car. A free function so the
 /// tick loops can hold `participants` mutably alongside it.
+/// The centerline point nearest a car on the pit lane, looked for within
+/// [`LANE_LAP_WINDOW_M`] of the lap station the lane's progress implies
+/// (its entry and exit stations, in proportion along it).
+fn anchor_on_lap(
+    lane: &crate::pit::PitLane,
+    centerline: &[crate::data::TrackPoint],
+    total: f32,
+    lane_station_m: f32,
+    state: &CarState,
+) -> Option<u32> {
+    if centerline.is_empty() || total <= 0.0 || lane.length_m <= 0.0 {
+        return None;
+    }
+    let span = (lane.exit_station_m - lane.entry_station_m).rem_euclid(total);
+    let expect = lane.entry_station_m + span * (lane_station_m / lane.length_m).clamp(0.0, 1.0);
+    let gap = |d: f32| {
+        let g = (d - expect).rem_euclid(total);
+        g.min(total - g)
+    };
+    centerline
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| gap(p.distance_from_start_m) <= LANE_LAP_WINDOW_M)
+        .min_by(|a, b| {
+            let da = (a.1.x - state.pos_x).powi(2) + (a.1.y - state.pos_y).powi(2);
+            let db = (b.1.x - state.pos_x).powi(2) + (b.1.y - state.pos_y).powi(2);
+            da.total_cmp(&db)
+        })
+        .map(|(i, _)| i as u32)
+}
+
+/// How far either way along the lap from where the pit lane's progress
+/// puts a car its place on the lap is looked for, m.
+const LANE_LAP_WINDOW_M: f32 = 150.0;
+
 fn simulated_config<'a>(
     car_configs: &'a HashMap<CarConfigId, CarConfig>,
     tuned_configs: &'a HashMap<PlayerId, CarConfig>,
@@ -287,6 +324,7 @@ impl GameSession {
             car_setups: HashMap::new(),
             lap_fuel: HashMap::new(),
             lap_events: Vec::new(),
+            pit_events: Vec::new(),
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
             session_best_splits_ms: [None; SECTOR_COUNT],
@@ -324,6 +362,7 @@ impl GameSession {
             car_setups: HashMap::new(),
             lap_fuel: HashMap::new(),
             lap_events: Vec::new(),
+            pit_events: Vec::new(),
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
             session_best_splits_ms: [None; SECTOR_COUNT],
@@ -404,6 +443,9 @@ impl GameSession {
 
     /// Countdown mode: Players frozen in pit lane, countdown timer running
     fn tick_countdown(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        // The pit lane is shut while the field lines up: the exit light
+        // shows red until the start (`crate::pit::exit_closed`).
+        self.update_pits();
         if let Some(ref mut countdown) = self.session.countdown_ticks_remaining {
             if *countdown > 0 {
                 *countdown -= 1;
@@ -614,6 +656,7 @@ impl GameSession {
     /// Free practice mode: Players drive freely with lap timing
     fn tick_free_practice(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         self.update_air();
+        let autopilot = self.pit_autopilot_inputs(inputs);
         let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // Update each car
@@ -623,8 +666,13 @@ impl GameSession {
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
 
         for state in states.iter_mut() {
-            // Get input for this player (default to coasting if missing)
-            let input = inputs.get(&state.player_id).copied().unwrap_or_default();
+            // Get input for this player (default to coasting if missing);
+            // the pit autopilot's while it holds the car.
+            let input = autopilot
+                .get(&state.player_id)
+                .or_else(|| inputs.get(&state.player_id))
+                .copied()
+                .unwrap_or_default();
 
             // Get car config
             if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
@@ -673,6 +721,7 @@ impl GameSession {
     /// driver tuning in the garage is out of everyone's way.
     fn tick_hotlap(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         self.update_air();
+        let autopilot = self.pit_autopilot_inputs(inputs);
         let dt = self.dt();
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
@@ -682,7 +731,11 @@ impl GameSession {
             if state.in_garage {
                 continue;
             }
-            let input = inputs.get(&state.player_id).copied().unwrap_or_default();
+            let input = autopilot
+                .get(&state.player_id)
+                .or_else(|| inputs.get(&state.player_id))
+                .copied()
+                .unwrap_or_default();
             if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
                 physics::update_car_3d(state, config, &input, &self.track_config, dt);
                 let is_ai = ai_ids.contains(&state.player_id);
@@ -736,6 +789,7 @@ impl GameSession {
     /// are classified.
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         self.update_air();
+        let autopilot = self.pit_autopilot_inputs(inputs);
         let dt = self.dt(); // Fixed timestep derived from tick rate
 
         // A human who has finished is looking at the results and stops
@@ -757,8 +811,9 @@ impl GameSession {
 
         for state in states.iter_mut() {
             // Get input for this player (default to coasting if missing)
-            let input = cooldown_inputs
+            let input = autopilot
                 .get(&state.player_id)
+                .or_else(|| cooldown_inputs.get(&state.player_id))
                 .or_else(|| inputs.get(&state.player_id))
                 .copied()
                 .unwrap_or_default();
@@ -1465,30 +1520,131 @@ impl GameSession {
     }
 
     /// The pit lane this tick (`crate::pit`): every car placed against it
-    /// (its limiter, its box), services started and finished, and in a race
-    /// the AI's decision to stop and its turn onto the pit route.
+    /// (its limiter, its box), the exit light, a human's car taken over by
+    /// the pit autopilot as it drives into the lane and handed back at the
+    /// lane's end, services started and finished, and in a race the AI's
+    /// decision to stop and its turn onto the pit route.
     fn update_pits(&mut self) {
         let Some(lane) = self.track_config.pit_lane.as_ref() else {
             return;
         };
         let dt = self.dt();
+        let total = crate::laps::track_length_m(&self.track_config);
+
+        // The exit light: shut before a race's start, and while a car on
+        // the track is about to pass where the lane rejoins it.
+        let before_the_start = self.session.game_mode == GameMode::Countdown
+            || (self.session.game_mode == GameMode::Race
+                && self.session.state != SessionState::Racing
+                && self.session.state != SessionState::Finished);
+        let traffic: Vec<(f32, f32)> = self
+            .session
+            .participants
+            .values()
+            // Not "off the lane": the exit taper lies over the road, and a
+            // car racing past the exit is on it.
+            .filter(|s| !s.in_garage && !s.pit.driving && !s.pit.servicing && s.damage.is_drivable)
+            .map(|s| (s.track_progress, s.speed_mps))
+            .collect();
+        let exit_closed = crate::pit::exit_closed(lane, before_the_start, &traffic, total);
+
+        // Every car its own box: dealt the first time it is placed against
+        // the lane, the lowest box nobody holds (BTreeMap order, so the
+        // deal is deterministic).
+        let mut taken: Vec<u8> = self
+            .session
+            .participants
+            .values()
+            .filter_map(|s| s.pit.box_index)
+            .collect();
+        for state in self.session.participants.values_mut() {
+            if state.pit.box_index.is_none() {
+                let b = crate::pit::deal_box(&taken, lane.boxes.len());
+                state.pit.box_index = Some(b);
+                taken.push(b);
+            }
+        }
+
+        let ai_ids: std::collections::HashSet<PlayerId> =
+            self.session.ai_player_ids.iter().copied().collect();
+        let centerline = &self.track_config.centerline;
         let mut arrived: Vec<PlayerId> = Vec::new();
         let mut finished: Vec<PlayerId> = Vec::new();
         for state in self.session.participants.values_mut() {
             if state.in_garage {
                 continue;
             }
-            let at = lane.locate(state.pos_x, state.pos_y, state.pit.lane_node);
+            // The windowed search is only good while the car is by the lane:
+            // a hint carried round a lap drifts to whichever node is nearest
+            // from wherever the car is, and at the lane's mouth the search
+            // then looked at its far end (the AI at São Paulo never found
+            // its way in). Away from the lane nothing is looked for; by it,
+            // a hint that has lost the car is dropped for a full search.
+            if !lane.near(state.pos_x, state.pos_y, crate::pit::LANE_SEARCH_MARGIN_M) {
+                let pit = &mut state.pit;
+                pit.lane_node = None;
+                pit.in_lane = false;
+                pit.limiter = false;
+                pit.exit_closed = exit_closed;
+                if !pit.driving {
+                    pit.serviced = false;
+                }
+                continue;
+            }
+            let mut at = lane.locate(state.pos_x, state.pos_y, state.pit.lane_node);
+            if state.pit.lane_node.is_some() && at.distance_m > crate::pit::LANE_SEARCH_MARGIN_M {
+                at = lane.locate(state.pos_x, state.pos_y, None);
+            }
+            let is_ai = ai_ids.contains(&state.player_id);
+            // How far past the road edge on the lane's side the car is.
+            let off_road = state
+                .nearest_centerline_idx
+                .and_then(|i| centerline.get(i as usize))
+                .map_or(f32::NEG_INFINITY, |p| {
+                    let left = -state.lateral_offset_m;
+                    if lane.lane_side > 0 {
+                        left - p.width_left_m
+                    } else {
+                        -left - p.width_right_m
+                    }
+                });
+            let in_lane = at.distance_m <= lane.width_m / 2.0 + 1.0;
+            // On the lane, the car's place on the lap is looked for near
+            // where the lane's own progress puts it. The physics' windowed
+            // search follows whichever leg is nearest, and round the inside
+            // of a hairpin that is the wrong one: at Spa a car leaving the
+            // lane after La Source was still placed back on the pit
+            // straight, and the AI it was handed to drove off the wrong way.
+            if in_lane {
+                if let Some(idx) = anchor_on_lap(lane, centerline, total, at.station_m, state) {
+                    state.nearest_centerline_idx = Some(idx);
+                }
+            }
             let pit = &mut state.pit;
             pit.lane_node = Some(at.node as u32);
             pit.lane_station_m = at.station_m;
-            pit.in_lane = at.distance_m <= lane.width_m / 2.0 + 1.0;
+            pit.in_lane = in_lane;
             pit.limiter =
                 pit.in_lane && (lane.limit_start_m..=lane.limit_end_m).contains(&at.station_m);
+            pit.exit_closed = exit_closed;
             if !pit.in_lane && !pit.driving {
                 // Out of the lane: the next visit is a new stop.
                 pit.serviced = false;
             }
+            // A human's car that drives into the lane is the autopilot's
+            // until the lane's end: to its own box, serviced, and out.
+            if !is_ai
+                && !pit.driving
+                && !pit.serviced
+                && state.finish_position.is_none()
+                && crate::pit::takes_over(lane, &at, state.yaw_rad, off_road)
+            {
+                pit.driving = true;
+                pit.restore_aids = Some([state.auto_gearbox, state.steering_assist]);
+                state.auto_gearbox = true;
+                state.steering_assist = false;
+            }
+            let pit = &mut state.pit;
             if pit.servicing {
                 pit.service_left_s -= dt;
                 if pit.service_left_s <= 0.0 {
@@ -1498,16 +1654,59 @@ impl GameSession {
                 && !pit.serviced
                 && state.speed_mps < crate::pit::BOX_STOP_SPEED_MPS
             {
-                let spot = lane.box_for(state.grid_position);
+                let spot = lane.box_at(pit.box_index.unwrap_or(0));
                 let d = ((state.pos_x - spot.x).powi(2) + (state.pos_y - spot.y).powi(2)).sqrt();
                 if d <= crate::pit::BOX_RADIUS_M {
                     arrived.push(state.player_id);
                 }
             }
-            // The AI's route ends past the lane's last line.
+            // Held at the red exit light (the count runs until the car is
+            // past the light, so the hold's limit is not reset by a creep).
+            pit.held = pit.driving
+                && pit.serviced
+                && exit_closed
+                && pit.held_s < crate::pit::EXIT_HOLD_MAX_S
+                && state.speed_mps < 1.0
+                && at.station_m > lane.limit_end_m - 30.0
+                && at.station_m < lane.limit_end_m;
+            if pit.driving && pit.serviced && at.station_m < lane.limit_end_m && exit_closed {
+                if pit.held || pit.held_s > 0.0 {
+                    pit.held_s += dt;
+                }
+            } else if at.station_m >= lane.limit_end_m || !pit.driving {
+                pit.held_s = 0.0;
+            }
+            // Headway on the route: a car that makes none for a while is
+            // put back on it.
+            if pit.driving && !pit.servicing && !pit.held && state.speed_mps < 0.5 {
+                pit.stuck_s += dt;
+            } else {
+                pit.stuck_s = 0.0;
+            }
+            if pit.stuck_s > crate::pit::AUTOPILOT_STUCK_S {
+                pit.stuck_s = 0.0;
+                let spot = lane.box_at(pit.box_index.unwrap_or(0));
+                let (x, y, yaw) = crate::pit::recovery_pose(lane, spot, state);
+                state.pos_x = x;
+                state.pos_y = y;
+                state.yaw_rad = yaw;
+                state.vel_x = 0.0;
+                state.vel_y = 0.0;
+                state.speed_mps = 0.0;
+                state.angular_vel_yaw = 0.0;
+            }
+            let pit = &mut state.pit;
+            // The route ends past the lane's last line.
             if pit.driving && pit.serviced && at.station_m >= lane.length_m - 3.0 {
                 pit.driving = false;
-                state.auto_gearbox = false;
+                pit.held = false;
+                match pit.restore_aids.take() {
+                    Some([gearbox, steering]) => {
+                        state.auto_gearbox = gearbox;
+                        state.steering_assist = steering;
+                    }
+                    None => state.auto_gearbox = false,
+                }
             }
         }
         for player_id in arrived {
@@ -1519,16 +1718,76 @@ impl GameSession {
         self.plan_ai_stops();
     }
 
+    /// The input the pit autopilot drives each human's car with this tick,
+    /// for the cars it holds (`crate::pit::drive_input`). The driver's own
+    /// headlight switch and flash still count.
+    fn pit_autopilot_inputs(
+        &self,
+        inputs: &HashMap<PlayerId, PlayerInputData>,
+    ) -> HashMap<PlayerId, PlayerInputData> {
+        let Some(lane) = self.track_config.pit_lane.as_ref() else {
+            return HashMap::new();
+        };
+        self.session
+            .participants
+            .values()
+            .filter(|s| s.pit.driving && !s.in_garage && !self.is_ai_player(&s.player_id))
+            .filter_map(|state| {
+                let config = self.car_configs.get(&state.car_config_id)?;
+                let mut input = crate::pit::drive_input(
+                    lane,
+                    lane.box_at(state.pit.box_index.unwrap_or(0)),
+                    state,
+                    config,
+                    &self.lane_traffic(lane, state),
+                );
+                if let Some(own) = inputs.get(&state.player_id) {
+                    input.headlights = own.headlights;
+                    input.flash = own.flash;
+                }
+                Some((state.player_id, input))
+            })
+            .collect()
+    }
+
+    /// The other cars on the pit lane, for `state`'s route.
+    fn lane_traffic(
+        &self,
+        lane: &crate::pit::PitLane,
+        state: &CarState,
+    ) -> Vec<crate::pit::LaneCar> {
+        self.session
+            .participants
+            .values()
+            .filter(|o| o.player_id != state.player_id && o.pit.in_lane && !o.in_garage)
+            .map(|o| {
+                let (at, lateral) = lane.lateral_of(o.pos_x, o.pos_y, o.pit.lane_node);
+                crate::pit::LaneCar {
+                    station_m: at.station_m,
+                    lateral_m: lateral,
+                    speed_mps: o.speed_mps,
+                }
+            })
+            .collect()
+    }
+
+    /// Pit stops started since the last call, for the clients.
+    pub fn take_pit_events(&mut self) -> Vec<(PlayerId, crate::network::PitServiceData)> {
+        std::mem::take(&mut self.pit_events)
+    }
+
     /// Laps a car has left after the one it is on, in a race.
     fn laps_left(&self, state: &CarState) -> u32 {
         (self.session.lap_limit as u32).saturating_sub(state.current_lap.max(1) as u32)
     }
 
     /// A car has stopped at its box: what the service will do, and how long
-    /// it takes. The compound is the driver's setup's choice (the AI's plan
-    /// for an AI); the fuel, where the rules let this car refuel, what the
-    /// rest of the run needs (a race's distance with its margin, else what
-    /// the session fills a car with); the repairs, whatever is damaged.
+    /// each part takes. Tyres always: the compound is the driver's setup's
+    /// choice (the AI's plan for an AI). Fuel where the rules let this car
+    /// refuel and it needs some: what the rest of the run needs (a race's
+    /// distance with its margin, else what the session fills a car with).
+    /// Repairs when anything is damaged. The plan goes to every client
+    /// (`ServerMessage::PitService`) for the pit-stop panel.
     fn start_service(&mut self, player_id: &PlayerId) {
         let Some(state) = self.session.participants.get(player_id) else {
             return;
@@ -1543,6 +1802,7 @@ impl GameSession {
         let laps_left = self.laps_left(state) as f32 + 1.0;
         let fuel_now = state.fuel_liters;
         let damage = crate::pit::damage_percent(state);
+        let pit_box = state.pit.box_index.unwrap_or(0);
         let mode = self.session.game_mode;
         let Some(config) = self.car_configs.get(&car_id).cloned() else {
             return;
@@ -1558,19 +1818,34 @@ impl GameSession {
         } else {
             self.start_fuel_liters(player_id, car_id, mode)
         };
-        let fuel_added = (fuel_target - fuel_now).max(0.0);
-        let seconds = crate::pit::service_seconds(&config, fuel_added, damage);
+        let plan = crate::pit::plan_service(&config, fuel_target - fuel_now, damage);
         if let Some(state) = self.session.participants.get_mut(player_id) {
             let pit = &mut state.pit;
             pit.servicing = true;
-            pit.service_left_s = seconds;
+            pit.service_left_s = plan.total_s();
             pit.service_compound = compound;
-            pit.service_fuel_l = fuel_added;
+            pit.service_fuel_l = plan.fuel_l;
+            pit.service_repair = plan.repair_s > 0.0;
         }
+        self.pit_events.push((
+            *player_id,
+            crate::network::PitServiceData {
+                car_index: 0,
+                pit_box,
+                tyres_s: plan.tyres_s,
+                compound,
+                fuel_s: plan.fuel_s,
+                fuel_l: plan.fuel_l,
+                repair_s: plan.repair_s,
+                repair_pct: plan.repair_pct,
+                total_s: plan.total_s(),
+            },
+        ));
     }
 
     /// The service is done: the new set on (at what the car's tyres go out
-    /// at: its blankets, or the air), the fuel in, the car repaired.
+    /// at: its blankets, or the air), the fuel in, the car repaired if that
+    /// was part of the stop.
     fn finish_service(&mut self, player_id: &PlayerId) {
         let Some(state) = self.session.participants.get_mut(player_id) else {
             return;
@@ -1585,13 +1860,16 @@ impl GameSession {
         tyre_thermal::fit(state, tyre, temperature, compound);
         state.fuel_liters =
             (state.fuel_liters + state.pit.service_fuel_l).min(config.fuel.capacity_liters);
-        state.damage = DamageState {
-            is_drivable: true,
-            ..Default::default()
-        };
+        if state.pit.service_repair {
+            state.damage = DamageState {
+                is_drivable: true,
+                ..Default::default()
+            };
+        }
         let pit = &mut state.pit;
         pit.servicing = false;
         pit.service_left_s = 0.0;
+        pit.service_repair = false;
         pit.serviced = true;
         pit.wants_stop = false;
         pit.stops += 1;
@@ -1688,9 +1966,10 @@ impl GameSession {
                     None => {
                         return crate::pit::drive_input(
                             lane,
-                            lane.box_for(state.grid_position),
+                            lane.box_at(state.pit.box_index.unwrap_or(0)),
                             state,
                             car_config,
+                            &self.lane_traffic(lane, state),
                         );
                     }
                 }

@@ -542,3 +542,27 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSpectatorPitFlagsTest, "ApexSim.Spectator.PitFlags", ApexSpectatorTests::Flags)
+
+bool FApexSpectatorPitFlagsTest::RunTest(const FString& Parameters)
+{
+	// The row keeps the server's pit byte whole, so a replay shows the
+	// autopilot, the red exit light and a car held at it as the race did.
+	FApexCarTelemetry T;
+	T.CarIndex = 4;
+	T.bInPitLane = true;
+	T.bPitAutopilot = true;
+	T.bPitExitClosed = true;
+	T.bPitHeld = true;
+	const FApexStreamCarRow Row = FApexStreamCarRow::FromTelemetry(T);
+	TestEqual(TEXT("the byte"), static_cast<int32>(Row.PitFlags), 4 | 8 | 16 | 32);
+	const FApexCarTelemetry Back = Row.ToTelemetry();
+	TestTrue(TEXT("in the lane"), Back.bInPitLane);
+	TestTrue(TEXT("autopilot"), Back.bPitAutopilot);
+	TestTrue(TEXT("exit closed"), Back.bPitExitClosed);
+	TestTrue(TEXT("held"), Back.bPitHeld);
+	TestFalse(TEXT("no limiter"), Back.bPitLimiter);
+	TestFalse(TEXT("no service"), Back.bPitServicing);
+	return true;
+}

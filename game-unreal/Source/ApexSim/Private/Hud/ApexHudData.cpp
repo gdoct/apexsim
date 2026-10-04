@@ -246,6 +246,84 @@ TArray<FName> ApexHudData::ScalarNames()
 	return Names;
 }
 
+FApexPitStopProgress ApexHudData::PitStopProgress(const FApexPitService& Stop, float SecondsLeft)
+{
+	FApexPitStopProgress P;
+	P.PartSeconds[FApexPitStopProgress::Tyres] = FMath::Max(0.0f, Stop.TyresS);
+	P.PartSeconds[FApexPitStopProgress::Fuel] = FMath::Max(0.0f, Stop.FuelS);
+	P.PartSeconds[FApexPitStopProgress::Repair] = FMath::Max(0.0f, Stop.RepairS);
+	const float Parts = P.PartSeconds[0] + P.PartSeconds[1] + P.PartSeconds[2];
+	// The server's total is the three added up; the sum stands in should it
+	// ever not send one.
+	P.TotalS = Stop.TotalS > 0.0f ? Stop.TotalS : Parts;
+	if (Parts <= 0.0f || P.TotalS <= 0.0f)
+	{
+		return P;
+	}
+	P.bValid = true;
+	// Telemetry counts the whole stop down; what has gone is the total less it.
+	P.ElapsedS = FMath::Clamp(P.TotalS - FMath::Max(0.0f, SecondsLeft), 0.0f, P.TotalS);
+	P.Progress = P.ElapsedS / P.TotalS;
+
+	// The parts one after the other, tyres first. The part in hand is the
+	// first not yet finished; at a boundary the next one has started.
+	float Start = 0.0f;
+	for (int32 Part = 0; Part < FApexPitStopProgress::PartCount; ++Part)
+	{
+		const float Seconds = P.PartSeconds[Part];
+		if (Seconds <= 0.0f)
+		{
+			continue;
+		}
+		P.PartShare[Part] = Seconds / Parts;
+		P.PartFill[Part] = FMath::Clamp((P.ElapsedS - Start) / Seconds, 0.0f, 1.0f);
+		if (P.Phase == INDEX_NONE && P.ElapsedS < Start + Seconds)
+		{
+			P.Phase = Part;
+			P.PhaseLeftS = Start + Seconds - P.ElapsedS;
+			P.PhaseProgress = P.PartFill[Part];
+		}
+		Start += Seconds;
+	}
+	if (P.Phase == INDEX_NONE)
+	{
+		// All done, the last moment before the car is let go: the last part, full.
+		for (int32 Part = FApexPitStopProgress::PartCount - 1; Part >= 0; --Part)
+		{
+			if (P.PartSeconds[Part] > 0.0f)
+			{
+				P.Phase = Part;
+				P.PhaseLeftS = 0.0f;
+				P.PhaseProgress = 1.0f;
+				break;
+			}
+		}
+	}
+
+	const TCHAR* const Dot = TEXT(" · ");
+	switch (P.Phase)
+	{
+	case FApexPitStopProgress::Tyres:
+	{
+		P.PhaseKey = TEXT("tyres");
+		const FString Compound = FApexCarTelemetry::CompoundName(Stop.Compound);
+		P.PhaseLabel = Compound.IsEmpty() ? FString(TEXT("CHANGING TYRES")) : FString(TEXT("CHANGING TYRES")) + Dot + Compound;
+		break;
+	}
+	case FApexPitStopProgress::Fuel:
+		P.PhaseKey = TEXT("fuel");
+		P.PhaseLabel = Stop.FuelL > 0.0f ? FString::Printf(TEXT("REFUELLING%s+%.1f L"), Dot, Stop.FuelL) : FString(TEXT("REFUELLING"));
+		break;
+	case FApexPitStopProgress::Repair:
+		P.PhaseKey = TEXT("repair");
+		P.PhaseLabel = Stop.RepairPct > 0.0f ? FString::Printf(TEXT("REPAIRING%s%.0f%%"), Dot, Stop.RepairPct) : FString(TEXT("REPAIRING"));
+		break;
+	default:
+		break;
+	}
+	return P;
+}
+
 void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexHudData& Out)
 {
 	static const FApexTelemetryFrame NoFrame;
@@ -621,6 +699,9 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("pit.limiter"), Local->bPitLimiter);
 		Out.Set(TEXT("pit.servicing"), Local->bPitServicing);
 		Out.Set(TEXT("pit.service_s"), Local->ServiceSecondsLeft);
+		Out.Set(TEXT("pit.autopilot"), Local->bPitAutopilot);
+		Out.Set(TEXT("pit.exit_closed"), Local->bPitExitClosed);
+		Out.Set(TEXT("pit.held"), Local->bPitHeld);
 	}
 	else
 	{
@@ -629,10 +710,48 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				 TEXT("car.throttle"), TEXT("car.brake"), TEXT("car.steering"), TEXT("car.in_garage"), TEXT("car.on_track"),
 				 TEXT("car.colliding"), TEXT("car.headlights"), TEXT("car.finish_position"), TEXT("car.drs_allowed"),
 				 TEXT("car.drs_open"), TEXT("car.tow"), TEXT("car.x"), TEXT("car.y"), TEXT("car.z"), TEXT("car.yaw_deg"),
-				 TEXT("car.station_m"), TEXT("pit.in_lane"), TEXT("pit.limiter"), TEXT("pit.servicing"), TEXT("pit.service_s")})
+				 TEXT("car.station_m"), TEXT("pit.in_lane"), TEXT("pit.limiter"), TEXT("pit.servicing"), TEXT("pit.service_s"),
+				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held")})
 		{
 			Out.SetNone(Name);
 		}
+	}
+
+	// --- The pit stop -------------------------------------------------------------
+
+	{
+		// The crew's plan arrives once, as the car stops (`PitService`); the
+		// countdown is telemetry's. The plan outlives the stop, so it is only
+		// read while the car is being serviced.
+		const FApexPitService* Stop = Local && In.PitServices ? In.PitServices->Find(Local->CarIndex) : nullptr;
+		Out.Set(TEXT("pit.box"), Stop ? FApexHudValue::Of(Stop->PitBox + 1) : FApexHudValue());
+
+		const FApexPitStopProgress P = Stop && Local->bPitServicing
+			? ApexHudData::PitStopProgress(*Stop, Local->ServiceSecondsLeft)
+			: FApexPitStopProgress();
+		auto Known = [&P](float Value) { return P.bValid ? FApexHudValue::Of(Value) : FApexHudValue(); };
+		Out.Set(TEXT("pit.service_total_s"), Known(P.TotalS));
+		Out.Set(TEXT("pit.service_elapsed_s"), Known(P.ElapsedS));
+		Out.Set(TEXT("pit.service_progress"), Known(P.Progress));
+		const bool bPhase = P.bValid && !P.PhaseKey.IsEmpty();
+		Out.Set(TEXT("pit.service_phase"), bPhase ? FApexHudValue::Of(P.PhaseKey) : FApexHudValue());
+		Out.Set(TEXT("pit.service_phase_label"), bPhase ? FApexHudValue::Of(P.PhaseLabel) : FApexHudValue());
+		Out.Set(TEXT("pit.service_phase_left_s"), bPhase ? FApexHudValue::Of(P.PhaseLeftS) : FApexHudValue());
+		Out.Set(TEXT("pit.service_phase_progress"), bPhase ? FApexHudValue::Of(P.PhaseProgress) : FApexHudValue());
+
+		static const TCHAR* const PartKeys[FApexPitStopProgress::PartCount] = {TEXT("tyres"), TEXT("fuel"), TEXT("repair")};
+		for (int32 Part = 0; Part < FApexPitStopProgress::PartCount; ++Part)
+		{
+			Out.Values.FindOrAdd(FName(FString::Printf(TEXT("pit.service_%s_s"), PartKeys[Part]))) = Known(P.PartSeconds[Part]);
+			Out.Values.FindOrAdd(FName(FString::Printf(TEXT("pit.service_%s_share"), PartKeys[Part]))) = Known(P.PartShare[Part]);
+			Out.Values.FindOrAdd(FName(FString::Printf(TEXT("pit.service_%s_fill"), PartKeys[Part]))) = Known(P.PartFill[Part]);
+		}
+		Out.Set(TEXT("pit.service_fuel_l"), P.bValid ? FApexHudValue::Of(Stop->FuelL) : FApexHudValue());
+		Out.Set(TEXT("pit.service_repair_pct"), P.bValid ? FApexHudValue::Of(Stop->RepairPct) : FApexHudValue());
+		const FString Compound = P.bValid && P.PartSeconds[FApexPitStopProgress::Tyres] > 0.0f
+			? FApexCarTelemetry::CompoundName(Stop->Compound)
+			: FString();
+		Out.Set(TEXT("pit.service_compound"), Compound.IsEmpty() ? FApexHudValue() : FApexHudValue::Of(Compound));
 	}
 
 	// --- Fuel -------------------------------------------------------------------
@@ -856,6 +975,21 @@ FApexHudPreview::FApexHudPreview()
 	Local.ErsChargePct = 64.0f;
 	Local.ErsLapPct = 72.0f;
 	Local.ErsMode = 1;
+	// A stop twelve seconds in: the tyres done, the fuel going in, repairs
+	// to come. Nobody stops at racing speed, but the panels are the point.
+	Local.bInPitLane = true;
+	Local.bPitServicing = true;
+	Local.ServiceSecondsLeft = 11.5f;
+	FApexPitService& Stop = PitServices.Add(LocalIndex);
+	Stop.CarIndex = LocalIndex;
+	Stop.PitBox = 3;
+	Stop.TyresS = 9.0f;
+	Stop.Compound = 0;
+	Stop.FuelS = 12.5f;
+	Stop.FuelL = 25.0f;
+	Stop.RepairS = 2.0f;
+	Stop.RepairPct = 12.0f;
+	Stop.TotalS = 23.5f;
 
 	Timing.SectorCount = 3;
 	Timing.SessionBestLapMs = 81500;
@@ -880,6 +1014,7 @@ FApexHudPreview::FApexHudPreview()
 	Inputs.Roster = &Roster;
 	Inputs.Timing = &Timing;
 	Inputs.Sectors = &Sectors;
+	Inputs.PitServices = &PitServices;
 	Inputs.TrackLengthM = Length;
 	Inputs.LapLimit = 12;
 	Inputs.GameMode = EApexGameMode::Race;

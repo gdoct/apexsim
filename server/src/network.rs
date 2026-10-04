@@ -469,6 +469,13 @@ pub enum ServerMessage {
     // Sent once, right after `SessionJoined`.
     CarSetupSheet(crate::setup_sheet::CarSetupSheetData),
 
+    // TCP - A car stopped at its box and the crew started work: which box,
+    // what the stop does and how long each part takes, in the order the
+    // crew does them (tyres, fuel, repairs). Sent to every human in the
+    // session as the service starts; telemetry's `service_ds` counts the
+    // whole of it down.
+    PitService(PitServiceData),
+
     // TCP - The showcases the server plays, answering `ListShowcases`.
     Showcases(ShowcasesData),
 
@@ -516,6 +523,7 @@ impl ServerMessage {
             // with no ghost at all.
             ServerMessage::GhostLap(_) => MessagePriority::Critical,
             ServerMessage::CarSetupSheet(_) => MessagePriority::Critical,
+            ServerMessage::PitService(_) => MessagePriority::Critical,
             ServerMessage::Showcases(_) => MessagePriority::Critical,
             ServerMessage::SpectatorJoined(_) => MessagePriority::Critical,
             ServerMessage::SpectatorRecord(_) => MessagePriority::Critical,
@@ -816,6 +824,15 @@ pub fn pit_flags_of(state: &CarState) -> u8 {
     if state.pit.in_lane {
         flags |= PIT_FLAG_IN_LANE;
     }
+    if state.pit.driving {
+        flags |= PIT_FLAG_AUTOPILOT;
+    }
+    if state.pit.exit_closed {
+        flags |= PIT_FLAG_EXIT_CLOSED;
+    }
+    if state.pit.held {
+        flags |= PIT_FLAG_HELD;
+    }
     flags
 }
 
@@ -830,6 +847,14 @@ pub const PIT_FLAG_LIMITER: u8 = 1;
 pub const PIT_FLAG_SERVICING: u8 = 2;
 /// `pit_flags` bit 2: in the pit lane.
 pub const PIT_FLAG_IN_LANE: u8 = 4;
+/// `pit_flags` bit 3: the server drives the car along the pit route (the
+/// pit autopilot: a human's car from the lane's mouth to its end, an AI's
+/// from its turn onto the route).
+pub const PIT_FLAG_AUTOPILOT: u8 = 8;
+/// `pit_flags` bit 4: the pit exit light is red. The same for every car.
+pub const PIT_FLAG_EXIT_CLOSED: u8 = 16;
+/// `pit_flags` bit 5: this car is held at the red pit exit light.
+pub const PIT_FLAG_HELD: u8 = 32;
 
 /// A car's tyres as telemetry carries them: the tread temperatures and the
 /// running pressures, each rounded to a whole degree / kPa and held within
@@ -1073,6 +1098,30 @@ pub struct LapTimingData {
     /// lap by anyone, bit 2 the driver's best of this sector, bit 3 the
     /// session's best of it. What the HUD paints green and purple.
     pub flags: u8,
+}
+
+/// A car's pit stop, as the crew starts it (`ServerMessage::PitService`).
+/// Each part's seconds are 0 when the stop does not do it; the parts run
+/// one after the other, tyres first.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct PitServiceData {
+    /// Index into the current `SessionRoster`.
+    pub car_index: u8,
+    /// The car's own box, 0-based from the lane's entry end.
+    pub pit_box: u8,
+    /// The tyre change, s, and the compound going on
+    /// (`tyre_thermal::COMPOUNDS` index).
+    pub tyres_s: f32,
+    pub compound: u8,
+    /// Refuelling, s, and the litres going in.
+    pub fuel_s: f32,
+    pub fuel_l: f32,
+    /// Repairs, s, and the damage repaired (percent, summed over the zones).
+    pub repair_s: f32,
+    pub repair_pct: f32,
+    /// The whole stop, s: the three parts added up.
+    pub total_s: f32,
 }
 
 impl LapTimingData {
@@ -2070,6 +2119,52 @@ mod tests {
         .unwrap();
         let decoded: SessionJoinedData = rmp_serde::from_slice(&joined).unwrap();
         assert_eq!(decoded.allowed_assists, AllowedAssists::ALL);
+    }
+
+    /// The pit stop message and the pit flag bits. Run
+    /// `cargo test pit_service_wire_format -- --nocapture` and paste the
+    /// output into the client's `ApexGoldenBlobs.h`.
+    #[test]
+    fn test_pit_service_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let service = ServerMessage::PitService(PitServiceData {
+            car_index: 3,
+            pit_box: 7,
+            tyres_s: 9.0,
+            compound: 0,
+            fuel_s: 12.5,
+            fuel_l: 25.0,
+            repair_s: 2.0,
+            repair_pct: 50.0,
+            total_s: 23.5,
+        });
+        let bytes = rmp_serde::to_vec_named(&service).unwrap();
+        println!("S_PitService: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::PitService(data) => {
+                assert_eq!((data.car_index, data.pit_box, data.compound), (3, 7, 0));
+                assert_eq!(data.total_s, 23.5);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        assert_eq!(
+            (
+                PIT_FLAG_LIMITER,
+                PIT_FLAG_SERVICING,
+                PIT_FLAG_IN_LANE,
+                PIT_FLAG_AUTOPILOT,
+                PIT_FLAG_EXIT_CLOSED,
+                PIT_FLAG_HELD
+            ),
+            (1, 2, 4, 8, 16, 32),
+            "the client decodes these bits by number"
+        );
     }
 
     /// The exact bytes the Unreal client's codec must produce and parse for

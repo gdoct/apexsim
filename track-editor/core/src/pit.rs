@@ -47,6 +47,10 @@ const MERGE_OVERLAP_M: f32 = 1.5;
 const NODE_SPACING_M: f32 = 30.0;
 
 const DEFAULT_WIDTH_M: f32 = 10.0;
+/// Garages tile at this pitch, and a lane gets this many where it has
+/// room: the create screen's full grid of 20, and spares.
+const BOX_PITCH_M: f32 = 6.0;
+const GRID_BOXES: u32 = 24;
 const DEFAULT_SPEED_LIMIT_KMH: f32 = 80.0;
 
 /// Rebuild the pit lane for `track`'s centerline. `existing` donates its
@@ -142,10 +146,15 @@ pub fn generate_pit_lane(path: &CenterlinePath, existing: Option<&PitLane>) -> O
     ));
     nodes.push(node_at(road_end + TAPER_M, merge_lat(road_end + TAPER_M)));
 
-    let box_count = existing.map_or_else(
-        || ((span / 12.0) as u32).clamp(8, 32),
-        |p| p.box_count.clamp(4, 40),
-    );
+    // Every car of a full grid its own garage where the road has room.
+    let room = (span / BOX_PITCH_M) as u32;
+    let box_count = existing
+        .map_or_else(
+            || ((span / 12.0) as u32).clamp(8, 32),
+            |p| p.box_count.clamp(4, 40),
+        )
+        .max(GRID_BOXES.min(room))
+        .min(40);
     let speed_limit_kmh = existing.map_or(DEFAULT_SPEED_LIMIT_KMH, |p| {
         p.speed_limit_kmh.clamp(30.0, 120.0)
     });
@@ -308,11 +317,17 @@ mod tests {
             n[1] = -n[1];
         }
         flipped.width_m = 11.0;
-        flipped.box_count = 20;
+        flipped.box_count = 30;
 
         let regenerated = generate_pit_lane(&path, Some(&flipped)).unwrap();
         assert_eq!(regenerated.width_m, 11.0);
-        assert_eq!(regenerated.box_count, 20);
+        assert_eq!(regenerated.box_count, 30, "a larger count is kept");
+        flipped.box_count = 10;
+        assert_eq!(
+            generate_pit_lane(&path, Some(&flipped)).unwrap().box_count,
+            GRID_BOXES,
+            "a smaller one rises to a full grid's"
+        );
         // The bottom straight runs along y = 0; a right-side lane sits at
         // negative y, matching the flipped donor.
         let mid = regenerated.nodes[regenerated.nodes.len() / 2];

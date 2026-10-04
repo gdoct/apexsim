@@ -136,6 +136,8 @@ private:
 		bool bHasOutline = false;
 		FLinearColor LastOutline;
 		float LastValue = -1.0f;
+		/** The share last given to the slot of an element whose `fill` is an expression. */
+		float LastFill = -1.0f;
 	};
 
 	void BuildHud();

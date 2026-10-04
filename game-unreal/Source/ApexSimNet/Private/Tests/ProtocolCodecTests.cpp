@@ -958,3 +958,33 @@ bool FApexProtocolCarSetupSheetTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("rake balance"), Sheet.RakeBalancePerMm, 0.001f);
 	return true;
 }
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolPitServiceTest,
+	"ApexSim.Net.Protocol.PitService",
+	ApexTestFlags)
+
+bool FApexProtocolPitServiceTest::RunTest(const FString& Parameters)
+{
+	FString Error;
+	FApexServerMessage Message;
+	if (!TestTrue(FString::Printf(TEXT("PitService decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_PitService, Message, Error)))
+	{
+		return false;
+	}
+	TestEqual(TEXT("type"), Message.Type, EApexServerMessageType::PitService);
+	const FApexPitService& Stop = Message.PitService;
+	TestEqual(TEXT("car"), Stop.CarIndex, 3);
+	TestEqual(TEXT("box"), Stop.PitBox, 7);
+	TestEqual(TEXT("tyres"), Stop.TyresS, 9.0f);
+	TestEqual(TEXT("soft"), Stop.Compound, 0);
+	TestEqual(TEXT("fuel"), Stop.FuelS, 12.5f);
+	TestEqual(TEXT("litres"), Stop.FuelL, 25.0f);
+	TestEqual(TEXT("repairs"), Stop.RepairS, 2.0f);
+	TestEqual(TEXT("repaired"), Stop.RepairPct, 50.0f);
+	TestEqual(TEXT("total"), Stop.TotalS, 23.5f);
+	return true;
+}

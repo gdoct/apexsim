@@ -75,6 +75,30 @@ const PIT_BOX_PITCH_M: f32 = 6.0;
 const PIT_BOXES: std::ops::RangeInclusive<u32> = 8..=40;
 const PIT_WIDTH_M: f32 = 12.0;
 const PIT_SPEED_LIMIT_KMH: f32 = 80.0;
+/// Boxes a lane gets when it has room, whatever a survey counted: every
+/// car of a full grid (the create screen's 20) its own garage, and spares.
+const PIT_GRID_BOXES: u32 = 24;
+/// A mapped lane shorter than this along the course is not laid, m.
+const PIT_MIN_LANE_M: f32 = 150.0;
+/// Node spacing of the laid lane, m.
+const PIT_LANE_STEP_M: f32 = 4.0;
+/// The laid lane bends no tighter than this, m, and the passes that round
+/// it off are at most this many.
+const PIT_LANE_MIN_RADIUS_M: f32 = 30.0;
+const PIT_LANE_ROUND_PASSES: usize = 400;
+/// How far along the lane its mapped offset is smoothed, m (Gaussian
+/// sigma): a GPS trace's wander, not the lane's shape.
+const PIT_LANE_SMOOTH_M: f32 = 12.0;
+/// Least room between the road edge and the lane's edge through the
+/// lane's middle: enough to stand the pit wall in
+/// (`ue_export`'s `PIT_TAPER_WALL_MIN_M`).
+const PIT_APRON_M: f32 = 3.0;
+/// The entry and exit tapers: a fifth of the lane, within these, m.
+const PIT_TAPER_MIN_M: f32 = 40.0;
+const PIT_TAPER_MAX_M: f32 = 90.0;
+/// At its ends the lane's middle sits this far inside the road edge, so
+/// the two surfaces overlap rather than meet at a seam, m.
+const PIT_MERGE_OVERLAP_M: f32 = 1.5;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DressReport {
@@ -271,6 +295,25 @@ pub fn dress_scene_with_dem(
     report.surroundings = extras.len();
     laid.extend(extras);
 
+    // Nothing dressed stands in the pit lane or where its garages go.
+    let zone = scene
+        .pit_lane
+        .as_ref()
+        .zip(layout.pit_lane.as_ref())
+        .and_then(|(pit, road)| PitZone::new(pit, road.side));
+    if let Some(zone) = zone {
+        let before = laid.len();
+        laid.retain(|p| {
+            matches!(p.kind, PropKind::Bridge | PropKind::Sky) || !zone.blocks(&path, p)
+        });
+        if laid.len() < before {
+            report.skipped.push(format!(
+                "{} props: in the pit lane or where its garages stand",
+                before - laid.len()
+            ));
+        }
+    }
+
     for mut prop in laid {
         prop.id = recycled.pop().unwrap_or_else(|| {
             let id = scene.next_id;
@@ -424,65 +467,159 @@ fn paint_runoff(path: &CenterlinePath, scene: &mut AtsScene) -> usize {
 
 // ---- Pit lane -------------------------------------------------------------
 
-/// The real pit lane: the dossier's polyline, seated on the road's own
-/// height at every node, with as many boxes as its parallel section holds.
-/// Marked [`PitLane::authored`] so grooming leaves it alone instead of
-/// replacing it with a generated ribbon.
+/// The real pit lane, laid as a road a car can drive: the dossier's
+/// polyline, smoothed, then moved where it must be — held at least a pit
+/// wall's apron clear of its own leg of the course, kept from folding on
+/// the inside of a bend, and blended onto the road edge at both ends so it
+/// always leaves and rejoins the track — and rounded wherever it still
+/// bends tighter than a car can take at the limit. Each correction is a
+/// displacement across the course from the mapped point, so where the
+/// lane needs none it stays exactly where it was mapped. Every node takes
+/// the height of the road edge beside it. Marked [`PitLane::authored`] so
+/// grooming leaves it alone instead of replacing it with a generated
+/// ribbon.
+///
+/// The polyline used to be taken as mapped. A traced lane wanders: at
+/// Austin its box row bent 57° in 13 m, at Zandvoort it kinked into its
+/// own garages, Shanghai's started 62 m off the road in a field and
+/// Melbourne's 8 m short of it, and on seven circuits it ran too close to
+/// the road for more than a handful of garages.
 fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     let road = layout.pit_lane.as_ref()?;
     if road.nodes.len() < 3 {
         return None;
     }
-    // Each node takes the height of the road *edge* beside it — not the
-    // banked surface extrapolated out to the lane, which at Zandvoort put
-    // four nodes of the exit road 7 m up beside the Hugenholtz banking —
-    // and follows the leg of the course it runs along: the lane passes
-    // other legs closer than its own where a circuit folds behind its
-    // pits, so after the first node the nearest cross-section is looked
-    // for near where the lane's own progress says it should be.
-    let total = path.total_length_m();
+    let sign = match road.side {
+        Side::Left => 1.0f32,
+        Side::Right => -1.0,
+    };
+
+    // The mapped lane every PIT_LANE_STEP_M along itself, smoothed (a GPS
+    // trace's wander is not the lane's shape); its ends stay put.
+    let mapped = resample_polyline(&road.nodes, PIT_LANE_STEP_M);
+    let length = (mapped.len() - 1) as f32 * PIT_LANE_STEP_M;
+    if length < PIT_MIN_LANE_M {
+        return None;
+    }
+    let mapped = smooth_points(&mapped, PIT_LANE_SMOOTH_M / PIT_LANE_STEP_M);
+
+    // Each point against its own leg of the course: looked for near where
+    // the lane's progress says it should be, so a lane running beside one
+    // leg of a folded circuit is not read against another.
+    // Over the exit taper each point is read against the road nearest it:
+    // that is the road it merges into, and after a lane that ran far from
+    // the course (Silverstone's, a hundred metres out) the search near the
+    // lane's progress has lost its leg, and the exit was pulled across
+    // the infield to the wrong one.
+    let taper = (length * 0.2).clamp(PIT_TAPER_MIN_M, PIT_TAPER_MAX_M);
+    let exit_from = mapped
+        .len()
+        .saturating_sub((taper / PIT_LANE_STEP_M) as usize + 1);
     let mut station: Option<f32> = None;
-    let mut prev: Option<[f32; 2]> = None;
-    let nodes: Vec<[f32; 3]> = road
-        .nodes
+    let frame: Vec<(PathSample, f32)> = mapped
         .iter()
-        .map(|n| {
-            let expect = match (station, prev) {
-                (Some(s), Some(p)) => Some(s + (n[0] - p[0]).hypot(n[1] - p[1])),
-                _ => None,
+        .enumerate()
+        .map(|(i, p)| {
+            let found = match station {
+                _ if i >= exit_from => nearest_cross_section(path, p[0], p[1]),
+                Some(s) => nearest_cross_section_near(
+                    path,
+                    p[0],
+                    p[1],
+                    s + PIT_LANE_STEP_M,
+                    PIT_LEG_WINDOW_M,
+                ),
+                None => nearest_cross_section(path, p[0], p[1]),
             };
-            let (sample, lat) = match expect {
-                Some(at) => nearest_cross_section_near(path, n[0], n[1], at, PIT_LEG_WINDOW_M),
-                None => nearest_cross_section(path, n[0], n[1]),
-            };
-            let edge = lat.clamp(-sample.width_right_m, sample.width_left_m);
-            let z = offset_point(&sample, edge).2;
-            station = Some(if path.is_closed() {
-                sample.station_m
-            } else {
-                sample.station_m.min(total)
-            });
-            prev = Some([n[0], n[1]]);
-            [n[0], n[1], z]
+            station = Some(found.0.station_m);
+            found
         })
         .collect();
-    // The stretch that runs clear of the road is what the garages stand
-    // along; the tapers at either end hold nothing.
-    let clear: f32 = nodes
-        .windows(2)
-        .filter(|w| {
-            let mid = [(w[0][0] + w[1][0]) / 2.0, (w[0][1] + w[1][1]) / 2.0];
-            let (sample, lat) = nearest_cross_section(path, mid[0], mid[1]);
-            lat.abs() > side_half_width(&sample, road.side) + PIT_WIDTH_M * 0.5
+
+    // How far across its leg each point should be, positive on the lane's
+    // side. Through the middle: pushed out to a pit wall's apron off the
+    // road where it is mapped closer, but on the inside of a bend never
+    // pushed so far in that it leaves the lane less than
+    // PIT_LANE_MIN_RADIUS_M (an offset of a bend is tighter than the bend,
+    // and past its radius folds back on itself); a point mapped further out
+    // stays where it is. At the ends: from just inside the road edge out to
+    // that over a taper.
+    let half = PIT_WIDTH_M / 2.0;
+    let ease = |t: f32| {
+        let t = t.clamp(0.0, 1.0);
+        t * t * (3.0 - 2.0 * t)
+    };
+    let shift: Vec<f32> = frame
+        .iter()
+        .enumerate()
+        .map(|(i, (sample, lat))| {
+            let road_half = side_half_width(sample, road.side);
+            let across = lat * sign;
+            let tightest = (-4..=4)
+                .map(|k| curvature_at(path, sample.station_m + k as f32 * 5.0))
+                .filter(|k| k * sign > 0.0)
+                .fold(0.0f32, |a, k| a.max(k.abs()));
+            let cap = if tightest < 1e-4 {
+                f32::MAX
+            } else {
+                (1.0 / tightest - PIT_LANE_MIN_RADIUS_M).max(road_half - PIT_MERGE_OVERLAP_M)
+            };
+            // A point read against the wrong side of its leg (another leg
+            // came nearer) is left where it was mapped.
+            let middle = if across < -road_half {
+                across
+            } else {
+                across.max((road_half + PIT_APRON_M + half).min(cap))
+            };
+            let u = i as f32 * PIT_LANE_STEP_M;
+            let w = ease(u / taper) * ease((length - u) / taper);
+            let want = (1.0 - w) * (road_half - PIT_MERGE_OVERLAP_M) + w * middle;
+            want - across
         })
-        .map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]))
-        .sum();
-    // A surveyed count wins, but never more boxes than the stretch holds:
-    // the garages would run onto the tapers.
+        .collect();
+    // Smoothed along the lane, the two ends kept exactly on the road edge.
+    let mut smoothed = smooth_values(&shift, PIT_LANE_SMOOTH_M / PIT_LANE_STEP_M);
+    let last = shift.len() - 1;
+    smoothed[0] = shift[0];
+    smoothed[last] = shift[last];
+    let shift = smoothed;
+    let nodes: Vec<[f32; 3]> = mapped
+        .iter()
+        .zip(&frame)
+        .zip(&shift)
+        .map(|((p, (sample, _)), d)| {
+            let (sin, cos) = sample.heading_rad.sin_cos();
+            let edge = offset_point(sample, sign * side_half_width(sample, road.side));
+            [p[0] - sin * sign * d, p[1] + cos * sign * d, edge.2]
+        })
+        .collect();
+    // Anything still tighter than a car takes at the limit is rounded off
+    // on its inside (the ends stay where they join the road).
+    let nodes = round_tight_bends(nodes, PIT_LANE_MIN_RADIUS_M);
+    // Each node at the height of the road beside where it ended up — the
+    // edge, or the road itself on a taper over it — not beside where it was
+    // mapped: moved, a node on a slope was a metre off its verge.
+    let nodes: Vec<[f32; 3]> = nodes
+        .iter()
+        .zip(&frame)
+        .map(|(n, (mapped_at, _))| {
+            let (sample, lat) =
+                nearest_cross_section_near(path, n[0], n[1], mapped_at.station_m, PIT_LEG_WINDOW_M);
+            let on_road = lat.clamp(-sample.width_right_m, sample.width_left_m);
+            [n[0], n[1], offset_point(&sample, on_road).2]
+        })
+        .collect();
+
+    // The garages line the stretch between the tapers.
+    let clear = (length - 2.0 * taper).max(0.0);
     let room = (clear / PIT_BOX_PITCH_M) as u32;
+    // Every car its own garage: at least a full grid's worth where the
+    // lane has room, a survey's count when it found more.
     let box_count = road
         .box_count
-        .map_or(room, |n| n.min(room))
+        .unwrap_or(0)
+        .max(PIT_GRID_BOXES)
+        .min(room)
         .clamp(*PIT_BOXES.start(), *PIT_BOXES.end());
     Some(PitLane {
         nodes,
@@ -491,6 +628,213 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
         speed_limit_kmh: PIT_SPEED_LIMIT_KMH,
         authored: true,
     })
+}
+
+/// A polyline resampled every `step` metres along itself, both ends kept.
+fn resample_polyline(points: &[[f32; 2]], step: f32) -> Vec<[f32; 2]> {
+    let total: f32 = points
+        .windows(2)
+        .map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]))
+        .sum();
+    let n = (total / step).round().max(1.0) as usize;
+    (0..=n)
+        .map(|i| {
+            let (x, y) = point_along(points, total * i as f32 / n as f32);
+            [x, y]
+        })
+        .collect()
+}
+
+/// Gaussian smoothing of a sequence, `sigma` in samples, the ends held.
+fn smooth_values(values: &[f32], sigma: f32) -> Vec<f32> {
+    let reach = (3.0 * sigma).ceil() as isize;
+    (0..values.len())
+        .map(|i| {
+            let (mut sum, mut weight) = (0.0f32, 0.0f32);
+            for k in -reach..=reach {
+                let j = (i as isize + k).clamp(0, values.len() as isize - 1) as usize;
+                let w = (-0.5 * (k as f32 / sigma).powi(2)).exp();
+                sum += values[j] * w;
+                weight += w;
+            }
+            sum / weight
+        })
+        .collect()
+}
+
+/// [`smooth_values`] on both coordinates, with the first and last point
+/// pinned where they are.
+fn smooth_points(points: &[[f32; 2]], sigma: f32) -> Vec<[f32; 2]> {
+    let xs = smooth_values(&points.iter().map(|p| p[0]).collect::<Vec<_>>(), sigma);
+    let ys = smooth_values(&points.iter().map(|p| p[1]).collect::<Vec<_>>(), sigma);
+    let last = points.len() - 1;
+    (0..points.len())
+        .map(|i| {
+            if i == 0 || i == last {
+                points[i]
+            } else {
+                [xs[i], ys[i]]
+            }
+        })
+        .collect()
+}
+
+/// Relax a polyline's nodes tighter than `min_radius_m` toward the middle
+/// of their neighbours until none is (or the passes run out), first and
+/// last node fixed.
+fn round_tight_bends(mut nodes: Vec<[f32; 3]>, min_radius_m: f32) -> Vec<[f32; 3]> {
+    let radius = |a: &[f32; 3], b: &[f32; 3], c: &[f32; 3]| {
+        let ab = (b[0] - a[0]).hypot(b[1] - a[1]);
+        let bc = (c[0] - b[0]).hypot(c[1] - b[1]);
+        let ca = (a[0] - c[0]).hypot(a[1] - c[1]);
+        let cross = ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])).abs();
+        if cross < 1e-6 {
+            f32::MAX
+        } else {
+            ab * bc * ca / (2.0 * cross)
+        }
+    };
+    for _ in 0..PIT_LANE_ROUND_PASSES {
+        let tight: Vec<usize> = (1..nodes.len().saturating_sub(1))
+            .filter(|&i| radius(&nodes[i - 1], &nodes[i], &nodes[i + 1]) < min_radius_m)
+            .collect();
+        if tight.is_empty() {
+            break;
+        }
+        // The neighbours of a tight node move too, a little, or a single
+        // node is pulled flat and its neighbours become the cusp.
+        let mut weight = vec![0.0f32; nodes.len()];
+        for &i in &tight {
+            weight[i] = 0.5;
+            for j in [i - 1, i + 1] {
+                if j > 0 && j + 1 < nodes.len() {
+                    weight[j] = weight[j].max(0.25);
+                }
+            }
+        }
+        let before = nodes.clone();
+        for i in 1..nodes.len() - 1 {
+            if weight[i] == 0.0 {
+                continue;
+            }
+            for k in 0..3 {
+                let mid = (before[i - 1][k] + before[i + 1][k]) / 2.0;
+                nodes[i][k] += (mid - before[i][k]) * weight[i];
+            }
+        }
+    }
+    nodes
+}
+
+// ---- The pit zone ---------------------------------------------------------
+
+/// What a dressed prop must keep out of: the pit lane, the pit wall's
+/// apron on its road side and the garages' depth behind it, which the
+/// bake fills (`ue_export::bake_pit_complex`). A stand or a building only
+/// used to be kept from the lane by its centre, so a long terrace of
+/// media-centre blocks whose middle stood clear could still put a block
+/// across the lane: Suzuka's and Catalunya's did, and a car driving in
+/// met a wall.
+struct PitZone {
+    lane: CenterlinePath,
+    half: f32,
+    /// +1 when the garages are on the lane's left.
+    garage_side: f32,
+}
+
+/// The zone reaches this far past the lane's road-side edge (the apron
+/// and the pit wall)…
+const PIT_ZONE_APRON_M: f32 = 2.5;
+/// …and this far past its garage-side edge (a garage's depth and a
+/// little).
+const PIT_ZONE_GARAGES_M: f32 = 17.0;
+
+impl PitZone {
+    fn new(pit: &PitLane, side: Side) -> Option<Self> {
+        let lane = CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0)?;
+        Some(Self {
+            lane,
+            half: pit.width_m / 2.0,
+            // The lane runs the course's way, so on the course's left the
+            // garages are further left still.
+            garage_side: match side {
+                Side::Left => 1.0,
+                Side::Right => -1.0,
+            },
+        })
+    }
+
+    fn contains(&self, x: f32, y: f32) -> bool {
+        let (mut best, mut lat) = (f32::MAX, 0.0f32);
+        let mut at_end = false;
+        let samples = self.lane.samples();
+        for (i, sample) in samples.iter().enumerate() {
+            let (dx, dy) = (x - sample.pos.0, y - sample.pos.1);
+            let d2 = dx * dx + dy * dy;
+            if d2 < best {
+                best = d2;
+                let (sin, cos) = sample.heading_rad.sin_cos();
+                lat = -sin * dx + cos * dy;
+                at_end = i == 0 || i == samples.len() - 1;
+            }
+        }
+        // Beyond either end of the lane is not beside it.
+        if at_end && best.sqrt() > lat.abs() + 1.0 {
+            return false;
+        }
+        let toward_garages = lat * self.garage_side;
+        if toward_garages >= 0.0 {
+            toward_garages < self.half + PIT_ZONE_GARAGES_M
+        } else {
+            -toward_garages < self.half + PIT_ZONE_APRON_M
+        }
+    }
+
+    /// Whether any part of `prop`'s footprint stands in the zone.
+    fn blocks(&self, path: &CenterlinePath, prop: &Prop) -> bool {
+        let kit = props::resolve(prop.kind, &prop.asset);
+        let (length, depth) = match prop.kind {
+            PropKind::Grandstand => (
+                prop.length_m.unwrap_or(30.0) * prop.scale,
+                kit.map_or(12.0, |a| a.depth_m),
+            ),
+            PropKind::Building => kit.map_or((15.0, 10.0), |a| {
+                (a.length_m * prop.scale, a.depth_m * prop.scale)
+            }),
+            _ => {
+                let r = dressed_footprint_radius_m(prop) * prop.scale;
+                return (0..=8).any(|k| {
+                    let (dx, dy) = if k == 8 {
+                        (0.0, 0.0)
+                    } else {
+                        let a = k as f32 * std::f32::consts::FRAC_PI_4;
+                        (a.cos() * r, a.sin() * r)
+                    };
+                    self.contains(prop.x + dx, prop.y + dy)
+                });
+            }
+        };
+        // A stand or a building stands on its front: its footprint runs
+        // from the pivot away from the road.
+        let (sin, cos) = prop.yaw_rad.sin_cos();
+        let (near, _) = nearest_cross_section(path, prop.x, prop.y);
+        let toward = -sin * (near.pos.0 - prop.x) + cos * (near.pos.1 - prop.y);
+        let away = if toward >= 0.0 {
+            (sin, -cos)
+        } else {
+            (-sin, cos)
+        };
+        (0..=FOOTPRINT_PROBES).any(|a| {
+            let along = (a as f32 / FOOTPRINT_PROBES as f32 - 0.5) * length;
+            (0..=FOOTPRINT_PROBES).any(|b| {
+                let back = b as f32 / FOOTPRINT_PROBES as f32 * depth;
+                self.contains(
+                    prop.x + cos * along + away.0 * back,
+                    prop.y + sin * along + away.1 * back,
+                )
+            })
+        })
+    }
 }
 
 // ---- Grandstands ----------------------------------------------------------
@@ -2103,8 +2447,26 @@ mod tests {
             pit.authored,
             "the real lane is a fact, not a generated shape"
         );
-        assert_eq!(pit.nodes.len(), 16);
         assert!(pit.box_count >= 8);
+        // It leaves and rejoins the road, and keeps an apron off it
+        // through its middle.
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let lat_of = |n: &[f32; 3]| {
+            let (sample, lat) = nearest_cross_section(&path, n[0], n[1]);
+            (lat, sample.width_right_m)
+        };
+        for end in [pit.nodes.first().unwrap(), pit.nodes.last().unwrap()] {
+            let (lat, half) = lat_of(end);
+            assert!(
+                lat < 0.0 && -lat < half,
+                "an end on the road: {lat} of {half}"
+            );
+        }
+        let (lat, half) = lat_of(&pit.nodes[pit.nodes.len() / 2]);
+        assert!(
+            -lat >= half + PIT_APRON_M + PIT_WIDTH_M / 2.0 - 0.1,
+            "the middle clear of the road: {lat}"
+        );
 
         // Grooming must not replace it.
         let before = scene.pit_lane.clone();
@@ -2113,7 +2475,7 @@ mod tests {
     }
 
     #[test]
-    fn a_surveyed_box_count_is_kept_within_what_the_lane_holds() {
+    fn a_lane_gets_a_full_grids_boxes_or_a_surveys_within_its_room() {
         let track = track();
         let lane = |count| PitRoad {
             side: Side::Right,
@@ -2128,14 +2490,15 @@ mod tests {
             dress_scene(&track, &mut scene, &layout).unwrap();
             scene.pit_lane.expect("lane").box_count
         };
-        let room = boxes(None);
-        assert_eq!(boxes(Some(12)), 12, "a survey's count is used");
-        assert_eq!(boxes(Some(200)), room, "but never past the lane's room");
+        let room = boxes(Some(200));
+        assert!(room > PIT_GRID_BOXES, "this lane holds a grid: {room}");
+        assert_eq!(boxes(None), PIT_GRID_BOXES, "every car its own garage");
         assert_eq!(
-            boxes(Some(2)),
-            *PIT_BOXES.start(),
-            "and never under the minimum"
+            boxes(Some(12)),
+            PIT_GRID_BOXES,
+            "a short survey is not a limit"
         );
+        assert_eq!(boxes(Some(room - 1)), room - 1, "a longer one is used");
     }
 
     #[test]
@@ -2176,8 +2539,13 @@ mod tests {
             osm_building: Some("yes".to_string()),
         });
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
-        assert_eq!(report.skipped.len(), 1, "{:?}", report.skipped);
-        assert!(report.skipped[0].contains("pit complex"));
+        let buildings: Vec<&String> = report
+            .skipped
+            .iter()
+            .filter(|s| s.starts_with("building"))
+            .collect();
+        assert_eq!(buildings.len(), 1, "{:?}", report.skipped);
+        assert!(buildings[0].contains("pit complex"));
         let built: Vec<&Prop> = scene
             .props
             .iter()

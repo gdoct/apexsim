@@ -1702,8 +1702,11 @@ UMaterialInterface* FApexTrackSceneBuilder::EmissiveMaterialFor(FName Slot)
 		{TEXT("led_panel"), FLinearColor(0.1f, 1.0f, 0.2f), 40.0f},
 		{TEXT("led_screen"), FLinearColor(0.35f, 0.5f, 1.0f), 15.0f},
 		{TEXT("floodlight_lamp"), FLinearColor(1.0f, 0.95f, 0.8f), 0.0f},
-		// The pit exit light shows green (pit open) until a director drives it.
-		{TEXT("pit_light_green"), FLinearColor(0.1f, 1.0f, 0.25f), 30.0f},
+		// The pit exit light shows green (pit open) until the race director
+		// drives it from the telemetry (AApexRaceDirector::UpdatePitExitLights).
+		// As bright as the start lights (AApexRaceDirector::StartLightOnEmissive):
+		// at 30 a lamp was dark in the race's daylight exposure.
+		{TEXT("pit_light_green"), FLinearColor(0.1f, 1.0f, 0.25f), 4000.0f},
 		{TEXT("pit_light_red"), FLinearColor(1.0f, 0.1f, 0.1f), 0.0f},
 	};
 	const FString Key = TEXT("glow_") + Slot.ToString();

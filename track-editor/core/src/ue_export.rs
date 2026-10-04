@@ -475,6 +475,7 @@ fn bake_pit_sidecar(
     lane: &CenterlinePath,
     pit: &crate::ats::PitLane,
     relation: &LaneRelation,
+    layout: &PitLayout,
 ) -> Option<PitSidecar> {
     let total = lane.total_length_m();
     if total < 10.0 {
@@ -487,13 +488,7 @@ fn bake_pit_sidecar(
             [p.0, p.1, p.2]
         })
         .collect();
-    let (limit_start, limit_end) = relation
-        .spans
-        .iter()
-        .filter(|(_, _, parallel)| *parallel)
-        .map(|(s, e, _)| (*s, *e))
-        .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
-        .unwrap_or((0.0, total));
+    let (limit_start, limit_end) = (layout.limit_start, layout.limit_end);
     let side = if relation.lane_side == 0 {
         1.0
     } else {
@@ -502,12 +497,8 @@ fn bake_pit_sidecar(
     let half = pit.width_m / 2.0;
     // The middle of a box's working lane, across the lane from its centre.
     let stop_lateral = side * (half - PIT_BOX_DEPTH_M / 2.0);
-    let span = limit_end - limit_start;
-    let count = (pit.box_count as f32)
-        .min((span / PIT_MODULE_M).floor())
-        .max(0.0) as u32;
-    let row_start = (limit_start + limit_end) / 2.0 - count as f32 * PIT_MODULE_M / 2.0;
-    let boxes = (0..count)
+    let row_start = layout.row_start;
+    let boxes = (0..layout.boxes)
         .map(|i| {
             let at = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
             let s = lane.sample_at(at);
@@ -968,9 +959,17 @@ fn bake_walls(
                         WALL_KIND_CONCRETE,
                     ));
                 } else {
+                    // A garage's body is behind its door, which the module
+                    // turns toward the lane (`pit_module`: the door opens to
+                    // the right of its yaw). The nearest centerline does not
+                    // say where that is: Zandvoort's garages back onto
+                    // another leg of the course, and their walls stood
+                    // across the lane in front of them.
                     let depth = a.depth_m * scale;
+                    let behind = (-yaw.sin(), yaw.cos());
+                    let centre = (x + behind.0 * depth / 2.0, y + behind.1 * depth / 2.0);
                     solid.extend(wall_footprint(
-                        footprint_centre((x, y), yaw, depth, false, path),
+                        centre,
                         yaw,
                         a.length_m * scale,
                         depth,
@@ -1277,15 +1276,31 @@ pub fn bake_all_with_options(
     bake.grid_boxes(track, &path);
     bake.drs_lines(track, &path);
     bake.wear(track, &path);
+    let pit_layout = scene
+        .pit_lane
+        .as_ref()
+        .zip(lane.as_ref())
+        .map(|(pit, lane)| {
+            pit_layout(
+                lane,
+                pit.width_m,
+                pit.box_count,
+                &lane_relation,
+                terrain.as_ref(),
+            )
+        });
     let pit = scene
         .pit_lane
         .as_ref()
         .zip(lane.as_ref())
-        .and_then(|(pit, lane)| bake_pit_sidecar(&path, lane, pit, &lane_relation));
+        .zip(pit_layout.as_ref())
+        .and_then(|((pit, lane), layout)| {
+            bake_pit_sidecar(&path, lane, pit, &lane_relation, layout)
+        });
     let pit_lane = scene.pit_lane.as_ref().and_then(|pit| {
         let lane = lane.as_ref()?;
         bake.pit_lane(lane, pit.width_m);
-        bake.pit_markings(lane, pit.width_m, pit.box_count, &lane_relation);
+        bake.pit_markings(lane, pit.width_m, &lane_relation, pit_layout.as_ref()?);
         bake.pit_exit_line(&path, &lane_relation);
         Some(UePitLane {
             width_cm: round(pit.width_m * M_TO_CM, 1),
@@ -1316,6 +1331,7 @@ pub fn bake_all_with_options(
         &path,
         lane.as_ref(),
         &lane_relation,
+        pit_layout.as_ref(),
         terrain.as_ref(),
     );
     let walls = bake_walls(&props, &path, terrain.as_ref());
@@ -2543,8 +2559,8 @@ impl Bake<'_> {
         &mut self,
         lane: &CenterlinePath,
         width_m: f32,
-        box_count: u32,
         relation: &LaneRelation,
+        layout: &PitLayout,
     ) {
         let key = format!("marking_pit_line_{}", color_hex(LINE_COLOR));
         self.register(&key, "marking", LINE_COLOR);
@@ -2609,14 +2625,7 @@ impl Bake<'_> {
         // it ends — the ends of the longest parallel stretch, which is where
         // the bake stands the garages and where a real limit line is.
         let total = lane.total_length_m();
-        let (limit_start, limit_end) = relation
-            .spans
-            .iter()
-            .filter(|(_, _, parallel)| *parallel)
-            .map(|(s, e, _)| (*s, *e))
-            .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
-            .unwrap_or((0.0, total));
-        for at in [limit_start, limit_end] {
+        for at in [layout.limit_start, layout.limit_end] {
             if at <= PIT_LIMIT_LINE_M || at >= total - PIT_LIMIT_LINE_M {
                 continue;
             }
@@ -2634,11 +2643,8 @@ impl Bake<'_> {
 
         // The pit boxes: a working-lane outline in front of each garage,
         // the same pitch and row the garages stand on (`bake_pit_complex`).
-        let span = limit_end - limit_start;
-        let boxes = (box_count as f32).min((span / PIT_MODULE_M).floor()) as u32;
+        let (boxes, row_start) = (layout.boxes, layout.row_start);
         if boxes > 0 {
-            let row = boxes as f32 * PIT_MODULE_M;
-            let row_start = (limit_start + limit_end) / 2.0 - row / 2.0;
             let outer = box_edge;
             let inner = box_edge - side * PIT_BOX_DEPTH_M;
             for i in 0..boxes {
@@ -3753,6 +3759,9 @@ const PIT_WALL_MAX_OFFSET_M: f32 = 1.0;
 const PIT_TAPER_WALL_MIN_M: f32 = 3.0;
 /// How far from the lane the road is looked for when sizing the apron.
 const PIT_APRON_REACH_M: f32 = 80.0;
+/// The pit exit light and the speed-limit board stand this far off the
+/// lane's road-side edge: behind the pit wall, short of the track.
+const PIT_SIGN_OFF_EDGE_M: f32 = 2.0;
 
 /// The nearest centerline sample to a point and the point's signed
 /// lateral offset from it (positive = left of the course).
@@ -3925,13 +3934,15 @@ fn bake_props(
     path: &CenterlinePath,
     lane: Option<&CenterlinePath>,
     relation: &LaneRelation,
+    layout: Option<&PitLayout>,
     terrain: Option<&TerrainHeightfield>,
 ) -> Vec<UeProp> {
     let pit = scene
         .pit_lane
         .as_ref()
         .zip(lane)
-        .map(|(pit, lane)| bake_pit_complex(lane, pit.width_m, pit.box_count, relation, terrain))
+        .zip(layout)
+        .map(|((pit, lane), layout)| bake_pit_complex(lane, pit.width_m, relation, layout, terrain))
         .unwrap_or_default();
     let complex_present = !pit.is_empty();
     scene
@@ -3979,6 +3990,131 @@ fn pit_module(
     }
 }
 
+/// Where a pit lane's speed limit holds and its garages stand, decided
+/// once and shared by everything that draws or drives it: the server's
+/// sidecar ([`bake_pit_sidecar`]), the garages ([`bake_pit_complex`]) and
+/// the paint ([`Bake::pit_markings`]), so a car stops where it sees its
+/// box. Stations are metres along the lane.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct PitLayout {
+    limit_start: f32,
+    limit_end: f32,
+    /// The first box's near end, and how many boxes stand from there at
+    /// [`PIT_MODULE_M`] apiece.
+    row_start: f32,
+    boxes: u32,
+}
+
+/// Room a garage needs behind the lane's edge before anything else's
+/// road: the module's depth and a little.
+const PIT_GARAGE_ROOM_M: f32 = 15.5;
+
+/// The lane's [`PitLayout`]. The limit is the longest stretch that runs
+/// clear of the road; the garages stand on the longest run of it with
+/// room behind the lane for a garage (another leg of the course passes
+/// close behind some pits: Zandvoort's stood on its own back straight),
+/// as many as the scene asks for and the run holds, centred on it.
+fn pit_layout(
+    lane: &CenterlinePath,
+    width_m: f32,
+    box_count: u32,
+    relation: &LaneRelation,
+    terrain: Option<&TerrainHeightfield>,
+) -> PitLayout {
+    let total = lane.total_length_m();
+    let (limit_start, limit_end) = relation
+        .spans
+        .iter()
+        .filter(|(_, _, parallel)| *parallel)
+        .map(|(s, e, _)| (*s, *e))
+        .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
+        .unwrap_or((0.0, total));
+    let side = if relation.lane_side == 0 {
+        1.0
+    } else {
+        relation.lane_side as f32
+    };
+    let half = width_m / 2.0;
+    // Whether a garage at `s` stands clear of every road: probed at its
+    // door, half way back and at its back wall, across its width.
+    let room = |s: f32| -> bool {
+        let Some(field) = terrain else {
+            return true;
+        };
+        let sample = lane.sample_at(s);
+        [
+            half + 1.0,
+            half + PIT_GARAGE_ROOM_M / 2.0,
+            half + PIT_GARAGE_ROOM_M,
+        ]
+        .iter()
+        .all(|&lat| {
+            let p = offset_point(&sample, side * lat);
+            field
+                .nearest_track_point(p.0, p.1, PIT_APRON_REACH_M)
+                .is_none_or(|(_, l, road_half)| l.abs() - road_half > 1.0)
+        })
+    };
+    let mut best = (limit_start, limit_start);
+    let mut run: Option<f32> = None;
+    let mut s = limit_start;
+    while s <= limit_end {
+        let ok = room(s) && room((s + PIT_MODULE_M / 2.0).min(limit_end));
+        match (ok, run) {
+            (true, None) => run = Some(s),
+            (false, Some(from)) => {
+                if s - from > best.1 - best.0 {
+                    best = (from, s);
+                }
+                run = None;
+            }
+            _ => {}
+        }
+        s += 1.0;
+    }
+    if let Some(from) = run {
+        if limit_end - from > best.1 - best.0 {
+            best = (from, limit_end);
+        }
+    }
+    let boxes = (box_count as f32)
+        .min(((best.1 - best.0) / PIT_MODULE_M).floor())
+        .max(0.0) as u32;
+    let row = boxes as f32 * PIT_MODULE_M;
+    PitLayout {
+        limit_start,
+        limit_end,
+        row_start: (best.0 + best.1) / 2.0 - row / 2.0,
+        boxes,
+    }
+}
+
+/// Where the pit exit light and the speed-limit board stand: on the
+/// lane's road side, just off its edge, at the end and the start of the
+/// limit, yawed down the lane (the client turns them to face up it).
+fn pit_signs(lane: &CenterlinePath, width_m: f32, side: f32, layout: &PitLayout) -> Vec<UeProp> {
+    let lat = -side * (width_m / 2.0 + PIT_SIGN_OFF_EDGE_M);
+    let sign = |text: Option<String>, asset: &str, s: f32| {
+        let sample = lane.sample_at(s);
+        let pos = offset_point(&sample, lat);
+        UeProp {
+            kind: "sign".to_string(),
+            asset: asset.to_string(),
+            location: to_ue((pos.0, pos.1, sample.pos.2)),
+            yaw_deg: round(-sample.heading_rad.to_degrees(), 3),
+            scale: 1.0,
+            text,
+            length_m: None,
+            radius_m: None,
+            span_m: None,
+        }
+    };
+    vec![
+        sign(None, "pit_speed_limit", layout.limit_start),
+        sign(None, "pit_exit_light", layout.limit_end),
+    ]
+}
+
 /// The pit complex implied by the lane: one `pit/garage_6m` per box (with a
 /// `pit/box_kit` in front of it) on the
 /// garage side of the parallel pit road (6 m pitch, centred on the road,
@@ -3989,22 +4125,16 @@ fn pit_module(
 fn bake_pit_complex(
     lane: &CenterlinePath,
     width_m: f32,
-    box_count: u32,
     relation: &LaneRelation,
+    layout: &PitLayout,
     terrain: Option<&TerrainHeightfield>,
 ) -> Vec<UeProp> {
     let total = lane.total_length_m();
-    // The longest stretch of pit road that runs clear of the track; a lane
-    // whose relation could not be resolved is taken as parallel throughout.
-    let (start, end) = relation
-        .spans
-        .iter()
-        .filter(|(_, _, parallel)| *parallel)
-        .map(|(s, e, _)| (*s, *e))
-        .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
-        .unwrap_or((0.0, total));
-    let span = end - start;
-    let boxes = (box_count as f32).min((span / PIT_MODULE_M).floor()) as u32;
+    // The stretch of pit road that runs clear of the track and the box row
+    // on it (`pit_layout`; a lane whose relation could not be resolved is
+    // taken as parallel throughout).
+    let (start, end) = (layout.limit_start, layout.limit_end);
+    let boxes = layout.boxes;
     if boxes == 0 {
         return Vec::new();
     }
@@ -4018,11 +4148,10 @@ fn bake_pit_complex(
     let side = relation.lane_side as f32;
     let face_left = relation.lane_side < 0;
     let box_edge = side * half;
-    let mid = (start + end) / 2.0;
     let row = boxes as f32 * PIT_MODULE_M;
-    let row_start = mid - row / 2.0;
+    let row_start = layout.row_start;
 
-    let mut out = Vec::new();
+    let mut out = pit_signs(lane, width_m, side, layout);
     for i in 0..boxes {
         let s = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
         out.push(pit_module(

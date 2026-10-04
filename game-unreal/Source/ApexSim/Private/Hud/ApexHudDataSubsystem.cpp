@@ -292,6 +292,7 @@ void UApexHudDataSubsystem::Refresh()
 		LastLocalIndex = In.LocalCarIndex;
 		In.Roster = &Net->GetSessionRoster();
 		In.Timing = &Net->GetTimingBoard();
+		In.PitServices = &Net->GetPitServices();
 		In.Sectors = &Net->GetTrackSectors();
 		// The backdrop's mode is its frames'; the net subsystem keeps a demo out of its own.
 		In.GameMode = bBackdrop && In.Frame->GameMode != EApexGameMode::Lobby ? In.Frame->GameMode : Net->GetGameMode();

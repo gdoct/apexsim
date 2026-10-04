@@ -96,7 +96,12 @@ namespace ApexProps
 		// A distance board and a marshal light panel are read by a driver
 		// coming down the road, not by the crowd across it; so are the
 		// Nordschleife's German signs (chevrons, kilometre boards, the
-		// bend, danger and overtaking signs).
+		// bend, danger and overtaking signs). So are the pit lane's exit
+		// light and speed-limit board, yawed down the lane by the bake.
+		if (Kind == TEXT("sign"))
+		{
+			return Asset == TEXT("pit_exit_light") || Asset == TEXT("pit_speed_limit");
+		}
 		return Kind == TEXT("board")
 			&& (Asset == TEXT("braking_marker") || Asset == TEXT("light_panel")
 				|| Asset.StartsWith(TEXT("chevron_")) || Asset == TEXT("km_marker")

@@ -361,8 +361,18 @@ namespace
 				}
 			}
 
-			bool bOk = ReadMargin(Json, TEXT("margin"), Out.Margin, Path)
-				&& ReadNumber(Json, TEXT("fill"), Out.Fill, Path)
+			// `fill` is a number, or an expression sizing the element by the data.
+			bool bOk = true;
+			if (const TSharedPtr<FJsonValue> FillValue = Json.TryGetField(TEXT("fill")); FillValue.IsValid() && FillValue->Type == EJson::String)
+			{
+				bOk = ReadProp(Json, TEXT("fill"), EPropKind::Number, Out.FillShare, Path);
+				Out.Fill = 1.0f;
+			}
+			else
+			{
+				bOk = ReadNumber(Json, TEXT("fill"), Out.Fill, Path);
+			}
+			bOk = bOk && ReadMargin(Json, TEXT("margin"), Out.Margin, Path)
 				&& ReadNumber(Json, TEXT("width"), Out.Width, Path)
 				&& ReadNumber(Json, TEXT("height"), Out.Height, Path)
 				&& ReadProp(Json, TEXT("visible"), EPropKind::Bool, Out.Visible, Path)
@@ -540,7 +550,7 @@ namespace
 			}
 		}
 		const FApexHudProp* Props[] = {&Element.Visible, &Element.Text, &Element.Colour, &Element.Background,
-			&Element.Outline, &Element.Value, &Element.Bold};
+			&Element.Outline, &Element.Value, &Element.Bold, &Element.FillShare};
 		for (const FApexHudProp* Prop : Props)
 		{
 			if (!Prop->IsSet())

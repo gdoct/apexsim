@@ -804,6 +804,41 @@ namespace
 		return true;
 	}
 
+	/** `PitServiceData` — PascalCase keys. */
+	bool ParsePitService(FMsgPackReader& Reader, FApexPitService& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("CarIndex"))        { bOk = Reader.ReadUInt64(Raw); Out.CarIndex = static_cast<int32>(Raw); }
+			else if (Key == TEXT("PitBox"))     { bOk = Reader.ReadUInt64(Raw); Out.PitBox = static_cast<int32>(Raw); }
+			else if (Key == TEXT("TyresS"))     { bOk = Reader.ReadFloat(Out.TyresS); }
+			else if (Key == TEXT("Compound"))   { bOk = Reader.ReadUInt64(Raw); Out.Compound = Raw <= 2 ? static_cast<int32>(Raw) : -1; }
+			else if (Key == TEXT("FuelS"))      { bOk = Reader.ReadFloat(Out.FuelS); }
+			else if (Key == TEXT("FuelL"))      { bOk = Reader.ReadFloat(Out.FuelL); }
+			else if (Key == TEXT("RepairS"))    { bOk = Reader.ReadFloat(Out.RepairS); }
+			else if (Key == TEXT("RepairPct"))  { bOk = Reader.ReadFloat(Out.RepairPct); }
+			else if (Key == TEXT("TotalS"))     { bOk = Reader.ReadFloat(Out.TotalS); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** `SetupKnobFigure` — PascalCase keys. */
 	bool ParseSetupKnobFigure(FMsgPackReader& Reader, FApexSetupKnobFigure& Out)
 	{
@@ -1246,6 +1281,9 @@ namespace
 		Out.bPitLimiter = false;
 		Out.bPitServicing = false;
 		Out.ServiceSecondsLeft = 0.0f;
+		Out.bPitAutopilot = false;
+		Out.bPitExitClosed = false;
+		Out.bPitHeld = false;
 		if (Index < Known)
 		{
 			bOk &= Next([&]
@@ -1292,6 +1330,9 @@ namespace
 				Out.bPitLimiter = (Raw & 1) != 0;
 				Out.bPitServicing = (Raw & 2) != 0;
 				Out.bInPitLane = (Raw & 4) != 0;
+				Out.bPitAutopilot = (Raw & 8) != 0;
+				Out.bPitExitClosed = (Raw & 16) != 0;
+				Out.bPitHeld = (Raw & 32) != 0;
 				return true;
 			});
 		}
@@ -1624,6 +1665,7 @@ namespace
 		if (Variant == TEXT("LapRecord"))          { return EApexServerMessageType::LapRecord; }
 		if (Variant == TEXT("GhostLap"))           { return EApexServerMessageType::GhostLap; }
 		if (Variant == TEXT("CarSetupSheet"))      { return EApexServerMessageType::CarSetupSheet; }
+		if (Variant == TEXT("PitService"))         { return EApexServerMessageType::PitService; }
 		if (Variant == TEXT("Showcases"))          { return EApexServerMessageType::Showcases; }
 		if (Variant == TEXT("SpectatorJoined"))    { return EApexServerMessageType::SpectatorJoined; }
 		if (Variant == TEXT("SpectatorRecord"))    { return EApexServerMessageType::SpectatorRecord; }
@@ -1676,6 +1718,9 @@ namespace
 			return ParseGhostLap(Reader, Out.GhostLap);
 		case EApexServerMessageType::CarSetupSheet:
 			return ParseCarSetupSheet(Reader, Out.CarSetupSheet);
+
+		case EApexServerMessageType::PitService:
+			return ParsePitService(Reader, Out.PitService);
 
 		case EApexServerMessageType::Showcases:
 			return ParseShowcases(Reader, Out.Showcases);

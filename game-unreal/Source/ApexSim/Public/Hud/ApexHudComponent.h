@@ -72,6 +72,12 @@ struct APEXSIM_API FApexHudElementDef
 	TOptional<EHorizontalAlignment> HAlign;
 	TOptional<EVerticalAlignment> VAlign;
 	float Fill = 0.0f;
+	/**
+	 * `fill` given as an expression (`"fill": "=pit.service_fuel_share"`):
+	 * the share is worked out every frame, so segments of a bar can be sized
+	 * by the data. The element is built as a fill slot (Fill 1) and resized.
+	 */
+	FApexHudProp FillShare;
 	float Width = -1.0f;
 	float Height = -1.0f;
 

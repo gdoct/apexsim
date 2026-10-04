@@ -1010,6 +1010,53 @@ struct APEXSIMNET_API FApexLapTiming
 };
 
 /**
+ * `PitServiceData` (network.rs) — a car has stopped at its box and the crew
+ * has started work. Sent once per stop, reliably, to every human in the
+ * session.
+ *
+ * The parts run in order: tyres, then fuel, then repairs; a part of 0 s is
+ * not done. Telemetry's `ServiceSecondsLeft` counts `TotalS` down while
+ * `bPitServicing` is set, so the time into the stop is TotalS less it.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexPitService
+{
+	GENERATED_BODY()
+
+	/** Index into the current session roster. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 CarIndex = 0;
+
+	/** The box the car stopped at, 0-based. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 PitBox = 0;
+
+	/** Seconds for the tyre change; 0 when the tyres stay on. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float TyresS = 0.0f;
+
+	/** The set going on: 0 soft, 1 medium, 2 hard. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Compound = 1;
+
+	/** Seconds of refuelling, and the litres it puts in. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float FuelS = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float FuelL = 0.0f;
+
+	/** Seconds of repairs, and the damage they take off (percent, summed over the zones). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float RepairS = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float RepairPct = 0.0f;
+
+	/** The whole stop, seconds. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float TotalS = 0.0f;
+};
+
+/**
  * `LapRecordData` (network.rs) — the driver's stored best on this track in
  * this car, sent on joining and again whenever they beat it.
  */
@@ -1450,6 +1497,18 @@ struct APEXSIMNET_API FApexCarTelemetry
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	float ServiceSecondsLeft = 0.0f;
 
+	/** The server is driving the car along the pit route (`pit_flags` bit 3):
+	 * a human's car is taken over from the lane's mouth to its end, and the
+	 * player's input is ignored meanwhile. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bPitAutopilot = false;
+	/** The pit exit light is red (bit 4; the same on every car). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bPitExitClosed = false;
+	/** The car is waiting at the red pit exit light (bit 5). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bPitHeld = false;
+
 	/** Each corner's brake, °C, FL FR RL RR (`brake_c`); negative when the
 	 * server does not send it. */
 	float BrakeTempC[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
@@ -1489,6 +1548,12 @@ struct APEXSIMNET_API FApexCarTelemetry
 	static FString CompoundLetter(int32 InCompound)
 	{
 		return InCompound == 0 ? TEXT("S") : InCompound == 1 ? TEXT("M") : InCompound == 2 ? TEXT("H") : TEXT("");
+	}
+
+	/** "SOFT", "MEDIUM", "HARD" as the garage names them, or empty when unknown. */
+	static FString CompoundName(int32 InCompound)
+	{
+		return InCompound == 0 ? TEXT("SOFT") : InCompound == 1 ? TEXT("MEDIUM") : InCompound == 2 ? TEXT("HARD") : TEXT("");
 	}
 };
 
@@ -1705,6 +1770,7 @@ enum class EApexServerMessageType : uint8
 	LapRecord,
 	GhostLap,
 	CarSetupSheet,
+	PitService,
 	Showcases,
 	SpectatorJoined,
 	/** A run of spectator stream records (TCP: framed in `SpectatorRecords`; UDP: one frame body, framed on the way in). */
@@ -1737,6 +1803,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexLapRecord LapRecord;
 	FApexGhostLap GhostLap;
 	FApexCarSetupSheet CarSetupSheet;
+	FApexPitService PitService;
 	FApexTelemetryFrame Telemetry;
 	FApexDriverFeedback DriverFeedback;
 

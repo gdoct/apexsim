@@ -88,6 +88,10 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 		ApexProps::FacesUpCourse(TEXT("board"), TEXT("de_curve_right")));
 	TestFalse(TEXT("a marshal post is not a board"),
 		ApexProps::FacesUpCourse(TEXT("sign"), TEXT("braking_marker")));
+	TestTrue(TEXT("the pit exit light looks up the lane"),
+		ApexProps::FacesUpCourse(TEXT("sign"), TEXT("pit_exit_light")));
+	TestTrue(TEXT("and so does the pit speed limit"),
+		ApexProps::FacesUpCourse(TEXT("sign"), TEXT("pit_speed_limit")));
 	TestEqual(TEXT("sky default"), ApexProps::DefaultAssetFor(TEXT("sky")), FString(TEXT("blimp")));
 	TestEqual(TEXT("barrier default"), ApexProps::DefaultAssetFor(TEXT("barrier")), FString(TEXT("armco_4m")));
 	TestEqual(TEXT("sign default"), ApexProps::DefaultAssetFor(TEXT("sign")), FString(TEXT("marshal_post")));
@@ -110,6 +114,18 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("flag path"), ApexProps::FlagTextureObjectPath(TEXT("/Game/Props"), TEXT("nl")),
 		FString(TEXT("/Game/Props/sign/Flags/T_flag_nl.T_flag_nl")));
 	TestTrue(TEXT("pit lights glow"), ApexProps::IsEmissiveSlot(FName(TEXT("pit_light_green"))));
+	TestTrue(TEXT("both of them"), ApexProps::IsEmissiveSlot(FName(TEXT("pit_light_red"))));
+	// The pit lane's signs are kit meshes of the sign kind, found by name: no alias.
+	for (const TCHAR* Asset : {TEXT("pit_exit_light"), TEXT("pit_speed_limit")})
+	{
+		FString Kind = TEXT("sign");
+		FString Key = Asset;
+		FString Text = TEXT("80");
+		TestFalse(*FString::Printf(TEXT("%s is not an alias"), Asset), ApexProps::ResolveAlias(Kind, Key, Text));
+		TestTrue(*FString::Printf(TEXT("%s keeps its key"), Asset), Kind == TEXT("sign") && Key == Asset);
+		TestEqual(*FString::Printf(TEXT("%s mesh path"), Asset), ApexProps::MeshObjectPath(TEXT("/Game/Props"), Kind, Key),
+			FString::Printf(TEXT("/Game/Props/sign/SM_%s.SM_%s"), Asset, Asset));
+	}
 
 	// The dressing's variants: every stand module has a crowd twin, the
 	// caps do not; broadleaf trees turn, conifers stay green.

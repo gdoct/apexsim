@@ -24,12 +24,13 @@
             "children": [{ "type": "text", "font": "body", "size": 12, "bold": true,
               "text": "=car.tow >= 0.03 ? 'TOW ' + fmt(car.tow * 100) + '%' : 'TOW'",
               "color": "=car.tow >= 0.03 ? 'live' : 'text_disabled'" }] },
-          // The pit lane: the limiter between its lines, the service at the box.
+          // The pit lane: the autopilot driving the lane, the limiter between
+          // its lines, the service at the box.
           { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [8, 1],
-            "background": "=pit.servicing ? 'live' : pit.limiter ? 'accent' : 'border'",
+            "background": "=pit.servicing ? 'live' : pit.autopilot || pit.limiter ? 'accent' : 'border'",
             "children": [{ "type": "text", "font": "body", "size": 12, "bold": true,
-              "text": "=pit.servicing ? 'SERVICE ' + fmt(pit.service_s, 1) : pit.limiter ? 'LIMITER' : 'PIT'",
-              "color": "=pit.servicing || pit.limiter ? 'on_accent' : 'text_disabled'" }] },
+              "text": "=pit.servicing ? 'SERVICE ' + fmt(pit.service_s, 1) : pit.autopilot ? 'AUTOPILOT' : pit.limiter ? 'LIMITER' : 'PIT'",
+              "color": "=pit.servicing || pit.autopilot || pit.limiter ? 'on_accent' : 'text_disabled'" }] },
           // The hybrid: mode, charge and what is left of the lap's budget; lit
           // while the motor drives, OVERTAKE while the button is held.
           { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [8, 1], "visible": "=ers.present",

@@ -2763,49 +2763,140 @@ gone.
 **The pit lane** reaches the server as a sidecar `ats-export` writes
 beside the YAML (`ue_export::PitSidecar`, gitignored like the others,
 shipped by `build_release.ps1`; `Sidecar::Pit`): the lane's centerline
-every 2 m, the limit lines and the box row exactly as `pit_markings`
-paints them, a stop spot in the middle of each box's working lane, and
-the track stations where the lane leaves and rejoins. 26 of 27 shipped
-circuits have one (not the Nordschleife); AC imports have none yet.
-`TrackConfig::pit_lane` (`pit::PitLane`) replaced the never-filled
-`PitLaneConfig`. **Each tick** (`GameSession::update_pits`, first in
-`update_air`) every car is placed on the lane (`PitState`, windowed
-search): between the lines `physics::update_car_3d` fades the throttle
-out over the last m/s below the limit (80 km/h at Monza: 79.8 held flat
-out); a car stopped within 2.5 m of its box's spot (its grid slot's,
-shared past the box count) is serviced for `pit::service_seconds` (tyres
-2.5 s for an F1 crew, 9 s for others; then refuelling at 2 L/s where the
-rules allow it, not an F1: a race's remaining distance with its margin;
-then repairs at 0.04 s a percent of damage), held still by the physics;
-at the end the new set goes on at the car's start temperature (blankets
-or air), the fuel in, the damage off. The pit lane is **on the track for
-the lap** now (`RoadContact::off_track`), so a lap with a stop counts.
-**The AI** in a race plans a stop (`pit::plan_stop`: a tyre 70% worn,
-the nose 25% damaged, or short of fuel for the rest; hards with 15+ laps
-left, mediums with 6+, softs otherwise), turns onto the pit route 250 m
-before the lane leaves the track, races that run-up on the road held to
-the speed the lane wants at its mouth (`pit::run_up_m`, `run_up_input`),
-and from 10 m short of the lane `pit::drive_input` drives it (pure
-pursuit along the lane onto its box's spot, the limit between the lines,
-a stop at the box, the automatic box on for the route) until past the
-lane's end, where the normal AI takes over. Pure pursuit from 250 m out
-used to cut Monza's Parabolica over the run-off and swerve into the lane
-at 37 m/s, into the armco beyond it. At Monza a GT3 AI on 72% worn
-tyres pits on lap 1, 9 s in the box, rejoins on softs and races on
-(`tests/pit_stop_test.rs`); on most other circuits the AI's stop still
-fails (docs/SIMULATION_GAPS.md, "Not done yet").
+every 2 m, the limit lines and the box row, a stop spot in the middle of
+each box's working lane, and the track stations where the lane leaves and
+rejoins. 26 of 27 shipped circuits have one (not the Nordschleife); AC
+imports have none yet. `TrackConfig::pit_lane` (`pit::PitLane`).
+
+**Pit lanes a car can drive** (2026-10-04). The dossier's lane used to be
+taken as mapped, and on most circuits nothing could get in: Zandvoort's,
+Suzuka's and Catalunya's ran into a building (the dossier's media-centre
+terraces were kept off the lane by their *centre* only, and the walls
+sidecar laid every garage's collision box on the side away from the
+nearest centerline, which at Zandvoort is the inner loop, so its garages'
+walls stood across the lane), Shanghai's started 62 m off the road in a
+field, Melbourne's 8 m short of it, Austin's box row bent 57° in 13 m and
+seven lanes held fewer garages than a grid. Now:
+
+- `dress::build_pit_lane` walks the dossier polyline by its own length
+  (resampled every 4 m, smoothed), reads each point against its own leg
+  of the course, and *displaces* it where needed: pushed out to a pit
+  wall's apron (`PIT_APRON_M`) off the road where it is mapped closer
+  (never pushed so far in on the inside of a bend that the lane folds),
+  and blended onto the road edge over a taper at both ends, so every lane
+  leaves and rejoins the track; then any bend tighter than 30 m is rounded
+  off (`round_tight_bends`). A point needing no correction stays where it
+  was mapped. The exit taper is read against the road nearest it, since a
+  lane that ran far from the course (Silverstone's, 100 m out) loses its
+  leg. Box count: at least `PIT_GRID_BOXES` (24: the create screen's
+  20-car grid and spares), a survey's when larger, within the room; the
+  generated lanes (`pit::generate_pit_lane`, the four circuits without a
+  dossier lane) the same.
+- `dress::PitZone`: nothing dressed (stands, buildings, car parks,
+  landmarks...) may stand on the lane, its apron or the garages' depth
+  behind it, checked over the whole footprint.
+- `ue_export::pit_layout` decides once where the limit holds (the longest
+  stretch clear of the road) and where the garages stand (the longest run
+  of it with room behind the lane for a garage, `PIT_GARAGE_ROOM_M`, clear
+  of every road), shared by the sidecar, the garages and the paint, so a
+  car stops where it sees its box. It also places `sign/pit_speed_limit`
+  at the first limit line and `sign/pit_exit_light` at the last, behind
+  the pit wall, yawed down the lane (the client's `FacesUpCourse` turns
+  them to face the cars).
+- `bake_walls` puts a garage's collision box behind its door (the module
+  opens to the right of its yaw), not away from the nearest centerline.
+
+Checks: `cargo test --release --test pit_stop_test
+pit_lane_survey -- --ignored --nocapture` drives a human's car into every
+circuit's lane, to its box and out under the autopilot (fails on a stall,
+a recovery or the car's middle within 1.5 m of a lane edge);
+`ai_pit_survey` has an AI on worn tyres plan, make and race on from a
+stop on every circuit (`PIT_TRACKS=A,B` for a few, `PIT_TRACE=1` prints
+the trip). Both pass on all 26 (the AI made its stop on 8 before).
+
+**Each tick** (`GameSession::update_pits`, first in `update_air`, and in
+the countdown) every car near the lane (`PitLane::near`, its bounding box
+plus 30 m) is placed on it (`PitState`, windowed search; a hint more than
+30 m off the lane is dropped for a full search — carried round a lap it
+drifted to the lane's far end, and the AI at São Paulo never found the
+mouth). On the lane the car's place on the lap is re-anchored near where
+the lane's own progress puts it (`anchor_on_lap`): round the inside of La
+Source the physics' windowed search had latched onto the pit straight.
+
+- **Every car its own box**: dealt the first time a car is placed against
+  the lane, the lowest box nobody holds (`pit::deal_box`, BTreeMap order;
+  shared round the row only past the box count), `PitState::box_index`.
+- **The limiter**: between the lines `physics::update_car_3d` fades the
+  throttle out over the last m/s below the limit (80 km/h at Monza: 79.8
+  held flat out).
+- **The pit autopilot**: a human's car that drives into the lane (on it,
+  short of the first limit line, past the road edge, pointing down it:
+  `pit::takes_over`) is the server's until the lane's end. Its input is
+  replaced by `pit::drive_input` (headlights and flash stay the driver's),
+  its automatic gearbox switched on and steering aid off, both put back
+  when it is handed back (`PitState::restore_aids`). The AI's route is the
+  same driver: in a race it plans a stop (`pit::plan_stop`: a tyre 70%
+  worn, the nose 25% damaged, or short of fuel; hards with 15+ laps left,
+  mediums with 6+, softs otherwise), turns onto the route 250 m before the
+  lane, races the run-up on the road held to the lane's mouth speed
+  (`run_up_m`, `run_up_input`) and hands over 10 m short of it.
+- **`drive_input`** follows the route (the lane's middle, swinging onto
+  the box's spot over the last 20 m and back out after the service) with a
+  Stanley steer at the front axle damped by the yaw rate the route does
+  not ask for, no more lock than the fronts can use at the speed (the aid
+  is off), the limit between the lines, the route's own bends at 6 m/s²,
+  slowing while it is wide or pointing across the lane (a car taken over
+  as it cuts into the mouth), 8 m/s through the swing, a stop on the spot,
+  queueing behind a car ahead on the same path. Pure pursuit, before it,
+  weaved ±5 m down the lane. A car that makes no headway for 4 s
+  (`AUTOPILOT_STUCK_S`, not in service or held) is put back on its route
+  (`pit::recovery_pose`): a last resort the surveys never need.
+- **The box**: a car stopped within 2.5 m of its own box's spot is
+  serviced, held still by the physics: tyres always (2.5 s an F1 crew, 9 s
+  others; the driver's setup compound, the AI's plan), then fuel where the
+  rules allow it (not an F1) and the car needs 0.5 L or more (2 L/s; a
+  race's remaining distance with its margin), then repairs when it carries
+  0.5% or more of damage (0.04 s a percent) — `pit::plan_service`. At the
+  end the new set goes on at the car's start temperature, the fuel in, the
+  damage off if repaired.
+- **The exit light** (`pit::exit_closed`): red before a race's start and
+  while a car on the track (not on the pit route) is within 3 s, or 25 m,
+  of where the lane rejoins it; a serviced car on the route stops 2 m
+  short of the last line while it is red, for at most 10 s
+  (`EXIT_HOLD_MAX_S`), then goes.
+
+The pit lane is **on the track for the lap** (`RoadContact::off_track`),
+so a lap with a stop counts.
 
 **Wire**: `CompactCarState.tyre_wear` ([u8;4], %), `compound` (255
-unknown), `pit_flags` (bit 0 limiter, 1 servicing, 2 in the lane),
-`service_ds` (tenths), appended after `tow_pct` (31 fields). Client:
-`FApexCarTelemetry::TyreWearPct` / `Compound` / `bInPitLane` /
-`bPitLimiter` / `bPitServicing` / `ServiceSecondsLeft`; the HUD's tyre
-row shows the compound in its caption and each tyre's wear beside its
-pressure (amber from 70%, red from 90%), and a PIT badge beside TOW goes
-amber for LIMITER and green with the SERVICE countdown; the hotlap garage
-has a "Next tyres" row. Golden bytes: `cargo test
-telemetry_compact_wire_format car_setup_wire_format -- --nocapture` ->
-`ApexUdpGolden::S_TelemetryCompactPit`, `ApexGolden::C_SetCarSetup`.
+unknown), `pit_flags` (bit 0 limiter, 1 servicing, 2 in the lane, 3 the
+autopilot drives, 4 the exit light is red, 5 held at it), `service_ds`
+(tenths), appended after `tow_pct` (31 fields). The bits are numbers in
+an existing byte, so nothing moved. `ServerMessage::PitService`
+(`PitServiceData`: car index, box, each part's seconds in crew order,
+compound, litres, damage repaired, total; reliable, to every human in the
+session as the crew starts) is what the pit-stop panel draws its
+progress from; telemetry's `service_ds` counts the total down.
+Client: `FApexCarTelemetry::TyreWearPct` / `Compound` / `bInPitLane` /
+`bPitLimiter` / `bPitServicing` / `bPitAutopilot` / `bPitExitClosed` /
+`bPitHeld` / `ServiceSecondsLeft`, `UApexNetSubsystem::FindPitService`;
+the HUD's `pit_stop` component (`content/hud/default/pit_stop`: PIT LANE
+· AUTOPILOT with the box number, PIT EXIT CLOSED · WAIT, and during the
+stop the countdown, the part under way and a bar of up to three segments
+sized by each part's share and filled as it runs; data points `pit.*` in
+docs/HUD_MODDING.md, derived by `ApexHudData::PitStopProgress`; segment
+widths use the `fill` attribute as an expression), the tyre row's
+compound and wear, the PIT badge (LIMITER / AUTOPILOT / SERVICE), and the
+pit exit light's lamps (`AApexRaceDirector::UpdatePitExitLights`: the
+shared `glow_pit_light_*` instances, red while any car's frame says so);
+the hotlap garage has a "Next tyres" row. Golden bytes: `cargo test
+telemetry_compact_wire_format car_setup_wire_format pit_service_wire_format
+-- --nocapture` -> `ApexUdpGolden::S_TelemetryCompactPit`,
+`ApexGolden::C_SetCarSetup`, `ApexGolden::S_PitService`. Tests:
+`tests/pit_stop_test.rs` (limiter, service, a human driven in and out,
+the aids put back, every car its own box, the red light holds a car, the
+AI's stop, the two surveys), `pit::tests`, `ApexSim.Hud.Pit.Progress`,
+`ApexSim.Net.Protocol.PitService`, `ApexSim.Spectator.PitFlags`.
 
 ### Brake and engine heat (`brakes.rs`, `engine_heat.rs`)
 

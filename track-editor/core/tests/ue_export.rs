@@ -2205,7 +2205,14 @@ fn the_verge_meets_the_road_edge_on_every_real_circuit() {
                 let on_a_road = field
                     .nearest_road_point(beside.0, beside.1, 30.0)
                     .is_some_and(|(_, _, lat, half)| lat.abs() <= half);
-                if on_a_road {
+                // The nearest road is the track itself where a taper runs
+                // on over its edge, so the lane is asked directly.
+                let on_the_lane = lane.as_ref().is_some_and(|l| {
+                    l.samples()
+                        .iter()
+                        .any(|s| (s.pos.0 - beside.0).hypot(s.pos.1 - beside.1) <= s.width_left_m)
+                });
+                if on_a_road || on_the_lane {
                     continue;
                 }
                 track_worst = track_worst.max(err);

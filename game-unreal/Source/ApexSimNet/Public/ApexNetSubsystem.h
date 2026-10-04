@@ -490,6 +490,17 @@ public:
 	/** Every setup knob of the joined car in real units; no knobs until it arrives, or from an older server. */
 	const FApexCarSetupSheet& GetCarSetupSheet() const { return CachedSetupSheet; }
 
+	/**
+	 * Each car's latest pit stop as the crew started it (`PitService`), by
+	 * car index; forgotten with the timing sheet, and a car's when it leaves
+	 * the roster. Whether the stop is still running is the car's telemetry
+	 * (`bPitServicing`): an entry outlives its stop.
+	 */
+	const TMap<int32, FApexPitService>& GetPitServices() const { return PitServices; }
+
+	/** One car's latest stop, or null when it has made none this session. */
+	const FApexPitService* FindPitService(int32 CarIndex) const { return PitServices.Find(CarIndex); }
+
 	/** The most recent telemetry frame, for anything that polls rather than binds. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexTelemetryFrame& GetLatestTelemetry() const { return LatestTelemetry; }
@@ -568,6 +579,7 @@ private:
 	UPROPERTY()
 	FApexGhostLap CachedGhostLap;
 	FApexCarSetupSheet CachedSetupSheet;
+	TMap<int32, FApexPitService> PitServices;
 
 	/** Forget the session's timing sheet: a new session times from scratch. */
 	void ClearLapTiming();

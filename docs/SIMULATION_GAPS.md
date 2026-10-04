@@ -548,26 +548,33 @@ here as well as under its item.
   objects could give the boxes).
 - A player can choose the next compound only in the hotlap garage (the
   setup is sent on joining any session); there is no in-race pit menu
-  (compound, fuel, "tyres only").
+  (compound, fuel, "tyres only"): a stop always changes the tyres, fuels
+  to what the run needs and repairs any damage. No pit request button
+  either: the driver has to find the entry, and once the car is past the
+  road edge in the lane's mouth the autopilot has it until the lane's end.
 - The AI's strategy is a threshold: no undercuts, no reaction to the
   cars around it, no fuel saving to skip a stop, no mandatory-stop rules.
-- Boxes are shared by grid slot beyond the box count, not by team; no
-  pit-lane speeding penalties (the limiter is automatic); the client draws
-  no crew and no pit-lane time on the timing sheet.
+- Every car has its own box (24 or more per lane), but boxes are dealt in
+  seating order, not grouped by team; no pit-lane speeding penalties (the
+  limiter is automatic), no drive-through or stop-go; the client draws no
+  crew and no pit-lane time on the timing sheet.
+- The pit exit light reacts to traffic about to pass the exit and to a
+  race's start only: no blue light, no lane closure under a safety car
+  (there is none).
+- A replay's pit-stop panel shows only the countdown: recordings carry no
+  `PitService`.
+- On a curved box row (Silverstone's, round the bend at the end of the
+  Wing) the 6 m garage modules overlap on the inside of the bend.
+- The autopilot takes the car where it crosses the road edge, at whatever
+  angle the driver cut in: a car that dives across the mouth can run 3-4 m
+  off the lane's middle before it settles (inside the lane on every
+  circuit, `pit_lane_survey`).
 - `initialize_content.ps1` does not check for the pit sidecar.
-- The AI completes a stop on 8 of the 26 circuits with a lane (Monza, IMS,
-  Mexico City, Moscow, Norisring, Sakhir, Sepang, Yas Marina; a GT3 on 72%
-  worn tyres, measured 2026-10-03). Since 2026-10-03 it races the run-up to
-  the lane on the road (`pit::run_up_m`); before, it aimed at the lane's
-  mouth from 250 m out and cut across the run-off, and 3 completed. Still
-  open: `drive_input`'s pure pursuit weaves ±5 m in the lane and at Austin,
-  Brands Hatch, Catalunya, Hockenheim, Spielberg and Suzuka the car is
-  serviced and then stuck; at Budapest, Montreal, the Nürburgring,
-  Oschersleben, São Paulo, Sochi, Spa and Zandvoort it never reaches its
-  box. Nothing on the route reverses off a wall, so a car pinned there
-  pushes until its engine cooks. Le Mans, Melbourne, Shanghai and
-  Silverstone's lanes do not join the track: the first node is 14, 14, 69
-  and 65 m off the centerline (Le Mans and Melbourne's last node too).
+- Both pit surveys pass on all 26 circuits with a lane (2026-10-04,
+  `tests/pit_stop_test.rs`: `pit_lane_survey` a human's car under the
+  autopilot, `ai_pit_survey` an AI on worn tyres in a race); before the
+  lanes were rebuilt the AI completed a stop on 8. Seen only in tests and
+  screenshots, not yet driven by a player.
 
 **Brake and engine heat**
 - No brake wear, no brake bias or pad choice beyond the existing bias

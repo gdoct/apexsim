@@ -287,6 +287,24 @@ pub(crate) async fn tick_sessions(
             }
         }
 
+        // Pit stops the crews started this tick: what each one does, for
+        // the pit-stop panel. Reliable, like the timing.
+        for (player_id, mut service) in game_session.take_pit_events() {
+            if is_demo_session {
+                continue;
+            }
+            let Some(car_index) = game_session.car_index_of(&player_id) else {
+                continue;
+            };
+            service.car_index = car_index;
+            lap_timing_out.push(LapTimingOut {
+                session_id: *session_id,
+                player_recipients: player_recipients.clone(),
+                msg: ServerMessage::PitService(service),
+                record: None,
+            });
+        }
+
         if game_session.take_roster_dirty() {
             let roster = game_session.build_roster(player_names);
             rosters_out.push(SessionRosterOut {

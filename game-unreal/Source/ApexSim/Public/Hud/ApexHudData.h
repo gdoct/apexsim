@@ -108,7 +108,43 @@ struct APEXSIM_API FApexHudInputs
 
 	/** Each car's model by car index, from the roster and the car catalog; null when not known. */
 	const TMap<int32, FString>* CarNames = nullptr;
+
+	/** Each car's latest pit stop as its crew started it (`PitService`), by car index. */
+	const TMap<int32, FApexPitService>* PitServices = nullptr;
 };
+
+/**
+ * Where a pit stop stands: the crew's plan (`PitService`) read against the
+ * seconds of service telemetry says are left. Pure, so the HUD's pit panel
+ * can be tested without a server.
+ */
+struct APEXSIM_API FApexPitStopProgress
+{
+	/** The parts of a stop, in the order the crew does them. */
+	enum EPart : int32 { Tyres = 0, Fuel = 1, Repair = 2, PartCount = 3 };
+
+	/** The plan had any work in it. */
+	bool bValid = false;
+	float TotalS = 0.0f;
+	float ElapsedS = 0.0f;
+	/** ElapsedS over TotalS, 0 to 1. */
+	float Progress = 0.0f;
+
+	/** The part being worked on; INDEX_NONE when the plan is empty. Done, it is the last part. */
+	int32 Phase = INDEX_NONE;
+	/** `tyres`, `fuel`, `repair`, or empty. */
+	FString PhaseKey;
+	/** "CHANGING TYRES · SOFT", "REFUELLING · +25.0 L", "REPAIRING · 50%". */
+	FString PhaseLabel;
+	float PhaseLeftS = 0.0f;
+	float PhaseProgress = 0.0f;
+
+	/** Each part's seconds, its share of the stop (for sizing a bar's segments) and how much of it is done, 0 to 1. */
+	float PartSeconds[PartCount] = {0.0f, 0.0f, 0.0f};
+	float PartShare[PartCount] = {0.0f, 0.0f, 0.0f};
+	float PartFill[PartCount] = {0.0f, 0.0f, 0.0f};
+};
+
 
 /**
  * What the data needs to remember between frames: the reference lap behind
@@ -195,7 +231,8 @@ struct APEXSIM_API FApexHudMemory
 /**
  * A made-up race for the HUD editor to show when there is no real one: ten
  * cars mid-race, the player fourth on a hybrid with warm tyres, a little
- * damage and a delta, so every component has something to draw.
+ * damage and a delta, and a pit stop under way, so every component has
+ * something to draw.
  */
 struct APEXSIM_API FApexHudPreview
 {
@@ -205,6 +242,8 @@ struct APEXSIM_API FApexHudPreview
 	FApexTrackSectors Sectors;
 	/** A circuit-shaped loop for the minimap. */
 	TArray<FVector2D> Outline;
+	/** The player's stop in progress, so the pit panel has something to place. */
+	TMap<int32, FApexPitService> PitServices;
 	FApexHudMemory Memory;
 	/** Points into this struct, so it must not be copied once made. */
 	FApexHudInputs Inputs;
@@ -224,4 +263,10 @@ namespace ApexHudData
 
 	/** Every scalar name, from a build with no game state: the catalogue. */
 	APEXSIM_API TArray<FName> ScalarNames();
+
+	/**
+	 * A stop's progress from its plan and the seconds of service left. The
+	 * parts run tyres, fuel, repairs; a part of no seconds is skipped.
+	 */
+	APEXSIM_API FApexPitStopProgress PitStopProgress(const FApexPitService& Stop, float SecondsLeft);
 }

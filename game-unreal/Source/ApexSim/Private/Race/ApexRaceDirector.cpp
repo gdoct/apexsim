@@ -770,6 +770,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	}
 
 	UpdateStartLights(Frame);
+	UpdatePitExitLights(Frame);
 	UpdateRaceBleeps(Frame, PreviousState);
 	if (Rig)
 	{
@@ -822,6 +823,114 @@ void AApexRaceDirector::ForgetStartLights()
 	StartLightLenses.Reset();
 	LitStartLights = -1;
 	bSearchedStartLights = false;
+	// The pit exit lights go with the gantry: both belong to the circuit on show.
+	PitExitRedLamps.Reset();
+	PitExitGreenLamps.Reset();
+	PitExitClosedShown = -1;
+	bSearchedPitExitLights = false;
+}
+
+void AApexRaceDirector::FindPitExitLights()
+{
+	if (bSearchedPitExitLights || !IsTrackVisible())
+	{
+		return;
+	}
+	bSearchedPitExitLights = true;
+	PitExitRedLamps.Reset();
+	PitExitGreenLamps.Reset();
+
+	// The builder tags every component drawing a lamp slot and gives the slot
+	// its own glow material (`glow_<slot>`).
+	static const FName RedTag(TEXT("ApexEmissive_pit_light_red"));
+	static const FName GreenTag(TEXT("ApexEmissive_pit_light_green"));
+	TArray<AActor*> TrackActors;
+	Track->GetActors(TrackActors);
+	int32 Components = 0;
+	for (AActor* Actor : TrackActors)
+	{
+		if (!Actor)
+		{
+			continue;
+		}
+		TArray<UStaticMeshComponent*> Meshes;
+		Actor->GetComponents<UStaticMeshComponent>(Meshes);
+		for (UStaticMeshComponent* Mesh : Meshes)
+		{
+			const bool bRed = Mesh->ComponentHasTag(RedTag);
+			const bool bGreen = Mesh->ComponentHasTag(GreenTag);
+			if (!bRed && !bGreen)
+			{
+				continue;
+			}
+			++Components;
+			const int32 Slots = Mesh->GetNumMaterials();
+			for (int32 Slot = 0; Slot < Slots; ++Slot)
+			{
+				const UMaterialInterface* Material = Mesh->GetMaterial(Slot);
+				if (!Material)
+				{
+					continue;
+				}
+				const FString Name = Material->GetName();
+				TArray<TObjectPtr<UMaterialInstanceDynamic>>* Lamps = Name.Contains(TEXT("glow_pit_light_red")) ? &PitExitRedLamps
+					: Name.Contains(TEXT("glow_pit_light_green")) ? &PitExitGreenLamps
+					: nullptr;
+				if (!Lamps)
+				{
+					continue;
+				}
+				// The runtime builder's glow is already a dynamic instance, shared
+				// by every light on the circuit, and this hands it back: one
+				// write then switches them all. (An editor-imported level's is
+				// a constant instance, and each component gets its own.)
+				if (UMaterialInstanceDynamic* Mid = Mesh->CreateDynamicMaterialInstance(Slot))
+				{
+					Lamps->AddUnique(Mid);
+				}
+			}
+		}
+	}
+	PitExitClosedShown = -1;
+	if (Components > 0)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Pit exit lights: %d component(s), %d red and %d green lamp material(s)"),
+			Components, PitExitRedLamps.Num(), PitExitGreenLamps.Num());
+	}
+}
+
+void AApexRaceDirector::UpdatePitExitLights(const FApexTelemetryFrame& Frame)
+{
+	FindPitExitLights();
+	if (PitExitRedLamps.Num() == 0 && PitExitGreenLamps.Num() == 0)
+	{
+		return;
+	}
+	// The light is the session's, so any car's frame says it; a field all in
+	// their garages still sends the bit.
+	const bool bClosed = Frame.Cars.ContainsByPredicate([](const FApexCarTelemetry& Car) { return Car.bPitExitClosed; });
+	const int8 Wanted = bClosed ? 1 : 0;
+	if (Wanted == PitExitClosedShown)
+	{
+		return;
+	}
+	PitExitClosedShown = Wanted;
+
+	static const FName EmissiveParam(TEXT("EmissiveStrength"));
+	for (UMaterialInstanceDynamic* Mid : PitExitRedLamps)
+	{
+		if (Mid)
+		{
+			Mid->SetScalarParameterValue(EmissiveParam, bClosed ? PitExitLampEmissive : 0.0f);
+		}
+	}
+	for (UMaterialInstanceDynamic* Mid : PitExitGreenLamps)
+	{
+		if (Mid)
+		{
+			Mid->SetScalarParameterValue(EmissiveParam, bClosed ? 0.0f : PitExitLampEmissive);
+		}
+	}
 }
 
 void AApexRaceDirector::UpdateStartLights(const FApexTelemetryFrame& Frame)
@@ -3482,6 +3591,7 @@ void AApexRaceDirector::ApplyReplayFrame(const FApexTelemetryFrame& Frame, float
 		Progress.bOnTrack = Car.bIsOnTrack;
 	}
 	UpdateStartLights(Frame);
+	UpdatePitExitLights(Frame);
 }
 
 void AApexRaceDirector::SeatReplayEye()

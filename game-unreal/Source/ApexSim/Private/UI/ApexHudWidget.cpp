@@ -700,6 +700,28 @@ void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
 		return;
 	}
 
+	if (Def.FillShare.IsSet() && Node.Outer)
+	{
+		// A share worked out from the data (a segment of a bar sized by its
+		// part of the whole). Never quite zero: a box whose fill shares add up
+		// to nothing would divide by it.
+		const float Share = FMath::Max(static_cast<float>(Def.FillShare.Expr->Evaluate(Scope).AsNumber()), 0.001f);
+		if (Share != Node.LastFill)
+		{
+			Node.LastFill = Share;
+			FSlateChildSize Size(ESlateSizeRule::Fill);
+			Size.Value = Share;
+			if (UHorizontalBoxSlot* RowSlot = Cast<UHorizontalBoxSlot>(Node.Outer->Slot))
+			{
+				RowSlot->SetSize(Size);
+			}
+			else if (UVerticalBoxSlot* ColumnSlot = Cast<UVerticalBoxSlot>(Node.Outer->Slot))
+			{
+				ColumnSlot->SetSize(Size);
+			}
+		}
+	}
+
 	switch (Def.Type)
 	{
 	case EApexHudElementType::Text:

@@ -169,7 +169,7 @@ Every element is an object with a `"type"`. These keys work on all of them:
 | `margin` | space around the element inside its parent |
 | `halign` | `left`, `center`, `right`, `fill`: across a column, or within a panel |
 | `valign` | `top`, `center`, `bottom`, `fill`: across a row, or within a panel |
-| `fill` | in a row or column, share of the spare room (e.g. `1`) |
+| `fill` | in a row or column, share of the spare room (e.g. `1`); an expression (`"=pit.service_fuel_share"`) sizes it by the data every frame, which is how a bar is cut into segments (the `pit_stop` component) |
 | `visible` | `true`, `false` or an expression; a hidden element takes no room |
 | `repeat` | draw the element several times, see "Repeating" |
 
@@ -226,7 +226,7 @@ An attribute is either fixed or an **expression** worked out every frame.
   `"LAP {lap.display}/{lap.limit}"`. `{{` and `}}` are literal braces.
 - `color`, `background`, `outline`: a colour (see "Colours"), fixed.
 - `visible`, `bold`: `true` or `false`, fixed.
-- `value`: a number, fixed.
+- `value`, `fill`: a number, fixed.
 
 Any attribute that starts with `=` is an expression instead:
 `"color": "=car.drs_open ? 'live' : 'border'"`, `"value": "=car.throttle"`,
@@ -406,6 +406,10 @@ Lap times, sectors and track limits are the server's: it times every tick.
 | `car.station_m` | distance along the lap |
 | `pit.in_lane`, `pit.limiter`, `pit.servicing` | in the pit lane / on the limiter / stopped at the box |
 | `pit.service_s` | seconds of service left |
+| `pit.autopilot` | the server is driving the car along the pit route (a human's car from the lane's mouth to its end; the player's input is ignored meanwhile) |
+| `pit.exit_closed` | the pit exit light is red (the same for every car) |
+| `pit.held` | the car is waiting at the red pit exit light |
+| `pit.box` | the car's box, from 1, as the crew named it at its last stop (*null* until it has stopped) |
 | `fuel.liters` | fuel in the tank (*null* from an older server) |
 | `fuel.per_lap` | what the last whole lap burnt (*null* until one is measured) |
 | `fuel.laps` | laps of fuel at that rate |
@@ -437,6 +441,34 @@ Lap times, sectors and track limits are the server's: it times every tick.
 | `damage.level` | the session's damage rule, the same for every car: `off`, `reduced`, `full` |
 | `damage.front`, `damage.rear`, `damage.left`, `damage.right`, `damage.engine` | each zone, %; 100 puts the car out |
 | `damage.front_flash`, `damage.rear_flash`, `damage.left_flash`, `damage.right_flash`, `damage.engine_flash` | 1 at a fresh hit, fading to 0 over 0.8 s |
+
+### The pit stop
+
+When a car stops at its box the server sends the crew's plan once: tyres,
+then fuel, then repairs, each taking its seconds (a part of 0 s is not
+done). Read against `pit.service_s`, which counts the whole stop down,
+these say where the stop stands. All are *null* unless the local car is
+being serviced (`pit.servicing`) and the plan has arrived (an older server
+sends none; neither does a recorded race).
+
+| Name | Meaning |
+|---|---|
+| `pit.service_total_s` | the whole stop, seconds |
+| `pit.service_elapsed_s` | seconds since the crew started |
+| `pit.service_progress` | `pit.service_elapsed_s` over `pit.service_total_s`, 0 to 1 |
+| `pit.service_phase` | the part in hand: `tyres`, `fuel` or `repair` (the last part, full, in the stop's final moment) |
+| `pit.service_phase_label` | the part in words: "CHANGING TYRES · SOFT", "REFUELLING · +25.0 L", "REPAIRING · 50%" |
+| `pit.service_phase_left_s` | seconds left of the part in hand |
+| `pit.service_phase_progress` | how much of the part in hand is done, 0 to 1 |
+| `pit.service_tyres_s`, `pit.service_fuel_s`, `pit.service_repair_s` | each part's seconds, 0 when the stop does not do it |
+| `pit.service_tyres_share`, `pit.service_fuel_share`, `pit.service_repair_share` | each part's share of the stop, 0 to 1: a `fill` for a bar's segments |
+| `pit.service_tyres_fill`, `pit.service_fuel_fill`, `pit.service_repair_fill` | how much of each part is done, 0 to 1 (0 until it starts, 1 once over) |
+| `pit.service_fuel_l` | the litres going in |
+| `pit.service_repair_pct` | the damage being repaired, percent summed over the zones |
+| `pit.service_compound` | the set going on, `SOFT`, `MEDIUM` or `HARD` (*null* when the tyres stay on) |
+
+The shipped `pit_stop` component draws them: hidden until the car is in the
+lane on the autopilot, at its box or held at the exit.
 
 ### Lists
 

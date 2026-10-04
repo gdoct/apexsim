@@ -525,6 +525,7 @@ void UApexNetSubsystem::ClearLapTiming()
 	CachedLapRecord = FApexLapRecord();
 	CachedGhostLap = FApexGhostLap();
 	CachedSetupSheet = FApexCarSetupSheet();
+	PitServices.Reset();
 	TimingBoard.Reset();
 }
 
@@ -989,6 +990,16 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			break;
 		}
 		CachedRoster = Message.Roster;
+		// A car that left took its index with it; the next car given it has
+		// made no stop yet.
+		for (auto It = PitServices.CreateIterator(); It; ++It)
+		{
+			const int32 CarIndex = It.Key();
+			if (!CachedRoster.Entries.ContainsByPredicate([CarIndex](const FApexRosterEntry& Entry) { return Entry.CarIndex == CarIndex; }))
+			{
+				It.RemoveCurrent();
+			}
+		}
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionRoster %d car(s) for session %s"),
 			CachedRoster.Entries.Num(), *CachedRoster.SessionId);
 		OnSessionRosterUpdated.Broadcast(CachedRoster);
@@ -1033,6 +1044,15 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CachedGhostLap.Samples.Num(), CachedGhostLap.LapTimeMs);
 		OnGhostLap.Broadcast(CachedGhostLap);
 		break;
+
+	case EApexServerMessageType::PitService:
+	{
+		const FApexPitService& Stop = Message.PitService;
+		PitServices.Add(Stop.CarIndex, Stop);
+		UE_LOG(LogApexSimNet, Log, TEXT("<- PitService car %d box %d: tyres %.1f s (compound %d), fuel %.1f s (%.1f L), repairs %.1f s (%.0f%%), %.1f s"),
+			Stop.CarIndex, Stop.PitBox + 1, Stop.TyresS, Stop.Compound, Stop.FuelS, Stop.FuelL, Stop.RepairS, Stop.RepairPct, Stop.TotalS);
+		break;
+	}
 
 	case EApexServerMessageType::Showcases:
 		CachedShowcases = Message.Showcases;
