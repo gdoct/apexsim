@@ -254,21 +254,40 @@ if ($SkipDress) {
     Write-Step 'Skipping the dressing pass; using the scenes as they are'
 }
 else {
-    if ($Track) {
-        Write-Step "Dressing $($trackFiles.Count) track(s) from their layout dossiers"
+    # Only a track with a layout dossier has anything to dress from; one
+    # without (IMS, MexicoCity, ...) is baked from its scene as it is. That is
+    # what `ats-dress --all` does, but a track named to it without a dossier
+    # is a failure, which stopped every fresh-clone run of initialize_content.
+    $dressFiles = @($trackFiles | Where-Object {
+            Test-Path ([IO.Path]::ChangeExtension($_, '.layout.json'))
+        })
+    $undressed = @($trackFiles | Where-Object { $dressFiles -notcontains $_ })
+    if ($undressed.Count -gt 0) {
+        Write-Host ("No layout dossier, scene kept as it is: " +
+            (($undressed | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) }) -join ', ')) `
+            -ForegroundColor DarkGray
+    }
+
+    if ($Track -and $dressFiles.Count -eq 0) {
+        Write-Step 'Skipping the dressing pass; no named track has a layout dossier'
     }
     else {
-        Write-Step "Dressing every track (default and custom) that has a layout dossier"
+        if ($Track) {
+            Write-Step "Dressing $($dressFiles.Count) track(s) from their layout dossiers"
+        }
+        else {
+            Write-Step "Dressing every track (default and custom) that has a layout dossier"
+        }
+
+        $dressArgs = @('run', '--quiet', '--manifest-path',
+            (Join-Path $RepoRoot 'track-editor\Cargo.toml'), '--bin', 'ats-dress')
+        if ($Release) { $dressArgs += '--release' }
+        $dressArgs += '--'
+        if ($DryRun) { $dressArgs += '--dry-run' }
+        if ($Track) { $dressArgs += $dressFiles } else { $dressArgs += '--all' }
+
+        Invoke-Tool -Exe 'cargo' -Arguments $dressArgs -What 'ats-dress'
     }
-
-    $dressArgs = @('run', '--quiet', '--manifest-path',
-        (Join-Path $RepoRoot 'track-editor\Cargo.toml'), '--bin', 'ats-dress')
-    if ($Release) { $dressArgs += '--release' }
-    $dressArgs += '--'
-    if ($DryRun) { $dressArgs += '--dry-run' }
-    if ($trackFiles.Count -gt 0) { $dressArgs += $trackFiles } else { $dressArgs += '--all' }
-
-    Invoke-Tool -Exe 'cargo' -Arguments $dressArgs -What 'ats-dress'
 }
 
 if ($SkipExport) {
