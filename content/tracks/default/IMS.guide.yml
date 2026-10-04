@@ -1,0 +1,26 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "Four near-identical left-handers joined by two long straights and two short chutes."
+  - "Every corner feeds a straight, so exit speed decides the lap far more than a late brake."
+  - "The corners are flat here: do not lean on the car as if the road held you up."
+  - "The same mistake costs the same every lap: find one clean line and repeat it."
+corners:
+  - at_m: 623
+    notes:
+      - "Turn in from the outside edge and use the whole width: one smooth arc beats a sharp apex."
+      - "If you need to slow, lift or brake before turning, never while loaded up mid-corner."
+      - "The short chute after it is too brief to straighten: stay out wide, ready for the next left."
+  - at_m: 1263
+    notes:
+      - "Arrive from the short chute already on the outside and carry the arc."
+      - "Let the car run out to the outside on exit: the long straight rewards every bit of width."
+  - at_m: 2636
+    notes:
+      - "The end of the long straight is the fastest arrival on the lap: judge the lift early."
+      - "Keep the steering still mid-corner; every correction scrubs speed you cannot get back."
+  - at_m: 2964
+    notes:
+      - "Turn in from the outside after the short chute and settle the car before the apex."
+      - "Last corner before the main straight: give up a little entry speed for an early throttle."

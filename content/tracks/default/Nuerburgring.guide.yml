@@ -1,0 +1,57 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A modern circuit in rolling hills: slow hairpins, a twisty infield loop and a fast run back."
+  - "Traction out of the slow corners decides the lap; the quick sections reward a brave, tidy driver."
+  - "Run-off is generous, so push to find the limit, but a missed apex still costs a lot of time."
+corners:
+  - at_m: 404
+    notes:
+      - "Brake from the left side of the road for the first corner."
+      - "A good passing place: cover the inside on the way in."
+      - "Do not run wide on exit: the left that follows wants the right side."
+  - at_m: 554
+    notes:
+      - "Comes straight off the hairpin: a short brake, then let the car run out."
+      - "Finish on the right side, ready for the long left of the loop."
+  - at_m: 960
+    notes:
+      - "A long loop: be patient through the left; the right at the end is the one that counts."
+      - "The car is turning for a long time here, so keep the inputs smooth."
+  - at_m: 1442
+    notes:
+      - "A fast left at the end of the run: brake while the car is still straight."
+      - "Keep it tight: the slow right follows at once and wants the left side of the road."
+  - at_m: 1610
+    notes:
+      - "Brake as you straighten from the left; the corner is slower than it looks."
+      - "The exit of the left before is this corner's entry: get that one right first."
+  - at_m: 2196
+    notes:
+      - "The main overtaking spot: brake from the left side, straight and late."
+      - "Exit wide to the left, then move across to the right for the fast esses."
+  - at_m: 2596
+    notes:
+      - "A fast left-right: brake lightly, then flow through with small steering."
+      - "The rear is light in the change of direction; do not lift abruptly."
+  - at_m: 3190
+    notes:
+      - "Brake from the right side for this square left."
+      - "Do not run wide on exit: the right after it comes quickly and wants the left side."
+  - at_m: 3410
+    notes:
+      - "A long right from the left side of the road: apex late."
+      - "Get the power down early: a fast stretch follows."
+  - at_m: 3836
+    notes:
+      - "A fast right: commit and hold the arc."
+      - "Settle the car and move to the right for the chicane braking zone."
+  - at_m: 4320
+    notes:
+      - "Brake on the right side; the first left is quicker than the second right."
+      - "Ride the kerb of the left but keep the car straight across it."
+  - at_m: 4576
+    notes:
+      - "A long right onto the start straight: brake from the left side and turn in early."
+      - "One late apex beats two apexes here."

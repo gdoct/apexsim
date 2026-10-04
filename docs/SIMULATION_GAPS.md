@@ -582,6 +582,13 @@ here as well as under its item.
   after brake heat (the field as a whole +3.5%, contact -3%): inside the
   per-class noise, but the one class trending up; worth a look at where
   (`SURVEY_DBG=1`) if it grows.
+- Two of the three GT3 cars (`limbotiti-caravan-gt3`, `murcetes-amd-gt3`)
+  cook their engine at Le Mans: alone on the track, sunny 13:00, no wind,
+  the coolant reaches 150 °C and the engine is 100% damaged at 13.4 km on
+  the first lap, at any AI skill (found by `apexsim-replay guide`
+  2026-10-04, which falls back to `posh-gt3rs` there). The long flat-out
+  straights outrun the radiator sizing (`radiator_conductance` holds 95 °C
+  at 65% of peak power); a GT3 race at Le Mans would retire both.
 
 **Progressive damage**
 - A retired car stops where it is: no tow-away, no retirement shown on the

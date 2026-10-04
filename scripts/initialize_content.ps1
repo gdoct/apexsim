@@ -30,6 +30,9 @@
            calls stale because its track YAML or a car.toml changed since
            it was rendered. About 6 s each; an imported track is never
            rendered here.
+        8. Track guides: apexsim-replay guide --all for every shipped
+           circuit with no guide in build\guide or one older than its
+           YAML, notes (<Stem>.guide.yml) or dossier (docs/TRACK_GUIDE.md).
 
     Cars need no stage: the game builds each from content/cars and
     content/wheels when it is drawn (docs/RUNTIME_CONTENT_LOADING.md). The
@@ -91,6 +94,7 @@ $Sidecars    = 'ground', 'curbs', 'walls', 'road'
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
 
 function Write-Step {
     param([string]$Message)
@@ -216,6 +220,10 @@ $showcasePlan = @(Get-ApexShowcasePlan -RepoRoot $RepoRoot)
 $showcaseWork = @(Select-ApexShowcaseWork -Plan $showcasePlan)
 $showcaseUnchecked = @($showcasePlan | Where-Object { $_.Status -eq 'unchecked' })
 
+# The track guides (docs/TRACK_GUIDE.md): circuits with none, or with one
+# older than the YAML, notes or dossier it was made from.
+$guideWork = @(Get-ApexGuideWork -RepoRoot $RepoRoot)
+
 $splash = Join-Path $GameContent 'Splash\Splash.bmp'
 
 Write-Detail ("cars:            " + $(if ($carProblems) { Format-List $carProblems } else { 'ok (built by the game)' }))
@@ -241,6 +249,7 @@ Write-Detail ("showcases:       " + $(if ($showcaseWork) { Format-List @($showca
 foreach ($row in $showcasePlan | Where-Object { $_.Status -eq 'no-track' }) {
     Write-Warning "content\showcase.yml names $($row.Track), which is not under content\tracks"
 }
+Write-Detail ("guides:          " + $(if ($guideWork) { Format-List $guideWork } else { 'ok' }))
 Write-Detail ("server:          " + $(if (Test-Path $ServerExe) { 'ok' } else { 'not built' }))
 if (-not (Test-Path $splash)) {
     Write-Warning "no startup splash at $splash (it is checked in; is the checkout complete?)"
@@ -266,6 +275,7 @@ $doTracks  = $tracks.Count -gt 0
 # it only changes what the content changed under).
 $showcases = @(if ($Force) { Select-ApexShowcaseWork -Plan $showcasePlan -Force } else { $showcaseWork })
 $doShowcase = $showcases.Count -gt 0
+$doGuides  = $Force -or $guideWork.Count -gt 0
 $needUnreal = $doGround -or $doMats -or $doProps
 
 $plan = [Collections.Generic.List[string]]::new()
@@ -277,6 +287,7 @@ if ($doMats)    { $plan.Add('bake the track and car materials') }
 if ($doProps)   { $plan.Add('import the prop kit') }
 if ($doTracks)  { $plan.Add($(if ($allTracks) { 'dress and bake every track, with previews' } else { "dress and bake, with previews: $(Format-List $tracks)" })) }
 if ($doShowcase) { $plan.Add($(if ($Force) { "render every showcase ($($showcases.Count))" } else { "render the showcases: $(Format-List @($showcases | ForEach-Object { $_.Name }))" })) }
+if ($doGuides) { $plan.Add($(if ($Force) { 'build every track guide' } else { "build the track guides: $(Format-List $guideWork)" })) }
 
 if ($plan.Count -eq 0) {
     Write-Step 'Nothing is missing'
@@ -295,7 +306,7 @@ if ($DryRun) {
 # ---------------------------------------------------------------------------
 
 $problems = [Collections.Generic.List[string]]::new()
-if (($doServer -or $doTracks -or $doShowcase) -and -not (Test-Command 'cargo')) {
+if (($doServer -or $doTracks -or $doShowcase -or $doGuides) -and -not (Test-Command 'cargo')) {
     $problems.Add('cargo is not on PATH (install Rust)')
 }
 if ($doPngs -or $doTracks) {
@@ -390,6 +401,14 @@ if ($doShowcase) {
     # builds it by itself when it is still missing.
     $rendered = Start-ApexShowcaseRender -RepoRoot $RepoRoot -Rows $showcases
     Write-Detail "rendered $rendered showcase(s)"
+}
+
+if ($doGuides) {
+    Write-Step "Building the track guides into $(Get-ApexGuideDir -RepoRoot $RepoRoot)"
+    # Every class of every shipped circuit; without -Force the tool skips a
+    # guide newer than everything it was made from.
+    $code = Start-ApexGuideBuild -RepoRoot $RepoRoot -Force:$Force
+    if ($code -ne 0) { Write-Warning "apexsim-replay guide failed for some circuits (exit $code); see the lines above" }
 }
 
 $stopwatch.Stop()

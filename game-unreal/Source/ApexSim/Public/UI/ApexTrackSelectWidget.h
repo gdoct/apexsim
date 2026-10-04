@@ -48,6 +48,8 @@ public:
 	virtual bool HandleBack() override;
 
 protected:
+	/** G (or pad Y) opens the focused track's guide. */
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -69,6 +71,7 @@ private:
 
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
 	UFUNCTION() void HandleCardActivated(UApexContentCardWidget* Card);
+	UFUNCTION() void HandleCardGuide(UApexContentCardWidget* Card);
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleSearchChanged(const FText& Text);
 	UFUNCTION() void HandleSearchCommitted(const FText& Text, ETextCommit::Type CommitType);
@@ -77,6 +80,13 @@ private:
 	bool FocusCard(int32 Index);
 	/** Focuses the active filter chip, or the first. */
 	bool FocusChip();
+
+	/** The track's export stem, or empty. */
+	FString StemOf(const FString& TrackId) const;
+	/** The track has a track guide to open here. */
+	bool HasGuide(const FString& TrackId) const;
+	/** Open the track's guide (UApexRootWidget::OpenTrackGuide). */
+	void OpenGuide(const FString& TrackId);
 
 	/** Focus has to wait a tick after the tree changes; see the main menu. */
 	void RequestCardFocus();
@@ -94,6 +104,8 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> DetailBox;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DemoButton;
+	/** "Track guide", under the hotlap button; collapsed for a track without one. */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GuideButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;
 
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexContentCardWidget>> TrackCards;
@@ -103,6 +115,8 @@ private:
 
 	/** Ids the grid was last built from, to skip rebuilding on every lobby tick. */
 	TArray<FString> BuiltTrackIds;
+	/** Which of them had a guide when it was built, so a rescan shows. */
+	TArray<FString> BuiltGuideIds;
 
 	FString SelectedTrackId;
 	/** Empty means "all"; otherwise a category from the catalog, or "__driven". */

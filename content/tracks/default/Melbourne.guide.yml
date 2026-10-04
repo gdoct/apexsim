@@ -1,0 +1,68 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A fast park circuit round a lake: flat, smooth and lined with walls in many places."
+  - "Mostly hard stops into slow corners, broken by quick sweeps on the far side of the lake."
+  - "The walls sit close behind many kerbs: precision beats aggression, especially on exits."
+corners:
+  - at_m: 376
+    notes:
+      - "Brake on the left side for the right-hander, then flow into the left."
+      - "On lap one the field funnels in here: leave room on the inside of the second part."
+  - at_m: 1108
+    notes:
+      - "Brake from the left side of the road for this square right."
+      - "Do not run out to the left on exit: the left-hander comes almost at once."
+  - at_m: 1252
+    notes:
+      - "Treat it as the second half of the right before: that exit is this corner's entry."
+      - "Use the exit to the right edge, then line up on the left for the next right."
+  - at_m: 1468
+    notes:
+      - "Roll speed to the apex rather than braking deep; a tidy exit sets up the run that follows."
+  - at_m: 1892
+    notes:
+      - "Brake straight on the left side for the right-hander; the left that follows is quicker than it looks."
+      - "Keep the second part clean: it leads into the fast right sweep."
+  - at_m: 2264
+    notes:
+      - "A long fast right: hold a constant arc and avoid any sudden steering."
+      - "Finish on the left side: the braking zone for the next right-left starts right after."
+  - at_m: 2558
+    notes:
+      - "A slow right-left: brake straight from the left side of the road."
+      - "Get the car straight early on exit for the long fast left that follows."
+  - at_m: 3138
+    notes:
+      - "A long fast left along the lake: commit early and stay on the throttle."
+      - "Stay off the inside kerb mid-corner; it unsettles the car at this speed."
+      - "Finish on the right side: the braking zone for the next left starts soon after."
+  - at_m: 3358
+    notes:
+      - "The first half of a fast pair: brake in a straight line, then turn with the brake trailing."
+      - "Keep the car tight to set up the right that follows; a wide exit loses it."
+  - at_m: 3478
+    notes:
+      - "The second half of the fast pair: the line through the left decides it."
+      - "Get on the power early and let the car run to the left edge on exit."
+  - at_m: 3822
+    notes:
+      - "A flat right kink on the run to a heavy braking zone."
+      - "Settle the car out of it and move to the left for the braking."
+  - at_m: 4164
+    notes:
+      - "One of the heaviest stops on the lap: brake from the left side, as straight as you can."
+      - "Run out to the left on exit: it is the right place for the next right-hander."
+  - at_m: 4402
+    notes:
+      - "A longer right: turn in smoothly and let the car use the exit kerb."
+      - "Do not drift all the way to the left on exit: the slow left needs the right side."
+  - at_m: 4674
+    notes:
+      - "Brake from the right side; the corner is slower than the approach suggests."
+      - "Keep the exit short: the last right-hander is only metres away."
+  - at_m: 4798
+    notes:
+      - "The last corner: carry the line from the left-hander straight into it."
+      - "The exit feeds the pit straight, so use all the road and kerb on the outside."

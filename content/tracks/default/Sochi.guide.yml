@@ -1,0 +1,64 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A flat, walled lap of mostly right-angle corners on wide roads."
+  - "Most corners are similar slow rights: a clean stop and early throttle win more than late braking."
+  - "The walls are close in places: a small slide on the exit is a hit, not a lost tenth."
+corners:
+  - at_m: 444
+    notes:
+      - "On lap one the field spreads out here: hold your line and do not squeeze a car on the outside."
+  - at_m: 1192
+    notes:
+      - "The end of the long run from the start and the main passing place."
+      - "Brake straight, a late apex for the right, and do not let the car run wide before the long left."
+  - at_m: 1446
+    notes:
+      - "A long, constant left: hold a steady throttle and a single line."
+      - "It is long enough to tire the front tyres: add patience, not steering."
+  - at_m: 2060
+    notes:
+      - "A square right: brake straight and turn in late."
+      - "Use the full width on exit: the next straight is short."
+  - at_m: 2488
+    notes:
+      - "Another square right that needs more braking than it looks."
+      - "A good exit is worth more than the entry: the straight that follows is long enough to pass."
+  - at_m: 2748
+    notes:
+      - "A flat right kink: stay off the inside kerb and keep the car tidy."
+      - "Set up on the left side of the road for the next right."
+  - at_m: 2926
+    notes:
+      - "A tight right after the kink: brake early and settle the car."
+      - "Get it turned early: the slow left that follows comes up quickly."
+  - at_m: 3230
+    notes:
+      - "A slow left: brake straight and do not over-drive the entry."
+      - "A tidy exit keeps the car on line for the kink that follows."
+  - at_m: 3330
+    notes:
+      - "A flat left kink: take the shortest line and stay off the kerbs."
+  - at_m: 3606
+    notes:
+      - "Turn in late and straighten early: the power should go down before the car is fully straight."
+  - at_m: 4724
+    notes:
+      - "The end of the long straight and the second passing place."
+      - "The left is the braking corner; keep the right tidy and the car settled."
+  - at_m: 4840
+    notes:
+      - "A long, slow left: feed the throttle in gradually, the rear is easy to upset."
+      - "Stay close to the inside until the exit is in sight."
+  - at_m: 5098
+    notes:
+      - "A quick left-right: brake in a straight line before the left."
+      - "Keep it neat: the walls run close to both exits."
+  - at_m: 5568
+    notes:
+      - "A slow right: brake straight and turn in late."
+      - "The last two corners come quickly together; set up for the final one."
+  - at_m: 5728
+    notes:
+      - "The last corner: an early throttle onto the start straight beats a late brake."

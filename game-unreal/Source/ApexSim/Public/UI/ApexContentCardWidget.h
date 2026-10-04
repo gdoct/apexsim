@@ -45,6 +45,18 @@ struct FApexCardSpec
 
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
 	float PreviewHeight = 150.0f;
+
+	/**
+	 * A second, smaller action on the card (a track's "Guide"), drawn as a
+	 * chip over the preview's top-right corner and clicked on its own
+	 * (OnSecondaryActivated). Empty: none.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
+	FString SecondaryLabel;
+
+	/** The chip's key cap, e.g. "G". */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
+	FString SecondaryKeyCap;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCardActivated, UApexContentCardWidget*, Card);
@@ -68,6 +80,13 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
 	FApexOnCardActivated OnActivated;
+
+	/** The secondary chip was clicked (FApexCardSpec::SecondaryLabel). */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
+	FApexOnCardActivated OnSecondaryActivated;
+
+	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
+	bool HasSecondaryAction() const { return !Spec.SecondaryLabel.IsEmpty(); }
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void Setup(const FApexCardSpec& InSpec);
@@ -97,6 +116,9 @@ protected:
 
 private:
 	void ApplyState();
+
+	UFUNCTION()
+	void HandleSecondaryButton(class UApexButtonWidget* Button);
 
 	UPROPERTY()
 	FApexCardSpec Spec;

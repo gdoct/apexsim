@@ -1,0 +1,63 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A figure-of-eight lap that passes over itself, with a twisting first half and a fast second half."
+  - "The esses demand rhythm: lose the line in the first one and every following bend is slower."
+  - "Passing is hard: the main chances are into the first corner and the chicane at the end of the lap."
+corners:
+  - at_m: 886
+    notes:
+      - "Two rights in one: a fast first part and a tighter second one."
+      - "Take the first part with a light brake and save the real stop for the second."
+  - at_m: 1238
+    notes:
+      - "The esses start here: find a rhythm with short, smooth inputs."
+      - "Use the kerbs lightly; a big hit throws the car off line for the next bend."
+  - at_m: 1400
+    notes:
+      - "The middle of the esses: stay on the line, a small mistake grows through the next bends."
+  - at_m: 1610
+    notes:
+      - "The last right of the esses: get it right to carry speed up the hill."
+      - "Do not let the car run wide; the long left follows at once."
+  - at_m: 1730
+    notes:
+      - "A long left that climbs: carry speed through the first part and stay committed."
+      - "Get the exit right; the run to the next rights is long and uphill."
+  - at_m: 2298
+    notes:
+      - "The first of two rights: a light brake and a quick turn-in."
+      - "Let the car drift left on the exit to set up the second right."
+  - at_m: 2454
+    notes:
+      - "The second right is tighter: brake in a straight line and turn in late."
+      - "Get the car turned early so the power is on before the bridge."
+  - at_m: 2774
+    notes:
+      - "A fast right just before the hairpin: brake while the car is straight and keep it settled."
+  - at_m: 2916
+    notes:
+      - "A slow left and a passing chance on the brakes."
+      - "Get a good exit for the long, fast right that follows."
+  - at_m: 3206
+    notes:
+      - "A long, fast right that climbs: stay smooth and on the power."
+  - at_m: 3602
+    notes:
+      - "A fast right kink: hold the line and set up the braking for the long left."
+  - at_m: 3950
+    notes:
+      - "A long left with two apexes: brake in a straight line, then brake again, lighter, for the tighter part."
+      - "Let the first apex go: the second one decides the exit."
+  - at_m: 4972
+    notes:
+      - "A very fast left: the entry speed is the corner, there is no second chance."
+      - "Keep the steering still and the car carries through the exit."
+  - at_m: 5440
+    notes:
+      - "The main passing place at the end of the lap: brake late in a straight line."
+      - "The right is the braking corner, the left is the exit; keep the car off the inside kerbs."
+  - at_m: 5548
+    notes:
+      - "Keep the car tight on the inside and let it run wide only on the exit."

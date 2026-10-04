@@ -1,0 +1,55 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A short anticlockwise lap that falls away from the start and climbs all the way back to it."
+  - "The long climb from the last slow left to the line makes the lap: everything before it serves that exit."
+  - "Bumpy, cambered entries: the car goes light as the road drops, and that is where time is lost."
+corners:
+  - at_m: 371
+    notes:
+      - "The second part matters most: give up some of the left to be straight for the right."
+      - "On lap one the field funnels into the left: leave room on the inside and think about the exit."
+  - at_m: 635
+    notes:
+      - "A long left onto the back straight: start the throttle early and let the car run out to the right."
+      - "Do not add steering mid-corner; wait for the exit and the car comes back to you."
+  - at_m: 1424
+    notes:
+      - "The end of the back straight is the main passing place: pick your side before the braking zone."
+      - "Do not over-slow: the second left follows at once and wants a wide, fast exit."
+  - at_m: 1562
+    notes:
+      - "The second half of the double left: stay committed and let the car drift to the outside kerb."
+      - "Speed here carries all the way to the fast right that follows."
+  - at_m: 2028
+    notes:
+      - "A fast right that climbs: turn in early and be patient for the second apex."
+      - "Keep the car tidy; the slow right-left that follows rewards a settled car."
+  - at_m: 2326
+    notes:
+      - "A right that runs into a slow left: brake as the right straightens, then turn in late for the left."
+      - "The left is the one that matters: a late apex sets up the short run to the hairpin."
+  - at_m: 2742
+    notes:
+      - "Tight and off-camber on the way in: the front washes wide if you carry the brakes too deep."
+      - "The run to the long left is short, so the exit counts more than the entry."
+  - at_m: 3020
+    notes:
+      - "A long left that is easy to over-drive: one smooth input and let the car run to the exit kerb."
+      - "A wide exit here costs the braking zone for the slow left that follows."
+  - at_m: 3264
+    notes:
+      - "The key corner of the lap: a slow left that opens onto the long climb to the line."
+      - "Brake early enough to apex late, and get on the power as the wheel straightens."
+      - "A clean exit is worth more here than any amount of late braking."
+  - at_m: 3388
+    notes:
+      - "Just a kink on the climb: take the straightest line through it and do not scrub speed."
+      - "Watch the car ahead: the tow from here up the hill is the main chance to pass into the first corner."
+  - at_m: 3664
+    notes:
+      - "A flat climbing left: hold a tight line and keep the car off the inside kerb."
+  - at_m: 4040
+    notes:
+      - "Stay flat and pick your side early: a car in your tow will pull out here."

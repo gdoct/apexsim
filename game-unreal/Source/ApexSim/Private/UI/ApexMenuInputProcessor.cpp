@@ -112,6 +112,18 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 		return false;
 	}
 
+	// The track guide: every key is its own (next, previous, camera, pause,
+	// back), and none reaches the menu screen hidden under it or opens the
+	// pause menu. A held arrow does not race through the corners.
+	if (Root->IsGuideActive())
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			Root->HandleGuideKey(InKeyEvent);
+		}
+		return true;
+	}
+
 	// Watching a race: the pause key opens the pause menu, as in a race, and
 	// every other key is the watch view's, so none falls through to a car we
 	// do not have or a menu screen hidden behind the race.
@@ -249,7 +261,11 @@ bool FApexMenuInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp
 
 	SetGamepadActive(*Root, true);
 
-	// Watching: the stick would walk focus round a menu hidden behind the race.
+	// Watching or the guide: the stick would walk focus round a menu hidden behind it.
+	if (Root->IsGuideActive())
+	{
+		return true;
+	}
 	if (Root->IsWatching() && !Root->IsPaused() && !Root->IsSettingsOpen() && !Root->IsHudEditorOpen())
 	{
 		return true;

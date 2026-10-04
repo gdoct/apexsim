@@ -1,0 +1,49 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "High altitude: the thin air takes downforce and power, so fast corners grip less and stops are longer."
+  - "A very long straight into the first corner, a run of esses, then a slow section through the stadium."
+  - "The car slides more than usual here: be patient on the throttle and brake in a straight line."
+corners:
+  - at_m: 982
+    notes:
+      - "The end of the longest straight: the thin air makes this stop longer than usual."
+      - "Brake on the left side for the right-hander; the left after it is a short flick."
+      - "Lap one: the field arrives several wide, so leave room."
+  - at_m: 1120
+    notes:
+      - "Comes straight after the first pair: get the car slowed and pointed before you turn."
+      - "Use the exit width, then move to the right for the braking zone of the next left-right."
+  - at_m: 1894
+    notes:
+      - "Brake from the right side for the left; the right that follows is tight."
+      - "Do not overshoot the first part: a late first apex leaves you badly placed for the second."
+  - at_m: 2034
+    notes:
+      - "Comes quickly after the left-right: slow the car while it is still straight."
+      - "A square right: late apex and a straight exit into the run to the esses."
+  - at_m: 2376
+    notes:
+      - "The start of the esses: rhythm matters more than any single apex."
+      - "Stay light on the brakes and flow from kerb to kerb."
+  - at_m: 2758
+    notes:
+      - "The esses continue: a slide here costs on the run to the fast left."
+      - "Keep the car on the inside of each part; running wide throws off the next."
+  - at_m: 3034
+    notes:
+      - "A flat left kink: hold it tight and keep the throttle pinned."
+      - "Then move back to the left for the braking zone of the next right-hander."
+  - at_m: 3418
+    notes:
+      - "Brake on the left side of the road for this square right."
+      - "The exit leads into the slow stadium section: be tidy rather than fast."
+  - at_m: 3590
+    notes:
+      - "A slow sequence through the stadium: short bursts of throttle between the turns."
+      - "Keep the car on the inside for each part; running wide puts you off line for the next."
+  - at_m: 3778
+    notes:
+      - "Run in tight from the slow section and do not over-slow the entry."
+      - "Hold a steady throttle round the long arc and wait for the car to point down the straight."

@@ -1,0 +1,188 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "Twenty kilometres through the forest with hundreds of metres of fall and climb: learn it in sections."
+  - "Crests and compressions change the grip from one moment to the next; most of the lap is about commitment."
+  - "Barriers sit right beside the road, so a small error is rarely small: build the speed up lap by lap."
+  - "The fast corners and the exits onto the long straights are where the time is, not the slow corners."
+corners:
+  - at_m: 161
+    notes:
+      - "The first corner of the lap: brake straight and turn in late; the road dives downhill after the exit."
+      - "Let the car run to the right edge on exit and down the hill toward the fast right."
+  - at_m: 335
+    notes:
+      - "Downhill and quick: settle the car on the left before turning in, the road keeps falling."
+  - at_m: 555
+    notes:
+      - "Get the dab done while the car is straight; braking into the turn on this slope unloads the rear."
+  - at_m: 697
+    notes:
+      - "A small left on the way down: straighten it out and save the effort for the stop that follows."
+  - at_m: 955
+    notes:
+      - "The start of a long run of esses in the trees: brake for the first left, then flow."
+      - "Rhythm over aggression: an early apex in one turn puts the car on the wrong side for the next."
+      - "The road is narrow: leave a margin until the sequence is learned."
+  - at_m: 1255
+    notes:
+      - "The sequence continues: a dab, then link the right and the left on a steady throttle."
+      - "Stay close to the inside of the left; its exit starts a long run."
+  - at_m: 1437
+    notes:
+      - "Brake while straight for the right; the left that follows runs downhill and away."
+      - "The exit plunges downhill: get the car straight before the slope or it will run wide."
+  - at_m: 2270
+    notes:
+      - "Set the car on the left before the brow: changing line over the top is what sends cars off."
+  - at_m: 2390
+    notes:
+      - "A second quick right straight after the first: take both in one smooth arc."
+      - "The straight that follows runs downhill and the speed builds quickly: use all of the exit."
+  - at_m: 3600
+    notes:
+      - "A fast, downhill left over a blind brow: some cars hold it with a lift, others need a firm stop."
+      - "Do not let the car drift out to the right on exit: the braking for the next right starts on the left."
+  - at_m: 3810
+    notes:
+      - "The apex is late: hold the car to the left until the corner opens."
+      - "The exit opens onto a long descent: a good exit is worth time all the way down the hill."
+  - at_m: 4180
+    notes:
+      - "Flat and downhill into the valley: stay committed, every lift unsettles the light car."
+  - at_m: 4734
+    notes:
+      - "The bottom of the dip: the car compresses hard here, so keep the steering still as it loads."
+  - at_m: 4900
+    notes:
+      - "The road rises out of the dip: a short check of speed is enough before the climb to the next stop."
+  - at_m: 5182
+    notes:
+      - "A tight right-left after a fast run: misjudging the speed is common, so brake in good time."
+      - "Stay off the inside of the left; a clean exit matters for the short run to the next right."
+  - at_m: 5252
+    notes:
+      - "Straight after the chicane: a short brake and a tight line, then power out up the road."
+  - at_m: 5972
+    notes:
+      - "A long, fast left that hides its exit: commit to a steady arc, a mid-corner correction is costly."
+  - at_m: 6146
+    notes:
+      - "A sharp left-right: the second part is quicker than it looks, so a tidy left apex pays off."
+  - at_m: 6468
+    notes:
+      - "A tight right as the road starts to drop: brake firmly while straight and turn in late."
+      - "The descent starts at the exit: a car still sliding on the way out has nowhere to go."
+  - at_m: 6800
+    notes:
+      - "A fast downhill left-right: one lift or short stop, then the car flows through both."
+  - at_m: 7020
+    notes:
+      - "Several right-hand apexes in one: hold the car near the inside and keep one steady radius."
+      - "Resist a second brake in the middle; the car is light on the slope and will run wide."
+  - at_m: 7398
+    notes:
+      - "The steepest descent of this part of the lap ends in a tight complex: start braking early."
+      - "Tight and narrow between barriers: wait on the throttle until the car points down the road."
+  - at_m: 7730
+    notes:
+      - "A quick right at the valley floor: a smooth arc keeps the speed for the long braking zone that follows."
+  - at_m: 8102
+    notes:
+      - "The lowest point of the lap: a long braking zone ends in a tight left, then a right that starts the climb."
+      - "Traction up the hill afterwards matters: take the right slowly and drive out."
+  - at_m: 8638
+    notes:
+      - "A flat left on the climb: one smooth arc; the approach to the next big stop starts on its exit."
+  - at_m: 8912
+    notes:
+      - "A tight right at the foot of a long, fast climb: this exit is one of the most important of the lap."
+      - "Brake on the left and turn in late; a slow entry costs little, a poor exit costs the whole climb."
+  - at_m: 9436
+    notes:
+      - "The long climb begins: the corners here are flat or close to it, so keep the car straight and on power."
+  - at_m: 9848
+    notes:
+      - "A fast left on the climb: a small lift before turn-in costs less than a correction in the middle."
+  - at_m: 10456
+    notes:
+      - "A long, fast right on a steep climb: one smooth input, and keep full throttle as long as possible."
+  - at_m: 10804
+    notes:
+      - "A blind, fast left: turn in on the point you picked and hold a steady throttle through it."
+      - "The commitment it needs is easily underestimated; build up to it over several laps."
+  - at_m: 11254
+    notes:
+      - "A quick right with a short dab: carry the speed, the heavy stop for the next corner is close."
+  - at_m: 11586
+    notes:
+      - "A tight right with a big stop: the steep climb that follows needs a clean, early exit."
+  - at_m: 12028
+    notes:
+      - "Aim for the start of the banking and drop the inside wheels onto it; it holds the car round."
+      - "Leave the banking only when the car is straight; leaving early throws it toward the outside."
+  - at_m: 12224
+    notes:
+      - "A quick right off the banking: let the car settle before full throttle."
+  - at_m: 12516
+    notes:
+      - "The climb toward the highest point of the lap: each corner here sets up the next, so stay tidy."
+  - at_m: 12852
+    notes:
+      - "The top of the long climb: the road levels out through the right, so the car grips better on exit."
+  - at_m: 12996
+    notes:
+      - "A right with a short stop: carry the speed, the descent starts soon after."
+  - at_m: 13494
+    notes:
+      - "Downhill and narrow: a quick right-left where a small lift often does more than the brakes."
+      - "Do not cut the inside kerbs too much; the car is light and the next right follows quickly."
+  - at_m: 13758
+    notes:
+      - "A right before the long descent: take it tidily, the heavy braking zone downhill follows soon."
+  - at_m: 14204
+    notes:
+      - "The left is the hard part: the car is still falling as you turn in, so it has less grip than usual."
+      - "Take the right gently on exit; the next right comes quickly and a clean line matters there."
+  - at_m: 14388
+    notes:
+      - "Two apexes close together: stay to the inside and let the exit open up."
+  - at_m: 14702
+    notes:
+      - "A left-right that catches people out: the left looks quicker than it is, and the right follows at once."
+  - at_m: 15286
+    notes:
+      - "A right that opens toward a fast section: get it turned early and the next corners run flat."
+  - at_m: 15942
+    notes:
+      - "The fast section continues: a flat right that sets up the next one, so stay left between them."
+  - at_m: 16508
+    notes:
+      - "The approach is fast and the corner keeps closing: brake earlier than it seems."
+      - "The left and the banked corner come next: a tidy exit here sets both."
+  - at_m: 16688
+    notes:
+      - "A short left between the two longer corners: a smooth line, finishing on the right for the banked left."
+  - at_m: 16924
+    notes:
+      - "Drop the inside wheels onto the banked part and hold them there; the exit is where the time is."
+      - "Straighten the wheel before full throttle as the car comes off the banking."
+  - at_m: 17288
+    notes:
+      - "A right that leads to the last fast corner before the long straight: no need to over-drive it."
+  - at_m: 17528
+    notes:
+      - "A long right onto the longest straight of the lap: the second half of the corner is the one that counts."
+      - "Use every bit of road on the exit and keep full throttle as long as the car allows."
+  - at_m: 20288
+    notes:
+      - "A fast right at the end of the long straight: some cars hold it flat, others need a firm dab."
+      - "Move the car back to the right after the exit for the braking into the chicane."
+  - at_m: 20528
+    notes:
+      - "The chicane at the end of the lap: brake hard, take a short line through and keep the car level."
+      - "A slow middle part is fine; a messy exit spoils the last corner that follows straight away."
+  - at_m: 20688
+    notes:
+      - "The last corner before the line: tight and right after the chicane, so exit speed is all that counts."

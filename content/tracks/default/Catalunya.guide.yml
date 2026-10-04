@@ -1,0 +1,68 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "Every kind of corner: long fast rights that load the front tyres, slow hairpins and a tight last sector."
+  - "The long, loaded right-handers punish an overworked front end: smooth steering keeps the tyres alive."
+  - "The last sector decides the run down the long main straight: exits there matter more than entries."
+corners:
+  - at_m: 838
+    name: "Turn 1"
+    notes:
+      - "The main overtaking spot: brake on the left in a straight line and take a late apex for the right."
+      - "The left that follows sets up the long right after it: be on the throttle early out of it."
+  - at_m: 1172
+    name: "Turn 3"
+    notes:
+      - "A long, loaded right: the front tyres do the work, so ease off rather than add lock if it pushes."
+      - "Hold a constant throttle round the arc; a lift in the middle unsettles the car."
+  - at_m: 1702
+    name: "Turn 4"
+    notes:
+      - "Brake on the left in a straight line; the corner is long and the apex comes late."
+      - "A car that runs wide here arrives at the next left on the wrong side of the road."
+  - at_m: 2142
+    name: "Turn 5"
+    notes:
+      - "The road falls toward the apex: the rear gets light if you brake while turning."
+      - "The run that follows is short but fast: a clean exit is worth more than a late lunge."
+  - at_m: 2344
+    name: "Turn 6"
+    notes:
+      - "A fast left kink: keep the steering small and stay right of centre for the next corner."
+      - "Not a place to gain time, but a wide exit costs the braking zone after."
+  - at_m: 2558
+    name: "Turn 7"
+    notes:
+      - "Brake for the left and let the car roll into the right without touching the brakes again."
+      - "Stay off the inside kerb of the right; it launches the car toward the outside on exit."
+  - at_m: 2944
+    name: "Turn 9"
+    notes:
+      - "A fast, loaded right: brake lightly before turning, not in it, and keep a steady arc."
+      - "The back straight follows: an early, smooth throttle is worth far more than entry speed."
+  - at_m: 3496
+    name: "Turn 10"
+    notes:
+      - "The end of the back straight and a good place to pass: brake on the right and turn in late."
+      - "Exit wide to the right: it is also the entry line for the left-right that follows."
+  - at_m: 3620
+    name: "Turn 11"
+    notes:
+      - "A light left, then a long right: use the left to set the car up and brake only once."
+      - "The long right loads the fronts for a long time: settle at a steady speed and hold it."
+  - at_m: 4010
+    name: "Turn 13"
+    notes:
+      - "A tight right into the last sector: brake in a straight line, then a late apex."
+      - "Keep the exit tight rather than running out to the left: the chicane is entered from the right."
+  - at_m: 4142
+    name: "Final Chicane"
+    notes:
+      - "Slow and easy to over-drive: a short stop, then use the first kerb only as much as the car allows."
+      - "Everything here is for the last corner: be straight and on the throttle out of the right."
+  - at_m: 4294
+    name: "Turn 16"
+    notes:
+      - "Entry speed is low after the chicane: keep the car turning on a light throttle until the exit kerb."
+      - "This exit sets up the tow down the straight: a clean one makes the pass into the first corner possible."

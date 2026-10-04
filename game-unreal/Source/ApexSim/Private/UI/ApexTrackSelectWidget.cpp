@@ -15,6 +15,8 @@
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Components/VerticalBox.h"
+#include "Audio/ApexUiAudioSubsystem.h"
+#include "Guide/ApexTrackGuideSubsystem.h"
 #include "Track/ApexTrackContentSubsystem.h"
 #include "Components/VerticalBoxSlot.h"
 #include "TimerManager.h"
@@ -28,6 +30,7 @@ namespace
 {
 	const FName ActionTrackSelectBack(TEXT("__back"));
 	const FName ActionDemo(TEXT("__demo"));
+	const FName ActionGuide(TEXT("__guide"));
 
 	/** Filter key for "tracks I have a lap time on". Not a catalog category. */
 	const FString DrivenFilter(TEXT("__driven"));
@@ -195,6 +198,23 @@ UWidget* UApexTrackSelectWidget::BuildDetailPanel()
 	DemoButton->OnActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleButtonActivated);
 	ApexUI::AddV(Column, DemoButton, FMargin(0.0f, 12.0f, 0.0f, 0.0f));
 
+	// Corner by corner round the selected circuit, from a recording: no server needed.
+	FApexButtonSpec GuideSpec;
+	GuideSpec.Label = TEXT("Track guide");
+	GuideSpec.Badge = TEXT("Corner by corner");
+	GuideSpec.KeyCap = TEXT("G");
+	GuideSpec.Variant = EApexButtonVariant::Panel;
+	GuideSpec.bCentreLabel = false;
+	GuideSpec.LabelSize = 18.0f;
+	GuideSpec.Height = 52.0f;
+	GuideSpec.ActionId = ActionGuide;
+
+	GuideButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	GuideButton->Setup(GuideSpec);
+	GuideButton->OnActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleButtonActivated);
+	GuideButton->SetVisibility(ESlateVisibility::Collapsed);
+	ApexUI::AddV(Column, GuideButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+
 	return ApexUI::MakePanel(*WidgetTree, Column, FMargin(26.0f, 20.0f, 26.0f, 26.0f), ApexUI::MakeBrush(FLinearColor::Transparent));
 }
 
@@ -224,11 +244,20 @@ void UApexTrackSelectWidget::RebuildCards(bool bForce)
 	{
 		IncomingIds.Add(Track.Id);
 	}
-	if (!bForce && IncomingIds == BuiltTrackIds)
+	TArray<FString> IncomingGuides;
+	for (const FString& Id : IncomingIds)
+	{
+		if (HasGuide(Id))
+		{
+			IncomingGuides.Add(Id);
+		}
+	}
+	if (!bForce && IncomingIds == BuiltTrackIds && IncomingGuides == BuiltGuideIds)
 	{
 		return;
 	}
 	BuiltTrackIds = MoveTemp(IncomingIds);
+	BuiltGuideIds = MoveTemp(IncomingGuides);
 
 	TrackCards.Reset();
 	CardGrid->ClearChildren();
@@ -290,9 +319,15 @@ void UApexTrackSelectWidget::RebuildCards(bool bForce)
 			Spec.FootnoteColour = ApexUI::Palette::TextDisabled;
 		}
 
+		if (BuiltGuideIds.Contains(Track.Id))
+		{
+			Spec.SecondaryLabel = TEXT("Guide");
+		}
+
 		UApexContentCardWidget* Card = WidgetTree->ConstructWidget<UApexContentCardWidget>();
 		Card->Setup(Spec);
 		Card->OnActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleCardActivated);
+		Card->OnSecondaryActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleCardGuide);
 		TrackCards.Add(Card);
 	}
 
@@ -510,10 +545,24 @@ void UApexTrackSelectWidget::RefreshDetail()
 			ApexUI::Palette::TextMuted));
 
 		if (DemoButton) { DemoButton->SetIsEnabled(false); }
+		if (GuideButton) { GuideButton->SetVisibility(ESlateVisibility::Collapsed); }
 		return;
 	}
 
 	if (DemoButton) { DemoButton->SetIsEnabled(true); }
+	if (GuideButton)
+	{
+		const UApexTrackGuideSubsystem* Guides = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr;
+		const FApexGuideFileInfo* Info = Guides && HasGuide(SelectedTrackId)
+			? Guides->FindGuide(StemOf(SelectedTrackId), Guides->GetPreferredClass()) : nullptr;
+		GuideButton->SetVisibility(Info ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (Info)
+		{
+			// Whose lap it walks through: the picked car's class when the track has it.
+			GuideButton->SetBadge(FString::Printf(TEXT("%s \u00b7 corner by corner"), *ApexCatalog::DisplayClass(Info->Class)),
+				ApexUI::Palette::TextMuted);
+		}
+	}
 
 	FApexTrackCatalogRow Row;
 	const bool bHasRow = Flow && Flow->GetTrackCatalogRow(SelectedTrackId, Row);
@@ -638,6 +687,60 @@ void UApexTrackSelectWidget::HandleCardActivated(UApexContentCardWidget* Card)
 	}
 }
 
+FString UApexTrackSelectWidget::StemOf(const FString& TrackId) const
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	FApexTrackCatalogRow Row;
+	return Flow && Flow->GetTrackCatalogRow(TrackId, Row) ? Row.YamlBaseName : FString();
+}
+
+bool UApexTrackSelectWidget::HasGuide(const FString& TrackId) const
+{
+	const UApexTrackGuideSubsystem* Guides = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr;
+	const FString Stem = StemOf(TrackId);
+	return Guides && !Stem.IsEmpty() && Guides->HasGuide(Stem);
+}
+
+void UApexTrackSelectWidget::OpenGuide(const FString& TrackId)
+{
+	if (TrackId.IsEmpty() || !HasGuide(TrackId))
+	{
+		ApexUiAudio::Play(this, EApexUiSound::Denied);
+		return;
+	}
+	SelectTrack(TrackId);
+	if (UApexRootWidget* Root = GetRoot())
+	{
+		Root->OpenTrackGuide(StemOf(TrackId));
+	}
+}
+
+void UApexTrackSelectWidget::HandleCardGuide(UApexContentCardWidget* Card)
+{
+	if (Card)
+	{
+		OpenGuide(Card->GetCardId());
+	}
+}
+
+FReply UApexTrackSelectWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+	// G in the search box is a letter.
+	const bool bTyping = SearchField && SearchField->HasKeyboardFocus();
+	if (!InKeyEvent.IsRepeat() && ((Key == EKeys::G && !bTyping) || Key == EKeys::Gamepad_FaceButton_Top))
+	{
+		const FString TrackId = VisibleCards.IsValidIndex(FocusedCardIndex) ? VisibleCards[FocusedCardIndex]->GetCardId() : SelectedTrackId;
+		if (HasGuide(TrackId))
+		{
+			ApexUiAudio::Play(this, EApexUiSound::Accept);
+			OpenGuide(TrackId);
+			return FReply::Handled();
+		}
+	}
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
 void UApexTrackSelectWidget::HandleSearchChanged(const FText& Text)
 {
 	ApplyFilter();
@@ -669,6 +772,12 @@ void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Id == ActionTrackSelectBack)
 	{
 		GoBack();
+		return;
+	}
+
+	if (Id == ActionGuide)
+	{
+		OpenGuide(SelectedTrackId);
 		return;
 	}
 

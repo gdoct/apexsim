@@ -1,0 +1,36 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "Short and hilly: only a handful of corners, long climbs and big stops at the end of each."
+  - "Most passing is on the brakes into the slow corners at the top of the climbs."
+  - "The downhill corners at the end of the lap carry speed: the car goes light and wide if you over-drive."
+corners:
+  - at_m: 447
+    notes:
+      - "A tight right: brake late, turn in late and point the car up the hill early."
+      - "Use all of the exit kerb and get the power down before the car straightens."
+  - at_m: 1389
+    notes:
+      - "The tight right at the top of the hill and the best passing place."
+      - "Brake in a straight line and turn in late; the downhill straight follows."
+  - at_m: 2197
+    notes:
+      - "Braking downhill: the car is light, so do not lock the fronts."
+      - "Long and opening: a late apex makes the run to the next left quick."
+  - at_m: 2735
+    notes:
+      - "Turn in early and let the car carry its speed into the next left."
+  - at_m: 3027
+    notes:
+      - "A left that comes quickly after the last one: brake just a little and keep the car on the inside."
+      - "Do not get stuck on the outside; a right kink follows."
+  - at_m: 3145
+    notes:
+      - "A flat right kink onto the downhill run: keep a smooth line and the power on."
+  - at_m: 3787
+    notes:
+      - "A fast downhill right: commit to the apex; the last right follows straight on."
+  - at_m: 3981
+    notes:
+      - "The last corner: let the car run out to the exit kerb and power onto the start straight."

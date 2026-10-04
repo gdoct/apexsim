@@ -78,7 +78,29 @@ namespace ApexReplayCam
 		 * which a hillside beside it need not share). Negative: never.
 		 */
 		float GroundClearanceCm = 120.0f;
+		/**
+		 * Pan with a look point: turn toward the car by at most this many
+		 * degrees off the look point, so the subject (a corner) never leaves
+		 * the frame (ClampedPanRotation). 0: the blend of PanRotation.
+		 */
+		float MaxPanDeg = 0.0f;
+		/**
+		 * Where the subject sits across the frame, as a share of the
+		 * horizontal field of view to the right of centre (FrameYawOffset):
+		 * the track guide's card covers the left of the screen. 0: centred.
+		 * Tripods, the chase camera and the broadcast camera's outside shots.
+		 */
+		float FrameBias = 0.0f;
 	};
+
+	/**
+	 * The yaw, degrees, that puts a subject `Bias` of the horizontal field of
+	 * view right of the frame's centre: the camera turns left of it by that.
+	 */
+	inline float FrameYawOffset(float Bias, float FovDeg)
+	{
+		return -FMath::Clamp(Bias, -0.4f, 0.4f) * FovDeg;
+	}
 
 	inline bool ParseMode(const FString& Text, EMode& Out)
 	{
@@ -165,6 +187,31 @@ namespace ApexReplayCam
 			const FQuat A = Direction.ToOrientationQuat();
 			const FQuat B = ToLook.ToOrientationQuat();
 			Direction = FQuat::Slerp(A, B, FMath::Clamp(LookBias, 0.0f, 1.0f)).GetForwardVector();
+		}
+		FRotator Out = Direction.Rotation();
+		Out.Roll = 0.0f;
+		return Out;
+	}
+
+	/**
+	 * A tripod watching a fixed point that turns toward a car going by, but
+	 * never more than `MaxDeg` off the point: the car is followed while it is
+	 * near the subject and let go of (the frame resting on the subject's
+	 * edge) while it is far off or behind the camera. Level: no roll.
+	 */
+	inline FRotator ClampedPanRotation(const FVector& EyeCm, const FVector& LookCm, const FVector& TargetCm, float MaxDeg)
+	{
+		const FVector ToLook = (LookCm - EyeCm).GetSafeNormal();
+		const FVector ToTarget = (TargetCm - EyeCm).GetSafeNormal();
+		FVector Direction = ToLook;
+		if (!ToLook.IsNearlyZero() && !ToTarget.IsNearlyZero() && MaxDeg > 0.0f)
+		{
+			const double Angle = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(ToLook, ToTarget), -1.0, 1.0)));
+			if (Angle > 1.0e-3)
+			{
+				const double Alpha = FMath::Min(1.0, MaxDeg / Angle);
+				Direction = FQuat::Slerp(ToLook.ToOrientationQuat(), ToTarget.ToOrientationQuat(), Alpha).GetForwardVector();
+			}
 		}
 		FRotator Out = Direction.Rotation();
 		Out.Roll = 0.0f;

@@ -1,0 +1,38 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A fast lap of long straights and heavy stops: top speed and braking stability decide it."
+  - "The chicanes reward a clean straight-line stop and a tidy exit far more than a late brake."
+  - "Ride the flat part of the chicane kerbs, never the raised ones beyond them."
+  - "The tow is strong on the long runs: plan a pass for the next braking zone."
+corners:
+  - at_m: 968
+    notes:
+      - "Brake from the left side; the chicane is narrow and the first part is tight."
+      - "Stay off the raised inside kerb of the second part; it launches the car."
+      - "Lap one: the whole field funnels in here, so expect contact on the inside."
+  - at_m: 1422
+    notes:
+      - "A long fast right: turn in early, hold a single arc and stay off the inside kerb."
+      - "Then cross back to the right side before the braking zone of the next chicane."
+  - at_m: 2138
+    notes:
+      - "Brake on the right side of the road; this chicane is easy to overshoot."
+      - "Get the car straight early on exit: the pair of rights that follows needs a good run."
+  - at_m: 2586
+    notes:
+      - "A medium-fast right: a short brake, then a patient throttle."
+      - "Let the exit carry you to the left: that is the line for the second right."
+  - at_m: 2874
+    notes:
+      - "Tighter than the first right: brake a little more than the approach suggests."
+      - "Clip a late apex: a slide on the way out costs speed all the way down the next run."
+  - at_m: 3944
+    notes:
+      - "A fast three-part chicane: brake straight, then turn in with some brake still on."
+      - "The first left is the one that matters: miss it and the next two are slow."
+  - at_m: 5136
+    notes:
+      - "Turn in early enough to take a single late apex; a double apex loses the exit."
+      - "Hold the car in the middle of the road mid-corner, then use the full exit width."

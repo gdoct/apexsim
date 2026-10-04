@@ -19,6 +19,8 @@
 #include "Components/OverlaySlot.h"
 #include "Components/WidgetSwitcher.h"
 #include "Engine/GameInstance.h"
+#include "Guide/ApexGuidePlayer.h"
+#include "Guide/ApexTrackGuideSubsystem.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/IConsoleManager.h"
 #include "Input/Events.h"
@@ -43,6 +45,7 @@
 #include "UI/ApexSessionResultsWidget.h"
 #include "UI/ApexSettingsWidget.h"
 #include "UI/ApexToastWidget.h"
+#include "UI/ApexTrackGuideWidget.h"
 #include "UI/ApexTrackSelectWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -249,6 +252,7 @@ void UApexRootWidget::BuildShell()
 	Hud = WidgetTree->ConstructWidget<UApexHudWidget>();
 	HotlapPanel = WidgetTree->ConstructWidget<UApexHotlapWidget>();
 	HotlapPanel->OnAction.AddDynamic(this, &UApexRootWidget::HandleHotlapAction);
+	GuidePanel = WidgetTree->ConstructWidget<UApexTrackGuideWidget>();
 	PauseMenu = WidgetTree->ConstructWidget<UApexPauseMenuWidget>();
 	PauseMenu->OnAction.AddDynamic(this, &UApexRootWidget::HandlePauseAction);
 	SettingsOverlay = WidgetTree->ConstructWidget<UApexSettingsWidget>();
@@ -282,6 +286,10 @@ void UApexRootWidget::BuildShell()
 	UOverlaySlot* HotlapSlot = Frame->AddChildToOverlay(HotlapPanel);
 	HotlapSlot->SetHorizontalAlignment(HAlign_Fill);
 	HotlapSlot->SetVerticalAlignment(VAlign_Fill);
+
+	UOverlaySlot* GuideSlot = Frame->AddChildToOverlay(GuidePanel);
+	GuideSlot->SetHorizontalAlignment(HAlign_Fill);
+	GuideSlot->SetVerticalAlignment(VAlign_Fill);
 
 	UOverlaySlot* PauseSlot = Frame->AddChildToOverlay(PauseMenu);
 	PauseSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -334,6 +342,15 @@ void UApexRootWidget::NativeConstruct()
 	if (UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr)
 	{
 		Flow->OnContentMismatch.AddDynamic(this, &UApexRootWidget::HandleContentMismatch);
+	}
+	if (UApexTrackGuideSubsystem* Guide = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr)
+	{
+		GuideActiveHandle = Guide->OnActiveChanged.AddUObject(this, &UApexRootWidget::HandleGuideActiveChanged);
+		GuideFailedHandle = Guide->OnFailed.AddUObject(this, &UApexRootWidget::HandleGuideFailed);
+		if (Guide->IsOpen())
+		{
+			HandleGuideActiveChanged(true);
+		}
 	}
 
 	// -ApexScreenshotAfter=N grabs the viewport N seconds in. Together with
@@ -673,6 +690,11 @@ void UApexRootWidget::NativeDestruct()
 	{
 		Flow->OnContentMismatch.RemoveDynamic(this, &UApexRootWidget::HandleContentMismatch);
 	}
+	if (UApexTrackGuideSubsystem* Guide = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr)
+	{
+		Guide->OnActiveChanged.Remove(GuideActiveHandle);
+		Guide->OnFailed.Remove(GuideFailedHandle);
+	}
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResultsAfterFinishTimer);
@@ -729,6 +751,11 @@ FReply UApexRootWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 void UApexRootWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	// -ApexGuide=: opened once the menu world (and its director) is up.
+	if (UApexTrackGuideSubsystem* Guide = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr)
+	{
+		Guide->ApplyCommandLine();
+	}
 	UpdateWatch(InDeltaTime);
 	UpdateBackdrop(InDeltaTime);
 
@@ -784,6 +811,24 @@ UTexture2D* UApexRootWidget::MakeScrimTexture()
 void UApexRootWidget::UpdateBackdrop(float DeltaSeconds)
 {
 	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (bGuideLayers)
+	{
+		// The guide is the screen: the plain background covers the world
+		// until its circuit is built and lit, then lets it through.
+		const UApexTrackGuideSubsystem* Guide = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr;
+		const float Reveal = Guide ? Guide->GetReveal() : 0.0f;
+		if (Background)
+		{
+			Background->SetVisibility(ESlateVisibility::HitTestInvisible);
+			Background->SetBrushColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f - Reveal));
+		}
+		if (BackdropScrim)
+		{
+			BackdropScrim->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		AppliedBackdrop = -1.0f;
+		return;
+	}
 	if (WatchKind == EWatchKind::Backdrop)
 	{
 		// The race is the screen: the plain background covers only what the
@@ -956,9 +1001,10 @@ void UApexRootWidget::FocusDefault()
 		HotlapPanel->FocusDefault();
 		return;
 	}
-	if (bRaceViewActive || IsWatching())
+	if (bRaceViewActive || IsWatching() || bGuideLayers)
 	{
 		// Driving: the viewport has focus on purpose, so the car gets the keys.
+		// The guide: the input processor hands it every key.
 		// Watching: the input processor hands every key to the watch view.
 		return;
 	}
@@ -1615,6 +1661,11 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 	// Joining always lands in the lobby, whether the session was created or
 	// joined from the browser, so the transition belongs here rather than in
 	// both screens.
+	if (UApexTrackGuideSubsystem* Guide = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr)
+	{
+		// A session (a one-click hotlap, say) takes the director from the guide.
+		Guide->Close();
+	}
 	BackStack.Reset();
 	ActivateScreen(EApexScreen::SessionLobby);
 
@@ -2381,4 +2432,111 @@ void UApexRootWidget::SaveReplay()
 	{
 		ShowToast(FString::Printf(TEXT("No replay saved: %s"), Recorder ? *Error : TEXT("no recorder")), true);
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Track guide
+// ---------------------------------------------------------------------------
+
+bool UApexRootWidget::OpenTrackGuide(const FString& Stem)
+{
+	UApexTrackGuideSubsystem* Guide = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr;
+	if (!Guide)
+	{
+		return false;
+	}
+	if (bRaceViewActive || IsWatchingLive())
+	{
+		ShowToast(TEXT("Leave the session to open a track guide"), true);
+		return false;
+	}
+	FString Error;
+	if (!Guide->Open(Stem, FString(), Error))
+	{
+		ShowToast(FString::Printf(TEXT("No track guide: %s"), *Error), true);
+		return false;
+	}
+	return true;
+}
+
+void UApexRootWidget::HandleGuideActiveChanged(bool bActive)
+{
+	if (bGuideLayers == bActive)
+	{
+		return;
+	}
+	bGuideLayers = bActive;
+	if (bActive)
+	{
+		if (IsWatching())
+		{
+			StopWatching();
+		}
+		if (SettingsOverlay && SettingsOverlay->IsOpen())
+		{
+			SettingsOverlay->Close();
+		}
+		if (bPauseMenuOpen)
+		{
+			SetPaused(false);
+		}
+	}
+	if (!bRaceViewActive)
+	{
+		// The screen it was opened from stays current underneath, so closing
+		// lands back on it (the track picker, as a rule).
+		if (ScreenHost)
+		{
+			ScreenHost->SetVisibility(bActive ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		}
+		if (Background)
+		{
+			Background->SetVisibility(ESlateVisibility::HitTestInvisible);
+			Background->SetBrushColor(FLinearColor::White);
+		}
+		if (BackdropScrim)
+		{
+			BackdropScrim->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+	if (GuidePanel)
+	{
+		GuidePanel->SetActive(bActive);
+	}
+	AppliedBackdrop = -1.0f;
+	ApplyDriveInput();
+	RequestFocusDefault();
+	UE_LOG(LogApexSim, Log, TEXT("Track guide layer %s"), bActive ? TEXT("up") : TEXT("down"));
+}
+
+void UApexRootWidget::HandleGuideFailed(const FString& Why)
+{
+	ShowToast(FString::Printf(TEXT("Track guide: %s"), *Why), true);
+}
+
+bool UApexRootWidget::HandleGuideKey(const FKeyEvent& InKeyEvent)
+{
+	UApexTrackGuideSubsystem* Guide = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr;
+	const ApexGuide::FCommand Command = ApexGuide::CommandFor(InKeyEvent.GetKey(), InKeyEvent.IsShiftDown());
+	if (!Guide || Command.Action == ApexGuide::EAction::None)
+	{
+		return false;
+	}
+	Guide->Run(Command);
+	switch (Command.Action)
+	{
+	case ApexGuide::EAction::Leave:
+		ApexUiAudio::Play(this, EApexUiSound::Back);
+		break;
+	case ApexGuide::EAction::Previous:
+	case ApexGuide::EAction::Next:
+	case ApexGuide::EAction::Corner:
+	case ApexGuide::EAction::Overview:
+		ApexUiAudio::Play(this, EApexUiSound::Move);
+		break;
+	default:
+		ApexUiAudio::Play(this, EApexUiSound::Adjust);
+		break;
+	}
+	return true;
 }

@@ -5,9 +5,11 @@
 #include "Components/Border.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "UI/ApexButtonWidget.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexUIStyle.h"
 
@@ -54,9 +56,38 @@ void UApexContentCardWidget::Setup(const FApexCardSpec& InSpec)
 
 	// The art is a fresh widget each time: a card can go from a texture to a
 	// placeholder when the catalog has no row for the content.
-	ApexUI::AddV(
-		Body,
-		ApexUI::MakePreview(*WidgetTree, Spec.Preview, Spec.PlaceholderCaption, -1.0f, Spec.PreviewHeight));
+	UWidget* Preview = ApexUI::MakePreview(*WidgetTree, Spec.Preview, Spec.PlaceholderCaption, -1.0f, Spec.PreviewHeight);
+	if (Spec.SecondaryLabel.IsEmpty())
+	{
+		ApexUI::AddV(Body, Preview);
+	}
+	else
+	{
+		// The chip is a button of its own: its click is handled there and
+		// never reaches the card (which would pick the track instead).
+		FApexButtonSpec ChipSpec;
+		ChipSpec.Label = Spec.SecondaryLabel;
+		ChipSpec.KeyCap = Spec.SecondaryKeyCap;
+		ChipSpec.Variant = EApexButtonVariant::Primary;
+		ChipSpec.bCentreLabel = true;
+		ChipSpec.LabelSize = 12.0f;
+		ChipSpec.Height = 28.0f;
+		UApexButtonWidget* Chip = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Chip->Setup(ChipSpec);
+		// The keyboard reaches it through the screen's own key (G), not by focus.
+		Chip->SetIsFocusable(false);
+		Chip->OnActivated.AddDynamic(this, &UApexContentCardWidget::HandleSecondaryButton);
+
+		UOverlay* Stack = WidgetTree->ConstructWidget<UOverlay>();
+		UOverlaySlot* PreviewSlot = Stack->AddChildToOverlay(Preview);
+		PreviewSlot->SetHorizontalAlignment(HAlign_Fill);
+		PreviewSlot->SetVerticalAlignment(VAlign_Fill);
+		UOverlaySlot* ChipSlot = Stack->AddChildToOverlay(ApexUI::MakeSized(*WidgetTree, Chip, -1.0f, 28.0f));
+		ChipSlot->SetHorizontalAlignment(HAlign_Right);
+		ChipSlot->SetVerticalAlignment(VAlign_Top);
+		ChipSlot->SetPadding(FMargin(0.0f, 8.0f, 8.0f, 0.0f));
+		ApexUI::AddV(Body, Stack);
+	}
 
 	UVerticalBox* TextBlock = WidgetTree->ConstructWidget<UVerticalBox>();
 
@@ -75,6 +106,11 @@ void UApexContentCardWidget::Setup(const FApexCardSpec& InSpec)
 	ApexUI::AddV(Body, ApexUI::MakePanel(*WidgetTree, TextBlock, FMargin(15.0f, 13.0f), ApexUI::MakeBrush(FLinearColor::Transparent)));
 
 	ApplyState();
+}
+
+void UApexContentCardWidget::HandleSecondaryButton(UApexButtonWidget* Button)
+{
+	OnSecondaryActivated.Broadcast(this);
 }
 
 void UApexContentCardWidget::SetSelected(bool bInSelected)

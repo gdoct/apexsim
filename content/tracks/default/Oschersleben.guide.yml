@@ -1,0 +1,52 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A flat, compact circuit of mostly slow and medium corners: traction and braking decide it."
+  - "Several corners come in quick pairs: the exit of one is the entry of the next."
+  - "Passing happens into the first corner and into the long right at the end of the lap."
+corners:
+  - at_m: 386
+    notes:
+      - "Brake from the right side: a quick left that leads straight into a long right."
+      - "Keep it tight on exit: the long right follows at once and wants the left side."
+  - at_m: 480
+    notes:
+      - "A long, looping right: be patient with the throttle until the car points out."
+      - "Do not over-slow the entry; the corner is longer than it is tight."
+  - at_m: 1022
+    notes:
+      - "A long left: hold the car tight to the inside and wait for the exit."
+      - "Easy to over-slow on entry; it rewards a patient, steady speed."
+  - at_m: 1394
+    notes:
+      - "The first of a run of lefts: a light brake and an early turn-in."
+      - "Carry speed: the next left follows within metres."
+  - at_m: 1506
+    notes:
+      - "The second left of the run, without brakes: keep the car on the inside."
+      - "Steer smoothly; the slow sequence is close."
+  - at_m: 1608
+    notes:
+      - "A slow left into a long right: brake from the right side for the first part."
+      - "The right is long; carry speed to its apex rather than braking deep."
+  - at_m: 2026
+    notes:
+      - "A three-part chicane: brake from the left side for the first right."
+      - "Keep the car straight across the kerbs; the middle left sets up the exit."
+  - at_m: 2740
+    notes:
+      - "Brake from the left side for this square right."
+      - "Exit tight: the left after it comes quickly."
+  - at_m: 2848
+    notes:
+      - "Comes straight off the right before: the exit of that one is this one's entry."
+      - "Get the car straight early; the run to the next corner is short but fast."
+  - at_m: 3108
+    notes:
+      - "Brake from the left side and use the full exit kerb."
+      - "A clean exit matters: the long right at the end of the lap is next."
+  - at_m: 3346
+    notes:
+      - "The main passing spot: brake late on the inside and hold it."
+      - "The exit feeds the start straight: straighten the car before full throttle."

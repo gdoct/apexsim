@@ -1,0 +1,65 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A long, flat lap of two halves: long straights and heavy stops first, then a tight run of slow corners."
+  - "Most of the passing happens at the ends of the two long straights."
+  - "The second half is all slow corners: traction and patience on exit win more than braking late."
+corners:
+  - at_m: 403
+    notes:
+      - "A slow left after the start: brake straight and get the car turned."
+      - "Let the car run to the right on exit; the next left is close."
+  - at_m: 657
+    notes:
+      - "A quick left: a dab of brake and keep the car flowing."
+  - at_m: 939
+    notes:
+      - "A long, fast right: turn in early and let the car settle on its line."
+      - "A clean exit carries through the flat kink and down the first long run."
+  - at_m: 1113
+    notes:
+      - "A flat left kink: hold the line and stay smooth."
+  - at_m: 1387
+    notes:
+      - "A tight chicane: brake straight and turn in late for the left."
+      - "Do not run wide at the right; the hairpin follows quickly."
+  - at_m: 1511
+    notes:
+      - "Very slow: rotate the car early and get it pointed down the long straight."
+      - "A pass starts here: a better exit gives the tow all the way down the straight."
+  - at_m: 2768
+    notes:
+      - "The end of the long straight and the main passing place."
+      - "Brake straight and keep the car tidy through the left so the right is clean."
+  - at_m: 2976
+    notes:
+      - "A gentle left kink: stay on the power and smooth onto the next long straight."
+  - at_m: 3792
+    notes:
+      - "Another heavy stop at the end of a long straight and another chance to pass."
+      - "Three changes of direction: settle the car for the first, then use all of the road."
+  - at_m: 4040
+    notes:
+      - "A slow left after the chicane: a quick stop and a late turn-in."
+  - at_m: 4322
+    notes:
+      - "A quick right kink: stay smooth and keep the car on the inside."
+  - at_m: 4482
+    notes:
+      - "A fast right with a light brake: keep the car on the inside and the exit tidy."
+  - at_m: 4606
+    notes:
+      - "A slow right after the fast one: brake straight and get the car turned early."
+  - at_m: 4722
+    notes:
+      - "A slow left where traction is the key: feed the throttle in."
+  - at_m: 4840
+    notes:
+      - "A slow left that opens up: early power, but watch the rear."
+  - at_m: 5132
+    notes:
+      - "A right with a light brake: keep the car settled for the last corner."
+  - at_m: 5366
+    notes:
+      - "The last corner: be patient and get a good run to the line."

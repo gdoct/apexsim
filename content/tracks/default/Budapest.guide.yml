@@ -1,0 +1,74 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "Tight and twisty with one real straight: a lap of linked corners where one bad exit spoils the next two."
+  - "Rhythm through the middle sector is everything: the car is turning almost all the way to the last corner."
+  - "Passing is hard, so a clean first corner counts: the main straight is the one real chance."
+corners:
+  - at_m: 638
+    name: "Turn 1"
+    notes:
+      - "The best overtaking spot: brake on the left in a straight line and do not leave the inside open."
+      - "The exit is long and keeps turning: be patient, the car is still cornering well past the apex."
+  - at_m: 1108
+    name: "Turn 2"
+    notes:
+      - "Brake on the right while the road is still straight; the corner turns more than it looks."
+      - "The entry is blind and keeps turning: hold a wide line and wait for the apex."
+  - at_m: 1342
+    name: "Turn 3"
+    notes:
+      - "A quick right that only needs a dab: carry speed and run the exit out to the left edge."
+      - "The exit leads onto a short straight: drive off it early."
+  - at_m: 1816
+    name: "Turn 4"
+    notes:
+      - "A fast left with a blind entry: pick a turn-in point and commit to it."
+      - "Over-slowing here is the common mistake: brake briefly and let the car carry speed."
+      - "Drift back to the left after the exit so the long right that follows can be entered wide."
+  - at_m: 2028
+    name: "Turn 5"
+    notes:
+      - "A long right: brake, turn in late and let the car carry speed round the long arc."
+      - "Hold a steady throttle through the middle; too early on the power and the car runs out of road."
+  - at_m: 2388
+    name: "Turn 6"
+    notes:
+      - "The first apex is the important one: get the car slowed and turned, the left looks after itself."
+      - "Stay off the tall kerbs on the inside of both parts; a big hit throws the car off the line."
+  - at_m: 2612
+    name: "Turn 8"
+    notes:
+      - "A short left with a brief stop: wait for the late apex rather than turning in early."
+      - "Keep the exit tight; the right-hander follows at once and wants the car on the left."
+  - at_m: 2728
+    name: "Turn 9"
+    notes:
+      - "A slow right: rotate the car early and drive out onto the short straight that follows."
+      - "Clip the inside kerb lightly; a heavy hit pushes the car wide on exit."
+  - at_m: 2936
+    name: "Turn 10"
+    notes:
+      - "A fast left: a lift or a dab only; it is easy to brake too much."
+      - "Ease back to the left after the exit to open up the fast right that follows."
+  - at_m: 3098
+    name: "Turn 11"
+    notes:
+      - "A fast right with a long exit: turn in early enough to be straight well before the next stop."
+      - "Let the car run to the left on exit; that is where the braking for the next right starts."
+  - at_m: 3538
+    name: "Turn 12"
+    notes:
+      - "A heavy stop for a tight right: brake on the left in a straight line, then take a late apex."
+      - "The next left follows soon: keep the exit tight enough to be on the right side for it."
+  - at_m: 3818
+    name: "Turn 13"
+    notes:
+      - "A slow left with a wide entry: swing out to the right and wait for a late apex."
+      - "Keep the exit short: the last corner follows quickly and decides the run down the main straight."
+  - at_m: 4018
+    name: "Turn 14"
+    notes:
+      - "A long right onto the main straight: the second half matters, so brake early and turn in late."
+      - "Be patient: full power too early pushes the car wide before the corner is finished."

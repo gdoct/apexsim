@@ -1,0 +1,42 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "An island circuit of long straights joined by slow chicanes: braking and traction decide the lap."
+  - "Ride the chicane kerbs, but only as much as you need: the barriers are never far away."
+  - "The car runs light on downforce here and moves under braking, so stop in a straight line."
+corners:
+  - at_m: 259
+    notes:
+      - "Brake on the right side for the left-hander after the start."
+      - "The right that follows is long and slow: be patient and wait for the car to rotate."
+      - "Lap one: a car on the outside of the first part is squeezed in the second."
+  - at_m: 539
+    notes:
+      - "A flat right on the run to the next chicane: keep it tight."
+      - "Settle the car and move to the left for the braking zone."
+  - at_m: 735
+    notes:
+      - "Brake on the left side, turn in for the right, then flick left."
+      - "Use the kerbs on both sides, but keep two wheels on the road."
+  - at_m: 997
+    notes:
+      - "A flat kink between chicanes: one smooth movement, no lift."
+      - "Move back to the right for the braking zone of the next chicane."
+  - at_m: 1259
+    notes:
+      - "Brake on the right side of the road; the left-hander is quicker than it looks."
+      - "The exit leads onto a long run: get the car straight before full power."
+  - at_m: 2015
+    notes:
+      - "Brake on the left for the right-hander, then use the kerb to flick left."
+      - "A quick exit sets up the long run to the slowest corner on the lap."
+  - at_m: 2687
+    notes:
+      - "Brake on the left side and turn in late so the car points down the straight early."
+      - "The braking zone is the best place to pass: cover the inside on the way in."
+  - at_m: 3895
+    notes:
+      - "At the end of the long straight: brake from the left side, as straight as you can."
+      - "Take a smooth first part; overcommit and you land on the kerb of the second."
+      - "The exit starts the lap: straighten the car before full power."

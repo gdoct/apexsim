@@ -65,6 +65,10 @@
    the exports, so a package is never quietly short of them; the menu then
    plays only what a server streams.
 
+.PARAMETER SkipGuide
+   Do not copy the track guides (build\guide, docs/TRACK_GUIDE.md) into
+   Guide\ next to the executable. The track picker then offers no guide.
+
 .PARAMETER ExtraUatArgs
    Extra arguments appended to the BuildCookRun invocation.
 
@@ -87,6 +91,7 @@ param(
    [switch]$SkipCars,
    [switch]$SkipHud,
    [switch]$SkipShowcase,
+   [switch]$SkipGuide,
    [string[]]$ExtraUatArgs
 )
 
@@ -98,6 +103,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
 
 $Uproject = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 if (-not $OutputDirectory) {
@@ -254,6 +260,20 @@ if (-not $SkipShowcase) {
    }
    else {
       Write-Host "    $showcaseCount showcase(s)" -ForegroundColor DarkGray
+   }
+}
+
+if (-not $SkipGuide) {
+   # Where the track picker looks for guides in a packaged build: Guide   # next to ApexSim.exe (docs/TRACK_GUIDE.md).
+   $guideOut = Join-Path $executable.DirectoryName 'Guide'
+   Write-Host ''
+   Write-Host "==> Copying the track guides to $guideOut" -ForegroundColor Cyan
+   $guideCount = Copy-ApexGuides -RepoRoot $RepoRoot -Destination $guideOut
+   if ($guideCount -eq 0) {
+      Write-Warning 'no track guides in build\guide; the track picker offers none (run scripts/initialize_content.ps1)'
+   }
+   else {
+      Write-Host "    $guideCount guide(s)" -ForegroundColor DarkGray
    }
 }
 

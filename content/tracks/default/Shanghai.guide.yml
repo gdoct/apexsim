@@ -1,0 +1,55 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A lap of contrasts: one very long back straight and corners that keep turning for longer than you expect."
+  - "The long tightening corners punish early throttle: the front tyres take the abuse and slide if you rush."
+  - "The slow corners before the two long straights decide the lap."
+corners:
+  - at_m: 819
+    notes:
+      - "The first corner keeps turning: enter fast and wide, then keep slowing as the radius closes."
+      - "Wait for the power until the car points at the left that follows; rushing it burns the fronts."
+      - "On lap one it is easy to be squeezed on the outside: position for the left instead."
+  - at_m: 885
+    notes:
+      - "Straight after the long right comes a left that also keeps turning: be patient."
+      - "A good exit leads onto a short straight and the fast right kink that follows."
+  - at_m: 1349
+    notes:
+      - "A flat right kink: use it to drift to the left of the road for the hairpin braking zone."
+  - at_m: 1599
+    notes:
+      - "A popular passing place: brake from the left side and defend the inside if needed."
+      - "Do not over-rotate; the long left that follows wants a clean, fast exit."
+  - at_m: 1945
+    notes:
+      - "A long, fast left with two apexes: carry speed into the first and stay tight for the second."
+      - "Keep the steering steady; a car that is still turning at the exit is slow to the next stop."
+  - at_m: 2365
+    notes:
+      - "Settle the car fully before you turn in: it arrives still loaded from the fast left."
+      - "Keep the exit tight: the slow left follows straight away."
+  - at_m: 2569
+    notes:
+      - "A slow left onto a short straight: get the car turned early and straighten the exit."
+      - "A good run here is a passing chance into the next braking zone."
+  - at_m: 3151
+    notes:
+      - "A tight left at the end of a short straight: late braking passes are common."
+      - "Do not run too deep; the long right that follows is what counts."
+  - at_m: 3205
+    notes:
+      - "A very long right onto the back straight: build speed gently, the fronts work the whole way."
+      - "Hold the car on the inside until the end, then let it run out to the exit kerb."
+  - at_m: 4792
+    notes:
+      - "The end of the long straight is the main overtaking place: make the move from the tow."
+      - "Very tight: turn in late and keep the car off the inside kerb to save the exit."
+  - at_m: 4884
+    notes:
+      - "A short flat kink after the hairpin: keep accelerating and line up for the final left."
+  - at_m: 5166
+    notes:
+      - "The final left: brake firmly but keep the apex late so the car is straight early."
+      - "A good exit is worth a lot on the start straight; do not trade it for a late brake."

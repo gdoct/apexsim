@@ -1,0 +1,49 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A desert circuit of long straights and heavy stops into slow corners: brakes and traction decide it."
+  - "The surface is abrasive and the track gets hot: the rear tyres fade first, so keep the slides small."
+  - "The long straights make most braking zones passing chances; protect the inside when defending."
+corners:
+  - at_m: 732
+    notes:
+      - "The end of the long pit straight: brake from the left side for the right."
+      - "The right is slow and the left after it is a quick flick: get the car stopped first."
+      - "Lap one: the field is wide on entry, so protect the inside."
+  - at_m: 948
+    notes:
+      - "A fast right after the first pair: keep accelerating and stay tight."
+      - "Then set up on the left for the next braking zone."
+  - at_m: 1524
+    notes:
+      - "A heavy stop into a slow right: brake from the left side and turn in late."
+      - "A good passing place; do not rush the throttle on the wide exit."
+  - at_m: 1880
+    notes:
+      - "A flowing esses: brake once at the start, then roll through from kerb to kerb."
+      - "Keep the car tight in the middle; the last left sets up the run to the hairpin."
+  - at_m: 2276
+    notes:
+      - "Comes after the esses: get the car straight before the braking zone."
+      - "The exit sets up the run to the next stop; use the full width."
+  - at_m: 2726
+    notes:
+      - "The braking zone runs into the corner as it turns: release the brake slowly."
+      - "Easy to lock the inside front as the road turns; ease off the brake as you steer."
+  - at_m: 3434
+    notes:
+      - "A long left: hold a steady throttle round it rather than braking deep."
+      - "Keep it tight on exit: the fast right comes at once and wants the left side."
+  - at_m: 3742
+    notes:
+      - "A fast right: a short brake or a lift, then commit."
+      - "Keep the steering smooth: the car is loaded for a long time."
+  - at_m: 4124
+    notes:
+      - "A medium right: brake from the left side and use the exit kerb."
+      - "Its exit starts a long run to the last corner: get the power down early."
+  - at_m: 4916
+    notes:
+      - "A good passing place: dive down the inside under braking, but stay straight."
+      - "Turn in late and do not over-rotate: wheelspin on the way out costs the whole straight."

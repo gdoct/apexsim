@@ -1,0 +1,50 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "Two long straights out into the forest and back, broken by heavy stops, then a tight, slow stadium section."
+  - "The first half rewards late braking and good traction; the stadium rewards patience and tidy exits."
+  - "Most passing happens at the end of the long curving straight: a good exit two corners before sets it up."
+corners:
+  - at_m: 266
+    notes:
+      - "A quick right at the end of the pit straight: turn in on a trailing brake and run the exit wide."
+      - "A wide exit costs nothing here, but the next heavy stop comes up quickly."
+  - at_m: 842
+    notes:
+      - "Brake late on the left of the road; the right is tight and the left after it is only a kink."
+      - "Get the right done early and the left looks after itself on full throttle."
+  - at_m: 2110
+    name: "The Hairpin"
+    notes:
+      - "The best place to pass: the long run in lets you line up a move, and the inside is easy to defend."
+      - "Easy to lock a wheel as the car comes down from top speed: release the pedal progressively."
+  - at_m: 2534
+    notes:
+      - "A fast right on the way back: a lift or a short dab, then carry speed onto the next straight."
+      - "Keep the exit tight so the car can move back to the right for the next left-hander."
+  - at_m: 2820
+    notes:
+      - "A heavy stop for a left that flows straight into a long right: brake only for the left."
+      - "The right keeps turning: a steady throttle and a late second apex set up the next straight."
+  - at_m: 3422
+    notes:
+      - "The way into the stadium: brake on the left, clip the apex and let the car drift to the exit kerb."
+      - "The braking zone is wide enough to pass in, so watch for a car diving to the inside."
+  - at_m: 3782
+    notes:
+      - "A slow left: approach on the right and turn in late; the corner is longer than it looks."
+      - "Traction out of here matters for the short run into the stadium esses."
+  - at_m: 3948
+    name: "Stadium Esses"
+    notes:
+      - "A quick left-right: small, quick steering inputs and a straight line across the middle."
+      - "A wobble here costs the braking into the next right."
+  - at_m: 4136
+    notes:
+      - "A short stop for a right in the stadium: brake while straight and keep the exit tight."
+      - "The last corner follows almost at once: an exit on the left side of the road is the line for it."
+  - at_m: 4266
+    notes:
+      - "The last corner: brake early, turn in late and be on full power before the car is straight."
+      - "A clean exit here is the run down the pit straight and the chance to pass into the first corner."

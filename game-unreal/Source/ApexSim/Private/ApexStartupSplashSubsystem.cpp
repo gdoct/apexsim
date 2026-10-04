@@ -116,6 +116,11 @@ bool UApexStartupSplashSubsystem::Tick(float DeltaSeconds)
 	{
 		Reveal(TEXT("the demo race is on screen"));
 	}
+	else if (Director && Director->IsGuideViewActive() && Director->IsReplayReady())
+	{
+		// -ApexGuide= took the menu world before the backdrop was up.
+		Reveal(TEXT("the track guide is on screen"));
+	}
 	else if (HeldFor > NoDemoGraceSeconds && (!Demo || !Demo->IsDemoExpected()))
 	{
 		Reveal(TEXT("no demo race is coming"));

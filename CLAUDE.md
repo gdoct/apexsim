@@ -1825,6 +1825,92 @@ no moving on) with `UApexSpectatorSubsystem`'s `SetPaused` /
 `SetPlaybackRate` / `SeekTo`. `apexsim-replay info` reads a client-saved
 file like a rendered one.
 
+### Track guide (`track_guide.rs`, `apexsim-replay guide`, `<Stem>.guide.yml`; docs/TRACK_GUIDE.md)
+
+A corner-by-corner walk round a circuit, opened from the track picker and
+played **entirely on the client** from two files made offline, per circuit
+and car class: `build/guide/<Stem>.<Class>.guide.json` and its recording
+`<Stem>.<Class>.guide.apxs` (an ordinary spectator stream). Nothing about
+it touches the server at runtime.
+
+```bash
+apexsim-replay guide --all                       # every shipped circuit x every class (~4 min, 108 guides)
+apexsim-replay guide content/tracks/default/Spa.yaml --class GT3
+apexsim-replay guide --all --report              # detected corners, to author notes against (no sim)
+apexsim-replay guide --all --missing-only        # only guides older than their YAML, notes, dossier or car.tomls
+```
+
+- **Recording**: three solo runs (`solo_run`: one AI car alone from pole,
+  skill 110; the class's cars by folder, car 1 the guide car), each
+  run's first flying lap merged into one stream with the others 2 s
+  (`--gap`) apart, so a corner's loop shows three clean passes and nobody
+  is in anyone's wake. A run that leaves the track or strikes its lap is
+  re-run a step of skill lower (at 110 the AI has no randomness, so
+  another seed is the same lap); a car that cannot make a lap (two GT3s
+  cook their engine at Le Mans, docs/SIMULATION_GAPS.md) hands its place
+  to the next of the class. Conditions: sunny 13:00, no wind.
+- **Corners** (`detect_corners`): curvature every 2 m smoothed over
+  24 m, runs tighter than 450 m radius for 30 m and 15 degrees, same-hand
+  runs within 30 m merged (a double apex), and runs within 30 m of each
+  other grouped into one guide stop of up to three (a chicane, an esses)
+  while the stop spans under 300 m. A stop's `turn_from`/`turn_to` count
+  one turn per change of hand, which lands on the real turn count at
+  Zandvoort (14) and Monza (11). Names are the dossier's `display_name`
+  (never `name`) of the way nearest the apex, each used once, with names
+  of straights skipped; else "Turn N". Notes in `<Stem>.guide.yml` (checked
+  in beside the YAML) attach to the stop nearest their `at_m` and may
+  override the name.
+- **Measured** from the guide car's lap (`measure`): slowest point and its
+  gear, the braking point (the start of the brake run, gaps under 0.33 s
+  bridged, that sheds the most speed between the previous apex and this
+  one; the AI's throttle on a straight is ~0.7, so "full throttle" is no
+  test of anything), flat out / lift / braked, entry and exit speed, and the
+  clip windows (normal from ~1.5 s before braking until the last car is
+  2.5 s past the apex; slow motion at 0.25 from turn-in to exit, at most
+  4.5 s). Generated gotchas (`gotchas`, at most four, ranked) read the
+  geometry: big stops, uphill/downhill braking, crests and compressions
+  felt at the car's speed, banking into or away from the corner, chicane,
+  hairpin, tightening or opening radius, a wall close on the exit's
+  outside (`walls.msgpack`), tarmac run-off (`curbs.msgpack`), a long
+  straight after, DRS detection after. Fixed cameras (trackside outside
+  the apex, braking zone, exit looking back, overhead) are seated on the
+  ground sidecar; the client checks their line of sight.
+- **Pipeline**: `initialize_content.ps1` stage 8 builds what is missing
+  or stale (`scripts/lib/ApexGuide.ps1`), `build_game_standalone.ps1`
+  copies `build/guide` to `Guide\` beside `ApexSim.exe` (`-SkipGuide`),
+  `build_release.ps1` to `Game\Guide`.
+- The figures are the sim's, not the real circuits': the AI's laps run
+  10-15% over real GT3 times (Zandvoort 1:51.8, Spa 2:38).
+
+- **Client** (`ApexSim/Guide/`, `UI/ApexTrackGuideWidget`):
+  `UApexTrackGuideSubsystem` finds `<Stem>.<Class>.guide.json` in
+  `-ApexGuideDir=`, `Guide/` beside the exe or the repo's `build/guide`
+  (a guide counts only when the track's export is installed), picks the
+  class of the create flow's pending car (else F1, Hypercar, LMP2, GT3),
+  loads the `.apxs` as an `FApexReplayClip` and drives the race director's
+  replay view with its own clock (`BeginGuideView`, `SetGuideClock(Seconds,
+  Rate, bCut)`, `SetGuideCamera`, ended by `EndReplayView`; engines are
+  muted off 1x). `ApexGuide::FPlayer` is the pure state machine: Overview
+  (frozen), Travel (6x, jump-cut to 24 s short of a far corner), Normal,
+  Slow; every backwards move and loop seam is a cut. The camera cycle is
+  the file's tripods (kept only if a down-trace can seat them and they
+  see their look point; they pan toward car 0, clamped), then Broadcast
+  (TV locked on car 0), Chase, Onboard. The track picker shows a GUIDE
+  chip on each card that has one (`UApexContentCardWidget`'s secondary
+  action) and a "Track guide" button (G / pad Y); the root widget hosts
+  the layer between the hotlap panel and the pause menu and owns the keys
+  while it is open (arrows / PageUp/Down / shoulders / D-pad corners, C or
+  pad Y camera, Shift+C or pad X back a camera, Space / pad A pause, Home
+  overview, 1-0 corners, Esc / Backspace / pad B back to the picker; the
+  backdrop restarts by itself). `apexsim.guide.Open <Stem> [Class]`,
+  `.Next`, `.Prev`, `.Corner N`, `.Camera [N]`, `.Pause`, `.Close`,
+  `.Rescan`; `-ApexGuide=<Stem>[:Class] -ApexGuideCorner=N
+  -ApexGuideCamera=N` for an unattended run (`-ApexScreenshotAfter` works
+  outside a race). Tests `ApexSim.Guide.*`.
+
+Tests: `track_guide::tests` (stops, names, notes, Zandvoort's count),
+`ApexSim.Guide.*` (parser, file index, player, keys, text).
+
 ### Demo mode and the broadcast camera (`ApexDemoModeSubsystem`, `Race/ApexTvDirector.h`)
 
 The menu plays an AI race behind its screens, from a showcase stream when

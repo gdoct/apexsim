@@ -1,0 +1,105 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A very long lap that is mostly straight: long blasts broken by chicanes, then a quick permanent section."
+  - "Braking stability from top speed decides the lap; the slow corners decide the top speed after them."
+  - "The fast sweeps near the end of the lap reward commitment and punish a car that is not settled."
+  - "In traffic, plan passes for the straights; at the chicanes, brake in line and keep the door shut."
+corners:
+  - at_m: 670
+    notes:
+      - "A fast right over a rise after the pit straight: a short brake or lift, then commit."
+      - "Do not let the exit carry you out to the left: the chicane that follows wants the right side."
+  - at_m: 842
+    notes:
+      - "Approach on the right, clip the left-hand apex and let the car run to the middle."
+      - "Do not throw away the exit: it runs on downhill under a bridge toward the next corners."
+  - at_m: 1104
+    notes:
+      - "A gentle left on the way down from the chicane: keep it tight and stay on the power."
+      - "Do not drift out to the right on exit: the right-hander next wants the left side."
+  - at_m: 1232
+    notes:
+      - "A downhill right: the car is light here, so brake a touch earlier than the speed suggests."
+      - "Turn in from the left and let it run you out; the esses follow straight after."
+  - at_m: 1606
+    notes:
+      - "Brake straight for the left; the right comes quickly, so do not over-rotate the car."
+      - "Exit to the left edge: it is the right place for the right-hander before the long straight."
+  - at_m: 1916
+    notes:
+      - "Turn in later than feels natural: the corner is longer than it looks from the braking zone."
+      - "Use all the road on the left on exit, then tuck in for the long run to the first chicane."
+  - at_m: 4056
+    notes:
+      - "After a long flat-out run the brakes have cooled: press them early and firmly."
+      - "Approach on the left, take the right apex, then line up for the left with a straight car."
+  - at_m: 4236
+    notes:
+      - "A flat kink just after the chicane exit: keep accelerating and stay off the inside kerb."
+      - "Straighten the wheel as soon as you can; the next run is long."
+  - at_m: 6094
+    name: "Second Chicane"
+    notes:
+      - "Same drill as the first chicane: brakes cooled by the straight, so brake early and straight."
+      - "Approach on the right for the first left; the middle part sets up the exit."
+      - "Three direction changes: do not overcommit to the first part, finish the third cleanly."
+  - at_m: 7612
+    name: "Straight Kink"
+    notes:
+      - "A fast right on the long straight that is also the start of the next braking zone."
+      - "Settle the car before it; a moving rear at this speed is hard to catch."
+      - "Brake once, in as straight a line as the kink allows, and carry it to the slow right."
+  - at_m: 7744
+    notes:
+      - "You are still braking out of the kink: keep the car stable and do not trail too deep."
+      - "A square right: late apex, then use the full exit width."
+  - at_m: 9656
+    notes:
+      - "A medium-fast right at the end of a long straight: brake straight, then turn with a little brake on."
+      - "Keep the exit short of the left edge: the slow left that follows wants the right side."
+  - at_m: 9840
+    notes:
+      - "Little distance from the right before: brake as the car settles from it, not while turned in."
+      - "Use the exit width, then move back to the left for the slow right-hander ahead."
+  - at_m: 10162
+    notes:
+      - "A square, slow right: brake straight and turn once, with a late apex."
+      - "Easy to lock the inside front on the way in: ease the brake off as you turn."
+  - at_m: 11480
+    notes:
+      - "The start of the fast section: a long right where one error carries into the next corner."
+      - "Do not drift all the way left on exit: the left-hander after it wants the right side."
+  - at_m: 11810
+    notes:
+      - "Fast and downhill: the car goes light, so turn in smoothly and keep the inputs small."
+      - "Set up for it on the exit of the right before: it comes up quickly."
+  - at_m: 11980
+    notes:
+      - "A second left close behind the first: carry speed and keep the car tight to the inside."
+      - "Brake lightly, if at all; the long right after it matters more."
+  - at_m: 12158
+    notes:
+      - "A long right: the car is loaded for a while, so keep the steering still and squeeze the power."
+      - "Get back toward the right side on exit: the left-hander comes quickly."
+  - at_m: 12404
+    notes:
+      - "A quick left: a brief brake as you come off the right-hander, then commit."
+      - "Stay tight on the inside; the exit runs straight out to the next kink."
+  - at_m: 12674
+    notes:
+      - "A flat right kink: stay off the brakes and keep the steering small."
+      - "Keep the car in the middle of the road: the next left is close."
+  - at_m: 12798
+    notes:
+      - "A fast left kink with a dab of brake: get the car straight before you touch the pedal."
+      - "Then a short run to the slow complex at the end of the lap."
+  - at_m: 13404
+    notes:
+      - "The slowest complex on the lap: get the car stopped for the first left, then flow."
+      - "Keep the middle part tight; the right-hander onto the pit straight follows at once."
+  - at_m: 13442
+    notes:
+      - "Joined to the complex before: take it as the last move of the same sequence."
+      - "Straighten the car before full power: a slide here costs the whole pit straight."

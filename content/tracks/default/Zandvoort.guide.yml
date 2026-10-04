@@ -1,0 +1,47 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "Narrow, twisting and full of elevation through the dunes: little room to pass and little room for error."
+  - "Two steeply banked corners change the usual lines: use the banking rather than the kerbs."
+  - "Overtaking is mostly into the first corner and the chicane."
+corners:
+  - at_m: 372
+    notes:
+      - "The main passing place: the wide entry allows more than one line."
+      - "Turn in late and keep the exit clean; the next corners follow quickly."
+  - at_m: 738
+    notes:
+      - "A quick left then a right: brake lightly for the right."
+      - "The exit leads straight into the banked left: keep the car settled."
+  - at_m: 874
+    notes:
+      - "Turn in early and use the banking: the high line is faster than it looks."
+      - "The exit climbs into a flat kink: get the power down while still on the banking."
+  - at_m: 1184
+    notes:
+      - "A blind, flat right up the dune: commit and aim for the exit."
+  - at_m: 1318
+    notes:
+      - "A fast left-right over a crest: keep the inputs small."
+      - "Do not lift over the crest: the car lands as you turn for the right."
+  - at_m: 1760
+    notes:
+      - "Fast and blind: turn in at your reference point; the apex appears late."
+  - at_m: 2344
+    notes:
+      - "Two rights joined: brake for the first and keep the car on the inside for the second."
+      - "The exit leads to a slow left that follows straight on."
+  - at_m: 2620
+    notes:
+      - "A slow left: patience on the exit, the run that follows is long."
+  - at_m: 3180
+    notes:
+      - "The end of the fast back section and the second passing place."
+      - "Brake straight; the right is tight and the left leads onto the run to the last corners."
+  - at_m: 3622
+    notes:
+      - "Line the car up for the banked last corner; a clean exit here is speed onto the straight."
+  - at_m: 3902
+    notes:
+      - "Commit and use the banking: the exit opens onto the start straight, so let the car run wide."

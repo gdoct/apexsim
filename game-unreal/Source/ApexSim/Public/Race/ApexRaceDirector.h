@@ -209,6 +209,38 @@ public:
 	/** Seconds from the clip's first frame that the cars are showing. */
 	double GetReplayTime() const { return ReplayTime; }
 
+	// --- Track guide (a replay whose clock the caller owns) --------------------------
+
+	/**
+	 * The track guide's view (UApexTrackGuideSubsystem, docs/TRACK_GUIDE.md):
+	 * the clip's track, field and sky exactly as BeginReplayView, from the
+	 * menu world, but the clock is the guide's: it stays wherever
+	 * SetGuideClock last put it, which is what lets the guide pause, play in
+	 * slow motion, fast-forward and loop a corner exactly. Starts on a chase
+	 * camera behind car 0. Leave it with EndReplayView, which hands the menu
+	 * its world back (the backdrop resumes by itself).
+	 */
+	void BeginGuideView(TSharedPtr<const FApexReplayClip> Clip, const FApexSessionConditions& Conditions);
+	bool IsGuideViewActive() const { return bReplayView && bGuideClock; }
+
+	/**
+	 * Show the clip at `Seconds` from its first frame, running at `Rate` x
+	 * real time (0 paused; the engines are heard only at 1x). `bCut` is a
+	 * jump: the cameras snap to it rather than easing across the circuit.
+	 */
+	void SetGuideClock(double Seconds, float Rate, bool bCut);
+
+	/** Film the guide from another camera: any replay camera mode, following `Camera.FollowIndex`. */
+	void SetGuideCamera(const ApexReplayCam::FSettings& Camera);
+
+	/**
+	 * A tripod for the guide: lift `InOutEyeCm` out of the ground under it
+	 * (props such as stands and bridge decks aside) by `ClearanceCm`, and say
+	 * whether it then sees `LookCm` (anything static in the way, a stand
+	 * included, blocks it). False too while the track is not in the world.
+	 */
+	bool CheckTripod(FVector& InOutEyeCm, const FVector& LookCm, float ClearanceCm) const;
+
 	/** Horizontal field of view of both driving cameras, in degrees. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
 	void SetFieldOfView(float Degrees);
@@ -679,6 +711,27 @@ private:
 	bool bReplayEyeSeated = false;
 	/** Lift a buried tripod out of the rendered ground, once the level is visible. */
 	void SeatReplayEye();
+	/**
+	 * Point the cameras where ReplayCamera says: which camera is live, who it
+	 * follows, the tripod's pose, the chase rung, the cockpit rig. Shared by
+	 * BeginReplayView and the guide's camera changes.
+	 */
+	void ApplyReplayCamera();
+	/** After a jump in a replay's clock: stop every camera easing across it. */
+	void SnapCameras();
+
+	/** The guide sets ReplayTime (SetGuideClock); the director's own clock stands still. */
+	bool bGuideClock = false;
+	double GuideTime = 0.0;
+	float GuideRate = 0.0f;
+	bool bGuideCutPending = false;
+	/** The engines' scale last given to the cars: 1 at real time, 0 otherwise; -1 forces it. */
+	float GuideEngineScale = -1.0f;
+	/** Frames left with the chase boom's lag off after a snap. */
+	int32 BoomSnapFrames = 0;
+	/** The replay set the chase rung, and what the flag it raised was before. */
+	bool bReplayOwnsChaseLevel = false;
+	bool bChaseLevelFlagBeforeReplay = false;
 
 	bool bDemoWorldVisible = true;
 	bool bDemoFadeOut = false;

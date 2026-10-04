@@ -1,0 +1,68 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A long, hilly lap through the forest: high speed, big elevation changes and a long climb after the hairpin."
+  - "The first part is all power, the middle twists downhill, and the end is fast with only a chicane to slow you."
+  - "Exit speed from the hairpin and the climb onto the long straight decide the first part of the lap."
+corners:
+  - at_m: 388
+    notes:
+      - "The exit runs downhill toward the dip: get the power down early and straight."
+      - "On lap one cars dive in on the inside; the outside line often gives the better exit."
+  - at_m: 1138
+    notes:
+      - "The dip at the bottom loads the car, then the climb and the crest unload it."
+      - "Keep the car straight through the left at the bottom and commit to the right up the hill."
+      - "The top is blind: aim for the exit and keep the steering still over the crest."
+  - at_m: 2434
+    notes:
+      - "The end of the long straight and the main passing place."
+      - "The right is the braking corner; turn in late and let the car flick across for the left."
+  - at_m: 2674
+    notes:
+      - "A quick right after the chicane: a dab of brake and a late apex."
+      - "The long downhill run starts at the exit; a clean line here is worth time down the hill."
+  - at_m: 3010
+    notes:
+      - "A long downhill right that is longer than it looks: turn in patiently."
+      - "The apex is late; the exit leads into a left that keeps falling downhill."
+  - at_m: 3302
+    notes:
+      - "A downhill left after the right: a brief brake and keep the car on the inside."
+      - "Do not run wide at the exit: the long run down to the double left follows."
+  - at_m: 3890
+    notes:
+      - "A fast downhill left with two apexes: carry speed into the first and stay committed."
+      - "The car goes light as the road drops: smooth inputs only."
+  - at_m: 4024
+    notes:
+      - "The second part of the double left: stay on the inside and on the power."
+      - "Let the car drift out only at the very end; you need it there for the next braking zone."
+  - at_m: 4538
+    notes:
+      - "A quick right-left: brake straight before the right."
+      - "Get the second part right and the run to the next right is clean."
+  - at_m: 4956
+    notes:
+      - "A slow downhill right: turn in late and get the power down."
+      - "The long, fast run to the end of the lap starts here."
+  - at_m: 5218
+    notes:
+      - "A fast right where patience pays: wait for the exit before the full throttle."
+      - "The run that follows is long and climbs, so the exit speed is carried for a long time."
+  - at_m: 5340
+    notes:
+      - "A flat kink: hold a straight line and stay on the power."
+  - at_m: 5960
+    notes:
+      - "A very fast left: keep it steady with small steering inputs."
+      - "It is the second, tighter left that needs care, not this one."
+  - at_m: 6214
+    notes:
+      - "The second, tighter part of the fast left: a lift or a light brake, depending on the car."
+      - "Do not run wide at the exit: the run to the chicane is the last chance to gain on the car ahead."
+  - at_m: 6806
+    notes:
+      - "Brake hard and turn in late for the right; the left is the one that counts."
+      - "Stay off the inside kerbs; the exit leads onto the start straight."

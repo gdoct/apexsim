@@ -1007,6 +1007,13 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// A snap (SnapCameras) holds the boom's lag off for a frame or two.
+	if (BoomSnapFrames > 0 && --BoomSnapFrames == 0)
+	{
+		CameraBoom->bEnableCameraLag = true;
+		CameraBoom->bEnableCameraRotationLag = true;
+	}
+
 	if (!bRaceViewActive)
 	{
 		return;
@@ -1465,6 +1472,9 @@ void AApexRaceDirector::UpdateCameraFeel(float DeltaSeconds)
 		Wobble(8.7f, 40.0f) * 0.15f * Intensity, Wobble(9.1f, 80.0f) * 0.35f * Intensity);
 	ChaseCamera->SetRelativeLocation(FVector(0.0f, Wobble(7.9f, 120.0f) * 4.0f * Intensity,
 		Wobble(10.7f, 160.0f) * 3.0f * Intensity));
+	// The guide's card covers the left of the screen: the car sits right of centre.
+	const float ChaseBias = bReplayView ? ReplayCamera.FrameBias : 0.0f;
+	ChaseCamera->SetRelativeRotation(FRotator(0.0f, ApexReplayCam::FrameYawOffset(ChaseBias, ChaseCamera->FieldOfView), 0.0f));
 }
 
 void AApexRaceDirector::ApplyRaceEnvironment()
@@ -2607,7 +2617,13 @@ void AApexRaceDirector::UpdateTvCamera(float DeltaSeconds)
 	}
 	bHasTvPose = true;
 
-	TvCamera->SetWorldLocationAndRotation(Pose.Location, Pose.Rotation);
+	FRotator TvRotation = Pose.Rotation;
+	if (bReplayView && ReplayCamera.FrameBias != 0.0f && Tv.GetShot() != ApexTv::EShot::Onboard && Tv.GetShot() != ApexTv::EShot::Nose)
+	{
+		// The guide's card covers the left of the screen; the onboard shots stay as mounted.
+		TvRotation.Yaw += ApexReplayCam::FrameYawOffset(ReplayCamera.FrameBias, Pose.FovDeg);
+	}
+	TvCamera->SetWorldLocationAndRotation(Pose.Location, TvRotation);
 	TvCamera->SetFieldOfView(Pose.FovDeg);
 	const bool bDof = Pose.Aperture > 0.0f && CVarTvDof.GetValueOnGameThread() != 0;
 	TvCamera->PostProcessSettings.DepthOfFieldFocalDistance = bDof ? Pose.FocusDistanceCm : 0.0f;
@@ -3078,26 +3094,18 @@ void AApexRaceDirector::BeginReplayView(TSharedPtr<const FApexReplayClip> Clip, 
 	ReplayConditions = Conditions.Clamped();
 	bReplayView = true;
 	bReplayPlaying = false;
+	bGuideClock = false;
 	ReplayTime = 0.0;
-	bReplayPanValid = false;
-	bReplayEyeSeated = false;
-	ReplayPanFov = Camera.FovDeg;
 
 	bRaceViewActive = true;
-	bTvView = Camera.Mode == ApexReplayCam::EMode::Tv;
-	bCockpitView = Camera.Mode == ApexReplayCam::EMode::Cockpit;
-	bShotCameraPose = Camera.Mode == ApexReplayCam::EMode::Fixed || Camera.Mode == ApexReplayCam::EMode::Pan;
 	bHasTvPose = false;
 	bLoggedFirstTelemetry = false;
 	LatestFrameState = EApexSessionState::Lobby;
 	CarProgress.Reset();
 	CarMotion.Reset();
 	DemoTrackStem = Clip->GetTrackStem();
-	if (Camera.ChaseLevel >= 0)
-	{
-		ChaseLevel = FMath::Clamp(Camera.ChaseLevel, 0, ApexChase::Views().Num() - 1);
-		bChaseLevelFromCommandLine = true;
-	}
+	bChaseLevelFlagBeforeReplay = bChaseLevelFromCommandLine;
+	bReplayOwnsChaseLevel = false;
 
 	Tv.Reset(Camera.Seed);
 	Tv.SetPath(Clip->GetCenterline());
@@ -3115,10 +3123,39 @@ void AApexRaceDirector::BeginReplayView(TSharedPtr<const FApexReplayClip> Clip, 
 	FApexTelemetryFrame First;
 	Clip->SampleAt(0.0, First);
 	ApplyReplayFrame(First, 0.0f);
-	ReplayFollowIndex = ResolveReplayFollow();
-	if (bTvView && Camera.bLockTv && ReplayFollowIndex != INDEX_NONE)
+	ApplyReplayCamera();
+
+	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
 	{
-		Tv.LockTarget(ReplayFollowIndex);
+		PlayerController->SetViewTarget(this);
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Replay: %s (%s), %d car(s), %.1f s, %s camera following car %d, %s"),
+		*Clip->GetTrackName(), *Clip->GetTrackStem(), Clip->GetCars().Num(), Clip->GetDurationSeconds(),
+		ApexReplayCam::ModeName(Camera.Mode), ReplayFollowIndex, *ReplayConditions.Describe());
+}
+
+void AApexRaceDirector::ApplyReplayCamera()
+{
+	const ApexReplayCam::FSettings& Camera = ReplayCamera;
+	bTvView = Camera.Mode == ApexReplayCam::EMode::Tv;
+	bCockpitView = Camera.Mode == ApexReplayCam::EMode::Cockpit;
+	bShotCameraPose = Camera.Mode == ApexReplayCam::EMode::Fixed || Camera.Mode == ApexReplayCam::EMode::Pan;
+	bHasTvPose = false;
+	bReplayPanValid = false;
+	bReplayEyeSeated = false;
+	ReplayPanFov = Camera.FovDeg;
+	if (Camera.ChaseLevel >= 0)
+	{
+		ChaseLevel = FMath::Clamp(Camera.ChaseLevel, 0, ApexChase::Views().Num() - 1);
+		bChaseLevelFromCommandLine = true;
+		bReplayOwnsChaseLevel = true;
+	}
+
+	ReplayFollowIndex = ResolveReplayFollow();
+	Tv.LockTarget(bTvView && Camera.bLockTv ? ReplayFollowIndex : INDEX_NONE);
+	if (bTvView)
+	{
+		Tv.RequestCut();
 	}
 
 	if (bShotCameraPose)
@@ -3145,14 +3182,104 @@ void AApexRaceDirector::BeginReplayView(TSharedPtr<const FApexReplayClip> Clip, 
 	// The player's lenses, seat and chase distance (a -ApexReplayChase= rung
 	// wins); ends in ApplyCameraMode.
 	ApplyCameraSettings();
+	SnapCameras();
+}
 
-	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
+void AApexRaceDirector::SnapCameras()
+{
+	CarMotion.Reset();
+	bReplayPanValid = false;
+	bHavePrevMotion = false;
+	HeadOffset = FVector::ZeroVector;
+	if (bTvView)
 	{
-		PlayerController->SetViewTarget(this);
+		Tv.RequestCut();
 	}
-	UE_LOG(LogApexSim, Log, TEXT("Replay: %s (%s), %d car(s), %.1f s, %s camera following car %d, %s"),
-		*Clip->GetTrackName(), *Clip->GetTrackStem(), Clip->GetCars().Num(), Clip->GetDurationSeconds(),
-		ApexReplayCam::ModeName(Camera.Mode), ReplayFollowIndex, *ReplayConditions.Describe());
+	// The boom's lag is what would swing it across the jump; off for a frame
+	// or two, it settles where the car now is.
+	CameraBoom->bEnableCameraLag = false;
+	CameraBoom->bEnableCameraRotationLag = false;
+	BoomSnapFrames = 2;
+}
+
+void AApexRaceDirector::BeginGuideView(TSharedPtr<const FApexReplayClip> Clip, const FApexSessionConditions& Conditions)
+{
+	ApexReplayCam::FSettings Chase;
+	Chase.Mode = ApexReplayCam::EMode::Chase;
+	Chase.Follow = ApexReplayCam::EFollow::Index;
+	Chase.FollowIndex = 0;
+	BeginReplayView(Clip, Chase, Conditions);
+	if (!bReplayView)
+	{
+		return;
+	}
+	bGuideClock = true;
+	GuideTime = 0.0;
+	GuideRate = 0.0f;
+	bGuideCutPending = true;
+	GuideEngineScale = -1.0f;
+	UE_LOG(LogApexSim, Log, TEXT("Track guide view: %s"), *Clip->GetTrackStem());
+}
+
+void AApexRaceDirector::SetGuideClock(double Seconds, float Rate, bool bCut)
+{
+	if (!IsGuideViewActive())
+	{
+		return;
+	}
+	GuideTime = FMath::Max(Seconds, 0.0);
+	GuideRate = FMath::Max(Rate, 0.0f);
+	bGuideCutPending |= bCut;
+}
+
+void AApexRaceDirector::SetGuideCamera(const ApexReplayCam::FSettings& Camera)
+{
+	if (!IsGuideViewActive())
+	{
+		return;
+	}
+	ReplayCamera = Camera;
+	ApplyReplayCamera();
+}
+
+bool AApexRaceDirector::CheckTripod(FVector& InOutEyeCm, const FVector& LookCm, float ClearanceCm) const
+{
+	UWorld* World = GetWorld();
+	if (!World || !IsTrackVisible())
+	{
+		return false;
+	}
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexGuideTripod), /*bTraceComplex*/ true, this);
+	const FCollisionObjectQueryParams Statics(ECC_WorldStatic);
+
+	// The ground under the tripod, props (stands, roofs, bridge decks) aside:
+	// the file seated it on a heightfield that knew nothing of the bake's ground.
+	TArray<FHitResult> Hits;
+	World->LineTraceMultiByObjectType(Hits, InOutEyeCm + FVector(0.0, 0.0, 50000.0), InOutEyeCm - FVector(0.0, 0.0, 50000.0),
+		Statics, Params);
+	Hits.Sort([](const FHitResult& A, const FHitResult& B) { return A.Distance < B.Distance; });
+	for (const FHitResult& Hit : Hits)
+	{
+		if (IsPropHit(Hit))
+		{
+			continue;
+		}
+		InOutEyeCm.Z = FMath::Max(InOutEyeCm.Z, Hit.ImpactPoint.Z + ClearanceCm);
+		break;
+	}
+
+	// The sight line to a car's height over the look point, stopping short of
+	// it so the road it stands on does not count as in the way. A stand, a
+	// building or a hillside does.
+	const FVector Target = LookCm + FVector(0.0, 0.0, 100.0);
+	const FVector Ray = Target - InOutEyeCm;
+	const double Length = Ray.Size();
+	if (Length < 300.0)
+	{
+		return true;
+	}
+	const FVector End = InOutEyeCm + Ray / Length * (Length - 200.0);
+	return !World->LineTraceTestByObjectType(InOutEyeCm, End, Statics, Params);
 }
 
 void AApexRaceDirector::EndReplayView()
@@ -3163,12 +3290,20 @@ void AApexRaceDirector::EndReplayView()
 	}
 	bReplayView = false;
 	bReplayPlaying = false;
+	bGuideClock = false;
+	bGuideCutPending = false;
 	bRaceViewActive = false;
 	bTvView = false;
 	bShotCameraPose = false;
 	bHasTvPose = false;
 	Tv.LockTarget(INDEX_NONE);
 	Tv.ForceShot(ApexTv::EShot::None);
+	if (BoomSnapFrames > 0)
+	{
+		BoomSnapFrames = 0;
+		CameraBoom->bEnableCameraLag = true;
+		CameraBoom->bEnableCameraRotationLag = true;
+	}
 	if (FollowedCar)
 	{
 		FollowedCar->SetMeshVisible(true);
@@ -3184,10 +3319,11 @@ void AApexRaceDirector::EndReplayView()
 	RestoreMenuEnvironment();
 	DemoTrackStem.Reset();
 	ReplayClip.Reset();
-	if (ReplayCamera.ChaseLevel >= 0)
+	if (bReplayOwnsChaseLevel)
 	{
 		// The rung was the clip's, not the player's.
-		bChaseLevelFromCommandLine = false;
+		bChaseLevelFromCommandLine = bChaseLevelFlagBeforeReplay;
+		bReplayOwnsChaseLevel = false;
 	}
 	ReplayFollowIndex = INDEX_NONE;
 	ApplyCameraMode();
@@ -3263,6 +3399,37 @@ void AApexRaceDirector::UpdateReplay(float DeltaSeconds)
 {
 	if (!ReplayClip)
 	{
+		return;
+	}
+	if (bGuideClock)
+	{
+		// The guide's clock: wherever it was put. A jump places the cars
+		// outright (no velocity across it) and snaps the cameras.
+		const bool bCut = bGuideCutPending;
+		bGuideCutPending = false;
+		const bool bMoved = GuideTime != ReplayTime;
+		ReplayTime = GuideTime;
+		FApexTelemetryFrame Frame;
+		ReplayClip->SampleAt(ReplayTime, Frame);
+		ApplyReplayFrame(Frame, bCut || !bMoved ? 0.0f : DeltaSeconds);
+		if (bCut)
+		{
+			SnapCameras();
+		}
+		// A crank at real revs over a car in slow motion or flying round at six
+		// times the pace is nonsense: the engines are heard at real time only.
+		const float EngineScale = FMath::Abs(GuideRate - 1.0f) < 0.05f ? 1.0f : 0.0f;
+		if (EngineScale != GuideEngineScale)
+		{
+			GuideEngineScale = EngineScale;
+			for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+			{
+				if (AApexRaceCarActor* Car = Pair.Value.Get())
+				{
+					Car->SetEngineVolume(EngineScale);
+				}
+			}
+		}
 		return;
 	}
 	if (bReplayPlaying)
@@ -3381,8 +3548,12 @@ void AApexRaceDirector::UpdateReplayCamera(float DeltaSeconds)
 	const FVector Eye = ReplayCamera.EyeCm;
 	// The body's middle, not its floor: the pivot sits on the ground.
 	const FVector Centre = Target->GetActorLocation() + FVector(0.0, 0.0, 60.0);
-	const FRotator Wanted = ApexReplayCam::PanRotation(Eye, Centre, Target->GetVelocity(),
-		ReplayCamera.bHasLook ? &ReplayCamera.LookCm : nullptr, ReplayCamera.LookBias, ReplayCamera.LeadSeconds);
+	const FRotator Wanted = ReplayCamera.MaxPanDeg > 0.0f && ReplayCamera.bHasLook
+		// The guide's tripods: on the corner, turning toward the car only as far as keeps the corner in frame.
+		? ApexReplayCam::ClampedPanRotation(Eye, ReplayCamera.LookCm, Centre + Target->GetVelocity() * ReplayCamera.LeadSeconds,
+			ReplayCamera.MaxPanDeg)
+		: ApexReplayCam::PanRotation(Eye, Centre, Target->GetVelocity(),
+			ReplayCamera.bHasLook ? &ReplayCamera.LookCm : nullptr, ReplayCamera.LookBias, ReplayCamera.LeadSeconds);
 	const float WantedFov = ApexReplayCam::FramingFov(ReplayCamera.FrameWidthM, FVector::Dist(Eye, Centre),
 		ReplayCamera.MinFovDeg, ReplayCamera.FovDeg);
 	if (!bReplayPanValid)
@@ -3399,6 +3570,7 @@ void AApexRaceDirector::UpdateReplayCamera(float DeltaSeconds)
 	}
 	FRotator Level = ReplayPanRotation.Rotator();
 	Level.Roll = 0.0;
+	Level.Yaw += ApexReplayCam::FrameYawOffset(ReplayCamera.FrameBias, ReplayPanFov);
 	ShotCamera->SetWorldLocationAndRotation(Eye, Level);
 	ShotCamera->SetFieldOfView(ReplayPanFov);
 }

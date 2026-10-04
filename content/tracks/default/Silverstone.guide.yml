@@ -1,0 +1,66 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A fast, open lap on an old airfield where commitment in the quick corners is the whole game."
+  - "The fast sequence in the middle of the lap rewards rhythm: a small error early compounds through every bend."
+  - "Most overtaking is done on the brakes at the end of the two long straights and into the slow infield."
+corners:
+  - at_m: 396
+    notes:
+      - "The wide road invites too much speed: respect the stop and turn in early."
+      - "Use the exit kerb; the next left is fast and the car should arrive settled."
+  - at_m: 646
+    notes:
+      - "A flat left with the car still loaded from the right before: stay smooth."
+      - "Keep the exit tight on the left to set up the braking zone for the next right."
+  - at_m: 896
+    notes:
+      - "A tight right at the end of a short straight: a good place to pass on the brakes."
+      - "Do not chase the apex; the slow left follows straight away."
+  - at_m: 1036
+    notes:
+      - "A slow, long left that keeps turning: be patient on the way in."
+      - "The exit runs through a flat kink onto the long straight, so traction is everything."
+  - at_m: 2002
+    notes:
+      - "The end of the long straight and the main passing place: brake straight and defend the inside."
+      - "Leave room: the long right follows at once, and a car on the outside can come back."
+  - at_m: 2170
+    notes:
+      - "A long, slow right: keep the car on the inside and wait for it to open."
+      - "The exit drives the run past the pits, so get the power down early and smoothly."
+  - at_m: 2446
+    notes:
+      - "A flat right kink: stay on the power and in the middle of the road for the next right."
+  - at_m: 2546
+    notes:
+      - "Flat, but the car is loaded: let it run out wide on the exit and keep the throttle steady."
+  - at_m: 3132
+    notes:
+      - "A fast right at the end of the start straight: brake briefly, then trust the car to the apex."
+      - "Commit: the fast left-right sequence begins soon after the exit."
+  - at_m: 3712
+    notes:
+      - "The start of the fast sequence: rhythm is everything, one smooth flick and no sawing at the wheel."
+      - "A small mistake here grows through every bend that follows."
+  - at_m: 3886
+    notes:
+      - "A quick left after the right: keep the car flowing and the steering smooth."
+      - "A hard input here unsettles the car for the final right-left."
+  - at_m: 4020
+    notes:
+      - "The last part of the fast sequence: settle the car before the final left and aim for a wide exit."
+      - "A clean last left beats a quick first right."
+  - at_m: 5080
+    notes:
+      - "The end of the long straight: a fast right with a long braking zone and a common passing place."
+      - "Turn in early and let the car run out over the exit kerb."
+  - at_m: 5516
+    notes:
+      - "A slow left after a short straight: an easy place to outbrake yourself."
+      - "Line the car up for the long right that follows; it matters more."
+  - at_m: 5594
+    notes:
+      - "A long right onto the start straight: be patient, the exit is everything."
+      - "Keep a late apex and let the car run out to the exit kerb."

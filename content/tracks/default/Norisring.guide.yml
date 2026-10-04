@@ -1,0 +1,28 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A short street lap: two long straights and two hairpins, so braking and traction are everything."
+  - "A street layout leaves little room to recover a mistake: precision on the exits pays."
+  - "Traffic is heavy on so short a lap; the hairpins are the passing places."
+corners:
+  - at_m: 496
+    notes:
+      - "A passing place: on the way in, the inside is the line to defend."
+      - "Get the car rotated before the apex and straight as early as you can."
+  - at_m: 992
+    notes:
+      - "Brake from the left side for the right-hander, then flick left."
+      - "Use the kerbs gently; the exit leads onto a long run."
+  - at_m: 1468
+    notes:
+      - "A fast right on the back stretch: a lift or a touch of brake, then commit."
+      - "Keep the steering small, then cross to the right for the braking zone of the hairpin."
+  - at_m: 1636
+    notes:
+      - "The best place to pass: a late, straight-line stop on the inside works."
+      - "Exit tight: the left kink onto the main straight follows quickly."
+  - at_m: 1884
+    notes:
+      - "A fast left straight after the hairpin: accelerate through it."
+      - "Stay close to the inside: running wide here costs more than any apex."

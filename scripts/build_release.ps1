@@ -39,6 +39,7 @@
             Game/Wheels/        the class wheels the cars name
             Game/Hud/           the HUD's components (default/, and custom/
                                 for the player's own), drawn from files
+            Game/Guide/         the track guides (docs/TRACK_GUIDE.md)
             Game/Showcase/      the rendered AI races (.apxs) the menu plays
                                 behind its screens (docs/SPECTATOR.md)
             Server/             apexsim-server.exe + apexsim-replay.exe +
@@ -159,6 +160,7 @@ if (-not $ClientArtifactDirectory) {
 . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
 $ReplayExe    = Get-ApexShowcaseToolPath -RepoRoot $RepoRoot
 $ShowcaseDir  = Get-ApexShowcaseDir -RepoRoot $RepoRoot
 
@@ -601,7 +603,7 @@ else {
     New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null
 
     # The release copies the tracks, cars and showcases itself, at assembly, with the checks it wants.
-    $clientArgs = @{ Configuration = $Configuration; OutputDirectory = $ReleaseDir; SkipTracks = $true; SkipCars = $true; SkipShowcase = $true }
+    $clientArgs = @{ Configuration = $Configuration; OutputDirectory = $ReleaseDir; SkipTracks = $true; SkipCars = $true; SkipShowcase = $true; SkipGuide = $true }
     if ($EngineRoot) { $clientArgs.EngineRoot = $EngineRoot }
     & (Join-Path $PSScriptRoot 'build_game_standalone.ps1') @clientArgs
 
@@ -622,6 +624,16 @@ Copy-Item -LiteralPath $ServerExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath $ReplayExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'server.toml') -Destination $ServerDir -Force
 Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
+# The track guides (docs/TRACK_GUIDE.md): Game\Guide is where the track
+# picker looks. Built here when missing or stale, like the content script.
+if (@(Get-ApexGuideWork -RepoRoot $RepoRoot).Count -gt 0) {
+    Write-Detail 'building the track guides that are missing or stale'
+    $guideCode = Start-ApexGuideBuild -RepoRoot $RepoRoot
+    if ($guideCode -ne 0) { Write-Warning "apexsim-replay guide failed for some circuits (exit $guideCode)" }
+}
+$guideCount = Copy-ApexGuides -RepoRoot $RepoRoot -Destination (Join-Path $GameDir 'Guide')
+Write-Detail "$guideCount track guide(s) in $(Join-Path $GameDir 'Guide')"
+
 # The showcases, twice: Game\Showcase is the menu's local backdrop, and
 # Server\showcase the playlist the server streams (its [showcase] dir
 # defaults to ./showcase beside the exe).
@@ -727,6 +739,8 @@ WHAT IS IN HERE
     Game\Hud\          The race HUD, one folder per panel. Copy one from
                        Game\Hud\default into Game\Hud\custom to change it,
                        or add your own; the format is in the README there.
+    Game\Guide\        The track guides the track picker opens: a corner
+                       by corner walk round each circuit.
     Game\Showcase\     Rendered AI races (.apxs) the menu plays behind its
                        screens when no server is streaming one.
     Game\settings.yml  Resolution, window mode and the server to connect to.

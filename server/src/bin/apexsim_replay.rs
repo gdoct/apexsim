@@ -250,6 +250,47 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
+    /// Build the track guide of each track and class (docs/TRACK_GUIDE.md):
+    /// `<Stem>.<Class>.guide.json` and its `.guide.apxs` recording.
+    Guide {
+        /// Track YAMLs (or `--all`).
+        tracks: Vec<PathBuf>,
+        /// Every track YAML in `<tracks-dir>/default`.
+        #[arg(long)]
+        all: bool,
+        #[arg(long, default_value = "content/tracks")]
+        tracks_dir: PathBuf,
+        /// Car classes, comma separated, or `all` (every class under --cars-dir).
+        #[arg(long, default_value = "all")]
+        class: String,
+        #[arg(long, default_value = "content/cars/default")]
+        cars_dir: PathBuf,
+        #[arg(long, default_value = "build/guide")]
+        out: PathBuf,
+        /// Print each track's detected corners (to author notes against) and
+        /// simulate nothing.
+        #[arg(long)]
+        report: bool,
+        /// Skip a guide whose file is newer than the track YAML, its notes,
+        /// its dossier and every car.toml of the class.
+        #[arg(long)]
+        missing_only: bool,
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
+        /// Seeds tried per car before the least bad run is kept.
+        #[arg(long, default_value_t = 6)]
+        tries: u32,
+        #[arg(long, default_value_t = 110)]
+        skill: u8,
+        /// Seconds between the cars.
+        #[arg(long, default_value_t = 2.0)]
+        gap: f32,
+        #[arg(long, default_value_t = 3)]
+        cars: u8,
+        /// Frames per second of the recording.
+        #[arg(long, default_value_t = 60)]
+        rate: u16,
+    },
     /// Where to stand a camera: a pose beside the road, as JSON and as the
     /// client's `-ApexCamera=` / `-ApexCameraLookAt=` switches.
     Pose {
@@ -298,6 +339,185 @@ fn main() -> ExitCode {
             eprintln!("apexsim-replay: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+struct GuideArgs {
+    tracks: Vec<PathBuf>,
+    all: bool,
+    tracks_dir: PathBuf,
+    class: String,
+    cars_dir: PathBuf,
+    out: PathBuf,
+    report: bool,
+    missing_only: bool,
+    seed: u64,
+    tries: u32,
+    skill: u8,
+    gap: f32,
+    cars: u8,
+    rate: u16,
+}
+
+fn run_guide(args: GuideArgs) -> Result<(), String> {
+    use apexsim_server::track_guide::{
+        build_guide, detect_corners, dossier_corners, guide_name, lap_length_m, name_corners,
+        notes_path, write_guide, GuideOptions,
+    };
+    let mut tracks = args.tracks;
+    if args.all {
+        let dir = args.tracks_dir.join("default");
+        let mut found: Vec<PathBuf> = std::fs::read_dir(&dir)
+            .map_err(|e| format!("{}: {e}", dir.display()))?
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| p.extension().is_some_and(|x| x == "yaml"))
+            .collect();
+        found.sort();
+        tracks.extend(found);
+    }
+    if tracks.is_empty() {
+        return Err("name a track YAML or pass --all".to_string());
+    }
+
+    if args.report {
+        let mut report = Vec::new();
+        for path in &tracks {
+            let track = TrackLoader::load_from_file(path)
+                .map_err(|e| format!("{}: {e}", path.display()))?;
+            let lap = lap_length_m(&track);
+            let corners = detect_corners(&track);
+            let names = name_corners(&corners, &dossier_corners(path), lap);
+            let rows: Vec<serde_json::Value> = corners
+                .iter()
+                .zip(names)
+                .enumerate()
+                .map(|(i, (c, name))| {
+                    serde_json::json!({
+                        "number": i + 1,
+                        "name": name,
+                        "direction": c.direction(),
+                        "entry_m": c.entry_m.round(),
+                        "apex_m": c.apex_m.round(),
+                        "exit_m": c.exit_m.round(),
+                        "turn_deg": c.turn_rad().to_degrees().round(),
+                        "min_radius_m": (1.0 / c.peak_kappa().max(1e-4)).round(),
+                    })
+                })
+                .collect();
+            report.push(serde_json::json!({
+                "track": path.file_stem().map(|s| s.to_string_lossy().into_owned()),
+                "length_m": lap.round(),
+                "corners": rows,
+            }));
+        }
+        return print_json(&report);
+    }
+
+    let (configs, _) = load_car_folder(&args.cars_dir)?;
+    let mut classes: Vec<String> = if args.class.eq_ignore_ascii_case("all") {
+        let mut all: Vec<String> = configs
+            .values()
+            .map(|c| c.class.trim().to_string())
+            .collect();
+        all.sort();
+        all.dedup();
+        all
+    } else {
+        args.class
+            .split(',')
+            .map(|c| c.trim().to_string())
+            .collect()
+    };
+    classes.retain(|c| !c.is_empty());
+
+    let newest_input = |track: &Path, class: &str| -> Option<std::time::SystemTime> {
+        let mut inputs = vec![
+            track.to_path_buf(),
+            notes_path(track),
+            track.with_extension("layout.json"),
+        ];
+        for toml in apexsim_server::car_loader::car_toml_paths(&args.cars_dir) {
+            if let Ok(car) = apexsim_server::car_loader::CarLoader::load_from_file(&toml) {
+                if car.class.trim().eq_ignore_ascii_case(class) {
+                    inputs.push(toml);
+                }
+            }
+        }
+        inputs
+            .iter()
+            .filter_map(|p| std::fs::metadata(p).and_then(|m| m.modified()).ok())
+            .max()
+    };
+
+    let mut failures = Vec::new();
+    let mut written = Vec::new();
+    for path in &tracks {
+        let stem = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        for class in &classes {
+            let target = args.out.join(guide_name(&stem, class));
+            if args.missing_only {
+                let built = std::fs::metadata(&target).and_then(|m| m.modified()).ok();
+                if let (Some(built), Some(input)) = (built, newest_input(path, class)) {
+                    if built >= input {
+                        continue;
+                    }
+                }
+            }
+            let started = std::time::Instant::now();
+            let opts = GuideOptions {
+                track_path: path.clone(),
+                cars_dir: args.cars_dir.clone(),
+                class: class.clone(),
+                seed: args.seed,
+                tries: args.tries,
+                skill: args.skill,
+                car_gap_s: args.gap,
+                cars: args.cars,
+                record_hz: args.rate,
+                ..GuideOptions::default()
+            };
+            let result = build_guide(&opts).and_then(|built| {
+                let files = write_guide(&built, &args.out)?;
+                Ok((built, files))
+            });
+            match result {
+                Ok((built, (json, _))) => {
+                    let off: Vec<String> = built
+                        .runs
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, r)| !r.valid || r.off_track_s > 0.0)
+                        .map(|(k, r)| format!("car {} {:.1} s off", k + 1, r.off_track_s))
+                        .collect();
+                    eprintln!(
+                        "{stem} {class}: {} corners, lap {:.3} s{} in {:.1} s -> {}",
+                        built.guide.corners.len(),
+                        built.guide.track.lap_time_s,
+                        if off.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" ({})", off.join(", "))
+                        },
+                        started.elapsed().as_secs_f32(),
+                        json.display()
+                    );
+                    written.push(json.display().to_string());
+                }
+                Err(e) => {
+                    eprintln!("{stem} {class}: {e}");
+                    failures.push(format!("{stem} {class}: {e}"));
+                }
+            }
+        }
+    }
+    print_json(&serde_json::json!({ "written": written, "failed": failures }))?;
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{} guide(s) failed", failures.len()))
     }
 }
 
@@ -670,6 +890,37 @@ fn run(args: Args) -> Result<(), String> {
                 "duration_s": (part.last().unwrap().tick - part.first().unwrap().tick) as f32 / rate,
             }))
         }
+        Command::Guide {
+            tracks,
+            all,
+            tracks_dir,
+            class,
+            cars_dir,
+            out,
+            report,
+            missing_only,
+            seed,
+            tries,
+            skill,
+            gap,
+            cars,
+            rate,
+        } => run_guide(GuideArgs {
+            tracks,
+            all,
+            tracks_dir,
+            class,
+            cars_dir,
+            out,
+            report,
+            missing_only,
+            seed,
+            tries,
+            skill,
+            gap,
+            cars,
+            rate,
+        }),
         Command::Pose {
             track,
             corner,

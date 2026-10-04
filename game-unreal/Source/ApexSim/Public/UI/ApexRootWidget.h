@@ -14,6 +14,7 @@ class FWidgetPath;
 class SWidget;
 struct FFocusEvent;
 class UApexHotlapWidget;
+class UApexTrackGuideWidget;
 class UApexHudEditorWidget;
 class UApexHudWidget;
 class UApexPauseMenuWidget;
@@ -179,6 +180,22 @@ public:
 	/** The same, by action, for the console (`apexsim.watch`). */
 	void RunWatchCommand(const ApexSpectate::FCommand& Command);
 
+	// --- Track guide ------------------------------------------------------------
+
+	/**
+	 * Open a circuit's track guide (UApexTrackGuideSubsystem, docs/TRACK_GUIDE.md)
+	 * over the menu: the screens step aside for the world and the guide's
+	 * layer; leaving it comes back to the screen it was opened from. False,
+	 * with a toast, when the circuit has none or it cannot be played.
+	 */
+	bool OpenTrackGuide(const FString& Stem);
+
+	/** A guide is open (loading or playing): it owns the screen and the keys. */
+	bool IsGuideActive() const { return bGuideLayers; }
+
+	/** A key while the guide is open, from the input processor (ApexGuide::CommandFor). True when it meant something. */
+	bool HandleGuideKey(const FKeyEvent& InKeyEvent);
+
 	/** The pad is in use: the HUD's key hints show its buttons. */
 	void SetGamepadHints(bool bGamepad);
 
@@ -224,6 +241,10 @@ protected:
 	/** The hotlap layer: garage card, timing sheet, replay strip. Between the HUD and the pause menu. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexHotlapWidget> HotlapPanel;
+
+	/** The track guide's cards and controls, over the world while a guide is open. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
+	TObjectPtr<UApexTrackGuideWidget> GuidePanel;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexSettingsWidget> SettingsOverlay;
@@ -449,4 +470,12 @@ private:
 		const TSharedPtr<SWidget>& NewWidget);
 
 	FDelegateHandle FocusChangingHandle;
+
+	/** The guide opened or closed: the menu out of the way, or back. */
+	void HandleGuideActiveChanged(bool bActive);
+	void HandleGuideFailed(const FString& Why);
+	FDelegateHandle GuideActiveHandle;
+	FDelegateHandle GuideFailedHandle;
+	/** The guide's layers are up. */
+	bool bGuideLayers = false;
 };

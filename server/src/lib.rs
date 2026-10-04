@@ -37,6 +37,7 @@ pub mod slipstream;
 pub mod spectator;
 pub mod timer_resolution;
 pub mod track_content;
+pub mod track_guide;
 pub mod track_loader;
 pub mod track_mesh;
 pub mod transport;

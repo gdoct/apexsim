@@ -1,0 +1,55 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A short, hilly lap of two halves: tight corners round the infield and a fast loop out through the woods."
+  - "Time comes from commitment in the fast rights in the woods and clean exits from the slow infield corners."
+  - "There is little room anywhere: a small error in the fast section costs a lot of time."
+corners:
+  - at_m: 279
+    notes:
+      - "Turn in while the car is still loaded; the road drops away right at the apex."
+      - "The fall after the apex unloads the car: keep the steering steady and let it run to the exit kerb."
+      - "The entry is blind: pick a reference point on the left and trust it every lap."
+  - at_m: 623
+    notes:
+      - "Approach on the left, brake straight and turn in late so the car points down the road on exit."
+      - "The best place on the lap to pass: a defensive inside line costs very little here."
+      - "Do not run out to the left edge on exit: the next left-hander wants the car on the right."
+  - at_m: 873
+    notes:
+      - "A short left onto the straight behind the pits: get the braking done while the car is straight."
+      - "Exit speed carries the whole length of the next straight: use all of the exit kerb."
+  - at_m: 1285
+    notes:
+      - "Brake on the right side of the road and turn in late; the corner turns more than it looks."
+      - "Its exit starts the fast run out to the far loop: carry the throttle and keep the car straight."
+  - at_m: 2035
+    notes:
+      - "The fastest approach of the lap: settle the car before turning in and trail the brake to the apex."
+      - "Braking and steering overlap here: release the pedal smoothly as the lock goes on."
+      - "Run out to the left on exit; it is also the line for the next right-hander."
+  - at_m: 2359
+    notes:
+      - "A quick right with a blind entry: commit to your turn-in point rather than feeling for it."
+      - "A tidy line here sets up the dip and the fast rights that follow."
+  - at_m: 2479
+    notes:
+      - "A small right through the dip: hold a steady throttle and do not scrub speed."
+      - "Keep the car toward the left of the road so the next right can be taken on a wide line."
+  - at_m: 2629
+    notes:
+      - "A fast right that leads straight into the next one: stay on the left side on the way out."
+      - "Smooth hands: any correction here carries on through the next two corners."
+  - at_m: 2751
+    notes:
+      - "Brake lightly and get the car turned early; the run to the next left is short."
+      - "Do not take all the road on the left at the exit: the next left wants the car back on the right."
+  - at_m: 2995
+    notes:
+      - "A tight left that is easy to over-drive: brake firmly, turn in late and keep it inside the road."
+      - "A tidy exit sets up the run toward the last corner, which is where the lap is decided."
+  - at_m: 3432
+    notes:
+      - "The last corner is two rights in one: a slower first apex, then a long, fast second one."
+      - "Give up the first apex so the car is already straight through the second and onto the pit straight."

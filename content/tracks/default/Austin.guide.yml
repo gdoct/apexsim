@@ -1,0 +1,74 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "Three circuits in one: a climb to a wide first corner, a flowing run of esses, then slow, stop-start corners."
+  - "Time in the first sector comes from linking the esses; later it comes from exits onto the two long straights."
+  - "Many corners are slow and tight: over-driving an entry always costs more than braking a touch early."
+corners:
+  - at_m: 660
+    notes:
+      - "The corner is very wide: swing out to the right and make one late apex rather than diving to the inside."
+      - "The climb on the way in hides the apex: brake by your marker, not by what you can see."
+      - "Run out to the exit kerb, then line up for the quick right that follows."
+  - at_m: 938
+    notes:
+      - "The speed you carry here runs all the way into the esses: keep the exit tidy, not wide."
+      - "The road falls away after the apex: settle the car before the first left of the esses."
+  - at_m: 1362
+    notes:
+      - "The start of the esses: a light brake on entry, then link each change of direction on the throttle."
+      - "Stay off the big inside kerbs; a hard hit unsettles the car for the next flick."
+      - "The rhythm matters more than any single apex: one late turn-in spoils the whole sequence."
+  - at_m: 1582
+    notes:
+      - "A long right that keeps turning: hold a steady speed in the middle and resist turning in early."
+      - "A wide exit leaves the car on the wrong side for the left-right that follows."
+  - at_m: 1720
+    notes:
+      - "Brake for the left and keep the car straight-ish; the tight right after it is where the speed is lost."
+      - "Let the car drift to the middle of the road after the left, then brake again for the right."
+      - "A car still sliding on the way out runs wide into the next left."
+  - at_m: 1978
+    notes:
+      - "The last of the esses: a short, tight left where the exit matters more than the entry."
+      - "Get it turned early and use the full width on the way out toward the fast left."
+  - at_m: 2184
+    notes:
+      - "Barely a corner at speed: brush the inside and keep the steering inputs small."
+      - "Ease back to the right after the apex to open up the entry to the hairpin ahead."
+  - at_m: 2574
+    name: "Turn 11"
+    notes:
+      - "Brake from the right side of the road and square the corner off with a late turn-in."
+      - "A favourite place to pass: defending the inside under braking costs very little here."
+      - "Let the car run out to the right edge on the exit rather than holding a tight line."
+  - at_m: 3778
+    notes:
+      - "The main overtaking spot of the lap: the braking zone is long, so leave room for a car alongside."
+      - "Easy to lock the inside front as the car comes off the straight: ease the pedal as the speed drops."
+      - "The slow section follows at once, so the exit only needs to be tidy."
+  - at_m: 4004
+    notes:
+      - "A tight right in our layout that turns further than it looks: keep turning, do not chase the throttle."
+      - "Give up the exit and drift back to the right to set up the left hairpin that follows."
+  - at_m: 4290
+    notes:
+      - "The second of the two slow hairpins: brake straight and let the car turn on a trailing brake."
+      - "Its exit starts the long right-hand sweep: the corners from here on are about carrying speed."
+  - at_m: 4602
+    notes:
+      - "The first part of a long multi-apex right: a lift or light brake, then carry speed to the second apex."
+      - "Hold the car near the middle between the apexes instead of running out to the edge."
+  - at_m: 4694
+    notes:
+      - "The final apex of the sweep: be patient with the steering and keep a constant radius."
+      - "Do not run all the way to the exit edge: the next left-hander wants the car back on the right."
+  - at_m: 5036
+    notes:
+      - "Turn in progressively and take a late apex; the short run to the last corner needs a clean exit."
+      - "Braking while turning here is what puts cars wide: get most of the stop done in a straight line."
+  - at_m: 5342
+    notes:
+      - "The last corner opens onto the main straight: give up entry speed for an early, straight exit."
+      - "Easy to over-slow: brake firmly, release early and let the car roll to the apex."

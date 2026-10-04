@@ -1,0 +1,56 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A wide, flowing lap with two long straights joined by a slow hairpin at each end."
+  - "Heavy stops into slow corners, then a run of fast sweepers in the middle where commitment pays."
+  - "The wide entries tempt late braking; the time is in clean exits onto the straights."
+corners:
+  - at_m: 800
+    notes:
+      - "A long right that closes into a slow left: brake for the left, not the right."
+      - "On lap one the field spreads across the road: expect cars on both sides into the left."
+  - at_m: 1108
+    notes:
+      - "A long, fast right: keep the steering smooth, a lift mid-corner unsettles the rear."
+      - "The exit runs straight into the braking zone for the next right: brake as the car straightens."
+  - at_m: 1598
+    notes:
+      - "A square right at the end of a short straight: brake in a straight line from the left of the road."
+      - "Apex late: the fast left that follows wants the car straight and on the power."
+  - at_m: 1918
+    notes:
+      - "The start of the fast sweepers: carry speed in and let the corner open up."
+      - "Do not run all the way out at the exit: you need room to set up the right that follows."
+  - at_m: 2180
+    notes:
+      - "A fast right: brake lightly as you turn in and keep the car balanced through it."
+      - "Use the exit kerb and get on the power early for the short straight."
+  - at_m: 2580
+    notes:
+      - "The first of two rights: a firm stop and a quick turn-in, the second one is the faster."
+      - "Let the car drift left on the exit so the second right is a straight entry."
+  - at_m: 2684
+    notes:
+      - "The second right is quicker but the car is still loaded from the first: one smooth input."
+      - "A good exit carries speed all the way to the slow left at the end of the next straight."
+  - at_m: 3166
+    notes:
+      - "A slow left that is easy to overshoot: brake earlier than the short straight suggests."
+      - "Do not run wide on the exit: the long right that follows wants the car on the left."
+  - at_m: 3526
+    notes:
+      - "A long right you feed into from the slow left: build the speed gradually, the rear is light."
+      - "It opens toward the end: the earlier the car points straight, the better the run that follows."
+  - at_m: 3876
+    notes:
+      - "A fast left with a light brake: carry speed and let the car run out to the exit kerb."
+      - "Do not be greedy on entry; the right that follows is the one that leads onto the back straight."
+  - at_m: 4240
+    notes:
+      - "Two rights in one: a quick first part and a tighter second one; give up the first for the second."
+      - "Defend the inside on the way in; the straight after it is long enough to be passed again."
+  - at_m: 5194
+    notes:
+      - "The best passing place: the straight before it is long and the braking zone is wide."
+      - "Take a wide entry and a late apex, or cut inside to defend and accept a slower exit."

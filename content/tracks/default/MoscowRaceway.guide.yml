@@ -1,0 +1,60 @@
+# Hand-written track guide notes (docs/TRACK_GUIDE.md). Real names are
+# trademarks often enough that none appear here: see CLAUDE.md
+# "No trademarks on screen".
+overview:
+  - "A flat, technical lap: a few quick corners, then a long run of slow ones close together."
+  - "Rhythm through the twisty middle section is where time is found: each exit sets up the next entry."
+  - "The two long straights are the passing places; brake in a straight line at their ends."
+corners:
+  - at_m: 374
+    notes:
+      - "The first corner after the pit straight: brake from the right side and turn in early."
+      - "Keep it tidy: a slower left follows quickly."
+  - at_m: 558
+    notes:
+      - "The second left in a row: stay to the right after the first to open this one up."
+      - "Get across to the left after the exit for the long right that follows."
+  - at_m: 1036
+    notes:
+      - "A long right that turns through more than a half circle: keep the inputs smooth."
+      - "Do not run wide on exit: the left hairpin follows at once and needs the right side."
+  - at_m: 1180
+    notes:
+      - "Joined straight onto the long right: there is barely a straight to brake on."
+      - "Brake while the car is still settling from the right; do not lock the inside front."
+  - at_m: 1318
+    notes:
+      - "A flat right on the way out of the hairpin: keep accelerating."
+      - "Then cross to the right for the next left-right."
+  - at_m: 1526
+    notes:
+      - "A quick left-right: a short brake, then through with as little steering as you can."
+      - "The car is light over the change of direction; be gentle with the throttle mid-way."
+  - at_m: 1886
+    notes:
+      - "The biggest stop of the twisty section: brake from the right side for the first left."
+      - "A long, slow sequence: keep the car on the inside and do not rush the throttle."
+  - at_m: 2152
+    notes:
+      - "The slow section begins: short bursts of throttle between square corners."
+      - "Brake as you straighten out of the previous corner and turn in early."
+  - at_m: 2288
+    notes:
+      - "Keep the previous exit tight so you arrive on the left for this right-hander."
+      - "Short and square: late apex, straight exit."
+  - at_m: 2458
+    notes:
+      - "Short run from the right before: brake once, firmly, and do not trail into the apex."
+      - "Exit tight: another left comes shortly."
+  - at_m: 2684
+    notes:
+      - "Another slow left: apex late so the car is straight early."
+      - "Do not run wide on exit: the last slow right comes quickly and wants the left side."
+  - at_m: 2826
+    notes:
+      - "Brake briefly from the left side, rotate the car early and use the full exit width."
+  - at_m: 3918
+    notes:
+      - "Brake from the right side, straight and hard: the corner is slow and tight."
+      - "A good passing spot: cover the inside on the way in."
+      - "The exit leads onto the pit straight: straighten the car before full throttle."
