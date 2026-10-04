@@ -329,10 +329,12 @@ void UApexNetSubsystem::CreateSession(
 	EApexSessionKind SessionKind,
 	const FApexAllowedAssists& AllowedAssists,
 	const FApexSessionConditions& Conditions,
-	EApexDamageLevel Damage)
+	EApexDamageLevel Damage,
+	int32 AiSkill)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d locked_assists=%d conditions=%s damage=%d"),
-		*TrackConfigId, MaxPlayers, AiCount, LapLimit, AllowedAssists.CountLocked(), *Conditions.Describe(), static_cast<int32>(Damage));
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
+		*TrackConfigId, MaxPlayers, AiCount, LapLimit, AllowedAssists.CountLocked(), *Conditions.Describe(), static_cast<int32>(Damage),
+		AiSkill);
 	// The server holds one session per player: the menu's demo goes first,
 	// and the server takes a showcase viewer off their channel by itself.
 	LeaveDemoSession();
@@ -348,7 +350,8 @@ void UApexNetSubsystem::CreateSession(
 		SessionKind,
 		AllowedAssists,
 		Conditions,
-		Damage));
+		Damage,
+		AiSkill));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -880,10 +883,11 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentAllowedAssists = Message.AllowedAssists;
 		CurrentConditions = Message.Conditions;
 		CurrentDamage = Message.Damage;
+		CurrentAiSkill = Message.AiSkill;
 		DiscardTelemetryOfPreviousSession();
-		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d"),
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d AiSkill=%d"),
 			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe(),
-			static_cast<int32>(CurrentDamage));
+			static_cast<int32>(CurrentDamage), CurrentAiSkill);
 		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
 
 		// The cached lobby state predates this session, so anything resolving the
@@ -913,6 +917,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentAllowedAssists = FApexAllowedAssists();
 		CurrentConditions = FApexSessionConditions();
 		CurrentDamage = EApexDamageLevel::Full;
+		CurrentAiSkill = ApexAiSkill::Mixed;
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
 		ClearLapTiming();

@@ -124,6 +124,13 @@ pub struct AiDriverProfile {
 
     /// Preferred car configuration (if None, uses default car)
     pub preferred_car_id: Option<CarConfigId>,
+
+    /// Follow the raceline at the full `precision`, without the edge margin
+    /// every racing AI keeps (`MAX_LINE_PRECISION`). Only the track guide's
+    /// lone teaching car sets it: it is there to show the line, and a run
+    /// of it that leaves the road is simply driven again.
+    #[serde(default)]
+    pub exact_line: bool,
 }
 
 impl AiDriverProfile {
@@ -152,6 +159,7 @@ impl AiDriverProfile {
             randomness_scale: ((1.0 - normalized_skill) * 0.15).clamp(0.0, 1.0),
             consistency: (normalized_skill * 0.5 + 0.4).clamp(0.0, 1.0),
             preferred_car_id: None,
+            exact_line: false,
         }
     }
 
@@ -178,6 +186,7 @@ impl AiDriverProfile {
             randomness_scale: randomness_scale.clamp(0.0, 1.0),
             consistency: consistency.clamp(0.0, 1.0),
             preferred_car_id: None,
+            exact_line: false,
         }
     }
 
@@ -364,7 +373,12 @@ impl<'a> AiDriverController<'a> {
         // small permanent pull toward the centerline buys an edge margin.
         if matches!(line, RacingLineRef::Raceline { .. }) {
             const MAX_LINE_PRECISION: f32 = 0.85;
-            let precision = self.profile.precision.min(MAX_LINE_PRECISION);
+            let cap = if self.profile.exact_line {
+                1.0
+            } else {
+                MAX_LINE_PRECISION
+            };
+            let precision = self.profile.precision.min(cap);
             let d_center = (state.track_progress
                 + look_ahead * track_length / line_length.max(1.0))
             .rem_euclid(track_length.max(1e-3));
@@ -1161,14 +1175,58 @@ impl<'a> AiDriverController<'a> {
     }
 }
 
-/// Generate a set of default AI driver profiles with varying skill levels.
+/// How many skill points separate the slowest and the quickest driver of a
+/// field the host set a level for: close enough to race each other, far
+/// enough apart that they do not drive as one car.
+pub const AI_FIELD_SPREAD: u8 = 4;
+
+/// A skill level inside the bounds the drivers are built for.
+pub fn clamp_skill(skill: u8) -> u8 {
+    skill.clamp(MIN_SKILL_LEVEL, MAX_SKILL_LEVEL)
+}
+
+/// The skill of each of `count` AI drivers, in the order they are generated.
 ///
-/// # Arguments
-/// * `count` - Number of AI drivers to generate
-///
-/// # Returns
-/// A vector of AI driver profiles with names and varying skill levels
-pub fn generate_default_ai_profiles(count: u8) -> Vec<AiDriverProfile> {
+/// With a `level` (the host's pick on the create screen) the field is spread
+/// evenly over [`AI_FIELD_SPREAD`] points round it, shifted to stay inside
+/// the skill bounds, so a level of 110 is 106-110 rather than 108-112. With
+/// none it is the mixed field the server always had: every level from
+/// novice to ace, the first drivers the slowest.
+pub fn field_skills(count: u8, level: Option<u8>) -> Vec<u8> {
+    match level {
+        Some(level) => {
+            let level = clamp_skill(level);
+            let low = level
+                .saturating_sub(AI_FIELD_SPREAD / 2)
+                .clamp(MIN_SKILL_LEVEL, MAX_SKILL_LEVEL - AI_FIELD_SPREAD);
+            (0..count)
+                .map(|i| {
+                    if count == 1 {
+                        level
+                    } else {
+                        let share = i as f32 / (count - 1) as f32;
+                        low + (share * AI_FIELD_SPREAD as f32).round() as u8
+                    }
+                })
+                .collect()
+        }
+        None => {
+            let skill_range = MAX_SKILL_LEVEL - MIN_SKILL_LEVEL;
+            let skill_step = if count > 1 {
+                skill_range / (count - 1)
+            } else {
+                0
+            };
+            (0..count)
+                .map(|i| MIN_SKILL_LEVEL + i.saturating_mul(skill_step).min(skill_range))
+                .collect()
+        }
+    }
+}
+
+/// Generate `count` AI driver profiles at the skills [`field_skills`] gives
+/// for `level` (`None`: the mixed field).
+pub fn generate_ai_profiles(count: u8, level: Option<u8>) -> Vec<AiDriverProfile> {
     // List of AI driver names
     const AI_NAMES: &[&str] = &[
         "Max Voltage",
@@ -1189,25 +1247,20 @@ pub fn generate_default_ai_profiles(count: u8) -> Vec<AiDriverProfile> {
         "Gwen Apex",
     ];
 
-    let mut profiles = Vec::with_capacity(count as usize);
+    field_skills(count, level)
+        .into_iter()
+        .enumerate()
+        .map(|(i, skill)| {
+            let name = AI_NAMES.get(i).unwrap_or(&"AI Driver");
+            AiDriverProfile::new(*name, skill)
+        })
+        .collect()
+}
 
-    for i in 0..count {
-        let name = AI_NAMES.get(i as usize).unwrap_or(&"AI Driver");
-
-        // Distribute skill levels across the range
-        // First few AIs are easier, last few are harder
-        let skill_range = MAX_SKILL_LEVEL - MIN_SKILL_LEVEL;
-        let skill_step = if count > 1 {
-            skill_range / (count - 1)
-        } else {
-            0
-        };
-        let skill_level = MIN_SKILL_LEVEL + (i * skill_step).min(skill_range);
-
-        profiles.push(AiDriverProfile::new(*name, skill_level));
-    }
-
-    profiles
+/// Generate a set of default AI driver profiles with varying skill levels:
+/// the mixed field, novice to ace.
+pub fn generate_default_ai_profiles(count: u8) -> Vec<AiDriverProfile> {
+    generate_ai_profiles(count, None)
 }
 
 #[cfg(test)]
@@ -1219,6 +1272,43 @@ mod tests {
         let profile = AiDriverProfile::new("Test Driver", 85);
         assert_eq!(profile.name, "Test Driver");
         assert_eq!(profile.skill_level, 85);
+    }
+
+    #[test]
+    fn a_chosen_level_spreads_the_field_round_it() {
+        // Round the level, every driver within the spread, both ends used.
+        let skills = field_skills(5, Some(95));
+        assert_eq!(skills, vec![93, 94, 95, 96, 97]);
+        // Pushed inside the bounds at either end, never past them.
+        let top = field_skills(19, Some(MAX_SKILL_LEVEL));
+        assert_eq!(*top.iter().max().unwrap(), MAX_SKILL_LEVEL);
+        assert_eq!(
+            *top.iter().min().unwrap(),
+            MAX_SKILL_LEVEL - AI_FIELD_SPREAD
+        );
+        let bottom = field_skills(19, Some(0));
+        assert_eq!(*bottom.iter().min().unwrap(), MIN_SKILL_LEVEL);
+        assert_eq!(
+            *bottom.iter().max().unwrap(),
+            MIN_SKILL_LEVEL + AI_FIELD_SPREAD
+        );
+        // A lone driver drives at the level itself.
+        assert_eq!(field_skills(1, Some(101)), vec![101]);
+        assert!(field_skills(0, Some(90)).is_empty());
+    }
+
+    #[test]
+    fn the_mixed_field_runs_novice_to_ace() {
+        let skills = field_skills(5, None);
+        assert_eq!(skills, vec![70, 80, 90, 100, 110]);
+        assert_eq!(field_skills(1, None), vec![MIN_SKILL_LEVEL]);
+        // Many drivers: the step rounds down, never past the top.
+        let many = field_skills(19, None);
+        assert!(many
+            .iter()
+            .all(|s| (MIN_SKILL_LEVEL..=MAX_SKILL_LEVEL).contains(s)));
+        let profiles = generate_ai_profiles(3, Some(80));
+        assert!(profiles.iter().all(|p| (78..=82).contains(&p.skill_level)));
     }
 
     #[test]

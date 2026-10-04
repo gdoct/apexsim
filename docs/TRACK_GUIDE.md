@@ -40,6 +40,9 @@ three are merged into one stream with car 1 and car 2 following car 0 by
 another seed: a guide's car does not cut corners.
 
 Car 0 is the guide's car: every speed, gear and braking figure is its own.
+The cars follow the track's raceline exactly (`AiDriverProfile::exact_line`;
+a racing AI keeps to 85% of its offset); a track without one is driven on
+its centerline, so every shipped YAML must carry a `raceline`.
 
 ## `guide.json`
 

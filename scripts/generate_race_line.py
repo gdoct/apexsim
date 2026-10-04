@@ -3,8 +3,6 @@ import yaml
 import numpy as np
 from dataclasses import dataclass
 from typing import List, Optional
-from scipy.interpolate import CubicSpline
-from scipy.optimize import minimize
 
 
 # ------------------------------------------------------------
@@ -44,11 +42,14 @@ def build_arc_length(nodes: List[TrackNode]) -> np.ndarray:
     return np.concatenate(([0.0], np.cumsum(ds)))
 
 
-def interpolate_scalar(s: np.ndarray, values: np.ndarray) -> CubicSpline:
+def interpolate_scalar(s: np.ndarray, values: np.ndarray):
+    from scipy.interpolate import CubicSpline
     return CubicSpline(s, values, bc_type='periodic')
 
 
 def build_center_splines(nodes: List[TrackNode]):
+    # The old solver's dependency; the per-node --track mode needs only numpy.
+    from scipy.interpolate import CubicSpline
     # Detect closed loop
     is_closed = False
     if hasattr(nodes[0], "x") and hasattr(nodes[-1], "x"):
@@ -170,6 +171,7 @@ def ideal_racing_line(nodes: List[TrackNode],
         y = cy + ny * o
         return curvature_cost(x, y) + lambda_smooth * smoothness_cost(o)
 
+    from scipy.optimize import minimize
     res = minimize(
         objective,
         o0,
@@ -229,6 +231,118 @@ def save_raceline_to_track(path: str, result: IdealLineResult):
 
 
 # ------------------------------------------------------------
+# Per-node minimum-curvature line (the one tracks are given now)
+# ------------------------------------------------------------
+
+def min_curvature_line(data: dict, margin: float = 1.5, smooth: float = 1.0):
+    """The minimum-curvature line through a closed track, one point per node.
+
+    Each point is its node moved `o_i` along the node's left normal, and the
+    offsets minimise the squared second difference of the points (at even
+    node spacing, the curvature) plus `smooth` times that of the offsets,
+    inside the road less `margin` on each side. That is a bounded linear
+    least-squares problem, solved exactly (scipy's `lsq_linear`) rather than
+    by the finite-difference descent `ideal_racing_line` uses, which is too
+    slow and too coarse (400 samples) for a 13 km lap of 5 m nodes.
+    Returns arrays x, y, z (z is the node's own height).
+    """
+
+    nodes = data["nodes"]
+    n = len(nodes)
+    cx = np.array([nd["x"] for nd in nodes], dtype=float)
+    cy = np.array([nd["y"] for nd in nodes], dtype=float)
+    cz = np.array([nd.get("z", 0.0) or 0.0 for nd in nodes], dtype=float)
+    default_half = float(data.get("default_width") or 12.0) / 2.0
+
+    def half(nd, key):
+        v = nd.get(key)
+        if v is None:
+            w = nd.get("width")
+            return float(w) / 2.0 if w else default_half
+        return float(v)
+
+    wl = np.array([half(nd, "width_left") for nd in nodes])
+    wr = np.array([half(nd, "width_right") for nd in nodes])
+
+    # Left normals from the neighbours (closed loop).
+    tx = np.roll(cx, -1) - np.roll(cx, 1)
+    ty = np.roll(cy, -1) - np.roll(cy, 1)
+    tl = np.hypot(tx, ty)
+    tl[tl == 0] = 1e-9
+    nx, ny = -ty / tl, tx / tl
+
+    # Second difference on the closed loop as a dense matrix (n is a few
+    # thousand: a dense solve is a second or two, and needs only numpy).
+    eye = np.eye(n)
+    d2m = np.roll(eye, -1, axis=1) - 2.0 * eye + np.roll(eye, 1, axis=1)
+
+    def d2(v):
+        return np.roll(v, 1) - 2.0 * v + np.roll(v, -1)
+
+    # Points P = C + diag(n) o: minimise |D2(Cx + nx o)|^2 + |D2(Cy + ny o)|^2
+    # + smooth |D2 o|^2, i.e. the normal equations H o = g below.
+    ax = d2m * nx[None, :]
+    ay = d2m * ny[None, :]
+    h = ax.T @ ax + ay.T @ ay + smooth * (d2m.T @ d2m) + np.eye(n) * 1e-9
+    g = -(ax.T @ d2(cx) + ay.T @ d2(cy))
+
+    lo = -np.maximum(wr - margin, 0.0)
+    hi = np.maximum(wl - margin, 0.0)
+
+    # Active set: solve with the clamped offsets held at their bound, clamp
+    # whatever leaves the road, release a held offset whose gradient points
+    # back inside; until nothing changes.
+    at_lo = np.zeros(n, dtype=bool)
+    at_hi = np.zeros(n, dtype=bool)
+    o = np.zeros(n)
+    for _ in range(300):
+        fixed = at_lo | at_hi
+        free = ~fixed
+        o[at_lo] = lo[at_lo]
+        o[at_hi] = hi[at_hi]
+        rhs = g[free] - h[np.ix_(free, fixed)] @ o[fixed]
+        o[free] = np.linalg.solve(h[np.ix_(free, free)], rhs)
+        new_lo = free & (o < lo - 1e-6)
+        new_hi = free & (o > hi + 1e-6)
+        grad = h @ o - g  # gradient of the objective (halved)
+        release = (at_lo & (grad < 0)) | (at_hi & (grad > 0))
+        if not new_lo.any() and not new_hi.any() and not release.any():
+            break
+        at_lo = (at_lo | new_lo) & ~release
+        at_hi = (at_hi | new_hi) & ~release
+    o = np.clip(o, lo, hi)
+    return cx + nx * o, cy + ny * o, cz, o
+
+
+def write_raceline_in_place(path: str, x, y, z):
+    """Replace the YAML's `raceline:` block (or `raceline: []`) with the line,
+    in the shape every track file uses, leaving every other byte alone."""
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        text = f.read()
+    nl = "\r\n" if "\r\n" in text else "\n"
+    lines = text.split(nl)
+    start = next(i for i, l in enumerate(lines) if l.startswith("raceline:"))
+    end = start + 1
+    while end < len(lines) and (lines[end].startswith("- ") or lines[end].startswith("  ")):
+        end += 1
+    block = ["raceline:"]
+    for xi, yi, zi in zip(x, y, z):
+        block += [f"- x: {xi:.2f}", f"  y: {yi:.2f}", f"  z: {zi:.3f}"]
+    lines[start:end] = block
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(nl.join(lines))
+
+
+def process_track(path: str, margin: float = 1.5, smooth: float = 1.0):
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    x, y, z, o = min_curvature_line(data, margin=margin, smooth=smooth)
+    write_raceline_in_place(path, x, y, z)
+    print(f"{os.path.basename(path)}: {len(x)} points, offset {o.min():.1f} .. {o.max():.1f} m, "
+          f"mean |offset| {np.abs(o).mean():.1f} m")
+
+
+# ------------------------------------------------------------
 # Batch processing
 # ------------------------------------------------------------
 
@@ -254,10 +368,17 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Generate ideal racing lines for track YAML files.")
-    parser.add_argument("--input-folder", required=True, help="Folder containing track YAML files")
+    parser.add_argument("--input-folder", help="Folder containing track YAML files (the old 400-sample solver, rewrites each file)")
+    parser.add_argument("--track", nargs="*", default=[], help="Track YAML(s): a per-node minimum-curvature line, written in place")
+    parser.add_argument("--margin", type=float, default=1.5, help="Metres kept inside each road edge (--track)")
     parser.add_argument("--samples", type=int, default=400, help="Number of samples along the track")
     parser.add_argument("--smoothness", type=float, default=2.0, help="Smoothness weight")
 
     args = parser.parse_args()
 
-    process_folder(args.input_folder, samples=args.samples, smoothness=args.smoothness)
+    for track in args.track:
+        process_track(track, margin=args.margin, smooth=args.smoothness)
+    if args.input_folder:
+        process_folder(args.input_folder, samples=args.samples, smoothness=args.smoothness)
+    if not args.track and not args.input_folder:
+        parser.error("pass --track or --input-folder")

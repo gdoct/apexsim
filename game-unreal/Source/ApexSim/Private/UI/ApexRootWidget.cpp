@@ -1559,7 +1559,14 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 			: DamageText.Equals(TEXT("reduced"), ESearchCase::IgnoreCase) ? EApexDamageLevel::Reduced
 			: EApexDamageLevel::Full;
 	}
-	Net->CreateSession(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage);
+	// -ApexAiSkill=70..110: the AI field's level (the mixed field by default).
+	int32 AiSkill = ApexAiSkill::Mixed;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexAiSkill="), AiSkill))
+	{
+		AiSkill = ApexAiSkill::Clamp(AiSkill);
+	}
+	Net->CreateSession(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
+		AiSkill);
 }
 
 void UApexRootWidget::HandleUdpReady()

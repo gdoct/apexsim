@@ -90,6 +90,7 @@ impl DemoLapTestClient {
             allowed_assists: Default::default(),
             conditions: Default::default(),
             damage: Default::default(),
+            ai_skill: None,
         };
 
         self.send_message(&msg).await?;

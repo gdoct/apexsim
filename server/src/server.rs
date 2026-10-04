@@ -306,8 +306,9 @@ impl ServerState {
         lap_limit: u8,
         allowed_assists: AllowedAssists,
         conditions: SessionConditions,
+        ai_skill: Option<u8>,
     ) -> Option<SessionId> {
-        use crate::ai_driver::generate_default_ai_profiles;
+        use crate::ai_driver::{clamp_skill, generate_ai_profiles};
 
         if self.sessions.len() >= self.config.server.max_sessions as usize {
             return None;
@@ -336,13 +337,14 @@ impl ServerState {
         session.host_car_id = Some(host_car_id);
         session.allowed_assists = allowed_assists;
         session.conditions = conditions;
+        session.ai_skill = ai_skill.map(clamp_skill);
         let session_id = session.id;
 
         // Create AI profiles if AI count is specified
         // No preferred cars: the session deals the field from the host car's
         // class (`class_field`), and the roster tells clients who drives what.
         let ai_profiles = if ai_count > 0 {
-            generate_default_ai_profiles(ai_count)
+            generate_ai_profiles(ai_count, session.ai_skill)
         } else {
             Vec::new()
         };
@@ -621,10 +623,21 @@ mod tests {
             5,
             AllowedAssists::ALL,
             SessionConditions::DEFAULT,
+            Some(95),
         );
 
-        assert!(session_id.is_some());
+        let session_id = session_id.expect("session created");
         assert_eq!(state.sessions.len(), 1);
+        // The host's level: the field round it, not novice to ace.
+        let session = &state.sessions[&session_id];
+        assert_eq!(session.session.ai_skill, Some(95));
+        let skills: Vec<u8> = session
+            .ai_profiles
+            .values()
+            .map(|p| p.skill_level)
+            .collect();
+        assert_eq!(skills.len(), 2);
+        assert!(skills.iter().all(|s| (93..=97).contains(s)), "{skills:?}");
     }
 
     #[test]
@@ -649,6 +662,7 @@ mod tests {
                 3,
                 AllowedAssists::ALL,
                 SessionConditions::DEFAULT,
+                None,
             );
             assert!(result.is_some());
         }
@@ -664,6 +678,7 @@ mod tests {
             3,
             AllowedAssists::ALL,
             SessionConditions::DEFAULT,
+            None,
         );
         assert!(result.is_none());
     }

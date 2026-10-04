@@ -82,6 +82,7 @@ pub(crate) async fn handle_message(
             allowed_assists,
             conditions,
             damage,
+            ai_skill,
         } => {
             handle_create_session(
                 ctx,
@@ -94,6 +95,7 @@ pub(crate) async fn handle_message(
                 allowed_assists,
                 conditions,
                 damage,
+                ai_skill,
             )
             .await;
         }
@@ -259,6 +261,7 @@ async fn handle_create_session(
     allowed_assists: AllowedAssists,
     conditions: SessionConditions,
     damage: DamageLevel,
+    ai_skill: Option<u8>,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -306,6 +309,7 @@ async fn handle_create_session(
         lap_limit,
         allowed_assists,
         conditions,
+        ai_skill,
     ) else {
         warn!(
             "Failed to create session for player {}: track_id={}",
@@ -433,6 +437,7 @@ async fn handle_create_session(
         let allowed_assists = game_session.session.allowed_assists;
         let conditions = game_session.session.conditions;
         let damage = game_session.session.damage;
+        let ai_skill = game_session.session.ai_skill;
         drop(state_write);
         let _ = ctx
             .send(
@@ -444,6 +449,7 @@ async fn handle_create_session(
                     allowed_assists,
                     conditions,
                     damage,
+                    ai_skill,
                 }),
             )
             .await;
@@ -484,10 +490,10 @@ async fn start_demo_session(
     connection_id: ConnectionId,
     session_id: SessionId,
 ) {
-    let conditions = state_write
+    let (conditions, ai_skill) = state_write
         .sessions
         .get(&session_id)
-        .map(|s| s.session.conditions)
+        .map(|s| (s.session.conditions, s.session.ai_skill))
         .unwrap_or_default();
     let joined = state_write
         .lobby
@@ -533,6 +539,7 @@ async fn start_demo_session(
                 allowed_assists: AllowedAssists::ALL,
                 conditions,
                 damage: DamageLevel::Full,
+                ai_skill,
             }),
         )
         .await;
@@ -612,6 +619,7 @@ async fn handle_join_session(
         let allowed_assists = game_session.session.allowed_assists;
         let conditions = game_session.session.conditions;
         let damage = game_session.session.damage;
+        let ai_skill = game_session.session.ai_skill;
         drop(state_write);
         let _ = ctx
             .send(
@@ -623,6 +631,7 @@ async fn handle_join_session(
                     allowed_assists,
                     conditions,
                     damage,
+                    ai_skill,
                 }),
             )
             .await;
@@ -765,13 +774,13 @@ async fn handle_join_as_spectator(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
-    let (joined, session_kind, allowed_assists, conditions, damage, sectors) = {
+    let (joined, session_kind, allowed_assists, conditions, damage, ai_skill, sectors) = {
         let mut state_write = ctx.state.write().await;
         let joined = state_write
             .lobby
             .join_as_spectator(conn_info.player_id, session_id)
             .await;
-        let (session_kind, allowed_assists, conditions, damage, sectors) = state_write
+        let (session_kind, allowed_assists, conditions, damage, ai_skill, sectors) = state_write
             .sessions
             .get_mut(&session_id)
             .map(|s| {
@@ -785,6 +794,7 @@ async fn handle_join_as_spectator(
                     s.session.allowed_assists,
                     s.session.conditions,
                     s.session.damage,
+                    s.session.ai_skill,
                     Some(ServerMessage::TrackSectors(TrackSectorsData {
                         session_id,
                         track_length_m: s.track_length_m(),
@@ -799,6 +809,7 @@ async fn handle_join_as_spectator(
             allowed_assists,
             conditions,
             damage,
+            ai_skill,
             sectors,
         )
     };
@@ -818,6 +829,7 @@ async fn handle_join_as_spectator(
                     allowed_assists,
                     conditions,
                     damage,
+                    ai_skill,
                 }),
             )
             .await;

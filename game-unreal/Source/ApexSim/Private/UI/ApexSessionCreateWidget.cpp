@@ -126,6 +126,19 @@ namespace
 		{ TEXT("Dawn"), 6 * 60 + 15 }, { TEXT("Noon"), 13 * 60 }, { TEXT("Dusk"), 20 * 60 + 30 }, { TEXT("Night"), 23 * 60 },
 	};
 
+	/** "Pro 93-97" for a level, "Mixed" for the mixed field: what the AI
+	 * level card and the footer say about the field. */
+	FString AiSkillSummary(int32 Skill)
+	{
+		const int32 Level = ApexAiSkill::Clamp(Skill);
+		if (Level == ApexAiSkill::Mixed)
+		{
+			return TEXT("Mixed");
+		}
+		const int32 Low = FMath::Clamp(Level - ApexAiSkill::Spread / 2, ApexAiSkill::Min, ApexAiSkill::Max - ApexAiSkill::Spread);
+		return FString::Printf(TEXT("%s %d-%d"), ApexAiSkill::Label(Level), Low, Low + ApexAiSkill::Spread);
+	}
+
 	/** The wind's strengths offered, km/h; the last chip is Auto. */
 	constexpr int32 WindPresetsKph[] = {0, 12, 22, 35};
 	const TCHAR* WindPresetLabels[] = {TEXT("Calm"), TEXT("Light"), TEXT("Breezy"), TEXT("Strong")};
@@ -356,6 +369,8 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		Out.Add(FieldPlus);
 		Out.Add(AiMinus);
 		Out.Add(AiPlus);
+		Out.Add(AiSkillMinus);
+		Out.Add(AiSkillPlus);
 		AddAll(AssistPresetButtons);
 		AddAll(AssistButtons);
 		AddAll(DamageButtons);
@@ -963,6 +978,10 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		UHorizontalBox* Cards = WidgetTree->ConstructWidget<UHorizontalBox>();
 		UTextBlock* FieldLabel = nullptr;
 		UTextBlock* AiLabel = nullptr;
+		UTextBlock* SkillLabel = nullptr;
+		UApexButtonWidget* SMinus = nullptr;
+		UApexButtonWidget* SPlus = nullptr;
+		UTextBlock* SValue = nullptr;
 		UApexButtonWidget* FMinus = nullptr;
 		UApexButtonWidget* FPlus = nullptr;
 		UTextBlock* FValue = nullptr;
@@ -979,6 +998,16 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		AiPlus = APlus;
 		AiValueText = AValue;
 		ApexUI::AddV(Section, Cards);
+
+		// A rule of the session, like the damage: the server seats the
+		// whole field within a few points of this level. A row of its own:
+		// a third card beside the counts squeezed every label into its
+		// stepper.
+		ApexUI::AddV(Section, MakeCard(TEXT("AI level"), SkillLabel, SMinus, SValue, SPlus), FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		AiSkillLabelText = SkillLabel;
+		AiSkillMinus = SMinus;
+		AiSkillPlus = SPlus;
+		AiSkillValueText = SValue;
 		FieldSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
@@ -1660,6 +1689,18 @@ void UApexSessionCreateWidget::RefreshSettings()
 	if (FieldLabelText) { FieldLabelText->SetText(FText::FromString(bMultiplayer ? TEXT("Grid size") : TEXT("Field"))); }
 	if (FieldValueText) { FieldValueText->SetText(FText::AsNumber(G.Field)); }
 	if (AiValueText)    { AiValueText->SetText(FText::AsNumber(G.Ai)); }
+	const int32 AiSkill = ApexAiSkill::Clamp(Flow->CreateAiSkill);
+	if (AiSkillValueText)
+	{
+		AiSkillValueText->SetText(FText::FromString(AiSkill == ApexAiSkill::Mixed ? FString(TEXT("MIX")) : FString::FromInt(AiSkill)));
+	}
+	if (AiSkillLabelText)
+	{
+		AiSkillLabelText->SetText(FText::FromString(AiSkill == ApexAiSkill::Mixed
+			? FString(TEXT("AI level  ·  Mixed, novice to ace"))
+			: FString::Printf(TEXT("AI level  ·  %s"), *AiSkillSummary(AiSkill))));
+		AiSkillLabelText->SetColorAndOpacity(FSlateColor(G.Ai > 0 ? ApexUI::Palette::TextPrimary : ApexUI::Palette::TextMuted));
+	}
 	if (FieldInfoText)
 	{
 		FieldInfoText->SetText(FText::FromString(bMultiplayer
@@ -1669,6 +1710,8 @@ void UApexSessionCreateWidget::RefreshSettings()
 	if (FieldMinus) { FieldMinus->SetIsEnabled(G.Field > 1); }
 	if (FieldPlus)  { FieldPlus->SetIsEnabled(G.Field < MaxPlayersCeiling); }
 	if (AiMinus)    { AiMinus->SetIsEnabled(G.Ai > 0); }
+	if (AiSkillMinus) { AiSkillMinus->SetIsEnabled(G.Ai > 0 && AiSkill != ApexAiSkill::Mixed); }
+	if (AiSkillPlus)  { AiSkillPlus->SetIsEnabled(G.Ai > 0 && AiSkill < ApexAiSkill::Max); }
 	if (AiPlus)     { AiPlus->SetIsEnabled(bMultiplayer ? G.Ai < G.Field - 1 : G.Field < MaxPlayersCeiling); }
 
 	const int32 Preset = ApexCreateSession::MatchingPreset(Flow->CreateAllowedAssists);
@@ -2105,6 +2148,10 @@ void UApexSessionCreateWidget::RefreshFooter()
 		if (Mode != EApexGameMode::Hotlap)
 		{
 			Parts.Add(FString::Printf(TEXT("%d CARS"), G.Field));
+			if (G.Ai > 0)
+			{
+				Parts.Add(FString::Printf(TEXT("AI %s"), *AiSkillSummary(Flow->CreateAiSkill).ToUpper()));
+			}
 		}
 		Parts.Add(C.ClockText());
 		Parts.Add(FApexSessionConditions::WeatherLabel(C.Weather).ToUpper());
@@ -2283,8 +2330,8 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Flow->bAutoStartOnJoin = false;
 		Flow->SaveProfile();
 
-		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI, %d laps, kind %d, %d assists locked, %s, damage %d"),
-			*Flow->GetPendingTrackId(), Flow->CreateMaxPlayers, Flow->EffectiveAiCount(),
+		UE_LOG(LogApexSim, Log, TEXT("Create session: track '%s', %d players, %d AI at %d, %d laps, kind %d, %d assists locked, %s, damage %d"),
+			*Flow->GetPendingTrackId(), Flow->CreateMaxPlayers, Flow->EffectiveAiCount(), Flow->CreateAiSkill,
 			Flow->EffectiveLapLimit(), static_cast<int32>(Flow->CreateSessionKind),
 			Flow->CreateAllowedAssists.CountLocked(), *Flow->CreateConditions.Describe(),
 			static_cast<int32>(Flow->CreateDamage));
@@ -2297,7 +2344,8 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->CreateSessionKind,
 			Flow->CreateAllowedAssists,
 			Flow->CreateConditions,
-			Flow->CreateDamage);
+			Flow->CreateDamage,
+			Flow->CreateAiSkill);
 		return;
 	}
 
@@ -2344,6 +2392,12 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Button == AiMinus || Button == AiPlus)
 	{
 		SetAiCount(FMath::Min(Flow->CreateAiCount, FMath::Max(0, Flow->CreateMaxPlayers - 1)) + (Button == AiPlus ? 1 : -1));
+		return;
+	}
+	if (Button == AiSkillMinus || Button == AiSkillPlus)
+	{
+		Flow->CreateAiSkill = ApexAiSkill::Step(Flow->CreateAiSkill, Button == AiSkillPlus ? 1 : -1);
+		Changed();
 		return;
 	}
 	if (const int32 Position = ApexNav::IndexOf(SlotButtons, Button); Position != INDEX_NONE)

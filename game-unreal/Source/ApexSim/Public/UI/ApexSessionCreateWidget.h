@@ -184,6 +184,11 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AiMinus;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AiPlus;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> AiValueText;
+	/** The AI field's level (ApexAiSkill), Mixed below the bottom step; the label names its band. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> AiSkillLabelText;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AiSkillMinus;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AiSkillPlus;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> AiSkillValueText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AssistPresetButtons;
 	/** One toggle per driving aid the session may allow, in EApexAssistChip order. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AssistButtons;

@@ -481,6 +481,7 @@ namespace
 			else if (Key == TEXT("AllowedAssists"))    { bOk = ParseAllowedAssists(Reader, Out.AllowedAssists); }
 			else if (Key == TEXT("Conditions"))        { bOk = ParseSessionConditions(Reader, Out.Conditions); }
 			else if (Key == TEXT("Damage"))            { bOk = Reader.ReadUInt64(Raw); Out.Damage = static_cast<EApexDamageLevel>(FMath::Min<uint64>(Raw, 2)); }
+			else if (Key == TEXT("AiSkill"))           { bOk = Reader.ReadUInt64(Raw); Out.AiSkill = ApexAiSkill::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -1810,13 +1811,17 @@ namespace ApexProtocol
 		EApexSessionKind SessionKind,
 		const FApexAllowedAssists& AllowedAssists,
 		const FApexSessionConditions& Conditions,
-		EApexDamageLevel Damage)
+		EApexDamageLevel Damage,
+		int32 AiSkill)
 	{
-		// Full damage is left off, as the server does: an older server's
-		// create, and every full-damage one, keep their bytes.
+		// Full damage and the mixed AI field are left off, as the server
+		// does: an older server's create, and every create that picks
+		// neither, keep their bytes.
 		const bool bDamage = Damage != EApexDamageLevel::Full;
+		const int32 Skill = ApexAiSkill::Clamp(AiSkill);
+		const bool bAiSkill = Skill != ApexAiSkill::Mixed;
 		FMsgPackWriter Writer(320);
-		BeginDataVariant(Writer, "CreateSession", bDamage ? 8 : 7);
+		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -1835,6 +1840,11 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("damage");
 			Writer.WriteUInt(static_cast<uint8>(Damage));
+		}
+		if (bAiSkill)
+		{
+			Writer.WriteString("ai_skill");
+			Writer.WriteUInt(static_cast<uint8>(Skill));
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

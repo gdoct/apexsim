@@ -67,6 +67,10 @@ public:
 	UPROPERTY()
 	EApexDamageLevel Damage = EApexDamageLevel::Full;
 
+	/** The AI field's level in a session this player creates (ApexAiSkill; -1 mixed). */
+	UPROPERTY()
+	int32 AiSkill = -1;
+
 	/** Track UUID -> best lap in seconds. Populated by the results screen. */
 	UPROPERTY()
 	TMap<FString, float> BestLapSeconds;

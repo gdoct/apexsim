@@ -98,6 +98,7 @@ async fn a_spectator_joining_mid_race_gets_the_roster_and_the_sectors() {
             allowed_assists: AllowedAssists::ALL,
             conditions: SessionConditions::DEFAULT,
             damage: Default::default(),
+            ai_skill: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

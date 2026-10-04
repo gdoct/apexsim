@@ -118,6 +118,7 @@ async fn the_first_session_on_a_track_loads_its_sidecars_and_keeps_message_order
             allowed_assists: AllowedAssists::ALL,
             conditions: SessionConditions::DEFAULT,
             damage: Default::default(),
+            ai_skill: None,
         })
         .await?;
         host.send(&ClientMessage::LeaveSession).await?;

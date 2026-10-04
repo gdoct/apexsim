@@ -100,6 +100,53 @@ enum class EApexDamageLevel : uint8
 };
 
 /**
+ * The AI field's level, as CreateSession's `ai_skill` and SessionJoined's
+ * `AiSkill` carry it (ai_driver.rs `field_skills`): the skill the field is
+ * spread round, Min to Max, or Mixed, the server's field of every level
+ * from novice to ace, which is left off the wire. A rule of the session,
+ * picked by its host on create.
+ */
+namespace ApexAiSkill
+{
+	constexpr int32 Mixed = -1;
+	/** `MIN_SKILL_LEVEL` / `MAX_SKILL_LEVEL`. */
+	constexpr int32 Min = 70;
+	constexpr int32 Max = 110;
+	/** Skill points between a field's slowest and quickest (`AI_FIELD_SPREAD`). */
+	constexpr int32 Spread = 4;
+
+	/** A level inside the bounds; anything negative is the mixed field. */
+	inline int32 Clamp(int32 Skill)
+	{
+		return Skill < 0 ? Mixed : FMath::Clamp(Skill, Min, Max);
+	}
+
+	/** One step of the create screen's stepper: Mixed sits below Min. */
+	inline int32 Step(int32 Skill, int32 Delta)
+	{
+		const int32 Current = Clamp(Skill);
+		if (Current == Mixed)
+		{
+			return Delta > 0 ? Min : Mixed;
+		}
+		const int32 Next = Current + Delta;
+		return Next < Min ? Mixed : FMath::Min(Next, Max);
+	}
+
+	/** What a level is called, after ai_driver.rs's bands; "Mixed" for the mixed field. */
+	inline const TCHAR* Label(int32 Skill)
+	{
+		const int32 Level = Clamp(Skill);
+		return Level == Mixed ? TEXT("Mixed")
+			: Level <= 80     ? TEXT("Novice")
+			: Level <= 90     ? TEXT("Amateur")
+			: Level <= 100    ? TEXT("Pro")
+			: Level <= 105    ? TEXT("Expert")
+			:                   TEXT("Alien");
+	}
+}
+
+/**
  * Mirrors `CarSetup` (car_setup.rs): the garage setup as *clicks* per knob,
  * one signed integer each, so neither the wire nor the client needs the
  * car's base figures — the server turns "+2" into newtons per metre against
@@ -1718,6 +1765,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexSessionConditions Conditions;
 	/** SessionJoined::Damage, the session's damage rule; full when absent. */
 	EApexDamageLevel Damage = EApexDamageLevel::Full;
+	/** SessionJoined::AiSkill, the AI field's level (ApexAiSkill); Mixed when absent. */
+	int32 AiSkill = ApexAiSkill::Mixed;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

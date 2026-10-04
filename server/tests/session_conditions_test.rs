@@ -10,6 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout};
 
+use apexsim_server::ai_driver::{AI_FIELD_SPREAD, MAX_SKILL_LEVEL};
 use apexsim_server::data::*;
 use apexsim_server::network::{ClientMessage, LobbyStateData, ServerMessage, SessionJoinedData};
 
@@ -117,6 +118,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             allowed_assists: AllowedAssists::ALL,
             conditions: asked,
             damage: Default::default(),
+            ai_skill: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -285,6 +287,7 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             allowed_assists: AllowedAssists::ALL,
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Off,
+            ai_skill: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -320,6 +323,62 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             assert_eq!(car.damage_level, Some(DamageLevel::Off));
             assert_eq!(car.damage_scale(), 0.0);
         }
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => panic!("test failed: {e}"),
+        Err(_) => panic!("test timed out"),
+    }
+}
+
+/// The AI's level is the host's pick: the field is seated round it rather
+/// than novice to ace, and every driver is told it on joining.
+#[tokio::test]
+async fn the_hosts_ai_level_sets_the_field() {
+    let result = timeout(TEST_TIMEOUT, async {
+        let server = common::start_test_server().await;
+        let (mut host, lobby) = Client::connect("Host", server.tcp_addr).await?;
+        let car_id = lobby.car_configs.first().ok_or("no cars")?.id;
+        let track_id = lobby.track_configs.first().ok_or("no tracks")?.id;
+
+        host.send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+            livery: 0,
+        })
+        .await?;
+        sleep(Duration::from_millis(50)).await;
+        host.send(&ClientMessage::CreateSession {
+            track_config_id: track_id,
+            max_players: 8,
+            ai_count: 5,
+            lap_limit: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            // Past the top: the server keeps it inside the bounds.
+            ai_skill: Some(150),
+        })
+        .await?;
+        let joined = host.wait_joined().await?;
+        assert_eq!(joined.ai_skill, Some(MAX_SKILL_LEVEL), "echoed, clamped");
+
+        let state = server.state.read().await;
+        let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
+        let mut skills: Vec<u8> = session
+            .session
+            .ai_player_ids
+            .iter()
+            .filter_map(|id| session.get_ai_profile(id))
+            .map(|p| p.skill_level)
+            .collect();
+        skills.sort_unstable();
+        assert_eq!(skills.len(), 5);
+        assert_eq!(skills.first(), Some(&(MAX_SKILL_LEVEL - AI_FIELD_SPREAD)));
+        assert_eq!(skills.last(), Some(&MAX_SKILL_LEVEL));
         Ok::<(), Box<dyn std::error::Error>>(())
     })
     .await;

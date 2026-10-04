@@ -1848,7 +1848,16 @@ apexsim-replay guide --all --missing-only        # only guides older than their 
   re-run a step of skill lower (at 110 the AI has no randomness, so
   another seed is the same lap); a car that cannot make a lap (two GT3s
   cook their engine at Le Mans, docs/SIMULATION_GAPS.md) hands its place
-  to the next of the class. Conditions: sunny 13:00, no wind.
+  to the next of the class. Conditions: sunny 13:00, no wind. The guide
+  car sets `AiDriverProfile::exact_line`, which lifts the 0.85 cap
+  (`MAX_LINE_PRECISION`) every racing AI keeps off the edge, so it drives
+  the raceline itself: the tool prints each run's RMS distance from the
+  raceline and the centerline (0.3-0.5 m against 3-4 m on most circuits).
+  A track with no `raceline` is driven on its centerline, by the guide and
+  by every race; Le Mans had none until 2026-10-04 (`python
+  scripts/generate_race_line.py --track <yaml>`: a per-node
+  minimum-curvature line 1.5 m inside the edges, numpy only, written in
+  place of the `raceline:` block; re-export the track after).
 - **Corners** (`detect_corners`): curvature every 2 m smoothed over
   24 m, runs tighter than 450 m radius for 30 m and 15 degrees, same-hand
   runs within 30 m merged (a double apex), and runs within 30 m of each
@@ -2184,6 +2193,26 @@ session was created with) as `CarState::damage_level`, and is echoed in
 (0, `REDUCED_SHARE` 0.5, 1); what damage already done costs is unchanged.
 A `damage` key an older client still sends in `SetDriverAids` is ignored.
 `-ApexAutoRace -ApexDamage=off|reduced|full` sets it for an unattended run.
+**The AI's level** is a rule of the session too (2026-10-04): the create
+screen's "AI level" stepper beside the AI count (`MIX`, then 70-110,
+`UApexMenuFlowSubsystem::CreateAiSkill`, kept on the profile; Novice to
+80, Amateur to 90, Pro to 100, Expert to 105, Alien above,
+`ApexAiSkill::Label`) goes out as `CreateSession.ai_skill` (left off the
+wire for the mixed field, so an old client's create keeps its bytes),
+lives on `RaceSession::ai_skill` and is echoed in `SessionJoined.AiSkill`
+(`UApexNetSubsystem::GetSessionAiSkill`). The server seats the field at
+`ai_driver::field_skills`: spread evenly over `AI_FIELD_SPREAD` (4)
+points round the level, shifted inside 70-110, or, with no level, the
+mixed field it always had (every level from novice to ace, the first
+drivers slowest). The skill scales the AI's share of its speed profile
+(`PROFILE_NOVICE_PACE` 0.85 to `PROFILE_ACE_PACE` 0.98), its grip and
+braking budgets, its steering gain and lag and its shift point, and
+through the profile derived from it (`AiDriverProfile::new`) its reaction
+time, precision, aggression and noise.
+`-ApexAutoRace -ApexAiSkill=N` sets it for an unattended run. Golden
+bytes: `cargo test session_ai_skill_wire_format -- --nocapture` ->
+`ApexGolden::C_CreateSessionAiSkill` / `S_SessionJoinedAiSkill`;
+`tests/session_conditions_test.rs` `the_hosts_ai_level_sets_the_field`.
 ABS and traction control are
 `Option`s on the server (`CarState::abs`, `CarState::traction_control`) so an
 AI, or a client from before the fields, drives the car as its `car.toml`

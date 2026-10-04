@@ -129,6 +129,14 @@ public:
 	EApexDamageLevel CreateDamage = EApexDamageLevel::Full;
 
 	/**
+	 * The AI field's level (ApexAiSkill): the skill the server spreads the
+	 * field round, or -1 for its mixed field of every level, novice to ace.
+	 * A rule of the session, like the damage.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateAiSkill = -1;
+
+	/**
 	 * The mode a session is counted into once it starts.
 	 *
 	 * Not part of CreateSession — the server always creates a session in Lobby —

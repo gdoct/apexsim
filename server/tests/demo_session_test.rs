@@ -101,6 +101,7 @@ async fn test_demo_session_is_a_private_ai_race_watched_by_its_creator() {
         allowed_assists: Default::default(),
         conditions: Default::default(),
         damage: Default::default(),
+        ai_skill: None,
     })
     .await;
 

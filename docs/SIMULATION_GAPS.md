@@ -674,7 +674,22 @@ here as well as under its item.
   Replays screen's Keep and Delete, the watch view on a pad, and a live
   race finishing while watched (the results as a spectator).
 
+**AI level** (`CreateSession.ai_skill`, 2026-10-04)
+- One level for the whole field, a few points wide; no per-driver levels
+  or names, and no separate knob for aggression or consistency (both are
+  derived from the skill, `AiDriverProfile::new`).
+- The level has not been calibrated against lap times: what 95 means at
+  Monza in a GT3 against a human's lap is not measured, so the labels
+  (Novice ... Alien) are the bands' names, not a promise.
+- `apexsim-replay render` and the AI survey still race the mixed field;
+  the showcases and the demo race have no level.
+- The new profile default is the mixed field (as before), not a level.
+
 **Built but never seen in the running game** (automation tests only)
+- The create screen's AI level stepper: seen laid out (screenshot, no AI
+  in the field, so muted) but never clicked through, and no race has been
+  driven against a levelled field; the wire is pinned by golden bytes and
+  the server's end-to-end test.
 - ~~The HUD's tyre row and TOW badge~~: seen 2026-10-03, watching a live
   LMP2 race at Zandvoort (TOW 4% and 12%, temperatures, pressures, wear).
 - The hotlap garage's Aero section (wings, ride heights).

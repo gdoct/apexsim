@@ -756,7 +756,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->CreateSessionKind,
 		Flow->CreateAllowedAssists,
 		Flow->CreateConditions,
-		Flow->CreateDamage);
+		Flow->CreateDamage,
+		Flow->CreateAiSkill);
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

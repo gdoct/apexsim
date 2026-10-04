@@ -35,7 +35,8 @@ namespace ApexProtocol
 		EApexSessionKind SessionKind,
 		const FApexAllowedAssists& AllowedAssists,
 		const FApexSessionConditions& Conditions,
-		EApexDamageLevel Damage = EApexDamageLevel::Full);
+		EApexDamageLevel Damage = EApexDamageLevel::Full,
+		int32 AiSkill = ApexAiSkill::Mixed);
 	APEXSIMNET_API TArray<uint8> EncodeJoinSession(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeJoinAsSpectator(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeLeaveSession();

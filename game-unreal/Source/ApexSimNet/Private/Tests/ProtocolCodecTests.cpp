@@ -129,6 +129,19 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
 			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Reduced),
 		ApexGolden::C_CreateSessionDamage);
+	CheckBytes(TEXT("CreateSession with an AI level"),
+		ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, 95),
+		ApexGolden::C_CreateSessionAiSkill);
+	{
+		// The mixed field is left off: a create that names no level keeps
+		// the bytes of one from before the field.
+		const TArray<uint8> Mixed = ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Reduced, ApexAiSkill::Mixed);
+		CheckBytes(TEXT("CreateSession, mixed AI, has no ai_skill"), Mixed, ApexGolden::C_CreateSessionDamage);
+	}
 
 	{
 		FApexCarSetup Setup;
@@ -304,7 +317,29 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("Damage"), Message.Damage, EApexDamageLevel::Off);
 			TestEqual(TEXT("NoDamage.CountLocked"), Message.AllowedAssists.CountLocked(), 0);
+			TestEqual(TEXT("NoDamage.AiSkill (mixed when absent)"), Message.AiSkill, ApexAiSkill::Mixed);
 		}
+	}
+
+	{
+		// The AI field's level is named only when the host picked one.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with an AI level"), ApexGolden::S_SessionJoinedAiSkill, Message))
+		{
+			TestEqual(TEXT("AiSkill"), Message.AiSkill, 95);
+			TestEqual(TEXT("AiSkill.Damage"), Message.Damage, EApexDamageLevel::Full);
+		}
+	}
+
+	{
+		// The stepper's walk: Mixed below the bottom, the top held.
+		TestEqual(TEXT("AiSkill.Step up from mixed"), ApexAiSkill::Step(ApexAiSkill::Mixed, 1), ApexAiSkill::Min);
+		TestEqual(TEXT("AiSkill.Step down from mixed"), ApexAiSkill::Step(ApexAiSkill::Mixed, -1), ApexAiSkill::Mixed);
+		TestEqual(TEXT("AiSkill.Step below the bottom"), ApexAiSkill::Step(ApexAiSkill::Min, -1), ApexAiSkill::Mixed);
+		TestEqual(TEXT("AiSkill.Step past the top"), ApexAiSkill::Step(ApexAiSkill::Max, 1), ApexAiSkill::Max);
+		TestEqual(TEXT("AiSkill.Clamp"), ApexAiSkill::Clamp(150), ApexAiSkill::Max);
+		TestEqual(TEXT("AiSkill.Label"), FString(ApexAiSkill::Label(95)), FString(TEXT("Pro")));
+		TestEqual(TEXT("AiSkill.Label mixed"), FString(ApexAiSkill::Label(ApexAiSkill::Mixed)), FString(TEXT("Mixed")));
 	}
 
 	{

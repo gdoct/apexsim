@@ -212,7 +212,8 @@ public:
 	/**
 	 * AllowedAssists: which driving aids the session lets its drivers use
 	 * (every one by default). Conditions: its weather and clock. Damage: how
-	 * much damage every car in it takes, AI included.
+	 * much damage every car in it takes, AI included. AiSkill: the AI
+	 * field's level (ApexAiSkill; -1 for every level, novice to ace).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void CreateSession(
@@ -223,7 +224,8 @@ public:
 		EApexSessionKind SessionKind,
 		const FApexAllowedAssists& AllowedAssists,
 		const FApexSessionConditions& Conditions,
-		EApexDamageLevel Damage = EApexDamageLevel::Full);
+		EApexDamageLevel Damage = EApexDamageLevel::Full,
+		int32 AiSkill = -1);
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -401,6 +403,13 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	EApexDamageLevel GetSessionDamage() const { return CurrentDamage; }
+
+	/**
+	 * The AI field's level in the session this client is in, from its
+	 * SessionJoined (ApexAiSkill): -1 for the mixed field, and outside one.
+	 */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	int32 GetSessionAiSkill() const { return CurrentAiSkill; }
 
 	// --- State ----------------------------------------------------------------
 
@@ -598,6 +607,7 @@ private:
 	/** From the session's SessionJoined, demo or not; reset when it is left. */
 	FApexSessionConditions CurrentConditions;
 	EApexDamageLevel CurrentDamage = EApexDamageLevel::Full;
+	int32 CurrentAiSkill = ApexAiSkill::Mixed;
 
 	// --- Demo session -----------------------------------------------------------
 

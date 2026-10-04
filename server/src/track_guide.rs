@@ -591,6 +591,49 @@ pub struct SoloRun {
     /// Seconds of the flying lap with all four wheels off the track.
     pub off_track_s: f32,
     pub seed: u64,
+    /// Root-mean-square distance of the car from the raceline, and from the
+    /// centerline, over the flying lap: how well it shows the line.
+    pub line_rms_m: f32,
+    pub center_rms_m: f32,
+}
+
+/// RMS distance of `rows` from the closed polyline through `points` (x, y):
+/// the nearest vertex, then the segments either side of it (a car on a line
+/// of 5 m points would otherwise read over a metre off it).
+fn rms_distance(rows: &[CarRow], points: &[(f32, f32)]) -> f32 {
+    let n = points.len();
+    if rows.is_empty() || n < 2 {
+        return 0.0;
+    }
+    let to_segment = |x: f32, y: f32, a: (f32, f32), b: (f32, f32)| -> f32 {
+        let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+        let len2 = dx * dx + dy * dy;
+        let t = if len2 > 0.0 {
+            (((x - a.0) * dx + (y - a.1) * dy) / len2).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        (x - (a.0 + t * dx)).hypot(y - (a.1 + t * dy))
+    };
+    let mut sum = 0.0f64;
+    for row in rows {
+        let (x, y) = (row.x_m(), row.y_m());
+        let i = (0..n)
+            .min_by(|&i, &j| {
+                let di = (points[i].0 - x).powi(2) + (points[i].1 - y).powi(2);
+                let dj = (points[j].0 - x).powi(2) + (points[j].1 - y).powi(2);
+                di.total_cmp(&dj)
+            })
+            .unwrap_or(0);
+        let d = to_segment(x, y, points[(i + n - 1) % n], points[i]).min(to_segment(
+            x,
+            y,
+            points[i],
+            points[(i + 1) % n],
+        ));
+        sum += (d * d) as f64;
+    }
+    (sum / rows.len() as f64).sqrt() as f32
 }
 
 /// A session of one AI car, on the grid and counting down.
@@ -606,6 +649,7 @@ fn solo_session(
     let mut profile = AiDriverProfile::new(driver, skill);
     profile.id = seeded_id(seed, 0);
     profile.preferred_car_id = Some(car);
+    profile.exact_line = true;
     let mut session = RaceSession::new(
         seeded_id(seed, u64::MAX),
         track.id,
@@ -745,7 +789,16 @@ pub fn solo_run(
         ((lap_end - lap_start) as f32 * frame_s * 1000.0) as u32,
         off_frames == 0,
     ));
+    let lap_rows = &rows[lap_start..lap_end];
+    let line: Vec<(f32, f32)> = track.raceline.iter().map(|p| (p.x, p.y)).collect();
+    let center: Vec<(f32, f32)> = track.centerline.iter().map(|p| (p.x, p.y)).collect();
+    // Every fourth frame is plenty for an average.
+    let sampled: Vec<CarRow> = lap_rows.iter().step_by(4).copied().collect();
+    let line_rms_m = rms_distance(&sampled, &line);
+    let center_rms_m = rms_distance(&sampled, &center);
     Ok(SoloRun {
+        line_rms_m,
+        center_rms_m,
         car_id: car,
         driver: driver.to_string(),
         rows,

@@ -492,8 +492,14 @@ fn run_guide(args: GuideArgs) -> Result<(), String> {
                         .filter(|(_, r)| !r.valid || r.off_track_s > 0.0)
                         .map(|(k, r)| format!("car {} {:.1} s off", k + 1, r.off_track_s))
                         .collect();
+                    let line_rms = built
+                        .runs
+                        .iter()
+                        .map(|r| format!("{:.1}/{:.1}", r.line_rms_m, r.center_rms_m))
+                        .collect::<Vec<_>>()
+                        .join(" ");
                     eprintln!(
-                        "{stem} {class}: {} corners, lap {:.3} s{} in {:.1} s -> {}",
+                        "{stem} {class}: {} corners, lap {:.3} s, off line/centre rms {line_rms} m{} in {:.1} s -> {}",
                         built.guide.corners.len(),
                         built.guide.track.lap_time_s,
                         if off.is_empty() {

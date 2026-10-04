@@ -2269,6 +2269,10 @@ pub struct RaceSession {
     /// How much damage every car here takes; see `DamageLevel`.
     #[serde(default)]
     pub damage: DamageLevel,
+    /// The level the host picked for the AI field
+    /// (`crate::ai_driver::field_skills`); `None` is the mixed field.
+    #[serde(default)]
+    pub ai_skill: Option<u8>,
     pub state: SessionState,
     #[serde(default)]
     pub game_mode: GameMode,
@@ -2307,6 +2311,7 @@ impl RaceSession {
             allowed_assists: AllowedAssists::ALL,
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Full,
+            ai_skill: None,
             state: SessionState::Lobby,
             game_mode: GameMode::Lobby,
             participants: std::collections::BTreeMap::new(),
