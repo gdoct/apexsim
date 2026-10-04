@@ -265,3 +265,6 @@ out/promo/
 # masters are checked in under site/shots/)
 out/site/
 .scratch-target/*
+# Blender auto-backups / temp saves
+*.blend1
+*.blend@
