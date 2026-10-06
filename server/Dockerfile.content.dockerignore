@@ -1,0 +1,11 @@
+# Only what the server loads: car.toml, track YAML and the five sidecars,
+# showcase streams.
+*
+!content/cars/**/car.toml
+!content/tracks/**/*.yaml
+!content/tracks/**/*.curbs.msgpack
+!content/tracks/**/*.ground.msgpack
+!content/tracks/**/*.walls.msgpack
+!content/tracks/**/*.pit.msgpack
+!content/tracks/**/*.road.msgpack
+!build/showcase/*.apxs

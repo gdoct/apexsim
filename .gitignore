@@ -268,3 +268,7 @@ out/site/
 # Blender auto-backups / temp saves
 *.blend1
 *.blend@
+
+# Deployment settings (scripts/deploy_server.ps1)
+deploy/deploy.user.psd1
+build/deploy/

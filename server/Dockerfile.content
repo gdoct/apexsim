@@ -1,0 +1,11 @@
+# Content image: the cars, tracks (with sidecars) and showcase streams the
+# server reads, built and published separately from the server image.
+# Context is the REPO ROOT (needs content/ with the generated sidecars and
+# build/showcase), filtered by Dockerfile.content.dockerignore:
+#   docker build -f server/Dockerfile.content -t apexsim-content .
+# On start it replaces the contents of the /content volume with its own.
+FROM alpine:3
+COPY content/cars /payload/cars
+COPY content/tracks /payload/tracks
+COPY build/showcase /payload/showcase
+CMD ["sh", "-c", "rm -rf /content/* /content/.[!.]* 2>/dev/null; cp -a /payload/. /content/ && echo 'content synced' && du -sh /content"]

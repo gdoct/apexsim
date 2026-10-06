@@ -1,8 +1,22 @@
 services:
+  # One-shot: fills the content volume from the content image, then exits.
+  # Publish/update content separately:  docker build -f server/Dockerfile.content -t apexsim-content .
+  content:
+    image: apexsim-content            # or registry/apexsim-content:tag
+    build:
+      context: ..
+      dockerfile: server/Dockerfile.content
+    restart: "no"
+    volumes:
+      - apexsim-content:/content
+
   apexsim:
+    image: apexsim-server             # or registry/apexsim-server:tag
     build: .
-    image: apexsim-server
     restart: unless-stopped
+    depends_on:
+      content:
+        condition: service_completed_successfully
     ports:
       - "9000:9000/tcp"
       - "9001:9001/udp"
@@ -15,7 +29,9 @@ services:
       #   APEXSIM_NETWORK_REQUIRE_TLS=true
       APEXSIM_LOGGING_LEVEL: info
     volumes:
-      - ../content:/content:ro        # cars/, tracks/ (with sidecars), showcase/
+      - apexsim-content:/content:ro
       - apexsim-data:/data            # lap records, ghosts, replays
+
 volumes:
+  apexsim-content:
   apexsim-data:
